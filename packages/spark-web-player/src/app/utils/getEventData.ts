@@ -212,7 +212,17 @@ export const getEventData = <T extends keyof EventMap>(event: Event) => {
       currentTargetId: (event.currentTarget as HTMLElement)?.id,
     } as EventMap[T];
   }
+  // The terminal fallback still carries `type` and `timeStamp`, like every
+  // branch above. `UIModule` dispatches on `this._events[params.type]`, so a
+  // payload without one attaches a real listener and then silently drops the
+  // event — which is what `@scroll` and `@scrollend` did: the only names in
+  // `VALID_SPARKLE_EVENTS` with no dedicated branch, so they compiled clean,
+  // warned nothing, and never fired. `IEvent<T>` declares `readonly type: T`,
+  // so the `as EventMap[T]` cast had been hiding the omission from tsc.
+  // Keeping it here also covers any EventMap name added later without a branch.
   return {
+    type: event.type,
+    timeStamp: event.timeStamp,
     targetId: (event.target as HTMLElement)?.id,
     currentTargetId: (event.currentTarget as HTMLElement)?.id,
   } as EventMap[T];

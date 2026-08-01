@@ -2556,7 +2556,37 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     // Nothing live follows us locally, so our slot IS the enclosing region's
     // slot (we share its real parent — wrapperless) — escalate to the owner's
     // anchor. At a real-element parent (no owner) null means append-to-parent.
-    return region.owner ? this.anchorFor(region.owner) : null;
+    const owner = region.owner;
+    if (!owner) {
+      return null;
+    }
+    if (owner.kind === "for") {
+      // A `for`'s `siblings` is the group the LOOP lives in, so escalating
+      // straight to it jumps over every remaining iteration. Walk the rest of
+      // the loop first: `for x in list: text A; if x.visible: text B` toggled
+      // on the first row landed `text B` after the whole `for` instead of in
+      // its own row. (`firstLiveElement` already walks a for's iterations, but
+      // only when probing the loop from OUTSIDE as a sibling — nothing walked
+      // the later iterations when escalating from INSIDE one.)
+      const idx = owner.iterations.findIndex(
+        (it) => it.content === region.siblings,
+      );
+      if (idx >= 0) {
+        for (let i = idx + 1; i < owner.iterations.length; i += 1) {
+          const live = this.firstLiveOfGroup(owner.iterations[i]!.content);
+          if (live) {
+            return live;
+          }
+        }
+        if (owner.elseContent) {
+          const live = this.firstLiveOfGroup(owner.elseContent);
+          if (live) {
+            return live;
+          }
+        }
+      }
+    }
+    return this.anchorFor(owner);
   }
 
   /** The leading live DOM element of a group item: a concrete element, or the
@@ -3170,9 +3200,16 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     // Close the open layouts this navigate replaces: scoped to `screen` when
     // given (leave other screens/uncategorized layouts alone), else the whole
     // stack. The target is always spared (it gets opened, not torn down).
+    // `main` is never navigated away from: it auto-mounts at connect and holds
+    // the primary subtree (textbox, stage, portrait, choices). Without this,
+    // an unscoped navigate — which is what `[[navigate to menu]]` produces,
+    // since `to` is consumed as the keyword and leaves `screen` empty — tore
+    // the whole session's UI down mid-beat. `saveLayoutState.recordOpen`
+    // already treats `main` as special; the asymmetry between the two was the
+    // tell that one of them had forgotten the invariant.
     const toClose = [...this._mountedLayouts.entries()]
       .filter(([n, entry]) =>
-        n !== name && (screen ? entry.screen === screen : true),
+        n !== name && n !== "main" && (screen ? entry.screen === screen : true),
       )
       .map(([n]) => n);
     await Promise.all([
@@ -3242,21 +3279,43 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     for (const e of instructions) {
       this.saveLayoutState(e);
     }
+    const run = (e: LayoutInstruction): Promise<void> => {
+      const clauses = {
+        with: e.with,
+        after: e.after,
+        over: e.over,
+        ease: e.ease,
+      };
+      if (e.control === "close") {
+        return this.closeLayout(e.name, clauses, instant);
+      }
+      if (e.control === "navigate") {
+        return this.navigateScreen(e.name, e.screen, clauses, instant);
+      }
+      return this.openLayout(e.name, clauses, instant);
+    };
+    // Directives for the SAME layout run in authored order; different layouts
+    // still run concurrently. `[[close X]] [[open X]]` in one beat used to
+    // race: `openLayout` tests `_mountedLayouts.has(name)` synchronously, so it
+    // no-opped while the close's exit animation was still awaiting, and the
+    // close then removed X. The DOM ended without X while the serialized state
+    // — folded sequentially above — recorded it open. It self-healed on
+    // restore, which is exactly what made the live beat's miss easy to miss.
+    const byLayout = new Map<string, LayoutInstruction[]>();
+    for (const e of instructions) {
+      const key = e.name ?? "";
+      const group = byLayout.get(key);
+      if (group) {
+        group.push(e);
+      } else {
+        byLayout.set(key, [e]);
+      }
+    }
     await Promise.all(
-      instructions.map((e) => {
-        const clauses = {
-          with: e.with,
-          after: e.after,
-          over: e.over,
-          ease: e.ease,
-        };
-        if (e.control === "close") {
-          return this.closeLayout(e.name, clauses, instant);
+      [...byLayout.values()].map(async (group) => {
+        for (const e of group) {
+          await run(e);
         }
-        if (e.control === "navigate") {
-          return this.navigateScreen(e.name, e.screen, clauses, instant);
-        }
-        return this.openLayout(e.name, clauses, instant);
       }),
     );
   }

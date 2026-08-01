@@ -73,6 +73,23 @@ describe("Sparkle @event name validation", () => {
     );
     expect(has(ds, "Unrecognized event")).toBe(false);
   });
+
+  // A style SELECTOR is a different vocabulary that happens to share the
+  // grammar's `EventAttributeName` leaf. Warning here told the author that
+  // syntax the docs recommend — and `builtins.sd` uses 90 times — "never
+  // fires", and suggested `@click` in place of `@hovered`.
+  const selectors = [
+    "@hovered", "@focused", "@pressed", "@first", "@disabled",
+    "@theme(dark)", "@has(button)",
+  ];
+  for (const sel of selectors) {
+    test(`the style selector \`${sel}:\` does not warn`, () => {
+      const ds = diagnose(
+        `style card with\n  ${sel}:\n    color = blue\nend\n`,
+      );
+      expect(has(ds, "Unrecognized event")).toBe(false);
+    });
+  }
 });
 
 describe("Sparkle #prop name validation", () => {

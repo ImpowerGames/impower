@@ -336,6 +336,29 @@ repository:
       3:
         name: comment.line.double-slash.content.sd
 
+  # A trailing `//` comment in SPARKLE UI markup — on a control-block opener
+  # (`if ok then // note`, `for r in rows do // note`). A third context, so a
+  # third rule: `SparkdownLineComment` is `^`-anchored (whole-line only) and
+  # `SparkdownInlineComment` belongs to display text. Without one, the comment
+  # matched nothing, the opener's scope never closed on it, and the block's
+  # body plus every following line fell out of the layout — into the compiled
+  # ink, emitted as spoken action text, with no diagnostic.
+  #
+  # `//` must be followed by whitespace or end-of-line (the marker convention),
+  # so a `://` URL is never mistaken for a comment.
+  SparkleTrailingLineComment:
+    tag: lineComment
+    name: comment.line.double-slash.sd
+    match: ({{WS}}*)([/]{2})(?=$|{{WS}})([^\r\n]*)
+    captures:
+      1:
+        patterns:
+          - { include: "#OptionalWhitespace" }
+      2:
+        name: punctuation.definition.comment.sd
+      3:
+        name: comment.line.double-slash.content.sd
+
   ########## Annotation ##########
 
   # `Annotation` is the DISPLAY-context line decoration: screenplay
@@ -4676,10 +4699,18 @@ repository:
       - { include: "#LuauEventAttribute" }
       - { include: "#LuauPropAttribute" }
 
+  # A BARE `@e=name` handler. The lookahead lists everything that can legally
+  # follow the name: another attribute, a trailing comment, end-of-line — and a
+  # QUOTE, because `button @click=on_click "Press"` is the element's content
+  # string. Without the quote, this rule declined, `#LuauExpression` took over,
+  # and Luau's adjacency-call syntax (`f "str"`) read the label as the handler's
+  # ARGUMENT: a blank button whose handler received the string instead of the
+  # event, with no diagnostic — the corruption was purely positional, since
+  # `button "Press" @click=on_click` was always correct.
   LuauSparkleEventHandlerName:
     tag: heading
     name: keyword.control.divert.path.sd
-    match: ((?:[_\p{L}][0-9_\p{L}]*\b))(?=(?:[^\S\n\r])*(?:[@#]|--|//(?=$|[^\S\n\r])|$))
+    match: ((?:[_\p{L}][0-9_\p{L}]*\b))(?=(?:[^\S\n\r])*(?:[@#"']|--|//(?=$|[^\S\n\r])|$))
 
   LuauEventAttribute:
     begin: ([@])({{LUAU_IDENTIFIER}})({{WS}}*)([=])({{WS}}*)
@@ -4697,7 +4728,11 @@ repository:
       - { include: "#LuauSparkleHandlerClosure" }
       - { include: "#LuauSparkleEventHandlerName" }
       - { include: "#LuauExpression" }
-    end: (?=$|{{WS}}+[@#])
+    # A whitespace-preceded quote closes the attribute: it starts the element's
+    # CONTENT, not more handler. Safe for `@click=f(1, "x")` — the argument list
+    # is its own begin/end scope (`LuauFunctionCallParameters`), and this end is
+    # never tested while a child scope is open.
+    end: (?=$|{{WS}}+["'@#])
 
   # Inline event-handler closure (spec §4.5, L7): `@click={ score = 0; combo = 0 }`,
   # `@input={ name = event.value }`. In event-handler value position the braces
@@ -4900,6 +4935,8 @@ repository:
           - { include: "#OptionalWhitespace" }
     patterns:
       - { include: "#LuauIfBlockCondition" }
+      - { include: "#LuauComment" }
+      - { include: "#SparkleTrailingLineComment" }
       - { include: "#LuauSparkleElseifBlock" }
       - { include: "#LuauSparkleElseBlock" }
       - { include: "#LuauSparkleControlBlock" }
@@ -4931,6 +4968,8 @@ repository:
           - { include: "#OptionalWhitespace" }
     patterns:
       - { include: "#LuauElseifBlockCondition" }
+      - { include: "#LuauComment" }
+      - { include: "#SparkleTrailingLineComment" }
       - { include: "#LuauSparkleControlBlock" }
       - { include: "#LuauStructBodyLine" }
       - { include: "#ExtraWhitespace" }
@@ -4951,6 +4990,8 @@ repository:
         patterns:
           - { include: "#OptionalWhitespace" }
     patterns:
+      - { include: "#LuauComment" }
+      - { include: "#SparkleTrailingLineComment" }
       - { include: "#LuauSparkleControlBlock" }
       - { include: "#LuauStructBodyLine" }
       - { include: "#ExtraWhitespace" }
@@ -4977,6 +5018,8 @@ repository:
           - { include: "#OptionalWhitespace" }
     patterns:
       - { include: "#LuauForCondition" }
+      - { include: "#LuauComment" }
+      - { include: "#SparkleTrailingLineComment" }
       - { include: "#LuauSparkleDoMark" }
       - { include: "#LuauSparkleElseBlock" }
       - { include: "#LuauSparkleControlBlock" }
@@ -5027,6 +5070,8 @@ repository:
           - { include: "#OptionalWhitespace" }
     patterns:
       - { include: "#LuauSparkleMatchCondition" }
+      - { include: "#LuauComment" }
+      - { include: "#SparkleTrailingLineComment" }
       - { include: "#LuauSparkleDoMark" }
       - { include: "#LuauSparkleCaseClause" }
       - { include: "#LuauSparkleElseBlock" }

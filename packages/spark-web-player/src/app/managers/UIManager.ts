@@ -24,6 +24,7 @@ import {
 } from "../../../../spark-engine/src/game/modules/ui/classes/messages/WriteImageMessage";
 import { WriteTextMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/WriteTextMessage";
 import { getCssEquivalent } from "../../../../sparkle-style-transformer/src/utils/getCssEquivalent";
+import { getCssPropertyNames } from "../../../../sparkle-style-transformer/src/utils/getCssPropertyNames";
 import { Manager } from "../Manager";
 import { getEventData } from "../utils/getEventData";
 
@@ -504,14 +505,21 @@ export default class UIManager extends Manager {
           if (params.style) {
             Object.entries(params.style).forEach(([k, v]) => {
               const [prop, value] = getCSSPropertyKeyValue(k, v);
-              const cssEntries = getCssEquivalent(prop, value);
               if (v == null) {
-                for (const [cssProp] of cssEntries) {
+                // Removal asks which declaration NAMES the prop expands to,
+                // never `getCssEquivalent` — that answers "what does this prop
+                // SET", needs a value, and runs it through a transformer. A
+                // cleared prop's value is `""`, which transforms to nothing, so
+                // the expansion came back empty, there was no name to remove,
+                // and the old declaration stayed painted on the element while
+                // the runtime believed it had cleared it.
+                for (const cssProp of getCssPropertyNames(prop)) {
                   if (element) {
                     element.style.removeProperty(cssProp);
                   }
                 }
               } else {
+                const cssEntries = getCssEquivalent(prop, value);
                 for (const [cssProp, cssValue] of cssEntries) {
                   if (element) {
                     element.style.setProperty(cssProp, cssValue);

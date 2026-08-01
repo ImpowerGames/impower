@@ -192,6 +192,30 @@ function firstDescendant(
  *  class and a handler's tokens don't leak in. */
 const ATTRIBUTE_NODES = new Set(["LuauEventAttribute", "LuauPropAttribute"]);
 
+/** {@link firstDescendant}, but opaque to inline-attribute subtrees.
+ *
+ *  Use this for anything that asks "what did the author write on the LINE",
+ *  because a prop value is a field value of exactly the kind those lookups
+ *  match. Without the guard, `text #label="HP: {c}"` found the PROP's
+ *  interpolated string as the element's own content — and, being first in
+ *  document order, it beat the content the author actually wrote, which then
+ *  appeared in neither the AST nor the DOM. */
+function firstContentDescendant(
+  node: SyntaxNode,
+  names: Set<string>,
+): SyntaxNode | null {
+  if (names.has(node.name)) return node;
+  let c = node.firstChild;
+  while (c) {
+    if (!ATTRIBUTE_NODES.has(c.name)) {
+      const found = firstContentDescendant(c, names);
+      if (found) return found;
+    }
+    c = c.nextSibling;
+  }
+  return null;
+}
+
 /** DFS in-order: every descendant whose name is in `names`, source order, but
  *  WITHOUT descending into a matched node (so a value subtree's inner tokens
  *  don't leak when collecting top-level name tokens) and WITHOUT descending
@@ -429,6 +453,10 @@ function lowerComponentArg(
 const EVENT_ATTR = new Set(["LuauEventAttribute"]);
 const EVENT_NAME = new Set(["EventAttributeName"]);
 const EVENT_CONTENT = new Set(["LuauEventAttribute_content"]);
+/** A bare `@e=name` handler, emitted by the grammar as its own node — which is
+ *  the only reliable way to tell one from a call once a trailing comment is in
+ *  the raw text. */
+const EVENT_HANDLER_NAME = new Set(["LuauSparkleEventHandlerName"]);
 const EVENT_CLOSURE = new Set(["LuauSparkleHandlerClosure"]);
 const EVENT_CLOSURE_BODY = new Set(["LuauSparkleHandlerClosure_content"]);
 const EVENT_CLOSURE_END = new Set(["LuauSparkleHandlerClosure_end"]);
@@ -472,6 +500,20 @@ function readEvents(lineNode: SyntaxNode, ctx: LowerContext): EventBinding[] {
           kind: "closure",
           binding: lowerHandlerClosure(closureNode, ctx, ["event"]),
         },
+      });
+      continue;
+    }
+    // Prefer the node the grammar already produced for a bare handler name.
+    // Re-reading the attribute's RAW TEXT instead meant a trailing comment
+    // (`@click=use -- note`) failed the bare-name test and fell through to the
+    // call branch, compiling to an empty evaluator: a button that runs nothing,
+    // with no diagnostic. `LuauSparkleEventHandlerName` anticipates exactly
+    // that comment, so read it rather than re-tokenizing.
+    const refNode = firstDescendant(attr, EVENT_HANDLER_NAME);
+    if (refNode) {
+      events.push({
+        event,
+        handler: { kind: "ref", name: ctx.read(refNode.from, refNode.to).trim() },
       });
       continue;
     }
@@ -782,7 +824,7 @@ function buildBlock(
       const tagNode = firstDescendant(kind, NAME_TOKEN_NAMES);
       const tag = tagNode ? ctx.read(tagNode.from, tagNode.to).trim() : "";
       const content = readContentParts(
-        firstDescendant(kind, FIELD_VALUE_NAMES),
+        firstContentDescendant(kind, FIELD_VALUE_NAMES),
         ctx,
       );
       const element: ElementNode = {
@@ -801,7 +843,7 @@ function buildBlock(
 
     if (kind.name === "LuauStructScalarProperty") {
       const keyNode = firstDescendant(kind, KEY_TOKEN_NAMES);
-      const valueNode = firstDescendant(kind, FIELD_VALUE_NAMES);
+      const valueNode = firstContentDescendant(kind, FIELD_VALUE_NAMES);
       if (keyNode?.name === "BuiltinComponentName") {
         // `image = "black"` / `text = "HP: {hp}"` → an element whose display
         // content is the value (literal + `{expr}` reactive bindings).
@@ -898,8 +940,8 @@ function buildBlock(
     // Both mean "this element's content", so accept either — otherwise a label
     // on a block-opening line is silently dropped.
     const contentNode =
-      firstDescendant(kind, FIELD_VALUE_NAMES) ??
-      firstDescendant(kind, ELEMENT_HEADER_CONTENT_NAMES);
+      firstContentDescendant(kind, FIELD_VALUE_NAMES) ??
+      firstContentDescendant(kind, ELEMENT_HEADER_CONTENT_NAMES);
     const element: ElementNode = {
       kind: "element",
       tag,

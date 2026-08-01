@@ -58,6 +58,12 @@ const VALID_SPARKLE_EVENTS = new Set([
 // (`#colr`) without flagging valid raw CSS or `--custom` props.
 const VALID_STYLE_PROPS = new Set<string>(VALID_STYLE_PROPS_DATA.props);
 
+// The element-line handler attribute (`@click=save`). `EventAttributeName` is
+// also emitted for STYLE SELECTORS (`@hovered:`, `@theme(dark)`), whose
+// vocabulary is unrelated — so the EventMap check must find this wrapper above
+// it before it says anything.
+const SPARKLE_EVENT_HANDLER = new Set(["LuauEventAttribute"]);
+
 // Normalize a prop name to the vocabulary's kebab-case form the way the renderer
 // does (`getCSSPropertyName`): camelCase → kebab, `_` → `-`, lowercased. So
 // `#maxWidth` / `#max_width` both match `max-width`.
@@ -240,7 +246,17 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     // event set is closed (EventMap) and an unknown name silently never fires,
     // so surface a typo instead of leaving a dead handler. `EventAttributeName`
     // captures exactly the identifier after `@` (no `@`, no whitespace).
-    if (nodeRef.name === "EventAttributeName") {
+    //
+    // Gated on the enclosing HANDLER attribute, because the grammar emits this
+    // same leaf for a style SELECTOR (`@hovered:`, `@focused`, `@theme(dark)`,
+    // `@has(button)`) — a closed vocabulary of its own that has nothing to do
+    // with EventMap. Ungated, every one of those warned that a selector the
+    // docs recommend and `builtins.sd` uses 90 times "never fires", and
+    // suggested `@click`/`@input` in its place.
+    if (
+      nodeRef.name === "EventAttributeName" &&
+      ancestorMatching(nodeRef.node, SPARKLE_EVENT_HANDLER)
+    ) {
       const name = this.read(nodeRef.from, nodeRef.to).trim();
       if (name && !VALID_SPARKLE_EVENTS.has(name)) {
         const message = `Unrecognized event \`@${name}\` — Sparkle dispatches a fixed set of events, so this handler never fires\n> e.g. \`@click\`, \`@input\`, \`@change\`, \`@keydown\``;

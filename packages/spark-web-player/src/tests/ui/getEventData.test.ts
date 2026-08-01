@@ -60,3 +60,30 @@ describe("getEventData (two-way input payload)", () => {
     expect(data.value).toBe("");
   });
 });
+
+describe("every payload carries `type`", () => {
+  // `UIModule` dispatches on `params.type`. An event with no dedicated branch
+  // fell through to a fallback that omitted it: the listener attached, the
+  // handler never ran, and nothing warned. `scroll`/`scrollend` are the only
+  // names in the valid event set that take that path.
+  const fire = (type: string) => {
+    const el = document.createElement("div");
+    const event = new Event(type);
+    Object.defineProperty(event, "target", { value: el });
+    Object.defineProperty(event, "currentTarget", { value: el });
+    return getEventData(event as any) as { type?: unknown };
+  };
+
+  for (const type of ["scroll", "scrollend"]) {
+    test(`\`${type}\` is dispatchable`, () => {
+      expect(fire(type).type).toBe(type);
+    });
+  }
+
+  // Controls: the branch-covered events already carried it and must keep it.
+  for (const type of ["click", "keydown", "focus"]) {
+    test(`\`${type}\` still carries its type`, () => {
+      expect(fire(type).type).toBe(type);
+    });
+  }
+});
