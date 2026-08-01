@@ -3507,6 +3507,73 @@ export class SparkdownCompiler {
   validateReferences(state: SparkdownCompilerState, program: SparkProgram) {
     const uri = program.uri;
     profile("start", this._profilerId, "validateReferences", uri);
+    // Per-COMPILE memos. Both of these are pure functions of the reference's
+    // `declaration` plus `program`/`config`/`state`, all of which are fixed
+    // for the duration of this call — but they were being recomputed once per
+    // reference, and a screenplay repeats the same declaration across
+    // hundreds of references (every `[[show backdrop X]]` shares one). Scoped
+    // to this call deliberately: nothing here survives to the next compile,
+    // so there is no staleness surface.
+    const stringIdentifiersByDeclaration = new Map<string, string[]>();
+    const selectorTypesByDeclaration = new Map<string, string[]>();
+    const possibleStringIdentifiersFor = (declaration: string | undefined) => {
+      const key = declaration ?? "";
+      let cached = stringIdentifiersByDeclaration.get(key);
+      if (!cached) {
+        cached = getPossibleStringIdentifiers(
+          program,
+          declaration,
+          this._config,
+          state,
+        );
+        stringIdentifiersByDeclaration.set(key, cached);
+      }
+      return cached;
+    };
+    // Same per-compile scope, for the selector resolution itself. The key
+    // covers every field of `SparkSelector` — an incomplete key would resolve
+    // one selector to another's struct.
+    const resolvedSelectors = new Map<string, any>();
+    const resolveSelectorMemo = (
+      selector: SparkSelector,
+      expectedSelectorTypes: string[],
+    ) => {
+      const key = [
+        selector.displayType ?? "",
+        selector.displayName ?? "",
+        (selector.types ?? []).join(","),
+        selector.name ?? "",
+        selector.property ?? "",
+        selector.value ?? "",
+        String(selector.fuzzy ?? false),
+        expectedSelectorTypes.join(","),
+      ].join("|");
+      if (resolvedSelectors.has(key)) {
+        return resolvedSelectors.get(key);
+      }
+      const [resolved] = resolveSelector<any>(
+        program,
+        selector,
+        expectedSelectorTypes,
+        state,
+      );
+      resolvedSelectors.set(key, resolved);
+      return resolved;
+    };
+    const expectedSelectorTypesFor = (declaration: string | undefined) => {
+      const key = declaration ?? "";
+      let cached = selectorTypesByDeclaration.get(key);
+      if (!cached) {
+        cached = getExpectedSelectorTypes(
+          program,
+          declaration,
+          this._config,
+          state,
+        );
+        selectorTypesByDeclaration.set(key, cached);
+      }
+      return cached;
+    };
     for (const uri of Object.keys(program.scripts)) {
       const doc = this.documents.get(uri);
       if (doc) {
@@ -3551,18 +3618,9 @@ export class SparkdownCompiler {
           }
           if (reference.selectors) {
             const declaration = reference.assigned;
-            const possibleStringIdentifiers = getPossibleStringIdentifiers(
-              program,
-              declaration,
-              this._config,
-              state,
-            );
-            const expectedSelectorTypes = getExpectedSelectorTypes(
-              program,
-              declaration,
-              this._config,
-              state,
-            );
+            const possibleStringIdentifiers =
+              possibleStringIdentifiersFor(declaration);
+            const expectedSelectorTypes = expectedSelectorTypesFor(declaration);
             if (expectedSelectorTypes.includes("color")) {
               const range = doc.range(cur.from, cur.to);
               program.colorAnnotations ??= {};
@@ -3573,12 +3631,7 @@ export class SparkdownCompiler {
             // Validate that reference resolves to existing an struct
             let found: any = undefined;
             for (const s of reference.selectors) {
-              const [resolved] = resolveSelector<any>(
-                program,
-                s,
-                expectedSelectorTypes,
-                state,
-              );
+              const resolved = resolveSelectorMemo(s, expectedSelectorTypes);
               if (resolved) {
                 found = resolved;
               }
