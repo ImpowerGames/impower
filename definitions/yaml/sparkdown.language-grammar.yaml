@@ -4770,8 +4770,15 @@ repository:
   # `{…}` is interpolation, NOT a Luau table), a quoted string, or an unquoted
   # literal (number / keyword / `#hex`). Prop names allow hyphens. Value rules
   # carry no `{{EOPL}}` (the value is mid-line; more attrs may follow).
+  # The name capture admits a leading `--` so an inline CUSTOM PROPERTY
+  # (`#--my-var=4`) parses. No pattern used to, so `#--…` matched nothing here,
+  # `LuauComment` claimed the rest of the line, and the prop AND every attribute
+  # after it vanished with zero diagnostics — while the unrecognized-prop
+  # warning was actively recommending that spelling. The existing "a `--custom`
+  # property does not warn" test passed vacuously: a swallowed line produces no
+  # warning either.
   LuauPropAttribute:
-    begin: ([#])({{LUAU_IDENTIFIER}}(?:[-]{{LUAU_IDENTIFIER}})*)({{WS}}*)([=])({{WS}}*)
+    begin: ([#])((?:[-]{2})?{{LUAU_IDENTIFIER}}(?:[-]{{LUAU_IDENTIFIER}})*)({{WS}}*)([=])({{WS}}*)
     beginCaptures:
       1:
         patterns:

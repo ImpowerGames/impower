@@ -110,11 +110,18 @@ describe("Sparkle #prop name validation", () => {
     ).toBe(false);
   });
 
+  // This assertion is not enough on its own: a line the grammar SWALLOWS also
+  // produces no warning, which is exactly what `#--…` used to do — it matched
+  // no prop-name pattern, `LuauComment` took the rest of the line, and the prop
+  // plus every attribute after it disappeared. The absence of a warning was
+  // reported as success. `domAttributeProps.test.ts` asserts the property
+  // actually reaches the element; keep both.
   test("a --custom property does not warn", () => {
     expect(
       propWarns(`layout main with\n  row #--my-var=4:\n    text "x"\nend\n`),
     ).toBe(false);
   });
+
 
   test("a camelCase prop that normalizes to a CSS property does not warn", () => {
     expect(

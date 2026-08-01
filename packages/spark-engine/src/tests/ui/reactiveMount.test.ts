@@ -34,8 +34,14 @@ end
 
 describe("reactive mount (Phase 3 I1)", () => {
   test("AST-driven static mount matches the static constructLayout stream", async () => {
-    const staticH = createHarness(SCREEN);
-    const reactiveH = createHarness(SCREEN, 0, { reactive: true });
+    // `staticFallback` is load-bearing. Without it this compared a config to
+    // ITSELF: `opts.reactive` selects nothing (it has been accepted-and-ignored
+    // since bf05eb5a6 deleted its read site), `_reactive` is set
+    // unconditionally, and the path is chosen by whether the program carries a
+    // Sparkle AST — which it always does. Both arms ran the AST path, so the
+    // parity this file is named for was not being checked at all.
+    const staticH = createHarness(SCREEN, 0, { staticFallback: true });
+    const reactiveH = createHarness(SCREEN);
     await Promise.all([staticH.ready, reactiveH.ready]);
     // Whole connect-time stream (styles + screen tree + theme + transient
     // clears) must be byte-identical between the two render paths.

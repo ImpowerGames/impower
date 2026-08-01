@@ -141,3 +141,20 @@ end
     expect(box.getAttribute("translate")).toBe("false");
   });
 });
+
+describe("an inline custom property reaches the element", () => {
+  // The compiler-side test proves the line parses; this proves the declaration
+  // is actually written, which is what the warning promised the author.
+  test("`#--my-var` becomes a real custom property", async () => {
+    const h = await render(`layout main with
+  box #--my-var=4 #gap=12 #background-color=red:
+    text "x"
+end
+`);
+    const box = h.overlay.querySelector(".box") as HTMLElement;
+    expect(box.style.getPropertyValue("--my-var")).toBe("4");
+    // And the attributes after it survived.
+    expect(box.style.getPropertyValue("gap")).toBe("12px");
+    expect(box.style.getPropertyValue("background-color")).toContain("red");
+  });
+});

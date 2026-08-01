@@ -143,6 +143,13 @@ export function createHarness(
   opts?: {
     reactive?: boolean;
     autoOpenAll?: boolean;
+    /** Strip `program.sparkle` before constructing the Game, so `onConnected`
+     *  takes the STATIC `constructLayouts` fallback instead of
+     *  `constructLayoutsFromAst`. That fallback is still reachable in
+     *  production (any program shipping no Sparkle AST), and this is the only
+     *  way to reach it from a test — `_reactive` is set unconditionally, so
+     *  the render path is chosen by the program's shape, not by a flag. */
+    staticFallback?: boolean;
     experimentalDisplayCalls?: boolean;
     /** Load a saved checkpoint BEFORE connecting — reproduces the editor's
      *  scrub/restore flow (`game.load(checkpoint)` then `connectGame()` →
@@ -165,6 +172,9 @@ export function createHarness(
     // `compileUI` seeds the builtins prelude by default (the engine sources
     // defines from the live runtime __def tables).
   });
+  if (opts?.staticFallback) {
+    delete (program as any).sparkle;
+  }
   const messages: any[] = [];
 
   const game = new Game({
@@ -179,8 +189,11 @@ export function createHarness(
     }) as any,
   } as any);
 
-  // Reactive screens are the only render path now (set in onConnected), so the
-  // `reactive` opt is accepted for back-compat but no longer needed. Test
+  // Reactive screens are the render path whenever the program carries a Sparkle
+  // AST, which it always does here (the builtins prelude contributes one). The
+  // `reactive` opt is therefore ACCEPTED AND IGNORED — it selects nothing, and
+  // a test passing `{reactive: true}` gets exactly what it would get without.
+  // To reach the static fallback, pass `staticFallback: true`. Test
   // convenience: auto-mount EVERY screen at connect (instant) so tests keep their
   // "screen is mounted at connect" assumption — production only auto-opens
   // `main`; a test exercising the real [[open/close]] lifecycle passes

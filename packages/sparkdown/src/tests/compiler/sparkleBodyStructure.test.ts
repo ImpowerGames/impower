@@ -147,3 +147,19 @@ describe("the first name on a line is the tag", () => {
     expect(slot?.name).toBe("footer");
   });
 });
+
+describe("an inline custom property", () => {
+  // No prop-name pattern admitted a leading `-`, so `#--my-var=4` matched
+  // nothing, `LuauComment` claimed the rest of the line, and the prop plus
+  // every attribute after it vanished with zero diagnostics — while the
+  // unrecognized-prop warning was actively recommending that spelling.
+  test("parses, and does not swallow the props after it", () => {
+    const props =
+      layouts(`layout main with
+  row #--my-var=4 #gap=12:
+    text "x"
+end
+`)?.main?.children?.[0]?.props ?? {};
+    expect(Object.keys(props).sort()).toEqual(["--my-var", "gap"]);
+  });
+});
