@@ -46,6 +46,7 @@ import { JsonSerialisation } from "../../inkjs/engine/JsonSerialisation";
 import {
   ProgramBinaryWriter,
   createProgramTable,
+  reseedProgramTable,
   type CachedFlowChunk,
   type ProgramTable,
 } from "../../binary/ProgramBinaryWriter";
@@ -96,6 +97,13 @@ import { SparkdownFileRegistry } from "./SparkdownFileRegistry";
 // name can refer to a different flow after an edit — name-keyed caches must
 // never reuse entries for flows matching this.
 const CANONICAL_SYNTH_NAME = /^__synth_\d+$/;
+
+// Reseed the binary string table once it is half again its live size, provided
+// the absolute slack is worth a full re-serialization. A ratio rather than a
+// fixed cap, because a large project legitimately holds more live strings than
+// a small one. See `maybeReseedBinaryTable`.
+const BINARY_TABLE_RESEED_RATIO = 1.5;
+const BINARY_TABLE_RESEED_MIN_SLACK = 512;
 
 const LANGUAGE_NAME = GRAMMAR_DEFINITION.name.toLowerCase();
 const FILE_TYPES = GRAMMAR_DEFINITION.fileTypes;
@@ -217,6 +225,11 @@ export class SparkdownCompiler {
   // grammar-fixed NodeSet, and it is what lets a cached chunk be copied in
   // verbatim instead of remapped record by record.
   protected _binaryTable: ProgramTable = createProgramTable();
+
+  // Table size once a freshly seeded table has settled, i.e. the LIVE string
+  // count for the current document. Zero means "recalibrate on the next
+  // compile"; see `maybeReseedBinaryTable`.
+  protected _binaryTableBaseline = 0;
 
   // ---- Incremental ExportRuntime: constructed-flow reuse ------------------
   // A top-level flow (knot/scene/function, plus its stitches) is assembled
@@ -975,7 +988,16 @@ export class SparkdownCompiler {
               const fp = JsonSerialisation.FingerprintCrossFlow(container);
               if (reusableFlows.has(name) && prevChunkCache) {
                 const cached = prevChunkCache.get(name);
-                if (cached && cached.fp === fp) {
+                // The generation check is what keeps a reseed sound. Returning
+                // a chunk here means NOT calling serialize(), so a chunk from
+                // an older numbering could not be recovered from downstream —
+                // the writer throws rather than guess, so the decision has to
+                // be made here.
+                if (
+                  cached &&
+                  cached.fp === fp &&
+                  cached.chunk.generation === binaryWriter.generation
+                ) {
                   nextChunkCache.set(name, cached);
                   // `WriteInjected` splices the records; the flow is never
                   // re-walked and its strings are never re-hashed.
@@ -1038,6 +1060,10 @@ export class SparkdownCompiler {
           // one self-describing byte blob costs ~10ms/compile (it re-encodes
           // the whole string table to UTF-8) for no benefit on that hop.
           program.compiledBuffer = (writer as ProgramBinaryWriter).toBuffer();
+          // Safe to run AFTER emitting: reseeding installs fresh arrays on the
+          // table rather than clearing them in place, so the buffer just
+          // emitted keeps its own (correct) string array alive.
+          this.maybeReseedBinaryTable();
         } else {
           const json = (writer as SimpleJson.Writer).toObject();
           if (json) {
@@ -2554,6 +2580,41 @@ export class SparkdownCompiler {
   // that sit before the first named flow. So if any changed chunk lies before the
   // first flow's span, a referenced const may have changed and every flow must be
   // re-serialized; otherwise per-flow content+fingerprint reuse is sound.
+  /**
+   * Bound the append-only binary string table.
+   *
+   * Every edited flow interns strings for its changed lines, and those are
+   * dead the moment the next keystroke lands — measured at ~1 per keystroke on
+   * raffles-and-bunny. The table is not merely a compiler-side cache: it ships
+   * inside `program.compiledBuffer`, so unchecked growth costs payload size and
+   * per-hop clone time as well as memory.
+   *
+   * Reseeding is cheap in the amortized sense but not free: every cached chunk
+   * was minted against the old numbering, so the next compile re-serializes
+   * every flow. With the thresholds below that happens once per few thousand
+   * edits, which is why it is a ratio and not a fixed cap — a large project
+   * legitimately holds more live strings than a small one.
+   */
+  protected maybeReseedBinaryTable(): void {
+    const size = this._binaryTable.strings.length;
+    if (this._binaryTableBaseline === 0) {
+      // First compile after a (re)seed: whatever is interned now is live.
+      this._binaryTableBaseline = size;
+      return;
+    }
+    const grown = size - this._binaryTableBaseline;
+    if (
+      size > this._binaryTableBaseline * BINARY_TABLE_RESEED_RATIO &&
+      grown > BINARY_TABLE_RESEED_MIN_SLACK
+    ) {
+      reseedProgramTable(this._binaryTable);
+      // Not strictly required — `generation` already makes stale chunks
+      // unusable — but holding them would pin memory for nothing.
+      this._flowChunkCache = undefined;
+      this._binaryTableBaseline = 0;
+    }
+  }
+
   protected computeFlowReuse(story: RuntimeStory): {
     reusable: Set<string>;
     ok: boolean;

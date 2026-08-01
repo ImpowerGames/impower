@@ -346,7 +346,18 @@ export class ProgramBinaryWriter {
   WriteInjected(value: unknown): void {
     const pending = this._pendingCapture;
     const start = pending ? this.mark() : 0;
-    if (this._isUsableChunk(value)) {
+    if (isProgramChunk(value)) {
+      if (value.generation !== this._table.generation) {
+        // There is no correct recovery here: the caller returned this chunk
+        // INSTEAD of calling serialize(), so the real content is no longer
+        // reachable. Encoding it as a plain value would silently write
+        // `{nodes, generation}` into the program as data — which is precisely
+        // the corruption `generation` exists to prevent. Callers must check
+        // the generation before handing a chunk over.
+        throw new Error(
+          `Stale program chunk: minted for table generation ${value.generation}, writer is on ${this._table.generation}.`,
+        );
+      }
       this._spliceChunk(value);
     } else {
       this._writeValue(value);
@@ -379,11 +390,9 @@ export class ProgramBinaryWriter {
     return captured;
   }
 
-  /** True if `value` is a chunk minted against THIS table's generation. */
-  private _isUsableChunk(value: unknown): value is ProgramChunk {
-    return (
-      isProgramChunk(value) && value.generation === this._table.generation
-    );
+  /** The table generation a chunk must carry to be splice-able here. */
+  get generation(): number {
+    return this._table.generation;
   }
 
   // ------------------------------------------------------- inline JS encoding
