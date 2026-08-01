@@ -3,7 +3,10 @@ import { NotificationMessage } from "@impower/jsonrpc/src/common/types/Notificat
 import { filterImage } from "@impower/sparkdown/src/compiler/utils/filterImage";
 import { sortFilteredName } from "@impower/sparkdown/src/compiler/utils/sortFilteredName";
 import {
+  ATTRIBUTE_PROPS,
+  BOOLEAN_ATTRIBUTES,
   isAliasedAttributeProp,
+  isAttributeProp,
   toDataAttributeName,
 } from "@impower/sparkdown/src/compiler/constants/dataAttributeProps";
 import type {
@@ -465,29 +468,6 @@ const IMPLICIT_LABEL_TAGS: Record<string, { type: string; name: string }> = {
   foldout: { type: "summary", name: "foldout_label" },
 };
 
-const ATTRIBUTE_PROPS: ReadonlySet<string> = new Set([
-  "href", "target", "rel", "download", "type", "name", "value", "for", "form",
-  "open", "disabled", "readonly", "required", "checked", "selected", "multiple",
-  "placeholder", "min", "max", "step", "rows", "cols", "maxlength", "pattern",
-  "colspan", "rowspan", "scope", "headers", "span",
-  "id", "role", "title", "alt", "src", "lang", "dir", "tabindex", "hidden",
-  "autofocus", "autocomplete", "accept", "datetime",
-]);
-
-/** Attributes whose presence (not value) is the signal. */
-const BOOLEAN_ATTRIBUTES: ReadonlySet<string> = new Set([
-  "open", "disabled", "readonly", "required", "checked", "selected",
-  "multiple", "hidden", "autofocus",
-]);
-
-function isAttributeProp(prop: string): boolean {
-  return (
-    ATTRIBUTE_PROPS.has(prop) ||
-    isAliasedAttributeProp(prop) ||
-    prop.startsWith("aria-") ||
-    prop.startsWith("data-")
-  );
-}
 
 export type UIMessageMap = AnimateElementsMessageMap &
   BatchElementsMessageMap &

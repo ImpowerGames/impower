@@ -93,6 +93,61 @@ export const CUSTOM_PROPERTY_ALIASES: ReadonlyMap<string, string> = new Map([
 export const isAliasedAttributeProp = (prop: string): boolean =>
   DATA_ATTRIBUTE_PROPS.has(prop) || ARIA_ATTRIBUTE_ALIASES.has(prop);
 
+/**
+ * Props the ui writes as real HTML attributes rather than CSS.
+ *
+ * Lives here, with the other three, because the same set has to be known in
+ * two places that used to keep their own copy: the ui runtime (which routes
+ * the prop) and the validator's generated vocabulary (which decides whether to
+ * warn). They drifted by 29 entries — `#minlength`, `#spellcheck`, `#size`,
+ * `#loading` and the rest validated clean, were routed to `style[prop]`
+ * instead, and were dropped by CSSOM. No attribute, no style, no warning: the
+ * exact silent no-op this file exists to prevent, produced by the file itself.
+ *
+ * `generateValidStyleProps.ts` now derives its list from this one, so the two
+ * cannot disagree again.
+ */
+export const ATTRIBUTE_PROPS: ReadonlySet<string> = new Set([
+  // links / embedded content
+  "href", "target", "rel", "download", "ping", "referrerpolicy",
+  "src", "srcset", "sizes", "alt", "poster", "preload", "crossorigin",
+  "loading", "decoding",
+  // form controls
+  "type", "name", "value", "for", "form", "placeholder", "min", "max", "step",
+  "rows", "cols", "wrap", "maxlength", "minlength", "size", "pattern", "list",
+  "accept", "capture", "multiple", "autocomplete", "inputmode", "enterkeyhint",
+  "autocapitalize", "spellcheck",
+  // presence-semantics (see BOOLEAN_ATTRIBUTES)
+  "open", "disabled", "readonly", "required", "checked", "selected", "hidden",
+  "autofocus", "controls", "autoplay", "loop", "muted", "inert", "popover",
+  // tables
+  "colspan", "rowspan", "scope", "headers", "span",
+  // universal / misc
+  "id", "role", "title", "lang", "dir", "tabindex", "datetime", "draggable",
+  "translate", "part", "slot",
+]);
+
+/**
+ * Attributes whose PRESENCE is the signal, so a false value must remove them.
+ *
+ * Deliberately excludes the enumerated ones — `draggable`, `spellcheck`,
+ * `translate`, `crossorigin`, `contenteditable` — where `="false"` is a real,
+ * different value from absence. Treating those as boolean would silently drop
+ * the author's explicit "no".
+ */
+export const BOOLEAN_ATTRIBUTES: ReadonlySet<string> = new Set([
+  "open", "disabled", "readonly", "required", "checked", "selected",
+  "multiple", "hidden", "autofocus", "controls", "autoplay", "loop", "muted",
+  "inert", "popover",
+]);
+
+/** Whether a prop is written to the DOM as an attribute (in any spelling). */
+export const isAttributeProp = (prop: string): boolean =>
+  ATTRIBUTE_PROPS.has(prop) ||
+  isAliasedAttributeProp(prop) ||
+  prop.startsWith("aria-") ||
+  prop.startsWith("data-");
+
 // NOTE: there is deliberately no `toCustomPropertyName` helper. One existed and
 // was used to rename the prop in the renderer, which is the wrong layer — the
 // value transformer keys off the AUTHORED name, so renaming early emitted

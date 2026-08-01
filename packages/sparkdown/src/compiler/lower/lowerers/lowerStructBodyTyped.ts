@@ -4,6 +4,7 @@ import {
   UNQUOTED_VALUE_NODES,
   stripTrailingLineComment,
 } from "../utils/stripTrailingLineComment";
+import { unescapeString } from "../utils/unescapeString";
 
 // Typed struct-body parser for `animation`/`theme` blocks. Same colon/indent
 // struct grammar as `style`, but values are READ FROM THE GRAMMAR'S VALUE NODES
@@ -69,28 +70,6 @@ function firstDescendant(
   return null;
 }
 
-function unescapeString(s: string): string {
-  return s.replace(/\\(.)/g, (_m, c: string) => {
-    switch (c) {
-      case "n":
-        return "\n";
-      case "r":
-        return "\r";
-      case "t":
-        return "\t";
-      case "b":
-        return "\b";
-      case "f":
-        return "\f";
-      case "v":
-        return "\v";
-      case "0":
-        return "\0";
-      default:
-        return c;
-    }
-  });
-}
 
 /** Read a value node as a typed scalar (number / boolean / string / ref). */
 function readTypedValue(value: SyntaxNode | null, ctx: LowerContext): unknown {

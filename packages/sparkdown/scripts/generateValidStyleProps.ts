@@ -19,29 +19,21 @@ import mdn from "mdn-data";
 import { STYLE_ALIASES } from "../../sparkle-style-transformer/src/constants/STYLE_ALIASES.ts";
 import { CSS_ALIASES } from "../../sparkle-style-transformer/src/constants/CSS_ALIASES.ts";
 import { CSS_UTILITIES } from "../../sparkle-style-transformer/src/constants/CSS_UTILITIES.ts";
+import {
+  ARIA_ATTRIBUTE_ALIASES,
+  ATTRIBUTE_PROPS,
+  DATA_ATTRIBUTE_PROPS,
+} from "../src/compiler/constants/dataAttributeProps.ts";
 
-// Element-structural attributes the engine sets as real HTML attributes rather
-// than CSS. Widgets (field/slider/checkbox/dropdown/option) pass EVERY prop
-// through as an attribute (UIModule.mountInputWidget), and `image` takes `#src`,
-// so the valid set must include common HTML attributes to avoid flagging them as
-// unknown. `data-*` / `aria-*` are allowed by prefix in the validator.
-const STRUCTURAL_ATTRS = [
-  // form controls
-  "value", "checked", "min", "max", "step", "placeholder", "disabled",
-  "selected", "required", "readonly", "multiple", "size", "maxlength",
-  "minlength", "pattern", "autocomplete", "autofocus", "list", "accept",
-  "capture", "form", "rows", "cols", "wrap", "spellcheck", "inputmode",
-  "enterkeyhint", "autocapitalize", "type", "name", "label", "for",
-  // media / links / images
-  "src", "srcset", "sizes", "alt", "href", "loading", "decoding", "target",
-  "rel", "download", "ping", "referrerpolicy", "poster", "controls",
-  "autoplay", "loop", "muted", "preload", "crossorigin",
-  // universal / misc
-  "id", "title", "hidden", "tabindex", "role", "lang", "dir", "draggable",
-  "translate", "part", "slot", "inert", "popover", "open", "colspan",
-  "rowspan", "headers", "scope",
-];
-
+// The attribute props come from `dataAttributeProps.ts`, the file that already
+// calls itself the single source and that the ui runtime imports. Hand-listing
+// them here is what let the two drift by 29 entries: props that validated clean
+// and then did nothing, because the runtime routed them to `style[prop]` and
+// CSSOM dropped them.
+//
+// The rationale that justified a hand-maintained superset ("widgets pass EVERY
+// prop through as an attribute") stopped being true in f7c5fd0f4, and the
+// `field` builtin it named was deleted in 040193590.
 const cssProps = Object.keys(mdn.css.properties).filter(
   // Drop the `--*` custom-property meta entry (custom props are always allowed,
   // handled in the validator); keep vendor-prefixed (`-webkit-*`) real props.
@@ -54,7 +46,12 @@ const props = [
     ...Object.keys(STYLE_ALIASES),
     ...Object.keys(CSS_ALIASES),
     ...Object.keys(CSS_UTILITIES),
-    ...STRUCTURAL_ATTRS,
+    // Everything the runtime routes to an attribute — the plain set plus the
+    // two ALIASED spellings (`#tooltip` -> `data-tooltip`, `#label` ->
+    // `aria-label`), which are authored bare and would otherwise warn.
+    ...ATTRIBUTE_PROPS,
+    ...DATA_ATTRIBUTE_PROPS,
+    ...ARIA_ATTRIBUTE_ALIASES.keys(),
   ]),
 ].sort();
 

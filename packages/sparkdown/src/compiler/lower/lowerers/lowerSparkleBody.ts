@@ -25,6 +25,7 @@ import {
 } from "../../types/SparkleNode";
 import { type SparkRange } from "../../types/SparkRange";
 import { stampDebugMetadata } from "../utils/debugMetadata";
+import { unescapeString } from "../utils/unescapeString";
 import {
   UNQUOTED_VALUE_NODES,
   stripTrailingLineComment,
@@ -297,13 +298,15 @@ function warnOrphanLine(node: SyntaxNode, ctx: LowerContext): void {
   });
 }
 
-/** Unescape the content-string literal-brace escapes: `\{` → `{`, `\}` → `}`.
- *  (`{{`/`}}` no longer escape — doubled braces are the `{{fn}}` call
- *  shorthand per issue #223, superseding spec decision D3.) Only applied to
- *  display CONTENT (not Luau-position prop/style values). */
-function unescapeBraces(text: string): string {
-  return text.replace(/\\\{/g, "{").replace(/\\\}/g, "}");
-}
+// Display CONTENT resolves the FULL escape set — see {@link unescapeString}.
+// It used to resolve `\{`/`\}` alone, which was the tell: escapes already
+// half-existed here, and the grammar paints `\"` as `constant.character.escape`,
+// so the editor showed an escape while the compiler printed the backslash on
+// screen (`text "say \"hi\""` → `say \"hi\"`).
+//
+// (`{{`/`}}` are not escapes: doubled braces are the `{{fn}}` call shorthand per
+// issue #223, superseding spec decision D3.) Luau-position prop/style values are
+// left alone.
 
 /** Compile a `{expr}` interpolation node (a `LuauInterpolatedStringExpression`)
  *  into a {@link Binding}: a synthetic nullary function
@@ -689,7 +692,7 @@ function readProps(
 /** Build the ordered literal/binding content parts for an element's display
  *  content. Handles the interpolation-aware `StringFieldValueInterpolated`
  *  (literal runs + `{expr}` / `{{fn}}` bindings) and plain values (a single
- *  literal part), unescaping `\{`/`\}` brace escapes in literal text. */
+ *  literal part), resolving backslash escapes in literal text. */
 function readContentParts(
   value: SyntaxNode | null,
   ctx: LowerContext,
@@ -701,7 +704,7 @@ function readContentParts(
     let textBuf = "";
     const flush = () => {
       if (textBuf.length > 0) {
-        parts.push({ kind: "literal", text: unescapeBraces(textBuf) });
+        parts.push({ kind: "literal", text: unescapeString(textBuf) });
         textBuf = "";
       }
     };
@@ -727,7 +730,7 @@ function readContentParts(
   if (literal.kind === "literal") {
     const text =
       typeof literal.value === "string"
-        ? unescapeBraces(literal.value)
+        ? unescapeString(literal.value)
         : String(literal.value);
     return [{ kind: "literal", text }];
   }

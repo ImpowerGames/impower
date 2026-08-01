@@ -98,6 +98,30 @@ end
   });
 });
 
+describe("escape sequences in element content", () => {
+  // The grammar paints `\"` with `constant.character.escape.sd`, so the editor
+  // showed an escape while the compiler emitted the backslash on screen. The
+  // content path already resolved `\{`/`\}` and nothing else, which is what
+  // made it a half-implemented feature rather than a deliberate omission.
+  test("`\\\"` inside double-quoted content becomes a quote", () => {
+    const main = layouts(`layout main with
+  text "say \\"hi\\""
+end
+`)?.main;
+    expect(contentText(main?.children?.[0]?.content)).toBe('say "hi"');
+  });
+
+  // Control: single-quoted content is the no-escapes-needed spelling and was
+  // always right.
+  test("single-quoted content still carries its quotes literally", () => {
+    const main = layouts(`layout main with
+  text 'say "hi"'
+end
+`)?.main;
+    expect(contentText(main?.children?.[0]?.content)).toBe('say "hi"');
+  });
+});
+
 describe("a bare event handler followed by a comment", () => {
   // The lowerer re-read the attribute's RAW TEXT (`"use -- note"`) instead of
   // the node the grammar had already produced for the bare name. The raw text

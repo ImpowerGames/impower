@@ -4,6 +4,7 @@ import {
   UNQUOTED_VALUE_NODES,
   stripTrailingLineComment,
 } from "../utils/stripTrailingLineComment";
+import { unescapeString } from "../utils/unescapeString";
 
 // Shared parser for the colon/indent struct body inside a structural
 // `style`/`screen`/`component … with … end` block. The grammar classifies
@@ -369,25 +370,3 @@ function parseScalar(raw: string): unknown {
   return s;
 }
 
-function unescapeString(s: string): string {
-  return s.replace(/\\(.)/g, (_m, c: string) => {
-    switch (c) {
-      case "n":
-        return "\n";
-      case "r":
-        return "\r";
-      case "t":
-        return "\t";
-      case "b":
-        return "\b";
-      case "f":
-        return "\f";
-      case "v":
-        return "\v";
-      case "0":
-        return "\0";
-      default:
-        return c; // \\  \"  and any other escaped char → the literal char
-    }
-  });
-}

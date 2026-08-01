@@ -108,3 +108,36 @@ end
     expect(p.value).toBe(40);
   });
 });
+
+describe("props the validator accepts actually reach the DOM", () => {
+  // These validated clean and then did nothing: the runtime's routing list was
+  // a separate hand-maintained copy that had drifted from the validator's, so
+  // they were sent to `style[prop]` and dropped by CSSOM. No attribute, no
+  // style, no warning.
+  test("minlength/spellcheck/size land as attributes, not as style", async () => {
+    const h = await render(`layout main with
+  input #maxlength=10 #minlength=3 #spellcheck="false" #size=20
+end
+`);
+    const input = h.overlay.querySelector("input") as HTMLInputElement;
+    expect(input.getAttribute("maxlength")).toBe("10");
+    expect(input.getAttribute("minlength")).toBe("3");
+    expect(input.getAttribute("spellcheck")).toBe("false");
+    expect(input.getAttribute("size")).toBe("20");
+    // Nothing leaked into the inline style.
+    expect(input.getAttribute("style") ?? "").toBe("");
+  });
+
+  // `spellcheck`/`draggable`/`translate` are ENUMERATED, not boolean: `="false"`
+  // is a real value that must survive rather than being removed as "absent".
+  test("an enumerated attribute keeps its explicit false", async () => {
+    const h = await render(`store off = false
+layout main with
+  box #draggable={off} #translate={off}
+end
+`);
+    const box = h.overlay.querySelector(".box") as HTMLElement;
+    expect(box.getAttribute("draggable")).toBe("false");
+    expect(box.getAttribute("translate")).toBe("false");
+  });
+});
