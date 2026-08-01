@@ -1,6 +1,6 @@
-import { Range } from "@codemirror/state";
+import { ChangeDesc, MapMode, Range } from "@codemirror/state";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
-import { Tree } from "@lezer/common";
+import { SyntaxNode, Tree } from "@lezer/common";
 import GRAMMAR_DEFINITION from "../../../../language/sparkdown.language-grammar.json";
 import { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
 import { SparkdownAnnotation } from "../SparkdownAnnotation";
@@ -111,6 +111,24 @@ function isAtDeclarationSite(node: any): boolean {
   return false;
 }
 
+/**
+ * Start of the outermost non-root node containing `pos`.
+ *
+ * Every lexical scope still open at `pos` begins inside that node, so a replay
+ * from here reconstructs all of them. Anything before it can only have
+ * contributed global bindings, which come from the cached symbol table instead.
+ */
+function topLevelStart(tree: Tree, pos: number): number {
+  const clamped = Math.max(0, Math.min(pos, tree.length));
+  let node: SyntaxNode | null = tree.resolveInner(clamped, -1);
+  let outermost: SyntaxNode | null = null;
+  while (node?.parent) {
+    outermost = node;
+    node = node.parent;
+  }
+  return outermost ? Math.min(outermost.from, clamped) : clamped;
+}
+
 export class SemanticAnnotator extends SparkdownAnnotator<
   SparkdownAnnotation<SemanticInfo>
 > {
@@ -138,12 +156,121 @@ export class SemanticAnnotator extends SparkdownAnnotator<
   // Emission is skipped in that mode — see the guard in `enter`.
   protected priming = false;
 
-  override begin(iterateFrom: number): void {
+  /**
+   * Every binding that reached the GLOBAL frame, in document order.
+   *
+   * This is the document's top-level symbol table, and it exists so priming
+   * does not have to re-walk the whole prefix to find out what is in scope.
+   * Rebuilding it from the tree on every keystroke is what made priming cost
+   * ~3.3x per edit event inside a large block; maintaining it incrementally
+   * brings that back down, because a re-annotation window only ever invalidates
+   * the declarations inside it — every other one is textually untouched.
+   *
+   * Kept sorted by `from` so a prime can take the prefix visible at an offset:
+   * a cold pass has only bound what it has already walked past, so a reference
+   * ABOVE its declaration must not resolve.
+   */
+  protected globalDecls: {
+    from: number;
+    name: string;
+    kind: BindingKind;
+  }[] = [];
+
+  // Globals seen by the current real pass, in document order. Spliced into
+  // `globalDecls` in `end()`, replacing whatever the window used to hold.
+  protected observedGlobals: {
+    from: number;
+    name: string;
+    kind: BindingKind;
+  }[] = [];
+
+  protected windowFrom = 0;
+  protected windowTo = 0;
+
+  /**
+   * The last primed scope stack, reusable while the text in front of it is
+   * unchanged.
+   *
+   * The symbol table removes the global half of priming, but the block-local
+   * half — replaying the enclosing function's earlier `local`s — is what
+   * actually dominates: an edit halfway down a 300-line block replays ~150
+   * statements. Typing repeatedly in one spot re-derives an identical result
+   * every keystroke.
+   *
+   * It is reusable more often than it looks. `editStart` is `min(reparsedFrom,
+   * earliest change)`, so BY CONSTRUCTION every change in an update lands at or
+   * after the window start — the prefix a prime reads is never what the edit
+   * touched. So the snapshot survives until the window itself moves, or until
+   * an edit reaches back before it (`mapState` drops it then).
+   */
+  protected primed: {
+    blockStart: number;
+    upTo: number;
+    frames: ScopeFrame[];
+    pendingDeclKind: "variable" | "const-variable" | null;
+  } | null = null;
+
+  override begin(iterateFrom: number, iterateTo: number): void {
     this.scopeStack = [makeGlobalScope()];
     this.pendingDeclKind = null;
+    this.observedGlobals = [];
+    this.windowFrom = iterateFrom;
+    this.windowTo = iterateTo;
     if (iterateFrom > 0 && this.tree) {
       this.primeScopes(this.tree, iterateFrom);
     }
+  }
+
+  /**
+   * Fold the globals this pass observed back into the cached table.
+   *
+   * The pass is authoritative for `[windowFrom, windowTo]` and nothing else:
+   * text outside the window did not change, so the entries there still hold.
+   * Replace that span and keep the rest, which preserves document order
+   * because the pass walks in document order.
+   */
+  override end(): void {
+    // Deliberately the bounds `begin` recorded, not this method's arguments:
+    // `end` is handed the parser's `reparsedFrom`/`reparsedTo`, which can be
+    // wider than the window that was actually iterated. Splicing on the wrong
+    // span would drop declarations the pass never looked at.
+    const before = this.globalDecls.filter((d) => d.from < this.windowFrom);
+    const after = this.globalDecls.filter((d) => d.from > this.windowTo);
+    this.globalDecls = [...before, ...this.observedGlobals, ...after];
+    this.observedGlobals = [];
+  }
+
+  /**
+   * Shift the cached table through an edit so its offsets stay meaningful.
+   *
+   * Called before the re-annotation window is computed, so `begin` reads
+   * positions in the NEW document. An entry whose declaration text was deleted
+   * maps to null and is dropped; if it survived after all, the pass that covers
+   * the edit re-observes it.
+   */
+  override mapState(changes: ChangeDesc): void {
+    // Drop the primed snapshot if this edit reached back in front of it; the
+    // prefix it was derived from is no longer the prefix that is there.
+    if (this.primed) {
+      const upTo = this.primed.upTo;
+      let reachedBehind = false;
+      changes.iterChangedRanges((fromA, _toA, fromB) => {
+        if (fromA < upTo || fromB < upTo) {
+          reachedBehind = true;
+        }
+      });
+      if (reachedBehind) {
+        this.primed = null;
+      }
+    }
+    const mapped: typeof this.globalDecls = [];
+    for (const decl of this.globalDecls) {
+      const from = changes.mapPos(decl.from, -1, MapMode.TrackDel);
+      if (from != null) {
+        mapped.push({ ...decl, from });
+      }
+    }
+    this.globalDecls = mapped;
   }
 
   /**
@@ -158,37 +285,74 @@ export class SemanticAnnotator extends SparkdownAnnotator<
    * which WERE inside the window — have already been deleted. They stay gone
    * until a cold parse (#326).
    *
-   * Rather than duplicate the binding rules, replay this annotator's own
-   * `enter`/`leave` over the nodes that precede the window, discarding the
-   * annotations. Two details make that faithful and affordable:
+   * Two sources of state, rebuilt separately because they cost very different
+   * amounts:
+   *
+   * - GLOBALS come from `globalDecls`, the incrementally maintained top-level
+   *   symbol table, filtered to the declarations a cold pass would already have
+   *   walked past. No tree walk at all.
+   * - BLOCK-LOCAL bindings — the enclosing function's parameters and its
+   *   earlier `local`s — are rebuilt by replaying this annotator's own
+   *   `enter`/`leave`, so the binding rules live in one place. The replay
+   *   starts at the enclosing TOP-LEVEL node rather than at offset 0: every
+   *   scope that could still be open at `upTo` is inside it, and everything
+   *   before it only contributed globals, which we already have.
+   *
+   * Two details make the replay faithful:
    *
    * - `leave` is suppressed for nodes that extend past `upTo`. A cold pass has
    *   not left those yet, so their scope frames must stay open — popping them
    *   would discard exactly the enclosing-function bindings we came for.
    * - The body of a function that CLOSES before `upTo` is skipped wholesale.
    *   Entering the definition binds its name in the enclosing scope, and
-   *   everything inside dies with the frame `leave` pops, so the subtree cannot
-   *   affect the result. This is what keeps priming proportional to the
-   *   declarations in scope rather than to the whole document; widening the
-   *   annotate window instead measured 7x worse per keystroke.
+   *   everything inside dies with the frame `leave` pops.
+   *
+   * Widening the annotate window to whole top-level nodes was tried instead and
+   * measured 7x worse per keystroke; replaying from offset 0 measured ~3.3x.
    */
   protected primeScopes(tree: Tree, upTo: number): void {
+    // Globals, straight from the cache — everything declared above `upTo`.
+    const globals = this.scopeStack[0]!;
+    for (const decl of this.globalDecls) {
+      if (decl.from >= upTo) {
+        break;
+      }
+      globals.set(decl.name, { kind: decl.kind, fromStdlib: false });
+    }
+    const from = topLevelStart(tree, upTo);
+    if (from >= upTo) {
+      return;
+    }
+    if (this.primed?.upTo === upTo && this.primed.blockStart === from) {
+      // Same window, and nothing changed in front of it — the replay would
+      // produce exactly this. Copy, because the pass about to run mutates it.
+      this.scopeStack = this.primed.frames.map((frame) => new Map(frame));
+      this.pendingDeclKind = this.primed.pendingDeclKind;
+      return;
+    }
     const discard: Range<SparkdownAnnotation<SemanticInfo>>[] = [];
     this.priming = true;
     try {
-      this.replayScopes(tree, upTo, discard);
+      this.replayScopes(tree, from, upTo, discard);
     } finally {
       this.priming = false;
     }
+    this.primed = {
+      blockStart: from,
+      upTo,
+      frames: this.scopeStack.map((frame) => new Map(frame)),
+      pendingDeclKind: this.pendingDeclKind,
+    };
   }
 
   private replayScopes(
     tree: Tree,
+    startAt: number,
     upTo: number,
     discard: Range<SparkdownAnnotation<SemanticInfo>>[],
   ): void {
     tree.iterate({
-      from: 0,
+      from: startAt,
       to: upTo,
       enter: (nodeRef) => {
         this.enter(discard, nodeRef as SparkdownSyntaxNodeRef);
@@ -257,11 +421,17 @@ export class SemanticAnnotator extends SparkdownAnnotator<
   // last-definition-wins) and detaches it from the stdlib entry —
   // a user-declared `local print` is NEVER `defaultLibrary`, even
   // though the global scope's entry was.
-  bindInCurrentScope(name: string, kind: BindingKind): void {
+  bindInCurrentScope(name: string, kind: BindingKind, from?: number): void {
     if (!name) return;
     const frame = this.scopeStack[this.scopeStack.length - 1];
     if (!frame) return;
     frame.set(name, { kind, fromStdlib: false });
+    // A binding that reached the outermost frame is a global. Record it so the
+    // next prime can restore it without re-walking the document. Only the real
+    // pass observes: a prime is replaying bindings this table already produced.
+    if (!this.priming && from != null && this.scopeStack.length === 1) {
+      this.observedGlobals.push({ from, name, kind });
+    }
   }
 
   override enter(
@@ -288,14 +458,14 @@ export class SemanticAnnotator extends SparkdownAnnotator<
         const nameNode = getDescendent("LuauFunctionName", declName);
         if (nameNode) {
           const name = this.read(nameNode.from, nameNode.to).trim();
-          if (name) this.bindInCurrentScope(name, "function");
+          if (name) this.bindInCurrentScope(name, "function", nodeRef.from);
         }
       }
       this.scopeStack.push(new Map());
     }
     if (nodeRef.name === "LuauFunctionParameter") {
       const name = this.read(nodeRef.from, nodeRef.to).trim();
-      if (name) this.bindInCurrentScope(name, "variable");
+      if (name) this.bindInCurrentScope(name, "variable", nodeRef.from);
     }
     // Variable definitions: read the scope modifier on enter
     // (`local` / `store` / `const`) so the inner
@@ -335,7 +505,7 @@ export class SemanticAnnotator extends SparkdownAnnotator<
             nodeRef.node,
           );
           if (fnLiteral) kind = "function";
-          this.bindInCurrentScope(name, kind);
+          this.bindInCurrentScope(name, kind, nodeRef.from);
         }
       }
     }

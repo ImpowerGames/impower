@@ -345,6 +345,15 @@ export class SparkdownCombinedAnnotator {
         editStart = fromB;
       }
     });
+    // Shift position-keyed annotator state through the edit before anything
+    // reads it. `begin` runs inside `annotate` below and consults offsets
+    // (`SemanticAnnotator`'s cached symbol table), so they must already be in
+    // new-document coordinates by then.
+    for (const [key, annotator] of this._currentEntries) {
+      if (!annotate || annotate?.has(key as keyof SparkdownAnnotators)) {
+        annotator.mapState(changeDesc);
+      }
+    }
     // The delete window and the annotate window must stay identical, or the
     // reconciliation loses or duplicates annotations.
     //
