@@ -5,13 +5,10 @@ import { Divert } from "./Divert/Divert";
 import { Divert as RuntimeDivert } from "../../../engine/Divert";
 import { DivertTarget } from "./Divert/DivertTarget";
 import { Expression } from "./Expression/Expression";
-import { InkList as RuntimeInkList } from "../../../engine/InkList";
-import { ListValue } from "../../../engine/Value";
 import { NativeFunctionCall } from "../../../engine/NativeFunctionCall";
 import { NumberExpression } from "./Expression/NumberExpression";
 import { Path } from "./Path";
 import { Story } from "./Story";
-import { StringValue } from "../../../engine/Value";
 import { Void as RuntimeVoid } from "../../../engine/Void";
 import { VariableReference } from "./Variable/VariableReference";
 import { Identifier } from "./Identifier";
@@ -125,8 +122,23 @@ export class FunctionCall extends Expression {
   public readonly GenerateIntoContainer = (
     container: RuntimeContainer,
   ): void => {
-    const foundList = this.story.ResolveList(this.name);
-
+    // Which branch below runs is a pure function of `this.name`, which is
+    // fixed at construction (`_proxyDivert` is assigned only in this class's
+    // constructor, `Divert.target` only in `Divert`'s). Every selector is a
+    // name comparison or a static registry lookup — so a parsed node carried
+    // forward by the incremental pipeline always takes the SAME branch, and
+    // in particular `usingProxyDivert` cannot flip between compiles.
+    //
+    // Upstream ink had one selector that read per-compile state, a
+    // `story.ResolveList(this.name)` arm constructing a list value. It is
+    // removed: sparkdown has no LIST type (ink's is replaced by Luau tables —
+    // `tests/runtime/Lists.test.ts` is closed by design, see
+    // docs/runtime/DIVERGENCES.md), no parsed `ListDefinition` is ever
+    // constructed, so `_listDefs` is always empty and that arm was dead. Its
+    // one hazard: it removed `_proxyDivert` from `content` (see the splice
+    // below) without anything re-adding it, so had the branch ever flipped
+    // back to a normal call, the divert would have gone unresolved and
+    // undiagnosed. See #329.
     let usingProxyDivert: boolean = false;
 
     if (this.isTurnsSince || this.isReadCount) {
@@ -257,24 +269,6 @@ export class FunctionCall extends Expression {
       container.AddContent(
         NativeFunctionCall.CallWithName(this.name, this.args.length),
       );
-    } else if (foundList !== null) {
-      if (this.args.length > 1) {
-        this.Error(
-          "Can currently only construct a list from one integer (or an empty list from a given list definition)",
-        );
-      }
-
-      // List item from given int
-      if (this.args.length === 1) {
-        container.AddContent(new StringValue(this.name));
-        this.args[0].GenerateIntoContainer(container);
-        container.AddContent(RuntimeControlCommand.ListFromInt());
-      } else {
-        // Empty list with given origin.
-        const list = new RuntimeInkList();
-        list.SetInitialOriginName(this.name);
-        container.AddContent(new ListValue(list));
-      }
     } else {
       // Normal function call
       container.AddContent(this._proxyDivert.runtimeObject);
