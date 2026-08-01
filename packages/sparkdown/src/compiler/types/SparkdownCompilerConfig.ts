@@ -15,6 +15,17 @@ export interface SparkdownCompilerConfig {
    * filtering depends on the inlined source.
    */
   stripImageData?: boolean;
+  /**
+   * Serialize the compiled program to the binary format (#314) instead of a
+   * JSON object tree, exposing it as `program.compiledBinary`.
+   *
+   * Off by default: the JSON path stays the default and the fallback, so a
+   * regression in the binary path can be bisected without a revert. Hosts opt
+   * in when they can carry an `ArrayBuffer` across their worker boundary,
+   * where the win is — the encoder itself is not faster than
+   * `JSON.stringify`; skipping the structured clone and the re-parse is.
+   */
+  binaryProgram?: boolean;
   workspace?: string;
   startFrom?: { file: string; line: number };
   simulationOptions?: Record<

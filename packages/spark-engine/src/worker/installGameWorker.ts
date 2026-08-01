@@ -1,3 +1,4 @@
+import { hasCompiledProgram } from "@impower/sparkdown/src/binary/programBinary";
 import { MessageConnection } from "@impower/jsonrpc/src/browser/classes/MessageConnection";
 import { Message } from "@impower/jsonrpc/src/common/types/Message";
 import { ResponseError } from "@impower/jsonrpc/src/common/types/ResponseError";
@@ -166,7 +167,7 @@ export function installGameWorker(connection: MessageConnection) {
           throw new NoGameError();
         }
         state.game.start();
-        return { success: Boolean(state.game.program.compiled) };
+        return { success: hasCompiledProgram(state.game.program) };
       });
       return;
     }

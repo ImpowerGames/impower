@@ -43,6 +43,13 @@ import { LowerContext } from "../lower/context";
 import { InkObject } from "../../inkjs/engine/Object";
 import { SimpleJson } from "../../inkjs/engine/SimpleJson";
 import { JsonSerialisation } from "../../inkjs/engine/JsonSerialisation";
+import {
+  ProgramBinaryWriter,
+  createProgramTable,
+  reseedProgramTable,
+  type CachedFlowChunk,
+  type ProgramTable,
+} from "../../binary/ProgramBinaryWriter";
 import { Story as RuntimeStory } from "../../inkjs/engine/Story";
 import { asINamedContentOrNull, asOrNull } from "../../inkjs/engine/TypeAssertion";
 import { Container } from "../../inkjs/engine/Container";
@@ -90,6 +97,13 @@ import { SparkdownFileRegistry } from "./SparkdownFileRegistry";
 // name can refer to a different flow after an edit — name-keyed caches must
 // never reuse entries for flows matching this.
 const CANONICAL_SYNTH_NAME = /^__synth_\d+$/;
+
+// Reseed the binary string table once it is half again its live size, provided
+// the absolute slack is worth a full re-serialization. A ratio rather than a
+// fixed cap, because a large project legitimately holds more live strings than
+// a small one. See `maybeReseedBinaryTable`.
+const BINARY_TABLE_RESEED_RATIO = 1.5;
+const BINARY_TABLE_RESEED_MIN_SLACK = 512;
 
 const LANGUAGE_NAME = GRAMMAR_DEFINITION.name.toLowerCase();
 const FILE_TYPES = GRAMMAR_DEFINITION.fileTypes;
@@ -196,6 +210,30 @@ export class SparkdownCompiler {
   // cross-flow fingerprint matches AND no header/global chunk changed (const
   // inlining / global decl) — see the `flowMemo` in `compile`.
   protected _flowJsonCache?: Map<string, { fp: string; value: any }>;
+
+  // The binary-format twin of `_flowJsonCache` (#314 phase 2), used when
+  // `config.binaryProgram` is set. Same key (top-level flow name) and same
+  // validity check (cross-flow fingerprint + the reuse guards below), but the
+  // cached value is a portable record range rather than a JS subtree. Chunks
+  // store LOCAL string/number tables and chunk-relative `end` offsets, because
+  // both are program-global in an assembled buffer and would otherwise decode
+  // against the wrong tables on the next compile.
+  protected _flowChunkCache?: Map<string, CachedFlowChunk>;
+
+  // The string/number table the binary chunks' payload pointers refer to.
+  // Persisted across compiles on purpose: it is the analogue of lezer's
+  // grammar-fixed NodeSet, and it is what lets a cached chunk be copied in
+  // verbatim instead of remapped record by record.
+  protected _binaryTable: ProgramTable = createProgramTable();
+
+  // Table size once a freshly seeded table has settled, i.e. the LIVE string
+  // count for the current document. Zero means "recalibrate on the next
+  // compile"; see `maybeReseedBinaryTable`.
+  protected _binaryTableBaseline = 0;
+
+  // Previous compile's buffer size, so the writer allocates once instead of
+  // regrowing geometrically. The program is nearly the same size every edit.
+  protected _binarySlotHint = 0;
 
   // ---- Incremental ExportRuntime: constructed-flow reuse ------------------
   // A top-level flow (knot/scene/function, plus its stitches) is assembled
@@ -432,6 +470,16 @@ export class SparkdownCompiler {
       config.stripImageData !== this._config.stripImageData
     ) {
       this._config.stripImageData = config.stripImageData;
+    }
+    if (
+      config.binaryProgram !== undefined &&
+      config.binaryProgram !== this._config.binaryProgram
+    ) {
+      this._config.binaryProgram = config.binaryProgram;
+      // The two paths keep separate per-flow caches; a cache built for the
+      // other format must never be consulted after a switch.
+      this._flowJsonCache = undefined;
+      this._flowChunkCache = undefined;
     }
     if (
       config.workspace !== undefined &&
@@ -889,7 +937,13 @@ export class SparkdownCompiler {
       }
       if (story) {
         profile("start", this._profilerId, "ink/json", uri);
-        const writer = new SimpleJson.Writer();
+        // #314: the binary writer answers the SAME streaming write events as
+        // SimpleJson.Writer, but appends records instead of building a JS
+        // object tree — so on the no-memo path it does strictly less work.
+        const binary = this._config.binaryProgram === true;
+        const writer = binary
+          ? new ProgramBinaryWriter(this._binaryTable, this._binarySlotHint)
+          : new SimpleJson.Writer();
         // Incremental ToJson: reuse the serialized subtree of each top-level flow
         // whose source content is unchanged AND whose cross-flow fingerprint
         // (#f flags + resolved divert/reference paths) is unchanged. Content is
@@ -911,8 +965,60 @@ export class SparkdownCompiler {
           // compile. Take the exact baseline path — no fingerprinting, which
           // would otherwise be pure overhead — and let the cache lapse so the
           // next reuse-eligible edit reseeds from a fresh serialization.
-          story.ToJson(writer);
+          story.ToJson(writer as never);
           this._flowJsonCache = undefined;
+          this._flowChunkCache = undefined;
+        } else if (binary) {
+          // Binary twin of the JSON memo below. The reuse GUARDS are shared —
+          // `reusableFlows` and the `_renamedFlowNames` subtraction are
+          // computed once above — so the two paths can never disagree about
+          // which flows are eligible, only about what a cached value is.
+          const binaryWriter = writer as ProgramBinaryWriter;
+          const prevChunkCache = this._flowChunkCache;
+          const nextChunkCache = new Map<string, CachedFlowChunk>();
+          const flowMemo = {
+            resolve: (
+              name: string,
+              container: Container,
+              serialize: () => any,
+            ) => {
+              // Same two exclusions as the JSON path, for the same reasons:
+              // `global decl` is non-contiguous and cheap, and canonical
+              // synthetic names are POSITIONAL, so a name can rebind to a
+              // different flow that the fingerprint cannot distinguish.
+              if (name === "global decl" || CANONICAL_SYNTH_NAME.test(name)) {
+                return serialize();
+              }
+              const fp = JsonSerialisation.FingerprintCrossFlow(container);
+              if (reusableFlows.has(name) && prevChunkCache) {
+                const cached = prevChunkCache.get(name);
+                // The generation check is what keeps a reseed sound. Returning
+                // a chunk here means NOT calling serialize(), so a chunk from
+                // an older numbering could not be recovered from downstream —
+                // the writer throws rather than guess, so the decision has to
+                // be made here.
+                if (
+                  cached &&
+                  cached.fp === fp &&
+                  cached.chunk.generation === binaryWriter.generation
+                ) {
+                  nextChunkCache.set(name, cached);
+                  // `WriteInjected` splices the records; the flow is never
+                  // re-walked and its strings are never re-hashed.
+                  return cached.chunk;
+                }
+              }
+              // Miss: arm the writer to capture whatever gets injected next,
+              // because `resolve` returns BEFORE the caller injects it.
+              binaryWriter.captureNextInjectedAs(name, fp);
+              return serialize();
+            },
+          };
+          story.ToJson(binaryWriter as never, flowMemo);
+          for (const [name, entry] of binaryWriter.takeCapturedChunks()) {
+            nextChunkCache.set(name, entry);
+          }
+          this._flowChunkCache = nextChunkCache;
         } else {
           const prevFlowCache = this._flowJsonCache;
           const nextFlowCache = new Map<string, { fp: string; value: any }>();
@@ -952,9 +1058,23 @@ export class SparkdownCompiler {
           story.ToJson(writer, flowMemo);
           this._flowJsonCache = nextFlowCache;
         }
-        const json = writer.toObject();
-        if (json) {
-          program.compiled = json;
+        if (binary) {
+          // Pieces, not a packed blob: `nodes`/`numbers` are typed arrays that
+          // transfer in O(1) across a worker boundary, and packing them into
+          // one self-describing byte blob costs ~10ms/compile (it re-encodes
+          // the whole string table to UTF-8) for no benefit on that hop.
+          const buffer = (writer as ProgramBinaryWriter).toBuffer();
+          program.compiledBuffer = buffer;
+          this._binarySlotHint = buffer.nodes.length;
+          // Safe to run AFTER emitting: reseeding installs fresh arrays on the
+          // table rather than clearing them in place, so the buffer just
+          // emitted keeps its own (correct) string array alive.
+          this.maybeReseedBinaryTable();
+        } else {
+          const json = (writer as SimpleJson.Writer).toObject();
+          if (json) {
+            program.compiled = json;
+          }
         }
         state.story = story;
         profile("end", this._profilerId, "ink/json", uri);
@@ -2481,6 +2601,41 @@ export class SparkdownCompiler {
   // that sit before the first named flow. So if any changed chunk lies before the
   // first flow's span, a referenced const may have changed and every flow must be
   // re-serialized; otherwise per-flow content+fingerprint reuse is sound.
+  /**
+   * Bound the append-only binary string table.
+   *
+   * Every edited flow interns strings for its changed lines, and those are
+   * dead the moment the next keystroke lands — measured at ~1 per keystroke on
+   * raffles-and-bunny. The table is not merely a compiler-side cache: it ships
+   * inside `program.compiledBuffer`, so unchecked growth costs payload size and
+   * per-hop clone time as well as memory.
+   *
+   * Reseeding is cheap in the amortized sense but not free: every cached chunk
+   * was minted against the old numbering, so the next compile re-serializes
+   * every flow. With the thresholds below that happens once per few thousand
+   * edits, which is why it is a ratio and not a fixed cap — a large project
+   * legitimately holds more live strings than a small one.
+   */
+  protected maybeReseedBinaryTable(): void {
+    const size = this._binaryTable.strings.length;
+    if (this._binaryTableBaseline === 0) {
+      // First compile after a (re)seed: whatever is interned now is live.
+      this._binaryTableBaseline = size;
+      return;
+    }
+    const grown = size - this._binaryTableBaseline;
+    if (
+      size > this._binaryTableBaseline * BINARY_TABLE_RESEED_RATIO &&
+      grown > BINARY_TABLE_RESEED_MIN_SLACK
+    ) {
+      reseedProgramTable(this._binaryTable);
+      // Not strictly required — `generation` already makes stale chunks
+      // unusable — but holding them would pin memory for nothing.
+      this._flowChunkCache = undefined;
+      this._binaryTableBaseline = 0;
+    }
+  }
+
   protected computeFlowReuse(story: RuntimeStory): {
     reusable: Set<string>;
     ok: boolean;
