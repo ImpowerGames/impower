@@ -105,13 +105,18 @@ export const filterImage = (
           imageToFilter.$type === "layered_image" &&
           !imageToFilter.$name.startsWith("$")
         ) {
+          // One array across every layer: the result is the SET of layers
+          // matching the filter, so it must outlive a single iteration.
+          const filteredLayers: {
+            $type: "image";
+            $name: string;
+          }[] = [];
+          // `assets` is absent on a malformed or still-being-typed
+          // layered_image, and this runs on every hover and preview — guard so
+          // one incomplete struct doesn't throw out of the whole compile.
           for (const [key, layerImage] of Object.entries(
-            imageToFilter.assets,
+            imageToFilter.assets ?? {},
           )) {
-            const filteredLayers: {
-              $type: "image";
-              $name: string;
-            }[] = [];
             const keyIsArrayIndex = !Number.isNaN(Number(key));
             if (keyIsArrayIndex) {
               if (filterMatchesName(layerImage.$name, combinedFilter)) {
@@ -122,8 +127,8 @@ export const filterImage = (
                 filteredLayers.push(layerImage);
               }
             }
-            filteredImage.filtered_layers = filteredLayers;
           }
+          filteredImage.filtered_layers = filteredLayers;
         }
       }
     }
