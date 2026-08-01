@@ -10,7 +10,7 @@ import {
   TextDocumentSyncKind,
 } from "vscode-languageserver/browser";
 import { SparkdownLanguageServerWorkspace } from "./classes/SparkdownLanguageServerWorkspace";
-import { profile } from "./utils/logging/profile";
+import { profiled } from "./utils/logging/profiled";
 import { canRename } from "./utils/providers/canRename";
 import { getCodeLenses } from "./utils/providers/getCodeLenses";
 import { getColorPresentations } from "./utils/providers/getColorPresentations";
@@ -179,9 +179,9 @@ try {
     ) {
       return cached.result;
     }
-    profile("start", "lsp: onFoldingRanges", uri);
-    const result = getFoldingRanges(document, annotations, program);
-    profile("end", "lsp: onFoldingRanges", uri);
+    const result = profiled("lsp: onFoldingRanges", uri, () =>
+      getFoldingRanges(document, annotations, program),
+    );
     if (document) {
       foldingRangeCache.set(uri, {
         documentVersion: document.version,
@@ -198,15 +198,17 @@ try {
     const document = workspace.document(uri);
     const annotations = workspace.annotations(uri);
     const program = workspace.program(uri);
-    profile("start", "lsp: onDocumentColor", uri);
-    const result = getDocumentColors(document, annotations, program);
-    profile("end", "lsp: onDocumentColor", uri);
+    const result = profiled("lsp: onDocumentColor", uri, () =>
+      getDocumentColors(document, annotations, program),
+    );
     return result;
   });
   connection.onColorPresentation((params) => {
-    profile("start", "lsp: onDocumentColor");
-    const result = getColorPresentations(params.color);
-    profile("end", "lsp: onDocumentColor");
+    // Its own name: this used to share "lsp: onDocumentColor" with the handler
+    // above, so two different requests aggregated into one phase.
+    const result = profiled("lsp: onColorPresentation", undefined, () =>
+      getColorPresentations(params.color),
+    );
     return result;
   });
 
@@ -215,9 +217,9 @@ try {
     const uri = params.textDocument.uri;
     const document = workspace.document(uri);
     const annotations = workspace.annotations(uri);
-    profile("start", "lsp: onDocumentSymbol", uri);
-    const result = getDocumentSymbols(document, annotations);
-    profile("end", "lsp: onDocumentSymbol", uri);
+    const result = profiled("lsp: onDocumentSymbol", uri, () =>
+      getDocumentSymbols(document, annotations),
+    );
     return result;
   });
 
@@ -228,16 +230,16 @@ try {
     const annotations = workspace.annotations(uri);
     const program = workspace.program(uri);
     const config = workspace.compilerConfig;
-    profile("start", "lsp: onHover", uri);
-    const result = getHover(
-      document,
-      annotations,
-      program,
-      config,
-      params.position,
-      imageCompositeOptions,
+    const result = profiled("lsp: onHover", uri, () =>
+      getHover(
+        document,
+        annotations,
+        program,
+        config,
+        params.position,
+        imageCompositeOptions,
+      ),
     );
-    profile("end", "lsp: onHover", uri);
     return result;
   });
 
@@ -253,17 +255,17 @@ try {
     for (const uri of Object.keys(scripts)) {
       scriptAnnotations.set(uri, workspace.annotations(uri));
     }
-    profile("start", "lsp: onCompletion", uri);
-    const result = getCompletions(
-      document,
-      tree,
-      scriptAnnotations,
-      program,
-      config,
-      params.position,
-      params.context,
+    const result = profiled("lsp: onCompletion", uri, () =>
+      getCompletions(
+        document,
+        tree,
+        scriptAnnotations,
+        program,
+        config,
+        params.position,
+        params.context,
+      ),
     );
-    profile("end", "lsp: onCompletion", uri);
     // `workspace.program()` is keyed by the REQUESTED document uri, not by
     // `program.uri` (which is the compiled root), so resolve has to be told
     // which document it came from. Stamped here to keep uri plumbing out of
@@ -284,14 +286,14 @@ try {
     if (!data?.uri) {
       return item;
     }
-    profile("start", "lsp: onCompletionResolve", item.label);
-    const program = workspace.program(data.uri);
-    const resolved = await resolveCompletion(
-      item,
-      program,
-      imageCompositeOptions,
+    const resolved = await profiled(
+      "lsp: onCompletionResolve",
+      item.label,
+      () => {
+        const program = workspace.program(data.uri);
+        return resolveCompletion(item, program, imageCompositeOptions);
+      },
     );
-    profile("end", "lsp: onCompletionResolve", item.label);
     return resolved;
   });
 
@@ -303,33 +305,34 @@ try {
     const document = workspace.document(uri);
     const tree = workspace.tree(uri);
     const annotations = workspace.annotations(uri);
-    profile("start", "lsp: onDocumentFormatting", uri);
-    // Incremental (delta) formatting for format-on-save: only reprocess
-    // the construct(s) changed since the last format. The dirty range is
-    // the diff against the last formatted output — safe because outside
-    // it the text equals an already-formatted baseline.
-    const dirtyRange = document
-      ? workspace.formatDirtyRange(uri, document.getText())
-      : undefined;
-    const result = getDocumentFormattingEdits(
-      document,
-      tree,
-      annotations,
-      params.options,
-      undefined,
-      undefined,
-      dirtyRange,
-    );
-    // Cache the resulting (fully formatted) text as the next diff
-    // baseline. Apply our own edits to compute it — that's what the
-    // editor will materialize.
-    if (document) {
-      const formatted = result
-        ? applyTextEdits(document, result)
-        : document.getText();
-      workspace.markFormatted(uri, formatted);
-    }
-    profile("end", "lsp: onDocumentFormatting", uri);
+    const result = profiled("lsp: onDocumentFormatting", uri, () => {
+      // Incremental (delta) formatting for format-on-save: only reprocess
+      // the construct(s) changed since the last format. The dirty range is
+      // the diff against the last formatted output — safe because outside
+      // it the text equals an already-formatted baseline.
+      const dirtyRange = document
+        ? workspace.formatDirtyRange(uri, document.getText())
+        : undefined;
+      const edits = getDocumentFormattingEdits(
+        document,
+        tree,
+        annotations,
+        params.options,
+        undefined,
+        undefined,
+        dirtyRange,
+      );
+      // Cache the resulting (fully formatted) text as the next diff
+      // baseline. Apply our own edits to compute it — that's what the
+      // editor will materialize.
+      if (document) {
+        const formatted = edits
+          ? applyTextEdits(document, edits)
+          : document.getText();
+        workspace.markFormatted(uri, formatted);
+      }
+      return edits;
+    });
     return result;
   });
 
@@ -341,15 +344,15 @@ try {
     const document = workspace.document(uri);
     const tree = workspace.tree(uri);
     const annotations = workspace.annotations(uri);
-    profile("start", "lsp: onDocumentRangeFormatting", uri);
-    const result = getDocumentFormattingEdits(
-      document,
-      tree,
-      annotations,
-      params.options,
-      params.range,
+    const result = profiled("lsp: onDocumentRangeFormatting", uri, () =>
+      getDocumentFormattingEdits(
+        document,
+        tree,
+        annotations,
+        params.options,
+        params.range,
+      ),
     );
-    profile("end", "lsp: onDocumentRangeFormatting", uri);
     return result;
   });
 
@@ -361,16 +364,16 @@ try {
     const document = workspace.document(uri);
     const tree = workspace.tree(uri);
     const annotations = workspace.annotations(uri);
-    profile("start", "lsp: onDocumentOnTypeFormatting", uri);
-    const result = getDocumentFormattingEdits(
-      document,
-      tree,
-      annotations,
-      params.options,
-      undefined,
-      params.position,
+    const result = profiled("lsp: onDocumentOnTypeFormatting", uri, () =>
+      getDocumentFormattingEdits(
+        document,
+        tree,
+        annotations,
+        params.options,
+        undefined,
+        params.position,
+      ),
     );
-    profile("end", "lsp: onDocumentOnTypeFormatting", uri);
     return result;
   });
 
@@ -379,9 +382,9 @@ try {
     const uri = params.textDocument.uri;
     const document = workspace.document(uri);
     const tree = workspace.tree(uri);
-    profile("start", "lsp: onPrepareRename", uri);
-    const result = canRename(document, tree, params.position);
-    profile("end", "lsp: onPrepareRename", uri);
+    const result = profiled("lsp: onPrepareRename", uri, () =>
+      canRename(document, tree, params.position),
+    );
     return result;
   });
 
@@ -393,17 +396,17 @@ try {
     const document = workspace.document(uri);
     const tree = workspace.tree(uri);
     const program = workspace.program(uri);
-    profile("start", "lsp: onRenameRequest", uri);
-    const result = getRenameEdits(
-      settings,
-      document,
-      tree,
-      program,
-      workspace,
-      params.newName,
-      params.position,
+    const result = profiled("lsp: onRenameRequest", uri, () =>
+      getRenameEdits(
+        settings,
+        document,
+        tree,
+        program,
+        workspace,
+        params.newName,
+        params.position,
+      ),
     );
-    profile("end", "lsp: onRenameRequest", uri);
     return result;
   });
 
@@ -459,21 +462,14 @@ try {
     const document = workspace.document(uri);
     const tree = workspace.tree(uri);
     const program = workspace.program(uri);
-    profile("start", "lsp: onReferences", uri);
-    const { references } = getReferences(
-      document,
-      tree,
-      program,
-      workspace,
-      params.position,
-      {
+    const { references } = profiled("lsp: onReferences", uri, () =>
+      getReferences(document, tree, program, workspace, params.position, {
         ...params.context,
         searchOtherFiles: true,
         includeInterdependent: true,
         includeLinks: true,
-      },
+      }),
     );
-    profile("end", "lsp: onReferences", uri);
     return references;
   });
 
@@ -483,22 +479,15 @@ try {
     const document = workspace.document(uri);
     const tree = workspace.tree(uri);
     const program = workspace.program(uri);
-    profile("start", "lsp: onDeclaration", uri);
-    const { references } = getReferences(
-      document,
-      tree,
-      program,
-      workspace,
-      params.position,
-      {
+    const { references } = profiled("lsp: onDeclaration", uri, () =>
+      getReferences(document, tree, program, workspace, params.position, {
         searchOtherFiles: true,
         includeDeclaration: true,
         excludeUses: true,
         includeInterdependent: false,
         includeLinks: false,
-      },
+      }),
     );
-    profile("end", "lsp: onDeclaration", uri);
     return references;
   });
 
@@ -508,22 +497,15 @@ try {
     const document = workspace.document(uri);
     const tree = workspace.tree(uri);
     const program = workspace.program(uri);
-    profile("start", "lsp: onDefinition", uri);
-    const { references } = getReferences(
-      document,
-      tree,
-      program,
-      workspace,
-      params.position,
-      {
+    const { references } = profiled("lsp: onDefinition", uri, () =>
+      getReferences(document, tree, program, workspace, params.position, {
         searchOtherFiles: true,
         includeDeclaration: true,
         excludeUses: true,
         includeInterdependent: false,
         includeLinks: false,
-      },
+      }),
     );
-    profile("end", "lsp: onDefinition", uri);
     return references;
   });
 
@@ -533,9 +515,9 @@ try {
     const document = workspace.document(uri);
     const tree = workspace.tree(uri);
     const annotations = workspace.annotations(uri);
-    profile("start", "lsp: onDocumentLinks", uri);
-    const result = getDocumentLinks(document, tree, annotations, workspace);
-    profile("end", "lsp: onDocumentLinks", uri);
+    const result = profiled("lsp: onDocumentLinks", uri, () =>
+      getDocumentLinks(document, tree, annotations, workspace),
+    );
     return result;
   });
 
@@ -545,21 +527,14 @@ try {
     const document = workspace.document(uri);
     const tree = workspace.tree(uri);
     const program = workspace.program(uri);
-    profile("start", "lsp: onDocumentHighlight", uri);
-    const { references } = getReferences(
-      document,
-      tree,
-      program,
-      workspace,
-      params.position,
-      {
+    const { references } = profiled("lsp: onDocumentHighlight", uri, () =>
+      getReferences(document, tree, program, workspace, params.position, {
         searchOtherFiles: false,
         includeDeclaration: true,
         includeInterdependent: true,
         includeLinks: true,
-      },
+      }),
     );
-    profile("end", "lsp: onDocumentHighlight", uri);
     return references;
   });
 
@@ -582,9 +557,9 @@ try {
     ) {
       return cached.result;
     }
-    profile("start", "lsp: semanticTokens.on", uri);
-    const result = getSemanticTokens(document, annotations, program);
-    profile("end", "lsp: semanticTokens.on", uri);
+    const result = profiled("lsp: semanticTokens.on", uri, () =>
+      getSemanticTokens(document, annotations, program),
+    );
     if (document) {
       semanticTokensCache.set(uri, {
         documentVersion: document.version,
@@ -600,14 +575,9 @@ try {
       workspace.program(uri) || (await workspace.compile(uri, false));
     const document = workspace.document(uri);
     const annotations = workspace.annotations(uri);
-    profile("start", "lsp: semanticTokens.onRange", uri);
-    const result = getSemanticTokens(
-      document,
-      annotations,
-      program,
-      params.range,
+    const result = profiled("lsp: semanticTokens.onRange", uri, () =>
+      getSemanticTokens(document, annotations, program, params.range),
     );
-    profile("end", "lsp: semanticTokens.onRange", uri);
     return result;
   });
 
@@ -616,9 +586,9 @@ try {
     const uri = params.textDocument.uri;
     const document = workspace.document(uri);
     const annotations = workspace.annotations(uri);
-    profile("start", "lsp: onCodeLens", uri);
-    const result = getCodeLenses(document, annotations);
-    profile("end", "lsp: onCodeLens", uri);
+    const result = profiled("lsp: onCodeLens", uri, () =>
+      getCodeLenses(document, annotations),
+    );
     return result;
   });
 
