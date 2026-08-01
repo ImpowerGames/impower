@@ -55,6 +55,19 @@ export const resolveImageLayers = (
       // context — there is no file to read behind it.
       return [{ src: struct["filtered_src"] }];
     }
+    const filteredLayers = struct["filtered_layers"];
+    if (filteredLayers) {
+      // A layered root filters down to a subset of its layers. Descending into
+      // the unfiltered root instead would show the author a preview carrying
+      // layers the running game drops.
+      return filteredLayers.flatMap((layer: unknown) =>
+        resolveImageLayers(
+          context,
+          resolveImageReference(context, layer),
+          new Set(visited),
+        ),
+      );
+    }
     return resolveImageLayers(
       context,
       resolveImageReference(context, struct["image"]),
