@@ -91,8 +91,7 @@ Never work on `main`, and never reuse another issue's worktree.
 ### Naming
 
 **`<type>/<issue>-<slug>` — and the worktree path is that same string**, under
-`../impower.worktrees/` (a sibling of the repo checkout). No transformation, no
-second name to remember:
+`../impower.worktrees/` (a sibling of the repo checkout):
 
 ```
 branch     fix/302-filterimage-layers
