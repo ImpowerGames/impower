@@ -88,8 +88,10 @@ export default function HeaderMenuButton(_p: HeaderMenuButtonProps) {
               if (e.target === e.currentTarget) setOpen(false);
             }}
             style={{
-              // z-index 400 to win against CodeMirror's status bar at z-300
-              // (`.cm-panels-bottom`).
+              // z-index 400 to clear every editor layer that competes at the
+              // document root: the status bar (`.cm-panels-bottom`, z-2) and
+              // the search/goto panels (`.cm-panels-top`, z-30), both pinned
+              // in EDITOR_THEME.ts. Matches FileDropzone's overlay.
               zIndex: 400,
             }}
           >

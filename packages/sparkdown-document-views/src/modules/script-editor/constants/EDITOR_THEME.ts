@@ -321,6 +321,24 @@ const EDITOR_THEME: {
     color: EDITOR_COLORS.white,
   },
   "& .cm-panels.cm-panels-top": {
+    // Top panels are pulled up INTO the host's 48px header band by the
+    // negative margin below, so they have to outrank it as well. The host
+    // chrome (sticky headers, tab bars, the split divider) sits at z-index
+    // 10-20 and nothing between `.cm-panels` and <body> establishes a
+    // stacking context, so that chrome competes with this value directly:
+    // at the inherited 2 the header paints OVER the search panel and the
+    // whole Find row is invisible and unclickable (#337).
+    //
+    // 30 clears the chrome band while staying under the host's dialogs (50),
+    // toasts (60) and drag overlay (400), and under this editor's own popups
+    // (`.cm-tooltip`, 300) -- all of which must still cover the panel.
+    //
+    // Keep the override scoped to the TOP panels. Only they are pulled into
+    // the header band and so only they need to outrank it; the bottom status
+    // bar overlaps nothing and belongs under the host's UI, per the same rule
+    // that pins `.cm-gutters` to 1. Raising `.cm-panels` as a whole would drag
+    // the status bar up to 30 with it for no reason.
+    zIndex: "30",
     "& .cm-panel": {
       // Top panels should cover up panel header
       marginTop: "-48px",
