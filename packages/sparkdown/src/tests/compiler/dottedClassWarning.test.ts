@@ -58,3 +58,26 @@ describe("dotted-class warning", () => {
     expect(warnsDotted(diags)).toBe(false);
   });
 });
+
+describe("a CSS-nesting selector is not a dotted class", () => {
+  // `&.secondary:` compiles to a real, populated compound rule (`builtins.sd`
+  // uses the idiom 13 times), and taking the suggested fix turns it into a
+  // descendant TYPE selector matching nothing — with no further warning. The
+  // advice was not just noise; following it silently broke working styles.
+  for (const selector of [
+    "&.secondary",
+    "&.outline.secondary",
+    "> .child",
+    "* .thing",
+  ]) {
+    test(`\`${selector}:\` does not warn`, () => {
+      expect(
+        warnsDotted(
+          diagnosticsFor(
+            `style card with\n  ${selector}:\n    color = blue\nend\n`,
+          ),
+        ),
+      ).toBe(false);
+    });
+  }
+});

@@ -182,6 +182,31 @@ const PLAIN_CONTENT_NODES = new Set([
   "LuauElementContentStringSingleQuoted",
 ]);
 
+/** A short, stable, identifier-safe tag for the document being lowered.
+ *
+ *  Binding evaluator names were minted from the node's byte offset ALONE, but
+ *  every hoisted evaluator lands in one flow namespace. Two files whose first
+ *  binding starts at the same offset — near-inevitable for a copy-and-adapt
+ *  pair of layout files — both minted `__binding_37`, producing a severity-1
+ *  "Duplicate identifier" attributed to `main.sd` rather than to either file
+ *  that caused it, one surviving evaluator, and both layouts resolving to it
+ *  (so one rendered the other's value).
+ *
+ *  FNV-1a over the path: no crypto dependency, stable across runs (unlike a
+ *  counter, which would change every id whenever an unrelated file was added
+ *  and defeat the "first registration wins" reuse below). */
+function documentTag(filePath: string | undefined | null): string {
+  if (!filePath) {
+    return "";
+  }
+  let hash = 0x811c9dc5;
+  for (let i = 0; i < filePath.length; i += 1) {
+    hash ^= filePath.charCodeAt(i);
+    hash = Math.imul(hash, 0x01000193) >>> 0;
+  }
+  return `${hash.toString(36)}_`;
+}
+
 /** DFS in-order: the first descendant (or self) whose name is in `names`. */
 function firstDescendant(
   node: SyntaxNode,
@@ -322,7 +347,7 @@ function lowerBinding(
   ctx: LowerContext,
   extraParams: string[] = [],
 ): Binding {
-  const exprId = `__binding_${interpNode.from}`;
+  const exprId = `__binding_${documentTag(ctx.filePath)}${interpNode.from}`;
   const source = ctx.read(interpNode.from, interpNode.to);
   const span: SparkRange = {
     file: ctx.filePath,
@@ -334,7 +359,18 @@ function lowerBinding(
   // body can read per-iteration values the runtime passes as args (loop locals
   // aren't globals — see LowerContext.sparkleLoopVars). `extraParams` adds
   // handler-only params like `event` (the runtime supplies the DOM event table).
-  const loopVars = [...(ctx.sparkleLoopVars ?? []), ...extraParams];
+  // DEDUPED: nested loops may bind the SAME name (`for i in rows` inside
+  // `for i in cols`), and a component param can be re-bound by a loop
+  // (`component card(item)` + `for item in ...`). The stack is push/restore, so
+  // both live on it at once; handing both to the evaluator produced
+  // `params: ["i","i"]` and a severity-1 "Multiple arguments with the same
+  // name" on every keystroke — anchored at the interpolation, not the loop
+  // header, for a construct that is legal Luau in this same language. The
+  // rendered values were always right (the runtime maps params against a flat
+  // env, so both copies resolved to the innermost value); only the Problems
+  // panel was wrong. Deduped HERE rather than at the push site, which has to
+  // stay a plain stack for `buildForNode`'s `length = restoreLen` restore.
+  const loopVars = [...new Set([...(ctx.sparkleLoopVars ?? []), ...extraParams])];
   // Hoist the evaluator once per source position (the same expression node can
   // be lowered more than once; first registration wins). Snapshot-only callers
   // without a hoist buffer skip it — the handle is still produced.
@@ -424,7 +460,7 @@ function lowerComponentArg(
   }
   const first = argNodes[0]!;
   const last = argNodes[argNodes.length - 1]!;
-  const exprId = `__binding_${first.from}`;
+  const exprId = `__binding_${documentTag(ctx.filePath)}${first.from}`;
   const source = ctx.read(first.from, last.to);
   const span: SparkRange = {
     file: ctx.filePath,
@@ -432,7 +468,7 @@ function lowerComponentArg(
     from: first.from,
     to: last.to,
   };
-  const loopVars = [...(ctx.sparkleLoopVars ?? [])];
+  const loopVars = [...new Set(ctx.sparkleLoopVars ?? [])]; // see lowerBinding
   const already = ctx.hoistedKnots?.some(
     (o) => o instanceof Function && o.identifier?.name === exprId,
   );
@@ -558,7 +594,7 @@ function lowerHandlerClosure(
   ctx: LowerContext,
   extraParams: string[] = [],
 ): Binding {
-  const exprId = `__binding_${closureNode.from}`;
+  const exprId = `__binding_${documentTag(ctx.filePath)}${closureNode.from}`;
   const source = ctx.read(closureNode.from, closureNode.to);
   const span: SparkRange = {
     file: ctx.filePath,
@@ -566,7 +602,7 @@ function lowerHandlerClosure(
     from: closureNode.from,
     to: closureNode.to,
   };
-  const loopVars = [...(ctx.sparkleLoopVars ?? []), ...extraParams];
+  const loopVars = [...new Set([...(ctx.sparkleLoopVars ?? []), ...extraParams])]; // see lowerBinding
   // The attribute is line-oriented, so a closure whose `}` isn't on the `=`
   // line is force-closed at the newline — the grammar emits no
   // `LuauSparkleHandlerClosure_end` (closing brace). Surface that as an error
@@ -1094,7 +1130,7 @@ const WS_NODE_NAMES = new Set([
 function lowerBindingFromNodes(nodes: SyntaxNode[], ctx: LowerContext): Binding {
   const first = nodes[0]!;
   const last = nodes[nodes.length - 1]!;
-  const exprId = `__binding_${first.from}`;
+  const exprId = `__binding_${documentTag(ctx.filePath)}${first.from}`;
   const source = ctx.read(first.from, last.to);
   const span: SparkRange = {
     file: ctx.filePath,
@@ -1102,7 +1138,7 @@ function lowerBindingFromNodes(nodes: SyntaxNode[], ctx: LowerContext): Binding 
     from: first.from,
     to: last.to,
   };
-  const loopVars = ctx.sparkleLoopVars ?? [];
+  const loopVars = [...new Set(ctx.sparkleLoopVars ?? [])]; // see lowerBinding
   const already = ctx.hoistedKnots?.some(
     (o) => o instanceof Function && o.identifier?.name === exprId,
   );

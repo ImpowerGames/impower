@@ -225,9 +225,25 @@ export class ValidationAnnotator extends SparkdownAnnotator<
       // Sparkle element line so unrelated unrecognized spans aren't mislabeled.
       const text = this.read(nodeRef.from, nodeRef.to).trim();
       const context = getContextNames(nodeRef.node);
+      // A CSS-nesting SELECTOR is not a dotted class. `&.secondary:` compiles
+      // to a real, populated compound rule — `builtins.sd` uses the idiom 13
+      // times — and taking the suggested fix turns it into a descendant TYPE
+      // selector matching nothing, with no further warning. So the advice was
+      // not merely noise: following it silently broke working styles.
+      //
+      // Detected on the text preceding the dot on this line: a selector
+      // combinator (`&`, `>`, `*`) means we are in selector position, where
+      // dots are the correct syntax.
+      const lineStart = this.read(
+        Math.max(0, nodeRef.from - 200),
+        nodeRef.from,
+      );
+      const beforeDot = lineStart.slice(lineStart.lastIndexOf("\n") + 1);
+      const inSelectorPosition = /[&>*]/.test(beforeDot);
       if (
         text.startsWith(".") &&
         context.includes("LuauStructBodyLine") &&
+        !inSelectorPosition &&
         // Only element-line headers — not a stray `.` inside a `key = value`
         // style property, where the fix isn't "use a space".
         !context.includes("LuauStructScalarProperty")

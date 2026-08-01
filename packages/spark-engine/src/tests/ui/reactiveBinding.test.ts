@@ -45,7 +45,12 @@ end
 `);
     await h.ready;
     const binding = findFirstBinding((h.game.program as any).sparkle);
-    expect(binding?.exprId).toMatch(/^__binding_\d+$/);
+    // `__binding_<documentTag>_<byteOffset>`. The document tag is not optional
+    // padding: the id was the byte offset ALONE, and since every hoisted
+    // evaluator shares one flow namespace, two files whose bindings started at
+    // the same offset minted the same name — one evaluator survived and both
+    // layouts resolved to it.
+    expect(binding?.exprId).toMatch(/^__binding_(?:[a-z0-9]+_)?\d+$/);
     // The screen need not be shown — the evaluator is a top-level story knot,
     // and the global `hp` is initialized at story load.
     const value = (h.game.module.ui as any).evalBinding(binding);

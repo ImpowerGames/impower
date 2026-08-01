@@ -169,16 +169,27 @@ export class SparkdownCombinedAnnotator {
     }
   }
 
-  create(tree: Tree, text: Text, annotate?: Set<keyof SparkdownAnnotators>) {
-    return this.update(tree, text, undefined, undefined, annotate);
+  create(
+    tree: Tree,
+    text: Text,
+    annotate?: Set<keyof SparkdownAnnotators>,
+    uri?: string,
+  ) {
+    return this.update(tree, text, undefined, undefined, annotate, uri);
   }
 
+  /** `uri` identifies the document being annotated. Forwarded to every
+   *  sub-annotator so anything deriving identity from the document (binding
+   *  evaluator names, diagnostic routing) can. It used to stop here, leaving
+   *  `SparkdownAnnotator.uri` — and therefore `LowerContext.filePath` —
+   *  undefined on the production path. */
   update(
     tree: Tree,
     text: Text,
     changes?: ChangeSpec[],
     length: number = 0,
     annotate?: Set<keyof SparkdownAnnotators>,
+    uri?: string,
   ) {
     const cachedCompiler = tree.prop(cachedCompilerProp);
     const reparsedFrom = cachedCompiler?.reparsedFrom;
@@ -187,7 +198,7 @@ export class SparkdownCombinedAnnotator {
     const iteratingTo = reparsedTo ?? text.length;
     for (const [key, annotator] of this._currentEntries) {
       if (!annotate || annotate?.has(key as keyof SparkdownAnnotators)) {
-        annotator.update(tree, text);
+        annotator.update(tree, text, uri);
       }
     }
     if (!changes || reparsedFrom == null) {

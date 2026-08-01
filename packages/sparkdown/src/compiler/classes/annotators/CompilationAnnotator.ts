@@ -262,6 +262,11 @@ export class CompilationAnnotator extends SparkdownAnnotator<
       // call site resolves via FunctionCall + static `PackTuple`.
       const siblingSubFlowNamesStack: Set<string>[] = [];
       const lowered = lower(nodeRef, {
+        // The document being lowered. Absent here until now, which made
+        // `ctx.filePath` undefined on the PRODUCTION path — so anything
+        // deriving identity from it silently fell back to nothing. Binding
+        // evaluator names did exactly that and collided across files.
+        filePath: this.uri,
         read: (from, to) => this.read(from, to),
         lineNumber: (pos) =>
           text ? text.lineAt(pos).number - 1 - chunkStartLine0 : 0,

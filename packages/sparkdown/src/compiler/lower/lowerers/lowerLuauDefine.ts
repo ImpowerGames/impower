@@ -33,6 +33,7 @@ import { getFunctionBodyContent } from "../utils/getFunctionBodyContent";
 import { lowerArguments } from "../utils/lowerArguments";
 import { validateAssignmentValue } from "../utils/validateAssignmentValue";
 import { wrapInWeave } from "../utils/wrapInWeave";
+import { stripTrailingLineComment } from "../utils/stripTrailingLineComment";
 
 // `define` is sparkdown's unified OOP type/instance construct. Every
 // define — whether it has properties, methods, or both — lowers to a
@@ -93,7 +94,17 @@ interface DefineProperty {
 // out of the registry (the runtime `__def` table remains their source of
 // truth).
 function coerceScalarLiteral(raw: string): unknown {
-  const s = raw.trim();
+  // A trailing line comment is part of the raw RHS text, and every test below
+  // is anchored to the whole string — so `delay = 5 -- note` failed the number
+  // test and fell through to "store it as a string". A typed field silently
+  // changed TYPE because of a comment: `5` became `"5"`, `true` became
+  // `"true"`, and `"red"` became the string `"red" -- note`, quotes included.
+  // Both markers did it; neither warned.
+  //
+  // `stripTrailingLineComment` requires whitespace before the marker, so
+  // `var(--foo)` and hyphenated values are untouched, and `//` additionally
+  // requires a following space/EOL so a URL survives.
+  const s = stripTrailingLineComment(raw).trim();
   if (!s || s.includes("\n")) return undefined;
   if (s.startsWith("{") || s.startsWith("[")) return undefined;
   // Unescape Luau string-literal escapes (\\, \", \n, \xNN, …) so the context
