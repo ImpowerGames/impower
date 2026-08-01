@@ -870,7 +870,21 @@ export class Game<T extends M = {}> {
     if (this._simulation === "success") {
       this.continue(true);
     } else if (this._simulation === "fail") {
-      this.reset();
+      // `rewindStory`, NOT `reset`. By the time `start` runs, `connect` has
+      // already called every module's `onConnected` AND `restore` — the ui
+      // module has mounted its layouts, registered its `@event` handlers and
+      // had the renderer attach the matching DOM listeners. A full `reset`
+      // here clears `_state` and calls `onReset`, throwing all of that away,
+      // and nothing mounts again afterwards.
+      //
+      // The result was a UI that rendered perfectly and did nothing: the DOM
+      // was intact, the renderer still forwarded clicks, and the engine looked
+      // them up in an `_events` map that had just been emptied. Traced on a
+      // STOP -> PLAY, where the order is
+      //   onConnected -> mountEvent -> ui/observe -> onReset.
+      // Module reset is only meaningful BEFORE modules are initialized; here we
+      // only need the story rewound so the replay starts from `_startPath`.
+      this.rewindStory();
       this.clearChoices();
       if (this._startPath) {
         this.jumpToPath(this._startPath);
@@ -1039,12 +1053,22 @@ export class Game<T extends M = {}> {
     return undefined;
   }
 
-  reset() {
+  /** Rewind the STORY to its initial state, leaving module state alone.
+   *
+   *  Split out from {@link reset} because the two are only safe at different
+   *  points in the lifecycle. Rewinding the story is safe at any time; resetting
+   *  the modules is only safe BEFORE they are initialized, because
+   *  `Module.reset` clears `_state` and calls `onReset`, which for the ui module
+   *  drops the mounted-layout map and the `_events` handler registry. */
+  protected rewindStory() {
     if (this._story.canContinue && !this._story.asyncContinueComplete) {
       this._story.Continue();
     }
-    // Reset story to its initial state
     this._story.ResetState();
+  }
+
+  reset() {
+    this.rewindStory();
     // Reset modules to their initial state
     for (const k of this._moduleNames) {
       const module = this._modules[k];
@@ -1817,7 +1841,11 @@ export class Game<T extends M = {}> {
     if (this._simulation === "success") {
       this.continue(true);
     } else if (this._simulation === "fail") {
-      this.reset();
+      // Same reason as the `start` fail branch: modules are already connected
+      // and mounted here, so a full `reset` would clear the ui module's mounted
+      // layouts and `_events` and nothing would mount again. Only the story
+      // needs rewinding before jumping to the preview path.
+      this.rewindStory();
       this.clearChoices();
       this._startPath = previewPath;
       this.jumpToPath(previewPath);
