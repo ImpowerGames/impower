@@ -43,6 +43,11 @@ import { LowerContext } from "../lower/context";
 import { InkObject } from "../../inkjs/engine/Object";
 import { SimpleJson } from "../../inkjs/engine/SimpleJson";
 import { JsonSerialisation } from "../../inkjs/engine/JsonSerialisation";
+import { encodeProgramBuffer } from "../../binary/programBinary";
+import {
+  ProgramBinaryWriter,
+  type CachedFlowChunk,
+} from "../../binary/ProgramBinaryWriter";
 import { Story as RuntimeStory } from "../../inkjs/engine/Story";
 import { asINamedContentOrNull, asOrNull } from "../../inkjs/engine/TypeAssertion";
 import { Container } from "../../inkjs/engine/Container";
@@ -196,6 +201,15 @@ export class SparkdownCompiler {
   // cross-flow fingerprint matches AND no header/global chunk changed (const
   // inlining / global decl) — see the `flowMemo` in `compile`.
   protected _flowJsonCache?: Map<string, { fp: string; value: any }>;
+
+  // The binary-format twin of `_flowJsonCache` (#314 phase 2), used when
+  // `config.binaryProgram` is set. Same key (top-level flow name) and same
+  // validity check (cross-flow fingerprint + the reuse guards below), but the
+  // cached value is a portable record range rather than a JS subtree. Chunks
+  // store LOCAL string/number tables and chunk-relative `end` offsets, because
+  // both are program-global in an assembled buffer and would otherwise decode
+  // against the wrong tables on the next compile.
+  protected _flowChunkCache?: Map<string, CachedFlowChunk>;
 
   // ---- Incremental ExportRuntime: constructed-flow reuse ------------------
   // A top-level flow (knot/scene/function, plus its stitches) is assembled
@@ -432,6 +446,16 @@ export class SparkdownCompiler {
       config.stripImageData !== this._config.stripImageData
     ) {
       this._config.stripImageData = config.stripImageData;
+    }
+    if (
+      config.binaryProgram !== undefined &&
+      config.binaryProgram !== this._config.binaryProgram
+    ) {
+      this._config.binaryProgram = config.binaryProgram;
+      // The two paths keep separate per-flow caches; a cache built for the
+      // other format must never be consulted after a switch.
+      this._flowJsonCache = undefined;
+      this._flowChunkCache = undefined;
     }
     if (
       config.workspace !== undefined &&
@@ -889,7 +913,13 @@ export class SparkdownCompiler {
       }
       if (story) {
         profile("start", this._profilerId, "ink/json", uri);
-        const writer = new SimpleJson.Writer();
+        // #314: the binary writer answers the SAME streaming write events as
+        // SimpleJson.Writer, but appends records instead of building a JS
+        // object tree — so on the no-memo path it does strictly less work.
+        const binary = this._config.binaryProgram === true;
+        const writer = binary
+          ? new ProgramBinaryWriter()
+          : new SimpleJson.Writer();
         // Incremental ToJson: reuse the serialized subtree of each top-level flow
         // whose source content is unchanged AND whose cross-flow fingerprint
         // (#f flags + resolved divert/reference paths) is unchanged. Content is
@@ -911,8 +941,51 @@ export class SparkdownCompiler {
           // compile. Take the exact baseline path — no fingerprinting, which
           // would otherwise be pure overhead — and let the cache lapse so the
           // next reuse-eligible edit reseeds from a fresh serialization.
-          story.ToJson(writer);
+          story.ToJson(writer as never);
           this._flowJsonCache = undefined;
+          this._flowChunkCache = undefined;
+        } else if (binary) {
+          // Binary twin of the JSON memo below. The reuse GUARDS are shared —
+          // `reusableFlows` and the `_renamedFlowNames` subtraction are
+          // computed once above — so the two paths can never disagree about
+          // which flows are eligible, only about what a cached value is.
+          const binaryWriter = writer as ProgramBinaryWriter;
+          const prevChunkCache = this._flowChunkCache;
+          const nextChunkCache = new Map<string, CachedFlowChunk>();
+          const flowMemo = {
+            resolve: (
+              name: string,
+              container: Container,
+              serialize: () => any,
+            ) => {
+              // Same two exclusions as the JSON path, for the same reasons:
+              // `global decl` is non-contiguous and cheap, and canonical
+              // synthetic names are POSITIONAL, so a name can rebind to a
+              // different flow that the fingerprint cannot distinguish.
+              if (name === "global decl" || CANONICAL_SYNTH_NAME.test(name)) {
+                return serialize();
+              }
+              const fp = JsonSerialisation.FingerprintCrossFlow(container);
+              if (reusableFlows.has(name) && prevChunkCache) {
+                const cached = prevChunkCache.get(name);
+                if (cached && cached.fp === fp) {
+                  nextChunkCache.set(name, cached);
+                  // `WriteInjected` splices the records; the flow is never
+                  // re-walked and its strings are never re-hashed.
+                  return cached.chunk;
+                }
+              }
+              // Miss: arm the writer to capture whatever gets injected next,
+              // because `resolve` returns BEFORE the caller injects it.
+              binaryWriter.captureNextInjectedAs(name, fp);
+              return serialize();
+            },
+          };
+          story.ToJson(binaryWriter as never, flowMemo);
+          for (const [name, entry] of binaryWriter.takeCapturedChunks()) {
+            nextChunkCache.set(name, entry);
+          }
+          this._flowChunkCache = nextChunkCache;
         } else {
           const prevFlowCache = this._flowJsonCache;
           const nextFlowCache = new Map<string, { fp: string; value: any }>();
@@ -952,9 +1025,15 @@ export class SparkdownCompiler {
           story.ToJson(writer, flowMemo);
           this._flowJsonCache = nextFlowCache;
         }
-        const json = writer.toObject();
-        if (json) {
-          program.compiled = json;
+        if (binary) {
+          program.compiledBinary = encodeProgramBuffer(
+            (writer as ProgramBinaryWriter).toBuffer(),
+          );
+        } else {
+          const json = (writer as SimpleJson.Writer).toObject();
+          if (json) {
+            program.compiled = json;
+          }
         }
         state.story = story;
         profile("end", this._profilerId, "ink/json", uri);

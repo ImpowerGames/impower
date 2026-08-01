@@ -15,6 +15,13 @@ export interface SparkProgram {
   scripts: Record<string, number>;
   files: Record<string, Omit<File, "src" | "text" | "data">>;
   compiled?: Record<string, any>;
+  /**
+   * The compiled program in the binary format (#314), set INSTEAD of
+   * `compiled` when `SparkdownCompilerConfig.binaryProgram` is on. Its
+   * `ArrayBuffer` is transferable, so a host that opts in moves it across a
+   * worker boundary rather than structured-cloning an object graph.
+   */
+  compiledBinary?: Uint8Array;
   workspace?: string;
   startFrom?: { file: string; line: number };
   simulationOptions?: Record<

@@ -302,8 +302,18 @@ const encodeStringTable = (
 };
 
 /** Serialize a compiled program (or any JSON value) to one buffer. */
-export const encodeProgram = (value: unknown): Uint8Array => {
-  const { nodes, strings, numbers } = buildProgramBuffer(value);
+export const encodeProgram = (value: unknown): Uint8Array =>
+  encodeProgramBuffer(buildProgramBuffer(value));
+
+/**
+ * Serialize an already-built buffer.
+ *
+ * Split out from {@link encodeProgram} so a writer that produced its records
+ * directly (`ProgramBinaryWriter`) does not have to build a JS value first,
+ * only to have it walked a second time.
+ */
+export const encodeProgramBuffer = (buffer: ProgramBuffer): Uint8Array => {
+  const { nodes, strings, numbers } = buffer;
   const slotBytes = nodes.BYTES_PER_ELEMENT;
   const { data: stringData, lengths: stringLengths } =
     encodeStringTable(strings);
