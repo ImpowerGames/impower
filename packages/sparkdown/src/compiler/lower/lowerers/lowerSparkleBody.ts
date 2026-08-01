@@ -39,10 +39,9 @@ import {
 // feedback_ast_lowerer_reads_grammar_tokens.)
 //
 //   LuauStructObjectHeader  → `stage:` / `choice 0:` → container element
-//                             (first ComponentName = tag; trailing
-//                             ComponentName/NumberLiteral parts = classes)
+//                             (first name = tag; the rest are classes)
 //   LuauStructBareMarker    → `image` / `mask shadow_1` → leaf element
-//                             (first ComponentName = tag; rest = classes)
+//                             (first name = tag; the rest are classes)
 //   LuauStructScalarProperty→ `image = "black"` (builtin key) → element whose
 //                             content is the value; a non-builtin key
 //                             (`color = white`) → a style prop on the parent.
@@ -85,9 +84,19 @@ function collectNodeLines(
     let child = node?.firstChild ?? null;
     while (child) {
       if (child.name === "LuauStructBodyContent") {
-        const text = ctx.read(child.from, child.to).trim();
-        // Skip whole-line `--` Luau comments (same rule as lowerStructBody).
-        if (text && !text.startsWith("--")) {
+        // A line the grammar classified into no SHAPE is a comment (or blank),
+        // and a comment occupies no indent slot. Asking the grammar rather than
+        // re-reading the text is what makes this uniform: the old string test
+        // knew about `--` and not `//`, so a `//` comment aligned with the
+        // block HEADER — or indented deeper than the block's children — was
+        // taken as a body line and silently deleted the block's children (one
+        // child, or none at all). `--` in the same positions was fine.
+        //
+        // `//` is a first-class marker here: the grammar emits
+        // `SparkdownLineComment` for it, and `pico-showcase.sd` has 90 of them.
+        // They all happen to align with the line below, which is the only
+        // reason nothing shipped broken.
+        if (lineKindNode(child)) {
           lines.push({ indent: ctx.characterNumber(child.from), node: child });
         }
       } else if (CONTROL_BLOCK_NAMES.has(child.name)) {
@@ -237,60 +246,55 @@ function descendants(node: SyntaxNode, names: Set<string>): SyntaxNode[] {
   return out;
 }
 
-/** Tag + classes from an object-header/bare-marker node. Per the sparkle rule:
- *  the BUILTIN/component token is the tag (position-independent — `mask shadow_1`
- *  and `shadow_1 mask` both → tag "mask"); every OTHER bare word (and bare
- *  number) is a class. With no builtin, the first token is taken as the
- *  (component) tag.
+/** Tag + classes from an object-header/bare-marker node. The FIRST name on the
+ *  line is the tag; every other bare word (and bare number) is a class.
  *
- *  Only the FIRST name on a line is tokenized as a `BuiltinComponentName` — a
- *  builtin name appearing after it is an ordinary class, so `button text` is a
- *  button classed `text` rather than two competing tags. `warnMultipleTags`
- *  below therefore no longer fires from this path; it is kept as a guard in case
- *  another node shape yields two builtin tokens. */
+ *  Position, not builtin-ness, decides — which is what the engine does
+ *  ("the tag lookup reads the FIRST token only") and what the bare-marker
+ *  grammar already enforced by tokenizing only the leading name as a
+ *  `BuiltinComponentName`. A colon HEADER does not split that way: every word
+ *  is re-tokenized, so a trailing builtin also came out as a
+ *  `BuiltinComponentName` and a builtin-first rule picked IT. Adding children
+ *  to an element therefore changed the element:
+ *
+ *      card footer      ->  <div class="card footer">
+ *      card footer:     ->  <footer class="footer card">
+ *
+ *  and `list item:` warned about multiple tags where `list item` did not. The
+ *  two spellings now agree, in both directions. */
 function tagAndClasses(
   node: SyntaxNode,
   ctx: LowerContext,
-): { tag: string | null; classes: string[]; first: string | null } {
+): { tag: string | null; classes: string[] } {
   const tokens = descendants(node, NAME_TOKEN_NAMES);
-  if (tokens.length === 0) return { tag: null, classes: [], first: null };
-  const builtins = tokens.filter((t) => t.name === "BuiltinComponentName");
-  const tagNode = builtins[0] ?? tokens[0]!;
-  if (builtins.length > 1) warnMultipleTags(builtins, ctx);
+  if (tokens.length === 0) return { tag: null, classes: [] };
+  const tagNode = tokens[0]!;
   const tag = ctx.read(tagNode.from, tagNode.to).trim();
   const classes = tokens
-    .filter((t) => t !== tagNode)
+    .slice(1)
     .map((t) => ctx.read(t.from, t.to).trim())
     .filter(Boolean);
-  // The literal FIRST token, independent of the builtin preference above — the
-  // structural keywords (`slot`/`fill`) are positional and must not be shadowed
-  // by a builtin sitting later on the line.
-  const first = ctx.read(tokens[0]!.from, tokens[0]!.to).trim();
-  return { tag, classes, first };
+  return { tag, classes };
 }
 
-/** Warn (editor-side) when an element line names more than one builtin tag —
- *  ambiguous which is the element. No-op for snapshot callers without a
- *  diagnostics buffer. */
-function warnMultipleTags(builtins: SyntaxNode[], ctx: LowerContext): void {
+/** Warn (editor-side) when a line's indentation matches no open block, so it is
+ *  about to be dropped. No-op for snapshot callers without a diagnostics
+ *  buffer, so snapshot tests are unaffected. */
+function warnOrphanLine(node: SyntaxNode, ctx: LowerContext): void {
   if (!ctx.diagnostics) return;
-  const names = builtins.map((b) => ctx.read(b.from, b.to).trim());
-  for (const extra of builtins.slice(1)) {
-    ctx.diagnostics.push({
-      message: `An element can only have one tag, but found multiple: ${names.join(
-        ", ",
-      )}. Only the first is used as the tag — did you mean a class?`,
-      severity: ErrorType.Warning,
-      source: {
-        fileName: null,
-        filePath: ctx.filePath ?? null,
-        startLineNumber: ctx.lineNumber(extra.from) + 1,
-        endLineNumber: ctx.lineNumber(extra.to) + 1,
-        startCharacterNumber: ctx.characterNumber(extra.from) + 1,
-        endCharacterNumber: ctx.characterNumber(extra.to) + 1,
-      },
-    });
-  }
+  ctx.diagnostics.push({
+    message:
+      "This line's indentation doesn't match any element above it, so it isn't part of the layout. Line it up with the block you meant to nest it under.",
+    severity: ErrorType.Warning,
+    source: {
+      fileName: null,
+      filePath: ctx.filePath ?? null,
+      startLineNumber: ctx.lineNumber(node.from) + 1,
+      endLineNumber: ctx.lineNumber(node.to) + 1,
+      startCharacterNumber: ctx.characterNumber(node.from) + 1,
+      endCharacterNumber: ctx.characterNumber(node.to) + 1,
+    },
+  });
 }
 
 /** Unescape the content-string literal-brace escapes: `\{` → `{`, `\}` → `}`.
@@ -799,7 +803,13 @@ function buildBlock(
   let i = start;
   while (i < lines.length && lines[i]!.indent >= indent) {
     if (lines[i]!.indent > indent) {
-      i += 1; // defensive: over-indented orphan
+      // An orphan: indented past this block but matching no open child block.
+      // Dropping it is right — there is nowhere to put it — but dropping it
+      // SILENTLY is not: the line simply disappeared from the layout with no
+      // diagnostic, which reads as "my element does not work" rather than "my
+      // indentation is wrong".
+      warnOrphanLine(lines[i]!.node, ctx);
+      i += 1;
       continue;
     }
     // Control block (`if … end`) — a self-contained grammar node; build it
@@ -897,19 +907,19 @@ function buildBlock(
     // `mask shadow_1` / `text title "Inventory"` / `row #background-color={c}`)
     // → an element; the builtin/component token is the tag, other bare words are
     // classes, plus optional adjacency content + inline props/events.
-    const { tag: parsedTag, classes, first } = tagAndClasses(kind, ctx);
+    const { tag: parsedTag, classes } = tagAndClasses(kind, ctx);
     const tag = parsedTag ?? ctx.read(content.from, content.to).trim();
     // Component slots (spec §4.7): `slot [name]` is a leaf placeholder for
     // caller children; `fill [name]:` (caller side) targets a named slot and
     // carries children.
     //
-    // Matched on the FIRST token, not on `tag`: `tagAndClasses` prefers a
-    // builtin token wherever it sits on the line, so a slot whose NAME happens
-    // to be a builtin (`slot footer`, `slot header`, `slot text`) would
-    // otherwise lower as that element carrying a stray "slot" class. The
-    // optional name is then simply the OTHER bare word on the line.
-    const slotName = [tag, ...classes].find((t) => t !== first);
-    if (first === "slot") {
+    // Matched on the parsed tag, which is now the line's FIRST token — so a
+    // slot whose NAME happens to be a builtin (`slot footer`, `slot header`,
+    // `slot text`) stays a slot instead of lowering as that element with a
+    // stray "slot" class. This used to need its own `first` field to bypass a
+    // builtin-preferring tag rule; that rule is gone.
+    const slotName = classes[0];
+    if (parsedTag === "slot") {
       const slot: SlotNode = {
         kind: "slot",
         ...(slotName ? { name: slotName } : {}),
@@ -918,7 +928,7 @@ function buildBlock(
       i += 1;
       continue;
     }
-    if (first === "fill") {
+    if (parsedTag === "fill") {
       const fill: FillNode = {
         kind: "fill",
         ...(slotName ? { name: slotName } : {}),
@@ -1336,7 +1346,15 @@ export function buildSparkleBody(
   const prevStamp = ctx.stampExpressionSpans;
   ctx.stampExpressionSpans = true;
   try {
-    return buildBlock(lines, 0, lines[0]!.indent, ctx).children;
+    // The base indent is the SHALLOWEST line, not the first one. Taking the
+    // first line's indent meant a body whose opening line was indented deeper
+    // than the rest ended the block-walk at the very next line and discarded
+    // everything after it — the entire layout bar one element, silently. With
+    // the minimum, that deep first line becomes an orphan (warned) and the rest
+    // of the body survives, which is the failure the author can actually see
+    // and fix.
+    const base = lines.reduce((m, l) => Math.min(m, l.indent), lines[0]!.indent);
+    return buildBlock(lines, 0, base, ctx).children;
   } finally {
     ctx.stampExpressionSpans = prevStamp;
   }
