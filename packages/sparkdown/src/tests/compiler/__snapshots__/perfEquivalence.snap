@@ -14866,23 +14866,6 @@
             "iterations": 1
           }
         },
-        "progress": {
-          "$name": "progress",
-          "$type": "animation",
-          "keyframes": {},
-          "target": {
-            "$name": "self",
-            "$type": "layer"
-          },
-          "timing": {
-            "delay": 0,
-            "direction": "normal",
-            "duration": 0,
-            "easing": "ease",
-            "fill": "both",
-            "iterations": 1
-          }
-        },
         "progress_indeterminate": {
           "$name": "progress_indeterminate",
           "$type": "animation",
@@ -18184,7 +18167,7 @@
         "character_name": {
           "$name": "character_name",
           "$type": "style",
-          "font_weight": "600px",
+          "font_weight": "600",
           "padding_bottom": "8px"
         },
         "character_parenthetical": {
@@ -18194,7 +18177,7 @@
             "font_size": "0.875rem"
           },
           "font_size": "1rem",
-          "font_weight": "400px",
+          "font_weight": "400",
           "padding_bottom": "8px"
         },
         "checkbox": {
@@ -18934,8 +18917,8 @@
           "display": "inline-block",
           "pointer_events": "auto",
           "text-color": "sky_60",
-          "text-decoration": "underline",
           "text-decoration-color": "color-mix(in srgb, currentColor 50%, transparent)",
+          "text-decoration-line": "underline",
           "text-underline-offset": "0.125rem",
           "transition": "all 0.2s ease-in-out"
         },
@@ -88648,23 +88631,6 @@
             "iterations": 1
           }
         },
-        "progress": {
-          "$name": "progress",
-          "$type": "animation",
-          "keyframes": {},
-          "target": {
-            "$name": "self",
-            "$type": "layer"
-          },
-          "timing": {
-            "delay": 0,
-            "direction": "normal",
-            "duration": 0,
-            "easing": "ease",
-            "fill": "both",
-            "iterations": 1
-          }
-        },
         "progress_indeterminate": {
           "$name": "progress_indeterminate",
           "$type": "animation",
@@ -91966,7 +91932,7 @@
         "character_name": {
           "$name": "character_name",
           "$type": "style",
-          "font_weight": "600px",
+          "font_weight": "600",
           "padding_bottom": "8px"
         },
         "character_parenthetical": {
@@ -91976,7 +91942,7 @@
             "font_size": "0.875rem"
           },
           "font_size": "1rem",
-          "font_weight": "400px",
+          "font_weight": "400",
           "padding_bottom": "8px"
         },
         "checkbox": {
@@ -92716,8 +92682,8 @@
           "display": "inline-block",
           "pointer_events": "auto",
           "text-color": "sky_60",
-          "text-decoration": "underline",
           "text-decoration-color": "color-mix(in srgb, currentColor 50%, transparent)",
+          "text-decoration-line": "underline",
           "text-underline-offset": "0.125rem",
           "transition": "all 0.2s ease-in-out"
         },
