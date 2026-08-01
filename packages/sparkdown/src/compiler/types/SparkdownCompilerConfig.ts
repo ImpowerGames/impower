@@ -16,7 +16,7 @@ export interface SparkdownCompilerConfig {
    */
   stripImageData?: boolean;
   /**
-   * Serialize the compiled program into `program.compiled` (#345).
+   * Serialize the compiled program at all (#345).
    *
    * Defaults to on. Hosts that never read the bytecode turn it OFF: the
    * language-server instance relays a slim projection that excludes `compiled`,
@@ -26,9 +26,22 @@ export interface SparkdownCompilerConfig {
    *
    * Only SERIALIZATION is skipped. `ExportRuntime` still runs, because
    * generation-time diagnostics come out of it and `populateAllLocations`
-   * walks the runtime tree for `pathLocations`.
+   * walks the runtime tree for `pathLocations`. Orthogonal to
+   * {@link binaryProgram}, which selects the FORM when something is emitted.
    */
   emitCompiledProgram?: boolean;
+  /**
+   * Serialize the compiled program to the binary format (#314) instead of a
+   * JSON object tree, exposing it as `program.compiledBuffer`.
+   *
+   * Off by default: the JSON path stays the default and the fallback, so a
+   * regression in the binary path can be bisected without a revert. Not a
+   * speed win — measured, it is a wash end to end and ~10% on payload; it
+   * exists because a binary program is wanted for its own sake (obfuscation,
+   * a self-contained artifact). Ignored when {@link emitCompiledProgram} is
+   * off, since then nothing is emitted in either form.
+   */
+  binaryProgram?: boolean;
   workspace?: string;
   startFrom?: { file: string; line: number };
   simulationOptions?: Record<

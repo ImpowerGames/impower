@@ -3,6 +3,7 @@ import { NotificationMessage } from "@impower/jsonrpc/src/common/types/Notificat
 import { RequestMessage } from "@impower/jsonrpc/src/common/types/RequestMessage";
 import { ResponseError } from "@impower/jsonrpc/src/common/types/ResponseError";
 import { type SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
+import { resolveCompiledProgram } from "@impower/sparkdown/src/binary/programBinary";
 import {
   buildRouteSimulator,
   planRoute,
@@ -329,7 +330,10 @@ export class Game<T extends M = {}> {
 
   updateProgram(program: SparkProgram, story?: Story) {
     this._program = program;
-    if (!story && !this._program.compiled) {
+    // Resolved ONCE: with the binary path (#314) this materializes the buffer,
+    // so testing it repeatedly would re-walk the whole program.
+    const compiled = story ? undefined : resolveCompiledProgram(program);
+    if (!story && !compiled) {
       throw new Error(
         "Program must be successfully compiled before it can be run",
       );
@@ -341,8 +345,8 @@ export class Game<T extends M = {}> {
 
     if (story) {
       this._story = story;
-    } else if (program.compiled) {
-      this._story = new Story(program.compiled);
+    } else if (compiled) {
+      this._story = new Story(compiled);
     }
     this.setupStory(this._story);
     return this._program;

@@ -630,6 +630,13 @@ Things that look like they work and don't:
   for.
 - **Re-dispatching the same cursor position produces no event.** To re-arm a
   scrub you must bounce to another line and back.
+- **A real (trusted) click on the target line is the most reliable scrub.**
+  `view.dispatch({selection})` moves the caret, but the preview can silently
+  fail to follow — the cursor sits on the line you asked for while `route`
+  stays on the old beat, and nothing raises. If the hold-check and the bounce
+  don't move the preview, scroll the line into view and `page.mouse.click()`
+  its coordinates (`view.coordsAtPos(line.from)` gives them); a trusted event
+  drives the real selection path.
 - **`textContent` on the game DOM returns a wall of CSS** — the player injects
   `<style>` blocks and every ancestor inherits their text. And the typewriter
   effect wraps **every character** in its own `<span>`, so "leaf nodes with
