@@ -643,9 +643,161 @@ export class SparkdownCompiler {
     return params;
   }
 
+  /**
+   * Serialize the compiled program into `program`.
+   *
+   * Extracted so the no-change short-circuit can materialize bytecode
+   * LAZILY (#351): a host that normally suppresses emission can still ask
+   * for it per request, and the answer has to come from the retained
+   * runtime story rather than a full recompile.
+   */
+  protected serializeCompiledProgram(
+    story: RuntimeStory,
+    program: SparkProgram,
+    uri: string,
+  ): void {
+    profile("start", this._profilerId, "ink/json", uri);
+    // #314: the binary writer answers the SAME streaming write events as
+    // SimpleJson.Writer, but appends records instead of building a JS
+    // object tree — so on the no-memo path it does strictly less work.
+    const binary = this._config.binaryProgram === true;
+    const writer = binary
+      ? new ProgramBinaryWriter(this._binaryTable, this._binarySlotHint)
+      : new SimpleJson.Writer();
+    // Incremental ToJson: reuse the serialized subtree of each top-level flow
+    // whose source content is unchanged AND whose cross-flow fingerprint
+    // (#f flags + resolved divert/reference paths) is unchanged. Content is
+    // covered by the chunk-unchanged signal; the fingerprint covers the
+    // cross-flow bits that change without the flow's own source changing.
+    const { reusable: reusableFlows, ok: flowReuseOk } =
+      this.computeFlowReuse(story);
+    if (this._renamedFlowNames) {
+      // A synthetic rename inside a flow changes its serialized bytes in
+      // ways the fingerprint can't see — its cached JSON must not be
+      // served (see the canonicalize step above).
+      for (const renamed of this._renamedFlowNames) {
+        reusableFlows.delete(renamed);
+      }
+    }
+    if (!flowReuseOk) {
+      // The global guard failed (a changed chunk sits before the first flow,
+      // so an inlined const may have shifted): no flow can be reused this
+      // compile. Take the exact baseline path — no fingerprinting, which
+      // would otherwise be pure overhead — and let the cache lapse so the
+      // next reuse-eligible edit reseeds from a fresh serialization.
+      story.ToJson(writer as never);
+      this._flowJsonCache = undefined;
+      this._flowChunkCache = undefined;
+    } else if (binary) {
+      // Binary twin of the JSON memo below. The reuse GUARDS are shared —
+      // `reusableFlows` and the `_renamedFlowNames` subtraction are
+      // computed once above — so the two paths can never disagree about
+      // which flows are eligible, only about what a cached value is.
+      const binaryWriter = writer as ProgramBinaryWriter;
+      const prevChunkCache = this._flowChunkCache;
+      const nextChunkCache = new Map<string, CachedFlowChunk>();
+      const flowMemo = {
+        resolve: (name: string, container: Container, serialize: () => any) => {
+          // Same two exclusions as the JSON path, for the same reasons:
+          // `global decl` is non-contiguous and cheap, and canonical
+          // synthetic names are POSITIONAL, so a name can rebind to a
+          // different flow that the fingerprint cannot distinguish.
+          if (name === "global decl" || CANONICAL_SYNTH_NAME.test(name)) {
+            return serialize();
+          }
+          const fp = JsonSerialisation.FingerprintCrossFlow(container);
+          if (reusableFlows.has(name) && prevChunkCache) {
+            const cached = prevChunkCache.get(name);
+            // The generation check is what keeps a reseed sound. Returning
+            // a chunk here means NOT calling serialize(), so a chunk from
+            // an older numbering could not be recovered from downstream —
+            // the writer throws rather than guess, so the decision has to
+            // be made here.
+            if (
+              cached &&
+              cached.fp === fp &&
+              cached.chunk.generation === binaryWriter.generation
+            ) {
+              nextChunkCache.set(name, cached);
+              // `WriteInjected` splices the records; the flow is never
+              // re-walked and its strings are never re-hashed.
+              return cached.chunk;
+            }
+          }
+          // Miss: arm the writer to capture whatever gets injected next,
+          // because `resolve` returns BEFORE the caller injects it.
+          binaryWriter.captureNextInjectedAs(name, fp);
+          return serialize();
+        },
+      };
+      story.ToJson(binaryWriter as never, flowMemo);
+      for (const [name, entry] of binaryWriter.takeCapturedChunks()) {
+        nextChunkCache.set(name, entry);
+      }
+      this._flowChunkCache = nextChunkCache;
+    } else {
+      const prevFlowCache = this._flowJsonCache;
+      const nextFlowCache = new Map<string, { fp: string; value: any }>();
+      const flowMemo = {
+        resolve: (name: string, container: Container, serialize: () => any) => {
+          // `global decl` is non-contiguous (scattered declarations) and
+          // cheap; always serialize it fresh, never cache.
+          //
+          // Canonical synthetic flows (`__synth_<n>`, see
+          // `canonicalizeSyntheticFlowNames`) are excluded because their
+          // names are POSITIONAL (document-order ordinals), so a name can
+          // rebind to a DIFFERENT flow when an edit adds/removes a
+          // synthetic earlier in the document — and the cross-flow
+          // fingerprint can't tell two same-shaped function knots apart
+          // (it deliberately records nothing for pure content, relying on
+          // chunk identity for structure, which name rebinding breaks).
+          // These are tiny function knots; serializing fresh is cheap.
+          if (name === "global decl" || CANONICAL_SYNTH_NAME.test(name)) {
+            return serialize();
+          }
+          const fp = JsonSerialisation.FingerprintCrossFlow(container);
+          let value: any;
+          if (reusableFlows.has(name) && prevFlowCache) {
+            const cached = prevFlowCache.get(name);
+            value = cached && cached.fp === fp ? cached.value : serialize();
+          } else {
+            value = serialize();
+          }
+          nextFlowCache.set(name, { fp, value });
+          return value;
+        },
+      };
+      story.ToJson(writer, flowMemo);
+      this._flowJsonCache = nextFlowCache;
+    }
+    if (binary) {
+      // Pieces, not a packed blob: `nodes`/`numbers` are typed arrays that
+      // transfer in O(1) across a worker boundary, and packing them into
+      // one self-describing byte blob costs ~10ms/compile (it re-encodes
+      // the whole string table to UTF-8) for no benefit on that hop.
+      const buffer = (writer as ProgramBinaryWriter).toBuffer();
+      program.compiledBuffer = buffer;
+      this._binarySlotHint = buffer.nodes.length;
+      // Safe to run AFTER emitting: reseeding installs fresh arrays on the
+      // table rather than clearing them in place, so the buffer just
+      // emitted keeps its own (correct) string array alive.
+      this.maybeReseedBinaryTable();
+    } else {
+      const json = (writer as SimpleJson.Writer).toObject();
+      if (json) {
+        program.compiled = json;
+      }
+    }
+    profile("end", this._profilerId, "ink/json", uri);
+  }
   compile(params: CompileProgramParams) {
     const uri = params.textDocument.uri;
     const startFrom = params.startFrom;
+    // Per-request override of the instance default (#351). A host can suppress
+    // bytecode for its per-keystroke compiles and still ask for it on the one
+    // compile that feeds a view, instead of paying for it every edit.
+    const emitCompiledProgram =
+      params.emitCompiledProgram ?? this._config.emitCompiledProgram !== false;
 
     // No-change short-circuit: if every script the last compile read is at
     // the same version, the file registry hasn't changed, and the visit
@@ -665,6 +817,18 @@ export class SparkdownCompiler {
       )
     ) {
       cached.program.startFrom = startFrom ?? this._config.startFrom;
+      // The cached program may have been built with emission suppressed. If
+      // this request wants bytecode, serialize it now from the RETAINED story
+      // rather than forcing a recompile — and cache it on the program so a
+      // second request does not pay again.
+      if (
+        emitCompiledProgram &&
+        cached.story &&
+        !cached.program.compiled &&
+        !cached.program.compiledBuffer
+      ) {
+        this.serializeCompiledProgram(cached.story, cached.program, uri);
+      }
       const result: {
         textDocument: { uri: string; version: number };
         program: SparkProgram;
@@ -962,150 +1126,12 @@ export class SparkdownCompiler {
         // `pathLocations` (the editor navigates source with those).
         // Orthogonal to `binaryProgram`, which picks the FORM when something
         // is emitted; with emission off neither form is produced.
-        const emitCompiled = this._config.emitCompiledProgram !== false;
-        if (emitCompiled) {
-          profile("start", this._profilerId, "ink/json", uri);
-          // #314: the binary writer answers the SAME streaming write events as
-          // SimpleJson.Writer, but appends records instead of building a JS
-          // object tree — so on the no-memo path it does strictly less work.
-          const binary = this._config.binaryProgram === true;
-          const writer = binary
-            ? new ProgramBinaryWriter(this._binaryTable, this._binarySlotHint)
-            : new SimpleJson.Writer();
-          // Incremental ToJson: reuse the serialized subtree of each top-level flow
-          // whose source content is unchanged AND whose cross-flow fingerprint
-          // (#f flags + resolved divert/reference paths) is unchanged. Content is
-          // covered by the chunk-unchanged signal; the fingerprint covers the
-          // cross-flow bits that change without the flow's own source changing.
-          const { reusable: reusableFlows, ok: flowReuseOk } =
-            this.computeFlowReuse(story);
-          if (this._renamedFlowNames) {
-            // A synthetic rename inside a flow changes its serialized bytes in
-            // ways the fingerprint can't see — its cached JSON must not be
-            // served (see the canonicalize step above).
-            for (const renamed of this._renamedFlowNames) {
-              reusableFlows.delete(renamed);
-            }
-          }
-          if (!flowReuseOk) {
-            // The global guard failed (a changed chunk sits before the first flow,
-            // so an inlined const may have shifted): no flow can be reused this
-            // compile. Take the exact baseline path — no fingerprinting, which
-            // would otherwise be pure overhead — and let the cache lapse so the
-            // next reuse-eligible edit reseeds from a fresh serialization.
-            story.ToJson(writer as never);
-            this._flowJsonCache = undefined;
-            this._flowChunkCache = undefined;
-          } else if (binary) {
-            // Binary twin of the JSON memo below. The reuse GUARDS are shared —
-            // `reusableFlows` and the `_renamedFlowNames` subtraction are
-            // computed once above — so the two paths can never disagree about
-            // which flows are eligible, only about what a cached value is.
-            const binaryWriter = writer as ProgramBinaryWriter;
-            const prevChunkCache = this._flowChunkCache;
-            const nextChunkCache = new Map<string, CachedFlowChunk>();
-            const flowMemo = {
-              resolve: (
-                name: string,
-                container: Container,
-                serialize: () => any,
-              ) => {
-                // Same two exclusions as the JSON path, for the same reasons:
-                // `global decl` is non-contiguous and cheap, and canonical
-                // synthetic names are POSITIONAL, so a name can rebind to a
-                // different flow that the fingerprint cannot distinguish.
-                if (name === "global decl" || CANONICAL_SYNTH_NAME.test(name)) {
-                  return serialize();
-                }
-                const fp = JsonSerialisation.FingerprintCrossFlow(container);
-                if (reusableFlows.has(name) && prevChunkCache) {
-                  const cached = prevChunkCache.get(name);
-                  // The generation check is what keeps a reseed sound. Returning
-                  // a chunk here means NOT calling serialize(), so a chunk from
-                  // an older numbering could not be recovered from downstream —
-                  // the writer throws rather than guess, so the decision has to
-                  // be made here.
-                  if (
-                    cached &&
-                    cached.fp === fp &&
-                    cached.chunk.generation === binaryWriter.generation
-                  ) {
-                    nextChunkCache.set(name, cached);
-                    // `WriteInjected` splices the records; the flow is never
-                    // re-walked and its strings are never re-hashed.
-                    return cached.chunk;
-                  }
-                }
-                // Miss: arm the writer to capture whatever gets injected next,
-                // because `resolve` returns BEFORE the caller injects it.
-                binaryWriter.captureNextInjectedAs(name, fp);
-                return serialize();
-              },
-            };
-            story.ToJson(binaryWriter as never, flowMemo);
-            for (const [name, entry] of binaryWriter.takeCapturedChunks()) {
-              nextChunkCache.set(name, entry);
-            }
-            this._flowChunkCache = nextChunkCache;
-          } else {
-            const prevFlowCache = this._flowJsonCache;
-            const nextFlowCache = new Map<string, { fp: string; value: any }>();
-            const flowMemo = {
-              resolve: (
-                name: string,
-                container: Container,
-                serialize: () => any,
-              ) => {
-                // `global decl` is non-contiguous (scattered declarations) and
-                // cheap; always serialize it fresh, never cache.
-                //
-                // Canonical synthetic flows (`__synth_<n>`, see
-                // `canonicalizeSyntheticFlowNames`) are excluded because their
-                // names are POSITIONAL (document-order ordinals), so a name can
-                // rebind to a DIFFERENT flow when an edit adds/removes a
-                // synthetic earlier in the document — and the cross-flow
-                // fingerprint can't tell two same-shaped function knots apart
-                // (it deliberately records nothing for pure content, relying on
-                // chunk identity for structure, which name rebinding breaks).
-                // These are tiny function knots; serializing fresh is cheap.
-                if (name === "global decl" || CANONICAL_SYNTH_NAME.test(name)) {
-                  return serialize();
-                }
-                const fp = JsonSerialisation.FingerprintCrossFlow(container);
-                let value: any;
-                if (reusableFlows.has(name) && prevFlowCache) {
-                  const cached = prevFlowCache.get(name);
-                  value =
-                    cached && cached.fp === fp ? cached.value : serialize();
-                } else {
-                  value = serialize();
-                }
-                nextFlowCache.set(name, { fp, value });
-                return value;
-              },
-            };
-            story.ToJson(writer, flowMemo);
-            this._flowJsonCache = nextFlowCache;
-          }
-          if (binary) {
-            // Pieces, not a packed blob: `nodes`/`numbers` are typed arrays that
-            // transfer in O(1) across a worker boundary, and packing them into
-            // one self-describing byte blob costs ~10ms/compile (it re-encodes
-            // the whole string table to UTF-8) for no benefit on that hop.
-            const buffer = (writer as ProgramBinaryWriter).toBuffer();
-            program.compiledBuffer = buffer;
-            this._binarySlotHint = buffer.nodes.length;
-            // Safe to run AFTER emitting: reseeding installs fresh arrays on the
-            // table rather than clearing them in place, so the buffer just
-            // emitted keeps its own (correct) string array alive.
-            this.maybeReseedBinaryTable();
-          } else {
-            const json = (writer as SimpleJson.Writer).toObject();
-            if (json) {
-              program.compiled = json;
-            }
-          }
-          profile("end", this._profilerId, "ink/json", uri);
+        // #345/#351: emission is suppressed for hosts that never read the
+        // bytecode, and can be re-requested per compile. Everything else in
+        // this block still runs — `state.story`, and `populateAllLocations`
+        // below, which walks the runtime tree for `pathLocations`.
+        if (emitCompiledProgram) {
+          this.serializeCompiledProgram(story, program, uri);
         }
         state.story = story;
         // Gather source-location maps in a single top-down walk of the
