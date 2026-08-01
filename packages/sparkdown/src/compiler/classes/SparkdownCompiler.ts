@@ -981,6 +981,21 @@ export class SparkdownCompiler {
       }
     } catch (e) {
       compileThrew = true;
+      // Close whichever phase was in flight. This catch swallows the throw and
+      // the compiler keeps serving, so a phase left open here produces no
+      // measurement at all — losing exactly the compiles worth looking at, and
+      // `ink/compile` (ExportRuntime) is the very phase this catch was written
+      // for. Ending a phase that already ended is a no-op, so naming all five
+      // is safe. Add any new phase opened inside this `try` to the list.
+      for (const phase of [
+        "ink/parse",
+        "ink/canonicalizeSyntheticNames",
+        "ink/compile",
+        "ink/json",
+        "populateLocations",
+      ]) {
+        profile("end", this._profilerId, phase, uri);
+      }
       console.error(e);
       // Restore the parents of containers committed to reuse — the previous
       // RuntimeStory is still live (checkpoint-builder Game) and generation

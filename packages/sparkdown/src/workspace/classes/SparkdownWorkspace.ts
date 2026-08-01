@@ -713,7 +713,6 @@ export abstract class SparkdownWorkspace {
     uri: string,
     force: boolean,
   ): Promise<SparkProgram | undefined> {
-    profile("start", this._profilerId, "workspace" + " " + "compile", uri);
     let anyDocChanged = false;
     for (let [documentUri] of this._programStates) {
       const state = this.getProgramState(documentUri);
@@ -755,110 +754,120 @@ export abstract class SparkdownWorkspace {
         this._onNextCompiled.set(uri, nextCompiledCallbacks);
       });
     }
-    state.compilingDocumentVersion = this._documentVersions.get(uri);
-    let result: CompileProgramResult | undefined = undefined;
-    // When the compiler's no-change short-circuit serves its cached program,
-    // it returns the SAME object as last time. Bumping our version counter on
-    // that would advertise a "new" program that is bit-identical -- and the
-    // player rebuilds its whole Game whenever program.version changes -- so
-    // detect identity and keep the version stable.
-    let programUnchanged = false;
-    const mainScriptUri = this.getMainScriptUri(uri);
+    // Start the phase only once the cheap exits above are behind us. The
+    // no-change and piggyback returns do no compile work — one of them just
+    // waits on somebody else's compile — so measuring them under this name
+    // would fold queue time into the metric and understate what a compile
+    // actually costs. The `finally` is what the ticket is about: the body
+    // below rethrows, and a bare trailing call would drop that measurement.
+    profile("start", this._profilerId, "workspace" + " " + "compile", uri);
     try {
-      if (mainScriptUri) {
-        const previousProgram = this.getProgramState(mainScriptUri).program;
-        result = await this.compileDocument(mainScriptUri);
-        programUnchanged = result.program === previousProgram;
-        this.getProgramState(mainScriptUri).program = result.program;
-        if (result.program.scripts) {
-          for (const [uri, version] of Object.entries(result.program.scripts)) {
-            const state = this.getProgramState(uri);
-            state.program = result.program;
-            state.compilingDocumentVersion = undefined;
-            state.compiledDocumentVersion = version;
-            if (!programUnchanged) {
-              state.version++;
+      state.compilingDocumentVersion = this._documentVersions.get(uri);
+      let result: CompileProgramResult | undefined = undefined;
+      // When the compiler's no-change short-circuit serves its cached program,
+      // it returns the SAME object as last time. Bumping our version counter on
+      // that would advertise a "new" program that is bit-identical -- and the
+      // player rebuilds its whole Game whenever program.version changes -- so
+      // detect identity and keep the version stable.
+      let programUnchanged = false;
+      const mainScriptUri = this.getMainScriptUri(uri);
+      try {
+        if (mainScriptUri) {
+          const previousProgram = this.getProgramState(mainScriptUri).program;
+          result = await this.compileDocument(mainScriptUri);
+          programUnchanged = result.program === previousProgram;
+          this.getProgramState(mainScriptUri).program = result.program;
+          if (result.program.scripts) {
+            for (const [uri, version] of Object.entries(result.program.scripts)) {
+              const state = this.getProgramState(uri);
+              state.program = result.program;
+              state.compilingDocumentVersion = undefined;
+              state.compiledDocumentVersion = version;
+              if (!programUnchanged) {
+                state.version++;
+              }
+              this._onNextCompiled.get(uri)?.forEach((c) => c?.(result?.program));
+              this._onNextCompiled.delete(uri);
             }
-            this._onNextCompiled.get(uri)?.forEach((c) => c?.(result?.program));
-            this._onNextCompiled.delete(uri);
           }
         }
-      }
-      if (uri !== mainScriptUri && result?.program?.scripts[uri] == null) {
-        // Target script is not included by main,
-        // So it must be parsed on its own to report diagnostics
-        const previousProgram = this.getProgramState(uri).program;
-        result = await this.compileDocument(uri);
-        programUnchanged = result.program === previousProgram;
-        const state = this.getProgramState(uri);
-        state.program = result.program;
+        if (uri !== mainScriptUri && result?.program?.scripts[uri] == null) {
+          // Target script is not included by main,
+          // So it must be parsed on its own to report diagnostics
+          const previousProgram = this.getProgramState(uri).program;
+          result = await this.compileDocument(uri);
+          programUnchanged = result.program === previousProgram;
+          const state = this.getProgramState(uri);
+          state.program = result.program;
+          state.compilingDocumentVersion = undefined;
+          state.compiledDocumentVersion = result.program?.scripts[uri];
+          if (!programUnchanged) {
+            state.version++;
+          }
+          this._onNextCompiled.get(uri)?.forEach((c) => c?.(result?.program));
+          this._onNextCompiled.delete(uri);
+        }
+      } catch (e) {
+        // Settle instead of strand: piggybacked callers (pull diagnostics etc.)
+        // are awaiting these resolvers, and a compile failure must not turn
+        // their requests into permanent hangs.
+        const flush = (flushUri: string) => {
+          const callbacks = this._onNextCompiled.get(flushUri);
+          if (callbacks) {
+            this._onNextCompiled.delete(flushUri);
+            callbacks.forEach((c) => c?.(undefined));
+          }
+        };
+        flush(uri);
+        if (mainScriptUri) {
+          flush(mainScriptUri);
+        }
         state.compilingDocumentVersion = undefined;
-        state.compiledDocumentVersion = result.program?.scripts[uri];
+        throw e;
+      }
+      if (result?.program) {
+        const state = this.getProgramState(uri);
         if (!programUnchanged) {
-          state.version++;
+          result.program.version = state.version;
         }
-        this._onNextCompiled.get(uri)?.forEach((c) => c?.(result?.program));
-        this._onNextCompiled.delete(uri);
+        // With slimProgramNotifications, relay only what the notification's
+        // consumers actually read instead of the whole program (which is ~9MB on
+        // a large project and re-broadcast on EVERY compile; the receiver pays a
+        // structured-clone of all of it per keystroke).
+        //
+        // The impower web editor's main thread needs just `diagnosticsSummary`
+        // (file/tab error+warning colors). Everything else is fetched on demand
+        // or delivered through a dedicated channel:
+        //   - full diagnostics    → textDocument/publishDiagnostics
+        //   - prev/next beat      → sparkdown/offsetSourceLocation
+        // uri/scripts/files/version ride along because they're small and
+        // identify the compile. Resist adding heavy fields back here — prefer an
+        // on-demand request.
+        const notificationParams: CompiledProgramParams = this
+          .slimProgramNotifications
+          ? {
+              ...result,
+              program: {
+                uri: result.program.uri,
+                scripts: result.program.scripts,
+                files: result.program.files,
+                version: result.program.version,
+              },
+              diagnosticsSummary: summarizeDiagnostics(
+                result.program.diagnostics,
+              ),
+            }
+          : result;
+        this.sendNotification(CompiledProgramMessage.method, notificationParams);
+        this.onCompiledTextDocument({
+          textDocument: { uri },
+          program: result.program,
+        });
       }
-    } catch (e) {
-      // Settle instead of strand: piggybacked callers (pull diagnostics etc.)
-      // are awaiting these resolvers, and a compile failure must not turn
-      // their requests into permanent hangs.
-      const flush = (flushUri: string) => {
-        const callbacks = this._onNextCompiled.get(flushUri);
-        if (callbacks) {
-          this._onNextCompiled.delete(flushUri);
-          callbacks.forEach((c) => c?.(undefined));
-        }
-      };
-      flush(uri);
-      if (mainScriptUri) {
-        flush(mainScriptUri);
-      }
-      state.compilingDocumentVersion = undefined;
-      throw e;
+      return result?.program;
+    } finally {
+      profile("end", this._profilerId, "workspace" + " " + "compile", uri);
     }
-    if (result?.program) {
-      const state = this.getProgramState(uri);
-      if (!programUnchanged) {
-        result.program.version = state.version;
-      }
-      // With slimProgramNotifications, relay only what the notification's
-      // consumers actually read instead of the whole program (which is ~9MB on
-      // a large project and re-broadcast on EVERY compile; the receiver pays a
-      // structured-clone of all of it per keystroke).
-      //
-      // The impower web editor's main thread needs just `diagnosticsSummary`
-      // (file/tab error+warning colors). Everything else is fetched on demand
-      // or delivered through a dedicated channel:
-      //   - full diagnostics    → textDocument/publishDiagnostics
-      //   - prev/next beat      → sparkdown/offsetSourceLocation
-      // uri/scripts/files/version ride along because they're small and
-      // identify the compile. Resist adding heavy fields back here — prefer an
-      // on-demand request.
-      const notificationParams: CompiledProgramParams = this
-        .slimProgramNotifications
-        ? {
-            ...result,
-            program: {
-              uri: result.program.uri,
-              scripts: result.program.scripts,
-              files: result.program.files,
-              version: result.program.version,
-            },
-            diagnosticsSummary: summarizeDiagnostics(
-              result.program.diagnostics,
-            ),
-          }
-        : result;
-      this.sendNotification(CompiledProgramMessage.method, notificationParams);
-      this.onCompiledTextDocument({
-        textDocument: { uri },
-        program: result.program,
-      });
-    }
-    profile("end", this._profilerId, "workspace" + " " + "compile", uri);
-    return result?.program;
   }
 
   stripMarkdown(markdown: string): string {
