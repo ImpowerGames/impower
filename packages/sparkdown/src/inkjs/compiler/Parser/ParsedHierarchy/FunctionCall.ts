@@ -101,6 +101,27 @@ export class FunctionCall extends Expression {
     return "FunctionCall";
   }
 
+  // `GenerateIntoContainer` runs again on every recompile, and the
+  // incremental pipeline carries parsed nodes forward by identity, so
+  // anything generation adds to `this.content` must be added at most
+  // once. The counted argument is the same parsed node every pass.
+  //
+  // Paired with the proxy-divert splice at the end of
+  // `GenerateIntoContainer`: with only one of the two guards in place
+  // `content` either grows by one entry per pass or empties entirely.
+  private AddContentOnce(subContent: DivertTarget | VariableReference): void {
+    if (this.content.includes(subContent)) {
+      // Already added by an earlier pass. Still re-assert the parent
+      // link, which is `AddContent`'s other effect and is read by
+      // `DivertTarget.ResolveReferences` to decide whether the target
+      // is counted for turns only or for visits as well.
+      subContent.parent = this;
+      return;
+    }
+
+    this.AddContent(subContent);
+  }
+
   public readonly GenerateIntoContainer = (
     container: RuntimeContainer,
   ): void => {
@@ -124,12 +145,12 @@ export class FunctionCall extends Expression {
 
       if (divertTarget) {
         this._divertTargetToCount = divertTarget;
-        this.AddContent(this._divertTargetToCount);
+        this.AddContentOnce(this._divertTargetToCount);
 
         this._divertTargetToCount.GenerateIntoContainer(container);
       } else if (variableDivertTarget) {
         this._variableReferenceToCount = variableDivertTarget;
-        this.AddContent(this._variableReferenceToCount);
+        this.AddContentOnce(this._variableReferenceToCount);
 
         this._variableReferenceToCount.GenerateIntoContainer(container);
       }
@@ -260,9 +281,16 @@ export class FunctionCall extends Expression {
       usingProxyDivert = true;
     }
 
-    // Don't attempt to resolve as a divert if we're not doing a normal function call
+    // Don't attempt to resolve as a divert if we're not doing a normal
+    // function call. Remove the proxy divert only when it is actually
+    // present: `splice(indexOf(...), 1)` finding no match splices at -1
+    // and deletes the LAST element rather than nothing, so on a second
+    // generation pass it removes whatever `content` happens to end with.
     if (!usingProxyDivert) {
-      this.content.splice(this.content.indexOf(this._proxyDivert), 1);
+      const proxyIndex = this.content.indexOf(this._proxyDivert);
+      if (proxyIndex >= 0) {
+        this.content.splice(proxyIndex, 1);
+      }
     }
 
     // Function calls that are used alone on a tilda-based line:
