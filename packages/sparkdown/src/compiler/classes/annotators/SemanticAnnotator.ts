@@ -1,5 +1,6 @@
 import { Range } from "@codemirror/state";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
+import { Tree } from "@lezer/common";
 import GRAMMAR_DEFINITION from "../../../../language/sparkdown.language-grammar.json";
 import { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
 import { SparkdownAnnotation } from "../SparkdownAnnotation";
@@ -133,9 +134,109 @@ export class SemanticAnnotator extends SparkdownAnnotator<
   // LuauVariableDefinition and read it when assignments fire.
   pendingDeclKind: "variable" | "const-variable" | null = null;
 
-  override begin(): void {
+  // True while `primeScopes` is replaying `enter`/`leave` to rebuild state.
+  // Emission is skipped in that mode — see the guard in `enter`.
+  protected priming = false;
+
+  override begin(iterateFrom: number): void {
     this.scopeStack = [makeGlobalScope()];
     this.pendingDeclKind = null;
+    if (iterateFrom > 0 && this.tree) {
+      this.primeScopes(this.tree, iterateFrom);
+    }
+  }
+
+  /**
+   * Rebuild the scope state a cold pass would hold on reaching `upTo`.
+   *
+   * The incremental update re-annotates only a window and deletes whatever it
+   * overlaps, which assumes the annotators reproduce there what a cold parse
+   * would. This annotator does not, unaided: `begin` resets `scopeStack` to the
+   * global frame, so a window opening inside a function body has neither the
+   * document's top-level declarations nor that body's earlier `local`s bound.
+   * References then fail to resolve, no token is emitted, and the old tokens —
+   * which WERE inside the window — have already been deleted. They stay gone
+   * until a cold parse (#326).
+   *
+   * Rather than duplicate the binding rules, replay this annotator's own
+   * `enter`/`leave` over the nodes that precede the window, discarding the
+   * annotations. Two details make that faithful and affordable:
+   *
+   * - `leave` is suppressed for nodes that extend past `upTo`. A cold pass has
+   *   not left those yet, so their scope frames must stay open — popping them
+   *   would discard exactly the enclosing-function bindings we came for.
+   * - The body of a function that CLOSES before `upTo` is skipped wholesale.
+   *   Entering the definition binds its name in the enclosing scope, and
+   *   everything inside dies with the frame `leave` pops, so the subtree cannot
+   *   affect the result. This is what keeps priming proportional to the
+   *   declarations in scope rather than to the whole document; widening the
+   *   annotate window instead measured 7x worse per keystroke.
+   */
+  protected primeScopes(tree: Tree, upTo: number): void {
+    const discard: Range<SparkdownAnnotation<SemanticInfo>>[] = [];
+    this.priming = true;
+    try {
+      this.replayScopes(tree, upTo, discard);
+    } finally {
+      this.priming = false;
+    }
+  }
+
+  private replayScopes(
+    tree: Tree,
+    upTo: number,
+    discard: Range<SparkdownAnnotation<SemanticInfo>>[],
+  ): void {
+    tree.iterate({
+      from: 0,
+      to: upTo,
+      enter: (nodeRef) => {
+        this.enter(discard, nodeRef as SparkdownSyntaxNodeRef);
+        discard.length = 0;
+        // Nodes still open at `upTo` are the ancestor chain of the window;
+        // always descend those.
+        if (nodeRef.to > upTo) {
+          return undefined;
+        }
+        if (
+          nodeRef.name === "LuauFunctionDefinition" &&
+          this.pendingDeclKind === null
+        ) {
+          // Closed before the window: its name is already bound in the
+          // enclosing scope, and every binding inside dies with the frame the
+          // `leave` below pops, so the body cannot change the result.
+          //
+          // Only safe while no declaration is in progress. `pendingDeclKind`
+          // is NOT scope-stack state, so it survives the pop: for
+          // `local a = function() local g = 1 end, b = 2`, a cold pass has the
+          // inner definition's `leave` clear it before `, b = 2` is reached,
+          // while skipping the body would leave it set and bind `b` spuriously.
+          // In that case descend and let the ordinary logic run.
+          this.leave(discard, nodeRef as SparkdownSyntaxNodeRef);
+          discard.length = 0;
+          return false;
+        }
+        // NOTE: it is tempting to also skip closed subtrees whose node name is
+        // not `Luau*`, on the theory that only Luau constructs bind. They do
+        // not: `scene Name(param)` nests its `LuauFunctionParameter` under a
+        // `Scene` node (see the `scene-with-parameters` grammar snapshot), and
+        // that parameter binds into the enclosing scope. Skipping non-Luau
+        // subtrees drops it and loses every token for that parameter's
+        // references — the exact defect this method exists to fix. Measured at
+        // ~1.6x the priming cost to descend them; correctness wins.
+        return undefined;
+      },
+      leave: (nodeRef) => {
+        // Nodes still open at `upTo` must stay open: a cold pass has not left
+        // them yet, and popping their frames would discard exactly the
+        // enclosing-function bindings this method exists to rebuild.
+        if (nodeRef.to > upTo) {
+          return;
+        }
+        this.leave(discard, nodeRef as SparkdownSyntaxNodeRef);
+        discard.length = 0;
+      },
+    });
   }
 
   // Look up `name` in the scope stack, innermost-first. Returns the
@@ -237,6 +338,13 @@ export class SemanticAnnotator extends SparkdownAnnotator<
           this.bindInCurrentScope(name, kind);
         }
       }
+    }
+    // Everything above this point maintains scope state; everything below
+    // only emits. `primeScopes` replays this method purely to rebuild the
+    // state, so it stops here — skipping the per-node text reads and lookups
+    // that would otherwise dominate the cost of walking the prefix.
+    if (this.priming) {
+      return annotations;
     }
     // Reference sites — emit a kind-aware semantic token based on the
     // current scope lookup. Covers the grammar nodes that resolve to

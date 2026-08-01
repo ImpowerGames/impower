@@ -23,6 +23,36 @@ import { SparkdownAnnotator } from "./SparkdownAnnotator";
 
 type Writeable<T> = { -readonly [P in keyof T]: T[P] };
 
+/**
+ * Stable identity for an annotation's payload, used to match a re-emitted
+ * annotation against the copy it supersedes. String and `undefined` payloads
+ * compare directly; object payloads are freshly allocated on every pass, so
+ * they only match by value. A payload that cannot be serialized gets a key
+ * that matches nothing, which keeps the caller conservative — it declines to
+ * delete rather than risk dropping a distinct annotation.
+ */
+let uncomparableCounter = 0;
+function annotationValueKey(value: SparkdownAnnotation<any>): string {
+  const type = value?.type;
+  // `p:` / `o:` keep a string payload from ever colliding with the
+  // serialization of an object payload that happens to spell the same thing.
+  if (type == null || typeof type !== "object") {
+    return `p:${String(type)}`;
+  }
+  try {
+    const key = JSON.stringify(type);
+    if (key !== undefined) {
+      return `o:${key}`;
+    }
+  } catch {
+    // Cyclic or otherwise unserializable - fall through.
+  }
+  // Unique per call, so it matches nothing and the caller declines to delete
+  // rather than risk dropping a distinct annotation.
+  uncomparableCounter += 1;
+  return `!:${uncomparableCounter}`;
+}
+
 export type SparkdownAnnotationRanges = {
   [K in keyof SparkdownAnnotators]: Writeable<
     NonNullable<
@@ -157,57 +187,50 @@ export class SparkdownCombinedAnnotator {
   }
 
   /**
-   * Drop re-emissions that the delete-filter would not have removed.
+   * Drop re-emissions the delete-filter would not have removed.
    *
-   * The incremental update deletes every existing annotation overlapping the
-   * re-annotated window `[keptFrom, keptTo]` and re-adds whatever the partial
-   * `tree.iterate` produced. The DELETE half is exact: Lezer only enters a node
-   * that overlaps the iterate range, so an annotation carrying its node's own
-   * `[from, to]` overlaps the window too and is always removed before it can be
-   * re-added.
+   * The filter only deletes what overlaps the re-annotated window, which is
+   * exact for an annotation carrying its entered node's own `[from, to]`:
+   * Lezer only enters a node overlapping the window, so such an annotation
+   * overlaps it too and is always removed before it is re-added.
    *
-   * Annotations anchored somewhere OTHER than the node's full range escape
-   * that. A zero-width mark at a node's START (`top_level_begin`) sits before
-   * `keptFrom` whenever the parser restarts at an in-block split point, and a
-   * mark at a node's END (`frontmatter_end`, `keyword_separator`) can sit past
-   * `keptTo`; either way the node is still entered, so the old copy is KEPT
-   * *and* an identical fresh copy is added. `RangeSet` does not dedup, so the
-   * set grows by one entry per keystroke, unbounded, for as long as typing
-   * continues inside one block (#322).
+   * An annotator may anchor elsewhere, though — a zero-width mark at a node's
+   * edge, `ReferenceAnnotator`'s quote-stripped `[from + 1, to - 1]`, or
+   * `ValidationAnnotator`'s diagnostics anchored on a *sibling* node. Lezer
+   * still enters the node, so the pass re-emits while the filter keeps the old
+   * copy: one duplicate per keystroke, unbounded (#322).
    *
-   * So: for a candidate outside the window, keep it only to the extent that
-   * the surviving copies do not already account for it. Prune is by COUNT, not
-   * by presence: if this pass emits K identical out-of-window annotations and
-   * M survive, keep `K - M` of them. Testing presence alone would collapse a
-   * legitimate 1 → K increase down to M (cold parses really do emit identical
-   * duplicate `formatting` marks — e.g. two `separator`s at the same offset).
+   * So for a candidate outside the window, keep it only to the extent the
+   * survivors do not already account for it. Two properties matter:
    *
-   * Value identity is `===` on `type`. That covers the annotators whose `type`
-   * is a string or `undefined` — `formatting`, `declarations`, `characters`,
-   * `links`. The rest (`semantics`, `colors`, `references`, `lenses`,
-   * `compilations`, `validations`, `implicits`) carry a freshly allocated
-   * object per `enter`, so `===` never holds and this guard is a no-op for
-   * them. That is deliberately conservative — never dropping something that
-   * might not be a duplicate.
+   * - By COUNT, not presence. A cold parse really does emit identical
+   *   duplicate marks at one offset, so collapsing K down to 1 would lose one.
+   * - Drop the NEW copy rather than deleting the old one. They are
+   *   interchangeable in content, but deleting and re-adding moves the
+   *   annotation to the end of its position's insertion order, and zero-width
+   *   marks share offsets — `top_level_begin` and `indent` both sit at a
+   *   block's first column, and the formatter consumes them in order.
    *
-   * What this does NOT fix, all pre-existing and tracked in #326:
-   * - `references` and `validations` also emit non-node-anchored ranges, and
-   *   being object-valued they keep the #322 growth shape.
-   * - The RE-ADD half of the window is not exact in the other direction
-   *   either: a partial pass is not the cold pass restricted to the window,
-   *   because annotators carry cross-window state that `begin()` resets
-   *   (`SemanticAnnotator.scopeStack`, `FormattingAnnotator.processedLineFrom`).
-   *   An in-block window can therefore DROP annotations a cold parse emits.
-   * - Nothing removes an out-of-window annotation the new parse no longer
-   *   emits; the filter keeps it and the partial iterate never visits it.
-   * - A set that already carries N stale copies stays pinned at N: this stops
-   *   the growth, it does not repair a set that has already grown.
+   * Identity is the SERIALIZED payload, not `===`. Most annotators allocate a
+   * fresh object per pass (`semantics`, `references`, `validations`, …), so a
+   * reference comparison silently never matches and leaves them accumulating.
+   * Serialization only runs for candidates already matched on position, so it
+   * stays off the hot path, and a payload that cannot be serialized gets a key
+   * that matches nothing — declining to prune rather than risking a drop.
+   *
+   * `CompilationAnnotator.end` pairs `added[i]` with `removed[i]` POSITIONALLY
+   * to carry `uuid` forward, so a shortened `add` would misalign it. That is
+   * safe only because compilation annotations carry their node's own
+   * `[from, to]` and therefore always hit the in-window `continue` below —
+   * never reaching the serialization, which on a `CompiledBlock` would also be
+   * expensive. Anything that gives compilations an off-node anchor has to
+   * revisit this.
    */
   protected pruneRedundant<T extends SparkdownAnnotation<any>>(
     add: Range<T>[],
     current: RangeSet<T>,
-    keptFrom: number,
-    keptTo: number,
+    windowFrom: number,
+    windowTo: number,
   ): Range<T>[] {
     let redundant: Set<number> | undefined;
     // How many identical copies this pass has already pruned, so a second
@@ -216,16 +239,17 @@ export class SparkdownCombinedAnnotator {
     let prunedSoFar: Map<string, number> | undefined;
     for (let i = 0; i < add.length; i++) {
       const candidate = add[i]!;
-      if (candidate.to >= keptFrom && candidate.from <= keptTo) {
+      if (candidate.to >= windowFrom && candidate.from <= windowTo) {
         // Inside the window: the old copy is deleted, so this is the only one.
         continue;
       }
+      const valueKey = annotationValueKey(candidate.value);
       let survivors = 0;
       current.between(candidate.from, candidate.to, (from, to, value) => {
         if (
           from === candidate.from &&
           to === candidate.to &&
-          value.type === candidate.value.type
+          annotationValueKey(value) === valueKey
         ) {
           survivors += 1;
         }
@@ -234,9 +258,7 @@ export class SparkdownCombinedAnnotator {
       if (survivors === 0) {
         continue;
       }
-      const key = `${candidate.from}:${candidate.to}:${String(
-        candidate.value.type,
-      )}`;
+      const key = `${candidate.from}:${candidate.to}:${valueKey}`;
       prunedSoFar ??= new Map();
       const alreadyPruned = prunedSoFar.get(key) ?? 0;
       if (alreadyPruned < survivors) {
@@ -323,31 +345,35 @@ export class SparkdownCombinedAnnotator {
         editStart = fromB;
       }
     });
+    // The delete window and the annotate window must stay identical, or the
+    // reconciliation loses or duplicates annotations.
+    //
+    // Widening this window out to whole top-level nodes would ALSO give the
+    // annotators the state a cold parse has at the boundary — but measured at
+    // 7x the per-keystroke cost inside a large top-level Luau block (13.9ms ->
+    // 97.2ms per edit event on a 21KB script), because it re-annotates the
+    // whole block on every keystroke. Annotators that depend on preceding
+    // context rebuild it in `begin()` instead; see `SemanticAnnotator`.
+    const windowFrom = editStart;
     if (reparsedTo == null) {
       // Only rebuild annotations after `editStart`
       for (const [key, add] of Object.entries(
-        this.annotate(tree, editStart, undefined, annotate),
+        this.annotate(tree, windowFrom, undefined, annotate),
       )) {
         if (!annotate || annotate?.has(key as keyof SparkdownAnnotators)) {
           const annotator = this.current[key as keyof SparkdownAnnotators];
           if (annotator) {
             const removed: Range<typeof annotator._annotationType>[] = [];
             annotator.current = annotator.current.map(changeDesc);
-            // `end()` receives `kept`, not `add`, so it sees what actually
-            // entered the set. Note `CompilationAnnotator.end` pairs
-            // `added[i]` with `removed[i]` POSITIONALLY; pruning is a no-op
-            // for `compilations` (node-anchored, and object-valued so `===`
-            // never holds), so that pairing is unchanged. Anything that makes
-            // compilation values comparable by value has to revisit this.
             const kept = this.pruneRedundant(
               add as any,
               annotator.current,
-              editStart,
+              windowFrom,
               Infinity,
             );
             annotator.current = annotator.current.update({
               filter: (from, to, value) => {
-                if (to < editStart) {
+                if (to < windowFrom) {
                   return true;
                 }
                 removed.push(value.range(from, to));
@@ -368,27 +394,25 @@ export class SparkdownCombinedAnnotator {
       }
       return this.current;
     }
-    // Only rebuild annotations between `editStart` and reparsedTo
+    // Only rebuild annotations between `windowFrom` and `windowTo`
+    const windowTo = reparsedTo;
     for (const [key, add] of Object.entries(
-      this.annotate(tree, editStart, reparsedTo, annotate),
+      this.annotate(tree, windowFrom, windowTo, annotate),
     )) {
       if (!annotate || annotate?.has(key as keyof SparkdownAnnotators)) {
         const annotator = this.current[key as keyof SparkdownAnnotators];
         if (annotator) {
           const removed: Range<typeof annotator._annotationType>[] = [];
           annotator.current = annotator.current.map(changeDesc);
-          // See the note on the `reparsedTo == null` branch above about
-          // `end()` receiving `kept` and `CompilationAnnotator`'s positional
-          // `added[i]`/`removed[i]` pairing.
           const kept = this.pruneRedundant(
             add as any,
             annotator.current,
-            editStart,
-            reparsedTo,
+            windowFrom,
+            windowTo,
           );
           annotator.current = annotator.current.update({
             filter: (from, to, value) => {
-              if (to < editStart || from > reparsedTo) {
+              if (to < windowFrom || from > windowTo) {
                 return true;
               }
               removed.push(value.range(from, to));
