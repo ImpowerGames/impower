@@ -242,6 +242,9 @@ interface ForRegion {
   siblings: ReactiveGroup;
   elseScope?: ReactiveScope;
   elseContent?: ReactiveGroup;
+  /** The enclosing component body's slot map, carried so a `slot` inside this
+   *  loop still resolves. `ForRegion` holds no scope object to walk up to. */
+  slots?: SlotMap;
   /** See {@link CondRegion.owner}. */
   owner?: ReactiveRegion;
 }
@@ -760,6 +763,30 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     const isRootElement = !element.parent;
     if (isRootElement) {
       this._root = undefined;
+    }
+    // Drop any `@event` handlers registered for this element, and tell the
+    // renderer to detach its DOM listener.
+    //
+    // The static `setEventListener` path already cleans up (it deletes on a null
+    // callback); the reactive `mountEvent` path had no counterpart, so every
+    // destroy leaked. And structural ids are MONOTONIC — `Element.nextChildIndex`
+    // never reuses a number even after removal — so the orphan is never
+    // overwritten by a later element. Each one retains its `scope.env` (loop
+    // values included) and, through the handler, the Story. A keyed `for` that
+    // drops rows, a conditional that switches branch, or a layout that closes
+    // therefore grew `_events` without bound; `onReset` clears it, but that only
+    // fires on a full game reset, not on the incremental churn this path exists
+    // to serve.
+    for (const [event, byId] of Object.entries(this._events)) {
+      if (byId && element.id in byId) {
+        delete byId[element.id];
+        this.enqueueUI(
+          UnobserveElementMessage.type.notification({
+            element: element.id,
+            event,
+          }),
+        );
+      }
     }
     element.remove();
     this.enqueueUI(
@@ -1341,8 +1368,18 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     return uiEl;
   }
 
-  /** A fresh reactive scope with the given loop env. */
-  protected makeScope(env: ReactiveEnv): ReactiveScope {
+  /** A fresh reactive scope with the given loop env.
+   *
+   *  `parent` exists so the SLOT MAP survives a nested region. Only
+   *  `mountComponent` ever assigns `slots`, and it assigns it to the component
+   *  BODY's scope — so a `slot` sitting inside an `if`/`for`/`match` within that
+   *  body was looked up on a fresh, slot-less child scope, found nothing, and
+   *  rendered empty. There is no parent link on `ReactiveScope` to walk, so the
+   *  map has to be carried down at construction.
+   *
+   *  A nested component call must NOT inherit: it gets its own slot map from its
+   *  own caller, which is why `mountComponent` passes nothing here. */
+  protected makeScope(env: ReactiveEnv, slots?: SlotMap): ReactiveScope {
     return {
       env,
       texts: [],
@@ -1350,6 +1387,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       attrs: [],
       styles: [],
       sliderFills: [],
+      ...(slots ? { slots } : {}),
     };
   }
 
@@ -2112,7 +2150,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       parent,
       node,
       active: -2, // nothing mounted yet
-      scope: this.makeScope(scope.env),
+      scope: this.makeScope(scope.env, scope.slots),
       deps: { globals: new Set(), tables: new Set() },
       siblings: [],
       content: [],
@@ -2193,6 +2231,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       node,
       iterations: [],
       siblings: [],
+      // Carried so a `slot` inside the loop body still resolves — every
+      // iteration builds a fresh scope, and there is no parent link to walk.
+      slots: scope.slots,
     };
     scope.regions.push(region);
     this.populateFor(region, scope.env, before);
@@ -2228,7 +2269,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     if (!elseChildren || elseChildren.length === 0) {
       return;
     }
-    region.elseScope = this.makeScope(parentEnv);
+    region.elseScope = this.makeScope(parentEnv, region.slots);
     region.elseContent = this.mountChildren(
       region.parent,
       elseChildren,
@@ -2251,7 +2292,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   ): ForIteration {
     const env: ReactiveEnv = { ...parentEnv };
     this.bindLoopVars(region.node.bindings, env, entryKey, value);
-    const scope = this.makeScope(env);
+    const scope = this.makeScope(env, region.slots);
     const content = this.mountChildren(
       region.parent,
       region.node.children,
@@ -2723,7 +2764,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         for (const el of this.collectNodes(region.content)) {
           this.destroyElement(el);
         }
-        region.scope = this.makeScope(region.scope.env);
+        region.scope = this.makeScope(region.scope.env, region.scope.slots);
         region.active = next;
         region.content = this.mountChildren(
           region.parent,
@@ -2796,6 +2837,21 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       const q = oldByKey.get(key);
       const reused = q && q.length > 0 ? q.shift() : undefined;
       if (reused) {
+        // Re-sync the OUTER loop vars first. `mountIteration` snapshots the
+        // enclosing env with a spread, so each iteration owns a private copy of
+        // every outer variable; `bindLoopVars` below only rewrites this loop's
+        // OWN bindings. Without this, a reused iteration keeps whatever the
+        // outer value was at mount time — so replacing an outer collection
+        // (`players = {…}`) leaves inner rows rendering the previous row's data,
+        // silently and forever.
+        //
+        // A prototype chain (`Object.create(parentEnv)`) would be tidier but is
+        // WRONG here: `mountEvent` spreads `{ ...scope.env, event }`, and a
+        // spread copies own properties only, so every outer var would vanish
+        // from event handlers inside the loop.
+        for (const key of Object.keys(parentEnv)) {
+          reused.scope.env[key] = parentEnv[key];
+        }
         this.bindLoopVars(
           region.node.bindings,
           reused.scope.env,
