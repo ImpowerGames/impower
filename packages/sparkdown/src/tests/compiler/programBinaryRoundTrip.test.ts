@@ -138,23 +138,29 @@ describe("binary program format round-trip", () => {
     expect(buffer.strings).toEqual(["a", "ev"]);
   });
 
-  it("lays subtrees out as contiguous spans", () => {
-    // What phases 2-4 rely on: a node's `end` bounds its whole subtree, so a
-    // consumer can skip or slice it by index without walking into it.
+  it("stores a relocatable subtree SIZE, not an end index", () => {
+    // The property phase 2 depends on, and lezer's reason for storing a size:
+    // it is intrinsic to the node, so a subtree can be copied to a different
+    // position without rewriting anything inside it. An end index would encode
+    // where the node happens to sit.
     const buffer = buildProgramBuffer({ first: [1, 2, 3], second: 9 });
     const { nodes } = buffer;
     expect(nodes[0]).toBe(ProgramNodeTag.Object);
-    const rootEnd = nodes[2]!;
-    expect(rootEnd).toBe(nodes.length / NODE_WIDTH);
+    // Root spans the whole buffer, expressed as a count of records.
+    expect(nodes[2]).toBe(nodes.length / NODE_WIDTH);
 
-    // Root's first child is the `first` Member; its end must skip the array.
     const firstMember = 1;
     expect(nodes[firstMember * NODE_WIDTH]).toBe(ProgramNodeTag.Member);
-    const secondMember = nodes[firstMember * NODE_WIDTH + 2]!;
+    // Member + Array + 3 numbers = 5 records.
+    expect(nodes[firstMember * NODE_WIDTH + 2]).toBe(5);
+
+    // Hopping a node's size lands on the next sibling.
+    const secondMember = firstMember + nodes[firstMember * NODE_WIDTH + 2]!;
     expect(nodes[secondMember * NODE_WIDTH]).toBe(ProgramNodeTag.Member);
-    // Skipping the first member lands exactly on the second, having stepped
-    // over the array and its three elements.
     expect(secondMember).toBe(firstMember + 1 + 1 + 3);
+
+    // A leaf occupies exactly one record.
+    expect(nodes[(secondMember + 1) * NODE_WIDTH + 2]).toBe(1);
   });
 
   it("exposes node and double sections as views, not copies", () => {

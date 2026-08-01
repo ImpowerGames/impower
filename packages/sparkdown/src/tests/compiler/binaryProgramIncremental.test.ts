@@ -8,7 +8,7 @@
 import "../../inkjs/engine/Container";
 import { describe, expect, it } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
-import { decodeProgram } from "../../binary/programBinary";
+import { materializeNode } from "../../binary/programBinary";
 
 const URI = "inmemory:///main.sd";
 
@@ -83,12 +83,14 @@ function corpus(sceneCount: number, tag: string): string {
 }
 
 describe("binary program path (#314 phase 2)", () => {
-  it("populates compiledBinary instead of compiled", () => {
+  it("populates compiledBuffer instead of compiled", () => {
     const program = quiet(() => {
       const c = makeCompiler(corpus(4, "a"), true);
       return (c.compile({ textDocument: { uri: URI } } as never) as any).program;
     });
-    expect(program.compiledBinary).toBeInstanceOf(Uint8Array);
+    expect(program.compiledBuffer).toBeTruthy();
+    expect(ArrayBuffer.isView(program.compiledBuffer.nodes)).toBe(true);
+    expect(Array.isArray(program.compiledBuffer.strings)).toBe(true);
     expect(program.compiled).toBeUndefined();
   });
 
@@ -98,7 +100,7 @@ describe("binary program path (#314 phase 2)", () => {
       const c = makeCompiler(text, true);
       return (c.compile({ textDocument: { uri: URI } } as never) as any).program;
     });
-    expect(JSON.stringify(decodeProgram(program.compiledBinary))).toBe(
+    expect(JSON.stringify(materializeNode(program.compiledBuffer))).toBe(
       coldJson(text),
     );
   });
@@ -144,7 +146,7 @@ describe("binary program path (#314 phase 2)", () => {
         () => (c.compile({ textDocument: { uri: URI } } as never) as any).program,
       );
       expect(
-        JSON.stringify(decodeProgram(program.compiledBinary)),
+        JSON.stringify(materializeNode(program.compiledBuffer)),
         `after edit ${i + 1}`,
       ).toBe(coldJson(current));
     }
@@ -180,7 +182,7 @@ describe("binary program path (#314 phase 2)", () => {
     const program = quiet(
       () => (c.compile({ textDocument: { uri: URI } } as never) as any).program,
     );
-    expect(JSON.stringify(decodeProgram(program.compiledBinary))).toBe(
+    expect(JSON.stringify(materializeNode(program.compiledBuffer))).toBe(
       coldJson(updated),
     );
   });

@@ -10,7 +10,10 @@ import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { Story as RuntimeStory } from "../../inkjs/engine/Story";
 import { SimpleJson } from "../../inkjs/engine/SimpleJson";
 import { materializeNode } from "../../binary/programBinary";
-import { ProgramBinaryWriter } from "../../binary/ProgramBinaryWriter";
+import {
+  ProgramBinaryWriter,
+  createProgramTable,
+} from "../../binary/ProgramBinaryWriter";
 
 const URI = "inmemory:///main.sd";
 
@@ -158,10 +161,12 @@ describe("ProgramBinaryWriter", () => {
   });
 
   it("round-trips a captured chunk through splice", () => {
-    // The phase 2 mechanism: capture a subtree as a portable chunk, then
-    // splice it into a DIFFERENT writer whose tables are interned differently,
-    // and get the same value back.
-    const source = new ProgramBinaryWriter();
+    // The phase 2 mechanism: capture a subtree, then splice it into a DIFFERENT
+    // writer and get the same value back. Both writers SHARE the table, which
+    // is what makes the chunk a plain record copy — that sharing is the
+    // invariant, so the test exercises it rather than working around it.
+    const table = createProgramTable();
+    const source = new ProgramBinaryWriter(table);
     source.WriteObjectStart();
     source.WritePropertyStart("flow");
     const mark = source.mark();
@@ -177,9 +182,10 @@ describe("ProgramBinaryWriter", () => {
     source.WritePropertyEnd();
     source.WriteObjectEnd();
 
-    // A fresh writer whose tables are populated in a different order, so a
-    // chunk that leaked absolute indices would decode to the wrong strings.
-    const target = new ProgramBinaryWriter();
+    // A second writer that writes DIFFERENT content before the splice, so a
+    // chunk holding absolute end indices would land its subtree bounds in the
+    // wrong place. Sizes are relative, so it survives.
+    const target = new ProgramBinaryWriter(table);
     target.WriteObjectStart();
     target.WriteProperty("decoy", "unrelated");
     target.WriteIntProperty("another", 999);
@@ -201,7 +207,8 @@ describe("ProgramBinaryWriter", () => {
     const expected = JSON.stringify(viaJsonWriter(story));
 
     // Serialize once, arming a capture for every top-level flow...
-    const first = new ProgramBinaryWriter();
+    const table = createProgramTable();
+    const first = new ProgramBinaryWriter(table);
     story.ToJson(first as never, {
       resolve: (name: string, _container: unknown, serialize: () => unknown) => {
         first.captureNextInjectedAs(name, "fp");
@@ -215,7 +222,7 @@ describe("ProgramBinaryWriter", () => {
     // ...then serialize again reusing every chunk, and expect the same program.
     // This is the phase 2 claim: a flow that did not change is spliced from
     // records instead of re-walked, with no observable difference.
-    const second = new ProgramBinaryWriter();
+    const second = new ProgramBinaryWriter(table);
     story.ToJson(second as never, {
       resolve: (name: string) => chunks.get(name)!.chunk,
     } as never);

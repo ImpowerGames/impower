@@ -52,11 +52,19 @@
 export const PROGRAM_BINARY_MAGIC = new Uint8Array([0x53, 0x44, 0x42, 0x03]);
 
 /**
- * Slots per node record: tag, value, end.
+ * Slots per node record: `[tag, payload, size]`.
  *
- * Deliberately no child count — `end` already bounds the subtree, and a
- * consumer that wants the children walks them by hopping each child's `end`.
- * Storing it too cost 66KB on the R&B corpus for a number nothing read.
+ * `size` is lezer's fourth value — "the amount of space taken up in the array
+ * by this node and its children", counted in RECORDS including the node
+ * itself. It is deliberately a SIZE and not an end index, because a size is
+ * intrinsic to the node while an end index is a statement about where the node
+ * sits. That single difference is what makes a subtree relocatable: skipping
+ * one is `i += size` instead of `i = end`, and splicing a cached subtree needs
+ * no structural rewrite at all.
+ *
+ * lezer carries `from`/`to` document offsets in its other two slots; we have no
+ * use for those, so the record stays three wide — the payload slot is a
+ * pointer into the string or number table, never an inline value.
  */
 export const NODE_WIDTH = 3;
 
@@ -131,7 +139,7 @@ export const buildProgramBuffer = (value: unknown): ProgramBuffer => {
   };
 
   // Tracked as we go rather than by re-scanning every slot afterwards; only
-  // payload indices and end offsets can be large, tags are always < 8.
+  // payload pointers and sizes can be large, tags are always < 8.
   let widest = 0;
 
   /** Emit a record, returning its index in RECORDS (not ints). */
@@ -144,12 +152,12 @@ export const buildProgramBuffer = (value: unknown): ProgramBuffer => {
     return index;
   };
 
-  /** Patch the end offset once the whole subtree has been written. */
+  /** Patch the subtree SIZE once the whole subtree has been written. */
   const close = (index: number) => {
-    const end = nodes.length / NODE_WIDTH;
-    nodes[index * NODE_WIDTH + 2] = end;
-    if (end > widest) {
-      widest = end;
+    const size = nodes.length / NODE_WIDTH - index;
+    nodes[index * NODE_WIDTH + 2] = size;
+    if (size > widest) {
+      widest = size;
     }
   };
 
@@ -224,25 +232,25 @@ export const materializeNode = (
       return strings[value]!;
     case ProgramNodeTag.Array: {
       const items: unknown[] = [];
-      // Children are laid out consecutively; each one's `end` is where the
-      // next begins, so this walks siblings without recursing to find them.
+      // Children are laid out consecutively; hopping a child's SIZE lands on
+      // the next sibling, so this walks siblings without recursing into them.
       let child = index + 1;
-      const end = nodes[base + 2]!;
+      const end = index + nodes[base + 2]!;
       while (child < end) {
         items.push(materializeNode(buffer, child));
-        child = nodes[child * NODE_WIDTH + 2]!;
+        child += nodes[child * NODE_WIDTH + 2]!;
       }
       return items;
     }
     case ProgramNodeTag.Object: {
       const result: Record<string, unknown> = {};
       let child = index + 1;
-      const end = nodes[base + 2]!;
+      const end = index + nodes[base + 2]!;
       while (child < end) {
         // Every child of an Object is a Member: key in `value`, one child.
         const key = strings[nodes[child * NODE_WIDTH + 1]!]!;
         result[key] = materializeNode(buffer, child + 1);
-        child = nodes[child * NODE_WIDTH + 2]!;
+        child += nodes[child * NODE_WIDTH + 2]!;
       }
       return result;
     }

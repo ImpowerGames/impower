@@ -43,10 +43,11 @@ import { LowerContext } from "../lower/context";
 import { InkObject } from "../../inkjs/engine/Object";
 import { SimpleJson } from "../../inkjs/engine/SimpleJson";
 import { JsonSerialisation } from "../../inkjs/engine/JsonSerialisation";
-import { encodeProgramBuffer } from "../../binary/programBinary";
 import {
   ProgramBinaryWriter,
+  createProgramTable,
   type CachedFlowChunk,
+  type ProgramTable,
 } from "../../binary/ProgramBinaryWriter";
 import { Story as RuntimeStory } from "../../inkjs/engine/Story";
 import { asINamedContentOrNull, asOrNull } from "../../inkjs/engine/TypeAssertion";
@@ -210,6 +211,12 @@ export class SparkdownCompiler {
   // both are program-global in an assembled buffer and would otherwise decode
   // against the wrong tables on the next compile.
   protected _flowChunkCache?: Map<string, CachedFlowChunk>;
+
+  // The string/number table the binary chunks' payload pointers refer to.
+  // Persisted across compiles on purpose: it is the analogue of lezer's
+  // grammar-fixed NodeSet, and it is what lets a cached chunk be copied in
+  // verbatim instead of remapped record by record.
+  protected _binaryTable: ProgramTable = createProgramTable();
 
   // ---- Incremental ExportRuntime: constructed-flow reuse ------------------
   // A top-level flow (knot/scene/function, plus its stitches) is assembled
@@ -918,7 +925,7 @@ export class SparkdownCompiler {
         // object tree — so on the no-memo path it does strictly less work.
         const binary = this._config.binaryProgram === true;
         const writer = binary
-          ? new ProgramBinaryWriter()
+          ? new ProgramBinaryWriter(this._binaryTable)
           : new SimpleJson.Writer();
         // Incremental ToJson: reuse the serialized subtree of each top-level flow
         // whose source content is unchanged AND whose cross-flow fingerprint
@@ -1026,9 +1033,11 @@ export class SparkdownCompiler {
           this._flowJsonCache = nextFlowCache;
         }
         if (binary) {
-          program.compiledBinary = encodeProgramBuffer(
-            (writer as ProgramBinaryWriter).toBuffer(),
-          );
+          // Pieces, not a packed blob: `nodes`/`numbers` are typed arrays that
+          // transfer in O(1) across a worker boundary, and packing them into
+          // one self-describing byte blob costs ~10ms/compile (it re-encodes
+          // the whole string table to UTF-8) for no benefit on that hop.
+          program.compiledBuffer = (writer as ProgramBinaryWriter).toBuffer();
         } else {
           const json = (writer as SimpleJson.Writer).toObject();
           if (json) {
