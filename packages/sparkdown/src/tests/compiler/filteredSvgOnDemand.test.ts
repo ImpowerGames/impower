@@ -175,6 +175,11 @@ describe("getOrCreateFilteredSvg", () => {
       svgFile(222), // the file was edited
       PARAM,
     );
+    // Pruning runs AFTER the response, off the critical path — `cache.keys()`
+    // enumerates the whole bucket and warming generates the project's entire
+    // variant set, so on the critical path that is O(n^2) on the thread serving
+    // the image the user is waiting for.
+    await new Promise((resolve) => setTimeout(resolve, 0));
     expect(cache.store.size).toBe(1);
     expect(Array.from(cache.store.keys())[0]).toContain("sig=222-");
   });
@@ -200,6 +205,101 @@ describe("getOrCreateFilteredSvg", () => {
       ),
     ).toBeUndefined();
     expect(cache.store.size).toBe(0);
+  });
+
+  it("runs ONE generation for concurrent requests of the same variant", async () => {
+    // Showing an image asks for the variant twice at once (element
+    // `background-image` + the hidden <img> child `UIModule.createImage` adds),
+    // and a preload can race both. Each miss used to do its own read + filter
+    // + prune, so a first display paid the work 2-3x (#344).
+    const cache = makeCache();
+    let reads = 0;
+    const counted = (lastModified: number): FilteredSvgFile => {
+      const blob = svgFile(lastModified);
+      return Object.assign(blob, {
+        text: async () => {
+          reads += 1;
+          // Yield, so the second caller definitely arrives mid-generation.
+          await Promise.resolve();
+          return SVG;
+        },
+      }) as FilteredSvgFile;
+    };
+    const responses = await Promise.all([
+      getOrCreateFilteredSvg(cache, "local/assets/portrait.svg", counted(111), PARAM),
+      getOrCreateFilteredSvg(cache, "local/assets/portrait.svg", counted(111), PARAM),
+      getOrCreateFilteredSvg(cache, "local/assets/portrait.svg", counted(111), PARAM),
+    ]);
+    expect(reads).toBe(1);
+    expect(cache.store.size).toBe(1);
+    // Distinct, independently readable responses. (This does NOT distinguish a
+    // fresh Response from a `clone()` — clones are distinct and readable too.
+    // Why the implementation avoids clone() is a browser-only stall that no
+    // Node test can observe; see the note on `filteredSvgResponse`.)
+    expect(new Set(responses).size).toBe(3);
+    const texts = await Promise.all(responses.map((r) => r!.text()));
+    for (const text of texts) {
+      expect(text).toContain("filter default body");
+      expect(text).not.toContain("filter hat");
+    }
+    // ...and the stored entry is still independently readable afterwards.
+    const stored = Array.from(cache.store.values())[0]!;
+    expect(await stored.clone().text()).toContain("filter default body");
+  });
+
+  it("lets a caller regenerate when the generation it shared failed", async () => {
+    // Sharing must never turn ONE transient read failure into every concurrent
+    // caller serving unfiltered art: `sw.ts` treats `undefined` as "serve the
+    // original", which draws every filter-tagged node.
+    const cache = makeCache();
+    let attempt = 0;
+    const flaky = (): FilteredSvgFile =>
+      Object.assign(svgFile(111), {
+        text: async () => {
+          attempt += 1;
+          await Promise.resolve();
+          if (attempt === 1) {
+            throw new Error("read failed");
+          }
+          return SVG;
+        },
+      }) as FilteredSvgFile;
+    const [first, second] = await Promise.all([
+      getOrCreateFilteredSvg(cache, "local/assets/portrait.svg", flaky(), PARAM),
+      getOrCreateFilteredSvg(cache, "local/assets/portrait.svg", flaky(), PARAM),
+    ]);
+    // One of the two owned the failing generation; the other must not have
+    // inherited it.
+    const survivors = [first, second].filter(Boolean);
+    expect(survivors).toHaveLength(1);
+    expect(await survivors[0]!.text()).toContain("filter default body");
+    expect(cache.store.size).toBe(1);
+  });
+
+  it("does not strand a failed generation for later callers", async () => {
+    const cache = makeCache();
+    const exploding = Object.assign(svgFile(111), {
+      text: async () => {
+        throw new Error("read failed");
+      },
+    }) as FilteredSvgFile;
+    expect(
+      await getOrCreateFilteredSvg(
+        cache,
+        "local/assets/portrait.svg",
+        exploding,
+        PARAM,
+      ),
+    ).toBeUndefined();
+    // The key must be released, or the variant can never be generated again.
+    const recovered = await getOrCreateFilteredSvg(
+      cache,
+      "local/assets/portrait.svg",
+      svgFile(111),
+      PARAM,
+    );
+    expect(recovered).toBeDefined();
+    expect(await recovered!.text()).toContain("filter default body");
   });
 
   it("shares one cache entry across non-canonical spellings of the same filter", async () => {

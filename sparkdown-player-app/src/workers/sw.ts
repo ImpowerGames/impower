@@ -1,7 +1,11 @@
 import { MessageProtocolRequestType } from "@impower/jsonrpc/src/common/classes/MessageProtocolRequestType";
 import { FetchGameAssetMessage } from "../../../packages/spark-engine/src/game/core/classes/messages/FetchGameAssetMessage";
 import { filterSVG } from "../../../packages/sparkdown/src/compiler/utils/filterSVG";
-import { parseImageFilterParam } from "../../../packages/sparkdown/src/filters/filteredSvg";
+import {
+  filteredSvgResponse,
+  parseImageFilterParam,
+  type ImageFilter,
+} from "../../../packages/sparkdown/src/filters/filteredSvg";
 
 export {};
 declare const self: ServiceWorkerGlobalScope;
@@ -45,6 +49,59 @@ async function sendRequest<M extends string, P, R>(
   });
 }
 
+/** Filtered-variant generations currently running, keyed by request url. */
+const inFlightFilteredSvgs: Map<string, Promise<string>> = new Map();
+
+/**
+ * Relay the root svg's bytes from the editor, filter them, and cache the
+ * variant. Resolves to the filtered SOURCE, so concurrent callers can each
+ * build their own Response instead of sharing a tee'd body.
+ */
+async function generateFilteredSvg(
+  url: URL,
+  path: string,
+  clientId: string,
+  filter: ImageFilter,
+  filtersParam: string,
+): Promise<string> {
+  const client = await self.clients.get(clientId);
+  if (!client) {
+    throw new Error(`no client ${clientId}`);
+  }
+  const { transfer } = await sendRequest(client, FetchGameAssetMessage.type, {
+    path,
+  });
+  const filtered = filterSVG(new TextDecoder().decode(transfer[0]), filter);
+  try {
+    const cache = await caches.open(SW_FILTERED_CACHE_NAME);
+    await cache.put(url.href, filteredSvgResponse(filtered));
+    // Prune superseded signatures of this exact variant AFTER responding: same
+    // path + same filters at a DIFFERENT url means the file's `?v=` signature
+    // moved (an edit), so the old entry can never be requested again. Kept off
+    // the critical path because `cache.keys()` enumerates the whole bucket, and
+    // warming a project's whole variant set would make that O(n^2) on the
+    // thread serving the image the user is waiting for.
+    void (async () => {
+      try {
+        const keys = await cache.keys();
+        await Promise.all(
+          keys
+            .filter((req) => {
+              const cachedUrl = new URL(req.url);
+              return (
+                cachedUrl.pathname === url.pathname &&
+                cachedUrl.searchParams.get("filters") === filtersParam &&
+                req.url !== url.href
+              );
+            })
+            .map((req) => cache.delete(req)),
+        );
+      } catch {}
+    })();
+  } catch {}
+  return filtered;
+}
+
 async function handleLocalAssetRequest(url: URL, clientId: string) {
   const path = url.pathname.replace(RESOURCE_PROTOCOL, "");
   const filename = path.split("/").at(-1);
@@ -70,9 +127,40 @@ async function handleLocalAssetRequest(url: URL, clientId: string) {
         return cached;
       }
     } catch {}
+    // Showing an image asks for the variant TWICE at once — `createImage`
+    // writes the url as `background-image` and as a hidden <img>'s src — and a
+    // preload can race both. Nothing is cached until the first finishes, so
+    // without this every one of them pays the relay AND filterSVG again
+    // (#344). Sharing is best-effort: a failed generation falls through to the
+    // unfiltered relay below rather than failing every caller at once.
+    const shared = inFlightFilteredSvgs.get(url.href);
+    if (shared) {
+      try {
+        return filteredSvgResponse(await shared);
+      } catch {}
+    }
   }
 
   try {
+    if (filter) {
+      const generation = generateFilteredSvg(
+        url,
+        path,
+        clientId,
+        filter,
+        filtersParam!,
+      );
+      inFlightFilteredSvgs.set(url.href, generation);
+      try {
+        return filteredSvgResponse(await generation);
+      } finally {
+        // Only if it is still ours — see the shared generator's note.
+        if (inFlightFilteredSvgs.get(url.href) === generation) {
+          inFlightFilteredSvgs.delete(url.href);
+        }
+      }
+    }
+
     const client = await self.clients.get(clientId);
     if (client) {
       const { transfer } = await sendRequest(
@@ -83,38 +171,6 @@ async function handleLocalAssetRequest(url: URL, clientId: string) {
         },
       );
       const buffer = transfer[0];
-
-      if (filter) {
-        const filtered = filterSVG(new TextDecoder().decode(buffer), filter);
-        const response = new Response(filtered, {
-          status: 200,
-          headers: new Headers({
-            "Content-Type": "image/svg+xml",
-            "Cache-Control": "max-age=31536000, immutable",
-          }),
-        });
-        try {
-          const cache = await caches.open(SW_FILTERED_CACHE_NAME);
-          // Prune superseded signatures of this exact variant: same path +
-          // same filters at a DIFFERENT url means the file's `?v=` signature
-          // moved (an edit), so the old entry can never be requested again.
-          const keys = await cache.keys();
-          await Promise.all(
-            keys
-              .filter((req) => {
-                const cachedUrl = new URL(req.url);
-                return (
-                  cachedUrl.pathname === url.pathname &&
-                  cachedUrl.searchParams.get("filters") === filtersParam &&
-                  req.url !== url.href
-                );
-              })
-              .map((req) => cache.delete(req)),
-          );
-          await cache.put(url.href, response.clone());
-        } catch {}
-        return response;
-      }
 
       const contentLength = buffer.byteLength;
       const headers = new Headers({

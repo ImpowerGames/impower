@@ -193,12 +193,47 @@ export interface FilteredSvgFile extends Blob {
 }
 
 /**
+ * Generations currently running, keyed by cache key.
+ *
+ * Showing an image issues TWO simultaneous requests for the same variant url —
+ * `UIModule.createImage` writes it as the element's `background-image` AND as
+ * the `src` of a hidden `<img>` child — and a preload can race both. Without
+ * this, each of those misses the cache (nothing is stored until the first one
+ * finishes) and runs its own full read + filter + prune, so a first display
+ * costs the work two or three times over (#344).
+ */
+const inFlightGenerations = new Map<string, Promise<string>>();
+
+/**
+ * A fresh response per caller, over the shared filtered SOURCE.
+ *
+ * Deliberately not `clone()`: cloning tees the body, so every clone leaves a
+ * branch that has to be read or the other branch stalls behind it. Re-wrapping
+ * a string has no such coupling and costs nothing here.
+ */
+export const filteredSvgResponse = (body: string) =>
+  new Response(body, {
+    status: 200,
+    headers: new Headers({
+      "Content-Type": "image/svg+xml",
+      "Cache-Control": "max-age=31536000, immutable",
+    }),
+  });
+
+/**
  * Cached-or-freshly-filtered SVG response for one file, or `undefined` if the
  * param is garbage or a no-op (caller serves the unfiltered original).
  *
  * On a fresh generation, entries for the SAME path+filters at an OLDER file
  * signature are pruned — variants accumulate per edit otherwise and nothing
  * else ever deletes them (the activate sweep deliberately keeps this bucket).
+ *
+ * Concurrent callers for one variant share a single generation and each gets
+ * its own `Response` over the shared source. Sharing is best-effort, never
+ * load-bearing: a caller that arrives just outside the window, or whose shared
+ * generation FAILED, falls back to generating for itself — so one transient
+ * read/quota error can't turn into every concurrent caller serving unfiltered
+ * art.
  */
 export const getOrCreateFilteredSvg = async (
   cache: FilteredSvgCache,
@@ -226,28 +261,73 @@ export const getOrCreateFilteredSvg = async (
     file.size,
     canonical,
   )}`;
+  // Checked BEFORE the cache, and again after: `cache.match` is a yield point,
+  // so a caller that started before the winner's `cache.put` can resume after
+  // it, seeing neither a cache entry nor (if only checked once) a generation.
+  const share = async (pending: Promise<string>) => {
+    try {
+      return filteredSvgResponse(await pending);
+    } catch {
+      // The shared generation failed. Don't inherit its failure — falling
+      // through to `undefined` would make the service worker serve the
+      // UNFILTERED svg, i.e. visibly wrong art, for every caller at once.
+      return undefined;
+    }
+  };
   try {
+    const early = inFlightGenerations.get(key);
+    if (early) {
+      const shared = await share(early);
+      if (shared) {
+        return shared;
+      }
+    }
     const cached = await cache.match(key);
     if (cached) {
       return cached;
     }
-    const filtered = filterSVG(await file.text(), filter);
-    const response = new Response(filtered, {
-      status: 200,
-      headers: new Headers({
-        "Content-Type": "image/svg+xml",
-        "Cache-Control": "max-age=31536000, immutable",
-      }),
-    });
-    // Prune superseded signatures of this exact variant before storing.
-    const existing = await cache.keys();
-    await Promise.all(
-      existing
-        .filter((req) => req.url.includes(variantPrefix) && !req.url.endsWith(key))
-        .map((req) => cache.delete(req.url)),
-    );
-    await cache.put(key, response.clone());
-    return response;
+    const pending = inFlightGenerations.get(key);
+    if (pending) {
+      const shared = await share(pending);
+      if (shared) {
+        return shared;
+      }
+    }
+    const generation = (async () => {
+      const filtered = filterSVG(await file.text(), filter);
+      await cache.put(key, filteredSvgResponse(filtered));
+      // Prune superseded signatures of this exact variant AFTER responding.
+      // `cache.keys()` enumerates the whole bucket, so on the critical path it
+      // makes every generation cost O(entries) — and warming a project's whole
+      // variant set turns that into O(n^2) on the very thread that has to serve
+      // the image the user is waiting for. Housekeeping, so best-effort: if the
+      // service worker is torn down first, the next generation prunes instead.
+      void (async () => {
+        try {
+          const existing = await cache.keys();
+          await Promise.all(
+            existing
+              .filter(
+                (req) =>
+                  req.url.includes(variantPrefix) && !req.url.endsWith(key),
+              )
+              .map((req) => cache.delete(req.url)),
+          );
+        } catch {}
+      })();
+      return filtered;
+    })();
+    inFlightGenerations.set(key, generation);
+    try {
+      return filteredSvgResponse(await generation);
+    } finally {
+      // Only if it is still OURS: a caller whose shared generation failed
+      // registers a replacement, and an unconditional delete here would strand
+      // that one for everybody behind it.
+      if (inFlightGenerations.get(key) === generation) {
+        inFlightGenerations.delete(key);
+      }
+    }
   } catch {
     return undefined;
   }
