@@ -116,10 +116,28 @@ export class SearchPanel implements Panel {
 
   query: SearchQuery;
 
-  /** What the count currently on screen was computed from. */
-  counted:
-    | { doc: Text; from: number; to: number; query: SearchQuery }
+  /**
+   * Every match of `query` in `doc`, in document order, as parallel arrays of
+   * start and end offsets.
+   *
+   * Kept rather than just the total because stepping from one match to the next
+   * changes only the "N" of "N of M", and with the matches in hand that is a
+   * binary search -- where recomputing them is another walk over the whole
+   * document. Holding them costs two numbers per match, which is bounded by the
+   * size of the script itself.
+   */
+  matched:
+    | {
+        doc: Text;
+        query: SearchQuery;
+        valid: boolean;
+        froms: number[];
+        tos: number[];
+      }
     | undefined;
+
+  /** The selection the label on screen was rendered for. */
+  rendered: { from: number; to: number } | undefined;
 
   /** Handle of the trailing recount, while one is owed. */
   countTimer: ReturnType<typeof setTimeout> | undefined;
@@ -293,34 +311,28 @@ export class SearchPanel implements Panel {
     }
   }
 
-  updateCount() {
-    const { state } = this.view;
-    const query = getSearchQuery(state);
-    const mainSel = state.selection.main;
+  /**
+   * Whether the recorded matches are still the matches of `query` in this
+   * document.
+   *
+   * `doc` compares by identity because an unchanged document is the same `Text`
+   * object. Together with `sameMatches` that covers what the match set is a
+   * function of in this editor, though not everything `getCursor` can read: a
+   * whole-word search resolves its word characters from language data, and
+   * `test` predicates are handed the state. Neither varies here while the
+   * document and the query both stand still.
+   */
+  hasMatches(state: EditorState, query: SearchQuery) {
+    const matched = this.matched;
+    return (
+      !!matched && matched.doc === state.doc && sameMatches(matched.query, query)
+    );
+  }
 
-    // Counting walks every match in the document -- tens of milliseconds on a
-    // feature-length script. It is reached from `update`, which runs for every
-    // view update there is: scrolls, decorations, and the replace field's
-    // per-keystroke commits alike. So remember what the standing count was
-    // computed from, and walk again only once one of those moved. `doc`
-    // compares by identity because an unchanged document is the same `Text`
-    // object.
-    //
-    // The key covers what the count is a function of in this editor, not
-    // everything `getCursor` can read: a whole-word search resolves its word
-    // characters from language data, and `test` predicates are handed the
-    // state. Neither varies here while the document, selection and query all
-    // stand still.
-    const counted = this.counted;
-    if (
-      counted &&
-      counted.doc === state.doc &&
-      counted.from === mainSel.from &&
-      counted.to === mainSel.to &&
-      sameMatches(counted.query, query)
-    ) {
-      return;
-    }
+  /** Walk the document and record where the query matches. */
+  findMatches(state: EditorState, query: SearchQuery) {
+    // Whatever is on the label was rendered against the old match set.
+    this.rendered = undefined;
 
     const searchQuery = new SearchQuery(query);
     // A blank or malformed pattern has nothing to count, and `getCursor` throws
@@ -329,39 +341,122 @@ export class SearchPanel implements Panel {
     // error and the count silently stops tracking. `valid` covers both cases: it
     // requires a non-empty search, and for regex mode a pattern that compiles.
     if (!searchQuery.valid) {
-      this.counted = { doc: state.doc, from: mainSel.from, to: mainSel.to, query };
-      this.matchesLabel.textContent = "";
+      this.matched = {
+        doc: state.doc,
+        query,
+        valid: false,
+        froms: [],
+        tos: [],
+      };
       return;
     }
 
-    let cursor = searchQuery.getCursor(state);
-    let total = 0;
-    let current = 0;
+    const froms: number[] = [];
+    const tos: number[] = [];
+    const cursor = searchQuery.getCursor(state);
 
     let item = cursor.next();
-
     while (!item.done) {
-      if (item.value.from <= mainSel.from && item.value.to >= mainSel.to) {
-        current = total;
-      }
+      froms.push(item.value.from);
+      tos.push(item.value.to);
       item = cursor.next();
-      total++;
     }
 
     // Recorded only once the walk has finished, so a throw part-way through
-    // leaves the memo empty and the next update tries again, rather than
-    // claiming a count that never reached the label.
-    this.counted = { doc: state.doc, from: mainSel.from, to: mainSel.to, query };
+    // leaves the previous match set in place and the next update tries again,
+    // rather than publishing a half-built one.
+    this.matched = { doc: state.doc, query, valid: true, froms, tos };
+  }
 
-    if (total === 0) {
+  /**
+   * Which match the selection sits inside, or 0 when it sits inside none -- the
+   * label reads "1 of M" until the user lands on one.
+   */
+  indexAt(from: number, to: number) {
+    const { froms, tos } = this.matched!;
+
+    // The rightmost match starting at or before the selection. Matches never
+    // overlap, so every earlier one ends earlier still, and if this one does not
+    // reach past the selection then none of them does.
+    let lo = 0;
+    let hi = froms.length - 1;
+    let found = -1;
+    while (lo <= hi) {
+      const mid = (lo + hi) >> 1;
+      if (froms[mid]! <= from) {
+        found = mid;
+        lo = mid + 1;
+      } else {
+        hi = mid - 1;
+      }
+    }
+
+    return found >= 0 && tos[found]! >= to ? found : 0;
+  }
+
+  /** Write the standing match set and the selection onto the label. */
+  renderCount(state: EditorState) {
+    const matched = this.matched;
+    if (!matched) {
+      return;
+    }
+
+    const mainSel = state.selection.main;
+    const rendered = this.rendered;
+    if (
+      rendered &&
+      rendered.from === mainSel.from &&
+      rendered.to === mainSel.to
+    ) {
+      return;
+    }
+    this.rendered = { from: mainSel.from, to: mainSel.to };
+
+    const total = matched.froms.length;
+    if (!matched.valid) {
+      this.matchesLabel.textContent = "";
+    } else if (total === 0) {
       this.matchesLabel.textContent = state.phrase("No results");
     } else {
       this.matchesLabel.textContent = state.phrase(
         "$1 of $2",
-        current + 1,
+        this.indexAt(mainSel.from, mainSel.to) + 1,
         String(total),
       );
     }
+  }
+
+  updateCount() {
+    const { state } = this.view;
+    const query = getSearchQuery(state);
+    if (!this.hasMatches(state, query)) {
+      this.findMatches(state, query);
+    }
+    this.renderCount(state);
+  }
+
+  /**
+   * Where the query first matches, or null if it never does.
+   *
+   * Answered from the recorded matches when they are current. Opening a cursor
+   * instead is cheap when a match turns up early and a walk over the whole
+   * document when none does -- which is exactly the case a search field is in
+   * halfway through a word being typed.
+   */
+  firstMatch(state: EditorState, query: SearchQuery) {
+    if (this.hasMatches(state, query)) {
+      const { valid, froms, tos } = this.matched!;
+      return valid && froms.length ? { from: froms[0]!, to: tos[0]! } : null;
+    }
+
+    const searchQuery = new SearchQuery(query);
+    if (!searchQuery.valid) {
+      return null;
+    }
+    const first = searchQuery.getCursor(state).next();
+    return first.done
+      ? null
+      : { from: first.value.from, to: first.value.to };
   }
 
   keydown(e: KeyboardEvent) {
@@ -372,15 +467,17 @@ export class SearchPanel implements Panel {
         e.preventDefault();
         (e.shiftKey ? findPrevious : findNext)(this.view);
       } else {
-        const cursor = this.query.getCursor(this.view.state);
-        const first = cursor.next();
-        first.value;
+        // This runs before the field's own `input` handler has committed the
+        // keystroke, so the query here is the one the previous keystroke left
+        // behind, and so is `firstMatch`. They agree, which is what matters.
+        const { state } = this.view;
+        const first = this.firstMatch(state, getSearchQuery(state));
         selectMatches(this.view);
-        if (first.value) {
+        if (first) {
           this.view.dispatch({
             userEvent: "select.search.matches.first",
             effects: EditorView.scrollIntoView(
-              EditorSelection.range(first.value.from, first.value.to),
+              EditorSelection.range(first.from, first.to),
               { y: "center" },
             ),
           });
@@ -399,7 +496,17 @@ export class SearchPanel implements Panel {
       for (let effect of tr.effects)
         if (effect.is(setSearchQuery) && !effect.value.eq(this.query))
           this.setQuery(effect.value);
-    this.scheduleCount();
+
+    const { state } = this.view;
+    if (this.hasMatches(state, getSearchQuery(state))) {
+      // The matches still stand, so the only thing that can have moved is which
+      // one the selection is on -- a binary search, cheap enough to do here.
+      // Deferring it would make `next` and `previous` renumber a quarter of a
+      // second after the match they highlighted.
+      this.renderCount(state);
+    } else {
+      this.scheduleCount();
+    }
   }
 
   /**

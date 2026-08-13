@@ -235,18 +235,56 @@ describe("search panel match count (#359)", () => {
     expect(label(view)).toBe(`1 of ${LINES + 2}`);
   });
 
-  // And on the selection, which is what picks the "N" out of the "M".
-  it("recounts when the selection moves to another match", async () => {
+  /** Select the "hello" on the given 1-based line. */
+  const selectMatchOnLine = (view: EditorView, line: number) => {
+    const target = view.state.doc.line(line);
+    const at = target.from + target.text.indexOf("hello");
+    view.dispatch({ selection: { anchor: at, head: at + "hello".length } });
+  };
+
+  // Moving between matches changes the "N" and nothing else. It has to land
+  // immediately: `next` and `previous` highlight a match, and a number that
+  // renumbers a quarter-second later describes a match the user has already
+  // moved off. Asserting before any `settle()` is the whole point of this test.
+  it("renumbers immediately when the selection moves to another match", async () => {
     const view = mount();
     await search(view, "hello");
     expect(label(view)).toBe(`1 of ${LINES}`);
 
-    const third = view.state.doc.line(3);
-    const at = third.from + third.text.indexOf("hello");
-    view.dispatch({ selection: { anchor: at, head: at + "hello".length } });
-    await settle();
+    walks = 0;
+    selectMatchOnLine(view, 3);
 
     expect(label(view)).toBe(`3 of ${LINES}`);
+    // And without walking the document again to find that out.
+    expect(walks).toBe(0);
+  });
+
+  it("numbers the first, middle and last match, and neither side of one", async () => {
+    const view = mount();
+    await search(view, "hello");
+
+    walks = 0;
+
+    selectMatchOnLine(view, 1);
+    expect(label(view)).toBe(`1 of ${LINES}`);
+
+    selectMatchOnLine(view, LINES / 2);
+    expect(label(view)).toBe(`${LINES / 2} of ${LINES}`);
+
+    selectMatchOnLine(view, LINES);
+    expect(label(view)).toBe(`${LINES} of ${LINES}`);
+
+    // A bare cursor at the very start of the document sits inside no match, and
+    // a selection wider than a match is not inside it either. Both read as "1",
+    // which is what the label showed before the user landed on anything.
+    view.dispatch({ selection: { anchor: 0 } });
+    expect(label(view)).toBe(`1 of ${LINES}`);
+
+    const second = view.state.doc.line(2);
+    view.dispatch({ selection: { anchor: second.from, head: second.to } });
+    expect(label(view)).toBe(`1 of ${LINES}`);
+
+    expect(walks).toBe(0);
   });
 
   // `search` is not the only field that moves matches. A fix that compared only
