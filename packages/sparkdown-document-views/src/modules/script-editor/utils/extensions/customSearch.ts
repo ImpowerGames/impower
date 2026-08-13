@@ -29,6 +29,19 @@ const searchPanelTheme = EditorView.baseTheme({
   },
 });
 
+/**
+ * Read what the user typed out of one of the panel's `contenteditable`
+ * fields.
+ *
+ * A contenteditable under `white-space: normal` cannot hold a space that
+ * would collapse, so Chromium hardens it: type "hi " and `textContent` comes
+ * back as "hi\u00A0". Committed as-is that makes a search match nothing, and
+ * writes an invisible non-breaking space into the script in place of the
+ * space the user asked for.
+ */
+const fieldText = (field: HTMLElement) =>
+  (field.textContent ?? "").replace(/\u00A0/g, " ");
+
 export class SearchPanel implements Panel {
   dom: HTMLElement;
 
@@ -223,11 +236,11 @@ export class SearchPanel implements Panel {
 
   commit() {
     let query = new SearchQuery({
-      search: this.searchInput.textContent,
+      search: fieldText(this.searchInput),
       caseSensitive: this.caseCheckbox.checked,
       regexp: this.reCheckbox.checked,
       wholeWord: this.wordCheckbox.checked,
-      replace: this.replaceInput.textContent,
+      replace: fieldText(this.replaceInput),
     });
     if (!query.eq(this.query)) {
       this.query = query;
@@ -237,12 +250,18 @@ export class SearchPanel implements Panel {
 
   updateCount() {
     const { state } = this.view;
-    if (!this.query.search) {
+    const searchQuery = new SearchQuery(getSearchQuery(state));
+    // A blank or malformed pattern has nothing to count, and `getCursor` throws
+    // outright on an invalid regex. A throw here escapes into CodeMirror's panel
+    // plugin, which answers it by destroying the plugin -- the search panel and
+    // every other panel leave the DOM and do not come back for the life of the
+    // view. `valid` covers both cases: it requires a non-empty search, and for
+    // regex mode a pattern that compiles.
+    if (!searchQuery.valid) {
       this.matchesLabel.textContent = "";
       return;
     }
 
-    const searchQuery = new SearchQuery(getSearchQuery(state));
     let cursor = searchQuery.getCursor(state);
     let total = 0;
     let current = 0;
