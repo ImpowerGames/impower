@@ -7,7 +7,28 @@ import {
 import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { afterEach, describe, expect, it } from "vitest";
-import { customSearchPanel } from "../src/modules/script-editor/utils/extensions/customSearch";
+import {
+  COUNT_INTERVAL,
+  customSearchPanel,
+} from "../src/modules/script-editor/utils/extensions/customSearch";
+
+/**
+ * jsdom implements `Range` but none of its geometry, and CodeMirror measures
+ * text by asking a `Range` for its client rects on an animation frame. Any test
+ * here that waits stays alive long enough for that frame to run, so the missing
+ * method would arrive as an uncaught error. An empty list is what a layout
+ * engine that does no layout honestly reports, and CodeMirror already falls
+ * back to a default character width when it sees one.
+ */
+if (!Range.prototype.getClientRects) {
+  Range.prototype.getClientRects = () =>
+    Object.assign([], { item: () => null }) as unknown as DOMRectList;
+  Range.prototype.getBoundingClientRect = () => new DOMRect();
+}
+
+/** Wait for the panel's trailing match count to have run. */
+const counted = () =>
+  new Promise((resolve) => setTimeout(resolve, COUNT_INTERVAL * 2));
 
 const DOC = [
   "hello world",
@@ -257,13 +278,14 @@ describe("search panel replace field (#358)", () => {
   });
 
   // Counting matches builds a search cursor, and building one for an invalid
-  // regex throws. A throw out of the panel's update() makes CodeMirror destroy
-  // the panel plugin -- the search panel and every other panel leave the DOM
-  // and do not come back for the life of the view. Committing on replace-field
-  // input is what puts a keystroke on that path: the panel survives being
-  // opened over a selection holding regex metacharacters, so the first thing
-  // to trip it is this commit.
-  it("survives a keystroke while the find pattern is an invalid regex", () => {
+  // regex throws. Committing on replace-field input is what puts a keystroke on
+  // that path: the panel survives being opened over a selection holding regex
+  // metacharacters, so the first thing to trip it is this commit.
+  //
+  // The count runs on a trailing timer, so the wait is what makes this test
+  // mean anything -- without it the assertions land before the count has been
+  // attempted and the guard is never reached at all.
+  it("survives a keystroke while the find pattern is an invalid regex", async () => {
     const view = mount();
     const { search, replace } = fields(view);
     const re = control<HTMLInputElement>(view, "re");
@@ -271,10 +293,12 @@ describe("search panel replace field (#358)", () => {
     re.checked = true;
     re.dispatchEvent(new Event("change", { bubbles: true }));
     type(search, "**bold**");
+    await counted();
 
     expect(panelOf(view)).toBeTruthy();
 
     type(replace, "x");
+    await counted();
 
     expect(panelOf(view)).toBeTruthy();
     expect(view.dom.querySelector(".cm-panels")).toBeTruthy();
