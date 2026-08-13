@@ -113,6 +113,11 @@ export class SearchPanel implements Panel {
         // Force-clear hidden <br> tags
         this.replaceInput.innerHTML = "";
       }
+      // The replace text only reaches `replaceNext`/`replaceAll` through the
+      // committed SearchQuery, so every keystroke has to commit. Without this
+      // the field is decorative: the query keeps whatever replacement was
+      // current the last time the find field or a toggle committed.
+      this.commit();
     });
 
     this.matchesDisplay = document.createElement("div");
