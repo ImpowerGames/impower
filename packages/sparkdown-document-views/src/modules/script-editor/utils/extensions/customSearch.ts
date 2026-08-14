@@ -306,9 +306,44 @@ export class SearchPanel implements Panel {
       replace: fieldText(this.replaceInput),
     });
     if (!query.eq(this.query)) {
+      // Whether the ranges moved has to be decided against the outgoing query,
+      // before it is replaced.
+      const moved = !sameMatches(this.query, query);
       this.query = query;
       this.view.dispatch({ effects: setSearchQuery.of(query) });
+      if (moved) {
+        this.revealFirstMatch();
+      }
     }
+  }
+
+  /**
+   * Put the cursor on the first match and bring it into view.
+   *
+   * Runs after the query has been committed, so it looks for what the field
+   * currently says. Hanging this off `keydown` instead would read the field one
+   * keystroke stale: type "the light" and the cursor lands on "the ligh", which
+   * is not a match of the query on screen, so nothing carries the current-match
+   * highlight.
+   *
+   * Only the one match is selected. The rest are highlighted, and
+   * `@codemirror/search` draws those decorations for the visible ranges alone,
+   * so what it costs to show them does not grow with the script.
+   */
+  revealFirstMatch() {
+    const { state } = this.view;
+    const first = this.firstMatch(state, getSearchQuery(state));
+    if (!first) {
+      return;
+    }
+    this.view.dispatch({
+      selection: EditorSelection.single(first.from, first.to),
+      userEvent: "select.search.matches.first",
+      effects: EditorView.scrollIntoView(
+        EditorSelection.range(first.from, first.to),
+        { y: "center" },
+      ),
+    });
   }
 
   /**
@@ -466,35 +501,9 @@ export class SearchPanel implements Panel {
       if (e.key == "Enter") {
         e.preventDefault();
         (e.shiftKey ? findPrevious : findNext)(this.view);
-      } else {
-        // Typing in the find field puts the cursor on the first match and
-        // scrolls it into view. Every other match is *highlighted* rather than
-        // selected, and `@codemirror/search` draws those decorations for
-        // `view.visibleRanges` alone -- so what it costs to show a match does
-        // not grow with how many of them the script holds.
-        //
-        // Selecting them all would: a selection is not a decoration, and its
-        // ranges have to exist off screen too or an edit would not reach them.
-        // Nothing here needs that. `replaceAll` finds its own matches and
-        // builds a change set straight from them, without consulting the
-        // selection at all.
-        //
-        // This runs before the field's own `input` handler has committed the
-        // keystroke, so the query here is the one the previous keystroke left
-        // behind, and so is `firstMatch`. They agree, which is what matters.
-        const { state } = this.view;
-        const first = this.firstMatch(state, getSearchQuery(state));
-        if (first) {
-          this.view.dispatch({
-            selection: EditorSelection.single(first.from, first.to),
-            userEvent: "select.search.matches.first",
-            effects: EditorView.scrollIntoView(
-              EditorSelection.range(first.from, first.to),
-              { y: "center" },
-            ),
-          });
-        }
       }
+      // Everything else a find-field keystroke does happens once it has been
+      // committed, in `revealFirstMatch`.
     } else if (e.target == this.replaceInput) {
       if (e.key == "Enter") {
         e.preventDefault();

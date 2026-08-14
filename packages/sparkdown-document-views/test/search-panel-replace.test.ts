@@ -150,9 +150,9 @@ describe("search panel replace field (#358)", () => {
 
     type(search, "hello");
     type(replace, "hi");
-    // replaceNext only rewrites a match the selection is already sitting on, so
-    // from a bare cursor the first call selects and the second replaces.
-    replaceNext(view);
+    // `replaceNext` rewrites the match the selection is already sitting on, and
+    // committing the query put it on the first one, so a single call is a
+    // single replacement.
     replaceNext(view);
 
     expect(view.state.doc.toString()).toBe(

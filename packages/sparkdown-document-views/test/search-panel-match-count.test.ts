@@ -1,7 +1,8 @@
 import { openSearchPanel, SearchQuery } from "@codemirror/search";
-import { EditorState, StateEffect } from "@codemirror/state";
+import { EditorState, Extension, StateEffect } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import EDITOR_EXTENSIONS from "../src/modules/script-editor/constants/EDITOR_EXTENSIONS";
 import {
   COUNT_INTERVAL,
   customSearchPanel,
@@ -93,10 +94,13 @@ const unrelated = StateEffect.define<number>();
 
 let view: EditorView | undefined;
 
-const mount = (doc = DOC) => {
+const mount = (doc = DOC, extra: Extension[] = []) => {
   const parent = document.body.appendChild(document.createElement("div"));
   view = new EditorView({
-    state: EditorState.create({ doc, extensions: [customSearchPanel()] }),
+    state: EditorState.create({
+      doc,
+      extensions: [customSearchPanel(), ...extra],
+    }),
     parent,
   });
   openSearchPanel(view);
@@ -213,7 +217,9 @@ describe("search panel match count (#359)", () => {
     });
 
     expect(cost.walks).toBe(1);
-    expect(label(view)).toBe(`1 of ${LINES + 10}`);
+    // The cursor is sitting on what was the first match, and ten new matches
+    // were inserted in front of it, so it is now the eleventh.
+    expect(label(view)).toBe(`11 of ${LINES + 10}`);
   });
 
   // Typing into the script is the hot path this whole ticket is about: it must
@@ -232,7 +238,9 @@ describe("search panel match count (#359)", () => {
     await settle();
 
     expect(walks).toBe(1);
-    expect(label(view)).toBe(`1 of ${LINES + 2}`);
+    // Two matches went in ahead of the one the cursor is on, so its number
+    // moves as well as the total.
+    expect(label(view)).toBe(`3 of ${LINES + 2}`);
   });
 
   /** Select the "hello" on the given 1-based line. */
@@ -342,6 +350,31 @@ describe("search panel match count (#359)", () => {
     expect(view.state.selection.ranges.length).toBe(1);
     expect(view.state.selection.main.from).toBe(at);
     expect(view.state.selection.main.to).toBe(at + "hello".length);
+  });
+
+  // The "all" button, `Mod-d`, rectangular selection and ctrl-click all
+  // dispatch selections holding more than one range, and @codemirror/state
+  // reduces every one of those to its main range unless the editor opts in.
+  // Without the opt-in the button is inert and nothing says so.
+  it("selects every match when the all button is used", async () => {
+    const view = mount(DOC, [EditorState.allowMultipleSelections.of(true)]);
+    await search(view, "hello");
+
+    control<HTMLButtonElement>(view, "select").click();
+
+    expect(view.state.selection.ranges.length).toBe(LINES);
+  });
+
+  // The editor's own extension list is what has to carry the opt-in, not this
+  // file's harness -- a test that supplies it itself would stay green with the
+  // real editor left inert.
+  it("has multiple selections enabled in the editor's extensions", () => {
+    const state = EditorState.create({
+      doc: DOC,
+      extensions: [EDITOR_EXTENSIONS],
+    });
+
+    expect(state.facet(EditorState.allowMultipleSelections)).toBe(true);
   });
 
   // Guards the #358 fix from the other side: skipping work must not skip the
