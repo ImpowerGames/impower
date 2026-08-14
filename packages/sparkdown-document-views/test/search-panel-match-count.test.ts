@@ -316,6 +316,34 @@ describe("search panel match count (#359)", () => {
     expect(label(view)).toBe("No results");
   });
 
+  // Typing a query moves the cursor onto the first match and leaves every other
+  // match highlighted rather than selected -- CodeMirror draws those
+  // decorations for the visible ranges alone, which is what keeps showing them
+  // independent of how long the script is.
+  //
+  // The ceiling is the point: `selectMatches`, which used to do this, gives up
+  // above 1,000 matches and left the cursor wherever it was. That is precisely
+  // the feature-length script this panel exists to search.
+  it("puts the cursor on the first match, past the 1000-match ceiling", async () => {
+    const many = 1200;
+    const view = mount(
+      Array.from({ length: many }, (_, i) => `line ${i} hello there`).join("\n"),
+    );
+    // Twice, because the handler runs before the field's own `input` commits:
+    // the first keystroke into a fresh panel still sees the empty query, and
+    // the second is the one that has a pattern to look for.
+    await search(view, "hello");
+    await search(view, "hello");
+
+    const line = view.state.doc.line(1);
+    const at = line.from + line.text.indexOf("hello");
+
+    expect(label(view)).toBe(`1 of ${many}`);
+    expect(view.state.selection.ranges.length).toBe(1);
+    expect(view.state.selection.main.from).toBe(at);
+    expect(view.state.selection.main.to).toBe(at + "hello".length);
+  });
+
   // Guards the #358 fix from the other side: skipping work must not skip the
   // `valid` check that keeps an invalid regex from throwing out of the count.
   // The throw now comes from a timer, with no CodeMirror frame above it, so it
