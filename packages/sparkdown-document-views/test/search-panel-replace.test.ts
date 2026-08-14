@@ -7,7 +7,28 @@ import {
 import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { afterEach, describe, expect, it } from "vitest";
-import { customSearchPanel } from "../src/modules/script-editor/utils/extensions/customSearch";
+import {
+  COUNT_INTERVAL,
+  customSearchPanel,
+} from "../src/modules/script-editor/utils/extensions/customSearch";
+
+/**
+ * jsdom implements `Range` but none of its geometry, and CodeMirror measures
+ * text by asking a `Range` for its client rects on an animation frame. Any test
+ * here that waits stays alive long enough for that frame to run, so the missing
+ * method would arrive as an uncaught error. An empty list is what a layout
+ * engine that does no layout honestly reports, and CodeMirror already falls
+ * back to a default character width when it sees one.
+ */
+if (!Range.prototype.getClientRects) {
+  Range.prototype.getClientRects = () =>
+    Object.assign([], { item: () => null }) as unknown as DOMRectList;
+  Range.prototype.getBoundingClientRect = () => new DOMRect();
+}
+
+/** Wait for the panel's trailing match count to have run. */
+const counted = () =>
+  new Promise((resolve) => setTimeout(resolve, COUNT_INTERVAL * 2));
 
 const DOC = [
   "hello world",
@@ -108,6 +129,55 @@ describe("search panel replace field (#358)", () => {
     expect(getSearchQuery(view.state).replace).toBe("hi");
   });
 
+  // Committing a query carries the replacement text; it does not apply it.
+  // Worth pinning explicitly because the replace field commits on every
+  // keystroke, which puts a keystroke on the same path a replacement travels --
+  // and the failure mode is a script quietly rewriting itself as it is typed
+  // into. Only the two buttons and Enter may reach the document.
+  it("does not touch the document while a query or replacement is typed", () => {
+    const view = mount();
+    const { search, replace } = fields(view);
+
+    // `type` dispatches input and keyup; the panel also has a keydown handler,
+    // so ordinary keys go through that too.
+    const press = (field: HTMLElement, text: string, key: string) => {
+      type(field, text);
+      field.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true }));
+    };
+
+    press(search, "hello", "o");
+    press(replace, "h", "h");
+    press(replace, "hi", "i");
+    press(replace, "hi ", " ");
+    press(replace, "hi there", "e");
+
+    expect(view.state.doc.toString()).toBe(DOC);
+    expect(getSearchQuery(view.state).replace).toBe("hi there");
+  });
+
+  it("replaces from the replace field only once Enter is pressed", () => {
+    const view = mount();
+    const { search, replace } = fields(view);
+
+    type(search, "hello");
+    type(replace, "hi");
+    expect(view.state.doc.toString()).toBe(DOC);
+
+    replace.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "Enter", bubbles: true }),
+    );
+
+    expect(view.state.doc.toString()).toBe(
+      replaced(
+        "hi world",
+        "hello there",
+        "hello friend",
+        "test replace",
+        "test replace",
+      ),
+    );
+  });
+
   // The ticket's literal path: type both fields, then click the panel's own
   // button. Calling `replaceAll(view)` directly leaves that wiring untested.
   it("replaces all matches when the replace all button is clicked", () => {
@@ -129,9 +199,9 @@ describe("search panel replace field (#358)", () => {
 
     type(search, "hello");
     type(replace, "hi");
-    // replaceNext only rewrites a match the selection is already sitting on, so
-    // from a bare cursor the first call selects and the second replaces.
-    replaceNext(view);
+    // `replaceNext` rewrites the match the selection is already sitting on, and
+    // committing the query put it on the first one, so a single call is a
+    // single replacement.
     replaceNext(view);
 
     expect(view.state.doc.toString()).toBe(
@@ -257,13 +327,14 @@ describe("search panel replace field (#358)", () => {
   });
 
   // Counting matches builds a search cursor, and building one for an invalid
-  // regex throws. A throw out of the panel's update() makes CodeMirror destroy
-  // the panel plugin -- the search panel and every other panel leave the DOM
-  // and do not come back for the life of the view. Committing on replace-field
-  // input is what puts a keystroke on that path: the panel survives being
-  // opened over a selection holding regex metacharacters, so the first thing
-  // to trip it is this commit.
-  it("survives a keystroke while the find pattern is an invalid regex", () => {
+  // regex throws. Committing on replace-field input is what puts a keystroke on
+  // that path: the panel survives being opened over a selection holding regex
+  // metacharacters, so the first thing to trip it is this commit.
+  //
+  // The count runs on a trailing timer, so the wait is what makes this test
+  // mean anything -- without it the assertions land before the count has been
+  // attempted and the guard is never reached at all.
+  it("survives a keystroke while the find pattern is an invalid regex", async () => {
     const view = mount();
     const { search, replace } = fields(view);
     const re = control<HTMLInputElement>(view, "re");
@@ -271,10 +342,12 @@ describe("search panel replace field (#358)", () => {
     re.checked = true;
     re.dispatchEvent(new Event("change", { bubbles: true }));
     type(search, "**bold**");
+    await counted();
 
     expect(panelOf(view)).toBeTruthy();
 
     type(replace, "x");
+    await counted();
 
     expect(panelOf(view)).toBeTruthy();
     expect(view.dom.querySelector(".cm-panels")).toBeTruthy();

@@ -83,6 +83,12 @@ const EDITOR_EXTENSIONS = [
     ...lintKeymap,
   ]),
   EditorView.lineWrapping,
+  // Every transaction's selection is reduced to its main range unless this is
+  // on (`asSingle`, in @codemirror/state). Without it `rectangularSelection`,
+  // `crosshairCursor`, ctrl/alt-click, `Mod-d` out of `searchKeymap` and the
+  // find panel's "all" button above all dispatch their extra ranges into
+  // nothing, and the status bar's "N selections" readout can never be reached.
+  EditorState.allowMultipleSelections.of(true),
   EditorState.phrases.of({ "No diagnostics": "No problems" }),
 ];
 
