@@ -129,6 +129,55 @@ describe("search panel replace field (#358)", () => {
     expect(getSearchQuery(view.state).replace).toBe("hi");
   });
 
+  // Committing a query carries the replacement text; it does not apply it.
+  // Worth pinning explicitly because the replace field commits on every
+  // keystroke, which puts a keystroke on the same path a replacement travels --
+  // and the failure mode is a script quietly rewriting itself as it is typed
+  // into. Only the two buttons and Enter may reach the document.
+  it("does not touch the document while a query or replacement is typed", () => {
+    const view = mount();
+    const { search, replace } = fields(view);
+
+    // `type` dispatches input and keyup; the panel also has a keydown handler,
+    // so ordinary keys go through that too.
+    const press = (field: HTMLElement, text: string, key: string) => {
+      type(field, text);
+      field.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true }));
+    };
+
+    press(search, "hello", "o");
+    press(replace, "h", "h");
+    press(replace, "hi", "i");
+    press(replace, "hi ", " ");
+    press(replace, "hi there", "e");
+
+    expect(view.state.doc.toString()).toBe(DOC);
+    expect(getSearchQuery(view.state).replace).toBe("hi there");
+  });
+
+  it("replaces from the replace field only once Enter is pressed", () => {
+    const view = mount();
+    const { search, replace } = fields(view);
+
+    type(search, "hello");
+    type(replace, "hi");
+    expect(view.state.doc.toString()).toBe(DOC);
+
+    replace.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "Enter", bubbles: true }),
+    );
+
+    expect(view.state.doc.toString()).toBe(
+      replaced(
+        "hi world",
+        "hello there",
+        "hello friend",
+        "test replace",
+        "test replace",
+      ),
+    );
+  });
+
   // The ticket's literal path: type both fields, then click the panel's own
   // button. Calling `replaceAll(view)` directly leaves that wiring untested.
   it("replaces all matches when the replace all button is clicked", () => {

@@ -1,4 +1,8 @@
-import { openSearchPanel, SearchQuery } from "@codemirror/search";
+import {
+  openSearchPanel,
+  SearchQuery,
+  selectNextOccurrence,
+} from "@codemirror/search";
 import { EditorState, Extension, StateEffect } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -352,17 +356,38 @@ describe("search panel match count (#359)", () => {
     expect(view.state.selection.main.to).toBe(at + "hello".length);
   });
 
-  // The "all" button, `Mod-d`, rectangular selection and ctrl-click all
-  // dispatch selections holding more than one range, and @codemirror/state
-  // reduces every one of those to its main range unless the editor opts in.
-  // Without the opt-in the button is inert and nothing says so.
-  it("selects every match when the all button is used", async () => {
+  // `Mod-d`, alt-drag rectangular selection and ctrl-click all dispatch
+  // selections holding more than one range, and @codemirror/state reduces every
+  // one of those to its main range unless the editor opts in. `Mod-d` stands in
+  // for the group here because it is the one that needs nothing but a keypress.
+  //
+  // (The panel's own "all" button would do too, but the editor theme sets
+  // `display: none` on it, so no user can reach it.)
+  it("keeps every range of a multi-range selection", () => {
     const view = mount(DOC, [EditorState.allowMultipleSelections.of(true)]);
-    await search(view, "hello");
+    const line = view.state.doc.line(1);
+    const at = line.from + line.text.indexOf("hello");
+    view.dispatch({ selection: { anchor: at, head: at + "hello".length } });
 
-    control<HTMLButtonElement>(view, "select").click();
+    // Once to take the word under the cursor, twice more to add the next two.
+    selectNextOccurrence(view);
+    selectNextOccurrence(view);
 
-    expect(view.state.selection.ranges.length).toBe(LINES);
+    expect(view.state.selection.ranges.length).toBe(3);
+  });
+
+  it("collapses a multi-range selection without the opt-in", () => {
+    const view = mount();
+    const line = view.state.doc.line(1);
+    const at = line.from + line.text.indexOf("hello");
+    view.dispatch({ selection: { anchor: at, head: at + "hello".length } });
+
+    selectNextOccurrence(view);
+    selectNextOccurrence(view);
+
+    // Not an assertion about what is wanted -- it is what CodeMirror does by
+    // default, and it is exactly what made the whole group inert.
+    expect(view.state.selection.ranges.length).toBe(1);
   });
 
   // The editor's own extension list is what has to carry the opt-in, not this
