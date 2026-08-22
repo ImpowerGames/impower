@@ -19,8 +19,18 @@ const gameState = installGameWorker(connection);
 // builtin `timing`, etc.). This is the player's OWN compiler instance — the
 // editor's LSP diagnostics compiler is separate and stays unseeded, so keystroke
 // latency is unaffected. configure() merges, so later editor configures (files,
-// startFrom, …) leave this flag set.
-compilerState.compiler.configure({ seedBuiltinsIntoStory: true });
+// startFrom, …) leave these flags set.
+//
+// experimentalDisplayCalls makes this the compiler that renders: SIMPLE display
+// statements lower to native `display(<table>)` Luau calls (the structured
+// transport every DOM/UI golden runs; `displayCallParity` proves the emitted
+// ui/* stream byte-identical to the legacy routing-tag form). Setting it here
+// covers every host that embeds the player — impower-dev, the vscode webview
+// and the standalone player app.
+compilerState.compiler.configure({
+  seedBuiltinsIntoStory: true,
+  experimentalDisplayCalls: true,
+});
 
 compilerState.compiler.addEventListener("compiler/didCompile", (params) => {
   // Create or update game

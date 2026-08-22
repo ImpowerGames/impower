@@ -52,7 +52,8 @@ function compile(source: string) {
     // builtins prelude into the story VM (the production player does the same).
     seedBuiltinsIntoStory: true,
     // The DOM goldens guard the PRODUCTION render path, which lowers display
-    // statements to native `display(<table>)` calls (the editor enables this).
+    // statements to native `display(<table>)` calls (the player worker enables
+    // this on the compiler that feeds the Game).
     experimentalDisplayCalls: true,
     files: [
       {

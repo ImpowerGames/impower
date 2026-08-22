@@ -165,9 +165,10 @@ export function createHarness(
 ): UIHarness {
   const { program } = compileUI(source, {
     // Display goldens guard the PRODUCTION path, which renders via display()
-    // (the editor enables `experimentalDisplayCalls`). Default on here so the
-    // characterization net tracks production; a test can still pass `false` to
-    // exercise the legacy routing-tag path (e.g. displayCallParity).
+    // (the player worker enables `experimentalDisplayCalls` on the compiler
+    // that feeds the Game). Default on here so the characterization net tracks
+    // production; a test can still pass `false` to exercise the legacy
+    // routing-tag path (e.g. displayCallParity).
     experimentalDisplayCalls: opts?.experimentalDisplayCalls ?? true,
     // `compileUI` seeds the builtins prelude by default (the engine sources
     // defines from the live runtime __def tables).
