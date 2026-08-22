@@ -26,8 +26,35 @@ import { indentationGuides } from "../../../cm-indentation-guides/indentationGui
 import { indentedLineWrapping } from "../../../cm-indented-line-wrapping/indentedLineWrapping";
 import { pinpoints } from "../../../cm-pinpoints/pinpoints";
 
+// Let OS file drops reach the app instead of being pasted as text.
+//
+// CodeMirror's built-in `drop` handler reads any dropped file with a
+// FileReader and inserts the result into the document -- so dragging an
+// image or a script onto the editor dumps its raw contents into the
+// screenplay. The app already imports dropped files properly (routing them
+// to `assets/` or `scripts/`) from a window-level handler.
+//
+// Returning `true` from a `domEventHandlers` handler makes CodeMirror call
+// `preventDefault()` and stop running handlers for that event, which skips
+// the built-in text insertion. It does NOT stop propagation, so the event
+// still bubbles to the window-level importer.
+//
+// The discriminator is `dataTransfer.types` containing "Files": an OS file
+// drag advertises it, whereas dragging a text selection within the editor
+// advertises `text/plain`. So internal drag-and-drop of text is untouched.
+const carriesFiles = (event: DragEvent) =>
+  Array.from(event.dataTransfer?.types ?? []).includes("Files");
+
+const deferFileDropsToApp = EditorView.domEventHandlers({
+  drop: (event) => carriesFiles(event),
+  // Also claim `dragover` so the drop caret doesn't track a file drag and
+  // imply the file is about to be inserted at that position.
+  dragover: (event) => carriesFiles(event),
+});
+
 const EDITOR_EXTENSIONS = [
   history(),
+  deferFileDropsToApp,
   // TODO: breakpoints({}),
   pinpoints(),
   lineNumbers(),
@@ -56,6 +83,12 @@ const EDITOR_EXTENSIONS = [
     ...lintKeymap,
   ]),
   EditorView.lineWrapping,
+  // Every transaction's selection is reduced to its main range unless this is
+  // on (`asSingle`, in @codemirror/state). Without it `rectangularSelection`,
+  // `crosshairCursor`, ctrl/alt-click, `Mod-d` out of `searchKeymap` and the
+  // find panel's "all" button above all dispatch their extra ranges into
+  // nothing, and the status bar's "N selections" readout can never be reached.
+  EditorState.allowMultipleSelections.of(true),
   EditorState.phrases.of({ "No diagnostics": "No problems" }),
 ];
 

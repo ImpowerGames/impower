@@ -1,5 +1,8 @@
 import { historyField } from "@codemirror/commands";
-import { syntaxParserRunning } from "@codemirror/language";
+import {
+  syntaxParserRunning,
+  syntaxTreeAvailable,
+} from "@codemirror/language";
 import {
   Compartment,
   EditorSelection,
@@ -111,6 +114,13 @@ interface EditorConfig {
   onFocus?: () => void;
   onBlur?: () => void;
   onIdle?: () => void;
+  /**
+   * Fired once, while the initial background parse is still running, as soon
+   * as the syntax tree covers the visible viewport AND the restored scroll
+   * target. Lets the host reveal the editor without waiting for the whole
+   * document to parse (which takes many seconds on large scripts).
+   */
+  onViewportParsed?: () => void;
   onSelectionChanged?: (
     update: ViewUpdate,
     anchor: number,
@@ -155,13 +165,13 @@ const createEditorView = (
   const onBlur = config?.onBlur;
   const onFocus = config?.onFocus;
   const onIdle = config?.onIdle ?? (() => {});
+  const onViewportParsed = config?.onViewportParsed;
   const onSelectionChanged = config?.onSelectionChanged;
   const onBreakpointsChanged = config?.onBreakpointsChanged;
   const onPinpointsChanged = config?.onPinpointsChanged;
   const onHighlightsChanged = config?.onHighlightsChanged;
   const onHeightChanged = config?.onHeightChanged;
   const debouncedIdle = debounce(onIdle, stabilizationDuration);
-  const getEditorState = config?.getEditorState;
   const setEditorState = config?.setEditorState;
   const changeFilter = config?.changeFilter;
   const transactionFilter = config?.transactionFilter;
@@ -204,6 +214,7 @@ const createEditorView = (
   let prevBreakpointLineNumbers = breakpointLineNumbers;
   let prevPinpointLineNumbers = pinpointLineNumbers;
   let prevHighlightLineNumbers = highlightLineNumbers;
+  let notifiedViewportParsed = false;
 
   // Using state.doc.line() errors on Mac
   const lines = doc.replace(NEWLINE_REGEX, "\n").split("\n");
@@ -351,6 +362,21 @@ const createEditorView = (
           if (!parsing) {
             onReady?.();
             debouncedIdle();
+          } else if (!notifiedViewportParsed && onViewportParsed) {
+            // While the initial parse of a large document is still grinding
+            // through the rest of the file, the tree usually covers the
+            // visible region within a few frames -- that is enough to show
+            // the editor. Evaluate against the restored scroll target too,
+            // so a deep saved position doesn't reveal (and then jump) before
+            // its own region has parsed.
+            const target = Math.max(
+              u.view.viewport.to,
+              scrollToLine ? scrollToLine.to : 0,
+            );
+            if (syntaxTreeAvailable(u.view.state, target)) {
+              notifiedViewportParsed = true;
+              onViewportParsed();
+            }
           }
           if (u.heightChanged) {
             onHeightChanged?.();
@@ -394,39 +420,8 @@ const createEditorView = (
             }
           }
           onViewUpdate?.(u);
-          const json: {
-            history: SerializableHistoryState;
-            folded: SerializableFoldedState;
-          } = u.state.toJSON({
-            history: historyField,
-            folded: foldedField,
-          });
-          const selection =
-            u.view.state.selection.toJSON() as SerializableEditorSelection;
-          const history = json?.history;
-          const folded = json?.folded;
-          const transaction = u.transactions?.[0];
-          const userEvent = transaction?.isUserEvent("undo")
-            ? "undo"
-            : transaction?.isUserEvent("redo")
-              ? "redo"
-              : undefined;
-          const focused = u.view.hasFocus;
           const snippet = Boolean(parent.querySelector(".cm-snippetField"));
           const lint = Boolean(parent.querySelector(".cm-panel-lint"));
-          const selected =
-            selection?.ranges?.[selection.main]?.head !==
-            selection?.ranges?.[selection.main]?.anchor;
-          const editorState = {
-            doc,
-            selection,
-            history,
-            userEvent,
-            focused,
-            selected,
-            snippet,
-            folded,
-          };
           if (parent) {
             if (snippet) {
               parent.classList.add("cm-snippet");
@@ -439,11 +434,42 @@ const createEditorView = (
               parent.classList.remove("cm-lint");
             }
           }
-          if (
-            JSON.stringify(getEditorState?.() || {}) !==
-            JSON.stringify(editorState)
-          ) {
-            setEditorState?.(editorState);
+          if (setEditorState) {
+            // Serializing editor state (history + folds + the full doc via
+            // toJSON) costs several ms per dispatch on large documents, so
+            // only pay for it when a consumer actually wires setEditorState.
+            const json: {
+              history: SerializableHistoryState;
+              folded: SerializableFoldedState;
+            } = u.state.toJSON({
+              history: historyField,
+              folded: foldedField,
+            });
+            const selection =
+              u.view.state.selection.toJSON() as SerializableEditorSelection;
+            const history = json?.history;
+            const folded = json?.folded;
+            const transaction = u.transactions?.[0];
+            const userEvent = transaction?.isUserEvent("undo")
+              ? "undo"
+              : transaction?.isUserEvent("redo")
+                ? "redo"
+                : undefined;
+            const focused = u.view.hasFocus;
+            const selected =
+              selection?.ranges?.[selection.main]?.head !==
+              selection?.ranges?.[selection.main]?.anchor;
+            const editorState = {
+              doc,
+              selection,
+              history,
+              userEvent,
+              focused,
+              selected,
+              snippet,
+              folded,
+            };
+            setEditorState(editorState);
           }
           if (u.focusChanged) {
             if (u.view.hasFocus) {
@@ -452,7 +478,6 @@ const createEditorView = (
               onBlur?.();
             }
           }
-          setEditorState?.(editorState);
         }),
         scrollMarginsConfig.of(
           EditorView.scrollMargins.of(() => ({

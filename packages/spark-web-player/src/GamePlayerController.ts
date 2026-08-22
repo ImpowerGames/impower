@@ -1,3 +1,4 @@
+import { hasCompiledProgram } from "@impower/sparkdown/src/binary/programBinary";
 import {
   ProtocolObserver,
   sendProtocolMessage,
@@ -56,7 +57,6 @@ import { SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram
 import { SparkdownWorkspace } from "@impower/sparkdown/src/workspace/classes/SparkdownWorkspace";
 import { Application } from "./app/Application";
 import { conflate } from "./utils/conflate";
-import { debounce } from "./utils/debounce";
 import { profile } from "./utils/profile";
 
 const COMMON_ASPECT_RATIOS = [
@@ -173,6 +173,10 @@ export class GamePlayerController {
     window.addEventListener("contextmenu", this.handleContextMenu, true);
     window.addEventListener("dragstart", this.handleDragStart);
     window.addEventListener("resize", this.handleResize);
+    // Unlock/adopt the shared AudioContext on the first user interaction with the
+    // preview so voices start playing immediately (browsers require a gesture).
+    window.addEventListener("pointerdown", this.handleUserInteraction, true);
+    window.addEventListener("keydown", this.handleUserInteraction, true);
     this.refs.playButton?.addEventListener("click", this.handleClickPlayButton);
     this.refs.toolbar?.addEventListener(
       "pointerdown",
@@ -212,6 +216,8 @@ export class GamePlayerController {
     window.removeEventListener("contextmenu", this.handleContextMenu);
     window.removeEventListener("dragstart", this.handleDragStart);
     window.removeEventListener("resize", this.handleResize);
+    window.removeEventListener("pointerdown", this.handleUserInteraction, true);
+    window.removeEventListener("keydown", this.handleUserInteraction, true);
     this.refs.playButton?.removeEventListener(
       "click",
       this.handleClickPlayButton,
@@ -499,13 +505,32 @@ export class GamePlayerController {
     (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
   };
 
-  protected handleClickPlayButton = async () => {
-    if (!this._audioContext || this._audioContext.state !== "running") {
-      const audioContext = new AudioContext();
-      if (audioContext.state === "running") {
-        this._audioContext = audioContext;
-      }
+  // Create ONE shared AudioContext (cached on the controller) and resume it once
+  // the user has interacted with the page — browsers gate audio behind a user
+  // gesture. It is reused for every Application built afterward (including the
+  // preview reconstructions that happen on every edit), so no new context is
+  // minted per edit. Applied to the live app immediately once running, so
+  // preview audio (character voices, sfx) starts on the first interaction.
+  ensureAudioContext = async (): Promise<void> => {
+    if (!this._audioContext) {
+      this._audioContext = new AudioContext();
     }
+    if (this._audioContext.state !== "running") {
+      try {
+        await this._audioContext.resume();
+      } catch {}
+    }
+    if (this._audioContext.state === "running") {
+      this._app?.setAudioContext(this._audioContext);
+    }
+  };
+
+  protected handleUserInteraction = () => {
+    void this.ensureAudioContext();
+  };
+
+  protected handleClickPlayButton = async () => {
+    await this.ensureAudioContext();
     await this.startGameAndApp();
     this.hidePlayButton();
     sendProtocolMessage(GameStartedMessage.type.notification({}), this.host);
@@ -771,7 +796,7 @@ export class GamePlayerController {
       ? StartGameMessage.type.response(message.id, { success })
       : StartGameMessage.type.error(message.id, {
           code: 1,
-          message: !this._program?.compiled
+          message: !hasCompiledProgram(this._program)
             ? "The program contains errors that prevent it from being compiled"
             : `The game could not be started`,
         });
@@ -987,7 +1012,7 @@ export class GamePlayerController {
 
   loadProgram = conflate(
     async (program: SparkProgram, checkpoint: string | undefined) => {
-      if (!program.compiled) {
+      if (!hasCompiledProgram(program)) {
         console.error("Program not compiled", program);
         return;
       }
@@ -995,12 +1020,11 @@ export class GamePlayerController {
       this._program = program;
       this._checkpoint = checkpoint;
       if (this._game?.state === "running") {
-        // Stop and restart game if we loaded a new game while the old game was running
-        await this.debouncedRestartGame();
-        sendProtocolMessage(
-          GameReloadedMessage.type.notification({}),
-          this.host,
-        );
+        // Stop and restart game if we loaded a new game while the old game
+        // was running. (GameReloaded is sent when the restart actually
+        // executes -- see scheduleRestartGame -- not when it is merely
+        // scheduled.)
+        this.scheduleRestartGame();
       } else {
         this._options ??= {};
         this._options.startFrom ??= program.startFrom;
@@ -1038,7 +1062,7 @@ export class GamePlayerController {
     this.simulate(this._game, this._options?.simulationOptions);
     this.listen(this._game);
     this._app = await this.buildApp(this._game);
-    const programCompiled = Boolean(this._program?.compiled);
+    const programCompiled = hasCompiledProgram(this._program);
     this._game?.start();
     if (programCompiled) {
       this._app?.start();
@@ -1048,6 +1072,9 @@ export class GamePlayerController {
   }
 
   async destroyGameAndApp() {
+    // A teardown supersedes any pending compile-driven restart; without this
+    // the timer fires after STOP and silently resurrects the game.
+    this.cancelScheduledRestart();
     if (this._game) {
       this._game.destroy();
       this._game = undefined;
@@ -1095,7 +1122,37 @@ export class GamePlayerController {
     await this.startGameAndApp(true);
   }
 
-  protected debouncedRestartGame = debounce(() => this.restartGame(), 100);
+  // Compile-driven restart of a RUNNING game, coalesced: compiles arrive at
+  // most once per typing pause (they're debounced upstream), so the old
+  // 100ms window never merged anything and the running game was torn down
+  // and restarted for every pause. One second batches consecutive pauses
+  // into one restart. Owned as an explicit timer (not the bare debounce
+  // util) so teardown paths can CANCEL it -- a pending restart firing after
+  // the user hit STOP would resurrect the game.
+  protected _restartGameTimeout?: ReturnType<typeof setTimeout>;
+
+  protected cancelScheduledRestart() {
+    if (this._restartGameTimeout != null) {
+      clearTimeout(this._restartGameTimeout);
+      this._restartGameTimeout = undefined;
+    }
+  }
+
+  protected scheduleRestartGame() {
+    this.cancelScheduledRestart();
+    this._restartGameTimeout = setTimeout(async () => {
+      this._restartGameTimeout = undefined;
+      // Only restart a game that is still meant to be running; the state can
+      // have changed (STOP, finish, error) while the timer was pending.
+      if (this._game?.state === "running") {
+        await this.restartGame();
+        sendProtocolMessage(
+          GameReloadedMessage.type.notification({}),
+          this.host,
+        );
+      }
+    }, 1000);
+  }
 
   async buildGame(program: SparkProgram, restarted?: boolean) {
     const options = this._options;
@@ -1157,6 +1214,10 @@ export class GamePlayerController {
       profile("end", "app/destroy");
     }
     this.updateExecutionLabels();
+    // Ensure the single shared AudioContext exists (and is resumed if the user
+    // has already interacted) so it can be handed to this Application — this is
+    // what lets preview reconstructions keep audio without minting a new context.
+    await this.ensureAudioContext();
     profile("start", "app/create");
     this._app = new Application(
       game,

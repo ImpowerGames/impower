@@ -10,7 +10,7 @@
 // fixture as dual-after-single.test.ts and assert the resulting DOM
 // matches a from-scratch render.
 
-import { ensureSyntaxTree, language } from "@codemirror/language";
+import { language } from "@codemirror/language";
 import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { describe, expect, it } from "vitest";
@@ -18,6 +18,7 @@ import {
   SCREENPLAY_LANGUAGE_SUPPORT,
   default as screenplayFormatting,
 } from "../src/modules/screenplay-preview/utils/screenplayFormatting";
+import { settleParse } from "./helpers/parseSettle";
 
 const FIXTURE =
   `BUNNY:\n` +
@@ -56,8 +57,7 @@ const mount = (source: string): EditorView => {
 };
 
 const contentHTML = (view: EditorView): string => {
-  ensureSyntaxTree(view.state, view.state.doc.length, 30_000);
-  view.dispatch({});
+  settleParse(view);
   const c = view.dom.querySelector(".cm-content");
   if (!c) return "";
   return c.outerHTML.replace(
@@ -67,29 +67,24 @@ const contentHTML = (view: EditorView): string => {
 };
 
 describe("dual dialogue incremental construction", () => {
-  it(
-    "character-by-character insertion produces the same DOM as a from-scratch render",
-    { timeout: 30_000 },
-    () => {
-      // Start with nothing, build the fixture one character at a time.
-      // ~600 single-char dispatches; passes in ~2.5s alone but crosses
-      // the default 5s timeout when other test files are running in
-      // parallel workers. Matches the pattern dual-real-incremental
-      // already uses for long-running incremental tests.
-      const incremental = mount("");
-      for (let i = 0; i < FIXTURE.length; i++) {
-        incremental.dispatch({
-          changes: { from: i, insert: FIXTURE[i]! },
-        });
-      }
-      const incrementalHTML = contentHTML(incremental);
+  it("character-by-character insertion produces the same DOM as a from-scratch render", () => {
+    // Start with nothing, build the fixture one character at a time.
+    // ~600 single-char dispatches; passes in a few seconds alone but crosses
+    // the default 5s timeout when other test files are running in parallel
+    // workers — hence the suite-wide `testTimeout` in vitest.config.ts.
+    const incremental = mount("");
+    for (let i = 0; i < FIXTURE.length; i++) {
+      incremental.dispatch({
+        changes: { from: i, insert: FIXTURE[i]! },
+      });
+    }
+    const incrementalHTML = contentHTML(incremental);
 
-      const fullRebuild = mount(FIXTURE);
-      const fullRebuildHTML = contentHTML(fullRebuild);
+    const fullRebuild = mount(FIXTURE);
+    const fullRebuildHTML = contentHTML(fullRebuild);
 
-      expect(incrementalHTML).toBe(fullRebuildHTML);
-    },
-  );
+    expect(incrementalHTML).toBe(fullRebuildHTML);
+  });
 
   it("inserting the dual pair into an already-rendered single dialogue matches from-scratch", () => {
     // The case the user likely actually hit: had the BUNNY single + the

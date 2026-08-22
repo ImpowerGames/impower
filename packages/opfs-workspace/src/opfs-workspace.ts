@@ -611,12 +611,50 @@ const readDirectoryFiles = async (directoryUri: string) => {
     directoryEntries.map(async (entry) => {
       const uri = getUriFromPath(entry.path);
       if (!State.files.get(uri)) {
-        await readFile(uri);
+        // Enumerate binary assets from metadata; only read what needs text.
+        if (needsTextAtEnumeration(uri)) {
+          await readFile(uri);
+        } else {
+          await statFile(uri);
+        }
       }
       return State.files.get(uri)!;
     }),
   );
   return files;
+};
+
+/**
+ * Which files must have their BYTES read at enumeration time.
+ *
+ * Only text matters here: the compiler needs script and text contents, SVG
+ * source (it filters/recolors the markup rather than just showing the file),
+ * and a `.url` file's body IS its remote URL. Everything else -- images,
+ * audio, video, fonts -- is served straight from OPFS by the resource
+ * protocol, so reading it now buys nothing.
+ */
+const needsTextAtEnumeration = (fileUri: string) => {
+  const ext = getFileExtension(fileUri);
+  const type = getFileType(fileUri);
+  return type === "script" || type === "text" || ext === "svg" || ext === "url";
+};
+
+/**
+ * Records a file WITHOUT reading its contents (#227).
+ *
+ * `src` is derived from the uri (`getSrcFromUri`), never from the bytes, so a
+ * binary asset is fully usable from metadata alone -- the resource protocol
+ * fetches it from OPFS when something actually renders it. Size and mtime come
+ * off the file handle, which does not read the file either.
+ *
+ * On the real Raffles & Bunny project this is the difference between reading
+ * 187MB and 7.5MB to open a project: 539 of its 630 files are binary assets.
+ */
+const statFile = async (fileUri: string) => {
+  const root = await navigator.storage.getDirectory();
+  const fileHandle = await getFileHandleFromUri(root, fileUri, false);
+  const fileRef = await fileHandle.getFile();
+  return updateFileMetaCache(fileUri, fileRef.size, fileRef.lastModified);
 };
 
 const readFile = async (fileUri: string) => {
@@ -1245,6 +1283,58 @@ const enrichUrlAssetType = async (uri: string): Promise<void> => {
   }
 };
 
+/**
+ * Cache entry for a file whose bytes were never read (#227).
+ *
+ * Deliberately mirrors the non-`.url` tail of `updateFileCache`, minus the
+ * text decode: `src` is uri-derived, `size`/`modified` come from the file
+ * handle. `text` stays undefined, which is what every consumer already
+ * expects for a binary asset -- `updateFileCache` only ever set it for
+ * script/text/svg.
+ *
+ * If this file is later read for real, `updateFileCache` overwrites the entry
+ * and preserves `src` (it reuses `existingFile.src`), so warming an asset does
+ * not change its identity or bust the resource URL.
+ */
+const updateFileMetaCache = (
+  uri: string,
+  size: number,
+  modified?: number,
+  version?: number,
+) => {
+  const existingFile = State.files.get(uri);
+  const name = getName(uri);
+  const ext = getFileExtension(uri);
+  const type = getFileType(uri);
+  // The `?v=` stamp is the file's CONTENT SIGNATURE (mtime-size), not a
+  // mint-time timestamp. The stamp's job is to bust the service worker's
+  // `immutable` responses when the bytes change — a signature does that
+  // while staying IDENTICAL across sessions for an unchanged file, so the
+  // browser's HTTP/renderer caches (and any URL-keyed downstream cache) keep
+  // working across reloads instead of re-fetching every asset because every
+  // load minted a fresh `Date.now()`. Falls back to a mint-time stamp only
+  // when no mtime is known (degrades to the old always-fresh behavior).
+  const resolvedModified = modified ?? existingFile?.modified ?? Date.now();
+  let src = existingFile?.src || "";
+  if (name && !src) {
+    src = getSrcFromUri(uri) + `?v=${resolvedModified}-${size}`;
+  }
+  const file = {
+    uri,
+    name,
+    ext,
+    type,
+    src,
+    version: version ?? existingFile?.version ?? 0,
+    size,
+    modified: resolvedModified,
+    languageId: type === "script" ? LANGUAGE_ID : null,
+    text: existingFile?.text,
+  };
+  State.files.set(uri, file);
+  return file;
+};
+
 const updateFileCache = (
   uri: string,
   buffer: ArrayBuffer,
@@ -1294,9 +1384,17 @@ const updateFileCache = (
     return file;
   }
 
+  // Content-signature stamp (see updateFileMetaCache). On a write the caller
+  // passes the write time as `modified`, so the signature — and therefore the
+  // URL — advances and busts the `immutable` caches; on load it derives from
+  // the OPFS file's lastModified, so an unchanged file keeps the SAME url
+  // across sessions. (A write session stamps its own clock time, which can
+  // differ from the mtime OPFS persists by a few ms — costing at most one
+  // extra bust on the next load, never a stale serve.)
+  const resolvedModified = modified ?? existingFile?.modified ?? Date.now();
   if (name) {
     if (!src || overwrite) {
-      src = getSrcFromUri(uri) + `?v=${Date.now()}`;
+      src = getSrcFromUri(uri) + `?v=${resolvedModified}-${buffer.byteLength}`;
     }
   }
   const text =
@@ -1314,7 +1412,7 @@ const updateFileCache = (
     // Size from the buffer; modified from the OPFS file's lastModified on load
     // or the write time on a fresh write (falls back to the cached value).
     size: buffer.byteLength,
-    modified: modified ?? existingFile?.modified ?? Date.now(),
+    modified: resolvedModified,
     languageId: type === "script" ? LANGUAGE_ID : null,
     text,
   };

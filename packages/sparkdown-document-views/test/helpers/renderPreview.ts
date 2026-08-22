@@ -14,13 +14,14 @@
 // inspection ("does the line have display:none? are all its children
 // visibility:hidden width:0?") to infer visible/invisible.
 
-import { forceParsing, language } from "@codemirror/language";
+import { language } from "@codemirror/language";
 import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import {
   SCREENPLAY_LANGUAGE_SUPPORT,
   default as screenplayFormatting,
 } from "../../src/modules/screenplay-preview/utils/screenplayFormatting";
+import { settleParse } from "./parseSettle";
 
 export type RenderedLine = {
   index: number;
@@ -69,6 +70,11 @@ export const renderPreview = (source: string): RenderResult => {
       }),
       parent,
     });
+    // Finish the parse and recompute decorations against the complete tree
+    // before sampling the DOM. Without this the rendered output reflects
+    // whatever the 20ms initial-parse budget happened to cover on this
+    // machine, at this moment — the root cause of #281's random failures.
+    settleParse(view);
     const content = parent.querySelector(".cm-content");
     const contentHTML = content ? content.outerHTML : "";
     const lines: RenderedLine[] = [];
@@ -140,10 +146,10 @@ export const extractVisibleText = (source: string): string[] => {
     // only gets whatever partial tree the parser produces synchronously within
     // its time budget — when cold, that can stop mid-document, leaving trailing
     // nodes (e.g. a scene-closing `end`) un-decorated and so leaking as raw
-    // text. forceParsing finishes the parse AND updates the view, so the
+    // text. settleParse finishes the parse AND updates the view, so the
     // decoration field recomputes from the full tree — making the rendered DOM
     // deterministic regardless of parser warm-up state.
-    forceParsing(view, source.length, 30_000);
+    settleParse(view);
     const win = parent.ownerDocument!.defaultView as any;
     const visibleTextOf = (el: Element): string => {
       const cs = win.getComputedStyle(el);

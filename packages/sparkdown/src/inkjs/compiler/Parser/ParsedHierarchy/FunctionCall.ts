@@ -5,13 +5,10 @@ import { Divert } from "./Divert/Divert";
 import { Divert as RuntimeDivert } from "../../../engine/Divert";
 import { DivertTarget } from "./Divert/DivertTarget";
 import { Expression } from "./Expression/Expression";
-import { InkList as RuntimeInkList } from "../../../engine/InkList";
-import { ListValue } from "../../../engine/Value";
 import { NativeFunctionCall } from "../../../engine/NativeFunctionCall";
 import { NumberExpression } from "./Expression/NumberExpression";
 import { Path } from "./Path";
 import { Story } from "./Story";
-import { StringValue } from "../../../engine/Value";
 import { Void as RuntimeVoid } from "../../../engine/Void";
 import { VariableReference } from "./Variable/VariableReference";
 import { Identifier } from "./Identifier";
@@ -101,11 +98,47 @@ export class FunctionCall extends Expression {
     return "FunctionCall";
   }
 
+  // `GenerateIntoContainer` runs again on every recompile, and the
+  // incremental pipeline carries parsed nodes forward by identity, so
+  // anything generation adds to `this.content` must be added at most
+  // once. The counted argument is the same parsed node every pass.
+  //
+  // Paired with the proxy-divert splice at the end of
+  // `GenerateIntoContainer`: with only one of the two guards in place
+  // `content` either grows by one entry per pass or empties entirely.
+  private AddContentOnce(subContent: DivertTarget | VariableReference): void {
+    if (this.content.includes(subContent)) {
+      // Already added by an earlier pass. Still re-assert the parent
+      // link, which is `AddContent`'s other effect and is read by
+      // `DivertTarget.ResolveReferences` to decide whether the target
+      // is counted for turns only or for visits as well.
+      subContent.parent = this;
+      return;
+    }
+
+    this.AddContent(subContent);
+  }
+
   public readonly GenerateIntoContainer = (
     container: RuntimeContainer,
   ): void => {
-    const foundList = this.story.ResolveList(this.name);
-
+    // Which branch below runs is a pure function of `this.name`, which is
+    // fixed at construction (`_proxyDivert` is assigned only in this class's
+    // constructor, `Divert.target` only in `Divert`'s). Every selector is a
+    // name comparison or a static registry lookup — so a parsed node carried
+    // forward by the incremental pipeline always takes the SAME branch, and
+    // in particular `usingProxyDivert` cannot flip between compiles.
+    //
+    // Upstream ink had one selector that read per-compile state, a
+    // `story.ResolveList(this.name)` arm constructing a list value. It is
+    // removed: sparkdown has no LIST type (ink's is replaced by Luau tables —
+    // `tests/runtime/Lists.test.ts` is closed by design, see
+    // docs/runtime/DIVERGENCES.md), no parsed `ListDefinition` is ever
+    // constructed, so `_listDefs` is always empty and that arm was dead. Its
+    // one hazard: it removed `_proxyDivert` from `content` (see the splice
+    // below) without anything re-adding it, so had the branch ever flipped
+    // back to a normal call, the divert would have gone unresolved and
+    // undiagnosed. See #329.
     let usingProxyDivert: boolean = false;
 
     if (this.isTurnsSince || this.isReadCount) {
@@ -124,12 +157,12 @@ export class FunctionCall extends Expression {
 
       if (divertTarget) {
         this._divertTargetToCount = divertTarget;
-        this.AddContent(this._divertTargetToCount);
+        this.AddContentOnce(this._divertTargetToCount);
 
         this._divertTargetToCount.GenerateIntoContainer(container);
       } else if (variableDivertTarget) {
         this._variableReferenceToCount = variableDivertTarget;
-        this.AddContent(this._variableReferenceToCount);
+        this.AddContentOnce(this._variableReferenceToCount);
 
         this._variableReferenceToCount.GenerateIntoContainer(container);
       }
@@ -236,33 +269,22 @@ export class FunctionCall extends Expression {
       container.AddContent(
         NativeFunctionCall.CallWithName(this.name, this.args.length),
       );
-    } else if (foundList !== null) {
-      if (this.args.length > 1) {
-        this.Error(
-          "Can currently only construct a list from one integer (or an empty list from a given list definition)",
-        );
-      }
-
-      // List item from given int
-      if (this.args.length === 1) {
-        container.AddContent(new StringValue(this.name));
-        this.args[0].GenerateIntoContainer(container);
-        container.AddContent(RuntimeControlCommand.ListFromInt());
-      } else {
-        // Empty list with given origin.
-        const list = new RuntimeInkList();
-        list.SetInitialOriginName(this.name);
-        container.AddContent(new ListValue(list));
-      }
     } else {
       // Normal function call
       container.AddContent(this._proxyDivert.runtimeObject);
       usingProxyDivert = true;
     }
 
-    // Don't attempt to resolve as a divert if we're not doing a normal function call
+    // Don't attempt to resolve as a divert if we're not doing a normal
+    // function call. Remove the proxy divert only when it is actually
+    // present: `splice(indexOf(...), 1)` finding no match splices at -1
+    // and deletes the LAST element rather than nothing, so on a second
+    // generation pass it removes whatever `content` happens to end with.
     if (!usingProxyDivert) {
-      this.content.splice(this.content.indexOf(this._proxyDivert), 1);
+      const proxyIndex = this.content.indexOf(this._proxyDivert);
+      if (proxyIndex >= 0) {
+        this.content.splice(proxyIndex, 1);
+      }
     }
 
     // Function calls that are used alone on a tilda-based line:

@@ -20,6 +20,7 @@ import {
   CompiledProgramMessage,
   CompiledProgramParams,
 } from "@impower/sparkdown/src/compiler/classes/messages/CompiledProgramMessage";
+import { profilePhase } from "@impower/sparkdown/src/compiler/utils/profile";
 import {
   BrowserMessageReader,
   BrowserMessageWriter,
@@ -240,15 +241,13 @@ export default class WorkspaceLanguageServer {
     this._connection.onNotification(
       CompiledProgramMessage.method,
       (params: CompiledProgramParams) => {
-        performance.mark(`CompiledProgramMessage start`);
+        // Via the shared helper rather than raw marks: this fires once per
+        // compile for the life of the page, and user-timing entries are never
+        // evicted by the platform.
+        profilePhase("start", `CompiledProgramMessage`);
         this.updateProgram(params.program);
         sendProtocolMessage(CompiledProgramMessage.type.notification(params));
-        performance.mark(`CompiledProgramMessage end`);
-        performance.measure(
-          `CompiledProgramMessage`,
-          `CompiledProgramMessage start`,
-          `CompiledProgramMessage end`,
-        );
+        profilePhase("end", `CompiledProgramMessage`);
       },
     );
     this._connection.onClose(() => {
@@ -290,6 +289,17 @@ export default class WorkspaceLanguageServer {
         // the language server relay a slim program instead of the whole ~9MB
         // per keystroke. The player and vscode keep the full relay.
         slimProgramNotifications: true,
+        // Filtered images resolve through the service worker's on-demand
+        // `?filters=` route in this host (#299), so the program doesn't need
+        // the inlined SVG source that dominated its payload. LS previews
+        // re-source it lazily from watched files.
+        stripImageData: true,
+        // Nothing on this path reads the bytecode: the relay above is slim
+        // (uri/scripts/files/version) and the player runs its own compiler.
+        // Serializing it cost ~25-30ms per keystroke on a large project purely
+        // to be discarded (#345). ExportRuntime still runs, so diagnostics and
+        // pathLocations are unaffected.
+        emitCompiledProgram: false,
       },
       workspaceFolders: [
         {
@@ -303,7 +313,6 @@ export default class WorkspaceLanguageServer {
       this._initializeParams,
     );
     this._initializeResult = result;
-    this.updateProgram(result["program"]);
     this._connection.sendNotification(InitializedMessage.method, {});
     this._onInitialized.forEach((callback) => {
       callback?.(result);

@@ -2028,7 +2028,12 @@ repository:
   ########## Parenthetical ##########
 
   ParentheticalLine:
-    match: ({{WS}}*)((?:[=].*?[=]|[<].*?[>]|{{WS}}*)*)({{WS}}*)([(][^()]*?[)])({{WS}}*)((?:[=].*?[=]|[<].*?[>]|{{WS}}*)*)($|{{EOL}}|(?={{BREAK}})|{{CHAIN}}(?:{{WS}}))
+    # NOTE: the whitespace arm inside the starred decoration groups must be a
+    # MAXIMAL run ({{WS}}+(?!{{WS}})), never a nullable {{WS}}* — a nullable
+    # alternative inside a star makes a failing match explore every partition
+    # of a whitespace run (catastrophic backtracking: ~15s on a line with 28
+    # leading spaces). See issue #280 and grammarRegexSafety.test.ts.
+    match: ({{WS}}*)((?:[=].*?[=]|[<].*?[>]|{{WS}}+(?!{{WS}}))*)({{WS}}*)([(][^()]*?[)])({{WS}}*)((?:[=].*?[=]|[<].*?[>]|{{WS}}+(?!{{WS}}))*)($|{{EOL}}|(?={{BREAK}})|{{CHAIN}}(?:{{WS}}))
     captures:
       1:
         patterns:

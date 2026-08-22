@@ -19,6 +19,28 @@ export class Container extends InkObject implements INamedContent {
   public turnIndexShouldBeCounted: boolean = false;
   public countingAtStartOnly: boolean = false;
 
+  // Compiler-only bookkeeping for incremental ExportRuntime (never
+  // serialized, never read by the runtime): containers of unchanged flows are
+  // REUSED across compiles instead of regenerated, so state that a fresh
+  // compile would rebuild from scratch must be reconstructible on reuse.
+  //
+  // `_dontFlatten`: `Parsed.Story.DontFlattenContainer` protection. Lives on
+  // the container (not a per-compile Set on the parsed Story) so a reused
+  // container whose generation was skipped keeps its protection — otherwise
+  // `TryFlattenContainer` would splice sequence/conditional branch containers
+  // it must not.
+  //
+  // `_intrinsicVisits`/`_intrinsicTurns`: snapshot of the count flags as set
+  // at GENERATION time (self-flow: Gather/Choice/Sequence/countAllVisits).
+  // Resolve-time cross-flow sets (DivertTarget/VariableReference/FunctionCall
+  // targeting this container from elsewhere) are re-derived every compile, so
+  // before each `ResolveReferences` pass a reused container is restored to
+  // this intrinsic state — otherwise a deleted remote read-count would leave
+  // a stale `#f` flag behind forever.
+  public _dontFlatten?: boolean;
+  public _intrinsicVisits?: boolean;
+  public _intrinsicTurns?: boolean;
+
   public _pathToFirstLeafContent: Path | null = null;
 
   get hasValidName() {

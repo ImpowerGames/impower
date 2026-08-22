@@ -93,11 +93,24 @@ connection.addEventListener("message", async (e) => {
   if (isMessage(message)) {
     // Forward protocol messages from editor to player
     sendProtocolMessage(message);
-    // Forward protocol responses and notifications from editor to service worker
-    navigator.serviceWorker.controller?.postMessage(
-      message,
-      (message as any).result?.transfer || (message as any).params?.transfer,
-    );
+    // Forward protocol RESPONSES to our own service worker. The SW only ever
+    // awaits responses (to the FetchGameAsset requests it sends while serving
+    // /file:/ assets), so notifications -- including the editor's
+    // per-keystroke textDocument traffic -- would just be cloned into it and
+    // dropped. Same-origin/proxied preview never registers this SW at all;
+    // the editor's own root-scoped SW serves /file:/ there.
+    if (
+      !SAME_ORIGIN &&
+      !SAME_ORIGIN_PROXY &&
+      (message as any).id !== undefined &&
+      ((message as any).result !== undefined ||
+        (message as any).error !== undefined)
+    ) {
+      navigator.serviceWorker.controller?.postMessage(
+        message,
+        (message as any).result?.transfer || (message as any).params?.transfer,
+      );
+    }
   }
 });
 
@@ -119,17 +132,29 @@ window.addEventListener(MessageProtocol.event, (e) => {
     }
   }
 });
+// Drags over this iframe never reach the embedding editor -- the events go to
+// this document instead -- so relay them, or the editor's drop overlay simply
+// never appears while the pointer is over the game preview.
+//
+// Only relay drags that actually carry files: an in-game text or element drag
+// is not an import, and announcing it would flash the editor's overlay.
+const carriesFiles = (e: DragEvent) =>
+  Array.from(e.dataTransfer?.types ?? []).includes("Files");
+
 window.addEventListener("dragenter", (e) => {
+  if (!carriesFiles(e)) return;
   e.preventDefault();
   e.stopPropagation();
   connection.postMessage(DraggedFilesInMessage.type.notification({}));
 });
 window.addEventListener("dragleave", (e) => {
+  if (!carriesFiles(e)) return;
   e.preventDefault();
   e.stopPropagation();
   connection.postMessage(DraggedFilesOutMessage.type.notification({}));
 });
 window.addEventListener("dragover", (e) => {
+  if (!carriesFiles(e)) return;
   e.preventDefault();
   e.stopPropagation();
   connection.postMessage(DraggedFilesOverMessage.type.notification({}));

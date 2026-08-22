@@ -36,6 +36,16 @@ const completionTheme = EditorView.baseTheme({
   "& .cm-tooltip.cm-completionInfo pre": {
     margin: "0",
   },
+  // Asset previews carry no intrinsic bound. The panel caps its width but not
+  // its height, so a tall image runs off the bottom of the screen. Clamp to a
+  // thumbnail; `height: auto` also stops small images being stretched up.
+  "& .cm-tooltip.cm-completionInfo img": {
+    maxWidth: "100%",
+    maxHeight: "180px",
+    width: "auto",
+    height: "auto",
+    objectFit: "contain",
+  },
   "& .cm-tooltip.cm-completionInfo.cm-completionInfo-right": {
     marginTop: "-1px",
   },
@@ -210,6 +220,7 @@ export function serverCompletions(
             snippetSupport: true,
             documentationFormat: ["plaintext", "markdown"],
             insertReplaceSupport: false,
+            resolveSupport: { properties: ["documentation"] },
           },
           completionList: {
             itemDefaults: ["commitCharacters", "editRange", "insertTextFormat"],
@@ -304,6 +315,16 @@ export const serverCompletionSource: CompletionSource = (context) => {
           };
           if (item.documentation) {
             option.info = () => renderDocInfo(plugin, item.documentation!);
+          } else if (item.data && canResolveCompletions(plugin)) {
+            // Documentation was withheld by the server to keep the list cheap;
+            // fetch it only when this item is actually highlighted. CodeMirror
+            // accepts a promise here and drops it if the user moves on first.
+            option.info = () =>
+              resolveCompletionItem(plugin, item).then((resolved) =>
+                resolved?.documentation
+                  ? renderDocInfo(plugin, resolved.documentation)
+                  : null,
+              );
           }
           option.apply = (
             view: EditorView,
@@ -359,6 +380,27 @@ export const serverCompletionSource: CompletionSource = (context) => {
     },
   );
 };
+
+function canResolveCompletions(plugin: LSPPlugin) {
+  const provider = plugin.client.serverCapabilities?.completionProvider;
+  return provider?.resolveProvider === true;
+}
+
+/// Ask the server to fill in the expensive parts of a completion item
+/// (documentation). Resolves to null on failure so a dead request just
+/// means "no info panel" rather than a thrown error in the tooltip.
+function resolveCompletionItem(
+  plugin: LSPPlugin,
+  item: lsp.CompletionItem,
+): Promise<lsp.CompletionItem | null> {
+  return plugin.client
+    .request<
+      lsp.CompletionItem,
+      lsp.CompletionItem | null,
+      typeof lsp.CompletionResolveRequest.method
+    >("completionItem/resolve", item)
+    .catch((): null => null);
+}
 
 function renderDocInfo(plugin: LSPPlugin, doc: string | lsp.MarkupContent) {
   let elt = document.createElement("div");

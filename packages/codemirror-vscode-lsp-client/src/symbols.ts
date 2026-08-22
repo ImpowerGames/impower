@@ -32,6 +32,10 @@ export const stickyScrollTheme = EditorView.theme({
   },
   ".cm-sticky-header-row": {
     display: "flex",
+    // Explicit: the host page's global reset makes `column` the effective
+    // default, which stacks the cloned gutter above the header text instead
+    // of beside it -- a double-height row with the text flush to the edge.
+    flexDirection: "row",
     backgroundColor: "inherit",
     width: "100%",
   },

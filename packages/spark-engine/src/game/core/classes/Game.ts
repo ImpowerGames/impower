@@ -3,6 +3,7 @@ import { NotificationMessage } from "@impower/jsonrpc/src/common/types/Notificat
 import { RequestMessage } from "@impower/jsonrpc/src/common/types/RequestMessage";
 import { ResponseError } from "@impower/jsonrpc/src/common/types/ResponseError";
 import { type SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
+import { resolveCompiledProgram } from "@impower/sparkdown/src/binary/programBinary";
 import {
   buildRouteSimulator,
   planRoute,
@@ -370,7 +371,10 @@ export class Game<T extends M = {}> {
 
   updateProgram(program: SparkProgram, story?: Story) {
     this._program = program;
-    if (!story && !this._program.compiled) {
+    // Resolved ONCE: with the binary path (#314) this materializes the buffer,
+    // so testing it repeatedly would re-walk the whole program.
+    const compiled = story ? undefined : resolveCompiledProgram(program);
+    if (!story && !compiled) {
       throw new Error(
         "Program must be successfully compiled before it can be run",
       );
@@ -382,8 +386,8 @@ export class Game<T extends M = {}> {
 
     if (story) {
       this._story = story;
-    } else if (program.compiled) {
-      this._story = new Story(program.compiled);
+    } else if (compiled) {
+      this._story = new Story(compiled);
     }
     this.setupStory(this._story);
     // Live edit → recompile reuses this Game: refresh the context channels from
@@ -1160,6 +1164,15 @@ export class Game<T extends M = {}> {
           ) {
             this.notifyAwaitingInteraction();
           }
+        } else if (
+          !this._story.canContinue &&
+          this._simulation !== "simulating" &&
+          this._state === "running"
+        ) {
+          // Nothing buffered left to display and no flow left to run, so the
+          // story is over. Note this only fires once the final beat has been
+          // consumed -- a last beat still waiting to be read flushes above.
+          this.notifyFinished();
         }
         this.checkpoint();
         if (this._simulation === "simulating") {
@@ -1287,10 +1300,11 @@ export class Game<T extends M = {}> {
 
         return false;
       } else {
-        if (this._state === "running") {
-          this.notifyFinished();
-        }
-        // DONE - ran out of flow
+        // Unreachable: reaching here would need `canContinue && !canContinue`,
+        // because the first branch already claims every `!canContinue` case
+        // (which is where running out of flow is now reported). Kept purely as
+        // a backstop so a future change to the conditions above can't spin
+        // here forever.
         return true;
       }
     }

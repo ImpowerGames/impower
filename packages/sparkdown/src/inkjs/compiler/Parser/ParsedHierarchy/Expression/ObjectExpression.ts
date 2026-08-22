@@ -68,8 +68,18 @@ export class ObjectExpression extends Expression {
         // Static key — emitted by lowering a single-segment
         // StringExpression so the BeginString/EndString machinery
         // yields a StringValue on the eval stack.
+        //
+        // Parented, but deliberately NOT added to `content`: generation must
+        // not mutate the parsed tree. These nodes are carried forward across
+        // incremental compiles by chunk identity, so an `AddContent` here
+        // appended a fresh key expression on EVERY compile and never released
+        // the previous one — each accumulated `Text` then pinned a whole
+        // runtime container generation through its cached `_runtimeObject`'s
+        // parent chain (~5.5MB/keystroke; see issue #312). The parent link is
+        // all generation needs (`debugMetadata` and `story` walk it), and the
+        // key expression carries nothing for `ResolveReferences` to resolve.
         const keyExpr = new StringExpression([new Text(entry.key)]);
-        this.AddContent(keyExpr);
+        keyExpr.parent = this;
         keyExpr.GenerateIntoContainer(container);
       }
       // Value — already an Expression. Generate its runtime form inline so

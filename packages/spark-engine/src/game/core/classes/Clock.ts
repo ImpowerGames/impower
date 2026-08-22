@@ -224,7 +224,10 @@ export class Clock {
       return;
     }
 
-    const frameInterval = 1 / this._maxFPS;
+    // A non-positive maxFPS means "no limit". Computing the budget as a bare
+    // reciprocal would make it Infinity, and nothing is greater than Infinity,
+    // so the clock would freeze rather than run unthrottled.
+    const frameInterval = this._maxFPS > 0 ? 1 / this._maxFPS : 0;
     const currentTime = this.getCurrentTime();
 
     const rawDeltaTime = currentTime - this._prevTime;

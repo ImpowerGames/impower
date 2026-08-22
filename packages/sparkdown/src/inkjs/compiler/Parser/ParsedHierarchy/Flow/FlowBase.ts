@@ -263,6 +263,16 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
         return;
       }
 
+      // A collision with a constant is already reported — with real source
+      // provenance — by `Story.CheckForNamingCollisions`, which the colliding
+      // declaration runs during ResolveReferences. The synthetic declaration
+      // minted per constant by `Story.RegisterConstantGlobals` carries no
+      // debugMetadata, so reporting here too would only add an
+      // indistinguishable duplicate pointing at a null location.
+      if (varab.isConstantDeclaration && !varDecl.isConstantDeclaration) {
+        return;
+      }
+
       if (!varDecl.isPropertyDeclaration) {
         this.Error(
           `Duplicate identifier \`${varName}\`. A ${varab.typeName.toLowerCase()} named \`${varName}\` already exists on ${

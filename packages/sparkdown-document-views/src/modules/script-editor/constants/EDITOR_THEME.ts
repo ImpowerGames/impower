@@ -95,6 +95,14 @@ const EDITOR_THEME: {
     color: EDITOR_COLORS.lineNumber,
     border: "none",
     opacity: 0.7,
+    // CodeMirror ships these at z-index 200, and nothing between them and
+    // <body> establishes a stacking context, so that 200 competed against the
+    // HOST app's layers rather than staying inside the editor -- putting the
+    // gutters above dialogs and toasts. Editor CHROME belongs under the app's
+    // UI; only editor POPUPS (`.cm-tooltip`, the LSP context menu) deliberately
+    // stay high, because they must overhang neighbouring panes. Positioned, so
+    // this also contains anything nested inside.
+    zIndex: "1",
   },
   "kbd, code, pre": {
     fontFamily: "Courier Prime Sans",
@@ -289,6 +297,10 @@ const EDITOR_THEME: {
   },
   "& .cm-panels": {
     backgroundColor: EDITOR_COLORS.panel,
+    // Same reason as `.cm-gutters` above -- CodeMirror's default is 300, which
+    // put the status bar over the host's dialogs. Kept one above the gutters
+    // to preserve CodeMirror's own relative order (300 > 200).
+    zIndex: "2",
   },
   "& .cm-panels.cm-panels-bottom": {
     borderTop: `1px solid ${EDITOR_COLORS.panelBorder}`,
@@ -309,6 +321,24 @@ const EDITOR_THEME: {
     color: EDITOR_COLORS.white,
   },
   "& .cm-panels.cm-panels-top": {
+    // Top panels are pulled up INTO the host's 48px header band by the
+    // negative margin below, so they have to outrank it as well. The host
+    // chrome (sticky headers, tab bars, the split divider) sits at z-index
+    // 10-20 and nothing between `.cm-panels` and <body> establishes a
+    // stacking context, so that chrome competes with this value directly:
+    // at the inherited 2 the header paints OVER the search panel and the
+    // whole Find row is invisible and unclickable (#337).
+    //
+    // 30 clears the chrome band while staying under the host's dialogs (50),
+    // toasts (60) and drag overlay (400), and under this editor's own popups
+    // (`.cm-tooltip`, 300) -- all of which must still cover the panel.
+    //
+    // Keep the override scoped to the TOP panels. Only they are pulled into
+    // the header band and so only they need to outrank it; the bottom status
+    // bar overlaps nothing and belongs under the host's UI, per the same rule
+    // that pins `.cm-gutters` to 1. Raising `.cm-panels` as a whole would drag
+    // the status bar up to 30 with it for no reason.
+    zIndex: "30",
     "& .cm-panel": {
       // Top panels should cover up panel header
       marginTop: "-48px",
@@ -319,6 +349,10 @@ const EDITOR_THEME: {
     backgroundColor: EDITOR_COLORS.panel,
     padding: "8px",
     display: "flex",
+    // Explicit: a host may normalize `flex-direction` across its subtree
+    // (spark-editor forces `column` on every descendant of the editor root),
+    // and a direction-less flex container silently stacks when it does.
+    flexDirection: "row",
     gap: "8px",
     "& .cm-textfield": {
       height: "32px",
@@ -357,6 +391,7 @@ const EDITOR_THEME: {
       right: "186px",
       height: "30px",
       display: "flex",
+      flexDirection: "row",
       padding: "0 8px",
       justifyContent: "center",
       alignItems: "center",
@@ -535,6 +570,10 @@ const EDITOR_THEME: {
     fontSize: "14px",
     marginRight: "16px",
     display: "flex",
+    // Explicit: a host may normalize `flex-direction` across its subtree
+    // (spark-editor forces `column` on every descendant of the editor root),
+    // and a direction-less flex container silently stacks when it does.
+    flexDirection: "row",
   },
   "& .cm-diagnosticAction": {
     backgroundColor: "transparent",

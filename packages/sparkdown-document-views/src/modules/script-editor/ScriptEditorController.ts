@@ -119,6 +119,15 @@ export interface ScriptEditorOptions {
   languageServerConnection: MessageConnection;
 }
 
+// How long a load may keep the editor hidden before it is revealed anyway.
+// The normal reveal comes from `onViewportParsed` (the syntax tree covers the
+// visible region, usually within a few hundred ms) or, on small documents,
+// from the parse-idle signal. This backstop only exists for loads where
+// neither signal arrives (a wedged parse, or a deep saved scroll position on
+// a document that parses slowly) -- short enough that a broken load
+// self-heals well inside the "is this broken?" threshold.
+const LOAD_REVEAL_TIMEOUT_MS = 5000;
+
 export class ScriptEditorController {
   protected host: HTMLElement;
   protected refs: ScriptEditorRefs;
@@ -155,6 +164,15 @@ export class ScriptEditorController {
   protected _top: number = 0;
   protected _bottom: number = 0;
   protected _focusIntervalTimeout = 0;
+
+  // Backstop for the fade-in. The idle signal that reveals the editor rides on
+  // `EditorView.updateListener`, which stops firing once updates stop -- so on
+  // a large document whose parse outlives the initial flurry of updates, the
+  // signal can simply never arrive and the editor stays invisible forever
+  // while being fully interactive underneath. An editor the user cannot see is
+  // strictly worse than one showing a still-parsing document, so reveal
+  // regardless once this elapses.
+  protected _revealTimeout = 0;
   // Owns every protocol-bus subscription; `dispose()` detaches them all.
   protected _protocols = new ProtocolObserver();
 
@@ -189,6 +207,10 @@ export class ScriptEditorController {
   }
 
   dispose(): void {
+    if (this._revealTimeout) {
+      clearTimeout(this._revealTimeout);
+      this._revealTimeout = 0;
+    }
     this.host.removeEventListener(
       "touchstart",
       this.handlePointerEnterScroller,
@@ -545,6 +567,15 @@ export class ScriptEditorController {
     } else {
       this.refs.editor.style.visibility = "hidden";
       this.refs.loading.style.opacity = "1";
+      // Arm the backstop the moment we hide, so a load whose idle signal never
+      // arrives still ends up visible rather than blank forever.
+      if (this._revealTimeout) {
+        clearTimeout(this._revealTimeout);
+      }
+      this._revealTimeout = window.setTimeout(
+        this.revealEditor,
+        LOAD_REVEAL_TIMEOUT_MS,
+      );
       if (this._view) {
         this.unbindView(this._view);
         this._view.destroy();
@@ -637,6 +668,7 @@ export class ScriptEditorController {
               ? (visibleRange?.start.line ?? 0) + 1
               : undefined,
           onIdle: this.handleIdle,
+          onViewportParsed: this.handleViewportParsed,
           onFocus: () => {
             this._editing = true;
             if (this._textDocument) {
@@ -1002,6 +1034,58 @@ export class ScriptEditorController {
     }
   }
 
+  /**
+   * Fade the editor in. Idempotent, and deliberately NOT gated on a pending
+   * load request: `_loadingRequest` tracks whether a load was initiated by a
+   * protocol request, which says nothing about whether the editor is
+   * currently hidden. Gating visibility on it meant any path that reached
+   * `handleIdle` without an outstanding request -- notably the remount that
+   * `formatDocument` triggers on Ctrl+S -- marked the editor loaded while
+   * leaving it invisible, with no way back short of a page reload.
+   */
+  protected revealEditor = () => {
+    if (this._revealTimeout) {
+      clearTimeout(this._revealTimeout);
+      this._revealTimeout = 0;
+    }
+    if (!this.refs.editor) {
+      return;
+    }
+    if (this.refs.loading) {
+      this.refs.loading.style.opacity = "0";
+    }
+    this.refs.editor.style.visibility = "visible";
+    this.refs.editor.style.opacity = "1";
+    this._loadingRequest = undefined;
+  };
+
+  /**
+   * The syntax tree covers the visible viewport (and the restored scroll
+   * target) while the rest of the document is still parsing. That is enough
+   * to finish loading: restore scroll/focus and reveal now instead of hiding
+   * the editor behind the multi-second full-document parse. Runs the same
+   * completion path as the idle signal, so whichever fires first wins and the
+   * other becomes a no-op.
+   */
+  protected handleViewportParsed = () => {
+    if (this._loaded) {
+      return;
+    }
+    // Wait for fonts before the first reveal so the just-shown viewport
+    // doesn't immediately reflow under a late-loading editor font.
+    const fonts = document.fonts;
+    if (fonts && fonts.status !== "loaded") {
+      const view = this._view;
+      fonts.ready.then(() => {
+        if (!this._loaded && this._view === view) {
+          this.handleIdle();
+        }
+      });
+      return;
+    }
+    this.handleIdle();
+  };
+
   protected handleIdle = () => {
     if (!this._loaded) {
       const initialFocused = this._initialFocused;
@@ -1041,12 +1125,11 @@ export class ScriptEditorController {
           }
         }, 100);
       }
-      if (this._textDocument && this._loadingRequest != null) {
-        // Only fade in once formatting has finished being applied and height is stable
-        this.refs.loading.style.opacity = "0";
-        this.refs.editor.style.visibility = "visible";
-        this.refs.editor.style.opacity = "1";
-        this._loadingRequest = undefined;
+      if (this._textDocument) {
+        // Formatting has been applied and the height is stable, so this is the
+        // preferred moment to fade in -- but it is no longer the only one, see
+        // `revealEditor` and the load watchdog.
+        this.revealEditor();
       }
       if (this._view) {
         this.bindView(this._view);

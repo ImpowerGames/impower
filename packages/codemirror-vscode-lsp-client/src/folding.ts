@@ -8,12 +8,14 @@ import {
   EditorState,
   StateEffect,
   StateField,
+  Text,
   TransactionSpec,
 } from "@codemirror/state";
 import { EditorView, ViewUpdate, keymap } from "@codemirror/view";
 import type * as lsp from "vscode-languageserver-protocol";
 import { LSPClient, LSPClientExtension } from "./client";
 import { LSPPlugin } from "./plugin";
+import { coalesceRequest } from "./requestCoalescer";
 
 const CHEVRON_SVG_URL = `url('data:image/svg+xml;utf8,<svg width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="black"><path d="M7.97612 10.0719L12.3334 5.7146L12.9521 6.33332L8.28548 11L7.66676 11L3.0001 6.33332L3.61882 5.7146L7.97612 10.0719Z"/></svg>')`;
 
@@ -69,7 +71,7 @@ export function foldingPlaceholderDOM(
   onclick: (this: GlobalEventHandlers, ev: PointerEvent) => any,
   prepared: boolean,
 ) {
-  const ranges = view.state.field(foldingRangeField);
+  const { ranges } = view.state.field(foldingRangeField);
   // prepared is usually the placeholder text if default logic is used
   // but we fetch our specific match from state
   const match =
@@ -126,37 +128,57 @@ export function setDocumentFoldingRanges(
   return { effects };
 }
 
-const foldingRangeField = StateField.define<DocumentFoldingRange[]>({
+interface FoldingRangeSet {
+  ranges: DocumentFoldingRange[];
+  /** First range starting on each 1-based line number, so the per-line
+   * foldService query is a lookup instead of a scan over every range. */
+  byStartLine: Map<number, DocumentFoldingRange>;
+}
+
+const indexFoldingRanges = (
+  ranges: DocumentFoldingRange[],
+  doc: Text,
+): FoldingRangeSet => {
+  const byStartLine = new Map<number, DocumentFoldingRange>();
+  for (const range of ranges) {
+    if (range.from < 0 || range.from > doc.length) {
+      continue;
+    }
+    const lineNumber = doc.lineAt(range.from).number;
+    if (!byStartLine.has(lineNumber)) {
+      byStartLine.set(lineNumber, range);
+    }
+  }
+  return { ranges, byStartLine };
+};
+
+const foldingRangeField = StateField.define<FoldingRangeSet>({
   create() {
-    return [];
+    return { ranges: [], byStartLine: new Map() };
   },
-  update(ranges, tr) {
+  update(value, tr) {
     for (let e of tr.effects) {
-      if (e.is(setFoldingRanges)) return e.value;
+      if (e.is(setFoldingRanges)) return indexFoldingRanges(e.value, tr.newDoc);
     }
 
     if (tr.docChanged) {
-      return ranges.map((range) => ({
+      const mapped = value.ranges.map((range) => ({
         ...range,
         from: tr.changes.mapPos(range.from),
         to: tr.changes.mapPos(range.to),
       }));
+      return indexFoldingRanges(mapped, tr.newDoc);
     }
 
-    return ranges;
+    return value;
   },
 });
 
 const foldingRangesService = foldService.of((state, from, to) => {
-  const ranges = state.field(foldingRangeField);
-  const line = state.doc.lineAt(from);
-
-  for (const range of ranges) {
-    // Check if this range starts on the line currently being queried by the gutter
-    const rangeStartLine = state.doc.lineAt(range.from);
-    if (rangeStartLine.number === line.number) {
-      return { from: range.from, to: range.to };
-    }
+  const { byStartLine } = state.field(foldingRangeField);
+  const range = byStartLine.get(state.doc.lineAt(from).number);
+  if (range) {
+    return { from: range.from, to: range.to };
   }
   return null;
 });
@@ -205,21 +227,23 @@ export async function updateDocumentFoldingRanges(
   client: LSPClient,
   uri: string,
 ) {
-  let file = client.workspace.getFile(uri);
-  if (!file) return;
-  const view = file.getView();
-  if (!view) return;
-  const plugin = LSPPlugin.get(view);
-  if (!plugin) return;
-  const result = await plugin.client.request<
-    lsp.FoldingRangeParams,
-    lsp.FoldingRange[] | null,
-    typeof lsp.FoldingRangeRequest.method
-  >("textDocument/foldingRange", {
-    textDocument: { uri },
+  return coalesceRequest(client, `foldingRange:${uri}`, async () => {
+    let file = client.workspace.getFile(uri);
+    if (!file) return;
+    const view = file.getView();
+    if (!view) return;
+    const plugin = LSPPlugin.get(view);
+    if (!plugin) return;
+    const result = await plugin.client.request<
+      lsp.FoldingRangeParams,
+      lsp.FoldingRange[] | null,
+      typeof lsp.FoldingRangeRequest.method
+    >("textDocument/foldingRange", {
+      textDocument: { uri },
+    });
+    const foldables = convertFromServerFoldingRanges(plugin, result);
+    view.dispatch(setDocumentFoldingRanges(view.state, foldables));
   });
-  const foldables = convertFromServerFoldingRanges(plugin, result);
-  view.dispatch(setDocumentFoldingRanges(view.state, foldables));
 }
 
 export function serverFolding(): LSPClientExtension {

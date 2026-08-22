@@ -925,6 +925,16 @@ export class Story extends InkObject {
           JsonSerialisation.JTokenToListDefinitions(listDefsObj);
       }
 
+      // Names declared with `const`. They initialize like any other global
+      // (so they are inspectable at runtime — e.g. by the debug adapter),
+      // but they are immutable and fully reconstructed from the bytecode on
+      // every run, so they are never written to a save and never restored
+      // from one. See `VariablesState.constantNames`.
+      const constantsObj = rootObject["constants"];
+      if (Array.isArray(constantsObj)) {
+        this._constantNames = new Set<string>(constantsObj as string[]);
+      }
+
       this._mainContentContainer = asOrThrows(
         JsonSerialisation.JTokenToRuntimeObject(rootToken),
         Container,
@@ -993,6 +1003,13 @@ export class Story extends InkObject {
       writer.WritePropertyEnd();
     }
 
+    // Names declared with `const`. Shipped so the runtime can keep them
+    // read-only and out of save data while still exposing them as ordinary
+    // inspectable globals — see `VariablesState.constantNames`.
+    if (this._constantNames.size > 0) {
+      writer.InjectObject("constants", [...this._constantNames]);
+    }
+
     if (
       this._structDefinitions != null &&
       Object.keys(this._structDefinitions).length > 0
@@ -1032,6 +1049,9 @@ export class Story extends InkObject {
   }
 
   public ResetGlobals() {
+    // Re-published on every reset so a reloaded//swapped story can't leave the
+    // previous program's constant set behind.
+    this.state.variablesState.constantNames = this._constantNames;
     if (this._mainContentContainer.namedContent.get("global decl")) {
       let originalPointer = this.state.currentPointer.copy();
 
@@ -5110,6 +5130,11 @@ export class Story extends InkObject {
    */
   private _mainContentContainer!: Container;
   private _listDefinitions: ListDefinitionsOrigin | null = null;
+  /** Names declared with `const` — see where `rootObject["constants"]` is read. */
+  private _constantNames: Set<string> = new Set<string>();
+  get constantNames(): Set<string> {
+    return this._constantNames;
+  }
   private _structDefinitions: Record<string, any> | null = null;
 
   private _externals: Map<string, Story.ExternalFunctionDef>;

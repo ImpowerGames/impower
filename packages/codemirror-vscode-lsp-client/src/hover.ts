@@ -10,7 +10,18 @@ import { LSPPlugin } from "./plugin";
 import { convertFromPosition } from "./pos";
 import { escHTML } from "./text";
 
-const hoverTheme = EditorView.baseTheme({});
+const hoverTheme = EditorView.baseTheme({
+  // Asset previews carry no intrinsic bound, so a large source image renders
+  // at its natural size and engulfs the page. Clamp to a thumbnail.
+  // `height: auto` also stops small images being stretched up to the cap.
+  "& .cm-lsp-hover-tooltip img": {
+    maxWidth: "100%",
+    maxHeight: "180px",
+    width: "auto",
+    height: "auto",
+    objectFit: "contain",
+  },
+});
 
 export interface ServerHoversConfig {
   hoverTime?: number;

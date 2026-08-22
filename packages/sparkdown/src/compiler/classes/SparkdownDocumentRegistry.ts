@@ -185,12 +185,31 @@ export class SparkdownDocumentRegistry {
     }
   }
 
+  /**
+   * Parse (or re-parse) a document whose parse was deferred by
+   * `set(..., { defer: true })` -- or whose tree is stale -- so accessors
+   * always observe an up-to-date tree without every bulk-loaded document
+   * paying a full parse up front.
+   */
+  protected ensureParsed(uri: string) {
+    const syncedDocument = this._syncedDocuments.get(uri);
+    if (!syncedDocument) {
+      return;
+    }
+    const state = this.getDocumentState(uri);
+    if (!state.tree || state.treeVersion !== syncedDocument.version) {
+      this.updateSyntaxTree(syncedDocument, syncedDocument);
+    }
+  }
+
   tree(uri: string) {
+    this.ensureParsed(uri);
     const state = this.getDocumentState(uri);
     return state.tree;
   }
 
   annotations(uri: string) {
+    this.ensureParsed(uri);
     const state = this.getDocumentState(uri);
     return state.annotators.get();
   }
@@ -219,25 +238,31 @@ export class SparkdownDocumentRegistry {
     }
   }
 
-  add(params: {
-    textDocument: {
-      uri: string;
-      text: string;
-      version: number | null;
-      languageId: string | null;
-    };
-  }) {
-    return this.set(params);
+  add(
+    params: {
+      textDocument: {
+        uri: string;
+        text: string;
+        version: number | null;
+        languageId: string | null;
+      };
+    },
+    options?: { defer?: boolean },
+  ) {
+    return this.set(params, options);
   }
 
-  set(params: {
-    textDocument: {
-      uri: string;
-      text: string;
-      version: number | null;
-      languageId: string | null;
-    };
-  }) {
+  set(
+    params: {
+      textDocument: {
+        uri: string;
+        text: string;
+        version: number | null;
+        languageId: string | null;
+      };
+    },
+    options?: { defer?: boolean },
+  ) {
     const td = params.textDocument;
     const beforeDocument =
       this._syncedDocuments.get(td.uri) ||
@@ -249,6 +274,16 @@ export class SparkdownDocumentRegistry {
       td.text.replace(NEWLINE_REGEX, "\n"),
     );
     this._syncedDocuments.set(td.uri, syncedDocument);
+    if (options?.defer) {
+      // Defer the (expensive) parse until something actually reads this
+      // document's tree/annotations. Drop stale parse state so ensureParsed
+      // re-parses the new content.
+      const state = this.getDocumentState(td.uri);
+      state.tree = undefined;
+      state.treeFragments = undefined;
+      state.treeVersion = undefined;
+      return true;
+    }
     this.updateSyntaxTree(beforeDocument, syncedDocument);
     return true;
   }

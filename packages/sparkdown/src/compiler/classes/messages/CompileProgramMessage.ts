@@ -34,6 +34,18 @@ export interface CompileProgramParams {
    * source-level reference need this set.
    */
   countAllVisits?: boolean;
+  /**
+   * Serialize the compiled program for THIS request, overriding
+   * `SparkdownCompilerConfig.emitCompiledProgram` (#351).
+   *
+   * Lets a host suppress bytecode on its per-keystroke compiles and still ask
+   * for it on the one compile that feeds a view. When the no-change
+   * short-circuit serves a cached program that was built without bytecode,
+   * it is materialized from the retained runtime story rather than recompiled.
+   *
+   * Omitted means "use the instance default".
+   */
+  emitCompiledProgram?: boolean;
 }
 
 export interface CompileProgramResult {

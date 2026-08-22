@@ -7,6 +7,7 @@ import {
   SparkdownDocumentRegistry,
 } from "@impower/sparkdown/src/compiler/classes/SparkdownDocumentRegistry";
 import { type SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
+import { buildSVGSource } from "@impower/sparkdown/src/compiler/utils/buildSVGSource";
 import { resolveFileUsingImpliedExtension } from "@impower/sparkdown/src/compiler/utils/resolveFileUsingImpliedExtension";
 import COMPILER_INLINE_WORKER_STRING from "@impower/sparkdown/src/worker/sparkdown.worker";
 import { SparkdownWorkspace } from "@impower/sparkdown/src/workspace/classes/SparkdownWorkspace";
@@ -169,6 +170,13 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
     });
   }
 
+  override async getFileBytes(uri: string): Promise<string | undefined> {
+    return this._connection?.sendRequest(ExecuteCommandRequest.type, {
+      command: "sparkdown.getFileBytes",
+      arguments: [uri],
+    });
+  }
+
   override async getFileVersion(uri: string): Promise<number> {
     return this._connection?.sendRequest(ExecuteCommandRequest.type, {
       command: "sparkdown.getFileVersion",
@@ -181,6 +189,49 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
       command: "sparkdown.getFileLanguageId",
       arguments: [uri],
     });
+  }
+
+  override async initialize(
+    params: Parameters<SparkdownWorkspace["initialize"]>[0],
+  ) {
+    const result = await super.initialize(params);
+    this.scheduleBackgroundParses();
+    return result;
+  }
+
+  /**
+   * Project scripts are registered with deferred parses (see onCreatedFile)
+   * so initialize can return immediately. Warm them here in the background --
+   * smallest first, one per tick so early feature requests aren't stuck
+   * behind the whole project -- because some features (e.g. completions) read
+   * every script's annotations and would otherwise pay all outstanding
+   * parses at once on first use. tree() is a no-op for anything already
+   * parsed on demand in the meantime.
+   */
+  protected scheduleBackgroundParses() {
+    const uris = Array.from(this._documents.keys()).sort(
+      (a, b) =>
+        (this._documents.get(a)?.length ?? 0) -
+        (this._documents.get(b)?.length ?? 0),
+    );
+    let i = 0;
+    const step = () => {
+      if (i >= uris.length) {
+        return;
+      }
+      const uri = uris[i++]!;
+      try {
+        // The document can have been removed since the list was captured;
+        // touching it would just recreate an empty registry state entry.
+        if (this._documents.has(uri)) {
+          this._documents.tree(uri);
+        }
+      } catch (e) {
+        console.error("background parse failed", uri, e);
+      }
+      setTimeout(step, 50);
+    };
+    setTimeout(step, 500);
   }
 
   override async onOpenTextDocument(params: {
@@ -204,22 +255,91 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
     this._documents.update(params);
   }
 
+  // Fingerprint + published-at version of the last diagnostics publish per
+  // uri, so a compile only notifies files whose diagnostics actually changed.
+  // Every publish fans out into client-side feature re-pulls, so N identical
+  // publishes per compile multiply into real work. The VERSION must be part
+  // of the key: clients that declare versionSupport DROP a publish whose
+  // version trails their document (routine mid-typing, since compiles are
+  // debounced with a max-wait), so an identical-content publish at a NEWER
+  // version must still go out or the client keeps stale squiggles forever.
+  protected _lastPublishedDiagnostics = new Map<
+    string,
+    { fingerprint: string; version: number | undefined }
+  >();
+
+  /**
+   * Under `stripImageData` (#299) the program's image structs arrive without
+   * their inlined SVG source, but LS-side previews (hover/completion
+   * `filterImage` calls, composite previews) still read `image.data` — and in
+   * VS Code the markdown sanitizer only loads http(s)/data: srcs, so previews
+   * of FILTERED svgs must stay data-URI-based. Attach a lazy, self-memoizing
+   * `data` getter that rebuilds the source from `_watchedFiles` (which
+   * retains every svg's text and refreshes it on change) on first access —
+   * so nothing pays for it until a preview actually needs it.
+   */
+  protected attachLazyImageData(program: {
+    context?: { image?: Record<string, any> };
+  }): void {
+    const images = program?.context?.image;
+    if (!images) {
+      return;
+    }
+    for (const image of Object.values(images)) {
+      if (
+        !image ||
+        typeof image !== "object" ||
+        "data" in image ||
+        image.ext !== "svg" ||
+        typeof image.uri !== "string"
+      ) {
+        continue;
+      }
+      Object.defineProperty(image, "data", {
+        configurable: true,
+        enumerable: true,
+        get: () => {
+          const text = this._watchedFiles.get(image.uri)?.text;
+          const value = text ? buildSVGSource(text) : undefined;
+          Object.defineProperty(image, "data", {
+            configurable: true,
+            enumerable: true,
+            writable: true,
+            value,
+          });
+          return value;
+        },
+      });
+    }
+  }
+
   override onCompiledTextDocument(params: {
     textDocument?: { uri: string };
     program: any;
   }): void {
+    this.attachLazyImageData(params.program);
     const uris = Array.from(this._documentVersions.keys());
     for (const uri of uris) {
       const version = this._documentVersions.get(uri);
       const diagnostics = this.getDiagnostics(params.program, uri);
+      const fingerprint = JSON.stringify(diagnostics);
+      const last = this._lastPublishedDiagnostics.get(uri);
+      if (last && last.fingerprint === fingerprint && last.version === version) {
+        continue;
+      }
+      this._lastPublishedDiagnostics.set(uri, { fingerprint, version });
       this.sendNotification(PublishDiagnosticsNotification.method, {
         uri,
         diagnostics,
         version,
       });
-      this.sendRequest(FoldingRangeRefreshRequest.method, {});
-      this.sendRequest(SemanticTokensRefreshRequest.method, {});
     }
+    // These refreshes are workspace-wide and carry no params, so once per
+    // compile is lossless. (They used to be sent inside the loop above --
+    // 2 x tracked-uris redundant refresh storms per keystroke, each of which
+    // made clients re-pull folding/semantic tokens for every visible file.)
+    this.sendRequest(FoldingRangeRefreshRequest.method, {});
+    this.sendRequest(SemanticTokensRefreshRequest.method, {});
   }
 
   override onCreatedFile(file: {
@@ -238,14 +358,22 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
       file.version !== undefined &&
       file.languageId !== undefined
     ) {
-      this._documents.set({
-        textDocument: {
-          uri: file.uri,
-          text: file.text! || "",
-          version: file.version,
-          languageId: file.languageId,
+      // Defer the parse: this fires for EVERY project script during
+      // initialize, but this registry only serves language-feature requests,
+      // which arrive for documents the user actually has open. Eagerly
+      // parsing the whole project here (with all annotators) cost many
+      // seconds of time-to-first-interaction on large projects (#224/#285).
+      this._documents.set(
+        {
+          textDocument: {
+            uri: file.uri,
+            text: file.text! || "",
+            version: file.version,
+            languageId: file.languageId,
+          },
         },
-      });
+        { defer: true },
+      );
     }
   }
 
@@ -265,14 +393,19 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
       file.version !== undefined &&
       file.languageId !== undefined
     ) {
-      this._documents.set({
-        textDocument: {
-          uri: file.uri,
-          text: file.text! || "",
-          version: file.version,
-          languageId: file.languageId,
+      // Only unopened scripts arrive here (see SparkdownWorkspace.changeFile);
+      // defer their re-parse until something reads them.
+      this._documents.set(
+        {
+          textDocument: {
+            uri: file.uri,
+            text: file.text! || "",
+            version: file.version,
+            languageId: file.languageId,
+          },
         },
-      });
+        { defer: true },
+      );
     }
   }
 
@@ -288,6 +421,7 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
   }) {
     this._documents.remove({ textDocument: { uri: file.uri } });
     this._lastFormattedText.delete(file.uri);
+    this._lastPublishedDiagnostics.delete(file.uri);
   }
 
   public listen(): Disposable {
@@ -322,7 +456,18 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
         async (
           params: CompileProgramParams,
         ): Promise<SparkProgram | undefined> => {
-          return this.compile(params.textDocument.uri, true);
+          // Tolerate the bare `{ uri }` shape older clients sent.
+          const uri =
+            params.textDocument?.uri ?? (params as { uri?: string }).uri;
+          if (!uri) {
+            return undefined;
+          }
+          // force=false: when nothing changed since the last compile this
+          // serves the cached program WITHOUT re-compiling or re-notifying.
+          // A forced compile here re-broadcast compiler/didCompile, and
+          // pull-on-didCompile consumers (the vscode compilation view) would
+          // chase their own tail in an infinite pull->compile->notify loop.
+          return this.compile(uri, false);
         },
       ),
     );

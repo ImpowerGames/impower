@@ -68,9 +68,24 @@ export class Story extends FlowBase {
   private _errorHandler: ErrorHandler | null = null;
   private _hadError: boolean = false;
   private _hadWarning: boolean = false;
-  private _dontFlattenContainers: Set<RuntimeContainer> = new Set();
   private _listDefs: Map<string, ListDefinition> = new Map();
   private _structDefs: Map<string, StructDefinition> = new Map();
+
+  // True while `ExportRuntime` is materializing runtime objects (generation),
+  // false during the later `ResolveReferences` pass. Diagnostics raised during
+  // GENERATION are attributed to their enclosing top-level flow below — the
+  // incremental compiler skips generation for unchanged flows, which would
+  // silently drop such a diagnostic on the next compile, so any flow that
+  // produced one is barred from reuse (resolve-time diagnostics re-emit
+  // naturally because resolution always runs over the full tree).
+  private _generationPhase: boolean = false;
+
+  // Top-level flows that raised a diagnostic during generation this export,
+  // plus a flag for diagnostics that couldn't be attributed to one (no parsed
+  // source or no top-level ancestor) — the compiler reacts by disabling flow
+  // reuse entirely for the next compile.
+  public flowsWithGenerationDiagnostics: Set<ParsedObject> = new Set();
+  public hadUnattributableGenerationDiagnostic: boolean = false;
 
   get flowLevel(): FlowLevel {
     return FlowLevel.Story;
@@ -219,6 +234,20 @@ export class Story extends FlowBase {
       this.constants.set(constDecl.constantName!, constDecl);
     }
 
+    // Constants are ordinary runtime globals: each gets a synthetic
+    // declaration registered here, BEFORE any generation runs, so that
+    // `variableDeclarations` (an insertion-ordered Map, which the global-init
+    // container is emitted from) lists every constant ahead of every
+    // store/define. That ordering is what lets `store B = SOME_CONST` work
+    // regardless of the order they appear in the source.
+    //
+    // They used to be inlined into each reference site instead, which made
+    // ordering irrelevant but copied the constant's whole runtime-object
+    // graph per reference — and threw outright for any initializer
+    // containing an operator, because `NativeFunctionCall` has no `Copy()`.
+    this.unregisterableConstants = new Set<string>();
+    this.RegisterConstantGlobals();
+
     // List definitions are treated like constants too - they should be usable
     // from other variable declarations.
     this._listDefs = new Map();
@@ -279,6 +308,14 @@ export class Story extends FlowBase {
     // (It used to be done in the constructor for a weave, but didn't allow us to generate
     // errors when name resolution failed.)
     this.ResolveWeavePointNaming();
+
+    // Everything from here until `ResolveReferences` is GENERATION — see
+    // `_generationPhase`. Diagnostics raised in this window are attributed to
+    // their top-level flow so the incremental compiler can bar that flow from
+    // reuse (reuse skips generation, which would drop the diagnostic).
+    this._generationPhase = true;
+    this.flowsWithGenerationDiagnostics = new Set();
+    this.hadUnattributableGenerationDiagnostic = false;
 
     // Get default implementation of runtimeObject, which calls ContainerBase's generation method
     const rootContainer = this.runtimeObject as RuntimeContainer;
@@ -388,7 +425,20 @@ export class Story extends FlowBase {
       runtimeStructs,
     );
 
+    // Publish the constant names so the runtime can keep them read-only and
+    // out of save data while still exposing them as inspectable globals.
+    // Only the ones actually registered: a constant that failed validation
+    // has no initializer in `global decl`, so it is not a global at all.
+    for (const [name] of this.constants) {
+      if (this.variableDeclarations.get(name)?.isConstantDeclaration) {
+        runtimeStory.constantNames.add(name);
+      }
+    }
+
     this.runtimeObject = runtimeStory;
+
+    // Generation is complete (FlattenContainersIn emits no diagnostics).
+    this._generationPhase = false;
 
     // Optimisation step - inline containers that can be
     this.FlattenContainersIn(rootContainer);
@@ -410,6 +460,111 @@ export class Story extends FlowBase {
     runtimeStory.ResetState();
 
     return runtimeStory;
+  };
+
+  /**
+   * Register one synthetic global declaration per constant, ordered so that a
+   * constant always precedes any constant that references it.
+   *
+   * Iterates `this.constants` rather than the raw declaration list so a
+   * duplicated name registers once (the duplicate is already diagnosed where
+   * the map is built). A dependency cycle is reported and the members fall
+   * back to source order, so the compile still produces a program.
+   */
+  /**
+   * Names a constant's initializer reads that are NOT themselves constants.
+   *
+   * A constant may only be built from other constants: constants are
+   * initialized ahead of every mutable global, so reading a `store` here would
+   * see nil. Such a constant is neither registered nor initialized (the nil
+   * arithmetic would throw out of `ResetState` and cost the whole program its
+   * bytecode), and `ConstantDeclaration.ResolveReferences` reports it.
+   */
+  /**
+   * Constants that could NOT be registered as globals — built from a
+   * non-constant, part of a dependency cycle, or reading one of those. They
+   * emit no initializer, so their references read nil; each is reported by
+   * `ConstantDeclaration.ResolveReferences`.
+   */
+  public unregisterableConstants: Set<string> = new Set<string>();
+
+  public readonly NonConstantInitializerRefs = (
+    constDecl: ConstantDeclaration,
+  ): string[] =>
+    constDecl.expression
+      .FindAll(VariableReference)()
+      .map((ref) => ref.name)
+      .filter(
+        (name): name is string =>
+          Boolean(name) && !this.constants.has(name!),
+      );
+
+  protected readonly RegisterConstantGlobals = (): void => {
+    const visited = new Set<string>();
+    const onStack = new Set<string>();
+
+    const visit = (name: string): void => {
+      if (visited.has(name)) {
+        return;
+      }
+      const constDecl = this.constants.get(name);
+      if (!constDecl) {
+        return;
+      }
+      if (onStack.has(name)) {
+        this.Error(
+          `Circular constant definition: \`${name}\` depends on itself.`,
+          constDecl,
+          false,
+        );
+        // Poison EVERY member of the cycle, not just the name we re-entered:
+        // registering any of them emits an initializer that reads one of the
+        // others before it exists, and the resulting nil arithmetic throws
+        // out of `ResetState`, costing the whole program its bytecode.
+        for (const member of onStack) {
+          this.unregisterableConstants.add(member);
+        }
+        return;
+      }
+      onStack.add(name);
+      // Emit every constant this one reads first, so its initializer sees a
+      // value rather than nil. A self-reference is deliberately NOT filtered
+      // out here — walking it is what lets `onStack` detect it.
+      const refs = constDecl.expression.FindAll(VariableReference)();
+      for (const ref of refs) {
+        if (ref.name && this.constants.has(ref.name)) {
+          visit(ref.name);
+        }
+      }
+      onStack.delete(name);
+      visited.add(name);
+
+      // Not registerable if it is built from a non-constant, is a cycle
+      // member, or reads a constant that itself failed — each case would
+      // otherwise emit an initializer reading an uninitialized global.
+      // Dependencies are visited above, so their verdicts are already known.
+      const readsUnregisterable = refs.some(
+        (ref) => ref.name && this.unregisterableConstants.has(ref.name),
+      );
+      if (
+        this.unregisterableConstants.has(name) ||
+        readsUnregisterable ||
+        this.NonConstantInitializerRefs(constDecl).length > 0
+      ) {
+        this.unregisterableConstants.add(name);
+        return;
+      }
+
+      const declaration = new VariableAssignment({
+        variableIdentifier: constDecl.identifier!,
+        constantExpression: constDecl.expression,
+      });
+      this.AddNewVariableDeclaration(declaration);
+    };
+
+    for (const name of this.constants.keys()) {
+      visit(name);
+    }
   };
 
   public readonly ResolveStruct = (
@@ -500,6 +655,23 @@ export class Story extends FlowBase {
     }
 
     for (const innerContainer of innerContainers) {
+      // Count-flag reconcile for incremental container reuse. This walk runs
+      // after ALL generation and before `ResolveReferences`, and visits every
+      // container in the tree exactly once, so it doubles as the reconcile
+      // point: a container seen for the FIRST time (fresh this compile) has
+      // flags that are purely generation-derived — snapshot them as its
+      // intrinsic state. A REUSED container additionally carries last
+      // compile's resolve-time cross-flow sets — restore it to intrinsic so
+      // this compile's resolve pass re-derives exactly the sets that still
+      // exist (a deleted remote read-count decays instead of sticking).
+      if (innerContainer._intrinsicVisits === undefined) {
+        innerContainer._intrinsicVisits = innerContainer.visitsShouldBeCounted;
+        innerContainer._intrinsicTurns = innerContainer.turnIndexShouldBeCounted;
+      } else {
+        innerContainer.visitsShouldBeCounted = innerContainer._intrinsicVisits;
+        innerContainer.turnIndexShouldBeCounted =
+          innerContainer._intrinsicTurns!;
+      }
       this.TryFlattenContainer(innerContainer);
       this.FlattenContainersIn(innerContainer);
     }
@@ -509,7 +681,7 @@ export class Story extends FlowBase {
     if (
       (container.namedContent && container.namedContent.size > 0) ||
       container.hasValidName ||
-      this._dontFlattenContainers.has(container)
+      container._dontFlatten
     ) {
       return;
     }
@@ -540,11 +712,38 @@ export class Story extends FlowBase {
     message: string,
     source: ParsedObject | DebugMetadata | null | undefined,
     isWarning: boolean | null | undefined,
+    // Node that raised the diagnostic (see `ParsedObject.Error`). Defaults to
+    // `source` for the direct callers that don't bubble through a parent.
+    raiser?: ParsedObject,
   ) => {
     let errorType: ErrorType = isWarning ? ErrorType.Warning : ErrorType.Error;
 
     this._hadError = errorType === ErrorType.Error;
     this._hadWarning = errorType === ErrorType.Warning;
+
+    // Attribute generation-time diagnostics to their top-level flow (see
+    // `_generationPhase`). `source` may be raw DebugMetadata (no parent
+    // chain) — then the diagnostic can't be attributed and the compiler must
+    // assume the worst.
+    if (this._generationPhase) {
+      // Prefer the raiser: `source` is frequently an `Identifier` or raw
+      // `DebugMetadata` (chosen for dedup/reporting), and neither carries a
+      // parent chain to attribute from.
+      let node: ParsedObject | null =
+        raiser ??
+        (source instanceof DebugMetadata ? null : (source ?? null));
+      if (!(node instanceof ParsedObject)) {
+        node = null;
+      }
+      while (node && node.parent && !(node.parent instanceof Story)) {
+        node = node.parent;
+      }
+      if (node && node.parent instanceof Story) {
+        this.flowsWithGenerationDiagnostics.add(node);
+      } else {
+        this.hadUnattributableGenerationDiagnostic = true;
+      }
+    }
 
     if (this._errorHandler !== null) {
       const debugMetadata =
@@ -612,7 +811,10 @@ export class Story extends FlowBase {
   public readonly DontFlattenContainer = (
     container: RuntimeContainer,
   ): void => {
-    this._dontFlattenContainers.add(container);
+    // Marked on the container itself (not a per-compile Set on this Story) so
+    // the protection survives container reuse across compiles — a reused
+    // flow's generation is skipped, so it gets no chance to re-register here.
+    container._dontFlatten = true;
   };
 
   public readonly NameConflictError = (

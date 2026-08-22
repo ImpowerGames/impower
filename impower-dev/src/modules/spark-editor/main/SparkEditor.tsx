@@ -1,5 +1,4 @@
 import ConflictDialogHost from "../components/conflict-dialog/ConflictDialogHost";
-import FileDropzone from "../components/file-dropzone/FileDropzone";
 import MainWindow from "../components/main-window/MainWindow";
 import SnackbarHost from "../components/snackbar-host/SnackbarHost";
 import TrashPanel from "../components/trash-panel/TrashPanel";
@@ -36,7 +35,6 @@ export default function SparkEditor(_props: SparkEditorProps) {
     <>
       <style>{HOST_STYLE}</style>
       <MainWindow />
-      <FileDropzone />
       {/* Project-wide recycle bin overlay — a single global instance toggled by
           workspace.trashOpen (opened from the file-list toolbar). */}
       <TrashPanel />

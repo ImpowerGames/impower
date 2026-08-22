@@ -19,6 +19,14 @@ import {
   UpdateAudioPlayersMessageMap,
 } from "./messages/UpdateAudioPlayersMessage";
 
+/**
+ * A context entry is a synth if it says so, or if it was looked up under the
+ * `synth` type. The `$type` check is the reliable one; the `type` fallback
+ * covers entries reached through a path that resolved the type separately.
+ */
+const isSynth = (asset: object, type: string): boolean =>
+  ("$type" in asset && asset.$type === "synth") || type === "synth";
+
 export interface AudioConfig {}
 
 export interface AudioState {
@@ -206,7 +214,15 @@ export class AudioModule extends Module<
         if ("loop_end" in resolvedAsset) {
           d.loopEnd = resolvedAsset.loop_end;
         }
-        if ("shape" in resolvedAsset) {
+        if (isSynth(resolvedAsset, d.type)) {
+          // This used to gate on `"shape" in resolvedAsset`, which silently
+          // dropped every partially-authored synth: `d.synth` was never set,
+          // so the tone events played nothing at all (#268). Whether a thing
+          // is a synth is a question about its type, not about which
+          // properties its author happened to write.
+          //
+          // The struct is already complete by this point -- `Game` makes every
+          // define inherit its type's `$default` when it builds the context.
           d.synth = resolvedAsset as Synth;
         }
         d.tones = this.parseTones(d.key);

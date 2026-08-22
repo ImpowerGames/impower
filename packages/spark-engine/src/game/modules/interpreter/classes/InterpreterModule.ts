@@ -569,14 +569,11 @@ export class InterpreterModule extends Module<
     return "$default";
   }
 
-  protected getMinSynthDuration(synth: {
-    envelope: {
-      attack: number;
-      decay: number;
-      sustain: number;
-      release: number;
-    };
-  }) {
+  protected getMinSynthDuration(synth: { envelope?: Record<string, number> }) {
+    // The synth arrives complete -- `Game` makes every define inherit its
+    // type's `$default` when it builds the context -- so an authored voice
+    // that never wrote an envelope still has the type's one here, and this
+    // duration agrees with what AudioModule actually plays (#268).
     const synthEnvelope = synth?.envelope;
     return synthEnvelope
       ? (synthEnvelope.attack ?? 0) +

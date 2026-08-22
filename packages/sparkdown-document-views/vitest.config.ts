@@ -27,13 +27,25 @@ export default defineConfig({
     include: ["test/**/*.test.ts"],
     environment: "jsdom",
     pool: "threads",
-    // Run test files sequentially. These are heavy jsdom + CodeMirror tests
-    // whose rendered output depends on lezer incremental-parser warm-up state;
-    // under file parallelism the warm-up order across files is
-    // non-deterministic, which made a few separator/blank-line assertions flake
-    // intermittently. Sequential execution makes the suite deterministic. (The
-    // underlying parser warm-up sensitivity is tracked separately; this is the
-    // reliable test-harness workaround, not a timeout band-aid.)
-    fileParallelism: false,
+    // The incremental-edit tests dispatch hundreds of single-character
+    // transactions and reparse after each one; they run in a few seconds alone
+    // but comfortably exceed vitest's 5s default when several jsdom workers are
+    // competing for cores. A too-tight budget is just another way for the suite
+    // to go red without anything being broken (#281), so give every test room
+    // and let a genuine hang be the only thing that trips this.
+    testTimeout: 30_000,
+    // File parallelism is ON. It used to be disabled because these jsdom +
+    // CodeMirror tests flaked under load, which looked like parser warm-up
+    // sensitivity. The real cause (#281) was that the test helpers read
+    // CodeMirror's syntax tree straight after creating a state or view —
+    // and `@codemirror/language` budgets that initial parse by wall clock
+    // (20ms), so a busy machine yielded a truncated document and an assertion
+    // about missing content failed. Sequential execution only made the machine
+    // less busy; it narrowed the window without closing it.
+    //
+    // The helpers now parse to completion before reading (see
+    // test/helpers/parseSettle.ts, pinned by test/parse-settle.test.ts), so
+    // the result no longer depends on timing at all and parallelism is safe.
+    // It also takes the full suite from ~100s to under 20s.
   },
 });

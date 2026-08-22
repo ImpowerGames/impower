@@ -77,7 +77,11 @@ export class Application implements IApplication {
   protected _clock = new Clock(
     {
       get currentTime() {
-        return performance.now();
+        // Seconds, not milliseconds -- `ClockSource` is documented in
+        // seconds and the frame budget is computed as `1 / maxFPS`, so
+        // handing this `performance.now()` raw inflates every duration
+        // 1000x until an AudioContext takes over as the time source.
+        return performance.now() / 1000;
       },
     },
     (callback: () => void) => window.requestAnimationFrame(callback),
@@ -220,8 +224,19 @@ export class Application implements IApplication {
       resolution: window.devicePixelRatio,
     };
 
-    if (!this._game.context.system.previewing) {
-      this._audioContext = audioContext || new AudioContext();
+    // Use the shared AudioContext the controller owns (passed in via
+    // `audioContext`) — including in preview mode, so preview audio (character
+    // voices, sfx) plays. We must NOT create a new context per Application in
+    // preview: the Application is re-created on every edit, so minting one each
+    // time would exhaust the browser's per-page context limit (the reason
+    // preview mode used to skip this entirely). The controller creates a single
+    // shared context once and reuses it; here we only adopt it. Outside preview
+    // (e.g. the standalone player), fall back to creating one if none was passed.
+    const sharedAudioContext =
+      audioContext ||
+      (this._game.context.system.previewing ? undefined : new AudioContext());
+    if (sharedAudioContext) {
+      this._audioContext = sharedAudioContext;
       if (this._audioContext.state !== "running") {
         this._audioContext = undefined;
       } else {

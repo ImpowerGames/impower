@@ -1,0 +1,540 @@
+/**
+ * A `SimpleJson.Writer`-shaped writer that emits the binary program format
+ * directly (#314 phase 2).
+ *
+ * `Story.ToJson` drives a streaming, SAX-style writer: `WriteObjectStart`,
+ * `WritePropertyStart`, `Write`, `WriteArrayEnd` and friends. `SimpleJson.Writer`
+ * happens to answer those events by building a JS object tree, which is then
+ * stringified. Answering the SAME events by appending `[tag, payload, size]`
+ * records skips the object tree entirely.
+ *
+ * ## Why a cached flow is a plain record copy
+ *
+ * Both of a record's non-tag slots are deliberately position-INDEPENDENT, which
+ * is what lezer does and what makes its subtrees relocatable:
+ *
+ *  - `size` is lezer's fourth value — the records this node and its descendants
+ *    occupy. Intrinsic to the node, unlike an end index, so moving a subtree
+ *    rewrites nothing inside it.
+ *  - `payload` points into a string/number table that PERSISTS across compiles
+ *    (see {@link ProgramTable}), the analogue of lezer's grammar-fixed
+ *    `NodeSet`. A table rebuilt per compile would make every pointer stale and
+ *    force a remap pass over every reused record.
+ *
+ * With both, splicing an unchanged flow is a bulk copy of its records rather
+ * than a per-node rewrite. An earlier revision of this format stored an
+ * absolute end index and per-compile tables; that cost 13.0 ms/compile in
+ * remapping on the raffles-and-bunny corpus, which is the entire reason a
+ * binary path looked like it could not compete with the by-pointer reuse the
+ * JSON writer gets for free.
+ */
+import {
+  NODE_WIDTH,
+  ProgramNodeTag,
+  type ProgramBuffer,
+} from "./programBinary";
+
+/**
+ * String and number tables shared across compiles.
+ *
+ * Append-only by construction: an id, once handed out, must stay valid for as
+ * long as any cached chunk references it. `generation` is bumped when the
+ * table is reseeded, which invalidates every chunk minted against the old one.
+ */
+export interface ProgramTable {
+  strings: string[];
+  stringIds: Map<string, number>;
+  numbers: number[];
+  numberIds: Map<number, number>;
+  generation: number;
+}
+
+export const createProgramTable = (): ProgramTable => ({
+  strings: [],
+  stringIds: new Map(),
+  numbers: [],
+  numberIds: new Map(),
+  generation: 0,
+});
+
+/**
+ * Reseed a table, dropping entries no longer referenced.
+ *
+ * The table only grows while a session runs, so strings from deleted content
+ * accumulate. Callers reseed when the waste is worth the cost: every cached
+ * chunk becomes invalid, because its pointers referred to the old numbering.
+ */
+export const reseedProgramTable = (table: ProgramTable): void => {
+  table.strings = [];
+  table.stringIds = new Map();
+  table.numbers = [];
+  table.numberIds = new Map();
+  table.generation += 1;
+};
+
+/**
+ * A serialized top-level flow: just its records.
+ *
+ * No local tables and no rebasing — the payload pointers are valid against the
+ * shared table of the same `generation`, and `size` is already relative.
+ */
+export interface ProgramChunk {
+  readonly nodes: Uint32Array;
+  /**
+   * Largest payload/size slot in this chunk, recorded at capture.
+   *
+   * Splicing needs it to keep the buffer's slot-width decision correct, and
+   * caching it here is what keeps splice a pure memcpy rather than a memcpy
+   * plus a rescan of every record.
+   */
+  readonly widest: number;
+  readonly generation: number;
+}
+
+/** A chunk plus the fingerprint it was valid for. */
+export interface CachedFlowChunk {
+  readonly fp: string;
+  readonly chunk: ProgramChunk;
+}
+
+export class ProgramBinaryWriter {
+  private _nodes: Uint32Array;
+  /** Slots written so far (NOT records, and not the array's capacity). */
+  private _length = 0;
+  private _table: ProgramTable;
+  /** Indices of records whose `size` is still unpatched, innermost last. */
+  private _open: number[] = [];
+  private _widest = 0;
+  private _currentString: string | null = null;
+  private _currentPropertyName: string | null = null;
+  /** Armed by `captureNextInjectedAs`; consumed by the next `WriteInjected`. */
+  private _pendingCapture: { name: string; fp: string } | null = null;
+  private _captured = new Map<string, CachedFlowChunk>();
+
+  constructor(table: ProgramTable = createProgramTable(), hint = 0) {
+    this._table = table;
+    // Ids already in the table stay valid, so the widest existing pointer is a
+    // lower bound on the slot width this buffer needs.
+    this._widest = Math.max(table.strings.length, table.numbers.length);
+    // Sizing from the previous compile avoids most regrowth: the program is
+    // nearly the same size every keystroke.
+    this._nodes = new Uint32Array(Math.max(hint, 1024));
+  }
+
+  /** Ensure room for `slots` more, growing geometrically. */
+  private _ensure(slots: number): void {
+    const needed = this._length + slots;
+    if (needed <= this._nodes.length) {
+      return;
+    }
+    let capacity = this._nodes.length * 2;
+    while (capacity < needed) {
+      capacity *= 2;
+    }
+    const grown = new Uint32Array(capacity);
+    grown.set(this._nodes.subarray(0, this._length));
+    this._nodes = grown;
+  }
+
+  // ---------------------------------------------------------------- interning
+
+  private _intern(text: string): number {
+    const table = this._table;
+    let id = table.stringIds.get(text);
+    if (id === undefined) {
+      id = table.strings.length;
+      table.strings.push(text);
+      table.stringIds.set(text, id);
+      if (id > this._widest) {
+        this._widest = id;
+      }
+    }
+    return id;
+  }
+
+  private _internNumber(n: number): number {
+    const table = this._table;
+    let id = table.numberIds.get(n);
+    if (id === undefined) {
+      id = table.numbers.length;
+      table.numbers.push(n);
+      table.numberIds.set(n, id);
+      if (id > this._widest) {
+        this._widest = id;
+      }
+    }
+    return id;
+  }
+
+  // ------------------------------------------------------------------ records
+
+  /** Append a record, returning its index in RECORDS (not slots). */
+  private _emit(tag: ProgramNodeTag, value: number): number {
+    this._ensure(NODE_WIDTH);
+    const at = this._length;
+    const nodes = this._nodes;
+    nodes[at] = tag;
+    nodes[at + 1] = value;
+    nodes[at + 2] = 0;
+    this._length = at + NODE_WIDTH;
+    return at / NODE_WIDTH;
+  }
+
+  /** Patch a record's subtree SIZE, in records, including itself. */
+  private _close(index: number): void {
+    const size = this._length / NODE_WIDTH - index;
+    this._nodes[index * NODE_WIDTH + 2] = size;
+    if (size > this._widest) {
+      this._widest = size;
+    }
+  }
+
+  /** A leaf: opens and closes in one step. */
+  private _leaf(tag: ProgramNodeTag, value: number): void {
+    this._ensure(NODE_WIDTH);
+    const at = this._length;
+    const nodes = this._nodes;
+    nodes[at] = tag;
+    nodes[at + 1] = value;
+    nodes[at + 2] = 1;
+    this._length = at + NODE_WIDTH;
+  }
+
+  // ------------------------------------------------- SimpleJson.Writer surface
+
+  WriteObjectStart(): void {
+    this._open.push(this._emit(ProgramNodeTag.Object, 0));
+  }
+
+  WriteObjectEnd(): void {
+    this._close(this._open.pop()!);
+  }
+
+  WriteArrayStart(): void {
+    this._open.push(this._emit(ProgramNodeTag.Array, 0));
+  }
+
+  WriteArrayEnd(): void {
+    this._close(this._open.pop()!);
+  }
+
+  WriteObject(inner: (w: ProgramBinaryWriter) => void): void {
+    this.WriteObjectStart();
+    inner(this);
+    this.WriteObjectEnd();
+  }
+
+  WritePropertyStart(name: string): void {
+    this._open.push(
+      this._emit(ProgramNodeTag.Member, this._intern(String(name))),
+    );
+  }
+
+  WritePropertyEnd(): void {
+    const index = this._open.pop()!;
+    // A Member must have exactly one child. `WriteInt`/`WriteFloat`/`WriteBool`
+    // write NOTHING when handed null (mirroring SimpleJson), which would
+    // otherwise leave a childless Member and a structurally invalid buffer.
+    if (this._length / NODE_WIDTH === index + 1) {
+      this._leaf(ProgramNodeTag.Null, 0);
+    }
+    this._close(index);
+  }
+
+  WriteProperty(
+    name: string,
+    innerOrContent: ((w: ProgramBinaryWriter) => void) | string | boolean | null,
+  ): void {
+    this.WritePropertyStart(name);
+    if (typeof innerOrContent === "function") {
+      innerOrContent(this);
+    } else {
+      this.Write(innerOrContent);
+    }
+    this.WritePropertyEnd();
+  }
+
+  WriteIntProperty(name: string, content: number): void {
+    this.WritePropertyStart(name);
+    this.WriteInt(content);
+    this.WritePropertyEnd();
+  }
+
+  WriteFloatProperty(name: string, content: number): void {
+    this.WritePropertyStart(name);
+    this.WriteFloat(content);
+    this.WritePropertyEnd();
+  }
+
+  WritePropertyNameStart(): void {
+    this._currentPropertyName = "";
+  }
+
+  WritePropertyNameInner(str: string): void {
+    this._currentPropertyName += str;
+  }
+
+  WritePropertyNameEnd(): void {
+    this._open.push(
+      this._emit(
+        ProgramNodeTag.Member,
+        this._intern(this._currentPropertyName!),
+      ),
+    );
+    this._currentPropertyName = null;
+  }
+
+  Write(value: number | string | boolean | null): void {
+    if (value === null || value === undefined) {
+      this._leaf(ProgramNodeTag.Null, 0);
+    } else if (typeof value === "string") {
+      this._leaf(ProgramNodeTag.String, this._intern(value));
+    } else if (typeof value === "boolean") {
+      this._leaf(value ? ProgramNodeTag.True : ProgramNodeTag.False, 0);
+    } else {
+      this._leaf(ProgramNodeTag.Number, this._internNumber(value));
+    }
+  }
+
+  WriteBool(value: boolean | null): void {
+    if (value === null) {
+      return; // SimpleJson writes nothing for null; see WritePropertyEnd.
+    }
+    this._leaf(value ? ProgramNodeTag.True : ProgramNodeTag.False, 0);
+  }
+
+  WriteInt(value: number | null): void {
+    if (value === null) {
+      return;
+    }
+    // Math.floor mirrors SimpleJson exactly: it guarantees savegame
+    // compatibility with the reference implementation, so the binary path must
+    // not quietly preserve a fractional part the JSON path would drop.
+    this._leaf(ProgramNodeTag.Number, this._internNumber(Math.floor(value)));
+  }
+
+  WriteFloat(value: number | null): void {
+    if (value === null) {
+      return;
+    }
+    // These string markers are load-bearing, not cosmetic: JSON cannot carry
+    // Infinity/NaN, and a whole-number float has to survive as `"3.0f"` or the
+    // loader recovers it as an IntValue and `7 / 3.0` degrades to integer
+    // division. Kept byte-for-byte identical to SimpleJson.Writer.WriteFloat.
+    if (value === Number.POSITIVE_INFINITY) {
+      this._leaf(ProgramNodeTag.String, this._intern("inff"));
+    } else if (value === Number.NEGATIVE_INFINITY) {
+      this._leaf(ProgramNodeTag.String, this._intern("-inff"));
+    } else if (isNaN(value)) {
+      this._leaf(ProgramNodeTag.String, this._intern("nanf"));
+    } else if (Number.isInteger(value)) {
+      const repr = value.toString();
+      this._leaf(
+        ProgramNodeTag.String,
+        this._intern(repr.includes("e") ? `${repr}f` : `${repr}.0f`),
+      );
+    } else {
+      this._leaf(ProgramNodeTag.Number, this._internNumber(value));
+    }
+  }
+
+  WriteNull(): void {
+    this._leaf(ProgramNodeTag.Null, 0);
+  }
+
+  WriteStringStart(): void {
+    this._currentString = "";
+  }
+
+  WriteStringInner(str: string | null): void {
+    if (str === null) {
+      return;
+    }
+    this._currentString += str;
+  }
+
+  WriteStringEnd(): void {
+    this._leaf(ProgramNodeTag.String, this._intern(this._currentString!));
+    this._currentString = null;
+  }
+
+  /**
+   * Inject a pre-built value as a property of the CURRENT object.
+   *
+   * `SimpleJson.Writer.InjectObject` assigns into the root object rather than
+   * the current collection. `Story.ToJson` only calls it while the root object
+   * is the current collection (for `constants` and `structDefs`), so writing a
+   * property here is equivalent — and preserves the same key order, which the
+   * byte-identity test depends on.
+   */
+  InjectObject(name: string, obj: unknown): void {
+    this.WritePropertyStart(name);
+    this._writeValue(obj);
+    this.WritePropertyEnd();
+  }
+
+  /**
+   * Splice a cached flow chunk, or encode a plain JS value inline.
+   *
+   * The chunk path is the point of phase 2: an unchanged flow costs a bulk
+   * record copy rather than a re-walk of the runtime tree.
+   */
+  WriteInjected(value: unknown): void {
+    const pending = this._pendingCapture;
+    const start = pending ? this.mark() : 0;
+    if (isProgramChunk(value)) {
+      if (value.generation !== this._table.generation) {
+        // There is no correct recovery here: the caller returned this chunk
+        // INSTEAD of calling serialize(), so the real content is no longer
+        // reachable. Encoding it as a plain value would silently write
+        // `{nodes, generation}` into the program as data — which is precisely
+        // the corruption `generation` exists to prevent. Callers must check
+        // the generation before handing a chunk over.
+        throw new Error(
+          `Stale program chunk: minted for table generation ${value.generation}, writer is on ${this._table.generation}.`,
+        );
+      }
+      this._spliceChunk(value);
+    } else {
+      this._writeValue(value);
+    }
+    if (pending) {
+      this._pendingCapture = null;
+      this._captured.set(pending.name, {
+        fp: pending.fp,
+        chunk: this.captureChunk(start),
+      });
+    }
+  }
+
+  /**
+   * Capture the next injected value as flow `name`'s chunk.
+   *
+   * The flow memo's `resolve` runs BEFORE the caller injects what it returned,
+   * so a memo cannot capture the resulting record range itself. It arms the
+   * capture here instead, and collects the results afterwards via
+   * {@link takeCapturedChunks}.
+   */
+  captureNextInjectedAs(name: string, fp: string): void {
+    this._pendingCapture = { name, fp };
+  }
+
+  /** Chunks captured during this serialization, keyed by flow name. */
+  takeCapturedChunks(): Map<string, CachedFlowChunk> {
+    const captured = this._captured;
+    this._captured = new Map();
+    return captured;
+  }
+
+  /** The table generation a chunk must carry to be splice-able here. */
+  get generation(): number {
+    return this._table.generation;
+  }
+
+  // ------------------------------------------------------- inline JS encoding
+
+  /** Encode a plain JS value as a subtree (the memo-miss path). */
+  private _writeValue(value: unknown): void {
+    if (value === null || value === undefined) {
+      this._leaf(ProgramNodeTag.Null, 0);
+    } else if (value === true) {
+      this._leaf(ProgramNodeTag.True, 0);
+    } else if (value === false) {
+      this._leaf(ProgramNodeTag.False, 0);
+    } else if (typeof value === "number") {
+      this._leaf(ProgramNodeTag.Number, this._internNumber(value));
+    } else if (typeof value === "string") {
+      this._leaf(ProgramNodeTag.String, this._intern(value));
+    } else if (Array.isArray(value)) {
+      const index = this._emit(ProgramNodeTag.Array, 0);
+      for (const item of value) {
+        this._writeValue(item);
+      }
+      this._close(index);
+    } else {
+      const record = value as Record<string, unknown>;
+      const keys = Object.keys(record);
+      const index = this._emit(ProgramNodeTag.Object, 0);
+      for (let i = 0; i < keys.length; i += 1) {
+        const key = keys[i]!;
+        const member = this._emit(ProgramNodeTag.Member, this._intern(key));
+        this._writeValue(record[key]);
+        this._close(member);
+      }
+      this._close(index);
+    }
+  }
+
+  // ------------------------------------------------------------------- chunks
+
+  /** Node index the next written value will start at. */
+  mark(): number {
+    return this._length / NODE_WIDTH;
+  }
+
+  /**
+   * Capture the records written since `start`.
+   *
+   * A straight copy: `size` is already relative and payload pointers are valid
+   * for as long as the shared table keeps this generation.
+   */
+  captureChunk(start: number): ProgramChunk {
+    // A typed-array slice: one bulk copy, not a per-element loop.
+    const nodes = this._nodes.slice(start * NODE_WIDTH, this._length);
+    let widest = 0;
+    for (let i = 0; i < nodes.length; i += NODE_WIDTH) {
+      const payload = nodes[i + 1]!;
+      const size = nodes[i + 2]!;
+      if (payload > widest) {
+        widest = payload;
+      }
+      if (size > widest) {
+        widest = size;
+      }
+    }
+    // Recorded at capture so splicing does not have to rescan the chunk; the
+    // values are position-independent, so this stays valid for its lifetime.
+    return { nodes, widest, generation: this._table.generation };
+  }
+
+  /** Append a chunk's records verbatim. */
+  private _spliceChunk(chunk: ProgramChunk): void {
+    const src = chunk.nodes;
+    this._ensure(src.length);
+    // The whole point of relocatable records: sizes are relative and payload
+    // pointers are table-global, so an unchanged flow is a bulk memcpy with no
+    // per-node rewriting and no rescan.
+    this._nodes.set(src, this._length);
+    this._length += src.length;
+    if (chunk.widest > this._widest) {
+      this._widest = chunk.widest;
+    }
+  }
+
+  // -------------------------------------------------------------------- output
+
+  /** The assembled buffer. */
+  toBuffer(): ProgramBuffer {
+    return {
+      // subarray, not the whole capacity: the array is grown geometrically so
+      // its tail is unwritten slack.
+      nodes:
+        this._widest <= 0xffff
+          ? Uint16Array.from(this._nodes.subarray(0, this._length))
+          : this._nodes.slice(0, this._length),
+      strings: this._table.strings,
+      numbers: Float64Array.from(this._table.numbers),
+    };
+  }
+}
+
+/**
+ * Structural test rather than an instanceof/brand check, because a chunk may
+ * arrive from a previous compile where class identity does not survive.
+ */
+export const isProgramChunk = (value: unknown): value is ProgramChunk =>
+  !!value &&
+  typeof value === "object" &&
+  (value as ProgramChunk).nodes instanceof Uint32Array &&
+  typeof (value as ProgramChunk).widest === "number" &&
+  typeof (value as ProgramChunk).generation === "number";

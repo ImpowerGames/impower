@@ -109,7 +109,14 @@ export class Connection {
     msg: RequestMessage<M, P, R> | NotificationMessage<M, P>,
     transfer?: ArrayBuffer[],
   ): Promise<R> {
-    if ("id" in msg && typeof msg.id === "string" && msg.id) {
+    // JSON-RPC allows either a string or a number id, and `RequestMessage.id`
+    // is typed to match -- so both have to be awaited. An empty-string id is
+    // still treated as a notification, since it identifies nothing to reply to.
+    if (
+      "id" in msg &&
+      (typeof msg.id === "number" ||
+        (typeof msg.id === "string" && msg.id !== ""))
+    ) {
       const result = await this.emitRequest(msg as RequestMessage, transfer);
       return result as R;
     } else {

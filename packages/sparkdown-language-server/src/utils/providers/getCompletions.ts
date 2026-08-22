@@ -4,7 +4,6 @@ import { SparkdownDocument } from "@impower/sparkdown/src/compiler/classes/Spark
 import { SparkdownCompilerConfig } from "@impower/sparkdown/src/compiler/types/SparkdownCompilerConfig";
 import { SparkdownNodeName } from "@impower/sparkdown/src/compiler/types/SparkdownNodeName";
 import { type SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
-import { filterImage } from "@impower/sparkdown/src/compiler/utils/filterImage";
 import { getProperty } from "@impower/sparkdown/src/compiler/utils/getProperty";
 import { type GrammarSyntaxNode } from "@impower/textmate-grammar-tree/src/tree/types/GrammarSyntaxNode";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
@@ -393,31 +392,17 @@ const addStructReferenceCompletions = (
               (Array.isArray(exclude) && !exclude.includes(name)) ||
               (!Array.isArray(exclude) && !exclude(name)))
           ) {
-            if (type === "filtered_image" && program.context) {
-              filterImage(
-                program.context,
-                program.context?.["filtered_image"]?.[name],
-              );
-            }
             const completion: CompletionItem = {
               label: name,
               labelDetails: { description: type },
               kind: CompletionItemKind.Constructor,
             };
-            const struct = structs[name];
-            const src =
-              type === "filtered_image"
-                ? struct?.filtered_src
-                : type === "layered_image"
-                  ? struct?.assets?.[0]?.src || struct?.assets?.[0]?.uri
-                  : type === "image"
-                    ? struct?.src || struct?.uri
-                    : undefined;
-            if (src) {
-              completion.documentation = {
-                kind: MarkupKind.Markdown,
-                value: `<img src="${src}" alt="${name}" height="180" />`,
-              };
+            // The image preview is deliberately NOT built here — an asset list
+            // runs to hundreds of items and only the highlighted one is ever
+            // shown. `completionItem/resolve` builds it on demand; this just
+            // records where to find the struct again.
+            if (IMAGE_TYPES.includes(type)) {
+              completion.data = { type, name };
             }
             if (completion.label && !completions.has(completion.label)) {
               completions.set(completion.label, completion);

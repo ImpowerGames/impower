@@ -19,7 +19,7 @@ export const exportJson = async (): Promise<void> => {
   if (!fsPath) {
     return;
   }
-  const program = SparkProgramManager.instance.get(uri);
+  const program = await SparkProgramManager.instance.getOrCompile(uri);
   if (!program) {
     vscode.window.showWarningMessage(
       "Still compiling program... Try again later.",

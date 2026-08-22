@@ -174,9 +174,21 @@ export class DivertTarget extends Expression {
     }
 
     // Main resolve
-    this.runtimeDivert.targetPath &&
-      (this.runtimeDivertTargetValue.targetPath =
-        this.runtimeDivert.targetPath);
+    if (this.runtimeDivert.targetPath) {
+      this.runtimeDivertTargetValue.targetPath = this.runtimeDivert.targetPath;
+    } else {
+      // Re-resolution found no target this compile. A REUSED runtime value
+      // survives generation across compiles, so it would otherwise keep the
+      // path it resolved when the target still existed — restore the
+      // fresh-generation state instead (mirrors the same repair in
+      // `Divert.ResolveReferences`). Assign the backing field: the
+      // `targetPath` setter takes a non-null Path, and its getter throws on
+      // null, which is exactly the "unresolved" state a cold compile has.
+      // Defense-in-depth today: deleting a top-level flow also changes the
+      // flow-name map, which disables reuse for that compile. This becomes
+      // load-bearing as soon as those guards are narrowed.
+      this.runtimeDivertTargetValue.value = null;
+    }
 
     // Tell hard coded (yet variable) divert targets that they also need to be counted
     // TODO: Only detect DivertTargets that are values rather than being used directly for

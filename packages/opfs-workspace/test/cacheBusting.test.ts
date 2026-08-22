@@ -10,17 +10,18 @@ import { getSrcFromUri } from "../src/utils/getSrcFromUri";
 // BroadcastChannel/postMessage/navigator side effects, no exports). We
 // reconstruct the EXACT src + version logic from that function using the REAL
 // importable utilities (`getSrcFromUri`, `getName`, `getFileExtension`) plus a
-// minimal in-memory `files` map standing in for `State.files`. `getFileType`
-// is replaced by a trivial "is this an asset" check that returns a non-empty
-// `name` so the src branch is exercised; the cache-bust logic depends only on
-// `name` being truthy and the `!src || overwrite` condition.
+// minimal in-memory `files` map standing in for `State.files`.
 //
 // The desired CONTRACT (per sw.ts serving assets `max-age, immutable`):
-//   (a) a freshly written/overwritten asset's src carries a `?v=` query;
-//   (b) overwriting the same asset yields a DIFFERENT src (busts immutable cache);
-//   (c) `version` advances on write.
-// `Date.now()` is non-deterministic, so we assert the `?v=` param EXISTS and
-// CHANGES, stubbing Date.now to force distinct values.
+//   (a) an asset's src carries a `?v=` query that is the file's CONTENT
+//       SIGNATURE (`<modified>-<size>`), not a mint-time timestamp;
+//   (b) a real write (new modified) yields a DIFFERENT src (busts the
+//       immutable cache), while re-resolving an UNCHANGED file — even from an
+//       empty cache, i.e. a fresh session — yields the SAME src, so browser
+//       and URL-keyed caches survive reloads;
+//   (c) `version` advances on write;
+//   (d) when no mtime is known, the stamp falls back to `Date.now()`
+//       (old always-fresh behavior — over-invalidates, never stale).
 
 interface CachedFile {
   uri: string;
@@ -28,6 +29,8 @@ interface CachedFile {
   ext: string;
   src: string;
   version: number;
+  size: number;
+  modified: number;
 }
 
 // Faithful reconstruction of the src/version portion of updateFileCache.
@@ -36,14 +39,17 @@ function updateFileCache(
   uri: string,
   overwrite: boolean,
   version?: number,
+  size = 100,
+  modified?: number,
 ): CachedFile {
   const existingFile = files.get(uri);
   let src = existingFile?.src || "";
   const name = getName(uri);
   const ext = getFileExtension(uri);
+  const resolvedModified = modified ?? existingFile?.modified ?? Date.now();
   if (name) {
     if (!src || overwrite) {
-      src = getSrcFromUri(uri) + `?v=${Date.now()}`;
+      src = getSrcFromUri(uri) + `?v=${resolvedModified}-${size}`;
     }
   }
   const file: CachedFile = {
@@ -52,6 +58,8 @@ function updateFileCache(
     ext,
     src,
     version: version ?? existingFile?.version ?? 0,
+    size,
+    modified: resolvedModified,
   };
   files.set(uri, file);
   return file;
@@ -72,38 +80,38 @@ describe("cache-busting src versioning", () => {
     vi.restoreAllMocks();
   });
 
-  it("(a) a freshly written asset's src carries a cache-busting ?v= query", () => {
+  it("(a) an asset's src carries its content signature as the ?v= query", () => {
     const files = new Map<string, CachedFile>();
     const uri = "file://proj/images/logo.png";
-    const file = updateFileCache(files, uri, true, 1);
-    expect(file.src).toContain("?v=");
-    expect(queryParam(file.src, "v")).not.toBeNull();
+    const file = updateFileCache(files, uri, true, 1, 2048, 555);
+    expect(queryParam(file.src, "v")).toBe("555-2048");
     // The path portion is still the resource URL.
     expect(file.src.startsWith(getSrcFromUri(uri))).toBe(true);
   });
 
-  it("(a) reading an existing asset (overwrite=false) still gets a ?v= on first cache", () => {
+  it("(b) a real write (new modified) yields a DIFFERENT src", () => {
     const files = new Map<string, CachedFile>();
     const uri = "file://proj/images/logo.png";
-    // First touch has no existing src -> `!src` is true -> gets ?v=.
-    const file = updateFileCache(files, uri, false, 0);
-    expect(file.src).toContain("?v=");
+    const first = updateFileCache(files, uri, true, 1, 2048, 555);
+    const second = updateFileCache(files, uri, true, 2, 2100, 900);
+    expect(second.src).not.toBe(first.src);
+    expect(queryParam(second.src, "v")).toBe("900-2100");
   });
 
-  it("(b) overwriting the same asset yields a DIFFERENT src (busts immutable cache)", () => {
-    const files = new Map<string, CachedFile>();
+  it("(b) an UNCHANGED file re-resolved from an empty cache (fresh session) keeps the SAME src", () => {
+    const sessionOne = new Map<string, CachedFile>();
+    const sessionTwo = new Map<string, CachedFile>();
     const uri = "file://proj/images/logo.png";
-    const first = updateFileCache(files, uri, true, 1);
-    const second = updateFileCache(files, uri, true, 2);
-    expect(second.src).not.toBe(first.src);
-    expect(queryParam(second.src, "v")).not.toBe(queryParam(first.src, "v"));
+    // Both sessions derive the stamp from the file's OPFS mtime + size.
+    const first = updateFileCache(sessionOne, uri, false, 0, 2048, 555);
+    const second = updateFileCache(sessionTwo, uri, false, 0, 2048, 555);
+    expect(second.src).toBe(first.src);
   });
 
   it("(b) a non-overwrite re-read does NOT change an already-cached src", () => {
     const files = new Map<string, CachedFile>();
     const uri = "file://proj/images/logo.png";
-    const first = updateFileCache(files, uri, true, 1);
-    // overwrite=false and src already set -> src stays put.
+    const first = updateFileCache(files, uri, true, 1, 2048, 555);
     const reread = updateFileCache(files, uri, false);
     expect(reread.src).toBe(first.src);
   });
@@ -111,8 +119,8 @@ describe("cache-busting src versioning", () => {
   it("(c) version advances on overwrite", () => {
     const files = new Map<string, CachedFile>();
     const uri = "file://proj/images/logo.png";
-    const first = updateFileCache(files, uri, true, 1);
-    const second = updateFileCache(files, uri, true, 2);
+    const first = updateFileCache(files, uri, true, 1, 2048, 555);
+    const second = updateFileCache(files, uri, true, 2, 2048, 900);
     expect(second.version).toBeGreaterThan(first.version);
     expect(second.version).toBe(2);
   });
@@ -120,15 +128,23 @@ describe("cache-busting src versioning", () => {
   it("(c) version is preserved across a non-overwrite re-read", () => {
     const files = new Map<string, CachedFile>();
     const uri = "file://proj/images/logo.png";
-    updateFileCache(files, uri, true, 5);
+    updateFileCache(files, uri, true, 5, 2048, 555);
     const reread = updateFileCache(files, uri, false);
     expect(reread.version).toBe(5);
+  });
+
+  it("(d) with no mtime known, the stamp falls back to a fresh mint time", () => {
+    const files = new Map<string, CachedFile>();
+    const uri = "file://proj/images/logo.png";
+    const file = updateFileCache(files, uri, true, 1, 2048, undefined);
+    // Date.now() is stubbed to advance; the stamp exists and is time-derived.
+    expect(queryParam(file.src, "v")).toMatch(/^\d+-2048$/);
   });
 
   it("nested asset paths keep their full resource path in the busted src", () => {
     const files = new Map<string, CachedFile>();
     const uri = "file://proj/images/ui/btn.png";
-    const file = updateFileCache(files, uri, true, 1);
+    const file = updateFileCache(files, uri, true, 1, 100, 555);
     expect(file.src.startsWith("/file:/proj/images/ui/btn.png?v=")).toBe(true);
   });
 });

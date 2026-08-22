@@ -241,28 +241,28 @@
       }
     },
     {
-      "beforeText": "\\[\\s*$",
+      "beforeText": "(?<!\\[)\\[\\s*$",
       "afterText": "^\\s*\\].*$",
       "action": {
         "indent": "indentOutdent"
       }
     },
     {
-      "beforeText": "\\[\\s*$",
+      "beforeText": "(?<!\\[)\\[\\s*$",
       "afterText": "^(?!\\s*\\])",
       "action": {
         "indent": "indent"
       }
     },
     {
-      "beforeText": "\\(\\s*$",
+      "beforeText": "(?<!\\()\\(\\s*$",
       "afterText": "^\\s*\\).*$",
       "action": {
         "indent": "indentOutdent"
       }
     },
     {
-      "beforeText": "\\(\\s*$",
+      "beforeText": "(?<!\\()\\(\\s*$",
       "afterText": "^(?!\\s*\\))",
       "action": {
         "indent": "indent"
@@ -288,8 +288,8 @@
     }
   ],
   "indentationRules": {
-    "increaseIndentPattern": "^((?!--).)*((\\b(else|then|do|repeat|define|scene|branch)\\b\\s*(--.*)?$)|(\\bfunction\\b(?:(?!\\bend\\b).)*$)|([\\{\\(\\[]\\s*(--.*)?$))",
-    "decreaseIndentPattern": "^\\s*((\\b(elseif|else|end|until)\\b)|\\}|\\)|\\])",
+    "increaseIndentPattern": "^((?!--).)*((\\b(else|then|do|repeat|define|scene|branch)\\b\\s*(--.*)?$)|(\\bfunction\\b(?:(?!\\bend\\b).)*$)|((\\{|(?<!\\()\\(|(?<!\\[)\\[)\\s*(--.*)?$))",
+    "decreaseIndentPattern": "^\\s*((\\b(elseif|else|end|until)\\b)|\\}|\\)(?!\\))|\\](?!\\]))",
     "indentNextLinePattern": "^((?!--).)*(?<![=<>!~])=\\s*(--.*)?$",
     "unIndentedLinePattern": "^#\\!"
   },

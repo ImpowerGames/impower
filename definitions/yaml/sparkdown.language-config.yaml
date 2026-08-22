@@ -137,20 +137,34 @@ onEnterRules:
     action:
       indent: "outdent"
 
-  - beforeText: \[\s*$
+  # A line ending in an opening bracket continues onto the next
+  # line one level in (multi-line index expressions, call args).
+  #
+  # The `(?<!\[)` / `(?<!\()` guards exclude DOUBLED brackets, for
+  # the same reason `decreaseIndentPattern` carries the mirrored
+  # guards: sparkdown's display directives are written doubled —
+  # `[[portrait]]`, `((sound))` — so a line ending in `[[` or `((`
+  # is an unfinished inline directive, not a bracket to indent
+  # inside of. Without these, `\[\s*$` matches the SECOND `[` of
+  # `[[` and the next line gains a stray indent unit.
+  #
+  # These rules run from a `Prec.high` Enter keymap, which is why
+  # `increaseIndentPattern` has no say here — its own doubled-
+  # bracket exclusion would never be reached (see #259).
+  - beforeText: (?<!\[)\[\s*$
     afterText: ^\s*\].*$
     action:
       indent: "indentOutdent"
-  - beforeText: \[\s*$
+  - beforeText: (?<!\[)\[\s*$
     afterText: ^(?!\s*\])
     action:
       indent: "indent"
 
-  - beforeText: \(\s*$
+  - beforeText: (?<!\()\(\s*$
     afterText: ^\s*\).*$
     action:
       indent: "indentOutdent"
-  - beforeText: \(\s*$
+  - beforeText: (?<!\()\(\s*$
     afterText: ^(?!\s*\))
     action:
       indent: "indent"
@@ -186,17 +200,33 @@ indentationRules: # Increase the next line's indent when the current line:
   #      (covers tables, multi-line call args, long strings,
   #      and multi-line typed parameter lists).
   #
-  #        [\{\(\[] \s* (--.*)? $
+  #        (\{|(?<!\()\(|(?<!\[)\[) \s* (--.*)? $
+  #
+  #      The `(?<!\()` / `(?<!\[)` guards mirror the ones in
+  #      `decreaseIndentPattern`: a line ending in `[[` or `((`
+  #      is an unfinished sparkdown display directive, not a
+  #      bracket to indent inside of. `{` stays unguarded, for
+  #      the same reason `}` does on the decrease side.
   #
   # The leading `^((?!--).)*` prevents triggering when the
   # match would be inside a line comment.
-  increaseIndentPattern: ^((?!--).)*((\b(else|then|do|repeat|define|scene|branch)\b\s*(--.*)?$)|(\bfunction\b(?:(?!\bend\b).)*$)|([\{\(\[]\s*(--.*)?$))
+  increaseIndentPattern: ^((?!--).)*((\b(else|then|do|repeat|define|scene|branch)\b\s*(--.*)?$)|(\bfunction\b(?:(?!\bend\b).)*$)|((\{|(?<!\()\(|(?<!\[)\[)\s*(--.*)?$))
 
   # Decrease the current line's indent when it starts with
   # a block-closing token: `end`, `until`, `else`, `elseif`,
   # `}`, `)`, or `]`. This gives the satisfying "type `end`
   # and the line snaps to the right column" behavior.
-  decreaseIndentPattern: '^\s*((\b(elseif|else|end|until)\b)|\}|\)|\])'
+  #
+  # The `(?!\))` / `(?!\])` guards exclude DOUBLED brackets.
+  # Sparkdown's display directives are written with doubled
+  # brackets — `[[portrait]]`, `((sound))` — so a line
+  # starting with `]]` or `))` is the tail of an inline
+  # directive, not a Luau block closer. Without the guards,
+  # splitting `[[bunny~jacket]]` before its closer dedents
+  # the continuation line by one unit. Single `)` / `]` still
+  # dedent, so multi-line Luau call args and index
+  # expressions behave as before.
+  decreaseIndentPattern: '^\s*((\b(elseif|else|end|until)\b)|\}|\)(?!\))|\](?!\]))'
 
   # Apply ONE extra level of indent to the line following a
   # line that ends with an assignment operator. Covers:

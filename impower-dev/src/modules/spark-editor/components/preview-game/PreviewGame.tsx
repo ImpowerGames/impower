@@ -263,6 +263,10 @@ export default function PreviewGame(_props: PreviewGameProps) {
                 descriptions: DEFAULT_DESCRIPTION_DEFINITIONS,
               },
               skipValidation: true,
+              // Filtered images resolve through the service worker's
+              // on-demand `?filters=` route in this host (#299); the player's
+              // own compiler doesn't need the inlined SVG source either.
+              stripImageData: true,
               uri,
               workspace: projectPath,
               ...getGameConfiguration(),
@@ -285,13 +289,17 @@ export default function PreviewGame(_props: PreviewGameProps) {
           if (!(e instanceof CustomEvent)) return;
           const message = e.detail;
 
-          // Forward editor → iframe for game/preview/workspace/textDocument
+          // Forward editor → iframe for game/preview/workspace/textDocument.
+          // (Except didSave: nothing in the player consumes it, and it carries
+          // the entire document text on every change -- a 200KB+ clone per
+          // keystroke on a large script.)
           if (
             typeof message.method === "string" &&
             (message.method.startsWith("game/") ||
               message.method.startsWith("preview/") ||
               message.method.startsWith("workspace/") ||
-              message.method.startsWith("textDocument/"))
+              (message.method.startsWith("textDocument/") &&
+                message.method !== "textDocument/didSave"))
           ) {
             if (!initializedRef.current) {
               await initializingRef.current;
@@ -368,6 +376,10 @@ export default function PreviewGame(_props: PreviewGameProps) {
           }
           if (GameExitedMessage.type.is(message)) {
             Workspace.window.setHighlights({});
+            // The player has already stopped -- when the story runs out it
+            // stops itself -- so sync the toolbar back to its stopped state
+            // rather than leaving it showing STOP for a game that is gone.
+            Workspace.window.endGame();
           }
           if (ChangedEditorBreakpointsMessage.type.is(message)) {
             // TODO: forward breakpoints to player

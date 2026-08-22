@@ -3,6 +3,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
 import { GrammarToken, type ParserAction } from "../../core";
+import { type TokenizerResume } from "../../grammar/classes/ResumableTokenizer";
 
 import { type ITreeBuffer } from "../types/ITreeBuffer";
 import { CompileStack } from "./CompileStack";
@@ -61,6 +62,45 @@ export class Chunk {
 
   isSplitPoint: boolean;
 
+  /**
+   * True when this chunk began with no open scopes. Chunks minted at a
+   * line boundary inside open scopes (see {@link inheritFrom}) start
+   * impure; they are valid RESTART points (via their {@link resume}
+   * snapshot) but must not be spliced in as reused-ahead chunks — their
+   * baked child counts assume the exact token stream that preceded them.
+   */
+  startsPure = true;
+
+  /**
+   * Tokenizer state needed to restart a parse at this chunk's `from`.
+   * Only present on split-point chunks minted inside open scopes.
+   */
+  resume?: TokenizerResume;
+
+  /**
+   * The inherited open frames this chunk was seeded with, recorded at mint
+   * time (the live `stack` mutates as tokens arrive). `children` are the
+   * accumulated child counts at entry — the baseline a mid-scope splice
+   * diffs against to fix up baked close sizes; `absPositions` are the
+   * document-absolute open positions.
+   */
+  entrySeeds?: { ids: number[]; children: number[]; absPositions: number[] };
+
+  /**
+   * Compiled-buffer offsets of nodes that CLOSED an inherited frame, with
+   * the seed index they closed — the records a mid-scope splice must patch
+   * (their baked size/position assume the old preceding token stream).
+   */
+  inheritedCloseRecords?: { seedIndex: number; offset: number }[];
+
+  /**
+   * True when the tokenizer state entering this chunk (its {@link resume})
+   * fully accounts for the inherited chunk-level stack ({@link entrySeeds})
+   * — i.e. the boundary added no retroactive close markers to the token
+   * before it. Only such boundaries can be spliced into mid-scope.
+   */
+  spliceSafe = false;
+
   get endsPure() {
     return !this.scopes || this.scopes.length === 0;
   }
@@ -87,6 +127,49 @@ export class Chunk {
   offset(offset: number) {
     this.from += offset;
     this.to = this.from + this.length;
+    // Resume/seed positions are document-absolute — keep them in the same
+    // coordinate space as the chunk when it slides.
+    if (this.resume) {
+      for (const f of this.resume.frames) {
+        f.openedAtAbs += offset;
+      }
+    }
+    if (this.entrySeeds) {
+      for (let i = 0; i < this.entrySeeds.absPositions.length; i++) {
+        this.entrySeeds.absPositions[i]! += offset;
+      }
+    }
+  }
+
+  /**
+   * Seeds this chunk's compile stack from the previous chunk's residual
+   * open frames so that a scope opened in an earlier chunk can be closed
+   * here with a correct span AND a correct child count (the "inherit
+   * scopes + accumulate counts" fix proven in crossChunkAssemblySpike):
+   * the open position is carried ABSOLUTE (stored relative to this chunk,
+   * possibly negative — the Uint32Array wraps it and the Int32Array
+   * compile buffer unwraps it on emit), and the child count carries the
+   * running total instead of restarting at zero.
+   */
+  inheritFrom(prev: Chunk) {
+    this.startsPure = false;
+    const ids: number[] = [];
+    const children: number[] = [];
+    const absPositions: number[] = [];
+    for (let i = 0; i < prev.stack.length; i++) {
+      // `| 0` unwraps a possibly-wrapped negative stored by an earlier
+      // inherit before rebasing to this chunk's coordinates.
+      const prevRelative = prev.stack.positions[i]! | 0;
+      const abs = prev.from + prevRelative;
+      this.stack.push(prev.stack.ids[i]!, abs - this.from, prev.stack.children[i]!);
+      ids.push(prev.stack.ids[i]!);
+      children.push(prev.stack.children[i]!);
+      absPositions.push(abs);
+    }
+    this.entrySeeds = { ids, children, absPositions };
+    if (prev.scopes && prev.scopes.length > 0) {
+      this.scopes = prev.scopes.slice();
+    }
   }
 
   /**
@@ -133,6 +216,15 @@ export class Chunk {
         }
         const idx = this.stack.last(c);
         if (idx !== null) {
+          // Record closes of INHERITED frames: their emitted size/position
+          // bake in the token stream that preceded this chunk, which a
+          // mid-scope splice replaces and must patch (see Compiler).
+          if (this.entrySeeds && idx < this.entrySeeds.ids.length) {
+            (this.inheritedCloseRecords ??= []).push({
+              seedIndex: idx,
+              offset: this.nodeCount * 4,
+            });
+          }
           // cut off anything past the closing element
           // i.e. inside nodes won't persist outside their parent if they
           // never closed before their parent did

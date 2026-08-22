@@ -104,6 +104,11 @@ export class TunnelOnwards extends ParsedObject {
     if (this.divertAfter && this.divertAfter.targetContent) {
       this._overrideDivertTarget!.targetPath =
         this.divertAfter.targetContent.runtimePath;
+    } else if (this._overrideDivertTarget) {
+      // No target this compile: a REUSED override value would otherwise keep
+      // last compile's path. Restore fresh-generation state — see the same
+      // repair in `DivertTarget`/`Divert.ResolveReferences`.
+      this._overrideDivertTarget.value = null;
     }
   }
 

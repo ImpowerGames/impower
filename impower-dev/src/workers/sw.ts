@@ -1,6 +1,10 @@
 export default null;
 declare var self: ServiceWorkerGlobalScope;
 
+import { getOrCreateFilteredSvg as getOrCreateFilteredSvgShared } from "@impower/sparkdown/src/filters/filteredSvg";
+import { getOrCreateThumbnail as getOrCreateThumbnailShared } from "@impower/sparkdown/src/thumbnails/composeThumbnail";
+import { getStaleCacheNames } from "./swCaches";
+
 // Build-time values injected via Vite `define` (see getServiceWorkerDefine).
 // Read through a `typeof` guard so (a) an un-injected build falls back safely
 // instead of throwing, and (b) — crucially — the value can't be folded away by
@@ -17,10 +21,14 @@ const SW_CACHE_NAME: string = `cache-${SW_VERSION}`;
 // opfs-workspace worker can write into the same bucket at import time without
 // knowing the SW version, and so thumbnails survive SW updates (they're keyed
 // by file signature, so they stay valid until the file itself changes). Bump
-// THUMB_VERSION to invalidate every thumbnail when the generation logic
-// changes. Kept across `activate`'s cache sweep.
+// THUMB_VERSION (in the shared generator) to invalidate every thumbnail when
+// the generation logic changes. Kept across `activate`'s cache sweep.
 const SW_THUMB_CACHE_NAME: string = "asset-thumbnails";
-const THUMB_VERSION = 1;
+// On-demand filtered SVG variants (#299): same discipline as thumbnails — a
+// FIXED bucket surviving SW updates, keyed by file signature + canonical
+// filter param + FILTER_VERSION (see filters/filteredSvg), with superseded
+// signatures pruned on write.
+const SW_FILTERED_CACHE_NAME: string = "filtered-svgs";
 const SW_RESOURCES: string[] = JSON.parse(
   typeof SW_RESOURCES_INJECTED !== "undefined" ? SW_RESOURCES_INJECTED : "[]",
 );
@@ -29,12 +37,6 @@ const SW_NODE_ENV: string =
     ? SW_NODE_ENV_INJECTED
     : "development";
 const RESOURCE_PROTOCOL: string = "/file:/";
-
-// Thumbnail max-width bounds (px). A request for ?thumb=144 yields a webp no
-// wider than 144px; clamped so a hostile/garbage value can't ask for a huge
-// canvas. Images are never upscaled past their natural width.
-const THUMB_MIN_WIDTH = 16;
-const THUMB_MAX_WIDTH = 512;
 
 const RESOURCE_URL_REGEX =
   /.*[.](?:css|html|js|mjs|ico|svg|png|ttf|woff|woff2)$/;
@@ -83,6 +85,19 @@ async function handleLocalAssetRequest(url: URL) {
     }
   }
 
+  // `filtered_image` variants resolve as `?filters=<canonical>` on the root
+  // SVG's url (#299): apply filterSVG here (SVG-only) and cache the result by
+  // file signature + filter combo, so the program never has to embed SVG
+  // source just to make filtering possible. Garbage or no-op params fall
+  // through to the unfiltered original.
+  const filtersParam = url.searchParams.get("filters");
+  if (filtersParam && contentType === "image/svg+xml") {
+    const filtered = await getOrCreateFilteredSvg(path, file, filtersParam);
+    if (filtered) {
+      return filtered;
+    }
+  }
+
   const headers = new Headers({
     "Content-Type": contentType,
     "Content-Length": String(contentLength),
@@ -97,66 +112,60 @@ async function handleLocalAssetRequest(url: URL) {
 }
 
 /**
- * Return a cached or freshly-generated downscaled webp thumbnail for an image
- * file, or `undefined` if generation fails (caller serves the original).
+ * Cached-or-freshly-generated downscaled webp thumbnail for an image file, or
+ * `undefined` if generation fails (caller serves the original).
  *
- * Keyed by the file's STABLE signature — `path` + `lastModified` + `size` + the
- * requested width — NOT the request url. The request url carries a
- * `?v=${Date.now()}` cache-bust that the workspace re-stamps on every load, so
- * keying on it would regenerate every thumbnail on every page load (and leak
- * orphaned cache entries). The signature changes only when the file's bytes
- * actually change, so a real edit still invalidates the thumbnail.
+ * A thin adapter over the shared generator: this supplies Cache Storage, the
+ * generator owns sizing, encoding and the cache key. That key is the file's
+ * STABLE signature (path + lastModified + size + width), NOT the request url —
+ * urls are now signature-stamped too (`?v=<mtime>-<size>`), but the stamp can
+ * fall back to a mint-time value when no mtime was known, so the cache keeps
+ * deriving its key from the file itself rather than trusting url parsing.
  */
 async function getOrCreateThumbnail(
   path: string,
   file: File,
   thumbParam: string,
 ): Promise<Response | undefined> {
-  const maxWidth = Math.max(
-    THUMB_MIN_WIDTH,
-    Math.min(THUMB_MAX_WIDTH, Math.floor(Number(thumbParam)) || 0),
-  );
-  if (!Number.isFinite(maxWidth) || maxWidth < THUMB_MIN_WIDTH) {
-    return undefined;
-  }
-  const cacheKey = `${RESOURCE_PROTOCOL}${path}?thumb=${maxWidth}&sig=${file.lastModified}-${file.size}&tv=${THUMB_VERSION}`;
   try {
     const cache = await caches.open(SW_THUMB_CACHE_NAME);
-    const cached = await cache.match(cacheKey);
-    if (cached) {
-      return cached;
-    }
-    // Decode AND downscale in one pass: `resizeWidth` makes the decoder emit a
-    // small bitmap directly (preserving aspect) instead of allocating the full
-    // multi-megapixel image and scaling it on a canvas afterwards — much less
-    // memory + CPU per thumbnail. (Sources narrower than maxWidth upscale
-    // slightly, which is harmless at thumbnail size.)
-    const bitmap = await createImageBitmap(file, {
-      resizeWidth: maxWidth,
-      resizeQuality: "low",
-    });
-    const canvas = new OffscreenCanvas(bitmap.width, bitmap.height);
-    const ctx = canvas.getContext("2d");
-    if (!ctx) {
-      bitmap.close();
-      return undefined;
-    }
-    ctx.drawImage(bitmap, 0, 0);
-    bitmap.close();
-    const blob = await canvas.convertToBlob({
-      type: "image/webp",
-      quality: 0.75,
-    });
-    const response = new Response(blob, {
-      status: 200,
-      headers: new Headers({
-        "Content-Type": "image/webp",
-        "Content-Length": String(blob.size),
-        "Cache-Control": "max-age=31536000, immutable",
-      }),
-    });
-    await cache.put(cacheKey, response.clone());
-    return response;
+    return await getOrCreateThumbnailShared(
+      cache,
+      path,
+      file,
+      thumbParam,
+      RESOURCE_PROTOCOL,
+    );
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * Cached-or-freshly-filtered SVG variant, or `undefined` (caller serves the
+ * unfiltered original). Same thin-adapter shape as `getOrCreateThumbnail`:
+ * this supplies Cache Storage, the shared generator owns canonicalization,
+ * the signature key, and superseded-signature pruning.
+ */
+async function getOrCreateFilteredSvg(
+  path: string,
+  file: File,
+  filtersParam: string,
+): Promise<Response | undefined> {
+  try {
+    const cache = await caches.open(SW_FILTERED_CACHE_NAME);
+    return await getOrCreateFilteredSvgShared(
+      {
+        match: (key) => cache.match(key),
+        put: (key, response) => cache.put(key, response),
+        delete: (key) => cache.delete(key),
+        keys: () => cache.keys(),
+      },
+      path,
+      file,
+      filtersParam,
+      RESOURCE_PROTOCOL,
+    );
   } catch {
     return undefined;
   }
@@ -210,12 +219,13 @@ self.addEventListener("activate", (e) => {
     (async () => {
       const names = await caches.keys();
       await Promise.all(
-        names.map((name) => {
-          if (name !== SW_CACHE_NAME && name !== SW_THUMB_CACHE_NAME) {
-            return caches.delete(name);
-          }
-          return false;
-        }),
+        getStaleCacheNames(names, [
+          SW_CACHE_NAME,
+          SW_THUMB_CACHE_NAME,
+          SW_FILTERED_CACHE_NAME,
+        ]).map(
+          (name) => caches.delete(name),
+        ),
       );
       await self.clients.claim();
     })(),

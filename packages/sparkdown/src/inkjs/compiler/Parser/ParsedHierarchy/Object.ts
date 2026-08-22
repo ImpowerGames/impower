@@ -8,6 +8,22 @@ import { FindQueryFunc } from "./FindQueryFunc";
 import { Identifier } from "./Identifier";
 import { Story } from "./Story";
 
+/**
+ * Subtrees that contain none of the types a `CollectByType` walk asked for.
+ *
+ * Module-level and keyed by node identity, which is what makes it safe across
+ * compiles: the incremental pipeline carries unchanged parsed nodes forward by
+ * identity and gives a re-lowered node a fresh one, so a changed subtree can
+ * never hit a stale entry. `length` additionally catches content being
+ * APPENDED to a carried-forward container during assembly, and `typesKey`
+ * keeps one caller's answer from being served to a caller asking about
+ * different types.
+ */
+const emptyCollectSubtrees = new WeakMap<
+  object,
+  { typesKey: string; length: number }
+>();
+
 export abstract class ParsedObject {
   public abstract readonly GenerateRuntimeObject: () => RuntimeObject | null;
 
@@ -230,20 +246,51 @@ export abstract class ParsedObject {
   // instance of. `types[i]` matches into `buckets[i]`. Preserves the same
   // depth-first pre-order FindAll produces, so per-type results are identical
   // to separate FindAll passes — but with one traversal instead of N.
+  /**
+   * Collect every node matching each of `types` into the matching bucket.
+   *
+   * Returns whether this subtree matched anything, which drives the
+   * skip-cache: this walk covers the whole story on every compile, and the
+   * vast majority of a screenplay is display content containing none of the
+   * declaration types ever asked for. `typesKey` is computed once at the root
+   * and threaded down so the cache can be keyed by WHICH types were asked
+   * for — without it, a caller passing a different set would be wrongly told
+   * a subtree is empty.
+   */
   public readonly CollectByType = (
     types: Array<Function>,
     buckets: ParsedObject[][],
-  ): void => {
+    typesKey: string = types.map((t) => t.name).join(","),
+  ): boolean => {
+    const marked = emptyCollectSubtrees.get(this);
+    if (
+      marked &&
+      marked.typesKey === typesKey &&
+      marked.length === (this.content?.length ?? 0)
+    ) {
+      return false;
+    }
+    let found = false;
     for (let i = 0; i < types.length; i += 1) {
       if (this instanceof (types[i] as any)) {
         buckets[i].push(this);
+        found = true;
       }
     }
     if (this.content !== null) {
       for (const obj of this.content) {
-        obj.CollectByType && obj.CollectByType(types, buckets);
+        if (obj.CollectByType && obj.CollectByType(types, buckets, typesKey)) {
+          found = true;
+        }
       }
     }
+    if (!found) {
+      emptyCollectSubtrees.set(this, {
+        typesKey,
+        length: this.content?.length ?? 0,
+      });
+    }
+    return found;
   };
 
   public ResolveReferences(context: Story) {
@@ -258,6 +305,12 @@ export abstract class ParsedObject {
     message: string,
     source: ParsedObject | Identifier | DebugMetadata | null = null,
     isWarning: boolean = false,
+    // The node that RAISED this diagnostic, forwarded unchanged as the error
+    // bubbles up to the Story. `source` is chosen for dedup//reporting and is
+    // often an `Identifier` or raw `DebugMetadata` — neither has a parent
+    // chain — so it can't be used to attribute the diagnostic to a flow. The
+    // raiser always can. See `Story.Error`'s generation-phase attribution.
+    raiser: ParsedObject = this,
   ): void {
     if (source === null) {
       source = this;
@@ -282,7 +335,7 @@ export abstract class ParsedObject {
     }
 
     if (this.parent) {
-      this.parent.Error(message, source, isWarning);
+      this.parent.Error(message, source, isWarning, raiser);
     } else {
       throw new Error(`No parent object to send error to: ${message}`);
     }

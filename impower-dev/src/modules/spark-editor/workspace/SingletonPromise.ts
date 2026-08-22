@@ -17,7 +17,24 @@ export default class SingletonPromise<
   async get(...args: Parameters<T>): Promise<Awaited<ReturnType<T>>> {
     if (this._value === undefined) {
       if (!this._promise) {
-        this._promise = this._func(...args);
+        // A rejected attempt must not stay cached. Without this, `_promise`
+        // keeps pointing at the rejected promise and every later `get()`
+        // re-awaits the same rejection — so one transient failure (a script
+        // load that dropped, a read that lost a race) permanently disables
+        // whatever is being memoized for the rest of the session, with no way
+        // back short of an explicit `reset()` that nothing calls.
+        //
+        // Callers already in flight still share this single attempt; only
+        // callers arriving after it fails get to start a fresh one.
+        const attempt: Promise<Awaited<ReturnType<T>>> = this._func(
+          ...args
+        ).then(undefined, (e: unknown) => {
+          if (this._promise === attempt) {
+            this._promise = undefined;
+          }
+          throw e;
+        });
+        this._promise = attempt;
       }
       this._value = await this._promise;
     }

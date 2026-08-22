@@ -200,10 +200,28 @@ export class VariablesState extends VariablesStateAccessor<
     this.patch = null;
   }
 
+  /**
+   * Names declared with `const`, published by `Story.ResetGlobals`.
+   *
+   * A constant IS a real global — it initializes from the `global decl`
+   * container and is therefore visible to anything inspecting runtime state
+   * (notably the debug adapter). But its value is fully determined by the
+   * compiled program, so it must never round-trip through a save: it is
+   * neither written by `WriteJson` nor restored by `SetJsonToken`. Without
+   * that, a save written when the name was still a mutable `store` would
+   * overwrite the compiled constant on load and pin it forever.
+   */
+  public constantNames: Set<string> = new Set<string>();
+
   public SetJsonToken(jToken: Record<string, any>) {
     this._globalVariables.clear();
 
     for (let [varValKey, varValValue] of this._defaultGlobalVariables) {
+      // Always take the compiled value for a constant, never the saved one.
+      if (this.constantNames.has(varValKey)) {
+        this._globalVariables.set(varValKey, varValValue);
+        continue;
+      }
       let loadedToken = jToken[varValKey];
       if (typeof loadedToken !== "undefined") {
         let tokenInkObject =
@@ -245,6 +263,8 @@ export class VariablesState extends VariablesStateAccessor<
     // they'd silently vanish on load.
     for (const key of Object.keys(jToken)) {
       if (this._defaultGlobalVariables.has(key)) continue;
+      // A stale save may carry a key that has since become a constant.
+      if (this.constantNames.has(key)) continue;
       const tokenInkObject = JsonSerialisation.JTokenToRuntimeObject(
         jToken[key],
       );
@@ -261,6 +281,12 @@ export class VariablesState extends VariablesStateAccessor<
     for (let [keyValKey, keyValValue] of this._globalVariables) {
       let name = keyValKey;
       let val = keyValValue;
+
+      // Constants are reconstructed from the bytecode on every run, so they
+      // are never persisted — see `constantNames`.
+      if (this.constantNames.has(name)) {
+        continue;
+      }
 
       // Store-keyed rule for define tables: persistence follows the
       // `store` marker, NOT value-equality. A define with no store state

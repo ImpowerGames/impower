@@ -12,6 +12,7 @@ import { ClosestFlowBase } from "../Flow/ClosestFlowBase";
 import { FlowBase } from "../Flow/FlowBase";
 import { FunctionCall } from "../FunctionCall";
 import { Identifier } from "../Identifier";
+import { currentCompileEpoch } from "../CompileEpoch";
 import { ParsedObject } from "../Object";
 import { Path } from "../Path";
 import { Story } from "../Story";
@@ -23,7 +24,32 @@ export class Divert extends ParsedObject {
 
   public readonly pathIdentifiers: Identifier[] | null = null;
   public readonly target: Path | null = null;
-  public targetContent: ParsedObject | null = null;
+
+  // Cross-node cache of the resolved target PARSED node, epoch-guarded: a
+  // reused (not regenerated) divert would otherwise keep pointing at a STALE
+  // node when its target flow was rebuilt or deleted — validating arity
+  // against the old signature and skipping "target not found". A stale epoch
+  // reads as `null`, which makes `ResolveTargetContent`'s short-circuit
+  // re-resolve once per compile. Within one compile the behavior is
+  // unchanged (generation and resolve share the epoch).
+  private _targetContent: ParsedObject | null = null;
+  private _targetContentEpoch: number = -1;
+  // Epoch of the last `runtimeDivert.variableDivertName` assignment (variable
+  // targets and the unresolved-call promotion below). A reused divert keeps
+  // its runtime object across compiles, so a stale variable-divert must be
+  // cleared and re-derived — otherwise `-> foo` promoted while `foo` was
+  // missing would never resolve back to the knot once `foo` exists again.
+  private _variableDivertEpoch: number = -1;
+  get targetContent(): ParsedObject | null {
+    return this._targetContentEpoch === currentCompileEpoch()
+      ? this._targetContent
+      : null;
+  }
+  set targetContent(value: ParsedObject | null) {
+    this._targetContent = value;
+    this._targetContentEpoch = value === null ? -1 : currentCompileEpoch();
+  }
+
   private _runtimeDivert: RuntimeDivert | null = null;
   get runtimeDivert(): RuntimeDivert {
     if (!this._runtimeDivert) {
@@ -293,6 +319,7 @@ export class Divert extends ParsedObject {
             }
 
             this.runtimeDivert.variableDivertName = variableTargetName;
+            this._variableDivertEpoch = currentCompileEpoch();
             return;
           }
         }
@@ -313,6 +340,16 @@ export class Divert extends ParsedObject {
       throw new Error();
     }
 
+    // A variable-divert derived in a PREVIOUS compile (reused runtime object)
+    // must be re-derived against the current tree — see
+    // `_variableDivertEpoch`. Clearing it re-opens both retry paths below.
+    if (
+      this.runtimeDivert.variableDivertName != null &&
+      this._variableDivertEpoch !== currentCompileEpoch()
+    ) {
+      this.runtimeDivert.variableDivertName = null;
+    }
+
     // Retry variable-target resolution. `ResolveTargetContent` ran
     // early during `GenerateRuntimeObject` so the runtime tree could
     // be built; at that point Luau auto-globals (`Y = function...`)
@@ -331,6 +368,13 @@ export class Divert extends ParsedObject {
 
     if (this.targetContent) {
       this.runtimeDivert.targetPath = this.targetContent.runtimePath;
+    } else if (this.runtimeDivert.variableDivertName == null) {
+      // Re-resolution found no target this compile. A REUSED runtime divert
+      // may still hold the path it resolved in a previous compile (e.g. its
+      // target flow was since deleted) — restore the fresh-generation state
+      // so serialization and diagnostics match a cold compile. (Externals
+      // re-derive their path in the external branch below.)
+      this.runtimeDivert.targetPath = null;
     }
 
     // Resolve children (the arguments)
@@ -362,6 +406,18 @@ export class Divert extends ParsedObject {
     const targetWasFound = this.targetContent !== null;
     let isBuiltIn: boolean = false;
     let isExternal: boolean = false;
+
+    // NOTE for incremental reuse: the external branch below is a one-way door
+    // like the target paths above (it sets `isExternal`/`externalArgs` and
+    // flips `pushesToStack` to false), but it deliberately gets NO reset here.
+    // A correct reset would have to restore `pushesToStack` to its
+    // GENERATION-time value (set true for calls/tunnels at
+    // `GenerateRuntimeObject`), which resolution cannot recompute — and a
+    // partial reset would half-decay the divert, which is worse than none.
+    // Instead, adding, removing, renaming, or re-arity-ing an `EXTERNAL` is a
+    // structural change that disables flow reuse for that compile (see the
+    // root-region descriptor in `SparkdownCompiler.parseIncrementally`), so a
+    // reused divert can never outlive its external declaration.
 
     if (!this.target) {
       throw new Error();
@@ -431,6 +487,7 @@ export class Divert extends ParsedObject {
         this.target.firstComponent
       ) {
         this.runtimeDivert.variableDivertName = this.target.firstComponent;
+        this._variableDivertEpoch = currentCompileEpoch();
         return;
       }
       this.Error(

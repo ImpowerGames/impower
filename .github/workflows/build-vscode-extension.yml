@@ -1,0 +1,54 @@
+name: Build VS Code Extension
+
+# Guards the extension's production build on pull requests.
+#
+# "Publish VS Code Extension" only runs on push to main, so a build break can
+# only be discovered AFTER it has merged -- and since the publish step is the
+# build, a break means no extension ships at all. That is exactly what
+# happened in #272: a deep `src/` import that the bundler could not resolve
+# landed on main and every run failed for days before anyone connected the
+# failure emails to the cause.
+#
+# This runs the same production build the publish does (`vscode:prepublish` ->
+# `npm run package`), minus anything that touches the Marketplace, so the same
+# class of break fails on the PR instead.
+
+on:
+  pull_request:
+    paths:
+      - "vscode-sparkdown/**"
+      - "packages/**"
+      - ".github/workflows/build-vscode-extension.yml"
+
+# A superseded PR build is of no interest; keep only the newest per branch.
+concurrency:
+  group: build-vscode-extension-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          # >= 23.6 required: the esbuild build scripts are run as .ts via
+          # Node's native type-stripping (node scripts/esbuild.ts).
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # The build alone is what breaks in practice (module resolution, missing
+      # sources), and it is the step the publish would run. No VSCE_PAT is
+      # used or needed here -- nothing is published.
+      - name: Build extension
+        working-directory: vscode-sparkdown
+        run: npm run package

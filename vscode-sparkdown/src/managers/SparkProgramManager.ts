@@ -9,7 +9,23 @@ import {
   LanguageClient,
 } from "vscode-languageclient/browser";
 
-type ProgramCompiledListener = (uri: vscode.Uri, program: SparkProgram) => void;
+/**
+ * Notified when a script's program has been recompiled. With slim
+ * notifications the program itself is not pushed, so `program` may be
+ * undefined -- consumers that need it should pull via `getOrCompile()`.
+ */
+type ProgramCompiledListener = (
+  uri: vscode.Uri,
+  program: SparkProgram | undefined,
+) => void;
+
+/** The projection relayed by slim `compiler/didCompile` notifications. */
+export interface SlimProgram {
+  uri: string;
+  scripts: SparkProgram["scripts"];
+  files?: SparkProgram["files"];
+  version?: number;
+}
 
 export class SparkProgramManager {
   private static _instance: SparkProgramManager;
@@ -56,6 +72,28 @@ export class SparkProgramManager {
         listener(vscode.Uri.parse(scriptUri), program),
       );
     }
+    this.updateResourceContexts();
+  }
+
+  /**
+   * Handle a slim `compiler/didCompile` notification: the full program was
+   * NOT pushed (that clone cost ~9MB per keystroke on a large project), so
+   * drop any cached full program for the affected scripts and let consumers
+   * pull a fresh one on demand via `getOrCompile()`.
+   */
+  updateSlim(uri: vscode.Uri, program: SlimProgram) {
+    this._lastCompiledUri = uri.toString();
+    for (const scriptUri of Object.keys(program.scripts)) {
+      this._compiledPrograms.delete(scriptUri);
+      this._compiledUris.add(vscode.Uri.parse(scriptUri));
+      this._listeners.forEach((listener) =>
+        listener(vscode.Uri.parse(scriptUri), undefined),
+      );
+    }
+    this.updateResourceContexts();
+  }
+
+  protected updateResourceContexts() {
     const resources = Array.from(
       this._compiledUris.keys().map((uri) => uri.toString()),
     );
@@ -109,11 +147,26 @@ export class SparkProgramManager {
 
   async compile(uri: vscode.Uri) {
     const client = await this.languageClientReady;
-    const params: CompileProgramParams = { uri: uri.toString() };
-    return client.sendRequest<SparkProgram>(
+    const params: CompileProgramParams = {
+      textDocument: { uri: uri.toString() },
+      // This is the PULL path: whoever called `getOrCompile` wants the whole
+      // program, bytecode included. Per-keystroke compiles suppress it (see
+      // the initialization options), so it has to be requested here or the
+      // compilation view renders empty (#351).
+      emitCompiledProgram: true,
+    };
+    const program = await client.sendRequest<SparkProgram>(
       CompileProgramMessage.method,
       params,
       CancellationToken.None,
     );
+    if (program?.scripts) {
+      // Cache the pulled program so bursts of readers don't re-request it;
+      // the next slim didCompile invalidates these entries.
+      for (const scriptUri of Object.keys(program.scripts)) {
+        this._compiledPrograms.set(scriptUri, program);
+      }
+    }
+    return program;
   }
 }

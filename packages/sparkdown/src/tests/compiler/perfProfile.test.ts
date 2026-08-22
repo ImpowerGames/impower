@@ -1,7 +1,8 @@
 import "../../inkjs/engine/Container";
 import { performance } from "node:perf_hooks";
-import { describe, it } from "vitest";
+import { afterAll, beforeAll, describe, it } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
+import { setRetainProfilerEntries } from "../../compiler/utils/profile";
 import { generatePerfScreenplay } from "./perfFixture";
 
 interface PhaseStat {
@@ -41,6 +42,12 @@ function report(label: string, stats: Map<string, PhaseStat>) {
 }
 
 describe("compiler perf profile", () => {
+  // `profile()` clears each mark/measure pair as soon as it measures, so a
+  // long-lived worker doesn't retain them forever. This report aggregates
+  // measures retrospectively and is the one caller that needs them kept.
+  beforeAll(() => setRetainProfilerEntries(true));
+  afterAll(() => setRetainProfilerEntries(false));
+
   it("profiles cold compile + per-edit recompile", () => {
     const PROFILER_ID = "perf";
     const uri = "inmemory:///main.sd";

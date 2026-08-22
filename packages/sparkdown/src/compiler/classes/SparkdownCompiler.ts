@@ -15,7 +15,11 @@ import BUILTINS_PRELUDE from "../builtins/builtins.sd?raw";
 import { IFileHandler } from "../../inkjs/compiler/IFileHandler";
 import { ErrorType } from "../../inkjs/compiler/Parser/ErrorType";
 import { Choice } from "../../inkjs/compiler/Parser/ParsedHierarchy/Choice";
+import { ConstantDeclaration } from "../../inkjs/compiler/Parser/ParsedHierarchy/Declaration/ConstantDeclaration";
 import { ExternalDeclaration } from "../../inkjs/compiler/Parser/ParsedHierarchy/Declaration/ExternalDeclaration";
+import { ListDefinition } from "../../inkjs/compiler/Parser/ParsedHierarchy/List/ListDefinition";
+import { StructDefinition } from "../../inkjs/compiler/Parser/ParsedHierarchy/Struct/StructDefinition";
+import { VariableAssignment as ParsedVariableAssignment } from "../../inkjs/compiler/Parser/ParsedHierarchy/Variable/VariableAssignment";
 import { Divert } from "../../inkjs/compiler/Parser/ParsedHierarchy/Divert/Divert";
 import { FlowBase } from "../../inkjs/compiler/Parser/ParsedHierarchy/Flow/FlowBase";
 import { Gather } from "../../inkjs/compiler/Parser/ParsedHierarchy/Gather/Gather";
@@ -49,8 +53,18 @@ import { LowerContext } from "../lower/context";
 import { InkObject } from "../../inkjs/engine/Object";
 import { SimpleJson } from "../../inkjs/engine/SimpleJson";
 import { JsonSerialisation } from "../../inkjs/engine/JsonSerialisation";
+import {
+  ProgramBinaryWriter,
+  createProgramTable,
+  reseedProgramTable,
+  type CachedFlowChunk,
+  type ProgramTable,
+} from "../../binary/ProgramBinaryWriter";
 import { Story as RuntimeStory } from "../../inkjs/engine/Story";
-import { asINamedContentOrNull, asOrNull } from "../../inkjs/engine/TypeAssertion";
+import {
+  asINamedContentOrNull,
+  asOrNull,
+} from "../../inkjs/engine/TypeAssertion";
 import { Container } from "../../inkjs/engine/Container";
 import { StringValue } from "../../inkjs/engine/Value";
 import { VariableAssignment } from "../../inkjs/engine/VariableAssignment";
@@ -96,6 +110,13 @@ import { SparkdownFileRegistry } from "./SparkdownFileRegistry";
 // name can refer to a different flow after an edit — name-keyed caches must
 // never reuse entries for flows matching this.
 const CANONICAL_SYNTH_NAME = /^__synth_\d+$/;
+
+// Reseed the binary string table once it is half again its live size, provided
+// the absolute slack is worth a full re-serialization. A ratio rather than a
+// fixed cap, because a large project legitimately holds more live strings than
+// a small one. See `maybeReseedBinaryTable`.
+const BINARY_TABLE_RESEED_RATIO = 1.5;
+const BINARY_TABLE_RESEED_MIN_SLACK = 512;
 
 const LANGUAGE_NAME = GRAMMAR_DEFINITION.name.toLowerCase();
 // Synthetic URI for the bundled builtins prelude (used as the file URI when the
@@ -280,6 +301,151 @@ export class SparkdownCompiler {
   // cross-flow fingerprint matches AND no header/global chunk changed (const
   // inlining / global decl) — see the `flowMemo` in `compile`.
   protected _flowJsonCache?: Map<string, { fp: string; value: any }>;
+
+  // The binary-format twin of `_flowJsonCache` (#314 phase 2), used when
+  // `config.binaryProgram` is set. Same key (top-level flow name) and same
+  // validity check (cross-flow fingerprint + the reuse guards below), but the
+  // cached value is a portable record range rather than a JS subtree. Chunks
+  // store LOCAL string/number tables and chunk-relative `end` offsets, because
+  // both are program-global in an assembled buffer and would otherwise decode
+  // against the wrong tables on the next compile.
+  protected _flowChunkCache?: Map<string, CachedFlowChunk>;
+
+  // The string/number table the binary chunks' payload pointers refer to.
+  // Persisted across compiles on purpose: it is the analogue of lezer's
+  // grammar-fixed NodeSet, and it is what lets a cached chunk be copied in
+  // verbatim instead of remapped record by record.
+  protected _binaryTable: ProgramTable = createProgramTable();
+
+  // Table size once a freshly seeded table has settled, i.e. the LIVE string
+  // count for the current document. Zero means "recalibrate on the next
+  // compile"; see `maybeReseedBinaryTable`.
+  protected _binaryTableBaseline = 0;
+
+  // Previous compile's buffer size, so the writer allocates once instead of
+  // regrowing geometrically. The program is nearly the same size every edit.
+  protected _binarySlotHint = 0;
+
+  // ---- Incremental ExportRuntime: constructed-flow reuse ------------------
+  // A top-level flow (knot/scene/function, plus its stitches) is assembled
+  // from a RUN of chunks: the declaration chunk plus every body chunk that
+  // attached content into it. When the whole run is carried forward
+  // unchanged, last compile's CONSTRUCTED flow node — with its registered
+  // temps/args, weave state, and (crucially) its cached runtime container
+  // subtree — is pushed into the fresh Story as-is and `ExportRuntime` skips
+  // regenerating it entirely (the `runtimeObject` getter returns the cached
+  // container). `ResolveReferences` still runs over the full tree every
+  // compile, so cross-flow paths, count flags, and resolve-time diagnostics
+  // are re-derived; see `Divert.targetContent`'s epoch guard and
+  // `FlattenContainersIn`'s count-flag reconcile for the state that makes
+  // re-resolution over reused containers sound.
+  //
+  // `_prevFlowRuns`: last compile's run record per DECLARATION chunk
+  // identity. `_nextFlowRuns` accumulates this compile's records (fresh
+  // constructions AND committed reuses) and is promoted on success.
+  protected _prevFlowRuns?: Map<
+    object,
+    { flow: FlowBase; contentChunks: object[] }
+  >;
+  protected _nextFlowRuns?: Map<
+    object,
+    { flow: FlowBase; contentChunks: object[] }
+  >;
+  // Line offset each content chunk's debugMetadata was last stamped at —
+  // a reused chunk whose offset is unchanged skips the restamp walk entirely.
+  protected _chunkStampOffset = new WeakMap<object, number>();
+  // Constructed flows that raised a diagnostic during GENERATION (reuse skips
+  // generation, which would silently drop the diagnostic — such flows are
+  // barred from reuse and rebuilt so the diagnostic re-emits).
+  protected _flowsWithGenDiagnostics = new WeakSet<object>();
+  // Signature (arity + per-parameter flags) of every named flow last compile.
+  // A CALL SITE's bytecode depends on its CALLEE's parameter list — a trailing
+  // `...` makes the caller emit a `PackTuple` to fill the callee's varargs
+  // slot (see `Divert.GenerateRuntimeObject`) — and that is baked in at the
+  // CALLER's generation time. So editing a callee's signature must invalidate
+  // reuse of every flow that might call it, even though the caller's own
+  // chunks are untouched; otherwise the caller keeps argument-push bytecode
+  // for the old signature and the callee pops a different number of values,
+  // silently and with no diagnostic.
+  protected _prevFlowSignatures?: Map<string, string>;
+  // Per-file ordered ROOT-REGION STRUCTURE descriptors — `include`/`run`
+  // targets and `EXTERNAL` name+arity. A change to this sequence disables all
+  // reuse for that compile; ordinary root content (front matter, loose text,
+  // globals) is deliberately excluded. See the guard for the full rationale.
+  protected _lastRootBlocksByUri?: Map<string, string[]>;
+  // Reuse kill-switches. `_flowReuseDisabled` is recomputed per compile;
+  // starts true so the first compile after construction never reuses.
+  protected _flowReuseDisabled = true;
+  protected _disableFlowReuseNextCompile = false;
+  protected _lastReuseCountAllVisits = false;
+  protected _reusedFlowsThisCompile?: Set<FlowBase>;
+  // Per-chunk reuse-disqualifier scan results (see `scanChunkForReuse`),
+  // computed once per chunk identity.
+  protected _chunkReuseScan?: WeakMap<
+    object,
+    {
+      disqualifies: boolean;
+      invalidatesGlobals: boolean;
+      declaredNames: string[];
+    }
+  >;
+  // Census of every constant and global NAME declared anywhere in the
+  // program, accumulated across all files of one compile and compared against
+  // the previous compile's. Two distinct generation-time dependencies make a
+  // reused flow's bytecode sensitive to names declared OUTSIDE it:
+  //
+  //   - a LIST is inlined by value into every referencing flow, so one that
+  //     disappears leaves stale inlined bytecode behind; and
+  //   - `Divert.ResolveTargetContent` runs during GENERATION and consults
+  //     `story.variableDeclarations`, so a global whose name matches a flow
+  //     shadows it and flips every call site from knot-call codegen (which
+  //     emits `PackTuple`/padding derived from the callee's parameters) to
+  //     variable-target codegen, which emits none of that.
+  //
+  // Neither is visible to the per-chunk scan: a DELETED declaration appears
+  // in no chunk at all. Names only — values may change freely, so editing a
+  // `store`'s value still keeps reuse.
+  protected _censusEntries?: string[];
+  protected _prevCensusKey?: string;
+  // Parsed nodes whose subtree provably contains no compiler-synthesized
+  // name, so `canonicalizeSyntheticFlowNames` can skip them wholesale on
+  // later compiles. Keyed by identity, which the incremental pipeline
+  // preserves for unchanged content and replaces on re-lowering.
+  // Value is the node's content length when it was marked. Assembly can APPEND
+  // to a carried-forward container (a later changed chunk's content is added
+  // into an existing weave), which would make a stale mark hide the new
+  // children. Comparing the length on lookup catches that in O(1); a subtree
+  // whose own nodes changed gets a new identity anyway.
+  protected _synthFreeSubtrees = new WeakMap<object, number>();
+  // [container, previous parent] for every container committed to reuse this
+  // compile — restored if the compile throws, so the previous RuntimeStory
+  // (still live in the checkpoint-builder Game) isn't left holding containers
+  // whose parents were stolen by a discarded half-built tree.
+  protected _reuseParentBackups?: Array<[Container, InkObject | null]>;
+  // Top-level flow names whose subtree was touched by a synthetic rename this
+  // compile — their serialized-JSON cache entries must not be reused (the
+  // cross-flow fingerprint records nothing for pure content, so a renamed
+  // `__synth_<n>` temp inside an unchanged flow would otherwise serve stale).
+  protected _renamedFlowNames?: Set<string>;
+
+  // Bumped whenever the file registry changes (assets added/updated/removed,
+  // or a reconfigure). Part of the no-change compile short-circuit key:
+  // document versions alone can't see asset changes, but populateAssets and
+  // include resolution can be affected by them.
+  protected _filesEpoch = 0;
+  // The previous successful compile, reusable verbatim when nothing that
+  // feeds a compile has changed since. A forced no-change recompile measured
+  // ~450ms on a large project even with every incremental cache warm --
+  // ExportRuntime alone is ~200ms and fully non-incremental -- and PLAY /
+  // init paths re-request compiles without any edit having happened.
+  protected _lastCompileResult?: {
+    uri: string;
+    scripts: Record<string, number>;
+    filesEpoch: number;
+    countAllVisits: boolean;
+    program: SparkProgram;
+    story?: RuntimeStory;
+  };
   // While recomputing a non-reusable flow's subtree, populateLocations tees the
   // entries it commits here so they can be cached for next compile.
   protected _locCaptureTarget?: {
@@ -316,6 +482,9 @@ export class SparkdownCompiler {
   }
 
   configure(config: SparkdownCompilerConfig) {
+    // Anything a reconfigure can change (definitions, settings, files) feeds
+    // compiles, so retire the no-change short-circuit's snapshot.
+    this._filesEpoch++;
     if (
       config.definitions?.builtins !== undefined &&
       config.definitions?.builtins !== this._config.definitions?.builtins
@@ -377,6 +546,33 @@ export class SparkdownCompiler {
       this._config.experimentalDisplayCalls = config.experimentalDisplayCalls;
     }
     if (
+      config.stripImageData !== undefined &&
+      config.stripImageData !== this._config.stripImageData
+    ) {
+      this._config.stripImageData = config.stripImageData;
+    }
+    if (
+      config.emitCompiledProgram !== undefined &&
+      config.emitCompiledProgram !== this._config.emitCompiledProgram
+    ) {
+      this._config.emitCompiledProgram = config.emitCompiledProgram;
+      // Neither per-flow cache is maintained while serialization is off, so
+      // both go stale the moment it is. Drop them rather than let a later
+      // re-enable serve subtrees from a compile that never ran.
+      this._flowJsonCache = undefined;
+      this._flowChunkCache = undefined;
+    }
+    if (
+      config.binaryProgram !== undefined &&
+      config.binaryProgram !== this._config.binaryProgram
+    ) {
+      this._config.binaryProgram = config.binaryProgram;
+      // The two paths keep separate per-flow caches; a cache built for the
+      // other format must never be consulted after a switch.
+      this._flowJsonCache = undefined;
+      this._flowChunkCache = undefined;
+    }
+    if (
       config.workspace !== undefined &&
       config.workspace !== this._config.workspace
     ) {
@@ -432,14 +628,20 @@ export class SparkdownCompiler {
           file.version !== undefined &&
           file.languageId !== undefined
         ) {
-          this.documents.add({
-            textDocument: {
-              uri: file.uri,
-              languageId: file.languageId!,
-              version: file.version,
-              text: file.text || "",
+          // Defer parses: the compile that follows pulls the trees it needs
+          // through tree()/annotations(), so scripts the program never
+          // includes are never parsed, and configure itself stays fast.
+          this.documents.add(
+            {
+              textDocument: {
+                uri: file.uri,
+                languageId: file.languageId!,
+                version: file.version,
+                text: file.text || "",
+              },
             },
-          });
+            { defer: true },
+          );
         }
         this.addFile({ file });
       }
@@ -448,6 +650,7 @@ export class SparkdownCompiler {
   }
 
   addFile(params: AddCompilerFileParams) {
+    this._filesEpoch++;
     const result = this.files.add(params);
     const file = params.file;
     if (
@@ -455,33 +658,42 @@ export class SparkdownCompiler {
       file.version !== undefined &&
       file.languageId !== undefined
     ) {
-      this.documents.add({
-        textDocument: {
-          uri: file.uri,
-          text: file.text || "",
-          version: file.version,
-          languageId: file.languageId,
+      // Deferred: the next compile pulls the tree if this script is part of
+      // the program (see configure()).
+      this.documents.add(
+        {
+          textDocument: {
+            uri: file.uri,
+            text: file.text || "",
+            version: file.version,
+            languageId: file.languageId,
+          },
         },
-      });
+        { defer: true },
+      );
     }
     return result;
   }
 
   updateFile(params: UpdateCompilerFileParams) {
+    this._filesEpoch++;
     const file = params.file;
     if (
       file.type === "script" &&
       file.version !== undefined &&
       file.languageId !== undefined
     ) {
-      this.documents.set({
-        textDocument: {
-          uri: file.uri,
-          text: file.text! || "",
-          version: file.version,
-          languageId: file.languageId,
+      this.documents.set(
+        {
+          textDocument: {
+            uri: file.uri,
+            text: file.text! || "",
+            version: file.version,
+            languageId: file.languageId,
+          },
         },
-      });
+        { defer: true },
+      );
     }
     return this.files.update(params);
   }
@@ -491,8 +703,12 @@ export class SparkdownCompiler {
   }
 
   removeFile(params: RemoveCompilerFileParams) {
+    this._filesEpoch++;
     this.files.remove(params);
     const file = params.file;
+    // Drop the root-region record for this file — it strongly references that
+    // file's chunk IR, and nothing else prunes this map.
+    this._lastRootBlocksByUri?.delete(file.uri);
     const removed = this.documents.remove({ textDocument: { uri: file.uri } });
     this._events[RemovedCompilerFileMessage.method].forEach((l) => {
       l?.({ textDocument: { uri: file.uri } });
@@ -517,11 +733,210 @@ export class SparkdownCompiler {
     return params;
   }
 
+  /**
+   * Serialize the compiled program into `program`.
+   *
+   * Extracted so the no-change short-circuit can materialize bytecode
+   * LAZILY (#351): a host that normally suppresses emission can still ask
+   * for it per request, and the answer has to come from the retained
+   * runtime story rather than a full recompile.
+   */
+  protected serializeCompiledProgram(
+    story: RuntimeStory,
+    program: SparkProgram,
+    uri: string,
+  ): void {
+    profile("start", this._profilerId, "ink/json", uri);
+    // #314: the binary writer answers the SAME streaming write events as
+    // SimpleJson.Writer, but appends records instead of building a JS
+    // object tree — so on the no-memo path it does strictly less work.
+    const binary = this._config.binaryProgram === true;
+    const writer = binary
+      ? new ProgramBinaryWriter(this._binaryTable, this._binarySlotHint)
+      : new SimpleJson.Writer();
+    // Incremental ToJson: reuse the serialized subtree of each top-level flow
+    // whose source content is unchanged AND whose cross-flow fingerprint
+    // (#f flags + resolved divert/reference paths) is unchanged. Content is
+    // covered by the chunk-unchanged signal; the fingerprint covers the
+    // cross-flow bits that change without the flow's own source changing.
+    const { reusable: reusableFlows, ok: flowReuseOk } =
+      this.computeFlowReuse(story);
+    if (this._renamedFlowNames) {
+      // A synthetic rename inside a flow changes its serialized bytes in
+      // ways the fingerprint can't see — its cached JSON must not be
+      // served (see the canonicalize step above).
+      for (const renamed of this._renamedFlowNames) {
+        reusableFlows.delete(renamed);
+      }
+    }
+    if (!flowReuseOk) {
+      // The global guard failed (a changed chunk sits before the first flow,
+      // so an inlined const may have shifted): no flow can be reused this
+      // compile. Take the exact baseline path — no fingerprinting, which
+      // would otherwise be pure overhead — and let the cache lapse so the
+      // next reuse-eligible edit reseeds from a fresh serialization.
+      story.ToJson(writer as never);
+      this._flowJsonCache = undefined;
+      this._flowChunkCache = undefined;
+    } else if (binary) {
+      // Binary twin of the JSON memo below. The reuse GUARDS are shared —
+      // `reusableFlows` and the `_renamedFlowNames` subtraction are
+      // computed once above — so the two paths can never disagree about
+      // which flows are eligible, only about what a cached value is.
+      const binaryWriter = writer as ProgramBinaryWriter;
+      const prevChunkCache = this._flowChunkCache;
+      const nextChunkCache = new Map<string, CachedFlowChunk>();
+      const flowMemo = {
+        resolve: (name: string, container: Container, serialize: () => any) => {
+          // Same two exclusions as the JSON path, for the same reasons:
+          // `global decl` is non-contiguous and cheap, and canonical
+          // synthetic names are POSITIONAL, so a name can rebind to a
+          // different flow that the fingerprint cannot distinguish.
+          if (name === "global decl" || CANONICAL_SYNTH_NAME.test(name)) {
+            return serialize();
+          }
+          const fp = JsonSerialisation.FingerprintCrossFlow(container);
+          if (reusableFlows.has(name) && prevChunkCache) {
+            const cached = prevChunkCache.get(name);
+            // The generation check is what keeps a reseed sound. Returning
+            // a chunk here means NOT calling serialize(), so a chunk from
+            // an older numbering could not be recovered from downstream —
+            // the writer throws rather than guess, so the decision has to
+            // be made here.
+            if (
+              cached &&
+              cached.fp === fp &&
+              cached.chunk.generation === binaryWriter.generation
+            ) {
+              nextChunkCache.set(name, cached);
+              // `WriteInjected` splices the records; the flow is never
+              // re-walked and its strings are never re-hashed.
+              return cached.chunk;
+            }
+          }
+          // Miss: arm the writer to capture whatever gets injected next,
+          // because `resolve` returns BEFORE the caller injects it.
+          binaryWriter.captureNextInjectedAs(name, fp);
+          return serialize();
+        },
+      };
+      story.ToJson(binaryWriter as never, flowMemo);
+      for (const [name, entry] of binaryWriter.takeCapturedChunks()) {
+        nextChunkCache.set(name, entry);
+      }
+      this._flowChunkCache = nextChunkCache;
+    } else {
+      const prevFlowCache = this._flowJsonCache;
+      const nextFlowCache = new Map<string, { fp: string; value: any }>();
+      const flowMemo = {
+        resolve: (name: string, container: Container, serialize: () => any) => {
+          // `global decl` is non-contiguous (scattered declarations) and
+          // cheap; always serialize it fresh, never cache.
+          //
+          // Canonical synthetic flows (`__synth_<n>`, see
+          // `canonicalizeSyntheticFlowNames`) are excluded because their
+          // names are POSITIONAL (document-order ordinals), so a name can
+          // rebind to a DIFFERENT flow when an edit adds/removes a
+          // synthetic earlier in the document — and the cross-flow
+          // fingerprint can't tell two same-shaped function knots apart
+          // (it deliberately records nothing for pure content, relying on
+          // chunk identity for structure, which name rebinding breaks).
+          // These are tiny function knots; serializing fresh is cheap.
+          if (name === "global decl" || CANONICAL_SYNTH_NAME.test(name)) {
+            return serialize();
+          }
+          const fp = JsonSerialisation.FingerprintCrossFlow(container);
+          let value: any;
+          if (reusableFlows.has(name) && prevFlowCache) {
+            const cached = prevFlowCache.get(name);
+            value = cached && cached.fp === fp ? cached.value : serialize();
+          } else {
+            value = serialize();
+          }
+          nextFlowCache.set(name, { fp, value });
+          return value;
+        },
+      };
+      story.ToJson(writer, flowMemo);
+      this._flowJsonCache = nextFlowCache;
+    }
+    if (binary) {
+      // Pieces, not a packed blob: `nodes`/`numbers` are typed arrays that
+      // transfer in O(1) across a worker boundary, and packing them into
+      // one self-describing byte blob costs ~10ms/compile (it re-encodes
+      // the whole string table to UTF-8) for no benefit on that hop.
+      const buffer = (writer as ProgramBinaryWriter).toBuffer();
+      program.compiledBuffer = buffer;
+      this._binarySlotHint = buffer.nodes.length;
+      // Safe to run AFTER emitting: reseeding installs fresh arrays on the
+      // table rather than clearing them in place, so the buffer just
+      // emitted keeps its own (correct) string array alive.
+      this.maybeReseedBinaryTable();
+    } else {
+      const json = (writer as SimpleJson.Writer).toObject();
+      if (json) {
+        program.compiled = json;
+      }
+    }
+    profile("end", this._profilerId, "ink/json", uri);
+  }
   compile(params: CompileProgramParams) {
     const uri = params.textDocument.uri;
     const startFrom = params.startFrom;
+    // Per-request override of the instance default (#351). A host can suppress
+    // bytecode for its per-keystroke compiles and still ask for it on the one
+    // compile that feeds a view, instead of paying for it every edit.
+    const emitCompiledProgram =
+      params.emitCompiledProgram ?? this._config.emitCompiledProgram !== false;
 
-    // console.clear();
+    // No-change short-circuit: if every script the last compile read is at
+    // the same version, the file registry hasn't changed, and the visit
+    // counting mode matches, this compile would reproduce the previous
+    // program bit-for-bit -- serve it instead of re-running the pipeline.
+    // (Per-request fields are re-stamped below; listeners still fire so
+    // downstream consumers observe the compile as usual.)
+    const cached = this._lastCompileResult;
+    if (
+      cached &&
+      cached.uri === uri &&
+      cached.filesEpoch === this._filesEpoch &&
+      cached.countAllVisits === !!params.countAllVisits &&
+      Object.entries(cached.scripts).every(
+        ([scriptUri, version]) =>
+          this.documents.get(scriptUri)?.version === version,
+      )
+    ) {
+      cached.program.startFrom = startFrom ?? this._config.startFrom;
+      // The cached program may have been built with emission suppressed. If
+      // this request wants bytecode, serialize it now from the RETAINED story
+      // rather than forcing a recompile — and cache it on the program so a
+      // second request does not pay again.
+      if (
+        emitCompiledProgram &&
+        cached.story &&
+        !cached.program.compiled &&
+        !cached.program.compiledBuffer
+      ) {
+        this.serializeCompiledProgram(cached.story, cached.program, uri);
+      }
+      const result: {
+        textDocument: { uri: string; version: number };
+        program: SparkProgram;
+        story?: RuntimeStory;
+      } = {
+        textDocument: {
+          uri,
+          version: this.documents.get(uri)?.version ?? -1,
+        },
+        program: cached.program,
+        story: cached.story,
+      };
+      this._events[CompiledProgramMessage.method].forEach((l) => {
+        l?.(result);
+      });
+      delete result.story;
+      return result;
+    }
 
     const program: SparkProgram = {
       uri,
@@ -655,6 +1070,49 @@ export class SparkdownCompiler {
     this._compilationIds = new Set();
     this._changedChunkRanges = [];
 
+    let compileThrew = false;
+    // ---- Incremental ExportRuntime: per-compile flow-reuse guards ----
+    this._flowReuseDisabled = this._disableFlowReuseNextCompile;
+    this._disableFlowReuseNextCompile = false;
+    const reuseCountAllVisits = !!params.countAllVisits;
+    if (
+      reuseCountAllVisits ||
+      reuseCountAllVisits !== this._lastReuseCountAllVisits
+    ) {
+      // countAllVisits changes what GENERATION bakes into every container
+      // (count flags), which reuse skips. Only test harnesses set it.
+      this._flowReuseDisabled = true;
+    }
+    this._lastReuseCountAllVisits = reuseCountAllVisits;
+    if (
+      this._lastCompileResult &&
+      this._lastCompileResult.uri === uri &&
+      this._lastCompileResult.filesEpoch === this._filesEpoch
+    ) {
+      // A change in any NON-entry script (includes / `run` files) can shift
+      // consts/globals whose values were INLINED into other files' flows at
+      // generation — and the include site may come after flows that would
+      // already have committed reuse, so it must be decided up front.
+      for (const [scriptUri, scriptVersion] of Object.entries(
+        this._lastCompileResult.scripts,
+      )) {
+        if (
+          scriptUri !== uri &&
+          this.documents.get(scriptUri)?.version !== scriptVersion
+        ) {
+          this._flowReuseDisabled = true;
+          break;
+        }
+      }
+    } else {
+      this._flowReuseDisabled = true;
+    }
+    this._reusedFlowsThisCompile = new Set();
+    this._nextFlowRuns = new Map();
+    this._reuseParentBackups = undefined;
+    this._renamedFlowNames = undefined;
+    this._censusEntries = [];
+
     try {
       profile("start", this._profilerId, "ink/parse", uri);
       const parsedStory = this.parseIncrementally(
@@ -735,78 +1193,102 @@ export class SparkdownCompiler {
       // carried-forward chunk re-emits the same diagnostics a cold compile
       // would, without a per-compile tree walk.)
       //
+      // A callee's signature is baked into its CALLERS' bytecode at their
+      // generation time, so a signature change invalidates reuse of flows
+      // whose own chunks are untouched (see `_prevFlowSignatures`). The
+      // current signatures aren't known until assembly finishes, so this is
+      // a post-hoc check that feeds the same demotion path as a
+      // late-discovered global change.
+      // Declared-name census across every file of this compile — see
+      // `_censusEntries`. Compared here (not per file) so includes can't
+      // clobber each other's census.
+      const censusKey = (this._censusEntries ?? []).sort().join("");
+      if (
+        this._prevCensusKey !== undefined &&
+        this._prevCensusKey !== censusKey
+      ) {
+        this._flowReuseDisabled = true;
+      }
+      this._prevCensusKey = censusKey;
+      const flowSignatures = this.collectFlowSignatures(parsedStory);
+      if (this._prevFlowSignatures && !this._flowReuseDisabled) {
+        const prev = this._prevFlowSignatures;
+        let signaturesChanged = flowSignatures.size !== prev.size;
+        if (!signaturesChanged) {
+          for (const [name, sig] of flowSignatures) {
+            if (prev.get(name) !== sig) {
+              signaturesChanged = true;
+              break;
+            }
+          }
+        }
+        if (signaturesChanged) {
+          this._flowReuseDisabled = true;
+        }
+      }
+      this._prevFlowSignatures = flowSignatures;
+      // Late-discovered global change (e.g. a mid-file `run` whose .luau
+      // source changed re-lowered its virtual file's root region), or a
+      // callee-signature change discovered just above: demote any reuse
+      // already committed before the discovery so this compile regenerates
+      // those flows from their (intact) parsed content.
+      if (this._flowReuseDisabled && this._reusedFlowsThisCompile?.size) {
+        for (const flow of this._reusedFlowsThisCompile) {
+          this.resetSubtreeRuntime(flow);
+        }
+        this._reusedFlowsThisCompile.clear();
+      }
       // Canonicalize offset-derived synthetic names over the fully-assembled
       // tree so incremental compiles emit byte-identical bytecode to cold ones
       // (see method doc) — must run before ExportRuntime resolves references.
       profile("start", this._profilerId, "ink/canonicalizeSyntheticNames", uri);
-      this.canonicalizeSyntheticFlowNames(parsedStory);
+      const renamedTopLevel = this.canonicalizeSyntheticFlowNames(parsedStory);
       profile("end", this._profilerId, "ink/canonicalizeSyntheticNames", uri);
+      // Positional synthetic renames can land INSIDE an unchanged flow
+      // (adding an anonymous fn earlier renumbers every later `__synth_<n>`).
+      // Names are baked into runtime objects at GENERATION time, so a REUSED
+      // flow touched by a rename must be regenerated — and any renamed flow's
+      // serialized-JSON cache entry must lapse (the cross-flow fingerprint
+      // records nothing for pure content, so it can't catch the rename).
+      if (renamedTopLevel) {
+        for (const flow of renamedTopLevel) {
+          if (this._reusedFlowsThisCompile?.has(flow as FlowBase)) {
+            this.resetSubtreeRuntime(flow);
+            this._reusedFlowsThisCompile?.delete(flow as FlowBase);
+          }
+          const flowName =
+            flow instanceof FlowBase ? flow.identifier?.name : undefined;
+          if (flowName) {
+            (this._renamedFlowNames ??= new Set()).add(flowName);
+          }
+        }
+      }
       profile("start", this._profilerId, "ink/compile", uri);
       const story = parsedStory.ExportRuntime(onDiagnostic);
       profile("end", this._profilerId, "ink/compile", uri);
+      // Bar flows that raised GENERATION-time diagnostics from future reuse —
+      // reuse skips generation, which would silently drop them next compile.
+      for (const flow of parsedStory.flowsWithGenerationDiagnostics) {
+        this._flowsWithGenDiagnostics.add(flow);
+      }
+      if (parsedStory.hadUnattributableGenerationDiagnostic) {
+        this._disableFlowReuseNextCompile = true;
+      }
       if (story) {
-        profile("start", this._profilerId, "ink/json", uri);
-        const writer = new SimpleJson.Writer();
-        // Incremental ToJson: reuse the serialized subtree of each top-level flow
-        // whose source content is unchanged AND whose cross-flow fingerprint
-        // (#f flags + resolved divert/reference paths) is unchanged. Content is
-        // covered by the chunk-unchanged signal; the fingerprint covers the
-        // cross-flow bits that change without the flow's own source changing.
-        const { reusable: reusableFlows, ok: flowReuseOk } =
-          this.computeFlowReuse(story);
-        if (!flowReuseOk) {
-          // The global guard failed (a changed chunk sits before the first flow,
-          // so an inlined const may have shifted): no flow can be reused this
-          // compile. Take the exact baseline path — no fingerprinting, which
-          // would otherwise be pure overhead — and let the cache lapse so the
-          // next reuse-eligible edit reseeds from a fresh serialization.
-          story.ToJson(writer);
-          this._flowJsonCache = undefined;
-        } else {
-          const prevFlowCache = this._flowJsonCache;
-          const nextFlowCache = new Map<string, { fp: string; value: any }>();
-          const flowMemo = {
-            resolve: (
-              name: string,
-              container: Container,
-              serialize: () => any,
-            ) => {
-              // `global decl` is non-contiguous (scattered declarations) and
-              // cheap; always serialize it fresh, never cache.
-              //
-              // Canonical synthetic flows (`__synth_<n>`, see
-              // `canonicalizeSyntheticFlowNames`) are excluded because their
-              // names are POSITIONAL (document-order ordinals), so a name can
-              // rebind to a DIFFERENT flow when an edit adds/removes a
-              // synthetic earlier in the document — and the cross-flow
-              // fingerprint can't tell two same-shaped function knots apart
-              // (it deliberately records nothing for pure content, relying on
-              // chunk identity for structure, which name rebinding breaks).
-              // These are tiny function knots; serializing fresh is cheap.
-              if (name === "global decl" || CANONICAL_SYNTH_NAME.test(name)) {
-                return serialize();
-              }
-              const fp = JsonSerialisation.FingerprintCrossFlow(container);
-              let value: any;
-              if (reusableFlows.has(name) && prevFlowCache) {
-                const cached = prevFlowCache.get(name);
-                value = cached && cached.fp === fp ? cached.value : serialize();
-              } else {
-                value = serialize();
-              }
-              nextFlowCache.set(name, { fp, value });
-              return value;
-            },
-          };
-          story.ToJson(writer, flowMemo);
-          this._flowJsonCache = nextFlowCache;
-        }
-        const json = writer.toObject();
-        if (json) {
-          program.compiled = json;
+        // #345: hosts that never read the bytecode skip SERIALIZATION only.
+        // Everything else in this block still has to run — `state.story`, and
+        // `populateAllLocations` below, which walks the runtime tree for
+        // `pathLocations` (the editor navigates source with those).
+        // Orthogonal to `binaryProgram`, which picks the FORM when something
+        // is emitted; with emission off neither form is produced.
+        // #345/#351: emission is suppressed for hosts that never read the
+        // bytecode, and can be re-requested per compile. Everything else in
+        // this block still runs — `state.story`, and `populateAllLocations`
+        // below, which walks the runtime tree for `pathLocations`.
+        if (emitCompiledProgram) {
+          this.serializeCompiledProgram(story, program, uri);
         }
         state.story = story;
-        profile("end", this._profilerId, "ink/json", uri);
         // Gather source-location maps in a single top-down walk of the
         // runtime tree (see `populateAllLocations`). Done AFTER `ToJson`
         // rather than as its `onWriteRuntimeObject` callback so the path of
@@ -823,10 +1305,45 @@ export class SparkdownCompiler {
         // Carry this compile's chunk-identity set forward so the next compile
         // can tell which chunks are unchanged.
         this._prevCompilationIds = this._compilationIds;
+        // Promote this compile's flow-run records (fresh constructions and
+        // committed reuses) for the next compile's reuse decisions.
+        this._prevFlowRuns = this._nextFlowRuns;
         profile("end", this._profilerId, "populateLocations", uri);
       }
     } catch (e) {
+      compileThrew = true;
+      // Close whichever phase was in flight. This catch swallows the throw and
+      // the compiler keeps serving, so a phase left open here produces no
+      // measurement at all — losing exactly the compiles worth looking at, and
+      // `ink/compile` (ExportRuntime) is the very phase this catch was written
+      // for. Ending a phase that already ended is a no-op, so naming all five
+      // is safe. Add any new phase opened inside this `try` to the list.
+      for (const phase of [
+        "ink/parse",
+        "ink/canonicalizeSyntheticNames",
+        "ink/compile",
+        "ink/json",
+        "populateLocations",
+      ]) {
+        profile("end", this._profilerId, phase, uri);
+      }
       console.error(e);
+      // Restore the parents of containers committed to reuse — the previous
+      // RuntimeStory is still live (checkpoint-builder Game) and generation
+      // may have re-parented them into the now-discarded half-built tree.
+      if (this._reuseParentBackups) {
+        for (const [container, parent] of this._reuseParentBackups) {
+          container.parent = parent;
+        }
+      }
+      // A threw compile can leave carried parsed/runtime state half-mutated;
+      // drop all reuse records so the next compile rebuilds from scratch.
+      this._prevFlowRuns = undefined;
+      this._lastRootBlocksByUri = undefined;
+      // The census may be half-collected (the throw can land mid-parse), so
+      // drop it rather than compare a truncated one next compile.
+      this._prevCensusKey = undefined;
+      this._disableFlowReuseNextCompile = true;
     }
 
     this.populateFiles(program);
@@ -845,6 +1362,18 @@ export class SparkdownCompiler {
       program.simulationOptions = this._config.simulationOptions;
     }
     program.startFrom = startFrom ?? this._config.startFrom;
+    // Remember this compile for the no-change short-circuit -- but only if it
+    // completed cleanly (a compile that threw may hold a partial program).
+    this._lastCompileResult = compileThrew
+      ? undefined
+      : {
+          uri,
+          scripts: { ...program.scripts },
+          filesEpoch: this._filesEpoch,
+          countAllVisits: !!params.countAllVisits,
+          program,
+          story: state.story,
+        };
     const result = {
       textDocument: {
         uri,
@@ -966,9 +1495,54 @@ export class SparkdownCompiler {
       }
     };
 
+    // Restamp-only variant of `remapContent` for chunks feeding a REUSED
+    // flow: rebase debugMetadata source positions in place (shared by
+    // reference with the cached runtime objects, so they auto-shift) WITHOUT
+    // touching cached runtime state — not resetting is the reuse.
+    const restampContent = (
+      content: ParsedObject[],
+      lineNumberOffset: number,
+    ) => {
+      for (const c of content) {
+        if (c.debugMetadata) {
+          this.offsetDebugMetadata(c.debugMetadata, lineNumberOffset, version);
+          c.debugMetadata.fileName = fileName;
+          c.debugMetadata.filePath = uri;
+        }
+        if (
+          "identifier" in c &&
+          c.identifier instanceof Identifier &&
+          c.identifier?.debugMetadata
+        ) {
+          this.offsetDebugMetadata(
+            c.identifier.debugMetadata,
+            lineNumberOffset,
+            version,
+          );
+          c.identifier.debugMetadata.fileName = fileName;
+          c.identifier.debugMetadata.filePath = uri;
+        }
+        if ("pathIdentifiers" in c && Array.isArray(c.pathIdentifiers)) {
+          for (const p of c.pathIdentifiers) {
+            if (p instanceof Identifier && p.debugMetadata) {
+              this.offsetDebugMetadata(
+                p.debugMetadata,
+                lineNumberOffset,
+                version,
+              );
+              p.debugMetadata.fileName = fileName;
+              p.debugMetadata.filePath = uri;
+            }
+          }
+        }
+        if (c.content) {
+          restampContent(c.content, lineNumberOffset);
+        }
+      }
+    };
+
     const document = this.documents.get(uri);
     const annotations = this.documents.annotations(uri);
-    const cur = annotations.compilations.iter();
     const topLevelIncludedFileObjs: IncludedFile[] = [];
     const topLevelFlowBaseObjs: FlowBase[] = [];
     const topLevelWeaveObjs: ParsedObject[] = [];
@@ -1024,7 +1598,264 @@ export class SparkdownCompiler {
       topLevelIncludedFileObjs.push(new IncludedFile(preludeStory));
     }
 
-    while (cur.value) {
+    // Materialize the chunk list so flow-run reuse decisions can look AHEAD —
+    // a flow's reusability depends on ALL the body chunks that fed it last
+    // compile reappearing unchanged, in order.
+    const chunkRecords: { block: any; from: number; to: number }[] = [];
+    {
+      const cur = annotations.compilations.iter();
+      while (cur.value) {
+        chunkRecords.push({
+          block: cur.value.type,
+          from: cur.from,
+          to: cur.to,
+        });
+        cur.next();
+      }
+    }
+
+    // Where a chunk's content ATTACHES during assembly, discriminated the
+    // same way the assembly branches below do (first content object).
+    const chunkFlowKind = (
+      block: any,
+    ): "knot" | "stitch" | "external" | "body" | "none" => {
+      const first = block?.content?.[0];
+      if (first instanceof Knot) return "knot";
+      if (first instanceof Stitch) return "stitch";
+      if (first instanceof ExternalDeclaration) return "external";
+      if (first) return "body";
+      return "none";
+    };
+
+    // Reuse-disqualifier scan, computed ONCE per chunk identity (carried
+    // chunks keep their result). A flow whose run contains any of these can
+    // never be reused, because skipping its generation loses a story-global
+    // side effect: global `var`/`store` declarations register into the fresh
+    // Story's variableDeclarations, EXTERNALs into `story.externals`, and
+    // const/list/struct declarations feed story-level maps, and a LIST is
+    // additionally INLINED BY VALUE into other flows' bytecode — which is why
+    // a CHANGED chunk containing a list disables reuse globally. Constants
+    // are no longer inlined (#309), so they only cost the declaring flow its
+    // own reuse, not everyone else's.
+    const scanChunkForReuse = (
+      block: any,
+    ): {
+      disqualifies: boolean;
+      invalidatesGlobals: boolean;
+      declaredNames: string[];
+    } => {
+      let cached = this._chunkReuseScan?.get(block);
+      if (cached) {
+        return cached;
+      }
+      let disqualifies = false;
+      let invalidatesGlobals = false;
+      const declaredNames: string[] = [];
+      const scan = (nodes: ParsedObject[]) => {
+        for (const n of nodes) {
+          if (n instanceof ListDefinition) {
+            // List items are still resolved and inlined at generation time.
+            disqualifies = true;
+            invalidatesGlobals = true;
+            const listName = n.identifier?.name;
+            if (listName) {
+              declaredNames.push(`c:${listName}`);
+            }
+          } else if (n instanceof ConstantDeclaration) {
+            // Constants are no longer inlined into referencing flows (#309),
+            // so a constant's VALUE changing can't invalidate anyone else's
+            // bytecode and `invalidatesGlobals` is not set — editing a
+            // constant no longer kills flow reuse program-wide.
+            //
+            // The NAME still matters, and for the same reason a global's
+            // does: constants are registered in `story.variableDeclarations`,
+            // which `Divert.ResolveTargetContent` consults during GENERATION,
+            // so a constant named like a flow shadows it and changes call-site
+            // codegen. Hence a `g:` census entry, not the retired `c:` one.
+            // `disqualifies` also stays: the declaring flow still performs a
+            // story-global registration when it generates.
+            disqualifies = true;
+            if (n.constantName) {
+              declaredNames.push(`g:${n.constantName}`);
+            }
+          } else if (
+            n instanceof ExternalDeclaration ||
+            n instanceof StructDefinition ||
+            (n instanceof ParsedVariableAssignment && n.isGlobalDeclaration)
+          ) {
+            disqualifies = true;
+            const globalName =
+              n instanceof ParsedVariableAssignment
+                ? n.variableName
+                : n.identifier?.name;
+            if (globalName) {
+              declaredNames.push(`g:${globalName}`);
+            }
+          }
+          // Always recurse: the NAME census below must be complete, so this
+          // can't early-out once the boolean verdicts are both decided.
+          if (n.content) {
+            scan(n.content);
+          }
+        }
+      };
+      if (block?.content) {
+        scan(block.content);
+      }
+      cached = { disqualifies, invalidatesGlobals, declaredNames };
+      (this._chunkReuseScan ??= new WeakMap()).set(block, cached);
+      return cached;
+    };
+
+    // ---- Flow-reuse guards computed from this file's chunk list ----
+    // (1) ROOT-REGION STRUCTURE: the ordered sequence of `include`/`run`
+    // targets and `EXTERNAL` signatures. These change which files contribute
+    // flows, and which call sites compile to external calls — neither of
+    // which a reused flow can re-derive on its own. Compared by DESCRIPTOR
+    // (the target string / the external's name+arity), NOT by chunk identity:
+    // an identity comparison also fired for a re-lowered-but-unchanged chunk,
+    // and the incremental parser's reparse window routinely re-lowers a root
+    // chunk adjacent to an edit — which is why editing the front matter, or
+    // the first scene, used to kill reuse for that whole compile.
+    //
+    // Deliberately NOT part of the descriptor: front matter, loose top-level
+    // content, and top-level `store`/`var`/`define` declarations. None of
+    // them can alter a reused flow's bytecode — top-level flows are
+    // name-addressed in `namedOnlyContent`, so their internal paths don't
+    // shift when top-level content grows or shrinks, and globals are read
+    // through runtime variable lookups rather than inlined — as are
+    // constants since #309. Their NAMES still matter, and are covered by the
+    // declared-name census (see `_censusEntries`); LIST values are still
+    // inlined and are covered by (2).
+    //
+    // (2) A changed chunk containing a list declaration anywhere disables all
+    // reuse (value inlining into other flows).
+    {
+      const rootDescriptors: string[] = [];
+      for (const rec of chunkRecords) {
+        const block = rec.block as any;
+        if (block.include) {
+          rootDescriptors.push(`inc:${block.include}`);
+        }
+        if (block.run) {
+          rootDescriptors.push(`run:${block.run}`);
+        }
+        if (chunkFlowKind(block) === "external") {
+          const ext = block.content?.[0] as ExternalDeclaration | undefined;
+          rootDescriptors.push(
+            `ext:${ext?.identifier?.name ?? "?"}/${
+              ext?.argumentNames?.length ?? 0
+            }`,
+          );
+        }
+        if (block.content) {
+          const scan = scanChunkForReuse(block);
+          // Declared-NAME census (see `_censusEntries`). Cached per chunk
+          // identity, so unchanged chunks cost a map lookup. Accumulated
+          // across the WHOLE compile rather than per file — this function
+          // recurses once per `include`/`run`, so a per-file key would be
+          // overwritten by each included file and then compared against a
+          // different file's census on the next compile, permanently
+          // disabling reuse for any multi-file project.
+          for (const name of scan.declaredNames) {
+            this._censusEntries?.push(`${uri}|${name}`);
+          }
+          if (
+            !this._flowReuseDisabled &&
+            this._prevCompilationIds &&
+            !this._prevCompilationIds.has(block) &&
+            scan.invalidatesGlobals
+          ) {
+            this._flowReuseDisabled = true;
+          }
+        }
+      }
+      const prevRootDescriptors = this._lastRootBlocksByUri?.get(uri);
+      if (
+        !prevRootDescriptors ||
+        prevRootDescriptors.length !== rootDescriptors.length ||
+        rootDescriptors.some((d, i) => prevRootDescriptors[i] !== d)
+      ) {
+        this._flowReuseDisabled = true;
+      }
+      (this._lastRootBlocksByUri ??= new Map()).set(uri, rootDescriptors);
+    }
+
+    // Chunks whose content-assembly is skipped because they feed a flow
+    // reused from last compile's construction.
+    const reuseSkipBlocks = new Set<object>();
+    // The flow currently receiving body content in the NORMAL assembly path,
+    // recorded so next compile knows each flow's full chunk run.
+    let currentRun: { flow: FlowBase; contentChunks: object[] } | undefined;
+
+    // Try to reuse last compile's constructed flow for the run declared by
+    // `declBlock`: every content chunk of the recorded run must reappear
+    // identically in order (interleaved content-less chunks — includes,
+    // context-only — are transparent), no run chunk may carry a reuse
+    // disqualifier, the flow must not have raised generation-time
+    // diagnostics, and the chunk FOLLOWING the run must not be one that
+    // would attach new body content into this flow.
+    const tryReuseFlowRun = (
+      declBlock: object,
+      startIdx: number,
+    ): FlowBase | undefined => {
+      if (this._flowReuseDisabled || !this._prevFlowRuns) {
+        return undefined;
+      }
+      const prevRun = this._prevFlowRuns.get(declBlock);
+      if (!prevRun || this._flowsWithGenDiagnostics.has(prevRun.flow)) {
+        return undefined;
+      }
+      const runChunks = prevRun.contentChunks;
+      let k = 0;
+      let j = startIdx;
+      while (k < runChunks.length) {
+        if (j >= chunkRecords.length) {
+          return undefined;
+        }
+        const cb = chunkRecords[j]!.block as any;
+        if (!cb.content) {
+          j++;
+          continue;
+        }
+        if (cb !== runChunks[k] || scanChunkForReuse(cb).disqualifies) {
+          return undefined;
+        }
+        j++;
+        k++;
+      }
+      for (let m = j; m < chunkRecords.length; m++) {
+        const cb = chunkRecords[m]!.block as any;
+        if (!cb.content) {
+          continue;
+        }
+        const kind = chunkFlowKind(cb);
+        if (kind !== "knot" && kind !== "external") {
+          return undefined;
+        }
+        break;
+      }
+      for (const c of runChunks) {
+        reuseSkipBlocks.add(c);
+      }
+      this._nextFlowRuns?.set(declBlock, prevRun);
+      this._reusedFlowsThisCompile?.add(prevRun.flow);
+      // Record the reused container's current parent so an aborted compile
+      // can restore it — the previous RuntimeStory is still live in the
+      // checkpoint-builder Game, and generation re-parents this container
+      // into the (then discarded) new root.
+      const reusedContainer = (prevRun.flow as any)._runtimeObject;
+      if (reusedContainer) {
+        (this._reuseParentBackups ??= []).push([
+          reusedContainer,
+          reusedContainer.parent,
+        ]);
+      }
+      return prevRun.flow;
+    };
+
+    for (let chunkIdx = 0; chunkIdx < chunkRecords.length; chunkIdx++) {
+      const rec = chunkRecords[chunkIdx]!;
       const {
         include,
         run,
@@ -1035,18 +1866,21 @@ export class SparkdownCompiler {
         defaultDefinitions,
         uuid,
         hoistedKnots,
-      } = cur.value.type;
-      const lineNumberOffset = document?.lineAt(cur.from) ?? 0;
+      } = rec.block;
+      const lineNumberOffset = document?.lineAt(rec.from) ?? 0;
       // Track chunk identity for the incremental location cache. A chunk whose
       // CompiledBlock object is carried forward from the previous compile (same
       // identity) is unchanged; a new identity means it was re-lowered. Record
       // changed chunks' 0-based source line ranges so `populateAllLocations` can
       // tell which flows' subtrees must be recomputed vs reused.
-      const compiledBlock = cur.value.type as object;
+      const compiledBlock = rec.block as object;
       this._compilationIds?.add(compiledBlock);
-      if (this._prevCompilationIds && !this._prevCompilationIds.has(compiledBlock)) {
+      if (
+        this._prevCompilationIds &&
+        !this._prevCompilationIds.has(compiledBlock)
+      ) {
         const chunkStart = lineNumberOffset;
-        const chunkEnd = document?.lineAt(cur.to) ?? chunkStart;
+        const chunkEnd = document?.lineAt(rec.to) ?? chunkStart;
         this._changedChunkRanges?.push([chunkStart, chunkEnd]);
       }
       // Anonymous function literals lowered at chunk-top-level (i.e.
@@ -1179,7 +2013,8 @@ export class SparkdownCompiler {
             state.fileResolutionState.runStack ??= [];
             state.fileResolutionState.runStack.push(resolvedFilePath);
           }
-          let runStory: ReturnType<typeof this.parseIncrementally> | null = null;
+          let runStory: ReturnType<typeof this.parseIncrementally> | null =
+            null;
           try {
             runStory = this.parseIncrementally(
               virtualUri,
@@ -1218,131 +2053,167 @@ export class SparkdownCompiler {
         }
       }
       if (content) {
-        remapContent(content, lineNumberOffset);
-        const flow = content[0];
-        if (flow) {
-          if (flow instanceof Knot) {
-            // If the lowerer already populated a rootWeave with body content
-            // (e.g. function definitions whose body lives inside the same
-            // chunk), preserve it. Scene/Branch declarations leave _rootWeave
-            // unset so the staged-chunk pattern still creates an empty weave
-            // for subsequent body chunks to attach to.
-            const rootWeave = flow._rootWeave ?? new Weave([]);
-            rootWeave.debugMetadata = flow.debugMetadata;
-            const knot = new Knot(
-              flow.identifier!,
-              [],
-              flow.args ?? [],
-              flow.isFunction,
-            );
-            knot.debugMetadata = flow.debugMetadata;
-            knot._rootWeave = rootWeave;
-            knot.AddContent(rootWeave);
-            // Preserve nested subFlows that the lowerer attached (e.g.
-            // anonymous-function literals and nested named function
-            // definitions lower to `Function` subFlows so they live at
-            // their lexical position instead of hoisting to top-level).
-            // Re-add them as content so the runtime traversal sees them.
-            for (const [subName, subFlow] of flow._subFlowsByName) {
-              knot._subFlowsByName.set(subName, subFlow);
-              knot.AddContent(subFlow);
+        // ---- Incremental ExportRuntime: flow-run reuse decision ----
+        if (!reuseSkipBlocks.has(compiledBlock)) {
+          const first = content[0];
+          const declaresTopLevelFlow =
+            first instanceof Knot ||
+            (first instanceof Stitch &&
+              !(topLevelContent.at(-1) instanceof Knot));
+          if (declaresTopLevelFlow) {
+            currentRun = undefined;
+            const reusedFlow = tryReuseFlowRun(compiledBlock, chunkIdx);
+            if (reusedFlow) {
+              topLevelFlowBaseObjs.push(reusedFlow);
+              topLevelContent.push(reusedFlow as Knot | Stitch);
             }
-            topLevelFlowBaseObjs.push(knot);
-            topLevelContent.push(knot);
-          } else if (flow instanceof Stitch) {
-            const rootWeave = new Weave([]);
-            const stitch = new Stitch(
-              flow.identifier!,
-              [],
-              flow.args ?? [],
-              flow.isFunction,
-            );
-            stitch.debugMetadata = flow.debugMetadata;
-            stitch._rootWeave = rootWeave;
-            stitch.AddContent(rootWeave);
-            rootWeave.debugMetadata = flow.debugMetadata;
-            const last = topLevelContent.at(-1);
-            if (last instanceof Knot) {
-              if (stitch.identifier?.name) {
-                last.subFlowsByName.set(stitch.identifier?.name, stitch);
+          }
+        }
+        if (reuseSkipBlocks.has(compiledBlock)) {
+          // This chunk feeds a REUSED flow: keep its cached runtime subtree
+          // intact (skipping ResetRuntime IS the reuse) and skip re-assembly —
+          // the constructed flow already holds this chunk's parsed content by
+          // identity. Only re-stamp source positions if the chunk moved.
+          if (this._chunkStampOffset.get(compiledBlock) !== lineNumberOffset) {
+            restampContent(content, lineNumberOffset);
+          }
+          this._chunkStampOffset.set(compiledBlock, lineNumberOffset);
+        } else {
+          remapContent(content, lineNumberOffset);
+          this._chunkStampOffset.set(compiledBlock, lineNumberOffset);
+          const flow = content[0];
+          if (flow) {
+            if (flow instanceof Knot) {
+              // If the lowerer already populated a rootWeave with body content
+              // (e.g. function definitions whose body lives inside the same
+              // chunk), preserve it. Scene/Branch declarations leave _rootWeave
+              // unset so the staged-chunk pattern still creates an empty weave
+              // for subsequent body chunks to attach to.
+              const rootWeave = flow._rootWeave ?? new Weave([]);
+              rootWeave.debugMetadata = flow.debugMetadata;
+              const knot = new Knot(
+                flow.identifier!,
+                [],
+                flow.args ?? [],
+                flow.isFunction,
+              );
+              knot.debugMetadata = flow.debugMetadata;
+              knot._rootWeave = rootWeave;
+              knot.AddContent(rootWeave);
+              // Preserve nested subFlows that the lowerer attached (e.g.
+              // anonymous-function literals and nested named function
+              // definitions lower to `Function` subFlows so they live at
+              // their lexical position instead of hoisting to top-level).
+              // Re-add them as content so the runtime traversal sees them.
+              for (const [subName, subFlow] of flow._subFlowsByName) {
+                knot._subFlowsByName.set(subName, subFlow);
+                knot.AddContent(subFlow);
               }
-              if (
-                last.content.length === 1 &&
-                last.content[0] instanceof Weave &&
-                last.content[0].content.length === 0
-              ) {
-                // Remove empty internal weave, since we are not using it
-                last.content.pop();
-              }
-              last.AddContent(stitch);
-            } else {
-              topLevelFlowBaseObjs.push(stitch);
-              topLevelContent.push(stitch);
-            }
-          } else if (flow instanceof ExternalDeclaration) {
-            const weave = new Weave([flow]);
-            topLevelWeaveObjs.push(weave);
-            topLevelContent.push(weave);
-          } else if (flow instanceof Weave) {
-            // This chunk's body weave is about to be UNWRAPPED — its children
-            // are re-parented directly under the closest existing weave (e.g.
-            // a scene's rootWeave) below. Children that carry no OWN debug
-            // metadata only have a source line by INHERITING this weave's; once
-            // re-parented they'd instead inherit the destination weave's line
-            // (the scene-header line), collapsing every body line of the scene
-            // onto that header — so the whole scene's pathLocations resolve to
-            // one line and its content becomes unpreviewable (action/montage
-            // scenes like TEASER lost ALL per-line locations; action lines in
-            // dialogue scenes routed to a later beat). Carry this weave's
-            // (already chunk-offset) metadata down onto its OWN-metadata-less
-            // children first, mirroring `appendBlockContent`. Must guard on
-            // `ownDebugMetadata` (NOT the inheriting `debugMetadata` getter,
-            // which returns this weave's value and would skip everything).
-            // Restrict the carry-down to DISPLAY leaves (Text / Tag) — the
-            // content that needs per-line `pathLocations`. Stamping other
-            // child types (e.g. VariableAssignment, scope/flow ControlCommands)
-            // would give them an own source line they didn't have, which
-            // perturbs declaration-collection and scope/collision analysis
-            // (block-scoped `local` shadowing, scene/function call
-            // restrictions) — a whitelist keeps the fix to its purpose.
-            if (flow.ownDebugMetadata) {
-              for (const child of flow.content) {
-                if (
-                  !child.ownDebugMetadata &&
-                  (child instanceof Text || child instanceof Tag)
-                ) {
-                  child.debugMetadata = flow.ownDebugMetadata;
+              topLevelFlowBaseObjs.push(knot);
+              topLevelContent.push(knot);
+              currentRun = { flow: knot, contentChunks: [compiledBlock] };
+              this._nextFlowRuns?.set(compiledBlock, currentRun);
+            } else if (flow instanceof Stitch) {
+              const rootWeave = new Weave([]);
+              const stitch = new Stitch(
+                flow.identifier!,
+                [],
+                flow.args ?? [],
+                flow.isFunction,
+              );
+              stitch.debugMetadata = flow.debugMetadata;
+              stitch._rootWeave = rootWeave;
+              stitch.AddContent(rootWeave);
+              rootWeave.debugMetadata = flow.debugMetadata;
+              const last = topLevelContent.at(-1);
+              if (last instanceof Knot) {
+                if (stitch.identifier?.name) {
+                  last.subFlowsByName.set(stitch.identifier?.name, stitch);
                 }
+                if (
+                  last.content.length === 1 &&
+                  last.content[0] instanceof Weave &&
+                  last.content[0].content.length === 0
+                ) {
+                  // Remove empty internal weave, since we are not using it
+                  last.content.pop();
+                }
+                last.AddContent(stitch);
+                currentRun?.contentChunks.push(compiledBlock);
+              } else {
+                topLevelFlowBaseObjs.push(stitch);
+                topLevelContent.push(stitch);
+                currentRun = { flow: stitch, contentChunks: [compiledBlock] };
+                this._nextFlowRuns?.set(compiledBlock, currentRun);
               }
-            }
-            // Statements with uuids are wrapped in a Statement container so they can be given a stable runtime path
-            const firstStatement = flow?.content[0];
-            const isWeavePoint =
-              firstStatement instanceof Choice ||
-              firstStatement instanceof Gather;
-            if (uuid && isWeavePoint) {
-              // Ensure choices and gathers use a stable name for their inner container
-              firstStatement.uuid = uuid;
-            }
-            const flowContent =
-              uuid && !isWeavePoint
-                ? [new Statement(uuid, flow.content)] // Wrap non-choice/gather statements in a stably named container
-                : flow.content;
-            const closestWeave = getClosestWeave(topLevelContent);
-            if (closestWeave) {
-              const lastContent = closestWeave.content.at(-1);
-              if (
-                lastContent instanceof Weave &&
-                lastContent.content.length === 0
-              ) {
-                // Remove empty internal weave, since we are not using it
-                closestWeave.content.pop();
-              }
-              closestWeave.AddContent(flowContent);
-            } else {
-              const weave = new Weave(flowContent);
+            } else if (flow instanceof ExternalDeclaration) {
+              const weave = new Weave([flow]);
               topLevelWeaveObjs.push(weave);
               topLevelContent.push(weave);
+              currentRun = undefined;
+            } else if (flow instanceof Weave) {
+              // This chunk's body weave is about to be UNWRAPPED — its children
+              // are re-parented directly under the closest existing weave (e.g.
+              // a scene's rootWeave) below. Children that carry no OWN debug
+              // metadata only have a source line by INHERITING this weave's; once
+              // re-parented they'd instead inherit the destination weave's line
+              // (the scene-header line), collapsing every body line of the scene
+              // onto that header — so the whole scene's pathLocations resolve to
+              // one line and its content becomes unpreviewable (action/montage
+              // scenes like TEASER lost ALL per-line locations; action lines in
+              // dialogue scenes routed to a later beat). Carry this weave's
+              // (already chunk-offset) metadata down onto its OWN-metadata-less
+              // children first, mirroring `appendBlockContent`. Must guard on
+              // `ownDebugMetadata` (NOT the inheriting `debugMetadata` getter,
+              // which returns this weave's value and would skip everything).
+              // Restrict the carry-down to DISPLAY leaves (Text / Tag) — the
+              // content that needs per-line `pathLocations`. Stamping other
+              // child types (e.g. VariableAssignment, scope/flow ControlCommands)
+              // would give them an own source line they didn't have, which
+              // perturbs declaration-collection and scope/collision analysis
+              // (block-scoped `local` shadowing, scene/function call
+              // restrictions) — a whitelist keeps the fix to its purpose.
+              if (flow.ownDebugMetadata) {
+                for (const child of flow.content) {
+                  if (
+                    !child.ownDebugMetadata &&
+                    (child instanceof Text || child instanceof Tag)
+                  ) {
+                    child.debugMetadata = flow.ownDebugMetadata;
+                  }
+                }
+              }
+              // Statements with uuids are wrapped in a Statement container so they can be given a stable runtime path
+              const firstStatement = flow?.content[0];
+              const isWeavePoint =
+                firstStatement instanceof Choice ||
+                firstStatement instanceof Gather;
+              if (uuid && isWeavePoint) {
+                // Ensure choices and gathers use a stable name for their inner container
+                firstStatement.uuid = uuid;
+              }
+              const flowContent =
+                uuid && !isWeavePoint
+                  ? [new Statement(uuid, flow.content)] // Wrap non-choice/gather statements in a stably named container
+                  : flow.content;
+              const closestWeave = getClosestWeave(topLevelContent);
+              if (closestWeave) {
+                const lastContent = closestWeave.content.at(-1);
+                if (
+                  lastContent instanceof Weave &&
+                  lastContent.content.length === 0
+                ) {
+                  // Remove empty internal weave, since we are not using it
+                  closestWeave.content.pop();
+                }
+                closestWeave.AddContent(flowContent);
+                currentRun?.contentChunks.push(compiledBlock);
+              } else {
+                const weave = new Weave(flowContent);
+                topLevelWeaveObjs.push(weave);
+                topLevelContent.push(weave);
+                currentRun = undefined;
+              }
             }
           }
         }
@@ -1395,7 +2266,6 @@ export class SparkdownCompiler {
           state.defaultDefinitions[type] ??= struct;
         }
       }
-      cur.next();
     }
 
     // Scene/`end` (and branch) pairing validation. This is a CROSS-CHUNK
@@ -1489,7 +2359,53 @@ export class SparkdownCompiler {
   // and all of its references share the exact same string and are emitted within
   // the same chunk, so a uniform string→string remap suffices (no need to link
   // references back to definitions).
-  protected canonicalizeSyntheticFlowNames(root: ParsedObject): void {
+  // Call-relevant signature of every named flow, keyed by name. Walks the
+  // flow tree only (each flow's named sub-flows), never the full parsed tree,
+  // so this is O(flows) — negligible next to a compile. See
+  // `_prevFlowSignatures` for why call sites depend on it.
+  protected collectFlowSignatures(
+    flow: FlowBase,
+    into: Map<string, string> = new Map(),
+  ): Map<string, string> {
+    for (const sub of flow.subFlowsByName.values()) {
+      const name = sub.identifier?.name;
+      if (name) {
+        const args = (sub.args ?? [])
+          .map(
+            (a) =>
+              `${a.isVararg ? "*" : ""}${a.isByReference ? "&" : ""}${
+                a.isDivertTarget ? ">" : ""
+              }`,
+          )
+          .join(",");
+        into.set(name, `${sub.isFunction ? "fn" : "knot"}(${args})`);
+      }
+      this.collectFlowSignatures(sub, into);
+    }
+    return into;
+  }
+
+  // Recursively clear cached runtime objects under a constructed flow so the
+  // next `ExportRuntime` regenerates it from its (intact) parsed content —
+  // used to DEMOTE a flow whose committed reuse turned out to be invalid
+  // (late-discovered global change, synthetic rename in its subtree).
+  protected resetSubtreeRuntime(node: ParsedObject): void {
+    node.ResetRuntime();
+    const identifier = (node as { identifier?: unknown }).identifier;
+    if (identifier instanceof Identifier) {
+      identifier.ResetRuntime();
+    }
+    const content = node.content;
+    if (content) {
+      for (const c of content) {
+        this.resetSubtreeRuntime(c);
+      }
+    }
+  }
+
+  protected canonicalizeSyntheticFlowNames(
+    root: ParsedObject,
+  ): Set<ParsedObject> | undefined {
     // Every offset-derived synthetic family minted in the lowerers — PLUS the
     // canonical `__synth_<n>` form this pass itself produces. The pass mutates
     // the parsed IR in place and the incremental pipeline carries those nodes
@@ -1511,7 +2427,7 @@ export class SparkdownCompiler {
     // e.g. `identifier` and a `pathIdentifiers` entry) so each object is
     // rewritten exactly once — rewriting twice could CHAIN through the remap
     // now that canonical `__synth_<n>` names are themselves remappable.
-    const matchedIds: Identifier[] = [];
+    const matchedIds: Array<{ id: Identifier; owner: ParsedObject }> = [];
     const seenIds = new Set<Identifier>();
     const matchedStrings: Array<{ node: any; field: string }> = [];
     const flowsToRekey: FlowBase[] = [];
@@ -1526,12 +2442,12 @@ export class SparkdownCompiler {
         }
       }
     };
-    const considerId = (id: Identifier) => {
+    const considerId = (id: Identifier, owner: ParsedObject) => {
       const name = id.name;
       if (name && SYNTH.test(name) && !seenIds.has(id)) {
         seenIds.add(id);
         considerName(name);
-        matchedIds.push(id);
+        matchedIds.push({ id, owner });
       }
     };
     // A few nodes hold a synthetic name as a PLAIN STRING (not an Identifier) and
@@ -1566,15 +2482,40 @@ export class SparkdownCompiler {
     // Identifier-valued fields are visited before the plain string fields
     // (same order the previous two-pass implementation used, so ordinal
     // assignment is unchanged).
-    const collect = (node: ParsedObject) => {
+    // Returns whether this subtree contains ANY synthetic name.
+    //
+    // Subtrees with none are remembered by node identity and skipped entirely
+    // on later compiles: the incremental pipeline carries unchanged nodes
+    // forward by identity, and a re-lowered node is a NEW object, so it is
+    // never wrongly skipped. The set stays valid across the rewrite below
+    // because renaming only ever rewrites names that already matched SYNTH
+    // (including the canonical `__synth_<n>` form), so a synth-free subtree
+    // cannot acquire one. Most of a screenplay is display text with no
+    // synthetics at all, which is what makes this worth caching — the walk
+    // itself is otherwise whole-tree on every keystroke.
+    const collect = (node: ParsedObject): boolean => {
+      const markedLength = this._synthFreeSubtrees.get(node);
+      if (
+        markedLength !== undefined &&
+        markedLength === (node.content?.length ?? 0)
+      ) {
+        return false;
+      }
+      let found = false;
       for (const f of IDENTIFIER_FIELDS) {
         const val = (node as any)[f];
         if (val instanceof Identifier) {
-          considerId(val);
+          if (val.name && SYNTH.test(val.name)) {
+            found = true;
+          }
+          considerId(val, node);
         } else if (Array.isArray(val)) {
           for (const el of val) {
             if (el instanceof Identifier) {
-              considerId(el);
+              if (el.name && SYNTH.test(el.name)) {
+                found = true;
+              }
+              considerId(el, node);
             }
           }
         }
@@ -1582,31 +2523,55 @@ export class SparkdownCompiler {
       for (const f of NAME_STRING_FIELDS) {
         const v = (node as any)[f];
         if (typeof v === "string" && SYNTH.test(v)) {
+          found = true;
           considerName(v);
           matchedStrings.push({ node, field: f });
         }
       }
       if (node instanceof FlowBase && node._subFlowsByName.size > 0) {
+        // Only flows that actually contain a synthetic can need re-keying,
+        // and a skipped subtree contains none by construction.
         flowsToRekey.push(node);
       }
       const content = node.content;
       if (content) {
         for (const c of content) {
-          collect(c);
+          if (collect(c)) {
+            found = true;
+          }
         }
       }
+      if (!found) {
+        this._synthFreeSubtrees.set(node, node.content?.length ?? 0);
+      }
+      return found;
     };
     collect(root);
     if (!changed) {
-      return;
+      return undefined;
     }
 
     // Rewrite phase: only the recorded matches, then re-key each FlowBase's
     // `_subFlowsByName` index (built from the pre-rename identifiers at
-    // lowering time) after all names are final.
-    for (const id of matchedIds) {
+    // lowering time) after all names are final. Every node whose name
+    // actually CHANGED marks its enclosing top-level flow — the caller uses
+    // that to demote reused flows and lapse stale serialized-JSON entries.
+    const renamedTopLevelFlows = new Set<ParsedObject>();
+    const markRenamed = (owner: ParsedObject) => {
+      let n: ParsedObject | null = owner;
+      while (n && n.parent && !(n.parent instanceof Story)) {
+        n = n.parent;
+      }
+      if (n && n.parent instanceof Story) {
+        renamedTopLevelFlows.add(n);
+      }
+    };
+    for (const { id, owner } of matchedIds) {
       const next = id.name ? remap.get(id.name) : undefined;
       if (next) {
+        if (next !== id.name) {
+          markRenamed(owner);
+        }
         id.name = next;
       }
     }
@@ -1614,6 +2579,9 @@ export class SparkdownCompiler {
       const v = node[field];
       const next = typeof v === "string" ? remap.get(v) : undefined;
       if (next) {
+        if (next !== v) {
+          markRenamed(node);
+        }
         node[field] = next;
       }
     }
@@ -1627,6 +2595,7 @@ export class SparkdownCompiler {
       }
       flow._subFlowsByName = next;
     }
+    return renamedTopLevelFlows;
   }
 
   populateLocations(
@@ -1668,8 +2637,8 @@ export class SparkdownCompiler {
     // than the actual call site.
     const metadata =
       precomputedPath !== undefined
-        ? precomputedMetadata ?? null
-        : obj?.ownDebugMetadata ?? obj?.debugMetadata;
+        ? (precomputedMetadata ?? null)
+        : (obj?.ownDebugMetadata ?? obj?.debugMetadata);
     if (metadata) {
       const uri = metadata.filePath ?? program.uri;
       const scriptIndex =
@@ -1890,6 +2859,41 @@ export class SparkdownCompiler {
   // that sit before the first named flow. So if any changed chunk lies before the
   // first flow's span, a referenced const may have changed and every flow must be
   // re-serialized; otherwise per-flow content+fingerprint reuse is sound.
+  /**
+   * Bound the append-only binary string table.
+   *
+   * Every edited flow interns strings for its changed lines, and those are
+   * dead the moment the next keystroke lands — measured at ~1 per keystroke on
+   * raffles-and-bunny. The table is not merely a compiler-side cache: it ships
+   * inside `program.compiledBuffer`, so unchecked growth costs payload size and
+   * per-hop clone time as well as memory.
+   *
+   * Reseeding is cheap in the amortized sense but not free: every cached chunk
+   * was minted against the old numbering, so the next compile re-serializes
+   * every flow. With the thresholds below that happens once per few thousand
+   * edits, which is why it is a ratio and not a fixed cap — a large project
+   * legitimately holds more live strings than a small one.
+   */
+  protected maybeReseedBinaryTable(): void {
+    const size = this._binaryTable.strings.length;
+    if (this._binaryTableBaseline === 0) {
+      // First compile after a (re)seed: whatever is interned now is live.
+      this._binaryTableBaseline = size;
+      return;
+    }
+    const grown = size - this._binaryTableBaseline;
+    if (
+      size > this._binaryTableBaseline * BINARY_TABLE_RESEED_RATIO &&
+      grown > BINARY_TABLE_RESEED_MIN_SLACK
+    ) {
+      reseedProgramTable(this._binaryTable);
+      // Not strictly required — `generation` already makes stale chunks
+      // unusable — but holding them would pin memory for nothing.
+      this._flowChunkCache = undefined;
+      this._binaryTableBaseline = 0;
+    }
+  }
+
   protected computeFlowReuse(story: RuntimeStory): {
     reusable: Set<string>;
     ok: boolean;
@@ -2107,6 +3111,27 @@ export class SparkdownCompiler {
           effPrevCache = undefined;
         }
       }
+      // A flow's cached locations are keyed by INDEX-addressed runtime paths,
+      // and an unchanged flow's subtree can still change SHAPE when something
+      // before it changes: a constant is inlined at generation, and how many
+      // runtime objects it expands to is type-dependent (a string emits
+      // BeginString/StringValue/EndString, a number emits one value). So
+      // retyping or removing a constant shifts sibling indices inside flows
+      // whose own source shows no changed chunk, and replaying their cached
+      // keys would map real paths to wrong lines. Apply the same global guard
+      // `computeFlowReuse` uses for the bytecode cache: if any changed chunk
+      // starts before the first flow, reuse nothing this compile.
+      if (effPrevCache && this._changedChunkRanges?.length) {
+        const firstStart = starts.length
+          ? starts[0]!
+          : Number.POSITIVE_INFINITY;
+        for (const [changedStart] of this._changedChunkRanges) {
+          if (changedStart < firstStart) {
+            effPrevCache = undefined;
+            break;
+          }
+        }
+      }
       for (const f of flows) {
         // `global decl`'s source is non-contiguous (scattered declarations), so
         // it never gets a span — always recompute it (it emits no pathLocations
@@ -2320,13 +3345,7 @@ export class SparkdownCompiler {
         const cur = annotations.declarations.iter();
         let scopePathParts: {
           kind:
-            | ""
-            | "function"
-            | "scene"
-            | "branch"
-            | "knot"
-            | "stitch"
-            | "label";
+            "" | "function" | "scene" | "branch" | "knot" | "stitch" | "label";
           name: string;
         }[] = [];
         if (cur) {
@@ -2773,6 +3792,13 @@ export class SparkdownCompiler {
         }
         program.context[type][name] = { ...file, ...contextFile };
         delete program.context[type][name].text;
+        if (this._config.stripImageData) {
+          // #299: hosts that resolve filtered images through the on-demand
+          // `?filters=` service-worker route don't need the inlined SVG
+          // source, which dominated the program payload. Only the context
+          // COPY is stripped — the file registry keeps the source.
+          delete program.context[type][name].data;
+        }
       }
     }
     profile("end", this._profilerId, "populateAssets", uri);
@@ -3105,6 +4131,70 @@ export class SparkdownCompiler {
       ...Object.keys(program.sceneLocations ?? {}),
       ...Object.keys(program.knotLocations ?? {}),
     ]);
+    // Per-COMPILE memos. Both of these are pure functions of the reference's
+    // `declaration` plus `program`/`config`/`state`, all of which are fixed
+    // for the duration of this call — but they were being recomputed once per
+    // reference, and a screenplay repeats the same declaration across
+    // hundreds of references (every `[[show backdrop X]]` shares one). Scoped
+    // to this call deliberately: nothing here survives to the next compile,
+    // so there is no staleness surface.
+    const stringIdentifiersByDeclaration = new Map<string, string[]>();
+    const selectorTypesByDeclaration = new Map<string, string[]>();
+    const possibleStringIdentifiersFor = (declaration: string | undefined) => {
+      const key = declaration ?? "";
+      let cached = stringIdentifiersByDeclaration.get(key);
+      if (!cached) {
+        cached = getPossibleStringIdentifiers(
+          program,
+          declaration,
+          this._config,
+        );
+        stringIdentifiersByDeclaration.set(key, cached);
+      }
+      return cached;
+    };
+    // Same per-compile scope, for the selector resolution itself. The key
+    // covers every field of `SparkSelector` — an incomplete key would resolve
+    // one selector to another's struct.
+    const resolvedSelectors = new Map<string, any>();
+    const resolveSelectorMemo = (
+      selector: SparkSelector,
+      expectedSelectorTypes: string[],
+    ) => {
+      const key = [
+        selector.displayType ?? "",
+        selector.displayName ?? "",
+        (selector.types ?? []).join(","),
+        selector.name ?? "",
+        selector.property ?? "",
+        selector.value ?? "",
+        String(selector.fuzzy ?? false),
+        expectedSelectorTypes.join(","),
+      ].join("|");
+      if (resolvedSelectors.has(key)) {
+        return resolvedSelectors.get(key);
+      }
+      const [resolved] = resolveSelector<any>(
+        program,
+        selector,
+        expectedSelectorTypes,
+      );
+      resolvedSelectors.set(key, resolved);
+      return resolved;
+    };
+    const expectedSelectorTypesFor = (declaration: string | undefined) => {
+      const key = declaration ?? "";
+      let cached = selectorTypesByDeclaration.get(key);
+      if (!cached) {
+        cached = getExpectedSelectorTypes(
+          program,
+          declaration,
+          this._config,
+        );
+        selectorTypesByDeclaration.set(key, cached);
+      }
+      return cached;
+    };
     for (const uri of Object.keys(program.scripts)) {
       const doc = this.documents.get(uri);
       if (doc) {
@@ -3177,16 +4267,9 @@ export class SparkdownCompiler {
           }
           if (reference.selectors) {
             const declaration = reference.assigned;
-            const possibleStringIdentifiers = getPossibleStringIdentifiers(
-              program,
-              declaration,
-              this._config,
-            );
-            const expectedSelectorTypes = getExpectedSelectorTypes(
-              program,
-              declaration,
-              this._config,
-            );
+            const possibleStringIdentifiers =
+              possibleStringIdentifiersFor(declaration);
+            const expectedSelectorTypes = expectedSelectorTypesFor(declaration);
             if (expectedSelectorTypes.includes("color")) {
               const range = doc.range(cur.from, cur.to);
               program.colorAnnotations ??= {};
@@ -3197,11 +4280,7 @@ export class SparkdownCompiler {
             // Validate that reference resolves to existing an struct
             let found: any = undefined;
             for (const s of reference.selectors) {
-              const [resolved] = resolveSelector<any>(
-                program,
-                s,
-                expectedSelectorTypes,
-              );
+              const resolved = resolveSelectorMemo(s, expectedSelectorTypes);
               if (resolved) {
                 found = resolved;
               }

@@ -228,6 +228,141 @@ describe("compiler incremental equivalence", () => {
     }
   });
 
+  it("incremental == cold across reuse-repair sequences (flow-reuse hazards)", () => {
+    // Multi-step sequences targeting the incremental-ExportRuntime failure
+    // modes that only appear when an UNCHANGED (reused) flow's cached runtime
+    // subtree must be repaired by re-resolution:
+    //  - read-count removal: the target flow's `#f` count flag must DECAY on
+    //    its reused container (set-only cross-flow flag reconcile);
+    //  - rename-then-rename-back: a reused flow's divert must drop its stale
+    //    resolved path when the target vanishes AND re-resolve when it
+    //    returns (epoch-guarded targetContent + targetPath restore);
+    //  - a global `store` declared INSIDE a scene registers into the story
+    //    at GENERATION time, so that scene must be disqualified from reuse;
+    //  - an anonymous fn added MID-DOCUMENT renumbers `__synth_<n>` ordinals
+    //    baked into a LATER unchanged flow at generation (rename demotion).
+    const SCENARIOS: {
+      name: string;
+      steps: { find: string; replace: string }[];
+      /** Assert the reuse-demotion path actually ran (see that scenario). */
+      expectsDemotion?: boolean;
+    }[] = [
+      {
+        name: "remove last read-count reference, then edit elsewhere",
+        steps: [
+          // scene_2 holds the ONLY read-count of scene_3; removing it must
+          // clear scene_3's visit flag even though scene_3 is reused.
+          { find: "read-count {scene_3} here.", replace: "read-count gone." },
+          { find: "Not yet in scene 9.", replace: "Not yet in scene 9!" },
+        ],
+      },
+      {
+        name: "rename a divert target away and back",
+        steps: [
+          { find: "scene scene_4", replace: "scene scene_4x" },
+          { find: "scene scene_4x", replace: "scene scene_4" },
+        ],
+      },
+      {
+        name: "global store declared inside a scene, then edit elsewhere",
+        steps: [
+          {
+            find: "  Action describing room 5 in some detail here.",
+            replace:
+              "  Action describing room 5 in some detail here.\nstore inscene_flag = 7",
+          },
+          { find: "Not yet in scene 10.", replace: "Not yet in scene 10?" },
+        ],
+      },
+      {
+        name: "anonymous fn added mid-document renumbers later synthetics",
+        // Both inserts land MID-document on purpose. An insert near the top
+        // re-lowers the front-matter chunk, which trips the root-region guard
+        // and disables reuse for that compile — the scenario would then pass
+        // without ever exercising demotion (verified: it did exactly that
+        // before this was moved down). `expectsDemotion` asserts the path
+        // really runs, so a future guard change can't silently un-cover it.
+        expectsDemotion: true,
+        steps: [
+          // Seed a synthetic in a LATE scene first...
+          {
+            find: "  Action describing room 11 in some detail here.",
+            replace:
+              "  Action describing room 11 in some detail here.\n& local f11 = function(x) return x + 1 end",
+          },
+          // ...then add one EARLIER-BUT-STILL-MID: scenes after it are
+          // unchanged (reused) yet their `__synth_<n>` ordinals shift, so they
+          // must be demoted and regenerated.
+          {
+            find: "  Action describing room 6 in some detail here.",
+            replace:
+              "  Action describing room 6 in some detail here.\n& local f6 = function(x) return x + 2 end",
+          },
+          { find: "Not yet in scene 12.", replace: "Not yet in scene 12!!" },
+        ],
+      },
+    ];
+    const realWarn = console.warn;
+    const realError = console.error;
+    console.warn = () => {};
+    console.error = () => {};
+    try {
+      for (const scenario of SCENARIOS) {
+        let text = coupledScreenplay();
+        const incr = new SparkdownCompiler();
+        // Count demotions (a committed reuse invalidated mid-compile and
+        // regenerated) so `expectsDemotion` can prove the path was covered.
+        let demotions = 0;
+        const anyIncr = incr as unknown as {
+          resetSubtreeRuntime: (n: unknown) => void;
+        };
+        const originalReset = anyIncr.resetSubtreeRuntime;
+        anyIncr.resetSubtreeRuntime = function (n: unknown) {
+          demotions += 1;
+          return originalReset.call(this, n);
+        };
+        incr.configure({
+          files: [{ uri: URI, type: "script", name: "main", ext: "sd", text, version: 1, languageId: "sparkdown" }],
+        });
+        incr.compile({ textDocument: { uri: URI } });
+        let version = 1;
+        for (const [stepIdx, step] of scenario.steps.entries()) {
+          const offset = text.indexOf(step.find);
+          expect(
+            offset,
+            `${scenario.name}: find "${step.find}" present`,
+          ).toBeGreaterThanOrEqual(0);
+          const start = posAt(text, offset);
+          const end = posAt(text, offset + step.find.length);
+          version += 1;
+          incr.updateDocument({
+            textDocument: { uri: URI, version },
+            contentChanges: [{ range: { start, end }, text: step.replace }],
+          });
+          text =
+            text.slice(0, offset) +
+            step.replace +
+            text.slice(offset + step.find.length);
+          const incrProg = pick(incr.compile({ textDocument: { uri: URI } }).program);
+          const coldProg = coldCompile(text);
+          expect(
+            stable(incrProg),
+            `${scenario.name}: step ${stepIdx + 1}`,
+          ).toBe(stable(coldProg));
+        }
+        if (scenario.expectsDemotion) {
+          expect(
+            demotions,
+            `${scenario.name}: expected the reuse-demotion path to run`,
+          ).toBeGreaterThan(0);
+        }
+      }
+    } finally {
+      console.warn = realWarn;
+      console.error = realError;
+    }
+  });
+
   it("incremental == cold location maps when a structural edit changes the flow set", () => {
     // Breaking the FIRST scene's header removes it from the flow set and shifts
     // the document-global `dataLocations` ownership (the first `& trust =`, which

@@ -644,9 +644,16 @@ export class JsonSerialisation {
   // pre-order stream is anchored: a remote edit that moves a non-zero `#f` from
   // one container to another must change the string, which requires every
   // container to contribute a token.
+  //
+  // Dispatch is written as direct `instanceof` rather than `asOrNull`, and the
+  // contributing types are tested before the fall-through. The walk visits
+  // EVERY object in every flow on every compile, and the common case — string
+  // and control content, which contributes nothing — has to fail every test,
+  // so the per-object constant is the whole cost. `asOrNull` adds two calls per
+  // test on top of the same `instanceof`.
   private static fingerprintCrossFlowInto(obj: InkObject, out: string[]): void {
-    const container = asOrNull(obj, Container);
-    if (container) {
+    if (obj instanceof Container) {
+      const container = obj;
       out.push("f" + container.countFlags);
       const content = container.content;
       for (let i = 0; i < content.length; i++) {
@@ -660,8 +667,8 @@ export class JsonSerialisation {
       }
       return;
     }
-    const divert = asOrNull(obj, Divert);
-    if (divert) {
+    if (obj instanceof Divert) {
+      const divert = obj;
       const target = divert.hasVariableTarget
         ? divert.variableDivertName
         : divert.targetPathString;
@@ -674,8 +681,8 @@ export class JsonSerialisation {
     // read-count depends on whether the named flow exists — a CROSS-FLOW fact: a
     // remote edit that adds/removes/renames a scene flips this reference's form
     // even though the referencing flow's own source is unchanged.
-    const varRef = asOrNull(obj, VariableReference);
-    if (varRef) {
+    if (obj instanceof VariableReference) {
+      const varRef = obj;
       const cnt = varRef.pathStringForCount;
       if (cnt != null) {
         out.push("rC" + cnt.length + ":" + cnt);
@@ -687,22 +694,20 @@ export class JsonSerialisation {
     }
     // Resolved divert-target value (`{^->: path}`) and choice target path are
     // also resolved cross-flow.
-    const divTargetVal = asOrNull(obj, DivertTargetValue);
-    if (divTargetVal) {
-      const p = divTargetVal.value?.componentsString ?? "";
+    if (obj instanceof DivertTargetValue) {
+      const p = obj.value?.componentsString ?? "";
       out.push("T" + p.length + ":" + p);
       return;
     }
-    const choicePoint = asOrNull(obj, ChoicePoint);
-    if (choicePoint) {
+    if (obj instanceof ChoicePoint) {
+      const choicePoint = obj;
       const p = choicePoint.pathStringOnChoice ?? "";
       out.push("P" + p.length + ":" + p + ":" + choicePoint.flags);
       return;
     }
-    const varPtrVal = asOrNull(obj, VariablePointerValue);
-    if (varPtrVal) {
-      const p = varPtrVal.value ?? "";
-      out.push("p" + p.length + ":" + p + ":" + varPtrVal.contextIndex);
+    if (obj instanceof VariablePointerValue) {
+      const p = obj.value ?? "";
+      out.push("p" + p.length + ":" + p + ":" + obj.contextIndex);
       return;
     }
     // Pure-content object (string/value/control/glue/...): part of the flow's OWN

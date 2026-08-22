@@ -21,6 +21,10 @@ export const CODELENS_SEPARATOR_CLASS_NAME = "cm-codeLens-separator";
 export const codeLensWidgetTheme = EditorView.baseTheme({
   [`.${CODELENS_WRAPPER_CLASS_NAME}`]: {
     display: "flex",
+    // Explicit: a host may normalize `flex-direction` across its subtree
+    // (spark-editor forces `column` on every descendant of the editor root),
+    // and a direction-less flex container silently stacks when it does.
+    flexDirection: "row",
     alignItems: "center",
     color: "#999999",
     fontSize: "14px",

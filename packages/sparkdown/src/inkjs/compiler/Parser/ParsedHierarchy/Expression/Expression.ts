@@ -6,7 +6,6 @@ import { InkObject as RuntimeObject } from "../../../../engine/Object";
 export abstract class Expression extends ParsedObject {
   public abstract GenerateIntoContainer: (container: RuntimeContainer) => void;
 
-  private _prototypeRuntimeConstantExpression: RuntimeContainer | null = null;
   public outputWhenComplete: boolean = false;
 
   public readonly GenerateRuntimeObject = (): RuntimeObject => {
@@ -28,28 +27,12 @@ export abstract class Expression extends ParsedObject {
     return container;
   };
 
-  // When generating the value of a constant expression,
-  // we can't just keep generating the same constant expression into
-  // different places where the constant value is referenced, since then
-  // the same runtime objects would be used in multiple places, which
-  // is impossible since each runtime object should have one parent.
-  // Instead, we generate a prototype of the runtime object(s), then
-  // copy them each time they're used.
-  public readonly GenerateConstantIntoContainer = (
-    container: RuntimeContainer,
-  ): void => {
-    if (this._prototypeRuntimeConstantExpression === null) {
-      this._prototypeRuntimeConstantExpression = new RuntimeContainer();
-      this.GenerateIntoContainer(this._prototypeRuntimeConstantExpression);
-    }
-
-    for (const runtimeObj of this._prototypeRuntimeConstantExpression.content) {
-      const copy = runtimeObj.Copy();
-      if (copy) {
-        container.AddContent(copy);
-      }
-    }
-  };
+  // (Constants used to be materialized here, once per reference site, by
+  // copying a prototype of their runtime objects — each runtime object can
+  // only have one parent, so the copy was unavoidable. That approach threw
+  // outright for any initializer containing an operator, because
+  // `NativeFunctionCall` implements no `Copy()`. Constants are now
+  // initialized once as ordinary globals, so nothing needs copying.)
 
   get typeName(): string {
     return "Expression";
@@ -62,7 +45,4 @@ export abstract class Expression extends ParsedObject {
 
   public readonly toString = () => "No string value in JavaScript.";
 
-  override OnResetRuntime(): void {
-    this._prototypeRuntimeConstantExpression = null;
-  }
 }

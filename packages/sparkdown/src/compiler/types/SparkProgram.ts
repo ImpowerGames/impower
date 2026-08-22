@@ -1,3 +1,4 @@
+import type { ProgramBuffer } from "../../binary/programBinary";
 import { type File } from "./File";
 import { Range, type SparkDiagnostic } from "./SparkDiagnostic";
 import {
@@ -19,6 +20,18 @@ export interface SparkProgram {
   scripts: Record<string, number>;
   files: Record<string, Omit<File, "src" | "text" | "data">>;
   compiled?: Record<string, any>;
+  /**
+   * The compiled program as binary buffer PIECES (#314), set INSTEAD of
+   * `compiled` when `SparkdownCompilerConfig.binaryProgram` is on.
+   *
+   * Deliberately not packed into one self-describing blob. Packing costs ~10ms
+   * per compile (it re-encodes the whole string table to UTF-8) and buys
+   * nothing for a worker hop: `nodes` and `numbers` are typed arrays that
+   * TRANSFER in O(1), and only `strings` is structured-cloned. Packing is for
+   * persistence and `SharedArrayBuffer` — use `encodeProgramBuffer` when a
+   * single self-describing blob is actually what is needed.
+   */
+  compiledBuffer?: ProgramBuffer;
   workspace?: string;
   startFrom?: { file: string; line: number };
   simulationOptions?: Record<
