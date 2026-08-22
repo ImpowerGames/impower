@@ -202,7 +202,11 @@ end
       [],
     );
     expect(() => drawnLayers(program)).not.toThrow();
-    expect(drawnLayers(program)).toEqual([]);
+    // The `layered_image` type's `$default` declares `assets = { image.none }`,
+    // so a define that authors no assets inherits the empty `none` layer —
+    // which is what survives filtering here. The point stays the same: the
+    // half-typed define must not throw the compile.
+    expect(drawnLayers(program)).toEqual(["none"]);
   });
 
   it("re-derives the same set when called again on the same struct", () => {

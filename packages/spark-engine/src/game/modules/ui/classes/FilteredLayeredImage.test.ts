@@ -1,3 +1,8 @@
+// Side-effect import FIRST: the inkjs engine has a Container↔Value↔Object
+// module cycle, and importing UIModule cold lets Object.ts load first, which
+// makes `Container extends InkObject` see undefined. Priming Container fixes
+// the load order (same pattern as compileSnapshot.ts).
+import "@impower/sparkdown/src/inkjs/engine/Container";
 import { describe, expect, it } from "vitest";
 import { UIModule } from "./UIModule";
 

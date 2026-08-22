@@ -59,7 +59,10 @@ describe("stripImageData", () => {
     const program: any = compileWith({ stripImageData: true });
     const image = program.context?.image?.portrait;
     expect(image).toBeDefined();
-    expect(image.data).toBeUndefined();
+    // Falsy, not strictly undefined: the `image` type's `$default` declares
+    // `data = ""`, so default-inheritance refills the stripped field with an
+    // empty string. What #299 requires is that the PAYLOAD is gone.
+    expect(image.data).toBeFalsy();
     expect(image.src).toBe("/file:/local/assets/portrait.svg?v=1");
   });
 });

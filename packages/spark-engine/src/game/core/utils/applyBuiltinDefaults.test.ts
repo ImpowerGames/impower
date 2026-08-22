@@ -1,12 +1,42 @@
+import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
 import { describe, expect, it } from "vitest";
-import { DEFAULT_BUILTIN_DEFINITIONS } from "../../modules/DEFAULT_BUILTIN_DEFINITIONS";
 import { applyBuiltinDefaults, inheritDefaults } from "./applyBuiltinDefaults";
 
 /**
- * Authored defines reach the runtime carrying only the properties the author
- * wrote. `Game` makes each one inherit its type's `$default` before any module
- * reads it, so consumers never have to invent their own fallbacks (#268).
+ * `inheritDefaults`/`applyBuiltinDefaults` deep-fill a context's authored
+ * defines from their type's `$default`, so a consumer handed a context built
+ * outside the engine's channel path never has to invent fallbacks (#268).
  */
+
+/** The real builtin `$default`s, sourced from the compiled builtins prelude
+ *  (the aggregate JS definitions object was retired with the prelude
+ *  migration). Compiled once per suite — the prelude parse is cached
+ *  process-wide by the compiler. */
+let _builtinContext: Record<string, any> | undefined;
+const builtinContext = (): Record<string, any> => {
+  if (!_builtinContext) {
+    const uri = "file://proj/main.sd";
+    const compiler = new SparkdownCompiler();
+    compiler.configure({
+      useBuiltinsPrelude: true,
+      files: [
+        {
+          uri,
+          type: "script",
+          name: "main",
+          ext: "sd",
+          text: "",
+          version: 1,
+          languageId: "sparkdown",
+        },
+      ],
+    } as any);
+    _builtinContext =
+      (compiler.compile({ textDocument: { uri } } as any).program as any)
+        .context ?? {};
+  }
+  return _builtinContext!;
+};
 
 describe("inheritDefaults", () => {
   it("fills in what the author did not write", () => {
@@ -161,12 +191,14 @@ describe("against the real builtin definitions", () => {
    * pacing.
    */
   it("completes a partially-authored define for every type with defaults", () => {
-    const builtins: any = DEFAULT_BUILTIN_DEFINITIONS;
+    const builtins: any = builtinContext();
     const context: any = {};
     const typesWithDefaults: string[] = [];
     for (const [type, structs] of Object.entries<any>(builtins)) {
       const dflt = structs?.["$default"];
-      if (!dflt) {
+      // Only struct-typed defaults participate in inheritance; the prelude
+      // context also carries scalar-valued types (colors, eases-as-arrays).
+      if (!dflt || typeof dflt !== "object" || Array.isArray(dflt)) {
         continue;
       }
       const realKeys = Object.keys(dflt).filter((k) => !k.startsWith("$"));
@@ -200,7 +232,7 @@ describe("against the real builtin definitions", () => {
     // 5-16x, which is what made this class of bug invisible.
     const context: any = {
       typewriter: {
-        $default: DEFAULT_BUILTIN_DEFINITIONS.typewriter.$default,
+        $default: builtinContext()["typewriter"]?.$default,
         custom: { $type: "typewriter", $name: "custom", letter_pause: 0.05 },
       },
     };
@@ -217,7 +249,7 @@ describe("against the real builtin definitions", () => {
   it("gives a partial synth a complete envelope", () => {
     const context: any = {
       synth: {
-        $default: DEFAULT_BUILTIN_DEFINITIONS.synth.$default,
+        $default: builtinContext()["synth"]?.$default,
         raffles: {
           $type: "synth",
           $name: "raffles",

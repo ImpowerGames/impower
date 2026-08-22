@@ -1,7 +1,6 @@
 import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
 import { describe, expect, it } from "vitest";
 import { Game } from "../../core/classes/Game";
-import { DEFAULT_BUILTIN_DEFINITIONS } from "../DEFAULT_BUILTIN_DEFINITIONS";
 import { audioBuiltinDefinitions } from "./audioBuiltinDefinitions";
 import { SynthBuffer } from "./classes/helpers/SynthBuffer";
 import { LoadAudioPlayerParams } from "./types/LoadAudioPlayerParams";
@@ -85,7 +84,12 @@ const MAIN_URI = "file://proj/main.sd";
 const audioEmittedBy = async (script: string) => {
   const compiler = new SparkdownCompiler();
   compiler.configure({
-    definitions: { builtins: DEFAULT_BUILTIN_DEFINITIONS },
+    // Builtins come from the compiled builtins prelude, and the Game sources
+    // its defines from the live runtime `__def` tables — so every
+    // Game-feeding compile must seed the prelude into the story VM, the way
+    // the production player does.
+    useBuiltinsPrelude: true,
+    seedBuiltinsIntoStory: true,
     files: [
       {
         uri: MAIN_URI,

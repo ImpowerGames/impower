@@ -20,12 +20,19 @@ import {
 } from "./messages/UpdateAudioPlayersMessage";
 
 /**
- * A context entry is a synth if it says so, or if it was looked up under the
- * `synth` type. The `$type` check is the reliable one; the `type` fallback
- * covers entries reached through a path that resolved the type separately.
+ * A context entry is a synth if it says so, if it was looked up under the
+ * `synth` type, or if it carries synth tone data. The `$type`/`type` checks
+ * are the reliable ones; the `shape` fallback covers synth-shaped SUBTYPES
+ * (`typewriter` defs inherit the full synth prop set from their type's
+ * `$default`, but answer `$type: "typewriter"`). The shape check is safe as a
+ * fallback because defs reach the context fully merged with their type's
+ * defaults — a partially-authored `synth` is caught by the type checks even
+ * before its props are considered.
  */
 const isSynth = (asset: object, type: string): boolean =>
-  ("$type" in asset && asset.$type === "synth") || type === "synth";
+  ("$type" in asset && asset.$type === "synth") ||
+  type === "synth" ||
+  "shape" in asset;
 
 export interface AudioConfig {}
 
