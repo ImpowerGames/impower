@@ -1,6 +1,6 @@
 ---
 name: resolve-issue
-description: Resolve a GitHub issue in this repo end-to-end — read the ticket, reproduce it, fix it, add a regression test and run the suite, verify it live in the running editor with a screenshot, adversarially review the diff, and open a PR. Use when asked to fix, resolve, work on, or take an issue/ticket/bug by number (e.g. "fix #302", "resolve issue 311", "take the next ticket").
+description: Resolve a GitHub issue in this repo end-to-end — read the ticket, reproduce it, fix it, add a regression test and run the suite, verify it live in the running editor with a screenshot, open a draft PR, adversarially review it with cross-model subagents that post their findings as PR comments, and mark it ready. Use when asked to fix, resolve, work on, or take an issue/ticket/bug by number (e.g. "fix #302", "resolve issue 311", "take the next ticket").
 ---
 
 # Resolve a GitHub issue
@@ -438,90 +438,18 @@ also fails on `origin/main`.
 
 ---
 
-## 6. Adversarial code review (subagent fan-out)
+## 6. Commit, push, and open a draft PR
 
-Do this **before** opening the PR, on the real diff. The goal is to *break your
-own fix*, not to admire it — and to have readers who weren't anchored by your
-reasoning do it.
+The PR opens before the adversarial review (§7) so the reviewers have a PR to comment on — findings live on the PR itself, tracked next to the code they criticize, instead of dying in a session transcript. Open it as a draft and mark it ready only at the end of §7.
 
-**6a — capture the diff once**, so every reviewer sees the same artifact:
+First clean up scratch files, then look at what you are about to stage:
 
 ```bash
-git diff origin/main...HEAD > review-diff.patch
-```
-
-(`...` is deliberate: changes on your branch since it diverged from `main`,
-not `main`'s subsequent commits.) This file is **untracked** — delete it before
-§7, or it gets swept into the commit.
-
-**6b — fan out.** Spawn the lenses below **in parallel — one message, multiple
-Agent tool calls**, all `subagent_type: Explore` (read-only; a reviewer must not
-edit the tree). Give each one, verbatim:
-
-> You are reviewing a fix for issue #N in the Impower monorepo. The diff is in
-> `review-diff.patch`; the working tree is the branch under review. Your lens is
-> **\<LENS\>** — review ONLY through it. Your job is to REFUTE this change, not
-> to approve it. Assume it is broken and find out how. If you are uncertain,
-> report the concern rather than suppressing it. For each finding give:
-> `file:line`, a concrete failure scenario (inputs → wrong output), and how you
-> confirmed it in the code. Report "no findings through this lens" if you have
-> none — do not pad. Do not edit any files.
-
-Lenses — diversity matters far more than count; redundant reviewers find
-redundant things:
-
-- **Undirected** — give this one **no lens at all**. Replace the `<LENS>`
-  sentence with: *"You have no assigned lens. Review the whole change however
-  you see fit and report anything wrong with it."* Every other reviewer is
-  looking where you told it to look, which means they collectively share your
-  blind spots; this one exists to find what the lens list forgot. Always
-  include it.
-- **Correctness at boundaries** — empty input, single element, first/last
-  iteration, and specifically the loop iteration or branch the original bug
-  lived in.
-- **Incrementality** — the compiler reuses constructed flows and short-circuits
-  no-change compiles. Is this still correct on the *second* keystroke, not just
-  a cold compile? Does it corrupt reused state?
-- **Blast radius** — enumerate every caller of every changed function and argue
-  each is unaffected, citing `file:line`. Any caller you cannot account for is
-  a finding.
-- **Test honesty** — does the §5 regression test pin the ticket's *behaviour*,
-  or merely the shape of the patch? Would it catch the bug returning by a
-  different route?
-- **Repo traps** — check the Gotchas below against this diff: a generated
-  `language/*.json` edited without its `definitions/yaml/*.yaml` source, a
-  `.claude`-style ignore interaction, whitespace-significant display lines.
-
-Add a lens when the diff warrants one (concurrency, serialization, asset
-pipeline). Skip one that cannot apply.
-
-**6c — adjudicate.** Reviewer output is a **hypothesis, not a verdict**;
-subagents confidently report defects that do not exist. For every finding,
-confirm it yourself in the code before acting — a claimed `file:line` that
-doesn't say what the reviewer claims is a dead finding, full stop.
-
-Then either fix it, or record it in the PR body as a conscious decline with the
-reason. Do not silently drop findings.
-
-**6d — re-verify after fixing.** Any change made in response to review re-opens
-§4 and §5: re-run the regression test and re-take the live screenshot. A review
-fix is a code change like any other, and it is the one most likely to be
-committed unverified.
-
----
-
-## 7. Commit, push, PR
-
-First clean up the review scratch files, then **look at what you are about to
-stage**:
-
-```bash
-rm -f review-diff.patch testrun.log
+rm -f testrun.log
 git status --short
 ```
 
-Stage **deliberately, by path**. `git add -A` will happily commit a screenshot,
-a `.patch`, a scratch `.sd`, or a crash dump some earlier command left behind:
+Stage deliberately, by path. `git add -A` will happily commit a screenshot, a scratch `.sd`, or a crash dump some earlier command left behind:
 
 ```bash
 git add packages/sparkdown/src/compiler/utils/filterImage.ts packages/sparkdown/src/tests/compiler/FilterImageLayers.test.ts
@@ -530,35 +458,112 @@ git commit -F commit-msg.txt
 git push -u origin fix/302-filterimage-layers
 ```
 
-Write bodies to a **file** and pass `--body-file`. `@-` is a *curl* idiom; `gh`
-and `git` take it as the literal two-character string `@-` and exit 0, so the
-damage is invisible until you read the artifact back.
+Write bodies to a file and pass `--body-file`. `@-` is a curl idiom; `gh` and `git` take it as the literal two-character string `@-` and exit 0, so the damage is invisible until you read the artifact back.
 
 ```bash
-gh pr create --title "fix(compiler): accumulate all matching filtered_layers (#302)" --body-file pr-body.md
+gh pr create --draft --title "fix(compiler): accumulate all matching filtered_layers (#302)" --body-file pr-body.md
 ```
 
-**Read it back — always:**
+Read it back — always:
 
 ```bash
-gh pr view --json number,title,body
+gh pr view --json number,title,body,isDraft
 ```
 
 PR body should carry:
 
 - What broke and why, with `file:line`.
 - The fix.
-- **The regression test** — its path, and the red/green evidence from §5b
-  ("fails on the pre-fix source with `<assertion>`, passes after").
-- **Suite results** — which suites you ran and their actual `Test Files` /
-  `Tests` counts. Note any pre-existing failure you confirmed also fails on
-  `origin/main`.
-- The before/after screenshots from §4 — or, when the change has no visual
-  signature, the before/after **measurement** that replaces them, with absolute
-  numbers and how they were taken.
-- Any performance cost the fix carries, at the TOP of the body.
-- Anything the adversarial review raised that you deliberately did not change,
-  and why.
+- The regression test — its path, and the red/green evidence from §5b ("fails on the pre-fix source with `<assertion>`, passes after").
+- Suite results — which suites you ran and their actual `Test Files` / `Tests` counts. Note any pre-existing failure you confirmed also fails on `origin/main`.
+- The before/after screenshots from §4 — or, when the change has no visual signature, the before/after measurement that replaces them, with absolute numbers and how they were taken.
+- Any performance cost the fix carries, at the top of the body.
+
+---
+
+## 7. Adversarial code review (on the PR)
+
+The goal is to break your own fix, not to admire it — and to have readers who weren't anchored by your reasoning do it, on the real diff. Every reviewer posts its findings as a comment on the PR, so nothing it finds can get lost when the session ends.
+
+### 7a — size the review
+
+Reviewers cost real tokens. Scale the count to the blast radius of the change instead of running a fixed ritual — four reviewers on a two-line fix burn tokens to find nothing.
+
+| Tier | Reviewers | Applies when |
+| --- | --- | --- |
+| Minimal | 1 — undirected only | Docs, comments, or config only; or a single-file fix of a few dozen lines whose callers you enumerated yourself and whose regression test pins the ticket behaviour. |
+| Standard | 2–3 — undirected + the most relevant lenses | A typical fix contained in one package. |
+| High-impact | 4–6 — undirected + every applicable lens | Compiler or runtime semantics, incremental-compile or serialization paths, generated-grammar sources, changes spanning packages, or a diff over ~300 lines. |
+
+When a diff sits between tiers, round up — a missed defect costs more than a reviewer. The undirected reviewer is never dropped, whatever the tier.
+
+### 7b — reviewers run on a different model than the writer
+
+A model reviewing code written by the same model shares the writer's priors — it finds the same things plausible and overlooks the same things. Pass `model:` explicitly on every reviewer Agent call, choosing a different model family than the one you are running on (your system prompt names your model):
+
+| You (the writer) | Reviewers get |
+| --- | --- |
+| Fable or Opus | `model: "sonnet"` |
+| Sonnet | `model: "opus"` |
+
+Never use haiku for review — it misses exactly the subtle defects this pass exists to catch.
+
+### 7c — fan out; each reviewer comments on the PR
+
+Capture the diff once, so every reviewer sees the same artifact:
+
+```bash
+git diff origin/main...HEAD > review-diff.patch
+```
+
+(`...` is deliberate: changes on your branch since it diverged from `main`, not `main`'s subsequent commits.) The file is untracked — delete it before committing any review fixes, or it gets swept in.
+
+Spawn the reviewers in parallel — one message, multiple Agent tool calls, all `subagent_type: general-purpose`, each with the `model:` from §7b. Posting a PR comment needs Bash and a scratch file, so read-only is not tool-enforced for reviewers; the prompt forbids repo edits and §7d checks that it was obeyed. Give each one, verbatim (fill in N = issue number, P = PR number, LENS, MODEL):
+
+> You are reviewing a fix for issue #N in the Impower monorepo. The diff is in `review-diff.patch`; the working tree is the branch under review. Your lens is \<LENS\> — review only through it. Your job is to refute this change, not to approve it. Assume it is broken and find out how. If you are uncertain, report the concern rather than suppressing it. For each finding give: `file:line`, a concrete failure scenario (inputs → wrong output), and how you confirmed it in the code. Do not pad with non-findings. Do not edit, create, or delete any file inside the repo tree.
+>
+> When your review is done, post it as a comment on PR #P: write the full findings to a markdown file in your scratchpad directory (never inside the repo), starting with the heading `### Adversarial review — <LENS> (<MODEL>)`, then run `gh pr comment P --body-file <that file>`. Never pass `--body @-` — gh takes it as a literal string and posts a broken comment. If you have no findings, still post the comment with the single line "No findings through this lens." so the coverage is recorded. Confirm the comment landed by reading it back with `gh pr view P --comments`, and also return your findings as your final report.
+
+Lenses — diversity matters far more than count; redundant reviewers find redundant things:
+
+- Undirected — give this one no lens at all. Replace the `<LENS>` sentence with: "You have no assigned lens. Review the whole change however you see fit and report anything wrong with it." Every other reviewer is looking where you told it to look, which means they collectively share your blind spots; this one exists to find what the lens list forgot. It is always included, at every tier.
+- Correctness at boundaries — empty input, single element, first/last iteration, and specifically the loop iteration or branch the original bug lived in.
+- Incrementality — the compiler reuses constructed flows and short-circuits no-change compiles. Is this still correct on the second keystroke, not just a cold compile? Does it corrupt reused state?
+- Blast radius — enumerate every caller of every changed function and argue each is unaffected, citing `file:line`. Any caller you cannot account for is a finding.
+- Test honesty — does the §5 regression test pin the ticket's behaviour, or merely the shape of the patch? Would it catch the bug returning by a different route?
+- Repo traps — check the Gotchas below against this diff: a generated `language/*.json` edited without its `definitions/yaml/*.yaml` source, a `.claude`-style ignore interaction, whitespace-significant display lines.
+
+Add a lens when the diff warrants one (concurrency, serialization, asset pipeline). Skip one that cannot apply.
+
+When the fan-out returns, check the tree before anything else:
+
+```bash
+git status --short
+```
+
+Revert anything a reviewer changed inside the repo — a reviewer that edits the tree has contaminated its own evidence. Then confirm every expected comment is on the PR (`gh pr view P --comments`); a reviewer that reported findings but failed to post them gets its findings posted by you, verbatim, before you adjudicate.
+
+### 7d — adjudicate, on the PR
+
+Reviewer output is a hypothesis, not a verdict; subagents confidently report defects that do not exist. For every finding, confirm it yourself in the code before acting — a claimed `file:line` that doesn't say what the reviewer claims is a dead finding, full stop.
+
+Then dispose of every finding where it lives — on the PR. Post one adjudication comment (again via `--body-file`) naming each finding and what happened to it:
+
+- Fixed — with the commit sha.
+- Declined — with the concrete reason.
+- Not confirmed — the cited `file:line` does not say what the reviewer claimed.
+
+Do not silently drop findings; an unanswered review comment on the PR reads as an open defect.
+
+### 7e — re-verify, then mark ready
+
+Any change made in response to review re-opens §4 and §5: re-run the regression test and re-take the live screenshot. A review fix is a code change like any other, and it is the one most likely to be committed unverified. Delete `review-diff.patch`, commit by path, push.
+
+Then take the PR out of draft:
+
+```bash
+gh pr ready
+```
 
 ---
 
