@@ -499,14 +499,17 @@ When a diff sits between tiers, round up — a missed defect costs more than a r
 
 ### 7b — reviewers run on a different model than the writer
 
-A model reviewing code written by the same model shares the writer's priors — it finds the same things plausible and overlooks the same things. Pass `model:` explicitly on every reviewer Agent call, choosing a different model family than the one you are running on (your system prompt names your model):
+A model reviewing code written by the same model shares the writer's priors — it finds the same things plausible and overlooks the same things. The requirement is a different model, not a different family: a different version of the same family counts (Opus 5 reviewed by Opus 4.8 is a valid pairing), and staying close to the writer's capability tier beats dropping down one.
+
+Pass `model:` explicitly on every reviewer Agent call. The Agent tool's `model` values are family aliases (`fable`, `opus`, `sonnet`, `haiku`), each resolving to that family's current version — so an alias qualifies exactly when it resolves to a model other than you (your system prompt names your model):
 
 | You (the writer) | Reviewers get |
 | --- | --- |
-| Fable or Opus | `model: "sonnet"` |
+| Fable | `model: "opus"` (or `"sonnet"`) |
+| Opus | `model: "fable"` if available, else `"sonnet"` — the `"opus"` alias resolves back to you |
 | Sonnet | `model: "opus"` |
 
-Never use haiku for review — it misses exactly the subtle defects this pass exists to catch.
+If the harness accepts a versioned model id for reviewers, an adjacent version of the writer's own family is the ideal pick. Never use haiku for review — it misses exactly the subtle defects this pass exists to catch.
 
 ### 7c — fan out; each reviewer comments on the PR
 
