@@ -390,6 +390,7 @@ export class Game<T extends M = {}> {
       this._story = new Story(compiled);
     }
     this.setupStory(this._story);
+    this.restoreReactiveTracking();
     // Live edit → recompile reuses this Game: refresh the context channels from
     // the new program and let modules re-derive any state cached from context
     // (e.g. InterpreterModule's character-name map). Guarded on modules already
@@ -400,6 +401,14 @@ export class Game<T extends M = {}> {
       for (const moduleName of this._moduleNames) {
         this._modules[moduleName]?.onProgramUpdate();
       }
+      // The program (and its freshly-installed story) changed, so any earlier
+      // preview's result is stale even when the next preview resolves to the
+      // SAME path — an intra-line edit keeps the structural path while changing
+      // the text. Clearing the memo makes `preview()`'s same-path short-circuit
+      // miss, so it re-runs the new story and re-emits the beat's content;
+      // without this the reconcile pass sweeps the un-re-emitted elements and
+      // the preview goes blank until the cursor moves to a different beat.
+      this._context.system.previewing = undefined;
     }
     return this._program;
   }
@@ -450,6 +459,17 @@ export class Game<T extends M = {}> {
       return;
     }
     const runtime = buildDefinesContext(this._story);
+    // A program compiled WITHOUT `seedBuiltinsIntoStory` still has authored
+    // globals, so the empty-map bail above doesn't catch it — it just yields a
+    // define context with every builtin type (colors, `synth`, `character`,
+    // `config`…) silently absent, which surfaces far downstream as missing
+    // defaults. Warn loudly instead of failing quietly; every in-repo host
+    // sets the flag, so this fires only for an external embedder's mistake.
+    if (!runtime["synth"] && !runtime["character"] && !runtime["color"]) {
+      console.warn(
+        "spark-engine: the runtime story carries no builtin defines — was the program compiled without `seedBuiltinsIntoStory`? Builtin types (colors, synths, typewriters, …) will be missing from the game context.",
+      );
+    }
     for (const [type, structs] of Object.entries(runtime)) {
       this._context[type] = structs;
     }
@@ -1019,6 +1039,7 @@ export class Game<T extends M = {}> {
       }
       if (saveData.story) {
         this._story.state.LoadJson(saveData.story);
+        this.restoreReactiveTracking();
       }
       if (saveData.runtime) {
         this._runtimeState = RuntimeState.fromJSON(saveData.runtime);
@@ -1069,6 +1090,22 @@ export class Game<T extends M = {}> {
       this._story.Continue();
     }
     this._story.ResetState();
+    this.restoreReactiveTracking();
+  }
+
+  /** Re-assert reactive dependency tracking after ANY story-state
+   *  replacement (`ResetState`, a recompile's `new Story`, a checkpoint
+   *  `LoadJson`). Each of those yields a `VariablesState` whose fine-grained
+   *  tracking defaults OFF, and the flag is normally enabled only once, at
+   *  layout mount (`UIModule.constructLayoutsFromAst`) — which does NOT
+   *  re-run on these paths, precisely because they preserve the mounted UI.
+   *  Without this, every mounted `{binding}` freezes after a STOP → PLAY
+   *  restart or a live-edit recompile: the VM keeps updating the globals,
+   *  but no change is ever recorded for `refreshLayouts` to react to. */
+  protected restoreReactiveTracking() {
+    if (this._program?.sparkle?.layouts) {
+      this._story.variablesState.reactiveDepsEnabled = true;
+    }
   }
 
   reset() {

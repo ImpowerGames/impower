@@ -1026,7 +1026,14 @@ function buildBranchChildren(
   if (!content) return [];
   const items = collectNodeLines(content, ctx);
   if (items.length === 0) return [];
-  return buildBlock(items, 0, items[0]!.indent, ctx).children;
+  // Same base-indent rule as `buildSparkleBody`: the SHALLOWEST line, not the
+  // first one. With the first line's indent, a branch body whose opening line
+  // was indented deeper than the rest ended the block-walk at the very next
+  // line and silently discarded the remainder of the branch — without even
+  // the orphan warning, because the walk EXITS on a shallower line rather
+  // than skipping it.
+  const base = items.reduce((m, l) => Math.min(m, l.indent), items[0]!.indent);
+  return buildBlock(items, 0, base, ctx).children;
 }
 
 const IF_CONDITION = new Set(["LuauIfBlockCondition"]);

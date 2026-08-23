@@ -256,6 +256,24 @@ export function buildDefinesContext(
     if (!map) continue;
     const typeName = metaString(typeTable, DEFINE_MARKER);
     if (!typeName) continue;
+    // A ROOT type table's own props are the type's defaults. Emit them under
+    // the `$default` key — the same key `program.context` mints for a typed
+    // define (lowerLuauDefine) — so `lookupContextValue`'s terminal
+    // `context[type]["$default"]` fallback resolves on the runtime channel
+    // too. Without it, every lookup that misses by name silently loses the
+    // type's real values to inline zeros: typewriter pacing for `choice N`
+    // targets collapsed 5-16x, and `prosody`/`inflection` (root-only types
+    // with no instances) vanished entirely, muting all dialogue inflection.
+    // Skipped for empty roots (e.g. `color`) so a truthy-but-empty `{}`
+    // never shadows a caller's own fallback chain.
+    if (!metaString(typeTable, DEFINE_PARENT_MARKER)) {
+      const defaults = convertDefine(typeTable, story);
+      if (Object.keys(defaults).some((k) => !k.startsWith("$"))) {
+        defaults["$type"] = typeName;
+        defaults["$name"] = "$default";
+        (context[typeName] ??= {})["$default"] ??= defaults;
+      }
+    }
     for (const [key, member] of map) {
       if (META_PROP_KEYS.has(key)) continue;
       if (!isDefineTable(member)) continue; // a real prop/method, not an instance

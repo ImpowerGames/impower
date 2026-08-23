@@ -58,6 +58,10 @@ async function beatStream(body: string, experimentalDisplayCalls: boolean) {
 async function assertParity(body: string) {
   const legacy = await beatStream(body, false);
   const viaDisplay = await beatStream(body, true);
+  // A fixture that stops producing beats would make both streams `[]` and the
+  // equality below silently vacuous — parity between two empty runs proves
+  // nothing. Every fixture here renders SOMETHING.
+  expect(legacy.length).toBeGreaterThan(0);
   expect(viaDisplay).toEqual(legacy);
 }
 
@@ -135,6 +139,34 @@ describe("display() ↔ legacy parity (message stream)", () => {
 
   test("dialogue with a trailing # tag (fallback)", async () => {
     await assertParity(`  HERO: Goodbye. # final`);
+  });
+
+  // Glue chains mix transports if the BASE line takes the display() path while
+  // its continuation lowers to legacy `Glue + text` — one runtime Continue then
+  // carries an instruction AND flat text, and `Game.continue`'s either/or
+  // dropped the text ("Some" rendered; "content with glue." vanished). The
+  // lowerer keeps the whole chain legacy; these pin that both glue shapes
+  // still render their full joined text with the flag on.
+  test("leading-glue continuation (.. on the next line)", async () => {
+    await assertParity(`  Some\n  .. content\n  .. with glue.`);
+  });
+
+  test("trailing-glue continuation (.. at end of line)", async () => {
+    await assertParity(`  Some ..\n  content ..\n  with glue.`);
+  });
+
+  test("glued dialogue continuation", async () => {
+    await assertParity(`  HERO: Wait ..\n  .. for me.`);
+  });
+
+  // `load <name>` is a world-load directive `InterpreterModule.queue`
+  // intercepts by prefix; `queueInstructions` has no such interception, so the
+  // lowerer must keep it on the legacy path or it renders as literal text.
+  test("load directive line stays a directive (fallback)", async () => {
+    // Paired with a text line so the streams are non-empty either way; if the
+    // directive leaked onto the display path it would surface here as an
+    // extra rendered "load overworld" beat in the flag-on stream.
+    await assertParity(`  load overworld\n  The world appears.`);
   });
 });
 

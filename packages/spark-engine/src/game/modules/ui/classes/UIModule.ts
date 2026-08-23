@@ -559,7 +559,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
    *  error rather than dying silently in a console. */
   protected reportRuntimeError(what: string, e: unknown): void {
     const detail = e instanceof Error ? e.message : String(e);
-    this._game.story.onError?.(`${what}: ${detail}`, ErrorType.Error);
+    // No SourceMetadata: a binding evaluation failure has no single ink source
+    // location to point at (the handler wires the message through unchanged).
+    this._game.story.onError?.(`${what}: ${detail}`, ErrorType.Error, null);
   }
 
   override getBuiltins() {
@@ -1214,10 +1216,16 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     if (fonts) {
       this.constructStyle("fonts", { fonts });
     }
-    // Process Animations
+    // Process Animations. `$`-prefixed entries are type metadata, not
+    // authored animations — the runtime define channel carries the type's
+    // `$default` (for `lookupContextValue` fallbacks), and emitting it here
+    // would generate a pointless empty `@keyframes` block for "$default".
     const animations = this.context?.animation;
     if (animations) {
-      this.constructStyle("animations", { animations });
+      const authored = Object.fromEntries(
+        Object.entries(animations).filter(([name]) => !name.startsWith("$")),
+      );
+      this.constructStyle("animations", { animations: authored });
     }
     const styles = this.context?.style;
     if (styles) {

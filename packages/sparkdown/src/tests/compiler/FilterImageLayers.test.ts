@@ -209,6 +209,28 @@ end
     expect(drawnLayers(program)).toEqual(["none"]);
   });
 
+  it("survives a HAND-BUILT layered_image with no assets at all", () => {
+    // A compiled define always inherits `assets` from the type's `$default`,
+    // so the case above can no longer reach the `assets ?? {}` guard in
+    // `filterImage`. The LSP hover/preview paths still hand it partial,
+    // hand-built structs mid-keystroke — this pins the guard directly.
+    const context: any = {
+      layered_image: {
+        portrait: { $type: "layered_image", $name: "portrait" },
+      },
+      filtered_image: {
+        p: {
+          $type: "filtered_image",
+          $name: "p",
+          image: { $type: "layered_image", $name: "portrait" },
+          filters: [],
+        },
+      },
+    };
+    expect(() => filterImage(context, context.filtered_image.p)).not.toThrow();
+    expect(context.filtered_image.p.filtered_layers ?? []).toEqual([]);
+  });
+
   it("re-derives the same set when called again on the same struct", () => {
     // A layered root never sets `filtered_src`, so the early-out in filterImage
     // never latches and the loop re-runs on every hover, preview and image

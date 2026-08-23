@@ -1757,8 +1757,18 @@ export class SparkdownCompiler {
           // overwritten by each included file and then compared against a
           // different file's census on the next compile, permanently
           // disabling reuse for any multi-file project.
-          for (const name of scan.declaredNames) {
-            this._censusEntries?.push(`${uri}|${name}`);
+          //
+          // The source-injected builtins PRELUDE is excluded: its parse runs
+          // through here exactly once per compiler instance (the cached parse
+          // is reused thereafter, contributing nothing), so counting its ~360
+          // defines on compile 1 and zero on compile 2 would make the census
+          // keys differ and trip `_flowReuseDisabled` on precisely the first
+          // compile where flow reuse could pay off. The prelude is a constant,
+          // so its names can never actually change between compiles.
+          if (!this._injectingPrelude) {
+            for (const name of scan.declaredNames) {
+              this._censusEntries?.push(`${uri}|${name}`);
+            }
           }
           if (
             !this._flowReuseDisabled &&
@@ -3981,7 +3991,12 @@ export class SparkdownCompiler {
       if (k.startsWith("$")) {
         continue;
       }
-      result[k] = bv;
+      // Clone anything with identity. Handing out the `$default`'s own
+      // array/object would alias it across every define that inherits it —
+      // one instance mutating a nested field (or a consumer memoizing onto
+      // it) would rewrite the type default and every sibling along with it.
+      result[k] =
+        typeof bv === "object" && bv !== null ? structuredClone(bv) : bv;
     }
     for (const [k, v] of Object.entries(override)) {
       const bv = (base as Record<string, any>)[k];

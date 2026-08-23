@@ -70,4 +70,35 @@ describe("a trailing comment does not change a typed field's value", () => {
     expect(out?.name).toBe("http://x.com/y");
     expect(out?.tint).toBe("var(--theme-color-red)");
   });
+
+  // A marker INSIDE the quotes is content, never a comment — the quotes bound
+  // the literal (`stripTrailingLineComment`'s own contract). Stripping before
+  // the quote test truncated the value to a malformed half-string WITH its
+  // leading quote (`"Chapter 1`), which then also pre-empted the correct
+  // parsed-expression fallback because it wasn't `undefined`.
+  test("a ` -- ` or ` // ` inside a quoted string is kept verbatim", () => {
+    const out = compile(
+      `define Bird with\n  name = ""\n  alt = ""\n  note = ""\nend\n` +
+        `define robin as Bird with\n` +
+        `  name = "Chapter 1 -- The Beginning"\n` +
+        `  alt = "see // note"\n` +
+        `  note = 'single -- quoted'\n` +
+        `end\n`,
+    ).context?.Bird?.robin;
+    expect(out?.name).toBe("Chapter 1 -- The Beginning");
+    expect(out?.alt).toBe("see // note");
+    expect(out?.note).toBe("single -- quoted");
+  });
+
+  // Both at once: content marker inside the quotes AND a real trailing
+  // comment after the closing quote.
+  test("an in-string marker and a real trailing comment coexist", () => {
+    const out = compile(
+      `define Bird with\n  name = ""\nend\n` +
+        `define robin as Bird with\n` +
+        `  name = "wait -- hold" -- authored note\n` +
+        `end\n`,
+    ).context?.Bird?.robin;
+    expect(out?.name).toBe("wait -- hold");
+  });
 });

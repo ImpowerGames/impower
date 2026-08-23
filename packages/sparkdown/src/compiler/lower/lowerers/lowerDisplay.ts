@@ -86,15 +86,25 @@ function buildDisplayContent(
   // instruction table the runtime renders without a char-by-char re-scan. Any
   // non-simple content returns null and falls through to the legacy path below,
   // so existing goldens stay byte-identical until the table shape grows.
-  const displayCall = tryBuildSimpleDisplayCall(
-    parent,
-    bodyStart,
-    bodyEnd,
-    ctx,
-    mode,
-    lineType,
-    identifier,
-  );
+  //
+  // A line CONTINUED by glue must also stay on the legacy path. Its
+  // continuation lowers to `Glue + text` (the early return above), and the
+  // runtime joins the two into ONE Continue — so the base line lowering to a
+  // display() call would put an instruction AND flat text in the same beat.
+  // `Game.continue` treats those as either/or (instructions win), so the
+  // continuation's text would be silently dropped. Keeping the whole glue
+  // chain legacy keeps the beat single-transport.
+  const displayCall = isNodeContinuedByGlue(parent, ctx)
+    ? null
+    : tryBuildSimpleDisplayCall(
+        parent,
+        bodyStart,
+        bodyEnd,
+        ctx,
+        mode,
+        lineType,
+        identifier,
+      );
   if (displayCall) {
     return displayCall;
   }
@@ -182,6 +192,18 @@ function tryBuildSimpleDisplayCall(
   identifier: string | null,
 ): ParsedObject[] | null {
   if (!ctx.config?.experimentalDisplayCalls) return null;
+
+  // A `load <name>…` action line is a WORLD-LOAD DIRECTIVE, not display text:
+  // `InterpreterModule.queue` intercepts the prefix and converts it to
+  // LoadInstructions. `queueInstructions` has no such interception, so this
+  // line must stay on the legacy text path or the directive would render as
+  // the literal string "load …" and the load would never run.
+  if (
+    lineType === "action" &&
+    ctx.read(bodyStart, bodyEnd).trimStart().startsWith("load ")
+  ) {
+    return null;
+  }
 
   // Resolve the routing exactly as the engine's tag path does, but at compile
   // time: dialogue → target "dialogue" + the cue; write → the layer is the
@@ -851,6 +873,44 @@ function isNodePrecededByTrailingGlue(
   while (sib && GLUE_SKIP_SIBLINGS.has(sib.name)) sib = sib.prevSibling;
   if (!sib) return false;
   return endsWithTrailingGlue(sib, ctx);
+}
+
+// True when this line's beat will be CONTINUED by glued content — either it
+// ends with a trailing `..` itself, or the next display construct opens with a
+// leading `..`. Such a line must not lower to a display() call: the glued
+// continuation always lowers to legacy `Glue + text`, and mixing the two
+// transports in one runtime Continue drops the flat text (see the call site).
+function isNodeContinuedByGlue(node: SyntaxNode, ctx: LowerContext): boolean {
+  if (endsWithTrailingGlue(node, ctx)) return true;
+  let sib: SyntaxNode | null = node.nextSibling;
+  while (sib && GLUE_SKIP_SIBLINGS.has(sib.name)) sib = sib.nextSibling;
+  if (!sib) return false;
+  return startsWithLeadingGlue(sib, ctx);
+}
+
+// True when `node`'s first visible content is a `..` glue marker — the leading
+// form of `endsWithTrailingGlue`. The position check rejects `...` ellipsis
+// text, which passes the cheap prefix test but has no `Glue` node there.
+function startsWithLeadingGlue(node: SyntaxNode, ctx: LowerContext): boolean {
+  const text = ctx.read(node.from, node.to);
+  const trimmedLeading = text.replace(/^\s+/, "");
+  if (!trimmedLeading.startsWith("..")) return false;
+  const visibleStart = node.from + (text.length - trimmedLeading.length);
+  let found = false;
+  const visit = (n: SyntaxNode): void => {
+    if (found) return;
+    if (n.name === "Glue" && n.from === visibleStart) {
+      found = true;
+      return;
+    }
+    let c = n.firstChild;
+    while (c) {
+      visit(c);
+      c = c.nextSibling;
+    }
+  };
+  visit(node);
+  return found;
 }
 
 // True when `node`'s last visible content is a `..` glue marker — i.e. the

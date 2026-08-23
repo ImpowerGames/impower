@@ -95,12 +95,42 @@ interface DefineProperty {
 // out of the registry (the runtime `__def` table remains their source of
 // truth).
 function coerceScalarLiteral(raw: string): unknown {
-  // A trailing line comment is part of the raw RHS text, and every test below
-  // is anchored to the whole string — so `delay = 5 -- note` failed the number
-  // test and fell through to "store it as a string". A typed field silently
-  // changed TYPE because of a comment: `5` became `"5"`, `true` became
-  // `"true"`, and `"red"` became the string `"red" -- note`, quotes included.
-  // Both markers did it; neither warned.
+  // A QUOTED value is handled before any comment stripping: the quotes bound
+  // the literal, so a `--`/`//` INSIDE them is legitimate content
+  // (`name = "Chapter 1 -- The Beginning"`), and `stripTrailingLineComment`'s
+  // own contract says it must never run on quoted values. Scan to the matching
+  // close quote (escape-aware); anything after it other than whitespace or a
+  // trailing line comment means the RHS is not a simple string literal
+  // (e.g. `"a" .. "b"`), which is not a scalar.
+  //
+  // Unescape Luau string-literal escapes (\\, \", \n, \xNN, …) so the context
+  // value matches the runtime string (the StringExpression path already runs
+  // processLuauEscapes). Without this, e.g. a prosody regex `"/(?:^|\\b).../"`
+  // reaches context doubly-escaped and the engine builds an invalid RegExp.
+  const rawTrimmed = raw.trim();
+  const quote = rawTrimmed[0];
+  if ((quote === '"' || quote === "'") && !rawTrimmed.includes("\n")) {
+    let close = -1;
+    for (let i = 1; i < rawTrimmed.length; i += 1) {
+      if (rawTrimmed[i] === "\\") {
+        i += 1;
+      } else if (rawTrimmed[i] === quote) {
+        close = i;
+        break;
+      }
+    }
+    if (close === -1) return undefined;
+    const rest = rawTrimmed.slice(close + 1);
+    if (rest.trim() && stripTrailingLineComment(rest).trim()) {
+      return undefined;
+    }
+    return processLuauEscapes(rawTrimmed.slice(1, close));
+  }
+  // UNQUOTED values: a trailing line comment is part of the raw RHS text, and
+  // every test below is anchored to the whole string — so `delay = 5 -- note`
+  // failed the number test and fell through to "store it as a string". A typed
+  // field silently changed TYPE because of a comment: `5` became `"5"` and
+  // `true` became `"true"`. Both markers did it; neither warned.
   //
   // `stripTrailingLineComment` requires whitespace before the marker, so
   // `var(--foo)` and hyphenated values are untouched, and `//` additionally
@@ -108,16 +138,6 @@ function coerceScalarLiteral(raw: string): unknown {
   const s = stripTrailingLineComment(raw).trim();
   if (!s || s.includes("\n")) return undefined;
   if (s.startsWith("{") || s.startsWith("[")) return undefined;
-  // Unescape Luau string-literal escapes (\\, \", \n, \xNN, …) so the context
-  // value matches the runtime string (the StringExpression path already runs
-  // processLuauEscapes). Without this, e.g. a prosody regex `"/(?:^|\\b).../"`
-  // reaches context doubly-escaped and the engine builds an invalid RegExp.
-  if (s.length >= 2 && s.startsWith('"') && s.endsWith('"')) {
-    return processLuauEscapes(s.slice(1, -1));
-  }
-  if (s.length >= 2 && s.startsWith("'") && s.endsWith("'")) {
-    return processLuauEscapes(s.slice(1, -1));
-  }
   if (s === "true") return true;
   if (s === "false") return false;
   if (/^-?\d+(\.\d+)?$/.test(s)) return Number(s);

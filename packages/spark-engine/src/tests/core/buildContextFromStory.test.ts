@@ -112,4 +112,34 @@ describe("buildDefinesContext (runtime __def → JS)", () => {
     expect(ctx["animation"]).not.toHaveProperty("animation");
     expect(ctx["character"]).not.toHaveProperty("character");
   });
+
+  test("root type tables emit their own props as the type's $default", async () => {
+    const { harness, story } = defines(SRC);
+    await harness.ready;
+    const ctx = buildDefinesContext(story);
+
+    // `lookupContextValue`'s terminal fallback is `context[type]["$default"]`.
+    // Without these entries every by-name miss silently fell to inline zeros:
+    // typewriter pacing collapsed 5-16x for `choice N` targets, and
+    // `prosody`/`inflection` — root-only types with NO instances — vanished
+    // entirely, muting all dialogue inflection.
+    const tw = ctx["typewriter"]?.["$default"] as any;
+    expect(tw).toBeDefined();
+    expect(tw.$name).toBe("$default");
+    expect(tw.phrase_pause_scale).toBe(5);
+    expect(tw.em_dash_pause_scale).toBe(16);
+    expect(tw.min_syllable_length).toBe(3);
+
+    const prosody = ctx["prosody"]?.["$default"] as any;
+    expect(prosody).toBeDefined();
+    expect(prosody.question).toBeTruthy();
+
+    const inflection = ctx["inflection"]?.["$default"] as any;
+    expect(inflection).toBeDefined();
+    expect(Array.isArray(inflection.question)).toBe(true);
+
+    // An EMPTY root (e.g. `color`) must NOT mint a truthy-but-empty
+    // `$default` that would shadow a caller's own fallback chain.
+    expect(ctx["color"]?.["$default"]).toBeUndefined();
+  });
 });

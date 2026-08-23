@@ -570,10 +570,12 @@ export class InterpreterModule extends Module<
   }
 
   protected getMinSynthDuration(synth: { envelope?: Record<string, number> }) {
-    // The synth arrives complete -- `Game` makes every define inherit its
-    // type's `$default` when it builds the context -- so an authored voice
-    // that never wrote an envelope still has the type's one here, and this
-    // duration agrees with what AudioModule actually plays (#268).
+    // The synth arrives complete -- defines reach the context merged with
+    // their type's defaults (compile-time `$default` merge on the LSP
+    // channel; the runtime `__def` inheritance chain on the Game's channel)
+    // -- so an authored voice that never wrote an envelope still has the
+    // type's one here, and this duration agrees with what AudioModule
+    // actually plays (#268).
     const synthEnvelope = synth?.envelope;
     return synthEnvelope
       ? (synthEnvelope.attack ?? 0) +

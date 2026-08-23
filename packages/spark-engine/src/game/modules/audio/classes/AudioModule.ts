@@ -22,12 +22,14 @@ import {
 /**
  * A context entry is a synth if it says so, if it was looked up under the
  * `synth` type, or if it carries synth tone data. The `$type`/`type` checks
- * are the reliable ones; the `shape` fallback covers synth-shaped SUBTYPES
- * (`typewriter` defs inherit the full synth prop set from their type's
- * `$default`, but answer `$type: "typewriter"`). The shape check is safe as a
- * fallback because defs reach the context fully merged with their type's
- * defaults — a partially-authored `synth` is caught by the type checks even
- * before its props are considered.
+ * are the reliable ones; the `shape` fallback covers synth-shaped entries
+ * that answer a different `$type` — `typewriter.*` defs carry the full synth
+ * prop set (the prelude's `typewriter` synth instance resolves through the
+ * runtime `__index` chain) while their `$type` is `"typewriter"`. The shape
+ * check is safe as a fallback because defines reach the context complete
+ * (compile-time `$default` merge on the LSP channel; the `__def` chain on the
+ * runtime channel) — a partially-authored `synth` is caught by the type
+ * checks even before its props are considered.
  */
 const isSynth = (asset: object, type: string): boolean =>
   ("$type" in asset && asset.$type === "synth") ||
@@ -222,14 +224,16 @@ export class AudioModule extends Module<
           d.loopEnd = resolvedAsset.loop_end;
         }
         if (isSynth(resolvedAsset, d.type)) {
-          // This used to gate on `"shape" in resolvedAsset`, which silently
-          // dropped every partially-authored synth: `d.synth` was never set,
-          // so the tone events played nothing at all (#268). Whether a thing
-          // is a synth is a question about its type, not about which
-          // properties its author happened to write.
+          // This used to gate on `"shape" in resolvedAsset` ALONE, which
+          // silently dropped every partially-authored synth: `d.synth` was
+          // never set, so the tone events played nothing at all (#268).
+          // Whether a thing is a synth is first a question about its type;
+          // the shape fallback only widens it to synth-shaped subtypes.
           //
-          // The struct is already complete by this point -- `Game` makes every
-          // define inherit its type's `$default` when it builds the context.
+          // The struct is already complete by this point -- defines arrive
+          // merged with their type's defaults (the compiler merges `$default`
+          // into `program.context`; the runtime channel resolves the same
+          // data through the `__def` inheritance chain).
           d.synth = resolvedAsset as Synth;
         }
         d.tones = this.parseTones(d.key);
