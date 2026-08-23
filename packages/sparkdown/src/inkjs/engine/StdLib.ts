@@ -2340,6 +2340,54 @@ function isDefineTable(v: AbstractValue | null | undefined): v is ObjectValue {
   return metatableMap(v as AbstractValue)?.get(DEFINE_MARKER) != null;
 }
 
+// Resolve the TABLE that `as X` means: the TYPE named X.
+//
+// The flat global for X holds whichever declaration registered first — an
+// accident of source order when X is multiply-defined. The prelude does this
+// deliberately: `typewriter` is a ROOT TYPE (pacing props) and ALSO a synth /
+// mixer / channel INSTANCE (its keystroke sound and routing). With the synth
+// instance declared first, the flat `typewriter` held the SOUND, and every
+// `define … as typewriter` chained through it — inheriting the tuned synth
+// props (accidentally load-bearing: that union is a typewriter def's voice
+// payload) while missing the root's pacing props entirely (#371).
+//
+// FlowBase gives a displaced colliding declaration the qualified key
+// `$<type>_<name>`, and a root define's type is its own name — so the
+// displaced root lives at `$X_X`. When the flat global is an INSTANCE named
+// X and that root exists, resolve to the root — and link the root's chain
+// through the instance (once), so the union survives BY CONSTRUCTION with
+// the root's props taking precedence: member → root (pacing) → instance
+// (tuned sound) → the instance's own ancestors.
+function resolveParentType(
+  // `any` for the same circular-import reason as `StateAwareStdLibFn`.
+  story: any,
+  parentName: string,
+  flat: ObjectValue,
+): ObjectValue {
+  const flatMeta = metatableMap(flat);
+  const flatParent = flatMeta?.get(DEFINE_PARENT_MARKER);
+  if (flatParent == null || coerceString(flatParent) === "") {
+    return flat; // the flat global IS the root type
+  }
+  const displaced = story.state.variablesState.GetVariableWithName(
+    `$${parentName}_${parentName}`,
+  ) as AbstractValue | null;
+  if (!(displaced instanceof ObjectValue)) {
+    return flat; // no displaced root — X really is an instance used as a parent
+  }
+  const rootMeta = metatableMap(displaced);
+  if (
+    coerceString(rootMeta?.get(DEFINE_MARKER) ?? null) !== parentName ||
+    rootMeta?.get(DEFINE_PARENT_MARKER) != null
+  ) {
+    return flat;
+  }
+  if (rootMeta && !rootMeta.has("__index")) {
+    rootMeta.set("__index", flat);
+  }
+  return displaced;
+}
+
 // Walk a type/instance's `__index` chain (self first, then ancestors).
 function defineChain(start: ObjectValue): ObjectValue[] {
   const chain: ObjectValue[] = [];
@@ -4996,7 +5044,10 @@ export const STDLIB: Record<string, StdLibEntry> = {
           parentName,
         ) as AbstractValue | null;
         if (existing instanceof ObjectValue) {
-          parent = existing;
+          // `as X` means the TYPE named X — not whichever same-named
+          // declaration happened to win the flat global slot. See
+          // `resolveParentType`.
+          parent = resolveParentType(story, parentName, existing);
         } else {
           // Implicit parent type — e.g. `as character`.
           parent = new ObjectValue(new Map<string, AbstractValue>());

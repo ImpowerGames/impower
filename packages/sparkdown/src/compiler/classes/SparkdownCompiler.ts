@@ -3578,15 +3578,28 @@ export class SparkdownCompiler {
     if (preludeVAs.size === 0 || userVAs.size === 0) {
       return;
     }
-    // The prelude's declarations, keyed by the runtime global key they will be
-    // registered under -- the same key the user's define will fight for.
-    const preludeByKey = new Map<string, ParsedVariableAssignment>();
+    // The prelude's declarations, keyed by their STABLE BARE name — never the
+    // post-scoping identifier. The two passes of `scopeDefineInstances`
+    // classify independently (the prelude by its own type-name census, the
+    // user files by theirs), so the same bare name can come out as different
+    // global keys on the two sides: the prelude's channel-typed `typewriter`
+    // keeps the bare key (`typewriter` is a prelude type name) while a user's
+    // `define typewriter as channel` scopes to `$channel_typewriter`. An
+    // identifier-keyed gate missed exactly those overrides, and the back-fill
+    // silently never ran — a partial override lost every builtin field the
+    // author didn't restate. The VALUE lookup inside
+    // `backfillBuiltinDefaults` is already (type, name)-keyed against the
+    // prelude context, so a bare-name gate can't over-apply: a user define
+    // that merely shares a name with an unrelated builtin misses that lookup
+    // and no-ops.
+    const preludeNames = new Set<string>();
     for (const obj of preludeVAs) {
       if (obj instanceof ParsedVariableAssignment) {
         obj.isPreludeDeclaration = true;
-        const key = obj.identifier?.name;
-        if (key) {
-          preludeByKey.set(key, obj);
+        const bare =
+          obj.structDefinition?.name?.name ?? obj.identifier?.name;
+        if (bare) {
+          preludeNames.add(bare);
         }
       }
     }
@@ -3595,8 +3608,8 @@ export class SparkdownCompiler {
       if (!(obj instanceof ParsedVariableAssignment)) {
         continue;
       }
-      const key = obj.identifier?.name;
-      if (!key || !preludeByKey.has(key)) {
+      const bare = obj.structDefinition?.name?.name ?? obj.identifier?.name;
+      if (!bare || !preludeNames.has(bare)) {
         continue;
       }
       // Resolved lazily so a program with no overrides never touches the cache.
