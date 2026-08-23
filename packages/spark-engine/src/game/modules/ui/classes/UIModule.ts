@@ -506,9 +506,27 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   // until the AST path reaches parity. Flipped per-increment / via config.
   protected _reactive = false;
 
+  // One-shot dep-gate override for the first refresh after `start()` (see
+  // onStart). Cleared at the end of the next refreshLayouts walk.
+  protected _refreshAll = false;
+
   constructor(game: Game) {
     super(game);
     this.initLayouts();
+  }
+
+  /** Between `connect` (which re-mounts layouts on a reused game) and
+   *  `start()`, `system.simulating` is still set from the route simulation,
+   *  so every paint the mount produces is suppressed while each entry's
+   *  equality memo (`last`) records the freshly evaluated value. The renderer
+   *  is left showing the ABANDONED run's pixels, and the dep-gated per-beat
+   *  refresh can never repair that: it trusts `last`, which already matches
+   *  the new state. On a STOP → PLAY the game looked frozen at the old values
+   *  until handlers happened to walk the number past the stale paint (#365's
+   *  restart face). So the first refresh after a start re-evaluates AND
+   *  repaints every binding, ignoring both gates once. */
+  override onStart(): void {
+    this._refreshAll = true;
   }
 
   /**
@@ -2753,9 +2771,23 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     if (!this._reactive) {
       return;
     }
+    if (this._game.context?.system?.simulating) {
+      // Route simulation replays beats on THIS game (a PLAY reuses the Game
+      // instance, layouts still mounted) with renderer paints suppressed.
+      // Re-evaluating here would advance each entry's equality memo (`last`)
+      // through the simulated values while the DOM never moves — wedging the
+      // gate so the post-start refresh paints nothing (#365's stale-restart
+      // face). Skip entirely; `onStart`'s force-all refresh trues the DOM up
+      // once the real run begins.
+      return;
+    }
     const changes = this._game.story.variablesState.takeReactiveChanges();
-    for (const { scope } of this._mountedLayouts.values()) {
-      this.refreshScope(scope, changes);
+    try {
+      for (const { scope } of this._mountedLayouts.values()) {
+        this.refreshScope(scope, changes);
+      }
+    } finally {
+      this._refreshAll = false;
     }
     // Flush this turn's reactive ops synchronously so callers (and tests) see
     // the `ui/batch` immediately after the refresh, not on a later microtask.
@@ -2774,7 +2806,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
           scope.env,
         );
         entry.deps = deps;
-        if (text !== entry.last) {
+        if (this._refreshAll || text !== entry.last) {
           entry.last = text;
           this.renderRichText(entry.element, text);
         }
@@ -2787,7 +2819,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         const resolved = this.resolveProp(entry.propValue, scope.env);
         entry.deps = vs.endReactiveRead();
         const next = this.propToAttr(resolved, entry.boolean);
-        if (next !== entry.last) {
+        if (this._refreshAll || next !== entry.last) {
           entry.last = next;
           this.updateElement(entry.element, {
             attributes: { [entry.prop]: next },
@@ -2802,7 +2834,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         const resolved = this.resolveProp(entry.propValue, scope.env);
         entry.deps = vs.endReactiveRead();
         const next = resolved == null ? null : String(resolved);
-        if (next !== entry.last) {
+        if (this._refreshAll || next !== entry.last) {
           entry.last = next;
           this.updateElement(entry.element, {
             style: { [entry.prop]: next },
@@ -2821,7 +2853,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
           scope.env,
         );
         entry.deps = vs.endReactiveRead();
-        if (pct !== entry.last) {
+        if (this._refreshAll || pct !== entry.last) {
           entry.last = pct;
           this.updateElement(entry.element, {
             style: { "--_fill-percentage": pct },
@@ -3016,8 +3048,15 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     region.iterations = next;
   }
 
-  /** Does any global/table dep intersect the turn's change-set? */
+  /** Does any global/table dep intersect the turn's change-set? While a
+   *  force-all refresh is pending (see {@link onStart}) every dep counts as
+   *  changed, so each binding re-evaluates (and repaints — the paint gates
+   *  also honor `_refreshAll`, because a suppressed-paint mount leaves `last`
+   *  matching the new value while the DOM shows the old one). */
   protected depsChanged(deps: ReactiveDeps, changes: ReactiveDeps): boolean {
+    if (this._refreshAll) {
+      return true;
+    }
     for (const g of deps.globals) {
       if (changes.globals.has(g)) {
         return true;

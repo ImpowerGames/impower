@@ -1025,7 +1025,22 @@ export class Story extends InkObject {
   public ResetState() {
     this.IfAsyncWeCant("ResetState");
 
+    // Reactive dependency tracking is an OBSERVATION MODE, not story state:
+    // resetting the state must not silently disable it. The fresh
+    // `VariablesState` below defaults the flag off, and the runtime that
+    // enabled it (the reactive UI's layout mount) has no hook into every
+    // reset path — `Game.rewindStory`, `jumpToPath`, and any future caller
+    // each mint a fresh state, and every one that forgot to re-assert the
+    // flag froze the mounted `{bindings}` for the whole run (#365: the
+    // handler ran, the VM changed, and no change was ever recorded for the
+    // refresh to react to). Carry the mode across; the accumulated
+    // change-sets deliberately start empty — the globals re-declare below,
+    // recording fresh changes as they go.
+    const reactiveDepsEnabled =
+      this._state?.variablesState?.reactiveDepsEnabled ?? false;
+
     this._state = new StoryState(this);
+    this._state.variablesState.reactiveDepsEnabled = reactiveDepsEnabled;
     this._state.variablesState.ObserveVariableChange(
       this.VariableStateDidChangeEvent.bind(this),
     );
