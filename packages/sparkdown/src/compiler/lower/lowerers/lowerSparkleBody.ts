@@ -1026,14 +1026,13 @@ function buildBranchChildren(
   if (!content) return [];
   const items = collectNodeLines(content, ctx);
   if (items.length === 0) return [];
-  // Same base-indent rule as `buildSparkleBody`: the SHALLOWEST line, not the
-  // first one. With the first line's indent, a branch body whose opening line
-  // was indented deeper than the rest ended the block-walk at the very next
-  // line and silently discarded the remainder of the branch — without even
-  // the orphan warning, because the walk EXITS on a shallower line rather
-  // than skipping it.
-  const base = items.reduce((m, l) => Math.min(m, l.indent), items[0]!.indent);
-  return buildBlock(items, 0, base, ctx).children;
+  // Same base-indent rule as `buildSparkleBody` (see `rebaseLines`): with the
+  // first line's indent, a branch body whose opening line was indented deeper
+  // than the rest ended the block-walk at the very next line and silently
+  // discarded the remainder of the branch — without even the orphan warning,
+  // because the walk EXITS on a shallower line rather than skipping it.
+  const rebased = rebaseLines(items, ctx);
+  return buildBlock(rebased.lines, 0, rebased.base, ctx).children;
 }
 
 const IF_CONDITION = new Set(["LuauIfBlockCondition"]);
@@ -1392,16 +1391,49 @@ export function buildSparkleBody(
   const prevStamp = ctx.stampExpressionSpans;
   ctx.stampExpressionSpans = true;
   try {
-    // The base indent is the SHALLOWEST line, not the first one. Taking the
-    // first line's indent meant a body whose opening line was indented deeper
-    // than the rest ended the block-walk at the very next line and discarded
-    // everything after it — the entire layout bar one element, silently. With
-    // the minimum, that deep first line becomes an orphan (warned) and the rest
-    // of the body survives, which is the failure the author can actually see
-    // and fix.
-    const base = lines.reduce((m, l) => Math.min(m, l.indent), lines[0]!.indent);
-    return buildBlock(lines, 0, base, ctx).children;
+    const rebased = rebaseLines(lines, ctx);
+    return buildBlock(rebased.lines, 0, rebased.base, ctx).children;
   } finally {
     ctx.stampExpressionSpans = prevStamp;
+  }
+}
+
+/** Choose a body's base indent, treating a lone anomalous line as the error
+ *  rather than the truth.
+ *
+ *  The base is the SHALLOWEST line, not the first one: taking the first
+ *  line's indent meant a body whose opening line was indented deeper than
+ *  the rest ended the block-walk at the very next line and silently
+ *  discarded everything after it.
+ *
+ *  But a bare minimum is symmetric-fragile the other way (#369): one
+ *  accidentally DEDENTED line becomes the base and every properly-indented
+ *  line reads as an orphan — the whole layout replaced by the stray. So a
+ *  SINGLETON at the minimum that is not the opening line is treated as the
+ *  anomaly: it is warned as an orphan, excluded, and the base re-derived
+ *  from the rest. (When two or more lines share the minimum, they win — the
+ *  deep-first case has its whole tail there, and with several lines at one
+ *  level the author's intent is genuinely that level.) */
+function rebaseLines(
+  lines: NodeLine[],
+  ctx: LowerContext,
+): { base: number; lines: NodeLine[] } {
+  let working = lines;
+  for (;;) {
+    const base = working.reduce(
+      (m, l) => Math.min(m, l.indent),
+      working[0]!.indent,
+    );
+    const atBase = working.filter((l) => l.indent === base);
+    if (
+      working.length > 1 &&
+      atBase.length === 1 &&
+      working[0]!.indent !== base
+    ) {
+      warnOrphanLine(atBase[0]!.node, ctx);
+      working = working.filter((l) => l !== atBase[0]);
+      continue;
+    }
+    return { base, lines: working };
   }
 }

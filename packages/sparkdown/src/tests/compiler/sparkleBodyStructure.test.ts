@@ -92,6 +92,46 @@ end
     expect(flat).toContain("after2");
     expect(flat).toContain("backdrop");
   });
+
+  test("a lone DEDENTED stray doesn't re-base and destroy the body (#369)", () => {
+    // The mirror image of the deep-first case: with a bare min() base, one
+    // accidentally-dedented line became the base and every properly-indented
+    // line was orphaned — the whole layout replaced by the stray. The
+    // singleton at the minimum is the anomaly; it warns, the body survives.
+    const src = `layout main with
+  textbox:
+    dialogue:
+      text "hp"
+ stray
+end
+`;
+    const main = layouts(src)?.main;
+    const flat = JSON.stringify(main);
+    expect(flat).toContain("textbox");
+    expect(flat).toContain("dialogue");
+    expect(flat).toContain("hp");
+    expect(flat).not.toContain("stray");
+    expect(diagnostics(src).some((m) => m.includes("indentation"))).toBe(true);
+  });
+
+  test("a deeper opening line inside an if-branch doesn't discard the branch", () => {
+    const src = `layout main with
+  if true then
+      text "a"
+    text "b"
+    text "c"
+  end
+end
+`;
+    // Same semantics as the top-level deep-first case: the deep opening line
+    // becomes a WARNED orphan, and the rest of the branch survives. (With the
+    // first line's indent as base, the walk exited at "b" and the branch kept
+    // only "a" — silently.)
+    const flat = JSON.stringify(layouts(src)?.main);
+    expect(flat).toContain('"b"');
+    expect(flat).toContain('"c"');
+    expect(diagnostics(src).some((m) => m.includes("indentation"))).toBe(true);
+  });
 });
 
 describe("the first name on a line is the tag", () => {

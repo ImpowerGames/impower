@@ -42,10 +42,28 @@ const searchPanelTheme = EditorView.baseTheme({
  * would collapse, so Chromium hardens it: type "hi " and `textContent` comes
  * back as "hi\u00A0". Committed as-is that makes a search match nothing, and
  * writes an invisible non-breaking space into the script in place of the
- * space the user asked for.
+ * space the user asked for. The REPLACE field normalizes every NBSP \u2014 the
+ * one thing replace must never do is write an invisible hard space the user
+ * didn't ask for.
  */
 const fieldText = (field: HTMLElement) =>
   (field.textContent ?? "").replace(/\u00A0/g, " ");
+
+/**
+ * The SEARCH field normalizes only the NBSPs the hardening can actually
+ * mint \u2014 those at a position where a typed space would have collapsed: the
+ * field's edges, or adjacent to another space. An interior isolated NBSP
+ * (`word\u00A0word`) can only have been pasted or typed deliberately, and it
+ * must survive verbatim or a hard space already IN the script \u2014 including
+ * one written by the pre-#358 replace-all \u2014 becomes unfindable (#367).
+ * (A search for nothing BUT a hard space still normalizes, since a lone NBSP
+ * sits at the field edge; that residual case needs the regexp mode.)
+ */
+const searchFieldText = (field: HTMLElement) =>
+  (field.textContent ?? "")
+    .replace(/^\u00A0+|\u00A0+$/g, (m) => " ".repeat(m.length))
+    .replace(/\u00A0(?=[ \u00A0])/g, " ")
+    .replace(/(?<=[ ])\u00A0/g, " ");
 
 /**
  * How long the match count may lag the document, in milliseconds.
@@ -299,7 +317,7 @@ export class SearchPanel implements Panel {
 
   commit() {
     let query = new SearchQuery({
-      search: fieldText(this.searchInput),
+      search: searchFieldText(this.searchInput),
       caseSensitive: this.caseCheckbox.checked,
       regexp: this.reCheckbox.checked,
       wholeWord: this.wordCheckbox.checked,

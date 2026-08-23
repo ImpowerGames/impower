@@ -96,3 +96,49 @@ end
     expect(ui._mountedLayouts.has("hud")).toBe(true);
   });
 });
+
+describe("navigate is a barrier across DIFFERENT layout names", () => {
+  // `navigateScreen` computes what to tear down from a live read of the whole
+  // `_mountedLayouts` set, so racing it against a concurrently-running open
+  // for another name made the outcome timing-dependent: whether the navigate
+  // saw (and closed) the freshly-opened layout depended on how far the other
+  // group's await chain had progressed (#370). Navigate now runs as a
+  // barrier, so the outcome is deterministic in authored order.
+  const SOURCE = `layout main with
+  textbox:
+    dialogue:
+      text
+end
+layout hud with
+  text "HUD"
+end
+layout menu with
+  text "Menu"
+end
+-> start
+scene start
+  [[open hud with fade over 0.5s]] [[navigate to menu]]
+  Hello.
+end
+`;
+
+  test("an open before a navigate settles first and is then replaced by it", async () => {
+    const h = createHarness(SOURCE, 0, { reactive: true, autoOpenAll: false });
+    await h.ready;
+    h.jumpTo("start");
+    const ui: any = h.game.module.ui;
+
+    h.reset();
+    // NOT instant: the open's entry transition is what used to leave the race
+    // window — an instant run resolves everything in dispatch order and
+    // passes with or without the barrier.
+    await drive(h, /* instant */ false);
+
+    // Deterministic authored-order semantics: the open completed, and the
+    // navigate — which replaces the screen stack — then closed it.
+    expect(ui._mountedLayouts.has("menu")).toBe(true);
+    expect(ui._mountedLayouts.has("hud")).toBe(false);
+    // The navigate exemption still holds.
+    expect(ui._mountedLayouts.has("main")).toBe(true);
+  });
+});

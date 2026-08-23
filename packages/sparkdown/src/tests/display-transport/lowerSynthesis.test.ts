@@ -175,4 +175,48 @@ describe("lowerer synthesis: display() from authored prose", () => {
     expect(instructions).toHaveLength(1);
     expect(field(instructions[0]!, "text")).toBe("This is **bold** here.");
   });
+
+  // The line types below had PARITY coverage but no "actually took the new
+  // path" assertion — so a lowerer change that silently widened the legacy
+  // fallback for them would have kept every suite green while production
+  // quietly ran a different transport (#370). Each pins the routed target.
+  for (const [label, marker, target] of [
+    ["a title line", "^:", "title"],
+    ["a scene heading", "$:", "heading"],
+    ["a transition", "%:", "transitional"],
+  ] as const) {
+    test(`${label} takes the display() path with target=${target}`, () => {
+      const { story, errors } = run(`${marker} SOME CONTENT\ndone\n`, {
+        experimentalDisplayCalls: true,
+      });
+      expect(errors).toEqual([]);
+      const instructions = story.currentDisplayInstructions;
+      expect(instructions).toHaveLength(1);
+      expect(field(instructions[0]!, "target")).toBe(target);
+      expect(field(instructions[0]!, "text")).toBe("SOME CONTENT");
+    });
+  }
+
+  test("block dialogue takes the display() path with the cue", () => {
+    const { story, errors } = run(`HERO:\n  A block line.\ndone\n`, {
+      experimentalDisplayCalls: true,
+    });
+    expect(errors).toEqual([]);
+    const instructions = story.currentDisplayInstructions;
+    expect(instructions).toHaveLength(1);
+    expect(field(instructions[0]!, "target")).toBe("dialogue");
+    expect(field(instructions[0]!, "character")).toBe("HERO");
+    expect(field(instructions[0]!, "text")).toBe("A block line.");
+  });
+
+  test("an inline sequence alternator rides the table (first pass captured)", () => {
+    const { story, errors } = run(
+      `The light {queue|"flickers"|"steadies"} now.\ndone\n`,
+      { experimentalDisplayCalls: true },
+    );
+    expect(errors).toEqual([]);
+    const instructions = story.currentDisplayInstructions;
+    expect(instructions).toHaveLength(1);
+    expect(field(instructions[0]!, "text")).toBe("The light flickers now.");
+  });
 });

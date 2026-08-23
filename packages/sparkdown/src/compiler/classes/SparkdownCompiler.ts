@@ -1287,6 +1287,18 @@ export class SparkdownCompiler {
         // below, which walks the runtime tree for `pathLocations`.
         if (emitCompiledProgram) {
           this.serializeCompiledProgram(story, program, uri);
+        } else {
+          // Neither per-flow cache is maintained by a compile that skips
+          // serialization, so both go stale the moment one runs — the same
+          // reasoning `configure()` applies when the CONFIG flag flips. The
+          // per-request opt-out bypasses `configure()`, so it must invalidate
+          // here too. Without this, pull → edit → edit → pull re-serves a
+          // pre-edit flow from the cache: `computeFlowReuse` only knows the
+          // CURRENT compile's `_changedChunkRanges`, and a pure-content edit
+          // leaves the cross-flow fingerprint unchanged by design, so nothing
+          // else catches the skipped compiles in between.
+          this._flowJsonCache = undefined;
+          this._flowChunkCache = undefined;
         }
         state.story = story;
         // Gather source-location maps in a single top-down walk of the

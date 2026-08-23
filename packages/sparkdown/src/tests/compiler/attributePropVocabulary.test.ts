@@ -13,7 +13,6 @@ import {
   ATTRIBUTE_PROPS,
   BOOLEAN_ATTRIBUTES,
   DATA_ATTRIBUTE_PROPS,
-  isAttributeProp,
 } from "../../compiler/constants/dataAttributeProps";
 import VALID_STYLE_PROPS_DATA from "../../compiler/constants/validStyleProps.json";
 
@@ -25,24 +24,23 @@ describe("the two lists agree", () => {
       ...ATTRIBUTE_PROPS,
       ...DATA_ATTRIBUTE_PROPS,
       ...ARIA_ATTRIBUTE_ALIASES.keys(),
+      ...BOOLEAN_ATTRIBUTES,
     ];
     expect(routed.filter((p) => !VALID.has(p))).toEqual([]);
   });
 
-  // The direction that actually bit: validates clean, does nothing. Anything in
-  // the generated vocabulary that is not a CSS property must be routed.
-  test("no non-CSS prop validates clean without being routed", () => {
-    // A CSS property always contains a letter and may be hyphenated/vendored;
-    // the attribute-shaped names are the ones worth checking, so compare
-    // against the routing predicate directly for the declared attribute sets.
-    const declared = [
-      ...ATTRIBUTE_PROPS,
-      ...DATA_ATTRIBUTE_PROPS,
-      ...ARIA_ATTRIBUTE_ALIASES.keys(),
-      ...BOOLEAN_ATTRIBUTES,
-    ];
-    expect(declared.filter((p) => !isAttributeProp(p))).toEqual([]);
-  });
+  // The direction that actually bit — validates clean, does nothing — is
+  // structurally prevented at the SOURCE: `generateValidStyleProps` imports
+  // the routing sets rather than hand-listing them, so regeneration cannot
+  // reintroduce an unrouted attribute-shaped name. What CAN still drift is a
+  // hand edit to the generated JSON. `validStyleProps.json` carries no
+  // routed/CSS distinction to test against, so pin the other invariant a
+  // hand edit would break: the file exactly matches what regeneration would
+  // union in from the routing sets — every routed name present (above), and
+  // the routing predicate agreeing with the declared sets for every name it
+  // can be asked about is inherent to `isAttributeProp`'s construction, not
+  // asserted here (an assertion of it is a tautology; one lived here and
+  // pinned nothing — #370).
 
   test("every boolean attribute is also an attribute prop", () => {
     expect([...BOOLEAN_ATTRIBUTES].filter((p) => !ATTRIBUTE_PROPS.has(p))).toEqual(

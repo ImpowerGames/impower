@@ -54,6 +54,22 @@ describe("P5 prerequisite: prelude compiled story carries builtin __def globals"
     expect(result.program.compiled).toBeTruthy();
   });
 
+  test("the prelude declares no top-level named flows (undefended span invariant)", () => {
+    // The source-injected prelude's cached parse skips the compiler's
+    // flow-reuse machinery on every compile after the first, which is sound
+    // ONLY while the prelude contributes no top-level knot/function/scene:
+    // a prelude flow would inject PRELUDE line numbers into the single
+    // cross-file line space `computeFlowReuse`/`populateAllLocations` sort
+    // over, corrupting span arithmetic for the user's flows. If this test
+    // ever fails because a builtin helper function was added to builtins.sd,
+    // that machinery needs to learn about prelude-owned flows first.
+    const result = compilePrelude();
+    const program: any = result.program;
+    expect(Object.keys(program.functionLocations ?? {})).toEqual([]);
+    expect(Object.keys(program.knotLocations ?? {})).toEqual([]);
+    expect(Object.keys(program.sceneLocations ?? {})).toEqual([]);
+  });
+
   test("instantiating the prelude story populates _globalVariables with defines", () => {
     const result = compilePrelude();
     const story = new Story(result.program.compiled as any);

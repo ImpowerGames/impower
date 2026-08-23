@@ -379,9 +379,12 @@ export default class UIManager extends Manager {
         // that would strip `id`, which the reconcile addresses elements by.
         {
           const written = params.attributes ? Object.keys(params.attributes) : [];
-          if (params.attributes) {
-            applyAttributes(el, params.attributes);
-          }
+          // Clear the stale attributes BEFORE applying the new set:
+          // `applyAttributes` defers `value`/`checked` to last precisely so
+          // they sanitize against the element's FINAL `min`/`max`/`type`.
+          // Removing a constraint attribute after that deferred write would
+          // let a UA re-run value sanitization against the new constraints
+          // and clamp a value that was already correct.
           if (reused) {
             const prior: string[] = (el as any).__sdAttrs ?? [];
             for (const k of prior) {
@@ -389,6 +392,9 @@ export default class UIManager extends Manager {
                 applyAttribute(el, k, null);
               }
             }
+          }
+          if (params.attributes) {
+            applyAttributes(el, params.attributes);
           }
           (el as any).__sdAttrs = written;
         }

@@ -3378,23 +3378,47 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     // close then removed X. The DOM ended without X while the serialized state
     // — folded sequentially above — recorded it open. It self-healed on
     // restore, which is exactly what made the live beat's miss easy to miss.
-    const byLayout = new Map<string, LayoutInstruction[]>();
+    // A `navigate` is additionally a BARRIER across names: it replaces the
+    // screen STACK, computing what to tear down from a live read of the whole
+    // `_mountedLayouts` set — so racing it against a concurrently-running
+    // `open`/`close` for a DIFFERENT layout made the outcome depend on how far
+    // that group's await chain had progressed (the same defect class the
+    // per-name grouping fixed, one level up). Everything before a navigate
+    // settles first, the navigate runs alone, then the remainder proceeds.
+    const segments: LayoutInstruction[][] = [[]];
     for (const e of instructions) {
-      const key = e.name ?? "";
-      const group = byLayout.get(key);
-      if (group) {
-        group.push(e);
+      if (e.control === "navigate") {
+        segments.push([e], []);
       } else {
-        byLayout.set(key, [e]);
+        segments[segments.length - 1]!.push(e);
       }
     }
-    await Promise.all(
-      [...byLayout.values()].map(async (group) => {
-        for (const e of group) {
-          await run(e);
+    for (const segment of segments) {
+      if (segment.length === 0) {
+        continue;
+      }
+      if (segment.length === 1 && segment[0]!.control === "navigate") {
+        await run(segment[0]!);
+        continue;
+      }
+      const byLayout = new Map<string, LayoutInstruction[]>();
+      for (const e of segment) {
+        const key = e.name ?? "";
+        const group = byLayout.get(key);
+        if (group) {
+          group.push(e);
+        } else {
+          byLayout.set(key, [e]);
         }
-      }),
-    );
+      }
+      await Promise.all(
+        [...byLayout.values()].map(async (group) => {
+          for (const e of group) {
+            await run(e);
+          }
+        }),
+      );
+    }
   }
 
   protected findElements(target: string): Element[] {

@@ -81,12 +81,11 @@ end
     await h.ready;
     h.jumpTo("start");
     h.reset();
-    // `jumpTo` resets the story, and `ResetState` builds a FRESH
-    // `VariablesState` whose `reactiveDepsEnabled` defaults to false — only
-    // `constructLayoutsFromAst` ever turns it on. Without restoring it here
-    // nothing is recorded and this test passes vacuously against the bug.
-    // (That the flag does not survive a rewind is its own problem; this test is
-    // about what `openLayout` does with the change-set, not about the flag.)
+    // Belt: assert the flag explicitly so this test stays about what
+    // `openLayout` does with the change-set, independent of which path set the
+    // flag. (`Game.restoreReactiveTracking` re-asserts it after every
+    // story-state replacement — pinned by restoreReactiveTracking.test.ts —
+    // so this is defense against future harness reshuffles, not a workaround.)
     (h.game.story as any).variablesState.reactiveDepsEnabled = true;
 
     // The write happens BEFORE the layout directive is applied — the shape the
