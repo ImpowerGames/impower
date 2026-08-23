@@ -1,4 +1,5 @@
 import { InkList, Story } from "@impower/sparkdown/src/inkjs/engine/Story";
+import { applyBuiltinDefaults } from "./applyBuiltinDefaults";
 
 // Convert Luau runtime `__def` tables (the source of truth for authored
 // `define`s) into the plain-JS `{ type: { name: struct } }` shape the engine's
@@ -166,7 +167,15 @@ function convertTable(map: Map<string, AnyVal>, story: Story): unknown {
 
 /** Collect one chain level's OWN property values, skipping meta keys, methods,
  *  and registered instances (which live in a type table's map but are siblings,
- *  not properties). */
+ *  not properties).
+ *
+ *  Top-level `$`-prefixed props (`$link`, `$recursive`, `$schema`, …) are
+ *  editor metadata with no runtime reader — the CHANNEL CONTRACT is that the
+ *  runtime define context carries only `$type`/`$name` (attached by
+ *  `convertDefine`), and everything else `$`-prefixed lives in the LSP-only
+ *  `program.context`. Stripping here is what makes the two channels agree
+ *  (see contextChannelEquivalence.test.ts); nested tables are untouched, so
+ *  reference values keep their `{ $type, $name }` identity keys. */
 function collectLevelProps(
   levelMap: Map<string, AnyVal>,
   story: Story,
@@ -174,6 +183,7 @@ function collectLevelProps(
   const out: Record<string, unknown> = {};
   for (const [k, val] of levelMap) {
     if (META_PROP_KEYS.has(k)) continue;
+    if (k.startsWith("$")) continue; // editor metadata, not a runtime prop
     if (isDefineTable(val)) continue; // a registered instance, not a prop
     const valMap = asMap(val?.value);
     if (valMap && isClosureMap(valMap)) continue; // method
@@ -286,5 +296,16 @@ export function buildDefinesContext(
       (context[typeName] ??= {})[defName] = convertDefine(member, story);
     }
   }
+  // Deep-fill every instance from its type's `$default` (authored values
+  // win). The `__index` chain resolves inheritance for most defines, but a
+  // type NAME that is itself multiply-defined in the prelude (`typewriter`
+  // is a root type AND a synth/mixer/channel instance) leaves the flat
+  // global pointing at ONE of those tables — so an authored
+  // `define narrator as typewriter` chains through the wrong parent and
+  // misses the root's props entirely (pacing scales silently collapsed to
+  // inline fallbacks). The `$default` entries emitted above carry exactly
+  // the root's props, and this fill is what makes the runtime channel a
+  // superset of the LSP one for every define (contextChannelEquivalence).
+  applyBuiltinDefaults(context);
   return context;
 }

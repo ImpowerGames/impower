@@ -3,9 +3,11 @@ import { describe, expect, it } from "vitest";
 import { applyBuiltinDefaults, inheritDefaults } from "./applyBuiltinDefaults";
 
 /**
- * `inheritDefaults`/`applyBuiltinDefaults` deep-fill a context's authored
- * defines from their type's `$default`, so a consumer handed a context built
- * outside the engine's channel path never has to invent fallbacks (#268).
+ * `inheritDefaults`/`applyBuiltinDefaults` deep-fill a context's defines
+ * from their type's `$default` (#268). `buildDefinesContext` runs this over
+ * the runtime channel after assembly — the deep-fill is what repairs
+ * instances whose `__index` chain runs through the wrong parent when a type
+ * NAME is prelude-dual-defined (see contextChannelEquivalence.test.ts).
  */
 
 /** The real builtin `$default`s, sourced from the compiled builtins prelude

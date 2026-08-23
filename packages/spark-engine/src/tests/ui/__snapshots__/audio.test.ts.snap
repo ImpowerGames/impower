@@ -32,15 +32,6 @@ exports[`audio > explicit SFX directive schedules audio/load + audio/update 1`] 
       "key": "typewriter.action~t0s1b0",
       "name": "action",
       "synth": {
-        "$link": {
-          "audio": {},
-          "character": {},
-          "image": {},
-          "inflection": {},
-          "prosody": {},
-          "synth": {},
-          "typewriter": {},
-        },
         "$name": "action",
         "$type": "typewriter",
         "animation_offset": 0.06,
@@ -241,14 +232,6 @@ exports[`audio > typewriter synth tones scheduled for voiced dialogue 1`] = `
       "key": "synth.character~t0s1b0~t0.07500000000000001s1b0",
       "name": "character",
       "synth": {
-        "$link": {
-          "audio": {},
-          "character": {},
-          "image": {},
-          "inflection": {},
-          "prosody": {},
-          "typewriter": {},
-        },
         "$name": "character",
         "$type": "synth",
         "arpeggio": {

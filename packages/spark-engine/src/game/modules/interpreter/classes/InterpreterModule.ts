@@ -492,6 +492,17 @@ export class InterpreterModule extends Module<
     return this._state.buffer?.shift();
   }
 
+  /** Discard queued-but-unflushed beats. Called by the replay paths that
+   *  abandon a run in flight (`Game.start`/`preview`'s fail branches): the
+   *  story rewinds and re-queues from the start path, so anything still in
+   *  this FIFO belongs to the abandoned run — and it sits at index 0, so it
+   *  would render FIRST in the replay. Deliberately NOT part of `onStart` or
+   *  `onReset`: the simulation-success path restores a checkpoint whose
+   *  buffer holds beats the display still needs. */
+  clearQueuedBeats(): void {
+    this._state.buffer = [];
+  }
+
   protected isWhitespace(part: string | undefined) {
     if (!part) {
       return false;

@@ -908,6 +908,21 @@ export class Game<T extends M = {}> {
       //   onConnected -> mountEvent -> ui/observe -> onReset.
       // Module reset is only meaningful BEFORE modules are initialized; here we
       // only need the story rewound so the replay starts from `_startPath`.
+      //
+      // Per-module residue audit for this branch (the abandoned run's state
+      // survives the rewind — what of it is CORRECT to keep?):
+      //   interpreter — the beat FIFO is the one true hazard: unflushed beats
+      //     from the abandoned run sit at the queue's head and would render
+      //     FIRST in the replay. Cleared below; the replay re-queues from the
+      //     start path. (`_matcherCache`/name maps are pure derivations.)
+      //   audio — `_channelsCurrentlyPlaying` and `_state.channels` MIRROR
+      //     the renderer, whose players are untouched by a story rewind:
+      //     clearing them would break `replace`-behavior stops and channel-
+      //     wide saves for audio that is audibly still playing. Kept.
+      //   ui — preserving mounted layouts/`_events` is this branch's whole
+      //     reason to exist (see above). Kept.
+      //   core / world — stateless (`CoreState`/`WorldState` are empty).
+      this.module.interpreter.clearQueuedBeats();
       this.rewindStory();
       this.clearChoices();
       if (this._startPath) {
@@ -1895,7 +1910,11 @@ export class Game<T extends M = {}> {
       // Same reason as the `start` fail branch: modules are already connected
       // and mounted here, so a full `reset` would clear the ui module's mounted
       // layouts and `_events` and nothing would mount again. Only the story
-      // needs rewinding before jumping to the preview path.
+      // needs rewinding before jumping to the preview path — plus discarding
+      // any beats the abandoned run left queued (see the start-branch residue
+      // audit; idempotent between previews, where the queue is already
+      // drained).
+      this.module.interpreter.clearQueuedBeats();
       this.rewindStory();
       this.clearChoices();
       this._startPath = previewPath;
