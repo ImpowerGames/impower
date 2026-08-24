@@ -22,6 +22,7 @@ import {
   parseImageFilterParam,
   serializeImageFilterParam,
 } from "../packages/sparkdown/src/filters/filteredSvg";
+import { clampThumbnailWidth } from "../packages/sparkdown/src/thumbnails/composeThumbnail";
 import pkg from "./package.json";
 import staticallyRenderPage from "./src/build/staticallyRenderPage.js";
 
@@ -356,6 +357,18 @@ const viteStaticallyRenderedPagesPlugin = (): Plugin => ({
     // a changed file changes its signature, so stale entries are simply
     // never hit again (and a dev-server restart empties the map).
     const filteredSvgMirrorCache = new Map<string, string>();
+    // Downscaled `?thumb=` webp variants, same key discipline (path × clamped
+    // width × file signature). `sharp` is a dev-only optionalish dependency:
+    // loaded lazily, and if it's missing the mirror serves original bytes —
+    // the same graceful fallback the service worker uses when it can't
+    // rasterize.
+    const thumbnailMirrorCache = new Map<string, Buffer>();
+    let sharpModule: Promise<any> | undefined;
+    const loadSharp = () =>
+      (sharpModule ??= import("sharp").then(
+        (m) => m.default ?? m,
+        () => undefined,
+      ));
     // Resolve a mirror-relative path safely (reject traversal outside the dir).
     const resolveMirrorPath = (rel: string): string | undefined => {
       const abs = path.resolve(assetMirrorDir, rel);
@@ -408,6 +421,45 @@ const viteStaticallyRenderedPagesPlugin = (): Plugin => ({
           const abs = resolveMirrorPath(rel);
           if (abs && fs.existsSync(abs) && fs.statSync(abs).isFile()) {
             const ext = path.extname(abs).slice(1).toLowerCase();
+            const mime = MIRROR_MIME[ext] ?? "application/octet-stream";
+            // `?thumb=<maxWidthPx>` — the asset browser's downscaled preview,
+            // normally produced by the service worker (decode + resize + tiny
+            // webp, sw.ts). Same contract here via `sharp`: raster images
+            // only, width clamped to the shared [16, 512] range, webp at the
+            // same 0.75 quality, and ANY failure (sharp missing, undecodable
+            // bytes) falls through to the original — the SW's fallback too.
+            const params = new URLSearchParams(query ?? "");
+            const thumbParam = params.get("thumb");
+            const isRaster =
+              mime.startsWith("image/") && mime !== "image/svg+xml";
+            if (thumbParam && isRaster) {
+              const sharp = await loadSharp();
+              if (sharp) {
+                try {
+                  const width = clampThumbnailWidth(thumbParam);
+                  const stat = fs.statSync(abs);
+                  const cacheKey = `${rel}?thumb=${width}&sig=${stat.mtimeMs}-${stat.size}`;
+                  let thumb = thumbnailMirrorCache.get(cacheKey);
+                  if (!thumb) {
+                    thumb = (await sharp(fs.readFileSync(abs))
+                      .resize({ width })
+                      .webp({ quality: 75 })
+                      .toBuffer()) as Buffer;
+                    thumbnailMirrorCache.set(cacheKey, thumb);
+                  }
+                  res.statusCode = 200;
+                  res.setHeader("Content-Type", "image/webp");
+                  res.setHeader(
+                    "Cache-Control",
+                    "max-age=31536000, immutable",
+                  );
+                  res.end(thumb);
+                  return;
+                } catch {
+                  // Undecodable bytes — serve the original below.
+                }
+              }
+            }
             // `filtered_image` variants arrive as `?filters=<param>` on the
             // root SVG's url — a service-worker feature (sw.ts runs
             // `filterSVG` lazily per fetch). Run the SAME shared filter here
@@ -418,9 +470,7 @@ const viteStaticallyRenderedPagesPlugin = (): Plugin => ({
             // hidden <img>, #344), so a fresh filter per request would double
             // the parse cost of every portrait beat.
             if (ext === "svg") {
-              const filtersParam = new URLSearchParams(query ?? "").get(
-                "filters",
-              );
+              const filtersParam = params.get("filters");
               const filter = filtersParam
                 ? parseImageFilterParam(filtersParam)
                 : undefined;
@@ -443,10 +493,7 @@ const viteStaticallyRenderedPagesPlugin = (): Plugin => ({
               }
             }
             res.statusCode = 200;
-            res.setHeader(
-              "Content-Type",
-              MIRROR_MIME[ext] ?? "application/octet-stream",
-            );
+            res.setHeader("Content-Type", mime);
             res.setHeader("Cache-Control", "max-age=31536000, immutable");
             res.end(fs.readFileSync(abs));
             return;

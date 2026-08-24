@@ -32,6 +32,82 @@ async function collectFiles(
   }
 }
 
+/**
+ * Reverse sync: repopulate an EMPTY OPFS from the mirror. Embedded browsers
+ * that refuse service workers also tend to treat origin storage as
+ * best-effort and evict it wholesale (OPFS + Cache Storage gone,
+ * `navigator.storage.persisted()` false) — which silently destroys the whole
+ * local project. The mirror's on-disk copy survives, so a boot that finds no
+ * project files restores them and reloads once. Guarded three ways: only when
+ * OPFS holds zero real files (an evicted origin, never a project the author
+ * emptied), only when the mirror actually has content, and only once per
+ * session (the reload flag) so a failing restore can't loop.
+ */
+async function restoreOpfsFromDevAssetMirror(
+  manifest: Record<string, string>,
+  existing: OpfsFile[],
+): Promise<boolean> {
+  const paths = Object.keys(manifest).filter((p) => !p.startsWith("."));
+  if (paths.length === 0) {
+    return false;
+  }
+  // "Empty" means no file with actual content — a fresh boot may have minted
+  // a zero-byte placeholder (e.g. an empty main.sd) before this runs, and
+  // that must not mask an evicted origin.
+  for (const { handle } of existing) {
+    if ((await handle.getFile()).size > 0) {
+      return false;
+    }
+  }
+  if (sessionStorage.getItem("dev-asset-mirror-restored")) {
+    return false;
+  }
+  sessionStorage.setItem("dev-asset-mirror-restored", "1");
+  console.log(
+    `[dev-asset-mirror] origin storage is empty but the mirror holds ${paths.length} files — restoring the project...`,
+  );
+  const root = await navigator.storage.getDirectory();
+  let restored = 0;
+  let failed = 0;
+  const queue = [...paths];
+  const workers = Array.from({ length: CONCURRENCY }, async () => {
+    for (;;) {
+      const p = queue.shift();
+      if (!p) return;
+      try {
+        const resp = await fetch(
+          "/file:/" + p.split("/").map(encodeURIComponent).join("/"),
+        );
+        if (!resp.ok) {
+          failed++;
+          continue;
+        }
+        const bytes = await resp.arrayBuffer();
+        const segments = p.split("/");
+        let dir = root;
+        for (const seg of segments.slice(0, -1)) {
+          dir = await dir.getDirectoryHandle(seg, { create: true });
+        }
+        const fh = await dir.getFileHandle(segments.at(-1)!, { create: true });
+        const w = await fh.createWritable();
+        await w.write(bytes);
+        await w.close();
+        restored++;
+      } catch {
+        failed++;
+      }
+    }
+  });
+  await Promise.all(workers);
+  console.log(
+    `[dev-asset-mirror] restored ${restored} files` +
+      (failed ? ` (${failed} failed)` : "") +
+      " — reloading so the editor picks the project back up.",
+  );
+  location.reload();
+  return true;
+}
+
 export async function syncOpfsToDevAssetMirror(): Promise<void> {
   let manifest: Record<string, string>;
   try {
@@ -48,6 +124,10 @@ export async function syncOpfsToDevAssetMirror(): Promise<void> {
   const root = await navigator.storage.getDirectory();
   const files: OpfsFile[] = [];
   await collectFiles(root, "", files);
+
+  if (await restoreOpfsFromDevAssetMirror(manifest, files)) {
+    return;
+  }
 
   const stale: { path: string; file: File; tag: string }[] = [];
   for (const { path, handle } of files) {

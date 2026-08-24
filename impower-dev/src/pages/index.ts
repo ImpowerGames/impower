@@ -41,6 +41,18 @@ const startDevAssetMirror = () => {
   });
 };
 
+// Ask the browser to protect this origin's storage from best-effort
+// eviction. Where granted, OPFS/Cache Storage survive storage pressure and
+// browser lifecycle; where denied (embedded browsers commonly refuse), the
+// dev asset mirror's restore path is the safety net.
+navigator.storage?.persist?.().then((granted) => {
+  if (!granted) {
+    console.warn(
+      "Storage persistence not granted — origin storage may be evicted by the browser.",
+    );
+  }
+});
+
 if ("serviceWorker" in navigator) {
   navigator.serviceWorker.register("sw.js").then(
     (registration) => {
