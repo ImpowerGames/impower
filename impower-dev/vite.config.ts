@@ -297,6 +297,125 @@ const viteStaticallyRenderedPagesPlugin = (): Plugin => ({
       )
       .on("change", scheduleReload);
 
+    // --- Dev asset mirror (service-worker-less fallback) ---------------------
+    // Project assets normally resolve through the service worker, which serves
+    // `/file:/local/...` straight out of the page's OPFS. Some embedded
+    // browsers refuse service-worker registration outright ("An unknown error
+    // occurred when fetching the script"), which leaves every asset URL a 404
+    // and the game preview imageless. In dev, the page detects that state and
+    // uploads its OPFS files here (see pages/devAssetMirror.ts); this
+    // middleware then answers the very same `/file:/...` URLs from the mirror,
+    // so nothing downstream changes. Version tags mirror the `?v=` scheme
+    // (`<mtime>-<size>`), letting the page skip re-uploading unchanged files.
+    // The `?thumb=` / `?filters=` transforms are service-worker features; the
+    // mirror serves the original bytes for those, which renders (larger /
+    // unfiltered) rather than 404s.
+    const assetMirrorDir = path.join(outDevDir, "asset-mirror");
+    const assetMirrorManifestPath = path.join(assetMirrorDir, ".manifest.json");
+    let assetMirrorManifest: Record<string, string> = {};
+    try {
+      assetMirrorManifest = JSON.parse(
+        fs.readFileSync(assetMirrorManifestPath, "utf-8"),
+      );
+    } catch {
+      // First run — empty mirror.
+    }
+    const saveAssetMirrorManifest = () => {
+      fs.mkdirSync(assetMirrorDir, { recursive: true });
+      fs.writeFileSync(
+        assetMirrorManifestPath,
+        JSON.stringify(assetMirrorManifest),
+      );
+    };
+    const MIRROR_MIME: Record<string, string> = {
+      png: "image/png",
+      webp: "image/webp",
+      jpg: "image/jpeg",
+      jpeg: "image/jpeg",
+      gif: "image/gif",
+      svg: "image/svg+xml",
+      ogg: "audio/ogg",
+      mp3: "audio/mpeg",
+      wav: "audio/wav",
+      mid: "audio/midi",
+      ttf: "font/ttf",
+      otf: "font/otf",
+      woff: "font/woff",
+      woff2: "font/woff2",
+      txt: "text/plain",
+      json: "application/json",
+      sd: "text/plain",
+    };
+    // Resolve a mirror-relative path safely (reject traversal outside the dir).
+    const resolveMirrorPath = (rel: string): string | undefined => {
+      const abs = path.resolve(assetMirrorDir, rel);
+      if (!abs.startsWith(path.resolve(assetMirrorDir) + path.sep)) {
+        return undefined;
+      }
+      return abs;
+    };
+    server.middlewares.use(async (req, res, next) => {
+      try {
+        if (!req.url) return next();
+        const [rawPath, query] = req.url.split("?");
+        const url = decodeURIComponent(rawPath ?? "");
+
+        if (url === "/__dev-asset-mirror/manifest" && req.method === "GET") {
+          res.statusCode = 200;
+          res.setHeader("Content-Type", "application/json");
+          res.end(JSON.stringify(assetMirrorManifest));
+          return;
+        }
+
+        if (url.startsWith("/__dev-asset-mirror/") && req.method === "PUT") {
+          const rel = url.replace("/__dev-asset-mirror/", "");
+          const abs = resolveMirrorPath(rel);
+          if (!abs) {
+            res.statusCode = 400;
+            res.end("bad path");
+            return;
+          }
+          const tag = new URLSearchParams(query ?? "").get("v") ?? "";
+          const chunks: Buffer[] = [];
+          req.on("data", (c: Buffer) => chunks.push(c));
+          req.on("end", () => {
+            fs.mkdirSync(path.dirname(abs), { recursive: true });
+            fs.writeFileSync(abs, Buffer.concat(chunks));
+            assetMirrorManifest[rel] = tag;
+            saveAssetMirrorManifest();
+            res.statusCode = 200;
+            res.end("ok");
+          });
+          req.on("error", () => {
+            res.statusCode = 500;
+            res.end("upload failed");
+          });
+          return;
+        }
+
+        if (url.startsWith("/file:/") && req.method === "GET") {
+          const rel = url.replace("/file:/", "");
+          const abs = resolveMirrorPath(rel);
+          if (abs && fs.existsSync(abs) && fs.statSync(abs).isFile()) {
+            const ext = path.extname(abs).slice(1).toLowerCase();
+            res.statusCode = 200;
+            res.setHeader(
+              "Content-Type",
+              MIRROR_MIME[ext] ?? "application/octet-stream",
+            );
+            res.setHeader("Cache-Control", "max-age=31536000, immutable");
+            res.end(fs.readFileSync(abs));
+            return;
+          }
+          // Not mirrored — fall through (a controlling service worker never
+          // lets these requests reach the server anyway).
+        }
+      } catch (err) {
+        console.error("dev-asset-mirror middleware error", err);
+      }
+      return next();
+    });
+
     // Inject custom middleware into Vite's dev server
     server.middlewares.use(async (req, res, next) => {
       try {

@@ -23,6 +23,24 @@ const load = async () => {
 
 load();
 
+// DEV-only: when the browser refuses the service worker (some embedded /
+// proxied browsers fail `register()` outright), `/file:/` asset URLs would all
+// 404. Mirror the OPFS files to the dev server instead, which serves those
+// URLs itself (see devAssetMirror.ts + the vite.config.ts middleware). Kicked
+// off on registration failure, and re-checked periodically so files written
+// after boot (imports, saves) reach the mirror too.
+let devAssetMirrorStarted = false;
+const startDevAssetMirror = () => {
+  if (!import.meta.env.DEV || devAssetMirrorStarted) {
+    return;
+  }
+  devAssetMirrorStarted = true;
+  import("./devAssetMirror").then(({ syncOpfsToDevAssetMirror }) => {
+    syncOpfsToDevAssetMirror();
+    setInterval(() => syncOpfsToDevAssetMirror(), 20_000);
+  });
+};
+
 if ("serviceWorker" in navigator) {
   navigator.serviceWorker.register("sw.js").then(
     (registration) => {
@@ -30,8 +48,18 @@ if ("serviceWorker" in navigator) {
     },
     (error) => {
       console.error(`Service worker registration failed: ${error}`);
+      startDevAssetMirror();
     },
   );
+  // Belt-and-suspenders: registration can also "succeed" without the page ever
+  // being controlled. If nothing controls us a few seconds in, fall back.
+  if (import.meta.env.DEV) {
+    setTimeout(() => {
+      if (!navigator.serviceWorker.controller) {
+        startDevAssetMirror();
+      }
+    }, 5000);
+  }
   // TODO: Handle service worker refresh with Approach #4 instead of Approach #2:
   // https://redfin.engineering/how-to-fix-the-refresh-button-when-using-service-workers-a8e27af6df68
   // Reload to pick up a NEW worker version (so the PWA auto-updates to the latest
