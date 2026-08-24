@@ -55,21 +55,68 @@ const metaStr = (v: any, key: string): string =>
 
 /** Find a define table in the story's globals by its marker name (and,
  *  optionally, its declared parent) — independent of which GLOBAL KEY the
- *  scoping passes assigned it. */
+ *  scoping passes assigned it. Returns the LAST match: globals initialize in
+ *  registration order and a later `__def` re-registers over an earlier one
+ *  (override-in-place), so the last table is the one the runtime's type
+ *  tables actually hold — e.g. an authored override registered after the
+ *  prelude incumbent it displaced to a `$prelude_` key. */
 function findDefine(story: any, name: string, parent?: string): any {
   const globals: Map<string, any> =
     story.state.variablesState["_globalVariables"];
+  let found: any = undefined;
   for (const v of globals.values()) {
     if (
       v &&
       metaStr(v, "__define") === name &&
       (parent === undefined || metaStr(v, "__defineParent") === parent)
     ) {
-      return v;
+      found = v;
     }
   }
-  return undefined;
+  return found;
 }
+
+describe("same-TYPE builtin override with a choice in the story", () => {
+  // `define ambient as channel` re-declares a name the prelude also defines
+  // as a channel — the override branch, not the dual-type branch. FlowBase
+  // hands the flat slot to the authored declaration; the prelude's incumbent
+  // must stay REGISTERED (under `$prelude_ambient`), because its parsed nodes
+  // remain in the prelude content and ResolveReferences walks them: an
+  // unregistered declaration never generates its runtime, so its `__def`
+  // divert throws and silently ABORTS the resolve pass for the whole story.
+  // Every author-side reference after the prelude was left unresolved — a
+  // project containing any `choose` then lost its compiled story to a null
+  // `pathOnChoice` during serialization, with zero diagnostics (found by the
+  // R&B project import, whose sound_effects.sd overrides `ambient`).
+  const SOURCE = `define ambient as channel with
+  loop = true
+end
+
+-> start
+scene start
+  Hello.
+  choose
+    + [Go]
+      Went.
+  then
+    Done.
+end
+`;
+
+  test("the story still compiles and the authored override wins", () => {
+    // compileStory throws here pre-fix: `program.compiled` is undefined once
+    // the aborted resolve pass poisons serialization.
+    const story = compileStory(SOURCE);
+    const override = findDefine(story, "ambient", "channel");
+    expect(override).toBeDefined();
+    // Authored value wins; prelude fields the author didn't restate survive
+    // via the override back-fill.
+    const struct: any = convertDefine(override, story);
+    expect(struct.loop).toBe(true);
+    expect(struct.mixer).toBe("sound");
+    expect(struct.play_behavior).toBe("stack");
+  });
+});
 
 describe("as-parent resolution for a dual-defined type name", () => {
   const SOURCE = `define narrator as typewriter with

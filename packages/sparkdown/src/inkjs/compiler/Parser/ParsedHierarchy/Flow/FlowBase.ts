@@ -246,19 +246,36 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
       // every `define slate_80 as color` / `define ui as config` a compile
       // error instead of a re-theme. Hand the slot to the authored declaration.
       //
-      // Safe to drop the incumbent wholesale because the override pass has
-      // already back-filled the authored `__def` table with every prelude value
-      // the author didn't restate (see SparkdownCompiler.applyBuiltinOverrides);
-      // without that, a partial override would silently lose the builtin's
-      // other fields. Two colliding AUTHORED defines still error below.
-      // Narrow on purpose: only another DEFINE may take a builtin's slot. A
-      // property declaration that happens to collide is not an override and
-      // must fall through to the checks below.
+      // The incumbent must NOT be dropped from `variableDeclarations`: its
+      // parsed nodes stay in the prelude's content, and ResolveReferences
+      // walks them regardless — a declaration missing from the registry never
+      // generates its runtime, so its `__def` divert's `runtimeDivert` getter
+      // throws and ABORTS the resolve pass for the whole story (everything
+      // after the prelude is left unresolved; a project with any choice then
+      // fails serialization on a null `pathOnChoice`, with zero diagnostics).
+      // Same hazard the `$type_name` branch above documents. So the incumbent
+      // re-registers under a synthetic `$prelude_` key (`$` can't appear in a
+      // script identifier, and the `$type_name` convention is reserved for
+      // dual-TYPE names) immediately BEFORE the authored declaration: the
+      // prelude's `__def` runs first and the authored one re-registers over
+      // it in place — the documented override semantic. The override pass has
+      // also already back-filled the authored `__def` table with every prelude
+      // value the author didn't restate (see
+      // SparkdownCompiler.applyBuiltinOverrides), so a partial override keeps
+      // the builtin's other fields. Two colliding AUTHORED defines still
+      // error below. Narrow on purpose: only another DEFINE may take a
+      // builtin's slot. A property declaration that happens to collide is not
+      // an override and must fall through to the checks below.
       if (
         varab.isPreludeDeclaration &&
         !varDecl.isPreludeDeclaration &&
         varDecl.isDefineDeclaration
       ) {
+        this.variableDeclarations.delete(varName);
+        const shadowKey = `$prelude_${varName}`;
+        if (!this.variableDeclarations.has(shadowKey)) {
+          this.variableDeclarations.set(shadowKey, varab);
+        }
         this.variableDeclarations.set(varName, varDecl);
         return;
       }
