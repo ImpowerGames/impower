@@ -1474,6 +1474,12 @@ export class GamePlayerController {
     // previewing, which would leave that run with nothing to draw on.
     if (this._game.state === "previewing") {
       this._game.markPreviewing(validPreviewPath);
+      // Drop what the LAST preview left displayed. The restore below re-applies
+      // whatever the new point genuinely has, and the replay writes the rest;
+      // carrying the old record forward is what put the previous preview's
+      // backdrop behind a line that sets none. (Loading a checkpoint replaces
+      // the record wholesale, so this only matters when there is none.)
+      this._game.module.ui.forgetDisplayedImages();
     }
 
     if (checkpoint) {
