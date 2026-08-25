@@ -25,7 +25,7 @@ render to settle, and writes a PNG. Read `## The driver` before using it.
 
 ## 0. Preflight
 
-Run this first, every time. Each check here fails *late and expensively* if you
+Run this first, every time. Each check here fails _late and expensively_ if you
 skip it — a near-full `C:` silently corrupts a fresh worktree's `node_modules`,
 and a logged-out `gh` only bites after all the work is done.
 
@@ -74,13 +74,13 @@ gh label list
 gh api repos/ImpowerGames/impower/issues/302 --jq .type.name
 ```
 
-| Label | Scope |
-| --- | --- |
-| `system: sparkdown` | Language, compiler, engine packages |
-| `system: sparkle-ui` | Sparkle layout/component/style lowering, reactive engine, DOM renderer |
-| `app: web-editor` | Web game engine + editor (`impower-dev`) |
-| `app: vscode-extension` | VS Code extension (`vscode-sparkdown`) |
-| `app: impower-app` | Legacy React/Firebase site — effectively archived |
+| Label                   | Scope                                                                  |
+| ----------------------- | ---------------------------------------------------------------------- |
+| `system: sparkdown`     | Language, compiler, engine packages                                    |
+| `system: sparkle-ui`    | Sparkle layout/component/style lowering, reactive engine, DOM renderer |
+| `app: web-editor`       | Web game engine + editor (`impower-dev`)                               |
+| `app: vscode-extension` | VS Code extension (`vscode-sparkdown`)                                 |
+| `app: impower-app`      | Legacy React/Firebase site — effectively archived                      |
 
 ---
 
@@ -101,7 +101,7 @@ worktree   ../impower.worktrees/fix/302-filterimage-layers
 - `<type>` — the commit-prefix vocabulary: `fix`, `feat`, `perf`, `docs`,
   `test`, `refactor`.
 - `<issue>` — the number, bare, **first**, so branches sort by ticket.
-- `<slug>` — 2–4 dash-separated words naming the *defect or capability*, not
+- `<slug>` — 2–4 dash-separated words naming the _defect or capability_, not
   the area (`filterimage-layers`, not `sparkdown-compiler`).
 
 More examples: `fix/281-document-views-parse-settle`,
@@ -134,7 +134,7 @@ npm install
 ```
 
 That takes several minutes and roughly 2–3 GB. **Verify it before trusting it.**
-A full disk leaves a *silently* corrupted `node_modules` — truncated binaries,
+A full disk leaves a _silently_ corrupted `node_modules` — truncated binaries,
 empty package dirs, missing `dist/*.mjs` — and the corruption surfaces much
 later as a baffling build error. Execute the binaries rather than checking file
 sizes; a truncated executable fails to spawn whatever its expected size:
@@ -161,7 +161,7 @@ Do not start editing off the ticket's say-so. Establish the failure first, and
 keep the artifact — it becomes the "before" half of the PR.
 
 - **Compiler / parser / engine issue** (`system: sparkdown`) → write the failing
-  test now and run just that file (§5). Written first, it *is* your repro, and
+  test now and run just that file (§5). Written first, it _is_ your repro, and
   it becomes the regression test in §5 unchanged — you get the "fails before,
   passes after" evidence for free instead of reconstructing it later.
 - **Editor / preview / visual issue** (`app: web-editor`, `system: sparkle-ui`)
@@ -222,7 +222,12 @@ Verified output shape:
   "scrub": { "line": 8, "totalLines": 12, "settledAfter": 1 },
   "route": "main : 1 → main : 8 796 × 808",
   "settled": true,
-  "preview": { "installed": true, "mounted": true, "sameOrigin": true, "gameChildren": 3 },
+  "preview": {
+    "installed": true,
+    "mounted": true,
+    "sameOrigin": true,
+    "gameChildren": 3
+  },
   "visible": "BOB\nBOB\nLine two of the repro.\nLine two of the repro.\n▼",
   "screenshot": "C:\\...\\before.png"
 }
@@ -239,7 +244,7 @@ How to read it — **check these before trusting the PNG**:
   `scrubWarning`; the line is probably not a playable beat (blank line,
   character-name line, heading).
 - `visible` — the game's rendered text. **Every line appears twice**: the second
-  copy is the text *outline* layer. Expected — not duplicated output.
+  copy is the text _outline_ layer. Expected — not duplicated output.
 - `settled: false` — the DOM never stopped mutating. Re-run.
 
 `--sd` is only needed when the script changes: the pinned port keeps the same
@@ -300,13 +305,13 @@ feature.
 **5a — write the test.** For a fix, it pins the defect. For a feature, it pins
 the new behaviour. Put it beside the existing ones for the package you changed:
 
-| Changed | Tests live in |
-| --- | --- |
-| `packages/sparkdown` compiler/lowering | `packages/sparkdown/src/tests/compiler/` |
-| `packages/sparkdown` runtime | `packages/sparkdown/src/tests/runtime/` |
-| Luau semantics | `packages/sparkdown/src/tests/luau-conformance/` |
-| Another package | that package's `test/` or `src/tests/` |
-| `impower-dev` | `impower-dev/test/` |
+| Changed                                | Tests live in                                    |
+| -------------------------------------- | ------------------------------------------------ |
+| `packages/sparkdown` compiler/lowering | `packages/sparkdown/src/tests/compiler/`         |
+| `packages/sparkdown` runtime           | `packages/sparkdown/src/tests/runtime/`          |
+| Luau semantics                         | `packages/sparkdown/src/tests/luau-conformance/` |
+| Another package                        | that package's `test/` or `src/tests/`           |
+| `impower-dev`                          | `impower-dev/test/`                              |
 
 Copy an existing neighbouring test's imports rather than inventing them — in
 `src/tests/compiler/`, `compileSnapshot.ts`'s import order is load-bearing (it
@@ -334,12 +339,12 @@ issue says "only the last matching layer survives", the test builds a case with
 several matching layers and asserts all of them come back.
 
 **5b — prove the test is honest.** A regression test that passes against the
-*old* code pins nothing.
+_old_ code pins nothing.
 
 **Never use `git stash` for this.** The stash stack is per-**repo**, not
 per-worktree, and this checkout has ~17 live worktrees with other sessions
-running concurrently. A `git stash pop` takes whatever is at `stash@{0}` *at
-that moment* — which may be another session's WIP pushed between your push and
+running concurrently. A `git stash pop` takes whatever is at `stash@{0}` _at
+that moment_ — which may be another session's WIP pushed between your push and
 your pop. That lands their work in your tree and leaves your fix on the stack.
 
 Copy the file aside instead, revert it, and copy it back:
@@ -356,7 +361,7 @@ not on an import error or a typo. Then restore **from the copy**:
 cp "$SCRATCH/fix.ts" packages/sparkdown/src/compiler/utils/filterImage.ts
 ```
 
-`git checkout --` reverts to HEAD, so it restores the *pre-fix* file — using it
+`git checkout --` reverts to HEAD, so it restores the _pre-fix_ file — using it
 to undo the revert silently throws the fix away. **Confirm the restore landed
 before trusting anything downstream:**
 
@@ -424,7 +429,7 @@ cd packages/sparkdown && NODE_OPTIONS="--max-old-space-size=4096" npx vitest run
 
 **Exit code 0 does not mean green.** Two OOM shapes both exit 0:
 `Error: Worker exited unexpectedly` with no pass count; or the log simply
-*stops* with no `Test Files` / `Tests` summary at all. Confirm the summary lines
+_stops_ with no `Test Files` / `Tests` summary at all. Confirm the summary lines
 exist and the file count matches what you expected — a run can exit 0 having
 completed 13 of 156 files and look perfectly clean. To count:
 
@@ -489,11 +494,11 @@ The goal is to break your own fix, not to admire it — and to have readers who 
 
 Reviewers cost real tokens. Scale the count to the blast radius of the change instead of running a fixed ritual — four reviewers on a two-line fix burn tokens to find nothing.
 
-| Tier | Reviewers | Applies when |
-| --- | --- | --- |
-| Minimal | 1 — undirected only | Docs, comments, or config only; or a single-file fix of a few dozen lines whose callers you enumerated yourself and whose regression test pins the ticket behaviour. |
-| Standard | 2–3 — undirected + the most relevant lenses | A typical fix contained in one package. |
-| High-impact | 4–6 — undirected + every applicable lens | Compiler or runtime semantics, incremental-compile or serialization paths, generated-grammar sources, changes spanning packages, or a diff over ~300 lines. |
+| Tier        | Reviewers                                   | Applies when                                                                                                                                                         |
+| ----------- | ------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Minimal     | 1 — undirected only                         | Docs, comments, or config only; or a single-file fix of a few dozen lines whose callers you enumerated yourself and whose regression test pins the ticket behaviour. |
+| Standard    | 2–3 — undirected + the most relevant lenses | A typical fix contained in one package.                                                                                                                              |
+| High-impact | 4-5 — undirected + every applicable lens    | Compiler or runtime semantics, incremental-compile or serialization paths, generated-grammar sources, changes spanning packages, or a diff over ~300 lines.          |
 
 When a diff sits between tiers, round up — a missed defect costs more than a reviewer. The undirected reviewer is never dropped, whatever the tier.
 
@@ -503,11 +508,11 @@ A model reviewing code written by the same model shares the writer's priors — 
 
 Pass `model:` explicitly on every reviewer Agent call. The Agent tool's `model` values are family aliases (`fable`, `opus`, `sonnet`, `haiku`), each resolving to that family's current version — so an alias qualifies exactly when it resolves to a model other than you (your system prompt names your model):
 
-| You (the writer) | Reviewers get |
-| --- | --- |
-| Fable | `model: "opus"` (or `"sonnet"`) |
-| Opus | `model: "fable"` if available, else `"sonnet"` — the `"opus"` alias resolves back to you |
-| Sonnet | `model: "opus"` |
+| You (the writer) | Reviewers get       |
+| ---------------- | ------------------- |
+| Fable            | `model: "opus 5"`   |
+| Opus 5           | `model: "opus 4.8"` |
+| Sonnet           | `model: "opus 5"`   |
 
 If the harness accepts a versioned model id for reviewers, an adjacent version of the writer's own family is the ideal pick. Never use haiku for review — it misses exactly the subtle defects this pass exists to catch.
 
@@ -574,13 +579,13 @@ gh pr ready
 
 `node .claude/skills/resolve-issue/driver.mjs <command>`
 
-| Command | Does |
-| --- | --- |
-| `preflight` | disk headroom, Playwright, `gh` auth, git repo |
+| Command               | Does                                                  |
+| --------------------- | ----------------------------------------------------- |
+| `preflight`           | disk headroom, Playwright, `gh` auth, git repo        |
 | `up [--cross-origin]` | boot both dev servers on pinned ports, wait for ready |
-| `status` | is it up? prints the editor URL |
-| `down` | kill the whole server tree |
-| `verify [opts]` | drive the editor, print a JSON report |
+| `status`              | is it up? prints the editor URL                       |
+| `down`                | kill the whole server tree                            |
+| `verify [opts]`       | drive the editor, print a JSON report                 |
 
 `verify` options: `--sd <file.sd>` (load into OPFS `/local/main.sd`, then
 reload), `--line <N>` (scrub the preview to that source line), `--shot <out.png>`,
@@ -626,7 +631,7 @@ Things that look like they work and don't:
   is time-driven and ignores the cursor entirely; the scrub silently does
   nothing.
 - **The editor restores the previous cursor position asynchronously after load**
-  and clobbers the scrub — the preview then settles on the *old* line. The
+  and clobbers the scrub — the preview then settles on the _old_ line. The
   restore can fire **late**, so checking the cursor once (even a second later)
   is not enough: it passes, then the restore wins. The driver requires the
   cursor to hold the target across three consecutive checks. Don't weaken that
@@ -634,7 +639,7 @@ Things that look like they work and don't:
   asked for while `route` names a different one.
 - **On a cold origin the first `selectionSet` is dropped** because the player
   worker isn't listening yet. The driver waits for the first compile to settle
-  *before* scrubbing. Without that you get beat 1–2 no matter what line you ask
+  _before_ scrubbing. Without that you get beat 1–2 no matter what line you ask
   for.
 - **Re-dispatching the same cursor position produces no event.** To re-arm a
   scrub you must bounce to another line and back.
@@ -657,8 +662,8 @@ Things that look like they work and don't:
   your change is emitting content twice.
 - **Generated files silently revert. DO NOT EDIT THEM.**
   `packages/sparkdown/language/*.json` are build artifacts of
-  `definitions/yaml/*.yaml`. Editing the JSON will *seem* to work — tests will
-  *seem* to pass, the change will ship — and then the next `definitions` build
+  `definitions/yaml/*.yaml`. Editing the JSON will _seem_ to work — tests will
+  _seem_ to pass, the change will ship — and then the next `definitions` build
   erases it. Edit the YAML, not the JSON, regenerate, and commit both:
   ```bash
   cd definitions && npx tsx src/language.ts ../packages/sparkdown/language
@@ -669,7 +674,7 @@ Things that look like they work and don't:
   as `/`, breaking a file mid-edit). Write files with the editor tool, not by
   piping a heredoc.
 - **`tsc` is not a gate** — there is no CI typecheck anywhere in the repo, and
-  the only PR workflow is the VS Code extension's *bundler* build (esbuild
+  the only PR workflow is the VS Code extension's _bundler_ build (esbuild
   strips types without checking them). A clean `tsc` proves nothing about CI,
   and a broken one blocks nothing. Verify with vitest.
   **This is being fixed — see
@@ -685,17 +690,17 @@ Things that look like they work and don't:
 
 ## Troubleshooting
 
-| Symptom | Cause → fix |
-| --- | --- |
-| `ERR_MODULE_NOT_FOUND: Cannot find package 'playwright'` | The script was run from outside the repo tree. Node resolves from the *script's* directory — run `driver.mjs` at its committed path. |
-| `driver.mjs up` times out after 15 min | Read `npm run web:dev` output directly in the worktree; a workspace build error will show there. The detached log file is always empty (see Gotchas). |
-| Game Preview is black but the editor pane looks fine | Servers were hand-launched with mismatched origins. `down`, then `up`. |
-| `verify` returns `preview.installed: false` | `window.__preview` only exists in same-origin mode. Don't pass `--cross-origin`. |
-| Game Preview pane is blank **white**; `gameMounted: false` | The `#game` scaffold never mounted after a server restart. `down`, `up`, retry. Discard the screenshot. |
-| Scrub lands on the wrong beat; `scrubWarning` set | The target line isn't a playable beat — pick the indented dialogue/action line, not the `NAME:` line, a heading, or a blank line. |
-| `verify` dies with `Timeout 90000ms exceeded` waiting for `.cm-content` | The machine is saturated — usually a vitest suite running in this or another worktree. The server is fine (`status` says UP, the URL returns 200). Wait for the suite and re-run; don't go hunting for a regression. |
-| vitest exits 0 with no `Test Files` / `Tests` summary | An OOM'd worker was killed by the OS. Not a pass. Lower `maxForks`, split the suite. |
-| `minThreads and maxThreads must not conflict` | You passed `maxForks` without `minForks`. Always pass both. |
+| Symptom                                                                                                    | Cause → fix                                                                                                                                                                                                                                                                                 |
+| ---------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ERR_MODULE_NOT_FOUND: Cannot find package 'playwright'`                                                   | The script was run from outside the repo tree. Node resolves from the _script's_ directory — run `driver.mjs` at its committed path.                                                                                                                                                        |
+| `driver.mjs up` times out after 15 min                                                                     | Read `npm run web:dev` output directly in the worktree; a workspace build error will show there. The detached log file is always empty (see Gotchas).                                                                                                                                       |
+| Game Preview is black but the editor pane looks fine                                                       | Servers were hand-launched with mismatched origins. `down`, then `up`.                                                                                                                                                                                                                      |
+| `verify` returns `preview.installed: false`                                                                | `window.__preview` only exists in same-origin mode. Don't pass `--cross-origin`.                                                                                                                                                                                                            |
+| Game Preview pane is blank **white**; `gameMounted: false`                                                 | The `#game` scaffold never mounted after a server restart. `down`, `up`, retry. Discard the screenshot.                                                                                                                                                                                     |
+| Scrub lands on the wrong beat; `scrubWarning` set                                                          | The target line isn't a playable beat — pick the indented dialogue/action line, not the `NAME:` line, a heading, or a blank line.                                                                                                                                                           |
+| `verify` dies with `Timeout 90000ms exceeded` waiting for `.cm-content`                                    | The machine is saturated — usually a vitest suite running in this or another worktree. The server is fine (`status` says UP, the URL returns 200). Wait for the suite and re-run; don't go hunting for a regression.                                                                        |
+| vitest exits 0 with no `Test Files` / `Tests` summary                                                      | An OOM'd worker was killed by the OS. Not a pass. Lower `maxForks`, split the suite.                                                                                                                                                                                                        |
+| `minThreads and maxThreads must not conflict`                                                              | You passed `maxForks` without `minForks`. Always pass both.                                                                                                                                                                                                                                 |
 | `npm install` dies `ENOSPC`; or `npx esbuild --version` / `npx vitest --version` fails to spawn (`EFTYPE`) | Disk was full; `node_modules` is silently corrupt (truncated binaries, empty dirs). `npm cache clean --force`, prune `%LOCALAPPDATA%\Temp`, delete **all** `node_modules` (root + every workspace — nested ones die with the parent), reinstall **once**. Piecemeal repair is whack-a-mole. |
-| `git worktree remove` → `Directory not empty` | Windows can't delete `node_modules` that way. `Remove-Item -Recurse -Force <path>`, then `git worktree prune`. |
-| A `gh` PR/issue body came out as the literal `@-` | You used `--body @-`. Use `--body-file`, then read it back with `gh pr view --json body`. |
+| `git worktree remove` → `Directory not empty`                                                              | Windows can't delete `node_modules` that way. `Remove-Item -Recurse -Force <path>`, then `git worktree prune`.                                                                                                                                                                              |
+| A `gh` PR/issue body came out as the literal `@-`                                                          | You used `--body @-`. Use `--body-file`, then read it back with `gh pr view --json body`.                                                                                                                                                                                                   |
