@@ -856,6 +856,14 @@ export class Game<T extends M = {}> {
     if (startCheckpoint) {
       this.load(startCheckpoint);
     } else {
+      // Starting the route at its beginning rather than resuming inside it. The
+      // replay about to run is the whole truth about what ends up on screen, so
+      // the record of which images are displayed must not carry over from
+      // whatever was simulated before — the story rewinds here, and the modules
+      // have to rewind with it. Left carried over, every checkpoint this route
+      // captures embeds the previous simulation's backdrop, and the editor
+      // restores it behind a line that sets none.
+      this.module.ui?.forgetDisplayedImages?.();
       this.jumpToPath(route.fromPath);
     }
 

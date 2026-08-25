@@ -595,6 +595,25 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     this._mountedLayouts = new Map();
   }
 
+  /** Forget which images are currently displayed, without emitting anything.
+   *
+   *  A preview replays the story from the top of its scene, so what that replay
+   *  writes is the whole truth about the point being previewed. This record is
+   *  otherwise carried over from the preview before it — nothing resets it,
+   *  because during a real run a backdrop is *meant* to outlive the beat that
+   *  set it — and `onRestore` then puts the old image back up. That is how
+   *  previewing a line above a `[[show backdrop …]]` came up wearing whatever
+   *  backdrop the last preview had.
+   *
+   *  Only images: the renderer sweeps the layers that go unwritten during a
+   *  re-render (`UIManager.sweepReconcile`), and forgetting a kind of content it
+   *  does not sweep would strand that content on screen with nothing left to
+   *  clear it. Text needs no equivalent — the textbox is a clear-on-continue
+   *  transient, wiped at every connect. */
+  forgetDisplayedImages() {
+    delete this._state.image;
+  }
+
   override async onConnected() {
     this._root = undefined;
     this._root = this.getOrCreateRootElement();
