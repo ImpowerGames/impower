@@ -19,7 +19,8 @@ export interface RoutePlan {
 export interface SearchNode {
   /** StoryState serialized via story.state.toJson() */
   stateJson: string;
-  /** A string that represents the sequence of paths taken to reach this step */
+  /** Opaque identity of the sequence of paths taken to reach this step
+   *  (see {@link extendSeq}) */
   seq: string;
   /** The sequence of steps that led here */
   steps: RouteStep[];
@@ -33,10 +34,48 @@ export interface SearchNode {
   overrides: RouteOverride[];
 }
 
+/**
+ * Extend a step-sequence identity with one more path.
+ *
+ * The identity used to be the paths themselves, joined: `"a|b|c"`. Every step
+ * stored the whole running string, and `Game.simulateRoute` then uses each one
+ * as an object key — which forces V8 to flatten it into its own copy. A route
+ * of N steps therefore held N strings averaging N/2 paths each: O(N²) bytes.
+ * On a real project that is 241 MB of strings at 5,786 steps and ~1.8 GB at
+ * 15,831, which is what made previewing deep inside a long scene exhaust
+ * memory and kill the editor (#376).
+ *
+ * Only equality is ever asked of a `seq`, so the identity is folded into a
+ * fixed-width hash instead: same history in, same value out, constant size.
+ * Two 32-bit lanes (cyrb53-style) give ~2^53 distinct values; across the tens
+ * of thousands of steps a route can hold, the chance any two collide is
+ * vanishingly small, and a collision could at worst let a re-plan resume from
+ * a checkpoint it should have discarded.
+ */
+export const extendSeq = (seq: string, path: string): string => {
+  let h1 = 0xdeadbeef;
+  let h2 = 0x41c6ce57;
+  const input = seq ? `${seq}|${path}` : path;
+  for (let i = 0; i < input.length; i += 1) {
+    const ch = input.charCodeAt(i);
+    h1 = Math.imul(h1 ^ ch, 2654435761);
+    h2 = Math.imul(h2 ^ ch, 1597334677);
+  }
+  h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507);
+  h1 ^= Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+  h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507);
+  h2 ^= Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+  const combined = 4294967296 * (2097151 & h2) + (h1 >>> 0);
+  return combined.toString(36);
+};
+
 export type RouteOverride = ConditionOverride | ChoiceOverride;
 
 export interface RouteStep {
-  /** A string that represents the sequence of paths taken to reach this step */
+  /** Opaque identity of the sequence of paths taken to reach this step. Two
+   *  steps carry the same `seq` exactly when the same paths led to them, which
+   *  is what lets a re-plan reuse an earlier plan's checkpoints
+   *  (`Game.getCheckpoint`). Not parseable — see {@link extendSeq}. */
   seq: string;
   /** The path encountered this step */
   path: string;
@@ -252,10 +291,7 @@ const runUntilDecisionOrBranch = (
           stepsEncountered.length === 0 ||
           previousPath !== stepsEncountered.at(-1)?.path
         ) {
-          if (seq) {
-            seq += "|";
-          }
-          seq += previousPath;
+          seq = extendSeq(seq, previousPath);
           stepsEncountered.push({
             checkpoint: undefined,
             decision: node.decisions.length - 1,

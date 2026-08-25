@@ -115,13 +115,15 @@ export class Game<T extends M = {}> {
 
   // Lookahead-rewind snapshot of `_runtimeState`. NOT a checkpoint — this is the
   // try-a-branch/rewind-on-dead-end mechanism ink drives per output newline.
+  // Nothing here is proportional to the length of the simulation.
   // `choicesEncountered`/`conditionsEncountered` are append-only, so we snapshot
   // them by LENGTH and restore by truncation (O(1), exactly reverts the appends)
-  // instead of deep-cloning the growing arrays every newline (was O(n²) over a
-  // long simulation). `pathsExecutedThisFrame` has recency moves, so it's still
-  // copied.
+  // instead of deep-cloning the growing arrays every newline. And
+  // `pathsExecutedThisFrame`, which grows for the whole simulation and reorders
+  // on revisit, journals its own undo information instead of being copied here
+  // (see RecencySet) — copying it was the last O(n²) term, and it made
+  // previewing deep inside a long scene exhaust memory (#376).
   protected _runtimeSnapshot: {
-    pathsExecutedThisFrame: Set<string>;
     // Mirror of pathsExecutedThisFrame's per-checkpoint delta log — snapshotted
     // alongside it so a lookahead rewind reverts the delta tracking too (else a
     // speculative-then-rewound execution would leak into the next checkpoint's
@@ -255,7 +257,7 @@ export class Game<T extends M = {}> {
 
     this._executingPath = null;
     this._executingLocation = null;
-    this._runtimeSnapshot = null;
+    this.discardRuntimeSnapshot();
 
     this.updateBreakpointsMap(options?.breakpoints ?? []);
     this.updateFunctionBreakpointsMap(options?.functionBreakpoints ?? []);
@@ -493,14 +495,11 @@ export class Game<T extends M = {}> {
       this._runtimeState.recordCondition(value);
     };
     story.onSaveStateSnapshot = () => {
-      // Cheap snapshot: copy the recency Set, but mark the append-only arrays by
-      // length (no deep copy). Restore truncates them back — exactly equivalent
-      // to the previous full clone, since only record* (append) mutates them
-      // between save and restore.
+      // O(1) in the size of the simulation: `pathsExecutedThisFrame` starts
+      // journalling its own changes, the append-only arrays are marked by
+      // length, and the only copy is the per-beat delta mirror.
+      this._runtimeState.pathsExecutedThisFrame.beginSnapshot();
       this._runtimeSnapshot = {
-        pathsExecutedThisFrame: new Set(
-          this._runtimeState.pathsExecutedThisFrame,
-        ),
         executedSinceCheckpoint: new Set(
           this._runtimeState.executedSinceCheckpoint,
         ),
@@ -510,11 +509,10 @@ export class Game<T extends M = {}> {
     };
     story.onRestoreStateSnapshot = () => {
       if (this._runtimeSnapshot) {
-        // Mutate in place (same _runtimeState object): drop the recorded paths
-        // back to the snapshot Set, and truncate the appended choices/conditions.
-        this._runtimeState.pathsExecutedThisFrame = new Set(
-          this._runtimeSnapshot.pathsExecutedThisFrame,
-        );
+        // Mutate in place (same _runtimeState object): rewind the recorded
+        // paths through their journal, and truncate the appended
+        // choices/conditions.
+        this._runtimeState.pathsExecutedThisFrame.restoreSnapshot();
         this._runtimeState.executedSinceCheckpoint = new Set(
           this._runtimeSnapshot.executedSinceCheckpoint,
         );
@@ -525,8 +523,16 @@ export class Game<T extends M = {}> {
       }
     };
     story.onDiscardStateSnapshot = () => {
-      this._runtimeSnapshot = null;
+      this.discardRuntimeSnapshot();
     };
+  }
+
+  /** Drop any open lookahead snapshot, journal included. Used both when ink
+   *  discards one and when the game abandons a run mid-lookahead (a rewind, a
+   *  fresh simulation), so a stale journal can never rewind a later beat. */
+  protected discardRuntimeSnapshot() {
+    this._runtimeState?.pathsExecutedThisFrame?.discardSnapshot();
+    this._runtimeSnapshot = null;
   }
 
   simulate(
@@ -812,7 +818,7 @@ export class Game<T extends M = {}> {
 
     this._executingPath = null;
     this._executingLocation = null;
-    this._runtimeSnapshot = null;
+    this.discardRuntimeSnapshot();
 
     this.continue(true);
 
@@ -1938,7 +1944,6 @@ export class Game<T extends M = {}> {
 
   getLastExecutedDocumentLocation() {
     const lastExecutedPath = this._runtimeState.pathsExecutedThisFrame
-      .values()
       .toArray()
       .findLast((path) => this._program.pathLocations?.[path]);
     if (lastExecutedPath) {
