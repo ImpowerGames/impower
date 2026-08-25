@@ -20520,33 +20520,6 @@
         {
           "message": {
             "kind": "markdown",
-            "value": "Cannot find layer named `backdrop`"
-          },
-          "range": {
-            "end": {
-              "character": 15,
-              "line": 56
-            },
-            "start": {
-              "character": 7,
-              "line": 56
-            }
-          },
-          "relatedInformation": [
-            {
-              "location": {
-                "range": "[Circular]",
-                "uri": "inmemory:///main.sd"
-              },
-              "message": ""
-            }
-          ],
-          "severity": 2,
-          "source": "sparkdown"
-        },
-        {
-          "message": {
-            "kind": "markdown",
             "value": "Cannot find image named `location_0`"
           },
           "range": {
@@ -20611,33 +20584,6 @@
             "start": {
               "character": 2,
               "line": 68
-            }
-          },
-          "relatedInformation": [
-            {
-              "location": {
-                "range": "[Circular]",
-                "uri": "inmemory:///main.sd"
-              },
-              "message": ""
-            }
-          ],
-          "severity": 2,
-          "source": "sparkdown"
-        },
-        {
-          "message": {
-            "kind": "markdown",
-            "value": "Cannot find layer named `backdrop`"
-          },
-          "range": {
-            "end": {
-              "character": 15,
-              "line": 87
-            },
-            "start": {
-              "character": 7,
-              "line": 87
             }
           },
           "relatedInformation": [
@@ -20817,33 +20763,6 @@
         {
           "message": {
             "kind": "markdown",
-            "value": "Cannot find layer named `backdrop`"
-          },
-          "range": {
-            "end": {
-              "character": 15,
-              "line": 118
-            },
-            "start": {
-              "character": 7,
-              "line": 118
-            }
-          },
-          "relatedInformation": [
-            {
-              "location": {
-                "range": "[Circular]",
-                "uri": "inmemory:///main.sd"
-              },
-              "message": ""
-            }
-          ],
-          "severity": 2,
-          "source": "sparkdown"
-        },
-        {
-          "message": {
-            "kind": "markdown",
             "value": "Cannot find image named `location_2`"
           },
           "range": {
@@ -20989,33 +20908,6 @@
             "start": {
               "character": 4,
               "line": 141
-            }
-          },
-          "relatedInformation": [
-            {
-              "location": {
-                "range": "[Circular]",
-                "uri": "inmemory:///main.sd"
-              },
-              "message": ""
-            }
-          ],
-          "severity": 2,
-          "source": "sparkdown"
-        },
-        {
-          "message": {
-            "kind": "markdown",
-            "value": "Cannot find layer named `backdrop`"
-          },
-          "range": {
-            "end": {
-              "character": 15,
-              "line": 149
-            },
-            "start": {
-              "character": 7,
-              "line": 149
             }
           },
           "relatedInformation": [
@@ -21195,33 +21087,6 @@
         {
           "message": {
             "kind": "markdown",
-            "value": "Cannot find layer named `backdrop`"
-          },
-          "range": {
-            "end": {
-              "character": 15,
-              "line": 180
-            },
-            "start": {
-              "character": 7,
-              "line": 180
-            }
-          },
-          "relatedInformation": [
-            {
-              "location": {
-                "range": "[Circular]",
-                "uri": "inmemory:///main.sd"
-              },
-              "message": ""
-            }
-          ],
-          "severity": 2,
-          "source": "sparkdown"
-        },
-        {
-          "message": {
-            "kind": "markdown",
             "value": "Cannot find image named `location_4`"
           },
           "range": {
@@ -21367,33 +21232,6 @@
             "start": {
               "character": 4,
               "line": 203
-            }
-          },
-          "relatedInformation": [
-            {
-              "location": {
-                "range": "[Circular]",
-                "uri": "inmemory:///main.sd"
-              },
-              "message": ""
-            }
-          ],
-          "severity": 2,
-          "source": "sparkdown"
-        },
-        {
-          "message": {
-            "kind": "markdown",
-            "value": "Cannot find layer named `backdrop`"
-          },
-          "range": {
-            "end": {
-              "character": 15,
-              "line": 211
-            },
-            "start": {
-              "character": 7,
-              "line": 211
             }
           },
           "relatedInformation": [
@@ -21573,33 +21411,6 @@
         {
           "message": {
             "kind": "markdown",
-            "value": "Cannot find layer named `backdrop`"
-          },
-          "range": {
-            "end": {
-              "character": 15,
-              "line": 242
-            },
-            "start": {
-              "character": 7,
-              "line": 242
-            }
-          },
-          "relatedInformation": [
-            {
-              "location": {
-                "range": "[Circular]",
-                "uri": "inmemory:///main.sd"
-              },
-              "message": ""
-            }
-          ],
-          "severity": 2,
-          "source": "sparkdown"
-        },
-        {
-          "message": {
-            "kind": "markdown",
             "value": "Cannot find image named `location_6`"
           },
           "range": {
@@ -21762,33 +21573,6 @@
         {
           "message": {
             "kind": "markdown",
-            "value": "Cannot find layer named `backdrop`"
-          },
-          "range": {
-            "end": {
-              "character": 15,
-              "line": 273
-            },
-            "start": {
-              "character": 7,
-              "line": 273
-            }
-          },
-          "relatedInformation": [
-            {
-              "location": {
-                "range": "[Circular]",
-                "uri": "inmemory:///main.sd"
-              },
-              "message": ""
-            }
-          ],
-          "severity": 2,
-          "source": "sparkdown"
-        },
-        {
-          "message": {
-            "kind": "markdown",
             "value": "Cannot find image named `location_7`"
           },
           "range": {
@@ -21897,33 +21681,6 @@
         {
           "message": {
             "kind": "markdown",
-            "value": "Cannot find layer named `backdrop`"
-          },
-          "range": {
-            "end": {
-              "character": 15,
-              "line": 304
-            },
-            "start": {
-              "character": 7,
-              "line": 304
-            }
-          },
-          "relatedInformation": [
-            {
-              "location": {
-                "range": "[Circular]",
-                "uri": "inmemory:///main.sd"
-              },
-              "message": ""
-            }
-          ],
-          "severity": 2,
-          "source": "sparkdown"
-        },
-        {
-          "message": {
-            "kind": "markdown",
             "value": "Cannot find image named `location_8`"
           },
           "range": {
@@ -21988,33 +21745,6 @@
             "start": {
               "character": 2,
               "line": 316
-            }
-          },
-          "relatedInformation": [
-            {
-              "location": {
-                "range": "[Circular]",
-                "uri": "inmemory:///main.sd"
-              },
-              "message": ""
-            }
-          ],
-          "severity": 2,
-          "source": "sparkdown"
-        },
-        {
-          "message": {
-            "kind": "markdown",
-            "value": "Cannot find layer named `backdrop`"
-          },
-          "range": {
-            "end": {
-              "character": 15,
-              "line": 335
-            },
-            "start": {
-              "character": 7,
-              "line": 335
             }
           },
           "relatedInformation": [
@@ -22194,33 +21924,6 @@
         {
           "message": {
             "kind": "markdown",
-            "value": "Cannot find layer named `backdrop`"
-          },
-          "range": {
-            "end": {
-              "character": 15,
-              "line": 366
-            },
-            "start": {
-              "character": 7,
-              "line": 366
-            }
-          },
-          "relatedInformation": [
-            {
-              "location": {
-                "range": "[Circular]",
-                "uri": "inmemory:///main.sd"
-              },
-              "message": ""
-            }
-          ],
-          "severity": 2,
-          "source": "sparkdown"
-        },
-        {
-          "message": {
-            "kind": "markdown",
             "value": "Cannot find image named `location_0`"
           },
           "range": {
@@ -22366,33 +22069,6 @@
             "start": {
               "character": 4,
               "line": 389
-            }
-          },
-          "relatedInformation": [
-            {
-              "location": {
-                "range": "[Circular]",
-                "uri": "inmemory:///main.sd"
-              },
-              "message": ""
-            }
-          ],
-          "severity": 2,
-          "source": "sparkdown"
-        },
-        {
-          "message": {
-            "kind": "markdown",
-            "value": "Cannot find layer named `backdrop`"
-          },
-          "range": {
-            "end": {
-              "character": 15,
-              "line": 397
-            },
-            "start": {
-              "character": 7,
-              "line": 397
             }
           },
           "relatedInformation": [
@@ -22572,33 +22248,6 @@
         {
           "message": {
             "kind": "markdown",
-            "value": "Cannot find layer named `backdrop`"
-          },
-          "range": {
-            "end": {
-              "character": 15,
-              "line": 428
-            },
-            "start": {
-              "character": 7,
-              "line": 428
-            }
-          },
-          "relatedInformation": [
-            {
-              "location": {
-                "range": "[Circular]",
-                "uri": "inmemory:///main.sd"
-              },
-              "message": ""
-            }
-          ],
-          "severity": 2,
-          "source": "sparkdown"
-        },
-        {
-          "message": {
-            "kind": "markdown",
             "value": "Cannot find image named `location_2`"
           },
           "range": {
@@ -22744,33 +22393,6 @@
             "start": {
               "character": 4,
               "line": 451
-            }
-          },
-          "relatedInformation": [
-            {
-              "location": {
-                "range": "[Circular]",
-                "uri": "inmemory:///main.sd"
-              },
-              "message": ""
-            }
-          ],
-          "severity": 2,
-          "source": "sparkdown"
-        },
-        {
-          "message": {
-            "kind": "markdown",
-            "value": "Cannot find layer named `backdrop`"
-          },
-          "range": {
-            "end": {
-              "character": 15,
-              "line": 459
-            },
-            "start": {
-              "character": 7,
-              "line": 459
             }
           },
           "relatedInformation": [
@@ -22950,33 +22572,6 @@
         {
           "message": {
             "kind": "markdown",
-            "value": "Cannot find layer named `backdrop`"
-          },
-          "range": {
-            "end": {
-              "character": 15,
-              "line": 490
-            },
-            "start": {
-              "character": 7,
-              "line": 490
-            }
-          },
-          "relatedInformation": [
-            {
-              "location": {
-                "range": "[Circular]",
-                "uri": "inmemory:///main.sd"
-              },
-              "message": ""
-            }
-          ],
-          "severity": 2,
-          "source": "sparkdown"
-        },
-        {
-          "message": {
-            "kind": "markdown",
             "value": "Cannot find image named `location_4`"
           },
           "range": {
@@ -23139,33 +22734,6 @@
         {
           "message": {
             "kind": "markdown",
-            "value": "Cannot find layer named `backdrop`"
-          },
-          "range": {
-            "end": {
-              "character": 15,
-              "line": 521
-            },
-            "start": {
-              "character": 7,
-              "line": 521
-            }
-          },
-          "relatedInformation": [
-            {
-              "location": {
-                "range": "[Circular]",
-                "uri": "inmemory:///main.sd"
-              },
-              "message": ""
-            }
-          ],
-          "severity": 2,
-          "source": "sparkdown"
-        },
-        {
-          "message": {
-            "kind": "markdown",
             "value": "Cannot find image named `location_5`"
           },
           "range": {
@@ -23274,33 +22842,6 @@
         {
           "message": {
             "kind": "markdown",
-            "value": "Cannot find layer named `backdrop`"
-          },
-          "range": {
-            "end": {
-              "character": 15,
-              "line": 552
-            },
-            "start": {
-              "character": 7,
-              "line": 552
-            }
-          },
-          "relatedInformation": [
-            {
-              "location": {
-                "range": "[Circular]",
-                "uri": "inmemory:///main.sd"
-              },
-              "message": ""
-            }
-          ],
-          "severity": 2,
-          "source": "sparkdown"
-        },
-        {
-          "message": {
-            "kind": "markdown",
             "value": "Cannot find image named `location_6`"
           },
           "range": {
@@ -23365,33 +22906,6 @@
             "start": {
               "character": 2,
               "line": 564
-            }
-          },
-          "relatedInformation": [
-            {
-              "location": {
-                "range": "[Circular]",
-                "uri": "inmemory:///main.sd"
-              },
-              "message": ""
-            }
-          ],
-          "severity": 2,
-          "source": "sparkdown"
-        },
-        {
-          "message": {
-            "kind": "markdown",
-            "value": "Cannot find layer named `backdrop`"
-          },
-          "range": {
-            "end": {
-              "character": 15,
-              "line": 583
-            },
-            "start": {
-              "character": 7,
-              "line": 583
             }
           },
           "relatedInformation": [
@@ -23571,33 +23085,6 @@
         {
           "message": {
             "kind": "markdown",
-            "value": "Cannot find layer named `backdrop`"
-          },
-          "range": {
-            "end": {
-              "character": 15,
-              "line": 614
-            },
-            "start": {
-              "character": 7,
-              "line": 614
-            }
-          },
-          "relatedInformation": [
-            {
-              "location": {
-                "range": "[Circular]",
-                "uri": "inmemory:///main.sd"
-              },
-              "message": ""
-            }
-          ],
-          "severity": 2,
-          "source": "sparkdown"
-        },
-        {
-          "message": {
-            "kind": "markdown",
             "value": "Cannot find image named `location_8`"
           },
           "range": {
@@ -23743,33 +23230,6 @@
             "start": {
               "character": 4,
               "line": 637
-            }
-          },
-          "relatedInformation": [
-            {
-              "location": {
-                "range": "[Circular]",
-                "uri": "inmemory:///main.sd"
-              },
-              "message": ""
-            }
-          ],
-          "severity": 2,
-          "source": "sparkdown"
-        },
-        {
-          "message": {
-            "kind": "markdown",
-            "value": "Cannot find layer named `backdrop`"
-          },
-          "range": {
-            "end": {
-              "character": 15,
-              "line": 645
-            },
-            "start": {
-              "character": 7,
-              "line": 645
             }
           },
           "relatedInformation": [
@@ -23949,33 +23409,6 @@
         {
           "message": {
             "kind": "markdown",
-            "value": "Cannot find layer named `backdrop`"
-          },
-          "range": {
-            "end": {
-              "character": 15,
-              "line": 676
-            },
-            "start": {
-              "character": 7,
-              "line": 676
-            }
-          },
-          "relatedInformation": [
-            {
-              "location": {
-                "range": "[Circular]",
-                "uri": "inmemory:///main.sd"
-              },
-              "message": ""
-            }
-          ],
-          "severity": 2,
-          "source": "sparkdown"
-        },
-        {
-          "message": {
-            "kind": "markdown",
             "value": "Cannot find image named `location_0`"
           },
           "range": {
@@ -24121,33 +23554,6 @@
             "start": {
               "character": 4,
               "line": 699
-            }
-          },
-          "relatedInformation": [
-            {
-              "location": {
-                "range": "[Circular]",
-                "uri": "inmemory:///main.sd"
-              },
-              "message": ""
-            }
-          ],
-          "severity": 2,
-          "source": "sparkdown"
-        },
-        {
-          "message": {
-            "kind": "markdown",
-            "value": "Cannot find layer named `backdrop`"
-          },
-          "range": {
-            "end": {
-              "character": 15,
-              "line": 707
-            },
-            "start": {
-              "character": 7,
-              "line": 707
             }
           },
           "relatedInformation": [
@@ -24327,33 +23733,6 @@
         {
           "message": {
             "kind": "markdown",
-            "value": "Cannot find layer named `backdrop`"
-          },
-          "range": {
-            "end": {
-              "character": 15,
-              "line": 738
-            },
-            "start": {
-              "character": 7,
-              "line": 738
-            }
-          },
-          "relatedInformation": [
-            {
-              "location": {
-                "range": "[Circular]",
-                "uri": "inmemory:///main.sd"
-              },
-              "message": ""
-            }
-          ],
-          "severity": 2,
-          "source": "sparkdown"
-        },
-        {
-          "message": {
-            "kind": "markdown",
             "value": "Cannot find image named `location_2`"
           },
           "range": {
@@ -24516,33 +23895,6 @@
         {
           "message": {
             "kind": "markdown",
-            "value": "Cannot find layer named `backdrop`"
-          },
-          "range": {
-            "end": {
-              "character": 15,
-              "line": 769
-            },
-            "start": {
-              "character": 7,
-              "line": 769
-            }
-          },
-          "relatedInformation": [
-            {
-              "location": {
-                "range": "[Circular]",
-                "uri": "inmemory:///main.sd"
-              },
-              "message": ""
-            }
-          ],
-          "severity": 2,
-          "source": "sparkdown"
-        },
-        {
-          "message": {
-            "kind": "markdown",
             "value": "Cannot find image named `location_3`"
           },
           "range": {
@@ -24651,33 +24003,6 @@
         {
           "message": {
             "kind": "markdown",
-            "value": "Cannot find layer named `backdrop`"
-          },
-          "range": {
-            "end": {
-              "character": 15,
-              "line": 800
-            },
-            "start": {
-              "character": 7,
-              "line": 800
-            }
-          },
-          "relatedInformation": [
-            {
-              "location": {
-                "range": "[Circular]",
-                "uri": "inmemory:///main.sd"
-              },
-              "message": ""
-            }
-          ],
-          "severity": 2,
-          "source": "sparkdown"
-        },
-        {
-          "message": {
-            "kind": "markdown",
             "value": "Cannot find image named `location_4`"
           },
           "range": {
@@ -24742,33 +24067,6 @@
             "start": {
               "character": 2,
               "line": 812
-            }
-          },
-          "relatedInformation": [
-            {
-              "location": {
-                "range": "[Circular]",
-                "uri": "inmemory:///main.sd"
-              },
-              "message": ""
-            }
-          ],
-          "severity": 2,
-          "source": "sparkdown"
-        },
-        {
-          "message": {
-            "kind": "markdown",
-            "value": "Cannot find layer named `backdrop`"
-          },
-          "range": {
-            "end": {
-              "character": 15,
-              "line": 831
-            },
-            "start": {
-              "character": 7,
-              "line": 831
             }
           },
           "relatedInformation": [
@@ -24948,33 +24246,6 @@
         {
           "message": {
             "kind": "markdown",
-            "value": "Cannot find layer named `backdrop`"
-          },
-          "range": {
-            "end": {
-              "character": 15,
-              "line": 862
-            },
-            "start": {
-              "character": 7,
-              "line": 862
-            }
-          },
-          "relatedInformation": [
-            {
-              "location": {
-                "range": "[Circular]",
-                "uri": "inmemory:///main.sd"
-              },
-              "message": ""
-            }
-          ],
-          "severity": 2,
-          "source": "sparkdown"
-        },
-        {
-          "message": {
-            "kind": "markdown",
             "value": "Cannot find image named `location_6`"
           },
           "range": {
@@ -25120,33 +24391,6 @@
             "start": {
               "character": 4,
               "line": 885
-            }
-          },
-          "relatedInformation": [
-            {
-              "location": {
-                "range": "[Circular]",
-                "uri": "inmemory:///main.sd"
-              },
-              "message": ""
-            }
-          ],
-          "severity": 2,
-          "source": "sparkdown"
-        },
-        {
-          "message": {
-            "kind": "markdown",
-            "value": "Cannot find layer named `backdrop`"
-          },
-          "range": {
-            "end": {
-              "character": 15,
-              "line": 893
-            },
-            "start": {
-              "character": 7,
-              "line": 893
             }
           },
           "relatedInformation": [
@@ -25326,33 +24570,6 @@
         {
           "message": {
             "kind": "markdown",
-            "value": "Cannot find layer named `backdrop`"
-          },
-          "range": {
-            "end": {
-              "character": 15,
-              "line": 924
-            },
-            "start": {
-              "character": 7,
-              "line": 924
-            }
-          },
-          "relatedInformation": [
-            {
-              "location": {
-                "range": "[Circular]",
-                "uri": "inmemory:///main.sd"
-              },
-              "message": ""
-            }
-          ],
-          "severity": 2,
-          "source": "sparkdown"
-        },
-        {
-          "message": {
-            "kind": "markdown",
             "value": "Cannot find image named `location_8`"
           },
           "range": {
@@ -25498,33 +24715,6 @@
             "start": {
               "character": 4,
               "line": 947
-            }
-          },
-          "relatedInformation": [
-            {
-              "location": {
-                "range": "[Circular]",
-                "uri": "inmemory:///main.sd"
-              },
-              "message": ""
-            }
-          ],
-          "severity": 2,
-          "source": "sparkdown"
-        },
-        {
-          "message": {
-            "kind": "markdown",
-            "value": "Cannot find layer named `backdrop`"
-          },
-          "range": {
-            "end": {
-              "character": 15,
-              "line": 955
-            },
-            "start": {
-              "character": 7,
-              "line": 955
             }
           },
           "relatedInformation": [
@@ -25704,33 +24894,6 @@
         {
           "message": {
             "kind": "markdown",
-            "value": "Cannot find layer named `backdrop`"
-          },
-          "range": {
-            "end": {
-              "character": 15,
-              "line": 986
-            },
-            "start": {
-              "character": 7,
-              "line": 986
-            }
-          },
-          "relatedInformation": [
-            {
-              "location": {
-                "range": "[Circular]",
-                "uri": "inmemory:///main.sd"
-              },
-              "message": ""
-            }
-          ],
-          "severity": 2,
-          "source": "sparkdown"
-        },
-        {
-          "message": {
-            "kind": "markdown",
             "value": "Cannot find image named `location_0`"
           },
           "range": {
@@ -25893,33 +25056,6 @@
         {
           "message": {
             "kind": "markdown",
-            "value": "Cannot find layer named `backdrop`"
-          },
-          "range": {
-            "end": {
-              "character": 15,
-              "line": 1017
-            },
-            "start": {
-              "character": 7,
-              "line": 1017
-            }
-          },
-          "relatedInformation": [
-            {
-              "location": {
-                "range": "[Circular]",
-                "uri": "inmemory:///main.sd"
-              },
-              "message": ""
-            }
-          ],
-          "severity": 2,
-          "source": "sparkdown"
-        },
-        {
-          "message": {
-            "kind": "markdown",
             "value": "Cannot find image named `location_1`"
           },
           "range": {
@@ -26028,33 +25164,6 @@
         {
           "message": {
             "kind": "markdown",
-            "value": "Cannot find layer named `backdrop`"
-          },
-          "range": {
-            "end": {
-              "character": 15,
-              "line": 1048
-            },
-            "start": {
-              "character": 7,
-              "line": 1048
-            }
-          },
-          "relatedInformation": [
-            {
-              "location": {
-                "range": "[Circular]",
-                "uri": "inmemory:///main.sd"
-              },
-              "message": ""
-            }
-          ],
-          "severity": 2,
-          "source": "sparkdown"
-        },
-        {
-          "message": {
-            "kind": "markdown",
             "value": "Cannot find image named `location_2`"
           },
           "range": {
@@ -26119,33 +25228,6 @@
             "start": {
               "character": 2,
               "line": 1060
-            }
-          },
-          "relatedInformation": [
-            {
-              "location": {
-                "range": "[Circular]",
-                "uri": "inmemory:///main.sd"
-              },
-              "message": ""
-            }
-          ],
-          "severity": 2,
-          "source": "sparkdown"
-        },
-        {
-          "message": {
-            "kind": "markdown",
-            "value": "Cannot find layer named `backdrop`"
-          },
-          "range": {
-            "end": {
-              "character": 15,
-              "line": 1079
-            },
-            "start": {
-              "character": 7,
-              "line": 1079
             }
           },
           "relatedInformation": [
@@ -26325,33 +25407,6 @@
         {
           "message": {
             "kind": "markdown",
-            "value": "Cannot find layer named `backdrop`"
-          },
-          "range": {
-            "end": {
-              "character": 15,
-              "line": 1110
-            },
-            "start": {
-              "character": 7,
-              "line": 1110
-            }
-          },
-          "relatedInformation": [
-            {
-              "location": {
-                "range": "[Circular]",
-                "uri": "inmemory:///main.sd"
-              },
-              "message": ""
-            }
-          ],
-          "severity": 2,
-          "source": "sparkdown"
-        },
-        {
-          "message": {
-            "kind": "markdown",
             "value": "Cannot find image named `location_4`"
           },
           "range": {
@@ -26497,33 +25552,6 @@
             "start": {
               "character": 4,
               "line": 1133
-            }
-          },
-          "relatedInformation": [
-            {
-              "location": {
-                "range": "[Circular]",
-                "uri": "inmemory:///main.sd"
-              },
-              "message": ""
-            }
-          ],
-          "severity": 2,
-          "source": "sparkdown"
-        },
-        {
-          "message": {
-            "kind": "markdown",
-            "value": "Cannot find layer named `backdrop`"
-          },
-          "range": {
-            "end": {
-              "character": 15,
-              "line": 1141
-            },
-            "start": {
-              "character": 7,
-              "line": 1141
             }
           },
           "relatedInformation": [
@@ -26703,33 +25731,6 @@
         {
           "message": {
             "kind": "markdown",
-            "value": "Cannot find layer named `backdrop`"
-          },
-          "range": {
-            "end": {
-              "character": 15,
-              "line": 1172
-            },
-            "start": {
-              "character": 7,
-              "line": 1172
-            }
-          },
-          "relatedInformation": [
-            {
-              "location": {
-                "range": "[Circular]",
-                "uri": "inmemory:///main.sd"
-              },
-              "message": ""
-            }
-          ],
-          "severity": 2,
-          "source": "sparkdown"
-        },
-        {
-          "message": {
-            "kind": "markdown",
             "value": "Cannot find image named `location_6`"
           },
           "range": {
@@ -26875,33 +25876,6 @@
             "start": {
               "character": 4,
               "line": 1195
-            }
-          },
-          "relatedInformation": [
-            {
-              "location": {
-                "range": "[Circular]",
-                "uri": "inmemory:///main.sd"
-              },
-              "message": ""
-            }
-          ],
-          "severity": 2,
-          "source": "sparkdown"
-        },
-        {
-          "message": {
-            "kind": "markdown",
-            "value": "Cannot find layer named `backdrop`"
-          },
-          "range": {
-            "end": {
-              "character": 15,
-              "line": 1203
-            },
-            "start": {
-              "character": 7,
-              "line": 1203
             }
           },
           "relatedInformation": [
@@ -27081,33 +26055,6 @@
         {
           "message": {
             "kind": "markdown",
-            "value": "Cannot find layer named `backdrop`"
-          },
-          "range": {
-            "end": {
-              "character": 15,
-              "line": 1234
-            },
-            "start": {
-              "character": 7,
-              "line": 1234
-            }
-          },
-          "relatedInformation": [
-            {
-              "location": {
-                "range": "[Circular]",
-                "uri": "inmemory:///main.sd"
-              },
-              "message": ""
-            }
-          ],
-          "severity": 2,
-          "source": "sparkdown"
-        },
-        {
-          "message": {
-            "kind": "markdown",
             "value": "Cannot find image named `location_8`"
           },
           "range": {
@@ -27270,33 +26217,6 @@
         {
           "message": {
             "kind": "markdown",
-            "value": "Cannot find layer named `backdrop`"
-          },
-          "range": {
-            "end": {
-              "character": 15,
-              "line": 1265
-            },
-            "start": {
-              "character": 7,
-              "line": 1265
-            }
-          },
-          "relatedInformation": [
-            {
-              "location": {
-                "range": "[Circular]",
-                "uri": "inmemory:///main.sd"
-              },
-              "message": ""
-            }
-          ],
-          "severity": 2,
-          "source": "sparkdown"
-        },
-        {
-          "message": {
-            "kind": "markdown",
             "value": "Cannot find image named `location_9`"
           },
           "range": {
@@ -27405,33 +26325,6 @@
         {
           "message": {
             "kind": "markdown",
-            "value": "Cannot find layer named `backdrop`"
-          },
-          "range": {
-            "end": {
-              "character": 15,
-              "line": 1296
-            },
-            "start": {
-              "character": 7,
-              "line": 1296
-            }
-          },
-          "relatedInformation": [
-            {
-              "location": {
-                "range": "[Circular]",
-                "uri": "inmemory:///main.sd"
-              },
-              "message": ""
-            }
-          ],
-          "severity": 2,
-          "source": "sparkdown"
-        },
-        {
-          "message": {
-            "kind": "markdown",
             "value": "Cannot find image named `location_0`"
           },
           "range": {
@@ -27496,33 +26389,6 @@
             "start": {
               "character": 2,
               "line": 1308
-            }
-          },
-          "relatedInformation": [
-            {
-              "location": {
-                "range": "[Circular]",
-                "uri": "inmemory:///main.sd"
-              },
-              "message": ""
-            }
-          ],
-          "severity": 2,
-          "source": "sparkdown"
-        },
-        {
-          "message": {
-            "kind": "markdown",
-            "value": "Cannot find layer named `backdrop`"
-          },
-          "range": {
-            "end": {
-              "character": 15,
-              "line": 1327
-            },
-            "start": {
-              "character": 7,
-              "line": 1327
             }
           },
           "relatedInformation": [
@@ -27702,33 +26568,6 @@
         {
           "message": {
             "kind": "markdown",
-            "value": "Cannot find layer named `backdrop`"
-          },
-          "range": {
-            "end": {
-              "character": 15,
-              "line": 1358
-            },
-            "start": {
-              "character": 7,
-              "line": 1358
-            }
-          },
-          "relatedInformation": [
-            {
-              "location": {
-                "range": "[Circular]",
-                "uri": "inmemory:///main.sd"
-              },
-              "message": ""
-            }
-          ],
-          "severity": 2,
-          "source": "sparkdown"
-        },
-        {
-          "message": {
-            "kind": "markdown",
             "value": "Cannot find image named `location_2`"
           },
           "range": {
@@ -27874,33 +26713,6 @@
             "start": {
               "character": 4,
               "line": 1381
-            }
-          },
-          "relatedInformation": [
-            {
-              "location": {
-                "range": "[Circular]",
-                "uri": "inmemory:///main.sd"
-              },
-              "message": ""
-            }
-          ],
-          "severity": 2,
-          "source": "sparkdown"
-        },
-        {
-          "message": {
-            "kind": "markdown",
-            "value": "Cannot find layer named `backdrop`"
-          },
-          "range": {
-            "end": {
-              "character": 15,
-              "line": 1389
-            },
-            "start": {
-              "character": 7,
-              "line": 1389
             }
           },
           "relatedInformation": [
@@ -28080,33 +26892,6 @@
         {
           "message": {
             "kind": "markdown",
-            "value": "Cannot find layer named `backdrop`"
-          },
-          "range": {
-            "end": {
-              "character": 15,
-              "line": 1420
-            },
-            "start": {
-              "character": 7,
-              "line": 1420
-            }
-          },
-          "relatedInformation": [
-            {
-              "location": {
-                "range": "[Circular]",
-                "uri": "inmemory:///main.sd"
-              },
-              "message": ""
-            }
-          ],
-          "severity": 2,
-          "source": "sparkdown"
-        },
-        {
-          "message": {
-            "kind": "markdown",
             "value": "Cannot find image named `location_4`"
           },
           "range": {
@@ -28252,33 +27037,6 @@
             "start": {
               "character": 4,
               "line": 1443
-            }
-          },
-          "relatedInformation": [
-            {
-              "location": {
-                "range": "[Circular]",
-                "uri": "inmemory:///main.sd"
-              },
-              "message": ""
-            }
-          ],
-          "severity": 2,
-          "source": "sparkdown"
-        },
-        {
-          "message": {
-            "kind": "markdown",
-            "value": "Cannot find layer named `backdrop`"
-          },
-          "range": {
-            "end": {
-              "character": 15,
-              "line": 1451
-            },
-            "start": {
-              "character": 7,
-              "line": 1451
             }
           },
           "relatedInformation": [
@@ -28458,33 +27216,6 @@
         {
           "message": {
             "kind": "markdown",
-            "value": "Cannot find layer named `backdrop`"
-          },
-          "range": {
-            "end": {
-              "character": 15,
-              "line": 1482
-            },
-            "start": {
-              "character": 7,
-              "line": 1482
-            }
-          },
-          "relatedInformation": [
-            {
-              "location": {
-                "range": "[Circular]",
-                "uri": "inmemory:///main.sd"
-              },
-              "message": ""
-            }
-          ],
-          "severity": 2,
-          "source": "sparkdown"
-        },
-        {
-          "message": {
-            "kind": "markdown",
             "value": "Cannot find image named `location_6`"
           },
           "range": {
@@ -28647,33 +27378,6 @@
         {
           "message": {
             "kind": "markdown",
-            "value": "Cannot find layer named `backdrop`"
-          },
-          "range": {
-            "end": {
-              "character": 15,
-              "line": 1513
-            },
-            "start": {
-              "character": 7,
-              "line": 1513
-            }
-          },
-          "relatedInformation": [
-            {
-              "location": {
-                "range": "[Circular]",
-                "uri": "inmemory:///main.sd"
-              },
-              "message": ""
-            }
-          ],
-          "severity": 2,
-          "source": "sparkdown"
-        },
-        {
-          "message": {
-            "kind": "markdown",
             "value": "Cannot find image named `location_7`"
           },
           "range": {
@@ -28782,33 +27486,6 @@
         {
           "message": {
             "kind": "markdown",
-            "value": "Cannot find layer named `backdrop`"
-          },
-          "range": {
-            "end": {
-              "character": 15,
-              "line": 1544
-            },
-            "start": {
-              "character": 7,
-              "line": 1544
-            }
-          },
-          "relatedInformation": [
-            {
-              "location": {
-                "range": "[Circular]",
-                "uri": "inmemory:///main.sd"
-              },
-              "message": ""
-            }
-          ],
-          "severity": 2,
-          "source": "sparkdown"
-        },
-        {
-          "message": {
-            "kind": "markdown",
             "value": "Cannot find image named `location_8`"
           },
           "range": {
@@ -28873,33 +27550,6 @@
             "start": {
               "character": 2,
               "line": 1556
-            }
-          },
-          "relatedInformation": [
-            {
-              "location": {
-                "range": "[Circular]",
-                "uri": "inmemory:///main.sd"
-              },
-              "message": ""
-            }
-          ],
-          "severity": 2,
-          "source": "sparkdown"
-        },
-        {
-          "message": {
-            "kind": "markdown",
-            "value": "Cannot find layer named `backdrop`"
-          },
-          "range": {
-            "end": {
-              "character": 15,
-              "line": 1575
-            },
-            "start": {
-              "character": 7,
-              "line": 1575
             }
           },
           "relatedInformation": [
@@ -29079,33 +27729,6 @@
         {
           "message": {
             "kind": "markdown",
-            "value": "Cannot find layer named `backdrop`"
-          },
-          "range": {
-            "end": {
-              "character": 15,
-              "line": 1606
-            },
-            "start": {
-              "character": 7,
-              "line": 1606
-            }
-          },
-          "relatedInformation": [
-            {
-              "location": {
-                "range": "[Circular]",
-                "uri": "inmemory:///main.sd"
-              },
-              "message": ""
-            }
-          ],
-          "severity": 2,
-          "source": "sparkdown"
-        },
-        {
-          "message": {
-            "kind": "markdown",
             "value": "Cannot find image named `location_0`"
           },
           "range": {
@@ -29251,33 +27874,6 @@
             "start": {
               "character": 4,
               "line": 1629
-            }
-          },
-          "relatedInformation": [
-            {
-              "location": {
-                "range": "[Circular]",
-                "uri": "inmemory:///main.sd"
-              },
-              "message": ""
-            }
-          ],
-          "severity": 2,
-          "source": "sparkdown"
-        },
-        {
-          "message": {
-            "kind": "markdown",
-            "value": "Cannot find layer named `backdrop`"
-          },
-          "range": {
-            "end": {
-              "character": 15,
-              "line": 1637
-            },
-            "start": {
-              "character": 7,
-              "line": 1637
             }
           },
           "relatedInformation": [
@@ -29457,33 +28053,6 @@
         {
           "message": {
             "kind": "markdown",
-            "value": "Cannot find layer named `backdrop`"
-          },
-          "range": {
-            "end": {
-              "character": 15,
-              "line": 1668
-            },
-            "start": {
-              "character": 7,
-              "line": 1668
-            }
-          },
-          "relatedInformation": [
-            {
-              "location": {
-                "range": "[Circular]",
-                "uri": "inmemory:///main.sd"
-              },
-              "message": ""
-            }
-          ],
-          "severity": 2,
-          "source": "sparkdown"
-        },
-        {
-          "message": {
-            "kind": "markdown",
             "value": "Cannot find image named `location_2`"
           },
           "range": {
@@ -29629,33 +28198,6 @@
             "start": {
               "character": 4,
               "line": 1691
-            }
-          },
-          "relatedInformation": [
-            {
-              "location": {
-                "range": "[Circular]",
-                "uri": "inmemory:///main.sd"
-              },
-              "message": ""
-            }
-          ],
-          "severity": 2,
-          "source": "sparkdown"
-        },
-        {
-          "message": {
-            "kind": "markdown",
-            "value": "Cannot find layer named `backdrop`"
-          },
-          "range": {
-            "end": {
-              "character": 15,
-              "line": 1699
-            },
-            "start": {
-              "character": 7,
-              "line": 1699
             }
           },
           "relatedInformation": [
@@ -29835,33 +28377,6 @@
         {
           "message": {
             "kind": "markdown",
-            "value": "Cannot find layer named `backdrop`"
-          },
-          "range": {
-            "end": {
-              "character": 15,
-              "line": 1730
-            },
-            "start": {
-              "character": 7,
-              "line": 1730
-            }
-          },
-          "relatedInformation": [
-            {
-              "location": {
-                "range": "[Circular]",
-                "uri": "inmemory:///main.sd"
-              },
-              "message": ""
-            }
-          ],
-          "severity": 2,
-          "source": "sparkdown"
-        },
-        {
-          "message": {
-            "kind": "markdown",
             "value": "Cannot find image named `location_4`"
           },
           "range": {
@@ -30024,33 +28539,6 @@
         {
           "message": {
             "kind": "markdown",
-            "value": "Cannot find layer named `backdrop`"
-          },
-          "range": {
-            "end": {
-              "character": 15,
-              "line": 1761
-            },
-            "start": {
-              "character": 7,
-              "line": 1761
-            }
-          },
-          "relatedInformation": [
-            {
-              "location": {
-                "range": "[Circular]",
-                "uri": "inmemory:///main.sd"
-              },
-              "message": ""
-            }
-          ],
-          "severity": 2,
-          "source": "sparkdown"
-        },
-        {
-          "message": {
-            "kind": "markdown",
             "value": "Cannot find image named `location_5`"
           },
           "range": {
@@ -30159,33 +28647,6 @@
         {
           "message": {
             "kind": "markdown",
-            "value": "Cannot find layer named `backdrop`"
-          },
-          "range": {
-            "end": {
-              "character": 15,
-              "line": 1792
-            },
-            "start": {
-              "character": 7,
-              "line": 1792
-            }
-          },
-          "relatedInformation": [
-            {
-              "location": {
-                "range": "[Circular]",
-                "uri": "inmemory:///main.sd"
-              },
-              "message": ""
-            }
-          ],
-          "severity": 2,
-          "source": "sparkdown"
-        },
-        {
-          "message": {
-            "kind": "markdown",
             "value": "Cannot find image named `location_6`"
           },
           "range": {
@@ -30250,33 +28711,6 @@
             "start": {
               "character": 2,
               "line": 1804
-            }
-          },
-          "relatedInformation": [
-            {
-              "location": {
-                "range": "[Circular]",
-                "uri": "inmemory:///main.sd"
-              },
-              "message": ""
-            }
-          ],
-          "severity": 2,
-          "source": "sparkdown"
-        },
-        {
-          "message": {
-            "kind": "markdown",
-            "value": "Cannot find layer named `backdrop`"
-          },
-          "range": {
-            "end": {
-              "character": 15,
-              "line": 1823
-            },
-            "start": {
-              "character": 7,
-              "line": 1823
             }
           },
           "relatedInformation": [
@@ -30456,33 +28890,6 @@
         {
           "message": {
             "kind": "markdown",
-            "value": "Cannot find layer named `backdrop`"
-          },
-          "range": {
-            "end": {
-              "character": 15,
-              "line": 1854
-            },
-            "start": {
-              "character": 7,
-              "line": 1854
-            }
-          },
-          "relatedInformation": [
-            {
-              "location": {
-                "range": "[Circular]",
-                "uri": "inmemory:///main.sd"
-              },
-              "message": ""
-            }
-          ],
-          "severity": 2,
-          "source": "sparkdown"
-        },
-        {
-          "message": {
-            "kind": "markdown",
             "value": "Cannot find image named `location_8`"
           },
           "range": {
@@ -30628,33 +29035,6 @@
             "start": {
               "character": 4,
               "line": 1877
-            }
-          },
-          "relatedInformation": [
-            {
-              "location": {
-                "range": "[Circular]",
-                "uri": "inmemory:///main.sd"
-              },
-              "message": ""
-            }
-          ],
-          "severity": 2,
-          "source": "sparkdown"
-        },
-        {
-          "message": {
-            "kind": "markdown",
-            "value": "Cannot find layer named `backdrop`"
-          },
-          "range": {
-            "end": {
-              "character": 15,
-              "line": 1885
-            },
-            "start": {
-              "character": 7,
-              "line": 1885
             }
           },
           "relatedInformation": [
@@ -94285,33 +92665,6 @@
         {
           "message": {
             "kind": "markdown",
-            "value": "Cannot find layer named `backdrop`"
-          },
-          "range": {
-            "end": {
-              "character": 15,
-              "line": 56
-            },
-            "start": {
-              "character": 7,
-              "line": 56
-            }
-          },
-          "relatedInformation": [
-            {
-              "location": {
-                "range": "[Circular]",
-                "uri": "inmemory:///main.sd"
-              },
-              "message": ""
-            }
-          ],
-          "severity": 2,
-          "source": "sparkdown"
-        },
-        {
-          "message": {
-            "kind": "markdown",
             "value": "Cannot find image named `location_0`"
           },
           "range": {
@@ -94376,33 +92729,6 @@
             "start": {
               "character": 2,
               "line": 68
-            }
-          },
-          "relatedInformation": [
-            {
-              "location": {
-                "range": "[Circular]",
-                "uri": "inmemory:///main.sd"
-              },
-              "message": ""
-            }
-          ],
-          "severity": 2,
-          "source": "sparkdown"
-        },
-        {
-          "message": {
-            "kind": "markdown",
-            "value": "Cannot find layer named `backdrop`"
-          },
-          "range": {
-            "end": {
-              "character": 15,
-              "line": 87
-            },
-            "start": {
-              "character": 7,
-              "line": 87
             }
           },
           "relatedInformation": [
@@ -94582,33 +92908,6 @@
         {
           "message": {
             "kind": "markdown",
-            "value": "Cannot find layer named `backdrop`"
-          },
-          "range": {
-            "end": {
-              "character": 15,
-              "line": 118
-            },
-            "start": {
-              "character": 7,
-              "line": 118
-            }
-          },
-          "relatedInformation": [
-            {
-              "location": {
-                "range": "[Circular]",
-                "uri": "inmemory:///main.sd"
-              },
-              "message": ""
-            }
-          ],
-          "severity": 2,
-          "source": "sparkdown"
-        },
-        {
-          "message": {
-            "kind": "markdown",
             "value": "Cannot find image named `location_2`"
           },
           "range": {
@@ -94754,33 +93053,6 @@
             "start": {
               "character": 4,
               "line": 141
-            }
-          },
-          "relatedInformation": [
-            {
-              "location": {
-                "range": "[Circular]",
-                "uri": "inmemory:///main.sd"
-              },
-              "message": ""
-            }
-          ],
-          "severity": 2,
-          "source": "sparkdown"
-        },
-        {
-          "message": {
-            "kind": "markdown",
-            "value": "Cannot find layer named `backdrop`"
-          },
-          "range": {
-            "end": {
-              "character": 15,
-              "line": 149
-            },
-            "start": {
-              "character": 7,
-              "line": 149
             }
           },
           "relatedInformation": [
@@ -94960,33 +93232,6 @@
         {
           "message": {
             "kind": "markdown",
-            "value": "Cannot find layer named `backdrop`"
-          },
-          "range": {
-            "end": {
-              "character": 15,
-              "line": 180
-            },
-            "start": {
-              "character": 7,
-              "line": 180
-            }
-          },
-          "relatedInformation": [
-            {
-              "location": {
-                "range": "[Circular]",
-                "uri": "inmemory:///main.sd"
-              },
-              "message": ""
-            }
-          ],
-          "severity": 2,
-          "source": "sparkdown"
-        },
-        {
-          "message": {
-            "kind": "markdown",
             "value": "Cannot find image named `location_4`"
           },
           "range": {
@@ -95132,33 +93377,6 @@
             "start": {
               "character": 4,
               "line": 203
-            }
-          },
-          "relatedInformation": [
-            {
-              "location": {
-                "range": "[Circular]",
-                "uri": "inmemory:///main.sd"
-              },
-              "message": ""
-            }
-          ],
-          "severity": 2,
-          "source": "sparkdown"
-        },
-        {
-          "message": {
-            "kind": "markdown",
-            "value": "Cannot find layer named `backdrop`"
-          },
-          "range": {
-            "end": {
-              "character": 15,
-              "line": 211
-            },
-            "start": {
-              "character": 7,
-              "line": 211
             }
           },
           "relatedInformation": [
@@ -95338,33 +93556,6 @@
         {
           "message": {
             "kind": "markdown",
-            "value": "Cannot find layer named `backdrop`"
-          },
-          "range": {
-            "end": {
-              "character": 15,
-              "line": 242
-            },
-            "start": {
-              "character": 7,
-              "line": 242
-            }
-          },
-          "relatedInformation": [
-            {
-              "location": {
-                "range": "[Circular]",
-                "uri": "inmemory:///main.sd"
-              },
-              "message": ""
-            }
-          ],
-          "severity": 2,
-          "source": "sparkdown"
-        },
-        {
-          "message": {
-            "kind": "markdown",
             "value": "Cannot find image named `location_6`"
           },
           "range": {
@@ -95527,33 +93718,6 @@
         {
           "message": {
             "kind": "markdown",
-            "value": "Cannot find layer named `backdrop`"
-          },
-          "range": {
-            "end": {
-              "character": 15,
-              "line": 273
-            },
-            "start": {
-              "character": 7,
-              "line": 273
-            }
-          },
-          "relatedInformation": [
-            {
-              "location": {
-                "range": "[Circular]",
-                "uri": "inmemory:///main.sd"
-              },
-              "message": ""
-            }
-          ],
-          "severity": 2,
-          "source": "sparkdown"
-        },
-        {
-          "message": {
-            "kind": "markdown",
             "value": "Cannot find image named `location_7`"
           },
           "range": {
@@ -95662,33 +93826,6 @@
         {
           "message": {
             "kind": "markdown",
-            "value": "Cannot find layer named `backdrop`"
-          },
-          "range": {
-            "end": {
-              "character": 15,
-              "line": 304
-            },
-            "start": {
-              "character": 7,
-              "line": 304
-            }
-          },
-          "relatedInformation": [
-            {
-              "location": {
-                "range": "[Circular]",
-                "uri": "inmemory:///main.sd"
-              },
-              "message": ""
-            }
-          ],
-          "severity": 2,
-          "source": "sparkdown"
-        },
-        {
-          "message": {
-            "kind": "markdown",
             "value": "Cannot find image named `location_8`"
           },
           "range": {
@@ -95753,33 +93890,6 @@
             "start": {
               "character": 2,
               "line": 316
-            }
-          },
-          "relatedInformation": [
-            {
-              "location": {
-                "range": "[Circular]",
-                "uri": "inmemory:///main.sd"
-              },
-              "message": ""
-            }
-          ],
-          "severity": 2,
-          "source": "sparkdown"
-        },
-        {
-          "message": {
-            "kind": "markdown",
-            "value": "Cannot find layer named `backdrop`"
-          },
-          "range": {
-            "end": {
-              "character": 15,
-              "line": 335
-            },
-            "start": {
-              "character": 7,
-              "line": 335
             }
           },
           "relatedInformation": [
@@ -95959,33 +94069,6 @@
         {
           "message": {
             "kind": "markdown",
-            "value": "Cannot find layer named `backdrop`"
-          },
-          "range": {
-            "end": {
-              "character": 15,
-              "line": 366
-            },
-            "start": {
-              "character": 7,
-              "line": 366
-            }
-          },
-          "relatedInformation": [
-            {
-              "location": {
-                "range": "[Circular]",
-                "uri": "inmemory:///main.sd"
-              },
-              "message": ""
-            }
-          ],
-          "severity": 2,
-          "source": "sparkdown"
-        },
-        {
-          "message": {
-            "kind": "markdown",
             "value": "Cannot find image named `location_0`"
           },
           "range": {
@@ -96131,33 +94214,6 @@
             "start": {
               "character": 4,
               "line": 389
-            }
-          },
-          "relatedInformation": [
-            {
-              "location": {
-                "range": "[Circular]",
-                "uri": "inmemory:///main.sd"
-              },
-              "message": ""
-            }
-          ],
-          "severity": 2,
-          "source": "sparkdown"
-        },
-        {
-          "message": {
-            "kind": "markdown",
-            "value": "Cannot find layer named `backdrop`"
-          },
-          "range": {
-            "end": {
-              "character": 15,
-              "line": 397
-            },
-            "start": {
-              "character": 7,
-              "line": 397
             }
           },
           "relatedInformation": [
@@ -96337,33 +94393,6 @@
         {
           "message": {
             "kind": "markdown",
-            "value": "Cannot find layer named `backdrop`"
-          },
-          "range": {
-            "end": {
-              "character": 15,
-              "line": 428
-            },
-            "start": {
-              "character": 7,
-              "line": 428
-            }
-          },
-          "relatedInformation": [
-            {
-              "location": {
-                "range": "[Circular]",
-                "uri": "inmemory:///main.sd"
-              },
-              "message": ""
-            }
-          ],
-          "severity": 2,
-          "source": "sparkdown"
-        },
-        {
-          "message": {
-            "kind": "markdown",
             "value": "Cannot find image named `location_2`"
           },
           "range": {
@@ -96509,33 +94538,6 @@
             "start": {
               "character": 4,
               "line": 451
-            }
-          },
-          "relatedInformation": [
-            {
-              "location": {
-                "range": "[Circular]",
-                "uri": "inmemory:///main.sd"
-              },
-              "message": ""
-            }
-          ],
-          "severity": 2,
-          "source": "sparkdown"
-        },
-        {
-          "message": {
-            "kind": "markdown",
-            "value": "Cannot find layer named `backdrop`"
-          },
-          "range": {
-            "end": {
-              "character": 15,
-              "line": 459
-            },
-            "start": {
-              "character": 7,
-              "line": 459
             }
           },
           "relatedInformation": [
@@ -96715,33 +94717,6 @@
         {
           "message": {
             "kind": "markdown",
-            "value": "Cannot find layer named `backdrop`"
-          },
-          "range": {
-            "end": {
-              "character": 15,
-              "line": 490
-            },
-            "start": {
-              "character": 7,
-              "line": 490
-            }
-          },
-          "relatedInformation": [
-            {
-              "location": {
-                "range": "[Circular]",
-                "uri": "inmemory:///main.sd"
-              },
-              "message": ""
-            }
-          ],
-          "severity": 2,
-          "source": "sparkdown"
-        },
-        {
-          "message": {
-            "kind": "markdown",
             "value": "Cannot find image named `location_4`"
           },
           "range": {
@@ -96904,33 +94879,6 @@
         {
           "message": {
             "kind": "markdown",
-            "value": "Cannot find layer named `backdrop`"
-          },
-          "range": {
-            "end": {
-              "character": 15,
-              "line": 521
-            },
-            "start": {
-              "character": 7,
-              "line": 521
-            }
-          },
-          "relatedInformation": [
-            {
-              "location": {
-                "range": "[Circular]",
-                "uri": "inmemory:///main.sd"
-              },
-              "message": ""
-            }
-          ],
-          "severity": 2,
-          "source": "sparkdown"
-        },
-        {
-          "message": {
-            "kind": "markdown",
             "value": "Cannot find image named `location_5`"
           },
           "range": {
@@ -97039,33 +94987,6 @@
         {
           "message": {
             "kind": "markdown",
-            "value": "Cannot find layer named `backdrop`"
-          },
-          "range": {
-            "end": {
-              "character": 15,
-              "line": 552
-            },
-            "start": {
-              "character": 7,
-              "line": 552
-            }
-          },
-          "relatedInformation": [
-            {
-              "location": {
-                "range": "[Circular]",
-                "uri": "inmemory:///main.sd"
-              },
-              "message": ""
-            }
-          ],
-          "severity": 2,
-          "source": "sparkdown"
-        },
-        {
-          "message": {
-            "kind": "markdown",
             "value": "Cannot find image named `location_6`"
           },
           "range": {
@@ -97130,33 +95051,6 @@
             "start": {
               "character": 2,
               "line": 564
-            }
-          },
-          "relatedInformation": [
-            {
-              "location": {
-                "range": "[Circular]",
-                "uri": "inmemory:///main.sd"
-              },
-              "message": ""
-            }
-          ],
-          "severity": 2,
-          "source": "sparkdown"
-        },
-        {
-          "message": {
-            "kind": "markdown",
-            "value": "Cannot find layer named `backdrop`"
-          },
-          "range": {
-            "end": {
-              "character": 15,
-              "line": 583
-            },
-            "start": {
-              "character": 7,
-              "line": 583
             }
           },
           "relatedInformation": [
@@ -97336,33 +95230,6 @@
         {
           "message": {
             "kind": "markdown",
-            "value": "Cannot find layer named `backdrop`"
-          },
-          "range": {
-            "end": {
-              "character": 15,
-              "line": 614
-            },
-            "start": {
-              "character": 7,
-              "line": 614
-            }
-          },
-          "relatedInformation": [
-            {
-              "location": {
-                "range": "[Circular]",
-                "uri": "inmemory:///main.sd"
-              },
-              "message": ""
-            }
-          ],
-          "severity": 2,
-          "source": "sparkdown"
-        },
-        {
-          "message": {
-            "kind": "markdown",
             "value": "Cannot find image named `location_8`"
           },
           "range": {
@@ -97508,33 +95375,6 @@
             "start": {
               "character": 4,
               "line": 637
-            }
-          },
-          "relatedInformation": [
-            {
-              "location": {
-                "range": "[Circular]",
-                "uri": "inmemory:///main.sd"
-              },
-              "message": ""
-            }
-          ],
-          "severity": 2,
-          "source": "sparkdown"
-        },
-        {
-          "message": {
-            "kind": "markdown",
-            "value": "Cannot find layer named `backdrop`"
-          },
-          "range": {
-            "end": {
-              "character": 15,
-              "line": 645
-            },
-            "start": {
-              "character": 7,
-              "line": 645
             }
           },
           "relatedInformation": [
@@ -97714,33 +95554,6 @@
         {
           "message": {
             "kind": "markdown",
-            "value": "Cannot find layer named `backdrop`"
-          },
-          "range": {
-            "end": {
-              "character": 15,
-              "line": 676
-            },
-            "start": {
-              "character": 7,
-              "line": 676
-            }
-          },
-          "relatedInformation": [
-            {
-              "location": {
-                "range": "[Circular]",
-                "uri": "inmemory:///main.sd"
-              },
-              "message": ""
-            }
-          ],
-          "severity": 2,
-          "source": "sparkdown"
-        },
-        {
-          "message": {
-            "kind": "markdown",
             "value": "Cannot find image named `location_0`"
           },
           "range": {
@@ -97886,33 +95699,6 @@
             "start": {
               "character": 4,
               "line": 699
-            }
-          },
-          "relatedInformation": [
-            {
-              "location": {
-                "range": "[Circular]",
-                "uri": "inmemory:///main.sd"
-              },
-              "message": ""
-            }
-          ],
-          "severity": 2,
-          "source": "sparkdown"
-        },
-        {
-          "message": {
-            "kind": "markdown",
-            "value": "Cannot find layer named `backdrop`"
-          },
-          "range": {
-            "end": {
-              "character": 15,
-              "line": 707
-            },
-            "start": {
-              "character": 7,
-              "line": 707
             }
           },
           "relatedInformation": [
@@ -98092,33 +95878,6 @@
         {
           "message": {
             "kind": "markdown",
-            "value": "Cannot find layer named `backdrop`"
-          },
-          "range": {
-            "end": {
-              "character": 15,
-              "line": 738
-            },
-            "start": {
-              "character": 7,
-              "line": 738
-            }
-          },
-          "relatedInformation": [
-            {
-              "location": {
-                "range": "[Circular]",
-                "uri": "inmemory:///main.sd"
-              },
-              "message": ""
-            }
-          ],
-          "severity": 2,
-          "source": "sparkdown"
-        },
-        {
-          "message": {
-            "kind": "markdown",
             "value": "Cannot find image named `location_2`"
           },
           "range": {
@@ -98281,33 +96040,6 @@
         {
           "message": {
             "kind": "markdown",
-            "value": "Cannot find layer named `backdrop`"
-          },
-          "range": {
-            "end": {
-              "character": 15,
-              "line": 769
-            },
-            "start": {
-              "character": 7,
-              "line": 769
-            }
-          },
-          "relatedInformation": [
-            {
-              "location": {
-                "range": "[Circular]",
-                "uri": "inmemory:///main.sd"
-              },
-              "message": ""
-            }
-          ],
-          "severity": 2,
-          "source": "sparkdown"
-        },
-        {
-          "message": {
-            "kind": "markdown",
             "value": "Cannot find image named `location_3`"
           },
           "range": {
@@ -98416,33 +96148,6 @@
         {
           "message": {
             "kind": "markdown",
-            "value": "Cannot find layer named `backdrop`"
-          },
-          "range": {
-            "end": {
-              "character": 15,
-              "line": 800
-            },
-            "start": {
-              "character": 7,
-              "line": 800
-            }
-          },
-          "relatedInformation": [
-            {
-              "location": {
-                "range": "[Circular]",
-                "uri": "inmemory:///main.sd"
-              },
-              "message": ""
-            }
-          ],
-          "severity": 2,
-          "source": "sparkdown"
-        },
-        {
-          "message": {
-            "kind": "markdown",
             "value": "Cannot find image named `location_4`"
           },
           "range": {
@@ -98507,33 +96212,6 @@
             "start": {
               "character": 2,
               "line": 812
-            }
-          },
-          "relatedInformation": [
-            {
-              "location": {
-                "range": "[Circular]",
-                "uri": "inmemory:///main.sd"
-              },
-              "message": ""
-            }
-          ],
-          "severity": 2,
-          "source": "sparkdown"
-        },
-        {
-          "message": {
-            "kind": "markdown",
-            "value": "Cannot find layer named `backdrop`"
-          },
-          "range": {
-            "end": {
-              "character": 15,
-              "line": 831
-            },
-            "start": {
-              "character": 7,
-              "line": 831
             }
           },
           "relatedInformation": [
@@ -98713,33 +96391,6 @@
         {
           "message": {
             "kind": "markdown",
-            "value": "Cannot find layer named `backdrop`"
-          },
-          "range": {
-            "end": {
-              "character": 15,
-              "line": 862
-            },
-            "start": {
-              "character": 7,
-              "line": 862
-            }
-          },
-          "relatedInformation": [
-            {
-              "location": {
-                "range": "[Circular]",
-                "uri": "inmemory:///main.sd"
-              },
-              "message": ""
-            }
-          ],
-          "severity": 2,
-          "source": "sparkdown"
-        },
-        {
-          "message": {
-            "kind": "markdown",
             "value": "Cannot find image named `location_6`"
           },
           "range": {
@@ -98885,33 +96536,6 @@
             "start": {
               "character": 4,
               "line": 885
-            }
-          },
-          "relatedInformation": [
-            {
-              "location": {
-                "range": "[Circular]",
-                "uri": "inmemory:///main.sd"
-              },
-              "message": ""
-            }
-          ],
-          "severity": 2,
-          "source": "sparkdown"
-        },
-        {
-          "message": {
-            "kind": "markdown",
-            "value": "Cannot find layer named `backdrop`"
-          },
-          "range": {
-            "end": {
-              "character": 15,
-              "line": 893
-            },
-            "start": {
-              "character": 7,
-              "line": 893
             }
           },
           "relatedInformation": [
@@ -99091,33 +96715,6 @@
         {
           "message": {
             "kind": "markdown",
-            "value": "Cannot find layer named `backdrop`"
-          },
-          "range": {
-            "end": {
-              "character": 15,
-              "line": 924
-            },
-            "start": {
-              "character": 7,
-              "line": 924
-            }
-          },
-          "relatedInformation": [
-            {
-              "location": {
-                "range": "[Circular]",
-                "uri": "inmemory:///main.sd"
-              },
-              "message": ""
-            }
-          ],
-          "severity": 2,
-          "source": "sparkdown"
-        },
-        {
-          "message": {
-            "kind": "markdown",
             "value": "Cannot find image named `location_8`"
           },
           "range": {
@@ -99263,33 +96860,6 @@
             "start": {
               "character": 4,
               "line": 947
-            }
-          },
-          "relatedInformation": [
-            {
-              "location": {
-                "range": "[Circular]",
-                "uri": "inmemory:///main.sd"
-              },
-              "message": ""
-            }
-          ],
-          "severity": 2,
-          "source": "sparkdown"
-        },
-        {
-          "message": {
-            "kind": "markdown",
-            "value": "Cannot find layer named `backdrop`"
-          },
-          "range": {
-            "end": {
-              "character": 15,
-              "line": 955
-            },
-            "start": {
-              "character": 7,
-              "line": 955
             }
           },
           "relatedInformation": [
@@ -99469,33 +97039,6 @@
         {
           "message": {
             "kind": "markdown",
-            "value": "Cannot find layer named `backdrop`"
-          },
-          "range": {
-            "end": {
-              "character": 15,
-              "line": 986
-            },
-            "start": {
-              "character": 7,
-              "line": 986
-            }
-          },
-          "relatedInformation": [
-            {
-              "location": {
-                "range": "[Circular]",
-                "uri": "inmemory:///main.sd"
-              },
-              "message": ""
-            }
-          ],
-          "severity": 2,
-          "source": "sparkdown"
-        },
-        {
-          "message": {
-            "kind": "markdown",
             "value": "Cannot find image named `location_0`"
           },
           "range": {
@@ -99658,33 +97201,6 @@
         {
           "message": {
             "kind": "markdown",
-            "value": "Cannot find layer named `backdrop`"
-          },
-          "range": {
-            "end": {
-              "character": 15,
-              "line": 1017
-            },
-            "start": {
-              "character": 7,
-              "line": 1017
-            }
-          },
-          "relatedInformation": [
-            {
-              "location": {
-                "range": "[Circular]",
-                "uri": "inmemory:///main.sd"
-              },
-              "message": ""
-            }
-          ],
-          "severity": 2,
-          "source": "sparkdown"
-        },
-        {
-          "message": {
-            "kind": "markdown",
             "value": "Cannot find image named `location_1`"
           },
           "range": {
@@ -99793,33 +97309,6 @@
         {
           "message": {
             "kind": "markdown",
-            "value": "Cannot find layer named `backdrop`"
-          },
-          "range": {
-            "end": {
-              "character": 15,
-              "line": 1048
-            },
-            "start": {
-              "character": 7,
-              "line": 1048
-            }
-          },
-          "relatedInformation": [
-            {
-              "location": {
-                "range": "[Circular]",
-                "uri": "inmemory:///main.sd"
-              },
-              "message": ""
-            }
-          ],
-          "severity": 2,
-          "source": "sparkdown"
-        },
-        {
-          "message": {
-            "kind": "markdown",
             "value": "Cannot find image named `location_2`"
           },
           "range": {
@@ -99884,33 +97373,6 @@
             "start": {
               "character": 2,
               "line": 1060
-            }
-          },
-          "relatedInformation": [
-            {
-              "location": {
-                "range": "[Circular]",
-                "uri": "inmemory:///main.sd"
-              },
-              "message": ""
-            }
-          ],
-          "severity": 2,
-          "source": "sparkdown"
-        },
-        {
-          "message": {
-            "kind": "markdown",
-            "value": "Cannot find layer named `backdrop`"
-          },
-          "range": {
-            "end": {
-              "character": 15,
-              "line": 1079
-            },
-            "start": {
-              "character": 7,
-              "line": 1079
             }
           },
           "relatedInformation": [
@@ -100090,33 +97552,6 @@
         {
           "message": {
             "kind": "markdown",
-            "value": "Cannot find layer named `backdrop`"
-          },
-          "range": {
-            "end": {
-              "character": 15,
-              "line": 1110
-            },
-            "start": {
-              "character": 7,
-              "line": 1110
-            }
-          },
-          "relatedInformation": [
-            {
-              "location": {
-                "range": "[Circular]",
-                "uri": "inmemory:///main.sd"
-              },
-              "message": ""
-            }
-          ],
-          "severity": 2,
-          "source": "sparkdown"
-        },
-        {
-          "message": {
-            "kind": "markdown",
             "value": "Cannot find image named `location_4`"
           },
           "range": {
@@ -100262,33 +97697,6 @@
             "start": {
               "character": 4,
               "line": 1133
-            }
-          },
-          "relatedInformation": [
-            {
-              "location": {
-                "range": "[Circular]",
-                "uri": "inmemory:///main.sd"
-              },
-              "message": ""
-            }
-          ],
-          "severity": 2,
-          "source": "sparkdown"
-        },
-        {
-          "message": {
-            "kind": "markdown",
-            "value": "Cannot find layer named `backdrop`"
-          },
-          "range": {
-            "end": {
-              "character": 15,
-              "line": 1141
-            },
-            "start": {
-              "character": 7,
-              "line": 1141
             }
           },
           "relatedInformation": [
@@ -100468,33 +97876,6 @@
         {
           "message": {
             "kind": "markdown",
-            "value": "Cannot find layer named `backdrop`"
-          },
-          "range": {
-            "end": {
-              "character": 15,
-              "line": 1172
-            },
-            "start": {
-              "character": 7,
-              "line": 1172
-            }
-          },
-          "relatedInformation": [
-            {
-              "location": {
-                "range": "[Circular]",
-                "uri": "inmemory:///main.sd"
-              },
-              "message": ""
-            }
-          ],
-          "severity": 2,
-          "source": "sparkdown"
-        },
-        {
-          "message": {
-            "kind": "markdown",
             "value": "Cannot find image named `location_6`"
           },
           "range": {
@@ -100640,33 +98021,6 @@
             "start": {
               "character": 4,
               "line": 1195
-            }
-          },
-          "relatedInformation": [
-            {
-              "location": {
-                "range": "[Circular]",
-                "uri": "inmemory:///main.sd"
-              },
-              "message": ""
-            }
-          ],
-          "severity": 2,
-          "source": "sparkdown"
-        },
-        {
-          "message": {
-            "kind": "markdown",
-            "value": "Cannot find layer named `backdrop`"
-          },
-          "range": {
-            "end": {
-              "character": 15,
-              "line": 1203
-            },
-            "start": {
-              "character": 7,
-              "line": 1203
             }
           },
           "relatedInformation": [
@@ -100846,33 +98200,6 @@
         {
           "message": {
             "kind": "markdown",
-            "value": "Cannot find layer named `backdrop`"
-          },
-          "range": {
-            "end": {
-              "character": 15,
-              "line": 1234
-            },
-            "start": {
-              "character": 7,
-              "line": 1234
-            }
-          },
-          "relatedInformation": [
-            {
-              "location": {
-                "range": "[Circular]",
-                "uri": "inmemory:///main.sd"
-              },
-              "message": ""
-            }
-          ],
-          "severity": 2,
-          "source": "sparkdown"
-        },
-        {
-          "message": {
-            "kind": "markdown",
             "value": "Cannot find image named `location_8`"
           },
           "range": {
@@ -101035,33 +98362,6 @@
         {
           "message": {
             "kind": "markdown",
-            "value": "Cannot find layer named `backdrop`"
-          },
-          "range": {
-            "end": {
-              "character": 15,
-              "line": 1265
-            },
-            "start": {
-              "character": 7,
-              "line": 1265
-            }
-          },
-          "relatedInformation": [
-            {
-              "location": {
-                "range": "[Circular]",
-                "uri": "inmemory:///main.sd"
-              },
-              "message": ""
-            }
-          ],
-          "severity": 2,
-          "source": "sparkdown"
-        },
-        {
-          "message": {
-            "kind": "markdown",
             "value": "Cannot find image named `location_9`"
           },
           "range": {
@@ -101170,33 +98470,6 @@
         {
           "message": {
             "kind": "markdown",
-            "value": "Cannot find layer named `backdrop`"
-          },
-          "range": {
-            "end": {
-              "character": 15,
-              "line": 1296
-            },
-            "start": {
-              "character": 7,
-              "line": 1296
-            }
-          },
-          "relatedInformation": [
-            {
-              "location": {
-                "range": "[Circular]",
-                "uri": "inmemory:///main.sd"
-              },
-              "message": ""
-            }
-          ],
-          "severity": 2,
-          "source": "sparkdown"
-        },
-        {
-          "message": {
-            "kind": "markdown",
             "value": "Cannot find image named `location_0`"
           },
           "range": {
@@ -101261,33 +98534,6 @@
             "start": {
               "character": 2,
               "line": 1308
-            }
-          },
-          "relatedInformation": [
-            {
-              "location": {
-                "range": "[Circular]",
-                "uri": "inmemory:///main.sd"
-              },
-              "message": ""
-            }
-          ],
-          "severity": 2,
-          "source": "sparkdown"
-        },
-        {
-          "message": {
-            "kind": "markdown",
-            "value": "Cannot find layer named `backdrop`"
-          },
-          "range": {
-            "end": {
-              "character": 15,
-              "line": 1327
-            },
-            "start": {
-              "character": 7,
-              "line": 1327
             }
           },
           "relatedInformation": [
@@ -101467,33 +98713,6 @@
         {
           "message": {
             "kind": "markdown",
-            "value": "Cannot find layer named `backdrop`"
-          },
-          "range": {
-            "end": {
-              "character": 15,
-              "line": 1358
-            },
-            "start": {
-              "character": 7,
-              "line": 1358
-            }
-          },
-          "relatedInformation": [
-            {
-              "location": {
-                "range": "[Circular]",
-                "uri": "inmemory:///main.sd"
-              },
-              "message": ""
-            }
-          ],
-          "severity": 2,
-          "source": "sparkdown"
-        },
-        {
-          "message": {
-            "kind": "markdown",
             "value": "Cannot find image named `location_2`"
           },
           "range": {
@@ -101639,33 +98858,6 @@
             "start": {
               "character": 4,
               "line": 1381
-            }
-          },
-          "relatedInformation": [
-            {
-              "location": {
-                "range": "[Circular]",
-                "uri": "inmemory:///main.sd"
-              },
-              "message": ""
-            }
-          ],
-          "severity": 2,
-          "source": "sparkdown"
-        },
-        {
-          "message": {
-            "kind": "markdown",
-            "value": "Cannot find layer named `backdrop`"
-          },
-          "range": {
-            "end": {
-              "character": 15,
-              "line": 1389
-            },
-            "start": {
-              "character": 7,
-              "line": 1389
             }
           },
           "relatedInformation": [
@@ -101845,33 +99037,6 @@
         {
           "message": {
             "kind": "markdown",
-            "value": "Cannot find layer named `backdrop`"
-          },
-          "range": {
-            "end": {
-              "character": 15,
-              "line": 1420
-            },
-            "start": {
-              "character": 7,
-              "line": 1420
-            }
-          },
-          "relatedInformation": [
-            {
-              "location": {
-                "range": "[Circular]",
-                "uri": "inmemory:///main.sd"
-              },
-              "message": ""
-            }
-          ],
-          "severity": 2,
-          "source": "sparkdown"
-        },
-        {
-          "message": {
-            "kind": "markdown",
             "value": "Cannot find image named `location_4`"
           },
           "range": {
@@ -102017,33 +99182,6 @@
             "start": {
               "character": 4,
               "line": 1443
-            }
-          },
-          "relatedInformation": [
-            {
-              "location": {
-                "range": "[Circular]",
-                "uri": "inmemory:///main.sd"
-              },
-              "message": ""
-            }
-          ],
-          "severity": 2,
-          "source": "sparkdown"
-        },
-        {
-          "message": {
-            "kind": "markdown",
-            "value": "Cannot find layer named `backdrop`"
-          },
-          "range": {
-            "end": {
-              "character": 15,
-              "line": 1451
-            },
-            "start": {
-              "character": 7,
-              "line": 1451
             }
           },
           "relatedInformation": [
@@ -102223,33 +99361,6 @@
         {
           "message": {
             "kind": "markdown",
-            "value": "Cannot find layer named `backdrop`"
-          },
-          "range": {
-            "end": {
-              "character": 15,
-              "line": 1482
-            },
-            "start": {
-              "character": 7,
-              "line": 1482
-            }
-          },
-          "relatedInformation": [
-            {
-              "location": {
-                "range": "[Circular]",
-                "uri": "inmemory:///main.sd"
-              },
-              "message": ""
-            }
-          ],
-          "severity": 2,
-          "source": "sparkdown"
-        },
-        {
-          "message": {
-            "kind": "markdown",
             "value": "Cannot find image named `location_6`"
           },
           "range": {
@@ -102412,33 +99523,6 @@
         {
           "message": {
             "kind": "markdown",
-            "value": "Cannot find layer named `backdrop`"
-          },
-          "range": {
-            "end": {
-              "character": 15,
-              "line": 1513
-            },
-            "start": {
-              "character": 7,
-              "line": 1513
-            }
-          },
-          "relatedInformation": [
-            {
-              "location": {
-                "range": "[Circular]",
-                "uri": "inmemory:///main.sd"
-              },
-              "message": ""
-            }
-          ],
-          "severity": 2,
-          "source": "sparkdown"
-        },
-        {
-          "message": {
-            "kind": "markdown",
             "value": "Cannot find image named `location_7`"
           },
           "range": {
@@ -102547,33 +99631,6 @@
         {
           "message": {
             "kind": "markdown",
-            "value": "Cannot find layer named `backdrop`"
-          },
-          "range": {
-            "end": {
-              "character": 15,
-              "line": 1544
-            },
-            "start": {
-              "character": 7,
-              "line": 1544
-            }
-          },
-          "relatedInformation": [
-            {
-              "location": {
-                "range": "[Circular]",
-                "uri": "inmemory:///main.sd"
-              },
-              "message": ""
-            }
-          ],
-          "severity": 2,
-          "source": "sparkdown"
-        },
-        {
-          "message": {
-            "kind": "markdown",
             "value": "Cannot find image named `location_8`"
           },
           "range": {
@@ -102638,33 +99695,6 @@
             "start": {
               "character": 2,
               "line": 1556
-            }
-          },
-          "relatedInformation": [
-            {
-              "location": {
-                "range": "[Circular]",
-                "uri": "inmemory:///main.sd"
-              },
-              "message": ""
-            }
-          ],
-          "severity": 2,
-          "source": "sparkdown"
-        },
-        {
-          "message": {
-            "kind": "markdown",
-            "value": "Cannot find layer named `backdrop`"
-          },
-          "range": {
-            "end": {
-              "character": 15,
-              "line": 1575
-            },
-            "start": {
-              "character": 7,
-              "line": 1575
             }
           },
           "relatedInformation": [
@@ -102844,33 +99874,6 @@
         {
           "message": {
             "kind": "markdown",
-            "value": "Cannot find layer named `backdrop`"
-          },
-          "range": {
-            "end": {
-              "character": 15,
-              "line": 1606
-            },
-            "start": {
-              "character": 7,
-              "line": 1606
-            }
-          },
-          "relatedInformation": [
-            {
-              "location": {
-                "range": "[Circular]",
-                "uri": "inmemory:///main.sd"
-              },
-              "message": ""
-            }
-          ],
-          "severity": 2,
-          "source": "sparkdown"
-        },
-        {
-          "message": {
-            "kind": "markdown",
             "value": "Cannot find image named `location_0`"
           },
           "range": {
@@ -103016,33 +100019,6 @@
             "start": {
               "character": 4,
               "line": 1629
-            }
-          },
-          "relatedInformation": [
-            {
-              "location": {
-                "range": "[Circular]",
-                "uri": "inmemory:///main.sd"
-              },
-              "message": ""
-            }
-          ],
-          "severity": 2,
-          "source": "sparkdown"
-        },
-        {
-          "message": {
-            "kind": "markdown",
-            "value": "Cannot find layer named `backdrop`"
-          },
-          "range": {
-            "end": {
-              "character": 15,
-              "line": 1637
-            },
-            "start": {
-              "character": 7,
-              "line": 1637
             }
           },
           "relatedInformation": [
@@ -103222,33 +100198,6 @@
         {
           "message": {
             "kind": "markdown",
-            "value": "Cannot find layer named `backdrop`"
-          },
-          "range": {
-            "end": {
-              "character": 15,
-              "line": 1668
-            },
-            "start": {
-              "character": 7,
-              "line": 1668
-            }
-          },
-          "relatedInformation": [
-            {
-              "location": {
-                "range": "[Circular]",
-                "uri": "inmemory:///main.sd"
-              },
-              "message": ""
-            }
-          ],
-          "severity": 2,
-          "source": "sparkdown"
-        },
-        {
-          "message": {
-            "kind": "markdown",
             "value": "Cannot find image named `location_2`"
           },
           "range": {
@@ -103394,33 +100343,6 @@
             "start": {
               "character": 4,
               "line": 1691
-            }
-          },
-          "relatedInformation": [
-            {
-              "location": {
-                "range": "[Circular]",
-                "uri": "inmemory:///main.sd"
-              },
-              "message": ""
-            }
-          ],
-          "severity": 2,
-          "source": "sparkdown"
-        },
-        {
-          "message": {
-            "kind": "markdown",
-            "value": "Cannot find layer named `backdrop`"
-          },
-          "range": {
-            "end": {
-              "character": 15,
-              "line": 1699
-            },
-            "start": {
-              "character": 7,
-              "line": 1699
             }
           },
           "relatedInformation": [
@@ -103600,33 +100522,6 @@
         {
           "message": {
             "kind": "markdown",
-            "value": "Cannot find layer named `backdrop`"
-          },
-          "range": {
-            "end": {
-              "character": 15,
-              "line": 1730
-            },
-            "start": {
-              "character": 7,
-              "line": 1730
-            }
-          },
-          "relatedInformation": [
-            {
-              "location": {
-                "range": "[Circular]",
-                "uri": "inmemory:///main.sd"
-              },
-              "message": ""
-            }
-          ],
-          "severity": 2,
-          "source": "sparkdown"
-        },
-        {
-          "message": {
-            "kind": "markdown",
             "value": "Cannot find image named `location_4`"
           },
           "range": {
@@ -103789,33 +100684,6 @@
         {
           "message": {
             "kind": "markdown",
-            "value": "Cannot find layer named `backdrop`"
-          },
-          "range": {
-            "end": {
-              "character": 15,
-              "line": 1761
-            },
-            "start": {
-              "character": 7,
-              "line": 1761
-            }
-          },
-          "relatedInformation": [
-            {
-              "location": {
-                "range": "[Circular]",
-                "uri": "inmemory:///main.sd"
-              },
-              "message": ""
-            }
-          ],
-          "severity": 2,
-          "source": "sparkdown"
-        },
-        {
-          "message": {
-            "kind": "markdown",
             "value": "Cannot find image named `location_5`"
           },
           "range": {
@@ -103924,33 +100792,6 @@
         {
           "message": {
             "kind": "markdown",
-            "value": "Cannot find layer named `backdrop`"
-          },
-          "range": {
-            "end": {
-              "character": 15,
-              "line": 1792
-            },
-            "start": {
-              "character": 7,
-              "line": 1792
-            }
-          },
-          "relatedInformation": [
-            {
-              "location": {
-                "range": "[Circular]",
-                "uri": "inmemory:///main.sd"
-              },
-              "message": ""
-            }
-          ],
-          "severity": 2,
-          "source": "sparkdown"
-        },
-        {
-          "message": {
-            "kind": "markdown",
             "value": "Cannot find image named `location_6`"
           },
           "range": {
@@ -104015,33 +100856,6 @@
             "start": {
               "character": 2,
               "line": 1804
-            }
-          },
-          "relatedInformation": [
-            {
-              "location": {
-                "range": "[Circular]",
-                "uri": "inmemory:///main.sd"
-              },
-              "message": ""
-            }
-          ],
-          "severity": 2,
-          "source": "sparkdown"
-        },
-        {
-          "message": {
-            "kind": "markdown",
-            "value": "Cannot find layer named `backdrop`"
-          },
-          "range": {
-            "end": {
-              "character": 15,
-              "line": 1823
-            },
-            "start": {
-              "character": 7,
-              "line": 1823
             }
           },
           "relatedInformation": [
@@ -104221,33 +101035,6 @@
         {
           "message": {
             "kind": "markdown",
-            "value": "Cannot find layer named `backdrop`"
-          },
-          "range": {
-            "end": {
-              "character": 15,
-              "line": 1854
-            },
-            "start": {
-              "character": 7,
-              "line": 1854
-            }
-          },
-          "relatedInformation": [
-            {
-              "location": {
-                "range": "[Circular]",
-                "uri": "inmemory:///main.sd"
-              },
-              "message": ""
-            }
-          ],
-          "severity": 2,
-          "source": "sparkdown"
-        },
-        {
-          "message": {
-            "kind": "markdown",
             "value": "Cannot find image named `location_8`"
           },
           "range": {
@@ -104393,33 +101180,6 @@
             "start": {
               "character": 4,
               "line": 1877
-            }
-          },
-          "relatedInformation": [
-            {
-              "location": {
-                "range": "[Circular]",
-                "uri": "inmemory:///main.sd"
-              },
-              "message": ""
-            }
-          ],
-          "severity": 2,
-          "source": "sparkdown"
-        },
-        {
-          "message": {
-            "kind": "markdown",
-            "value": "Cannot find layer named `backdrop`"
-          },
-          "range": {
-            "end": {
-              "character": 15,
-              "line": 1885
-            },
-            "start": {
-              "character": 7,
-              "line": 1885
             }
           },
           "relatedInformation": [
