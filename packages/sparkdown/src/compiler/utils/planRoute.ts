@@ -47,10 +47,15 @@ export interface SearchNode {
  *
  * Only equality is ever asked of a `seq`, so the identity is folded into a
  * fixed-width hash instead: same history in, same value out, constant size.
- * Two 32-bit lanes (cyrb53-style) give ~2^53 distinct values; across the tens
- * of thousands of steps a route can hold, the chance any two collide is
- * vanishingly small, and a collision could at worst let a re-plan resume from
- * a checkpoint it should have discarded.
+ * Two 32-bit lanes (cyrb53-style) give ~2^53 distinct values, so across the
+ * tens of thousands of steps a route can hold, two histories colliding is
+ * vanishingly unlikely — and `Game.getCheckpoint` corroborates a match against
+ * the step's own path, so even a collision costs a re-simulation rather than
+ * resuming from an unrelated position.
+ *
+ * The value is meaningful only WITHIN one session's plans: it is compared
+ * between an earlier plan and a re-plan (which is how checkpoint reuse works),
+ * never persisted or parsed.
  */
 export const extendSeq = (seq: string, path: string): string => {
   let h1 = 0xdeadbeef;
@@ -523,7 +528,12 @@ const forkCondition = (
 ): SearchNode => {
   return {
     stateJson: story.state.toJson(),
-    seq: stepsEncountered.at(-1)?.seq || "",
+    // Falls back to the PARENT's identity, not to "": a fork commonly happens
+    // with `stepsEncountered` empty (the pending step is popped just before
+    // forking), and restarting the chain there would give two sibling branches
+    // the same identity for every path they later share — which
+    // `Game.patchAndSimulateRoute` would read as "already simulated".
+    seq: stepsEncountered.at(-1)?.seq ?? parent.seq,
     steps: [...parent.steps, ...stepsEncountered],
     decisions: [...parent.decisions, ov],
     conditions: [...parent.conditions, { selected: ov.value }],
@@ -541,7 +551,8 @@ const forkChoice = (
 ): SearchNode => {
   return {
     stateJson: story.state.toJson(),
-    seq: stepsEncountered.at(-1)?.seq || "",
+    // See forkCondition: the parent's identity, never a fresh chain.
+    seq: stepsEncountered.at(-1)?.seq ?? parent.seq,
     steps: [...parent.steps, ...stepsEncountered],
     decisions: [...parent.decisions, ov],
     conditions: [...parent.conditions],

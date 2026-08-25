@@ -40,10 +40,15 @@ export class RecencySet implements Iterable<string> {
   /** Non-null only while a snapshot window is open. */
   protected _journal: UndoRecord[] | null = null;
 
+  /** Build from an ordered list. Duplicates keep their FIRST position, which
+   *  is what `new Set(values)` did — deserialization runs through here, so it
+   *  must not reorder a saved collection. */
   static from(values: Iterable<string>): RecencySet {
     const set = new RecencySet();
     for (const value of values) {
-      set.add(value);
+      if (!set.has(value)) {
+        set.add(value);
+      }
     }
     return set;
   }
@@ -81,23 +86,13 @@ export class RecencySet implements Iterable<string> {
     return this;
   }
 
-  delete(value: string): boolean {
-    const node = this._nodes.get(value);
-    if (!node) {
-      return false;
-    }
-    this.unlink(node);
-    this._nodes.delete(value);
-    return true;
-  }
-
-  clear(): void {
-    this._nodes.clear();
-    this._head = null;
-    this._tail = null;
-    // Any open window described a list that no longer exists.
-    this._journal = null;
-  }
+  // Deliberately no `delete` or `clear`. Nothing removes from this collection
+  // (it accumulates for a frame and is replaced wholesale), and a removal
+  // inside an open snapshot window would corrupt the rewind silently: the
+  // journal holds direct references to neighbour nodes, so undoing a move
+  // would relink a node that is no longer in the list — resurrecting the
+  // removed value and leaving `size` disagreeing with iteration. If removal is
+  // ever needed, journal it rather than adding a bare `delete`.
 
   forEach(callback: (value: string) => void): void {
     for (const value of this) {
@@ -116,11 +111,6 @@ export class RecencySet implements Iterable<string> {
   }
 
   // --- snapshot window ------------------------------------------------------
-  //
-  // `delete`/`clear` are NOT journalled: the runtime only ever adds during a
-  // lookahead, and journalling a removal would need the node's neighbours to
-  // still exist. Removing entries inside an open window is unsupported (and
-  // `clear` closes the window rather than leave it describing a dead list).
 
   /** Begin recording undo information. A second call replaces the window,
    *  matching the previous copy-on-save behaviour. */

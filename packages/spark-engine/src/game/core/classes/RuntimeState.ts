@@ -47,6 +47,10 @@ export class RuntimeState {
   // Game's lookahead snapshot. That mirror stays a plain `Set`: it is emptied
   // at every checkpoint (one per beat), so copying it costs one beat's worth of
   // paths, unlike `pathsExecutedThisFrame` which spans the whole simulation.
+  // That per-beat draining is load-bearing, not incidental: if checkpoints ever
+  // become periodic rather than per-beat, this mirror grows for the whole
+  // simulation and Game's per-lookahead copy of it becomes the O(n^2) term all
+  // over again (#376). Give it the same journalling treatment if that changes.
   // `choicesEncountered` / `conditionsEncountered` are append-only and never
   // truncated below the last checkpoint, so a slice from a drain mark is exact
   // and needs no snapshot/restore.

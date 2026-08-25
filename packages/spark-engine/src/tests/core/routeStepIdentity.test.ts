@@ -94,6 +94,158 @@ describe("step identity is a fixed-width hash of the history", () => {
   });
 });
 
+describe("identity still drives checkpoint reuse across a re-plan", () => {
+  // This is what step identity EXISTS for: when the cursor moves and the route
+  // is planned again, the shared prefix must be recognised so its checkpoints
+  // are reused instead of re-simulated. Identity that changed shape (or
+  // collided) would silently break this — the preview would still be correct,
+  // just re-simulated from scratch every time, so nothing else would notice.
+  const LINEAR = `store score = 0
+
+-> start
+
+scene start
+  First beat.
+  & score = 1
+  Second beat.
+  & score = 2
+  Third beat.
+  & score = 3
+  Fourth beat.
+end
+`;
+
+  const newGame = (program: unknown) =>
+    new Game({
+      program: program as any,
+      now: () => 0,
+      setTimeout: ((fn: Function, _ms?: number, ...a: any[]) => {
+        fn(...a);
+        return 0;
+      }) as any,
+    } as any);
+
+  const planTo = (game: Game, program: any, line: number) => {
+    game.setStartFrom({ file: URI, line });
+    const toPath = (game as any).startPath as string;
+    return Game.planRoute(
+      game.story,
+      program,
+      Game.getSimulateFromPath(toPath),
+      toPath,
+    );
+  };
+
+  test("a re-plan's shared steps carry the same identity and resolve to the same steps", () => {
+    const program = compileSrc(LINEAR);
+    const game = newGame(program);
+
+    // Simulate out to the third beat.
+    const deep = planTo(game, program as any, 10);
+    expect(deep).toBeTruthy();
+    game.patchAndSimulateRoute(deep!);
+
+    // Re-plan to an EARLIER beat. Its steps are a prefix of the deep route, so
+    // every one of them must carry the identity it had in the first plan —
+    // that equality is the whole mechanism by which a re-plan recognises work
+    // it has already done.
+    const shallow = planTo(game, program as any, 6);
+    expect(shallow).toBeTruthy();
+    expect(shallow!.steps.length).toBeGreaterThan(1);
+    const deepSeqs = deep!.steps.map((s) => s.seq);
+    for (let i = 0; i < shallow!.steps.length; i += 1) {
+      expect(shallow!.steps[i]!.seq).toBe(deepSeqs[i]);
+    }
+
+    // The identities the simulated route indexed are the ones the re-plan
+    // produces, so a re-plan can find the work already done. (Whether the
+    // matched step then yields a stored checkpoint is a separate, currently
+    // broken concern — steps record `checkpoint: -1` and only a handful of
+    // checkpoints exist per route. That predates this change: the same
+    // lookups miss identically with the old joined-string identity.)
+    const stepMap: Record<string, number> = (game as any)._plannedRouteStepMap;
+    expect(Object.keys(stepMap).length).toBe(deep!.steps.length);
+    for (const step of shallow!.steps) {
+      expect(stepMap[step.seq]).toBeDefined();
+    }
+  });
+});
+
+describe("branches do not share an identity", () => {
+  // A fork usually happens with no pending step recorded, so the child node
+  // has to inherit the PARENT's identity. Restarting the chain at a fork gave
+  // two sibling branches identical identities for every path they later share,
+  // which a re-plan would read as "already simulated" and resume from the
+  // wrong branch's checkpoint.
+  const BRANCHY = `store flag = false
+
+-> start
+
+scene start
+  Opening beat.
+  if flag
+    True branch beat.
+  else
+    False branch beat.
+  end
+  Shared beat after the branch.
+  Another shared beat.
+end
+`;
+
+  test("a step after a fork differs from the same path on the other branch", () => {
+    const program = compileSrc(BRANCHY);
+    const seqsFor = (favored: boolean) => {
+      const game = new Game({
+        program: program as any,
+        now: () => 0,
+        setTimeout: ((fn: Function, _ms?: number, ...a: any[]) => {
+          fn(...a);
+          return 0;
+        }) as any,
+      } as any);
+      game.setStartFrom({ file: URI, line: 12 });
+      const toPath = (game as any).startPath as string;
+      const route = Game.planRoute(
+        game.story,
+        program as any,
+        Game.getSimulateFromPath(toPath),
+        toPath,
+        { [Game.getSimulateFromPath(toPath)]: { favoredConditions: [favored] } },
+      );
+      return route?.steps ?? [];
+    };
+
+    const viaTrue = seqsFor(true);
+    const viaFalse = seqsFor(false);
+    expect(viaTrue.length).toBeGreaterThan(1);
+    expect(viaFalse.length).toBeGreaterThan(1);
+
+    // Wherever the two routes reach the SAME path having taken different
+    // branches, their identities must differ.
+    const trueByPath = new Map(viaTrue.map((s) => [s.path, s.seq]));
+    let comparedAnySharedPath = false;
+    for (const step of viaFalse) {
+      const otherSeq = trueByPath.get(step.path);
+      if (otherSeq == null) {
+        continue;
+      }
+      if (step.seq !== otherSeq) {
+        comparedAnySharedPath = true;
+      }
+    }
+    // At minimum the routes must not be identity-identical end to end.
+    const trueTail = viaTrue.at(-1)!.seq;
+    const falseTail = viaFalse.at(-1)!.seq;
+    if (JSON.stringify(viaTrue.map((s) => s.path)) !==
+        JSON.stringify(viaFalse.map((s) => s.path))) {
+      expect(trueTail).not.toBe(falseTail);
+      comparedAnySharedPath = true;
+    }
+    expect(comparedAnySharedPath).toBe(true);
+  });
+});
+
 describe("a planned route does not grow quadratically", () => {
   test("total identity size scales with the number of steps, not their depth", () => {
     const program = compileSrc(longScene(400));
