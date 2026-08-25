@@ -26,6 +26,27 @@ export interface UpstreamPatch {
 }
 
 export const UPSTREAM_PATCHES: Record<string, UpstreamPatch[]> = {
+  // Patch class — empty `{}` inside a double-quoted string. Sparkdown
+  // interpolates `"..."` as well as backticks (see DIVERGENCES.md), so an
+  // empty `{}` there is a malformed interpolation, exactly as it is in a
+  // backtick string. Luau never interpolates `"..."` at all, so upstream
+  // writes these expected VALUES with double quotes. Single quotes are
+  // sparkdown's literal string form and denote the identical string, so the
+  // assertion is unchanged in meaning.
+  "stringinterp.luau": [
+    {
+      find: `assertEq(\`Escaped brace: \\{}\`, "Escaped brace: {}")`,
+      replace: `assertEq(\`Escaped brace: \\{}\`, 'Escaped brace: {}')`,
+      reason:
+        "empty {} is a malformed interpolation in a sparkdown double-quoted string; single quotes are the literal form and denote the same string",
+    },
+    {
+      find: `assertEq(\`Escaped brace \\{} with {"expression"}\`, "Escaped brace {} with expression")`,
+      replace: `assertEq(\`Escaped brace \\{} with {"expression"}\`, 'Escaped brace {} with expression')`,
+      reason:
+        "empty {} is a malformed interpolation in a sparkdown double-quoted string; single quotes are the literal form and denote the same string",
+    },
+  ],
   "basic.luau": [
     {
       find: `assert((function() local a = {} for k,v in pairs({1, 2, 3, a=5, b=6, c=7}) do a[#a+1] = v end return table.concat(a, ',') end)() == "1,2,3,5,7,6")`,

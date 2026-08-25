@@ -56,7 +56,9 @@ const createGame = (
       },
       ui: {
         getTransientTargets: () => [],
-        showScreen: () => {},
+        showLayout: () => {},
+        applyLayoutInstructions: () => {},
+        refreshLayouts: () => {},
         reveal: () => {},
         hideAll: () => {},
         observe: () => {},

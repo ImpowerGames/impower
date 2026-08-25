@@ -36,6 +36,14 @@ export class VariableAssignment extends ParsedObject {
   // reference site instead of being initialized once.
   public isConstantDeclaration: boolean = false;
 
+  /** Set by SparkdownCompiler's builtin-override pass on defines that came from
+   *  the source-injected builtins prelude. It cannot be derived from
+   *  `debugMetadata` — a prelude define and an authored one both carry null —
+   *  and without it `AddNewVariableDeclaration` cannot tell "a project is
+   *  overriding a builtin" (allowed) from "two authored defines collide"
+   *  (an error). See {@link FlowBase.AddNewVariableDeclaration}. */
+  public isPreludeDeclaration: boolean = false;
+
   override get typeName() {
     if (this.isConstantDeclaration) {
       return "const";

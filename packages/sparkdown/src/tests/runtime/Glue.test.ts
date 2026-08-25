@@ -15,6 +15,7 @@ import {
   runToEnd,
 } from "./runtimeTestHarness";
 import { Story as RuntimeStory } from "../../inkjs/engine/Story";
+import { formatDisplayRoutingTag } from "../../compiler/utils/displayRoutingTag";
 
 // Drive `Continue()` one beat at a time. A correctly-glued continuation
 // joins onto the previous line's beat, so the whole join is a SINGLE
@@ -24,6 +25,25 @@ function continueBeats(story: RuntimeStory): string[] {
   while (story.canContinue) beats.push(story.Continue() ?? "");
   return beats;
 }
+
+// Same, but paired with each beat's tags. Routing lives in a reserved tag
+// rather than a `<prefix>:` in the visible text, so asserting the tag is what
+// proves a glued continuation INHERITED the first line's target instead of
+// re-cueing a beat of its own.
+function beatsWithTags(story: RuntimeStory): [string, string[]][] {
+  const beats: [string, string[]][] = [];
+  while (story.canContinue) {
+    const text = story.Continue() ?? "";
+    beats.push([text, [...(story.currentTags ?? [])]]);
+  }
+  return beats;
+}
+
+/** A routing tag as it appears in `story.currentTags` (sentinel-prefixed). */
+const routing = (tag: string): string =>
+  formatDisplayRoutingTag(...(tag.includes(":")
+    ? [tag.slice(0, tag.indexOf(":")), tag.slice(tag.indexOf(":") + 1)]
+    : [tag, null]) as [string, string | null]);
 
 describe("Glue (ported from inkjs)", () => {
   test("simple glue across multiple lines", () => {
@@ -107,41 +127,42 @@ describe("Glue — ported from ink fixture rewrites", () => {
 // Glue is not action-only: a `..` marker joins consecutive display lines of
 // EVERY type (action, dialogue, heading, title, transitional, write), in both
 // the leading (`.. text`) and trailing (`text ..`) positions. A correct join
-// collapses the two lines into a SINGLE `Continue()` beat whose routing
-// prefix appears ONCE — the continuation inherits the first line's display
-// target. The raw beat text still carries the prefix (`ALICE:`, `$:`, …)
-// because the prefix-stripping interpreter is a separate layer; the runtime
-// concern here is the join + single beat + intact trailing newline.
-describe("Glue — across all display statement types", () => {
-  // [label, first-line text incl. prefix, raw joined beat]. The second line
-  // re-uses the same prefix; the join drops it.
-  const TYPES: { label: string; prefix: string; joined: string }[] = [
-    { label: "action", prefix: "", joined: "first second.\n" },
-    { label: "dialogue", prefix: "ALICE:", joined: "ALICE: first second.\n" },
-    { label: "heading", prefix: "$:", joined: "$: first second.\n" },
-    { label: "title", prefix: "^:", joined: "^: first second.\n" },
-    { label: "transitional", prefix: "%:", joined: "%: first second.\n" },
-    { label: "write", prefix: "@hud:", joined: "@hud: first second.\n" },
+// collapses the two lines into a SINGLE `Continue()` beat with its trailing
+// newline intact.
+//
+// Routing is carried by a reserved ROUTING TAG, not by a `<prefix>:` in the
+// visible text — see compiler/utils/displayRoutingTag.ts, where the old
+// prefix mechanism is recorded as removed. So the joined beat's TEXT is
+// prefix-free, and the invariant that actually matters here is that exactly
+// ONE routing tag survives the join: the continuation must INHERIT the first
+// line's target rather than re-cue a fresh beat of its own.
+describe("Glue - across all display statement types", () => {
+  const TYPES: { label: string; prefix: string; tag: string }[] = [
+    { label: "action", prefix: "", tag: "action" },
+    { label: "dialogue", prefix: "ALICE:", tag: "dialogue:ALICE" },
+    { label: "heading", prefix: "$:", tag: "heading" },
+    { label: "title", prefix: "^:", tag: "title" },
+    { label: "transitional", prefix: "%:", tag: "transitional" },
+    { label: "write", prefix: "@hud:", tag: "write:hud" },
   ];
+  const JOINED = "first second.\n";
 
-  for (const { label, prefix, joined } of TYPES) {
+  for (const { label, prefix, tag } of TYPES) {
     const p = prefix ? `${prefix} ` : "";
 
     test(`trailing \`..\` joins two ${label} lines into one beat`, () => {
       const ctx = makeRuntimeStoryFromSource(`${p}first ..\n${p}second.\n`);
       expect(ctx.errorMessages).toEqual([]);
-      const beats = continueBeats(ctx.story);
-      expect(beats).toEqual([joined]);
+      expect(beatsWithTags(ctx.story)).toEqual([[JOINED, [routing(tag)]]]);
     });
 
     test(`leading \`..\` joins a continuation onto a ${label} line`, () => {
-      // The continuation `.. second.` carries no prefix of its own (a
-      // leading-`..` line is always parsed as a bare continuation) and
-      // inherits the previous line's display target.
+      // The continuation `.. second.` carries no cue of its own (a leading-`..`
+      // line is always parsed as a bare continuation), so it must inherit the
+      // previous line's routing tag rather than emit one.
       const ctx = makeRuntimeStoryFromSource(`${p}first\n.. second.\n`);
       expect(ctx.errorMessages).toEqual([]);
-      const beats = continueBeats(ctx.story);
-      expect(beats).toEqual([joined]);
+      expect(beatsWithTags(ctx.story)).toEqual([[JOINED, [routing(tag)]]]);
     });
   }
 
@@ -150,13 +171,17 @@ describe("Glue — across all display statement types", () => {
       "ALICE: a ..\nALICE: b ..\nALICE: c.\n",
     );
     expect(ctx.errorMessages).toEqual([]);
-    expect(continueBeats(ctx.story)).toEqual(["ALICE: a b c.\n"]);
+    expect(beatsWithTags(ctx.story)).toEqual([
+      ["a b c.\n", [routing("dialogue:ALICE")]],
+    ]);
   });
 
   test("trailing `..` joins mid-body lines within a block dialogue", () => {
     const ctx = makeRuntimeStoryFromSource("ALICE:\n  first ..\n  second.\n");
     expect(ctx.errorMessages).toEqual([]);
-    expect(continueBeats(ctx.story)).toEqual(["ALICE: first second.\n"]);
+    expect(beatsWithTags(ctx.story)).toEqual([
+      [JOINED, [routing("dialogue:ALICE")]],
+    ]);
   });
 
   test("leading `..` joins mid-body lines within a block dialogue", () => {
@@ -164,7 +189,9 @@ describe("Glue — across all display statement types", () => {
     // stripping, so the words don't fuse into `firstsecond`.
     const ctx = makeRuntimeStoryFromSource("ALICE:\n  first\n  .. second.\n");
     expect(ctx.errorMessages).toEqual([]);
-    expect(continueBeats(ctx.story)).toEqual(["ALICE: first second.\n"]);
+    expect(beatsWithTags(ctx.story)).toEqual([
+      [JOINED, [routing("dialogue:ALICE")]],
+    ]);
   });
 
   test("a non-glued multi-line block dialogue still keeps its line breaks", () => {
@@ -172,7 +199,9 @@ describe("Glue — across all display statement types", () => {
     // lines (one beat, newline preserved between them).
     const ctx = makeRuntimeStoryFromSource("ALICE:\n  one.\n  two.\n");
     expect(ctx.errorMessages).toEqual([]);
-    expect(continueBeats(ctx.story)).toEqual(["ALICE: one.\ntwo.\n"]);
+    expect(beatsWithTags(ctx.story)).toEqual([
+      ["one.\ntwo.\n", [routing("dialogue:ALICE")]],
+    ]);
   });
 });
 

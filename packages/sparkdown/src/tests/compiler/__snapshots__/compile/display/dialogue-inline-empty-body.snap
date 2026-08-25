@@ -9,15 +9,11 @@
         },
         {
           "type": "Text",
-          "text": "dialogue:N"
+          "text": "\u0000dialogue:N"
         },
         {
           "type": "Tag",
           "start": false
-        },
-        {
-          "type": "Text",
-          "text": "N: "
         },
         {
           "type": "Text",

@@ -2340,6 +2340,54 @@ function isDefineTable(v: AbstractValue | null | undefined): v is ObjectValue {
   return metatableMap(v as AbstractValue)?.get(DEFINE_MARKER) != null;
 }
 
+// Resolve the TABLE that `as X` means: the TYPE named X.
+//
+// The flat global for X holds whichever declaration registered first — an
+// accident of source order when X is multiply-defined. The prelude does this
+// deliberately: `typewriter` is a ROOT TYPE (pacing props) and ALSO a synth /
+// mixer / channel INSTANCE (its keystroke sound and routing). With the synth
+// instance declared first, the flat `typewriter` held the SOUND, and every
+// `define … as typewriter` chained through it — inheriting the tuned synth
+// props (accidentally load-bearing: that union is a typewriter def's voice
+// payload) while missing the root's pacing props entirely (#371).
+//
+// FlowBase gives a displaced colliding declaration the qualified key
+// `$<type>_<name>`, and a root define's type is its own name — so the
+// displaced root lives at `$X_X`. When the flat global is an INSTANCE named
+// X and that root exists, resolve to the root — and link the root's chain
+// through the instance (once), so the union survives BY CONSTRUCTION with
+// the root's props taking precedence: member → root (pacing) → instance
+// (tuned sound) → the instance's own ancestors.
+function resolveParentType(
+  // `any` for the same circular-import reason as `StateAwareStdLibFn`.
+  story: any,
+  parentName: string,
+  flat: ObjectValue,
+): ObjectValue {
+  const flatMeta = metatableMap(flat);
+  const flatParent = flatMeta?.get(DEFINE_PARENT_MARKER);
+  if (flatParent == null || coerceString(flatParent) === "") {
+    return flat; // the flat global IS the root type
+  }
+  const displaced = story.state.variablesState.GetVariableWithName(
+    `$${parentName}_${parentName}`,
+  ) as AbstractValue | null;
+  if (!(displaced instanceof ObjectValue)) {
+    return flat; // no displaced root — X really is an instance used as a parent
+  }
+  const rootMeta = metatableMap(displaced);
+  if (
+    coerceString(rootMeta?.get(DEFINE_MARKER) ?? null) !== parentName ||
+    rootMeta?.get(DEFINE_PARENT_MARKER) != null
+  ) {
+    return flat;
+  }
+  if (rootMeta && !rootMeta.has("__index")) {
+    rootMeta.set("__index", flat);
+  }
+  return displaced;
+}
+
 // Walk a type/instance's `__index` chain (self first, then ancestors).
 function defineChain(start: ObjectValue): ObjectValue[] {
   const chain: ObjectValue[] = [];
@@ -2965,6 +3013,36 @@ export const STDLIB: Record<string, StdLibEntry> = {
         .map((a) => luauAnyToDisplayString(story, a))
         .join(" ");
       story.state.PushToOutputStream(new StringValue(text + "\n"));
+    },
+  },
+  // `display(<instructions table>)` — SPIKE (display-as-Luau-call
+  // transport). The end-state for the double-parse elimination: the
+  // compiler lowers a display statement to `display({…})` carrying a
+  // pre-parsed instruction TEMPLATE as a table literal, whose `{interp}`
+  // holes are already evaluated to LIVE values by the time this runs
+  // (table literals lower to a live ObjectValue via EndObject). Instead
+  // of flattening to a text string the runtime must re-scan, the live
+  // ObjectValue rides the output stream directly — `currentText` skips
+  // it (it only concatenates StringValues), and the new
+  // `currentDisplayInstructions` getter collects it. A trailing `\n`
+  // closes the Continue beat exactly like `print` does, so the engine's
+  // existing per-beat / checkpoint loop fires unchanged.
+  //
+  // This proves the gating unknown: a no-text stdlib call can carry
+  // STRUCTURED data to the engine and still drive the beat loop. The
+  // legacy text path is untouched (only fires when `display()` is
+  // actually called), so goldens stay green.
+  display: {
+    arity: -1, // variadic — actual count comes from compile-site capture
+    fn: (story, args) => {
+      const payload = args[0];
+      if (payload) {
+        // The live instruction table rides the output stream as a
+        // non-string object (currentText/currentTags both skip it).
+        story.state.PushToOutputStream(payload);
+      }
+      // Close the beat so Continue completes here (mirrors print's `\n`).
+      story.state.PushToOutputStream(new StringValue("\n"));
     },
   },
   // `log(...)` — DEVELOPER console logging, NOT story display (that's
@@ -4966,7 +5044,10 @@ export const STDLIB: Record<string, StdLibEntry> = {
           parentName,
         ) as AbstractValue | null;
         if (existing instanceof ObjectValue) {
-          parent = existing;
+          // `as X` means the TYPE named X — not whichever same-named
+          // declaration happened to win the flat global slot. See
+          // `resolveParentType`.
+          parent = resolveParentType(story, parentName, existing);
         } else {
           // Implicit parent type — e.g. `as character`.
           parent = new ObjectValue(new Map<string, AbstractValue>());

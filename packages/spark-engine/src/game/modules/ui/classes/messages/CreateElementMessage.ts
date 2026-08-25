@@ -12,6 +12,12 @@ export interface CreateElementParams {
   style?: Record<string, string | number | null> | null;
   attributes?: Record<string, string | null> | null;
   breakpoints?: Record<string, number>;
+  /**
+   * Sibling id to insert this element immediately before (positional create).
+   * Omitted/null appends to the end of `parent`. Reactive control-flow regions
+   * use it to mount a branch/iteration at the region's slot without a wrapper.
+   */
+  before?: string | null;
 }
 
 export class CreateElementMessage {

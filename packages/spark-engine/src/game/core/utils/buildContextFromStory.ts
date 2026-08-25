@@ -1,0 +1,311 @@
+import { InkList, Story } from "@impower/sparkdown/src/inkjs/engine/Story";
+import { applyBuiltinDefaults } from "./applyBuiltinDefaults";
+
+// Convert Luau runtime `__def` tables (the source of truth for authored
+// `define`s) into the plain-JS `{ type: { name: struct } }` shape the engine's
+// modules expect from `program.context`.
+//
+// A define is a runtime ObjectValue (its `.value` is a `Map<string,
+// AbstractValue>`) tagged on its metatable (see StdLib `__def`):
+//   __define       — the define's own name
+//   __defineParent — the parent type's name ("" / absent for a root define)
+//   __index        — the parent type TABLE (inheritance chain)
+// Instances are also registered INTO their parent + every ancestor type table,
+// so a type table's `.value` map holds both its real props AND its registered
+// instances (each instance is itself a define table — skipped when collecting
+// props).
+//
+// NOTE: builtins (e.g. `animation`'s default `timing`) now originate in the
+// implicitly-imported builtins prelude (builtins.sd), so they are real defines
+// rather than a separate JS table. During the transition they still reach the
+// engine via `program.context` (mergePreludeContext); wiring their runtime
+// `__def` tables into the engine is Phase 3. This converter produces the
+// AUTHORED-define layer and is intentionally RICHER than the lossy compile-time
+// `program.context` (which omits computed/non-scalar props that had no faithful
+// literal form); the runtime table carries the real values.
+
+const DEFINE_MARKER = "__define";
+const DEFINE_PARENT_MARKER = "__defineParent";
+const INDEX_MARKER = "__index";
+
+/** Hidden keys on a define table that are never real properties. */
+const META_PROP_KEYS = new Set<string>([
+  "__storeProps",
+  "__readProps",
+  "__writeProps",
+  DEFINE_MARKER,
+  DEFINE_PARENT_MARKER,
+  INDEX_MARKER,
+]);
+
+/* eslint-disable @typescript-eslint/no-explicit-any */
+type AnyVal = any;
+
+function asMap(x: AnyVal): Map<string, AnyVal> | null {
+  return x instanceof Map ? (x as Map<string, AnyVal>) : null;
+}
+
+/** The metatable's backing map (or null) for a runtime ObjectValue. */
+function metatableMap(v: AnyVal): Map<string, AnyVal> | null {
+  const mt = v?.metatable;
+  return mt ? asMap(mt.value) : null;
+}
+
+function isDefineTable(v: AnyVal): boolean {
+  return metatableMap(v)?.get(DEFINE_MARKER) != null;
+}
+
+/** A method value: an ObjectValue whose map carries a hoisted closure. */
+function isClosureMap(map: Map<string, AnyVal>): boolean {
+  return map.has("__closure_fn");
+}
+
+function metaString(v: AnyVal, key: string): string {
+  const entry = metatableMap(v)?.get(key);
+  return entry != null && "value" in entry ? String(entry.value) : "";
+}
+
+/** Walk a define's `__index` chain, self first then ancestors (mirrors
+ *  StdLib.defineChain). */
+function defineChain(start: AnyVal): AnyVal[] {
+  const chain: AnyVal[] = [];
+  let cur: AnyVal = start;
+  let guard = 0;
+  while (cur && asMap(cur.value) && guard++ < 64) {
+    chain.push(cur);
+    const idx = metatableMap(cur)?.get(INDEX_MARKER) ?? null;
+    cur = asMap(idx?.value) ? idx : null;
+  }
+  return chain;
+}
+
+/** Deep-merge `override` onto `base`: override wins, base fills gaps, nested
+ *  plain objects merge recursively, arrays/scalars replace wholesale. Matches
+ *  SparkdownCompiler.inheritDefaults so runtime inheritance produces the same
+ *  flattened view the compile-time `$default` merge did. */
+function deepMerge(base: AnyVal, override: AnyVal): AnyVal {
+  if (
+    base == null ||
+    typeof base !== "object" ||
+    Array.isArray(base) ||
+    override == null ||
+    typeof override !== "object" ||
+    Array.isArray(override)
+  ) {
+    return override;
+  }
+  const result: Record<string, AnyVal> = { ...base };
+  for (const [k, v] of Object.entries(override)) {
+    const bv = (base as Record<string, AnyVal>)[k];
+    if (
+      bv != null &&
+      typeof bv === "object" &&
+      !Array.isArray(bv) &&
+      v != null &&
+      typeof v === "object" &&
+      !Array.isArray(v)
+    ) {
+      result[k] = deepMerge(bv, v);
+    } else {
+      result[k] = v;
+    }
+  }
+  return result;
+}
+
+/** Mirror Game.getRuntimeValue's InkList handling so list values convert
+ *  identically wherever they appear. */
+function convertInkList(valueObj: AnyVal, story: Story): unknown {
+  const list = valueObj.value as InkList;
+  // GetVariableWithName has no name here; the def lookup keys off the list's
+  // own origin, so try the first item's origin name.
+  const listValue: Record<string, unknown> = { $type: "list.var" };
+  for (const [key, value] of list.entries()) {
+    const keyObj = JSON.parse(key) as { originName: string; itemName: string };
+    listValue[keyObj.originName + "." + keyObj.itemName] = value;
+  }
+  return listValue;
+}
+
+/** Convert any runtime AbstractValue to plain JS (undefined = omit). */
+function convertValue(v: AnyVal, story: Story): unknown {
+  if (v == null) return undefined;
+  if (!("value" in v)) return undefined; // NullValue and friends
+  const inner = v.value;
+  if (inner instanceof InkList) return convertInkList(v, story);
+  const map = asMap(inner);
+  if (map) return convertTable(map, story);
+  return inner; // scalar (number | string | boolean)
+}
+
+/** Convert a plain runtime table (Map) to a JS array or object. Numeric
+ *  "1".."n" keys → array (mirrors lowerTable / expressionToContextValue);
+ *  otherwise an object. Skips meta keys and method closures. */
+function convertTable(map: Map<string, AnyVal>, story: Story): unknown {
+  if (isClosureMap(map)) return undefined;
+  const keys = [...map.keys()].filter((k) => !META_PROP_KEYS.has(k));
+  const isArray =
+    keys.length > 0 && keys.every((k, i) => k === String(i + 1));
+  if (isArray) {
+    const arr: unknown[] = [];
+    for (let i = 1; i <= keys.length; i += 1) {
+      const cv = convertValue(map.get(String(i)), story);
+      arr.push(cv === undefined ? null : cv);
+    }
+    return arr;
+  }
+  const obj: Record<string, unknown> = {};
+  for (const [k, val] of map) {
+    if (META_PROP_KEYS.has(k)) continue;
+    const valMap = asMap(val?.value);
+    if (valMap && isClosureMap(valMap)) continue; // method
+    const cv = convertValue(val, story);
+    if (cv !== undefined) obj[k] = cv;
+  }
+  return obj;
+}
+
+/** Collect one chain level's OWN property values, skipping meta keys, methods,
+ *  and registered instances (which live in a type table's map but are siblings,
+ *  not properties).
+ *
+ *  Top-level `$`-prefixed props (`$link`, `$recursive`, `$schema`, …) are
+ *  editor metadata with no runtime reader — the CHANNEL CONTRACT is that the
+ *  runtime define context carries only `$type`/`$name` (attached by
+ *  `convertDefine`), and everything else `$`-prefixed lives in the LSP-only
+ *  `program.context`. Stripping here is what makes the two channels agree
+ *  (see contextChannelEquivalence.test.ts); nested tables are untouched, so
+ *  reference values keep their `{ $type, $name }` identity keys. */
+function collectLevelProps(
+  levelMap: Map<string, AnyVal>,
+  story: Story,
+): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const [k, val] of levelMap) {
+    if (META_PROP_KEYS.has(k)) continue;
+    if (k.startsWith("$")) continue; // editor metadata, not a runtime prop
+    if (isDefineTable(val)) continue; // a registered instance, not a prop
+    const valMap = asMap(val?.value);
+    if (valMap && isClosureMap(valMap)) continue; // method
+    const cv = convertValue(val, story);
+    if (cv !== undefined) out[k] = cv;
+  }
+  return out;
+}
+
+/** Convert a single define table to its flattened JS struct (inheritance
+ *  applied, `$type`/`$name` attached). */
+export function convertDefine(
+  defineTable: AnyVal,
+  story: Story,
+): Record<string, unknown> {
+  const chain = defineChain(defineTable);
+  let merged: Record<string, unknown> = {};
+  // Root-most first so more-derived levels override (child wins).
+  for (let i = chain.length - 1; i >= 0; i -= 1) {
+    const levelMap = asMap(chain[i].value);
+    if (!levelMap) continue;
+    merged = deepMerge(merged, collectLevelProps(levelMap, story));
+  }
+  merged["$type"] = metaString(defineTable, DEFINE_PARENT_MARKER);
+  merged["$name"] = metaString(defineTable, DEFINE_MARKER);
+  return merged;
+}
+
+/** Build the `{ type: { name: struct } }` context view of every AUTHORED
+ *  define currently present in the story's runtime.
+ *
+ *  Discovery walks TYPE TABLES and descends into their member maps rather than
+ *  scanning every global by key: `__def` registers each instance INTO its parent
+ *  and every ancestor type table's map, so a type table's members already are
+ *  its registered instances. This decouples discovery from the global-variable
+ *  scheme — a leaf instance no longer needs a bare/`$type_name` global to be
+ *  found (see project_define_namespace_scoping); it just needs to be registered
+ *  under a type, which it always is.
+ *
+ *  Only INSTANCE tables (those with a `__defineParent`) are emitted, under
+ *  `context[type][name]`. Pure type-namespace roots (implicit parents like
+ *  `animation`) are never registered as members, so they're naturally skipped.
+ *  Because an instance is registered under every ancestor, iterating all type
+ *  tables emits it under each — so `context.character.O` and `context.companion.O`
+ *  both resolve, matching `program.context`. */
+export function buildDefinesContext(
+  story: Story,
+): Record<string, Record<string, unknown>> {
+  const context: Record<string, Record<string, unknown>> = {};
+  const variablesState = story?.state?.variablesState as AnyVal;
+  const globals = variablesState?.["_globalVariables"] as
+    | Map<string, AnyVal>
+    | undefined;
+  if (!globals) return context;
+
+  // Descend every distinct GLOBAL define table's member map, emitting the
+  // registered INSTANCE members under that table's own type name. `__def`
+  // registers each instance into its parent AND every ancestor type table, and
+  // types (roots + `as`-parents) always keep a bare global, so iterating all
+  // global define tables reaches every type and emits each instance under every
+  // type it descends from -- `context.character.O` and `context.companion.O`
+  // both resolve, matching `program.context`.
+  //
+  // Dedupe on OBJECT IDENTITY (`processed`), NOT the `__define` name: two
+  // different tables can share a name (the `character` type root, members
+  // companion/O, vs the `define character as synth` instance `$synth_character`,
+  // whose members are synth props). Name-keying would let one shadow the other
+  // and drop its members. A table whose members hold no instances (a leaf
+  // instance, the synth-instance view of character) simply emits nothing.
+  // `(typeName, instanceName)` dedupe (`emitted`) keeps an instance to one entry
+  // per type. This is why discovery no longer depends on an instance having its
+  // own global key -- it just needs to be registered under a type.
+  const processed = new Set<AnyVal>();
+  const emitted = new Set<string>();
+  for (const name of globals.keys()) {
+    const typeTable = variablesState.GetVariableWithName(name);
+    if (!isDefineTable(typeTable) || processed.has(typeTable)) continue;
+    processed.add(typeTable);
+    const map = asMap(typeTable.value);
+    if (!map) continue;
+    const typeName = metaString(typeTable, DEFINE_MARKER);
+    if (!typeName) continue;
+    // A ROOT type table's own props are the type's defaults. Emit them under
+    // the `$default` key — the same key `program.context` mints for a typed
+    // define (lowerLuauDefine) — so `lookupContextValue`'s terminal
+    // `context[type]["$default"]` fallback resolves on the runtime channel
+    // too. Without it, every lookup that misses by name silently loses the
+    // type's real values to inline zeros: typewriter pacing for `choice N`
+    // targets collapsed 5-16x, and `prosody`/`inflection` (root-only types
+    // with no instances) vanished entirely, muting all dialogue inflection.
+    // Skipped for empty roots (e.g. `color`) so a truthy-but-empty `{}`
+    // never shadows a caller's own fallback chain.
+    if (!metaString(typeTable, DEFINE_PARENT_MARKER)) {
+      const defaults = convertDefine(typeTable, story);
+      if (Object.keys(defaults).some((k) => !k.startsWith("$"))) {
+        defaults["$type"] = typeName;
+        defaults["$name"] = "$default";
+        (context[typeName] ??= {})["$default"] ??= defaults;
+      }
+    }
+    for (const [key, member] of map) {
+      if (META_PROP_KEYS.has(key)) continue;
+      if (!isDefineTable(member)) continue; // a real prop/method, not an instance
+      const parent = metaString(member, DEFINE_PARENT_MARKER);
+      if (!parent) continue; // a root type-namespace table — not a context entry
+      const defName = metaString(member, DEFINE_MARKER);
+      const dedupeKey = `${typeName} ${defName}`;
+      if (emitted.has(dedupeKey)) continue;
+      emitted.add(dedupeKey);
+      (context[typeName] ??= {})[defName] = convertDefine(member, story);
+    }
+  }
+  // Deep-fill every instance from its type's `$default` (authored values
+  // win). The `__index` chain resolves inheritance for most defines, but a
+  // type NAME that is itself multiply-defined in the prelude (`typewriter`
+  // is a root type AND a synth/mixer/channel instance) leaves the flat
+  // global pointing at ONE of those tables — so an authored
+  // `define narrator as typewriter` chains through the wrong parent and
+  // misses the root's props entirely (pacing scales silently collapsed to
+  // inline fallbacks). The `$default` entries emitted above carry exactly
+  // the root's props, and this fill is what makes the runtime channel a
+  // superset of the LSP one for every define (contextChannelEquivalence).
+  applyBuiltinDefaults(context);
+  return context;
+}

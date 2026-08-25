@@ -57,15 +57,15 @@ const rootHasInlinedData = (
  * Resolution mirrors `UIModule.getImageSrcsByName` by calling the same
  * `filterImage` — but on COPIES of the structs, never the program's own.
  * `filterImage` memoizes by writing `filtered_src` back onto the struct it is
- * given, and the player hands the game that very object (`Game` shallow-spreads
- * `program.context`, so the per-type records are shared). Memoizing from here
- * would therefore let a warm-up decide what the game renders — and it would
- * decide it differently, because `Game.applyBuiltinDefaults` fills a `filter`'s
- * unauthored `includes`/`excludes` from `$default` and this sweep runs against
- * the raw compiled structs. For `define f as filter end` those disagree: `[]`
- * removes every filterable non-`default` node, `[""]` removes nothing. A
- * warm-up must never be able to change a pixel, so it resolves in its own
- * scratch space and the engine keeps computing its own answer.
+ * given, so memoizing from here would let a warm-up decide what the game
+ * renders — and it could decide it differently, because the game resolves
+ * `filter` defines through its RUNTIME channel (the `__def` inheritance
+ * chain fills a `filter`'s unauthored `includes`/`excludes`) while this
+ * sweep runs against the compiled `program.context` structs. For
+ * `define f as filter end` those can disagree: `[]` removes every filterable
+ * non-`default` node, `[""]` removes nothing. A warm-up must never be able
+ * to change a pixel, so it resolves in its own scratch space and the engine
+ * keeps computing its own answer.
  */
 export const getProgramImageSrcs = (
   context: { [type: string]: { [name: string]: any } } | undefined,

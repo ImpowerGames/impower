@@ -11,7 +11,7 @@ import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 
 function compileUI(source: string): {
-  screen: Record<string, any>;
+  layout: Record<string, any>;
   component: Record<string, any>;
   errors: string[];
 } {
@@ -44,7 +44,7 @@ function compileUI(source: string): {
   }
   const context = result.program.context ?? {};
   return {
-    screen: context["screen"] ?? {},
+    layout: context["layout"] ?? {},
     component: context["component"] ?? {},
     errors,
   };
@@ -52,7 +52,7 @@ function compileUI(source: string): {
 
 describe("screen · named-element tree", () => {
   test("nested elements + scalars + bare markers", () => {
-    const r = compileUI(`screen main with
+    const r = compileUI(`layout main with
   stage:
     backdrop:
       image = "black"
@@ -63,8 +63,8 @@ describe("screen · named-element tree", () => {
 end
 `);
     expect(r.errors).toEqual([]);
-    expect(r.screen["main"]).toEqual({
-      $type: "screen",
+    expect(r.layout["main"]).toEqual({
+      $type: "layout",
       $name: "main",
       $recursive: true,
       stage: {
@@ -76,6 +76,246 @@ end
         },
       },
     });
+  });
+});
+
+describe("screen · classed element with content", () => {
+  test("`text h1 \"…\"` splits into key = tag + classes, value = content", () => {
+    // The adjacency rule (`tag "content"`) only matches ONE tag token before the
+    // string, so an element carrying style classes AND content falls through to
+    // the bare-marker fallback. It must still lower like the class-less form
+    // rather than stuffing the whole line into the key with an empty value:
+    // UIModule.initLayout reads an empty `text`/`image` leaf as an unwritten
+    // WRITE TARGET and registers its PARENT as a clear-on-continue transient, so
+    // the whole-line-key shape made the engine hide (and wipe) the authored
+    // `column` merely for holding a styled static text.
+    const r = compileUI(`layout main with
+  column:
+    text h1 "Sparkle x Pico"
+    text "plain"
+    image
+end
+`);
+    expect(r.errors).toEqual([]);
+    expect(r.layout["main"]).toEqual({
+      $type: "layout",
+      $name: "main",
+      $recursive: true,
+      column: {
+        "text h1": "Sparkle x Pico",
+        text: "plain",
+        // A genuinely content-less leaf still lowers to `{}` — that IS a write
+        // target, and its parent SHOULD stay transient.
+        image: {},
+      },
+    });
+  });
+
+  test("inline attributes are still excised from a classed content line", () => {
+    const r = compileUI(`layout main with
+  column:
+    text h1 #padding=8 "Titled"
+    button primary "Go" @click=noop
+end
+`);
+    expect(r.errors).toEqual([]);
+    expect(r.layout["main"]!["column"]).toEqual({
+      "text h1": "Titled",
+      "button primary": "Go",
+    });
+  });
+});
+
+describe("screen · reactive content interpolation", () => {
+  test("interpolated content compiles cleanly (binding evaluators hoisted)", () => {
+    // `{expr}` in display content lowers to a hoisted nullary binding function
+    // (`__binding_<from>() return <expr> end`). The full pipeline must compile
+    // those with no errors — a malformed flow or unresolved reference would
+    // surface as a diagnostic here.
+    const r = compileUI(`store hp = 100
+store max_hp = 100
+layout hud with
+  text = "HP: {hp} / {max_hp + 0}"
+end
+`);
+    expect(r.errors).toEqual([]);
+    // Static struct still carries the raw content string (engine path
+    // unchanged in Phase 1).
+    expect(r.layout["hud"]["text"]).toBe("HP: {hp} / {max_hp + 0}");
+  });
+});
+
+describe("screen · adjacency content", () => {
+  test("`tag \"content\"` produces the same context struct as `tag = \"content\"`", () => {
+    const r = compileUI(`layout main with
+  stage:
+    backdrop:
+      image "black"
+end
+`);
+    expect(r.errors).toEqual([]);
+    // Adjacency `image "black"` lowers to { image: "black" } — identical to the
+    // scalar `image = "black"` form (engine static path unchanged).
+    expect(r.layout["main"]["stage"]).toEqual({ backdrop: { image: "black" } });
+  });
+});
+
+describe("screen · inline events", () => {
+  test("`@event` handlers are dropped from the static struct + compile cleanly", () => {
+    const r = compileUI(`store hp = 100
+function use_item()
+end
+function take_damage(n)
+end
+layout hud with
+  row:
+    button "Use" @click=use_item
+    button "Hit" @click=take_damage(10)
+end
+`);
+    expect(r.errors).toEqual([]);
+    // The reactive `@click` attrs are not in the static context struct — only
+    // the element + its content survive.
+    expect(r.layout["hud"]["row"]).toEqual({
+      button: "Hit",
+    });
+  });
+});
+
+describe("screen · inline props", () => {
+  test("`#prop` is dropped from the static struct; container header keeps its `:`", () => {
+    const r = compileUI(`store team_color = "red"
+layout panel with
+  column #gap=16:
+    image #src="icon.png"
+    text "hi" #color={team_color}
+end
+`);
+    expect(r.errors).toEqual([]);
+    // `column #gap=16:` stays a container (the `:` survives attribute excision);
+    // its inline props are absent from the static struct. `image #src=…` → bare
+    // marker {}, `text "hi" #color=…` → { text: "hi" }.
+    expect(r.layout["panel"]["column"]).toEqual({
+      image: {},
+      text: "hi",
+    });
+  });
+});
+
+describe("screen · classes", () => {
+  test("classes stay in the static struct key; content is the value", () => {
+    const r = compileUI(`layout main with
+  stage:
+    mask shadow_1
+    text title "Inventory"
+end
+`);
+    expect(r.errors).toEqual([]);
+    expect(r.layout["main"]["stage"]).toEqual({
+      "mask shadow_1": {},
+      "text title": "Inventory",
+    });
+  });
+
+  // This used to warn. An element line was read as a bag of names, so a builtin
+  // sitting anywhere on it was a candidate TAG, and two of them were ambiguous.
+  //
+  // Position decides now: the FIRST name is the tag and every name after it is a
+  // class, whether or not it happens to also be a builtin. `button text "Oops"`
+  // is a button carrying the `text` class -- unambiguous, so there is nothing to
+  // warn about. Requiring class names to avoid colliding with the ~60 builtins
+  // would be a rule authors could not keep in their heads.
+  test("a builtin name after the tag is a class, not a second tag", () => {
+    const compiler = new SparkdownCompiler();
+    compiler.configure({
+      files: [
+        {
+          uri: "inmemory:///m.sd",
+          type: "script",
+          name: "m",
+          ext: "sd",
+          text: `layout main with
+  stage:
+    button text "Oops"
+end
+`,
+          version: 1,
+          languageId: "sparkdown",
+        },
+      ],
+    });
+    const result = compiler.compile({
+      textDocument: { uri: "inmemory:///m.sd" },
+    });
+    const messages: string[] = [];
+    for (const docDiags of Object.values(result.program.diagnostics ?? {})) {
+      for (const d of docDiags as any[]) {
+        messages.push(
+          typeof d?.message === "string" ? d.message : (d?.message?.value ?? ""),
+        );
+      }
+    }
+    expect(messages.some((m) => m.includes("only have one tag"))).toBe(false);
+    // Not merely unwarned -- actually lowered, as `<button class="button text">`.
+    // Asserting only the absence of the diagnostic would pass just as happily if
+    // the trailing name were dropped on the floor.
+    expect(JSON.stringify(result.program.context?.["layout"])).toContain(
+      "button text",
+    );
+  });
+});
+
+describe("screen · control flow", () => {
+  test("if/elseif/else compiles cleanly (condition evaluators hoisted)", () => {
+    const r = compileUI(`store dead = false
+store hp = 100
+layout hud with
+  if dead then
+    text "over"
+  elseif hp < 10 then
+    text "low"
+  else
+    text "ok"
+  end
+end
+`);
+    // The branch conditions lower to hoisted nullary binding functions; the full
+    // pipeline must compile them with no errors (nested `end`s balance against
+    // the screen's `end`).
+    expect(r.errors).toEqual([]);
+  });
+});
+
+describe("screen · for loop", () => {
+  test("for/in/do/else compiles cleanly (iterable binding hoisted)", () => {
+    const r = compileUI(`store inventory = {}
+function use_item()
+end
+layout bag with
+  for item in inventory do
+    button "Use" @click=use_item
+  else
+    text "empty"
+  end
+end
+`);
+    expect(r.errors).toEqual([]);
+  });
+});
+
+describe("screen · match", () => {
+  test("match/case/else compiles cleanly (matched expr hoisted)", () => {
+    const r = compileUI(`store player_class = "knight"
+layout sheet with
+  match player_class do
+  case "knight"
+    text "Knight"
+  else
+    text "Other"
+  end
+end
+`);
+    expect(r.errors).toEqual([]);
   });
 });
 
@@ -110,7 +350,7 @@ describe("screen · coexistence", () => {
     const r = compileUI(`style title with
   font_size = lg
 end
-screen s with
+layout s with
   textbox:
     title:
       text
@@ -122,6 +362,6 @@ scene main
 end
 `);
     expect(r.errors).toEqual([]);
-    expect(r.screen["s"]["textbox"]).toEqual({ title: { text: {} } });
+    expect(r.layout["s"]["textbox"]).toEqual({ title: { text: {} } });
   });
 });

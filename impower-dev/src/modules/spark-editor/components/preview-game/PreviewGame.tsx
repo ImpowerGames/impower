@@ -148,9 +148,6 @@ export default function PreviewGame(_props: PreviewGameProps) {
         "@impower/spark-engine/src/game/core/classes/messages/GameToggledFullscreenModeMessage"
       ),
       import(
-        "@impower/spark-engine/src/game/modules/DEFAULT_BUILTIN_DEFINITIONS"
-      ),
-      import(
         "@impower/spark-engine/src/game/modules/DEFAULT_DESCRIPTION_DEFINITIONS"
       ),
       import(
@@ -176,7 +173,6 @@ export default function PreviewGame(_props: PreviewGameProps) {
         { GameExitedMessage },
         { GameStartedMessage },
         { GameToggledFullscreenModeMessage },
-        { DEFAULT_BUILTIN_DEFINITIONS },
         { DEFAULT_DESCRIPTION_DEFINITIONS },
         { DEFAULT_OPTIONAL_DEFINITIONS },
         { DEFAULT_SCHEMA_DEFINITIONS },
@@ -260,7 +256,8 @@ export default function PreviewGame(_props: PreviewGameProps) {
               settings: Workspace.configuration.settings,
               files: Object.values(files),
               definitions: {
-                builtins: DEFAULT_BUILTIN_DEFINITIONS,
+                // builtins now come from the implicitly-imported builtins
+                // prelude (useBuiltinsPrelude is the compiler default).
                 optionals: DEFAULT_OPTIONAL_DEFINITIONS,
                 schemas: DEFAULT_SCHEMA_DEFINITIONS,
                 descriptions: DEFAULT_DESCRIPTION_DEFINITIONS,

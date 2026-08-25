@@ -49,20 +49,21 @@ export const inheritDefaults = <T>(value: T, defaults: unknown): T => {
 };
 
 /**
- * Makes every authored define in a game context inherit its type's defaults.
+ * Makes every define in a context inherit its type's `$default` (#268).
  *
- * A `define x as synth with ... end` reaches the runtime carrying ONLY the
- * properties the author actually wrote -- nothing upstream merges the type's
- * defaults in. The builtin structs look complete only because they are built
- * by calling their `default_*()` constructor. So a voice authored as just
- * `pitch = { frequency = 340 }` arrives with no shape, no envelope and no
- * volume, and every consumer has to guess (#268).
+ * `buildDefinesContext` runs this over the runtime channel after assembly:
+ * the `__index` chain resolves inheritance for most defines, but a type NAME
+ * that is itself multiply-defined in the prelude (`typewriter` is a root
+ * type AND a synth/mixer/channel instance) leaves the flat global pointing
+ * at ONE of those tables, so instances of that type chain through the wrong
+ * parent and miss the root's props. The emitted `$default` entries carry the
+ * root's props; this fill closes the gap without consumers guessing.
  *
- * The type's own `$default` struct is already sitting in the context next to
- * the authored ones, so inheritance is resolvable here without knowing
- * anything about particular types. Types whose `$default` carries no real
- * properties -- the structural UI ones like `style`, `screen` and `component`,
- * where being sparse IS the semantics -- come out untouched.
+ * The type's own `$default` struct sits in the context next to the authored
+ * entries, so inheritance is resolvable here without knowing anything about
+ * particular types. Types whose `$default` carries no real properties -- the
+ * structural UI ones like `style`, `screen` and `component`, where being
+ * sparse IS the semantics -- come out untouched.
  *
  * Mutates `context` in place, since it is the freshly-built context object.
  */

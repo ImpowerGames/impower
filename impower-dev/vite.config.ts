@@ -17,6 +17,12 @@ import { createRequire } from "module";
 import path from "path";
 import glob from "tiny-glob";
 import { build, defineConfig, Plugin } from "vite";
+import { filterSVG } from "../packages/sparkdown/src/compiler/utils/filterSVG";
+import {
+  parseImageFilterParam,
+  serializeImageFilterParam,
+} from "../packages/sparkdown/src/filters/filteredSvg";
+import { clampThumbnailWidth } from "../packages/sparkdown/src/thumbnails/composeThumbnail";
 import pkg from "./package.json";
 import staticallyRenderPage from "./src/build/staticallyRenderPage.js";
 
@@ -296,6 +302,330 @@ const viteStaticallyRenderedPagesPlugin = (): Plugin => ({
         { ignoreInitial: true },
       )
       .on("change", scheduleReload);
+
+    // --- Dev asset mirror (service-worker-less fallback) ---------------------
+    // Project assets normally resolve through the service worker, which serves
+    // `/file:/local/...` straight out of the page's OPFS. Some embedded
+    // browsers refuse service-worker registration outright ("An unknown error
+    // occurred when fetching the script"), which leaves every asset URL a 404
+    // and the game preview imageless. In dev, the page detects that state and
+    // uploads its OPFS files here (see pages/devAssetMirror.ts); this
+    // middleware then answers the very same `/file:/...` URLs from the mirror,
+    // so nothing downstream changes. Version tags mirror the `?v=` scheme
+    // (`<mtime>-<size>`), letting the page skip re-uploading unchanged files.
+    // The `?thumb=` / `?filters=` transforms run here too, so mirrored art
+    // matches what the worker would have served.
+    //
+    // Storage is bucketed PER CLIENT (`<mirror>/<clientId>/<opfs path>`): one
+    // dev server commonly serves several browsers — the app's embedded pane, a
+    // headless test browser, a normal window — each with different project
+    // files in its own origin storage. A single path-keyed bucket let the last
+    // writer clobber the others (observed: a test browser's 171-byte scratch
+    // `main.sd` replaced a real 200 kB project), which the restore path would
+    // then hand back as if it were the user's work.
+    const assetMirrorRoot = path.join(outDevDir, "asset-mirror");
+    const assetMirrorManifestPath = path.join(
+      assetMirrorRoot,
+      ".manifests.json",
+    );
+    // clientId -> { path -> versionTag }
+    let assetMirrorManifests: Record<string, Record<string, string>> = {};
+    try {
+      assetMirrorManifests = JSON.parse(
+        fs.readFileSync(assetMirrorManifestPath, "utf-8"),
+      );
+    } catch {
+      // First run — empty mirror.
+    }
+    const saveAssetMirrorManifest = () => {
+      fs.mkdirSync(assetMirrorRoot, { recursive: true });
+      fs.writeFileSync(
+        assetMirrorManifestPath,
+        JSON.stringify(assetMirrorManifests),
+      );
+    };
+    // A client id must be a single, safe path segment.
+    const validClientId = (id: string | null | undefined): string | undefined =>
+      id && /^[A-Za-z0-9_-]{1,64}$/.test(id) ? id : undefined;
+    // A client's manifest, rebuilt from its bucket on disk when we have none
+    // in memory. Keeps the mirror self-healing: the bucket is the truth, so a
+    // bucket populated out-of-band (a restore seeded from a backup, a server
+    // restart after the manifest file was lost) is still served and still
+    // restorable. Version tags then come from the files themselves, so the
+    // client re-uploads once to re-establish ITS tags — cheap and rare.
+    const manifestForClient = (client: string): Record<string, string> => {
+      const cached = assetMirrorManifests[client];
+      if (cached) {
+        return cached;
+      }
+      const bucket = path.join(assetMirrorRoot, client);
+      const rebuilt: Record<string, string> = {};
+      const walk = (dir: string, prefix: string) => {
+        let entries: fs.Dirent[];
+        try {
+          entries = fs.readdirSync(dir, { withFileTypes: true });
+        } catch {
+          return;
+        }
+        for (const e of entries) {
+          const rel = prefix ? `${prefix}/${e.name}` : e.name;
+          const abs = path.join(dir, e.name);
+          if (e.isDirectory()) {
+            walk(abs, rel);
+          } else {
+            const st = fs.statSync(abs);
+            rebuilt[rel] = `${Math.round(st.mtimeMs)}-${st.size}`;
+          }
+        }
+      };
+      walk(bucket, "");
+      if (Object.keys(rebuilt).length > 0) {
+        assetMirrorManifests[client] = rebuilt;
+        saveAssetMirrorManifest();
+      }
+      return rebuilt;
+    };
+    const MIRROR_MIME: Record<string, string> = {
+      png: "image/png",
+      webp: "image/webp",
+      jpg: "image/jpeg",
+      jpeg: "image/jpeg",
+      gif: "image/gif",
+      svg: "image/svg+xml",
+      ogg: "audio/ogg",
+      mp3: "audio/mpeg",
+      wav: "audio/wav",
+      mid: "audio/midi",
+      ttf: "font/ttf",
+      otf: "font/otf",
+      woff: "font/woff",
+      woff2: "font/woff2",
+      txt: "text/plain",
+      json: "application/json",
+      sd: "text/plain",
+    };
+    // Filtered-SVG variants generated by the mirror, keyed by
+    // (path × canonical filter × file signature). Session-lifetime is fine:
+    // a changed file changes its signature, so stale entries are simply
+    // never hit again (and a dev-server restart empties the map).
+    const filteredSvgMirrorCache = new Map<string, string>();
+    // Downscaled `?thumb=` webp variants, same key discipline (path × clamped
+    // width × file signature). `sharp` is a dev-only optionalish dependency:
+    // loaded lazily, and if it's missing the mirror serves original bytes —
+    // the same graceful fallback the service worker uses when it can't
+    // rasterize.
+    const thumbnailMirrorCache = new Map<string, Buffer>();
+    let sharpModule: Promise<any> | undefined;
+    const loadSharp = () =>
+      (sharpModule ??= import("sharp").then(
+        (m) => m.default ?? m,
+        () => undefined,
+      ));
+    // Resolve a path inside ONE client's bucket (rejects traversal escapes).
+    const resolveMirrorPath = (
+      client: string,
+      rel: string,
+    ): string | undefined => {
+      const bucket = path.resolve(assetMirrorRoot, client);
+      const abs = path.resolve(bucket, rel);
+      if (!abs.startsWith(bucket + path.sep)) {
+        return undefined;
+      }
+      return abs;
+    };
+    // Which client bucket answers a plain `/file:/` request? The browser can't
+    // put its id on those URLs (they're built deep in the engine), so it is
+    // carried by a cookie the mirror sets on the client's first upload.
+    const clientFromCookie = (req: {
+      headers: Record<string, any>;
+    }): string | undefined => {
+      const raw = String(req.headers["cookie"] ?? "");
+      const match = raw.match(/(?:^|;\s*)devAssetMirrorClient=([^;]+)/);
+      return validClientId(match?.[1]);
+    };
+    server.middlewares.use(async (req, res, next) => {
+      try {
+        if (!req.url) return next();
+        const [rawPath, query] = req.url.split("?");
+        const url = decodeURIComponent(rawPath ?? "");
+
+        if (url === "/__dev-asset-mirror/manifest" && req.method === "GET") {
+          const client = validClientId(
+            new URLSearchParams(query ?? "").get("client"),
+          );
+          res.statusCode = 200;
+          res.setHeader("Content-Type", "application/json");
+          if (client) {
+            // Bind the browser to its bucket here, at its FIRST mirror call,
+            // so plain `/file:/` asset requests resolve even before (or
+            // instead of) any upload — e.g. right after a restore.
+            res.setHeader(
+              "Set-Cookie",
+              `devAssetMirrorClient=${client}; Path=/; SameSite=Lax`,
+            );
+          }
+          res.end(JSON.stringify(client ? manifestForClient(client) : {}));
+          return;
+        }
+
+        // Raw read of a mirrored file, bypassing the `/file:/` protocol. A
+        // controlling service worker intercepts every `/file:/` request and
+        // answers it from ITS origin's OPFS, so that path can't be used to
+        // seed or inspect the mirror from a page that has a working worker
+        // (tooling, and any future "copy the project into this browser" flow).
+        if (url.startsWith("/__dev-asset-mirror/") && req.method === "GET") {
+          const [client, ...restSegs] = url
+            .replace("/__dev-asset-mirror/", "")
+            .split("/");
+          const validClient = validClientId(client);
+          const abs = validClient
+            ? resolveMirrorPath(validClient, restSegs.join("/"))
+            : undefined;
+          if (abs && fs.existsSync(abs) && fs.statSync(abs).isFile()) {
+            const ext = path.extname(abs).slice(1).toLowerCase();
+            res.statusCode = 200;
+            res.setHeader(
+              "Content-Type",
+              MIRROR_MIME[ext] ?? "application/octet-stream",
+            );
+            res.end(fs.readFileSync(abs));
+            return;
+          }
+          res.statusCode = 404;
+          res.end("not mirrored");
+          return;
+        }
+
+        if (url.startsWith("/__dev-asset-mirror/") && req.method === "PUT") {
+          const [client, ...restSegs] = url
+            .replace("/__dev-asset-mirror/", "")
+            .split("/");
+          const validClient = validClientId(client);
+          const rel = restSegs.join("/");
+          const abs = validClient
+            ? resolveMirrorPath(validClient, rel)
+            : undefined;
+          if (!validClient || !abs) {
+            res.statusCode = 400;
+            res.end("bad path");
+            return;
+          }
+          const tag = new URLSearchParams(query ?? "").get("v") ?? "";
+          const chunks: Buffer[] = [];
+          req.on("data", (c: Buffer) => chunks.push(c));
+          req.on("end", () => {
+            fs.mkdirSync(path.dirname(abs), { recursive: true });
+            fs.writeFileSync(abs, Buffer.concat(chunks));
+            assetMirrorManifests[validClient] ??= {};
+            assetMirrorManifests[validClient]![rel] = tag;
+            saveAssetMirrorManifest();
+            // Bind this browser to its bucket so its plain `/file:/` asset
+            // requests (which carry no client id) resolve here.
+            res.setHeader(
+              "Set-Cookie",
+              `devAssetMirrorClient=${validClient}; Path=/; SameSite=Lax`,
+            );
+            res.statusCode = 200;
+            res.end("ok");
+          });
+          req.on("error", () => {
+            res.statusCode = 500;
+            res.end("upload failed");
+          });
+          return;
+        }
+
+        if (url.startsWith("/file:/") && req.method === "GET") {
+          const rel = url.replace("/file:/", "");
+          const client = clientFromCookie(req as any);
+          const abs = client ? resolveMirrorPath(client, rel) : undefined;
+          if (abs && fs.existsSync(abs) && fs.statSync(abs).isFile()) {
+            const ext = path.extname(abs).slice(1).toLowerCase();
+            const mime = MIRROR_MIME[ext] ?? "application/octet-stream";
+            // `?thumb=<maxWidthPx>` — the asset browser's downscaled preview,
+            // normally produced by the service worker (decode + resize + tiny
+            // webp, sw.ts). Same contract here via `sharp`: raster images
+            // only, width clamped to the shared [16, 512] range, webp at the
+            // same 0.75 quality, and ANY failure (sharp missing, undecodable
+            // bytes) falls through to the original — the SW's fallback too.
+            const params = new URLSearchParams(query ?? "");
+            const thumbParam = params.get("thumb");
+            const isRaster =
+              mime.startsWith("image/") && mime !== "image/svg+xml";
+            if (thumbParam && isRaster) {
+              const sharp = await loadSharp();
+              if (sharp) {
+                try {
+                  const width = clampThumbnailWidth(thumbParam);
+                  const stat = fs.statSync(abs);
+                  const cacheKey = `${rel}?thumb=${width}&sig=${stat.mtimeMs}-${stat.size}`;
+                  let thumb = thumbnailMirrorCache.get(cacheKey);
+                  if (!thumb) {
+                    thumb = (await sharp(fs.readFileSync(abs))
+                      .resize({ width })
+                      .webp({ quality: 75 })
+                      .toBuffer()) as Buffer;
+                    thumbnailMirrorCache.set(cacheKey, thumb);
+                  }
+                  res.statusCode = 200;
+                  res.setHeader("Content-Type", "image/webp");
+                  res.setHeader(
+                    "Cache-Control",
+                    "max-age=31536000, immutable",
+                  );
+                  res.end(thumb);
+                  return;
+                } catch {
+                  // Undecodable bytes — serve the original below.
+                }
+              }
+            }
+            // `filtered_image` variants arrive as `?filters=<param>` on the
+            // root SVG's url — a service-worker feature (sw.ts runs
+            // `filterSVG` lazily per fetch). Run the SAME shared filter here
+            // so mirrored art keeps its variants: garbage or no-op params
+            // fall through to the unfiltered original, exactly like the SW.
+            // Cached per (file signature × canonical param) — showing an
+            // image fetches the same variant url twice (background-image +
+            // hidden <img>, #344), so a fresh filter per request would double
+            // the parse cost of every portrait beat.
+            if (ext === "svg") {
+              const filtersParam = params.get("filters");
+              const filter = filtersParam
+                ? parseImageFilterParam(filtersParam)
+                : undefined;
+              const canonical = filter
+                ? serializeImageFilterParam(filter)
+                : undefined;
+              if (filter && canonical) {
+                const stat = fs.statSync(abs);
+                const cacheKey = `${rel}?filters=${canonical}&sig=${stat.mtimeMs}-${stat.size}`;
+                let filtered = filteredSvgMirrorCache.get(cacheKey);
+                if (filtered === undefined) {
+                  filtered = filterSVG(fs.readFileSync(abs, "utf-8"), filter);
+                  filteredSvgMirrorCache.set(cacheKey, filtered);
+                }
+                res.statusCode = 200;
+                res.setHeader("Content-Type", "image/svg+xml");
+                res.setHeader("Cache-Control", "max-age=31536000, immutable");
+                res.end(filtered);
+                return;
+              }
+            }
+            res.statusCode = 200;
+            res.setHeader("Content-Type", mime);
+            res.setHeader("Cache-Control", "max-age=31536000, immutable");
+            res.end(fs.readFileSync(abs));
+            return;
+          }
+          // Not mirrored — fall through (a controlling service worker never
+          // lets these requests reach the server anyway).
+        }
+      } catch (err) {
+        console.error("dev-asset-mirror middleware error", err);
+      }
+      return next();
+    });
 
     // Inject custom middleware into Vite's dev server
     server.middlewares.use(async (req, res, next) => {

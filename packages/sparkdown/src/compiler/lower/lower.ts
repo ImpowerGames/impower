@@ -22,6 +22,7 @@ import {
   lowerExpressionFromNodes,
 } from "./expression/lowerExpression";
 import { wrapInWeave } from "./utils/wrapInWeave";
+import { validateAssignmentValue } from "./utils/validateAssignmentValue";
 import {
   lowerAudioLine,
   lowerImageAndAudioLine,
@@ -58,7 +59,8 @@ import { lowerInclude } from "./lowerers/lowerInclude";
 import { lowerRun } from "./lowerers/lowerRun";
 import { lowerLuauDefine } from "./lowerers/lowerLuauDefine";
 import { lowerLuauStyle } from "./lowerers/lowerLuauStyle";
-import { lowerLuauUI } from "./lowerers/lowerLuauUI";
+import { lowerLuauStructDefine } from "./lowerers/lowerLuauStructDefine";
+import { lowerLuauUI, lowerLuauScreen } from "./lowerers/lowerLuauUI";
 import { lowerLuauExternalDeclaration } from "./lowerers/lowerLuauExternalDeclaration";
 import { lowerLuauFunctionDefinition } from "./lowerers/lowerLuauFunctionDefinition";
 import {
@@ -150,11 +152,13 @@ function lowerInner(
     case "ImplicitAction":
       return lowerImplicitAction(nodeRef, ctx);
     case "LuauInterpolatedStringExpression":
-      // Bare `{ expr }` lines at top level — the grammar matches these
-      // as `LuauInterpolatedStringExpression` directly (not wrapped in
-      // ImplicitAction the way `text {expr} text` lines are). Sparkdown
-      // handles them via `lowerExpressionFromContainer`; this case is
-      // required so they're handled here directly (there is no parser
+    case "LuauFunctionCallShorthand":
+      // Bare `{ expr }` / `{{fn}}` lines at top level — the grammar matches
+      // these directly (not wrapped in ImplicitAction the way
+      // `text {expr} text` lines are). Sparkdown handles them via
+      // `lowerExpressionFromContainer` (which applies the `{{...}}`
+      // call-shorthand coercion when the node is the shorthand); this case
+      // is required so they're handled here directly (there is no parser
       // fallback — the grammar+lowerers are the only path — and nothing
       // else would know Luau-specific operators `^`, `//`, `..`).
       return lowerLuauInterpolatedStringExpression(nodeRef, ctx);
@@ -251,10 +255,16 @@ function lowerInner(
       return lowerLuauDefine(nodeRef, ctx);
     case "LuauStyle":
       return lowerLuauStyle(nodeRef, ctx);
+    case "LuauLayout":
+      return lowerLuauUI(nodeRef, ctx, "layout");
     case "LuauScreen":
-      return lowerLuauUI(nodeRef, ctx, "screen");
+      return lowerLuauScreen(nodeRef, ctx);
     case "LuauComponent":
       return lowerLuauUI(nodeRef, ctx, "component");
+    case "LuauAnimation":
+      return lowerLuauStructDefine(nodeRef, ctx, "animation");
+    case "LuauTheme":
+      return lowerLuauStructDefine(nodeRef, ctx, "theme");
     case "LuauFunctionDefinition":
       return lowerLuauFunctionDefinition(nodeRef, ctx);
     case "LuauIfBlock":
@@ -653,6 +663,7 @@ function lowerMultiTargetReassignment(
   // property and variable targets is common in Luau (`a.x, b = …`,
   // `a[f()], b, a[f()+3] = f(), a, 'x'`) — this fixture shape is
   // attrib.luau lines 13, 15.
+  validateAssignmentValue(multi.op, ctx);
   const allSimple = multi.targets.every((t) => isSimpleVariableTarget(t));
   const firstRhs = lowerExpressionFromContainer(multi.op, ctx);
   const trailingExprs = multi.trailingExprGroups

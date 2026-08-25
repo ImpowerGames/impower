@@ -32,11 +32,11 @@ sparkdown [0..41]
      │       │           │       │       │   ├─ Space [12..13]: " "
      │       │           │       │       │   ├─ Word [13..22]: "companion"
      │       │           │       │       │   ├─ Space [22..23]: " "
-     │       │           │       │       │   ├─ LuauInterpolatedStringExpression [23..28]
-     │       │           │       │       │   │   ├─ LuauInterpolatedStringExpression_begin [23..24]
-     │       │           │       │       │   │   │   └─ LuauInterpolatedStringExpression_begin_c1 [23..24]
+     │       │           │       │       │   ├─ LuauBacktickStringInterpolation [23..28]
+     │       │           │       │       │   │   ├─ LuauBacktickStringInterpolation_begin [23..24]
+     │       │           │       │       │   │   │   └─ LuauBacktickStringInterpolation_begin_c1 [23..24]
      │       │           │       │       │   │   │       └─ PunctuationBraceOpen [23..24]: "{"
-     │       │           │       │       │   │   ├─ LuauInterpolatedStringExpression_content [24..27]
+     │       │           │       │       │   │   ├─ LuauBacktickStringInterpolation_content [24..27]
      │       │           │       │       │   │   │   └─ LuauAccessPath [24..27]
      │       │           │       │       │   │   │       ├─ LuauAccessPath_begin 24
      │       │           │       │       │   │   │       ├─ LuauAccessPath_content [24..27]
@@ -46,16 +46,16 @@ sparkdown [0..41]
      │       │           │       │       │   │   │       │               └─ LuauVariableName [24..27]: "key"
      │       │           │       │       │   │   │       └─ LuauAccessPath_end 27
      │       │           │       │       │   │   │           └─ LuauAccessPath_end_c1 27
-     │       │           │       │       │   │   └─ LuauInterpolatedStringExpression_end [27..28]
-     │       │           │       │       │   │       └─ LuauInterpolatedStringExpression_end_c1 [27..28]
+     │       │           │       │       │   │   └─ LuauBacktickStringInterpolation_end [27..28]
+     │       │           │       │       │   │       └─ LuauBacktickStringInterpolation_end_c1 [27..28]
      │       │           │       │       │   │           └─ PunctuationBraceClose [27..28]: "}"
      │       │           │       │       │   ├─ Space [28..29]: " "
      │       │           │       │       │   ├─ Punctuation [29..30]: "("
-     │       │           │       │       │   ├─ LuauInterpolatedStringExpression [30..38]
-     │       │           │       │       │   │   ├─ LuauInterpolatedStringExpression_begin [30..31]
-     │       │           │       │       │   │   │   └─ LuauInterpolatedStringExpression_begin_c1 [30..31]
+     │       │           │       │       │   ├─ LuauBacktickStringInterpolation [30..38]
+     │       │           │       │       │   │   ├─ LuauBacktickStringInterpolation_begin [30..31]
+     │       │           │       │       │   │   │   └─ LuauBacktickStringInterpolation_begin_c1 [30..31]
      │       │           │       │       │   │   │       └─ PunctuationBraceOpen [30..31]: "{"
-     │       │           │       │       │   │   ├─ LuauInterpolatedStringExpression_content [31..37]
+     │       │           │       │       │   │   ├─ LuauBacktickStringInterpolation_content [31..37]
      │       │           │       │       │   │   │   └─ LuauAccessPath [31..37]
      │       │           │       │       │   │   │       ├─ LuauAccessPath_begin 31
      │       │           │       │       │   │   │       ├─ LuauAccessPath_content [31..37]
@@ -73,8 +73,8 @@ sparkdown [0..41]
      │       │           │       │       │   │   │       │               └─ LuauPropertyName [33..37]: "name"
      │       │           │       │       │   │   │       └─ LuauAccessPath_end 37
      │       │           │       │       │   │   │           └─ LuauAccessPath_end_c1 37
-     │       │           │       │       │   │   └─ LuauInterpolatedStringExpression_end [37..38]
-     │       │           │       │       │   │       └─ LuauInterpolatedStringExpression_end_c1 [37..38]
+     │       │           │       │       │   │   └─ LuauBacktickStringInterpolation_end [37..38]
+     │       │           │       │       │   │       └─ LuauBacktickStringInterpolation_end_c1 [37..38]
      │       │           │       │       │   │           └─ PunctuationBraceClose [37..38]: "}"
      │       │           │       │       │   └─ Punctuation [38..39]: ")"
      │       │           │       │       └─ LuauInterpolatedString_end [39..40]

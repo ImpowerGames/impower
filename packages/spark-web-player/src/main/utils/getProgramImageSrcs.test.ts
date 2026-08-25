@@ -4,6 +4,11 @@
 // length of that fetch. These tests pin that the warm set contains the
 // DISPLAYED url, not just the root one.
 
+// Side-effect import FIRST: the inkjs engine has a Container↔Value↔Object
+// module cycle, and importing UIModule cold lets Object.ts load first, which
+// makes `Container extends InkObject` see undefined. Priming Container fixes
+// the load order (same pattern as spark-engine's FilteredLayeredImage.test.ts).
+import "@impower/sparkdown/src/inkjs/engine/Container";
 import { UIModule } from "@impower/spark-engine/src/game/modules/ui/classes/UIModule";
 import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
 import { describe, expect, it } from "vitest";

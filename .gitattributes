@@ -1,29 +1,40 @@
-# Normalize all text files to LF in the repository on every platform,
-# regardless of `core.autocrlf`. Keeps line endings consistent and stops
-# editors/formatters on Windows from silently committing CRLF — which otherwise
-# flips a touched file's whole content in the diff (`\r\n` vs `\n` on every
-# line). `text=auto` lets git auto-detect binary vs text; `eol=lf` forces LF for
-# anything detected as text.
+# Normalize line endings: store as LF in the repo and check out as LF on every
+# platform. Without this, git's core.autocrlf=true rewrites text files to CRLF
+# in the Windows working tree, which shifts parse offsets and newline tokens and
+# breaks the sparkdown grammar/compile snapshot tests (snapshots are LF-based).
 * text=auto eol=lf
 
-# Binary assets — never normalize (git usually auto-detects these, but be
-# explicit so a stray heuristic never rewrites them).
+# Explicit text types (authoring + source + snapshots) — always LF.
+*.sd    text eol=lf
+*.snap  text eol=lf
+*.ts    text eol=lf
+*.tsx   text eol=lf
+*.js    text eol=lf
+*.jsx   text eol=lf
+*.json  text eol=lf
+*.md    text eol=lf
+*.yaml  text eol=lf
+*.yml   text eol=lf
+*.css   text eol=lf
+*.html  text eol=lf
+*.svg   text eol=lf
+
+# Binary assets — never normalize (protect from EOL/diff mangling).
 *.png   binary
 *.jpg   binary
 *.jpeg  binary
 *.gif   binary
 *.webp  binary
 *.ico   binary
-*.ttf   binary
 *.woff  binary
 *.woff2 binary
+*.ttf   binary
+*.otf   binary
+*.eot   binary
+*.wav   binary
+*.mp3   binary
+*.ogg   binary
+*.m4a   binary
+*.mp4   binary
 *.pdf   binary
-
-# Grammar test fixtures (`.sd`) are read byte-for-byte by the snapshot tests,
-# and the `.snap` / `.vsc.snap` baselines are generated on LF checkouts. Force
-# LF for both on every platform so the snapshot suites are byte-stable
-# regardless of `core.autocrlf` — without this, a Windows checkout rewrites the
-# fixtures to CRLF and every newline-bearing snapshot diffs (`"\r\n"` vs
-# `"\n"`, span lengths off by one per line). See GRAMMAR.md §17.
-*.sd    text eol=lf
-*.snap  text eol=lf
+*.zip   binary

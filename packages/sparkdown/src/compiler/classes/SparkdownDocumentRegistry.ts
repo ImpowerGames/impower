@@ -160,6 +160,7 @@ export class SparkdownDocumentRegistry {
             documentLengthAfterChange,
           ),
           this._annotate,
+          afterDocument.uri,
         );
       }
       state.treeVersion = afterDocument.version;
@@ -174,7 +175,7 @@ export class SparkdownDocumentRegistry {
       const text = Text.of(afterDocument.getText().split("\n"));
       state.tree = this._parser.parse(afterDocument);
       state.treeFragments = TreeFragment.addTree(state.tree);
-      state.annotators.create(state.tree, text, this._annotate);
+      state.annotators.create(state.tree, text, this._annotate, afterDocument.uri);
       state.treeVersion = afterDocument.version;
       profile("end", this._profilerId, "fullParse", beforeDocument.uri);
       if (DEBUG) {

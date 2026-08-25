@@ -1,0 +1,975 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`image > animated (non-instant) show emits per-layer animate 1`] = `
+[
+  {
+    "kind": "notification",
+    "method": "ui/batch",
+    "params": {
+      "messages": [
+        {
+          "id": "req-1",
+          "kind": "request",
+          "method": "ui/update",
+          "params": {
+            "attributes": undefined,
+            "breakpoints": {
+              "lg": 1024,
+              "md": 768,
+              "sm": 640,
+              "xl": 1280,
+              "xs": 400,
+            },
+            "content": undefined,
+            "element": "e-1",
+            "style": {
+              "display": null,
+            },
+          },
+        },
+      ],
+    },
+  },
+  {
+    "id": "req-2",
+    "kind": "request",
+    "method": "ui/write-image",
+    "params": {
+      "instant": false,
+      "instructions": [
+        {
+          "content": {
+            "background": "url("https://example.com/bg.png")",
+            "enterAnimation": {
+              "$name": "show",
+              "$type": "animation",
+              "keyframes": [
+                {
+                  "opacity": "1",
+                },
+              ],
+              "target": {
+                "$name": "self",
+                "$type": "layer",
+              },
+              "timing": {
+                "delay": "0s",
+                "direction": "normal",
+                "duration": 0,
+                "easing": "linear",
+                "fill": "both",
+                "iterations": 1,
+              },
+            },
+            "imageNames": "BG",
+            "previousHideAnimation": {
+              "$name": "hide",
+              "$type": "animation",
+              "keyframes": [
+                {
+                  "opacity": "0",
+                },
+              ],
+              "target": {
+                "$name": "self",
+                "$type": "layer",
+              },
+              "timing": {
+                "delay": "0s",
+                "direction": "normal",
+                "duration": 0,
+                "easing": "linear",
+                "fill": "both",
+                "iterations": 1,
+              },
+            },
+            "src": "https://example.com/bg.png",
+          },
+          "control": "show",
+          "targetAnimations": [
+            {
+              "$name": "show",
+              "$type": "animation",
+              "keyframes": [
+                {
+                  "opacity": "1",
+                },
+              ],
+              "target": {
+                "$name": "self",
+                "$type": "layer",
+              },
+              "timing": {
+                "delay": "0s",
+                "direction": "normal",
+                "duration": "0s",
+                "easing": "linear",
+                "fill": "both",
+                "iterations": 1,
+              },
+            },
+          ],
+        },
+      ],
+      "target": "backdrop",
+    },
+  },
+]
+`;
+
+exports[`image > hide backdrop 1`] = `
+[
+  {
+    "kind": "notification",
+    "method": "ui/batch",
+    "params": {
+      "messages": [
+        {
+          "id": "req-1",
+          "kind": "request",
+          "method": "ui/update",
+          "params": {
+            "attributes": undefined,
+            "breakpoints": {
+              "lg": 1024,
+              "md": 768,
+              "sm": 640,
+              "xl": 1280,
+              "xs": 400,
+            },
+            "content": undefined,
+            "element": "e-1",
+            "style": {
+              "display": null,
+            },
+          },
+        },
+      ],
+    },
+  },
+  {
+    "id": "req-2",
+    "kind": "request",
+    "method": "ui/write-image",
+    "params": {
+      "instant": true,
+      "instructions": [
+        {
+          "content": {
+            "background": "url("https://example.com/bg.png")",
+            "enterAnimation": {
+              "$name": "show",
+              "$type": "animation",
+              "keyframes": [
+                {
+                  "opacity": "1",
+                },
+              ],
+              "target": {
+                "$name": "self",
+                "$type": "layer",
+              },
+              "timing": {
+                "delay": "0s",
+                "direction": "normal",
+                "duration": "0s",
+                "easing": "linear",
+                "fill": "both",
+                "iterations": 1,
+              },
+            },
+            "imageNames": "BG",
+            "previousHideAnimation": {
+              "$name": "hide",
+              "$type": "animation",
+              "keyframes": [
+                {
+                  "opacity": "0",
+                },
+              ],
+              "target": {
+                "$name": "self",
+                "$type": "layer",
+              },
+              "timing": {
+                "delay": "0s",
+                "direction": "normal",
+                "duration": "0s",
+                "easing": "linear",
+                "fill": "both",
+                "iterations": 1,
+              },
+            },
+            "src": "https://example.com/bg.png",
+          },
+          "control": "show",
+          "targetAnimations": [
+            {
+              "$name": "show",
+              "$type": "animation",
+              "keyframes": [
+                {
+                  "opacity": "1",
+                },
+              ],
+              "target": {
+                "$name": "self",
+                "$type": "layer",
+              },
+              "timing": {
+                "delay": "0s",
+                "direction": "normal",
+                "duration": "0s",
+                "easing": "linear",
+                "fill": "both",
+                "iterations": 1,
+              },
+            },
+          ],
+        },
+        {
+          "control": "hide",
+          "targetAnimations": [
+            {
+              "$name": "hide",
+              "$type": "animation",
+              "keyframes": [
+                {
+                  "opacity": "0",
+                },
+              ],
+              "target": {
+                "$name": "self",
+                "$type": "layer",
+              },
+              "timing": {
+                "delay": "0s",
+                "direction": "normal",
+                "duration": "0s",
+                "easing": "linear",
+                "fill": "both",
+                "iterations": 1,
+              },
+            },
+          ],
+        },
+      ],
+      "target": "backdrop",
+    },
+  },
+]
+`;
+
+exports[`image > image animate directive 1`] = `
+[
+  {
+    "kind": "notification",
+    "method": "ui/batch",
+    "params": {
+      "messages": [
+        {
+          "id": "req-1",
+          "kind": "request",
+          "method": "ui/update",
+          "params": {
+            "attributes": undefined,
+            "breakpoints": {
+              "lg": 1024,
+              "md": 768,
+              "sm": 640,
+              "xl": 1280,
+              "xs": 400,
+            },
+            "content": undefined,
+            "element": "e-1",
+            "style": {
+              "display": null,
+            },
+          },
+        },
+      ],
+    },
+  },
+  {
+    "id": "req-2",
+    "kind": "request",
+    "method": "ui/write-image",
+    "params": {
+      "instant": true,
+      "instructions": [
+        {
+          "content": {
+            "background": "url("https://example.com/hero.png")",
+            "enterAnimation": {
+              "$name": "show",
+              "$type": "animation",
+              "keyframes": [
+                {
+                  "opacity": "1",
+                },
+              ],
+              "target": {
+                "$name": "self",
+                "$type": "layer",
+              },
+              "timing": {
+                "delay": "0s",
+                "direction": "normal",
+                "duration": "0s",
+                "easing": "linear",
+                "fill": "both",
+                "iterations": 1,
+              },
+            },
+            "imageNames": "SPRITE",
+            "previousHideAnimation": {
+              "$name": "hide",
+              "$type": "animation",
+              "keyframes": [
+                {
+                  "opacity": "0",
+                },
+              ],
+              "target": {
+                "$name": "self",
+                "$type": "layer",
+              },
+              "timing": {
+                "delay": "0s",
+                "direction": "normal",
+                "duration": "0s",
+                "easing": "linear",
+                "fill": "both",
+                "iterations": 1,
+              },
+            },
+            "src": "https://example.com/hero.png",
+          },
+          "control": "show",
+          "targetAnimations": [
+            {
+              "$name": "show",
+              "$type": "animation",
+              "keyframes": [
+                {
+                  "opacity": "1",
+                },
+              ],
+              "target": {
+                "$name": "self",
+                "$type": "layer",
+              },
+              "timing": {
+                "delay": "0s",
+                "direction": "normal",
+                "duration": "0s",
+                "easing": "linear",
+                "fill": "both",
+                "iterations": 1,
+              },
+            },
+          ],
+        },
+        {
+          "control": "animate",
+          "targetAnimations": [
+            {
+              "$name": "shake",
+              "$type": "animation",
+              "keyframes": [
+                {
+                  "transform": "translate(0.4vh, 0.2vh)",
+                },
+                {
+                  "transform": "translate(-0.2vh, -0.4vh)",
+                },
+                {
+                  "transform": "translate(-0.6vh, 0vh)",
+                },
+                {
+                  "transform": "translate(0vh, 0.4vh)",
+                },
+                {
+                  "transform": "translate(0.2vh, -0.2vh)",
+                },
+                {
+                  "transform": "translate(-0.2vh, 0.4vh)",
+                },
+                {
+                  "transform": "translate(-0.6vh, 0.2vh)",
+                },
+                {
+                  "transform": "translate(0.4vh, 0.2vh)",
+                },
+                {
+                  "transform": "translate(-0.2vh, -0.2vh)",
+                },
+                {
+                  "transform": "translate(0.4vh, 0.4vh)",
+                },
+                {
+                  "transform": "translate(0.2vh, -0.4vh)",
+                },
+              ],
+              "target": {
+                "$name": "self",
+                "$type": "layer",
+              },
+              "timing": {
+                "delay": "0s",
+                "direction": "normal",
+                "duration": "0s",
+                "easing": "ease-in-out",
+                "fill": "none",
+                "iterations": 1,
+              },
+            },
+          ],
+        },
+      ],
+      "target": "portrait",
+    },
+  },
+]
+`;
+
+exports[`image > layered images (multi-asset SPRITE+SHADOW) stack background_image 1`] = `
+[
+  {
+    "kind": "notification",
+    "method": "ui/batch",
+    "params": {
+      "messages": [
+        {
+          "id": "req-1",
+          "kind": "request",
+          "method": "ui/update",
+          "params": {
+            "attributes": undefined,
+            "breakpoints": {
+              "lg": 1024,
+              "md": 768,
+              "sm": 640,
+              "xl": 1280,
+              "xs": 400,
+            },
+            "content": undefined,
+            "element": "e-1",
+            "style": {
+              "display": null,
+            },
+          },
+        },
+      ],
+    },
+  },
+  {
+    "id": "req-2",
+    "kind": "request",
+    "method": "ui/write-image",
+    "params": {
+      "instant": true,
+      "instructions": [
+        {
+          "content": {
+            "background": "url("https://example.com/shadow.png"), url("https://example.com/hero.png")",
+            "enterAnimation": {
+              "$name": "show",
+              "$type": "animation",
+              "keyframes": [
+                {
+                  "opacity": "1",
+                },
+              ],
+              "target": {
+                "$name": "self",
+                "$type": "layer",
+              },
+              "timing": {
+                "delay": "0s",
+                "direction": "normal",
+                "duration": "0s",
+                "easing": "linear",
+                "fill": "both",
+                "iterations": 1,
+              },
+            },
+            "imageNames": "SPRITE SHADOW",
+            "previousHideAnimation": {
+              "$name": "hide",
+              "$type": "animation",
+              "keyframes": [
+                {
+                  "opacity": "0",
+                },
+              ],
+              "target": {
+                "$name": "self",
+                "$type": "layer",
+              },
+              "timing": {
+                "delay": "0s",
+                "direction": "normal",
+                "duration": "0s",
+                "easing": "linear",
+                "fill": "both",
+                "iterations": 1,
+              },
+            },
+            "src": "https://example.com/hero.png",
+          },
+          "control": "show",
+          "targetAnimations": [
+            {
+              "$name": "show",
+              "$type": "animation",
+              "keyframes": [
+                {
+                  "opacity": "1",
+                },
+              ],
+              "target": {
+                "$name": "self",
+                "$type": "layer",
+              },
+              "timing": {
+                "delay": "0s",
+                "direction": "normal",
+                "duration": "0s",
+                "easing": "linear",
+                "fill": "both",
+                "iterations": 1,
+              },
+            },
+          ],
+        },
+      ],
+      "target": "portrait",
+    },
+  },
+]
+`;
+
+exports[`image > show backdrop 1`] = `
+[
+  {
+    "kind": "notification",
+    "method": "ui/batch",
+    "params": {
+      "messages": [
+        {
+          "id": "req-1",
+          "kind": "request",
+          "method": "ui/update",
+          "params": {
+            "attributes": undefined,
+            "breakpoints": {
+              "lg": 1024,
+              "md": 768,
+              "sm": 640,
+              "xl": 1280,
+              "xs": 400,
+            },
+            "content": undefined,
+            "element": "e-1",
+            "style": {
+              "display": null,
+            },
+          },
+        },
+      ],
+    },
+  },
+  {
+    "id": "req-2",
+    "kind": "request",
+    "method": "ui/write-image",
+    "params": {
+      "instant": true,
+      "instructions": [
+        {
+          "content": {
+            "background": "url("https://example.com/bg.png")",
+            "enterAnimation": {
+              "$name": "show",
+              "$type": "animation",
+              "keyframes": [
+                {
+                  "opacity": "1",
+                },
+              ],
+              "target": {
+                "$name": "self",
+                "$type": "layer",
+              },
+              "timing": {
+                "delay": "0s",
+                "direction": "normal",
+                "duration": "0s",
+                "easing": "linear",
+                "fill": "both",
+                "iterations": 1,
+              },
+            },
+            "imageNames": "BG",
+            "previousHideAnimation": {
+              "$name": "hide",
+              "$type": "animation",
+              "keyframes": [
+                {
+                  "opacity": "0",
+                },
+              ],
+              "target": {
+                "$name": "self",
+                "$type": "layer",
+              },
+              "timing": {
+                "delay": "0s",
+                "direction": "normal",
+                "duration": "0s",
+                "easing": "linear",
+                "fill": "both",
+                "iterations": 1,
+              },
+            },
+            "src": "https://example.com/bg.png",
+          },
+          "control": "show",
+          "targetAnimations": [
+            {
+              "$name": "show",
+              "$type": "animation",
+              "keyframes": [
+                {
+                  "opacity": "1",
+                },
+              ],
+              "target": {
+                "$name": "self",
+                "$type": "layer",
+              },
+              "timing": {
+                "delay": "0s",
+                "direction": "normal",
+                "duration": "0s",
+                "easing": "linear",
+                "fill": "both",
+                "iterations": 1,
+              },
+            },
+          ],
+        },
+      ],
+      "target": "backdrop",
+    },
+  },
+]
+`;
+
+exports[`image > show then re-show (crossfade: hide+destroy previous layer) 1`] = `
+[
+  {
+    "kind": "notification",
+    "method": "ui/batch",
+    "params": {
+      "messages": [
+        {
+          "id": "req-1",
+          "kind": "request",
+          "method": "ui/update",
+          "params": {
+            "attributes": undefined,
+            "breakpoints": {
+              "lg": 1024,
+              "md": 768,
+              "sm": 640,
+              "xl": 1280,
+              "xs": 400,
+            },
+            "content": undefined,
+            "element": "e-1",
+            "style": {
+              "display": null,
+            },
+          },
+        },
+      ],
+    },
+  },
+  {
+    "id": "req-2",
+    "kind": "request",
+    "method": "ui/write-image",
+    "params": {
+      "instant": true,
+      "instructions": [
+        {
+          "content": {
+            "background": "url("https://example.com/bg.png")",
+            "enterAnimation": {
+              "$name": "show",
+              "$type": "animation",
+              "keyframes": [
+                {
+                  "opacity": "1",
+                },
+              ],
+              "target": {
+                "$name": "self",
+                "$type": "layer",
+              },
+              "timing": {
+                "delay": "0s",
+                "direction": "normal",
+                "duration": "0s",
+                "easing": "linear",
+                "fill": "both",
+                "iterations": 1,
+              },
+            },
+            "imageNames": "BG",
+            "previousHideAnimation": {
+              "$name": "hide",
+              "$type": "animation",
+              "keyframes": [
+                {
+                  "opacity": "0",
+                },
+              ],
+              "target": {
+                "$name": "self",
+                "$type": "layer",
+              },
+              "timing": {
+                "delay": "0s",
+                "direction": "normal",
+                "duration": "0s",
+                "easing": "linear",
+                "fill": "both",
+                "iterations": 1,
+              },
+            },
+            "src": "https://example.com/bg.png",
+          },
+          "control": "show",
+          "targetAnimations": [
+            {
+              "$name": "show",
+              "$type": "animation",
+              "keyframes": [
+                {
+                  "opacity": "1",
+                },
+              ],
+              "target": {
+                "$name": "self",
+                "$type": "layer",
+              },
+              "timing": {
+                "delay": "0s",
+                "direction": "normal",
+                "duration": "0s",
+                "easing": "linear",
+                "fill": "both",
+                "iterations": 1,
+              },
+            },
+          ],
+        },
+        {
+          "content": {
+            "background": "url("https://example.com/bg2.png")",
+            "enterAnimation": {
+              "$name": "show",
+              "$type": "animation",
+              "keyframes": [
+                {
+                  "opacity": "1",
+                },
+              ],
+              "target": {
+                "$name": "self",
+                "$type": "layer",
+              },
+              "timing": {
+                "delay": "0s",
+                "direction": "normal",
+                "duration": "0s",
+                "easing": "linear",
+                "fill": "both",
+                "iterations": 1,
+              },
+            },
+            "imageNames": "BG2",
+            "previousHideAnimation": {
+              "$name": "hide",
+              "$type": "animation",
+              "keyframes": [
+                {
+                  "opacity": "0",
+                },
+              ],
+              "target": {
+                "$name": "self",
+                "$type": "layer",
+              },
+              "timing": {
+                "delay": "0s",
+                "direction": "normal",
+                "duration": "0s",
+                "easing": "linear",
+                "fill": "both",
+                "iterations": 1,
+              },
+            },
+            "src": "https://example.com/bg2.png",
+          },
+          "control": "show",
+          "targetAnimations": [
+            {
+              "$name": "show",
+              "$type": "animation",
+              "keyframes": [
+                {
+                  "opacity": "1",
+                },
+              ],
+              "target": {
+                "$name": "self",
+                "$type": "layer",
+              },
+              "timing": {
+                "delay": "0s",
+                "direction": "normal",
+                "duration": "0s",
+                "easing": "linear",
+                "fill": "both",
+                "iterations": 1,
+              },
+            },
+          ],
+        },
+      ],
+      "target": "backdrop",
+    },
+  },
+]
+`;
+
+exports[`image > show with fade transition 1`] = `
+[
+  {
+    "kind": "notification",
+    "method": "ui/batch",
+    "params": {
+      "messages": [
+        {
+          "id": "req-1",
+          "kind": "request",
+          "method": "ui/update",
+          "params": {
+            "attributes": undefined,
+            "breakpoints": {
+              "lg": 1024,
+              "md": 768,
+              "sm": 640,
+              "xl": 1280,
+              "xs": 400,
+            },
+            "content": undefined,
+            "element": "e-1",
+            "style": {
+              "display": null,
+            },
+          },
+        },
+      ],
+    },
+  },
+  {
+    "id": "req-2",
+    "kind": "request",
+    "method": "ui/write-image",
+    "params": {
+      "instant": true,
+      "instructions": [
+        {
+          "content": {
+            "background": "url("https://example.com/bg.png")",
+            "enterAnimation": {
+              "$name": "fadein",
+              "$type": "animation",
+              "keyframes": [
+                {
+                  "opacity": "1",
+                },
+              ],
+              "target": {
+                "$name": "self",
+                "$type": "layer",
+              },
+              "timing": {
+                "delay": "0s",
+                "direction": "normal",
+                "duration": "0s",
+                "easing": "linear",
+                "fill": "both",
+                "iterations": 1,
+              },
+            },
+            "imageNames": "BG",
+            "previousHideAnimation": {
+              "$name": "fadeout",
+              "$type": "animation",
+              "keyframes": [
+                {
+                  "opacity": "0",
+                },
+              ],
+              "target": {
+                "$name": "self",
+                "$type": "layer",
+              },
+              "timing": {
+                "delay": "0s",
+                "direction": "normal",
+                "duration": "0s",
+                "easing": "linear",
+                "fill": "both",
+                "iterations": 1,
+              },
+            },
+            "src": "https://example.com/bg.png",
+          },
+          "control": "show",
+          "targetAnimations": [
+            {
+              "$name": "show",
+              "$type": "animation",
+              "keyframes": [
+                {
+                  "opacity": "1",
+                },
+              ],
+              "target": {
+                "$name": "self",
+                "$type": "layer",
+              },
+              "timing": {
+                "delay": "0s",
+                "direction": "normal",
+                "duration": "0s",
+                "easing": "linear",
+                "fill": "both",
+                "iterations": 1,
+              },
+            },
+          ],
+        },
+      ],
+      "target": "backdrop",
+    },
+  },
+]
+`;

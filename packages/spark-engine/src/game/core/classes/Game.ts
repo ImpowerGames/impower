@@ -27,9 +27,10 @@ import { StackFrame } from "../types/StackFrame";
 import { SystemConfiguration } from "../types/SystemConfiguration";
 import { Thread } from "../types/Thread";
 import { Variable, VariablePresentationHint } from "../types/Variable";
-import { applyBuiltinDefaults } from "../utils/applyBuiltinDefaults";
+import { buildDefinesContext } from "../utils/buildContextFromStory";
 import { findClosestPath } from "../utils/findClosestPath";
 import { findClosestPathLocation } from "../utils/findClosestPathLocation";
+import { CheckpointStore } from "./CheckpointStore";
 import { Clock } from "./Clock";
 import { Connection } from "./Connection";
 import { Coordinator } from "./Coordinator";
@@ -47,6 +48,7 @@ import { GameStartedMessage } from "./messages/GameStartedMessage";
 import { GameStartedThreadMessage } from "./messages/GameStartedThreadMessage";
 import { GameSteppedMessage } from "./messages/GameSteppedMessage";
 import { Module } from "./Module";
+import { RecencySet } from "./RecencySet";
 import { RuntimeState } from "./RuntimeState";
 
 export type DefaultModuleConstructors = typeof DEFAULT_MODULES;
@@ -112,7 +114,32 @@ export class Game<T extends M = {}> {
     return this._runtimeState;
   }
 
-  protected _runtimeSnapshot: RuntimeState | null = null;
+  // Lookahead-rewind snapshot of `_runtimeState`. NOT a checkpoint — this is the
+  // try-a-branch/rewind-on-dead-end mechanism ink drives per output newline.
+  // Nothing here is proportional to the length of the simulation.
+  // `choicesEncountered`/`conditionsEncountered` are append-only, so we snapshot
+  // them by LENGTH and restore by truncation (O(1), exactly reverts the appends)
+  // instead of deep-cloning the growing arrays every newline. And
+  // `pathsExecutedThisFrame`, which grows for the whole simulation and reorders
+  // on revisit, journals its own undo information instead of being copied here
+  // (see RecencySet) — copying it was the last O(n²) term, and it made
+  // previewing deep inside a long scene exhaust memory (#376).
+  protected _runtimeSnapshot: {
+    // The collection the journal was opened on. A lookahead's undo information
+    // now lives ON that instance, so if the whole runtime state is replaced
+    // between save and restore (a `load`, a fresh simulation), rewinding it is
+    // meaningless — and rewinding only the OTHER collections would leave the
+    // four of them describing different moments. Identity is checked so the
+    // rewind stays all-or-nothing.
+    paths: RecencySet;
+    // Mirror of pathsExecutedThisFrame's per-checkpoint delta log — snapshotted
+    // alongside it so a lookahead rewind reverts the delta tracking too (else a
+    // speculative-then-rewound execution would leak into the next checkpoint's
+    // delta). Bounded by one beat's executions (we checkpoint every beat).
+    executedSinceCheckpoint: Set<string>;
+    choicesLength: number;
+    conditionsLength: number;
+  } | null = null;
 
   protected _lastHitBreakpointLocation: ScriptLocation | null = null;
 
@@ -139,6 +166,15 @@ export class Game<T extends M = {}> {
   protected _previewPath?: string;
   get previewPath() {
     return this._previewPath;
+  }
+
+  /** The path `preview()` last ran to completion, so asking for it again is a
+   *  no-op. Kept apart from `context.system.previewing` — that one answers "is
+   *  this a preview rather than a real run", which callers must be able to
+   *  establish BEFORE a preview point has been chosen (see `markPreviewing`). */
+  protected _previewedPath?: string;
+  get previewedPath() {
+    return this._previewedPath;
   }
 
   protected _simulatePath?: string | null;
@@ -205,7 +241,7 @@ export class Game<T extends M = {}> {
 
   protected _plannedRouteStepMap: { [seq: string]: number } = {};
 
-  protected _checkpoints: string[] = [];
+  protected _checkpoints!: CheckpointStore;
   get checkpoints() {
     return this._checkpoints;
   }
@@ -238,7 +274,7 @@ export class Game<T extends M = {}> {
 
     this._executingPath = null;
     this._executingLocation = null;
-    this._runtimeSnapshot = null;
+    this.discardRuntimeSnapshot();
 
     this.updateBreakpointsMap(options?.breakpoints ?? []);
     this.updateFunctionBreakpointsMap(options?.functionBreakpoints ?? []);
@@ -247,6 +283,28 @@ export class Game<T extends M = {}> {
     if (options?.executionTimeout) {
       this._executionTimeout = options.executionTimeout;
     }
+
+    this._checkpoints = new CheckpointStore(
+      {
+        save: () => this.save(),
+        saveDeltaBody: () => this.saveDeltaBody(),
+        snapshotCounts: () => ({
+          vc: this._story.state.GetVisitCountEntries(),
+          ti: this._story.state.GetTurnIndexEntries(),
+        }),
+        drainCountDeltas: () => ({
+          vc: this._story.state.DrainVisitCountDeltas(),
+          ti: this._story.state.DrainTurnIndexDeltas(),
+        }),
+        snapshotRuntime: () => this._runtimeState.snapshotFull(),
+        drainRuntime: () => this._runtimeState.drainDeltas(),
+      },
+      {
+        incremental: options?.incrementalCheckpoints ?? false,
+        verify: options?.verifyCheckpoints ?? true,
+        baseInterval: options?.checkpointBaseInterval ?? 50,
+      },
+    );
 
     // Create context
     this._context = {
@@ -271,16 +329,18 @@ export class Game<T extends M = {}> {
         resolve: options?.resolve,
         requestFrame: options?.requestFrame,
       },
-      ...(this._program.context || {}),
     };
 
-    // Authored defines arrive carrying only the properties the author wrote,
-    // so make each one inherit the rest from its type's `$default` before any
-    // module reads it. Without this every consumer has to invent its own
-    // fallbacks, and they drift: the typewriter fallbacks in InterpreterModule
-    // were 5-16x off the real defaults, and AudioModule dropped incomplete
-    // synths outright (#268).
-    applyBuiltinDefaults(this._context);
+    // Build the runtime context entirely from the compiler's dedicated engine
+    // channels — NOT the LSP-only `program.context` (the Game runtime no longer
+    // depends on that field). Together these channels cover every context type:
+    //   defines  — define-typed structs (animation/character/ease/config/…),
+    //              fully merged with builtin $defaults
+    //   assets   — file-derived + implicit-def assets (image/audio/font/…)
+    //   layouts/components/styles — static UI structs
+    // Mutable interpreter state (visited/returned/…) is written onto this object
+    // by the modules at runtime; it was never part of program.context.
+    this.assignContextChannels();
 
     // Override default modules with custom ones if specified
     const allModules = {
@@ -349,7 +409,89 @@ export class Game<T extends M = {}> {
       this._story = new Story(compiled);
     }
     this.setupStory(this._story);
+    this.restoreReactiveTracking();
+    // Live edit → recompile reuses this Game: refresh the context channels from
+    // the new program and let modules re-derive any state cached from context
+    // (e.g. InterpreterModule's character-name map). Guarded on modules already
+    // existing — the constructor calls updateProgram BEFORE building the context
+    // + instantiating modules (it assigns channels itself, after).
+    if (this._moduleNames && this._moduleNames.length > 0) {
+      this.assignContextChannels();
+      for (const moduleName of this._moduleNames) {
+        this._modules[moduleName]?.onProgramUpdate();
+      }
+      // The program (and its freshly-installed story) changed, so any earlier
+      // preview's result is stale even when the next preview resolves to the
+      // SAME path — an intra-line edit keeps the structural path while changing
+      // the text. Clearing the memo makes `preview()`'s same-path short-circuit
+      // miss, so it re-runs the new story and re-emits the beat's content;
+      // without this the reconcile pass sweeps the un-re-emitted elements and
+      // the preview goes blank until the cursor moves to a different beat.
+      this._previewedPath = undefined;
+    }
     return this._program;
+  }
+
+  /** Assign the program's channels (defines → character/image/…, assets,
+   *  layout/component/style) onto the runtime context. Defines are sourced from
+   *  the live runtime `__def` tables (assignRuntimeDefines); the rest come from
+   *  the static engine channels. Runtime-mutated state (visit counts, …) lives
+   *  under separate keys and is preserved. */
+  protected assignContextChannels() {
+    const assignChannel = (src?: { [type: string]: any }) => {
+      if (src) {
+        for (const [type, structs] of Object.entries(src)) {
+          this._context[type] = structs;
+        }
+      }
+    };
+    // Defines (character/animation/ease/config/…) come from the LIVE runtime
+    // __def tables: the story's __def calls resolve authored→builtin inheritance
+    // via the VM __index chain and carry the richer values the lossy compile-time
+    // channel dropped. (The static `program.defines` channel was retired once
+    // this path proved byte-identical — see buildContextFromStory.)
+    this.assignRuntimeDefines();
+    assignChannel(this._program.assets);
+    if (this._program.layouts) {
+      this._context["layout"] = this._program.layouts;
+    }
+    if (this._program.screens) {
+      this._context["screen"] = this._program.screens;
+    }
+    if (this._program.components) {
+      this._context["component"] = this._program.components;
+    }
+    if (this._program.styles) {
+      this._context["style"] = this._program.styles;
+    }
+  }
+
+  /** Source the define context from the live runtime `__def` tables
+   *  (buildDefinesContext). Each define type is replaced wholesale so a live edit
+   *  that removes/renames a define doesn't leave a stale entry. Requires the
+   *  program to have been compiled with `seedBuiltinsIntoStory` so builtin
+   *  defaults are present in the story VM. No-op when the story has no globals yet
+   *  (e.g. an uncompiled program). */
+  protected assignRuntimeDefines() {
+    const globals = this._story?.state?.variablesState?.["_globalVariables"];
+    if (!globals || globals.size === 0) {
+      return;
+    }
+    const runtime = buildDefinesContext(this._story);
+    // A program compiled WITHOUT `seedBuiltinsIntoStory` still has authored
+    // globals, so the empty-map bail above doesn't catch it — it just yields a
+    // define context with every builtin type (colors, `synth`, `character`,
+    // `config`…) silently absent, which surfaces far downstream as missing
+    // defaults. Warn loudly instead of failing quietly; every in-repo host
+    // sets the flag, so this fires only for an external embedder's mistake.
+    if (!runtime["synth"] && !runtime["character"] && !runtime["color"]) {
+      console.warn(
+        "spark-engine: the runtime story carries no builtin defines — was the program compiled without `seedBuiltinsIntoStory`? Builtin types (colors, synths, typewriters, …) will be missing from the game context.",
+      );
+    }
+    for (const [type, structs] of Object.entries(runtime)) {
+      this._context[type] = structs;
+    }
   }
 
   setupStory(story: Story) {
@@ -370,16 +512,52 @@ export class Game<T extends M = {}> {
       this._runtimeState.recordCondition(value);
     };
     story.onSaveStateSnapshot = () => {
-      this._runtimeSnapshot = RuntimeState.clone(this._runtimeState);
+      // O(1) in the size of the simulation: `pathsExecutedThisFrame` starts
+      // journalling its own changes, the append-only arrays are marked by
+      // length, and the only copy is the per-beat delta mirror.
+      const paths = this._runtimeState.pathsExecutedThisFrame;
+      paths.beginSnapshot();
+      this._runtimeSnapshot = {
+        paths,
+        executedSinceCheckpoint: new Set(
+          this._runtimeState.executedSinceCheckpoint,
+        ),
+        choicesLength: this._runtimeState.choicesEncountered.length,
+        conditionsLength: this._runtimeState.conditionsEncountered.length,
+      };
     };
     story.onRestoreStateSnapshot = () => {
-      if (this._runtimeSnapshot) {
-        this._runtimeState = this._runtimeSnapshot;
+      if (
+        this._runtimeSnapshot &&
+        // The runtime state this snapshot describes is still the live one.
+        // Otherwise it belongs to a run that has already been abandoned, and
+        // applying half of it would be worse than applying none.
+        this._runtimeSnapshot.paths === this._runtimeState.pathsExecutedThisFrame
+      ) {
+        // Mutate in place (same _runtimeState object): rewind the recorded
+        // paths through their journal, and truncate the appended
+        // choices/conditions.
+        this._runtimeState.pathsExecutedThisFrame.restoreSnapshot();
+        this._runtimeState.executedSinceCheckpoint = new Set(
+          this._runtimeSnapshot.executedSinceCheckpoint,
+        );
+        this._runtimeState.choicesEncountered.length =
+          this._runtimeSnapshot.choicesLength;
+        this._runtimeState.conditionsEncountered.length =
+          this._runtimeSnapshot.conditionsLength;
       }
     };
     story.onDiscardStateSnapshot = () => {
-      this._runtimeSnapshot = null;
+      this.discardRuntimeSnapshot();
     };
+  }
+
+  /** Drop any open lookahead snapshot, journal included. Used both when ink
+   *  discards one and when the game abandons a run mid-lookahead (a rewind, a
+   *  fresh simulation), so a stale journal can never rewind a later beat. */
+  protected discardRuntimeSnapshot() {
+    this._runtimeState?.pathsExecutedThisFrame?.discardSnapshot();
+    this._runtimeSnapshot = null;
   }
 
   simulate(
@@ -620,14 +798,35 @@ export class Game<T extends M = {}> {
     });
   }
 
-  getCheckpoint(seq: string) {
+  /** The checkpoint captured for a step of the SIMULATED route, looked up by
+   *  the step's identity.
+   *
+   *  `expected` corroborates the match. Identity used to be the path history
+   *  spelled out (`"p0|p1|p2"`), so equal identities implied an equal number
+   *  of components and therefore the same index — which is what
+   *  `patchAndSimulateRoute` relies on when it resumes by POSITION rather than
+   *  by the index it matched. A fixed-width hash carries no depth, so that
+   *  implication has to be checked rather than assumed: a caller passes the
+   *  step it believes it matched, and a disagreement on path or index means no
+   *  match, costing a re-simulation instead of resuming the preview from an
+   *  unrelated story position. */
+  getCheckpoint(
+    seq: string,
+    expected?: { path?: string; index?: number },
+  ) {
     if (this._plannedRoute) {
       const stepIndex = this._plannedRouteStepMap[seq];
       if (stepIndex != null) {
+        if (expected?.index != null && stepIndex !== expected.index) {
+          return null;
+        }
         const step = this._plannedRoute.steps[stepIndex];
         if (step) {
+          if (expected?.path != null && step.path !== expected.path) {
+            return null;
+          }
           if (step.checkpoint != null) {
-            return this._checkpoints[step.checkpoint] ?? null;
+            return this._checkpoints.getJson(step.checkpoint);
           }
         }
       }
@@ -639,8 +838,8 @@ export class Game<T extends M = {}> {
     const startStep = route.steps[fromStep];
     const fromDecision = startStep?.decision ?? 0;
     const fromCheckpoint = startStep?.checkpoint ?? -1;
-    const startCheckpoint = this._checkpoints[fromCheckpoint];
-    this._checkpoints = this._checkpoints.slice(0, fromCheckpoint + 1);
+    const startCheckpoint = this._checkpoints.getJson(fromCheckpoint);
+    this._checkpoints.truncate(fromCheckpoint + 1);
     this._plannedRoute = route;
     this._simulatePath = route.fromPath;
     this._startPath = route.toPath;
@@ -657,6 +856,14 @@ export class Game<T extends M = {}> {
     if (startCheckpoint) {
       this.load(startCheckpoint);
     } else {
+      // Starting the route at its beginning rather than resuming inside it. The
+      // replay about to run is the whole truth about what ends up on screen, so
+      // the record of which images are displayed must not carry over from
+      // whatever was simulated before — the story rewinds here, and the modules
+      // have to rewind with it. Left carried over, every checkpoint this route
+      // captures embeds the previous simulation's backdrop, and the editor
+      // restores it behind a line that sets none.
+      this.module.ui?.forgetDisplayedImages?.();
       this.jumpToPath(route.fromPath);
     }
 
@@ -665,7 +872,7 @@ export class Game<T extends M = {}> {
 
     this._executingPath = null;
     this._executingLocation = null;
-    this._runtimeSnapshot = null;
+    this.discardRuntimeSnapshot();
 
     this.continue(true);
 
@@ -691,8 +898,14 @@ export class Game<T extends M = {}> {
     const validSteps = [...newRoute.steps];
     const newSteps = [];
     let lastValidNewRouteStep = validSteps.at(-1);
+    // The resume below is positional (`validSteps.length - 1` indexes the OLD
+    // route), so the match has to agree on that index, not merely on identity.
     let lastValidOldRouteCheckpoint = this.getCheckpoint(
       lastValidNewRouteStep?.seq || "",
+      {
+        path: lastValidNewRouteStep?.path,
+        index: validSteps.length - 1,
+      },
     );
     while (lastValidNewRouteStep && !lastValidOldRouteCheckpoint) {
       const invalidStep = validSteps.pop();
@@ -702,6 +915,10 @@ export class Game<T extends M = {}> {
       lastValidNewRouteStep = validSteps.at(-1);
       lastValidOldRouteCheckpoint = this.getCheckpoint(
         lastValidNewRouteStep?.seq || "",
+        {
+          path: lastValidNewRouteStep?.path,
+          index: validSteps.length - 1,
+        },
       );
     }
 
@@ -740,6 +957,7 @@ export class Game<T extends M = {}> {
     }
     this.notifyStarted();
     this._context.system.previewing = undefined;
+    this._previewedPath = undefined;
     this._context.system.simulating = undefined;
     for (const k of this._moduleNames) {
       this._modules[k]?.onStart();
@@ -747,7 +965,36 @@ export class Game<T extends M = {}> {
     if (this._simulation === "success") {
       this.continue(true);
     } else if (this._simulation === "fail") {
-      this.reset();
+      // `rewindStory`, NOT `reset`. By the time `start` runs, `connect` has
+      // already called every module's `onConnected` AND `restore` — the ui
+      // module has mounted its layouts, registered its `@event` handlers and
+      // had the renderer attach the matching DOM listeners. A full `reset`
+      // here clears `_state` and calls `onReset`, throwing all of that away,
+      // and nothing mounts again afterwards.
+      //
+      // The result was a UI that rendered perfectly and did nothing: the DOM
+      // was intact, the renderer still forwarded clicks, and the engine looked
+      // them up in an `_events` map that had just been emptied. Traced on a
+      // STOP -> PLAY, where the order is
+      //   onConnected -> mountEvent -> ui/observe -> onReset.
+      // Module reset is only meaningful BEFORE modules are initialized; here we
+      // only need the story rewound so the replay starts from `_startPath`.
+      //
+      // Per-module residue audit for this branch (the abandoned run's state
+      // survives the rewind — what of it is CORRECT to keep?):
+      //   interpreter — the beat FIFO is the one true hazard: unflushed beats
+      //     from the abandoned run sit at the queue's head and would render
+      //     FIRST in the replay. Cleared below; the replay re-queues from the
+      //     start path. (`_matcherCache`/name maps are pure derivations.)
+      //   audio — `_channelsCurrentlyPlaying` and `_state.channels` MIRROR
+      //     the renderer, whose players are untouched by a story rewind:
+      //     clearing them would break `replace`-behavior stops and channel-
+      //     wide saves for audio that is audibly still playing. Kept.
+      //   ui — preserving mounted layouts/`_events` is this branch's whole
+      //     reason to exist (see above). Kept.
+      //   core / world — stateless (`CoreState`/`WorldState` are empty).
+      this.module.interpreter.clearQueuedBeats();
+      this.rewindStory();
       this.clearChoices();
       if (this._startPath) {
         this.jumpToPath(this._startPath);
@@ -817,17 +1064,34 @@ export class Game<T extends M = {}> {
   }
 
   checkpoint(): void {
-    this._checkpoints.push(this.save());
+    this._checkpoints.capture();
   }
 
   save(): string {
+    return this.buildSave(false);
+  }
+
+  /** Like `save()` but serializes the unbounded, per-beat-growing collections
+   *  (story visit/turn count maps + runtime executed-paths/choices/conditions)
+   *  as empty. The CheckpointStore stores this bounded body for delta beats and
+   *  re-injects the (delta-reconstructed) collections to rebuild a
+   *  byte-identical full save. */
+  saveDeltaBody(): string {
+    return this.buildSave(true);
+  }
+
+  protected buildSave(omitDeltaState: boolean): string {
     let story = "";
     try {
-      story = this._story.state.toJson();
+      story = omitDeltaState
+        ? this._story.state.ToJsonWithoutCounts()
+        : this._story.state.toJson();
     } catch (e: any) {
       this.Error(e.message, ErrorType.Error);
     }
-    const runtime = this._runtimeState.toJSON();
+    const runtime = omitDeltaState
+      ? this._runtimeState.toJSONWithoutCollections()
+      : this._runtimeState.toJSON();
     const saveData: SaveData = {
       modules: {},
       context: {},
@@ -861,6 +1125,7 @@ export class Game<T extends M = {}> {
       }
       if (saveData.story) {
         this._story.state.LoadJson(saveData.story);
+        this.restoreReactiveTracking();
       }
       if (saveData.runtime) {
         this._runtimeState = RuntimeState.fromJSON(saveData.runtime);
@@ -899,12 +1164,38 @@ export class Game<T extends M = {}> {
     return undefined;
   }
 
-  reset() {
+  /** Rewind the STORY to its initial state, leaving module state alone.
+   *
+   *  Split out from {@link reset} because the two are only safe at different
+   *  points in the lifecycle. Rewinding the story is safe at any time; resetting
+   *  the modules is only safe BEFORE they are initialized, because
+   *  `Module.reset` clears `_state` and calls `onReset`, which for the ui module
+   *  drops the mounted-layout map and the `_events` handler registry. */
+  protected rewindStory() {
     if (this._story.canContinue && !this._story.asyncContinueComplete) {
       this._story.Continue();
     }
-    // Reset story to its initial state
     this._story.ResetState();
+    this.restoreReactiveTracking();
+  }
+
+  /** Re-assert reactive dependency tracking after ANY story-state
+   *  replacement (`ResetState`, a recompile's `new Story`, a checkpoint
+   *  `LoadJson`). Each of those yields a `VariablesState` whose fine-grained
+   *  tracking defaults OFF, and the flag is normally enabled only once, at
+   *  layout mount (`UIModule.constructLayoutsFromAst`) — which does NOT
+   *  re-run on these paths, precisely because they preserve the mounted UI.
+   *  Without this, every mounted `{binding}` freezes after a STOP → PLAY
+   *  restart or a live-edit recompile: the VM keeps updating the globals,
+   *  but no change is ever recorded for `refreshLayouts` to react to. */
+  protected restoreReactiveTracking() {
+    if (this._program?.sparkle?.layouts) {
+      this._story.variablesState.reactiveDepsEnabled = true;
+    }
+  }
+
+  reset() {
+    this.rewindStory();
     // Reset modules to their initial state
     for (const k of this._moduleNames) {
       const module = this._modules[k];
@@ -965,7 +1256,15 @@ export class Game<T extends M = {}> {
             const step = this._plannedRoute.steps[this._plannedRouteStepCursor];
             if (step) {
               if (step.path === pointerPath) {
-                step.checkpoint = this._checkpoints.length - 1;
+                // The nearest checkpoint at or before this step. Steps reached
+                // before the first capture have none, and must stay undefined:
+                // recording -1 made `getCheckpoint` ask the store for index -1
+                // (null) instead of reporting "no checkpoint here", so a real
+                // absence was indistinguishable from a lookup failure.
+                const latestCheckpoint = this._checkpoints.length - 1;
+                if (latestCheckpoint >= 0) {
+                  step.checkpoint = latestCheckpoint;
+                }
                 this._plannedRouteStepCursor++;
               }
             }
@@ -1014,7 +1313,16 @@ export class Game<T extends M = {}> {
           // Continue without user interaction
           continue;
         }
-        // DONE - waiting for user interaction (or auto advance)
+        // DONE - waiting for user interaction (or auto advance).
+        // If this run produced NO content beat (`_coordinator` was never created
+        // — e.g. a UI-only project with no dialogue), the per-beat reveal
+        // (Coordinator.updateUI → ui.reveal) will never fire and the layouts
+        // layer would stay hidden (opacity:0). Reveal it here now that the run
+        // has settled. Idempotent; a real game has `_coordinator` set here and
+        // skips this, keeping its flash-free, asset-gated beat-time reveal.
+        if (!this._coordinator) {
+          this.module.ui.reveal();
+        }
         return true;
       } else if (this._story.canContinue) {
         this._story.ContinueAsync(Infinity);
@@ -1031,7 +1339,30 @@ export class Game<T extends M = {}> {
         if (this._story.asyncContinueComplete) {
           const currentText = this._story.currentText || "";
           const currentChoices = this._story.currentChoices.map((c) => c.text);
-          this.module.interpreter.queue(currentText, currentChoices);
+          // `currentTags` is snapshot-scoped to the just-completed Continue
+          // (computed from this beat's outputStream in StoryState). It carries
+          // the compiler's per-beat ROUTING TAG (plus any author `# tag`s); the
+          // interpreter routes the beat by that tag rather than by regex over
+          // the visible text.
+          const currentTags = this._story.currentTags || [];
+          // A `display(<table>)` beat emits a structured instruction table
+          // (no visible text) instead of a flat string. When present, route it
+          // straight to the interpreter as pre-parsed instructions — bypassing
+          // the char-by-char re-parse `queue()` does. A normal text beat carries
+          // no display instructions and takes the legacy path unchanged.
+          const displayInstructions = this._story.currentDisplayInstructions;
+          if (displayInstructions.length > 0) {
+            this.module.interpreter.queueInstructions(
+              displayInstructions,
+              currentChoices,
+            );
+          } else {
+            this.module.interpreter.queue(
+              currentText,
+              currentChoices,
+              currentTags,
+            );
+          }
         }
 
         if (this._simulation !== "simulating") {
@@ -1618,6 +1949,23 @@ export class Game<T extends M = {}> {
     this._context.system.debugging = true;
   }
 
+  /** Declare that what follows is a preview rather than a real run.
+   *
+   *  `preview()` runs last: the caller has to load a checkpoint and connect the
+   *  game first, and `connect()` restores every module — which is where the
+   *  audio module decides whether to resume whatever the route left playing. It
+   *  reads `context.system.previewing` to decide, so the mode has to be set
+   *  before the connect rather than at the end of `preview()`.
+   *
+   *  Do not call this on a game that is about to run for real: `Application`
+   *  reads the same flag to decide whether to skip building a renderer.
+   *
+   *  Without a path the flag is simply `true`. Nothing reads it as a path — the
+   *  path a preview settled on is `previewedPath`. */
+  markPreviewing(previewPath?: string): void {
+    this._context.system.previewing = previewPath || true;
+  }
+
   preview(file: string, line: number): string | null {
     if (this._state === "running") {
       // Don't preview while running
@@ -1629,9 +1977,18 @@ export class Game<T extends M = {}> {
       this._scripts,
     );
     if (!previewPath) {
+      // A pure UI-only project (e.g. a `layout` with only reactive `{bindings}`)
+      // has no narrative path to preview: every path-located flow is a synthetic
+      // `__binding_*` evaluator, and those are excluded from preview candidates.
+      // Its layouts were still mounted at connect, but nothing reveals the
+      // layouts LAYER in this case — no content beat runs, so neither the
+      // per-beat Coordinator reveal nor the UI-only `continue()` fallback fires,
+      // and the layer stays at its mounted `opacity:0` (invisible). Reveal it
+      // here so previewing a UI-only screen actually shows it. Idempotent.
+      this.module.ui.reveal();
       return null;
     }
-    if (this._context.system.previewing === previewPath) {
+    if (this._previewedPath === previewPath) {
       return previewPath;
     }
     this._previewFrom = { file, line };
@@ -1642,11 +1999,20 @@ export class Game<T extends M = {}> {
       this._simulation = "fail";
     }
     this._context.system.previewing = previewPath;
+    this._previewedPath = previewPath;
     this._context.system.simulating = undefined;
     if (this._simulation === "success") {
       this.continue(true);
     } else if (this._simulation === "fail") {
-      this.reset();
+      // Same reason as the `start` fail branch: modules are already connected
+      // and mounted here, so a full `reset` would clear the ui module's mounted
+      // layouts and `_events` and nothing would mount again. Only the story
+      // needs rewinding before jumping to the preview path — plus discarding
+      // any beats the abandoned run left queued (see the start-branch residue
+      // audit; idempotent between previews, where the queue is already
+      // drained).
+      this.module.interpreter.clearQueuedBeats();
+      this.rewindStory();
       this.clearChoices();
       this._startPath = previewPath;
       this.jumpToPath(previewPath);
@@ -1669,7 +2035,6 @@ export class Game<T extends M = {}> {
 
   getLastExecutedDocumentLocation() {
     const lastExecutedPath = this._runtimeState.pathsExecutedThisFrame
-      .values()
       .toArray()
       .findLast((path) => this._program.pathLocations?.[path]);
     if (lastExecutedPath) {

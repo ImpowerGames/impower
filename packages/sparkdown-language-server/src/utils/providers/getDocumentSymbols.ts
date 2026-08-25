@@ -4,7 +4,7 @@ import { SymbolKind, type DocumentSymbol } from "vscode-languageserver";
 import { Position, Range } from "vscode-languageserver-textdocument";
 
 export interface DocumentSymbolMark {
-  type: "function" | "scene" | "branch" | "knot" | "stitch" | "label";
+  type: "function" | "scene" | "branch" | "label";
   symbol: DocumentSymbol;
 }
 
@@ -89,9 +89,7 @@ export const getDocumentSymbols = (
             line - 1,
           ).character;
         }
-        const lastNested = headingMarks.findLast(
-          (m) => m.type === "branch" || m.type === "stitch",
-        );
+        const lastNested = headingMarks.findLast((m) => m.type === "branch");
         if (lastNested) {
           lastNested.symbol.range.end.line = line - 1;
           lastNested.symbol.range.end.character = document.positionAt(
@@ -115,8 +113,7 @@ export const getDocumentSymbols = (
           },
         };
         const lastTopHeading = headingMarks.findLast(
-          (m) =>
-            m.type === "function" || m.type === "scene" || m.type === "knot",
+          (m) => m.type === "function" || m.type === "scene",
         );
         if (lastTopHeading) {
           if (lastTopHeading.type === "function") {
@@ -126,77 +123,7 @@ export const getDocumentSymbols = (
             lastTopHeading.symbol.children.push(mark.symbol);
           }
         }
-        const lastNested = headingMarks.findLast(
-          (m) => m.type === "branch" || m.type === "stitch",
-        );
-        if (lastNested) {
-          lastNested.symbol.range.end.line = line - 1;
-          lastNested.symbol.range.end.character = document.positionAt(
-            line - 1,
-          ).character;
-        }
-        headingMarks.push(mark);
-      }
-      // KNOT
-      if (cur.value.type === "knot") {
-        const name = document.getText(nameRange);
-        const line = document.positionAt(cur.from).line;
-        const mark: DocumentSymbolMark = {
-          type: "knot",
-          symbol: {
-            name,
-            kind: SymbolKind.Class,
-            range: structuredClone(lineRange),
-            selectionRange: lineRange,
-          },
-        };
-        const lastTopHeading = topMarks.at(-1);
-        if (lastTopHeading) {
-          lastTopHeading.symbol.range.end.line = line - 1;
-          lastTopHeading.symbol.range.end.character = document.positionAt(
-            line - 1,
-          ).character;
-        }
-        const lastNested = headingMarks.findLast(
-          (m) => m.type === "branch" || m.type === "stitch",
-        );
-        if (lastNested) {
-          lastNested.symbol.range.end.line = line - 1;
-          lastNested.symbol.range.end.character = document.positionAt(
-            line - 1,
-          ).character;
-        }
-        topMarks.push(mark);
-        headingMarks.push(mark);
-      }
-      // STITCH
-      if (cur.value.type === "stitch") {
-        const name = document.getText(nameRange);
-        const line = document.positionAt(cur.from).line;
-        const mark: DocumentSymbolMark = {
-          type: "stitch",
-          symbol: {
-            name,
-            kind: SymbolKind.Interface,
-            range: structuredClone(lineRange),
-            selectionRange: lineRange,
-          },
-        };
-        const lastTopHeading = headingMarks.findLast(
-          (m) =>
-            m.type === "function" || m.type === "scene" || m.type === "knot",
-        );
-        if (lastTopHeading) {
-          if (lastTopHeading.type === "function") {
-            topMarks.push(mark);
-          } else {
-            lastTopHeading.symbol.children ??= [];
-            lastTopHeading.symbol.children.push(mark.symbol);
-          }
-        }
-        const lastNested = headingMarks.findLast(
-          (m) => m.type === "branch" || m.type === "stitch",
-        );
+        const lastNested = headingMarks.findLast((m) => m.type === "branch");
         if (lastNested) {
           lastNested.symbol.range.end.line = line - 1;
           lastNested.symbol.range.end.character = document.positionAt(

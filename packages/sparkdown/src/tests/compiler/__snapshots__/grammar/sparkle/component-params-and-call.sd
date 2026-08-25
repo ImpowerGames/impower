@@ -1,0 +1,20 @@
+component stat_row(label, value) with
+  row:
+    text "{label}"
+    text "{value}"
+end
+
+component card(title) with
+  box:
+    text "{title}"
+    slot
+    slot footer
+end
+
+layout sheet with
+  card("Inventory"):
+    text "10 / 20 slots"
+    fill footer:
+      button "Sort" @click=sort_bag
+  stat_row(hero.name, hero.hp)
+end

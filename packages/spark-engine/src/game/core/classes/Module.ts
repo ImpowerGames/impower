@@ -41,6 +41,11 @@ export abstract class Module<
   /** Executed when the game is initialized */
   onInit() {}
 
+  /** Executed when the program is reloaded in place (live edit → recompile):
+   *  the context channels have been re-assigned from the new program, so a
+   *  module should re-derive any state it cached from `context` here. */
+  onProgramUpdate() {}
+
   /** Executed when the game is ready to send messages */
   async onConnected() {}
 

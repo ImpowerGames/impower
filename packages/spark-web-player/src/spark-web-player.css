@@ -15,7 +15,6 @@ spark-web-player {
 }
 
 spark-web-player * {
-  pointer-events: none;
   touch-action: none;
   user-select: none;
   -webkit-user-drag: none;
@@ -34,6 +33,29 @@ spark-web-player *::after {
   display: flex;
   flex-direction: column;
   align-items: stretch;
+}
+
+/*
+The UI overlay is transparent to the pointer, so a click on empty layout
+space reaches the game canvas underneath it.
+
+Set ONCE, here, and INHERITED -- `pointer-events` is an inherited property.
+That is the whole design: an interactive control sets `pointer-events: auto`
+on itself and everything inside it becomes clickable with it, because the
+value flows down.
+
+It used to be `* { pointer-events: none }`, which sets the property EXPLICITLY
+on every element and so defeats inheritance entirely. A control could opt
+itself back in but not its own label, so the span covering most of a button
+was not a hit target and the click landed on nothing. That produced four
+separate defects -- an ungrabbable table scrollbar, a dead checkbox label, a
+button that ignored clicks on its text, and a tooltip that never appeared
+because `:hover` could not fire -- none of which looked like a pointer
+problem, and each of which was patched individually before the cause was
+clear.
+*/
+spark-web-player #game-ui {
+  pointer-events: none;
 }
 
 spark-web-player *:focus-visible {
@@ -92,6 +114,131 @@ spark-web-player textarea {
 }
 
 /*
+Remove the UA's typographic margins.
+
+This is the preflight rule this file was otherwise derived from, and its
+absence leaked: `blockquote` and `figure` keep `1em 40px`, `ul`/`ol` and `p`
+keep `1em 0`, so those elements arrived with a rhythm step nobody wrote. Every
+builtin that renders one has been zeroing it by hand, which reads as redundant
+and gets "cleaned up" — reintroducing an 18px gap that looks like a spacing bug
+several layers away.
+
+MARGIN ONLY, for now. Preflight also drops `list-style` and `padding` from
+lists. That USED to be unsafe here, because `list` carried the bullets; it no
+longer does — `list` is bare and `bulleted` / `ordered_list` opt a marker back
+in explicitly — so taking preflight's full rule would now just make `list`'s own
+`list-style: none; padding-left: 0` redundant rather than break anything.
+*/
+spark-web-player blockquote,
+spark-web-player dl,
+spark-web-player dd,
+spark-web-player h1,
+spark-web-player h2,
+spark-web-player h3,
+spark-web-player h4,
+spark-web-player h5,
+spark-web-player h6,
+spark-web-player hr,
+spark-web-player figure,
+spark-web-player p,
+spark-web-player pre,
+spark-web-player ol,
+spark-web-player ul,
+spark-web-player menu {
+  margin: 0;
+}
+
+/*
+Put the inline semantic tags back INTO the text flow.
+
+The universal `display: flex` above is right for layout elements and wrong for
+these: a <sub> or a <code> is a run of text inside a line, and as a flex column
+it breaks onto its own line instead. `strong`/`emphasis` solve this in their own
+builtin style; these cannot, because their style class is SHARED with the
+non-tag spelling — `.small` is on both `<small>` and the `<div class="text
+small">` that `text small "…"` still produces, and putting `display: inline`
+there would flatten the div too. The TAG selector hits only the real element.
+*/
+spark-web-player code,
+spark-web-player kbd,
+spark-web-player sub,
+spark-web-player sup,
+spark-web-player small {
+  display: inline;
+}
+
+/*
+`<pre>` is the opposite case: a block whose whitespace is the content.
+*/
+spark-web-player pre {
+  display: block;
+  white-space: pre;
+}
+
+/*
+1. Use the user's configured monospace stack.
+2. Correct the odd `em` font sizing in all browsers — a UA renders monospace at
+   a SMALLER size than the surrounding text (the "monospace font-size quirk"),
+   so `1em` inside <code> is not the 1em outside it.
+*/
+spark-web-player code,
+spark-web-player kbd,
+spark-web-player samp,
+spark-web-player pre {
+  font-family:
+    ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono",
+    monospace; /* 1 */
+  font-size: 1em; /* 2 */
+}
+
+/*
+Add the correct font size in all browsers.
+*/
+spark-web-player small {
+  font-size: 80%;
+}
+
+/*
+Prevent `sub` and `sup` elements from affecting the line height in all browsers.
+
+`line-height: 0` is the load-bearing part: without it the raised/lowered run
+grows the line box it sits in, so one superscript nudges every following line
+of that paragraph down.
+*/
+spark-web-player sub,
+spark-web-player sup {
+  font-size: 75%;
+  line-height: 0;
+  position: relative;
+  vertical-align: baseline;
+}
+
+spark-web-player sub {
+  bottom: -0.25em;
+}
+
+spark-web-player sup {
+  top: -0.5em;
+}
+
+/*
+Headings take their size from their style class, never from the UA.
+
+Now that `h1`-`h6` are real tags, the UA's own `font-size`/`font-weight` would
+otherwise be the value a heading falls back to when a project restyles one —
+silently reintroducing browser defaults into a themed layout.
+*/
+spark-web-player h1,
+spark-web-player h2,
+spark-web-player h3,
+spark-web-player h4,
+spark-web-player h5,
+spark-web-player h6 {
+  font-size: inherit;
+  font-weight: inherit;
+}
+
+/*
 Remove the inheritance of text transform in Edge and Firefox.
 */
 spark-web-player button,
@@ -130,7 +277,72 @@ spark-web-player input:where([type="submit"]) {
 }
 
 /*
-Remove the additional `:invalid` styles in Firefox. 
+Correct the odd appearance in Chrome and Safari, and the outline style in
+Safari. Without it a search field keeps its native decorations — a rounded
+track and a clear "x" — that no other field has and nothing here styles.
+*/
+spark-web-player input:where([type="search"]) {
+  -webkit-appearance: textfield;
+  outline-offset: -2px;
+}
+
+/*
+Remove the inner padding in Chrome and Safari on macOS.
+*/
+spark-web-player ::-webkit-search-decoration {
+  -webkit-appearance: none;
+}
+
+/*
+Correct the cursor style of increment and decrement buttons in Safari.
+*/
+spark-web-player ::-webkit-inner-spin-button,
+spark-web-player ::-webkit-outer-spin-button {
+  height: auto;
+}
+
+/*
+1. Correct the inability to style clickable types in iOS and Safari.
+2. Change font properties to `inherit` in Safari.
+
+The file input's button lives in a shadow root, so it is unreachable from
+anything an author writes — it is the one control whose font does NOT follow
+the field around it unless this says so.
+*/
+spark-web-player ::-webkit-file-upload-button {
+  -webkit-appearance: button; /* 1 */
+  font: inherit; /* 2 */
+}
+
+/*
+Add the correct vertical alignment in Chrome and Firefox.
+*/
+spark-web-player progress {
+  vertical-align: baseline;
+}
+
+/*
+Reset the fieldset box.
+
+`margin`/`padding` are preflight. `min-inline-size` is NOT, and is the reason
+this rule earns its place: the UA sets `min-inline-size: min-content` on
+fieldset alone, so a fieldset REFUSES to shrink below its widest child. Inside
+a flex or grid column — which is every container here — that turns one long
+label into horizontal overflow of the whole layout, and the fieldset is the
+last place anyone thinks to look.
+*/
+spark-web-player fieldset {
+  margin: 0;
+  padding: 0;
+  min-inline-size: 0;
+}
+
+spark-web-player legend {
+  padding: 0;
+}
+
+/*
+Remove the additional `:invalid` styles in Firefox.
 (https://github.com/mozilla/gecko-dev/blob/2f9eacd9d3d995c937b4251a5557d95d494c9be1/layout/style/res/forms.css#L728-L737)
 */
 spark-web-player :-moz-ui-invalid {

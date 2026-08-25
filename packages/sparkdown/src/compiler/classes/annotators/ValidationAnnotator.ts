@@ -1,6 +1,11 @@
 import { Range } from "@codemirror/state";
 import { getContextNames } from "@impower/textmate-grammar-tree/src/tree/utils/getContextNames";
 import GRAMMAR_DEFINITION from "../../../../language/sparkdown.language-grammar.json";
+import VALID_STYLE_PROPS_DATA from "../../constants/validStyleProps.json";
+import {
+  CUSTOM_PROPERTY_ALIASES,
+  isAliasedAttributeProp,
+} from "../../constants/dataAttributeProps";
 import { SparkdownNodeName } from "../../types/SparkdownNodeName";
 import { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
 import { formatList } from "../../utils/formatList";
@@ -11,56 +16,102 @@ const IMAGE_CONTROL_KEYWORDS =
   GRAMMAR_DEFINITION.variables.IMAGE_CONTROL_KEYWORDS || [];
 const AUDIO_CONTROL_KEYWORDS =
   GRAMMAR_DEFINITION.variables.AUDIO_CONTROL_KEYWORDS || [];
-const IMAGE_CLAUSE_KEYWORDS =
-  GRAMMAR_DEFINITION.variables.IMAGE_CLAUSE_KEYWORDS || [];
-const AUDIO_CLAUSE_KEYWORDS =
-  GRAMMAR_DEFINITION.variables.AUDIO_CLAUSE_KEYWORDS || [];
+const LAYOUT_CONTROL_KEYWORDS =
+  GRAMMAR_DEFINITION.variables.LAYOUT_CONTROL_KEYWORDS || [];
+// `[[...]]` brackets carry both visual (show/hide/animate) and screen-lifecycle
+// (open/close/navigate) verbs — see LAYOUT_CONTROL_KEYWORDS in the grammar.
+const BRACKET_CONTROL_KEYWORDS = [
+  ...IMAGE_CONTROL_KEYWORDS,
+  ...LAYOUT_CONTROL_KEYWORDS,
+];
 
-const PROPERTY_SELECTOR_SIMPLE_CONDITION_NAMES = [
-  "hovered",
-  "focused",
-  "pressed",
-  "disabled",
-  "enabled",
-  "checked",
-  "unchecked",
-  "required",
-  "valid",
-  "invalid",
-  "readonly",
-  "first",
-  "last",
-  "only",
-  "odd",
-  "even",
-  "empty",
-  "blank",
-  "opened",
-  "before",
-  "after",
-  "placeholder",
-  "selection",
-  "marker",
-  "backdrop",
-  "initial",
-];
-const PROPERTY_SELECTOR_FUNCTION_CONDITION_NAMES = [
-  "language",
-  "direction",
-  "has",
-  "screen",
-  "theme",
-];
-const PROPERTY_SELECTOR_DIRECTION_ARGUMENTS = ["rtl", "ltr"];
-const PROPERTY_SELECTOR_THEME_ARGUMENTS = ["dark", "light"];
-const PROPERTY_SELECTOR_SCREEN_ARGUMENTS = [
-  "xs",
-  "sm",
-  "md",
-  "lg",
-  "xl",
-  "2xl",
-];
+// The whole `[[…]]` / `((…))` command + its control token. A clause keyword/
+// value is a SIBLING of AssetCommandInstruction (both under the command), so
+// reading the control from a clause node walks up to the command, not the
+// instruction.
+const ASSET_COMMAND = new Set(["ImageCommand", "AudioCommand"]);
+const ASSET_COMMAND_CONTROL = new Set(["AssetCommandControl"]);
+
+// The closed set of `@event` names a Sparkle element line can bind. Source of
+// truth: the runtime's `EventMap` (packages/spark-engine/src/game/core/types/
+// EventMap.ts) — the renderer only forwards these, and an unknown name silently
+// never fires, so a typo (`@clik`) is always a bug. Keep in sync with EventMap.
+const VALID_SPARKLE_EVENTS = new Set([
+  "click", "mousedown", "mouseenter", "mouseleave", "mousemove", "mouseout",
+  "mouseover", "mouseup",
+  "pointercancel", "pointerdown", "pointerenter", "pointerleave", "pointermove",
+  "pointerout", "pointerover", "pointerup", "gotpointercapture",
+  "lostpointercapture",
+  "touchcancel", "touchend", "touchmove", "touchstart",
+  "drag", "dragend", "dragenter", "dragleave", "dragover", "dragstart", "drop",
+  "wheel",
+  "scroll", "scrollend",
+  "input", "change",
+  "keydown", "keyup", "keypress",
+  "focus", "focusin", "focusout", "blur",
+]);
+
+// The prop names a Sparkle `#prop=value` may use without warning: every real CSS
+// property + the sparkle style vocabulary + widget props (generated into
+// validStyleProps.json from mdn-data + sparkle-style-transformer). Sparkle passes
+// unknown props straight through to CSS, so the value is catching typos
+// (`#colr`) without flagging valid raw CSS or `--custom` props.
+const VALID_STYLE_PROPS = new Set<string>(VALID_STYLE_PROPS_DATA.props);
+
+// The element-line handler attribute (`@click=save`). `EventAttributeName` is
+// also emitted for STYLE SELECTORS (`@hovered:`, `@theme(dark)`), whose
+// vocabulary is unrelated — so the EventMap check must find this wrapper above
+// it before it says anything.
+const SPARKLE_EVENT_HANDLER = new Set(["LuauEventAttribute"]);
+
+// Normalize a prop name to the vocabulary's kebab-case form the way the renderer
+// does (`getCSSPropertyName`): camelCase → kebab, `_` → `-`, lowercased. So
+// `#maxWidth` / `#max_width` both match `max-width`.
+function normalizeStylePropName(name: string): string {
+  return name
+    .replace(/_/g, "-")
+    .replace(/([a-z0-9])([A-Z])/g, "$1-$2")
+    .toLowerCase();
+}
+
+// Bounded parent walk: nearest ancestor whose name is in `names`, else null.
+function ancestorMatching(
+  node: { parent?: any } | undefined,
+  names: Set<string>,
+  max = 10,
+): any {
+  let cur = node?.parent;
+  for (let depth = 0; depth < max && cur; depth++) {
+    if (names.has(cur.name)) return cur;
+    cur = cur.parent;
+  }
+  return null;
+}
+
+// DFS in-order: first descendant (or self) whose name is in `names`, else null.
+function firstDescendant(node: any, names: Set<string>): any {
+  if (names.has(node.name)) return node;
+  let c = node.firstChild;
+  while (c) {
+    const found = firstDescendant(c, names);
+    if (found) return found;
+    c = c.nextSibling;
+  }
+  return null;
+}
+
+// NOTE: This annotator previously also validated property selectors
+// (`PropertySelectorSimpleConditionName`/`...FunctionConditionName`/
+// `PropertySelectorConstant`), reserved define names (`DefineVariableName`),
+// and `InvalidFieldValue`. The Luau port restructured the selector grammar
+// (now `SimpleSelectorFunction`/`RecursiveSelectorFunction`/
+// `SelectorPropertyNamePart`, bad names caught by `InvalidSelectorPropertyName`)
+// and typed field values (`Numeric/Boolean/String/UnquotedStringFieldValue`),
+// so those node names no longer exist — the branches were dead. They were
+// removed (along with the `ConditionalBracedBlock` value-type checks: the
+// asset-clause value position now only admits TimeValue/NumberValue/NameValue,
+// so no conditional node appears there). Only the asset-command validations
+// below remain live.
 
 export interface Diagnostic {
   message?: string;
@@ -70,114 +121,36 @@ export interface Diagnostic {
 export class ValidationAnnotator extends SparkdownAnnotator<
   SparkdownAnnotation<Diagnostic>
 > {
-  selectorFunctionName = "";
-
-  override begin(): void {
-    this.selectorFunctionName = "";
+  /** Does this `[[…]]` command contain a `to <NameValue>` destination (the
+   *  navigate target screen)? Mirrors how ReferenceAnnotator reads a clause
+   *  value's keyword (`prevSibling.prevSibling`). */
+  protected hasNavigateDestination(commandNode: any): boolean {
+    const search = (node: any): boolean => {
+      if (node.name === "NameValue") {
+        const clauseKeywordNode = node.prevSibling?.prevSibling;
+        const clauseKeyword = clauseKeywordNode
+          ? this.read(clauseKeywordNode.from, clauseKeywordNode.to)
+          : "";
+        if (clauseKeyword === "to") {
+          return true;
+        }
+      }
+      let c = node.firstChild;
+      while (c) {
+        if (search(c)) {
+          return true;
+        }
+        c = c.nextSibling;
+      }
+      return false;
+    };
+    return search(commandNode);
   }
 
   override enter(
     annotations: Range<SparkdownAnnotation<Diagnostic>>[],
     nodeRef: SparkdownSyntaxNodeRef,
   ): Range<SparkdownAnnotation<Diagnostic>>[] {
-    if (nodeRef.name === "DefineVariableName") {
-      const text = this.read(nodeRef.from, nodeRef.to);
-      if (
-        IMAGE_CLAUSE_KEYWORDS.includes(text) ||
-        AUDIO_CLAUSE_KEYWORDS.includes(text)
-      ) {
-        const message = `\`${text}\` is not allowed as a defined name`;
-        annotations.push(
-          SparkdownAnnotation.mark<Diagnostic>({
-            message,
-            severity: "error",
-          }).range(nodeRef.from, nodeRef.to),
-        );
-        return annotations;
-      }
-    }
-    // Report invalid property selectors
-    if (nodeRef.name === "PropertySelectorSimpleConditionName") {
-      const text = this.read(nodeRef.from, nodeRef.to);
-      if (!PROPERTY_SELECTOR_SIMPLE_CONDITION_NAMES.includes(text)) {
-        const message = PROPERTY_SELECTOR_FUNCTION_CONDITION_NAMES.includes(
-          text,
-        )
-          ? "Conditional selector should be a function"
-          : "Unrecognized conditional selector";
-        annotations.push(
-          SparkdownAnnotation.mark<Diagnostic>({ message }).range(
-            nodeRef.from,
-            nodeRef.to,
-          ),
-        );
-        return annotations;
-      }
-    }
-    if (nodeRef.name === "PropertySelectorFunctionConditionName") {
-      const text = this.read(nodeRef.from, nodeRef.to);
-      this.selectorFunctionName = text;
-      if (!PROPERTY_SELECTOR_FUNCTION_CONDITION_NAMES.includes(text)) {
-        const message = PROPERTY_SELECTOR_SIMPLE_CONDITION_NAMES.includes(text)
-          ? "Conditional selector is not a function"
-          : "Unrecognized conditional selector";
-        annotations.push(
-          SparkdownAnnotation.mark<Diagnostic>({ message }).range(
-            nodeRef.from,
-            nodeRef.to,
-          ),
-        );
-        return annotations;
-      }
-    }
-    if (nodeRef.name === "PropertySelectorConstant") {
-      const text = this.read(nodeRef.from, nodeRef.to);
-      if (
-        this.selectorFunctionName === "direction" &&
-        !PROPERTY_SELECTOR_DIRECTION_ARGUMENTS.includes(text)
-      ) {
-        const message = `Unrecognized direction argument: Supported values are ${formatList(
-          PROPERTY_SELECTOR_DIRECTION_ARGUMENTS,
-        )}`;
-        annotations.push(
-          SparkdownAnnotation.mark<Diagnostic>({ message }).range(
-            nodeRef.from,
-            nodeRef.to,
-          ),
-        );
-        return annotations;
-      }
-      if (
-        this.selectorFunctionName === "theme" &&
-        !PROPERTY_SELECTOR_THEME_ARGUMENTS.includes(text)
-      ) {
-        const message = `Unrecognized theme argument: Supported values are ${formatList(
-          PROPERTY_SELECTOR_THEME_ARGUMENTS,
-        )}`;
-        annotations.push(
-          SparkdownAnnotation.mark<Diagnostic>({ message }).range(
-            nodeRef.from,
-            nodeRef.to,
-          ),
-        );
-        return annotations;
-      }
-      if (
-        this.selectorFunctionName === "screen" &&
-        !PROPERTY_SELECTOR_SCREEN_ARGUMENTS.includes(text)
-      ) {
-        const message = `Unrecognized screen argument: Supported values are ${formatList(
-          PROPERTY_SELECTOR_SCREEN_ARGUMENTS,
-        )}`;
-        annotations.push(
-          SparkdownAnnotation.mark<Diagnostic>({ message }).range(
-            nodeRef.from,
-            nodeRef.to,
-          ),
-        );
-        return annotations;
-      }
-    }
     if (nodeRef.name === "AssetCommandFilterName") {
       const context = getContextNames(nodeRef.node);
       // Record audio filter reference
@@ -188,13 +161,13 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     }
     if (nodeRef.name === "AssetCommandControl") {
       const context = getContextNames(nodeRef.node);
-      // Report invalid image control
+      // Report invalid image/screen control
       if (
         context.includes("ImageCommand") &&
-        !IMAGE_CONTROL_KEYWORDS.includes(this.read(nodeRef.from, nodeRef.to))
+        !BRACKET_CONTROL_KEYWORDS.includes(this.read(nodeRef.from, nodeRef.to))
       ) {
-        const message = `Unrecognized visual control: Visual commands only support ${formatList(
-          IMAGE_CONTROL_KEYWORDS,
+        const message = `Unrecognized command: \`[[ ]]\` commands only support ${formatList(
+          BRACKET_CONTROL_KEYWORDS,
         )}`;
         annotations.push(
           SparkdownAnnotation.mark<Diagnostic>({ message }).range(
@@ -217,6 +190,203 @@ export class ValidationAnnotator extends SparkdownAnnotator<
             nodeRef.from,
             nodeRef.to,
           ),
+        );
+        return annotations;
+      }
+      // `[[navigate <container> to <screen>]]` requires a `to <screen>`
+      // destination — a bare `[[navigate <container>]]` is incomplete.
+      if (
+        context.includes("ImageCommand") &&
+        this.read(nodeRef.from, nodeRef.to) === "navigate"
+      ) {
+        const command = ancestorMatching(nodeRef.node, ASSET_COMMAND);
+        if (command && !this.hasNavigateDestination(command)) {
+          const message = `Incomplete \`navigate\`: name the destination screen\n> e.g. \`[[navigate menu to settings]]\``;
+          annotations.push(
+            SparkdownAnnotation.mark<Diagnostic>({
+              message,
+              severity: "warning",
+            }).range(nodeRef.from, nodeRef.to),
+          );
+          return annotations;
+        }
+      }
+    }
+    // Dot-prefixed classes on a Sparkle element line (`row.hud`, `text.title`).
+    // Classes are SPACE-separated bare words after the tag (`row hud`), so a `.`
+    // breaks the header parse into `<tag>` + an `ERROR_UNRECOGNIZED` remainder
+    // starting with `.`. Surface a friendly warning pointing at the fix rather
+    // than leaving the class silently dropped. Gated on the Sparkle element
+    // context (a struct body line) + the leading dot so other unrecognized
+    // spans aren't mislabeled.
+    if (nodeRef.name === "ERROR_UNRECOGNIZED") {
+      // A dotted class breaks the header at the `.`, which becomes a lone
+      // ERROR_UNRECOGNIZED node (text `"."`). Warn only for that dot inside a
+      // Sparkle element line so unrelated unrecognized spans aren't mislabeled.
+      const text = this.read(nodeRef.from, nodeRef.to).trim();
+      const context = getContextNames(nodeRef.node);
+      // A CSS-nesting SELECTOR is not a dotted class. `&.secondary:` compiles
+      // to a real, populated compound rule — `builtins.sd` uses the idiom 13
+      // times — and taking the suggested fix turns it into a descendant TYPE
+      // selector matching nothing, with no further warning. So the advice was
+      // not merely noise: following it silently broke working styles.
+      //
+      // Detected on the text preceding the dot on this line: a selector
+      // combinator (`&`, `>`, `*`) means we are in selector position, where
+      // dots are the correct syntax.
+      const lineStart = this.read(
+        Math.max(0, nodeRef.from - 200),
+        nodeRef.from,
+      );
+      const beforeDot = lineStart.slice(lineStart.lastIndexOf("\n") + 1);
+      const inSelectorPosition = /[&>*]/.test(beforeDot);
+      if (
+        text.startsWith(".") &&
+        context.includes("LuauStructBodyLine") &&
+        !inSelectorPosition &&
+        // Only element-line headers — not a stray `.` inside a `key = value`
+        // style property, where the fix isn't "use a space".
+        !context.includes("LuauStructScalarProperty")
+      ) {
+        const message = `Classes are space-separated, not dot-prefixed — replace the \`.\` with a space\n> e.g. \`row hud\`, not \`row.hud\``;
+        annotations.push(
+          SparkdownAnnotation.mark<Diagnostic>({
+            message,
+            severity: "warning",
+          }).range(nodeRef.from, nodeRef.to),
+        );
+        return annotations;
+      }
+    }
+    // Unrecognized `@event` name on a Sparkle element line (`@clik=save`). The
+    // event set is closed (EventMap) and an unknown name silently never fires,
+    // so surface a typo instead of leaving a dead handler. `EventAttributeName`
+    // captures exactly the identifier after `@` (no `@`, no whitespace).
+    //
+    // Gated on the enclosing HANDLER attribute, because the grammar emits this
+    // same leaf for a style SELECTOR (`@hovered:`, `@focused`, `@theme(dark)`,
+    // `@has(button)`) — a closed vocabulary of its own that has nothing to do
+    // with EventMap. Ungated, every one of those warned that a selector the
+    // docs recommend and `builtins.sd` uses 90 times "never fires", and
+    // suggested `@click`/`@input` in its place.
+    if (
+      nodeRef.name === "EventAttributeName" &&
+      ancestorMatching(nodeRef.node, SPARKLE_EVENT_HANDLER)
+    ) {
+      const name = this.read(nodeRef.from, nodeRef.to).trim();
+      if (name && !VALID_SPARKLE_EVENTS.has(name)) {
+        const message = `Unrecognized event \`@${name}\` — Sparkle dispatches a fixed set of events, so this handler never fires\n> e.g. \`@click\`, \`@input\`, \`@change\`, \`@keydown\``;
+        annotations.push(
+          SparkdownAnnotation.mark<Diagnostic>({
+            message,
+            severity: "warning",
+          }).range(nodeRef.from, nodeRef.to),
+        );
+        return annotations;
+      }
+    }
+    // Unterminated `{` inside an interpolated string.
+    //
+    // Matches Luau, which lexes a `{` that reaches the end of its string as a
+    // BrokenString and reports "Malformed interpolated string; did you forget
+    // to add a '}'?". Without this the mistake is silent: the interpolation
+    // closes at the string boundary and its contents quietly vanish from the
+    // value (and, before the string-bounded rules, it swallowed the rest of
+    // the file).
+    //
+    // Detected on the text rather than on an `_end` child: closing at the
+    // string boundary still produces an `_end` node, just a zero-width one.
+    if (
+      nodeRef.name === "LuauInterpolatedStringExpression" ||
+      nodeRef.name === "LuauDoubleQuotedStringInterpolation" ||
+      nodeRef.name === "LuauBacktickStringInterpolation" ||
+      nodeRef.name === "LuauFunctionCallShorthand" ||
+      nodeRef.name === "LuauDoubleQuotedFunctionCallShorthand" ||
+      nodeRef.name === "LuauBacktickFunctionCallShorthand"
+    ) {
+      const raw = this.read(nodeRef.from, nodeRef.to);
+      // Empty `{}` — Luau: "Malformed interpolated string, expected expression
+      // inside '{}'". It used to lower to nothing and silently DELETE itself
+      // from the string, so `` `a={}; x=3` `` became `a=; x=3`. Use `'...'`
+      // or `[[...]]` for a string that should hold literal braces.
+      if (/^\{\s*\}$/.test(raw.trim())) {
+        annotations.push(
+          SparkdownAnnotation.mark<Diagnostic>({
+            message:
+              "Malformed interpolated string, expected expression inside `{}`",
+            severity: "error",
+          }).range(nodeRef.from, nodeRef.to),
+        );
+        return annotations;
+      }
+      const closed = raw.trimEnd().endsWith("}");
+      if (!closed) {
+        annotations.push(
+          SparkdownAnnotation.mark<Diagnostic>({
+            message:
+              "Malformed interpolated string; did you forget to add a `}`?",
+            severity: "error",
+          }).range(nodeRef.from, nodeRef.to),
+        );
+        return annotations;
+      }
+    }
+    // Unrecognized inline RICH TEXT tag inside a content string
+    // (`text "a <bold>x</bold>"`). The runtime leaves an unknown tag as literal
+    // characters — deliberately, so prose like `5 < 6` survives — which means a
+    // typo shows up verbatim in the UI instead of styling anything. The grammar
+    // already separates a tag-SHAPED token whose name isn't in the vocabulary
+    // (`SparkleRichTextTagUnknown`) from a recognized one, so this only has to
+    // report it.
+    //
+    // NOT flagged inside a `#prop` value: rich text is only parsed in element
+    // CONTENT, so `<b>` in a placeholder is inert rather than misspelled.
+    if (nodeRef.name === "SparkleRichTextTagUnknown") {
+      const raw = this.read(nodeRef.from, nodeRef.to).trim();
+      const name = raw.replace(/^<\/?/, "").replace(/[=>].*$/s, "");
+      const inPropValue = getContextNames(nodeRef.node).includes(
+        "LuauPropAttribute",
+      );
+      if (name && !inPropValue) {
+        const message = `Unrecognized rich text tag \`<${name}>\` — not a known inline tag, so it renders literally instead of styling anything\n> Styling tags are \`<b>\`, \`<i>\`, \`<u>\`, \`<s>\`, \`<sub>\`, \`<sup>\`, \`<mark=…>\`, \`<color=…>\`, \`<size=…>\`; wrap text in \`<noparse>…</noparse>\` to keep angle brackets literal`;
+        annotations.push(
+          SparkdownAnnotation.mark<Diagnostic>({
+            message,
+            severity: "warning",
+          }).range(nodeRef.from, nodeRef.to),
+        );
+        return annotations;
+      }
+    }
+    // Unrecognized inline `#prop` name on a Sparkle element line (`#colr=red`).
+    // Sparkle passes unknown props straight through to CSS, so a typo silently
+    // does nothing — warn when the name is neither a known style prop / CSS
+    // property / widget prop nor a `--custom` property. `StyleAttributeName`
+    // captures exactly the identifier after `#`.
+    if (nodeRef.name === "StyleAttributeName") {
+      const raw = this.read(nodeRef.from, nodeRef.to).trim();
+      const name = raw.replace(/^#/, "");
+      // `--custom` CSS variables and `data-*` / `aria-*` attributes are always
+      // valid on any element, so they're never flagged. So are the named
+      // non-standard props (`#tooltip`), which the ui writes out as `data-*`.
+      const isPassThrough =
+        name.startsWith("--") ||
+        name.startsWith("data-") ||
+        name.startsWith("aria-") ||
+        isAliasedAttributeProp(name) ||
+        CUSTOM_PROPERTY_ALIASES.has(normalizeStylePropName(name));
+      if (
+        name &&
+        !isPassThrough &&
+        !VALID_STYLE_PROPS.has(name) &&
+        !VALID_STYLE_PROPS.has(normalizeStylePropName(name))
+      ) {
+        const message = `Unrecognized prop \`#${name}\` — not a known style property, so it has no effect\n> Sparkle props are CSS-style names (\`background-color\`, \`gap\`, \`padding\`) or short aliases; use \`#--${name}\` for a custom CSS variable`;
+        annotations.push(
+          SparkdownAnnotation.mark<Diagnostic>({
+            message,
+            severity: "warning",
+          }).range(nodeRef.from, nodeRef.to),
         );
         return annotations;
       }
@@ -246,16 +416,6 @@ export class ValidationAnnotator extends SparkdownAnnotator<
         return annotations;
       }
     }
-    if (nodeRef.name === "InvalidFieldValue") {
-      const message = `Invalid property value`;
-      annotations.push(
-        SparkdownAnnotation.mark<Diagnostic>({
-          message,
-          severity: "error",
-        }).range(nodeRef.from, nodeRef.to),
-      );
-      return annotations;
-    }
     if (nodeRef.name === "AssetCommandClauseKeyword") {
       const text = this.read(nodeRef.from, nodeRef.to);
       const nextNonWhitespacePos = this.getNextNonWhitespacePos(nodeRef.to);
@@ -268,7 +428,6 @@ export class ValidationAnnotator extends SparkdownAnnotator<
         : "";
       if (text === "after") {
         if (
-          nextValueNodeType !== "ConditionalBracedBlock" &&
           nextValueNodeType !== "TimeValue" &&
           nextValueNodeType !== "NumberValue"
         ) {
@@ -290,7 +449,6 @@ export class ValidationAnnotator extends SparkdownAnnotator<
       }
       if (text === "over") {
         if (
-          nextValueNodeType !== "ConditionalBracedBlock" &&
           nextValueNodeType !== "TimeValue" &&
           nextValueNodeType !== "NumberValue"
         ) {
@@ -314,7 +472,6 @@ export class ValidationAnnotator extends SparkdownAnnotator<
         const context = getContextNames(nodeRef.node);
         if (
           context.includes("ImageCommand") &&
-          nextValueNodeType !== "ConditionalBracedBlock" &&
           nextValueNodeType !== "NameValue"
         ) {
           const message = `\`${text}\` should be followed by the name of a transition or animation\n> e.g. \`with shake\``;
@@ -334,7 +491,6 @@ export class ValidationAnnotator extends SparkdownAnnotator<
         }
         if (
           context.includes("AudioCommand") &&
-          nextValueNodeType !== "ConditionalBracedBlock" &&
           nextValueNodeType !== "NameValue"
         ) {
           const message =
@@ -358,7 +514,6 @@ export class ValidationAnnotator extends SparkdownAnnotator<
         const context = getContextNames(nodeRef.node);
         if (
           context.includes("ImageCommand") &&
-          nextValueNodeType !== "ConditionalBracedBlock" &&
           nextValueNodeType !== "NameValue"
         ) {
           const message = `\`${text}\` should be followed by the name of an ease\n> e.g. \`ease linear\``;
@@ -378,10 +533,22 @@ export class ValidationAnnotator extends SparkdownAnnotator<
         }
       }
       if (text === "to") {
+        // `[[navigate <container> to <screen>]]` uses `to` to name a destination
+        // SCREEN (a NameValue), not a number — skip the numeric check for
+        // navigate (the destination is validated as a screen by the reference
+        // resolver). Audio `to <number>` (volume target) still validates here.
+        const command = ancestorMatching(nodeRef.node, ASSET_COMMAND);
+        const controlNode = command
+          ? firstDescendant(command, ASSET_COMMAND_CONTROL)
+          : null;
+        const control = controlNode
+          ? this.read(controlNode.from, controlNode.to).trim()
+          : "";
         if (
-          (nextValueNodeType !== "ConditionalBracedBlock" &&
-            nextValueNodeType !== "NumberValue") ||
-          (nextValueNodeType === "NumberValue" && Number(nextValueNodeText) < 0)
+          control !== "navigate" &&
+          (nextValueNodeType !== "NumberValue" ||
+            (nextValueNodeType === "NumberValue" &&
+              Number(nextValueNodeText) < 0))
         ) {
           const message = `\`${text}\` should be followed by a number greater than 0\n> e.g. \`to 0\`, \`to 0.5\`, \`to 1\``;
           const errorFrom = nextValueNode
@@ -409,8 +576,7 @@ export class ValidationAnnotator extends SparkdownAnnotator<
       ) {
         if (
           nextValueNode &&
-          (nextValueNodeType === "ConditionalBracedBlock" ||
-            nextValueNodeType === "TimeValue" ||
+          (nextValueNodeType === "TimeValue" ||
             nextValueNodeType === "NumberValue")
         ) {
           const message = `\`${text}\` is a flag and cannot take an argument`;

@@ -15,6 +15,8 @@ import {
   lowerExpressionFromContainer,
   lowerExpressionFromNodes,
 } from "../expression/lowerExpression";
+import { validateAssignmentValue } from "../utils/validateAssignmentValue";
+import { validateDefineTypeShadow } from "../utils/validateDefineTypeShadow";
 import { wrapInWeave } from "../utils/wrapInWeave";
 
 // Statement-like nodes that can appear as siblings inside a
@@ -166,6 +168,16 @@ export function lowerVariableDefinition(
     return {};
   }
 
+  // Global declarations (`store` / `const`) that reuse a define TYPE name
+  // shadow the type's bare Luau global — warn. Covers every downstream path
+  // below (single/multi store, const). `local` is exempt: lexical shadowing
+  // inside a function body is ordinary Luau and expected.
+  if (scope === "store" || scope === "const") {
+    for (const t of targets) {
+      validateDefineTypeShadow(t.name, t.assignNode, ctx);
+    }
+  }
+
   // `local f = ...` over a name that statically referred to a sibling
   // variadic subflow (`function f(...)` earlier in this function):
   // the local SHADOWS the subflow from here on, lexically — drop the
@@ -191,6 +203,7 @@ export function lowerVariableDefinition(
     "LuauAssignmentOperation",
     lastTarget.assignNode,
   );
+  if (firstRhsOp) validateAssignmentValue(firstRhsOp, ctx);
   const firstRhs = firstRhsOp
     ? lowerExpressionFromContainer(firstRhsOp, ctx)
     : null;

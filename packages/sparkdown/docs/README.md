@@ -1,9 +1,14 @@
 # sparkdown docs
 
-Reference / design documentation for the `@impower/sparkdown` package.
-Grouped to mirror the source-tree layout — `compiler/` docs cover
-parsing + lowering, `runtime/` docs cover the inkjs-fork runtime +
-sparkdown additions.
+Documentation for the `@impower/sparkdown` package. The `guide/` is written for
+**authors** (people writing Sparkdown); `compiler/` and `runtime/` are
+**reference / design** docs for contributors, grouped to mirror the source tree.
+
+## Guide — [`guide/`](./guide/)
+
+The user-facing authoring guide: how to write Sparkle UI (layouts, elements,
+control flow, components, widgets, screens, styling, animation). Start at
+[`guide/README.md`](./guide/README.md).
 
 ## Compiler — [`compiler/`](./compiler/)
 

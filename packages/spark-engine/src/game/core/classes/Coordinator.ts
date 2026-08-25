@@ -181,7 +181,7 @@ export class Coordinator<G extends Game> {
         transientLayers.filter((layer) => !instructions.image?.[layer]),
       );
 
-      game.module.ui.showScreen("main");
+      game.module.ui.showLayout("main");
       game.module.ui.reveal();
 
       // Display click indicator
@@ -224,6 +224,21 @@ export class Coordinator<G extends Game> {
           game.module.ui.image.write(target, events, instant),
         );
       }
+
+      // Process layout-lifecycle events ([[open/close/navigate]]). Mount/destroy
+      // happens here (the reactive layout tree is settled at this point); the
+      // enter/exit transition is fire-and-forget for visuals, while `wait` (which
+      // inflated instructions.end) is what actually holds story advance.
+      if (instructions.layout) {
+        Object.values(instructions.layout).forEach((events) =>
+          game.module.ui.applyLayoutInstructions(events, !!instant),
+        );
+      }
+
+      // Coarse per-turn re-eval of reactive screen bindings (Phase 3 I2). The
+      // story is settled at this point, so binding evaluators are safe to call.
+      // No-op unless the reactive render path is active.
+      game.module.ui.refreshLayouts();
     };
 
     // Process audio
