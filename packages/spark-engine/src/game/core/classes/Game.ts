@@ -48,6 +48,7 @@ import { GameStartedMessage } from "./messages/GameStartedMessage";
 import { GameStartedThreadMessage } from "./messages/GameStartedThreadMessage";
 import { GameSteppedMessage } from "./messages/GameSteppedMessage";
 import { Module } from "./Module";
+import { RecencySet } from "./RecencySet";
 import { RuntimeState } from "./RuntimeState";
 
 export type DefaultModuleConstructors = typeof DEFAULT_MODULES;
@@ -115,13 +116,22 @@ export class Game<T extends M = {}> {
 
   // Lookahead-rewind snapshot of `_runtimeState`. NOT a checkpoint — this is the
   // try-a-branch/rewind-on-dead-end mechanism ink drives per output newline.
+  // Nothing here is proportional to the length of the simulation.
   // `choicesEncountered`/`conditionsEncountered` are append-only, so we snapshot
   // them by LENGTH and restore by truncation (O(1), exactly reverts the appends)
-  // instead of deep-cloning the growing arrays every newline (was O(n²) over a
-  // long simulation). `pathsExecutedThisFrame` has recency moves, so it's still
-  // copied.
+  // instead of deep-cloning the growing arrays every newline. And
+  // `pathsExecutedThisFrame`, which grows for the whole simulation and reorders
+  // on revisit, journals its own undo information instead of being copied here
+  // (see RecencySet) — copying it was the last O(n²) term, and it made
+  // previewing deep inside a long scene exhaust memory (#376).
   protected _runtimeSnapshot: {
-    pathsExecutedThisFrame: Set<string>;
+    // The collection the journal was opened on. A lookahead's undo information
+    // now lives ON that instance, so if the whole runtime state is replaced
+    // between save and restore (a `load`, a fresh simulation), rewinding it is
+    // meaningless — and rewinding only the OTHER collections would leave the
+    // four of them describing different moments. Identity is checked so the
+    // rewind stays all-or-nothing.
+    paths: RecencySet;
     // Mirror of pathsExecutedThisFrame's per-checkpoint delta log — snapshotted
     // alongside it so a lookahead rewind reverts the delta tracking too (else a
     // speculative-then-rewound execution would leak into the next checkpoint's
@@ -255,7 +265,7 @@ export class Game<T extends M = {}> {
 
     this._executingPath = null;
     this._executingLocation = null;
-    this._runtimeSnapshot = null;
+    this.discardRuntimeSnapshot();
 
     this.updateBreakpointsMap(options?.breakpoints ?? []);
     this.updateFunctionBreakpointsMap(options?.functionBreakpoints ?? []);
@@ -493,14 +503,13 @@ export class Game<T extends M = {}> {
       this._runtimeState.recordCondition(value);
     };
     story.onSaveStateSnapshot = () => {
-      // Cheap snapshot: copy the recency Set, but mark the append-only arrays by
-      // length (no deep copy). Restore truncates them back — exactly equivalent
-      // to the previous full clone, since only record* (append) mutates them
-      // between save and restore.
+      // O(1) in the size of the simulation: `pathsExecutedThisFrame` starts
+      // journalling its own changes, the append-only arrays are marked by
+      // length, and the only copy is the per-beat delta mirror.
+      const paths = this._runtimeState.pathsExecutedThisFrame;
+      paths.beginSnapshot();
       this._runtimeSnapshot = {
-        pathsExecutedThisFrame: new Set(
-          this._runtimeState.pathsExecutedThisFrame,
-        ),
+        paths,
         executedSinceCheckpoint: new Set(
           this._runtimeState.executedSinceCheckpoint,
         ),
@@ -509,12 +518,17 @@ export class Game<T extends M = {}> {
       };
     };
     story.onRestoreStateSnapshot = () => {
-      if (this._runtimeSnapshot) {
-        // Mutate in place (same _runtimeState object): drop the recorded paths
-        // back to the snapshot Set, and truncate the appended choices/conditions.
-        this._runtimeState.pathsExecutedThisFrame = new Set(
-          this._runtimeSnapshot.pathsExecutedThisFrame,
-        );
+      if (
+        this._runtimeSnapshot &&
+        // The runtime state this snapshot describes is still the live one.
+        // Otherwise it belongs to a run that has already been abandoned, and
+        // applying half of it would be worse than applying none.
+        this._runtimeSnapshot.paths === this._runtimeState.pathsExecutedThisFrame
+      ) {
+        // Mutate in place (same _runtimeState object): rewind the recorded
+        // paths through their journal, and truncate the appended
+        // choices/conditions.
+        this._runtimeState.pathsExecutedThisFrame.restoreSnapshot();
         this._runtimeState.executedSinceCheckpoint = new Set(
           this._runtimeSnapshot.executedSinceCheckpoint,
         );
@@ -525,8 +539,16 @@ export class Game<T extends M = {}> {
       }
     };
     story.onDiscardStateSnapshot = () => {
-      this._runtimeSnapshot = null;
+      this.discardRuntimeSnapshot();
     };
+  }
+
+  /** Drop any open lookahead snapshot, journal included. Used both when ink
+   *  discards one and when the game abandons a run mid-lookahead (a rewind, a
+   *  fresh simulation), so a stale journal can never rewind a later beat. */
+  protected discardRuntimeSnapshot() {
+    this._runtimeState?.pathsExecutedThisFrame?.discardSnapshot();
+    this._runtimeSnapshot = null;
   }
 
   simulate(
@@ -767,12 +789,33 @@ export class Game<T extends M = {}> {
     });
   }
 
-  getCheckpoint(seq: string) {
+  /** The checkpoint captured for a step of the SIMULATED route, looked up by
+   *  the step's identity.
+   *
+   *  `expected` corroborates the match. Identity used to be the path history
+   *  spelled out (`"p0|p1|p2"`), so equal identities implied an equal number
+   *  of components and therefore the same index — which is what
+   *  `patchAndSimulateRoute` relies on when it resumes by POSITION rather than
+   *  by the index it matched. A fixed-width hash carries no depth, so that
+   *  implication has to be checked rather than assumed: a caller passes the
+   *  step it believes it matched, and a disagreement on path or index means no
+   *  match, costing a re-simulation instead of resuming the preview from an
+   *  unrelated story position. */
+  getCheckpoint(
+    seq: string,
+    expected?: { path?: string; index?: number },
+  ) {
     if (this._plannedRoute) {
       const stepIndex = this._plannedRouteStepMap[seq];
       if (stepIndex != null) {
+        if (expected?.index != null && stepIndex !== expected.index) {
+          return null;
+        }
         const step = this._plannedRoute.steps[stepIndex];
         if (step) {
+          if (expected?.path != null && step.path !== expected.path) {
+            return null;
+          }
           if (step.checkpoint != null) {
             return this._checkpoints.getJson(step.checkpoint);
           }
@@ -812,7 +855,7 @@ export class Game<T extends M = {}> {
 
     this._executingPath = null;
     this._executingLocation = null;
-    this._runtimeSnapshot = null;
+    this.discardRuntimeSnapshot();
 
     this.continue(true);
 
@@ -838,8 +881,14 @@ export class Game<T extends M = {}> {
     const validSteps = [...newRoute.steps];
     const newSteps = [];
     let lastValidNewRouteStep = validSteps.at(-1);
+    // The resume below is positional (`validSteps.length - 1` indexes the OLD
+    // route), so the match has to agree on that index, not merely on identity.
     let lastValidOldRouteCheckpoint = this.getCheckpoint(
       lastValidNewRouteStep?.seq || "",
+      {
+        path: lastValidNewRouteStep?.path,
+        index: validSteps.length - 1,
+      },
     );
     while (lastValidNewRouteStep && !lastValidOldRouteCheckpoint) {
       const invalidStep = validSteps.pop();
@@ -849,6 +898,10 @@ export class Game<T extends M = {}> {
       lastValidNewRouteStep = validSteps.at(-1);
       lastValidOldRouteCheckpoint = this.getCheckpoint(
         lastValidNewRouteStep?.seq || "",
+        {
+          path: lastValidNewRouteStep?.path,
+          index: validSteps.length - 1,
+        },
       );
     }
 
@@ -1185,7 +1238,15 @@ export class Game<T extends M = {}> {
             const step = this._plannedRoute.steps[this._plannedRouteStepCursor];
             if (step) {
               if (step.path === pointerPath) {
-                step.checkpoint = this._checkpoints.length - 1;
+                // The nearest checkpoint at or before this step. Steps reached
+                // before the first capture have none, and must stay undefined:
+                // recording -1 made `getCheckpoint` ask the store for index -1
+                // (null) instead of reporting "no checkpoint here", so a real
+                // absence was indistinguishable from a lookup failure.
+                const latestCheckpoint = this._checkpoints.length - 1;
+                if (latestCheckpoint >= 0) {
+                  step.checkpoint = latestCheckpoint;
+                }
                 this._plannedRouteStepCursor++;
               }
             }
@@ -1938,7 +1999,6 @@ export class Game<T extends M = {}> {
 
   getLastExecutedDocumentLocation() {
     const lastExecutedPath = this._runtimeState.pathsExecutedThisFrame
-      .values()
       .toArray()
       .findLast((path) => this._program.pathLocations?.[path]);
     if (lastExecutedPath) {
