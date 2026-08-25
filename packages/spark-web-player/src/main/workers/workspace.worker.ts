@@ -13,6 +13,25 @@ connection.listen();
 const compilerState = installSparkdownWorker(connection);
 const gameState = installGameWorker(connection);
 
+// P5: the PLAYER's compiler seeds the builtins prelude into the runtime story VM
+// (source-injection), so the engine can source `define` context from the live
+// `__def` tables (runtime inheritance: authored `as animation` inherits the
+// builtin `timing`, etc.). This is the player's OWN compiler instance — the
+// editor's LSP diagnostics compiler is separate and stays unseeded, so keystroke
+// latency is unaffected. configure() merges, so later editor configures (files,
+// startFrom, …) leave these flags set.
+//
+// experimentalDisplayCalls makes this the compiler that renders: SIMPLE display
+// statements lower to native `display(<table>)` Luau calls (the structured
+// transport every DOM/UI golden runs; `displayCallParity` proves the emitted
+// ui/* stream byte-identical to the legacy routing-tag form). Setting it here
+// covers every host that embeds the player — impower-dev, the vscode webview
+// and the standalone player app.
+compilerState.compiler.configure({
+  seedBuiltinsIntoStory: true,
+  experimentalDisplayCalls: true,
+});
+
 compilerState.compiler.addEventListener("compiler/didCompile", (params) => {
   // Create or update game
   if (!gameState.game) {
@@ -21,6 +40,16 @@ compilerState.compiler.addEventListener("compiler/didCompile", (params) => {
       program: params.program,
       story: params.story,
       ...gameState.systemConfiguration,
+      // This is the live-preview / HMR route-simulation game: it saves a
+      // checkpoint at every beat while replaying to the edited line, which is
+      // the O(n^2) cost incremental checkpoints exist to remove. Deltas store
+      // periodic full keyframes + per-beat deltas; `verifyCheckpoints: false`
+      // drops the per-beat full-save self-check so capture is bounded per beat
+      // (the full time win). The delta reconstruction is covered by the
+      // byte-identical round-trip tests (incl. the pure-delta path); flip verify
+      // back on if a regression ever needs the self-check's fall-back-to-full.
+      incrementalCheckpoints: true,
+      verifyCheckpoints: false,
     });
     profile("end", compilerState.compiler.profilerId + " " + "game/create");
   } else {

@@ -213,12 +213,19 @@ export const getCssColor = (value: string): string => {
     value === "white" ||
     value === "currentColor" ||
     value.startsWith("#") ||
-    value.startsWith("var(") ||
-    value.startsWith("rgb(") ||
-    value.startsWith("rgba(") ||
-    value.startsWith("hsl(") ||
-    value.startsWith("hsla(") ||
-    value.startsWith("lch")
+    // ANY css function: var() rgb() hsl() lch() oklch() color-mix() light-dark()
+    // and whatever gets added next. A theme token is an IDENTIFIER, so it can
+    // never contain a parenthesis — a value carrying one is not a token name.
+    //
+    // This replaces a prefix WHITELIST, which silently mangled every function it
+    // had not been taught about. `color-mix(in srgb, currentColor 50%,
+    // transparent)` came out as `var(--theme-color-color-mix(in srgb, ...))`: a
+    // valid-looking reference to a variable that cannot exist, so the browser
+    // dropped the declaration and the property fell back to its initial value.
+    // Nothing errored. A whitelist here fails CLOSED into corruption rather than
+    // open into passthrough, which is the wrong direction for a value we do not
+    // recognize.
+    value.includes("(")
   ) {
     return value;
   }
@@ -1074,3 +1081,42 @@ export function generateShadow(elevation: number): string {
 
   return `${keyShadowString}, ${ambientShadowString}`;
 }
+
+/** CSS `content` takes a STRING, which must be quoted — `content: hello` and
+ *  `content: ` are both invalid, and an unrendered pseudo-element is the silent
+ *  result. Authors write the value bare (`content = ""`, `content = "New"`), so
+ *  quote it here unless it is a keyword or a function/counter form that must
+ *  stay unquoted. */
+const CSS_CONTENT_KEYWORDS = new Set([
+  "none",
+  "normal",
+  "inherit",
+  "initial",
+  "revert",
+  "revert-layer",
+  "unset",
+  "open-quote",
+  "close-quote",
+  "no-open-quote",
+  "no-close-quote",
+]);
+
+const CSS_CONTENT_FUNCTION_REGEX =
+  /^(?:attr|url|var|counter|counters|linear-gradient|radial-gradient|conic-gradient|image-set|image)\(/;
+
+export const getCssContent = (value: string): string => {
+  const v = value == null ? "" : String(value).trim();
+  if (CSS_CONTENT_KEYWORDS.has(v)) {
+    return v;
+  }
+  if (CSS_CONTENT_FUNCTION_REGEX.test(v)) {
+    return v;
+  }
+  if (
+    (v.startsWith('"') && v.endsWith('"') && v.length >= 2) ||
+    (v.startsWith("'") && v.endsWith("'") && v.length >= 2)
+  ) {
+    return v;
+  }
+  return JSON.stringify(v);
+};

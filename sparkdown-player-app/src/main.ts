@@ -82,6 +82,11 @@ const connection = new Port2MessageConnection(
   IS_LOCALHOST ? undefined : SPARKDOWN_EDITOR_ORIGIN,
 );
 connection.listen();
+console.log(
+  `[sparkdown-player] ready — editor origin: ${
+    IS_LOCALHOST ? "(dev) any localhost accepted" : SPARKDOWN_EDITOR_ORIGIN
+  }`,
+);
 
 connection.addEventListener("message", async (e) => {
   const message = e.data;

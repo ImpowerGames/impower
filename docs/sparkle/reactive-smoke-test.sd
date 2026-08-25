@@ -1,0 +1,73 @@
+// Reactive Sparkle UI — live smoke test.
+//
+// Exercises the whole reactive stack in the real player: a {hp} content
+// binding, an if/else, a keyed `for` over objects, and @click buttons that
+// mutate state. Paste this whole file into the editor (it compiles + pushes to
+// the player iframe).
+//
+// No config block is needed: the reactive layouts path is the ONLY render path
+// now, and `main` auto-opens. (The old `config.ui.reactive = true` opt-in was
+// retired — setting it does nothing.)
+//
+// See pico-showcase.sd for the builtin Pico styles.
+
+store hp = 100
+store alive = true
+store hero = "Hero"
+store loud = false
+store items = { {name = "Sword"}, {name = "Shield"}, {name = "Potion"} }
+
+function hurt()
+  hp = hp - 25
+  if hp <= 0 then
+    hp = 0
+    alive = false
+  end
+end
+
+function heal()
+  hp = 100
+  alive = true
+end
+
+function shuffle()
+  items = { items[3], items[1], items[2] }
+end
+
+function rename(event)
+  hero = event.value
+end
+
+function set_loud(event)
+  loud = event.checked
+end
+
+layout main with
+  column:
+    text "Welcome, {hero}!"
+    text "HP: {hp}"
+    if alive then
+      text "Status: Alive"
+    else
+      text "Status: GAME OVER"
+    end
+    text "Inventory:"
+    for it in items do
+      text "- {it.name}"
+    end
+    row:
+      button "Hurt" @click=hurt
+      button "Heal" @click=heal
+      button "Shuffle" @click=shuffle
+    text "Rename hero (type to see {hero} update live):"
+    input #value={hero} @input=rename
+    row:
+      checkbox #checked={loud} @change=set_loud
+      text "Loud mode is {loud}"
+end
+
+-> start
+
+scene start
+  Reactive smoke test — click buttons, type in the field, toggle the checkbox.
+end

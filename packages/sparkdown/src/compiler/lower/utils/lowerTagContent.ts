@@ -1,9 +1,14 @@
 import { type SyntaxNode } from "@lezer/common";
+import { Expression } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expression/Expression";
 import { Identifier } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Identifier";
 import { ParsedObject } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Object";
 import { Text } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Text";
 import { VariableReference } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Variable/VariableReference";
 import { LowerContext } from "../context";
+import {
+  FUNCTION_CALL_SHORTHAND_NODES,
+  lowerExpressionFromContainer,
+} from "../expression/lowerExpression";
 
 // Shared lowering for a tag body (`# tag {var}`). The grammar classifies a
 // `TagContent` body into `TagText` literal runs interleaved with
@@ -28,7 +33,10 @@ export function lowerTagContent(
 ): ParsedObject[] {
   // Build raw text + reference segments first, then trim the literal text at
   // the boundaries so the result equals the old `raw.trim()`-then-scan output.
-  type Seg = { kind: "text"; raw: string } | { kind: "ref"; name: string };
+  type Seg =
+    | { kind: "text"; raw: string }
+    | { kind: "ref"; name: string }
+    | { kind: "expr"; expr: Expression };
   const segs: Seg[] = [];
 
   // `TagContent` (a begin/end rule) exposes its body inside a generated
@@ -53,6 +61,17 @@ export function lowerTagContent(
         segs.push({ kind: "text", raw: ctx.read(child.from, child.to) });
       }
       cursor = child.to;
+    } else if (FUNCTION_CALL_SHORTHAND_NODES.has(child.name)) {
+      // `{{fn}}` / `{{fn(args)}}` call shorthand (issue #223) — works inside
+      // tag bodies like every other interpolation context. The funnel coerces
+      // the body to a call (and raises the "expected a function name" error
+      // for anything else), so the tag substitutes the call's return value.
+      if (child.from > cursor) {
+        segs.push({ kind: "text", raw: ctx.read(cursor, child.from) });
+      }
+      const expr = lowerExpressionFromContainer(child, ctx);
+      if (expr) segs.push({ kind: "expr", expr });
+      cursor = child.to;
     }
     child = child.nextSibling;
   }
@@ -72,6 +91,9 @@ export function lowerTagContent(
       const ref = new VariableReference([new Identifier(seg.name)]);
       ref.outputWhenComplete = true;
       out.push(ref);
+    } else if (seg.kind === "expr") {
+      seg.expr.outputWhenComplete = true;
+      out.push(seg.expr);
     } else if (seg.raw.length > 0) {
       out.push(new Text(seg.raw));
     }
@@ -80,7 +102,7 @@ export function lowerTagContent(
 }
 
 function trimBoundaryWhitespace(
-  segs: { kind: "text" | "ref"; raw?: string; name?: string }[],
+  segs: { kind: "text" | "ref" | "expr"; raw?: string; name?: string }[],
 ): void {
   const first = segs[0];
   if (first && first.kind === "text") {

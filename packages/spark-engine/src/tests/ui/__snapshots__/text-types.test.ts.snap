@@ -1,0 +1,910 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`text targets > action (default target) 1`] = `
+[
+  {
+    "id": "req-1",
+    "kind": "request",
+    "method": "ui/update",
+    "params": {
+      "attributes": {
+        "text": "The room is quiet.",
+      },
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": undefined,
+      "element": "e-1",
+      "style": {
+        "display": null,
+      },
+    },
+  },
+  {
+    "id": "req-2",
+    "kind": "request",
+    "method": "ui/write-text",
+    "params": {
+      "instant": true,
+      "instructions": [
+        {
+          "control": "show",
+          "text": "T",
+        },
+        {
+          "after": 0.025,
+          "control": "show",
+          "text": "h",
+        },
+        {
+          "after": 0.05,
+          "control": "show",
+          "text": "e",
+        },
+        {
+          "after": 0.07500000000000001,
+          "control": "show",
+          "text": " ",
+        },
+        {
+          "after": 0.1,
+          "control": "show",
+          "text": "r",
+        },
+        {
+          "after": 0.125,
+          "control": "show",
+          "text": "o",
+        },
+        {
+          "after": 0.15,
+          "control": "show",
+          "text": "o",
+        },
+        {
+          "after": 0.175,
+          "control": "show",
+          "text": "m",
+        },
+        {
+          "after": 0.19999999999999998,
+          "control": "show",
+          "text": " ",
+        },
+        {
+          "after": 0.22499999999999998,
+          "control": "show",
+          "text": "i",
+        },
+        {
+          "after": 0.24999999999999997,
+          "control": "show",
+          "text": "s",
+        },
+        {
+          "after": 0.27499999999999997,
+          "control": "show",
+          "text": " ",
+        },
+        {
+          "after": 0.3,
+          "control": "show",
+          "text": "q",
+        },
+        {
+          "after": 0.325,
+          "control": "show",
+          "text": "u",
+        },
+        {
+          "after": 0.35000000000000003,
+          "control": "show",
+          "text": "i",
+        },
+        {
+          "after": 0.37500000000000006,
+          "control": "show",
+          "text": "e",
+        },
+        {
+          "after": 0.4000000000000001,
+          "control": "show",
+          "text": "t",
+        },
+        {
+          "after": 0.4250000000000001,
+          "control": "show",
+          "text": ".",
+        },
+      ],
+      "target": "action",
+    },
+  },
+]
+`;
+
+exports[`text targets > inline color via underline / centered styling 1`] = `
+[
+  {
+    "id": "req-1",
+    "kind": "request",
+    "method": "ui/update",
+    "params": {
+      "attributes": {
+        "text": "Some underlined words.",
+      },
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": undefined,
+      "element": "e-1",
+      "style": {
+        "display": null,
+      },
+    },
+  },
+  {
+    "id": "req-2",
+    "kind": "request",
+    "method": "ui/write-text",
+    "params": {
+      "instant": true,
+      "instructions": [
+        {
+          "control": "show",
+          "text": "S",
+        },
+        {
+          "after": 0.025,
+          "control": "show",
+          "text": "o",
+        },
+        {
+          "after": 0.05,
+          "control": "show",
+          "text": "m",
+        },
+        {
+          "after": 0.07500000000000001,
+          "control": "show",
+          "text": "e",
+        },
+        {
+          "after": 0.1,
+          "control": "show",
+          "text": " ",
+        },
+        {
+          "after": 0.125,
+          "control": "show",
+          "style": {
+            "text_decoration": "underline",
+          },
+          "text": "u",
+        },
+        {
+          "after": 0.15,
+          "control": "show",
+          "style": {
+            "text_decoration": "underline",
+          },
+          "text": "n",
+        },
+        {
+          "after": 0.175,
+          "control": "show",
+          "style": {
+            "text_decoration": "underline",
+          },
+          "text": "d",
+        },
+        {
+          "after": 0.19999999999999998,
+          "control": "show",
+          "style": {
+            "text_decoration": "underline",
+          },
+          "text": "e",
+        },
+        {
+          "after": 0.22499999999999998,
+          "control": "show",
+          "style": {
+            "text_decoration": "underline",
+          },
+          "text": "r",
+        },
+        {
+          "after": 0.24999999999999997,
+          "control": "show",
+          "style": {
+            "text_decoration": "underline",
+          },
+          "text": "l",
+        },
+        {
+          "after": 0.27499999999999997,
+          "control": "show",
+          "style": {
+            "text_decoration": "underline",
+          },
+          "text": "i",
+        },
+        {
+          "after": 0.3,
+          "control": "show",
+          "style": {
+            "text_decoration": "underline",
+          },
+          "text": "n",
+        },
+        {
+          "after": 0.325,
+          "control": "show",
+          "style": {
+            "text_decoration": "underline",
+          },
+          "text": "e",
+        },
+        {
+          "after": 0.35000000000000003,
+          "control": "show",
+          "style": {
+            "text_decoration": "underline",
+          },
+          "text": "d",
+        },
+        {
+          "after": 0.37500000000000006,
+          "control": "show",
+          "text": " ",
+        },
+        {
+          "after": 0.4000000000000001,
+          "control": "show",
+          "text": "w",
+        },
+        {
+          "after": 0.4250000000000001,
+          "control": "show",
+          "text": "o",
+        },
+        {
+          "after": 0.4500000000000001,
+          "control": "show",
+          "text": "r",
+        },
+        {
+          "after": 0.47500000000000014,
+          "control": "show",
+          "text": "d",
+        },
+        {
+          "after": 0.5000000000000001,
+          "control": "show",
+          "text": "s",
+        },
+        {
+          "after": 0.5250000000000001,
+          "control": "show",
+          "text": ".",
+        },
+      ],
+      "target": "action",
+    },
+  },
+]
+`;
+
+exports[`text targets > inline wavy / shaky animations 1`] = `
+[
+  {
+    "id": "req-1",
+    "kind": "request",
+    "method": "ui/update",
+    "params": {
+      "attributes": {
+        "text": "This is wavy and shaky text.",
+      },
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": undefined,
+      "element": "e-1",
+      "style": {
+        "display": null,
+      },
+    },
+  },
+  {
+    "id": "req-2",
+    "kind": "request",
+    "method": "ui/write-text",
+    "params": {
+      "instant": true,
+      "instructions": [
+        {
+          "control": "show",
+          "text": "T",
+        },
+        {
+          "after": 0.025,
+          "control": "show",
+          "text": "h",
+        },
+        {
+          "after": 0.05,
+          "control": "show",
+          "text": "i",
+        },
+        {
+          "after": 0.07500000000000001,
+          "control": "show",
+          "text": "s",
+        },
+        {
+          "after": 0.1,
+          "control": "show",
+          "text": " ",
+        },
+        {
+          "after": 0.125,
+          "control": "show",
+          "text": "i",
+        },
+        {
+          "after": 0.15,
+          "control": "show",
+          "text": "s",
+        },
+        {
+          "after": 0.175,
+          "control": "show",
+          "text": " ",
+        },
+        {
+          "after": 0.19999999999999998,
+          "control": "show",
+          "style": {
+            "animation_delay": -0.06,
+            "animation_duration": "750ms",
+            "animation_iteration_count": "infinite",
+            "animation_name": "wavy",
+            "animation_timing_function": "ease-in-out",
+            "display": "inline-block",
+          },
+          "text": "w",
+        },
+        {
+          "after": 0.22499999999999998,
+          "control": "show",
+          "style": {
+            "animation_delay": -0.12,
+            "animation_duration": "750ms",
+            "animation_iteration_count": "infinite",
+            "animation_name": "wavy",
+            "animation_timing_function": "ease-in-out",
+            "display": "inline-block",
+          },
+          "text": "a",
+        },
+        {
+          "after": 0.24999999999999997,
+          "control": "show",
+          "style": {
+            "animation_delay": -0.18,
+            "animation_duration": "750ms",
+            "animation_iteration_count": "infinite",
+            "animation_name": "wavy",
+            "animation_timing_function": "ease-in-out",
+            "display": "inline-block",
+          },
+          "text": "v",
+        },
+        {
+          "after": 0.27499999999999997,
+          "control": "show",
+          "style": {
+            "animation_delay": -0.24,
+            "animation_duration": "750ms",
+            "animation_iteration_count": "infinite",
+            "animation_name": "wavy",
+            "animation_timing_function": "ease-in-out",
+            "display": "inline-block",
+          },
+          "text": "y",
+        },
+        {
+          "after": 0.3,
+          "control": "show",
+          "text": " ",
+        },
+        {
+          "after": 0.325,
+          "control": "show",
+          "text": "a",
+        },
+        {
+          "after": 0.35000000000000003,
+          "control": "show",
+          "text": "n",
+        },
+        {
+          "after": 0.37500000000000006,
+          "control": "show",
+          "text": "d",
+        },
+        {
+          "after": 0.4000000000000001,
+          "control": "show",
+          "text": " ",
+        },
+        {
+          "after": 0.4250000000000001,
+          "control": "show",
+          "style": {
+            "animation_delay": -0.06,
+            "animation_duration": "300ms",
+            "animation_iteration_count": "infinite",
+            "animation_name": "shaky",
+            "animation_timing_function": "ease-in-out",
+            "display": "inline-block",
+          },
+          "text": "s",
+        },
+        {
+          "after": 0.4500000000000001,
+          "control": "show",
+          "style": {
+            "animation_delay": -0.12,
+            "animation_duration": "300ms",
+            "animation_iteration_count": "infinite",
+            "animation_name": "shaky",
+            "animation_timing_function": "ease-in-out",
+            "display": "inline-block",
+          },
+          "text": "h",
+        },
+        {
+          "after": 0.47500000000000014,
+          "control": "show",
+          "style": {
+            "animation_delay": -0.18,
+            "animation_duration": "300ms",
+            "animation_iteration_count": "infinite",
+            "animation_name": "shaky",
+            "animation_timing_function": "ease-in-out",
+            "display": "inline-block",
+          },
+          "text": "a",
+        },
+        {
+          "after": 0.5000000000000001,
+          "control": "show",
+          "style": {
+            "animation_delay": -0.24,
+            "animation_duration": "300ms",
+            "animation_iteration_count": "infinite",
+            "animation_name": "shaky",
+            "animation_timing_function": "ease-in-out",
+            "display": "inline-block",
+          },
+          "text": "k",
+        },
+        {
+          "after": 0.5250000000000001,
+          "control": "show",
+          "style": {
+            "animation_delay": -0.3,
+            "animation_duration": "300ms",
+            "animation_iteration_count": "infinite",
+            "animation_name": "shaky",
+            "animation_timing_function": "ease-in-out",
+            "display": "inline-block",
+          },
+          "text": "y",
+        },
+        {
+          "after": 0.5500000000000002,
+          "control": "show",
+          "text": " ",
+        },
+        {
+          "after": 0.5750000000000002,
+          "control": "show",
+          "text": "t",
+        },
+        {
+          "after": 0.6000000000000002,
+          "control": "show",
+          "text": "e",
+        },
+        {
+          "after": 0.6250000000000002,
+          "control": "show",
+          "text": "x",
+        },
+        {
+          "after": 0.6500000000000002,
+          "control": "show",
+          "text": "t",
+        },
+        {
+          "after": 0.6750000000000003,
+          "control": "show",
+          "text": ".",
+        },
+      ],
+      "target": "action",
+    },
+  },
+]
+`;
+
+exports[`text targets > multi-line action with whitespace + text-align wrapping 1`] = `
+[
+  {
+    "id": "req-1",
+    "kind": "request",
+    "method": "ui/update",
+    "params": {
+      "attributes": {
+        "text": "First line here.",
+      },
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": undefined,
+      "element": "e-1",
+      "style": {
+        "display": null,
+      },
+    },
+  },
+  {
+    "id": "req-2",
+    "kind": "request",
+    "method": "ui/write-text",
+    "params": {
+      "instant": true,
+      "instructions": [
+        {
+          "control": "show",
+          "text": "F",
+        },
+        {
+          "after": 0.025,
+          "control": "show",
+          "text": "i",
+        },
+        {
+          "after": 0.05,
+          "control": "show",
+          "text": "r",
+        },
+        {
+          "after": 0.07500000000000001,
+          "control": "show",
+          "text": "s",
+        },
+        {
+          "after": 0.1,
+          "control": "show",
+          "text": "t",
+        },
+        {
+          "after": 0.125,
+          "control": "show",
+          "text": " ",
+        },
+        {
+          "after": 0.15,
+          "control": "show",
+          "text": "l",
+        },
+        {
+          "after": 0.175,
+          "control": "show",
+          "text": "i",
+        },
+        {
+          "after": 0.19999999999999998,
+          "control": "show",
+          "text": "n",
+        },
+        {
+          "after": 0.22499999999999998,
+          "control": "show",
+          "text": "e",
+        },
+        {
+          "after": 0.24999999999999997,
+          "control": "show",
+          "text": " ",
+        },
+        {
+          "after": 0.27499999999999997,
+          "control": "show",
+          "text": "h",
+        },
+        {
+          "after": 0.3,
+          "control": "show",
+          "text": "e",
+        },
+        {
+          "after": 0.325,
+          "control": "show",
+          "text": "r",
+        },
+        {
+          "after": 0.35000000000000003,
+          "control": "show",
+          "text": "e",
+        },
+        {
+          "after": 0.37500000000000006,
+          "control": "show",
+          "text": ".",
+        },
+      ],
+      "target": "action",
+    },
+  },
+]
+`;
+
+exports[`text targets > scene heading ($:) 1`] = `
+[
+  {
+    "id": "req-1",
+    "kind": "request",
+    "method": "ui/update",
+    "params": {
+      "attributes": {
+        "text": "INT. HOUSE - DAY",
+      },
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": undefined,
+      "element": "e-1",
+      "style": {
+        "display": null,
+      },
+    },
+  },
+  {
+    "id": "req-2",
+    "kind": "request",
+    "method": "ui/write-text",
+    "params": {
+      "instant": true,
+      "instructions": [
+        {
+          "control": "show",
+          "text": "I",
+        },
+        {
+          "after": 0.025,
+          "control": "show",
+          "text": "N",
+        },
+        {
+          "after": 0.05,
+          "control": "show",
+          "text": "T",
+        },
+        {
+          "after": 0.07500000000000001,
+          "control": "show",
+          "text": ".",
+        },
+        {
+          "after": 0.1,
+          "control": "show",
+          "text": " ",
+        },
+        {
+          "after": 0.125,
+          "control": "show",
+          "text": "H",
+        },
+        {
+          "after": 0.15,
+          "control": "show",
+          "text": "O",
+        },
+        {
+          "after": 0.175,
+          "control": "show",
+          "text": "U",
+        },
+        {
+          "after": 0.19999999999999998,
+          "control": "show",
+          "text": "S",
+        },
+        {
+          "after": 0.22499999999999998,
+          "control": "show",
+          "text": "E",
+        },
+        {
+          "after": 0.24999999999999997,
+          "control": "show",
+          "text": " ",
+        },
+        {
+          "after": 0.27499999999999997,
+          "control": "show",
+          "text": "-",
+        },
+        {
+          "after": 0.3,
+          "control": "show",
+          "text": " ",
+        },
+        {
+          "after": 0.325,
+          "control": "show",
+          "text": "D",
+        },
+        {
+          "after": 0.35000000000000003,
+          "control": "show",
+          "text": "A",
+        },
+        {
+          "after": 0.37500000000000006,
+          "control": "show",
+          "text": "Y",
+        },
+      ],
+      "target": "heading",
+    },
+  },
+]
+`;
+
+exports[`text targets > title (^:) 1`] = `
+[
+  {
+    "id": "req-1",
+    "kind": "request",
+    "method": "ui/update",
+    "params": {
+      "attributes": {
+        "text": "My Title",
+      },
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": undefined,
+      "element": "e-1",
+      "style": {
+        "display": null,
+      },
+    },
+  },
+  {
+    "id": "req-2",
+    "kind": "request",
+    "method": "ui/write-text",
+    "params": {
+      "instant": true,
+      "instructions": [
+        {
+          "control": "show",
+          "text": "My",
+        },
+        {
+          "control": "show",
+          "text": " ",
+        },
+        {
+          "control": "show",
+          "text": "Title",
+        },
+      ],
+      "target": "title",
+    },
+  },
+]
+`;
+
+exports[`text targets > transition (%:) 1`] = `
+[
+  {
+    "id": "req-1",
+    "kind": "request",
+    "method": "ui/update",
+    "params": {
+      "attributes": {
+        "text": "CUT TO:",
+      },
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": undefined,
+      "element": "e-1",
+      "style": {
+        "display": null,
+      },
+    },
+  },
+  {
+    "id": "req-2",
+    "kind": "request",
+    "method": "ui/write-text",
+    "params": {
+      "instant": true,
+      "instructions": [
+        {
+          "control": "show",
+          "text": "C",
+        },
+        {
+          "after": 0.025,
+          "control": "show",
+          "text": "U",
+        },
+        {
+          "after": 0.05,
+          "control": "show",
+          "text": "T",
+        },
+        {
+          "after": 0.07500000000000001,
+          "control": "show",
+          "text": " ",
+        },
+        {
+          "after": 0.1,
+          "control": "show",
+          "text": "T",
+        },
+        {
+          "after": 0.125,
+          "control": "show",
+          "text": "O",
+        },
+        {
+          "after": 0.15,
+          "control": "show",
+          "text": ":",
+        },
+      ],
+      "target": "transitional",
+    },
+  },
+]
+`;

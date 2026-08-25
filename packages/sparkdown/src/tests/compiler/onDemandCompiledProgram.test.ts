@@ -79,10 +79,14 @@ const compileWith = (c: SparkdownCompiler, emit?: boolean) =>
       ).program,
   );
 
-/** Type an extra character into the dialogue line. */
-function edit(c: SparkdownCompiler, text: string, version: number) {
+/** Type an extra character after `anchor` (default: the dialogue line). */
+function edit(
+  c: SparkdownCompiler,
+  text: string,
+  version: number,
+  anchor = "A line of dialogue",
+) {
   const NL = String.fromCharCode(10);
-  const anchor = "A line of dialogue";
   const at = text.indexOf(anchor);
   const off = at + anchor.length;
   const before = text.slice(0, off);
@@ -144,6 +148,26 @@ describe("on-demand compiled program (#351)", () => {
       text = edit(c, text, i + 2);
       expect(compileWith(c).compiled, `edit ${i + 1}`).toBeUndefined();
     }
+    const pulled = compileWith(c, true);
+    expect(JSON.stringify(pulled.compiled)).toBe(coldCompiled(text));
+  });
+
+  it("does not serve a pre-edit flow after pull → edit → edit → pull", () => {
+    // The stale-cache ordering (#366): an emitting pull populates the
+    // per-flow serialization caches; two NON-emitting edits then change
+    // scene one and scene two while the caches sit untouched; the final pull
+    // sees only the LAST compile's changed-chunk ranges, so scene one looks
+    // reusable and its cached — pre-edit — bytecode would be spliced in.
+    // The fix drops both caches whenever a compile skips serialization.
+    const c = makeCompiler(SOURCE, false);
+    let text = SOURCE;
+    // Emitting pull FIRST — this is what the earlier "sequence of edits" test
+    // never does, and it is what arms the stale cache.
+    expect(compileWith(c, true).compiled).toBeTruthy();
+    text = edit(c, text, 2, "A line of dialogue"); // scene one
+    expect(compileWith(c).compiled).toBeUndefined();
+    text = edit(c, text, 3, "Second beat"); // scene two
+    expect(compileWith(c).compiled).toBeUndefined();
     const pulled = compileWith(c, true);
     expect(JSON.stringify(pulled.compiled)).toBe(coldCompiled(text));
   });

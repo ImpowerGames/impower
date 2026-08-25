@@ -733,6 +733,16 @@ export class Story extends InkObject {
     return this.state.currentTags;
   }
 
+  /** SPIKE (display-as-Luau-call transport): the live instruction tables a
+   *  `display(<table>)` call emitted this beat (empty otherwise). See
+   *  {@link StoryState.currentDisplayInstructions}. */
+  get currentDisplayInstructions() {
+    this.IfAsyncWeCant(
+      "call currentDisplayInstructions since it's a work in progress",
+    );
+    return this.state.currentDisplayInstructions;
+  }
+
   get currentErrors() {
     return this.state.currentErrors;
   }
@@ -1015,7 +1025,22 @@ export class Story extends InkObject {
   public ResetState() {
     this.IfAsyncWeCant("ResetState");
 
+    // Reactive dependency tracking is an OBSERVATION MODE, not story state:
+    // resetting the state must not silently disable it. The fresh
+    // `VariablesState` below defaults the flag off, and the runtime that
+    // enabled it (the reactive UI's layout mount) has no hook into every
+    // reset path — `Game.rewindStory`, `jumpToPath`, and any future caller
+    // each mint a fresh state, and every one that forgot to re-assert the
+    // flag froze the mounted `{bindings}` for the whole run (#365: the
+    // handler ran, the VM changed, and no change was ever recorded for the
+    // refresh to react to). Carry the mode across; the accumulated
+    // change-sets deliberately start empty — the globals re-declare below,
+    // recording fresh changes as they go.
+    const reactiveDepsEnabled =
+      this._state?.variablesState?.reactiveDepsEnabled ?? false;
+
     this._state = new StoryState(this);
+    this._state.variablesState.reactiveDepsEnabled = reactiveDepsEnabled;
     this._state.variablesState.ObserveVariableChange(
       this.VariableStateDidChangeEvent.bind(this),
     );
@@ -1295,6 +1320,8 @@ export class Story extends InkObject {
           this.state.currentText,
           this._stateSnapshotAtLastNewline.currentTags.length,
           this.state.currentTags.length,
+          this._stateSnapshotAtLastNewline.currentDisplayInstructions.length,
+          this.state.currentDisplayInstructions.length,
         );
 
         if (
@@ -1328,6 +1355,13 @@ export class Story extends InkObject {
     currText: string | null,
     prevTagCount: number,
     currTagCount: number,
+    // SPIKE (display-as-Luau-call transport): a `display(<table>)` beat emits
+    // structured instructions but NO text, so the text/tag deltas below can't
+    // see it. Thread the display-instruction count through the same look-ahead
+    // so an extra instruction past the newline counts as "extended beyond the
+    // newline" — exactly like an extra tag does.
+    prevDisplayCount = 0,
+    currDisplayCount = 0,
   ) {
     if (prevText === null) {
       return throwNullException("prevText");
@@ -1342,6 +1376,7 @@ export class Story extends InkObject {
       currText.charAt(prevText.length - 1) == "\n";
     if (
       prevTagCount == currTagCount &&
+      prevDisplayCount == currDisplayCount &&
       prevText.length == currText.length &&
       newlineStillExists
     )
@@ -1351,7 +1386,7 @@ export class Story extends InkObject {
       return Story.OutputStateChange.NewlineRemoved;
     }
 
-    if (currTagCount > prevTagCount)
+    if (currTagCount > prevTagCount || currDisplayCount > prevDisplayCount)
       return Story.OutputStateChange.ExtendedBeyondNewline;
 
     for (let i = prevText.length; i < currText.length; i++) {
@@ -2488,6 +2523,11 @@ export class Story extends InkObject {
             }
           }
           if (indexBase instanceof ObjectValue) {
+            // Reactive dep tracking: this binding read into a table — record the
+            // table's identity so an in-place mutation of it re-runs the binding.
+            if (this.state.variablesState.reactiveDepsEnabled) {
+              this.state.variablesState.recordReactiveTableRead(indexBase.value);
+            }
             const direct = indexBase.value?.get(keyStr) ?? null;
             if (direct != null) {
               resolved = direct;
@@ -2590,6 +2630,14 @@ export class Story extends InkObject {
                 storeBase.value.delete(keyStr);
               } else {
                 storeBase.value.set(keyStr, val);
+              }
+              // Reactive dep tracking: an in-place table mutation, keyed by the
+              // table's backing-Map identity (a binding that read this table
+              // re-runs). Cheap no-op when reactive tracking is disabled.
+              if (this.state.variablesState.reactiveDepsEnabled) {
+                this.state.variablesState.recordReactiveTableChange(
+                  storeBase.value,
+                );
               }
             }
           } else {
@@ -3501,6 +3549,16 @@ export class Story extends InkObject {
           return true;
         }
 
+        // Reactive dep tracking: record the global this binding read (the first
+        // dotted segment — `player.hp` depends on global `player`). Over-
+        // approximate (a local shadowing this name is harmless: a re-eval at
+        // worst, never a miss). Cheap no-op when reactive tracking is disabled.
+        if (this.state.variablesState.reactiveDepsEnabled && varRef.name) {
+          this.state.variablesState.recordReactiveGlobalRead(
+            varRef.name.split(".")[0]!,
+          );
+        }
+
         foundValue = this.state.variablesState.GetVariableWithName(varRef.name);
 
         // Property-access via dotted name (sparkdown extension). If the
@@ -3566,6 +3624,11 @@ export class Story extends InkObject {
               // `__index(t, "x")` / chained-table lookup. Matches
               // the IndexValue ControlCommand's metamethod behavior.
               if (cur instanceof ObjectValue) {
+                // Reactive dep tracking: this dotted read walked through `cur` —
+                // record its identity so an in-place mutation re-runs the binding.
+                if (this.state.variablesState.reactiveDepsEnabled) {
+                  this.state.variablesState.recordReactiveTableRead(cur.value);
+                }
                 const direct = cur.value?.get(seg);
                 if (direct != null) {
                   cur = direct;

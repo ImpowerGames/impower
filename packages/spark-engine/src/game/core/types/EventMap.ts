@@ -1,5 +1,6 @@
 import { IElementEvent } from "./IElementEvent";
 import { IFocusEvent } from "./IFocusEvent";
+import { IInputEvent } from "./IInputEvent";
 import { IKeyboardEvent } from "./IKeyboardEvent";
 import { IMouseEvent } from "./IMouseEvent";
 import { IPointerEvent } from "./IPointerEvent";
@@ -45,7 +46,8 @@ export interface EventMap {
   scroll: IElementEvent<"scroll">;
   scrollend: IElementEvent<"scrollend">;
 
-  input: IElementEvent<"input">;
+  input: IInputEvent<"input">;
+  change: IInputEvent<"change">;
 
   keydown: IKeyboardEvent<"keydown">;
   keyup: IKeyboardEvent<"keyup">;

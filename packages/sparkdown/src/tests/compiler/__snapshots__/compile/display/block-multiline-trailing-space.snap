@@ -9,15 +9,11 @@
         },
         {
           "type": "Text",
-          "text": "dialogue:O"
+          "text": "\u0000dialogue:O"
         },
         {
           "type": "Tag",
           "start": false
-        },
-        {
-          "type": "Text",
-          "text": "O: "
         },
         {
           "type": "Text",

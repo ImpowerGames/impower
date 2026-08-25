@@ -326,6 +326,38 @@ describe("search panel replace field (#358)", () => {
     );
   });
 
+  // #367: the pre-#358 replace-all wrote real hard spaces into scripts, and
+  // the way a user hunts one down is pasting it into find. Chromium's
+  // hardening never mints an interior isolated NBSP (it only converts spaces
+  // that would collapse — edges and runs), so that shape is always
+  // deliberate and must reach the query verbatim. Full normalization made
+  // the panel structurally incapable of finding the very character its own
+  // earlier bug wrote.
+  it("finds a hard space already in the script (interior NBSP pasted into find)", () => {
+    const view = mount(`hard${NBSP}space here\nsoft space here\n`);
+    const { search, replace } = fields(view);
+
+    type(search, `hard${NBSP}space`);
+    expect(getSearchQuery(view.state).search).toBe(`hard${NBSP}space`);
+
+    type(replace, "found");
+    replaceAll(view);
+
+    expect(view.state.doc.toString()).toBe(`found here\nsoft space here\n`);
+  });
+
+  // The hardening DOES mint an NBSP inside a run of spaces ("a  b" types as
+  // "a  b"), so an NBSP adjacent to another space still normalizes —
+  // only the isolated interior shape is preserved.
+  it("still normalizes a hardened space inside a typed space run", () => {
+    const view = mount(`a  b\n`);
+    const { search } = fields(view);
+
+    type(search, `a ${NBSP}b`);
+
+    expect(getSearchQuery(view.state).search).toBe("a  b");
+  });
+
   // Counting matches builds a search cursor, and building one for an invalid
   // regex throws. Committing on replace-field input is what puts a keystroke on
   // that path: the panel survives being opened over a selection holding regex

@@ -1,0 +1,105 @@
+text.source.sparkdown [0..189]
+ ├─ meta.layout.luau [0..17]
+ │   ├─ keyword.control.layout.luau [0..6]: "layout"
+ │   ├─ punctuation.whitespace.optional.sd [6..7]: " "
+ │   ├─ entity.name.type.define.luau [7..12]: "panel"
+ │   ├─ punctuation.whitespace.optional.sd [12..13]: " "
+ │   └─ keyword.control.as.luau [13..17]: "with"
+ ├─ Newline [17..18]: "\n"
+ ├─ meta.layout.luau [18..55]
+ │   ├─ punctuation.whitespace.optional.sd [18..20]: "  "
+ │   └─ meta.struct.body.luau [20..55]
+ │       ├─ entity.name.type.class.view.sd [20..26]: "column"
+ │       ├─ punctuation.whitespace.required.sd [26..27]: " "
+ │       ├─ variable.other.constant.attribute.style.sd [27..28]: "#"
+ │       ├─ variable.other.constant.attribute.style.sd [28..31]: "gap"
+ │       ├─ keyword.operator.assignment.sd [31..32]: "="
+ │       ├─ constant.numeric.sd [32..34]: "16"
+ │       ├─ punctuation.whitespace.required.sd [34..35]: " "
+ │       ├─ variable.other.constant.attribute.style.sd [35..36]: "#"
+ │       ├─ variable.other.constant.attribute.style.sd [36..47]: "child-align"
+ │       ├─ keyword.operator.assignment.sd [47..48]: "="
+ │       ├─ string.unquoted.sd [48..54]: "center"
+ │       └─ meta.template.expression.operator.colon.sd [54..55]: ":"
+ ├─ Newline [55..56]: "\n"
+ ├─ meta.layout.luau [56..76]
+ │   ├─ punctuation.whitespace.optional.sd [56..60]: "    "
+ │   └─ meta.struct.body.luau [60..76]
+ │       ├─ keyword.other.component.builtin.name.sd [60..64]: "text"
+ │       ├─ punctuation.whitespace.optional.sd [64..65]: " "
+ │       └─ string.quoted.double.sd [65..76]
+ │           ├─ punctuation.definition.string.begin.sd [65..66]: "\""
+ │           ├─ markup.raw.whitespace.sd [66..67]: "I"
+ │           ├─ markup.raw.whitespace.sd [67..68]: "n"
+ │           ├─ markup.raw.whitespace.sd [68..69]: "v"
+ │           ├─ markup.raw.whitespace.sd [69..70]: "e"
+ │           ├─ markup.raw.whitespace.sd [70..71]: "n"
+ │           ├─ markup.raw.whitespace.sd [71..72]: "t"
+ │           ├─ markup.raw.whitespace.sd [72..73]: "o"
+ │           ├─ markup.raw.whitespace.sd [73..74]: "r"
+ │           ├─ markup.raw.whitespace.sd [74..75]: "y"
+ │           └─ punctuation.definition.string.end.sd [75..76]: "\""
+ ├─ Newline [76..77]: "\n"
+ ├─ meta.layout.luau [77..116]
+ │   ├─ punctuation.whitespace.optional.sd [77..81]: "    "
+ │   └─ meta.struct.body.luau [81..116]
+ │       ├─ entity.name.type.class.view.sd [81..84]: "row"
+ │       ├─ punctuation.whitespace.required.sd [84..85]: " "
+ │       ├─ variable.other.constant.attribute.style.sd [85..86]: "#"
+ │       ├─ variable.other.constant.attribute.style.sd [86..102]: "background-color"
+ │       ├─ keyword.operator.assignment.sd [102..103]: "="
+ │       ├─ meta.template.expression.luau [103..115]
+ │       │   ├─ punctuation.definition.template-expression.begin.sd [103..104]: "{"
+ │       │   ├─ meta.embedded.line.luau [104..114]
+ │       │   │   └─ variable.other.readwrite.luau [104..114]: "team_color"
+ │       │   └─ punctuation.definition.template-expression.end.sd [114..115]: "}"
+ │       └─ meta.template.expression.operator.colon.sd [115..116]: ":"
+ ├─ Newline [116..117]: "\n"
+ ├─ meta.layout.luau [117..144]
+ │   ├─ punctuation.whitespace.optional.sd [117..123]: "      "
+ │   └─ meta.struct.body.luau [123..144]
+ │       ├─ keyword.other.component.builtin.name.sd [123..128]: "image"
+ │       ├─ punctuation.whitespace.optional.sd [128..129]: " "
+ │       ├─ variable.other.constant.attribute.style.sd [129..130]: "#"
+ │       ├─ variable.other.constant.attribute.style.sd [130..133]: "src"
+ │       ├─ keyword.operator.assignment.sd [133..134]: "="
+ │       └─ string.quoted.double.sd [134..144]
+ │           ├─ punctuation.definition.string.begin.sd [134..135]: "\""
+ │           ├─ markup.raw.whitespace.sd [135..136]: "i"
+ │           ├─ markup.raw.whitespace.sd [136..137]: "c"
+ │           ├─ markup.raw.whitespace.sd [137..138]: "o"
+ │           ├─ markup.raw.whitespace.sd [138..139]: "n"
+ │           ├─ markup.raw.whitespace.sd [139..140]: "."
+ │           ├─ markup.raw.whitespace.sd [140..141]: "p"
+ │           ├─ markup.raw.whitespace.sd [141..142]: "n"
+ │           ├─ markup.raw.whitespace.sd [142..143]: "g"
+ │           └─ punctuation.definition.string.end.sd [143..144]: "\""
+ ├─ Newline [144..145]: "\n"
+ ├─ meta.layout.luau [145..184]
+ │   ├─ punctuation.whitespace.optional.sd [145..151]: "      "
+ │   └─ meta.struct.body.luau [151..184]
+ │       ├─ keyword.other.component.builtin.name.sd [151..155]: "text"
+ │       ├─ punctuation.whitespace.optional.sd [155..156]: " "
+ │       ├─ string.quoted.double.sd [156..171]
+ │       │   ├─ punctuation.definition.string.begin.sd [156..157]: "\""
+ │       │   ├─ meta.template.expression.luau [157..164]
+ │       │   │   ├─ punctuation.definition.template-expression.begin.sd [157..158]: "{"
+ │       │   │   ├─ meta.embedded.line.luau [158..163]
+ │       │   │   │   └─ support.type.standard.sd [158..163]: "count"
+ │       │   │   └─ punctuation.definition.template-expression.end.sd [163..164]: "}"
+ │       │   ├─ markup.raw.whitespace.sd [164..165]: " "
+ │       │   ├─ markup.raw.whitespace.sd [165..166]: "i"
+ │       │   ├─ markup.raw.whitespace.sd [166..167]: "t"
+ │       │   ├─ markup.raw.whitespace.sd [167..168]: "e"
+ │       │   ├─ markup.raw.whitespace.sd [168..169]: "m"
+ │       │   ├─ markup.raw.whitespace.sd [169..170]: "s"
+ │       │   └─ punctuation.definition.string.end.sd [170..171]: "\""
+ │       ├─ punctuation.whitespace.optional.sd [171..172]: " "
+ │       ├─ variable.other.constant.attribute.style.sd [172..173]: "#"
+ │       ├─ variable.other.constant.attribute.style.sd [173..180]: "opacity"
+ │       ├─ keyword.operator.assignment.sd [180..181]: "="
+ │       └─ constant.numeric.sd [181..184]: "0.5"
+ ├─ Newline [184..185]: "\n"
+ ├─ meta.layout.luau [185..188]
+ │   └─ keyword.control.end.luau [185..188]: "end"
+ └─ Newline [188..189]: "\n"

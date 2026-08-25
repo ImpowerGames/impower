@@ -202,7 +202,33 @@ end
       [],
     );
     expect(() => drawnLayers(program)).not.toThrow();
-    expect(drawnLayers(program)).toEqual([]);
+    // The `layered_image` type's `$default` declares `assets = { image.none }`,
+    // so a define that authors no assets inherits the empty `none` layer —
+    // which is what survives filtering here. The point stays the same: the
+    // half-typed define must not throw the compile.
+    expect(drawnLayers(program)).toEqual(["none"]);
+  });
+
+  it("survives a HAND-BUILT layered_image with no assets at all", () => {
+    // A compiled define always inherits `assets` from the type's `$default`,
+    // so the case above can no longer reach the `assets ?? {}` guard in
+    // `filterImage`. The LSP hover/preview paths still hand it partial,
+    // hand-built structs mid-keystroke — this pins the guard directly.
+    const context: any = {
+      layered_image: {
+        portrait: { $type: "layered_image", $name: "portrait" },
+      },
+      filtered_image: {
+        p: {
+          $type: "filtered_image",
+          $name: "p",
+          image: { $type: "layered_image", $name: "portrait" },
+          filters: [],
+        },
+      },
+    };
+    expect(() => filterImage(context, context.filtered_image.p)).not.toThrow();
+    expect(context.filtered_image.p.filtered_layers ?? []).toEqual([]);
   });
 
   it("re-derives the same set when called again on the same struct", () => {

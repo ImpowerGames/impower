@@ -4,6 +4,9 @@ export type SetThemeMethod = typeof SetThemeMessage.method;
 
 export interface SetThemeParams {
   breakpoints: Record<string, number>;
+  /** Base size every `rem` resolves against, applied to the host document's
+   *  root element. Empty/undefined leaves the host document alone. */
+  root_text_size?: string;
 }
 
 export class SetThemeMessage {

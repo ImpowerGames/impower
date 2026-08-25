@@ -5,7 +5,7 @@ export const getDeclarationScopes = (
   scriptAnnotations: Map<string, SparkdownAnnotations>,
 ) => {
   let scopePathParts: {
-    kind: "" | "function" | "scene" | "branch" | "knot" | "stitch";
+    kind: "" | "function" | "scene" | "branch";
     name: string;
   }[] = [];
   const scopes: {
@@ -22,7 +22,7 @@ export const getDeclarationScopes = (
         }
         if (cur.value.type === "branch") {
           const prevKind = scopePathParts.at(-1)?.kind || "";
-          if (prevKind !== "scene" && prevKind !== "knot") {
+          if (prevKind !== "scene") {
             scopePathParts.pop();
           }
           const scopePath = scopePathParts.map((p) => p.name).join(".");
@@ -31,28 +31,11 @@ export const getDeclarationScopes = (
           scopes[scopePath][cur.value.type]!.push(read(cur.from, cur.to));
           scopePathParts.push({ kind: "branch", name: text });
         }
-        if (cur.value.type === "knot") {
-          scopePathParts = [];
-          scopePathParts.push({ kind: "knot", name: text });
-        }
-        if (cur.value.type === "stitch") {
-          const prevKind = scopePathParts.at(-1)?.kind || "";
-          if (prevKind !== "scene" && prevKind !== "knot") {
-            scopePathParts.pop();
-          }
-          const scopePath = scopePathParts.map((p) => p.name).join(".");
-          scopes[scopePath] ??= {};
-          scopes[scopePath][cur.value.type] ??= [];
-          scopes[scopePath][cur.value.type]!.push(read(cur.from, cur.to));
-          scopePathParts.push({ kind: "stitch", name: text });
-        }
         if (
           cur.value.type === "function" ||
           cur.value.type === "scene" ||
-          cur.value.type === "knot" ||
           cur.value.type === "const" ||
-          cur.value.type === "var" ||
-          cur.value.type === "list"
+          cur.value.type === "var"
         ) {
           // Global
           const scopePath = "";
@@ -69,11 +52,7 @@ export const getDeclarationScopes = (
             read(cur.from, cur.to).trim().replaceAll(/[ ]+/, "."),
           );
         }
-        if (
-          cur.value.type === "label" ||
-          cur.value.type === "temp" ||
-          cur.value.type === "param"
-        ) {
+        if (cur.value.type === "label" || cur.value.type === "param") {
           // Local
           const scopePath = scopePathParts.map((p) => p.name).join(".");
           scopes[scopePath] ??= {};

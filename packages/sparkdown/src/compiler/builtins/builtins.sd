@@ -1,0 +1,4418 @@
+// The implicitly-imported builtins prelude: a `define` for every builtin
+// type/instance. Compiled into every program so builtins populate both
+// program.context (LSP) and the runtime __def tables (engine).
+//
+// This is the hand-maintained source of truth for builtins. Edit it directly —
+// the compiler imports it as raw text via `builtins.sd?raw` (esbuild + Vite),
+// so there's no generated wrapper to regenerate. `prelude.test.ts` compile-
+// checks it.
+
+define metadata with
+  title = ""
+  credit = ""
+  author = ""
+  source = ""
+  notes = ""
+  date = ""
+  contact = ""
+  revision = ""
+  font = ""
+  header = ""
+  footer = ""
+  watermark = ""
+  tl = ""
+  tc = ""
+  tr = ""
+  cc = ""
+  bl = ""
+  br = ""
+end
+
+define filter with
+  includes = { "" }
+  excludes = { "" }
+end
+
+define world with
+  src = ""
+end
+
+define config with
+end
+
+define ui as config with
+  styles_element_name = "styles"
+  layouts_element_name = "layouts"
+  breakpoints = { xs = 400, sm = 640, md = 768, lg = 1024, xl = 1280 }
+  -- Base size that every `rem` in a style resolves against. Empty means "leave
+  -- the host document alone", which is what a game embedded in someone else's
+  -- page wants; the builtins are authored against the browser default of 16px.
+  -- Set it to rescale the WHOLE ui at once (`"112.5%"` = 18px), which is the
+  -- only way to move `rem` — engine styles are scoped inside the game element,
+  -- and `rem` always resolves against the document root, above that scope.
+  -- Prefer a percentage over px so a reader who has raised their browser's
+  -- default font size keeps that adjustment.
+  root_text_size = ""
+end
+
+define interpreter as config with
+  directives = { title = "^", heading = "$", transitional = "%", action = "" }
+  fallbacks = { layer = "portrait", channel = "sound" }
+end
+
+define image with
+  ["$link"] = { audio = {}, synth = {}, character = {}, typewriter = {}, inflection = {}, prosody = {} }
+  src = ""
+  data = ""
+end
+
+define layered_image with
+  assets = { image.none }
+end
+
+define filtered_image with
+  image = image.none
+  filters = { filter.none }
+end
+
+define color with
+end
+
+define red as color with
+  value = "rgb(220,38,38)"
+end
+
+define red_10 as color with
+  value = "rgb(76,5,5)"
+end
+
+define red_20 as color with
+  value = "rgb(127,29,29)"
+end
+
+define red_30 as color with
+  value = "rgb(153,27,27)"
+end
+
+define red_40 as color with
+  value = "rgb(185,28,28)"
+end
+
+define red_50 as color with
+  value = "rgb(220,38,38)"
+end
+
+define red_60 as color with
+  value = "rgb(239,68,68)"
+end
+
+define red_70 as color with
+  value = "rgb(248,113,113)"
+end
+
+define red_80 as color with
+  value = "rgb(252,165,165)"
+end
+
+define red_90 as color with
+  value = "rgb(254,205,205)"
+end
+
+define red_95 as color with
+  value = "rgb(254,226,226)"
+end
+
+define red_99 as color with
+  value = "rgb(254,242,242)"
+end
+
+define orange as color with
+  value = "rgb(234,88,12)"
+end
+
+define orange_10 as color with
+  value = "rgb(77,24,6)"
+end
+
+define orange_20 as color with
+  value = "rgb(124,45,18)"
+end
+
+define orange_30 as color with
+  value = "rgb(154,52,18)"
+end
+
+define orange_40 as color with
+  value = "rgb(194,65,12)"
+end
+
+define orange_50 as color with
+  value = "rgb(234,88,12)"
+end
+
+define orange_60 as color with
+  value = "rgb(249,115,22)"
+end
+
+define orange_70 as color with
+  value = "rgb(251,146,60)"
+end
+
+define orange_80 as color with
+  value = "rgb(253,186,116)"
+end
+
+define orange_90 as color with
+  value = "rgb(254,215,170)"
+end
+
+define orange_95 as color with
+  value = "rgb(255,237,213)"
+end
+
+define orange_99 as color with
+  value = "rgb(255,247,237)"
+end
+
+define amber as color with
+  value = "rgb(217,119,6)"
+end
+
+define amber_10 as color with
+  value = "rgb(77,29,4)"
+end
+
+define amber_20 as color with
+  value = "rgb(120,53,15)"
+end
+
+define amber_30 as color with
+  value = "rgb(146,64,14)"
+end
+
+define amber_40 as color with
+  value = "rgb(180,83,9)"
+end
+
+define amber_50 as color with
+  value = "rgb(217,119,6)"
+end
+
+define amber_60 as color with
+  value = "rgb(245,158,11)"
+end
+
+define amber_70 as color with
+  value = "rgb(251,191,36)"
+end
+
+define amber_80 as color with
+  value = "rgb(252,211,77)"
+end
+
+define amber_90 as color with
+  value = "rgb(253,230,138)"
+end
+
+define amber_95 as color with
+  value = "rgb(254,243,199)"
+end
+
+define amber_99 as color with
+  value = "rgb(255,251,235)"
+end
+
+define yellow as color with
+  value = "rgb(202,138,4)"
+end
+
+define yellow_10 as color with
+  value = "rgb(72,35,7)"
+end
+
+define yellow_20 as color with
+  value = "rgb(113,63,18)"
+end
+
+define yellow_30 as color with
+  value = "rgb(133,76,8)"
+end
+
+define yellow_40 as color with
+  value = "rgb(161,98,7)"
+end
+
+define yellow_50 as color with
+  value = "rgb(202,138,4)"
+end
+
+define yellow_60 as color with
+  value = "rgb(234,179,8)"
+end
+
+define yellow_70 as color with
+  value = "rgb(244,220,64)"
+end
+
+define yellow_80 as color with
+  value = "rgb(250,232,103)"
+end
+
+define yellow_90 as color with
+  value = "rgb(253,244,153)"
+end
+
+define yellow_95 as color with
+  value = "rgb(254,249,195)"
+end
+
+define yellow_99 as color with
+  value = "rgb(254,252,232)"
+end
+
+define lime as color with
+  value = "rgb(101,163,13)"
+end
+
+define lime_10 as color with
+  value = "rgb(30,50,10)"
+end
+
+define lime_20 as color with
+  value = "rgb(54,83,20)"
+end
+
+define lime_30 as color with
+  value = "rgb(63,98,18)"
+end
+
+define lime_40 as color with
+  value = "rgb(77,124,15)"
+end
+
+define lime_50 as color with
+  value = "rgb(101,163,13)"
+end
+
+define lime_60 as color with
+  value = "rgb(132,204,22)"
+end
+
+define lime_70 as color with
+  value = "rgb(163,230,53)"
+end
+
+define lime_80 as color with
+  value = "rgb(190,242,100)"
+end
+
+define lime_90 as color with
+  value = "rgb(217,249,157)"
+end
+
+define lime_95 as color with
+  value = "rgb(236,252,203)"
+end
+
+define lime_99 as color with
+  value = "rgb(247,254,231)"
+end
+
+define green as color with
+  value = "rgb(22,163,74)"
+end
+
+define green_10 as color with
+  value = "rgb(5,46,22)"
+end
+
+define green_20 as color with
+  value = "rgb(20,83,45)"
+end
+
+define green_30 as color with
+  value = "rgb(22,101,52)"
+end
+
+define green_40 as color with
+  value = "rgb(21,128,61)"
+end
+
+define green_50 as color with
+  value = "rgb(22,163,74)"
+end
+
+define green_60 as color with
+  value = "rgb(34,197,94)"
+end
+
+define green_70 as color with
+  value = "rgb(74,222,128)"
+end
+
+define green_80 as color with
+  value = "rgb(134,239,172)"
+end
+
+define green_90 as color with
+  value = "rgb(187,247,208)"
+end
+
+define green_95 as color with
+  value = "rgb(220,252,231)"
+end
+
+define green_99 as color with
+  value = "rgb(240,253,244)"
+end
+
+define emerald as color with
+  value = "rgb(5,150,105)"
+end
+
+define emerald_10 as color with
+  value = "rgb(2,44,34)"
+end
+
+define emerald_20 as color with
+  value = "rgb(6,78,59)"
+end
+
+define emerald_30 as color with
+  value = "rgb(6,95,70)"
+end
+
+define emerald_40 as color with
+  value = "rgb(4,120,87)"
+end
+
+define emerald_50 as color with
+  value = "rgb(5,150,105)"
+end
+
+define emerald_60 as color with
+  value = "rgb(16,185,129)"
+end
+
+define emerald_70 as color with
+  value = "rgb(52,211,153)"
+end
+
+define emerald_80 as color with
+  value = "rgb(110,231,183)"
+end
+
+define emerald_90 as color with
+  value = "rgb(167,243,208)"
+end
+
+define emerald_95 as color with
+  value = "rgb(209,250,229)"
+end
+
+define emerald_99 as color with
+  value = "rgb(236,253,245)"
+end
+
+define teal as color with
+  value = "rgb(13,148,136)"
+end
+
+define teal_10 as color with
+  value = "rgb(4,47,46)"
+end
+
+define teal_20 as color with
+  value = "rgb(19,78,74)"
+end
+
+define teal_30 as color with
+  value = "rgb(17,94,89)"
+end
+
+define teal_40 as color with
+  value = "rgb(15,118,110)"
+end
+
+define teal_50 as color with
+  value = "rgb(13,148,136)"
+end
+
+define teal_60 as color with
+  value = "rgb(20,183,171)"
+end
+
+define teal_70 as color with
+  value = "rgb(45,212,191)"
+end
+
+define teal_80 as color with
+  value = "rgb(94,234,212)"
+end
+
+define teal_90 as color with
+  value = "rgb(153,246,228)"
+end
+
+define teal_95 as color with
+  value = "rgb(204,251,241)"
+end
+
+define teal_99 as color with
+  value = "rgb(240,253,250)"
+end
+
+define cyan as color with
+  value = "rgb(8,145,178)"
+end
+
+define cyan_10 as color with
+  value = "rgb(8,51,68)"
+end
+
+define cyan_20 as color with
+  value = "rgb(22,78,99)"
+end
+
+define cyan_30 as color with
+  value = "rgb(21,94,117)"
+end
+
+define cyan_40 as color with
+  value = "rgb(14,116,144)"
+end
+
+define cyan_50 as color with
+  value = "rgb(8,145,178)"
+end
+
+define cyan_60 as color with
+  value = "rgb(6,182,212)"
+end
+
+define cyan_70 as color with
+  value = "rgb(34,211,238)"
+end
+
+define cyan_80 as color with
+  value = "rgb(103,232,249)"
+end
+
+define cyan_90 as color with
+  value = "rgb(165,243,252)"
+end
+
+define cyan_95 as color with
+  value = "rgb(207,250,254)"
+end
+
+define cyan_99 as color with
+  value = "rgb(236,254,255)"
+end
+
+define sky as color with
+  value = "rgb(2,132,199)"
+end
+
+define sky_10 as color with
+  value = "rgb(8,47,73)"
+end
+
+define sky_20 as color with
+  value = "rgb(12,74,110)"
+end
+
+define sky_30 as color with
+  value = "rgb(7,89,133)"
+end
+
+define sky_40 as color with
+  value = "rgb(3,105,161)"
+end
+
+define sky_50 as color with
+  value = "rgb(2,132,199)"
+end
+
+define sky_60 as color with
+  value = "rgb(14,165,233)"
+end
+
+define sky_70 as color with
+  value = "rgb(56,189,248)"
+end
+
+define sky_80 as color with
+  value = "rgb(125,211,252)"
+end
+
+define sky_90 as color with
+  value = "rgb(186,230,253)"
+end
+
+define sky_95 as color with
+  value = "rgb(224,242,254)"
+end
+
+define sky_99 as color with
+  value = "rgb(240,249,255)"
+end
+
+define blue as color with
+  value = "rgb(37,99,235)"
+end
+
+define blue_10 as color with
+  value = "rgb(23,37,84)"
+end
+
+define blue_20 as color with
+  value = "rgb(30,58,138)"
+end
+
+define blue_30 as color with
+  value = "rgb(30,64,175)"
+end
+
+define blue_40 as color with
+  value = "rgb(29,78,216)"
+end
+
+define blue_50 as color with
+  value = "rgb(37,99,235)"
+end
+
+define blue_60 as color with
+  value = "rgb(59,130,246)"
+end
+
+define blue_70 as color with
+  value = "rgb(96,165,250)"
+end
+
+define blue_80 as color with
+  value = "rgb(147,197,253)"
+end
+
+define blue_90 as color with
+  value = "rgb(191,219,253)"
+end
+
+define blue_95 as color with
+  value = "rgb(219,234,254)"
+end
+
+define blue_99 as color with
+  value = "rgb(239,246,255)"
+end
+
+define indigo as color with
+  value = "rgb(79,70,229)"
+end
+
+define indigo_10 as color with
+  value = "rgb(30,27,75)"
+end
+
+define indigo_20 as color with
+  value = "rgb(49,46,129)"
+end
+
+define indigo_30 as color with
+  value = "rgb(55,48,163)"
+end
+
+define indigo_40 as color with
+  value = "rgb(67,56,202)"
+end
+
+define indigo_50 as color with
+  value = "rgb(79,70,229)"
+end
+
+define indigo_60 as color with
+  value = "rgb(99,102,241)"
+end
+
+define indigo_70 as color with
+  value = "rgb(129,140,248)"
+end
+
+define indigo_80 as color with
+  value = "rgb(165,180,252)"
+end
+
+define indigo_90 as color with
+  value = "rgb(199,210,254)"
+end
+
+define indigo_95 as color with
+  value = "rgb(224,231,255)"
+end
+
+define indigo_99 as color with
+  value = "rgb(238,242,255)"
+end
+
+define violet as color with
+  value = "rgb(124,58,237)"
+end
+
+define violet_10 as color with
+  value = "rgb(46,16,101)"
+end
+
+define violet_20 as color with
+  value = "rgb(76,29,149)"
+end
+
+define violet_30 as color with
+  value = "rgb(91,33,182)"
+end
+
+define violet_40 as color with
+  value = "rgb(109,40,217)"
+end
+
+define violet_50 as color with
+  value = "rgb(124,58,237)"
+end
+
+define violet_60 as color with
+  value = "rgb(139,92,246)"
+end
+
+define violet_70 as color with
+  value = "rgb(167,139,250)"
+end
+
+define violet_80 as color with
+  value = "rgb(196,181,253)"
+end
+
+define violet_90 as color with
+  value = "rgb(221,214,254)"
+end
+
+define violet_95 as color with
+  value = "rgb(237,233,254)"
+end
+
+define violet_99 as color with
+  value = "rgb(245,243,255)"
+end
+
+define purple as color with
+  value = "rgb(147,51,234)"
+end
+
+define purple_10 as color with
+  value = "rgb(59,7,100)"
+end
+
+define purple_20 as color with
+  value = "rgb(88,28,135)"
+end
+
+define purple_30 as color with
+  value = "rgb(107,33,168)"
+end
+
+define purple_40 as color with
+  value = "rgb(126,34,206)"
+end
+
+define purple_50 as color with
+  value = "rgb(147,51,234)"
+end
+
+define purple_60 as color with
+  value = "rgb(168,85,247)"
+end
+
+define purple_70 as color with
+  value = "rgb(192,132,252)"
+end
+
+define purple_80 as color with
+  value = "rgb(216,180,254)"
+end
+
+define purple_90 as color with
+  value = "rgb(233,213,255)"
+end
+
+define purple_95 as color with
+  value = "rgb(243,232,255)"
+end
+
+define purple_99 as color with
+  value = "rgb(250,245,255)"
+end
+
+define fuchsia as color with
+  value = "rgb(192,38,211)"
+end
+
+define fuchsia_10 as color with
+  value = "rgb(74,4,76)"
+end
+
+define fuchsia_20 as color with
+  value = "rgb(112,26,117)"
+end
+
+define fuchsia_30 as color with
+  value = "rgb(134,25,143)"
+end
+
+define fuchsia_40 as color with
+  value = "rgb(162,28,175)"
+end
+
+define fuchsia_50 as color with
+  value = "rgb(192,38,211)"
+end
+
+define fuchsia_60 as color with
+  value = "rgb(217,70,239)"
+end
+
+define fuchsia_70 as color with
+  value = "rgb(232,121,249)"
+end
+
+define fuchsia_80 as color with
+  value = "rgb(240,171,252)"
+end
+
+define fuchsia_90 as color with
+  value = "rgb(245,208,255)"
+end
+
+define fuchsia_95 as color with
+  value = "rgb(250,232,255)"
+end
+
+define fuchsia_99 as color with
+  value = "rgb(253,244,255)"
+end
+
+define pink as color with
+  value = "rgb(219,39,119)"
+end
+
+define pink_10 as color with
+  value = "rgb(80,7,36)"
+end
+
+define pink_20 as color with
+  value = "rgb(131,24,67)"
+end
+
+define pink_30 as color with
+  value = "rgb(157,23,77)"
+end
+
+define pink_40 as color with
+  value = "rgb(190,24,93)"
+end
+
+define pink_50 as color with
+  value = "rgb(219,39,119)"
+end
+
+define pink_60 as color with
+  value = "rgb(236,72,153)"
+end
+
+define pink_70 as color with
+  value = "rgb(244,114,182)"
+end
+
+define pink_80 as color with
+  value = "rgb(249,168,212)"
+end
+
+define pink_90 as color with
+  value = "rgb(251,207,232)"
+end
+
+define pink_95 as color with
+  value = "rgb(252,231,243)"
+end
+
+define pink_99 as color with
+  value = "rgb(253,242,248)"
+end
+
+define rose as color with
+  value = "rgb(225,29,72)"
+end
+
+define rose_10 as color with
+  value = "rgb(76,5,25)"
+end
+
+define rose_20 as color with
+  value = "rgb(136,19,55)"
+end
+
+define rose_30 as color with
+  value = "rgb(159,18,57)"
+end
+
+define rose_40 as color with
+  value = "rgb(190,18,60)"
+end
+
+define rose_50 as color with
+  value = "rgb(225,29,72)"
+end
+
+define rose_60 as color with
+  value = "rgb(244,63,94)"
+end
+
+define rose_70 as color with
+  value = "rgb(251,113,133)"
+end
+
+define rose_80 as color with
+  value = "rgb(253,164,175)"
+end
+
+define rose_90 as color with
+  value = "rgb(254,205,211)"
+end
+
+define rose_95 as color with
+  value = "rgb(255,228,230)"
+end
+
+define rose_99 as color with
+  value = "rgb(255,241,242)"
+end
+
+define slate as color with
+  value = "rgb(71,85,105)"
+end
+
+define slate_10 as color with
+  value = "rgb(2,6,23)"
+end
+
+define slate_20 as color with
+  value = "rgb(15,23,42)"
+end
+
+define slate_30 as color with
+  value = "rgb(30,41,59)"
+end
+
+define slate_40 as color with
+  value = "rgb(51,65,85)"
+end
+
+define slate_50 as color with
+  value = "rgb(71,85,105)"
+end
+
+-- Halfway between slate_40 and slate_50, like slate_65 and slate_75 below.
+-- Exists because the switch's OFF track wants its own step: it was borrowing
+-- the form-element border colour, which meant a project retinting its inputs
+-- silently moved the switch too, and the two have no reason to agree.
+define slate_45 as color with
+  value = "rgb(61,75,95)"
+end
+
+define slate_60 as color with
+  value = "rgb(100,116,139)"
+end
+
+define slate_70 as color with
+  value = "rgb(148,163,184)"
+end
+
+define slate_75 as color with
+  value = "rgb(176,188,206)"
+end
+
+define slate_65 as color with
+  value = "rgb(124,140,163)"
+end
+
+define slate_80 as color with
+  value = "rgb(203,213,225)"
+end
+
+define slate_90 as color with
+  value = "rgb(226,232,240)"
+end
+
+define slate_95 as color with
+  value = "rgb(241,245,249)"
+end
+
+define slate_99 as color with
+  value = "rgb(248,250,252)"
+end
+
+define gray as color with
+  value = "rgb(75,85,99)"
+end
+
+define gray_10 as color with
+  value = "rgb(3,7,18)"
+end
+
+define gray_20 as color with
+  value = "rgb(17,24,39)"
+end
+
+define gray_30 as color with
+  value = "rgb(31,41,55)"
+end
+
+define gray_40 as color with
+  value = "rgb(55,65,82)"
+end
+
+define gray_50 as color with
+  value = "rgb(75,85,99)"
+end
+
+define gray_60 as color with
+  value = "rgb(107,114,128)"
+end
+
+define gray_70 as color with
+  value = "rgb(156,163,175)"
+end
+
+define gray_80 as color with
+  value = "rgb(209,213,219)"
+end
+
+define gray_90 as color with
+  value = "rgb(229,231,235)"
+end
+
+define gray_95 as color with
+  value = "rgb(243,244,246)"
+end
+
+define gray_99 as color with
+  value = "rgb(249,250,251)"
+end
+
+define zinc as color with
+  value = "rgb(82,82,91)"
+end
+
+define zinc_10 as color with
+  value = "rgb(9,9,11)"
+end
+
+define zinc_20 as color with
+  value = "rgb(24,24,27)"
+end
+
+define zinc_30 as color with
+  value = "rgb(39,39,42)"
+end
+
+define zinc_40 as color with
+  value = "rgb(63,63,70)"
+end
+
+define zinc_50 as color with
+  value = "rgb(82,82,91)"
+end
+
+define zinc_60 as color with
+  value = "rgb(113,113,122)"
+end
+
+define zinc_70 as color with
+  value = "rgb(161,161,170)"
+end
+
+define zinc_80 as color with
+  value = "rgb(212,212,216)"
+end
+
+define zinc_90 as color with
+  value = "rgb(228,228,231)"
+end
+
+define zinc_95 as color with
+  value = "rgb(244,244,245)"
+end
+
+define zinc_99 as color with
+  value = "rgb(250,250,250)"
+end
+
+define stone as color with
+  value = "rgb(87,83,78)"
+end
+
+define stone_10 as color with
+  value = "rgb(12,10,9)"
+end
+
+define stone_20 as color with
+  value = "rgb(28,25,23)"
+end
+
+define stone_30 as color with
+  value = "rgb(41,37,36)"
+end
+
+define stone_40 as color with
+  value = "rgb(68,64,60)"
+end
+
+define stone_50 as color with
+  value = "rgb(87,83,78)"
+end
+
+define stone_60 as color with
+  value = "rgb(120,113,108)"
+end
+
+define stone_70 as color with
+  value = "rgb(168,162,158)"
+end
+
+define stone_80 as color with
+  value = "rgb(214,211,209)"
+end
+
+define stone_90 as color with
+  value = "rgb(231,229,228)"
+end
+
+define stone_95 as color with
+  value = "rgb(245,245,244)"
+end
+
+define stone_99 as color with
+  value = "rgb(250,250,249)"
+end
+
+define neutral as color with
+  value = "rgb(112,112,112)"
+end
+
+define neutral_0 as color with
+  value = "rgb(0,0,0)"
+end
+
+define neutral_10 as color with
+  value = "rgb(37,37,37)"
+end
+
+define neutral_20 as color with
+  value = "rgb(52,52,52)"
+end
+
+define neutral_30 as color with
+  value = "rgb(69,69,69)"
+end
+
+define neutral_40 as color with
+  value = "rgb(95,95,95)"
+end
+
+define neutral_50 as color with
+  value = "rgb(112,112,112)"
+end
+
+define neutral_60 as color with
+  value = "rgb(142,142,142)"
+end
+
+define neutral_70 as color with
+  value = "rgb(181,181,181)"
+end
+
+define neutral_80 as color with
+  value = "rgb(222,222,222)"
+end
+
+define neutral_90 as color with
+  value = "rgb(235,235,235)"
+end
+
+define neutral_95 as color with
+  value = "rgb(247,247,247)"
+end
+
+define neutral_99 as color with
+  value = "rgb(250,250,250)"
+end
+
+define neutral_100 as color with
+  value = "rgb(255,255,255)"
+end
+
+define black as color with
+  value = "rgb(0,0,0)"
+end
+
+define white as color with
+  value = "rgb(255,255,255)"
+end
+
+define component with
+  ["$recursive"] = true
+end
+
+define theme with
+  ["$recursive"] = true
+end
+
+define style with
+  ["$recursive"] = true
+end
+
+style main with
+  text-font = "system-ui, -apple-system, \"Segoe UI\", Roboto, Oxygen, Ubuntu, Cantarell, Helvetica, Arial, sans-serif, \"Apple Color Emoji\", \"Segoe UI Emoji\""
+  text-size = 1rem
+  text-leading = 1.5
+  text-weight = 400
+  text-color = slate_80
+end
+
+-- `layouts` is the container the engine puts every layout inside, so it is the
+-- one place a rule can reach the WHOLE ui. Reserved for behaviour that belongs
+-- to any element regardless of what it is or which layout it sits in; keep it
+-- to `& >> …` descendant rules, since the element itself is positioned by the
+-- engine with inline styles.
+style layouts with
+  -- TOOLTIPS. Any element carrying `#tooltip="…"` grows a bubble above it with
+  -- a caret beneath, on hover and on keyboard focus:
+  --
+  --   text abbreviation "Abbr." #tooltip="Abbreviation"
+  --   button "Save" #tooltip="Writes the file"
+  --
+  -- Attribute-driven rather than class-driven, like Pico: the text IS the
+  -- trigger, so there is nothing to keep in sync. `#tooltip` is one of the
+  -- named non-standard props (see `dataAttributeProps.ts`), so it is authored
+  -- bare here and in the selector while the DOM gets a conforming
+  -- `data-tooltip` — which is also what `attr()` below has to read.
+  & >> #tooltip:
+    -- The bubble and caret are positioned against this.
+    position = relative
+    -- A tooltip is revealed by `:hover`, and `:hover` does not fire on an
+    -- element the pointer cannot reach. The overlay is transparent to the
+    -- pointer by default (see spark-web-player.css), so carrying `#tooltip`
+    -- has to opt the element IN -- otherwise the bubble is styled perfectly
+    -- and simply never appears.
+    pointer_events = auto
+    -- BUBBLE.
+    @before:
+      content = attr(data-tooltip)
+      display = block
+      position = absolute
+      z-index = 99
+      bottom = 100%
+      left = 50%
+      transform = translate(-50%, -0.25rem)
+      padding = 0.25rem 0.5rem
+      corner = 0.25rem
+      background-color = slate_95
+      text-color = black
+      text-size = 0.875rem
+      text-weight = 400
+      text-style = normal
+      text-decoration = none
+      -- One line, clipped rather than wrapped, as Pico does. `text-overflow`
+      -- carries `overflow: hidden` and `white-space: nowrap` with it, so
+      -- stating those too would only duplicate them in the sheet.
+      text-overflow = ellipsis
+      opacity = 0
+      -- Never let the bubble eat the hover that summoned it.
+      pointer-events = none
+    -- CARET. A triangle made of borders, coloured to match the bubble;
+    -- `content` is empty because the glyph IS the border.
+    @after:
+      content = ""
+      display = block
+      position = absolute
+      z-index = 99
+      bottom = 100%
+      left = 50%
+      transform = translate(-50%, 0)
+      padding = 0
+      corner = 0
+      background-color = transparent
+      border-top-width = 0.3rem
+      border-top-style = solid
+      border-top-color = slate_95
+      border-right-width = 0.3rem
+      border-right-style = solid
+      border-right-color = transparent
+      border-left-width = 0.3rem
+      border-left-style = solid
+      border-left-color = transparent
+      opacity = 0
+      pointer-events = none
+    -- Shown on hover AND on keyboard focus, so it is reachable without a mouse.
+    @hovered @before, @focused @before:
+      opacity = 1
+      animation-name = tooltip_slide
+      animation-duration = 0.2s
+      animation-fill-mode = forwards
+    @hovered @after, @focused @after:
+      opacity = 1
+      animation-name = tooltip_caret_slide
+      animation-duration = 0.2s
+      animation-fill-mode = forwards
+  -- BUSY. Any element carrying `#busy=true` grows a spinner:
+  --
+  --   button "Save" #busy={saving}
+  --   box #busy={loading}
+  --   article #busy=true
+  --
+  -- Declared HERE, once, rather than per-component. It used to live inside
+  -- `style button` and `style article` as two separate copies, which is why a
+  -- busy `box` or `row` showed nothing at all -- the state was authorable on
+  -- anything and only two elements had been taught to draw it. The copies had
+  -- also drifted to different sizes (0.75rem and 1.25rem) and different
+  -- colours, so the same state looked like two different components.
+  --
+  -- `1em`, so it scales with whatever text it sits beside, and `0.1667em` of
+  -- stroke -- the reference's 4/24 of its 24-unit viewBox, in the box's own
+  -- units so the ring keeps its weight at any size.
+  & >> @busy:
+    @before:
+      content = ""
+      display = inline-block
+      width = 1em
+      height = 1em
+      vertical-align = -0.125em
+      corner = 50%
+      border-width = 0.1667em
+      border-style = solid
+      -- NO faint full ring behind the arc. The reference's circle is
+      -- `stroke-dasharray`'d, so only the arc is ever painted -- the trailing
+      -- ring is a different spinner idiom that reads as a progress track.
+      --
+      -- (A `color-mix()` here for a translucent track used to be silently
+      -- CORRUPTED into `var(--theme-color-color-mix(in srgb, ...))`, because
+      -- the colour transformer recognized CSS functions by a prefix whitelist
+      -- and mangled anything it had not been taught. It passes any value
+      -- containing `(` through now, so a colour function is fine here again.
+      -- The track stays absent regardless -- that is the reference's shape,
+      -- not a workaround.)
+      border-color = transparent
+      border-top-color = var(--spinner-color, var(--theme-color-slate_65))
+      animation-name = spin
+      animation-duration = 0.75s
+      animation-timing-function = linear
+      animation-iteration-count = infinite
+end
+
+style row with
+  display = flex
+  flex_direction = row
+  -- A row is a BLOCK in the flow, so it takes the rhythm itself...
+  -- Named for the same reason as `text`: `> *` only TIES with `.button` on
+  -- specificity and `style button` is declared later, so a bare `> *` would
+  -- lose and every button in a row would carry a rhythm step above it.
+end
+
+-- The generic BLOCK wrapper: a plain container with no meaning attached.
+--
+-- `box` had no style block at all before this, which made it an exact synonym
+-- for `column` -- the universal reset already makes every element a flex
+-- column, so `box` said nothing and `column` restated the default. Two names
+-- for one behaviour is worse than one.
+--
+-- It earns its keep as the other half of the pair. Grouping now splits by
+-- RHYTHM MODEL, and the block side had no un-opinionated option: `section` and
+-- `article` carry meaning a screen reader announces, and `text` implies
+-- content. So:
+--
+--   box            block -- children space themselves with margins, and those
+--                           margins COLLAPSE with each other and through this
+--                           edge, exactly like a document
+--   column / row   flex  -- children are spaced BY the container, with
+--                           `child-gap`, and nothing collapses
+--
+-- Reach for whichever matches the rhythm you want; mixing the two inside one
+-- container is what double-spaces things.
+style block with
+  display = block
+end
+
+style column with
+  display = flex
+  flex_direction = column
+end
+
+style stack with
+  > *:
+    position = absolute
+    inset = 0
+end
+
+style overlay with
+  position = absolute
+  inset = 0
+end
+
+style text with
+  display = block
+  pointer_events = auto
+  user_select = none
+  text_wrap = wrap
+  white_space = pre-line
+  >> *:
+    display = inline
+end
+
+style stroke with
+  display = block
+  pointer_events = none
+  user_select = none
+  text_wrap = wrap
+  position = absolute
+  inset = 0
+  text_stroke = 1
+  color = black
+  white_space = pre-line
+  >> *:
+    display = inline
+end
+
+style text_line with
+  display = block
+  text_wrap = wrap
+end
+
+style text_word with
+  display = inline-block
+end
+
+style text_space with
+  display = inline
+end
+
+style text_letter with
+end
+
+style image with
+  display = block
+  pointer_events = auto
+  position = absolute
+  inset = 0
+  isolation = isolate
+  will_change = transform
+  container_type = size
+  container_name = image
+  > *:
+    position = absolute
+    inset = 0
+    background_position = center
+    background_repeat = no-repeat
+    background_size = auto 100%
+    will_change = transform
+    min_width = 100%
+      translate = calc(0.5 * (100cqw - 100%)) 0
+end
+
+style object with
+  height = 100%
+  object_fit = cover
+  visibility = hidden
+end
+
+style mask with
+  display = block
+  pointer_events = auto
+  position = absolute
+  inset = 0
+  isolation = isolate
+  will_change = transform
+  > *:
+    mix_blend_mode = plus-lighter
+    position = absolute
+    inset = 0
+    mask_position = center
+    mask_repeat = no-repeat
+    mask_size = auto 100%
+    will_change = transform
+end
+
+style loading_bar with
+  z_index = 1000
+  position = relative
+  width = 100%
+  height = 4px
+end
+
+style loading_fill with
+  width = 100%
+  height = 100%
+  background_color = cyan50
+  transform = scaleX(var(--loading_progress))
+  transform_origin = left
+end
+
+style screen with
+  position = absolute
+  inset = 0
+  pointer_events = none
+  >> *:
+    pointer_events = none
+end
+
+style stage with
+  position = absolute
+  inset = 0
+  display = flex
+  flex_direction = column
+end
+
+style backdrop with
+  position = absolute
+  inset = 0
+  background_position = center
+  background_size = cover
+end
+
+style portrait with
+  position = absolute
+  top = 10%
+  right = 0
+  bottom = 0
+  left = 0
+  display = flex
+  flex_direction = column
+  background_size = auto 100%
+  background_position = center
+  > image >> *:
+    mix_blend_mode = plus-lighter
+end
+
+style choices with
+  position = relative
+  flex = 1
+  display = flex
+  flex_direction = column
+  align_items = center
+  justify_content = center
+  width = 100%
+  gap = 8px
+  margin_bottom = 100px
+  @screen_size(sm):
+    margin_bottom = 120px
+end
+
+style choice with
+  display = flex
+  flex_direction = row
+  width = 90%
+  max_width = 800px
+  background_color = rgb(0 0 0 / 65%)
+  padding = 8px
+  border_radius = 8px
+  border = 1px solid
+  text_align = center
+  align_items = center
+  justify_content = center
+  cursor = pointer
+  @hovered:
+    background_color = black
+    transition = all 0.15s linear
+end
+
+style button with
+  pointer_events = auto
+  -- INLINE-flex. A button is an inline-level control -- the reference's own
+  -- submit is an `<input type=submit>`, which is inline-block -- and that
+  -- difference is load-bearing here: an inline-level box cannot
+  -- margin-collapse, so a button ending a form KEEPS its trailing step
+  -- instead of letting it escape through the form's bottom edge.
+  --
+  -- Costs nothing elsewhere: a flex or grid item is blockified, so inside a
+  -- `row`, a `grid` cell or a `group` this lays out exactly as `flex` did.
+  display = inline-flex
+  child-layout = row
+  child-align = center
+  child-justify = center
+  text-align = center
+  -- Without this the label's line box is the font's `normal` leading, so a
+  -- button lands ~6px shorter than the inputs it sits beside.
+  text-leading = 1.5
+  -- A button standing on its own IS a block in the flow, so it takes the
+  -- rhythm above it — otherwise one placed straight after a heading sits
+  -- flush against it. Rows, groups and grids zero this for their children,
+  -- since there the button is a cell rather than a block.
+  padding = 0.75rem 1rem
+  -- Only the FORM buttons take the rhythm below them, matching Pico's
+  -- `[type=button],[type=reset],[type=submit]`. A plain `button` in a row must
+  -- not: it would add a step of space between every button in a toolbar. This
+  -- also stops a submit button STRETCHING to fill a grid row whose other cells
+  -- are inputs — grid items stretch by default, and the margin is what reserves
+  -- the input's own trailing space.
+  @type_submit, @type_reset, @type_button:
+    -- A FORM button takes its rhythm below, like the fields it follows, so it
+    -- must drop the block rhythm above or it carries both and double-spaces.
+    margin-top = 0
+    margin-bottom = 1rem
+  corner = 0.25rem
+  border-width = 0.0625rem
+  border-style = solid
+  border-color = sky_40
+  background-color = sky_40
+  text-color = white
+  text-weight = 400
+  cursor = pointer
+  transition = all 0.2s ease-in-out
+  @hovered, @pressed, @focused:
+    background-color = sky_50
+    border-color = sky_50
+  -- Variants as COMPOUND selectors (`&.secondary`), so they compose: `outline`
+  -- combined with a colour variant takes that variant's colour. A CSS custom
+  -- property would be the other way to do this, but `--name = …` is not
+  -- authorable — `--` opens a comment in a struct body.
+  &.secondary:
+    background-color = slate_50
+    border-color = slate_50
+    @focused:
+      shadow = 0 0 0 0.125rem rgb(148 163 184 / 25%)
+    @hovered, @pressed, @focused:
+      background-color = slate_60
+      border-color = slate_60
+  &.contrast:
+    background-color = slate_95
+    border-color = slate_95
+    @focused:
+      shadow = 0 0 0 0.125rem rgb(226 232 240 / 25%)
+    text-color = black
+    @hovered, @pressed, @focused:
+      background-color = white
+      border-color = white
+  &.outline:
+    background-color = transparent
+    text-color = sky_60
+    border-color = sky_60
+    @hovered, @pressed, @focused:
+      background-color = transparent
+      text-color = sky_70
+      border-color = sky_70
+  &.outline.secondary:
+    text-color = slate_70
+    border-color = slate_70
+    @hovered, @pressed, @focused:
+      text-color = slate_80
+      border-color = slate_80
+  &.outline.contrast:
+    text-color = slate_90
+    border-color = slate_90
+    @hovered, @pressed, @focused:
+      text-color = white
+      border-color = white
+  @focused:
+    shadow = 0 0 0 0.125rem rgb(14 165 233 / 37.5%)
+  @disabled:
+    opacity = 0.5
+    cursor = not-allowed
+    pointer-events = none
+  -- Busy state: `button "Save" #busy={saving}` grows a spinner, matching
+  -- Pico. `@busy` is the alias for `[aria-busy="true"]` (a raw `#a=v` can't be
+  -- used as a selector — that's the inline prop syntax). `spin` is a builtin
+  -- @keyframes.
+  -- No `cursor` here on purpose: Pico leaves a busy button's cursor alone, and
+  -- swapping in the OS progress cursor reads as "the whole app is blocked"
+  -- rather than "this one button is working".
+  @busy:
+    @before:
+      -- The spinner ITSELF is global (see `style layouts`). A button only says
+      -- what is different about wearing one: it sits against a filled primary
+      -- background, so it is white rather than the muted default, and it has a
+      -- caption beside it that needs a gap.
+      --
+      -- `spinner-color` is the authored spelling of `--spinner-color`; the
+      -- global rule reads it with `var()`. Setting it here is the same move an
+      -- author makes with `#spinner-color="…"` at a call site.
+      spinner-color = white
+      margin-right = 0.5rem
+end
+
+
+style checkbox with
+  pointer_events = auto
+  appearance = none
+  width = 1.25rem
+  height = 1.25rem
+  corner = 0.25rem
+  border-width = 0.125rem
+  border-style = solid
+  border-color = slate_40
+  background-color = slate_30
+  cursor = pointer
+  -- Deliberately NOT `all`. `@checked` brings the tick in as a background-image
+  -- and sets its position and size; transitioning those animates the mark from
+  -- the box's top-left corner (the initial `0% 0%` / `auto`) rather than simply
+  -- appearing, which reads as the checkmark growing out of the corner. Only the
+  -- colours should move. `switch` narrows its transition for the same reason.
+  transition = background-color 0.2s ease-in-out, border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out
+  @checked:
+    background-color = sky_40
+    border-color = sky_40
+    background-image = url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E")
+    background-position = center
+    background-size = 0.75rem auto
+    background-repeat = no-repeat
+  @focused:
+    border-color = sky_40
+    shadow = 0 0 0 0.125rem rgb(14 165 233 / 37.5%)
+  @disabled:
+    opacity = 0.5
+    cursor = not-allowed
+    pointer-events = none
+end
+
+-- `input` is the generic form control (`input #type="email|search|date|…"`).
+-- It needs the same chrome as `field`, which is just `input #type="text"` under
+-- a friendlier name — without this, every typed input fell back to the
+-- browser's white default while `field` next to it was dark.
+-- Form controls carry NO margin of their own.
+--
+-- They are PRIMITIVES, like `row` and `column` and `text`: whatever lays a
+-- control out decides its spacing. Only genuine document elements ship with
+-- rhythm -- `paragraph`, `h1`-`h6`, `list`, `table`, `section`, `article`,
+-- `quote`, `fieldset`.
+--
+-- A baked-in `margin-bottom` reads as correct on a web form and as a bug in a
+-- game menu, where a `row` of dropdowns and sliders would carry a rhythm step
+-- under each one that nothing asked for and no gap accounts for. Spacing a
+-- form is the FORM's business, and the showcase states it per control.
+style input with
+  pointer_events = auto
+  color-scheme = dark
+  text-leading = 1.5
+  width = 100%
+  + small:
+    margin-top = 0.25rem
+    margin-bottom = 1rem
+  -- Every input gets the SAME explicit height, exactly as Pico does — content
+  -- height + vertical padding + borders. Deriving it from content instead only
+  -- works for inputs that HAVE text: a colour input's content is its swatch,
+  -- which has no intrinsic height, so it collapsed to 29px. Special-casing the
+  -- colour input's height/padding was the old workaround, and it left it 7px
+  -- TALLER than its neighbours; stating the shared height fixes both.
+  height = 3.125rem
+  -- A colour input needs no special box beyond that. The swatch is made to fill
+  -- it by zeroing the wrapper's own padding, which is what would otherwise
+  -- squeeze it to a hairline.
+  @type_color:
+    @swatch_wrapper:
+      padding = 0
+    @swatch:
+      border-width = 0
+      corner = 0.125rem
+  -- Chrome's own picker glyph is white and cannot be recoloured; hide it and
+  -- paint the icon on the field, keeping the native click target.
+  @type_date:
+    background-image = url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238891a4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='4' width='18' height='18' rx='2'/%3E%3Cpath d='M16 2v4M8 2v4M3 10h18'/%3E%3C/svg%3E")
+    background-position = right 0.75rem center
+    background-size = 1rem auto
+    background-repeat = no-repeat
+    padding-right = 1.75rem
+    @picker:
+      opacity = 0
+      cursor = pointer
+  @type_time:
+    background-image = url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238891a4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cpolyline points='12 6 12 12 16 14'/%3E%3C/svg%3E")
+    background-position = right 0.75rem center
+    background-size = 1rem auto
+    background-repeat = no-repeat
+    padding-right = 1.75rem
+    @picker:
+      opacity = 0
+      cursor = pointer
+  padding = 0.75rem 1rem
+  corner = 0.25rem
+  border-width = 0.0625rem
+  border-style = solid
+  border-color = slate_40
+  background-color = slate_30
+  text-color = slate_90
+  transition = all 0.2s ease-in-out
+  accent-color = sky_60
+  @placeholder:
+    text-color = slate_70
+  @focused:
+    border-color = sky_40
+    shadow = 0 0 0 0.0625rem var(--theme-color-sky_40)
+  @disabled:
+    opacity = 0.5
+    cursor = not-allowed
+    pointer-events = none
+  -- A read-only field is not editable, so it must not light up like one.
+  @readonly @focused:
+    border-color = slate_40
+    shadow = none
+end
+
+style radio with
+  pointer_events = auto
+  appearance = none
+  width = 1.25rem
+  height = 1.25rem
+  corner = 50%
+  border-width = 0.125rem
+  border-style = solid
+  border-color = slate_40
+  background-color = slate_30
+  cursor = pointer
+  transition = all 0.2s ease-in-out
+  @checked:
+    border-width = 0.35rem
+    border-color = sky_40
+    background-color = white
+  @focused:
+    border-color = sky_40
+    shadow = 0 0 0 0.125rem rgb(14 165 233 / 37.5%)
+  @disabled:
+    opacity = 0.5
+    cursor = not-allowed
+    pointer-events = none
+end
+
+-- A `switch` is a checkbox carrying role="switch". Pico draws it as a pill
+-- TRACK with a sliding THUMB rather than a box, so the native checkbox
+-- appearance is dropped and the thumb is an `@before` pseudo-element that
+-- translates across on `@checked`.
+style switch with
+  pointer_events = auto
+  appearance = none
+  width = 2.25rem
+  height = 1.25rem
+  corner = 1.25rem
+  background-color = slate_45
+  border-width = 0.1875rem
+  border-style = solid
+  border-color = slate_45
+  cursor = pointer
+  position = relative
+  transition = background-color 0.2s ease-in-out, border-color 0.2s ease-in-out
+  @before:
+    content = ""
+    position = absolute
+    top = 0
+    left = 0
+    width = 0.875rem
+    height = 0.875rem
+    corner = 50%
+    background-color = white
+    transition = transform 0.1s ease-in-out
+  @checked:
+    background-color = sky_40
+    border-color = sky_40
+    @before:
+      transform = translateX(1rem)
+  -- Translucent ring, and NO border tint: Pico deliberately exempts a switch
+  -- from the focus border colour that checkbox/radio get.
+  @focused:
+    shadow = 0 0 0 0.125rem rgb(14 165 233 / 37.5%)
+  @disabled:
+    opacity = 0.5
+    cursor = not-allowed
+    pointer-events = none
+end
+
+style textarea with
+  -- A form control fills its form. This was free while the form was a flex
+  -- column -- `align-items: stretch` sized every child -- and became invisible
+  -- the moment the form became a block: `width: auto` on a form control means
+  -- its INTRINSIC size, not its container's, so a select collapsed to the
+  -- width of its longest option and a button to the width of its label.
+  width = 100%
+  pointer_events = auto
+  padding = 0.75rem 1rem
+  + small:
+    margin-top = 0.25rem
+    margin-bottom = 1rem
+  corner = 0.25rem
+  border-width = 0.0625rem
+  border-style = solid
+  border-color = slate_40
+  background-color = slate_30
+  text-color = slate_90
+  transition = all 0.2s ease-in-out
+  resize = vertical
+  @placeholder:
+    text-color = slate_70
+  @focused:
+    border-color = sky_40
+    shadow = 0 0 0 0.0625rem var(--theme-color-sky_40)
+  @disabled:
+    opacity = 0.5
+    cursor = not-allowed
+    pointer-events = none
+  -- A read-only field is not editable, so it must not light up like one.
+  @readonly @focused:
+    border-color = slate_40
+    shadow = none
+end
+
+style slider with
+  pointer_events = auto
+  -- Fills its field like every other form control; a fixed 200px made it the
+  -- one control that did not line up with the inputs above and below it.
+  width = 100%
+  height = 1.25rem
+  corner = 0.25rem
+  background-color = transparent
+  cursor = pointer
+  appearance = none
+  @track:
+    width = 100%
+    height = 0.375rem
+    corner = 0.25rem
+    background-color = slate_30
+    -- The track lightens under the press, the same tell as the thumb growing.
+    transition = background-color 0.2s ease-in-out
+    -- The FILLED part of the track, left of the thumb.
+    --
+    -- `--_fill-percentage` is computed by the engine from value/min/max and
+    -- re-applied whenever any of them change, so the fill follows the value
+    -- with no `oninput` handler. It has existed and been kept live since the
+    -- slider was written; nothing consumed it, so the mechanism ran on every
+    -- drag and drew nothing.
+    --
+    -- A hard-stop gradient rather than `accent-color`: the reference tints the
+    -- NATIVE control, but `appearance: none` above opts out of native
+    -- rendering entirely, so `accent-color` has nothing left to colour. Once
+    -- the track is ours to draw, the fill has to be ours too.
+    --
+    -- `sky_40` is the progress bar's fill (`progress @fill`). A slider and a
+    -- progress bar are the same picture -- a filled proportion of a track --
+    -- so they should not be two different blues.
+    background-image = linear-gradient(to right, var(--theme-color-sky_40) var(--_fill-percentage, 0%), transparent var(--_fill-percentage, 0%))
+  @thumb:
+    appearance = none
+    width = 1.25rem
+    height = 1.25rem
+    corner = 50%
+    background-color = slate_50
+    -- `px`, not `rem`, and deliberately -- the only fixed length on the
+    -- control. Every other size here is typographic and scales with the root
+    -- font size (which the reference steps up per breakpoint), but this ring
+    -- is a separator, not type. In `rem` it would be 2.25px at an 18px root
+    -- and 2.5px at 20px, thickening the ring and eating the thumb's fill as
+    -- the page got bigger. The reference hardcodes 2px for the same reason.
+    border-width = 2px
+    border-style = solid
+    -- The ring that separates the thumb from the track, matching the reference
+    -- (`2px solid var(--pico-background-color)`) -- it is the BACKDROP colour,
+    -- not a border in the usual sense, which is why it reads as a gap rather
+    -- than an outline. `slate_20` is this theme's page background; a project on
+    -- a differently-coloured page has to restate it, exactly as Pico would.
+    border-color = slate_20
+    cursor = pointer
+    -- `appearance: none` collapses the track to its own box, so the thumb has
+    -- to be lifted by half its overhang: -(thumb - track) / 2. At 1.25rem over
+    -- a 0.375rem track that is -0.4375rem, and it MOVES if either size changes
+    -- -- the three are one measurement, not three constants.
+    --
+    -- This value did NOT change when the thumb and track were sized up to the
+    -- reference, and that is the whole reason they were able to sit undersized
+    -- unnoticed. Both were an eighth of a rem short (1.125 over 0.25), which
+    -- leaves the DIFFERENCE at 0.875rem either way, so the derived offset was
+    -- correct for the wrong pair. A centred thumb proves nothing about scale.
+    margin-top = -0.4375rem
+    -- `transform` is in the transition because the PRESS animates it. Without
+    -- it the thumb still scales, it just snaps -- the state would be right and
+    -- the motion missing.
+    transition = background-color 0.2s ease-in-out, transform 0.2s ease-in-out
+  -- The reference tints the thumb on PRESS AND FOCUS, and has no hover state
+  -- at all. We had one, and it was why the press read wrong: the pointer is
+  -- necessarily on top of the thumb at the moment of a press, so a thumb
+  -- already tinted by hover cannot also change colour on press -- the only
+  -- thing left to see was the scale. Dropping hover gives the colour back to
+  -- the press, which is the state that actually means something.
+  --
+  -- Focus is grouped with press because a keyboard user gets no press: arrow
+  -- keys move the value with the control focused and never active, so without
+  -- this the thumb would sit untinted through the whole interaction.
+  --
+  -- `:active`/`:focus` sit on the INPUT and the thumb is a pseudo-element OF
+  -- it, so `@thumb` nests INSIDE them and not the other way round -- a
+  -- pseudo-element cannot itself be active or focused.
+  @pressed, @focused:
+    @track:
+      background-color = slate_40
+    @thumb:
+      background-color = sky_40
+  -- The GROWTH is press-only, unlike the tint above -- it is the direct
+  -- feedback of a pointer holding the thumb, and the reference scopes it the
+  -- same way (`[type=range]:active::-webkit-slider-thumb`).
+  @pressed:
+    @thumb:
+      transform = scale(1.25)
+  @disabled:
+    opacity = 0.5
+    cursor = not-allowed
+    pointer-events = none
+end
+
+style link with
+  -- Softer than the text it belongs to, and clear of the descenders.
+  text-decoration-color = color-mix(in srgb, currentColor 50%, transparent)
+  text-underline-offset = 0.125rem
+  pointer_events = auto
+  align-self = start
+  display = inline-block
+  text-color = sky_60
+  -- The LONGHAND, deliberately. `text-decoration` is a shorthand covering
+  -- line, colour, style and thickness, so `text-decoration: underline` resets
+  -- the colour to its initial `currentColor` -- and it is emitted AFTER the
+  -- `text-decoration-color` above, so it silently wiped it. The underline
+  -- rendered at full strength while the rule asking for half sat right there
+  -- in the block, looking applied.
+  text-decoration-line = underline
+  cursor = pointer
+  transition = all 0.2s ease-in-out
+  -- Hover promotes the underline back to full strength, as Pico does.
+  @hovered, @pressed, @focused:
+    text-color = sky_70
+    text-decoration-color = currentColor
+  &.secondary:
+    text-color = slate_70
+    @hovered, @pressed, @focused:
+      text-color = slate_75
+      text-decoration-color = currentColor
+  &.contrast:
+    text-color = slate_90
+    @hovered, @pressed, @focused:
+      text-color = white
+      text-decoration-color = currentColor
+end
+
+style dropdown with
+  -- A form control fills its form. This was free while the form was a flex
+  -- column -- `align-items: stretch` sized every child -- and became invisible
+  -- the moment the form became a block: `width: auto` on a form control means
+  -- its INTRINSIC size, not its container's, so a select collapsed to the
+  -- width of its longest option and a button to the width of its label.
+  width = 100%
+  pointer_events = auto
+  appearance = none
+  color-scheme = dark
+  -- Without this a <select> sizes its text box from the UA's own leading and
+  -- lands 3px shorter than every input beside it.
+  text-leading = 1.5
+  padding = 0.75rem 1rem
+  padding-right = 2.5rem
+  + small:
+    margin-top = 0.25rem
+    margin-bottom = 1rem
+  corner = 0.25rem
+  border-width = 0.0625rem
+  border-style = solid
+  border-color = slate_40
+  background-color = slate_30
+  text-color = slate_90
+  background-image = url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238891a4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")
+  background-position = center right 0.75rem
+  background-size = 1rem auto
+  background-repeat = no-repeat
+  cursor = default
+  transition = all 0.2s ease-in-out
+  @invalid:
+    text-color = slate_70
+  @focused:
+    border-color = sky_40
+    shadow = 0 0 0 0.0625rem var(--theme-color-sky_40)
+  @disabled:
+    opacity = 0.5
+    cursor = not-allowed
+    pointer-events = none
+  -- A validated select keeps its chevron: Pico's status-icon swap excludes
+  -- <select>, and `valid`/`invalid` sit later at EQUAL specificity, so the
+  -- chevron must be re-asserted or the status icon replaces it.
+  &.invalid:
+    background-image = url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238891a4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")
+  &.valid:
+    background-image = url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238891a4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")
+end
+
+style option with
+  pointer_events = auto
+end
+
+-- Pico UI component classes ------------------------------------------------
+
+style h1 with
+  text-size = 2rem
+  text-weight = 700
+  text-leading = 1.125
+  text-color = slate_95
+  -- Pico's per-level typography-spacing-top. Blocks carry their own
+  -- rhythm now, so this is the whole step rather than the remainder
+  -- left over after a container gap: 3rem on h1, 2.625rem on h2, ...
+  margin-top = 1.5em
+  -- Nothing to push away from when it opens the flow.
+  @first:
+    margin-top = 0
+  margin-bottom = 1rem
+end
+
+style h2 with
+  text-size = 1.75rem
+  text-weight = 700
+  text-leading = 1.15
+  text-color = slate_90
+  -- Pico's per-level typography-spacing-top. Blocks carry their own
+  -- rhythm now, so this is the whole step rather than the remainder
+  -- left over after a container gap: 3rem on h1, 2.625rem on h2, ...
+  margin-top = 1.5em
+  -- Nothing to push away from when it opens the flow.
+  @first:
+    margin-top = 0
+  margin-bottom = 1rem
+end
+
+style h3 with
+  text-size = 1.5rem
+  text-weight = 700
+  text-leading = 1.175
+  -- Pico's per-level typography-spacing-top. Blocks carry their own
+  -- rhythm now, so this is the whole step rather than the remainder
+  -- left over after a container gap: 3rem on h1, 2.625rem on h2, ...
+  margin-top = 1.5em
+  -- Nothing to push away from when it opens the flow.
+  @first:
+    margin-top = 0
+  margin-bottom = 1rem
+end
+
+style h4 with
+  text-size = 1.25rem
+  text-weight = 700
+  text-leading = 1.2
+  -- Pico's per-level typography-spacing-top. Blocks carry their own
+  -- rhythm now, so this is the whole step rather than the remainder
+  -- left over after a container gap: 3rem on h1, 2.625rem on h2, ...
+  margin-top = 1.5em
+  -- Nothing to push away from when it opens the flow.
+  @first:
+    margin-top = 0
+  text-color = slate_75
+  margin-bottom = 1rem
+end
+
+style h5 with
+  text-size = 1.125rem
+  text-weight = 700
+  text-leading = 1.225
+  text-color = slate_70
+  -- Pico's per-level typography-spacing-top. Blocks carry their own
+  -- rhythm now, so this is the whole step rather than the remainder
+  -- left over after a container gap: 3rem on h1, 2.625rem on h2, ...
+  margin-top = 1.5em
+  -- Nothing to push away from when it opens the flow.
+  @first:
+    margin-top = 0
+  margin-bottom = 1rem
+end
+
+style h6 with
+  text-size = 1rem
+  text-weight = 700
+  text-leading = 1.25
+  text-color = slate_65
+  -- Pico's per-level typography-spacing-top. Blocks carry their own
+  -- rhythm now, so this is the whole step rather than the remainder
+  -- left over after a container gap: 3rem on h1, 2.625rem on h2, ...
+  margin-top = 1.5em
+  -- Nothing to push away from when it opens the flow.
+  @first:
+    margin-top = 0
+  margin-bottom = 1rem
+end
+
+style muted with
+  text-color = slate_60
+end
+
+-- A document paragraph, and the one block builtin that keeps a MARGIN.
+--
+-- Everything else moved to `child-gap`, because a container spacing its own
+-- children is easier to reason about than each child pushing its neighbours
+-- around. A paragraph is the exception on purpose: the space below it belongs
+-- to the paragraph, not to whatever happens to contain it, so prose reads
+-- correctly whether it sits in a gapped column, a grid cell, or on its own.
+--
+-- That is also the difference a reader can see between `paragraph` and `text`:
+-- `text` is a bare div that takes its rhythm from its parent's gap.
+style paragraph with
+  display = block
+  margin-bottom = 1rem
+end
+
+style small with
+  text-size = 0.875em
+end
+
+style container with
+  width = 100%
+  -- Pico's container caps at a fixed 700px at this breakpoint and adds no
+  -- horizontal padding, so the text column is exactly 700px wide.
+  width-max = 700px
+  margin = 0 auto
+  padding = 1rem 0
+end
+
+-- Inline text CLASSES -------------------------------------------------------
+--
+-- Applied to a whole text element (`text bold "Bold"`, like `text h1`). For
+-- styling WITHIN a line, use rich-text tags: `text "a <b>bold</b> word"`.
+
+-- A block of flowing prose. The overlay lays everything out as FLEX, and CSS
+-- BLOCKIFIES the children of a flex container — so `strong` / `em` / `sub` /
+-- `sup` / `abbr` inside a `row` or `column` compute to `display: block` and
+-- stack instead of flowing inline, no matter what their own rule says. Put them
+-- in a `prose` box (the only non-flex text container) to get real inline flow.
+style prose with
+  display = block
+  text-color = slate_90
+end
+
+-- `strong` / `emphasis` are ELEMENTS (they mean importance / stress emphasis);
+-- `bold` / `italic` are the purely visual CLASSES. Same rendering, different
+-- meaning — mirroring HTML's own <strong>/<em> vs <b>/<i> split.
+style strong with
+  display = inline
+  text-weight = 700
+end
+
+style emphasis with
+  display = inline
+  text-style = italic
+end
+
+style bold with
+  text-weight = 700
+end
+
+style italic with
+  text-style = italic
+end
+
+style underline with
+  text-decoration-line = underline
+end
+
+style strikethrough with
+  text-decoration-line = line-through
+end
+
+style code with
+  font-family = ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace
+  text-size = 0.875rem
+  background-color = slate_30
+  corner = 0.25rem
+  padding = 0.125rem 0.375rem
+end
+
+style kbd with
+  display = inline-block
+  justify-self = start
+  align-self = start
+  font-family = ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace
+  text-size = 0.875rem
+  text-weight = 700
+  background-color = slate_80
+  text-color = slate_20
+  corner = 0.25rem
+  padding = 0.375rem
+  -- Hugs its own font box the way an inline element does.
+  text-leading = normal
+end
+
+style highlight with
+  display = inline-block
+  justify-self = start
+  align-self = start
+  background-color = sky_20
+  text-color = white
+  padding = 0.125rem 0.25rem
+  -- Hugs its own font box the way an inline element does.
+  text-leading = normal
+end
+
+style deleted with
+  text-decoration = line-through
+  text-color = #ce7e7b
+end
+
+style inserted with
+  text-color = #62af9a
+end
+
+style abbreviation with
+  -- Hugs its text: `text` is a block, so a border-bottom would otherwise rule
+  -- the full column width instead of underlining just the word.
+  display = inline-block
+  justify-self = start
+  align-self = start
+  border-bottom-width = 0.0625rem
+  border-bottom-style = dotted
+  cursor = help
+  -- Hugs its own font box the way an inline element does.
+  text-leading = normal
+end
+
+-- `divider` renders an <hr>. The overlay's flex default would collapse it, so
+-- it is an explicit block rule.
+style divider with
+  display = block
+  width = 100%
+  height = 0
+  margin = 1rem 0
+  border-width = 0
+  border-top-width = 0.0625rem
+  border-top-style = solid
+  border-top-color = slate_40
+end
+
+style citation with
+  -- An attribution sits slightly apart from the quotation it credits -- the
+  -- reference gets the same half-step by wrapping its <cite> in a <footer>.
+  -- Without it the citation reads as the quote's last line rather than as a
+  -- credit for it.
+  margin-top = 0.5rem
+  text-style = italic
+  text-color = slate_60
+end
+
+style quote with
+  display = block
+  margin-top = 1rem
+  margin-bottom = 1rem
+  padding = 1rem
+  border-left-width = 0.25rem
+  border-left-style = solid
+  border-left-color = slate_30
+  -- The quote spaces its own children with `child-gap`; the flow rhythm must
+  -- not stack on top of that.
+  -- Padding BLOCKS margin collapse at this edge, so the last child's trailing
+  -- margin would become real inset here instead of passing through -- the box
+  -- reads exactly one rhythm step too tall. Only containers with padding need
+  -- this; `section` has none, so its last margin collapses out on its own.
+  > :last-child:
+    margin-bottom = 0
+end
+
+-- Lists ---------------------------------------------------------------------
+
+-- `display` is stated explicitly rather than left to the browser default: the
+-- overlay lays everything out as flex, and a flex `<li>` renders NO marker (a
+-- marker needs `display: list-item`). `child-gap` likewise does nothing on a
+-- non-flex parent, so list spacing is per-item margin.
+style list with
+  display = block
+  -- No marker and no indent by DEFAULT. A game's lists are overwhelmingly
+  -- plain stacks -- menus, inventories, option rows -- and every one of those
+  -- had to switch the marker back off (`nav` and `menu` both did). A document
+  -- list asks for the whole look with `bulleted`.
+  list-style = none
+  padding-left = 0
+  margin-bottom = 1rem
+end
+
+-- The document look for a plain `list`, in one word -- marker AND the indent it
+-- needs, since a marker with no padding renders outside the content box:
+--
+--   list bulleted:
+--     item "..."
+--
+-- `#list-mark` still overrides the marker on top of it, so varying it does not
+-- mean restating the indent:
+--
+--   list bulleted #list-mark="circle":
+style bulleted with
+  -- The LONGHAND, so `#list-mark` (an inline style setting the same longhand)
+  -- cleanly wins over it. The `list-style` shorthand would also reset
+  -- position/image, which is not this class's business.
+  list-style-type = disc
+  padding-left = 40px
+end
+
+-- An ordered list arrives NUMBERED -- that is what it is for. `#list-mark`
+-- changes or drops the numerals without giving up the ordering:
+--
+--   ordered_list #list-mark="lower-roman":
+--   ordered_list #list-mark="none":    -- still an <ol>, still announced ordered
+style ordered_list with
+  display = block
+  list-style = decimal
+  padding-left = 40px
+  margin-bottom = 1rem
+end
+
+style item with
+  display = list-item
+  margin-bottom = 0.25rem
+  -- Trailing space belongs BETWEEN items, not after the last one.
+  @last:
+    margin-bottom = 0
+end
+
+-- Tables --------------------------------------------------------------------
+
+-- The table family needs its native display values spelled out: the overlay
+-- lays every element out as FLEX, and a flex table/row/cell does no table
+-- layout at all (columns stop aligning across rows).
+style table_header with
+  display = table-header-group
+  >> head:
+    text-weight = 600
+    border-bottom-width = 0.1875rem
+  >> cell:
+    text-weight = 600
+    border-bottom-width = 0.1875rem
+end
+
+style table_body with
+  display = table-row-group
+end
+
+style table_footer with
+  display = table-footer-group
+end
+
+style table_row with
+  display = table-row
+end
+
+style table with
+  display = table
+  width = 100%
+  border-collapse = collapse
+  text-align = left
+  margin-bottom = 1rem
+end
+
+style head with
+  display = table-cell
+  text-weight = 400
+  padding = 0.5rem 1rem
+  border-bottom-width = 0.0625rem
+  border-bottom-style = solid
+  border-bottom-color = slate_30
+end
+
+style cell with
+  display = table-cell
+  padding = 0.5rem 1rem
+  border-bottom-width = 0.0625rem
+  border-bottom-style = solid
+  border-bottom-color = slate_30
+end
+
+-- `table striped` tints alternate BODY rows. `@odd` is the nth-child alias, so
+-- this needs no per-row authoring.
+style striped with
+  > table_body:
+    > @odd:
+      background-color = rgb(111 120 135 / 3.75%)
+end
+
+-- A captioned figure. The overlay forces every element to flex, so the
+-- column direction has to be stated rather than inherited from `display:block`.
+style figure with
+  display = block
+end
+
+style picture with
+  display = block
+  align-self = start
+  width-max = 100%
+  height = auto
+  border-style = none
+end
+
+style caption with
+  padding = 0.5rem 0
+  text-color = slate_60
+  -- Spans the figure rather than shrink-wrapping: the figure aligns its
+  -- children to the start, which would otherwise break the caption mid-phrase.
+  width = 100%
+  -- A caption reads as one SENTENCE: its parts flow along the line rather than
+  -- stacking. `child-layout` would not do it -- a figcaption lays out as a
+  -- block, so the parts have to be inline themselves.
+  --
+  -- `display: block` on the caption ITSELF is what makes that possible, and
+  -- leaving it out is why the parts stacked anyway: the player's stylesheet
+  -- defaults every element in the overlay to `display: flex; flex-direction:
+  -- column`, and a flex container BLOCKIFIES its children — turning the
+  -- `inline` below into `block` and putting each part on its own line.
+  display = block
+  > *:
+    display = inline
+end
+
+-- Foldout: a native <details>/<summary> disclosure. One foldout; an
+-- "accordion" is a GROUP of these, which is why the element is not named that.
+style foldout_label with
+  pointer_events = auto
+  display = list-item
+  text-leading = 1
+  list-style = none
+  cursor = pointer
+  text-weight = 400
+  @after:
+    content = ""
+    display = block
+    width = 1rem
+    height = 1rem
+    float = right
+    margin-left = 0.5rem
+    background-image = url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238891a4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")
+    background-position = right center
+    background-size = 1rem auto
+    background-repeat = no-repeat
+    transform = rotate(-90deg)
+    transition = transform 0.2s ease-in-out
+  -- A summary marked up as a button (`#role="button"`) takes the button
+  -- variants, exactly as Pico styles `summary[role="button"]`. The variants are
+  -- compound selectors here for the same reason they are on `button`:
+  -- `secondary` carries no styling of its own, each element says what it means.
+  &.secondary:
+    padding = 0.75rem 1rem
+    corner = 0.25rem
+    border-width = 0.0625rem
+    border-style = solid
+    background-color = slate_50
+    border-color = slate_50
+    text-color = white
+    text-weight = 400
+    transition = all 0.2s ease-in-out
+    @after:
+      margin-left = 0.5rem
+      -- The base rule points the caret sideways for a foldout; a menu
+      -- button's caret points DOWN, so the rotation must be undone here.
+      transform = rotate(0)
+      -- White chevron, to read against the filled button.
+      background-image = url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")
+    @hovered, @pressed, @focused:
+      background-color = slate_60
+      border-color = slate_60
+end
+style foldout with
+  -- No margin. A `foldout` is BOTH a document disclosure and a menu control --
+  -- the nav dropdown is one -- and no single default is right for both. It used
+  -- to carry `margin-bottom: 1rem` plus a `&.menu` rule undoing it, which is
+  -- the shape of a default that does not hold. Whatever lays a foldout out
+  -- decides its spacing, as with every other control.
+  display = block
+  &@opened:
+    > foldout_label:
+      text-color = slate_60
+      margin-bottom = 1rem
+      @after:
+        transform = rotate(0)
+      -- A summary styled as a BUTTON keeps its own colour and needs no gap to
+      -- the panel it opens; Pico likewise excludes `[role]` from its
+      -- open-summary rule.
+      &.secondary:
+        text-color = white
+        margin-bottom = 0
+end
+-- `menu` is a `foldout` styled as a nav dropdown — Pico names the class
+-- `dropdown`, but here that word is already the <select> ELEMENT. The panel is
+-- absolutely positioned so opening it does not reflow the nav.
+style menu with
+  position = relative
+  -- `display = none` is stated because the overlay forces every element to
+  -- flex, which overrides the hiding <details> would otherwise do itself.
+  > list:
+    display = none
+    position = absolute
+    top = 100%
+    left = 0
+    z-index = 10
+    child-layout = column
+        -- Hangs off the trigger and matches its width, rather than a fixed 10rem.
+    min-width = 100%
+    shadow = 0 0.5rem 1rem rgb(0 0 0 / 30%)
+    padding = 0.25rem
+    corner = 0.25rem
+    border-width = 0.0625rem
+    border-style = solid
+    border-color = slate_40
+    background-color = slate_30
+  > list > item:
+    margin-top = 0
+  &@opened:
+    > list:
+      display = flex
+    -- A menu trigger is a BUTTON: it keeps its colour when open, and the panel
+    -- hangs directly off it rather than being pushed away by a gap.
+    > foldout_label:
+      text-color = white
+      margin-bottom = 0
+  -- A menu's trigger IS a button, and the label is synthesised from the
+  -- foldout's own content — so it carries only `foldout_label`, never a
+  -- variant class the author wrote on the foldout. Style it from here.
+  > foldout_label:
+    display = flex
+    child-layout = row
+    child-align = center
+    -- Button leading, not the tight leading a bare accordion summary uses.
+    text-leading = 1.5
+    padding = 0.375rem 0.5rem
+    corner = 0.25rem
+    border-width = 0.0625rem
+    border-style = solid
+    background-color = slate_50
+    border-color = slate_50
+    text-color = white
+    text-weight = 400
+    transition = all 0.2s ease-in-out
+    @after:
+      margin-left = 0.25rem
+      transform = rotate(0)
+      background-image = url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")
+    @hovered, @pressed, @focused:
+      background-color = slate_60
+      border-color = slate_60
+  -- Items in the panel are plain rows, not links: body colour, no underline,
+  -- and the whole row highlights on hover.
+  -- The ITEM is the hover target and the ITEM carries the padding, so the
+  -- highlight spans the whole row. Putting both on the link instead left the
+  -- link sized to its text inside a wider item -- it is a flex child, so
+  -- `width: 100%` resolves against the item's content box and stops there,
+  -- and the highlight covered the words rather than the row.
+  >> item:
+    padding = 0
+    list-style = none
+  >> link:
+    display = block
+    flex = 1 1 auto
+    align-self = stretch
+    padding = 0.375rem 1rem
+    margin = 0
+    corner = 0
+    text-color = slate_80
+    text-decoration = none
+    @hovered:
+      background-color = slate_40
+      text-color = slate_90
+end
+
+-- Pico marks a search field with an inline magnifier and indents the text
+-- past it, so the field reads as a search box before it is focused.
+style search with
+  corner = 5rem
+  background-image = url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238891a4' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cpath d='m21 21-4.3-4.3'/%3E%3C/svg%3E")
+  background-repeat = no-repeat
+  background-position = left 1.125rem center
+  background-size = 1rem auto
+  padding-left = 2.75rem
+end
+
+-- A file input draws its own button, so the surrounding field chrome the
+-- other `input` types get would be a box around a box. Pico leaves it bare.
+style file_input with
+  background-color = transparent
+  border-style = none
+  border-width = 0
+  corner = 0
+  padding = 0.375rem 0 0.375rem 0.125rem
+  text-color = slate_60
+  -- Without this the browser paints its own grey 3D button.
+  @file_button:
+    text-leading = 1.5
+    background-color = slate_50
+    border-width = 0.0625rem
+    border-style = solid
+    border-color = slate_50
+    corner = 0.25rem
+    padding = 0.375rem 1rem
+    margin-right = 0.5rem
+    margin-left = 0
+    text-color = white
+    text-size = 1rem
+    text-weight = 400
+    cursor = pointer
+    transition = background-color 0.2s ease-in-out, border-color 0.2s ease-in-out
+    @hovered:
+      background-color = slate_60
+      border-color = slate_60
+  @disabled:
+    opacity = 0.5
+    cursor = not-allowed
+    pointer-events = none
+end
+
+-- SCROLLING IS AN INTERACTION, so a scroller has to be hit-testable.
+--
+-- The ui overlay is `pointer-events: none` so the game canvas behind it stays
+-- clickable, and each interactive builtin opts back in with `pointer_events =
+-- auto` (button, field, input, slider, …). A scroller was never given a style
+-- block, so it never opted in — and a wheel gesture over one hit-tested
+-- straight THROUGH the ui to the canvas, leaving the browser with no scroll
+-- container under the cursor and nothing to scroll.
+--
+-- The symptom was maddeningly intermittent rather than total, because the
+-- gesture DOES land whenever the pointer happens to be over a control that had
+-- opted in; it stuck over any stretch of plain content, and never scrolled at
+-- all over a wide region with no controls in it, like a table.
+style scroller with
+  pointer_events = auto
+end
+
+-- A horizontal scroll box for a table too wide for its container. The overlay
+-- makes everything flex, so `display` is stated explicitly.
+style overflow_auto with
+  display = block
+  overflow-x = auto
+  width = 100%
+  -- The overlay sets `pointer-events: none` on everything, so a scrollable box
+  -- has to opt back IN. Without this the scrollbar renders and the content
+  -- genuinely overflows -- it simply cannot be grabbed or wheeled, which reads
+  -- as "overflow is broken" rather than as a pointer problem.
+  pointer_events = auto
+end
+
+-- Structure -----------------------------------------------------------------
+
+-- Pico's article is a card whose own `header`/`footer` are tinted sectioning
+-- bands separated by a rule, so they are targeted as direct children.
+style article with
+  display = block
+  margin-bottom = 1rem
+  background-color = slate_30
+  corner = 0.25rem
+  padding = 1rem
+  -- A header/footer is a SECTIONING band, not a divided-off box. Pico gives it
+  -- a background a hair lighter than the card and colours the rule between them
+  -- the CARD's own colour, so the boundary reads as a change of shade rather
+  -- than as a line. A translucent lift is used instead of a palette step
+  -- because the difference is about 1% — finer than any two neighbouring slate
+  -- tokens — and this way it tracks whatever colour the card itself is.
+  -- Padding BLOCKS margin collapse at this edge, so the last child's trailing
+  -- margin becomes real inset instead of passing through, and the box reads a
+  -- rhythm step too tall. (`section` needs no such rule -- no padding, so the
+  -- margin collapses out on its own.)
+  --
+  -- FIRST, before the `> footer` rule below: that footer bleeds to the edges
+  -- with a NEGATIVE bottom margin, and a blanket last-child reset placed after
+  -- it silently cancels the bleed.
+  > :last-child:
+    margin-bottom = 0
+  > header:
+    margin = -1rem -1rem 0
+    padding = 0.66rem 1rem
+    background-color = rgb(255 255 255 / 1.5%)
+    border-bottom-width = 0.0625rem
+    border-bottom-style = solid
+    border-bottom-color = slate_30
+    corner-top-left = 0.25rem
+    corner-top-right = 0.25rem
+  -- The article's own gap supplies the step above the band now, so the footer
+  -- only bleeds sideways and downwards to the card edge.
+  > footer:
+    margin = 0 -1rem -1rem
+    padding = 0.66rem 1rem
+    background-color = rgb(255 255 255 / 1.5%)
+    border-top-width = 0.0625rem
+    border-top-style = solid
+    border-top-color = slate_30
+    corner-bottom-left = 0.25rem
+    corner-bottom-right = 0.25rem
+  -- An `article #busy=true` with no children is Pico's block-level
+  -- loading placeholder: just a centred spinner.
+  @busy:
+    -- FLEX, explicitly. A busy article is not document flow -- it is a box
+    -- with a spinner centred in it -- and `child-align`/`child-justify` are
+    -- flex properties that silently do nothing on a block. The article became
+    -- a block for its rhythm, so this one state has to opt back out.
+    display = flex
+    child-align = center
+    child-justify = center
+    min-height = 3.5rem
+end
+
+style header with
+  display = block
+end
+
+style footer with
+  display = block
+end
+
+style section with
+  -- BLOCK, not flex. A semantic grouping element is document flow, so its
+  -- children space themselves with margins that COLLAPSE: two blocks meeting
+  -- give one step rather than two, and a last child's trailing margin passes
+  -- out through this edge instead of padding the bottom.
+  --
+  -- `column` / `row` stay flex with `child-gap` -- that is the LAYOUT half of
+  -- the system, and which half you are in is visible from the element you
+  -- reached for. The two must not be mixed in one container: a gap does not
+  -- collapse with a margin, it adds to it.
+  display = block
+  margin-bottom = 1rem
+end
+
+style form with
+  display = block
+  -- A button that the form itself lays out spans it, as the fields do. Not on
+  -- `button` generally: a button inside a `row` or a `group` is sized by that
+  -- layout, and forcing 100% there makes it swallow whatever sits beside it.
+  > button:
+    width = 100%
+end
+
+-- Pico strips the default fieldset chrome and uses it purely as a grouping box.
+style fieldset with
+  display = block
+  border-width = 0
+  padding = 0
+  -- A group of controls IS a control as far as the form is concerned, so it
+  -- carries the same trailing step they do (Pico puts `margin-bottom` on
+  -- `fieldset` for exactly this). A form spaces its parts by their own margins
+  -- rather than a gap, because the spacing is not uniform — a label hugs its
+  -- control at 0.375rem while controls stand a full step apart.
+  margin = 0
+  margin-bottom = 1rem
+end
+
+style legend with
+  text-weight = 600
+  padding = 0
+  -- A legend introduces the controls under it, so it owns the space between
+  -- itself and the first one. Half a step, not a full one: the pair reads as
+  -- one unit rather than two stacked blocks.
+  margin-bottom = 0.5rem
+end
+
+
+-- Modal: authored as `modal`, rendering a native <dialog>, opened
+-- declaratively with `#open={flag}`. Deliberately NOT called `dialog` — the
+-- screenplay `dialogue` style (character speech) is a different thing one
+-- letter away.
+--
+-- Follows Pico's shape — the DIALOG is the full-screen scrim and the `article`
+-- inside it is the card — so a modal is authored as:
+--
+--   modal #open=<a bound boolean>:
+--     article:
+--       ...
+--
+-- A `<dialog>` with no `open` attribute is `display: none` natively, but the
+-- base rule here has to restate that: setting `display: flex` unconditionally
+-- would make a CLOSED modal visible.
+style modal with
+  display = none
+  position = fixed
+  anchor = 0
+  z = 999
+  child-align = center
+  child-justify = center
+  padding = 1rem
+  border-width = 0
+  -- The scrim must fill the viewport: a <dialog> defaults to fit-content in
+  -- both axes with `margin: auto`, so `anchor` alone only sizes it to the card.
+  width = 100%
+  height = 100%
+  width-max = 100%
+  height-max = 100%
+  margin = 0
+  background-color = rgb(8 9 10 / 75%)
+  backdrop-filter = blur(0.375rem)
+  text-color = slate_90
+  @opened:
+    display = flex
+  > article:
+    width = 100%
+    width-max = 700px
+    margin = 0
+    > footer:
+      text-align = right
+end
+
+style card with
+  display = flex
+  child-layout = column
+  child-gap = 1rem
+  background-color = slate_30
+  corner = 0.5rem
+  padding = 1.5rem
+  border-width = 0.0625rem
+  border-style = solid
+  border-color = slate_40
+end
+
+style nav with
+  display = flex
+  child-layout = row
+  child-align = center
+  child-gap = 1rem
+  -- A nav's list is a grouping for assistive tech, not a bulleted list, so it
+  -- drops the markers and indent `style list` gives an ordinary one.
+  > list:
+    display = flex
+    child-layout = row
+    child-align = center
+    child-gap = 1rem
+      -- Direct-child chain so it does not reach into a `menu` panel, whose rows are
+  -- deliberately never underlined.
+  > list > item:
+    padding = 1rem 0.5rem
+  > list > item > link:
+    text-decoration = none
+    @hovered:
+      text-decoration = underline
+end
+
+-- `secondary` / `contrast` / `outline` carry no styling of their own — they are
+-- MODIFIERS, and each element defines what they mean via compound selectors
+-- (see `button` and `link`). Defining them standalone is what previously made
+-- `link secondary` render as a filled button.
+
+style badge with
+  display = flex
+  child-layout = row
+  child-align = center
+  child-justify = center
+  padding = 0.125rem 0.5rem
+  corner = 1rem
+  background-color = sky_60
+  text-color = white
+  text-size = 0.75rem
+  text-weight = 600
+end
+
+-- Pico's `group` JOINS its children into one control (a field welded to its
+-- button): no gap, and the inner corners squared off so they read as a single
+-- unit. Use a plain `row #child-gap=…` for merely spaced children.
+style group with
+  -- INLINE-flex, matching the reference's `<fieldset>`. Not cosmetic: an
+  -- inline-level box does not margin-collapse, so the group's own
+  -- `margin-bottom` below STAYS INSIDE its form. As a block-level flex it
+  -- collapsed straight out through the form's bottom edge and merged with the
+  -- section's margin, costing the section a full rhythm step -- and the group
+  -- itself measured correctly the whole time, so the loss showed up only as a
+  -- short section.
+  width = 100%
+  display = inline-flex
+  child-layout = row
+  child-gap = 0
+  -- A group is one composite control, so its parts must not each carry the
+  -- block rhythm below them (see `field`) — Pico zeroes it on every child and
+  -- spends the step on the group instead. Without this the group is a step
+  -- TALLER than the controls in it, and the button, being a flex child,
+  -- stretches to fill that extra space and no longer matches the field beside
+  -- it. Named as well as `> *` because a bare `> *` ties with `.field` and
+  -- loses outright to `.button[type="submit"]`.
+  > input, > dropdown, > textarea, > button:
+    margin-bottom = 0
+  -- The step the children gave up is spent here instead, on the group as a
+  -- whole — again matching Pico, which puts `margin-bottom` on `[role=group]`.
+  margin-bottom = 1rem
+  -- `width: 1%` + grow is the flexbox idiom for "take whatever is left"; a bare
+  -- grow leaves the input at its intrinsic size. Merged into ONE block: a
+  -- style block is keyed by selector, so a second `> @first:` would replace it.
+  -- A control in a group is sized BY the group, so it must give up the
+  -- `width: 100%` it carries in a form -- otherwise the button claims the full
+  -- row and the field collapses to its minimum.
+  > *:
+    width = auto
+    -- The `> *: margin-bottom = 0` that used to sit above was DEAD. A style
+    -- block is keyed by its selector, so this second `> *` replaced it
+    -- outright -- the same hazard the note above warns about for `> @first`,
+    -- and it had already happened here. The named rule was doing the work
+    -- alone; merged here so there is one `> *` and no silent loser.
+    margin-bottom = 0
+  -- A button in a group is padded DOUBLE (the reference sets
+  -- `--pico-form-element-spacing-horizontal: 2rem` on exactly these), which is
+  -- why its Subscribe is 151px against our 115px for identical text. The group
+  -- is one composite control and the button is its terminal, so it wants
+  -- enough width to read as a target rather than as a label crammed against a
+  -- seam. Purely horizontal -- the vertical padding still has to match the
+  -- field beside it or the seam steps.
+  > button:
+    padding-left = 2rem
+    padding-right = 2rem
+  > @first:
+    flex = 1 1 auto
+    width = 1%
+    corner-top-right = 0
+    corner-bottom-right = 0
+  > @last:
+    corner-top-left = 0
+    corner-bottom-left = 0
+end
+
+-- Pico's `.grid` auto-fits however many children it has into ONE row of equal
+-- columns (a fixed `1fr 1fr` wrapped a 3-up form onto two lines). `minmax(0,1fr)`
+-- rather than plain `1fr` so a long child can shrink instead of overflowing.
+style grid with
+  child-layout = grid
+  child-columns = repeat(auto-fit, minmax(0, 1fr))
+  child-gap = 1rem
+end
+
+-- A native <progress value max>. `accent-color` is what tints the filled part
+-- of the native control; `progress_fill` below stays available for the
+-- div-track-plus-fill construction.
+style progress with
+  display = inline-block
+  appearance = none
+  overflow = hidden
+  border-width = 0
+  @bar:
+    background-color = transparent
+  @fill:
+    background-color = sky_40
+    corner = 0.25rem
+  -- No `value` at all means indeterminate: Pico sweeps a coloured segment
+  -- across the track instead of showing a fill.
+  @indeterminate:
+    background-image = linear-gradient(to right, var(--theme-color-sky_40) 30%, var(--theme-color-slate_30) 30%)
+    background-size = 150% 150%
+    animation-name = progress_indeterminate
+    animation-duration = 1s
+    animation-timing-function = linear
+    animation-iteration-count = infinite
+    @bar:
+      background-color = transparent
+  width = 100%
+  height = 0.5rem
+  corner = 0.25rem
+  background-color = slate_30
+  accent-color = sky_40
+  text-color = sky_40
+  border-style = none
+  border-width = 0
+end
+
+style progress_fill with
+  height = 100%
+  corner = 0.25rem
+  background-color = sky_60
+end
+
+style label with
+  pointer_events = auto
+  text-weight = 400
+  margin-bottom = 0.375rem
+  -- A control NESTED inside its label sits slightly off the label text --
+  -- `label "X":` with the control indented under it, which is the structure
+  -- the reference uses for the file, range, validation and date fields.
+  --
+  -- The CONTROLS are named explicitly rather than using `> :last-child`. A
+  -- label's own text content is mounted as a span, so it is always a child and
+  -- always the last one when there is no control -- a positional selector
+  -- silently pushes the label's own text down by this margin instead, which
+  -- looks like the label growing for no reason.
+  --
+  -- It also has to live on the label rather than as a margin-top on the
+  -- control: where the two are SIBLINGS those margins are adjacent and
+  -- collapse to the larger of the pair, not the sum, so it would vanish.
+  > input, > slider, > dropdown, > textarea:
+    margin-top = 0.25rem
+end
+
+style hint with
+  text-color = slate_60
+  text-size = 0.875rem
+end
+
+style invalid with
+  border-color = #964a50
+  padding-right = 2.5rem
+  background-image = url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ce7e7b' stroke-width='2' stroke-linecap='round'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cpath d='M12 8v4M12 16h.01'/%3E%3C/svg%3E")
+  background-position = center right 0.75rem
+  background-size = 1rem auto
+  background-repeat = no-repeat
+  @focused:
+    border-color = #964a50
+    shadow = 0 0 0 0.0625rem #ce7e7b
+end
+
+style valid with
+  border-color = #2a7b6f
+  padding-right = 2.5rem
+  background-image = url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2362af9a' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E")
+  background-position = center right 0.75rem
+  background-size = 1rem auto
+  background-repeat = no-repeat
+  @focused:
+    border-color = #2a7b6f
+    shadow = 0 0 0 0.0625rem #62af9a
+end
+
+style textbox with
+  position = absolute
+  bottom = 0
+  left = 0
+  right = 0
+  display = flex
+  flex_direction = column
+  align_items = center
+  color = white
+  flex = 1
+end
+
+style textbox_background with
+  position = absolute
+  inset = 0
+  background_image = linear-gradient(to bottom, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0.5) 25%, rgba(0, 0, 0, 1) 100%)
+end
+
+style textbox_content with
+  position = relative
+  flex = 1
+  display = flex
+  flex_direction = column
+  max_width = 800px
+  width = 100%
+  margin = 0 auto
+  min_height = 200px
+  padding = 16px 32px
+  @screen_size(sm):
+    min_height = 240px
+    padding = 16px
+end
+
+style character_info with
+  display = flex
+  flex_direction = row
+  justify_content = center
+  align_items = flex-end
+  gap = 8px
+  line_height = 1
+  font_size = 1.875rem
+  @screen_size(sm):
+    font_size = 1.5rem
+end
+
+style character_name with
+  padding_bottom = 8px
+  font_weight = 600
+end
+
+style character_parenthetical with
+  padding_bottom = 8px
+  font_weight = 400
+  font_size = 1rem
+  @screen_size(sm):
+    font_size = 0.875rem
+end
+
+style title with
+  position = absolute
+  inset = 0
+  padding_left = 40px
+  padding_right = 40px
+  display = flex
+  flex_direction = column
+  justify_content = center
+  align_self = center
+  text_align = center
+  font_weight = bold
+end
+
+style heading with
+  position = absolute
+  inset = 0
+  padding_left = 40px
+  padding_right = 40px
+  display = flex
+  flex_direction = column
+  justify_content = center
+  align_self = center
+  text_align = center
+  font_weight = bold
+end
+
+style transitional with
+  position = absolute
+  inset = 0
+  padding_left = 40px
+  padding_right = 40px
+  padding_bottom = 24px
+  display = flex
+  flex_direction = column
+  justify_content = center
+  align_self = flex-end
+  text_align = right
+  width = 100%
+end
+
+style dialogue with
+  margin = 0 auto
+  width = 68%
+  @screen_size(sm):
+    width = 80%
+end
+
+style action with
+  position = absolute
+  inset = 0
+  padding_left = 40px
+  padding_right = 40px
+  display = flex
+  flex_direction = column
+  justify_content = center
+  align_self = center
+  text_align = center
+end
+
+style continue_indicator with
+  opacity = 0
+  line_height = 1
+  width = 16px
+  height = 16px
+  position = absolute
+  right = 16px
+  bottom = 16px
+  font_size = 16px
+  transition = opacity 0.25s linear
+  animation = 0.5s infinite bounce
+  animation_play_state = paused
+end
+
+define screen with
+  ["$recursive"] = true
+end
+
+layout loading with
+  loading_bar:
+    loading_fill:
+end
+
+layout main with
+  stage:
+    animation:
+    backdrop:
+      image = transparent
+    portrait:
+      image:
+  choices:
+    choice 0:
+      text:
+    choice 1:
+      text:
+    choice 2:
+      text:
+    choice 3:
+      text:
+    choice 4:
+      text:
+    choice 5:
+      text:
+  textbox:
+    textbox_background:
+    textbox_content:
+      character_info:
+        character_name:
+          stroke:
+          text:
+        character_parenthetical:
+          stroke:
+          text:
+      title:
+        stroke:
+        text:
+      heading:
+        stroke:
+        text:
+      transitional:
+        stroke:
+        text:
+      dialogue:
+        stroke:
+        text:
+      action:
+        stroke:
+        text:
+    continue_indicator:
+      text = ▼
+  screen:
+    animation:
+end
+
+define layer with
+end
+
+define self as layer with
+end
+
+define instance as layer with
+end
+
+define object as layer with
+end
+
+define animation with
+  target = layer.self
+  keyframes = {}
+  timing = { delay = 0, duration = 0, easing = "ease", iterations = 1, fill = "both", direction = "normal" }
+end
+
+animation show with
+  target = layer.self
+  keyframes:
+    -
+      opacity = "1"
+  timing:
+    delay = 0
+    duration = 0
+    easing = "linear"
+    iterations = 1
+    fill = "both"
+    direction = "normal"
+end
+
+animation hide with
+  target = layer.self
+  keyframes:
+    -
+      opacity = "0"
+  timing:
+    delay = 0
+    duration = 0
+    easing = "linear"
+    iterations = 1
+    fill = "both"
+    direction = "normal"
+end
+
+animation align_left with
+  target = layer.instance
+  keyframes:
+    -
+      translate = "calc(0 * (100cqw - 100%)) 0"
+  timing:
+    delay = 0
+    duration = 0
+    easing = "ease-in-out"
+    iterations = 1
+    fill = "both"
+    direction = "normal"
+end
+
+animation align_center with
+  target = layer.instance
+  keyframes:
+    -
+      translate = "calc(0.5 * (100cqw - 100%)) 0"
+  timing:
+    delay = 0
+    duration = 0
+    easing = "ease-in-out"
+    iterations = 1
+    fill = "both"
+    direction = "normal"
+end
+
+animation align_right with
+  target = layer.instance
+  keyframes:
+    -
+      translate = "calc(1 * (100cqw - 100%)) 0"
+  timing:
+    delay = 0
+    duration = 0
+    easing = "ease-in-out"
+    iterations = 1
+    fill = "both"
+    direction = "normal"
+end
+
+animation spin with
+  target = layer.self
+  keyframes:
+    -
+      transform = "rotate(360deg)"
+  timing:
+    delay = 0
+    duration = 0
+    easing = "linear"
+    iterations = "infinite"
+    fill = "none"
+    direction = "normal"
+end
+
+-- A tooltip bubble rises the last quarter-rem into place as it fades in, and
+-- its caret follows. Two animations rather than one because the bubble and the
+-- caret rest at different offsets (the caret sits flush against the element).
+animation tooltip_slide with
+  target = layer.self
+  keyframes:
+    -
+      transform = "translate(-50%, 0.75rem)"
+      opacity = "0"
+    -
+      transform = "translate(-50%, -0.25rem)"
+      opacity = "1"
+  timing:
+    delay = 0
+    duration = 0
+    easing = "ease-out"
+    iterations = 1
+    fill = "forwards"
+    direction = "normal"
+end
+
+animation tooltip_caret_slide with
+  target = layer.self
+  keyframes:
+    -
+      transform = "translate(-50%, -0.25rem)"
+      opacity = "0"
+    -
+      transform = "translate(-50%, 0)"
+      opacity = "1"
+  timing:
+    delay = 0
+    duration = 0
+    easing = "ease-out"
+    iterations = 1
+    fill = "forwards"
+    direction = "normal"
+end
+
+-- Sweeps the coloured segment of an INDETERMINATE progress bar across its
+-- track. `style progress` referenced this animation by name before it existed,
+-- so the bar declared an animation that resolved to nothing and simply sat
+-- still — a dangling @keyframes name is silently ignored, with no warning.
+animation progress_indeterminate with
+  target = layer.self
+  -- No `offset` on these frames: two frames distribute to 0%/100% on their own,
+  -- which is what's wanted, and `offset` currently does NOT drive the keyframe
+  -- selector — it leaks through as a literal `offset:` declaration (see the
+  -- builtin `ping`, whose 0.75 still emits a 0% frame).
+  keyframes:
+    -
+      background-position = "200% 0"
+    -
+      background-position = "-200% 0"
+  timing:
+    delay = 0
+    duration = 0
+    easing = "linear"
+    iterations = "infinite"
+    fill = "none"
+    direction = "normal"
+end
+
+animation ping with
+  target = layer.self
+  keyframes:
+    -
+      offset = 0.75
+      transform = "scale(2)"
+      opacity = "0"
+    -
+      offset = 1
+      transform = "scale(2)"
+      opacity = "0"
+  timing:
+    delay = 0
+    duration = 0
+    easing = "ease"
+    iterations = 1
+    fill = "both"
+    direction = "normal"
+end
+
+animation bounce with
+  target = layer.self
+  keyframes:
+    -
+      transform = "translateY(-50%)"
+      easing = "cubic-bezier(0.8,0,1,1)"
+    -
+      transform = "none"
+      easing = "cubic-bezier(0,0,0.2,1)"
+    -
+      transform = "translateY(-50%)"
+      easing = "cubic-bezier(0.8,0,1,1)"
+  timing:
+    delay = 0
+    duration = 0
+    easing = "ease"
+    iterations = "infinite"
+    fill = "none"
+    direction = "normal"
+end
+
+animation wave with
+  target = layer.self
+  keyframes:
+    -
+      transform = "translateY(0)"
+    -
+      transform = "translateY(-15%)"
+    -
+      transform = "translateY(0)"
+  timing:
+    delay = 0
+    duration = "750ms"
+    easing = "ease-in-out"
+    iterations = 1
+    fill = "both"
+    direction = "normal"
+end
+
+animation wavy with
+  target = layer.self
+  keyframes:
+    -
+      transform = "translateY(0)"
+    -
+      transform = "translateY(-15%)"
+    -
+      transform = "translateY(0)"
+  timing:
+    delay = 0
+    duration = "750ms"
+    easing = "ease-in-out"
+    iterations = "infinite"
+    fill = "none"
+    direction = "normal"
+end
+
+animation shaky with
+  target = layer.self
+  keyframes:
+    -
+      left = "calc(1em / 60)"
+      top = "calc(1em / 60)"
+    -
+      left = "calc(-1em / 60)"
+      top = "calc(-2em / 60)"
+    -
+      left = "calc(-2em / 60)"
+      top = "calc(0em / 60)"
+    -
+      left = "calc(2em / 60)"
+      top = "calc(2em / 60)"
+    -
+      left = "calc(1em / 60)"
+      top = "calc(-1em / 60)"
+    -
+      left = "calc(-1em / 60)"
+      top = "calc(2em / 60)"
+    -
+      left = "calc(-2em / 60)"
+      top = "calc(1em / 60)"
+    -
+      left = "calc(2em / 60)"
+      top = "calc(1em / 60)"
+    -
+      left = "calc(-1em / 60)"
+      top = "calc(-1em / 60)"
+    -
+      left = "calc(1em / 60)"
+      top = "calc(2em / 60)"
+    -
+      left = "calc(1em / 60)"
+      top = "calc(-2em / 60)"
+  timing:
+    delay = 0
+    duration = "300ms"
+    easing = "ease-in-out"
+    iterations = "infinite"
+    fill = "none"
+    direction = "normal"
+end
+
+animation shake with
+  target = layer.self
+  keyframes:
+    -
+      transform = "translate(0.4vh, 0.2vh)"
+    -
+      transform = "translate(-0.2vh, -0.4vh)"
+    -
+      transform = "translate(-0.6vh, 0vh)"
+    -
+      transform = "translate(0vh, 0.4vh)"
+    -
+      transform = "translate(0.2vh, -0.2vh)"
+    -
+      transform = "translate(-0.2vh, 0.4vh)"
+    -
+      transform = "translate(-0.6vh, 0.2vh)"
+    -
+      transform = "translate(0.4vh, 0.2vh)"
+    -
+      transform = "translate(-0.2vh, -0.2vh)"
+    -
+      transform = "translate(0.4vh, 0.4vh)"
+    -
+      transform = "translate(0.2vh, -0.4vh)"
+  timing:
+    delay = 0
+    duration = "300ms"
+    easing = "ease-in-out"
+    iterations = 1
+    fill = "none"
+    direction = "normal"
+end
+
+animation shaking with
+  target = layer.self
+  keyframes:
+    -
+      transform = "translate(0.4vh, 0.2vh)"
+    -
+      transform = "translate(-0.2vh, -0.4vh)"
+    -
+      transform = "translate(-0.6vh, 0vh)"
+    -
+      transform = "translate(0vh, 0.4vh)"
+    -
+      transform = "translate(0.2vh, -0.2vh)"
+    -
+      transform = "translate(-0.2vh, 0.4vh)"
+    -
+      transform = "translate(-0.6vh, 0.2vh)"
+    -
+      transform = "translate(0.4vh, 0.2vh)"
+    -
+      transform = "translate(-0.2vh, -0.2vh)"
+    -
+      transform = "translate(0.4vh, 0.4vh)"
+    -
+      transform = "translate(0.2vh, -0.4vh)"
+  timing:
+    delay = 0
+    duration = "300ms"
+    easing = "ease-in-out"
+    iterations = "infinite"
+    fill = "both"
+    direction = "normal"
+end
+
+animation shiver with
+  target = layer.self
+  keyframes:
+    -
+      transform = "translate(0.2vh, 0.1vh)"
+    -
+      transform = "translate(-0.1vh, -0.2vh)"
+    -
+      transform = "translate(-0.3vh, 0vh)"
+    -
+      transform = "translate(0vh, 0.2vh)"
+    -
+      transform = "translate(0.1vh, -0.1vh)"
+    -
+      transform = "translate(-0.1vh, 0.2vh)"
+    -
+      transform = "translate(-0.3vh, 0.1vh)"
+    -
+      transform = "translate(0.2vh, 0.1vh)"
+    -
+      transform = "translate(-0.1vh, -0.1vh)"
+    -
+      transform = "translate(0.2vh, 0.2vh)"
+    -
+      transform = "translate(0.1vh, -0.2vh)"
+  timing:
+    delay = 0
+    duration = "300ms"
+    easing = "ease-in-out"
+    iterations = 1
+    fill = "none"
+    direction = "normal"
+end
+
+animation shivering with
+  target = layer.self
+  keyframes:
+    -
+      transform = "translate(0.2vh, 0.1vh)"
+    -
+      transform = "translate(-0.1vh, -0.2vh)"
+    -
+      transform = "translate(-0.3vh, 0vh)"
+    -
+      transform = "translate(0vh, 0.2vh)"
+    -
+      transform = "translate(0.1vh, -0.1vh)"
+    -
+      transform = "translate(-0.1vh, 0.2vh)"
+    -
+      transform = "translate(-0.3vh, 0.1vh)"
+    -
+      transform = "translate(0.2vh, 0.1vh)"
+    -
+      transform = "translate(-0.1vh, -0.1vh)"
+    -
+      transform = "translate(0.2vh, 0.2vh)"
+    -
+      transform = "translate(0.1vh, -0.2vh)"
+  timing:
+    delay = 0
+    duration = "300ms"
+    easing = "ease-in-out"
+    iterations = "infinite"
+    fill = "none"
+    direction = "normal"
+end
+
+animation waitout with
+  target = layer.self
+  keyframes:
+    -
+      opacity = "0"
+  timing:
+    delay = 0
+    duration = "0.5s"
+    easing = "step-end"
+    iterations = 1
+    fill = "both"
+    direction = "normal"
+end
+
+animation waitin with
+  target = layer.self
+  keyframes:
+    -
+      opacity = "1"
+  timing:
+    delay = 0
+    duration = "0.5s"
+    easing = "step-end"
+    iterations = 1
+    fill = "both"
+    direction = "normal"
+end
+
+animation fadeout with
+  target = layer.self
+  keyframes:
+    -
+      opacity = "0"
+  timing:
+    delay = 0
+    duration = "0.5s"
+    easing = "linear"
+    iterations = 1
+    fill = "both"
+    direction = "normal"
+end
+
+animation fadein with
+  target = layer.self
+  keyframes:
+    -
+      opacity = "1"
+  timing:
+    delay = 0
+    duration = "0.5s"
+    easing = "linear"
+    iterations = 1
+    fill = "both"
+    direction = "normal"
+end
+
+animation pulse with
+  target = layer.self
+  keyframes:
+    -
+      opacity = "0"
+    -
+      opacity = "1"
+    -
+      opacity = "0"
+  timing:
+    delay = 0
+    duration = "1s"
+    easing = "linear"
+    iterations = 1
+    fill = "both"
+    direction = "normal"
+end
+
+animation blackout with
+  target = layer.self
+  keyframes:
+    -
+      background_color = "black"
+      opacity = "0"
+    -
+      background_color = "black"
+      opacity = "1"
+  timing:
+    delay = 0
+    duration = "0.5s"
+    easing = "linear"
+    iterations = 1
+    fill = "both"
+    direction = "normal"
+end
+
+animation blackin with
+  target = layer.self
+  keyframes:
+    -
+      background_color = "black"
+      opacity = "1"
+    -
+      background_color = "black"
+      opacity = "0"
+  timing:
+    delay = 0
+    duration = "0.5s"
+    easing = "linear"
+    iterations = 1
+    fill = "both"
+    direction = "normal"
+end
+
+animation blackpulse with
+  target = layer.self
+  keyframes:
+    -
+      background_color = "black"
+      opacity = "0"
+    -
+      background_color = "black"
+      opacity = "1"
+    -
+      background_color = "black"
+      opacity = "0"
+  timing:
+    delay = 0
+    duration = "1s"
+    easing = "linear"
+    iterations = 1
+    fill = "both"
+    direction = "normal"
+end
+
+animation whiteout with
+  target = layer.self
+  keyframes:
+    -
+      background_color = "white"
+      opacity = "0"
+    -
+      background_color = "white"
+      opacity = "1"
+  timing:
+    delay = 0
+    duration = "0.5s"
+    easing = "linear"
+    iterations = 1
+    fill = "both"
+    direction = "normal"
+end
+
+animation whitein with
+  target = layer.self
+  keyframes:
+    -
+      background_color = "white"
+      opacity = "1"
+    -
+      background_color = "white"
+      opacity = "0"
+  timing:
+    delay = 0
+    duration = "0.5s"
+    easing = "linear"
+    iterations = 1
+    fill = "both"
+    direction = "normal"
+end
+
+animation whitepulse with
+  target = layer.self
+  keyframes:
+    -
+      background_color = "white"
+      opacity = "0"
+    -
+      background_color = "white"
+      opacity = "1"
+    -
+      background_color = "white"
+      opacity = "0"
+  timing:
+    delay = 0
+    duration = "1s"
+    easing = "linear"
+    iterations = 1
+    fill = "both"
+    direction = "normal"
+end
+
+define transition with
+  on_hide = animation.hide
+  on_show = animation.show
+end
+
+define fade as transition with
+  on_hide = animation.fadeout
+  on_show = animation.fadein
+end
+
+define screenfade as transition with
+  on_hide = animation.waitout
+  on_show = animation.waitin
+  screen = animation.blackpulse
+end
+
+define screenflash as transition with
+  on_hide = animation.waitout
+  on_show = animation.waitin
+  screen = animation.whitepulse
+end
+
+define font with
+  src = ""
+  font_family = ""
+  font_weight = "normal"
+  font_style = "normal"
+  font_stretch = "normal"
+  font_display = "block"
+  unicode_range = "U+0-10FFFF"
+end
+
+define shadow with
+  layers = { { x = 0, y = 1, blur = 3, spread = 0, color = "black", opacity = 0.3 }, { x = 0, y = 4, blur = 8, spread = 3, color = "black", opacity = 0.15 } }
+end
+
+define xs as shadow with
+  layers = { { x = 0, y = 1, blur = 2, spread = 0, color = "black", opacity = 0.3 }, { x = 0, y = 1, blur = 3, spread = 1, color = "black", opacity = 0.15 } }
+end
+
+define sm as shadow with
+  layers = { { x = 0, y = 1, blur = 2, spread = 0, color = "black", opacity = 0.3 }, { x = 0, y = 2, blur = 6, spread = 2, color = "black", opacity = 0.15 } }
+end
+
+define md as shadow with
+  layers = { { x = 0, y = 1, blur = 3, spread = 0, color = "black", opacity = 0.3 }, { x = 0, y = 4, blur = 8, spread = 3, color = "black", opacity = 0.15 } }
+end
+
+define lg as shadow with
+  layers = { { x = 0, y = 2, blur = 3, spread = 0, color = "black", opacity = 0.3 }, { x = 0, y = 6, blur = 10, spread = 4, color = "black", opacity = 0.15 } }
+end
+
+define xl as shadow with
+  layers = { { x = 0, y = 4, blur = 4, spread = 0, color = "black", opacity = 0.3 }, { x = 0, y = 8, blur = 12, spread = 6, color = "black", opacity = 0.15 } }
+end
+
+define ease with
+  ["function"] = "cubic-bezier"
+  parameters = { 0.2, 0, 0, 1 }
+end
+
+define none as ease with
+  ["function"] = "cubic-bezier"
+  parameters = { 0, 0, 0, 0 }
+end
+
+define linear as ease with
+  ["function"] = "cubic-bezier"
+  parameters = { 0, 0, 1, 1 }
+end
+
+define spring as ease with
+  ["function"] = "linear"
+  parameters = { "0", "0.009", "0.035 2.1%", "0.141", "0.281 6.7%", "0.723 12.9%", "0.938 16.7%", "1.017", "1.077", "1.121", "1.149 24.3%", "1.159", "1.163", "1.161", "1.154 29.9%", "1.129 32.8%", "1.051 39.6%", "1.017 43.1%", "0.991", "0.977 51%", "0.974 53.8%", "0.975 57.1%", "0.997 69.8%", "1.003 76.9%", "1.004 83.8%", "1" }
+end
+
+define elastic as ease with
+  ["function"] = "linear"
+  parameters = { "0", "0.218 2.1%", "0.862 6.5%", "1.114", "1.296 10.7%", "1.346", "1.37 12.9%", "1.373", "1.364 14.5%", "1.315 16.2%", "1.032 21.8%", "0.941 24%", "0.891 25.9%", "0.877", "0.869 27.8%", "0.87", "0.882 30.7%", "0.907 32.4%", "0.981 36.4%", "1.012 38.3%", "1.036", "1.046 42.7% 44.1%", "1.042 45.7%", "0.996 53.3%", "0.988", "0.984 57.5%", "0.985 60.7%", "1.001 68.1%", "1.006 72.2%", "0.998 86.7%", "1" }
+end
+
+define bounce as ease with
+  ["function"] = "linear"
+  parameters = { "0", "0.004", "0.016", "0.035", "0.063", "0.098", "0.141 13.6%", "0.25", "0.391", "0.563", "0.765", "1", "0.891 40.9%", "0.848", "0.813", "0.785", "0.766", "0.754", "0.75", "0.754", "0.766", "0.785", "0.813", "0.848", "0.891 68.2%", "1 72.7%", "0.973", "0.953", "0.941", "0.938", "0.941", "0.953", "0.973", "1", "0.988", "0.984", "0.988", "1" }
+end
+
+define in_sine as ease with
+  ["function"] = "cubic-bezier"
+  parameters = { 0.12, 0, 0.39, 0 }
+end
+
+define out_sine as ease with
+  ["function"] = "cubic-bezier"
+  parameters = { 0.61, 1, 0.88, 1 }
+end
+
+define in_out_sine as ease with
+  ["function"] = "cubic-bezier"
+  parameters = { 0.37, 0, 0.63, 1 }
+end
+
+define in_quad as ease with
+  ["function"] = "cubic-bezier"
+  parameters = { 0.11, 0, 0.5, 0 }
+end
+
+define out_quad as ease with
+  ["function"] = "cubic-bezier"
+  parameters = { 0.5, 1, 0.89, 1 }
+end
+
+define in_out_quad as ease with
+  ["function"] = "cubic-bezier"
+  parameters = { 0.45, 0, 0.55, 1 }
+end
+
+define in_cubic as ease with
+  ["function"] = "cubic-bezier"
+  parameters = { 0.32, 0, 0.67, 0 }
+end
+
+define out_cubic as ease with
+  ["function"] = "cubic-bezier"
+  parameters = { 0.33, 1, 0.68, 1 }
+end
+
+define in_out_cubic as ease with
+  ["function"] = "cubic-bezier"
+  parameters = { 0.65, 0, 0.35, 1 }
+end
+
+define in_quart as ease with
+  ["function"] = "cubic-bezier"
+  parameters = { 0.5, 0, 0.75, 0 }
+end
+
+define out_quart as ease with
+  ["function"] = "cubic-bezier"
+  parameters = { 0.25, 1, 0.5, 1 }
+end
+
+define in_out_quart as ease with
+  ["function"] = "cubic-bezier"
+  parameters = { 0.76, 0, 0.24, 1 }
+end
+
+define in_quint as ease with
+  ["function"] = "cubic-bezier"
+  parameters = { 0.64, 0, 0.78, 0 }
+end
+
+define out_quint as ease with
+  ["function"] = "cubic-bezier"
+  parameters = { 0.22, 1, 0.36, 1 }
+end
+
+define in_out_quint as ease with
+  ["function"] = "cubic-bezier"
+  parameters = { 0.83, 0, 0.17, 1 }
+end
+
+define in_expo as ease with
+  ["function"] = "cubic-bezier"
+  parameters = { 0.7, 0, 0.84, 0 }
+end
+
+define out_expo as ease with
+  ["function"] = "cubic-bezier"
+  parameters = { 0.16, 1, 0.3, 1 }
+end
+
+define in_out_expo as ease with
+  ["function"] = "cubic-bezier"
+  parameters = { 0.87, 0, 0.13, 1 }
+end
+
+define in_circ as ease with
+  ["function"] = "cubic-bezier"
+  parameters = { 0.55, 0, 1, 0.45 }
+end
+
+define out_circ as ease with
+  ["function"] = "cubic-bezier"
+  parameters = { 0, 0.55, 0.45, 1 }
+end
+
+define in_out_circ as ease with
+  ["function"] = "cubic-bezier"
+  parameters = { 0.85, 0, 0.15, 1 }
+end
+
+define in_back as ease with
+  ["function"] = "cubic-bezier"
+  parameters = { 0.36, 0, 0.66, -0.56 }
+end
+
+define out_back as ease with
+  ["function"] = "cubic-bezier"
+  parameters = { 0.34, 1.56, 0.64, 1 }
+end
+
+define in_out_back as ease with
+  ["function"] = "cubic-bezier"
+  parameters = { 0.68, -0.6, 0.32, 1.6 }
+end
+
+define gradient with
+  type = "linear"
+  angle = 180
+  stops = { { color = "white", opacity = 1, position = 0.5 }, { color = "white", opacity = 0, position = 1 } }
+end
+
+define graphic with
+  width = 32
+  height = 32
+  tiling = { on = false, zoom = 1, angle = 0 }
+  shapes = { { path = "M 0 0 L 64 0 L 64 64 L 0 64 L 0 0", fill_color = "none", fill_opacity = 1, stroke_color = "none", stroke_opacity = 1, stroke_weight = 1, stroke_join = "miter", stroke_cap = "round" } }
+end
+
+define audio with
+  ["$link"] = { image = {}, synth = {}, character = {}, typewriter = {}, inflection = {}, prosody = {} }
+  src = ""
+  volume = 1
+  loop = false
+  loop_start = 0
+  loop_end = 0
+  cues = { 0 }
+end
+
+define layered_audio with
+  assets = { audio.none }
+  cues = { 0 }
+  loop_start = 0
+  loop_end = 0
+end
+
+define synth with
+  ["$link"] = { image = {}, audio = {}, character = {}, typewriter = {}, inflection = {}, prosody = {} }
+  shape = "triangle"
+  phase = 0
+  volume = 0.5
+  envelope = { offset = 0, attack = 0.007, decay = 0.003, sustain = 0.035, release = 0.01, level = 0.5 }
+  pitch = { frequency = 440, frequency_ramp = 0, frequency_torque = 0, frequency_jerk = 0 }
+  vibrato = { on = false, rate = 5, rate_ramp = 0, strength = 0.5, strength_ramp = 0, shape = "sine" }
+  harmonics = { on = false, count = 4, count_ramp = 0, falloff = 0.5, falloff_ramp = 0 }
+  fm = { on = false, ratio = 1, ratio_ramp = 0, strength = 0.5, strength_ramp = 0 }
+  arpeggio = { on = false, rate = 50, rate_ramp = 0, max_octaves = 1, max_notes = 160, glide = 0, direction = "up", tones = { 0, 4, 7 }, levels = {}, shapes = {}, phases = {} }
+  tremolo = { on = false, rate = 10, rate_ramp = 0, strength = 0.5, strength_ramp = 0, shape = "sine" }
+  ring = { on = false, rate = 1620, rate_ramp = 0, strength = 0.5, strength_ramp = 0, shape = "sine" }
+  wahwah = { on = false, rate = 5, rate_ramp = 0, strength = 0.5, strength_ramp = 0, shape = "sine" }
+  distortion = { on = false, edge = 0.5, edge_ramp = 0, grit = 0.5, grit_ramp = 0 }
+  bitcrush = { on = false, crush = 0.5, crush_ramp = 0, skip = 0.5, skip_ramp = 0 }
+  delay = { on = false, length = 0.15, strength = 0.5, feedback = 0.75 }
+  reverb = { on = false, room_size = 0.5, mix = 0.5, damping = 0.5 }
+  highpass = { on = false, cutoff = 2000, cutoff_ramp = 0 }
+  lowpass = { on = false, cutoff = 4000, cutoff_ramp = 0, resonance = 0.5 }
+end
+
+define none as synth with
+  ["$link"] = { image = {}, audio = {}, character = {}, typewriter = {}, inflection = {}, prosody = {} }
+  shape = "triangle"
+  phase = 0
+  volume = 0.5
+  envelope = { offset = 0, attack = 0, decay = 0, sustain = 1, release = 0, level = 0 }
+  pitch = { frequency = 440, frequency_ramp = 0, frequency_torque = 0, frequency_jerk = 0 }
+  vibrato = { on = false, rate = 5, rate_ramp = 0, strength = 0.5, strength_ramp = 0, shape = "sine" }
+  harmonics = { on = false, count = 4, count_ramp = 0, falloff = 0.5, falloff_ramp = 0 }
+  fm = { on = false, ratio = 1, ratio_ramp = 0, strength = 0.5, strength_ramp = 0 }
+  arpeggio = { on = false, rate = 50, rate_ramp = 0, max_octaves = 1, max_notes = 160, glide = 0, direction = "up", tones = { 0, 4, 7 }, levels = {}, shapes = {}, phases = {} }
+  tremolo = { on = false, rate = 10, rate_ramp = 0, strength = 0.5, strength_ramp = 0, shape = "sine" }
+  ring = { on = false, rate = 1620, rate_ramp = 0, strength = 0.5, strength_ramp = 0, shape = "sine" }
+  wahwah = { on = false, rate = 5, rate_ramp = 0, strength = 0.5, strength_ramp = 0, shape = "sine" }
+  distortion = { on = false, edge = 0.5, edge_ramp = 0, grit = 0.5, grit_ramp = 0 }
+  bitcrush = { on = false, crush = 0.5, crush_ramp = 0, skip = 0.5, skip_ramp = 0 }
+  delay = { on = false, length = 0.15, strength = 0.5, feedback = 0.75 }
+  reverb = { on = false, room_size = 0.5, mix = 0.5, damping = 0.5 }
+  highpass = { on = false, cutoff = 2000, cutoff_ramp = 0 }
+  lowpass = { on = false, cutoff = 4000, cutoff_ramp = 0, resonance = 0.5 }
+end
+
+define character as synth with
+  ["$link"] = { image = {}, audio = {}, character = {}, typewriter = {}, inflection = {}, prosody = {} }
+  shape = "triangle"
+  phase = 0
+  volume = 0.5
+  envelope = { offset = 0, attack = 0.007, decay = 0.003, sustain = 0.035, release = 0.01, level = 0.5 }
+  pitch = { frequency = 440, frequency_ramp = 0, frequency_torque = 0, frequency_jerk = 0 }
+  vibrato = { on = false, rate = 5, rate_ramp = 0, strength = 0.5, strength_ramp = 0, shape = "sine" }
+  harmonics = { on = false, count = 4, count_ramp = 0, falloff = 0.5, falloff_ramp = 0 }
+  fm = { on = false, ratio = 1, ratio_ramp = 0, strength = 0.5, strength_ramp = 0 }
+  arpeggio = { on = false, rate = 50, rate_ramp = 0, max_octaves = 1, max_notes = 160, glide = 0, direction = "up", tones = { 0, 4, 7 }, levels = {}, shapes = {}, phases = {} }
+  tremolo = { on = false, rate = 10, rate_ramp = 0, strength = 0.5, strength_ramp = 0, shape = "sine" }
+  ring = { on = false, rate = 1620, rate_ramp = 0, strength = 0.5, strength_ramp = 0, shape = "sine" }
+  wahwah = { on = false, rate = 5, rate_ramp = 0, strength = 0.5, strength_ramp = 0, shape = "sine" }
+  distortion = { on = false, edge = 0.5, edge_ramp = 0, grit = 0.5, grit_ramp = 0 }
+  bitcrush = { on = false, crush = 0.5, crush_ramp = 0, skip = 0.5, skip_ramp = 0 }
+  delay = { on = false, length = 0.15, strength = 0.5, feedback = 0.75 }
+  reverb = { on = false, room_size = 0.5, mix = 0.5, damping = 0.5 }
+  highpass = { on = false, cutoff = 2000, cutoff_ramp = 0 }
+  lowpass = { on = false, cutoff = 4000, cutoff_ramp = 0, resonance = 0.5 }
+end
+
+define typewriter as synth with
+  ["$link"] = { image = {}, audio = {}, character = {}, typewriter = {}, inflection = {}, prosody = {} }
+  shape = "tangent"
+  phase = 0
+  volume = 0.5
+  envelope = { offset = 0, attack = 0.01, decay = 0.003, sustain = 0.04, release = 0.01, level = 0.15 }
+  pitch = { frequency = 3465, frequency_ramp = 0, frequency_torque = 0, frequency_jerk = 0 }
+  highpass = { on = true, cutoff = 6600, cutoff_ramp = 0 }
+  vibrato = { on = true, rate = 55, rate_ramp = 0, strength = 0.5, strength_ramp = 0, shape = "sine" }
+  arpeggio = { on = true, rate = 100, rate_ramp = 0, max_octaves = 1, max_notes = 160, glide = 0, direction = "up", tones = { 0 }, levels = { 0.2, 1, 0.1, 0.05, 0.01, 1, 0 }, shapes = {}, phases = {} }
+  harmonics = { on = false, count = 4, count_ramp = 0, falloff = 0.5, falloff_ramp = 0 }
+  fm = { on = false, ratio = 1, ratio_ramp = 0, strength = 0.5, strength_ramp = 0 }
+  tremolo = { on = false, rate = 10, rate_ramp = 0, strength = 0.5, strength_ramp = 0, shape = "sine" }
+  ring = { on = false, rate = 1620, rate_ramp = 0, strength = 0.5, strength_ramp = 0, shape = "sine" }
+  wahwah = { on = false, rate = 5, rate_ramp = 0, strength = 0.5, strength_ramp = 0, shape = "sine" }
+  distortion = { on = false, edge = 0.5, edge_ramp = 0, grit = 0.5, grit_ramp = 0 }
+  bitcrush = { on = false, crush = 0.5, crush_ramp = 0, skip = 0.5, skip_ramp = 0 }
+  delay = { on = false, length = 0.15, strength = 0.5, feedback = 0.75 }
+  reverb = { on = false, room_size = 0.5, mix = 0.5, damping = 0.5 }
+  lowpass = { on = false, cutoff = 4000, cutoff_ramp = 0, resonance = 0.5 }
+end
+
+define mixer with
+  gain = 1
+end
+
+define main as mixer with
+  gain = 1
+end
+
+define music as mixer with
+  gain = 1
+end
+
+define sound as mixer with
+  gain = 1
+end
+
+define voice as mixer with
+  gain = 1
+end
+
+define typewriter as mixer with
+  gain = 1
+end
+
+define channel with
+  mixer = mixer.none
+  loop = false
+  play_behavior = "replace"
+end
+
+define music as channel with
+  mixer = "music"
+  loop = true
+  play_behavior = "replace"
+end
+
+define ambient as channel with
+  mixer = "sound"
+  loop = true
+  play_behavior = "stack"
+end
+
+define sound as channel with
+  mixer = "sound"
+  loop = false
+  play_behavior = "stack"
+end
+
+define voice as channel with
+  mixer = "voice"
+  loop = false
+  play_behavior = "replace"
+end
+
+define typewriter as channel with
+  mixer = "sound"
+  loop = false
+  play_behavior = "replace"
+end
+
+define typewriter with
+  ["$link"] = { image = {}, audio = {}, synth = {}, character = {}, inflection = {}, prosody = {} }
+  fade_duration = 0
+  animation_offset = 0.06
+  letter_pause = 0
+  phrase_pause_scale = 5
+  em_dash_pause_scale = 16
+  stressed_pause_scale = 10
+  punctuated_pause_scale = 15
+  min_syllable_length = 3
+  voiced = @/([\p{L}\p{N}']+)/u
+  yelled = @/^([\p{Lu}]{2,}[^\p{Ll}\r\n]*)$/u
+  punctuated = @/(?:^|\s)(?:[.]\s*?)+(?:$|\s)/u
+end
+
+define title as typewriter with
+  ["$link"] = { image = {}, audio = {}, synth = {}, character = {}, inflection = {}, prosody = {} }
+  fade_duration = 0
+  animation_offset = 0.06
+  letter_pause = 0
+  phrase_pause_scale = 5
+  em_dash_pause_scale = 16
+  stressed_pause_scale = 10
+  punctuated_pause_scale = 15
+  min_syllable_length = 3
+  voiced = @/([\p{L}\p{N}']+)/u
+  yelled = @/^([\p{Lu}]{2,}[^\p{Ll}\r\n]*)$/u
+  punctuated = @/(?:^|\s)(?:[.]\s*?)+(?:$|\s)/u
+end
+
+define heading as typewriter with
+  ["$link"] = { image = {}, audio = {}, synth = {}, character = {}, inflection = {}, prosody = {} }
+  fade_duration = 0
+  animation_offset = 0.06
+  letter_pause = 0.025
+  phrase_pause_scale = 5
+  em_dash_pause_scale = 16
+  stressed_pause_scale = 10
+  punctuated_pause_scale = 15
+  min_syllable_length = 3
+  voiced = @/([\p{L}\p{N}']+)/u
+  yelled = @/^([\p{Lu}]{2,}[^\p{Ll}\r\n]*)$/u
+  punctuated = @/(?:^|\s)(?:[.]\s*?)+(?:$|\s)/u
+end
+
+define transitional as typewriter with
+  ["$link"] = { image = {}, audio = {}, synth = {}, character = {}, inflection = {}, prosody = {} }
+  fade_duration = 0
+  animation_offset = 0.06
+  letter_pause = 0.025
+  phrase_pause_scale = 5
+  em_dash_pause_scale = 16
+  stressed_pause_scale = 10
+  punctuated_pause_scale = 15
+  min_syllable_length = 3
+  voiced = @/([\p{L}\p{N}']+)/u
+  yelled = @/^([\p{Lu}]{2,}[^\p{Ll}\r\n]*)$/u
+  punctuated = @/(?:^|\s)(?:[.]\s*?)+(?:$|\s)/u
+end
+
+define dialogue as typewriter with
+  ["$link"] = { image = {}, audio = {}, synth = {}, character = {}, inflection = {}, prosody = {} }
+  fade_duration = 0
+  animation_offset = 0.06
+  letter_pause = 0.025
+  phrase_pause_scale = 5
+  em_dash_pause_scale = 16
+  stressed_pause_scale = 10
+  punctuated_pause_scale = 15
+  min_syllable_length = 3
+  voiced = @/([\p{L}\p{N}']+)/u
+  yelled = @/^([\p{Lu}]{2,}[^\p{Ll}\r\n]*)$/u
+  punctuated = @/(?:^|\s)(?:[.]\s*?)+(?:$|\s)/u
+end
+
+define action as typewriter with
+  ["$link"] = { image = {}, audio = {}, synth = {}, character = {}, inflection = {}, prosody = {} }
+  fade_duration = 0
+  animation_offset = 0.06
+  letter_pause = 0.025
+  phrase_pause_scale = 5
+  em_dash_pause_scale = 16
+  stressed_pause_scale = 10
+  punctuated_pause_scale = 15
+  min_syllable_length = 3
+  voiced = @/([\p{L}\p{N}']+)/u
+  yelled = @/^([\p{Lu}]{2,}[^\p{Ll}\r\n]*)$/u
+  punctuated = @/(?:^|\s)(?:[.]\s*?)+(?:$|\s)/u
+end
+
+define character_name as typewriter with
+  ["$link"] = { image = {}, audio = {}, synth = {}, character = {}, inflection = {}, prosody = {} }
+  fade_duration = 0
+  animation_offset = 0.06
+  letter_pause = 0
+  phrase_pause_scale = 5
+  em_dash_pause_scale = 16
+  stressed_pause_scale = 10
+  punctuated_pause_scale = 15
+  min_syllable_length = 3
+  voiced = @/([\p{L}\p{N}']+)/u
+  yelled = @/^([\p{Lu}]{2,}[^\p{Ll}\r\n]*)$/u
+  punctuated = @/(?:^|\s)(?:[.]\s*?)+(?:$|\s)/u
+end
+
+define character_parenthetical as typewriter with
+  ["$link"] = { image = {}, audio = {}, synth = {}, character = {}, inflection = {}, prosody = {} }
+  fade_duration = 0
+  animation_offset = 0.06
+  letter_pause = 0
+  phrase_pause_scale = 5
+  em_dash_pause_scale = 16
+  stressed_pause_scale = 10
+  punctuated_pause_scale = 15
+  min_syllable_length = 3
+  voiced = @/([\p{L}\p{N}']+)/u
+  yelled = @/^([\p{Lu}]{2,}[^\p{Ll}\r\n]*)$/u
+  punctuated = @/(?:^|\s)(?:[.]\s*?)+(?:$|\s)/u
+end
+
+define portrait as typewriter with
+  ["$link"] = { image = {}, audio = {}, synth = {}, character = {}, inflection = {}, prosody = {} }
+  fade_duration = 0
+  animation_offset = 0.06
+  letter_pause = 0
+  phrase_pause_scale = 5
+  em_dash_pause_scale = 16
+  stressed_pause_scale = 10
+  punctuated_pause_scale = 15
+  min_syllable_length = 3
+  voiced = @/([\p{L}\p{N}']+)/u
+  yelled = @/^([\p{Lu}]{2,}[^\p{Ll}\r\n]*)$/u
+  punctuated = @/(?:^|\s)(?:[.]\s*?)+(?:$|\s)/u
+end
+
+define character with
+  ["$link"] = { image = {}, audio = {}, synth = {}, typewriter = {}, inflection = {}, prosody = {} }
+  name = ""
+end
+
+define prosody with
+  ["$link"] = { image = {}, audio = {}, synth = {}, character = {}, typewriter = {}, inflection = {} }
+  lilt_question = @/(?:^|\b)[~]+([!?]*[?][!?]*)[ "']*$/
+  lilt_exclamation = @/(?:^|\b)[~]+([!]+)[ "']*$/
+  lilt = @/(?:^|\b)([~]+)[ ]*$/
+  anxious_lilt = @/(?:^|\b)([~]+)[.][.][.]+[ "']*$/
+  exclamation = @/(?:^|\b)([!?]*[!][!?]*)[ "']*$/
+  resolved_anxious_question = @/(?:^|\b)(?:who|whose|what|when|where|why|which|how)\b.*\b[^\t\n\r !?]+[.][.][.]+([!?]*[?][!?]*)[ "']*$/
+  resolved_question = @/(?:^|\b)(?:who|whose|what|when|where|why|which|how)\b.*\b[^\t\n\r !?]+([!?]*[?][!?]*)[ "']*$/
+  anxious_question = @/(?:^|\b)[.][.][.]+([?]+)[ "']*$/
+  question = @/(?:^|\b)([!?]*[?][!?]*)[ "']*$/
+  comma = @/(?:^|\b)([,])[ "']*$/
+  partial = @/(?:^|\b)[-]([-]+)[ "']*$/
+  anxious = @/(?:^|\b)[.][.]([.]+)[ "']*$/
+  statement = @/(?:^|\b)([.])[ "']*$/
+end
+
+define inflection with
+  ["$link"] = { image = {}, audio = {}, synth = {}, character = {}, typewriter = {}, prosody = {} }
+  lilt_question = { 1, 2, 3, 4, 5 }
+  lilt_exclamation = { 3, 4, 5, 6, 7 }
+  lilt = { 1, -2, 7, 10 }
+  anxious_lilt = { 1, -4, 10, 7 }
+  exclamation = { 2, 5 }
+  resolved_anxious_question = { -1, 0 }
+  anxious_question = { -1, 2 }
+  resolved_question = { 1, 1 }
+  anxious = { -1, -1 }
+  question = { 0, 2 }
+  partial = { 1, 1 }
+  comma = { -1, -1 }
+  statement = { 0, 0 }
+end

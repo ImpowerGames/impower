@@ -11,6 +11,7 @@ import { Range } from "@codemirror/state";
 import { ErrorType } from "../../../inkjs/compiler/Parser/ErrorType";
 import { ParsedObject } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Object";
 import { SourceMetadata } from "../../../inkjs/engine/Error";
+import { collectDefineTypeNames } from "../../utils/collectDefineTypeNames";
 import { lower } from "../../lower/lower";
 import { type SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
 import { SparkdownAnnotation } from "../SparkdownAnnotation";
@@ -43,8 +44,12 @@ export interface CompiledBlock {
   context?: {
     [type: string]: { [name: string]: any };
   };
-  contextPropertyRegistry?: {
-    [type: string]: { [name: string]: { [propertyPath: string]: any } };
+  // Reactive Sparkle UI AST contributed by a layout/screen/component block,
+  // merged into `program.sparkle` (docs/sparkle/reactive-sparkle-spec.md §6).
+  sparkle?: {
+    layouts?: { [name: string]: any };
+    screens?: { [name: string]: any };
+    components?: { [name: string]: any };
   };
   defaultDefinitions?: { [type: string]: any };
   json?: string;
@@ -64,6 +69,10 @@ export interface CompilationConfig {
       };
     };
   };
+  /** Transitional: emit simple display statements as native `display(<table>)`
+   *  Luau calls instead of the legacy flat ink text + routing tag. See
+   *  `SparkdownCompilerConfig.experimentalDisplayCalls` and `lowerDisplay`. */
+  experimentalDisplayCalls?: boolean;
 }
 
 export class CompilationAnnotator extends SparkdownAnnotator<
@@ -107,6 +116,30 @@ export class CompilationAnnotator extends SparkdownAnnotator<
     }
     this._globalCallableNames = set;
     this._globalCallableNamesTree = this.tree;
+    return set;
+  }
+
+  // Cache the set of names used as a TYPE per parse tree — every
+  // `define`/`animation`/`theme` PARENT (`LuauDefineParentName`) AND every
+  // `new <Class>()` target (`LuauNewClassName`). These names keep their bare
+  // global; `lowerLuauDefine` scopes only LEAF-instance defines (typed,
+  // never used as a type) to a synthetic `$<type>_<name>` key. Needs a FULL
+  // tree traversal (unlike `computeGlobalCallableNames`, which only walks
+  // top-level children) because `new <Class>()` appears deep inside function
+  // bodies. Same per-tree caching contract.
+  private _defineTypeNames?: Set<string>;
+  private _defineTypeNamesTree?: unknown;
+
+  private computeDefineTypeNames(): Set<string> {
+    if (this.tree === this._defineTypeNamesTree && this._defineTypeNames) {
+      return this._defineTypeNames;
+    }
+    const tree = this.tree;
+    const set = tree
+      ? collectDefineTypeNames(tree, (from, to) => this.read(from, to))
+      : new Set<string>();
+    this._defineTypeNames = set;
+    this._defineTypeNamesTree = this.tree;
     return set;
   }
 
@@ -229,6 +262,11 @@ export class CompilationAnnotator extends SparkdownAnnotator<
       // call site resolves via FunctionCall + static `PackTuple`.
       const siblingSubFlowNamesStack: Set<string>[] = [];
       const lowered = lower(nodeRef, {
+        // The document being lowered. Absent here until now, which made
+        // `ctx.filePath` undefined on the PRODUCTION path — so anything
+        // deriving identity from it silently fell back to nothing. Binding
+        // evaluator names did exactly that and collided across files.
+        filePath: this.uri,
         read: (from, to) => this.read(from, to),
         lineNumber: (pos) =>
           text ? text.lineAt(pos).number - 1 - chunkStartLine0 : 0,
@@ -243,6 +281,7 @@ export class CompilationAnnotator extends SparkdownAnnotator<
         loopStack,
         diagnostics: chunkDiagnostics,
         globalCallableNames: this.computeGlobalCallableNames(),
+        defineTypeNames: this.computeDefineTypeNames(),
         declaredLocalsStack,
         hoistedNestedFnDeclsStack,
         siblingSubFlowNamesStack,

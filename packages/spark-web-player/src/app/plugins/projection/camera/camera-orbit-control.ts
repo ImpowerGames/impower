@@ -36,6 +36,9 @@ export class CameraOrbitControl {
   }
 
   protected _allowControl = true;
+
+  /** Whether {@link bindInput} listeners are currently attached. */
+  protected _inputBound = false;
   /**
    * Allows the camera to be controlled by user.
    */
@@ -43,7 +46,24 @@ export class CameraOrbitControl {
     return this._allowControl;
   }
   set allowControl(value: boolean) {
+    if (this._allowControl === value) {
+      return;
+    }
     this._allowControl = value;
+    // Attach the input listeners ONLY while control is actually allowed. Every
+    // handler below already no-ops on `!allowControl`, so leaving them attached
+    // looked free -- but a non-passive `wheel` listener is scroll-BLOCKING:
+    // Chrome must dispatch each wheel event to the main thread and wait for it
+    // before the compositor may scroll anything in the frame. The player's main
+    // thread runs the render loop, so during preview (`allowControl === false`,
+    // the normal state) that turned every wheel gesture over the game into a
+    // main-thread round trip and made scrolling stick whenever the thread was
+    // busy -- for a control that could not respond anyway.
+    if (value) {
+      this.bindInput();
+    } else {
+      this.unbindInput();
+    }
   }
 
   protected _camera;
@@ -402,47 +422,69 @@ export class CameraOrbitControl {
 
   protected bind(): void {
     this.camera.renderer.runners.prerender.add(this);
-    this._element?.addEventListener("mousedown", this.onMouseDown);
-    this._element?.addEventListener("touchstart", this.onTouchStart, {
-      passive: false,
-    });
-    this._element?.addEventListener("wheel", this.onWheel, { passive: false });
-    if (!this._element) {
-      window.addEventListener("mousedown", this.onMouseDown);
-      window.addEventListener("touchstart", this.onTouchStart, {
-        passive: false,
-      });
-      window.addEventListener("wheel", this.onWheel, { passive: false });
-    }
+    const target = this._element ?? window;
+    target.addEventListener("mousedown", this.onMouseDown as EventListener);
     // Bind mouse and touch equivalent pointermove and pointerup events to window
     // to support the case where the pointer leaves the element while dragging
 
     window.addEventListener("mousemove", this.onMouseMove);
-    window.addEventListener("touchmove", this.onTouchMove, { passive: false });
     window.addEventListener("mouseup", this.onMouseUp);
     window.addEventListener("touchend", this.onTouchEnd);
     window.addEventListener("keydown", this.onKeyDown);
     window.addEventListener("keyup", this.onKeyUp);
     window.addEventListener("contextmenu", this.onContextMenu);
+    if (this._allowControl) {
+      this.bindInput();
+    }
   }
 
   protected unbind(): void {
     this.camera.renderer.runners.prerender.remove(this);
-    this._element?.removeEventListener("mousedown", this.onMouseDown);
-    this._element?.removeEventListener("touchstart", this.onTouchStart);
-    this._element?.removeEventListener("wheel", this.onWheel);
-    if (!this._element) {
-      window.removeEventListener("mousedown", this.onMouseDown);
-      window.removeEventListener("touchstart", this.onTouchStart);
-      window.removeEventListener("wheel", this.onWheel);
-    }
+    const target = this._element ?? window;
+    target.removeEventListener("mousedown", this.onMouseDown as EventListener);
     window.removeEventListener("mousemove", this.onMouseMove);
-    window.removeEventListener("touchmove", this.onTouchMove);
     window.removeEventListener("mouseup", this.onMouseUp);
     window.removeEventListener("touchend", this.onTouchEnd);
     window.removeEventListener("keydown", this.onKeyDown);
     window.removeEventListener("keyup", this.onKeyUp);
     window.removeEventListener("contextmenu", this.onContextMenu);
+    this.unbindInput();
+  }
+
+  /** ONLY the scroll-blocking listeners: `wheel` and the touch pair, all
+   *  non-passive so they can preventDefault while orbiting. A non-passive
+   *  listener of these types blocks scrolling for the WHOLE frame whether or not
+   *  it ever acts, so they are attached only while `allowControl` is true (see
+   *  the note on that setter). The rest stay bound always — they cost nothing
+   *  and unbinding them would change unrelated behaviour, e.g. the player would
+   *  start showing a right-click context menu during play. */
+  protected bindInput(): void {
+    if (this._inputBound) {
+      return;
+    }
+    this._inputBound = true;
+    const target = this._element ?? window;
+    target.addEventListener("touchstart", this.onTouchStart as EventListener, {
+      passive: false,
+    });
+    target.addEventListener("wheel", this.onWheel as EventListener, {
+      passive: false,
+    });
+    window.addEventListener("touchmove", this.onTouchMove, { passive: false });
+  }
+
+  protected unbindInput(): void {
+    if (!this._inputBound) {
+      return;
+    }
+    this._inputBound = false;
+    const target = this._element ?? window;
+    target.removeEventListener(
+      "touchstart",
+      this.onTouchStart as EventListener,
+    );
+    target.removeEventListener("wheel", this.onWheel as EventListener);
+    window.removeEventListener("touchmove", this.onTouchMove);
   }
 
   fitToBoundingBox(

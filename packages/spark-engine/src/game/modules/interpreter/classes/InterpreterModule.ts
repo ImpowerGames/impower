@@ -1,9 +1,12 @@
 import { getCharacterIdentifier } from "@impower/sparkdown/src/compiler/utils/getCharacterIdentifier";
+import { parseDisplayRoutingTag } from "@impower/sparkdown/src/compiler/utils/displayRoutingTag";
+import { ObjectValue } from "@impower/sparkdown/src/inkjs/engine/Value";
 import { Module } from "../../../core/classes/Module";
 import {
   AudioInstruction,
   ImageInstruction,
   LoadInstruction,
+  LayoutInstruction,
   TextInstruction,
 } from "../../../core/types/Instruction";
 import type { Instructions } from "../../../core/types/Instructions";
@@ -44,7 +47,18 @@ export class InterpreterModule extends Module<
     "queue",
     "await",
     "write",
+    "open",
+    "close",
+    "navigate",
   ];
+
+  // Control verbs that route a `[[...]]` directive to the screen-lifecycle path
+  // (openLayout/closeLayout/navigateScreen) instead of the image path. They reuse
+  // the asset clause parser (with/over/after/ease/wait) verbatim. `open`/`close`
+  // are overlay primitives; `navigate <container> to <screen>` routes WITHIN a
+  // container (close the open screens in that container, then open the target),
+  // leaving other containers / uncategorized screens untouched.
+  LAYOUT_CONTROL_KEYWORDS = ["open", "close", "navigate"];
 
   ASSET_VALUE_ARG_KEYWORDS = ["after", "over", "to", "with", "ease"];
 
@@ -68,14 +82,34 @@ export class InterpreterModule extends Module<
 
   WHITESPACE_REGEX = /[ \t\r\n]+/;
 
-  TARGETED_TEXT_REGEX =
-    /((?:\\.|[^:\r\n])*)((?<!\\)[:](?:$|[ ]+))((?:.|\r|\n)*)/m;
-
+  // Maps a directive marker → its target name (e.g. `"^" → "title"`), plus the
+  // empty-key default-target entry (`"" → "action"`). Display routing no longer
+  // matches markers in the visible text (that's the routing tag's job now); this
+  // map is retained only to resolve the DEFAULT target (`_targetPrefixMap[""]`).
   protected _targetPrefixMap: Record<string, string> = {};
 
   protected _characterNameMap: Record<string, string> = {};
 
-  protected _targetPrefixes: string[] = [];
+  // Memoize `Matcher`s by pattern string. `parse()` builds voiced/yelled/
+  // punctuated matchers from the (stable) typewriter config on EVERY call (per
+  // line + per phrase), and each `new Matcher` compiles a RegExp — a measurable
+  // per-beat cost in the display hot path. Keying by the pattern string keeps it
+  // correct across live-edits (a changed pattern is a new key, never stale).
+  protected _matcherCache = new Map<string, Matcher>();
+
+  /** Cached `Matcher` for a pattern; `undefined` for an absent/empty pattern
+   *  (matching the previous `pattern ? new Matcher(pattern) : undefined`). */
+  protected getMatcher(pattern: string | undefined): Matcher | undefined {
+    if (!pattern) {
+      return undefined;
+    }
+    let matcher = this._matcherCache.get(pattern);
+    if (!matcher) {
+      matcher = new Matcher(pattern);
+      this._matcherCache.set(pattern, matcher);
+    }
+    return matcher;
+  }
 
   override getBuiltins() {
     return interpreterBuiltinDefinitions();
@@ -89,11 +123,20 @@ export class InterpreterModule extends Module<
     this.setup();
   }
 
+  override onProgramUpdate() {
+    // Re-derive the character-name / directive maps from the refreshed context
+    // so a live edit (e.g. removing a character's `name`) takes effect instead
+    // of resolving against the previous program's defines.
+    this.setup();
+  }
+
   setup() {
     this._characterNameMap = {};
     for (const [k, v] of Object.entries(this.context.character || {})) {
       const name = v.name;
-      if (typeof name === "string") {
+      // Only map a non-empty name → identifier; characters without a `name`
+      // inherit `name = ""` from the type default and must not register a "" key.
+      if (typeof name === "string" && name) {
         this._characterNameMap[name] = k;
       }
     }
@@ -103,7 +146,6 @@ export class InterpreterModule extends Module<
     )) {
       this._targetPrefixMap[v] = k;
     }
-    this._targetPrefixes = Object.keys(this._targetPrefixMap);
   }
 
   /**
@@ -159,6 +201,19 @@ export class InterpreterModule extends Module<
         }
       }
     }
+    if (a.layout || b.layout) {
+      a.layout ??= {};
+      if (b.layout) {
+        for (const [k, v] of Object.entries(b.layout)) {
+          a.layout[k] ??= [];
+          if (prefix) {
+            a.layout[k]!.unshift(...v);
+          } else {
+            a.layout[k]!.push(...v);
+          }
+        }
+      }
+    }
     if (b.end > a.end) {
       a.end = b.end;
     }
@@ -185,10 +240,14 @@ export class InterpreterModule extends Module<
    * and queue these instructions to be executed later.
    * @param content current text to queue
    * @param choices choices to queue
+   * @param tags the just-completed beat's `story.currentTags` — carries the
+   *   per-beat ROUTING TAG the compiler emits (`displayRoutingTag.ts`). The
+   *   beat is routed by that tag (line type + cue identifier) rather than by
+   *   re-deriving a `<prefix>:` from the visible text. Author `# tag`
+   *   annotations also live here and are ignored by routing.
    */
-  queue(content: string, choices: string[]): void {
+  queue(content: string, choices: string[], tags: string[] = []): void {
     this._state.buffer ??= [];
-    const options: InstructionOptions = {};
     // Trim away indent.
     content = content.trimStart();
 
@@ -207,67 +266,112 @@ export class InterpreterModule extends Module<
       return;
     }
 
-    // Determine the default target (if no prefix matches).
+    // Determine the default target (when there's no routing tag at all).
     const defaultTarget = this._targetPrefixMap?.[""] || "";
 
-    const targetedMatch = content.match(this.TARGETED_TEXT_REGEX);
-    const targetIdentifier = targetedMatch ? targetedMatch[1]! : "";
-    content = targetIdentifier && targetedMatch ? targetedMatch[3]! : content;
+    // The compiler stamps each non-glued display beat with a reserved ROUTING
+    // TAG (`displayRoutingTag.ts`). Locate it among `tags` (author `# tag`
+    // annotations also land in `currentTags`, so DON'T assume index 0 — select
+    // by the reserved sentinel). A glued continuation line (`..`) emits NO
+    // routing tag, so the beat falls back to the default target and merges into
+    // the previous textbox below.
+    let routing: ReturnType<typeof parseDisplayRoutingTag> = null;
+    for (const tag of tags) {
+      const parsed = parseDisplayRoutingTag(tag);
+      if (parsed) {
+        routing = parsed;
+        break;
+      }
+    }
 
-    let target = this._targetPrefixMap[targetIdentifier] || defaultTarget;
+    let target = defaultTarget;
+    let characterDeclaration: string | undefined = undefined;
+    if (routing) {
+      const { lineType, identifier } = routing;
+      if (lineType === "write") {
+        // The routing tag's identifier is the bare layer name (no leading `@`,
+        // unlike the old visible `@layer:` prefix). Empty → default target.
+        target = identifier.trim() || defaultTarget;
+      } else if (lineType === "dialogue") {
+        target = "dialogue";
+        // The identifier is the full character cue (name + optional
+        // parenthetical + optional `<`/`>` position); resolved in appendBeat.
+        characterDeclaration = identifier || undefined;
+      } else {
+        // title / heading / transitional / action (and any unknown line type):
+        // the line type IS the target name (matches the directives config,
+        // where the directive key — e.g. `heading` — names the target). An
+        // empty / unknown type falls back to the default target.
+        target = lineType || defaultTarget;
+      }
+    }
+    this.appendBeat(target, characterDeclaration, content, choices);
+  }
 
+  /**
+   * Build a beat's instructions from an already-resolved target + optional
+   * dialogue cue + a final body string, and append them to the buffer. Shared
+   * by {@link queue} (routing resolved from the line-type tag, body from the
+   * flat `currentText`) and {@link queueInstructions} (routing + body carried in
+   * the `display(<table>)` table), so BOTH transports produce byte-identical
+   * instructions: the cue resolution (name / parenthetical / position via
+   * `CHARACTER_REGEX`), the `>` box split, the per-character `parse()`, the cue
+   * prefixing, and the empty-textbox fold are all the same code path.
+   */
+  protected appendBeat(
+    target: string,
+    characterDeclaration: string | undefined,
+    content: string,
+    choices: string[],
+  ): void {
+    this._state.buffer ??= [];
+    const defaultTarget = this._targetPrefixMap?.[""] || "";
+    const options: InstructionOptions = {};
     let characterNameInstructions: Instructions | undefined = undefined;
     let characterParentheticalInstructions: Instructions | undefined =
       undefined;
-    // Parse fallback write target
-    if (targetIdentifier && target === defaultTarget) {
-      if (targetIdentifier.startsWith("@")) {
-        // we are targeting a specific layer
-        target = targetIdentifier.slice(1).trim();
-      } else {
-        target = "dialogue";
-        // assume targetIdentifier is a character name
-        const characterDeclaration = targetIdentifier;
-        if (characterDeclaration) {
-          // Character declaration can include name, parenthetical, and position.
-          // @ CHARACTER NAME (parenthetical) [>]
-          const match = characterDeclaration.match(this.CHARACTER_REGEX);
-          const characterNameMatch = match?.[1] || "";
-          const characterParentheticalMatch = match?.[3] || "";
-          const characterPositionMatch = match?.[7] || "";
-          const characterMap = this.context?.["character"] as any;
-          const characterId = this._characterNameMap[characterNameMatch] || "";
-          const characterObj =
-            characterMap?.[characterNameMatch] || characterMap?.[characterId];
-          const character = characterObj?.$name;
-          const characterName =
-            typeof characterObj?.name === "string"
-              ? characterObj.name
-              : characterNameMatch;
-          const characterParenthetical = characterParentheticalMatch;
-          const position =
-            characterPositionMatch === "<"
-              ? "left"
-              : characterPositionMatch === ">"
-                ? "right"
-                : characterPositionMatch;
-          options.character = character;
-          options.position = position;
-          if (characterName) {
-            characterNameInstructions = this.parse(
-              characterName,
-              "character_name",
-              options,
-            );
-          }
-          if (characterParenthetical) {
-            characterParentheticalInstructions = this.parse(
-              characterParenthetical,
-              "character_parenthetical",
-              options,
-            );
-          }
-        }
+    if (characterDeclaration) {
+      // Character declaration can include name, parenthetical, and position.
+      // @ CHARACTER NAME (parenthetical) [>]
+      const match = characterDeclaration.match(this.CHARACTER_REGEX);
+      const characterNameMatch = match?.[1] || "";
+      const characterParentheticalMatch = match?.[3] || "";
+      const characterPositionMatch = match?.[7] || "";
+      const characterMap = this.context?.["character"] as any;
+      const characterId = this._characterNameMap[characterNameMatch] || "";
+      const characterObj =
+        characterMap?.[characterNameMatch] || characterMap?.[characterId];
+      const character = characterObj?.$name;
+      // Fall back to the cue text when the character has no NON-EMPTY name:
+      // a character defined without a `name` inherits `name = ""` from the
+      // type default, so an empty string must be treated as absent (the same
+      // as an undefined character) rather than rendered as a blank speaker.
+      const characterName =
+        typeof characterObj?.name === "string" && characterObj.name
+          ? characterObj.name
+          : characterNameMatch;
+      const characterParenthetical = characterParentheticalMatch;
+      const position =
+        characterPositionMatch === "<"
+          ? "left"
+          : characterPositionMatch === ">"
+            ? "right"
+            : characterPositionMatch;
+      options.character = character;
+      options.position = position;
+      if (characterName) {
+        characterNameInstructions = this.parse(
+          characterName,
+          "character_name",
+          options,
+        );
+      }
+      if (characterParenthetical) {
+        characterParentheticalInstructions = this.parse(
+          characterParenthetical,
+          "character_parenthetical",
+          options,
+        );
       }
     }
     // Queue content
@@ -310,17 +414,55 @@ export class InterpreterModule extends Module<
         lastTextbox = { end: 0 };
         this._state.buffer.push(lastTextbox);
       }
-      if (choices) {
-        for (let i = 0; i < choices.length; i += 1) {
-          const choice = choices[i]!;
-          const choiceInstructions = this.parse(choice, `choice ${i}`, {
-            ...options,
-            delay: lastTextbox.end,
-            choice: true,
-          });
-          this.merge(lastTextbox, choiceInstructions);
-        }
+      for (let i = 0; i < choices.length; i += 1) {
+        const choice = choices[i]!;
+        const choiceInstructions = this.parse(choice, `choice ${i}`, {
+          ...options,
+          delay: lastTextbox.end,
+          choice: true,
+        });
+        this.merge(lastTextbox, choiceInstructions);
       }
+    }
+  }
+
+  /**
+   * Queue a beat handed over as a `display(<table>)` call — one
+   * {@link ObjectValue} table per call the runtime made this beat (collected via
+   * `story.currentDisplayInstructions`). The structured-transport counterpart to
+   * {@link queue}: routing (`target`) and the dialogue cue (`character`) arrive
+   * as table FIELDS resolved at compile time instead of a line-type tag, and the
+   * body (`text`) arrives as a string whose `{interp}` holes were already
+   * evaluated to live values at call time. Both paths converge on
+   * {@link appendBeat}, so the cue resolution, `>` box split, per-character
+   * `parse()`, cue prefixing and buffer fold are byte-identical to the legacy
+   * path — only the source of target/cue/text differs.
+   *
+   * Table shape: `{ target: string, character?: string, text: string }`.
+   * Multiple tables (consecutive `display()` calls in one Continue) each become
+   * their own beat; choices attach to the LAST one (matching `queue()`).
+   */
+  queueInstructions(tables: ObjectValue[], choices: string[] = []): void {
+    this._state.buffer ??= [];
+    const defaultTarget = this._targetPrefixMap?.[""] || "";
+    for (let i = 0; i < tables.length; i++) {
+      const table = tables[i]!;
+      const read = (key: string): unknown => table?.value?.get(key)?.value;
+      const target = (read("target") as string) || defaultTarget;
+      const characterRaw = read("character");
+      const character =
+        typeof characterRaw === "string" && characterRaw
+          ? characterRaw
+          : undefined;
+      const text = (read("text") as string) ?? "";
+      // Choices show after the LAST beat of the Continue (mirrors queue()).
+      const beatChoices = i === tables.length - 1 ? choices : [];
+      this.appendBeat(target, character, text, beatChoices);
+    }
+    // Defensive: a choice-only beat with no display table still surfaces its
+    // choices (no real display() emission produces this today).
+    if (tables.length === 0 && choices.length > 0) {
+      this.appendBeat(defaultTarget, undefined, "", choices);
     }
   }
 
@@ -332,10 +474,12 @@ export class InterpreterModule extends Module<
   shouldFlush(): boolean {
     // There are worlds to load.
     // Or there is text to display.
+    // Or a layout-lifecycle directive ([[open/close/navigate]]) to apply.
     // Or an event takes up time.
     return Boolean(
       this._state.buffer?.[0]?.load ||
       this._state.buffer?.[0]?.text ||
+      this._state.buffer?.[0]?.layout ||
       Number(this._state.buffer?.[0]?.end) > 0,
     );
   }
@@ -346,6 +490,17 @@ export class InterpreterModule extends Module<
    */
   flush() {
     return this._state.buffer?.shift();
+  }
+
+  /** Discard queued-but-unflushed beats. Called by the replay paths that
+   *  abandon a run in flight (`Game.start`/`preview`'s fail branches): the
+   *  story rewinds and re-queues from the start path, so anything still in
+   *  this FIFO belongs to the abandoned run — and it sits at index 0, so it
+   *  would render FIRST in the replay. Deliberately NOT part of `onStart` or
+   *  `onReset`: the simulation-success path restores a checkpoint whose
+   *  buffer holds beats the display still needs. */
+  clearQueuedBeats(): void {
+    this._state.buffer = [];
   }
 
   protected isWhitespace(part: string | undefined) {
@@ -426,10 +581,12 @@ export class InterpreterModule extends Module<
   }
 
   protected getMinSynthDuration(synth: { envelope?: Record<string, number> }) {
-    // The synth arrives complete -- `Game` makes every define inherit its
-    // type's `$default` when it builds the context -- so an authored voice
-    // that never wrote an envelope still has the type's one here, and this
-    // duration agrees with what AudioModule actually plays (#268).
+    // The synth arrives complete -- defines reach the context merged with
+    // their type's defaults (compile-time `$default` merge on the LSP
+    // channel; the runtime `__def` inheritance chain on the Game's channel)
+    // -- so an authored voice that never wrote an envelope still has the
+    // type's one here, and this duration agrees with what AudioModule
+    // actually plays (#268).
     const synthEnvelope = synth?.envelope;
     return synthEnvelope
       ? (synthEnvelope.attack ?? 0) +
@@ -491,6 +648,104 @@ export class InterpreterModule extends Module<
     return imageChunk;
   }
 
+  protected createLayoutChunk(layoutTagContent: string): Chunk {
+    const verb = layoutTagContent.replaceAll("\t", " ").trim().split(" ")[0];
+    // `navigate <screen> to <layout>` parses differently from open/close:
+    // the FIRST positional token is the SCREEN (not the layout), and the
+    // destination layout follows `to`.
+    const layoutChunk =
+      verb === "navigate"
+        ? this.createNavigateChunk(layoutTagContent)
+        : // `open`/`close` share the asset clause parser. The layout NAME plays
+          // the role of the asset's `target` (e.g. `[[open hud with fade over
+          // 1s]]` → control="open", target="hud", clauses={with:"fade",
+          // over:1}). No default target — a nameless directive no-ops downstream.
+          this.createAssetChunk(layoutTagContent, "layout", "open", "");
+    this.applyScreenWaitDuration(layoutChunk);
+    return layoutChunk;
+  }
+
+  /** Parse `navigate <screen> to <layout> [clauses]`. The screen is the first
+   *  positional token (→ `chunk.target`, the AssetCommand "target" slot,
+   *  mirroring how `[[show <layer> <asset>]]` puts the layer in `target`); the
+   *  destination layout follows `to` (→ `chunk.assets[0]`). A bare
+   *  `navigate <screen>` leaves the destination empty (LSP warns it's
+   *  incomplete; the runtime no-ops). */
+  protected createNavigateChunk(navigateTagContent: string): Chunk {
+    const tokens = navigateTagContent
+      .replaceAll("\t", " ")
+      .split(" ")
+      .filter((t) => t !== "");
+    // tokens[0] is the `navigate` verb.
+    let screen = "";
+    let destination = "";
+    let i = 1;
+    if (tokens[i] && !this.ASSET_ARG_KEYWORDS.includes(tokens[i]!)) {
+      screen = tokens[i]!;
+      i += 1;
+    }
+    if (tokens[i] === "to") {
+      i += 1;
+      if (tokens[i] && !this.ASSET_ARG_KEYWORDS.includes(tokens[i]!)) {
+        destination = tokens[i]!;
+        i += 1;
+      }
+    }
+    const clauses = this.parseAssetClauses(tokens.slice(i));
+    return {
+      tag: "layout",
+      control: "navigate",
+      target: screen,
+      assets: destination ? [destination] : [],
+      clauses,
+      duration: 0,
+      speed: 1,
+    };
+  }
+
+  /** Mirror the image chunk's `wait` handling for screen directives: when the
+   *  author asks to block story advance until the enter/exit transition
+   *  finishes, inflate the chunk duration (which becomes `result.end`, the
+   *  Coordinator's auto-advance gate) by the start delay + transition duration. */
+  protected applyScreenWaitDuration(screenChunk: Chunk): void {
+    const withEffectName =
+      screenChunk.clauses?.["with"] || screenChunk.target || "";
+    const afterDuration = screenChunk.clauses?.["after"];
+    const overDuration = screenChunk.clauses?.["over"];
+    const transition = (this.context as any)?.["transition"]?.[withEffectName];
+    const animation = (this.context as any)?.["animation"]?.[withEffectName];
+    const animationNames: string[] = [];
+    if (transition) {
+      for (const [k, v] of Object.entries(transition)) {
+        if (!k.startsWith("$") && v) {
+          if (typeof v === "string") {
+            animationNames.push(v);
+          } else if (
+            typeof v === "object" &&
+            "$name" in v &&
+            typeof v?.$name === "string"
+          ) {
+            animationNames.push(v?.$name);
+          }
+        }
+      }
+    } else if (animation) {
+      animationNames.push(animation.$name);
+    }
+    const allAnimations = animationNames.map(
+      (name) => (this.context as any)?.["animation"]?.[name],
+    );
+    const maxAnimationDuration = allAnimations.length
+      ? Math.max(
+          ...allAnimations.map((a) => getTimeValue(a?.timing?.duration) ?? 0),
+        )
+      : 0;
+    if (screenChunk.clauses?.wait) {
+      screenChunk.duration += afterDuration ?? 0;
+      screenChunk.duration += overDuration ?? maxAnimationDuration ?? 0;
+    }
+  }
+
   protected createAudioChunk(audioTagContent: string): Chunk {
     const defaultChannel =
       this.context?.config?.interpreter?.fallbacks?.channel || "sound";
@@ -544,6 +799,22 @@ export class InterpreterModule extends Module<
         }
       }
     }
+    const clauses = this.parseAssetClauses(args);
+    return {
+      tag,
+      control,
+      target,
+      assets,
+      clauses,
+      duration: 0,
+      speed: 1,
+    };
+  }
+
+  /** Parse asset-directive clause args (`with X`, `over 1s`, `after 0.2s`,
+   *  `ease Y`, `to 0.5`, and flags like `wait`/`loop`) into a clause map. Shared
+   *  by the image/audio/screen `[[…]]` / `((…))` directive paths. */
+  protected parseAssetClauses(args: string[]): Record<string, unknown> {
     const clauses: Record<string, unknown> = {};
     for (let i = 0; i < args.length; i += 1) {
       const arg = args[i];
@@ -571,15 +842,7 @@ export class InterpreterModule extends Module<
         }
       }
     }
-    return {
-      tag,
-      control,
-      target,
-      assets,
-      clauses,
-      duration: 0,
-      speed: 1,
-    };
+    return clauses;
   }
 
   parse(
@@ -590,10 +853,7 @@ export class InterpreterModule extends Module<
     const allPhrases: Phrase[] = [];
 
     const textTarget = target;
-    const delay = options?.delay || 0;
-    const choice = options?.choice;
     const character = options?.character;
-    const debug = this.context?.system.debugging;
 
     let uuids: string[] = [];
     let consecutiveLettersLength = 0;
@@ -648,12 +908,8 @@ export class InterpreterModule extends Module<
         typewriter?.min_syllable_length || 0,
         Math.round(minSynthDuration / letterPause),
       );
-      const voicedMatcher = typewriter?.voiced
-        ? new Matcher(typewriter?.voiced)
-        : undefined;
-      const yelledMatcher = typewriter?.yelled
-        ? new Matcher(typewriter?.yelled)
-        : undefined;
+      const voicedMatcher = this.getMatcher(typewriter?.voiced);
+      const yelledMatcher = this.getMatcher(typewriter?.yelled);
 
       activeMarks.length = 0;
       consecutiveLettersLength = 0;
@@ -694,10 +950,21 @@ export class InterpreterModule extends Module<
                 while (i < chars.length) {
                   if (chars[i] === "]" && chars[i + 1] === "]") {
                     closed = true;
-                    const imageChunk = this.createImageChunk(imageTagContent);
+                    // `[[open SCREEN]]` / `[[close SCREEN]]` route to the
+                    // screen-lifecycle path instead of the image path. The
+                    // control verb is the first whitespace-delimited word.
+                    const verb = imageTagContent
+                      .replaceAll("\t", " ")
+                      .trimStart()
+                      .split(" ")[0];
+                    const isScreenDirective =
+                      !!verb && this.LAYOUT_CONTROL_KEYWORDS.includes(verb);
+                    const directiveChunk = isScreenDirective
+                      ? this.createLayoutChunk(imageTagContent)
+                      : this.createImageChunk(imageTagContent);
                     const phrase = {
-                      target: imageChunk.target,
-                      chunks: [imageChunk],
+                      target: directiveChunk.target,
+                      chunks: [directiveChunk],
                     };
                     linePhrases.push(phrase);
                     allPhrases.push(phrase);
@@ -763,11 +1030,19 @@ export class InterpreterModule extends Module<
                 let arg = "";
                 const startIndex = i;
                 i += 1;
-                while (chars[i] && chars[i] !== ">" && chars[i] !== ":") {
+                while (
+                  chars[i] &&
+                  chars[i] !== ">" &&
+                  chars[i] !== ":" &&
+                  chars[i] !== "="
+                ) {
                   control += chars[i];
                   i += 1;
                 }
-                if (chars[i] === ":") {
+                // `=` is the UI Toolkit separator (`<size=20>`); `:` is the
+                // original sparkdown form. Both accepted so control tags read
+                // the same way as the styling tags.
+                if (chars[i] === ":" || chars[i] === "=") {
                   i += 1;
                   while (chars[i] && chars[i] !== ">") {
                     arg += chars[i];
@@ -780,7 +1055,11 @@ export class InterpreterModule extends Module<
                 if (closed) {
                   i += 1;
                   if (control) {
-                    if (control === "speed" || control === "s") {
+                    // NOTE: no `s` shorthand — `<s>` is STRIKETHROUGH in UI
+                    // Toolkit's rich-text vocabulary, which sparkdown adopts for
+                    // inline styling (see ui/utils/parseRichText.ts). Control
+                    // tags keep their full names so the two never collide.
+                    if (control === "speed") {
                       speedModifier = getNumberValue(arg, 1);
                     } else if (control === "pitch" || control === "p") {
                       pitchModifier = getNumberValue(arg, 0);
@@ -1112,14 +1391,34 @@ export class InterpreterModule extends Module<
       }
     }
 
+    return this.chunksToInstructions(allPhrases, uuids, target, options);
+  }
+
+  /**
+   * Runtime half of display parsing: turn the structural Phrase/Chunk array the
+   * scan produced into timed Text/Image/Audio/Screen {@link Instructions} —
+   * applying the per-character timing/synth/prosody and style-from-context that
+   * can only be resolved against live game state. Split out of {@link parse}
+   * (the scan is the STRUCTURAL, compile-time-derivable half) so a future
+   * compile-time path can feed a pre-scanned chunk template straight in,
+   * skipping the char-by-char re-scan (the P4 double-parse elimination).
+   */
+  protected chunksToInstructions(
+    allPhrases: Phrase[],
+    uuids: string[],
+    target: string,
+    options?: InstructionOptions,
+  ): Instructions {
+    const delay = options?.delay || 0;
+    const choice = options?.choice;
+    const character = options?.character;
+    const debug = this.context?.system.debugging;
     for (const phrase of allPhrases) {
       const target = phrase.target || "";
       const typewriter = this.lookupContextValue("typewriter", target);
       const letterPause = typewriter?.letter_pause ?? 0;
       const interjectionPause = typewriter?.punctuated_pause_scale ?? 1;
-      const punctuatedMatcher = typewriter?.punctuated
-        ? new Matcher(typewriter?.punctuated)
-        : undefined;
+      const punctuatedMatcher = this.getMatcher(typewriter?.punctuated);
       // Erase any syllables that occur on any unvoiced chars at the end of phrases
       // (whitespace, punctuation, etc).
       if (phrase.chunks) {
@@ -1297,6 +1596,59 @@ export class InterpreterModule extends Module<
             result.image ??= {};
             result.image[target] ??= [];
             result.image[target]!.push(event);
+          }
+          // Layout Event ([[open LAYOUT]] / [[close LAYOUT]] / [[navigate SCREEN to LAYOUT]])
+          if (c.tag === "layout") {
+            // For `navigate`, the first positional token is the SCREEN
+            // (c.target) and the destination layout follows `to` (c.assets[0]);
+            // for `open`/`close`, the first token IS the layout (c.target).
+            const isNavigate = c.control === "navigate";
+            const screen = isNavigate ? c.target || "" : "";
+            const layoutName = isNavigate
+              ? c.assets?.[0] || ""
+              : c.target || "";
+            // Emit even for an incomplete `[[navigate <screen>]]` (empty
+            // destination, screen present) so the directive isn't silently
+            // dropped — the LSP warns and the runtime no-ops. Skip only a truly
+            // empty directive.
+            if (layoutName || screen) {
+              const event: LayoutInstruction = {
+                control: (c.control || "open") as LayoutInstruction["control"],
+                name: layoutName,
+              };
+              if (screen) {
+                event.screen = screen;
+              }
+              if (time) {
+                event.after = time;
+              }
+              if (c.clauses) {
+                const withValue = c.clauses?.with;
+                if (withValue != null) {
+                  event.with = withValue;
+                }
+                const afterValue = c.clauses?.after;
+                if (afterValue != null) {
+                  event.after = (event.after ?? 0) + afterValue;
+                }
+                const overValue = c.clauses?.over;
+                if (overValue != null) {
+                  event.over = overValue;
+                }
+                const easeValue = c.clauses?.ease;
+                if (easeValue != null) {
+                  event.ease = easeValue;
+                }
+                const waitValue = c.clauses?.wait;
+                if (waitValue) {
+                  event.wait = true;
+                }
+              }
+              const key = layoutName || screen;
+              result.layout ??= {};
+              result.layout[key] ??= [];
+              result.layout[key]!.push(event);
+            }
           }
           // Audio Event
           if (c.tag === "audio") {

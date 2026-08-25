@@ -1,5 +1,14 @@
 import { EventMap } from "../../../../spark-engine/src/game/core/types/EventMap";
 
+// The engine keys its `_events` handler registry by the STRUCTURAL element id.
+// The renderer stamps that id as the `__sdId` JS property (UIManager), while
+// the DOM `id` attribute belongs to the author — an authored `#id="save_btn"`
+// legitimately overwrites it. Reading the DOM id here would therefore send an
+// id the engine never registered, and the element's `@event` handlers would
+// silently never fire.
+const structuralId = (el: EventTarget | null): string =>
+  ((el as any)?.__sdId as string) ?? (el as HTMLElement)?.id;
+
 export const getEventData = <T extends keyof EventMap>(event: Event) => {
   const mouseEventData = event as MouseEvent;
   if (
@@ -40,8 +49,8 @@ export const getEventData = <T extends keyof EventMap>(event: Event) => {
       shiftKey: mouseEventData.shiftKey,
       x: mouseEventData.x,
       y: mouseEventData.y,
-      targetId: (mouseEventData.target as HTMLElement)?.id,
-      currentTargetId: (mouseEventData.currentTarget as HTMLElement)?.id,
+      targetId: structuralId(mouseEventData.target),
+      currentTargetId: structuralId(mouseEventData.currentTarget),
     } as EventMap[T];
   }
   const pointerEventData = event as PointerEvent;
@@ -88,8 +97,8 @@ export const getEventData = <T extends keyof EventMap>(event: Event) => {
       tiltY: pointerEventData.tiltY,
       twist: pointerEventData.twist,
       width: pointerEventData.width,
-      targetId: (pointerEventData.target as HTMLElement)?.id,
-      currentTargetId: (pointerEventData.currentTarget as HTMLElement)?.id,
+      targetId: structuralId(pointerEventData.target),
+      currentTargetId: structuralId(pointerEventData.currentTarget),
     } as EventMap[T];
   }
   const wheelEventData = event as WheelEvent;
@@ -119,8 +128,8 @@ export const getEventData = <T extends keyof EventMap>(event: Event) => {
       deltaX: wheelEventData.deltaX,
       deltaY: wheelEventData.deltaY,
       deltaZ: wheelEventData.deltaZ,
-      targetId: (wheelEventData.target as HTMLElement)?.id,
-      currentTargetId: (wheelEventData.currentTarget as HTMLElement)?.id,
+      targetId: structuralId(wheelEventData.target),
+      currentTargetId: structuralId(wheelEventData.currentTarget),
     } as EventMap[T];
   }
   const touchEventData = event as TouchEvent;
@@ -149,8 +158,8 @@ export const getEventData = <T extends keyof EventMap>(event: Event) => {
         { length: touchEventData.touches.length },
         (_, index) => touchEventData.touches.item(index),
       ),
-      targetId: (touchEventData.target as HTMLElement)?.id,
-      currentTargetId: (touchEventData.currentTarget as HTMLElement)?.id,
+      targetId: structuralId(touchEventData.target),
+      currentTargetId: structuralId(touchEventData.currentTarget),
     } as EventMap[T];
   }
   const keyboardEventData = event as KeyboardEvent;
@@ -171,8 +180,8 @@ export const getEventData = <T extends keyof EventMap>(event: Event) => {
       key: keyboardEventData.key,
       location: keyboardEventData.location,
       repeat: keyboardEventData.repeat,
-      targetId: (keyboardEventData.target as HTMLElement)?.id,
-      currentTargetId: (keyboardEventData.currentTarget as HTMLElement)?.id,
+      targetId: structuralId(keyboardEventData.target),
+      currentTargetId: structuralId(keyboardEventData.currentTarget),
     } as EventMap[T];
   }
   const focusEventData = event as FocusEvent;
@@ -184,13 +193,46 @@ export const getEventData = <T extends keyof EventMap>(event: Event) => {
   ) {
     return {
       type: focusEventData.type,
-      targetId: (focusEventData.target as HTMLElement)?.id,
-      currentTargetId: (focusEventData.currentTarget as HTMLElement)?.id,
-      relatedTargetId: (focusEventData.relatedTarget as HTMLElement)?.id,
+      targetId: structuralId(focusEventData.target),
+      currentTargetId: structuralId(focusEventData.currentTarget),
+      relatedTargetId: structuralId(focusEventData.relatedTarget),
     } as EventMap[T];
   }
+  if (event.type === "input" || event.type === "change") {
+    // Two-way binding: surface the control's current value/checked so an
+    // @input/@change handler can write it back into Luau state.
+    const inputTarget = event.target as HTMLInputElement | null;
+    // A range/number control's DOM `.value` is a string ("42"); send it as a
+    // NUMBER (valueAsNumber) so the write-back keeps a numeric store numeric.
+    // (A blank numeric field is NaN — fall back to the raw string then.)
+    const isNumericInput =
+      inputTarget?.type === "range" || inputTarget?.type === "number";
+    const numeric = inputTarget?.valueAsNumber;
+    const value =
+      isNumericInput && numeric != null && !Number.isNaN(numeric)
+        ? numeric
+        : inputTarget?.value;
+    return {
+      type: event.type,
+      timeStamp: event.timeStamp,
+      value,
+      checked: inputTarget?.checked,
+      targetId: structuralId(event.target),
+      currentTargetId: structuralId(event.currentTarget),
+    } as EventMap[T];
+  }
+  // The terminal fallback still carries `type` and `timeStamp`, like every
+  // branch above. `UIModule` dispatches on `this._events[params.type]`, so a
+  // payload without one attaches a real listener and then silently drops the
+  // event — which is what `@scroll` and `@scrollend` did: the only names in
+  // `VALID_SPARKLE_EVENTS` with no dedicated branch, so they compiled clean,
+  // warned nothing, and never fired. `IEvent<T>` declares `readonly type: T`,
+  // so the `as EventMap[T]` cast had been hiding the omission from tsc.
+  // Keeping it here also covers any EventMap name added later without a branch.
   return {
-    targetId: (event.target as HTMLElement)?.id,
-    currentTargetId: (event.currentTarget as HTMLElement)?.id,
+    type: event.type,
+    timeStamp: event.timeStamp,
+    targetId: structuralId(event.target),
+    currentTargetId: structuralId(event.currentTarget),
   } as EventMap[T];
 };

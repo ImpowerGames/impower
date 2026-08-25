@@ -1,0 +1,500 @@
+// Pico showcase — a one-to-one port of the Pico CSS example page
+// (https://4mrnhq.csb.app), rendered by the reactive Sparkle engine.
+//
+// Paste this whole file into the editor to see it live, OR just open it: it is
+// the fixture behind
+// packages/spark-web-player/src/tests/ui/picoShowcase.test.ts, which compiles it
+// WARNING-FREE and asserts the rendered DOM. Adding a section here is how a
+// builtin earns CI coverage, so keep the two in sync.
+//
+// Element TAGS are builtins, named readably rather than after HTML — block, span,
+// scroller, text, link, label, field, textarea, button, picture, input, slider,
+// checkbox, radio, switch, dropdown, option, divider, progress, list,
+// ordered_list, item, table + table_header/table_body/table_row/head/cell,
+// quote, citation, figure, caption, foldout, article, section, header,
+// footer, form, fieldset, legend, modal.
+//
+// Everything ELSE on an element line is a style CLASS — `column`, `row`, `card`,
+// `nav`, `badge`, `h1`, `muted`, `small`, `group`, `grid`, `container`,
+// `bulleted` (a plain `list` has no marker), and the
+// inline text classes `bold`, `italic`, `underline`, `strikethrough`,
+// `highlight`, `code`. Note `strong` / `emphasis` / `kbd` are ELEMENTS, not
+// classes: they carry meaning for assistive tech, whereas `bold` / `italic`
+// are purely visual — the same split HTML draws between <strong>/<em> and
+// <b>/<i>. So it is `link "Home"`, NOT `text link "Home"`:
+// two tags on one line is a warning.
+//
+// ARIA state is authored WITHOUT the prefix — `#busy`, `#invalid`, `#label`
+// map to `aria-busy` / `aria-invalid` / `aria-label`. ARIA is a web concept;
+// keeping it out of the authored names (and out of style selectors) leaves a
+// Unity front-end free to map the same states onto USS, which has no ARIA.
+//
+// Styling WITHIN a line uses rich-text tags instead: `text "a <b>bold</b> word"`.
+//
+// NOTE: `#href` takes relative/fragment URLs here — an absolute `https://` value
+// hits a known grammar bug with `://` in a prop value.
+
+// Pico's type scale is 18px at this width, not the browser's default 16px, and
+// every `rem` here resolves against the document ROOT — above the scope engine
+// styles are confined to — so this is the one metric that cannot be matched
+// per-element. `root_text_size` rescales the whole ui at once.
+//
+// (Pico steps it by viewport: 100 / 106.25 / 112.5 / 118.75 / 125 / 131.25% at
+// 576 / 768 / 1024 / 1280 / 1536px. One value cannot express that ladder, so
+// this pins the 768-1024px step the reference page is compared at.)
+//
+// Overriding a builtin define like this is also what the palette needs, and it
+// only started working once the prelude-override defect was fixed.
+define ui as config with
+  root_text_size = "112.5%"
+end
+
+// THE PALETTE. The engine's defaults are Tailwind's ramps and STAY that way —
+// this file repaints them for itself, which is the whole point of the exercise:
+// matching a design system should be a per-project override, not a fork of the
+// builtins.
+//
+// A colour is a `define … as color`, and `--theme-color-<name>` is generated
+// from those. (The `theme NAME with` keyword is a separate token struct and
+// does not feed this — worth knowing before reaching for it.) So overriding the
+// ~16 tokens the builtin styles actually reference repaints everything built on
+// them, without touching a single style rule.
+//
+// The slate ramp lines up with Pico's headings ONE PER LEVEL — h1..h6 are
+// slate_95, _90, (body), _75, _70, _65 in both systems, and slate_80 is
+// simultaneously body text and Pico's h3, exactly as `--pico-color` is. The
+// mapping was discovered, not imposed.
+//
+// Two tokens serve two Pico roles each and take their dominant one: slate_30 is
+// the form-element background (#1c212c) though Pico draws table/muted borders a
+// shade lighter (#202632), and slate_70 is h5 (#a4acba) though Pico's secondary
+// text is #969eaf. Both differences are under 5/255 and invisible; naming them
+// here so the next person does not hunt for a bug.
+//
+// slate_45 was a THIRD such collision and is not one any more: the switch's off
+// track had been borrowing the form-element border, so it could not be given
+// Pico's #333c4e without dragging every input border with it. It has its own
+// step now, which is the general fix — a token shared by two things that have
+// no reason to agree is a bug waiting for the first project that retints one.
+//
+// What each token pays for:
+//
+//   slate_20  backdrop, kbd text, slider thumb ring   slate_75  h4
+//   slate_30  form element background                 slate_80  body text, h3
+//   slate_40  form element border                     slate_90  h2, form text
+//   slate_45  switch off track                        slate_95  h1, contrast
+//   slate_50  secondary background, slider thumb      sky_20    mark background
+//   slate_60  muted text                              sky_40    primary button
+//   slate_65  h6, spinner                             sky_50    primary hover bg
+//   slate_70  h5                                      sky_60    link text, accent
+//                                                     sky_70    link hover text
+//
+// (Annotating each `define` on its own line would be the obvious thing and is a
+// trap: after `end`, a `--` opens an EM DASH in display context, not a comment,
+// so `end -- primary` parses as a character named "-- primary". `//` is the
+// comment that survives here, and only on a line of its own.)
+
+define slate_20 as color with value = "#13171f" end
+define slate_30 as color with value = "#1c212c" end
+define slate_40 as color with value = "#2a3140" end
+define slate_45 as color with value = "#333c4e" end
+define slate_50 as color with value = "#525f7a" end
+define slate_60 as color with value = "#7b8495" end
+define slate_65 as color with value = "#8891a4" end
+define slate_70 as color with value = "#a4acba" end
+define slate_75 as color with value = "#b3b9c5" end
+define slate_80 as color with value = "#c2c7d0" end
+define slate_90 as color with value = "#e0e3e7" end
+define slate_95 as color with value = "#f0f1f3" end
+
+define sky_20 as color with value = "#014063" end
+define sky_40 as color with value = "#0172ad" end
+define sky_50 as color with value = "#017fc0" end
+define sky_60 as color with value = "#01aaff" end
+define sky_70 as color with value = "#79c0ff" end
+
+store first_name = ""
+store email = ""
+store agreed = false
+store search_term = ""
+store when = ""
+store at_time = ""
+store swatch = "#0eaaaa"
+store volume = 50
+store size = ""
+store modal_open = false
+store busy = true
+store done = 25
+
+function set_first(event)
+  first_name = event.value
+end
+
+function set_email(event)
+  email = event.value
+end
+
+function set_agreed(event)
+  agreed = event.checked
+end
+
+function set_search(event)
+  search_term = event.value
+end
+
+function set_volume(event)
+  volume = event.value
+end
+
+function set_size(event)
+  size = event.value
+end
+
+function open_modal()
+  modal_open = true
+end
+
+function close_modal()
+  modal_open = false
+end
+
+function toggle_busy()
+  busy = not busy
+end
+
+layout main with
+  scroller #height=100% #overflow-y=auto #background-color="#13171f" #color-scheme="dark":
+    -- `block`, not `column`. The `section`s below are SEMANTIC blocks carrying
+    -- their own bottom margin, so a flex container would be wrong twice over:
+    -- its gap would space them a second time, AND — the part that is easy to
+    -- miss — a flex ITEM establishes its own formatting context, so each
+    -- section's last child could no longer collapse its trailing margin out
+    -- through the section's edge. Every section would end up one rhythm step
+    -- too tall, for a reason visible nowhere near the section.
+    block container:
+
+      -- Header -------------------------------------------------------------
+      header #padding-bottom=18:
+        -- An <hgroup>: the subtitle belongs to the TITLE, not to the flow after
+        -- it, so the pair hugs — the heading gives up its rhythm step and the
+        -- subtitle its own, or the two read as separate blocks.
+        h1 "Pico" #margin-bottom=0
+        text muted "A pure HTML example, without dependencies." #margin-top=0
+        -- The nav FOLLOWS the title in the reference, and there is no rule
+        -- between the header and Preview. Pico's dropdown is a `foldout` styled
+        -- as a menu — the same element as an accordion, so it opens with no JS.
+        block nav #margin-top=18:
+          list:
+            item:
+              -- Pico calls this class `dropdown`; here that name is already the
+              -- <select> ELEMENT, so the menu class is `menu`.
+              foldout menu "Theme" #role="button":
+                list:
+                  item:
+                    link "Auto" #href="#"
+                  item:
+                    link "Light" #href="#"
+                  item:
+                    link "Dark" #href="#"
+
+      -- Preview ------------------------------------------------------------
+      section:
+        h2 "Preview"
+        paragraph "Sed ultricies dolor non ante vulputate hendrerit. Vivamus sit amet suscipit sapien. Nulla iaculis eros a elit pharetra egestas."
+        form:
+          row grid:
+            -- `#label` (an alias for `aria-label`) because these inputs have no
+            -- visible label, and a placeholder is not an accessible name.
+            input #value={first_name} #placeholder="First name" #label="First name" #required=true @input=set_first #margin-bottom=18
+            input #type="email" #value={email} #placeholder="Email address" #label="Email address" #autocomplete="email" #required=true @input=set_email #margin-bottom=18
+            -- `#type="submit"` as in the reference: it is what gives a form
+            -- button the block rhythm below it, so it lines up with the inputs
+            -- beside it instead of stretching to fill the row.
+            button #type="submit" "Subscribe" #margin-bottom=18
+          -- A `fieldset` wrapping a `label row`, as the reference does. The
+          -- switch and its wording are one control, so the text should toggle
+          -- it; and a bare `row` is a layout primitive carrying no margin, so
+          -- the block would otherwise end flush against the section below it.
+          fieldset:
+            label row #child-gap=8 #child-align=center:
+              switch #checked={agreed} @change=set_agreed
+              text "I agree to the "
+              link "Privacy Policy" #href="#"
+
+      -- Typography ---------------------------------------------------------
+      section:
+        h2 "Typography"
+        paragraph "Aliquam lobortis vitae nibh nec rhoncus. Morbi mattis neque eget efficitur feugiat. Vivamus porta nunc a erat mattis, mattis feugiat turpis pretium. Quisque sed tristique felis."
+        quote:
+          -- Single-quoted so the literal quotation marks need no escaping.
+          text '"Maecenas vehicula metus tellus, vitae congue turpis hendrerit non. Nam at dui sit amet ipsum cursus ornare."'
+          citation "- Phasellus eget lacinia"
+
+        h3 "Lists"
+        list bulleted:
+          item "Aliquam lobortis lacus eu libero ornare facilisis."
+          item "Nam et magna at libero scelerisque egestas."
+          item "Suspendisse id nisl ut leo finibus vehicula quis eu ex."
+          item "Proin ultricies turpis et volutpat vehicula."
+
+        h3 "Inline text elements"
+        -- Every cell here is a `paragraph`, matching the reference, which wraps
+        -- each one in a <p>. That is not decoration: the <p>'s bottom margin is
+        -- what gives the block its closing step, and a grid cell cannot collapse
+        -- it away — so leaving it out left this section exactly one step short.
+        --
+        -- The wrapper is a bare `column`, which ships with NO gap — so the
+        -- paragraphs' own margins are the only rhythm here, exactly as in the
+        -- reference. Give this column a `child-gap` and every row is spaced
+        -- twice: a gap does not collapse with a margin, it adds to it.
+        --
+        -- Children stay INLINE. A <p> may not legally contain a block, and the
+        -- dump below serializes to HTML, so a `text` (a div) in here would
+        -- re-parse into a different tree than the one that rendered.
+        column:
+          row grid:
+            paragraph:
+              link "Primary link" #href="#"
+            paragraph:
+              link secondary "Secondary link" #href="#"
+            paragraph:
+              link contrast "Contrast link" #href="#"
+          -- The reference marks these up semantically, so they are ELEMENTS.
+          -- `<u>` is explicitly non-semantic in HTML, so underline stays a class.
+          row grid:
+            paragraph:
+              strong "Bold"
+            paragraph:
+              emphasis "Italic"
+            paragraph underline "Underline"
+          row grid:
+            paragraph deleted "Deleted"
+            paragraph inserted "Inserted"
+            paragraph strikethrough "Strikethrough"
+          row grid:
+            paragraph:
+              small "Small"
+            paragraph "Text <sub>Sub</sub>"
+            paragraph "Text <sup>Sup</sup>"
+          row grid:
+            -- `#tooltip` alone shows a bubble on hover and on focus, the way the
+            -- reference page's `<abbr data-tooltip=…>` does.
+            paragraph abbreviation "Abbr." #tooltip="Abbreviation"
+            paragraph:
+              kbd "Kbd"
+            paragraph highlight "Highlighted"
+
+        h3 "Heading 3"
+        paragraph "Integer bibendum malesuada libero vel eleifend. Fusce iaculis turpis ipsum, at efficitur sem scelerisque vel. Aliquam auctor diam ut purus cursus fringilla. Class aptent taciti sociosqu ad litora torquent per conubia nostra, per inceptos himenaeos."
+        h4 "Heading 4"
+        paragraph "Cras fermentum velit vitae auctor aliquet. Nunc non congue urna, at blandit nibh. Donec ac fermentum felis. Vivamus tincidunt arcu ut lacus hendrerit, eget mattis dui finibus."
+        h5 "Heading 5"
+        paragraph "Donec nec egestas nulla. Sed varius placerat felis eu suscipit. Mauris maximus ante in consequat luctus. Morbi euismod sagittis efficitur. Aenean non eros orci. Vivamus ut diam sem."
+        h6 "Heading 6"
+        paragraph "Ut sed quam non mauris placerat consequat vitae id risus. Vestibulum tincidunt nulla ut tortor posuere, vitae malesuada tortor molestie. Sed nec interdum dolor. Vestibulum id auctor nisi, a efficitur sem. Aliquam sollicitudin efficitur turpis, sollicitudin hendrerit ligula semper id. Nunc risus felis, egestas eu tristique eget, convallis in velit."
+        figure:
+          -- A remote `#src` resolves through the `.url` asset path; `#alt` is
+          -- required for anything that is not purely decorative.
+          picture #src="img/landscape.jpg" #alt="Minimal landscape"
+          caption:
+            text "Image from "
+            link "unsplash.com" #href="#"
+
+      -- Buttons ------------------------------------------------------------
+      section:
+        h2 "Buttons"
+        -- `paragraph grid`, not `row grid`, matching the reference's
+        -- `<p class="grid">`. A `row` is a layout PRIMITIVE and carries no
+        -- margin, so two of them inside a block `section` sit flush against
+        -- each other — the trailing step has to come from somewhere, and in
+        -- document flow that somewhere is the element's own bottom margin.
+        -- (`<button>` is phrasing content, so it is legal inside a <p>.)
+        paragraph grid:
+          button "Primary"
+          button secondary "Secondary"
+          button contrast "Contrast"
+        paragraph grid:
+          button outline "Primary outline"
+          button outline secondary "Secondary outline"
+          button outline contrast "Contrast outline"
+
+      -- Form elements ------------------------------------------------------
+      section:
+        h2 "Form elements"
+        -- Order and labels follow the reference exactly.
+        form:
+          label "Search"
+          input search #type="search" #value={search_term} #placeholder="Search" @input=set_search #margin-bottom=18
+
+          label "Text"
+          input #placeholder="Text" #margin-bottom=18
+          small muted "Curabitur consequat lacus at lacus porta finibus."
+
+          label "Select"
+          dropdown #value={size} #required=true @change=set_size #margin-bottom=18:
+            -- An empty-valued selected first option is the placeholder: with
+            -- `#required` it cannot be submitted, so it reads as a prompt.
+            option "Select…" #value="" #selected=true
+            option "…"
+
+          label "File browser":
+            input file_input #type="file" #margin-bottom=18
+
+          label "Range slider":
+            slider #value={volume} #min=0 #max=100 @input=set_volume #margin-bottom=18
+
+          -- Validation states are Pico's `aria-invalid`, not a class.
+          row grid:
+            label "Valid":
+              input valid #placeholder="Valid" #invalid=false #margin-bottom=18
+            label "Invalid":
+              input invalid #placeholder="Invalid" #invalid=true #margin-bottom=18
+            label "Disabled":
+              input #placeholder="Disabled" #disabled=true #margin-bottom=18
+
+          row grid:
+            label "Date":
+              input #type="date" #value={when} #margin-bottom=18
+            label "Time":
+              input #type="time" #value={at_time} #margin-bottom=18
+            label "Color":
+              input #type="color" #value={swatch} #margin-bottom=18
+
+          row grid:
+            fieldset:
+              legend:
+                strong "Checkboxes"
+              label row #child-gap=8 #child-align=center #align="start" #cursor="pointer":
+                checkbox #checked=true
+                text "Checkbox"
+              label row #child-gap=8 #child-align=center #align="start" #cursor="pointer":
+                checkbox
+                text "Checkbox 2"
+
+            fieldset:
+              legend:
+                strong "Radio buttons"
+              label row #child-gap=8 #child-align=center #align="start" #cursor="pointer":
+                radio #name="radio" #checked=true
+                text "Radio button"
+              label row #child-gap=8 #child-align=center #align="start" #cursor="pointer":
+                radio #name="radio"
+                text "Radio button 2"
+
+            fieldset:
+              legend:
+                strong "Switches"
+              label row #child-gap=8 #child-align=center #align="start" #cursor="pointer":
+                switch #checked=true
+                text "Switch"
+              label row #child-gap=8 #child-align=center #align="start" #cursor="pointer":
+                switch #checked={agreed} @change=set_agreed
+                text "Switch 2"
+
+          button secondary "Reset" #type="reset" #margin-bottom=18
+          button "Submit" #type="submit" #margin-bottom=18
+
+      -- Tables -------------------------------------------------------------
+      section:
+        h2 "Tables"
+        block overflow_auto:
+          table striped:
+            table_header:
+              table_row:
+                head "#" #scope="col"
+                head "Heading" #scope="col"
+                head "Heading" #scope="col"
+                head "Heading" #scope="col"
+                head "Heading" #scope="col"
+                head "Heading" #scope="col"
+                head "Heading" #scope="col"
+                head "Heading" #scope="col"
+            table_body:
+              -- The row number is a `head` with `#scope="row"`, not a
+              -- plain cell: it LABELS the row, so a screen reader announces it
+              -- alongside each value in that row.
+              table_row:
+                head "1" #scope="row"
+                cell "Cell"
+                cell "Cell"
+                cell "Cell"
+                cell "Cell"
+                cell "Cell"
+                cell "Cell"
+                cell "Cell"
+              table_row:
+                head "2" #scope="row"
+                cell "Cell"
+                cell "Cell"
+                cell "Cell"
+                cell "Cell"
+                cell "Cell"
+                cell "Cell"
+                cell "Cell"
+              table_row:
+                head "3" #scope="row"
+                cell "Cell"
+                cell "Cell"
+                cell "Cell"
+                cell "Cell"
+                cell "Cell"
+                cell "Cell"
+                cell "Cell"
+
+      -- Modal --------------------------------------------------------------
+      section:
+        h2 "Modal"
+        button contrast "Launch demo modal" #align="start" @click=open_modal
+        modal #open={modal_open}:
+          article:
+            header:
+              h3 "Confirm your action!"
+            paragraph "Cras sit amet maximus risus. Pellentesque sodales odio sit amet augue finibus."
+            footer:
+              row #child-gap=8:
+                button secondary "Cancel" @click=close_modal
+                button "Confirm" @click=close_modal
+
+      -- Accordions ---------------------------------------------------------
+      section:
+        h2 "Accordions"
+        foldout "Accordion 1" #margin-bottom=18:
+          paragraph "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Pellentesque urna diam, tincidunt nec porta sed, auctor id velit. Etiam venenatis nisl ut orci consequat, vitae tempus quam commodo. Nulla non mauris ipsum. Aliquam eu posuere orci. Nulla convallis lectus rutrum quam hendrerit, in facilisis elit sollicitudin. Mauris pulvinar pulvinar mi, dictum tristique elit auctor quis. Maecenas ac ipsum ultrices, porta turpis sit amet, congue turpis."
+        foldout "Accordion 2" #open=true #margin-bottom=18:
+          list bulleted:
+            item "Vestibulum id elit quis massa interdum sodales."
+            item "Nunc quis eros vel odio pretium tincidunt nec quis neque."
+            item "Quisque sed eros non eros ornare elementum."
+            item "Cras sed libero aliquet, porta dolor quis, dapibus ipsum."
+
+      -- Article ------------------------------------------------------------
+      section:
+        article:
+          h2 "Article"
+          paragraph "Nullam dui arcu, malesuada et sodales eu, efficitur vitae dolor. Sed ultricies dolor non ante vulputate hendrerit. Vivamus sit amet suscipit sapien. Nulla iaculis eros a elit pharetra egestas. Nunc placerat facilisis cursus. Sed vestibulum metus eget dolor pharetra rutrum."
+          footer:
+            small "Duis nec elit placerat, suscipit nibh quis, finibus neque."
+
+      -- Group --------------------------------------------------------------
+      section:
+        h2 "Group"
+        form:
+          row group:
+            input #placeholder="Enter your email"
+            button "Subscribe"
+
+      -- Progress -----------------------------------------------------------
+      section:
+        h2 "Progress bar"
+        progress #value={done} #max=100 #margin-bottom=9
+        progress #margin-bottom=9
+
+      -- Loading ------------------------------------------------------------
+      section:
+        h2 "Loading"
+        -- A bare busy `article` is Pico's block-level loading placeholder.
+        article #busy=true
+        row #child-gap=8 #child-align=center:
+          button "Please wait…" #busy={busy} @click=toggle_busy
+          text muted "Click to toggle aria-busy"
+end

@@ -25,14 +25,15 @@ sparkdown [0..54]
  │   │   │   │   └─ LuauStructBodyLine_c1 [16..18]
  │   │   │   │       └─ OptionalWhitespace [16..18]: "  "
  │   │   │   ├─ LuauStructBodyLine_c2 [18..24]
- │   │   │   │   └─ LuauStructObjectHeader [18..24]
- │   │   │   │       ├─ LuauStructObjectHeader_c1 [18..23]
- │   │   │   │       │   └─ LuauStructObjectKey [18..23]: "items"
- │   │   │   │       ├─ LuauStructObjectHeader_c2 23
- │   │   │   │       │   └─ LuauStructObjectHeader_c2 23
- │   │   │   │       │       └─ OptionalWhitespace 23
- │   │   │   │       └─ LuauStructObjectHeader_c3 [23..24]
- │   │   │   │           └─ LuauStructObjectColon [23..24]: ":"
+ │   │   │   │   └─ LuauStructBodyContent [18..24]
+ │   │   │   │       └─ LuauStructBodyContent_c1 [18..24]
+ │   │   │   │           └─ LuauStructObjectHeader [18..24]
+ │   │   │   │               ├─ LuauStructObjectHeader_c1 18
+ │   │   │   │               │   └─ OptionalWhitespace 18
+ │   │   │   │               ├─ LuauStructObjectHeader_c2 [18..23]
+ │   │   │   │               │   └─ CustomComponentName [18..23]: "items"
+ │   │   │   │               └─ LuauStructObjectHeader_c4 [23..24]
+ │   │   │   │                   └─ LuauStructObjectColon [23..24]: ":"
  │   │   │   └─ LuauStructBodyLine_c3 24
  │   │   │       └─ LuauStructBodyLine_c3 24
  │   │   │           └─ OptionalWhitespace 24
@@ -42,17 +43,22 @@ sparkdown [0..54]
  │   │   │   │   └─ LuauStructBodyLine_c1 [25..29]
  │   │   │   │       └─ OptionalWhitespace [25..29]: "    "
  │   │   │   ├─ LuauStructBodyLine_c2 [29..36]
- │   │   │   │   └─ LuauStructArrayItem [29..36]
- │   │   │   │       ├─ LuauStructArrayItem_c1 [29..30]
- │   │   │   │       │   └─ LuauStructArrayItemMark [29..30]: "-"
- │   │   │   │       ├─ LuauStructArrayItem_c2 [30..31]
- │   │   │   │       │   └─ LuauStructArrayItem_c2 [30..31]
- │   │   │   │       │       └─ OptionalWhitespace [30..31]: " "
- │   │   │   │       ├─ LuauStructArrayItem_c3 [31..36]
- │   │   │   │       │   └─ LuauStructItemValue [31..36]: "first"
- │   │   │   │       └─ LuauStructArrayItem_c4 36
- │   │   │   │           └─ LuauStructArrayItem_c4 36
- │   │   │   │               └─ OptionalWhitespace 36
+ │   │   │   │   └─ LuauStructBodyContent [29..36]
+ │   │   │   │       └─ LuauStructBodyContent_c1 [29..36]
+ │   │   │   │           └─ LuauStructArrayItem [29..36]
+ │   │   │   │               ├─ LuauStructArrayItem_c1 29
+ │   │   │   │               │   └─ OptionalWhitespace 29
+ │   │   │   │               ├─ LuauStructArrayItem_c2 [29..31]
+ │   │   │   │               │   └─ ArrayItemOperator [29..31]
+ │   │   │   │               │       ├─ ArrayItemOperator_c1 [29..30]
+ │   │   │   │               │       │   └─ ArrayItemMark [29..30]: "-"
+ │   │   │   │               │       └─ ArrayItemOperator_c2 [30..31]
+ │   │   │   │               │           └─ Separator [30..31]: " "
+ │   │   │   │               └─ LuauStructArrayItem_c3 [31..36]
+ │   │   │   │                   └─ StylingValue [31..36]
+ │   │   │   │                       ├─ StylingValue_c1 [31..36]
+ │   │   │   │                       │   └─ StylingStringIdentifier [31..36]: "first"
+ │   │   │   │                       └─ StylingValue_c2 36
  │   │   │   └─ LuauStructBodyLine_c3 36
  │   │   │       └─ LuauStructBodyLine_c3 36
  │   │   │           └─ OptionalWhitespace 36
@@ -62,17 +68,22 @@ sparkdown [0..54]
  │   │   │   │   └─ LuauStructBodyLine_c1 [37..41]
  │   │   │   │       └─ OptionalWhitespace [37..41]: "    "
  │   │   │   ├─ LuauStructBodyLine_c2 [41..49]
- │   │   │   │   └─ LuauStructArrayItem [41..49]
- │   │   │   │       ├─ LuauStructArrayItem_c1 [41..42]
- │   │   │   │       │   └─ LuauStructArrayItemMark [41..42]: "-"
- │   │   │   │       ├─ LuauStructArrayItem_c2 [42..43]
- │   │   │   │       │   └─ LuauStructArrayItem_c2 [42..43]
- │   │   │   │       │       └─ OptionalWhitespace [42..43]: " "
- │   │   │   │       ├─ LuauStructArrayItem_c3 [43..49]
- │   │   │   │       │   └─ LuauStructItemValue [43..49]: "second"
- │   │   │   │       └─ LuauStructArrayItem_c4 49
- │   │   │   │           └─ LuauStructArrayItem_c4 49
- │   │   │   │               └─ OptionalWhitespace 49
+ │   │   │   │   └─ LuauStructBodyContent [41..49]
+ │   │   │   │       └─ LuauStructBodyContent_c1 [41..49]
+ │   │   │   │           └─ LuauStructArrayItem [41..49]
+ │   │   │   │               ├─ LuauStructArrayItem_c1 41
+ │   │   │   │               │   └─ OptionalWhitespace 41
+ │   │   │   │               ├─ LuauStructArrayItem_c2 [41..43]
+ │   │   │   │               │   └─ ArrayItemOperator [41..43]
+ │   │   │   │               │       ├─ ArrayItemOperator_c1 [41..42]
+ │   │   │   │               │       │   └─ ArrayItemMark [41..42]: "-"
+ │   │   │   │               │       └─ ArrayItemOperator_c2 [42..43]
+ │   │   │   │               │           └─ Separator [42..43]: " "
+ │   │   │   │               └─ LuauStructArrayItem_c3 [43..49]
+ │   │   │   │                   └─ StylingValue [43..49]
+ │   │   │   │                       ├─ StylingValue_c1 [43..49]
+ │   │   │   │                       │   └─ StylingStringIdentifier [43..49]: "second"
+ │   │   │   │                       └─ StylingValue_c2 49
  │   │   │   └─ LuauStructBodyLine_c3 49
  │   │   │       └─ LuauStructBodyLine_c3 49
  │   │   │           └─ OptionalWhitespace 49

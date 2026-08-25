@@ -12,6 +12,15 @@ variables:
   AUDIO_CONTROL_KEYWORDS: ["play", "stop", "fade", "queue", "await"]
   AUDIO_CLAUSE_KEYWORDS:
     ["over", "after", "to", "loop", "once", "mute", "unmute", "now"]
+  # Screen lifecycle directives — `[[open hud with fade over 1s]]` /
+  # `[[close hud]]` / `[[navigate menu to settings]]`. They flow through the same
+  # AssetCommand grammar as image directives, so they inherit every
+  # IMAGE_CLAUSE_KEYWORD (over/after/with/wait/ease) for free; the runtime
+  # InterpreterModule routes the verbs to screen mount/unmount/navigate instead of
+  # the image path. `open`/`close` are overlay primitives; `navigate <container>
+  # to <screen>` routes within a container (close that container's open screens,
+  # open the target), leaving other containers / uncategorized screens untouched.
+  LAYOUT_CONTROL_KEYWORDS: ["open", "close", "navigate"]
 
   FLOW_BEAT_KEYWORDS: ["scene", "branch"]
   FLOW_MODULE_KEYWORDS: ["include", "run"]
@@ -171,6 +180,21 @@ variables:
   # is only used inside `style` blocks, where a value is a raw CSS-like
   # token rather than a Luau expression.
   STYLE_PROPERTY_NAME: (?:[a-zA-Z_][a-zA-Z0-9_-]*)
+  # Restored value/selector highlighting helpers (pre-Luau-port leaf rules).
+  INTEGER: "[0-9]+"
+  NUMBER: (?:[-]?(?:\d*[.])?\d+)
+  QUOTED_STRING: (?:["](?:\\.|[^"\r\n])*["])
+  STRICT_PROPERTY_IDENTIFIER: (?:{{INTEGER}}|{{IDENTIFIER}}|{{QUOTED_STRING}})
+  BEFORE_KEYWORD: (?<![{{IDENTIFIER_END_CHAR}}])(?:(?<=\.\.\.)|(?<!\.))
+  AFTER_KEYWORD: (?![{{IDENTIFIER_END_CHAR}}])(?:(?=\.\.\.)|(?!\.))
+  COMPARISON_OPERATOR: (?:[~]|[|]|[\^]|[$]|[*])
+  UNQUOTED_STRING_TERMINATOR: (?:$|[\s"'`<>=:(){}\[\]]|{{COMMENT_START}})
+  UNQUOTED_STRING_VALUE: (?:.*?)(?={{UNQUOTED_STRING_TERMINATOR}})
+  PROPERTY_NAME_TERMINATOR: (?:[:]|[=]|[\r\n])
+  EOPL: "(?:$|{{WS}}*$|{{WS}}*[/][/].*$)"
+  # Operators consumed by the restored struct-body per-line wrapper rules.
+  ASSIGN_EQUAL_OPERATOR: (?:{{WS}}*[=]{{WS}}*)
+  ARRAY_ITEM_OPERATOR: (?:[-](?:$|{{WS}}+))
   LUAU_FUNCTION_CALL_START: (?:<<|[({"']|\[\[)
   LUAU_ASSIGNMENT_OPERATORS: (?:\+=|-=|\/=|\/\/=|\*=|%=|\^=|\.\.=|=(?!=))
   LUAU_COMPARE_OPERATORS: (?:==|~=|<=?|>=?)
@@ -232,6 +256,7 @@ patterns:
   - { include: "#LuauExplicitStatement" }
   - { include: "#LuauDeclarations" }
   - { include: "#LuauSparkdownControlBlock" }
+  - { include: "#LuauFunctionCallShorthand" }
   - { include: "#LuauInterpolatedStringExpression" }
   - { include: "#LuauEndKeyword" }
 
@@ -311,6 +336,29 @@ repository:
       3:
         name: comment.line.double-slash.content.sd
 
+  # A trailing `//` comment in SPARKLE UI markup — on a control-block opener
+  # (`if ok then // note`, `for r in rows do // note`). A third context, so a
+  # third rule: `SparkdownLineComment` is `^`-anchored (whole-line only) and
+  # `SparkdownInlineComment` belongs to display text. Without one, the comment
+  # matched nothing, the opener's scope never closed on it, and the block's
+  # body plus every following line fell out of the layout — into the compiled
+  # ink, emitted as spoken action text, with no diagnostic.
+  #
+  # `//` must be followed by whitespace or end-of-line (the marker convention),
+  # so a `://` URL is never mistaken for a comment.
+  SparkleTrailingLineComment:
+    tag: lineComment
+    name: comment.line.double-slash.sd
+    match: ({{WS}}*)([/]{2})(?=$|{{WS}})([^\r\n]*)
+    captures:
+      1:
+        patterns:
+          - { include: "#OptionalWhitespace" }
+      2:
+        name: punctuation.definition.comment.sd
+      3:
+        name: comment.line.double-slash.content.sd
+
   ########## Annotation ##########
 
   # `Annotation` is the DISPLAY-context line decoration: screenplay
@@ -367,6 +415,7 @@ repository:
     name: punctuation.definition.comment.content.sd
     begin: (?=.)
     patterns:
+      - { include: "#LuauFunctionCallShorthand" }
       - { include: "#LuauInterpolatedStringExpression" }
       - { include: "#TagText" }
     end: (?=$|{{TAG_START}})
@@ -583,6 +632,7 @@ repository:
       # would have nothing structural to dispatch through and the divert
       # would be silently stringified.
       - { include: "#ArmDivert" }
+      - { include: "#LuauFunctionCallShorthand" }
       - { include: "#LuauInterpolatedStringExpression" }
       - { include: "#ArmTag" }
       - { include: "#InlineText" }
@@ -600,6 +650,7 @@ repository:
       # diverts inside arms need to be matched as structural nodes so
       # the lowerer can route them through `buildDivert`.
       - { include: "#ArmDivert" }
+      - { include: "#LuauFunctionCallShorthand" }
       - { include: "#LuauInterpolatedStringExpression" }
       - { include: "#ArmTag" }
       - { include: "#InlineText" }
@@ -813,6 +864,7 @@ repository:
       1:
         patterns:
           - { include: "#Annotation" }
+          - { include: "#LuauFunctionCallShorthand" }
           - { include: "#LuauInterpolatedStringExpression" }
           - { include: "#DisplayText" }
 
@@ -2127,6 +2179,7 @@ repository:
     patterns:
       - { include: "#Annotation" }
       - { include: "#Escape" }
+      - { include: "#LuauFunctionCallShorthand" }
       - { include: "#LuauInterpolatedStringExpression" }
       - { include: "#ParentheticalLine" }
       - { include: "#Chain" }
@@ -2294,7 +2347,7 @@ repository:
           - { include: "#NameValue" }
 
   AssetCommandInstruction:
-    match: (?:({{IMAGE_CONTROL_KEYWORDS}}|{{AUDIO_CONTROL_KEYWORDS}})({{WS}}*)($|\S+)({{WS}}*))?(.*)
+    match: (?:({{IMAGE_CONTROL_KEYWORDS}}|{{AUDIO_CONTROL_KEYWORDS}}|{{LAYOUT_CONTROL_KEYWORDS}})({{WS}}*)($|\S+)({{WS}}*))?(.*)
     captures:
       1:
         patterns:
@@ -2514,6 +2567,7 @@ repository:
       - { include: "#Escape" }
       - { include: "#Divert" }
       - { include: "#Thread" }
+      - { include: "#LuauFunctionCallShorthand" }
       - { include: "#LuauInterpolatedStringExpression" }
       # Inline-glued alternators (`.. queue|a|b|c ..`) must come before
       # `InlineText` / `Styling` so the alternator-opening `..` is
@@ -2799,6 +2853,7 @@ repository:
       - { include: "#LuauDivertTargetLiteral" }
       - { include: "#LuauDeclarations" }
       - { include: "#LuauAssignmentOperation" }
+      - { include: "#LuauRegexLiteral" }
       - { include: "#LuauArithmeticOperation" }
       - { include: "#LuauCompareOperation" }
       - { include: "#LuauConcatOperation" }
@@ -2875,8 +2930,11 @@ repository:
     patterns:
       - { include: "#LuauShebang" }
       - { include: "#LuauStyle" }
+      - { include: "#LuauLayout" }
       - { include: "#LuauScreen" }
       - { include: "#LuauComponent" }
+      - { include: "#LuauAnimation" }
+      - { include: "#LuauTheme" }
       - { include: "#LuauDefine" }
       - { include: "#LuauFunctionDefinition" }
       - { include: "#LuauVariableDefinition" }
@@ -2991,7 +3049,18 @@ repository:
     # safe at value-START positions because every operator/separator
     # rule consumes its TRAILING whitespace, so a call that begins an
     # operand never has the `{{WS}}+` prefix this lookahead requires.
-    end: (?={{BEAT}})|(?={{WS}}*;)|(?={{WS}}+\b(?:if|while|for|repeat|do|function|end|return|local|break|continue|elseif|else|then|until)\b)|(?={{WS}}+{{LUAU_IDENTIFIER}}(?:{{WS}}*(?:[.]{{WS}}*{{LUAU_IDENTIFIER}}|\[[^\]\n]*\]|\([^()\n]*\)|,{{WS}}*{{LUAU_IDENTIFIER}}))*{{WS}}*{{LUAU_ASSIGNMENT_OPERATORS}})|(?={{WS}}+(?!(?:and|or|not)\b){{LUAU_IDENTIFIER}}(?:{{WS}}*(?:[.:]{{WS}}*{{LUAU_IDENTIFIER}}|\[[^\]\n]*\]))*{{WS}}*[(])|$
+    #
+    # `(?={{WS}}*[}])` closes the reassignment at a `}` boundary — needed
+    # for an inline event-handler closure (`@input={ name = event.value }`,
+    # see LuauSparkleHandlerClosure) whose LAST statement is a bare
+    # reassignment: without it the reassignment runs out of patterns
+    # before the closure's `}` and the scoped rule appends an
+    # ERROR_INCOMPLETE node. Safe elsewhere — a reassignment is only ever
+    # followed by `}` inside such a closure (function/if bodies close at
+    # `end`/newline, never `}`; a table-literal VALUE consumes its own
+    # braces before this end is checked, and reassignment statements never
+    # appear inside a table).
+    end: (?={{BEAT}})|(?={{WS}}*;)|(?={{WS}}*[}])|(?={{WS}}+\b(?:if|while|for|repeat|do|function|end|return|local|break|continue|elseif|else|then|until)\b)|(?={{WS}}+{{LUAU_IDENTIFIER}}(?:{{WS}}*(?:[.]{{WS}}*{{LUAU_IDENTIFIER}}|\[[^\]\n]*\]|\([^()\n]*\)|,{{WS}}*{{LUAU_IDENTIFIER}}))*{{WS}}*{{LUAU_ASSIGNMENT_OPERATORS}})|(?={{WS}}+(?!(?:and|or|not)\b){{LUAU_IDENTIFIER}}(?:{{WS}}*(?:[.:]{{WS}}*{{LUAU_IDENTIFIER}}|\[[^\]\n]*\]))*{{WS}}*[(])|$
   # ----------------------------------------------------------------------------
   # Define (Syntactic Sugar for OOP Classes)
   # ----------------------------------------------------------------------------
@@ -3113,7 +3182,13 @@ repository:
           - { include: "#OptionalWhitespace" }
 
   LuauPropertyDefinition:
-    begin: ({{WS}}*)({{LUAU_SCOPE_MODIFIERS}}|{{LUAU_ACCESS_MODIFIERS}})?({{WS}}*)(?={{LUAU_IDENTIFIER}}{{WS}}*{{LUAU_ASSIGNMENT_OPERATORS}})
+    # A define-body property: `<key> = <value>`. The key is either a plain
+    # identifier (`name = …`) OR a Luau bracket-key (`["selector"] = …`,
+    # `["$link"] = …`) so define bodies are table-faithful and can express
+    # CSS-style selector keys / `$`-prefixed metadata keys (which aren't valid
+    # identifiers). The bracket form reuses the table-constructor pieces
+    # (LuauTableIndexDeclaration + LuauAssignmentOperation).
+    begin: ({{WS}}*)({{LUAU_SCOPE_MODIFIERS}}|{{LUAU_ACCESS_MODIFIERS}})?({{WS}}*)(?=(?:{{LUAU_IDENTIFIER}}|\[[^\]\r\n]*\]){{WS}}*{{LUAU_ASSIGNMENT_OPERATORS}})
     beginCaptures:
       1:
         patterns:
@@ -3128,9 +3203,23 @@ repository:
           - { include: "#OptionalWhitespace" }
     patterns:
       - { include: "#LuauComment" }
+      - { include: "#LuauBracketKeyAssignment" }
       - { include: "#LuauVariableAssignment" }
     applyEndPatternLast: true
     end: (?={{BEAT}})|(?=$|{{WS}}*(?!{{LUAU_COMMENT_START}}))
+
+  # A bracket-keyed define-body property: `[<keyExpr>] = <value>`. The key is a
+  # Luau expression in brackets (a string literal for selectors / `$`-keys, or
+  # any computed key); the value is a normal assignment RHS. Used ONLY inside
+  # LuauPropertyDefinition (define bodies) — general statements keep the strict
+  # identifier-keyed LuauVariableAssignment.
+  LuauBracketKeyAssignment:
+    begin: (?=\[)
+    patterns:
+      - { include: "#LuauComment" }
+      - { include: "#LuauTableIndexDeclaration" }
+      - { include: "#LuauAssignmentOperation" }
+    end: (?={{BEAT}})|(?=$|{{WS}}|,)
 
   # ----------------------------------------------------------------------------
   # Style (structured UI — sparkle style block, struct-registry only)
@@ -3180,7 +3269,81 @@ repository:
         patterns:
           - { include: "#LuauEndKeyword" }
 
-  # One body line inside a structural-define block (`style`/`screen`/
+  # `animation NAME [as PARENT] with <struct body> end` — static presentation
+  # config (keyframes/timing), style-family (NOT reactive). Same struct-body
+  # grammar as `style`, so values use the unquoted CSS vocabulary. Lowered to a
+  # compile-time struct (context.animation.<name>) that implicitly `$extends`
+  # the `animation` type for its $default timing. See lowerLuauStructDefine.
+  LuauAnimation:
+    tag: meta
+    name: meta.animation.luau
+    # `(?![.(])` keeps `animation` an identifier/namespace when followed by `.`
+    # or `(` — so `animation.fadein` refs and any `animation(...)` keep working
+    # in expression position; only a true `animation NAME with …` block starts.
+    begin: ({{WS}}*)(animation)\b(?![.(])({{WS}}*)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#OptionalWhitespace" }
+      2:
+        patterns:
+          - { include: "#LuauAnimationKeyword" }
+      3:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
+    patterns:
+      - { include: "#LuauComment" }
+      - { include: "#LuauAnimationThemeNameAndInheritance" }
+      - { include: "#LuauStructBodyLine" }
+      - { include: "#ExtraWhitespace" }
+      - { include: "#Newline" }
+    end: (?={{BEAT}})|({{WS}}*)(end)\b
+    endCaptures:
+      1:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
+      2:
+        patterns:
+          - { include: "#LuauEndKeyword" }
+
+  # `theme NAME [as PARENT] with <struct body> end` — static token config,
+  # style-family. Same shape as `animation`.
+  LuauTheme:
+    tag: meta
+    name: meta.theme.luau
+    # See LuauAnimation: `(?![.(])` keeps `theme.X` refs and the `theme(...)`
+    # selector function working in expression position.
+    begin: ({{WS}}*)(theme)\b(?![.(])({{WS}}*)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#OptionalWhitespace" }
+      2:
+        patterns:
+          - { include: "#LuauThemeKeyword" }
+      3:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
+    patterns:
+      - { include: "#LuauComment" }
+      - { include: "#LuauAnimationThemeNameAndInheritance" }
+      - { include: "#LuauStructBodyLine" }
+      - { include: "#ExtraWhitespace" }
+      - { include: "#Newline" }
+    end: (?={{BEAT}})|({{WS}}*)(end)\b
+    endCaptures:
+      1:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
+      2:
+        patterns:
+          - { include: "#LuauEndKeyword" }
+
+  # One body line inside a structural-define block (`style`/`layout`/
   # `component`). Matched opaquely (indent + content) so the block spans
   # to its `end`; the lowerer reconstructs the colon/indent struct from
   # each line's indentation column. The leading indent is its own capture
@@ -3204,145 +3367,71 @@ repository:
         patterns:
           - { include: "#OptionalWhitespace" }
 
-  # The classified body-line content. Ordered most-specific first; the
-  # final bare-marker alternative is a catch-all that always matches at the
-  # content's first character, so neither engine ever has to advance past
-  # offset 0 to find a match (keeps vscode-textmate and the tree in scope
-  # agreement — see GRAMMAR.md §17). No `^` anchors: capture sub-patterns
-  # are re-tokenized from the capture's mid-line absolute offset in
-  # vscode-textmate but from offset 0 in the tree, so a `^` would match in
-  # one engine and not the other.
+  # Per-line body content. The grammar classifies each line into a named
+  # SHAPE node (`LuauStructScalarProperty` / `LuauStructArrayItem` /
+  # `LuauStructObjectHeader` / `LuauStructAdjacencyContent` /
+  # `LuauStructBareMarker`, with a `LuauStructBodyFallback` catch-all); the
+  # lowerers dispatch on that node NAME rather than re-tokenizing the raw line
+  # (GRAMMAR.md §5). `LuauStructBodyContent` MUST keep its name: all three
+  # struct lowerers (lowerStructBody / lowerStructBodyTyped / lowerSparkleBody)
+  # walk for it as the per-line wrapper and read the shape + its value tokens
+  # by name from WITHIN it. The shape rules also emit syntax-highlighting
+  # children (CSS value tokens, element tag/class `ComponentName`s, content
+  # strings) AND the reactive inline-attribute nodes (`@event=` / `#prop=` →
+  # `LuauEventAttribute` / `LuauPropAttribute`); `lowerStructBody` excises those
+  # attribute spans so the STATIC struct stays free of reactive bindings, while
+  # `lowerSparkleBody` reads them to build the reactive AST. Order: comment
+  # first (so a `--`/`//` line isn't claimed by a shape), then most-specific
+  # shapes, then the bare-marker + fallback catch-alls.
   LuauStructBodyContent:
     tag: content
     name: meta.struct.body.luau
-    patterns:
-      - { include: "#LuauStructArrayItem" }
-      - { include: "#LuauStructObjectHeader" }
-      - { include: "#LuauStructScalarProperty" }
-      - { include: "#LuauStructBareMarker" }
-
-  # `- value` or a bare `-` (array element). Must not swallow a `--` Luau
-  # comment line (those are skipped by the lowerer); the negative class
-  # after the dash keeps `--…` from matching here so it falls through to
-  # the bare-marker catch-all and the lowerer's comment skip handles it.
-  LuauStructArrayItem:
-    match: (-)(?![-])({{WS}}*)([^\n]*?)({{WS}}*)$
-    captures:
-      1:
-        patterns:
-          - { include: "#LuauStructArrayItemMark" }
-      2:
-        emit: true
-        patterns:
-          - { include: "#OptionalWhitespace" }
-      3:
-        patterns:
-          - { include: "#LuauStructItemValue" }
-      4:
-        emit: true
-        patterns:
-          - { include: "#OptionalWhitespace" }
-
-  # `key:` (nested block header — named element, `> selector`,
-  # `@breakpoint`). Greedy key so only the LAST `:` terminates the header
-  # (`a:b:` → key `a:b`), matching the lowerer's `slice(0, -1)`.
-  LuauStructObjectHeader:
-    match: (.*\S)({{WS}}*)(:)$
-    captures:
-      1:
-        patterns:
-          - { include: "#LuauStructObjectKey" }
-      2:
-        emit: true
-        patterns:
-          - { include: "#OptionalWhitespace" }
-      3:
-        patterns:
-          - { include: "#LuauStructObjectColon" }
-
-  # `key = value` (scalar property). The value is captured raw (a CSS-like
-  # token, not a Luau expression); the lowerer applies value-level coercion
-  # (quote strip, `<type>.<name>` reference).
-  LuauStructScalarProperty:
-    match: (\S[^=]*?)({{WS}}*)(=)({{WS}}*)([^\n]*?)({{WS}}*)$
-    captures:
-      1:
-        patterns:
-          - { include: "#LuauStructPropertyName" }
-      2:
-        emit: true
-        patterns:
-          - { include: "#OptionalWhitespace" }
-      3:
-        patterns:
-          - { include: "#LuauStructAssignmentMark" }
-      4:
-        emit: true
-        patterns:
-          - { include: "#OptionalWhitespace" }
-      5:
-        patterns:
-          - { include: "#LuauStructPropertyValue" }
-      6:
-        emit: true
-        patterns:
-          - { include: "#OptionalWhitespace" }
-
-  # Catch-all: a bare marker (`image`, `text`, `mask shadow_1`) or any line
-  # the more-specific shapes didn't claim. Always matches the content from
-  # its first character.
-  LuauStructBareMarker:
-    match: ([^\n]+)
-    captures:
-      1:
-        patterns:
-          - { include: "#LuauStructMarkerName" }
-
-  LuauStructArrayItemMark:
-    tag: punctuation
-    name: punctuation.definition.struct.array.luau
-    match: (-)
-
-  LuauStructItemValue:
-    tag: content
-    name: meta.struct.array.item.luau
     match: ([^\n]*)
-
-  LuauStructObjectKey:
-    tag: propertyName
-    name: entity.name.tag.struct.luau
-    match: ([^\n]+)
-
-  LuauStructObjectColon:
-    tag: separator
-    name: punctuation.separator.struct.colon.luau
-    match: (:)
-
-  LuauStructPropertyName:
-    tag: attributeName
-    name: entity.other.attribute-name.struct.luau
-    match: ([^\n]+)
-
-  LuauStructAssignmentMark:
-    tag: separator
-    name: keyword.operator.assignment.struct.luau
-    match: (=)
-
-  LuauStructPropertyValue:
-    tag: string
-    name: string.unquoted.struct.luau
-    match: ([^\n]*)
-
-  LuauStructMarkerName:
-    tag: content
-    name: meta.struct.body.luau
-    match: ([^\n]+)
+    captures:
+      1:
+        patterns:
+          # Whole-line comment. Struct bodies live inside Luau `with … end`
+          # blocks, so `--` (and `---`, block) is the canonical marker; `//`
+          # is also accepted for parity with pre-Luau-port struct bodies.
+          # First so a comment line isn't swallowed by scalar/marker/fallback.
+          - { include: "#LuauComment" }
+          - { include: "#SparkdownLineComment" }
+          - { include: "#LuauStructScalarProperty" }
+          - { include: "#LuauStructArrayItem" }
+          - { include: "#LuauStructComponentCall" }
+          - { include: "#LuauStructObjectHeader" }
+          - { include: "#LuauStructAdjacencyContent" }
+          - { include: "#LuauStructBareMarker" }
+          - { include: "#LuauStructBodyFallback" }
 
   # Name + optional `as PARENT`, ending at the `with` block opener.
   # Reuses LuauDefineName / LuauInheritanceOperation (→ LuauDefineParentName)
   # so the lowerer reads names through the same node names as `define`.
   LuauStyleNameAndInheritance:
     begin: (?<=style\b{{WS}}*)({{LUAU_IDENTIFIER}})
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#LuauDefineName" }
+    patterns:
+      - { include: "#LuauInheritanceOperation" }
+      - { include: "#ExtraWhitespace" }
+    end: (?={{BEAT}})|({{WS}}*)(with)\b
+    endCaptures:
+      1:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
+      2:
+        patterns:
+          - { include: "#LuauWithKeyword" }
+
+  # Name + optional `as PARENT` for `animation`/`theme` blocks (variable-length
+  # lookbehind over both keywords). Mirrors LuauStyleNameAndInheritance /
+  # LuauUINameAndInheritance so the lowerer reads the name/parent through the
+  # same LuauDefineName / LuauDefineParentName node names as `define`.
+  LuauAnimationThemeNameAndInheritance:
+    begin: (?<=(?:animation|theme)\b{{WS}}*)({{LUAU_IDENTIFIER}})
     beginCaptures:
       1:
         patterns:
@@ -3396,6 +3485,16 @@ repository:
     name: keyword.control.style.luau
     match: (style)\b
 
+  LuauAnimationKeyword:
+    tag: controlKeyword
+    name: keyword.control.animation.luau
+    match: (animation)\b
+
+  LuauThemeKeyword:
+    tag: controlKeyword
+    name: keyword.control.theme.luau
+    match: (theme)\b
+
   LuauStylePropertyName:
     tag: attributeName
     name: entity.other.attribute-name.style.luau
@@ -3412,16 +3511,1690 @@ repository:
     match: ([^\n]*)
 
   # ----------------------------------------------------------------------------
-  # Screen / Component (structured UI element trees, struct-registry only)
+  # Restored struct-body leaf highlighting rules (value/selector/CSS tokens).
+  # Pruned-resolved port of the pre-Luau colon-based grammar; only add
+  # highlighting children -- LuauStructBodyContent stays the lowerer-read node.
+
+  StylingValue:
+    match: (.+)({{EOPL}})
+    captures:
+      1:
+        patterns:
+          - { include: "#LuauComment" }
+          - { include: "#StylingValuePart" }
+          - { include: "#StylingStringIdentifier" }
+          - { include: "#UnquotedChar" }
+      2:
+        patterns:
+          - { include: "#EndOfLine" }
+
+  NumericFieldValue:
+    tag: number
+    name: constant.numeric.sd
+    match: ([-]?(?:\d*[.])?\d+|Infinity|NaN)({{EOPL}})
+    captures:
+      1:
+        patterns:
+          - { include: "#NumericLiteral" }
+      2:
+        patterns:
+          - { include: "#EndOfLine" }
+
+  BooleanFieldValue:
+    tag: bool
+    name: constant.language.boolean.true.sd
+    match: (true|false)({{EOPL}})
+    captures:
+      1:
+        patterns:
+          - { include: "#BooleanLiteral" }
+      2:
+        patterns:
+          - { include: "#EndOfLine" }
+
+  StringFieldValue:
+    tag: string
+    name: string.quoted.double.sd
+    match: (["])((?:\\.|[^"])*)(["])({{EOPL}})
+    captures:
+      1:
+        patterns:
+          - { include: "#PunctuationStringOpen" }
+      2:
+        patterns:
+          - { include: "#PlainStringContent" }
+      3:
+        patterns:
+          - { include: "#PunctuationStringClose" }
+      4:
+        patterns:
+          - { include: "#EndOfLine" }
+
+  # A double-quoted sparkle content string that contains at least one `{expr}`
+  # interpolation or `{{fn}}` call shorthand (reactive content, spec §6).
+  # Listed BEFORE StringFieldValue at every value site so PLAIN
+  # (non-interpolated) strings fall through to StringFieldValue unchanged —
+  # its highlighting tree stays byte-identical. Same
+  # `string`/`string.quoted.double.sd` scope so the color matches; each
+  # `{expr}` reuses the existing LuauInterpolatedStringExpression node (so it
+  # colors like backtick interpolation AND is the named node the reactive
+  # lowerer reads to build bindings). The begin-lookahead requires an
+  # UNESCAPED `{` (skipping `\{`-style escapes) so a string with only escaped
+  # braces is left to plain StringFieldValue. Literal braces are written
+  # `\{` / `\}` (D3 superseded by #223 — `{{` now means a function call).
+  StringFieldValueInterpolated:
+    tag: string
+    name: string.quoted.double.sd
+    begin: (["])(?=(?:[^"{\\]|\\.)*\{)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#PunctuationStringOpen" }
+    patterns:
+      - { include: "#LuauFunctionCallShorthand" }
+      - { include: "#LuauInterpolatedStringExpression" }
+      - { include: "#StringEscape" }
+      - { include: "#SparkleRichTextTag" }
+      - { include: "#SparkleRichTextTagUnknown" }
+      - { include: "#Color" }
+      - { include: "#StringCharacter" }
+    end: (["])({{EOPL}})
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#PunctuationStringClose" }
+      2:
+        patterns:
+          - { include: "#EndOfLine" }
+
+  UnquotedStringFieldValue:
+    match: (.+)({{EOPL}})
+    captures:
+      1:
+        patterns:
+          - { include: "#UnquotedString" }
+      2:
+        patterns:
+          - { include: "#EndOfLine" }
+
+  ViewDeclarationScalarPropertyName:
+    match: ({{STRICT_PROPERTY_IDENTIFIER}})
+    captures:
+      1:
+        patterns:
+          - { include: "#DeclarationScalarPropertyIndex" }
+          - { include: "#DeclarationScalarPropertyQuotedKey" }
+          - { include: "#ComponentName" }
+
+  StylingDeclarationScalarPropertyName:
+    match: ({{STRICT_PROPERTY_IDENTIFIER}})
+    captures:
+      1:
+        patterns:
+          - { include: "#DeclarationScalarPropertyIndex" }
+          - { include: "#DeclarationScalarPropertyQuotedKey" }
+          - { include: "#DeclarationScalarPropertyKey" }
+
+  PlainDeclarationScalarPropertyName:
+    match: ({{STRICT_PROPERTY_IDENTIFIER}})
+    captures:
+      1:
+        patterns:
+          - { include: "#DeclarationScalarPropertyIndex" }
+          - { include: "#DeclarationScalarPropertyQuotedKey" }
+          - { include: "#DeclarationScalarPropertyKey" }
+
+  DeclarationScalarPropertyIndex:
+    tag: number
+    name: constant.numeric.integer.sd
+    match: ({{INTEGER}})
+
+  ViewDeclarationObjectPropertyName:
+    begin: (?=\S)(?!{{PROPERTY_NAME_TERMINATOR}})
+    patterns:
+      - { include: "#LuauComment" }
+      - { include: "#SelectorPropertyNamePart" }
+      - { include: "#ComponentName" }
+      - { include: "#IllegalChar" }
+    end: (?=$|{{EOPL}}|{{WS}}*{{PROPERTY_NAME_TERMINATOR}})
+
+  StylingDeclarationObjectPropertyName:
+    begin: (?=\S)(?!{{PROPERTY_NAME_TERMINATOR}})
+    patterns:
+      - { include: "#LuauComment" }
+      - { include: "#OperatorPrefixedPropertyName" }
+      - { include: "#PropertyName" }
+      - { include: "#InvalidSelectorPropertyName" }
+    end: (?=$|{{EOPL}}|{{WS}}*{{PROPERTY_NAME_TERMINATOR}})
+
+  PlainDeclarationObjectPropertyName:
+    begin: (?=\S)(?!{{PROPERTY_NAME_TERMINATOR}})
+    patterns:
+      - { include: "#LuauComment" }
+      - { include: "#OperatorPrefixedPropertyName" }
+      - { include: "#PropertyName" }
+      - { include: "#InvalidSelectorPropertyName" }
+    end: (?=$|{{EOPL}}|{{WS}}*{{PROPERTY_NAME_TERMINATOR}})
+
+  SelectorPropertyNamePart:
+    patterns:
+      - { include: "#ParenPropertyIdentifierString" }
+      - { include: "#BracketPropertyIdentifierString" }
+      - { include: "#BracePropertyIdentifierString" }
+      - { include: "#UnitValue" }
+      - { include: "#NumericLiteral" }
+      - { include: "#BooleanLiteral" }
+      - { include: "#StringLiteral" }
+      - { include: "#SelectorOperator" }
+      - { include: "#RecursiveSelectorFunction" }
+      - { include: "#SimpleSelectorFunction" }
+      - { include: "#StyleAttribute" }
+      - { include: "#EventAttribute" }
+      - { include: "#LabelAttribute" }
+      - { include: "#Separator" }
+
+  # The FIRST token on an element line — the one that becomes the tag. Only
+  # here can a name be a builtin; see TrailingComponentName.
+  ComponentName:
+    patterns:
+      - { include: "#BuiltinComponentName" }
+      - { include: "#CustomComponentName" }
+      - { include: "#FunctionCallParameters" }
+
+  # Every token AFTER the first. These are CLASSES, so they colour as classes
+  # even when the name is also a builtin — `text small "…"` is a `text` element
+  # wearing `.small`, and colouring `small` as a builtin there said the line had
+  # two elements on it. The engine agrees: it resolves the tag from `node.tag`,
+  # the first token, and never consults the rest (UIModule ELEMENT_TAGS).
   #
-  # `screen NAME [as PARENT] with <element-tree> end` (and `component`).
+  # Deliberately the same rule set as ComponentName MINUS the builtin case, so
+  # a trailing `name(arg)` still tokenizes.
+  TrailingComponentName:
+    patterns:
+      - { include: "#CustomComponentName" }
+      - { include: "#FunctionCallParameters" }
+
+  # Ordered LONGEST-FIRST: regex alternation takes the first branch that
+  # matches, so `table` ahead of `table_header` would leave the longer name
+  # permanently unmatched. builtinNamesHighlighted.test.ts pins both that
+  # ordering and the fact that every name in the engine's tag tables appears
+  # here — this list had already drifted out of the generated JSON once, and a
+  # regeneration silently reverted the editor to a stale set.
+  BuiltinComponentName:
+    tag: definitionKeyword
+    name: keyword.other.component.builtin.name.sd
+    match: \b(ordered_list|preformatted|table_footer|table_header|table_body|paragraph|table_row|checkbox|citation|dropdown|emphasis|fieldset|progress|scroller|textarea|article|caption|divider|foldout|picture|section|button|figure|footer|header|legend|option|slider|stroke|strong|switch|block|image|input|label|modal|quote|radio|small|table|cell|code|form|head|item|link|list|mask|span|text|kbd|sub|sup|h1|h2|h3|h4|h5|h6)(?!(?:[-_\p{L}][0-9_\p{L}-]*\b))
+
+  CustomComponentName:
+    tag: className
+    name: entity.name.type.class.view.sd
+    match: ({{IDENTIFIER}})
+
+  OperatorPrefixedPropertyName:
+    begin: (?=\S)(?!{{IDENTIFIER}})(?!{{PROPERTY_NAME_TERMINATOR}})
+    patterns:
+      - { include: "#LuauComment" }
+      - { include: "#SelectorPropertyNamePart" }
+      - { include: "#ComponentName" }
+      - { include: "#IllegalChar" }
+    end: (?=$|{{EOPL}}|{{WS}}*{{PROPERTY_NAME_TERMINATOR}})
+
+  PropertyName:
+    tag: propertyName
+    name: variable.other.property.sd
+    match: ({{IDENTIFIER}})(?![(])
+
+  ParenPropertyIdentifierString:
+    brackets: true
+    begin: ([(])({{WS}}*)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#PunctuationParenOpen" }
+      2:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+    patterns:
+      - { include: "#LuauComment" }
+      - { include: "#SelectorPropertyNamePart" }
+    end: $|({{WS}}*)([)])
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+      2:
+        patterns:
+          - { include: "#PunctuationParenClose" }
+
+  BracketPropertyIdentifierString:
+    brackets: true
+    begin: (\[)({{WS}}*)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#PunctuationBracketOpen" }
+      2:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+    patterns:
+      - { include: "#LuauComment" }
+      - { include: "#SelectorPropertyNamePart" }
+    end: $|({{WS}}*)(\])
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+      2:
+        patterns:
+          - { include: "#PunctuationBracketClose" }
+
+  BracePropertyIdentifierString:
+    brackets: true
+    begin: (\{)({{WS}}*)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#PunctuationBraceOpen" }
+      2:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+    patterns:
+      - { include: "#LuauComment" }
+      - { include: "#SelectorPropertyNamePart" }
+    end: $|({{WS}}*)(\})
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+      2:
+        patterns:
+          - { include: "#PunctuationBraceClose" }
+
+  ArrayItemOperator:
+    match: ([-])($|{{WS}}+)
+    captures:
+      1:
+        patterns:
+          - { include: "#ArrayItemMark" }
+      2:
+        patterns:
+          - { include: "#Separator" }
+
+  ArrayItemMark:
+    tag: keyword
+    name: keyword.operator.expression.array.sd
+    match: (.+)
+
+  AssignEqualOperator:
+    match: ({{WS}}*)([=])({{WS}}*)
+    captures:
+      1:
+        emit: true
+        patterns:
+          - { include: "#OptionalSeparator" }
+      2:
+        patterns:
+          - { include: "#EqualOperator" }
+      3:
+        emit: true
+        patterns:
+          - { include: "#OptionalSeparator" }
+
+  UnitValue:
+    match: ([-]?(?:\d*[.])?\d+)([%]|[a-zA-Z]+)
+    captures:
+      1:
+        tag: number
+        name: constant.numeric.amount.sd
+      2:
+        tag: number
+        name: constant.numeric.unit.sd
+
+  Ratio:
+    match: ({{NUMBER}})({{WS}}*)([/])({{WS}}*)({{NUMBER}})
+    captures:
+      1:
+        patterns:
+          - { include: "#NumericLiteral" }
+      2:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+      3:
+        patterns:
+          - { include: "#CalcOperator" }
+      4:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+      5:
+        patterns:
+          - { include: "#NumericLiteral" }
+
+  CalcOperator:
+    tag: keyword
+    name: keyword.other.calc.operator.sd
+    match: ([+]|[-]|[*]|[/])
+
+  StylingFunction:
+    begin: ({{IDENTIFIER}})({{WS}}*)(?=[(])
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#StylingFunctionName" }
+      2:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+    patterns:
+      - { include: "#LuauComment" }
+      - { include: "#StylingFunctionParameters" }
+    applyEndPatternLast: true
+    end: (?=$|.)
+
+  StylingFunctionName:
+    # function(name) → functionName color (yellow), matching pre-Luau-port.
+    # NOT function(variableName): that tag is mapped to the parameterName color
+    # for Luau function parameters, which would recolor `calc(…)` etc.
+    tag: function(name)
+    name: entity.name.function.sd
+    match: ({{IDENTIFIER}})
+
+  StylingFunctionParameters:
+    brackets: true
+    begin: ([(])({{WS}}*)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#PunctuationParenOpen" }
+      2:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+    patterns:
+      - { include: "#LuauComment" }
+      - { include: "#CalcOperator" }
+      - { include: "#StylingValuePart" }
+      - { include: "#ParameterStringIdentifier" }
+      - { include: "#UnquotedChar" }
+    end: $|({{WS}}*)([)])
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+      2:
+        patterns:
+          - { include: "#PunctuationParenClose" }
+
+  StylingValuePart:
+    patterns:
+      - { include: "#Separator" }
+      - { include: "#Color" }
+      - { include: "#Ratio" }
+      - { include: "#UnitValue" }
+      - { include: "#NumericLiteral" }
+      - { include: "#PunctuationComma" }
+      - { include: "#StylingFunction" }
+      # `image.foo` / `font.foo` define-references: color the namespace as a
+      # type and the member as a variable (matches pre-Luau-port styling
+      # values). Must come before StylingStringIdentifier swallows it as a
+      # plain unquoted string. StylingFunction above still wins for `calc(…)`.
+      - { include: "#StylingAccessPath" }
+
+  StylingStringIdentifier:
+    tag: string
+    name: string.unquoted.identifier.sd
+    match: ({{IDENTIFIER}})
+
+  UnquotedChar:
+    tag: string
+    name: string.unquoted.char.sd
+    match: (.)
+
+  # Access-path coloring for styling values (`image.foo`, `font.foo`,
+  # `theme.colors.bg`). Ported from the pre-Luau-port grammar so define
+  # references keep their typeName/variableName/propertyName coloring inside
+  # struct-body values. Begin requires `IDENT.` so bare identifiers fall
+  # through to StylingStringIdentifier instead.
+  StylingAccessPath:
+    begin: (?={{IDENTIFIER}}[.])
+    patterns:
+      - { include: "#LuauComment" }
+      - { include: "#StylingAccessPart" }
+    end: (?=$)|(?!{{IDENTIFIER}}|[.])
+
+  StylingAccessPart:
+    emit: true
+    patterns:
+      - { include: "#PropertyAccessor" }
+      - { include: "#NamespaceAccessor" }
+      - { include: "#VariableName" }
+      - { include: "#PunctuationAccessor" }
+
+  NamespaceAccessor:
+    match: ({{IDENTIFIER}})([.])($|{{IDENTIFIER}})(?![(])
+    captures:
+      1:
+        patterns:
+          - { include: "#TypeName" }
+      2:
+        patterns:
+          - { include: "#PunctuationAccessor" }
+      3:
+        patterns:
+          - { include: "#VariableName" }
+
+  PropertyAccessor:
+    match: ([.])({{IDENTIFIER}})(?![(])
+    captures:
+      1:
+        patterns:
+          - { include: "#PunctuationAccessor" }
+      2:
+        patterns:
+          - { include: "#PropertyName" }
+
+  TypeName:
+    tag: typeName
+    name: support.type.sd
+    match: ({{IDENTIFIER}})
+
+  VariableName:
+    # constant(variableName) → constantVariableName color (#4FC1FF cyan),
+    # matching pre-Luau-port styling access-path members. The plain
+    # `variableName` color was repurposed to #9CDCFE during the port (with
+    # #4FC1FF moved to constantVariableName); this keeps UI refs cyan without
+    # reverting the global var/const palette split.
+    tag: constant(variableName)
+    name: variable.other.constant.sd
+    match: ({{IDENTIFIER}})(?![(])
+
+  NumericLiteral:
+    patterns:
+      - { include: "#NumberLiteral" }
+      - { include: "#NumericConstantLiteral" }
+
+  BooleanLiteral:
+    patterns:
+      - { include: "#BooleanTrue" }
+      - { include: "#BooleanFalse" }
+
+  PunctuationStringOpen:
+    match: (["])
+    tag: string
+    name: punctuation.definition.string.begin.sd
+
+  PlainStringContent:
+    match: ((?:\\.|[^"])*?)(?=$|")
+    captures:
+      1:
+        patterns:
+          - { include: "#StringEscape" }
+          - { include: "#SparkleRichTextTag" }
+          - { include: "#SparkleRichTextTagUnknown" }
+          - { include: "#Color" }
+          - { include: "#StringCharacter" }
+
+  PunctuationStringClose:
+    match: (["])
+    tag: string
+    name: punctuation.definition.string.end.sd
+
+  UnquotedString:
+    tag: string
+    name: string.unquoted.sd
+    match: (.+)
+
+  DeclarationScalarPropertyQuotedKey:
+    tag: string
+    name: string.quoted.key.sd
+    match: ({{QUOTED_STRING}})
+
+  DeclarationScalarPropertyKey:
+    tag: propertyName
+    name: variable.other.property.define.sd
+    match: ({{IDENTIFIER}})
+
+  InvalidSelectorPropertyName:
+    tag: invalid
+    name: invalid.illegal.unknown-statement.sd
+    begin: (?=\S)(?!{{PROPERTY_NAME_TERMINATOR}})
+    patterns:
+      - { include: "#LuauComment" }
+      - { include: "#SelectorPropertyNamePart" }
+      - { include: "#ComponentName" }
+      - { include: "#IllegalChar" }
+    end: (?=$|{{EOPL}}|{{WS}}*{{PROPERTY_NAME_TERMINATOR}})
+
+  SelectorOperator:
+    tag: keyword
+    name: keyword.other.selector.operator.sd
+    match: ([>]|[+]|[~]|[*]|[&]|[\^])
+
+  RecursiveSelectorFunction:
+    begin: ([@])(has|not|is|where)(?=[(])
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#EventAttributeOperator" }
+      2:
+        patterns:
+          - { include: "#EventAttributeName" }
+    patterns:
+      - { include: "#LuauComment" }
+      - { include: "#RecursiveSelectorFunctionParameters" }
+    applyEndPatternLast: true
+    end: (?=$|.)
+
+  SimpleSelectorFunction:
+    begin: ([@])({{IDENTIFIER}})?(?=[(])
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#EventAttributeOperator" }
+      2:
+        patterns:
+          - { include: "#EventAttributeName" }
+    patterns:
+      - { include: "#LuauComment" }
+      - { include: "#SimpleSelectorFunctionParameters" }
+    applyEndPatternLast: true
+    end: (?=$|.)
+
+  StyleAttribute:
+    emit: true
+    patterns:
+      - { include: "#AssignedBracedStyleAttribute" }
+      - { include: "#AssignedQuotedStyleAttribute" }
+      - { include: "#AssignedUnquotedStyleAttribute" }
+      - { include: "#UnassignedStyleAttribute" }
+
+  EventAttribute:
+    emit: true
+    patterns:
+      - { include: "#AssignedBracedEventAttribute" }
+      - { include: "#AssignedQuotedEventAttribute" }
+      - { include: "#AssignedUnquotedEventAttribute" }
+      - { include: "#UnassignedEventAttribute" }
+
+  LabelAttribute:
+    emit: true
+    patterns:
+      - { include: "#StringLiteral" }
+
+  Separator:
+    tag: definition(content)
+    name: markup.raw.whitespace.separator.sd
+    match: ({{WS}}+)
+
+  FunctionCallParameters:
+    brackets: true
+    begin: ([(])({{WS}}*)
+    beginCaptures:
+      1:
+        tag: keyword
+        name: punctuation.definition.template-expression.begin.sd
+      2:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+    patterns:
+      - { include: "#LuauComment" }
+      - { include: "#Separator" }
+      - { include: "#PunctuationComma" }
+      - { include: "#Parameter" }
+    end: $|({{WS}}*)([)])
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+      2:
+        tag: keyword
+        name: punctuation.definition.template-expression.end.sd
+
+  OptionalSeparator:
+    tag: definition(content)
+    name: markup.raw.whitespace.separator.optional.sd
+    match: ({{WS}}*)
+
+  EqualOperator:
+    tag: updateOperator
+    name: keyword.operator.assignment.sd
+    match: ([=])
+
+  ParameterStringIdentifier:
+    tag: string
+    name: string.unquoted.identifier.sd
+    match: ({{IDENTIFIER}})
+
+  PunctuationComma:
+    tag: operator
+    name: keyword.operator.comma.sd
+    match: ([,])
+
+  NumberLiteral:
+    tag: number
+    name: constant.numeric.sd
+    match: ([-]?(?:\d*[.])?\d+)
+
+  NumericConstantLiteral:
+    patterns:
+      - { include: "#Infinity" }
+      - { include: "#NaN" }
+
+  BooleanTrue:
+    tag: bool
+    name: constant.language.boolean.true.sd
+    match: "{{BEFORE_KEYWORD}}true{{AFTER_KEYWORD}}"
+
+  BooleanFalse:
+    tag: bool
+    name: constant.language.boolean.false.sd
+    match: "{{BEFORE_KEYWORD}}false{{AFTER_KEYWORD}}"
+
+  StringEscape:
+    match: (\\)(.)
+    captures:
+      1:
+        tag: definition(escape)
+        name: constant.character.escape.sd
+      2:
+        tag: content
+        name: markup.raw.whitespace.sd
+
+  StringCharacter:
+    tag: content
+    name: markup.raw.whitespace.sd
+    match: (.)
+
+  EventAttributeOperator:
+    tag: function(name)
+    name: entity.name.function.attribute.name.view.sd
+    match: ([@])
+
+  EventAttributeName:
+    tag: function(name)
+    name: entity.name.function.attribute.name.view.sd
+    match: (.+)
+
+  RecursiveSelectorFunctionParameters:
+    brackets: true
+    begin: ([(])({{WS}}*)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#PunctuationParenOpen" }
+      2:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+    patterns:
+      - { include: "#LuauComment" }
+      - { include: "#SelectorPropertyNamePart" }
+      - { include: "#ComponentName" }
+      - { include: "#IllegalChar" }
+    end: $|({{WS}}*)([)])
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+      2:
+        patterns:
+          - { include: "#PunctuationParenClose" }
+
+  SimpleSelectorFunctionParameters:
+    brackets: true
+    begin: ([(])({{WS}}*)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#PunctuationParenOpen" }
+      2:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+    patterns:
+      - { include: "#LuauComment" }
+      - { include: "#SelectorPropertyNamePart" }
+      - { include: "#ParameterStringIdentifier" }
+      - { include: "#IllegalChar" }
+    end: $|({{WS}}*)([)])
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+      2:
+        patterns:
+          - { include: "#PunctuationParenClose" }
+
+  AssignedBracedStyleAttribute:
+    begin: ([#])({{IDENTIFIER}})?({{COMPARISON_OPERATOR}})?([=])([{])
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#StyleAttributeOperator" }
+      2:
+        patterns:
+          - { include: "#StyleAttributeName" }
+      3:
+        patterns:
+          - { include: "#ComparisonOperator" }
+      4:
+        patterns:
+          - { include: "#EqualOperator" }
+      5:
+        patterns:
+          - { include: "#PunctuationBraceOpen" }
+    patterns:
+      - { include: "#LuauComment" }
+    end: ([}])
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#PunctuationBraceClose" }
+
+  AssignedQuotedStyleAttribute:
+    tag: string
+    name: string.quoted.double.view.sd
+    begin: ([#])({{IDENTIFIER}})?({{COMPARISON_OPERATOR}})?([=])(["])
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#StyleAttributeOperator" }
+      2:
+        patterns:
+          - { include: "#StyleAttributeName" }
+      3:
+        patterns:
+          - { include: "#ComparisonOperator" }
+      4:
+        patterns:
+          - { include: "#EqualOperator" }
+      5:
+        patterns:
+          - { include: "#PunctuationStringOpen" }
+    patterns:
+      - { include: "#LuauComment" }
+      - { include: "#StringContent" }
+    end: $|(["])
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#PunctuationStringClose" }
+
+  AssignedUnquotedStyleAttribute:
+    begin: ([#])({{IDENTIFIER}})?({{COMPARISON_OPERATOR}})?([=])
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#StyleAttributeOperator" }
+      2:
+        patterns:
+          - { include: "#StyleAttributeName" }
+      3:
+        patterns:
+          - { include: "#ComparisonOperator" }
+      4:
+        patterns:
+          - { include: "#EqualOperator" }
+    patterns:
+      - { include: "#LuauComment" }
+      - { include: "#UnquotedStyleAttributeValue" }
+    end: (?={{UNQUOTED_STRING_TERMINATOR}})
+
+  UnassignedStyleAttribute:
+    match: ([#])({{IDENTIFIER}})?
+    captures:
+      1:
+        patterns:
+          - { include: "#StyleAttributeOperator" }
+      2:
+        patterns:
+          - { include: "#StyleAttributeName" }
+
+  AssignedBracedEventAttribute:
+    begin: ([@])({{IDENTIFIER}})?({{COMPARISON_OPERATOR}})?([=])([{])
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#EventAttributeOperator" }
+      2:
+        patterns:
+          - { include: "#EventAttributeName" }
+      3:
+        patterns:
+          - { include: "#ComparisonOperator" }
+      4:
+        patterns:
+          - { include: "#EqualOperator" }
+      5:
+        patterns:
+          - { include: "#PunctuationBraceOpen" }
+    patterns:
+      - { include: "#LuauComment" }
+    end: ([}])
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#PunctuationBraceClose" }
+
+  AssignedQuotedEventAttribute:
+    tag: string
+    name: string.quoted.double.view.sd
+    begin: ([@])({{IDENTIFIER}})?({{COMPARISON_OPERATOR}})?([=])(["])
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#EventAttributeOperator" }
+      2:
+        patterns:
+          - { include: "#EventAttributeName" }
+      3:
+        patterns:
+          - { include: "#ComparisonOperator" }
+      4:
+        patterns:
+          - { include: "#EqualOperator" }
+      5:
+        patterns:
+          - { include: "#PunctuationStringOpen" }
+    patterns:
+      - { include: "#LuauComment" }
+      - { include: "#StringContent" }
+    end: $|(["])
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#PunctuationStringClose" }
+
+  AssignedUnquotedEventAttribute:
+    begin: ([@])({{IDENTIFIER}})?({{COMPARISON_OPERATOR}})?([=])
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#EventAttributeOperator" }
+      2:
+        patterns:
+          - { include: "#LuauComment" }
+          - { include: "#EventAttributeName" }
+      3:
+        patterns:
+          - { include: "#ComparisonOperator" }
+      4:
+        patterns:
+          - { include: "#EqualOperator" }
+    patterns:
+      - { include: "#LuauComment" }
+      - { include: "#UnquotedEventAttributeValue" }
+    end: (?={{UNQUOTED_STRING_TERMINATOR}})
+
+  UnassignedEventAttribute:
+    match: ([@])({{IDENTIFIER}})?
+    captures:
+      1:
+        patterns:
+          - { include: "#EventAttributeOperator" }
+      2:
+        patterns:
+          - { include: "#EventAttributeName" }
+
+  StringLiteral:
+    tag: string
+    name: string.quoted.double.sd
+    begin: (["])
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#PunctuationStringOpen" }
+    patterns:
+      - { include: "#LuauComment" }
+      - { include: "#StringContent" }
+    end: (["])|($)
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#PunctuationStringClose" }
+
+  Parameter:
+    tag: meta
+    name: meta.parameter.sd
+    begin: (?=.+$)
+    patterns:
+      - { include: "#LuauComment" }
+    end: $|(?={{WS}}*(?:[)]|[,]))
+
+  Infinity:
+    tag: atom
+    name: constant.language.infinity.sd
+    match: "{{BEFORE_KEYWORD}}Infinity{{AFTER_KEYWORD}}"
+
+  NaN:
+    tag: atom
+    name: constant.language.nan.sd
+    match: "{{BEFORE_KEYWORD}}NaN{{AFTER_KEYWORD}}"
+
+  StyleAttributeOperator:
+    # constant(variableName) → #4FC1FF cyan, matching pre-Luau-port (see VariableName).
+    tag: constant(variableName)
+    name: variable.other.constant.attribute.style.sd
+    match: ([#])
+
+  StyleAttributeName:
+    tag: constant(variableName)
+    name: variable.other.constant.attribute.style.sd
+    match: (.+)
+
+  ComparisonOperator:
+    tag: updateOperator
+    name: keyword.operator.comparison.sd
+    match: ({{COMPARISON_OPERATOR}})
+
+  StringContent:
+    match: ((?:\\.|[^"])*?)(?=$|")
+    captures:
+      1:
+        patterns:
+          - { include: "#StringEscape" }
+          - { include: "#LuauFunctionCallShorthand" }
+          - { include: "#LuauInterpolatedStringExpression" }
+          - { include: "#StringCharacter" }
+
+  UnquotedStyleAttributeValue:
+    tag: string
+    name: string.unquoted.attribute.value.sd
+    match: ((?:(?!{{UNQUOTED_STRING_TERMINATOR}}).)+)
+
+  UnquotedEventAttributeValue:
+    match: ((?:(?!{{UNQUOTED_STRING_TERMINATOR}}).)+)
+    captures:
+      1:
+        patterns:
+          - { include: "#DivertTarget" }
+
+  # ----------------------------------------------------------------------------
+  # Restored per-line wrapper rules for struct-body highlighting. Referenced
+  # from `LuauStructBodyContent`'s captures (the lowerer still reads that node's
+  # raw text by range — these only add highlighting children within it).
+  #
+  # ENGINE EQUALITY (GRAMMAR.md §17): these rules are reached ONLY via
+  # `LuauStructBodyContent`'s capture re-tokenization, which both engines run
+  # over the body line's CONTENT (the leading indent is already consumed by
+  # `LuauStructBodyLine` capture 1). vscode-textmate retokenizes a capture from
+  # the capture's absolute mid-line offset, so a `^` anchor here would NEVER
+  # match in vscode (its `^` is true-column-0 only) — vscode would stay flat at
+  # `meta.struct.body.luau` while the tree (which retokenizes an isolated
+  # substring, position 0) descended into these children, diverging at every
+  # body character. Anchoring with `({{WS}}*)` at the start (instead of `^`)
+  # makes BOTH engines descend identically: the capture content always begins at
+  # the line's first non-indent char, so the `({{WS}}*)` matches zero-width and
+  # the rest of the rule lines up the same in both engines. (Each rule consumes
+  # to end-of-line, so exactly one fires per body line — no spurious mid-line
+  # re-match.)
+  LuauStructScalarProperty:
+    match: ({{WS}}*)(\[[^\]\n]*\]|[$]?{{STRICT_PROPERTY_IDENTIFIER}})({{ASSIGN_EQUAL_OPERATOR}})(.*$)
+    captures:
+      1:
+        patterns:
+          - { include: "#OptionalWhitespace" }
+      2:
+        patterns:
+          # In layout/component bodies a builtin element name used as a key
+          # (`image = "black"`) colors pink, matching pre-port. The builtin set
+          # is fixed + word-bounded, so CSS property keys in style bodies
+          # (`background_image`, `position`, …) fall through to the declaration
+          # key below. Custom names stay declaration keys (not className) so
+          # style-body props keep their propertyName color.
+          - { include: "#BuiltinComponentName" }
+          - { include: "#StylingDeclarationScalarPropertyName" }
+      3:
+        patterns:
+          - { include: "#AssignEqualOperator" }
+      4:
+        patterns:
+          - { include: "#NumericFieldValue" }
+          - { include: "#BooleanFieldValue" }
+          - { include: "#StringFieldValueInterpolated" }
+          - { include: "#StringFieldValue" }
+          - { include: "#StylingValue" }
+          - { include: "#UnquotedStringFieldValue" }
+
+  # `^` dropped for engine equality — see LuauStructScalarProperty.
+  LuauStructArrayItem:
+    match: ({{WS}}*)({{ARRAY_ITEM_OPERATOR}})(.*$)
+    captures:
+      1:
+        patterns:
+          - { include: "#OptionalWhitespace" }
+      2:
+        patterns:
+          - { include: "#ArrayItemOperator" }
+      3:
+        patterns:
+          - { include: "#NumericFieldValue" }
+          - { include: "#BooleanFieldValue" }
+          - { include: "#StringFieldValueInterpolated" }
+          - { include: "#StringFieldValue" }
+          - { include: "#StylingValue" }
+          - { include: "#UnquotedStringFieldValue" }
+
+  # Component call (spec §4.7): `name(arg, …)` (leaf) or `name(arg):` (container
+  # whose child lines are default-slot content + `fill`s). Invokes an authored
+  # `component` with paren args that are Luau EXPRESSIONS (lowered to Bindings,
+  # evaluated in the CALLER's scope). A DISTINCT shape from a builtin element line
+  # (Golden Rule): args are expressions, not classes/content. Tried before the
+  # object-header / bare-marker shapes so `card("x"):` isn't claimed as a plain
+  # container header. The tag is a CustomComponentName; args tokenize as
+  # comma-separated LuauExpressions the lowerer splits + lowers (mirrors
+  # lowerParentheticalArgList). (Own paren tokenization rather than
+  # LuauParenthetical, whose close requires a binary-operator lookahead.)
+  LuauStructComponentCall:
+    begin: ({{WS}}*)({{LUAU_IDENTIFIER}})({{WS}}*)([(])
+    beginCaptures:
+      1:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
+      2:
+        patterns:
+          - { include: "#CustomComponentName" }
+      3:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
+      4:
+        patterns:
+          - { include: "#PunctuationParenOpen" }
+    patterns:
+      - { include: "#LuauComment" }
+      - { include: "#LuauCommaSeparator" }
+      # A quoted arg with a `{expr}` interpolates like display content (spec D3:
+      # "quoted = text, braces = code") — tokenized via the same interp string
+      # rule content uses, so the lowerer builds it as a `content` PropValue. A
+      # PLAIN quoted arg (no lone `{`) falls through to LuauExpression unchanged
+      # (a literal Luau string); a bare expr (`hero.name`) is LuauExpression.
+      - { include: "#LuauElementContentStringInterpolated" }
+      - { include: "#LuauExpression" }
+      - { include: "#ExtraWhitespace" }
+    end: ([)])({{WS}}*)(:?)({{WS}}*)$
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#PunctuationParenClose" }
+      2:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
+      3:
+        patterns:
+          - { include: "#LuauStructObjectColon" }
+      4:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
+
+  # `^` dropped for engine equality — see LuauStructScalarProperty.
+  LuauStructObjectHeader:
+    match: ({{WS}}*)(.+?)({{WS}}*)([:])({{WS}}*)(?=(?:--|//(?=$|{{WS}}))|$)
+    captures:
+      1:
+        patterns:
+          - { include: "#OptionalWhitespace" }
+      # Element attributes are tried FIRST so a container header can carry inline
+      # props/events (`column #gap=16:`, `row @click=x:`). `#name=`/`@name=` don't
+      # collide with style headers' `> selector` / `@breakpoint(…)` (no `=` after
+      # the keyword), so those still fall through to SelectorPropertyNamePart.
+      2:
+        patterns:
+          - { include: "#LuauElementAttribute" }
+          - { include: "#SelectorPropertyNamePart" }
+          - { include: "#ComponentName" }
+          - { include: "#PropertyName" }
+      4:
+        patterns:
+          - { include: "#LuauStructObjectColon" }
+
+  LuauStructObjectColon:
+    # tag logicOperator → CodeMirror operator color (#A0A0A0). The `name` scope
+    # mirrors the pre-port `ColonOperator` so VSCode's
+    # `meta.template.expression.operator` override (#A0A0A0) applies too.
+    tag: logicOperator
+    name: meta.template.expression.operator.colon.sd
+    match: ([:])
+
+  # Adjacency content (spec §4.2/D2): `<tag> "content {interp}"` — a builtin/
+  # component tag followed by a quoted (interpolation-aware) display string,
+  # e.g. `image "black"`, `text "HP: {hp}"`, `button "Use"`. Listed BEFORE
+  # LuauStructBareMarker; cap 4 must START with a quote, so `mask shadow_1`
+  # (trailing class names, no quote) still falls through to the bare marker, and
+  # `image = "black"` (a scalar) is matched earlier. The lowerer reads the tag
+  # (cap 2) + the content value (cap 4); the static context builder maps it to
+  # `{ tag: content }`, identical to the `tag = "content"` scalar form.
+  # `^` dropped for engine equality — see LuauStructScalarProperty.
+  LuauStructAdjacencyContent:
+    match: ({{WS}}*)({{STYLE_PROPERTY_NAME}})({{WS}}+)("(?:\\.|[^"])*")({{WS}}*)([^\n]*)$
+    captures:
+      1:
+        patterns:
+          - { include: "#OptionalWhitespace" }
+      2:
+        patterns:
+          - { include: "#ComponentName" }
+      3:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
+      4:
+        patterns:
+          - { include: "#StringFieldValueInterpolated" }
+          - { include: "#StringFieldValue" }
+      5:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
+      # Trailing inline attributes after the content (`@event=handler`, …).
+      6:
+        patterns:
+          - { include: "#LuauElementAttribute" }
+
+  # Inline element attributes (spec §4.5): trailing `@event=handler` bindings on
+  # an element line. `#prop=value` follows in a later increment. Each event's
+  # handler is a Luau expression (a bare function name or a call); inline
+  # closures `@e={ … }` come later.
+  LuauElementAttribute:
+    patterns:
+      # Consume inter-attribute whitespace (non-zero-width, so it isn't flagged
+      # by the zero-width-include guard and doesn't halt capture tokenization on
+      # an unrecognized space between two attributes).
+      - { include: "#RequiredWhitespace" }
+      - { include: "#LuauComment" }
+      - { include: "#SparkdownLineComment" }
+      - { include: "#LuauEventAttribute" }
+      - { include: "#LuauPropAttribute" }
+
+  # A BARE `@e=name` handler. The lookahead lists everything that can legally
+  # follow the name: another attribute, a trailing comment, end-of-line — and a
+  # QUOTE, because `button @click=on_click "Press"` is the element's content
+  # string. Without the quote, this rule declined, `#LuauExpression` took over,
+  # and Luau's adjacency-call syntax (`f "str"`) read the label as the handler's
+  # ARGUMENT: a blank button whose handler received the string instead of the
+  # event, with no diagnostic — the corruption was purely positional, since
+  # `button "Press" @click=on_click` was always correct.
+  LuauSparkleEventHandlerName:
+    tag: heading
+    name: keyword.control.divert.path.sd
+    match: ((?:[_\p{L}][0-9_\p{L}]*\b))(?=(?:[^\S\n\r])*(?:[@#"']|--|//(?=$|[^\S\n\r])|$))
+
+  LuauEventAttribute:
+    begin: ([@])({{LUAU_IDENTIFIER}})({{WS}}*)([=])({{WS}}*)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#EventAttributeOperator" }
+      2:
+        patterns:
+          - { include: "#EventAttributeName" }
+      4:
+        patterns:
+          - { include: "#EqualOperator" }
+    patterns:
+      - { include: "#LuauSparkleHandlerClosure" }
+      - { include: "#LuauSparkleEventHandlerName" }
+      - { include: "#LuauExpression" }
+    # A whitespace-preceded quote closes the attribute: it starts the element's
+    # CONTENT, not more handler. Safe for `@click=f(1, "x")` — the argument list
+    # is its own begin/end scope (`LuauFunctionCallParameters`), and this end is
+    # never tested while a child scope is open.
+    end: (?=$|{{WS}}+["'@#])
+
+  # Inline event-handler closure (spec §4.5, L7): `@click={ score = 0; combo = 0 }`,
+  # `@input={ name = event.value }`. In event-handler value position the braces
+  # delimit a STATEMENT block (a closure body), NOT a Luau table — identical
+  # source text (`{ a = b }`), different context. Per the grammar Golden Rule
+  # this is its own rule (not a table reinterpreted downstream): it reuses
+  # `#LuauBlockBody`, the SAME statement list a function body parses, so every
+  # statement form works (assignment, property-target `a.b = x`, bare call,
+  # `;`-separated statements). Tried before `#LuauExpression` in
+  # `LuauEventAttribute` so the leading `{` isn't taken as a table; only
+  # reachable from there, so tables elsewhere are unaffected.
+  #
+  # SINGLE-LINE only: `LuauEventAttribute.end` (`(?=$|…)`) is line-oriented, so
+  # the closing `}` must be on the `=` line. A body split across lines would be
+  # truncated at the newline; `lowerHandlerClosure` detects a missing `}` and
+  # raises a diagnostic rather than silently dropping the rest.
+  LuauSparkleHandlerClosure:
+    brackets: true
+    begin: ([{])
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#PunctuationBraceOpen" }
+    patterns:
+      - { include: "#LuauBlockBody" }
+    end: ([}])
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#PunctuationBraceClose" }
+
+  # Inline style/attribute prop (spec §4.2/§4.4): `#prop=value`, e.g.
+  # `row #gap=16`, `#background-color={team_color}`, `image #src="a.png"`. The
+  # value is `{expr}` (reactive — reuses LuauInterpolatedStringExpression so
+  # `{…}` is interpolation, NOT a Luau table), a quoted string, or an unquoted
+  # literal (number / keyword / `#hex`). Prop names allow hyphens. Value rules
+  # carry no `{{EOPL}}` (the value is mid-line; more attrs may follow).
+  # The name capture admits a leading `--` so an inline CUSTOM PROPERTY
+  # (`#--my-var=4`) parses. No pattern used to, so `#--…` matched nothing here,
+  # `LuauComment` claimed the rest of the line, and the prop AND every attribute
+  # after it vanished with zero diagnostics — while the unrecognized-prop
+  # warning was actively recommending that spelling. The existing "a `--custom`
+  # property does not warn" test passed vacuously: a swallowed line produces no
+  # warning either.
+  LuauPropAttribute:
+    begin: ([#])((?:[-]{2})?{{LUAU_IDENTIFIER}}(?:[-]{{LUAU_IDENTIFIER}})*)({{WS}}*)([=])({{WS}}*)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#StyleAttributeOperator" }
+      2:
+        patterns:
+          - { include: "#StyleAttributeName" }
+      4:
+        patterns:
+          - { include: "#EqualOperator" }
+    patterns:
+      - { include: "#LuauFunctionCallShorthand" }
+      - { include: "#LuauInterpolatedStringExpression" }
+      # A quoted value with a `{expr}` interpolates like display content
+      # (`#label="HP: {hp}"`), tried before the plain quoted value so a string
+      # with only literal text (or `\{`/`\}` escapes) still falls through to
+      # InlinePropQuotedValue.
+      - { include: "#LuauElementContentStringInterpolated" }
+      - { include: "#InlinePropQuotedValue" }
+      - { include: "#InlinePropLiteralValue" }
+    end: (?=$|{{WS}}+[@#])
+
+  InlinePropQuotedValue:
+    tag: string
+    name: string.quoted.double.sd
+    match: (["])((?:\\.|[^"])*)(["])
+    captures:
+      1:
+        patterns:
+          - { include: "#PunctuationStringOpen" }
+      2:
+        patterns:
+          - { include: "#PlainStringContent" }
+      3:
+        patterns:
+          - { include: "#PunctuationStringClose" }
+
+  InlinePropLiteralValue:
+    match: ([^\s]+)
+    captures:
+      1:
+        patterns:
+          - { include: "#Color" }
+          - { include: "#NumericLiteral" }
+          - { include: "#UnquotedString" }
+
+  # Adjacency content string for inline element positions where a class or
+  # attribute may follow on the same line (e.g. `button primary "Use" @click=x`).
+  # Unlike StringFieldValue(Interpolated) these end at the closing quote rather
+  # than requiring end-of-property-line, so a trailing attribute doesn't break
+  # the match. Same scope/highlighting as StringFieldValue; the interpolated
+  # variant (a real `{expr}` present) is tried first.
+  LuauElementContentStringInterpolated:
+    tag: string
+    name: string.quoted.double.sd
+    begin: (["])(?=(?:[^"{\\]|\\.)*\{)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#PunctuationStringOpen" }
+    patterns:
+      - { include: "#LuauFunctionCallShorthand" }
+      - { include: "#LuauInterpolatedStringExpression" }
+      - { include: "#StringEscape" }
+      - { include: "#SparkleRichTextTag" }
+      - { include: "#SparkleRichTextTagUnknown" }
+      - { include: "#Color" }
+      - { include: "#StringCharacter" }
+    end: (["])
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#PunctuationStringClose" }
+
+  LuauElementContentStringPlain:
+    tag: string
+    name: string.quoted.double.sd
+    match: (["])((?:\\.|[^"])*)(["])
+    captures:
+      1:
+        patterns:
+          - { include: "#PunctuationStringOpen" }
+      2:
+        patterns:
+          - { include: "#PlainStringContent" }
+      3:
+        patterns:
+          - { include: "#PunctuationStringClose" }
+
+  # `^` dropped for engine equality — see LuauStructScalarProperty.
+  LuauStructBareMarker:
+    match: ({{WS}}*)({{STYLE_PROPERTY_NAME}})({{WS}}*)([^\n]*)$
+    captures:
+      1:
+        patterns:
+          - { include: "#OptionalWhitespace" }
+      2:
+        patterns:
+          - { include: "#ComponentName" }
+      3:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
+      # Trailing class names, content, AND inline attributes — order:
+      # whitespace (consumed so inter-token spaces don't halt tokenization),
+      # attributes (`#prop=`/`@event=`), quoted content (`text title "Inventory"`),
+      # then bare component names (= classes).
+      #
+      # TrailingComponentName, NOT ComponentName: the tag is capture 2, the
+      # first token, and everything here is a class. That is position-DEPENDENT
+      # (this comment used to claim otherwise) — `text strong "A"` is a `text`
+      # element with `.strong` on it, never a <strong>.
+      4:
+        patterns:
+          - { include: "#RequiredWhitespace" }
+          - { include: "#LuauElementAttribute" }
+          - { include: "#LuauElementContentStringInterpolated" }
+          - { include: "#LuauElementContentStringPlain" }
+          - { include: "#LuauElementContentStringSingleQuoted" }
+          - { include: "#TrailingComponentName" }
+
+  # Full-line catch-all so any struct-body line NOT matched by a wrapper above
+  # (e.g. `$recursive = true` / `["$default"] = …` / odd `$`-keys) still produces
+  # a child that spans the WHOLE line. Without it the LuauStructBodyContent node
+  # truncates to the last tokenized child and the lowerer (which reads the node's
+  # raw text by range) sees a partial line. Must be LAST.
+  # `^` dropped for engine equality — see LuauStructScalarProperty. (`.+` still
+  # requires at least one non-newline char, so an empty line produces no node.)
+  LuauStructBodyFallback:
+    tag: content
+    name: meta.struct.body.fallback.luau
+    match: (.+)$
+
+  # ----------------------------------------------------------------------------
+  # Sparkle control flow (spec §4.6): `if/elseif/else`, `for`, `match` inside a
+  # layout/component body. Luau-keyword delimited (`then`/`do`/`end`). These are
+  # GRAMMAR BLOCKS (begin/end) — required so a nested `end` is consumed by its
+  # own block and the layout's terminating `end` still balances. Their bodies are
+  # the same sparkle element lines (LuauStructBodyLine) + nested control blocks,
+  # so the lowerer reads if/for/match as IfNode/ForNode/MatchNode grammar
+  # children. `if`-condition rules are reused from the Luau side (they end at
+  # `then`); only the BODY differs (element lines, not Luau statements).
+  LuauSparkleControlBlock:
+    patterns:
+      - { include: "#LuauSparkleIfBlock" }
+      - { include: "#LuauSparkleForLoop" }
+      - { include: "#LuauSparkleMatchBlock" }
+
+  LuauSparkleIfBlock:
+    begin: ({{WS}}*)(if)\b({{WS}}*)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#OptionalWhitespace" }
+      2:
+        patterns:
+          - { include: "#LuauIfKeyword" }
+      3:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
+    patterns:
+      - { include: "#LuauIfBlockCondition" }
+      - { include: "#LuauComment" }
+      - { include: "#SparkleTrailingLineComment" }
+      - { include: "#LuauSparkleElseifBlock" }
+      - { include: "#LuauSparkleElseBlock" }
+      - { include: "#LuauSparkleControlBlock" }
+      - { include: "#LuauStructBodyLine" }
+      - { include: "#ExtraWhitespace" }
+      - { include: "#Newline" }
+    end: (?={{BEAT}})|({{WS}}*)(end)\b
+    endCaptures:
+      1:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
+      2:
+        patterns:
+          - { include: "#LuauEndKeyword" }
+
+  LuauSparkleElseifBlock:
+    begin: ({{WS}}*)(elseif)\b({{WS}}*)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#OptionalWhitespace" }
+      2:
+        patterns:
+          - { include: "#LuauElseifKeyword" }
+      3:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
+    patterns:
+      - { include: "#LuauElseifBlockCondition" }
+      - { include: "#LuauComment" }
+      - { include: "#SparkleTrailingLineComment" }
+      - { include: "#LuauSparkleControlBlock" }
+      - { include: "#LuauStructBodyLine" }
+      - { include: "#ExtraWhitespace" }
+      - { include: "#Newline" }
+    end: (?={{BEAT}})|(?={{WS}}*{{LUAU_IF_BRANCH_END_KEYWORDS}})
+
+  LuauSparkleElseBlock:
+    begin: ({{WS}}*)(else)\b({{WS}}*)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#OptionalWhitespace" }
+      2:
+        patterns:
+          - { include: "#LuauElseKeyword" }
+      3:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
+    patterns:
+      - { include: "#LuauComment" }
+      - { include: "#SparkleTrailingLineComment" }
+      - { include: "#LuauSparkleControlBlock" }
+      - { include: "#LuauStructBodyLine" }
+      - { include: "#ExtraWhitespace" }
+      - { include: "#Newline" }
+    end: (?={{BEAT}})|(?={{WS}}*(?:end)\b)
+
+  # `for <bindings> in <expr> do <element lines> [else <empty fallback>] end`
+  # (spec §4.6). Reuses the Luau `LuauForCondition` (bindings + `in` + iterable,
+  # ends before `do`) and `LuauSparkleElseBlock` (the empty-iterable fallback).
+  # `do` is consumed here (not via LuauDoBlock, whose body is Luau statements);
+  # the body is sparkle element lines + nested control blocks.
+  LuauSparkleForLoop:
+    begin: ({{WS}}*)(for)\b({{WS}}*)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#OptionalWhitespace" }
+      2:
+        patterns:
+          - { include: "#LuauForKeyword" }
+      3:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
+    patterns:
+      - { include: "#LuauForCondition" }
+      - { include: "#LuauComment" }
+      - { include: "#SparkleTrailingLineComment" }
+      - { include: "#LuauSparkleDoMark" }
+      - { include: "#LuauSparkleElseBlock" }
+      - { include: "#LuauSparkleControlBlock" }
+      - { include: "#LuauStructBodyLine" }
+      - { include: "#ExtraWhitespace" }
+      - { include: "#Newline" }
+    end: (?={{BEAT}})|({{WS}}*)(end)\b
+    endCaptures:
+      1:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
+      2:
+        patterns:
+          - { include: "#LuauEndKeyword" }
+
+  # The `do` keyword that opens a for-loop's body (consumed after the condition).
+  LuauSparkleDoMark:
+    match: ({{WS}}*)(do)\b({{WS}}*)
+    captures:
+      1:
+        patterns:
+          - { include: "#OptionalWhitespace" }
+      2:
+        patterns:
+          - { include: "#LuauDoKeyword" }
+      3:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
+
+  # `match <expr> do  case <value> …  [else …]  end` (spec §4.6). Distinct from
+  # the alternator `match | arm` (display context): this is a UI control block
+  # with `case` arms whose bodies are sparkle element lines. `do` is consumed by
+  # LuauSparkleDoMark; the empty/default arm reuses LuauSparkleElseBlock.
+  LuauSparkleMatchBlock:
+    begin: ({{WS}}*)(match)\b({{WS}}*)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#OptionalWhitespace" }
+      2:
+        patterns:
+          - { include: "#LuauMatchKeyword" }
+      3:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
+    patterns:
+      - { include: "#LuauSparkleMatchCondition" }
+      - { include: "#LuauComment" }
+      - { include: "#SparkleTrailingLineComment" }
+      - { include: "#LuauSparkleDoMark" }
+      - { include: "#LuauSparkleCaseClause" }
+      - { include: "#LuauSparkleElseBlock" }
+      - { include: "#ExtraWhitespace" }
+      - { include: "#Newline" }
+    end: (?={{BEAT}})|({{WS}}*)(end)\b
+    endCaptures:
+      1:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
+      2:
+        patterns:
+          - { include: "#LuauEndKeyword" }
+
+  # The matched expression, between `match` and `do` (may span lines).
+  LuauSparkleMatchCondition:
+    begin: (?<=match\b{{WS}}*)(?!{{BEAT}}|do\b)
+    patterns:
+      - { include: "#LuauExpression" }
+      - { include: "#ExtraWhitespace" }
+      - { include: "#Newline" }
+    end: (?={{BEAT}}|{{END}})|(?={{WS}}*do\b)
+
+  # A `case <value>` arm: the value expression is on the `case` line; the body is
+  # the indented element lines below, until the next `case`/`else`/`end`.
+  LuauSparkleCaseClause:
+    begin: ({{WS}}*)(case)\b({{WS}}*)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#OptionalWhitespace" }
+      2:
+        patterns:
+          - { include: "#LuauCaseKeyword" }
+      3:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
+    patterns:
+      - { include: "#LuauSparkleCaseValue" }
+      - { include: "#LuauSparkleControlBlock" }
+      - { include: "#LuauStructBodyLine" }
+      - { include: "#ExtraWhitespace" }
+      - { include: "#Newline" }
+    end: (?={{BEAT}})|(?={{WS}}*(?:case|else|end)\b)
+
+  # The case value expression (on the `case` line, ends at end-of-line).
+  LuauSparkleCaseValue:
+    begin: (?<=case\b{{WS}}*)(?!{{BEAT}}|$)
+    patterns:
+      - { include: "#LuauExpression" }
+      - { include: "#ExtraWhitespace" }
+    end: (?=$)
+
+
+  # ----------------------------------------------------------------------------
+  # Layout / Component (structured UI element trees, struct-registry only)
+  #
+  # `layout NAME [as PARENT] [in SCREEN] with <element-tree> end` (and `component`).
   # Each element line is `<tag> [#attr=val ...] ["content"]`; children nest
   # by INDENTATION (no per-element `end`). Top-level structural keywords
   # (parallel to `scene`/`branch`), NOT `define`; `as` = inherits. Lowers to
   # a compile-time nested-object struct in
-  # program.context.screen|component.<name>. Element lines parse FLAT (one
+  # program.context.layout|component.<name>. Element lines parse FLAT (one
   # `LuauUIElement` per line); the lowerer reconstructs the tree from each
   # element's indentation column. See lowerLuauUI.
+  # ----------------------------------------------------------------------------
+
+  LuauLayout:
+    tag: meta
+    name: meta.layout.luau
+    begin: ({{WS}}*)(layout)\b({{WS}}*)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#OptionalWhitespace" }
+      2:
+        patterns:
+          - { include: "#LuauLayoutKeyword" }
+      3:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
+    patterns:
+      - { include: "#LuauComment" }
+      - { include: "#LuauLayoutNameAndInheritance" }
+      - { include: "#LuauSparkleControlBlock" }
+      - { include: "#LuauStructBodyLine" }
+      - { include: "#ExtraWhitespace" }
+      - { include: "#Newline" }
+    end: (?={{BEAT}})|({{WS}}*)(end)\b
+    endCaptures:
+      1:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
+      2:
+        patterns:
+          - { include: "#LuauEndKeyword" }
+
+  # ----------------------------------------------------------------------------
+  # Screen (navigation group for layouts)
+  #
+  # `screen NAME with <optional config> end` — a named group that holds
+  # mutually-exclusive layouts (`layout X in NAME`). Explicitly declared so
+  # `in SCREEN` references and `[[navigate SCREEN to LAYOUT]]` validate against
+  # it (undefined screen = error, catching typos). The body is reserved for
+  # future screen-level config; empty is allowed but `with` is required. Lowers
+  # to a compile-time `screen` struct in program.context.screen.<name>. See
+  # lowerLuauScreen.
   # ----------------------------------------------------------------------------
 
   LuauScreen:
@@ -3441,7 +5214,7 @@ repository:
           - { include: "#OptionalWhitespace" }
     patterns:
       - { include: "#LuauComment" }
-      - { include: "#LuauUINameAndInheritance" }
+      - { include: "#LuauScreenNameHeader" }
       - { include: "#LuauStructBodyLine" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
@@ -3454,6 +5227,26 @@ repository:
       2:
         patterns:
           - { include: "#LuauEndKeyword" }
+
+  # `screen NAME`, ending at `with`. Reuses LuauDefineName so the lowerer reads
+  # the name through the same node as define / style / layout.
+  LuauScreenNameHeader:
+    begin: (?<=screen\b{{WS}}*)({{LUAU_IDENTIFIER}})
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#LuauDefineName" }
+    patterns:
+      - { include: "#ExtraWhitespace" }
+    end: (?={{BEAT}})|({{WS}}*)(with)\b
+    endCaptures:
+      1:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
+      2:
+        patterns:
+          - { include: "#LuauWithKeyword" }
 
   LuauComponent:
     tag: meta
@@ -3472,7 +5265,8 @@ repository:
           - { include: "#OptionalWhitespace" }
     patterns:
       - { include: "#LuauComment" }
-      - { include: "#LuauUINameAndInheritance" }
+      - { include: "#LuauComponentNameAndInheritance" }
+      - { include: "#LuauSparkleControlBlock" }
       - { include: "#LuauStructBodyLine" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
@@ -3486,17 +5280,48 @@ repository:
         patterns:
           - { include: "#LuauEndKeyword" }
 
-  # Name + optional `as PARENT`, ending at `with`. Shared by screen and
-  # component (variable-length lookbehind over both keywords). Reuses
+  # Screen header: `NAME [as PARENT] [in CONTAINER]`, ending at `with`. The
+  # `in CONTAINER` clause groups screens for `[[navigate CONTAINER to NAME]]`
+  # routing — it is SCREEN-ONLY (components are mounted, never navigated), which
+  # is why the screen/component headers are two distinct rules instead of one
+  # shared rule (Golden Rule: distinct contexts → distinct grammar). Reuses
   # LuauDefineName / LuauInheritanceOperation → LuauDefineParentName so the
-  # lowerer reads names through the same node names as `define` / `style`.
-  LuauUINameAndInheritance:
-    begin: (?<=(?:screen|component)\b{{WS}}*)({{LUAU_IDENTIFIER}})
+  # lowerer reads name/parent through the same node names as `define` / `style`;
+  # adds LuauLayoutScreenOperation → LuauLayoutScreenName for `in`.
+  LuauLayoutNameAndInheritance:
+    begin: (?<=layout\b{{WS}}*)({{LUAU_IDENTIFIER}})
     beginCaptures:
       1:
         patterns:
           - { include: "#LuauDefineName" }
     patterns:
+      - { include: "#LuauInheritanceOperation" }
+      - { include: "#LuauLayoutScreenOperation" }
+      - { include: "#ExtraWhitespace" }
+    end: (?={{BEAT}})|({{WS}}*)(with)\b
+    endCaptures:
+      1:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
+      2:
+        patterns:
+          - { include: "#LuauWithKeyword" }
+
+  # Component header: `NAME[(p1, p2)] [as PARENT]`, ending at `with`. No
+  # `in CONTAINER` (containers are a screen-navigation concept). Reuses
+  # LuauDefineName / LuauInheritanceOperation → LuauDefineParentName like the
+  # screen header; the optional `(params)` reuses LuauFunctionParameters (spec
+  # §4.7 — `component card(title) with …`), so param names tokenize as
+  # LuauFunctionParameter and the lowerer reads them into ComponentNode.params.
+  LuauComponentNameAndInheritance:
+    begin: (?<=component\b{{WS}}*)({{LUAU_IDENTIFIER}})
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#LuauDefineName" }
+    patterns:
+      - { include: "#LuauFunctionParameters" }
       - { include: "#LuauInheritanceOperation" }
       - { include: "#ExtraWhitespace" }
     end: (?={{BEAT}})|({{WS}}*)(with)\b
@@ -3508,6 +5333,31 @@ repository:
       2:
         patterns:
           - { include: "#LuauWithKeyword" }
+
+  # `in CONTAINER` — the screen's navigation container. Mirrors
+  # LuauInheritanceOperation (`as PARENT`): the space before `in` is a SEPARATOR
+  # (normalize to one space) so the formatter doesn't eat it (`hudin`). The
+  # container name lowers through LuauLayoutScreenName.
+  LuauLayoutScreenOperation:
+    match: ({{WS}}*)(in)\b({{WS}}*)($|{{LUAU_IDENTIFIER}})($|{{WS}}*)
+    captures:
+      1:
+        patterns:
+          - { include: "#OptionalWhitespace" }
+      2:
+        patterns:
+          - { include: "#LuauInKeyword" }
+      3:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
+      4:
+        patterns:
+          - { include: "#LuauLayoutScreenName" }
+      5:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
 
   # One element line: `<tag> [#attr=val ...] ["content"]`. Single-line
   # (ends at EOL); nesting is by indentation and reconstructed in the
@@ -3581,6 +5431,11 @@ repository:
       4:
         patterns:
           - { include: "#LuauUIQuote" }
+
+  LuauLayoutKeyword:
+    tag: controlKeyword
+    name: keyword.control.layout.luau
+    match: (layout)\b
 
   LuauScreenKeyword:
     tag: controlKeyword
@@ -3683,6 +5538,12 @@ repository:
     name: entity.name.type.define.parent.luau
     match: ({{LUAU_IDENTIFIER}})
 
+  # The screen's navigation container name (from `screen NAME in CONTAINER`).
+  LuauLayoutScreenName:
+    tag: typeName
+    name: entity.name.type.layout.screen.luau
+    match: ({{LUAU_IDENTIFIER}})
+
   # ----------------------------------------------------------------------------
   # Function Definition
   # ----------------------------------------------------------------------------
@@ -3770,7 +5631,7 @@ repository:
     # where this rule stays live, since LuauFunctionBody only opens
     # after a newline). `table.insert(` now fails the lookbehind —
     # no header keyword before it, and it's mid-line.
-    begin: ((?<=\b(?:function|scene|branch|external)\b{{WS}}*(?:{{LUAU_IDENTIFIER}}(?:{{WS}}*[.:]{{WS}}*{{LUAU_IDENTIFIER}})*)?(?:<[^<>\n]*>)?{{WS}}*|^{{WS}}*{{LUAU_IDENTIFIER}}{{WS}}*)[(])
+    begin: ((?<=\b(?:function|scene|branch|external|component)\b{{WS}}*(?:{{LUAU_IDENTIFIER}}(?:{{WS}}*[.:]{{WS}}*{{LUAU_IDENTIFIER}})*)?(?:<[^<>\n]*>)?{{WS}}*|^{{WS}}*{{LUAU_IDENTIFIER}}{{WS}}*)[(])
     beginCaptures:
       1:
         patterns:
@@ -5118,6 +6979,16 @@ repository:
     name: keyword.control.for.luau
     match: (for)\b
 
+  LuauMatchKeyword:
+    tag: controlKeyword
+    name: keyword.control.match.luau
+    match: (match)\b
+
+  LuauCaseKeyword:
+    tag: controlKeyword
+    name: keyword.control.case.luau
+    match: (case)\b
+
   LuauWhileKeyword:
     tag: controlKeyword
     name: keyword.control.while.luau
@@ -5663,6 +7534,8 @@ repository:
           - { include: "#PunctuationStringDoubleQuoteOpen" }
     patterns:
       - { include: "#LuauStringEscape" }
+      - { include: "#LuauDoubleQuotedFunctionCallShorthand" }
+      - { include: "#LuauDoubleQuotedStringInterpolation" }
       - { include: "#Color" }
       - { include: "#PlainText" }
     end: (["]){{_LUAU_BINARY_OPERATOR_AHEAD_}}
@@ -5741,7 +7614,8 @@ repository:
         patterns:
           - { include: "#PunctuationStringBacktickQuoteOpen" }
     patterns:
-      - { include: "#LuauInterpolatedStringExpression" }
+      - { include: "#LuauBacktickFunctionCallShorthand" }
+      - { include: "#LuauBacktickStringInterpolation" }
       - { include: "#LuauStringEscape" }
       - { include: "#Color" }
       - { include: "#PlainText" }
@@ -5760,7 +7634,7 @@ repository:
     name: meta.template.expression.luau
     contentName: meta.embedded.line.luau
     brackets: true
-    begin: ([{])
+    begin: ([{])(?![}])
     beginCaptures:
       1:
         patterns:
@@ -5774,6 +7648,142 @@ repository:
       1:
         patterns:
           - { include: "#PunctuationBraceClose" }
+
+  LuauDoubleQuotedStringInterpolation:
+    tag: meta
+    name: meta.template.expression.luau
+    contentName: meta.embedded.line.luau
+    brackets: true
+    begin: ([{])
+    beginCaptures:
+      "1":
+        patterns:
+          - include: "#PunctuationBraceOpen"
+    patterns:
+      - include: "#LuauExpression"
+      - include: "#ExtraWhitespace"
+      - include: "#Newline"
+    end: ([}])|(?=["])
+    endCaptures:
+      "1":
+        patterns:
+          - include: "#PunctuationBraceClose"
+
+  LuauBacktickStringInterpolation:
+    tag: meta
+    name: meta.template.expression.luau
+    contentName: meta.embedded.line.luau
+    brackets: true
+    begin: ([{])
+    beginCaptures:
+      "1":
+        patterns:
+          - include: "#PunctuationBraceOpen"
+    patterns:
+      - include: "#LuauExpression"
+      - include: "#ExtraWhitespace"
+      - include: "#Newline"
+    end: ([}])|(?=[`])
+    endCaptures:
+      "1":
+        patterns:
+          - include: "#PunctuationBraceClose"
+    applyEndPatternLast: true
+
+  # `{{fn}}` / `{{fn(args)}}` — function-call shorthand (issue #223). Doubled
+  # braces mean "call the named function and output its return value", in EVERY
+  # interpolation context (display text, element content strings, field/prop
+  # values, Luau interpolated strings) — one rule, no per-context exceptions.
+  # Must be listed BEFORE the matching interpolation rule at every include site
+  # so `{{` isn't taken as an interpolation opening at the first `{`. The two
+  # opening braces are REQUIRED adjacent (`{ {tbl} }` with a space stays a
+  # table interpolation). The body reuses #LuauExpression so `{{fn(a, b)}}`
+  # tokenizes exactly like `{fn(a, b)}`; the LOWERER supplies the shorthand
+  # semantics (a bare name is coerced to a call; a non-call body is the
+  # "expected a function name" error — see lowerFunctionCallShorthand).
+  LuauFunctionCallShorthand:
+    tag: meta
+    name: meta.template.expression.function-shorthand.luau
+    contentName: meta.embedded.line.luau
+    brackets: true
+    begin: ([{])([{])
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#PunctuationBraceOpen" }
+      2:
+        patterns:
+          - { include: "#PunctuationBraceOpen" }
+    patterns:
+      - { include: "#LuauExpression" }
+      - { include: "#ExtraWhitespace" }
+      - { include: "#Newline" }
+    end: ([}])([}])?
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#PunctuationBraceClose" }
+      2:
+        patterns:
+          - { include: "#PunctuationBraceClose" }
+
+  # `{{fn}}` inside a `"..."` Luau string — string-bounded like
+  # LuauDoubleQuotedStringInterpolation so an unterminated `{{` can't swallow
+  # past the closing quote.
+  LuauDoubleQuotedFunctionCallShorthand:
+    tag: meta
+    name: meta.template.expression.function-shorthand.luau
+    contentName: meta.embedded.line.luau
+    brackets: true
+    begin: ([{])([{])
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#PunctuationBraceOpen" }
+      2:
+        patterns:
+          - { include: "#PunctuationBraceOpen" }
+    patterns:
+      - { include: "#LuauExpression" }
+      - { include: "#ExtraWhitespace" }
+      - { include: "#Newline" }
+    end: ([}])([}])?|(?=["])
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#PunctuationBraceClose" }
+      2:
+        patterns:
+          - { include: "#PunctuationBraceClose" }
+
+  # `{{fn}}` inside a backtick string — bounded by the closing backtick, same
+  # `applyEndPatternLast` rationale as LuauBacktickStringInterpolation.
+  LuauBacktickFunctionCallShorthand:
+    tag: meta
+    name: meta.template.expression.function-shorthand.luau
+    contentName: meta.embedded.line.luau
+    brackets: true
+    begin: ([{])([{])
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#PunctuationBraceOpen" }
+      2:
+        patterns:
+          - { include: "#PunctuationBraceOpen" }
+    patterns:
+      - { include: "#LuauExpression" }
+      - { include: "#ExtraWhitespace" }
+      - { include: "#Newline" }
+    end: ([}])([}])?|(?=[`])
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#PunctuationBraceClose" }
+      2:
+        patterns:
+          - { include: "#PunctuationBraceClose" }
+    applyEndPatternLast: true
 
   LuauStringEscape:
     patterns:
@@ -5947,10 +7957,26 @@ repository:
     # the `Too many consecutive empty matches` warning. See GRAMMAR.md
     # §12 ("Switch rules can't include OptionalWhitespace") — same
     # constraint applies to a scoped rule's own patterns list.
+    # The assignment operator does NOT span the line break. An empty
+    # RHS (`name =` with nothing after `=` on the same line) leaves the
+    # value empty and closes at end-of-line, so the next line's `end`
+    # is seen fresh by the enclosing `define` block. Previously this
+    # rule included `#Newline` to allow a bare `x =\n  rhs`
+    # continuation; that let an empty RHS consume the line break and
+    # park the cursor before `end`, which was then mis-read as the
+    # property VALUE (`name = "end"`), so the `define` never closed
+    # (ERROR_INCOMPLETE). No authored content uses bare `=`-then-
+    # newline continuation — multi-line table/closure values always
+    # open their `{`/`(` on the `=` line (e.g. `const X = {` … `}`),
+    # which still parses because the operator never needs to cross a
+    # newline there. Unlike the parallel binary-operator rules
+    # (arithmetic/compare/concat/logical), an assignment operator can
+    # only ever appear at statement start, so it never needs to absorb
+    # a continuation that began on a previous line. See GRAMMAR.md
+    # §11.5 corollary 2 ("`(?=$|{{WS}})` is a single-line bound").
     patterns:
       - { include: "#ExtraWhitespace" }
-      - { include: "#Newline" }
-    end: (?={{BEAT}})|(?!$|{{WS}})
+    end: (?={{BEAT}})|(?=$|{{WS}}|[,;)\]}])|(?!{{WS}})
 
   LuauArithmeticOperation:
     begin: ({{WS}}*)(?={{LUAU_ARITHMETIC_OPERATORS}})
@@ -6689,3 +8715,166 @@ repository:
   LuauAttributeName:
     tag: attributeName
     name: storage.type.attribute.luau
+
+  SparkleRichTextTag:
+    match: (</?)(font-weight|line-height|uppercase|lowercase|smallcaps|allcaps|voffset|noparse|cspace|indent|color|align|alpha|nobr|mark|size|sub|sup|br|b|i|u|s)(?:(=)("[^"]*"|[^>]*))?(>)
+    captures:
+      "1":
+        tag: keyword
+        name: punctuation.definition.tag.begin.sd
+      "2":
+        tag: keyword
+        name: keyword.other.richtext.tag.sd
+      "3":
+        tag: updateOperator
+        name: keyword.operator.assignment.sd
+      "4":
+        tag: string
+        name: string.other.richtext.value.sd
+        patterns:
+          - include: "#Color"
+      "5":
+        tag: keyword
+        name: punctuation.definition.tag.end.sd
+
+  SparkleRichTextTagUnknown:
+    match: (</?)([a-zA-Z][a-zA-Z0-9-]*)(?:(=)("[^"]*"|[^>]*))?(>)
+    captures:
+      "1":
+        tag: invalid
+        name: punctuation.definition.tag.begin.sd
+      "2":
+        tag: invalid
+        name: invalid.illegal.richtext.tag.sd
+      "3":
+        tag: updateOperator
+        name: keyword.operator.assignment.sd
+      "4":
+        tag: string
+        name: string.other.richtext.value.sd
+        patterns:
+          - include: "#Color"
+      "5":
+        tag: invalid
+        name: punctuation.definition.tag.end.sd
+
+  LuauRegexLiteral:
+    tag: regexp
+    name: string.regexp.sd
+    match: (@)([/])((?:\\.|[^/\\\r\n])+)([/])([dgimsuvy]*)
+    captures:
+      "1":
+        tag: definition(string)
+        name: punctuation.definition.string.begin.sd
+      "2":
+        tag: definition(string)
+        name: punctuation.definition.string.begin.sd
+      "3":
+        tag: regexp
+        name: string.regexp.sd
+        patterns:
+          - include: "#LuauRegexCharacterClass"
+          - include: "#LuauRegexEscapedCharacterClass"
+          - include: "#LuauRegexEscape"
+          - include: "#LuauRegexAnchor"
+          - include: "#LuauRegexQuantifier"
+          - include: "#LuauRegexAlternation"
+          - include: "#LuauRegexGroupBegin"
+          - include: "#LuauRegexGroupEnd"
+          - include: "#LuauRegexText"
+      "4":
+        tag: definition(string)
+        name: punctuation.definition.string.end.sd
+      "5":
+        tag: modifier
+        name: keyword.other.regexp.flags.sd
+
+  LuauRegexEscape:
+    tag: escape
+    name: constant.character.escape.backslash.regexp.sd
+    match: \\.
+
+  LuauRegexCharacterClass:
+    tag: bracket
+    name: constant.other.character-class.set.regexp.sd
+    begin: \[\^?
+    beginCaptures:
+      "0":
+        tag: bracket
+        name: punctuation.definition.character-class.regexp.sd
+    patterns:
+      - include: "#LuauRegexEscapedCharacterClass"
+      - include: "#LuauRegexEscape"
+      - include: "#LuauRegexClassDash"
+      - include: "#LuauRegexText"
+    end: \]
+    endCaptures:
+      "0":
+        tag: bracket
+        name: punctuation.definition.character-class.regexp.sd
+
+  LuauRegexClassDash:
+    tag: operator
+    name: constant.other.character-class.range.regexp.sd
+    match: "-"
+
+  LuauRegexEscapedCharacterClass:
+    tag: escape
+    name: constant.other.character-class.regexp.sd
+    match: \\[dDwWsShHvVnrtfv0]|\\[pP]\{[^}]*\}|\\u\{[0-9A-Fa-f]+\}|\\x[0-9A-Fa-f]{2}|\\[0-9]+|\.
+
+  LuauRegexAnchor:
+    tag: controlKeyword
+    name: keyword.control.anchor.regexp.sd
+    match: "[\\^$]|\\\\[bBAzZG]"
+
+  LuauRegexQuantifier:
+    tag: operator
+    name: keyword.operator.quantifier.regexp.sd
+    match: "[*+?]\\??|\\{[0-9]+(?:,[0-9]*)?\\}\\??"
+
+  LuauRegexAlternation:
+    tag: logicOperator
+    name: keyword.operator.or.regexp.sd
+    match: \|
+
+  LuauRegexGroupBegin:
+    tag: paren
+    name: punctuation.definition.group.regexp.sd
+    match: \((?:\?(?::|=|!|<=|<!|<[A-Za-z_][A-Za-z0-9_]*>|P<[A-Za-z_][A-Za-z0-9_]*>))?
+
+  LuauRegexGroupEnd:
+    tag: paren
+    name: punctuation.definition.group.regexp.sd
+    match: \)
+
+  LuauRegexText:
+    tag: regexp
+    name: string.regexp.sd
+    match: "[^\\\\\\[\\]()|*+?{}^$-]+|[\\s\\S]"
+
+  LuauElementContentStringSingleQuoted:
+    tag: string
+    name: string.quoted.single.sd
+    match: (['])((?:\.|[^'])*)(['])
+    captures:
+      "1":
+        patterns:
+          - include: "#PunctuationStringOpen"
+      "2":
+        patterns:
+          - include: "#PlainStringContentSingleQuoted"
+      "3":
+        patterns:
+          - include: "#PunctuationStringClose"
+
+  PlainStringContentSingleQuoted:
+    match: ((?:\.|[^'])*?)(?=$|')
+    captures:
+      "1":
+        patterns:
+          - include: "#StringEscape"
+          - include: "#SparkleRichTextTag"
+          - include: "#SparkleRichTextTagUnknown"
+          - include: "#Color"
+          - include: "#StringCharacter"

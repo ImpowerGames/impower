@@ -27,16 +27,19 @@ export default class AnimationPlayer {
       // Convert engine animations to dom animations
       animations.forEach((animation) => {
         const convertedKeyframes: Keyframe[] = [];
-        // A single keyframe authored as `keyframes = { transform = ... }`
-        // compiles to an object, not an array — and an object has no `.forEach`,
-        // so this used to throw and the animation never played. Normalize a lone
-        // keyframe object into a one-element array.
-        const keyframes = Array.isArray(animation.keyframes)
-          ? animation.keyframes
-          : animation.keyframes
-            ? [animation.keyframes]
+        // Defensive: an authored `define X as animation with keyframes = {...}`
+        // can resolve to a non-array `keyframes` (object/undefined). A lone
+        // keyframe object is one keyframe, not an array. The engine
+        // (getAnimationDefinition) already normalizes this; here we just avoid
+        // crashing if a non-array slips through and blacks out the whole preview.
+        const rawKeyframes: unknown = (animation as { keyframes?: unknown })
+          .keyframes;
+        const keyframeList: any[] = Array.isArray(rawKeyframes)
+          ? rawKeyframes
+          : rawKeyframes != null
+            ? [rawKeyframes]
             : [];
-        keyframes.forEach((keyframe) => {
+        keyframeList.forEach((keyframe) => {
           if (keyframe) {
             const convertedKeyframe: Keyframe = {};
             for (const [k, v] of Object.entries(keyframe)) {

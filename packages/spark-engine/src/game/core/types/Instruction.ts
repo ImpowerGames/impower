@@ -48,4 +48,22 @@ export interface AudioInstruction extends IInstruction {
   to?: number;
 }
 
-export type Instruction = TextInstruction | ImageInstruction | AudioInstruction;
+export interface LayoutInstruction extends IInstruction {
+  control: "open" | "close" | "navigate";
+  /** The layout to mount (`open`), tear down (`close`), or navigate TO
+   *  (`navigate` — the destination after `to`). May be empty for an incomplete
+   *  `[[navigate <screen>]]` (the LSP warns; the runtime no-ops). */
+  name: string;
+  /** For `navigate` (`[[navigate <screen> to <layout>]]`): the screen to route
+   *  within. Closing is scoped to open layouts in this screen; layouts in other
+   *  screens (and uncategorized layouts) are left untouched. */
+  screen?: string;
+  /** The enter/exit animation/transition name (`with` clause). */
+  with?: string;
+}
+
+export type Instruction =
+  | TextInstruction
+  | ImageInstruction
+  | AudioInstruction
+  | LayoutInstruction;

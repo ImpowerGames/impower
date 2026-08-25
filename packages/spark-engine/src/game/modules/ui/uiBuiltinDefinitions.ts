@@ -8,7 +8,7 @@ import { default_gradient } from "./constructors/default_gradient";
 import { default_graphic } from "./constructors/default_graphic";
 import { default_image } from "./constructors/default_image";
 import { default_layered_image } from "./constructors/default_layered_image";
-import { default_screen } from "./constructors/default_screen";
+import { default_layout } from "./constructors/default_layout";
 import { default_shadow } from "./constructors/default_shadow";
 import { default_style } from "./constructors/default_style";
 import { default_theme } from "./constructors/default_theme";
@@ -18,7 +18,7 @@ export const uiBuiltinDefinitions = () => ({
   config: {
     ui: {
       styles_element_name: "styles",
-      screens_element_name: "screens",
+      layouts_element_name: "layouts",
       breakpoints: {
         xs: 400,
         sm: 640,
@@ -26,6 +26,10 @@ export const uiBuiltinDefinitions = () => ({
         lg: 1024,
         xl: 1280,
       },
+      // Kept in sync with `config.ui` in the builtins prelude
+      // (packages/sparkdown/src/compiler/builtins/builtins.sd). Empty = do not
+      // touch the host document's root font size.
+      root_text_size: "",
     },
   },
   image: {
@@ -593,12 +597,12 @@ export const uiBuiltinDefinitions = () => ({
     character_name: default_style({
       $name: "character_name",
       padding_bottom: "8px",
-      font_weight: "600px",
+      font_weight: "600",
     }),
     character_parenthetical: default_style({
       $name: "character_parenthetical",
       padding_bottom: "8px",
-      font_weight: "400px",
+      font_weight: "400",
       font_size: "1rem",
       "@screen_size(sm)": { font_size: "0.875rem" },
     }),
@@ -675,15 +679,15 @@ export const uiBuiltinDefinitions = () => ({
       animation_play_state: "paused",
     }),
   } as Record<string, ReturnType<typeof default_style>>,
-  screen: {
-    $default: default_screen(),
-    loading: default_screen({
+  layout: {
+    $default: default_layout(),
+    loading: default_layout({
       $name: "loading",
       loading_bar: {
         loading_fill: {},
       },
     }),
-    main: default_screen({
+    main: default_layout({
       $name: "main",
       stage: {
         animation: {},
@@ -756,7 +760,7 @@ export const uiBuiltinDefinitions = () => ({
         animation: {},
       },
     }),
-  } as Record<string, ReturnType<typeof default_screen>>,
+  } as Record<string, ReturnType<typeof default_layout>>,
   layer: {
     $default: {},
     self: {},

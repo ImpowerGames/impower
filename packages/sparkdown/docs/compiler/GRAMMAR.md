@@ -354,6 +354,23 @@ The wrong approach works — but it puts the language's semantics in a place no 
 1. **A construct with distinct meaning gets a distinct node name.** Choices come in flavors (`ChoiceWithSuppressedText`, `ChoiceWithNoSuppressedText`), not one node with a `hasBrackets` flag. `Divert` and `ArmDivert` are separate rules because their end boundaries differ.
 2. **Begin and end captures should give every meaningful sub-token its own child.** Don't lump "the operator + the trailing space" into one capture if the formatter or lowerer wants to address them separately.
 
+### 5.1 The clearest symptom of a violation: a regex (or string scan) in a lowerer
+
+This deserves its own subsection because it's the easiest violation to catch in review and by far the most common — every time the grammar is "designed backwards," it shows up here.
+
+> **A regex (or structural string scan) in a lowerer is a red flag for a Golden Rule violation. Treat every occurrence as a defect until proven otherwise.**
+
+When a lowerer reaches for a regex over a node's text — `/^(\w+)\s*=/`, `text.match(...)`, `.exec(...)`, `.test(...)`, `new RegExp(...)` — or for string-scanning methods that **classify or split** that text — `text.indexOf("=")`, `text.startsWith("- ")`, `text.endsWith(":")`, `text.split(":")` — it is almost always re-deriving structure the grammar should have named. The grammar already ran a regex over that exact text once; running another in the lowerer puts the construct's shape in two places, and only the grammar's copy is visible to the formatter, highlighter, and auto-complete. **The fix is never "tune the regex" — it's "add the missing grammar node and call `getDescendent(...)`."**
+
+**The narrow, legitimate use** is *transforming an already-isolated value*, not *discovering structure*: unescaping `\n` in a string the grammar already delimited, trimming whitespace, parsing `"42"` into a number. The test:
+
+- If the regex decides **what kind of node this is**, or **where one part ends and the next begins** → it's a violation. The grammar should have made that distinction.
+- If it only interprets **the meaning of a single value the grammar already handed you whole** → it's fine, and worth a one-line comment saying so.
+
+A borderline case — splitting an already-isolated `Type.name` reference into `{$type, $name}` — leans toward "promote to a grammar node" the moment the two halves need to highlight, complete, or validate differently.
+
+**To re-audit a body of lowerer work:** grep everything under `src/compiler/lower/` for regex literals (`/.../`, `new RegExp`, `.match(`, `.exec(`, `.test(`) and the classify/split string methods above. Each hit is either a value-level interpretation (rare — it should carry a comment) or a missing grammar rule (fix it). Known example at time of writing: `lowerStructBody.ts` re-derives the `=` / `:` / `- ` struct shapes (plus an `ADJACENCY_CONTENT_RE`) that the grammar's `LuauStruct*` nodes already encode — slated for deletion when the engine consumes the reactive AST rather than the static `context` struct.
+
 ---
 
 # Part IV — Building blocks

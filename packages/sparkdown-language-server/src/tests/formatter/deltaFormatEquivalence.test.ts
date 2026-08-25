@@ -97,7 +97,7 @@ style panel as button with
   corner = md
 end
 
-screen settings with
+layout settings with
   column #class=root
     text #class=title "Settings"
 end

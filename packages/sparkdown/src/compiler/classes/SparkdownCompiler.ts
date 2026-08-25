@@ -6,9 +6,12 @@
 // implicitly via the (now-removed) `inkjs/compiler/Compiler` import; keep it
 // explicit so consumers of SparkdownCompiler don't hit a TDZ crash.
 import "../../inkjs/engine/Container";
-import { parseSparkle } from "@impower/sparkle-screen-renderer/src/parser/parser";
-import { getStack } from "@impower/textmate-grammar-tree/src/tree/utils/getStack";
 import GRAMMAR_DEFINITION from "../../../language/sparkdown.language-grammar.json";
+// The builtins prelude is the raw `builtins.sd` text, imported directly via
+// `?raw` (Vite/vitest native; the repo's esbuild bundles add a `?raw` plugin).
+// No generated wrapper / codegen step — `builtins.sd` is the single source of
+// truth.
+import BUILTINS_PRELUDE from "../builtins/builtins.sd?raw";
 import { IFileHandler } from "../../inkjs/compiler/IFileHandler";
 import { ErrorType } from "../../inkjs/compiler/Parser/ErrorType";
 import { Choice } from "../../inkjs/compiler/Parser/ParsedHierarchy/Choice";
@@ -24,6 +27,13 @@ import { Identifier } from "../../inkjs/compiler/Parser/ParsedHierarchy/Identifi
 import { IncludedFile } from "../../inkjs/compiler/Parser/ParsedHierarchy/IncludedFile";
 import { Knot } from "../../inkjs/compiler/Parser/ParsedHierarchy/Knot";
 import { ParsedObject } from "../../inkjs/compiler/Parser/ParsedHierarchy/Object";
+import { FunctionCall } from "../../inkjs/compiler/Parser/ParsedHierarchy/FunctionCall";
+import {
+  ObjectExpression,
+  ObjectExpressionEntry,
+} from "../../inkjs/compiler/Parser/ParsedHierarchy/Expression/ObjectExpression";
+import { VariableAssignment as ParsedVariableAssignment } from "../../inkjs/compiler/Parser/ParsedHierarchy/Variable/VariableAssignment";
+import { contextValueToExpression } from "../lower/lowerers/lowerLuauDefine";
 import { ReturnType } from "../../inkjs/compiler/Parser/ParsedHierarchy/ReturnType";
 import { Statement } from "../../inkjs/compiler/Parser/ParsedHierarchy/Statement";
 import { Stitch } from "../../inkjs/compiler/Parser/ParsedHierarchy/Stitch";
@@ -62,14 +72,16 @@ import { SparkDeclaration } from "../types/SparkDeclaration";
 import { DiagnosticSeverity, SparkDiagnostic } from "../types/SparkDiagnostic";
 import { SparkdownCompilerConfig } from "../types/SparkdownCompilerConfig";
 import { SparkdownCompilerState } from "../types/SparkdownCompilerState";
-import { SparkdownNodeName } from "../types/SparkdownNodeName";
 import { SparkProgram } from "../types/SparkProgram";
+import { SparkSelector } from "../types/SparkSelector";
+import { setBuiltinTypeNames } from "../utils/builtinTypeNames";
 import { cloneBuiltinStructs } from "../utils/cloneBuiltinStructs";
-import { fetchProperty } from "../utils/fetchProperty";
+import { collectDefineTypeNames } from "../utils/collectDefineTypeNames";
+import { collectLayerNames } from "../utils/collectLayerNames";
+import { scopeDefineInstances } from "../utils/scopeDefineInstances";
 import { formatList } from "../utils/formatList";
 import { getExpectedSelectorTypes } from "../utils/getExpectedSelectorTypes";
 import { getPossibleStringIdentifiers } from "../utils/getPossibleStringIdentifiers";
-import { indexStructs } from "../utils/indexStructs";
 import { profile } from "../utils/profile";
 import { readProperty } from "../utils/readProperty";
 import { resolveFileUsingImpliedExtension } from "../utils/resolveFileUsingImpliedExtension";
@@ -109,10 +121,75 @@ const BINARY_TABLE_RESEED_RATIO = 1.5;
 const BINARY_TABLE_RESEED_MIN_SLACK = 512;
 
 const LANGUAGE_NAME = GRAMMAR_DEFINITION.name.toLowerCase();
+// Synthetic URI for the bundled builtins prelude (used as the file URI when the
+// prelude is compiled once to seed the builtins cache; see getCompiledPrelude).
+const BUILTINS_PRELUDE_URI = "file:///__builtins__.sd";
+
+// The builtins prelude (builtins.sd) compiles to the same context + runtime
+// every time — its source is a constant. Compiling it as part of EVERY program
+// added ~110ms per compile (untenable for live LSP keystrokes). So compile it
+// exactly ONCE, process-wide, and reuse:
+//   - `context`  is merged into each program as the builtins base layer (the
+//     role the legacy JS `populateBuiltins` played), so authored defines that
+//     reuse a builtin name override it in place.
+//   - `compiled` is the prelude's runtime story JSON, kept for the engine to
+//     instantiate the builtin __def tables once (rather than baking them into
+//     every program.compiled, which would also bloat unrelated compiled output).
+// The prelude is NOT included in any program's parsed story — keeping the cache
+// the single point where it is compiled and keeping program.compiled clean.
+let _cachedPrelude: {
+  context: Record<string, any>;
+  compiled: unknown;
+  sparkle: Record<string, any>;
+} | null = null;
+
+function getCompiledPrelude(): {
+  context: Record<string, any>;
+  compiled: unknown;
+  sparkle: Record<string, any>;
+} {
+  if (_cachedPrelude) {
+    return _cachedPrelude;
+  }
+  // Compile the prelude in isolation. `useBuiltinsPrelude` MUST be false here so
+  // this compile doesn't recurse into itself (mergePreludeContext → here →
+  // mergePreludeContext → …, never reaching the `_cachedPrelude =` assignment →
+  // unbounded recursion/allocation). Set it explicitly rather than relying on the
+  // class default, which is now `true`. The prelude defines every builtin it
+  // needs, so no JS builtins are required.
+  const compiler = new SparkdownCompiler();
+  compiler.configure({
+    useBuiltinsPrelude: false,
+    definitions: { builtins: {} as any },
+    files: [
+      {
+        uri: BUILTINS_PRELUDE_URI,
+        type: "script",
+        name: "__builtins__",
+        ext: "sd",
+        text: BUILTINS_PRELUDE,
+        version: 0,
+        languageId: LANGUAGE_NAME,
+      } as any,
+    ],
+  });
+  const result = compiler.compile({
+    textDocument: { uri: BUILTINS_PRELUDE_URI },
+  });
+  _cachedPrelude = {
+    context: result.program.context ?? {},
+    compiled: result.program.compiled,
+    sparkle: result.program.sparkle ?? {},
+  };
+  // Publish the builtin type/namespace ROOT names (the context's top-level
+  // keys — color, character, animation, …) so the lowerer's shadow-warning
+  // (validateDefineTypeShadow) can flag a user `store`/`const` that reuses a
+  // reserved builtin name. Runs once (cached prelude); before any user
+  // compile's lowering, since mergePreludeContext calls this first.
+  setBuiltinTypeNames(Object.keys(_cachedPrelude.context));
+  return _cachedPrelude;
+}
 const FILE_TYPES = GRAMMAR_DEFINITION.fileTypes;
-const VIEW_DEFINE_TYPES = GRAMMAR_DEFINITION.variables.VIEW_DEFINE_TYPES || [];
-const STYLING_DEFINE_TYPES =
-  GRAMMAR_DEFINITION.variables.STYLING_DEFINE_TYPES || [];
 
 export type SparkdownCompilerEvents = {
   "compiler/didCompile": (
@@ -148,7 +225,7 @@ export class SparkdownCompiler {
     this._profilerId = value;
   }
 
-  protected _config: SparkdownCompilerConfig = {};
+  protected _config: SparkdownCompilerConfig = { useBuiltinsPrelude: true };
   get config() {
     return this._config;
   }
@@ -202,6 +279,19 @@ export class SparkdownCompiler {
   protected _prevCompilationIds?: Set<object>;
   // Accumulated during the current compile's chunk walk.
   protected _compilationIds?: Set<object>;
+  // True while parsing the SOURCE-INJECTED builtins prelude (seedBuiltinsIntoStory):
+  // its chunks contribute their runtime FlowBase (the builtin `__def` global
+  // declarations → program.compiled) but MUST NOT re-merge context/sparkle —
+  // those already came from mergePreludeContext, and re-merging would perturb
+  // program.context vs the flag-off path.
+  protected _injectingPrelude = false;
+  // The parsed builtins prelude (a constant), cached after its first parse so
+  // seedBuiltinsIntoStory reuses it across compiles instead of re-lowering
+  // hundreds of builtin defines every keystroke. Reused by resetting only its
+  // per-compile RUNTIME state (the same thing the incremental path does for
+  // unchanged chunks); PreProcessTopLevelObjects re-parents the content on each
+  // splice. Per-instance (mutated/reset per compile), so never shared.
+  protected _cachedPreludeParsedStory?: Story;
   // 0-based [startLine, endLine] source ranges of chunks that are NEW/changed
   // this compile (identity not in `_prevCompilationIds`).
   protected _changedChunkRanges?: Array<[number, number]>;
@@ -371,14 +461,6 @@ export class SparkdownCompiler {
     };
   } = {};
 
-  protected _configStructsPropertyRegistry: {
-    [type: string]: {
-      [name: string]: {
-        [propertyPath: string]: any;
-      };
-    };
-  } = {};
-
   protected _events: {
     [K in keyof SparkdownCompilerEvents]: Set<SparkdownCompilerEvents[K]>;
   } = {
@@ -418,9 +500,6 @@ export class SparkdownCompiler {
         this._config.definitions.builtins,
       );
       profile("end", this._profilerId, "cloneBuiltinStructs");
-      profile("start", this._profilerId, "indexStructs");
-      indexStructs(this._configStructsPropertyRegistry, this._builtinStructs);
-      profile("end", this._profilerId, "indexStructs");
     }
     if (
       config.definitions?.optionals !== undefined &&
@@ -428,12 +507,6 @@ export class SparkdownCompiler {
     ) {
       this._config.definitions ??= {};
       this._config.definitions.optionals = config.definitions.optionals;
-      profile("start", this._profilerId, "indexStructs");
-      indexStructs(
-        this._configStructsPropertyRegistry,
-        this._config.definitions.optionals,
-      );
-      profile("end", this._profilerId, "indexStructs");
     }
     if (
       config.definitions?.schemas !== undefined &&
@@ -441,12 +514,6 @@ export class SparkdownCompiler {
     ) {
       this._config.definitions ??= {};
       this._config.definitions.schemas = config.definitions.schemas;
-      profile("start", this._profilerId, "indexStructs");
-      indexStructs(
-        this._configStructsPropertyRegistry,
-        this._config.definitions.schemas,
-      );
-      profile("end", this._profilerId, "indexStructs");
     }
     if (
       config.definitions?.descriptions !== undefined &&
@@ -455,18 +522,30 @@ export class SparkdownCompiler {
     ) {
       this._config.definitions ??= {};
       this._config.definitions.descriptions = config.definitions.descriptions;
-      profile("start", this._profilerId, "indexStructs");
-      indexStructs(
-        this._configStructsPropertyRegistry,
-        this._config.definitions.descriptions,
-      );
-      profile("end", this._profilerId, "indexStructs");
     }
     if (
       config.skipValidation !== undefined &&
       config.skipValidation !== this._config.skipValidation
     ) {
       this._config.skipValidation = config.skipValidation;
+    }
+    if (
+      config.useBuiltinsPrelude !== undefined &&
+      config.useBuiltinsPrelude !== this._config.useBuiltinsPrelude
+    ) {
+      this._config.useBuiltinsPrelude = config.useBuiltinsPrelude;
+    }
+    if (
+      config.seedBuiltinsIntoStory !== undefined &&
+      config.seedBuiltinsIntoStory !== this._config.seedBuiltinsIntoStory
+    ) {
+      this._config.seedBuiltinsIntoStory = config.seedBuiltinsIntoStory;
+    }
+    if (
+      config.experimentalDisplayCalls !== undefined &&
+      config.experimentalDisplayCalls !== this._config.experimentalDisplayCalls
+    ) {
+      this._config.experimentalDisplayCalls = config.experimentalDisplayCalls;
     }
     if (
       config.stripImageData !== undefined &&
@@ -525,6 +604,7 @@ export class SparkdownCompiler {
         {
           compilations: {
             definitions: this._config.definitions,
+            experimentalDisplayCalls: this._config.experimentalDisplayCalls,
           },
         },
       );
@@ -532,6 +612,18 @@ export class SparkdownCompiler {
     }
     if (config.files !== undefined && config.files !== this._config.files) {
       this._config.files = config.files;
+      // Populate the builtin type-name registry BEFORE `documents.add` — the
+      // registry adds trigger the annotator's lowering pass, which reads
+      // `getBuiltinTypeNames()` for the shadow warning. `mergePreludeContext`
+      // (which normally publishes them) doesn't run until the later
+      // `compile()`, so without this eager call a fresh document's first
+      // lowering would miss the builtin shadow warnings until the next edit.
+      // `getCompiledPrelude` is cached, so this pays only once. Guarded on
+      // `useBuiltinsPrelude` so the prelude's own isolated compile (which sets
+      // it false) doesn't recurse.
+      if (this._config.useBuiltinsPrelude) {
+        getCompiledPrelude();
+      }
       for (const file of config.files) {
         if (
           file.type === "script" &&
@@ -962,7 +1054,16 @@ export class SparkdownCompiler {
     // `currentParentUri` before each include descent.
     state.fileResolutionState = fileResolutionState;
 
-    this.populateBuiltins(state, program);
+    // Seed builtins as the base layer BEFORE parsing this file's chunks (so an
+    // authored define reusing a builtin name overrides it in place, preserving
+    // the builtin key order). In prelude mode, merge the once-compiled prelude
+    // context; otherwise use the legacy JS populateBuiltins.
+    if (this._config.useBuiltinsPrelude) {
+      this.mergePreludeContext(program);
+      this.mergePreludeSparkle(program);
+    } else {
+      this.populateBuiltins(program);
+    }
 
     // Begin a fresh per-compile record of chunk identities + changed ranges
     // for the incremental location cache (see `_locCache`). Populated by the
@@ -1033,6 +1134,62 @@ export class SparkdownCompiler {
       if (params.countAllVisits) {
         parsedStory.countAllVisits = true;
       }
+      // Whole-program namespace scoping (P1). Scope leaf-instance defines to a
+      // synthetic `$<type>_<name>` global here — after assembly, before
+      // ExportRuntime bakes each define's global key — rather than in
+      // per-document lowering, so a `define X` and its `as X`/`new X()` sites in
+      // DIFFERENT files classify consistently. `scopeDefineInstances` is
+      // idempotent, so re-running each compile on cached define objects is safe.
+      //
+      // Two passes with SEPARATE type sets. The source-injected builtins prelude
+      // is classified by its OWN type names (as if compiled in isolation) — NOT
+      // the user's — so the `character` duality survives: the prelude's `define
+      // character as synth` scopes to `$synth_character` even though user files
+      // use `character` as a type (`as character`). If the user's type set leaked
+      // in, `character` would stay bare and the synth-instance view would
+      // collapse into the character type table. The user pass then scopes the
+      // rest with the union across all USER files (root + includes), and skips
+      // the prelude VAs the first pass already handled.
+      const collectTypeNamesFor = (uris: Iterable<string>): Set<string> => {
+        const names = new Set<string>();
+        for (const scanUri of uris) {
+          const scanTree = this.documents.tree(scanUri);
+          const scanDoc = this.documents.get(scanUri);
+          if (scanTree && scanDoc) {
+            const scanText = scanDoc.getText();
+            for (const name of collectDefineTypeNames(scanTree, (f, t) =>
+              scanText.slice(f, t),
+            )) {
+              names.add(name);
+            }
+          }
+        }
+        return names;
+      };
+      const preludeVAs = new Set<ParsedObject>();
+      const preludeStory = this._cachedPreludeParsedStory;
+      if (preludeStory && this.documents.has(BUILTINS_PRELUDE_URI)) {
+        const preludeTypeNames = collectTypeNamesFor([BUILTINS_PRELUDE_URI]);
+        scopeDefineInstances([preludeStory], preludeTypeNames, {
+          collect: preludeVAs,
+        });
+      }
+      // User files: the root + resolved includes (`program.scripts`), excluding
+      // the prelude — its defines were just scoped with the prelude's own types.
+      const userUris = new Set<string>(Object.keys(program.scripts));
+      userUris.add(uri);
+      userUris.delete(BUILTINS_PRELUDE_URI);
+      const userTypeNames = collectTypeNamesFor(userUris);
+      // `collect` hands back exactly the user's define VAs, so the override pass
+      // below needs no walk of its own.
+      const userVAs = new Set<ParsedObject>();
+      scopeDefineInstances([parsedStory], userTypeNames, {
+        skip: preludeVAs,
+        collect: userVAs,
+      });
+      // Now that both sides carry their final global keys, let an authored
+      // define that reuses a builtin name override it rather than collide.
+      this.applyBuiltinOverrides(userVAs, preludeVAs);
       // (Diagnostic-dedup state on reused parsed nodes is invalidated by the
       // compile-epoch bump inside ExportRuntime — see CompileEpoch.ts — so a
       // carried-forward chunk re-emits the same diagnostics a cold compile
@@ -1132,6 +1289,18 @@ export class SparkdownCompiler {
         // below, which walks the runtime tree for `pathLocations`.
         if (emitCompiledProgram) {
           this.serializeCompiledProgram(story, program, uri);
+        } else {
+          // Neither per-flow cache is maintained by a compile that skips
+          // serialization, so both go stale the moment one runs — the same
+          // reasoning `configure()` applies when the CONFIG flag flips. The
+          // per-request opt-out bypasses `configure()`, so it must invalidate
+          // here too. Without this, pull → edit → edit → pull re-serves a
+          // pre-edit flow from the cache: `computeFlowReuse` only knows the
+          // CURRENT compile's `_changedChunkRanges`, and a pure-content edit
+          // leaves the cross-flow fingerprint unchanged by design, so nothing
+          // else catches the skipped compiles in between.
+          this._flowJsonCache = undefined;
+          this._flowChunkCache = undefined;
         }
         state.story = story;
         // Gather source-location maps in a single top-down walk of the
@@ -1192,13 +1361,13 @@ export class SparkdownCompiler {
     }
 
     this.populateFiles(program);
-    this.populateUI(program);
     this.populateDeclarationLocations(program);
     this.sortPathLocations(program);
     this.buildContext(state, program);
+    this.populateEngineChannels(program);
     if (!this._config.skipValidation) {
       this.validateSyntax(program);
-      this.validateReferences(state, program);
+      this.validateReferences(program);
     }
     if (this._config.workspace !== undefined) {
       program.workspace = this._config.workspace;
@@ -1233,6 +1402,33 @@ export class SparkdownCompiler {
     // Story is not serializable so must be deleted before sending result
     delete result.story;
     return result;
+  }
+
+  /** Recursively clear the per-compile RUNTIME state of parsed objects (their
+   *  generated runtime objects + identifier runtime), mirroring the reset
+   *  `remapContent` does for reused incremental chunks but WITHOUT re-offsetting
+   *  debug metadata. Lets the cached, constant prelude parse be reused across
+   *  compiles; PreProcessTopLevelObjects re-parents the content on each splice. */
+  protected resetParsedRuntime(content: ParsedObject[]) {
+    for (const c of content) {
+      c.ResetRuntime();
+      if (
+        "identifier" in c &&
+        c.identifier instanceof Identifier
+      ) {
+        c.identifier.ResetRuntime();
+      }
+      if ("pathIdentifiers" in c && Array.isArray(c.pathIdentifiers)) {
+        for (const p of c.pathIdentifiers) {
+          if (p instanceof Identifier) {
+            p.ResetRuntime();
+          }
+        }
+      }
+      if (c.content) {
+        this.resetParsedRuntime(c.content);
+      }
+    }
   }
 
   parseIncrementally(
@@ -1365,6 +1561,56 @@ export class SparkdownCompiler {
     const topLevelFlowBaseObjs: FlowBase[] = [];
     const topLevelWeaveObjs: ParsedObject[] = [];
     const topLevelContent: (FlowBase | Weave)[] = [];
+
+    // SOURCE-INJECT the builtins prelude (P5 prerequisite). For the ROOT parse
+    // only, prepend the prelude as a synthetic leading `include` so its builtin
+    // `__def` global declarations execute in THIS program's runtime story VM —
+    // one coherent `global decl`, prelude FIRST (so an authored define reusing a
+    // builtin name re-registers/overrides in place), with all paths/indices
+    // resolved by the single trusted codegen pass. The prelude's chunks
+    // contribute only runtime FlowBase here (`_injectingPrelude` suppresses their
+    // context/sparkle re-merge), so `program.context` is unchanged vs the
+    // flag-off path; only `program.compiled` gains the builtins.
+    if (
+      !isInclude &&
+      this._config.seedBuiltinsIntoStory &&
+      this._config.useBuiltinsPrelude
+    ) {
+      let preludeStory = this._cachedPreludeParsedStory;
+      if (preludeStory) {
+        // Reuse the cached parse: reset only the per-compile RUNTIME state on the
+        // constant prelude objects so ExportRuntime regenerates them cleanly
+        // (re-lowering hundreds of builtin defines every compile is too costly).
+        this.resetParsedRuntime(preludeStory.content);
+      } else {
+        if (!this.documents.has(BUILTINS_PRELUDE_URI)) {
+          this.documents.add({
+            textDocument: {
+              uri: BUILTINS_PRELUDE_URI,
+              languageId: LANGUAGE_NAME,
+              version: 0,
+              text: BUILTINS_PRELUDE,
+            },
+          });
+        }
+        const wasInjecting = this._injectingPrelude;
+        this._injectingPrelude = true;
+        try {
+          preludeStory = this.parseIncrementally(
+            BUILTINS_PRELUDE_URI,
+            fileHandler,
+            true,
+            state,
+            program,
+            onDiagnostic,
+          );
+        } finally {
+          this._injectingPrelude = wasInjecting;
+        }
+        this._cachedPreludeParsedStory = preludeStory;
+      }
+      topLevelIncludedFileObjs.push(new IncludedFile(preludeStory));
+    }
 
     // Materialize the chunk list so flow-run reuse decisions can look AHEAD —
     // a flow's reusability depends on ALL the body chunks that fed it last
@@ -1525,8 +1771,18 @@ export class SparkdownCompiler {
           // overwritten by each included file and then compared against a
           // different file's census on the next compile, permanently
           // disabling reuse for any multi-file project.
-          for (const name of scan.declaredNames) {
-            this._censusEntries?.push(`${uri}|${name}`);
+          //
+          // The source-injected builtins PRELUDE is excluded: its parse runs
+          // through here exactly once per compiler instance (the cached parse
+          // is reused thereafter, contributing nothing), so counting its ~360
+          // defines on compile 1 and zero on compile 2 would make the census
+          // keys differ and trip `_flowReuseDisabled` on precisely the first
+          // compile where flow reuse could pay off. The prelude is a constant,
+          // so its names can never actually change between compiles.
+          if (!this._injectingPrelude) {
+            for (const name of scan.declaredNames) {
+              this._censusEntries?.push(`${uri}|${name}`);
+            }
           }
           if (
             !this._flowReuseDisabled &&
@@ -1630,7 +1886,7 @@ export class SparkdownCompiler {
         diagnostics,
         content,
         context,
-        contextPropertyRegistry,
+        sparkle,
         defaultDefinitions,
         uuid,
         hoistedKnots,
@@ -1986,50 +2242,22 @@ export class SparkdownCompiler {
           }
         }
       }
-      if (context) {
+      if (context && !this._injectingPrelude) {
         // Copy pre-built structs to program context. An authored define that
         // reuses a builtin name (seeded earlier by mergePreludeContext) OVERRIDES
         // IN PLACE: its properties win, but the builtin's *unspecified* siblings
         // are retained. Without this, a partial override silently drops every
         // field it doesn't restate — e.g. `define ui as config with
-        // reactive = true` would lose the builtin screens_element_name /
-        // styles_element_name / breakpoints, leaving the engine unable to find
-        // the screen root and stranding screens at opacity:0 (a black preview
-        // with no error). Deep-merge so nested config (breakpoints, interpreter
-        // directives/fallbacks) keeps unspecified keys too; $-meta comes from the
-        // authored instance. Structural element-tree types (screen/component)
-        // REPLACE wholesale — merging two trees would splice the builtin's
-        // children into the authored one.
-        const REPLACE_TYPES = new Set(["screen", "component"]);
-        const mergeOver = (base: any, override: any): any => {
-          if (
-            base == null ||
-            typeof base !== "object" ||
-            Array.isArray(base) ||
-            override == null ||
-            typeof override !== "object" ||
-            Array.isArray(override)
-          ) {
-            return override;
-          }
-          const merged: Record<string, any> = {};
-          for (const [k, bv] of Object.entries(base)) {
-            if (!k.startsWith("$")) merged[k] = bv;
-          }
-          for (const [k, v] of Object.entries(override)) {
-            const bv = (base as Record<string, any>)[k];
-            merged[k] =
-              bv != null &&
-              typeof bv === "object" &&
-              !Array.isArray(bv) &&
-              v != null &&
-              typeof v === "object" &&
-              !Array.isArray(v)
-                ? mergeOver(bv, v)
-                : v;
-          }
-          return merged;
-        };
+        // reactive = true` would lose the builtin `layouts_element_name` /
+        // `styles_element_name` / `breakpoints`, leaving `reveal()` unable to
+        // find the screen root (it bails on an undefined `layouts_element_name`),
+        // so screens stay at opacity:0 — a black preview with no error.
+        //
+        // Structural element-tree types (screen/component) are REPLACED wholesale
+        // rather than deep-merged — merging two element trees would splice the
+        // builtin's children into the authored one. (They likewise override by
+        // replace in the reactive `sparkle` channel; see mergePreludeSparkle.)
+        const REPLACE_TYPES = new Set(["layout", "screen", "component"]);
         for (const [type, structs] of Object.entries(context)) {
           for (const [name, struct] of Object.entries(structs)) {
             program.context ??= {};
@@ -2037,35 +2265,25 @@ export class SparkdownCompiler {
             const existing = program.context[type][name];
             program.context[type][name] =
               existing && !REPLACE_TYPES.has(type)
-                ? mergeOver(existing, struct)
+                ? this.inheritDefaults(existing, struct)
                 : struct;
           }
         }
       }
-      if (contextPropertyRegistry) {
-        for (const [type, structs] of Object.entries(contextPropertyRegistry)) {
-          for (const [name, struct] of Object.entries(structs)) {
-            if (state.contextPropertyRegistry?.[type]?.[name]) {
-              // Defined structs don't inherit the properties of builtins
-              // So clear out the property registry for this defined struct
-              state.contextPropertyRegistry[type][name] = {};
-            }
-            state.contextPropertyRegistry ??= {};
-            state.contextPropertyRegistry[type] ??= {};
-            state.contextPropertyRegistry[type][name] ??= {};
-            for (const [propertyPath, propertyValue] of Object.entries(
-              struct,
-            )) {
-              state.contextPropertyRegistry ??= {};
-              state.contextPropertyRegistry[type] ??= {};
-              state.contextPropertyRegistry[type][name] ??= {};
-              state.contextPropertyRegistry[type][name][propertyPath] =
-                propertyValue;
-            }
+      if (sparkle && !this._injectingPrelude) {
+        // Merge the reactive Sparkle UI AST onto program.sparkle (additive;
+        // not yet consumed — the static screens/components channels still
+        // drive rendering until Phase 3).
+        for (const kind of ["layouts", "screens", "components"] as const) {
+          const trees = sparkle[kind];
+          if (trees) {
+            program.sparkle ??= {};
+            program.sparkle[kind] ??= {};
+            Object.assign(program.sparkle[kind]!, trees);
           }
         }
       }
-      if (defaultDefinitions) {
+      if (defaultDefinitions && !this._injectingPrelude) {
         // Copy default definitions to state
         for (const [type, struct] of Object.entries(defaultDefinitions)) {
           state.defaultDefinitions ??= {};
@@ -3089,54 +3307,6 @@ export class SparkdownCompiler {
     profile("end", this._profilerId, "populateFiles", uri);
   }
 
-  populateUI(program: SparkProgram) {
-    const uri = program.uri;
-    profile("start", this._profilerId, "populateUI", uri);
-    const scripts = Object.keys(program.scripts);
-    for (const uri of scripts) {
-      const doc = this.documents.get(uri);
-      if (doc) {
-        const annotations = this.documents.annotations(uri);
-        const tree = this.documents.tree(uri);
-        const cur = annotations.declarations.iter();
-        if (tree) {
-          if (cur) {
-            while (cur.value) {
-              const type = cur.value.type;
-              if (
-                VIEW_DEFINE_TYPES.includes(type) ||
-                STYLING_DEFINE_TYPES.includes(type)
-              ) {
-                const stack = getStack<SparkdownNodeName>(tree, cur.from, -1);
-                const declarationNode = stack.find(
-                  (n) =>
-                    n.name === "DefineViewDeclaration" ||
-                    n.name === "DefineStylingDeclaration",
-                );
-                if (declarationNode) {
-                  const name = doc.read(cur.from, cur.to);
-                  const declaration = doc.read(
-                    declarationNode.from,
-                    declarationNode.to,
-                  );
-                  const node = parseSparkle(declaration)[0];
-                  if (node) {
-                    program.ui ??= {};
-                    const key = type as keyof typeof program.ui;
-                    program.ui![key] ??= {};
-                    program.ui[key]![name] = node;
-                  }
-                }
-              }
-              cur.next();
-            }
-          }
-        }
-      }
-    }
-    profile("end", this._profilerId, "populateUI", uri);
-  }
-
   sortPathLocations(program: SparkProgram) {
     const uri = program.uri;
     profile("start", this._profilerId, "sortPathLocations", uri);
@@ -3331,7 +3501,221 @@ export class SparkdownCompiler {
     profile("end", this._profilerId, "buildContext", uri);
   }
 
-  populateBuiltins(state: SparkdownCompilerState, program: SparkProgram) {
+  /** Mirror the fully-assembled engine-facing context types into dedicated
+   *  channels (`program.layouts` / `screens` / `components` / `styles` / `assets`) the Game
+   *  runtime reads — so the engine can source them WITHOUT touching the LSP-only
+   *  `program.context`. Runs after `buildContext` (and the prelude merge), so it
+   *  captures builtin + authored entries with `$extends`/`$default` already
+   *  applied. Deep-cloned so later context mutation can't leak into the channel.
+   *  (Define-typed context — animation/character/config/… — comes from the
+   *  runtime instead; see `buildContextFromStory`.) */
+  populateEngineChannels(program: SparkProgram) {
+    const uri = program.uri;
+    profile("start", this._profilerId, "populateEngineChannels", uri);
+    const layout = program.context?.["layout"];
+    const screen = program.context?.["screen"];
+    const component = program.context?.["component"];
+    const style = program.context?.["style"];
+    if (layout) {
+      program.layouts = structuredClone(layout);
+    }
+    if (screen) {
+      program.screens = structuredClone(screen);
+    }
+    if (component) {
+      program.components = structuredClone(component);
+    }
+    if (style) {
+      program.styles = structuredClone(style);
+    }
+    // File-derived + implicit-def asset types (not defines).
+    const ASSET_TYPES = ["image", "audio", "font", "filtered_image"];
+    for (const type of ASSET_TYPES) {
+      const structs = program.context?.[type];
+      if (structs) {
+        program.assets ??= {};
+        program.assets[type] = structuredClone(structs);
+      }
+    }
+    // Define-typed context entries (animation/character/ease/config/…) are NOT
+    // emitted as a static channel: the Game sources them from the live runtime
+    // `__def` tables (buildDefinesContext) so authored→builtin inheritance is
+    // resolved by the VM __index chain. Only the structural/asset channels above
+    // remain. (The retired `program.defines` channel was a lossy compile-time
+    // snapshot; runtime-sourcing proved byte-identical and supersedes it.)
+    profile("end", this._profilerId, "populateEngineChannels", uri);
+  }
+
+  /** Let a project define REPLACE a same-named builtin (`define slate_80 as
+   *  color`, `define ui as config`) instead of colliding with it.
+   *
+   *  The builtins prelude is source-injected FIRST, and
+   *  `FlowBase.AddNewVariableDeclaration` is first-writer-wins, so every such
+   *  override used to fail the compile with "Duplicate identifier" — the
+   *  opposite of the intent recorded at the injection site. Two things are
+   *  needed to undo that safely, and both live here because this is the first
+   *  point where the prelude's declarations, the user's, and the prelude's
+   *  compiled values are all in scope (and it still runs before ExportRuntime,
+   *  where the collision is detected):
+   *
+   *  1. BACK-FILL. A partial override (`define ui as config with
+   *     root_text_size = "112.5%"`) restates one property, but the authored
+   *     `__def` table is what reaches the runtime — so every builtin sibling the
+   *     author didn't mention (`breakpoints`, `layouts_element_name`, …) would
+   *     vanish, and e.g. `reveal()` would fail to find the screen root, giving a
+   *     black preview with no error. Copy the prelude's values for keys the
+   *     author did NOT restate into the authored table.
+   *  2. MARK. Tag the prelude's declarations so the collision handler can tell
+   *     an override (allowed, authored wins) from two colliding authored
+   *     defines (still an error). `debugMetadata` can't distinguish them.
+   *
+   *  Idempotent, like {@link scopeDefineInstances}: back-fill only adds keys the
+   *  table lacks, so re-running on cached parse nodes across incremental
+   *  compiles is a no-op. Must run AFTER the scoping passes, which is what makes
+   *  the identifier a stable, comparable key on both sides. */
+  protected applyBuiltinOverrides(
+    userVAs: ReadonlySet<ParsedObject>,
+    preludeVAs: ReadonlySet<ParsedObject>,
+  ): void {
+    if (preludeVAs.size === 0 || userVAs.size === 0) {
+      return;
+    }
+    // The prelude's declarations, keyed by their STABLE BARE name — never the
+    // post-scoping identifier. The two passes of `scopeDefineInstances`
+    // classify independently (the prelude by its own type-name census, the
+    // user files by theirs), so the same bare name can come out as different
+    // global keys on the two sides: the prelude's channel-typed `typewriter`
+    // keeps the bare key (`typewriter` is a prelude type name) while a user's
+    // `define typewriter as channel` scopes to `$channel_typewriter`. An
+    // identifier-keyed gate missed exactly those overrides, and the back-fill
+    // silently never ran — a partial override lost every builtin field the
+    // author didn't restate. The VALUE lookup inside
+    // `backfillBuiltinDefaults` is already (type, name)-keyed against the
+    // prelude context, so a bare-name gate can't over-apply: a user define
+    // that merely shares a name with an unrelated builtin misses that lookup
+    // and no-ops.
+    const preludeNames = new Set<string>();
+    for (const obj of preludeVAs) {
+      if (obj instanceof ParsedVariableAssignment) {
+        obj.isPreludeDeclaration = true;
+        const bare =
+          obj.structDefinition?.name?.name ?? obj.identifier?.name;
+        if (bare) {
+          preludeNames.add(bare);
+        }
+      }
+    }
+    let preludeContext: Record<string, any> | undefined;
+    for (const obj of userVAs) {
+      if (!(obj instanceof ParsedVariableAssignment)) {
+        continue;
+      }
+      const bare = obj.structDefinition?.name?.name ?? obj.identifier?.name;
+      if (!bare || !preludeNames.has(bare)) {
+        continue;
+      }
+      // Resolved lazily so a program with no overrides never touches the cache.
+      preludeContext ??= getCompiledPrelude().context;
+      this.backfillBuiltinDefaults(obj, preludeContext);
+    }
+  }
+
+  /** Copy the prelude's values for every property an overriding define did NOT
+   *  restate into that define's `__def` table, so a partial override keeps the
+   *  builtin's other fields. Mirrors {@link inheritDefaults}, which does the
+   *  same for the compile-time `program.context` view — the runtime table is a
+   *  separate channel (the engine reads it, not `program.context`), so it needs
+   *  its own merge or the two views disagree. */
+  protected backfillBuiltinDefaults(
+    va: ParsedVariableAssignment,
+    preludeContext: Record<string, any>,
+  ): void {
+    const type = va.structDefinition?.type?.name;
+    const name = va.structDefinition?.name?.name;
+    if (!type || !name) {
+      return;
+    }
+    const builtinStruct = preludeContext?.[type]?.[name];
+    if (!builtinStruct || typeof builtinStruct !== "object") {
+      return;
+    }
+    // `va.expression` is the `__def({ props }, name, parent)` call the define
+    // lowerers emit; its first argument is the property table.
+    const call = va.expression;
+    if (!(call instanceof FunctionCall)) {
+      return;
+    }
+    const table = call.args?.[0];
+    if (!(table instanceof ObjectExpression)) {
+      return;
+    }
+    const authored = new Set<string>();
+    for (const entry of table.entries) {
+      if (typeof entry.key === "string") {
+        authored.add(entry.key);
+      }
+    }
+    for (const [k, v] of Object.entries(builtinStruct)) {
+      // `$type` / `$name` are context bookkeeping, re-derived by `__def` from
+      // its own args; `__storeProps` and friends are the define's own hidden
+      // modifier lists and must not be inherited from the builtin.
+      if (k.startsWith("$") || k.startsWith("__")) {
+        continue;
+      }
+      if (authored.has(k) || v === undefined) {
+        continue;
+      }
+      table.addEntry(new ObjectExpressionEntry(k, contextValueToExpression(v)));
+    }
+  }
+
+  /** Merge the once-compiled builtins prelude context into `program.context` as
+   *  the base layer (the role the legacy JS `populateBuiltins` filled). Runs
+   *  before this file's own chunks populate context, so an authored define
+   *  reusing a builtin name overrides it in place. Structs are deep-cloned so
+   *  the shared cache can't be mutated by the per-program `$default` merge or
+   *  asset inference. */
+  mergePreludeContext(program: SparkProgram) {
+    const uri = program.uri;
+    profile("start", this._profilerId, "mergePreludeContext", uri);
+    const { context } = getCompiledPrelude();
+    program.context ??= {};
+    for (const [type, structs] of Object.entries(context)) {
+      program.context[type] ??= {};
+      for (const [name, struct] of Object.entries(structs)) {
+        program.context[type][name] = structuredClone(struct);
+      }
+    }
+    profile("end", this._profilerId, "mergePreludeContext", uri);
+  }
+
+  /** Merge the once-compiled builtins prelude's reactive Sparkle AST into
+   *  `program.sparkle` as the base layer, mirroring {@link mergePreludeContext}.
+   *  Runs before this file's own chunks populate `program.sparkle`, so an
+   *  authored `layout main` overrides the builtin `main` in place (Object.assign
+   *  on the same key keeps the builtin's earlier insertion order: loading, main,
+   *  …). Trees are deep-cloned so the shared cache can't be mutated by later
+   *  per-program work. Keeps the reactive AST channel a faithful superset of the
+   *  static `context.layout`/`context.component` channels (it must carry the
+   *  builtin `loading`/`main` layouts the reactive runtime renders). */
+  mergePreludeSparkle(program: SparkProgram) {
+    const uri = program.uri;
+    profile("start", this._profilerId, "mergePreludeSparkle", uri);
+    const { sparkle } = getCompiledPrelude();
+    for (const kind of ["layouts", "screens", "components"] as const) {
+      const trees = sparkle[kind];
+      if (trees) {
+        program.sparkle ??= {};
+        program.sparkle[kind] ??= {};
+        for (const [name, tree] of Object.entries(trees)) {
+          program.sparkle[kind]![name] = structuredClone(tree) as any;
+        }
+      }
+    }
+    profile("end", this._profilerId, "mergePreludeSparkle", uri);
+  }
+
+  populateBuiltins(program: SparkProgram) {
     const uri = program.uri;
     profile("start", this._profilerId, "populateBuiltins", uri);
     for (const [type, structs] of Object.entries(this._builtinStructs)) {
@@ -3339,19 +3723,6 @@ export class SparkdownCompiler {
         program.context ??= {};
         program.context[type] ??= {};
         program.context[type][name] = struct;
-      }
-    }
-    state.contextPropertyRegistry ??= {};
-    for (const [type, structs] of Object.entries(
-      this._configStructsPropertyRegistry,
-    )) {
-      state.contextPropertyRegistry[type] ??= {};
-      for (const [name, struct] of Object.entries(structs)) {
-        state.contextPropertyRegistry[type][name] ??= {};
-        for (const [propertyPath, propertyValue] of Object.entries(struct)) {
-          state.contextPropertyRegistry[type][name][propertyPath] =
-            propertyValue;
-        }
       }
     }
     profile("end", this._profilerId, "populateBuiltins", uri);
@@ -3465,10 +3836,6 @@ export class SparkdownCompiler {
           // COPY is stripped — the file registry keeps the source.
           delete program.context[type][name].data;
         }
-
-        state.contextPropertyRegistry ??= {};
-        state.contextPropertyRegistry[type] ??= {};
-        state.contextPropertyRegistry[type][name] ??= {};
       }
     }
     profile("end", this._profilerId, "populateAssets", uri);
@@ -3531,9 +3898,6 @@ export class SparkdownCompiler {
               filters: [],
             };
           }
-          state.contextPropertyRegistry ??= {};
-          state.contextPropertyRegistry[implicitType] ??= {};
-          state.contextPropertyRegistry[implicitType][name] ??= {};
         }
       }
     }
@@ -3573,9 +3937,6 @@ export class SparkdownCompiler {
                 })),
               };
             }
-            state.contextPropertyRegistry ??= {};
-            state.contextPropertyRegistry[type] ??= {};
-            state.contextPropertyRegistry[type][name] ??= {};
           }
           cur.next();
         }
@@ -3590,19 +3951,96 @@ export class SparkdownCompiler {
   ) {
     const uri = program.uri;
     profile("start", this._profilerId, "populateDefinedDefaultProperties", uri);
-    if (state.defaultDefinitions) {
-      for (const [defaultType, defaultStruct] of Object.entries(
-        state.defaultDefinitions,
-      )) {
-        const structs = program.context?.[defaultType];
-        if (structs) {
-          for (const [name, struct] of Object.entries(structs)) {
-            structs[name] = { ...defaultStruct, ...struct };
+    // `define X as <type>` is inheritance: X must inherit <type>'s default
+    // property values. The type's effective default lives in context under the
+    // reserved `$default` name (the builtin placed by `populateBuiltins`,
+    // possibly overridden by an authored `define $default as <type>`). Deep-
+    // merge it UNDER every authored instance of that type so omitted (incl.
+    // nested) properties fall back to the default — e.g. an authored
+    // `define pan_right as animation with keyframes = {...}` (no `timing`
+    // block) inherits the animation type's `timing` (delay/duration/easing/
+    // fill/…), and a partial `timing = { duration = "3s" }` keeps the other
+    // timing fields instead of dropping them.
+    //
+    // (The legacy `state.defaultDefinitions` source for this merge was never
+    // populated anywhere, so this inheritance previously didn't happen and
+    // consumers had to re-specify type defaults themselves.)
+    const context = program.context;
+    if (context) {
+      for (const structs of Object.values(context)) {
+        const defaultStruct = (structs as Record<string, any>)?.["$default"];
+        if (!defaultStruct || typeof defaultStruct !== "object") {
+          continue;
+        }
+        for (const [name, struct] of Object.entries(structs)) {
+          // Reserved meta entries ($default, $optional, $optional:<name>,
+          // $schema, $recursive, …) describe the type, not instances — never
+          // merge into them.
+          if (name.startsWith("$")) {
+            continue;
           }
+          if (!struct || typeof struct !== "object" || Array.isArray(struct)) {
+            continue;
+          }
+          (structs as Record<string, any>)[name] = this.inheritDefaults(
+            defaultStruct,
+            struct,
+          );
         }
       }
     }
     profile("end", this._profilerId, "populateDefinedDefaultProperties", uri);
+  }
+
+  /** Deep-merge `override` ONTO `base`: `override` wins, `base` fills gaps, and
+   *  nested plain objects merge recursively (arrays and primitives are replaced
+   *  wholesale by `override`). Used to inherit a type's `$default` into an
+   *  authored define without clobbering sibling fields of nested objects. */
+  inheritDefaults(base: any, override: any): any {
+    if (
+      base == null ||
+      typeof base !== "object" ||
+      Array.isArray(base) ||
+      override == null ||
+      typeof override !== "object" ||
+      Array.isArray(override)
+    ) {
+      return override;
+    }
+    const result: Record<string, any> = {};
+    // Inherit `base`'s properties EXCEPT reserved `$`-prefixed metadata
+    // ($type / $name / $recursive / …). Those describe identity and type-level
+    // behavior and must come from the instance itself — leaking `$default`'s
+    // (e.g. `$recursive: true`, or `$name: "$default"`) onto every instance
+    // would corrupt them. The instance carries its own `$type`/`$name`, which
+    // the override pass below preserves.
+    for (const [k, bv] of Object.entries(base)) {
+      if (k.startsWith("$")) {
+        continue;
+      }
+      // Clone anything with identity. Handing out the `$default`'s own
+      // array/object would alias it across every define that inherits it —
+      // one instance mutating a nested field (or a consumer memoizing onto
+      // it) would rewrite the type default and every sibling along with it.
+      result[k] =
+        typeof bv === "object" && bv !== null ? structuredClone(bv) : bv;
+    }
+    for (const [k, v] of Object.entries(override)) {
+      const bv = (base as Record<string, any>)[k];
+      if (
+        bv != null &&
+        typeof bv === "object" &&
+        !Array.isArray(bv) &&
+        v != null &&
+        typeof v === "object" &&
+        !Array.isArray(v)
+      ) {
+        result[k] = this.inheritDefaults(bv, v);
+      } else {
+        result[k] = v;
+      }
+    }
+    return result;
   }
 
   getPropertyPath(
@@ -3627,7 +4065,6 @@ export class SparkdownCompiler {
   }
 
   getExpectedPropertyValue(
-    state: SparkdownCompilerState,
     program: SparkProgram,
     declaration: SparkDeclaration | undefined,
   ) {
@@ -3640,29 +4077,19 @@ export class SparkdownCompiler {
         structType,
         structProperty,
       );
-      const expectedPropertyValue = state.contextPropertyRegistry
-        ? fetchProperty(
-            expectedPropertyPath,
-            state.contextPropertyRegistry?.[structType]?.["$default"],
-            state.contextPropertyRegistry?.[structType]?.[
-              `$optional:${structName}`
-            ],
-            state.contextPropertyRegistry?.[structType]?.["$optional"],
-          )
-        : readProperty(
-            expectedPropertyPath,
-            program.context?.[structType]?.["$default"],
-            program.context?.[structType]?.[`$optional:${structName}`],
-            program.context?.[structType]?.["$optional"],
-            this._config?.definitions?.optionals?.[structType]?.["$optional"],
-          );
+      const expectedPropertyValue = readProperty(
+        expectedPropertyPath,
+        program.context?.[structType]?.["$default"],
+        program.context?.[structType]?.[`$optional:${structName}`],
+        program.context?.[structType]?.["$optional"],
+        this._config?.definitions?.optionals?.[structType]?.["$optional"],
+      );
       return expectedPropertyValue;
     }
     return undefined;
   }
 
   getSchemaPropertyValues(
-    state: SparkdownCompilerState,
     program: SparkProgram,
     declaration: SparkDeclaration | undefined,
   ) {
@@ -3675,20 +4102,12 @@ export class SparkdownCompiler {
         structType,
         structProperty,
       );
-      const schemaPropertyValues = state.contextPropertyRegistry
-        ? fetchProperty(
-            expectedPropertyPath,
-            state.contextPropertyRegistry?.[structType]?.[
-              `$schema:${structName}`
-            ],
-            state.contextPropertyRegistry?.[structType]?.["$schema"],
-          )
-        : readProperty(
-            expectedPropertyPath,
-            program.context?.[structType]?.[`$schema:${structName}`],
-            program.context?.[structType]?.["$schema"],
-            this._config?.definitions?.schemas?.[structType]?.["$schema"],
-          );
+      const schemaPropertyValues = readProperty(
+        expectedPropertyPath,
+        program.context?.[structType]?.[`$schema:${structName}`],
+        program.context?.[structType]?.["$schema"],
+        this._config?.definitions?.schemas?.[structType]?.["$schema"],
+      );
       return schemaPropertyValues;
     }
     return undefined;
@@ -3741,9 +4160,19 @@ export class SparkdownCompiler {
     profile("end", this._profilerId, "validateSyntax", uri);
   }
 
-  validateReferences(state: SparkdownCompilerState, program: SparkProgram) {
+  validateReferences(program: SparkProgram) {
     const uri = program.uri;
     profile("start", this._profilerId, "validateReferences", uri);
+    // Whole-program set of top-level callables a Sparkle `@event` handler ref
+    // can target — mirrors the runtime's story.HasFunction (top-level functions
+    // + knots + scenes). Built across ALL scripts so a handler defined in an
+    // included file isn't falsely flagged. Stdlib names are intentionally NOT
+    // included: they aren't runtime knots, so a bare `@click=print` never fires.
+    const handlerCallables = new Set<string>([
+      ...Object.keys(program.functionLocations ?? {}),
+      ...Object.keys(program.sceneLocations ?? {}),
+      ...Object.keys(program.knotLocations ?? {}),
+    ]);
     // Per-COMPILE memos. Both of these are pure functions of the reference's
     // `declaration` plus `program`/`config`/`state`, all of which are fixed
     // for the duration of this call — but they were being recomputed once per
@@ -3753,6 +4182,30 @@ export class SparkdownCompiler {
     // so there is no staleness surface.
     const stringIdentifiersByDeclaration = new Map<string, string[]>();
     const selectorTypesByDeclaration = new Map<string, string[]>();
+    // A `[[show/hide/animate <layer> …]]` target names an ELEMENT in the
+    // mounted UI tree, which the engine looks up by name with
+    // `UIModule.findElements` — it is not a `define`d struct, so selector
+    // resolution can never find one. Validate those names against the elements
+    // the layouts actually declare instead. Built lazily because a script with
+    // no such command never needs it.
+    let layerNames: Set<string> | undefined;
+    const namesLayoutElement = (selector: SparkSelector | undefined) => {
+      if (selector?.displayType !== "layer" || !selector.name) {
+        return false;
+      }
+      // A target may end in `#n` to pick one instance out of several. The
+      // engine reads that as an index and matches nothing at all unless it is a
+      // non-negative integer, so anything else has to stay a diagnostic.
+      const [name, instance, ...rest] = selector.name.split("#");
+      if (
+        rest.length > 0 ||
+        (instance !== undefined && !/^\d+$/.test(instance))
+      ) {
+        return false;
+      }
+      layerNames ??= collectLayerNames(program);
+      return Boolean(name) && layerNames.has(name!);
+    };
     const possibleStringIdentifiersFor = (declaration: string | undefined) => {
       const key = declaration ?? "";
       let cached = stringIdentifiersByDeclaration.get(key);
@@ -3761,7 +4214,6 @@ export class SparkdownCompiler {
           program,
           declaration,
           this._config,
-          state,
         );
         stringIdentifiersByDeclaration.set(key, cached);
       }
@@ -3792,7 +4244,6 @@ export class SparkdownCompiler {
         program,
         selector,
         expectedSelectorTypes,
-        state,
       );
       resolvedSelectors.set(key, resolved);
       return resolved;
@@ -3805,7 +4256,6 @@ export class SparkdownCompiler {
           program,
           declaration,
           this._config,
-          state,
         );
         selectorTypesByDeclaration.set(key, cached);
       }
@@ -3818,6 +4268,34 @@ export class SparkdownCompiler {
         const cur = annotations.references.iter();
         while (cur.value) {
           const reference = cur.value.type;
+          if (reference.usage === "handler") {
+            // A Sparkle `@event=handler` that names a function/knot the runtime
+            // can't invoke — warn (it silently never fires). See ReferenceAnnotator.
+            const name = reference.symbolIds?.[0];
+            if (name && !handlerCallables.has(name)) {
+              const message = `Cannot find function \`${name}\` for this handler — define \`function ${name}() … end\`, or use an inline handler \`{ … }\``;
+              const range = doc.range(cur.from, cur.to);
+              program.diagnostics ??= {};
+              program.diagnostics[uri] ??= [];
+              program.diagnostics[uri].push({
+                range,
+                severity: DiagnosticSeverity.Warning,
+                message: {
+                  value: message,
+                  kind: "markdown",
+                },
+                relatedInformation: [
+                  {
+                    location: { uri, range },
+                    message: "",
+                  },
+                ],
+                source: LANGUAGE_NAME,
+              });
+            }
+            cur.next();
+            continue;
+          }
           if (reference.symbolIds) {
             for (const symbolId of reference.symbolIds) {
               if (this._config.definitions?.builtins?.[symbolId]) {
@@ -3913,6 +4391,8 @@ export class SparkdownCompiler {
                   source: LANGUAGE_NAME,
                 });
               }
+            } else if (namesLayoutElement(selector)) {
+              // Valid layer: an element declared in the UI tree
             } else {
               // Report missing error
               const validDescription =
@@ -3973,23 +4453,21 @@ export class SparkdownCompiler {
             if (structType && structProperty) {
               // Validate struct property types
               if (program.context?.[structType]?.[structName]) {
-                const definedPropertyValue = fetchProperty(
+                const definedPropertyValue = readProperty(
                   structProperty,
-                  state.contextPropertyRegistry?.[structType]?.[structName],
+                  program.context?.[structType]?.[structName],
                 );
                 if (definedPropertyValue !== undefined) {
                   const expectedPropertyValue = this.getExpectedPropertyValue(
-                    state,
                     program,
                     declaration,
                   );
-                  if (expectedPropertyValue !== undefined) {
+                  if (expectedPropertyValue != null) {
                     if (
                       typeof definedPropertyValue !==
                       typeof expectedPropertyValue
                     ) {
                       const schemaPropertyValues = this.getSchemaPropertyValues(
-                        state,
                         program,
                         declaration,
                       );
@@ -4000,13 +4478,7 @@ export class SparkdownCompiler {
                             typeof v !== "object" &&
                             typeof v === typeof definedPropertyValue,
                         );
-                      const isStylingFieldValue = STYLING_DEFINE_TYPES.includes(
-                        declaration.type,
-                      );
-                      if (
-                        !isSchemaSupportedScalarType &&
-                        !isStylingFieldValue
-                      ) {
+                      if (!isSchemaSupportedScalarType) {
                         const message = `Cannot assign '${typeof definedPropertyValue}' to '${typeof expectedPropertyValue === "object" && "$type" in expectedPropertyValue ? expectedPropertyValue.$type : typeof expectedPropertyValue}' property`;
                         const range = doc.range(cur.from, cur.to);
                         program.diagnostics ??= {};

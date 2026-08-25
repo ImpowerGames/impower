@@ -1,0 +1,7 @@
+layout main with
+  stage:
+    mask shadow_1
+    text title "Inventory"
+    button primary "Use" @click=use_item
+    label big "HP: {hp}" #color={team_color}
+end

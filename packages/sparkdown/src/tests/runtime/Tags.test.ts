@@ -6,22 +6,21 @@
 // the knot/stitch/sequence/dynamic-content tests below.
 
 import { describe, expect, test } from "vitest";
+import { isDisplayRoutingTag } from "../../compiler/utils/displayRoutingTag";
 import { makeRuntimeStoryFromFile } from "./runtimeTestHarness";
 
-// Sparkdown wraps each display line in `BeginTag` / `Text("<line-type>")`
-// / `EndTag` line-type metadata before the body (`action` /
-// `dialogue:Name` / `heading` / …). That metadata pair ends up in
-// `currentTags` alongside the author-written tags. The inkjs spec
-// asserts on author tags only, so we filter the line-type metadata
-// out before comparing.
-const LINE_TYPE_TAG =
-  /^(?:action|dialogue|heading|title|transitional|write)(?::|$)/;
-// Filter out line-type metadata tags and trim whitespace from each
+// Sparkdown wraps each display line in a reserved ROUTING TAG (a
+// `BeginTag` / `Text("<sentinel><line-type>[:identifier]")` / `EndTag`
+// triplet) before the body. That metadata tag ends up in `currentTags`
+// alongside the author-written tags. The inkjs spec asserts on author
+// tags only, so we filter the routing tag out (by its reserved sentinel)
+// before comparing.
+// Filter out routing-metadata tags and trim whitespace from each
 // surviving tag. The multi-tag-on-one-line form (`# a # b`) leaves a
 // trailing space on the first tag's text since the Tag rule's match
 // includes the inter-tag whitespace — the trim normalizes this.
 function userTagsOnly(tags: readonly string[]): string[] {
-  return tags.filter((t) => !LINE_TYPE_TAG.test(t)).map((t) => t.trim());
+  return tags.filter((t) => !isDisplayRoutingTag(t)).map((t) => t.trim());
 }
 
 describe("Tags (ported from inkjs)", () => {

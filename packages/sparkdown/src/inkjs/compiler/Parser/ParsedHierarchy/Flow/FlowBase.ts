@@ -202,8 +202,18 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
       // context.synth.raffles, picked up via FindAll(StructDefinition)),
       // not a single flat global, so this isn't a real collision. (Two
       // defines of the SAME type, or a define vs a plain var, still error.)
-      const newType = varDecl.structDefinition?.type?.name;
-      const existingType = varab.structDefinition?.type?.name;
+      // A ROOT define (`define image with …`) declares the type named after
+      // itself and carries no `structDefinition` (only typed `as T` defines
+      // do), so fall back to its own name as its type identity. This lets a
+      // builtin type (`image`) coexist with a same-named instance of another
+      // type (`style.image`, the style for image elements): the type keeps the
+      // flat global and the instance namespaces as `$style_image`.
+      const newType =
+        varDecl.structDefinition?.type?.name ??
+        (varDecl.isDefineDeclaration ? varDecl.variableName : undefined);
+      const existingType =
+        varab.structDefinition?.type?.name ??
+        (varab.isDefineDeclaration ? varab.variableName : undefined);
       if (
         varDecl.isDefineDeclaration &&
         varab.isDefineDeclaration &&
@@ -226,6 +236,47 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
         if (!this.variableDeclarations.has(qualifiedKey)) {
           this.variableDeclarations.set(qualifiedKey, varDecl);
         }
+        return;
+      }
+
+      // A project OVERRIDING a builtin: the incumbent came from the
+      // source-injected builtins prelude, the newcomer from a user file. The
+      // prelude is injected first purely so its declarations exist to be
+      // overridden, so first-writer-wins is exactly backwards here — it made
+      // every `define slate_80 as color` / `define ui as config` a compile
+      // error instead of a re-theme. Hand the slot to the authored declaration.
+      //
+      // The incumbent must NOT be dropped from `variableDeclarations`: its
+      // parsed nodes stay in the prelude's content, and ResolveReferences
+      // walks them regardless — a declaration missing from the registry never
+      // generates its runtime, so its `__def` divert's `runtimeDivert` getter
+      // throws and ABORTS the resolve pass for the whole story (everything
+      // after the prelude is left unresolved; a project with any choice then
+      // fails serialization on a null `pathOnChoice`, with zero diagnostics).
+      // Same hazard the `$type_name` branch above documents. So the incumbent
+      // re-registers under a synthetic `$prelude_` key (`$` can't appear in a
+      // script identifier, and the `$type_name` convention is reserved for
+      // dual-TYPE names) immediately BEFORE the authored declaration: the
+      // prelude's `__def` runs first and the authored one re-registers over
+      // it in place — the documented override semantic. The override pass has
+      // also already back-filled the authored `__def` table with every prelude
+      // value the author didn't restate (see
+      // SparkdownCompiler.applyBuiltinOverrides), so a partial override keeps
+      // the builtin's other fields. Two colliding AUTHORED defines still
+      // error below. Narrow on purpose: only another DEFINE may take a
+      // builtin's slot. A property declaration that happens to collide is not
+      // an override and must fall through to the checks below.
+      if (
+        varab.isPreludeDeclaration &&
+        !varDecl.isPreludeDeclaration &&
+        varDecl.isDefineDeclaration
+      ) {
+        this.variableDeclarations.delete(varName);
+        const shadowKey = `$prelude_${varName}`;
+        if (!this.variableDeclarations.has(shadowKey)) {
+          this.variableDeclarations.set(shadowKey, varab);
+        }
+        this.variableDeclarations.set(varName, varDecl);
         return;
       }
 

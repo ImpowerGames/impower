@@ -23,6 +23,43 @@ const load = async () => {
 
 load();
 
+// DEV-only: when the browser refuses the service worker (some embedded /
+// proxied browsers fail `register()` outright), `/file:/` asset URLs would all
+// 404. Mirror the OPFS files to the dev server instead, which serves those
+// URLs itself (see devAssetMirror.ts + the vite.config.ts middleware). Kicked
+// off on registration failure, and re-checked periodically so files written
+// after boot (imports, saves) reach the mirror too.
+let devAssetMirrorStarted = false;
+const startDevAssetMirror = () => {
+  if (!import.meta.env.DEV || devAssetMirrorStarted) {
+    return;
+  }
+  // `?nomirror=1` opts out for a session — the mirror moves the whole project
+  // over HTTP, so it has to be possible to take it out of the picture when
+  // diagnosing something else.
+  if (new URLSearchParams(location.search).get("nomirror") === "1") {
+    console.warn("[dev-asset-mirror] disabled via ?nomirror=1");
+    return;
+  }
+  devAssetMirrorStarted = true;
+  import("./devAssetMirror").then(({ syncOpfsToDevAssetMirror }) => {
+    syncOpfsToDevAssetMirror();
+    setInterval(() => syncOpfsToDevAssetMirror(), 20_000);
+  });
+};
+
+// Ask the browser to protect this origin's storage from best-effort
+// eviction. Where granted, OPFS/Cache Storage survive storage pressure and
+// browser lifecycle; where denied (embedded browsers commonly refuse), the
+// dev asset mirror's restore path is the safety net.
+navigator.storage?.persist?.().then((granted) => {
+  if (!granted) {
+    console.warn(
+      "Storage persistence not granted — origin storage may be evicted by the browser.",
+    );
+  }
+});
+
 if ("serviceWorker" in navigator) {
   navigator.serviceWorker.register("sw.js").then(
     (registration) => {
@@ -30,8 +67,28 @@ if ("serviceWorker" in navigator) {
     },
     (error) => {
       console.error(`Service worker registration failed: ${error}`);
+      startDevAssetMirror();
     },
   );
+  // Belt-and-suspenders for a registration that resolves but never produces a
+  // working worker. Gate on `ready` (an ACTIVE registration for this scope),
+  // NOT on `controller`: a first load is legitimately uncontrolled until the
+  // next navigation, so testing `controller` declared every healthy browser
+  // broken on its first visit and had it mirror the whole project — hundreds
+  // of megabytes of pointless upload.
+  if (import.meta.env.DEV) {
+    Promise.race([
+      navigator.serviceWorker.ready.then(() => true),
+      new Promise((resolve) => setTimeout(() => resolve(false), 20_000)),
+    ]).then((workerIsLive) => {
+      if (!workerIsLive) {
+        console.warn(
+          "Service worker never activated — falling back to the dev asset mirror.",
+        );
+        startDevAssetMirror();
+      }
+    });
+  }
   // TODO: Handle service worker refresh with Approach #4 instead of Approach #2:
   // https://redfin.engineering/how-to-fix-the-refresh-button-when-using-service-workers-a8e27af6df68
   // Reload to pick up a NEW worker version (so the PWA auto-updates to the latest

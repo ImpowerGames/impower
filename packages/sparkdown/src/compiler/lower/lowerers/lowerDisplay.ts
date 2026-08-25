@@ -3,40 +3,42 @@ import { type SyntaxNode } from "@lezer/common";
 import { Conditional } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Conditional/Conditional";
 import { ConditionalSingleBranch } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Conditional/ConditionalSingleBranch";
 import { Expression } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expression/Expression";
+import {
+  ObjectExpression,
+  ObjectExpressionEntry,
+} from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expression/ObjectExpression";
+import { StringExpression } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expression/StringExpression";
+import { FunctionCall } from "../../../inkjs/compiler/Parser/ParsedHierarchy/FunctionCall";
 import { Glue as ParsedGlue } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Glue";
+import { Identifier } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Identifier";
 import { ParsedObject } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Object";
 import { Tag } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Tag";
 import { Text } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Text";
+import { Weave } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Weave";
 import { Glue as RuntimeGlue } from "../../../inkjs/engine/Glue";
 import { CompiledBlock } from "../../classes/annotators/CompilationAnnotator";
 import { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
 import { LowerContext } from "../context";
 import {
+  FUNCTION_CALL_SHORTHAND_NODES,
   lowerExpressionFromContainer,
   lowerExpressionFromNodes,
 } from "../expression/lowerExpression";
 import { buildDivert } from "../utils/buildDivert";
 import { stampDebugMetadata } from "../utils/debugMetadata";
+import { formatDisplayRoutingTag } from "../../utils/displayRoutingTag";
 import { lowerTagContent } from "../utils/lowerTagContent";
 import { wrapInWeave } from "../utils/wrapInWeave";
 import { lowerSparkdownConditionalAlternatorBlock } from "./lowerSparkdownConditionalAlternatorBlock";
 import { lowerSparkdownSequentialAlternatorBlock } from "./lowerSparkdownSequentialAlternatorBlock";
 
-// Slice 4: each display line emits a Tag pair carrying the line type (and
-// optional identifier such as a character name or write target), then the
-// body's content nodes (Text runs interleaved with lowered `{expr}`
-// interpolation expressions), followed by a trailing newline Text.
-
-// Line-type → the routing marker the interpreter's `TARGETED_TEXT_REGEX`
-// expects as a `<marker>:` text prefix. Mirrors the grammar markers
-// (`InlineTitle` `^:`, `InlineHeading` `$:`, `InlineTransitional` `%:`) and
-// the engine's `config.interpreter.directives`. `action` has no marker (it's
-// the default target); `dialogue`/`write` use the character/layer identifier.
-const DIRECTIVE_MARKERS: Record<string, string> = {
-  title: "^",
-  heading: "$",
-  transitional: "%",
-};
+// Each display line emits a reserved ROUTING TAG pair carrying the line type
+// (and, for dialogue/write, an identifier such as the character cue or the
+// write layer), then the body's content nodes (Text runs interleaved with
+// lowered `{expr}` interpolation expressions), followed by a trailing newline
+// Text. The engine's interpreter reads the routing tag to pick a target
+// (`InterpreterModule.queue`) — the visible body text carries NO routing
+// prefix. See `displayRoutingTag.ts` for the shared tag contract.
 
 function buildDisplayContent(
   parent: SyntaxNode,
@@ -77,40 +79,64 @@ function buildDisplayContent(
     return content;
   }
 
+  // EXPERIMENTAL display-as-Luau-call path: when enabled, a SIMPLE display
+  // statement (plain text, single beat, no cue/layer/interpolation/divert/
+  // alternator/tag) lowers to a native `display({ target, text })` call instead
+  // of the legacy routing-tag + visible-text form. Carries the pre-parsed
+  // instruction table the runtime renders without a char-by-char re-scan. Any
+  // non-simple content returns null and falls through to the legacy path below,
+  // so existing goldens stay byte-identical until the table shape grows.
+  //
+  // A line CONTINUED by glue must also stay on the legacy path. Its
+  // continuation lowers to `Glue + text` (the early return above), and the
+  // runtime joins the two into ONE Continue — so the base line lowering to a
+  // display() call would put an instruction AND flat text in the same beat.
+  // `Game.continue` treats those as either/or (instructions win), so the
+  // continuation's text would be silently dropped. Keeping the whole glue
+  // chain legacy keeps the beat single-transport.
+  const displayCall = isNodeContinuedByGlue(parent, ctx)
+    ? null
+    : tryBuildSimpleDisplayCall(
+        parent,
+        bodyStart,
+        bodyEnd,
+        ctx,
+        mode,
+        lineType,
+        identifier,
+      );
+  if (displayCall) {
+    return displayCall;
+  }
+
   // A mid-line `>` BREAK marker splits the display content into separate
   // BEATS. Each beat is a standalone Continue() at the runtime level (a
   // plain newline between the previous beat's body and the next beat's
-  // routing tag/prefix forms an output-stream boundary the engine stops
+  // routing tag forms an output-stream boundary the engine stops
   // on), so the screenplay preview / planRoute can route to each beat by
   // its own checkpoint. Without this split, a chained dialogue compiles to
   // ONE Continue: the interpreter's `BREAK_BOX_REGEX` still renders two
   // textboxes, but they share a single story-path checkpoint, so every box
   // after the first is unreachable by the preview. Each beat re-emits the
-  // line-type tag + routing prefix so the continuation routes to the same
-  // target (e.g. the same character's dialogue). A TRAILING break (`>` with
-  // no content after — no following newline) is NOT a split point; it's
-  // handled inside `processDisplayBody` (`detectTrailingBreak`) as an extra
-  // newline, matching the legacy compiler.
-  const prefix = computeRoutingPrefix(lineType, identifier);
+  // routing tag so the continuation routes to the same target (e.g. the same
+  // character's dialogue). A TRAILING break (`>` with no content after — no
+  // following newline) is NOT a split point; it's handled inside
+  // `processDisplayBody` (`detectTrailingBreak`) as an extra newline, matching
+  // the legacy compiler.
   const ranges = splitBodyRangeAtBreaks(parent, bodyStart, bodyEnd, ctx);
   const content: ParsedObject[] = [];
   for (let i = 0; i < ranges.length; i++) {
     const range = ranges[i]!;
     const beat: ParsedObject[] = [];
+    // Emit the line's ROUTING TAG. The engine's interpreter
+    // (InterpreterModule.queue) reads this tag from `story.currentTags` to
+    // route the beat to a target (dialogue / title / heading / transitional /
+    // write layer / default action) and, for dialogue, to resolve the
+    // character cue. The visible body text carries NO routing prefix — the tag
+    // is the single source of routing truth. See `displayRoutingTag.ts`.
     beat.push(new Tag(true));
-    beat.push(new Text(identifier ? `${lineType}:${identifier}` : lineType));
+    beat.push(new Text(formatDisplayRoutingTag(lineType, identifier)));
     beat.push(new Tag(false));
-    // Emit the line's routing PREFIX in the VISIBLE text. The engine's
-    // interpreter (InterpreterModule.queue) routes display content to a
-    // target (dialogue / title / heading / transitional / layer) by parsing
-    // a `<prefix>:` text prefix (TARGETED_TEXT_REGEX) — it does NOT read the
-    // line-type tag above. Without it, every non-action line falls through
-    // to the default `action` target (wrong element + styling: e.g. dialogue
-    // with no box, wrong color). A colon+SPACE keeps the prefix on the same
-    // line as the body so the cue + body stay in one Continue().
-    if (prefix) {
-      beat.push(new Text(`${prefix} `));
-    }
     beat.push(...processDisplayBody(parent, range.from, range.to, ctx, mode));
     beat.push(new Text("\n"));
     // For a chained (break-split) dialogue, stamp EACH beat's objects with a
@@ -142,21 +168,134 @@ function buildDisplayContent(
   return content;
 }
 
-// The routing prefix the interpreter expects as a `<prefix>:` text prefix.
-// Directive markers (`^`/`$`/`%`) mirror the grammar markers and the
-// engine's `config.interpreter.directives`; dialogue/write use the
-// character/layer identifier; action has no prefix (default target).
-function computeRoutingPrefix(
+// EXPERIMENTAL: build a `display({ target, character?, text })` FunctionCall for
+// a display statement, or return null to fall back to the legacy routing-tag +
+// visible-text form. The table carries the routing (target + dialogue cue)
+// resolved at compile time plus the body as a STRING-CAPTURE expression — the
+// SAME body ParsedObjects the legacy path emits, wrapped in a StringExpression
+// so ink evaluates them (interpolation → live values, markup preserved) into one
+// string at call time. The engine then runs the identical `parse()` pipeline.
+//
+// Falls back (returns null) for content the flat `text` string can't represent
+// faithfully yet: leading `..` glue (continuation), mid-line diverts, inline
+// conditionals/alternators, and `# tag`s (anything in the body that isn't plain
+// Text or a value-producing interpolation Expression). A mid-line `>` split is
+// supported: each beat range emits its own display() call (separate beats via
+// the engine's display-instruction-count boundary).
+function tryBuildSimpleDisplayCall(
+  parent: SyntaxNode,
+  bodyStart: number,
+  bodyEnd: number,
+  ctx: LowerContext,
+  mode: "inline" | "block",
   lineType: string,
   identifier: string | null,
-): string {
-  return lineType === "dialogue" && identifier
-    ? `${identifier}:`
-    : lineType === "write" && identifier
-      ? `@${identifier}:`
-      : DIRECTIVE_MARKERS[lineType]
-        ? `${DIRECTIVE_MARKERS[lineType]}:`
-        : "";
+): ParsedObject[] | null {
+  if (!ctx.config?.experimentalDisplayCalls) return null;
+
+  // A `load <name>…` action line is a WORLD-LOAD DIRECTIVE, not display text:
+  // `InterpreterModule.queue` intercepts the prefix and converts it to
+  // LoadInstructions. `queueInstructions` has no such interception, so this
+  // line must stay on the legacy text path or the directive would render as
+  // the literal string "load …" and the load would never run.
+  if (
+    lineType === "action" &&
+    ctx.read(bodyStart, bodyEnd).trimStart().startsWith("load ")
+  ) {
+    return null;
+  }
+
+  // Resolve the routing exactly as the engine's tag path does, but at compile
+  // time: dialogue → target "dialogue" + the cue; write → the layer is the
+  // target; everything else → the line type IS the target.
+  let target: string;
+  let character: string | undefined;
+  if (lineType === "dialogue") {
+    target = "dialogue";
+    character = identifier ?? undefined;
+  } else if (lineType === "write") {
+    if (!identifier) return null; // need the layer name
+    target = identifier;
+    character = undefined;
+  } else {
+    target = lineType;
+    character = undefined;
+  }
+
+  // A mid-line `>` BREAK splits the body into beats; each beat re-emits the same
+  // routing (matching the legacy per-beat routing tag) as its own display()
+  // call. The engine renders each as a separate Continue beat.
+  const ranges = splitBodyRangeAtBreaks(parent, bodyStart, bodyEnd, ctx);
+  const calls: ParsedObject[] = [];
+  for (const range of ranges) {
+    // Reuse the legacy body walker so trimming/escapes match exactly, then
+    // require every produced object to be plain Text or a value-producing
+    // interpolation Expression — anything else (Conditional, alternator
+    // Sequence, Divert, Tag, Glue) can't be string-captured faithfully, so
+    // fall the WHOLE statement back to the legacy path.
+    const body = processDisplayBody(parent, range.from, range.to, ctx, mode);
+    if (body.length === 0) return null;
+    for (const obj of body) {
+      // Value-producing content that string-captures faithfully: plain Text,
+      // interpolation Expressions, inline Conditionals (`{if …}`), and inline
+      // alternators (a Weave wrapping a Sequence). Anything else — a mid-line
+      // Divert (changes flow), a `# tag` (metadata), or Glue (whitespace
+      // control) — can't ride a captured string, so fall the whole statement
+      // back to the legacy path.
+      if (
+        !(obj instanceof Text) &&
+        !(obj instanceof Expression) &&
+        !(obj instanceof Conditional) &&
+        !(obj instanceof Weave)
+      ) {
+        return null;
+      }
+    }
+    calls.push(buildDisplayCall(target, character, body, range, ctx));
+  }
+  return calls.length > 0 ? calls : null;
+}
+
+// `display({ target, character?, text })` with `shouldPopReturnedValue` — a
+// synthesized bare-call statement (no author `&` needed). `display` is a
+// state-aware STDLIB entry, so this lowers to a RunStdLibFunction dispatch whose
+// live ObjectValue arg the engine reads via `story.currentDisplayInstructions`.
+// `text` is a StringExpression over the body's own ParsedObjects, so ink
+// evaluates interpolation to live values and concatenates the run at call time.
+function buildDisplayCall(
+  target: string,
+  character: string | undefined,
+  body: ParsedObject[],
+  range: { from: number; to: number },
+  ctx: LowerContext,
+): FunctionCall {
+  const entries = [
+    new ObjectExpressionEntry(
+      "target",
+      new StringExpression([new Text(target)]),
+    ),
+  ];
+  if (character) {
+    entries.push(
+      new ObjectExpressionEntry(
+        "character",
+        new StringExpression([new Text(character)]),
+      ),
+    );
+  }
+  entries.push(
+    new ObjectExpressionEntry("text", new StringExpression(body)),
+  );
+  const call = new FunctionCall(new Identifier("display"), [
+    new ObjectExpression(entries),
+  ]);
+  call.shouldPopReturnedValue = true;
+  // Stamp the call with its source range so each display beat surfaces a
+  // pathLocation (the screenplay preview's click-to-line routing depends on
+  // it). Without this the synthesized node has no metadata of its own and
+  // collapses to the enclosing scene's line.
+  stampDebugMetadata([call], range.from, range.to, ctx);
+  return call;
 }
 
 // Trim trailing whitespace/newlines off a source range so a stamped beat
@@ -481,7 +620,10 @@ function collectTopLevelInjections(
       // Don't descend into a backtick string — its inner `{...}` belongs to
       // the string itself, not the surrounding display body.
       if (node.name === "LuauInterpolatedString") return;
-      if (node.name === "LuauInterpolatedStringExpression") {
+      if (
+        node.name === "LuauInterpolatedStringExpression" ||
+        node.name === "LuauFunctionCallShorthand"
+      ) {
         if (node.from >= bodyStart && node.to <= bodyEnd) {
           out.push({ kind: "expr", node, from: node.from, to: node.to });
         }
@@ -733,6 +875,44 @@ function isNodePrecededByTrailingGlue(
   return endsWithTrailingGlue(sib, ctx);
 }
 
+// True when this line's beat will be CONTINUED by glued content — either it
+// ends with a trailing `..` itself, or the next display construct opens with a
+// leading `..`. Such a line must not lower to a display() call: the glued
+// continuation always lowers to legacy `Glue + text`, and mixing the two
+// transports in one runtime Continue drops the flat text (see the call site).
+function isNodeContinuedByGlue(node: SyntaxNode, ctx: LowerContext): boolean {
+  if (endsWithTrailingGlue(node, ctx)) return true;
+  let sib: SyntaxNode | null = node.nextSibling;
+  while (sib && GLUE_SKIP_SIBLINGS.has(sib.name)) sib = sib.nextSibling;
+  if (!sib) return false;
+  return startsWithLeadingGlue(sib, ctx);
+}
+
+// True when `node`'s first visible content is a `..` glue marker — the leading
+// form of `endsWithTrailingGlue`. The position check rejects `...` ellipsis
+// text, which passes the cheap prefix test but has no `Glue` node there.
+function startsWithLeadingGlue(node: SyntaxNode, ctx: LowerContext): boolean {
+  const text = ctx.read(node.from, node.to);
+  const trimmedLeading = text.replace(/^\s+/, "");
+  if (!trimmedLeading.startsWith("..")) return false;
+  const visibleStart = node.from + (text.length - trimmedLeading.length);
+  let found = false;
+  const visit = (n: SyntaxNode): void => {
+    if (found) return;
+    if (n.name === "Glue" && n.from === visibleStart) {
+      found = true;
+      return;
+    }
+    let c = n.firstChild;
+    while (c) {
+      visit(c);
+      c = c.nextSibling;
+    }
+  };
+  visit(node);
+  return found;
+}
+
 // True when `node`'s last visible content is a `..` glue marker — i.e. the
 // right-most `Glue` descendant ends exactly at the node's trailing-whitespace-
 // trimmed end. Mid-construct glues (followed by more text) don't count.
@@ -873,7 +1053,12 @@ function hasAdjacentInterpolationSibling(node: SyntaxNode): boolean {
   let cursor: SyntaxNode | null = node.nextSibling;
   while (cursor) {
     if (cursor.name === "Newline") return false;
-    if (cursor.name === "LuauInterpolatedStringExpression") return true;
+    if (
+      cursor.name === "LuauInterpolatedStringExpression" ||
+      cursor.name === "LuauFunctionCallShorthand"
+    ) {
+      return true;
+    }
     if (
       cursor.name === "Whitespace" ||
       cursor.name === "ExtraWhitespace" ||
@@ -1069,6 +1254,10 @@ function tryLowerInlineAlternator(
   // so we just need to find either variant here. Look for the
   // interpolation-content child first (a `_content` wrapper), then any
   // direct child below.
+  // `{{...}}` is call-only: never reinterpret its body as an alternator —
+  // fall through to `lowerExpressionFromContainer`, which enforces the
+  // shorthand semantics (`{{queue|A|B end}}` is an error, not an alternator).
+  if (FUNCTION_CALL_SHORTHAND_NODES.has(interpNode.name)) return null;
   const content = findFirstDirectChild(
     interpNode,
     "LuauInterpolatedStringExpression_content",
@@ -1115,6 +1304,9 @@ function tryLowerInlineConditional(
   interpNode: SyntaxNode,
   ctx: LowerContext,
 ): Conditional | null {
+  // Call-only shorthand: `{{if … then … else …}}` must NOT become a
+  // Conditional — see the matching guard in `tryLowerInlineAlternator`.
+  if (FUNCTION_CALL_SHORTHAND_NODES.has(interpNode.name)) return null;
   const ifExpr = findFirstDirectChild(interpNode, "LuauTernaryExpression");
   if (!ifExpr) return null;
   const firstCondContent = getDescendent(

@@ -238,6 +238,34 @@ ink would express as a `LIST` is an `ObjectValue` populated by an
 Length (`#items`), indexing (`items[k]`), and membership are all implemented;
 list-specific arithmetic (`(a, b) + (c)`) is not.
 
+### Membership: method calls, not operators
+
+Sparkdown does not support ink's dedicated membership operators (`?` / `!?`
+and the `has` / `hasnt`).
+Instead use the builtin membership methods (see
+[`MethodDispatch.ts`](src/inkjs/engine/MethodDispatch.ts)):
+
+| ink            | sparkdown                                        |
+| -------------- | ------------------------------------------------ |
+| `list ? item`  | `list:find(item) ~= nil`                         |
+| `list !? item` | `list:find(item) == nil`                         |
+| `set ? subset` | `set:intersection(subset):len() == subset:len()` |
+
+For the common element-membership case (`item ∈ collection`), `:find`
+returns the key of the matching entry or `nil` on miss, so it composes
+naturally with `if t:find(x) then ... end` / `t:find(x) ~= nil`.
+Subset-containment doesn't have a single dedicated method — compose
+`:intersection` + `:len`, or define a per-project helper.
+
+Why the change: ink's `?` overloaded "any-element membership" with
+"subset containment" depending on operand types — splitting into named
+methods makes the intent explicit at the call site, and the receiver-
+type dispatch already used for `:union` / `:intersection` /
+`:difference` / `:min` / `:max` / `:random` etc. covers it uniformly.
+The grammar no longer reserves `has` / `hasnt` as keywords, so authors
+can use those words as identifiers (`local has = ...`, `function
+hasnt() end`, etc.).
+
 ### `local` is block-scoped (unlike ink's `temp`)
 
 In ink, `temp x = ...` is **function-scoped** — there's one temp-var bag
@@ -356,36 +384,6 @@ Sparkdown adds `store` alongside Luau's `local`. `store` declares a
 ink-style global variable (persisted in save state); `local` is a per-scope
 binding (see below); `const` is a once-only declaration (currently lowered
 to `var` — see DEFERRED.md). Standard Luau has no `store`.
-
-### Membership: method calls, not operators
-
-Sparkdown removed the dedicated membership operators (ink's `?` / `!?`
-and the `has` / `hasnt` keyword aliases sparkdown briefly exposed).
-There's no operator-level membership check anywhere in the grammar
-now — the equivalents live as receiver methods, dispatched through
-the builtin-method registry (see
-[`MethodDispatch.ts`](src/inkjs/engine/MethodDispatch.ts)):
-
-| ink            | sparkdown                                        |
-| -------------- | ------------------------------------------------ |
-| `list ? item`  | `list:find(item) ~= nil`                         |
-| `list !? item` | `list:find(item) == nil`                         |
-| `set ? subset` | `set:intersection(subset):len() == subset:len()` |
-
-For the common element-membership case (`item ∈ collection`), `:find`
-returns the key of the matching entry or `nil` on miss, so it composes
-naturally with `if t:find(x) then ... end` / `t:find(x) ~= nil`.
-Subset-containment doesn't have a single dedicated method — compose
-`:intersection` + `:len`, or define a per-project helper.
-
-Why the change: ink's `?` overloaded "any-element membership" with
-"subset containment" depending on operand types — splitting into named
-methods makes the intent explicit at the call site, and the receiver-
-type dispatch already used for `:union` / `:intersection` /
-`:difference` / `:min` / `:max` / `:random` etc. covers it uniformly.
-The grammar no longer reserves `has` / `hasnt` as keywords, so authors
-can use those words as identifiers (`local has = ...`, `function
-hasnt() end`, etc.).
 
 ### Math builtins use Luau names, not ink's all-caps form
 
@@ -531,6 +529,119 @@ drops these methods (see DEFERRED.md _Function members in defines_).
 dropped). Ink has no native loop primitives; real lowering needs either
 desugaring to recursive knots or extending the runtime with loop primitives.
 
+### `"..."` interpolates; `'...'` does not
+
+In Luau, `{expr}` interpolation works **only** in backtick strings — `"..."`
+and `'...'` are both plain literals. Sparkdown extends interpolation to
+double-quoted strings as well, so these are equivalent:
+
+```
+`Hello, {name}!`
+"Hello, {name}!"
+```
+
+**Single-quoted strings are deliberately left literal**, and they are the
+workaround whenever you don't want a brace read as interpolation:
+
+```
+return '{'                     -- a literal brace
+'{x {y} z}'                    -- a %b{} subject, not an expression
+local aaa = '{bbb={ddd=next}}' -- a snippet of code
+```
+
+`[[...]]` is literal too (and multiline), and `\{` escapes a single brace
+inside a double-quoted string.
+
+Why the split: a brace inside a plain string is ordinary Lua — code
+generation, JSON, a `%b{}` pattern subject — so *something* has to stay
+literal. Making both quote forms interpolate breaks real Lua source, which is
+not hypothetical: it broke two upstream conformance fixtures
+(`return '{'` in `tables.luau` swallowed the following code into an
+unterminated interpolation; the `%b{}` subject `"{x {y} z}"` tried to resolve
+`y` as a variable). Leaving `'...'` alone keeps that code valid while still
+giving the common case — a string with a value spliced into it — the
+convenient quotes.
+
+Malformed interpolations follow Luau, and are checked against Luau's own
+parser tests (ported to
+[`InterpolatedStringErrors.test.ts`](src/tests/luau-conformance/InterpolatedStringErrors.test.ts)):
+
+| source | diagnostic |
+| --- | --- |
+| `` `{a` `` | Malformed interpolated string; did you forget to add a `}`? |
+| `` `{}` `` | Malformed interpolated string, expected expression inside `{}` |
+
+Both used to be silent. An unterminated `{` escaped its string and consumed
+the rest of the FILE, turning one typo into a cascade of unrelated errors; an
+empty `{}` lowered to nothing and DELETED itself from the value, so
+`` `a={}; x=3` `` became `a=; x=3`. Luau lexes the first as a `BrokenString`,
+which a TextMate grammar cannot reproduce directly, so the equivalent here is
+to bound the scope and report it.
+
+Bounding is per-quote (`LuauDoubleQuotedStringInterpolation`,
+`LuauBacktickStringInterpolation`) rather than on the shared rule, because the
+boundary character differs. The backtick rule sets `applyEndPatternLast` —
+nested backtick strings inside an interpolation are legal Luau
+(`` `Hello {`from inside {"a nested string"}`}` ``, from upstream
+`stringinterp.luau`), so the content patterns must get first refusal before
+the boundary is consulted.
+
+Both diagnostics apply to `"..."` exactly as they do to `` `...` ``: a
+double-quoted string is not a weaker dialect of a backtick one. A string that
+genuinely holds braces — a Lua pattern like `%b{}`, or JSON — uses `'...'` or
+`[[...]]`.
+
+That has a cost worth stating: because Luau never interpolates `"..."`,
+upstream fixtures write brace-containing values with double quotes, and those
+lines now need rewriting to the literal form. They are patched at read time in
+[`upstreamPatches.ts`](src/tests/luau-conformance/upstreamPatches.ts) rather
+than edited in place, because re-vendoring is an `rm -rf` + fresh copy
+(see `upstream/VENDORING.md`) that would silently discard an in-place edit.
+If that patch list grows beyond a handful of lines, treat it as evidence to
+revisit the `"..."` interpolation decision rather than as routine upkeep.
+
+One more divergence is deliberate and permanent: Luau rejects `{{` inside an
+interpolated string outright ("Double braces are not permitted within
+interpolated strings; did you mean '\{'?"). In sparkdown, `{{name}}` /
+`{{name(args)}}` is the **function-call shorthand** (issue #223) — it calls
+the named function and interpolates its return value — and it works uniformly
+in every interpolation context: display text, Sparkle content strings,
+field/prop values, and both `"..."` and `` `...` `` Luau strings. (The
+shorthand superseded spec decision D3, which briefly made `{{`/`}}`
+literal-brace escapes in Sparkle content strings; the literal escape is now
+`\{` / `\}` — the same spelling Luau itself suggests.)
+
+### Regex literals: `@/pattern/flags`
+
+Not a Luau form at all. A regex literal is raw, so a pattern keeps single
+backslashes instead of the doubled ones a string needs
+(`"/([\\p{L}]+)/u"` → `@/([\p{L}]+)/u`), and its `{n,m}` quantifiers cannot
+collide with `{expr}` interpolation. It lowers to the verbatim
+`/pattern/flags` string — sigil dropped, delimiters kept — so it is
+interchangeable with the quoted form at runtime.
+
+**The `@` sigil is load-bearing.** A bare `/pattern/` cannot be distinguished
+from division in this tokenizer, and no amount of tightening the pattern fixes
+it. Languages that allow bare `/re/` (JS, Ruby, Perl) lex with parser feedback:
+the lexer is told whether it is at an operand or an operator position. A
+TextMate rule is handed a slice with no such state, and lookbehind is
+unavailable for the same reason, so there is nothing to condition on. Both
+placements were measured and both fail — in operand position the rule never
+fires at all (`LuauArithmeticOperation` claims the leading `/` first), and
+ahead of that rule it fires in operator position too, so
+`{10/2} and {10 / 2}` lexed `/2} and {10 /` as a regex.
+
+`@` works because every other `@` rule requires an identifier, `(` or `=` after
+the sigil (`@attribute`, `@has(...)`, `@click=`), so none of them can match
+`@/`. It also leaves `/` as the familiar delimiter, which matters: `/` is the
+one candidate that appears in **zero** of the built-in patterns, whereas `!`
+(`[!?]`, intonation), `:` (`(?:`) and `|` (`(?:^|\b)`) are all common inside
+them and would need escaping.
+
+The regex BODY is tokenized into anchors, character classes, quantifiers,
+groups and alternation — the same breakdown VS Code's TypeScript grammar gives
+a JS regex — rather than being one flat string.
+
 ### Sparkdown additions on top of Luau
 
 These don't exist in stock Luau:
@@ -550,6 +661,35 @@ These don't exist in stock Luau:
   properties and methods. Inheritance via `define X as Y with ...`.
 - **`\` line-join** — preserves a single newline between two lines while
   treating the second as plain text. Like glue but newline-preserving.
+
+---
+
+## Known divergence: root font-size is fixed, Pico's is responsive
+
+The Pico showcase (`docs/sparkle/pico-showcase.sd`) is matched against the
+reference page property by property, with one deliberate exception: **our root
+font-size is a fixed 16px, Pico's scales with the viewport**
+(100% / 106.25% / 112.5% / 118.75% / 125% / 131.25% at its breakpoints). At the
+width the showcase is compared at, Pico resolves to 18px.
+
+Everything in the sheet is `rem`, so this is a uniform 12.5% difference in TEXT
+and in every rem-derived padding, corner and border — not a difference in any
+individual rule. Measuring with the root temporarily forced to 18px collapses
+the residual difference list to ~30 items, of which most are artifacts of how
+the two pages nest (see the commit that introduced the measurement rig), which
+is the evidence that the rest of the port is faithful.
+
+It is left as a divergence on purpose. Matching it means an `html`-level
+responsive rule, and because our stylesheet is injected into the document
+hosting `<spark-web-player>`, that would rescale type in EVERY game — a product
+decision, not a showcase one. If it is ever wanted, it is one rule mirroring
+Pico's breakpoints, and it is trivially revertible.
+
+**Do not try to fix this by setting a font-size on a container.** `rem` resolves
+against the document root, never against an ancestor, so a container-level size
+scales only text that INHERITS it. Headings (`h1: 2rem` … `h6: 1rem`) and every
+rem padding would stay pinned to the 16px root, and the type scale would break
+rather than match.
 
 ---
 

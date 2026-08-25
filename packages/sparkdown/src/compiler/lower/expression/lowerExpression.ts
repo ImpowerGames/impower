@@ -32,6 +32,7 @@ import { Text } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Text";
 import { VariableReference } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Variable/VariableReference";
 import { Weave } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Weave";
 import { LowerContext, SiblingSubFlowInfo } from "../context";
+import { stampDebugMetadata } from "../utils/debugMetadata";
 import { lowerStatements } from "../lower";
 import { getFunctionBodyContent } from "../utils/getFunctionBodyContent";
 import { lowerArguments, VARARGS_LOCAL_NAME } from "../utils/lowerArguments";
@@ -44,6 +45,7 @@ import {
   lookupStdLibConstant,
   METHOD_PREFIX,
 } from "../../../inkjs/engine/StdLib";
+import { ErrorType } from "../../../inkjs/engine/Error";
 
 // Wrap the lowerer's `new FunctionCall(name, args)` site so that
 // bare (unnamespaced) source names registered in `STDLIB`
@@ -76,6 +78,19 @@ function makeGlobalFunctionCall(
 // Public entry points
 // ============================================================================
 
+// `{{fn}}` / `{{fn(args)}}` function-call shorthand containers (issue #223).
+// One per string-bounding context (see the grammar); all three carry the SAME
+// semantics: the body must be a function call, and a bare name is coerced to
+// a nullary call. Consumers that scan for interpolation nodes treat these as
+// interpolations; the coercion lives in `lowerExpressionFromContainer` so
+// every context (display text, content strings, prop values, Luau strings,
+// Sparkle bindings) picks it up through the one funnel they already call.
+export const FUNCTION_CALL_SHORTHAND_NODES = new Set([
+  "LuauFunctionCallShorthand",
+  "LuauDoubleQuotedFunctionCallShorthand",
+  "LuauBacktickFunctionCallShorthand",
+]);
+
 // Lower the value-expression formed by the children of `parent`. Operator
 // markers that aren't part of the expression value (e.g. LuauAssignmentOperator
 // before the RHS) are skipped via SKIP_NAMES.
@@ -85,7 +100,67 @@ export function lowerExpressionFromContainer(
 ): Expression | null {
   const tokens: Token[] = [];
   collectTokens(parent, ctx, tokens);
-  return prattParse(tokens, 0);
+  const expr = prattParse(tokens, 0);
+  if (FUNCTION_CALL_SHORTHAND_NODES.has(parent.name)) {
+    return coerceFunctionCallShorthand(expr, parent, ctx);
+  }
+  return expr;
+}
+
+// Apply the `{{...}}` shorthand semantics to the lowered body expression:
+//   - `{{fn(a, b)}}` — already a call; pass it through unchanged (identical
+//     to `{fn(a, b)}`).
+//   - `{{fn}}` — the shorthand's whole point: a bare name becomes a nullary
+//     call, dispatched exactly like a written-out `fn()` (local binding →
+//     value call; global/knot/stdlib → FunctionCall).
+//   - `{{obj.fn}}` — a dotted path calls the referenced VALUE (`math.random`
+//     works without being a registered global).
+//   - anything else (`{{1 + 2}}`, bare `{{}}`) — the classic "expected a
+//     function name" error the old InkParser raised for a bare `{{`.
+function coerceFunctionCallShorthand(
+  expr: Expression | null,
+  node: SyntaxNode,
+  ctx: LowerContext,
+): Expression | null {
+  if (expr instanceof FunctionCall || expr instanceof CallValueExpression) {
+    return expr;
+  }
+  if (expr instanceof VariableReference) {
+    const path = expr.pathIdentifiers;
+    if (path.length === 1 && path[0]?.name) {
+      const nameStr = path[0].name;
+      if (resolveCallableBinding(nameStr, ctx) === "local") {
+        return new CallValueExpression(
+          new VariableReference([new Identifier(nameStr)]),
+          [],
+        );
+      }
+      const callName = siblingSubFlowInfo(nameStr, ctx)?.knotName ?? nameStr;
+      return makeGlobalFunctionCall(
+        new Identifier(callName),
+        withSiblingSubFlowUpvalArgs(nameStr, [], ctx),
+        node,
+        ctx,
+      );
+    }
+    return new CallValueExpression(expr, []);
+  }
+  if (ctx.diagnostics) {
+    ctx.diagnostics.push({
+      message:
+        "Expected a function name — `{{...}}` is the function-call shorthand (`{{fn}}` or `{{fn(args)}}`). For a literal brace, write `\\{`",
+      severity: ErrorType.Error,
+      source: {
+        fileName: null,
+        filePath: ctx.filePath ?? null,
+        startLineNumber: ctx.lineNumber(node.from) + 1,
+        endLineNumber: ctx.lineNumber(node.to) + 1,
+        startCharacterNumber: ctx.characterNumber(node.from) + 1,
+        endCharacterNumber: ctx.characterNumber(node.to) + 1,
+      },
+    });
+  }
+  return null;
 }
 
 // Lower an expression formed by a list of specific nodes (used for function
@@ -222,6 +297,7 @@ type Token =
 // `s:rep(3)` vs `string.reverse"abc"`.
 const CALL_ARG_NODE_NAMES = new Set([
   "LuauParenthetical",
+  "LuauRegexLiteral",
   "LuauDoubleQuotedString",
   "LuauSingleQuotedString",
   "LuauMultilineString",
@@ -294,6 +370,7 @@ const PRIMARY_NODES = new Set([
   "LuauNumericBinary",
   "LuauBoolean",
   "LuauNil",
+  "LuauRegexLiteral",
   "LuauDoubleQuotedString",
   "LuauSingleQuotedString",
   "LuauMultilineString",
@@ -923,6 +1000,19 @@ export function lowerPrimary(
       // from `0` (`nil == 0` is false). The equality semantics are
       // implemented as a special case in `NativeFunctionCall.Call`.
       return new NullExpression();
+    case "LuauRegexLiteral":
+      // `@/pattern/flags` lowers to the VERBATIM `/pattern/flags` string —
+      // sigil dropped, delimiters kept — which is the same value the quoted
+      // form produced, so `Matcher` (which already splits `/source/flags`)
+      // needs no change. No escape processing: a regex is raw, which is the
+      // whole point of having a literal (`\p{L}` instead of `"\\p{L}"`, and
+      // `{2,}` without it reading as an interpolation).
+      //
+      // The `@` is what makes the literal unambiguous — a bare `/.../` cannot
+      // be told apart from division in this tokenizer (see the regex tests).
+      return new StringExpression([
+        new Text(ctx.read(node.from, node.to).trim().replace(/^@/, "")),
+      ]);
     case "LuauDoubleQuotedString":
     case "LuauSingleQuotedString":
     case "LuauMultilineString":
@@ -1792,6 +1882,17 @@ function lowerString(node: SyntaxNode, ctx: LowerContext): Expression {
   if (node.name === "LuauInterpolatedString") {
     return lowerInterpolatedString(node, ctx);
   }
+  // `"..."` interpolates too, so a `{expr}` in it takes the same path as a
+  // backtick string. `'...'` deliberately does NOT — it is the literal
+  // single-line form, which is what a string holding braces (Lua source, JSON,
+  // a `%b{}` subject) should use. `\{` opts out, and `[[...]]` stays raw.
+  //
+  // Only strings that actually CONTAIN an interpolation pay for the child
+  // walk; a plain literal keeps the cheaper read-and-strip below, byte for
+  // byte as before.
+  if (node.name === "LuauDoubleQuotedString" && hasInterpolation(node)) {
+    return lowerInterpolatedString(node, ctx);
+  }
   // The grammar's LuauDoubleQuotedString / LuauSingleQuotedString rules
   // capture trailing whitespace as part of their end pattern (via the
   // LUAU_BINARY_OPERATOR_AHEAD lookahead-with-WS-capture), so `node.from
@@ -1821,7 +1922,7 @@ function lowerString(node: SyntaxNode, ctx: LowerContext): Expression {
 // (`\\`), brace (`\{`), and `\z` (skip following whitespace),
 // plus numeric (`\ddd`), hex (`\xHH`), and Unicode (`\u{HHHH}`)
 // forms. Unknown escapes pass the following character through.
-function processLuauEscapes(s: string): string {
+export function processLuauEscapes(s: string): string {
   let out = "";
   let i = 0;
   while (i < s.length) {
@@ -1924,16 +2025,35 @@ function processLuauEscapes(s: string): string {
   return out;
 }
 
-// Backtick string interpolation: walk the content children, accumulating Text
-// for literal segments and lowering each `{...}` expression into the
+// `"..."` uses its own interpolation rule (bounded by the closing quote), so
+// both node names count as an interpolation. The `{{fn}}` call-shorthand
+// containers interpolate their call's return value the same way.
+const INTERPOLATION_NODES = new Set([
+  "LuauInterpolatedStringExpression",
+  "LuauDoubleQuotedStringInterpolation",
+  "LuauBacktickStringInterpolation",
+  ...FUNCTION_CALL_SHORTHAND_NODES,
+]);
+
+function hasInterpolation(node: SyntaxNode): boolean {
+  const content = findChildByName(node, `${node.name}_content`);
+  for (let c = content?.firstChild; c; c = c.nextSibling) {
+    if (INTERPOLATION_NODES.has(c.name)) return true;
+  }
+  return false;
+}
+
+// String interpolation: walk the content children, accumulating Text for
+// literal segments and lowering each `{...}` expression into the
 // StringExpression's content list. The runtime's BeginString..EndString frame
 // emitted by StringExpression handles concatenation; each inner Expression
-// outputs its value into the open string slot.
+// outputs its value into the open string slot. Shared by backtick and
+// double-quoted strings, which name their content node after themselves.
 function lowerInterpolatedString(
   node: SyntaxNode,
   ctx: LowerContext,
 ): Expression {
-  const content = findChildByName(node, "LuauInterpolatedString_content");
+  const content = findChildByName(node, `${node.name}_content`);
   if (!content) return new StringExpression([new Text("")]);
   const parts: ParsedObject[] = [];
   let textBuf = "";
@@ -1945,7 +2065,7 @@ function lowerInterpolatedString(
   };
   let child = content.firstChild;
   while (child) {
-    if (child.name === "LuauInterpolatedStringExpression") {
+    if (INTERPOLATION_NODES.has(child.name)) {
       flush();
       const expr = lowerExpressionFromContainer(child, ctx);
       if (expr) {
@@ -2176,7 +2296,19 @@ export function lowerSimpleAccessPath(
         return new NumberExpression(constVal, "bool");
       }
     }
-    return new VariableReference(identifiers);
+    const ref = new VariableReference(identifiers);
+    // In a Sparkle binding, stamp the reference with its own token span so an
+    // unresolved-variable error lands on the identifier, not the whole binding.
+    if (ctx.stampExpressionSpans && parts.length > 0) {
+      stampDebugMetadata(
+        [ref],
+        parts[0]!.from,
+        parts[parts.length - 1]!.to,
+        ctx,
+        true,
+      );
+    }
+    return ref;
   }
   return null;
 }

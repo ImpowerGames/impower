@@ -9,15 +9,11 @@
         },
         {
           "type": "Text",
-          "text": "dialogue:RAFFLES"
+          "text": "\u0000dialogue:RAFFLES"
         },
         {
           "type": "Tag",
           "start": false
-        },
-        {
-          "type": "Text",
-          "text": "RAFFLES: "
         },
         {
           "type": "Text",
@@ -33,15 +29,11 @@
         },
         {
           "type": "Text",
-          "text": "dialogue:RAFFLES"
+          "text": "\u0000dialogue:RAFFLES"
         },
         {
           "type": "Tag",
           "start": false
-        },
-        {
-          "type": "Text",
-          "text": "RAFFLES: "
         },
         {
           "type": "Text",

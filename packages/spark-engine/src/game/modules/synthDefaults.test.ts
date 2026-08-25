@@ -4,7 +4,6 @@ import { Game } from "../core/classes/Game";
 import { applyBuiltinDefaults } from "../core/utils/applyBuiltinDefaults";
 import { AudioModule } from "./audio/classes/AudioModule";
 import { audioBuiltinDefinitions } from "./audio/audioBuiltinDefinitions";
-import { DEFAULT_BUILTIN_DEFINITIONS } from "./DEFAULT_BUILTIN_DEFINITIONS";
 import { InterpreterModule } from "./interpreter/classes/InterpreterModule";
 
 /**
@@ -30,7 +29,7 @@ const PARTIAL_SYNTH = {
   pitch: { frequency: 340 },
 };
 
-/** Builds a context the way `Game` does, defaults included. */
+/** Builds a defaults-complete context for the module probes below. */
 const contextWith = (synth: Record<string, any>) => {
   const context: any = {
     system: {},
@@ -116,14 +115,9 @@ describe("partially-authored synth defaults (#268)", () => {
  * The fixtures above hand-write the sparse synth #268 reported. This block
  * closes the loop by taking the shape from the REAL compiler instead, so the
  * chain that actually ships -- authored script -> compiled context ->
- * completed context -> played synth -- is what gets asserted.
- *
- * Note that "compiles the voice without the type's defaults" below is a
- * CHARACTERIZATION test: it pins what the compiler does today in order to
- * document why the runtime has to fill defaults in at all. If it ever fails
- * because the compiler started merging type defaults itself, that is an
- * improvement, not a regression -- delete that test and check whether the
- * runtime fill-in is still needed.
+ * played synth -- is what gets asserted. The compiler merges each define
+ * with its type's `$default` when it builds the context, so a partially
+ * authored voice arrives complete without any runtime fill-in.
  */
 describe("end-to-end: authored voice through the real compiler (#268)", () => {
   const MAIN_URI = "file://proj/main.sd";
@@ -131,7 +125,8 @@ describe("end-to-end: authored voice through the real compiler (#268)", () => {
   const compileContext = (text: string) => {
     const compiler = new SparkdownCompiler();
     compiler.configure({
-      definitions: { builtins: DEFAULT_BUILTIN_DEFINITIONS },
+      useBuiltinsPrelude: true,
+      seedBuiltinsIntoStory: true,
       files: [
         {
           uri: MAIN_URI,
@@ -164,18 +159,10 @@ describe("end-to-end: authored voice through the real compiler (#268)", () => {
     "",
   ].join("\n");
 
-  it("compiles the voice without the type's defaults (the upstream cause)", () => {
-    const context = compileContext(SCRIPT);
-    const authored = context.synth.raffles;
-    expect(authored.pitch.frequency).toBe(340);
-    // Documents WHY the runtime has to fill defaults in: nothing upstream does.
-    expect(authored.shape).toBeUndefined();
-    expect(authored.envelope).toBeUndefined();
-  });
-
   it("plays that compiled voice with a complete synth", () => {
+    // The compiler merges the type's `$default` into the authored define, so
+    // the context arrives complete — no runtime fill-in involved.
     const context = compileContext(SCRIPT);
-    applyBuiltinDefaults(context); // what `Game` does on the way in
     const audio = new ProbeAudioModule({ context } as unknown as Game);
 
     const synth = audio.synthFor("raffles");
@@ -190,7 +177,6 @@ describe("end-to-end: authored voice through the real compiler (#268)", () => {
     // `crawshay` is never defined, so the lookup misses and the builtin
     // character voice is used -- this is the path that always worked.
     const context = compileContext(SCRIPT);
-    applyBuiltinDefaults(context);
     const audio = new ProbeAudioModule({ context } as unknown as Game);
     const synth = audio.synthFor("character");
     expect(synth).toBeDefined();
@@ -198,16 +184,16 @@ describe("end-to-end: authored voice through the real compiler (#268)", () => {
   });
 
   /**
-   * Everything above calls `applyBuiltinDefaults` itself, so it would keep
-   * passing even if `Game` stopped calling it -- which is exactly the mutant
-   * that survived a first pass of this suite. These build a REAL `Game` and
-   * assert its context, so the wiring is what is under test.
+   * Everything above hands a context straight to a module probe, so it would
+   * keep passing even if `Game` assembled its context wrong. These build a
+   * REAL `Game` and assert its context, so the wiring is what is under test.
    */
   describe("Game wires it in", () => {
     const buildGame = () => {
       const compiler = new SparkdownCompiler();
       compiler.configure({
-        definitions: { builtins: DEFAULT_BUILTIN_DEFINITIONS },
+        useBuiltinsPrelude: true,
+        seedBuiltinsIntoStory: true,
         files: [
           {
             uri: MAIN_URI,

@@ -9,15 +9,11 @@
         },
         {
           "type": "Text",
-          "text": "transitional"
+          "text": "\u0000transitional"
         },
         {
           "type": "Tag",
           "start": false
-        },
-        {
-          "type": "Text",
-          "text": "%: "
         },
         {
           "type": "Text",

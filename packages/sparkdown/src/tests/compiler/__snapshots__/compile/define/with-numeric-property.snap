@@ -5,7 +5,7 @@
       "content": [
         {
           "type": "VariableAssignment",
-          "name": "companion",
+          "name": "$character_companion",
           "struct": {
             "type": "StructDefinition",
             "name": "companion",

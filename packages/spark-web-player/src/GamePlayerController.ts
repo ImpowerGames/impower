@@ -1411,17 +1411,30 @@ export class GamePlayerController {
       this._game?.program.uri !== program?.uri ||
       this._game.program.version !== program?.version;
 
-    const validPreviewFrom = previewPath
-      ? previewFrom
-      : this._game?.previewFrom;
+    // When the cursor sits on a line that resolves to no path we keep the game's
+    // LAST valid preview point rather than resetting (sticky preview). But a pure
+    // UI-only project — a `layout` whose only path-located flows are the synthetic
+    // `__binding_*` evaluators, which findClosestPath excludes — never resolves a
+    // path at all, so the game would never have a remembered point and
+    // `game.preview()` below would never be called even once. Its layouts are
+    // mounted at connect but the layouts LAYER stays at `opacity:0`, so the whole
+    // UI renders invisibly. Fall back to the cursor itself so the engine always
+    // gets its preview call and can reveal the UI (Game.preview's no-path branch).
+    const validPreviewFrom =
+      (previewPath ? previewFrom : this._game?.previewFrom) ?? previewFrom;
     const validPreviewPath = previewPath
       ? previewPath
       : this._game?.previewPath;
 
+    // Skip only a repeat of a preview that actually ran. A UI-only project
+    // resolves no path at all, so both sides of the comparison are undefined
+    // there — matching on that would treat "we have never previewed anything"
+    // as "already done" and skip the reconnect that re-evaluates its bindings.
     if (
       this._game &&
       this._game.state === "previewing" &&
-      this._game.context.system.previewing === validPreviewPath &&
+      validPreviewPath != null &&
+      this._game.previewedPath === validPreviewPath &&
       !programChanged
     ) {
       return;
@@ -1430,15 +1443,43 @@ export class GamePlayerController {
     this._options ??= {};
     this._options.previewFrom = validPreviewFrom;
 
-    const shouldBuildNewGame = !this._game || programChanged;
-
-    if (shouldBuildNewGame) {
+    // Reuse the Game + Application across edits instead of rebuilding them.
+    // `updateProgram` swaps the recompiled program + a fresh Story IN PLACE (the
+    // intended live-edit path), keeping the SAME Game object — so the Application
+    // (bound to that object) stays valid and we never destroy/recreate the
+    // Application or its pixi canvas (the old `buildApp`-every-edit was the
+    // game-view blink + per-edit object churn).
+    if (!this._game) {
       this._game = await this.buildGame(program);
+      this.listen(this._game);
+    } else if (programChanged) {
+      this._game.updateProgram(program);
     }
 
     if (!this._game) {
       console.error("No game to preview");
       return;
+    }
+
+    // Everything below — the checkpoint load, and the connect that restores
+    // every module — happens before `game.preview()` picks the preview point,
+    // and the audio module decides whether to resume the route's music during
+    // that restore. Tell the game it is previewing first, or a preview click
+    // starts playing the scene's music as if PLAY had been pressed.
+    //
+    // Only ever the preview game. `startGameAndApp` publishes its game (state
+    // `initial`) and awaits `buildApp` before calling `start()`, so a compile
+    // landing in that window arrives here holding the game PLAY is about to
+    // run — and `Application.init` skips the renderer for anything flagged as
+    // previewing, which would leave that run with nothing to draw on.
+    if (this._game.state === "previewing") {
+      this._game.markPreviewing(validPreviewPath);
+      // Drop what the LAST preview left displayed. The restore below re-applies
+      // whatever the new point genuinely has, and the replay writes the rest;
+      // carrying the old record forward is what put the previous preview's
+      // backdrop behind a line that sets none. (Loading a checkpoint replaces
+      // the record wholesale, so this only matters when there is none.)
+      this._game.module.ui.forgetDisplayedImages();
     }
 
     if (checkpoint) {
@@ -1451,20 +1492,26 @@ export class GamePlayerController {
       this._game.simulation = "fail";
     }
 
-    if (shouldBuildNewGame) {
-      this.listen(this._game);
-    }
-
-    // Rebuilding the Application destroys and recreates the game's whole
-    // DOM/canvas binding (~100ms+ on the iframe main thread). Only necessary
-    // when the Game instance itself changed -- NOT on cursor scrubs, which
-    // land here with the same game and just need a re-preview.
-    if (shouldBuildNewGame || !this._app) {
+    if (!this._app) {
+      // First render: build the Application (renderer/canvas + managers) and
+      // connect the game (its onConnected renders the screen tree).
       this._app = await this.buildApp(this._game);
+    } else {
+      // Re-render in place: adopt the preserved overlay DOM (beginReconcilePass),
+      // then re-run the game's onConnected + restore via connectGame — the
+      // re-emitted create stream reconciles against the existing DOM. No app /
+      // canvas / manager teardown.
+      this._app.ui.beginReconcilePass();
+      await this._app.connectGame();
     }
 
     if (validPreviewFrom) {
       this._game.preview(validPreviewFrom.file, validPreviewFrom.line);
     }
+
+    // DOM reconcile tail: the full create/write stream for this preview point has
+    // now been dispatched (synchronously through here), so sweep whatever wasn't
+    // re-emitted — elements that disappeared since the last edit.
+    this._app?.ui.sweepReconcile();
   };
 }

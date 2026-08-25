@@ -43,6 +43,11 @@
       "unmute",
       "now"
     ],
+    "LAYOUT_CONTROL_KEYWORDS": [
+      "open",
+      "close",
+      "navigate"
+    ],
     "FLOW_BEAT_KEYWORDS": [
       "scene",
       "branch"
@@ -228,6 +233,19 @@
     "LUAU_COMMENT_START": "(?:[-][-])",
     "LUAU_IDENTIFIER": "(?:[a-zA-Z_][a-zA-Z0-9_]*\\b)",
     "STYLE_PROPERTY_NAME": "(?:[a-zA-Z_][a-zA-Z0-9_-]*)",
+    "INTEGER": "[0-9]+",
+    "NUMBER": "(?:[-]?(?:\\d*[.])?\\d+)",
+    "QUOTED_STRING": "(?:[\"](?:\\\\.|[^\"\\r\\n])*[\"])",
+    "STRICT_PROPERTY_IDENTIFIER": "(?:{{INTEGER}}|{{IDENTIFIER}}|{{QUOTED_STRING}})",
+    "BEFORE_KEYWORD": "(?<![{{IDENTIFIER_END_CHAR}}])(?:(?<=\\.\\.\\.)|(?<!\\.))",
+    "AFTER_KEYWORD": "(?![{{IDENTIFIER_END_CHAR}}])(?:(?=\\.\\.\\.)|(?!\\.))",
+    "COMPARISON_OPERATOR": "(?:[~]|[|]|[\\^]|[$]|[*])",
+    "UNQUOTED_STRING_TERMINATOR": "(?:$|[\\s\"'`<>=:(){}\\[\\]]|{{COMMENT_START}})",
+    "UNQUOTED_STRING_VALUE": "(?:.*?)(?={{UNQUOTED_STRING_TERMINATOR}})",
+    "PROPERTY_NAME_TERMINATOR": "(?:[:]|[=]|[\\r\\n])",
+    "EOPL": "(?:$|{{WS}}*$|{{WS}}*[/][/].*$)",
+    "ASSIGN_EQUAL_OPERATOR": "(?:{{WS}}*[=]{{WS}}*)",
+    "ARRAY_ITEM_OPERATOR": "(?:[-](?:$|{{WS}}+))",
     "LUAU_FUNCTION_CALL_START": "(?:<<|[({\"']|\\[\\[)",
     "LUAU_ASSIGNMENT_OPERATORS": "(?:\\+=|-=|\\/=|\\/\\/=|\\*=|%=|\\^=|\\.\\.=|=(?!=))",
     "LUAU_COMPARE_OPERATORS": "(?:==|~=|<=?|>=?)",
@@ -280,6 +298,9 @@
     },
     {
       "include": "#LuauSparkdownControlBlock"
+    },
+    {
+      "include": "#LuauFunctionCallShorthand"
     },
     {
       "include": "#LuauInterpolatedStringExpression"
@@ -395,6 +416,26 @@
         }
       }
     },
+    "SparkleTrailingLineComment": {
+      "tag": "lineComment",
+      "name": "comment.line.double-slash.sd",
+      "match": "((?:[^\\S\\n\\r])*)([/]{2})(?=$|(?:[^\\S\\n\\r]))([^\\r\\n]*)",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#OptionalWhitespace"
+            }
+          ]
+        },
+        "2": {
+          "name": "punctuation.definition.comment.sd"
+        },
+        "3": {
+          "name": "comment.line.double-slash.content.sd"
+        }
+      }
+    },
     "Annotation": {
       "patterns": [
         {
@@ -452,6 +493,9 @@
       "name": "punctuation.definition.comment.content.sd",
       "begin": "(?=.)",
       "patterns": [
+        {
+          "include": "#LuauFunctionCallShorthand"
+        },
         {
           "include": "#LuauInterpolatedStringExpression"
         },
@@ -766,6 +810,9 @@
           "include": "#ArmDivert"
         },
         {
+          "include": "#LuauFunctionCallShorthand"
+        },
+        {
           "include": "#LuauInterpolatedStringExpression"
         },
         {
@@ -785,6 +832,9 @@
         },
         {
           "include": "#ArmDivert"
+        },
+        {
+          "include": "#LuauFunctionCallShorthand"
         },
         {
           "include": "#LuauInterpolatedStringExpression"
@@ -1108,6 +1158,9 @@
           "patterns": [
             {
               "include": "#Annotation"
+            },
+            {
+              "include": "#LuauFunctionCallShorthand"
             },
             {
               "include": "#LuauInterpolatedStringExpression"
@@ -3053,7 +3106,7 @@
       "end": "(?=^(?:[^\\S\\n\\r])*$)|(?=\\r\\n|\\r|\\n)|(?=[#])"
     },
     "ParentheticalLine": {
-      "match": "((?:[^\\S\\n\\r])*)((?:[=].*?[=]|[<].*?[>]|(?:[^\\S\\n\\r])*)*)((?:[^\\S\\n\\r])*)([(][^()]*?[)])((?:[^\\S\\n\\r])*)((?:[=].*?[=]|[<].*?[>]|(?:[^\\S\\n\\r])*)*)($|(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$)|(?=(?:(?:[^\\S\\n\\r])+[>](?:[^\\S\\n\\r])*))|(?:[\\\\])(?:(?:[^\\S\\n\\r])))",
+      "match": "((?:[^\\S\\n\\r])*)((?:[=].*?[=]|[<].*?[>]|(?:[^\\S\\n\\r])+(?!(?:[^\\S\\n\\r])))*)((?:[^\\S\\n\\r])*)([(][^()]*?[)])((?:[^\\S\\n\\r])*)((?:[=].*?[=]|[<].*?[>]|(?:[^\\S\\n\\r])+(?!(?:[^\\S\\n\\r])))*)($|(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$)|(?=(?:(?:[^\\S\\n\\r])+[>](?:[^\\S\\n\\r])*))|(?:[\\\\])(?:(?:[^\\S\\n\\r])))",
       "captures": {
         "1": {
           "patterns": [
@@ -3347,6 +3400,9 @@
         },
         {
           "include": "#Escape"
+        },
+        {
+          "include": "#LuauFunctionCallShorthand"
         },
         {
           "include": "#LuauInterpolatedStringExpression"
@@ -3673,7 +3729,7 @@
       }
     },
     "AssetCommandInstruction": {
-      "match": "(?:(\\b(?:show|hide|animate)\\b|\\b(?:play|stop|fade|queue|await)\\b)((?:[^\\S\\n\\r])*)($|\\S+)((?:[^\\S\\n\\r])*))?(.*)",
+      "match": "(?:(\\b(?:show|hide|animate)\\b|\\b(?:play|stop|fade|queue|await)\\b|\\b(?:open|close|navigate)\\b)((?:[^\\S\\n\\r])*)($|\\S+)((?:[^\\S\\n\\r])*))?(.*)",
       "captures": {
         "1": {
           "patterns": [
@@ -4020,6 +4076,9 @@
         },
         {
           "include": "#Thread"
+        },
+        {
+          "include": "#LuauFunctionCallShorthand"
         },
         {
           "include": "#LuauInterpolatedStringExpression"
@@ -4484,6 +4543,9 @@
           "include": "#LuauAssignmentOperation"
         },
         {
+          "include": "#LuauRegexLiteral"
+        },
+        {
           "include": "#LuauArithmeticOperation"
         },
         {
@@ -4554,10 +4616,19 @@
           "include": "#LuauStyle"
         },
         {
+          "include": "#LuauLayout"
+        },
+        {
           "include": "#LuauScreen"
         },
         {
           "include": "#LuauComponent"
+        },
+        {
+          "include": "#LuauAnimation"
+        },
+        {
+          "include": "#LuauTheme"
         },
         {
           "include": "#LuauDefine"
@@ -4671,7 +4742,7 @@
           "include": "#ExtraWhitespace"
         }
       ],
-      "end": "(?=(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b))|(?=(?:[^\\S\\n\\r])*;)|(?=(?:[^\\S\\n\\r])+\\b(?:if|while|for|repeat|do|function|end|return|local|break|continue|elseif|else|then|until)\\b)|(?=(?:[^\\S\\n\\r])+(?:[a-zA-Z_][a-zA-Z0-9_]*\\b)(?:(?:[^\\S\\n\\r])*(?:[.](?:[^\\S\\n\\r])*(?:[a-zA-Z_][a-zA-Z0-9_]*\\b)|\\[[^\\]\\n]*\\]|\\([^()\\n]*\\)|,(?:[^\\S\\n\\r])*(?:[a-zA-Z_][a-zA-Z0-9_]*\\b)))*(?:[^\\S\\n\\r])*(?:\\+=|-=|\\/=|\\/\\/=|\\*=|%=|\\^=|\\.\\.=|=(?!=)))|(?=(?:[^\\S\\n\\r])+(?!(?:and|or|not)\\b)(?:[a-zA-Z_][a-zA-Z0-9_]*\\b)(?:(?:[^\\S\\n\\r])*(?:[.:](?:[^\\S\\n\\r])*(?:[a-zA-Z_][a-zA-Z0-9_]*\\b)|\\[[^\\]\\n]*\\]))*(?:[^\\S\\n\\r])*[(])|$"
+      "end": "(?=(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b))|(?=(?:[^\\S\\n\\r])*;)|(?=(?:[^\\S\\n\\r])*[}])|(?=(?:[^\\S\\n\\r])+\\b(?:if|while|for|repeat|do|function|end|return|local|break|continue|elseif|else|then|until)\\b)|(?=(?:[^\\S\\n\\r])+(?:[a-zA-Z_][a-zA-Z0-9_]*\\b)(?:(?:[^\\S\\n\\r])*(?:[.](?:[^\\S\\n\\r])*(?:[a-zA-Z_][a-zA-Z0-9_]*\\b)|\\[[^\\]\\n]*\\]|\\([^()\\n]*\\)|,(?:[^\\S\\n\\r])*(?:[a-zA-Z_][a-zA-Z0-9_]*\\b)))*(?:[^\\S\\n\\r])*(?:\\+=|-=|\\/=|\\/\\/=|\\*=|%=|\\^=|\\.\\.=|=(?!=)))|(?=(?:[^\\S\\n\\r])+(?!(?:and|or|not)\\b)(?:[a-zA-Z_][a-zA-Z0-9_]*\\b)(?:(?:[^\\S\\n\\r])*(?:[.:](?:[^\\S\\n\\r])*(?:[a-zA-Z_][a-zA-Z0-9_]*\\b)|\\[[^\\]\\n]*\\]))*(?:[^\\S\\n\\r])*[(])|$"
     },
     "LuauDefine": {
       "tag": "meta",
@@ -4882,7 +4953,7 @@
       }
     },
     "LuauPropertyDefinition": {
-      "begin": "((?:[^\\S\\n\\r])*)(\\b(?:store|local|const)\\b|\\b(?:read|write)\\b)?((?:[^\\S\\n\\r])*)(?=(?:[a-zA-Z_][a-zA-Z0-9_]*\\b)(?:[^\\S\\n\\r])*(?:\\+=|-=|\\/=|\\/\\/=|\\*=|%=|\\^=|\\.\\.=|=(?!=)))",
+      "begin": "((?:[^\\S\\n\\r])*)(\\b(?:store|local|const)\\b|\\b(?:read|write)\\b)?((?:[^\\S\\n\\r])*)(?=(?:(?:[a-zA-Z_][a-zA-Z0-9_]*\\b)|\\[[^\\]\\r\\n]*\\])(?:[^\\S\\n\\r])*(?:\\+=|-=|\\/=|\\/\\/=|\\*=|%=|\\^=|\\.\\.=|=(?!=)))",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -4915,11 +4986,29 @@
           "include": "#LuauComment"
         },
         {
+          "include": "#LuauBracketKeyAssignment"
+        },
+        {
           "include": "#LuauVariableAssignment"
         }
       ],
       "applyEndPatternLast": true,
       "end": "(?=(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b))|(?=$|(?:[^\\S\\n\\r])*(?!(?:[-][-])))"
+    },
+    "LuauBracketKeyAssignment": {
+      "begin": "(?=\\[)",
+      "patterns": [
+        {
+          "include": "#LuauComment"
+        },
+        {
+          "include": "#LuauTableIndexDeclaration"
+        },
+        {
+          "include": "#LuauAssignmentOperation"
+        }
+      ],
+      "end": "(?=(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b))|(?=$|(?:[^\\S\\n\\r])|,)"
     },
     "LuauStyle": {
       "tag": "meta",
@@ -4985,6 +5074,134 @@
         }
       }
     },
+    "LuauAnimation": {
+      "tag": "meta",
+      "name": "meta.animation.luau",
+      "begin": "((?:[^\\S\\n\\r])*)(animation)\\b(?![.(])((?:[^\\S\\n\\r])*)",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#OptionalWhitespace"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#LuauAnimationKeyword"
+            }
+          ]
+        },
+        "3": {
+          "emit": true,
+          "patterns": [
+            {
+              "include": "#OptionalWhitespace"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#LuauComment"
+        },
+        {
+          "include": "#LuauAnimationThemeNameAndInheritance"
+        },
+        {
+          "include": "#LuauStructBodyLine"
+        },
+        {
+          "include": "#ExtraWhitespace"
+        },
+        {
+          "include": "#Newline"
+        }
+      ],
+      "end": "(?=(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b))|((?:[^\\S\\n\\r])*)(end)\\b",
+      "endCaptures": {
+        "1": {
+          "emit": true,
+          "patterns": [
+            {
+              "include": "#OptionalWhitespace"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#LuauEndKeyword"
+            }
+          ]
+        }
+      }
+    },
+    "LuauTheme": {
+      "tag": "meta",
+      "name": "meta.theme.luau",
+      "begin": "((?:[^\\S\\n\\r])*)(theme)\\b(?![.(])((?:[^\\S\\n\\r])*)",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#OptionalWhitespace"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#LuauThemeKeyword"
+            }
+          ]
+        },
+        "3": {
+          "emit": true,
+          "patterns": [
+            {
+              "include": "#OptionalWhitespace"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#LuauComment"
+        },
+        {
+          "include": "#LuauAnimationThemeNameAndInheritance"
+        },
+        {
+          "include": "#LuauStructBodyLine"
+        },
+        {
+          "include": "#ExtraWhitespace"
+        },
+        {
+          "include": "#Newline"
+        }
+      ],
+      "end": "(?=(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b))|((?:[^\\S\\n\\r])*)(end)\\b",
+      "endCaptures": {
+        "1": {
+          "emit": true,
+          "patterns": [
+            {
+              "include": "#OptionalWhitespace"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#LuauEndKeyword"
+            }
+          ]
+        }
+      }
+    },
     "LuauStructBodyLine": {
       "match": "^((?:[^\\S\\n\\r])+)([^\\n]*?)((?:[^\\S\\n\\r])*)$",
       "captures": {
@@ -5016,187 +5233,81 @@
     "LuauStructBodyContent": {
       "tag": "content",
       "name": "meta.struct.body.luau",
-      "patterns": [
-        {
-          "include": "#LuauStructArrayItem"
-        },
-        {
-          "include": "#LuauStructObjectHeader"
-        },
-        {
-          "include": "#LuauStructScalarProperty"
-        },
-        {
-          "include": "#LuauStructBareMarker"
-        }
-      ]
-    },
-    "LuauStructArrayItem": {
-      "match": "(-)(?![-])((?:[^\\S\\n\\r])*)([^\\n]*?)((?:[^\\S\\n\\r])*)$",
+      "match": "([^\\n]*)",
       "captures": {
         "1": {
           "patterns": [
             {
-              "include": "#LuauStructArrayItemMark"
-            }
-          ]
-        },
-        "2": {
-          "emit": true,
-          "patterns": [
+              "include": "#LuauComment"
+            },
             {
-              "include": "#OptionalWhitespace"
-            }
-          ]
-        },
-        "3": {
-          "patterns": [
+              "include": "#SparkdownLineComment"
+            },
             {
-              "include": "#LuauStructItemValue"
-            }
-          ]
-        },
-        "4": {
-          "emit": true,
-          "patterns": [
+              "include": "#LuauStructScalarProperty"
+            },
             {
-              "include": "#OptionalWhitespace"
+              "include": "#LuauStructArrayItem"
+            },
+            {
+              "include": "#LuauStructComponentCall"
+            },
+            {
+              "include": "#LuauStructObjectHeader"
+            },
+            {
+              "include": "#LuauStructAdjacencyContent"
+            },
+            {
+              "include": "#LuauStructBareMarker"
+            },
+            {
+              "include": "#LuauStructBodyFallback"
             }
           ]
         }
       }
-    },
-    "LuauStructObjectHeader": {
-      "match": "(.*\\S)((?:[^\\S\\n\\r])*)(:)$",
-      "captures": {
-        "1": {
-          "patterns": [
-            {
-              "include": "#LuauStructObjectKey"
-            }
-          ]
-        },
-        "2": {
-          "emit": true,
-          "patterns": [
-            {
-              "include": "#OptionalWhitespace"
-            }
-          ]
-        },
-        "3": {
-          "patterns": [
-            {
-              "include": "#LuauStructObjectColon"
-            }
-          ]
-        }
-      }
-    },
-    "LuauStructScalarProperty": {
-      "match": "(\\S[^=]*?)((?:[^\\S\\n\\r])*)(=)((?:[^\\S\\n\\r])*)([^\\n]*?)((?:[^\\S\\n\\r])*)$",
-      "captures": {
-        "1": {
-          "patterns": [
-            {
-              "include": "#LuauStructPropertyName"
-            }
-          ]
-        },
-        "2": {
-          "emit": true,
-          "patterns": [
-            {
-              "include": "#OptionalWhitespace"
-            }
-          ]
-        },
-        "3": {
-          "patterns": [
-            {
-              "include": "#LuauStructAssignmentMark"
-            }
-          ]
-        },
-        "4": {
-          "emit": true,
-          "patterns": [
-            {
-              "include": "#OptionalWhitespace"
-            }
-          ]
-        },
-        "5": {
-          "patterns": [
-            {
-              "include": "#LuauStructPropertyValue"
-            }
-          ]
-        },
-        "6": {
-          "emit": true,
-          "patterns": [
-            {
-              "include": "#OptionalWhitespace"
-            }
-          ]
-        }
-      }
-    },
-    "LuauStructBareMarker": {
-      "match": "([^\\n]+)",
-      "captures": {
-        "1": {
-          "patterns": [
-            {
-              "include": "#LuauStructMarkerName"
-            }
-          ]
-        }
-      }
-    },
-    "LuauStructArrayItemMark": {
-      "tag": "punctuation",
-      "name": "punctuation.definition.struct.array.luau",
-      "match": "(-)"
-    },
-    "LuauStructItemValue": {
-      "tag": "content",
-      "name": "meta.struct.array.item.luau",
-      "match": "([^\\n]*)"
-    },
-    "LuauStructObjectKey": {
-      "tag": "propertyName",
-      "name": "entity.name.tag.struct.luau",
-      "match": "([^\\n]+)"
-    },
-    "LuauStructObjectColon": {
-      "tag": "separator",
-      "name": "punctuation.separator.struct.colon.luau",
-      "match": "(:)"
-    },
-    "LuauStructPropertyName": {
-      "tag": "attributeName",
-      "name": "entity.other.attribute-name.struct.luau",
-      "match": "([^\\n]+)"
-    },
-    "LuauStructAssignmentMark": {
-      "tag": "separator",
-      "name": "keyword.operator.assignment.struct.luau",
-      "match": "(=)"
-    },
-    "LuauStructPropertyValue": {
-      "tag": "string",
-      "name": "string.unquoted.struct.luau",
-      "match": "([^\\n]*)"
-    },
-    "LuauStructMarkerName": {
-      "tag": "content",
-      "name": "meta.struct.body.luau",
-      "match": "([^\\n]+)"
     },
     "LuauStyleNameAndInheritance": {
       "begin": "(?<=style\\b(?:[^\\S\\n\\r])*)((?:[a-zA-Z_][a-zA-Z0-9_]*\\b))",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#LuauDefineName"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#LuauInheritanceOperation"
+        },
+        {
+          "include": "#ExtraWhitespace"
+        }
+      ],
+      "end": "(?=(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b))|((?:[^\\S\\n\\r])*)(with)\\b",
+      "endCaptures": {
+        "1": {
+          "emit": true,
+          "patterns": [
+            {
+              "include": "#OptionalWhitespace"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#LuauWithKeyword"
+            }
+          ]
+        }
+      }
+    },
+    "LuauAnimationThemeNameAndInheritance": {
+      "begin": "(?<=(?:animation|theme)\\b(?:[^\\S\\n\\r])*)((?:[a-zA-Z_][a-zA-Z0-9_]*\\b))",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -5295,6 +5406,16 @@
       "name": "keyword.control.style.luau",
       "match": "(style)\\b"
     },
+    "LuauAnimationKeyword": {
+      "tag": "controlKeyword",
+      "name": "keyword.control.animation.luau",
+      "match": "(animation)\\b"
+    },
+    "LuauThemeKeyword": {
+      "tag": "controlKeyword",
+      "name": "keyword.control.theme.luau",
+      "match": "(theme)\\b"
+    },
     "LuauStylePropertyName": {
       "tag": "attributeName",
       "name": "entity.other.attribute-name.style.luau",
@@ -5309,6 +5430,2809 @@
       "tag": "string",
       "name": "string.unquoted.style.luau",
       "match": "([^\\n]*)"
+    },
+    "StylingValue": {
+      "match": "(.+)((?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[/][/].*$))",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#LuauComment"
+            },
+            {
+              "include": "#StylingValuePart"
+            },
+            {
+              "include": "#StylingStringIdentifier"
+            },
+            {
+              "include": "#UnquotedChar"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#EndOfLine"
+            }
+          ]
+        }
+      }
+    },
+    "NumericFieldValue": {
+      "tag": "number",
+      "name": "constant.numeric.sd",
+      "match": "([-]?(?:\\d*[.])?\\d+|Infinity|NaN)((?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[/][/].*$))",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#NumericLiteral"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#EndOfLine"
+            }
+          ]
+        }
+      }
+    },
+    "BooleanFieldValue": {
+      "tag": "bool",
+      "name": "constant.language.boolean.true.sd",
+      "match": "(true|false)((?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[/][/].*$))",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#BooleanLiteral"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#EndOfLine"
+            }
+          ]
+        }
+      }
+    },
+    "StringFieldValue": {
+      "tag": "string",
+      "name": "string.quoted.double.sd",
+      "match": "([\"])((?:\\\\.|[^\"])*)([\"])((?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[/][/].*$))",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#PunctuationStringOpen"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#PlainStringContent"
+            }
+          ]
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#PunctuationStringClose"
+            }
+          ]
+        },
+        "4": {
+          "patterns": [
+            {
+              "include": "#EndOfLine"
+            }
+          ]
+        }
+      }
+    },
+    "StringFieldValueInterpolated": {
+      "tag": "string",
+      "name": "string.quoted.double.sd",
+      "begin": "([\"])(?=(?:[^\"{\\\\]|\\\\.)*\\{)",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#PunctuationStringOpen"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#LuauFunctionCallShorthand"
+        },
+        {
+          "include": "#LuauInterpolatedStringExpression"
+        },
+        {
+          "include": "#StringEscape"
+        },
+        {
+          "include": "#SparkleRichTextTag"
+        },
+        {
+          "include": "#SparkleRichTextTagUnknown"
+        },
+        {
+          "include": "#Color"
+        },
+        {
+          "include": "#StringCharacter"
+        }
+      ],
+      "end": "([\"])((?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[/][/].*$))",
+      "endCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#PunctuationStringClose"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#EndOfLine"
+            }
+          ]
+        }
+      }
+    },
+    "UnquotedStringFieldValue": {
+      "match": "(.+)((?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[/][/].*$))",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#UnquotedString"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#EndOfLine"
+            }
+          ]
+        }
+      }
+    },
+    "ViewDeclarationScalarPropertyName": {
+      "match": "((?:[0-9]+|(?:[_\\p{L}][0-9_\\p{L}-]*\\b)|(?:[\"](?:\\\\.|[^\"\\r\\n])*[\"])))",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#DeclarationScalarPropertyIndex"
+            },
+            {
+              "include": "#DeclarationScalarPropertyQuotedKey"
+            },
+            {
+              "include": "#ComponentName"
+            }
+          ]
+        }
+      }
+    },
+    "StylingDeclarationScalarPropertyName": {
+      "match": "((?:[0-9]+|(?:[_\\p{L}][0-9_\\p{L}-]*\\b)|(?:[\"](?:\\\\.|[^\"\\r\\n])*[\"])))",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#DeclarationScalarPropertyIndex"
+            },
+            {
+              "include": "#DeclarationScalarPropertyQuotedKey"
+            },
+            {
+              "include": "#DeclarationScalarPropertyKey"
+            }
+          ]
+        }
+      }
+    },
+    "PlainDeclarationScalarPropertyName": {
+      "match": "((?:[0-9]+|(?:[_\\p{L}][0-9_\\p{L}-]*\\b)|(?:[\"](?:\\\\.|[^\"\\r\\n])*[\"])))",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#DeclarationScalarPropertyIndex"
+            },
+            {
+              "include": "#DeclarationScalarPropertyQuotedKey"
+            },
+            {
+              "include": "#DeclarationScalarPropertyKey"
+            }
+          ]
+        }
+      }
+    },
+    "DeclarationScalarPropertyIndex": {
+      "tag": "number",
+      "name": "constant.numeric.integer.sd",
+      "match": "([0-9]+)"
+    },
+    "ViewDeclarationObjectPropertyName": {
+      "begin": "(?=\\S)(?!(?:[:]|[=]|[\\r\\n]))",
+      "patterns": [
+        {
+          "include": "#LuauComment"
+        },
+        {
+          "include": "#SelectorPropertyNamePart"
+        },
+        {
+          "include": "#ComponentName"
+        },
+        {
+          "include": "#IllegalChar"
+        }
+      ],
+      "end": "(?=$|(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[/][/].*$)|(?:[^\\S\\n\\r])*(?:[:]|[=]|[\\r\\n]))"
+    },
+    "StylingDeclarationObjectPropertyName": {
+      "begin": "(?=\\S)(?!(?:[:]|[=]|[\\r\\n]))",
+      "patterns": [
+        {
+          "include": "#LuauComment"
+        },
+        {
+          "include": "#OperatorPrefixedPropertyName"
+        },
+        {
+          "include": "#PropertyName"
+        },
+        {
+          "include": "#InvalidSelectorPropertyName"
+        }
+      ],
+      "end": "(?=$|(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[/][/].*$)|(?:[^\\S\\n\\r])*(?:[:]|[=]|[\\r\\n]))"
+    },
+    "PlainDeclarationObjectPropertyName": {
+      "begin": "(?=\\S)(?!(?:[:]|[=]|[\\r\\n]))",
+      "patterns": [
+        {
+          "include": "#LuauComment"
+        },
+        {
+          "include": "#OperatorPrefixedPropertyName"
+        },
+        {
+          "include": "#PropertyName"
+        },
+        {
+          "include": "#InvalidSelectorPropertyName"
+        }
+      ],
+      "end": "(?=$|(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[/][/].*$)|(?:[^\\S\\n\\r])*(?:[:]|[=]|[\\r\\n]))"
+    },
+    "SelectorPropertyNamePart": {
+      "patterns": [
+        {
+          "include": "#ParenPropertyIdentifierString"
+        },
+        {
+          "include": "#BracketPropertyIdentifierString"
+        },
+        {
+          "include": "#BracePropertyIdentifierString"
+        },
+        {
+          "include": "#UnitValue"
+        },
+        {
+          "include": "#NumericLiteral"
+        },
+        {
+          "include": "#BooleanLiteral"
+        },
+        {
+          "include": "#StringLiteral"
+        },
+        {
+          "include": "#SelectorOperator"
+        },
+        {
+          "include": "#RecursiveSelectorFunction"
+        },
+        {
+          "include": "#SimpleSelectorFunction"
+        },
+        {
+          "include": "#StyleAttribute"
+        },
+        {
+          "include": "#EventAttribute"
+        },
+        {
+          "include": "#LabelAttribute"
+        },
+        {
+          "include": "#Separator"
+        }
+      ]
+    },
+    "ComponentName": {
+      "patterns": [
+        {
+          "include": "#BuiltinComponentName"
+        },
+        {
+          "include": "#CustomComponentName"
+        },
+        {
+          "include": "#FunctionCallParameters"
+        }
+      ]
+    },
+    "TrailingComponentName": {
+      "patterns": [
+        {
+          "include": "#CustomComponentName"
+        },
+        {
+          "include": "#FunctionCallParameters"
+        }
+      ]
+    },
+    "BuiltinComponentName": {
+      "tag": "definitionKeyword",
+      "name": "keyword.other.component.builtin.name.sd",
+      "match": "\\b(ordered_list|preformatted|table_footer|table_header|table_body|paragraph|table_row|checkbox|citation|dropdown|emphasis|fieldset|progress|scroller|textarea|article|caption|divider|foldout|picture|section|button|figure|footer|header|legend|option|slider|stroke|strong|switch|block|image|input|label|modal|quote|radio|small|table|cell|code|form|head|item|link|list|mask|span|text|kbd|sub|sup|h1|h2|h3|h4|h5|h6)(?!(?:[-_\\p{L}][0-9_\\p{L}-]*\\b))"
+    },
+    "CustomComponentName": {
+      "tag": "className",
+      "name": "entity.name.type.class.view.sd",
+      "match": "((?:[_\\p{L}][0-9_\\p{L}-]*\\b))"
+    },
+    "OperatorPrefixedPropertyName": {
+      "begin": "(?=\\S)(?!(?:[_\\p{L}][0-9_\\p{L}-]*\\b))(?!(?:[:]|[=]|[\\r\\n]))",
+      "patterns": [
+        {
+          "include": "#LuauComment"
+        },
+        {
+          "include": "#SelectorPropertyNamePart"
+        },
+        {
+          "include": "#ComponentName"
+        },
+        {
+          "include": "#IllegalChar"
+        }
+      ],
+      "end": "(?=$|(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[/][/].*$)|(?:[^\\S\\n\\r])*(?:[:]|[=]|[\\r\\n]))"
+    },
+    "PropertyName": {
+      "tag": "propertyName",
+      "name": "variable.other.property.sd",
+      "match": "((?:[_\\p{L}][0-9_\\p{L}-]*\\b))(?![(])"
+    },
+    "ParenPropertyIdentifierString": {
+      "brackets": true,
+      "begin": "([(])((?:[^\\S\\n\\r])*)",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#PunctuationParenOpen"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#ExtraWhitespace"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#LuauComment"
+        },
+        {
+          "include": "#SelectorPropertyNamePart"
+        }
+      ],
+      "end": "$|((?:[^\\S\\n\\r])*)([)])",
+      "endCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#ExtraWhitespace"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#PunctuationParenClose"
+            }
+          ]
+        }
+      }
+    },
+    "BracketPropertyIdentifierString": {
+      "brackets": true,
+      "begin": "(\\[)((?:[^\\S\\n\\r])*)",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#PunctuationBracketOpen"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#ExtraWhitespace"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#LuauComment"
+        },
+        {
+          "include": "#SelectorPropertyNamePart"
+        }
+      ],
+      "end": "$|((?:[^\\S\\n\\r])*)(\\])",
+      "endCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#ExtraWhitespace"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#PunctuationBracketClose"
+            }
+          ]
+        }
+      }
+    },
+    "BracePropertyIdentifierString": {
+      "brackets": true,
+      "begin": "(\\{)((?:[^\\S\\n\\r])*)",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#PunctuationBraceOpen"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#ExtraWhitespace"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#LuauComment"
+        },
+        {
+          "include": "#SelectorPropertyNamePart"
+        }
+      ],
+      "end": "$|((?:[^\\S\\n\\r])*)(\\})",
+      "endCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#ExtraWhitespace"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#PunctuationBraceClose"
+            }
+          ]
+        }
+      }
+    },
+    "ArrayItemOperator": {
+      "match": "([-])($|(?:[^\\S\\n\\r])+)",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#ArrayItemMark"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#Separator"
+            }
+          ]
+        }
+      }
+    },
+    "ArrayItemMark": {
+      "tag": "keyword",
+      "name": "keyword.operator.expression.array.sd",
+      "match": "(.+)"
+    },
+    "AssignEqualOperator": {
+      "match": "((?:[^\\S\\n\\r])*)([=])((?:[^\\S\\n\\r])*)",
+      "captures": {
+        "1": {
+          "emit": true,
+          "patterns": [
+            {
+              "include": "#OptionalSeparator"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#EqualOperator"
+            }
+          ]
+        },
+        "3": {
+          "emit": true,
+          "patterns": [
+            {
+              "include": "#OptionalSeparator"
+            }
+          ]
+        }
+      }
+    },
+    "UnitValue": {
+      "match": "([-]?(?:\\d*[.])?\\d+)([%]|[a-zA-Z]+)",
+      "captures": {
+        "1": {
+          "tag": "number",
+          "name": "constant.numeric.amount.sd"
+        },
+        "2": {
+          "tag": "number",
+          "name": "constant.numeric.unit.sd"
+        }
+      }
+    },
+    "Ratio": {
+      "match": "((?:[-]?(?:\\d*[.])?\\d+))((?:[^\\S\\n\\r])*)([/])((?:[^\\S\\n\\r])*)((?:[-]?(?:\\d*[.])?\\d+))",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#NumericLiteral"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#ExtraWhitespace"
+            }
+          ]
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#CalcOperator"
+            }
+          ]
+        },
+        "4": {
+          "patterns": [
+            {
+              "include": "#ExtraWhitespace"
+            }
+          ]
+        },
+        "5": {
+          "patterns": [
+            {
+              "include": "#NumericLiteral"
+            }
+          ]
+        }
+      }
+    },
+    "CalcOperator": {
+      "tag": "keyword",
+      "name": "keyword.other.calc.operator.sd",
+      "match": "([+]|[-]|[*]|[/])"
+    },
+    "StylingFunction": {
+      "begin": "((?:[_\\p{L}][0-9_\\p{L}-]*\\b))((?:[^\\S\\n\\r])*)(?=[(])",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#StylingFunctionName"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#ExtraWhitespace"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#LuauComment"
+        },
+        {
+          "include": "#StylingFunctionParameters"
+        }
+      ],
+      "applyEndPatternLast": true,
+      "end": "(?=$|.)"
+    },
+    "StylingFunctionName": {
+      "tag": "function(name)",
+      "name": "entity.name.function.sd",
+      "match": "((?:[_\\p{L}][0-9_\\p{L}-]*\\b))"
+    },
+    "StylingFunctionParameters": {
+      "brackets": true,
+      "begin": "([(])((?:[^\\S\\n\\r])*)",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#PunctuationParenOpen"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#ExtraWhitespace"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#LuauComment"
+        },
+        {
+          "include": "#CalcOperator"
+        },
+        {
+          "include": "#StylingValuePart"
+        },
+        {
+          "include": "#ParameterStringIdentifier"
+        },
+        {
+          "include": "#UnquotedChar"
+        }
+      ],
+      "end": "$|((?:[^\\S\\n\\r])*)([)])",
+      "endCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#ExtraWhitespace"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#PunctuationParenClose"
+            }
+          ]
+        }
+      }
+    },
+    "StylingValuePart": {
+      "patterns": [
+        {
+          "include": "#Separator"
+        },
+        {
+          "include": "#Color"
+        },
+        {
+          "include": "#Ratio"
+        },
+        {
+          "include": "#UnitValue"
+        },
+        {
+          "include": "#NumericLiteral"
+        },
+        {
+          "include": "#PunctuationComma"
+        },
+        {
+          "include": "#StylingFunction"
+        },
+        {
+          "include": "#StylingAccessPath"
+        }
+      ]
+    },
+    "StylingStringIdentifier": {
+      "tag": "string",
+      "name": "string.unquoted.identifier.sd",
+      "match": "((?:[_\\p{L}][0-9_\\p{L}-]*\\b))"
+    },
+    "UnquotedChar": {
+      "tag": "string",
+      "name": "string.unquoted.char.sd",
+      "match": "(.)"
+    },
+    "StylingAccessPath": {
+      "begin": "(?=(?:[_\\p{L}][0-9_\\p{L}-]*\\b)[.])",
+      "patterns": [
+        {
+          "include": "#LuauComment"
+        },
+        {
+          "include": "#StylingAccessPart"
+        }
+      ],
+      "end": "(?=$)|(?!(?:[_\\p{L}][0-9_\\p{L}-]*\\b)|[.])"
+    },
+    "StylingAccessPart": {
+      "emit": true,
+      "patterns": [
+        {
+          "include": "#PropertyAccessor"
+        },
+        {
+          "include": "#NamespaceAccessor"
+        },
+        {
+          "include": "#VariableName"
+        },
+        {
+          "include": "#PunctuationAccessor"
+        }
+      ]
+    },
+    "NamespaceAccessor": {
+      "match": "((?:[_\\p{L}][0-9_\\p{L}-]*\\b))([.])($|(?:[_\\p{L}][0-9_\\p{L}-]*\\b))(?![(])",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#TypeName"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#PunctuationAccessor"
+            }
+          ]
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#VariableName"
+            }
+          ]
+        }
+      }
+    },
+    "PropertyAccessor": {
+      "match": "([.])((?:[_\\p{L}][0-9_\\p{L}-]*\\b))(?![(])",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#PunctuationAccessor"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#PropertyName"
+            }
+          ]
+        }
+      }
+    },
+    "TypeName": {
+      "tag": "typeName",
+      "name": "support.type.sd",
+      "match": "((?:[_\\p{L}][0-9_\\p{L}-]*\\b))"
+    },
+    "VariableName": {
+      "tag": "constant(variableName)",
+      "name": "variable.other.constant.sd",
+      "match": "((?:[_\\p{L}][0-9_\\p{L}-]*\\b))(?![(])"
+    },
+    "NumericLiteral": {
+      "patterns": [
+        {
+          "include": "#NumberLiteral"
+        },
+        {
+          "include": "#NumericConstantLiteral"
+        }
+      ]
+    },
+    "BooleanLiteral": {
+      "patterns": [
+        {
+          "include": "#BooleanTrue"
+        },
+        {
+          "include": "#BooleanFalse"
+        }
+      ]
+    },
+    "PunctuationStringOpen": {
+      "match": "([\"])",
+      "tag": "string",
+      "name": "punctuation.definition.string.begin.sd"
+    },
+    "PlainStringContent": {
+      "match": "((?:\\\\.|[^\"])*?)(?=$|\")",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#StringEscape"
+            },
+            {
+              "include": "#SparkleRichTextTag"
+            },
+            {
+              "include": "#SparkleRichTextTagUnknown"
+            },
+            {
+              "include": "#Color"
+            },
+            {
+              "include": "#StringCharacter"
+            }
+          ]
+        }
+      }
+    },
+    "PunctuationStringClose": {
+      "match": "([\"])",
+      "tag": "string",
+      "name": "punctuation.definition.string.end.sd"
+    },
+    "UnquotedString": {
+      "tag": "string",
+      "name": "string.unquoted.sd",
+      "match": "(.+)"
+    },
+    "DeclarationScalarPropertyQuotedKey": {
+      "tag": "string",
+      "name": "string.quoted.key.sd",
+      "match": "((?:[\"](?:\\\\.|[^\"\\r\\n])*[\"]))"
+    },
+    "DeclarationScalarPropertyKey": {
+      "tag": "propertyName",
+      "name": "variable.other.property.define.sd",
+      "match": "((?:[_\\p{L}][0-9_\\p{L}-]*\\b))"
+    },
+    "InvalidSelectorPropertyName": {
+      "tag": "invalid",
+      "name": "invalid.illegal.unknown-statement.sd",
+      "begin": "(?=\\S)(?!(?:[:]|[=]|[\\r\\n]))",
+      "patterns": [
+        {
+          "include": "#LuauComment"
+        },
+        {
+          "include": "#SelectorPropertyNamePart"
+        },
+        {
+          "include": "#ComponentName"
+        },
+        {
+          "include": "#IllegalChar"
+        }
+      ],
+      "end": "(?=$|(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[/][/].*$)|(?:[^\\S\\n\\r])*(?:[:]|[=]|[\\r\\n]))"
+    },
+    "SelectorOperator": {
+      "tag": "keyword",
+      "name": "keyword.other.selector.operator.sd",
+      "match": "([>]|[+]|[~]|[*]|[&]|[\\^])"
+    },
+    "RecursiveSelectorFunction": {
+      "begin": "([@])(has|not|is|where)(?=[(])",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#EventAttributeOperator"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#EventAttributeName"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#LuauComment"
+        },
+        {
+          "include": "#RecursiveSelectorFunctionParameters"
+        }
+      ],
+      "applyEndPatternLast": true,
+      "end": "(?=$|.)"
+    },
+    "SimpleSelectorFunction": {
+      "begin": "([@])((?:[_\\p{L}][0-9_\\p{L}-]*\\b))?(?=[(])",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#EventAttributeOperator"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#EventAttributeName"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#LuauComment"
+        },
+        {
+          "include": "#SimpleSelectorFunctionParameters"
+        }
+      ],
+      "applyEndPatternLast": true,
+      "end": "(?=$|.)"
+    },
+    "StyleAttribute": {
+      "emit": true,
+      "patterns": [
+        {
+          "include": "#AssignedBracedStyleAttribute"
+        },
+        {
+          "include": "#AssignedQuotedStyleAttribute"
+        },
+        {
+          "include": "#AssignedUnquotedStyleAttribute"
+        },
+        {
+          "include": "#UnassignedStyleAttribute"
+        }
+      ]
+    },
+    "EventAttribute": {
+      "emit": true,
+      "patterns": [
+        {
+          "include": "#AssignedBracedEventAttribute"
+        },
+        {
+          "include": "#AssignedQuotedEventAttribute"
+        },
+        {
+          "include": "#AssignedUnquotedEventAttribute"
+        },
+        {
+          "include": "#UnassignedEventAttribute"
+        }
+      ]
+    },
+    "LabelAttribute": {
+      "emit": true,
+      "patterns": [
+        {
+          "include": "#StringLiteral"
+        }
+      ]
+    },
+    "Separator": {
+      "tag": "definition(content)",
+      "name": "markup.raw.whitespace.separator.sd",
+      "match": "((?:[^\\S\\n\\r])+)"
+    },
+    "FunctionCallParameters": {
+      "brackets": true,
+      "begin": "([(])((?:[^\\S\\n\\r])*)",
+      "beginCaptures": {
+        "1": {
+          "tag": "keyword",
+          "name": "punctuation.definition.template-expression.begin.sd"
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#ExtraWhitespace"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#LuauComment"
+        },
+        {
+          "include": "#Separator"
+        },
+        {
+          "include": "#PunctuationComma"
+        },
+        {
+          "include": "#Parameter"
+        }
+      ],
+      "end": "$|((?:[^\\S\\n\\r])*)([)])",
+      "endCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#ExtraWhitespace"
+            }
+          ]
+        },
+        "2": {
+          "tag": "keyword",
+          "name": "punctuation.definition.template-expression.end.sd"
+        }
+      }
+    },
+    "OptionalSeparator": {
+      "tag": "definition(content)",
+      "name": "markup.raw.whitespace.separator.optional.sd",
+      "match": "((?:[^\\S\\n\\r])*)"
+    },
+    "EqualOperator": {
+      "tag": "updateOperator",
+      "name": "keyword.operator.assignment.sd",
+      "match": "([=])"
+    },
+    "ParameterStringIdentifier": {
+      "tag": "string",
+      "name": "string.unquoted.identifier.sd",
+      "match": "((?:[_\\p{L}][0-9_\\p{L}-]*\\b))"
+    },
+    "PunctuationComma": {
+      "tag": "operator",
+      "name": "keyword.operator.comma.sd",
+      "match": "([,])"
+    },
+    "NumberLiteral": {
+      "tag": "number",
+      "name": "constant.numeric.sd",
+      "match": "([-]?(?:\\d*[.])?\\d+)"
+    },
+    "NumericConstantLiteral": {
+      "patterns": [
+        {
+          "include": "#Infinity"
+        },
+        {
+          "include": "#NaN"
+        }
+      ]
+    },
+    "BooleanTrue": {
+      "tag": "bool",
+      "name": "constant.language.boolean.true.sd",
+      "match": "(?<![0-9_\\p{L}-])(?:(?<=\\.\\.\\.)|(?<!\\.))true(?![0-9_\\p{L}-])(?:(?=\\.\\.\\.)|(?!\\.))"
+    },
+    "BooleanFalse": {
+      "tag": "bool",
+      "name": "constant.language.boolean.false.sd",
+      "match": "(?<![0-9_\\p{L}-])(?:(?<=\\.\\.\\.)|(?<!\\.))false(?![0-9_\\p{L}-])(?:(?=\\.\\.\\.)|(?!\\.))"
+    },
+    "StringEscape": {
+      "match": "(\\\\)(.)",
+      "captures": {
+        "1": {
+          "tag": "definition(escape)",
+          "name": "constant.character.escape.sd"
+        },
+        "2": {
+          "tag": "content",
+          "name": "markup.raw.whitespace.sd"
+        }
+      }
+    },
+    "StringCharacter": {
+      "tag": "content",
+      "name": "markup.raw.whitespace.sd",
+      "match": "(.)"
+    },
+    "EventAttributeOperator": {
+      "tag": "function(name)",
+      "name": "entity.name.function.attribute.name.view.sd",
+      "match": "([@])"
+    },
+    "EventAttributeName": {
+      "tag": "function(name)",
+      "name": "entity.name.function.attribute.name.view.sd",
+      "match": "(.+)"
+    },
+    "RecursiveSelectorFunctionParameters": {
+      "brackets": true,
+      "begin": "([(])((?:[^\\S\\n\\r])*)",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#PunctuationParenOpen"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#ExtraWhitespace"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#LuauComment"
+        },
+        {
+          "include": "#SelectorPropertyNamePart"
+        },
+        {
+          "include": "#ComponentName"
+        },
+        {
+          "include": "#IllegalChar"
+        }
+      ],
+      "end": "$|((?:[^\\S\\n\\r])*)([)])",
+      "endCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#ExtraWhitespace"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#PunctuationParenClose"
+            }
+          ]
+        }
+      }
+    },
+    "SimpleSelectorFunctionParameters": {
+      "brackets": true,
+      "begin": "([(])((?:[^\\S\\n\\r])*)",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#PunctuationParenOpen"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#ExtraWhitespace"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#LuauComment"
+        },
+        {
+          "include": "#SelectorPropertyNamePart"
+        },
+        {
+          "include": "#ParameterStringIdentifier"
+        },
+        {
+          "include": "#IllegalChar"
+        }
+      ],
+      "end": "$|((?:[^\\S\\n\\r])*)([)])",
+      "endCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#ExtraWhitespace"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#PunctuationParenClose"
+            }
+          ]
+        }
+      }
+    },
+    "AssignedBracedStyleAttribute": {
+      "begin": "([#])((?:[_\\p{L}][0-9_\\p{L}-]*\\b))?((?:[~]|[|]|[\\^]|[$]|[*]))?([=])([{])",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#StyleAttributeOperator"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#StyleAttributeName"
+            }
+          ]
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#ComparisonOperator"
+            }
+          ]
+        },
+        "4": {
+          "patterns": [
+            {
+              "include": "#EqualOperator"
+            }
+          ]
+        },
+        "5": {
+          "patterns": [
+            {
+              "include": "#PunctuationBraceOpen"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#LuauComment"
+        }
+      ],
+      "end": "([}])",
+      "endCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#PunctuationBraceClose"
+            }
+          ]
+        }
+      }
+    },
+    "AssignedQuotedStyleAttribute": {
+      "tag": "string",
+      "name": "string.quoted.double.view.sd",
+      "begin": "([#])((?:[_\\p{L}][0-9_\\p{L}-]*\\b))?((?:[~]|[|]|[\\^]|[$]|[*]))?([=])([\"])",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#StyleAttributeOperator"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#StyleAttributeName"
+            }
+          ]
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#ComparisonOperator"
+            }
+          ]
+        },
+        "4": {
+          "patterns": [
+            {
+              "include": "#EqualOperator"
+            }
+          ]
+        },
+        "5": {
+          "patterns": [
+            {
+              "include": "#PunctuationStringOpen"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#LuauComment"
+        },
+        {
+          "include": "#StringContent"
+        }
+      ],
+      "end": "$|([\"])",
+      "endCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#PunctuationStringClose"
+            }
+          ]
+        }
+      }
+    },
+    "AssignedUnquotedStyleAttribute": {
+      "begin": "([#])((?:[_\\p{L}][0-9_\\p{L}-]*\\b))?((?:[~]|[|]|[\\^]|[$]|[*]))?([=])",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#StyleAttributeOperator"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#StyleAttributeName"
+            }
+          ]
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#ComparisonOperator"
+            }
+          ]
+        },
+        "4": {
+          "patterns": [
+            {
+              "include": "#EqualOperator"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#LuauComment"
+        },
+        {
+          "include": "#UnquotedStyleAttributeValue"
+        }
+      ],
+      "end": "(?=(?:$|[\\s\"'`<>=:(){}\\[\\]]|(?:[-][-])))"
+    },
+    "UnassignedStyleAttribute": {
+      "match": "([#])((?:[_\\p{L}][0-9_\\p{L}-]*\\b))?",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#StyleAttributeOperator"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#StyleAttributeName"
+            }
+          ]
+        }
+      }
+    },
+    "AssignedBracedEventAttribute": {
+      "begin": "([@])((?:[_\\p{L}][0-9_\\p{L}-]*\\b))?((?:[~]|[|]|[\\^]|[$]|[*]))?([=])([{])",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#EventAttributeOperator"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#EventAttributeName"
+            }
+          ]
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#ComparisonOperator"
+            }
+          ]
+        },
+        "4": {
+          "patterns": [
+            {
+              "include": "#EqualOperator"
+            }
+          ]
+        },
+        "5": {
+          "patterns": [
+            {
+              "include": "#PunctuationBraceOpen"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#LuauComment"
+        }
+      ],
+      "end": "([}])",
+      "endCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#PunctuationBraceClose"
+            }
+          ]
+        }
+      }
+    },
+    "AssignedQuotedEventAttribute": {
+      "tag": "string",
+      "name": "string.quoted.double.view.sd",
+      "begin": "([@])((?:[_\\p{L}][0-9_\\p{L}-]*\\b))?((?:[~]|[|]|[\\^]|[$]|[*]))?([=])([\"])",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#EventAttributeOperator"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#EventAttributeName"
+            }
+          ]
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#ComparisonOperator"
+            }
+          ]
+        },
+        "4": {
+          "patterns": [
+            {
+              "include": "#EqualOperator"
+            }
+          ]
+        },
+        "5": {
+          "patterns": [
+            {
+              "include": "#PunctuationStringOpen"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#LuauComment"
+        },
+        {
+          "include": "#StringContent"
+        }
+      ],
+      "end": "$|([\"])",
+      "endCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#PunctuationStringClose"
+            }
+          ]
+        }
+      }
+    },
+    "AssignedUnquotedEventAttribute": {
+      "begin": "([@])((?:[_\\p{L}][0-9_\\p{L}-]*\\b))?((?:[~]|[|]|[\\^]|[$]|[*]))?([=])",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#EventAttributeOperator"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#LuauComment"
+            },
+            {
+              "include": "#EventAttributeName"
+            }
+          ]
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#ComparisonOperator"
+            }
+          ]
+        },
+        "4": {
+          "patterns": [
+            {
+              "include": "#EqualOperator"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#LuauComment"
+        },
+        {
+          "include": "#UnquotedEventAttributeValue"
+        }
+      ],
+      "end": "(?=(?:$|[\\s\"'`<>=:(){}\\[\\]]|(?:[-][-])))"
+    },
+    "UnassignedEventAttribute": {
+      "match": "([@])((?:[_\\p{L}][0-9_\\p{L}-]*\\b))?",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#EventAttributeOperator"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#EventAttributeName"
+            }
+          ]
+        }
+      }
+    },
+    "StringLiteral": {
+      "tag": "string",
+      "name": "string.quoted.double.sd",
+      "begin": "([\"])",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#PunctuationStringOpen"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#LuauComment"
+        },
+        {
+          "include": "#StringContent"
+        }
+      ],
+      "end": "([\"])|($)",
+      "endCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#PunctuationStringClose"
+            }
+          ]
+        }
+      }
+    },
+    "Parameter": {
+      "tag": "meta",
+      "name": "meta.parameter.sd",
+      "begin": "(?=.+$)",
+      "patterns": [
+        {
+          "include": "#LuauComment"
+        }
+      ],
+      "end": "$|(?=(?:[^\\S\\n\\r])*(?:[)]|[,]))"
+    },
+    "Infinity": {
+      "tag": "atom",
+      "name": "constant.language.infinity.sd",
+      "match": "(?<![0-9_\\p{L}-])(?:(?<=\\.\\.\\.)|(?<!\\.))Infinity(?![0-9_\\p{L}-])(?:(?=\\.\\.\\.)|(?!\\.))"
+    },
+    "NaN": {
+      "tag": "atom",
+      "name": "constant.language.nan.sd",
+      "match": "(?<![0-9_\\p{L}-])(?:(?<=\\.\\.\\.)|(?<!\\.))NaN(?![0-9_\\p{L}-])(?:(?=\\.\\.\\.)|(?!\\.))"
+    },
+    "StyleAttributeOperator": {
+      "tag": "constant(variableName)",
+      "name": "variable.other.constant.attribute.style.sd",
+      "match": "([#])"
+    },
+    "StyleAttributeName": {
+      "tag": "constant(variableName)",
+      "name": "variable.other.constant.attribute.style.sd",
+      "match": "(.+)"
+    },
+    "ComparisonOperator": {
+      "tag": "updateOperator",
+      "name": "keyword.operator.comparison.sd",
+      "match": "((?:[~]|[|]|[\\^]|[$]|[*]))"
+    },
+    "StringContent": {
+      "match": "((?:\\\\.|[^\"])*?)(?=$|\")",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#StringEscape"
+            },
+            {
+              "include": "#LuauFunctionCallShorthand"
+            },
+            {
+              "include": "#LuauInterpolatedStringExpression"
+            },
+            {
+              "include": "#StringCharacter"
+            }
+          ]
+        }
+      }
+    },
+    "UnquotedStyleAttributeValue": {
+      "tag": "string",
+      "name": "string.unquoted.attribute.value.sd",
+      "match": "((?:(?!(?:$|[\\s\"'`<>=:(){}\\[\\]]|(?:[-][-]))).)+)"
+    },
+    "UnquotedEventAttributeValue": {
+      "match": "((?:(?!(?:$|[\\s\"'`<>=:(){}\\[\\]]|(?:[-][-]))).)+)",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#DivertTarget"
+            }
+          ]
+        }
+      }
+    },
+    "LuauStructScalarProperty": {
+      "match": "((?:[^\\S\\n\\r])*)(\\[[^\\]\\n]*\\]|[$]?(?:[0-9]+|(?:[_\\p{L}][0-9_\\p{L}-]*\\b)|(?:[\"](?:\\\\.|[^\"\\r\\n])*[\"])))((?:(?:[^\\S\\n\\r])*[=](?:[^\\S\\n\\r])*))(.*$)",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#OptionalWhitespace"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#BuiltinComponentName"
+            },
+            {
+              "include": "#StylingDeclarationScalarPropertyName"
+            }
+          ]
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#AssignEqualOperator"
+            }
+          ]
+        },
+        "4": {
+          "patterns": [
+            {
+              "include": "#NumericFieldValue"
+            },
+            {
+              "include": "#BooleanFieldValue"
+            },
+            {
+              "include": "#StringFieldValueInterpolated"
+            },
+            {
+              "include": "#StringFieldValue"
+            },
+            {
+              "include": "#StylingValue"
+            },
+            {
+              "include": "#UnquotedStringFieldValue"
+            }
+          ]
+        }
+      }
+    },
+    "LuauStructArrayItem": {
+      "match": "((?:[^\\S\\n\\r])*)((?:[-](?:$|(?:[^\\S\\n\\r])+)))(.*$)",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#OptionalWhitespace"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#ArrayItemOperator"
+            }
+          ]
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#NumericFieldValue"
+            },
+            {
+              "include": "#BooleanFieldValue"
+            },
+            {
+              "include": "#StringFieldValueInterpolated"
+            },
+            {
+              "include": "#StringFieldValue"
+            },
+            {
+              "include": "#StylingValue"
+            },
+            {
+              "include": "#UnquotedStringFieldValue"
+            }
+          ]
+        }
+      }
+    },
+    "LuauStructComponentCall": {
+      "begin": "((?:[^\\S\\n\\r])*)((?:[a-zA-Z_][a-zA-Z0-9_]*\\b))((?:[^\\S\\n\\r])*)([(])",
+      "beginCaptures": {
+        "1": {
+          "emit": true,
+          "patterns": [
+            {
+              "include": "#OptionalWhitespace"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#CustomComponentName"
+            }
+          ]
+        },
+        "3": {
+          "emit": true,
+          "patterns": [
+            {
+              "include": "#OptionalWhitespace"
+            }
+          ]
+        },
+        "4": {
+          "patterns": [
+            {
+              "include": "#PunctuationParenOpen"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#LuauComment"
+        },
+        {
+          "include": "#LuauCommaSeparator"
+        },
+        {
+          "include": "#LuauElementContentStringInterpolated"
+        },
+        {
+          "include": "#LuauExpression"
+        },
+        {
+          "include": "#ExtraWhitespace"
+        }
+      ],
+      "end": "([)])((?:[^\\S\\n\\r])*)(:?)((?:[^\\S\\n\\r])*)$",
+      "endCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#PunctuationParenClose"
+            }
+          ]
+        },
+        "2": {
+          "emit": true,
+          "patterns": [
+            {
+              "include": "#OptionalWhitespace"
+            }
+          ]
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#LuauStructObjectColon"
+            }
+          ]
+        },
+        "4": {
+          "emit": true,
+          "patterns": [
+            {
+              "include": "#OptionalWhitespace"
+            }
+          ]
+        }
+      }
+    },
+    "LuauStructObjectHeader": {
+      "match": "((?:[^\\S\\n\\r])*)(.+?)((?:[^\\S\\n\\r])*)([:])((?:[^\\S\\n\\r])*)(?=(?:--|//(?=$|(?:[^\\S\\n\\r])))|$)",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#OptionalWhitespace"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#LuauElementAttribute"
+            },
+            {
+              "include": "#SelectorPropertyNamePart"
+            },
+            {
+              "include": "#ComponentName"
+            },
+            {
+              "include": "#PropertyName"
+            }
+          ]
+        },
+        "4": {
+          "patterns": [
+            {
+              "include": "#LuauStructObjectColon"
+            }
+          ]
+        }
+      }
+    },
+    "LuauStructObjectColon": {
+      "tag": "logicOperator",
+      "name": "meta.template.expression.operator.colon.sd",
+      "match": "([:])"
+    },
+    "LuauStructAdjacencyContent": {
+      "match": "((?:[^\\S\\n\\r])*)((?:[a-zA-Z_][a-zA-Z0-9_-]*))((?:[^\\S\\n\\r])+)(\"(?:\\\\.|[^\"])*\")((?:[^\\S\\n\\r])*)([^\\n]*)$",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#OptionalWhitespace"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#ComponentName"
+            }
+          ]
+        },
+        "3": {
+          "emit": true,
+          "patterns": [
+            {
+              "include": "#OptionalWhitespace"
+            }
+          ]
+        },
+        "4": {
+          "patterns": [
+            {
+              "include": "#StringFieldValueInterpolated"
+            },
+            {
+              "include": "#StringFieldValue"
+            }
+          ]
+        },
+        "5": {
+          "emit": true,
+          "patterns": [
+            {
+              "include": "#OptionalWhitespace"
+            }
+          ]
+        },
+        "6": {
+          "patterns": [
+            {
+              "include": "#LuauElementAttribute"
+            }
+          ]
+        }
+      }
+    },
+    "LuauElementAttribute": {
+      "patterns": [
+        {
+          "include": "#RequiredWhitespace"
+        },
+        {
+          "include": "#LuauComment"
+        },
+        {
+          "include": "#SparkdownLineComment"
+        },
+        {
+          "include": "#LuauEventAttribute"
+        },
+        {
+          "include": "#LuauPropAttribute"
+        }
+      ]
+    },
+    "LuauSparkleEventHandlerName": {
+      "tag": "heading",
+      "name": "keyword.control.divert.path.sd",
+      "match": "((?:[_\\p{L}][0-9_\\p{L}]*\\b))(?=(?:[^\\S\\n\\r])*(?:[@#\"']|--|//(?=$|[^\\S\\n\\r])|$))"
+    },
+    "LuauEventAttribute": {
+      "begin": "([@])((?:[a-zA-Z_][a-zA-Z0-9_]*\\b))((?:[^\\S\\n\\r])*)([=])((?:[^\\S\\n\\r])*)",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#EventAttributeOperator"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#EventAttributeName"
+            }
+          ]
+        },
+        "4": {
+          "patterns": [
+            {
+              "include": "#EqualOperator"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#LuauSparkleHandlerClosure"
+        },
+        {
+          "include": "#LuauSparkleEventHandlerName"
+        },
+        {
+          "include": "#LuauExpression"
+        }
+      ],
+      "end": "(?=$|(?:[^\\S\\n\\r])+[\"'@#])"
+    },
+    "LuauSparkleHandlerClosure": {
+      "brackets": true,
+      "begin": "([{])",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#PunctuationBraceOpen"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#LuauBlockBody"
+        }
+      ],
+      "end": "([}])",
+      "endCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#PunctuationBraceClose"
+            }
+          ]
+        }
+      }
+    },
+    "LuauPropAttribute": {
+      "begin": "([#])((?:[-]{2})?(?:[a-zA-Z_][a-zA-Z0-9_]*\\b)(?:[-](?:[a-zA-Z_][a-zA-Z0-9_]*\\b))*)((?:[^\\S\\n\\r])*)([=])((?:[^\\S\\n\\r])*)",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#StyleAttributeOperator"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#StyleAttributeName"
+            }
+          ]
+        },
+        "4": {
+          "patterns": [
+            {
+              "include": "#EqualOperator"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#LuauFunctionCallShorthand"
+        },
+        {
+          "include": "#LuauInterpolatedStringExpression"
+        },
+        {
+          "include": "#LuauElementContentStringInterpolated"
+        },
+        {
+          "include": "#InlinePropQuotedValue"
+        },
+        {
+          "include": "#InlinePropLiteralValue"
+        }
+      ],
+      "end": "(?=$|(?:[^\\S\\n\\r])+[@#])"
+    },
+    "InlinePropQuotedValue": {
+      "tag": "string",
+      "name": "string.quoted.double.sd",
+      "match": "([\"])((?:\\\\.|[^\"])*)([\"])",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#PunctuationStringOpen"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#PlainStringContent"
+            }
+          ]
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#PunctuationStringClose"
+            }
+          ]
+        }
+      }
+    },
+    "InlinePropLiteralValue": {
+      "match": "([^\\s]+)",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#Color"
+            },
+            {
+              "include": "#NumericLiteral"
+            },
+            {
+              "include": "#UnquotedString"
+            }
+          ]
+        }
+      }
+    },
+    "LuauElementContentStringInterpolated": {
+      "tag": "string",
+      "name": "string.quoted.double.sd",
+      "begin": "([\"])(?=(?:[^\"{\\\\]|\\\\.)*\\{)",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#PunctuationStringOpen"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#LuauFunctionCallShorthand"
+        },
+        {
+          "include": "#LuauInterpolatedStringExpression"
+        },
+        {
+          "include": "#StringEscape"
+        },
+        {
+          "include": "#SparkleRichTextTag"
+        },
+        {
+          "include": "#SparkleRichTextTagUnknown"
+        },
+        {
+          "include": "#Color"
+        },
+        {
+          "include": "#StringCharacter"
+        }
+      ],
+      "end": "([\"])",
+      "endCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#PunctuationStringClose"
+            }
+          ]
+        }
+      }
+    },
+    "LuauElementContentStringPlain": {
+      "tag": "string",
+      "name": "string.quoted.double.sd",
+      "match": "([\"])((?:\\\\.|[^\"])*)([\"])",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#PunctuationStringOpen"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#PlainStringContent"
+            }
+          ]
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#PunctuationStringClose"
+            }
+          ]
+        }
+      }
+    },
+    "LuauStructBareMarker": {
+      "match": "((?:[^\\S\\n\\r])*)((?:[a-zA-Z_][a-zA-Z0-9_-]*))((?:[^\\S\\n\\r])*)([^\\n]*)$",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#OptionalWhitespace"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#ComponentName"
+            }
+          ]
+        },
+        "3": {
+          "emit": true,
+          "patterns": [
+            {
+              "include": "#OptionalWhitespace"
+            }
+          ]
+        },
+        "4": {
+          "patterns": [
+            {
+              "include": "#RequiredWhitespace"
+            },
+            {
+              "include": "#LuauElementAttribute"
+            },
+            {
+              "include": "#LuauElementContentStringInterpolated"
+            },
+            {
+              "include": "#LuauElementContentStringPlain"
+            },
+            {
+              "include": "#LuauElementContentStringSingleQuoted"
+            },
+            {
+              "include": "#TrailingComponentName"
+            }
+          ]
+        }
+      }
+    },
+    "LuauStructBodyFallback": {
+      "tag": "content",
+      "name": "meta.struct.body.fallback.luau",
+      "match": "(.+)$"
+    },
+    "LuauSparkleControlBlock": {
+      "patterns": [
+        {
+          "include": "#LuauSparkleIfBlock"
+        },
+        {
+          "include": "#LuauSparkleForLoop"
+        },
+        {
+          "include": "#LuauSparkleMatchBlock"
+        }
+      ]
+    },
+    "LuauSparkleIfBlock": {
+      "begin": "((?:[^\\S\\n\\r])*)(if)\\b((?:[^\\S\\n\\r])*)",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#OptionalWhitespace"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#LuauIfKeyword"
+            }
+          ]
+        },
+        "3": {
+          "emit": true,
+          "patterns": [
+            {
+              "include": "#OptionalWhitespace"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#LuauIfBlockCondition"
+        },
+        {
+          "include": "#LuauComment"
+        },
+        {
+          "include": "#SparkleTrailingLineComment"
+        },
+        {
+          "include": "#LuauSparkleElseifBlock"
+        },
+        {
+          "include": "#LuauSparkleElseBlock"
+        },
+        {
+          "include": "#LuauSparkleControlBlock"
+        },
+        {
+          "include": "#LuauStructBodyLine"
+        },
+        {
+          "include": "#ExtraWhitespace"
+        },
+        {
+          "include": "#Newline"
+        }
+      ],
+      "end": "(?=(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b))|((?:[^\\S\\n\\r])*)(end)\\b",
+      "endCaptures": {
+        "1": {
+          "emit": true,
+          "patterns": [
+            {
+              "include": "#OptionalWhitespace"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#LuauEndKeyword"
+            }
+          ]
+        }
+      }
+    },
+    "LuauSparkleElseifBlock": {
+      "begin": "((?:[^\\S\\n\\r])*)(elseif)\\b((?:[^\\S\\n\\r])*)",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#OptionalWhitespace"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#LuauElseifKeyword"
+            }
+          ]
+        },
+        "3": {
+          "emit": true,
+          "patterns": [
+            {
+              "include": "#OptionalWhitespace"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#LuauElseifBlockCondition"
+        },
+        {
+          "include": "#LuauComment"
+        },
+        {
+          "include": "#SparkleTrailingLineComment"
+        },
+        {
+          "include": "#LuauSparkleControlBlock"
+        },
+        {
+          "include": "#LuauStructBodyLine"
+        },
+        {
+          "include": "#ExtraWhitespace"
+        },
+        {
+          "include": "#Newline"
+        }
+      ],
+      "end": "(?=(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b))|(?=(?:[^\\S\\n\\r])*\\b(?:end|elseif|else)\\b)"
+    },
+    "LuauSparkleElseBlock": {
+      "begin": "((?:[^\\S\\n\\r])*)(else)\\b((?:[^\\S\\n\\r])*)",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#OptionalWhitespace"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#LuauElseKeyword"
+            }
+          ]
+        },
+        "3": {
+          "emit": true,
+          "patterns": [
+            {
+              "include": "#OptionalWhitespace"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#LuauComment"
+        },
+        {
+          "include": "#SparkleTrailingLineComment"
+        },
+        {
+          "include": "#LuauSparkleControlBlock"
+        },
+        {
+          "include": "#LuauStructBodyLine"
+        },
+        {
+          "include": "#ExtraWhitespace"
+        },
+        {
+          "include": "#Newline"
+        }
+      ],
+      "end": "(?=(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b))|(?=(?:[^\\S\\n\\r])*(?:end)\\b)"
+    },
+    "LuauSparkleForLoop": {
+      "begin": "((?:[^\\S\\n\\r])*)(for)\\b((?:[^\\S\\n\\r])*)",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#OptionalWhitespace"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#LuauForKeyword"
+            }
+          ]
+        },
+        "3": {
+          "emit": true,
+          "patterns": [
+            {
+              "include": "#OptionalWhitespace"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#LuauForCondition"
+        },
+        {
+          "include": "#LuauComment"
+        },
+        {
+          "include": "#SparkleTrailingLineComment"
+        },
+        {
+          "include": "#LuauSparkleDoMark"
+        },
+        {
+          "include": "#LuauSparkleElseBlock"
+        },
+        {
+          "include": "#LuauSparkleControlBlock"
+        },
+        {
+          "include": "#LuauStructBodyLine"
+        },
+        {
+          "include": "#ExtraWhitespace"
+        },
+        {
+          "include": "#Newline"
+        }
+      ],
+      "end": "(?=(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b))|((?:[^\\S\\n\\r])*)(end)\\b",
+      "endCaptures": {
+        "1": {
+          "emit": true,
+          "patterns": [
+            {
+              "include": "#OptionalWhitespace"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#LuauEndKeyword"
+            }
+          ]
+        }
+      }
+    },
+    "LuauSparkleDoMark": {
+      "match": "((?:[^\\S\\n\\r])*)(do)\\b((?:[^\\S\\n\\r])*)",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#OptionalWhitespace"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#LuauDoKeyword"
+            }
+          ]
+        },
+        "3": {
+          "emit": true,
+          "patterns": [
+            {
+              "include": "#OptionalWhitespace"
+            }
+          ]
+        }
+      }
+    },
+    "LuauSparkleMatchBlock": {
+      "begin": "((?:[^\\S\\n\\r])*)(match)\\b((?:[^\\S\\n\\r])*)",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#OptionalWhitespace"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#LuauMatchKeyword"
+            }
+          ]
+        },
+        "3": {
+          "emit": true,
+          "patterns": [
+            {
+              "include": "#OptionalWhitespace"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#LuauSparkleMatchCondition"
+        },
+        {
+          "include": "#LuauComment"
+        },
+        {
+          "include": "#SparkleTrailingLineComment"
+        },
+        {
+          "include": "#LuauSparkleDoMark"
+        },
+        {
+          "include": "#LuauSparkleCaseClause"
+        },
+        {
+          "include": "#LuauSparkleElseBlock"
+        },
+        {
+          "include": "#ExtraWhitespace"
+        },
+        {
+          "include": "#Newline"
+        }
+      ],
+      "end": "(?=(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b))|((?:[^\\S\\n\\r])*)(end)\\b",
+      "endCaptures": {
+        "1": {
+          "emit": true,
+          "patterns": [
+            {
+              "include": "#OptionalWhitespace"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#LuauEndKeyword"
+            }
+          ]
+        }
+      }
+    },
+    "LuauSparkleMatchCondition": {
+      "begin": "(?<=match\\b(?:[^\\S\\n\\r])*)(?!(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b)|do\\b)",
+      "patterns": [
+        {
+          "include": "#LuauExpression"
+        },
+        {
+          "include": "#ExtraWhitespace"
+        },
+        {
+          "include": "#Newline"
+        }
+      ],
+      "end": "(?=(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b)|(?:(?:[^\\S\\n\\r])*(?:end)\\b))|(?=(?:[^\\S\\n\\r])*do\\b)"
+    },
+    "LuauSparkleCaseClause": {
+      "begin": "((?:[^\\S\\n\\r])*)(case)\\b((?:[^\\S\\n\\r])*)",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#OptionalWhitespace"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#LuauCaseKeyword"
+            }
+          ]
+        },
+        "3": {
+          "emit": true,
+          "patterns": [
+            {
+              "include": "#OptionalWhitespace"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#LuauSparkleCaseValue"
+        },
+        {
+          "include": "#LuauSparkleControlBlock"
+        },
+        {
+          "include": "#LuauStructBodyLine"
+        },
+        {
+          "include": "#ExtraWhitespace"
+        },
+        {
+          "include": "#Newline"
+        }
+      ],
+      "end": "(?=(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b))|(?=(?:[^\\S\\n\\r])*(?:case|else|end)\\b)"
+    },
+    "LuauSparkleCaseValue": {
+      "begin": "(?<=case\\b(?:[^\\S\\n\\r])*)(?!(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b)|$)",
+      "patterns": [
+        {
+          "include": "#LuauExpression"
+        },
+        {
+          "include": "#ExtraWhitespace"
+        }
+      ],
+      "end": "(?=$)"
+    },
+    "LuauLayout": {
+      "tag": "meta",
+      "name": "meta.layout.luau",
+      "begin": "((?:[^\\S\\n\\r])*)(layout)\\b((?:[^\\S\\n\\r])*)",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#OptionalWhitespace"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#LuauLayoutKeyword"
+            }
+          ]
+        },
+        "3": {
+          "emit": true,
+          "patterns": [
+            {
+              "include": "#OptionalWhitespace"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#LuauComment"
+        },
+        {
+          "include": "#LuauLayoutNameAndInheritance"
+        },
+        {
+          "include": "#LuauSparkleControlBlock"
+        },
+        {
+          "include": "#LuauStructBodyLine"
+        },
+        {
+          "include": "#ExtraWhitespace"
+        },
+        {
+          "include": "#Newline"
+        }
+      ],
+      "end": "(?=(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b))|((?:[^\\S\\n\\r])*)(end)\\b",
+      "endCaptures": {
+        "1": {
+          "emit": true,
+          "patterns": [
+            {
+              "include": "#OptionalWhitespace"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#LuauEndKeyword"
+            }
+          ]
+        }
+      }
     },
     "LuauScreen": {
       "tag": "meta",
@@ -5343,7 +8267,7 @@
           "include": "#LuauComment"
         },
         {
-          "include": "#LuauUINameAndInheritance"
+          "include": "#LuauScreenNameHeader"
         },
         {
           "include": "#LuauStructBodyLine"
@@ -5369,6 +8293,41 @@
           "patterns": [
             {
               "include": "#LuauEndKeyword"
+            }
+          ]
+        }
+      }
+    },
+    "LuauScreenNameHeader": {
+      "begin": "(?<=screen\\b(?:[^\\S\\n\\r])*)((?:[a-zA-Z_][a-zA-Z0-9_]*\\b))",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#LuauDefineName"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#ExtraWhitespace"
+        }
+      ],
+      "end": "(?=(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b))|((?:[^\\S\\n\\r])*)(with)\\b",
+      "endCaptures": {
+        "1": {
+          "emit": true,
+          "patterns": [
+            {
+              "include": "#OptionalWhitespace"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#LuauWithKeyword"
             }
           ]
         }
@@ -5407,7 +8366,10 @@
           "include": "#LuauComment"
         },
         {
-          "include": "#LuauUINameAndInheritance"
+          "include": "#LuauComponentNameAndInheritance"
+        },
+        {
+          "include": "#LuauSparkleControlBlock"
         },
         {
           "include": "#LuauStructBodyLine"
@@ -5438,8 +8400,8 @@
         }
       }
     },
-    "LuauUINameAndInheritance": {
-      "begin": "(?<=(?:screen|component)\\b(?:[^\\S\\n\\r])*)((?:[a-zA-Z_][a-zA-Z0-9_]*\\b))",
+    "LuauLayoutNameAndInheritance": {
+      "begin": "(?<=layout\\b(?:[^\\S\\n\\r])*)((?:[a-zA-Z_][a-zA-Z0-9_]*\\b))",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -5450,6 +8412,50 @@
         }
       },
       "patterns": [
+        {
+          "include": "#LuauInheritanceOperation"
+        },
+        {
+          "include": "#LuauLayoutScreenOperation"
+        },
+        {
+          "include": "#ExtraWhitespace"
+        }
+      ],
+      "end": "(?=(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b))|((?:[^\\S\\n\\r])*)(with)\\b",
+      "endCaptures": {
+        "1": {
+          "emit": true,
+          "patterns": [
+            {
+              "include": "#OptionalWhitespace"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#LuauWithKeyword"
+            }
+          ]
+        }
+      }
+    },
+    "LuauComponentNameAndInheritance": {
+      "begin": "(?<=component\\b(?:[^\\S\\n\\r])*)((?:[a-zA-Z_][a-zA-Z0-9_]*\\b))",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#LuauDefineName"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#LuauFunctionParameters"
+        },
         {
           "include": "#LuauInheritanceOperation"
         },
@@ -5471,6 +8477,48 @@
           "patterns": [
             {
               "include": "#LuauWithKeyword"
+            }
+          ]
+        }
+      }
+    },
+    "LuauLayoutScreenOperation": {
+      "match": "((?:[^\\S\\n\\r])*)(in)\\b((?:[^\\S\\n\\r])*)($|(?:[a-zA-Z_][a-zA-Z0-9_]*\\b))($|(?:[^\\S\\n\\r])*)",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#OptionalWhitespace"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#LuauInKeyword"
+            }
+          ]
+        },
+        "3": {
+          "emit": true,
+          "patterns": [
+            {
+              "include": "#OptionalWhitespace"
+            }
+          ]
+        },
+        "4": {
+          "patterns": [
+            {
+              "include": "#LuauLayoutScreenName"
+            }
+          ]
+        },
+        "5": {
+          "emit": true,
+          "patterns": [
+            {
+              "include": "#OptionalWhitespace"
             }
           ]
         }
@@ -5602,6 +8650,11 @@
         }
       }
     },
+    "LuauLayoutKeyword": {
+      "tag": "controlKeyword",
+      "name": "keyword.control.layout.luau",
+      "match": "(layout)\\b"
+    },
     "LuauScreenKeyword": {
       "tag": "controlKeyword",
       "name": "keyword.control.screen.luau",
@@ -5711,6 +8764,11 @@
       "name": "entity.name.type.define.parent.luau",
       "match": "((?:[a-zA-Z_][a-zA-Z0-9_]*\\b))"
     },
+    "LuauLayoutScreenName": {
+      "tag": "typeName",
+      "name": "entity.name.type.layout.screen.luau",
+      "match": "((?:[a-zA-Z_][a-zA-Z0-9_]*\\b))"
+    },
     "LuauFunctionDefinition": {
       "tag": "meta",
       "name": "meta.function.luau",
@@ -5811,7 +8869,7 @@
       "tag": "meta",
       "name": "meta.parameter.luau",
       "brackets": true,
-      "begin": "((?<=\\b(?:function|scene|branch|external)\\b(?:[^\\S\\n\\r])*(?:(?:[a-zA-Z_][a-zA-Z0-9_]*\\b)(?:(?:[^\\S\\n\\r])*[.:](?:[^\\S\\n\\r])*(?:[a-zA-Z_][a-zA-Z0-9_]*\\b))*)?(?:<[^<>\\n]*>)?(?:[^\\S\\n\\r])*|^(?:[^\\S\\n\\r])*(?:[a-zA-Z_][a-zA-Z0-9_]*\\b)(?:[^\\S\\n\\r])*)[(])",
+      "begin": "((?<=\\b(?:function|scene|branch|external|component)\\b(?:[^\\S\\n\\r])*(?:(?:[a-zA-Z_][a-zA-Z0-9_]*\\b)(?:(?:[^\\S\\n\\r])*[.:](?:[^\\S\\n\\r])*(?:[a-zA-Z_][a-zA-Z0-9_]*\\b))*)?(?:<[^<>\\n]*>)?(?:[^\\S\\n\\r])*|^(?:[^\\S\\n\\r])*(?:[a-zA-Z_][a-zA-Z0-9_]*\\b)(?:[^\\S\\n\\r])*)[(])",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -7879,6 +10937,16 @@
       "name": "keyword.control.for.luau",
       "match": "(for)\\b"
     },
+    "LuauMatchKeyword": {
+      "tag": "controlKeyword",
+      "name": "keyword.control.match.luau",
+      "match": "(match)\\b"
+    },
+    "LuauCaseKeyword": {
+      "tag": "controlKeyword",
+      "name": "keyword.control.case.luau",
+      "match": "(case)\\b"
+    },
     "LuauWhileKeyword": {
       "tag": "controlKeyword",
       "name": "keyword.control.while.luau",
@@ -8674,6 +11742,12 @@
           "include": "#LuauStringEscape"
         },
         {
+          "include": "#LuauDoubleQuotedFunctionCallShorthand"
+        },
+        {
+          "include": "#LuauDoubleQuotedStringInterpolation"
+        },
+        {
           "include": "#Color"
         },
         {
@@ -8831,7 +11905,10 @@
       },
       "patterns": [
         {
-          "include": "#LuauInterpolatedStringExpression"
+          "include": "#LuauBacktickFunctionCallShorthand"
+        },
+        {
+          "include": "#LuauBacktickStringInterpolation"
         },
         {
           "include": "#LuauStringEscape"
@@ -8867,7 +11944,7 @@
       "name": "meta.template.expression.luau",
       "contentName": "meta.embedded.line.luau",
       "brackets": true,
-      "begin": "([{])",
+      "begin": "([{])(?![}])",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -8898,6 +11975,235 @@
           ]
         }
       }
+    },
+    "LuauDoubleQuotedStringInterpolation": {
+      "tag": "meta",
+      "name": "meta.template.expression.luau",
+      "contentName": "meta.embedded.line.luau",
+      "brackets": true,
+      "begin": "([{])",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#PunctuationBraceOpen"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#LuauExpression"
+        },
+        {
+          "include": "#ExtraWhitespace"
+        },
+        {
+          "include": "#Newline"
+        }
+      ],
+      "end": "([}])|(?=[\"])",
+      "endCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#PunctuationBraceClose"
+            }
+          ]
+        }
+      }
+    },
+    "LuauBacktickStringInterpolation": {
+      "tag": "meta",
+      "name": "meta.template.expression.luau",
+      "contentName": "meta.embedded.line.luau",
+      "brackets": true,
+      "begin": "([{])",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#PunctuationBraceOpen"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#LuauExpression"
+        },
+        {
+          "include": "#ExtraWhitespace"
+        },
+        {
+          "include": "#Newline"
+        }
+      ],
+      "end": "([}])|(?=[`])",
+      "endCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#PunctuationBraceClose"
+            }
+          ]
+        }
+      },
+      "applyEndPatternLast": true
+    },
+    "LuauFunctionCallShorthand": {
+      "tag": "meta",
+      "name": "meta.template.expression.function-shorthand.luau",
+      "contentName": "meta.embedded.line.luau",
+      "brackets": true,
+      "begin": "([{])([{])",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#PunctuationBraceOpen"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#PunctuationBraceOpen"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#LuauExpression"
+        },
+        {
+          "include": "#ExtraWhitespace"
+        },
+        {
+          "include": "#Newline"
+        }
+      ],
+      "end": "([}])([}])?",
+      "endCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#PunctuationBraceClose"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#PunctuationBraceClose"
+            }
+          ]
+        }
+      }
+    },
+    "LuauDoubleQuotedFunctionCallShorthand": {
+      "tag": "meta",
+      "name": "meta.template.expression.function-shorthand.luau",
+      "contentName": "meta.embedded.line.luau",
+      "brackets": true,
+      "begin": "([{])([{])",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#PunctuationBraceOpen"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#PunctuationBraceOpen"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#LuauExpression"
+        },
+        {
+          "include": "#ExtraWhitespace"
+        },
+        {
+          "include": "#Newline"
+        }
+      ],
+      "end": "([}])([}])?|(?=[\"])",
+      "endCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#PunctuationBraceClose"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#PunctuationBraceClose"
+            }
+          ]
+        }
+      }
+    },
+    "LuauBacktickFunctionCallShorthand": {
+      "tag": "meta",
+      "name": "meta.template.expression.function-shorthand.luau",
+      "contentName": "meta.embedded.line.luau",
+      "brackets": true,
+      "begin": "([{])([{])",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#PunctuationBraceOpen"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#PunctuationBraceOpen"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#LuauExpression"
+        },
+        {
+          "include": "#ExtraWhitespace"
+        },
+        {
+          "include": "#Newline"
+        }
+      ],
+      "end": "([}])([}])?|(?=[`])",
+      "endCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#PunctuationBraceClose"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#PunctuationBraceClose"
+            }
+          ]
+        }
+      },
+      "applyEndPatternLast": true
     },
     "LuauStringEscape": {
       "patterns": [
@@ -9168,12 +12474,9 @@
       "patterns": [
         {
           "include": "#ExtraWhitespace"
-        },
-        {
-          "include": "#Newline"
         }
       ],
-      "end": "(?=(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b))|(?!$|(?:[^\\S\\n\\r]))"
+      "end": "(?=(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b))|(?=$|(?:[^\\S\\n\\r])|[,;)\\]}])|(?!(?:[^\\S\\n\\r]))"
     },
     "LuauArithmeticOperation": {
       "begin": "((?:[^\\S\\n\\r])*)(?=(?:\\+|-|%|\\*|\\/\\/|\\/|\\^))",
@@ -10407,6 +13710,251 @@
       "tag": "attributeName",
       "name": "storage.type.attribute.luau",
       "match": "(.+)"
+    },
+    "SparkleRichTextTag": {
+      "match": "(</?)(font-weight|line-height|uppercase|lowercase|smallcaps|allcaps|voffset|noparse|cspace|indent|color|align|alpha|nobr|mark|size|sub|sup|br|b|i|u|s)(?:(=)(\"[^\"]*\"|[^>]*))?(>)",
+      "captures": {
+        "1": {
+          "tag": "keyword",
+          "name": "punctuation.definition.tag.begin.sd"
+        },
+        "2": {
+          "tag": "keyword",
+          "name": "keyword.other.richtext.tag.sd"
+        },
+        "3": {
+          "tag": "updateOperator",
+          "name": "keyword.operator.assignment.sd"
+        },
+        "4": {
+          "tag": "string",
+          "name": "string.other.richtext.value.sd",
+          "patterns": [
+            {
+              "include": "#Color"
+            }
+          ]
+        },
+        "5": {
+          "tag": "keyword",
+          "name": "punctuation.definition.tag.end.sd"
+        }
+      }
+    },
+    "SparkleRichTextTagUnknown": {
+      "match": "(</?)([a-zA-Z][a-zA-Z0-9-]*)(?:(=)(\"[^\"]*\"|[^>]*))?(>)",
+      "captures": {
+        "1": {
+          "tag": "invalid",
+          "name": "punctuation.definition.tag.begin.sd"
+        },
+        "2": {
+          "tag": "invalid",
+          "name": "invalid.illegal.richtext.tag.sd"
+        },
+        "3": {
+          "tag": "updateOperator",
+          "name": "keyword.operator.assignment.sd"
+        },
+        "4": {
+          "tag": "string",
+          "name": "string.other.richtext.value.sd",
+          "patterns": [
+            {
+              "include": "#Color"
+            }
+          ]
+        },
+        "5": {
+          "tag": "invalid",
+          "name": "punctuation.definition.tag.end.sd"
+        }
+      }
+    },
+    "LuauRegexLiteral": {
+      "tag": "regexp",
+      "name": "string.regexp.sd",
+      "match": "(@)([/])((?:\\\\.|[^/\\\\\\r\\n])+)([/])([dgimsuvy]*)",
+      "captures": {
+        "1": {
+          "tag": "definition(string)",
+          "name": "punctuation.definition.string.begin.sd"
+        },
+        "2": {
+          "tag": "definition(string)",
+          "name": "punctuation.definition.string.begin.sd"
+        },
+        "3": {
+          "tag": "regexp",
+          "name": "string.regexp.sd",
+          "patterns": [
+            {
+              "include": "#LuauRegexCharacterClass"
+            },
+            {
+              "include": "#LuauRegexEscapedCharacterClass"
+            },
+            {
+              "include": "#LuauRegexEscape"
+            },
+            {
+              "include": "#LuauRegexAnchor"
+            },
+            {
+              "include": "#LuauRegexQuantifier"
+            },
+            {
+              "include": "#LuauRegexAlternation"
+            },
+            {
+              "include": "#LuauRegexGroupBegin"
+            },
+            {
+              "include": "#LuauRegexGroupEnd"
+            },
+            {
+              "include": "#LuauRegexText"
+            }
+          ]
+        },
+        "4": {
+          "tag": "definition(string)",
+          "name": "punctuation.definition.string.end.sd"
+        },
+        "5": {
+          "tag": "modifier",
+          "name": "keyword.other.regexp.flags.sd"
+        }
+      }
+    },
+    "LuauRegexEscape": {
+      "tag": "escape",
+      "name": "constant.character.escape.backslash.regexp.sd",
+      "match": "\\\\."
+    },
+    "LuauRegexCharacterClass": {
+      "tag": "bracket",
+      "name": "constant.other.character-class.set.regexp.sd",
+      "begin": "\\[\\^?",
+      "beginCaptures": {
+        "0": {
+          "tag": "bracket",
+          "name": "punctuation.definition.character-class.regexp.sd"
+        }
+      },
+      "patterns": [
+        {
+          "include": "#LuauRegexEscapedCharacterClass"
+        },
+        {
+          "include": "#LuauRegexEscape"
+        },
+        {
+          "include": "#LuauRegexClassDash"
+        },
+        {
+          "include": "#LuauRegexText"
+        }
+      ],
+      "end": "\\]",
+      "endCaptures": {
+        "0": {
+          "tag": "bracket",
+          "name": "punctuation.definition.character-class.regexp.sd"
+        }
+      }
+    },
+    "LuauRegexClassDash": {
+      "tag": "operator",
+      "name": "constant.other.character-class.range.regexp.sd",
+      "match": "-"
+    },
+    "LuauRegexEscapedCharacterClass": {
+      "tag": "escape",
+      "name": "constant.other.character-class.regexp.sd",
+      "match": "\\\\[dDwWsShHvVnrtfv0]|\\\\[pP]\\{[^}]*\\}|\\\\u\\{[0-9A-Fa-f]+\\}|\\\\x[0-9A-Fa-f]{2}|\\\\[0-9]+|\\."
+    },
+    "LuauRegexAnchor": {
+      "tag": "controlKeyword",
+      "name": "keyword.control.anchor.regexp.sd",
+      "match": "[\\^$]|\\\\[bBAzZG]"
+    },
+    "LuauRegexQuantifier": {
+      "tag": "operator",
+      "name": "keyword.operator.quantifier.regexp.sd",
+      "match": "[*+?]\\??|\\{[0-9]+(?:,[0-9]*)?\\}\\??"
+    },
+    "LuauRegexAlternation": {
+      "tag": "logicOperator",
+      "name": "keyword.operator.or.regexp.sd",
+      "match": "\\|"
+    },
+    "LuauRegexGroupBegin": {
+      "tag": "paren",
+      "name": "punctuation.definition.group.regexp.sd",
+      "match": "\\((?:\\?(?::|=|!|<=|<!|<[A-Za-z_][A-Za-z0-9_]*>|P<[A-Za-z_][A-Za-z0-9_]*>))?"
+    },
+    "LuauRegexGroupEnd": {
+      "tag": "paren",
+      "name": "punctuation.definition.group.regexp.sd",
+      "match": "\\)"
+    },
+    "LuauRegexText": {
+      "tag": "regexp",
+      "name": "string.regexp.sd",
+      "match": "[^\\\\\\[\\]()|*+?{}^$-]+|[\\s\\S]"
+    },
+    "LuauElementContentStringSingleQuoted": {
+      "tag": "string",
+      "name": "string.quoted.single.sd",
+      "match": "(['])((?:\\.|[^'])*)(['])",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#PunctuationStringOpen"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#PlainStringContentSingleQuoted"
+            }
+          ]
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#PunctuationStringClose"
+            }
+          ]
+        }
+      }
+    },
+    "PlainStringContentSingleQuoted": {
+      "match": "((?:\\.|[^'])*?)(?=$|')",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#StringEscape"
+            },
+            {
+              "include": "#SparkleRichTextTag"
+            },
+            {
+              "include": "#SparkleRichTextTagUnknown"
+            },
+            {
+              "include": "#Color"
+            },
+            {
+              "include": "#StringCharacter"
+            }
+          ]
+        }
+      }
     }
   }
 }

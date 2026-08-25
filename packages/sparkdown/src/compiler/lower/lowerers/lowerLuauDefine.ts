@@ -23,6 +23,7 @@ import { LowerContext, SiblingSubFlowInfo } from "../context";
 import {
   buildClosureExpression,
   lowerExpressionFromContainer,
+  processLuauEscapes,
   scanFreeVariables,
 } from "../expression/lowerExpression";
 import { lowerStatements } from "../lower";
@@ -31,7 +32,9 @@ import { stampDebugMetadata } from "../utils/debugMetadata";
 import { findOwnDeclarationName } from "../utils/findOwnDeclarationName";
 import { getFunctionBodyContent } from "../utils/getFunctionBodyContent";
 import { lowerArguments } from "../utils/lowerArguments";
+import { validateAssignmentValue } from "../utils/validateAssignmentValue";
 import { wrapInWeave } from "../utils/wrapInWeave";
+import { stripTrailingLineComment } from "../utils/stripTrailingLineComment";
 
 // `define` is sparkdown's unified OOP type/instance construct. Every
 // define — whether it has properties, methods, or both — lowers to a
@@ -92,18 +95,60 @@ interface DefineProperty {
 // out of the registry (the runtime `__def` table remains their source of
 // truth).
 function coerceScalarLiteral(raw: string): unknown {
-  const s = raw.trim();
+  // A QUOTED value is handled before any comment stripping: the quotes bound
+  // the literal, so a `--`/`//` INSIDE them is legitimate content
+  // (`name = "Chapter 1 -- The Beginning"`), and `stripTrailingLineComment`'s
+  // own contract says it must never run on quoted values. Scan to the matching
+  // close quote (escape-aware); anything after it other than whitespace or a
+  // trailing line comment means the RHS is not a simple string literal
+  // (e.g. `"a" .. "b"`), which is not a scalar.
+  //
+  // Unescape Luau string-literal escapes (\\, \", \n, \xNN, …) so the context
+  // value matches the runtime string (the StringExpression path already runs
+  // processLuauEscapes). Without this, e.g. a prosody regex `"/(?:^|\\b).../"`
+  // reaches context doubly-escaped and the engine builds an invalid RegExp.
+  const rawTrimmed = raw.trim();
+  const quote = rawTrimmed[0];
+  if ((quote === '"' || quote === "'") && !rawTrimmed.includes("\n")) {
+    let close = -1;
+    for (let i = 1; i < rawTrimmed.length; i += 1) {
+      if (rawTrimmed[i] === "\\") {
+        i += 1;
+      } else if (rawTrimmed[i] === quote) {
+        close = i;
+        break;
+      }
+    }
+    if (close === -1) return undefined;
+    const rest = rawTrimmed.slice(close + 1);
+    if (rest.trim() && stripTrailingLineComment(rest).trim()) {
+      return undefined;
+    }
+    return processLuauEscapes(rawTrimmed.slice(1, close));
+  }
+  // UNQUOTED values: a trailing line comment is part of the raw RHS text, and
+  // every test below is anchored to the whole string — so `delay = 5 -- note`
+  // failed the number test and fell through to "store it as a string". A typed
+  // field silently changed TYPE because of a comment: `5` became `"5"` and
+  // `true` became `"true"`. Both markers did it; neither warned.
+  //
+  // `stripTrailingLineComment` requires whitespace before the marker, so
+  // `var(--foo)` and hyphenated values are untouched, and `//` additionally
+  // requires a following space/EOL so a URL survives.
+  const s = stripTrailingLineComment(raw).trim();
   if (!s || s.includes("\n")) return undefined;
   if (s.startsWith("{") || s.startsWith("[")) return undefined;
-  if (s.length >= 2 && s.startsWith('"') && s.endsWith('"')) {
-    return s.slice(1, -1);
-  }
-  if (s.length >= 2 && s.startsWith("'") && s.endsWith("'")) {
-    return s.slice(1, -1);
-  }
   if (s === "true") return true;
   if (s === "false") return false;
   if (/^-?\d+(\.\d+)?$/.test(s)) return Number(s);
+  // A TYPED reference (`layer.instance`, `image.none`) is NOT a scalar string —
+  // let `expressionToContextValue` resolve it to a `{ $type, $name }` ref (the
+  // engine reads e.g. `animation.target.$name`). Without this it would be
+  // stored as the literal string "layer.instance" and `.$name` would be
+  // undefined. (Checked after the number rule so `1.5` stays a number.)
+  if (/^[A-Za-z_][A-Za-z0-9_]*\.[A-Za-z_][A-Za-z0-9_]*$/.test(s)) {
+    return undefined;
+  }
   // A bare identifier / reference / call is not a literal we can store.
   if (/[()]/.test(s)) return undefined;
   return s;
@@ -204,7 +249,7 @@ function containsStructRef(value: unknown): boolean {
 // global — nil unless some define inherits from it — and throw at init).
 // This matches the legacy colon-form, where a struct property's references
 // were always compile-time `{ $type, $name }` data, never runtime lookups.
-function contextValueToExpression(value: unknown): Expression {
+export function contextValueToExpression(value: unknown): Expression {
   if (typeof value === "boolean") {
     return new NumberExpression(value, "bool");
   }
@@ -379,6 +424,19 @@ export function lowerLuauDefine(
     structDef.identifier = nameIdentifier;
   }
 
+  // Emit the define bound to its BARE name here. Whether it ends up on the bare
+  // global or a synthetic `$<type>_<name>` key is decided later, by the
+  // whole-program `scopeDefineInstances` post-pass in SparkdownCompiler (before
+  // ExportRuntime): a typed define whose name is NEVER used as a type — not an
+  // `as`-parent, not a `new D()` target — is a LEAF INSTANCE and gets scoped so
+  // the bare name stays free for user `store`/vars (the `store show` vs builtin
+  // `animation show` clash class). That classification is a whole-PROGRAM
+  // property (`define X` and `new X()`/`as X` can live in different included
+  // files), so it can't be decided during per-document lowering — hence the
+  // post-pass. The `__def(table, "D", "T")` args and the StructDefinition (which
+  // the post-pass reads as the stable bare source, and which feeds
+  // `context.T.D` + dialogue-cue resolution) stay keyed by the bare name.
+  // See [[project_define_namespace_scoping]].
   const declaration = new VariableAssignment({
     variableIdentifier: nameIdentifier,
     assignedExpression: defineExpr,
@@ -395,22 +453,18 @@ export function lowerLuauDefine(
   // carries a StructDefinition above, but that parsed-hierarchy → engine
   // serialization path emits an EMPTY struct for OOP defines (the runtime
   // `__def` table is treated as their source of truth), so the struct
-  // never lands in `program.context` / `contextPropertyRegistry`. The
-  // engine's reference resolver (`resolveSelector`) only consults those,
-  // so e.g. a dialogue cue `RAFFLES:` can't find its character — every cue
-  // warns and no portrait renders. The structural UI lowerers
-  // (style/screen/component) hit the same wall and solve it by emitting
-  // directly through the chunk's `context` field; do the same here for the
-  // scalar (engine-relevant) properties. `resolveSelector` prefers
-  // `contextPropertyRegistry` when present, and its property/value match
-  // (cue → character by `name`) reads BOTH, so populate both. Non-scalar
-  // props are left to the runtime table (see `coerceScalarLiteral`).
+  // never lands in `program.context`. The engine's reference resolver
+  // (`resolveSelector`) only consults `program.context`, so e.g. a dialogue
+  // cue `RAFFLES:` can't find its character — every cue warns and no portrait
+  // renders. The structural UI lowerers (style/screen/component) hit the same
+  // wall and solve it by emitting directly through the chunk's `context`
+  // field; do the same here for the scalar (engine-relevant) properties.
+  // Non-scalar props are left to the runtime table (see `coerceScalarLiteral`).
   if (parentIdentifier) {
     const type = parentIdentifier.name ?? "";
     const name = nameIdentifier.name ?? "";
     if (type && name) {
       const struct: Record<string, unknown> = { $type: type, $name: name };
-      const flat: Record<string, unknown> = {};
       for (const prop of properties) {
         // A bare/dotted reference used as a SCALAR value (e.g. a
         // `filtered_image`'s `image = bunny_realization`) is a struct
@@ -440,11 +494,35 @@ export function lowerLuauDefine(
         }
         if (value !== undefined) {
           struct[prop.name] = value;
-          flat[prop.name] = value;
         }
       }
       block.context = { [type]: { [name]: struct } };
-      block.contextPropertyRegistry = { [type]: { [name]: flat } };
+    }
+  } else {
+    // A ROOT define (`define X with <props>`, no `as T`) DECLARES type X and
+    // its default property values. Emit those props as the type's `$default`
+    // entry, so the LSP / `populateDefinedDefaultProperties` see X's defaults
+    // and instances of X (`define Y as X`) inherit them in `program.context`
+    // — mirroring the runtime, where instances inherit the root table's props
+    // through `__index`. (Without this a root define's own props were dropped
+    // from context entirely.) This is also how the builtins prelude expresses
+    // each type's `$default` (`define animation with <defaults> end`).
+    const type = nameIdentifier.name ?? "";
+    if (type) {
+      const struct: Record<string, unknown> = {
+        $type: type,
+        $name: "$default",
+      };
+      for (const prop of properties) {
+        let value = coerceScalarLiteral(prop.rawValue);
+        if (value === undefined) {
+          value = expressionToContextValue(prop.expr);
+        }
+        if (value !== undefined) {
+          struct[prop.name] = value;
+        }
+      }
+      block.context = { [type]: { ["$default"]: struct } };
     }
   }
 
@@ -551,14 +629,46 @@ function readPropertyDefinition(
   propNode: SyntaxNode,
   ctx: LowerContext,
 ): DefineProperty | null {
-  const variableAssignment = getDescendent("LuauVariableAssignment", propNode);
-  if (!variableAssignment) return null;
+  // The key is either a bracket-key (`["selector"] = …`, `["$link"] = …`) or a
+  // plain identifier (`name = …`).
+  let name: string | null = null;
+  const bracketAssignment = getDescendent("LuauBracketKeyAssignment", propNode);
+  if (bracketAssignment) {
+    const indexNode = getDescendent(
+      "LuauTableIndexDeclaration",
+      bracketAssignment,
+    );
+    if (!indexNode) return null;
+    const inner = ctx
+      .read(indexNode.from, indexNode.to)
+      .replace(/^\[/, "")
+      .replace(/\]$/, "")
+      .trim();
+    // Only STRING-LITERAL keys are representable in the compile-time struct;
+    // computed keys (`[expr]`) stay runtime-only (the __def table still carries
+    // them). Unquote (and unescape) the literal.
+    if (
+      (inner.startsWith('"') && inner.endsWith('"')) ||
+      (inner.startsWith("'") && inner.endsWith("'"))
+    ) {
+      name = inner
+        .slice(1, -1)
+        .replace(/\\(["'\\])/g, "$1");
+    }
+    if (name == null) return null;
+  } else {
+    const variableAssignment = getDescendent(
+      "LuauVariableAssignment",
+      propNode,
+    );
+    if (!variableAssignment) return null;
+    const nameNode = getDescendent("LuauVariableName", variableAssignment);
+    if (!nameNode) return null;
+    name = ctx.read(nameNode.from, nameNode.to);
+  }
 
-  const nameNode = getDescendent("LuauVariableName", variableAssignment);
-  if (!nameNode) return null;
-  const name = ctx.read(nameNode.from, nameNode.to);
-
-  const opNode = getDescendent("LuauAssignmentOperation", variableAssignment);
+  const opNode = getDescendent("LuauAssignmentOperation", propNode);
+  if (opNode) validateAssignmentValue(opNode, ctx);
   const expr = opNode ? lowerExpressionFromContainer(opNode, ctx) : null;
   if (!expr) return null;
 
