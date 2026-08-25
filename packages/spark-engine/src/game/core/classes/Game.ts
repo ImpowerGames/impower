@@ -1238,7 +1238,15 @@ export class Game<T extends M = {}> {
             const step = this._plannedRoute.steps[this._plannedRouteStepCursor];
             if (step) {
               if (step.path === pointerPath) {
-                step.checkpoint = this._checkpoints.length - 1;
+                // The nearest checkpoint at or before this step. Steps reached
+                // before the first capture have none, and must stay undefined:
+                // recording -1 made `getCheckpoint` ask the store for index -1
+                // (null) instead of reporting "no checkpoint here", so a real
+                // absence was indistinguishable from a lookup failure.
+                const latestCheckpoint = this._checkpoints.length - 1;
+                if (latestCheckpoint >= 0) {
+                  step.checkpoint = latestCheckpoint;
+                }
                 this._plannedRouteStepCursor++;
               }
             }

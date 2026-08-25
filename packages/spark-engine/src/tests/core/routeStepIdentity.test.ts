@@ -158,16 +158,63 @@ end
     }
 
     // The identities the simulated route indexed are the ones the re-plan
-    // produces, so a re-plan can find the work already done. (Whether the
-    // matched step then yields a stored checkpoint is a separate, currently
-    // broken concern — steps record `checkpoint: -1` and only a handful of
-    // checkpoints exist per route. That predates this change: the same
-    // lookups miss identically with the old joined-string identity.)
+    // produces, so a re-plan can find the work already done.
     const stepMap: Record<string, number> = (game as any)._plannedRouteStepMap;
     expect(Object.keys(stepMap).length).toBe(deep!.steps.length);
     for (const step of shallow!.steps) {
       expect(stepMap[step.seq]).toBeDefined();
     }
+  });
+
+  test("a re-plan RESUMES from a checkpoint instead of re-simulating", () => {
+    // The end-to-end property identity exists to serve. If identities stopped
+    // matching across plans, everything above could still pass while every
+    // preview silently re-simulated its scene from the top — so assert the
+    // resume itself: the engine loads a checkpoint, and only once it has a
+    // simulated prefix to resume from.
+    //
+    // The scene has to be long enough for the first pass to capture
+    // checkpoints at all (they are captured per beat, so a four-beat fixture
+    // can finish with none and nothing to reuse).
+    const program = compileSrc(longScene(120));
+    const game = newGame(program);
+    const anyGame = game as any;
+
+    let loads = 0;
+    const realLoad = anyGame.load.bind(anyGame);
+    anyGame.load = (...args: unknown[]) => {
+      loads += 1;
+      return realLoad(...args);
+    };
+
+    // First preview: nothing to resume from.
+    game.patchAndSimulateRoute(planTo(game, program as any, 44)!);
+    expect(loads).toBe(0);
+    expect(anyGame._checkpoints.length).toBeGreaterThan(1);
+
+    // Second preview, deeper in the same scene: the shared prefix was already
+    // simulated, so this one resumes rather than starting over.
+    game.patchAndSimulateRoute(planTo(game, program as any, 84)!);
+    expect(loads).toBe(1);
+  });
+
+  test("steps reached before any checkpoint report no checkpoint", () => {
+    // They used to record -1, which sent `getCheckpoint` to the store for
+    // index -1 and got null back — a real absence dressed up as a lookup miss.
+    const program = compileSrc(LINEAR);
+    const game = newGame(program);
+    const route = planTo(game, program as any, 10)!;
+    game.patchAndSimulateRoute(route);
+    for (const step of route.steps) {
+      if (step.checkpoint != null) {
+        expect(step.checkpoint).toBeGreaterThanOrEqual(0);
+      }
+    }
+    // And the great majority of a simulated route does resolve to one.
+    const resolved = route.steps.filter(
+      (s, i) => game.getCheckpoint(s.seq, { path: s.path, index: i }) != null,
+    ).length;
+    expect(resolved).toBeGreaterThan(route.steps.length / 2);
   });
 });
 
