@@ -208,11 +208,11 @@ export function createHarness(
   // `autoOpenAll: false`.
   (game.module.ui as any)._autoOpenAll = opts?.autoOpenAll ?? true;
 
+  opts?.beforeConnect?.(game);
+
   // Reproduce the scrub/restore flow: load the checkpoint BEFORE connect, so the
   // subsequent connect runs onConnected (mounts `main`) then onRestore (re-mounts
   // the screens recorded in the checkpoint's serialized UI state).
-  opts?.beforeConnect?.(game);
-
   if (opts?.loadCheckpoint) {
     game.load(opts.loadCheckpoint);
   }

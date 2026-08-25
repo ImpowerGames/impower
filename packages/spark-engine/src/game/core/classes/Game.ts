@@ -1945,10 +1945,15 @@ export class Game<T extends M = {}> {
    *
    *  `preview()` runs last: the caller has to load a checkpoint and connect the
    *  game first, and `connect()` restores every module — which is where the
-   *  audio module resumes whatever the route left playing, and where the
-   *  renderer would be initialized. Both of those check
-   *  `context.system.previewing` and must see the preview answer, so the mode
-   *  has to be set before the connect, not at the end of `preview()`. */
+   *  audio module decides whether to resume whatever the route left playing. It
+   *  reads `context.system.previewing` to decide, so the mode has to be set
+   *  before the connect rather than at the end of `preview()`.
+   *
+   *  Do not call this on a game that is about to run for real: `Application`
+   *  reads the same flag to decide whether to skip building a renderer.
+   *
+   *  Without a path the flag is simply `true`. Nothing reads it as a path — the
+   *  path a preview settled on is `previewedPath`. */
   markPreviewing(previewPath?: string): void {
     this._context.system.previewing = previewPath || true;
   }
