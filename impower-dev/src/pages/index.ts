@@ -34,6 +34,13 @@ const startDevAssetMirror = () => {
   if (!import.meta.env.DEV || devAssetMirrorStarted) {
     return;
   }
+  // `?nomirror=1` opts out for a session — the mirror moves the whole project
+  // over HTTP, so it has to be possible to take it out of the picture when
+  // diagnosing something else.
+  if (new URLSearchParams(location.search).get("nomirror") === "1") {
+    console.warn("[dev-asset-mirror] disabled via ?nomirror=1");
+    return;
+  }
   devAssetMirrorStarted = true;
   import("./devAssetMirror").then(({ syncOpfsToDevAssetMirror }) => {
     syncOpfsToDevAssetMirror();
@@ -63,14 +70,24 @@ if ("serviceWorker" in navigator) {
       startDevAssetMirror();
     },
   );
-  // Belt-and-suspenders: registration can also "succeed" without the page ever
-  // being controlled. If nothing controls us a few seconds in, fall back.
+  // Belt-and-suspenders for a registration that resolves but never produces a
+  // working worker. Gate on `ready` (an ACTIVE registration for this scope),
+  // NOT on `controller`: a first load is legitimately uncontrolled until the
+  // next navigation, so testing `controller` declared every healthy browser
+  // broken on its first visit and had it mirror the whole project — hundreds
+  // of megabytes of pointless upload.
   if (import.meta.env.DEV) {
-    setTimeout(() => {
-      if (!navigator.serviceWorker.controller) {
+    Promise.race([
+      navigator.serviceWorker.ready.then(() => true),
+      new Promise((resolve) => setTimeout(() => resolve(false), 20_000)),
+    ]).then((workerIsLive) => {
+      if (!workerIsLive) {
+        console.warn(
+          "Service worker never activated — falling back to the dev asset mirror.",
+        );
         startDevAssetMirror();
       }
-    }, 5000);
+    });
   }
   // TODO: Handle service worker refresh with Approach #4 instead of Approach #2:
   // https://redfin.engineering/how-to-fix-the-refresh-button-when-using-service-workers-a8e27af6df68
