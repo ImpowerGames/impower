@@ -33,6 +33,9 @@ function recordingGame(calls: string[], state = "previewing") {
     previewedPath: undefined as string | undefined,
     updateProgram: () => calls.push("updateProgram"),
     markPreviewing: () => calls.push("markPreviewing"),
+    module: {
+      ui: { forgetDisplayedImages: () => calls.push("forgetDisplayedImages") },
+    },
     load: () => calls.push("load"),
     preview: () => {
       calls.push("preview");
@@ -80,6 +83,21 @@ describe("preview session ordering", () => {
     );
     // And `preview()` still runs last — it is what picks the point to show.
     expect(calls.indexOf("connectGame")).toBeLessThan(calls.indexOf("preview"));
+  });
+
+  test("the previous preview's images are forgotten before the connect", async () => {
+    // Restore runs inside the connect and re-applies whatever the module still
+    // believes is displayed, so the record has to be dropped before then or the
+    // last preview's backdrop comes back up behind the new point.
+    const calls: string[] = [];
+    const controller = controllerWith(recordingGame(calls), stubApp(calls));
+
+    await controller.updatePreview(PROGRAM, PROGRAM.uri, 4, "SAVE");
+
+    expect(calls).toContain("forgetDisplayedImages");
+    expect(calls.indexOf("forgetDisplayedImages")).toBeLessThan(
+      calls.indexOf("connectGame"),
+    );
   });
 
   test("a game the play path is still building is left alone", async () => {

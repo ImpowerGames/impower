@@ -135,6 +135,19 @@ export default class UIManager extends Manager {
   protected _staleIds = new Set<string>();
 
   /**
+   * The same reconcile state, for WRITTEN IMAGE CONTENT: targets showing image
+   * layers from the previous render that haven't been written again this pass.
+   *
+   * Layers are built here (see {@link writeImage}) rather than shipped as
+   * `ui/create` ops, so they carry no structural id and the sweep above cannot
+   * see them. They also outlive a beat by design — a backdrop stays up until
+   * something replaces it — so nothing else removes them either. Previewing a
+   * line therefore used to keep whatever backdrop the last preview had put up,
+   * even when the replayed route never set one.
+   */
+  protected _staleImageTargets = new Set<HTMLElement>();
+
+  /**
    * Per-reconcile-pass insertion cursor: parent → the last child we placed under
    * it this pass. The create stream re-emits a parent's children in document
    * order with `before=null` (append). Anchoring each append AFTER this cursor
@@ -157,6 +170,7 @@ export default class UIManager extends Manager {
    *  reuse-or-sweep candidate. Idempotent; safe to call before each re-render. */
   beginReconcilePass() {
     this._staleIds.clear();
+    this._staleImageTargets.clear();
     this._placeCursor.clear();
     const overlay = this.app.overlay;
     if (overlay) {
@@ -172,6 +186,12 @@ export default class UIManager extends Manager {
           this._staleIds.add(structural);
           this._elements.set(structural, el);
         }
+        // Written image content is keyed by the target node rather than by an
+        // id — a target carrying a write signature is showing layers from the
+        // previous render until this pass writes it again.
+        if ((el as any).__sdImg !== undefined) {
+          this._staleImageTargets.add(el);
+        }
       });
     }
   }
@@ -183,6 +203,25 @@ export default class UIManager extends Manager {
       this.removeElementById(id);
     }
     this._staleIds.clear();
+    for (const el of this._staleImageTargets) {
+      if (el.isConnected) {
+        this.clearImageLayers(el);
+      }
+    }
+    this._staleImageTargets.clear();
+  }
+
+  /** Drop the image layers a target is still showing, exactly as the engine's
+   *  own clear does (a `ui/write-image` carrying no instructions empties the
+   *  content elements). The write signature goes with them, so a later write of
+   *  the same image is not mistaken for one already on screen. */
+  protected clearImageLayers(el: HTMLElement) {
+    for (const tag of ["image", "mask"]) {
+      for (const contentEl of this.getContentElements(el, tag)) {
+        contentEl.replaceChildren();
+      }
+    }
+    delete (el as any).__sdImg;
   }
 
   /** Remove every DOM listener tracked for `id` (used on destroy/sweep, and
@@ -902,6 +941,14 @@ export default class UIManager extends Manager {
     instructions: WriteImageInstruction[],
   ) {
     const targetEls = this.findTargetElements(target);
+    // This target has been written this pass, so the sweep must leave its layers
+    // alone. Marked BEFORE the dedup below: re-writing the image already on
+    // screen is the commonest case on a re-render (restore replays it), and
+    // taking the early return without marking would let the sweep clear the very
+    // layers that were just confirmed correct.
+    for (const el of targetEls) {
+      this._staleImageTargets.delete(el);
+    }
     // Reconcile dedup: if every target already shows exactly this write, its
     // layers — and their already-DECODED <img>s — are correct, so skip the
     // rebuild + crossfade. This is what stops a live-preview edit from
