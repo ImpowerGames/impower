@@ -73,9 +73,11 @@ import { DiagnosticSeverity, SparkDiagnostic } from "../types/SparkDiagnostic";
 import { SparkdownCompilerConfig } from "../types/SparkdownCompilerConfig";
 import { SparkdownCompilerState } from "../types/SparkdownCompilerState";
 import { SparkProgram } from "../types/SparkProgram";
+import { SparkSelector } from "../types/SparkSelector";
 import { setBuiltinTypeNames } from "../utils/builtinTypeNames";
 import { cloneBuiltinStructs } from "../utils/cloneBuiltinStructs";
 import { collectDefineTypeNames } from "../utils/collectDefineTypeNames";
+import { collectLayerNames } from "../utils/collectLayerNames";
 import { scopeDefineInstances } from "../utils/scopeDefineInstances";
 import { formatList } from "../utils/formatList";
 import { getExpectedSelectorTypes } from "../utils/getExpectedSelectorTypes";
@@ -4180,6 +4182,30 @@ export class SparkdownCompiler {
     // so there is no staleness surface.
     const stringIdentifiersByDeclaration = new Map<string, string[]>();
     const selectorTypesByDeclaration = new Map<string, string[]>();
+    // A `[[show/hide/animate <layer> …]]` target names an ELEMENT in the
+    // mounted UI tree, which the engine looks up by name with
+    // `UIModule.findElements` — it is not a `define`d struct, so selector
+    // resolution can never find one. Validate those names against the elements
+    // the layouts actually declare instead. Built lazily because a script with
+    // no such command never needs it.
+    let layerNames: Set<string> | undefined;
+    const namesLayoutElement = (selector: SparkSelector | undefined) => {
+      if (selector?.displayType !== "layer" || !selector.name) {
+        return false;
+      }
+      // A target may end in `#n` to pick one instance out of several. The
+      // engine reads that as an index and matches nothing at all unless it is a
+      // non-negative integer, so anything else has to stay a diagnostic.
+      const [name, instance, ...rest] = selector.name.split("#");
+      if (
+        rest.length > 0 ||
+        (instance !== undefined && !/^\d+$/.test(instance))
+      ) {
+        return false;
+      }
+      layerNames ??= collectLayerNames(program);
+      return Boolean(name) && layerNames.has(name!);
+    };
     const possibleStringIdentifiersFor = (declaration: string | undefined) => {
       const key = declaration ?? "";
       let cached = stringIdentifiersByDeclaration.get(key);
@@ -4365,6 +4391,8 @@ export class SparkdownCompiler {
                   source: LANGUAGE_NAME,
                 });
               }
+            } else if (namesLayoutElement(selector)) {
+              // Valid layer: an element declared in the UI tree
             } else {
               // Report missing error
               const validDescription =

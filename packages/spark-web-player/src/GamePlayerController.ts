@@ -1426,10 +1426,15 @@ export class GamePlayerController {
       ? previewPath
       : this._game?.previewPath;
 
+    // Skip only a repeat of a preview that actually ran. A UI-only project
+    // resolves no path at all, so both sides of the comparison are undefined
+    // there — matching on that would treat "we have never previewed anything"
+    // as "already done" and skip the reconnect that re-evaluates its bindings.
     if (
       this._game &&
       this._game.state === "previewing" &&
-      this._game.context.system.previewing === validPreviewPath &&
+      validPreviewPath != null &&
+      this._game.previewedPath === validPreviewPath &&
       !programChanged
     ) {
       return;
@@ -1454,6 +1459,21 @@ export class GamePlayerController {
     if (!this._game) {
       console.error("No game to preview");
       return;
+    }
+
+    // Everything below — the checkpoint load, and the connect that restores
+    // every module — happens before `game.preview()` picks the preview point,
+    // and the audio module decides whether to resume the route's music during
+    // that restore. Tell the game it is previewing first, or a preview click
+    // starts playing the scene's music as if PLAY had been pressed.
+    //
+    // Only ever the preview game. `startGameAndApp` publishes its game (state
+    // `initial`) and awaits `buildApp` before calling `start()`, so a compile
+    // landing in that window arrives here holding the game PLAY is about to
+    // run — and `Application.init` skips the renderer for anything flagged as
+    // previewing, which would leave that run with nothing to draw on.
+    if (this._game.state === "previewing") {
+      this._game.markPreviewing(validPreviewPath);
     }
 
     if (checkpoint) {

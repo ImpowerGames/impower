@@ -71,10 +71,13 @@ describe("reactive dependency tracking survives story-state replacement", () => 
     const h = createHarness(SOURCE);
     await h.ready;
     h.preview();
-    expect((h.game as any).context.system.previewing).toBeTruthy();
+    expect((h.game as any).previewedPath).toBeTruthy();
     const { program } = compileUI(SOURCE);
     (h.game as any).updateProgram(program);
-    expect((h.game as any).context.system.previewing).toBeUndefined();
+    expect((h.game as any).previewedPath).toBeUndefined();
+    // The MODE outlives the recompile — modules restored on the next connect
+    // must still be able to tell a preview from a real run.
+    expect((h.game as any).context.system.previewing).toBeTruthy();
   });
 
   test("Story.ResetState itself carries the tracking mode (the choke point)", async () => {
