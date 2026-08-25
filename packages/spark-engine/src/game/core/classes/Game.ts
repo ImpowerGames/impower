@@ -168,6 +168,15 @@ export class Game<T extends M = {}> {
     return this._previewPath;
   }
 
+  /** The path `preview()` last ran to completion, so asking for it again is a
+   *  no-op. Kept apart from `context.system.previewing` — that one answers "is
+   *  this a preview rather than a real run", which callers must be able to
+   *  establish BEFORE a preview point has been chosen (see `markPreviewing`). */
+  protected _previewedPath?: string;
+  get previewedPath() {
+    return this._previewedPath;
+  }
+
   protected _simulatePath?: string | null;
   get simulatePath() {
     return this._simulatePath;
@@ -418,7 +427,7 @@ export class Game<T extends M = {}> {
       // miss, so it re-runs the new story and re-emits the beat's content;
       // without this the reconcile pass sweeps the un-re-emitted elements and
       // the preview goes blank until the cursor moves to a different beat.
-      this._context.system.previewing = undefined;
+      this._previewedPath = undefined;
     }
     return this._program;
   }
@@ -940,6 +949,7 @@ export class Game<T extends M = {}> {
     }
     this.notifyStarted();
     this._context.system.previewing = undefined;
+    this._previewedPath = undefined;
     this._context.system.simulating = undefined;
     for (const k of this._moduleNames) {
       this._modules[k]?.onStart();
@@ -1931,6 +1941,18 @@ export class Game<T extends M = {}> {
     this._context.system.debugging = true;
   }
 
+  /** Declare that what follows is a preview rather than a real run.
+   *
+   *  `preview()` runs last: the caller has to load a checkpoint and connect the
+   *  game first, and `connect()` restores every module — which is where the
+   *  audio module resumes whatever the route left playing, and where the
+   *  renderer would be initialized. Both of those check
+   *  `context.system.previewing` and must see the preview answer, so the mode
+   *  has to be set before the connect, not at the end of `preview()`. */
+  markPreviewing(previewPath?: string): void {
+    this._context.system.previewing = previewPath || true;
+  }
+
   preview(file: string, line: number): string | null {
     if (this._state === "running") {
       // Don't preview while running
@@ -1953,7 +1975,7 @@ export class Game<T extends M = {}> {
       this.module.ui.reveal();
       return null;
     }
-    if (this._context.system.previewing === previewPath) {
+    if (this._previewedPath === previewPath) {
       return previewPath;
     }
     this._previewFrom = { file, line };
@@ -1964,6 +1986,7 @@ export class Game<T extends M = {}> {
       this._simulation = "fail";
     }
     this._context.system.previewing = previewPath;
+    this._previewedPath = previewPath;
     this._context.system.simulating = undefined;
     if (this._simulation === "success") {
       this.continue(true);

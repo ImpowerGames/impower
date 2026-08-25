@@ -1429,7 +1429,7 @@ export class GamePlayerController {
     if (
       this._game &&
       this._game.state === "previewing" &&
-      this._game.context.system.previewing === validPreviewPath &&
+      this._game.previewedPath === validPreviewPath &&
       !programChanged
     ) {
       return;
@@ -1455,6 +1455,13 @@ export class GamePlayerController {
       console.error("No game to preview");
       return;
     }
+
+    // Everything below — the checkpoint load, and the connect that restores
+    // every module — happens before `game.preview()` picks the preview point,
+    // and the audio module decides whether to resume the route's music during
+    // that restore. Tell the game it is previewing first, or a preview click
+    // starts playing the scene's music as if PLAY had been pressed.
+    this._game.markPreviewing(validPreviewPath);
 
     if (checkpoint) {
       this._game.load(checkpoint);

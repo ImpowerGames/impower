@@ -156,6 +156,13 @@ export function createHarness(
      *  onConnected + onRestore). Lets a test verify that restore re-mounts the
      *  reactive screens recorded in the checkpoint. */
     loadCheckpoint?: string;
+    /** Run against the freshly-constructed game BEFORE the checkpoint load and
+     *  the connect. That window is where the editor declares a preview
+     *  (`markPreviewing`), so it is the only place a test can reproduce what
+     *  the modules see during `onRestore`. Note the harness always constructs
+     *  with `previewFrom`, so a game is in preview mode from birth unless this
+     *  hook clears it. */
+    beforeConnect?: (game: Game) => void;
     /** Skip the eager connect — yields an UNCONNECTED game (`ready` resolves
      *  immediately, onConnected never runs so `_reactive` stays false). Mirrors
      *  the workspace.worker route-simulation game that builds scrub checkpoints
@@ -204,6 +211,8 @@ export function createHarness(
   // Reproduce the scrub/restore flow: load the checkpoint BEFORE connect, so the
   // subsequent connect runs onConnected (mounts `main`) then onRestore (re-mounts
   // the screens recorded in the checkpoint's serialized UI state).
+  opts?.beforeConnect?.(game);
+
   if (opts?.loadCheckpoint) {
     game.load(opts.loadCheckpoint);
   }
