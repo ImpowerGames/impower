@@ -4186,17 +4186,25 @@ export class SparkdownCompiler {
     // mounted UI tree, which the engine looks up by name with
     // `UIModule.findElements` — it is not a `define`d struct, so selector
     // resolution can never find one. Validate those names against the elements
-    // the layout/screen/component structs actually declare instead. Built
-    // lazily because a script with no such command never needs it.
+    // the layouts actually declare instead. Built lazily because a script with
+    // no such command never needs it.
     let layerNames: Set<string> | undefined;
     const namesLayoutElement = (selector: SparkSelector | undefined) => {
       if (selector?.displayType !== "layer" || !selector.name) {
         return false;
       }
+      // A target may end in `#n` to pick one instance out of several. The
+      // engine reads that as an index and matches nothing at all unless it is a
+      // non-negative integer, so anything else has to stay a diagnostic.
+      const [name, instance, ...rest] = selector.name.split("#");
+      if (
+        rest.length > 0 ||
+        (instance !== undefined && !/^\d+$/.test(instance))
+      ) {
+        return false;
+      }
       layerNames ??= collectLayerNames(program);
-      // `findElements` splits a target on `#` to pick one instance out of
-      // several ("portrait#1"), so only the part before it is a name.
-      return layerNames.has(selector.name.split("#")[0]!);
+      return Boolean(name) && layerNames.has(name!);
     };
     const possibleStringIdentifiersFor = (declaration: string | undefined) => {
       const key = declaration ?? "";

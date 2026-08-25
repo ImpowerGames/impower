@@ -68,8 +68,59 @@ describe("layer reference validity", () => {
     expect(missingLayers(program)).toEqual([]);
   });
 
+  it("accepts either token of a classed element", () => {
+    // `mask shadow_1` mounts as one element named "mask shadow_1", and the
+    // engine keeps a child when every token of the target is among the child's
+    // tokens — so both halves reach it, and a command target can only ever BE
+    // one token, since the grammar captures it as a single run of non-spaces.
+    const program = compile(
+      [
+        "layout main with",
+        "  stage:",
+        "    portrait:",
+        "      mask shadow_1",
+        "end",
+        "",
+        scene("  [[hide shadow_1]]\n  [[hide mask]]"),
+      ].join("\n"),
+    );
+    expect(missingLayers(program)).toEqual([]);
+  });
+
+  it("accepts an element whose value is content rather than children", () => {
+    // `text "plain"` lowers to a scalar-valued key. The scalar is the element's
+    // CONTENT — the element is mounted either way.
+    const program = compile(
+      [
+        "layout main with",
+        "  column:",
+        '    text h1 "Sparkle x Pico"',
+        '    label "plain"',
+        "end",
+        "",
+        scene("  [[animate text with shake]]\n  [[animate label with shake]]"),
+      ].join("\n"),
+    );
+    expect(missingLayers(program)).toEqual([]);
+  });
+
+  it("accepts a builtin element declared with an index", () => {
+    // `layout main` declares `choice 0` … `choice 5`; `[[show choice]]` matches
+    // all six at runtime.
+    const program = compile(scene("  [[show choice]]"));
+    expect(missingLayers(program)).toEqual([]);
+  });
+
   it("still reports a name no layout declares", () => {
     const program = compile(scene("  [[show backdropp BG]]"));
     expect(missingLayers(program)).toEqual(["backdropp"]);
+  });
+
+  it("still reports an instance suffix that is not an index", () => {
+    // The engine reads what follows `#` as an index into the matches and finds
+    // nothing at all unless it is a non-negative integer, so a non-numeric
+    // suffix is a command that silently does nothing.
+    const program = compile(scene("  [[show portrait#abc BG]]"));
+    expect(missingLayers(program)).toEqual(["portrait#abc"]);
   });
 });
