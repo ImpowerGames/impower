@@ -3,6 +3,8 @@ import { Game } from "@impower/spark-engine/src/game/core/classes/Game";
 import { installGameWorker } from "@impower/spark-engine/src/worker/installGameWorker";
 import { installSparkdownWorker } from "@impower/sparkdown/src/worker/installSparkdownWorker";
 import { profile } from "../../utils/profile";
+import { programIdentity } from "../../utils/programIdentity";
+import { RouteSearchLog } from "./RouteSearchLog";
 
 const connection = new Port2MessageConnection((message: any, transfer) =>
   self.postMessage(message, { transfer }),
@@ -32,7 +34,62 @@ compilerState.compiler.configure({
   experimentalDisplayCalls: true,
 });
 
+// The record of what the last route search established, and the rule for when
+// that is safe to reuse. See RouteSearchLog for why neither a checkpoint's
+// existence nor the checkpoint store's newest entry is evidence on its own.
+const routeSearches = new RouteSearchLog();
+
+/** Plan a route to `toPath` and replay it, recording what the search
+ *  established. Returns the checkpoint it produced, if any. */
+const searchRouteTo = (game: Game, toPath: string) => {
+  const profilerId = compilerState.compiler.profilerId;
+  profile("start", profilerId + " " + "game/planRoute");
+  const fromPath = Game.getSimulateFromPath(toPath);
+  const newRoute = Game.planRoute(
+    game.story,
+    game.program,
+    fromPath,
+    toPath,
+    compilerState.compiler.config.simulationOptions,
+  );
+  profile("end", profilerId + " " + "game/planRoute");
+  const programId = programIdentity(game.program);
+  if (!newRoute) {
+    // No route to this start point exists at all — a definite answer, and the
+    // one most worth passing on: a client that repeats this search pays the
+    // same (unbounded until the work ceiling) cost to reach the same verdict.
+    routeSearches.record({ path: toPath, programId, reachedTarget: false });
+    return undefined;
+  }
+  profile("start", profilerId + " " + "game/simulateRoute");
+  const checkpoint = game.patchAndSimulateRoute(newRoute);
+  profile("end", profilerId + " " + "game/simulateRoute");
+  routeSearches.record({
+    path: toPath,
+    programId,
+    reachedTarget: game.simulation === "success",
+    checkpoint: checkpoint ?? undefined,
+  });
+  if (checkpoint) {
+    // Cache favored conditions and choices
+    const conditions = game.runtimeState.conditionsEncountered;
+    const choices = game.runtimeState.choicesEncountered;
+    const favoredConditions = conditions.map((c) => c.selected);
+    const favoredChoices = choices.map((c) => c.selected);
+    compilerState.compiler.config.simulationOptions ??= {};
+    compilerState.compiler.config.simulationOptions[newRoute.fromPath] = {
+      favoredConditions,
+      favoredChoices,
+    };
+  }
+  return checkpoint ?? undefined;
+};
+
 compilerState.compiler.addEventListener("compiler/didCompile", (params) => {
+  // Whatever the last search established was established against the OLD
+  // program and the story it was compiled from. Neither survives this compile,
+  // so nothing from before it may be reported for the new one.
+  routeSearches.forget();
   // Create or update game
   if (!gameState.game) {
     profile("start", compilerState.compiler.profilerId + " " + "game/create");
@@ -69,49 +126,12 @@ compilerState.compiler.addEventListener("compiler/didCompile", (params) => {
       "end",
       compilerState.compiler.profilerId + " " + "game/setStartFrom",
     );
-    if (gameState.game.startPath) {
-      profile(
-        "start",
-        compilerState.compiler.profilerId + " " + "game/planRoute",
-      );
-      const toPath = gameState.game.startPath;
-      const fromPath = Game.getSimulateFromPath(toPath);
-      const newRoute = Game.planRoute(
-        gameState.game.story,
-        gameState.game.program,
-        fromPath,
-        toPath,
-        compilerState.compiler.config.simulationOptions,
-      );
-      profile(
-        "end",
-        compilerState.compiler.profilerId + " " + "game/planRoute",
-      );
-      if (newRoute) {
-        profile(
-          "start",
-          compilerState.compiler.profilerId + " " + "game/simulateRoute",
-        );
-        const checkpoint = gameState.game.patchAndSimulateRoute(newRoute);
-        profile(
-          "end",
-          compilerState.compiler.profilerId + " " + "game/simulateRoute",
-        );
-        if (checkpoint) {
-          // Augment with simulated checkpoint
-          params.checkpoint = checkpoint;
-          // Cache favored conditions and choices
-          const conditions = gameState.game.runtimeState.conditionsEncountered;
-          const choices = gameState.game.runtimeState.choicesEncountered;
-          const favoredConditions = conditions.map((c) => c.selected);
-          const favoredChoices = choices.map((c) => c.selected);
-          compilerState.compiler.config.simulationOptions ??= {};
-          compilerState.compiler.config.simulationOptions[newRoute.fromPath] = {
-            favoredConditions,
-            favoredChoices,
-          };
-        }
-      }
+    const toPath = gameState.game.startPath;
+    if (toPath) {
+      searchRouteTo(gameState.game, toPath);
+      // Augment with the simulated checkpoint, and with what the search
+      // established about this start point.
+      routeSearches.report(params, toPath);
     }
   }
 });
@@ -145,58 +165,21 @@ compilerState.compiler.addEventListener("compiler/didSelect", (params) => {
         "end",
         compilerState.compiler.profilerId + " " + "game/setStartFrom",
       );
-      if (gameState.game.startPath) {
-        profile(
-          "start",
-          compilerState.compiler.profilerId + " " + "game/planRoute",
-        );
-        const toPath = gameState.game.startPath;
-        const fromPath = Game.getSimulateFromPath(toPath);
-        const newRoute = Game.planRoute(
-          gameState.game.story,
-          gameState.game.program,
-          fromPath,
-          toPath,
-          compilerState.compiler.config.simulationOptions,
-        );
-        profile(
-          "end",
-          compilerState.compiler.profilerId + " " + "game/planRoute",
-        );
-        if (newRoute) {
-          profile(
-            "start",
-            compilerState.compiler.profilerId + " " + "game/simulateRoute",
-          );
-          const checkpoint = gameState.game.patchAndSimulateRoute(newRoute);
-          profile(
-            "end",
-            compilerState.compiler.profilerId + " " + "game/simulateRoute",
-          );
-          if (checkpoint) {
-            // Augment with simulated checkpoint
-            params.checkpoint = checkpoint;
-            // Cache favored conditions and choices
-            const conditions =
-              gameState.game.runtimeState.conditionsEncountered;
-            const choices = gameState.game.runtimeState.choicesEncountered;
-            const favoredConditions = conditions.map((c) => c.selected);
-            const favoredChoices = choices.map((c) => c.selected);
-            compilerState.compiler.config.simulationOptions ??= {};
-            compilerState.compiler.config.simulationOptions[newRoute.fromPath] =
-              {
-                favoredConditions,
-                favoredChoices,
-              };
-          }
-        }
+      const toPath = gameState.game.startPath;
+      if (toPath) {
+        searchRouteTo(gameState.game, toPath);
+        // Augment with the simulated checkpoint, and with what the search
+        // established about this start point.
+        routeSearches.report(params, toPath);
       }
     } else {
-      // Augment with last simulated checkpoint
-      const lastCheckpoint = gameState.game.checkpoints.at(-1);
-      if (lastCheckpoint) {
-        params.checkpoint = lastCheckpoint;
-      }
+      // The start point did not move (the editor re-selects on every cursor
+      // change, including one that only moves the column), so the search
+      // already run for it still describes this selection — but only if it was
+      // run for THIS path. Nothing else here may be reused: the newest
+      // checkpoint in the store belongs to the last route that was replayed,
+      // which is a different line whenever the search since then found no route.
+      routeSearches.report(params, gameState.game.startPath);
     }
   }
 });

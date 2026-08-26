@@ -30,6 +30,38 @@ export interface CompiledProgramParams {
    */
   checkpoint?: string;
   /**
+   * The story path a route search reached a DEFINITE answer about, so that a
+   * client resolving the same path from the same program can reuse that answer
+   * instead of repeating the search. This matters because the search is
+   * expensive enough to freeze a page that runs it inline.
+   *
+   * Present with a `checkpoint`: the route was found and replayed all the way
+   * to this path, and the checkpoint is the story state there.
+   *
+   * Present with no `checkpoint`: no route to this path exists. Repeating the
+   * search costs the same and reaches the same verdict.
+   *
+   * Absent: nothing definite is known — no search was attempted, or a route was
+   * found but replaying it did not reach the path. A client must run its own
+   * search (which terminates in the second case, because a route exists), and
+   * must not read anything into a `checkpoint` that arrives without this field.
+   */
+  simulatedPath?: string | null;
+  /**
+   * Identity of the program the route search ran against, sent with — and only
+   * with — `simulatedPath`. A client must confirm it is holding the same program
+   * before reusing the answer: a story path string survives edits that change
+   * what the story does at it, so the path alone cannot say whether the two
+   * sides are talking about the same script.
+   *
+   * Built from the program's uri and its per-script document versions, NOT from
+   * `program.version` — that field means different things on the two sides of
+   * the worker boundary (the compiler stamps a document version; the workspace
+   * overwrites it with its own per-project counter), so comparing it would
+   * disagree on identical programs and agree on different ones.
+   */
+  simulatedProgramId?: string;
+  /**
    * Per-file diagnostic counts. Populated (and `program.diagnostics` omitted)
    * when the workspace is initialized with `slimProgramNotifications`.
    */

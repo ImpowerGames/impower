@@ -57,6 +57,7 @@ import { SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram
 import { SparkdownWorkspace } from "@impower/sparkdown/src/workspace/classes/SparkdownWorkspace";
 import { Application } from "./app/Application";
 import { conflate } from "./utils/conflate";
+import { programIdentity } from "./utils/programIdentity";
 import { profile } from "./utils/profile";
 
 const COMMON_ASPECT_RATIOS = [
@@ -124,6 +125,17 @@ export class GamePlayerController {
   _debugging = false;
   _program?: SparkProgram;
   _checkpoint?: string;
+  // The story path the compiler worker planned and replayed a route TO when it
+  // produced `_checkpoint`. Set whether or not that search succeeded, so PLAY
+  // can tell "the worker already searched for this exact start point" from "no
+  // search has been attempted" — see `simulate`.
+  _simulatedPath?: string | null;
+  // Identity of the program that search ran against. The path alone does not
+  // establish that the worker and this controller are talking about the same
+  // script — a path string survives edits that change what the story does at
+  // it — and a compile landing while a play is being set up can leave the two
+  // an edit apart.
+  _simulatedProgramId?: string;
 
   _options?: {
     workspace?: string;
@@ -667,8 +679,14 @@ export class GamePlayerController {
   protected handleSelectedCompilerDocument = async (
     message: SelectedCompilerDocumentMessage.Notification,
   ) => {
-    const { textDocument, selectedRange, checkpoint, userEvent } =
-      message.params;
+    const {
+      textDocument,
+      selectedRange,
+      checkpoint,
+      simulatedPath,
+      simulatedProgramId,
+      userEvent,
+    } = message.params;
     if (userEvent) {
       const startFrom = {
         file: textDocument.uri,
@@ -677,6 +695,8 @@ export class GamePlayerController {
       this._options ??= {};
       this._options.startFrom = startFrom;
       this._checkpoint = checkpoint;
+      this._simulatedPath = simulatedPath;
+      this._simulatedProgramId = simulatedProgramId;
       if (this._program && this._game?.state !== "running") {
         if (startFrom.file in this._program.scripts) {
           await this.updatePreview(
@@ -706,8 +726,9 @@ export class GamePlayerController {
   protected handleCompiledProgram = async (
     message: CompiledProgramMessage.Notification,
   ) => {
-    const { program, checkpoint } = message.params;
-    await this.loadProgram(program, checkpoint);
+    const { program, checkpoint, simulatedPath, simulatedProgramId } =
+      message.params;
+    await this.loadProgram(program, checkpoint, simulatedPath, simulatedProgramId);
   };
 
   protected handleResizeGame = async (message: ResizeGameMessage.Request) => {
@@ -1011,7 +1032,12 @@ export class GamePlayerController {
   };
 
   loadProgram = conflate(
-    async (program: SparkProgram, checkpoint: string | undefined) => {
+    async (
+      program: SparkProgram,
+      checkpoint: string | undefined,
+      simulatedPath?: string | null,
+      simulatedProgramId?: string,
+    ) => {
       if (!hasCompiledProgram(program)) {
         console.error("Program not compiled", program);
         return;
@@ -1019,6 +1045,8 @@ export class GamePlayerController {
       const isInitialProgram = !this._program;
       this._program = program;
       this._checkpoint = checkpoint;
+      this._simulatedPath = simulatedPath;
+      this._simulatedProgramId = simulatedProgramId;
       if (this._game?.state === "running") {
         // Stop and restart game if we loaded a new game while the old game
         // was running. (GameReloaded is sent when the restart actually
@@ -1059,7 +1087,11 @@ export class GamePlayerController {
     this._options ??= {};
     this._options.previewFrom = undefined;
     this._game = await this.buildGame(this._program, restarted);
-    this.simulate(this._game, this._options?.simulationOptions);
+    this.simulate(this._game, this._options?.simulationOptions, {
+      checkpoint: this._checkpoint,
+      path: this._simulatedPath,
+      programId: this._simulatedProgramId,
+    });
     this.listen(this._game);
     this._app = await this.buildApp(this._game);
     const programCompiled = hasCompiledProgram(this._program);
@@ -1232,6 +1264,22 @@ export class GamePlayerController {
     return this._app;
   }
 
+  // Put the game at the start point PLAY was asked to begin from.
+  //
+  // Reaching that point means replaying the story to it, and finding a replay
+  // that gets there is a search that can run for many seconds on a story it
+  // never reaches. This method runs on the thread that paints the player, so a
+  // search here is a frozen page for as long as it lasts (#385).
+  //
+  // The compiler worker already runs that identical search — on every compile
+  // and every cursor move — and reports the paths it reached a DEFINITE answer
+  // about (`path`): either the story state at that path (`checkpoint`), or,
+  // with no checkpoint, that no route to it exists. When that answer is about
+  // the same start point this run begins from, AND about the same program this
+  // run is built from, there is nothing left to look for. Anything less
+  // definite is reported as no answer at all, and then the search does run
+  // here — safely, because the only case that reaches this is one where a route
+  // was already found to exist.
   simulate(
     game: Game,
     simulationOptions:
@@ -1243,9 +1291,56 @@ export class GamePlayerController {
           }
         >
       | undefined,
+    workerRoute?: {
+      checkpoint?: string;
+      path?: string | null;
+      programId?: string;
+    },
   ) {
     profile("start", "game/simulate");
-    game.simulate(simulationOptions);
+    const { checkpoint, path: simulatedPath, programId } = workerRoute ?? {};
+    const startPath = game.startPath;
+    // Both halves are required. The path says WHERE the answer is about; the
+    // program identity says WHAT SCRIPT it is about, which the path cannot —
+    // the same path string survives an edit that changes what the story does
+    // at it, and a compile landing while this play is being set up leaves the
+    // worker an edit ahead of the program this game was built from. A mismatch
+    // is not an error: it means the answer does not apply, so the search runs
+    // here, which is exactly what PLAY did before any of this.
+    const answersThisRun =
+      startPath != null &&
+      simulatedPath === startPath &&
+      programId != null &&
+      programId === programIdentity(game.program);
+    if (answersThisRun) {
+      if (checkpoint) {
+        // The worker found the route and replayed it; its checkpoint IS the
+        // state that replay ends in, and loading it marks the simulation
+        // successful — exactly what a local search would have left behind.
+        //
+        // If the checkpoint will not load (a truncated or malformed save), the
+        // search is worth running here after all: the worker reaching the start
+        // point proves a route exists, so this search finds one and ends —
+        // there is no runaway to freeze on.
+        if (!game.load(checkpoint)) {
+          game.simulate(simulationOptions);
+        }
+      } else {
+        // No route to this start point exists. Searching again here would
+        // freeze the page only to reach the same verdict, so record the
+        // failure the way a local search would and let `start` fall back to
+        // jumping straight to the start point. Mirrors `updatePreview`'s
+        // no-checkpoint branch, so the toolbar reports an unreachable start
+        // point the same way whether it was reached by PLAY or by preview.
+        game.simulatePath = Game.getSimulateFromPath(startPath);
+        game.simulation = "fail";
+      }
+    } else {
+      // No worker answer applies to this run — nothing was ever selected, the
+      // worker resolved a different path, or it answered against a different
+      // version of the script — so this is the only search there is.
+      game.simulate(simulationOptions);
+    }
     profile("end", "game/simulate");
   }
 
