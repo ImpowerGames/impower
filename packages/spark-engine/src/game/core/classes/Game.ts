@@ -1145,9 +1145,6 @@ export class Game<T extends M = {}> {
   }
 
   load(saveJSON: string) {
-    if (this._story.canContinue && !this._story.asyncContinueComplete) {
-      this._story.Continue();
-    }
     try {
       const saveData: SaveData =
         typeof saveJSON === "string" ? JSON.parse(saveJSON) : saveJSON;
@@ -1158,6 +1155,15 @@ export class Game<T extends M = {}> {
         }
       }
       if (saveData.story) {
+        // Only once the save has been read and is known to carry a story:
+        // letting go of the open line is not reversible, so doing it before
+        // the parse would leave a save that turns out to be unreadable — or
+        // one written by a failed serialization, which stores an empty story —
+        // with the current line torn in half and no replacement for it. The
+        // next continue would then resume from the middle of that line,
+        // dropping the text and the routing tag that decide how the beat is
+        // displayed.
+        this.discardOpenStoryLine();
         this._story.state.LoadJson(saveData.story);
         this.restoreReactiveTracking();
       }
@@ -1206,11 +1212,35 @@ export class Game<T extends M = {}> {
    *  `Module.reset` clears `_state` and calls `onReset`, which for the ui module
    *  drops the mounted-layout map and the `_events` handler registry. */
   protected rewindStory() {
-    if (this._story.canContinue && !this._story.asyncContinueComplete) {
-      this._story.Continue();
-    }
+    // End any line the story is part-way through, rather than running it to
+    // its end. See `discardOpenStoryLine`.
+    this.discardOpenStoryLine();
     this._story.ResetState();
     this.restoreReactiveTracking();
+  }
+
+  /** Let go of a story line that is stopped part-way through, so the story
+   *  state can be replaced.
+   *
+   *  The runtime refuses to reset, reload or jump while a line is still open,
+   *  so `rewindStory`, `jumpToPath` and `load` each had to deal with that
+   *  first, and each did it by finishing the line with a bare `Continue()`.
+   *
+   *  Finishing it was never the point — all three replace the story state on
+   *  the very next line, so whatever that work produced was thrown away — and
+   *  it carried a real cost: `Continue()` advances the story until the line
+   *  ends, and a story sitting in a loop that never completes a line never
+   *  ends, so the call ran forever with no error raised and nothing to stop it
+   *  (#386). The path that made that reachable is the preview's own recovery:
+   *  it runs precisely when execution was stopped part-way through a loop for
+   *  running out of budget, so the recovery re-entered the loop that had just
+   *  been declared a runaway, this time with nothing counting the work.
+   *
+   *  Ending the line instead of finishing it removes both problems at once:
+   *  the story is left replaceable, no work is done, and there is no ceiling
+   *  to get wrong. */
+  protected discardOpenStoryLine() {
+    this._story.CancelAsyncContinue();
   }
 
   /** Re-assert reactive dependency tracking after ANY story-state
@@ -1519,9 +1549,7 @@ export class Game<T extends M = {}> {
   }
 
   jumpToPath(path: string) {
-    if (this._story.canContinue && !this._story.asyncContinueComplete) {
-      this._story.Continue();
-    }
+    this.discardOpenStoryLine();
     this._story.ResetState();
     this._story.ChoosePathString(path);
   }
