@@ -1119,6 +1119,41 @@ export class Story extends InkObject {
     this.ContinueInternal(millisecsLimitAsync);
   }
 
+  /** Close an in-progress `ContinueAsync` WITHOUT advancing the story, for a
+   *  caller that is about to replace the story state outright.
+   *
+   *  `ResetState`, `ChoosePathString` and the rest refuse to run while a line
+   *  is still part-way through (`IfAsyncWeCant`), and until now the only way
+   *  past that was a plain `Continue()` — which finishes the line by running
+   *  it. That work is wasted whenever the caller is about to discard the state
+   *  anyway, and worse, it cannot be declined: a story sitting in a loop that
+   *  never completes a line runs forever, with no error raised and nothing to
+   *  stop it (#386).
+   *
+   *  So this ends the continue instead of finishing it. Everything below is
+   *  the wrap-up `ContinueInternal` performs when a line is over, minus the
+   *  advancing: the look-ahead snapshot is rolled back rather than left
+   *  dangling — it lives on the story, not the state, so a caller replacing
+   *  the state would not clear it, and the next continue could restore a story
+   *  state that had already been thrown away — and the open batch of variable
+   *  observations is closed out. The batch's changes are deliberately not
+   *  announced to observers, since the caller is about to discard them. */
+  public CancelAsyncContinue() {
+    if (!this._asyncContinueActive) {
+      return;
+    }
+
+    if (this._stateSnapshotAtLastNewline !== null) {
+      this.RestoreStateSnapshot();
+    }
+
+    this._state.didSafeExit = false;
+    this._sawLookaheadUnsafeFunctionAfterNewline = false;
+    this._state.variablesState.CompleteVariableObservation();
+
+    this._asyncContinueActive = false;
+  }
+
   public ContinueInternal(millisecsLimitAsync = 0) {
     if (this._profiler != null) this._profiler.PreContinue();
 
