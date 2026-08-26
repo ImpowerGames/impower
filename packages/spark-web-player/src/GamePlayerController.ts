@@ -124,6 +124,11 @@ export class GamePlayerController {
   _debugging = false;
   _program?: SparkProgram;
   _checkpoint?: string;
+  // The story path the compiler worker planned and replayed a route TO when it
+  // produced `_checkpoint`. Set whether or not that search succeeded, so PLAY
+  // can tell "the worker already searched for this exact start point" from "no
+  // search has been attempted" — see `simulate`.
+  _simulatedPath?: string | null;
 
   _options?: {
     workspace?: string;
@@ -667,7 +672,7 @@ export class GamePlayerController {
   protected handleSelectedCompilerDocument = async (
     message: SelectedCompilerDocumentMessage.Notification,
   ) => {
-    const { textDocument, selectedRange, checkpoint, userEvent } =
+    const { textDocument, selectedRange, checkpoint, simulatedPath, userEvent } =
       message.params;
     if (userEvent) {
       const startFrom = {
@@ -677,6 +682,7 @@ export class GamePlayerController {
       this._options ??= {};
       this._options.startFrom = startFrom;
       this._checkpoint = checkpoint;
+      this._simulatedPath = simulatedPath;
       if (this._program && this._game?.state !== "running") {
         if (startFrom.file in this._program.scripts) {
           await this.updatePreview(
@@ -706,8 +712,8 @@ export class GamePlayerController {
   protected handleCompiledProgram = async (
     message: CompiledProgramMessage.Notification,
   ) => {
-    const { program, checkpoint } = message.params;
-    await this.loadProgram(program, checkpoint);
+    const { program, checkpoint, simulatedPath } = message.params;
+    await this.loadProgram(program, checkpoint, simulatedPath);
   };
 
   protected handleResizeGame = async (message: ResizeGameMessage.Request) => {
@@ -1011,7 +1017,11 @@ export class GamePlayerController {
   };
 
   loadProgram = conflate(
-    async (program: SparkProgram, checkpoint: string | undefined) => {
+    async (
+      program: SparkProgram,
+      checkpoint: string | undefined,
+      simulatedPath?: string | null,
+    ) => {
       if (!hasCompiledProgram(program)) {
         console.error("Program not compiled", program);
         return;
@@ -1019,6 +1029,7 @@ export class GamePlayerController {
       const isInitialProgram = !this._program;
       this._program = program;
       this._checkpoint = checkpoint;
+      this._simulatedPath = simulatedPath;
       if (this._game?.state === "running") {
         // Stop and restart game if we loaded a new game while the old game
         // was running. (GameReloaded is sent when the restart actually
@@ -1059,7 +1070,12 @@ export class GamePlayerController {
     this._options ??= {};
     this._options.previewFrom = undefined;
     this._game = await this.buildGame(this._program, restarted);
-    this.simulate(this._game, this._options?.simulationOptions);
+    this.simulate(
+      this._game,
+      this._options?.simulationOptions,
+      this._checkpoint,
+      this._simulatedPath,
+    );
     this.listen(this._game);
     this._app = await this.buildApp(this._game);
     const programCompiled = hasCompiledProgram(this._program);
@@ -1232,6 +1248,19 @@ export class GamePlayerController {
     return this._app;
   }
 
+  // Put the game at the start point PLAY was asked to begin from.
+  //
+  // Reaching that point means replaying the story to it, and finding a replay
+  // that gets there is a search that can run for many seconds on a story it
+  // never reaches. This method runs on the thread that paints the player, so a
+  // search here is a frozen page for as long as it lasts (#385).
+  //
+  // The compiler worker already runs that identical search — on every compile
+  // and every cursor move — and reports both what it searched for
+  // (`simulatedPath`) and what it found (`checkpoint`, the story state at the
+  // destination). When it searched for the same start point this run begins
+  // from, there is nothing left to look for: load its result, or record its
+  // failure, and never repeat the search here.
   simulate(
     game: Game,
     simulationOptions:
@@ -1243,9 +1272,40 @@ export class GamePlayerController {
           }
         >
       | undefined,
+    checkpoint?: string,
+    simulatedPath?: string | null,
   ) {
     profile("start", "game/simulate");
-    game.simulate(simulationOptions);
+    const startPath = game.startPath;
+    if (startPath != null && simulatedPath === startPath) {
+      if (checkpoint) {
+        // The worker found the route and replayed it; its checkpoint IS the
+        // state that replay ends in, and loading it marks the simulation
+        // successful — exactly what a local search would have left behind.
+        //
+        // If the checkpoint will not load (a truncated or malformed save), the
+        // search is worth running here after all: the worker reaching the start
+        // point proves a route exists, so this search finds one and ends —
+        // there is no runaway to freeze on.
+        if (!game.load(checkpoint)) {
+          game.simulate(simulationOptions);
+        }
+      } else {
+        // The worker could not reach this start point. Searching again here
+        // would freeze the page only to fail the same way, so record the
+        // failure the way a local search would and let `start` fall back to
+        // jumping straight to the start point. Mirrors `updatePreview`'s
+        // no-checkpoint branch, so the toolbar reports an unreachable start
+        // point the same way whether it was reached by PLAY or by preview.
+        game.simulatePath = Game.getSimulateFromPath(startPath);
+        game.simulation = "fail";
+      }
+    } else {
+      // No worker result describes this start point (nothing was ever
+      // selected, or the worker resolved a different path), so this is the
+      // only search there is.
+      game.simulate(simulationOptions);
+    }
     profile("end", "game/simulate");
   }
 

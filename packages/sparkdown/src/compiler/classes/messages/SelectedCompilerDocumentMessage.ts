@@ -11,6 +11,17 @@ export interface SelectedCompilerDocumentParams {
   docChanged: boolean;
   userEvent?: boolean;
   checkpoint?: string;
+  /**
+   * The story path a route was planned and simulated TO for this selection.
+   *
+   * Set whenever the search was attempted, whether or not it succeeded, so a
+   * client can tell the two outcomes apart: `checkpoint` present means the
+   * route was found and replayed, `checkpoint` absent means the search ran and
+   * failed. Left undefined when no search was attempted at all.
+   *
+   * Mirrors the field of the same name on `CompiledProgramParams`.
+   */
+  simulatedPath?: string | null;
 }
 
 export class SelectedCompilerDocumentMessage {

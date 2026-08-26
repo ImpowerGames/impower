@@ -75,6 +75,11 @@ compilerState.compiler.addEventListener("compiler/didCompile", (params) => {
         compilerState.compiler.profilerId + " " + "game/planRoute",
       );
       const toPath = gameState.game.startPath;
+      // Publish the target BEFORE the search runs, so the outcome is legible to
+      // the client either way: this path plus a checkpoint means the route was
+      // found, this path with no checkpoint means the search ran and failed.
+      // The player uses that to decide it has nothing left to search for.
+      params.simulatedPath = toPath;
       const fromPath = Game.getSimulateFromPath(toPath);
       const newRoute = Game.planRoute(
         gameState.game.story,
@@ -151,6 +156,8 @@ compilerState.compiler.addEventListener("compiler/didSelect", (params) => {
           compilerState.compiler.profilerId + " " + "game/planRoute",
         );
         const toPath = gameState.game.startPath;
+        // Published before the search runs — see the didCompile handler above.
+        params.simulatedPath = toPath;
         const fromPath = Game.getSimulateFromPath(toPath);
         const newRoute = Game.planRoute(
           gameState.game.story,
@@ -192,7 +199,11 @@ compilerState.compiler.addEventListener("compiler/didSelect", (params) => {
         }
       }
     } else {
-      // Augment with last simulated checkpoint
+      // Augment with last simulated checkpoint. The start point did not move,
+      // so the search already run for it still describes this selection —
+      // report the same target path, with or without a checkpoint to show for
+      // it, so the client is not left thinking nothing was ever attempted.
+      params.simulatedPath = gameState.game.startPath;
       const lastCheckpoint = gameState.game.checkpoints.at(-1);
       if (lastCheckpoint) {
         params.checkpoint = lastCheckpoint;
