@@ -20,6 +20,9 @@
 export interface RouteSearchOutcome {
   /** The story path the search was for. */
   path: string;
+  /** Identity of the program the search ran against, so a client can confirm it
+   *  is holding the same one before reusing the result. See `programIdentity`. */
+  programId?: string;
   /** Did the replay actually reach that path? */
   reachedTarget: boolean;
   /** The newest checkpoint the replay produced, if it produced one. Present
@@ -32,6 +35,7 @@ export interface RouteSearchOutcome {
 export interface RouteSearchReportTarget {
   checkpoint?: string;
   simulatedPath?: string | null;
+  simulatedProgramId?: string;
 }
 
 export class RouteSearchLog {
@@ -63,7 +67,12 @@ export class RouteSearchLog {
    *  no route to it exists. A route that was found but whose replay fell short
    *  is neither, and saying nothing there leaves the client to run its own
    *  search — which is safe, because a route existing means that search
-   *  terminates rather than running to the work ceiling. */
+   *  terminates rather than running to the work ceiling.
+   *
+   *  The program identity travels with it, always as a pair. A client is meant
+   *  to reuse the answer only while holding the same program, and it cannot tell
+   *  that from the path alone — a path string survives edits that change what
+   *  the story does at it. */
   report(
     params: RouteSearchReportTarget,
     startPath: string | null | undefined,
@@ -77,6 +86,7 @@ export class RouteSearchLog {
     }
     if (last.reachedTarget || !last.checkpoint) {
       params.simulatedPath = last.path;
+      params.simulatedProgramId = last.programId;
     }
   }
 }

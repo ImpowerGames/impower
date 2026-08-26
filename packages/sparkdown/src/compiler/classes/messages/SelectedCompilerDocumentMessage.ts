@@ -22,6 +22,13 @@ export interface SelectedCompilerDocumentParams {
    * reasoning is spelled out.
    */
   simulatedPath?: string | null;
+  /**
+   * Identity of the program the route search ran against, sent with — and only
+   * with — `simulatedPath`, and required to match before the answer is reused.
+   * Mirrors the field of the same name on `CompiledProgramParams`, where the
+   * reasoning is spelled out.
+   */
+  simulatedProgramId?: string;
 }
 
 export class SelectedCompilerDocumentMessage {

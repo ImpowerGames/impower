@@ -14,6 +14,7 @@
 
 import { describe, expect, test } from "vitest";
 import { GamePlayerController } from "../GamePlayerController";
+import { programIdentity } from "../utils/programIdentity";
 
 const PROGRAM = {
   uri: "file://proj/main.sd",
@@ -51,7 +52,8 @@ function recordingGame(startPath: string | null) {
     startPath,
     simulatePath: undefined as string | null | undefined,
     simulation: undefined as string | undefined,
-    program: { uri: PROGRAM.uri, version: PROGRAM.version },
+    // `programIdentity` reads these; `version` is deliberately not part of it.
+    program: { uri: PROGRAM.uri, scripts: PROGRAM.scripts, version: 99 },
     simulate: () => {
       calls.push("simulate");
     },
@@ -79,11 +81,19 @@ function recordingGame(startPath: string | null) {
   return game;
 }
 
+/** The identity the worker reports when it searched against the same program
+ *  the player is holding. */
+const MATCHING_PROGRAM_ID = programIdentity(PROGRAM);
+
 /** A controller wired to the recording game, with the two heavy build steps
  *  (the real Game and the pixi Application) stubbed out. */
 function playControllerWith(
   game: any,
-  worker: { checkpoint?: string; simulatedPath?: string | null },
+  worker: {
+    checkpoint?: string;
+    simulatedPath?: string | null;
+    simulatedProgramId?: string;
+  },
 ) {
   const controller: any = new GamePlayerController(
     document.createElement("div"),
@@ -92,6 +102,10 @@ function playControllerWith(
   controller._program = PROGRAM;
   controller._checkpoint = worker.checkpoint;
   controller._simulatedPath = worker.simulatedPath;
+  controller._simulatedProgramId =
+    "simulatedProgramId" in worker
+      ? worker.simulatedProgramId
+      : MATCHING_PROGRAM_ID;
   controller.buildGame = async () => game;
   controller.buildApp = async () => ({
     start: () => game.calls.push("app-start"),
@@ -177,6 +191,46 @@ describe("pressing play reuses the compiler worker's route search", () => {
     expect(game.calls).toContain("simulate");
   });
 
+  test("an answer about a different version of the script is not used", async () => {
+    // Pressing PLAY between a cursor move and the compile behind it can leave
+    // the worker an edit ahead of the program this game was built from. The
+    // path would still match — a path string survives an edit — so the program
+    // identity is what catches it. Falling back to searching here is the old
+    // behaviour: slower, but it cannot start the game in the wrong place.
+    const game = recordingGame("main.3");
+    const controller = playControllerWith(game, {
+      simulatedPath: "main.3",
+      checkpoint: SIMULATED_SAVE,
+      simulatedProgramId: programIdentity({
+        uri: PROGRAM.uri,
+        scripts: { [PROGRAM.uri]: 4 },
+      }),
+    });
+
+    await controller.startGameAndApp();
+
+    expect(game.calls.some((c: string) => c.startsWith("load:"))).toBe(false);
+    expect(game.calls).toContain("simulate");
+  });
+
+  test("an answer with no program identity at all is not used", async () => {
+    // The identity is required, not optional: without it there is no way to
+    // know the answer is about this script, so the safe reading is that it is
+    // not. Failing this way costs a search; failing the other way starts the
+    // game somewhere the user did not ask for.
+    const game = recordingGame("main.3");
+    const controller = playControllerWith(game, {
+      simulatedPath: "main.3",
+      checkpoint: SIMULATED_SAVE,
+      simulatedProgramId: undefined,
+    });
+
+    await controller.startGameAndApp();
+
+    expect(game.calls.some((c: string) => c.startsWith("load:"))).toBe(false);
+    expect(game.calls).toContain("simulate");
+  });
+
   test("with no worker answer at all, the play path still searches", async () => {
     // A host that never simulates routes off the main thread must keep
     // working; the fallback is the old behaviour, unchanged.
@@ -184,6 +238,7 @@ describe("pressing play reuses the compiler worker's route search", () => {
     const controller = playControllerWith(game, {
       simulatedPath: undefined,
       checkpoint: undefined,
+      simulatedProgramId: undefined,
     });
 
     await controller.startGameAndApp();
@@ -202,6 +257,7 @@ describe("pressing play reuses the compiler worker's route search", () => {
     const controller = playControllerWith(game, {
       simulatedPath: undefined,
       checkpoint: undefined,
+      simulatedProgramId: undefined,
     });
 
     await controller.startGameAndApp();

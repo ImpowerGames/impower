@@ -3,6 +3,7 @@ import { Game } from "@impower/spark-engine/src/game/core/classes/Game";
 import { installGameWorker } from "@impower/spark-engine/src/worker/installGameWorker";
 import { installSparkdownWorker } from "@impower/sparkdown/src/worker/installSparkdownWorker";
 import { profile } from "../../utils/profile";
+import { programIdentity } from "../../utils/programIdentity";
 import { RouteSearchLog } from "./RouteSearchLog";
 
 const connection = new Port2MessageConnection((message: any, transfer) =>
@@ -52,11 +53,12 @@ const searchRouteTo = (game: Game, toPath: string) => {
     compilerState.compiler.config.simulationOptions,
   );
   profile("end", profilerId + " " + "game/planRoute");
+  const programId = programIdentity(game.program);
   if (!newRoute) {
     // No route to this start point exists at all — a definite answer, and the
     // one most worth passing on: a client that repeats this search pays the
     // same (unbounded until the work ceiling) cost to reach the same verdict.
-    routeSearches.record({ path: toPath, reachedTarget: false });
+    routeSearches.record({ path: toPath, programId, reachedTarget: false });
     return undefined;
   }
   profile("start", profilerId + " " + "game/simulateRoute");
@@ -64,6 +66,7 @@ const searchRouteTo = (game: Game, toPath: string) => {
   profile("end", profilerId + " " + "game/simulateRoute");
   routeSearches.record({
     path: toPath,
+    programId,
     reachedTarget: game.simulation === "success",
     checkpoint: checkpoint ?? undefined,
   });

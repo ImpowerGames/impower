@@ -48,6 +48,20 @@ export interface CompiledProgramParams {
    */
   simulatedPath?: string | null;
   /**
+   * Identity of the program the route search ran against, sent with — and only
+   * with — `simulatedPath`. A client must confirm it is holding the same program
+   * before reusing the answer: a story path string survives edits that change
+   * what the story does at it, so the path alone cannot say whether the two
+   * sides are talking about the same script.
+   *
+   * Built from the program's uri and its per-script document versions, NOT from
+   * `program.version` — that field means different things on the two sides of
+   * the worker boundary (the compiler stamps a document version; the workspace
+   * overwrites it with its own per-project counter), so comparing it would
+   * disagree on identical programs and agree on different ones.
+   */
+  simulatedProgramId?: string;
+  /**
    * Per-file diagnostic counts. Populated (and `program.diagnostics` omitted)
    * when the workspace is initialized with `slimProgramNotifications`.
    */

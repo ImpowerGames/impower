@@ -22,28 +22,68 @@ describe("reporting what a route search established", () => {
     const log = new RouteSearchLog();
     log.record({
       path: "main.3",
+      programId: "PROGRAM_V7",
       reachedTarget: true,
       checkpoint: "STATE_AT_MAIN_3",
     });
 
-    const params: { checkpoint?: string; simulatedPath?: string | null } = {};
+    const params: {
+      checkpoint?: string;
+      simulatedPath?: string | null;
+      simulatedProgramId?: string;
+    } = {};
     log.report(params, "main.3");
 
     expect(params.checkpoint).toBe("STATE_AT_MAIN_3");
     expect(params.simulatedPath).toBe("main.3");
+    // The identity travels with the path, always as a pair — a client is meant
+    // to reuse the answer only while holding the same program.
+    expect(params.simulatedProgramId).toBe("PROGRAM_V7");
+  });
+
+  test("the program identity never travels without the path", () => {
+    // A replay that fell short names no path, so it must name no program
+    // either: an identity on its own would let a client match on the program
+    // and read the checkpoint as an answer about wherever it happens to be.
+    const log = new RouteSearchLog();
+    log.record({
+      path: "main.3",
+      programId: "PROGRAM_V7",
+      reachedTarget: false,
+      checkpoint: "STATE_PARTWAY_ALONG",
+    });
+
+    const params: {
+      checkpoint?: string;
+      simulatedPath?: string | null;
+      simulatedProgramId?: string;
+    } = {};
+    log.report(params, "main.3");
+
+    expect(params.simulatedPath).toBeUndefined();
+    expect(params.simulatedProgramId).toBeUndefined();
   });
 
   test("no route at all reports the path with no state, which is a real answer", () => {
     // This is the case the whole change exists for: repeating this search costs
     // the same and reaches the same verdict, so the client is told not to.
     const log = new RouteSearchLog();
-    log.record({ path: "main.3", reachedTarget: false });
+    log.record({
+      path: "main.3",
+      programId: "PROGRAM_V7",
+      reachedTarget: false,
+    });
 
-    const params: { checkpoint?: string; simulatedPath?: string | null } = {};
+    const params: {
+      checkpoint?: string;
+      simulatedPath?: string | null;
+      simulatedProgramId?: string;
+    } = {};
     log.report(params, "main.3");
 
     expect(params.checkpoint).toBeUndefined();
     expect(params.simulatedPath).toBe("main.3");
+    expect(params.simulatedProgramId).toBe("PROGRAM_V7");
   });
 
   test("a replay that fell short passes on its state but claims nothing", () => {
