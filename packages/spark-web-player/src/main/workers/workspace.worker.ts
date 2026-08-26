@@ -1,6 +1,7 @@
 import { Port2MessageConnection } from "@impower/jsonrpc/src/browser/classes/Port2MessageConnection";
 import { Game } from "@impower/spark-engine/src/game/core/classes/Game";
 import { installGameWorker } from "@impower/spark-engine/src/worker/installGameWorker";
+import { SimulationFailure } from "@impower/sparkdown/src/compiler/types/SimulationFailure";
 import { installSparkdownWorker } from "@impower/sparkdown/src/worker/installSparkdownWorker";
 import { profile } from "../../utils/profile";
 
@@ -31,6 +32,85 @@ compilerState.compiler.configure({
   seedBuiltinsIntoStory: true,
   experimentalDisplayCalls: true,
 });
+
+/**
+ * The verdict on the most recent attempt to simulate a preview route.
+ *
+ * A selection that does not move the cursor reuses the last checkpoint rather
+ * than searching again, so when there is no checkpoint to reuse the only honest
+ * answer is the one the last real attempt reached. Kept here rather than read
+ * back off the game, because the game only ever learns about the failures it
+ * caused itself — a route that could not be PLANNED never reaches it.
+ */
+let lastSimulationFailure: SimulationFailure | undefined;
+
+/**
+ * Plan a route to wherever the game's start path currently points, replay it,
+ * and hand the caller's message either the checkpoint that came out or the
+ * reason none did.
+ *
+ * The player shows its status row as failed whenever it is handed no
+ * checkpoint, and until now that was all it could say. Reporting the reason
+ * from here is what lets it explain itself: this is where the attempt is made,
+ * and by the time the player notices the absence, every distinguishing detail
+ * is gone.
+ */
+const simulatePreviewRoute = (
+  game: Game,
+  params: { checkpoint?: string; simulationFailure?: SimulationFailure },
+) => {
+  const record = (failure: SimulationFailure | undefined) => {
+    lastSimulationFailure = failure;
+    params.simulationFailure = failure;
+  };
+  if (!game.startPath) {
+    // The line the author is previewing from is not part of the story flow, so
+    // there is no route to look for.
+    record("unroutable");
+    return;
+  }
+  profile("start", compilerState.compiler.profilerId + " " + "game/planRoute");
+  const toPath = game.startPath;
+  const fromPath = Game.getSimulateFromPath(toPath);
+  const newRoute = Game.planRoute(
+    game.story,
+    game.program,
+    fromPath,
+    toPath,
+    compilerState.compiler.config.simulationOptions,
+  );
+  profile("end", compilerState.compiler.profilerId + " " + "game/planRoute");
+  if (!newRoute) {
+    // Asked immediately after the search that failed: the planner's account of
+    // how it ended is what decides between "gave up" and "no way there".
+    record(Game.describeFailedRouteSearch(game.program, toPath));
+    return;
+  }
+  profile(
+    "start",
+    compilerState.compiler.profilerId + " " + "game/simulateRoute",
+  );
+  const checkpoint = game.patchAndSimulateRoute(newRoute);
+  profile("end", compilerState.compiler.profilerId + " " + "game/simulateRoute");
+  if (!checkpoint) {
+    // A route existed but replaying it produced nothing to restore from.
+    record(game.simulationFailure ?? "diverged");
+    return;
+  }
+  // Augment with simulated checkpoint
+  params.checkpoint = checkpoint;
+  record(undefined);
+  // Cache favored conditions and choices
+  const conditions = game.runtimeState.conditionsEncountered;
+  const choices = game.runtimeState.choicesEncountered;
+  const favoredConditions = conditions.map((c) => c.selected);
+  const favoredChoices = choices.map((c) => c.selected);
+  compilerState.compiler.config.simulationOptions ??= {};
+  compilerState.compiler.config.simulationOptions[newRoute.fromPath] = {
+    favoredConditions,
+    favoredChoices,
+  };
+};
 
 compilerState.compiler.addEventListener("compiler/didCompile", (params) => {
   // Create or update game
@@ -69,50 +149,7 @@ compilerState.compiler.addEventListener("compiler/didCompile", (params) => {
       "end",
       compilerState.compiler.profilerId + " " + "game/setStartFrom",
     );
-    if (gameState.game.startPath) {
-      profile(
-        "start",
-        compilerState.compiler.profilerId + " " + "game/planRoute",
-      );
-      const toPath = gameState.game.startPath;
-      const fromPath = Game.getSimulateFromPath(toPath);
-      const newRoute = Game.planRoute(
-        gameState.game.story,
-        gameState.game.program,
-        fromPath,
-        toPath,
-        compilerState.compiler.config.simulationOptions,
-      );
-      profile(
-        "end",
-        compilerState.compiler.profilerId + " " + "game/planRoute",
-      );
-      if (newRoute) {
-        profile(
-          "start",
-          compilerState.compiler.profilerId + " " + "game/simulateRoute",
-        );
-        const checkpoint = gameState.game.patchAndSimulateRoute(newRoute);
-        profile(
-          "end",
-          compilerState.compiler.profilerId + " " + "game/simulateRoute",
-        );
-        if (checkpoint) {
-          // Augment with simulated checkpoint
-          params.checkpoint = checkpoint;
-          // Cache favored conditions and choices
-          const conditions = gameState.game.runtimeState.conditionsEncountered;
-          const choices = gameState.game.runtimeState.choicesEncountered;
-          const favoredConditions = conditions.map((c) => c.selected);
-          const favoredChoices = choices.map((c) => c.selected);
-          compilerState.compiler.config.simulationOptions ??= {};
-          compilerState.compiler.config.simulationOptions[newRoute.fromPath] = {
-            favoredConditions,
-            favoredChoices,
-          };
-        }
-      }
-    }
+    simulatePreviewRoute(gameState.game, params);
   }
 });
 
@@ -145,57 +182,16 @@ compilerState.compiler.addEventListener("compiler/didSelect", (params) => {
         "end",
         compilerState.compiler.profilerId + " " + "game/setStartFrom",
       );
-      if (gameState.game.startPath) {
-        profile(
-          "start",
-          compilerState.compiler.profilerId + " " + "game/planRoute",
-        );
-        const toPath = gameState.game.startPath;
-        const fromPath = Game.getSimulateFromPath(toPath);
-        const newRoute = Game.planRoute(
-          gameState.game.story,
-          gameState.game.program,
-          fromPath,
-          toPath,
-          compilerState.compiler.config.simulationOptions,
-        );
-        profile(
-          "end",
-          compilerState.compiler.profilerId + " " + "game/planRoute",
-        );
-        if (newRoute) {
-          profile(
-            "start",
-            compilerState.compiler.profilerId + " " + "game/simulateRoute",
-          );
-          const checkpoint = gameState.game.patchAndSimulateRoute(newRoute);
-          profile(
-            "end",
-            compilerState.compiler.profilerId + " " + "game/simulateRoute",
-          );
-          if (checkpoint) {
-            // Augment with simulated checkpoint
-            params.checkpoint = checkpoint;
-            // Cache favored conditions and choices
-            const conditions =
-              gameState.game.runtimeState.conditionsEncountered;
-            const choices = gameState.game.runtimeState.choicesEncountered;
-            const favoredConditions = conditions.map((c) => c.selected);
-            const favoredChoices = choices.map((c) => c.selected);
-            compilerState.compiler.config.simulationOptions ??= {};
-            compilerState.compiler.config.simulationOptions[newRoute.fromPath] =
-              {
-                favoredConditions,
-                favoredChoices,
-              };
-          }
-        }
-      }
+      simulatePreviewRoute(gameState.game, params);
     } else {
       // Augment with last simulated checkpoint
       const lastCheckpoint = gameState.game.checkpoints.at(-1);
       if (lastCheckpoint) {
         params.checkpoint = lastCheckpoint;
+      } else {
+        // The cursor has not moved, so no fresh search ran and the verdict from
+        // the last one that did still stands.
+        params.simulationFailure = lastSimulationFailure;
       }
     }
   }

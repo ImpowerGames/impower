@@ -1,6 +1,7 @@
 import { MessageProtocolNotificationType } from "@impower/jsonrpc/src/common/classes/MessageProtocolNotificationType";
 import { NotificationMessage } from "@impower/jsonrpc/src/common/types/NotificationMessage";
 import { type SparkProgram } from "../../types/SparkProgram";
+import { SimulationFailure } from "../../types/SimulationFailure";
 import { VersionedTextDocumentIdentifier } from "../../types/VersionedTextDocumentIdentifier";
 
 export type CompiledProgramMethod = typeof CompiledProgramMessage.method;
@@ -29,6 +30,12 @@ export interface CompiledProgramParams {
    * The simulated checkpoint for the new program.
    */
   checkpoint?: string;
+  /**
+   * Why no checkpoint could be simulated, when there is none. Set instead of
+   * `checkpoint`, never alongside it — the player shows the row as failed
+   * whenever it is handed no checkpoint, and this is what lets it say why.
+   */
+  simulationFailure?: SimulationFailure;
   /**
    * Per-file diagnostic counts. Populated (and `program.diagnostics` omitted)
    * when the workspace is initialized with `slimProgramNotifications`.

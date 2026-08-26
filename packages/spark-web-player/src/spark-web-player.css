@@ -638,6 +638,20 @@ spark-web-player #location-items.error {
   color: var(--swp-error-color);
 }
 
+/* The row carries a `title` explaining why the preview could not be simulated,
+   and a browser only shows a tooltip for an element the pointer can actually
+   hit. #left-items turns pointer events off for the whole group so the toolbar
+   can be dragged by its labels; turn them back on for this row alone, and only
+   while it is in its failed state, so the tooltip is reachable.
+
+   Dragging still works: the resize listeners live on #toolbar and these events
+   bubble up to it. Fullscreen is excluded on purpose — there the toolbar is a
+   transparent overlay lying across the game, and any part of it that takes
+   pointer events stops taking them for the game underneath. */
+spark-web-player #viewport:not(.fullscreen) #location-items.error {
+  pointer-events: auto;
+}
+
 spark-web-player #toolbar.snapping #size-label,
 spark-web-player #toolbar.snapping #aspect-ratio-label {
   color: var(--swp-accent-color);
