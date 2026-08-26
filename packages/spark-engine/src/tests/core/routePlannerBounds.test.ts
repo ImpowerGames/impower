@@ -244,7 +244,12 @@ end
       newGame(program).story,
       "start",
       "start.NO_SUCH_PATH",
-      { stayWithinKnot: true, maxSteps: 5_000, maxNodes: 500 },
+      {
+        stayWithinKnot: true,
+        maxSteps: 5_000,
+        maxNodes: 500,
+        searchTimeout: Number.MAX_SAFE_INTEGER,
+      },
     );
     expect(route).toBeNull();
     // A ceiling is what ended it. Without this the test would pass just as
@@ -294,14 +299,19 @@ end
       stayWithinKnot: true,
       maxSteps: 400_000,
       maxNodes: 10_000,
+      // These assertions are about work done, so the wall-clock backstop must
+      // not be able to reach the finish line first on a slow machine.
+      searchTimeout: Number.MAX_SAFE_INTEGER,
     });
     return { ...lastSearchStats };
   };
 
   test("a decision inside a loop stops early instead of running to the ceiling", () => {
     const withBranch = searchForMissingTarget(BRANCH_IN_LOOP);
-    // The story loops forever, so the only way this search can end without
-    // being cut off is by recognising a fork site it has already expanded.
+    // The skip is what ended it, asserted directly rather than inferred from
+    // the search finishing early: a fixture that had quietly stopped looping
+    // would also finish early, and would satisfy every other assertion here.
+    expect(withBranch.forkSitesSkipped).toBeGreaterThan(0);
     expect(withBranch.exhaustedBudget).toBe(false);
     expect(withBranch.stepsUsed).toBeLessThan(100_000);
   }, 300_000);
@@ -310,6 +320,7 @@ end
     // The control. Without it, the test above would pass just as well if the
     // fixture had quietly stopped looping.
     const plain = searchForMissingTarget(PLAIN_LOOP);
+    expect(plain.forkSitesSkipped).toBe(0);
     expect(plain.exhaustedBudget).toBe(true);
     expect(plain.stepsUsed).toBeGreaterThanOrEqual(400_000);
   }, 300_000);

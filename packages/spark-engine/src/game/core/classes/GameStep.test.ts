@@ -337,7 +337,7 @@ describe("Game flow", () => {
 
       const error = emitted.find((e) => e.method === "game/runtimeError");
       expect(error?.params?.["message"]).toBe(
-        "Execution exceeded 1 steps: possible infinite loop",
+        "Execution exceeded 1 step: possible infinite loop",
       );
     });
 

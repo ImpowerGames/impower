@@ -109,19 +109,30 @@ export class Game<T extends M = {}> {
    * thing on an idle machine and a busy one, which is what keeps it from
    * mistaking a long scene for a loop.
    *
-   * The ceiling has to be calibrated against what the EDITOR compiles, not a
-   * hand-built fixture: the editor's program is far finer-grained, so the same
-   * scene costs several times more advances there. Replaying a preview route in
-   * the running editor executes 287,944 distinct paths for a 16,000-line scene,
-   * and a replay advances at least once per path.
+   * The unit is one iteration of the loop in `stepWithinBudget`, which is not
+   * the same as a display line or a runtime path — replaying a scene built as
+   * a test fixture costs about eight iterations per display line (63,992 at
+   * 8,000 lines, 159,992 at 20,000, 191,992 at 24,000).
    *
-   * Five million is more than an order of magnitude above that, so it cannot
-   * ration a legitimate replay, while still stopping a story that loops forever
-   * long before the host notices.
+   * Calibrate against what the EDITOR compiles, never against a fixture. The
+   * editor's program is roughly two and a half times finer-grained, so the
+   * same scene costs proportionally more, putting a 20,000-line editor replay
+   * near 400,000 iterations. That last figure is scaled from the measured
+   * fixture cost rather than measured directly, so the margin below is
+   * deliberately wide. Setting this ceiling from fixture numbers is exactly
+   * what shipped the planner's ceiling several times too small.
+   *
+   * Two million is about five times that, so it cannot ration a legitimate
+   * replay. What it costs when it does fire is worth stating plainly rather
+   * than hand-waving: an iteration runs in about 4 µs for a content-free loop
+   * (roughly eight seconds at this ceiling) but around 50 µs for a replay that
+   * captures a checkpoint every beat, which is minutes. A replay only diverges
+   * if its plan has gone stale, so that shape is rare — but this ceiling is not
+   * a fast guard, and on the PLAY path it blocks the interface thread (#385).
    */
-  protected _executionStepLimit = 5_000_000;
+  protected _executionStepLimit = 2_000_000;
 
-  protected _executionStepsRemaining = 5_000_000;
+  protected _executionStepsRemaining = 2_000_000;
 
   protected _executionBudgetExhausted = false;
 
@@ -300,7 +311,7 @@ export class Game<T extends M = {}> {
     this.updateFunctionBreakpointsMap(options?.functionBreakpoints ?? []);
     this.updateDataBreakpointsMap(options?.dataBreakpoints ?? []);
 
-    if (options?.executionStepLimit) {
+    if (options?.executionStepLimit != null) {
       this._executionStepLimit = options.executionStepLimit;
     }
     this._executionStepsRemaining = this._executionStepLimit;
@@ -1271,7 +1282,9 @@ export class Game<T extends M = {}> {
       if (this._executionStepsRemaining <= 0) {
         this._executionBudgetExhausted = true;
         this.Error(
-          `Execution exceeded ${this._executionStepLimit} steps: possible infinite loop`,
+          `Execution exceeded ${this._executionStepLimit} ${
+            this._executionStepLimit === 1 ? "step" : "steps"
+          }: possible infinite loop`,
           ErrorType.Error,
         );
         // Execution is running away. Force it to stop.

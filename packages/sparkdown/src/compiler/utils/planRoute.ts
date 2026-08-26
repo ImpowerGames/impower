@@ -213,6 +213,8 @@ interface SearchBudget {
   nodesRemaining: number;
   /** Wall-clock backstop */
   deadlineTime: number;
+  /** Set when a ceiling actually stopped something, at the point it did */
+  cut: boolean;
   /** Fork sites already expanded (see {@link claimForkSite}) */
   visited: Set<string>;
 }
@@ -222,12 +224,25 @@ interface SearchBudget {
  *  exhausting the budget would abort the last permitted expansion before it
  *  advanced the story once, making every `maxNodes` mean one less than it
  *  says. */
-const stepBudgetExhausted = (budget: SearchBudget): boolean =>
-  budget.stepsRemaining <= 0 || now() >= budget.deadlineTime;
+const stepBudgetExhausted = (budget: SearchBudget): boolean => {
+  // Recorded here rather than derived after the loop: a search that SUCCEEDS
+  // using exactly its allowance leaves the counters at zero too, so counting
+  // what is left cannot tell a search that was cut off from one that fit.
+  if (budget.stepsRemaining <= 0 || now() >= budget.deadlineTime) {
+    budget.cut = true;
+    return true;
+  }
+  return false;
+};
 
 /** Whether another node may be expanded. */
-const searchBudgetExhausted = (budget: SearchBudget): boolean =>
-  budget.nodesRemaining <= 0 || stepBudgetExhausted(budget);
+const searchBudgetExhausted = (budget: SearchBudget): boolean => {
+  if (budget.nodesRemaining <= 0) {
+    budget.cut = true;
+    return true;
+  }
+  return stepBudgetExhausted(budget);
+};
 
 /**
  * The forced decisions a node has NOT yet replayed, folded to a fixed width.
@@ -313,6 +328,7 @@ const claimForkSite = (
     snapshot,
   )}`;
   if (budget.visited.has(key)) {
+    lastSearchStats.forkSitesSkipped += 1;
     return false;
   }
   budget.visited.add(key);
@@ -334,9 +350,18 @@ const claimForkSite = (
 export const lastSearchStats: {
   nodesExpanded: number;
   stepsUsed: number;
+  /** Arrivals at a fork site that had already been expanded (see
+   *  {@link claimForkSite}). Zero means the skip never fired, which for a
+   *  looping story means something else ended the search. */
+  forkSitesSkipped: number;
   /** True when a ceiling stopped the search, false when it ran out of story. */
   exhaustedBudget: boolean;
-} = { nodesExpanded: 0, stepsUsed: 0, exhaustedBudget: false };
+} = {
+  nodesExpanded: 0,
+  stepsUsed: 0,
+  forkSitesSkipped: 0,
+  exhaustedBudget: false,
+};
 
 export const planRoute = (
   story: Story,
@@ -344,6 +369,11 @@ export const planRoute = (
   toPath: string,
   options?: SearchOptions,
 ): RoutePlan | null => {
+  lastSearchStats.nodesExpanded = 0;
+  lastSearchStats.stepsUsed = 0;
+  lastSearchStats.forkSitesSkipped = 0;
+  lastSearchStats.exhaustedBudget = false;
+
   const start = makeStartNode(story, fromPath);
   const isBfs = (options?.searchStrategy ?? "bfs") === "bfs";
   const startTime = now();
@@ -352,6 +382,7 @@ export const planRoute = (
     stepsRemaining: options?.maxSteps ?? DEFAULT_MAX_STEPS,
     nodesRemaining: options?.maxNodes ?? DEFAULT_MAX_NODES,
     deadlineTime: startTime + searchTimeout,
+    cut: false,
     visited: new Set(),
   };
   const favoredConditionalValues = options?.favoredConditions ?? [];
@@ -360,10 +391,6 @@ export const planRoute = (
 
   let routePlan = null;
   const startingSteps = budget.stepsRemaining;
-  lastSearchStats.nodesExpanded = 0;
-  lastSearchStats.stepsUsed = 0;
-  lastSearchStats.exhaustedBudget = false;
-
   const queue: SearchNode[] = [start];
 
   const prevOnError = story.onError;
@@ -426,7 +453,7 @@ export const planRoute = (
   // step ceiling is reached inside a node run, which ends that node and then
   // drains the queue normally, so the outer loop can exit looking healthy on a
   // search that was in fact cut off.
-  lastSearchStats.exhaustedBudget = searchBudgetExhausted(budget);
+  lastSearchStats.exhaustedBudget = budget.cut;
 
   resetStory(story);
 

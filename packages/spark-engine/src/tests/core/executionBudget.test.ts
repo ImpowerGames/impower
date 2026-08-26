@@ -123,6 +123,82 @@ describe("a long scene replays to its end", () => {
   }, 300_000);
 });
 
+describe("no clock governs execution", () => {
+  // The strongest guard against the old behaviour coming back, and the only
+  // one that does not depend on how fast the machine is: hand the engine a
+  // clock that has already jumped far into the future. Under a wall-clock
+  // guard the very first check fires and the replay is abandoned. Under a
+  // ceiling counted in work, the clock is simply not consulted.
+  test("a replay finishes even when the clock jumps hours forward mid-run", () => {
+    const beats = 400;
+    const program = compileSrc(longScene(beats));
+    let calls = 0;
+    const game = new Game({
+      program: program as any,
+      incrementalCheckpoints: true,
+      verifyCheckpoints: false,
+      // Real for a moment, then far past any plausible deadline.
+      now: () => (calls++ < 2 ? 0 : 60 * 60 * 1000),
+      setTimeout: ((fn: Function, _ms?: number, ...a: any[]) => {
+        fn(...a);
+        return 0;
+      }) as any,
+    } as any);
+    const anyGame = game as any;
+    const errors: string[] = [];
+    const realError = anyGame.Error.bind(anyGame);
+    anyGame.Error = (message: string, ...rest: unknown[]) => {
+      errors.push(String(message));
+      return realError(message, ...rest);
+    };
+
+    game.setStartFrom({ file: URI, line: beats + 1 });
+    const toPath = anyGame.startPath as string;
+    const route = Game.planRoute(
+      game.story,
+      program as any,
+      Game.getSimulateFromPath(toPath),
+      toPath,
+    );
+    expect(route).toBeTruthy();
+    game.patchAndSimulateRoute(route!);
+
+    expect(anyGame._simulation).toBe("success");
+    expect(errors).toEqual([]);
+  }, 300_000);
+});
+
+describe("the ceiling is calibrated against what the editor compiles", () => {
+  // The same trap that shipped the planner's ceiling several times too small:
+  // a scene built here is far coarser than the program the editor compiles
+  // from the same script, so a ceiling that looks generous against a fixture
+  // can still ration a real replay, and no fixture-based test would notice.
+  //
+  // Measured rather than hard-coded, so this also fires if the fixture's own
+  // cost drifts — which is the half of the problem a frozen number misses. The
+  // multiplier covers the editor being roughly two and a half times
+  // finer-grained, plus room for a scene several times longer than the one
+  // measured here.
+  const EDITOR_GRANULARITY_AND_HEADROOM = 10;
+
+  test("the default leaves room well beyond a measured replay", () => {
+    const beats = 2_000;
+    const program = compileSrc(longScene(beats));
+    const measured = previewLastBeat(program, beats);
+    expect(measured.simulation).toBe("success");
+    expect(measured.advancesUsed).toBeGreaterThan(1_000);
+
+    // Per display line, so the assertion holds whatever size is used here.
+    const perLine = measured.advancesUsed / beats;
+    const limit = newGame(program) as unknown as {
+      _executionStepLimit: number;
+    };
+    expect(limit._executionStepLimit).toBeGreaterThan(
+      perLine * 20_000 * EDITOR_GRANULARITY_AND_HEADROOM,
+    );
+  }, 300_000);
+});
+
 describe("a replay that runs away is still stopped", () => {
   test("a ceiling below what the scene needs stops it and says so", () => {
     const beats = 400;
