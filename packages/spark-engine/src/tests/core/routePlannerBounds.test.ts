@@ -22,7 +22,10 @@
 
 import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
-import { planRoute } from "@impower/sparkdown/src/compiler/utils/planRoute";
+import {
+  DEFAULT_MAX_STEPS,
+  planRoute,
+} from "@impower/sparkdown/src/compiler/utils/planRoute";
 import { Game } from "../../game/core/classes/Game";
 
 const URI = "inmemory:///main.sd";
@@ -149,6 +152,58 @@ describe("the declared budget decides the verdict, and decides it the same way e
       expect(planWithBudget(program, toPath, needed - 1)).toBeNull();
     }
   }, 300_000);
+});
+
+describe("the ceiling is calibrated against what the editor compiles", () => {
+  // A fixture built here is far coarser than the program the editor compiles
+  // from the same script: about seven advances per display line against about
+  // thirty-six. Calibrating the ceiling on a fixture therefore sets it several
+  // times too low, and the symptom is not a failing test — it is the editor
+  // reporting a reachable line as unreachable, which no fixture-based test can
+  // see. Measured in the running editor, a 17,000-line scene needs 611,984
+  // advances.
+  //
+  // This guards the margin rather than the measurement, so lowering the
+  // ceiling back under a real script's cost fails here instead of in someone's
+  // preview.
+  const MEASURED_EDITOR_COST_17K_LINES = 611_984;
+
+  test("the default leaves room for a scene several times longer", () => {
+    expect(DEFAULT_MAX_STEPS).toBeGreaterThan(
+      MEASURED_EDITOR_COST_17K_LINES * 3,
+    );
+  });
+});
+
+describe("a budget of N permits N, not N minus one", () => {
+  // A node is charged before it runs. If that charge also counted as
+  // exhausting the budget, the last permitted expansion would be dequeued and
+  // abandoned before advancing the story once — so `maxNodes: 1` would explore
+  // nothing at all, and every budget would quietly mean one less than it says.
+  test("a fork-free scene plans with a single node expansion", () => {
+    const program = compileSrc(longScene(20));
+    const toPath = targetPathForLine(program, 22);
+    expect(toPath).not.toBe("0");
+
+    // No decisions anywhere in this scene, so one expansion is the whole
+    // search. If it needs two, the budget is being charged twice.
+    const route = planRoute(newGame(program).story, "start", toPath, {
+      stayWithinKnot: true,
+      maxNodes: 1,
+    });
+    expect(route).toBeTruthy();
+    expect(route!.steps.at(-1)!.path).toBe(toPath);
+  }, 120_000);
+
+  test("a budget of zero nodes explores nothing", () => {
+    const program = compileSrc(longScene(20));
+    const toPath = targetPathForLine(program, 22);
+    const route = planRoute(newGame(program).story, "start", toPath, {
+      stayWithinKnot: true,
+      maxNodes: 0,
+    });
+    expect(route).toBeNull();
+  }, 120_000);
 });
 
 describe("a story that never terminates still gives up", () => {

@@ -183,14 +183,19 @@ export interface RunResult {
 /**
  * Story advances the whole search may make.
  *
- * A story costs almost exactly one advance per step of the route it produces.
- * The longest route measured on a real project is 28,935 steps, and a
- * synthetic scene of 24,000 display lines needs 167,993 advances to reach its
- * last beat — so half a million leaves room for a scene about three times
- * longer than any script anyone has written, while still tripping at once on a
- * story that never terminates.
+ * A story costs almost exactly one advance per step of the route it produces,
+ * and the ceiling has to be calibrated against what the EDITOR compiles rather
+ * than a hand-built test fixture: the same 17,000-line scene costs about seven
+ * advances per line as a bare fixture and about thirty-six through the editor's
+ * own compile, because the editor's program is far finer-grained. Measured in
+ * the running editor, a 17,000-line scene needs 611,984 advances and produces a
+ * route of 575,839 steps.
+ *
+ * Two million is roughly three times that, which covers a single scene of
+ * around 55,000 display lines — far beyond the largest real project here
+ * (8,325 lines) — while still stopping a story that never terminates.
  */
-export const DEFAULT_MAX_STEPS = 500_000;
+export const DEFAULT_MAX_STEPS = 2_000_000;
 
 /** Search nodes the whole search may expand. */
 export const DEFAULT_MAX_NODES = 100_000;
@@ -209,10 +214,17 @@ interface SearchBudget {
   visited: Set<string>;
 }
 
-const budgetExhausted = (budget: SearchBudget): boolean =>
-  budget.stepsRemaining <= 0 ||
-  budget.nodesRemaining <= 0 ||
-  now() >= budget.deadlineTime;
+/** Whether the story may be advanced again. The node budget is deliberately not
+ *  consulted here: a node is charged before it runs, so counting it as
+ *  exhausting the budget would abort the last permitted expansion before it
+ *  advanced the story once, making every `maxNodes` mean one less than it
+ *  says. */
+const stepBudgetExhausted = (budget: SearchBudget): boolean =>
+  budget.stepsRemaining <= 0 || now() >= budget.deadlineTime;
+
+/** Whether another node may be expanded. */
+const searchBudgetExhausted = (budget: SearchBudget): boolean =>
+  budget.nodesRemaining <= 0 || stepBudgetExhausted(budget);
 
 /**
  * The forced decisions a node has NOT yet replayed, folded to a fixed width.
@@ -337,7 +349,7 @@ export const planRoute = (
   story.onDiscardStateSnapshot = NOOP;
 
   while (queue.length) {
-    if (budgetExhausted(budget)) {
+    if (searchBudgetExhausted(budget)) {
       break;
     }
     budget.nodesRemaining -= 1;
@@ -439,7 +451,7 @@ const runUntilDecisionOrBranch = (
   try {
     // Tight loop: advance until target or branch site
     while (true) {
-      if (budgetExhausted(budget)) {
+      if (stepBudgetExhausted(budget)) {
         terminal = true;
         break;
       }

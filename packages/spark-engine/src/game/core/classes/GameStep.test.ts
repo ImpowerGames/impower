@@ -53,12 +53,12 @@ interface Recorded {
 }
 
 const createGame = (
-  overrides: { now?: () => number; executionTimeout?: number } = {},
+  overrides: { now?: () => number; executionStepLimit?: number } = {},
 ) => {
   const game = new Game({
     program,
     now: overrides.now ?? (() => 0),
-    executionTimeout: overrides.executionTimeout,
+    executionStepLimit: overrides.executionStepLimit,
     setTimeout: (handler: Function) => {
       handler();
       return 0;
@@ -326,21 +326,18 @@ describe("Game flow", () => {
     });
   });
 
-  describe("execution timeout", () => {
+  describe("execution budget", () => {
     // The guard exists so a runaway script reports an error instead of
-    // hanging the host. Driving it through the injected clock keeps the test
-    // deterministic -- no actual infinite loop required.
+    // hanging the host. It is counted in work rather than elapsed time, so the
+    // test names a tiny budget instead of driving a clock -- and so a slow
+    // machine cannot turn a long scene into a reported infinite loop.
     it("reports a runtime error instead of looping forever", () => {
-      let calls = 0;
-      const { game, emitted } = createGame({
-        executionTimeout: 10,
-        now: () => (calls++ < 2 ? 0 : 100_000),
-      });
+      const { game, emitted } = createGame({ executionStepLimit: 1 });
       game.start();
 
       const error = emitted.find((e) => e.method === "game/runtimeError");
       expect(error?.params?.["message"]).toBe(
-        "Execution timed out: Possible infinite loop",
+        "Execution exceeded 1 steps: possible infinite loop",
       );
     });
 
