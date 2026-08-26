@@ -1,6 +1,10 @@
 export interface GameConfiguration {
   restarted?: boolean;
-  executionTimeout?: number;
+  /** How many times one uninterrupted stretch of execution may advance the
+   *  story before it is stopped as a runaway (see `Game.step`). Counted in work
+   *  rather than elapsed time, so a long scene is not mistaken for an infinite
+   *  loop on a slow machine. Default 5,000,000. */
+  executionStepLimit?: number;
   previewFrom?: { file: string; line: number } | null;
   startFrom?: { file: string; line: number } | null;
   breakpoints?: { file: string; line: number }[];

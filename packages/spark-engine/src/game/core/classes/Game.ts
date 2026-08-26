@@ -7,6 +7,7 @@ import { resolveCompiledProgram } from "@impower/sparkdown/src/binary/programBin
 import {
   buildRouteSimulator,
   planRoute,
+  SearchOptions,
   RoutePlan,
 } from "@impower/sparkdown/src/compiler/utils/planRoute";
 import { uuid } from "@impower/sparkdown/src/compiler/utils/uuid";
@@ -99,11 +100,41 @@ export class Game<T extends M = {}> {
 
   protected _coordinator: Coordinator<typeof this> | null = null;
 
-  protected _executionTimeout = 10000;
+  /**
+   * How many times one uninterrupted stretch of execution may advance the
+   * story before it is stopped as a runaway.
+   *
+   * An author can write a story that never ends, so execution needs a ceiling.
+   * Counting work rather than elapsed time makes the ceiling mean the same
+   * thing on an idle machine and a busy one, which is what keeps it from
+   * mistaking a long scene for a loop.
+   *
+   * The unit is one iteration of the loop in `stepWithinBudget`, which is not
+   * the same as a display line or a runtime path — replaying a scene built as
+   * a test fixture costs about eight iterations per display line (63,992 at
+   * 8,000 lines, 159,992 at 20,000, 191,992 at 24,000).
+   *
+   * Calibrate against what the EDITOR compiles, never against a fixture. The
+   * editor's program is roughly two and a half times finer-grained, so the
+   * same scene costs proportionally more, putting a 20,000-line editor replay
+   * near 400,000 iterations. That last figure is scaled from the measured
+   * fixture cost rather than measured directly, so the margin below is
+   * deliberately wide. Setting this ceiling from fixture numbers is exactly
+   * what shipped the planner's ceiling several times too small.
+   *
+   * Two million is about five times that, so it cannot ration a legitimate
+   * replay. What it costs when it does fire is worth stating plainly rather
+   * than hand-waving: an iteration runs in about 4 µs for a content-free loop
+   * (roughly eight seconds at this ceiling) but around 50 µs for a replay that
+   * captures a checkpoint every beat, which is minutes. A replay only diverges
+   * if its plan has gone stale, so that shape is rare — but this ceiling is not
+   * a fast guard, and on the PLAY path it blocks the interface thread (#385).
+   */
+  protected _executionStepLimit = 2_000_000;
 
-  protected _executionStartTime = 0;
+  protected _executionStepsRemaining = 2_000_000;
 
-  protected _executionTimedOut = false;
+  protected _executionBudgetExhausted = false;
 
   protected _executingPath: string | null = null;
 
@@ -280,9 +311,10 @@ export class Game<T extends M = {}> {
     this.updateFunctionBreakpointsMap(options?.functionBreakpoints ?? []);
     this.updateDataBreakpointsMap(options?.dataBreakpoints ?? []);
 
-    if (options?.executionTimeout) {
-      this._executionTimeout = options.executionTimeout;
+    if (options?.executionStepLimit != null) {
+      this._executionStepLimit = options.executionStepLimit;
     }
+    this._executionStepsRemaining = this._executionStepLimit;
 
     this._checkpoints = new CheckpointStore(
       {
@@ -788,9 +820,11 @@ export class Game<T extends M = {}> {
         favoredChoices?: (number | undefined)[];
       }
     >,
+    budget?: Pick<SearchOptions, "maxSteps" | "maxNodes" | "searchTimeout">,
   ) {
     // Plan a route from the top of the knot containing the target path, to the target path itself
     return planRoute(story, fromPath, toPath, {
+      ...budget,
       functions: Object.keys(program.functionLocations || {}),
       stayWithinKnot: true,
       favoredConditions: simulationOptions?.[fromPath]?.favoredConditions,
@@ -1210,14 +1244,13 @@ export class Game<T extends M = {}> {
       this._runtimeState = new RuntimeState();
     }
 
-    this._executionTimedOut = false;
-    this._executionStartTime = this.context.system.now();
+    this.resetExecutionBudget();
 
     this.clearVariableReferences();
     this._coordinator = null;
     let done = false;
     do {
-      done = this.step();
+      done = this.stepWithinBudget();
     } while (!done);
 
     if (this._simulation !== "simulating") {
@@ -1227,23 +1260,37 @@ export class Game<T extends M = {}> {
     return done;
   }
 
+  protected resetExecutionBudget() {
+    this._executionBudgetExhausted = false;
+    this._executionStepsRemaining = this._executionStepLimit;
+  }
+
+  /** A debugger traversal is its own stretch of execution, so it starts with a
+   *  full budget rather than sharing whatever the last `continue` left. */
   step(traversal: "in" | "out" | "over" | "continue" = "continue"): boolean {
+    this.resetExecutionBudget();
+    return this.stepWithinBudget(traversal);
+  }
+
+  protected stepWithinBudget(
+    traversal: "in" | "out" | "over" | "continue" = "continue",
+  ): boolean {
     const initialCallstackDepth = this._story.state.callstackDepth;
     const initialExecutedLocation = this._executingLocation;
 
     while (true) {
-      this._executionTimedOut =
-        this.context.system.now() >=
-        this._executionStartTime + this._executionTimeout;
-
-      if (this._executionTimedOut) {
+      if (this._executionStepsRemaining <= 0) {
+        this._executionBudgetExhausted = true;
         this.Error(
-          "Execution timed out: Possible infinite loop",
+          `Execution exceeded ${this._executionStepLimit} ${
+            this._executionStepLimit === 1 ? "step" : "steps"
+          }: possible infinite loop`,
           ErrorType.Error,
         );
-        // Execution is taking too long. Force it to stop.
+        // Execution is running away. Force it to stop.
         return true;
       }
+      this._executionStepsRemaining -= 1;
 
       const pointerPath = this._story.state.previousPointer.path?.toString();
       if (pointerPath) {

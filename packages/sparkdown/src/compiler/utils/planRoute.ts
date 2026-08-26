@@ -106,7 +106,44 @@ export interface SearchOptions {
   /** Breadth-first (default) or depth-first search strategy */
   searchStrategy?: "bfs" | "dfs";
 
-  /** Hard time limit (in milliseconds) of how long to search before giving up (defaults to 1000 to protect against infinite loops) */
+  /**
+   * How many times the whole search may advance the story before giving up
+   * (defaults to {@link DEFAULT_MAX_STEPS}).
+   *
+   * An author can write a story that never terminates, so the search needs a
+   * ceiling. Counting work rather than elapsed time makes the ceiling mean the
+   * same thing on an idle machine and a loaded one, which is what lets a
+   * failure be reproduced and tested.
+   *
+   * The ceiling is set far above what any real script needs — it catches
+   * runaway, it does not ration ordinary work.
+   */
+  maxSteps?: number;
+
+  /**
+   * How many search nodes the whole search may expand before giving up
+   * (defaults to {@link DEFAULT_MAX_NODES}).
+   *
+   * A branchy story enqueues two nodes at every decision it passes, so the
+   * queue can grow faster than it is consumed even while each individual node
+   * is making progress.
+   */
+  maxNodes?: number;
+
+  /**
+   * Wall-clock backstop in milliseconds (defaults to
+   * {@link DEFAULT_SEARCH_TIMEOUT}).
+   *
+   * The deterministic ceilings above are what decide the outcome for any
+   * script anyone writes. This is the last line of defence against a search
+   * whose individual steps cost far more than any measured step.
+   *
+   * It is a real ceiling, not a decorative one: at the measured cost of a step
+   * it is reached at roughly two thirds of {@link DEFAULT_MAX_STEPS}, so a
+   * story that runs away stops on the clock rather than the step count. What
+   * it cannot do is fire on a script of any plausible length — the largest
+   * scene measured needs well under a second of searching.
+   */
   searchTimeout?: number;
 
   /**
@@ -146,23 +183,214 @@ export interface RunResult {
   terminal: boolean; //  true if branch ended this run
 }
 
+/**
+ * Story advances the whole search may make.
+ *
+ * A story costs almost exactly one advance per step of the route it produces,
+ * and the ceiling has to be calibrated against what the EDITOR compiles rather
+ * than a hand-built test fixture: the same 17,000-line scene costs about seven
+ * advances per line as a bare fixture and about thirty-six through the editor's
+ * own compile, because the editor's program is far finer-grained. Measured in
+ * the running editor, a 17,000-line scene needs 611,984 advances and produces a
+ * route of 575,839 steps.
+ *
+ * Two million is roughly three times that, which covers a single scene of
+ * around 55,000 display lines — far beyond the largest real project here
+ * (8,325 lines) — while still stopping a story that never terminates.
+ */
+export const DEFAULT_MAX_STEPS = 2_000_000;
+
+/** Search nodes the whole search may expand. */
+export const DEFAULT_MAX_NODES = 100_000;
+
+/** See {@link SearchOptions.searchTimeout} — a backstop, not a policy. */
+export const DEFAULT_SEARCH_TIMEOUT = 30_000;
+
+interface SearchBudget {
+  /** Story advances left before the search gives up */
+  stepsRemaining: number;
+  /** Node expansions left before the search gives up */
+  nodesRemaining: number;
+  /** Wall-clock backstop */
+  deadlineTime: number;
+  /** Set when a ceiling actually stopped something, at the point it did */
+  cut: boolean;
+  /** Fork sites already expanded (see {@link claimForkSite}) */
+  visited: Set<string>;
+}
+
+/** Whether the story may be advanced again. The node budget is deliberately not
+ *  consulted here: a node is charged before it runs, so counting it as
+ *  exhausting the budget would abort the last permitted expansion before it
+ *  advanced the story once, making every `maxNodes` mean one less than it
+ *  says. */
+const stepBudgetExhausted = (budget: SearchBudget): boolean => {
+  // Recorded here rather than derived after the loop: a search that SUCCEEDS
+  // using exactly its allowance leaves the counters at zero too, so counting
+  // what is left cannot tell a search that was cut off from one that fit.
+  if (budget.stepsRemaining <= 0 || now() >= budget.deadlineTime) {
+    budget.cut = true;
+    return true;
+  }
+  return false;
+};
+
+/** Whether another node may be expanded. */
+const searchBudgetExhausted = (budget: SearchBudget): boolean => {
+  if (budget.nodesRemaining <= 0) {
+    budget.cut = true;
+    return true;
+  }
+  return stepBudgetExhausted(budget);
+};
+
+/**
+ * The forced decisions a node has NOT yet replayed, folded to a fixed width.
+ *
+ * A node's overrides are every decision made on the route to it, and running
+ * the node restores its state directly rather than replaying that route — so
+ * the overrides for paths the node does not revisit stay queued, and would
+ * still be forced if the story looped back onto one of those paths. Two
+ * arrivals at the same story position therefore only behave the same if the
+ * decisions still queued behind them are the same too, which is what this
+ * captures.
+ */
+const pendingOverrideSignature = (
+  overrides: RouteOverride[],
+  snapshot: SimulatorSnapshot,
+): string => {
+  const skippedPerSite = new Map<string, number>();
+  let signature = "";
+  for (const override of overrides) {
+    const site = `${override.kind}:${override.path}`;
+    const replayed =
+      (override.kind === "condition"
+        ? snapshot.conditionPointer[override.path]
+        : snapshot.choicePointer[override.path]) ?? 0;
+    const skipped = skippedPerSite.get(site) ?? 0;
+    if (skipped < replayed) {
+      // Consumed on the way to this site, so it is not part of what still
+      // distinguishes one arrival here from another.
+      //
+      // This is a summary, not a guarantee about the future: a CHILD forked
+      // from here rebuilds the queue with its pointers back at zero, so an
+      // override dropped here can fire again if the story returns to its path.
+      // Dropping it is what lets two arrivals that differ only in already-spent
+      // history share an entry; keeping it would make the key grow forever
+      // along a loop and never match.
+      skippedPerSite.set(site, skipped + 1);
+      continue;
+    }
+    signature = extendSeq(signature, `${site}=${override.value}`);
+  }
+  return signature;
+};
+
+/**
+ * Claim a fork site for expansion, returning false if an equivalent one has
+ * already been expanded.
+ *
+ * What happens after a fork site is decided by the story state there plus the
+ * forced decisions still queued behind it, and nothing else — so a second
+ * arrival at the same pair would enqueue the same children the first arrival
+ * already did, and expanding it again is wasted work. Breadth-first order
+ * means the arrival that was kept is also the shortest route to that position.
+ *
+ * This prunes repetition; it is not what makes the search terminate. A story
+ * that loops does not generally come back to the same state, because visit
+ * counts advance every time round, so each lap is a genuinely new position and
+ * this check never fires on it. {@link SearchOptions.maxSteps} is what ends
+ * those searches.
+ *
+ * The state is folded to a fixed-width hash rather than kept whole: a route
+ * can hold tens of thousands of steps, and holding a full serialized state per
+ * fork site is what exhausted memory on long scenes in #376. Two distinct
+ * positions colliding would cost a route the planner could otherwise have
+ * found, but ~2^53 values across the thousands of sites a search visits makes
+ * that vanishingly unlikely.
+ *
+ * Note that siblings of one fork share both their state and their queue — they
+ * differ only in the decision each is about to make, which the simulator
+ * applies while the child runs. That is why the check belongs at the site
+ * being expanded and not on the nodes coming off the queue: applied to nodes,
+ * it would collapse every branch of the story into whichever sibling happened
+ * to be dequeued first.
+ */
+const claimForkSite = (
+  budget: SearchBudget,
+  sitePath: string,
+  stateJson: string,
+  overrides: RouteOverride[],
+  snapshot: SimulatorSnapshot,
+): boolean => {
+  const key = `${sitePath}|${extendSeq("", stateJson)}|${pendingOverrideSignature(
+    overrides,
+    snapshot,
+  )}`;
+  if (budget.visited.has(key)) {
+    lastSearchStats.forkSitesSkipped += 1;
+    return false;
+  }
+  budget.visited.add(key);
+  return true;
+};
+
+/**
+ * What the most recent {@link planRoute} call actually did.
+ *
+ * A failed search returns `null` whether it ran out of budget or genuinely
+ * exhausted the story, and those are different answers: one means "ask again
+ * with more room", the other means "this line cannot be reached". Recording it
+ * is what lets a test tell a search that finished from one that was cut off,
+ * and what lets a caller explain the failure rather than guess at it.
+ *
+ * Overwritten by every call. `planRoute` is synchronous, so this always
+ * describes the call that just returned.
+ */
+export const lastSearchStats: {
+  nodesExpanded: number;
+  stepsUsed: number;
+  /** Arrivals at a fork site that had already been expanded (see
+   *  {@link claimForkSite}). Zero means the skip never fired, which for a
+   *  looping story means something else ended the search. */
+  forkSitesSkipped: number;
+  /** True when a ceiling stopped the search, false when it ran out of story. */
+  exhaustedBudget: boolean;
+} = {
+  nodesExpanded: 0,
+  stepsUsed: 0,
+  forkSitesSkipped: 0,
+  exhaustedBudget: false,
+};
+
 export const planRoute = (
   story: Story,
   fromPath: string,
   toPath: string,
   options?: SearchOptions,
 ): RoutePlan | null => {
+  lastSearchStats.nodesExpanded = 0;
+  lastSearchStats.stepsUsed = 0;
+  lastSearchStats.forkSitesSkipped = 0;
+  lastSearchStats.exhaustedBudget = false;
+
   const start = makeStartNode(story, fromPath);
   const isBfs = (options?.searchStrategy ?? "bfs") === "bfs";
   const startTime = now();
-  const searchTimeout = options?.searchTimeout ?? 1000;
-  const deadlineTime = startTime + searchTimeout;
+  const searchTimeout = options?.searchTimeout ?? DEFAULT_SEARCH_TIMEOUT;
+  const budget: SearchBudget = {
+    stepsRemaining: options?.maxSteps ?? DEFAULT_MAX_STEPS,
+    nodesRemaining: options?.maxNodes ?? DEFAULT_MAX_NODES,
+    deadlineTime: startTime + searchTimeout,
+    cut: false,
+    visited: new Set(),
+  };
   const favoredConditionalValues = options?.favoredConditions ?? [];
   const favoredChoiceIndices = options?.favoredChoices ?? [];
   const fromKnotName = fromPath.split(".")[0] || "0";
 
   let routePlan = null;
-
+  const startingSteps = budget.stepsRemaining;
   const queue: SearchNode[] = [start];
 
   const prevOnError = story.onError;
@@ -182,9 +410,11 @@ export const planRoute = (
   story.onDiscardStateSnapshot = NOOP;
 
   while (queue.length) {
-    if (deadlineTime != null && now() >= deadlineTime) {
+    if (searchBudgetExhausted(budget)) {
       break;
     }
+    budget.nodesRemaining -= 1;
+    lastSearchStats.nodesExpanded += 1;
 
     const node = isBfs ? queue.shift()! : queue.pop()!;
     try {
@@ -197,7 +427,7 @@ export const planRoute = (
         favoredConditionalValues,
         options?.stayWithinKnot !== false,
         options?.functions || [],
-        deadlineTime,
+        budget,
       );
 
       if (result.hitTarget) {
@@ -217,6 +447,13 @@ export const planRoute = (
       }
     } catch {}
   }
+
+  lastSearchStats.stepsUsed = startingSteps - budget.stepsRemaining;
+  // Read from the budget itself, not from where the loop happened to exit: the
+  // step ceiling is reached inside a node run, which ends that node and then
+  // drains the queue normally, so the outer loop can exit looking healthy on a
+  // search that was in fact cut off.
+  lastSearchStats.exhaustedBudget = budget.cut;
 
   resetStory(story);
 
@@ -240,7 +477,7 @@ const runUntilDecisionOrBranch = (
   favoredConditionalValues: (boolean | undefined)[],
   stayWithinKnot: boolean,
   functions: string[],
-  deadlineTime: number,
+  budget: SearchBudget,
 ): RunResult => {
   // 1) Restore snapshot
   story.state.LoadJson(node.stateJson);
@@ -283,11 +520,11 @@ const runUntilDecisionOrBranch = (
   try {
     // Tight loop: advance until target or branch site
     while (true) {
-      // Timeout check
-      if (deadlineTime != null && now() >= deadlineTime) {
+      if (stepBudgetExhausted(budget)) {
         terminal = true;
         break;
       }
+      budget.stepsRemaining -= 1;
 
       const previousPath = story.state.previousPointer.path?.toString()!;
 
@@ -328,6 +565,23 @@ const runUntilDecisionOrBranch = (
           // Pop the last encountered step,
           // because we're going to encounter it again on the next run
           stepsEncountered.pop();
+          // Serialize once and share it with every sibling: they all fork from
+          // this same position.
+          const forkStateJson = story.state.toJson();
+          if (
+            !claimForkSite(
+              budget,
+              previousPath,
+              forkStateJson,
+              node.overrides,
+              simulator.saveSnapshot(),
+            )
+          ) {
+            // Already expanded from this exact position, so its children are
+            // already queued.
+            terminal = true;
+            break;
+          }
           const options = story.currentChoices.map((c) => c.text);
           const favoredChoiceIndex = favoredChoiceIndices[node.choices.length];
           if (favoredChoiceIndex != null) {
@@ -336,7 +590,7 @@ const runUntilDecisionOrBranch = (
               // Fork choice branch
               branches.push(
                 forkChoice(
-                  story,
+                  forkStateJson,
                   node,
                   stepsEncountered,
                   {
@@ -362,7 +616,7 @@ const runUntilDecisionOrBranch = (
             // Fork choice branch
             branches.push(
               forkChoice(
-                story,
+                forkStateJson,
                 node,
                 stepsEncountered,
                 {
@@ -404,12 +658,30 @@ const runUntilDecisionOrBranch = (
         // because we're going to encounter it again on the next run
         stepsEncountered.pop();
 
+        // Serialize once and share it with both branches: they fork from this
+        // same position.
+        const forkStateJson = story.state.toJson();
+        if (
+          !claimForkSite(
+            budget,
+            story.pausedBeforeCondition,
+            forkStateJson,
+            node.overrides,
+            simulator.saveSnapshot(),
+          )
+        ) {
+          // Already expanded from this exact position, so both branches are
+          // already queued.
+          terminal = true;
+          break;
+        }
+
         const favoredConditionalValue =
           favoredConditionalValues[node.conditions.length];
         if (favoredConditionalValue != null) {
           // Fork favored branch
           branches.push(
-            forkCondition(story, node, stepsEncountered, {
+            forkCondition(forkStateJson, node, stepsEncountered, {
               kind: "condition",
               path: story.pausedBeforeCondition,
               value: favoredConditionalValue,
@@ -417,7 +689,7 @@ const runUntilDecisionOrBranch = (
           );
           // Fork opposite of favored branch
           branches.push(
-            forkCondition(story, node, stepsEncountered, {
+            forkCondition(forkStateJson, node, stepsEncountered, {
               kind: "condition",
               path: story.pausedBeforeCondition,
               value: !favoredConditionalValue,
@@ -426,7 +698,7 @@ const runUntilDecisionOrBranch = (
         } else {
           // Fork true branch
           branches.push(
-            forkCondition(story, node, stepsEncountered, {
+            forkCondition(forkStateJson, node, stepsEncountered, {
               kind: "condition",
               path: story.pausedBeforeCondition,
               value: true,
@@ -434,7 +706,7 @@ const runUntilDecisionOrBranch = (
           );
           // Fork false branch
           branches.push(
-            forkCondition(story, node, stepsEncountered, {
+            forkCondition(forkStateJson, node, stepsEncountered, {
               kind: "condition",
               path: story.pausedBeforeCondition,
               value: false,
@@ -521,13 +793,13 @@ const exitedKnot = (
 };
 
 const forkCondition = (
-  story: Story,
+  stateJson: string,
   parent: SearchNode,
   stepsEncountered: RouteStep[],
   ov: ConditionOverride,
 ): SearchNode => {
   return {
-    stateJson: story.state.toJson(),
+    stateJson,
     // Falls back to the PARENT's identity, not to "": a fork commonly happens
     // with `stepsEncountered` empty (the pending step is popped just before
     // forking), and restarting the chain there would give two sibling branches
@@ -543,14 +815,14 @@ const forkCondition = (
 };
 
 const forkChoice = (
-  story: Story,
+  stateJson: string,
   parent: SearchNode,
   stepsEncountered: RouteStep[],
   ov: ChoiceOverride,
   choice: { options: string[]; selected: number },
 ): SearchNode => {
   return {
-    stateJson: story.state.toJson(),
+    stateJson,
     // See forkCondition: the parent's identity, never a fresh chain.
     seq: stepsEncountered.at(-1)?.seq ?? parent.seq,
     steps: [...parent.steps, ...stepsEncountered],
