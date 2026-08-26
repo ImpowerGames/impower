@@ -12,8 +12,27 @@ export interface SelectedCompilerDocumentParams {
   docChanged: boolean;
   userEvent?: boolean;
   checkpoint?: string;
-  /** Why no checkpoint could be simulated, when there is none. */
+  /** Why no checkpoint could be simulated, when there is none. Mirrors the
+   *  field of the same name on `CompiledProgramParams`. */
   simulationFailure?: SimulationFailure;
+  /**
+   * The story path a route search reached a DEFINITE answer about for this
+   * selection: present with a `checkpoint` means the route was found and
+   * replayed to this path and the checkpoint is the story state there; present
+   * with no `checkpoint` means no route to this path exists; absent means
+   * nothing definite is known and a client must run its own search.
+   *
+   * Mirrors the field of the same name on `CompiledProgramParams`, where the
+   * reasoning is spelled out.
+   */
+  simulatedPath?: string | null;
+  /**
+   * Identity of the program the route search ran against, sent with — and only
+   * with — `simulatedPath`, and required to match before the answer is reused.
+   * Mirrors the field of the same name on `CompiledProgramParams`, where the
+   * reasoning is spelled out.
+   */
+  simulatedProgramId?: string;
 }
 
 export class SelectedCompilerDocumentMessage {

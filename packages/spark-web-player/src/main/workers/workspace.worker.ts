@@ -1,9 +1,10 @@
 import { Port2MessageConnection } from "@impower/jsonrpc/src/browser/classes/Port2MessageConnection";
 import { Game } from "@impower/spark-engine/src/game/core/classes/Game";
 import { installGameWorker } from "@impower/spark-engine/src/worker/installGameWorker";
-import { SimulationFailure } from "@impower/sparkdown/src/compiler/types/SimulationFailure";
 import { installSparkdownWorker } from "@impower/sparkdown/src/worker/installSparkdownWorker";
 import { profile } from "../../utils/profile";
+import { programIdentity } from "../../utils/programIdentity";
+import { RouteSearchLog } from "./RouteSearchLog";
 
 const connection = new Port2MessageConnection((message: any, transfer) =>
   self.postMessage(message, { transfer }),
@@ -33,44 +34,16 @@ compilerState.compiler.configure({
   experimentalDisplayCalls: true,
 });
 
-/**
- * The verdict on the most recent attempt to simulate a preview route.
- *
- * A selection that does not move the cursor reuses the last checkpoint rather
- * than searching again, so when there is no checkpoint to reuse the only honest
- * answer is the one the last real attempt reached. Kept here rather than read
- * back off the game, because the game only ever learns about the failures it
- * caused itself — a route that could not be PLANNED never reaches it.
- */
-let lastSimulationFailure: SimulationFailure | undefined;
+// The record of what the last route search established, and the rule for when
+// that is safe to reuse. See RouteSearchLog for why neither a checkpoint's
+// existence nor the checkpoint store's newest entry is evidence on its own.
+const routeSearches = new RouteSearchLog();
 
-/**
- * Plan a route to wherever the game's start path currently points, replay it,
- * and hand the caller's message either the checkpoint that came out or the
- * reason none did.
- *
- * The player shows its status row as failed whenever it is handed no
- * checkpoint, and until now that was all it could say. Reporting the reason
- * from here is what lets it explain itself: this is where the attempt is made,
- * and by the time the player notices the absence, every distinguishing detail
- * is gone.
- */
-const simulatePreviewRoute = (
-  game: Game,
-  params: { checkpoint?: string; simulationFailure?: SimulationFailure },
-) => {
-  const record = (failure: SimulationFailure | undefined) => {
-    lastSimulationFailure = failure;
-    params.simulationFailure = failure;
-  };
-  if (!game.startPath) {
-    // The line the author is previewing from is not part of the story flow, so
-    // there is no route to look for.
-    record("unroutable");
-    return;
-  }
-  profile("start", compilerState.compiler.profilerId + " " + "game/planRoute");
-  const toPath = game.startPath;
+/** Plan a route to `toPath` and replay it, recording what the search
+ *  established. Returns the checkpoint it produced, if any. */
+const searchRouteTo = (game: Game, toPath: string) => {
+  const profilerId = compilerState.compiler.profilerId;
+  profile("start", profilerId + " " + "game/planRoute");
   const fromPath = Game.getSimulateFromPath(toPath);
   const newRoute = Game.planRoute(
     game.story,
@@ -79,40 +52,57 @@ const simulatePreviewRoute = (
     toPath,
     compilerState.compiler.config.simulationOptions,
   );
-  profile("end", compilerState.compiler.profilerId + " " + "game/planRoute");
+  profile("end", profilerId + " " + "game/planRoute");
+  const programId = programIdentity(game.program);
   if (!newRoute) {
-    // Asked immediately after the search that failed: the planner's account of
-    // how it ended is what decides between "gave up" and "no way there".
-    record(Game.describeFailedRouteSearch(game.program, toPath));
-    return;
+    // No route to this start point exists at all — a definite answer, and the
+    // one most worth passing on: a client that repeats this search pays the
+    // same (unbounded until the work ceiling) cost to reach the same verdict.
+    //
+    // Asked immediately after the search that failed, because the planner's
+    // account of how it ended is what separates "there is no way there" from
+    // "I gave up looking" — and only the first is the script's fault (#379).
+    routeSearches.record({
+      path: toPath,
+      programId,
+      reachedTarget: false,
+      simulationFailure: Game.describeFailedRouteSearch(game.program, toPath),
+    });
+    return undefined;
   }
-  profile(
-    "start",
-    compilerState.compiler.profilerId + " " + "game/simulateRoute",
-  );
+  profile("start", profilerId + " " + "game/simulateRoute");
   const checkpoint = game.patchAndSimulateRoute(newRoute);
-  profile("end", compilerState.compiler.profilerId + " " + "game/simulateRoute");
-  if (!checkpoint) {
-    // A route existed but replaying it produced nothing to restore from.
-    record(game.simulationFailure ?? "diverged");
-    return;
+  profile("end", profilerId + " " + "game/simulateRoute");
+  const reachedTarget = game.simulation === "success";
+  routeSearches.record({
+    path: toPath,
+    programId,
+    reachedTarget,
+    checkpoint: checkpoint ?? undefined,
+    // A route existed, so any failure here happened during the replay rather
+    // than the search; the game recorded which (`"diverged"`).
+    simulationFailure: reachedTarget ? undefined : game.simulationFailure,
+  });
+  if (checkpoint) {
+    // Cache favored conditions and choices
+    const conditions = game.runtimeState.conditionsEncountered;
+    const choices = game.runtimeState.choicesEncountered;
+    const favoredConditions = conditions.map((c) => c.selected);
+    const favoredChoices = choices.map((c) => c.selected);
+    compilerState.compiler.config.simulationOptions ??= {};
+    compilerState.compiler.config.simulationOptions[newRoute.fromPath] = {
+      favoredConditions,
+      favoredChoices,
+    };
   }
-  // Augment with simulated checkpoint
-  params.checkpoint = checkpoint;
-  record(undefined);
-  // Cache favored conditions and choices
-  const conditions = game.runtimeState.conditionsEncountered;
-  const choices = game.runtimeState.choicesEncountered;
-  const favoredConditions = conditions.map((c) => c.selected);
-  const favoredChoices = choices.map((c) => c.selected);
-  compilerState.compiler.config.simulationOptions ??= {};
-  compilerState.compiler.config.simulationOptions[newRoute.fromPath] = {
-    favoredConditions,
-    favoredChoices,
-  };
+  return checkpoint ?? undefined;
 };
 
 compilerState.compiler.addEventListener("compiler/didCompile", (params) => {
+  // Whatever the last search established was established against the OLD
+  // program and the story it was compiled from. Neither survives this compile,
+  // so nothing from before it may be reported for the new one.
+  routeSearches.forget();
   // Create or update game
   if (!gameState.game) {
     profile("start", compilerState.compiler.profilerId + " " + "game/create");
@@ -149,7 +139,13 @@ compilerState.compiler.addEventListener("compiler/didCompile", (params) => {
       "end",
       compilerState.compiler.profilerId + " " + "game/setStartFrom",
     );
-    simulatePreviewRoute(gameState.game, params);
+    const toPath = gameState.game.startPath;
+    if (toPath) {
+      searchRouteTo(gameState.game, toPath);
+      // Augment with the simulated checkpoint, and with what the search
+      // established about this start point.
+      routeSearches.report(params, toPath);
+    }
   }
 });
 
@@ -182,17 +178,21 @@ compilerState.compiler.addEventListener("compiler/didSelect", (params) => {
         "end",
         compilerState.compiler.profilerId + " " + "game/setStartFrom",
       );
-      simulatePreviewRoute(gameState.game, params);
-    } else {
-      // Augment with last simulated checkpoint
-      const lastCheckpoint = gameState.game.checkpoints.at(-1);
-      if (lastCheckpoint) {
-        params.checkpoint = lastCheckpoint;
-      } else {
-        // The cursor has not moved, so no fresh search ran and the verdict from
-        // the last one that did still stands.
-        params.simulationFailure = lastSimulationFailure;
+      const toPath = gameState.game.startPath;
+      if (toPath) {
+        searchRouteTo(gameState.game, toPath);
+        // Augment with the simulated checkpoint, and with what the search
+        // established about this start point.
+        routeSearches.report(params, toPath);
       }
+    } else {
+      // The start point did not move (the editor re-selects on every cursor
+      // change, including one that only moves the column), so the search
+      // already run for it still describes this selection — but only if it was
+      // run for THIS path. Nothing else here may be reused: the newest
+      // checkpoint in the store belongs to the last route that was replayed,
+      // which is a different line whenever the search since then found no route.
+      routeSearches.report(params, gameState.game.startPath);
     }
   }
 });
