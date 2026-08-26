@@ -21,9 +21,7 @@ export const SIMULATION_FAILURE_MESSAGES: Record<SimulationFailure, string> = {
   unroutable: "There's nothing to preview on this line.",
   diverged:
     "Found a route to this line, but replaying it stopped short of getting there.",
-  errored:
-    "Something went wrong while searching for a route to this line — " +
-    "this is a problem with the previewer, not with your script.",
+  errored: "Something went wrong while searching for a route to this line.",
 };
 
 /** Said when the row is in its failed state but no cause came with it, so that
