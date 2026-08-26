@@ -1145,7 +1145,6 @@ export class Game<T extends M = {}> {
   }
 
   load(saveJSON: string) {
-    this.discardOpenStoryLine();
     try {
       const saveData: SaveData =
         typeof saveJSON === "string" ? JSON.parse(saveJSON) : saveJSON;
@@ -1156,6 +1155,15 @@ export class Game<T extends M = {}> {
         }
       }
       if (saveData.story) {
+        // Only once the save has been read and is known to carry a story:
+        // letting go of the open line is not reversible, so doing it before
+        // the parse would leave a save that turns out to be unreadable — or
+        // one written by a failed serialization, which stores an empty story —
+        // with the current line torn in half and no replacement for it. The
+        // next continue would then resume from the middle of that line,
+        // dropping the text and the routing tag that decide how the beat is
+        // displayed.
+        this.discardOpenStoryLine();
         this._story.state.LoadJson(saveData.story);
         this.restoreReactiveTracking();
       }

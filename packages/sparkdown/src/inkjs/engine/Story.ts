@@ -1136,12 +1136,59 @@ export class Story extends InkObject {
    *  dangling — it lives on the story, not the state, so a caller replacing
    *  the state would not clear it, and the next continue could restore a story
    *  state that had already been thrown away — and the open batch of variable
-   *  observations is closed out. The batch's changes are deliberately not
-   *  announced to observers, since the caller is about to discard them. */
+   *  observations is closed out.
+   *
+   *  Closing that batch ANNOUNCES what it recorded: `CompleteVariableObservation`
+   *  raises `variableChangedEvent` for every variable the abandoned run touched
+   *  before it was stopped. An observer registered through `ObserveVariable`
+   *  therefore sees a PART-WAY-THROUGH view — the writes the line had reached,
+   *  not the ones it would have finished with — followed by whatever the
+   *  caller's replacement re-declares. The `Continue()` this replaces announced
+   *  a different thing, the values as of the completed line, so this is a real
+   *  difference and not a parity claim. It is stated rather than papered over
+   *  because both are announcements of a run that is about to be discarded, and
+   *  choosing what an observer should see across an abandoned line is a
+   *  decision about observer semantics rather than part of ending the continue.
+   *  Nothing in this repository subscribes today. What is skipped either way is
+   *  only the map the wrap-up feeds to `NotifyObservers`, which carries
+   *  patch-derived changes that matter during a background save.
+   *
+   *  One deliberate divergence from that wrap-up: it completes the observation
+   *  batch only at `_recursiveContinueCount == 1`, and this does it
+   *  unconditionally, because a cancel runs from outside any `ContinueInternal`
+   *  frame — where that count is zero and the guard would never let the batch
+   *  close. The guard below enforces that this is the only way it is used. */
   public CancelAsyncContinue() {
+    // Cancelling from inside a live continue would be the original bug wearing
+    // a new hat: clearing the flag while `ContinueInternal`'s loop is still on
+    // the stack disables the break that ends its slice, so the loop would run
+    // the line to its end — and a line that never ends never would. Refuse,
+    // the same way the runtime refuses every other operation that is unsafe
+    // mid-continue.
+    if (this._recursiveContinueCount > 0) {
+      throw new Error(
+        "Can't CancelAsyncContinue from inside a Continue. Only a caller that " +
+          "is about to replace the story state may cancel, and it must do so " +
+          "between continues.",
+      );
+    }
+
     if (!this._asyncContinueActive) {
       return;
     }
+
+    // Reading ahead past a newline records TWO things, and both live on the
+    // story rather than on the story state, so replacing the state clears
+    // neither. The second is the route simulator's position in the decisions
+    // it is feeding the story, and it is dropped rather than put back: the
+    // simulator that happens to be attached now need not be the one this run
+    // was reading from — `Game.simulateRoute` attaches the NEXT route's
+    // simulator before the caller gets here — and restoring one route's
+    // consumed position into another route's simulator makes it skip the
+    // decisions it was supposed to force. Dropping it is what "this run is
+    // being discarded" means; the caller replaces the state on the next line
+    // regardless, so there is nothing for a rolled-back simulator to serve.
+    this._simulatorSnapshotAtLastNewline = null;
 
     if (this._stateSnapshotAtLastNewline !== null) {
       this.RestoreStateSnapshot();

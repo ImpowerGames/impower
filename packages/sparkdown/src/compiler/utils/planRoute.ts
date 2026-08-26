@@ -739,9 +739,18 @@ const runUntilDecisionOrBranch = (
 };
 
 const resetStory = (story: Story) => {
-  if (story.canContinue && !story.asyncContinueComplete) {
-    story.Continue();
-  }
+  // End any line the story is part-way through rather than running it to its
+  // end. `ResetState` below refuses to run while a line is open, but finishing
+  // the line is not a way out of that: `Story.Continue` advances until the line
+  // ends, and a story sitting in a loop that never completes a line never ends.
+  //
+  // The search reaches here mid-line as a matter of course — it drives the
+  // story one step at a time and stops on its own step budget — so this ran
+  // forever on exactly the stories the budget exists to survive, and it ran
+  // before any of the engine's own recovery paths could (#386). The line is
+  // discarded on the next statement regardless, so there was never anything to
+  // gain by running it.
+  story.CancelAsyncContinue();
   story.ResetState();
 };
 
