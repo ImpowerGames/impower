@@ -1,6 +1,7 @@
 import { MessageProtocolNotificationType } from "@impower/jsonrpc/src/common/classes/MessageProtocolNotificationType";
 import { NotificationMessage } from "@impower/jsonrpc/src/common/types/NotificationMessage";
 import { Range } from "../../types/SparkDiagnostic";
+import { SimulationFailure } from "../../types/SimulationFailure";
 
 export type SelectedCompilerDocumentMethod =
   typeof SelectedCompilerDocumentMessage.method;
@@ -11,6 +12,9 @@ export interface SelectedCompilerDocumentParams {
   docChanged: boolean;
   userEvent?: boolean;
   checkpoint?: string;
+  /** Why no checkpoint could be simulated, when there is none. Mirrors the
+   *  field of the same name on `CompiledProgramParams`. */
+  simulationFailure?: SimulationFailure;
   /**
    * The story path a route search reached a DEFINITE answer about for this
    * selection: present with a `checkpoint` means the route was found and

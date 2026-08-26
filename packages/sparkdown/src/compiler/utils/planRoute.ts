@@ -206,6 +206,38 @@ export const DEFAULT_MAX_NODES = 100_000;
 /** See {@link SearchOptions.searchTimeout} — a backstop, not a policy. */
 export const DEFAULT_SEARCH_TIMEOUT = 30_000;
 
+/**
+ * Which ceiling stopped a search.
+ *
+ * Kept apart rather than folded into one "gave up" flag because the three are
+ * not equally meaningful. `max-steps` and `max-nodes` are the deterministic
+ * ceilings a test can drive and reproduce; `timeout` is the wall-clock
+ * backstop, which is machine-dependent and should be vanishingly rare, so a
+ * search reported as stopping on it is a signal that a step cost far more than
+ * any measured step.
+ */
+export type SearchCutReason = "max-steps" | "max-nodes" | "timeout";
+
+/**
+ * How a search ended: it found the route, a ceiling cut it short, it broke, or
+ * it ran the story out without ever reaching the target.
+ *
+ * The distinction is the whole point — "I gave up", "I broke" and "there is no
+ * way there" are different answers for the author, and only the caller can
+ * phrase them.
+ *
+ * `"exhausted"` is the only one of these that is a claim about the STORY rather
+ * than about the search, so it is also the only one that can be wrong in a way
+ * the author would act on. It is therefore reported only when the search really
+ * did look everywhere: a run that threw is `"errored"`, because a search that
+ * broke part way through knows nothing about the branches it never reached.
+ */
+export type SearchEndReason =
+  | "found"
+  | SearchCutReason
+  | "errored"
+  | "exhausted";
+
 interface SearchBudget {
   /** Story advances left before the search gives up */
   stepsRemaining: number;
@@ -213,8 +245,11 @@ interface SearchBudget {
   nodesRemaining: number;
   /** Wall-clock backstop */
   deadlineTime: number;
-  /** Set when a ceiling actually stopped something, at the point it did */
-  cut: boolean;
+  /** Which ceiling actually stopped something, recorded at the point it did;
+   *  null while none has. The first one to fire is kept, because that is the
+   *  one that stopped the work — a later check finding a second ceiling also
+   *  spent is describing the same stop. */
+  cut: SearchCutReason | null;
   /** Fork sites already expanded (see {@link claimForkSite}) */
   visited: Set<string>;
 }
@@ -228,8 +263,12 @@ const stepBudgetExhausted = (budget: SearchBudget): boolean => {
   // Recorded here rather than derived after the loop: a search that SUCCEEDS
   // using exactly its allowance leaves the counters at zero too, so counting
   // what is left cannot tell a search that was cut off from one that fit.
-  if (budget.stepsRemaining <= 0 || now() >= budget.deadlineTime) {
-    budget.cut = true;
+  if (budget.stepsRemaining <= 0) {
+    budget.cut ??= "max-steps";
+    return true;
+  }
+  if (now() >= budget.deadlineTime) {
+    budget.cut ??= "timeout";
     return true;
   }
   return false;
@@ -238,7 +277,7 @@ const stepBudgetExhausted = (budget: SearchBudget): boolean => {
 /** Whether another node may be expanded. */
 const searchBudgetExhausted = (budget: SearchBudget): boolean => {
   if (budget.nodesRemaining <= 0) {
-    budget.cut = true;
+    budget.cut ??= "max-nodes";
     return true;
   }
   return stepBudgetExhausted(budget);
@@ -354,13 +393,20 @@ export const lastSearchStats: {
    *  {@link claimForkSite}). Zero means the skip never fired, which for a
    *  looping story means something else ended the search. */
   forkSitesSkipped: number;
-  /** True when a ceiling stopped the search, false when it ran out of story. */
+  /** True when a ceiling stopped the search, false when it ran out of story.
+   *  The coarse form of {@link SearchEndReason}; both are set from the same
+   *  place so they cannot disagree. */
   exhaustedBudget: boolean;
+  /** How the search ended, in full: which ceiling cut it, or that it ran the
+   *  story out, or that it found the route. This is what lets a caller tell an
+   *  author "I gave up looking" apart from "there is no way to this line". */
+  endReason: SearchEndReason;
 } = {
   nodesExpanded: 0,
   stepsUsed: 0,
   forkSitesSkipped: 0,
   exhaustedBudget: false,
+  endReason: "exhausted",
 };
 
 export const planRoute = (
@@ -373,6 +419,7 @@ export const planRoute = (
   lastSearchStats.stepsUsed = 0;
   lastSearchStats.forkSitesSkipped = 0;
   lastSearchStats.exhaustedBudget = false;
+  lastSearchStats.endReason = "exhausted";
 
   const start = makeStartNode(story, fromPath);
   const isBfs = (options?.searchStrategy ?? "bfs") === "bfs";
@@ -382,7 +429,7 @@ export const planRoute = (
     stepsRemaining: options?.maxSteps ?? DEFAULT_MAX_STEPS,
     nodesRemaining: options?.maxNodes ?? DEFAULT_MAX_NODES,
     deadlineTime: startTime + searchTimeout,
-    cut: false,
+    cut: null,
     visited: new Set(),
   };
   const favoredConditionalValues = options?.favoredConditions ?? [];
@@ -390,6 +437,8 @@ export const planRoute = (
   const fromKnotName = fromPath.split(".")[0] || "0";
 
   let routePlan = null;
+  /** Set when a node run threw (see the catch in the search loop). */
+  let nodeErrored = false;
   const startingSteps = budget.stepsRemaining;
   const queue: SearchNode[] = [start];
 
@@ -445,7 +494,12 @@ export const planRoute = (
       for (const b of result.branches) {
         queue.push(b);
       }
-    } catch {}
+    } catch {
+      // Swallowed so one bad node cannot abort a search that other branches
+      // might still complete — but remembered, because it means this search no
+      // longer covers the whole story and must not claim that it does.
+      nodeErrored = true;
+    }
   }
 
   lastSearchStats.stepsUsed = startingSteps - budget.stepsRemaining;
@@ -453,7 +507,19 @@ export const planRoute = (
   // step ceiling is reached inside a node run, which ends that node and then
   // drains the queue normally, so the outer loop can exit looking healthy on a
   // search that was in fact cut off.
-  lastSearchStats.exhaustedBudget = budget.cut;
+  lastSearchStats.exhaustedBudget = budget.cut !== null;
+  // A search that reached the target succeeded, whatever the ceilings say: one
+  // that fired on the very run that arrived did not stop it arriving.
+  //
+  // A ceiling outranks a thrown node because the ceiling is what stopped the
+  // work, and "I did not finish looking" stays true whether or not something
+  // also broke along the way. Only the no-ceiling case has to consult the
+  // error, and there it matters: without it a search that crashed on its very
+  // first node reports itself as having explored the whole story and found no
+  // way through, which is the one verdict here that blames the author's script.
+  lastSearchStats.endReason = routePlan
+    ? "found"
+    : (budget.cut ?? (nodeErrored ? "errored" : "exhausted"));
 
   resetStory(story);
 

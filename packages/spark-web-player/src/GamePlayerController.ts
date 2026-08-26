@@ -53,10 +53,12 @@ import { findClosestPath } from "@impower/spark-engine/src/game/core/utils/findC
 import { CompiledProgramMessage } from "@impower/sparkdown/src/compiler/classes/messages/CompiledProgramMessage";
 import { RemovedCompilerFileMessage } from "@impower/sparkdown/src/compiler/classes/messages/RemovedCompilerFileMessage";
 import { SelectedCompilerDocumentMessage } from "@impower/sparkdown/src/compiler/classes/messages/SelectedCompilerDocumentMessage";
+import { SimulationFailure } from "@impower/sparkdown/src/compiler/types/SimulationFailure";
 import { SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
 import { SparkdownWorkspace } from "@impower/sparkdown/src/workspace/classes/SparkdownWorkspace";
 import { Application } from "./app/Application";
 import { conflate } from "./utils/conflate";
+import { describeSimulationFailure } from "./utils/describeSimulationFailure";
 import { programIdentity } from "./utils/programIdentity";
 import { profile } from "./utils/profile";
 
@@ -136,6 +138,11 @@ export class GamePlayerController {
   // it — and a compile landing while a play is being set up can leave the two
   // an edit apart.
   _simulatedProgramId?: string;
+  // Why that search did not get to the start point, when it did not. Remembered
+  // beside the answer itself because PLAY reports a failed start point through
+  // the same status row the preview does, and would otherwise have nothing to
+  // say there (#379).
+  _simulationFailure?: SimulationFailure;
 
   _options?: {
     workspace?: string;
@@ -312,6 +319,22 @@ export class GamePlayerController {
       "error",
       params?.simulation === "fail",
     );
+    // The row turning red is the only thing that ever told an author a preview
+    // could not be simulated. Hovering it now says why. Attached to the whole
+    // row rather than to the 🞪 alone so that a failure with no 🞪 to point at
+    // (a line that is not part of the story flow) is still explained, and so
+    // there is no small target to find.
+    const failureMessage = describeSimulationFailure(
+      params?.simulation,
+      params?.simulationFailure,
+    );
+    if (failureMessage) {
+      this.refs.locationItems.title = failureMessage;
+      this.refs.locationItems.setAttribute("aria-label", failureMessage);
+    } else {
+      this.refs.locationItems.removeAttribute("title");
+      this.refs.locationItems.removeAttribute("aria-label");
+    }
     const firstExecutedLocation = params?.locations?.[0];
     const lastExecutedLocation = params?.locations?.at(-1);
     if (!params || !this._game) {
@@ -683,6 +706,7 @@ export class GamePlayerController {
       textDocument,
       selectedRange,
       checkpoint,
+      simulationFailure,
       simulatedPath,
       simulatedProgramId,
       userEvent,
@@ -695,6 +719,7 @@ export class GamePlayerController {
       this._options ??= {};
       this._options.startFrom = startFrom;
       this._checkpoint = checkpoint;
+      this._simulationFailure = simulationFailure;
       this._simulatedPath = simulatedPath;
       this._simulatedProgramId = simulatedProgramId;
       if (this._program && this._game?.state !== "running") {
@@ -704,6 +729,7 @@ export class GamePlayerController {
             startFrom.file,
             startFrom.line,
             checkpoint,
+            simulationFailure,
           );
         } else if (workspace) {
           // Ensure the workspace re-compiles document so preview can be updated
@@ -726,9 +752,20 @@ export class GamePlayerController {
   protected handleCompiledProgram = async (
     message: CompiledProgramMessage.Notification,
   ) => {
-    const { program, checkpoint, simulatedPath, simulatedProgramId } =
-      message.params;
-    await this.loadProgram(program, checkpoint, simulatedPath, simulatedProgramId);
+    const {
+      program,
+      checkpoint,
+      simulationFailure,
+      simulatedPath,
+      simulatedProgramId,
+    } = message.params;
+    await this.loadProgram(
+      program,
+      checkpoint,
+      simulationFailure,
+      simulatedPath,
+      simulatedProgramId,
+    );
   };
 
   protected handleResizeGame = async (message: ResizeGameMessage.Request) => {
@@ -1035,6 +1072,7 @@ export class GamePlayerController {
     async (
       program: SparkProgram,
       checkpoint: string | undefined,
+      simulationFailure?: SimulationFailure,
       simulatedPath?: string | null,
       simulatedProgramId?: string,
     ) => {
@@ -1045,6 +1083,7 @@ export class GamePlayerController {
       const isInitialProgram = !this._program;
       this._program = program;
       this._checkpoint = checkpoint;
+      this._simulationFailure = simulationFailure;
       this._simulatedPath = simulatedPath;
       this._simulatedProgramId = simulatedProgramId;
       if (this._game?.state === "running") {
@@ -1064,6 +1103,7 @@ export class GamePlayerController {
             this._options.startFrom.file,
             this._options.startFrom.line,
             checkpoint,
+            simulationFailure,
           );
         }
       }
@@ -1091,6 +1131,7 @@ export class GamePlayerController {
       checkpoint: this._checkpoint,
       path: this._simulatedPath,
       programId: this._simulatedProgramId,
+      failure: this._simulationFailure,
     });
     this.listen(this._game);
     this._app = await this.buildApp(this._game);
@@ -1295,10 +1336,16 @@ export class GamePlayerController {
       checkpoint?: string;
       path?: string | null;
       programId?: string;
+      failure?: SimulationFailure;
     },
   ) {
     profile("start", "game/simulate");
-    const { checkpoint, path: simulatedPath, programId } = workerRoute ?? {};
+    const {
+      checkpoint,
+      path: simulatedPath,
+      programId,
+      failure,
+    } = workerRoute ?? {};
     const startPath = game.startPath;
     // Both halves are required. The path says WHERE the answer is about; the
     // program identity says WHAT SCRIPT it is about, which the path cannot —
@@ -1334,6 +1381,10 @@ export class GamePlayerController {
         // point the same way whether it was reached by PLAY or by preview.
         game.simulatePath = Game.getSimulateFromPath(startPath);
         game.simulation = "fail";
+        // Including WHY, for the same reason: the row is the same row, and an
+        // unexplained one there would be the only place left that still just
+        // goes red without saying anything.
+        game.simulationFailure = failure;
       }
     } else {
       // No worker answer applies to this run — nothing was ever selected, the
@@ -1486,6 +1537,7 @@ export class GamePlayerController {
     file: string,
     line: number,
     checkpoint: string | undefined,
+    simulationFailure?: SimulationFailure,
   ) => {
     if (this._game?.state === "running") {
       return;
@@ -1585,6 +1637,11 @@ export class GamePlayerController {
         this._game.simulatePath = simulateFromPath;
       }
       this._game.simulation = "fail";
+      // The route to this preview point is planned in the compile worker, not
+      // in this game, so the verdict arrives alongside the (absent) checkpoint
+      // rather than being reachable from here. Hand it to the game so the
+      // executed notification carries the failure and its reason together.
+      this._game.simulationFailure = simulationFailure;
     }
 
     if (!this._app) {

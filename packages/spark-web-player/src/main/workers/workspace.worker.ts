@@ -58,17 +58,30 @@ const searchRouteTo = (game: Game, toPath: string) => {
     // No route to this start point exists at all — a definite answer, and the
     // one most worth passing on: a client that repeats this search pays the
     // same (unbounded until the work ceiling) cost to reach the same verdict.
-    routeSearches.record({ path: toPath, programId, reachedTarget: false });
+    //
+    // Asked immediately after the search that failed, because the planner's
+    // account of how it ended is what separates "there is no way there" from
+    // "I gave up looking" — and only the first is the script's fault (#379).
+    routeSearches.record({
+      path: toPath,
+      programId,
+      reachedTarget: false,
+      simulationFailure: Game.describeFailedRouteSearch(game.program, toPath),
+    });
     return undefined;
   }
   profile("start", profilerId + " " + "game/simulateRoute");
   const checkpoint = game.patchAndSimulateRoute(newRoute);
   profile("end", profilerId + " " + "game/simulateRoute");
+  const reachedTarget = game.simulation === "success";
   routeSearches.record({
     path: toPath,
     programId,
-    reachedTarget: game.simulation === "success",
+    reachedTarget,
     checkpoint: checkpoint ?? undefined,
+    // A route existed, so any failure here happened during the replay rather
+    // than the search; the game recorded which (`"diverged"`).
+    simulationFailure: reachedTarget ? undefined : game.simulationFailure,
   });
   if (checkpoint) {
     // Cache favored conditions and choices

@@ -6,6 +6,7 @@ import { type SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkPr
 import { resolveCompiledProgram } from "@impower/sparkdown/src/binary/programBinary";
 import {
   buildRouteSimulator,
+  lastSearchStats,
   planRoute,
   SearchOptions,
   RoutePlan,
@@ -40,7 +41,10 @@ import { GameAwaitingInteractionMessage } from "./messages/GameAwaitingInteracti
 import { GameChosePathToContinueMessage } from "./messages/GameChosePathToContinueMessage";
 import { GameClickedToContinueMessage } from "./messages/GameClickedToContinueMessage";
 import { GameEncounteredRuntimeErrorMessage } from "./messages/GameEncounteredRuntimeError";
-import { GameExecutedMessage } from "./messages/GameExecutedMessage";
+import {
+  GameExecutedMessage,
+  SimulationFailure,
+} from "./messages/GameExecutedMessage";
 import { GameExitedThreadMessage } from "./messages/GameExitedThreadMessage";
 import { GameFinishedMessage } from "./messages/GameFinishedMessage";
 import { GameHitBreakpointMessage } from "./messages/GameHitBreakpointMessage";
@@ -234,6 +238,22 @@ export class Game<T extends M = {}> {
   }
   set simulation(value) {
     this._simulation = value;
+  }
+
+  /** Why the last attempt to simulate a route gave up. Recorded where the
+   *  giving-up happens, because that is the only place that still knows: by the
+   *  time `_simulation` is flipped to `"fail"` — in `start()` or `preview()`,
+   *  which is where the editor learns about it — every distinguishing detail is
+   *  gone. Only meaningful while `_simulation` is `"fail"`. */
+  protected _simulationFailure?: SimulationFailure;
+  get simulationFailure() {
+    return this._simulationFailure;
+  }
+  /** Settable for the same reason `simulation` is: in the editor's preview the
+   *  route is planned in the compile worker, not here, so the host that made
+   *  the attempt is the one that knows how it went. */
+  set simulationFailure(value) {
+    this._simulationFailure = value;
   }
 
   protected _restarted = false;
@@ -602,6 +622,7 @@ export class Game<T extends M = {}> {
     >,
   ) {
     this._simulation = "simulating";
+    this._simulationFailure = undefined;
     if (this._startPath) {
       // Plan a route from the top of the startPath container
       const toPath = this._startPath;
@@ -615,8 +636,53 @@ export class Game<T extends M = {}> {
       );
       if (route) {
         this.simulateRoute(route, 0);
+      } else {
+        this._simulationFailure = Game.describeFailedRouteSearch(
+          this._program,
+          toPath,
+        );
       }
+    } else {
+      this._simulationFailure = Game.describeFailedRouteSearch(
+        this._program,
+        this._startPath,
+      );
     }
+  }
+
+  /**
+   * Turn a route search that came back empty into the reason it did.
+   *
+   * Checking whether the target is a real path first is not belt-and-braces: a
+   * line that is not part of the story flow (front matter, a `define` block,
+   * the gap between scenes) resolves to the `"0"` fallback, and the search that
+   * then runs is searching for a target that was never in the story. Whatever
+   * ceiling it stops on, the honest answer is that there was nothing to route
+   * to — not that the scene is too long.
+   *
+   * Every ceiling collapses to `"timeout"` because they are one thing to the
+   * author: the search gave up before it had finished looking, so whether a
+   * route exists is still unknown. Which ceiling it was is a fact about the
+   * planner, and `lastSearchStats.endReason` still carries it for anyone
+   * debugging one.
+   *
+   * A search that BROKE is kept apart from one that ran the story out, because
+   * only the second is entitled to say the script has no path to the line.
+   */
+  static describeFailedRouteSearch(
+    program: SparkProgram,
+    toPath: string | null | undefined,
+  ): SimulationFailure {
+    if (!toPath || !program.pathLocations?.[toPath]) {
+      return "unroutable";
+    }
+    if (lastSearchStats.endReason === "exhausted") {
+      return "exhausted";
+    }
+    if (lastSearchStats.endReason === "errored") {
+      return "errored";
+    }
+    return "timeout";
   }
 
   supports(name: string): boolean {
@@ -869,6 +935,12 @@ export class Game<T extends M = {}> {
   }
 
   protected simulateRoute(route: RoutePlan, fromStep = 0): void {
+    // A route exists, so whatever the last search concluded no longer applies.
+    // Cleared here rather than only in `simulate()` because
+    // `patchAndSimulateRoute` arrives with a route of its own and never passes
+    // through `simulate()`, which would otherwise leave an older reason to be
+    // reported against this run.
+    this._simulationFailure = undefined;
     const startStep = route.steps[fromStep];
     const fromDecision = startStep?.decision ?? 0;
     const fromCheckpoint = startStep?.checkpoint ?? -1;
@@ -911,7 +983,10 @@ export class Game<T extends M = {}> {
     this.continue(true);
 
     if (this._simulation === "simulating") {
+      // Still "simulating" means the replay never arrived at the target, even
+      // though the planner said there was a way there.
       this._simulation = "fail";
+      this._simulationFailure = "diverged";
     }
 
     this._story.simulator = null;
@@ -1646,6 +1721,11 @@ export class Game<T extends M = {}> {
         state: this._state,
         restarted: this._restarted,
         simulation: this._simulation,
+        // Gated on the state rather than sent whenever it happens to be set, so
+        // a reason recorded by an earlier failed simulation can never ride along
+        // with a run that succeeded.
+        simulationFailure:
+          this._simulation === "fail" ? this._simulationFailure : undefined,
       }),
     );
   }

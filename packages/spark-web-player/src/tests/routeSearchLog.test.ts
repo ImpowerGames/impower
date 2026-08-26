@@ -17,6 +17,91 @@
 import { describe, expect, test } from "vitest";
 import { RouteSearchLog } from "../main/workers/RouteSearchLog";
 
+describe("reporting why a route search did not get there (#379)", () => {
+  // The reason and the reusable answer are separate questions, and the log is
+  // where they part company. `simulatedPath` says whether a client may SKIP its
+  // own search; the failure reason says what the status bar tells the author.
+  // The case with nothing to reuse is one of the cases with the most to say.
+  test("a replay that fell short reports its reason even though it names no path", () => {
+    const log = new RouteSearchLog();
+    log.record({
+      path: "main.3",
+      programId: "PROGRAM_V7",
+      reachedTarget: false,
+      checkpoint: "STATE_PARTWAY_ALONG",
+      simulationFailure: "diverged",
+    });
+
+    const params: {
+      checkpoint?: string;
+      simulatedPath?: string | null;
+      simulationFailure?: string;
+    } = {};
+    log.report(params, "main.3");
+
+    // Not a definite answer, so nothing to reuse...
+    expect(params.simulatedPath).toBeUndefined();
+    // ...and still something to say.
+    expect(params.simulationFailure).toBe("diverged");
+  });
+
+  test("a search that found no route reports both the verdict and the reason", () => {
+    const log = new RouteSearchLog();
+    log.record({
+      path: "main.3",
+      programId: "PROGRAM_V7",
+      reachedTarget: false,
+      simulationFailure: "exhausted",
+    });
+
+    const params: {
+      checkpoint?: string;
+      simulatedPath?: string | null;
+      simulationFailure?: string;
+    } = {};
+    log.report(params, "main.3");
+
+    expect(params.simulatedPath).toBe("main.3");
+    expect(params.simulationFailure).toBe("exhausted");
+  });
+
+  test("a search that got there reports no reason at all", () => {
+    const log = new RouteSearchLog();
+    log.record({
+      path: "main.3",
+      programId: "PROGRAM_V7",
+      reachedTarget: true,
+      checkpoint: "STATE_AT_MAIN_3",
+    });
+
+    const params: {
+      checkpoint?: string;
+      simulationFailure?: string;
+    } = {};
+    log.report(params, "main.3");
+
+    expect(params.simulationFailure).toBeUndefined();
+  });
+
+  test("a reason recorded for another path is not reported for this one", () => {
+    // `report` already refuses to answer about a path it did not search; the
+    // reason must not slip past that guard, or a red row on one line would be
+    // explained by what went wrong on a different one.
+    const log = new RouteSearchLog();
+    log.record({
+      path: "main.9",
+      programId: "PROGRAM_V7",
+      reachedTarget: false,
+      simulationFailure: "timeout",
+    });
+
+    const params: { simulationFailure?: string } = {};
+    log.report(params, "main.3");
+
+    expect(params.simulationFailure).toBeUndefined();
+  });
+});
+
 describe("reporting what a route search established", () => {
   test("a replay that reached its target reports the path and the state there", () => {
     const log = new RouteSearchLog();

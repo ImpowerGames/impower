@@ -1,3 +1,5 @@
+import { SimulationFailure } from "@impower/sparkdown/src/compiler/types/SimulationFailure";
+
 /** What the last route search established about a start point, and the rule for
  *  when that is safe to hand to a client that will skip its own search on the
  *  strength of it.
@@ -28,6 +30,12 @@ export interface RouteSearchOutcome {
   /** The newest checkpoint the replay produced, if it produced one. Present
    *  does not imply `reachedTarget`. */
   checkpoint?: string;
+  /** Why the search did not get there, when it did not. Kept apart from
+   *  `reachedTarget` because that answers whether the result is REUSABLE, while
+   *  this answers what to tell the author — and the two do not always agree: a
+   *  route found but not replayed to the end is not reusable and is still worth
+   *  explaining (#379). */
+  simulationFailure?: SimulationFailure;
 }
 
 /** Params a route-search outcome can be reported on. Structural, so both
@@ -36,6 +44,7 @@ export interface RouteSearchReportTarget {
   checkpoint?: string;
   simulatedPath?: string | null;
   simulatedProgramId?: string;
+  simulationFailure?: SimulationFailure;
 }
 
 export class RouteSearchLog {
@@ -72,7 +81,12 @@ export class RouteSearchLog {
    *  The program identity travels with it, always as a pair. A client is meant
    *  to reuse the answer only while holding the same program, and it cannot tell
    *  that from the path alone — a path string survives edits that change what
-   *  the story does at it. */
+   *  the story does at it.
+   *
+   *  The failure reason is passed on whenever there is one, under none of those
+   *  conditions: it is not an answer a client reuses, it is what the status bar
+   *  says to the author, and the case with the least to reuse (a route that
+   *  would not replay) is one of the cases with the most to explain (#379). */
   report(
     params: RouteSearchReportTarget,
     startPath: string | null | undefined,
@@ -88,5 +102,6 @@ export class RouteSearchLog {
       params.simulatedPath = last.path;
       params.simulatedProgramId = last.programId;
     }
+    params.simulationFailure = last.simulationFailure;
   }
 }

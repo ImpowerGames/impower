@@ -1,6 +1,7 @@
 import { MessageProtocolNotificationType } from "@impower/jsonrpc/src/common/classes/MessageProtocolNotificationType";
 import { NotificationMessage } from "@impower/jsonrpc/src/common/types/NotificationMessage";
 import { type SparkProgram } from "../../types/SparkProgram";
+import { SimulationFailure } from "../../types/SimulationFailure";
 import { VersionedTextDocumentIdentifier } from "../../types/VersionedTextDocumentIdentifier";
 
 export type CompiledProgramMethod = typeof CompiledProgramMessage.method;
@@ -29,6 +30,17 @@ export interface CompiledProgramParams {
    * The simulated checkpoint for the new program.
    */
   checkpoint?: string;
+  /**
+   * Why no checkpoint could be simulated, when there is none. Set instead of
+   * `checkpoint`, never alongside it — the player shows the row as failed
+   * whenever it is handed no checkpoint, and this is what lets it say why.
+   *
+   * Independent of `simulatedPath`: that field says whether the ANSWER is
+   * reusable, this one says what to tell the author. A search that found a
+   * route but could not replay it to the end is not a definite answer (so no
+   * `simulatedPath`) and still has something to say (so a reason).
+   */
+  simulationFailure?: SimulationFailure;
   /**
    * The story path a route search reached a DEFINITE answer about, so that a
    * client resolving the same path from the same program can reuse that answer
