@@ -30,18 +30,21 @@ export interface CompiledProgramParams {
    */
   checkpoint?: string;
   /**
-   * The story path a route was planned and simulated TO for this compile.
+   * The story path a route search reached a DEFINITE answer about, so that a
+   * client resolving the same path from the same program can reuse that answer
+   * instead of repeating the search. This matters because the search is
+   * expensive enough to freeze a page that runs it inline.
    *
-   * Set whenever the search was attempted, whether or not it succeeded, so a
-   * client can tell the two outcomes apart: `checkpoint` present means the
-   * route was found and replayed, `checkpoint` absent means the search ran and
-   * failed. Left undefined when no search was attempted at all (no start point,
-   * or a host that does not simulate routes off the main thread).
+   * Present with a `checkpoint`: the route was found and replayed all the way
+   * to this path, and the checkpoint is the story state there.
    *
-   * A client that resolves the SAME path from the same program is looking at
-   * the same search, so it can reuse this outcome instead of repeating the work
-   * — which is the whole point: the search is expensive enough to freeze a page
-   * that runs it inline.
+   * Present with no `checkpoint`: no route to this path exists. Repeating the
+   * search costs the same and reaches the same verdict.
+   *
+   * Absent: nothing definite is known — no search was attempted, or a route was
+   * found but replaying it did not reach the path. A client must run its own
+   * search (which terminates in the second case, because a route exists), and
+   * must not read anything into a `checkpoint` that arrives without this field.
    */
   simulatedPath?: string | null;
   /**

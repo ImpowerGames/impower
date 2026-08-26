@@ -5,10 +5,12 @@
 // search there freezes the whole page for as long as it lasts (#385).
 //
 // The compiler worker already performs that identical search, on every compile
-// and every cursor move, and reports both the path it searched for and the
-// story state it ended at. These tests pin the play path to that answer: when
-// the worker already searched for the same start point, PLAY must not search
-// again — whether the worker succeeded or failed.
+// and every cursor move, and reports the paths it reached a definite answer
+// about: the story state at that path, or, with no state, that no route to it
+// exists. These tests pin the play path to that answer — when it covers the
+// start point this run begins from, PLAY must not search again — and to the
+// fallback, which must survive intact for every case the answer does not
+// cover.
 
 import { describe, expect, test } from "vitest";
 import { GamePlayerController } from "../GamePlayerController";
@@ -22,6 +24,21 @@ const PROGRAM = {
   pathLocations: {},
   scripts: { "file://proj/main.sd": 3 },
 } as any;
+
+/** A save of the shape a route replay produces: `simulatedFrom` is what makes
+ *  the real `Game.load` mark the simulation successful. `label` is only here so
+ *  the test can say which save was loaded. */
+const SIMULATED_SAVE = JSON.stringify({
+  label: "the state at main.3",
+  simulatedFrom: "main",
+  modules: {},
+  context: {},
+  story: "{}",
+  runtime: "{}",
+});
+
+/** A save that will not parse, as a truncated or corrupted one would not. */
+const TRUNCATED_SAVE = '{"simulatedFrom":"main","stor';
 
 /** A stand-in game that records what the play path asks of it, and nothing
  *  else. `simulate` here is the interface-thread route search — the call this
@@ -38,12 +55,22 @@ function recordingGame(startPath: string | null) {
     simulate: () => {
       calls.push("simulate");
     },
+    // Mirrors the real `Game.load`: parse the save, and only report success
+    // when it is a simulated one (the real method keys that off `simulatedFrom`,
+    // which every checkpoint captured during a route replay carries). A save
+    // that will not parse returns false and leaves the simulation unmarked.
     load: (checkpoint: string) => {
-      calls.push(`load:${checkpoint}`);
-      // A real `load` of a simulated checkpoint marks the simulation
-      // successful, which is what lets `start` resume at the destination.
-      game.simulation = "success";
-      return true;
+      try {
+        const save = JSON.parse(checkpoint);
+        calls.push(`load:${save.label}`);
+        if (save.simulatedFrom) {
+          game.simulation = "success";
+        }
+        return true;
+      } catch {
+        calls.push("load-failed");
+        return false;
+      }
     },
     start: () => {
       calls.push("start");
@@ -78,23 +105,27 @@ describe("pressing play reuses the compiler worker's route search", () => {
     const game = recordingGame("main.3");
     const controller = playControllerWith(game, {
       simulatedPath: "main.3",
-      checkpoint: "CHECKPOINT",
+      checkpoint: SIMULATED_SAVE,
     });
 
     await controller.startGameAndApp();
 
-    expect(game.calls).toContain("load:CHECKPOINT");
+    expect(game.calls).toContain("load:the state at main.3");
     // The whole point: no route search on the thread that paints the player.
     expect(game.calls).not.toContain("simulate");
-    // And the game is left in the state `start` resumes from.
+    // And the game is left in the state `start` resumes from. `start` reads
+    // that state when it is called, so the load has to come first — an
+    // ordering swap would leave the run resuming from nothing.
     expect(game.simulation).toBe("success");
+    expect(game.calls.indexOf("load:the state at main.3")).toBeLessThan(
+      game.calls.indexOf("start"),
+    );
   });
 
-  test("a search the worker already failed is not repeated", async () => {
-    // The worker reports the path it searched for even when it found nothing,
-    // so an absent checkpoint here means "searched and failed", not "never
-    // tried". Running the same doomed search on the interface thread would
-    // freeze the page for seconds and then fail identically.
+  test("a start point with no route is not searched for again", async () => {
+    // A named path with no state means the worker established that no route
+    // reaches it. Running the same doomed search on the interface thread would
+    // freeze the page for seconds and reach the same verdict.
     const game = recordingGame("main.3");
     const controller = playControllerWith(game, {
       simulatedPath: "main.3",
@@ -119,18 +150,14 @@ describe("pressing play reuses the compiler worker's route search", () => {
     // point proves a route exists, so the search run here finds one and ends.
     // Starting at the wrong place would be the worse outcome.
     const game = recordingGame("main.3");
-    game.load = (checkpoint: string) => {
-      game.calls.push(`load-failed:${checkpoint}`);
-      return false;
-    };
     const controller = playControllerWith(game, {
       simulatedPath: "main.3",
-      checkpoint: "TRUNCATED",
+      checkpoint: TRUNCATED_SAVE,
     });
 
     await controller.startGameAndApp();
 
-    expect(game.calls).toContain("load-failed:TRUNCATED");
+    expect(game.calls).toContain("load-failed");
     expect(game.calls).toContain("simulate");
   });
 
@@ -141,12 +168,12 @@ describe("pressing play reuses the compiler worker's route search", () => {
     const game = recordingGame("main.3");
     const controller = playControllerWith(game, {
       simulatedPath: "other.7",
-      checkpoint: "WRONG_PLACE",
+      checkpoint: SIMULATED_SAVE,
     });
 
     await controller.startGameAndApp();
 
-    expect(game.calls).not.toContain("load:WRONG_PLACE");
+    expect(game.calls.some((c: string) => c.startsWith("load:"))).toBe(false);
     expect(game.calls).toContain("simulate");
   });
 
@@ -162,6 +189,10 @@ describe("pressing play reuses the compiler worker's route search", () => {
     await controller.startGameAndApp();
 
     expect(game.calls).toContain("simulate");
+    // Same ordering requirement as the reuse path.
+    expect(game.calls.indexOf("simulate")).toBeLessThan(
+      game.calls.indexOf("start"),
+    );
   });
 
   test("a game that resolves no start path still searches", async () => {
@@ -191,12 +222,12 @@ describe("the worker's route answer reaches the play path", () => {
       params: {
         textDocument: { uri: PROGRAM.uri, version: 3 },
         program: PROGRAM,
-        checkpoint: "CHECKPOINT",
+        checkpoint: SIMULATED_SAVE,
         simulatedPath: "main.3",
       },
     });
 
-    expect(controller._checkpoint).toBe("CHECKPOINT");
+    expect(controller._checkpoint).toBe(SIMULATED_SAVE);
     expect(controller._simulatedPath).toBe("main.3");
   });
 

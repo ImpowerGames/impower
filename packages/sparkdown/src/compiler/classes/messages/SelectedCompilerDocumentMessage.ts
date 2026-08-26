@@ -12,14 +12,14 @@ export interface SelectedCompilerDocumentParams {
   userEvent?: boolean;
   checkpoint?: string;
   /**
-   * The story path a route was planned and simulated TO for this selection.
+   * The story path a route search reached a DEFINITE answer about for this
+   * selection: present with a `checkpoint` means the route was found and
+   * replayed to this path and the checkpoint is the story state there; present
+   * with no `checkpoint` means no route to this path exists; absent means
+   * nothing definite is known and a client must run its own search.
    *
-   * Set whenever the search was attempted, whether or not it succeeded, so a
-   * client can tell the two outcomes apart: `checkpoint` present means the
-   * route was found and replayed, `checkpoint` absent means the search ran and
-   * failed. Left undefined when no search was attempted at all.
-   *
-   * Mirrors the field of the same name on `CompiledProgramParams`.
+   * Mirrors the field of the same name on `CompiledProgramParams`, where the
+   * reasoning is spelled out.
    */
   simulatedPath?: string | null;
 }

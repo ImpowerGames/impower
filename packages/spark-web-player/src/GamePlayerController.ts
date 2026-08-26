@@ -1256,11 +1256,13 @@ export class GamePlayerController {
   // search here is a frozen page for as long as it lasts (#385).
   //
   // The compiler worker already runs that identical search — on every compile
-  // and every cursor move — and reports both what it searched for
-  // (`simulatedPath`) and what it found (`checkpoint`, the story state at the
-  // destination). When it searched for the same start point this run begins
-  // from, there is nothing left to look for: load its result, or record its
-  // failure, and never repeat the search here.
+  // and every cursor move — and reports the paths it reached a DEFINITE answer
+  // about (`simulatedPath`): either the story state at that path
+  // (`checkpoint`), or, with no checkpoint, that no route to it exists. When
+  // that answer is about the same start point this run begins from, there is
+  // nothing left to look for. Anything less definite is reported as no answer
+  // at all, and then the search does run here — safely, because the only case
+  // that reaches this is one where a route was already found to exist.
   simulate(
     game: Game,
     simulationOptions:
@@ -1291,8 +1293,8 @@ export class GamePlayerController {
           game.simulate(simulationOptions);
         }
       } else {
-        // The worker could not reach this start point. Searching again here
-        // would freeze the page only to fail the same way, so record the
+        // No route to this start point exists. Searching again here would
+        // freeze the page only to reach the same verdict, so record the
         // failure the way a local search would and let `start` fall back to
         // jumping straight to the start point. Mirrors `updatePreview`'s
         // no-checkpoint branch, so the toolbar reports an unreachable start
