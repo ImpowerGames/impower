@@ -530,7 +530,9 @@ Spawn the reviewers in parallel — one message, multiple Agent tool calls, all 
 
 > You are reviewing a fix for issue #N in the Impower monorepo. The diff is in `review-diff.patch`; the working tree is the branch under review. Your lens is \<LENS\> — review only through it. Your job is to refute this change, not to approve it. Assume it is broken and find out how. If you are uncertain, report the concern rather than suppressing it. For each finding give: `file:line`, a concrete failure scenario (inputs → wrong output), and how you confirmed it in the code. Do not pad with non-findings. Do not edit, create, or delete any file inside the repo tree.
 >
-> When your review is done, post it as a comment on PR #P: write the full findings to a markdown file in your scratchpad directory (never inside the repo), starting with the heading `### Adversarial review — <LENS> (<MODEL>)`, then run `gh pr comment P --body-file <that file>`. Never pass `--body @-` — gh takes it as a literal string and posts a broken comment. If you have no findings, still post the comment with the single line "No findings through this lens." so the coverage is recorded. Confirm the comment landed by reading it back with `gh pr view P --comments`, and also return your findings as your final report.
+> When your review is done, post it as a comment on PR #P: write the full findings to a markdown file in your scratchpad directory (never inside the repo), starting with the heading `### Adversarial review — <LENS> (<MODEL>)`, then run `gh pr comment P --body-file <that file>`. Never pass `--body @-` — gh takes it as a literal string and posts a broken comment. If you have no findings, still post the comment with the single line "No findings through this lens." so the coverage is recorded. Confirm the comment landed by reading it back with `gh pr view P --comments`.
+>
+> **Whether or not the comment lands, return your full findings as your final report — the same markdown, in full.** If you cannot post at all (no `gh` on this machine, an auth failure, a denied permission), do not try to work around it and do not summarise: say in one line that you could not post and why, then return the whole report. The writer will post it for you.
 
 Lenses — diversity matters far more than count; redundant reviewers find redundant things:
 
@@ -549,7 +551,17 @@ When the fan-out returns, check the tree before anything else:
 git status --short
 ```
 
-Revert anything a reviewer changed inside the repo — a reviewer that edits the tree has contaminated its own evidence. Then confirm every expected comment is on the PR (`gh pr view P --comments`); a reviewer that reported findings but failed to post them gets its findings posted by you, verbatim, before you adjudicate.
+Revert anything a reviewer changed inside the repo — a reviewer that edits the tree has contaminated its own evidence.
+
+Then confirm every expected comment is on the PR (`gh pr view P --comments`). **Every report that is not there, you post yourself, verbatim, one comment per reviewer, before you adjudicate.** Prefix each with a line saying you are posting on the reviewer's behalf and why it could not.
+
+This is not the rare case. Whole environments have no `gh` at all — a remote or web session reaches GitHub through an integration instead, so `gh pr comment` fails for _every_ reviewer, not one. When that happens the temptation is to skip the posting and fold everything into your adjudication instead. Don't:
+
+- **Your summary is not their review.** You are the author. The reports carry the `file:line` citations, the probes they actually ran, and the reasoning — including the parts you disagreed with, and the ones where a reviewer catches that your _correction_ to an earlier mistake was itself wrong. A summary written by the person being reviewed launders all of that.
+- **The whole point of §7 is that findings outlive the session.** Findings that exist only in your adjudication are findings you chose which to preserve.
+- **Post them even when you fixed everything.** Especially then — the fix is only checkable against the claim it answers.
+
+Post them verbatim: do not trim, reorder, or correct them. Where a reviewer is wrong, say so in your adjudication, not by editing its words. Where a reviewer notes that the tree changed under it mid-review (it will, if you were iterating), keep that caveat — it tells the reader why a line number may not match.
 
 ### 7d — adjudicate, on the PR
 
