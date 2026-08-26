@@ -665,6 +665,9 @@ export class Game<T extends M = {}> {
    * route exists is still unknown. Which ceiling it was is a fact about the
    * planner, and `lastSearchStats.endReason` still carries it for anyone
    * debugging one.
+   *
+   * A search that BROKE is kept apart from one that ran the story out, because
+   * only the second is entitled to say the script has no path to the line.
    */
   static describeFailedRouteSearch(
     program: SparkProgram,
@@ -673,7 +676,13 @@ export class Game<T extends M = {}> {
     if (!toPath || !program.pathLocations?.[toPath]) {
       return "unroutable";
     }
-    return lastSearchStats.endReason === "exhausted" ? "exhausted" : "timeout";
+    if (lastSearchStats.endReason === "exhausted") {
+      return "exhausted";
+    }
+    if (lastSearchStats.endReason === "errored") {
+      return "errored";
+    }
+    return "timeout";
   }
 
   supports(name: string): boolean {

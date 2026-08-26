@@ -219,13 +219,24 @@ export const DEFAULT_SEARCH_TIMEOUT = 30_000;
 export type SearchCutReason = "max-steps" | "max-nodes" | "timeout";
 
 /**
- * How a search ended: it found the route, a ceiling cut it short, or it ran the
- * story out without ever reaching the target.
+ * How a search ended: it found the route, a ceiling cut it short, it broke, or
+ * it ran the story out without ever reaching the target.
  *
- * The distinction is the whole point — "I gave up" and "there is no way there"
- * are different answers for the author, and only the caller can phrase them.
+ * The distinction is the whole point — "I gave up", "I broke" and "there is no
+ * way there" are different answers for the author, and only the caller can
+ * phrase them.
+ *
+ * `"exhausted"` is the only one of these that is a claim about the STORY rather
+ * than about the search, so it is also the only one that can be wrong in a way
+ * the author would act on. It is therefore reported only when the search really
+ * did look everywhere: a run that threw is `"errored"`, because a search that
+ * broke part way through knows nothing about the branches it never reached.
  */
-export type SearchEndReason = "found" | SearchCutReason | "exhausted";
+export type SearchEndReason =
+  | "found"
+  | SearchCutReason
+  | "errored"
+  | "exhausted";
 
 interface SearchBudget {
   /** Story advances left before the search gives up */
@@ -426,6 +437,8 @@ export const planRoute = (
   const fromKnotName = fromPath.split(".")[0] || "0";
 
   let routePlan = null;
+  /** Set when a node run threw (see the catch in the search loop). */
+  let nodeErrored = false;
   const startingSteps = budget.stepsRemaining;
   const queue: SearchNode[] = [start];
 
@@ -481,7 +494,12 @@ export const planRoute = (
       for (const b of result.branches) {
         queue.push(b);
       }
-    } catch {}
+    } catch {
+      // Swallowed so one bad node cannot abort a search that other branches
+      // might still complete — but remembered, because it means this search no
+      // longer covers the whole story and must not claim that it does.
+      nodeErrored = true;
+    }
   }
 
   lastSearchStats.stepsUsed = startingSteps - budget.stepsRemaining;
@@ -492,7 +510,16 @@ export const planRoute = (
   lastSearchStats.exhaustedBudget = budget.cut !== null;
   // A search that reached the target succeeded, whatever the ceilings say: one
   // that fired on the very run that arrived did not stop it arriving.
-  lastSearchStats.endReason = routePlan ? "found" : (budget.cut ?? "exhausted");
+  //
+  // A ceiling outranks a thrown node because the ceiling is what stopped the
+  // work, and "I did not finish looking" stays true whether or not something
+  // also broke along the way. Only the no-ceiling case has to consult the
+  // error, and there it matters: without it a search that crashed on its very
+  // first node reports itself as having explored the whole story and found no
+  // way through, which is the one verdict here that blames the author's script.
+  lastSearchStats.endReason = routePlan
+    ? "found"
+    : (budget.cut ?? (nodeErrored ? "errored" : "exhausted"));
 
   resetStory(story);
 

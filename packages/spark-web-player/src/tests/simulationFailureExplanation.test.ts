@@ -55,6 +55,18 @@ describe("the sentence chosen for each cause", () => {
     );
   });
 
+  test("a broken search blames the previewer, not the script", () => {
+    // The distinction that matters most here: this sentence must not read like
+    // the "exhausted" one, which tells an author their script is at fault.
+    expect(describeSimulationFailure("fail", "errored")).toBe(
+      "Something went wrong while searching for a route to this line — " +
+        "this is a problem with the previewer, not with your script.",
+    );
+    expect(describeSimulationFailure("fail", "errored")).not.toBe(
+      SIMULATION_FAILURE_MESSAGES.exhausted,
+    );
+  });
+
   test("no two causes share a sentence", () => {
     // The point of carrying a cause at all is that the author reads something
     // different for each one. Two causes sharing wording would pass every test

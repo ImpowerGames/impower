@@ -4,7 +4,7 @@
  *
  * The status bar has always shown THAT it failed — the row turns red and
  * carries a `🞪` between the two lines involved — and nothing more. That is not
- * enough to act on, because the four causes below want four different things
+ * enough to act on, because the causes below want different things
  * from the author, and a single message covering all of them has to hedge:
  * "the scene may be too long" sends someone off to restructure a script whose
  * real problem is a choice that never picks the branch they are looking at.
@@ -27,4 +27,9 @@ export type SimulationFailure =
   | "unroutable"
   /** A route WAS found, but replaying it stopped somewhere short of the line:
    *  the plan and the run disagreed. */
-  | "diverged";
+  | "diverged"
+  /** The search broke part way through, so it never covered the whole scene and
+   *  cannot say whether a route exists. Distinct from `"exhausted"` on purpose:
+   *  that one blames the script, and blaming the script for the previewer's own
+   *  failure is exactly the wrong answer to give an author. */
+  | "errored";
