@@ -24,6 +24,7 @@ import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
 import {
   DEFAULT_MAX_STEPS,
+  lastSearchStats,
   planRoute,
 } from "@impower/sparkdown/src/compiler/utils/planRoute";
 import { Game } from "../../game/core/classes/Game";
@@ -246,7 +247,72 @@ end
       { stayWithinKnot: true, maxSteps: 5_000, maxNodes: 500 },
     );
     expect(route).toBeNull();
+    // A ceiling is what ended it. Without this the test would pass just as
+    // happily if the fixture had quietly stopped looping, which would leave
+    // nothing here exercising the ceiling at all.
+    expect(lastSearchStats.exhaustedBudget).toBe(true);
   }, 120_000);
+});
+
+describe("a position already expanded is not expanded again", () => {
+  // The skip itself, which nothing else here reaches: the other fixtures
+  // either have no decision at all or pass each one only once, so the check
+  // always claims and never rejects. A decision INSIDE a loop is the shape
+  // that arrives at the same position twice, and it is the commonest loop
+  // anyone writes.
+  //
+  // This matters because the skip is the one piece of the search whose failure
+  // mode is silent: skip too eagerly and a reachable line is reported
+  // unreachable, with no error anywhere.
+  const BRANCH_IN_LOOP = `store flag = false
+
+-> start
+
+scene start
+  Opening beat.
+  if flag
+    Went down the true side.
+  else
+    Went down the false side.
+  end
+  -> start
+end
+`;
+
+  // Same loop, no decision in it, so no fork site can ever repeat.
+  const PLAIN_LOOP = `-> start
+
+scene start
+  Going round.
+  -> start
+end
+`;
+
+  const searchForMissingTarget = (src: string) => {
+    const program = compileSrc(src);
+    planRoute(newGame(program).story, "start", "start.NO_SUCH_PATH", {
+      stayWithinKnot: true,
+      maxSteps: 400_000,
+      maxNodes: 10_000,
+    });
+    return { ...lastSearchStats };
+  };
+
+  test("a decision inside a loop stops early instead of running to the ceiling", () => {
+    const withBranch = searchForMissingTarget(BRANCH_IN_LOOP);
+    // The story loops forever, so the only way this search can end without
+    // being cut off is by recognising a fork site it has already expanded.
+    expect(withBranch.exhaustedBudget).toBe(false);
+    expect(withBranch.stepsUsed).toBeLessThan(100_000);
+  }, 300_000);
+
+  test("a loop with no decision in it has nothing to skip, and runs to the ceiling", () => {
+    // The control. Without it, the test above would pass just as well if the
+    // fixture had quietly stopped looping.
+    const plain = searchForMissingTarget(PLAIN_LOOP);
+    expect(plain.exhaustedBudget).toBe(true);
+    expect(plain.stepsUsed).toBeGreaterThanOrEqual(400_000);
+  }, 300_000);
 });
 
 describe("every branch of a decision stays reachable", () => {

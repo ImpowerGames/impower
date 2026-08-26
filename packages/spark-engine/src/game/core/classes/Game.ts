@@ -7,6 +7,7 @@ import { resolveCompiledProgram } from "@impower/sparkdown/src/binary/programBin
 import {
   buildRouteSimulator,
   planRoute,
+  SearchOptions,
   RoutePlan,
 } from "@impower/sparkdown/src/compiler/utils/planRoute";
 import { uuid } from "@impower/sparkdown/src/compiler/utils/uuid";
@@ -808,9 +809,11 @@ export class Game<T extends M = {}> {
         favoredChoices?: (number | undefined)[];
       }
     >,
+    budget?: Pick<SearchOptions, "maxSteps" | "maxNodes" | "searchTimeout">,
   ) {
     // Plan a route from the top of the knot containing the target path, to the target path itself
     return planRoute(story, fromPath, toPath, {
+      ...budget,
       functions: Object.keys(program.functionLocations || {}),
       stayWithinKnot: true,
       favoredConditions: simulationOptions?.[fromPath]?.favoredConditions,

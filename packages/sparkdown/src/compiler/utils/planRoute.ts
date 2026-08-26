@@ -134,12 +134,15 @@ export interface SearchOptions {
    * Wall-clock backstop in milliseconds (defaults to
    * {@link DEFAULT_SEARCH_TIMEOUT}).
    *
-   * The deterministic ceilings above are what decide whether a search
-   * succeeds. This exists only for the case where a single step costs
-   * pathologically more than any measured step does, and is deliberately set
-   * high enough that it never decides the outcome for a script the step
-   * ceiling would have allowed. Lower it only in a test that is deliberately
-   * exercising the backstop.
+   * The deterministic ceilings above are what decide the outcome for any
+   * script anyone writes. This is the last line of defence against a search
+   * whose individual steps cost far more than any measured step.
+   *
+   * It is a real ceiling, not a decorative one: at the measured cost of a step
+   * it is reached at roughly two thirds of {@link DEFAULT_MAX_STEPS}, so a
+   * story that runs away stops on the clock rather than the step count. What
+   * it cannot do is fire on a script of any plausible length — the largest
+   * scene measured needs well under a second of searching.
    */
   searchTimeout?: number;
 
@@ -251,7 +254,15 @@ const pendingOverrideSignature = (
         : snapshot.choicePointer[override.path]) ?? 0;
     const skipped = skippedPerSite.get(site) ?? 0;
     if (skipped < replayed) {
-      // Already consumed on the way to here, so it cannot fire again.
+      // Consumed on the way to this site, so it is not part of what still
+      // distinguishes one arrival here from another.
+      //
+      // This is a summary, not a guarantee about the future: a CHILD forked
+      // from here rebuilds the queue with its pointers back at zero, so an
+      // override dropped here can fire again if the story returns to its path.
+      // Dropping it is what lets two arrivals that differ only in already-spent
+      // history share an entry; keeping it would make the key grow forever
+      // along a loop and never match.
       skippedPerSite.set(site, skipped + 1);
       continue;
     }
@@ -308,6 +319,25 @@ const claimForkSite = (
   return true;
 };
 
+/**
+ * What the most recent {@link planRoute} call actually did.
+ *
+ * A failed search returns `null` whether it ran out of budget or genuinely
+ * exhausted the story, and those are different answers: one means "ask again
+ * with more room", the other means "this line cannot be reached". Recording it
+ * is what lets a test tell a search that finished from one that was cut off,
+ * and what lets a caller explain the failure rather than guess at it.
+ *
+ * Overwritten by every call. `planRoute` is synchronous, so this always
+ * describes the call that just returned.
+ */
+export const lastSearchStats: {
+  nodesExpanded: number;
+  stepsUsed: number;
+  /** True when a ceiling stopped the search, false when it ran out of story. */
+  exhaustedBudget: boolean;
+} = { nodesExpanded: 0, stepsUsed: 0, exhaustedBudget: false };
+
 export const planRoute = (
   story: Story,
   fromPath: string,
@@ -329,6 +359,10 @@ export const planRoute = (
   const fromKnotName = fromPath.split(".")[0] || "0";
 
   let routePlan = null;
+  const startingSteps = budget.stepsRemaining;
+  lastSearchStats.nodesExpanded = 0;
+  lastSearchStats.stepsUsed = 0;
+  lastSearchStats.exhaustedBudget = false;
 
   const queue: SearchNode[] = [start];
 
@@ -353,6 +387,7 @@ export const planRoute = (
       break;
     }
     budget.nodesRemaining -= 1;
+    lastSearchStats.nodesExpanded += 1;
 
     const node = isBfs ? queue.shift()! : queue.pop()!;
     try {
@@ -385,6 +420,13 @@ export const planRoute = (
       }
     } catch {}
   }
+
+  lastSearchStats.stepsUsed = startingSteps - budget.stepsRemaining;
+  // Read from the budget itself, not from where the loop happened to exit: the
+  // step ceiling is reached inside a node run, which ends that node and then
+  // drains the queue normally, so the outer loop can exit looking healthy on a
+  // search that was in fact cut off.
+  lastSearchStats.exhaustedBudget = searchBudgetExhausted(budget);
 
   resetStory(story);
 
