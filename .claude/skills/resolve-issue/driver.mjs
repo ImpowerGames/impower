@@ -346,90 +346,33 @@ async function waitForEditor(page, timeout = 90_000) {
   );
 }
 
-// Scrub the game preview to a source line.
+// Scrub the game preview to a source line, by clicking that line.
 //
-// Two things will silently defeat you here:
-//   1. Scrubbing ONLY works while the preview is STOPPED. Once you press PLAY
-//      the engine is time-driven and ignores the cursor entirely — the scrub
-//      appears to do nothing.
-//   2. The editor RESTORES the previous session's cursor position asynchronously
-//      after load, so a scrub issued too early gets clobbered a second later and
-//      the preview settles on the OLD line. Hence the dispatch/re-read/
-//      re-dispatch loop below.
-async function scrubToLine(page, line, attempts = 4) {
-  // Verification hook. The dispatch-based scrub usually works, which makes the
-  // trusted-click fallback below it hard to credit — a passing run cannot tell
-  // you which of the two moved the preview. Setting
-  // RESOLVE_ISSUE_NO_DISPATCH_SCRUB=1 turns this function into a no-op, so the
-  // click is the only thing left that can move it. Nothing in normal use sets
-  // the variable; it exists so a session changing the fallback can prove the
-  // fallback still works.
-  // Compared against "1" rather than tested for truthiness: every string is
-  // truthy, so a bare check turns the conventional way of switching a flag off,
-  // RESOLVE_ISSUE_NO_DISPATCH_SCRUB=0, into the way of switching it on.
-  if (process.env["RESOLVE_ISSUE_NO_DISPATCH_SCRUB"] === "1") {
-    return { line, dispatchDisabled: true };
-  }
-
-  const dispatch = (n) =>
-    page.evaluate((target) => {
-      const view = document.querySelector(".cm-content")?.cmTile?.view;
-      if (!view) throw new Error("no CodeMirror view");
-      const total = view.state.doc.lines;
-      const clamped = Math.min(Math.max(1, target), total);
-      view.focus();
-      view.dispatch({ selection: { anchor: view.state.doc.line(clamped).from } });
-      return { line: clamped, totalLines: total };
-    }, n);
-
-  const currentLine = () =>
-    page.evaluate(() => {
-      const view = document.querySelector(".cm-content")?.cmTile?.view;
-      if (!view) return null;
-      return view.state.doc.lineAt(view.state.selection.main.head).number;
-    });
-
-  // The restore can fire LATE — well after a single 1.2s check passes — so one
-  // confirmation is not enough. Require the cursor to hold the target across
-  // consecutive checks; that outlasts the restore instead of racing it.
-  let info = await dispatch(line);
-  let holds = 0;
-  for (let i = 0; i < attempts * 3; i++) {
-    await page.waitForTimeout(1200);
-    const at = await currentLine();
-    if (at === info.line) {
-      if (++holds >= 3) return { ...info, settledAfter: i + 1 };
-    } else {
-      holds = 0;
-      info = await dispatch(line); // restore clobbered us — go again
-    }
-  }
-  return { ...info, warning: `cursor kept drifting; wanted line ${info.line}` };
-}
-
-// Scrub with a REAL mouse click.
-//
+// The click is a real one, driven through Playwright's mouse. A programmatic
 // `view.dispatch({selection})` moves the caret without a user event behind it,
-// and the editor can fail to forward that move to the player: the cursor sits
-// on the requested line while the route indicator stays on the old beat, for as
-// long as you care to wait, with nothing raised. Re-dispatching cannot escape
-// that — a retry built on dispatch fails exactly the way the first attempt did.
-// A trusted click goes through the selection path a real user drives, so it
-// moves the preview where no amount of dispatching will.
+// and the editor does not reliably forward that move to the player: the cursor
+// sits on the requested line while the route indicator stays on the old beat,
+// for as long as you care to wait, with nothing raised. Measured across this
+// harness it never moved the preview, so nothing here dispatches a selection.
 //
 // Three details this depends on:
-//   - Scrolling is done by moving `scrollDOM.scrollTop` rather than by
-//     dispatching a transaction with `scrollIntoView`. A fallback that leans on
-//     dispatch to get into position is a fallback that fails whenever dispatch
-//     is what is broken, and it also makes the click impossible to credit: the
-//     scroll transaction would move the preview by itself.
+//   - Scrolling moves `scrollDOM.scrollTop` directly instead of dispatching a
+//     transaction with `scrollIntoView`, so the whole path stays free of the
+//     mechanism above.
 //   - `coordsAtPos` only answers for lines CodeMirror has actually rendered,
 //     and its answer is stale until the scroll has landed and the view has
 //     re-measured — hence the scroll, the wait, and a separate re-read.
 //   - The click lands a few characters INTO the line rather than at its very
-//     start, so it still changes the selection when a previous dispatch already
-//     parked the caret at the start; a selection that does not change produces
-//     no event for the editor to forward.
+//     start, so it still changes the selection when the caret is already parked
+//     at the start; a selection that does not change produces no event for the
+//     editor to forward.
+//
+// Two things will silently defeat a scrub however it is driven:
+//   1. Scrubbing ONLY works while the preview is STOPPED. Once you press PLAY
+//      the engine is time-driven and ignores the cursor entirely.
+//   2. The editor RESTORES the previous session's cursor position asynchronously
+//      after load, so the caller must let the first compile settle before
+//      scrubbing, or the restore lands afterwards and wins.
 async function clickLine(page, line) {
   const scrolled = await page.evaluate((target) => {
     const view = document.querySelector(".cm-content")?.cmTile?.view;
@@ -648,81 +591,48 @@ async function verify(args) {
 
       if (line) {
         const target = Number(line);
-        result.scrub = await scrubToLine(page, target);
+        result.scrub = await clickLine(page, target);
+        // A line CodeMirror has not rendered yet can refuse the first attempt;
+        // giving the view time to catch up and asking once more is cheap.
+        if (!result.scrub.clicked) {
+          await page.waitForTimeout(1500);
+          result.scrub = await clickLine(page, target);
+        }
+
         settle = await waitForPreviewSettle(page);
         result.route = await routeLabel(page);
 
-        // Confirm the preview really moved. If the selection event was dropped,
-        // re-arm it by bouncing the cursor to line 1 and back — a repeat
-        // dispatch at the SAME position produces no `selectionSet`, so bouncing
-        // is required, not optional.
-        for (
-          let i = 0;
-          i < 3 &&
-          !result.scrub?.dispatchDisabled && // every bounce here is a dispatch
-          routeBeat(result.route) !== target;
-          i++
-        ) {
-          await scrubToLine(page, 1);
-          await page.waitForTimeout(600);
-          await scrubToLine(page, target);
-          settle = await waitForPreviewSettle(page);
-          result.route = await routeLabel(page);
-          result.scrubRetries = i + 1;
-        }
+        // There is deliberately no "did the preview move" field here. Every
+        // `verify` reloads the page, so the preview always starts at the top and
+        // the route labels are empty until the first selection arrives — a
+        // before/after comparison is therefore true on every run, and a field
+        // that is always true is one nobody reads. `visible` is the field that
+        // says whether the scrub landed.
 
-        // Every retry above is another `dispatch`, so when dispatch is not
-        // reaching the preview at all they fail identically and the run reports
-        // a warning where a scrub was still available. One trusted click drives
-        // the selection path a real user drives, which recovers those runs.
+        // Beat equality is a rough test, not a verdict, and it is WRONG far more
+        // often than it is right: the route indicator reports how far execution
+        // reached, not the line asked for, so the two differ on every line with
+        // anything after it. Tracked as #419. Until that is fixed the warning
+        // stays, saying plainly that `visible` is what settles the question.
         if (routeBeat(result.route) !== target) {
-          const routeBefore = result.route;
-          const visibleBefore = settle.text;
-          result.scrubClick = await clickLine(page, target);
-          settle = await waitForPreviewSettle(page);
-          result.route = await routeLabel(page);
-          // Because the beat check above is unequal on healthy scrubs too, the
-          // click runs on most every run and its mere presence says nothing.
-          // This is the field that carries the signal: false means dispatch had
-          // already done the work and the click was redundant, true means the
-          // click is what moved the preview. Without it a regression in the
-          // dispatch path would hide behind a click that silently compensates.
-          // Split into the two underlying signals: a bare boolean is impossible
-          // to audit when it says something surprising, and the rendered text
-          // can differ for reasons that are not a move.
-          result.scrubClick.routeChanged = result.route !== routeBefore;
-          result.scrubClick.textChanged = settle.text !== visibleBefore;
-          result.scrubClick.movedPreview =
-            result.scrubClick.routeChanged || result.scrubClick.textChanged;
-          if (result.scrubClick.routeChanged) result.scrubClick.routeBefore = routeBefore;
-        }
-
-        // Beat equality is a rough test, not a verdict. The engine pauses on the
-        // beat AFTER the content it played — scrubbing to a dialogue line 20 in
-        // a 63-line script settles on beat 22, and only a line with nothing
-        // after it settles on its own number. So this warning fires on healthy
-        // mid-script scrubs too, and `visible` is what tells the two apart.
-        if (routeBeat(result.route) !== target) {
-          const click = result.scrubClick;
+          const scrub = result.scrub;
           let clickNote = "";
-          if (click?.clicked) {
-            const where = Number.isFinite(click.cursorLine)
-              ? `line ${click.cursorLine}`
+          if (scrub?.clicked) {
+            const where = Number.isFinite(scrub.cursorLine)
+              ? `line ${scrub.cursorLine}`
               : `a position it could not read back`;
-            clickNote =
-              ` A trusted click put the cursor on ${where} and ` +
-              (click.movedPreview ? `did move the preview.` : `changed nothing.`);
-          } else if (click) {
-            clickNote = ` The trusted-click fallback could not run: ${click.reason}.`;
+            clickNote = ` The click put the cursor on ${where}.`;
+          } else if (scrub) {
+            clickNote = ` The click could not run: ${scrub.reason}.`;
           }
           result.scrubWarning =
             `preview settled on beat ${routeBeat(result.route)}, not line ${target}.` +
             clickNote +
-            ` Read \`visible\` before calling this a failed scrub: the engine pauses on ` +
-            `the beat after the one it played, so a nearby beat number is normal, and a ` +
-            `genuinely failed scrub shows text from a different part of the script. ` +
-            `Failing that, the line may not be a playable beat (blank line / character ` +
-            `name / heading).`;
+            ` Read \`visible\` before calling this a failed scrub: the beat number ` +
+            `reports how far execution reached rather than the line requested, so a ` +
+            `nearby number is normal and expected (#419). A genuinely failed scrub ` +
+            `shows text from a different part of the script. Failing that, the line ` +
+            `may not be a playable beat (blank line / character name / heading).`;
         }
       } else {
         result.route = await routeLabel(page);

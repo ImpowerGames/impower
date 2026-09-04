@@ -253,24 +253,21 @@ How to read it — **check these before trusting the PNG**:
   Preview pane is **blank white**. The screenshot is not evidence. `down`, `up`,
   retry. (`neededReload: true` means it only mounted after the driver reloaded
   the page — fine, just slower.)
-- `route` — `main : 1 → main : 8` means the preview paused on **beat 8**. That is
-  the beat _after_ the content it played, so it equals the line you asked for
-  only when nothing follows that line; scrub to line 20 of a longer script and
-  the route reads 22. The driver sets `scrubWarning` whenever the two differ, so
-  the warning appears on healthy mid-script scrubs as well as failed ones —
-  `visible` is what separates them.
+- `route` — `main : 1 → main : 8` means the preview paused on **beat 8**. That
+  number reports how far execution reached, not the line you asked for, so the
+  two match only when nothing follows that line; scrub to line 20 of a longer
+  script and the route reads 22. The driver sets `scrubWarning` whenever they
+  differ, so the warning appears on healthy scrubs as well as failed ones —
+  `visible` is what separates them. Tracked as
+  [#419](https://github.com/ImpowerGames/impower/issues/419); until it is fixed,
+  treat `scrubWarning` alone as no evidence of anything.
 - `visible` — the game's rendered text, and the field that actually says whether
   the scrub landed: it should be the target line's own text. **Every line appears
   twice**: the second copy is the text _outline_ layer. Expected — not duplicated
   output.
-- `scrubClick` — the driver's fallback to a real mouse click, which it tries
-  whenever the beat check above is unequal. Since that check is unequal on
-  healthy mid-script scrubs too, this field is present on most runs and its
-  presence alone means nothing. `movedPreview` is the part that carries signal:
-  `false` means the dispatch had already done the work and the click was
-  redundant, `true` means the click is what moved the preview. A run that starts
-  reporting `true` where it used to report `false` is a dispatch regression.
-  `clicked: false` carries a `reason` instead.
+- `scrub` — the click that drove the scrub. `clicked: true` with a `cursorLine`
+  matching your target is the click landing. `clicked: false` carries a `reason`
+  instead, and that is a real failure worth reading rather than a note.
 - `settled: false` — the DOM never stopped mutating. Re-run.
 
 `--sd` is only needed when the script changes: the pinned port keeps the same
@@ -686,13 +683,10 @@ reload), `--line <N>` (scrub the preview to that source line), `--shot <out.png>
 `--probe <file.js>` (body of an async function evaluated in the editor page;
 its return value lands in the JSON), `--headed` (visible browser).
 
-`verify` scrubs by dispatching a selection into CodeMirror, then tries a real
-mouse click whenever the beat check is unequal — which, per the `route` bullet in
-§4, is most runs rather than only the failed ones. Setting
-`RESOLVE_ISSUE_NO_DISPATCH_SCRUB=1` disables the dispatch half, leaving the click
-as the only thing that can move it — that is how you prove the fallback still
-works after touching it, since a passing ordinary run cannot tell you which of
-the two moved the preview.
+`verify` scrubs with a real mouse click on the target line, driven through
+Playwright. It scrolls the line into view by moving the scroller directly, checks
+that the coordinates are really over the text rather than an overlay, then
+clicks. Nothing in that path dispatches a CodeMirror selection.
 
 State lives in `.claude/skills/resolve-issue/.state.json` (gitignored).
 
@@ -749,25 +743,26 @@ Things that look like they work and don't:
   worker isn't listening yet. The driver waits for the first compile to settle
   _before_ scrubbing. Without that you get beat 1–2 no matter what line you ask
   for.
-- **Re-dispatching the same cursor position produces no event.** To re-arm a
-  scrub you must bounce to another line and back.
+- **A selection that does not change produces no event**, so a click landing
+  exactly where the caret already sits scrubs nothing. The driver aims a few
+  characters into the line to avoid it, and refuses the click with a `reason`
+  when it cannot — which is every empty line, there being no character to aim
+  past. Blank lines are unscrubbable, not merely discouraged.
 - **The preview keeps the position the LAST run left it on**, because the
   profile and the origin are both pinned and the editor restores the previous
   cursor. So a run that scrubs to the line a previous run already reached looks
   like a success whether or not this run's scrub did anything, and a run whose
   scrub fails silently shows the previous run's beat rather than an obvious
   error. When you are testing the scrub itself rather than using it, always aim
-  at a line the previous run did not visit, and read `scrubClick.movedPreview`.
-- **A real (trusted) click on the target line is the most reliable scrub.**
-  `view.dispatch({selection})` moves the caret, but the preview can silently
-  fail to follow — the cursor sits on the line you asked for while `route`
-  stays on the old beat, and nothing raises. The driver falls back to a real
-  `page.mouse.click()` once its dispatch retries are exhausted, and reports the
-  outcome as `scrubClick`; a trusted event drives the real selection path where
-  no amount of re-dispatching will. To confirm that fallback still works after
-  changing it, run `verify` with `RESOLVE_ISSUE_NO_DISPATCH_SCRUB=1` set — that
-  turns the dispatch-based scrub into a no-op, so the click is the only thing
-  that can move the preview.
+  at a line the previous run did not visit, and check `visible` against that
+  line's own text.
+- **Only a real (trusted) click scrubs the preview.** `view.dispatch({selection})`
+  moves the caret and the preview does not follow — the cursor sits on the line
+  you asked for while `route` stays on the old beat, and nothing raises. It was
+  measured never moving the preview through this harness, so the driver clicks
+  and does not dispatch. If you are driving the editor yourself rather than
+  through the driver, click; do not reach for `dispatch` because it is easier to
+  write.
 - **`textContent` on the game DOM returns a wall of CSS** — the player injects
   `<style>` blocks and every ancestor inherits their text. And the typewriter
   effect wraps **every character** in its own `<span>`, so "leaf nodes with
