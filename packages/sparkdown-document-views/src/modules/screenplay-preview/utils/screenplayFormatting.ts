@@ -347,10 +347,8 @@ export const decorate = (
       // This is a top-level node
       return (
         name !== "FrontMatter" &&
-        name !== "Function" && // TODO: Only hide if config doesn't print function
         name !== "Scene" && // TODO: Only hide if config doesn't print scene
         // name !== "Branch" && // TODO: Only hide if config doesn't print branch
-        name !== "Knot" && // TODO: Only hide if config doesn't print knot
         // name !== "Stitch" && // TODO: Only hide if config doesn't print stitch
         name !== "BlockTitle" &&
         name !== "InlineTitle" &&
@@ -537,9 +535,7 @@ export const decorate = (
         inDialogue = true;
         dialoguePosition = 0;
         dialogueContent = [];
-      } else if (name === "ConditionalBracedBlock") {
-        inConditionalBlock.push(true);
-      } else if (name === "DialogueCharacter") {
+            } else if (name === "DialogueCharacter") {
         const value = doc.sliceString(from, to).trim();
         dialogueContent.push({
           type: "character",
@@ -605,25 +601,7 @@ export const decorate = (
             },
           });
         }
-      } else if (name === "Function") {
-        decorations.push(
-          ...createDecorations(doc, {
-            type: "page_break",
-            from,
-            to,
-          }),
-        );
-        return false;
       } else if (name === "Scene") {
-        decorations.push(
-          ...createDecorations(doc, {
-            type: "page_break",
-            from,
-            to,
-          }),
-        );
-        return false;
-      } else if (name === "Knot") {
         decorations.push(
           ...createDecorations(doc, {
             type: "page_break",
@@ -871,9 +849,7 @@ export const decorate = (
         }
         inDialogue = false;
         inDualDialogue = false;
-      } else if (name === "ConditionalBracedBlock") {
-        inConditionalBlock.pop();
-      }
+            }
     },
   });
 

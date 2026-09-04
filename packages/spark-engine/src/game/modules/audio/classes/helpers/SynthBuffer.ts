@@ -8,8 +8,8 @@ export class SynthBuffer {
     return this._tones;
   }
 
-  protected _soundBuffer: Float32Array;
-  public get soundBuffer(): Float32Array {
+  protected _soundBuffer: Float32Array<ArrayBuffer>;
+  public get soundBuffer(): Float32Array<ArrayBuffer> {
     return this._soundBuffer;
   }
 

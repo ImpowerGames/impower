@@ -785,11 +785,11 @@ export function touchInputHandler(options: TouchInputHandlerOptions = {}) {
       touchmove: () => true,
       touchend: () => true,
       touchcancel: () => true,
-      focus: (e, view) => {
-        view.plugin(touchEventsPlugin)?.onVisualViewportUpdate(e);
+      focus: (_e, view) => {
+        view.plugin(touchEventsPlugin)?.onVisualViewportUpdate();
       },
-      blur: (e, view) => {
-        view.plugin(touchEventsPlugin)?.onVisualViewportUpdate(e);
+      blur: (_e, view) => {
+        view.plugin(touchEventsPlugin)?.onVisualViewportUpdate();
       },
     }),
   ];
