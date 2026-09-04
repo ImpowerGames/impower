@@ -4,7 +4,8 @@
 //
 // This is the hand-maintained source of truth for builtins. Edit it directly —
 // the compiler imports it as raw text via `builtins.sd?raw` (esbuild + Vite),
-// so there's no generated wrapper to regenerate.
+// so there's no generated wrapper to regenerate. `prelude.test.ts` compile-
+// checks it.
 //
 // Prose between blocks is written with `//`, sparkdown's comment form outside
 // Luau. `--` opens a comment only inside a Luau scope — a struct body, a

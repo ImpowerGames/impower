@@ -6,9 +6,10 @@
 // `--` opens a comment only inside a Luau scope — a struct body, a function
 // body, a code block. At a script's top level it is display text, so a `--`
 // line written between blocks compiles into that root flow as a text beat.
-// Sparkdown's comment form outside Luau is `//` (pinned by
-// DisplayLineComment.test.ts), which is what the prelude uses for its own
-// between-block prose.
+// Sparkdown's comment form outside Luau is `//`, matched whole-line by the
+// grammar's `SparkdownLineComment` rule when a whitespace or an end of line
+// follows it (definitions/yaml/sparkdown.language-grammar.yaml). That is what
+// the prelude uses for its own between-block prose.
 //
 // These pin the outcome rather than the spelling: the prelude's root flow
 // carries no text, and seeding the builtins into a program adds none to it.
