@@ -835,6 +835,12 @@ const makeStartNode = (story: Story, fromPath: string): SearchNode => {
   };
 };
 
+const knotNameFromPath = (path: string | undefined): string =>
+  path?.split(".")[0] || "0";
+
+const isRootLevel = (knot: string): boolean =>
+  knot === "0" || /^\d+$/.test(knot);
+
 const exitedKnot = (
   story: Story,
   knotName: string,
@@ -842,29 +848,37 @@ const exitedKnot = (
 ): boolean => {
   const ptr = story.state.currentPointer;
 
-  // If there's no valid pointer yet, we haven't left anything.
-  // (e.g., before first Continue or at container boundaries.)
   if (!ptr || ptr.isNull) {
     return false;
   }
-  const curPath = ptr.path?.toString(); // absolute runtime path string
+  const curPath = ptr.path?.toString();
+  const curKnot = knotNameFromPath(curPath);
 
-  const curKnot = curPath?.split(".")[0] || "0";
+  if (isRootLevel(curKnot)) {
+    return false;
+  }
+
+  if (curKnot === knotName) {
+    return false;
+  }
 
   if (functions.includes(curKnot)) {
-    // Entering functions don't count as exiting the knot,
-    // since they are guaranteed to return flow to the knot
     return false;
   }
 
-  if (!Number.isNaN(curKnot)) {
-    // Is root level
-    return false;
+  for (const thread of story.state.callStack._threads) {
+    for (const el of thread.callstack) {
+      const elKnot = knotNameFromPath(
+        el.currentPointer.path?.toString() ??
+          el.previousPointer.path?.toString(),
+      );
+      if (elKnot === knotName) {
+        return false;
+      }
+    }
   }
 
-  const inside = curKnot === knotName;
-
-  return !inside;
+  return true;
 };
 
 const forkCondition = (
