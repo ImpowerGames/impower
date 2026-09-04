@@ -6,6 +6,13 @@
 // the compiler imports it as raw text via `builtins.sd?raw` (esbuild + Vite),
 // so there's no generated wrapper to regenerate. `prelude.test.ts` compile-
 // checks it.
+//
+// Prose between blocks is written with `//`, sparkdown's comment form outside
+// Luau. `--` opens a comment only inside a Luau scope — a struct body, a
+// function body, a code block — which is where the indented comments below use
+// it. At column 0 a `--` line is display text, and this file's root flow is
+// seeded into every compiled program, so such a line would travel with every
+// game and play back from the root. `preludeRootFlow.test.ts` fails on one.
 
 define metadata with
   title = ""
@@ -967,10 +974,10 @@ define slate_50 as color with
   value = "rgb(71,85,105)"
 end
 
--- Halfway between slate_40 and slate_50, like slate_65 and slate_75 below.
--- Exists because the switch's OFF track wants its own step: it was borrowing
--- the form-element border colour, which meant a project retinting its inputs
--- silently moved the switch too, and the two have no reason to agree.
+// Halfway between slate_40 and slate_50, like slate_65 and slate_75 below.
+// Exists because the switch's OFF track wants its own step: it was borrowing
+// the form-element border colour, which meant a project retinting its inputs
+// silently moved the switch too, and the two have no reason to agree.
 define slate_45 as color with
   value = "rgb(61,75,95)"
 end
@@ -1235,11 +1242,11 @@ style main with
   text-color = slate_80
 end
 
--- `layouts` is the container the engine puts every layout inside, so it is the
--- one place a rule can reach the WHOLE ui. Reserved for behaviour that belongs
--- to any element regardless of what it is or which layout it sits in; keep it
--- to `& >> …` descendant rules, since the element itself is positioned by the
--- engine with inline styles.
+// `layouts` is the container the engine puts every layout inside, so it is the
+// one place a rule can reach the WHOLE ui. Reserved for behaviour that belongs
+// to any element regardless of what it is or which layout it sits in; keep it
+// to `& >> …` descendant rules, since the element itself is positioned by the
+// engine with inline styles.
 style layouts with
   -- TOOLTIPS. Any element carrying `#tooltip="…"` grows a bubble above it with
   -- a caret beneath, on hover and on keyboard focus:
@@ -1374,26 +1381,26 @@ style row with
   -- lose and every button in a row would carry a rhythm step above it.
 end
 
--- The generic BLOCK wrapper: a plain container with no meaning attached.
---
--- `box` had no style block at all before this, which made it an exact synonym
--- for `column` -- the universal reset already makes every element a flex
--- column, so `box` said nothing and `column` restated the default. Two names
--- for one behaviour is worse than one.
---
--- It earns its keep as the other half of the pair. Grouping now splits by
--- RHYTHM MODEL, and the block side had no un-opinionated option: `section` and
--- `article` carry meaning a screen reader announces, and `text` implies
--- content. So:
---
---   box            block -- children space themselves with margins, and those
---                           margins COLLAPSE with each other and through this
---                           edge, exactly like a document
---   column / row   flex  -- children are spaced BY the container, with
---                           `child-gap`, and nothing collapses
---
--- Reach for whichever matches the rhythm you want; mixing the two inside one
--- container is what double-spaces things.
+// The generic BLOCK wrapper: a plain container with no meaning attached.
+//
+// `box` had no style block at all before this, which made it an exact synonym
+// for `column` -- the universal reset already makes every element a flex
+// column, so `box` said nothing and `column` restated the default. Two names
+// for one behaviour is worse than one.
+//
+// It earns its keep as the other half of the pair. Grouping now splits by
+// RHYTHM MODEL, and the block side had no un-opinionated option: `section` and
+// `article` carry meaning a screen reader announces, and `text` implies
+// content. So:
+//
+//   box            block -- children space themselves with margins, and those
+//                           margins COLLAPSE with each other and through this
+//                           edge, exactly like a document
+//   column / row   flex  -- children are spaced BY the container, with
+//                           `child-gap`, and nothing collapses
+//
+// Reach for whichever matches the rhythm you want; mixing the two inside one
+// container is what double-spaces things.
 style block with
   display = block
 end
@@ -1758,21 +1765,21 @@ style checkbox with
     pointer-events = none
 end
 
--- `input` is the generic form control (`input #type="email|search|date|…"`).
--- It needs the same chrome as `field`, which is just `input #type="text"` under
--- a friendlier name — without this, every typed input fell back to the
--- browser's white default while `field` next to it was dark.
--- Form controls carry NO margin of their own.
---
--- They are PRIMITIVES, like `row` and `column` and `text`: whatever lays a
--- control out decides its spacing. Only genuine document elements ship with
--- rhythm -- `paragraph`, `h1`-`h6`, `list`, `table`, `section`, `article`,
--- `quote`, `fieldset`.
---
--- A baked-in `margin-bottom` reads as correct on a web form and as a bug in a
--- game menu, where a `row` of dropdowns and sliders would carry a rhythm step
--- under each one that nothing asked for and no gap accounts for. Spacing a
--- form is the FORM's business, and the showcase states it per control.
+// `input` is the generic form control (`input #type="email|search|date|…"`).
+// It needs the same chrome as `field`, which is just `input #type="text"` under
+// a friendlier name — without this, every typed input fell back to the
+// browser's white default while `field` next to it was dark.
+// Form controls carry NO margin of their own.
+//
+// They are PRIMITIVES, like `row` and `column` and `text`: whatever lays a
+// control out decides its spacing. Only genuine document elements ship with
+// rhythm -- `paragraph`, `h1`-`h6`, `list`, `table`, `section`, `article`,
+// `quote`, `fieldset`.
+//
+// A baked-in `margin-bottom` reads as correct on a web form and as a bug in a
+// game menu, where a `row` of dropdowns and sliders would carry a rhythm step
+// under each one that nothing asked for and no gap accounts for. Spacing a
+// form is the FORM's business, and the showcase states it per control.
 style input with
   pointer_events = auto
   color-scheme = dark
@@ -1866,10 +1873,10 @@ style radio with
     pointer-events = none
 end
 
--- A `switch` is a checkbox carrying role="switch". Pico draws it as a pill
--- TRACK with a sliding THUMB rather than a box, so the native checkbox
--- appearance is dropped and the thumb is an `@before` pseudo-element that
--- translates across on `@checked`.
+// A `switch` is a checkbox carrying role="switch". Pico draws it as a pill
+// TRACK with a sliding THUMB rather than a box, so the native checkbox
+// appearance is dropped and the thumb is an `@before` pseudo-element that
+// translates across on `@checked`.
 style switch with
   pointer_events = auto
   appearance = none
@@ -2129,7 +2136,7 @@ style option with
   pointer_events = auto
 end
 
--- Pico UI component classes ------------------------------------------------
+// Pico UI component classes ------------------------------------------------
 
 style h1 with
   text-size = 2rem
@@ -2224,16 +2231,16 @@ style muted with
   text-color = slate_60
 end
 
--- A document paragraph, and the one block builtin that keeps a MARGIN.
---
--- Everything else moved to `child-gap`, because a container spacing its own
--- children is easier to reason about than each child pushing its neighbours
--- around. A paragraph is the exception on purpose: the space below it belongs
--- to the paragraph, not to whatever happens to contain it, so prose reads
--- correctly whether it sits in a gapped column, a grid cell, or on its own.
---
--- That is also the difference a reader can see between `paragraph` and `text`:
--- `text` is a bare div that takes its rhythm from its parent's gap.
+// A document paragraph, and the one block builtin that keeps a MARGIN.
+//
+// Everything else moved to `child-gap`, because a container spacing its own
+// children is easier to reason about than each child pushing its neighbours
+// around. A paragraph is the exception on purpose: the space below it belongs
+// to the paragraph, not to whatever happens to contain it, so prose reads
+// correctly whether it sits in a gapped column, a grid cell, or on its own.
+//
+// That is also the difference a reader can see between `paragraph` and `text`:
+// `text` is a bare div that takes its rhythm from its parent's gap.
 style paragraph with
   display = block
   margin-bottom = 1rem
@@ -2252,24 +2259,24 @@ style container with
   padding = 1rem 0
 end
 
--- Inline text CLASSES -------------------------------------------------------
---
--- Applied to a whole text element (`text bold "Bold"`, like `text h1`). For
--- styling WITHIN a line, use rich-text tags: `text "a <b>bold</b> word"`.
+// Inline text CLASSES -------------------------------------------------------
+//
+// Applied to a whole text element (`text bold "Bold"`, like `text h1`). For
+// styling WITHIN a line, use rich-text tags: `text "a <b>bold</b> word"`.
 
--- A block of flowing prose. The overlay lays everything out as FLEX, and CSS
--- BLOCKIFIES the children of a flex container — so `strong` / `em` / `sub` /
--- `sup` / `abbr` inside a `row` or `column` compute to `display: block` and
--- stack instead of flowing inline, no matter what their own rule says. Put them
--- in a `prose` box (the only non-flex text container) to get real inline flow.
+// A block of flowing prose. The overlay lays everything out as FLEX, and CSS
+// BLOCKIFIES the children of a flex container — so `strong` / `em` / `sub` /
+// `sup` / `abbr` inside a `row` or `column` compute to `display: block` and
+// stack instead of flowing inline, no matter what their own rule says. Put them
+// in a `prose` box (the only non-flex text container) to get real inline flow.
 style prose with
   display = block
   text-color = slate_90
 end
 
--- `strong` / `emphasis` are ELEMENTS (they mean importance / stress emphasis);
--- `bold` / `italic` are the purely visual CLASSES. Same rendering, different
--- meaning — mirroring HTML's own <strong>/<em> vs <b>/<i> split.
+// `strong` / `emphasis` are ELEMENTS (they mean importance / stress emphasis);
+// `bold` / `italic` are the purely visual CLASSES. Same rendering, different
+// meaning — mirroring HTML's own <strong>/<em> vs <b>/<i> split.
 style strong with
   display = inline
   text-weight = 700
@@ -2352,8 +2359,8 @@ style abbreviation with
   text-leading = normal
 end
 
--- `divider` renders an <hr>. The overlay's flex default would collapse it, so
--- it is an explicit block rule.
+// `divider` renders an <hr>. The overlay's flex default would collapse it, so
+// it is an explicit block rule.
 style divider with
   display = block
   width = 100%
@@ -2393,12 +2400,12 @@ style quote with
     margin-bottom = 0
 end
 
--- Lists ---------------------------------------------------------------------
+// Lists ---------------------------------------------------------------------
 
--- `display` is stated explicitly rather than left to the browser default: the
--- overlay lays everything out as flex, and a flex `<li>` renders NO marker (a
--- marker needs `display: list-item`). `child-gap` likewise does nothing on a
--- non-flex parent, so list spacing is per-item margin.
+// `display` is stated explicitly rather than left to the browser default: the
+// overlay lays everything out as flex, and a flex `<li>` renders NO marker (a
+// marker needs `display: list-item`). `child-gap` likewise does nothing on a
+// non-flex parent, so list spacing is per-item margin.
 style list with
   display = block
   -- No marker and no indent by DEFAULT. A game's lists are overwhelmingly
@@ -2410,16 +2417,16 @@ style list with
   margin-bottom = 1rem
 end
 
--- The document look for a plain `list`, in one word -- marker AND the indent it
--- needs, since a marker with no padding renders outside the content box:
---
---   list bulleted:
---     item "..."
---
--- `#list-mark` still overrides the marker on top of it, so varying it does not
--- mean restating the indent:
---
---   list bulleted #list-mark="circle":
+// The document look for a plain `list`, in one word -- marker AND the indent it
+// needs, since a marker with no padding renders outside the content box:
+//
+//   list bulleted:
+//     item "..."
+//
+// `#list-mark` still overrides the marker on top of it, so varying it does not
+// mean restating the indent:
+//
+//   list bulleted #list-mark="circle":
 style bulleted with
   -- The LONGHAND, so `#list-mark` (an inline style setting the same longhand)
   -- cleanly wins over it. The `list-style` shorthand would also reset
@@ -2428,11 +2435,11 @@ style bulleted with
   padding-left = 40px
 end
 
--- An ordered list arrives NUMBERED -- that is what it is for. `#list-mark`
--- changes or drops the numerals without giving up the ordering:
---
---   ordered_list #list-mark="lower-roman":
---   ordered_list #list-mark="none":    -- still an <ol>, still announced ordered
+// An ordered list arrives NUMBERED -- that is what it is for. `#list-mark`
+// changes or drops the numerals without giving up the ordering:
+//
+//   ordered_list #list-mark="lower-roman":
+//   ordered_list #list-mark="none":    -- still an <ol>, still announced ordered
 style ordered_list with
   display = block
   list-style = decimal
@@ -2448,11 +2455,11 @@ style item with
     margin-bottom = 0
 end
 
--- Tables --------------------------------------------------------------------
+// Tables --------------------------------------------------------------------
 
--- The table family needs its native display values spelled out: the overlay
--- lays every element out as FLEX, and a flex table/row/cell does no table
--- layout at all (columns stop aligning across rows).
+// The table family needs its native display values spelled out: the overlay
+// lays every element out as FLEX, and a flex table/row/cell does no table
+// layout at all (columns stop aligning across rows).
 style table_header with
   display = table-header-group
   >> head:
@@ -2500,16 +2507,16 @@ style cell with
   border-bottom-color = slate_30
 end
 
--- `table striped` tints alternate BODY rows. `@odd` is the nth-child alias, so
--- this needs no per-row authoring.
+// `table striped` tints alternate BODY rows. `@odd` is the nth-child alias, so
+// this needs no per-row authoring.
 style striped with
   > table_body:
     > @odd:
       background-color = rgb(111 120 135 / 3.75%)
 end
 
--- A captioned figure. The overlay forces every element to flex, so the
--- column direction has to be stated rather than inherited from `display:block`.
+// A captioned figure. The overlay forces every element to flex, so the
+// column direction has to be stated rather than inherited from `display:block`.
 style figure with
   display = block
 end
@@ -2542,8 +2549,8 @@ style caption with
     display = inline
 end
 
--- Foldout: a native <details>/<summary> disclosure. One foldout; an
--- "accordion" is a GROUP of these, which is why the element is not named that.
+// Foldout: a native <details>/<summary> disclosure. One foldout; an
+// "accordion" is a GROUP of these, which is why the element is not named that.
 style foldout_label with
   pointer_events = auto
   display = list-item
@@ -2609,9 +2616,9 @@ style foldout with
         text-color = white
         margin-bottom = 0
 end
--- `menu` is a `foldout` styled as a nav dropdown — Pico names the class
--- `dropdown`, but here that word is already the <select> ELEMENT. The panel is
--- absolutely positioned so opening it does not reflow the nav.
+// `menu` is a `foldout` styled as a nav dropdown — Pico names the class
+// `dropdown`, but here that word is already the <select> ELEMENT. The panel is
+// absolutely positioned so opening it does not reflow the nav.
 style menu with
   position = relative
   -- `display = none` is stated because the overlay forces every element to
@@ -2691,8 +2698,8 @@ style menu with
       text-color = slate_90
 end
 
--- Pico marks a search field with an inline magnifier and indents the text
--- past it, so the field reads as a search box before it is focused.
+// Pico marks a search field with an inline magnifier and indents the text
+// past it, so the field reads as a search box before it is focused.
 style search with
   corner = 5rem
   background-image = url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238891a4' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cpath d='m21 21-4.3-4.3'/%3E%3C/svg%3E")
@@ -2702,8 +2709,8 @@ style search with
   padding-left = 2.75rem
 end
 
--- A file input draws its own button, so the surrounding field chrome the
--- other `input` types get would be a box around a box. Pico leaves it bare.
+// A file input draws its own button, so the surrounding field chrome the
+// other `input` types get would be a box around a box. Pico leaves it bare.
 style file_input with
   background-color = transparent
   border-style = none
@@ -2736,25 +2743,25 @@ style file_input with
     pointer-events = none
 end
 
--- SCROLLING IS AN INTERACTION, so a scroller has to be hit-testable.
---
--- The ui overlay is `pointer-events: none` so the game canvas behind it stays
--- clickable, and each interactive builtin opts back in with `pointer_events =
--- auto` (button, field, input, slider, …). A scroller was never given a style
--- block, so it never opted in — and a wheel gesture over one hit-tested
--- straight THROUGH the ui to the canvas, leaving the browser with no scroll
--- container under the cursor and nothing to scroll.
---
--- The symptom was maddeningly intermittent rather than total, because the
--- gesture DOES land whenever the pointer happens to be over a control that had
--- opted in; it stuck over any stretch of plain content, and never scrolled at
--- all over a wide region with no controls in it, like a table.
+// SCROLLING IS AN INTERACTION, so a scroller has to be hit-testable.
+//
+// The ui overlay is `pointer-events: none` so the game canvas behind it stays
+// clickable, and each interactive builtin opts back in with `pointer_events =
+// auto` (button, field, input, slider, …). A scroller was never given a style
+// block, so it never opted in — and a wheel gesture over one hit-tested
+// straight THROUGH the ui to the canvas, leaving the browser with no scroll
+// container under the cursor and nothing to scroll.
+//
+// The symptom was maddeningly intermittent rather than total, because the
+// gesture DOES land whenever the pointer happens to be over a control that had
+// opted in; it stuck over any stretch of plain content, and never scrolled at
+// all over a wide region with no controls in it, like a table.
 style scroller with
   pointer_events = auto
 end
 
--- A horizontal scroll box for a table too wide for its container. The overlay
--- makes everything flex, so `display` is stated explicitly.
+// A horizontal scroll box for a table too wide for its container. The overlay
+// makes everything flex, so `display` is stated explicitly.
 style overflow_auto with
   display = block
   overflow-x = auto
@@ -2766,10 +2773,10 @@ style overflow_auto with
   pointer_events = auto
 end
 
--- Structure -----------------------------------------------------------------
+// Structure -----------------------------------------------------------------
 
--- Pico's article is a card whose own `header`/`footer` are tinted sectioning
--- bands separated by a rule, so they are targeted as direct children.
+// Pico's article is a card whose own `header`/`footer` are tinted sectioning
+// bands separated by a rule, so they are targeted as direct children.
 style article with
   display = block
   margin-bottom = 1rem
@@ -2856,7 +2863,7 @@ style form with
     width = 100%
 end
 
--- Pico strips the default fieldset chrome and uses it purely as a grouping box.
+// Pico strips the default fieldset chrome and uses it purely as a grouping box.
 style fieldset with
   display = block
   border-width = 0
@@ -2880,21 +2887,21 @@ style legend with
 end
 
 
--- Modal: authored as `modal`, rendering a native <dialog>, opened
--- declaratively with `#open={flag}`. Deliberately NOT called `dialog` — the
--- screenplay `dialogue` style (character speech) is a different thing one
--- letter away.
---
--- Follows Pico's shape — the DIALOG is the full-screen scrim and the `article`
--- inside it is the card — so a modal is authored as:
---
---   modal #open=<a bound boolean>:
---     article:
---       ...
---
--- A `<dialog>` with no `open` attribute is `display: none` natively, but the
--- base rule here has to restate that: setting `display: flex` unconditionally
--- would make a CLOSED modal visible.
+// Modal: authored as `modal`, rendering a native <dialog>, opened
+// declaratively with `#open={flag}`. Deliberately NOT called `dialog` — the
+// screenplay `dialogue` style (character speech) is a different thing one
+// letter away.
+//
+// Follows Pico's shape — the DIALOG is the full-screen scrim and the `article`
+// inside it is the card — so a modal is authored as:
+//
+//   modal #open=<a bound boolean>:
+//     article:
+//       ...
+//
+// A `<dialog>` with no `open` attribute is `display: none` natively, but the
+// base rule here has to restate that: setting `display: flex` unconditionally
+// would make a CLOSED modal visible.
 style modal with
   display = none
   position = fixed
@@ -2958,10 +2965,10 @@ style nav with
       text-decoration = underline
 end
 
--- `secondary` / `contrast` / `outline` carry no styling of their own — they are
--- MODIFIERS, and each element defines what they mean via compound selectors
--- (see `button` and `link`). Defining them standalone is what previously made
--- `link secondary` render as a filled button.
+// `secondary` / `contrast` / `outline` carry no styling of their own — they are
+// MODIFIERS, and each element defines what they mean via compound selectors
+// (see `button` and `link`). Defining them standalone is what previously made
+// `link secondary` render as a filled button.
 
 style badge with
   display = flex
@@ -2976,9 +2983,9 @@ style badge with
   text-weight = 600
 end
 
--- Pico's `group` JOINS its children into one control (a field welded to its
--- button): no gap, and the inner corners squared off so they read as a single
--- unit. Use a plain `row #child-gap=…` for merely spaced children.
+// Pico's `group` JOINS its children into one control (a field welded to its
+// button): no gap, and the inner corners squared off so they read as a single
+// unit. Use a plain `row #child-gap=…` for merely spaced children.
 style group with
   -- INLINE-flex, matching the reference's `<fieldset>`. Not cosmetic: an
   -- inline-level box does not margin-collapse, so the group's own
@@ -3037,18 +3044,18 @@ style group with
     corner-bottom-left = 0
 end
 
--- Pico's `.grid` auto-fits however many children it has into ONE row of equal
--- columns (a fixed `1fr 1fr` wrapped a 3-up form onto two lines). `minmax(0,1fr)`
--- rather than plain `1fr` so a long child can shrink instead of overflowing.
+// Pico's `.grid` auto-fits however many children it has into ONE row of equal
+// columns (a fixed `1fr 1fr` wrapped a 3-up form onto two lines). `minmax(0,1fr)`
+// rather than plain `1fr` so a long child can shrink instead of overflowing.
 style grid with
   child-layout = grid
   child-columns = repeat(auto-fit, minmax(0, 1fr))
   child-gap = 1rem
 end
 
--- A native <progress value max>. `accent-color` is what tints the filled part
--- of the native control; `progress_fill` below stays available for the
--- div-track-plus-fill construction.
+// A native <progress value max>. `accent-color` is what tints the filled part
+// of the native control; `progress_fill` below stays available for the
+// div-track-plus-fill construction.
 style progress with
   display = inline-block
   appearance = none
@@ -3431,9 +3438,9 @@ animation spin with
     direction = "normal"
 end
 
--- A tooltip bubble rises the last quarter-rem into place as it fades in, and
--- its caret follows. Two animations rather than one because the bubble and the
--- caret rest at different offsets (the caret sits flush against the element).
+// A tooltip bubble rises the last quarter-rem into place as it fades in, and
+// its caret follows. Two animations rather than one because the bubble and the
+// caret rest at different offsets (the caret sits flush against the element).
 animation tooltip_slide with
   target = layer.self
   keyframes:
@@ -3470,10 +3477,10 @@ animation tooltip_caret_slide with
     direction = "normal"
 end
 
--- Sweeps the coloured segment of an INDETERMINATE progress bar across its
--- track. `style progress` referenced this animation by name before it existed,
--- so the bar declared an animation that resolved to nothing and simply sat
--- still — a dangling @keyframes name is silently ignored, with no warning.
+// Sweeps the coloured segment of an INDETERMINATE progress bar across its
+// track. `style progress` referenced this animation by name before it existed,
+// so the bar declared an animation that resolved to nothing and simply sat
+// still — a dangling @keyframes name is silently ignored, with no warning.
 animation progress_indeterminate with
   target = layer.self
   -- No `offset` on these frames: two frames distribute to 0%/100% on their own,
