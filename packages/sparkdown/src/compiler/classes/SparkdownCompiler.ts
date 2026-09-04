@@ -248,9 +248,13 @@ type FlowLocCacheEntry = {
   assets: SceneAssetCapture;
 };
 
-// A per-script view of this compile's changed chunks. The bytecode reuse guard
-// (`computeFlowReuse`) and the location/asset reuse guard
-// (`populateAllLocations`) each build one from their own flow list — they
+// A per-script view of this compile's changed chunks, answering only "did this
+// flow's own source change". Whether an UNCHANGED flow can nonetheless have
+// changed shape is a separate, position-independent question, answered once per
+// compile by `_unchangedFlowShapeAtRisk`.
+//
+// The bytecode reuse guard (`computeFlowReuse`) and the location/asset reuse
+// guard (`populateAllLocations`) each build one from their own flow list — they
 // disagree about `global decl`, which one includes and the other skips — so
 // they hold separate instances of this, applying the same rule to the same
 // `_changedChunkRanges`.
@@ -264,12 +268,6 @@ type FlowSpanIndex = {
   // `uri`. The flow's span runs from its start line to the next flow start in
   // that same script, or to the end of the script if it is the last one.
   touched: (uri: string, start0: number) => boolean;
-  // True when a changed chunk sits above the first flow of its own script.
-  // Such a chunk is content that lives outside every flow, and generation can
-  // fold it into flows in any script, so no flow's cached shape survives it. A
-  // script with no flows at all is entirely such content, so any change in it
-  // counts.
-  changedAboveFirstFlow: boolean;
 };
 
 export class SparkdownCompiler {
@@ -447,6 +445,62 @@ export class SparkdownCompiler {
   // starts true so the first compile after construction never reuses.
   protected _flowReuseDisabled = true;
   protected _disableFlowReuseNextCompile = false;
+  // The `_unchangedFlowShapeAtRisk` counterpart of
+  // `_disableFlowReuseNextCompile`, and deliberately narrower: only a compile
+  // that THREW arms it. A compile that merely raised an unattributable
+  // generation diagnostic arms the construction-reuse switch instead, because
+  // that hazard is a diagnostic being silently dropped by a flow whose
+  // generation is skipped — neither downstream cache carries diagnostics, and
+  // a script holding a `define` raises one on every compile, so treating it as
+  // a shape risk would cost those caches their reuse for the whole session.
+  protected _riskFlowShapeNextCompile = false;
+  // True when something about THIS compile can change the generated shape of a
+  // flow whose own source chunks are all unchanged. Both per-flow caches that
+  // outlive a compile — the serialized-bytecode memo (`_flowJsonCache` /
+  // `_flowChunkCache`, consulted by `computeFlowReuse`) and the location/asset
+  // cache (`_locCache`, consulted by `populateAllLocations`) — key a cached
+  // entry on "this flow's chunks did not change", so both are only sound while
+  // that implication holds. One field serves both, so the two guards cannot
+  // reach different verdicts about the same compile.
+  //
+  // The hazards are the ones catalogued in #306, and each already has a
+  // precise, POSITION-INDEPENDENT detector feeding `_flowReuseDisabled`:
+  //
+  //   - a LIST is inlined by value into every referencing flow, caught by
+  //     `scanChunkForReuse`'s `invalidatesGlobals` on a changed chunk. This
+  //     one is unreachable from authored Sparkdown, which has no list syntax —
+  //     nothing under `compiler/lower/` constructs a `ListDefinition`, so the
+  //     detector guards an inkjs-inherited node the lowerer never emits, and
+  //     no test can exercise it. It stays because the node type is still live
+  //     in the runtime the compiler targets;
+  //   - a declared const/global/struct/external NAME entering or leaving the
+  //     program flips call-site codegen in flows that reference it, caught by
+  //     the declared-name census (`_censusEntries`);
+  //   - `include`/`run` targets and `EXTERNAL` name+arity decide which files
+  //     contribute flows and which call sites become external calls, caught by
+  //     the root-region structure descriptors;
+  //   - a callee's parameter list is baked into its CALLERS' bytecode, caught
+  //     by `_prevFlowSignatures`;
+  //   - `countAllVisits` changes what generation bakes into every container.
+  //
+  // What is deliberately NOT a hazard, and so does not set this: where the
+  // changed content SITS relative to the flows. Top-level flows are
+  // name-addressed in `namedOnlyContent`, so their internal index-addressed
+  // paths do not shift when content outside them grows or shrinks, and a flow
+  // whose start line moved is re-based by the location cache's line delta.
+  // Globals and constants are read through runtime variable lookups rather
+  // than inlined (#309), so editing a constant's VALUE above the first scene —
+  // or a `store` value, or front matter, or loose prose between two scenes —
+  // cannot alter any flow's bytecode. Only the declared NAMES matter, and the
+  // census covers those wherever they are written.
+  //
+  // The list above is exhaustive rather than conservative, which is what makes
+  // it worth the reuse it buys and also what makes it a maintenance
+  // obligation: a new cross-flow generation-time dependency needs a detector
+  // added here in the same change, or these caches will quietly serve a flow
+  // whose shape moved under it. `incrementalOutsideFlowReuse.test.ts` keeps
+  // one test per reachable detector so a feed that stops firing turns red.
+  protected _unchangedFlowShapeAtRisk = true;
   protected _lastReuseCountAllVisits = false;
   protected _reusedFlowsThisCompile?: Set<FlowBase>;
   // Per-chunk reuse-disqualifier scan results (see `scanChunkForReuse`),
@@ -840,11 +894,12 @@ export class SparkdownCompiler {
       }
     }
     if (!flowReuseOk) {
-      // The global guard failed (a changed chunk sits before the first flow,
-      // so an inlined const may have shifted): no flow can be reused this
-      // compile. Take the exact baseline path — no fingerprinting, which
-      // would otherwise be pure overhead — and let the cache lapse so the
-      // next reuse-eligible edit reseeds from a fresh serialization.
+      // The global guard failed (`_unchangedFlowShapeAtRisk`: something this
+      // compile can change the shape of a flow whose own chunks are
+      // unchanged): no flow can be reused this compile. Take the exact
+      // baseline path — no fingerprinting, which would otherwise be pure
+      // overhead — and let the cache lapse so the next reuse-eligible edit
+      // reseeds from a fresh serialization.
       story.ToJson(writer as never);
       this._flowJsonCache = undefined;
       this._flowChunkCache = undefined;
@@ -1146,7 +1201,9 @@ export class SparkdownCompiler {
     let compileThrew = false;
     // ---- Incremental ExportRuntime: per-compile flow-reuse guards ----
     this._flowReuseDisabled = this._disableFlowReuseNextCompile;
+    this._unchangedFlowShapeAtRisk = this._riskFlowShapeNextCompile;
     this._disableFlowReuseNextCompile = false;
+    this._riskFlowShapeNextCompile = false;
     const reuseCountAllVisits = !!params.countAllVisits;
     if (
       reuseCountAllVisits ||
@@ -1155,6 +1212,7 @@ export class SparkdownCompiler {
       // countAllVisits changes what GENERATION bakes into every container
       // (count flags), which reuse skips. Only test harnesses set it.
       this._flowReuseDisabled = true;
+      this._unchangedFlowShapeAtRisk = true;
     }
     this._lastReuseCountAllVisits = reuseCountAllVisits;
     if (
@@ -1162,10 +1220,18 @@ export class SparkdownCompiler {
       this._lastCompileResult.uri === uri &&
       this._lastCompileResult.filesEpoch === this._filesEpoch
     ) {
-      // A change in any NON-entry script (includes / `run` files) can shift
-      // consts/globals whose values were INLINED into other files' flows at
-      // generation — and the include site may come after flows that would
-      // already have committed reuse, so it must be decided up front.
+      // A change in any NON-entry script (includes / `run` files) refuses
+      // CONSTRUCTION reuse for the whole compile, because that decision is
+      // committed during the parse walk: `tryReuseFlowRun` commits a flow as
+      // the walk reaches it, and the include site can come after flows that
+      // have already committed, so the answer has to be known up front rather
+      // than derived once every file has been seen.
+      //
+      // It deliberately leaves `_unchangedFlowShapeAtRisk` alone. The two
+      // downstream caches are consulted after the whole parse, so they can
+      // afford to wait for the hazard detectors, which run across every file
+      // of the compile. Arming the shape risk here as well would cost every
+      // multi-file project both caches on every edit to an included file.
       for (const [scriptUri, scriptVersion] of Object.entries(
         this._lastCompileResult.scripts,
       )) {
@@ -1178,7 +1244,11 @@ export class SparkdownCompiler {
         }
       }
     } else {
+      // A different entry script, or a files-epoch bump: the flow set this
+      // compile produces need not correspond to the one the caches were built
+      // from at all, so neither cache can be trusted by name.
       this._flowReuseDisabled = true;
+      this._unchangedFlowShapeAtRisk = true;
     }
     this._reusedFlowsThisCompile = new Set();
     this._nextFlowRuns = new Map();
@@ -1281,10 +1351,15 @@ export class SparkdownCompiler {
         this._prevCensusKey !== censusKey
       ) {
         this._flowReuseDisabled = true;
+        this._unchangedFlowShapeAtRisk = true;
       }
       this._prevCensusKey = censusKey;
+      // Compared unconditionally: a signature change is one of the things
+      // `_unchangedFlowShapeAtRisk` has to know about, so short-circuiting on
+      // an already-disabled construction reuse would let a caller's stale
+      // serialized bytecode be served while the callee's parameters changed.
       const flowSignatures = this.collectFlowSignatures(parsedStory);
-      if (this._prevFlowSignatures && !this._flowReuseDisabled) {
+      if (this._prevFlowSignatures) {
         const prev = this._prevFlowSignatures;
         let signaturesChanged = flowSignatures.size !== prev.size;
         if (!signaturesChanged) {
@@ -1297,6 +1372,7 @@ export class SparkdownCompiler {
         }
         if (signaturesChanged) {
           this._flowReuseDisabled = true;
+          this._unchangedFlowShapeAtRisk = true;
         }
       }
       this._prevFlowSignatures = flowSignatures;
@@ -1437,6 +1513,11 @@ export class SparkdownCompiler {
       // drop it rather than compare a truncated one next compile.
       this._prevCensusKey = undefined;
       this._disableFlowReuseNextCompile = true;
+      // The census baseline just went with it, so next compile cannot detect a
+      // declared-name change — the one signal the downstream caches lean on
+      // hardest. Refuse them that compile rather than serve a flow whose
+      // codegen may have moved under an undetectable name change.
+      this._riskFlowShapeNextCompile = true;
     }
 
     this.populateFiles(program);
@@ -1868,12 +1949,12 @@ export class SparkdownCompiler {
             }
           }
           if (
-            !this._flowReuseDisabled &&
             this._prevCompilationIds &&
             !this._prevCompilationIds.has(block) &&
             scan.invalidatesGlobals
           ) {
             this._flowReuseDisabled = true;
+            this._unchangedFlowShapeAtRisk = true;
           }
         }
       }
@@ -1884,6 +1965,7 @@ export class SparkdownCompiler {
         rootDescriptors.some((d, i) => prevRootDescriptors[i] !== d)
       ) {
         this._flowReuseDisabled = true;
+        this._unchangedFlowShapeAtRisk = true;
       }
       (this._lastRootBlocksByUri ??= new Map()).set(uri, rootDescriptors);
     }
@@ -3047,22 +3129,7 @@ export class SparkdownCompiler {
         changedByUri.set(uri, [[start, end]]);
       }
     }
-    let changedAboveFirstFlow = false;
-    for (const [uri, ranges] of changedByUri) {
-      const starts = startsByUri.get(uri);
-      const firstStart = starts?.length ? starts[0]! : Number.POSITIVE_INFINITY;
-      for (const [start] of ranges) {
-        if (start < firstStart) {
-          changedAboveFirstFlow = true;
-          break;
-        }
-      }
-      if (changedAboveFirstFlow) {
-        break;
-      }
-    }
     return {
-      changedAboveFirstFlow,
       touched: (uri: string, start0: number): boolean => {
         if (start0 < 0 || !uri) {
           return true;
@@ -3119,10 +3186,10 @@ export class SparkdownCompiler {
         start0: md ? md.startLineNumber - 1 : -1,
       });
     }
-    const spans = this.buildFlowSpanIndex(flows);
-    if (spans.changedAboveFirstFlow) {
+    if (this._unchangedFlowShapeAtRisk) {
       return { reusable, ok: false };
     }
+    const spans = this.buildFlowSpanIndex(flows);
     for (const f of flows) {
       if (!spans.touched(f.uri, f.start0)) {
         reusable.add(f.name);
@@ -3255,8 +3322,11 @@ export class SparkdownCompiler {
       }
       // Within one script, sorted start lines → each flow's span end is the
       // next flow's start. Across scripts the starts are incomparable, so the
-      // index below keeps each script's starts in their own list.
-      const spans = this.buildFlowSpanIndex(flows);
+      // index keeps each script's starts in their own list. Built lazily: a
+      // compile that reuses nothing never asks it a question, and building it
+      // sorts every flow start in the project.
+      let spanIndex: FlowSpanIndex | undefined;
+      const spans = () => (spanIndex ??= this.buildFlowSpanIndex(flows));
       // Reuse is only sound while the set of top-level flows is STABLE. A
       // structural edit (a scene/knot header made/unmade, renamed, added or
       // removed) can reflow content across flow boundaries and shift the
@@ -3283,17 +3353,12 @@ export class SparkdownCompiler {
         }
       }
       // A flow's cached locations are keyed by INDEX-addressed runtime paths,
-      // and an unchanged flow's subtree can still change SHAPE when something
-      // before it changes: a constant is inlined at generation, and how many
-      // runtime objects it expands to is type-dependent (a string emits
-      // BeginString/StringValue/EndString, a number emits one value). So
-      // retyping or removing a constant shifts sibling indices inside flows
-      // whose own source shows no changed chunk, and replaying their cached
-      // keys would map real paths to wrong lines. Apply the same guard
-      // `computeFlowReuse` uses for the bytecode cache: if any changed chunk
-      // starts before the first flow of its own script, reuse nothing this
-      // compile.
-      if (effPrevCache && spans.changedAboveFirstFlow) {
+      // so replaying them is only sound while an unchanged flow's subtree
+      // keeps the shape it had. Whether it can have changed shape is the same
+      // question the bytecode cache asks, answered once per compile by
+      // `_unchangedFlowShapeAtRisk` (see its declaration for the hazard list),
+      // so both caches reach the same verdict from the same evidence.
+      if (effPrevCache && this._unchangedFlowShapeAtRisk) {
         effPrevCache = undefined;
       }
       for (const f of flows) {
@@ -3314,7 +3379,7 @@ export class SparkdownCompiler {
         if (reusable) {
           const cached = effPrevCache!.get(f.name);
           if (cached) {
-            if (!spans.touched(f.uri, f.start0)) {
+            if (!spans().touched(f.uri, f.start0)) {
               this.spliceCachedFlowLocations(
                 program,
                 f.name,
