@@ -41,7 +41,6 @@ import { SetGameFunctionBreakpointsMessage } from "@impower/spark-engine/src/gam
 import { StepGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/StepGameMessage";
 import { StopGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/StopGameMessage";
 import { UnpauseGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/UnpauseGameMessage";
-import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
 import {
   ContinuedEvent,
   ExitedEvent,
@@ -103,9 +102,6 @@ export class SparkDebugSession extends LoggingDebugSession {
   private _variableHandles = new Handles<
     "temps" | "vars" | "lists" | "defines"
   >(-3);
-
-
-
 
   private _valuesInHex = false;
   private _useInvalidatedEvent = false;
@@ -418,7 +414,6 @@ export class SparkDebugSession extends LoggingDebugSession {
     );
 
     await this._fileAccessor.showFile(args.program);
-
 
     this.sendResponse(response);
   }
@@ -888,8 +883,13 @@ export class SparkDebugSession extends LoggingDebugSession {
       GetGameEvaluationContextMessage.type.request({}),
     );
 
-    const compiler = new SparkdownCompiler();
-    const value = compiler.evaluate(args.expression, context);
+    const value = args.expression
+      .split(".")
+      .reduce(
+        (obj, key) =>
+          obj != null && typeof obj === "object" ? obj[key] : undefined,
+        context,
+      );
 
     const { variables } = await this._connection.emit(
       GetGameVariablesMessage.type.request({
@@ -1048,7 +1048,6 @@ export class SparkDebugSession extends LoggingDebugSession {
     // }
     this.sendResponse(response);
   }
-
 
   protected override cancelRequest(
     _response: DebugProtocol.CancelResponse,

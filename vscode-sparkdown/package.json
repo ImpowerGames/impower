@@ -526,12 +526,6 @@
         "category": "Sparkdown"
       },
       {
-        "command": "sparkdown.statistics",
-        "when": "editorLangId == sparkdown",
-        "title": "View statistics",
-        "category": "Sparkdown"
-      },
-      {
         "command": "sparkdown.debugGame",
         "title": "Run & Debug Game",
         "category": "Sparkdown Debugger",

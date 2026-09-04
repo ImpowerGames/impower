@@ -12,7 +12,9 @@ const SPARKDOWN_PLAYER_ORIGIN =
 // (document.querySelector('#iframe').contentDocument) and devtools. Defaults
 // OFF: the player stays a cross-origin iframe at VITE_SPARKDOWN_PLAYER_ORIGIN.
 const SAME_ORIGIN_PREVIEW = !!import.meta.env.VITE_SAME_ORIGIN_PREVIEW;
-const PLAYER_SRC = SAME_ORIGIN_PREVIEW ? "/__player/" : `${SPARKDOWN_PLAYER_ORIGIN}/`;
+const PLAYER_SRC = SAME_ORIGIN_PREVIEW
+  ? "/__player/"
+  : `${SPARKDOWN_PLAYER_ORIGIN}/`;
 // Guard `window`: this module is also evaluated during the editor's SSG render
 // (server-side, no `window`). The target origin is only needed at runtime in the
 // browser. Same-origin posts match the iframe's origin with or without an
@@ -115,47 +117,21 @@ export default function PreviewGame(_props: PreviewGameProps) {
     Promise.all([
       import("@impower/jsonrpc/src/browser/classes/IFrameMessageConnection"),
       import("@impower/jsonrpc/src/browser/classes/Port1MessageConnection"),
-      import(
-        "@impower/spark-editor-protocol/src/protocols/editor/ChangedEditorBreakpointsMessage"
-      ),
-      import(
-        "@impower/spark-editor-protocol/src/protocols/editor/ChangedEditorPinpointsMessage"
-      ),
+      import("@impower/spark-editor-protocol/src/protocols/editor/ChangedEditorBreakpointsMessage"),
+      import("@impower/spark-editor-protocol/src/protocols/editor/ChangedEditorPinpointsMessage"),
       import("@impower/spark-editor-protocol/src/protocols/InitializeMessage"),
       import("@impower/spark-editor-protocol/src/protocols/MessageProtocol"),
-      import(
-        "@impower/spark-editor-protocol/src/protocols/workspace/ExecuteCommandMessage"
-      ),
-      import(
-        "@impower/spark-engine/src/game/core/classes/messages/EnterGameFullscreenModeMessage"
-      ),
-      import(
-        "@impower/spark-engine/src/game/core/classes/messages/ExitGameFullscreenModeMessage"
-      ),
-      import(
-        "@impower/spark-engine/src/game/core/classes/messages/FetchGameAssetMessage"
-      ),
-      import(
-        "@impower/spark-engine/src/game/core/classes/messages/GameExecutedMessage"
-      ),
-      import(
-        "@impower/spark-engine/src/game/core/classes/messages/GameExitedMessage"
-      ),
-      import(
-        "@impower/spark-engine/src/game/core/classes/messages/GameStartedMessage"
-      ),
-      import(
-        "@impower/spark-engine/src/game/core/classes/messages/GameToggledFullscreenModeMessage"
-      ),
-      import(
-        "@impower/spark-engine/src/game/modules/DEFAULT_DESCRIPTION_DEFINITIONS"
-      ),
-      import(
-        "@impower/spark-engine/src/game/modules/DEFAULT_OPTIONAL_DEFINITIONS"
-      ),
-      import(
-        "@impower/spark-engine/src/game/modules/DEFAULT_SCHEMA_DEFINITIONS"
-      ),
+      import("@impower/spark-editor-protocol/src/protocols/workspace/ExecuteCommandMessage"),
+      import("@impower/spark-engine/src/game/core/classes/messages/EnterGameFullscreenModeMessage"),
+      import("@impower/spark-engine/src/game/core/classes/messages/ExitGameFullscreenModeMessage"),
+      import("@impower/spark-engine/src/game/core/classes/messages/FetchGameAssetMessage"),
+      import("@impower/spark-engine/src/game/core/classes/messages/GameExecutedMessage"),
+      import("@impower/spark-engine/src/game/core/classes/messages/GameExitedMessage"),
+      import("@impower/spark-engine/src/game/core/classes/messages/GameStartedMessage"),
+      import("@impower/spark-engine/src/game/core/classes/messages/GameToggledFullscreenModeMessage"),
+      import("@impower/spark-engine/src/game/modules/DEFAULT_DESCRIPTION_DEFINITIONS"),
+      import("@impower/spark-engine/src/game/modules/DEFAULT_OPTIONAL_DEFINITIONS"),
+      import("@impower/spark-engine/src/game/modules/DEFAULT_SCHEMA_DEFINITIONS"),
       import("../../workspace/Workspace"),
     ]).then(
       async ([
@@ -188,8 +164,7 @@ export default function PreviewGame(_props: PreviewGameProps) {
           return {
             workspace: Workspace.window.store.project.directory,
             startFrom: { file: uri, line: startLine },
-            simulationOptions:
-              Workspace.window.store.debug.simulationOptions,
+            simulationOptions: Workspace.window.store.debug.simulationOptions,
           };
         };
 
@@ -328,10 +303,10 @@ export default function PreviewGame(_props: PreviewGameProps) {
             } = message.params;
             if (simulatePath) {
               const favoredConditions = conditions.map(
-                (c: { selected: unknown }) => c.selected,
+                (c: { selected?: boolean }) => c.selected,
               );
               const favoredChoices = choices.map(
-                (c: { selected: unknown }) => c.selected,
+                (c: { selected?: number }) => c.selected,
               );
               Workspace.window.setSimulationOptions(simulatePath, {
                 favoredConditions,
@@ -359,8 +334,7 @@ export default function PreviewGame(_props: PreviewGameProps) {
               if (editor) {
                 const { uri } = editor;
                 const currentDocExecutedLines = executedMap[uri];
-                const lastExecutedLine =
-                  currentDocExecutedLines?.at(-1);
+                const lastExecutedLine = currentDocExecutedLines?.at(-1);
                 if (lastExecutedLine != null) {
                   Workspace.window.showDocument(
                     uri,

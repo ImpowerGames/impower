@@ -1,9 +1,19 @@
 import { FastifyPluginAsync, FastifyReply, FastifyRequest } from "fastify";
-import { Auth, google } from "googleapis";
+import { google } from "googleapis";
 import deleteSessionCookie from "../../utils/deleteSessionCookie";
 import getSessionCookieData from "../../utils/getSessionCookieData";
 import isXmlHttpRequest from "../../utils/isXmlHttpRequest";
 import setSessionCookieData from "../../utils/setSessionCookieData";
+
+/**
+ * The OAuth client `googleapis` constructs, which is also the one its service
+ * factories accept. `google-auth-library` is installed twice — `googleapis-
+ * common` pins an exact version below the one `googleapis` resolves — so the
+ * `Auth` namespace names a different copy of this class than `google.drive`
+ * and `google.people` will take, and naming it off the constructor keeps every
+ * client in this file on the side that works.
+ */
+type OAuthClient = InstanceType<typeof google.auth.OAuth2>;
 
 const FILE_FIELDS =
   "id, name, mimeType, trashed, version, headRevisionId, originalFilename, md5Checksum, lastModifyingUser, modifiedByMe, modifiedByMeTime, modifiedTime, resourceKey, size, appProperties, capabilities/canModifyContent";
@@ -84,7 +94,7 @@ const authenticated = async <T>(
   opts: GoogleDriveSyncProviderOptions,
   request: FastifyRequest,
   reply: FastifyReply,
-  response: (auth: Auth.OAuth2Client) => Promise<T>,
+  response: (auth: OAuthClient) => Promise<T>,
 ) => {
   return secure(request, reply, async () => {
     const sessionCookieData = getSessionCookieData(request);
@@ -107,7 +117,7 @@ const authenticated = async <T>(
   });
 };
 
-const getAccountInfo = async (auth: Auth.OAuth2Client) => {
+const getAccountInfo = async (auth: OAuthClient) => {
   // Get user profile info
   const peopleService = google.people({ version: "v1", auth });
   const peopleResult = await peopleService.people.get({

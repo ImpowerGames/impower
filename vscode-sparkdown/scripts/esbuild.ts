@@ -48,6 +48,7 @@ const testBundle = (): esbuild.Plugin => ({
       if (args.kind === "entry-point") {
         return { path: path.resolve(args.path) };
       }
+      return undefined;
     });
     build.onLoad({ filter: /[\/\\]extensionTests\.ts$/ }, async () => {
       const testsRoot = path.join(process.cwd(), "./src/web/test/suite");
@@ -128,12 +129,16 @@ const config: esbuild.BuildOptions = {
     js: `const window = {};`,
   },
 
+  // esbuild is installed twice and always will be: `tsx` pins ~0.18 and wins
+  // the hoist, while this extension needs ^0.25. Plugins from packages that
+  // depend on the hoisted copy therefore carry its `Plugin` type, which is
+  // structurally the same but nominally distinct.
   plugins: [
     rawPlugin(),
     polyfill.NodeGlobalsPolyfillPlugin({
       process: true,
       buffer: true,
-    }),
+    }) as unknown as esbuild.Plugin,
     copy({
       paths: [
         { from: "./data/*", to: "./data" },
@@ -161,7 +166,7 @@ const config: esbuild.BuildOptions = {
           to: "./workers",
         },
       ],
-    }),
+    }) as unknown as esbuild.Plugin,
     testBundle(),
     esbuildProblemMatcher() /* add to the end of plugins array */,
   ],

@@ -66,7 +66,7 @@ export default class WorkspacePrint {
       bold,
       italic,
       bolditalic,
-      emoji
+      emoji,
     };
   }
 
@@ -123,13 +123,17 @@ export default class WorkspacePrint {
       params.workDoneToken = ExportPDFMessage.type.uuid();
       this._progressQueue[params.workDoneToken] = onProgress;
     }
-    return this.sendRequest(ExportPDFMessage.type, params, [
-      params.fonts.normal,
-      params.fonts.bold,
-      params.fonts.italic,
-      params.fonts.bolditalic,
-      params.fonts["emoji"],
-    ]);
+    return this.sendRequest(
+      ExportPDFMessage.type,
+      params,
+      [
+        params.fonts.normal,
+        params.fonts.bold,
+        params.fonts.italic,
+        params.fonts.bolditalic,
+        params.fonts["emoji"],
+      ].filter((buffer): buffer is ArrayBuffer => buffer != null),
+    );
   }
 
   async exportHTML(
@@ -144,12 +148,16 @@ export default class WorkspacePrint {
       params.workDoneToken = ExportHTMLMessage.type.uuid();
       this._progressQueue[params.workDoneToken] = onProgress;
     }
-    return this.sendRequest(ExportHTMLMessage.type, params, [
-      params.fonts.normal,
-      params.fonts.bold,
-      params.fonts.italic,
-      params.fonts.bolditalic,
-      params.fonts["emoji"],
-    ]);
+    return this.sendRequest(
+      ExportHTMLMessage.type,
+      params,
+      [
+        params.fonts.normal,
+        params.fonts.bold,
+        params.fonts.italic,
+        params.fonts.bolditalic,
+        params.fonts["emoji"],
+      ].filter((buffer): buffer is ArrayBuffer => buffer != null),
+    );
   }
 }

@@ -148,7 +148,7 @@ export async function resolveUploadConflicts<T>(
       continue;
     }
 
-    const res =
+    const res: ConflictResolution =
       applyAll ?? (await requestResolution(baseOf(rel), dirOf(rel), remaining));
     remaining -= 1;
     if (res.applyToAll) {
@@ -188,9 +188,7 @@ export async function resolveUploadConflicts<T>(
   // `replacedKeys` already guarantees uniqueness; dedupe the uris too as a final
   // guard so the worker can never read a now-deleted source twice.
   const trashedOldUris = [
-    ...new Set(
-      trashedRels.map((r) => Workspace.fs.getFileUri(projectId, r)),
-    ),
+    ...new Set(trashedRels.map((r) => Workspace.fs.getFileUri(projectId, r))),
   ];
   if (trashedOldUris.length > 0) {
     since = Date.now();
