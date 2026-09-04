@@ -1,0 +1,44 @@
+<!--
+Title: conventional commit form, `type(scope): summary`, with the issue number at the end when there is one. Types: feat, fix, perf, refactor, test, docs, chore, build, ci. Scope is the package or area (compiler, engine, web-editor, vscode, sparkle, github). Example: "fix(compiler): accumulate all matching filtered_layers (#302)".
+
+Open as a draft until it is ready for review. Keep every heading; write "None" or "Not applicable" with a short reason under one that does not apply. Delete these comments before opening.
+-->
+
+## Summary
+
+<!-- One to three sentences a reviewer could repeat to someone else: what this pull request does. -->
+
+## Motivation
+
+<!-- Why the change is needed. Link the issue it resolves ("Closes #123") or, when there is no issue, describe the need here. For a bug fix, state what was going wrong and the cause, with file:line references at the base commit. -->
+
+## Changes
+
+<!-- What changed, as a bulleted list grouped by package or area. Call out anything that changes behavior, a public API, the Sparkdown syntax, or a generated file. Mention alternatives you rejected where a reviewer could reasonably ask. -->
+
+## Type of change
+
+<!-- Check all that apply. -->
+
+- [ ] Bug fix
+- [ ] New feature
+- [ ] Refactor or cleanup (no behavior change)
+- [ ] Performance
+- [ ] Documentation
+- [ ] Build, tooling, or CI
+- [ ] Breaking change (describe the migration under Changes)
+
+## Testing and verification
+
+<!-- How you know it works. List tests added or changed with their paths, and the commands run with their results. For a bug fix, confirm the new test fails without the fix. For anything visible, attach before and after screenshots of the running editor, extension, or player. For performance, give before and after numbers and how they were measured. For tooling or configuration, say what you ran to prove the change does what it claims. -->
+
+## Checklist
+
+- [ ] Tests pass locally for the packages this touches
+- [ ] Visual changes were checked by looking at the running app, with screenshots attached above
+- [ ] Documentation was updated where behavior changed
+- [ ] The pull request body was read back after opening
+
+## Notes for reviewers
+
+<!-- Trade-offs, known limitations, follow-up work with the issue that tracks it, and where a careful reviewer should look first. -->

@@ -43,6 +43,19 @@ by hand.
 OPFS project storage is **per-origin**, so a project saved at one editor port is
 invisible at another — use the URL the launcher prints.
 
+## Filing issues and pull requests — follow the templates
+
+Every issue and pull request follows a template under `.github/`. GitHub only fills a template in for someone using the web form, so when you file from the command line (`gh issue create`, `gh pr create`) read the template file yourself and produce a body with the same headings in the same order:
+
+| Filing a…                                        | Template                                    |
+| ------------------------------------------------ | ------------------------------------------- |
+| Bug (wrong behavior, crash, hang, regression)    | `.github/ISSUE_TEMPLATE/bug_report.md`      |
+| Feature (new functionality or changed behavior)  | `.github/ISSUE_TEMPLATE/feature_request.md` |
+| Task (refactor, tooling, perf, docs, follow-up)  | `.github/ISSUE_TEMPLATE/task.md`            |
+| Pull request                                     | `.github/PULL_REQUEST_TEMPLATE.md`          |
+
+Each template's leading comment gives the title convention and the label list; its `type:` front matter names the issue type to set (`Bug`, `Feature`, or `Task`). Keep every heading, write "None", "Unknown", or "Not applicable" with a short reason under one you cannot fill, tick only the checklist items you actually did, and strip the HTML comments before filing. After filing, read the artifact back (`gh issue view N --json body`, `gh pr view N --json body`).
+
 ## Multi-line bodies for `gh` and `git` (silent-corruption footgun)
 
 `@-` means "read stdin" to **curl**, not to `gh` or `git`. Both accept it as a

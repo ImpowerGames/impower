@@ -489,14 +489,12 @@ Read it back — always:
 gh pr view --json number,title,body,isDraft
 ```
 
-PR body should carry:
+The body follows `.github/PULL_REQUEST_TEMPLATE.md` — same headings, same order; `gh pr create` does not apply it for you, so read the file and fill it in. Where the material from this skill goes:
 
-- What broke and why, with `file:line`.
-- The fix.
-- The regression test — its path, and the red/green evidence from §5b ("fails on the pre-fix source with `<assertion>`, passes after").
-- Suite results — which suites you ran and their actual `Test Files` / `Tests` counts. Note any pre-existing failure you confirmed also fails on `origin/main`.
-- The before/after screenshots from §4 — or, when the change has no visual signature, the before/after measurement that replaces them, with absolute numbers and how they were taken.
-- Any performance cost the fix carries, at the top of the body.
+- **Motivation** — `Closes #N`, what broke and why, with `file:line`.
+- **Changes** — the fix, and any alternative you rejected.
+- **Testing and verification** — the regression test's path and the red/green evidence from §5b ("fails on the pre-fix source with `<assertion>`, passes after"); which suites you ran and their actual `Test Files` / `Tests` counts, noting any pre-existing failure you confirmed also fails on `origin/main`; the before/after screenshots from §4, or, when the change has no visual signature, the before/after measurement that replaces them, with absolute numbers and how they were taken.
+- **Notes for reviewers** — any performance cost the fix carries. Repeat it in the first line of **Summary** so it is the first thing a reviewer reads.
 
 ---
 
