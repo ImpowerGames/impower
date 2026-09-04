@@ -129,8 +129,13 @@ Remove the scratch test and repro script from the worktree (`git status --short`
 
 ## Gotchas
 
+- A fresh worktree has no `node_modules`. Install once at its root with `PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 npm install`; a bare `npm install` fails here because a workspace dependency tries to download its own Chromium from a blocked host. Then check `npx vitest --version` exits 0 before trusting the install.
 - Heredocs are lossy through some shell paths on this machine (a `//` comment came out as `/`). Write the ticket body, test file, and repro script with the editor tool, not by piping a heredoc.
 - Exit code 0 from vitest does not mean green. A worker killed by the OS exits 0 with no `Test Files` summary. Check the summary lines.
 - Do not edit `packages/sparkdown/language/*.json` while probing; they are generated from `definitions/yaml/` and a hook refuses the edit anyway.
 - Do not use `git stash` to compare before and after; the stash stack is shared across the worktrees other sessions are using. Copy the file aside and back.
 - A repro that only reproduces on a loaded machine is a timing artifact until proven otherwise. Note it, and check whether a vitest suite from another worktree was running.
+
+## Improving this skill
+
+If a step here failed, needed something it does not give, did not fit your bug without saying so, or cost you time on a trap Gotchas does not list, report it under a "Skill feedback" heading in your final message with the edit you propose, as `CLAUDE.md` describes. The fresh-worktree install line above exists because the first agent to follow this skill lost time to it and said so. If the session has a branch and pull request and you are certain of the fix, make it in this file in its own commit and mention it in the pull request; otherwise the report is enough.

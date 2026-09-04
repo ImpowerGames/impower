@@ -779,3 +779,9 @@ Things that look like they work and don't:
 | `npm install` dies with `request blocked: no rule or allowlist entry allows host "cdn.playwright.dev"` (or any `@playwright/browser-chromium` download failure) | A workspace depends on `@playwright/browser-chromium`, whose install script tries to fetch its own Chromium build from a blocked host. Re-run as `PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 npm install` — see §2. |
 | `git worktree remove` → `Directory not empty`                                                              | Windows can't delete `node_modules` that way. `Remove-Item -Recurse -Force <path>`, then `git worktree prune`.                                                                                                                                                                              |
 | A `gh` PR/issue body came out as the literal `@-`                                                          | You used `--body @-`. Use `--body-file`, then read it back with `gh pr view --json body`.                                                                                                                                                                                                   |
+
+---
+
+## Improving this skill
+
+If any step above failed, needed a flag or path it does not give, did not apply to your ticket without saying so, or cost you time on something Gotchas and Troubleshooting do not cover, report it under a "Skill feedback" heading in your final message with the edit you propose, as `CLAUDE.md` describes. This skill is long because earlier sessions hit exactly those walls and wrote them down; yours belongs here too. When you are certain of the fix, make it in this file in its own commit on the PR branch and mention it under the PR's Notes for reviewers. A new trap goes in Gotchas; a new failure with a known fix goes in the Troubleshooting table.

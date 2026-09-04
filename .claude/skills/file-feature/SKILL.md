@@ -99,3 +99,7 @@ Tell the user the issue number and the one-paragraph plan. Implementation is the
 - A question the user cannot answer because it needs a fact is your question to answer, not theirs. If you catch yourself asking "does the engine already do X?", go and look.
 - An interview that stops at the surface (syntax agreed, semantics assumed) produces a ticket that looks complete and is not. Branches 3 and 4 are where most silent assumptions hide.
 - If the session is unattended and the user cannot answer, post the round and stop. Filing on your own answers defeats the purpose of the skill.
+
+## Improving this skill
+
+If a step here failed, a branch in the checklist made no sense for your feature, the interview format got in the way, or you hit a trap Gotchas does not list, report it under a "Skill feedback" heading in your final message with the edit you propose, as `CLAUDE.md` describes. If the session has a branch and pull request and you are certain of the fix, make it in this file in its own commit and mention it in the pull request; otherwise the report is enough.

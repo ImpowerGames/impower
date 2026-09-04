@@ -139,6 +139,14 @@ pass both paths, so prefer `npm run language` over typing the paths by hand.
 Commit the YAML **and** the regenerated JSON together. If your JSON diff
 contains a change with no matching YAML diff, the change is doomed.
 
+## Skills improve through use — report the friction
+
+The skills under `.claude/skills/` are maintained from what happens when they are followed. When you run into a problem with a skill while using it, say so; an agent that quietly works around a wrong instruction leaves the next agent to hit the same wall, and that has been happening. Friction means any of: a command in the skill that fails or needs a flag the skill does not give, a path or name that has moved, a step that does not apply to your case and says nothing about when to skip it, a gotcha you hit that the skill's Gotchas or Troubleshooting section does not list, an ambiguity you had to resolve by guessing, or a step whose reason you could not see.
+
+Report it in the final message of your session under a heading "Skill feedback", one entry per problem: the skill and section, what happened, and the edit you propose (the sentence you would add or change). Keep it to what a maintainer can act on; "it was confusing" is not an entry, "section 5 says to run X, which fails with Y in a fresh worktree because Z; add W before it" is.
+
+When you are certain of the fix and the session already has a branch and pull request, make the edit to the skill file in its own commit on that branch and mention it under the pull request's Notes for reviewers, so the fix ships with the work that found it. When you are not certain, or there is no pull request to carry it, the report is enough; the user decides. Never edit a skill to remove a rule you found inconvenient; those rules are usually there because of a previous session's friction.
+
 ## Strict rule — LOOK. Never guess.
 
 When working on code or assets that affect the impower-dev web editor or visuals or images (ui, prototypes, portraits, renders, animations, layout, color, anything you can see), **verify by actually looking at the rendered pixels — screenshot and view it (zoom in for small details).** LOOK before considering your work done. This is a hard requirement, not a nice-to-have:
