@@ -66,7 +66,7 @@ export function diffAndPatch(
     // insert each of the new fragment's children in turn
     for (let i = 0; i < newLen; i++) {
       parent.insertBefore(
-        createElement(newChildren[i]),
+        createElement(newChildren[i]!),
         parent.childNodes[index + i] || null,
       );
     }
@@ -86,13 +86,13 @@ export function diffAndPatch(
     // 2) DIFF the common nodes in forward order:
     const commonLen = Math.min(oldLen, newLen);
     for (let i = 0; i < commonLen; i++) {
-      diffAndPatch(parent, oldChildren[i], newChildren[i], index + i);
+      diffAndPatch(parent, oldChildren[i]!, newChildren[i]!, index + i);
     }
 
     // 3) INSERT any new extra nodes:
     for (let i = oldLen; i < newLen; i++) {
       const refNode = parent.childNodes[index + i] || null;
-      parent.insertBefore(createElement(newChildren[i]), refNode);
+      parent.insertBefore(createElement(newChildren[i]!), refNode);
     }
     return;
   }
@@ -141,13 +141,13 @@ export function diffAndPatch(
     // 2) DIFF the common nodes in forward order:
     const commonLen = Math.min(oldLen, newLen);
     for (let i = 0; i < commonLen; i++) {
-      diffAndPatch(existing, oldChildren[i], newChildren[i], i);
+      diffAndPatch(existing, oldChildren[i]!, newChildren[i]!, i);
     }
 
     // 3) INSERT any new extra nodes:
     for (let i = oldLen; i < newLen; i++) {
       const refNode = existing.childNodes[i] || null;
-      existing.insertBefore(createElement(newChildren[i]), refNode);
+      existing.insertBefore(createElement(newChildren[i]!), refNode);
     }
     return;
   }

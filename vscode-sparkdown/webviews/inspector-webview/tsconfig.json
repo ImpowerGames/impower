@@ -2,6 +2,8 @@
   "compilerOptions": {
     "module": "esnext",
     "moduleResolution": "bundler",
+    "jsx": "react-jsx",
+    "jsxImportSource": "preact",
     "target": "es2020",
     "lib": ["esnext", "WebWorker", "DOM"],
     "skipLibCheck": true,

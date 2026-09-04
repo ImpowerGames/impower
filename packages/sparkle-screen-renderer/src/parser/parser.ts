@@ -183,9 +183,9 @@ export function parseSparkle(input: string): SparkleNode[] {
               console.warn(`invalid ${type} syntax:`, statement);
               continue;
             }
-            const asString = match[1].trim();
+            const asString = match[1]!.trim();
             const as = asString.split(",").map((a) => a.trim());
-            const each = match[2].trim();
+            const each = match[2]!.trim();
             node = {
               root: currentRoot.root,
               type,
@@ -349,7 +349,7 @@ function splitArgs(input: string, separators: string[]): string[] {
         inQuotes = true;
         quoteChar = char;
         current += char;
-      } else if (separators.includes(char)) {
+      } else if (separators.includes(char!)) {
         if (current.length > 0) {
           result.push(current);
           current = "";
@@ -385,13 +385,13 @@ function parseAttributes(args: string[]) {
     let match: RegExpMatchArray | null = null;
     if ((match = arg.match(CONTENT_ATTRIBUTE_REGEX))) {
       const [, content] = match;
-      params["content"] = unescapeQuotes(content);
+      params["content"] = unescapeQuotes(content!);
     } else if ((match = arg.match(QUOTED_ATTRIBUTE_REGEX))) {
       const [, key, value] = match;
-      params[key!] = parseValue(unescapeQuotes(value));
+      params[key!] = parseValue(unescapeQuotes(value!));
     } else if ((match = arg.match(UNQUOTED_ATTRIBUTE_REGEX))) {
       const [, key, value] = match;
-      params[key!] = parseValue(value);
+      params[key!] = parseValue(value!);
     } else if ((match = arg.match(BOOLEAN_ATTRIBUTE_REGEX))) {
       const [, key] = match;
       params[key!] = true;

@@ -127,8 +127,8 @@ export function renderVNode(
       const items = entries.flatMap(([key, value]) => {
         const newScope =
           asKeys?.length > 1
-            ? { [asKeys[0]]: key, [asKeys[1]]: value }
-            : { [asKeys[0]]: value };
+            ? { [asKeys[0]!]: key, [asKeys[1]!]: value }
+            : { [asKeys[0]!]: value };
         const subCtx = {
           ...ctx,
           scope: { ...(ctx.scope ?? EMPTY_OBJ), ...newScope },
@@ -248,9 +248,9 @@ export function renderVNode(
         slotsFound,
       );
 
-      if (slotsFound.length === 0 && implicitFills.length > 0) {
+      if (slotsFound.length === 0 && implicitFills!.length > 0) {
         // If no slots defined, append implicit fills as last children
-        processedChildren.push(...implicitFills);
+        processedChildren.push(...implicitFills!);
       }
 
       // Render the processed component
@@ -706,8 +706,8 @@ function addToInheritanceChain(
   if (components) {
     if (type in components) {
       const component = components[type];
-      out.push(component.args?.["name"]);
-      addToInheritanceChain(component.args?.["base"], components, out);
+      out.push(component!.args?.["name"]);
+      addToInheritanceChain(component!.args?.["base"], components, out);
     }
   }
 }

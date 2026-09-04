@@ -202,6 +202,6 @@ export default class SparkdownInspector extends Component(spec) {
 
 declare global {
   interface HTMLElementTagNameMap {
-    "spark-web-player": SparkdownInspector;
+    "sparkdown-inspector": SparkdownInspector;
   }
 }
