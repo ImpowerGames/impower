@@ -42,6 +42,13 @@ allowed="sonnet opus haiku fable"
 
 fail=0
 
+# Checked up front so an unreadable file is reported as such, rather than as
+# a document that happens to contain nothing the check recognises.
+if [[ ! -r "$skill" ]]; then
+  echo "FAIL: cannot read $skill"
+  exit 1
+fi
+
 note_fail() {
   echo "FAIL: $1"
   fail=1

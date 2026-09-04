@@ -396,6 +396,14 @@ after — so a red run proves the defect, not a broken harness.
 
 **5c — run the suite.** Start with the file, widen to the package.
 
+Then run the standalone shell checks under `.claude/`. Nothing in CI invokes them, so they only ever run because someone remembers to; they are quick, and each one pins a footgun that has already cost a session:
+
+```bash
+for t in .claude/**/*.test.sh; do echo "--- $t"; bash "$t" || echo "FAILED: $t"; done
+```
+
+(Needs `shopt -s globstar` in bash, or list them explicitly.)
+
 ---
 
 ### Running vitest safely
@@ -520,7 +528,7 @@ When a diff sits between tiers, round up — a missed defect costs more than a r
 
 A model reviewing code written by the same model shares the writer's priors — it finds the same things plausible and overlooks the same things. So the reviewer has to come from a different model family than you, and you have to pick that family deliberately rather than letting it default to yours.
 
-Pass `model:` explicitly on every reviewer Agent call. The parameter takes exactly four aliases — `sonnet`, `opus`, `haiku`, `fable` — and rejects anything else with an `InputValidationError` before a single agent starts, including full model ids such as `claude-opus-5`. Each alias resolves to the current release of that family, so there is no way to ask this parameter for an older version of your own family; a different family is the separation actually on offer.
+Pass `model:` explicitly on every reviewer Agent call. The parameter takes four aliases — `sonnet`, `opus`, `haiku`, `fable` — and rejects anything else with an `InputValidationError` before a single agent starts, including full model ids such as `claude-opus-5`. That set belongs to the harness rather than to this repo, and it has grown before, so treat it as observed on 2026-09-04 rather than fixed: if a value you expect to work is refused, read the current set back out of the rejection message and update the table and its check together. Each alias resolves to the current release of that family, so there is no way to ask this parameter for an older version of your own family; a different family is the separation actually on offer.
 
 | You (the writer) | Reviewers get    |
 | ---------------- | ---------------- |
