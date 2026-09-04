@@ -516,18 +516,24 @@ Reviewers cost real tokens. Scale the count to the blast radius of the change in
 
 When a diff sits between tiers, round up — a missed defect costs more than a reviewer. The undirected reviewer is never dropped, whatever the tier.
 
-### 7b — reviewers run on Opus, never on the writer's own version
+### 7b — reviewers never run on the writer's own model
 
-A model reviewing code written by the same model shares the writer's priors — it finds the same things plausible and overlooks the same things. Reviewers always run on Opus. When the writer is itself Opus, that alone isn't enough separation — pass a different major version number, not just a different alias resolution, so the review still comes from a different vantage point (Opus 5 reviewed by Opus 4.6, and vice versa).
+A model reviewing code written by the same model shares the writer's priors — it finds the same things plausible and overlooks the same things. So the reviewer has to come from a different model family than you, and you have to pick that family deliberately rather than letting it default to yours.
 
-Pass `model:` explicitly on every reviewer Agent call, using a versioned model id so the major version is pinned rather than left to whatever the current alias resolves to:
+Pass `model:` explicitly on every reviewer Agent call. The parameter takes exactly four aliases — `sonnet`, `opus`, `haiku`, `fable` — and rejects anything else with an `InputValidationError` before a single agent starts, including full model ids such as `claude-opus-5`. Each alias resolves to the current release of that family, so there is no way to ask this parameter for an older version of your own family; a different family is the separation actually on offer.
 
-| You (the writer) | Reviewers get                                    |
-| ----------------- | ------------------------------------------------- |
-| Fable              | `model: "opus"` (current major version)          |
-| Sonnet            | `model: "opus"` (current major version)          |
-| Opus 5            | `model: "opus 4.6"` (a different major version)  |
-| Opus 4.6          | `model: "opus 5"` (a different major version)    |
+| You (the writer) | Reviewers get    |
+| ---------------- | ---------------- |
+| Opus             | `model: "fable"` |
+| Fable            | `model: "opus"`  |
+| Sonnet           | `model: "opus"`  |
+| Haiku            | `model: "opus"`  |
+
+If a value is ever rejected, move to another family — never to your own. An Opus writer that answers a rejection by falling back to `"opus"` has bought itself a reviewer with all of its own blind spots, which is the single outcome this section exists to prevent.
+
+Do not take the pin on trust. The reviewer prompt in §7c has each reviewer open its report with the model it is actually running as, so a review that landed on your own model is visible in the PR comment instead of passing for independent.
+
+An exact version can be pinned by other routes — a `.claude/agents/<name>.md` definition takes a `model:` id in its frontmatter — but such a file is read at session start, so a skill cannot introduce one for its own use part-way through a run, and a version id committed to the repo goes stale as releases move. Choosing by family needs neither.
 
 ### 7c — fan out; each reviewer comments on the PR
 
@@ -539,11 +545,11 @@ git diff origin/main...HEAD > review-diff.patch
 
 (`...` is deliberate: changes on your branch since it diverged from `main`, not `main`'s subsequent commits.) The file is untracked — delete it before committing any review fixes, or it gets swept in.
 
-Spawn the reviewers in parallel — one message, multiple Agent tool calls, all `subagent_type: general-purpose`, each with the `model:` from §7b. Posting a PR comment needs Bash and a scratch file, so read-only is not tool-enforced for reviewers; the prompt forbids repo edits and §7d checks that it was obeyed. Give each one, verbatim (fill in N = issue number, P = PR number, LENS, MODEL):
+Spawn the reviewers in parallel — one message, multiple Agent tool calls, all `subagent_type: general-purpose`, each with the `model:` from §7b. Posting a PR comment needs Bash and a scratch file, so read-only is not tool-enforced for reviewers; the prompt forbids repo edits and §7d checks that it was obeyed. Give each one, verbatim (fill in N = issue number, P = PR number, LENS — the reviewer supplies its own model, so that one is not yours to fill in):
 
 > You are reviewing a fix for issue #N in the Impower monorepo. The diff is in `review-diff.patch`; the working tree is the branch under review. Your lens is \<LENS\> — review only through it. Your job is to refute this change, not to approve it. Assume it is broken and find out how. If you are uncertain, report the concern rather than suppressing it. For each finding give: `file:line`, a concrete failure scenario (inputs → wrong output), and how you confirmed it in the code. Do not pad with non-findings. Do not edit, create, or delete any file inside the repo tree.
 >
-> When your review is done, post it as a comment on PR #P: write the full findings to a markdown file in your scratchpad directory (never inside the repo), starting with the heading `### Adversarial review — <LENS> (<MODEL>)`, then run `gh pr comment P --body-file <that file>`. Never pass `--body @-` — gh takes it as a literal string and posts a broken comment. If you have no findings, still post the comment with the single line "No findings through this lens." so the coverage is recorded. Confirm the comment landed by reading it back with `gh pr view P --comments`.
+> When your review is done, post it as a comment on PR #P: write the full findings to a markdown file in your scratchpad directory (never inside the repo), starting with the heading `### Adversarial review — <LENS> (<MODEL>)`, where MODEL is the model name and id you yourself are running as, exactly as your own system prompt gives them — report what you are, never what you were asked to be. Then run `gh pr comment P --body-file <that file>`. Never pass `--body @-` — gh takes it as a literal string and posts a broken comment. If you have no findings, still post the comment with the single line "No findings through this lens." so the coverage is recorded. Confirm the comment landed by reading it back with `gh pr view P --comments`.
 >
 > **Whether or not the comment lands, return your full findings as your final report — the same markdown, in full.** If you cannot post at all (no `gh` on this machine, an auth failure, a denied permission), do not try to work around it and do not summarise: say in one line that you could not post and why, then return the whole report. The writer will post it for you.
 
