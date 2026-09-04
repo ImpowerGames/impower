@@ -7,7 +7,7 @@ description: Turn a feature idea into an agreed plan and a Feature ticket by int
 
 Takes a feature idea from the user, drives it to a shared understanding through an interview, and files one Feature issue on GitHub carrying the plan. Implementation does not happen here; it happens on the ticket, through the resolve-issue skill, once the plan is agreed.
 
-Why the interview comes first: a feature in this repo usually cuts through the whole pipeline, parser to compiler to engine to player to editor to extension, and the author-facing decision (what the syntax is, what the directive does at each point in preview and play) sits at the top of that chain. A wrong assumption there is paid for at every layer below it. #398 and #392 are what the tickets look like when the decisions were made before the work started; #298 is what it looks like when scope was discovered mid-flight and had to be split afterwards.
+Why the interview comes first: a feature in this repo usually cuts through the whole pipeline, parser to compiler to engine to player to editor to extension, and the author-facing decision (what the syntax is, what the directive does at each point in preview and play) sits at the top of that chain. A wrong assumption there is paid for at every layer below it, and a feature whose scope is discovered mid-flight ends up split into follow-up tickets after the fact instead of planned as slices before.
 
 ## 1. Find the facts before asking anything
 

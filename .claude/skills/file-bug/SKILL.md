@@ -7,7 +7,7 @@ description: File a bug ticket in this repo, reproducing the bug first so the ti
 
 Turns a report of wrong behavior into one Bug issue on GitHub that a fixer can act on without re-deriving anything. All paths are relative to the repo root (the directory whose `package.json` is named `impower-monorepo`).
 
-The one rule: no reproduction, no ticket. A ticket here is treated as evidence, not instructions, by whoever fixes it (see the resolve-issue skill, section 1). A ticket filed from a description alone sends the fixer chasing a description, and when they cannot reproduce it the ticket is closed as not reproducible and the bug survives. That is exactly what happened with #214, which was closed and then re-reported as #394 once someone built a repro that measured the freeze instead of describing it.
+The one rule: no reproduction, no ticket. A ticket here is treated as evidence, not instructions, by whoever fixes it (see the resolve-issue skill, section 1). A ticket filed from a description alone sends the fixer chasing a description, and when they cannot reproduce it the ticket is closed as not reproducible and the bug survives, to be reported again later by someone who measures it instead of describing it. That has happened here.
 
 Reproducing is also where the ticket gets its value. With a loop that goes red on the bug in hand, the cause is often a few minutes away, and a ticket with a repro, numbers, and a cause is what lets resolve-issue skip its investigation phase.
 
@@ -23,7 +23,7 @@ Search the tracker before building anything, by concept rather than by the repor
 gh issue list --state all --search "preview freeze first click" --limit 20
 ```
 
-An open match means you add your reproduction as a comment there instead of filing a duplicate. A closed match is context for the new ticket, the way #394 cites #214.
+An open match means you add your reproduction as a comment there instead of filing a duplicate. A closed match is context for the new ticket: cite it, and say what your reproduction shows that the earlier report did not.
 
 ## 2. Build the reproduction
 
@@ -88,7 +88,7 @@ If the user, told that, still wants a ticket now, file it with the Reproduction 
 
 ## 4. Look for the cause, within a budget
 
-With a red loop in hand, spend a bounded effort (an hour of work, not a day) on where the bug comes from. Read the code the loop exercises; form two or three hypotheses that make different predictions; probe the one the loop can distinguish fastest. The repo's tickets routinely carry this (#394, #400, #401 each name the line and quote it), and it is what makes resolve-issue's fast path possible.
+With a red loop in hand, spend a bounded effort (an hour of work, not a day) on where the bug comes from. Read the code the loop exercises; form two or three hypotheses that make different predictions; probe the one the loop can distinguish fastest. The repo's tickets routinely carry this, naming the line and quoting it, and it is what makes resolve-issue's fast path possible.
 
 Report it honestly. "Confirmed" means the loop turned green when you changed that line and red when you changed it back, or the value you predicted appeared where you predicted it. Anything less is "suspected", and the ticket says which. Reference code as `file:line` at a specific commit, with a permalink, because code moves and tickets go stale.
 
@@ -106,7 +106,7 @@ What goes where:
 - Expected behavior, Actual behavior: short, and the actual one carries the numbers (timings, counts, rates) and how they were taken.
 - Environment: the surface, the commit (`git rev-parse --short HEAD`), and OS or browser only when they matter.
 - Analysis: the cause with `file:line` permalinks and quoted lines, marked confirmed or suspected, then the suggested fix and anything that must stay true after it. "Unknown" is a valid entry when the budget ran out; say what you ruled out.
-- Additional context: how it was found ("Found by adversarial review on #383"), the earlier ticket it relates to, workarounds.
+- Additional context: how it was found (for example, by an adversarial review of a pull request, naming it), the earlier ticket it relates to, workarounds.
 
 Strip the template's HTML comments. Write "Unknown" under a heading you cannot fill rather than deleting it.
 
