@@ -108,6 +108,13 @@ fm_field() {
   local key="$1" file="$2" value
   value="$(frontmatter "$file" | grep -m1 -E "^$key:" | sed -E "s/^$key:[[:space:]]*//")"
   value="${value%$'\r'}"
+  # Drop a trailing YAML comment, which a parser would not treat as part of the
+  # value, so this reads the same id the harness does. Only outside quotes: a #
+  # inside a quoted value is a literal.
+  case "$value" in
+    '"'*|"'"*) ;;
+    *) value="${value%%[[:space:]]#*}" ;;
+  esac
   unquote "$(trim "$value")"
 }
 
@@ -115,16 +122,21 @@ fm_field() {
 # definition declares it. Definitions are matched on their frontmatter "name:",
 # which is what a subagent_type resolves against -- a file whose name field and
 # filename disagree would otherwise be judged on the wrong one.
+# Exit 1 when nothing declares NAME, 2 when more than one does -- two files
+# claiming the same name leave the harness free to resolve either, so reading
+# whichever sorts first would be judging a definition that may never run.
 definition_model() {
-  local want="$1" file
+  local want="$1" file found="" model=""
   for file in "$agents"/*.md; do
     [[ -r "$file" ]] || continue
     if [[ "$(fm_field name "$file")" == "$want" ]]; then
-      fm_field model "$file"
-      return 0
+      [[ -n "$found" ]] && return 2
+      found="yes"
+      model="$(fm_field model "$file")"
     fi
   done
-  return 1
+  [[ -z "$found" ]] && return 1
+  printf '%s' "$model"
 }
 
 # Every value of KEY named inside one cell, one per line, each wrapped in
@@ -208,10 +220,15 @@ while IFS= read -r line; do
   if [[ -n "$names" ]]; then
     while IFS= read -r marked; do
       name="${marked#<}"; name="${name%>}"
-      pinned="$(definition_model "$name")" || {
-        note_fail "the '$first_cell' row spawns \"$name\", but no definition in $agents declares that name -- that call fails at spawn time."
-        continue
-      }
+      pinned="$(definition_model "$name")"
+      case "$?" in
+        1)
+          note_fail "the '$first_cell' row spawns \"$name\", but no definition in $agents declares that name -- that call fails at spawn time."
+          continue ;;
+        2)
+          note_fail "more than one definition in $agents declares the name \"$name\", so which model it runs is undecided."
+          continue ;;
+      esac
       # A pin has to be a full model id. Anything else -- a bare family alias,
       # or "inherit", which means run on the caller's own model -- follows
       # whatever the harness picks and pins nothing.
@@ -295,6 +312,11 @@ if [[ -z "${REVIEWER_CHECK_INNER:-}" ]]; then
   # Filename and declared name deliberately disagree, so the resolver is shown
   # to match on the frontmatter name rather than on the path.
   printf -- '---\nname: declared-name\nmodel: claude-opus-4-6\n---\n' > "$tmp/agents/some-other-file.md"
+  # A trailing YAML comment is not part of the value a parser would read.
+  printf -- '---\nname: commented\nmodel: claude-opus-5 # pinned deliberately\n---\n' > "$tmp/agents/commented.md"
+  # Two files claiming one name, pinning different models.
+  printf -- '---\nname: dupe\nmodel: claude-opus-4-6\n---\n' > "$tmp/agents/aaa-dupe.md"
+  printf -- '---\nname: dupe\nmodel: claude-opus-5\n---\n' > "$tmp/agents/zzz-dupe.md"
 
   clause='the model name and id you yourself are running as'
 
@@ -337,6 +359,8 @@ if [[ -z "${REVIEWER_CHECK_INNER:-}" ]]; then
   control 'a version-less writer routed to its family'   '| Opus | `subagent_type: "pinned-new"` |'
   control 'a multi-family row routed to one of them'     '| Fable, Sonnet, Haiku | `subagent_type: "pinned-sonnet"` |'
   control 'a multi-family row on the alias path'         '| Fable, Sonnet, Haiku | `model: "fable"` |'
+  control 'two definitions claiming one name'            '| Opus 4.6 | `subagent_type: "dupe"` |'
+  control 'the writer own model behind a YAML comment'   '| Opus 5 | `subagent_type: "commented"` |'
   control 'a spaced version, "opus 4.6"'                 '| Opus | `model: "opus 4.6"` |'
   control 'a full model id passed to the parameter'      '| Opus | `model: "claude-opus-5"` |'
   control 'a same-family alias route, Opus to opus'      '| Opus | `model: "opus"` |'
