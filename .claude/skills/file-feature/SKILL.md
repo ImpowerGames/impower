@@ -28,7 +28,8 @@ The usual comparison points here:
 
 - Narrative scripting: Ren'Py, Ink, Twine, Yarn Spinner. Syntax, directives, scene and choice semantics, save and rollback behavior.
 - Engines: Godot, Unity, Unreal. Asset loading and lifetime, scene transitions, animation, input, the split between edit-time and run-time behavior.
-- Editors and extensions: VS Code, and the editor features authors already know from it. Panels, commands, find and replace, file management, diagnostics.
+- Editors and extensions: VS Code, and the editor features authors already know from it. Panels, commands, find and replace, diagnostics.
+- Files, sync, collaboration, and history: Google Drive and Google Docs, GitHub, Dropbox, Figma. Project and file management, offline and multi-device syncing, conflict handling, real-time collaboration and presence, version history, and the sharing and permission model authors expect.
 - Screenplay conventions: Fountain and the screenwriting tools built on it, for anything about how a script reads on the page.
 
 For each, write down how it handles the surface, the semantics, and the edge cases in a few lines, and where they disagree with each other, because a disagreement between mature systems marks a real decision the interview has to put to the user. Draw on what you already know first; that covers most of it. Read the system's documentation only where a specific claim is going into a recommendation or where you are unsure, since exact statement names, signatures, and behavior that changed in a recent version are what recalled knowledge gets wrong. Cite the source when a claim is specific.
