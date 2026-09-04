@@ -8,6 +8,7 @@
 !.claude/skills/
 !.claude/output-styles/
 !.claude/settings.json
+!.claude/hooks/
 # Driver runtime artifacts: chosen ports + the Chromium profile it drives with.
 .claude/skills/*/.state.json
 .claude/skills/*/.chrome-profile/
