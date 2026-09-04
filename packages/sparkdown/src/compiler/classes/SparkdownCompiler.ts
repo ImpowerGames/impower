@@ -248,6 +248,30 @@ type FlowLocCacheEntry = {
   assets: SceneAssetCapture;
 };
 
+// A per-script view of this compile's changed chunks. The bytecode reuse guard
+// (`computeFlowReuse`) and the location/asset reuse guard
+// (`populateAllLocations`) each build one from their own flow list — they
+// disagree about `global decl`, which one includes and the other skips — so
+// they hold separate instances of this, applying the same rule to the same
+// `_changedChunkRanges`.
+//
+// A line number is only meaningful within the script it came from, and a
+// project that uses `include` has several scripts whose line numbers overlap
+// freely. Every comparison here is therefore answered inside one script's
+// coordinates.
+type FlowSpanIndex = {
+  // True when a changed chunk falls within the flow that starts at `start0` of
+  // `uri`. The flow's span runs from its start line to the next flow start in
+  // that same script, or to the end of the script if it is the last one.
+  touched: (uri: string, start0: number) => boolean;
+  // True when a changed chunk sits above the first flow of its own script.
+  // Such a chunk is content that lives outside every flow, and generation can
+  // fold it into flows in any script, so no flow's cached shape survives it. A
+  // script with no flows at all is entirely such content, so any change in it
+  // counts.
+  changedAboveFirstFlow: boolean;
+};
+
 export class SparkdownCompiler {
   protected _profilerId?: string;
   get profilerId() {
@@ -324,9 +348,12 @@ export class SparkdownCompiler {
   // unchanged chunks); PreProcessTopLevelObjects re-parents the content on each
   // splice. Per-instance (mutated/reset per compile), so never shared.
   protected _cachedPreludeParsedStory?: Story;
-  // 0-based [startLine, endLine] source ranges of chunks that are NEW/changed
-  // this compile (identity not in `_prevCompilationIds`).
-  protected _changedChunkRanges?: Array<[number, number]>;
+  // Chunks that are NEW/changed this compile (identity not in
+  // `_prevCompilationIds`), as 0-based [startLine, endLine] source ranges
+  // paired with the uri of the script they were read from. The uri is what
+  // makes the lines comparable: the recursive parse walks every included
+  // script, and two scripts' line numbers overlap.
+  protected _changedChunkRanges?: Array<[number, number, string]>;
   // Per-flow asset captures for this compile (`program.sceneAssets`), keyed
   // like `_locCache` plus "0" for root content. A reused flow contributes its
   // cached capture by reference; a recomputed flow is captured through
@@ -1951,8 +1978,11 @@ export class SparkdownCompiler {
       // Track chunk identity for the incremental location cache. A chunk whose
       // CompiledBlock object is carried forward from the previous compile (same
       // identity) is unchanged; a new identity means it was re-lowered. Record
-      // changed chunks' 0-based source line ranges so `populateAllLocations` can
-      // tell which flows' subtrees must be recomputed vs reused.
+      // changed chunks' 0-based source line ranges, tagged with this script's
+      // uri, so `populateAllLocations` can tell which flows' subtrees must be
+      // recomputed vs reused. The lines come from THIS script's document, and
+      // this function recurses through every included script, so the uri is
+      // what keeps a range from being read against another script's flows.
       const compiledBlock = rec.block as object;
       this._compilationIds?.add(compiledBlock);
       if (
@@ -1961,7 +1991,7 @@ export class SparkdownCompiler {
       ) {
         const chunkStart = lineNumberOffset;
         const chunkEnd = document?.lineAt(rec.to) ?? chunkStart;
-        this._changedChunkRanges?.push([chunkStart, chunkEnd]);
+        this._changedChunkRanges?.push([chunkStart, chunkEnd, uri]);
       }
       // Anonymous function literals lowered at chunk-top-level (i.e.
       // outside any enclosing function definition) produce synthetic
@@ -2982,6 +3012,90 @@ export class SparkdownCompiler {
     }
   }
 
+  /**
+   * Index this compile's changed chunks against a set of flow starts, one
+   * script at a time.
+   *
+   * A flow whose `uri` is empty or whose `start0` is negative has no source
+   * span to test, so it contributes no boundary and reports as touched — the
+   * caller falls back to recomputing it.
+   */
+  protected buildFlowSpanIndex(
+    flows: ReadonlyArray<{ uri: string; start0: number }>,
+  ): FlowSpanIndex {
+    const startsByUri = new Map<string, number[]>();
+    for (const f of flows) {
+      if (f.start0 < 0 || !f.uri) {
+        continue;
+      }
+      const starts = startsByUri.get(f.uri);
+      if (starts) {
+        starts.push(f.start0);
+      } else {
+        startsByUri.set(f.uri, [f.start0]);
+      }
+    }
+    for (const starts of startsByUri.values()) {
+      starts.sort((a, b) => a - b);
+    }
+    const changedByUri = new Map<string, Array<[number, number]>>();
+    for (const [start, end, uri] of this._changedChunkRanges ?? []) {
+      const ranges = changedByUri.get(uri);
+      if (ranges) {
+        ranges.push([start, end]);
+      } else {
+        changedByUri.set(uri, [[start, end]]);
+      }
+    }
+    let changedAboveFirstFlow = false;
+    for (const [uri, ranges] of changedByUri) {
+      const starts = startsByUri.get(uri);
+      const firstStart = starts?.length ? starts[0]! : Number.POSITIVE_INFINITY;
+      for (const [start] of ranges) {
+        if (start < firstStart) {
+          changedAboveFirstFlow = true;
+          break;
+        }
+      }
+      if (changedAboveFirstFlow) {
+        break;
+      }
+    }
+    return {
+      changedAboveFirstFlow,
+      touched: (uri: string, start0: number): boolean => {
+        if (start0 < 0 || !uri) {
+          return true;
+        }
+        const ranges = changedByUri.get(uri);
+        if (!ranges?.length) {
+          return false;
+        }
+        let end0 = Number.POSITIVE_INFINITY;
+        const starts = startsByUri.get(uri);
+        if (starts) {
+          for (const s of starts) {
+            if (s > start0) {
+              end0 = s;
+              break;
+            }
+          }
+        }
+        // `start0` is the flow's header line. The guard reaches one line
+        // further up so that a chunk ending immediately above the header —
+        // the blank line or trailing content a header edit tends to re-chunk
+        // along with it — counts as touching the flow.
+        const guardStart = start0 - 1;
+        for (const [cs, ce] of ranges) {
+          if (ce >= guardStart && cs < end0) {
+            return true;
+          }
+        }
+        return false;
+      },
+    };
+  }
+
   protected computeFlowReuse(story: RuntimeStory): {
     reusable: Set<string>;
     ok: boolean;
@@ -2989,61 +3103,32 @@ export class SparkdownCompiler {
     const reusable = new Set<string>();
     const root = story.mainContentContainer;
     const named = root?.namedOnlyContent;
-    const changed = this._changedChunkRanges ?? [];
     if (!named) {
       return { reusable, ok: true };
     }
-    const flows: Array<{ name: string; start0: number }> = [];
+    const flows: Array<{ name: string; uri: string; start0: number }> = [];
     for (const [name, value] of named) {
       if (name === "global decl") {
         continue;
       }
       const c = asOrNull(value, Container);
       const md = c?.ownDebugMetadata;
-      flows.push({ name, start0: md ? md.startLineNumber - 1 : -1 });
+      flows.push({
+        name,
+        uri: md?.filePath ?? "",
+        start0: md ? md.startLineNumber - 1 : -1,
+      });
     }
-    const starts = flows
-      .map((f) => f.start0)
-      .filter((s) => s >= 0)
-      .sort((a, b) => a - b);
-    const firstStart = starts.length ? starts[0]! : Number.POSITIVE_INFINITY;
-    let ok = true;
-    for (let i = 0; i < changed.length; i++) {
-      if (changed[i]![0] < firstStart) {
-        ok = false;
-        break;
+    const spans = this.buildFlowSpanIndex(flows);
+    if (spans.changedAboveFirstFlow) {
+      return { reusable, ok: false };
+    }
+    for (const f of flows) {
+      if (!spans.touched(f.uri, f.start0)) {
+        reusable.add(f.name);
       }
     }
-    if (ok) {
-      const spanEndOf = (start0: number): number => {
-        for (const s of starts) {
-          if (s > start0) {
-            return s;
-          }
-        }
-        return Number.POSITIVE_INFINITY;
-      };
-      for (const f of flows) {
-        if (f.start0 < 0) {
-          continue;
-        }
-        const end0 = spanEndOf(f.start0);
-        const guardStart = f.start0 - 1;
-        let overlap = false;
-        for (let i = 0; i < changed.length; i++) {
-          const cs = changed[i]![0];
-          const ce = changed[i]![1];
-          if (ce >= guardStart && cs < end0) {
-            overlap = true;
-            break;
-          }
-        }
-        if (!overlap) {
-          reusable.add(f.name);
-        }
-      }
-    }
-    return { reusable, ok };
+    return { reusable, ok: true };
   }
 
   populateAllLocations(program: SparkProgram, story: RuntimeStory) {
@@ -3121,7 +3206,6 @@ export class SparkdownCompiler {
       this._locCacheScriptsKey = scriptsKey;
     }
     const prevCache = this._locCache;
-    const changed = this._changedChunkRanges ?? [];
     const nextCache: NonNullable<typeof this._locCache> = new Map();
 
     const rootMeta = root.ownDebugMetadata ?? null;
@@ -3155,6 +3239,7 @@ export class SparkdownCompiler {
         name: string;
         container: Container | null;
         value: InkObject;
+        uri: string;
         start0: number;
       }> = [];
       for (const [name, value] of named) {
@@ -3164,22 +3249,14 @@ export class SparkdownCompiler {
           name,
           container,
           value,
+          uri: md?.filePath ?? "",
           start0: md ? md.startLineNumber - 1 : -1,
         });
       }
-      // Sorted start lines → each flow's span end is the next flow's start.
-      const starts = flows
-        .map((f) => f.start0)
-        .filter((s) => s >= 0)
-        .sort((a, b) => a - b);
-      const spanEndOf = (start0: number): number => {
-        for (const s of starts) {
-          if (s > start0) {
-            return s;
-          }
-        }
-        return Number.POSITIVE_INFINITY;
-      };
+      // Within one script, sorted start lines → each flow's span end is the
+      // next flow's start. Across scripts the starts are incomparable, so the
+      // index below keeps each script's starts in their own list.
+      const spans = this.buildFlowSpanIndex(flows);
       // Reuse is only sound while the set of top-level flows is STABLE. A
       // structural edit (a scene/knot header made/unmade, renamed, added or
       // removed) can reflow content across flow boundaries and shift the
@@ -3212,19 +3289,12 @@ export class SparkdownCompiler {
       // BeginString/StringValue/EndString, a number emits one value). So
       // retyping or removing a constant shifts sibling indices inside flows
       // whose own source shows no changed chunk, and replaying their cached
-      // keys would map real paths to wrong lines. Apply the same global guard
+      // keys would map real paths to wrong lines. Apply the same guard
       // `computeFlowReuse` uses for the bytecode cache: if any changed chunk
-      // starts before the first flow, reuse nothing this compile.
-      if (effPrevCache && this._changedChunkRanges?.length) {
-        const firstStart = starts.length
-          ? starts[0]!
-          : Number.POSITIVE_INFINITY;
-        for (const [changedStart] of this._changedChunkRanges) {
-          if (changedStart < firstStart) {
-            effPrevCache = undefined;
-            break;
-          }
-        }
+      // starts before the first flow of its own script, reuse nothing this
+      // compile.
+      if (effPrevCache && spans.changedAboveFirstFlow) {
+        effPrevCache = undefined;
       }
       for (const f of flows) {
         // `global decl`'s source is non-contiguous (scattered declarations), so
@@ -3237,24 +3307,14 @@ export class SparkdownCompiler {
         const reusable =
           f.container != null &&
           f.start0 >= 0 &&
+          f.uri !== "" &&
           f.name !== "global decl" &&
           !CANONICAL_SYNTH_NAME.test(f.name) &&
           effPrevCache != null;
         if (reusable) {
           const cached = effPrevCache!.get(f.name);
           if (cached) {
-            const end0 = spanEndOf(f.start0);
-            const guardStart = f.start0 - 1;
-            let overlap = false;
-            for (let i = 0; i < changed.length; i++) {
-              const cs = changed[i]![0];
-              const ce = changed[i]![1];
-              if (ce >= guardStart && cs < end0) {
-                overlap = true;
-                break;
-              }
-            }
-            if (!overlap) {
+            if (!spans.touched(f.uri, f.start0)) {
               this.spliceCachedFlowLocations(
                 program,
                 f.name,

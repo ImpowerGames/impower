@@ -267,12 +267,20 @@ How to read it — **check these before trusting the PNG**:
   Preview pane is **blank white**. The screenshot is not evidence. `down`, `up`,
   retry. (`neededReload: true` means it only mounted after the driver reloaded
   the page — fine, just slower.)
-- `route` — `main : 1 → main : 8` means the preview settled on **source line 8**.
-  If the right-hand number is not the line you asked for, the driver sets
-  `scrubWarning`; the line is probably not a playable beat (blank line,
-  character-name line, heading).
-- `visible` — the game's rendered text. **Every line appears twice**: the second
-  copy is the text _outline_ layer. Expected — not duplicated output.
+- `route` — `main : 1 → main : 8` means the preview paused on **beat 8**. That is
+  the beat _after_ the content it played, so it equals the line you asked for
+  only when nothing follows that line; scrub to line 20 of a longer script and
+  the route reads 22. The driver sets `scrubWarning` whenever the two differ, so
+  the warning appears on healthy mid-script scrubs as well as failed ones —
+  `visible` is what separates them.
+- `visible` — the game's rendered text, and the field that actually says whether
+  the scrub landed: it should be the target line's own text. **Every line appears
+  twice**: the second copy is the text _outline_ layer. Expected — not duplicated
+  output.
+- `scrubClick` — present only when the dispatch-based scrub did not satisfy the
+  beat check and the driver fell back to a real mouse click. `clicked: true` with
+  a `cursorLine` matching your target means the click drove the selection;
+  `clicked: false` carries a `reason`.
 - `settled: false` — the DOM never stopped mutating. Re-run.
 
 `--sd` is only needed when the script changes: the pinned port keeps the same
@@ -674,6 +682,13 @@ reload), `--line <N>` (scrub the preview to that source line), `--shot <out.png>
 `--probe <file.js>` (body of an async function evaluated in the editor page;
 its return value lands in the JSON), `--headed` (visible browser).
 
+`verify` scrubs by dispatching a selection into CodeMirror and falls back to a
+real mouse click when that does not move the preview. Setting
+`RESOLVE_ISSUE_NO_DISPATCH_SCRUB=1` disables the dispatch half, leaving the click
+as the only thing that can move it — that is how you prove the fallback still
+works after touching it, since a passing ordinary run cannot tell you which of
+the two moved the preview.
+
 State lives in `.claude/skills/resolve-issue/.state.json` (gitignored).
 
 Playwright is a **declared root devDependency** (`playwright: ^1.61.0`).
@@ -734,10 +749,13 @@ Things that look like they work and don't:
 - **A real (trusted) click on the target line is the most reliable scrub.**
   `view.dispatch({selection})` moves the caret, but the preview can silently
   fail to follow — the cursor sits on the line you asked for while `route`
-  stays on the old beat, and nothing raises. If the hold-check and the bounce
-  don't move the preview, scroll the line into view and `page.mouse.click()`
-  its coordinates (`view.coordsAtPos(line.from)` gives them); a trusted event
-  drives the real selection path.
+  stays on the old beat, and nothing raises. The driver falls back to a real
+  `page.mouse.click()` once its dispatch retries are exhausted, and reports the
+  outcome as `scrubClick`; a trusted event drives the real selection path where
+  no amount of re-dispatching will. To confirm that fallback still works after
+  changing it, run `verify` with `RESOLVE_ISSUE_NO_DISPATCH_SCRUB=1` set — that
+  turns the dispatch-based scrub into a no-op, so the click is the only thing
+  that can move the preview.
 - **`textContent` on the game DOM returns a wall of CSS** — the player injects
   `<style>` blocks and every ancestor inherits their text. And the typewriter
   effect wraps **every character** in its own `<span>`, so "leaf nodes with
@@ -785,7 +803,7 @@ Things that look like they work and don't:
 | Game Preview is black but the editor pane looks fine                                                       | Servers were hand-launched with mismatched origins. `down`, then `up`.                                                                                                                                                                                                                      |
 | `verify` returns `preview.installed: false`                                                                | `window.__preview` only exists in same-origin mode. Don't pass `--cross-origin`.                                                                                                                                                                                                            |
 | Game Preview pane is blank **white**; `gameMounted: false`                                                 | The `#game` scaffold never mounted after a server restart. `down`, `up`, retry. Discard the screenshot.                                                                                                                                                                                     |
-| Scrub lands on the wrong beat; `scrubWarning` set                                                          | The target line isn't a playable beat — pick the indented dialogue/action line, not the `NAME:` line, a heading, or a blank line.                                                                                                                                                           |
+| Scrub lands on the wrong beat; `scrubWarning` set                                                          | Read `visible` first. The engine pauses on the beat after the one it played, so a beat a little past your line is normal and the warning is spurious. If `visible` really is from elsewhere in the script, the target line isn't a playable beat — pick the indented dialogue/action line, not the `NAME:` line, a heading, or a blank line. |
 | `verify` dies with `Timeout 90000ms exceeded` waiting for `.cm-content`                                    | The machine is saturated — usually a vitest suite running in this or another worktree. The server is fine (`status` says UP, the URL returns 200). Wait for the suite and re-run; don't go hunting for a regression.                                                                        |
 | vitest exits 0 with no `Test Files` / `Tests` summary                                                      | An OOM'd worker was killed by the OS. Not a pass. Lower `maxForks`, split the suite.                                                                                                                                                                                                        |
 | `minThreads and maxThreads must not conflict`                                                              | You passed `maxForks` without `minForks`. Always pass both.                                                                                                                                                                                                                                 |
