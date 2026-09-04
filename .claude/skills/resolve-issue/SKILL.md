@@ -387,6 +387,20 @@ not on an import error or a typo. Then restore **from the copy**:
 cp "$SCRATCH/fix.ts" packages/sparkdown/src/compiler/utils/filterImage.ts
 ```
 
+Both of those depend on `HEAD` still being the pre-fix state, so they work only
+_before_ you commit. **After §6, `HEAD` is your fix**, and any baseline taken
+from it silently contains the very change it is supposed to lack — the run then
+reproduces nothing, which reads as "the bug was never real". Once you have
+committed, take the baseline from `origin/main` instead:
+
+```bash
+MSYS_NO_PATHCONV=1 git cat-file -p "origin/main:path/to/file.ts" > "$SCRATCH/baseline.ts"
+```
+
+(`MSYS_NO_PATHCONV=1` is needed on Git Bash for Windows, which otherwise rewrites
+the `rev:path` argument into a Windows path and fails with
+`fatal: ambiguous argument`.)
+
 `git checkout --` reverts to HEAD, so it restores the _pre-fix_ file — using it
 to undo the revert silently throws the fix away. **Confirm the restore landed
 before trusting anything downstream:**
@@ -592,11 +606,11 @@ git diff origin/main...HEAD > "$SCRATCH/review-diff.patch"
 
 Write it to your scratchpad, never into the checkout. A patch file inside the repo is one `git add -A` away from being committed, and it leaves the tree dirty for as long as the review runs — long enough to trip any hook or check that expects a clean tree, on every single run of this skill. Give reviewers the absolute path (`$SCRATCH` is your session's scratchpad directory).
 
-Spawn the reviewers in parallel — one message, multiple Agent tool calls, each with the `subagent_type` from §7b (or `general-purpose` plus a `model:`, on the fallback path). Posting a PR comment needs Bash and a scratch file, so read-only is not tool-enforced for reviewers; the prompt forbids repo edits and §7d checks that it was obeyed. Give each one, verbatim (fill in N = issue number, P = PR number, DIFF = the absolute path you just wrote the patch to, LENS, and WRITER = your own model id — the reviewer supplies its own model, so that one is not yours to fill in):
+Spawn the reviewers in parallel — one message, multiple Agent tool calls, each with the `subagent_type` from §7b (or `general-purpose` plus a `model:`, on the fallback path). Posting a PR comment needs Bash and a scratch file, so read-only is not tool-enforced for reviewers; the prompt forbids repo edits and §7d checks that it was obeyed. Give each one, verbatim (fill in N = issue number, P = PR number, DIFF = the absolute path you just wrote the patch to, WORKTREE = the absolute path of the worktree from §2, LENS, and WRITER = your own model id — the reviewer supplies its own model, so that one is not yours to fill in). WORKTREE is not optional: a subagent starts in the main checkout, not in your worktree, so a reviewer told only "the working tree is the branch under review" reads the unchanged files on `main` and reviews nothing you wrote.
 
 > Before anything else, check the pin. I am running `WRITER`. If that is missing, empty, still the literal placeholder `WRITER`, or anything other than a concrete model id, you have nothing to compare against — stop and reply with exactly one line, `ABORT: writer model not supplied.` Otherwise compare it against the model your own system prompt says you are, ignoring any context-window suffix such as `[1m]`. If the family and version match, you are my own model, this review would carry my blind spots, and going on would spend a full review to produce nothing worth reading — so stop here: read no file, run no command, and reply with exactly one line, `ABORT: pin failed, I am <your model id>, same as the writer.` Begin an abort with `ABORT:` and nothing else, so I cannot mistake it for a short review that found nothing. Only if your model differs should you do the review below.
 >
-> You are reviewing a fix for issue #N in the Impower monorepo. The diff is at `DIFF`; the working tree is the branch under review. Your lens is \<LENS\> — review only through it. Your job is to refute this change, not to approve it. Assume it is broken and find out how. If you are uncertain, report the concern rather than suppressing it. For each finding give: `file:line`, a concrete failure scenario (inputs → wrong output), and how you confirmed it in the code. Do not pad with non-findings. Do not edit, create, or delete any file inside the repo tree.
+> You are reviewing a fix for issue #N in the Impower monorepo. The diff is at `DIFF`; the working tree under review is the git worktree at `WORKTREE` — read files from there, not from the main checkout. Your lens is \<LENS\> — review only through it. Your job is to refute this change, not to approve it. Assume it is broken and find out how. If you are uncertain, report the concern rather than suppressing it. For each finding give: `file:line`, a concrete failure scenario (inputs → wrong output), and how you confirmed it in the code. Do not pad with non-findings. Do not edit, create, or delete any file inside the repo tree.
 >
 > When your review is done, post it as a comment on PR #P: write the full findings to a markdown file in your scratchpad directory (never inside the repo), starting with the heading `### Adversarial review — <LENS> (<MODEL>)`, where MODEL is the model name and id you yourself are running as, exactly as your own system prompt gives them — report what you are, never what you were asked to be. Then run `gh pr comment P --body-file <that file>`. Never pass `--body @-` — gh takes it as a literal string and posts a broken comment. If you have no findings, still post the comment with the single line "No findings through this lens." so the coverage is recorded. Confirm the comment landed by reading it back with `gh pr view P --comments`.
 >
@@ -809,6 +823,8 @@ Things that look like they work and don't:
 | `npm install` dies with `request blocked: no rule or allowlist entry allows host "cdn.playwright.dev"` (or any `@playwright/browser-chromium` download failure) | A workspace depends on `@playwright/browser-chromium`, whose install script tries to fetch its own Chromium build from a blocked host. Re-run as `PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 npm install` — see §2. |
 | `git worktree remove` → `Directory not empty`                                                              | Windows can't delete `node_modules` that way. `Remove-Item -Recurse -Force <path>`, then `git worktree prune`.                                                                                                                                                                              |
 | A `gh` PR/issue body came out as the literal `@-`                                                          | You used `--body @-`. Use `--body-file`, then read it back with `gh pr view --json body`.                                                                                                                                                                                                   |
+| `git show origin/main:some/path` → `fatal: ambiguous argument 'origin\main;some\path'`                     | Git Bash rewrote the `rev:path` argument as a Windows path. Prefix the command with `MSYS_NO_PATHCONV=1`, and quote the argument.                                                                                                                                                            |
+| A "pre-fix" copy pulled from `HEAD:` still contains the fix                                                | Once you have committed, `HEAD` **is** your fix. Extract the baseline from `origin/main:` instead. The failure is silent: the run looks like a baseline and reproduces nothing, which reads as "the bug isn't real".                                                                          |
 
 ---
 
