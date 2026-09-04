@@ -9,7 +9,9 @@ import {
 // the second token is the target (a layer, a channel, a layout, or a scene) and
 // the rest are names; a clause keyword ends the names; names split on `+`.
 // Keyword lists come from the grammar so the two parsers cannot drift apart.
-const VARIABLES = GRAMMAR_DEFINITION.variables as Record<
+// The grammar JSON also carries string-valued variables (regex fragments),
+// so the lookup type goes through `unknown`.
+const VARIABLES = GRAMMAR_DEFINITION.variables as unknown as Record<
   string,
   string[] | undefined
 >;

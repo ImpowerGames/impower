@@ -5,7 +5,6 @@
 // other one.
 
 import {
-  type AssetItem,
   type ImageAssetItem,
 } from "../../../../spark-engine/src/game/modules/assets/types/AssetItem";
 import { type AssetsProgressParams } from "../../../../spark-engine/src/game/modules/assets/types/AssetsProgressParams";
@@ -91,7 +90,6 @@ const makeCache = (options?: ConstructorParameters<typeof AssetCache>[1]) => {
 const image = (src: string): ImageAssetItem => ({ kind: "image", src });
 const images = (n: number, prefix = "i"): ImageAssetItem[] =>
   Array.from({ length: n }, (_, i) => image(`/file:/${prefix}${i}.png?v=1`));
-const item = (i: ImageAssetItem): AssetItem => i;
 
 const IMAGE_BYTES = 1000 * 1000 * 4;
 
