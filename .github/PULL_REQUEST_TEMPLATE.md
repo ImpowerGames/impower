@@ -36,7 +36,6 @@ Open as a draft until it is ready for review. Keep every heading; write "None" o
 
 - [ ] Tests pass locally for the packages this touches
 - [ ] Visual changes were checked by looking at the running app, with screenshots attached above
-- [ ] Generated files were regenerated from their source with the repo's tooling, never edited directly
 - [ ] Documentation was updated where behavior changed
 - [ ] The pull request body was read back after opening
 
