@@ -473,7 +473,8 @@ export class InterpreterModule extends Module<
     const defaultTarget = this._targetPrefixMap?.[""] || "";
     for (let i = 0; i < tables.length; i++) {
       const table = tables[i]!;
-      const read = (key: string): unknown => table?.value?.get(key)?.value;
+      const read = (key: string): unknown =>
+        (table?.value?.get(key) as { value?: unknown } | undefined)?.value;
       const target = (read("target") as string) || defaultTarget;
       const characterRaw = read("character");
       const character =

@@ -223,7 +223,7 @@ export class AudioModule extends Module<
         if ("loop_end" in resolvedAsset) {
           d.loopEnd = resolvedAsset.loop_end;
         }
-        if (isSynth(resolvedAsset, d.type)) {
+        if (isSynth(resolvedAsset, d.type ?? "")) {
           // This used to gate on `"shape" in resolvedAsset` ALONE, which
           // silently dropped every partially-authored synth: `d.synth` was
           // never set, so the tone events played nothing at all (#268).

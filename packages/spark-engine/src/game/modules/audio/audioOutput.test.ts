@@ -207,7 +207,7 @@ describe("silence is distinguishable from breakage", () => {
   it("renders the `none` synth as exactly silent", () => {
     const tones = parseTones("t0s1b0~t0.075s1b0", "~");
     const buffer = new SynthBuffer(
-      audioBuiltinDefinitions().synth["none"],
+      audioBuiltinDefinitions().synth["none"]!,
       tones,
       SAMPLE_RATE,
     );
@@ -219,7 +219,7 @@ describe("silence is distinguishable from breakage", () => {
   it("renders an ordinary synth well above the threshold", () => {
     const tones = parseTones("t0s1b0~t0.075s1b0", "~");
     const buffer = new SynthBuffer(
-      audioBuiltinDefinitions().synth["character"],
+      audioBuiltinDefinitions().synth["character"]!,
       tones,
       SAMPLE_RATE,
     );
