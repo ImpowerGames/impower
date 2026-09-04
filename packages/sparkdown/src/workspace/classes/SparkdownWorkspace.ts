@@ -342,7 +342,8 @@ export abstract class SparkdownWorkspace {
       const workspace =
         compilerConfig.workspace ??
         params.workspaceFolders?.[0]?.uri ??
-        params.rootUri;
+        params.rootUri ??
+        undefined;
       // Configure the compiler and run the first compile OFF the initialize
       // response path. Nothing the client renders first needs them: compiler
       // requests wait on `whenCompilerConfigured`, results arrive through

@@ -108,7 +108,7 @@ end
   test("route to a line after a tunnel return is found", () => {
     const { story, program } = compile(FIXTURE);
     const functions = Object.keys(program.functionLocations || {});
-    const locs = program.pathLocations as Record<string, [number, number]>;
+    const locs = program.pathLocations as unknown as Record<string, [number, number]>;
     const paths = pathsForLine(locs, 5);
     expect(paths.length).toBeGreaterThan(0);
     const toPath = paths[0]!;
@@ -120,7 +120,7 @@ end
   test("route to a line after a thread is found", () => {
     const { story, program } = compile(FIXTURE);
     const functions = Object.keys(program.functionLocations || {});
-    const locs = program.pathLocations as Record<string, [number, number]>;
+    const locs = program.pathLocations as unknown as Record<string, [number, number]>;
     const paths = pathsForLine(locs, 7);
     expect(paths.length).toBeGreaterThan(0);
     const toPath = paths[0]!;
@@ -132,7 +132,7 @@ end
   test("route to the last line of the scene is found", () => {
     const { story, program } = compile(FIXTURE);
     const functions = Object.keys(program.functionLocations || {});
-    const locs = program.pathLocations as Record<string, [number, number]>;
+    const locs = program.pathLocations as unknown as Record<string, [number, number]>;
     const paths = pathsForLine(locs, 8);
     expect(paths.length).toBeGreaterThan(0);
     const toPath = paths[0]!;
@@ -144,7 +144,7 @@ end
   test("route inside a tunnel callee is planned from the callee scene", () => {
     const { story, program } = compile(FIXTURE);
     const functions = Object.keys(program.functionLocations || {});
-    const locs = program.pathLocations as Record<string, [number, number]>;
+    const locs = program.pathLocations as unknown as Record<string, [number, number]>;
     const paths = pathsForLine(locs, 12);
     expect(paths.length).toBeGreaterThan(0);
     const toPath = paths[0]!;
@@ -156,7 +156,7 @@ end
   test("route inside a thread callee is planned from the callee scene", () => {
     const { story, program } = compile(FIXTURE);
     const functions = Object.keys(program.functionLocations || {});
-    const locs = program.pathLocations as Record<string, [number, number]>;
+    const locs = program.pathLocations as unknown as Record<string, [number, number]>;
     const paths = pathsForLine(locs, 17);
     expect(paths.length).toBeGreaterThan(0);
     const toPath = paths[0]!;
@@ -205,7 +205,7 @@ end
   test("unreachable target in a scene with a one-way exit reports exhausted quickly", () => {
     const { story, program } = compile(FIXTURE_ONEWAY);
     const functions = Object.keys(program.functionLocations || {});
-    const locs = program.pathLocations as Record<string, [number, number]>;
+    const locs = program.pathLocations as unknown as Record<string, [number, number]>;
 
     const fromPath = "A";
     const bPaths = Object.keys(locs).filter((p) => p.startsWith("B."));
@@ -221,7 +221,7 @@ end
   test("reachable target before the one-way exit is found", () => {
     const { story, program } = compile(FIXTURE_ONEWAY);
     const functions = Object.keys(program.functionLocations || {});
-    const locs = program.pathLocations as Record<string, [number, number]>;
+    const locs = program.pathLocations as unknown as Record<string, [number, number]>;
     const paths = pathsForLine(locs, 3);
     expect(paths.length).toBeGreaterThan(0);
     const toPath = paths[0]!;
@@ -247,7 +247,7 @@ end
 `;
     const { story, program } = compile(FIXTURE);
     const functions = Object.keys(program.functionLocations || {});
-    const locs = program.pathLocations as Record<string, [number, number]>;
+    const locs = program.pathLocations as unknown as Record<string, [number, number]>;
 
     const fromPath = "X";
     const yPaths = Object.keys(locs).filter((p) => p.startsWith("Y."));
@@ -277,7 +277,7 @@ end
 `;
     const { story, program } = compile(FIXTURE);
     const functions = Object.keys(program.functionLocations || {});
-    const locs = program.pathLocations as Record<string, [number, number]>;
+    const locs = program.pathLocations as unknown as Record<string, [number, number]>;
     const paths = pathsForLine(locs, 5);
     expect(paths.length).toBeGreaterThan(0);
     const toPath = paths[0]!;

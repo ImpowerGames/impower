@@ -770,6 +770,9 @@ function readContentParts(
         : String(literal.value);
     return [{ kind: "literal", text }];
   }
+  if (literal.kind === "content") {
+    return literal.content;
+  }
   return [{ kind: "binding", binding: literal.binding }];
 }
 

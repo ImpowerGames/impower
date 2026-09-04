@@ -20,7 +20,11 @@
     "esModuleInterop": true,
     "resolveJsonModule": true,
     "forceConsistentCasingInFileNames": true,
-    "isolatedModules": true
+    "isolatedModules": true,
+    // scripts/ runs under Node type-stripping, which needs the .ts extension
+    // written out. Nothing emits from this project; esbuild does the building.
+    "noEmit": true,
+    "allowImportingTsExtensions": true
   },
   "exclude": [
     "node_modules",

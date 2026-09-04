@@ -79,7 +79,7 @@ end
 
 const drawnLayers = (program: any) => {
   const filteredImage = program.context?.filtered_image?.p;
-  filterImage(program.context, filteredImage);
+  filterImage(program.context!, filteredImage);
   return (filteredImage.filtered_layers ?? []).map(
     (l: { $name: string }) => l.$name,
   );
@@ -181,7 +181,7 @@ end
       ["portrait__hat", "portrait__body"],
     );
     const filteredImage = program.context?.["filtered_image"]?.["p"];
-    filterImage(program.context, filteredImage);
+    filterImage(program.context!, filteredImage);
     expect(getImagePreviewSrc(program.context, filteredImage)).toBe(
       "/file:/local/assets/portrait__body.png?v=1",
     );

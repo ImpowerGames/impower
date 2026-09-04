@@ -1220,7 +1220,7 @@ function lowerAnonymousFunction(
   // Otherwise (top-level expression context) fall back to the chunk-
   // wide hoist list so the anonymous knot still ends up addressable.
   if (stack && stack.length > 0) {
-    stack[stack.length - 1].push(fn);
+    stack[stack.length - 1]!.push(fn);
   } else if (ctx.hoistedKnots) {
     ctx.hoistedKnots.push(fn);
   } else {

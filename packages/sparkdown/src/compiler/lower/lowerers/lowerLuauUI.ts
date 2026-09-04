@@ -1,3 +1,4 @@
+import type { SyntaxNode } from "@lezer/common";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 import type { CompiledBlock } from "../../classes/annotators/CompilationAnnotator";
 import type { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
@@ -24,7 +25,7 @@ function collectFunctionParameterNames(
   ctx: LowerContext,
 ): string[] {
   const names: string[] = [];
-  const walk = (n: typeof node) => {
+  const walk = (n: SyntaxNode) => {
     let c = n.firstChild;
     while (c) {
       if (c.name === "LuauFunctionParameter") {

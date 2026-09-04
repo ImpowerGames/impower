@@ -678,7 +678,7 @@ function readPropertyDefinition(
   // significant child following the `LuauAssignmentOperator` marker. Read
   // from that node's start to the operation's end (covers multi-node
   // expressions) instead of re-deriving the RHS by string-scanning for `=`.
-  const valueNode = findAssignmentValueNode(opNode);
+  const valueNode = findAssignmentValueNode(opNode ?? null);
   const rawValue = valueNode ? ctx.read(valueNode.from, opNode!.to) : "";
 
   // Anchor the property's value expression to its source range. Diagnostics

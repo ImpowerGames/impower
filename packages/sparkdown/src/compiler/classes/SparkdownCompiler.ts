@@ -899,7 +899,10 @@ export class SparkdownCompiler {
           return value;
         },
       };
-      story.ToJson(writer, flowMemo);
+      // ProgramBinaryWriter mirrors the streaming surface ToJson drives, but
+      // it is not a SimpleJson.Writer: its callbacks hand back itself, not a
+      // Writer. The two are interchangeable on this path only.
+      story.ToJson(writer as SimpleJson.Writer, flowMemo);
       this._flowJsonCache = nextFlowCache;
     }
     if (binary) {
@@ -1396,8 +1399,11 @@ export class SparkdownCompiler {
       // Restore the parents of containers committed to reuse — the previous
       // RuntimeStory is still live (checkpoint-builder Game) and generation
       // may have re-parented them into the now-discarded half-built tree.
-      if (this._reuseParentBackups) {
-        for (const [container, parent] of this._reuseParentBackups) {
+      const reuseParentBackups = this._reuseParentBackups as
+        | Array<[Container, InkObject | null]>
+        | undefined;
+      if (reuseParentBackups) {
+        for (const [container, parent] of reuseParentBackups) {
           container.parent = parent;
         }
       }
@@ -2313,7 +2319,10 @@ export class SparkdownCompiler {
         // builtin's children into the authored one. (They likewise override by
         // replace in the reactive `sparkle` channel; see mergePreludeSparkle.)
         const REPLACE_TYPES = new Set(["layout", "screen", "component"]);
-        for (const [type, structs] of Object.entries(context)) {
+        for (const [type, structs] of Object.entries(context) as [
+          string,
+          Record<string, any>,
+        ][]) {
           for (const [name, struct] of Object.entries(structs)) {
             program.context ??= {};
             program.context[type] ??= {};
@@ -3083,9 +3092,9 @@ export class SparkdownCompiler {
         } else {
           this.populateLocations(
             program,
-            child,
+            child!,
             childPath,
-            child.ownDebugMetadata ?? containerMeta,
+            child!.ownDebugMetadata ?? containerMeta,
           );
         }
       }
@@ -3139,9 +3148,9 @@ export class SparkdownCompiler {
       } else {
         this.populateLocations(
           program,
-          child,
+          child!,
           childPath,
-          child.ownDebugMetadata ?? rootMeta,
+          child!.ownDebugMetadata ?? rootMeta,
         );
       }
     }
@@ -3328,8 +3337,8 @@ export class SparkdownCompiler {
         t[3] + delta,
         t[4],
       ];
-      if (!(pe.path in program.pathLocations)) {
-        program.pathLocations[pe.path] = nt;
+      if (!(pe.path in program.pathLocations!)) {
+        program.pathLocations![pe.path] = nt;
         if (order) {
           let byLine = order.get(nt[0]);
           if (!byLine) {
@@ -3356,8 +3365,8 @@ export class SparkdownCompiler {
         t[3] + delta,
         t[4],
       ];
-      if (!(de.key in program.dataLocations)) {
-        program.dataLocations[de.key] = nt;
+      if (!(de.key in program.dataLocations!)) {
+        program.dataLocations![de.key] = nt;
       }
       dataEntries.push({ key: de.key, tuple: nt });
     }
@@ -3608,8 +3617,8 @@ export class SparkdownCompiler {
             bucket.sort((a, b) => a[1] - b[1]);
           }
           for (let i = 0; i < bucket.length; i++) {
-            const path = bucket[i][0];
-            sorted[path] = entries[path];
+            const path = bucket[i]![0];
+            sorted[path] = entries[path]!;
           }
         }
       }
