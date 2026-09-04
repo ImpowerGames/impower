@@ -88,6 +88,20 @@ gh api repos/ImpowerGames/impower/issues/302 --jq .type.name
 | `app: vscode-extension` | VS Code extension (`vscode-sparkdown`)                                 |
 | `app: impower-app`      | Legacy React/Firebase site — effectively archived                      |
 
+### Name the session
+
+The number and the subject are both known now, so rename this session before going further. The session list is how several sessions running at once are told apart at a glance, and a generated title like "Issue #302 resolution" names the ticket without saying what it is.
+
+Call `set_session_title` with `session_id: "self"` and a title of the form `FIX #<number>: <short summary>`:
+
+```
+FIX #302: preview goes black after the first scrub
+```
+
+Write the summary yourself, five to ten plain words for the behaviour at stake. Don't paste the ticket title — those carry a `fix(scope):` prefix and run long, which is exactly what the rename is for. If §3 shows the ticket was about something other than what its title says, rename again with what it is really about.
+
+The app swaps a title it generated itself without asking. If the user named the session, it asks them first, and it declines outright in an unattended session where nobody can answer. A decline costs nothing — carry on with §2.
+
 ---
 
 ## 2. Create the worktree

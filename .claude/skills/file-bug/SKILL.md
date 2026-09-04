@@ -25,6 +25,18 @@ gh issue list --state all --search "preview freeze first click" --limit 20
 
 An open match means you add your reproduction as a comment there instead of filing a duplicate. A closed match is context for the new ticket: cite it, and say what your reproduction shows that the earlier report did not.
 
+### Name the session
+
+Rename this session as soon as you know what the report is about. The session list is how several sessions running at once are told apart at a glance, and a generated title rarely says which bug this one is chasing. Call `set_session_title` with `session_id: "self"`. There is no issue number yet, so the subject stands alone:
+
+```
+FILE bug: preview goes black after the first scrub
+```
+
+Write the summary yourself, five to ten plain words for the behaviour you are about to reproduce. Section 6 renames it again once the ticket has a number.
+
+The app swaps a title it generated itself without asking. If the user named the session, it asks them first, and it declines outright in an unattended session where nobody can answer. A decline costs nothing — carry on.
+
 ## 2. Build the reproduction
 
 The technique here is adapted from Matt Pocock's diagnosing-bugs skill (github.com/mattpocock/skills, MIT): build a tight pass/fail signal first, then minimise. The repo has three seams that reach most bugs.
@@ -122,6 +134,12 @@ gh api repos/ImpowerGames/impower/issues/<N> --jq .type.name
 Never pass `--body @-`; `gh` takes it as the literal two characters and files an empty-looking ticket that still returns a URL. Read the body back and check that it is the body you wrote. The type step is separate because `gh issue create` cannot set one, and the "Check Issue Type" workflow comments on any issue left without it.
 
 Labels: `system: sparkdown` (language, compiler, engine), `system: sparkle-ui` (layout, components, styles, reactive engine, DOM renderer), `app: web-editor` (editor and web player), `app: vscode-extension`, `documentation`. Apply every area the bug touches.
+
+Then put the number into the session title, so the session and the ticket can be matched up later. Call `set_session_title` with `session_id: "self"`, keeping the summary from section 1 and replacing the word `bug` with the number:
+
+```
+FILE #421: preview goes black after the first scrub
+```
 
 ## 7. Clean up and hand off
 

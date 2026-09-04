@@ -20,6 +20,18 @@ Facts are your job; decisions are the user's. Before the first question, learn w
 
 If this takes real time, dispatch a subagent for the exploration and ask the parts of the first round that do not depend on it while it runs.
 
+### Name the session
+
+Rename this session as soon as you know what the idea is about, before the interview starts. The session list is how several sessions running at once are told apart at a glance, and a generated title rarely says which feature this one is planning. Call `set_session_title` with `session_id: "self"`. There is no issue number yet, so the subject stands alone:
+
+```
+FILE feature: preload images named in an upcoming scene
+```
+
+Write the summary yourself, five to ten plain words for the capability being planned. Section 6 renames it again once the ticket has a number, and if the interview reshapes the idea into something the title no longer describes, rename it then too.
+
+The app swaps a title it generated itself without asking. If the user named the session, it asks them first, and it declines outright in an unattended session where nobody can answer. A decline costs nothing — carry on.
+
 ## 2. Prior art
 
 Almost nothing this project builds is a new concept. A narrative engine, a scripting language, a user-interface layout language, a code editor, an asset manager: each has peers that have already met the edge cases and settled on conventions their users expect. Before the interview, name two to four systems that solve the same problem and work out how each one handles it. This is where the questions nobody thought to ask come from, and it is what keeps the engine intuitive to someone arriving from one of those tools.
@@ -106,6 +118,12 @@ gh api repos/ImpowerGames/impower/issues/<N> --jq .type.name
 Never pass `--body @-`; `gh` takes it as the literal two characters and files an empty-looking ticket that still returns a URL. Read the body back and check that it is the body you wrote. The type step is separate because `gh issue create` cannot set one, and the "Check Issue Type" workflow comments on any issue left without it.
 
 Labels: `system: sparkdown` (language, compiler, engine), `system: sparkle-ui` (layout, components, styles, reactive engine, DOM renderer), `app: web-editor` (editor and web player), `app: vscode-extension`, `documentation`. Apply every area the work touches.
+
+Then put the number into the session title, so the session and the ticket can be matched up later. Call `set_session_title` with `session_id: "self"`, keeping the summary from section 1 and replacing the word `feature` with the number:
+
+```
+FILE #421: preload images named in an upcoming scene
+```
 
 ## 7. Hand off
 
