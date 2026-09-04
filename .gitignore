@@ -1,14 +1,22 @@
 .vercel
 # `.claude/` is local-agent state (settings.local.json, caches) EXCEPT the
-# skills subtree, output styles, and shared settings, which are team tooling
-# and belong in the repo. A blanket `.claude` can't be re-included by a later
-# `!` rule — git never descends into an excluded directory — so this must
-# exclude the CONTENTS and re-include.
+# skills subtree, output styles, shared settings, hooks, and agent definitions,
+# which are team tooling and belong in the repo. A blanket `.claude` can't be
+# re-included by a later `!` rule — git never descends into an excluded
+# directory — so this must exclude the CONTENTS and re-include.
 .claude/*
 !.claude/skills/
 !.claude/output-styles/
 !.claude/settings.json
 !.claude/hooks/
+# Agent definitions are shared one file at a time, the way settings.json is:
+# re-include the directory so git descends into it, exclude its contents, then
+# name the definitions that are team tooling. A contributor's own scratch or
+# experimental agents stay local, as everything else under `.claude/` does.
+!.claude/agents/
+.claude/agents/*
+!.claude/agents/reviewer-opus-4-6.md
+!.claude/agents/reviewer-opus-5.md
 # Driver runtime artifacts: chosen ports + the Chromium profile it drives with.
 .claude/skills/*/.state.json
 .claude/skills/*/.chrome-profile/
