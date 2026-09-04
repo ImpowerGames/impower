@@ -549,7 +549,20 @@ That parameter takes four aliases — `sonnet`, `opus`, `haiku`, `fable` — and
 
 Never answer a rejection with your own family. An Opus writer that falls back to `"opus"` has bought itself a reviewer carrying all of its own blind spots, which is the single outcome this section exists to prevent.
 
-Do not take the pin on trust — and note what the check can and cannot do for you. It reads the ids in this section and in the definitions; it cannot ask the API whether an id is still served. A retired id does not announce itself: the harness substitutes another model for that turn, most likely its default, which for an Opus writer is the writer's own. So the reviewer's self-reported model, which §7c requires as the first line of every report, is the only thing standing between you and a same-model review. Read it. A reviewer that reports your own model means the pin failed and that review is not independent — discard it and re-spawn on the fallback rather than adjudicating it.
+#### When a pin stops working
+
+A pinned id can stop naming a live model, and nothing in this repo can tell you when. The check reads the ids in this section and in the definitions; it cannot ask the API whether one is still served. Worse, a retired id fails quietly — the harness substitutes another model for that turn, most likely its default, which for an Opus writer is the writer's own model. Left alone, that produces a full review that reads as independent and is not.
+
+So every reviewer checks its own pin before it does anything else. §7c's prompt tells each reviewer which model you are running; the two definitions require the reviewer to compare that against itself and, on a match, to stop before reading a single file and answer with one line beginning `ABORT: pin failed`. That abort costs about 9k tokens, against 80k–150k for a review nobody can trust — measured, not estimated.
+
+An abort is a result, not an error. Work it in this order, and stop at the first reviewer that returns a real report:
+
+1. Spawn the reviewer the table names.
+2. On `ABORT`, spawn the other pinned reviewer — a retirement takes out one version, not both.
+3. If that aborts too, take the alias fallback above: a different family, never your own.
+4. Then repair the cause rather than leaving the next run to rediscover it. Invoke the `claude-api` skill and read its model table for the Opus ids currently served, point the stale definition's frontmatter at one of them, and say in the PR that you did. Its path is session-scoped, so reach it through the skill rather than a hard-coded path; the Models API (`GET /v1/models`) is the authoritative list where an `ANTHROPIC_API_KEY` is available, which in a Claude Code session it usually is not.
+
+Read every reviewer's first line even when nothing aborted. A reviewer that reports your own model without aborting means both the pin and its own guard failed, and that review is not independent — discard it, do not adjudicate it.
 
 ### 7c — fan out; each reviewer comments on the PR
 
@@ -563,8 +576,10 @@ git diff origin/main...HEAD > "$SCRATCH/review-diff.patch"
 
 Write it to your scratchpad, never into the checkout. A patch file inside the repo is one `git add -A` away from being committed, and it leaves the tree dirty for as long as the review runs — long enough to trip any hook or check that expects a clean tree, on every single run of this skill. Give reviewers the absolute path (`$SCRATCH` is your session's scratchpad directory).
 
-Spawn the reviewers in parallel — one message, multiple Agent tool calls, each with the `subagent_type` from §7b (or `general-purpose` plus a `model:`, on the fallback path). Posting a PR comment needs Bash and a scratch file, so read-only is not tool-enforced for reviewers; the prompt forbids repo edits and §7d checks that it was obeyed. Give each one, verbatim (fill in N = issue number, P = PR number, DIFF = the absolute path you just wrote the patch to, LENS — the reviewer supplies its own model, so that one is not yours to fill in):
+Spawn the reviewers in parallel — one message, multiple Agent tool calls, each with the `subagent_type` from §7b (or `general-purpose` plus a `model:`, on the fallback path). Posting a PR comment needs Bash and a scratch file, so read-only is not tool-enforced for reviewers; the prompt forbids repo edits and §7d checks that it was obeyed. Give each one, verbatim (fill in N = issue number, P = PR number, DIFF = the absolute path you just wrote the patch to, LENS, and WRITER = your own model id — the reviewer supplies its own model, so that one is not yours to fill in):
 
+> Before anything else, check the pin. I am running `WRITER`. Compare that against the model your own system prompt says you are, ignoring any context-window suffix such as `[1m]`. If the family and version match, you are my own model, this review would carry my blind spots, and going on would spend a full review to produce nothing worth reading — so stop here: read no file, run no command, and reply with exactly one line, `ABORT: pin failed, I am <your model id>, same as the writer.` Only if your model differs should you do the review below.
+>
 > You are reviewing a fix for issue #N in the Impower monorepo. The diff is at `DIFF`; the working tree is the branch under review. Your lens is \<LENS\> — review only through it. Your job is to refute this change, not to approve it. Assume it is broken and find out how. If you are uncertain, report the concern rather than suppressing it. For each finding give: `file:line`, a concrete failure scenario (inputs → wrong output), and how you confirmed it in the code. Do not pad with non-findings. Do not edit, create, or delete any file inside the repo tree.
 >
 > When your review is done, post it as a comment on PR #P: write the full findings to a markdown file in your scratchpad directory (never inside the repo), starting with the heading `### Adversarial review — <LENS> (<MODEL>)`, where MODEL is the model name and id you yourself are running as, exactly as your own system prompt gives them — report what you are, never what you were asked to be. Then run `gh pr comment P --body-file <that file>`. Never pass `--body @-` — gh takes it as a literal string and posts a broken comment. If you have no findings, still post the comment with the single line "No findings through this lens." so the coverage is recorded. Confirm the comment landed by reading it back with `gh pr view P --comments`.

@@ -29,8 +29,13 @@
 #   2. no row routes a writer to a reviewer running the writer's own model;
 #   3. every model value named anywhere is exactly one of the four aliases;
 #   4. the section 7c reviewer prompt still asks each reviewer to report the
-#      model it is actually running as, which is the only runtime check that
-#      the pin held.
+#      model it is actually running as;
+#   5. the abort contract survives -- the prompt names the writer's own model,
+#      every definition requires the reviewer to compare itself against it and
+#      stop on a match, and the section says what to do with an abort. A pinned
+#      id that stops naming a live model is substituted silently, most often by
+#      the writer's own model, so that comparison is what turns a retired pin
+#      into a cheap abort rather than a full review that reads as independent.
 #
 # Only bash, grep and sed are used, so this runs on any checkout.
 #
@@ -286,6 +291,54 @@ else
   note_fail "the reviewer prompt no longer asks each reviewer to report the model it is running as -- nothing then catches a pin that silently landed on the writer's own model."
 fi
 
+# --- assertion 5, the abort contract ---------------------------------------
+#
+# A retired pin is substituted silently, most often by the writer's own model,
+# so the reviewer comparing itself against the writer before it reads anything
+# is what turns that into a cheap abort instead of a full review that reads as
+# independent. Three places have to agree, and all three are prose that an
+# unrelated edit can quietly drop: the prompt has to tell the reviewer which
+# model the writer is, every definition has to require the comparison, and the
+# section has to say what to do with an abort.
+
+if grep -q 'ABORT: pin failed' "$skill"; then
+  echo "PASS: the reviewer prompt carries the abort contract."
+else
+  note_fail "the reviewer prompt no longer tells a reviewer to abort when it is the writer's own model."
+fi
+
+# The reviewer can only compare itself against the writer if the writer is
+# told to substitute its own model id into the prompt, so that instruction is
+# what gets pinned rather than the sentence wrapped around it.
+if grep -q 'WRITER = your own model id' "$skill"; then
+  echo "PASS: the writer is told to name its own model in the reviewer prompt."
+else
+  note_fail "the reviewer prompt no longer tells the writer to substitute its own model id, so a reviewer has nothing to compare itself against."
+fi
+
+definitions_seen=0
+definitions_bad=0
+for file in "$agents"/*.md; do
+  [[ -r "$file" ]] || continue
+  definitions_seen=$((definitions_seen + 1))
+  if ! grep -q 'ABORT: pin failed' "$file"; then
+    note_fail "$(basename "$file") does not require its reviewer to abort when it is the writer's own model."
+    definitions_bad=1
+  fi
+done
+
+if [[ "$definitions_seen" -eq 0 ]]; then
+  note_fail "no reviewer definitions were found in $agents."
+elif [[ "$definitions_bad" -eq 0 ]]; then
+  echo "PASS: all $definitions_seen reviewer definitions require the abort check."
+fi
+
+if grep -q 'An abort is a result, not an error' "$skill"; then
+  echo "PASS: the section says what to do with an abort."
+else
+  note_fail "the section no longer says what to do when a reviewer aborts, so a stale pin has no recovery path."
+fi
+
 # --- controls -------------------------------------------------------------
 #
 # A check that cannot go red pins nothing. These re-run this script against
@@ -298,6 +351,9 @@ if [[ -z "${REVIEWER_CHECK_INNER:-}" ]]; then
   trap 'rm -rf "$tmp"' EXIT
 
   mkdir -p "$tmp/agents"
+  # Every fixture definition carries the abort line, so a control can only go
+  # red for the reason it is testing rather than for assertion 5.
+  abort_line='ABORT: pin failed'
   printf -- '---\nname: pinned-old\nmodel: claude-opus-4-6\n---\n' > "$tmp/agents/pinned-old.md"
   printf -- '---\nname: pinned-new\nmodel: claude-opus-5\n---\n' > "$tmp/agents/pinned-new.md"
   printf -- '---\nname: pinned-fable\nmodel: claude-fable-5-1\n---\n' > "$tmp/agents/pinned-fable.md"
@@ -318,7 +374,16 @@ if [[ -z "${REVIEWER_CHECK_INNER:-}" ]]; then
   printf -- '---\nname: dupe\nmodel: claude-opus-4-6\n---\n' > "$tmp/agents/aaa-dupe.md"
   printf -- '---\nname: dupe\nmodel: claude-opus-5\n---\n' > "$tmp/agents/zzz-dupe.md"
 
-  clause='the model name and id you yourself are running as'
+  for fixture in "$tmp"/agents/*.md; do
+    printf '%s\n' "$abort_line" >> "$fixture"
+  done
+
+  # The prose assertions 4 and 5 read, so a control fixture is only missing what
+  # the control is about.
+  clause='the model name and id you yourself are running as
+WRITER = your own model id
+ABORT: pin failed
+An abort is a result, not an error'
 
   control() {
     local desc="$1" body="$2" out rc
@@ -382,13 +447,41 @@ if [[ -z "${REVIEWER_CHECK_INNER:-}" ]]; then
 | Fable, Sonnet, Haiku | `model: "opus"` |'
   accepts 'a definition resolved by its declared name, not its filename' '| Opus 5 | `subagent_type: "declared-name"` |'
 
-  # Assertion 4, run without the clause present.
-  printf '%s\n' '| Opus 5 | `subagent_type: "pinned-old"` |' > "$tmp/noclause.md"
-  if REVIEWER_CHECK_INNER=1 SKILL_MD="$tmp/noclause.md" AGENTS_DIR="$tmp/agents" bash "$self" >/dev/null 2>&1; then
-    echo "FAIL (control): accepted a document with no self-report instruction."
+  # Each prose assertion, run against a document missing exactly that one line.
+  # Dropping a sentence is how these guards die, so each has to be shown red on
+  # its own rather than as a group.
+  prose_control() {
+    local desc="$1" missing="$2" out rc
+    {
+      printf '%s\n' '| Opus 5 | `subagent_type: "pinned-old"` |'
+      printf '%s\n' "$clause" | grep -vF "$missing"
+    } > "$tmp/prose.md"
+    out="$(REVIEWER_CHECK_INNER=1 SKILL_MD="$tmp/prose.md" AGENTS_DIR="$tmp/agents" bash "$self" 2>&1)"
+    rc=$?
+    if [[ "$rc" -ne 0 ]]; then
+      echo "PASS (control): rejects a document with $desc."
+    else
+      echo "FAIL (control): accepted a document with $desc -- exit $rc, output: $out"
+      fail=1
+    fi
+  }
+
+  prose_control 'no self-report instruction' 'the model name and id you yourself are running as'
+  prose_control 'no abort contract'          'ABORT: pin failed'
+  prose_control 'no writer model to compare against' 'WRITER = your own model id'
+  prose_control 'no recovery path for an abort' 'An abort is a result, not an error'
+
+  # A definition that does not require the abort check. The whole point of the
+  # check is that a retired pin is otherwise silent, so a definition without it
+  # is as bad as a definition pinning the writer's own model.
+  mkdir -p "$tmp/noabort"
+  printf -- '---\nname: pinned-old\nmodel: claude-opus-4-6\n---\n' > "$tmp/noabort/pinned-old.md"
+  printf '%s\n%s\n' '| Opus 5 | `subagent_type: "pinned-old"` |' "$clause" > "$tmp/fixture.md"
+  if REVIEWER_CHECK_INNER=1 SKILL_MD="$tmp/fixture.md" AGENTS_DIR="$tmp/noabort" bash "$self" >/dev/null 2>&1; then
+    echo "FAIL (control): accepted a definition that does not require the abort check."
     fail=1
   else
-    echo "PASS (control): rejects a document with no self-report instruction."
+    echo "PASS (control): rejects a definition that does not require the abort check."
   fi
 fi
 
