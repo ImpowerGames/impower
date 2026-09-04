@@ -24,7 +24,12 @@ import {
   lowerExpressionFromContainer,
   lowerExpressionFromNodes,
 } from "../expression/lowerExpression";
-import { buildDivert } from "../utils/buildDivert";
+import {
+  buildDivert,
+  divertLoadShapeProblem,
+  withDivertLoad,
+} from "../utils/buildDivert";
+import { ErrorType } from "../../../inkjs/compiler/Parser/ErrorType";
 import { stampDebugMetadata } from "../utils/debugMetadata";
 import { formatDisplayRoutingTag } from "../../utils/displayRoutingTag";
 import { lowerTagContent } from "../utils/lowerTagContent";
@@ -526,7 +531,29 @@ function processDisplayBody(
       // diverted-to scene wants to start its content on the same line, it
       // can continue without a leading newline.
       const divertObjects = buildDivert(seg.node, ctx);
-      for (const obj of divertObjects) out.push(obj);
+      // A mid-line `load` arrow follows the standalone shape rules; the
+      // diagnostic rides the context buffer because this block's own
+      // diagnostics are not surfaced from this depth.
+      const loadProblem = divertLoadShapeProblem(seg.node);
+      if (loadProblem && ctx.diagnostics) {
+        ctx.diagnostics.push({
+          message: loadProblem,
+          severity: ErrorType.Warning,
+          source: {
+            fileName: null,
+            filePath: ctx.filePath ?? null,
+            startLineNumber: ctx.lineNumber(seg.node.from) + 1,
+            endLineNumber: ctx.lineNumber(seg.node.to) + 1,
+            startCharacterNumber: ctx.characterNumber(seg.node.from) + 1,
+            endCharacterNumber: ctx.characterNumber(seg.node.to) + 1,
+          },
+        });
+      }
+      for (const obj of withDivertLoad(seg.node, divertObjects, ctx, {
+        ownLine: false,
+      })) {
+        out.push(obj);
+      }
     }
   }
   return out;

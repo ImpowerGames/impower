@@ -29,8 +29,13 @@
 // `setTimeout`).
 
 import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
+import { type File } from "@impower/sparkdown/src/compiler/types/File";
 import { Game } from "../../../game/core/classes/Game";
 import type { Instructions } from "../../../game/core/types/Instructions";
+import {
+  assetItemKey,
+  type AssetItem,
+} from "../../../game/modules/assets/types/AssetItem";
 
 export const MAIN_URI = "inmemory:///main.sd";
 
@@ -71,6 +76,15 @@ export interface UIHarness {
   /** Snapshot-ready view filtered to a method prefix, preserving `ui/batch`
    *  envelopes — the faithful wire shape, for golden-master `toMatchSnapshot`. */
   snapshotWire(prefix: string): unknown[];
+  /** Fire every timer the engine armed with a real delay (an asset gate's
+   *  timeout, the loading layout's minimum display), in the order armed.
+   *  Zero-delay timers always fire inline. */
+  flushTimers(): void;
+  /** With `holdAssets`, answer every `assets/load` request held so far, as
+   *  the page would once the items are resident. Returns how many. */
+  releaseAssets(): number;
+  /** How many `assets/load` requests are being held (with `holdAssets`). */
+  heldAssetLoadCount(): number;
 }
 
 // The golden-master compiles the builtins .sd PRELUDE into the program (which
@@ -78,7 +92,12 @@ export interface UIHarness {
 // engine path.
 export function compileUI(
   source: string,
-  opts?: { experimentalDisplayCalls?: boolean; seedBuiltinsIntoStory?: boolean },
+  opts?: {
+    experimentalDisplayCalls?: boolean;
+    seedBuiltinsIntoStory?: boolean;
+    /** Asset files (images, audio, fonts, video) the fixture references. */
+    assets?: File[];
+  },
 ) {
   const compiler = new SparkdownCompiler();
   compiler.configure({
@@ -98,6 +117,7 @@ export function compileUI(
         version: 1,
         languageId: "sparkdown",
       },
+      ...(opts?.assets ?? []),
     ],
   });
   const result = compiler.compile({ textDocument: { uri: MAIN_URI } });
@@ -124,7 +144,7 @@ export function compileUI(
 /** Method-appropriate stub result so the engine's awaited request promises
  *  resolve. The values mirror what the real consumer returns (see UIManager
  *  / AudioManager), but only their *presence* matters for the engine. */
-function resultForMethod(method: string): unknown {
+function resultForMethod(method: string, params?: any): unknown {
   switch (method) {
     case "ui/animate":
       return [];
@@ -132,6 +152,12 @@ function resultForMethod(method: string): unknown {
       return { outputLatency: 0 };
     case "audio/update":
       return [];
+    case "assets/load": {
+      // Every requested item loads and stays pinned, as on a page whose cache
+      // has room.
+      const keys = ((params?.items ?? []) as AssetItem[]).map(assetItemKey);
+      return { loaded: keys, failed: [], pinned: keys };
+    }
     default:
       return "";
   }
@@ -168,6 +194,11 @@ export function createHarness(
      *  the workspace.worker route-simulation game that builds scrub checkpoints
      *  without ever connecting. */
     connect?: boolean;
+    /** Hold every `assets/load` request instead of answering it, so a test can
+     *  observe what waits on it; `releaseAssets()` answers them. */
+    holdAssets?: boolean;
+    /** Asset files (images, audio, fonts, video) the fixture references. */
+    assets?: File[];
   },
 ): UIHarness {
   const { program } = compileUI(source, {
@@ -179,19 +210,28 @@ export function createHarness(
     experimentalDisplayCalls: opts?.experimentalDisplayCalls ?? true,
     // `compileUI` seeds the builtins prelude by default (the engine sources
     // defines from the live runtime __def tables).
+    assets: opts?.assets,
   });
   if (opts?.staticFallback) {
     delete (program as any).sparkle;
   }
   const messages: any[] = [];
 
+  // Timers armed with a real delay: an asset gate's timeout, the loading
+  // layout's minimum display. Held until `flushTimers()`, so a test can see a
+  // wait before it expires. Zero-delay timers (the Coordinator's audio-latency
+  // sync) fire inline, which removes the only source of real-time flakiness.
+  const pendingTimers: Array<{ fn: Function; args: any[]; ms: number }> = [];
+
   const game = new Game({
     program: program as any,
     previewFrom: { file: MAIN_URI, line: startLine },
     now: () => 0,
-    // Synchronous: the Coordinator's audio-latency setTimeout fires inline,
-    // removing the only source of real-time flakiness.
-    setTimeout: ((fn: Function, _ms?: number, ...args: any[]) => {
+    setTimeout: ((fn: Function, ms?: number, ...args: any[]) => {
+      if (ms != null && ms > 0) {
+        pendingTimers.push({ fn, args, ms });
+        return pendingTimers.length;
+      }
       fn(...args);
       return 0;
     }) as any,
@@ -217,21 +257,31 @@ export function createHarness(
     game.load(opts.loadCheckpoint);
   }
 
+  const heldAssetLoads: any[] = [];
+
+  const reply = (msg: any) => {
+    const result = resultForMethod(msg.method, msg.params);
+    // Defer: `Connection.emitRequest` calls send() (this callback) BEFORE it
+    // registers its resolve callback, so a synchronous reply would be
+    // dropped. A microtask lets the emitter finish registering first.
+    queueMicrotask(() => {
+      game.connection.receive({
+        jsonrpc: "2.0",
+        id: msg.id,
+        method: msg.method,
+        result,
+      });
+    });
+  };
+
   const respond = (msg: any) => {
     messages.push(msg);
     if (msg && typeof msg === "object" && "id" in msg && "params" in msg) {
-      const result = resultForMethod(msg.method);
-      // Defer: `Connection.emitRequest` calls send() (this callback) BEFORE it
-      // registers its resolve callback, so a synchronous reply would be
-      // dropped. A microtask lets the emitter finish registering first.
-      queueMicrotask(() => {
-        game.connection.receive({
-          jsonrpc: "2.0",
-          id: msg.id,
-          method: msg.method,
-          result,
-        });
-      });
+      if (opts?.holdAssets && msg.method === "assets/load") {
+        heldAssetLoads.push(msg);
+        return;
+      }
+      reply(msg);
     }
   };
 
@@ -382,6 +432,28 @@ export function createHarness(
       return normalizeMessages(
         messages.filter((m) => m.method?.startsWith(prefix)),
       );
+    },
+    /** The delays, in milliseconds, of the timers armed and not yet fired,
+     *  so a test can tell which timeout a wait actually used. */
+    timerDelays(): number[] {
+      return pendingTimers.map((t) => t.ms);
+    },
+    flushTimers() {
+      // A fired timer may arm another; run what was pending at entry only.
+      const due = pendingTimers.splice(0, pendingTimers.length);
+      for (const { fn, args } of due) {
+        fn(...args);
+      }
+    },
+    releaseAssets() {
+      const held = heldAssetLoads.splice(0, heldAssetLoads.length);
+      for (const msg of held) {
+        reply(msg);
+      }
+      return held.length;
+    },
+    heldAssetLoadCount() {
+      return heldAssetLoads.length;
     },
   };
 

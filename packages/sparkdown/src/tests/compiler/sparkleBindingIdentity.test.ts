@@ -57,8 +57,14 @@ describe("binding ids are unique across files", () => {
     expect(Object.keys(program.sparkle?.layouts ?? {})).toEqual(
       expect.arrayContaining(["la", "lb"]),
     );
-    // …with one evaluator each, not one shared between them.
-    expect(bindingIds(program).length).toBe(2);
+    // …with one evaluator each, not one shared between them. Count the
+    // evaluators the two authored layouts reference, not every evaluator in
+    // the program: the builtins prelude carries bindings of its own.
+    const authored = bindingIds({
+      la: program.sparkle?.layouts?.["la"],
+      lb: program.sparkle?.layouts?.["lb"],
+    });
+    expect(authored.length).toBe(2);
     expect(
       diagnostics.filter((m) => m.includes("Duplicate identifier")),
     ).toEqual([]);

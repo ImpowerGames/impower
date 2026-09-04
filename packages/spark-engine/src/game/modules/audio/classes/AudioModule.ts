@@ -310,6 +310,13 @@ export class AudioModule extends Module<
     return keys.flatMap((n) => this.getAudioData(channel, n));
   }
 
+  /** The load parameters `schedule` would build for these names, without
+   *  scheduling anything: what the asset module hands the page to preload.
+   *  The page caches by `key`, which does not depend on the channel. */
+  resolveLoadParams(channel: string, names: string[]): LoadAudioPlayerParams[] {
+    return this.getAllAudioData(channel, names);
+  }
+
   protected parseTones(key: string) {
     const indexOfFirstSeparator = key.indexOf("~");
     const suffix =

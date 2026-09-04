@@ -49,7 +49,7 @@ function quit_game() ... end
 ```
 
 - **The layout's name** (like `main`) identifies it.
-- **A layout named `main` shows automatically** when the game starts. Other layouts are shown on demand — see [Screens & Navigation](./Screens.md).
+- **A layout named `main` shows automatically** when the game starts. Other layouts are shown on demand — see [Screens & Navigation](./Screens.md). A layout named `loading` is the loading screen the `load` arrow shows — see [Loading & Preloading](./Loading.md).
 - **Everything between `with` and `end`** is the element tree.
 
 > Layouts belong to _screens_ (navigation groups). You rarely need to think about screens until you have more than one full-screen view — [Screens & Navigation](./Screens.md) covers that.

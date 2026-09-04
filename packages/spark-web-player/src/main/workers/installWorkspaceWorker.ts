@@ -9,19 +9,31 @@ import { DidSelectTextDocumentMessage } from "@impower/spark-editor-protocol/src
 import { DidChangeConfigurationMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeConfigurationMessage";
 import { DidChangeWatchedFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeWatchedFilesMessage";
 import { ExecuteCommandMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/ExecuteCommandMessage";
+import { SceneTracker } from "@impower/spark-engine/src/game/core/classes/SceneTracker";
+import { findClosestPath } from "@impower/spark-engine/src/game/core/utils/findClosestPath";
 import { File } from "@impower/sparkdown/src/compiler";
 import { SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
 import { SparkdownWorkspace } from "@impower/sparkdown/src/workspace/classes/SparkdownWorkspace";
-import { getProgramImageSrcs } from "../utils/getProgramImageSrcs";
-import { ImagePreloader } from "../utils/ImagePreloader";
+import { getSharedAssetCache } from "../assets/sharedAssetCache";
+import { resolveImageSrcs } from "../utils/resolveImageSrcs";
 import WORKSPACE_INLINE_WORKER_STRING from "./workspace.worker";
 
+const ASSET_FILE_TYPES = new Set(["image", "audio", "font", "video"]);
+
+/** `program.pathLocations` as the entries `findClosestPath` walks, computed
+ *  once per program object rather than per cursor move. */
+const pathEntriesOf = new WeakMap<
+  SparkProgram,
+  Array<[string, [number, number, number, number, number]]>
+>();
+
 export function installWorkspaceWorker(connection: MessageConnection) {
-  const imagePreloader = new ImagePreloader(() => new Image());
-  // Keyed by document uri: `program.version` counts per uri, so a single
-  // counter would let one script's version N suppress another script's
-  // version N and leave that program's images unwarmed entirely.
-  let lastWarmedVersions = new Map<string, number>();
+  const cache = getSharedAssetCache();
+  // The scene the cursor last entered, so a cursor that only moves within a
+  // scene (the editor re-selects on every column change) asks for nothing.
+  let lastHint:
+    | { uri: string; version: number | undefined; scene: string; line: number }
+    | undefined;
 
   class SparkdownGameWorkspace extends SparkdownWorkspace {
     constructor(profilerId?: string) {
@@ -89,56 +101,88 @@ export function installWorkspaceWorker(connection: MessageConnection) {
     }
 
     override async onDeletedFile(file: File) {
-      if (file?.type === "image" && file?.src) {
-        imagePreloader.evict(file.src);
-        // Force the next compile to re-sweep even if the program itself is
-        // byte-identical, or the urls just evicted would stay cold.
-        lastWarmedVersions = new Map();
+      if (ASSET_FILE_TYPES.has(file?.type) && file?.src) {
+        cache.evictFile(file.src);
+        lastHint = undefined;
       }
       return file;
     }
 
     override async onChangedFile(file: File) {
-      if (file?.type === "image" && file?.src) {
-        // Editing an asset re-stamps its `?v=` signature, so the warmed URLs
-        // are dead. The compile that follows warms the new ones.
-        imagePreloader.evict(file.src);
-        // Force the next compile to re-sweep even if the program itself is
-        // byte-identical, or the urls just evicted would stay cold.
-        lastWarmedVersions = new Map();
+      if (ASSET_FILE_TYPES.has(file?.type) && file?.src) {
+        // Editing an asset re-stamps its `?v=` signature, so every resident
+        // url of the file is dead. Whatever needs the new bytes asks again.
+        cache.evictFile(file.src);
+        lastHint = undefined;
       }
       return file;
     }
 
-    // Warming is driven by the COMPILED PROGRAM, not by file enumeration.
-    // Enumeration only knows each asset's root url, and an svg is displayed
-    // through `<root>?v=<sig>&filters=<canonical>` — so a per-file warm-up
-    // fetches a url the renderer never asks for and leaves the one it does ask
-    // for cold, which is the pop-in in #344. The program carries the filters.
-    override onCompiledTextDocument(params: {
+    // The cursor entered a scene. This runs on the page BEFORE the worker
+    // starts planning the route to the line, which can take hundreds of
+    // milliseconds on a long scene, so the scene's images are fetching while
+    // the simulation runs and are resident by the time the checkpoint lands.
+    // The engine asks for the same set again at connect; the cache answers
+    // from what is already in flight.
+    override onSelectTextDocument(params: {
       textDocument: { uri: string };
-      program: SparkProgram;
+      selectedRange: { start: { line: number } };
     }) {
       try {
-        // This hook fires on EVERY compile, i.e. every debounced keystroke, and
-        // the program arrives structured-cloned from the compiler worker — so
-        // `filterImage`'s memoization does not carry across compiles and the
-        // whole resolution would re-run per keystroke. `version` only moves
-        // when the program actually changed, so gate on it.
         const uri = params.textDocument?.uri ?? "";
-        const version = params.program?.version;
-        if (version !== undefined && version === lastWarmedVersions.get(uri)) {
+        const program = this.program(uri);
+        const sceneAssets = program?.sceneAssets;
+        if (!program || !sceneAssets) {
           return;
         }
-        if (version !== undefined) {
-          lastWarmedVersions.set(uri, version);
+        const line = params.selectedRange.start.line;
+        // The same line of the same program asks for nothing; the scan
+        // below is proportional to the whole program.
+        if (
+          lastHint &&
+          lastHint.uri === uri &&
+          lastHint.version === program.version &&
+          lastHint.line === line
+        ) {
+          return;
         }
-        imagePreloader.warmOnly(getProgramImageSrcs(params.program?.context));
+        let entries = pathEntriesOf.get(program);
+        if (!entries) {
+          entries = Object.entries(program.pathLocations ?? {});
+          pathEntriesOf.set(program, entries);
+        }
+        const path = findClosestPath(
+          { file: uri, line },
+          entries,
+          Object.keys(program.scripts ?? {}),
+        );
+        const scene = SceneTracker.sceneOf(path) ?? "0";
+        if (
+          lastHint &&
+          lastHint.uri === uri &&
+          lastHint.version === program.version &&
+          lastHint.scene === scene
+        ) {
+          lastHint.line = line;
+          return;
+        }
+        lastHint = { uri, version: program.version, scene, line };
+        const entry = sceneAssets[scene];
+        if (!entry) {
+          return;
+        }
+        // Visuals only, as a preview shows; fonts are gated by the layouts
+        // as they mount. A superset of what the engine will ask for is fine.
+        cache.prefetch(
+          resolveImageSrcs(program.context, entry.image).map((src) => ({
+            kind: "image" as const,
+            src,
+          })),
+          2,
+        );
       } catch (e) {
-        // `SparkdownWorkspace.compile` calls this hook without a catch, so a
-        // throw here would fail the COMPILE. A warm-up is an optimization; it
-        // must never be able to take the program down with it.
-        console.warn("Could not warm program images:", e);
+        // A hint is an optimization; it must never take the selection down.
+        console.warn("Could not prefetch the selected scene's images:", e);
       }
     }
   }

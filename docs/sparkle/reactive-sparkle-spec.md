@@ -454,7 +454,7 @@ templates. v1 builtins = the union the reactive layouts need.
 `portrait`, `choices`, `choice`, `textbox` (+ `textbox_background`, `textbox_content`),
 `character_info`/`character_name`/`character_parenthetical`, `title`, `heading`,
 `transitional`, `dialogue`, `action`, `continue_indicator`, `row`, `column`, `stack`,
-`overlay`, `text`, `stroke`, `image`, `mask`, `object`, `loading_bar`/`loading_fill`.
+`overlay`, `text`, `stroke`, `image`, `mask`, `object`, `loading`/`loading_backdrop`/`loading_content`/`loading_bar`/`loading_fill`.
 
 **Layout/text generic:** `box` (generic container), `span`, `scroller`, `label`, `divider`.
 

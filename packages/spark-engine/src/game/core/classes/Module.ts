@@ -86,6 +86,12 @@ export abstract class Module<
   /** Executed when game is previewed at a specific checkpoint location */
   onPreview() {}
 
+  /** Executed when the story enters a different scene (a top-level flow that
+   *  is not a function): on a path change while running, at connect, at
+   *  start, and at preview. Never during a route simulation. `stack` names the
+   *  flows the story will return to (the callers of open tunnels and threads). */
+  onEnterScene(_scene: string, _previous: string | null, _stack: string[]) {}
+
   /** Executed when a relevant notification is received */
   onReceiveNotification(_msg: NotificationMessage): void {}
 

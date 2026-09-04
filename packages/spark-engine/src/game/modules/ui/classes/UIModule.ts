@@ -633,8 +633,18 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     this._reactive = true;
     this.constructStyles();
     if (this._game.program?.sparkle?.layouts) {
+      // `main` mounts here; its fonts must be resident first so its text never
+      // paints in a fallback face. A font-less `main` mounts synchronously so
+      // the construction stream stays one microtask burst.
+      const fonts = this._game.module.assets?.prepareLayout("main");
+      if (fonts) {
+        await fonts;
+      }
       this.constructLayoutsFromAst();
     } else {
+      // The static fallback mounts synchronously; its fonts load alongside
+      // rather than ahead, since nothing else declares them any more.
+      void this._game.module.assets?.prepareLayout("main");
       this.constructLayouts();
     }
     this.loadTheme();
@@ -677,9 +687,17 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     if (this._state.layout) {
       let remounted = false;
       for (const { name } of this._state.layout) {
-        if (name && name !== "main" && !this._mountedLayouts.has(name)) {
+        if (
+          name &&
+          !UIModule.MANAGED_LAYOUTS.has(name) &&
+          !this._mountedLayouts.has(name)
+        ) {
           const layout = this._game.program?.sparkle?.layouts?.[name];
           if (layout) {
+            const fonts = this._game.module.assets?.prepareLayout(name);
+            if (fonts) {
+              await fonts;
+            }
             this.constructLayoutFromAst(layout);
             remounted = true;
           }
@@ -1053,6 +1071,129 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     return [];
   }
 
+  /**
+   * The fonts a layout needs: every `font` the styles that apply to its
+   * elements reference, by name, by family, by `font.<name>` reference, or
+   * through the `--font-<name>` variable `constructStyles` emits. The global
+   * styles (`layouts`, `main`) apply everywhere, so they always count. A
+   * superset is fine: an extra font loads early, a missing one loads late.
+   */
+  getFontNamesForLayout(layoutName: string): string[] {
+    const fonts = this.context?.font;
+    if (!fonts) {
+      return [];
+    }
+    const fontNames = Object.keys(fonts).filter((n) => !n.startsWith("$"));
+    if (fontNames.length === 0) {
+      return [];
+    }
+    const layout = this._game.program?.sparkle?.layouts?.[layoutName];
+    const components = this._game.program?.sparkle?.components ?? {};
+    const classes = new Set<string>(["layouts", "main", layoutName]);
+    // Inline `#prop=value` literals can name a font too.
+    const propValues: string[] = [];
+    const expanded = new Set<string>();
+    const visit = (nodes: unknown[] | undefined) => {
+      for (const node of nodes ?? []) {
+        if (!node || typeof node !== "object") {
+          continue;
+        }
+        const n = node as Record<string, any>;
+        if (typeof n["tag"] === "string") {
+          classes.add(n["tag"]);
+          // An authored component expands at mount from its own body, which
+          // the layout tree never inlines.
+          const body = components[n["tag"]];
+          if (body && !expanded.has(n["tag"])) {
+            expanded.add(n["tag"]);
+            visit(body.children);
+          }
+        }
+        if (typeof n["name"] === "string") {
+          classes.add(n["name"]);
+        }
+        for (const cls of n["classes"] ?? []) {
+          if (typeof cls === "string") {
+            classes.add(cls);
+          }
+        }
+        for (const prop of Object.values(n["props"] ?? {})) {
+          const value = (prop as Record<string, unknown>)?.["value"];
+          if (typeof value === "string") {
+            propValues.push(value);
+          }
+        }
+        visit(n["children"]);
+        visit(n["else"]);
+        for (const branch of n["branches"] ?? []) {
+          visit(branch?.children);
+        }
+        for (const c of n["cases"] ?? []) {
+          visit(c?.children);
+        }
+      }
+    };
+    visit(layout?.children);
+    // Several defines may share one family (a Latin subset and a Cyrillic
+    // one): a family reference means every face of it.
+    const byFamily = new Map<string, string[]>();
+    for (const fontName of fontNames) {
+      const family = fonts[fontName]?.font_family;
+      if (typeof family === "string" && family) {
+        const list = byFamily.get(family) ?? [];
+        list.push(fontName);
+        byFamily.set(family, list);
+      }
+    }
+    const referenced = new Set<string>();
+    const scan = (value: unknown, depth: number) => {
+      if (depth > 8 || value == null) {
+        return;
+      }
+      if (typeof value === "string") {
+        if (fonts[value] && !value.startsWith("$")) {
+          referenced.add(value);
+          return;
+        }
+        const named = byFamily.get(value);
+        if (named) {
+          for (const fontName of named) {
+            referenced.add(fontName);
+          }
+          return;
+        }
+        for (const fontName of fontNames) {
+          if (value.includes(`--font-${fontName}`)) {
+            referenced.add(fontName);
+          }
+        }
+        return;
+      }
+      if (typeof value !== "object") {
+        return;
+      }
+      const v = value as Record<string, unknown>;
+      if (v["$type"] === "font" && typeof v["$name"] === "string") {
+        referenced.add(v["$name"]);
+        return;
+      }
+      for (const inner of Object.values(v)) {
+        scan(inner, depth + 1);
+      }
+    };
+    const styles = this.context?.style ?? {};
+    for (const cls of classes) {
+      const style = (styles as Record<string, unknown>)[cls];
+      if (style) {
+        scan(style, 0);
+      }
+    }
+    for (const value of propValues) {
+      scan(value, 0);
+    }
+    return [...referenced];
+  }
+
   getImageSrcsByName(name: string) {
     const imageName = name.includes("~") ? sortFilteredName(name) : name;
     if (this.context?.filtered_image?.[imageName]) {
@@ -1249,10 +1390,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         "": variablesStyle,
       },
     });
-    // Process Fonts
-    if (fonts) {
-      this.constructStyle("fonts", { fonts });
-    }
+    // Fonts are not declared here: the asset module hands each layout's font
+    // faces to the page as it mounts, so a face exists only while something
+    // needs it (docs/engine/asset-preloading-spec.md).
     // Process Animations. `$`-prefixed entries are type metadata, not
     // authored animations — the runtime define channel carries the type's
     // `$default` (for `lookupContextValue` fallbacks), and emitting it here
@@ -1410,6 +1550,12 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
    *  The harness sets this so existing reactive tests keep their "layout is
    *  mounted at connect" assumption. */
   _autoOpenAll = false;
+
+  /** Layouts the engine owns: `main` mounts at connect and holds the primary
+   *  subtree; `loading` is opened and closed by `load` beats. Neither is ever
+   *  navigated away from, recorded into a checkpoint, or re-mounted by a
+   *  restore. */
+  static readonly MANAGED_LAYOUTS = new Set(["main", "loading"]);
 
   constructLayoutsFromAst(...structNames: string[]): void {
     this._mountedLayouts = new Map();
@@ -3242,6 +3388,14 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     if (!name) {
       return;
     }
+    if (
+      name === "loading" &&
+      (this.context.system.previewing || this.context.system.simulating)
+    ) {
+      // The loading screen belongs to play: a preview never waits on assets,
+      // and a route replay shows nothing.
+      return;
+    }
     if (this._mountedLayouts.has(name)) {
       // Already open — no-op (a future goto/navigate may re-run the transition).
       return;
@@ -3262,11 +3416,29 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     // stale — permanently, because updates are equality-gated on the last
     // emitted value, so a dropped change is never re-derived. Take the beat's
     // changes aside, discard the mount's residue, hand them back.
+    // The layout's fonts first, so it never paints in a fallback face. The
+    // wait is bounded. A layout whose styles name no font mounts synchronously,
+    // which the open/close/navigate ordering depends on; one that names a
+    // font yields for the page's answer even when the face is already
+    // resident. The mount check repeats after a wait because another open of
+    // the same layout may have landed meanwhile, and the loading layout stays
+    // unmounted when the load it was opened for ended during the wait.
+    const fonts = this._game.module.assets?.prepareLayout(name);
+    if (fonts) {
+      await fonts;
+      if (this._mountedLayouts.has(name)) {
+        return;
+      }
+      if (name === "loading" && !this._loading) {
+        return;
+      }
+    }
     const vs = this._game.story.variablesState;
     const pending = vs.takeReactiveChanges();
     const element = this.constructLayoutFromAst(layout);
     vs.takeReactiveChanges();
     vs.restoreReactiveChanges(pending);
+    this.notifyMounted(name);
     // The layouts layer's root opacity is revealed on the first beat anyway, but
     // open it here too so a layout opened before any dialogue is visible.
     this.reveal();
@@ -3303,6 +3475,189 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     // refreshLayouts stops walking it. Closed = zero DOM + zero binding cost.
     this.destroyElement(entry.element);
     this._mountedLayouts.delete(name);
+    this._game.module.assets?.releaseLayout(name);
+  }
+
+  // ---------------------------------------------------------------------------
+  // The loading layout, as a `load` beat drives it
+  // ---------------------------------------------------------------------------
+
+  /** Callers waiting for a layout to mount ({@link whenMounted}). */
+  protected _mountWaiters = new Map<string, Array<() => void>>();
+
+  /** Resolves once the named layout is in the mounted set; at once if it
+   *  already is. */
+  protected whenMounted(name: string): Promise<void> {
+    if (this._mountedLayouts.has(name)) {
+      return Promise.resolve();
+    }
+    return new Promise((resolve) => {
+      const waiters = this._mountWaiters.get(name) ?? [];
+      waiters.push(resolve);
+      this._mountWaiters.set(name, waiters);
+    });
+  }
+
+  protected notifyMounted(name: string): void {
+    const waiters = this._mountWaiters.get(name);
+    if (!waiters) {
+      return;
+    }
+    this._mountWaiters.delete(name);
+    for (const resolve of waiters) {
+      resolve();
+    }
+  }
+
+  protected _loading?: {
+    openedAt: number;
+    transition?: string;
+    /** The mount `beginLoading` started, so `endLoading` never closes a
+     *  layout that has not finished opening. */
+    opening?: Promise<void>;
+  };
+
+  /** The last `loaded/total` pair published to `game.loading`, so a repeated
+   *  progress report does not re-run bindings for nothing. */
+  protected _loadingReported?: string;
+
+  /** Write fields of the live `game.loading` table, the engine state a layout
+   *  reads through bindings such as `{game.loading.percent}`. The values go
+   *  into the table in place and the table is recorded as a reactive change,
+   *  so on the next refresh only the bindings that read it re-run. Nothing
+   *  here is saved: `game` is a builtin define with no `store` props. */
+  protected setLoadingState(
+    fields: Partial<{
+      active: boolean;
+      name: string;
+      loaded: number;
+      total: number;
+      progress: number;
+      percent: number;
+    }>,
+  ): void {
+    const vs = this._game.story?.variablesState;
+    const game = vs?.GetVariableWithName("game");
+    const loading =
+      game instanceof ObjectValue ? game.value?.get("loading") : undefined;
+    if (!vs || !(loading instanceof ObjectValue) || !loading.value) {
+      return;
+    }
+    for (const [key, raw] of Object.entries(fields)) {
+      if (raw === undefined) {
+        continue;
+      }
+      const value =
+        typeof raw === "boolean"
+          ? new BoolValue(raw)
+          : typeof raw === "string"
+            ? new StringValue(raw)
+            : Number.isInteger(raw)
+              ? new IntValue(raw)
+              : new FloatValue(raw);
+      loading.value.set(key, value);
+    }
+    vs.recordReactiveTableChange(loading.value);
+  }
+
+  /** Open the `loading` layout for a `load` beat (or adopt it if the author
+   *  already opened it), with the given transition or the configured one, and
+   *  publish the load's start to `game.loading`. Never in preview or
+   *  simulation. */
+  beginLoading(transition?: string, scene?: string): void {
+    if (this.context.system.previewing || this.context.system.simulating) {
+      return;
+    }
+    const resolved =
+      transition ?? this._game.module.assets?.config.loading_transition;
+    this._loading = {
+      openedAt: this.context.system.now(),
+      transition: resolved,
+    };
+    this._loadingReported = undefined;
+    this.setLoadingState({
+      active: true,
+      name: scene ?? "",
+      loaded: 0,
+      total: 0,
+      progress: 0,
+      percent: 0,
+    });
+    this.refreshLayouts();
+    if (!this._mountedLayouts.has("loading")) {
+      this._loading.opening = this.openLayout(
+        "loading",
+        resolved ? { with: resolved } : undefined,
+        !this.context.system.transitions,
+      ).catch((e) => {
+        this.reportRuntimeError("Could not open the loading layout", e);
+      });
+    }
+  }
+
+  /** Publish a load's progress to `game.loading` (`loaded`, `total`,
+   *  `progress` from 0 to 1, `percent` as a whole number) and refresh the
+   *  mounted layouts, so every binding that reads it follows, the built-in
+   *  bar's scale included. Accepted while a load is running or while the
+   *  author has the layout open themselves. */
+  updateLoading(progress: { loaded: number; total: number }): void {
+    if (!this._loading && !this._mountedLayouts.has("loading")) {
+      return;
+    }
+    const reported = `${progress.loaded}/${progress.total}`;
+    if (this._loadingReported === reported) {
+      return;
+    }
+    this._loadingReported = reported;
+    const ratio =
+      progress.total > 0 ? Math.min(1, progress.loaded / progress.total) : 0;
+    this.setLoadingState({
+      loaded: progress.loaded,
+      total: progress.total,
+      progress: Math.round(ratio * 100) / 100,
+      percent: Math.round(ratio * 100),
+    });
+    this.refreshLayouts();
+  }
+
+  /** Close the loading layout once it has been up for at least
+   *  `loading_min`, using the transition it opened with. */
+  async endLoading(): Promise<void> {
+    const loading = this._loading;
+    this._loading = undefined;
+    if (!loading) {
+      return;
+    }
+    // The mount may still be waiting on the layout's fonts; closing before
+    // it lands would be a no-op, and the layout would then mount over the
+    // game with nothing left to close it. Waiting for the mount alone (not
+    // the enter transition) is enough for the close to find it, and the open
+    // itself settling covers the case where it bailed out.
+    if (loading.opening && !this._mountedLayouts.has("loading")) {
+      await Promise.race([loading.opening, this.whenMounted("loading")]);
+    }
+    // A load that never reported progress had nothing left to fetch: show it
+    // complete rather than leaving the bar at zero for the minimum display.
+    this.setLoadingState(
+      this._loadingReported === undefined
+        ? { active: false, progress: 1, percent: 100 }
+        : { active: false },
+    );
+    this._loadingReported = undefined;
+    this.refreshLayouts();
+    const minSeconds = this._game.module.assets?.config.loading_min ?? 0;
+    const elapsedMs = this.context.system.now() - loading.openedAt;
+    const waitMs = Math.max(0, minSeconds * 1000 - elapsedMs);
+    if (waitMs > 0) {
+      await new Promise<void>((resolve) =>
+        this.context.system.setTimeout(resolve, waitMs),
+      );
+    }
+    await this.closeLayout(
+      "loading",
+      loading.transition ? { with: loading.transition } : undefined,
+      !this.context.system.transitions,
+    );
   }
 
   /** Navigate within a screen (`[[navigate <screen> to <layout>]]`): play
@@ -3343,8 +3698,11 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     // already treats `main` as special; the asymmetry between the two was the
     // tell that one of them had forgotten the invariant.
     const toClose = [...this._mountedLayouts.entries()]
-      .filter(([n, entry]) =>
-        n !== name && n !== "main" && (screen ? entry.screen === screen : true),
+      .filter(
+        ([n, entry]) =>
+          n !== name &&
+          !UIModule.MANAGED_LAYOUTS.has(n) &&
+          (screen ? entry.screen === screen : true),
       )
       .map(([n]) => n);
     await Promise.all([
@@ -3364,7 +3722,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   protected saveLayoutState(e: LayoutInstruction): void {
     const layouts = this._game.program?.sparkle?.layouts;
     const recordOpen = (name: string) => {
-      if (!name || name === "main" || !layouts?.[name]) {
+      if (!name || UIModule.MANAGED_LAYOUTS.has(name) || !layouts?.[name]) {
         return;
       }
       const screen = layouts[name]?.screen;

@@ -367,7 +367,6 @@ export default class UIManager extends Manager {
         params.style ?? null,
         params.attributes ?? null,
       ]);
-      const isFontHost = !!(params.content && "fonts" in params.content);
       // Apply class/content/style/attrs only when this is a fresh node or its
       // create-params actually changed — an unchanged reused node is left
       // untouched (no restyle / recalc / devtools flash). The signature lives ON
@@ -437,74 +436,36 @@ export default class UIManager extends Manager {
           }
           (el as any).__sdAttrs = written;
         }
-        if (params.content && "fonts" in params.content) {
-          for (const [, font] of Object.entries(params.content.fonts)) {
-            try {
-              if (font.font_family) {
-                const fontFace = new FontFace(
-                  font.font_family,
-                  `url(${font.src})`,
-                  {
-                    style: font.font_style || undefined,
-                    weight: font.font_weight || undefined,
-                    stretch: font.font_stretch || undefined,
-                    display: (font.font_display as FontDisplay) || undefined,
-                  },
-                );
-                if (
-                  !Array.from(
-                    document.fonts as unknown as Iterable<FontFace>,
-                  ).some(
-                    (f) =>
-                      f.family === font.font_family &&
-                      f.style === font.font_style &&
-                      f.weight === font.font_weight &&
-                      f.stretch === font.font_stretch,
-                  )
-                ) {
-                  if (
-                    "add" in document.fonts &&
-                    typeof document.fonts.add === "function"
-                  ) {
-                    document.fonts.add(fontFace);
-                  }
-                  await fontFace.load();
-                }
-              }
-            } catch (e) {
-              console.error(e);
-            }
-          }
-        }
+        // Font faces are not created here: the asset cache adds each
+        // layout's faces to `document.fonts` before the layout mounts, and
+        // removes them when nothing needs them any more.
         (el as any).__sdCreate = sig;
       }
-      if (!isFontHost) {
-        const parent = this.getElement(params.parent);
-        if (parent) {
-          // Only (re)insert when the position actually changed — a no-op move
-          // still registers as a DOM mutation (and flashes in devtools), so a
-          // re-render that keeps the order must touch nothing.
-          if (params.before) {
-            // Explicit positional anchor (a reactive control-flow slot): el goes
-            // immediately before the named sibling.
-            const before = this.getElement(params.before);
-            if (el.parentElement !== parent || el.nextElementSibling !== before) {
-              parent.insertBefore(el, before ?? null);
-            }
-          } else {
-            // Append in CREATE-ORDER: place right after the previous child placed
-            // under this parent THIS pass (not at the parent's end), so a child
-            // that's already correctly ordered isn't pointlessly moved.
-            const cursor = this._placeCursor.get(parent) ?? null;
-            if (
-              el.parentElement !== parent ||
-              el.previousElementSibling !== cursor
-            ) {
-              parent.insertBefore(el, cursor ? cursor.nextSibling : parent.firstChild);
-            }
+      const parent = this.getElement(params.parent);
+      if (parent) {
+        // Only (re)insert when the position actually changed — a no-op move
+        // still registers as a DOM mutation (and flashes in devtools), so a
+        // re-render that keeps the order must touch nothing.
+        if (params.before) {
+          // Explicit positional anchor (a reactive control-flow slot): el goes
+          // immediately before the named sibling.
+          const before = this.getElement(params.before);
+          if (el.parentElement !== parent || el.nextElementSibling !== before) {
+            parent.insertBefore(el, before ?? null);
           }
-          this._placeCursor.set(parent, el);
+        } else {
+          // Append in CREATE-ORDER: place right after the previous child placed
+          // under this parent THIS pass (not at the parent's end), so a child
+          // that's already correctly ordered isn't pointlessly moved.
+          const cursor = this._placeCursor.get(parent) ?? null;
+          if (
+            el.parentElement !== parent ||
+            el.previousElementSibling !== cursor
+          ) {
+            parent.insertBefore(el, cursor ? cursor.nextSibling : parent.firstChild);
+          }
         }
+        this._placeCursor.set(parent, el);
       }
       return CreateElementMessage.type.result(params.element);
     }

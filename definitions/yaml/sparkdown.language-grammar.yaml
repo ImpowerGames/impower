@@ -21,6 +21,10 @@ variables:
   # to <screen>` routes within a container (close that container's open screens,
   # open the target), leaving other containers / uncategorized screens untouched.
   LAYOUT_CONTROL_KEYWORDS: ["open", "close", "navigate"]
+  # `[[load NAME…]]` — preload the named scenes (and worlds) behind the
+  # loading layout before the story goes on. Every `load` arrow (`-> load X`,
+  # `-> load X ->`, `<- load X`) lowers to this directive on its own line.
+  LOAD_CONTROL_KEYWORDS: ["load"]
 
   FLOW_BEAT_KEYWORDS: ["scene", "branch"]
   FLOW_MODULE_KEYWORDS: ["include", "run"]
@@ -678,6 +682,7 @@ repository:
     patterns:
       - { include: "#Annotation" }
       - { include: "#Tunnel" }
+      - { include: "#DivertLoad" }
       - { include: "#DivertTarget" }
       - { include: "#ExtraWhitespace" }
     end: (?=[|]|{{END}}(?:$|{{WS}})|$|{{NL}}|{{WS}}+{{GLUE}})
@@ -1082,10 +1087,31 @@ repository:
           - { include: "#DivertMark" }
     patterns:
       - { include: "#Annotation" }
+      - { include: "#DivertLoad" }
       - { include: "#Tunnel" }
       - { include: "#DivertTarget" }
       - { include: "#ExtraWhitespace" }
     end: (?=$)
+
+  # `-> load NAME`: preload NAME's scene (and world) behind the loading layout
+  # before diverting to it. Listed before DivertTarget so the keyword is not
+  # read as a target name; only a following identifier makes it the keyword.
+  DivertLoad:
+    match: ({{WS}}*)({{LOAD_CONTROL_KEYWORDS}})({{WS}}+)(?={{IDENTIFIER}}|[.^])
+    captures:
+      1:
+        patterns:
+          - { include: "#OptionalWhitespace" }
+      2:
+        patterns:
+          - { include: "#DivertLoadKeyword" }
+      3:
+        patterns:
+          - { include: "#RequiredWhitespace" }
+
+  DivertLoadKeyword:
+    tag: controlKeyword
+    name: keyword.control.divert.load.sd
 
   Tunnel:
     begin: ({{WS}}*)([-][>])
@@ -1100,6 +1126,7 @@ repository:
     patterns:
       - { include: "#Annotation" }
       - { include: "#Tunnel" }
+      - { include: "#DivertLoad" }
       - { include: "#DivertTarget" }
       - { include: "#ExtraWhitespace" }
     end: (?=$)
@@ -1115,6 +1142,7 @@ repository:
           - { include: "#ThreadMark" }
     patterns:
       - { include: "#Annotation" }
+      - { include: "#DivertLoad" }
       - { include: "#DivertTarget" }
       - { include: "#ExtraWhitespace" }
     end: (?=$|[^\s{{IDENTIFIER_END_CHAR}}])
@@ -2347,7 +2375,7 @@ repository:
           - { include: "#NameValue" }
 
   AssetCommandInstruction:
-    match: (?:({{IMAGE_CONTROL_KEYWORDS}}|{{AUDIO_CONTROL_KEYWORDS}}|{{LAYOUT_CONTROL_KEYWORDS}})({{WS}}*)($|\S+)({{WS}}*))?(.*)
+    match: (?:({{IMAGE_CONTROL_KEYWORDS}}|{{AUDIO_CONTROL_KEYWORDS}}|{{LAYOUT_CONTROL_KEYWORDS}}|{{LOAD_CONTROL_KEYWORDS}})({{WS}}*)($|\S+)({{WS}}*))?(.*)
     captures:
       1:
         patterns:

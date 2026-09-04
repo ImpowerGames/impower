@@ -23,6 +23,7 @@ import { GameConfiguration } from "../types/GameConfiguration";
 import { GameContext } from "../types/GameContext";
 import { GameState } from "../types/GameState";
 import { InstanceMap } from "../types/InstanceMap";
+import { SceneTracker } from "./SceneTracker";
 import { SaveData } from "../types/SaveData";
 import { ScriptLocation } from "../types/ScriptLocation";
 import { StackFrame } from "../types/StackFrame";
@@ -141,6 +142,19 @@ export class Game<T extends M = {}> {
   protected _executionBudgetExhausted = false;
 
   protected _executingPath: string | null = null;
+  /** The runtime path of the object executed most recently. */
+  get executingPath() {
+    return this._executingPath;
+  }
+
+  /** Which top-level flow the story is in, and when that changes
+   *  (`Module.onEnterScene`). Fed from every place the position can move. */
+  protected _sceneTracker = new SceneTracker((flow) =>
+    this.isFunctionFlow(flow),
+  );
+  get sceneTracker() {
+    return this._sceneTracker;
+  }
 
   protected _executingLocation: ScriptLocation | null = null;
 
@@ -480,6 +494,9 @@ export class Game<T extends M = {}> {
       // without this the reconcile pass sweeps the un-re-emitted elements and
       // the preview goes blank until the cursor moves to a different beat.
       this._previewedPath = undefined;
+      // The scene map may have changed with the program; the next observation
+      // re-enters the current scene and re-requests what it needs.
+      this._sceneTracker?.reset();
     }
     return this._program;
   }
@@ -689,8 +706,73 @@ export class Game<T extends M = {}> {
     return Boolean(this._modules[name]);
   }
 
+  /** A top-level flow the story calls and returns from rather than enters:
+   *  a `function`, a binding evaluator, or a synthetic flow. */
+  isFunctionFlow(flow: string): boolean {
+    const kind = this._program?.sceneAssets?.[flow]?.kind;
+    if (kind) {
+      return kind === "function";
+    }
+    return (
+      Boolean(this._program?.functionLocations?.[flow]) ||
+      flow.startsWith("__")
+    );
+  }
+
+  /** The paths on the ink callstack: where every open tunnel, thread, and
+   *  function call will return to, plus the current position. */
+  protected callStackFlowPaths(): string[] {
+    const paths: string[] = [];
+    const callStack = this._story?.state?.callStack as
+      | { _threads?: Array<{ callstack?: Array<{ currentPointer?: { path?: { toString(): string } | null } }> }> }
+      | undefined;
+    for (const thread of callStack?._threads ?? []) {
+      for (const element of thread?.callstack ?? []) {
+        const path = element?.currentPointer?.path?.toString();
+        if (path) {
+          paths.push(path);
+        }
+      }
+    }
+    return paths;
+  }
+
+  /** Note where the story is; when that is a different scene, tell every
+   *  module. A route simulation is silent: it never enters anything. */
+  observeScene(path: string | null | undefined): void {
+    if (this._destroyed || this._simulation === "simulating") {
+      return;
+    }
+    // This runs on every path change in the step loop; the call stack is
+    // walked only when the scene actually changes.
+    if (SceneTracker.sceneOf(path) === this._sceneTracker.current) {
+      return;
+    }
+    const transition = this._sceneTracker.observe(
+      path,
+      this.callStackFlowPaths(),
+    );
+    if (transition) {
+      for (const k of this._moduleNames) {
+        this._modules[k]?.onEnterScene(
+          transition.scene,
+          transition.previous,
+          transition.stack,
+        );
+      }
+    }
+  }
+
   async connect(send: (message: Message, transfer?: ArrayBuffer[]) => void) {
     this._connection.connectOutput(send);
+    // Before the modules connect, so the scene's assets are requested before
+    // the restore gate waits on the ones already on screen.
+    const previewing = this._context.system.previewing;
+    this.observeScene(
+      typeof previewing === "string"
+        ? previewing
+        : this._story.state.currentPathString,
+    );
     await Promise.all(
       this._moduleNames.map((moduleName) =>
         this._modules[moduleName]?.onConnected(),
@@ -1072,6 +1154,7 @@ export class Game<T extends M = {}> {
       this._modules[k]?.onStart();
     }
     if (this._simulation === "success") {
+      this.observeScene(this._story.state.currentPathString);
       this.continue(true);
     } else if (this._simulation === "fail") {
       // `rewindStory`, NOT `reset`. By the time `start` runs, `connect` has
@@ -1108,12 +1191,15 @@ export class Game<T extends M = {}> {
       if (this._startPath) {
         this.jumpToPath(this._startPath);
       }
+      this.observeScene(this._startPath);
       this.continue();
     } else {
       if (save) {
         this.load(save);
+        this.observeScene(this._story.state.currentPathString);
       } else if (this._startPath) {
         this.jumpToPath(this._startPath);
+        this.observeScene(this._startPath);
       }
       this.continue();
     }
@@ -1166,6 +1252,7 @@ export class Game<T extends M = {}> {
     for (const k of this._moduleNames) {
       this._modules[k]?.onDestroy();
     }
+    this._sceneTracker.reset();
     this._moduleNames = [];
     this._connection.incoming.removeAllListeners();
     this._connection.outgoing.removeAllListeners();
@@ -1335,6 +1422,7 @@ export class Game<T extends M = {}> {
 
   reset() {
     this.rewindStory();
+    this._sceneTracker.reset();
     // Reset modules to their initial state
     for (const k of this._moduleNames) {
       const module = this._modules[k];
@@ -1401,6 +1489,7 @@ export class Game<T extends M = {}> {
       if (pointerPath) {
         if (pointerPath !== this._executingPath) {
           this._executingPath = pointerPath;
+          this.observeScene(pointerPath);
           if (
             this._plannedRoute &&
             this._plannedRouteStepCursor < this._plannedRoute?.steps.length
@@ -1443,7 +1532,9 @@ export class Game<T extends M = {}> {
           this._coordinator = new Coordinator(this, instructions);
           if (
             !this._coordinator.shouldContinue() &&
-            this._simulation !== "simulating"
+            this._simulation !== "simulating" &&
+            // A load beat is loading, not waiting for the player.
+            (!instructions.load || (instructions.choices?.length ?? 0) > 0)
           ) {
             this.notifyAwaitingInteraction();
           }
@@ -2156,6 +2247,7 @@ export class Game<T extends M = {}> {
     this._context.system.previewing = previewPath;
     this._previewedPath = previewPath;
     this._context.system.simulating = undefined;
+    this.observeScene(previewPath);
     if (this._simulation === "success") {
       this.continue(true);
     } else if (this._simulation === "fail") {

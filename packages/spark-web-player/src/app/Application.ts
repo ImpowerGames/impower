@@ -20,7 +20,9 @@ import { Clock } from "../../../spark-engine/src/game/core/classes/Clock";
 import { Game } from "../../../spark-engine/src/game/core/classes/Game";
 import { EventMessage } from "../../../spark-engine/src/game/core/classes/messages/EventMessage";
 import { IApplication } from "./IApplication";
+import { type AssetCache } from "./assets/AssetCache";
 import { Manager } from "./Manager";
+import AssetManager from "./managers/AssetManager";
 import AudioManager from "./managers/AudioManager";
 import EventManager from "./managers/EventManager";
 import UIManager from "./managers/UIManager";
@@ -140,12 +142,19 @@ export class Application implements IApplication {
     audio: AudioManager;
     world: WorldManager;
     event: EventManager;
+    assets: AssetManager;
   } = {
     ui: new UIManager(this),
     audio: new AudioManager(this),
     world: new WorldManager(this),
     event: new EventManager(this),
+    assets: new AssetManager(this),
   };
+
+  protected _assetCache?: AssetCache;
+  get assetCache() {
+    return this._assetCache;
+  }
 
   protected _managers: Manager[] = Object.values(this._manager);
   get managers() {
@@ -158,6 +167,10 @@ export class Application implements IApplication {
 
   get audio() {
     return this._manager.audio;
+  }
+
+  get assets() {
+    return this._manager.assets;
   }
 
   protected _audioContext?: AudioContext;
@@ -195,8 +208,12 @@ export class Application implements IApplication {
     view: HTMLElement,
     overlay: HTMLElement,
     audioContext?: AudioContext,
+    assetCache?: AssetCache,
   ) {
     this._game = game;
+    // Shared by the host across the applications it builds, so STOP then PLAY
+    // does not re-fetch a scene. Without one, the asset manager makes its own.
+    this._assetCache = assetCache;
 
     if (loadTextures.config) {
       // these workers don't work in iframe environments

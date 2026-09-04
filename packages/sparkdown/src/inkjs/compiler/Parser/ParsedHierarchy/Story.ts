@@ -102,6 +102,33 @@ export class Story extends FlowBase {
   public constants: Map<string, ConstantDeclaration> = new Map();
   public externals: Map<string, ExternalDeclaration> = new Map();
 
+  /** Builtin define names declared only so references resolve (see
+   *  {@link DeclareBuiltinGlobals}); they have no runtime initialization. */
+  protected _builtinGlobalNames: Set<string> = new Set();
+
+  /** Declare the builtin defines of the prelude as globals that exist at
+   *  runtime without initializing them here. A compile that does not seed
+   *  the prelude into the story (the editor's diagnostics compiler) still
+   *  has every builtin table at runtime, because every host seeds it; without
+   *  these markers a reference such as `game.loading.percent` reports
+   *  "Cannot find item or path" in the editor and nowhere else. A name the
+   *  program already declares (an authored override) is left alone. */
+  public DeclareBuiltinGlobals(names: Iterable<string>): void {
+    for (const name of names) {
+      if (!name || this.variableDeclarations.has(name)) {
+        continue;
+      }
+      const va = new VariableAssignment({
+        variableIdentifier: new Identifier(name),
+        isGlobalDeclaration: true,
+        isDefineDeclaration: true,
+      });
+      va.isPreludeDeclaration = true;
+      this._builtinGlobalNames.add(name);
+      this.AddNewVariableDeclaration(va);
+    }
+  }
+
   // Build setting for exporting:
   // When true, the visit count for *all* knots, stitches, choices,
   // and gathers is counted. When false, only those that are direclty
@@ -368,8 +395,9 @@ export class Story extends FlowBase {
     const runtimeLists: RuntimeListDefinition[] = [];
     for (const [key, value] of this.variableDeclarations) {
       // Implicit parents are declaration-only (lazily minted by a
-      // child's `__def` at runtime) — nothing to initialize here.
-      if (implicitParentNames.has(key)) {
+      // child's `__def` at runtime), as are the builtin globals of an
+      // unseeded compile — nothing to initialize here.
+      if (implicitParentNames.has(key) || this._builtinGlobalNames.has(key)) {
         continue;
       }
       if (value.isGlobalDeclaration) {
