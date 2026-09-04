@@ -231,6 +231,62 @@ Repeat after the fix to produce `after.png`. Stop the servers when done:
 node .claude/skills/resolve-issue/driver.mjs down
 ```
 
+### When the change is in the editor's own interface
+
+`verify` reaches the game preview and nothing else. A change to the find panel, the go-to-line panel, the file list, the asset views, or the screens the bottom tabs switch between is invisible to it, and a `verify` screenshot of such a change is not evidence. Use `ui` instead: it performs the steps you give it, in order, as a user would — panels open on their own shortcut, text goes in as real keystrokes, screens switch by clicking the tab — and then reads every surface back.
+
+```bash
+node .claude/skills/resolve-issue/driver.mjs ui --sd repro.sd --open find --type "search=Hello" --type "replace=Goodbye" --shot-of find panel.png --shot page.png
+```
+
+Verified output shape (steps first, then the read-back):
+
+```json
+{
+  "steps": [
+    { "sd": "repro.sd", "wroteChars": 171 },
+    { "surface": "find", "opened": true, "pressed": "Control+f" },
+    { "field": "search", "typed": true, "text": "Hello", "readBack": "Hello", "matches": true },
+    { "field": "replace", "typed": true, "text": "Goodbye", "readBack": "Goodbye", "matches": true },
+    { "of": "find", "screenshot": "C:\\...\\panel.png" },
+    { "of": "page", "screenshot": "C:\\...\\page.png" }
+  ],
+  "ui": {
+    "screen": "logic",
+    "panelTab": "main",
+    "find": { "open": true, "search": "Hello", "replace": "Goodbye", "matches": "1 of 3", "toggles": { "case": false, "word": false, "re": false } },
+    "goto": { "open": false },
+    "cursorLine": 5
+  },
+  "failed": []
+}
+```
+
+The steps, each usable any number of times and in any order:
+
+| Step                     | Does                                                                                                                                        |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--sd <file.sd>`         | load the script into OPFS and reload, as `verify` does                                                                                      |
+| `--screen <name>`        | click a tab: `logic`, `assets`, `share`, or a tab inside a pane such as `main` / `scripts`; waits for it to report selected                 |
+| `--open <panel>`         | `find` (Ctrl+F) or `goto` (Ctrl+G); waits for the panel to be on screen                                                                     |
+| `--close <panel>`        | Escape from inside it                                                                                                                       |
+| `--type <field>=<text>`  | real keystrokes into `search`, `replace`, or `line`; opens the panel if needed; a literal `\n` becomes Ctrl+Enter, the field's own line break |
+| `--press <combo>`        | one key combo, e.g. `Control+Shift+G`; a shifted lowercase letter is uppercased first (see Gotchas)                                         |
+| `--click <button>`       | a panel button by name: `next`, `prev`, `select`, `replace`, `replaceAll`, `close`, `submit`                                                |
+| `--shot <out.png>`       | the whole page                                                                                                                              |
+| `--shot-of <what> <png>` | one surface: `find`, `goto`, `editor` (the script editor), or `page`                                                                        |
+| `--probe <file.js>`      | as in `verify`                                                                                                                              |
+
+How to read it:
+
+- Every `--type` reports `readBack` — the field's text as the panel itself reads it — and `matches`. A `matches: false` is the first thing to look at: either the keystrokes did not land or the field changed what it was given, and both are findings, not noise.
+- `failed` lists every step that could not do what it was asked (a panel that never appeared, a tab not on the page). An empty list with the screenshot you wanted is the pass; a non-empty list means the screenshot is of something else.
+- `ui.screen` is the active main screen and `ui.panelTab` the active tab inside it. `ui.find.matches` is the panel's own match counter, which is what tells you a search took.
+
+**Then open the PNG and look**, as with `verify`. `--shot-of find` crops to the panel, which is the right picture for a panel change and useless for anything else; take `--shot` as well when the change could have moved something outside the panel.
+
+The browser helpers `ui` is built from — `withEditor`, `writeMainSd`, `waitForEditor`, `openSurface`, `typeInto`, `pressKey`, `switchScreen`, `readSurfaces`, `shotOf` and the rest — are exported from `driver.mjs` for the case `ui` does not cover. Import them from a script that lives inside the repo tree (see The driver: Node resolves `playwright` from the importing script's directory, not from the working directory), and prefer adding the missing step to `ui` over leaving the script behind.
+
 ### When the change has no visual signature
 
 Some fixes cannot show up in a screenshot — a perf change, a memory leak, an internal data structure no pixel depends on. Two before/after PNGs that look identical prove nothing, and presenting them as the gate is worse than useless: they read as evidence while carrying none.
@@ -242,6 +298,7 @@ What makes a timing here honest:
 - **One candidate per process.** A shared process inflates whatever runs second by several times. Run the baseline and the patch as separate commands.
 - **Interleave and take medians.** Run-to-run variance on this machine is large enough to invert a real 2× difference. Three alternating pairs is the minimum.
 - **Carry a control** — a second measurement the change should NOT affect. If the control moves as much as the candidate, the pair is noise; measure again.
+- **Size the fixture until the phase you changed is a visible share of the whole**, and check that by timing the phase itself as well as the total. The first fixture reached for is usually too small: a 60-scene and a 400-scene script both put one session's change inside run-to-run noise, and only more content per scene made it readable. If the total moves no more than the control does, the fixture is too small — scale it up rather than concluding there is no effect, and scale what the phase actually processes (content per unit), not just the count of units.
 - **Report absolute numbers, not just ratios.** "2×" hides whether that is 4ms → 8ms or 400ms → 800ms.
 - **Say where the number came from.** If no benchmark in the repo covers the path — several don't; `perfProfile.test.ts` drives `SparkdownCompiler`, whose annotate set excludes `formatting` and `semantics` — say the figure comes from a scratch harness and name what it drove.
 
@@ -281,38 +338,40 @@ Assert the **behaviour from the ticket**, not the shape of your patch. If the is
 
 **Never use `git stash` for this.** The stash stack is per-**repo**, not per-worktree, and this checkout has ~17 live worktrees with other sessions running concurrently. A `git stash pop` takes whatever is at `stash@{0}` _at that moment_ — which may be another session's WIP pushed between your push and your pop. That lands their work in your tree and leaves your fix on the stack.
 
-Copy the file aside instead, revert it, and copy it back:
+Run the whole cycle through the driver, from the repo root, naming the test invocation (under the caps in Running vitest safely) and every changed source file the test exercises:
 
 ```bash
-cp packages/sparkdown/src/compiler/utils/filterImage.ts "$SCRATCH/fix.ts"
-git checkout -- packages/sparkdown/src/compiler/utils/filterImage.ts
+node .claude/skills/resolve-issue/driver.mjs redgreen --test "cd packages/sparkdown && NODE_OPTIONS=--max-old-space-size=1024 npx vitest run src/tests/compiler/FilterImageLayers.test.ts --pool=forks --poolOptions.forks.minForks=1 --poolOptions.forks.maxForks=1" --files packages/sparkdown/src/compiler/utils/filterImage.ts
 ```
 
-Re-run the new test — it **must fail**, and fail for the reason in the ticket, not on an import error or a typo. Then restore **from the copy**:
+It snapshots the files, reverts them to the base revision, runs the test and requires it to fail, restores the files from the snapshot, proves each restore by content hash, and runs the test again. Verified output shape:
 
-```bash
-cp "$SCRATCH/fix.ts" packages/sparkdown/src/compiler/utils/filterImage.ts
+```json
+{
+  "ok": true,
+  "base": "HEAD",
+  "snapshotDir": "C:\\...\\Temp\\redgreen-abc123",
+  "files": [{ "path": "packages/sparkdown/src/compiler/utils/filterImage.ts", "snapshotSha": "…", "baseSha": "…", "changedDuringRed": false, "restored": true, "matches": true }],
+  "red": { "exit": 1, "outcome": "failed", "reason": "assertion", "tail": ["…"] },
+  "green": { "exit": 0, "outcome": "passed", "tail": ["…"] },
+  "problems": []
+}
 ```
 
-Both of those depend on `HEAD` still being the pre-fix state, so they work only _before_ you commit. **After §6, `HEAD` is your fix**, and any baseline taken from it silently contains the very change it is supposed to lack — the run then reproduces nothing, which reads as "the bug was never real". Once you have committed, take the baseline from `origin/main` instead:
+`ok: true` is the evidence for the PR body; quote the `red.tail` assertion and the `green` count. Anything else exits non-zero and says why under `problems`:
 
-```bash
-MSYS_NO_PATHCONV=1 git cat-file -p "origin/main:path/to/file.ts" > "$SCRATCH/baseline.ts"
-```
+- **The test passed against the base** — it pins nothing. Either it does not assert the ticket's behaviour, or `--files` does not name where the fix lives.
+- **The red run died on an import or syntax error** (`red.reason`) rather than the defect. A whole-file revert broke the test's imports; use the in-place path below.
+- **A file changed during the red run.** A review round, an editor, or a watcher wrote to it while it was reverted. The command does not restore that file — overwriting it would replace the newer edit with the snapshot, which is exactly the stale-copy failure this command exists to prevent — and names it together with the snapshot's path. Merge the two by hand and run again.
+- **A restored file does not match its snapshot**, which should not happen and means something else is writing to the tree.
 
-(`MSYS_NO_PATHCONV=1` is needed on Git Bash for Windows, which otherwise rewrites the `rev:path` argument into a Windows path and fails with `fatal: ambiguous argument`.)
+The snapshot and the restore happen inside one process, so there is no copy to go stale between review rounds; run the command again after each round rather than reusing anything from the last one.
 
-`git checkout --` reverts to HEAD, so it restores the _pre-fix_ file — using it to undo the revert silently throws the fix away. **Confirm the restore landed before trusting anything downstream:**
+`--base` is where the pre-fix content comes from and defaults to `HEAD`. That is right only _before_ you commit. **After §6, `HEAD` is your fix**, and a baseline taken from it silently contains the very change it is supposed to lack — the run then "reproduces nothing", which reads as "the bug was never real", and `redgreen` reports the file as identical to the base and the test as pinning nothing. Once you have committed, pass `--base origin/main`.
 
-```bash
-git diff --stat
-```
+Where a whole-file revert would break the test's imports (the fix adds an export the test uses), simulate the old behaviour in place instead: disable the one branch that matters, or restore the old function body under the new name, run the test by hand for the red, then put the fix back. Keep a **positive control** in the file — an assertion that passes both before and after — so a red run proves the defect, not a broken harness. `redgreen` sends you here itself when the red run fails on an import.
 
-The file must still be listed. A test that passed alone and then fails in the full suite is usually this, not a flake — check the diff before blaming timing.
-
-Re-run — it must pass. Record both outcomes for the PR body.
-
-Where a whole-file revert would break the test's imports (the fix adds an export the test uses), simulate the old behaviour in place instead: disable the one branch that matters, or restore the old function body under the new name. Keep a **positive control** in the file — an assertion that passes both before and after — so a red run proves the defect, not a broken harness.
+Record both outcomes for the PR body.
 
 **5c — run the suite.** Start with the file, widen to the package.
 
@@ -601,17 +660,23 @@ Every round posts its own comments and its own adjudication. Do not edit the pre
 | `up [--cross-origin]` | boot both dev servers on pinned ports, wait for ready |
 | `status`              | is it up? prints the editor URL                       |
 | `down`                | kill the whole server tree                            |
-| `verify [opts]`       | drive the editor, print a JSON report                 |
+| `verify [opts]`       | drive the game preview, print a JSON report           |
+| `ui [steps]`          | drive the editor's own panels and screens (§4)        |
+| `redgreen [opts]`     | prove a regression test fails on the base, passes on the fix (§5b) |
 
 `verify` options: `--sd <file.sd>` (load into OPFS `/local/main.sd`, then reload), `--line <N>` (scrub the preview to that source line), `--shot <out.png>`, `--probe <file.js>` (body of an async function evaluated in the editor page; its return value lands in the JSON), `--headed` (visible browser).
 
 `verify` scrubs with a real mouse click on the target line, driven through Playwright. It scrolls the line into view by moving the scroller directly, checks that the coordinates are really over the text rather than an overlay, then clicks. Nothing in that path dispatches a CodeMirror selection.
 
+`ui` steps are tabulated in §4. It finds a panel by the class its CodeMirror `Panel` sets on its root (`.cm-search`, `.cm-gotoLine`) and a field by its `name`; it finds a tab by the `-trigger-<value>` suffix of its id, where the value is the workspace's own name for the pane or panel. None of that is a test hook added to the app; if a surface you need has no such handle, adding one is in scope (#423).
+
+`redgreen` options: `--test <command>` (run twice, from the repo root), `--files <a> [<b>...]` (the changed sources the test exercises), `--base <rev>` (where the pre-fix content comes from; `HEAD` by default, `origin/main` once the fix is committed). It runs no browser. `redgreen.mjs` beside the driver holds the implementation; `redgreen.test.mjs` pins it on a throwaway repository.
+
 State lives in `.claude/skills/resolve-issue/.state.json` (gitignored).
 
 Playwright is a **declared root devDependency** (`playwright: ^1.61.0`). Browsers come from the local `ms-playwright` cache — if it's empty on a new machine, `npx playwright install chromium`. Always run `npm install` with `PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1` set (see §2) — otherwise a transitive `@playwright/browser-chromium` dependency tries to download its own Chromium build from a host this network blocks, and the whole install fails. The driver itself doesn't need that variable: if the pinned `playwright` version expects a Chromium revision the cache doesn't have, it launches whatever build the cache does have instead of failing.
 
-The driver must still live **inside the repo tree**: Node resolves `playwright` relative to the **script's** directory, not the working directory. Copy it to a temp dir and it dies with `ERR_MODULE_NOT_FOUND`.
+The driver must still live **inside the repo tree**: Node resolves `playwright` relative to the **script's** directory, not the working directory. Copy it to a temp dir and it dies with `ERR_MODULE_NOT_FOUND`. The same applies to any script of your own that imports the driver's exported helpers: put it under the worktree (and never `git add` it), not in the scratchpad.
 
 ---
 
@@ -637,6 +702,7 @@ Things that look like they work and don't:
   cd definitions && npx tsx src/language.ts ../packages/sparkdown/language
   ```
   Grep for the **rule name**, not the regex — the YAML uses `{{WS}}`-style templating so the expanded pattern does not appear in the source.
+- **A synthesised shortcut with a lowercase letter under Shift is not the shortcut a keyboard sends.** Playwright's key strings are case-sensitive for a single character: `Control+Shift+g` delivers `key: "g"` with `shiftKey: true`, where a keyboard delivers `key: "G"`. CodeMirror resolves a letter binding from the reported key, so the shifted variant of a binding never runs from that form and the unshifted one runs instead — Ctrl+Shift+G steps _forward_ through matches instead of back, which looks exactly like a broken keybinding and is not one. Measured in the live editor on 2026-09-04 with playwright 1.61: `Control+Shift+G`, `Control+Shift+KeyG`, and holding Control and Shift around `press("KeyG")` all deliver `G`; only the lowercase spelling delivers `g`. The driver's `--press` and `pressKey` uppercase a shifted letter before pressing it and report `rewritten: true`. In a script of your own, write the letter uppercase, and before filing any keybinding bug confirm the keydown carried the key a keyboard would report.
 - **Heredocs are lossy through some shell paths here** (a `//` comment came out as `/`, breaking a file mid-edit). Write files with the editor tool, not by piping a heredoc.
 - **`tsc` is not a gate** — there is no CI typecheck anywhere in the repo, and the only PR workflow is the VS Code extension's _bundler_ build (esbuild strips types without checking them). A clean `tsc` proves nothing about CI, and a broken one blocks nothing. Verify with vitest. **This is being fixed — see [#320](https://github.com/ImpowerGames/impower/issues/320). When that lands on `main`, delete this bullet** and add the typecheck command to §5 alongside the test suite.
 - These console messages are **pre-existing noise** on every run, not something your change caused: `Unhandled method workspace/semanticTokens/refresh`, `.../diagnostic/refresh`, `.../foldingRange/refresh`, and a couple of resource 404s.
@@ -661,6 +727,10 @@ Things that look like they work and don't:
 | `npm install` dies with `request blocked: no rule or allowlist entry allows host "cdn.playwright.dev"` (or any `@playwright/browser-chromium` download failure) | A workspace depends on `@playwright/browser-chromium`, whose install script tries to fetch its own Chromium build from a blocked host. Re-run as `PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 npm install` — see §2. |
 | `git worktree remove` → `Directory not empty`                                                              | Windows can't delete `node_modules` that way. `Remove-Item -Recurse -Force <path>`, then `git worktree prune`.                                                                                                                                                                              |
 | A `gh` PR/issue body came out as the literal `@-`                                                          | You used `--body @-`. Use `--body-file`, then read it back with `gh pr view --json body`.                                                                                                                                                                                                   |
+| `ui` reports a panel that `did not appear within 10s of pressing`                                          | The shortcut went to something other than the script editor: the editor was not on screen (`ui.screen` says which pane is), or another panel had focus. Put `--screen logic` first; `--close` the other panel. If the editor is up and it still fails, the binding itself changed — check `customSearch.ts`'s keymap. |
+| `ui` says `no tab named "..."` and lists the tabs present                                                 | Tab values are the workspace's names (`logic`, `assets`, `share`, `main`, `scripts`), not the labels. Pick from the list in the message.                                                                                                                                                       |
+| `redgreen` says a file `changed during the red run`                                                        | Something wrote to the file while it was reverted — a review-round edit landing, an editor, a formatter, a watcher. The file was left as found; the fix is at the `snapshotPath` in the report. Merge by hand, then run again. Never copy the snapshot over the file blind.                   |
+| `redgreen` says the file is `identical to HEAD` and the test `pins nothing`                                | The fix is already committed, so `HEAD` contains it. Pass `--base origin/main`.                                                                                                                                                                                                             |
 | `git show origin/main:some/path` → `fatal: ambiguous argument 'origin\main;some\path'`                     | Git Bash rewrote the `rev:path` argument as a Windows path. Prefix the command with `MSYS_NO_PATHCONV=1`, and quote the argument.                                                                                                                                                            |
 | A "pre-fix" copy pulled from `HEAD:` still contains the fix                                                | Once you have committed, `HEAD` **is** your fix. Extract the baseline from `origin/main:` instead. The failure is silent: the run looks like a baseline and reproduces nothing, which reads as "the bug isn't real".                                                                          |
 
@@ -669,3 +739,5 @@ Things that look like they work and don't:
 ## Improving this skill
 
 If any step above failed, needed a flag or path it does not give, did not apply to your ticket without saying so, or cost you time on something Gotchas and Troubleshooting do not cover, report it under a "Skill feedback" heading in your final message with the edit you propose, as `CLAUDE.md` describes. This skill is long because earlier sessions hit exactly those walls and wrote them down; yours belongs here too. When you are certain of the fix, make it in this file in its own commit on the PR branch and mention it under the PR's Notes for reviewers. A new trap goes in Gotchas; a new failure with a known fix goes in the Troubleshooting table.
+
+Prefer a mechanism to a warning. When the problem is a step a session can forget or get wrong — a copy that goes stale, a value that has to be re-derived, a check that only works if someone remembers it — propose the driver command or the check that makes the mistake impossible, not a sentence telling the next session to be careful; the sentence is what just failed. A warning is the right proposal only for something a tool cannot absorb: a judgement call, a fact about the machine, a trap in a library the driver does not wrap. `redgreen` (#426) is the shape to copy — the by-hand cycle it replaced had a warning-sentence fix proposed first.
