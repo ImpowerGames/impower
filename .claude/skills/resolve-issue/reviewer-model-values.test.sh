@@ -1,49 +1,54 @@
 #!/usr/bin/env bash
 # Pins section 7b of SKILL.md against telling the writer to spawn a reviewer
-# on a model the Agent tool will not accept, or on the writer's own model.
-# Run:
+# that cannot start, or that runs the writer's own model. Run:
 #   bash .claude/skills/resolve-issue/reviewer-model-values.test.sh
 #
-# The Agent tool's "model" parameter validates against a closed set of four
-# aliases. Anything else -- a spaced version like "opus 4.6", or a full model
-# id like "claude-opus-4-6" -- is refused with an InputValidationError before
-# any agent starts, so a skill that names one sends every reviewer call into a
-# hard failure. The natural recovery from that failure is the writer's own
-# alias, which is a same-model review: the one outcome section 7b exists to
-# prevent. Both halves are checked here, because a value can be perfectly
-# valid and still defeat the point.
+# Two ways a reviewer is spawned, and both can break silently.
+#
+# By name, from a definition under .claude/agents/, whose frontmatter carries a
+# full model id and so pins an exact version. A name with no definition behind
+# it fails at spawn time; a definition whose id matches the writer's own model
+# starts fine and quietly delivers a same-model review.
+#
+# By the Agent tool's model parameter, the fallback when a definition is not
+# loaded yet. That parameter validates against a closed set of four aliases and
+# refuses everything else -- a spaced version like "opus 4.6", or a full id like
+# claude-opus-4-6 -- with an InputValidationError before any agent starts. The
+# natural recovery from that error is the writer's own alias, which is again a
+# same-model review: the outcome section 7b exists to prevent.
 #
 # The alias list below is transcribed from the tool's own rejection message,
 # observed 2026-09-04. It is a property of the harness, not of this repo, so
-# nothing here can detect it drifting. To re-check it, pass a junk model to
-# the Agent tool and read the accepted values back out of the error.
+# nothing here can detect it drifting. To re-check it, pass a junk model to the
+# Agent tool and read the accepted values back out of the error.
 #
-# Three assertions, over the section 7b writer-to-reviewer table:
-#   1. every model value the table names is exactly one of the aliases;
-#   2. no row routes a writer to a reviewer of its own family;
-#   3. the section 7c reviewer prompt still asks each reviewer to report the
+# Assertions over the section 7b writer-to-reviewer table:
+#   1. every reviewer named by subagent_type has a definition under
+#      .claude/agents/, and that definition pins a full claude-... model id
+#      rather than a bare alias;
+#   2. no row routes a writer to a reviewer running the writer's own model;
+#   3. every model value named anywhere is exactly one of the four aliases;
+#   4. the section 7c reviewer prompt still asks each reviewer to report the
 #      model it is actually running as, which is the only runtime check that
 #      the pin held.
-# A whole-document sweep backs assertion 1 up outside the table.
 #
 # Only bash, grep and sed are used, so this runs on any checkout.
 #
-# SKILL_MD overrides the file under test; it exists so the controls at the
-# bottom can run this script against a deliberately broken fixture and assert
-# it really exits non-zero.
+# SKILL_MD and AGENTS_DIR override the paths under test; they exist so the
+# controls at the bottom can run this script against deliberately broken
+# fixtures and assert it really exits non-zero.
 set -u
 
 self="${BASH_SOURCE[0]:-$0}"
 dir="$(cd "$(dirname "$self")/../../.." && pwd)"
 skill="${SKILL_MD:-$dir/.claude/skills/resolve-issue/SKILL.md}"
+agents="${AGENTS_DIR:-$dir/.claude/agents}"
 
 # The exact set the Agent tool accepts.
 allowed="sonnet opus haiku fable"
 
 fail=0
 
-# Checked up front so an unreadable file is reported as such, rather than as
-# a document that happens to contain nothing the check recognises.
 if [[ ! -r "$skill" ]]; then
   echo "FAIL: cannot read $skill"
   exit 1
@@ -69,9 +74,9 @@ trim() {
   printf '%s' "$s"
 }
 
-# Strips one matching pair of surrounding quotes, if the whole value is
-# quoted. A value that is only partly quoted is left alone, so it fails the
-# alias check rather than being silently trimmed into a valid-looking one.
+# Strips one matching pair of surrounding quotes, if the whole value is quoted.
+# A partly quoted value is left alone so it fails its check rather than being
+# silently trimmed into something valid-looking.
 unquote() {
   local s="$1"
   case "$s" in
@@ -81,37 +86,47 @@ unquote() {
   printf '%s' "$s"
 }
 
-# Every model value named inside one table cell, one per line. The whole cell
-# is scanned rather than just its first match, so a row carrying a fallback
-# ("model: X, or model: Y if X is rejected") is checked on both values.
-#
-# A quoted value ends at its closing quote, which keeps any prose after it --
-# an explanatory "(current major version)" in the same cell, say -- out of the
-# value. Only when the cell quotes nothing does a value run to the next comma
-# or cell boundary, so that an unquoted value containing a space is still
-# captured whole rather than being cut at the space.
-cell_model_values() {
-  local cell raw value matches
-  cell="$(printf '%s' "$1" | tr '`' ' ')"
-  matches="$(printf '%s' "$cell" | grep -oE '"?model"? *: *("[^"]*"|'"'"'[^'"'"']*'"'"')')"
-  [[ -z "$matches" ]] && matches="$(printf '%s' "$cell" | grep -oE '"?model"? *: *[^,|]*')"
+# Reduces a model label to a comparable form: lowercase, markdown decoration
+# dropped, and spaces and dots folded to dashes, so the writer column "Opus 4.6"
+# and the pinned id "claude-opus-4-6" can be compared for being the same model,
+# and an emphasised "**Opus 5**" still compares equal to a plain one.
+normalise() {
+  printf '%s' "$1" | tr 'A-Z' 'a-z' |
+    sed -E 's/[^a-z0-9 .-]+//g; s/^claude-//; s/[ .]+/-/g; s/-+/-/g; s/^-//; s/-$//'
+}
+
+# Every value of KEY named inside one cell, one per line, each wrapped in
+# markers so an empty value is still a visible line rather than a blank one
+# that command substitution would swallow. A quoted value ends at its closing
+# quote, which keeps trailing prose in the same cell out of the value; only
+# when nothing is quoted does a value run to the next comma or cell boundary,
+# so an unquoted value containing a space is still captured whole.
+cell_values() {
+  local key="$1" cell raw value matches
+  cell="$(printf '%s' "$2" | tr '`' ' ')"
+  matches="$(printf '%s' "$cell" | grep -oE "\"?$key\"? *: *(\"[^\"]*\"|'[^']*')")"
+  [[ -z "$matches" ]] && matches="$(printf '%s' "$cell" | grep -oE "\"?$key\"? *: *[^,|]*")"
+  [[ -z "$matches" ]] && return 0
   while IFS= read -r raw; do
     [[ -z "$raw" ]] && continue
-    value="$(printf '%s' "$raw" | sed -E 's/^"?model"? *: *//')"
-    value="$(unquote "$(trim "$value")")"
-    # Marked so an empty value is still a visible, non-blank line: an empty
-    # line would be swallowed by command substitution and read as "nothing
-    # wrong here".
-    printf '<%s>\n' "$value"
+    value="$(printf '%s' "$raw" | sed -E "s/^\"?$key\"? *: *//")"
+    printf '<%s>\n' "$(unquote "$(trim "$value")")"
   done <<< "$matches"
 }
 
-# --- assertion 1 and 2, over the section 7b table -------------------------
+# The model id a named reviewer definition pins, or empty if there is no such
+# definition. Only a frontmatter "model:" line counts.
+definition_model() {
+  local name="$1" file="$agents/$1.md"
+  [[ -r "$file" ]] || return 1
+  grep -m1 -E '^model: *' "$file" | sed -E 's/^model: *//; s/ *$//'
+}
+
+# --- assertions 1, 2 and 3, over the section 7b table ---------------------
 #
-# A table row is a writer row when its first cell names one of the aliases,
-# case-insensitively, anywhere inside it. Matching on the alias rather than on
-# an exact cell layout means re-labelling or emphasising the cell does not
-# quietly drop the row out of the check.
+# A row is a writer row when its first cell names one of the aliases, matched
+# case-insensitively anywhere inside the cell, so relabelling or emphasising it
+# does not quietly drop the row out of the check.
 
 rows_seen=0
 
@@ -119,45 +134,72 @@ while IFS= read -r line; do
   first_cell="$(trim "$(printf '%s' "$line" | sed -E 's/^\| *//; s/ *\|.*$//')")"
   rest="$(printf '%s' "$line" | sed -E 's/^\|[^|]*\|//')"
 
-  writer=""
+  # writer_family is the alias the row's first cell names; writer_model is the
+  # whole label, which for a row like "Opus 5" also carries the version. The
+  # family is what an alias route can collide with, the full label what a
+  # pinned id can.
+  writer_family=""
   for alias in $allowed; do
     if printf '%s' "$first_cell" | grep -qiE "(^|[^a-z])$alias([^a-z]|$)"; then
-      writer="$alias"
+      writer_family="$alias"
       break
     fi
   done
-  [[ -z "$writer" ]] && continue
+  [[ -z "$writer_family" ]] && continue
 
   rows_seen=$((rows_seen + 1))
+  writer="$(normalise "$first_cell")"
 
-  values="$(cell_model_values "$rest")"
-  if [[ -z "$values" ]]; then
-    note_fail "the '$first_cell' row names no model value at all."
+  names="$(cell_values 'subagent_type' "$rest")"
+  models="$(cell_values 'model' "$rest")"
+
+  if [[ -z "$names" && -z "$models" ]]; then
+    note_fail "the '$first_cell' row names neither a reviewer definition nor a model."
     continue
   fi
 
-  while IFS= read -r marked; do
-    value="${marked#<}"
-    value="${value%>}"
-    if ! is_allowed "$value"; then
-      note_fail "the '$first_cell' row names \"$value\", which the Agent tool rejects (accepted: $allowed)."
-    elif [[ "$value" == "$writer" ]]; then
-      note_fail "the '$first_cell' row routes a $writer writer to a $writer reviewer -- that is a same-model review."
-    fi
-  done <<< "$values"
-done < <(grep -E '^\|' "$skill" 2>/dev/null)
+  # Assertion 1 and 2, for a row that spawns a pinned definition by name.
+  if [[ -n "$names" ]]; then
+    while IFS= read -r marked; do
+      name="${marked#<}"; name="${name%>}"
+      pinned="$(definition_model "$name")" || {
+        note_fail "the '$first_cell' row spawns \"$name\", but $agents/$name.md does not exist -- that call fails at spawn time."
+        continue
+      }
+      if [[ -z "$pinned" ]]; then
+        note_fail "$name.md names no model, so it does not pin a version."
+      elif is_allowed "$pinned"; then
+        note_fail "$name.md pins \"$pinned\", a bare family alias -- that follows whatever the current release is instead of pinning a version."
+      elif [[ "$(normalise "$pinned")" == "$writer" ]]; then
+        note_fail "the '$first_cell' row spawns \"$name\", which runs $pinned -- the writer's own model, so a same-model review."
+      fi
+    done <<< "$names"
+  fi
+
+  # Assertion 2 and 3, for a row that passes a model alias directly.
+  if [[ -n "$models" ]]; then
+    while IFS= read -r marked; do
+      value="${marked#<}"; value="${value%>}"
+      if ! is_allowed "$value"; then
+        note_fail "the '$first_cell' row names \"$value\", which the Agent tool rejects (accepted: $allowed)."
+      elif [[ "$value" == "$writer_family" ]]; then
+        note_fail "the '$first_cell' row routes a $value writer to a $value reviewer -- that is a same-model review."
+      fi
+    done <<< "$models"
+  fi
+done < <(grep -E '^\|' "$skill")
 
 if [[ "$rows_seen" -eq 0 ]]; then
   note_fail "no writer-to-reviewer table row was found -- the check matched nothing, which must not read as a pass."
 elif [[ "$fail" -eq 0 ]]; then
-  echo "PASS: all $rows_seen writer-to-reviewer rows name an accepted alias from a different family."
+  echo "PASS: all $rows_seen writer-to-reviewer rows spawn a reviewer that is not the writer's own model."
 fi
 
-# --- assertion 1, swept over the rest of the document ---------------------
+# --- assertion 3, swept over the rest of the document ---------------------
 #
-# Catches a rejected value named in prose outside the table. Only quoted
-# values are swept here: unquoted prose has no reliable end, and guessing one
-# turns ordinary sentences into false failures.
+# Catches a rejected alias named in prose outside the table. Only quoted values
+# are swept: unquoted prose has no reliable end, and guessing one would turn
+# ordinary sentences into false failures.
 
 stray=0
 while IFS= read -r raw; do
@@ -166,13 +208,13 @@ while IFS= read -r raw; do
     note_fail "prose names \"model: $value\", which the Agent tool rejects."
     stray=1
   fi
-done < <(grep -vE '^\|' "$skill" 2>/dev/null | grep -oE '"?model"? *: *("[^"]*"|'"'"'[^'"'"']*'"'"')')
+done < <(grep -vE '^\|' "$skill" | grep -oE '"?model"? *: *("[^"]*"|'"'"'[^'"'"']*'"'"')')
 
 [[ "$stray" -eq 0 ]] && echo "PASS: no rejected model value is named in prose."
 
-# --- assertion 3, the runtime half ----------------------------------------
+# --- assertion 4, the runtime half ----------------------------------------
 
-if grep -q 'model name and id you yourself are running as' "$skill" 2>/dev/null; then
+if grep -q 'model name and id you yourself are running as' "$skill"; then
   echo "PASS: the reviewer prompt still asks each reviewer to report its own model."
 else
   note_fail "the reviewer prompt no longer asks each reviewer to report the model it is running as -- nothing then catches a pin that silently landed on the writer's own model."
@@ -180,7 +222,7 @@ fi
 
 # --- controls -------------------------------------------------------------
 #
-# A check that cannot go red pins nothing. These run this script again against
+# A check that cannot go red pins nothing. These re-run this script against
 # broken fixtures and assert the real exit status, so what is proven is the
 # whole path from a detected defect to a non-zero exit -- not merely that a
 # helper function can print something.
@@ -189,14 +231,18 @@ if [[ -z "${REVIEWER_CHECK_INNER:-}" ]]; then
   tmp="$(mktemp -d)"
   trap 'rm -rf "$tmp"' EXIT
 
-  # Every fixture carries the assertion-3 sentence, so a control can only go
-  # red for the reason it is testing.
+  mkdir -p "$tmp/agents"
+  printf -- '---\nname: pinned-old\nmodel: claude-opus-4-6\n---\n' > "$tmp/agents/pinned-old.md"
+  printf -- '---\nname: pinned-new\nmodel: claude-opus-5\n---\n' > "$tmp/agents/pinned-new.md"
+  printf -- '---\nname: unpinned\nmodel: opus\n---\n' > "$tmp/agents/unpinned.md"
+  printf -- '---\nname: modelless\n---\n' > "$tmp/agents/modelless.md"
+
   clause='the model name and id you yourself are running as'
 
   control() {
     local desc="$1" body="$2" out rc
     printf '%s\n%s\n' "$body" "$clause" > "$tmp/fixture.md"
-    out="$(REVIEWER_CHECK_INNER=1 SKILL_MD="$tmp/fixture.md" bash "$self" 2>&1)"
+    out="$(REVIEWER_CHECK_INNER=1 SKILL_MD="$tmp/fixture.md" AGENTS_DIR="$tmp/agents" bash "$self" 2>&1)"
     rc=$?
     if [[ "$rc" -ne 0 ]]; then
       echo "PASS (control): rejects $desc."
@@ -206,34 +252,47 @@ if [[ -z "${REVIEWER_CHECK_INNER:-}" ]]; then
     fi
   }
 
-  control 'a spaced version, "opus 4.6"'        '| Opus | `model: "opus 4.6"` |'
-  control 'a full model id, "claude-opus-5"'    '| Opus | `model: "claude-opus-5"` |'
-  control 'a same-family route, Opus to opus'   '| Opus | `model: "opus"` |'
-  control 'a same-family route, Fable to fable' '| Fable | `model: "fable"` |'
-  control 'two adjacent aliases, "opus haiku"'  '| Opus | `model: "opus haiku"` |'
-  control 'an empty value'                      '| Opus | `model: ""` |'
-  control 'a single-quoted rejected value'      "| Opus | \`model: 'opus 4.6'\` |"
-  control 'an unquoted rejected value'          '| Opus | `model: opus 4.6` |'
-  control 'a same-family fallback clause'       '| Opus | `model: "fable"`, or `model: "opus"` if rejected |'
-  control 'a second row that is same-family'    '| Opus | `model: "fable"` |
+  accepts() {
+    local desc="$1" body="$2" out rc
+    printf '%s\n%s\n' "$body" "$clause" > "$tmp/fixture.md"
+    out="$(REVIEWER_CHECK_INNER=1 SKILL_MD="$tmp/fixture.md" AGENTS_DIR="$tmp/agents" bash "$self" 2>&1)"
+    rc=$?
+    if [[ "$rc" -eq 0 ]]; then
+      echo "PASS (control): accepts $desc."
+    else
+      echo "FAIL (control): rejected $desc -- output: $out"
+      fail=1
+    fi
+  }
+
+  control 'a reviewer name with no definition behind it' '| Opus 5 | `subagent_type: "no-such-reviewer"` |'
+  control 'a definition that pins nothing'               '| Opus 5 | `subagent_type: "modelless"` |'
+  control 'a definition holding a bare alias'            '| Opus 5 | `subagent_type: "unpinned"` |'
+  control 'a pinned reviewer on the writer own model'    '| Opus 5 | `subagent_type: "pinned-new"` |'
+  control 'the same, for the older version'              '| Opus 4.6 | `subagent_type: "pinned-old"` |'
+  control 'a spaced version, "opus 4.6"'                 '| Opus | `model: "opus 4.6"` |'
+  control 'a full model id passed to the parameter'      '| Opus | `model: "claude-opus-5"` |'
+  control 'a same-family alias route, Opus to opus'      '| Opus | `model: "opus"` |'
+  control 'a same-family alias route, Fable to fable'    '| Fable | `model: "fable"` |'
+  control 'two adjacent aliases, "opus haiku"'           '| Opus | `model: "opus haiku"` |'
+  control 'an empty model value'                         '| Opus | `model: ""` |'
+  control 'a single-quoted rejected value'               "| Opus | \`model: 'opus 4.6'\` |"
+  control 'an unquoted rejected value'                   '| Opus | `model: opus 4.6` |'
+  control 'a same-family fallback clause'                '| Opus | `model: "fable"`, or `model: "opus"` if rejected |'
+  control 'a second row that is same-family'             '| Opus | `model: "fable"` |
 | Opus | `model: "opus"` |'
   control 'an emphasised label, **Opus**, routed to opus' '| **Opus** | `model: "opus"` |'
-  control 'a table with no model value'         '| Opus | see below |'
+  control 'a row naming neither a reviewer nor a model'  '| Opus | see below |'
 
-  # And one negative control: a correct table must stay green, or every result
-  # above would be meaningless.
-  printf '%s\n%s\n' '| Opus | `model: "fable"` |
-| Fable | `model: "opus"` |' "$clause" > "$tmp/good.md"
-  if REVIEWER_CHECK_INNER=1 SKILL_MD="$tmp/good.md" bash "$self" >/dev/null 2>&1; then
-    echo "PASS (control): accepts a correct table."
-  else
-    echo "FAIL (control): rejected a correct table."
-    fail=1
-  fi
+  accepts 'a correct pinned table' '| Opus 5 | `subagent_type: "pinned-old"` |
+| Opus 4.6 | `subagent_type: "pinned-new"` |
+| Fable, Sonnet, Haiku | `subagent_type: "pinned-new"` |'
+  accepts 'a correct alias-fallback table' '| Opus | `model: "fable"` |
+| Fable | `model: "opus"` |'
 
-  # The assertion-3 control, run without the clause.
-  printf '%s\n' '| Opus | `model: "fable"` |' > "$tmp/noclause.md"
-  if REVIEWER_CHECK_INNER=1 SKILL_MD="$tmp/noclause.md" bash "$self" >/dev/null 2>&1; then
+  # Assertion 4, run without the clause present.
+  printf '%s\n' '| Opus 5 | `subagent_type: "pinned-old"` |' > "$tmp/noclause.md"
+  if REVIEWER_CHECK_INNER=1 SKILL_MD="$tmp/noclause.md" AGENTS_DIR="$tmp/agents" bash "$self" >/dev/null 2>&1; then
     echo "FAIL (control): accepted a document with no self-report instruction."
     fail=1
   else

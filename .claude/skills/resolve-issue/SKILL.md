@@ -526,22 +526,23 @@ When a diff sits between tiers, round up — a missed defect costs more than a r
 
 ### 7b — reviewers never run on the writer's own model
 
-A model reviewing code written by the same model shares the writer's priors — it finds the same things plausible and overlooks the same things. So the reviewer has to come from a different model family than you, and you have to pick that family deliberately rather than letting it default to yours.
+A model reviewing code written by the same model shares the writer's priors — it finds the same things plausible and overlooks the same things. So the reviewer has to be a different model from you, and you have to choose it deliberately rather than letting it default to yours.
 
-Pass `model:` explicitly on every reviewer Agent call. The parameter takes four aliases — `sonnet`, `opus`, `haiku`, `fable` — and rejects anything else with an `InputValidationError` before a single agent starts, including full model ids such as `claude-opus-5`. That set belongs to the harness rather than to this repo, and it has grown before, so treat it as observed on 2026-09-04 rather than fixed: if a value you expect to work is refused, read the current set back out of the rejection message and update the table and its check together. Each alias resolves to the current release of that family, so there is no way to ask this parameter for an older version of your own family; a different family is the separation actually on offer.
+Two reviewer definitions in the repo pin an exact version: `.claude/agents/reviewer-opus-4-6.md` and `.claude/agents/reviewer-opus-5.md`, each naming a full model id in its frontmatter. Spawn one by name and the review runs on that version whatever your own is — `subagent_type: "reviewer-opus-4-6"` was confirmed running `claude-opus-4-6`, and `reviewer-opus-5` running `claude-opus-5`, from a session that had them.
 
-| You (the writer) | Reviewers get    |
-| ---------------- | ---------------- |
-| Opus             | `model: "fable"` |
-| Fable            | `model: "opus"`  |
-| Sonnet           | `model: "opus"`  |
-| Haiku            | `model: "opus"`  |
+| You (the writer)     | Spawn                                     |
+| -------------------- | ----------------------------------------- |
+| Opus 5               | `subagent_type: "reviewer-opus-4-6"`      |
+| Opus 4.6             | `subagent_type: "reviewer-opus-5"`        |
+| Fable, Sonnet, Haiku | `subagent_type: "reviewer-opus-5"`        |
 
-If a value is ever rejected, move to another family — never to your own. An Opus writer that answers a rejection by falling back to `"opus"` has bought itself a reviewer with all of its own blind spots, which is the single outcome this section exists to prevent.
+Give these no `model:` — the definition's own frontmatter carries it, and the tool parameter cannot express a version anyway.
+
+A definition is read when a session starts, so one added part-way through a run is not spawnable until the next session. If a name is missing from your agent-type list, fall back to `subagent_type: "general-purpose"` and an explicit `model:`. That parameter takes four aliases — `sonnet`, `opus`, `haiku`, `fable` — and rejects anything else with an `InputValidationError` before a single agent starts, full model ids included. That set belongs to the harness rather than to this repo, and it has grown before, so treat it as observed on 2026-09-04 rather than fixed: if a value you expect to work is refused, read the current set back out of the rejection message and update this section and its check together. Each alias resolves to the current release of that family, so on this path pick a family that is not your own — an Opus writer takes `model: "fable"`, everyone else takes `model: "opus"`.
+
+Never answer a rejection with your own family. An Opus writer that falls back to `"opus"` has bought itself a reviewer carrying all of its own blind spots, which is the single outcome this section exists to prevent.
 
 Do not take the pin on trust. The reviewer prompt in §7c has each reviewer open its report with the model it is actually running as, so a review that landed on your own model is visible in the PR comment instead of passing for independent.
-
-Pinning an exact version takes a route other than this parameter, and this repo has none wired up today. `.gitignore` keeps `.claude/agents/` out of version control — only `skills/`, `output-styles/`, `settings.json` and `hooks/` under `.claude/` are shared — so a skill committed here cannot ship reviewer definitions carrying a pinned `model:` id in their frontmatter. The `CLAUDE_CODE_SUBAGENT_MODEL` environment variable has to be set before a session starts, which is too early for a skill to set for its own run. Older versions do stay servable — a session configured for `claude-opus-4-6` runs on `claude-opus-4-6` — so if version separation is wanted later, the change is to start sharing `.claude/agents/`, not to reach for this parameter again.
 
 ### 7c — fan out; each reviewer comments on the PR
 
@@ -553,7 +554,7 @@ git diff origin/main...HEAD > review-diff.patch
 
 (`...` is deliberate: changes on your branch since it diverged from `main`, not `main`'s subsequent commits.) The file is untracked — delete it before committing any review fixes, or it gets swept in.
 
-Spawn the reviewers in parallel — one message, multiple Agent tool calls, all `subagent_type: general-purpose`, each with the `model:` from §7b. Posting a PR comment needs Bash and a scratch file, so read-only is not tool-enforced for reviewers; the prompt forbids repo edits and §7d checks that it was obeyed. Give each one, verbatim (fill in N = issue number, P = PR number, LENS — the reviewer supplies its own model, so that one is not yours to fill in):
+Spawn the reviewers in parallel — one message, multiple Agent tool calls, each with the `subagent_type` from §7b (or `general-purpose` plus a `model:`, on the fallback path). Posting a PR comment needs Bash and a scratch file, so read-only is not tool-enforced for reviewers; the prompt forbids repo edits and §7d checks that it was obeyed. Give each one, verbatim (fill in N = issue number, P = PR number, LENS — the reviewer supplies its own model, so that one is not yours to fill in):
 
 > You are reviewing a fix for issue #N in the Impower monorepo. The diff is in `review-diff.patch`; the working tree is the branch under review. Your lens is \<LENS\> — review only through it. Your job is to refute this change, not to approve it. Assume it is broken and find out how. If you are uncertain, report the concern rather than suppressing it. For each finding give: `file:line`, a concrete failure scenario (inputs → wrong output), and how you confirmed it in the code. Do not pad with non-findings. Do not edit, create, or delete any file inside the repo tree.
 >
