@@ -516,19 +516,20 @@ Reviewers cost real tokens. Scale the count to the blast radius of the change in
 
 When a diff sits between tiers, round up — a missed defect costs more than a reviewer. The undirected reviewer is never dropped, whatever the tier.
 
-### 7b — reviewers run on a different model than the writer
+### 7b — reviewers run on Opus, never on the writer's own version
 
-A model reviewing code written by the same model shares the writer's priors — it finds the same things plausible and overlooks the same things. The requirement is a different model, not a different family: a different version of the same family counts (Opus 5 reviewed by Opus 4.8 is a valid pairing), and staying close to the writer's capability tier beats dropping down one.
+A model reviewing code written by the same model shares the writer's priors — it finds the same things plausible and overlooks the same things. Reviewers always run on Opus. When the writer is itself Opus, that alone isn't enough separation — pass a different major version number, not just a different alias resolution, so the review still comes from a different vantage point (Opus 5 reviewed by Opus 4.6, and vice versa).
 
-Pass `model:` explicitly on every reviewer Agent call. The Agent tool's `model` values are family aliases (`fable`, `opus`, `sonnet`, `haiku`), each resolving to that family's current version — so an alias qualifies exactly when it resolves to a model other than you (your system prompt names your model):
+Pass `model:` explicitly on every reviewer Agent call, using a versioned model id so the major version is pinned rather than left to whatever the current alias resolves to:
 
-| You (the writer) | Reviewers get       |
-| ---------------- | ------------------- |
-| Fable            | `model: "opus 5"`   |
-| Opus 5           | `model: "opus 4.8"` |
-| Sonnet           | `model: "opus 5"`   |
+| You (the writer) | Reviewers get                                    |
+| ----------------- | ------------------------------------------------- |
+| Fable              | `model: "opus"` (current major version)          |
+| Sonnet            | `model: "opus"` (current major version)          |
+| Opus 5            | `model: "opus 4.6"` (a different major version)  |
+| Opus 4.6          | `model: "opus 5"` (a different major version)    |
 
-If the harness accepts a versioned model id for reviewers, an adjacent version of the writer's own family is the ideal pick. Never use haiku for review — it misses exactly the subtle defects this pass exists to catch.
+Never use haiku for review — it misses exactly the subtle defects this pass exists to catch.
 
 ### 7c — fan out; each reviewer comments on the PR
 
