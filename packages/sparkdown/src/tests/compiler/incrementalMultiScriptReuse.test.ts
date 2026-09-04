@@ -318,16 +318,19 @@ describe("incremental reuse across more than one script", () => {
     });
   });
 
-  it("an edit above every flow of its own script still disables reuse", () => {
-    // Content above a script's first flow lives outside every flow, and
-    // generation can fold it into flows in any script, so it has to switch
-    // reuse off wholesale. The included script opens with a scene on line 0, so
-    // a comparison that ignores which script a line belongs to never sees this
-    // edit as preceding a flow.
-    //
-    // What the guard does is refuse to reuse, so that is what this asserts —
-    // an output comparison would pass whether or not the guard fired, since
-    // reusing correctly and recomputing produce the same program.
+  // Content above a script's first flow lives outside every flow. Whether it
+  // costs reuse depends on WHAT changed, not on where it sits: a constant's
+  // value is initialized once rather than copied into referencing flows
+  // (#309), so editing it — even retyping it — changes no flow's shape, while
+  // a declared NAME entering the program changes the codegen of call sites in
+  // flows whose own source never changed.
+  //
+  // Both cases are exercised here because the interesting part is that they
+  // are seen at all: the included script opens with a scene on line 0, so a
+  // comparison that ignores which script a line belongs to never registers
+  // this edit as preceding a flow. Each asserts the reuse DECISION, since
+  // reusing correctly and recomputing produce the same program either way.
+  it("retyping a constant above every flow of its own script keeps reuse", () => {
     quiet(() => {
       const base = fixture("main", "face_old", "c0");
       const before = {
@@ -348,6 +351,45 @@ describe("incremental reuse across more than one script", () => {
         before.main,
         "const LIMIT = 5",
         'const LIMIT = "five"',
+      );
+      const second = compiler.compile({ textDocument: { uri: MAIN_URI } })
+        .program;
+      const oracle = cold(main, before.chapter);
+
+      // Both guards stay on: the constant's own script keeps serving its
+      // flows from cache, and a scene in the other script is spliced from its
+      // previous entry rather than re-walked.
+      expect(compiler.lastBytecodeReuse?.ok).toBe(true);
+      expect(compiler.lastBytecodeReuse?.reusable.has("c9")).toBe(true);
+      expect(compiler.captureOf("c9")).toBe(untouchedBefore);
+
+      expect(second.sceneAssets).toEqual(oracle.sceneAssets);
+      expect(second.compiled).toEqual(oracle.compiled);
+      expect(second.pathLocations).toEqual(oracle.pathLocations);
+    });
+  });
+
+  it("declaring a name above every flow of its own script disables reuse", () => {
+    quiet(() => {
+      const base = fixture("main", "face_old", "c0");
+      const before = {
+        main: base.main.replace(
+          "include chapter.sd",
+          "const LIMIT = 5\ninclude chapter.sd",
+        ),
+        chapter: base.chapter,
+      };
+      const compiler = newCompiler(before.main, before.chapter);
+      compiler.compile({ textDocument: { uri: MAIN_URI } });
+      const untouchedBefore = compiler.captureOf("c9");
+      expect(untouchedBefore).toBeDefined();
+
+      const main = edit(
+        compiler,
+        MAIN_URI,
+        before.main,
+        "const LIMIT = 5",
+        "const LIMIT = 5\nstore extra = 1",
       );
       const second = compiler.compile({ textDocument: { uri: MAIN_URI } })
         .program;
