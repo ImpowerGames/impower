@@ -364,7 +364,10 @@ async function scrubToLine(page, line, attempts = 4) {
   // click is the only thing left that can move it. Nothing in normal use sets
   // the variable; it exists so a session changing the fallback can prove the
   // fallback still works.
-  if (process.env["RESOLVE_ISSUE_NO_DISPATCH_SCRUB"]) {
+  // Compared against "1" rather than tested for truthiness: every string is
+  // truthy, so a bare check turns the conventional way of switching a flag off,
+  // RESOLVE_ISSUE_NO_DISPATCH_SCRUB=0, into the way of switching it on.
+  if (process.env["RESOLVE_ISSUE_NO_DISPATCH_SCRUB"] === "1") {
     return { line, dispatchDisabled: true };
   }
 
@@ -451,7 +454,21 @@ async function clickLine(page, line) {
     const view = document.querySelector(".cm-content")?.cmTile?.view;
     if (!view) return { ok: false, reason: "no CodeMirror view" };
     const l = view.state.doc.line(target);
-    const co = view.coordsAtPos(l.from + Math.min(6, l.length));
+    const pos = l.from + Math.min(6, l.length);
+    // A click that resolves to the position the caret already holds changes no
+    // selection, and so produces no event for the editor to forward. An empty
+    // line always hits this, since there is no character to aim past. Say so
+    // rather than clicking and reporting a success that moved nothing.
+    if (pos === view.state.selection.main.head) {
+      return {
+        ok: false,
+        reason:
+          `a click on line ${target} would land on the position the caret already ` +
+          `holds, so it would change no selection` +
+          (l.length === 0 ? ` (the line is empty)` : ``),
+      };
+    }
+    const co = view.coordsAtPos(pos);
     if (!co) return { ok: false, reason: `line ${target} is not rendered` };
     const x = Math.round(co.left + 1);
     const y = Math.round((co.top + co.bottom) / 2);
@@ -545,9 +562,15 @@ async function routeLabel(page) {
   });
 }
 
-// The beat the preview actually landed on. In "main : 1 → main : 8" that is 8;
-// with no arrow ("main : 1") it is 1. This number is the SOURCE LINE the engine
-// settled on, so it can be compared directly against the line we scrubbed to.
+// The beat the preview paused on. In "main : 1 → main : 8" that is 8; with no
+// arrow ("main : 1") it is 1.
+//
+// Do NOT read this as the line that was scrubbed to. The engine pauses on the
+// beat AFTER the content it played, so it equals the requested line only when
+// nothing follows that line: scrubbing to line 20 of a 63-line script settles
+// on beat 22. Comparing it for equality is a rough smoke test that reports a
+// mismatch on healthy mid-script scrubs; `previewText` is what says whether the
+// preview is actually showing the requested line.
 function routeBeat(label) {
   if (!label) return null;
   const nums = [...label.matchAll(/main\s*:\s*(\d+)/g)].map((m) => Number(m[1]));
@@ -633,7 +656,13 @@ async function verify(args) {
         // re-arm it by bouncing the cursor to line 1 and back — a repeat
         // dispatch at the SAME position produces no `selectionSet`, so bouncing
         // is required, not optional.
-        for (let i = 0; i < 3 && routeBeat(result.route) !== target; i++) {
+        for (
+          let i = 0;
+          i < 3 &&
+          !result.scrub?.dispatchDisabled && // every bounce here is a dispatch
+          routeBeat(result.route) !== target;
+          i++
+        ) {
           await scrubToLine(page, 1);
           await page.waitForTimeout(600);
           await scrubToLine(page, target);
@@ -647,9 +676,25 @@ async function verify(args) {
         // a warning where a scrub was still available. One trusted click drives
         // the selection path a real user drives, which recovers those runs.
         if (routeBeat(result.route) !== target) {
+          const routeBefore = result.route;
+          const visibleBefore = settle.text;
           result.scrubClick = await clickLine(page, target);
           settle = await waitForPreviewSettle(page);
           result.route = await routeLabel(page);
+          // Because the beat check above is unequal on healthy scrubs too, the
+          // click runs on most every run and its mere presence says nothing.
+          // This is the field that carries the signal: false means dispatch had
+          // already done the work and the click was redundant, true means the
+          // click is what moved the preview. Without it a regression in the
+          // dispatch path would hide behind a click that silently compensates.
+          // Split into the two underlying signals: a bare boolean is impossible
+          // to audit when it says something surprising, and the rendered text
+          // can differ for reasons that are not a move.
+          result.scrubClick.routeChanged = result.route !== routeBefore;
+          result.scrubClick.textChanged = settle.text !== visibleBefore;
+          result.scrubClick.movedPreview =
+            result.scrubClick.routeChanged || result.scrubClick.textChanged;
+          if (result.scrubClick.routeChanged) result.scrubClick.routeBefore = routeBefore;
         }
 
         // Beat equality is a rough test, not a verdict. The engine pauses on the
@@ -658,16 +703,26 @@ async function verify(args) {
         // after it settles on its own number. So this warning fires on healthy
         // mid-script scrubs too, and `visible` is what tells the two apart.
         if (routeBeat(result.route) !== target) {
+          const click = result.scrubClick;
+          let clickNote = "";
+          if (click?.clicked) {
+            const where = Number.isFinite(click.cursorLine)
+              ? `line ${click.cursorLine}`
+              : `a position it could not read back`;
+            clickNote =
+              ` A trusted click put the cursor on ${where} and ` +
+              (click.movedPreview ? `did move the preview.` : `changed nothing.`);
+          } else if (click) {
+            clickNote = ` The trusted-click fallback could not run: ${click.reason}.`;
+          }
           result.scrubWarning =
-            `preview settled on beat ${routeBeat(result.route)}, not line ${target}` +
-            (result.scrubClick?.clicked
-              ? ` even after a trusted click put the cursor on line ${result.scrubClick.cursorLine}`
-              : ``) +
-            ` — read \`visible\` before calling this a failed scrub. The engine pauses ` +
-            `on the beat after the one it played, so a nearby beat number is normal; ` +
-            `a genuinely failed scrub shows text from a different part of the script. ` +
-            `Failing that, the line may not be a playable beat (blank line / ` +
-            `character name / heading).`;
+            `preview settled on beat ${routeBeat(result.route)}, not line ${target}.` +
+            clickNote +
+            ` Read \`visible\` before calling this a failed scrub: the engine pauses on ` +
+            `the beat after the one it played, so a nearby beat number is normal, and a ` +
+            `genuinely failed scrub shows text from a different part of the script. ` +
+            `Failing that, the line may not be a playable beat (blank line / character ` +
+            `name / heading).`;
         }
       } else {
         result.route = await routeLabel(page);

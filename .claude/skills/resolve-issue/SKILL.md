@@ -263,10 +263,14 @@ How to read it — **check these before trusting the PNG**:
   the scrub landed: it should be the target line's own text. **Every line appears
   twice**: the second copy is the text _outline_ layer. Expected — not duplicated
   output.
-- `scrubClick` — present only when the dispatch-based scrub did not satisfy the
-  beat check and the driver fell back to a real mouse click. `clicked: true` with
-  a `cursorLine` matching your target means the click drove the selection;
-  `clicked: false` carries a `reason`.
+- `scrubClick` — the driver's fallback to a real mouse click, which it tries
+  whenever the beat check above is unequal. Since that check is unequal on
+  healthy mid-script scrubs too, this field is present on most runs and its
+  presence alone means nothing. `movedPreview` is the part that carries signal:
+  `false` means the dispatch had already done the work and the click was
+  redundant, `true` means the click is what moved the preview. A run that starts
+  reporting `true` where it used to report `false` is a dispatch regression.
+  `clicked: false` carries a `reason` instead.
 - `settled: false` — the DOM never stopped mutating. Re-run.
 
 `--sd` is only needed when the script changes: the pinned port keeps the same
@@ -668,8 +672,9 @@ reload), `--line <N>` (scrub the preview to that source line), `--shot <out.png>
 `--probe <file.js>` (body of an async function evaluated in the editor page;
 its return value lands in the JSON), `--headed` (visible browser).
 
-`verify` scrubs by dispatching a selection into CodeMirror and falls back to a
-real mouse click when that does not move the preview. Setting
+`verify` scrubs by dispatching a selection into CodeMirror, then tries a real
+mouse click whenever the beat check is unequal — which, per the `route` bullet in
+§4, is most runs rather than only the failed ones. Setting
 `RESOLVE_ISSUE_NO_DISPATCH_SCRUB=1` disables the dispatch half, leaving the click
 as the only thing that can move it — that is how you prove the fallback still
 works after touching it, since a passing ordinary run cannot tell you which of
@@ -732,6 +737,13 @@ Things that look like they work and don't:
   for.
 - **Re-dispatching the same cursor position produces no event.** To re-arm a
   scrub you must bounce to another line and back.
+- **The preview keeps the position the LAST run left it on**, because the
+  profile and the origin are both pinned and the editor restores the previous
+  cursor. So a run that scrubs to the line a previous run already reached looks
+  like a success whether or not this run's scrub did anything, and a run whose
+  scrub fails silently shows the previous run's beat rather than an obvious
+  error. When you are testing the scrub itself rather than using it, always aim
+  at a line the previous run did not visit, and read `scrubClick.movedPreview`.
 - **A real (trusted) click on the target line is the most reliable scrub.**
   `view.dispatch({selection})` moves the caret, but the preview can silently
   fail to follow — the cursor sits on the line you asked for while `route`
