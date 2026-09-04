@@ -1,3 +1,17 @@
 {
-  "outputStyle": "Plain English"
+  "outputStyle": "Plain English",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "prompt",
+            "prompt": "The user is attempting to edit a file. Check if the file_path in the tool_input matches any of these generated grammar files:\n- packages/sparkdown/language/sparkdown.language-grammar.json\n- packages/sparkdown/language/sparkdown.language-config.json\n- packages/sparkdown/language/sparkdown.language-snippets.json\n\nIf it matches one of these files, respond with a JSON object that blocks the action and provides guidance. Otherwise, allow it to proceed.\n\n$ARGUMENTS",
+            "continueOnBlock": false
+          }
+        ]
+      }
+    ]
+  }
 }
