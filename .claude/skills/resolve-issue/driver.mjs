@@ -346,51 +346,97 @@ async function waitForEditor(page, timeout = 90_000) {
   );
 }
 
-// Scrub the game preview to a source line.
+// Scrub the game preview to a source line, by clicking that line.
 //
-// Two things will silently defeat you here:
+// The click is a real one, driven through Playwright's mouse. A programmatic
+// `view.dispatch({selection})` moves the caret without a user event behind it,
+// and the editor does not reliably forward that move to the player: the cursor
+// sits on the requested line while the route indicator stays on the old beat,
+// for as long as you care to wait, with nothing raised. Measured across this
+// harness it never moved the preview, so nothing here dispatches a selection.
+//
+// Three details this depends on:
+//   - Scrolling moves `scrollDOM.scrollTop` directly instead of dispatching a
+//     transaction with `scrollIntoView`, so the whole path stays free of the
+//     mechanism above.
+//   - `coordsAtPos` only answers for lines CodeMirror has actually rendered,
+//     and its answer is stale until the scroll has landed and the view has
+//     re-measured — hence the scroll, the wait, and a separate re-read.
+//   - The click lands a few characters INTO the line rather than at its very
+//     start, so it still changes the selection when the caret is already parked
+//     at the start; a selection that does not change produces no event for the
+//     editor to forward.
+//
+// Two things will silently defeat a scrub however it is driven:
 //   1. Scrubbing ONLY works while the preview is STOPPED. Once you press PLAY
-//      the engine is time-driven and ignores the cursor entirely — the scrub
-//      appears to do nothing.
+//      the engine is time-driven and ignores the cursor entirely.
 //   2. The editor RESTORES the previous session's cursor position asynchronously
-//      after load, so a scrub issued too early gets clobbered a second later and
-//      the preview settles on the OLD line. Hence the dispatch/re-read/
-//      re-dispatch loop below.
-async function scrubToLine(page, line, attempts = 4) {
-  const dispatch = (n) =>
-    page.evaluate((target) => {
-      const view = document.querySelector(".cm-content")?.cmTile?.view;
-      if (!view) throw new Error("no CodeMirror view");
-      const total = view.state.doc.lines;
-      const clamped = Math.min(Math.max(1, target), total);
-      view.focus();
-      view.dispatch({ selection: { anchor: view.state.doc.line(clamped).from } });
-      return { line: clamped, totalLines: total };
-    }, n);
+//      after load, so the caller must let the first compile settle before
+//      scrubbing, or the restore lands afterwards and wins.
+async function clickLine(page, line) {
+  const scrolled = await page.evaluate((target) => {
+    const view = document.querySelector(".cm-content")?.cmTile?.view;
+    if (!view) return { ok: false, reason: "no CodeMirror view" };
+    const total = view.state.doc.lines;
+    const clamped = Math.min(Math.max(1, target), total);
+    const block = view.lineBlockAt(view.state.doc.line(clamped).from);
+    const scroller = view.scrollDOM;
+    // `block.top` is in the document's own coordinate space and `documentTop`
+    // is where that space currently sits on screen, so their sum is the line's
+    // screen position. Centre it in the scroller.
+    const screenY = view.documentTop + block.top;
+    const wantY = scroller.getBoundingClientRect().top + scroller.clientHeight / 2;
+    scroller.scrollTop += screenY - wantY;
+    return { ok: true, line: clamped, totalLines: total };
+  }, line);
+  if (!scrolled.ok) return { clicked: false, reason: scrolled.reason };
 
-  const currentLine = () =>
-    page.evaluate(() => {
-      const view = document.querySelector(".cm-content")?.cmTile?.view;
-      if (!view) return null;
-      return view.state.doc.lineAt(view.state.selection.main.head).number;
-    });
+  await page.waitForTimeout(600); // let the scroll land and the view re-measure
 
-  // The restore can fire LATE — well after a single 1.2s check passes — so one
-  // confirmation is not enough. Require the cursor to hold the target across
-  // consecutive checks; that outlasts the restore instead of racing it.
-  let info = await dispatch(line);
-  let holds = 0;
-  for (let i = 0; i < attempts * 3; i++) {
-    await page.waitForTimeout(1200);
-    const at = await currentLine();
-    if (at === info.line) {
-      if (++holds >= 3) return { ...info, settledAfter: i + 1 };
-    } else {
-      holds = 0;
-      info = await dispatch(line); // restore clobbered us — go again
+  const spot = await page.evaluate((target) => {
+    const view = document.querySelector(".cm-content")?.cmTile?.view;
+    if (!view) return { ok: false, reason: "no CodeMirror view" };
+    const l = view.state.doc.line(target);
+    const pos = l.from + Math.min(6, l.length);
+    // A click that resolves to the position the caret already holds changes no
+    // selection, and so produces no event for the editor to forward. An empty
+    // line always hits this, since there is no character to aim past. Say so
+    // rather than clicking and reporting a success that moved nothing.
+    if (pos === view.state.selection.main.head) {
+      return {
+        ok: false,
+        reason:
+          `a click on line ${target} would land on the position the caret already ` +
+          `holds, so it would change no selection` +
+          (l.length === 0 ? ` (the line is empty)` : ``),
+      };
     }
-  }
-  return { ...info, warning: `cursor kept drifting; wanted line ${info.line}` };
+    const co = view.coordsAtPos(pos);
+    if (!co) return { ok: false, reason: `line ${target} is not rendered` };
+    const x = Math.round(co.left + 1);
+    const y = Math.round((co.top + co.bottom) / 2);
+    // Clicking a toolbar or some overlay instead of the text would leave the
+    // preview exactly where it was, so check what is under the point rather
+    // than assuming the coordinates are reachable.
+    const hit = document.elementFromPoint(x, y);
+    if (!hit || !hit.closest(".cm-content")) {
+      return {
+        ok: false,
+        reason: `point (${x}, ${y}) is covered by ${hit ? hit.tagName.toLowerCase() : "nothing"}`,
+      };
+    }
+    return { ok: true, x, y };
+  }, scrolled.line);
+  if (!spot.ok) return { clicked: false, line: scrolled.line, reason: spot.reason };
+
+  await page.mouse.click(spot.x, spot.y);
+
+  const cursorLine = await page.evaluate(() => {
+    const view = document.querySelector(".cm-content")?.cmTile?.view;
+    if (!view) return null;
+    return view.state.doc.lineAt(view.state.selection.main.head).number;
+  });
+  return { clicked: true, line: scrolled.line, x: spot.x, y: spot.y, cursorLine };
 }
 
 // Wait for the game to actually MOUNT inside the player iframe.
@@ -459,9 +505,119 @@ async function routeLabel(page) {
   });
 }
 
-// The beat the preview actually landed on. In "main : 1 → main : 8" that is 8;
-// with no arrow ("main : 1") it is 1. This number is the SOURCE LINE the engine
-// settled on, so it can be compared directly against the line we scrubbed to.
+// Every line of the open document, as source text.
+async function documentLines(page) {
+  return page.evaluate(() => {
+    const view = document.querySelector(".cm-content")?.cmTile?.view;
+    if (!view) return null;
+    const out = [];
+    for (let i = 1; i <= view.state.doc.lines; i++) {
+      out.push(view.state.doc.line(i).text);
+    }
+    return out;
+  });
+}
+
+// Did the preview land on the line we asked for?
+//
+// The route number cannot answer this. It reports how far execution reached
+// rather than the line requested, so it differs from the target on every line
+// with anything after it, and a check built on it warns on healthy scrubs and
+// teaches its reader to ignore it (#419 — this function is that fix).
+//
+// The rendered text can answer it, but only for lines it can attribute, so
+// there are three outcomes rather than a boolean:
+//
+//   landed        the target line's own text is on screen
+//   elsewhere     some other line's text is on screen and the target's is not.
+//                 A real failed scrub, and it names what it found instead.
+//   inconclusive  nothing attributable. Either the line does not render
+//                 verbatim (interpolation, markup, a heading, a character name)
+//                 or its text cannot be told apart from another line's.
+//
+// "inconclusive" is a real answer, not a soft failure. Collapsing it into
+// either of the others is what makes a check like this dangerous: reported as
+// success it hides failed scrubs, which is the one thing this harness exists to
+// catch, and reported as failure it is the very noise #419 is about.
+//
+// A line is usable as evidence only when its trimmed text is at least three
+// characters and is not contained in any other line's text. That second
+// condition is what stops "Hello" being read as proof while the screen shows
+// "Hello there", and it makes duplicated lines unusable in both directions
+// instead of silently attributing to whichever came first.
+export function classifyScrub(lines, target, visible) {
+  if (!Array.isArray(lines) || lines.length === 0) {
+    return {
+      outcome: "inconclusive",
+      reason: "the editor returned no document text to compare against",
+    };
+  }
+  if (typeof visible !== "string" || visible.trim() === "") {
+    return {
+      outcome: "inconclusive",
+      reason: "the game rendered no text to compare against",
+    };
+  }
+
+  const trimmed = lines.map((l) => (typeof l === "string" ? l.trim() : ""));
+  const idx = target - 1;
+  if (!Number.isInteger(idx) || idx < 0 || idx >= trimmed.length) {
+    return {
+      outcome: "inconclusive",
+      reason: `line ${target} is outside the document (${trimmed.length} lines)`,
+    };
+  }
+
+  // Deliberately not precomputed for every line: on a long script that is a
+  // quadratic scan of substring tests. Only the target and the handful of lines
+  // actually present in `visible` are ever asked.
+  const attributable = (i) => {
+    const t = trimmed[i];
+    if (!t || t.length < 3) return false;
+    return !trimmed.some((other, j) => j !== i && other && other.includes(t));
+  };
+
+  const targetAttributable = attributable(idx);
+  if (targetAttributable && visible.includes(trimmed[idx])) {
+    return { outcome: "landed" };
+  }
+
+  const showing = [];
+  for (let i = 0; i < trimmed.length; i++) {
+    if (i === idx) continue;
+    if (!trimmed[i] || !visible.includes(trimmed[i])) continue; // cheap filter first
+    if (attributable(i)) showing.push(i + 1);
+  }
+  if (showing.length > 0) {
+    return {
+      outcome: "elsewhere",
+      showing,
+      reason:
+        `the game is showing line${showing.length > 1 ? "s" : ""} ` +
+        `${showing.join(", ")}, not line ${target}`,
+    };
+  }
+
+  return {
+    outcome: "inconclusive",
+    reason: targetAttributable
+      ? `line ${target}'s text is not on screen and neither is any other line's, ` +
+        `so it may simply not render verbatim (interpolation, markup, a heading, ` +
+        `a character-name line)`
+      : `line ${target}'s text cannot be told apart from other lines in the ` +
+        `script, so the rendered text can neither confirm nor deny the scrub`,
+  };
+}
+
+// The beat the preview paused on. In "main : 1 → main : 8" that is 8; with no
+// arrow ("main : 1") it is 1.
+//
+// Do NOT read this as the line that was scrubbed to. The engine pauses on the
+// beat AFTER the content it played, so it equals the requested line only when
+// nothing follows that line: scrubbing to line 20 of a 63-line script settles
+// on beat 22. Comparing it for equality is a rough smoke test that reports a
+// mismatch on healthy mid-script scrubs; `previewText` is what says whether the
+// preview is actually showing the requested line.
 function routeBeat(label) {
   if (!label) return null;
   const nums = [...label.matchAll(/main\s*:\s*(\d+)/g)].map((m) => Number(m[1]));
@@ -539,26 +695,52 @@ async function verify(args) {
 
       if (line) {
         const target = Number(line);
-        result.scrub = await scrubToLine(page, target);
+        result.scrub = await clickLine(page, target);
+        // A line CodeMirror has not rendered yet can refuse the first attempt;
+        // giving the view time to catch up and asking once more is cheap.
+        if (!result.scrub.clicked) {
+          await page.waitForTimeout(1500);
+          result.scrub = await clickLine(page, target);
+        }
+
         settle = await waitForPreviewSettle(page);
         result.route = await routeLabel(page);
 
-        // Confirm the preview really moved. If the selection event was dropped,
-        // re-arm it by bouncing the cursor to line 1 and back — a repeat
-        // dispatch at the SAME position produces no `selectionSet`, so bouncing
-        // is required, not optional.
-        for (let i = 0; i < 3 && routeBeat(result.route) !== target; i++) {
-          await scrubToLine(page, 1);
-          await page.waitForTimeout(600);
-          await scrubToLine(page, target);
-          settle = await waitForPreviewSettle(page);
-          result.route = await routeLabel(page);
-          result.scrubRetries = i + 1;
-        }
-        if (routeBeat(result.route) !== target) {
+        // There is deliberately no "did the preview move" field here. Every
+        // `verify` reloads the page, so the preview always starts at the top and
+        // the route labels are empty until the first selection arrives — a
+        // before/after comparison is therefore true on every run, and a field
+        // that is always true is one nobody reads.
+
+        // Whether the scrub landed is decided from the rendered text, not from
+        // the route number. See classifyScrub.
+        result.scrubCheck = classifyScrub(
+          await documentLines(page),
+          target,
+          settle.text,
+        );
+
+        if (result.scrubCheck.outcome !== "landed") {
+          const scrub = result.scrub;
+          let clickNote = "";
+          if (scrub?.clicked) {
+            const where = Number.isFinite(scrub.cursorLine)
+              ? `line ${scrub.cursorLine}`
+              : `a position it could not read back`;
+            clickNote = ` The click put the cursor on ${where}.`;
+          } else if (scrub) {
+            clickNote = ` The click could not run: ${scrub.reason}.`;
+          }
           result.scrubWarning =
-            `preview settled on beat ${routeBeat(result.route)}, not line ${target} — ` +
-            `the line may not be a playable beat (blank line / character name / heading)`;
+            (result.scrubCheck.outcome === "elsewhere"
+              ? `the scrub did not land: ${result.scrubCheck.reason}. The screenshot ` +
+                `is not evidence about line ${target}.`
+              : `Could not confirm the scrub landed: ${result.scrubCheck.reason}. ` +
+                `This is not the same as a failure — read \`visible\` and judge it ` +
+                `yourself.`) +
+            clickNote +
+            ` (The \`route\` number is not a check on this: it reports how far ` +
+            `execution reached, not the line requested.)`;
         }
       } else {
         result.route = await routeLabel(page);
@@ -603,8 +785,16 @@ function flag(args, name) {
 }
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-const [cmd, ...rest] = process.argv.slice(2);
+// Only dispatch when run as a command. `classifyScrub` is a pure function with
+// its own test beside this file, and importing it must not boot a browser.
+const runAsCli =
+  process.argv[1] != null &&
+  path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+
+const [cmd, ...rest] = runAsCli ? process.argv.slice(2) : ["__imported__"];
 switch (cmd) {
+  case "__imported__":
+    break;
   case "preflight":
     await preflight();
     break;

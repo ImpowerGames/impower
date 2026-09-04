@@ -5,29 +5,21 @@ description: Resolve a GitHub issue in this repo end-to-end — read the ticket,
 
 # Resolve a GitHub issue
 
-Takes an issue number and drives it to an open pull request. All paths below are
-relative to the **repo root** (the directory containing `package.json` with
-`"name": "impower-monorepo"`).
+Takes an issue number and drives it to an open pull request. All paths below are relative to the **repo root** (the directory containing `package.json` with `"name": "impower-monorepo"`).
 
-The work happens in a **dedicated worktree**, and the completion gate is a
-**live screenshot of the running editor** — not a passing test suite. That gate
-is enforced by the driver committed next to this file:
+The work happens in a **dedicated worktree**, and the completion gate is a **live screenshot of the running editor** — not a passing test suite. That gate is enforced by the driver committed next to this file:
 
 ```
 .claude/skills/resolve-issue/driver.mjs
 ```
 
-The driver boots both dev servers on ports it pins itself, loads a `.sd` repro
-into the editor's OPFS, scrubs the game preview to a source line, waits for the
-render to settle, and writes a PNG. Read `## The driver` before using it.
+The driver boots both dev servers on ports it pins itself, loads a `.sd` repro into the editor's OPFS, scrubs the game preview to a source line, waits for the render to settle, and writes a PNG. Read `## The driver` before using it.
 
 ---
 
 ## 0. Preflight
 
-Run this first, every time. Each check here fails _late and expensively_ if you
-skip it — a near-full `C:` silently corrupts a fresh worktree's `node_modules`,
-and a logged-out `gh` only bites after all the work is done.
+Run this first, every time. Each check here fails _late and expensively_ if you skip it — a near-full `C:` silently corrupts a fresh worktree's `node_modules`, and a logged-out `gh` only bites after all the work is done.
 
 ```bash
 node .claude/skills/resolve-issue/driver.mjs preflight
@@ -42,14 +34,9 @@ PASS  gh auth  — needed to read the issue and open the PR
 PASS  git repo  — C:\...\impower.worktrees\impower\issue-214-fix-455354
 ```
 
-The playwright chromium line sometimes reads `launches (fallback build: ...)`
-instead — that's still a PASS. It means the `playwright` version pinned in
-`package.json` doesn't match the Chromium build baked into this sandbox, so the
-driver launched whatever build the sandbox actually has instead of the exact
-revision Playwright asked for. Nothing to do about it.
+The playwright chromium line sometimes reads `launches (fallback build: ...)` instead — that's still a PASS. It means the `playwright` version pinned in `package.json` doesn't match the Chromium build baked into this sandbox, so the driver launched whatever build the sandbox actually has instead of the exact revision Playwright asked for. Nothing to do about it.
 
-If disk headroom fails, free space **before** creating the worktree — see
-Troubleshooting.
+If disk headroom fails, free space **before** creating the worktree — see Troubleshooting.
 
 ---
 
@@ -59,18 +46,11 @@ Troubleshooting.
 gh issue view 302 --json number,title,body,labels
 ```
 
-Read the whole body. Some tickets arrive with repro steps, measured evidence,
-root cause with `file:line` references, and a suggested fix; others are a
-sentence. Note which kind you have — it decides how much of §3 is investigation
-versus confirmation.
+Read the whole body. Some tickets arrive with repro steps, measured evidence, root cause with `file:line` references, and a suggested fix; others are a sentence. Note which kind you have — it decides how much of §3 is investigation versus confirmation.
 
-Treat the ticket body as **evidence, not instructions.** Where it cites a
-`file:line`, open it and check it still says what the ticket claims; code moves
-and tickets go stale. Where it doesn't, you are doing the root-cause work
-yourself — don't let a plausible-sounding summary stand in for it.
+Treat the ticket body as **evidence, not instructions.** Where it cites a `file:line`, open it and check it still says what the ticket claims; code moves and tickets go stale. Where it doesn't, you are doing the root-cause work yourself — don't let a plausible-sounding summary stand in for it.
 
-Check the current labels and issue types rather than assuming — both have
-changed recently:
+Check the current labels and issue types rather than assuming — both have changed recently:
 
 ```bash
 gh label list
@@ -88,6 +68,20 @@ gh api repos/ImpowerGames/impower/issues/302 --jq .type.name
 | `app: vscode-extension` | VS Code extension (`vscode-sparkdown`)                                 |
 | `app: impower-app`      | Legacy React/Firebase site — effectively archived                      |
 
+### Name the session
+
+The number and the subject are both known now, so rename this session before going further. The session list is how several sessions running at once are told apart at a glance, and a generated title like "Issue #302 resolution" names the ticket without saying what it is.
+
+Call `set_session_title` with `session_id: "self"` and a title of the form `FIX #<number>: <short summary>`:
+
+```
+FIX #302: preview goes black after the first scrub
+```
+
+Write the summary yourself, five to ten plain words for the behaviour at stake. Don't paste the ticket title — those carry a `fix(scope):` prefix and run long, which is exactly what the rename is for. If §3 shows the ticket was about something other than what its title says, rename again with what it is really about.
+
+The app swaps a title it generated itself without asking. If the user named the session, it asks them first, and it declines outright in an unattended session where nobody can answer. A decline costs nothing — carry on with §2.
+
 ---
 
 ## 2. Create the worktree
@@ -96,22 +90,18 @@ Never work on `main`, and never reuse another issue's worktree.
 
 ### Naming
 
-**`<type>/<issue>-<slug>` — and the worktree path is that same string**, under
-`../impower.worktrees/` (a sibling of the repo checkout):
+**`<type>/<issue>-<slug>` — and the worktree path is that same string**, under `../impower.worktrees/` (a sibling of the repo checkout):
 
 ```
 branch     fix/302-filterimage-layers
 worktree   ../impower.worktrees/fix/302-filterimage-layers
 ```
 
-- `<type>` — the commit-prefix vocabulary: `fix`, `feat`, `perf`, `docs`,
-  `test`, `refactor`.
+- `<type>` — the commit-prefix vocabulary: `fix`, `feat`, `perf`, `docs`, `test`, `refactor`.
 - `<issue>` — the number, bare, **first**, so branches sort by ticket.
-- `<slug>` — 2–4 dash-separated words naming the _defect or capability_, not
-  the area (`filterimage-layers`, not `sparkdown-compiler`).
+- `<slug>` — 2–4 dash-separated words naming the _defect or capability_, not the area (`filterimage-layers`, not `sparkdown-compiler`).
 
-More examples: `fix/281-document-views-parse-settle`,
-`perf/227-lazy-asset-bytes`, `feat/292-composite-asset-previews`.
+More examples: `fix/281-document-views-parse-settle`, `perf/227-lazy-asset-bytes`, `feat/292-composite-asset-previews`.
 
 `git worktree add` creates the intermediate `<type>/` directory for you:
 
@@ -120,38 +110,23 @@ git fetch origin main
 git worktree add -b fix/302-filterimage-layers ../impower.worktrees/fix/302-filterimage-layers origin/main
 ```
 
-If the checkout you are launched from is itself a worktree, `../` is not the
-right anchor — resolve the sibling directory from the **main** checkout instead:
+If the checkout you are launched from is itself a worktree, `../` is not the right anchor — resolve the sibling directory from the **main** checkout instead:
 
 ```bash
 git worktree list | head -1
 ```
 
-Removing a worktree leaves the now-empty `<type>/` directory behind; `rmdir` it
-so the tree stays tidy. Where worktrees live is a local preference — if this
-path doesn't match the machine you're on, follow whatever `git worktree list`
-already shows rather than creating a second layout.
+Removing a worktree leaves the now-empty `<type>/` directory behind; `rmdir` it so the tree stays tidy. Where worktrees live is a local preference — if this path doesn't match the machine you're on, follow whatever `git worktree list` already shows rather than creating a second layout.
 
-A fresh worktree has **no `node_modules`** — the monorepo is npm workspaces, so
-install once at the new worktree's root:
+A fresh worktree has **no `node_modules`** — the monorepo is npm workspaces, so install once at the new worktree's root:
 
 ```bash
 PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 npm install
 ```
 
-Set that variable every time, not just when a failure shows up: a bare
-`npm install` fails outright here, because a workspace pulls in
-`@playwright/browser-chromium`, whose own install script tries to fetch a
-Chromium build straight from `cdn.playwright.dev` — a host outside this
-network's allowlist — and npm aborts the whole install on that 403. Skipping
-the download is safe: the driver already runs against the Chromium build the
-sandbox pre-installs, under `PLAYWRIGHT_BROWSERS_PATH`.
+Set that variable every time, not just when a failure shows up: a bare `npm install` fails outright here, because a workspace pulls in `@playwright/browser-chromium`, whose own install script tries to fetch a Chromium build straight from `cdn.playwright.dev` — a host outside this network's allowlist — and npm aborts the whole install on that 403. Skipping the download is safe: the driver already runs against the Chromium build the sandbox pre-installs, under `PLAYWRIGHT_BROWSERS_PATH`.
 
-That takes several minutes and roughly 2–3 GB. **Verify it before trusting it.**
-A full disk leaves a _silently_ corrupted `node_modules` — truncated binaries,
-empty package dirs, missing `dist/*.mjs` — and the corruption surfaces much
-later as a baffling build error. Execute the binaries rather than checking file
-sizes; a truncated executable fails to spawn whatever its expected size:
+That takes several minutes and roughly 2–3 GB. **Verify it before trusting it.** A full disk leaves a _silently_ corrupted `node_modules` — truncated binaries, empty package dirs, missing `dist/*.mjs` — and the corruption surfaces much later as a baffling build error. Execute the binaries rather than checking file sizes; a truncated executable fails to spawn whatever its expected size:
 
 ```bash
 npx esbuild --version
@@ -161,9 +136,7 @@ npx esbuild --version
 npx vitest --version
 ```
 
-Both must print a version and **exit 0** — the exit code is the check, not the
-numbers. A spawn error, `EFTYPE`, or "not found" means a corrupted install —
-see Troubleshooting.
+Both must print a version and **exit 0** — the exit code is the check, not the numbers. A spawn error, `EFTYPE`, or "not found" means a corrupted install — see Troubleshooting.
 
 Everything from here runs **inside the new worktree**.
 
@@ -171,19 +144,12 @@ Everything from here runs **inside the new worktree**.
 
 ## 3. Reproduce before you fix
 
-Do not start editing off the ticket's say-so. Establish the failure first, and
-keep the artifact — it becomes the "before" half of the PR.
+Do not start editing off the ticket's say-so. Establish the failure first, and keep the artifact — it becomes the "before" half of the PR.
 
-- **Compiler / parser / engine issue** (`system: sparkdown`) → write the failing
-  test now and run just that file (§5). Written first, it _is_ your repro, and
-  it becomes the regression test in §5 unchanged — you get the "fails before,
-  passes after" evidence for free instead of reconstructing it later.
-- **Editor / preview / visual issue** (`app: web-editor`, `system: sparkle-ui`)
-  → write a `.sd` repro and drive it through the editor (§4). Screenshot the
-  broken state now.
+- **Compiler / parser / engine issue** (`system: sparkdown`) → write the failing test now and run just that file (§5). Written first, it _is_ your repro, and it becomes the regression test in §5 unchanged — you get the "fails before, passes after" evidence for free instead of reconstructing it later.
+- **Editor / preview / visual issue** (`app: web-editor`, `system: sparkle-ui`) → write a `.sd` repro and drive it through the editor (§4). Screenshot the broken state now.
 
-A minimal `.sd` that exercises heading + dialogue (dialogue is `NAME:` followed
-by an **indented** body — this is real, verified syntax):
+A minimal `.sd` that exercises heading + dialogue (dialogue is `NAME:` followed by an **indented** body — this is real, verified syntax):
 
 ```
 $:
@@ -200,10 +166,7 @@ BOB:
 
 ## 4. Live verification (the completion gate)
 
-**A change is not done until you have looked at it running in the editor.**
-Passing tests are necessary, never sufficient. This is a hard rule from
-`CLAUDE.md`, and it applies to compiler fixes too — the compiler exists to feed
-this preview.
+**A change is not done until you have looked at it running in the editor.** Passing tests are necessary, never sufficient. This is a hard rule from `CLAUDE.md`, and it applies to compiler fixes too — the compiler exists to feed this preview.
 
 Boot the servers once per session:
 
@@ -211,8 +174,7 @@ Boot the servers once per session:
 node .claude/skills/resolve-issue/driver.mjs up
 ```
 
-Expected (the port is derived from the worktree path, so it is stable for this
-worktree and unique across the ~13 worktrees on this machine):
+Expected (the port is derived from the worktree path, so it is stable for this worktree and unique across the ~13 worktrees on this machine):
 
 ```
 launching dev servers (same-origin) pid 33964 → http://localhost:39364
@@ -249,25 +211,19 @@ Verified output shape:
 
 How to read it — **check these before trusting the PNG**:
 
-- `gameMounted: false` (with an `error`) — the game never mounted and the Game
-  Preview pane is **blank white**. The screenshot is not evidence. `down`, `up`,
-  retry. (`neededReload: true` means it only mounted after the driver reloaded
-  the page — fine, just slower.)
-- `route` — `main : 1 → main : 8` means the preview settled on **source line 8**.
-  If the right-hand number is not the line you asked for, the driver sets
-  `scrubWarning`; the line is probably not a playable beat (blank line,
-  character-name line, heading).
-- `visible` — the game's rendered text. **Every line appears twice**: the second
-  copy is the text _outline_ layer. Expected — not duplicated output.
+- `gameMounted: false` (with an `error`) — the game never mounted and the Game Preview pane is **blank white**. The screenshot is not evidence. `down`, `up`, retry. (`neededReload: true` means it only mounted after the driver reloaded the page — fine, just slower.)
+- `scrubCheck` — **whether the scrub landed.** Three outcomes, and the middle one is a real answer rather than a soft failure:
+  - `landed` — the target line's own text is on screen. No warning is set.
+  - `elsewhere` — some other line's text is on screen instead, and `showing` names which. A genuinely failed scrub; the screenshot is not evidence about the line you asked for.
+  - `inconclusive` — nothing attributable. Either the line does not render verbatim (interpolation, markup, a heading, a character-name line) or its text cannot be told apart from another line's. Read `visible` and judge it yourself; do not read it as either success or failure.
+- `route` — `main : 1 → main : 8` means the preview paused on **beat 8**. Context only. That number reports how far execution reached, not the line you asked for, so it differs from your target on any line with something after it; it is not a check on anything and nothing in the driver treats it as one.
+- `visible` — the game's rendered text, which is what `scrubCheck` reads. **Every line appears twice**: the second copy is the text _outline_ layer. Expected — not duplicated output.
+- `scrub` — the click that drove the scrub. `clicked: true` with a `cursorLine` matching your target is the click landing. `clicked: false` carries a `reason` instead, and that is a real failure worth reading rather than a note.
 - `settled: false` — the DOM never stopped mutating. Re-run.
 
-`--sd` is only needed when the script changes: the pinned port keeps the same
-origin, so OPFS survives `down`/`up` and a plain
-`verify --line N --shot x.png` re-uses the script already loaded.
+`--sd` is only needed when the script changes: the pinned port keeps the same origin, so OPFS survives `down`/`up` and a plain `verify --line N --shot x.png` re-uses the script already loaded.
 
-**Then open the PNG and actually look at it.** The JSON is a convenience, not
-the gate. A black Game Preview pane with a plausible-looking `route` is a real
-failure mode here.
+**Then open the PNG and actually look at it.** The JSON is a convenience, not the gate. A black Game Preview pane with a plausible-looking `route` is a real failure mode here.
 
 Repeat after the fix to produce `after.png`. Stop the servers when done:
 
@@ -277,47 +233,29 @@ node .claude/skills/resolve-issue/driver.mjs down
 
 ### When the change has no visual signature
 
-Some fixes cannot show up in a screenshot — a perf change, a memory leak, an
-internal data structure no pixel depends on. Two before/after PNGs that look
-identical prove nothing, and presenting them as the gate is worse than useless:
-they read as evidence while carrying none.
+Some fixes cannot show up in a screenshot — a perf change, a memory leak, an internal data structure no pixel depends on. Two before/after PNGs that look identical prove nothing, and presenting them as the gate is worse than useless: they read as evidence while carrying none.
 
-For those, **the gate is a measured before/after, and it REPLACES the
-screenshot** — it does not sit alongside a pair of identical images. Still boot
-the editor and confirm nothing visible broke; just don't dress that up as proof
-the fix worked.
+For those, **the gate is a measured before/after, and it REPLACES the screenshot** — it does not sit alongside a pair of identical images. Still boot the editor and confirm nothing visible broke; just don't dress that up as proof the fix worked.
 
 What makes a timing here honest:
 
-- **One candidate per process.** A shared process inflates whatever runs second
-  by several times. Run the baseline and the patch as separate commands.
-- **Interleave and take medians.** Run-to-run variance on this machine is large
-  enough to invert a real 2× difference. Three alternating pairs is the minimum.
-- **Carry a control** — a second measurement the change should NOT affect. If
-  the control moves as much as the candidate, the pair is noise; measure again.
-- **Report absolute numbers, not just ratios.** "2×" hides whether that is
-  4ms → 8ms or 400ms → 800ms.
-- **Say where the number came from.** If no benchmark in the repo covers the
-  path — several don't; `perfProfile.test.ts` drives `SparkdownCompiler`, whose
-  annotate set excludes `formatting` and `semantics` — say the figure comes from
-  a scratch harness and name what it drove.
+- **One candidate per process.** A shared process inflates whatever runs second by several times. Run the baseline and the patch as separate commands.
+- **Interleave and take medians.** Run-to-run variance on this machine is large enough to invert a real 2× difference. Three alternating pairs is the minimum.
+- **Carry a control** — a second measurement the change should NOT affect. If the control moves as much as the candidate, the pair is noise; measure again.
+- **Report absolute numbers, not just ratios.** "2×" hides whether that is 4ms → 8ms or 400ms → 800ms.
+- **Say where the number came from.** If no benchmark in the repo covers the path — several don't; `perfProfile.test.ts` drives `SparkdownCompiler`, whose annotate set excludes `formatting` and `semantics` — say the figure comes from a scratch harness and name what it drove.
 
-Same shape for a memory or count regression: measure the quantity over a fixed
-number of operations, before and after, and report both numbers.
+Same shape for a memory or count regression: measure the quantity over a fixed number of operations, before and after, and report both numbers.
 
-A performance cost the fix knowingly carries is a **headline, not a footnote** —
-put it at the top of the PR body.
+A performance cost the fix knowingly carries is a **headline, not a footnote** — put it at the top of the PR body.
 
 ---
 
 ## 5. Regression tests
 
-**Every fix and feature lands with a test that pins it.** Code with no test is
-not done — the next refactor silently reintroduces the bug or breaks the
-feature.
+**Every fix and feature lands with a test that pins it.** Code with no test is not done — the next refactor silently reintroduces the bug or breaks the feature.
 
-**5a — write the test.** For a fix, it pins the defect. For a feature, it pins
-the new behaviour. Put it beside the existing ones for the package you changed:
+**5a — write the test.** For a fix, it pins the defect. For a feature, it pins the new behaviour. Put it beside the existing ones for the package you changed:
 
 | Changed                                | Tests live in                                    |
 | -------------------------------------- | ------------------------------------------------ |
@@ -327,39 +265,21 @@ the new behaviour. Put it beside the existing ones for the package you changed:
 | Another package                        | that package's `test/` or `src/tests/`           |
 | `impower-dev`                          | `impower-dev/test/`                              |
 
-Copy an existing neighbouring test's imports rather than inventing them — in
-`src/tests/compiler/`, `compileSnapshot.ts`'s import order is load-bearing (it
-primes `Container` first to break a class-extends TDZ cycle).
+Copy an existing neighbouring test's imports rather than inventing them — in `src/tests/compiler/`, `compileSnapshot.ts`'s import order is load-bearing (it primes `Container` first to break a class-extends TDZ cycle).
 
-**If the package has no tests at all, set it up — don't skip the test.** Most
-packages here have no `vitest.config.ts` yet. Standing one up is part of the
-work, not a reason to land untested code. Use `packages/opfs-workspace` as the
-template — three pieces:
+**If the package has no tests at all, set it up — don't skip the test.** Most packages here have no `vitest.config.ts` yet. Standing one up is part of the work, not a reason to land untested code. Use `packages/opfs-workspace` as the template — three pieces:
 
-1. `vitest.config.ts` at the package root. Copy
-   `packages/opfs-workspace/vitest.config.ts` verbatim and keep its
-   `pool: "forks"` + `singleFork` + `fileParallelism: false` settings —
-   parallel runs OOM this machine.
-2. `"test": "vitest run"` in the package's `scripts`, and `vitest` in its
-   `devDependencies` (match the version other packages use — `^2.1.9`).
+1. `vitest.config.ts` at the package root. Copy `packages/opfs-workspace/vitest.config.ts` verbatim and keep its `pool: "forks"` + `singleFork` + `fileParallelism: false` settings — parallel runs OOM this machine.
+2. `"test": "vitest run"` in the package's `scripts`, and `vitest` in its `devDependencies` (match the version other packages use — `^2.1.9`).
 3. A `test/` directory holding `*.test.ts`.
 
-Then `PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 npm install` at the **repo root**
-(workspaces — never inside the package; that creates a stray per-package
-lockfile the root `.gitignore` deliberately ignores).
+Then `PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 npm install` at the **repo root** (workspaces — never inside the package; that creates a stray per-package lockfile the root `.gitignore` deliberately ignores).
 
-Assert the **behaviour from the ticket**, not the shape of your patch. If the
-issue says "only the last matching layer survives", the test builds a case with
-several matching layers and asserts all of them come back.
+Assert the **behaviour from the ticket**, not the shape of your patch. If the issue says "only the last matching layer survives", the test builds a case with several matching layers and asserts all of them come back.
 
-**5b — prove the test is honest.** A regression test that passes against the
-_old_ code pins nothing.
+**5b — prove the test is honest.** A regression test that passes against the _old_ code pins nothing.
 
-**Never use `git stash` for this.** The stash stack is per-**repo**, not
-per-worktree, and this checkout has ~17 live worktrees with other sessions
-running concurrently. A `git stash pop` takes whatever is at `stash@{0}` _at
-that moment_ — which may be another session's WIP pushed between your push and
-your pop. That lands their work in your tree and leaves your fix on the stack.
+**Never use `git stash` for this.** The stash stack is per-**repo**, not per-worktree, and this checkout has ~17 live worktrees with other sessions running concurrently. A `git stash pop` takes whatever is at `stash@{0}` _at that moment_ — which may be another session's WIP pushed between your push and your pop. That lands their work in your tree and leaves your fix on the stack.
 
 Copy the file aside instead, revert it, and copy it back:
 
@@ -368,48 +288,50 @@ cp packages/sparkdown/src/compiler/utils/filterImage.ts "$SCRATCH/fix.ts"
 git checkout -- packages/sparkdown/src/compiler/utils/filterImage.ts
 ```
 
-Re-run the new test — it **must fail**, and fail for the reason in the ticket,
-not on an import error or a typo. Then restore **from the copy**:
+Re-run the new test — it **must fail**, and fail for the reason in the ticket, not on an import error or a typo. Then restore **from the copy**:
 
 ```bash
 cp "$SCRATCH/fix.ts" packages/sparkdown/src/compiler/utils/filterImage.ts
 ```
 
-`git checkout --` reverts to HEAD, so it restores the _pre-fix_ file — using it
-to undo the revert silently throws the fix away. **Confirm the restore landed
-before trusting anything downstream:**
+Both of those depend on `HEAD` still being the pre-fix state, so they work only _before_ you commit. **After §6, `HEAD` is your fix**, and any baseline taken from it silently contains the very change it is supposed to lack — the run then reproduces nothing, which reads as "the bug was never real". Once you have committed, take the baseline from `origin/main` instead:
+
+```bash
+MSYS_NO_PATHCONV=1 git cat-file -p "origin/main:path/to/file.ts" > "$SCRATCH/baseline.ts"
+```
+
+(`MSYS_NO_PATHCONV=1` is needed on Git Bash for Windows, which otherwise rewrites the `rev:path` argument into a Windows path and fails with `fatal: ambiguous argument`.)
+
+`git checkout --` reverts to HEAD, so it restores the _pre-fix_ file — using it to undo the revert silently throws the fix away. **Confirm the restore landed before trusting anything downstream:**
 
 ```bash
 git diff --stat
 ```
 
-The file must still be listed. A test that passed alone and then fails in the
-full suite is usually this, not a flake — check the diff before blaming timing.
+The file must still be listed. A test that passed alone and then fails in the full suite is usually this, not a flake — check the diff before blaming timing.
 
 Re-run — it must pass. Record both outcomes for the PR body.
 
-Where a whole-file revert would break the test's imports (the fix adds an export
-the test uses), simulate the old behaviour in place instead: disable the one
-branch that matters, or restore the old function body under the new name. Keep a
-**positive control** in the file — an assertion that passes both before and
-after — so a red run proves the defect, not a broken harness.
+Where a whole-file revert would break the test's imports (the fix adds an export the test uses), simulate the old behaviour in place instead: disable the one branch that matters, or restore the old function body under the new name. Keep a **positive control** in the file — an assertion that passes both before and after — so a red run proves the defect, not a broken harness.
 
 **5c — run the suite.** Start with the file, widen to the package.
 
-Then run the standalone shell checks under `.claude/`. Nothing in CI invokes them, so they only ever run because someone remembers to; they are quick, and each one pins a footgun that has already cost a session:
+Then run the standalone checks under `.claude/`. Nothing in CI invokes them, so they only ever run because someone remembers to; they are quick, and each one pins a footgun that has already cost a session. There are two kinds — shell checks over the skill's own prose, and `.mjs` checks over the pure functions in `driver.mjs`:
 
 ```bash
 for t in .claude/**/*.test.sh; do echo "--- $t"; bash "$t" || echo "FAILED: $t"; done
+for t in .claude/**/*.test.mjs; do echo "--- $t"; node "$t" || echo "FAILED: $t"; done
 ```
 
 (Needs `shopt -s globstar` in bash, or list them explicitly.)
+
+A shell check that hangs rather than failing is usually the machine, not your change: they spawn many small processes and a running dev-server build starves them. Re-run once the build finishes before believing a timeout.
 
 ---
 
 ### Running vitest safely
 
-**Never run two vitest suites at once, and never run one uncapped.** This
-monorepo has OOM'd and hard-crashed this machine. Check first:
+**Never run two vitest suites at once, and never run one uncapped.** This monorepo has OOM'd and hard-crashed this machine. Check first:
 
 Run this via the **PowerShell** tool (in bash, `$_` gets eaten by the shell):
 
@@ -437,9 +359,7 @@ A directory, with a slightly larger cap:
 cd packages/sparkdown && NODE_OPTIONS="--max-old-space-size=2048" npx vitest run src/tests/compiler --pool=forks --poolOptions.forks.minForks=1 --poolOptions.forks.maxForks=2
 ```
 
-`packages/sparkdown`'s full suite is ~156 files / ~1800 tests / ~28 min and is
-at the edge of this machine even at `--max-old-space-size=4096`. **Never run it
-in one go** — run it in halves, sequentially, waiting for each to fully exit:
+`packages/sparkdown`'s full suite is ~156 files / ~1800 tests / ~28 min and is at the edge of this machine even at `--max-old-space-size=4096`. **Never run it in one go** — run it in halves, sequentially, waiting for each to fully exit:
 
 ```bash
 cd packages/sparkdown && NODE_OPTIONS="--max-old-space-size=4096" npx vitest run src/tests/compiler src/tests/runtime --pool=forks --poolOptions.forks.minForks=1 --poolOptions.forks.maxForks=2
@@ -449,25 +369,21 @@ cd packages/sparkdown && NODE_OPTIONS="--max-old-space-size=4096" npx vitest run
 cd packages/sparkdown && NODE_OPTIONS="--max-old-space-size=4096" npx vitest run src/tests/luau-conformance --pool=forks --poolOptions.forks.minForks=1 --poolOptions.forks.maxForks=2
 ```
 
-**Exit code 0 does not mean green.** Two OOM shapes both exit 0:
-`Error: Worker exited unexpectedly` with no pass count; or the log simply
-_stops_ with no `Test Files` / `Tests` summary at all. Confirm the summary lines
-exist and the file count matches what you expected — a run can exit 0 having
-completed 13 of 156 files and look perfectly clean. To count:
+**Exit code 0 does not mean green.** Two OOM shapes both exit 0: `Error: Worker exited unexpectedly` with no pass count; or the log simply _stops_ with no `Test Files` / `Tests` summary at all. Confirm the summary lines exist and the file count matches what you expected — a run can exit 0 having completed 13 of 156 files and look perfectly clean. To count:
 
 ```bash
 grep -c "✓ src/" testrun.log
 ```
 
-Report the real numbers in the PR body. If a pre-existing failure is unrelated
-to your change, say so explicitly rather than quietly ignoring it — confirm it
-also fails on `origin/main`.
+Report the real numbers in the PR body. If a pre-existing failure is unrelated to your change, say so explicitly rather than quietly ignoring it — confirm it also fails on `origin/main`.
 
 ---
 
 ## 6. Commit, push, and open a draft PR
 
-The PR opens before the adversarial review (§7) so the reviewers have a PR to comment on — findings live on the PR itself, tracked next to the code they criticize, instead of dying in a session transcript. Open it as a draft and mark it ready only at the end of §7.
+The PR opens before the adversarial review (§7) so the reviewers have a PR to comment on — findings live on the PR itself, tracked next to the code they criticize, instead of dying in a session transcript.
+
+Open it as a draft, and leave it a draft for the whole of §7. Draft is what tells a human the PR is not theirs to read yet: the reviewers may still be running, their findings may still be unanswered, and the diff may still be about to change under them. Use `gh pr ready` only after completing §7e.
 
 First clean up scratch files, then look at what you are about to stage:
 
@@ -532,11 +448,11 @@ A model reviewing code written by the same model shares the writer's priors — 
 
 Two reviewer definitions in the repo pin an exact version: `.claude/agents/reviewer-opus-4-6.md` and `.claude/agents/reviewer-opus-5.md`, each naming a full model id in its frontmatter. Spawn one by name and the review runs on that version whatever your own is — `subagent_type: "reviewer-opus-4-6"` was confirmed running `claude-opus-4-6`, and `reviewer-opus-5` running `claude-opus-5`, from a session that had them.
 
-| You (the writer)     | Spawn                                     |
-| -------------------- | ----------------------------------------- |
-| Opus 5               | `subagent_type: "reviewer-opus-4-6"`      |
-| Opus 4.6             | `subagent_type: "reviewer-opus-5"`        |
-| Fable, Sonnet, Haiku | `subagent_type: "reviewer-opus-5"`        |
+| You (the writer)     | Spawn                                |
+| -------------------- | ------------------------------------ |
+| Opus 5               | `subagent_type: "reviewer-opus-4-6"` |
+| Opus 4.6             | `subagent_type: "reviewer-opus-5"`   |
+| Fable, Sonnet, Haiku | `subagent_type: "reviewer-opus-5"`   |
 
 Give these no `model:` — the definition's own frontmatter carries it, and the tool parameter cannot express a version anyway. On an Opus version with no row of its own, spawn whichever of the two pinned reviewers is not your version; there are two, so one always differs.
 
@@ -580,11 +496,11 @@ git diff origin/main...HEAD > "$SCRATCH/review-diff.patch"
 
 Write it to your scratchpad, never into the checkout. A patch file inside the repo is one `git add -A` away from being committed, and it leaves the tree dirty for as long as the review runs — long enough to trip any hook or check that expects a clean tree, on every single run of this skill. Give reviewers the absolute path (`$SCRATCH` is your session's scratchpad directory).
 
-Spawn the reviewers in parallel — one message, multiple Agent tool calls, each with the `subagent_type` from §7b (or `general-purpose` plus a `model:`, on the fallback path). Posting a PR comment needs Bash and a scratch file, so read-only is not tool-enforced for reviewers; the prompt forbids repo edits and §7d checks that it was obeyed. Give each one, verbatim (fill in N = issue number, P = PR number, DIFF = the absolute path you just wrote the patch to, LENS, and WRITER = your own model id — the reviewer supplies its own model, so that one is not yours to fill in):
+Spawn the reviewers in parallel — one message, multiple Agent tool calls, each with the `subagent_type` from §7b (or `general-purpose` plus a `model:`, on the fallback path). Posting a PR comment needs Bash and a scratch file, so read-only is not tool-enforced for reviewers; the prompt forbids repo edits and §7d checks that it was obeyed. Give each one, verbatim (fill in N = issue number, P = PR number, DIFF = the absolute path you just wrote the patch to, WORKTREE = the absolute path of the worktree from §2, LENS, and WRITER = your own model id — the reviewer supplies its own model, so that one is not yours to fill in). WORKTREE is not optional: a subagent starts in the main checkout, not in your worktree, so a reviewer told only "the working tree is the branch under review" reads the unchanged files on `main` and reviews nothing you wrote.
 
 > Before anything else, check the pin. I am running `WRITER`. If that is missing, empty, still the literal placeholder `WRITER`, or anything other than a concrete model id, you have nothing to compare against — stop and reply with exactly one line, `ABORT: writer model not supplied.` Otherwise compare it against the model your own system prompt says you are, ignoring any context-window suffix such as `[1m]`. If the family and version match, you are my own model, this review would carry my blind spots, and going on would spend a full review to produce nothing worth reading — so stop here: read no file, run no command, and reply with exactly one line, `ABORT: pin failed, I am <your model id>, same as the writer.` Begin an abort with `ABORT:` and nothing else, so I cannot mistake it for a short review that found nothing. Only if your model differs should you do the review below.
 >
-> You are reviewing a fix for issue #N in the Impower monorepo. The diff is at `DIFF`; the working tree is the branch under review. Your lens is \<LENS\> — review only through it. Your job is to refute this change, not to approve it. Assume it is broken and find out how. If you are uncertain, report the concern rather than suppressing it. For each finding give: `file:line`, a concrete failure scenario (inputs → wrong output), and how you confirmed it in the code. Do not pad with non-findings. Do not edit, create, or delete any file inside the repo tree.
+> You are reviewing a fix for issue #N in the Impower monorepo. The diff is at `DIFF`; the working tree under review is the git worktree at `WORKTREE` — read files from there, not from the main checkout. Your lens is \<LENS\> — review only through it. Your job is to refute this change, not to approve it. Assume it is broken and find out how. If you are uncertain, report the concern rather than suppressing it. For each finding give: `file:line`, a concrete failure scenario (inputs → wrong output), and how you confirmed it in the code. Do not pad with non-findings. Do not edit, create, or delete any file inside the repo tree.
 >
 > When your review is done, post it as a comment on PR #P: write the full findings to a markdown file in your scratchpad directory (never inside the repo), starting with the heading `### Adversarial review — <LENS> (<MODEL>)`, where MODEL is the model name and id you yourself are running as, exactly as your own system prompt gives them — report what you are, never what you were asked to be. Then run `gh pr comment P --body-file <that file>`. Never pass `--body @-` — gh takes it as a literal string and posts a broken comment. If you have no findings, still post the comment with the single line "No findings through this lens." so the coverage is recorded. Confirm the comment landed by reading it back with `gh pr view P --comments`.
 >
@@ -635,11 +551,43 @@ Do not silently drop findings; an unanswered review comment on the PR reads as a
 
 Any change made in response to review re-opens §4 and §5: re-run the regression test and re-take the live screenshot. A review fix is a code change like any other, and it is the one most likely to be committed unverified. Commit by path, push. The diff lives in your scratchpad, so there is nothing in the tree to clean up.
 
-Then take the PR out of draft:
+Marking the PR ready means this diff is finished and ready to be reviewed by a human. Make that claim only when every one of these is true:
+
+- Every reviewer you spawned has come back.
+- Every report is on the PR, including the ones you posted on a reviewer's behalf (§7c).
+- Every finding is adjudicated in your §7d comment — fixed, declined, or not confirmed — with nothing left unanswered.
+- Every fix you made in response is committed, pushed, and re-verified as above, and the last push is on the PR.
+- No re-spawned lens is still outstanding from an `ABORT` chain (§7b). If a lens ended up with no independent reviewer at all, say so on the PR before marking ready, so the human knows which angle nobody covered.
+
+Only then:
 
 ```bash
 gh pr ready
 ```
+
+Read it back, because the flag is silent when it does nothing:
+
+```bash
+gh pr view --json number,isDraft,reviewDecision
+```
+
+If you run out of budget, get blocked, or hand the session back with any of the above unfinished, leave the PR a draft and say plainly in the PR and to the user what is still outstanding.
+
+### 7f — later changes send the PR back to draft
+
+A PR marked ready does not stay ready through its next code change. Whenever more work lands on the branch — the user gives feedback, a human reviewer asks for something, a late reviewer finally reports, you find a defect yourself — put the PR back into draft before you start:
+
+```bash
+gh pr ready --undo
+```
+
+Say why in a PR comment, so the state change is not a mystery to anyone watching. Undoing returns the label but not the notifications the first `gh pr ready` already sent.
+
+Then judge what the change costs. Editing prose in the PR body, or a doc-only tweak, does not need a second review — mark it ready again once it is in. But a change to the code under review means the diff the reviewers read no longer exists, and their verdicts are about a version that is outdated. Run §7 again on the new diff: size it against the new change (§7a), spawn reviewers on a model that is not yours (§7b), fan out on a freshly captured diff (§7c), adjudicate on the PR (§7d), re-verify and re-check §7e's list before marking ready again.
+
+The second round is scoped to the new change, not the whole branch. Give the reviewers the diff of what changed since the previous round, tell them what the earlier round already covered, and size the tier by the size of the new change rather than by the size of the PR. A one-line follow-up fix earns the Minimal tier even on a PR whose first round ran five reviewers.
+
+Every round posts its own comments and its own adjudication. Do not edit the previous round's comments to fit the new code — the record of what was reviewed when is what lets a human tell which findings apply to which version.
 
 ---
 
@@ -655,26 +603,15 @@ gh pr ready
 | `down`                | kill the whole server tree                            |
 | `verify [opts]`       | drive the editor, print a JSON report                 |
 
-`verify` options: `--sd <file.sd>` (load into OPFS `/local/main.sd`, then
-reload), `--line <N>` (scrub the preview to that source line), `--shot <out.png>`,
-`--probe <file.js>` (body of an async function evaluated in the editor page;
-its return value lands in the JSON), `--headed` (visible browser).
+`verify` options: `--sd <file.sd>` (load into OPFS `/local/main.sd`, then reload), `--line <N>` (scrub the preview to that source line), `--shot <out.png>`, `--probe <file.js>` (body of an async function evaluated in the editor page; its return value lands in the JSON), `--headed` (visible browser).
+
+`verify` scrubs with a real mouse click on the target line, driven through Playwright. It scrolls the line into view by moving the scroller directly, checks that the coordinates are really over the text rather than an overlay, then clicks. Nothing in that path dispatches a CodeMirror selection.
 
 State lives in `.claude/skills/resolve-issue/.state.json` (gitignored).
 
-Playwright is a **declared root devDependency** (`playwright: ^1.61.0`).
-Browsers come from the local `ms-playwright` cache — if it's empty on a new
-machine, `npx playwright install chromium`. Always run `npm install` with
-`PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1` set (see §2) — otherwise a transitive
-`@playwright/browser-chromium` dependency tries to download its own Chromium
-build from a host this network blocks, and the whole install fails. The
-driver itself doesn't need that variable: if the pinned `playwright` version
-expects a Chromium revision the cache doesn't have, it launches whatever
-build the cache does have instead of failing.
+Playwright is a **declared root devDependency** (`playwright: ^1.61.0`). Browsers come from the local `ms-playwright` cache — if it's empty on a new machine, `npx playwright install chromium`. Always run `npm install` with `PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1` set (see §2) — otherwise a transitive `@playwright/browser-chromium` dependency tries to download its own Chromium build from a host this network blocks, and the whole install fails. The driver itself doesn't need that variable: if the pinned `playwright` version expects a Chromium revision the cache doesn't have, it launches whatever build the cache does have instead of failing.
 
-The driver must still live **inside the repo tree**: Node resolves `playwright`
-relative to the **script's** directory, not the working directory. Copy it to a
-temp dir and it dies with `ERR_MODULE_NOT_FOUND`.
+The driver must still live **inside the repo tree**: Node resolves `playwright` relative to the **script's** directory, not the working directory. Copy it to a temp dir and it dies with `ERR_MODULE_NOT_FOUND`.
 
 ---
 
@@ -682,83 +619,27 @@ temp dir and it dies with `ERR_MODULE_NOT_FOUND`.
 
 Things that look like they work and don't:
 
-- **The Game Preview goes fully black if you hand-launch the two dev servers.**
-  The editor and player agree over a postMessage handshake whose values are
-  baked into each Vite bundle at build time, so a reload cannot fix a wrong one.
-  Always go through `driver.mjs up` (or `npm run web:dev`) — never start
-  `impower-dev` and `sparkdown-player-app` separately.
-- **`npm run web:dev` picks random free ports.** The driver overrides them with
-  `EDITOR_PORT`/`PLAYER_PORT`/`HMR_PORT` derived from the worktree path. This
-  matters because **OPFS is scoped per origin**: a random port each launch means
-  the project you loaded last time is gone. The pinned port keeps it.
-- **Do not scrape the launcher's `✓ Live preview ready → URL` line.** A detached
-  child on Windows never flushes stdio into an inherited file handle — the log
-  stays 0 bytes forever while the servers run perfectly. Pin the port and poll
-  HTTP instead.
-- **A blank WHITE Game Preview is a different failure from a black one.** After
-  a server restart the player iframe can load — `readyState: "complete"`,
-  `sameOrigin: true` — while the `#game` scaffold never mounts, so the pane
-  renders empty and every other signal looks healthy. The driver polls for
-  `#game`, reloads once, and sets `gameMounted: false` if it still isn't there.
-  Never accept a screenshot without checking that field.
-- **Scrubbing only works while the preview is STOPPED.** After PLAY the engine
-  is time-driven and ignores the cursor entirely; the scrub silently does
-  nothing.
-- **The editor restores the previous cursor position asynchronously after load**
-  and clobbers the scrub — the preview then settles on the _old_ line. The
-  restore can fire **late**, so checking the cursor once (even a second later)
-  is not enough: it passes, then the restore wins. The driver requires the
-  cursor to hold the target across three consecutive checks. Don't weaken that
-  to a single check — the symptom is a confident report naming the line you
-  asked for while `route` names a different one.
-- **On a cold origin the first `selectionSet` is dropped** because the player
-  worker isn't listening yet. The driver waits for the first compile to settle
-  _before_ scrubbing. Without that you get beat 1–2 no matter what line you ask
-  for.
-- **Re-dispatching the same cursor position produces no event.** To re-arm a
-  scrub you must bounce to another line and back.
-- **A real (trusted) click on the target line is the most reliable scrub.**
-  `view.dispatch({selection})` moves the caret, but the preview can silently
-  fail to follow — the cursor sits on the line you asked for while `route`
-  stays on the old beat, and nothing raises. If the hold-check and the bounce
-  don't move the preview, scroll the line into view and `page.mouse.click()`
-  its coordinates (`view.coordsAtPos(line.from)` gives them); a trusted event
-  drives the real selection path.
-- **`textContent` on the game DOM returns a wall of CSS** — the player injects
-  `<style>` blocks and every ancestor inherits their text. And the typewriter
-  effect wraps **every character** in its own `<span>`, so "leaf nodes with
-  text" gives you one letter per entry. Use `innerText` (layout-aware, and it
-  reflows the spans back into words).
-- **The route indicator lives inside the player iframe**, not the editor
-  document. Searching the editor DOM for `main : N → main : M` finds nothing.
-- **Every visible line appears twice** in `visible`. The duplicate is the text
-  **outline** layer the player draws underneath. Expected — not evidence that
-  your change is emitting content twice.
-- **Generated files silently revert. DO NOT EDIT THEM.**
-  `packages/sparkdown/language/*.json` are build artifacts of
-  `definitions/yaml/*.yaml`. Editing the JSON will _seem_ to work — tests will
-  _seem_ to pass, the change will ship — and then the next `definitions` build
-  erases it. Edit the YAML, not the JSON, regenerate, and commit both:
+- **The Game Preview goes fully black if you hand-launch the two dev servers.** The editor and player agree over a postMessage handshake whose values are baked into each Vite bundle at build time, so a reload cannot fix a wrong one. Always go through `driver.mjs up` (or `npm run web:dev`) — never start `impower-dev` and `sparkdown-player-app` separately.
+- **`npm run web:dev` picks random free ports.** The driver overrides them with `EDITOR_PORT`/`PLAYER_PORT`/`HMR_PORT` derived from the worktree path. This matters because **OPFS is scoped per origin**: a random port each launch means the project you loaded last time is gone. The pinned port keeps it.
+- **Do not scrape the launcher's `✓ Live preview ready → URL` line.** A detached child on Windows never flushes stdio into an inherited file handle — the log stays 0 bytes forever while the servers run perfectly. Pin the port and poll HTTP instead.
+- **A blank WHITE Game Preview is a different failure from a black one.** After a server restart the player iframe can load — `readyState: "complete"`, `sameOrigin: true` — while the `#game` scaffold never mounts, so the pane renders empty and every other signal looks healthy. The driver polls for `#game`, reloads once, and sets `gameMounted: false` if it still isn't there. Never accept a screenshot without checking that field.
+- **Scrubbing only works while the preview is STOPPED.** After PLAY the engine is time-driven and ignores the cursor entirely; the scrub silently does nothing.
+- **The editor restores the previous cursor position asynchronously after load** and clobbers the scrub — the preview then settles on the _old_ line. The restore can fire **late**, so checking the cursor once (even a second later) is not enough: it passes, then the restore wins. The driver requires the cursor to hold the target across three consecutive checks. Don't weaken that to a single check — the symptom is a confident report naming the line you asked for while `route` names a different one.
+- **On a cold origin the first `selectionSet` is dropped** because the player worker isn't listening yet. The driver waits for the first compile to settle _before_ scrubbing. Without that you get beat 1–2 no matter what line you ask for.
+- **A selection that does not change produces no event**, so a click landing exactly where the caret already sits scrubs nothing. The driver aims a few characters into the line to avoid it, and refuses the click with a `reason` when it cannot — which is every empty line, there being no character to aim past. Blank lines are unscrubbable, not merely discouraged.
+- **The preview keeps the position the LAST run left it on**, because the profile and the origin are both pinned and the editor restores the previous cursor. So a run that scrubs to the line a previous run already reached looks like a success whether or not this run's scrub did anything, and a run whose scrub fails silently shows the previous run's beat rather than an obvious error. When you are testing the scrub itself rather than using it, always aim at a line the previous run did not visit, and check `visible` against that line's own text.
+- **Only a real (trusted) click scrubs the preview.** `view.dispatch({selection})` moves the caret and the preview does not follow — the cursor sits on the line you asked for while `route` stays on the old beat, and nothing raises. It was measured never moving the preview through this harness, so the driver clicks and does not dispatch. If you are driving the editor yourself rather than through the driver, click; do not reach for `dispatch` because it is easier to write.
+- **`textContent` on the game DOM returns a wall of CSS** — the player injects `<style>` blocks and every ancestor inherits their text. And the typewriter effect wraps **every character** in its own `<span>`, so "leaf nodes with text" gives you one letter per entry. Use `innerText` (layout-aware, and it reflows the spans back into words).
+- **The route indicator lives inside the player iframe**, not the editor document. Searching the editor DOM for `main : N → main : M` finds nothing.
+- **Every visible line appears twice** in `visible`. The duplicate is the text **outline** layer the player draws underneath. Expected — not evidence that your change is emitting content twice.
+- **Generated files silently revert. DO NOT EDIT THEM.** `packages/sparkdown/language/*.json` are build artifacts of `definitions/yaml/*.yaml`. Editing the JSON will _seem_ to work — tests will _seem_ to pass, the change will ship — and then the next `definitions` build erases it. Edit the YAML, not the JSON, regenerate, and commit both:
   ```bash
   cd definitions && npx tsx src/language.ts ../packages/sparkdown/language
   ```
-  Grep for the **rule name**, not the regex — the YAML uses `{{WS}}`-style
-  templating so the expanded pattern does not appear in the source.
-- **Heredocs are lossy through some shell paths here** (a `//` comment came out
-  as `/`, breaking a file mid-edit). Write files with the editor tool, not by
-  piping a heredoc.
-- **`tsc` is not a gate** — there is no CI typecheck anywhere in the repo, and
-  the only PR workflow is the VS Code extension's _bundler_ build (esbuild
-  strips types without checking them). A clean `tsc` proves nothing about CI,
-  and a broken one blocks nothing. Verify with vitest.
-  **This is being fixed — see
-  [#320](https://github.com/ImpowerGames/impower/issues/320). When that lands on
-  `main`, delete this bullet** and add the typecheck command to §5 alongside the
-  test suite.
-- These console messages are **pre-existing noise** on every run, not something
-  your change caused: `Unhandled method workspace/semanticTokens/refresh`,
-  `.../diagnostic/refresh`, `.../foldingRange/refresh`, and a couple of resource
-  404s.
+  Grep for the **rule name**, not the regex — the YAML uses `{{WS}}`-style templating so the expanded pattern does not appear in the source.
+- **Heredocs are lossy through some shell paths here** (a `//` comment came out as `/`, breaking a file mid-edit). Write files with the editor tool, not by piping a heredoc.
+- **`tsc` is not a gate** — there is no CI typecheck anywhere in the repo, and the only PR workflow is the VS Code extension's _bundler_ build (esbuild strips types without checking them). A clean `tsc` proves nothing about CI, and a broken one blocks nothing. Verify with vitest. **This is being fixed — see [#320](https://github.com/ImpowerGames/impower/issues/320). When that lands on `main`, delete this bullet** and add the typecheck command to §5 alongside the test suite.
+- These console messages are **pre-existing noise** on every run, not something your change caused: `Unhandled method workspace/semanticTokens/refresh`, `.../diagnostic/refresh`, `.../foldingRange/refresh`, and a couple of resource 404s.
 
 ---
 
@@ -771,7 +652,8 @@ Things that look like they work and don't:
 | Game Preview is black but the editor pane looks fine                                                       | Servers were hand-launched with mismatched origins. `down`, then `up`.                                                                                                                                                                                                                      |
 | `verify` returns `preview.installed: false`                                                                | `window.__preview` only exists in same-origin mode. Don't pass `--cross-origin`.                                                                                                                                                                                                            |
 | Game Preview pane is blank **white**; `gameMounted: false`                                                 | The `#game` scaffold never mounted after a server restart. `down`, `up`, retry. Discard the screenshot.                                                                                                                                                                                     |
-| Scrub lands on the wrong beat; `scrubWarning` set                                                          | The target line isn't a playable beat — pick the indented dialogue/action line, not the `NAME:` line, a heading, or a blank line.                                                                                                                                                           |
+| `scrubCheck.outcome` is `elsewhere`                                                                        | A real failed scrub: the game is showing the line named in `showing`. Usually the target isn't a playable beat — pick the indented dialogue/action line, not the `NAME:` line, a heading, or a blank line.                                                                                                                                 |
+| `scrubCheck.outcome` is `inconclusive`                                                                     | The check could not attribute the screen to any line. Read `visible` yourself. Common causes: the line interpolates a value or carries markup so it does not render verbatim, or its text is duplicated elsewhere in the script. Not a failure, and not a pass.                                                                            |
 | `verify` dies with `Timeout 90000ms exceeded` waiting for `.cm-content`                                    | The machine is saturated — usually a vitest suite running in this or another worktree. The server is fine (`status` says UP, the URL returns 200). Wait for the suite and re-run; don't go hunting for a regression.                                                                        |
 | vitest exits 0 with no `Test Files` / `Tests` summary                                                      | An OOM'd worker was killed by the OS. Not a pass. Lower `maxForks`, split the suite.                                                                                                                                                                                                        |
 | `minThreads and maxThreads must not conflict`                                                              | You passed `maxForks` without `minForks`. Always pass both.                                                                                                                                                                                                                                 |
@@ -779,6 +661,8 @@ Things that look like they work and don't:
 | `npm install` dies with `request blocked: no rule or allowlist entry allows host "cdn.playwright.dev"` (or any `@playwright/browser-chromium` download failure) | A workspace depends on `@playwright/browser-chromium`, whose install script tries to fetch its own Chromium build from a blocked host. Re-run as `PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 npm install` — see §2. |
 | `git worktree remove` → `Directory not empty`                                                              | Windows can't delete `node_modules` that way. `Remove-Item -Recurse -Force <path>`, then `git worktree prune`.                                                                                                                                                                              |
 | A `gh` PR/issue body came out as the literal `@-`                                                          | You used `--body @-`. Use `--body-file`, then read it back with `gh pr view --json body`.                                                                                                                                                                                                   |
+| `git show origin/main:some/path` → `fatal: ambiguous argument 'origin\main;some\path'`                     | Git Bash rewrote the `rev:path` argument as a Windows path. Prefix the command with `MSYS_NO_PATHCONV=1`, and quote the argument.                                                                                                                                                            |
+| A "pre-fix" copy pulled from `HEAD:` still contains the fix                                                | Once you have committed, `HEAD` **is** your fix. Extract the baseline from `origin/main:` instead. The failure is silent: the run looks like a baseline and reproduces nothing, which reads as "the bug isn't real".                                                                          |
 
 ---
 
