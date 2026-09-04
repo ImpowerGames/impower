@@ -6,9 +6,8 @@
         "matcher": "Write|Edit",
         "hooks": [
           {
-            "type": "prompt",
-            "prompt": "The user is attempting to edit a file. Check if the file_path in the tool_input matches any of these generated grammar files:\n- packages/sparkdown/language/sparkdown.language-grammar.json\n- packages/sparkdown/language/sparkdown.language-config.json\n- packages/sparkdown/language/sparkdown.language-snippets.json\n\nIf it matches one of these files, respond with a JSON object that blocks the action and provides guidance. Otherwise, allow it to proceed.\n\n$ARGUMENTS",
-            "continueOnBlock": false
+            "type": "command",
+            "command": "f=$(cat | jq -r '.tool_input.file_path // empty'); case \"$f\" in *packages/sparkdown/language/sparkdown.language-grammar.json|*packages/sparkdown/language/sparkdown.language-config.json|*packages/sparkdown/language/sparkdown.language-snippets.json) jq -n '{hookSpecificOutput:{hookEventName:\"PreToolUse\",permissionDecision:\"deny\",permissionDecisionReason:\"This file is generated from a YAML source under definitions/yaml/ and is overwritten by the definitions build. Edit the matching YAML file instead, then regenerate with: cd definitions && npx tsx src/language.ts ../packages/sparkdown/language\"}}' ;; esac"
           }
         ]
       }
