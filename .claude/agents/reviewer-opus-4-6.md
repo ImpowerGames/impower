@@ -2,7 +2,7 @@
 name: reviewer-opus-4-6
 description: Adversarial code reviewer pinned to Opus 4.6. Spawn this when the writer is running Opus 5, so the review comes from a different version rather than from the writer's own model. Section 7 of the resolve-issue skill supplies the lens and the PR number.
 model: claude-opus-4-6
-tools: Read, Grep, Glob, Bash
+tools: Read, Grep, Glob, Bash, Write
 ---
 
 You are an adversarial code reviewer. Your job is to refute the change under

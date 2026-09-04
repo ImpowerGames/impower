@@ -536,13 +536,20 @@ Two reviewer definitions in the repo pin an exact version: `.claude/agents/revie
 | Opus 4.6             | `subagent_type: "reviewer-opus-5"`        |
 | Fable, Sonnet, Haiku | `subagent_type: "reviewer-opus-5"`        |
 
-Give these no `model:` — the definition's own frontmatter carries it, and the tool parameter cannot express a version anyway.
+Give these no `model:` — the definition's own frontmatter carries it, and the tool parameter cannot express a version anyway. On an Opus version with no row of its own, spawn whichever of the two pinned reviewers is not your version; there are two, so one always differs.
 
-A definition has to be picked up by the harness before it can be spawned, and that can lag the file landing on disk — a newly added one showed up part-way through a run rather than at the moment it was written. Go by your agent-type list, not by the file: if a name is not in it yet, fall back to `subagent_type: "general-purpose"` and an explicit `model:`. That parameter takes four aliases — `sonnet`, `opus`, `haiku`, `fable` — and rejects anything else with an `InputValidationError` before a single agent starts, full model ids included. That set belongs to the harness rather than to this repo, and it has grown before, so treat it as observed on 2026-09-04 rather than fixed: if a value you expect to work is refused, read the current set back out of the rejection message and update this section and its check together. Each alias resolves to the current release of that family, so on this path pick a family that is not your own — an Opus writer takes `model: "fable"`, everyone else takes `model: "opus"`.
+A definition has to be picked up by the harness before it can be spawned, and that can lag the file landing on disk — a newly added one showed up part-way through a run rather than at the moment it was written. Go by your agent-type list, not by the file. While a name is absent from it, fall back to `subagent_type: "general-purpose"` and an explicit `model:`:
+
+| You (the writer)     | Fallback         |
+| -------------------- | ---------------- |
+| Opus                 | `model: "fable"` |
+| Fable, Sonnet, Haiku | `model: "opus"`  |
+
+That parameter takes four aliases — `sonnet`, `opus`, `haiku`, `fable` — and rejects anything else with an `InputValidationError` before a single agent starts, full model ids included. That set belongs to the harness rather than to this repo, and it has grown before, so treat it as observed on 2026-09-04 rather than fixed: if a value you expect to work is refused, read the current set back out of the rejection message and update this section and its check together. Each alias resolves to the current release of its family, so the fallback buys a different family rather than a different version.
 
 Never answer a rejection with your own family. An Opus writer that falls back to `"opus"` has bought itself a reviewer carrying all of its own blind spots, which is the single outcome this section exists to prevent.
 
-Do not take the pin on trust. The reviewer prompt in §7c has each reviewer open its report with the model it is actually running as, so a review that landed on your own model is visible in the PR comment instead of passing for independent.
+Do not take the pin on trust — and note what the check can and cannot do for you. It reads the ids in this section and in the definitions; it cannot ask the API whether an id is still served. A retired id does not announce itself: the harness substitutes another model for that turn, most likely its default, which for an Opus writer is the writer's own. So the reviewer's self-reported model, which §7c requires as the first line of every report, is the only thing standing between you and a same-model review. Read it. A reviewer that reports your own model means the pin failed and that review is not independent — discard it and re-spawn on the fallback rather than adjudicating it.
 
 ### 7c — fan out; each reviewer comments on the PR
 
