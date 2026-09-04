@@ -283,8 +283,8 @@ describe("AssetCache", () => {
     expect(cache.queuedCount).toBe(0);
   });
 
-  it("evicts the least recently used unpinned entries over the cache size, sparing pinned, displayed, and this round's", async () => {
-    const { cache, finish } = makeCache({ cacheBytes: IMAGE_BYTES * 2 + 1 });
+  it("evicts the least recently used of the prediction pool over predict_cache_size, sparing pinned, displayed, and this round's", async () => {
+    const { cache, finish } = makeCache({ predictBytes: IMAGE_BYTES * 2 + 1 });
     cache.prefetch([image("/file:/a.png?v=1")], 2);
     await finish("/file:/a.png?v=1");
     cache.prefetch([image("/file:/b.png?v=1")], 2);
@@ -295,22 +295,80 @@ describe("AssetCache", () => {
     expect(cache.has("/file:/a.png?v=1")).toBe(false);
     expect(cache.has("/file:/b.png?v=1")).toBe(true);
     expect(cache.has("/file:/c.png?v=1")).toBe(true);
-    // A pinned newcomer pushes out b (the oldest unpinned), never itself.
+    // A pinned newcomer is outside the pool: nothing has to go to make room.
     void cache.request([image("/file:/d.png?v=1")], 0, "beat:1");
     await finish("/file:/d.png?v=1");
-    expect(cache.has("/file:/b.png?v=1")).toBe(false);
+    expect(cache.has("/file:/b.png?v=1")).toBe(true);
     expect(cache.has("/file:/c.png?v=1")).toBe(true);
     expect(cache.has("/file:/d.png?v=1")).toBe(true);
-    // What the page displays survives even when it is the oldest.
-    cache.setDerivedPins(() => ["/file:/c.png?v=1"]);
+    // What the page displays is outside the pool too, even when it is the
+    // oldest: the next overflow takes c, not b.
+    cache.setDerivedPins(() => ["/file:/b.png?v=1"]);
     cache.prefetch([image("/file:/e.png?v=1")], 2);
     await finish("/file:/e.png?v=1");
     expect(cache.has("/file:/c.png?v=1")).toBe(true);
-    expect(cache.bytes).toBeGreaterThan(cache.cacheBytes);
+    cache.prefetch([image("/file:/f.png?v=1")], 2);
+    await finish("/file:/f.png?v=1");
+    expect(cache.has("/file:/b.png?v=1")).toBe(true);
+    expect(cache.has("/file:/c.png?v=1")).toBe(false);
+    expect(cache.has("/file:/e.png?v=1")).toBe(true);
+    expect(cache.has("/file:/f.png?v=1")).toBe(true);
+    expect(cache.bytes).toBeGreaterThan(cache.predictBytes);
   });
 
-  it("never evicts with a cache size of 0", async () => {
-    const { cache, finish } = makeCache({ cacheBytes: 0 });
+  it("keeps pinned bytes out of the prediction pool", async () => {
+    const { cache, finish } = makeCache({ predictBytes: IMAGE_BYTES * 2 + 1 });
+    const loaded = images(3, "a");
+    const pending = cache.request(loaded, 1, "load:A");
+    for (const item of loaded) {
+      await finish(item.src);
+    }
+    await pending;
+    // Three pinned images exceed the pool on their own; prediction still
+    // keeps two of its own.
+    const predicted = images(2, "p");
+    for (const item of predicted) {
+      cache.prefetch([item], 2);
+      await finish(item.src);
+    }
+    expect(cache.residentCount).toBe(5);
+    cache.prefetch([image("/file:/q.png?v=1")], 2);
+    await finish("/file:/q.png?v=1");
+    expect(cache.has(predicted[0]!.src)).toBe(false);
+    expect(cache.residentCount).toBe(5);
+  });
+
+  it("caps what the load pins hold between them at load_cache_size, and never a gate", async () => {
+    const { cache, finish } = makeCache({ loadBytes: IMAGE_BYTES * 2 });
+    const a = images(2, "a");
+    const pendingA = cache.request(a, 1, "load:A");
+    for (const item of a) {
+      await finish(item.src);
+    }
+    expect((await pendingA).pinned).toEqual(a.map((i) => i.src));
+    // The cap is spent: a second scene keeps nothing pinned, resident still.
+    const b = images(2, "b");
+    const pendingB = cache.request(b, 1, "load:B");
+    for (const item of b) {
+      await finish(item.src);
+    }
+    expect((await pendingB).pinned).toEqual([]);
+    expect(cache.isResident(b[1]!.src)).toBe(true);
+    // A gate pins what it needs regardless.
+    const gate = images(1, "g");
+    const pendingGate = cache.request(gate, 0, "beat:1");
+    await finish(gate[0]!.src);
+    expect((await pendingGate).pinned).toEqual([gate[0]!.src]);
+    // Releasing A hands the cap to the next load.
+    cache.release(["load:A"], false);
+    const c = images(1, "c");
+    const pendingC = cache.request(c, 1, "load:C");
+    await finish(c[0]!.src);
+    expect((await pendingC).pinned).toEqual([c[0]!.src]);
+  });
+
+  it("never evicts with a prediction pool of 0", async () => {
+    const { cache, finish } = makeCache({ predictBytes: 0 });
     for (const item of images(4)) {
       cache.prefetch([item], 2);
       await finish(item.src);
@@ -487,7 +545,10 @@ describe("AssetCache", () => {
   });
 
   it("reports what it holds", async () => {
-    const { cache, finish } = makeCache({ cacheBytes: 10 * IMAGE_BYTES });
+    const { cache, finish } = makeCache({
+      predictBytes: 10 * IMAGE_BYTES,
+      loadBytes: 5 * IMAGE_BYTES,
+    });
     void cache.request([image("/file:/a.png?v=1")], 1, "load:A");
     cache.prefetch([image("/file:/b.png?v=1")], 2);
     await finish("/file:/a.png?v=1");
@@ -497,6 +558,8 @@ describe("AssetCache", () => {
     expect(stats.bytes.image).toBe(IMAGE_BYTES);
     expect(stats.bytes.total).toBe(IMAGE_BYTES);
     expect(stats.pins).toEqual(["load:A"]);
-    expect(stats.cacheBytes).toBe(10 * IMAGE_BYTES);
+    expect(stats.pinnedBytes).toBe(IMAGE_BYTES);
+    expect(stats.predictBytes).toBe(10 * IMAGE_BYTES);
+    expect(stats.loadBytes).toBe(5 * IMAGE_BYTES);
   });
 });

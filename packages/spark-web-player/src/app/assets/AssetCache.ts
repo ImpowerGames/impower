@@ -64,8 +64,14 @@ export interface AssetCacheOptions {
   /** Slots only priority 0 (a gate) may use, so a gate never waits behind a
    *  full window of background prefetches. */
   expressSlots?: number;
-  /** Bytes of resident assets to keep before evicting; 0 = never evict. */
-  cacheBytes?: number;
+  /** Bytes prediction may keep resident: the pool of entries that are neither
+   *  pinned nor displayed nor playing, evicted least recently used first once
+   *  it is exceeded. 0 = never evict. */
+  predictBytes?: number;
+  /** Bytes the `load:` pins may hold between them; a load pins in order
+   *  until it is reached and the rest stays resident but unpinned. 0 = no
+   *  cap. */
+  loadBytes?: number;
   /** How long to wait for `img.decode()` before counting a loaded image
    *  resident anyway. Decoding ahead is an optimization; some browsers never
    *  settle the promise for an image that is not in the document. */
@@ -141,9 +147,10 @@ const isSvg = (item: AssetItem): boolean =>
  *
  * Keyed by `assetItemKey`. Every request settles: an item either becomes
  * resident (decoded, or its face added, or its bytes held) or fails after its
- * retries, and the requester hears either way. Pinned entries never evict;
- * the rest go least-recently-used first once `cacheBytes` is exceeded, except
- * what the page reports as displayed or playing.
+ * retries, and the requester hears either way. Pinned entries never evict and
+ * never count against prediction: the pool of unpinned entries, less what the
+ * page reports as displayed or playing, goes least-recently-used first once
+ * `predictBytes` is exceeded. The `load:` pins share `loadBytes` between them.
  */
 export class AssetCache {
   protected _entries = new Map<string, Entry>();
@@ -164,7 +171,9 @@ export class AssetCache {
 
   protected _expressSlots: number;
 
-  protected _cacheBytes: number;
+  protected _predictBytes: number;
+
+  protected _loadBytes: number;
 
   protected _decodeTimeoutMs: number;
 
@@ -188,15 +197,20 @@ export class AssetCache {
       this._maxConcurrent - 1,
       Math.max(0, Math.floor(options.expressSlots ?? DEFAULT_EXPRESS_SLOTS) || 0),
     );
-    this._cacheBytes = Math.max(0, options.cacheBytes ?? 0);
+    this._predictBytes = Math.max(0, options.predictBytes ?? 0);
+    this._loadBytes = Math.max(0, options.loadBytes ?? 0);
     this._decodeTimeoutMs = Math.max(
       0,
       options.decodeTimeoutMs ?? DEFAULT_DECODE_TIMEOUT_MS,
     );
   }
 
-  get cacheBytes() {
-    return this._cacheBytes;
+  get predictBytes() {
+    return this._predictBytes;
+  }
+
+  get loadBytes() {
+    return this._loadBytes;
   }
 
   protected now(): number {
@@ -235,9 +249,12 @@ export class AssetCache {
     return n;
   }
 
-  configure(options: { cacheBytes?: number }): void {
-    if (options.cacheBytes != null && Number.isFinite(options.cacheBytes)) {
-      this._cacheBytes = Math.max(0, options.cacheBytes);
+  configure(options: { predictBytes?: number; loadBytes?: number }): void {
+    if (options.loadBytes != null && Number.isFinite(options.loadBytes)) {
+      this._loadBytes = Math.max(0, options.loadBytes);
+    }
+    if (options.predictBytes != null && Number.isFinite(options.predictBytes)) {
+      this._predictBytes = Math.max(0, options.predictBytes);
       this.maybeEvict();
     }
   }
@@ -308,9 +325,10 @@ export class AssetCache {
 
   /**
    * Make items resident under `pin`, in order, and settle once every one has
-   * loaded or failed. Pins are kept for the loaded items in order while the
-   * pinned total stays under `pinBudget` (default: the cache size; 0 = no
-   * limit); the rest stay resident but unpinned.
+   * loaded or failed. A `load:` pin keeps its loaded items in order while the
+   * bytes held by every `load:` pin stay under `pinBudget` (default: the
+   * configured load cap; 0 = no limit); the rest stay resident but unpinned.
+   * A gate pin is never capped unless the request carries its own budget.
    */
   request(
     items: AssetItem[],
@@ -332,17 +350,20 @@ export class AssetCache {
     }
     this._tracked.set(pin, { pin, keys: entries.map((e) => e.key) });
     this.emitProgress(pin);
+    const isLoadPin = pin.startsWith("load:");
     const budget =
       pinBudget != null && pinBudget > 0
         ? pinBudget
-        : this._cacheBytes > 0
-          ? this._cacheBytes
+        : isLoadPin && this._loadBytes > 0
+          ? this._loadBytes
           : Number.POSITIVE_INFINITY;
     const settle = (): LoadAssetsResult => {
       const loaded: string[] = [];
       const failed: string[] = [];
       const pinned: string[] = [];
-      let pinnedBytes = this.pinnedBytesExcept(pin);
+      let pinnedBytes = isLoadPin
+        ? this.loadPinnedBytesExcept(pin)
+        : this.pinnedBytesExcept(pin);
       for (const e of entries) {
         if (e.state === "resident") {
           loaded.push(e.key);
@@ -463,13 +484,21 @@ export class AssetCache {
         pins.add(pin);
       }
     }
+    let pinnedBytes = 0;
+    for (const e of this._entries.values()) {
+      if (e.state === "resident" && e.pins.size > 0) {
+        pinnedBytes += e.bytes;
+      }
+    }
     return {
       resident,
       loading,
       queued: this.queuedCount,
       failed,
       bytes,
-      cacheBytes: this._cacheBytes,
+      pinnedBytes,
+      predictBytes: this._predictBytes,
+      loadBytes: this._loadBytes,
       pins: [...pins].sort(),
       keys: [...this._entries.keys()],
     };
@@ -579,6 +608,24 @@ export class AssetCache {
         continue;
       }
       total += e.bytes;
+    }
+    return total;
+  }
+
+  /** Bytes held by every `load:` pin other than `pin`: what the load cap
+   *  has already been spent on. */
+  protected loadPinnedBytesExcept(pin: string): number {
+    let total = 0;
+    for (const e of this._entries.values()) {
+      if (e.state !== "resident") {
+        continue;
+      }
+      for (const p of e.pins) {
+        if (p !== pin && p.startsWith("load:")) {
+          total += e.bytes;
+          break;
+        }
+      }
     }
     return total;
   }
@@ -810,26 +857,33 @@ export class AssetCache {
     return blob.size;
   }
 
-  /** Evict least-recently-used unpinned entries until under the cache size.
-   *  Entries touched this round, and what the page displays or plays, stay. */
+  /** Evict least-recently-used entries of the prediction pool (resident,
+   *  unpinned, neither displayed nor playing) until the pool is under
+   *  `predictBytes`. Entries touched this round stay. Pinned bytes never
+   *  count, so a loaded scene does not shrink what prediction may keep. */
   protected maybeEvict(): void {
-    if (this._cacheBytes <= 0 || this._bytes <= this._cacheBytes) {
+    if (this._predictBytes <= 0) {
       return;
     }
     const derived = new Set(this._derivedPins());
-    const candidates = [...this._entries.values()]
-      .filter(
-        (e) =>
-          e.state === "resident" &&
-          e.pins.size === 0 &&
-          e.lastUsed !== this._tick &&
-          !derived.has(e.key),
-      )
+    const pool = [...this._entries.values()].filter(
+      (e) => e.state === "resident" && e.pins.size === 0 && !derived.has(e.key),
+    );
+    let poolBytes = 0;
+    for (const e of pool) {
+      poolBytes += e.bytes;
+    }
+    if (poolBytes <= this._predictBytes) {
+      return;
+    }
+    const candidates = pool
+      .filter((e) => e.lastUsed !== this._tick)
       .sort((a, b) => a.lastUsed - b.lastUsed);
     for (const e of candidates) {
-      if (this._bytes <= this._cacheBytes) {
+      if (poolBytes <= this._predictBytes) {
         break;
       }
+      poolBytes -= e.bytes;
       this.remove(e);
     }
   }

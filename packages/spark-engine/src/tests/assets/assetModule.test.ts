@@ -83,16 +83,20 @@ describe("AssetModule", () => {
     await h.ready;
     const configure = byMethod(h.messages, "assets/configure");
     expect(configure).toHaveLength(1);
-    expect(configure[0].params).toEqual({ cacheBytes: 300 * 1024 * 1024 });
+    expect(configure[0].params).toEqual({
+      predictBytes: 300 * 1024 * 1024,
+      loadBytes: 0,
+    });
 
     const small = createHarness(
-      `define assets as config with\n  asset_cache_size = 1\nend\n\n${STORY}`,
+      `define assets as config with\n  predict_cache_size = 1\n  load_cache_size = 2\nend\n\n${STORY}`,
       0,
       { assets: ASSETS },
     );
     await small.ready;
     expect(byMethod(small.messages, "assets/configure")[0].params).toEqual({
-      cacheBytes: 1024 * 1024,
+      predictBytes: 1024 * 1024,
+      loadBytes: 2 * 1024 * 1024,
     });
   });
 

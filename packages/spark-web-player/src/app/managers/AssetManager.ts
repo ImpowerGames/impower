@@ -106,7 +106,10 @@ export default class AssetManager extends Manager {
 
   override onReceiveNotification(msg: NotificationMessage): void {
     if (ConfigureAssetsMessage.type.isNotification(msg)) {
-      this.cache.configure({ cacheBytes: msg.params.cacheBytes });
+      this.cache.configure({
+        predictBytes: msg.params.predictBytes,
+        loadBytes: msg.params.loadBytes,
+      });
     } else if (PrefetchAssetsMessage.type.isNotification(msg)) {
       this.cache.prefetch(msg.params.items, msg.params.priority);
     } else if (ReleaseAssetsMessage.type.isNotification(msg)) {

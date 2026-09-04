@@ -13,8 +13,9 @@ Fonts load per layout. A font is loaded when a layout whose styles use it mounts
 ```sparkdown
 define assets as config with
   predict_distance = 32
-  asset_cache_size = 300
+  predict_cache_size = 300
   load_distance = 0
+  load_cache_size = 0
   beat_timeout = 8
   restore_timeout = 2
   load_timeout = 30
@@ -26,8 +27,9 @@ end
 | Key | Meaning |
 | --- | --- |
 | `predict_distance` | Beats ahead of the current one whose assets keep loading. `0` means the rest of the current scene. |
-| `asset_cache_size` | Megabytes of loaded assets to keep. Assets brought in by `load` stay pinned while their scene is current or on the callstack; the rest are evicted least recently used first. `0` means never evict. |
+| `predict_cache_size` | Megabytes prediction may keep loaded. What is on screen, playing, mounted, or brought in by `load` does not count; beyond it the least recently used prediction assets are dropped. `0` means never drop any. |
 | `load_distance` | Beats of a scene a `load` waits for. `0` means the whole scene. |
+| `load_cache_size` | Megabytes `load` may keep pinned across the loaded scenes still on the callstack. A scene beyond it keeps what fits, in flow order, and streams the rest as it is reached. `0` means no cap: a `load` keeps its whole scene. |
 | `beat_timeout` | Seconds a line may wait for its assets before displaying anyway. |
 | `restore_timeout` | Seconds a checkpoint restore or a layout mount may wait for its assets. |
 | `load_timeout` | Seconds a `load` may wait before giving up and continuing. |

@@ -36,13 +36,13 @@ Worlds (authored JavaScript modules) load only in play, through `load`.
 
 ## The cache
 
-One cache on the page, sized by `asset_cache_size` megabytes. `0` means never evict. Entries are keyed by image src, font src plus descriptors, audio load key, or video src. An entry is resident when its bytes are local and usable: an image after its `load` event, a font after its `FontFace` is added to `document.fonts` and loaded, audio after `decodeAudioData`, video once its bytes are held in a blob with an object URL. The `load` and `error` events are the completion signals for images because they fire as soon as the bytes arrive, wherever the page is. `decode()` is only a warm-up on top: the cache asks for it after `load` and waits at most `decodeTimeoutMs` (1.5 s) for it, because Chromium settles that promise as part of producing a frame, so it never settles while the page produces no frames (a hidden tab, a throttled embedded view) and can reject for reasons unrelated to the image.
+One cache on the page with two budgets. `predict_cache_size` (megabytes) bounds the prediction pool: the entries that are neither pinned nor displayed nor playing, evicted least recently used first once the pool exceeds it; `0` means never evict. `load_cache_size` (megabytes) bounds what the `load:` pins may hold between them; `0`, the default, means a `load` keeps its whole scene. Pinned bytes never count against the prediction pool, so a loaded scene does not shrink what prediction may keep for the scenes after it. Entries are keyed by image src, font src plus descriptors, audio load key, or video src. An entry is resident when its bytes are local and usable: an image after its `load` event, a font after its `FontFace` is added to `document.fonts` and loaded, audio after `decodeAudioData`, video once its bytes are held in a blob with an object URL. The `load` and `error` events are the completion signals for images because they fire as soon as the bytes arrive, wherever the page is. `decode()` is only a warm-up on top: the cache asks for it after `load` and waits at most `decodeTimeoutMs` (1.5 s) for it, because Chromium settles that promise as part of producing a frame, so it never settles while the page produces no frames (a hidden tab, a throttled embedded view) and can reject for reasons unrelated to the image.
 
 Bytes are estimated per kind: images as `naturalWidth * naturalHeight * 4` with a floor of 256 KiB and, for SVG variants, a floor of 4 MiB; fonts and video by response size; audio as `length * numberOfChannels * 4`.
 
 Pinned entries never evict. Pinned: what is displayed, playing, or used by a mounted layout; the sets brought in by explicit loads while their scene is current or on the ink callstack; the assets a line or layout mount is waiting on.
 
-When the total exceeds the cache size after an item becomes resident, unpinned entries that were not touched this tick are evicted least-recently-used first. Dropping an image releases the element; a font goes through `document.fonts.delete`; audio drops the buffer; video revokes the object URL.
+When the prediction pool exceeds `predict_cache_size` after an item becomes resident, its entries that were not touched this tick are evicted least-recently-used first. Dropping an image releases the element; a font goes through `document.fonts.delete`; audio drops the buffer; video revokes the object URL.
 
 ## Unloading follows the arrows
 
@@ -56,7 +56,7 @@ Assets brought in by prediction are never dropped early; the cache size decides.
 
 `load_distance` caps how many beats of a scene a `load` waits for. `0` means the whole scene.
 
-If a scene's set would exceed `asset_cache_size`, the load pins as much as fits in flow order, warns once in the console, and prediction streams the rest. A load never blocks on more than the cache size. Pinned entries are exempt from eviction, so the cache size is exceeded only when a single load set is larger than the whole cache, and then only by what could not be pinned.
+By default a `load` pins its whole scene. With `load_cache_size` set, the `load:` pins share that many megabytes between them, so a caller kept on the callstack by a tunnel leaves less for its callee; a scene that does not fit pins as much as fits in flow order, warns once in the console, and streams the rest through prediction as it is reached. A load never blocks on more than the cap.
 
 ## Requests, pins, and priorities
 
@@ -79,7 +79,7 @@ type AssetItem =
   | { kind: "audio"; params: LoadAudioPlayerParams }
   | { kind: "video"; src: string };
 
-// assets/configure  notification  { cacheBytes: number }
+// assets/configure  notification  { predictBytes: number; loadBytes: number }
 // assets/load       request       { items: AssetItem[]; priority: 0 | 1; pin: string; pinBudget?: number }
 //                                 -> { loaded: string[]; failed: string[]; pinned: string[] }
 // assets/prefetch   notification  { items: AssetItem[]; priority: 2 | 3 }
@@ -87,7 +87,7 @@ type AssetItem =
 // assets/progress   notification  (page -> engine) { pin: string; loaded: number; failed: number; total: number }
 ```
 
-`assets/load` resolves when every item is resident or has failed; a failed item counts as settled so a gate never waits for ever. The page pins the loaded items in order while the total of pinned bytes stays under `pinBudget`, or under its own cache size when the request carries none, and reports which ones it pinned; the rest stay resident but unpinned. `assets/release` with `drop` evicts what is left unpinned immediately, unless a derived pin still holds it. A queued item that a drop leaves unpinned is cancelled rather than loaded for nothing.
+`assets/load` resolves when every item is resident or has failed; a failed item counts as settled so a gate never waits for ever. The page pins the loaded items in order while the bytes held by the `load:` pins stay under `pinBudget`, or under its configured load cap when the request carries none, and reports which ones it pinned; the rest stay resident but unpinned. A gate pin is never capped. `assets/release` with `drop` evicts what is left unpinned immediately, unless a derived pin still holds it. A queued item that a drop leaves unpinned is cancelled rather than loaded for nothing.
 
 The page answers every `assets/load`, including one with no items. Every engine emit path is guarded so the never-connected route-simulation game emits nothing.
 
@@ -166,8 +166,9 @@ The built-in layout is a full-screen backdrop with a centered progress bar. Its 
 ```sparkdown
 define assets as config with
   predict_distance = 32
-  asset_cache_size = 300
+  predict_cache_size = 300
   load_distance = 0
+  load_cache_size = 0
   beat_timeout = 8
   restore_timeout = 2
   load_timeout = 30
@@ -176,7 +177,7 @@ define assets as config with
 end
 ```
 
-`predict_distance` is a count of beats; `0` means the rest of the current scene. `asset_cache_size` is in megabytes; `0` means never evict. `load_distance` is a count of beats; `0` means the whole scene. The timeouts and `loading_min` are seconds. `loading_transition` names a transition or animation. Authors override any key with `define assets as config with … end`; unauthored keys keep their defaults.
+`predict_distance` is a count of beats; `0` means the rest of the current scene. `predict_cache_size` is in megabytes; `0` means never evict. `load_distance` is a count of beats; `0` means the whole scene. `load_cache_size` is in megabytes; `0` means a `load` pins its whole scene. The timeouts and `loading_min` are seconds. `loading_transition` names a transition or animation. Authors override any key with `define assets as config with … end`; unauthored keys keep their defaults.
 
 ## Why background loading works in a browser
 

@@ -101,9 +101,13 @@ describe("AssetManager", () => {
     await manager.onInit();
     const tenMiB = 10 * 1024 * 1024;
     manager.onReceiveNotification(
-      notification("assets/configure", { cacheBytes: tenMiB }) as any,
+      notification("assets/configure", {
+        predictBytes: tenMiB,
+        loadBytes: 2 * tenMiB,
+      }) as any,
     );
-    expect(cache.cacheBytes).toBe(tenMiB);
+    expect(cache.predictBytes).toBe(tenMiB);
+    expect(cache.loadBytes).toBe(2 * tenMiB);
     manager.onReceiveNotification(
       notification("assets/prefetch", {
         items: [{ kind: "image", src: "/file:/b.png?v=1" }],

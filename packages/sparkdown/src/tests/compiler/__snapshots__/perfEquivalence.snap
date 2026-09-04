@@ -16922,12 +16922,13 @@
         "assets": {
           "$name": "assets",
           "$type": "config",
-          "asset_cache_size": 300,
           "beat_timeout": 8,
+          "load_cache_size": 0,
           "load_distance": 0,
           "load_timeout": 30,
           "loading_min": 0.5,
           "loading_transition": "fade",
+          "predict_cache_size": 300,
           "predict_distance": 32,
           "restore_timeout": 2
         },
@@ -89130,12 +89131,13 @@
         "assets": {
           "$name": "assets",
           "$type": "config",
-          "asset_cache_size": 300,
           "beat_timeout": 8,
+          "load_cache_size": 0,
           "load_distance": 0,
           "load_timeout": 30,
           "loading_min": 0.5,
           "loading_transition": "fade",
+          "predict_cache_size": 300,
           "predict_distance": 32,
           "restore_timeout": 2
         },

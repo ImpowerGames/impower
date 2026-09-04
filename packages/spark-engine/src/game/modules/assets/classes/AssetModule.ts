@@ -115,7 +115,11 @@ export class AssetModule extends Module<
     const transition = authored["loading_transition"];
     return {
       predict_distance: count("predict_distance", defaults.predict_distance),
-      asset_cache_size: count("asset_cache_size", defaults.asset_cache_size),
+      predict_cache_size: count(
+        "predict_cache_size",
+        defaults.predict_cache_size,
+      ),
+      load_cache_size: count("load_cache_size", defaults.load_cache_size),
       load_distance: count("load_distance", defaults.load_distance),
       beat_timeout: seconds("beat_timeout", defaults.beat_timeout),
       restore_timeout: seconds("restore_timeout", defaults.restore_timeout),
@@ -664,7 +668,7 @@ export class AssetModule extends Module<
               if (result.pinned.length < result.loaded.length) {
                 this.warnOnce(
                   `budget:${name}`,
-                  `scene "${name}" exceeds asset_cache_size; the rest streams as it is reached`,
+                  `scene "${name}" exceeds load_cache_size; the rest streams as it is reached`,
                 );
               }
               if (result.failed.length > 0) {
@@ -722,7 +726,8 @@ export class AssetModule extends Module<
     this._destroyed = false;
     this.emit(
       ConfigureAssetsMessage.type.notification({
-        cacheBytes: Math.max(0, this.config.asset_cache_size) * MEGABYTE,
+        predictBytes: Math.max(0, this.config.predict_cache_size) * MEGABYTE,
+        loadBytes: Math.max(0, this.config.load_cache_size) * MEGABYTE,
       }),
     );
     if (this.silent) {

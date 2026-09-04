@@ -8,8 +8,12 @@ export const assetsBuiltinDefinitions = () => ({
       /** Beats ahead of the current one whose assets keep loading, through
        *  every branch. 0 means the rest of the current scene. */
       predict_distance: 32,
-      /** Megabytes of loaded assets to keep. 0 means never evict. */
-      asset_cache_size: 300,
+      /** Megabytes prediction may keep resident; pinned entries do not
+       *  count. 0 means never evict. */
+      predict_cache_size: 300,
+      /** Megabytes `load` may pin across the loaded scenes on the callstack.
+       *  0 means no cap. */
+      load_cache_size: 0,
       /** Beats of a scene a `load` waits for. 0 means the whole scene. */
       load_distance: 0,
       /** Seconds a line may wait for its assets before displaying anyway. */

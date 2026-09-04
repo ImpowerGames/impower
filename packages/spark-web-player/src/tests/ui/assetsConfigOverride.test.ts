@@ -32,7 +32,8 @@ describe("overriding the assets config", () => {
     const assets = (h.game as any)?.context?.config?.assets;
     expect(assets?.loading_min).toBe(1);
     expect(assets?.predict_distance).toBe(32);
-    expect(assets?.asset_cache_size).toBe(300);
+    expect(assets?.predict_cache_size).toBe(300);
+    expect(assets?.load_cache_size).toBe(0);
     expect(assets?.loading_transition).toBe("fade");
     expect(h.game.module.assets.config.loading_min).toBe(1);
   });

@@ -64,10 +64,14 @@ define assets as config with
   -- Beats ahead of the current one whose assets keep loading in the
   -- background, through every branch. 0 means the rest of the current scene.
   predict_distance = 32
-  -- Megabytes of loaded assets to keep. Assets brought in by `load` stay
-  -- pinned while their scene is current or on the callstack; everything else
-  -- is evicted least-recently-used first. 0 means never evict.
-  asset_cache_size = 300
+  -- Megabytes prediction may keep resident. What is displayed, playing,
+  -- mounted, or pinned by `load` does not count; beyond it the least
+  -- recently used prediction assets are evicted. 0 means never evict.
+  predict_cache_size = 300
+  -- Megabytes `load` may pin, across every loaded scene still on the
+  -- callstack. A scene beyond it pins what fits in flow order and streams the
+  -- rest as it is reached. 0 means no cap: a `load` keeps the whole scene.
+  load_cache_size = 0
   -- Beats of a scene a `load` waits for before the loading screen closes.
   -- 0 means the whole scene.
   load_distance = 0
