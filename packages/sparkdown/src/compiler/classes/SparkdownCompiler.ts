@@ -3553,7 +3553,9 @@ export class SparkdownCompiler {
       }
       const result: SceneAssets = {
         kind: name === "0" ? "root" : isInternal(name) ? "function" : "scene",
-        beats: entry.capture.beats,
+        // A copy: the capture is carried across compiles by reference, so a
+        // consumer that sorts or appends must not reach the cache through it.
+        beats: [...entry.capture.beats],
         ...names,
         successors: entry.successors,
         calls: entry.calls,

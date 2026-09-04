@@ -15,7 +15,11 @@ import {
 import { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
 import { LowerContext } from "../context";
 import { lowerExpressionFromContainer } from "../expression/lowerExpression";
-import { buildDivert, withDivertLoad } from "../utils/buildDivert";
+import {
+  buildDivert,
+  divertLoadShapeProblem,
+  withDivertLoad,
+} from "../utils/buildDivert";
 import { lowerTagContent } from "../utils/lowerTagContent";
 import { wrapInWeave } from "../utils/wrapInWeave";
 
@@ -240,6 +244,17 @@ export function lowerChoice(
         "Blank choice - if you intended a default fallback choice, use the `* ->` syntax",
       severity: ErrorType.Warning,
       source: makeSource(nodeRef.node, ctx),
+    });
+  }
+
+  // `load` on the choice's arrow has the same shape rules as a standalone
+  // arrow: one target, never a tunnel-onwards.
+  const loadProblem = divertNode ? divertLoadShapeProblem(divertNode) : null;
+  if (loadProblem) {
+    diagnostics.push({
+      message: loadProblem,
+      severity: ErrorType.Warning,
+      source: makeSource(divertNode!, ctx),
     });
   }
 

@@ -89,7 +89,7 @@ type AssetItem =
 
 `assets/load` resolves when every item is resident or has failed; a failed item counts as settled so a gate never waits for ever. The page pins the loaded items in order while the bytes held by the `load:` pins stay under `pinBudget`, or under its configured load cap when the request carries none, and reports which ones it pinned; the rest stay resident but unpinned. A gate pin is never capped. `assets/release` with `drop` evicts what is left unpinned immediately, unless a derived pin still holds it. A queued item that a drop leaves unpinned is cancelled rather than loaded for nothing.
 
-The page answers every `assets/load`, including one with no items. Every engine emit path is guarded so the never-connected route-simulation game emits nothing.
+The page answers every `assets/load`, including one with no items. Every engine emit path checks `silent` (the game is destroyed, or it is simulating a route) so the never-connected route-simulation game emits nothing.
 
 ## Waiting
 
@@ -151,7 +151,7 @@ The engine detects a scene change when the first segment of the runtime path cha
 
 `[[load Name]]` and `[[load Name with fade]]` also work on their own, to load a world without changing scene, or to choose the transition. The directive starts its own beat so the loading screen never appears over a line of dialogue. The legacy `load <name>` action line produces the same beat.
 
-A `load` beat: opens the loading layout with the `with` transition or `loading_transition` (adopting it if the author already opened it); requests the scene's beats in order, all or the first `load_distance`, at priority 1 under pin `load:<name>` with the remaining cache size as its pin budget; loads world `Name` if `context.world` has it; writes progress into the layout; and when everything settles (or `load_timeout` elapses, with a warning) and `loading_min` has passed, closes the layout the way it opened and lets the beat advance. `load` requires a flow named `Name` when written on an arrow; `[[load Name]]` accepts a world-only name; a name that matches neither warns and continues.
+A `load` beat: opens the loading layout with the `with` transition or `loading_transition` (adopting it if the author already opened it); requests the scene's beats in order, all or the first `load_distance`, at priority 1 under pin `load:<name>` under the page's load cap; loads world `Name` if `context.world` has it; writes progress into the layout; and when everything settles (or `load_timeout` elapses, with a warning) and `loading_min` has passed, closes the layout the way it opened and lets the beat advance. `load` requires a flow named `Name` when written on an arrow; `[[load Name]]` accepts a world-only name; a name that matches neither warns and continues.
 
 In preview a `load` beat only prefetches the scene's visuals: no layout, no world, no wait. Route simulation skips it entirely.
 
@@ -177,7 +177,7 @@ define assets as config with
 end
 ```
 
-`predict_distance` is a count of beats; `0` means the rest of the current scene. `predict_cache_size` is in megabytes; `0` means never evict. `load_distance` is a count of beats; `0` means the whole scene. `load_cache_size` is in megabytes; `0` means a `load` pins its whole scene. The timeouts and `loading_min` are seconds. `loading_transition` names a transition or animation. Authors override any key with `define assets as config with … end`; unauthored keys keep their defaults.
+`predict_distance` is a count of beats; `0` means the rest of the current scene. `predict_cache_size` is in megabytes; `0` means never evict. `load_distance` is a count of beats; `0` means the whole scene. `load_cache_size` is in megabytes; `0` means a `load` pins its whole scene. The timeouts and `loading_min` are seconds; `0` means no timeout for `beat_timeout`, `restore_timeout`, and `load_timeout`, and no minimum for `loading_min`. A `load` opens the loading layout even when nothing is left to fetch, so every `load` looks the same. A line's pin lasts until the line is written to the page, not until its gate opens. `loading_transition` names a transition or animation. Authors override any key with `define assets as config with … end`; unauthored keys keep their defaults.
 
 ## Why background loading works in a browser
 

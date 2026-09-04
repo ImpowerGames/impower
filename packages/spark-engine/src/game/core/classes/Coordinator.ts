@@ -100,9 +100,10 @@ export class Coordinator<G extends Game> {
     const instructions = this._instructions;
     const waitingForChoice =
       instructions.choices && instructions.choices.length > 0;
-    if (instructions.load) {
+    if (instructions.load && !waitingForChoice) {
       // A `load` beat has nothing to read; it advances on its own once its
-      // loading (and the loading layout's minimum display) has finished.
+      // loading (and the loading layout's minimum display) has finished. One
+      // that also presents choices waits for the choice like any other.
       return this._finishedExecution ? 1 : 0;
     }
     if (this._finishedExecution && this._timeTypedMS < 0) {

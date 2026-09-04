@@ -114,7 +114,12 @@ describe("incremental sceneAssets", () => {
       // new one.
       expect(probe.captureOf("scene_3")).toBe(untouchedBefore);
       expect(probe.captureOf("scene_1")).not.toBe(editedBefore);
-      expect(second.sceneAssets!["scene_3"]!.beats).toBe(
+      // The published beats are a copy of the reused capture, equal in
+      // content and never the cache's own array.
+      expect(second.sceneAssets!["scene_3"]!.beats).toEqual(
+        first.sceneAssets!["scene_3"]!.beats,
+      );
+      expect(second.sceneAssets!["scene_3"]!.beats).not.toBe(
         first.sceneAssets!["scene_3"]!.beats,
       );
     });

@@ -31,7 +31,9 @@ export function installWorkspaceWorker(connection: MessageConnection) {
   const cache = getSharedAssetCache();
   // The scene the cursor last entered, so a cursor that only moves within a
   // scene (the editor re-selects on every column change) asks for nothing.
-  let lastHint: { uri: string; version: number | undefined; scene: string } | undefined;
+  let lastHint:
+    | { uri: string; version: number | undefined; scene: string; line: number }
+    | undefined;
 
   class SparkdownGameWorkspace extends SparkdownWorkspace {
     constructor(profilerId?: string) {
@@ -133,15 +135,26 @@ export function installWorkspaceWorker(connection: MessageConnection) {
         if (!program || !sceneAssets) {
           return;
         }
+        const line = params.selectedRange.start.line;
+        // The same line of the same program asks for nothing; the scan
+        // below is proportional to the whole program.
+        if (
+          lastHint &&
+          lastHint.uri === uri &&
+          lastHint.version === program.version &&
+          lastHint.line === line
+        ) {
+          return;
+        }
         let entries = pathEntriesOf.get(program);
         if (!entries) {
           entries = Object.entries(program.pathLocations ?? {});
           pathEntriesOf.set(program, entries);
         }
         const path = findClosestPath(
-          { file: uri, line: params.selectedRange.start.line },
+          { file: uri, line },
           entries,
-          Object.keys(program.scripts),
+          Object.keys(program.scripts ?? {}),
         );
         const scene = SceneTracker.sceneOf(path) ?? "0";
         if (
@@ -150,9 +163,10 @@ export function installWorkspaceWorker(connection: MessageConnection) {
           lastHint.version === program.version &&
           lastHint.scene === scene
         ) {
+          lastHint.line = line;
           return;
         }
-        lastHint = { uri, version: program.version, scene };
+        lastHint = { uri, version: program.version, scene, line };
         const entry = sceneAssets[scene];
         if (!entry) {
           return;

@@ -115,7 +115,10 @@ describe("the loading layout", () => {
     h.flushTimers();
     await closing;
     expect(ui._mountedLayouts.has("loading")).toBe(false);
-    expect(h.messages.some((m) => m.method === "ui/animate")).toBe(true);
+    // The exit runs the transition it opened with, not the default hide.
+    const exits = h.messages.filter((m) => m.method === "ui/animate");
+    expect(exits.length).toBeGreaterThan(0);
+    expect(JSON.stringify(exits.map((m) => m.params))).toContain("fade");
   });
 
   it("publishes its progress through game.loading, which a replaced layout can bind", async () => {
@@ -180,6 +183,7 @@ ${STORY}`,
     // Nothing of it is saved into a checkpoint.
     expect(h.game.save()).not.toContain("percent");
     const closing = ui.endLoading();
+    await flushMicrotasks(20);
     h.flushTimers();
     await closing;
     expect(loadingTable(h.game)).toMatchObject({ active: false, percent: 25 });
@@ -198,6 +202,7 @@ ${STORY}`,
     ui.beginLoading("fade", "B");
     await flushMicrotasks(20);
     const closing = ui.endLoading();
+    await flushMicrotasks(20);
     h.flushTimers();
     await closing;
     expect(loadingTable(h.game)).toMatchObject({

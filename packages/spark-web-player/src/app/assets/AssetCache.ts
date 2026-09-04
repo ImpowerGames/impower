@@ -133,6 +133,7 @@ interface Tracked {
   keys: string[];
 }
 
+
 const fileOf = (item: AssetItem): string => {
   const src = item.kind === "audio" ? (item.params.src ?? "") : item.src;
   return src.split("?")[0] ?? "";
@@ -179,7 +180,9 @@ export class AssetCache {
 
   protected _derivedPins: () => Iterable<string> = () => [];
 
-  protected _tracked = new Map<string, Tracked>();
+  /** Every request made under a pin that has not been released, so progress
+   *  for the pin covers all of them, not the latest alone. */
+  protected _tracked = new Map<string, Tracked[]>();
 
   protected _progressListeners = new Set<(p: AssetsProgressParams) => void>();
 
@@ -266,6 +269,22 @@ export class AssetCache {
   }
 
   /** Keys the page itself keeps alive: what is displayed or playing. */
+  /** Withdraw a provider, but only the one given: a newer application may
+   *  already have installed its own. */
+  clearDerivedPins(provider: () => Iterable<string>): void {
+    if (this._derivedPins === provider) {
+      this._derivedPins = () => [];
+    }
+  }
+
+  clearAudioDecoder(
+    decode: ((params: LoadAudioPlayerParams) => Promise<AudioBuffer | null>) | undefined,
+  ): void {
+    if (decode && this._deps.decodeAudio === decode) {
+      this._deps = { ...this._deps, decodeAudio: undefined };
+    }
+  }
+
   setDerivedPins(provider: () => Iterable<string>): void {
     this._derivedPins = provider;
   }
@@ -291,11 +310,6 @@ export class AssetCache {
 
   pinsOf(key: string): string[] {
     return [...(this._entries.get(key)?.pins ?? [])];
-  }
-
-  getImage(src: string): ImageTarget | undefined {
-    const e = this._entries.get(src);
-    return e?.state === "resident" ? e.image : undefined;
   }
 
   getAudio(key: string): AudioBuffer | undefined {
@@ -348,7 +362,9 @@ export class AssetCache {
       entry.pins.add(pin);
       entries.push(entry);
     }
-    this._tracked.set(pin, { pin, keys: entries.map((e) => e.key) });
+    const tracked = this._tracked.get(pin) ?? [];
+    tracked.push({ pin, keys: entries.map((e) => e.key) });
+    this._tracked.set(pin, tracked);
     this.emitProgress(pin);
     const isLoadPin = pin.startsWith("load:");
     const budget =
@@ -365,7 +381,10 @@ export class AssetCache {
         ? this.loadPinnedBytesExcept(pin)
         : this.pinnedBytesExcept(pin);
       for (const e of entries) {
-        if (e.state === "resident") {
+        // An entry removed while the request ran (its file changed, a drop
+        // took it) is gone whatever its last state says.
+        const held = this._entries.get(e.key) === e;
+        if (held && e.state === "resident") {
           loaded.push(e.key);
           if (pinnedBytes + e.bytes <= budget) {
             pinnedBytes += e.bytes;
@@ -436,7 +455,25 @@ export class AssetCache {
         for (const w of e.waiters.splice(0)) {
           w();
         }
+      } else if (e.state === "loading") {
+        // Whatever arrives belongs to nobody: `remove` marks it stale and
+        // the load's completion discards it.
+        this.remove(e);
+        for (const w of e.waiters.splice(0)) {
+          w();
+        }
       } else if (e.state === "resident" || e.state === "failed") {
+        this.remove(e);
+      }
+    }
+  }
+
+  /** Forget every failure record, so the next request tries again at once.
+   *  An application's teardown calls this: a failure caused by the teardown
+   *  itself must not blacklist the next session's first requests. */
+  clearFailures(): void {
+    for (const e of [...this._entries.values()]) {
+      if (e.state === "failed") {
         this.remove(e);
       }
     }
@@ -511,6 +548,10 @@ export class AssetCache {
         this.dequeue(e);
       }
       this.remove(e);
+      // A request still waiting settles as failed rather than never.
+      for (const w of e.waiters.splice(0)) {
+        w();
+      }
     }
     this._tracked.clear();
   }
@@ -617,7 +658,8 @@ export class AssetCache {
   protected loadPinnedBytesExcept(pin: string): number {
     let total = 0;
     for (const e of this._entries.values()) {
-      if (e.state !== "resident") {
+      // What this request itself covers is counted by its settle, once.
+      if (e.state !== "resident" || e.pins.has(pin)) {
         continue;
       }
       for (const p of e.pins) {
@@ -637,15 +679,19 @@ export class AssetCache {
     }
     let loaded = 0;
     let failed = 0;
-    for (const key of tracked.keys) {
-      const state = this._entries.get(key)?.state;
-      if (state === "resident") {
-        loaded++;
-      } else if (state === "failed" || state === undefined) {
-        failed++;
+    let total = 0;
+    for (const t of tracked) {
+      for (const key of t.keys) {
+        total++;
+        const state = this._entries.get(key)?.state;
+        if (state === "resident") {
+          loaded++;
+        } else if (state === "failed" || state === undefined) {
+          failed++;
+        }
       }
     }
-    const params = { pin, loaded, failed, total: tracked.keys.length };
+    const params = { pin, loaded, failed, total };
     for (const listener of this._progressListeners) {
       listener(params);
     }

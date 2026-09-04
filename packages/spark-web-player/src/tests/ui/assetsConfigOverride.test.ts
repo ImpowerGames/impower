@@ -50,6 +50,12 @@ describe("overriding the assets config", () => {
   test("the prelude and the engine's mirror carry the same defaults", async () => {
     const h = await render(source(""));
     const runtime = (h.game as any)?.context?.config?.assets;
-    expect(runtime).toMatchObject(assetsBuiltinDefinitions().config.assets);
+    const mirror = assetsBuiltinDefinitions().config.assets;
+    expect(runtime).toMatchObject(mirror);
+    // Both ways: a key added to one side and not the other is a drift.
+    const runtimeKeys = Object.keys(runtime ?? {})
+      .filter((k) => !k.startsWith("$"))
+      .sort();
+    expect(runtimeKeys).toEqual(Object.keys(mirror).sort());
   });
 });

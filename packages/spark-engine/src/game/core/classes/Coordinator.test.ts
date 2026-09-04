@@ -386,6 +386,10 @@ describe("Coordinator", () => {
       });
       expect(coordinator.shouldContinue()).toBe(STAY);
       expect(calls.loadedWorlds).toEqual(["world"]);
+      // Ticking while the load is still running changes nothing.
+      coordinator.onUpdate(tick(0));
+      coordinator.onUpdate(tick(0));
+      expect(coordinator.shouldContinue()).toBe(STAY);
       assets.isReady = () => true;
       coordinator.onUpdate(tick(0));
       expect(coordinator.shouldContinue()).toBe(AUTO_ADVANCED);

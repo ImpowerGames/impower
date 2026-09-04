@@ -274,7 +274,10 @@ export function createDOMHarness(
     if (!msg || typeof msg !== "object" || !("params" in msg)) {
       return;
     }
-    // Route by method family, as `Application.onReceive` fans out to managers.
+    // Route by method family. The real Application broadcasts every message to
+    // every manager and takes the first answer; this harness hands each
+    // message to one manager, so a second manager answering, or the UI
+    // manager mishandling an assets/* message, is not something it can see.
     const consumer = String(msg.method ?? "").startsWith("assets/")
       ? assets
       : ui;

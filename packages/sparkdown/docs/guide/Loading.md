@@ -30,9 +30,9 @@ end
 | `predict_cache_size` | Megabytes prediction may keep loaded. What is on screen, playing, mounted, or brought in by `load` does not count; beyond it the least recently used prediction assets are dropped. `0` means never drop any. |
 | `load_distance` | Beats of a scene a `load` waits for. `0` means the whole scene. |
 | `load_cache_size` | Megabytes `load` may keep pinned across the loaded scenes still on the callstack. A scene beyond it keeps what fits, in flow order, and streams the rest as it is reached. `0` means no cap: a `load` keeps its whole scene. |
-| `beat_timeout` | Seconds a line may wait for its assets before displaying anyway. |
-| `restore_timeout` | Seconds a checkpoint restore or a layout mount may wait for its assets. |
-| `load_timeout` | Seconds a `load` may wait before giving up and continuing. |
+| `beat_timeout` | Seconds a line may wait for its assets before displaying anyway. `0` means never time out. |
+| `restore_timeout` | Seconds a checkpoint restore or a layout mount may wait for its assets. `0` means never time out. |
+| `load_timeout` | Seconds a `load` may wait before giving up and continuing. `0` means never give up. |
 | `loading_min` | Seconds the `loading` layout stays up once a `load` opened it. |
 | `loading_transition` | Transition used to open and close `loading` when `load` has no `with` clause. |
 
@@ -76,7 +76,7 @@ The directive loads each named scene or world in turn behind the loading screen.
 The loading screen is the built-in `loading` layout. Restyle it the way you restyle any layout:
 
 ```sparkdown
-style loading with
+style loading_backdrop with
   background_color = black
 end
 

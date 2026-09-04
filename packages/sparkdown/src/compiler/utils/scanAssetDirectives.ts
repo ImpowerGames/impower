@@ -105,8 +105,11 @@ const scanBody = (
   }
   if (LOAD_CONTROLS.has(verb)) {
     // `[[load A B with fade]]`: every token up to the first clause is a flow
-    // (or world) name.
-    readNames(tokens.slice(1), names.loads);
+    // (or world) name. The verb exists only inside `[[ ]]`; the runtime
+    // routes it from that branch alone, so `((load …))` names nothing here.
+    if (kind === "image") {
+      readNames(tokens.slice(1), names.loads);
+    }
     return;
   }
   if (LAYOUT_CONTROLS.has(verb)) {

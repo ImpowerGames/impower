@@ -881,6 +881,9 @@
           "include": "#Tunnel"
         },
         {
+          "include": "#DivertLoad"
+        },
+        {
           "include": "#DivertTarget"
         },
         {
@@ -1521,7 +1524,7 @@
       "end": "(?=$)"
     },
     "DivertLoad": {
-      "match": "((?:[^\\S\\n\\r])*)(load)((?:[^\\S\\n\\r])+)(?=(?:[_\\p{L}][0-9_\\p{L}-]*\\b)|[.^])",
+      "match": "((?:[^\\S\\n\\r])*)(\\b(?:load)\\b)((?:[^\\S\\n\\r])+)(?=(?:[_\\p{L}][0-9_\\p{L}-]*\\b)|[.^])",
       "captures": {
         "1": {
           "patterns": [
@@ -1576,6 +1579,9 @@
         },
         {
           "include": "#Tunnel"
+        },
+        {
+          "include": "#DivertLoad"
         },
         {
           "include": "#DivertTarget"

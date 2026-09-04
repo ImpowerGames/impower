@@ -54,7 +54,9 @@ export const assetItemKey = (item: AssetItem): string => {
     case "audio":
       return item.params.key;
     case "font":
-      return `font:${item.family}|${item.weight ?? ""}|${item.style ?? ""}|${item.stretch ?? ""}`;
+      // A face is its descriptors AND its file: two subsets of one family
+      // (different `unicode_range`, different `src`) are two faces.
+      return `font:${item.family}|${item.weight ?? ""}|${item.style ?? ""}|${item.stretch ?? ""}|${item.unicodeRange ?? ""}|${item.src}`;
     default:
       return item.src;
   }

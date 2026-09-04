@@ -76,10 +76,13 @@ define assets as config with
   -- 0 means the whole scene.
   load_distance = 0
   -- Seconds a line may wait for its assets before displaying anyway.
+  -- 0 means never time out.
   beat_timeout = 8
   -- Seconds a checkpoint restore or a layout mount may wait for its assets.
+  -- 0 means never time out.
   restore_timeout = 2
-  -- Seconds a `load` may wait before giving up and continuing.
+  -- Seconds a `load` may wait before giving up and continuing. 0 means
+  -- never give up.
   load_timeout = 30
   -- Seconds the `loading` layout stays up once a `load` opened it.
   loading_min = 0.5
@@ -87,14 +90,14 @@ define assets as config with
   loading_transition = "fade"
 end
 
--- Engine state a layout can read through a binding. The engine writes
--- `game.loading` while a `load` runs, so a loading layout can show its own
--- progress:
---   layout loading with
---     text "Loading... {game.loading.percent}%"
---   end
--- Nothing here is saved into checkpoints.
 define game with
+  -- Engine state a layout can read through a binding. The engine writes
+  -- `game.loading` while a `load` runs, so a loading layout can show its own
+  -- progress:
+  --   layout loading with
+  --     text "Loading... {game.loading.percent}%"
+  --   end
+  -- Nothing here is saved into checkpoints.
   -- `active`: whether a `load` is running right now. `name`: the scene (or
   -- world) being loaded. `loaded` and `total`: assets settled so far and the
   -- number the load waits for. `progress`: loaded / total from 0 to 1.
@@ -1494,13 +1497,13 @@ style mask with
     will_change = transform
 end
 
--- The engine-managed loading screen, opened and closed by `load`. A normal
--- layout an author may replace (`layout loading with … end`) or restyle
--- (`style loading with … end`). Progress reaches it through the reactive
--- `game.loading` table (`{game.loading.percent}`, `{game.loading.progress}`),
--- which is how the built-in bar below scales itself. Its styles must not name
--- a project font.
 style loading with
+  -- The engine-managed loading screen, opened and closed by `load`. A normal
+  -- layout an author may replace (`layout loading with … end`) or restyle
+  -- (`style loading with … end`). Progress reaches it through the reactive
+  -- `game.loading` table (`{game.loading.percent}`, `{game.loading.progress}`),
+  -- which is how the built-in bar below scales itself. Its styles must not name
+  -- a project font.
   z_index = 1000
   pointer_events = auto
   align_items = center

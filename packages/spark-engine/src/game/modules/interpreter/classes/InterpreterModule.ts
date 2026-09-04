@@ -220,6 +220,14 @@ export class InterpreterModule extends Module<
         }
       }
     }
+    if (b.load) {
+      a.load ??= [];
+      if (prefix) {
+        a.load.unshift(...b.load);
+      } else {
+        a.load.push(...b.load);
+      }
+    }
     if (b.end > a.end) {
       a.end = b.end;
     }
@@ -399,13 +407,29 @@ export class InterpreterModule extends Module<
             this.merge(contentInstructions, characterNameInstructions, true);
           }
         }
-        const lastTextbox = this._state.buffer.at(-1);
-        if (lastTextbox && !lastTextbox?.text) {
-          // If previous textbox did not actually contain any text, fold this result into it.
-          this.merge(lastTextbox, contentInstructions);
-        } else {
-          // Otherwise, add this result as a new textbox.
-          this._state.buffer.push(contentInstructions);
+        // A `[[load …]]` is always its own beat: the loading layout must never
+        // open over the line before it, and the beat advances by itself once
+        // loading is done. Whatever else the line carried is queued first.
+        const loads = contentInstructions.load;
+        delete contentInstructions.load;
+        const hasOtherContent =
+          contentInstructions.text ||
+          contentInstructions.image ||
+          contentInstructions.audio ||
+          contentInstructions.layout ||
+          Number(contentInstructions.end) > 0;
+        if (!loads || hasOtherContent) {
+          const lastTextbox = this._state.buffer.at(-1);
+          if (lastTextbox && !lastTextbox?.text && !lastTextbox?.load) {
+            // If previous textbox did not actually contain any text, fold this result into it.
+            this.merge(lastTextbox, contentInstructions);
+          } else {
+            // Otherwise, add this result as a new textbox.
+            this._state.buffer.push(contentInstructions);
+          }
+        }
+        if (loads) {
+          this._state.buffer.push({ load: loads, end: 0 });
         }
       }
     }
@@ -482,7 +506,10 @@ export class InterpreterModule extends Module<
       this._state.buffer?.[0]?.load ||
       this._state.buffer?.[0]?.text ||
       this._state.buffer?.[0]?.layout ||
-      Number(this._state.buffer?.[0]?.end) > 0,
+      Number(this._state.buffer?.[0]?.end) > 0 ||
+      // A load beat anywhere in the queue: the beats before it cannot take
+      // more content, so they display now and the load follows.
+      this._state.buffer?.some((b) => b.load),
     );
   }
 

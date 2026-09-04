@@ -60,7 +60,16 @@ export class AssetModule extends Module<
 
   /** Keys already handed to prediction since the last scene entry, so the
    *  window does not resend the same items after every beat. */
-  protected _predicted = new Set<string>();
+  /** Beat pins whose lines have not been written to the page yet; released
+   *  by {@link onBeatDisplayed} once they are, or on destroy. */
+  protected _pendingBeatPins = new Set<string>();
+
+  /** Whether the restore gate's pin is held. */
+  protected _restorePending = false;
+
+  /** Font names per layout, resolved once per program: the walk over a
+   *  layout's tree and styles is repeated for every predicted beat otherwise. */
+  protected _fontNamesByLayout = new Map<string, string[]>();
 
   /** Latest progress per pin, as the page reports it. */
   protected _progress = new Map<
@@ -223,7 +232,12 @@ export class AssetModule extends Module<
     }
     const ui = this._game.module.ui;
     for (const layoutName of layoutNames) {
-      for (const fontName of ui.getFontNamesForLayout(layoutName)) {
+      let fontNames = this._fontNamesByLayout.get(layoutName);
+      if (!fontNames) {
+        fontNames = ui.getFontNamesForLayout(layoutName);
+        this._fontNamesByLayout.set(layoutName, fontNames);
+      }
+      for (const fontName of fontNames) {
         const font = fonts[fontName];
         const src = font?.src;
         const family = font?.font_family || fontName;
@@ -366,18 +380,22 @@ export class AssetModule extends Module<
           resolve({ timedOut: false, result: null });
         },
       );
-      this.context.system.setTimeout(() => {
-        if (settled) {
-          return;
-        }
-        settled = true;
-        console.warn(
-          `spark-engine: ${what} timed out after ${timeoutSeconds}s waiting for ${items
-            .map(assetItemKey)
-            .join(", ")}`,
-        );
-        resolve({ timedOut: true, result: null });
-      }, timeoutSeconds * 1000);
+      if (timeoutSeconds > 0) {
+        this.context.system.setTimeout(() => {
+          if (settled) {
+            return;
+          }
+          settled = true;
+          if (!this._destroyed) {
+            console.warn(
+              `spark-engine: ${what} timed out after ${timeoutSeconds}s waiting for ${items
+                .map(assetItemKey)
+                .join(", ")}`,
+            );
+          }
+          resolve({ timedOut: true, result: null });
+        }, timeoutSeconds * 1000);
+      }
     });
   }
 
@@ -409,6 +427,10 @@ export class AssetModule extends Module<
     }
     const id = this.nextTriggerId();
     const pin = `beat:${id}`;
+    // Held until the beat is on the page ({@link onBeatDisplayed}): the
+    // trigger fires a moment before the write, and an unpinned image with no
+    // element yet is what eviction is allowed to take.
+    this._pendingBeatPins.add(pin);
     this.ensureResident(
       items,
       0,
@@ -416,7 +438,7 @@ export class AssetModule extends Module<
       this.config.beat_timeout,
       "a line's images",
     ).then(() => {
-      this.enableTrigger(id, () => this.release([pin], false));
+      this.enableTrigger(id);
     });
     return id;
   }
@@ -511,8 +533,6 @@ export class AssetModule extends Module<
           (at[1] < here[1] || (at[1] === here[1] && at[2] <= here[2])));
       if (before) {
         index = i;
-      } else {
-        break;
       }
     }
     return index;
@@ -580,12 +600,13 @@ export class AssetModule extends Module<
     if (beats.length === 0) {
       return;
     }
+    const seen = new Set<string>();
     const items = this.itemsForBeats(beats).filter((item) => {
       const key = assetItemKey(item);
-      if (this._predicted.has(key)) {
+      if (seen.has(key)) {
         return false;
       }
-      this._predicted.add(key);
+      seen.add(key);
       return true;
     });
     this.prefetch(items, priority);
@@ -602,6 +623,11 @@ export class AssetModule extends Module<
 
   /** Advance the prediction window past the beat that just displayed. */
   onBeatDisplayed(): void {
+    if (this._pendingBeatPins.size > 0) {
+      const pins = [...this._pendingBeatPins];
+      this._pendingBeatPins.clear();
+      this.release(pins, false);
+    }
     if (this.silent || this.previewing) {
       return;
     }
@@ -685,7 +711,7 @@ export class AssetModule extends Module<
         tasks.push(this._game.module.world.loadWorld(name));
       }
     }
-    if (this.previewing || tasks.length === 0) {
+    if (this.previewing) {
       this.enableTrigger(id);
       return id;
     }
@@ -701,19 +727,33 @@ export class AssetModule extends Module<
       if (this._activeLoadPins === pins) {
         this._activeLoadPins = null;
       }
+      if (this._destroyed) {
+        return;
+      }
       ui.endLoading().then(
         () => this.enableTrigger(id),
         () => this.enableTrigger(id),
       );
     };
-    this.context.system.setTimeout(() => {
-      if (!finished) {
-        console.warn(
-          `spark-engine: load timed out after ${config.load_timeout}s; continuing`,
-        );
-        finish();
-      }
-    }, config.load_timeout * 1000);
+    if (tasks.length === 0) {
+      // Nothing left to fetch (an asset-free scene, or one that is already
+      // resident): the screen still shows for its minimum display, so every
+      // `load` looks the same.
+      finish();
+      return id;
+    }
+    if (config.load_timeout > 0) {
+      this.context.system.setTimeout(() => {
+        if (!finished) {
+          if (!this._destroyed) {
+            console.warn(
+              `spark-engine: load timed out after ${config.load_timeout}s; continuing`,
+            );
+          }
+          finish();
+        }
+      }, config.load_timeout * 1000);
+    }
     Promise.all(tasks).then(finish, finish);
     return id;
   }
@@ -724,15 +764,15 @@ export class AssetModule extends Module<
 
   override async onConnected(): Promise<void> {
     this._destroyed = false;
+    if (this.silent) {
+      return;
+    }
     this.emit(
       ConfigureAssetsMessage.type.notification({
         predictBytes: Math.max(0, this.config.predict_cache_size) * MEGABYTE,
         loadBytes: Math.max(0, this.config.load_cache_size) * MEGABYTE,
       }),
     );
-    if (this.silent) {
-      return;
-    }
     // The restore gate: what the checkpoint displays must be resident before
     // `restore()` writes it, or a preview shows its backdrop late. Fonts are
     // gated by the layouts as they mount.
@@ -750,6 +790,7 @@ export class AssetModule extends Module<
     const items = this.resolveImageItems(names).filter(
       (item) => this.timed || item.kind !== "video",
     );
+    this._restorePending = true;
     await this.ensureResident(
       items,
       0,
@@ -760,7 +801,10 @@ export class AssetModule extends Module<
   }
 
   override async onRestore(): Promise<void> {
-    this.release(["restore"], false);
+    if (this._restorePending) {
+      this._restorePending = false;
+      this.release(["restore"], false);
+    }
   }
 
   override onEnterScene(
@@ -782,7 +826,6 @@ export class AssetModule extends Module<
         true,
       );
     }
-    this._predicted.clear();
     if (this.previewing) {
       this.prefetchScene(scene);
     } else {
@@ -792,13 +835,19 @@ export class AssetModule extends Module<
 
   override onProgramUpdate(): void {
     this._beatIndex = undefined;
+    this._fontNamesByLayout.clear();
   }
 
   override onReceiveNotification(msg: NotificationMessage): void {
     if (AssetsProgressMessage.type.isNotification(msg)) {
       const { pin, loaded, failed, total } = msg.params;
-      this._progress.set(pin, { loaded, failed, total });
       const active = this._activeLoadPins;
+      // Only a running load reads progress; a report for any other pin (a
+      // gate that already opened, a load that already finished) is noise.
+      if (!active || !active.includes(pin)) {
+        return;
+      }
+      this._progress.set(pin, { loaded, failed, total });
       if (active && active.includes(pin)) {
         let loadedSum = 0;
         let totalSum = 0;
@@ -819,16 +868,23 @@ export class AssetModule extends Module<
 
   override onDestroy(): void {
     const pins = [
-      "restore",
+      ...(this._restorePending ? ["restore"] : []),
+      ...this._pendingBeatPins,
       ...[...this._loadPins].map((flow) => `load:${flow}`),
       ...[...this._layoutPins].map((name) => `layout:${name}`),
     ];
     // Unpin without dropping: the cache outlives this game (STOP then PLAY
     // must not re-fetch), and the next game re-pins what it needs.
-    this.release(pins, false);
+    if (pins.length > 0) {
+      this.release(pins, false);
+    }
+    this._restorePending = false;
+    this._pendingBeatPins.clear();
     this._loadPins.clear();
     this._layoutPins.clear();
-    this._predicted.clear();
+    this._fontNamesByLayout.clear();
+    this._progress.clear();
+    this._warned.clear();
     this._activeLoadPins = null;
     this._destroyed = true;
   }

@@ -135,12 +135,16 @@ describe("AssetModule", () => {
       "audio.theme",
     ]);
     // Past the last beat of A the window runs into B (the successor) at the
-    // spill priority, and never resends what it already asked for.
+    // spill priority. What was asked for before is asked for again: the page
+    // touches a resident key for nothing and re-fetches one it evicted.
     h.reset();
     (h.game.module.assets as any).predictFrom("A", beats[2]!.path, true);
     prefetches = byMethod(h.messages, "assets/prefetch");
     expect(prefetches.map((m) => m.params.priority)).toEqual([2, 3]);
-    expect(itemKeys(prefetches[0])).toEqual(["/file:/proj/hat.png?v=1"]);
+    expect(itemKeys(prefetches[0])).toEqual([
+      "/file:/proj/bunny.png?v=1",
+      "/file:/proj/hat.png?v=1",
+    ]);
     expect(itemKeys(prefetches[1])).toEqual(["/file:/proj/room2.png?v=1"]);
   });
 

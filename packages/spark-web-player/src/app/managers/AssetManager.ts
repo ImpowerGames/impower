@@ -6,6 +6,7 @@ import { LoadAssetsMessage } from "../../../../spark-engine/src/game/modules/ass
 import { PrefetchAssetsMessage } from "../../../../spark-engine/src/game/modules/assets/classes/messages/PrefetchAssetsMessage";
 import { ReleaseAssetsMessage } from "../../../../spark-engine/src/game/modules/assets/classes/messages/ReleaseAssetsMessage";
 import { type AssetsProgressParams } from "../../../../spark-engine/src/game/modules/assets/types/AssetsProgressParams";
+import { resolveImageSrcs } from "../../main/utils/resolveImageSrcs";
 import { AssetCache } from "../assets/AssetCache";
 import { Manager } from "../Manager";
 
@@ -32,6 +33,14 @@ export default class AssetManager extends Manager {
 
   protected _exposedProbe?: () => unknown;
 
+  /** What this manager installed on the shared cache, so dispose withdraws
+   *  exactly that and never a successor's. */
+  protected _derivedPinsProvider?: () => Iterable<string>;
+
+  protected _audioDecoder?: (
+    params: import("../../../../spark-engine/src/game/modules/audio/types/LoadAudioPlayerParams").LoadAudioPlayerParams,
+  ) => Promise<AudioBuffer | null>;
+
   get cache(): AssetCache {
     if (!this._cache) {
       this._cache =
@@ -43,24 +52,46 @@ export default class AssetManager extends Manager {
 
   override async onInit(): Promise<void> {
     const cache = this.cache;
-    cache.setAudioDecoder((params) =>
+    this._audioDecoder = (params) =>
       this.app.audio?.decodeAudioBuffer
         ? this.app.audio.decodeAudioBuffer(params)
-        : Promise.resolve(null),
-    );
-    cache.setDerivedPins(() => this.derivedPins());
+        : Promise.resolve(null);
+    cache.setAudioDecoder(this._audioDecoder);
+    this._derivedPinsProvider = () => this.derivedPins();
+    cache.setDerivedPins(this._derivedPinsProvider);
     this._unsubscribe = cache.onProgress((p) => this.queueProgress(p));
     this.exposeProbe();
   }
 
-  /** What the page keeps alive on its own: every image in the overlay and
-   *  every audio player that is playing. */
+  /** What the page keeps alive on its own: every layer of every image in
+   *  the overlay, every video in it, and every audio player that is playing.
+   *  A displayed image paints all its layers through its span's background,
+   *  and only the first layer has an element, so the layers come from the
+   *  span's `image` names resolved the way the renderer resolved them. */
   derivedPins(): Set<string> {
     const keys = new Set<string>();
     const overlay = this.app.overlay;
     if (overlay) {
       for (const img of overlay.querySelectorAll("img.object")) {
         const src = img.getAttribute("src");
+        if (src) {
+          keys.add(src);
+        }
+      }
+      const names: string[] = [];
+      for (const span of overlay.querySelectorAll("[image]")) {
+        const attr = span.getAttribute("image");
+        if (attr) {
+          names.push(...attr.split(/\s+/).filter(Boolean));
+        }
+      }
+      if (names.length > 0) {
+        for (const src of resolveImageSrcs(this.app.context, names)) {
+          keys.add(src);
+        }
+      }
+      for (const video of overlay.querySelectorAll("video.object")) {
+        const src = video.getAttribute("data-src") ?? video.getAttribute("src");
         if (src) {
           keys.add(src);
         }
@@ -139,6 +170,20 @@ export default class AssetManager extends Manager {
     }
     this._unsubscribe?.();
     this._unsubscribe = undefined;
+    // The cache outlives this application: what it was told about this one
+    // (its overlay, its audio graph) must go with it, and a failure caused by
+    // the teardown must not blacklist the next session's first requests.
+    if (this._cache) {
+      if (this._derivedPinsProvider) {
+        this._cache.clearDerivedPins(this._derivedPinsProvider);
+      }
+      if (this._audioDecoder) {
+        this._cache.clearAudioDecoder(this._audioDecoder);
+      }
+      this._cache.clearFailures();
+    }
+    this._derivedPinsProvider = undefined;
+    this._audioDecoder = undefined;
     if (
       typeof window !== "undefined" &&
       (window as any).__assetCache === this._exposedProbe

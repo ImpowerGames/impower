@@ -682,6 +682,7 @@ repository:
     patterns:
       - { include: "#Annotation" }
       - { include: "#Tunnel" }
+      - { include: "#DivertLoad" }
       - { include: "#DivertTarget" }
       - { include: "#ExtraWhitespace" }
     end: (?=[|]|{{END}}(?:$|{{WS}})|$|{{NL}}|{{WS}}+{{GLUE}})
@@ -1096,7 +1097,7 @@ repository:
   # before diverting to it. Listed before DivertTarget so the keyword is not
   # read as a target name; only a following identifier makes it the keyword.
   DivertLoad:
-    match: ({{WS}}*)(load)({{WS}}+)(?={{IDENTIFIER}}|[.^])
+    match: ({{WS}}*)({{LOAD_CONTROL_KEYWORDS}})({{WS}}+)(?={{IDENTIFIER}}|[.^])
     captures:
       1:
         patterns:
@@ -1125,6 +1126,7 @@ repository:
     patterns:
       - { include: "#Annotation" }
       - { include: "#Tunnel" }
+      - { include: "#DivertLoad" }
       - { include: "#DivertTarget" }
       - { include: "#ExtraWhitespace" }
     end: (?=$)

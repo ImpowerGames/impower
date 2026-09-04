@@ -156,13 +156,6 @@ export class Game<T extends M = {}> {
     return this._sceneTracker;
   }
 
-  protected _connected = false;
-  /** True once `connect()` has attached an output. A request emitted before
-   *  then is never answered. */
-  get connected() {
-    return this._connected;
-  }
-
   protected _executingLocation: ScriptLocation | null = null;
 
   protected _runtimeState: RuntimeState = new RuntimeState();
@@ -750,6 +743,11 @@ export class Game<T extends M = {}> {
     if (this._destroyed || this._simulation === "simulating") {
       return;
     }
+    // This runs on every path change in the step loop; the call stack is
+    // walked only when the scene actually changes.
+    if (SceneTracker.sceneOf(path) === this._sceneTracker.current) {
+      return;
+    }
     const transition = this._sceneTracker.observe(
       path,
       this.callStackFlowPaths(),
@@ -767,7 +765,6 @@ export class Game<T extends M = {}> {
 
   async connect(send: (message: Message, transfer?: ArrayBuffer[]) => void) {
     this._connection.connectOutput(send);
-    this._connected = true;
     // Before the modules connect, so the scene's assets are requested before
     // the restore gate waits on the ones already on screen.
     const previewing = this._context.system.previewing;
@@ -1256,7 +1253,6 @@ export class Game<T extends M = {}> {
       this._modules[k]?.onDestroy();
     }
     this._sceneTracker.reset();
-    this._connected = false;
     this._moduleNames = [];
     this._connection.incoming.removeAllListeners();
     this._connection.outgoing.removeAllListeners();
@@ -1536,7 +1532,9 @@ export class Game<T extends M = {}> {
           this._coordinator = new Coordinator(this, instructions);
           if (
             !this._coordinator.shouldContinue() &&
-            this._simulation !== "simulating"
+            this._simulation !== "simulating" &&
+            // A load beat is loading, not waiting for the player.
+            (!instructions.load || (instructions.choices?.length ?? 0) > 0)
           ) {
             this.notifyAwaitingInteraction();
           }

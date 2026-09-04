@@ -275,11 +275,13 @@ describe("AssetCache", () => {
     expect(inFlight().map((i) => i.src)).toEqual(["/file:/a.png?v=1"]);
     cache.release(["beat:1"], true);
     expect(cache.has("/file:/b.png?v=1")).toBe(false);
-    // The in-flight one still finishes on its own, unpinned.
+    // The in-flight one is dropped too: whatever arrives belongs to nobody.
+    expect(cache.has("/file:/a.png?v=1")).toBe(false);
     inFlight()[0]!.finishLoad();
     await settle();
+    expect(cache.has("/file:/a.png?v=1")).toBe(false);
     const result = await pending;
-    expect(result.failed).toEqual(["/file:/b.png?v=1"]);
+    expect(result.failed).toEqual(["/file:/a.png?v=1", "/file:/b.png?v=1"]);
     expect(cache.queuedCount).toBe(0);
   });
 
@@ -443,7 +445,10 @@ describe("AssetCache", () => {
       1,
       "load:A",
     );
-    expect(result.loaded).toEqual(["font:Fancy|||", "/file:/clip.mp4?v=1"]);
+    expect(result.loaded).toEqual([
+      "font:Fancy|||||/file:/Fancy.ttf?v=1",
+      "/file:/clip.mp4?v=1",
+    ]);
     expect(cache.bytes).toBe(0);
   });
 
@@ -464,7 +469,7 @@ describe("AssetCache", () => {
       0,
       "layout:hud",
     );
-    expect(result.loaded).toEqual(["font:Fancy|bold||"]);
+    expect(result.loaded).toEqual(["font:Fancy|bold||||/file:/Fancy.ttf?v=1"]);
     expect(added).toEqual(["Fancy"]);
     expect(cache.bytes).toBe(3000);
     cache.release(["layout:hud"], true);

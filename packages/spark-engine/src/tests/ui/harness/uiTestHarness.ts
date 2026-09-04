@@ -221,7 +221,7 @@ export function createHarness(
   // layout's minimum display. Held until `flushTimers()`, so a test can see a
   // wait before it expires. Zero-delay timers (the Coordinator's audio-latency
   // sync) fire inline, which removes the only source of real-time flakiness.
-  const pendingTimers: Array<{ fn: Function; args: any[] }> = [];
+  const pendingTimers: Array<{ fn: Function; args: any[]; ms: number }> = [];
 
   const game = new Game({
     program: program as any,
@@ -229,7 +229,7 @@ export function createHarness(
     now: () => 0,
     setTimeout: ((fn: Function, ms?: number, ...args: any[]) => {
       if (ms != null && ms > 0) {
-        pendingTimers.push({ fn, args });
+        pendingTimers.push({ fn, args, ms });
         return pendingTimers.length;
       }
       fn(...args);
@@ -432,6 +432,11 @@ export function createHarness(
       return normalizeMessages(
         messages.filter((m) => m.method?.startsWith(prefix)),
       );
+    },
+    /** The delays, in milliseconds, of the timers armed and not yet fired,
+     *  so a test can tell which timeout a wait actually used. */
+    timerDelays(): number[] {
+      return pendingTimers.map((t) => t.ms);
     },
     flushTimers() {
       // A fired timer may arm another; run what was pending at entry only.

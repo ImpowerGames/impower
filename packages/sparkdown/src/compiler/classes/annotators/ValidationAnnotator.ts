@@ -18,11 +18,15 @@ const AUDIO_CONTROL_KEYWORDS =
   GRAMMAR_DEFINITION.variables.AUDIO_CONTROL_KEYWORDS || [];
 const LAYOUT_CONTROL_KEYWORDS =
   GRAMMAR_DEFINITION.variables.LAYOUT_CONTROL_KEYWORDS || [];
-// `[[...]]` brackets carry both visual (show/hide/animate) and screen-lifecycle
-// (open/close/navigate) verbs — see LAYOUT_CONTROL_KEYWORDS in the grammar.
+const LOAD_CONTROL_KEYWORDS =
+  GRAMMAR_DEFINITION.variables.LOAD_CONTROL_KEYWORDS || [];
+// `[[...]]` brackets carry visual (show/hide/animate), screen-lifecycle
+// (open/close/navigate), and preload (load) verbs — see the *_CONTROL_KEYWORDS
+// variables in the grammar.
 const BRACKET_CONTROL_KEYWORDS = [
   ...IMAGE_CONTROL_KEYWORDS,
   ...LAYOUT_CONTROL_KEYWORDS,
+  ...LOAD_CONTROL_KEYWORDS,
 ];
 
 // The whole `[[…]]` / `((…))` command + its control token. A clause keyword/
