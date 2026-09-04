@@ -181,10 +181,9 @@ export class Clock {
    * Synchronize the ticker to a different clock.
    */
   syncToClock(clock: ClockSource) {
-    const oldNow = this._clock.currentTime;
-    const newNow = clock.currentTime;
+    const oldEffective = this.getCurrentTime();
     this._clock = clock;
-    this._timeOffset = oldNow - newNow;
+    this._timeOffset = oldEffective - clock.currentTime;
   }
 
   /**
