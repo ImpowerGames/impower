@@ -82,12 +82,19 @@ const FIELD_BLOCK_TAGS = new Set([
  * nothing between them. This walks the content instead and writes a newline
  * wherever the field shows one: at a `<br>`, and where a block element starts.
  *
- * `trailingBreakIsFiller` covers the `<br>` a browser (and `writeFieldText`
- * below) leaves at the end so an empty last line has a height. That `<br>` is
- * not a line of its own, and counting it would report a trailing newline the
- * user never entered. It is only ever the last `<br>` of a block, so measuring
- * a PREFIX of the content -- where a `<br>` at the end is by definition
- * followed by more content -- passes `false` and counts every one.
+ * `trailingBreakIsFiller` covers the break a browser (and `writeFieldText`
+ * below) leaves at the end, which the field does not show. Measured in the
+ * running editor, where the field is 32px tall holding `abc`, `abc` and a
+ * trailing newline character, or `abc` and one `<br>`, and 55px holding `abc`
+ * and two `<br>` -- so a single trailing break of either kind adds no line,
+ * while a second one does. Counting the invisible one would commit a trailing
+ * newline the user never entered, and replace-all would then push every
+ * following line of the script down by one.
+ *
+ * Both kinds occur: the panel and the browser's editing both write `<br>`,
+ * and the browser's insert command writes newline characters. A PREFIX of the
+ * content is measured with `false`, since a break at the end of a prefix is by
+ * definition followed by more content and is a line like any other.
  */
 const readFieldText = (root: Node, trailingBreakIsFiller = true): string => {
   let text = "";
@@ -102,6 +109,11 @@ const readFieldText = (root: Node, trailingBreakIsFiller = true): string => {
   // content adds no trailing newline. A following block supersedes it, having
   // opened the line itself.
   let pendingBreak = false;
+  // Whether the last thing written was a newline character ending a text node,
+  // which is the invisible trailing break in its other form. Tracked rather
+  // than tested for on the finished text, so that a trailing `<br>` counted as
+  // a line above is not mistaken for one and dropped.
+  let trailingTextBreak = false;
   const endLine = () => {
     if (pendingBreak) {
       text += "\n";
@@ -118,7 +130,8 @@ const readFieldText = (root: Node, trailingBreakIsFiller = true): string => {
         if (data) {
           endLine();
           text += data;
-          atLineStart = false;
+          atLineStart = data.endsWith("\n");
+          trailingTextBreak = atLineStart;
         }
       } else if (node.nodeType === Node.ELEMENT_NODE) {
         const el = node as Element;
@@ -127,6 +140,7 @@ const readFieldText = (root: Node, trailingBreakIsFiller = true): string => {
             endLine();
             text += "\n";
             atLineStart = true;
+            trailingTextBreak = false;
           }
         } else if (FIELD_BLOCK_TAGS.has(el.tagName)) {
           if (!atLineStart) {
@@ -134,6 +148,7 @@ const readFieldText = (root: Node, trailingBreakIsFiller = true): string => {
             atLineStart = true;
           }
           pendingBreak = false;
+          trailingTextBreak = false;
           walk(el);
           // The block's line is over, whether or not it put anything on one.
           atLineStart = false;
@@ -145,6 +160,9 @@ const readFieldText = (root: Node, trailingBreakIsFiller = true): string => {
     }
   };
   walk(root);
+  if (trailingBreakIsFiller && trailingTextBreak) {
+    return text.slice(0, -1);
+  }
   return text;
 };
 
@@ -302,6 +320,35 @@ const insertIntoField = (field: HTMLElement, insert: string) => {
   }
   writeFieldText(field, value.slice(0, start) + insert + value.slice(end));
   setCaret(field, start + insert.length);
+};
+
+/**
+ * Put `text` in at the caret the way typing would.
+ *
+ * The browser's own insert command is what a keystroke goes through, so the
+ * browser records it on the field's undo history and Ctrl+Z takes it back --
+ * which it cannot do for an edit the panel performs on the DOM itself. The
+ * command also raises `input`, so the field's listener commits what it left,
+ * and commits again when the user undoes or redoes it.
+ *
+ * Where the command is missing or refuses -- an environment without it, or a
+ * field the browser will not treat as editable -- the field is rewritten
+ * instead. That puts the same text in and is not undoable.
+ */
+const typeIntoField = (field: HTMLElement, text: string) => {
+  const doc = field.ownerDocument;
+  try {
+    if (
+      typeof doc.execCommand === "function" &&
+      doc.execCommand("insertText", false, text)
+    ) {
+      return;
+    }
+  } catch {
+    // An environment that defines the command and throws on it is one without
+    // it, and is served by the same fallback.
+  }
+  insertIntoField(field, text);
 };
 
 /** Every way a line ends, as the one way this panel writes it. */
@@ -463,9 +510,8 @@ export class SearchPanel implements Panel {
     writeFieldText(this.searchInput, query.search);
     this.searchInput.onchange = this.commit;
     this.searchInput.onkeyup = this.commit;
-    this.searchInput.addEventListener("input", () => {
-      this.clearEmptied(this.searchInput);
-      this.commit();
+    this.searchInput.addEventListener("input", (e) => {
+      this.afterInput(this.searchInput, e as InputEvent);
     });
     this.searchInput.addEventListener("paste", (e) => this.paste(e));
 
@@ -483,13 +529,12 @@ export class SearchPanel implements Panel {
     this.replaceInput.setAttribute("aria-multiline", "true");
     this.replaceInput.setAttribute("aria-autocomplete", "list");
     writeFieldText(this.replaceInput, query.replace);
-    this.replaceInput.addEventListener("input", () => {
-      this.clearEmptied(this.replaceInput);
-      // The replace text only reaches `replaceNext`/`replaceAll` through the
-      // committed SearchQuery, so every keystroke has to commit. Without this
-      // the field is decorative: the query keeps whatever replacement was
-      // current the last time the find field or a toggle committed.
-      this.commit();
+    // The replace text only reaches `replaceNext`/`replaceAll` through the
+    // committed SearchQuery, so every keystroke has to commit. Without this the
+    // field is decorative: the query keeps whatever replacement was current the
+    // last time the find field or a toggle committed.
+    this.replaceInput.addEventListener("input", (e) => {
+      this.afterInput(this.replaceInput, e as InputEvent);
     });
     this.replaceInput.addEventListener("paste", (e) => this.paste(e));
 
@@ -610,6 +655,21 @@ export class SearchPanel implements Panel {
   }
 
   /**
+   * Bring the query up to date with what a field now holds.
+   *
+   * Undo and redo are the browser replaying its own record of the field, so the
+   * leftover break is left where it is on those: tidying the DOM underneath
+   * that record is what leaves the next redo with nothing to redo into. It goes
+   * as soon as the user edits the field again.
+   */
+  afterInput(field: HTMLElement, e: InputEvent) {
+    if (e.inputType !== "historyUndo" && e.inputType !== "historyRedo") {
+      this.clearEmptied(field);
+    }
+    this.commit();
+  }
+
+  /**
    * Paste as plain text, keeping the line breaks.
    *
    * Left to itself a `contenteditable` pastes markup, which puts fonts, colors
@@ -633,10 +693,12 @@ export class SearchPanel implements Panel {
     if (!text) {
       return;
     }
-    insertIntoField(field, normalizeLineEndings(text));
+    typeIntoField(field, normalizeLineEndings(text));
     this.clearEmptied(field);
-    // Editing the field from script raises no `input` event, so the commit the
-    // field's own listener would have made has to be made here.
+    // The insert command raises `input` and the field's listener commits on
+    // it, but the fallback edits the DOM directly and raises nothing. The
+    // commit is repeated here for that case; a second one costs nothing, since
+    // committing an unchanged query does nothing.
     this.commit();
   }
 
@@ -845,7 +907,8 @@ export class SearchPanel implements Panel {
    * other editors.
    */
   breakLine(field: HTMLElement) {
-    insertIntoField(field, "\n");
+    typeIntoField(field, "\n");
+    this.clearEmptied(field);
     this.commit();
   }
 

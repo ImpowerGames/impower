@@ -285,6 +285,56 @@ describe("multi-line find and replace fields (#360)", () => {
     expect(getSearchQuery(view.state).replace).toBe("first\nsecond");
   });
 
+  // The browser's insert command writes newline characters rather than `<br>`,
+  // and leaves one at the end that the field does not show. Measured in the
+  // running editor: the field is 32px tall holding "abc" and 32px holding "abc"
+  // and a trailing newline, against 55px for two lines. Committing that
+  // newline made replace-all write a line break nobody entered -- seen in the
+  // editor, where replacing "hello" with "abc" produced "abc\n world".
+  it("does not read a trailing newline character as a line", () => {
+    const view = mount();
+    const { search, replace } = fields(view);
+
+    type(search, "hello");
+    replace.innerHTML = "";
+    replace.appendChild(document.createTextNode("abc\n"));
+    input(replace);
+
+    expect(getSearchQuery(view.state).replace).toBe("abc");
+
+    control<HTMLButtonElement>(view, "replaceAll").click();
+
+    expect(view.state.doc.toString()).toBe(
+      ["abc world", "abc there", "one", "two", ""].join("\n"),
+    );
+  });
+
+  // The one before the last is a line the user entered, and only the last is
+  // the break the field does not show.
+  it("reads all but the last of a run of trailing newlines", () => {
+    const view = mount();
+    const { search, replace } = fields(view);
+
+    type(search, "hello");
+    replace.innerHTML = "";
+    replace.appendChild(document.createTextNode("abc\n\n"));
+    input(replace);
+
+    expect(getSearchQuery(view.state).replace).toBe("abc\n");
+  });
+
+  it("keeps a newline character in the middle of the text", () => {
+    const view = mount();
+    const { search, replace } = fields(view);
+
+    type(search, "hello");
+    replace.innerHTML = "";
+    replace.appendChild(document.createTextNode("one\n    two\n"));
+    input(replace);
+
+    expect(getSearchQuery(view.state).replace).toBe("one\n    two");
+  });
+
   it("finds a pattern that spans two lines", () => {
     const view = mount();
     const { search } = fields(view);
@@ -516,6 +566,72 @@ describe("multi-line find and replace fields (#360)", () => {
       expect(event.defaultPrevented).toBe(true);
       expect(getSearchQuery(view.state).replace).toBe("hi");
       expect(replace.textContent).toBe("hi");
+    });
+
+    // A paste goes in through the browser's own insert command, so the browser
+    // records it and Ctrl+Z takes it back. jsdom implements no such command,
+    // which is the case the fallback exists for and the one these tests
+    // otherwise exercise; here the command is supplied so the path a browser
+    // takes is the one under test.
+    it("inserts through the browser's own command when there is one", () => {
+      const view = mount();
+      const { search, replace } = fields(view);
+      const calls: unknown[][] = [];
+      const doc = replace.ownerDocument as Document & {
+        execCommand?: (...args: unknown[]) => boolean;
+      };
+      doc.execCommand = (...args: unknown[]) => {
+        calls.push(args);
+        // What the command does to the field, as a browser would leave it.
+        replace.appendChild(document.createTextNode(String(args[2])));
+        replace.dispatchEvent(new InputEvent("input", { bubbles: true }));
+        return true;
+      };
+      try {
+        type(search, "hello");
+        paste(replace, "pasted");
+
+        expect(calls).toEqual([["insertText", false, "pasted"]]);
+        expect(getSearchQuery(view.state).replace).toBe("pasted");
+      } finally {
+        delete doc.execCommand;
+      }
+    });
+
+    it("falls back to writing the field where there is no such command", () => {
+      const view = mount();
+      const { search, replace } = fields(view);
+
+      // jsdom defines no `execCommand`, so this is the fallback path.
+      expect(
+        (replace.ownerDocument as Document & { execCommand?: unknown })
+          .execCommand,
+      ).toBeUndefined();
+
+      type(search, "hello");
+      paste(replace, "one\ntwo");
+
+      expect(getSearchQuery(view.state).replace).toBe("one\ntwo");
+    });
+
+    // Undo and redo replay the browser's own record of the field. Emptying the
+    // field's leftover break underneath that record is what leaves a redo with
+    // nothing to redo into, so it is left alone until the user edits again.
+    it("does not tidy the field underneath an undo", () => {
+      const view = mount();
+      const { search, replace } = fields(view);
+
+      type(search, "hello");
+      type(replace, "hi");
+      // What a browser leaves when an undo takes the text back out.
+      replace.innerHTML = "";
+      replace.appendChild(document.createElement("br"));
+      replace.dispatchEvent(
+        new InputEvent("input", { bubbles: true, inputType: "historyUndo" }),
+      );
+
+      expect(replace.childNodes).toHaveLength(1);
+      expect(getSearchQuery(view.state).replace).toBe("");
     });
 
     // Without a clipboard there is nothing to read, and taking the event over
