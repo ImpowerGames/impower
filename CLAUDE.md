@@ -56,6 +56,8 @@ Every issue and pull request follows a template under `.github/`. GitHub only fi
 
 Each template's leading comment gives the title convention and the label list; its `type:` front matter names the issue type to set (`Bug`, `Feature`, or `Task`). Keep every heading, write "None", "Unknown", or "Not applicable" with a short reason under one you cannot fill, tick only the checklist items you actually did, and strip the HTML comments before filing. After filing, read the artifact back (`gh issue view N --json body`, `gh pr view N --json body`).
 
+A pull request that resolves an issue must carry `Closes #N` in its body (the template's line under Summary). GitHub closes the issue on merge only when a closing keyword and the number appear together in the body; the issue number in the title is a mention and closes nothing.
+
 ## Multi-line bodies for `gh` and `git` (silent-corruption footgun)
 
 `@-` means "read stdin" to **curl**, not to `gh` or `git`. Both accept it as a

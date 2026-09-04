@@ -8,9 +8,13 @@ Open as a draft until it is ready for review. Keep every heading; write "None" o
 
 <!-- One to three sentences a reviewer could repeat to someone else: what this pull request does. -->
 
+Closes #
+
+<!-- Keep the line above, with the issue number filled in, whenever this pull request resolves an issue. GitHub closes the issue on merge only when a closing keyword and the number appear together in this body; a number in the title does nothing. For several issues, repeat the keyword: "Closes #12, closes #34". When there is no issue, replace the line with "No linked issue." -->
+
 ## Motivation
 
-<!-- Why the change is needed. Link the issue it resolves ("Closes #123") or, when there is no issue, describe the need here. For a bug fix, state what was going wrong and the cause, with file:line references at the base commit. -->
+<!-- Why the change is needed. For a bug fix, state what was going wrong and the cause, with file:line references at the base commit. When there is no issue, describe the need here. -->
 
 ## Changes
 

@@ -483,15 +483,19 @@ Write bodies to a file and pass `--body-file`. `@-` is a curl idiom; `gh` and `g
 gh pr create --draft --title "fix(compiler): accumulate all matching filtered_layers (#302)" --body-file pr-body.md
 ```
 
-Read it back — always:
+The body must contain the line `Closes #302` (the template's `Closes #` line under **Summary**, with the number filled in). That line is the only thing that makes GitHub close the issue when the PR merges; the `(#302)` in the title is a mention and closes nothing. Without it the ticket stays open after the fix ships and someone has to notice.
+
+Read it back — always, and check both the body and the closing line:
 
 ```bash
 gh pr view --json number,title,body,isDraft
+gh pr view --json body --jq .body | grep -i "closes #302"
 ```
 
 The body follows `.github/PULL_REQUEST_TEMPLATE.md` — same headings, same order; `gh pr create` does not apply it for you, so read the file and fill it in. Where the material from this skill goes:
 
-- **Motivation** — `Closes #N`, what broke and why, with `file:line`.
+- **Summary** — the one-paragraph summary, then the `Closes #N` line.
+- **Motivation** — what broke and why, with `file:line`.
 - **Changes** — the fix, and any alternative you rejected.
 - **Testing and verification** — the regression test's path and the red/green evidence from §5b ("fails on the pre-fix source with `<assertion>`, passes after"); which suites you ran and their actual `Test Files` / `Tests` counts, noting any pre-existing failure you confirmed also fails on `origin/main`; the before/after screenshots from §4, or, when the change has no visual signature, the before/after measurement that replaces them, with absolute numbers and how they were taken.
 - **Notes for reviewers** — any performance cost the fix carries. Repeat it in the first line of **Summary** so it is the first thing a reviewer reads.
