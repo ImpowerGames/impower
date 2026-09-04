@@ -18,20 +18,29 @@ const noopFrame = () => 0;
 
 describe("Clock.syncToClock preserves effective time", () => {
   test("re-syncing to the same source keeps getCurrentTime unchanged", () => {
-    const source = new FakeClock(10);
-    const clock = new Clock(source, noopFrame);
+    const perfClock = new FakeClock(50);
+    const clock = new Clock(perfClock, noopFrame);
+
+    const audioClock = new FakeClock(3);
+    clock.syncToClock(audioClock);
+    expect((clock as any)._timeOffset).not.toBe(0);
 
     const timeBefore = (clock as any).getCurrentTime();
-    clock.syncToClock(source);
+    clock.syncToClock(audioClock);
     const timeAfter = (clock as any).getCurrentTime();
 
     expect(timeAfter).toBeCloseTo(timeBefore, 10);
   });
 
   test("syncing to a new source with a different raw time preserves effective time", () => {
-    const oldSource = new FakeClock(100);
-    const clock = new Clock(oldSource, noopFrame);
+    const perfClock = new FakeClock(100);
+    const clock = new Clock(perfClock, noopFrame);
 
+    const audioClock = new FakeClock(8);
+    clock.syncToClock(audioClock);
+    expect((clock as any)._timeOffset).not.toBe(0);
+
+    audioClock.advance(2);
     const timeBefore = (clock as any).getCurrentTime();
 
     const newSource = new FakeClock(5);
