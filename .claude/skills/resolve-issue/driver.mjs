@@ -27,6 +27,7 @@ import fs from "node:fs";
 import net from "node:net";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { parseRedGreenArgs, runRedGreen } from "./redgreen.mjs";
 
 const SKILL_DIR = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(SKILL_DIR, "..", "..", "..");
@@ -777,6 +778,437 @@ async function verify(args) {
   );
 }
 
+// ------------------------------------------------------- editor surfaces ---
+//
+// `verify` reaches the game preview. These reach the editor's own interface:
+// the find and go-to-line panels inside the script editor, and the three main
+// screens the bottom tabs switch between. A change to any of those is invisible
+// to `verify`, and before this every session that touched one wrote its own
+// Playwright script to satisfy the skill's completion gate (#423).
+//
+// Every action here is the one a user performs: the panels open on their own
+// keyboard shortcut, text goes in as real keystrokes, screens switch by
+// clicking the tab. Nothing dispatches into CodeMirror or pokes the workspace
+// store, so what these observe is what a user would see.
+
+// Panels the script editor owns. Each opens on a CodeMirror keymap binding and
+// is identified by the class its Panel implementation sets on its root
+// (customSearch.ts in sparkdown-document-views). The fields are contenteditable
+// divs carrying a `name`, not <input>s.
+const SURFACES = {
+  find: {
+    selector: ".cm-search",
+    open: "Control+f",
+    fields: { search: "[name=search]", replace: "[name=replace]" },
+    buttons: ["next", "prev", "select", "replace", "replaceAll", "close"],
+    toggles: ["case", "re", "word"],
+  },
+  goto: {
+    selector: ".cm-gotoLine",
+    open: "Control+g",
+    fields: { line: "[name=line]" },
+    buttons: ["submit", "close"],
+    toggles: [],
+  },
+};
+
+// The main screens. Every tab in the editor is a Radix trigger whose id ends in
+// `-trigger-<value>`, and the value is the workspace's own name for the pane
+// (`logic`, `assets`, `share`) or, for the tab row inside a pane, its panel
+// (`main`, `scripts`, ...). The tab's text is not usable as a name: it renders
+// twice (an active and an inactive label), so its accessible name is
+// "LogicLogic".
+const SCREENS = ["logic", "assets", "share"];
+const tabSelector = (value) => `[role="tab"][id$="-trigger-${value}"]`;
+
+/**
+ * Playwright's key strings are case-sensitive for a single character: `Shift+g`
+ * delivers `key: "g"` with `shiftKey: true`, which no keyboard produces (a
+ * keyboard reports `G`), and CodeMirror resolves a letter binding from the
+ * reported key, so the shifted variant of a binding never runs from that form
+ * and the unshifted one runs instead. Measured in the live editor on
+ * 2026-09-04 with playwright 1.61: `Control+Shift+G`, `Control+Shift+KeyG`,
+ * and holding Control and Shift around `press("KeyG")` all deliver `key: "G"`;
+ * only `Control+Shift+g` delivers `g`. So a lowercase letter under Shift is
+ * rewritten to its uppercase form before it is pressed.
+ */
+export function normalizeKeyCombo(combo) {
+  const parts = combo.split("+").map((p) => p.trim()).filter(Boolean);
+  const key = parts[parts.length - 1];
+  const mods = parts.slice(0, -1);
+  const shifted = mods.some((m) => /^shift$/i.test(m));
+  const fixed = shifted && /^[a-z]$/.test(key) ? key.toUpperCase() : key;
+  return { combo: [...mods, fixed].join("+"), rewritten: fixed !== key };
+}
+
+async function pressKey(page, combo) {
+  const n = normalizeKeyCombo(combo);
+  await page.keyboard.press(n.combo);
+  return n;
+}
+
+/** Focus the CodeMirror view so editor-scoped keymap bindings receive keys. */
+async function focusEditor(page) {
+  await page.evaluate(() => document.querySelector(".cm-content")?.cmTile?.view?.focus());
+}
+
+/** Resolve while the DOM has been still for `quiet` ms, or give up at `timeout`. */
+async function waitForDomQuiet(page, { quiet = 400, timeout = 8_000 } = {}) {
+  return page.evaluate(
+    ({ quiet, timeout }) =>
+      new Promise((resolve) => {
+        let timer;
+        const done = (settled) => {
+          obs.disconnect();
+          clearTimeout(giveUp);
+          resolve(settled);
+        };
+        const arm = () => {
+          clearTimeout(timer);
+          timer = setTimeout(() => done(true), quiet);
+        };
+        const obs = new MutationObserver(arm);
+        obs.observe(document.body, { subtree: true, childList: true, characterData: true, attributes: true });
+        const giveUp = setTimeout(() => done(false), timeout);
+        arm();
+      }),
+    { quiet, timeout },
+  );
+}
+
+function surfaceOf(name) {
+  const s = SURFACES[name];
+  if (!s) throw new Error(`unknown surface "${name}" (know: ${Object.keys(SURFACES).join(", ")})`);
+  return s;
+}
+
+async function surfaceOpen(page, name) {
+  return page.locator(surfaceOf(name).selector).first().isVisible().catch(() => false);
+}
+
+/** Open a panel on its own shortcut and wait for it to be on screen. */
+async function openSurface(page, name) {
+  const s = surfaceOf(name);
+  if (await surfaceOpen(page, name)) return { surface: name, opened: false, alreadyOpen: true };
+  await focusEditor(page);
+  const key = await pressKey(page, s.open);
+  try {
+    await page.locator(s.selector).first().waitFor({ state: "visible", timeout: 10_000 });
+  } catch {
+    return {
+      surface: name,
+      opened: false,
+      pressed: key.combo,
+      reason: `${s.selector} did not appear within 10s of pressing ${key.combo} with the editor focused`,
+    };
+  }
+  return { surface: name, opened: true, pressed: key.combo };
+}
+
+/** Close a panel the way a user does: Escape from inside it. */
+async function closeSurface(page, name) {
+  const s = surfaceOf(name);
+  if (!(await surfaceOpen(page, name))) return { surface: name, closed: false, alreadyClosed: true };
+  const firstField = Object.values(s.fields)[0];
+  await page.locator(`${s.selector} ${firstField}`).first().click();
+  await pressKey(page, "Escape");
+  try {
+    await page.locator(s.selector).first().waitFor({ state: "hidden", timeout: 5_000 });
+  } catch {
+    return { surface: name, closed: false, reason: `${s.selector} still visible 5s after Escape` };
+  }
+  return { surface: name, closed: true };
+}
+
+/** Which panel a field name belongs to. */
+function surfaceForField(field) {
+  for (const [name, s] of Object.entries(SURFACES)) if (s.fields[field]) return name;
+  throw new Error(
+    `unknown field "${field}" (know: ${Object.values(SURFACES).flatMap((s) => Object.keys(s.fields)).join(", ")})`,
+  );
+}
+
+async function fieldLocator(page, field) {
+  const name = surfaceForField(field);
+  const s = surfaceOf(name);
+  return page.locator(`${s.selector} ${s.fields[field]}`).first();
+}
+
+/** What a field is holding, as the panel itself reads it. */
+async function readField(page, field) {
+  const loc = await fieldLocator(page, field);
+  return loc.evaluate((el) => el.innerText.replace(/\n$/, ""));
+}
+
+/**
+ * Put text into a panel field with real keystrokes: click it, select what is
+ * there, type. A `\n` in the text is entered as the field's own line-break
+ * shortcut (Control+Enter — plain Enter submits the panel), which is how a
+ * user gets a multi-line find or replace.
+ */
+async function typeInto(page, field, text) {
+  const name = surfaceForField(field);
+  const opened = await openSurface(page, name);
+  if (opened.reason) return { field, typed: false, ...opened };
+  const loc = await fieldLocator(page, field);
+  await loc.click();
+  await page.keyboard.press("Control+a");
+  await page.keyboard.press("Backspace");
+  const segments = text.split("\n");
+  for (let i = 0; i < segments.length; i++) {
+    if (i > 0) await page.keyboard.press("Control+Enter");
+    if (segments[i]) await page.keyboard.type(segments[i]);
+  }
+  await waitForDomQuiet(page, { quiet: 300, timeout: 4_000 });
+  const readBack = await readField(page, field);
+  return { field, typed: true, text, readBack, matches: readBack === text };
+}
+
+/** Click a panel button by its `name`. */
+async function clickSurfaceButton(page, name) {
+  for (const [surface, s] of Object.entries(SURFACES)) {
+    if (!s.buttons.includes(name)) continue;
+    if (!(await surfaceOpen(page, surface))) {
+      return { button: name, clicked: false, reason: `${surface} panel is not open` };
+    }
+    await page.locator(`${s.selector} button[name=${name}]`).first().click();
+    await waitForDomQuiet(page, { quiet: 300, timeout: 4_000 });
+    return { button: name, surface, clicked: true };
+  }
+  throw new Error(
+    `unknown button "${name}" (know: ${Object.values(SURFACES).flatMap((s) => s.buttons).join(", ")})`,
+  );
+}
+
+/**
+ * Bring a screen to the front by clicking its tab. `name` is a main screen
+ * (logic, assets, share) or any other tab value on the page, such as the
+ * `main` / `scripts` row inside the logic pane.
+ */
+async function switchScreen(page, name) {
+  const tab = page.locator(tabSelector(name)).first();
+  try {
+    await tab.waitFor({ state: "visible", timeout: 10_000 });
+  } catch {
+    const known = await page.evaluate(() =>
+      [...document.querySelectorAll('[role="tab"]')].map((t) => t.id.replace(/^.*-trigger-/, "")),
+    );
+    return { screen: name, active: false, reason: `no tab named "${name}" on the page (tabs present: ${known.join(", ")})` };
+  }
+  await tab.click();
+  try {
+    await page.locator(`${tabSelector(name)}[aria-selected="true"]`).first().waitFor({ state: "attached", timeout: 10_000 });
+  } catch {
+    return { screen: name, active: false, reason: `the ${name} tab never reported itself selected after the click` };
+  }
+  const settled = await waitForDomQuiet(page, { quiet: 600, timeout: 10_000 });
+  return { screen: name, active: true, settled };
+}
+
+/** Everything a session might want to read back, in one object. */
+async function readSurfaces(page) {
+  const out = { screen: null, panelTab: null, tabs: [], find: { open: false }, goto: { open: false } };
+  out.tabs = await page.evaluate(() =>
+    [...document.querySelectorAll('[role="tab"]')].map((t) => ({
+      value: t.id.replace(/^.*-trigger-/, ""),
+      label: t.innerText.split("\n")[0].trim(),
+      active: t.getAttribute("aria-selected") === "true",
+    })),
+  );
+  out.screen = out.tabs.find((t) => t.active && SCREENS.includes(t.value))?.value ?? null;
+  out.panelTab = out.tabs.find((t) => t.active && !SCREENS.includes(t.value))?.value ?? null;
+
+  if (await surfaceOpen(page, "find")) {
+    out.find = {
+      open: true,
+      search: await readField(page, "search"),
+      replace: await readField(page, "replace"),
+      matches: await page.locator(".cm-search .cm-search-matches-label").first().innerText().catch(() => ""),
+      toggles: await page.evaluate(() =>
+        Object.fromEntries(
+          [...document.querySelectorAll('.cm-search input[type="checkbox"]')].map((c) => [c.name, c.checked]),
+        ),
+      ),
+    };
+  }
+  if (await surfaceOpen(page, "goto")) {
+    out.goto = { open: true, line: await readField(page, "line") };
+  }
+  out.cursorLine = await page.evaluate(() => {
+    const view = document.querySelector(".cm-content")?.cmTile?.view;
+    return view ? view.state.doc.lineAt(view.state.selection.main.head).number : null;
+  });
+  return out;
+}
+
+/** Screenshot one surface: a panel, the script editor, or the whole page. */
+async function shotOf(page, what, out) {
+  const target = path.resolve(out);
+  fs.mkdirSync(path.dirname(target), { recursive: true });
+  const selectors = { find: SURFACES.find.selector, goto: SURFACES.goto.selector, editor: ".cm-editor", page: null };
+  if (!(what in selectors)) throw new Error(`unknown --shot-of target "${what}" (know: ${Object.keys(selectors).join(", ")})`);
+  if (selectors[what] == null) {
+    await page.screenshot({ path: target, fullPage: false });
+  } else {
+    const loc = page.locator(selectors[what]).first();
+    if (!(await loc.isVisible().catch(() => false))) {
+      return { of: what, screenshot: null, reason: `${selectors[what]} is not on screen` };
+    }
+    await loc.screenshot({ path: target });
+  }
+  return { of: what, screenshot: target };
+}
+
+/**
+ * `ui`: run the steps in the order given, then read every surface back.
+ * Steps are the flags below; each records its own outcome under `steps`.
+ */
+async function ui(args) {
+  const headless = !args.includes("--headed");
+  const steps = [];
+  for (let i = 0; i < args.length; i++) {
+    const a = args[i];
+    const next = () => args[++i];
+    switch (a) {
+      case "--sd":
+        steps.push({ sd: next() });
+        break;
+      case "--screen":
+        steps.push({ screen: next() });
+        break;
+      case "--open":
+        steps.push({ open: next() });
+        break;
+      case "--close":
+        steps.push({ close: next() });
+        break;
+      case "--type": {
+        const spec = next();
+        const eq = spec.indexOf("=");
+        if (eq < 0) die(`--type wants field=text, got "${spec}"`);
+        steps.push({ type: spec.slice(0, eq), text: spec.slice(eq + 1).replace(/\\n/g, "\n") });
+        break;
+      }
+      case "--press":
+        steps.push({ press: next() });
+        break;
+      case "--click":
+        steps.push({ click: next() });
+        break;
+      case "--shot":
+        steps.push({ shotOf: "page", out: next() });
+        break;
+      case "--shot-of":
+        steps.push({ shotOf: next(), out: next() });
+        break;
+      case "--probe":
+        steps.push({ probe: next() });
+        break;
+      case "--headed":
+        break;
+      default:
+        die(`ui: unknown argument ${a}`);
+    }
+  }
+
+  return withEditor(
+    async ({ page, url, consoleLines }) => {
+      const result = { url, steps: [] };
+      await page.goto(url, { waitUntil: "domcontentloaded", timeout: 120_000 });
+      await waitForEditor(page);
+
+      for (const step of steps) {
+        if (step.sd) {
+          const src = fs.readFileSync(path.resolve(step.sd), "utf8");
+          const wroteChars = await writeMainSd(page, src);
+          await page.reload({ waitUntil: "domcontentloaded", timeout: 120_000 });
+          await waitForEditor(page);
+          await waitForDomQuiet(page, { quiet: 1500, timeout: 30_000 });
+          result.steps.push({ sd: step.sd, wroteChars });
+        } else if (step.screen) {
+          result.steps.push(await switchScreen(page, step.screen));
+        } else if (step.open) {
+          result.steps.push(await openSurface(page, step.open));
+        } else if (step.close) {
+          result.steps.push(await closeSurface(page, step.close));
+        } else if (step.type) {
+          result.steps.push(await typeInto(page, step.type, step.text));
+        } else if (step.press) {
+          const n = await pressKey(page, step.press);
+          await waitForDomQuiet(page, { quiet: 300, timeout: 4_000 });
+          result.steps.push({ press: step.press, sent: n.combo, rewritten: n.rewritten });
+        } else if (step.click) {
+          result.steps.push(await clickSurfaceButton(page, step.click));
+        } else if (step.shotOf) {
+          result.steps.push(await shotOf(page, step.shotOf, step.out));
+        } else if (step.probe) {
+          const code = fs.readFileSync(path.resolve(step.probe), "utf8");
+          result.steps.push({
+            probe: step.probe,
+            result: await page.evaluate(
+              // eslint-disable-next-line no-new-func
+              (src) => new Function(`return (async () => { ${src} })()`)(),
+              code,
+            ),
+          });
+        }
+      }
+
+      result.ui = await readSurfaces(page);
+      result.failed = result.steps.filter((s) => s.reason).map((s) => s.reason);
+      result.consoleErrors = consoleLines
+        .filter((l) => l.startsWith("[error]") || l.startsWith("[pageerror]"))
+        .slice(0, 25);
+      console.log(JSON.stringify(result, null, 2));
+      return result;
+    },
+    { headless },
+  );
+}
+
+// ---------------------------------------------------------------- redgreen ---
+
+async function redgreenCli(args) {
+  let opts;
+  try {
+    opts = parseRedGreenArgs(args);
+  } catch (e) {
+    die(e.message);
+  }
+  const report = runRedGreen({
+    repoRoot: process.cwd(),
+    test: opts.test,
+    files: opts.files,
+    base: opts.base,
+    log: (line) => console.error(line),
+  });
+  console.log(JSON.stringify(report, null, 2));
+  if (!report.ok) process.exit(1);
+}
+
+// Helpers for a session that has to drive the editor beyond what `ui` and
+// `verify` cover. Import them from a script INSIDE the repo tree (Node resolves
+// playwright from the importing script's directory), e.g.
+//   import { withEditor, writeMainSd, waitForEditor } from "../../.claude/skills/resolve-issue/driver.mjs";
+export {
+  withEditor,
+  writeMainSd,
+  waitForEditor,
+  waitForDomQuiet,
+  focusEditor,
+  pressKey,
+  openSurface,
+  closeSurface,
+  typeInto,
+  readField,
+  readSurfaces,
+  clickSurfaceButton,
+  switchScreen,
+  shotOf,
+  SURFACES,
+  SCREENS,
+};
+
 // ------------------------------------------------------------------ utils ---
 
 function flag(args, name) {
@@ -810,6 +1242,12 @@ switch (cmd) {
   case "verify":
     await verify(rest);
     break;
+  case "ui":
+    await ui(rest);
+    break;
+  case "redgreen":
+    await redgreenCli(rest);
+    break;
   default:
     log(
       [
@@ -819,7 +1257,9 @@ switch (cmd) {
         "  up [--cross-origin]   boot both dev servers, wait for ready, record the URL",
         "  status                is it up? prints the editor URL",
         "  down                  kill the server tree",
-        "  verify [options]      drive the editor and print a JSON report",
+        "  verify [options]      drive the game preview and print a JSON report",
+        "  ui [steps]            drive the editor's own panels and screens; print a JSON report",
+        "  redgreen [options]    prove a regression test fails on the base and passes on the fix",
         "",
         "verify options:",
         "  --sd <file.sd>   load this script into OPFS /local/main.sd, then reload",
@@ -827,6 +1267,25 @@ switch (cmd) {
         "  --shot <out.png> screenshot the editor page",
         "  --probe <file.js> body of an async fn evaluated in the editor page; result -> JSON",
         "  --headed         run a visible browser instead of headless",
+        "",
+        "ui steps (run in the order given, then every surface is read back):",
+        "  --sd <file.sd>          load this script into OPFS /local/main.sd, then reload",
+        "  --screen <name>         click a main tab: logic | assets | share",
+        "  --open <panel>          open a panel on its shortcut: find (Ctrl+F) | goto (Ctrl+G)",
+        "  --close <panel>         close it with Escape",
+        "  --type <field>=<text>   real keystrokes into search | replace | line; \\n = Ctrl+Enter",
+        "  --press <combo>         a key combo, e.g. Control+Shift+G (a shifted letter is uppercased)",
+        "  --click <button>        a panel button: next prev select replace replaceAll close submit",
+        "  --shot <out.png>        screenshot the page",
+        "  --shot-of <what> <png>  screenshot one surface: find | goto | editor | page",
+        "  --probe <file.js>       body of an async fn evaluated in the page; result -> JSON",
+        "  --headed                run a visible browser instead of headless",
+        "",
+        "redgreen options:",
+        "  --test <command>        the test invocation, run twice from the repo root",
+        "  --files <a> [<b>...]    the changed source files the test exercises",
+        "  --base <rev>            where the pre-fix content comes from (default HEAD;",
+        "                          pass origin/main once the fix is committed)",
       ].join("\n"),
     );
 }
