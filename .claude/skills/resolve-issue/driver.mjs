@@ -59,6 +59,38 @@ function requireUrl() {
   return s.url;
 }
 
+// The sandbox pre-installs a Chromium build under PLAYWRIGHT_BROWSERS_PATH
+// independently of whatever `playwright` version this repo's package.json
+// pins. When those two drift apart, `chromium.executablePath()` points at a
+// revision that was never downloaded (npm install skips the download — see
+// CLAUDE.md — so it never will be) and every launch fails with "Executable
+// doesn't exist". Fall back to whatever Chromium build the cache actually
+// has rather than the exact revision Playwright asked for.
+function resolveChromiumExecutablePath(chromium) {
+  const expected = chromium.executablePath();
+  if (expected && fs.existsSync(expected)) return undefined;
+  const base = process.env.PLAYWRIGHT_BROWSERS_PATH;
+  if (!base || !fs.existsSync(base)) return undefined;
+  const dirs = fs
+    .readdirSync(base)
+    .filter((d) => /^chromium-\d+$/.test(d))
+    .sort((a, b) => Number(b.match(/\d+/)[0]) - Number(a.match(/\d+/)[0]));
+  const relPaths = [
+    "chrome-linux/chrome",
+    "chrome-linux64/chrome",
+    "chrome-win/chrome.exe",
+    "chrome-win64/chrome.exe",
+    "chrome-mac/Chromium.app/Contents/MacOS/Chromium",
+  ];
+  for (const dir of dirs) {
+    for (const rel of relPaths) {
+      const p = path.join(base, dir, ...rel.split("/"));
+      if (fs.existsSync(p)) return p;
+    }
+  }
+  return undefined;
+}
+
 // ---------------------------------------------------------------- servers ---
 
 // Is this TCP port free on loopback right now?
@@ -214,9 +246,10 @@ async function preflight() {
 
   try {
     const { chromium } = await import("playwright");
-    const b = await chromium.launch({ headless: true });
+    const executablePath = resolveChromiumExecutablePath(chromium);
+    const b = await chromium.launch({ headless: true, ...(executablePath ? { executablePath } : {}) });
     await b.close();
-    say(true, "playwright chromium", "launches");
+    say(true, "playwright chromium", executablePath ? `launches (fallback build: ${executablePath})` : "launches");
   } catch (e) {
     say(false, "playwright chromium", String(e.message).split("\n")[0]);
   }
@@ -268,10 +301,12 @@ function cmdOk(cmd, args) {
 async function withEditor(fn, { headless = true } = {}) {
   const url = requireUrl();
   const { chromium } = await import("playwright");
+  const executablePath = resolveChromiumExecutablePath(chromium);
   const ctx = await chromium.launchPersistentContext(PROFILE_DIR, {
     headless,
     viewport: { width: 1600, height: 1000 },
     args: ["--autoplay-policy=no-user-gesture-required"],
+    ...(executablePath ? { executablePath } : {}),
   });
   const page = ctx.pages()[0] ?? (await ctx.newPage());
   const consoleLines = [];

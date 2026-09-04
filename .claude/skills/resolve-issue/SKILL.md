@@ -42,6 +42,12 @@ PASS  gh auth  — needed to read the issue and open the PR
 PASS  git repo  — C:\...\impower.worktrees\impower\issue-214-fix-455354
 ```
 
+The playwright chromium line sometimes reads `launches (fallback build: ...)`
+instead — that's still a PASS. It means the `playwright` version pinned in
+`package.json` doesn't match the Chromium build baked into this sandbox, so the
+driver launched whatever build the sandbox actually has instead of the exact
+revision Playwright asked for. Nothing to do about it.
+
 If disk headroom fails, free space **before** creating the worktree — see
 Troubleshooting.
 
@@ -130,8 +136,16 @@ A fresh worktree has **no `node_modules`** — the monorepo is npm workspaces, s
 install once at the new worktree's root:
 
 ```bash
-npm install
+PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 npm install
 ```
+
+Set that variable every time, not just when a failure shows up: a bare
+`npm install` fails outright here, because a workspace pulls in
+`@playwright/browser-chromium`, whose own install script tries to fetch a
+Chromium build straight from `cdn.playwright.dev` — a host outside this
+network's allowlist — and npm aborts the whole install on that 403. Skipping
+the download is safe: the driver already runs against the Chromium build the
+sandbox pre-installs, under `PLAYWRIGHT_BROWSERS_PATH`.
 
 That takes several minutes and roughly 2–3 GB. **Verify it before trusting it.**
 A full disk leaves a _silently_ corrupted `node_modules` — truncated binaries,
@@ -330,9 +344,9 @@ template — three pieces:
    `devDependencies` (match the version other packages use — `^2.1.9`).
 3. A `test/` directory holding `*.test.ts`.
 
-Then `npm install` at the **repo root** (workspaces — never inside the package;
-that creates a stray per-package lockfile the root `.gitignore` deliberately
-ignores).
+Then `PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 npm install` at the **repo root**
+(workspaces — never inside the package; that creates a stray per-package
+lockfile the root `.gitignore` deliberately ignores).
 
 Assert the **behaviour from the ticket**, not the shape of your patch. If the
 issue says "only the last matching layer survives", the test builds a case with
@@ -608,7 +622,13 @@ State lives in `.claude/skills/resolve-issue/.state.json` (gitignored).
 
 Playwright is a **declared root devDependency** (`playwright: ^1.61.0`).
 Browsers come from the local `ms-playwright` cache — if it's empty on a new
-machine, `npx playwright install chromium`.
+machine, `npx playwright install chromium`. Always run `npm install` with
+`PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1` set (see §2) — otherwise a transitive
+`@playwright/browser-chromium` dependency tries to download its own Chromium
+build from a host this network blocks, and the whole install fails. The
+driver itself doesn't need that variable: if the pinned `playwright` version
+expects a Chromium revision the cache doesn't have, it launches whatever
+build the cache does have instead of failing.
 
 The driver must still live **inside the repo tree**: Node resolves `playwright`
 relative to the **script's** directory, not the working directory. Copy it to a
@@ -714,5 +734,6 @@ Things that look like they work and don't:
 | vitest exits 0 with no `Test Files` / `Tests` summary                                                      | An OOM'd worker was killed by the OS. Not a pass. Lower `maxForks`, split the suite.                                                                                                                                                                                                        |
 | `minThreads and maxThreads must not conflict`                                                              | You passed `maxForks` without `minForks`. Always pass both.                                                                                                                                                                                                                                 |
 | `npm install` dies `ENOSPC`; or `npx esbuild --version` / `npx vitest --version` fails to spawn (`EFTYPE`) | Disk was full; `node_modules` is silently corrupt (truncated binaries, empty dirs). `npm cache clean --force`, prune `%LOCALAPPDATA%\Temp`, delete **all** `node_modules` (root + every workspace — nested ones die with the parent), reinstall **once**. Piecemeal repair is whack-a-mole. |
+| `npm install` dies with `request blocked: no rule or allowlist entry allows host "cdn.playwright.dev"` (or any `@playwright/browser-chromium` download failure) | A workspace depends on `@playwright/browser-chromium`, whose install script tries to fetch its own Chromium build from a blocked host. Re-run as `PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 npm install` — see §2. |
 | `git worktree remove` → `Directory not empty`                                                              | Windows can't delete `node_modules` that way. `Remove-Item -Recurse -Force <path>`, then `git worktree prune`.                                                                                                                                                                              |
 | A `gh` PR/issue body came out as the literal `@-`                                                          | You used `--body @-`. Use `--body-file`, then read it back with `gh pr view --json body`.                                                                                                                                                                                                   |
