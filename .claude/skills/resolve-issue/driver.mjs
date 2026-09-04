@@ -505,6 +505,110 @@ async function routeLabel(page) {
   });
 }
 
+// Every line of the open document, as source text.
+async function documentLines(page) {
+  return page.evaluate(() => {
+    const view = document.querySelector(".cm-content")?.cmTile?.view;
+    if (!view) return null;
+    const out = [];
+    for (let i = 1; i <= view.state.doc.lines; i++) {
+      out.push(view.state.doc.line(i).text);
+    }
+    return out;
+  });
+}
+
+// Did the preview land on the line we asked for?
+//
+// The route number cannot answer this. It reports how far execution reached
+// rather than the line requested, so it differs from the target on every line
+// with anything after it, and a check built on it warns on healthy scrubs and
+// teaches its reader to ignore it (#419 — this function is that fix).
+//
+// The rendered text can answer it, but only for lines it can attribute, so
+// there are three outcomes rather than a boolean:
+//
+//   landed        the target line's own text is on screen
+//   elsewhere     some other line's text is on screen and the target's is not.
+//                 A real failed scrub, and it names what it found instead.
+//   inconclusive  nothing attributable. Either the line does not render
+//                 verbatim (interpolation, markup, a heading, a character name)
+//                 or its text cannot be told apart from another line's.
+//
+// "inconclusive" is a real answer, not a soft failure. Collapsing it into
+// either of the others is what makes a check like this dangerous: reported as
+// success it hides failed scrubs, which is the one thing this harness exists to
+// catch, and reported as failure it is the very noise #419 is about.
+//
+// A line is usable as evidence only when its trimmed text is at least three
+// characters and is not contained in any other line's text. That second
+// condition is what stops "Hello" being read as proof while the screen shows
+// "Hello there", and it makes duplicated lines unusable in both directions
+// instead of silently attributing to whichever came first.
+export function classifyScrub(lines, target, visible) {
+  if (!Array.isArray(lines) || lines.length === 0) {
+    return {
+      outcome: "inconclusive",
+      reason: "the editor returned no document text to compare against",
+    };
+  }
+  if (typeof visible !== "string" || visible.trim() === "") {
+    return {
+      outcome: "inconclusive",
+      reason: "the game rendered no text to compare against",
+    };
+  }
+
+  const trimmed = lines.map((l) => (typeof l === "string" ? l.trim() : ""));
+  const idx = target - 1;
+  if (!Number.isInteger(idx) || idx < 0 || idx >= trimmed.length) {
+    return {
+      outcome: "inconclusive",
+      reason: `line ${target} is outside the document (${trimmed.length} lines)`,
+    };
+  }
+
+  // Deliberately not precomputed for every line: on a long script that is a
+  // quadratic scan of substring tests. Only the target and the handful of lines
+  // actually present in `visible` are ever asked.
+  const attributable = (i) => {
+    const t = trimmed[i];
+    if (!t || t.length < 3) return false;
+    return !trimmed.some((other, j) => j !== i && other && other.includes(t));
+  };
+
+  const targetAttributable = attributable(idx);
+  if (targetAttributable && visible.includes(trimmed[idx])) {
+    return { outcome: "landed" };
+  }
+
+  const showing = [];
+  for (let i = 0; i < trimmed.length; i++) {
+    if (i === idx) continue;
+    if (!trimmed[i] || !visible.includes(trimmed[i])) continue; // cheap filter first
+    if (attributable(i)) showing.push(i + 1);
+  }
+  if (showing.length > 0) {
+    return {
+      outcome: "elsewhere",
+      showing,
+      reason:
+        `the game is showing line${showing.length > 1 ? "s" : ""} ` +
+        `${showing.join(", ")}, not line ${target}`,
+    };
+  }
+
+  return {
+    outcome: "inconclusive",
+    reason: targetAttributable
+      ? `line ${target}'s text is not on screen and neither is any other line's, ` +
+        `so it may simply not render verbatim (interpolation, markup, a heading, ` +
+        `a character-name line)`
+      : `line ${target}'s text cannot be told apart from other lines in the ` +
+        `script, so the rendered text can neither confirm nor deny the scrub`,
+  };
+}
+
 // The beat the preview paused on. In "main : 1 → main : 8" that is 8; with no
 // arrow ("main : 1") it is 1.
 //
@@ -606,15 +710,17 @@ async function verify(args) {
         // `verify` reloads the page, so the preview always starts at the top and
         // the route labels are empty until the first selection arrives — a
         // before/after comparison is therefore true on every run, and a field
-        // that is always true is one nobody reads. `visible` is the field that
-        // says whether the scrub landed.
+        // that is always true is one nobody reads.
 
-        // Beat equality is a rough test, not a verdict, and it is WRONG far more
-        // often than it is right: the route indicator reports how far execution
-        // reached, not the line asked for, so the two differ on every line with
-        // anything after it. Tracked as #419. Until that is fixed the warning
-        // stays, saying plainly that `visible` is what settles the question.
-        if (routeBeat(result.route) !== target) {
+        // Whether the scrub landed is decided from the rendered text, not from
+        // the route number. See classifyScrub.
+        result.scrubCheck = classifyScrub(
+          await documentLines(page),
+          target,
+          settle.text,
+        );
+
+        if (result.scrubCheck.outcome !== "landed") {
           const scrub = result.scrub;
           let clickNote = "";
           if (scrub?.clicked) {
@@ -626,13 +732,15 @@ async function verify(args) {
             clickNote = ` The click could not run: ${scrub.reason}.`;
           }
           result.scrubWarning =
-            `preview settled on beat ${routeBeat(result.route)}, not line ${target}.` +
+            (result.scrubCheck.outcome === "elsewhere"
+              ? `the scrub did not land: ${result.scrubCheck.reason}. The screenshot ` +
+                `is not evidence about line ${target}.`
+              : `Could not confirm the scrub landed: ${result.scrubCheck.reason}. ` +
+                `This is not the same as a failure — read \`visible\` and judge it ` +
+                `yourself.`) +
             clickNote +
-            ` Read \`visible\` before calling this a failed scrub: the beat number ` +
-            `reports how far execution reached rather than the line requested, so a ` +
-            `nearby number is normal and expected (#419). A genuinely failed scrub ` +
-            `shows text from a different part of the script. Failing that, the line ` +
-            `may not be a playable beat (blank line / character name / heading).`;
+            ` (The \`route\` number is not a check on this: it reports how far ` +
+            `execution reached, not the line requested.)`;
         }
       } else {
         result.route = await routeLabel(page);
@@ -677,8 +785,16 @@ function flag(args, name) {
 }
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-const [cmd, ...rest] = process.argv.slice(2);
+// Only dispatch when run as a command. `classifyScrub` is a pure function with
+// its own test beside this file, and importing it must not boot a browser.
+const runAsCli =
+  process.argv[1] != null &&
+  path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+
+const [cmd, ...rest] = runAsCli ? process.argv.slice(2) : ["__imported__"];
 switch (cmd) {
+  case "__imported__":
+    break;
   case "preflight":
     await preflight();
     break;

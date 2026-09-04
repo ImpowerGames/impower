@@ -253,18 +253,23 @@ How to read it — **check these before trusting the PNG**:
   Preview pane is **blank white**. The screenshot is not evidence. `down`, `up`,
   retry. (`neededReload: true` means it only mounted after the driver reloaded
   the page — fine, just slower.)
-- `route` — `main : 1 → main : 8` means the preview paused on **beat 8**. That
-  number reports how far execution reached, not the line you asked for, so the
-  two match only when nothing follows that line; scrub to line 20 of a longer
-  script and the route reads 22. The driver sets `scrubWarning` whenever they
-  differ, so the warning appears on healthy scrubs as well as failed ones —
-  `visible` is what separates them. Tracked as
-  [#419](https://github.com/ImpowerGames/impower/issues/419); until it is fixed,
-  treat `scrubWarning` alone as no evidence of anything.
-- `visible` — the game's rendered text, and the field that actually says whether
-  the scrub landed: it should be the target line's own text. **Every line appears
-  twice**: the second copy is the text _outline_ layer. Expected — not duplicated
-  output.
+- `scrubCheck` — **whether the scrub landed.** Three outcomes, and the middle one
+  is a real answer rather than a soft failure:
+  - `landed` — the target line's own text is on screen. No warning is set.
+  - `elsewhere` — some other line's text is on screen instead, and `showing`
+    names which. A genuinely failed scrub; the screenshot is not evidence about
+    the line you asked for.
+  - `inconclusive` — nothing attributable. Either the line does not render
+    verbatim (interpolation, markup, a heading, a character-name line) or its
+    text cannot be told apart from another line's. Read `visible` and judge it
+    yourself; do not read it as either success or failure.
+- `route` — `main : 1 → main : 8` means the preview paused on **beat 8**. Context
+  only. That number reports how far execution reached, not the line you asked
+  for, so it differs from your target on any line with something after it; it is
+  not a check on anything and nothing in the driver treats it as one.
+- `visible` — the game's rendered text, which is what `scrubCheck` reads. **Every
+  line appears twice**: the second copy is the text _outline_ layer. Expected —
+  not duplicated output.
 - `scrub` — the click that drove the scrub. `clicked: true` with a `cursorLine`
   matching your target is the click landing. `clicked: false` carries a `reason`
   instead, and that is a real failure worth reading rather than a note.
@@ -419,13 +424,16 @@ after — so a red run proves the defect, not a broken harness.
 
 **5c — run the suite.** Start with the file, widen to the package.
 
-Then run the standalone shell checks under `.claude/`. Nothing in CI invokes them, so they only ever run because someone remembers to; they are quick, and each one pins a footgun that has already cost a session:
+Then run the standalone checks under `.claude/`. Nothing in CI invokes them, so they only ever run because someone remembers to; they are quick, and each one pins a footgun that has already cost a session. There are two kinds — shell checks over the skill's own prose, and `.mjs` checks over the pure functions in `driver.mjs`:
 
 ```bash
 for t in .claude/**/*.test.sh; do echo "--- $t"; bash "$t" || echo "FAILED: $t"; done
+for t in .claude/**/*.test.mjs; do echo "--- $t"; node "$t" || echo "FAILED: $t"; done
 ```
 
 (Needs `shopt -s globstar` in bash, or list them explicitly.)
+
+A shell check that hangs rather than failing is usually the machine, not your change: they spawn many small processes and a running dev-server build starves them. Re-run once the build finishes before believing a timeout.
 
 ---
 
@@ -810,7 +818,8 @@ Things that look like they work and don't:
 | Game Preview is black but the editor pane looks fine                                                       | Servers were hand-launched with mismatched origins. `down`, then `up`.                                                                                                                                                                                                                      |
 | `verify` returns `preview.installed: false`                                                                | `window.__preview` only exists in same-origin mode. Don't pass `--cross-origin`.                                                                                                                                                                                                            |
 | Game Preview pane is blank **white**; `gameMounted: false`                                                 | The `#game` scaffold never mounted after a server restart. `down`, `up`, retry. Discard the screenshot.                                                                                                                                                                                     |
-| Scrub lands on the wrong beat; `scrubWarning` set                                                          | Read `visible` first. The engine pauses on the beat after the one it played, so a beat a little past your line is normal and the warning is spurious. If `visible` really is from elsewhere in the script, the target line isn't a playable beat — pick the indented dialogue/action line, not the `NAME:` line, a heading, or a blank line. |
+| `scrubCheck.outcome` is `elsewhere`                                                                        | A real failed scrub: the game is showing the line named in `showing`. Usually the target isn't a playable beat — pick the indented dialogue/action line, not the `NAME:` line, a heading, or a blank line.                                                                                                                                 |
+| `scrubCheck.outcome` is `inconclusive`                                                                     | The check could not attribute the screen to any line. Read `visible` yourself. Common causes: the line interpolates a value or carries markup so it does not render verbatim, or its text is duplicated elsewhere in the script. Not a failure, and not a pass.                                                                            |
 | `verify` dies with `Timeout 90000ms exceeded` waiting for `.cm-content`                                    | The machine is saturated — usually a vitest suite running in this or another worktree. The server is fine (`status` says UP, the URL returns 200). Wait for the suite and re-run; don't go hunting for a regression.                                                                        |
 | vitest exits 0 with no `Test Files` / `Tests` summary                                                      | An OOM'd worker was killed by the OS. Not a pass. Lower `maxForks`, split the suite.                                                                                                                                                                                                        |
 | `minThreads and maxThreads must not conflict`                                                              | You passed `maxForks` without `minForks`. Always pass both.                                                                                                                                                                                                                                 |
