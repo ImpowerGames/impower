@@ -529,8 +529,6 @@ Pass `model:` explicitly on every reviewer Agent call, using a versioned model i
 | Opus 5            | `model: "opus 4.6"` (a different major version)  |
 | Opus 4.6          | `model: "opus 5"` (a different major version)    |
 
-Never use haiku for review — it misses exactly the subtle defects this pass exists to catch.
-
 ### 7c — fan out; each reviewer comments on the PR
 
 Capture the diff once, so every reviewer sees the same artifact:
