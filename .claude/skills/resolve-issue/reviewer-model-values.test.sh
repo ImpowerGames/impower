@@ -30,12 +30,21 @@
 #   3. every model value named anywhere is exactly one of the four aliases;
 #   4. the section 7c reviewer prompt still asks each reviewer to report the
 #      model it is actually running as;
-#   5. the abort contract survives -- the prompt names the writer's own model,
-#      every definition requires the reviewer to compare itself against it and
-#      stop on a match, and the section says what to do with an abort. A pinned
-#      id that stops naming a live model is substituted silently, most often by
-#      the writer's own model, so that comparison is what turns a retired pin
-#      into a cheap abort rather than a full review that reads as independent.
+#   5. the abort contract survives -- the prompt names the writer's own model
+#      and covers a placeholder that was never substituted, every definition
+#      requires the reviewer to compare itself against that model and stop on a
+#      match, and the section says what to do with an abort. A pinned id that
+#      stops naming a live model is substituted silently, most often by the
+#      writer's own model, so that comparison is what turns a retired pin into a
+#      cheap abort rather than a full review that reads as independent.
+#
+# Know what assertion 5 is worth. It reads prose, so it catches a rule that was
+# deleted, commented out, or moved out of the prompt reviewers actually receive.
+# It cannot catch a rule that is still present and has been inverted -- text
+# telling a reviewer to disregard an abort passes every grep here. Nor can it
+# make a reviewer obey: the abort is an instruction a model chooses to follow,
+# not something the harness enforces. Reading each reviewer's first line, which
+# section 7b requires, is the check this file cannot be.
 #
 # Only bash, grep and sed are used, so this runs on any checkout.
 #
@@ -98,6 +107,34 @@ unquote() {
 normalise() {
   printf '%s' "$1" | tr 'A-Z' 'a-z' |
     sed -E 's/[^a-z0-9]+/-/g; s/^claude-//; s/-+/-/g; s/^-//; s/-$//'
+}
+
+# The file with HTML comments removed. A sentinel sitting inside a commented-out
+# block is not an instruction anyone follows, so the prose assertions must not
+# see it -- otherwise deleting a rule and leaving its old text commented above
+# reads as a pass.
+uncommented() {
+  awk '{
+    line = $0; out = ""
+    while (length(line) > 0) {
+      if (incomment) {
+        p = index(line, "-->")
+        if (p == 0) { line = "" } else { line = substr(line, p + 3); incomment = 0 }
+      } else {
+        p = index(line, "<!--")
+        if (p == 0) { out = out line; line = "" }
+        else { out = out substr(line, 1, p - 1); line = substr(line, p + 4); incomment = 1 }
+      }
+    }
+    print out
+  }' "$1"
+}
+
+# Only the blockquote given to reviewers verbatim. A rule that has drifted out
+# of the prompt into surrounding commentary no longer reaches a reviewer, so an
+# assertion about the prompt has to look at the prompt.
+prompt_block() {
+  uncommented "$1" | grep '^>'
 }
 
 # The frontmatter block: the lines between the opening --- on line 1 and the
@@ -285,7 +322,7 @@ done < <(grep -vE '^\|' "$skill" | grep -oE '"?model"? *: *("[^"]*"|'"'"'[^'"'"'
 
 # --- assertion 4, the runtime half ----------------------------------------
 
-if grep -q 'model name and id you yourself are running as' "$skill"; then
+if prompt_block "$skill" | grep -q 'model name and id you yourself are running as'; then
   echo "PASS: the reviewer prompt still asks each reviewer to report its own model."
 else
   note_fail "the reviewer prompt no longer asks each reviewer to report the model it is running as -- nothing then catches a pin that silently landed on the writer's own model."
@@ -301,16 +338,25 @@ fi
 # model the writer is, every definition has to require the comparison, and the
 # section has to say what to do with an abort.
 
-if grep -q 'ABORT: pin failed' "$skill"; then
+if prompt_block "$skill" | grep -q 'ABORT: pin failed'; then
   echo "PASS: the reviewer prompt carries the abort contract."
 else
   note_fail "the reviewer prompt no longer tells a reviewer to abort when it is the writer's own model."
 fi
 
+# An unsubstituted placeholder is the quiet way this guard dies: the reviewer
+# compares its own id against the literal word WRITER, sees no match, and
+# reviews on regardless of which model it is.
+if prompt_block "$skill" | grep -q 'ABORT: writer model not supplied'; then
+  echo "PASS: the reviewer prompt handles an unsubstituted writer model."
+else
+  note_fail "the reviewer prompt no longer tells a reviewer to abort when the writer's model was never filled in, so a bare WRITER placeholder passes the comparison."
+fi
+
 # The reviewer can only compare itself against the writer if the writer is
 # told to substitute its own model id into the prompt, so that instruction is
 # what gets pinned rather than the sentence wrapped around it.
-if grep -q 'WRITER = your own model id' "$skill"; then
+if uncommented "$skill" | grep -q 'WRITER = your own model id'; then
   echo "PASS: the writer is told to name its own model in the reviewer prompt."
 else
   note_fail "the reviewer prompt no longer tells the writer to substitute its own model id, so a reviewer has nothing to compare itself against."
@@ -321,7 +367,7 @@ definitions_bad=0
 for file in "$agents"/*.md; do
   [[ -r "$file" ]] || continue
   definitions_seen=$((definitions_seen + 1))
-  if ! grep -q 'ABORT: pin failed' "$file"; then
+  if ! uncommented "$file" | grep -q 'ABORT: pin failed'; then
     note_fail "$(basename "$file") does not require its reviewer to abort when it is the writer's own model."
     definitions_bad=1
   fi
@@ -333,7 +379,7 @@ elif [[ "$definitions_bad" -eq 0 ]]; then
   echo "PASS: all $definitions_seen reviewer definitions require the abort check."
 fi
 
-if grep -q 'An abort is a result, not an error' "$skill"; then
+if uncommented "$skill" | grep -q 'An abort is a result, not an error'; then
   echo "PASS: the section says what to do with an abort."
 else
   note_fail "the section no longer says what to do when a reviewer aborts, so a stale pin has no recovery path."
@@ -353,7 +399,7 @@ if [[ -z "${REVIEWER_CHECK_INNER:-}" ]]; then
   mkdir -p "$tmp/agents"
   # Every fixture definition carries the abort line, so a control can only go
   # red for the reason it is testing rather than for assertion 5.
-  abort_line='ABORT: pin failed'
+  abort_line='If you are the writer model, reply ABORT: pin failed'
   printf -- '---\nname: pinned-old\nmodel: claude-opus-4-6\n---\n' > "$tmp/agents/pinned-old.md"
   printf -- '---\nname: pinned-new\nmodel: claude-opus-5\n---\n' > "$tmp/agents/pinned-new.md"
   printf -- '---\nname: pinned-fable\nmodel: claude-fable-5-1\n---\n' > "$tmp/agents/pinned-fable.md"
@@ -380,10 +426,13 @@ if [[ -z "${REVIEWER_CHECK_INNER:-}" ]]; then
 
   # The prose assertions 4 and 5 read, so a control fixture is only missing what
   # the control is about.
-  clause='the model name and id you yourself are running as
-WRITER = your own model id
-ABORT: pin failed
-An abort is a result, not an error'
+  # Shaped like the real document: the reviewer-facing rules live inside the
+  # verbatim prompt blockquote, the writer-facing ones in ordinary prose.
+  clause='> open your report with the model name and id you yourself are running as
+> if I gave you no model, reply ABORT: writer model not supplied
+> if you are my model, reply ABORT: pin failed
+Fill in WRITER = your own model id before sending this.
+An abort is a result, not an error.'
 
   control() {
     local desc="$1" body="$2" out rc
@@ -468,8 +517,36 @@ An abort is a result, not an error'
 
   prose_control 'no self-report instruction' 'the model name and id you yourself are running as'
   prose_control 'no abort contract'          'ABORT: pin failed'
+  prose_control 'no abort for an unsupplied writer model' 'ABORT: writer model not supplied'
   prose_control 'no writer model to compare against' 'WRITER = your own model id'
   prose_control 'no recovery path for an abort' 'An abort is a result, not an error'
+
+  # A rule that was deleted and left commented above is not a rule. Every
+  # sentinel present, every one of them inert.
+  {
+    printf '%s\n' '| Opus 5 | `subagent_type: "pinned-old"` |'
+    printf '%s\n' '<!-- removed, kept for reference:'
+    printf '%s\n' "$clause"
+    printf '%s\n' '-->'
+  } > "$tmp/commented.md"
+  if REVIEWER_CHECK_INNER=1 SKILL_MD="$tmp/commented.md" AGENTS_DIR="$tmp/agents" bash "$self" >/dev/null 2>&1; then
+    echo "FAIL (control): accepted a document whose abort contract is commented out."
+    fail=1
+  else
+    echo "PASS (control): rejects a document whose abort contract is commented out."
+  fi
+
+  # The same, one level down: a definition keeping the abort line only inside a
+  # comment requires nothing of its reviewer.
+  mkdir -p "$tmp/commentedagent"
+  printf -- '---\nname: pinned-old\nmodel: claude-opus-4-6\n---\n<!-- ABORT: pin failed -->\n' > "$tmp/commentedagent/pinned-old.md"
+  printf '%s\n%s\n' '| Opus 5 | `subagent_type: "pinned-old"` |' "$clause" > "$tmp/fixture.md"
+  if REVIEWER_CHECK_INNER=1 SKILL_MD="$tmp/fixture.md" AGENTS_DIR="$tmp/commentedagent" bash "$self" >/dev/null 2>&1; then
+    echo "FAIL (control): accepted a definition whose abort rule is commented out."
+    fail=1
+  else
+    echo "PASS (control): rejects a definition whose abort rule is commented out."
+  fi
 
   # A definition that does not require the abort check. The whole point of the
   # check is that a retired pin is otherwise silent, so a definition without it
