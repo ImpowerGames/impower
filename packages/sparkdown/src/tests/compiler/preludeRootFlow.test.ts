@@ -125,6 +125,9 @@ describe("the builtins prelude's root flow", () => {
     const seeded = compileScript(SRC, true);
     const unseeded = compileScript(SRC, false);
     expect(seeded.compiled).toBeTruthy();
+    // The script's own line first, so the comparisons below cannot agree by
+    // both sides being empty.
+    expect(rootFlowText(unseeded.compiled)).toContain("Hello from the script.");
     expect(rootFlowText(seeded.compiled)).toEqual(
       rootFlowText(unseeded.compiled)
     );
