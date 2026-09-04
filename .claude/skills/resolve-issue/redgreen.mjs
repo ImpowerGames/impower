@@ -56,10 +56,32 @@ export function baseContent(repoRoot, base, file) {
   return r.stdout;
 }
 
-export function runTest(cmd, cwd) {
+/**
+ * The shell the test command runs in. On Windows, Node's `shell: true` means
+ * cmd.exe, where `NODE_OPTIONS=... npx vitest ...` (the form every example in
+ * the skill uses) fails with "'NODE_OPTIONS' is not recognized". Git Bash is
+ * on every machine this skill runs on, so prefer it when it can be found.
+ */
+export function testShell() {
+  if (process.platform !== "win32") return true;
+  const where = (name) => {
+    const r = spawnSync("where", [name], { encoding: "utf8", windowsHide: true });
+    return r.status === 0 ? r.stdout.split(/\r?\n/).map((l) => l.trim()).filter(Boolean) : [];
+  };
+  // Git's own bash, found next to git.exe, before any other: the bash.exe in
+  // System32 is the WSL launcher and runs nothing without a distribution.
+  for (const git of where("git")) {
+    const candidate = path.join(path.dirname(git), "..", "bin", "bash.exe");
+    if (fs.existsSync(candidate)) return candidate;
+  }
+  const bash = where("bash").find((p) => !/\\System32\\/i.test(p));
+  return bash ?? true;
+}
+
+export function runTest(cmd, cwd, shell = testShell()) {
   const r = spawnSync(cmd, {
     cwd,
-    shell: true,
+    shell,
     windowsHide: true,
     encoding: "utf8",
     maxBuffer: 64 * 1024 * 1024,
@@ -80,6 +102,13 @@ export function runTest(cmd, cwd) {
  * instead of accepting the red.
  */
 export function classifyRedFailure(output) {
+  if (
+    /is not recognized as an internal or external command|command not found|No such file or directory|The system cannot find the path specified|not found: /i.test(
+      output,
+    )
+  ) {
+    return "shell";
+  }
   if (
     /ERR_MODULE_NOT_FOUND|Cannot find module|Cannot find package|Failed to resolve import|Failed to load url|is not exported|does not provide an export named|has no exported member/i.test(
       output,
@@ -172,6 +201,10 @@ export function runRedGreen({ repoRoot, test, files, base = "HEAD", snapshotDir,
     report.problems.push(
       `The test passed against ${base}. It pins nothing: either it does not assert the ticket's behaviour, or the files listed are not where the fix lives.`,
     );
+  } else if (redReason === "shell") {
+    report.problems.push(
+      `The test command itself could not run (the shell reported a missing command or path), so the red run says nothing about the defect. Fix the --test invocation and run again.`,
+    );
   } else if (redReason === "import" || redReason === "syntax") {
     report.problems.push(
       `The red run failed on a ${redReason} error, not on the defect. A whole-file revert broke the test's imports; simulate the old behaviour in place instead (§5b) and keep a positive control in the file.`,
@@ -228,6 +261,7 @@ export function runRedGreen({ repoRoot, test, files, base = "HEAD", snapshotDir,
   report.files = entries.map(({ bytes, baseBytes, abs, ...rest }) => rest);
   report.ok =
     report.red.outcome === "failed" &&
+    report.red.reason !== "shell" &&
     report.red.reason !== "import" &&
     report.red.reason !== "syntax" &&
     treeIntact &&

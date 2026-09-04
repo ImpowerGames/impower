@@ -157,6 +157,39 @@ check("after the fix is committed, HEAD is the fix and --base must point at the 
   assert.equal(againstParent.ok, true, JSON.stringify(againstParent.problems));
 });
 
+check("a VAR=value prefix on the test command runs, as every vitest example in the skill is written", () => {
+  const dir = makeRepo();
+  applyFix(dir);
+  fs.writeFileSync(
+    path.join(dir, "check.mjs"),
+    'import { value } from "./lib.mjs";\nif (process.env.REDGREEN_PROBE !== "yes") { console.error("prefix not applied"); process.exit(2); }\nif (value !== "new") { console.error("AssertionError: expected new"); process.exit(1); }\n',
+  );
+  const r = runRedGreen({
+    repoRoot: dir,
+    test: `REDGREEN_PROBE=yes ${NODE} check.mjs`,
+    files: ["lib.mjs"],
+    snapshotDir: snapshotDir(),
+  });
+  assert.equal(r.ok, true, JSON.stringify([r.problems, r.red.tail, r.green.tail]));
+  assert.equal(r.red.reason, "assertion");
+});
+
+check("a test command the shell cannot run is a shell problem, not a red", () => {
+  const dir = makeRepo();
+  applyFix(dir);
+  const r = runRedGreen({
+    repoRoot: dir,
+    test: "definitely-not-a-command-xyz --run",
+    files: ["lib.mjs"],
+    snapshotDir: snapshotDir(),
+  });
+  assert.equal(r.ok, false);
+  assert.equal(r.red.outcome, "failed");
+  assert.equal(r.red.reason, "shell");
+  assert.match(r.problems.join("\n"), /could not run/);
+  assert.equal(libText(dir), 'export const value = "new";\n');
+});
+
 check("classifyRedFailure tells an import death from an assertion", () => {
   assert.equal(classifyRedFailure("Error [ERR_MODULE_NOT_FOUND]: Cannot find module"), "import");
   assert.equal(classifyRedFailure("Error: Failed to resolve import \"./x\" from \"y.ts\""), "import");
