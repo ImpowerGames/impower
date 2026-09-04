@@ -323,6 +323,23 @@ describe("multi-line find and replace fields (#360)", () => {
     expect(getSearchQuery(view.state).replace).toBe("abc\n");
   });
 
+  // A block already ends its line, so a newline at the end of its own text is
+  // the invisible trailing break within it, not an empty line after it.
+  it("does not put an empty line after a block whose text ends in a newline", () => {
+    const view = mount();
+    const { search, replace } = fields(view);
+
+    type(search, "hello");
+    replace.innerHTML = "";
+    const block = document.createElement("div");
+    block.appendChild(document.createTextNode("inside\n"));
+    replace.appendChild(block);
+    replace.appendChild(document.createTextNode("after"));
+    input(replace);
+
+    expect(getSearchQuery(view.state).replace).toBe("inside\nafter");
+  });
+
   it("keeps a newline character in the middle of the text", () => {
     const view = mount();
     const { search, replace } = fields(view);
@@ -598,6 +615,53 @@ describe("multi-line find and replace fields (#360)", () => {
       }
     });
 
+    // Two reviewers predicted that a browser might write a single newline for
+    // a break, which reads as the invisible trailing one and would be lost.
+    // Chromium writes two, measured in the running editor, so the break
+    // survives there -- but nothing promises that, so a command that leaves
+    // the value where it was is treated as a command that did not work.
+    it("writes the field itself when the command changes nothing", () => {
+      const view = mount();
+      const { search, replace } = fields(view);
+      const doc = replace.ownerDocument as Document & {
+        execCommand?: (...args: unknown[]) => boolean;
+      };
+      // A browser whose insert leaves only the newline the reader treats as
+      // the trailing break, so the field's value does not move.
+      doc.execCommand = () => {
+        replace.appendChild(document.createTextNode("\n"));
+        replace.dispatchEvent(new InputEvent("input", { bubbles: true }));
+        return true;
+      };
+      try {
+        type(search, "hello");
+        type(replace, "abc");
+        caret(replace, 3);
+        press(replace, "Enter", { ctrlKey: true });
+
+        expect(getSearchQuery(view.state).replace).toBe("abc\n");
+      } finally {
+        delete doc.execCommand;
+      }
+    });
+
+    it("writes the field itself when the command reports failure", () => {
+      const view = mount();
+      const { search, replace } = fields(view);
+      const doc = replace.ownerDocument as Document & {
+        execCommand?: (...args: unknown[]) => boolean;
+      };
+      doc.execCommand = () => false;
+      try {
+        type(search, "hello");
+        paste(replace, "one\ntwo");
+
+        expect(getSearchQuery(view.state).replace).toBe("one\ntwo");
+      } finally {
+        delete doc.execCommand;
+      }
+    });
+
     it("falls back to writing the field where there is no such command", () => {
       const view = mount();
       const { search, replace } = fields(view);
@@ -632,6 +696,33 @@ describe("multi-line find and replace fields (#360)", () => {
 
       expect(replace.childNodes).toHaveLength(1);
       expect(getSearchQuery(view.state).replace).toBe("");
+      // The leftover break stays, so the browser's record of the field keeps
+      // pointing at something, and the placeholder still comes back.
+      expect(replace.hasAttribute("data-empty")).toBe(true);
+    });
+
+    // The placeholder is drawn on a field with no content at all, which a field
+    // holding that leftover break is not. The attribute says it is empty
+    // without emptying it.
+    it("says a field is empty for the placeholder without emptying it", () => {
+      const view = mount();
+      const { search, replace } = fields(view);
+
+      type(search, "hello");
+      type(replace, "hi");
+      expect(replace.hasAttribute("data-empty")).toBe(false);
+
+      replace.innerHTML = "";
+      replace.appendChild(document.createElement("br"));
+      replace.dispatchEvent(
+        new InputEvent("input", { bubbles: true, inputType: "historyUndo" }),
+      );
+
+      expect(replace.hasAttribute("data-empty")).toBe(true);
+
+      // And it goes as soon as there is something to show again.
+      type(replace, "back");
+      expect(replace.hasAttribute("data-empty")).toBe(false);
     });
 
     // Without a clipboard there is nothing to read, and taking the event over

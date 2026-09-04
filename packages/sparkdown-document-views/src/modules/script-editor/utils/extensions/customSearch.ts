@@ -27,7 +27,11 @@ import {
 } from "@codemirror/view";
 
 const searchPanelTheme = EditorView.baseTheme({
-  "[contenteditable]:empty::after": {
+  // A field the user has emptied can still be holding the break a browser
+  // leaves behind, which is enough to keep it from being `:empty`. The
+  // attribute says it is empty in that case, so the placeholder returns with
+  // the text rather than waiting for the next keystroke.
+  "[contenteditable]:empty::after, [contenteditable][data-empty]::after": {
     content: "attr(data-placeholder)",
     color: "#888",
     cursor: "text",
@@ -150,9 +154,12 @@ const readFieldText = (root: Node, trailingBreakIsFiller = true): string => {
           pendingBreak = false;
           trailingTextBreak = false;
           walk(el);
-          // The block's line is over, whether or not it put anything on one.
-          atLineStart = false;
-          pendingBreak = true;
+          // The block's line is over, whether or not it put anything on one --
+          // unless its own last text ended the line already, in which case
+          // counting it again would put an empty line after the block that the
+          // block does not show.
+          atLineStart = trailingTextBreak;
+          pendingBreak = !trailingTextBreak;
         } else {
           walk(el);
         }
@@ -331,16 +338,24 @@ const insertIntoField = (field: HTMLElement, insert: string) => {
  * command also raises `input`, so the field's listener commits what it left,
  * and commits again when the user undoes or redoes it.
  *
- * Where the command is missing or refuses -- an environment without it, or a
- * field the browser will not treat as editable -- the field is rewritten
- * instead. That puts the same text in and is not undoable.
+ * Where the command is missing, refuses, or reports success and leaves the
+ * field saying what it said before, the field is rewritten instead. That puts
+ * the same text in and is not undoable. The last of those is checked rather
+ * than assumed because what the command leaves behind is the browser's own
+ * business: Chromium writes the newline and a second one after it, so a break
+ * entered at the end of the text is still a line and still reads as one, but
+ * nothing promises that, and a browser that wrote a single newline would have
+ * it read as the invisible trailing break and lose it. Comparing the value
+ * makes the outcome the same either way.
  */
 const typeIntoField = (field: HTMLElement, text: string) => {
   const doc = field.ownerDocument;
+  const before = readFieldText(field);
   try {
     if (
       typeof doc.execCommand === "function" &&
-      doc.execCommand("insertText", false, text)
+      doc.execCommand("insertText", false, text) &&
+      readFieldText(field) !== before
     ) {
       return;
     }
@@ -655,6 +670,23 @@ export class SearchPanel implements Panel {
   }
 
   /**
+   * Say whether a field is holding nothing, for the placeholder to read.
+   *
+   * The placeholder is drawn on a field with no content at all, which the
+   * field is not while a leftover break sits in it -- and that break is left
+   * where it is through an undo, so the browser's record of the field keeps
+   * pointing at something. The attribute says the field is empty without
+   * emptying it, so the placeholder comes back at the moment the text goes.
+   */
+  markEmptiness(field: HTMLElement) {
+    if (readFieldText(field)) {
+      field.removeAttribute("data-empty");
+    } else {
+      field.setAttribute("data-empty", "");
+    }
+  }
+
+  /**
    * Bring the query up to date with what a field now holds.
    *
    * Undo and redo are the browser replaying its own record of the field, so the
@@ -666,6 +698,7 @@ export class SearchPanel implements Panel {
     if (e.inputType !== "historyUndo" && e.inputType !== "historyRedo") {
       this.clearEmptied(field);
     }
+    this.markEmptiness(field);
     this.commit();
   }
 
@@ -695,6 +728,7 @@ export class SearchPanel implements Panel {
     }
     typeIntoField(field, normalizeLineEndings(text));
     this.clearEmptied(field);
+    this.markEmptiness(field);
     // The insert command raises `input` and the field's listener commits on
     // it, but the fallback edits the DOM directly and raises nothing. The
     // commit is repeated here for that case; a second one costs nothing, since
@@ -909,6 +943,7 @@ export class SearchPanel implements Panel {
   breakLine(field: HTMLElement) {
     typeIntoField(field, "\n");
     this.clearEmptied(field);
+    this.markEmptiness(field);
     this.commit();
   }
 
@@ -1247,7 +1282,11 @@ const gotoLinePanelTheme = EditorView.baseTheme({
     padding: "2px 6px 4px",
     "& label": { fontSize: "80%" },
   },
-  "[contenteditable]:empty::after": {
+  // A field the user has emptied can still be holding the break a browser
+  // leaves behind, which is enough to keep it from being `:empty`. The
+  // attribute says it is empty in that case, so the placeholder returns with
+  // the text rather than waiting for the next keystroke.
+  "[contenteditable]:empty::after, [contenteditable][data-empty]::after": {
     content: "attr(data-placeholder)",
     color: "#888",
     cursor: "text",
