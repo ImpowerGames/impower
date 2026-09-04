@@ -437,45 +437,9 @@ export default class UIManager extends Manager {
           }
           (el as any).__sdAttrs = written;
         }
-        if (params.content && "fonts" in params.content) {
-          for (const [, font] of Object.entries(params.content.fonts)) {
-            try {
-              if (font.font_family) {
-                const fontFace = new FontFace(
-                  font.font_family,
-                  `url(${font.src})`,
-                  {
-                    style: font.font_style || undefined,
-                    weight: font.font_weight || undefined,
-                    stretch: font.font_stretch || undefined,
-                    display: (font.font_display as FontDisplay) || undefined,
-                  },
-                );
-                if (
-                  !Array.from(
-                    document.fonts as unknown as Iterable<FontFace>,
-                  ).some(
-                    (f) =>
-                      f.family === font.font_family &&
-                      f.style === font.font_style &&
-                      f.weight === font.font_weight &&
-                      f.stretch === font.font_stretch,
-                  )
-                ) {
-                  if (
-                    "add" in document.fonts &&
-                    typeof document.fonts.add === "function"
-                  ) {
-                    document.fonts.add(fontFace);
-                  }
-                  await fontFace.load();
-                }
-              }
-            } catch (e) {
-              console.error(e);
-            }
-          }
-        }
+        // Font faces are not created here: the asset cache adds each
+        // layout's faces to `document.fonts` before the layout mounts, and
+        // removes them when nothing needs them any more.
         (el as any).__sdCreate = sig;
       }
       if (!isFontHost) {

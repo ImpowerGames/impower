@@ -78,6 +78,19 @@ const createGame = (
         triggerAll: () => {},
         outputLatency: 0,
       },
+      assets: {
+        prepareBeat: () => null,
+        // A `load` beat reaches the loader with every name it carries.
+        runLoad: (loads: Array<{ name: string }>) => {
+          for (const load of loads) {
+            calls.loadedWorlds.push(load.name);
+          }
+          return 0;
+        },
+        isReady: () => true,
+        trigger: () => {},
+        onBeatDisplayed: () => {},
+      },
     },
     clickedToContinue: () => {
       calls.clickedToContinue += 1;
@@ -363,14 +376,19 @@ describe("Coordinator", () => {
   });
 
   describe("loading", () => {
-    it("stays put while a world is loading", () => {
+    it("stays put until the load has finished, then advances on its own", () => {
       const { game, calls } = createGame();
+      const assets = (game.module as any).assets;
+      assets.isReady = () => false;
       const coordinator = new Coordinator(game, {
         load: [{ name: "world" }] as never,
         end: 0,
       });
       expect(coordinator.shouldContinue()).toBe(STAY);
       expect(calls.loadedWorlds).toEqual(["world"]);
+      assets.isReady = () => true;
+      coordinator.onUpdate(tick(0));
+      expect(coordinator.shouldContinue()).toBe(AUTO_ADVANCED);
     });
   });
 });

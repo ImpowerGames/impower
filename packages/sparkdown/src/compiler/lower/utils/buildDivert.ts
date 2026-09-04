@@ -1,8 +1,11 @@
 import { type SyntaxNode } from "@lezer/common";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
+import { getDescendents } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendents";
 import { Divert } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Divert/Divert";
 import { Expression } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expression/Expression";
 import { Identifier } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Identifier";
+import { ParsedObject } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Object";
+import { Text } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Text";
 import { TunnelOnwards } from "../../../inkjs/compiler/Parser/ParsedHierarchy/TunnelOnwards";
 import { lowerExpressionFromNodes } from "../expression/lowerExpression";
 import { LowerContext } from "../context";
@@ -55,6 +58,67 @@ export interface BuildDivertOptions {
 }
 
 export type DivertLike = Divert | TunnelOnwards;
+
+/**
+ * The `load` keyword on an arrow (`-> load X`, `-> load X ->`, `<- load X`)
+ * makes the story preload X's scene (and world) behind the loading layout
+ * before following the arrow. It lowers to the `[[load X]]` directive on its
+ * own line ahead of the arrow's objects, so the runtime treats every spelling
+ * alike: a load beat, then the divert.
+ *
+ * Returns the objects with the directive prepended, or the objects unchanged
+ * when the arrow carries no `load`. A tunnel-onwards or a multi-target chain
+ * with `load` is left to the caller to diagnose; the directive still lowers so
+ * the author's intent survives.
+ */
+export function withDivertLoad(
+  divertNode: SyntaxNode,
+  objects: DivertLike[],
+  ctx: LowerContext,
+  options: { ownLine?: boolean } = {},
+): ParsedObject[] {
+  if (!getDescendent("DivertLoadKeyword", divertNode)) {
+    return objects;
+  }
+  const target = getDescendent("DivertTarget", divertNode);
+  const name = target ? loadTargetName(target, ctx) : "";
+  if (!name) {
+    return objects;
+  }
+  // An arrow that shares its line with display text (a choice, a mid-line
+  // divert) ends that line first, so the load runs as its own beat rather
+  // than opening the loading layout over the line before it.
+  const lead = options.ownLine === false ? [new Text("\n")] : [];
+  return [...lead, new Text(`[[load ${name}]]`), new Text("\n"), ...objects];
+}
+
+/** Why a `load` on this arrow cannot mean what it says, or null when it can.
+ *  `load` applies to the first target of a divert, a tunnel call, or a
+ *  thread; a tunnel-onwards has no target to load, and a chain has several. */
+export function divertLoadShapeProblem(divertNode: SyntaxNode): string | null {
+  if (!getDescendent("DivertLoadKeyword", divertNode)) {
+    return null;
+  }
+  if (getDescendent("TunnelMark", divertNode)) {
+    return "`load` needs a target: `->->` returns rather than diverting.";
+  }
+  if (getDescendents(["DivertTarget"], divertNode).length > 1) {
+    return "`load` applies to a single target; split the chain into separate arrows.";
+  }
+  return null;
+}
+
+/** The flow a `load` arrow names: the first component of its target path
+ *  (`-> load Chapter2.intro` loads Chapter2), or a called flow's name. */
+function loadTargetName(targetNode: SyntaxNode, ctx: LowerContext): string {
+  const fnCall = getDescendent("LuauFunctionCall", targetNode);
+  if (fnCall) {
+    const nameNode = getDescendent("LuauFunctionName", fnCall);
+    return nameNode ? ctx.read(nameNode.from, nameNode.to) : "";
+  }
+  const first = getDescendent("DivertPartName", targetNode);
+  return first ? ctx.read(first.from, first.to) : "";
+}
 
 // Lowers a `Divert` syntax node into one or more ParsedObjects.
 // Supports all of ink's divert/tunnel shapes:

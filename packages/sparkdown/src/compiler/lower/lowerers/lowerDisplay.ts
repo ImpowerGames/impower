@@ -24,7 +24,7 @@ import {
   lowerExpressionFromContainer,
   lowerExpressionFromNodes,
 } from "../expression/lowerExpression";
-import { buildDivert } from "../utils/buildDivert";
+import { buildDivert, withDivertLoad } from "../utils/buildDivert";
 import { stampDebugMetadata } from "../utils/debugMetadata";
 import { formatDisplayRoutingTag } from "../../utils/displayRoutingTag";
 import { lowerTagContent } from "../utils/lowerTagContent";
@@ -526,7 +526,11 @@ function processDisplayBody(
       // diverted-to scene wants to start its content on the same line, it
       // can continue without a leading newline.
       const divertObjects = buildDivert(seg.node, ctx);
-      for (const obj of divertObjects) out.push(obj);
+      for (const obj of withDivertLoad(seg.node, divertObjects, ctx, {
+        ownLine: false,
+      })) {
+        out.push(obj);
+      }
     }
   }
   return out;

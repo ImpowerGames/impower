@@ -22,6 +22,8 @@ import { JSDOM, VirtualConsole } from "jsdom";
 import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
 import { Game } from "@impower/spark-engine/src/game/core/classes/Game";
 import type { Instructions } from "@impower/spark-engine/src/game/core/types/Instructions";
+import { AssetCache, type ImageTarget } from "../../app/assets/AssetCache";
+import AssetManager from "../../app/managers/AssetManager";
 import UIManager from "../../app/managers/UIManager";
 
 const MAIN_URI = "inmemory:///main.sd";
@@ -181,12 +183,21 @@ export function createDOMHarness(
 
   const overlay = win.document.getElementById("overlay") as HTMLElement;
 
+  // Timers armed with a real delay (an asset gate's timeout, the loading
+  // layout's minimum display) are held for `flushTimers()`; zero-delay timers
+  // (the Coordinator's audio-latency sync) fire inline, as before.
+  const pendingTimers: Array<{ fn: Function; args: any[] }> = [];
+
   const makeGame = (prog: any) => {
     const g = new Game({
       program: prog,
       previewFrom: { file: MAIN_URI, line: startLine },
       now: () => 0,
-      setTimeout: ((fn: Function, _ms?: number, ...args: any[]) => {
+      setTimeout: ((fn: Function, ms?: number, ...args: any[]) => {
+        if (ms != null && ms > 0) {
+          pendingTimers.push({ fn, args });
+          return pendingTimers.length;
+        }
         fn(...args);
         return 0;
       }) as any,
@@ -214,16 +225,45 @@ export function createDOMHarness(
   // `emit` is the renderer→engine path: when a real DOM event fires on an
   // observed element, UIManager calls `app.emit(EventMessage...)`; we route it
   // straight back into the engine so click→advance round-trips end to end.
+  // Images "load" on the next microtask, like cached responses, so the
+  // engine's asset gates settle without a network.
+  const fakeImage = (): ImageTarget => {
+    const target: ImageTarget = {
+      src: "",
+      onload: null,
+      onerror: null,
+      naturalWidth: 10,
+      naturalHeight: 10,
+    };
+    let src = "";
+    Object.defineProperty(target, "src", {
+      get: () => src,
+      set: (value: string) => {
+        src = value;
+        queueMicrotask(() => target.onload?.call(target, {}));
+      },
+    });
+    return target;
+  };
+
   const stubApp: any = {
     overlay,
     emit: (message: any) => {
       game.connection.receive(message);
+    },
+    assetCache: new AssetCache({ createImage: fakeImage }),
+    audio: {
+      decodeAudioBuffer: async () => null,
+      playingKeys: () => [],
     },
   };
 
   // Swapped on rerender (buildApp makes a NEW manager per edit; the overlay DOM
   // persists across the swap).
   let ui = new UIManager(stubApp);
+  // The asset side persists like the page's shared cache does.
+  const assets = new AssetManager(stubApp);
+  void assets.onInit();
 
   // Wire the engine's output straight into the real consumer, mirroring
   // `Application.processMessage`: REQUESTS (with an `id`) go to
@@ -234,9 +274,13 @@ export function createDOMHarness(
     if (!msg || typeof msg !== "object" || !("params" in msg)) {
       return;
     }
+    // Route by method family, as `Application.onReceive` fans out to managers.
+    const consumer = String(msg.method ?? "").startsWith("assets/")
+      ? assets
+      : ui;
     if ("id" in msg) {
       // Deferred: the emitter registers its resolve callback after send().
-      void ui.onReceiveRequest(msg).then((response) => {
+      void consumer.onReceiveRequest(msg).then((response) => {
         queueMicrotask(() => {
           game.connection.receive({
             jsonrpc: "2.0",
@@ -247,7 +291,7 @@ export function createDOMHarness(
         });
       });
     } else {
-      ui.onReceiveNotification(msg);
+      consumer.onReceiveNotification(msg);
     }
   };
 

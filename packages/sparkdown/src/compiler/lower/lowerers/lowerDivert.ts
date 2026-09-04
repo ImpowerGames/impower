@@ -3,7 +3,11 @@ import { ErrorType } from "../../../inkjs/compiler/Parser/ErrorType";
 import { CompiledBlock } from "../../classes/annotators/CompilationAnnotator";
 import { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
 import { LowerContext } from "../context";
-import { buildDivert } from "../utils/buildDivert";
+import {
+  buildDivert,
+  divertLoadShapeProblem,
+  withDivertLoad,
+} from "../utils/buildDivert";
 import { wrapInWeave } from "../utils/wrapInWeave";
 
 export function lowerDivert(
@@ -11,7 +15,15 @@ export function lowerDivert(
   ctx: LowerContext,
 ): CompiledBlock {
   const objects = buildDivert(nodeRef.node, ctx);
-  const block = wrapInWeave(objects);
+  const block = wrapInWeave(withDivertLoad(nodeRef.node, objects, ctx));
+  const source = {
+    fileName: null,
+    filePath: ctx.filePath ?? null,
+    startLineNumber: ctx.lineNumber(nodeRef.from) + 1,
+    endLineNumber: ctx.lineNumber(nodeRef.to) + 1,
+    startCharacterNumber: ctx.characterNumber(nodeRef.from) + 1,
+    endCharacterNumber: ctx.characterNumber(nodeRef.to) + 1,
+  };
   // `->` with no target outside of a choice is meaningless — there's
   // nothing to divert to. Inkjs's parser emits the same diagnostic.
   // Inside a choice, `* ->` is the fallback-choice form and `lowerChoice`
@@ -25,17 +37,17 @@ export function lowerDivert(
           message:
             "Empty diverts (->) are only valid on choices (e.g. `* ->`).",
           severity: ErrorType.Warning,
-          source: {
-            fileName: null,
-            filePath: ctx.filePath ?? null,
-            startLineNumber: ctx.lineNumber(nodeRef.from) + 1,
-            endLineNumber: ctx.lineNumber(nodeRef.to) + 1,
-            startCharacterNumber: ctx.characterNumber(nodeRef.from) + 1,
-            endCharacterNumber: ctx.characterNumber(nodeRef.to) + 1,
-          },
+          source,
         },
       ];
     }
+  }
+  const loadProblem = divertLoadShapeProblem(nodeRef.node);
+  if (loadProblem) {
+    block.diagnostics = [
+      ...(block.diagnostics ?? []),
+      { message: loadProblem, severity: ErrorType.Warning, source },
+    ];
   }
   return block;
 }

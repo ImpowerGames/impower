@@ -15,7 +15,7 @@ import {
 import { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
 import { LowerContext } from "../context";
 import { lowerExpressionFromContainer } from "../expression/lowerExpression";
-import { buildDivert } from "../utils/buildDivert";
+import { buildDivert, withDivertLoad } from "../utils/buildDivert";
 import { lowerTagContent } from "../utils/lowerTagContent";
 import { wrapInWeave } from "../utils/wrapInWeave";
 
@@ -138,7 +138,9 @@ export function lowerChoice(
         innerContent.AddContent(new Text(whitespaceBeforeDivert));
       }
     }
-    for (const obj of divertObjects) {
+    for (const obj of withDivertLoad(divertNode!, divertObjects, ctx, {
+      ownLine: false,
+    })) {
       innerContent.AddContent(obj);
     }
   } else if (!divertNode) {

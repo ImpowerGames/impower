@@ -130,9 +130,30 @@ const STRUCTURAL_TYPE_BY_NODE: Record<string, string> = {
 const LAYOUT_CONTROL_KEYWORDS: string[] =
   GRAMMAR_DEFINITION.variables.LAYOUT_CONTROL_KEYWORDS || [];
 
+// `[[load <name>…]]` — every name is a scene (a divert target) or a world, so
+// it links to the scene or the `world` define and warns only when neither
+// exists.
+const LOAD_CONTROL_KEYWORDS: string[] =
+  GRAMMAR_DEFINITION.variables.LOAD_CONTROL_KEYWORDS || [];
+
 export class ReferenceAnnotator extends SparkdownAnnotator<
   SparkdownAnnotation<Reference>
 > {
+  /** A name a `load` directive or arrow names: the scene it diverts to (a
+   *  divert-style reference, so it links and warns like `-> name`) or a
+   *  `world` define. */
+  protected loadTargetReference(
+    name: string,
+    nodeRef: { from: number; to: number },
+  ) {
+    return SparkdownAnnotation.mark<Reference>({
+      usage: "divert",
+      symbolIds: ["." + name, name, `world.${name}`],
+      firstMatchOnly: true,
+      kind: "read",
+    }).range(nodeRef.from, nodeRef.to);
+  }
+
   // The engine type of the define currently being walked. For an OOP `define
   // <name> as <parent>` this is the PARENT (the inverted model: parent = type);
   // for a root `define <name> with …` it is the name itself; for a structural
@@ -632,6 +653,10 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
           );
           return annotations;
         }
+        if (LOAD_CONTROL_KEYWORDS.includes(control)) {
+          annotations.push(this.loadTargetReference(name, nodeRef));
+          return annotations;
+        }
         const types: string[] = ["layer"];
         const displayType = `layer`;
         annotations.push(
@@ -705,8 +730,24 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
       const context = getContextNames(nodeRef.node);
       // Record image file name reference
       if (context.includes("ImageCommand")) {
-        const types = ["filtered_image", "layered_image", "image", "graphic"];
         const name = this.read(nodeRef.from, nodeRef.to);
+        // `[[load A B]]`: every further name is a scene or world too, never
+        // an image.
+        const instruction = ancestorMatching(
+          nodeRef.node,
+          ASSET_COMMAND_INSTRUCTION,
+        );
+        const controlNode = instruction
+          ? firstDescendant(instruction, ASSET_COMMAND_CONTROL)
+          : null;
+        const control = controlNode
+          ? this.read(controlNode.from, controlNode.to).trim()
+          : "";
+        if (LOAD_CONTROL_KEYWORDS.includes(control)) {
+          annotations.push(this.loadTargetReference(name, nodeRef));
+          return annotations;
+        }
+        const types = ["filtered_image", "layered_image", "image", "graphic"];
         const displayType = "image";
         annotations.push(
           SparkdownAnnotation.mark<Reference>({

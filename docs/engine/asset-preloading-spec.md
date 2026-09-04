@@ -36,7 +36,7 @@ Worlds (authored JavaScript modules) load only in play, through `load`.
 
 ## The cache
 
-One cache on the page, sized by `asset_cache_size` megabytes. `0` means never evict. Entries are keyed by image src, font src plus descriptors, audio load key, or video src. An entry is resident when its bytes are decoded: an image after `onload` and `decode()`, a font after its `FontFace` is added to `document.fonts` and loaded, audio after `decodeAudioData`, video once its bytes are held in a blob with an object URL.
+One cache on the page, sized by `asset_cache_size` megabytes. `0` means never evict. Entries are keyed by image src, font src plus descriptors, audio load key, or video src. An entry is resident when its bytes are local and usable: an image after its `load` event, a font after its `FontFace` is added to `document.fonts` and loaded, audio after `decodeAudioData`, video once its bytes are held in a blob with an object URL. The `load` and `error` events are the completion signals for images because they fire as soon as the bytes arrive, wherever the page is. `decode()` is only a warm-up on top: the cache asks for it after `load` and waits at most `decodeTimeoutMs` (1.5 s) for it, because Chromium settles that promise as part of producing a frame, so it never settles while the page produces no frames (a hidden tab, a throttled embedded view) and can reject for reasons unrelated to the image.
 
 Bytes are estimated per kind: images as `naturalWidth * naturalHeight * 4` with a floor of 256 KiB and, for SVG variants, a floor of 4 MiB; fonts and video by response size; audio as `length * numberOfChannels * 4`.
 
@@ -66,7 +66,7 @@ Priority 0 is the express lane: a line's gate, the checkpoint restore gate, and 
 
 Pins: `restore` (released when the restore gate settles), `beat:<id>` (released when the line displays), `layout:<name>` (released when the layout closes), `load:<flow>` (released, and dropped, when the flow leaves the callstack). The page derives two more pins itself and never receives them: the srcs of the image elements currently in the overlay, and the keys of audio players currently playing.
 
-Six requests may be in flight at once. Assets are served through a service worker that relays to the editor, so an unbounded burst puts the first-needed asset behind every other one. A request that fails is retried up to three times, then blacklisted until its file changes.
+Six requests may be in flight at once. Assets are served through a service worker that relays to the editor, so an unbounded burst puts the first-needed asset behind every other one. A request that fails is retried up to three times, then left alone for five seconds; a request after that cool-down starts a fresh set of attempts, and a change to the file clears the failure at once. The cool-down exists because a cold editor start can answer the first requests with 404s before its service worker and file mirror are ready, and those files must not stay blacklisted for the session.
 
 ## Message protocol
 
@@ -87,7 +87,7 @@ type AssetItem =
 // assets/progress   notification  (page -> engine) { pin: string; loaded: number; failed: number; total: number }
 ```
 
-`assets/load` resolves when every item is resident or has failed; a failed item counts as settled so a gate never waits for ever. `pinBudget` is the number of bytes the page may pin for this request; it pins items in order until that budget is reached and reports which ones it pinned. `assets/release` with `drop` evicts what is left unpinned immediately, unless a derived pin still holds it.
+`assets/load` resolves when every item is resident or has failed; a failed item counts as settled so a gate never waits for ever. The page pins the loaded items in order while the total of pinned bytes stays under `pinBudget`, or under its own cache size when the request carries none, and reports which ones it pinned; the rest stay resident but unpinned. `assets/release` with `drop` evicts what is left unpinned immediately, unless a derived pin still holds it. A queued item that a drop leaves unpinned is cancelled rather than loaded for nothing.
 
 The page answers every `assets/load`, including one with no items. Every engine emit path is guarded so the never-connected route-simulation game emits nothing.
 
@@ -159,7 +159,7 @@ In preview a `load` beat only prefetches the scene's visuals: no layout, no worl
 
 `loading` is an engine-managed layout, like `main`: navigation never closes it, checkpoints never record it, restores never mount it, and opening or closing it during preview or simulation is a no-op.
 
-The built-in layout is a full-screen backdrop with a centered spinner and a progress bar. Its root style carries `z_index = 1000` and `pointer_events = auto`, so it stacks above every other layout and swallows clicks. Authors replace it with `layout loading with … end` and restyle it with `style loading with … end`; both work with no engine involvement. The engine writes `--loading_progress` (0 to 1) on the layout's root element, so any descendant of a replaced tree can read it with `var()`. The layout's own styles must not name a project font.
+The built-in layout is a full-screen backdrop with a centered progress bar. Its root style carries `z_index = 1000` and `pointer_events = auto`, so it stacks above every other layout and swallows clicks. Authors replace it with `layout loading with … end` and restyle it with `style loading with … end`; both work with no engine involvement. The engine writes `--loading_progress` (0 to 1) on the layout's root element, so any descendant of a replaced tree can read it with `var()`. The layout's own styles must not name a project font.
 
 ## Config
 

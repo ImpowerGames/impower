@@ -30,7 +30,11 @@ export default class AudioManager extends Manager {
     return this._unsafeAudioContext!;
   }
 
-  protected _audioBuffers = new Map<string, AudioBuffer>();
+  /** Keys of players built from synth data. A synth buffer is generated per
+   *  line with a tone suffix in its key, so nothing ever asks for it again:
+   *  its player is dropped as soon as its sound has ended, or every line
+   *  leaks one buffer. File-backed buffers live in the shared asset cache. */
+  protected _synthKeys = new Set<string>();
 
   protected _audioMixers = new Map<string, AudioMixer>();
 
@@ -95,7 +99,7 @@ export default class AudioManager extends Manager {
       delete (window as any).__audioProbe;
     }
     this._audioMixers.clear();
-    this._audioBuffers.clear();
+    this._synthKeys.clear();
     for (const c of this._audioChannels.values()) {
       for (const p of c.values()) {
         p.dispose();
@@ -150,18 +154,48 @@ export default class AudioManager extends Manager {
     return audioContext.createBuffer(1, 1, audioContext.sampleRate);
   }
 
+  /** Decode (or synthesize) the buffer for these parameters. The asset cache
+   *  calls this to make audio resident ahead of need. */
+  decodeAudioBuffer(params: LoadAudioPlayerParams): Promise<AudioBuffer> {
+    return this.loadAudioBuffer(params);
+  }
+
+  /** Keys of every player currently making sound: what the cache must keep
+   *  whatever else it evicts. */
+  playingKeys(): string[] {
+    const keys: string[] = [];
+    for (const channel of this._audioChannels.values()) {
+      for (const [key, player] of channel) {
+        if (player.playing) {
+          keys.push(key);
+        }
+      }
+    }
+    return keys;
+  }
+
   protected async getAudioBuffer(
     params: LoadAudioPlayerParams,
   ): Promise<AudioBuffer> {
-    const existingAudioBuffer = this._audioBuffers.get(params.key);
-    if (existingAudioBuffer) {
-      return existingAudioBuffer;
+    if (params.synth && params.tones) {
+      // Never cached; see `_synthKeys`.
+      return this.loadAudioBuffer(params);
     }
-    const audioBuffer = await this.loadAudioBuffer(params);
-    if (audioBuffer) {
-      this._audioBuffers.set(params.key, audioBuffer);
+    const cache = this.app.assets?.cache;
+    if (!cache || !params.src) {
+      return this.loadAudioBuffer(params);
     }
-    return audioBuffer;
+    const resident = cache.getAudio(params.key);
+    if (resident) {
+      return resident;
+    }
+    // Through the cache, so a buffer decoded for playback is the one a later
+    // preload finds resident, and the reverse. The player's own pin lasts
+    // only until the buffer is in hand; from then on "playing" keeps it.
+    const pin = `play:${params.key}`;
+    await cache.request([{ kind: "audio", params }], 0, pin);
+    cache.release([pin], false);
+    return cache.getAudio(params.key) ?? this.loadAudioBuffer(params);
   }
 
   protected getAudioMixer(
@@ -203,17 +237,27 @@ export default class AudioManager extends Manager {
     return audioChannel;
   }
 
-  // TODO: Destroy old audio to free up memory
-  protected destroyAudio(key: string, channel: string) {
-    const audioChannel = this._audioChannels.get(channel);
-    if (audioChannel) {
-      const audioPlayer = audioChannel.get(key);
-      if (audioPlayer) {
-        audioPlayer.dispose();
-      }
-      audioChannel.delete(key);
+  /** Drop a synth player once its sound has ended: its buffer was generated
+   *  for this one line and nothing will ask for it again. */
+  protected pruneWhenDone(channel: string, key: string, player: AudioPlayer) {
+    if (!this._synthKeys.has(key)) {
+      return;
     }
-    this._audioBuffers.delete(key);
+    const instance = player.instances[player.instances.length - 1];
+    if (!instance) {
+      return;
+    }
+    instance.ended.then(() => {
+      if (player.playing) {
+        return;
+      }
+      const audioChannel = this._audioChannels.get(channel);
+      if (audioChannel?.get(key) === player) {
+        audioChannel.delete(key);
+        this._synthKeys.delete(key);
+        player.dispose();
+      }
+    });
   }
 
   protected async getAudioPlayer(
@@ -240,6 +284,9 @@ export default class AudioManager extends Manager {
         destination: audioMixer?.volumeNode,
       });
       audioChannel.set(params.key, audioPlayer);
+      if (params.synth && params.tones) {
+        this._synthKeys.add(params.key);
+      }
       return audioPlayer;
     }
     return undefined;
@@ -249,6 +296,8 @@ export default class AudioManager extends Manager {
     audioPlayer: AudioPlayer,
     update: AudioPlayerUpdate,
     currentTime: number,
+    channel?: string,
+    key?: string,
   ) {
     const updateTime = currentTime + (update.after ?? 0);
     const when = update.now
@@ -262,6 +311,9 @@ export default class AudioManager extends Manager {
     }
     if (update.control === "start") {
       audioPlayer.start(when, over, gain, at);
+      if (channel && key) {
+        this.pruneWhenDone(channel, key, audioPlayer);
+      }
     }
     if (update.control === "stop") {
       audioPlayer.stop(when, over);
@@ -291,11 +343,23 @@ export default class AudioManager extends Manager {
         if (update.key) {
           const audioPlayer = audioChannel.get(update.key);
           if (audioPlayer) {
-            this.updateAudioPlayer(audioPlayer, update, currentTime);
+            this.updateAudioPlayer(
+              audioPlayer,
+              update,
+              currentTime,
+              params.channel,
+              update.key,
+            );
           }
         } else {
-          for (const audioPlayer of audioChannel.values()) {
-            this.updateAudioPlayer(audioPlayer, update, currentTime);
+          for (const [key, audioPlayer] of audioChannel) {
+            this.updateAudioPlayer(
+              audioPlayer,
+              update,
+              currentTime,
+              params.channel,
+              key,
+            );
           }
           if (update.control === "await") {
             if (queueCreatedAt === undefined) {

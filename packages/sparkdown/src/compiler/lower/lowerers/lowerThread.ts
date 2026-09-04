@@ -1,7 +1,7 @@
 import { CompiledBlock } from "../../classes/annotators/CompilationAnnotator";
 import { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
 import { LowerContext } from "../context";
-import { buildDivert } from "../utils/buildDivert";
+import { buildDivert, withDivertLoad } from "../utils/buildDivert";
 import { wrapInWeave } from "../utils/wrapInWeave";
 
 export function lowerThread(
@@ -9,5 +9,5 @@ export function lowerThread(
   ctx: LowerContext,
 ): CompiledBlock {
   const objects = buildDivert(nodeRef.node, ctx, { isThread: true });
-  return wrapInWeave(objects);
+  return wrapInWeave(withDivertLoad(nodeRef.node, objects, ctx));
 }

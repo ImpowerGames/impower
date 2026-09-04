@@ -60,6 +60,29 @@ define interpreter as config with
   fallbacks = { layer = "portrait", channel = "sound" }
 end
 
+define assets as config with
+  -- Beats ahead of the current one whose assets keep loading in the
+  -- background, through every branch. 0 means the rest of the current scene.
+  predict_distance = 32
+  -- Megabytes of loaded assets to keep. Assets brought in by `load` stay
+  -- pinned while their scene is current or on the callstack; everything else
+  -- is evicted least-recently-used first. 0 means never evict.
+  asset_cache_size = 300
+  -- Beats of a scene a `load` waits for before the loading screen closes.
+  -- 0 means the whole scene.
+  load_distance = 0
+  -- Seconds a line may wait for its assets before displaying anyway.
+  beat_timeout = 8
+  -- Seconds a checkpoint restore or a layout mount may wait for its assets.
+  restore_timeout = 2
+  -- Seconds a `load` may wait before giving up and continuing.
+  load_timeout = 30
+  -- Seconds the `loading` layout stays up once a `load` opened it.
+  loading_min = 0.5
+  -- Transition used to open and close `loading` when `load` has no `with`.
+  loading_transition = "fade"
+end
+
 define image with
   ["$link"] = { audio = {}, synth = {}, character = {}, typewriter = {}, inflection = {}, prosody = {} }
   src = ""
@@ -1452,19 +1475,48 @@ style mask with
     will_change = transform
 end
 
-style loading_bar with
+-- The engine-managed loading screen, opened and closed by `load`. A normal
+-- layout an author may replace (`layout loading with … end`) or restyle
+-- (`style loading with … end`). The engine writes `--loading_progress`
+-- (0 to 1) on this root, so any descendant of a replaced tree can read it
+-- with var(). Its styles must not name a project font.
+style loading with
   z_index = 1000
+  pointer_events = auto
+  align_items = center
+  justify_content = center
+end
+
+style loading_backdrop with
+  position = absolute
+  inset = 0
+  background_color = black
+end
+
+style loading_content with
+  position = relative
+  display = flex
+  flex_direction = column
+  align_items = center
+  gap = 1rem
+  width = min(60%, 320px)
+end
+
+style loading_bar with
   position = relative
   width = 100%
   height = 4px
+  overflow = hidden
+  background_color = rgb(255 255 255 / 20%)
 end
 
 style loading_fill with
   width = 100%
   height = 100%
-  background_color = cyan50
-  transform = scaleX(var(--loading_progress))
+  background_color = cyan_60
+  transform = scaleX(var(--loading_progress, 0))
   transform_origin = left
+  transition = transform 0.15s linear
 end
 
 style screen with
@@ -3197,8 +3249,10 @@ define screen with
 end
 
 layout loading with
-  loading_bar:
-    loading_fill:
+  loading_backdrop:
+  loading_content:
+    loading_bar:
+      loading_fill:
 end
 
 layout main with

@@ -668,18 +668,39 @@ spark-web-player #game .mask {
     will-change: transform;
   }
 }
-spark-web-player #game .loading_bar {
+spark-web-player #game .loading {
   z-index: 1000;
+  pointer-events: auto;
+  align-items: center;
+  justify-content: center;
+}
+spark-web-player #game .loading_backdrop {
+  position: absolute;
+  inset: 0px;
+  background-color: black;
+}
+spark-web-player #game .loading_content {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  width: min(60%, 320px);
+}
+spark-web-player #game .loading_bar {
   position: relative;
   width: 100%;
   height: 4px;
+  overflow: hidden;
+  background-color: rgb(255 255 255 / 20%);
 }
 spark-web-player #game .loading_fill {
   width: 100%;
   height: 100%;
-  background-color: var(--theme-color-cyan50);
-  transform: scaleX(var(--loading_progress));
+  background-color: var(--theme-color-cyan_60);
+  transform: scaleX(var(--loading_progress, 0));
   transform-origin: left;
+  transition: transform 0.15s linear;
 }
 spark-web-player #game .screen {
   position: absolute;
@@ -1993,13 +2014,23 @@ spark-web-player #game .continue_indicator {
             {
               "children": [
                 {
+                  "class": "loading_backdrop",
+                  "tag": "div",
+                },
+                {
                   "children": [
                     {
-                      "class": "loading_fill",
+                      "children": [
+                        {
+                          "class": "loading_fill",
+                          "tag": "div",
+                        },
+                      ],
+                      "class": "loading_bar",
                       "tag": "div",
                     },
                   ],
-                  "class": "loading_bar",
+                  "class": "loading_content",
                   "tag": "div",
                 },
               ],
@@ -2803,18 +2834,39 @@ spark-web-player #game .mask {
     will-change: transform;
   }
 }
-spark-web-player #game .loading_bar {
+spark-web-player #game .loading {
   z-index: 1000;
+  pointer-events: auto;
+  align-items: center;
+  justify-content: center;
+}
+spark-web-player #game .loading_backdrop {
+  position: absolute;
+  inset: 0px;
+  background-color: black;
+}
+spark-web-player #game .loading_content {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  width: min(60%, 320px);
+}
+spark-web-player #game .loading_bar {
   position: relative;
   width: 100%;
   height: 4px;
+  overflow: hidden;
+  background-color: rgb(255 255 255 / 20%);
 }
 spark-web-player #game .loading_fill {
   width: 100%;
   height: 100%;
-  background-color: var(--theme-color-cyan50);
-  transform: scaleX(var(--loading_progress));
+  background-color: var(--theme-color-cyan_60);
+  transform: scaleX(var(--loading_progress, 0));
   transform-origin: left;
+  transition: transform 0.15s linear;
 }
 spark-web-player #game .screen {
   position: absolute;
@@ -4128,13 +4180,23 @@ spark-web-player #game .continue_indicator {
             {
               "children": [
                 {
+                  "class": "loading_backdrop",
+                  "tag": "div",
+                },
+                {
                   "children": [
                     {
-                      "class": "loading_fill",
+                      "children": [
+                        {
+                          "class": "loading_fill",
+                          "tag": "div",
+                        },
+                      ],
+                      "class": "loading_bar",
                       "tag": "div",
                     },
                   ],
-                  "class": "loading_bar",
+                  "class": "loading_content",
                   "tag": "div",
                 },
               ],
@@ -4900,18 +4962,39 @@ spark-web-player #game .mask {
     will-change: transform;
   }
 }
-spark-web-player #game .loading_bar {
+spark-web-player #game .loading {
   z-index: 1000;
+  pointer-events: auto;
+  align-items: center;
+  justify-content: center;
+}
+spark-web-player #game .loading_backdrop {
+  position: absolute;
+  inset: 0px;
+  background-color: black;
+}
+spark-web-player #game .loading_content {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  width: min(60%, 320px);
+}
+spark-web-player #game .loading_bar {
   position: relative;
   width: 100%;
   height: 4px;
+  overflow: hidden;
+  background-color: rgb(255 255 255 / 20%);
 }
 spark-web-player #game .loading_fill {
   width: 100%;
   height: 100%;
-  background-color: var(--theme-color-cyan50);
-  transform: scaleX(var(--loading_progress));
+  background-color: var(--theme-color-cyan_60);
+  transform: scaleX(var(--loading_progress, 0));
   transform-origin: left;
+  transition: transform 0.15s linear;
 }
 spark-web-player #game .screen {
   position: absolute;
@@ -6225,13 +6308,23 @@ spark-web-player #game .continue_indicator {
             {
               "children": [
                 {
+                  "class": "loading_backdrop",
+                  "tag": "div",
+                },
+                {
                   "children": [
                     {
-                      "class": "loading_fill",
+                      "children": [
+                        {
+                          "class": "loading_fill",
+                          "tag": "div",
+                        },
+                      ],
+                      "class": "loading_bar",
                       "tag": "div",
                     },
                   ],
-                  "class": "loading_bar",
+                  "class": "loading_content",
                   "tag": "div",
                 },
               ],
@@ -7119,18 +7212,39 @@ spark-web-player #game .mask {
     will-change: transform;
   }
 }
-spark-web-player #game .loading_bar {
+spark-web-player #game .loading {
   z-index: 1000;
+  pointer-events: auto;
+  align-items: center;
+  justify-content: center;
+}
+spark-web-player #game .loading_backdrop {
+  position: absolute;
+  inset: 0px;
+  background-color: black;
+}
+spark-web-player #game .loading_content {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  width: min(60%, 320px);
+}
+spark-web-player #game .loading_bar {
   position: relative;
   width: 100%;
   height: 4px;
+  overflow: hidden;
+  background-color: rgb(255 255 255 / 20%);
 }
 spark-web-player #game .loading_fill {
   width: 100%;
   height: 100%;
-  background-color: var(--theme-color-cyan50);
-  transform: scaleX(var(--loading_progress));
+  background-color: var(--theme-color-cyan_60);
+  transform: scaleX(var(--loading_progress, 0));
   transform-origin: left;
+  transition: transform 0.15s linear;
 }
 spark-web-player #game .screen {
   position: absolute;
@@ -8444,13 +8558,23 @@ spark-web-player #game .continue_indicator {
             {
               "children": [
                 {
+                  "class": "loading_backdrop",
+                  "tag": "div",
+                },
+                {
                   "children": [
                     {
-                      "class": "loading_fill",
+                      "children": [
+                        {
+                          "class": "loading_fill",
+                          "tag": "div",
+                        },
+                      ],
+                      "class": "loading_bar",
                       "tag": "div",
                     },
                   ],
-                  "class": "loading_bar",
+                  "class": "loading_content",
                   "tag": "div",
                 },
               ],
@@ -9197,18 +9321,39 @@ spark-web-player #game .mask {
     will-change: transform;
   }
 }
-spark-web-player #game .loading_bar {
+spark-web-player #game .loading {
   z-index: 1000;
+  pointer-events: auto;
+  align-items: center;
+  justify-content: center;
+}
+spark-web-player #game .loading_backdrop {
+  position: absolute;
+  inset: 0px;
+  background-color: black;
+}
+spark-web-player #game .loading_content {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  width: min(60%, 320px);
+}
+spark-web-player #game .loading_bar {
   position: relative;
   width: 100%;
   height: 4px;
+  overflow: hidden;
+  background-color: rgb(255 255 255 / 20%);
 }
 spark-web-player #game .loading_fill {
   width: 100%;
   height: 100%;
-  background-color: var(--theme-color-cyan50);
-  transform: scaleX(var(--loading_progress));
+  background-color: var(--theme-color-cyan_60);
+  transform: scaleX(var(--loading_progress, 0));
   transform-origin: left;
+  transition: transform 0.15s linear;
 }
 spark-web-player #game .screen {
   position: absolute;
@@ -10522,13 +10667,23 @@ spark-web-player #game .continue_indicator {
             {
               "children": [
                 {
+                  "class": "loading_backdrop",
+                  "tag": "div",
+                },
+                {
                   "children": [
                     {
-                      "class": "loading_fill",
+                      "children": [
+                        {
+                          "class": "loading_fill",
+                          "tag": "div",
+                        },
+                      ],
+                      "class": "loading_bar",
                       "tag": "div",
                     },
                   ],
-                  "class": "loading_bar",
+                  "class": "loading_content",
                   "tag": "div",
                 },
               ],
@@ -11257,18 +11412,39 @@ spark-web-player #game .mask {
     will-change: transform;
   }
 }
-spark-web-player #game .loading_bar {
+spark-web-player #game .loading {
   z-index: 1000;
+  pointer-events: auto;
+  align-items: center;
+  justify-content: center;
+}
+spark-web-player #game .loading_backdrop {
+  position: absolute;
+  inset: 0px;
+  background-color: black;
+}
+spark-web-player #game .loading_content {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  width: min(60%, 320px);
+}
+spark-web-player #game .loading_bar {
   position: relative;
   width: 100%;
   height: 4px;
+  overflow: hidden;
+  background-color: rgb(255 255 255 / 20%);
 }
 spark-web-player #game .loading_fill {
   width: 100%;
   height: 100%;
-  background-color: var(--theme-color-cyan50);
-  transform: scaleX(var(--loading_progress));
+  background-color: var(--theme-color-cyan_60);
+  transform: scaleX(var(--loading_progress, 0));
   transform-origin: left;
+  transition: transform 0.15s linear;
 }
 spark-web-player #game .screen {
   position: absolute;
@@ -12582,13 +12758,23 @@ spark-web-player #game .continue_indicator {
             {
               "children": [
                 {
+                  "class": "loading_backdrop",
+                  "tag": "div",
+                },
+                {
                   "children": [
                     {
-                      "class": "loading_fill",
+                      "children": [
+                        {
+                          "class": "loading_fill",
+                          "tag": "div",
+                        },
+                      ],
+                      "class": "loading_bar",
                       "tag": "div",
                     },
                   ],
-                  "class": "loading_bar",
+                  "class": "loading_content",
                   "tag": "div",
                 },
               ],
@@ -13367,18 +13553,39 @@ spark-web-player #game .mask {
     will-change: transform;
   }
 }
-spark-web-player #game .loading_bar {
+spark-web-player #game .loading {
   z-index: 1000;
+  pointer-events: auto;
+  align-items: center;
+  justify-content: center;
+}
+spark-web-player #game .loading_backdrop {
+  position: absolute;
+  inset: 0px;
+  background-color: black;
+}
+spark-web-player #game .loading_content {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  width: min(60%, 320px);
+}
+spark-web-player #game .loading_bar {
   position: relative;
   width: 100%;
   height: 4px;
+  overflow: hidden;
+  background-color: rgb(255 255 255 / 20%);
 }
 spark-web-player #game .loading_fill {
   width: 100%;
   height: 100%;
-  background-color: var(--theme-color-cyan50);
-  transform: scaleX(var(--loading_progress));
+  background-color: var(--theme-color-cyan_60);
+  transform: scaleX(var(--loading_progress, 0));
   transform-origin: left;
+  transition: transform 0.15s linear;
 }
 spark-web-player #game .screen {
   position: absolute;
@@ -14692,13 +14899,23 @@ spark-web-player #game .continue_indicator {
             {
               "children": [
                 {
+                  "class": "loading_backdrop",
+                  "tag": "div",
+                },
+                {
                   "children": [
                     {
-                      "class": "loading_fill",
+                      "children": [
+                        {
+                          "class": "loading_fill",
+                          "tag": "div",
+                        },
+                      ],
+                      "class": "loading_bar",
                       "tag": "div",
                     },
                   ],
-                  "class": "loading_bar",
+                  "class": "loading_content",
                   "tag": "div",
                 },
               ],
@@ -15444,18 +15661,39 @@ spark-web-player #game .mask {
     will-change: transform;
   }
 }
-spark-web-player #game .loading_bar {
+spark-web-player #game .loading {
   z-index: 1000;
+  pointer-events: auto;
+  align-items: center;
+  justify-content: center;
+}
+spark-web-player #game .loading_backdrop {
+  position: absolute;
+  inset: 0px;
+  background-color: black;
+}
+spark-web-player #game .loading_content {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  width: min(60%, 320px);
+}
+spark-web-player #game .loading_bar {
   position: relative;
   width: 100%;
   height: 4px;
+  overflow: hidden;
+  background-color: rgb(255 255 255 / 20%);
 }
 spark-web-player #game .loading_fill {
   width: 100%;
   height: 100%;
-  background-color: var(--theme-color-cyan50);
-  transform: scaleX(var(--loading_progress));
+  background-color: var(--theme-color-cyan_60);
+  transform: scaleX(var(--loading_progress, 0));
   transform-origin: left;
+  transition: transform 0.15s linear;
 }
 spark-web-player #game .screen {
   position: absolute;
@@ -16769,13 +17007,23 @@ spark-web-player #game .continue_indicator {
             {
               "children": [
                 {
+                  "class": "loading_backdrop",
+                  "tag": "div",
+                },
+                {
                   "children": [
                     {
-                      "class": "loading_fill",
+                      "children": [
+                        {
+                          "class": "loading_fill",
+                          "tag": "div",
+                        },
+                      ],
+                      "class": "loading_bar",
                       "tag": "div",
                     },
                   ],
-                  "class": "loading_bar",
+                  "class": "loading_content",
                   "tag": "div",
                 },
               ],
@@ -17521,18 +17769,39 @@ spark-web-player #game .mask {
     will-change: transform;
   }
 }
-spark-web-player #game .loading_bar {
+spark-web-player #game .loading {
   z-index: 1000;
+  pointer-events: auto;
+  align-items: center;
+  justify-content: center;
+}
+spark-web-player #game .loading_backdrop {
+  position: absolute;
+  inset: 0px;
+  background-color: black;
+}
+spark-web-player #game .loading_content {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  width: min(60%, 320px);
+}
+spark-web-player #game .loading_bar {
   position: relative;
   width: 100%;
   height: 4px;
+  overflow: hidden;
+  background-color: rgb(255 255 255 / 20%);
 }
 spark-web-player #game .loading_fill {
   width: 100%;
   height: 100%;
-  background-color: var(--theme-color-cyan50);
-  transform: scaleX(var(--loading_progress));
+  background-color: var(--theme-color-cyan_60);
+  transform: scaleX(var(--loading_progress, 0));
   transform-origin: left;
+  transition: transform 0.15s linear;
 }
 spark-web-player #game .screen {
   position: absolute;
@@ -18846,13 +19115,23 @@ spark-web-player #game .continue_indicator {
             {
               "children": [
                 {
+                  "class": "loading_backdrop",
+                  "tag": "div",
+                },
+                {
                   "children": [
                     {
-                      "class": "loading_fill",
+                      "children": [
+                        {
+                          "class": "loading_fill",
+                          "tag": "div",
+                        },
+                      ],
+                      "class": "loading_bar",
                       "tag": "div",
                     },
                   ],
-                  "class": "loading_bar",
+                  "class": "loading_content",
                   "tag": "div",
                 },
               ],
@@ -19598,18 +19877,39 @@ spark-web-player #game .mask {
     will-change: transform;
   }
 }
-spark-web-player #game .loading_bar {
+spark-web-player #game .loading {
   z-index: 1000;
+  pointer-events: auto;
+  align-items: center;
+  justify-content: center;
+}
+spark-web-player #game .loading_backdrop {
+  position: absolute;
+  inset: 0px;
+  background-color: black;
+}
+spark-web-player #game .loading_content {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  width: min(60%, 320px);
+}
+spark-web-player #game .loading_bar {
   position: relative;
   width: 100%;
   height: 4px;
+  overflow: hidden;
+  background-color: rgb(255 255 255 / 20%);
 }
 spark-web-player #game .loading_fill {
   width: 100%;
   height: 100%;
-  background-color: var(--theme-color-cyan50);
-  transform: scaleX(var(--loading_progress));
+  background-color: var(--theme-color-cyan_60);
+  transform: scaleX(var(--loading_progress, 0));
   transform-origin: left;
+  transition: transform 0.15s linear;
 }
 spark-web-player #game .screen {
   position: absolute;
@@ -20923,13 +21223,23 @@ spark-web-player #game .continue_indicator {
             {
               "children": [
                 {
+                  "class": "loading_backdrop",
+                  "tag": "div",
+                },
+                {
                   "children": [
                     {
-                      "class": "loading_fill",
+                      "children": [
+                        {
+                          "class": "loading_fill",
+                          "tag": "div",
+                        },
+                      ],
+                      "class": "loading_bar",
                       "tag": "div",
                     },
                   ],
-                  "class": "loading_bar",
+                  "class": "loading_content",
                   "tag": "div",
                 },
               ],
@@ -21675,18 +21985,39 @@ spark-web-player #game .mask {
     will-change: transform;
   }
 }
-spark-web-player #game .loading_bar {
+spark-web-player #game .loading {
   z-index: 1000;
+  pointer-events: auto;
+  align-items: center;
+  justify-content: center;
+}
+spark-web-player #game .loading_backdrop {
+  position: absolute;
+  inset: 0px;
+  background-color: black;
+}
+spark-web-player #game .loading_content {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  width: min(60%, 320px);
+}
+spark-web-player #game .loading_bar {
   position: relative;
   width: 100%;
   height: 4px;
+  overflow: hidden;
+  background-color: rgb(255 255 255 / 20%);
 }
 spark-web-player #game .loading_fill {
   width: 100%;
   height: 100%;
-  background-color: var(--theme-color-cyan50);
-  transform: scaleX(var(--loading_progress));
+  background-color: var(--theme-color-cyan_60);
+  transform: scaleX(var(--loading_progress, 0));
   transform-origin: left;
+  transition: transform 0.15s linear;
 }
 spark-web-player #game .screen {
   position: absolute;
@@ -23000,13 +23331,23 @@ spark-web-player #game .continue_indicator {
             {
               "children": [
                 {
+                  "class": "loading_backdrop",
+                  "tag": "div",
+                },
+                {
                   "children": [
                     {
-                      "class": "loading_fill",
+                      "children": [
+                        {
+                          "class": "loading_fill",
+                          "tag": "div",
+                        },
+                      ],
+                      "class": "loading_bar",
                       "tag": "div",
                     },
                   ],
-                  "class": "loading_bar",
+                  "class": "loading_content",
                   "tag": "div",
                 },
               ],

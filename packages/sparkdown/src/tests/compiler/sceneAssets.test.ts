@@ -230,6 +230,56 @@ describe("populateSceneAssets", () => {
   });
 });
 
+describe("the load arrow", () => {
+  const scenes = `scene B
+  [[show backdrop room]]
+  done
+end
+
+scene Fn
+  done
+end
+`;
+
+  it("lowers `-> load X` to a load directive before the divert", () => {
+    const program = compile(`scene A\n  Hi.\n  -> load B\nend\n\n${scenes}`);
+    const a = program.sceneAssets!["A"]!;
+    expect(a.loads).toEqual(["B"]);
+    expect(a.successors).toEqual(["B"]);
+    expect(a.beats.map((b) => b.loads)).toEqual([["B"]]);
+  });
+
+  it("keeps the caller's scene through a tunnel and a thread", () => {
+    const program = compile(
+      `scene A\n  Hi.\n  -> load B ->\n  <- load B\n  done\nend\n\n${scenes}`,
+    );
+    const a = program.sceneAssets!["A"]!;
+    expect(a.loads).toEqual(["B"]);
+    expect(a.successors).toEqual(["B"]);
+  });
+
+  it("works on a choice and after display text, as its own beat", () => {
+    const program = compile(
+      `scene A\n  Hi there. -> load B\n  choose\n    * Go -> load B\n  end\nend\n\n${scenes}`,
+    );
+    const a = program.sceneAssets!["A"]!;
+    expect(a.loads).toEqual(["B"]);
+    expect(a.beats.filter((b) => b.loads).length).toBe(2);
+  });
+
+  it("warns when load sits on a chain or a tunnel-onwards", () => {
+    const program = compile(`scene A\n  -> load B -> Fn\n  ->-> \nend\n\n${scenes}`);
+    const messages = Object.values(program.diagnostics ?? {})
+      .flat()
+      .map((d: any) =>
+        typeof d?.message === "string" ? d.message : (d?.message?.value ?? ""),
+      );
+    expect(messages.some((m) => m.includes("`load` applies to a single target"))).toBe(
+      true,
+    );
+  });
+});
+
 describe("video assets", () => {
   it("reach the asset channel and the context like images do", () => {
     const program = compile("scene A\n  done\nend\n");

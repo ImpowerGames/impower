@@ -50,6 +50,7 @@ export class InterpreterModule extends Module<
     "open",
     "close",
     "navigate",
+    "load",
   ];
 
   // Control verbs that route a `[[...]]` directive to the screen-lifecycle path
@@ -59,6 +60,11 @@ export class InterpreterModule extends Module<
   // container (close the open screens in that container, then open the target),
   // leaving other containers / uncategorized screens untouched.
   LAYOUT_CONTROL_KEYWORDS = ["open", "close", "navigate"];
+
+  // `[[load NAME…]]`: preload the named scenes (and worlds) behind the loading
+  // layout before the story goes on. Every `load` arrow lowers to this
+  // directive on its own line.
+  LOAD_CONTROL_KEYWORDS = ["load"];
 
   ASSET_VALUE_ARG_KEYWORDS = ["after", "over", "to", "with", "ease"];
 
@@ -256,13 +262,9 @@ export class InterpreterModule extends Module<
       const loadInstructions: LoadInstruction[] = args
         .map((name) => ({ name }))
         .filter((a) => Boolean(a.name));
-      const latest = this._state.buffer.at(-1);
-      if (latest) {
-        latest.load ??= [];
-        latest.load.push(...loadInstructions);
-      } else {
-        this._state.buffer.push({ load: loadInstructions, end: 0 });
-      }
+      // Always its own beat: the loading layout must never open over the
+      // line before it, and the beat advances by itself once loading is done.
+      this._state.buffer.push({ load: loadInstructions, end: 0 });
       return;
     }
 
@@ -605,6 +607,11 @@ export class InterpreterModule extends Module<
       "show",
       defaultLayer,
     );
+    // A name the static scan could not see (built at runtime) enters the
+    // pipeline here, before the line's gate runs.
+    if (imageChunk.control !== "hide" && imageChunk.assets?.length) {
+      this._game.module?.assets?.notice("image", imageChunk.assets);
+    }
     // Calculate how much time this command should take up
     const withEffectName =
       imageChunk.clauses?.["with"] || imageChunk.target || "";
@@ -703,6 +710,13 @@ export class InterpreterModule extends Module<
     };
   }
 
+  /** `[[load A B with fade]]`: the first name lands in the asset `target` slot
+   *  and the rest in `assets`, exactly like `[[open hud with fade]]`; the
+   *  clause parser supplies `with`. */
+  protected createLoadChunk(loadTagContent: string): Chunk {
+    return this.createAssetChunk(loadTagContent, "load", "load", "");
+  }
+
   /** Mirror the image chunk's `wait` handling for screen directives: when the
    *  author asks to block story advance until the enter/exit transition
    *  finishes, inflate the chunk duration (which becomes `result.end`, the
@@ -755,6 +769,12 @@ export class InterpreterModule extends Module<
       "play",
       defaultChannel,
     );
+    if (
+      (audioChunk.control === "play" || audioChunk.control === "queue") &&
+      audioChunk.assets?.length
+    ) {
+      this._game.module?.assets?.notice("audio", audioChunk.assets);
+    }
     // Calculate how much time this command should take up
     const afterDuration = audioChunk.clauses?.["after"];
     const overDuration = audioChunk.clauses?.["over"];
@@ -959,9 +979,13 @@ export class InterpreterModule extends Module<
                       .split(" ")[0];
                     const isScreenDirective =
                       !!verb && this.LAYOUT_CONTROL_KEYWORDS.includes(verb);
-                    const directiveChunk = isScreenDirective
-                      ? this.createLayoutChunk(imageTagContent)
-                      : this.createImageChunk(imageTagContent);
+                    const isLoadDirective =
+                      !!verb && this.LOAD_CONTROL_KEYWORDS.includes(verb);
+                    const directiveChunk = isLoadDirective
+                      ? this.createLoadChunk(imageTagContent)
+                      : isScreenDirective
+                        ? this.createLayoutChunk(imageTagContent)
+                        : this.createImageChunk(imageTagContent);
                     const phrase = {
                       target: directiveChunk.target,
                       chunks: [directiveChunk],
@@ -1596,6 +1620,22 @@ export class InterpreterModule extends Module<
             result.image ??= {};
             result.image[target] ??= [];
             result.image[target]!.push(event);
+          }
+          // Load Event ([[load NAME…]]): one instruction per named flow or
+          // world, in the order written.
+          if (c.tag === "load") {
+            const names = [c.target, ...(c.assets ?? [])].filter(
+              (name): name is string => Boolean(name),
+            );
+            for (const name of names) {
+              const event: LoadInstruction = { name };
+              const withValue = c.clauses?.with;
+              if (withValue != null) {
+                event.with = withValue;
+              }
+              result.load ??= [];
+              result.load.push(event);
+            }
           }
           // Layout Event ([[open LAYOUT]] / [[close LAYOUT]] / [[navigate SCREEN to LAYOUT]])
           if (c.tag === "layout") {

@@ -101,7 +101,9 @@ export class Coordinator<G extends Game> {
     const waitingForChoice =
       instructions.choices && instructions.choices.length > 0;
     if (instructions.load) {
-      return 0;
+      // A `load` beat has nothing to read; it advances on its own once its
+      // loading (and the loading layout's minimum display) has finished.
+      return this._finishedExecution ? 1 : 0;
     }
     if (this._finishedExecution && this._timeTypedMS < 0) {
       this._timeTypedMS = this._elapsedMS;
@@ -158,12 +160,6 @@ export class Coordinator<G extends Game> {
 
     const instant = options?.instant;
     const previewing = options?.preview;
-
-    if (instructions.load && !instant && !game.context.system.simulating) {
-      for (const { name } of instructions.load) {
-        game.module.world.loadWorld(name);
-      }
-    }
 
     const transientLayers: string[] = game.module.ui.getTransientTargets();
 
@@ -249,6 +245,23 @@ export class Coordinator<G extends Game> {
             game.module.audio.schedule(target, events),
           );
 
+    // Start loading what this beat shows alongside its audio, so the wait is
+    // the slower of the two rather than the sum. A `load` beat pins the named
+    // scenes' sets (and loads their worlds) behind the loading layout; in
+    // preview it only prefetches and never waits.
+    const assets = game.module.assets;
+    const simulating = Boolean(game.context.system.simulating);
+    const assetTriggerId =
+      instant || simulating ? null : assets.prepareBeat(instructions);
+    let loadTriggerId: number | null = null;
+    if (instructions.load && !simulating) {
+      if (!instant) {
+        loadTriggerId = assets.runLoad(instructions.load);
+      } else if (previewing) {
+        assets.runLoad(instructions.load);
+      }
+    }
+
     const handleFinished = (): void => {
       const indicatorStyle: Record<string, string | null> = {};
       indicatorStyle["transition"] = null;
@@ -273,14 +286,28 @@ export class Coordinator<G extends Game> {
     const totalDurationMS = (instructions.end ?? 0) * 1000;
     const handleTick = (deltaMS: number): void => {
       if (!ready) {
-        if (audioTriggerIds.every((n) => game.module.audio.isReady(n))) {
+        const audioReady = audioTriggerIds.every((n) =>
+          game.module.audio.isReady(n),
+        );
+        const assetsReady =
+          assetTriggerId == null || assets.isReady(assetTriggerId);
+        const loadReady = loadTriggerId == null || assets.isReady(loadTriggerId);
+        if (audioReady && assetsReady && loadReady) {
           ready = true;
           this._startedExecution = true;
           game.module.audio.triggerAll(audioTriggerIds);
+          if (assetTriggerId != null) {
+            assets.trigger(assetTriggerId);
+          }
+          if (loadTriggerId != null) {
+            assets.trigger(loadTriggerId);
+          }
           game.context.system.setTimeout(() => {
             // Delay the ui update by the audio outputLatency so that audio and visuals are synced
             updateUI();
             displaying = true;
+            // The beat is on screen: move the prediction window past it.
+            assets.onBeatDisplayed();
           }, game.module.audio.outputLatency * 1000);
         }
       }

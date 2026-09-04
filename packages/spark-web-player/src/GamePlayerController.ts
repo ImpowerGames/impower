@@ -1,4 +1,5 @@
 import { hasCompiledProgram } from "@impower/sparkdown/src/binary/programBinary";
+import { getSharedAssetCache } from "./main/assets/sharedAssetCache";
 import {
   ProtocolObserver,
   sendProtocolMessage,
@@ -1297,6 +1298,9 @@ export class GamePlayerController {
       this.refs.gameView,
       this.refs.gameUI,
       this._audioContext,
+      // One cache for the page's whole life, so STOP then PLAY, and every
+      // preview rebuild, find their assets already resident.
+      getSharedAssetCache(),
     );
     profile("end", "app/create");
     profile("start", "app/init");

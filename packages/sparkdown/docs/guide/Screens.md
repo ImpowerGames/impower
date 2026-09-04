@@ -42,6 +42,8 @@ scene explore
 
 `open` mounts and reveals the layout; `close` hides and tears it down (freeing its state). Reopening builds it fresh.
 
+The built-in `loading` layout is engine-managed: `load` opens and closes it, navigation never closes it, and it is never recorded in a checkpoint. Keep it out of any `screen`. See [Loading & Preloading](./Loading.md).
+
 ---
 
 ## 6.3 Screens: groups you navigate between
