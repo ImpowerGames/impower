@@ -467,7 +467,12 @@ export class SparkdownCompiler {
   // precise, POSITION-INDEPENDENT detector feeding `_flowReuseDisabled`:
   //
   //   - a LIST is inlined by value into every referencing flow, caught by
-  //     `scanChunkForReuse`'s `invalidatesGlobals` on a changed chunk;
+  //     `scanChunkForReuse`'s `invalidatesGlobals` on a changed chunk. This
+  //     one is unreachable from authored Sparkdown, which has no list syntax —
+  //     nothing under `compiler/lower/` constructs a `ListDefinition`, so the
+  //     detector guards an inkjs-inherited node the lowerer never emits, and
+  //     no test can exercise it. It stays because the node type is still live
+  //     in the runtime the compiler targets;
   //   - a declared const/global/struct/external NAME entering or leaving the
   //     program flips call-site codegen in flows that reference it, caught by
   //     the declared-name census (`_censusEntries`);
@@ -488,6 +493,13 @@ export class SparkdownCompiler {
   // or a `store` value, or front matter, or loose prose between two scenes —
   // cannot alter any flow's bytecode. Only the declared NAMES matter, and the
   // census covers those wherever they are written.
+  //
+  // The list above is exhaustive rather than conservative, which is what makes
+  // it worth the reuse it buys and also what makes it a maintenance
+  // obligation: a new cross-flow generation-time dependency needs a detector
+  // added here in the same change, or these caches will quietly serve a flow
+  // whose shape moved under it. `incrementalOutsideFlowReuse.test.ts` keeps
+  // one test per reachable detector so a feed that stops firing turns red.
   protected _unchangedFlowShapeAtRisk = true;
   protected _lastReuseCountAllVisits = false;
   protected _reusedFlowsThisCompile?: Set<FlowBase>;
@@ -1208,10 +1220,18 @@ export class SparkdownCompiler {
       this._lastCompileResult.uri === uri &&
       this._lastCompileResult.filesEpoch === this._filesEpoch
     ) {
-      // A change in any NON-entry script (includes / `run` files) can shift
-      // consts/globals whose values were INLINED into other files' flows at
-      // generation — and the include site may come after flows that would
-      // already have committed reuse, so it must be decided up front.
+      // A change in any NON-entry script (includes / `run` files) refuses
+      // CONSTRUCTION reuse for the whole compile, because that decision is
+      // committed during the parse walk: `tryReuseFlowRun` commits a flow as
+      // the walk reaches it, and the include site can come after flows that
+      // have already committed, so the answer has to be known up front rather
+      // than derived once every file has been seen.
+      //
+      // It deliberately leaves `_unchangedFlowShapeAtRisk` alone. The two
+      // downstream caches are consulted after the whole parse, so they can
+      // afford to wait for the hazard detectors, which run across every file
+      // of the compile. Arming the shape risk here as well would cost every
+      // multi-file project both caches on every edit to an included file.
       for (const [scriptUri, scriptVersion] of Object.entries(
         this._lastCompileResult.scripts,
       )) {
@@ -3302,8 +3322,11 @@ export class SparkdownCompiler {
       }
       // Within one script, sorted start lines → each flow's span end is the
       // next flow's start. Across scripts the starts are incomparable, so the
-      // index below keeps each script's starts in their own list.
-      const spans = this.buildFlowSpanIndex(flows);
+      // index keeps each script's starts in their own list. Built lazily: a
+      // compile that reuses nothing never asks it a question, and building it
+      // sorts every flow start in the project.
+      let spanIndex: FlowSpanIndex | undefined;
+      const spans = () => (spanIndex ??= this.buildFlowSpanIndex(flows));
       // Reuse is only sound while the set of top-level flows is STABLE. A
       // structural edit (a scene/knot header made/unmade, renamed, added or
       // removed) can reflow content across flow boundaries and shift the
@@ -3346,22 +3369,17 @@ export class SparkdownCompiler {
         // above still sees them) but never REUSED by name: their names are
         // positional ordinals that can rebind to a different flow across
         // compiles (see the ToJson flow-memo exclusion in `compile()`).
-        // A positional synthetic rename can land inside a flow whose own
-        // source is unchanged, and a renamed sub-container changes the
-        // index-addressed paths beneath it — the same exclusion the
-        // serialization memo applies via `_renamedFlowNames`.
         const reusable =
           f.container != null &&
           f.start0 >= 0 &&
           f.uri !== "" &&
           f.name !== "global decl" &&
           !CANONICAL_SYNTH_NAME.test(f.name) &&
-          !this._renamedFlowNames?.has(f.name) &&
           effPrevCache != null;
         if (reusable) {
           const cached = effPrevCache!.get(f.name);
           if (cached) {
-            if (!spans.touched(f.uri, f.start0)) {
+            if (!spans().touched(f.uri, f.start0)) {
               this.spliceCachedFlowLocations(
                 program,
                 f.name,
