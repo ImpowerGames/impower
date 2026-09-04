@@ -27,7 +27,11 @@ import {
 } from "@codemirror/view";
 
 const searchPanelTheme = EditorView.baseTheme({
-  "[contenteditable]:empty::after": {
+  // A field the user has emptied can still be holding the break a browser
+  // leaves behind, which is enough to keep it from being `:empty`. The
+  // attribute says it is empty in that case, so the placeholder returns with
+  // the text rather than waiting for the next keystroke.
+  "[contenteditable]:empty::after, [contenteditable][data-empty]::after": {
     content: "attr(data-placeholder)",
     color: "#888",
     cursor: "text",
@@ -35,35 +39,376 @@ const searchPanelTheme = EditorView.baseTheme({
 });
 
 /**
+ * Elements that put whatever they contain on a line of its own.
+ *
+ * The panel writes nothing but text nodes and `<br>` into a field, but a drop,
+ * an input method, or a paste that never reached a handler can still leave a
+ * block element behind -- and one of those shows on screen as a new line, so
+ * reading the field has to count it as one.
+ */
+const FIELD_BLOCK_TAGS = new Set([
+  "ADDRESS",
+  "ARTICLE",
+  "ASIDE",
+  "BLOCKQUOTE",
+  "DD",
+  "DIV",
+  "DL",
+  "DT",
+  "FIGURE",
+  "FOOTER",
+  "H1",
+  "H2",
+  "H3",
+  "H4",
+  "H5",
+  "H6",
+  "HEADER",
+  "LI",
+  "MAIN",
+  "NAV",
+  "OL",
+  "P",
+  "PRE",
+  "SECTION",
+  "TABLE",
+  "TD",
+  "TH",
+  "TR",
+  "UL",
+]);
+
+/**
+ * The text a `contenteditable` holds, line breaks included.
+ *
+ * `textContent` concatenates text nodes and drops every element boundary, so a
+ * field displaying two lines reads back as the two lines run together with
+ * nothing between them. This walks the content instead and writes a newline
+ * wherever the field shows one: at a `<br>`, and where a block element starts.
+ *
+ * `trailingBreakIsFiller` covers the break a browser (and `writeFieldText`
+ * below) leaves at the end, which the field does not show. Measured in the
+ * running editor, where the field is 32px tall holding `abc`, `abc` and a
+ * trailing newline character, or `abc` and one `<br>`, and 55px holding `abc`
+ * and two `<br>` -- so a single trailing break of either kind adds no line,
+ * while a second one does. Counting the invisible one would commit a trailing
+ * newline the user never entered, and replace-all would then push every
+ * following line of the script down by one.
+ *
+ * Both kinds occur: the panel and the browser's editing both write `<br>`,
+ * and the browser's insert command writes newline characters. A PREFIX of the
+ * content is measured with `false`, since a break at the end of a prefix is by
+ * definition followed by more content and is a line like any other.
+ */
+const readFieldText = (root: Node, trailingBreakIsFiller = true): string => {
+  let text = "";
+  // Whether the line being built is still empty. A block takes a line of its
+  // own, so it opens one only when the current line already has something on
+  // it; nesting a block inside a block therefore adds no second break, since
+  // the outer one has already opened the line the inner one wants.
+  let atLineStart = true;
+  // Whether a line ended and nothing has begun the next one. A block ends its
+  // line as surely as it starts one, but the break belongs before whatever
+  // comes next rather than after the block -- a block at the very end of the
+  // content adds no trailing newline. A following block supersedes it, having
+  // opened the line itself.
+  let pendingBreak = false;
+  // Whether the last thing written was a newline character ending a text node,
+  // which is the invisible trailing break in its other form. Tracked rather
+  // than tested for on the finished text, so that a trailing `<br>` counted as
+  // a line above is not mistaken for one and dropped.
+  let trailingTextBreak = false;
+  const endLine = () => {
+    if (pendingBreak) {
+      text += "\n";
+      pendingBreak = false;
+      atLineStart = true;
+    }
+  };
+  const walk = (parent: Node) => {
+    const children = parent.childNodes;
+    for (let i = 0; i < children.length; i += 1) {
+      const node = children[i]!;
+      if (node.nodeType === Node.TEXT_NODE) {
+        const data = (node as CharacterData).data;
+        if (data) {
+          endLine();
+          text += data;
+          atLineStart = data.endsWith("\n");
+          trailingTextBreak = atLineStart;
+        }
+      } else if (node.nodeType === Node.ELEMENT_NODE) {
+        const el = node as Element;
+        if (el.tagName === "BR") {
+          if (!trailingBreakIsFiller || i < children.length - 1) {
+            endLine();
+            text += "\n";
+            atLineStart = true;
+            trailingTextBreak = false;
+          }
+        } else if (FIELD_BLOCK_TAGS.has(el.tagName)) {
+          if (!atLineStart) {
+            text += "\n";
+            atLineStart = true;
+          }
+          pendingBreak = false;
+          trailingTextBreak = false;
+          walk(el);
+          // The block's line is over, whether or not it put anything on one --
+          // unless its own last text ended the line already, in which case
+          // counting it again would put an empty line after the block that the
+          // block does not show.
+          atLineStart = trailingTextBreak;
+          pendingBreak = !trailingTextBreak;
+        } else {
+          walk(el);
+        }
+      }
+    }
+  };
+  walk(root);
+  if (trailingBreakIsFiller && trailingTextBreak) {
+    return text.slice(0, -1);
+  }
+  return text;
+};
+
+/**
+ * Put `text` in a field, showing every line of it.
+ *
+ * Lines are separated by `<br>` rather than by newline characters in a text
+ * node: a `<br>` breaks the line whatever the field's `white-space` is, and it
+ * is the shape a browser's own editing leaves behind, so what the panel writes
+ * and what the user types read back through the same rules.
+ *
+ * An unchanged value is left alone. Rewriting the field's nodes on a value it
+ * already holds collapses the caret to the start, and the replace field commits
+ * -- and so can be written back -- on every keystroke.
+ */
+const writeFieldText = (field: HTMLElement, text: string) => {
+  if (readFieldText(field) === text) {
+    return;
+  }
+  while (field.firstChild) {
+    field.removeChild(field.firstChild);
+  }
+  const lines = text.split("\n");
+  lines.forEach((line, i) => {
+    if (i > 0) {
+      field.appendChild(document.createElement("br"));
+    }
+    if (line) {
+      field.appendChild(document.createTextNode(line));
+    }
+  });
+  // A break with nothing after it leaves a line the browser gives no height, so
+  // an empty last line needs a second one to be visible at all.
+  if (lines.length > 1 && lines[lines.length - 1] === "") {
+    field.appendChild(document.createElement("br"));
+  }
+};
+
+/**
+ * The selection the field's caret lives in.
+ *
+ * A shadow root keeps its own selection in Chromium, and asking the document
+ * for one there answers with a node outside the field.
+ */
+const fieldSelection = (field: HTMLElement): Selection | null => {
+  const root = field.getRootNode() as Document | ShadowRoot;
+  if (typeof (root as Document).getSelection === "function") {
+    return (root as Document).getSelection();
+  }
+  return field.ownerDocument.defaultView?.getSelection() ?? null;
+};
+
+/** How far into the field's text a DOM position sits. */
+const offsetOfPosition = (
+  field: HTMLElement,
+  container: Node,
+  offset: number,
+) => {
+  const prefix = field.ownerDocument.createRange();
+  prefix.selectNodeContents(field);
+  prefix.setEnd(container, offset);
+  const holder = field.ownerDocument.createElement("div");
+  holder.appendChild(prefix.cloneContents());
+  return readFieldText(holder, false).length;
+};
+
+/**
+ * Put the caret `target` characters into the field's text.
+ *
+ * A position is claimed by the break that starts its line before it is looked
+ * for in any text, because a line can begin with no text at all -- the start of
+ * a field whose first line is empty has no text node in front of it to count
+ * from, and looking for one there would measure backwards past the breaks
+ * already counted.
+ */
+const setCaret = (field: HTMLElement, target: number) => {
+  const selection = fieldSelection(field);
+  if (!selection) {
+    return;
+  }
+  const range = field.ownerDocument.createRange();
+  const children = field.childNodes;
+  let placed = false;
+  let pos = 0;
+  for (let i = 0; i < children.length && !placed; i += 1) {
+    const node = children[i]!;
+    if (node.nodeType === Node.TEXT_NODE) {
+      const length = (node as CharacterData).data.length;
+      if (target <= pos + length) {
+        range.setStart(node, target - pos);
+        placed = true;
+      } else {
+        pos += length;
+      }
+    } else if ((node as Element).tagName === "BR") {
+      if (i < children.length - 1) {
+        if (target <= pos) {
+          range.setStartBefore(node);
+          placed = true;
+        } else {
+          pos += 1;
+        }
+      }
+    }
+  }
+  if (!placed) {
+    // Past the end of everything that can hold a caret, which includes the
+    // empty last line: its caret goes before the filler break, not after it.
+    const last = field.lastChild;
+    if (last && (last as Element).tagName === "BR") {
+      range.setStartBefore(last);
+    } else {
+      range.selectNodeContents(field);
+      range.collapse(false);
+    }
+  }
+  range.collapse(true);
+  selection.removeAllRanges();
+  selection.addRange(range);
+};
+
+/**
+ * Replace whatever the field has selected with `insert`, and leave the caret
+ * after it.
+ *
+ * The whole value is rebuilt rather than the selection edited in place, so the
+ * field ends up in the same shape `writeFieldText` produces however the browser
+ * had arranged what was there before. With no caret in the field -- which is
+ * what a shadow root that hides its selection looks like -- the text is
+ * appended, which is where a paste into an empty field would have landed anyway.
+ */
+const insertIntoField = (field: HTMLElement, insert: string) => {
+  const value = readFieldText(field);
+  let start = value.length;
+  let end = value.length;
+  const selection = fieldSelection(field);
+  const range =
+    selection && selection.rangeCount > 0 ? selection.getRangeAt(0) : null;
+  if (
+    range &&
+    field.contains(range.startContainer) &&
+    field.contains(range.endContainer)
+  ) {
+    // A range's start never follows its end, so the two are already in order.
+    // They are clamped because measuring a prefix counts every break in it,
+    // including one the whole field would have read as filler.
+    start = Math.min(
+      offsetOfPosition(field, range.startContainer, range.startOffset),
+      value.length,
+    );
+    end = Math.min(
+      offsetOfPosition(field, range.endContainer, range.endOffset),
+      value.length,
+    );
+  }
+  writeFieldText(field, value.slice(0, start) + insert + value.slice(end));
+  setCaret(field, start + insert.length);
+};
+
+/**
+ * Put `text` in at the caret the way typing would.
+ *
+ * The browser's own insert command is what a keystroke goes through, so the
+ * browser records it on the field's undo history and Ctrl+Z takes it back --
+ * which it cannot do for an edit the panel performs on the DOM itself. The
+ * command also raises `input`, so the field's listener commits what it left,
+ * and commits again when the user undoes or redoes it.
+ *
+ * Where the command is missing, refuses, or reports success and leaves the
+ * field saying what it said before, the field is rewritten instead. That puts
+ * the same text in and is not undoable. The last of those is checked rather
+ * than assumed because what the command leaves behind is the browser's own
+ * business: Chromium writes the newline and a second one after it, so a break
+ * entered at the end of the text is still a line and still reads as one, but
+ * nothing promises that, and a browser that wrote a single newline would have
+ * it read as the invisible trailing break and lose it. Comparing the value
+ * makes the outcome the same either way.
+ */
+const typeIntoField = (field: HTMLElement, text: string) => {
+  const doc = field.ownerDocument;
+  const before = readFieldText(field);
+  try {
+    if (
+      typeof doc.execCommand === "function" &&
+      doc.execCommand("insertText", false, text) &&
+      readFieldText(field) !== before
+    ) {
+      return;
+    }
+  } catch {
+    // An environment that defines the command and throws on it is one without
+    // it, and is served by the same fallback.
+  }
+  insertIntoField(field, text);
+};
+
+/** Every way a line ends, as the one way this panel writes it. */
+const normalizeLineEndings = (text: string) => text.replace(/\r\n?/g, "\n");
+
+/**
  * Read what the user typed out of one of the panel's `contenteditable`
  * fields.
  *
- * A contenteditable under `white-space: normal` cannot hold a space that
- * would collapse, so Chromium hardens it: type "hi " and `textContent` comes
- * back as "hi\u00A0". Committed as-is that makes a search match nothing, and
- * writes an invisible non-breaking space into the script in place of the
- * space the user asked for. The REPLACE field normalizes every NBSP \u2014 the
- * one thing replace must never do is write an invisible hard space the user
- * didn't ask for.
+ * A contenteditable cannot hold a space that its `white-space` would collapse,
+ * so a browser hardens one into a non-breaking space where it has to: type
+ * "hi " and the field comes back holding "hi\u00A0". Committed as-is that makes a
+ * search match nothing, and writes an invisible hard space into the script in
+ * place of the space the user asked for. The panel's fields preserve their
+ * whitespace, which is what lets a replacement carry an indent, and a browser
+ * hardens nothing under that rule -- but a hard space still reaches a field by
+ * paste, by a restored query, or from a platform whose editing hardens anyway.
+ *
+ * The REPLACE field normalizes every one of them: the one thing replace must
+ * never do is write an invisible hard space the user didn't ask for.
  */
 const fieldText = (field: HTMLElement) =>
-  (field.textContent ?? "").replace(/\u00A0/g, " ");
+  readFieldText(field).replace(/\u00A0/g, " ");
 
 /**
- * The SEARCH field normalizes only the NBSPs the hardening can actually
- * mint \u2014 those at a position where a typed space would have collapsed: the
- * field's edges, or adjacent to another space. An interior isolated NBSP
- * (`word\u00A0word`) can only have been pasted or typed deliberately, and it
- * must survive verbatim or a hard space already IN the script \u2014 including
- * one written by the pre-#358 replace-all \u2014 becomes unfindable (#367).
- * (A search for nothing BUT a hard space still normalizes, since a lone NBSP
- * sits at the field edge; that residual case needs the regexp mode.)
+ * The SEARCH field normalizes only the hard spaces that hardening can account
+ * for -- those at a position where a typed space would have collapsed: the
+ * start or end of a line, or adjacent to another space. An interior isolated
+ * one (`word\u00A0word`) can only have been pasted or typed deliberately, and it
+ * must survive verbatim or a hard space already IN the script -- including
+ * one written by the pre-#358 replace-all -- becomes unfindable (#367).
+ * (A search for nothing BUT a hard space still normalizes, since a lone one
+ * sits at a line edge; that residual case needs the regexp mode.)
+ *
+ * A line break bounds a line's whitespace exactly as the field's own edges do,
+ * so each line of a multi-line query is normalized on its own.
  */
-const searchFieldText = (field: HTMLElement) =>
-  (field.textContent ?? "")
+const normalizeLineSpaces = (line: string) =>
+  line
     .replace(/^\u00A0+|\u00A0+$/g, (m) => " ".repeat(m.length))
     .replace(/\u00A0(?=[ \u00A0])/g, " ")
     .replace(/(?<=[ ])\u00A0/g, " ");
+
+const searchFieldText = (field: HTMLElement) =>
+  readFieldText(field).split("\n").map(normalizeLineSpaces).join("\n");
 
 /**
  * How long the match count may lag the document, in milliseconds.
@@ -177,16 +522,13 @@ export class SearchPanel implements Panel {
     this.searchInput.setAttribute("role", "textbox");
     this.searchInput.setAttribute("aria-multiline", "true");
     this.searchInput.setAttribute("aria-autocomplete", "list");
-    this.searchInput.textContent = query.search;
+    writeFieldText(this.searchInput, query.search);
     this.searchInput.onchange = this.commit;
     this.searchInput.onkeyup = this.commit;
-    this.searchInput.addEventListener("input", () => {
-      if (!this.searchInput.textContent) {
-        // Force-clear hidden <br> tags
-        this.searchInput.innerHTML = "";
-      }
-      this.commit();
+    this.searchInput.addEventListener("input", (e) => {
+      this.afterInput(this.searchInput, e as InputEvent);
     });
+    this.searchInput.addEventListener("paste", (e) => this.paste(e));
 
     this.replaceInput = document.createElement("div");
     this.replaceInput.className = "cm-textfield";
@@ -201,18 +543,15 @@ export class SearchPanel implements Panel {
     this.replaceInput.setAttribute("role", "textbox");
     this.replaceInput.setAttribute("aria-multiline", "true");
     this.replaceInput.setAttribute("aria-autocomplete", "list");
-    this.replaceInput.textContent = query.replace;
-    this.replaceInput.addEventListener("input", () => {
-      if (!this.replaceInput.textContent) {
-        // Force-clear hidden <br> tags
-        this.replaceInput.innerHTML = "";
-      }
-      // The replace text only reaches `replaceNext`/`replaceAll` through the
-      // committed SearchQuery, so every keystroke has to commit. Without this
-      // the field is decorative: the query keeps whatever replacement was
-      // current the last time the find field or a toggle committed.
-      this.commit();
+    writeFieldText(this.replaceInput, query.replace);
+    // The replace text only reaches `replaceNext`/`replaceAll` through the
+    // committed SearchQuery, so every keystroke has to commit. Without this the
+    // field is decorative: the query keeps whatever replacement was current the
+    // last time the find field or a toggle committed.
+    this.replaceInput.addEventListener("input", (e) => {
+      this.afterInput(this.replaceInput, e as InputEvent);
     });
+    this.replaceInput.addEventListener("paste", (e) => this.paste(e));
 
     this.matchesDisplay = document.createElement("div");
     this.matchesDisplay.className = "cm-search-matches";
@@ -313,6 +652,88 @@ export class SearchPanel implements Panel {
       this.dom.appendChild(this.replaceButton);
       this.dom.appendChild(this.replaceAllButton);
     }
+  }
+
+  /**
+   * Take a field the user has emptied back to actually empty.
+   *
+   * Deleting the last character of a `contenteditable` leaves a `<br>` behind,
+   * and an element holding one is not `:empty`, so the placeholder that rule
+   * draws never comes back. Emptiness is judged on the field's text and not on
+   * `textContent`, which cannot tell a leftover break from a line the user
+   * entered: a field holding one empty line and nothing else is not empty.
+   */
+  clearEmptied(field: HTMLElement) {
+    if (!readFieldText(field)) {
+      field.innerHTML = "";
+    }
+  }
+
+  /**
+   * Say whether a field is holding nothing, for the placeholder to read.
+   *
+   * The placeholder is drawn on a field with no content at all, which the
+   * field is not while a leftover break sits in it -- and that break is left
+   * where it is through an undo, so the browser's record of the field keeps
+   * pointing at something. The attribute says the field is empty without
+   * emptying it, so the placeholder comes back at the moment the text goes.
+   */
+  markEmptiness(field: HTMLElement) {
+    if (readFieldText(field)) {
+      field.removeAttribute("data-empty");
+    } else {
+      field.setAttribute("data-empty", "");
+    }
+  }
+
+  /**
+   * Bring the query up to date with what a field now holds.
+   *
+   * Undo and redo are the browser replaying its own record of the field, so the
+   * leftover break is left where it is on those: tidying the DOM underneath
+   * that record is what leaves the next redo with nothing to redo into. It goes
+   * as soon as the user edits the field again.
+   */
+  afterInput(field: HTMLElement, e: InputEvent) {
+    if (e.inputType !== "historyUndo" && e.inputType !== "historyRedo") {
+      this.clearEmptied(field);
+    }
+    this.markEmptiness(field);
+    this.commit();
+  }
+
+  /**
+   * Paste as plain text, keeping the line breaks.
+   *
+   * Left to itself a `contenteditable` pastes markup, which puts fonts, colors
+   * and arbitrary elements inside a field whose whole content is a search
+   * pattern. Inserting the clipboard's plain text keeps the field to text and
+   * breaks, and reaches the same code path that reads it back.
+   */
+  paste(e: ClipboardEvent) {
+    const field = e.currentTarget as HTMLElement;
+    const clipboard = e.clipboardData;
+    if (!clipboard) {
+      // Nothing to read. Taking the event over here would leave the user with
+      // a paste that does nothing at all.
+      return;
+    }
+    // Refused whatever the clipboard turns out to hold, because the browser's
+    // own paste puts markup -- or an image -- inside a field whose entire
+    // content is a search pattern.
+    e.preventDefault();
+    const text = clipboard.getData("text/plain");
+    if (!text) {
+      return;
+    }
+    typeIntoField(field, normalizeLineEndings(text));
+    this.clearEmptied(field);
+    this.markEmptiness(field);
+    // The insert command raises `input` and the field's listener commits on
+    // it, but the fallback edits the DOM directly and raises nothing. The
+    // commit is repeated here for that case; a second one costs nothing, since
+    // committing an unchanged query does nothing.
+    this.commit();
   }
 
   commit() {
@@ -512,20 +933,52 @@ export class SearchPanel implements Panel {
       : { from: first.value.from, to: first.value.to };
   }
 
+  /**
+   * Add a line break to a field, where the caret is.
+   *
+   * Enter belongs to the search itself in both fields, so a break is entered
+   * with the modifier held, the same combination the same fields answer to in
+   * other editors.
+   */
+  breakLine(field: HTMLElement) {
+    typeIntoField(field, "\n");
+    this.clearEmptied(field);
+    this.markEmptiness(field);
+    this.commit();
+  }
+
+  /**
+   * Whether this Enter asks for a line break rather than for the search.
+   *
+   * Shift is excluded because Shift+Enter already means "the previous match",
+   * and a combination that includes it belongs to whatever it meant before.
+   */
+  wantsBreak(e: KeyboardEvent) {
+    return (e.ctrlKey || e.metaKey) && !e.shiftKey;
+  }
+
   keydown(e: KeyboardEvent) {
     if (runScopeHandlers(this.view, e, "search-panel")) {
       e.preventDefault();
     } else if (e.target == this.searchInput) {
       if (e.key == "Enter") {
         e.preventDefault();
-        (e.shiftKey ? findPrevious : findNext)(this.view);
+        if (this.wantsBreak(e)) {
+          this.breakLine(this.searchInput);
+        } else {
+          (e.shiftKey ? findPrevious : findNext)(this.view);
+        }
       }
       // Everything else a find-field keystroke does happens once it has been
       // committed, in `revealFirstMatch`.
     } else if (e.target == this.replaceInput) {
       if (e.key == "Enter") {
         e.preventDefault();
-        replaceNext(this.view);
+        if (this.wantsBreak(e)) {
+          this.breakLine(this.replaceInput);
+        } else {
+          replaceNext(this.view);
+        }
       }
     }
   }
@@ -575,8 +1028,8 @@ export class SearchPanel implements Panel {
 
   setQuery(query: SearchQuery) {
     this.query = query;
-    this.searchInput.textContent = query.search;
-    this.replaceInput.textContent = query.replace;
+    writeFieldText(this.searchInput, query.search);
+    writeFieldText(this.replaceInput, query.replace);
     this.caseCheckbox.checked = query.caseSensitive;
     this.reCheckbox.checked = query.regexp;
     this.wordCheckbox.checked = query.wholeWord;
@@ -668,7 +1121,9 @@ export class GotoLinePanel implements Panel {
     this.input.setAttribute("writingsuggestions", "false");
     this.input.setAttribute("translate", "no");
     this.input.setAttribute("role", "textbox");
-    this.input.setAttribute("aria-multiline", "true");
+    // A line number is one line. The find and replace fields opposite carry
+    // `aria-multiline` because they take more than one and this one does not.
+    this.input.setAttribute("aria-multiline", "false");
     this.input.setAttribute("aria-autocomplete", "list");
     this.input.setAttribute(
       "data-placeholder",
@@ -827,7 +1282,11 @@ const gotoLinePanelTheme = EditorView.baseTheme({
     padding: "2px 6px 4px",
     "& label": { fontSize: "80%" },
   },
-  "[contenteditable]:empty::after": {
+  // A field the user has emptied can still be holding the break a browser
+  // leaves behind, which is enough to keep it from being `:empty`. The
+  // attribute says it is empty in that case, so the placeholder returns with
+  // the text rather than waiting for the next keystroke.
+  "[contenteditable]:empty::after, [contenteditable][data-empty]::after": {
     content: "attr(data-placeholder)",
     color: "#888",
     cursor: "text",
