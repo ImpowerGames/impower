@@ -54,7 +54,13 @@ Every issue and pull request follows a template under `.github/`. GitHub only fi
 | Task (refactor, tooling, perf, docs, follow-up) | `.github/ISSUE_TEMPLATE/task.md`            |
 | Pull request                                    | `.github/PULL_REQUEST_TEMPLATE.md`          |
 
-Each template's leading comment gives the title convention and the label list; its `type:` front matter names the issue type to set (`Bug`, `Feature`, or `Task`). Keep every heading, write "None", "Unknown", or "Not applicable" with a short reason under one you cannot fill, tick only the checklist items you actually did, and strip the HTML comments before filing. After filing, read the artifact back (`gh issue view N --json body`, `gh pr view N --json body`).
+Each template's leading comment gives the title convention and the label list; its `type:` front matter names the issue type to set (`Bug`, `Feature`, or `Task`). GitHub applies that type only through the web form, and `gh issue create` has no flag for it, so after filing from the command line set the type in a second step (the "Check Issue Type" workflow comments on any issue left without one):
+
+```sh
+gh api -X PATCH repos/ImpowerGames/impower/issues/N -f type=Bug   # or Feature, or Task
+```
+
+Keep every heading, write "None", "Unknown", or "Not applicable" with a short reason under one you cannot fill, tick only the checklist items you actually did, and strip the HTML comments before filing. After filing, read the artifact back (`gh issue view N --json body`, `gh pr view N --json body`).
 
 A pull request that resolves an issue must carry `Closes #N` in its body (the template's line under Summary). GitHub closes the issue on merge only when a closing keyword and the number appear together in the body; the issue number in the title is a mention and closes nothing. The "Check Linked Issue" workflow fails any pull request whose body has neither a closing reference nor the sentence "No linked issue."; the check is `.github/scripts/check-linked-issue.mjs`, runnable locally with `PR_BODY="$(cat pr-body.md)" node .github/scripts/check-linked-issue.mjs`.
 
