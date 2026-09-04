@@ -1104,7 +1104,10 @@ export const getFormatting = (
         }
         if (!innerIfNode) return;
         // Locate the inner `if` keyword and inner `end` keyword.
-        let elseKeyword, innerIfKeyword, innerEndKeyword;
+        type Span = { from: number; to: number };
+        let elseKeyword: Span | undefined;
+        let innerIfKeyword: Span | undefined;
+        let innerEndKeyword: Span | undefined;
         beginNode.cursor().iterate((inner) => {
           if (inner.name === "LuauElseKeyword") {
             elseKeyword = { from: inner.from, to: inner.to };
