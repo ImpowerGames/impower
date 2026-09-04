@@ -533,7 +533,7 @@ If a value is ever rejected, move to another family — never to your own. An Op
 
 Do not take the pin on trust. The reviewer prompt in §7c has each reviewer open its report with the model it is actually running as, so a review that landed on your own model is visible in the PR comment instead of passing for independent.
 
-An exact version can be pinned by other routes — a `.claude/agents/<name>.md` definition takes a `model:` id in its frontmatter — but such a file is read at session start, so a skill cannot introduce one for its own use part-way through a run, and a version id committed to the repo goes stale as releases move. Choosing by family needs neither.
+Pinning an exact version takes a route other than this parameter, and this repo has none wired up today. `.gitignore` keeps `.claude/agents/` out of version control — only `skills/`, `output-styles/`, `settings.json` and `hooks/` under `.claude/` are shared — so a skill committed here cannot ship reviewer definitions carrying a pinned `model:` id in their frontmatter. The `CLAUDE_CODE_SUBAGENT_MODEL` environment variable has to be set before a session starts, which is too early for a skill to set for its own run. Older versions do stay servable — a session configured for `claude-opus-4-6` runs on `claude-opus-4-6` — so if version separation is wanted later, the change is to start sharing `.claude/agents/`, not to reach for this parameter again.
 
 ### 7c — fan out; each reviewer comments on the PR
 
