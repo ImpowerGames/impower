@@ -4,7 +4,7 @@ import type { ResponseError } from "./ResponseError";
 export interface ResponseMessage<
   M extends string = string,
   R = any,
-> extends Message<M, R> {
+> extends Message<M> {
   /**
    * The request id.
    */

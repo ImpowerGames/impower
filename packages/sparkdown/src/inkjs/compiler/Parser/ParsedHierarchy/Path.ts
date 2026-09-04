@@ -26,7 +26,7 @@ export class Path {
       return null;
     }
 
-    return this.components[0].name;
+    return this.components[0]!.name;
   }
 
   get numberOfComponents(): number {
@@ -147,7 +147,7 @@ export class Path {
     if (!this.components) return null;
 
     for (let ii = 1; ii < this.components.length; ++ii) {
-      const compName = this.components[ii].name;
+      const compName = this.components[ii]!.name;
 
       let minimumExpectedLevel: FlowLevel;
       let foundFlow = asOrNull(foundComponent, FlowBase);

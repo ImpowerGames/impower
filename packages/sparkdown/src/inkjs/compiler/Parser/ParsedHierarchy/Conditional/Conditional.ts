@@ -49,8 +49,8 @@ export class Conditional extends ParsedObject {
     // (An else clause doesn't dup but it *does* pop)
     if (
       this.initialCondition !== null &&
-      this.branches[0].ownExpression !== null &&
-      !this.branches[this.branches.length - 1].isElse
+      this.branches[0]!.ownExpression !== null &&
+      !this.branches[this.branches.length - 1]!.isElse
     ) {
       container.AddContent(RuntimeControlCommand.PopEvaluatedValue());
     }

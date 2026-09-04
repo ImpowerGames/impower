@@ -273,7 +273,7 @@ export abstract class ParsedObject {
     let found = false;
     for (let i = 0; i < types.length; i += 1) {
       if (this instanceof (types[i] as any)) {
-        buckets[i].push(this);
+        buckets[i]!.push(this);
         found = true;
       }
     }

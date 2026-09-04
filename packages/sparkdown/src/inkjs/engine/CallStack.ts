@@ -22,7 +22,7 @@ export class CallStack {
 
   get currentElement() {
     let thread = this._threads[this._threads.length - 1];
-    let cs = thread.callstack;
+    let cs = thread!.callstack;
     return cs[cs.length - 1];
   }
 
@@ -31,7 +31,7 @@ export class CallStack {
   }
 
   get currentThread(): CallStack.Thread {
-    return this._threads[this._threads.length - 1];
+    return this._threads[this._threads.length - 1]!;
   }
   set currentThread(value: CallStack.Thread) {
     Debug.Assert(
@@ -71,7 +71,7 @@ export class CallStack {
     this._threads = [];
     this._threads.push(new CallStack.Thread());
 
-    this._threads[0].callstack.push(
+    this._threads[0]!.callstack.push(
       new CallStack.Element(PushPopType.Tunnel, this._startOfRoot),
     );
   }
@@ -138,7 +138,7 @@ export class CallStack {
   }
 
   get elementIsEvaluateFromGame() {
-    return this.currentElement.type == PushPopType.FunctionEvaluationFromGame;
+    return this.currentElement!.type == PushPopType.FunctionEvaluationFromGame;
   }
 
   public Push(
@@ -148,7 +148,7 @@ export class CallStack {
   ) {
     let element = new CallStack.Element(
       type,
-      this.currentElement.currentPointer,
+      this.currentElement!.currentPointer,
       false,
     );
 
@@ -163,7 +163,7 @@ export class CallStack {
 
     if (type == null) return true;
 
-    return this.currentElement.type == type;
+    return this.currentElement!.type == type;
   }
 
   public Pop(type: PushPopType | null = null) {
@@ -267,7 +267,7 @@ export class CallStack {
     if (contextIndex == -1) contextIndex = this.currentElementIndex + 1;
 
     let contextElement = this.callStack[contextIndex - 1];
-    const scopes = contextElement.temporaryScopes;
+    const scopes = contextElement!.temporaryScopes;
 
     if (declareNew) {
       // `local x = ...` (or any `isNewTemporaryDeclaration`) — always
@@ -289,16 +289,16 @@ export class CallStack {
         // Genuine shadowing (`local x` in an INNER scope) never hits
         // this path — the outer binding stays alive in its own frame
         // and PopScope closes it when that block exits.
-        if (contextElement.openUpvalues.length > 0) {
+        if (contextElement!.openUpvalues.length > 0) {
           const stillOpen: VariablePointerValue[] = [];
-          for (const ptr of contextElement.openUpvalues) {
+          for (const ptr of contextElement!.openUpvalues) {
             if (!ptr.isClosed && ptr.variableName === name) {
               ptr.closedValue = (oldValue.result as InkObject) ?? null;
               continue;
             }
             if (!ptr.isClosed) stillOpen.push(ptr);
           }
-          contextElement.openUpvalues = stillOpen;
+          contextElement!.openUpvalues = stillOpen;
         }
       }
       inner.set(name, value);
@@ -323,7 +323,7 @@ export class CallStack {
   }
 
   public ContextForVariableNamed(name: string) {
-    const scopes = this.currentElement.temporaryScopes;
+    const scopes = this.currentElement!.temporaryScopes;
     for (let i = scopes.length - 1; i >= 0; i--) {
       if (scopes[i]!.has(name)) return this.currentElementIndex + 1;
     }
@@ -355,12 +355,12 @@ export class CallStack {
         isCurrent ? "(current) " : "",
       );
 
-      for (let i = 0; i < thread.callstack.length; i++) {
-        if (thread.callstack[i].type == PushPopType.Function)
+      for (let i = 0; i < thread!.callstack.length; i++) {
+        if (thread!.callstack[i]!.type == PushPopType.Function)
           sb.Append("  [FUNCTION] ");
         else sb.Append("  [TUNNEL] ");
 
-        let pointer = thread.callstack[i].currentPointer;
+        let pointer = thread!.callstack[i]!.currentPointer;
         if (!pointer.isNull) {
           sb.Append("<SOMEWHERE IN ");
           if (pointer.container === null) {

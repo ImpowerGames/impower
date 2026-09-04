@@ -583,8 +583,8 @@ export class Divert extends ParsedObject {
     // call-site args doesn't crash on `this.args[ii]` being undefined.
     const checkCount = Math.min(paramCount, numArgs);
     for (let ii = 0; ii < checkCount; ++ii) {
-      const flowArg: Argument = targetFlow!.args![ii];
-      const divArgExpr: Expression = this.args[ii];
+      const flowArg: Argument = targetFlow!.args![ii]!;
+      const divArgExpr: Expression = this.args[ii]!;
 
       // Expecting a divert target as an argument, let's do some basic type checking
       if (flowArg.isDivertTarget) {

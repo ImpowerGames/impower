@@ -4,7 +4,7 @@ export interface RequestMessage<
   M extends string = string,
   P = any,
   R = unknown,
-> extends Message<M, P> {
+> extends Message<M> {
   /**
    * The request id.
    */

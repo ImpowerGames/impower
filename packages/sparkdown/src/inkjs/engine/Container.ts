@@ -315,7 +315,7 @@ export class Container extends InkObject implements INamedContent {
           sb.Append(obj.toString().replace("\n", "\\n"));
           sb.Append('"');
         } else {
-          sb.Append(obj.toString());
+          sb.Append(obj!.toString());
         }
       }
 

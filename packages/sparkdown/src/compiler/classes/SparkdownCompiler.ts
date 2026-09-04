@@ -32,9 +32,8 @@ import {
   ObjectExpression,
   ObjectExpressionEntry,
 } from "../../inkjs/compiler/Parser/ParsedHierarchy/Expression/ObjectExpression";
-import { VariableAssignment as ParsedVariableAssignment } from "../../inkjs/compiler/Parser/ParsedHierarchy/Variable/VariableAssignment";
 import { contextValueToExpression } from "../lower/lowerers/lowerLuauDefine";
-import { ReturnType } from "../../inkjs/compiler/Parser/ParsedHierarchy/ReturnType";
+import { ReturnType as ParsedReturnType } from "../../inkjs/compiler/Parser/ParsedHierarchy/ReturnType";
 import { Statement } from "../../inkjs/compiler/Parser/ParsedHierarchy/Statement";
 import { Stitch } from "../../inkjs/compiler/Parser/ParsedHierarchy/Stitch";
 import { Story } from "../../inkjs/compiler/Parser/ParsedHierarchy/Story";
@@ -2385,7 +2384,7 @@ export class SparkdownCompiler {
           const alreadyTerminates =
             last instanceof Divert ||
             last instanceof TunnelOnwards ||
-            last instanceof ReturnType;
+            last instanceof ParsedReturnType;
           if (!alreadyTerminates) {
             const doneDivert = new Divert([Identifier.Done()]);
             // Inherit debug metadata from the enclosing flow so any
@@ -3685,21 +3684,6 @@ export class SparkdownCompiler {
                 range.end.character,
               ];
             }
-            if (cur.value.type === "knot") {
-              scopePathParts = [];
-              scopePathParts.push({
-                kind: "knot",
-                name: doc.read(cur.from, cur.to),
-              });
-              program.knotLocations ??= {};
-              program.knotLocations[name] = [
-                scriptIndex,
-                range.start.line,
-                range.start.character,
-                range.end.line,
-                range.end.character,
-              ];
-            }
             if (cur.value.type === "branch") {
               const prevKind = scopePathParts.at(-1)?.kind || "";
               if (prevKind !== "scene" && prevKind !== "knot") {
@@ -3712,25 +3696,6 @@ export class SparkdownCompiler {
               const name = scopePathParts.map((p) => p.name).join(".");
               program.branchLocations ??= {};
               program.branchLocations[name] = [
-                scriptIndex,
-                range.start.line,
-                range.start.character,
-                range.end.line,
-                range.end.character,
-              ];
-            }
-            if (cur.value.type === "stitch") {
-              const prevKind = scopePathParts.at(-1)?.kind || "";
-              if (prevKind !== "scene" && prevKind !== "knot") {
-                scopePathParts.pop();
-              }
-              scopePathParts.push({
-                kind: "stitch",
-                name: doc.read(cur.from, cur.to),
-              });
-              const name = scopePathParts.map((p) => p.name).join(".");
-              program.stitchLocations ??= {};
-              program.stitchLocations[name] = [
                 scriptIndex,
                 range.start.line,
                 range.start.character,
@@ -4459,6 +4424,14 @@ export class SparkdownCompiler {
     // hundreds of references (every `[[show backdrop X]]` shares one). Scoped
     // to this call deliberately: nothing here survives to the next compile,
     // so there is no staleness surface.
+    // A declaration is an object, so it needs a key built from its fields;
+    // stringifying it directly would collapse every declaration onto one entry.
+    const declarationCacheKey = (declaration: SparkDeclaration | undefined) =>
+      declaration
+        ? `${declaration.modifier}|${declaration.type}|${declaration.name}|${
+            declaration.property ?? ""
+          }`
+        : "";
     const stringIdentifiersByDeclaration = new Map<string, string[]>();
     const selectorTypesByDeclaration = new Map<string, string[]>();
     // A `[[show/hide/animate <layer> …]]` target names an ELEMENT in the
@@ -4485,8 +4458,10 @@ export class SparkdownCompiler {
       layerNames ??= collectLayerNames(program);
       return Boolean(name) && layerNames.has(name!);
     };
-    const possibleStringIdentifiersFor = (declaration: string | undefined) => {
-      const key = declaration ?? "";
+    const possibleStringIdentifiersFor = (
+      declaration: SparkDeclaration | undefined,
+    ) => {
+      const key = declarationCacheKey(declaration);
       let cached = stringIdentifiersByDeclaration.get(key);
       if (!cached) {
         cached = getPossibleStringIdentifiers(
@@ -4527,8 +4502,10 @@ export class SparkdownCompiler {
       resolvedSelectors.set(key, resolved);
       return resolved;
     };
-    const expectedSelectorTypesFor = (declaration: string | undefined) => {
-      const key = declaration ?? "";
+    const expectedSelectorTypesFor = (
+      declaration: SparkDeclaration | undefined,
+    ) => {
+      const key = declarationCacheKey(declaration);
       let cached = selectorTypesByDeclaration.get(key);
       if (!cached) {
         cached = getExpectedSelectorTypes(
@@ -4581,11 +4558,7 @@ export class SparkdownCompiler {
                 if (
                   reference.declaration === "const" ||
                   reference.declaration === "var" ||
-                  reference.declaration === "temp" ||
-                  reference.declaration === "param" ||
-                  reference.declaration === "list" ||
-                  reference.declaration === "knot" ||
-                  reference.declaration === "stitch"
+                  reference.declaration === "param"
                 ) {
                   const message = `Cannot declare ${reference.declaration} named \`${symbolId}\`:\nConflicts with builtin type \`${symbolId}\``;
                   const range = doc.range(cur.from, cur.to);

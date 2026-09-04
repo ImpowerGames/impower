@@ -294,7 +294,7 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
           `Duplicate identifier \`${varName}\`. A ${varab.typeName.toLowerCase()} named \`${varName}\` already exists on ${
             varab.debugMetadata
           }`,
-          varDecl.identifier.debugMetadata,
+          varDecl.identifier!.debugMetadata,
         );
       }
 
@@ -381,7 +381,7 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
     //    processsed by GenerateFlowContent.
     let contentIdx: number = 0;
     while (this.content !== null && contentIdx < this.content.length) {
-      const obj: ParsedObject = this.content[contentIdx];
+      const obj: ParsedObject = this.content[contentIdx]!;
 
       // Inner knots and stitches
       if (obj instanceof FlowBase) {
@@ -456,11 +456,11 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
     // back onto the evaluation stack.
     for (let ii = this.args.length - 1; ii >= 0; --ii) {
       const arg = this.args[ii];
-      const paramName = arg.identifier?.name || null;
+      const paramName = arg!.identifier?.name || null;
       const assign = new RuntimeVariableAssignment(
         paramName,
         true,
-        !!arg.isVararg,
+        !!arg!.isVararg,
       );
       container.AddContent(assign);
     }
@@ -574,10 +574,10 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
       for (let ii = 0; ii < this.args.length; ii += 1) {
         for (let jj = ii + 1; jj < this.args.length; jj += 1) {
           if (
-            this.args[ii].identifier?.name == this.args[jj].identifier?.name
+            this.args[ii]!.identifier?.name == this.args[jj]!.identifier?.name
           ) {
             this.Error(
-              `Multiple arguments with the same name: \`${this.args[ii].identifier}\``,
+              `Multiple arguments with the same name: \`${this.args[ii]!.identifier}\``,
             );
           }
         }

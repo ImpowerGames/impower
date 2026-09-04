@@ -2413,7 +2413,7 @@ export const STDLIB: Record<string, StdLibEntry> = {
     arity: -1,
     pure: true,
     fn: (_, args: number[]) =>
-      args.length >= 2 ? Math.atan2(args[0], args[1]) : Math.atan(args[0]),
+      args.length >= 2 ? Math.atan2(args[0]!, args[1]!) : Math.atan(args[0]!),
   },
   "math.atan2": {
     arity: 2,
@@ -2483,7 +2483,7 @@ export const STDLIB: Record<string, StdLibEntry> = {
     arity: -1,
     pure: true,
     fn: (_, args: number[]) =>
-      args.length >= 2 ? Math.log(args[0]) / Math.log(args[1]) : Math.log(args[0]),
+      args.length >= 2 ? Math.log(args[0]!) / Math.log(args[1]!) : Math.log(args[0]!),
   },
   "math.log10": { arity: 1, pure: true, fn: (_, [v]) => Math.log10(v) },
   // `math.max(a, b, ...)` / `math.min(a, b, ...)` — Luau variadic.

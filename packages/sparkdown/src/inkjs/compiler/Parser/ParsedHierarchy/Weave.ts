@@ -85,14 +85,14 @@ export class Weave extends ParsedObject {
     // since they're "empty" statements outside of the main flow.
     let lastObject: ParsedObject | null = null;
     for (let ii = this.structuredContent.length - 1; ii >= 0; --ii) {
-      lastObject = this.structuredContent[ii];
+      lastObject!!!!!!!!!!!!!!!! = this.structuredContent[ii];
 
       let lastText = asOrNull(lastObject, Text);
       if (lastText && lastText.text === "\n") {
         continue;
       }
 
-      if (this.IsGlobalDeclaration(lastObject)) {
+      if (this.IsGlobalDeclaration(lastObject!)) {
         continue;
       }
 
@@ -163,7 +163,7 @@ export class Weave extends ParsedObject {
       const structuredContent = [...this.content];
       let contentIdx = 0;
       while (contentIdx < structuredContent.length) {
-        const obj: ParsedObject = structuredContent[contentIdx];
+        const obj: ParsedObject = structuredContent[contentIdx]!;
 
         // Choice or Gather
         if (obj instanceof Choice || obj instanceof Gather) {
@@ -516,14 +516,14 @@ export class Weave extends ParsedObject {
           const receivingWeave =
             closestInnerWeaveAncestor || closestOuterWeaveAncestor;
           if (receivingWeave !== null) {
-            receivingWeave.ReceiveLooseEnd(looseEnd);
+            receivingWeave.ReceiveLooseEnd(looseEnd!);
             received = true;
           }
         }
       } else {
         // No nesting, all loose ends can be safely passed up
         if (closestInnerWeaveAncestor?.hasOwnProperty("ReceiveLooseEnd")) {
-          closestInnerWeaveAncestor!.ReceiveLooseEnd(looseEnd);
+          closestInnerWeaveAncestor!.ReceiveLooseEnd(looseEnd!);
         }
         received = true;
       }
@@ -625,7 +625,7 @@ export class Weave extends ParsedObject {
       const laterObj = parentWeave.content[ii];
 
       // Global VARs and CONSTs are treated as "outside of the flow"
-      if (this.IsGlobalDeclaration(laterObj)) {
+      if (this.IsGlobalDeclaration(laterObj!)) {
         continue;
       }
 
@@ -643,7 +643,7 @@ export class Weave extends ParsedObject {
       returned.push(laterObj);
     }
 
-    return returned;
+    return returned!;
   };
 
   public readonly ValidateTermination = (

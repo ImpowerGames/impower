@@ -192,7 +192,7 @@ export class VariableAssignment extends ParsedObject {
     ) {
       context.CheckForNamingCollisions(
         this,
-        this.identifier,
+        this.identifier!,
         this.isGlobalDeclaration ? SymbolType.Var : SymbolType.Temp,
       );
     }

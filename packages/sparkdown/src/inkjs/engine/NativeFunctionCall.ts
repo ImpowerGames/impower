@@ -325,7 +325,7 @@ export class NativeFunctionCall extends InkObject {
       const aTruthy = isLuauTruthy(a);
       const pickA =
         this.name === NativeFunctionCall.And ? !aTruthy : aTruthy;
-      return pickA ? a : b;
+      return pickA ? a! : b!;
     }
 
     // Luau `not` — always returns a genuine boolean, with Lua
@@ -448,7 +448,7 @@ export class NativeFunctionCall extends InkObject {
     }
 
     let coercedParams = this.CoerceValuesToSingleType(parameters);
-    let coercedType = coercedParams[0].valueType;
+    let coercedType = coercedParams[0]!.valueType;
 
     if (coercedType == ValueType.Int) {
       return this.CallType<number>(coercedParams);

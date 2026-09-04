@@ -428,7 +428,7 @@ export namespace SimpleJson {
 
     private get currentCollection(): Record<string, any> | null {
       if (this._collectionStack.length > 0) {
-        return this._collectionStack[this._collectionStack.length - 1];
+        return this._collectionStack[this._collectionStack.length - 1]!;
       } else {
         return null;
       }
@@ -445,7 +445,7 @@ export namespace SimpleJson {
     private IncrementChildCount() {
       const len = this._stateChildCountStack.length;
       this.Assert(len > 0);
-      this._stateChildCountStack[len - 1]++;
+      this._stateChildCountStack[len - 1]!++;
     }
 
     private Assert(condition: boolean) {

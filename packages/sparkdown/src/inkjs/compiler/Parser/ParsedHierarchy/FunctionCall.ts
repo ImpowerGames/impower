@@ -178,7 +178,7 @@ export class FunctionCall extends Expression {
       }
 
       for (let ii = 0; ii < this.args.length; ii += 1) {
-        this.args[ii].GenerateIntoContainer(container);
+        this.args[ii]!.GenerateIntoContainer(container);
       }
 
       container.AddContent(RuntimeControlCommand.ListRange());
@@ -187,7 +187,7 @@ export class FunctionCall extends Expression {
         this.Error("LIST_RANDOM should take 1 parameter - a list");
       }
 
-      this.args[0].GenerateIntoContainer(container);
+      this.args[0]!.GenerateIntoContainer(container);
 
       container.AddContent(RuntimeControlCommand.ListRandom());
     } else if (this.isStateAwareStdLib) {
@@ -235,7 +235,7 @@ export class FunctionCall extends Expression {
       }
 
       for (let ii = 0; ii < this.args.length; ii += 1) {
-        this.args[ii].GenerateIntoContainer(container);
+        this.args[ii]!.GenerateIntoContainer(container);
       }
 
       // Under-application of a fixed-arity native (`math.abs()`): the

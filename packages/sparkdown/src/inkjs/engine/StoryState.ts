@@ -317,11 +317,11 @@ export class StoryState {
   }
 
   get currentPointer() {
-    return this.callStack.currentElement.currentPointer.copy();
+    return this.callStack.currentElement!.currentPointer.copy();
   }
 
   set currentPointer(value) {
-    this.callStack.currentElement.currentPointer = value.copy();
+    this.callStack.currentElement!.currentPointer = value.copy();
   }
 
   get previousPointer() {
@@ -542,10 +542,10 @@ export class StoryState {
   }
 
   get inExpressionEvaluation() {
-    return this.callStack.currentElement.inExpressionEvaluation;
+    return this.callStack.currentElement!.inExpressionEvaluation;
   }
   set inExpressionEvaluation(value) {
-    this.callStack.currentElement.inExpressionEvaluation = value;
+    this.callStack.currentElement!.inExpressionEvaluation = value;
   }
 
   constructor(story: Story) {
@@ -574,9 +574,9 @@ export class StoryState {
   }
 
   public GoToStart() {
-    this.callStack.currentElement.previousPointer =
-      this.callStack.currentElement.currentPointer.copy();
-    this.callStack.currentElement.currentPointer = Pointer.StartOf(
+    this.callStack.currentElement!.previousPointer =
+      this.callStack.currentElement!.currentPointer.copy();
+    this.callStack.currentElement!.currentPointer = Pointer.StartOf(
       this.story.mainContentContainer,
     );
   }
@@ -1050,8 +1050,8 @@ export class StoryState {
     } else if (text) {
       let functionTrimIndex = -1;
       let currEl = this.callStack.currentElement;
-      if (currEl.type == PushPopType.Function) {
-        functionTrimIndex = currEl.functionStartInOutputStream;
+      if (currEl!.type == PushPopType.Function) {
+        functionTrimIndex = currEl!.functionStartInOutputStream;
       }
 
       let glueTrimIndex = -1;
@@ -1090,8 +1090,8 @@ export class StoryState {
             let callStackElements = this.callStack.elements;
             for (let i = callStackElements.length - 1; i >= 0; i--) {
               let el = callStackElements[i];
-              if (el.type == PushPopType.Function) {
-                el.functionStartInOutputStream = -1;
+              if (el!.type == PushPopType.Function) {
+                el!.functionStartInOutputStream = -1;
               } else {
                 break;
               }
@@ -1270,9 +1270,9 @@ export class StoryState {
   }
 
   public TrimWhitespaceFromFunctionEnd() {
-    Debug.Assert(this.callStack.currentElement.type == PushPopType.Function);
+    Debug.Assert(this.callStack.currentElement!.type == PushPopType.Function);
     let functionStartPoint =
-      this.callStack.currentElement.functionStartInOutputStream;
+      this.callStack.currentElement!.functionStartInOutputStream;
 
     if (functionStartPoint == -1) {
       functionStartPoint = 0;
@@ -1296,7 +1296,7 @@ export class StoryState {
   }
 
   public PopCallStack(popType: PushPopType | null = null) {
-    if (this.callStack.currentElement.type == PushPopType.Function)
+    if (this.callStack.currentElement!.type == PushPopType.Function)
       this.TrimWhitespaceFromFunctionEnd();
 
     this.callStack.Pop(popType);
@@ -1325,9 +1325,9 @@ export class StoryState {
       PushPopType.FunctionEvaluationFromGame,
       this.evaluationStack.length,
     );
-    this.callStack.currentElement.previousPointer =
-      this.callStack.currentElement.currentPointer.copy();
-    this.callStack.currentElement.currentPointer =
+    this.callStack.currentElement!.previousPointer =
+      this.callStack.currentElement!.currentPointer.copy();
+    this.callStack.currentElement!.currentPointer =
       Pointer.StartOf(funcContainer);
 
     this.PassArgumentsToEvaluationStack(args);
@@ -1369,7 +1369,7 @@ export class StoryState {
 
   public TryExitFunctionEvaluationFromGame() {
     if (
-      this.callStack.currentElement.type ==
+      this.callStack.currentElement!.type ==
       PushPopType.FunctionEvaluationFromGame
     ) {
       this.currentPointer = Pointer.Null;
@@ -1382,7 +1382,7 @@ export class StoryState {
 
   public CompleteFunctionEvaluationFromGame() {
     if (
-      this.callStack.currentElement.type !=
+      this.callStack.currentElement!.type !=
       PushPopType.FunctionEvaluationFromGame
     ) {
       throw new Error(
@@ -1392,7 +1392,7 @@ export class StoryState {
     }
 
     let originalEvaluationStackHeight =
-      this.callStack.currentElement.evaluationStackHeightWhenPushed;
+      this.callStack.currentElement!.evaluationStackHeightWhenPushed;
 
     let returnedObj: InkObject | null = null;
     while (this.evaluationStack.length > originalEvaluationStackHeight) {
