@@ -489,7 +489,7 @@ Read it back — always:
 gh pr view --json number,title,body,isDraft
 ```
 
-PR body should carry:
+The body follows `.github/PULL_REQUEST_TEMPLATE.md` — same headings, same order; `gh pr create` does not apply it for you, so read the file and fill it in. In particular it should carry:
 
 - What broke and why, with `file:line`.
 - The fix.
