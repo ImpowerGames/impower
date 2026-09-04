@@ -22,8 +22,8 @@ export class InkListItem implements IInkListItem {
       let fullName = arguments[0] as string;
 
       let nameParts = fullName.toString().split(".");
-      this.originName!!!!!!!!!!!!!!!! = nameParts[0];
-      this.itemName!!!!!!!!!!!!!!!! = nameParts[1];
+      this.originName = nameParts[0]!;
+      this.itemName = nameParts[1]!;
     }
   }
   public static get Null() {

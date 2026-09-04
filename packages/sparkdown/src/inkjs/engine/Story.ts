@@ -1344,7 +1344,7 @@ export class Story extends InkObject {
         sb.Append(
           this.state.hasError
             ? this.state.currentErrors![0]
-            : this.state.currentWarnings![0]!!!!!!!!!!!!!!!!,
+            : this.state.currentWarnings![0]!,
         );
 
         throw new StoryException(sb.toString());

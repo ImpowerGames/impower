@@ -74,10 +74,10 @@ export class VariableReference extends Expression {
       let listName: string = "";
 
       if (this.path.length === 1) {
-        listItemName!!!!!!!!!!!!!!!! = this.path[0];
+        listItemName = this.path[0]!;
       } else {
-        listName!!!!!!!!!!!!!!!! = this.path[0];
-        listItemName!!!!!!!!!!!!!!!! = this.path[1];
+        listName = this.path[0]!;
+        listItemName = this.path[1]!;
       }
 
       const listItem = this.story.ResolveListItem(listName, listItemName, this);

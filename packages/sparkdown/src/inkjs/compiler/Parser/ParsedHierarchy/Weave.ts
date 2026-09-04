@@ -85,7 +85,7 @@ export class Weave extends ParsedObject {
     // since they're "empty" statements outside of the main flow.
     let lastObject: ParsedObject | null = null;
     for (let ii = this.structuredContent.length - 1; ii >= 0; --ii) {
-      lastObject!!!!!!!!!!!!!!!! = this.structuredContent[ii];
+      lastObject = this.structuredContent[ii]!;
 
       let lastText = asOrNull(lastObject, Text);
       if (lastText && lastText.text === "\n") {
