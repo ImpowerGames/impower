@@ -42,6 +42,12 @@ PASS  gh auth  — needed to read the issue and open the PR
 PASS  git repo  — C:\...\impower.worktrees\impower\issue-214-fix-455354
 ```
 
+The playwright chromium line sometimes reads `launches (fallback build: ...)`
+instead — that's still a PASS. It means the `playwright` version pinned in
+`package.json` doesn't match the Chromium build baked into this sandbox, so the
+driver launched whatever build the sandbox actually has instead of the exact
+revision Playwright asked for. Nothing to do about it.
+
 If disk headroom fails, free space **before** creating the worktree — see
 Troubleshooting.
 
@@ -130,8 +136,16 @@ A fresh worktree has **no `node_modules`** — the monorepo is npm workspaces, s
 install once at the new worktree's root:
 
 ```bash
-npm install
+PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 npm install
 ```
+
+Set that variable every time, not just when a failure shows up: a bare
+`npm install` fails outright here, because a workspace pulls in
+`@playwright/browser-chromium`, whose own install script tries to fetch a
+Chromium build straight from `cdn.playwright.dev` — a host outside this
+network's allowlist — and npm aborts the whole install on that 403. Skipping
+the download is safe: the driver already runs against the Chromium build the
+sandbox pre-installs, under `PLAYWRIGHT_BROWSERS_PATH`.
 
 That takes several minutes and roughly 2–3 GB. **Verify it before trusting it.**
 A full disk leaves a _silently_ corrupted `node_modules` — truncated binaries,
@@ -330,9 +344,9 @@ template — three pieces:
    `devDependencies` (match the version other packages use — `^2.1.9`).
 3. A `test/` directory holding `*.test.ts`.
 
-Then `npm install` at the **repo root** (workspaces — never inside the package;
-that creates a stray per-package lockfile the root `.gitignore` deliberately
-ignores).
+Then `PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 npm install` at the **repo root**
+(workspaces — never inside the package; that creates a stray per-package
+lockfile the root `.gitignore` deliberately ignores).
 
 Assert the **behaviour from the ticket**, not the shape of your patch. If the
 issue says "only the last matching layer survives", the test builds a case with
@@ -502,19 +516,18 @@ Reviewers cost real tokens. Scale the count to the blast radius of the change in
 
 When a diff sits between tiers, round up — a missed defect costs more than a reviewer. The undirected reviewer is never dropped, whatever the tier.
 
-### 7b — reviewers run on a different model than the writer
+### 7b — reviewers run on Opus, never on the writer's own version
 
-A model reviewing code written by the same model shares the writer's priors — it finds the same things plausible and overlooks the same things. The requirement is a different model, not a different family: a different version of the same family counts (Opus 5 reviewed by Opus 4.8 is a valid pairing), and staying close to the writer's capability tier beats dropping down one.
+A model reviewing code written by the same model shares the writer's priors — it finds the same things plausible and overlooks the same things. Reviewers always run on Opus. When the writer is itself Opus, that alone isn't enough separation — pass a different major version number, not just a different alias resolution, so the review still comes from a different vantage point (Opus 5 reviewed by Opus 4.6, and vice versa).
 
-Pass `model:` explicitly on every reviewer Agent call. The Agent tool's `model` values are family aliases (`fable`, `opus`, `sonnet`, `haiku`), each resolving to that family's current version — so an alias qualifies exactly when it resolves to a model other than you (your system prompt names your model):
+Pass `model:` explicitly on every reviewer Agent call, using a versioned model id so the major version is pinned rather than left to whatever the current alias resolves to:
 
-| You (the writer) | Reviewers get       |
-| ---------------- | ------------------- |
-| Fable            | `model: "opus 5"`   |
-| Opus 5           | `model: "opus 4.8"` |
-| Sonnet           | `model: "opus 5"`   |
-
-If the harness accepts a versioned model id for reviewers, an adjacent version of the writer's own family is the ideal pick. Never use haiku for review — it misses exactly the subtle defects this pass exists to catch.
+| You (the writer) | Reviewers get                                    |
+| ----------------- | ------------------------------------------------- |
+| Fable              | `model: "opus"` (current major version)          |
+| Sonnet            | `model: "opus"` (current major version)          |
+| Opus 5            | `model: "opus 4.6"` (a different major version)  |
+| Opus 4.6          | `model: "opus 5"` (a different major version)    |
 
 ### 7c — fan out; each reviewer comments on the PR
 
@@ -608,7 +621,13 @@ State lives in `.claude/skills/resolve-issue/.state.json` (gitignored).
 
 Playwright is a **declared root devDependency** (`playwright: ^1.61.0`).
 Browsers come from the local `ms-playwright` cache — if it's empty on a new
-machine, `npx playwright install chromium`.
+machine, `npx playwright install chromium`. Always run `npm install` with
+`PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1` set (see §2) — otherwise a transitive
+`@playwright/browser-chromium` dependency tries to download its own Chromium
+build from a host this network blocks, and the whole install fails. The
+driver itself doesn't need that variable: if the pinned `playwright` version
+expects a Chromium revision the cache doesn't have, it launches whatever
+build the cache does have instead of failing.
 
 The driver must still live **inside the repo tree**: Node resolves `playwright`
 relative to the **script's** directory, not the working directory. Copy it to a
@@ -714,5 +733,6 @@ Things that look like they work and don't:
 | vitest exits 0 with no `Test Files` / `Tests` summary                                                      | An OOM'd worker was killed by the OS. Not a pass. Lower `maxForks`, split the suite.                                                                                                                                                                                                        |
 | `minThreads and maxThreads must not conflict`                                                              | You passed `maxForks` without `minForks`. Always pass both.                                                                                                                                                                                                                                 |
 | `npm install` dies `ENOSPC`; or `npx esbuild --version` / `npx vitest --version` fails to spawn (`EFTYPE`) | Disk was full; `node_modules` is silently corrupt (truncated binaries, empty dirs). `npm cache clean --force`, prune `%LOCALAPPDATA%\Temp`, delete **all** `node_modules` (root + every workspace — nested ones die with the parent), reinstall **once**. Piecemeal repair is whack-a-mole. |
+| `npm install` dies with `request blocked: no rule or allowlist entry allows host "cdn.playwright.dev"` (or any `@playwright/browser-chromium` download failure) | A workspace depends on `@playwright/browser-chromium`, whose install script tries to fetch its own Chromium build from a blocked host. Re-run as `PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 npm install` — see §2. |
 | `git worktree remove` → `Directory not empty`                                                              | Windows can't delete `node_modules` that way. `Remove-Item -Recurse -Force <path>`, then `git worktree prune`.                                                                                                                                                                              |
 | A `gh` PR/issue body came out as the literal `@-`                                                          | You used `--body @-`. Use `--body-file`, then read it back with `gh pr view --json body`.                                                                                                                                                                                                   |

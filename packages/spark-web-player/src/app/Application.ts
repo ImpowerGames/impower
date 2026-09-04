@@ -339,6 +339,9 @@ export class Application implements IApplication {
 
   setAudioContext(audioContext: AudioContext) {
     if (audioContext.state === "running") {
+      if (this._audioContext === audioContext) {
+        return;
+      }
       this._audioContext = audioContext;
       this._clock.syncToClock(audioContext);
     }

@@ -83,14 +83,17 @@ repo root. Editing them directly *works* — tests pass, the change ships — an
 then the next `definitions` build silently regenerates them and your change
 vanishes:
 
-| Generated (do NOT edit)                                        | Source of truth                                  |
-| -------------------------------------------------------------- | ------------------------------------------------ |
-| `packages/sparkdown/language/sparkdown.language-grammar.json`  | `definitions/yaml/sparkdown.language-grammar.yaml` |
-| `packages/sparkdown/language/sparkdown.language-config.json`   | `definitions/yaml/sparkdown.language-config.yaml`  |
-| `packages/sparkdown/language/sparkdown.language-snippets.json` | `definitions/yaml/sparkdown.language-snippets.yaml` |
+| Generated (do NOT edit)                                             | Source of truth                                      |
+| -------------------------------------------------------------------- | ------------------------------------------------------ |
+| `packages/sparkdown/language/sparkdown.language-grammar.json`        | `definitions/yaml/sparkdown.language-grammar.yaml`      |
+| `packages/sparkdown/language/sparkdown.language-config.json`         | `definitions/yaml/sparkdown.language-config.yaml`       |
+| `packages/sparkdown/language/sparkdown.language-snippets.json`       | `definitions/yaml/sparkdown.language-snippets.yaml`     |
+| `vscode-sparkdown/language/sparkdown.language-grammar.json`          | `definitions/yaml/sparkdown.language-grammar.yaml`      |
+| `vscode-sparkdown/language/sparkdown.language-config.json`           | `definitions/yaml/sparkdown.language-config.yaml`       |
+| `vscode-sparkdown/language/sparkdown.language-snippets.json`         | `definitions/yaml/sparkdown.language-snippets.yaml`     |
 
-(The full `definitions` build also propagates these to a sibling
-`vscode-sparkdown` checkout; `definitions/yaml/sparkdown.language-completions.yaml`
+(Each YAML source propagates to both `packages/sparkdown/language/` and
+`vscode-sparkdown/language/`; `definitions/yaml/sparkdown.language-completions.yaml`
 exists but is not currently propagated.)
 
 The sources are easy to miss: they live under `definitions/yaml/` at the repo
@@ -103,9 +106,14 @@ To change a grammar/config/snippets rule:
 
 ```sh
 # 1. edit the rule in definitions/yaml/<file>.yaml
-# 2. regenerate (from the repo root):
-cd definitions && npx tsx src/language.ts ../packages/sparkdown/language
+# 2. regenerate BOTH output locations (from the repo root):
+cd definitions && npx tsx src/language.ts ../packages/sparkdown/language ../vscode-sparkdown/language
+# (equivalent to `npm run language` from inside definitions/)
 ```
+
+Passing only one output path regenerates only that location and leaves the
+other stale — `definitions/package.json`'s `language`/`build` scripts always
+pass both paths, so prefer `npm run language` over typing the paths by hand.
 
 Commit the YAML **and** the regenerated JSON together. If your JSON diff
 contains a change with no matching YAML diff, the change is doomed.
