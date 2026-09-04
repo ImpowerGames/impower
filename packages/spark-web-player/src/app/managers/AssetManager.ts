@@ -72,14 +72,14 @@ export default class AssetManager extends Manager {
     const keys = new Set<string>();
     const overlay = this.app.overlay;
     if (overlay) {
-      for (const img of overlay.querySelectorAll("img.object")) {
+      for (const img of Array.from(overlay.querySelectorAll("img.object"))) {
         const src = img.getAttribute("src");
         if (src) {
           keys.add(src);
         }
       }
       const names: string[] = [];
-      for (const span of overlay.querySelectorAll("[image]")) {
+      for (const span of Array.from(overlay.querySelectorAll("[image]"))) {
         const attr = span.getAttribute("image");
         if (attr) {
           names.push(...attr.split(/\s+/).filter(Boolean));
@@ -90,7 +90,9 @@ export default class AssetManager extends Manager {
           keys.add(src);
         }
       }
-      for (const video of overlay.querySelectorAll("video.object")) {
+      for (const video of Array.from(
+        overlay.querySelectorAll("video.object"),
+      )) {
         const src = video.getAttribute("data-src") ?? video.getAttribute("src");
         if (src) {
           keys.add(src);
