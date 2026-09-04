@@ -554,7 +554,13 @@ export const Component = <
             }
             return true;
           },
-          beforeNodeMorphed: (oldNode: Element, newNode: Element): boolean => {
+          beforeNodeMorphed: (oldNode: Node, newNode: Node): boolean => {
+            // idiomorph reports text nodes too; only elements carry the
+            // attributes and hooks below, and a non-element is morphed as
+            // normal, which is what returning true asks for.
+            if (!(oldNode instanceof Element) || !(newNode instanceof Element)) {
+              return true;
+            }
             if (
               "skipMorphingChildren" in oldNode &&
               oldNode?.skipMorphingChildren
@@ -581,7 +587,7 @@ export const Component = <
             }
             return true;
           },
-          afterNodeMorphed: (oldNode: Element, newNode: Element): void => {
+          afterNodeMorphed: (oldNode: Node, newNode: Node): void => {
             if (
               "afterNodeMorphed" in oldNode &&
               typeof oldNode?.afterNodeMorphed === "function"

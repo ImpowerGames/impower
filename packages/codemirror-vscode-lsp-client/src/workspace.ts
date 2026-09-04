@@ -111,7 +111,9 @@ export abstract class Workspace {
       for (const c of params.edit.documentChanges) {
         if ("textDocument" in c) {
           const uri = c.textDocument.uri;
-          const edits = c.edits;
+          const edits = c.edits.filter(
+            (e): e is lsp.TextEdit | lsp.AnnotatedTextEdit => "newText" in e,
+          );
           const file = this.getFile(uri);
           if (!edits.length || !file) {
             continue;

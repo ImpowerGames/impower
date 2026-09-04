@@ -669,7 +669,7 @@ export class LSPClient {
     let req = new Request<Result>(
       id,
       params,
-      setTimeout(() => {
+      self.setTimeout(() => {
         req.reject(new Error("Request timed out"));
         if (cancellationToken) {
           this.cancellationTokens.delete(cancellationToken);

@@ -115,7 +115,7 @@ const signaturePlugin = ViewPlugin.fromClass(
         });
       } else if (sigState && update.selectionSet) {
         if (this.delayedRequest) clearTimeout(this.delayedRequest);
-        this.delayedRequest = setTimeout(() => {
+        this.delayedRequest = self.setTimeout(() => {
           this.startRequest(plugin, {
             triggerKind: 3 /* ContentChange */,
             isRetrigger: true,

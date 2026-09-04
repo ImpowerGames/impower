@@ -22,6 +22,7 @@ import { TrashBatch } from "@impower/spark-editor-protocol/src/types/workspace/T
 import { WillWriteFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/WillWriteFilesMessage";
 import { ZipFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/ZipFilesMessage";
 import {
+  AnnotatedTextEdit,
   CreateFile,
   DeleteFile,
   FileCreate,
@@ -29,6 +30,7 @@ import {
   FileEvent,
   RenameFile,
   TextDocumentEdit,
+  TextEdit,
 } from "@impower/spark-editor-protocol/src/types";
 import { NotificationMessage } from "@impower/spark-editor-protocol/src/types/base/NotificationMessage";
 import { ResponseMessage } from "@impower/spark-editor-protocol/src/types/base/ResponseMessage";
@@ -732,7 +734,9 @@ const editTextFiles = async (textDocumentEdits: TextDocumentEdit[]) => {
   const result = await Promise.all(
     textDocumentEdits.map(async (textDocumentEdit) => {
       const td = textDocumentEdit.textDocument;
-      const changes = textDocumentEdit.edits;
+      const changes = textDocumentEdit.edits.filter(
+        (e): e is TextEdit | AnnotatedTextEdit => "newText" in e,
+      );
       if (textDocumentEdit.edits.length === 0) {
         return {
           file: { uri: td.uri } as FileData,

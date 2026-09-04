@@ -1,10 +1,8 @@
 import type { Message } from "./Message";
 import type { ProgressValue } from "./ProgressValue";
 
-export interface ProgressResponseMessage<
-  M extends string = string,
-  R = any,
-> extends Message<`${M}/progress`> {
+export interface ProgressResponseMessage<M extends string = string>
+  extends Message<`${M}/progress`> {
   /**
    * The request id.
    */
