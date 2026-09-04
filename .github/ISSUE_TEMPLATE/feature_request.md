@@ -31,6 +31,16 @@ Keep every heading; write "Open" under one that is still undecided rather than d
 
 <!-- What is included, and what is deliberately left out so the work has a clear edge. Note any existing code, branch, or issue that partly covers this. -->
 
+## Implementation plan
+
+<!-- Steps in pipeline order (parser, compiler, engine, player, editor, extension), one bullet per step naming the package it touches. Decisions rather than code. Write "Open" if the plan has not been worked out yet; a ticket produced by the file-feature skill always fills this in. -->
+
+## Acceptance criteria
+
+<!-- Conditions a reviewer can check: which tests exist and what they prove, what the running editor or extension shows, what a measurement reads. -->
+
+- [ ]
+
 ## Additional context
 
 <!-- Related issues or pull requests, references, mockups. -->
