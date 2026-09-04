@@ -20,7 +20,22 @@ Facts are your job; decisions are the user's. Before the first question, learn w
 
 If this takes real time, dispatch a subagent for the exploration and ask the parts of the first round that do not depend on it while it runs.
 
-## 2. The interview
+## 2. Prior art
+
+Almost nothing this project builds is a new concept. A narrative engine, a scripting language, a code editor, an asset manager: each has peers that have already met the edge cases and settled on conventions their users expect. Before the interview, name two to four systems that solve the same problem and work out how each one handles it. This is where the questions nobody thought to ask come from, and it is what keeps the engine intuitive to someone arriving from one of those tools.
+
+The usual comparison points here:
+
+- Narrative scripting: Ren'Py, Ink, Twine, Yarn Spinner. Syntax, directives, scene and choice semantics, save and rollback behavior.
+- Engines: Godot, Unity, Unreal. Asset loading and lifetime, scene transitions, animation, input, the split between edit-time and run-time behavior.
+- Editors and extensions: VS Code, and the editor features authors already know from it. Panels, commands, find and replace, file management, diagnostics.
+- Screenplay conventions: Fountain and the screenwriting tools built on it, for anything about how a script reads on the page.
+
+For each, write down how it handles the surface, the semantics, and the edge cases in a few lines, and where they disagree with each other, because a disagreement between mature systems marks a real decision the interview has to put to the user. Draw on what you already know first; that covers most of it. Read the system's documentation only where a specific claim is going into a recommendation or where you are unsure, since exact statement names, signatures, and behavior that changed in a recent version are what recalled knowledge gets wrong. Cite the source when a claim is specific.
+
+Prior art informs the recommendation; it does not decide it. The answer still has to fit this project's own conventions and its author's problem, and "Ren'Py does it this way" is a reason to consider a design, not a reason to adopt it. Keep this step to a short list you feed into the interview rather than a report of its own; the point is to seed the recommended answers and the edge-case questions, and the comparisons then land in the ticket under Alternatives considered.
+
+## 3. The interview
 
 The technique is adapted from Matt Pocock's grilling skill (github.com/mattpocock/skills, MIT). Treat the design as a tree: every decision branches into the decisions that hang off it. The frontier is the set of decisions whose prerequisites are settled, the ones you can ask now without guessing at answers you have not heard. Ask the whole frontier in one round, numbered, each with your recommended answer, then wait. A question whose answer depends on another question still open in this round belongs to the next round.
 
@@ -38,7 +53,7 @@ Format each round like this:
 ➡️ ...
 ```
 
-Recommend on every question. The user came with an idea, not a spec, and a recommendation they can accept or reject in a word moves faster than an open question. Ground the recommendation in what you found in step 1: "the `load` arrow already does X, so I recommend Y".
+Recommend on every question. The user came with an idea, not a spec, and a recommendation they can accept or reject in a word moves faster than an open question. Ground the recommendation in what you found in steps 1 and 2: "the `load` arrow already does X, and Ren'Py and Godot both treat it as Y, so I recommend Y".
 
 Each answered round reshapes the tree. Recompute the frontier and ask the next round. The interview is done when the frontier is empty: every branch visited, nothing left silently assumed. Do not file until the user confirms the understanding is shared. If the user says "just decide" on a branch, take your recommendation and mark the decision "decided by default" in the ticket so a later reader knows it was not chosen deliberately.
 
@@ -46,29 +61,29 @@ Branches that nearly always exist for a feature here, in the order they usually 
 
 1. The author's problem. What they are trying to do in a script or in the editor, and what stops them today. Settle this before any surface question; a solution to the wrong problem is the most expensive outcome.
 2. The author surface. The syntax, directive, define type, editor control, or extension command. Show a concrete example script. Existing conventions constrain this: directives are `[[name args]]`, arrows are `->` forms, defines are `define <type> <name>` blocks; a new surface that ignores them costs a grammar change in `definitions/yaml/` plus both regenerated JSON copies.
-3. Semantics and edge cases. What happens at scene boundaries, inside tunnels and threads, on a checkpoint restore, on a save and load, when the asset or target is missing, when the same thing is invoked twice.
+3. Semantics and edge cases. What happens at scene boundaries, inside tunnels and threads, on a checkpoint restore, on a save and load, when the asset or target is missing, when the same thing is invoked twice. The prior art from step 2 is the checklist here: every case a peer system handles explicitly is a case to decide.
 4. Preview versus play. The editor preview is scrub-driven and time-free; play is time-driven. Most features behave differently in each (timed assets load only in play, the loading screen is a no-op in preview) and the difference has to be decided, not discovered.
 5. Which surfaces ship it. Web editor, VS Code extension, standalone player, or all three. The compile runs in each, so a compiler change lands everywhere; an editor-only feature does not.
 6. What is reused. The existing code, branch, or prior ticket that partly covers it, and whether it is extended or replaced.
 7. Tests. Which seam proves it works: a compiler test on the program output, an engine test on module behavior, a player DOM test, a live check in the running editor. Prefer the highest existing seam; new seams are a cost.
-8. Scope edges. What is deliberately left out, and whether the work is one pull request or several. A ticket sized to one fresh context window is one resolve-issue run; larger than that, split it (section 3).
+8. Scope edges. What is deliberately left out, and whether the work is one pull request or several. A ticket sized to one fresh context window is one resolve-issue run; larger than that, split it (section 4).
 
 Not every feature has all eight, and some have branches this list does not. The list is a checklist against silent assumptions, not a script.
 
-## 3. Size it
+## 4. Size it
 
 If the agreed plan is more than one pull request's worth, split it into vertical slices: each slice cuts a complete path through every layer it touches and is verifiable on its own, rather than one layer at a time. File the feature ticket as the parent with the slice list in its plan, and each slice as a Task issue (template `.github/ISSUE_TEMPLATE/task.md`, type `Task`) that says "Split from #N" and which slices block it. A wide mechanical change (a rename across the codebase) is the exception: sequence it as expand, migrate in batches, contract.
 
-## 4. Write the ticket
+## 5. Write the ticket
 
 Follow `.github/ISSUE_TEMPLATE/feature_request.md`: same headings, same order; its leading comment gives the title convention and the label list. GitHub applies templates only through the web form, so read the file and produce the body yourself, and write it to a file first.
 
 What goes where:
 
 - Title: one sentence naming what the author or player gains, in their terms.
-- Problem: the author's problem from step 2, branch 1, in their words.
+- Problem: the author's problem from step 3, branch 1, in their words.
 - Proposed solution: the author surface with the example script, and the semantics decided in the interview. Mark anything still open as "Open"; mark anything taken on your recommendation without a deliberate choice as "decided by default".
-- Alternatives considered: every branch the interview rejected, with the reason. This is the part a future reader most wants and most often does not get.
+- Alternatives considered: every branch the interview rejected, with the reason, and how the prior-art systems handle it where that shaped the choice ("Ren'Py does X; we chose Y because"). This is the part a future reader most wants and most often does not get.
 - Scope: what is in, what is out, and what existing code, branch, or ticket is reused, with `file:line` references at a specific commit where that helps.
 - Implementation plan: steps in pipeline order (parser, compiler, engine, player, editor, extension), one bullet per step naming the package. Decisions, not code; a snippet only where it captures a decision more precisely than prose (a type shape, a state machine).
 - Acceptance criteria: checkboxes a reviewer can tick: the tests that exist and what they prove, what the running editor shows, what a measurement reads.
@@ -76,7 +91,7 @@ What goes where:
 
 Strip the template's HTML comments. Write "Open" under a heading that is still undecided rather than deleting it.
 
-## 5. File it and read it back
+## 6. File it and read it back
 
 ```sh
 gh issue create --title "<title>" --body-file ticket.md --label "system: sparkdown" --label "app: web-editor"
@@ -89,7 +104,7 @@ Never pass `--body @-`; `gh` takes it as the literal two characters and files an
 
 Labels: `system: sparkdown` (language, compiler, engine), `system: sparkle-ui` (layout, components, styles, reactive engine, DOM renderer), `app: web-editor` (editor and web player), `app: vscode-extension`, `documentation`. Apply every area the work touches.
 
-## 6. Hand off
+## 7. Hand off
 
 Tell the user the issue number and the one-paragraph plan. Implementation is the resolve-issue skill on that number, in a fresh session with the ticket as its brief; do not begin it here, even if the plan looks small. The point of the split is that the plan is reviewed as a plan before any code exists.
 
