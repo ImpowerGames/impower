@@ -2,6 +2,7 @@ import "../../inkjs/engine/Container";
 import { describe, expect, it } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { File } from "../../compiler/types/File";
+import { Story as RuntimeStory } from "../../inkjs/engine/Story";
 
 // The per-flow reuse guard decides "this scene's source did not change" by
 // comparing a flow's start line against the changed chunks' line ranges. Line
@@ -91,13 +92,31 @@ function quiet<T>(fn: () => T): T {
 }
 
 /**
- * Exposes the per-flow asset captures. A flow that was reused contributes the
- * very object it produced last compile; a recomputed one contributes a new
- * object, so identity tells the two apart.
+ * Exposes both reuse decisions, which are made independently and have to be
+ * observed independently.
+ *
+ * `captureOf` reads the per-flow asset captures, which only the location and
+ * asset guard writes: a flow it reused contributes the very object it produced
+ * last compile, a recomputed one contributes a new object, so identity tells
+ * those two apart. It says nothing about the bytecode guard, whose decision is
+ * a set of flow names that never reaches the compiled output — serving a flow
+ * from the serialization cache and rebuilding it produce the same bytes. So
+ * `lastBytecodeReuse` records that set as it is computed.
  */
 class Probe extends SparkdownCompiler {
+  lastBytecodeReuse?: { reusable: Set<string>; ok: boolean };
+
   captureOf(name: string) {
     return this._flowAssetAccum?.get(name);
+  }
+
+  protected override computeFlowReuse(story: RuntimeStory) {
+    const result = super.computeFlowReuse(story);
+    this.lastBytecodeReuse = {
+      reusable: new Set(result.reusable),
+      ok: result.ok,
+    };
+    return result;
   }
 }
 
@@ -199,6 +218,7 @@ describe("incremental reuse across more than one script", () => {
         expect(second.sceneAssets?.["alpha"]?.image).not.toContain("face_old");
         expect(second.sceneAssets).toEqual(oracle.sceneAssets);
         expect(second.compiled).toEqual(oracle.compiled);
+        expect(second.pathLocations).toEqual(oracle.pathLocations);
       });
     });
 
@@ -229,6 +249,7 @@ describe("incremental reuse across more than one script", () => {
         expect(second.sceneAssets?.["alpha"]?.successors).toEqual(["c7"]);
         expect(second.sceneAssets).toEqual(oracle.sceneAssets);
         expect(second.compiled).toEqual(oracle.compiled);
+        expect(second.pathLocations).toEqual(oracle.pathLocations);
       });
     });
   }
@@ -258,14 +279,21 @@ describe("incremental reuse across more than one script", () => {
       expect(second.sceneAssets?.["c9"]?.image).not.toContain("room_c9");
       expect(second.sceneAssets).toEqual(oracle.sceneAssets);
       expect(second.compiled).toEqual(oracle.compiled);
+      expect(second.pathLocations).toEqual(oracle.pathLocations);
+      // The bytecode guard reached the same verdict: the edited scene is out,
+      // the long scene in the other script stays in.
+      expect(compiler.lastBytecodeReuse?.reusable.has("c9")).toBe(false);
+      expect(compiler.lastBytecodeReuse?.reusable.has("alpha")).toBe(true);
     });
   });
 
   it("scenes the edit did not touch are still reused, in either script", () => {
-    // The correctness assertions above would all pass if reuse were simply
-    // switched off, so pin the other half: an edit confined to one scene still
-    // leaves every other scene — including every scene of the other script —
-    // contributing the object it produced last compile.
+    // The correctness assertions above compare against a cold compile, which a
+    // compiler that reused nothing would also satisfy — a full recompile is
+    // correct, just slower. So pin the other half, for both guards separately.
+    // They are decided independently: the asset captures observe only the
+    // location and asset guard, and the bytecode guard's decision never reaches
+    // the compiled output, so it has to be read where it is made.
     quiet(() => {
       const before = fixture("main", "face_old", "c0");
       const compiler = newCompiler(before.main, before.chapter);
@@ -280,14 +308,26 @@ describe("incremental reuse across more than one script", () => {
 
       expect(compiler.captureOf("alpha")).not.toBe(alphaBefore);
       expect(compiler.captureOf("c9")).toBe(otherScriptBefore);
+
+      const bytecode = compiler.lastBytecodeReuse;
+      expect(bytecode?.ok).toBe(true);
+      expect(bytecode?.reusable.has("alpha")).toBe(false);
+      for (let s = 0; s < SHORT_SCENES; s++) {
+        expect(bytecode?.reusable.has(`c${s}`)).toBe(true);
+      }
     });
   });
 
   it("an edit above every flow of its own script still disables reuse", () => {
-    // Content above a script's first flow can change the shape of flows in
-    // every script, so it has to switch reuse off wholesale. The included
-    // script opens with a scene on line 0, so a comparison that ignores which
-    // script a line belongs to never sees this edit as preceding a flow.
+    // Content above a script's first flow lives outside every flow, and
+    // generation can fold it into flows in any script, so it has to switch
+    // reuse off wholesale. The included script opens with a scene on line 0, so
+    // a comparison that ignores which script a line belongs to never sees this
+    // edit as preceding a flow.
+    //
+    // What the guard does is refuse to reuse, so that is what this asserts —
+    // an output comparison would pass whether or not the guard fired, since
+    // reusing correctly and recomputing produce the same program.
     quiet(() => {
       const base = fixture("main", "face_old", "c0");
       const before = {
@@ -299,6 +339,8 @@ describe("incremental reuse across more than one script", () => {
       };
       const compiler = newCompiler(before.main, before.chapter);
       compiler.compile({ textDocument: { uri: MAIN_URI } });
+      const untouchedBefore = compiler.captureOf("c9");
+      expect(untouchedBefore).toBeDefined();
 
       const main = edit(
         compiler,
@@ -310,6 +352,12 @@ describe("incremental reuse across more than one script", () => {
       const second = compiler.compile({ textDocument: { uri: MAIN_URI } })
         .program;
       const oracle = cold(main, before.chapter);
+
+      // Both guards off: no flow's bytecode served from cache, and even a scene
+      // in the untouched script re-walked rather than spliced from its entry.
+      expect(compiler.lastBytecodeReuse?.ok).toBe(false);
+      expect(compiler.lastBytecodeReuse?.reusable.size).toBe(0);
+      expect(compiler.captureOf("c9")).not.toBe(untouchedBefore);
 
       expect(second.sceneAssets).toEqual(oracle.sceneAssets);
       expect(second.compiled).toEqual(oracle.compiled);

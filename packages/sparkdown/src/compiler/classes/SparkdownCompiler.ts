@@ -248,9 +248,12 @@ type FlowLocCacheEntry = {
   assets: SceneAssetCapture;
 };
 
-// A per-script view of this compile's changed chunks, shared by the bytecode
-// reuse guard (`computeFlowReuse`) and the location/asset reuse guard
-// (`populateAllLocations`) so the two can never disagree.
+// A per-script view of this compile's changed chunks. The bytecode reuse guard
+// (`computeFlowReuse`) and the location/asset reuse guard
+// (`populateAllLocations`) each build one from their own flow list — they
+// disagree about `global decl`, which one includes and the other skips — so
+// they hold separate instances of this, applying the same rule to the same
+// `_changedChunkRanges`.
 //
 // A line number is only meaningful within the script it came from, and a
 // project that uses `include` has several scripts whose line numbers overlap
@@ -3078,8 +3081,10 @@ export class SparkdownCompiler {
             }
           }
         }
-        // The flow's own header line sits one line above its recorded start,
-        // so a chunk ending there is an edit to the flow itself.
+        // `start0` is the flow's header line. The guard reaches one line
+        // further up so that a chunk ending immediately above the header —
+        // the blank line or trailing content a header edit tends to re-chunk
+        // along with it — counts as touching the flow.
         const guardStart = start0 - 1;
         for (const [cs, ce] of ranges) {
           if (ce >= guardStart && cs < end0) {
