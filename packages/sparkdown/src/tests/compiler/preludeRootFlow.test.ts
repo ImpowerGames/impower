@@ -53,6 +53,11 @@ const compileScript = (text: string, seedBuiltinsIntoStory: boolean) => {
   return compiler.compile({ textDocument: { uri: MAIN_URI } }).program;
 };
 
+/** The root flow's own content. `compiled.root` is the story's root container,
+ *  `[rootFlowContent, "done", namedFlows]`; the named flows sit in the trailing
+ *  object, so the first element is what the story plays from the root. */
+const rootFlowContent = (compiled: any): any[] => compiled?.root?.[0] ?? [];
+
 /** Every text string the root flow plays back. A runtime story holds display
  *  text as a `^`-prefixed string; the leading marker is dropped here so a
  *  failure reads as the authored line. */
@@ -73,8 +78,7 @@ const rootFlowText = (compiled: any): string[] => {
       Object.values(node).forEach(walk);
     }
   };
-  // compiled.root is the story's root container: [rootFlowContent, "done", …].
-  walk(compiled?.root?.[0]);
+  walk(rootFlowContent(compiled));
   return out;
 };
 
@@ -112,10 +116,10 @@ describe("the builtins prelude's root flow", () => {
     );
   });
 
-  test("adds nothing to a program's own root flow when it is seeded", () => {
+  test("adds only a newline to a program's own root flow when it is seeded", () => {
     // What a player actually receives: the editor's diagnostics compile leaves
-    // the builtins unseeded, the runtime seeds them, and the two must play the
-    // same beats from the root.
+    // the builtins unseeded, the runtime seeds them, and the two have to play
+    // the same beats from the root.
     const SRC = "Hello from the script.\n";
     const seeded = compileScript(SRC, true);
     const unseeded = compileScript(SRC, false);
@@ -123,5 +127,14 @@ describe("the builtins prelude's root flow", () => {
     expect(rootFlowText(seeded.compiled)).toEqual(
       rootFlowText(unseeded.compiled)
     );
+    // Stated in full, because the text comparison alone would hide anything the
+    // prelude contributes that is not text. Seeding prepends one newline: the
+    // prelude arrives as an included file, and a file's terminating newline
+    // reaches the root flow. It displays nothing, and it is the whole of what
+    // seeding adds.
+    const seededContent = rootFlowContent(seeded.compiled);
+    const unseededContent = rootFlowContent(unseeded.compiled);
+    expect(seededContent[0]).toBe("\n");
+    expect(seededContent.slice(1)).toEqual(unseededContent);
   });
 });
