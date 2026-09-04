@@ -7,7 +7,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "f=$(cat | jq -r '.tool_input.file_path // empty'); case \"$f\" in *packages/sparkdown/language/sparkdown.language-grammar.json|*packages/sparkdown/language/sparkdown.language-config.json|*packages/sparkdown/language/sparkdown.language-snippets.json) jq -n '{hookSpecificOutput:{hookEventName:\"PreToolUse\",permissionDecision:\"deny\",permissionDecisionReason:\"This file is generated from a YAML source under definitions/yaml/ and is overwritten by the definitions build. Edit the matching YAML file instead, then regenerate with: cd definitions && npx tsx src/language.ts ../packages/sparkdown/language\"}}' ;; esac"
+            "command": "f=$(cat | jq -r '.tool_input.file_path // empty'); case \"$f\" in */language/sparkdown.language-grammar.json|*/language/sparkdown.language-config.json|*/language/sparkdown.language-snippets.json) jq -n '{hookSpecificOutput:{hookEventName:\"PreToolUse\",permissionDecision:\"deny\",permissionDecisionReason:\"This file is generated from a YAML source under definitions/yaml/ and is overwritten by the definitions build (which also propagates it to the vscode-sparkdown checkout). Edit the matching YAML file instead, then regenerate with: cd definitions && npx tsx src/language.ts ../packages/sparkdown/language\"}}' ;; esac"
           }
         ]
       }
