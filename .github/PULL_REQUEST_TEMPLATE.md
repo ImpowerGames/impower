@@ -1,35 +1,45 @@
 <!--
-Title: conventional commit form with the package or area as scope and the issue number at the end. Example: "fix(compiler): accumulate all matching filtered_layers (#302)". Types: fix, feat, perf, refactor, test, docs, chore, build.
+Title: conventional commit form, `type(scope): summary`, with the issue number at the end when there is one. Types: feat, fix, perf, refactor, test, docs, chore, build, ci. Scope is the package or area (compiler, engine, web-editor, vscode, sparkle, github). Example: "fix(compiler): accumulate all matching filtered_layers (#302)".
 
-Open as a draft and mark it ready only after review. Keep every heading below, in this order; write "None" or "Not applicable" with a one-line reason under a heading rather than deleting it. A performance cost the change knowingly carries goes at the very top of the body, above the first heading. Delete these comments before opening.
+Open as a draft until it is ready for review. Keep every heading; write "None" or "Not applicable" with a short reason under one that does not apply. Delete these comments before opening.
 -->
 
-Closes #
+## Summary
 
-## What broke and why
+<!-- One to three sentences a reviewer could repeat to someone else: what this pull request does. -->
 
-<!-- For a bug: the wrong behavior and its mechanism, with file:line references at the base commit. For a feature or task: the goal and the decision this implements, pointing at the issue. -->
+## Motivation
 
-## The fix
+<!-- Why the change is needed. Link the issue it resolves ("Closes #123") or, when there is no issue, describe the need here. For a bug fix, state what was going wrong and the cause, with file:line references at the base commit. -->
 
-<!-- What changed and how it works now. Name each file touched and why. Mention any alternative rejected during the work and the reason, where a reviewer could reasonably ask. -->
+## Changes
 
-## Regression test
+<!-- What changed, as a bulleted list grouped by package or area. Call out anything that changes behavior, a public API, the Sparkdown syntax, or a generated file. Mention alternatives you rejected where a reviewer could reasonably ask. -->
 
-<!-- Path of each test added or changed. For a bug: the assertion it fails with on the pre-fix source, and confirmation that it passes after. For a feature: what each test proves. -->
+## Type of change
 
-## Suite results
+<!-- Check all that apply. -->
 
-<!-- Which suites ran, with the command per package, and the actual Test Files and Tests counts. Name any pre-existing failure and confirm it also fails on origin/main. -->
+- [ ] Bug fix
+- [ ] New feature
+- [ ] Refactor or cleanup (no behavior change)
+- [ ] Performance
+- [ ] Documentation
+- [ ] Build, tooling, or CI
+- [ ] Breaking change (describe the migration under Changes)
 
-## Verification
+## Testing and verification
 
-<!-- For anything visible: before and after screenshots of the running editor, extension, or player. Otherwise the before and after measurement that replaces them, with absolute numbers and how they were taken. For configuration or tooling changes: what was run to prove the change does what it claims. -->
+<!-- How you know it works. List tests added or changed with their paths, and the commands run with their results. For a bug fix, confirm the new test fails without the fix. For anything visible, attach before and after screenshots of the running editor, extension, or player. For performance, give before and after numbers and how they were measured. For tooling or configuration, say what you ran to prove the change does what it claims. -->
 
-## Review
+## Checklist
 
-<!-- Findings from adversarial or human review and what happened to each: fixed in which commit, or declined and why. Write "Not yet reviewed" when opening the draft. -->
+- [ ] Tests pass locally for the packages this touches
+- [ ] Visual changes were checked by looking at the running app, with screenshots attached above
+- [ ] Generated files were regenerated from their source with the repo's tooling, never edited directly
+- [ ] Documentation was updated where behavior changed
+- [ ] The pull request body was read back after opening
 
-## Follow-ups
+## Notes for reviewers
 
-<!-- Work deliberately left out, each with the issue that tracks it. -->
+<!-- Trade-offs, known limitations, follow-up work with the issue that tracks it, and where a careful reviewer should look first. -->

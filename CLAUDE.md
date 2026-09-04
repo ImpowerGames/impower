@@ -54,7 +54,7 @@ Every issue and pull request follows a template under `.github/`. GitHub only fi
 | Task (refactor, tooling, perf, docs, follow-up)  | `.github/ISSUE_TEMPLATE/task.md`            |
 | Pull request                                     | `.github/PULL_REQUEST_TEMPLATE.md`          |
 
-Each template's leading comment gives the title convention and the label list; its `type:` front matter names the issue type to set (`Bug`, `Feature`, or `Task`). Keep every heading, write "Not yet known" or "Not applicable" under one you cannot fill, and strip the HTML comments before filing. After filing, read the artifact back (`gh issue view N --json body`, `gh pr view N --json body`).
+Each template's leading comment gives the title convention and the label list; its `type:` front matter names the issue type to set (`Bug`, `Feature`, or `Task`). Keep every heading, write "None", "Unknown", or "Not applicable" with a short reason under one you cannot fill, tick only the checklist items you actually did, and strip the HTML comments before filing. After filing, read the artifact back (`gh issue view N --json body`, `gh pr view N --json body`).
 
 ## Multi-line bodies for `gh` and `git` (silent-corruption footgun)
 
