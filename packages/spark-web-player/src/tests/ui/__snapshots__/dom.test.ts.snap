@@ -698,7 +698,7 @@ spark-web-player #game .loading_fill {
   width: 100%;
   height: 100%;
   background-color: var(--theme-color-cyan_60);
-  transform: scaleX(var(--loading_progress, 0));
+  transform: scaleX(0);
   transform-origin: left;
   transition: transform 0.15s linear;
 }
@@ -2023,6 +2023,7 @@ spark-web-player #game .continue_indicator {
                       "children": [
                         {
                           "class": "loading_fill",
+                          "style": "transform: scaleX(0);",
                           "tag": "div",
                         },
                       ],
@@ -2864,7 +2865,7 @@ spark-web-player #game .loading_fill {
   width: 100%;
   height: 100%;
   background-color: var(--theme-color-cyan_60);
-  transform: scaleX(var(--loading_progress, 0));
+  transform: scaleX(0);
   transform-origin: left;
   transition: transform 0.15s linear;
 }
@@ -4189,6 +4190,7 @@ spark-web-player #game .continue_indicator {
                       "children": [
                         {
                           "class": "loading_fill",
+                          "style": "transform: scaleX(0);",
                           "tag": "div",
                         },
                       ],
@@ -4992,7 +4994,7 @@ spark-web-player #game .loading_fill {
   width: 100%;
   height: 100%;
   background-color: var(--theme-color-cyan_60);
-  transform: scaleX(var(--loading_progress, 0));
+  transform: scaleX(0);
   transform-origin: left;
   transition: transform 0.15s linear;
 }
@@ -6317,6 +6319,7 @@ spark-web-player #game .continue_indicator {
                       "children": [
                         {
                           "class": "loading_fill",
+                          "style": "transform: scaleX(0);",
                           "tag": "div",
                         },
                       ],
@@ -7242,7 +7245,7 @@ spark-web-player #game .loading_fill {
   width: 100%;
   height: 100%;
   background-color: var(--theme-color-cyan_60);
-  transform: scaleX(var(--loading_progress, 0));
+  transform: scaleX(0);
   transform-origin: left;
   transition: transform 0.15s linear;
 }
@@ -8567,6 +8570,7 @@ spark-web-player #game .continue_indicator {
                       "children": [
                         {
                           "class": "loading_fill",
+                          "style": "transform: scaleX(0);",
                           "tag": "div",
                         },
                       ],
@@ -9351,7 +9355,7 @@ spark-web-player #game .loading_fill {
   width: 100%;
   height: 100%;
   background-color: var(--theme-color-cyan_60);
-  transform: scaleX(var(--loading_progress, 0));
+  transform: scaleX(0);
   transform-origin: left;
   transition: transform 0.15s linear;
 }
@@ -10676,6 +10680,7 @@ spark-web-player #game .continue_indicator {
                       "children": [
                         {
                           "class": "loading_fill",
+                          "style": "transform: scaleX(0);",
                           "tag": "div",
                         },
                       ],
@@ -11442,7 +11447,7 @@ spark-web-player #game .loading_fill {
   width: 100%;
   height: 100%;
   background-color: var(--theme-color-cyan_60);
-  transform: scaleX(var(--loading_progress, 0));
+  transform: scaleX(0);
   transform-origin: left;
   transition: transform 0.15s linear;
 }
@@ -12767,6 +12772,7 @@ spark-web-player #game .continue_indicator {
                       "children": [
                         {
                           "class": "loading_fill",
+                          "style": "transform: scaleX(0);",
                           "tag": "div",
                         },
                       ],
@@ -13583,7 +13589,7 @@ spark-web-player #game .loading_fill {
   width: 100%;
   height: 100%;
   background-color: var(--theme-color-cyan_60);
-  transform: scaleX(var(--loading_progress, 0));
+  transform: scaleX(0);
   transform-origin: left;
   transition: transform 0.15s linear;
 }
@@ -14908,6 +14914,7 @@ spark-web-player #game .continue_indicator {
                       "children": [
                         {
                           "class": "loading_fill",
+                          "style": "transform: scaleX(0);",
                           "tag": "div",
                         },
                       ],
@@ -15691,7 +15698,7 @@ spark-web-player #game .loading_fill {
   width: 100%;
   height: 100%;
   background-color: var(--theme-color-cyan_60);
-  transform: scaleX(var(--loading_progress, 0));
+  transform: scaleX(0);
   transform-origin: left;
   transition: transform 0.15s linear;
 }
@@ -17016,6 +17023,7 @@ spark-web-player #game .continue_indicator {
                       "children": [
                         {
                           "class": "loading_fill",
+                          "style": "transform: scaleX(0);",
                           "tag": "div",
                         },
                       ],
@@ -17799,7 +17807,7 @@ spark-web-player #game .loading_fill {
   width: 100%;
   height: 100%;
   background-color: var(--theme-color-cyan_60);
-  transform: scaleX(var(--loading_progress, 0));
+  transform: scaleX(0);
   transform-origin: left;
   transition: transform 0.15s linear;
 }
@@ -19124,6 +19132,7 @@ spark-web-player #game .continue_indicator {
                       "children": [
                         {
                           "class": "loading_fill",
+                          "style": "transform: scaleX(0);",
                           "tag": "div",
                         },
                       ],
@@ -19907,7 +19916,7 @@ spark-web-player #game .loading_fill {
   width: 100%;
   height: 100%;
   background-color: var(--theme-color-cyan_60);
-  transform: scaleX(var(--loading_progress, 0));
+  transform: scaleX(0);
   transform-origin: left;
   transition: transform 0.15s linear;
 }
@@ -21232,6 +21241,7 @@ spark-web-player #game .continue_indicator {
                       "children": [
                         {
                           "class": "loading_fill",
+                          "style": "transform: scaleX(0);",
                           "tag": "div",
                         },
                       ],
@@ -22015,7 +22025,7 @@ spark-web-player #game .loading_fill {
   width: 100%;
   height: 100%;
   background-color: var(--theme-color-cyan_60);
-  transform: scaleX(var(--loading_progress, 0));
+  transform: scaleX(0);
   transform-origin: left;
   transition: transform 0.15s linear;
 }
@@ -23340,6 +23350,7 @@ spark-web-player #game .continue_indicator {
                       "children": [
                         {
                           "class": "loading_fill",
+                          "style": "transform: scaleX(0);",
                           "tag": "div",
                         },
                       ],

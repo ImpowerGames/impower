@@ -3449,12 +3449,54 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
   protected _loading?: { openedAt: number; transition?: string };
 
-  protected _loadingProgress?: number;
+  /** The last `loaded/total` pair published to `game.loading`, so a repeated
+   *  progress report does not re-run bindings for nothing. */
+  protected _loadingReported?: string;
+
+  /** Write fields of the live `game.loading` table, the engine state a layout
+   *  reads through bindings such as `{game.loading.percent}`. The values go
+   *  into the table in place and the table is recorded as a reactive change,
+   *  so on the next refresh only the bindings that read it re-run. Nothing
+   *  here is saved: `game` is a builtin define with no `store` props. */
+  protected setLoadingState(
+    fields: Partial<{
+      active: boolean;
+      name: string;
+      loaded: number;
+      total: number;
+      progress: number;
+      percent: number;
+    }>,
+  ): void {
+    const vs = this._game.story?.variablesState;
+    const game = vs?.GetVariableWithName("game");
+    const loading =
+      game instanceof ObjectValue ? game.value?.get("loading") : undefined;
+    if (!vs || !(loading instanceof ObjectValue) || !loading.value) {
+      return;
+    }
+    for (const [key, raw] of Object.entries(fields)) {
+      if (raw === undefined) {
+        continue;
+      }
+      const value =
+        typeof raw === "boolean"
+          ? new BoolValue(raw)
+          : typeof raw === "string"
+            ? new StringValue(raw)
+            : Number.isInteger(raw)
+              ? new IntValue(raw)
+              : new FloatValue(raw);
+      loading.value.set(key, value);
+    }
+    vs.recordReactiveTableChange(loading.value);
+  }
 
   /** Open the `loading` layout for a `load` beat (or adopt it if the author
-   *  already opened it), with the given transition or the configured one.
-   *  Never in preview or simulation. */
-  beginLoading(transition?: string): void {
+   *  already opened it), with the given transition or the configured one, and
+   *  publish the load's start to `game.loading`. Never in preview or
+   *  simulation. */
+  beginLoading(transition?: string, scene?: string): void {
     if (this.context.system.previewing || this.context.system.simulating) {
       return;
     }
@@ -3464,7 +3506,16 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       openedAt: this.context.system.now(),
       transition: resolved,
     };
-    this._loadingProgress = undefined;
+    this._loadingReported = undefined;
+    this.setLoadingState({
+      active: true,
+      name: scene ?? "",
+      loaded: 0,
+      total: 0,
+      progress: 0,
+      percent: 0,
+    });
+    this.refreshLayouts();
     if (!this._mountedLayouts.has("loading")) {
       void this.openLayout(
         "loading",
@@ -3474,25 +3525,29 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     }
   }
 
-  /** Write the load's progress (0 to 1) as `--loading_progress` on the
-   *  loading layout's root, so any descendant, including one in a replaced
-   *  tree, can read it with `var()`. Nothing lands in the serialized style
-   *  state. */
+  /** Publish a load's progress to `game.loading` (`loaded`, `total`,
+   *  `progress` from 0 to 1, `percent` as a whole number) and refresh the
+   *  mounted layouts, so every binding that reads it follows, the built-in
+   *  bar's scale included. Accepted while a load is running or while the
+   *  author has the layout open themselves. */
   updateLoading(progress: { loaded: number; total: number }): void {
-    const entry = this._mountedLayouts.get("loading");
-    if (!entry) {
+    if (!this._loading && !this._mountedLayouts.has("loading")) {
       return;
     }
+    const reported = `${progress.loaded}/${progress.total}`;
+    if (this._loadingReported === reported) {
+      return;
+    }
+    this._loadingReported = reported;
     const ratio =
       progress.total > 0 ? Math.min(1, progress.loaded / progress.total) : 0;
-    const rounded = Math.round(ratio * 100) / 100;
-    if (this._loadingProgress === rounded) {
-      return;
-    }
-    this._loadingProgress = rounded;
-    this.updateElement(entry.element, {
-      style: { "--loading_progress": String(rounded) },
+    this.setLoadingState({
+      loaded: progress.loaded,
+      total: progress.total,
+      progress: Math.round(ratio * 100) / 100,
+      percent: Math.round(ratio * 100),
     });
+    this.refreshLayouts();
   }
 
   /** Close the loading layout once it has been up for at least
@@ -3500,10 +3555,18 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   async endLoading(): Promise<void> {
     const loading = this._loading;
     this._loading = undefined;
-    this._loadingProgress = undefined;
     if (!loading) {
       return;
     }
+    // A load that never reported progress had nothing left to fetch: show it
+    // complete rather than leaving the bar at zero for the minimum display.
+    this.setLoadingState(
+      this._loadingReported === undefined
+        ? { active: false, progress: 1, percent: 100 }
+        : { active: false },
+    );
+    this._loadingReported = undefined;
+    this.refreshLayouts();
     const minSeconds = this._game.module.assets?.config.loading_min ?? 0;
     const elapsedMs = this.context.system.now() - loading.openedAt;
     const waitMs = Math.max(0, minSeconds * 1000 - elapsedMs);

@@ -629,6 +629,7 @@ export class AssetModule extends Module<
     const worlds = (this.context as Record<string, any>)?.["world"];
     const tasks: Promise<unknown>[] = [];
     const pins: string[] = [];
+    const names: string[] = [];
     let transition: string | undefined;
     for (const load of loads) {
       const name = load.name;
@@ -645,6 +646,7 @@ export class AssetModule extends Module<
         );
         continue;
       }
+      names.push(name);
       if (entry) {
         const beats =
           config.load_distance > 0
@@ -685,7 +687,7 @@ export class AssetModule extends Module<
     }
     const ui = this._game.module.ui;
     this._activeLoadPins = pins;
-    ui.beginLoading(transition);
+    ui.beginLoading(transition, names[0]);
     let finished = false;
     const finish = () => {
       if (finished) {

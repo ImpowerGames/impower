@@ -17416,6 +17416,20 @@
           "unicode_range": "U+0-10FFFF"
         }
       },
+      "game": {
+        "$default": {
+          "$name": "$default",
+          "$type": "game",
+          "loading": {
+            "active": false,
+            "loaded": 0,
+            "name": "",
+            "percent": 0,
+            "progress": 0,
+            "total": 0
+          }
+        }
+      },
       "gradient": {
         "$default": {
           "$name": "$default",
@@ -17608,7 +17622,7 @@
           "loading_backdrop": {},
           "loading_content": {
             "loading_bar": {
-              "loading_fill": {}
+              "loading_fill": "scaleX({game.loading.progress})"
             }
           }
         },
@@ -18984,7 +18998,7 @@
           "$type": "style",
           "background_color": "cyan_60",
           "height": "100%",
-          "transform": "scaleX(var(--loading_progress, 0))",
+          "transform": "scaleX(0)",
           "transform_origin": "left",
           "transition": "transform 0.15s linear",
           "width": "100%"
@@ -89610,6 +89624,20 @@
           "unicode_range": "U+0-10FFFF"
         }
       },
+      "game": {
+        "$default": {
+          "$name": "$default",
+          "$type": "game",
+          "loading": {
+            "active": false,
+            "loaded": 0,
+            "name": "",
+            "percent": 0,
+            "progress": 0,
+            "total": 0
+          }
+        }
+      },
       "gradient": {
         "$default": {
           "$name": "$default",
@@ -89802,7 +89830,7 @@
           "loading_backdrop": {},
           "loading_content": {
             "loading_bar": {
-              "loading_fill": {}
+              "loading_fill": "scaleX({game.loading.progress})"
             }
           }
         },
@@ -91178,7 +91206,7 @@
           "$type": "style",
           "background_color": "cyan_60",
           "height": "100%",
-          "transform": "scaleX(var(--loading_progress, 0))",
+          "transform": "scaleX(0)",
           "transform_origin": "left",
           "transition": "transform 0.15s linear",
           "width": "100%"

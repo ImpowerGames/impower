@@ -197,6 +197,27 @@ function getCompiledPrelude(): {
   setBuiltinTypeNames(Object.keys(_cachedPrelude.context));
   return _cachedPrelude;
 }
+
+let _preludeGlobalNames: Set<string> | undefined;
+/** Every global the seeded prelude creates: a type's root table (`config`,
+ *  `game`) and each named define (`assets`, `ui`, the colors, …). An unseeded
+ *  compile declares them so references resolve (Story.DeclareBuiltinGlobals). */
+function getPreludeGlobalNames(): Set<string> {
+  if (_preludeGlobalNames) {
+    return _preludeGlobalNames;
+  }
+  const names = new Set<string>();
+  for (const [type, structs] of Object.entries(getCompiledPrelude().context)) {
+    names.add(type);
+    for (const name of Object.keys(structs ?? {})) {
+      if (!name.startsWith("$")) {
+        names.add(name);
+      }
+    }
+  }
+  _preludeGlobalNames = names;
+  return names;
+}
 const FILE_TYPES = GRAMMAR_DEFINITION.fileTypes;
 
 export type SparkdownCompilerEvents = {
@@ -1287,6 +1308,14 @@ export class SparkdownCompiler {
             (this._renamedFlowNames ??= new Set()).add(flowName);
           }
         }
+      }
+      // An unseeded compile has no runtime table for any builtin define, but
+      // every host seeds them at runtime, so their names must still resolve.
+      if (
+        this._config.useBuiltinsPrelude !== false &&
+        !this._config.seedBuiltinsIntoStory
+      ) {
+        parsedStory.DeclareBuiltinGlobals(getPreludeGlobalNames());
       }
       profile("start", this._profilerId, "ink/compile", uri);
       const story = parsedStory.ExportRuntime(onDiagnostic);

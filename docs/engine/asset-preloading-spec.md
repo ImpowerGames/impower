@@ -159,7 +159,7 @@ In preview a `load` beat only prefetches the scene's visuals: no layout, no worl
 
 `loading` is an engine-managed layout, like `main`: navigation never closes it, checkpoints never record it, restores never mount it, and opening or closing it during preview or simulation is a no-op.
 
-The built-in layout is a full-screen backdrop with a centered progress bar. Its root style carries `z_index = 1000` and `pointer_events = auto`, so it stacks above every other layout and swallows clicks. Authors replace it with `layout loading with … end` and restyle it with `style loading with … end`; both work with no engine involvement. The engine writes `--loading_progress` (0 to 1) on the layout's root element, so any descendant of a replaced tree can read it with `var()`. The layout's own styles must not name a project font.
+The built-in layout is a full-screen backdrop with a centered progress bar. Its root style carries `z_index = 1000` and `pointer_events = auto`, so it stacks above every other layout and swallows clicks. Authors replace it with `layout loading with … end` and restyle it with `style loading with … end`; both work with no engine involvement. Progress reaches the layout through the reactive `game.loading` table, a builtin define with no `store` props (so nothing of it is saved): the engine writes `active`, `name`, `loaded`, `total`, `progress` (0 to 1), and `percent` (0 to 100) into the live table in place, records the table as a reactive change, and refreshes the mounted layouts, so only the bindings that read it re-run. The built-in bar is `loading_fill #transform="scaleX({game.loading.progress})"`; a replaced tree binds the same values, for example `text "Loading {game.loading.percent}%"`.
 
 ## Config
 

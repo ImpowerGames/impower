@@ -65,6 +65,18 @@ const playing = (game: Game) => {
   game.context.system.previewing = undefined;
 };
 
+/** The live `game.loading` table as a plain object (the engine writes it in
+ *  place; a binding reads it). */
+const loadingTable = (game: any): Record<string, unknown> => {
+  const table = game.story.variablesState.GetVariableWithName("game");
+  const loading = table?.value?.get("loading");
+  const out: Record<string, unknown> = {};
+  for (const [key, value] of loading?.value ?? []) {
+    out[key] = value?.value;
+  }
+  return out;
+};
+
 describe("AssetModule", () => {
   it("configures the page's cache at connect from `config.assets`", async () => {
     const h = createHarness(STORY, 0, { assets: ASSETS });
@@ -216,21 +228,25 @@ describe("AssetModule", () => {
     expect(ui._mountedLayouts.has("loading")).toBe(true);
     coordinator.onUpdate(tick());
     expect(coordinator.shouldContinue()).toBe(0);
-    // Progress reaches the layout root as a custom property.
+    // Progress reaches the live `game.loading` table, and the built-in
+    // bar's bound scale follows it.
+    expect(loadingTable(h.game)).toMatchObject({ active: true, name: "B" });
     h.game.connection.receive({
       jsonrpc: "2.0",
       method: "assets/progress",
       params: { pin: "load:B", loaded: 1, failed: 0, total: 2 },
     } as any);
-    // UI updates are batched and flushed on a microtask.
     await flushMicrotasks();
-    const progressWrites = h
+    expect(loadingTable(h.game)).toMatchObject({
+      loaded: 1,
+      total: 2,
+      progress: 0.5,
+      percent: 50,
+    });
+    const scaleWrites = h
       .snapshotFiltered("ui/update")
-      .filter((m: any) => m.params?.style?.["--loading_progress"] != null);
-    expect(progressWrites.length).toBe(1);
-    expect((progressWrites[0] as any).params.style["--loading_progress"]).toBe(
-      "0.5",
-    );
+      .filter((m: any) => m.params?.style?.["transform"] === "scaleX(0.5)");
+    expect(scaleWrites.length).toBe(1);
     // The page answers; the layout stays for its minimum display time, then
     // closes and the beat advances by itself.
     h.releaseAssets();

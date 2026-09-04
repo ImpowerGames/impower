@@ -498,7 +498,7 @@ export const uiBuiltinDefinitions = () => ({
       width: "100%",
       height: "100%",
       background_color: "cyan_60",
-      transform: "scaleX(var(--loading_progress, 0))",
+      transform: "scaleX(0)",
       transform_origin: "left",
       transition: "transform 0.15s linear",
     }),

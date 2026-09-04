@@ -1,6 +1,6 @@
 // The built-in `loading` layout as the DOM sees it: its tree, its stacking
-// above every other layout, and the progress variable the engine writes on
-// its root, which a replaced tree still receives.
+// above every other layout, and the progress it takes from the reactive
+// `game.loading` table, which a replaced tree can bind as well.
 
 import { describe, expect, test } from "vitest";
 import { createDOMHarness, flushMicrotasks } from "./domTestHarness";
@@ -39,18 +39,31 @@ describe("the loading layout", () => {
     const css = sheet(h);
     expect(css).toMatch(/\.loading\s*\{[^}]*z-index:\s*1000/);
     expect(css).not.toMatch(/\.main\s*\{[^}]*z-index/);
-    expect(css).toMatch(/\.loading_fill\s*\{[^}]*var\(--loading_progress,\s*0\)/);
   });
 
-  test("receives progress on its root, even when the author replaced the tree", async () => {
+  test("scales the built-in bar from game.loading", async () => {
+    const h = await render(STORY);
+    const fill = h.overlay.querySelector(".loading_fill") as HTMLElement | null;
+    expect(fill).not.toBeNull();
+    expect(fill!.style.transform).toBe("scaleX(0)");
+    (h.game.module.ui as any).updateLoading({ loaded: 1, total: 4 });
+    await flushMicrotasks(20);
+    expect(fill!.style.transform).toBe("scaleX(0.25)");
+    (h.game.module.ui as any).updateLoading({ loaded: 4, total: 4 });
+    await flushMicrotasks(20);
+    expect(fill!.style.transform).toBe("scaleX(1)");
+  });
+
+  test("lets a replaced tree bind the progress itself", async () => {
     const h = await render(
-      `layout loading with\n  text "Please wait"\nend\n\n${STORY}`,
+      `layout loading with\n  text "Loading {game.loading.percent}%"\nend\n\n${STORY}`,
     );
     const root = h.overlay.querySelector(".loading") as HTMLElement | null;
     expect(root).not.toBeNull();
     expect(root!.querySelector(".loading_fill")).toBeNull();
+    expect(root!.textContent).toContain("Loading 0%");
     (h.game.module.ui as any).updateLoading({ loaded: 1, total: 4 });
     await flushMicrotasks(20);
-    expect(root!.style.getPropertyValue("--loading_progress")).toBe("0.25");
+    expect(root!.textContent).toContain("Loading 25%");
   });
 });
