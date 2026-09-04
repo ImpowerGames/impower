@@ -256,6 +256,8 @@ end
 
     const result = plan(story, fromPath, toPath, functions);
     expect(result).toBeNull();
+    expect(lastSearchStats.endReason).toBe("exhausted");
+    expect(lastSearchStats.stepsUsed).toBeLessThan(30);
   });
 
   test("guard returns false while the starting knot is on the call stack via tunnel", () => {
@@ -284,3 +286,4 @@ end
     expect(result).not.toBeNull();
   });
 });
+

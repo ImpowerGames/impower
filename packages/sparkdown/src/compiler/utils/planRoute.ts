@@ -875,9 +875,6 @@ const exitedKnot = (
       if (elKnot === knotName) {
         return false;
       }
-      if (functions.includes(elKnot)) {
-        return false;
-      }
     }
   }
 
