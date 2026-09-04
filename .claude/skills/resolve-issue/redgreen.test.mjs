@@ -287,6 +287,83 @@ check("a test command the shell cannot run is a shell problem, not a red", () =>
   assert.equal(libText(dir), NEW);
 });
 
+check("a file that cannot be reverted is a problem, the red run is skipped, and the report still comes back", () => {
+  const dir = makeRepo();
+  applyFix(dir);
+  fs.writeFileSync(path.join(dir, "other.mjs"), "export const other = 1;\n");
+  git(dir, "add", "other.mjs");
+  git(dir, "commit", "-q", "-m", "other");
+  fs.writeFileSync(path.join(dir, "other.mjs"), "export const other = 2;\n");
+  // The second file is read-only before the call, so its revert write fails
+  // after the first file has already been reverted.
+  fs.chmodSync(path.join(dir, "other.mjs"), 0o444);
+  const r = run(dir, { files: ["lib.mjs", "other.mjs"] });
+  fs.chmodSync(path.join(dir, "other.mjs"), 0o644);
+  assert.equal(r.ok, false);
+  assert.equal(r.red, null);
+  assert.equal(r.green.skipped, true);
+  assert.match(r.problems.join("\n"), /other\.mjs could not be reverted/);
+  // The first file was reverted and comes back; the second was never touched
+  // and is not accused of changing.
+  assert.equal(r.files[0].reverted, true);
+  assert.equal(r.files[0].matches, true);
+  assert.equal(r.files[1].reverted, false);
+  assert.equal(r.files[1].changedDuringRed, false);
+  assert.equal(r.files[1].matches, true);
+  assert.equal(libText(dir), NEW);
+  assert.equal(fs.readFileSync(path.join(dir, "other.mjs"), "utf8"), "export const other = 2;\n");
+});
+
+check("a file that cannot be read back during the restore does not stop the other files coming back", () => {
+  const dir = makeRepo();
+  applyFix(dir);
+  fs.writeFileSync(path.join(dir, "c.mjs"), "export const c = 1;\n");
+  git(dir, "add", "c.mjs");
+  git(dir, "commit", "-q", "-m", "c");
+  fs.writeFileSync(path.join(dir, "c.mjs"), "export const c = 2;\n");
+  // The red run replaces lib.mjs with a directory, so the restore's read of it
+  // throws; c.mjs must still be restored and the report must still return.
+  fs.writeFileSync(
+    path.join(dir, "swap.mjs"),
+    ['import fs from "node:fs";', 'fs.rmSync("lib.mjs");', 'fs.mkdirSync("lib.mjs");', 'console.error("AssertionError: still old");', "process.exit(1);"].join("\n") + "\n",
+  );
+  const r = run(dir, { test: `${NODE} swap.mjs`, files: ["lib.mjs", "c.mjs"] });
+  assert.equal(r.ok, false);
+  assert.equal(r.files[0].matches, false);
+  assert.match(r.problems.join("\n"), /lib\.mjs could not be checked or restored|lib\.mjs changed while it was reverted/);
+  assert.equal(r.files[1].restored, true);
+  assert.equal(r.files[1].matches, true);
+  assert.equal(fs.readFileSync(path.join(dir, "c.mjs"), "utf8"), "export const c = 2;\n");
+  assert.equal(fs.readFileSync(r.files[0].snapshotPath, "utf8"), NEW);
+  assert.equal(process.listenerCount("SIGINT"), 0);
+});
+
+check("two paths that flatten to the same name get distinct snapshot files", () => {
+  const dir = makeRepo();
+  fs.mkdirSync(path.join(dir, "src", "a"), { recursive: true });
+  fs.writeFileSync(path.join(dir, "src", "a__b.txt"), "flat\n");
+  fs.writeFileSync(path.join(dir, "src", "a", "b.txt"), "nested\n");
+  git(dir, "add", ".");
+  git(dir, "commit", "-q", "-m", "two");
+  applyFix(dir);
+  fs.writeFileSync(path.join(dir, "src", "a__b.txt"), "flat fixed\n");
+  fs.writeFileSync(path.join(dir, "src", "a", "b.txt"), "nested fixed\n");
+  const r = run(dir, { files: ["lib.mjs", "src/a__b.txt", "src/a/b.txt"] });
+  assert.equal(r.ok, true, JSON.stringify(r.problems));
+  assert.notEqual(r.files[1].snapshotPath, r.files[2].snapshotPath);
+  assert.equal(fs.readFileSync(r.files[1].snapshotPath, "utf8"), "flat fixed\n");
+  assert.equal(fs.readFileSync(r.files[2].snapshotPath, "utf8"), "nested fixed\n");
+});
+
+check("a --test whose own script does not exist is a shell problem, not an import break", () => {
+  const dir = makeRepo();
+  applyFix(dir);
+  const r = run(dir, { test: `${NODE} redgreen.tests.mjs` });
+  assert.equal(r.ok, false);
+  assert.equal(r.red.reason, "shell");
+  assert.match(r.problems.join("\n"), /could not run/);
+});
+
 check("classifyRedFailure tells the reasons apart on real runner output", () => {
   assert.equal(classifyRedFailure("Error [ERR_MODULE_NOT_FOUND]: Cannot find module"), "import");
   assert.equal(classifyRedFailure('Error: Failed to resolve import "./x" from "y.ts"'), "import");
@@ -305,6 +382,16 @@ check("classifyRedFailure tells the reasons apart on real runner output", () => 
   );
   assert.equal(classifyRedFailure("Error: ENOENT: no such file or directory, open 'x'"), "unknown");
   assert.equal(classifyRedFailure(""), "unknown");
+  // Word-bounded: a date is not an assertion, and TAP is one.
+  assert.equal(classifyRedFailure("Error: could not reach the license server on 3 October 2026; aborting"), "unknown");
+  assert.equal(classifyRedFailure("TAP version 13\nnot ok 1 - value is new\n  operator: strictEqual"), "assertion");
+  assert.equal(classifyRedFailure("expect(received).toBe(expected)\nExpected: 2\nReceived: 3"), "assertion");
+  assert.equal(classifyRedFailure("Error: Worker exited unexpectedly"), "crash");
+  assert.equal(
+    classifyRedFailure("node:internal/modules/cjs/loader:1412\n  throw err;\n\nError: Cannot find module 'C:\\x\\redgreen.tests.mjs'\n{\n  code: 'MODULE_NOT_FOUND',\n  requireStack: []\n}"),
+    "shell",
+  );
+  assert.equal(classifyRedFailure("Error: Cannot find module './added.mjs'\n{\n  code: 'MODULE_NOT_FOUND',\n  requireStack: [ 'C:\\x\\check.mjs' ]\n}"), "import");
 });
 
 check("parseRedGreenArgs takes several files and an optional base, and refuses a flag without a value", () => {

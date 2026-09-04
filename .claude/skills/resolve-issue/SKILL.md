@@ -268,7 +268,7 @@ The steps, each usable any number of times and in any order. Every name is check
 | ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `--sd <file.sd>`         | load the script into OPFS and reload, as `verify` does; then waits for the first compile and the editor's cursor restore to settle                    |
 | `--screen <name>`        | click a tab: `logic`, `assets`, `share`, or a tab inside a pane (`main`, `scripts`, `files`, `urls`, `game`, `screenplay`); a main screen counts as active once its own content is mounted |
-| `--open <panel>`         | `find` (Ctrl+F) or `goto` (Ctrl+G); waits for the panel to be on screen; needs the script editor, so the logic screen                                  |
+| `--open <panel>`         | `find` (Ctrl+F) or `goto` (Ctrl+G); waits for the panel to be on screen; needs the script editor, so the logic screen's `main` tab                     |
 | `--close <panel>`        | Escape from inside it                                                                                                                                 |
 | `--type <field>=<text>`  | real keystrokes into `search`, `replace`, or `line`; opens the panel if needed; a literal `\n` becomes Ctrl+Enter, the field's own line break           |
 | `--press <combo>`        | one key combo, e.g. `Control+Shift+G`; a shifted lowercase letter is uppercased first (see Gotchas); the `+` key is written `Control++`                |
@@ -283,7 +283,9 @@ How to read it:
 - Every `--type` reports `readBack` — the field's rendered text, which is what a user sees; the panel's own reader agrees with it on anything `--type` can type and differs only on a non-breaking space that arrives by paste — and `matches`. A `matches: false` carries a `reason` and lands in `failed`: either the keystrokes did not land or the field changed what it was given, and both are findings, not noise.
 - `failed` lists every step that could not do what it was asked (a panel that never appeared, a tab not on the page, a read-back that differs, a step that threw). An empty list with the screenshot you wanted is the pass; a non-empty list means the screenshot is of something else. A step that fails never discards the report: the steps before it, their screenshots, and the read-back are still there.
 - `ui.screen` is the screen whose content is on display, read from the pane itself rather than from the tab highlight — on a fresh load the app highlights no screen tab at all, so the highlight would say "none" while the logic screen is plainly showing. `ui.panelTab` is the selected tab inside it. `ui.find.matches` is the panel's own match counter, which is what tells you a search took.
-- **The script editor exists only on the logic screen, and the persistent browser profile remembers which screen was last on display.** A run that ends on `assets` or `share` leaves the next run starting there; a panel step then reports `the script editor is not on screen (active screen: assets)` in `failed` rather than running. Put `--screen logic` first when the previous run may have left the profile elsewhere. `verify` switches back on its own and says so with `switchedToLogic: true`.
+- **The script editor exists only on the logic screen's `main` tab, and the persistent browser profile remembers which screen and tab were last on display.** A run that ends on `assets`, `share`, or the logic screen's `scripts` tab leaves the next run starting there; a panel step then reports `the script editor is not on screen (active screen: assets)` — or `(active screen: logic, tab: scripts); put --screen main before this step` — in `failed` rather than running. Put `--screen logic` (or `--screen main`) first when the previous run may have left the profile elsewhere. `verify` switches back on its own and reports `switchedToLogic: true` only when it actually clicked the tab.
+- **A non-empty `failed` exits 1.** `ui --sd x.sd --shot out.png && open out.png` cannot open a screenshot of the wrong document under a green shell.
+- `ui.screens` lists every main screen whose content is mounted; `ui.screen` is set only when that is exactly one. Two at once means a transition was still in flight when the read-back ran.
 
 **Then open the PNG and look**, as with `verify`. `--shot-of find` crops to the panel, which is the right picture for a panel change and useless for anything else; take `--shot` as well when the change could have moved something outside the panel.
 
@@ -305,6 +307,8 @@ What makes a timing here honest:
 - **Say where the number came from.** If no benchmark in the repo covers the path — several don't; `perfProfile.test.ts` drives `SparkdownCompiler`, whose annotate set excludes `formatting` and `semantics` — say the figure comes from a scratch harness and name what it drove.
 
 Same shape for a memory or count regression: measure the quantity over a fixed number of operations, before and after, and report both numbers.
+
+A screenshot can also be misleading rather than merely uninformative. Display text lays out with collapsing whitespace, so one space and several look the same on screen while the letter-by-letter typing pauses differently. For anything about whitespace or timing, assert on the string the engine actually consumes — `InterpreterModule.parse(source, target).text[target]` (`packages/spark-engine/src/game/modules/interpreter/classes/InterpreterModule.ts`), the text instructions joined — and treat the screenshot as a sanity check only.
 
 A performance cost the fix knowingly carries is a **headline, not a footnote** — put it at the top of the PR body.
 
@@ -370,10 +374,13 @@ It snapshots the files, reverts them to the base revision, runs the test and req
 - **The runner found no test** — `--files` named the test file itself, so the revert removed it. List only the changed sources.
 - **The test command could not run** (`reason: "shell"`): the shell reported a missing command or script. Fix `--test`.
 - **The red run's output does not read as a test failure** (`reason: "unknown"`, or no output at all). Read `red.tail` yourself: if it is the ticket's assertion in a form the command does not recognise, say so in the PR; if it is a config error, a worker crash, or a truncated run, it proves nothing.
+- **The runner crashed on the base** (`reason: "crash"`: a killed worker, an out-of-memory, a fatal error). Proves nothing; lower the caps or split the run.
+- **A file could not be reverted** (read-only, locked). The red run is not attempted; files already reverted come back, the rest were never touched.
 - **A file changed while it was reverted.** A review round, an editor, or a watcher wrote to it. The command does not restore that file — overwriting it would replace the newer edit with the snapshot, which is exactly the stale-copy failure this command exists to prevent. The file then holds the base content plus that edit, not the fix; the fix is at the `snapshotPath` the report names. Merge the two by hand and run again.
-- **A restored file does not match its snapshot** (`restoreError` says why the write failed, e.g. a read-only file). The fix is at `snapshotPath`; put it back by hand.
+- **A restored file does not match its snapshot, or could not be checked** (`restoreError` says why, e.g. a read-only file, or a path that became a directory). The fix is at `snapshotPath`; put it back by hand. The other files still come back on their own.
+- **The test failed against the fix.** The restore is verified by hash, so this is the fix itself: the test does not pass on your change.
 
-The snapshot and the restore happen inside one process, so there is no copy to go stale between review rounds; run the command again after each round rather than reusing anything from the last one. The restore also runs on Ctrl+C and on any error during the test run, and the snapshot directory is printed before the first revert, so an interrupted run leaves the fix in the tree and the copy findable.
+The snapshot and the restore happen inside one process, so there is no copy to go stale between review rounds; run the command again after each round rather than reusing anything from the last one. Once the snapshot is taken the command does not throw: the restore runs in a `finally`, every later error becomes a `problems` entry, and the report always prints. A Ctrl+C during the test run reaches the test child first, so the command returns through that `finally` and restores; a hard kill of the process (a tool timeout on Windows) restores nothing, which is why the snapshot directory is printed before the first revert.
 
 `--base` is where the pre-fix content comes from and defaults to `HEAD`. That is right only _before_ you commit. **After §6, `HEAD` is your fix**, and a baseline taken from it silently contains the very change it is supposed to lack — the run then "reproduces nothing", which reads as "the bug was never real", and `redgreen` reports the file as identical to the base and the test as pinning nothing. Once you have committed, pass `--base origin/main`. A base that does not resolve (a typo, or a remote branch never fetched in this worktree) is refused before any file is touched, as is a run from anywhere but the repository root.
 
@@ -443,6 +450,14 @@ grep -c "✓ src/" testrun.log
 ```
 
 Report the real numbers in the PR body. If a pre-existing failure is unrelated to your change, say so explicitly rather than quietly ignoring it — confirm it also fails on `origin/main`.
+
+Capture the failing-test names, not just the count. With a large pre-existing failure set — one session met 103 — equal counts do not mean equal failures: a run that fixes one test and breaks another shows the same number. Save the `FAIL` lines from the baseline run and from your branch, strip the colour codes, and diff the two lists; that is what isolates the test your change actually affected:
+
+```bash
+grep -a "FAIL " base-run.log | sed 's/\x1b\[[0-9;]*m//g' | sort -u > fail-base.txt
+grep -a "FAIL " branch-run.log | sed 's/\x1b\[[0-9;]*m//g' | sort -u > fail-branch.txt
+diff fail-base.txt fail-branch.txt
+```
 
 ---
 
@@ -560,6 +575,12 @@ git diff origin/main...HEAD > "$SCRATCH/review-diff.patch"
 ```
 
 (`...` is deliberate: changes on your branch since it diverged from `main`, not `main`'s subsequent commits.)
+
+If the change regenerates a large snapshot or other generated file, exclude it from the patch by path and tell the reviewers the command to inspect it separately — a multi-megabyte patch file wastes a reviewer's context before it reads a line of the actual change (one session's patch came out at 2.6 MB for this reason):
+
+```bash
+git diff origin/main...HEAD -- . ':(exclude)packages/sparkdown/src/tests/__snapshots__/big.snap' > "$SCRATCH/review-diff.patch"
+```
 
 Write it to your scratchpad, never into the checkout. A patch file inside the repo is one `git add -A` away from being committed, and it leaves the tree dirty for as long as the review runs — long enough to trip any hook or check that expects a clean tree, on every single run of this skill. Give reviewers the absolute path (`$SCRATCH` is your session's scratchpad directory).
 
@@ -737,11 +758,11 @@ Things that look like they work and don't:
 | A `gh` PR/issue body came out as the literal `@-`                                                          | You used `--body @-`. Use `--body-file`, then read it back with `gh pr view --json body`.                                                                                                                                                                                                   |
 | `ui` reports a panel that `did not appear within 10s of pressing`                                          | The shortcut went to something other than the script editor: the editor was not on screen (`ui.screen` says which pane is), or another panel had focus. Put `--screen logic` first; `--close` the other panel. If the editor is up and it still fails, the binding itself changed — check `customSearch.ts`'s keymap. |
 | `ui` says `no tab named "..."` and lists the tabs present                                                 | Tab values are the workspace's names (`logic`, `assets`, `share`, `main`, `scripts`), not the labels. Pick from the list in the message.                                                                                                                                                       |
-| `ui` reports `the script editor is not on screen (active screen: assets)`                                 | The previous run left the persistent profile on another screen, and panels live only on the logic screen. Put `--screen logic` first. The report is still complete; only that step did not run.                                                                                             |
+| `ui` reports `the script editor is not on screen (active screen: assets)`                                 | The previous run left the persistent profile on another screen, and panels live only on the logic screen's `main` tab. Put `--screen logic` first. The report is still complete; only that step did not run. `(active screen: logic, tab: scripts)` means the inner tab: `--screen main`. `(active screen: logic)` with no tab and "did not mount" is a cold editor on a saturated machine; re-run. |
 | `redgreen` says a file `changed while it was reverted`                                                     | Something wrote to the file while it held the base content — a review-round edit landing, an editor, a formatter, a watcher. The file now holds the base content plus that edit, not the fix; the fix is at the `snapshotPath` in the report. Merge by hand, then run again. Never copy the snapshot over the file blind. |
 | `redgreen` says the file is `identical to HEAD` and the test `pins nothing`                                | The fix is already committed, so `HEAD` contains it. Pass `--base origin/main`.                                                                                                                                                                                                             |
 | `redgreen` refuses: `--base "…" does not resolve to a commit`                                              | A typo, or a remote branch this worktree has never fetched. `git fetch origin main` and spell it `origin/main`. Nothing was touched.                                                                                                                                                       |
-| `redgreen` refuses: `run from the repository root`                                                         | It was started from a package directory. `cd` to the worktree root; the `--test` command can still `cd` into the package itself.                                                                                                                                                             |
+| `redgreen` refuses: `run from the repository root`, or `run it from this driver's own worktree root`      | Started from a package directory, or from another checkout's root. `--files` and the test command resolve from where you stand, so `cd` to the worktree that holds the driver; the `--test` command can still `cd` into the package itself.                                                 |
 | `redgreen` red `reason` is `unknown`, `ok: false`, output present                                          | The failure output did not look like an assertion to the command. Read `red.tail`: the ticket's assertion in an unfamiliar form is fine to cite (say so in the PR); anything else is not a red.                                                                                             |
 | `git show origin/main:some/path` → `fatal: ambiguous argument 'origin\main;some\path'`                     | Git Bash rewrote the `rev:path` argument as a Windows path. Prefix the command with `MSYS_NO_PATHCONV=1`, and quote the argument.                                                                                                                                                            |
 | A "pre-fix" copy pulled from `HEAD:` still contains the fix                                                | Once you have committed, `HEAD` **is** your fix. Extract the baseline from `origin/main:` instead. The failure is silent: the run looks like a baseline and reproduces nothing, which reads as "the bug isn't real".                                                                          |

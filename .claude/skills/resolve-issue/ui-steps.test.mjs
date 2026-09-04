@@ -67,7 +67,6 @@ check("an unknown panel, field, button, toggle, screen or shot target is refused
   assert.throws(() => parseUiSteps(["--type", "serch=x"]), /unknown field "serch"/);
   assert.throws(() => parseUiSteps(["--click", "closs"]), /unknown button "closs"/);
   assert.throws(() => parseUiSteps(["--toggle", "regex"]), /unknown toggle "regex"/);
-  assert.throws(() => parseUiSteps(["--screen", "Logic"]), /unknown screen "Logic"/);
   assert.throws(() => parseUiSteps(["--shot-of", "bogus", "x.png"]), /unknown --shot-of target "bogus"/);
   assert.throws(() => parseUiSteps(["--bogus"]), /unknown argument --bogus/);
 });
@@ -77,10 +76,15 @@ check("a --press combo that names no key is refused at parse time", () => {
   assert.deepEqual(parseUiSteps(["--press", "Control++"]), [{ press: "Control++" }]);
 });
 
-check("every tab the editor renders is an accepted screen name", () => {
-  for (const name of ["logic", "assets", "share", "main", "scripts", "files", "urls", "game", "screenplay"]) {
+check("a screen is any lowercase tab value, so a tab the editor grows later is not refused before the run", () => {
+  // Measured on 2026-09-04 the editor renders these nine; the parser does not
+  // pin the list, and a name that is not on the page fails at run time with
+  // the tabs present listed.
+  for (const name of ["logic", "assets", "share", "main", "scripts", "files", "urls", "game", "screenplay", "future-tab"]) {
     assert.deepEqual(parseUiSteps(["--screen", name]), [{ screen: name }]);
   }
+  assert.throws(() => parseUiSteps(["--screen", "Logic"]), /lowercase/);
+  assert.throws(() => parseUiSteps(["--screen", "main scripts"]), /lowercase/);
 });
 
 if (failures > 0) {

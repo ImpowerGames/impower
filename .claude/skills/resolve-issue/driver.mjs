@@ -27,7 +27,7 @@ import fs from "node:fs";
 import net from "node:net";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { parseRedGreenArgs, runRedGreen } from "./redgreen.mjs";
+import { gitTopLevel, parseRedGreenArgs, runRedGreen, sameDir } from "./redgreen.mjs";
 
 const SKILL_DIR = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(SKILL_DIR, "..", "..", "..");
@@ -909,12 +909,16 @@ async function waitForApp(page, timeout = 90_000) {
 
 /** The screen on display, read from pane content; null while no pane is mounted. */
 async function activeScreen(page) {
-  return page.evaluate((screens) => {
-    for (const [name, marker] of Object.entries(screens)) {
-      if (document.querySelector(`[role="tab"][id$="-trigger-${marker}"]`)) return name;
-    }
-    return null;
-  }, SCREENS);
+  const mounted = await mountedScreens(page);
+  return mounted.length === 1 ? mounted[0] : null;
+}
+
+/** Every main screen whose content is mounted; more than one means a transition is in flight. */
+async function mountedScreens(page) {
+  return page.evaluate(
+    (screens) => Object.entries(screens).filter(([, marker]) => document.querySelector(`[role="tab"][id$="-trigger-${marker}"]`)).map(([name]) => name),
+    SCREENS,
+  );
 }
 
 /**
@@ -922,16 +926,23 @@ async function activeScreen(page) {
  * by the persistent profile across runs. A command that needs the editor
  * cannot assume it is there; this says whether it is, and why not.
  */
-async function scriptEditorPresent(page, timeout = 3_000) {
+async function scriptEditorPresent(page, timeout = 10_000) {
   try {
     await page.waitForFunction(() => document.querySelector(".cm-content")?.cmTile?.view != null, null, { timeout });
     return { present: true };
   } catch {
     const screen = await activeScreen(page);
-    return {
-      present: false,
-      reason: `the script editor is not on screen (active screen: ${screen ?? "none"}); put --screen logic before this step`,
-    };
+    const panelTab = await page.evaluate(() =>
+      [...document.querySelectorAll('[role="tab"][aria-selected="true"]')].map((t) => t.id.replace(/^.*-trigger-/, "")).find((v) => !["logic", "assets", "share"].includes(v)) ?? null,
+    );
+    const where = `active screen: ${screen ?? "none"}${panelTab ? `, tab: ${panelTab}` : ""}`;
+    const advice =
+      screen === "logic" && panelTab && panelTab !== "main"
+        ? `put --screen main before this step`
+        : screen === "logic"
+          ? `the editor did not mount within ${timeout / 1000}s; the machine may be saturated, re-run`
+          : `put --screen logic before this step`;
+    return { present: false, reason: `the script editor is not on screen (${where}); ${advice}` };
   }
 }
 
@@ -950,8 +961,11 @@ async function settleEditor(page, timeout = 30_000) {
     const id = await page.evaluate(() => {
       const view = document.querySelector(".cm-content")?.cmTile?.view;
       if (!view) return null;
-      view.__driverId ??= Math.random().toString(36).slice(2);
-      return `${view.__driverId}:${view.state.doc.length}`;
+      // Identity is tracked in a WeakMap on the window, not written onto the
+      // view, so the editor is observed and not touched.
+      const ids = (window.__driverViewIds ??= new WeakMap());
+      if (!ids.has(view)) ids.set(view, Math.random().toString(36).slice(2));
+      return `${ids.get(view)}:${view.state.doc.length}`;
     });
     if (id != null && id === last) {
       stableFor += 1;
@@ -972,16 +986,21 @@ async function settleEditor(page, timeout = 30_000) {
  */
 async function ensureScriptEditor(page) {
   await waitForApp(page);
-  const first = await scriptEditorPresent(page, 5_000);
-  if (first.present) return { switched: false };
-  const logic = page.locator(tabSelector("logic")).first();
-  if (await logic.isVisible().catch(() => false)) {
-    await logic.click();
-    await waitForDomQuiet(page, { quiet: 600, timeout: 10_000 });
+  let switched = false;
+  const first = await scriptEditorPresent(page, 15_000);
+  if (!first.present) {
+    const logic = page.locator(tabSelector("logic")).first();
+    if (await logic.isVisible().catch(() => false)) {
+      await logic.click();
+      switched = true;
+      await waitForDomQuiet(page, { quiet: 600, timeout: 10_000 });
+    }
+    await waitForEditor(page);
   }
-  await waitForEditor(page);
-  await settleEditor(page);
-  return { switched: true };
+  // The view can be replaced when the document arrives, on a cold load as
+  // much as after a switch, so settle it on every path.
+  const settled = await settleEditor(page);
+  return { switched, settled };
 }
 
 function surfaceOf(name) {
@@ -1171,9 +1190,17 @@ async function switchScreen(page, name) {
     };
   }
   let settled = await waitForDomQuiet(page, { quiet: 600, timeout: 10_000 });
-  // The logic pane's editor mounts, then can be replaced when the document
-  // arrives; a step that runs before that lands in a view about to go away.
-  if (name === "logic") settled = (await settleEditor(page)) && settled;
+  // A switch that lands on the script editor (the logic screen, or its `main`
+  // tab) mounts a view that can be replaced when the document arrives; a step
+  // that runs before that lands in a view about to go away.
+  const editorHere = await page.evaluate(() => document.querySelector(".cm-content") != null);
+  if (editorHere) {
+    const editorSettled = await settleEditor(page);
+    settled = editorSettled && settled;
+    if (!editorSettled) {
+      return { screen: name, active: true, settled, reason: `the ${name} tab is up but its script editor never settled within 30s; later steps may have hit a view that was being replaced` };
+    }
+  }
   return { screen: name, active: true, settled };
 }
 
@@ -1187,7 +1214,8 @@ async function readSurfaces(page) {
       selected: t.getAttribute("aria-selected") === "true",
     })),
   );
-  out.screen = await activeScreen(page);
+  out.screens = await mountedScreens(page);
+  out.screen = out.screens.length === 1 ? out.screens[0] : null;
   out.panelTab = out.tabs.find((t) => t.selected && !(t.value in SCREENS))?.value ?? null;
 
   if (await surfaceOpen(page, "find")) {
@@ -1237,7 +1265,9 @@ async function shotOf(page, what, out) {
  */
 export function parseUiSteps(args) {
   const steps = [];
-  const knownScreens = new Set([...Object.keys(SCREENS), ...Object.values(SCREENS), "scripts", "urls", "screenplay"]);
+  // Any tab value is accepted here; the editor can grow a tab, and whether one
+  // exists is decided at run time, where the failure lists the tabs present.
+  const screenName = /^[a-z][a-z0-9-]*$/;
   const fields = Object.values(SURFACES).flatMap((s) => Object.keys(s.fields));
   const buttons = Object.values(SURFACES).flatMap((s) => s.buttons);
   const toggles = Object.values(SURFACES).flatMap((s) => s.toggles);
@@ -1258,7 +1288,7 @@ export function parseUiSteps(args) {
         break;
       case "--screen": {
         const v = value();
-        if (!knownScreens.has(v)) bad(`unknown screen "${v}" (know: ${[...knownScreens].join(", ")})`);
+        if (!screenName.test(v)) bad(`a screen is a tab value such as logic, assets, share, main, scripts (lowercase), got "${v}"`);
         steps.push({ screen: v });
         break;
       }
@@ -1342,7 +1372,16 @@ async function ui(args) {
       await page.goto(url, { waitUntil: "domcontentloaded", timeout: 120_000 });
       await waitForApp(page);
       result.startedOn = await activeScreen(page);
-      if (result.startedOn === "logic") result.editorSettled = await settleEditor(page);
+      // Settle the editor only when it is there to settle: the logic screen's
+      // `scripts` tab has no script editor, and a step that needs one reports
+      // that itself.
+      const editorHere = await page.waitForFunction(() => document.querySelector(".cm-content") != null, null, { timeout: 5_000 }).then(() => true, () => false);
+      if (editorHere) {
+        result.editorSettled = await settleEditor(page);
+        if (!result.editorSettled) {
+          result.steps.push({ start: true, reason: "the script editor never settled within 30s of the page loading; the steps below may have hit a view that was being replaced" });
+        }
+      }
 
       for (const step of steps) {
         try {
@@ -1352,16 +1391,24 @@ async function ui(args) {
             await page.reload({ waitUntil: "domcontentloaded", timeout: 120_000 });
             await waitForApp(page);
             const editor = await scriptEditorPresent(page, 60_000);
+            const out = { sd: step.sd, wroteChars };
             if (editor.present) {
-              // Same discipline as verify: let the view stop being replaced,
-              // let the first compile settle, and let the editor's
+              // As verify does on its own path: let the view stop being
+              // replaced, let the first compile settle, and let the editor's
               // asynchronous cursor restore land, before any step reads or
-              // moves the cursor.
-              await settleEditor(page);
-              await waitForPreviewSettle(page);
+              // moves the cursor. The preview is observable only in
+              // same-origin mode (window.__preview); elsewhere waiting on it
+              // would burn the full timeout for nothing.
+              out.editorSettled = await settleEditor(page);
+              const observable = await page.evaluate(() => window.__preview != null);
+              if (observable) out.previewSettled = (await waitForPreviewSettle(page)).settled;
+              else out.previewSettled = null;
+              if (!out.editorSettled) out.reason = "the script editor never settled within 30s after the reload; later steps may have hit a view that was being replaced";
+            } else {
+              out.reason = editor.reason;
             }
             await waitForDomQuiet(page, { quiet: 1500, timeout: 30_000 });
-            result.steps.push({ sd: step.sd, wroteChars, ...(editor.present ? {} : { reason: editor.reason }) });
+            result.steps.push(out);
           } else if (step.screen) {
             result.steps.push(await switchScreen(page, step.screen));
           } else if (step.open) {
@@ -1403,8 +1450,13 @@ async function ui(args) {
         result.readError = String(err.message || err).split("\n")[0];
       }
       result.failed = result.steps.filter((s) => s.reason).map((s) => s.reason);
+      if (result.readError) result.failed.push(`read-back failed: ${result.readError}`);
       result.consoleErrors = consoleLines.filter((l) => l.startsWith("[error]") || l.startsWith("[pageerror]")).slice(0, 25);
       console.log(JSON.stringify(result, null, 2));
+      // A step that could not do what it was asked is a failed run, whatever
+      // else succeeded: `ui --sd x.sd --shot out.png && open out.png` must not
+      // open a screenshot of the wrong document under a green shell.
+      process.exitCode = result.failed.length > 0 ? 1 : 0;
       return result;
     },
     { headless },
@@ -1413,12 +1465,31 @@ async function ui(args) {
 
 // ---------------------------------------------------------------- redgreen ---
 
+// Paths in --files and the test command's cwd are the directory the session
+// is standing in, which must be this driver's own worktree root: runRedGreen
+// refuses a subdirectory (git resolves rev:path from the root), and this
+// refuses another checkout, so the worktree's driver never edits main's tree.
 async function redgreenCli(args) {
   let report;
   try {
     const opts = parseRedGreenArgs(args);
+    const cwd = process.cwd();
+    if (!sameDir(cwd, REPO_ROOT)) {
+      const top = (() => {
+        try {
+          return gitTopLevel(cwd);
+        } catch {
+          return null;
+        }
+      })();
+      die(
+        top && sameDir(top, cwd)
+          ? `redgreen: run it from this driver's own worktree root (${REPO_ROOT}), not from ${cwd}, which is a different checkout`
+          : `redgreen: run from the repository root (${top ?? REPO_ROOT}), not from ${cwd}; --files paths and the test command resolve from there`,
+      );
+    }
     report = runRedGreen({
-      repoRoot: REPO_ROOT,
+      repoRoot: cwd,
       test: opts.test,
       files: opts.files,
       base: opts.base,
@@ -1527,6 +1598,7 @@ switch (cmd) {
         "  --type <field>=<text>   real keystrokes into search | replace | line; \\n = Ctrl+Enter",
         "  --press <combo>         a key combo, e.g. Control+Shift+G (a shifted letter is uppercased)",
         "  --click <button>        a panel button: next prev select replace replaceAll close submit",
+        "  --toggle <option>       flip a find-panel checkbox: case | re | word",
         "  --shot <out.png>        screenshot the page",
         "  --shot-of <what> <png>  screenshot one surface: find | goto | editor | page",
         "  --probe <file.js>       body of an async fn evaluated in the page; result -> JSON",

@@ -74,8 +74,6 @@ await check("pressKey presses the rewritten combo, not the one it was given", as
   assert.deepEqual(r, { combo: "Control+Shift+G", rewritten: true });
 });
 
-// The last case is async; settle it before deciding the exit code.
-await new Promise((r) => setTimeout(r, 0));
 if (failures > 0) {
   console.log(`\n${failures} failing`);
   process.exit(1);
