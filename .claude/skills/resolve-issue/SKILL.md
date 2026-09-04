@@ -239,13 +239,13 @@ node .claude/skills/resolve-issue/driver.mjs down
 node .claude/skills/resolve-issue/driver.mjs ui --sd repro.sd --open find --type "search=Hello" --type "replace=Goodbye" --shot-of find panel.png --shot page.png
 ```
 
-Verified output shape (steps first, then the read-back):
+Verified output shape (steps first, then the read-back; `url`, `startedOn`, `ui.tabs` and `consoleErrors` are also present and omitted here):
 
 ```json
 {
   "steps": [
     { "sd": "repro.sd", "wroteChars": 171 },
-    { "surface": "find", "opened": true, "pressed": "Control+f" },
+    { "surface": "find", "open": true, "pressed": "Control+f" },
     { "field": "search", "typed": true, "text": "Hello", "readBack": "Hello", "matches": true },
     { "field": "replace", "typed": true, "text": "Goodbye", "readBack": "Goodbye", "matches": true },
     { "of": "find", "screenshot": "C:\\...\\panel.png" },
@@ -262,26 +262,28 @@ Verified output shape (steps first, then the read-back):
 }
 ```
 
-The steps, each usable any number of times and in any order:
+The steps, each usable any number of times and in any order. Every name is checked before the browser launches, so a misspelt panel, field, button, screen or shot target, or a flag with no value, is refused at once rather than after the run:
 
-| Step                     | Does                                                                                                                                        |
-| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| `--sd <file.sd>`         | load the script into OPFS and reload, as `verify` does                                                                                      |
-| `--screen <name>`        | click a tab: `logic`, `assets`, `share`, or a tab inside a pane such as `main` / `scripts`; waits for it to report selected                 |
-| `--open <panel>`         | `find` (Ctrl+F) or `goto` (Ctrl+G); waits for the panel to be on screen                                                                     |
-| `--close <panel>`        | Escape from inside it                                                                                                                       |
-| `--type <field>=<text>`  | real keystrokes into `search`, `replace`, or `line`; opens the panel if needed; a literal `\n` becomes Ctrl+Enter, the field's own line break |
-| `--press <combo>`        | one key combo, e.g. `Control+Shift+G`; a shifted lowercase letter is uppercased first (see Gotchas)                                         |
-| `--click <button>`       | a panel button by name: `next`, `prev`, `select`, `replace`, `replaceAll`, `close`, `submit`                                                |
-| `--shot <out.png>`       | the whole page                                                                                                                              |
-| `--shot-of <what> <png>` | one surface: `find`, `goto`, `editor` (the script editor), or `page`                                                                        |
-| `--probe <file.js>`      | as in `verify`                                                                                                                              |
+| Step                     | Does                                                                                                                                                  |
+| ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--sd <file.sd>`         | load the script into OPFS and reload, as `verify` does; then waits for the first compile and the editor's cursor restore to settle                    |
+| `--screen <name>`        | click a tab: `logic`, `assets`, `share`, or a tab inside a pane (`main`, `scripts`, `files`, `urls`, `game`, `screenplay`); a main screen counts as active once its own content is mounted |
+| `--open <panel>`         | `find` (Ctrl+F) or `goto` (Ctrl+G); waits for the panel to be on screen; needs the script editor, so the logic screen                                  |
+| `--close <panel>`        | Escape from inside it                                                                                                                                 |
+| `--type <field>=<text>`  | real keystrokes into `search`, `replace`, or `line`; opens the panel if needed; a literal `\n` becomes Ctrl+Enter, the field's own line break           |
+| `--press <combo>`        | one key combo, e.g. `Control+Shift+G`; a shifted lowercase letter is uppercased first (see Gotchas); the `+` key is written `Control++`                |
+| `--click <button>`       | a panel button by name: `next`, `prev`, `select`, `replace`, `replaceAll`, `close`, `submit`; goes to whichever owning panel is open                    |
+| `--toggle <option>`      | flip a find-panel checkbox: `case`, `re`, `word`; reports the state it ended in                                                                        |
+| `--shot <out.png>`       | the whole page                                                                                                                                        |
+| `--shot-of <what> <png>` | one surface: `find`, `goto`, `editor` (the script editor), or `page`                                                                                  |
+| `--probe <file.js>`      | as in `verify`                                                                                                                                        |
 
 How to read it:
 
-- Every `--type` reports `readBack` — the field's text as the panel itself reads it — and `matches`. A `matches: false` is the first thing to look at: either the keystrokes did not land or the field changed what it was given, and both are findings, not noise.
-- `failed` lists every step that could not do what it was asked (a panel that never appeared, a tab not on the page). An empty list with the screenshot you wanted is the pass; a non-empty list means the screenshot is of something else.
-- `ui.screen` is the active main screen and `ui.panelTab` the active tab inside it. `ui.find.matches` is the panel's own match counter, which is what tells you a search took.
+- Every `--type` reports `readBack` — the field's rendered text, which is what a user sees; the panel's own reader agrees with it on anything `--type` can type and differs only on a non-breaking space that arrives by paste — and `matches`. A `matches: false` carries a `reason` and lands in `failed`: either the keystrokes did not land or the field changed what it was given, and both are findings, not noise.
+- `failed` lists every step that could not do what it was asked (a panel that never appeared, a tab not on the page, a read-back that differs, a step that threw). An empty list with the screenshot you wanted is the pass; a non-empty list means the screenshot is of something else. A step that fails never discards the report: the steps before it, their screenshots, and the read-back are still there.
+- `ui.screen` is the screen whose content is on display, read from the pane itself rather than from the tab highlight — on a fresh load the app highlights no screen tab at all, so the highlight would say "none" while the logic screen is plainly showing. `ui.panelTab` is the selected tab inside it. `ui.find.matches` is the panel's own match counter, which is what tells you a search took.
+- **The script editor exists only on the logic screen, and the persistent browser profile remembers which screen was last on display.** A run that ends on `assets` or `share` leaves the next run starting there; a panel step then reports `the script editor is not on screen (active screen: assets)` in `failed` rather than running. Put `--screen logic` first when the previous run may have left the profile elsewhere. `verify` switches back on its own and says so with `switchedToLogic: true`.
 
 **Then open the PNG and look**, as with `verify`. `--shot-of find` crops to the panel, which is the right picture for a panel change and useless for anything else; take `--shot` as well when the change could have moved something outside the panel.
 
@@ -350,24 +352,30 @@ It snapshots the files, reverts them to the base revision, runs the test and req
 {
   "ok": true,
   "base": "HEAD",
+  "baseCommit": "4538f1319…",
+  "test": "cd packages/sparkdown && …",
   "snapshotDir": "C:\\...\\Temp\\redgreen-abc123",
-  "files": [{ "path": "packages/sparkdown/src/compiler/utils/filterImage.ts", "snapshotSha": "…", "baseSha": "…", "changedDuringRed": false, "restored": true, "matches": true }],
+  "files": [{ "path": "packages/sparkdown/src/compiler/utils/filterImage.ts", "snapshotPath": "C:\\...\\redgreen-abc123\\packages__…__filterImage.ts", "snapshotSha": "…", "baseSha": "…", "changedDuringRed": false, "restored": true, "matches": true, "restoreError": null }],
   "red": { "exit": 1, "outcome": "failed", "reason": "assertion", "tail": ["…"] },
   "green": { "exit": 0, "outcome": "passed", "tail": ["…"] },
   "problems": []
 }
 ```
 
-`ok: true` is the evidence for the PR body; quote the `red.tail` assertion and the `green` count. Anything else exits non-zero and says why under `problems`:
+`ok: true` means exactly this: every named file differs from the base, the test exited non-zero on the base with output that reads as a test failure, every file came back byte-for-byte, and the test exited zero on the fix. It is an exit-code proof. **Which test failed is in `red.tail`, and reading it is your job**: a red where the ticket's new case passed and an unrelated case in the same file failed looks identical to the command. Quote the assertion from `red.tail` and the `green` count in the PR body. `ok: false` exits non-zero, and `problems` is never empty when it does:
 
 - **The test passed against the base** — it pins nothing. Either it does not assert the ticket's behaviour, or `--files` does not name where the fix lives.
+- **A file is identical to the base.** Nothing to revert in it: either the fix is committed (pass `--base origin/main`) or the file is not where the fix lives.
 - **The red run died on an import or syntax error** (`red.reason`) rather than the defect. A whole-file revert broke the test's imports; use the in-place path below.
-- **A file changed during the red run.** A review round, an editor, or a watcher wrote to it while it was reverted. The command does not restore that file — overwriting it would replace the newer edit with the snapshot, which is exactly the stale-copy failure this command exists to prevent — and names it together with the snapshot's path. Merge the two by hand and run again.
-- **A restored file does not match its snapshot**, which should not happen and means something else is writing to the tree.
+- **The runner found no test** — `--files` named the test file itself, so the revert removed it. List only the changed sources.
+- **The test command could not run** (`reason: "shell"`): the shell reported a missing command or script. Fix `--test`.
+- **The red run's output does not read as a test failure** (`reason: "unknown"`, or no output at all). Read `red.tail` yourself: if it is the ticket's assertion in a form the command does not recognise, say so in the PR; if it is a config error, a worker crash, or a truncated run, it proves nothing.
+- **A file changed while it was reverted.** A review round, an editor, or a watcher wrote to it. The command does not restore that file — overwriting it would replace the newer edit with the snapshot, which is exactly the stale-copy failure this command exists to prevent. The file then holds the base content plus that edit, not the fix; the fix is at the `snapshotPath` the report names. Merge the two by hand and run again.
+- **A restored file does not match its snapshot** (`restoreError` says why the write failed, e.g. a read-only file). The fix is at `snapshotPath`; put it back by hand.
 
-The snapshot and the restore happen inside one process, so there is no copy to go stale between review rounds; run the command again after each round rather than reusing anything from the last one.
+The snapshot and the restore happen inside one process, so there is no copy to go stale between review rounds; run the command again after each round rather than reusing anything from the last one. The restore also runs on Ctrl+C and on any error during the test run, and the snapshot directory is printed before the first revert, so an interrupted run leaves the fix in the tree and the copy findable.
 
-`--base` is where the pre-fix content comes from and defaults to `HEAD`. That is right only _before_ you commit. **After §6, `HEAD` is your fix**, and a baseline taken from it silently contains the very change it is supposed to lack — the run then "reproduces nothing", which reads as "the bug was never real", and `redgreen` reports the file as identical to the base and the test as pinning nothing. Once you have committed, pass `--base origin/main`.
+`--base` is where the pre-fix content comes from and defaults to `HEAD`. That is right only _before_ you commit. **After §6, `HEAD` is your fix**, and a baseline taken from it silently contains the very change it is supposed to lack — the run then "reproduces nothing", which reads as "the bug was never real", and `redgreen` reports the file as identical to the base and the test as pinning nothing. Once you have committed, pass `--base origin/main`. A base that does not resolve (a typo, or a remote branch never fetched in this worktree) is refused before any file is touched, as is a run from anywhere but the repository root.
 
 Where a whole-file revert would break the test's imports (the fix adds an export the test uses), simulate the old behaviour in place instead: disable the one branch that matters, or restore the old function body under the new name, run the test by hand for the red, then put the fix back. Keep a **positive control** in the file — an assertion that passes both before and after — so a red run proves the defect, not a broken harness. `redgreen` sends you here itself when the red run fails on an import.
 
@@ -668,7 +676,7 @@ Every round posts its own comments and its own adjudication. Do not edit the pre
 
 `verify` scrubs with a real mouse click on the target line, driven through Playwright. It scrolls the line into view by moving the scroller directly, checks that the coordinates are really over the text rather than an overlay, then clicks. Nothing in that path dispatches a CodeMirror selection.
 
-`ui` steps are tabulated in §4. It finds a panel by the class its CodeMirror `Panel` sets on its root (`.cm-search`, `.cm-gotoLine`) and a field by its `name`; it finds a tab by the `-trigger-<value>` suffix of its id, where the value is the workspace's own name for the pane or panel. None of that is a test hook added to the app; if a surface you need has no such handle, adding one is in scope (#423).
+`ui` steps are tabulated in §4. It finds a panel by the class its CodeMirror `Panel` sets on its root (`.cm-search`, `.cm-gotoLine`) and a field by its `name`; it finds a tab by the `-trigger-<value>` suffix of its id, where the value is the workspace's own name for the pane or panel; it decides which screen is on display by which pane's inner tab row is mounted (`main` for logic, `files` for assets, `game` for share), because the screen tab's own highlight is blank on a fresh load. None of that is a test hook added to the app; if a surface you need has no such handle, adding one is in scope (#423).
 
 `redgreen` options: `--test <command>` (run twice, from the repo root), `--files <a> [<b>...]` (the changed sources the test exercises), `--base <rev>` (where the pre-fix content comes from; `HEAD` by default, `origin/main` once the fix is committed). It runs no browser. `redgreen.mjs` beside the driver holds the implementation; `redgreen.test.mjs` pins it on a throwaway repository.
 
@@ -729,8 +737,12 @@ Things that look like they work and don't:
 | A `gh` PR/issue body came out as the literal `@-`                                                          | You used `--body @-`. Use `--body-file`, then read it back with `gh pr view --json body`.                                                                                                                                                                                                   |
 | `ui` reports a panel that `did not appear within 10s of pressing`                                          | The shortcut went to something other than the script editor: the editor was not on screen (`ui.screen` says which pane is), or another panel had focus. Put `--screen logic` first; `--close` the other panel. If the editor is up and it still fails, the binding itself changed — check `customSearch.ts`'s keymap. |
 | `ui` says `no tab named "..."` and lists the tabs present                                                 | Tab values are the workspace's names (`logic`, `assets`, `share`, `main`, `scripts`), not the labels. Pick from the list in the message.                                                                                                                                                       |
-| `redgreen` says a file `changed during the red run`                                                        | Something wrote to the file while it was reverted — a review-round edit landing, an editor, a formatter, a watcher. The file was left as found; the fix is at the `snapshotPath` in the report. Merge by hand, then run again. Never copy the snapshot over the file blind.                   |
+| `ui` reports `the script editor is not on screen (active screen: assets)`                                 | The previous run left the persistent profile on another screen, and panels live only on the logic screen. Put `--screen logic` first. The report is still complete; only that step did not run.                                                                                             |
+| `redgreen` says a file `changed while it was reverted`                                                     | Something wrote to the file while it held the base content — a review-round edit landing, an editor, a formatter, a watcher. The file now holds the base content plus that edit, not the fix; the fix is at the `snapshotPath` in the report. Merge by hand, then run again. Never copy the snapshot over the file blind. |
 | `redgreen` says the file is `identical to HEAD` and the test `pins nothing`                                | The fix is already committed, so `HEAD` contains it. Pass `--base origin/main`.                                                                                                                                                                                                             |
+| `redgreen` refuses: `--base "…" does not resolve to a commit`                                              | A typo, or a remote branch this worktree has never fetched. `git fetch origin main` and spell it `origin/main`. Nothing was touched.                                                                                                                                                       |
+| `redgreen` refuses: `run from the repository root`                                                         | It was started from a package directory. `cd` to the worktree root; the `--test` command can still `cd` into the package itself.                                                                                                                                                             |
+| `redgreen` red `reason` is `unknown`, `ok: false`, output present                                          | The failure output did not look like an assertion to the command. Read `red.tail`: the ticket's assertion in an unfamiliar form is fine to cite (say so in the PR); anything else is not a red.                                                                                             |
 | `git show origin/main:some/path` → `fatal: ambiguous argument 'origin\main;some\path'`                     | Git Bash rewrote the `rev:path` argument as a Windows path. Prefix the command with `MSYS_NO_PATHCONV=1`, and quote the argument.                                                                                                                                                            |
 | A "pre-fix" copy pulled from `HEAD:` still contains the fix                                                | Once you have committed, `HEAD` **is** your fix. Extract the baseline from `origin/main:` instead. The failure is silent: the run looks like a baseline and reproduces nothing, which reads as "the bug isn't real".                                                                          |
 

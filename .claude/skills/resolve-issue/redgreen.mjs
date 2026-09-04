@@ -8,8 +8,16 @@
 // review round changes a file between cycles, the aside copy goes stale, and
 // the next restore silently reinstates an older version of the session's own
 // fix. This module takes the snapshot and performs the restore inside the same
-// call, and proves the restore by content hash rather than by `git diff`
-// listing the file as modified (which a stale restore does too).
+// call, restores in a `finally` and on SIGINT/SIGTERM so an interrupted test
+// run cannot leave the tree reverted, and proves the restore by content hash
+// read back from disk rather than by `git diff` listing the file as modified
+// (which a stale restore does too).
+//
+// What `ok: true` means, exactly: every named file differs from the base, the
+// base revision resolves, the test exited non-zero on the base for a reason the
+// classifier recognises as a test failure, every file came back byte-for-byte,
+// and the test exited zero on the fix. It is an exit-code proof. Which test in
+// the file failed is in `red.tail`, and reading it is the session's job.
 //
 // Nothing here touches `git stash`: the stash is per repository, not per
 // worktree, and this checkout runs many worktrees at once.
@@ -33,27 +41,55 @@ export function gitPath(repoRoot, file) {
   return path.relative(repoRoot, path.resolve(repoRoot, file)).split(path.sep).join("/");
 }
 
+function git(repoRoot, args) {
+  const r = spawnSync("git", args, { cwd: repoRoot, windowsHide: true, maxBuffer: 64 * 1024 * 1024 });
+  if (r.error) throw r.error;
+  return r;
+}
+
 /**
- * The file's bytes at `base`, or null when the file does not exist there.
- * Spawning git directly sidesteps the Git Bash path rewrite that turns
- * `origin/main:some/path` into a Windows path (the skill's `MSYS_NO_PATHCONV`
- * gotcha); no shell is involved.
+ * The repository's top-level directory as git sees it from `repoRoot`.
+ * `git cat-file rev:path` resolves `path` from here, not from the working
+ * directory, so a `repoRoot` that is a subdirectory would silently read the
+ * wrong file (or none) and revert the tree to it.
+ */
+export function gitTopLevel(repoRoot) {
+  const r = git(repoRoot, ["rev-parse", "--show-toplevel"]);
+  if (r.status !== 0) throw new Error(`redgreen: ${repoRoot} is not inside a git repository: ${String(r.stderr).trim()}`);
+  return String(r.stdout).trim();
+}
+
+export function sameDir(a, b) {
+  const norm = (p) => path.resolve(p).replace(/[\\/]+$/, "").toLowerCase();
+  return norm(a) === norm(b);
+}
+
+/** Throws when `base` does not name a commit, so a typo cannot read as "absent at base". */
+export function resolveBase(repoRoot, base) {
+  const r = git(repoRoot, ["rev-parse", "--verify", "--quiet", `${base}^{commit}`]);
+  if (r.status !== 0) {
+    throw new Error(
+      `redgreen: --base "${base}" does not resolve to a commit in this repository (git: ${String(r.stderr).trim() || "no such revision"}). Check the spelling, and fetch first if it is a remote branch.`,
+    );
+  }
+  return String(r.stdout).trim();
+}
+
+/**
+ * The file's bytes at `base` (already verified to be a commit), or null when
+ * the file does not exist there. Spawning git directly sidesteps the Git Bash
+ * path rewrite that turns `origin/main:some/path` into a Windows path (the
+ * skill's `MSYS_NO_PATHCONV` gotcha); no shell is involved.
  */
 export function baseContent(repoRoot, base, file) {
-  const r = spawnSync("git", ["cat-file", "-p", `${base}:${gitPath(repoRoot, file)}`], {
-    cwd: repoRoot,
-    windowsHide: true,
-    maxBuffer: 64 * 1024 * 1024,
-  });
-  if (r.error) throw r.error;
-  if (r.status !== 0) {
-    const msg = String(r.stderr || "");
-    if (/does not exist|exists on disk, but not in|invalid object name|Not a valid object name/i.test(msg)) {
-      return null;
-    }
-    throw new Error(`git cat-file ${base}:${gitPath(repoRoot, file)} failed: ${msg.trim()}`);
+  const spec = `${base}:${gitPath(repoRoot, file)}`;
+  const r = git(repoRoot, ["cat-file", "-p", spec]);
+  if (r.status === 0) return r.stdout;
+  const msg = String(r.stderr || "");
+  if (/path .* does not exist in|exists on disk, but not in|invalid object name '[^']*:|Not a valid object name/i.test(msg)) {
+    return null;
   }
-  return r.stdout;
+  throw new Error(`git cat-file ${spec} failed: ${msg.trim()}`);
 }
 
 /**
@@ -70,8 +106,8 @@ export function testShell() {
   };
   // Git's own bash, found next to git.exe, before any other: the bash.exe in
   // System32 is the WSL launcher and runs nothing without a distribution.
-  for (const git of where("git")) {
-    const candidate = path.join(path.dirname(git), "..", "bin", "bash.exe");
+  for (const g of where("git")) {
+    const candidate = path.join(path.dirname(g), "..", "bin", "bash.exe");
     if (fs.existsSync(candidate)) return candidate;
   }
   const bash = where("bash").find((p) => !/\\System32\\/i.test(p));
@@ -97,29 +133,41 @@ export function runTest(cmd, cwd, shell = testShell()) {
 }
 
 /**
- * Why a red run failed. A test that dies on a missing import proves nothing
- * about the defect, so the skill sends that case to its simulate-in-place path
- * instead of accepting the red.
+ * Why a red run failed. Only `assertion` is accepted as proof of the defect:
+ * a test that died on a missing import, that could not be found, or that the
+ * shell could not start says nothing about the ticket's behaviour, and an
+ * output the classifier cannot place needs a human to read it.
+ *
+ * The shell patterns are anchored to how a shell reports its own failure
+ * (`bash: x: command not found`, cmd.exe's "is not recognized"), so a test
+ * whose assertion merely quotes an ENOENT is not mistaken for one.
  */
 export function classifyRedFailure(output) {
   if (
-    /is not recognized as an internal or external command|command not found|No such file or directory|The system cannot find the path specified|not found: /i.test(
-      output,
-    )
+    /^(?:bash|sh|zsh|\/bin\/sh|\/usr\/bin\/bash)(?:: line \d+)?: .*: (?:command not found|No such file or directory)/im.test(output) ||
+    /is not recognized as an internal or external command/i.test(output) ||
+    /npm ERR! Missing script:|npm error Missing script:/i.test(output)
   ) {
     return "shell";
   }
+  if (/No test files found|No test suite found|no tests found/i.test(output)) {
+    return "notests";
+  }
   if (
-    /ERR_MODULE_NOT_FOUND|Cannot find module|Cannot find package|Failed to resolve import|Failed to load url|is not exported|does not provide an export named|has no exported member/i.test(
+    /ERR_MODULE_NOT_FOUND|Cannot find module|Cannot find package|Failed to resolve import|Failed to load url|does not provide an export named|has no exported member/i.test(
       output,
     )
   ) {
     return "import";
   }
-  if (/SyntaxError|Unexpected token|TS\d{4}:/i.test(output)) {
+  if (/\bSyntaxError\b|Unexpected token|\bTS\d{4}:/i.test(output)) {
     return "syntax";
   }
-  if (/AssertionError|expected|toBe|toEqual|✗|×|FAIL|AssertionError|failed/i.test(output)) {
+  if (
+    /AssertionError|\bexpected\b.*\bto\b|toBe|toEqual|toStrictEqual|toMatch|toContain|toThrow|✗|×|\bFAIL\b|Tests\s+\d+ failed|\d+ failing|assert\.|Assertion failed/i.test(
+      output,
+    )
+  ) {
     return "assertion";
   }
   return "unknown";
@@ -127,17 +175,26 @@ export function classifyRedFailure(output) {
 
 /**
  * Snapshot → revert to base → run (must fail) → restore → hash-check → run
- * (must pass). Returns the report; `report.ok` is the verdict. Never throws
- * for a failed verdict, only for a malformed request or a git error.
+ * (must pass). Returns the report; `report.ok` is the verdict, and it is false
+ * whenever `problems` is non-empty. Throws only for a malformed request or a
+ * git error, and always before any file has been touched.
  */
 export function runRedGreen({ repoRoot, test, files, base = "HEAD", snapshotDir, log = () => {} }) {
   if (!test) throw new Error("redgreen: --test <command> is required");
   if (!files || files.length === 0) throw new Error("redgreen: --files <path...> is required");
+  if (!repoRoot) throw new Error("redgreen: repoRoot is required");
+
+  const top = gitTopLevel(repoRoot);
+  if (!sameDir(top, repoRoot)) {
+    throw new Error(`redgreen: run from the repository root (${top}), not from ${repoRoot}; git resolves rev:path from the root.`);
+  }
+  const baseCommit = resolveBase(repoRoot, base);
 
   const dir = snapshotDir ?? fs.mkdtempSync(path.join(os.tmpdir(), "redgreen-"));
   const report = {
     ok: false,
     base,
+    baseCommit,
     test,
     snapshotDir: dir,
     files: [],
@@ -147,17 +204,24 @@ export function runRedGreen({ repoRoot, test, files, base = "HEAD", snapshotDir,
   };
 
   // 1. Snapshot the working tree. This is the fix, and it is taken here, in
-  //    the same process that will restore it, so it cannot go stale.
+  //    the same process that will restore it, so it cannot go stale. Every
+  //    check that can refuse the request runs before the first write.
   const entries = [];
+  const seen = new Set();
   for (const file of files) {
     const abs = path.resolve(repoRoot, file);
+    if (seen.has(abs)) continue;
+    seen.add(abs);
     if (!fs.existsSync(abs)) throw new Error(`redgreen: ${file} does not exist in the working tree`);
+    if (!fs.statSync(abs).isFile()) throw new Error(`redgreen: ${file} is not a file`);
+    const rel = gitPath(repoRoot, file);
+    if (rel.startsWith("..")) throw new Error(`redgreen: ${file} is outside the repository`);
     const bytes = fs.readFileSync(abs);
-    const snapshotPath = path.join(dir, gitPath(repoRoot, file).replace(/\//g, "__"));
+    const snapshotPath = path.join(dir, rel.replace(/\//g, "__"));
     fs.writeFileSync(snapshotPath, bytes);
-    const baseBytes = baseContent(repoRoot, base, file);
+    const baseBytes = baseContent(repoRoot, baseCommit, file);
     const entry = {
-      path: gitPath(repoRoot, file),
+      path: rel,
       abs,
       snapshotPath,
       snapshotSha: sha256(bytes),
@@ -167,77 +231,116 @@ export function runRedGreen({ repoRoot, test, files, base = "HEAD", snapshotDir,
       changedDuringRed: false,
       restored: false,
       matches: false,
+      restoreError: null,
     };
     if (entry.baseSha === entry.snapshotSha) {
       report.problems.push(
-        `${entry.path} is identical to ${base}; there is nothing to revert, so the red run does not exercise a change in this file.`,
+        `${entry.path} is identical to ${base}; there is nothing to revert, so the red run does not exercise a change in this file. If the fix is committed, pass --base origin/main; otherwise this file is not where the fix lives.`,
       );
     }
     entries.push(entry);
   }
+  log(`snapshot ${entries.length} file(s) → ${dir}`);
 
-  // 2. Revert to base.
-  for (const e of entries) {
-    if (e.baseBytes == null) {
-      log(`revert  ${e.path}  (absent at ${base}; removing)`);
-      fs.rmSync(e.abs, { force: true });
-    } else {
-      log(`revert  ${e.path}  → ${base}`);
-      fs.writeFileSync(e.abs, e.baseBytes);
+  // The restore, written once and reachable from every exit: normal, a throw
+  // anywhere below, or a signal while the test runs. A file that changed while
+  // reverted is never overwritten (see step 4); everything else comes back.
+  let restored = false;
+  const restore = () => {
+    if (restored) return;
+    restored = true;
+    for (const e of entries) {
+      const exists = fs.existsSync(e.abs);
+      const nowSha = exists ? sha256(fs.readFileSync(e.abs)) : null;
+      if (nowSha !== e.baseSha) {
+        e.changedDuringRed = true;
+        report.problems.push(
+          `${e.path} changed while it was reverted (expected the ${base} content, found something else). Not restored, so that edit is not lost: the file now holds the ${base} content plus the edit, and the snapshot of the fix is at ${e.snapshotPath}. Merge the two by hand, then run redgreen again.`,
+        );
+        continue;
+      }
+      try {
+        fs.mkdirSync(path.dirname(e.abs), { recursive: true });
+        fs.writeFileSync(e.abs, e.bytes);
+        e.restored = true;
+      } catch (err) {
+        e.restoreError = String(err.message || err);
+      }
+      // Proven from disk, not from the buffer just written.
+      e.matches = fs.existsSync(e.abs) && sha256(fs.readFileSync(e.abs)) === e.snapshotSha;
+      log(`restore ${e.path}  ${e.matches ? "matches snapshot" : "HASH MISMATCH"}`);
+      if (!e.matches) {
+        report.problems.push(
+          `${e.path} does not match its snapshot after restore${e.restoreError ? ` (${e.restoreError})` : ""}. The fix is at ${e.snapshotPath}; put it back by hand and check the file before trusting the tree.`,
+        );
+      }
     }
-  }
-
-  // 3. Red run.
-  log(`red     ${test}`);
-  const red = runTest(test, repoRoot);
-  const redReason = red.exit === 0 ? null : classifyRedFailure(red.output);
-  report.red = {
-    exit: red.exit,
-    outcome: red.exit === 0 ? "passed" : "failed",
-    reason: redReason,
-    tail: red.tail,
   };
-  if (red.exit === 0) {
-    report.problems.push(
-      `The test passed against ${base}. It pins nothing: either it does not assert the ticket's behaviour, or the files listed are not where the fix lives.`,
-    );
-  } else if (redReason === "shell") {
-    report.problems.push(
-      `The test command itself could not run (the shell reported a missing command or path), so the red run says nothing about the defect. Fix the --test invocation and run again.`,
-    );
-  } else if (redReason === "import" || redReason === "syntax") {
-    report.problems.push(
-      `The red run failed on a ${redReason} error, not on the defect. A whole-file revert broke the test's imports; simulate the old behaviour in place instead (§5b) and keep a positive control in the file.`,
-    );
-  }
+  const onSignal = (sig) => {
+    console.error(`redgreen: ${sig} received during the test run; restoring the tree from ${dir}`);
+    try {
+      restore();
+    } finally {
+      process.exit(130);
+    }
+  };
+  process.on("SIGINT", onSignal);
+  process.on("SIGTERM", onSignal);
 
-  // 4. Before restoring, prove nothing edited the reverted files under us.
-  //    The snapshot is the fix as it was at the start of this call; a file
-  //    that changed during the red run holds work the snapshot lacks, and
-  //    overwriting it is exactly the stale-restore failure this exists to
-  //    prevent. Such a file is left as it is and named.
-  for (const e of entries) {
-    const exists = fs.existsSync(e.abs);
-    const nowSha = exists ? sha256(fs.readFileSync(e.abs)) : null;
-    if (nowSha !== e.baseSha) {
-      e.changedDuringRed = true;
+  try {
+    // 2. Revert to base.
+    for (const e of entries) {
+      if (e.baseBytes == null) {
+        log(`revert  ${e.path}  (absent at ${base}; removing)`);
+        fs.rmSync(e.abs, { force: true });
+      } else {
+        log(`revert  ${e.path}  → ${base}`);
+        fs.writeFileSync(e.abs, e.baseBytes);
+      }
+    }
+
+    // 3. Red run.
+    log(`red     ${test}`);
+    const red = runTest(test, repoRoot);
+    const redReason = red.exit === 0 ? null : classifyRedFailure(red.output);
+    report.red = {
+      exit: red.exit,
+      outcome: red.exit === 0 ? "passed" : "failed",
+      reason: redReason,
+      tail: red.tail,
+    };
+    if (red.exit === 0) {
       report.problems.push(
-        `${e.path} changed during the red run (expected the ${base} content, found something else). Not restored, so the edit is not lost; the snapshot of the fix is at ${e.snapshotPath}. Merge the two by hand, then run redgreen again.`,
+        `The test passed against ${base}. It pins nothing: either it does not assert the ticket's behaviour, or the files listed are not where the fix lives.`,
+      );
+    } else if (redReason === "shell") {
+      report.problems.push(
+        `The test command itself could not run (the shell reported a missing command or script), so the red run says nothing about the defect. Fix the --test invocation and run again.`,
+      );
+    } else if (redReason === "notests") {
+      report.problems.push(
+        `The runner found no test to run on the base (usually because --files names the test file itself, so the revert removed it). List only the source files the fix changed; the test file stays in place.`,
+      );
+    } else if (redReason === "import" || redReason === "syntax") {
+      report.problems.push(
+        `The red run failed on a ${redReason} error, not on the defect. A whole-file revert broke the test's imports; simulate the old behaviour in place instead (§5b) and keep a positive control in the file.`,
+      );
+    } else if (redReason === "unknown") {
+      report.problems.push(
+        red.output.trim() === ""
+          ? `The test exited ${red.exit} on the base with no output at all, so there is nothing to show the failure was the ticket's. Use a test invocation that prints its assertion.`
+          : `The test exited ${red.exit} on the base, but the output does not look like a test assertion (no AssertionError, expected/to, FAIL, or failing count). Read red.tail yourself: if it is the ticket's assertion in a form the classifier does not know, say so in the PR; if it is a config error, a worker crash, or a truncated run, it proves nothing.`,
       );
     }
-  }
-
-  // 5. Restore and hash-check.
-  for (const e of entries) {
-    if (e.changedDuringRed) continue;
-    fs.mkdirSync(path.dirname(e.abs), { recursive: true });
-    fs.writeFileSync(e.abs, e.bytes);
-    e.restored = true;
-    e.matches = sha256(fs.readFileSync(e.abs)) === e.snapshotSha;
-    log(`restore ${e.path}  ${e.matches ? "matches snapshot" : "HASH MISMATCH"}`);
-    if (!e.matches) {
-      report.problems.push(`${e.path} does not match its snapshot after restore. The fix is at ${e.snapshotPath}.`);
-    }
+  } finally {
+    // 4 + 5. Check nothing wrote to the reverted files, restore, hash-check.
+    //    The snapshot is the fix as it was at the start of this call; a file
+    //    that changed during the red run holds work the snapshot lacks, and
+    //    overwriting it is exactly the stale-restore failure this exists to
+    //    prevent.
+    restore();
+    process.off("SIGINT", onSignal);
+    process.off("SIGTERM", onSignal);
   }
 
   const treeIntact = entries.every((e) => e.restored && e.matches);
@@ -260,29 +363,39 @@ export function runRedGreen({ repoRoot, test, files, base = "HEAD", snapshotDir,
 
   report.files = entries.map(({ bytes, baseBytes, abs, ...rest }) => rest);
   report.ok =
-    report.red.outcome === "failed" &&
-    report.red.reason !== "shell" &&
-    report.red.reason !== "import" &&
-    report.red.reason !== "syntax" &&
+    report.problems.length === 0 &&
+    report.red?.outcome === "failed" &&
+    report.red?.reason === "assertion" &&
     treeIntact &&
     report.green?.outcome === "passed";
   return report;
 }
 
-/** Parse `redgreen --test <cmd> --files <a> [<b>...] [--base <rev>]`. */
+/** Parse `redgreen --test <cmd> --files <a> [<b>...] [--base <rev>]`. Every flag needs a value. */
 export function parseRedGreenArgs(args) {
   const opts = { test: undefined, files: [], base: "HEAD" };
+  const value = (flag, i) => {
+    const v = args[i + 1];
+    if (v == null || v === "" || v.startsWith("--")) throw new Error(`redgreen: ${flag} needs a value`);
+    return v;
+  };
   for (let i = 0; i < args.length; i++) {
     const a = args[i];
     if (a === "--test") {
-      opts.test = args[++i];
+      opts.test = value(a, i++);
     } else if (a === "--base") {
-      opts.base = args[++i];
+      opts.base = value(a, i++);
     } else if (a === "--files") {
-      while (i + 1 < args.length && !args[i + 1].startsWith("--")) opts.files.push(args[++i]);
+      value(a, i);
+      while (i + 1 < args.length && !args[i + 1].startsWith("--")) {
+        const f = args[++i];
+        if (f !== "") opts.files.push(f);
+      }
     } else {
       throw new Error(`redgreen: unknown argument ${a}`);
     }
   }
+  if (!opts.test) throw new Error("redgreen: --test <command> is required");
+  if (opts.files.length === 0) throw new Error("redgreen: --files <path...> is required");
   return opts;
 }

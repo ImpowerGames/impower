@@ -660,7 +660,8 @@ async function verify(args) {
       const result = { url };
 
       await page.goto(url, { waitUntil: "domcontentloaded", timeout: 120_000 });
-      await waitForEditor(page);
+      const shell = await ensureScriptEditor(page);
+      if (shell.switched) result.switchedToLogic = true;
 
       if (sdPath) {
         const src = fs.readFileSync(path.resolve(sdPath), "utf8");
@@ -668,7 +669,7 @@ async function verify(args) {
         // Reload so loadInitialFiles re-reads OPFS, then let the LSP + player
         // finish their first compile.
         await page.reload({ waitUntil: "domcontentloaded", timeout: 120_000 });
-        await waitForEditor(page);
+        await ensureScriptEditor(page);
       }
 
       await page
@@ -818,8 +819,16 @@ const SURFACES = {
 // (`main`, `scripts`, ...). The tab's text is not usable as a name: it renders
 // twice (an active and an inactive label), so its accessible name is
 // "LogicLogic".
-const SCREENS = ["logic", "assets", "share"];
+//
+// Which screen is on display is read from the pane's content, not from the
+// screen tab's selected state: on a fresh load the app highlights no screen tab
+// at all (MainWindow.tsx pins the tab row to a non-matching value until the
+// workspace reports ready), so the tab says "none" while the logic screen is
+// plainly showing. Each pane mounts its own inner tab row and nothing else
+// does, so that row is the marker.
+const SCREENS = { logic: "main", assets: "files", share: "game" };
 const tabSelector = (value) => `[role="tab"][id$="-trigger-${value}"]`;
+const SHOT_TARGETS = { find: SURFACES.find.selector, goto: SURFACES.goto.selector, editor: ".cm-editor", page: null };
 
 /**
  * Playwright's key strings are case-sensitive for a single character: `Shift+g`
@@ -831,11 +840,28 @@ const tabSelector = (value) => `[role="tab"][id$="-trigger-${value}"]`;
  * and holding Control and Shift around `press("KeyG")` all deliver `key: "G"`;
  * only `Control+Shift+g` delivers `g`. So a lowercase letter under Shift is
  * rewritten to its uppercase form before it is pressed.
+ *
+ * A `+` key is written as a trailing `+` (`Control++`), the way Playwright
+ * reads it; an empty combo is refused rather than pressed as nothing.
  */
 export function normalizeKeyCombo(combo) {
-  const parts = combo.split("+").map((p) => p.trim()).filter(Boolean);
-  const key = parts[parts.length - 1];
-  const mods = parts.slice(0, -1);
+  const raw = String(combo ?? "").trim();
+  if (raw === "") throw new Error("empty key combo");
+  let key;
+  let modsText;
+  if (raw === "+" || raw.endsWith("++")) {
+    key = "+";
+    modsText = raw === "+" ? "" : raw.slice(0, -2);
+  } else if (raw.endsWith("+")) {
+    throw new Error(`key combo "${combo}" names no key (write a + key as "Control++")`);
+  } else {
+    const at = raw.lastIndexOf("+");
+    key = at < 0 ? raw : raw.slice(at + 1);
+    modsText = at < 0 ? "" : raw.slice(0, at);
+  }
+  key = key.trim();
+  if (key === "") throw new Error(`key combo "${combo}" names no key`);
+  const mods = modsText.split("+").map((m) => m.trim()).filter(Boolean);
   const shifted = mods.some((m) => /^shift$/i.test(m));
   const fixed = shifted && /^[a-z]$/.test(key) ? key.toUpperCase() : key;
   return { combo: [...mods, fixed].join("+"), rewritten: fixed !== key };
@@ -876,6 +902,88 @@ async function waitForDomQuiet(page, { quiet = 400, timeout = 8_000 } = {}) {
   );
 }
 
+/** The editor shell is up: its tab row exists. Does not need the script editor. */
+async function waitForApp(page, timeout = 90_000) {
+  await page.waitForSelector('[role="tab"]', { timeout });
+}
+
+/** The screen on display, read from pane content; null while no pane is mounted. */
+async function activeScreen(page) {
+  return page.evaluate((screens) => {
+    for (const [name, marker] of Object.entries(screens)) {
+      if (document.querySelector(`[role="tab"][id$="-trigger-${marker}"]`)) return name;
+    }
+    return null;
+  }, SCREENS);
+}
+
+/**
+ * The script editor is only on the logic screen, and the screen is remembered
+ * by the persistent profile across runs. A command that needs the editor
+ * cannot assume it is there; this says whether it is, and why not.
+ */
+async function scriptEditorPresent(page, timeout = 3_000) {
+  try {
+    await page.waitForFunction(() => document.querySelector(".cm-content")?.cmTile?.view != null, null, { timeout });
+    return { present: true };
+  } catch {
+    const screen = await activeScreen(page);
+    return {
+      present: false,
+      reason: `the script editor is not on screen (active screen: ${screen ?? "none"}); put --screen logic before this step`,
+    };
+  }
+}
+
+/**
+ * Wait until the script editor is not only present but stable: the logic pane
+ * mounts a CodeMirror view, and a moment later the document arrives and the
+ * view can be replaced. A shortcut pressed into the first view goes nowhere,
+ * and a cursor read from it is null. Stable means the same view object across
+ * two checks and a quiet DOM in between.
+ */
+async function settleEditor(page, timeout = 30_000) {
+  const deadline = Date.now() + timeout;
+  let last = null;
+  let stableFor = 0;
+  while (Date.now() < deadline) {
+    const id = await page.evaluate(() => {
+      const view = document.querySelector(".cm-content")?.cmTile?.view;
+      if (!view) return null;
+      view.__driverId ??= Math.random().toString(36).slice(2);
+      return `${view.__driverId}:${view.state.doc.length}`;
+    });
+    if (id != null && id === last) {
+      stableFor += 1;
+      if (stableFor >= 2) return true;
+    } else {
+      stableFor = 0;
+    }
+    last = id;
+    await waitForDomQuiet(page, { quiet: 500, timeout: 3_000 });
+  }
+  return false;
+}
+
+/**
+ * For commands that always need the script editor (`verify`): bring the logic
+ * screen back if a previous run left the profile elsewhere, then wait for the
+ * editor as before.
+ */
+async function ensureScriptEditor(page) {
+  await waitForApp(page);
+  const first = await scriptEditorPresent(page, 5_000);
+  if (first.present) return { switched: false };
+  const logic = page.locator(tabSelector("logic")).first();
+  if (await logic.isVisible().catch(() => false)) {
+    await logic.click();
+    await waitForDomQuiet(page, { quiet: 600, timeout: 10_000 });
+  }
+  await waitForEditor(page);
+  await settleEditor(page);
+  return { switched: true };
+}
+
 function surfaceOf(name) {
   const s = SURFACES[name];
   if (!s) throw new Error(`unknown surface "${name}" (know: ${Object.keys(SURFACES).join(", ")})`);
@@ -889,7 +997,9 @@ async function surfaceOpen(page, name) {
 /** Open a panel on its own shortcut and wait for it to be on screen. */
 async function openSurface(page, name) {
   const s = surfaceOf(name);
-  if (await surfaceOpen(page, name)) return { surface: name, opened: false, alreadyOpen: true };
+  if (await surfaceOpen(page, name)) return { surface: name, open: true, alreadyOpen: true };
+  const editor = await scriptEditorPresent(page);
+  if (!editor.present) return { surface: name, open: false, reason: editor.reason };
   await focusEditor(page);
   const key = await pressKey(page, s.open);
   try {
@@ -897,27 +1007,27 @@ async function openSurface(page, name) {
   } catch {
     return {
       surface: name,
-      opened: false,
+      open: false,
       pressed: key.combo,
       reason: `${s.selector} did not appear within 10s of pressing ${key.combo} with the editor focused`,
     };
   }
-  return { surface: name, opened: true, pressed: key.combo };
+  return { surface: name, open: true, pressed: key.combo };
 }
 
 /** Close a panel the way a user does: Escape from inside it. */
 async function closeSurface(page, name) {
   const s = surfaceOf(name);
-  if (!(await surfaceOpen(page, name))) return { surface: name, closed: false, alreadyClosed: true };
+  if (!(await surfaceOpen(page, name))) return { surface: name, open: false, alreadyClosed: true };
   const firstField = Object.values(s.fields)[0];
   await page.locator(`${s.selector} ${firstField}`).first().click();
   await pressKey(page, "Escape");
   try {
     await page.locator(s.selector).first().waitFor({ state: "hidden", timeout: 5_000 });
   } catch {
-    return { surface: name, closed: false, reason: `${s.selector} still visible 5s after Escape` };
+    return { surface: name, open: true, reason: `${s.selector} still visible 5s after Escape` };
   }
-  return { surface: name, closed: true };
+  return { surface: name, open: false, closed: true };
 }
 
 /** Which panel a field name belongs to. */
@@ -928,15 +1038,22 @@ function surfaceForField(field) {
   );
 }
 
-async function fieldLocator(page, field) {
+function fieldLocator(page, field) {
   const name = surfaceForField(field);
   const s = surfaceOf(name);
   return page.locator(`${s.selector} ${s.fields[field]}`).first();
 }
 
-/** What a field is holding, as the panel itself reads it. */
+/**
+ * What a field is showing: its rendered text (`innerText`, with the trailing
+ * break a contenteditable leaves stripped). This is the browser's rendering,
+ * not the panel's own reader (`readFieldText` in customSearch.ts); the two
+ * agree on everything `typeInto` can type, and differ only on a non-breaking
+ * space that arrives by paste or a restored query. Absent field → null.
+ */
 async function readField(page, field) {
-  const loc = await fieldLocator(page, field);
+  const loc = fieldLocator(page, field);
+  if ((await loc.count()) === 0) return null;
   return loc.evaluate((el) => el.innerText.replace(/\n$/, ""));
 }
 
@@ -944,13 +1061,17 @@ async function readField(page, field) {
  * Put text into a panel field with real keystrokes: click it, select what is
  * there, type. A `\n` in the text is entered as the field's own line-break
  * shortcut (Control+Enter — plain Enter submits the panel), which is how a
- * user gets a multi-line find or replace.
+ * user gets a multi-line find or replace. A read-back that differs from what
+ * was typed is a `reason`, so it lands in `failed`.
  */
 async function typeInto(page, field, text) {
   const name = surfaceForField(field);
   const opened = await openSurface(page, name);
-  if (opened.reason) return { field, typed: false, ...opened };
-  const loc = await fieldLocator(page, field);
+  if (opened.reason) return { field, typed: false, reason: opened.reason };
+  const loc = fieldLocator(page, field);
+  if ((await loc.count()) === 0) {
+    return { field, typed: false, reason: `the ${name} panel is open but has no "${field}" field (the replace field is absent while the editor is read-only)` };
+  }
   await loc.click();
   await page.keyboard.press("Control+a");
   await page.keyboard.press("Backspace");
@@ -961,62 +1082,113 @@ async function typeInto(page, field, text) {
   }
   await waitForDomQuiet(page, { quiet: 300, timeout: 4_000 });
   const readBack = await readField(page, field);
-  return { field, typed: true, text, readBack, matches: readBack === text };
+  const matches = readBack === text;
+  return {
+    field,
+    typed: true,
+    text,
+    readBack,
+    matches,
+    ...(matches ? {} : { reason: `the ${field} field reads back ${JSON.stringify(readBack)} after typing ${JSON.stringify(text)}` }),
+  };
 }
 
-/** Click a panel button by its `name`. */
-async function clickSurfaceButton(page, name) {
-  for (const [surface, s] of Object.entries(SURFACES)) {
-    if (!s.buttons.includes(name)) continue;
-    if (!(await surfaceOpen(page, surface))) {
-      return { button: name, clicked: false, reason: `${surface} panel is not open` };
-    }
-    await page.locator(`${s.selector} button[name=${name}]`).first().click();
-    await waitForDomQuiet(page, { quiet: 300, timeout: 4_000 });
-    return { button: name, surface, clicked: true };
+/** The surfaces that own a button or toggle name, open ones first. */
+async function openSurfacesOwning(page, kind, name) {
+  const owners = Object.entries(SURFACES).filter(([, s]) => s[kind].includes(name));
+  if (owners.length === 0) {
+    throw new Error(`unknown ${kind === "buttons" ? "button" : "toggle"} "${name}" (know: ${Object.values(SURFACES).flatMap((s) => s[kind]).join(", ")})`);
   }
-  throw new Error(
-    `unknown button "${name}" (know: ${Object.values(SURFACES).flatMap((s) => s.buttons).join(", ")})`,
-  );
+  const open = [];
+  for (const [surface] of owners) if (await surfaceOpen(page, surface)) open.push(surface);
+  return { owners: owners.map(([n]) => n), open };
+}
+
+/** Click a panel button by its `name`, on whichever owning panel is open. */
+async function clickSurfaceButton(page, name) {
+  const { owners, open } = await openSurfacesOwning(page, "buttons", name);
+  if (open.length === 0) return { button: name, clicked: false, reason: `no panel with a "${name}" button is open (${owners.join(" or ")})` };
+  const surface = open[0];
+  await page.locator(`${SURFACES[surface].selector} button[name=${name}]`).first().click();
+  await waitForDomQuiet(page, { quiet: 300, timeout: 4_000 });
+  return { button: name, surface, clicked: true };
+}
+
+/** Flip one of the find panel's checkboxes (`case`, `re`, `word`) and report its state. */
+async function toggleSurfaceOption(page, name) {
+  const { owners, open } = await openSurfacesOwning(page, "toggles", name);
+  if (open.length === 0) return { toggle: name, toggled: false, reason: `no panel with a "${name}" toggle is open (${owners.join(" or ")})` };
+  const surface = open[0];
+  const box = page.locator(`${SURFACES[surface].selector} input[name=${name}]`).first();
+  const before = await box.isChecked();
+  // The box is visually hidden behind its label; clicking the label is what a user does.
+  const label = page.locator(`${SURFACES[surface].selector} label:has(input[name=${name}])`).first();
+  if ((await label.count()) > 0) await label.click();
+  else await box.click({ force: true });
+  await waitForDomQuiet(page, { quiet: 300, timeout: 4_000 });
+  const after = await box.isChecked();
+  return {
+    toggle: name,
+    surface,
+    toggled: after !== before,
+    checked: after,
+    ...(after !== before ? {} : { reason: `clicking the "${name}" toggle left it ${after ? "checked" : "unchecked"}` }),
+  };
 }
 
 /**
  * Bring a screen to the front by clicking its tab. `name` is a main screen
  * (logic, assets, share) or any other tab value on the page, such as the
- * `main` / `scripts` row inside the logic pane.
+ * `main` / `scripts` row inside the logic pane. Success is the screen's own
+ * content being mounted (for a main screen) or the tab reporting selected (for
+ * an inner tab); the screen tab's own highlight is not trusted, see SCREENS.
  */
 async function switchScreen(page, name) {
   const tab = page.locator(tabSelector(name)).first();
   try {
     await tab.waitFor({ state: "visible", timeout: 10_000 });
   } catch {
-    const known = await page.evaluate(() =>
-      [...document.querySelectorAll('[role="tab"]')].map((t) => t.id.replace(/^.*-trigger-/, "")),
-    );
+    const known = await page.evaluate(() => [...document.querySelectorAll('[role="tab"]')].map((t) => t.id.replace(/^.*-trigger-/, "")));
     return { screen: name, active: false, reason: `no tab named "${name}" on the page (tabs present: ${known.join(", ")})` };
   }
   await tab.click();
+  const isMain = name in SCREENS;
   try {
-    await page.locator(`${tabSelector(name)}[aria-selected="true"]`).first().waitFor({ state: "attached", timeout: 10_000 });
+    if (isMain) {
+      await page.waitForFunction(
+        (marker) => document.querySelector(`[role="tab"][id$="-trigger-${marker}"]`) != null,
+        SCREENS[name],
+        { timeout: 10_000 },
+      );
+    } else {
+      await page.locator(`${tabSelector(name)}[aria-selected="true"]`).first().waitFor({ state: "attached", timeout: 10_000 });
+    }
   } catch {
-    return { screen: name, active: false, reason: `the ${name} tab never reported itself selected after the click` };
+    return {
+      screen: name,
+      active: false,
+      reason: isMain ? `the ${name} screen's content never mounted after the click` : `the ${name} tab never reported itself selected after the click`,
+    };
   }
-  const settled = await waitForDomQuiet(page, { quiet: 600, timeout: 10_000 });
+  let settled = await waitForDomQuiet(page, { quiet: 600, timeout: 10_000 });
+  // The logic pane's editor mounts, then can be replaced when the document
+  // arrives; a step that runs before that lands in a view about to go away.
+  if (name === "logic") settled = (await settleEditor(page)) && settled;
   return { screen: name, active: true, settled };
 }
 
 /** Everything a session might want to read back, in one object. */
 async function readSurfaces(page) {
-  const out = { screen: null, panelTab: null, tabs: [], find: { open: false }, goto: { open: false } };
+  const out = { screen: null, panelTab: null, tabs: [], find: { open: false }, goto: { open: false }, cursorLine: null };
   out.tabs = await page.evaluate(() =>
     [...document.querySelectorAll('[role="tab"]')].map((t) => ({
       value: t.id.replace(/^.*-trigger-/, ""),
       label: t.innerText.split("\n")[0].trim(),
-      active: t.getAttribute("aria-selected") === "true",
+      selected: t.getAttribute("aria-selected") === "true",
     })),
   );
-  out.screen = out.tabs.find((t) => t.active && SCREENS.includes(t.value))?.value ?? null;
-  out.panelTab = out.tabs.find((t) => t.active && !SCREENS.includes(t.value))?.value ?? null;
+  out.screen = await activeScreen(page);
+  out.panelTab = out.tabs.find((t) => t.selected && !(t.value in SCREENS))?.value ?? null;
 
   if (await surfaceOpen(page, "find")) {
     out.find = {
@@ -1025,9 +1197,7 @@ async function readSurfaces(page) {
       replace: await readField(page, "replace"),
       matches: await page.locator(".cm-search .cm-search-matches-label").first().innerText().catch(() => ""),
       toggles: await page.evaluate(() =>
-        Object.fromEntries(
-          [...document.querySelectorAll('.cm-search input[type="checkbox"]')].map((c) => [c.name, c.checked]),
-        ),
+        Object.fromEntries([...document.querySelectorAll('.cm-search input[type="checkbox"]')].map((c) => [c.name, c.checked])),
       ),
     };
   }
@@ -1043,16 +1213,16 @@ async function readSurfaces(page) {
 
 /** Screenshot one surface: a panel, the script editor, or the whole page. */
 async function shotOf(page, what, out) {
+  if (!(what in SHOT_TARGETS)) throw new Error(`unknown --shot-of target "${what}" (know: ${Object.keys(SHOT_TARGETS).join(", ")})`);
+  if (!out) throw new Error(`--shot-of ${what} needs an output path`);
   const target = path.resolve(out);
   fs.mkdirSync(path.dirname(target), { recursive: true });
-  const selectors = { find: SURFACES.find.selector, goto: SURFACES.goto.selector, editor: ".cm-editor", page: null };
-  if (!(what in selectors)) throw new Error(`unknown --shot-of target "${what}" (know: ${Object.keys(selectors).join(", ")})`);
-  if (selectors[what] == null) {
+  if (SHOT_TARGETS[what] == null) {
     await page.screenshot({ path: target, fullPage: false });
   } else {
-    const loc = page.locator(selectors[what]).first();
+    const loc = page.locator(SHOT_TARGETS[what]).first();
     if (!(await loc.isVisible().catch(() => false))) {
-      return { of: what, screenshot: null, reason: `${selectors[what]} is not on screen` };
+      return { of: what, screenshot: null, reason: `${SHOT_TARGETS[what]} is not on screen` };
     }
     await loc.screenshot({ path: target });
   }
@@ -1060,105 +1230,180 @@ async function shotOf(page, what, out) {
 }
 
 /**
- * `ui`: run the steps in the order given, then read every surface back.
- * Steps are the flags below; each records its own outcome under `steps`.
+ * Parse `ui` arguments into steps, refusing anything malformed before a
+ * browser is launched: a flag with no value, an unknown panel, field, button,
+ * toggle, screen or shot target, or an empty field name. Pure; tested in
+ * ui-steps.test.mjs.
  */
-async function ui(args) {
-  const headless = !args.includes("--headed");
+export function parseUiSteps(args) {
   const steps = [];
+  const knownScreens = new Set([...Object.keys(SCREENS), ...Object.values(SCREENS), "scripts", "urls", "screenplay"]);
+  const fields = Object.values(SURFACES).flatMap((s) => Object.keys(s.fields));
+  const buttons = Object.values(SURFACES).flatMap((s) => s.buttons);
+  const toggles = Object.values(SURFACES).flatMap((s) => s.toggles);
+  const bad = (msg) => {
+    throw new Error(`ui: ${msg}`);
+  };
   for (let i = 0; i < args.length; i++) {
     const a = args[i];
-    const next = () => args[++i];
+    const value = () => {
+      const v = args[i + 1];
+      if (v == null || v === "" || v.startsWith("--")) bad(`${a} needs a value`);
+      i++;
+      return v;
+    };
     switch (a) {
       case "--sd":
-        steps.push({ sd: next() });
+        steps.push({ sd: value() });
         break;
-      case "--screen":
-        steps.push({ screen: next() });
-        break;
-      case "--open":
-        steps.push({ open: next() });
-        break;
-      case "--close":
-        steps.push({ close: next() });
-        break;
-      case "--type": {
-        const spec = next();
-        const eq = spec.indexOf("=");
-        if (eq < 0) die(`--type wants field=text, got "${spec}"`);
-        steps.push({ type: spec.slice(0, eq), text: spec.slice(eq + 1).replace(/\\n/g, "\n") });
+      case "--screen": {
+        const v = value();
+        if (!knownScreens.has(v)) bad(`unknown screen "${v}" (know: ${[...knownScreens].join(", ")})`);
+        steps.push({ screen: v });
         break;
       }
-      case "--press":
-        steps.push({ press: next() });
+      case "--open":
+      case "--close": {
+        const v = value();
+        if (!SURFACES[v]) bad(`unknown panel "${v}" (know: ${Object.keys(SURFACES).join(", ")})`);
+        steps.push(a === "--open" ? { open: v } : { close: v });
         break;
-      case "--click":
-        steps.push({ click: next() });
+      }
+      case "--type": {
+        const spec = value();
+        const eq = spec.indexOf("=");
+        if (eq <= 0) bad(`--type wants field=text with a field name, got "${spec}"`);
+        const field = spec.slice(0, eq);
+        if (!fields.includes(field)) bad(`unknown field "${field}" (know: ${fields.join(", ")})`);
+        steps.push({ type: field, text: spec.slice(eq + 1).replace(/\\n/g, "\n") });
         break;
+      }
+      case "--press": {
+        const v = value();
+        try {
+          normalizeKeyCombo(v);
+        } catch (e) {
+          bad(e.message);
+        }
+        steps.push({ press: v });
+        break;
+      }
+      case "--click": {
+        const v = value();
+        if (!buttons.includes(v)) bad(`unknown button "${v}" (know: ${buttons.join(", ")})`);
+        steps.push({ click: v });
+        break;
+      }
+      case "--toggle": {
+        const v = value();
+        if (!toggles.includes(v)) bad(`unknown toggle "${v}" (know: ${toggles.join(", ")})`);
+        steps.push({ toggle: v });
+        break;
+      }
       case "--shot":
-        steps.push({ shotOf: "page", out: next() });
+        steps.push({ shotOf: "page", out: value() });
         break;
-      case "--shot-of":
-        steps.push({ shotOf: next(), out: next() });
+      case "--shot-of": {
+        const what = value();
+        if (!(what in SHOT_TARGETS)) bad(`unknown --shot-of target "${what}" (know: ${Object.keys(SHOT_TARGETS).join(", ")})`);
+        const out = value();
+        steps.push({ shotOf: what, out });
         break;
+      }
       case "--probe":
-        steps.push({ probe: next() });
+        steps.push({ probe: value() });
         break;
       case "--headed":
         break;
       default:
-        die(`ui: unknown argument ${a}`);
+        bad(`unknown argument ${a}`);
     }
+  }
+  return steps;
+}
+
+/**
+ * `ui`: run the steps in the order given, then read every surface back. Each
+ * step records its own outcome under `steps`; a step that fails, or throws,
+ * records a `reason` and the run continues, so the report is never lost.
+ */
+async function ui(args) {
+  const headless = !args.includes("--headed");
+  let steps;
+  try {
+    steps = parseUiSteps(args);
+  } catch (e) {
+    die(e.message);
   }
 
   return withEditor(
     async ({ page, url, consoleLines }) => {
       const result = { url, steps: [] };
       await page.goto(url, { waitUntil: "domcontentloaded", timeout: 120_000 });
-      await waitForEditor(page);
+      await waitForApp(page);
+      result.startedOn = await activeScreen(page);
+      if (result.startedOn === "logic") result.editorSettled = await settleEditor(page);
 
       for (const step of steps) {
-        if (step.sd) {
-          const src = fs.readFileSync(path.resolve(step.sd), "utf8");
-          const wroteChars = await writeMainSd(page, src);
-          await page.reload({ waitUntil: "domcontentloaded", timeout: 120_000 });
-          await waitForEditor(page);
-          await waitForDomQuiet(page, { quiet: 1500, timeout: 30_000 });
-          result.steps.push({ sd: step.sd, wroteChars });
-        } else if (step.screen) {
-          result.steps.push(await switchScreen(page, step.screen));
-        } else if (step.open) {
-          result.steps.push(await openSurface(page, step.open));
-        } else if (step.close) {
-          result.steps.push(await closeSurface(page, step.close));
-        } else if (step.type) {
-          result.steps.push(await typeInto(page, step.type, step.text));
-        } else if (step.press) {
-          const n = await pressKey(page, step.press);
-          await waitForDomQuiet(page, { quiet: 300, timeout: 4_000 });
-          result.steps.push({ press: step.press, sent: n.combo, rewritten: n.rewritten });
-        } else if (step.click) {
-          result.steps.push(await clickSurfaceButton(page, step.click));
-        } else if (step.shotOf) {
-          result.steps.push(await shotOf(page, step.shotOf, step.out));
-        } else if (step.probe) {
-          const code = fs.readFileSync(path.resolve(step.probe), "utf8");
-          result.steps.push({
-            probe: step.probe,
-            result: await page.evaluate(
-              // eslint-disable-next-line no-new-func
-              (src) => new Function(`return (async () => { ${src} })()`)(),
-              code,
-            ),
-          });
+        try {
+          if (step.sd) {
+            const src = fs.readFileSync(path.resolve(step.sd), "utf8");
+            const wroteChars = await writeMainSd(page, src);
+            await page.reload({ waitUntil: "domcontentloaded", timeout: 120_000 });
+            await waitForApp(page);
+            const editor = await scriptEditorPresent(page, 60_000);
+            if (editor.present) {
+              // Same discipline as verify: let the view stop being replaced,
+              // let the first compile settle, and let the editor's
+              // asynchronous cursor restore land, before any step reads or
+              // moves the cursor.
+              await settleEditor(page);
+              await waitForPreviewSettle(page);
+            }
+            await waitForDomQuiet(page, { quiet: 1500, timeout: 30_000 });
+            result.steps.push({ sd: step.sd, wroteChars, ...(editor.present ? {} : { reason: editor.reason }) });
+          } else if (step.screen) {
+            result.steps.push(await switchScreen(page, step.screen));
+          } else if (step.open) {
+            result.steps.push(await openSurface(page, step.open));
+          } else if (step.close) {
+            result.steps.push(await closeSurface(page, step.close));
+          } else if (step.type) {
+            result.steps.push(await typeInto(page, step.type, step.text));
+          } else if (step.press) {
+            const n = await pressKey(page, step.press);
+            await waitForDomQuiet(page, { quiet: 300, timeout: 4_000 });
+            result.steps.push({ press: step.press, sent: n.combo, rewritten: n.rewritten });
+          } else if (step.click) {
+            result.steps.push(await clickSurfaceButton(page, step.click));
+          } else if (step.toggle) {
+            result.steps.push(await toggleSurfaceOption(page, step.toggle));
+          } else if (step.shotOf) {
+            result.steps.push(await shotOf(page, step.shotOf, step.out));
+          } else if (step.probe) {
+            const code = fs.readFileSync(path.resolve(step.probe), "utf8");
+            result.steps.push({
+              probe: step.probe,
+              result: await page.evaluate(
+                // eslint-disable-next-line no-new-func
+                (src) => new Function(`return (async () => { ${src} })()`)(),
+                code,
+              ),
+            });
+          }
+        } catch (err) {
+          result.steps.push({ ...step, reason: `step threw: ${String(err.message || err).split("\n")[0]}` });
         }
       }
 
-      result.ui = await readSurfaces(page);
+      try {
+        result.ui = await readSurfaces(page);
+      } catch (err) {
+        result.ui = null;
+        result.readError = String(err.message || err).split("\n")[0];
+      }
       result.failed = result.steps.filter((s) => s.reason).map((s) => s.reason);
-      result.consoleErrors = consoleLines
-        .filter((l) => l.startsWith("[error]") || l.startsWith("[pageerror]"))
-        .slice(0, 25);
+      result.consoleErrors = consoleLines.filter((l) => l.startsWith("[error]") || l.startsWith("[pageerror]")).slice(0, 25);
       console.log(JSON.stringify(result, null, 2));
       return result;
     },
@@ -1169,19 +1414,19 @@ async function ui(args) {
 // ---------------------------------------------------------------- redgreen ---
 
 async function redgreenCli(args) {
-  let opts;
+  let report;
   try {
-    opts = parseRedGreenArgs(args);
+    const opts = parseRedGreenArgs(args);
+    report = runRedGreen({
+      repoRoot: REPO_ROOT,
+      test: opts.test,
+      files: opts.files,
+      base: opts.base,
+      log: (line) => console.error(line),
+    });
   } catch (e) {
     die(e.message);
   }
-  const report = runRedGreen({
-    repoRoot: process.cwd(),
-    test: opts.test,
-    files: opts.files,
-    base: opts.base,
-    log: (line) => console.error(line),
-  });
   console.log(JSON.stringify(report, null, 2));
   if (!report.ok) process.exit(1);
 }
@@ -1194,6 +1439,11 @@ export {
   withEditor,
   writeMainSd,
   waitForEditor,
+  waitForApp,
+  ensureScriptEditor,
+  settleEditor,
+  scriptEditorPresent,
+  activeScreen,
   waitForDomQuiet,
   focusEditor,
   pressKey,
@@ -1203,6 +1453,7 @@ export {
   readField,
   readSurfaces,
   clickSurfaceButton,
+  toggleSurfaceOption,
   switchScreen,
   shotOf,
   SURFACES,
