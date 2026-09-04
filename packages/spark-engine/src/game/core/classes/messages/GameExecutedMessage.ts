@@ -1,7 +1,7 @@
 import { MessageProtocolNotificationType } from "@impower/jsonrpc/src/common/classes/MessageProtocolNotificationType";
-import { NotificationMessage } from "@impower/jsonrpc/src/common/types/NotificationMessage";
-import { SimulationFailure } from "@impower/sparkdown/src/compiler/types/SimulationFailure";
-import { DocumentLocation } from "../../types/DocumentLocation";
+import type { NotificationMessage } from "@impower/jsonrpc/src/common/types/NotificationMessage";
+import type { SimulationFailure } from "@impower/sparkdown/src/compiler/types/SimulationFailure";
+import type { DocumentLocation } from "../../types/DocumentLocation";
 
 export type { SimulationFailure };
 

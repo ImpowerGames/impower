@@ -6,8 +6,8 @@ import {
   CUSTOM_PROPERTY_ALIASES,
   isAliasedAttributeProp,
 } from "../../constants/dataAttributeProps";
-import { SparkdownNodeName } from "../../types/SparkdownNodeName";
-import { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
+import type { SparkdownNodeName } from "../../types/SparkdownNodeName";
+import type { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
 import { formatList } from "../../utils/formatList";
 import { SparkdownAnnotation } from "../SparkdownAnnotation";
 import { SparkdownAnnotator } from "../SparkdownAnnotator";

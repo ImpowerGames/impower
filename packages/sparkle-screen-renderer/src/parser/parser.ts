@@ -314,7 +314,7 @@ export function getComponents(parsed: SparkleNode[]) {
   const components: Record<string, SparkleNode> = {};
   for (const root of parsed) {
     if (root.type === "component") {
-      const name = root.args?.name;
+      const name = root.args?.["name"];
       if (name) {
         components[name] = root;
       }

@@ -7,9 +7,9 @@
  */
 
 import {
-  AnimatedSpriteFrames,
-  AnimatedSpriteOptions,
-  FrameObject,
+  type AnimatedSpriteFrames,
+  type AnimatedSpriteOptions,
+  type FrameObject,
   Texture,
   Ticker,
   UPDATE_PRIORITY,

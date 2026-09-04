@@ -24,7 +24,7 @@ export class Conditional extends ParsedObject {
     }
   }
 
-  get typeName(): string {
+  override get typeName(): string {
     return "Conditional";
   }
 

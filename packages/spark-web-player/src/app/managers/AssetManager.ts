@@ -1,5 +1,5 @@
-import { NotificationMessage } from "@impower/jsonrpc/src/common/types/NotificationMessage";
-import { RequestMessage } from "@impower/jsonrpc/src/common/types/RequestMessage";
+import type { NotificationMessage } from "@impower/jsonrpc/src/common/types/NotificationMessage";
+import type { RequestMessage } from "@impower/jsonrpc/src/common/types/RequestMessage";
 import { AssetsProgressMessage } from "../../../../spark-engine/src/game/modules/assets/classes/messages/AssetsProgressMessage";
 import { ConfigureAssetsMessage } from "../../../../spark-engine/src/game/modules/assets/classes/messages/ConfigureAssetsMessage";
 import { LoadAssetsMessage } from "../../../../spark-engine/src/game/modules/assets/classes/messages/LoadAssetsMessage";

@@ -25,7 +25,7 @@ export class StringExpression extends Expression {
     this.AddContent(content);
   }
 
-  get typeName(): string {
+  override get typeName(): string {
     return "String";
   }
 
@@ -41,7 +41,7 @@ export class StringExpression extends Expression {
     container.AddContent(RuntimeControlCommand.EndString());
   };
 
-  public readonly toString = (): string => {
+  public override readonly toString = (): string => {
     let sb = "";
     for (const c of this.content) {
       sb += c;
@@ -51,7 +51,7 @@ export class StringExpression extends Expression {
   };
 
   // Equals override necessary in order to check for const multiple definition equality
-  public Equals(obj: ParsedObject): boolean {
+  public override Equals(obj: ParsedObject): boolean {
     const otherStr = asOrNull(obj, StringExpression);
     if (otherStr === null) {
       return false;

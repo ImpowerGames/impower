@@ -517,19 +517,16 @@ export function serverReferences(): LSPClientExtension {
     notificationListeners: {
       "textDocument/didOpen": (
         client,
-        params: lsp.DidOpenTextDocumentParams,
       ) => {
         updateDocumentReferences(client);
       },
       "textDocument/didChange": (
         client,
-        params: lsp.DidChangeTextDocumentParams,
       ) => {
         updateDocumentReferences(client);
       },
       "textDocument/publishDiagnostics": (
         client,
-        params: lsp.PublishDiagnosticsParams,
       ) => {
         updateDocumentReferences(client);
       },

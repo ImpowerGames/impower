@@ -21,5 +21,11 @@
     "forceConsistentCasingInFileNames": true,
     "isolatedModules": true,
     "allowArbitraryExtensions": true
-  }
+  },
+  "exclude": [
+    "node_modules",
+    "dist",
+    "out",
+    ".vscode-test-web"
+  ]
 }

@@ -1,5 +1,5 @@
-import { Create } from "../../../core/types/Create";
-import { Animation } from "../types/Animation";
+import type { Create } from "../../../core/types/Create";
+import type { Animation } from "../types/Animation";
 
 export const default_animation: Create<Animation> = (obj) => ({
   $type: "animation",

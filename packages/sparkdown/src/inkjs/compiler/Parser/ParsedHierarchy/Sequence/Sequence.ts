@@ -42,7 +42,7 @@ export class Sequence extends ParsedObject {
     }
   }
 
-  get typeName(): string {
+  override get typeName(): string {
     return "Sequence";
   }
 

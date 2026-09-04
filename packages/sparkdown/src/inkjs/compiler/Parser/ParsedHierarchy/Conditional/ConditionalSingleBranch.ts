@@ -1,4 +1,4 @@
-﻿import { Container as RuntimeContainer } from "../../../../engine/Container";
+import { Container as RuntimeContainer } from "../../../../engine/Container";
 import { ControlCommand as RuntimeControlCommand } from "../../../../engine/ControlCommand";
 import { Divert as RuntimeDivert } from "../../../../engine/Divert";
 import { Expression } from "../Expression/Expression";
@@ -64,7 +64,7 @@ export class ConditionalSingleBranch extends ParsedObject {
     }
   }
 
-  get typeName(): string {
+  override get typeName(): string {
     return "ConditionalSingleBranch";
   }
 

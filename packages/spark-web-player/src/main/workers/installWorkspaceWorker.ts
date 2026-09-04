@@ -11,8 +11,8 @@ import { DidChangeWatchedFilesMessage } from "@impower/spark-editor-protocol/src
 import { ExecuteCommandMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/ExecuteCommandMessage";
 import { SceneTracker } from "@impower/spark-engine/src/game/core/classes/SceneTracker";
 import { findClosestPath } from "@impower/spark-engine/src/game/core/utils/findClosestPath";
-import { File } from "@impower/sparkdown/src/compiler";
-import { SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
+import type { File } from "@impower/sparkdown/src/compiler";
+import type { SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
 import { SparkdownWorkspace } from "@impower/sparkdown/src/workspace/classes/SparkdownWorkspace";
 import { getSharedAssetCache } from "../assets/sharedAssetCache";
 import { resolveImageSrcs } from "../utils/resolveImageSrcs";

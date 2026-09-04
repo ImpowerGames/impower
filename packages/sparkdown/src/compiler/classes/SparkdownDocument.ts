@@ -1,9 +1,9 @@
 import {
-  DocumentUri,
-  Position,
-  Range,
+  type DocumentUri,
+  type Position,
+  type Range,
   TextDocument,
-  TextDocumentContentChangeEvent,
+  type TextDocumentContentChangeEvent,
 } from "vscode-languageserver-textdocument";
 
 export class SparkdownDocument implements TextDocument {

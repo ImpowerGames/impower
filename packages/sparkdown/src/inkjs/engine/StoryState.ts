@@ -34,7 +34,7 @@ export class StoryState {
   public onDidLoadState: (() => void) | null = null;
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  public ToJson(indented: boolean = false) {
+  public ToJson(_indented: boolean = false) {
     let writer = new SimpleJson.Writer();
     this.WriteJson(writer);
     return writer.toString();

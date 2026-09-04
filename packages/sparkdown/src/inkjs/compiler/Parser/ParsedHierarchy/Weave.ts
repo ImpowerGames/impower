@@ -9,7 +9,7 @@ import { DivertTarget } from "./Divert/DivertTarget";
 import { FlowBase } from "./Flow/FlowBase";
 import { Gather } from "./Gather/Gather";
 import { GatherPointToResolve } from "./Gather/GatherPointToResolve";
-import { IWeavePoint } from "./IWeavePoint";
+import type { IWeavePoint } from "./IWeavePoint";
 import { ParsedObject } from "./Object";
 import { InkObject as RuntimeObject } from "../../../engine/Object";
 import { Sequence } from "./Sequence/Sequence";
@@ -119,7 +119,7 @@ export class Weave extends ParsedObject {
     this.AddContent(cont);
   }
 
-  get typeName(): string {
+  override get typeName(): string {
     return "Weave";
   }
 
@@ -541,14 +541,12 @@ export class Weave extends ParsedObject {
   public override ResolveReferences(context: Story): void {
     // Check that choices nested within conditionals and sequences are terminated
     if (this.looseEnds !== null && this.looseEnds.length > 0) {
-      let isNestedWeave = false;
       for (
         let ancestor = this.parent;
         ancestor !== null;
         ancestor = ancestor.parent
       ) {
         if (ancestor instanceof Sequence || ancestor instanceof Conditional) {
-          isNestedWeave = true;
           break;
         }
       }

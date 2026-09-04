@@ -1,4 +1,4 @@
-import { IElementEvent } from "./IElementEvent";
+import type { IElementEvent } from "./IElementEvent";
 
 export interface Touch {
   /** [MDN Reference](https://developer.mozilla.org/docs/Web/API/Touch/clientX) */

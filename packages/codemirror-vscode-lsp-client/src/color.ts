@@ -310,7 +310,7 @@ export function convertFromServerColors(
 }
 
 export function setDocumentColors(
-  state: EditorState,
+  _state: EditorState,
   colors: DocumentColor[],
 ): TransactionSpec {
   const effects: StateEffect<unknown>[] = [];

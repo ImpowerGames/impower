@@ -1,7 +1,7 @@
 import { StringValue } from "./Value";
 import { throwNullException } from "./NullException";
 import { StringBuilder } from "./StringBuilder";
-import { INamedContent } from "./INamedContent";
+import type { INamedContent } from "./INamedContent";
 import { InkObject } from "./Object";
 import { SearchResult } from "./SearchResult";
 import { Path } from "./Path";

@@ -66,17 +66,17 @@ export function convertFromServerDiagnostics(
     .map(
       (d): Diagnostic => ({
         from: plugin.unsyncedChanges.mapPos(
-          plugin.fromPosition(d.range.start, plugin.syncedDoc),
+          plugin.fromPosition(d["range"].start, plugin.syncedDoc),
         ),
         to: plugin.unsyncedChanges.mapPos(
-          plugin.fromPosition(d.range.end, plugin.syncedDoc),
+          plugin.fromPosition(d["range"].end, plugin.syncedDoc),
         ),
-        severity: convertFromServerSeverity(d.severity ?? 1),
+        severity: convertFromServerSeverity(d["severity"] ?? 1),
         message:
           typeof d.message === "object" && "value" in d.message
             ? d.message.value
             : d.message,
-        actions: convertFromDiagnosticDataToActions(d.data),
+        actions: convertFromDiagnosticDataToActions(d["data"]),
         renderMessage: () => {
           return renderDiagnosticMessage(plugin, d.message);
         },

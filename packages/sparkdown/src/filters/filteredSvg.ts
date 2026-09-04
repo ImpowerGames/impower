@@ -170,7 +170,7 @@ export const buildFilteredSrc = (
  * `thumbnailCacheKey`'s discipline.
  */
 export const filteredSvgCacheKey = (
-  path: string,
+  _path: string,
   lastModified: number,
   size: number,
   canonicalParam: string,

@@ -1,5 +1,5 @@
 import {
-  CoreBuiltins,
+  type CoreBuiltins,
   coreBuiltinDefinitions,
 } from "../coreBuiltinDefinitions";
 import { Module } from "./Module";

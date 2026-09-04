@@ -1,7 +1,7 @@
-import { NotificationMessage } from "@impower/jsonrpc/src/common/types/NotificationMessage";
-import { RequestMessage } from "@impower/jsonrpc/src/common/types/RequestMessage";
-import { IKeyboardEvent } from "../types/IKeyboardEvent";
-import { Instructions } from "../types/Instructions";
+import type { NotificationMessage } from "@impower/jsonrpc/src/common/types/NotificationMessage";
+import type { RequestMessage } from "@impower/jsonrpc/src/common/types/RequestMessage";
+import type { IKeyboardEvent } from "../types/IKeyboardEvent";
+import type { Instructions } from "../types/Instructions";
 import { Clock } from "./Clock";
 import type { Game } from "./Game";
 import { EventMessage } from "./messages/EventMessage";

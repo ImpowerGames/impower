@@ -18,7 +18,7 @@ export class Stitch extends FlowBase {
     super(name, topLevelObjects, args, isFunction);
   }
 
-  get typeName(): string {
+  override get typeName(): string {
     return "Stitch";
   }
 
@@ -26,7 +26,7 @@ export class Stitch extends FlowBase {
   // attached to the class as properties.
   private baseToString = this.toString;
 
-  public toString = (): string => {
+  public override toString = (): string => {
     return `${
       this.parent !== null ? this.parent + " > " : ""
     }${this.baseToString()}`;

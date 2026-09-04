@@ -1,4 +1,4 @@
-import { Input, TreeFragment } from "@lezer/common";
+import { type Input, TreeFragment } from "@lezer/common";
 
 const ENDS_WITH_NEWLINE_REGEX = /(\r\n|\r|\n)$/;
 

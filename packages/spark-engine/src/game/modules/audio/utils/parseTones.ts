@@ -1,4 +1,4 @@
-import { Tone } from "../types/Tone";
+import type { Tone } from "../types/Tone";
 import { parseTone } from "./parseTone";
 
 export const parseTones = (str: string, separator: string): Tone[] => {

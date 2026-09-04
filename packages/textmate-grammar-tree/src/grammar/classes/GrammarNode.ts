@@ -3,9 +3,9 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
 import { SpecialRecord } from "../../compiler/enums/SpecialRecord";
-import { Node, NodeID } from "../../core";
+import { type Node, NodeID } from "../../core";
 
-import { RuleDefinition } from "../types/GrammarDefinition";
+import type { RuleDefinition } from "../types/GrammarDefinition";
 import { createID } from "../utils/createID";
 
 export class GrammarNode implements Node {

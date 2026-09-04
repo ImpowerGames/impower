@@ -1,4 +1,4 @@
-import { Prosody } from "../types/Prosody";
+import type { Prosody } from "../types/Prosody";
 
 export const default_prosody = (obj?: Partial<Prosody>): Prosody => ({
   $link: {

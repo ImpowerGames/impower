@@ -2,23 +2,23 @@ import { getCharacterIdentifier } from "@impower/sparkdown/src/compiler/utils/ge
 import { parseDisplayRoutingTag } from "@impower/sparkdown/src/compiler/utils/displayRoutingTag";
 import { ObjectValue } from "@impower/sparkdown/src/inkjs/engine/Value";
 import { Module } from "../../../core/classes/Module";
-import {
-  AudioInstruction,
-  ImageInstruction,
-  LoadInstruction,
-  LayoutInstruction,
-  TextInstruction,
+import type {
+AudioInstruction,
+ImageInstruction,
+LoadInstruction,
+LayoutInstruction,
+TextInstruction,
 } from "../../../core/types/Instruction";
 import type { Instructions } from "../../../core/types/Instructions";
 import { getNumberValue } from "../../../core/utils/getNumberValue";
 import { getTimeValue } from "../../../core/utils/getTimeValue";
 import {
-  InterpreterBuiltins,
+  type InterpreterBuiltins,
   interpreterBuiltinDefinitions,
 } from "../interpreterBuiltinDefinitions";
-import { Chunk } from "../types/Chunk";
-import { InstructionOptions } from "../types/InstructionOptions";
-import { Phrase } from "../types/Phrase";
+import type { Chunk } from "../types/Chunk";
+import type { InstructionOptions } from "../types/InstructionOptions";
+import type { Phrase } from "../types/Phrase";
 import { stressPhrases } from "../utils/stressPhrases";
 import { Matcher } from "./helpers/Matcher";
 
@@ -618,10 +618,10 @@ export class InterpreterModule extends Module<
     // actually plays (#268).
     const synthEnvelope = synth?.envelope;
     return synthEnvelope
-      ? (synthEnvelope.attack ?? 0) +
-          (synthEnvelope.decay ?? 0) +
-          (synthEnvelope.sustain ?? 0) +
-          (synthEnvelope.release ?? 0)
+      ? (synthEnvelope["attack"] ?? 0) +
+          (synthEnvelope["decay"] ?? 0) +
+          (synthEnvelope["sustain"] ?? 0) +
+          (synthEnvelope["release"] ?? 0)
       : 0;
   }
 

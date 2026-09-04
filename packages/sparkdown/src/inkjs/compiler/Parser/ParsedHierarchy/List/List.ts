@@ -11,7 +11,7 @@ export class List extends Expression {
     super();
   }
 
-  get typeName(): string {
+  override get typeName(): string {
     return "List";
   }
 

@@ -1,5 +1,5 @@
 import { MessageProtocolRequestType } from "@impower/jsonrpc/src/common/classes/MessageProtocolRequestType";
-import { Animation } from "../../types/Animation";
+import type { Animation } from "../../types/Animation";
 
 export type AnimateElementsMethod = typeof AnimateElementsMessage.method;
 

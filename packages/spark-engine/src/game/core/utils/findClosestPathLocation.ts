@@ -1,4 +1,4 @@
-import { ScriptLocation } from "../types/ScriptLocation";
+import type { ScriptLocation } from "../types/ScriptLocation";
 
 export const findClosestPathLocation = (
   breakpoint: { file: string; line: number },

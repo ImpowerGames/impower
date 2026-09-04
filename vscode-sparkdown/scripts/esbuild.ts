@@ -49,7 +49,7 @@ const testBundle = (): esbuild.Plugin => ({
         return { path: path.resolve(args.path) };
       }
     });
-    build.onLoad({ filter: /[\/\\]extensionTests\.ts$/ }, async (args) => {
+    build.onLoad({ filter: /[\/\\]extensionTests\.ts$/ }, async () => {
       const testsRoot = path.join(process.cwd(), "./src/web/test/suite");
       const files = await glob.glob("*.test.{ts,tsx}", {
         cwd: testsRoot,

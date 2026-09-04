@@ -32,7 +32,7 @@ export class ConstantDeclaration extends ParsedObject {
     }
   }
 
-  get typeName(): string {
+  override get typeName(): string {
     return "const";
   }
 

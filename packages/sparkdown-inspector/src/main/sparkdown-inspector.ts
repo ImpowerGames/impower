@@ -127,7 +127,7 @@ export default class SparkdownInspector extends Component(spec) {
             e.preventDefault();
           });
 
-          summary.addEventListener("click", (e) => {
+          summary.addEventListener("click", () => {
             const willOpen = !el.open;
 
             setTimeout(() => {

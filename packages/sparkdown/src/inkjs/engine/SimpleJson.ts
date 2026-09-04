@@ -90,7 +90,7 @@ export namespace SimpleJson {
         // This object is created as the child of an array.
         this.Assert(this.currentCollection !== null);
 
-        this.currentCollection!.push(newObject);
+        this.currentCollection!["push"](newObject);
         this._collectionStack.push(newObject);
       } else {
         // This object is the root object.
@@ -112,7 +112,7 @@ export namespace SimpleJson {
     public WriteProperty(
       name: any,
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      innerOrContent: ((w: Writer) => void) | string | boolean | null,
+      _innerOrContent: ((w: Writer) => void) | string | boolean | null,
     ) {
       this.WritePropertyStart(name);
       if (arguments[1] instanceof Function) {
@@ -204,7 +204,7 @@ export namespace SimpleJson {
         // This array is created as the child of another array.
         this.Assert(this.currentCollection !== null);
 
-        this.currentCollection!.push(newObject);
+        this.currentCollection!["push"](newObject);
         this._collectionStack.push(newObject);
       } else {
         // This array is the root object.
@@ -227,7 +227,7 @@ export namespace SimpleJson {
     public Write(
       value: number | string | boolean | null,
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      escape: boolean = true,
+      _escape: boolean = true,
     ) {
       // if (value === null) {
       //   console.error("Warning: trying to write a null value");
@@ -340,7 +340,7 @@ export namespace SimpleJson {
     }
 
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    public WriteStringInner(str: string | null, escape: boolean = true) {
+    public WriteStringInner(str: string | null, _escape: boolean = true) {
       this.Assert(this.state === SimpleJson.Writer.State.String);
 
       if (str === null) {

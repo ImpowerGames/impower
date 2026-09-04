@@ -11,7 +11,8 @@
     "prebuild": "npm run build:impower-ui",
     "build": "tsx ./build.ts --production --minify",
     "start": "node ./out/api/index.js",
-    "test": "vitest run"
+    "test": "vitest run",
+    "typecheck": "node ../scripts/typecheck.mjs impower-dev/"
   },
   "dependencies": {
     "@fastify/cors": "^11.2.0",

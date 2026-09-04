@@ -12,7 +12,7 @@ import GRAMMAR_DEFINITION from "../../../language/sparkdown.language-grammar.jso
 // No generated wrapper / codegen step — `builtins.sd` is the single source of
 // truth.
 import BUILTINS_PRELUDE from "../builtins/builtins.sd?raw";
-import { IFileHandler } from "../../inkjs/compiler/IFileHandler";
+import type { IFileHandler } from "../../inkjs/compiler/IFileHandler";
 import { ErrorType } from "../../inkjs/compiler/Parser/ErrorType";
 import { Choice } from "../../inkjs/compiler/Parser/ParsedHierarchy/Choice";
 import { ConstantDeclaration } from "../../inkjs/compiler/Parser/ParsedHierarchy/Declaration/ConstantDeclaration";
@@ -44,12 +44,12 @@ import { TunnelOnwards } from "../../inkjs/compiler/Parser/ParsedHierarchy/Tunne
 import { Weave } from "../../inkjs/compiler/Parser/ParsedHierarchy/Weave";
 import { ControlCommand } from "../../inkjs/engine/ControlCommand";
 import { DebugMetadata } from "../../inkjs/engine/DebugMetadata";
-import { SourceMetadata } from "../../inkjs/engine/Error";
+import type { SourceMetadata } from "../../inkjs/engine/Error";
 import {
   validateScene,
   validateBranch,
 } from "../lower/utils/validateSceneBranchScope";
-import { LowerContext } from "../lower/context";
+import type { LowerContext } from "../lower/context";
 import { InkObject } from "../../inkjs/engine/Object";
 import { SimpleJson } from "../../inkjs/engine/SimpleJson";
 import { JsonSerialisation } from "../../inkjs/engine/JsonSerialisation";
@@ -76,12 +76,12 @@ import {
 } from "../types/SceneAssets";
 import { scanAssetDirectives } from "../utils/scanAssetDirectives";
 import { VariableAssignment } from "../../inkjs/engine/VariableAssignment";
-import { SparkDeclaration } from "../types/SparkDeclaration";
-import { DiagnosticSeverity, SparkDiagnostic } from "../types/SparkDiagnostic";
-import { SparkdownCompilerConfig } from "../types/SparkdownCompilerConfig";
-import { SparkdownCompilerState } from "../types/SparkdownCompilerState";
-import { SparkProgram } from "../types/SparkProgram";
-import { SparkSelector } from "../types/SparkSelector";
+import type { SparkDeclaration } from "../types/SparkDeclaration";
+import { DiagnosticSeverity, type SparkDiagnostic } from "../types/SparkDiagnostic";
+import type { SparkdownCompilerConfig } from "../types/SparkdownCompilerConfig";
+import type { SparkdownCompilerState } from "../types/SparkdownCompilerState";
+import type { SparkProgram } from "../types/SparkProgram";
+import type { SparkSelector } from "../types/SparkSelector";
 import { setBuiltinTypeNames } from "../utils/builtinTypeNames";
 import { cloneBuiltinStructs } from "../utils/cloneBuiltinStructs";
 import { collectDefineTypeNames } from "../utils/collectDefineTypeNames";
@@ -94,24 +94,24 @@ import { profile } from "../utils/profile";
 import { readProperty } from "../utils/readProperty";
 import { resolveFileUsingImpliedExtension } from "../utils/resolveFileUsingImpliedExtension";
 import { resolveSelector } from "../utils/resolveSelector";
-import { AddCompilerFileParams } from "./messages/AddCompilerFileMessage";
+import type { AddCompilerFileParams } from "./messages/AddCompilerFileMessage";
 import {
   CompiledProgramMessage,
-  CompiledProgramParams,
+  type CompiledProgramParams,
 } from "./messages/CompiledProgramMessage";
-import { CompileProgramParams } from "./messages/CompileProgramMessage";
-import { RemoveCompilerFileParams } from "./messages/RemoveCompilerFileMessage";
+import type { CompileProgramParams } from "./messages/CompileProgramMessage";
+import type { RemoveCompilerFileParams } from "./messages/RemoveCompilerFileMessage";
 import {
   RemovedCompilerFileMessage,
-  RemovedCompilerFileParams,
+  type RemovedCompilerFileParams,
 } from "./messages/RemovedCompilerFileMessage";
-import { SelectCompilerDocumentParams } from "./messages/SelectCompilerDocumentMessage";
+import type { SelectCompilerDocumentParams } from "./messages/SelectCompilerDocumentMessage";
 import {
   SelectedCompilerDocumentMessage,
-  SelectedCompilerDocumentParams,
+  type SelectedCompilerDocumentParams,
 } from "./messages/SelectedCompilerDocumentMessage";
-import { UpdateCompilerDocumentParams } from "./messages/UpdateCompilerDocumentMessage";
-import { UpdateCompilerFileParams } from "./messages/UpdateCompilerFileMessage";
+import type { UpdateCompilerDocumentParams } from "./messages/UpdateCompilerDocumentMessage";
+import type { UpdateCompilerFileParams } from "./messages/UpdateCompilerFileMessage";
 import { SparkdownDocumentRegistry } from "./SparkdownDocumentRegistry";
 import { SparkdownFileRegistry } from "./SparkdownFileRegistry";
 
@@ -4155,7 +4155,7 @@ export class SparkdownCompiler {
     });
   }
 
-  populateImplicitDefs(state: SparkdownCompilerState, program: SparkProgram) {
+  populateImplicitDefs(_state: SparkdownCompilerState, program: SparkProgram) {
     const uri = program.uri;
     profile("start", this._profilerId, "populateImplicitDefs", uri);
     const images = program.context?.["image"];
@@ -4225,7 +4225,7 @@ export class SparkdownCompiler {
   }
 
   populateDefinedDefaultProperties(
-    state: SparkdownCompilerState,
+    _state: SparkdownCompilerState,
     program: SparkProgram,
   ) {
     const uri = program.uri;

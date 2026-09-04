@@ -10,7 +10,7 @@ import "../../../inkjs/engine/Container";
 import { Range } from "@codemirror/state";
 import { ErrorType } from "../../../inkjs/compiler/Parser/ErrorType";
 import { ParsedObject } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Object";
-import { SourceMetadata } from "../../../inkjs/engine/Error";
+import type { SourceMetadata } from "../../../inkjs/engine/Error";
 import { collectDefineTypeNames } from "../../utils/collectDefineTypeNames";
 import { lower } from "../../lower/lower";
 import { type SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
@@ -324,8 +324,8 @@ export class CompilationAnnotator extends SparkdownAnnotator<
   }
 
   override end(
-    iterateFrom: number,
-    iterateTo: number,
+    _iterateFrom: number,
+    _iterateTo: number,
     added: Range<SparkdownAnnotation<CompiledBlock>>[],
     removed: Range<SparkdownAnnotation<CompiledBlock>>[],
   ): void {

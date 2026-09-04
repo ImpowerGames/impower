@@ -3,9 +3,9 @@ import { Divert } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Divert/Di
 import { Identifier } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Identifier";
 import { ParsedObject } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Object";
 import { Wrap } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Wrap";
-import { CompiledBlock } from "../../classes/annotators/CompilationAnnotator";
-import { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
-import { LowerContext } from "../context";
+import type { CompiledBlock } from "../../classes/annotators/CompilationAnnotator";
+import type { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
+import type { LowerContext } from "../context";
 import { wrapInWeave } from "../utils/wrapInWeave";
 
 // `break` and `continue` — exit / restart the innermost enclosing

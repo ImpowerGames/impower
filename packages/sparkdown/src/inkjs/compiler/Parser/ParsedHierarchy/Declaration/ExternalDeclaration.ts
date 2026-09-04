@@ -1,4 +1,4 @@
-import { INamedContent } from "../../../../engine/INamedContent";
+import type { INamedContent } from "../../../../engine/INamedContent";
 import { ParsedObject } from "../Object";
 import { InkObject as RuntimeObject } from "../../../../engine/Object";
 import { Identifier } from "../Identifier";
@@ -16,7 +16,7 @@ export class ExternalDeclaration extends ParsedObject implements INamedContent {
     this.identifier = identifier;
   }
 
-  get typeName(): string {
+  override get typeName(): string {
     return "external";
   }
 
@@ -27,7 +27,7 @@ export class ExternalDeclaration extends ParsedObject implements INamedContent {
     return null;
   };
 
-  public toString(): string {
+  public override toString(): string {
     return `external ${this.identifier?.name}`;
   }
 }

@@ -34,7 +34,7 @@ export class IncDecExpression extends Expression {
     }
   }
 
-  get typeName(): string {
+  override get typeName(): string {
     return "IncDecExpression";
   }
 
@@ -110,7 +110,7 @@ export class IncDecExpression extends Expression {
     return "decrement";
   }
 
-  public readonly toString = (): string => {
+  public override readonly toString = (): string => {
     if (this.expression) {
       return `${this.identifier?.name}${this.isInc ? " += " : " -= "}${
         this.expression

@@ -1,4 +1,4 @@
-import { Message } from "../types/Message";
+import type { Message } from "../types/Message";
 
 export const isMessage = <M extends string, P>(
   obj: any,

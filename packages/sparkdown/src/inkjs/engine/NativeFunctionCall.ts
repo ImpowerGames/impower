@@ -1,5 +1,4 @@
 import {
-  AbstractValue,
   Value,
   ValueType,
   IntValue,
@@ -18,8 +17,6 @@ import { InkObject } from "./Object";
 import {
   getPureStdLibEntries,
   VARIADIC_ARITY,
-  NumericBinary,
-  NumericUnary,
   METHOD_DISPATCH,
   METHOD_PREFIX,
   callBuiltinMethod,
@@ -1073,7 +1070,7 @@ export class NativeFunctionCall extends InkObject {
     this.AddOpToNativeFunc(name, 1, ValueType.Object, op);
   }
 
-  public toString() {
+  public override toString() {
     return 'Native "' + this.name + '"';
   }
 

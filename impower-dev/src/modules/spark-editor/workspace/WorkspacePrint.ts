@@ -128,7 +128,7 @@ export default class WorkspacePrint {
       params.fonts.bold,
       params.fonts.italic,
       params.fonts.bolditalic,
-      params.fonts.emoji,
+      params.fonts["emoji"],
     ]);
   }
 
@@ -149,7 +149,7 @@ export default class WorkspacePrint {
       params.fonts.bold,
       params.fonts.italic,
       params.fonts.bolditalic,
-      params.fonts.emoji,
+      params.fonts["emoji"],
     ]);
   }
 }

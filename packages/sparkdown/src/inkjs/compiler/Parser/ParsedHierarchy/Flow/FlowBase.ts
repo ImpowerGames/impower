@@ -4,10 +4,9 @@ import { Divert } from "../Divert/Divert";
 import { DivertTarget } from "../Divert/DivertTarget";
 import { FlowLevel } from "./FlowLevel";
 import { Gather } from "../Gather/Gather";
-import { INamedContent } from "../../../../engine/INamedContent";
+import type { INamedContent } from "../../../../engine/INamedContent";
 // import { Knot } from '../Knot';
 import { ParsedObject } from "../Object";
-import { Path } from "../Path";
 import { ReturnType } from "../ReturnType";
 import { Container as RuntimeContainer } from "../../../../engine/Container";
 import { Divert as RuntimeDivert } from "../../../../engine/Divert";
@@ -49,7 +48,7 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
     return this._subFlowsByName;
   }
 
-  get typeName(): string {
+  override get typeName(): string {
     if (this.isFunction) {
       return "Function";
     }
@@ -703,6 +702,6 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
     }
   };
 
-  public readonly toString = (): string =>
+  public override readonly toString = (): string =>
     `${this.typeName} \`${this.identifier}\``;
 }

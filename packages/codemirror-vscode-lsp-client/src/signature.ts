@@ -96,7 +96,7 @@ const signaturePlugin = ViewPlugin.fromClass(
           (sigState && serverConf?.retriggerCharacters) || [],
         );
         if (triggers) {
-          update.changes.iterChanges((fromA, toA, fromB, toB, inserted) => {
+          update.changes.iterChanges((_fromA, _toA, _fromB, _toB, inserted) => {
             let ins = inserted.toString();
             if (ins)
               for (let ch of triggers) {

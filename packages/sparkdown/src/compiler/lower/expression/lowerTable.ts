@@ -5,7 +5,7 @@ import {
   ObjectExpression,
   ObjectExpressionEntry,
 } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expression/ObjectExpression";
-import { LowerContext } from "../context";
+import type { LowerContext } from "../context";
 import { validateAssignmentValue } from "../utils/validateAssignmentValue";
 import {
   lowerExpressionFromContainer,

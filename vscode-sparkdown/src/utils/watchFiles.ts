@@ -5,7 +5,7 @@ import { getWorkspaceRelativePath } from "./getWorkspaceRelativePath";
 import { updateCommands } from "./updateCommands";
 
 export const watchFiles = (
-  context: vscode.ExtensionContext,
+  _context: vscode.ExtensionContext,
   doc: vscode.TextDocument,
 ) => {
   const uri = doc.uri;

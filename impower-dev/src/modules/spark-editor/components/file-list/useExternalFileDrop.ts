@@ -64,7 +64,7 @@ export function useExternalFileDrop(
     const folderAt = (x: number, y: number): string | null => {
       const hit = document.elementFromPoint(x, y);
       const rowEl = hit?.closest<HTMLElement>('[data-tree-row][data-dir="1"]');
-      return rowEl?.dataset.path ?? null;
+      return rowEl?.dataset["path"] ?? null;
     };
 
     const onEnter = (e: DragEvent) => {

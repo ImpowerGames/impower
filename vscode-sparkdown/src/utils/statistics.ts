@@ -1,4 +1,3 @@
-import { ScreenplayConfig } from "@impower/sparkdown-screenplay/src/index";
 import { calculateSpeechDuration } from "@impower/sparkdown/src/compiler/utils/calculateSpeechDuration";
 import { isMonologue } from "@impower/sparkdown/src/compiler/utils/isMonologue";
 import { SparkProgram, StructureItem } from "@impower/sparkdown/src/index";
@@ -420,10 +419,9 @@ const createDurationStatistics = (
 };
 
 export const retrieveScreenPlayStatistics = async (
-  context: vscode.ExtensionContext,
+  _context: vscode.ExtensionContext,
   script: string,
   program: SparkProgram,
-  config: ScreenplayConfig,
 ): Promise<ScreenPlayStatistics> => {
   return {
     characterStats: createCharacterStatistics(program),

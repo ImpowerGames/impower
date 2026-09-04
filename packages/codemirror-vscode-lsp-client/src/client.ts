@@ -130,7 +130,7 @@ export class WorkspaceMapping {
 const defaultNotificationListeners: {
   [method: string]: (client: LSPClient, params: any) => void;
 } = {
-  "window/logMessage": (client, params: lsp.LogMessageParams) => {
+  "window/logMessage": (_client, params: lsp.LogMessageParams) => {
     if (params.type == 1) console.error("[lsp] " + params.message);
     else if (params.type == 2) console.warn("[lsp] " + params.message);
   },
@@ -241,7 +241,6 @@ export class LSPClient {
   transport: Transport | null = null;
   /// The client's [workspace](#lsp-client.Workspace).
   workspace: Workspace;
-  private nextReqID = 0;
   /// @internal
   activeMappings: WorkspaceMapping[] = [];
 

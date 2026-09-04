@@ -1,7 +1,7 @@
 import { InkListItem } from "./InkList";
 import { ListValue } from "./Value";
 import { ListDefinition } from "./ListDefinition";
-import { TryGetResult } from "./TryGetResult";
+import type { TryGetResult } from "./TryGetResult";
 import { throwNullException } from "./NullException";
 
 export class ListDefinitionsOrigin {

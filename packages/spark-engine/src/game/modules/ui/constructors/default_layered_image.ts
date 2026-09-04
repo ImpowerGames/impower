@@ -1,5 +1,5 @@
-import { Create } from "../../../core/types/Create";
-import { LayeredImage } from "../types/LayeredImage";
+import type { Create } from "../../../core/types/Create";
+import type { LayeredImage } from "../types/LayeredImage";
 
 export const default_layered_image: Create<LayeredImage> = (obj) => ({
   $type: "layered_image",

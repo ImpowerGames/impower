@@ -469,7 +469,7 @@ const touchEventsPlugin = ViewPlugin.fromClass(
       );
     }
 
-    onVisualViewportUpdate = (e?: Event) => {
+    onVisualViewportUpdate = () => {
       const config = this.view.state.facet(touchInputHandlerConfig);
 
       if (!config.isTouchEnvironment()) {

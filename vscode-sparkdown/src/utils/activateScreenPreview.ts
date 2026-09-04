@@ -513,9 +513,6 @@ function unmarkProgrammaticEdit(uri: string) {
   }
 }
 
-function isProgrammaticEdit(uri: string): boolean {
-  return (programmaticEdits.get(uri) ?? 0) > 0;
-}
 
 const html = (
   raw: readonly string[] | ArrayLike<string>,

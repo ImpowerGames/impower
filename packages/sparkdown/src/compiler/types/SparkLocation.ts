@@ -1,4 +1,4 @@
-import { Range } from "./SparkDiagnostic";
+import type { Range } from "./SparkDiagnostic";
 
 export interface SparkLocation {
   uri: string;

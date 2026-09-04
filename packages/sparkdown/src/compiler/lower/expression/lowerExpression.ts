@@ -12,7 +12,7 @@ import { SingleValueExpression } from "../../../inkjs/compiler/Parser/ParsedHier
 import { StashAndRereadExpression } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expression/StashAndRereadExpression";
 import {
   TernaryExpression,
-  TernaryBranch,
+  type TernaryBranch,
 } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expression/TernaryExpression";
 import { NumberExpression } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expression/NumberExpression";
 import {
@@ -26,12 +26,10 @@ import { FunctionCall } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Fun
 import { Function } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Flow/Function";
 import { Argument } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Argument";
 import { Identifier } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Identifier";
-import { Knot } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Knot";
 import { ParsedObject } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Object";
 import { Text } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Text";
 import { VariableReference } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Variable/VariableReference";
-import { Weave } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Weave";
-import { LowerContext, SiblingSubFlowInfo } from "../context";
+import type { LowerContext,SiblingSubFlowInfo } from "../context";
 import { stampDebugMetadata } from "../utils/debugMetadata";
 import { lowerStatements } from "../lower";
 import { getFunctionBodyContent } from "../utils/getFunctionBodyContent";
@@ -652,7 +650,6 @@ function lowerMethodCall(
   const methodNameNode = getDescendent("LuauFunctionName", methodAccessor);
   if (!methodNameNode) return null;
   const methodNameText = ctx.read(methodNameNode.from, methodNameNode.to);
-  const methodName = new Identifier(methodNameText);
 
   // Lower the call's argument node — parenthesized list or the
   // single-literal sugar forms (`string.reverse"abc"`).
@@ -2332,7 +2329,6 @@ export function lowerValueChainAccessPath(
   if (firstInner?.name === "LuauFunctionCall") {
     const nameStr = readFunctionCallName(firstInner, ctx);
     if (!nameStr) return null;
-    const name = new Identifier(nameStr);
     // Greedy grammar packs `f(a)(b)(c)` into one call node with N
     // parameter-sets. Collect all, use the first as the base call's
     // args, and chain the rest as `CallValueExpression` wrappers.
@@ -2445,14 +2441,6 @@ export function lowerValueChainAccessPath(
 // `siblingSubFlowNamesStack`) are intentionally NOT here — those
 // resolve via FunctionCall + Divert against the SubFlow's actual
 // name, which the resolver finds via ink's relative-path walk.
-function isEnclosingLocalName(name: string, ctx: LowerContext): boolean {
-  const stack = ctx.declaredLocalsStack;
-  if (!stack) return false;
-  for (let i = stack.length - 1; i >= 0; i--) {
-    if (stack[i]!.has(name)) return true;
-  }
-  return false;
-}
 
 // Resolve a bare callable name against the lexical scope chain,
 // innermost frame first. Every function-lowering site pushes one
@@ -2493,14 +2481,6 @@ function resolveCallableBinding(
 // per-frame shadowing (a lambda param `f` beats an outer sibling
 // `f`); this flat check remains for the free-variable scan, where
 // any-frame membership is the right question.
-function isSiblingSubFlowName(name: string, ctx: LowerContext): boolean {
-  const stack = ctx.siblingSubFlowNamesStack;
-  if (!stack) return false;
-  for (let i = stack.length - 1; i >= 0; i--) {
-    if (stack[i]!.has(name)) return true;
-  }
-  return false;
-}
 
 // The registry entry of a sibling variadic SubFlow (captured upval
 // names + declared fixed arity), or null when `name` isn't a
@@ -2567,41 +2547,9 @@ function readFunctionCallName(
   return nameNode ? ctx.read(nameNode.from, nameNode.to) : null;
 }
 
-function lowerCallArguments(
-  callNode: SyntaxNode,
-  ctx: LowerContext,
-): Expression[] {
-  // Lua/Luau call-sugar: `f{...}` and `f"..."` are equivalent to
-  // `f({...})` / `f("...")` — a single table-/string-arg call. The
-  // grammar absorbs the table/string as a body child of the
-  // LuauFunctionCall instead of wrapping it in LuauFunctionCallParameters.
-  // Check the FIRST `_content` child to see which shape we have, then
-  // route accordingly. Falls back to () empty args if neither shape
-  // matches (defensive — should not happen in practice).
-  const params = getDescendent("LuauFunctionCallParameters", callNode);
-  if (params) {
-    return lowerArgListFromParams(params, ctx);
-  }
-  const sugar = findCallSugarArgNode(callNode);
-  if (sugar) {
-    const expr = lowerPrimary(sugar, ctx);
-    return expr ? [expr] : [];
-  }
-  return [];
-}
 
 // Find the first table-/string-sugar arg child of a LuauFunctionCall —
 // the body shape used by `f{...}` and `f"..."` / `f[[...]]` calls.
-function findCallSugarArgNode(callNode: SyntaxNode): SyntaxNode | null {
-  const content = findChildByName(callNode, "LuauFunctionCall_content");
-  const root = content ?? callNode;
-  let child = root.firstChild;
-  while (child) {
-    if (isCallSugarArg(child)) return child;
-    child = child.nextSibling;
-  }
-  return null;
-}
 
 
 function isCallSugarArg(node: SyntaxNode): boolean {

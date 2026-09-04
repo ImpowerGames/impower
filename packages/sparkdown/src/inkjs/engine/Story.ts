@@ -46,14 +46,14 @@ import { ListDefinitionsOrigin } from "./ListDefinitionsOrigin";
 import { ListDefinition } from "./ListDefinition";
 import { Stopwatch } from "./StopWatch";
 import { Pointer } from "./Pointer";
-import { InkList, InkListItem, KeyValuePair } from "./InkList";
+import { InkList, InkListItem, type KeyValuePair } from "./InkList";
 import { asOrNull, asOrThrows } from "./TypeAssertion";
 import { DebugMetadata } from "./DebugMetadata";
 import { throwNullException } from "./NullException";
 import { SimpleJson } from "./SimpleJson";
-import { ErrorHandler, ErrorType } from "./Error";
+import { type ErrorHandler, ErrorType } from "./Error";
 import { StructDefinition } from "./StructDefinition";
-import { Simulator, SimulatorSnapshot } from "./Simulator";
+import type { Simulator,SimulatorSnapshot } from "./Simulator";
 
 export { InkList } from "./InkList";
 

@@ -81,13 +81,13 @@ export abstract class Workspace {
 
   /// Called when the server has changed the content of a closed text file.
   /// The default implementation does nothing when closed files are changed.
-  refreshFileContent(uri: string, text: string): void {}
+  refreshFileContent(_uri: string, _text: string): void {}
 
   /// Called when the client for this workspace is connected. The
   /// default implementation calls
   /// [`LSPClient.didOpen`](#lsp-client.LSPClient.didOpen) on all open
   /// files.
-  connected(client: LSPClient): void {
+  connected(_client: LSPClient): void {
     for (let file of this.files) this.client.didOpen(file);
   }
 
@@ -205,7 +205,7 @@ export abstract class Workspace {
   }
 
   async changeWatchedFiles(
-    params: lsp.DidChangeWatchedFilesParams,
+    _params: lsp.DidChangeWatchedFilesParams,
   ): Promise<void> {}
 }
 

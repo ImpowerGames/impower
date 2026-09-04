@@ -1,7 +1,7 @@
 import { type SyntaxNode } from "@lezer/common";
 import { getDescendents } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendents";
 import { Identifier } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Identifier";
-import { LowerContext } from "../context";
+import type { LowerContext } from "../context";
 
 // The terminator names `END` / `DONE` are no longer part of divert
 // syntax — sparkdown uses the bare `fin` / `done` statement keywords

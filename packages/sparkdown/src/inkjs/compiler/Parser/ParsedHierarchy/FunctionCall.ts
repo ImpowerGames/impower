@@ -1,4 +1,4 @@
-﻿import { Container as RuntimeContainer } from "../../../engine/Container";
+import { Container as RuntimeContainer } from "../../../engine/Container";
 import { ControlCommand as RuntimeControlCommand } from "../../../engine/ControlCommand";
 import { lookupStateAwareStdLib } from "../../../engine/StdLib";
 import { Divert } from "./Divert/Divert";
@@ -6,14 +6,12 @@ import { Divert as RuntimeDivert } from "../../../engine/Divert";
 import { DivertTarget } from "./Divert/DivertTarget";
 import { Expression } from "./Expression/Expression";
 import { NativeFunctionCall } from "../../../engine/NativeFunctionCall";
-import { NumberExpression } from "./Expression/NumberExpression";
 import { Path } from "./Path";
 import { Story } from "./Story";
 import { Void as RuntimeVoid } from "../../../engine/Void";
 import { VariableReference } from "./Variable/VariableReference";
 import { Identifier } from "./Identifier";
 import { asOrNull } from "../../../engine/TypeAssertion";
-import { DebugMetadata } from "../../../engine/DebugMetadata";
 
 export class FunctionCall extends Expression {
   public static readonly IsBuiltIn = (name: string): boolean => {
@@ -94,7 +92,7 @@ export class FunctionCall extends Expression {
     this.AddContent(this._proxyDivert);
   }
 
-  get typeName(): string {
+  override get typeName(): string {
     return "FunctionCall";
   }
 
@@ -350,7 +348,7 @@ export class FunctionCall extends Expression {
     }
   }
 
-  public readonly toString = (): string => {
+  public override readonly toString = (): string => {
     const strArgs = this.args.join(", ");
     return `${this.name}(${strArgs})`;
   };

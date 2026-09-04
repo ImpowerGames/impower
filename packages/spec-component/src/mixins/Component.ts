@@ -543,7 +543,6 @@ export const Component = <
           beforeAttributeUpdated: (
             attributeName: string,
             node: Element,
-            mutationType: "update" | "remove",
           ) => {
             if (
               "skipMorphingAttributes" in node &&
@@ -594,11 +593,11 @@ export const Component = <
       });
     }
 
-    beforeNodeMorphed(oldNode: Element, newNode: Element): boolean {
+    beforeNodeMorphed(_oldNode: Element, _newNode: Element): boolean {
       return true;
     }
 
-    afterNodeMorphed(oldNode: Element, newNode: Element): void {}
+    afterNodeMorphed(_oldNode: Element, _newNode: Element): void {}
 
     rebindRefs() {
       this.#refs = this.getRefMap(this.selectors);

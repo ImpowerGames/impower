@@ -69,7 +69,7 @@ const setFoldingRanges = StateEffect.define<DocumentFoldingRange[]>();
 export function foldingPlaceholderDOM(
   view: EditorView,
   onclick: (this: GlobalEventHandlers, ev: PointerEvent) => any,
-  prepared: boolean,
+  _prepared: boolean,
 ) {
   const { ranges } = view.state.field(foldingRangeField);
   // prepared is usually the placeholder text if default logic is used
@@ -120,7 +120,7 @@ export function foldingChanged(update: ViewUpdate): boolean {
 }
 
 export function setDocumentFoldingRanges(
-  state: EditorState,
+  _state: EditorState,
   foldables: DocumentFoldingRange[],
 ): TransactionSpec {
   const effects: StateEffect<unknown>[] = [];
@@ -174,7 +174,7 @@ const foldingRangeField = StateField.define<FoldingRangeSet>({
   },
 });
 
-const foldingRangesService = foldService.of((state, from, to) => {
+const foldingRangesService = foldService.of((state, from) => {
   const { byStartLine } = state.field(foldingRangeField);
   const range = byStartLine.get(state.doc.lineAt(from).number);
   if (range) {

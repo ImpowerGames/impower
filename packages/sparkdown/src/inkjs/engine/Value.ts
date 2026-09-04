@@ -73,7 +73,7 @@ export abstract class AbstractValue extends InkObject {
 
     return null;
   }
-  public Copy() {
+  public override Copy() {
     return asOrThrows(AbstractValue.Create(this.valueObject), InkObject);
   }
   public BadCastException(targetType: ValueType) {
@@ -100,7 +100,7 @@ export abstract class Value<
   public get valueObject() {
     return this.value;
   }
-  public toString() {
+  public override toString() {
     if (this.value === null) return throwNullException("Value.value");
     return this.value.toString();
   }
@@ -139,7 +139,7 @@ export class BoolValue extends Value<boolean> {
     throw this.BadCastException(newType);
   }
 
-  public toString() {
+  public override toString() {
     return this.value ? "true" : "false";
   }
 }
@@ -176,7 +176,7 @@ export class MultiValue extends Value<any> {
   public get valueType(): ValueType {
     return this.values[0]?.valueType ?? ValueType.Null;
   }
-  public get valueObject(): any {
+  public override get valueObject(): any {
     return this.values[0]?.valueObject ?? null;
   }
   public get isTruthy(): boolean {
@@ -189,10 +189,10 @@ export class MultiValue extends Value<any> {
     if (!first) return new NullValue();
     return first.Cast(newType);
   }
-  public toString(): string {
+  public override toString(): string {
     return this.values[0]?.toString() ?? "nil";
   }
-  public Copy(): InkObject {
+  public override Copy(): InkObject {
     return new MultiValue(
       this.values.map((v) => v.Copy() as AbstractValue),
     );
@@ -222,10 +222,10 @@ export class NullValue extends Value<any> {
     if (newType === ValueType.Bool) return new BoolValue(false);
     throw this.BadCastException(newType);
   }
-  public toString(): string {
+  public override toString(): string {
     return "nil";
   }
-  public Copy(): InkObject {
+  public override Copy(): InkObject {
     return new NullValue();
   }
 }
@@ -393,7 +393,7 @@ export class DivertTargetValue extends Value<Path> {
 
     throw this.BadCastException(newType);
   }
-  public toString() {
+  public override toString() {
     return "DivertTargetValue(" + this.targetPath + ")";
   }
 }
@@ -474,10 +474,10 @@ export class VariablePointerValue extends Value<string> {
 
     throw this.BadCastException(newType);
   }
-  public toString() {
+  public override toString() {
     return "VariablePointerValue(" + this.variableName + ")";
   }
-  public Copy() {
+  public override Copy() {
     return new VariablePointerValue(this.variableName, this.contextIndex);
   }
 }
@@ -531,7 +531,7 @@ export class ObjectValue extends Value<Map<string, AbstractValue>> {
     }
     throw this.BadCastException(newType);
   }
-  public toString(): string {
+  public override toString(): string {
     if (this.value === null) return "{}";
     const parts: string[] = [];
     for (const [k, v] of this.value) {
@@ -539,7 +539,7 @@ export class ObjectValue extends Value<Map<string, AbstractValue>> {
     }
     return `{${parts.join(", ")}}`;
   }
-  public Copy() {
+  public override Copy() {
     if (this.value === null) return new ObjectValue();
     const next = new Map<string, AbstractValue>();
     for (const [k, v] of this.value) {

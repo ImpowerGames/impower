@@ -1,5 +1,5 @@
-import { InkListItem, SerializedInkListItem } from "./InkList";
-import { TryGetResult } from "./TryGetResult";
+import { InkListItem, type SerializedInkListItem } from "./InkList";
+import type { TryGetResult } from "./TryGetResult";
 
 export class ListDefinition {
   public _name: string;
@@ -60,7 +60,7 @@ export class ListDefinition {
   public TryGetValueForItem(
     item: InkListItem,
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    /* out */ intVal: number,
+    /* out */ _intVal: number,
   ): TryGetResult<number> {
     if (!item.itemName) return { result: 0, exists: false };
     let value = this._itemNameToValues.get(item.itemName);

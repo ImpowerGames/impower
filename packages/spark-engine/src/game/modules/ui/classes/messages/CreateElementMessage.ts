@@ -1,5 +1,5 @@
 import { MessageProtocolRequestType } from "@impower/jsonrpc/src/common/classes/MessageProtocolRequestType";
-import { ElementContent } from "../../types/ElementContent";
+import type { ElementContent } from "../../types/ElementContent";
 
 export type CreateElementMethod = typeof CreateElementMessage.method;
 

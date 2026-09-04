@@ -1,4 +1,4 @@
-import { ColorSource, Graphics, Renderer, Texture } from "pixi.js";
+import { type ColorSource, Graphics, type Renderer, Texture } from "pixi.js";
 
 export const generateSolidTexture = (
   renderer: Renderer,

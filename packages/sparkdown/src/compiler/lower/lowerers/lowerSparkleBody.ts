@@ -1,5 +1,5 @@
 import { type SyntaxNode } from "@lezer/common";
-import { LowerContext } from "../context";
+import type { LowerContext } from "../context";
 import { ErrorType } from "../../../inkjs/engine/Error";
 import { Argument } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Argument";
 import { Function } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Flow/Function";

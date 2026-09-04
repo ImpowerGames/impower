@@ -6,7 +6,7 @@ export class Glue extends Wrap<RuntimeGlue> {
     super(glue);
   }
 
-  get typeName(): string {
+  override get typeName(): string {
     return "Glue";
   }
 }

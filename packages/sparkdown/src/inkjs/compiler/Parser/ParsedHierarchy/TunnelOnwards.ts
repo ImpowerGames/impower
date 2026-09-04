@@ -25,7 +25,7 @@ export class TunnelOnwards extends ParsedObject {
     }
   }
 
-  get typeName(): string {
+  override get typeName(): string {
     return "TunnelOnwards";
   }
 
@@ -112,7 +112,7 @@ export class TunnelOnwards extends ParsedObject {
     }
   }
 
-  public toString = (): string => {
+  public override toString = (): string => {
     return ` -> ${this._divertAfter}`;
   };
 }

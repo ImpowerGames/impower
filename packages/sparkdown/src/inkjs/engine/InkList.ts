@@ -539,7 +539,7 @@ export class InkList extends Map<SerializedInkListItem, number> {
     return null;
   }
 
-  public toString() {
+  public override toString() {
     let ordered = this.orderedItems;
 
     let sb = new StringBuilder();
@@ -556,7 +556,7 @@ export class InkList extends Map<SerializedInkListItem, number> {
   // casting a InkList to a Number, for somereason, actually gives a number.
   // This messes up the type detection when creating a Value from a InkList.
   // Returning NaN here prevents that.
-  public valueOf() {
+  public override valueOf() {
     return NaN;
   }
 }

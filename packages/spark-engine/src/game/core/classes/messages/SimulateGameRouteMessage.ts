@@ -1,7 +1,7 @@
 import { MessageProtocolRequestType } from "@impower/jsonrpc/src/common/classes/MessageProtocolRequestType";
-import { RequestMessage } from "@impower/jsonrpc/src/common/types/RequestMessage";
-import { ResponseMessage } from "@impower/jsonrpc/src/common/types/ResponseMessage";
-import { RoutePlan } from "@impower/sparkdown/src/compiler/utils/planRoute";
+import type { RequestMessage } from "@impower/jsonrpc/src/common/types/RequestMessage";
+import type { ResponseMessage } from "@impower/jsonrpc/src/common/types/ResponseMessage";
+import type { RoutePlan } from "@impower/sparkdown/src/compiler/utils/planRoute";
 
 export type SimulateGameRouteMethod = typeof SimulateGameRouteMessage.method;
 

@@ -1,22 +1,22 @@
 import { Module } from "../../../core/classes/Module";
-import { AudioInstruction } from "../../../core/types/Instruction";
+import type { AudioInstruction } from "../../../core/types/Instruction";
 import {
-  AudioBuiltins,
+  type AudioBuiltins,
   audioBuiltinDefinitions,
 } from "../audioBuiltinDefinitions";
-import { AudioPlayerUpdate } from "../types/AudioPlayerUpdate";
-import { ChannelState } from "../types/ChannelState";
-import { LoadAudioPlayerParams } from "../types/LoadAudioPlayerParams";
-import { Synth } from "../types/Synth";
+import type { AudioPlayerUpdate } from "../types/AudioPlayerUpdate";
+import type { ChannelState } from "../types/ChannelState";
+import type { LoadAudioPlayerParams } from "../types/LoadAudioPlayerParams";
+import type { Synth } from "../types/Synth";
 import { parseTones } from "../utils/parseTones";
 import { ConfigureAudioMixerMessage } from "./messages/ConfigureAudioMixerMessage";
 import {
   LoadAudioPlayerMessage,
-  LoadAudioPlayerMessageMap,
+  type LoadAudioPlayerMessageMap,
 } from "./messages/LoadAudioPlayerMessage";
 import {
   UpdateAudioPlayersMessage,
-  UpdateAudioPlayersMessageMap,
+  type UpdateAudioPlayersMessageMap,
 } from "./messages/UpdateAudioPlayersMessage";
 
 /**

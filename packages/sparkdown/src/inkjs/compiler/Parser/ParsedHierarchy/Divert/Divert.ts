@@ -96,7 +96,7 @@ export class Divert extends ParsedObject {
     }
   }
 
-  get typeName(): string {
+  override get typeName(): string {
     return "Divert";
   }
 
@@ -647,7 +647,7 @@ export class Divert extends ParsedObject {
     }
   };
 
-  public Error(
+  public override Error(
     message: string,
     source:
       | ParsedObject
@@ -675,7 +675,7 @@ export class Divert extends ParsedObject {
     }
   }
 
-  public toString = (): string => {
+  public override toString = (): string => {
     let returnString = "";
     if (this.target !== null) {
       returnString += this.target.toString();
