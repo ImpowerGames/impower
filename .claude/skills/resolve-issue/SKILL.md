@@ -556,14 +556,16 @@ Do not take the pin on trust — and note what the check can and cannot do for y
 Capture the diff once, so every reviewer sees the same artifact:
 
 ```bash
-git diff origin/main...HEAD > review-diff.patch
+git diff origin/main...HEAD > "$SCRATCH/review-diff.patch"
 ```
 
-(`...` is deliberate: changes on your branch since it diverged from `main`, not `main`'s subsequent commits.) The file is untracked — delete it before committing any review fixes, or it gets swept in.
+(`...` is deliberate: changes on your branch since it diverged from `main`, not `main`'s subsequent commits.)
 
-Spawn the reviewers in parallel — one message, multiple Agent tool calls, each with the `subagent_type` from §7b (or `general-purpose` plus a `model:`, on the fallback path). Posting a PR comment needs Bash and a scratch file, so read-only is not tool-enforced for reviewers; the prompt forbids repo edits and §7d checks that it was obeyed. Give each one, verbatim (fill in N = issue number, P = PR number, LENS — the reviewer supplies its own model, so that one is not yours to fill in):
+Write it to your scratchpad, never into the checkout. A patch file inside the repo is one `git add -A` away from being committed, and it leaves the tree dirty for as long as the review runs — long enough to trip any hook or check that expects a clean tree, on every single run of this skill. Give reviewers the absolute path (`$SCRATCH` is your session's scratchpad directory).
 
-> You are reviewing a fix for issue #N in the Impower monorepo. The diff is in `review-diff.patch`; the working tree is the branch under review. Your lens is \<LENS\> — review only through it. Your job is to refute this change, not to approve it. Assume it is broken and find out how. If you are uncertain, report the concern rather than suppressing it. For each finding give: `file:line`, a concrete failure scenario (inputs → wrong output), and how you confirmed it in the code. Do not pad with non-findings. Do not edit, create, or delete any file inside the repo tree.
+Spawn the reviewers in parallel — one message, multiple Agent tool calls, each with the `subagent_type` from §7b (or `general-purpose` plus a `model:`, on the fallback path). Posting a PR comment needs Bash and a scratch file, so read-only is not tool-enforced for reviewers; the prompt forbids repo edits and §7d checks that it was obeyed. Give each one, verbatim (fill in N = issue number, P = PR number, DIFF = the absolute path you just wrote the patch to, LENS — the reviewer supplies its own model, so that one is not yours to fill in):
+
+> You are reviewing a fix for issue #N in the Impower monorepo. The diff is at `DIFF`; the working tree is the branch under review. Your lens is \<LENS\> — review only through it. Your job is to refute this change, not to approve it. Assume it is broken and find out how. If you are uncertain, report the concern rather than suppressing it. For each finding give: `file:line`, a concrete failure scenario (inputs → wrong output), and how you confirmed it in the code. Do not pad with non-findings. Do not edit, create, or delete any file inside the repo tree.
 >
 > When your review is done, post it as a comment on PR #P: write the full findings to a markdown file in your scratchpad directory (never inside the repo), starting with the heading `### Adversarial review — <LENS> (<MODEL>)`, where MODEL is the model name and id you yourself are running as, exactly as your own system prompt gives them — report what you are, never what you were asked to be. Then run `gh pr comment P --body-file <that file>`. Never pass `--body @-` — gh takes it as a literal string and posts a broken comment. If you have no findings, still post the comment with the single line "No findings through this lens." so the coverage is recorded. Confirm the comment landed by reading it back with `gh pr view P --comments`.
 >
@@ -612,7 +614,7 @@ Do not silently drop findings; an unanswered review comment on the PR reads as a
 
 ### 7e — re-verify, then mark ready
 
-Any change made in response to review re-opens §4 and §5: re-run the regression test and re-take the live screenshot. A review fix is a code change like any other, and it is the one most likely to be committed unverified. Delete `review-diff.patch`, commit by path, push.
+Any change made in response to review re-opens §4 and §5: re-run the regression test and re-take the live screenshot. A review fix is a code change like any other, and it is the one most likely to be committed unverified. Commit by path, push. The diff lives in your scratchpad, so there is nothing in the tree to clean up.
 
 Then take the PR out of draft:
 
