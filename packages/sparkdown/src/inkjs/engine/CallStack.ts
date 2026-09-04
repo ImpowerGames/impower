@@ -331,9 +331,7 @@ export class CallStack {
   }
 
   public ThreadWithIndex(index: number) {
-    let filtered = this._threads.filter((t) => {
-      if (t.threadIndex == index) return t;
-    });
+    let filtered = this._threads.filter((t) => t.threadIndex == index);
 
     return filtered.length > 0 ? filtered[0] : null;
   }

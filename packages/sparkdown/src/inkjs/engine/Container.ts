@@ -266,8 +266,8 @@ export class Container extends InkObject implements INamedContent {
     sb: StringBuilder,
     indentation: number,
     pointedObj: InkObject | null,
-  ): string;
-  public BuildStringOfHierarchy() {
+  ): void;
+  public BuildStringOfHierarchy(): string | void {
     let sb: StringBuilder;
     if (arguments.length == 0) {
       sb = new StringBuilder();

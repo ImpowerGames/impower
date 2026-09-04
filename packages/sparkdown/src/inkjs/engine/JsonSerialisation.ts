@@ -169,10 +169,10 @@ export class JsonSerialisation {
           if (v instanceof StringValue) names.add(v.value!);
         }
       }
-      const mt = cur.metatable;
-      const idx =
+      const mt: ObjectValue | null = cur.metatable;
+      const idx: AbstractValue | null =
         mt instanceof ObjectValue
-          ? (mt.value as Map<string, AbstractValue>).get("__index")
+          ? ((mt.value as Map<string, AbstractValue>).get("__index") ?? null)
           : null;
       cur = idx instanceof ObjectValue ? idx : null;
     }
@@ -1079,6 +1079,7 @@ export class JsonSerialisation {
     //   "Failed to convert token to runtime object: " +
     //     this.toJson(token, ["parent"])
     // );
+    return null;
   }
 
   public static toJson<T>(

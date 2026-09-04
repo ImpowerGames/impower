@@ -22,9 +22,9 @@ export class Stitch extends FlowBase {
     return "Stitch";
   }
 
-  // Fixes TS issue with not being able to access the prototype via `super` in functions
-  // attached to the class as properties.
-  private baseToString = this.toString;
+  // The override below is a property, not a method, so it cannot reach the
+  // base implementation through `super`. Capture it here instead.
+  private baseToString = FlowBase.prototype.toString;
 
   public override toString = (): string => {
     return `${

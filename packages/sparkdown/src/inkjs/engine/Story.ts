@@ -1343,7 +1343,7 @@ export class Story extends InkObject {
         );
         sb.Append(
           this.state.hasError
-            ? this.state.currentErrors![0]
+            ? this.state.currentErrors![0]!
             : this.state.currentWarnings![0]!,
         );
 
@@ -1944,7 +1944,6 @@ export class Story extends InkObject {
     }
 
     let choice = new Choice();
-    choice.point = choicePoint;
     choice.targetPath = choicePoint.pathOnChoice;
     choice.sourcePath = choicePoint.path.toString();
     choice.isInvisibleDefault = choicePoint.isInvisibleDefault;
@@ -3748,7 +3747,7 @@ export class Story extends InkObject {
               }
             }
             if (cur != null) {
-              foundValue = cur as Value;
+              foundValue = cur as Value<any>;
             } else if (dottedIndexError == null) {
               dottedResolvedToNil = true;
             }

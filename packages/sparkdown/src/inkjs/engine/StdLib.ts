@@ -2372,7 +2372,8 @@ function defineChain(start: ObjectValue): ObjectValue[] {
   let guard = 0;
   while (cur instanceof ObjectValue && guard++ < 64) {
     chain.push(cur);
-    const idx = metatableMap(cur)?.get("__index") ?? null;
+    const idx: AbstractValue | null =
+      metatableMap(cur)?.get("__index") ?? null;
     cur = idx instanceof ObjectValue ? idx : null;
   }
   return chain;
@@ -5242,7 +5243,8 @@ export const STDLIB: Record<string, StdLibEntry> = {
           }
           flat.set(k, v);
         }
-        const idx = metatableMap(cur)?.get("__index") ?? null;
+        const idx: AbstractValue | null =
+      metatableMap(cur)?.get("__index") ?? null;
         cur = idx instanceof ObjectValue ? idx : null;
       }
       // Iterate the flattened snapshot with the ordinary pairs step.
