@@ -91,35 +91,53 @@ const FIELD_BLOCK_TAGS = new Set([
  */
 const readFieldText = (root: Node, trailingBreakIsFiller = true): string => {
   let text = "";
-  // Whether a line has been begun. A block opens a line of its own, so it is
-  // preceded by a break only once there is a line for it to break away from --
-  // which is why this is tracked rather than read off the end of `text`. A
-  // block that turns out to be empty (`<div><br></div>`, the shape an empty
-  // line takes) still counts as a line, so what follows it is on a new one.
-  let started = false;
+  // Whether the line being built is still empty. A block takes a line of its
+  // own, so it opens one only when the current line already has something on
+  // it; nesting a block inside a block therefore adds no second break, since
+  // the outer one has already opened the line the inner one wants.
+  let atLineStart = true;
+  // Whether a line ended and nothing has begun the next one. A block ends its
+  // line as surely as it starts one, but the break belongs before whatever
+  // comes next rather than after the block -- a block at the very end of the
+  // content adds no trailing newline. A following block supersedes it, having
+  // opened the line itself.
+  let pendingBreak = false;
+  const endLine = () => {
+    if (pendingBreak) {
+      text += "\n";
+      pendingBreak = false;
+      atLineStart = true;
+    }
+  };
   const walk = (parent: Node) => {
     const children = parent.childNodes;
     for (let i = 0; i < children.length; i += 1) {
       const node = children[i]!;
       if (node.nodeType === Node.TEXT_NODE) {
-        const data = (node as Text).data;
+        const data = (node as CharacterData).data;
         if (data) {
+          endLine();
           text += data;
-          started = true;
+          atLineStart = false;
         }
       } else if (node.nodeType === Node.ELEMENT_NODE) {
         const el = node as Element;
         if (el.tagName === "BR") {
           if (!trailingBreakIsFiller || i < children.length - 1) {
+            endLine();
             text += "\n";
-            started = true;
+            atLineStart = true;
           }
         } else if (FIELD_BLOCK_TAGS.has(el.tagName)) {
-          if (started) {
+          if (!atLineStart) {
             text += "\n";
+            atLineStart = true;
           }
+          pendingBreak = false;
           walk(el);
-          started = true;
+          // The block's line is over, whether or not it put anything on one.
+          atLineStart = false;
+          pendingBreak = true;
         } else {
           walk(el);
         }
@@ -193,7 +211,15 @@ const offsetOfPosition = (
   return readFieldText(holder, false).length;
 };
 
-/** Put the caret `target` characters into the field's text. */
+/**
+ * Put the caret `target` characters into the field's text.
+ *
+ * A position is claimed by the break that starts its line before it is looked
+ * for in any text, because a line can begin with no text at all -- the start of
+ * a field whose first line is empty has no text node in front of it to count
+ * from, and looking for one there would measure backwards past the breaks
+ * already counted.
+ */
 const setCaret = (field: HTMLElement, target: number) => {
   const selection = fieldSelection(field);
   if (!selection) {
@@ -201,33 +227,39 @@ const setCaret = (field: HTMLElement, target: number) => {
   }
   const range = field.ownerDocument.createRange();
   const children = field.childNodes;
+  let placed = false;
   let pos = 0;
-  for (let i = 0; i < children.length; i += 1) {
+  for (let i = 0; i < children.length && !placed; i += 1) {
     const node = children[i]!;
     if (node.nodeType === Node.TEXT_NODE) {
-      const length = (node as Text).data.length;
+      const length = (node as CharacterData).data.length;
       if (target <= pos + length) {
         range.setStart(node, target - pos);
-        range.collapse(true);
-        selection.removeAllRanges();
-        selection.addRange(range);
-        return;
+        placed = true;
+      } else {
+        pos += length;
       }
-      pos += length;
     } else if ((node as Element).tagName === "BR") {
       if (i < children.length - 1) {
-        pos += 1;
+        if (target <= pos) {
+          range.setStartBefore(node);
+          placed = true;
+        } else {
+          pos += 1;
+        }
       }
     }
   }
-  // Past the end of everything that can hold a caret, which includes the empty
-  // last line: its caret goes before the filler break, not after it.
-  const last = field.lastChild;
-  if (last && (last as Element).tagName === "BR") {
-    range.setStartBefore(last);
-  } else {
-    range.selectNodeContents(field);
-    range.collapse(false);
+  if (!placed) {
+    // Past the end of everything that can hold a caret, which includes the
+    // empty last line: its caret goes before the filler break, not after it.
+    const last = field.lastChild;
+    if (last && (last as Element).tagName === "BR") {
+      range.setStartBefore(last);
+    } else {
+      range.selectNodeContents(field);
+      range.collapse(false);
+    }
   }
   range.collapse(true);
   selection.removeAllRanges();
@@ -256,6 +288,9 @@ const insertIntoField = (field: HTMLElement, insert: string) => {
     field.contains(range.startContainer) &&
     field.contains(range.endContainer)
   ) {
+    // A range's start never follows its end, so the two are already in order.
+    // They are clamped because measuring a prefix counts every break in it,
+    // including one the whole field would have read as filler.
     start = Math.min(
       offsetOfPosition(field, range.startContainer, range.startOffset),
       value.length,
@@ -264,9 +299,6 @@ const insertIntoField = (field: HTMLElement, insert: string) => {
       offsetOfPosition(field, range.endContainer, range.endOffset),
       value.length,
     );
-    if (start > end) {
-      [start, end] = [end, start];
-    }
   }
   writeFieldText(field, value.slice(0, start) + insert + value.slice(end));
   setCaret(field, start + insert.length);
@@ -587,11 +619,20 @@ export class SearchPanel implements Panel {
    */
   paste(e: ClipboardEvent) {
     const field = e.currentTarget as HTMLElement;
-    const text = e.clipboardData?.getData("text/plain");
-    if (text == null) {
+    const clipboard = e.clipboardData;
+    if (!clipboard) {
+      // Nothing to read. Taking the event over here would leave the user with
+      // a paste that does nothing at all.
       return;
     }
+    // Refused whatever the clipboard turns out to hold, because the browser's
+    // own paste puts markup -- or an image -- inside a field whose entire
+    // content is a search pattern.
     e.preventDefault();
+    const text = clipboard.getData("text/plain");
+    if (!text) {
+      return;
+    }
     insertIntoField(field, normalizeLineEndings(text));
     this.clearEmptied(field);
     // Editing the field from script raises no `input` event, so the commit the
@@ -808,13 +849,23 @@ export class SearchPanel implements Panel {
     this.commit();
   }
 
+  /**
+   * Whether this Enter asks for a line break rather than for the search.
+   *
+   * Shift is excluded because Shift+Enter already means "the previous match",
+   * and a combination that includes it belongs to whatever it meant before.
+   */
+  wantsBreak(e: KeyboardEvent) {
+    return (e.ctrlKey || e.metaKey) && !e.shiftKey;
+  }
+
   keydown(e: KeyboardEvent) {
     if (runScopeHandlers(this.view, e, "search-panel")) {
       e.preventDefault();
     } else if (e.target == this.searchInput) {
       if (e.key == "Enter") {
         e.preventDefault();
-        if (e.ctrlKey || e.metaKey) {
+        if (this.wantsBreak(e)) {
           this.breakLine(this.searchInput);
         } else {
           (e.shiftKey ? findPrevious : findNext)(this.view);
@@ -825,7 +876,7 @@ export class SearchPanel implements Panel {
     } else if (e.target == this.replaceInput) {
       if (e.key == "Enter") {
         e.preventDefault();
-        if (e.ctrlKey || e.metaKey) {
+        if (this.wantsBreak(e)) {
           this.breakLine(this.replaceInput);
         } else {
           replaceNext(this.view);

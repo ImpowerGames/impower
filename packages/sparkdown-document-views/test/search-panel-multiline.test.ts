@@ -8,6 +8,7 @@ import {
 import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { afterEach, describe, expect, it } from "vitest";
+import EDITOR_THEME from "../src/modules/script-editor/constants/EDITOR_THEME";
 import { customSearchPanel } from "../src/modules/script-editor/utils/extensions/customSearch";
 
 /**
@@ -85,6 +86,17 @@ const caret = (field: HTMLElement, at: number) => {
     range.collapse(true);
   }
   range.collapse(true);
+  const selection = window.getSelection()!;
+  selection.removeAllRanges();
+  selection.addRange(range);
+};
+
+/** Select a stretch of the field's first text node. */
+const select = (field: HTMLElement, from: number, to: number) => {
+  const node = field.firstChild!;
+  const range = document.createRange();
+  range.setStart(node, from);
+  range.setEnd(node, to);
   const selection = window.getSelection()!;
   selection.removeAllRanges();
   selection.addRange(range);
@@ -203,6 +215,10 @@ describe("multi-line find and replace fields (#360)", () => {
   // A browser puts a break at the end of a field so the empty last line has a
   // height. Counting it would commit a trailing newline nobody entered, and
   // replace all would then push every following line down one.
+  //
+  // Also a positive control: reading with `textContent` ignored elements
+  // altogether, so this was green before the change too, for a different
+  // reason. It guards the rule rather than proving it.
   it("does not read the trailing filler break as a line", () => {
     const view = mount();
     const { search, replace } = fields(view);
@@ -229,6 +245,44 @@ describe("multi-line find and replace fields (#360)", () => {
     input(replace);
 
     expect(getSearchQuery(view.state).replace).toBe("hi\n");
+  });
+
+  // A block element ends a line as surely as it starts one. Text dropped or
+  // composed in beside a block leaves this shape, and reading it as one line
+  // would join two lines the user can see are separate.
+  it("reads a line break between a block and the text beside it", () => {
+    const view = mount();
+    const { search, replace } = fields(view);
+
+    type(search, "hello");
+    replace.innerHTML = "";
+    replace.appendChild(document.createTextNode("a"));
+    const block = document.createElement("div");
+    block.textContent = "b";
+    replace.appendChild(block);
+    replace.appendChild(document.createTextNode("c"));
+    input(replace);
+
+    expect(getSearchQuery(view.state).replace).toBe("a\nb\nc");
+  });
+
+  // One line, however many elements are wrapped around it.
+  it("reads nested blocks as one line, not two", () => {
+    const view = mount();
+    const { search, replace } = fields(view);
+
+    type(search, "hello");
+    replace.innerHTML = "";
+    const first = document.createElement("div");
+    first.textContent = "first";
+    const outer = document.createElement("div");
+    const inner = document.createElement("div");
+    inner.textContent = "second";
+    outer.appendChild(inner);
+    replace.append(first, outer);
+    input(replace);
+
+    expect(getSearchQuery(view.state).replace).toBe("first\nsecond");
   });
 
   it("finds a pattern that spans two lines", () => {
@@ -283,7 +337,9 @@ describe("multi-line find and replace fields (#360)", () => {
       expect(getSearchQuery(view.state).replace).toBe("one\ntwo");
     });
 
-    // Enter on its own still belongs to the search, in both fields.
+    // Enter on its own still belongs to the search, in both fields. A positive
+    // control as well: this was green before the change, and it goes red only
+    // if the new modifier handling has swallowed the plain key.
     it("is not what a bare Enter does", () => {
       const view = mount();
       const { search, replace } = fields(view);
@@ -296,6 +352,55 @@ describe("multi-line find and replace fields (#360)", () => {
       expect(view.state.doc.toString()).toBe(
         ["hi world", "hello there", "one", "two", ""].join("\n"),
       );
+    });
+
+    // The caret at the very start is the case where the field's first child is
+    // the break itself, so every position the caret can take sits before any
+    // text there is. Repeating it stacks empty lines, which is where placing
+    // the caret by counting characters is easiest to get wrong.
+    it("adds one at the very start, twice over", () => {
+      const view = mount();
+      const { search, replace } = fields(view);
+
+      type(search, "hello");
+      type(replace, "hello");
+      caret(replace, 0);
+      press(replace, "Enter", { ctrlKey: true });
+
+      expect(getSearchQuery(view.state).replace).toBe("\nhello");
+
+      // Back to the start, which is now before a break rather than before any
+      // text -- the position that has no text node to measure from.
+      caret(replace, 0);
+      press(replace, "Enter", { ctrlKey: true });
+
+      expect(getSearchQuery(view.state).replace).toBe("\n\nhello");
+    });
+
+    it("adds one to an empty field", () => {
+      const view = mount();
+      const { search, replace } = fields(view);
+
+      type(search, "hello");
+      replace.focus();
+      press(replace, "Enter", { ctrlKey: true });
+
+      expect(getSearchQuery(view.state).replace).toBe("\n");
+    });
+
+    // Shift+Enter finds the previous match, and holding the modifier as well
+    // must not quietly turn that into something else.
+    it("leaves Ctrl+Shift+Enter to the search", () => {
+      const view = mount();
+      const { search } = fields(view);
+
+      type(search, "hello");
+      const first = view.state.selection.main.from;
+      press(search, "Enter", { ctrlKey: true, shiftKey: true });
+
+      expect(getSearchQuery(view.state).search).toBe("hello");
+      expect(search.querySelectorAll("br")).toHaveLength(0);
+      expect(view.state.selection.main.from).not.toBe(first);
     });
 
     it("shows the break it added", () => {
@@ -362,6 +467,71 @@ describe("multi-line find and replace fields (#360)", () => {
 
       expect(getSearchQuery(view.state).replace).toBe("abc");
     });
+
+    it("replaces the text the user had selected", () => {
+      const view = mount();
+      const { search, replace } = fields(view);
+
+      type(search, "hello");
+      type(replace, "hello");
+      select(replace, 1, 4);
+      paste(replace, "X");
+
+      expect(getSearchQuery(view.state).replace).toBe("hXo");
+    });
+
+    it("replaces a selection with more than one line", () => {
+      const view = mount();
+      const { search, replace } = fields(view);
+
+      type(search, "hello");
+      type(replace, "hello");
+      select(replace, 1, 4);
+      paste(replace, "X\nY");
+
+      expect(getSearchQuery(view.state).replace).toBe("hX\nYo");
+    });
+
+    it("reads a bare carriage return as a line break", () => {
+      const view = mount();
+      const { search, replace } = fields(view);
+
+      type(search, "hello");
+      paste(replace, "one\rtwo");
+
+      expect(getSearchQuery(view.state).replace).toBe("one\ntwo");
+    });
+
+    // A clipboard holding only an image has no text to insert. The paste is
+    // still refused, because the alternative is the browser putting the image
+    // in a field whose whole content is a search pattern.
+    it("refuses a paste with no text in it, and changes nothing", () => {
+      const view = mount();
+      const { search, replace } = fields(view);
+
+      type(search, "hello");
+      type(replace, "hi");
+      const event = pasteEvent(replace, { "text/html": "<img src='x'>" });
+
+      expect(event.defaultPrevented).toBe(true);
+      expect(getSearchQuery(view.state).replace).toBe("hi");
+      expect(replace.textContent).toBe("hi");
+    });
+
+    // Without a clipboard there is nothing to read, and taking the event over
+    // would leave the user with a paste that does nothing at all.
+    it("leaves a paste carrying no clipboard to the browser", () => {
+      const view = mount();
+      const { search, replace } = fields(view);
+
+      type(search, "hello");
+      type(replace, "hi");
+      const event = new Event("paste", { bubbles: true, cancelable: true });
+      replace.dispatchEvent(event);
+
+      expect(event.defaultPrevented).toBe(false);
+      expect(getSearchQuery(view.state).replace).toBe("hi");
+    });
   });
 
   // The panel rewrites both fields when an effect from outside changes the
@@ -386,7 +556,8 @@ describe("multi-line find and replace fields (#360)", () => {
 
   // Emptying a field leaves a break behind, and an element holding one is not
   // `:empty`, so the placeholder never returns. The field is only empty when
-  // its text is.
+  // its text is. The fourth positive control: the old emptiness check agreed
+  // on this case, so it guards against the new one having lost the behaviour.
   it("empties a field the user has cleared", () => {
     const view = mount();
     const { search, replace } = fields(view);
@@ -413,6 +584,27 @@ describe("multi-line find and replace fields (#360)", () => {
 
     expect(getSearchQuery(view.state).search).toBe("hello \nworld");
     expect(view.state.selection.main.from).toBe(0);
+  });
+
+  // jsdom applies no styling, so nothing here can prove what the field looks
+  // like. What it can prove is that the rules are still declared -- and one of
+  // them is load-bearing: without preserved whitespace the field would display
+  // an indented replacement with its indent collapsed away, showing the user
+  // one string while the document receives another. That is the defect this
+  // whole change exists to end, so it is worth a guard against the rule being
+  // dropped. It was looked at in the running editor; this only pins the rule.
+  it("declares the whitespace and height rules the fields depend on", () => {
+    const panel = EDITOR_THEME["& .cm-panel.cm-search"] as Record<
+      string,
+      Record<string, string>
+    >;
+    const fieldRules =
+      panel["& [contenteditable][name='search'], & [contenteditable][name='replace']"];
+
+    expect(fieldRules).toBeTruthy();
+    expect(fieldRules!["whiteSpace"]).toBe("pre-wrap");
+    expect(fieldRules!["maxHeight"]).toBeTruthy();
+    expect(fieldRules!["overflowY"]).toBe("auto");
   });
 
   it("still keeps a hard space in the middle of a line", () => {
