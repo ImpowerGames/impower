@@ -1,3 +1,4 @@
+/// <reference path="../../sd-raw.d.ts" />
 // Side-effect import to stabilize the inkjs engine module load order.
 // `engine/Container.ts` ↔ `engine/Value.ts` ↔ `engine/Object.ts` form a
 // dependency cycle; if `Object.ts` loads first, `Value.ts` resolves
