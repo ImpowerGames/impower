@@ -66,6 +66,10 @@ define image with
   data = ""
 end
 
+define video with
+  src = ""
+end
+
 define layered_image with
   assets = { image.none }
 end

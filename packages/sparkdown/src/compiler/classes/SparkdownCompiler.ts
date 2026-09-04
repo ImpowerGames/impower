@@ -67,6 +67,14 @@ import {
 } from "../../inkjs/engine/TypeAssertion";
 import { Container } from "../../inkjs/engine/Container";
 import { StringValue } from "../../inkjs/engine/Value";
+import { Divert as RuntimeDivert } from "../../inkjs/engine/Divert";
+import { PushPopType } from "../../inkjs/engine/PushPop";
+import {
+  createSceneAssetCapture,
+  type SceneAssetCapture,
+  type SceneAssets,
+} from "../types/SceneAssets";
+import { scanAssetDirectives } from "../utils/scanAssetDirectives";
 import { VariableAssignment } from "../../inkjs/engine/VariableAssignment";
 import { SparkDeclaration } from "../types/SparkDeclaration";
 import { DiagnosticSeverity, SparkDiagnostic } from "../types/SparkDiagnostic";
@@ -214,6 +222,9 @@ type FlowLocCacheEntry = {
     key: string;
     tuple: [number, number, number, number, number];
   }>;
+  // What the flow's leaves reference (`program.sceneAssets`). Line-free, so a
+  // reused flow contributes it by reference with no delta to apply.
+  assets: SceneAssetCapture;
 };
 
 export class SparkdownCompiler {
@@ -295,6 +306,15 @@ export class SparkdownCompiler {
   // 0-based [startLine, endLine] source ranges of chunks that are NEW/changed
   // this compile (identity not in `_prevCompilationIds`).
   protected _changedChunkRanges?: Array<[number, number]>;
+  // Per-flow asset captures for this compile (`program.sceneAssets`), keyed
+  // like `_locCache` plus "0" for root content. A reused flow contributes its
+  // cached capture by reference; a recomputed flow is captured through
+  // `_assetSink` during the walk.
+  protected _flowAssetAccum?: Map<string, SceneAssetCapture>;
+  // The capture the runtime-tree walk currently records asset directives and
+  // divert edges into; null while walking something that has no flow of its
+  // own (the uncacheable `global decl`).
+  protected _assetSink: SceneAssetCapture | null = null;
 
   // Incremental ToJson cache: per top-level flow name, its serialized JS subtree
   // (the value under `program.compiled.root`'s terminating object) plus the
@@ -1071,6 +1091,9 @@ export class SparkdownCompiler {
     // `populateAllLocations`, finalized below.
     this._compilationIds = new Set();
     this._changedChunkRanges = [];
+    // Rebuilt by `populateAllLocations`; cleared first so a compile that never
+    // reaches the walk cannot publish the previous compile's captures.
+    this._flowAssetAccum = undefined;
 
     let compileThrew = false;
     // ---- Incremental ExportRuntime: per-compile flow-reuse guards ----
@@ -1363,6 +1386,10 @@ export class SparkdownCompiler {
     this.populateFiles(program);
     this.populateDeclarationLocations(program);
     this.sortPathLocations(program);
+    if (!compileThrew) {
+      // Needs `functionLocations` (just populated) to classify divert edges.
+      this.populateSceneAssets(program);
+    }
     this.buildContext(state, program);
     this.populateEngineChannels(program);
     if (!this._config.skipValidation) {
@@ -2659,6 +2686,14 @@ export class SparkdownCompiler {
     // for inner items. Until that's untangled, the `error()`
     // formatter reports the enclosing function's start line rather
     // than the actual call site.
+    const sink = this._assetSink;
+    if (sink) {
+      this.captureAssetLeaf(
+        obj,
+        precomputedPath ?? obj.path.toString(),
+        sink,
+      );
+    }
     const metadata =
       precomputedPath !== undefined
         ? (precomputedMetadata ?? null)
@@ -2990,6 +3025,11 @@ export class SparkdownCompiler {
     // Fresh creation-order index for this compile; consumed by
     // `sortPathLocations` to avoid a comparison sort over every entry.
     this._pathLocationOrder = new Map();
+    // Root inline content is the pseudo-flow "0"; it is never cached, so it is
+    // captured afresh every compile.
+    const rootAssets = createSceneAssetCapture();
+    this._flowAssetAccum = new Map([["0", rootAssets]]);
+    this._assetSink = rootAssets;
 
     // Generic recursive walk (unchanged behavior) — used for the root's inline
     // content and for recomputing non-reusable top-level flow subtrees.
@@ -3079,6 +3119,7 @@ export class SparkdownCompiler {
     }
 
     // 2) Top-level named flows — reuse-with-delta or recompute-and-capture.
+    this._assetSink = null;
     const named = root.namedOnlyContent;
     if (named) {
       const flows: Array<{
@@ -3201,13 +3242,20 @@ export class SparkdownCompiler {
           const capture =
             f.name === "global decl"
               ? null
-              : { pathEntries: [], dataEntries: [] };
+              : {
+                  pathEntries: [],
+                  dataEntries: [],
+                  assets: createSceneAssetCapture(),
+                };
           const prevTarget = this._locCaptureTarget;
           this._locCaptureTarget = capture;
+          this._assetSink = capture?.assets ?? null;
           walk(f.container, f.name, rootMeta);
+          this._assetSink = null;
           this._locCaptureTarget = prevTarget;
           if (capture) {
             nextCache.set(f.name, { startLine0: f.start0, ...capture });
+            this._flowAssetAccum?.set(f.name, capture.assets);
           }
         } else {
           this.populateLocations(
@@ -3289,7 +3337,207 @@ export class SparkdownCompiler {
       startLine0: cached.startLine0 + delta,
       pathEntries,
       dataEntries,
+      assets: cached.assets,
     });
+    // Same object as last compile: a consumer holding it sees the same
+    // identity, which is what proves the flow was reused rather than rebuilt.
+    this._flowAssetAccum?.set(name, cached.assets);
+  }
+
+  // Record what one runtime leaf references for `program.sceneAssets`: the
+  // asset directives in a text leaf, or the flow a divert leaves for. Runs
+  // inside the same top-down walk that fills `pathLocations`, so a reused flow
+  // costs nothing and a recomputed flow pays one substring check per leaf.
+  protected captureAssetLeaf(
+    obj: InkObject,
+    path: string,
+    sink: SceneAssetCapture,
+  ) {
+    if (obj instanceof StringValue) {
+      if (!obj.isNewline) {
+        const value = obj.value;
+        if (
+          typeof value === "string" &&
+          (value.includes("[[") || value.includes("(("))
+        ) {
+          scanAssetDirectives(value, path, sink);
+        }
+      }
+      return;
+    }
+    if (obj instanceof RuntimeDivert) {
+      const isCall =
+        obj.pushesToStack && obj.stackPushType === PushPopType.Function;
+      if (obj.hasVariableTarget) {
+        const variable = obj.variableDivertName ?? "";
+        if (variable.startsWith("$")) {
+          // Ink's own temporaries (`$r`, the return from a choice's start
+          // content) never leave the flow.
+          return;
+        }
+        if (isCall && variable) {
+          // A Luau function call diverts through the variable that holds
+          // the function, named after the function itself, so the callee is
+          // known statically after all.
+          sink.edges.push({ target: variable, call: true });
+          return;
+        }
+        // `-> {target}`: only the running story knows where this goes.
+        sink.dynamic = true;
+        return;
+      }
+      if (obj.isExternal) {
+        return;
+      }
+      // The raw path, not the `targetPath` getter: the getter resolves a
+      // relative path by walking the tree, and a relative target never leaves
+      // the flow anyway (gathers and choices are addressed relative to it).
+      const target = obj._targetPath;
+      if (!target || target.isRelative) {
+        return;
+      }
+      const head = target.head;
+      if (!head || head.isParent) {
+        return;
+      }
+      const flow = head.isIndex ? "0" : head.name;
+      if (!flow) {
+        return;
+      }
+      sink.edges.push({ target: flow, call: isCall });
+    }
+  }
+
+  // Turn this compile's per-flow captures into `program.sceneAssets`: unions
+  // in first-use order, divert edges classified into calls (function flows,
+  // which return to the caller) and successors (everything else), and each
+  // flow's sets widened by the flows it calls. Runs after
+  // `populateDeclarationLocations`, which supplies `functionLocations`.
+  populateSceneAssets(program: SparkProgram) {
+    const accum = this._flowAssetAccum;
+    if (!accum) {
+      return;
+    }
+    const functionNames = new Set(
+      Object.keys(program.functionLocations ?? {}),
+    );
+    // Synthetic and binding-evaluator flows are reached like functions and
+    // return like them; they are never a scene the story "enters".
+    const isInternal = (name: string) =>
+      functionNames.has(name) ||
+      CANONICAL_SYNTH_NAME.test(name) ||
+      name.startsWith("__");
+    const addUnique = (list: string[], seen: Set<string>, value: string) => {
+      if (!seen.has(value)) {
+        seen.add(value);
+        list.push(value);
+      }
+    };
+    type Names = { image: string[]; audio: string[]; layouts: string[]; loads: string[] };
+    type Own = Names & {
+      capture: SceneAssetCapture;
+      successors: string[];
+      calls: string[];
+    };
+    const NAME_KEYS = ["image", "audio", "layouts", "loads"] as const;
+    const own = new Map<string, Own>();
+    for (const [name, capture] of accum) {
+      const entry: Own = {
+        capture,
+        image: [],
+        audio: [],
+        layouts: [],
+        loads: [],
+        successors: [],
+        calls: [],
+      };
+      const seen = {
+        image: new Set<string>(),
+        audio: new Set<string>(),
+        layouts: new Set<string>(),
+        loads: new Set<string>(),
+      };
+      for (const beat of capture.beats) {
+        for (const key of NAME_KEYS) {
+          for (const n of beat[key] ?? []) {
+            addUnique(entry[key], seen[key], n);
+          }
+        }
+      }
+      const seenSuccessors = new Set<string>();
+      const seenCalls = new Set<string>();
+      for (const edge of capture.edges) {
+        if (edge.target === name) {
+          continue;
+        }
+        if (edge.call || isInternal(edge.target)) {
+          addUnique(entry.calls, seenCalls, edge.target);
+        } else {
+          addUnique(entry.successors, seenSuccessors, edge.target);
+        }
+      }
+      own.set(name, entry);
+    }
+    const sceneAssets: NonNullable<SparkProgram["sceneAssets"]> = {};
+    for (const [name, entry] of own) {
+      const names: Names = {
+        image: [...entry.image],
+        audio: [...entry.audio],
+        layouts: [...entry.layouts],
+        loads: [...entry.loads],
+      };
+      const seen = {
+        image: new Set(names.image),
+        audio: new Set(names.audio),
+        layouts: new Set(names.layouts),
+        loads: new Set(names.loads),
+      };
+      let dynamic = entry.capture.dynamic;
+      const dynamicBases = [...entry.capture.dynamicBases];
+      // Widen by callees, transitively, each flow at most once.
+      const visited = new Set<string>([name]);
+      const pending = [...entry.calls];
+      while (pending.length > 0) {
+        const callee = pending.pop()!;
+        if (visited.has(callee)) {
+          continue;
+        }
+        visited.add(callee);
+        const c = own.get(callee);
+        if (!c) {
+          continue;
+        }
+        for (const key of NAME_KEYS) {
+          for (const n of c[key]) {
+            addUnique(names[key], seen[key], n);
+          }
+        }
+        if (c.capture.dynamic) {
+          dynamic = true;
+        }
+        for (const b of c.capture.dynamicBases) {
+          if (!dynamicBases.includes(b)) {
+            dynamicBases.push(b);
+          }
+        }
+        pending.push(...c.calls);
+      }
+      const result: SceneAssets = {
+        kind: name === "0" ? "root" : isInternal(name) ? "function" : "scene",
+        beats: entry.capture.beats,
+        ...names,
+        successors: entry.successors,
+        calls: entry.calls,
+      };
+      if (dynamic) {
+        result.dynamic = true;
+        if (dynamicBases.length > 0) {
+          result.dynamicBases = dynamicBases;
+        }
+      }
+      sceneAssets[name] = result;
+    }
+    program.sceneAssets = sceneAssets;
   }
 
   populateFiles(program: SparkProgram) {
@@ -3529,7 +3777,7 @@ export class SparkdownCompiler {
       program.styles = structuredClone(style);
     }
     // File-derived + implicit-def asset types (not defines).
-    const ASSET_TYPES = ["image", "audio", "font", "filtered_image"];
+    const ASSET_TYPES = ["image", "audio", "font", "video", "filtered_image"];
     for (const type of ASSET_TYPES) {
       const structs = program.context?.[type];
       if (structs) {

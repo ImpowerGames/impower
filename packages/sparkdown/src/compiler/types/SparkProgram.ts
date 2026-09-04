@@ -1,5 +1,6 @@
 import type { ProgramBuffer } from "../../binary/programBinary";
 import { type File } from "./File";
+import { type SceneAssets } from "./SceneAssets";
 import { Range, type SparkDiagnostic } from "./SparkDiagnostic";
 import {
   type ComponentNode,
@@ -103,5 +104,11 @@ export interface SparkProgram {
   dataLocations?: {
     [name: string]: ScriptLocation;
   };
+  // Per top-level flow (a scene, a function, or `0` for root content): the
+  // asset names its beats reference in document order, plus the flows it can
+  // reach. Read by the engine's asset module for prediction and explicit
+  // loads (docs/engine/asset-preloading-spec.md). Absent when the compile
+  // threw.
+  sceneAssets?: { [flowName: string]: SceneAssets };
   version?: number;
 }

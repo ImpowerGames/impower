@@ -20437,6 +20437,13 @@
           "yelled": "/^([\\p{Lu}]{2,}[^\\p{Ll}\\r\\n]*)$/u"
         }
       },
+      "video": {
+        "$default": {
+          "$name": "$default",
+          "$type": "video",
+          "src": ""
+        }
+      },
       "world": {
         "$default": {
           "$name": "$default",
@@ -92580,6 +92587,13 @@
           "stressed_pause_scale": 10,
           "voiced": "/([\\p{L}\\p{N}']+)/u",
           "yelled": "/^([\\p{Lu}]{2,}[^\\p{Ll}\\r\\n]*)$/u"
+        }
+      },
+      "video": {
+        "$default": {
+          "$name": "$default",
+          "$type": "video",
+          "src": ""
         }
       },
       "world": {
