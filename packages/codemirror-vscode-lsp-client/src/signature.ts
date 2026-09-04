@@ -169,7 +169,7 @@ const signaturePlugin = ViewPlugin.fromClass(
 
 function sameSignatures(a: lsp.SignatureHelp, b: lsp.SignatureHelp) {
   if (a.signatures.length != b.signatures.length) return false;
-  return a.signatures.every((s, i) => s.label == b.signatures[i].label);
+  return a.signatures.every((s, i) => s.label == b.signatures[i]!.label);
 }
 
 function sameActiveParam(
@@ -178,8 +178,8 @@ function sameActiveParam(
   active: number,
 ) {
   return (
-    (a.signatures[active].activeParameter ?? a.activeParameter) ==
-    (b.signatures[active].activeParameter ?? b.activeParameter)
+    (a.signatures[active]!.activeParameter ?? a.activeParameter) ==
+    (b.signatures[active]!.activeParameter ?? b.activeParameter)
   );
 }
 
@@ -255,15 +255,15 @@ function drawSignatureTooltip(
   sig.className = "cm-lsp-signature";
   let activeFrom = 0,
     activeTo = 0;
-  let activeN = signature.activeParameter ?? data.activeParameter;
+  let activeN = signature!.activeParameter ?? data.activeParameter;
   let activeParam =
-    activeN != null && signature.parameters
-      ? signature.parameters[activeN]
+    activeN != null && signature!.parameters
+      ? signature!.parameters[activeN]
       : null;
   if (activeParam && Array.isArray(activeParam.label)) {
     [activeFrom, activeTo] = activeParam.label;
   } else if (activeParam) {
-    let found = signature.label.indexOf(activeParam.label as string);
+    let found = signature!.label.indexOf(activeParam.label as string);
     if (found > -1) {
       activeFrom = found;
       activeTo = found + activeParam.label.length;
@@ -271,21 +271,21 @@ function drawSignatureTooltip(
   }
   if (activeTo) {
     sig.appendChild(
-      document.createTextNode(signature.label.slice(0, activeFrom)),
+      document.createTextNode(signature!.label.slice(0, activeFrom)),
     );
     let activeElt = sig.appendChild(document.createElement("span"));
     activeElt.className = "cm-lsp-active-parameter";
-    activeElt.textContent = signature.label.slice(activeFrom, activeTo);
-    sig.appendChild(document.createTextNode(signature.label.slice(activeTo)));
+    activeElt.textContent = signature!.label.slice(activeFrom, activeTo);
+    sig.appendChild(document.createTextNode(signature!.label.slice(activeTo)));
   } else {
-    sig.textContent = signature.label;
+    sig.textContent = signature!.label;
   }
-  if (signature.documentation) {
+  if (signature!.documentation) {
     let plugin = LSPPlugin.get(view);
     if (plugin) {
       let docs = dom.appendChild(document.createElement("div"));
       docs.className = "cm-lsp-signature-documentation cm-lsp-documentation";
-      docs.innerHTML = plugin.docToHTML(signature.documentation);
+      docs.innerHTML = plugin.docToHTML(signature!.documentation);
     }
   }
   return { dom };

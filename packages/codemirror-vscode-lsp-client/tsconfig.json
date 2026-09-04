@@ -9,7 +9,6 @@
     "declaration": true,
     "declarationMap": true,
     "strict": true,
-    "strictNullChecks": false,
     "alwaysStrict": true,
     "noFallthroughCasesInSwitch": true,
     "noImplicitAny": true,

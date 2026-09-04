@@ -241,7 +241,7 @@ export async function updateDocumentFoldingRanges(
     >("textDocument/foldingRange", {
       textDocument: { uri },
     });
-    const foldables = convertFromServerFoldingRanges(plugin, result);
+    const foldables = convertFromServerFoldingRanges(plugin, result!);
     view.dispatch(setDocumentFoldingRanges(view.state, foldables));
   });
 }

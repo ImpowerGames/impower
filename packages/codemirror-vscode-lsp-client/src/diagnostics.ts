@@ -143,7 +143,7 @@ export function serverDiagnostics(): LSPClientExtension {
       textDocument: {
         diagnostic: {
           markupMessageSupport: true,
-        } as lsp.ClientCapabilities["textDocument"]["diagnostic"],
+        } as NonNullable<lsp.ClientCapabilities["textDocument"]>["diagnostic"],
         publishDiagnostics: { versionSupport: true },
       },
     },

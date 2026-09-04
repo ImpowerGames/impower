@@ -250,7 +250,7 @@ function displayReferences(
   initiallySelected: number,
 ) {
   const plugin = LSPPlugin.get(view);
-  const uri = plugin.uri;
+  const uri = plugin!.uri;
   let data: ReferenceState = { uri, pos, locs, mapping, initiallySelected };
 
   let effect =
@@ -304,7 +304,7 @@ export class ReferencePanel implements Panel {
     let currentGroup: HTMLElement | null = null;
 
     for (let i = 0; i < locs.length; i++) {
-      let { file, range } = locs[i];
+      let { file, range } = locs[i]!;
       let fileName = file.uri.slice(prefixLen);
 
       if (fileName !== curFile) {
@@ -383,7 +383,7 @@ export class ReferencePanel implements Panel {
     // Skip collapsed items
     while (
       this.options[targetIndex] &&
-      this.options[targetIndex].offsetParent === null
+      this.options[targetIndex]!.offsetParent === null
     ) {
       targetIndex += step;
     }
@@ -402,7 +402,7 @@ export class ReferencePanel implements Panel {
   }
 
   showReference(view: EditorView, index: number, takeFocus: boolean) {
-    showReference(view, this.currentData.locs[index], takeFocus);
+    showReference(view, this.currentData.locs[index]!, takeFocus);
   }
 
   mount() {
@@ -430,18 +430,18 @@ const referencePanel: PanelConstructor = (view: EditorView) => {
 
 function findCommonPrefix(uris: string[]) {
   let first = uris[0],
-    prefix = first.length;
+    prefix = first!.length;
   for (let i = 1; i < uris.length; i++) {
     let uri = uris[i],
       j = 0;
     for (
-      let e = Math.min(prefix, uri.length);
-      j < e && first[j] == uri[j];
+      let e = Math.min(prefix, uri!.length);
+      j < e && first![j] == uri![j];
       j++
     ) {}
     prefix = j;
   }
-  while (prefix && first[prefix - 1] != "/") prefix--;
+  while (prefix && first![prefix - 1] != "/") prefix--;
   return prefix;
 }
 

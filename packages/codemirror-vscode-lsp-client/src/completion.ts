@@ -265,9 +265,9 @@ function getCompletions(
 export const serverCompletionSource: CompletionSource = (context) => {
   const plugin = context.view && LSPPlugin.get(context.view);
   const triggerCharacters =
-    plugin.client.serverCapabilities?.completionProvider?.triggerCharacters;
+    plugin!.client.serverCapabilities?.completionProvider?.triggerCharacters;
   if (!plugin) return null;
-  const serverContext = getServerCompletionContext(triggerCharacters, context);
+  const serverContext = getServerCompletionContext(triggerCharacters!, context);
   if (!serverContext) {
     return null;
   }

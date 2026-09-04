@@ -142,12 +142,12 @@ export abstract class Workspace {
     userEvent: string,
   ): Promise<void> {
     const file = this.getFile(uri);
-    const view = file.getView();
+    const view = file!.getView();
     if (!view) {
-      throw new Error(`File is not open: ${file.uri}`);
+      throw new Error(`File is not open: ${file!.uri}`);
     }
     let plugin = LSPPlugin.get(view);
-    plugin.client.withMapping(async (mapping) => {
+    plugin!.client.withMapping(async (mapping) => {
       const update = {
         changes: changes.map((change) => ({
           from: mapping.mapPosition(uri, change.range.start),
@@ -176,22 +176,22 @@ export abstract class Workspace {
     userEvent: string,
   ): Promise<void> {
     const file = this.getFile(params.uri);
-    const view = file.getView();
+    const view = file!.getView();
     if (!view) {
-      throw new Error(`File is not open: ${file.uri}`);
+      throw new Error(`File is not open: ${file!.uri}`);
     }
     if (params.takeFocus) {
       view.focus();
     }
     if (params.selection) {
       let plugin = LSPPlugin.get(view);
-      plugin.client.withMapping(async (mapping) => {
+      plugin!.client.withMapping(async (mapping) => {
         const from = mapping.getMapping(params.uri)
-          ? mapping.mapPosition(params.uri, params.selection.start)
-          : plugin.fromPosition(params.selection.start, view.state.doc);
+          ? mapping.mapPosition(params.uri, params.selection!.start)
+          : plugin!.fromPosition(params.selection!.start, view.state.doc);
         const to = mapping.getMapping(params.uri)
-          ? mapping.mapPosition(params.uri, params.selection.end)
-          : plugin.fromPosition(params.selection.end, view.state.doc);
+          ? mapping.mapPosition(params.uri, params.selection!.end)
+          : plugin!.fromPosition(params.selection!.end, view.state.doc);
         if (params.takeFocus) {
           view.focus();
         }
