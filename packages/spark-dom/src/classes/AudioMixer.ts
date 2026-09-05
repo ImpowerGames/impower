@@ -35,7 +35,7 @@ export default class AudioMixer {
   }
 
   /** Scratch buffer, reused so that polling every frame allocates nothing. */
-  protected _samples: Float32Array;
+  protected _samples: Float32Array<ArrayBuffer>;
 
   protected _gain = 1;
   public get gain() {

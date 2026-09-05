@@ -5,7 +5,8 @@
   "scripts": {
     "build": "node ./esbuild.js",
     "watch": "node ./esbuild.js --watch",
-    "package": "node ./esbuild.js --production"
+    "package": "node ./esbuild.js --production",
+    "typecheck": "node ../../../scripts/typecheck.mjs vscode-sparkdown/webviews/inspector-webview/"
   },
   "dependencies": {
     "@impower/sparkdown-inspector": "file:../../../packages/sparkdown-inspector"

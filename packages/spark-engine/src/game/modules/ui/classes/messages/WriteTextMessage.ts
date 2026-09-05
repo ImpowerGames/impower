@@ -1,5 +1,5 @@
 import { MessageProtocolRequestType } from "@impower/jsonrpc/src/common/classes/MessageProtocolRequestType";
-import { TextInstruction } from "../../../../core/types/Instruction";
+import type { TextInstruction } from "../../../../core/types/Instruction";
 
 export type WriteTextMethod = typeof WriteTextMessage.method;
 

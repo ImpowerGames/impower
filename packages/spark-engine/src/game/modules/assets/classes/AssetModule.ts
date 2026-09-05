@@ -1,4 +1,4 @@
-import { NotificationMessage } from "@impower/jsonrpc/src/common/types/NotificationMessage";
+import type { NotificationMessage } from "@impower/jsonrpc/src/common/types/NotificationMessage";
 import {
   type SceneAssets,
   type SceneBeat,

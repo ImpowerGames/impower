@@ -1,5 +1,5 @@
-import { Create } from "../../../core/types/Create";
-import { Graphic } from "../types/Graphic";
+import type { Create } from "../../../core/types/Create";
+import type { Graphic } from "../types/Graphic";
 
 export const default_graphic: Create<Graphic> = (obj) => ({
   $type: "graphic",

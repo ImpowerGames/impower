@@ -16,7 +16,6 @@ export function conflate<F extends (...args: any[]) => any>(
   let nextWaiters: Waiter[] = [];
 
   // Track the last finished run (args + outcome) so we can dedupe the "final" startRun
-  let lastThis: any;
   let lastArgs!: Parameters<F>;
   let lastOutcome:
     | { status: "fulfilled"; value: Result }
@@ -29,7 +28,6 @@ export function conflate<F extends (...args: any[]) => any>(
     ...args: Parameters<F>
   ): Promise<Result> => {
     running = true;
-    lastThis = thisArg;
     lastArgs = args;
     lastOutcome = undefined;
 

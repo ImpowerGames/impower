@@ -1,6 +1,6 @@
 import {
   ChangeSet,
-  ChangeSpec,
+  type ChangeSpec,
   Range,
   RangeSet,
   Text,

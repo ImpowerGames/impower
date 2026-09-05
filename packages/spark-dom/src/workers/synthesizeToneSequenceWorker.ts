@@ -1,4 +1,8 @@
 /* eslint-disable no-restricted-globals */
+
+// This module is a dedicated worker; the project also loads the DOM lib, so
+// `self` would otherwise be typed as Window.
+declare const self: DedicatedWorkerGlobalScope;
 import { MIDI_MONOPHONIC_INSTRUMENTS } from "../../../spark-engine/src/game/modules/audio/constants/MIDI_MONOPHONIC_INSTRUMENTS";
 import { MIDI_POLYPHONIC_INSTRUMENTS } from "../../../spark-engine/src/game/modules/audio/constants/MIDI_POLYPHONIC_INSTRUMENTS";
 import { ToneSequence } from "../../../spark-engine/src/game/modules/audio/types/ToneSequence";
@@ -24,7 +28,7 @@ self.onmessage = (event): void => {
       const instruments = tone.mono
         ? MIDI_MONOPHONIC_INSTRUMENTS
         : MIDI_POLYPHONIC_INSTRUMENTS;
-      const synth = instruments[tone.instrument ?? 0];
+      const synth = instruments[tone.instrument ?? 0]!;
       fillArrayWithTone(tone, synth, sampleRate, result);
       progress += tonePercentageDelta;
       self.postMessage({ progress });

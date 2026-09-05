@@ -32,7 +32,7 @@ export class ConstantDeclaration extends ParsedObject {
     }
   }
 
-  get typeName(): string {
+  override get typeName(): string {
     return "const";
   }
 
@@ -45,7 +45,7 @@ export class ConstantDeclaration extends ParsedObject {
 
   public override ResolveReferences(context: Story) {
     super.ResolveReferences(context);
-    context.CheckForNamingCollisions(this, this.identifier, SymbolType.Var);
+    context.CheckForNamingCollisions(this, this.identifier!, SymbolType.Var);
 
     // A constant is initialized before every mutable global, so it can only be
     // built from other constants — reading a `store` here would see nil. This

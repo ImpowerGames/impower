@@ -2,9 +2,9 @@ import { getDescendents } from "@impower/textmate-grammar-tree/src/tree/utils/ge
 import { ContentList } from "../../../inkjs/compiler/Parser/ParsedHierarchy/ContentList";
 import { Sequence } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Sequence/Sequence";
 import { SequenceType } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Sequence/SequenceType";
-import { CompiledBlock } from "../../classes/annotators/CompilationAnnotator";
-import { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
-import { LowerContext } from "../context";
+import type { CompiledBlock } from "../../classes/annotators/CompilationAnnotator";
+import type { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
+import type { LowerContext } from "../context";
 import { findChildByName, lowerArms } from "../utils/alternatorArms";
 import { wrapInWeave } from "../utils/wrapInWeave";
 

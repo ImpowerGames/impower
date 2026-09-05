@@ -1,4 +1,4 @@
-import { LoadAudioPlayerParams } from "./LoadAudioPlayerParams";
+import type { LoadAudioPlayerParams } from "./LoadAudioPlayerParams";
 
 export interface LoadAudioPlayerResult extends LoadAudioPlayerParams {
   outputLatency?: number;

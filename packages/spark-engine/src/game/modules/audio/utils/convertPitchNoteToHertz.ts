@@ -1,6 +1,6 @@
 import { FUNDAMENTAL_KEYS } from "../constants/FUNDAMENTAL_KEYS";
-import { Hertz } from "../types/Hertz";
-import { Accidental, NaturalPitch, Note } from "../types/Note";
+import type { Hertz } from "../types/Hertz";
+import type { Accidental,NaturalPitch,Note } from "../types/Note";
 import { convertSemitonesToFrequencyFactor } from "./convertSemitonesToFrequencyFactor";
 import { parseNote } from "./parseNote";
 

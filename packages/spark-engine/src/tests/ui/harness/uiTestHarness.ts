@@ -79,6 +79,9 @@ export interface UIHarness {
   /** Fire every timer the engine armed with a real delay (an asset gate's
    *  timeout, the loading layout's minimum display), in the order armed.
    *  Zero-delay timers always fire inline. */
+  /** The delays, in milliseconds, of timers armed and not yet fired, so a
+   *  test can tell which timeout a wait actually used. */
+  timerDelays(): number[];
   flushTimers(): void;
   /** With `holdAssets`, answer every `assets/load` request held so far, as
    *  the page would once the items are resident. Returns how many. */

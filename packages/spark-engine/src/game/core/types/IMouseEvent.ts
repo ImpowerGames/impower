@@ -1,4 +1,4 @@
-import { IElementEvent } from "./IElementEvent";
+import type { IElementEvent } from "./IElementEvent";
 
 export interface IMouseEvent<T extends string> extends IElementEvent<T> {
   /** [MDN Reference](https://developer.mozilla.org/docs/Web/API/MouseEvent/altKey) */

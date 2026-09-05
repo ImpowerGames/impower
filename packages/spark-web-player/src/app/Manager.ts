@@ -18,22 +18,22 @@ export class Manager {
 
   onStart(): void {}
 
-  onUpdate(time: Clock): void {}
+  onUpdate(_time: Clock): void {}
 
-  onSkip(seconds: number): void {}
+  onSkip(_seconds: number): void {}
 
   onPause(): void {}
 
   onUnpause(): void {}
 
-  onResize(width: number, height: number, resolution: number): void {}
+  onResize(_width: number, _height: number, _resolution: number): void {}
 
   onDispose() {}
 
-  onReceiveNotification(msg: NotificationMessage): void {}
+  onReceiveNotification(_msg: NotificationMessage): void {}
 
   async onReceiveRequest(
-    msg: RequestMessage,
+    _msg: RequestMessage,
   ): Promise<
     | { error: ResponseError; transfer?: ArrayBuffer[] }
     | { result: unknown; transfer?: ArrayBuffer[] }

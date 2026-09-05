@@ -1,3 +1,4 @@
+/// <reference path="../../sd-raw.d.ts" />
 // The builtins prelude's root flow is seeded into every compiled program, so
 // anything the prelude leaves at its own top level travels with every game and
 // plays back whenever a story starts from the root (`Game.setStartFrom` falls

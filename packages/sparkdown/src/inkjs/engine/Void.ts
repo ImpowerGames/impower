@@ -1,7 +1,7 @@
 import { InkObject } from "./Object";
 
 export class Void extends InkObject {
-  public toString() {
+  public override toString() {
     return "Void";
   }
 }

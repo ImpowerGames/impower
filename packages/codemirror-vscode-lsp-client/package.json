@@ -14,5 +14,8 @@
     "@lezer/highlight": "^1.2.1",
     "marked": "^17.0.4",
     "vscode-languageserver-protocol": "^3.17.5"
+  },
+  "scripts": {
+    "typecheck": "node ../../scripts/typecheck.mjs packages/codemirror-vscode-lsp-client/"
   }
 }

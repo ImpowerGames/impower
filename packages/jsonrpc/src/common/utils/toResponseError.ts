@@ -1,4 +1,4 @@
-import { ResponseError } from "../types/ResponseError";
+import type { ResponseError } from "../types/ResponseError";
 
 /** JSON-RPC 2.0 "Internal error". */
 export const INTERNAL_ERROR = -32603;

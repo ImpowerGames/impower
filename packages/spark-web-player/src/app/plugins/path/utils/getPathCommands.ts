@@ -1,4 +1,4 @@
-import { PathCommand } from "../types/Path";
+import type { PathCommand } from "../types/Path";
 import { absolutizePath } from "./absolutizePath";
 import { normalizePath } from "./normalizePath";
 import { parsePath } from "./parsePath";

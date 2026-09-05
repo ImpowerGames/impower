@@ -1,6 +1,6 @@
 import { DebugMetadata } from "../../../inkjs/engine/DebugMetadata";
 import { ParsedObject } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Object";
-import { LowerContext } from "../context";
+import type { LowerContext } from "../context";
 
 // Builds a `DebugMetadata` populated with chunk-relative line/character
 // positions derived from the absolute byte offsets `from` / `to`. The

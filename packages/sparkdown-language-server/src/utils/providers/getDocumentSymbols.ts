@@ -155,7 +155,7 @@ export const getDocumentSymbols = (
     }
   }
   const lastTop = headingMarks.findLast(
-    (m) => m.type === "function" || m.type === "scene" || m.type === "knot",
+    (m) => m.type === "function" || m.type === "scene",
   );
   if (
     lastTop &&
@@ -167,7 +167,7 @@ export const getDocumentSymbols = (
     ).character;
   }
   const lastNested = headingMarks.findLast(
-    (m) => m.type === "branch" || m.type === "stitch",
+    (m) => m.type === "branch",
   );
   if (
     lastNested &&

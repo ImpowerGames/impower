@@ -1,7 +1,7 @@
 import { MessageProtocolNotificationType } from "@impower/jsonrpc/src/common/classes/MessageProtocolNotificationType";
-import { NotificationMessage } from "@impower/jsonrpc/src/common/types/NotificationMessage";
-import { Range } from "../../types/SparkDiagnostic";
-import { SimulationFailure } from "../../types/SimulationFailure";
+import type { NotificationMessage } from "@impower/jsonrpc/src/common/types/NotificationMessage";
+import type { Range } from "../../types/SparkDiagnostic";
+import type { SimulationFailure } from "../../types/SimulationFailure";
 
 export type SelectedCompilerDocumentMethod =
   typeof SelectedCompilerDocumentMessage.method;

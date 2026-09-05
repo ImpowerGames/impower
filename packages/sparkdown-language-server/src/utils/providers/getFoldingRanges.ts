@@ -121,37 +121,6 @@ export const getFoldingRanges = (
           kind: "branch",
         });
       }
-      if (cur.value.type === "knot") {
-        const line = document.positionAt(cur.from).line;
-        const lastTop = headingFolding.findLast(
-          (h) =>
-            h.kind === "function" || h.kind === "scene" || h.kind === "knot",
-        );
-        if (lastTop) {
-          lastTop.endLine = line - 1;
-        }
-        const prevHeading = headingFolding.at(-1);
-        if (prevHeading) {
-          prevHeading.endLine = line - 1;
-        }
-        headingFolding.push({
-          startLine: line,
-          endLine: line,
-          kind: "knot",
-        });
-      }
-      if (cur.value.type === "stitch") {
-        const line = document.positionAt(cur.from).line;
-        const prevHeading = headingFolding.at(-1);
-        if (prevHeading?.kind === "branch" || prevHeading?.kind === "stitch") {
-          prevHeading.endLine = line - 1;
-        }
-        headingFolding.push({
-          startLine: line,
-          endLine: line,
-          kind: "stitch",
-        });
-      }
       cur.next();
     }
   }

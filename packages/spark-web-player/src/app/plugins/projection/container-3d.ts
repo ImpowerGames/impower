@@ -5,7 +5,7 @@
  * Released under the MIT license.
  */
 
-import { Container, ContainerChild } from "pixi.js";
+import { Container, type ContainerChild } from "pixi.js";
 
 import { Matrix4x4 } from "./transform/matrix";
 import { Point3D } from "./transform/point";

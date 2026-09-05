@@ -78,7 +78,7 @@ export function renderVNode(
   switch (type) {
     case "if": {
       let selectedChildren: SparkleNode[] = [];
-      if (evaluate(args?.condition, getContext(ctx))) {
+      if (evaluate(args?.["condition"], getContext(ctx))) {
         selectedChildren = children ?? [];
       } else {
         let offset = 1;
@@ -89,7 +89,7 @@ export function renderVNode(
         ) {
           if (
             sibling.type === "elseif" &&
-            evaluate(sibling.args?.condition, getContext(ctx))
+            evaluate(sibling.args?.["condition"], getContext(ctx))
           ) {
             selectedChildren = sibling.children ?? [];
             break;
@@ -113,7 +113,7 @@ export function renderVNode(
       return { tag: "fragment", props: {}, children: [] }; // handled by parent if/match
 
     case "for": {
-      const list = evaluate(args?.each, getContext(ctx)) || [];
+      const list = evaluate(args?.["each"], getContext(ctx)) || [];
       const entries = Object.entries(list);
       const nextSibling = parent?.children?.[index + 1];
       if (entries.length === 0 && nextSibling?.type === "else") {
@@ -123,12 +123,12 @@ export function renderVNode(
           ) ?? [],
         );
       }
-      const asKeys: string[] = args?.as;
+      const asKeys: string[] = args?.["as"];
       const items = entries.flatMap(([key, value]) => {
         const newScope =
           asKeys?.length > 1
-            ? { [asKeys[0]]: key, [asKeys[1]]: value }
-            : { [asKeys[0]]: value };
+            ? { [asKeys[0]!]: key, [asKeys[1]!]: value }
+            : { [asKeys[0]!]: value };
         const subCtx = {
           ...ctx,
           scope: { ...(ctx.scope ?? EMPTY_OBJ), ...newScope },
@@ -149,7 +149,7 @@ export function renderVNode(
     }
 
     case "repeat": {
-      const times = evaluate(args?.times, getContext(ctx)) as number;
+      const times = evaluate(args?.["times"], getContext(ctx)) as number;
       const nextSibling = parent?.children?.[index + 1];
       if (Number.isNaN(times))
         return { tag: "fragment", props: {}, children: [] };
@@ -181,12 +181,12 @@ export function renderVNode(
     }
 
     case "match": {
-      const value = evaluate(args?.expression, getContext(ctx));
+      const value = evaluate(args?.["expression"], getContext(ctx));
       if (children) {
         for (const child of children) {
           if (
             child.type === "case" &&
-            evaluate(child.args?.value, getContext(ctx)) === value
+            evaluate(child.args?.["value"], getContext(ctx)) === value
           ) {
             return wrapChildren(
               child.children?.map((c, i) => renderVNode(c, ctx, child, i)) ??
@@ -217,8 +217,8 @@ export function renderVNode(
       const componentScope: Record<string, any> = { ...ctx.scope };
 
       // Handle component parameters by mapping provided args to formal parameters
-      for (const [paramIndex, value] of Object.entries(el.args?.parameters)) {
-        const param = componentDef.args?.parameters?.[paramIndex];
+      for (const [paramIndex, value] of Object.entries(el.args?.["parameters"])) {
+        const param = componentDef.args?.["parameters"]?.[paramIndex];
         // Evaluate param value if it's an expression
         if (param != null && typeof value === "string") {
           if (value.startsWith('"') && value.endsWith('"')) {
@@ -248,9 +248,9 @@ export function renderVNode(
         slotsFound,
       );
 
-      if (slotsFound.length === 0 && implicitFills.length > 0) {
+      if (slotsFound.length === 0 && implicitFills!.length > 0) {
         // If no slots defined, append implicit fills as last children
-        processedChildren.push(...implicitFills);
+        processedChildren.push(...implicitFills!);
       }
 
       // Render the processed component
@@ -276,15 +276,15 @@ export function renderVNode(
       const styleContent = (children ?? [])
         .map((c, i) => renderVNode(c, ctx, el, i))
         .join(" ");
-      const name = el.args?.name;
+      const name = el.args?.["name"];
       return {
         tag: "style",
         props: {},
         children: [`.style.${name} { ${styleContent} }`],
       };
     }
-    if (type === "property" && args?.key) {
-      return sparklePropertyToCssProperty(args?.key, args?.value, cssAliases);
+    if (type === "property" && args?.["key"]) {
+      return sparklePropertyToCssProperty(args?.["key"], args?.["value"], cssAliases);
     }
     const selector = sparkleSelectorToCssSelector(type, breakpoints);
     const selfTargetedSelector =
@@ -311,8 +311,8 @@ export function renderVNode(
         children: [styleContent],
       };
     }
-    if (type === "property" && args?.key) {
-      return sparklePropertyToCssProperty(args?.key, args?.value, cssAliases);
+    if (type === "property" && args?.["key"]) {
+      return sparklePropertyToCssProperty(args?.["key"], args?.["value"], cssAliases);
     }
     if (type === "keyframes" && children?.length) {
       const max = children.length - 1;
@@ -327,11 +327,11 @@ export function renderVNode(
           return `${offset} { ${keyframeContent} }`;
         })
         .join(" ");
-      const name = parent?.args?.name;
+      const name = parent?.args?.["name"];
       return `@keyframes ${name} { ${styleContent} }`;
     }
     if (type === "timing" && children?.length) {
-      const name = parent?.args?.name;
+      const name = parent?.args?.["name"];
       const timing: {
         duration?: string;
         delay?: string;
@@ -341,8 +341,8 @@ export function renderVNode(
         fill?: string;
       } = {};
       for (const c of children) {
-        const key = c.args?.key;
-        const value = c.args?.value;
+        const key = c.args?.["key"];
+        const value = c.args?.["value"];
         if (key === "duration" || key === "animation-duration") {
           timing.duration = value;
         }
@@ -386,7 +386,7 @@ export function renderVNode(
       const styleContent = (children ?? [])
         .map((c, i) => "--theme-" + renderVNode(c, ctx, el, i))
         .join("");
-      const name = el.args?.name;
+      const name = el.args?.["name"];
       return {
         tag: "style",
         props: {},
@@ -395,8 +395,8 @@ export function renderVNode(
         ],
       };
     }
-    if (type === "property" && args?.key) {
-      return sparklePropertyToCssProperty(args?.key, args?.value, cssAliases);
+    if (type === "property" && args?.["key"]) {
+      return sparklePropertyToCssProperty(args?.["key"], args?.["value"], cssAliases);
     }
     const content = (children ?? [])
       .map((c, i) => renderVNode(c, ctx, el, i) as string)
@@ -437,29 +437,29 @@ function renderBuiltinVNode(
   /*  2.  Fill dynamic attrs/classes  */
   const inherited =
     type === "component"
-      ? getInheritanceChain(args?.base, components)
+      ? getInheritanceChain(args?.["base"], components)
       : getInheritanceChain(type, components);
 
   const dynamicClass = [
-    ...(args.classes ?? []),
+    ...(args["classes"] ?? []),
     ...inherited,
-    args.base,
-    args.name,
+    args["base"],
+    args["name"],
   ]
     .filter(Boolean)
     .join(" ");
 
   if (!mergeClassesIntoHost(root, dynamicClass)) {
     // fallback: put classes on root if no {classes} placeholder
-    const base = root.props.class ? root.props.class + " " : "";
-    root.props.class = base + dynamicClass;
+    const base = root.props["class"] ? root.props["class"] + " " : "";
+    root.props["class"] = base + dynamicClass;
   }
 
   /* gather user-supplied attrs after interpolation */
   const evalCtx = getContext(ctx);
   const spreadProps: Record<string, string> = {};
-  if (args.attributes) {
-    for (const [k, v] of Object.entries(args.attributes)) {
+  if (args["attributes"]) {
+    for (const [k, v] of Object.entries(args["attributes"])) {
       // content will be added as a child of the node later, so don't include amongst props
       if (k !== "content") {
         spreadProps[k] =
@@ -509,21 +509,21 @@ function renderBuiltinVNode(
     Object.assign(root.props, spreadProps);
   }
 
-  if (type === "screen" && args.name) {
-    root.props.id = args.name;
-    delete root.props.class;
+  if (type === "screen" && args["name"]) {
+    root.props["id"] = args["name"];
+    delete root.props["class"];
   }
 
   /*  3.  Inject slot <content-slot> and <children-slot>  */
   const contentV: VNode =
-    typeof args.attributes?.content === "string"
-      ? interpolate(args.attributes?.content, evalCtx)
+    typeof args["attributes"]?.content === "string"
+      ? interpolate(args["attributes"]?.content, evalCtx)
       : "";
 
   if (root.contentAttr) {
     root.props[root.contentAttr] =
-      typeof args.attributes?.content === "string"
-        ? interpolate(args.attributes?.content, evalCtx)
+      typeof args["attributes"]?.content === "string"
+        ? interpolate(args["attributes"]?.content, evalCtx)
         : "";
   }
 
@@ -539,7 +539,7 @@ function renderBuiltinVNode(
         return children?.map((c, i) => renderVNode(c, ctx, el, i)) || [];
       }
       // recurse
-      return injectSlots(ch, args.attributes?.content, children, ctx, el);
+      return injectSlots(ch, args["attributes"]?.content, children, ctx, el);
     })
     .filter(Boolean);
 
@@ -603,7 +603,7 @@ function organizeFills(children: SparkleNode[]): Record<string, SparkleNode[]> {
   const otherChildren = [];
   for (const child of children) {
     if (child.type === "fill") {
-      const name = child.args?.name ?? "";
+      const name = child.args?.["name"] ?? "";
       fills[name] ??= [];
       fills[name].push(...(child.children ?? []));
     } else {
@@ -626,7 +626,7 @@ function instantiateSlots(
   for (const child of componentChildren) {
     if (child.type === "slot") {
       // if this is a slot, splice in its fills (or nothing)
-      const name = child.args?.name ?? "";
+      const name = child.args?.["name"] ?? "";
       if (fills[name]) {
         output.push(...fills[name]);
       }
@@ -706,8 +706,8 @@ function addToInheritanceChain(
   if (components) {
     if (type in components) {
       const component = components[type];
-      out.push(component.args?.name);
-      addToInheritanceChain(component.args?.base, components, out);
+      out.push(component!.args?.["name"]);
+      addToInheritanceChain(component!.args?.["base"], components, out);
     }
   }
 }
@@ -715,8 +715,8 @@ function addToInheritanceChain(
 function mergeClassesIntoHost(node: VNode, dyn: string): boolean {
   if (typeof node === "string") return false;
   if (node.classHost) {
-    const base = node.props.class ? node.props.class + " " : "";
-    node.props.class = base + dyn;
+    const base = node.props["class"] ? node.props["class"] + " " : "";
+    node.props["class"] = base + dyn;
     return true;
   }
   return node.children.some((c) => mergeClassesIntoHost(c, dyn));

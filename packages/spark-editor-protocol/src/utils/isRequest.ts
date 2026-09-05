@@ -1,4 +1,4 @@
-import { RequestMessage } from "../types/base/RequestMessage";
+import type { RequestMessage } from "../types/base/RequestMessage";
 
 export const isRequest = <M extends string, R>(
   obj: any,

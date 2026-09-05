@@ -1,4 +1,4 @@
-import { FrameRequestCallback } from "../classes/Clock";
+import type { FrameRequestCallback } from "../classes/Clock";
 
 export interface SystemConfiguration {
   now?: () => number;

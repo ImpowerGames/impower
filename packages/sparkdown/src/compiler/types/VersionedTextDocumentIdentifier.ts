@@ -1,4 +1,4 @@
-import { DocumentUri } from "vscode-languageserver-textdocument";
+import type { DocumentUri } from "vscode-languageserver-textdocument";
 
 export interface VersionedTextDocumentIdentifier {
   uri: DocumentUri;

@@ -1,8 +1,8 @@
 import { MessageProtocolNotificationType } from "@impower/jsonrpc/src/common/classes/MessageProtocolNotificationType";
-import { NotificationMessage } from "@impower/jsonrpc/src/common/types/NotificationMessage";
+import type { NotificationMessage } from "@impower/jsonrpc/src/common/types/NotificationMessage";
 import { ErrorType } from "../../enums/ErrorType";
-import { DocumentLocation } from "../../types/DocumentLocation";
-import { GameState } from "../../types/GameState";
+import type { DocumentLocation } from "../../types/DocumentLocation";
+import type { GameState } from "../../types/GameState";
 
 export type GameEncounteredRuntimeErrorMethod =
   typeof GameEncounteredRuntimeErrorMessage.method;

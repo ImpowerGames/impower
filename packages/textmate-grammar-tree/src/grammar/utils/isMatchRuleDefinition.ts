@@ -1,4 +1,4 @@
-import { MatchRuleDefinition } from "../types/GrammarDefinition";
+import type { MatchRuleDefinition } from "../types/GrammarDefinition";
 
 export const isMatchRuleDefinition = (
   obj: unknown,

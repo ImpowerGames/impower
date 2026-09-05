@@ -97,7 +97,10 @@ describe("inheritDefaults", () => {
   });
 
   it("inherits a default array when the author wrote none", () => {
-    const result = inheritDefaults({}, { tones: [0, 4, 7] });
+    const result = inheritDefaults<{ tones?: number[] }>(
+      {},
+      { tones: [0, 4, 7] },
+    );
     expect(result.tones).toEqual([0, 4, 7]);
   });
 

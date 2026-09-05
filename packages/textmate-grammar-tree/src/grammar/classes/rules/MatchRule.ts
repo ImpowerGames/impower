@@ -2,8 +2,11 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
-import { MatchRuleDefinition } from "../../types/GrammarDefinition";
-import { Rule } from "../../types/Rule";
+/* This Source Code Form is subject to the terms of the Mozilla Public
+* License, v. 2.0. If a copy of the MPL was not distributed with this
+* file, You can obtain one at https://mozilla.org/MPL/2.0/. */
+import type { MatchRuleDefinition } from "../../types/GrammarDefinition";
+import type { Rule } from "../../types/Rule";
 import { createID } from "../../utils/createID";
 import { isSwitchRuleDefinition } from "../../utils/isSwitchRuleDefinition";
 import { GrammarNode } from "../GrammarNode";

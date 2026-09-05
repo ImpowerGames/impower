@@ -19,6 +19,7 @@ import workspace from "../../workspace/WorkspaceStore";
 import FileList from "../file-list/FileList";
 import FileListBorder from "../file-list/FileListBorder";
 import AddUrlDialog from "./AddUrlDialog";
+import type { PanelType } from "@impower/spark-editor-protocol/src/types";
 
 export const propDefaults = {};
 export type AssetsProps = Partial<typeof propDefaults>;
@@ -63,7 +64,7 @@ export default function Assets(_props: AssetsProps) {
   const onPanelChange = (next: string) => {
     startTransition(() => {
       void import("../../workspace/Workspace").then(({ Workspace }) => {
-        Workspace.window.openPanel("assets", next);
+        Workspace.window.openPanel("assets", next as PanelType);
       });
     });
   };

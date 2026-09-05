@@ -10,7 +10,6 @@
 import { describe, expect, test } from "vitest";
 import {
   makeRuntimeStoryFromFile,
-  makeRuntimeStoryFromSource,
   runToEnd,
 } from "./runtimeTestHarness";
 

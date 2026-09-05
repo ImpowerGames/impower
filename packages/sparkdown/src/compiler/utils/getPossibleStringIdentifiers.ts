@@ -1,6 +1,6 @@
-import { SparkDeclaration } from "../types/SparkDeclaration";
-import { SparkProgram } from "../types/SparkProgram";
-import { SparkdownCompilerConfig } from "../types/SparkdownCompilerConfig";
+import type { SparkDeclaration } from "../types/SparkDeclaration";
+import type { SparkProgram } from "../types/SparkProgram";
+import type { SparkdownCompilerConfig } from "../types/SparkdownCompilerConfig";
 import { readProperty } from "./readProperty";
 
 export const getPossibleStringIdentifiers = (

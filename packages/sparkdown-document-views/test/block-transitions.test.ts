@@ -87,8 +87,6 @@ const CASES: Case[] = [
 // the cm-line containing beforeNeedle — i.e., they don't share a parent
 // widget. We check that there's at least one cm-line entry between
 // them in the formatRender output that isn't part of either.
-const indexOfLineContaining = (lines: { html: string }[], needle: string) =>
-  lines.findIndex((l) => l.html.includes(needle));
 
 describe("block-transition squish — blank line between blocks must remain visible", () => {
   for (const c of CASES) {

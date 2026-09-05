@@ -1,4 +1,4 @@
-import { PathCommand } from "../types/Path";
+import type { PathCommand } from "../types/Path";
 import { bezier } from "./bezier";
 import { interpolatePath } from "./interpolatePath";
 

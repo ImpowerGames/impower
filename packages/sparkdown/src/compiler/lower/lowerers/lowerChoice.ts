@@ -7,13 +7,13 @@ import { Expression } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expre
 import { Identifier } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Identifier";
 import { Tag } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Tag";
 import { Text } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Text";
-import { SourceMetadata } from "../../../inkjs/engine/Error";
-import {
-  CompiledBlock,
-  InkDiagnostic,
+import type { SourceMetadata } from "../../../inkjs/engine/Error";
+import type {
+CompiledBlock,
+InkDiagnostic,
 } from "../../classes/annotators/CompilationAnnotator";
-import { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
-import { LowerContext } from "../context";
+import type { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
+import type { LowerContext } from "../context";
 import { lowerExpressionFromContainer } from "../expression/lowerExpression";
 import {
   buildDivert,
@@ -294,14 +294,6 @@ function collectChoiceCondition(
   return lowerExpressionFromContainer(condCapture, ctx);
 }
 
-function findDirectChild(parent: SyntaxNode, name: string): SyntaxNode | null {
-  let child = parent.firstChild;
-  while (child) {
-    if (child.name === name) return child;
-    child = child.nextSibling;
-  }
-  return null;
-}
 
 // Walks the named capture child and appends its contents to the given
 // ContentList. Text outside of `Tag` nodes is emitted as `Text` parsed

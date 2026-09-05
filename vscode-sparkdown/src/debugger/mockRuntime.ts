@@ -333,7 +333,7 @@ export class MockRuntime extends EventEmitter {
    * Determine possible column breakpoint positions for the given line.
    * Here we return the start location of words with more than 8 characters.
    */
-  public getBreakpoints(path: string, line: number): number[] {
+  public getBreakpoints(line: number): number[] {
     return this.getWords(line, this.getLine(line))
       .filter((w) => w.name.length > 8)
       .map((w) => w.index);
@@ -443,7 +443,7 @@ export class MockRuntime extends EventEmitter {
   }
 
   public getLocalVariables(): RuntimeVariable[] {
-    return Array.from(this.variables, ([name, value]) => value);
+    return Array.from(this.variables, ([, value]) => value);
   }
 
   public getLocalVariable(name: string): RuntimeVariable | undefined {

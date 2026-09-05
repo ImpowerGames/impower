@@ -118,6 +118,19 @@ export function activateScreenPreview(context: vscode.ExtensionContext) {
   );
 }
 
+// The UI blocks a preview can be opened on: a `layout` declares the element
+// tree, and a `screen` names the navigation group those layouts belong to.
+const PREVIEWABLE_NODES = new Set<string>(["LuauLayout", "LuauScreen"]);
+
+// Shared blocks a previewed layout can draw on, sent along so the preview
+// renders with the same components and styling as the running game.
+const DEPENDENCY_NODES = new Set<string>([
+  "LuauComponent",
+  "LuauStyle",
+  "LuauAnimation",
+  "LuauTheme",
+]);
+
 function getAllScreenRanges(document: vscode.TextDocument) {
   const parsedDoc = SparkdownDocumentManager.instance.get(document.uri);
   const tree = SparkdownDocumentManager.instance.tree(document.uri);
@@ -133,10 +146,10 @@ function getAllScreenRanges(document: vscode.TextDocument) {
   let ranges: vscode.Range[] = [];
   if (cur) {
     while (cur.value) {
-      if (cur.value.type === "screen") {
+      if (cur.value.type === "define") {
         const stack = getStack<SparkdownNodeName>(tree, cur.from, -1);
-        const declarationNode = stack.find(
-          (n) => n.name === "ScreenDeclaration",
+        const declarationNode = stack.find((n) =>
+          PREVIEWABLE_NODES.has(n.name),
         );
         if (declarationNode) {
           const range = parsedDoc.range(
@@ -172,20 +185,9 @@ function getAllScreenDependencyRanges(document: vscode.TextDocument) {
   let ranges: vscode.Range[] = [];
   if (cur) {
     while (cur.value) {
-      if (
-        cur.value.type === "component" ||
-        cur.value.type === "style" ||
-        cur.value.type === "animation" ||
-        cur.value.type === "theme"
-      ) {
+      if (cur.value.type === "define") {
         const stack = getStack<SparkdownNodeName>(tree, cur.from, -1);
-        const declarationNode = stack.find(
-          (n) =>
-            n.name === "ComponentDeclaration" ||
-            n.name === "StyleDeclaration" ||
-            n.name === "AnimationDeclaration" ||
-            n.name === "ThemeDeclaration",
-        );
+        const declarationNode = stack.find((n) => DEPENDENCY_NODES.has(n.name));
         if (declarationNode) {
           const range = parsedDoc.range(
             declarationNode.from,
@@ -222,7 +224,7 @@ function getScreenRange(
     -1,
   );
 
-  const declarationNode = stack.find((n) => n.name === "ScreenDeclaration");
+  const declarationNode = stack.find((n) => PREVIEWABLE_NODES.has(n.name));
   if (declarationNode) {
     const range = parsedDoc.range(declarationNode.from, declarationNode.to);
     const screenRange = new vscode.Range(
@@ -511,10 +513,6 @@ function unmarkProgrammaticEdit(uri: string) {
   } else {
     programmaticEdits.set(uri, count - 1);
   }
-}
-
-function isProgrammaticEdit(uri: string): boolean {
-  return (programmaticEdits.get(uri) ?? 0) > 0;
 }
 
 const html = (

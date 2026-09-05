@@ -29,7 +29,7 @@ export class StashAndRereadExpression extends Expression {
     this.innerExpression = this.AddContent(inner) as Expression;
   }
 
-  get typeName(): string {
+  override get typeName(): string {
     return "StashAndReread";
   }
 
@@ -41,6 +41,6 @@ export class StashAndRereadExpression extends Expression {
     container.AddContent(new RuntimeVariableReference(this.tempName));
   };
 
-  public readonly toString = (): string =>
+  public override readonly toString = (): string =>
     `(${this.tempName} = ${this.innerExpression})`;
 }

@@ -79,7 +79,7 @@ end
 
 const drawnLayers = (program: any) => {
   const filteredImage = program.context?.filtered_image?.p;
-  filterImage(program.context, filteredImage);
+  filterImage(program.context!, filteredImage);
   return (filteredImage.filtered_layers ?? []).map(
     (l: { $name: string }) => l.$name,
   );
@@ -161,7 +161,7 @@ end
     expect(
       resolveImageLayers(
         program.context,
-        program.context?.filtered_image?.p,
+        program.context?.["filtered_image"]?.["p"],
       ).map((l) => l.src),
     ).toEqual(["/file:/local/assets/portrait__body.png?v=1"]);
   });
@@ -180,8 +180,8 @@ end
       ),
       ["portrait__hat", "portrait__body"],
     );
-    const filteredImage = program.context?.filtered_image?.p;
-    filterImage(program.context, filteredImage);
+    const filteredImage = program.context?.["filtered_image"]?.["p"];
+    filterImage(program.context!, filteredImage);
     expect(getImagePreviewSrc(program.context, filteredImage)).toBe(
       "/file:/local/assets/portrait__body.png?v=1",
     );

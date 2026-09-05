@@ -4,14 +4,14 @@
 
 import { NodeID } from "../../core";
 
-import {
-  IncludeDefinition,
-  MatchRuleDefinition,
-  RuleDefinition,
-  ScopedRuleDefinition,
-  SwitchRuleDefinition,
+import type {
+IncludeDefinition,
+MatchRuleDefinition,
+RuleDefinition,
+ScopedRuleDefinition,
+SwitchRuleDefinition,
 } from "../types/GrammarDefinition";
-import { Rule } from "../types/Rule";
+import type { Rule } from "../types/Rule";
 import { isIncludeDefinition } from "../utils/isIncludeDefinition";
 import { isMatchRuleDefinition } from "../utils/isMatchRuleDefinition";
 import { isScopedRuleDefinition } from "../utils/isScopedRuleDefinition";

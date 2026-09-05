@@ -1,4 +1,4 @@
-import { AudioPlayerUpdate } from "./AudioPlayerUpdate";
+import type { AudioPlayerUpdate } from "./AudioPlayerUpdate";
 
 export type AudioPlayerState = Omit<
   AudioPlayerUpdate,

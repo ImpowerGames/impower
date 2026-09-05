@@ -279,10 +279,10 @@ function checkNoZeroWidthInPatterns(grammar: TmGrammar): void {
   // zero-width target; loops naturally bound at the rule count.
   const effectivelyZeroWidth = new Set(zeroWidthMatches);
   const isSwitchOnly = (rule: Record<string, unknown>): boolean =>
-    Array.isArray(rule.patterns) &&
-    typeof rule.match !== "string" &&
-    typeof rule.begin !== "string" &&
-    typeof rule.end !== "string";
+    Array.isArray(rule["patterns"]) &&
+    typeof rule["match"] !== "string" &&
+    typeof rule["begin"] !== "string" &&
+    typeof rule["end"] !== "string";
 
   for (let pass = 0; pass < Object.keys(repo).length + 1; pass++) {
     let changed = false;
@@ -291,7 +291,7 @@ function checkNoZeroWidthInPatterns(grammar: TmGrammar): void {
       if (!rule || typeof rule !== "object") continue;
       const r = rule as Record<string, unknown>;
       if (!isSwitchOnly(r)) continue;
-      const patterns = r.patterns as unknown[];
+      const patterns = r["patterns"] as unknown[];
       const includesZW = patterns.some((entry) => {
         if (!entry || typeof entry !== "object") return false;
         const include = (entry as { include?: unknown }).include;
@@ -332,7 +332,7 @@ function checkNoZeroWidthInPatterns(grammar: TmGrammar): void {
   const visitNested = (host: string, rule: unknown): void => {
     if (!rule || typeof rule !== "object") return;
     const r = rule as Record<string, unknown>;
-    if (Array.isArray(r.patterns)) visitPatterns(host, r.patterns);
+    if (Array.isArray(r["patterns"])) visitPatterns(host, r["patterns"]);
   };
   for (const [name, rule] of Object.entries(repo)) {
     if (!rule || typeof rule !== "object") continue;

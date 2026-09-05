@@ -5,7 +5,7 @@
  * Released under the MIT license.
  */
 
-import { ObservablePoint, Observer, PointData, PointLike } from "pixi.js";
+import { ObservablePoint, type Observer, type PointData, type PointLike } from "pixi.js";
 import { Vec3 } from "../math/vec3";
 import { Matrix4x4 } from "./matrix";
 import { Quaternion } from "./quaternion";

@@ -4,9 +4,9 @@ import {
   MIDI_STATUS_SYSTEM,
   MIDI_STATUS_TYPE,
 } from "../constants/MIDI_STATUS_TYPE";
-import { Midi } from "../types/Midi";
-import { Tone } from "../types/Tone";
-import { ToneSequence } from "../types/ToneSequence";
+import type { Midi } from "../types/Midi";
+import type { Tone } from "../types/Tone";
+import type { ToneSequence } from "../types/ToneSequence";
 import { convertPitchNumberToHertz } from "./convertPitchNumberToHertz";
 import { transpose } from "./transpose";
 

@@ -1,25 +1,24 @@
-import { Message } from "@impower/jsonrpc/src/common/types/Message";
-import { NotificationMessage } from "@impower/jsonrpc/src/common/types/NotificationMessage";
-import { RequestMessage } from "@impower/jsonrpc/src/common/types/RequestMessage";
-import { ResponseError } from "@impower/jsonrpc/src/common/types/ResponseError";
+import type { Message } from "@impower/jsonrpc/src/common/types/Message";
+import type { NotificationMessage } from "@impower/jsonrpc/src/common/types/NotificationMessage";
+import type { RequestMessage } from "@impower/jsonrpc/src/common/types/RequestMessage";
+import type { ResponseError } from "@impower/jsonrpc/src/common/types/ResponseError";
 import {
   Container,
   DOMAdapter,
   extensions,
   ExtensionType,
-  Loader,
-  LoaderParser,
+  type LoaderParser,
   LoaderParserPriority,
   loadTextures,
-  Renderer,
-  ResolvedAsset,
+  type Renderer,
+  type ResolvedAsset,
   WebGLRenderer,
 } from "pixi.js";
 import "pixi.js/unsafe-eval";
 import { Clock } from "../../../spark-engine/src/game/core/classes/Clock";
 import { Game } from "../../../spark-engine/src/game/core/classes/Game";
 import { EventMessage } from "../../../spark-engine/src/game/core/classes/messages/EventMessage";
-import { IApplication } from "./IApplication";
+import type { IApplication } from "./IApplication";
 import { type AssetCache } from "./assets/AssetCache";
 import { Manager } from "./Manager";
 import AssetManager from "./managers/AssetManager";
@@ -37,10 +36,10 @@ export const loadBuffer: LoaderParser = {
     priority: LoaderParserPriority.Normal, // Actually will be last priority according to the console.log
     type: ExtensionType.LoadParser,
   },
-  test(url: string, resolvedAsset?: ResolvedAsset, loader?: Loader) {
+  test(resolvedAsset?: ResolvedAsset) {
     return resolvedAsset?.loadParser === "loadBuffer";
   },
-  async load(url: string, resolvedAsset?: ResolvedAsset, loader?: Loader) {
+  async load(url: string) {
     const response = await DOMAdapter.get().fetch(url);
     const buffer = await response.arrayBuffer();
     return buffer;

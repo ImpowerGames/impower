@@ -1,5 +1,5 @@
 import type { TextDocumentContentChangeEvent } from "vscode-languageserver-textdocument";
-import { VersionedTextDocumentIdentifier } from "./VersionedTextDocumentIdentifier";
+import type { VersionedTextDocumentIdentifier } from "./VersionedTextDocumentIdentifier";
 
 export interface DidChangeTextDocumentParams {
   /**

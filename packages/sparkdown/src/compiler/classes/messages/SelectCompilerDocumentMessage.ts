@@ -1,8 +1,8 @@
 import { MessageProtocolRequestType } from "@impower/jsonrpc/src/common/classes/MessageProtocolRequestType";
-import { RequestMessage } from "@impower/jsonrpc/src/common/types/RequestMessage";
-import { ResponseMessage } from "@impower/jsonrpc/src/common/types/ResponseMessage";
-import { Range } from "../../types/SparkDiagnostic";
-import { SimulationFailure } from "../../types/SimulationFailure";
+import type { RequestMessage } from "@impower/jsonrpc/src/common/types/RequestMessage";
+import type { ResponseMessage } from "@impower/jsonrpc/src/common/types/ResponseMessage";
+import type { Range } from "../../types/SparkDiagnostic";
+import type { SimulationFailure } from "../../types/SimulationFailure";
 
 export type SelectCompilerDocumentMethod =
   typeof SelectCompilerDocumentMessage.method;

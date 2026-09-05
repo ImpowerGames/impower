@@ -1,4 +1,4 @@
-import { IMouseEvent } from "./IMouseEvent";
+import type { IMouseEvent } from "./IMouseEvent";
 
 export interface IWheelEvent<T extends string> extends IMouseEvent<T> {
   /** [MDN Reference](https://developer.mozilla.org/docs/Web/API/WheelEvent/deltaMode) */

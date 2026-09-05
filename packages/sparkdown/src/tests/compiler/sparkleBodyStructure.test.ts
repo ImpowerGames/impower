@@ -181,7 +181,7 @@ describe("the first name on a line is the tag", () => {
     );
     const comp = entries.find((e: any) => e.block?.sparkle?.components)?.block
       ?.sparkle?.components;
-    const slot = comp?.card?.children?.[0];
+    const slot = comp?.["card"]?.children?.[0];
     expect(node).toBeTruthy();
     expect(slot?.kind).toBe("slot");
     expect(slot?.name).toBe("footer");
