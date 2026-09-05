@@ -53,17 +53,49 @@ const stateFile = () => hereOrPrevious(".state.json");
 const PROFILE_DIR = hereOrPrevious(".chrome-profile");
 
 // Signal 0 delivers nothing and only asks whether the pid exists; EPERM means
-// it exists under another user. A recorded pid that is gone is the one fact
-// that makes a state file stale, so `up` asks this before deleting one.
-function pidAlive(pid) {
+// it exists under another user. `kill` is a parameter so state-path.test.mjs
+// can pin the EPERM rule without a protected pid.
+function pidAlive(pid, kill = process.kill) {
   if (!Number.isInteger(pid) || pid <= 0) return false;
   try {
-    process.kill(pid, 0);
+    kill(pid, 0);
     return true;
   } catch (err) {
     return err?.code === "EPERM";
   }
 }
+
+// How long a launch gets to answer before `up` gives up on it.
+const READY_WAIT_MS = 15 * 60_000;
+
+// Whether the tree a state file records is still there. A live pid alone
+// proves nothing, because the system hands a freed pid to the next process it
+// starts, so a record whose tree is long gone can name any live process; and a
+// held port alone could be another tree's. The record stands while its pid is
+// alive and either its editor port is held (the editor binds the port when it
+// starts, before the cold worker build, so a tree that is building or slow to
+// answer holds it) or the record is younger than a launch's wait, the window
+// in which the launcher may not have bound the port yet. Anything else is
+// stale. `probe` supplies the three checks so state-path.test.mjs can pin the
+// table without a process, a socket or a file.
+async function recordStands(record, probe = liveProbe) {
+  if (!record?.url) return false;
+  if (!probe.pidAlive(record.pid)) return false;
+  if (await probe.portHeld(record.url)) return true;
+  return probe.ageMs() < READY_WAIT_MS;
+}
+
+const liveProbe = {
+  pidAlive,
+  portHeld: async (url) => !(await portFree(Number(new URL(url).port))),
+  ageMs: () => {
+    try {
+      return Date.now() - fs.statSync(stateFile()).mtimeMs;
+    } catch {
+      return Infinity;
+    }
+  },
+};
 
 const log = (...a) => console.log(...a);
 const die = (msg) => {
@@ -79,6 +111,21 @@ function readState() {
   } catch {
     return null;
   }
+}
+
+// A state file that is there but does not parse. writeState renames a finished
+// file into place, so this means a hand edit or a truncation from outside;
+// `status` reports it, `up` refuses to launch over it, `down` removes it.
+function stateUnreadable() {
+  return readState() === null && fs.existsSync(stateFile());
+}
+
+// Written beside this script whatever `stateFile()` read, and renamed into
+// place so no reader ever sees a partial file.
+function writeState(record) {
+  const tmp = STATE_FILE + ".tmp";
+  fs.writeFileSync(tmp, JSON.stringify(record, null, 2));
+  fs.renameSync(tmp, STATE_FILE);
 }
 
 function removeState() {
@@ -174,6 +221,9 @@ async function pickPorts() {
 // handle, so the log stays 0 bytes forever while the servers run perfectly.
 // Since the port is pinned, readiness is just an HTTP poll.
 async function up(args) {
+  if (stateUnreadable()) {
+    die(`state file unreadable: ${stateFile()}; \`down\` removes it, and any servers it recorded keep running`);
+  }
   const existing = readState();
   if (existing?.url && (await isUp(existing.url))) {
     log(`already up → ${existing.url}`);
@@ -181,13 +231,13 @@ async function up(args) {
   }
   // One probe timing out is not evidence the servers are gone: a cold build
   // takes minutes, and a loaded machine stalls the first response. While the
-  // recorded pid is alive the record stands and this waits for its URL, the
-  // same wait a fresh launch gets. Only a record whose pid is gone is stale,
-  // and that one is dropped so the file written below is the only record.
-  if (existing?.url && pidAlive(existing.pid)) {
+  // record stands (recordStands) this waits for its URL, the same wait a fresh
+  // launch gets, and stops waiting the moment the record goes stale. A stale
+  // record is dropped so the file written below is the only record.
+  if (await recordStands(existing)) {
     log(`servers pid ${existing.pid} are still starting → ${existing.url} (state: ${stateFile()})`);
-    await waitReady(existing.url, existing.mode);
-    return;
+    if (await waitReady(existing.url, existing.mode, () => recordStands(existing))) return;
+    log(`servers pid ${existing.pid} are gone; launching`);
   }
   removeState();
 
@@ -214,26 +264,27 @@ async function up(args) {
   );
   child.unref();
 
-  fs.writeFileSync(
-    STATE_FILE,
-    JSON.stringify({ url, pid: child.pid, mode, ports }, null, 2),
-  );
+  writeState({ url, pid: child.pid, mode, ports });
 
   log(`launching dev servers (${mode}) pid ${child.pid} → ${url}`);
   await waitReady(url, mode);
 }
 
-async function waitReady(url, mode) {
+// Polls until the URL answers and returns true. `keep`, when given, is asked
+// before each poll whether the wait is still worth it, and a false ends the
+// wait with a false return; the deadline ends it with an exit.
+async function waitReady(url, mode, keep) {
   log("COLD build takes 4-8 min (esbuild builds every worker bundle). Waiting...");
-  const deadline = Date.now() + 15 * 60_000;
+  const deadline = Date.now() + READY_WAIT_MS;
   while (Date.now() < deadline) {
+    if (keep && !(await keep())) return false;
     if (await isUp(url)) {
       log(`READY ${url}   (mode: ${mode})`);
-      return;
+      return true;
     }
     await sleep(3000);
   }
-  die(`timed out after 15 min waiting for ${url}; \`down\` stops the recorded pid if it is stuck`);
+  die(`timed out after ${READY_WAIT_MS / 60_000} min waiting for ${url}; \`down\` stops the tree the state file records`);
 }
 
 async function isUp(url) {
@@ -250,15 +301,13 @@ async function isUp(url) {
 // than as absence.
 async function status() {
   const file = stateFile();
-  const s = readState();
-  if (!s) {
-    if (fs.existsSync(file)) {
-      log(`down (state file unreadable: ${file})`);
-      process.exitCode = 1;
-      return;
-    }
-    return log("down (no state file)");
+  if (stateUnreadable()) {
+    log(`down (state file unreadable: ${file}; \`down\` removes it)`);
+    process.exitCode = 1;
+    return;
   }
+  const s = readState();
+  if (!s) return log("down (no state file)");
   const alive = await isUp(s.url);
   log(`${alive ? "UP" : "DOWN"}  url=${s.url}  pid=${s.pid}  mode=${s.mode}  state=${file}`);
   if (!alive) process.exitCode = 1;
@@ -266,11 +315,24 @@ async function status() {
 
 // The launcher spawns npm -> node grandchildren. Killing the launcher pid alone
 // orphans the two vite servers and they keep holding their ports. taskkill /T
-// tears down the whole tree.
-function down() {
+// tears down the whole tree. Only a record that stands names a tree to kill: a
+// stale record's pid may belong to any process by now, so that record is
+// removed and nothing is signalled.
+async function down() {
+  const file = stateFile();
   const s = readState();
   if (s?.pid == null) {
-    log("nothing to stop");
+    if (fs.existsSync(file)) {
+      removeState();
+      log(`removed ${file}, which recorded no pid to stop; servers it belonged to keep running`);
+    } else {
+      log("nothing to stop");
+    }
+    return;
+  }
+  if (!(await recordStands(s))) {
+    removeState();
+    log(`removed ${file}: pid ${s.pid} is not this tree's launcher any more (its port is free and the record is stale), so nothing was stopped`);
     return;
   }
   const killer =
@@ -2003,6 +2065,8 @@ export {
   SCREENS,
   hereOrPrevious,
   pidAlive,
+  recordStands,
+  READY_WAIT_MS,
 };
 
 // ------------------------------------------------------------------ utils ---
@@ -2030,7 +2094,7 @@ switch (cmd) {
     await up(rest);
     break;
   case "down":
-    down();
+    await down();
     break;
   case "status":
     await status();

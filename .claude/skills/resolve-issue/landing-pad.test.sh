@@ -1,14 +1,18 @@
 #!/usr/bin/env bash
 # Pins the glue the resolve-issue landing pad exists for. The pad is an ordered
 # checklist with one mandatory invocation line per step skill, a line that
-# begins `Invoke `/<step>` now`; a session that meets no such line skips that
+# begins `Invoke `/<step>` now` and carries `(skill name `<step>`)`, the name a
+# session hands the Skill tool; a session that meets no such line skips that
 # step, and nothing else would notice. So this asserts that the pad has exactly
 # one such line for write-regression-test, drive-web-editor and review-pr, in
-# that order, that each names a skill that exists, that the completion gate
-# follows them, and that the file stays short enough to load into every
-# session. A conditional mention elsewhere in the pad (the repro bullets) does
-# not begin a line with that phrase, so it is not counted, and neither is a
-# line that forbids the invocation. Run:
+# that order, that the parenthetical on each names the same step, that each
+# step's SKILL.md exists and declares that name in its frontmatter (the harness
+# resolves a skill by that `name:`, not by its directory), that the completion
+# gate follows every invocation, and that the file stays short enough to load
+# into every session. A conditional mention elsewhere in the pad (the repro
+# bullets) does not begin a line with that phrase, so it is not counted, and
+# neither is a line that forbids the invocation or a line inside a fenced
+# block, which is an example rather than an instruction. Run:
 #   bash .claude/skills/resolve-issue/landing-pad.test.sh
 #
 # SKILL_MD overrides the file under test and SKILLS_DIR the directory the step
@@ -39,11 +43,18 @@ else
   echo "PASS  $lines lines"
 fi
 
-# Line numbers of the lines that begin with the mandatory phrase for a step.
+# Line numbers of the lines outside fenced blocks that begin with the mandatory
+# phrase for a step.
 invocations() {
-  grep -n "^Invoke \`/$1\` now" "$skill" | cut -d: -f1
+  awk -v phrase="Invoke \`/$1\` now" '
+    /^```/ { fenced = !fenced; next }
+    !fenced && index($0, phrase) == 1 { print NR }
+  ' "$skill"
 }
 
+# prev is the highest invocation line seen so far: each step must come after
+# it, and the gate must come after all of them, so a step out of order never
+# lowers it.
 prev=0
 for step in write-regression-test drive-web-editor review-pr; do
   found=$(invocations "$step")
@@ -57,17 +68,24 @@ for step in write-regression-test drive-web-editor review-pr; do
     continue
   fi
   at=$found
+  (( at > prev )) && prev=$at
+  line=$(sed -n "${at}p" "$skill")
+  if [[ "$line" != *"(skill name \`$step\`)"* ]]; then
+    note_fail "/$step is invoked at line $at but the line does not say (skill name \`$step\`)"
+    continue
+  fi
   if [[ ! -r "$skills_dir/$step/SKILL.md" ]]; then
     note_fail "/$step is invoked at line $at but $skills_dir/$step/SKILL.md does not exist"
-    prev=$at
     continue
   fi
-  if (( at <= prev )); then
+  if ! grep -q "^name: $step\$" "$skills_dir/$step/SKILL.md"; then
+    note_fail "/$step is invoked at line $at but $skills_dir/$step/SKILL.md does not declare name: $step"
+    continue
+  fi
+  if (( at < prev )); then
     note_fail "/$step is invoked at line $at, before the previous step's invocation at line $prev"
-    prev=$at
     continue
   fi
-  prev=$at
   echo "PASS  /$step invoked at line $at"
 done
 
@@ -138,11 +156,36 @@ fi
 { cat "$skill"; echo "$wrt."; } > "$tmp/twice.md"
 expect_fail "write-regression-test invoked twice" "$tmp/twice.md" "has 2 mandatory invocation lines"
 
-{ grep -v "^$wrt" "$skill"; echo "$wrt."; } > "$tmp/out-of-order.md"
-expect_fail "write-regression-test invoked after drive-web-editor" "$tmp/out-of-order.md" "before the previous step's invocation"
+wrt_line=$(grep "^$wrt" "$skill")
+{ grep -v "^$wrt" "$skill"; echo "$wrt_line"; } > "$tmp/out-of-order.md"
+expect_fail "write-regression-test moved after the other invocations and the gate" "$tmp/out-of-order.md" "before the previous step's invocation"
+if grep -q '^PASS  completion gate' <<< "$(SKILL_MD="$tmp/out-of-order.md" LANDING_PAD_CHECK_INNER=1 bash "$self" 2>&1)"; then
+  note_fail "control 'write-regression-test moved after the other invocations and the gate': the gate is reported as passing although an invocation follows it"
+fi
 
-{ grep -v "^$rev" "$skill"; echo "$rev."; } > "$tmp/gate-first.md"
+rev_line=$(grep "^$rev" "$skill")
+{ grep -v "^$rev" "$skill"; echo "$rev_line"; } > "$tmp/gate-first.md"
 expect_fail "review-pr invoked after the gate" "$tmp/gate-first.md" "comes before the last invocation"
+
+sed "s|^$wrt (skill name \`write-regression-test\`)|$wrt (skill name \`drive-web-editor\`)|" "$skill" > "$tmp/wrong-name.md"
+if grep -q "^$wrt (skill name \`drive-web-editor\`)" "$tmp/wrong-name.md"; then
+  expect_fail "the parenthetical names another skill" "$tmp/wrong-name.md" "does not say (skill name"
+else
+  note_fail "control 'the parenthetical names another skill': the fixture was not built"
+fi
+
+awk -v p="$wrt" 'index($0, p) == 1 { print "```md"; print; print "```"; next } { print }' "$skill" > "$tmp/fenced.md"
+if grep -q "^$wrt" "$tmp/fenced.md"; then
+  expect_fail "the invocation line survives only inside a fenced example" "$tmp/fenced.md" "no line begins with $wrt"
+else
+  note_fail "control 'the invocation line survives only inside a fenced example': the fixture was not built"
+fi
+
+for step in write-regression-test drive-web-editor review-pr; do
+  mkdir -p "$tmp/renamed/$step"
+  printf -- '---\nname: %s-renamed\ndescription: a renamed copy\n---\n' "$step" > "$tmp/renamed/$step/SKILL.md"
+done
+SKILLS_DIR="$tmp/renamed" expect_fail "a step skill whose frontmatter declares another name" "$skill" "does not declare name:"
 
 grep -v '^## The completion gate' "$skill" > "$tmp/no-gate.md"
 expect_fail "completion gate removed" "$tmp/no-gate.md" "no '## The completion gate' heading"
