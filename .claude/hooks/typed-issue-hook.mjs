@@ -420,6 +420,7 @@ function bracketPartners(command) {
   let inString = false; // inside double quotes
   let backslashEscapes = true;
   let wordStart = true; // at the start of a word, where `#` opens a comment
+  let arith = 0; // inside `$((...))` or `((...))`, where `<<` is a shift
   for (let k = 0; k < n; k++) {
     const ch = command[k];
     if (inString) {
@@ -460,7 +461,7 @@ function bracketPartners(command) {
       k = end < 0 ? n : end - 1;
       continue;
     }
-    if (ch === "<" && command[k + 1] === "<" && command[k + 2] !== "<") {
+    if (ch === "<" && command[k + 1] === "<" && command[k + 2] !== "<" && arith === 0) {
       const doc = readHeredocOperator(command, k);
       if (doc) {
         heredocs.push(doc);
@@ -471,9 +472,12 @@ function bracketPartners(command) {
     }
     if (ch === "\n") {
       wordStart = true;
+      arith = 0;
       if (heredocs.length) k = skipHeredocBodies(command, k + 1, heredocs) - 1;
       continue;
     }
+    if (ch === "(" && command[k + 1] === "(") arith++;
+    else if (ch === ")" && command[k + 1] === ")" && arith > 0 && command[k - 1] !== ")") arith--;
     if (ch === "(" || ch === "{") stack.push({ ch, at: k, resumesString: false });
     else if (ch === ")" || ch === "}") {
       const want = ch === ")" ? "(" : "{";
@@ -722,6 +726,9 @@ function bodyHasTypeField(body) {
   }
   // Anything else is a hashtable or JSON-like text; prose is not a body.
   if (!/^(@?\{|\[)/.test(inner)) return false;
+  // Here-string values are replaced by a one-character placeholder first
+  // (a here-string type is a non-empty value), then empty type entries are
+  // dropped, then quoted values are blanked so their text cannot match.
   const blanked = blankHereStrings(inner)
     .replace(/["']?type["']?\s*[:=]\s*(["'])\1/g, "") // an empty type value is no type
     .replace(/([:=]\s*)"(?:[^"\\]|\\.)*"/g, '$1""')
@@ -730,29 +737,39 @@ function bodyHasTypeField(body) {
 }
 
 /**
- * Replaces every here-string value (`= @"` ... `"@` on its own line, or the
- * single-quoted form) with an empty string, in one forward pass: for each
- * terminator, the nearest opener since the previous terminator is paired
- * with it.
+ * Replaces every here-string value (`= @"` on its own line-end through the
+ * next `"@` at a line start, or the single-quoted form) with a placeholder,
+ * in one forward pass: the first opener after the previous terminator is
+ * paired with the first matching terminator after it, so a stray `@"`
+ * inside a body cannot shorten the blanked region.
  */
 function blankHereStrings(text) {
   let out = "";
   let pos = 0;
   for (;;) {
-    const termD = text.indexOf('\n"@', pos);
-    const termS = text.indexOf("\n'@", pos);
-    if (termD < 0 && termS < 0) break;
-    const term = termD < 0 ? termS : termS < 0 ? termD : Math.min(termD, termS);
-    const q = text[term + 1];
-    const open = text.lastIndexOf(`@${q}`, term);
-    if (open < pos || !/[:=]\s*$/.test(text.slice(Math.max(pos, open - 8), open))) {
-      out += text.slice(pos, term + 3);
-    } else {
-      out += text.slice(pos, open) + q + q;
-    }
+    const open = nextHereStringOpener(text, pos);
+    if (open < 0) break;
+    const q = text[open + 1];
+    const term = text.indexOf(`\n${q}@`, open + 2);
+    if (term < 0) break;
+    out += text.slice(pos, open) + q + "h" + q;
     pos = term + 3;
   }
   return out + text.slice(pos);
+}
+
+/** Index of the next `@"` or `@'` that follows `:` or `=` and whitespace, at or after `from`, or -1. */
+function nextHereStringOpener(text, from) {
+  for (let k = from; ; ) {
+    const d = text.indexOf('@"', k);
+    const s = text.indexOf("@'", k);
+    if (d < 0 && s < 0) return -1;
+    const at = d < 0 ? s : s < 0 ? d : Math.min(d, s);
+    let j = at - 1;
+    while (j >= from && " \t\r\n".includes(text[j])) j--;
+    if (j >= from && (text[j] === "=" || text[j] === ":")) return at;
+    k = at + 2;
+  }
 }
 
 /** Strips the wrappers a body may sit in (`(...)`, `$(...)`, `@(...)`, one layer of quotes) and unescapes the quotes inside. */
@@ -767,7 +784,7 @@ function unwrapBody(body) {
       s = s.slice(2, -1).replace(/\\(["'\\])/g, "$1"); // Bash ANSI-C quoting
       continue;
     }
-    if (/^\$[{[]/.test(s)) {
+    if (/^\$([{[]|&?[A-Za-z0-9_][^{@(\s"'=]*=)/.test(s)) {
       s = s.slice(1); // ANSI-C quoting after the tokenizer removed the quotes
       continue;
     }

@@ -219,6 +219,12 @@ const denies = [
   ["create after a comment with an apostrophe and a $( ) in quotes", "# don't forget\necho \"$(date)\" && gh issue create --title x --body y"],
   ["untyped create after a here-doc body with an apostrophe and a $( ) in quotes", "cat > b.md <<'EOF'\nIt doesn't work.\nEOF\necho \"$(date)\" && gh issue create --title x"],
   ["form-encoded body led by labels[] without a type", "curl -X POST https://api.github.com/repos/ImpowerGames/impower/issues -d 'labels[]=bug&title=x'"],
+  ["create after a shift with a named operand and a $( ) in quotes", 'x=$((1 << n))\necho "$(date)"\ngh issue create --title x'],
+  ["untyped api create after a shift with a named operand", "x=$((1 << n))\ngh api -X POST repos/ImpowerGames/impower/issues -f title=x"],
+  ["here-string body with a padded opener and a type= line", "irm -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Body @{\n  title = 'x'\n  body =\n        @\"\nRepro:\n    type = Bug\n\"@\n}"],
+  ["here-string body with nine spaces before the opener and a type= line", "irm -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Body (@{\n  title = 'x'\n  body =         @\"\ntype = Bug\n\"@\n} | ConvertTo-Json)"],
+  ["here-string body holding an inner = @\" and a type= line", "irm -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Body (@{\n  title = 'x'\n  body = @\"\ntype = Bug\nthe snippet has $x = @\" in it\n\"@\n} | ConvertTo-Json)"],
+  ["here-string body holding an inner @\" and a type= line", "irm -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Body (@{\n  title = 'x'\n  body = @\"\ntype = Bug\nmail me@\"work\" about it\n\"@\n} | ConvertTo-Json)"],
 ];
 
 const allows = [
@@ -291,6 +297,10 @@ const allows = [
   ["a here-doc with no terminator holds the phrase", "cat > note.md <<'EOF'\ngh issue create is refused here."],
   ["a here-doc whose terminator has a trailing space", "cat > note.md <<'EOF'\ngh issue create is refused here.\nEOF "],
   ["a shift with a variable operand, then a view", "echo $((x << y))\ngh issue view 443"],
+  ["a shift with a variable operand, then a typed create with a $( ) title", 'echo $((a << b))\ngh api -X POST repos/ImpowerGames/impower/issues -f "title=$(cat t.md)" -f type=Bug'],
+  ["a shift with a variable operand, then a typed hashtable create", "x=$((1 << n))\nirm -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Body @{title='x'; type='Bug'}"],
+  ["a type supplied as a here-string", "irm -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Body @{title='x'; type = @\"\nBug\n\"@\n}"],
+  ["typed form data in Bash ANSI-C quoting", "curl -X POST https://api.github.com/repos/ImpowerGames/impower/issues --data $'title=x&type=Bug'"],
   ["a view inside a double-quoted $( )", 'echo "issue: $(gh issue view 443 --json title)"'],
   ["curl -G with query data", "curl -G -d labels=bug https://api.github.com/repos/ImpowerGames/impower/issues"],
   ["curl -sSL GET", "curl -sSL https://api.github.com/repos/ImpowerGames/impower/issues"],
@@ -370,6 +380,8 @@ const allows = [
   guard("40000 chained PowerShell assignments in one token", "$a=".repeat(40000) + "gh issue view 443");
   guard("a 240000-character bare word", "echo " + "x".repeat(240000) + " && gh issue view 443");
   guard("a 300 KB hashtable value mentioning '= @\"' 8000 times", "irm -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Body @{title='x'; type='Bug'; body='" + "the script writes $x = @\" then more. ".repeat(8000) + "'}");
+  guard("a hashtable value with 32000 lines starting with \"@", "irm -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Body @{title='x'; type='Bug'; body='" + "\n\"@".repeat(32000) + "'}");
+  guard("10000 shifts with named operands, then a typed create", Array.from({ length: 10000 }, (_, i) => `x=$((y << n${i}))`).join("\n") + "\ngh api -X POST repos/ImpowerGames/impower/issues -f title=x -f type=Bug");
   guard("32000 unbalanced groups after flags", "echo " + "-a ( ".repeat(32000));
   guard("32000 unbalanced hashtables after flags", "echo " + "-a @{ ".repeat(32000) + "}");
   guard("32000 balanced groups after flags", "echo " + "-a (1) ".repeat(32000));
