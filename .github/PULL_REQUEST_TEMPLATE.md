@@ -22,15 +22,9 @@ Closes #
 
 ## Type of change
 
-<!-- Check all that apply. -->
+<!-- One line: bug fix, feature, refactor or cleanup, performance, documentation, build/tooling/CI, or breaking change. List more than one where it applies, e.g. "feature, documentation". A breaking change also needs its migration described under Changes. -->
 
-- [ ] Bug fix
-- [ ] New feature
-- [ ] Refactor or cleanup (no behavior change)
-- [ ] Performance
-- [ ] Documentation
-- [ ] Build, tooling, or CI
-- [ ] Breaking change (describe the migration under Changes)
+Type:
 
 ## Testing and verification
 
@@ -38,10 +32,15 @@ Closes #
 
 ## Checklist
 
-- [ ] Tests pass locally for the packages this touches
-- [ ] Visual changes were checked by looking at the running app, with screenshots attached above
-- [ ] Documentation was updated where behavior changed
-- [ ] The pull request body was read back after opening
+<!-- Fill in what you actually did after each label. Leave a label blank, or write "not applicable" with a reason, rather than describing something you didn't do. -->
+
+Tests run:
+
+Visual check:
+
+Docs:
+
+Body read back:
 
 ## Notes for reviewers
 

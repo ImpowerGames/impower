@@ -6,9 +6,16 @@ name: Check Linked Issue
 # leaves its ticket open; #394, #400, and #403 all shipped that way. The
 # template's "Closes #" line exists for this; the check makes it hard to skip.
 #
+# Also fails a pull request whose body carries GitHub task-list syntax
+# ("- [ ]", "1. [ ]", and their variants) outside a comment or code block.
+# GitHub renders any of those as a checkbox and shows a "n of m tasks" counter
+# wherever the pull request is listed, which is what #465 removed from the
+# template itself; this step catches the syntax coming back through a body
+# composed by hand rather than through the template.
+#
 # The body is read from the event payload, so no checkout of the pull
-# request's own code runs here. The script lives in .github/scripts/ and has
-# a test beside it.
+# request's own code runs here. Both scripts live in .github/scripts/ and
+# have a test beside them.
 
 on:
   pull_request:
@@ -31,3 +38,7 @@ jobs:
         env:
           PR_BODY: ${{ github.event.pull_request.body }}
         run: node .github/scripts/check-linked-issue.mjs
+      - name: Check the pull request body for task-list syntax
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: node .github/scripts/check-no-tasklist.mjs
