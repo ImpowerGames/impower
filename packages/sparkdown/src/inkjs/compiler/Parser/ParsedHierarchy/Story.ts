@@ -101,27 +101,29 @@ export class Story extends FlowBase {
   public constants: Map<string, ConstantDeclaration> = new Map();
   public externals: Map<string, ExternalDeclaration> = new Map();
 
-  /** Builtin define names declared only so references resolve (see
-   *  {@link DeclareBuiltinGlobals}); they have no runtime initialization. */
-  protected _builtinGlobalNames: Set<string> = new Set();
-
-  /** Declare the globals the builtins prelude creates at runtime, without
-   *  initializing them here. A compile that does not seed the prelude into
-   *  the story (the editor's diagnostics compiler) still has every builtin
-   *  table at runtime, because every host seeds it; without these markers a
-   *  reference such as `game.loading.percent` reports "Cannot find item or
-   *  path" in the editor and nowhere else. A name the program already
-   *  declares (an authored override) is left alone.
+  /** Declare the bare globals the builtins prelude creates at runtime (its
+   *  type roots), without initializing them here. A compile that does not
+   *  seed the prelude into the story (the editor's diagnostics compiler)
+   *  still has every builtin table at runtime, because every host seeds it;
+   *  without these markers a reference such as `game.loading.percent`
+   *  reports "Cannot find item or path" in the editor and nowhere else.
    *
-   *  `names` must hold only names the seeded runtime really has, under the
-   *  key it holds them by: a marker captures every `-> name` divert as a
-   *  variable divert, exactly as the real global does in a seeded compile,
-   *  so a name that is not a runtime global would make a same-named scene
-   *  unreachable. The compiler reports a scene or function that shares a
-   *  real global's name (SparkdownCompiler.reportBuiltinGlobalFlowCollisions). */
+   *  Runs before ExportRuntime, so the markers are always the incumbents when
+   *  the program's own declarations register during generation. An authored
+   *  define of the same name then takes the slot outright and the marker is
+   *  dropped; an authored `store` or `const` of that name is reported as a
+   *  duplicate identifier, as it is in a seeded compile (see
+   *  FlowBase.AddNewVariableDeclaration).
+   *
+   *  `names` must hold only names the seeded runtime really has: a marker
+   *  captures every `-> name` divert as a variable divert, exactly as the
+   *  real global does in a seeded compile, so a name that is not a runtime
+   *  global would make a same-named scene unreachable. The compiler reports
+   *  a scene, branch, function, or label that shares a real global's name
+   *  (SparkdownCompiler.reportBuiltinGlobalFlowCollisions). */
   public DeclareBuiltinGlobals(names: Iterable<string>): void {
     for (const name of names) {
-      if (!name || this.variableDeclarations.has(name)) {
+      if (!name) {
         continue;
       }
       const va = new VariableAssignment({
@@ -130,7 +132,6 @@ export class Story extends FlowBase {
         isDefineDeclaration: true,
       });
       va.isPreludeDeclaration = true;
-      this._builtinGlobalNames.add(name);
       this.AddNewVariableDeclaration(va);
     }
   }
@@ -401,9 +402,17 @@ export class Story extends FlowBase {
     const runtimeLists: RuntimeListDefinition[] = [];
     for (const [key, value] of this.variableDeclarations) {
       // Implicit parents are declaration-only (lazily minted by a
-      // child's `__def` at runtime), as are the builtin globals of an
-      // unseeded compile — nothing to initialize here.
-      if (implicitParentNames.has(key) || this._builtinGlobalNames.has(key)) {
+      // child's `__def` at runtime), as are the builtin markers of an
+      // unseeded compile (DeclareBuiltinGlobals) — nothing to initialize
+      // here. A marker is recognized by shape rather than by key so it is
+      // skipped under whatever key it ends up holding.
+      if (
+        implicitParentNames.has(key) ||
+        (value.isPreludeDeclaration &&
+          !value.expression &&
+          !value.structDefinition &&
+          !value.listDefinition)
+      ) {
         continue;
       }
       if (value.isGlobalDeclaration) {

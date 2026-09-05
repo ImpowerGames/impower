@@ -23,7 +23,6 @@ import { StructDefinition } from "../../inkjs/compiler/Parser/ParsedHierarchy/St
 import { VariableAssignment as ParsedVariableAssignment } from "../../inkjs/compiler/Parser/ParsedHierarchy/Variable/VariableAssignment";
 import { Divert } from "../../inkjs/compiler/Parser/ParsedHierarchy/Divert/Divert";
 import { FlowBase } from "../../inkjs/compiler/Parser/ParsedHierarchy/Flow/FlowBase";
-import { FlowLevel } from "../../inkjs/compiler/Parser/ParsedHierarchy/Flow/FlowLevel";
 import { Gather } from "../../inkjs/compiler/Parser/ParsedHierarchy/Gather/Gather";
 import { Identifier } from "../../inkjs/compiler/Parser/ParsedHierarchy/Identifier";
 import { IncludedFile } from "../../inkjs/compiler/Parser/ParsedHierarchy/IncludedFile";
@@ -200,11 +199,9 @@ function getCompiledPrelude(): {
 }
 
 let _preludeGlobalNames: Set<string> | undefined;
-/** Every global the seeded prelude creates at runtime, under the key the
- *  runtime holds it by: a type's root table (`config`, `game`) sits on its
- *  bare name, and a leaf-instance define sits on its scoped `$<type>_<name>`
- *  key (`$config_assets`, `$color_red` — see `scopeDefineInstances`). An
- *  unseeded compile declares exactly these so references resolve
+/** The bare global names the seeded prelude creates at runtime: the type
+ *  roots (`config`, `game`, `color`, `world`, …). An unseeded compile declares
+ *  exactly these so references such as `game.loading.percent` resolve
  *  (Story.DeclareBuiltinGlobals).
  *
  *  The names come from the cached prelude's compiled "global decl" container,
@@ -215,7 +212,16 @@ let _preludeGlobalNames: Set<string> | undefined;
  *  Declaring one of those makes an authored scene of the same name
  *  unreachable: `-> main` binds to the declared variable instead of the
  *  scene, and the runtime then fails to find a variable that never existed
- *  (#437). */
+ *  (#437). A bare instance name is not a runtime global either: `assets` is
+ *  reached as `config.assets`, and a seeded story fails at runtime on a bare
+ *  `assets.predict_distance`, so the unseeded compile is right to warn on it.
+ *
+ *  The initializer also lists each leaf instance under its scoped
+ *  `$<type>_<name>` key (`$config_assets`; see `scopeDefineInstances`). Those
+ *  are left out: no authored source can spell a `$` name, so no reference
+ *  needs them, and declaring them would occupy the very keys an authored
+ *  override of the same builtin is scoped to, which either re-keys that
+ *  override to `$color_$color_red` or drops it from the registry outright. */
 function getPreludeGlobalNames(): Set<string> {
   if (_preludeGlobalNames) {
     return _preludeGlobalNames;
@@ -244,7 +250,11 @@ function getPreludeGlobalNames(): Set<string> {
       // `{"VAR=": name}` declares a global; `re: true` marks a reassignment
       // of one declared elsewhere, so it adds no name.
       const declared = entry["VAR="];
-      if (typeof declared === "string" && !entry["re"]) {
+      if (
+        typeof declared === "string" &&
+        !declared.startsWith("$") &&
+        !entry["re"]
+      ) {
         names.add(declared);
       }
       for (const value of Object.values(entry)) {
@@ -1461,18 +1471,24 @@ export class SparkdownCompiler {
         this._config.useBuiltinsPrelude !== false &&
         !this._config.seedBuiltinsIntoStory
       ) {
-        const builtinGlobalNames = getPreludeGlobalNames();
-        parsedStory.DeclareBuiltinGlobals(builtinGlobalNames);
-        this.reportBuiltinGlobalFlowCollisions(
-          parsedStory,
-          builtinGlobalNames,
-          program,
-          uri,
-        );
+        parsedStory.DeclareBuiltinGlobals(getPreludeGlobalNames());
       }
       profile("start", this._profilerId, "ink/compile", uri);
       const story = parsedStory.ExportRuntime(onDiagnostic);
       profile("end", this._profilerId, "ink/compile", uri);
+      // After ExportRuntime: the walk reads each weave's named-label map,
+      // which ExportRuntime's ResolveWeavePointNaming builds.
+      if (
+        this._config.useBuiltinsPrelude !== false &&
+        !this._config.seedBuiltinsIntoStory
+      ) {
+        this.reportBuiltinGlobalFlowCollisions(
+          parsedStory,
+          getPreludeGlobalNames(),
+          program,
+          uri,
+        );
+      }
       // Bar flows that raised GENERATION-time diagnostics from future reuse —
       // reuse skips generation, which would silently drop them next compile.
       for (const flow of parsedStory.flowsWithGenerationDiagnostics) {
@@ -4141,49 +4157,134 @@ export class SparkdownCompiler {
     profile("end", this._profilerId, "mergePreludeSparkle", uri);
   }
 
-  /** Report a top-level scene or function named after a builtin global. Such
-   *  a flow can never be reached: `-> name` binds to the global's variable, in
-   *  a seeded compile as much as in the unseeded one that declares the marker
-   *  (Story.DeclareBuiltinGlobals), and the seeded runtime then fails at that
-   *  divert. The seeded compile reports the clash as a duplicate identifier
-   *  when the prelude's own declaration resolves its references; the
-   *  unseeded compile, whose diagnostics the editor shows, has no such
-   *  declaration, so the clash is checked here. Runs as a whole-program pass
-   *  each compile, like {@link validateSceneStructure}: the flow and the
-   *  marker can live in different files. */
+  /** Report every scene, branch, function, and label named after a builtin
+   *  global. Such a target can never be reached: `-> name` binds to the
+   *  global's variable, in a seeded compile as much as in the unseeded one
+   *  that declares the marker (Story.DeclareBuiltinGlobals), and the seeded
+   *  runtime then fails at that divert. The seeded compile reports the clash
+   *  as a duplicate identifier when the prelude's own declaration resolves
+   *  its references; the unseeded compile, whose diagnostics the editor
+   *  shows, has no such declaration, so the clash is checked here.
+   *
+   *  Runs after ExportRuntime, as a whole-program walk each compile: the
+   *  named-label map of each weave is built by ExportRuntime's
+   *  ResolveWeavePointNaming, and the target and the marker can live in
+   *  different files. A marker that an authored define has since replaced in
+   *  the registry is skipped; that define's own clash with the target is
+   *  reported by Story.CheckForNamingCollisions. */
   protected reportBuiltinGlobalFlowCollisions(
     parsedStory: Story,
-    names: Iterable<string>,
+    names: ReadonlySet<string>,
     program: SparkProgram,
     uri: string,
   ): void {
-    for (const name of names) {
-      const flow = parsedStory.ContentWithNameAtLevel(name, FlowLevel.Knot);
-      if (!(flow instanceof FlowBase)) {
-        continue;
-      }
-      const dm = flow.debugMetadata;
+    const markerHolds = (name: string): boolean =>
+      parsedStory.variableDeclarations.get(name)?.isPreludeDeclaration ===
+      true;
+    const messageFor = (name: string): string =>
+      `\`${name}\` is a builtin global, so it cannot also be the name of a scene, branch, function, or label`;
+    const report = (name: string, target: ParsedObject): void => {
+      const dm = target.debugMetadata;
       if (!dm) {
-        continue;
+        return;
       }
-      // The lowering dispatcher stamps a flow with 1-based line numbers and
-      // 0-based character numbers (see lower/utils/debugMetadata.ts);
-      // getDiagnostic takes 0-based positions on both axes.
       const diagUri = dm.filePath || uri;
+      // The lowering dispatcher stamps 1-based line numbers and 0-based
+      // character numbers (see lower/utils/debugMetadata.ts); getDiagnostic
+      // takes 0-based positions on both axes. A scene's stamp covers its
+      // declaration line, but a function's covers its whole body, so the
+      // range narrows to the name itself when the name is on the stamp's
+      // first line.
+      const line = dm.startLineNumber - 1;
+      let startCharacter = dm.startCharacterNumber;
+      let endLine = dm.endLineNumber - 1;
+      let endCharacter = dm.endCharacterNumber;
+      const lineText = this.documents.get(diagUri)?.getText({
+        start: { line, character: 0 },
+        end: { line: line + 1, character: 0 },
+      });
+      const match = lineText?.match(new RegExp(`\\b${name}\\b`));
+      if (match && match.index !== undefined) {
+        startCharacter = match.index;
+        endLine = line;
+        endCharacter = match.index + name.length;
+      }
       const diagnostic = this.getDiagnostic(
-        `\`${name}\` is a builtin global, so it cannot also be the name of a scene or function`,
+        messageFor(name),
         DiagnosticSeverity.Error,
         diagUri,
-        dm.startLineNumber - 1,
-        dm.startCharacterNumber,
-        dm.endLineNumber - 1,
-        dm.endCharacterNumber,
+        line,
+        startCharacter,
+        endLine,
+        endCharacter,
       );
       if (diagnostic) {
         program.diagnostics ??= {};
         program.diagnostics[diagUri] ??= [];
         program.diagnostics[diagUri].push(diagnostic);
       }
+    };
+    // A label's parsed node carries no source position of its own (it
+    // inherits its scene's), so colliding label names are collected here and
+    // located in the syntax trees below, only when there is one to locate.
+    const collidingLabels = new Set<string>();
+    const visitFlow = (flow: FlowBase): void => {
+      const weave = flow._rootWeave;
+      if (weave) {
+        for (const labelName of weave.namedWeavePoints.keys()) {
+          if (names.has(labelName) && markerHolds(labelName)) {
+            collidingLabels.add(labelName);
+          }
+        }
+      }
+      // `content` rather than `subFlowsByName`: the map keeps one flow per
+      // name, and two scenes sharing a builtin's name should both be marked.
+      for (const child of flow.content ?? []) {
+        if (child instanceof FlowBase) {
+          const childName = child.identifier?.name;
+          if (childName && names.has(childName) && markerHolds(childName)) {
+            report(childName, child);
+          }
+          visitFlow(child);
+        }
+      }
+    };
+    visitFlow(parsedStory);
+    if (collidingLabels.size === 0) {
+      return;
+    }
+    const scriptUris = new Set<string>([uri, ...Object.keys(program.scripts)]);
+    scriptUris.delete(BUILTINS_PRELUDE_URI);
+    for (const scriptUri of scriptUris) {
+      const tree = this.documents.tree(scriptUri);
+      const doc = this.documents.get(scriptUri);
+      if (!tree || !doc) {
+        continue;
+      }
+      const cursor = tree.cursor();
+      do {
+        if (cursor.name === "LabelDeclarationName") {
+          const labelName = doc.read(cursor.from, cursor.to).trim();
+          if (collidingLabels.has(labelName)) {
+            const start = doc.positionAt(cursor.from);
+            const end = doc.positionAt(cursor.to);
+            const diagnostic = this.getDiagnostic(
+              messageFor(labelName),
+              DiagnosticSeverity.Error,
+              scriptUri,
+              start.line,
+              start.character,
+              end.line,
+              end.character,
+            );
+            if (diagnostic) {
+              program.diagnostics ??= {};
+              program.diagnostics[scriptUri] ??= [];
+              program.diagnostics[scriptUri].push(diagnostic);
+            }
+          }
+        }
+      } while (cursor.next());
     }
   }
 

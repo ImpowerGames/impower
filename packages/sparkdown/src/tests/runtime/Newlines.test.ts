@@ -12,6 +12,8 @@ import { makeRuntimeStoryFromFile, runToEnd } from "./runtimeTestHarness";
 
 describe("Newlines (ported from inkjs)", () => {
   test("newline consistency: same-line divert", () => {
+    // The scene is named `there` rather than `world`: `world` is a builtin
+    // type root, a real runtime global that captures every `-> world`.
     // Inline mid-line divert `hello -> there` joins the `hello` segment with
     // the diverted-to scene's content onto one logical line. Covered by the
     // inline-divert lowerer added in Slice D.

@@ -79,7 +79,7 @@ describe("Tags (ported from inkjs)", () => {
     // bodies but not arbitrary expressions / inline alternators
     // (same constraint as the choice-tag interpolation path). We
     // rewrite using pre-computed stored values:
-    //   store hue = "red"
+    //   store hue = "red"   (`color` is a reserved builtin type root)
     //   store amount = 8
     //   tag # pic{amount}{hue}.jpg
     // Same observable result — the tag substitutes to `pic8red.jpg`.
