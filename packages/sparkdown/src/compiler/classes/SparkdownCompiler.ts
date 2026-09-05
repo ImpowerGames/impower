@@ -268,6 +268,26 @@ function getPreludeGlobalNames(): Set<string> {
   _preludeGlobalNames = names;
   return names;
 }
+
+/** The index of `word` in `text` as a whole identifier (not part of a longer
+ *  one), or -1. A literal search rather than a regular expression: `word`
+ *  comes from data (the prelude's global names). */
+function indexOfWord(text: string, word: string): number {
+  const isWordChar = (c: string | undefined): boolean =>
+    c !== undefined && /[A-Za-z0-9_]/.test(c);
+  let from = 0;
+  while (from <= text.length) {
+    const at = text.indexOf(word, from);
+    if (at < 0) {
+      return -1;
+    }
+    if (!isWordChar(text[at - 1]) && !isWordChar(text[at + word.length])) {
+      return at;
+    }
+    from = at + 1;
+  }
+  return -1;
+}
 const FILE_TYPES = GRAMMAR_DEFINITION.fileTypes;
 
 export type SparkdownCompilerEvents = {
@@ -1476,13 +1496,13 @@ export class SparkdownCompiler {
       profile("start", this._profilerId, "ink/compile", uri);
       const story = parsedStory.ExportRuntime(onDiagnostic);
       profile("end", this._profilerId, "ink/compile", uri);
-      // After ExportRuntime: the walk reads each weave's named-label map,
-      // which ExportRuntime's ResolveWeavePointNaming builds.
+      // After ExportRuntime: the diverts it reports are recorded while
+      // ExportRuntime resolves references.
       if (
         this._config.useBuiltinsPrelude !== false &&
         !this._config.seedBuiltinsIntoStory
       ) {
-        this.reportBuiltinGlobalFlowCollisions(
+        this.reportBuiltinGlobalCollisions(
           parsedStory,
           getPreludeGlobalNames(),
           program,
@@ -4157,60 +4177,71 @@ export class SparkdownCompiler {
     profile("end", this._profilerId, "mergePreludeSparkle", uri);
   }
 
-  /** Report every scene, branch, function, and label named after a builtin
-   *  global. Such a target can never be reached: `-> name` binds to the
-   *  global's variable, in a seeded compile as much as in the unseeded one
-   *  that declares the marker (Story.DeclareBuiltinGlobals), and the seeded
-   *  runtime then fails at that divert. The seeded compile reports the clash
-   *  as a duplicate identifier when the prelude's own declaration resolves
-   *  its references; the unseeded compile, whose diagnostics the editor
-   *  shows, has no such declaration, so the clash is checked here.
+  /** Report the two ways a builtin global's name breaks a story, in an
+   *  unseeded compile (the editor's), whose diagnostics are the ones an
+   *  author sees:
    *
-   *  Runs after ExportRuntime, as a whole-program walk each compile: the
-   *  named-label map of each weave is built by ExportRuntime's
-   *  ResolveWeavePointNaming, and the target and the marker can live in
-   *  different files. A marker that an authored define has since replaced in
-   *  the registry is skipped; that define's own clash with the target is
-   *  reported by Story.CheckForNamingCollisions. */
-  protected reportBuiltinGlobalFlowCollisions(
+   *  1. A top-level scene or function named after a builtin global. Its
+   *     only route is a bare `-> name`, which binds to the global's variable
+   *     in every compile; the seeded compile rejects the same flow as a
+   *     duplicate identifier when the prelude's own declaration resolves its
+   *     references, and the marker of an unseeded compile has no parsed node
+   *     to do that from, so the clash is reported here, on the name.
+   *  2. Every divert whose target resolved to such a global (recorded in
+   *     `Story.builtinGlobalDiverts` while ExportRuntime resolves references,
+   *     so this runs after it). `-> game` binds to a table and fails when run,
+   *     whether it meant a scene, a branch, or a label of that name, and
+   *     whether the slot holds the prelude's marker or an authored override.
+   *
+   *  A branch or label is not reported for its name alone: one reached by its
+   *  qualified path (`-> start.world`), or never diverted to, is correct in
+   *  every compile, and the seeded compile says nothing about it. */
+  protected reportBuiltinGlobalCollisions(
     parsedStory: Story,
     names: ReadonlySet<string>,
     program: SparkProgram,
     uri: string,
   ): void {
-    const markerHolds = (name: string): boolean =>
-      parsedStory.variableDeclarations.get(name)?.isPreludeDeclaration ===
-      true;
-    const messageFor = (name: string): string =>
-      `\`${name}\` is a builtin global, so it cannot also be the name of a scene, branch, function, or label`;
-    const report = (name: string, target: ParsedObject): void => {
-      const dm = target.debugMetadata;
+    const reported = new Set<string>();
+    // `characterBias` is what the stamp adds to a 0-based column: the
+    // lowering dispatcher stamps flows with 0-based character numbers, and
+    // a divert's target identifiers carry 1-based ones (see
+    // lower/utils/debugMetadata.ts and lowerDivertPath.ts); line numbers are
+    // 1-based in both, and getDiagnostic takes 0-based positions on both
+    // axes. A scene's stamp covers its declaration line and a function's
+    // its whole body, so the range narrows to the name when the name is on
+    // the stamp's first line.
+    const report = (
+      message: string,
+      dm: DebugMetadata | null | undefined,
+      characterBias: number,
+      name: string,
+    ): void => {
       if (!dm) {
         return;
       }
       const diagUri = dm.filePath || uri;
-      // The lowering dispatcher stamps 1-based line numbers and 0-based
-      // character numbers (see lower/utils/debugMetadata.ts); getDiagnostic
-      // takes 0-based positions on both axes. A scene's stamp covers its
-      // declaration line, but a function's covers its whole body, so the
-      // range narrows to the name itself when the name is on the stamp's
-      // first line.
       const line = dm.startLineNumber - 1;
-      let startCharacter = dm.startCharacterNumber;
+      let startCharacter = dm.startCharacterNumber - characterBias;
       let endLine = dm.endLineNumber - 1;
-      let endCharacter = dm.endCharacterNumber;
+      let endCharacter = dm.endCharacterNumber - characterBias;
       const lineText = this.documents.get(diagUri)?.getText({
         start: { line, character: 0 },
         end: { line: line + 1, character: 0 },
       });
-      const match = lineText?.match(new RegExp(`\\b${name}\\b`));
-      if (match && match.index !== undefined) {
-        startCharacter = match.index;
+      const at = lineText ? indexOfWord(lineText, name) : -1;
+      if (at >= 0) {
+        startCharacter = at;
         endLine = line;
-        endCharacter = match.index + name.length;
+        endCharacter = at + name.length;
       }
+      const key = `${diagUri}:${line}:${startCharacter}:${message}`;
+      if (reported.has(key)) {
+        return;
+      }
+      reported.add(key);
       const diagnostic = this.getDiagnostic(
-        messageFor(name),
+        message,
         DiagnosticSeverity.Error,
         diagUri,
         line,
@@ -4224,67 +4255,31 @@ export class SparkdownCompiler {
         program.diagnostics[diagUri].push(diagnostic);
       }
     };
-    // A label's parsed node carries no source position of its own (it
-    // inherits its scene's), so colliding label names are collected here and
-    // located in the syntax trees below, only when there is one to locate.
-    const collidingLabels = new Set<string>();
-    const visitFlow = (flow: FlowBase): void => {
-      const weave = flow._rootWeave;
-      if (weave) {
-        for (const labelName of weave.namedWeavePoints.keys()) {
-          if (names.has(labelName) && markerHolds(labelName)) {
-            collidingLabels.add(labelName);
-          }
+    // `content` rather than `subFlowsByName`: the map keeps one flow per
+    // name, and two scenes sharing a builtin's name should both be marked.
+    for (const child of parsedStory.content ?? []) {
+      if (child instanceof FlowBase) {
+        const name = child.identifier?.name;
+        if (name && names.has(name)) {
+          report(
+            `\`${name}\` is a builtin global, so it cannot also be the name of a scene or function`,
+            child.debugMetadata,
+            0,
+            name,
+          );
         }
       }
-      // `content` rather than `subFlowsByName`: the map keeps one flow per
-      // name, and two scenes sharing a builtin's name should both be marked.
-      for (const child of flow.content ?? []) {
-        if (child instanceof FlowBase) {
-          const childName = child.identifier?.name;
-          if (childName && names.has(childName) && markerHolds(childName)) {
-            report(childName, child);
-          }
-          visitFlow(child);
-        }
-      }
-    };
-    visitFlow(parsedStory);
-    if (collidingLabels.size === 0) {
-      return;
     }
-    const scriptUris = new Set<string>([uri, ...Object.keys(program.scripts)]);
-    scriptUris.delete(BUILTINS_PRELUDE_URI);
-    for (const scriptUri of scriptUris) {
-      const tree = this.documents.tree(scriptUri);
-      const doc = this.documents.get(scriptUri);
-      if (!tree || !doc) {
-        continue;
-      }
-      const cursor = tree.cursor();
-      do {
-        if (cursor.name === "LabelDeclarationName") {
-          const labelName = doc.read(cursor.from, cursor.to).trim();
-          if (collidingLabels.has(labelName)) {
-            const start = doc.positionAt(cursor.from);
-            const end = doc.positionAt(cursor.to);
-            const diagnostic = this.getDiagnostic(
-              messageFor(labelName),
-              DiagnosticSeverity.Error,
-              scriptUri,
-              start.line,
-              start.character,
-              end.line,
-              end.character,
-            );
-            if (diagnostic) {
-              program.diagnostics ??= {};
-              program.diagnostics[scriptUri] ??= [];
-              program.diagnostics[scriptUri].push(diagnostic);
-            }
-          }
-        }
-      } while (cursor.next());
+    for (const { name, divert } of parsedStory.builtinGlobalDiverts) {
+      // The divert's own position is inherited from its statement or scene;
+      // its first target identifier carries the name's position.
+      const target = divert instanceof Divert ? divert.pathIdentifiers?.[0] : null;
+      report(
+        `\`-> ${name}\` diverts to the builtin global \`${name}\`, so it cannot reach a scene, branch, or label of that name`,
+        target?.debugMetadata ?? divert.debugMetadata,
+        target?.debugMetadata ? 1 : 0,
+        name,
+      );
     }
   }
 

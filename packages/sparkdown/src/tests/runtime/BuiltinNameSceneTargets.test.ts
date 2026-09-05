@@ -31,24 +31,22 @@ end
 
 const URI = "inmemory:///main.sd";
 
+const scriptFile = (text: string, version: number) => ({
+  uri: URI,
+  type: "script" as const,
+  name: "main",
+  ext: "sd",
+  text,
+  version,
+  languageId: "sparkdown",
+});
+
 // An unseeded compile of `text`, returning the program: the same mode as the
 // harness, for cases that inspect the compiled output or the diagnostics'
 // positions.
 function compileUnseeded(text: string) {
   const compiler = new SparkdownCompiler();
-  compiler.configure({
-    files: [
-      {
-        uri: URI,
-        type: "script",
-        name: "main",
-        ext: "sd",
-        text,
-        version: 1,
-        languageId: "sparkdown",
-      },
-    ],
-  });
+  compiler.configure({ files: [scriptFile(text, 1)] });
   return compiler.compile({ textDocument: { uri: URI } }).program;
 }
 
@@ -61,13 +59,18 @@ function messagesOf(program: { diagnostics?: Record<string, any[]> }) {
 function collisionsOf(program: { diagnostics?: Record<string, any[]> }) {
   return Object.values(program.diagnostics ?? {})
     .flat()
-    .filter((d) => String(d.message?.value ?? d.message).includes("is a builtin global"))
+    .filter((d) => /builtin global/.test(String(d.message?.value ?? d.message)))
     .map((d) => ({
       message: String(d.message?.value ?? d.message),
       start: d.range.start,
       end: d.range.end,
     }));
 }
+
+const SCENE_MESSAGE = (name: string) =>
+  `\`${name}\` is a builtin global, so it cannot also be the name of a scene or function`;
+const DIVERT_MESSAGE = (name: string) =>
+  `\`-> ${name}\` diverts to the builtin global \`${name}\`, so it cannot reach a scene, branch, or label of that name`;
 
 describe("targets named after prelude entries that are not runtime globals", () => {
   // Each name is a prelude context entry: the `main` layout, mixer, and style;
@@ -128,9 +131,9 @@ store i = 0
 
 describe("the markers still make references to the builtins resolve", () => {
   // The mechanism the markers exist for: a reference through a type root
-  // compiles clean in an unseeded compile, in a Sparkle binding (whose
-  // position is token-precise, so a diagnostic there would be reported, not
-  // hidden) as well as in a statement.
+  // compiles clean in an unseeded compile. The references sit in a Sparkle
+  // binding, where a missing name is reported; a reference in display text
+  // is not checked at compile time.
   test("`game.loading.percent` and `config.assets.predict_distance` compile clean", () => {
     const program = compileUnseeded(`layout loading with
   loading_content:
@@ -138,7 +141,7 @@ describe("the markers still make references to the builtins resolve", () => {
 end
 
 scene A
-  & local ahead = config.assets.predict_distance
+  & local ahead = 1 + config.assets.predict_distance
   Hi.
   fin
 
@@ -174,6 +177,10 @@ end
 
 describe("an authored define may take a builtin's name in an unseeded compile", () => {
   test("a root override replaces the marker and compiles", () => {
+    // The marker is dropped from the registry and the authored define takes
+    // the slot. (A seeded compile of the same source fails on a duplicate
+    // identifier between the prelude's `game` and the authored one; that is
+    // #454, and independent of the markers.)
     const program = compileUnseeded(`define game with
   loading = { percent = 5 }
 end
@@ -243,7 +250,7 @@ end
   });
 });
 
-describe("targets named after real builtin globals", () => {
+describe("scenes and functions named after real builtin globals", () => {
   // `game`, `config`, `mixer`, and `world` are type roots: the seeded runtime
   // holds a table under each bare name, so `-> game` binds to that table in
   // every compile and can never reach a scene. The unseeded compile says so
@@ -252,24 +259,22 @@ describe("targets named after real builtin globals", () => {
     "`scene %s` is reported as colliding with a builtin global",
     (name) => {
       const { errorMessages } = collectDiagnostics(storyOpeningWith(name));
-      expect(
-        errorMessages.some(
-          (m) =>
-            m.includes(`\`${name}\` is a builtin global`) &&
-            m.includes("scene, branch, function, or label"),
-        ),
-      ).toBe(true);
+      expect(errorMessages).toContain(SCENE_MESSAGE(name));
     },
   );
 
-  test("the report covers the scene's name on its declaration line", () => {
+  test("the scene's report covers its name, and the opening divert is reported too", () => {
     const program = compileUnseeded(storyOpeningWith("game"));
     expect(collisionsOf(program)).toEqual([
       {
-        message:
-          "`game` is a builtin global, so it cannot also be the name of a scene, branch, function, or label",
+        message: SCENE_MESSAGE("game"),
         start: { line: 1, character: 6 },
         end: { line: 1, character: 10 },
+      },
+      {
+        message: DIVERT_MESSAGE("game"),
+        start: { line: 0, character: 3 },
+        end: { line: 0, character: 7 },
       },
     ]);
   });
@@ -286,27 +291,14 @@ scene A
 
 end
 `);
-    expect(collisionsOf(program).map((c) => [c.start, c.end])).toEqual([
+    expect(
+      collisionsOf(program)
+        .filter((c) => c.message === SCENE_MESSAGE("game"))
+        .map((c) => [c.start, c.end]),
+    ).toEqual([
       [
         { line: 1, character: 9 },
         { line: 1, character: 13 },
-      ],
-    ]);
-  });
-
-  test("a label named after a builtin global is reported", () => {
-    const program = compileUnseeded(`-> start
-scene start
-  label game
-  Hi.
-  -> game
-
-end
-`);
-    expect(collisionsOf(program).map((c) => [c.start, c.end])).toEqual([
-      [
-        { line: 2, character: 8 },
-        { line: 2, character: 12 },
       ],
     ]);
   });
@@ -324,39 +316,170 @@ scene game
 
 end
 `);
-    expect(collisionsOf(program).map((c) => c.start.line)).toEqual([1, 6]);
+    expect(
+      collisionsOf(program)
+        .filter((c) => c.message === SCENE_MESSAGE("game"))
+        .map((c) => c.start.line),
+    ).toEqual([1, 6]);
+  });
+
+  test("a scene still named after a builtin global is reported when an authored define took the marker's slot", () => {
+    const program = compileUnseeded(`define game with
+  loading = { percent = 5 }
+end
+
+-> game
+scene game
+  Hi.
+  fin
+
+end
+`);
+    expect(collisionsOf(program).map((c) => c.message)).toEqual([
+      SCENE_MESSAGE("game"),
+      DIVERT_MESSAGE("game"),
+    ]);
   });
 
   test("a scene with an unrelated name draws no such diagnostic", () => {
     const { errorMessages } = collectDiagnostics(storyOpeningWith("start"));
     expect(errorMessages).toEqual([]);
   });
+});
 
-  test("the report follows an edit on one compiler", () => {
+describe("diverts captured by a builtin global", () => {
+  // A label or branch named after a builtin global is fine in itself: it is
+  // reached by its qualified path, or never diverted to, and the seeded
+  // compile says nothing about it. What breaks in every compile is a bare
+  // `-> name`, which binds to the global's table; that divert is reported,
+  // on the name it uses.
+  test("a bare divert to a label named after a builtin global is reported at the divert", () => {
+    const program = compileUnseeded(`-> start
+scene start
+  label game
+  Hi.
+  -> game
+
+end
+`);
+    expect(collisionsOf(program)).toEqual([
+      {
+        message: DIVERT_MESSAGE("game"),
+        start: { line: 4, character: 5 },
+        end: { line: 4, character: 9 },
+      },
+    ]);
+  });
+
+  test("a bare divert to a branch named after a builtin global is reported, even under an authored override", () => {
+    const program = compileUnseeded(`define game with
+  loading = { percent = 5 }
+end
+
+-> start
+scene start
+  Hi.
+  -> game
+  branch game
+    Nested.
+    fin
+  end
+end
+`);
+    expect(collisionsOf(program)).toEqual([
+      {
+        message: DIVERT_MESSAGE("game"),
+        start: { line: 7, character: 5 },
+        end: { line: 7, character: 9 },
+      },
+    ]);
+  });
+
+  test("a label that is only a gather anchor draws no diagnostic", () => {
+    const ctx = makeRuntimeStoryFromSource(`-> s
+scene s
+  Before.
+  label world
+  After.
+  fin
+
+end
+`);
+    expect(ctx.errorMessages).toEqual([]);
+    expect(ctx.story.ContinueMaximally()).toBe("Before.\nAfter.\n");
+  });
+
+  test("a branch reached by its qualified path draws no diagnostic", () => {
+    const ctx = makeRuntimeStoryFromSource(`-> s.world
+scene s
+  branch world
+    Nested.
+    fin
+  end
+end
+`);
+    expect(ctx.errorMessages).toEqual([]);
+    expect(ctx.story.ContinueMaximally()).toBe("Nested.\n");
+  });
+
+  test("a parameter named after a builtin global is the author's own divert target", () => {
+    const ctx = makeRuntimeStoryFromSource(`-> start
+scene start
+  -> go(-> there)
+
+end
+scene go(game)
+  -> game
+
+end
+scene there
+  Arrived.
+  fin
+
+end
+`);
+    expect(ctx.errorMessages).toEqual([]);
+    expect(ctx.story.ContinueMaximally()).toBe("Arrived.\n");
+  });
+
+  test("the report follows range edits on one compiler", () => {
     const compiler = new SparkdownCompiler();
-    const file = (text: string, version: number) => ({
-      uri: URI,
-      type: "script" as const,
-      name: "main",
-      ext: "sd",
-      text,
-      version,
-      languageId: "sparkdown",
-    });
-    compiler.configure({ files: [file(storyOpeningWith("start"), 1)] });
+    compiler.configure({ files: [scriptFile(storyOpeningWith("start"), 1)] });
     expect(
       collisionsOf(compiler.compile({ textDocument: { uri: URI } }).program),
     ).toEqual([]);
+    // `start` → `game` on the divert line and the scene line, as two range
+    // edits, so the rest of the document is carried forward.
     compiler.updateDocument({
       textDocument: { uri: URI, version: 2 },
-      contentChanges: [{ text: storyOpeningWith("game") }],
+      contentChanges: [
+        {
+          range: { start: { line: 0, character: 3 }, end: { line: 0, character: 8 } },
+          text: "game",
+        },
+        {
+          range: { start: { line: 1, character: 6 }, end: { line: 1, character: 11 } },
+          text: "game",
+        },
+      ],
     });
     expect(
-      collisionsOf(compiler.compile({ textDocument: { uri: URI } }).program),
-    ).toHaveLength(1);
+      collisionsOf(compiler.compile({ textDocument: { uri: URI } }).program).map(
+        (c) => c.message,
+      ),
+    ).toEqual([SCENE_MESSAGE("game"), DIVERT_MESSAGE("game")]);
     compiler.updateDocument({
       textDocument: { uri: URI, version: 3 },
-      contentChanges: [{ text: storyOpeningWith("start") }],
+      contentChanges: [
+        {
+          range: { start: { line: 0, character: 3 }, end: { line: 0, character: 7 } },
+          text: "start",
+        },
+        {
+          range: { start: { line: 1, character: 6 }, end: { line: 1, character: 10 } },
+          text: "start",
+        },
+      ],
     });
     expect(
       collisionsOf(compiler.compile({ textDocument: { uri: URI } }).program),

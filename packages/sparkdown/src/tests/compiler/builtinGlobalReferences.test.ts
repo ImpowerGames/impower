@@ -6,10 +6,11 @@
 // unseeded compile reported "Cannot find item or path named
 // `game.loading.percent`" on the very binding the loading screen documents.
 //
-// Every reference below sits in a Sparkle binding or after other text on its
-// line: a diagnostic on a token at column 0 is discarded by the compiler's
-// range check (see getDiagnostic), so a reference there would pass this file
-// whether or not it resolved.
+// Every reference below sits in a Sparkle binding, where a missing name is
+// reported. A reference in display text is not checked at compile time, and
+// one in a `&` statement can carry a source position the compiler's range
+// check rejects (see getDiagnostic), so a reference in either place would
+// pass this file whether or not it resolved.
 //
 // A bare instance name (`assets`, `red`) is not a global in either compile:
 // the seeded story fails at runtime on `assets.predict_distance` ("attempt to

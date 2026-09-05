@@ -377,6 +377,20 @@ export class Divert extends ParsedObject {
       this.runtimeDivert.targetPath = null;
     }
 
+    // A divert bound to a builtin global's variable (`-> game`, whether the
+    // slot holds the prelude's marker or an authored override) can never
+    // reach a flow of that name and fails when run; the compiler reports each
+    // one from `context.builtinGlobalDiverts`. Recorded here, once per compile
+    // for reused diverts too, and only for a global binding: a parameter or
+    // local of that name is the author's own divert target.
+    const capturedBy = this.runtimeDivert.variableDivertName;
+    if (capturedBy != null && context.builtinGlobalNames.has(capturedBy)) {
+      const scope = asOrNull(ClosestFlowBase(this), FlowBase);
+      if (scope?.ResolveVariableWithName(capturedBy, this).isGlobal) {
+        context.builtinGlobalDiverts.push({ name: capturedBy, divert: this });
+      }
+    }
+
     // Resolve children (the arguments)
     super.ResolveReferences(context);
 

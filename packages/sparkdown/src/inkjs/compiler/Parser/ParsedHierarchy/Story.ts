@@ -122,10 +122,12 @@ export class Story extends FlowBase {
    *  a scene, branch, function, or label that shares a real global's name
    *  (SparkdownCompiler.reportBuiltinGlobalFlowCollisions). */
   public DeclareBuiltinGlobals(names: Iterable<string>): void {
+    const declared = new Set<string>();
     for (const name of names) {
       if (!name) {
         continue;
       }
+      declared.add(name);
       const va = new VariableAssignment({
         variableIdentifier: new Identifier(name),
         isGlobalDeclaration: true,
@@ -134,7 +136,19 @@ export class Story extends FlowBase {
       va.isPreludeDeclaration = true;
       this.AddNewVariableDeclaration(va);
     }
+    this.builtinGlobalNames = declared;
   }
+
+  /** The names {@link DeclareBuiltinGlobals} declared for this compile. */
+  public builtinGlobalNames: ReadonlySet<string> = new Set();
+
+  /** Diverts whose target resolved, during ResolveReferences, to a global
+   *  named in {@link builtinGlobalNames}: `-> game` binds to the builtin's
+   *  variable (a table at runtime, whether the prelude's own or an authored
+   *  override), so it can never reach a scene, branch, or label of that
+   *  name and fails when run. The compiler reports each one
+   *  (SparkdownCompiler.reportBuiltinGlobalCollisions). */
+  public builtinGlobalDiverts: { name: string; divert: ParsedObject }[] = [];
 
   // Build setting for exporting:
   // When true, the visit count for *all* knots, stitches, choices,
@@ -350,6 +364,7 @@ export class Story extends FlowBase {
     this._generationPhase = true;
     this.flowsWithGenerationDiagnostics = new Set();
     this.hadUnattributableGenerationDiagnostic = false;
+    this.builtinGlobalDiverts = [];
 
     // Get default implementation of runtimeObject, which calls ContainerBase's generation method
     const rootContainer = this.runtimeObject as RuntimeContainer;
