@@ -19,8 +19,8 @@ export function lowerDivertPath(
   target: SyntaxNode,
   ctx: LowerContext,
 ): Identifier[] {
-  // In-order walk of the target's own subtree, so `a.b` yields [a, b] and
-  // nothing past the target is picked up.
+  // In-order walk of the target's subtree, so `a.b` yields [a, b]. Every
+  // builder of an authored divert path uses this one walk.
   const parts: Identifier[] = [];
   const visit = (node: SyntaxNode): void => {
     if (node.name === "DivertPartName") {

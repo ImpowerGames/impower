@@ -568,12 +568,90 @@ end
     expect(reports.map((d) => [d.severity, d.range.start])).toEqual([
       [2, { line: 7, character: 7 }],
     ]);
-    expect(String(reports[0].message?.value)).toContain("declared in another branch of this scene has run first");
+    expect(String(reports[0].message?.value)).toContain("declared in this scene has been set to a divert target before this divert runs");
+  });
+
+  test("a local declared after the divert in the same flow is a warning, not silence", () => {
+    // The divert always runs before the declaration, so the story dies; the
+    // compile cannot see order, but it can see that the name is declared
+    // rather than absent, and says so at warning level.
+    const program = compileUnseeded(`-> s
+scene s
+  -> game
+  & local game = -> there
+  fin
+
+end
+scene there
+  Arrived.
+  fin
+
+end
+`);
+    const all: any[] = Object.values(program.diagnostics ?? {}).flat();
+    const reports = all.filter((d) => /builtin global/.test(String(d.message?.value ?? d.message)));
+    expect(reports.map((d) => [d.severity, d.range.start])).toEqual([
+      [2, { line: 2, character: 5 }],
+    ]);
+  });
+
+  test("a local of an enclosing scene used from its branch is a warning, and the story runs when the local was set", () => {
+    const source = `-> s
+scene s
+  & local game = -> there
+  -> s.inner
+  branch inner
+    -> game
+  end
+end
+scene there
+  Arrived.
+  fin
+
+end
+`;
+    const all: any[] = Object.values(compileUnseeded(source).diagnostics ?? {}).flat();
+    expect(
+      all.filter((d) => /builtin global/.test(String(d.message?.value ?? d.message))).map((d) => d.severity),
+    ).toEqual([2]);
+    const ctx = makeRuntimeStoryFromSource(source);
+    expect(ctx.errorMessages).toEqual([]);
+    expect(ctx.story.ContinueMaximally()).toBe("Arrived.\n");
+  });
+
+  test("a divert inside a nested closure does not see the enclosing function's local", () => {
+    // The closure runs in its own call-stack element, so `outer`'s local is
+    // not consulted for it: the divert is reported as an error. (The
+    // divert-target literal keeps this story from serializing, which is
+    // #457 and independent of the report; the diagnostics come first.)
+    const program = compileUnseeded(`-> start
+scene start
+  & outer()
+  fin
+
+end
+function outer()
+  local game = -> there
+  local inner = function()
+    local x = -> game
+    return x
+  end
+  return inner
+end
+scene there
+  Arrived.
+  fin
+
+end
+`);
+    expect(collisionsOf(program).map((c) => c.message)).toEqual([DIVERT_MESSAGE("game")]);
   });
 
   test("a local inside a nested function does not exempt a divert in the enclosing function", () => {
     // The nested function runs in its own call-stack element, so its local
     // is never visible to `outer`; the divert still binds to the builtin.
+    // (The divert-target literal keeps this story from serializing, which
+    // is #457 and independent of the report; the diagnostics come first.)
     const program = compileUnseeded(`-> start
 scene start
   & outer()
