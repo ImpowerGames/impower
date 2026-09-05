@@ -101,32 +101,62 @@ export class Story extends FlowBase {
   public constants: Map<string, ConstantDeclaration> = new Map();
   public externals: Map<string, ExternalDeclaration> = new Map();
 
-  /** Builtin define names declared only so references resolve (see
-   *  {@link DeclareBuiltinGlobals}); they have no runtime initialization. */
-  protected _builtinGlobalNames: Set<string> = new Set();
-
-  /** Declare the builtin defines of the prelude as globals that exist at
-   *  runtime without initializing them here. A compile that does not seed
-   *  the prelude into the story (the editor's diagnostics compiler) still
-   *  has every builtin table at runtime, because every host seeds it; without
-   *  these markers a reference such as `game.loading.percent` reports
-   *  "Cannot find item or path" in the editor and nowhere else. A name the
-   *  program already declares (an authored override) is left alone. */
+  /** Declare the bare globals the builtins prelude creates at runtime (its
+   *  type roots), without initializing them here. A compile that does not
+   *  seed the prelude into the story (the editor's diagnostics compiler)
+   *  still has every builtin table at runtime, because every host seeds it;
+   *  without these markers a reference such as `game.loading.percent`
+   *  reports "Cannot find item or path" in the editor and nowhere else.
+   *
+   *  Runs before ExportRuntime, so the markers are always the incumbents when
+   *  the program's own declarations register during generation. An authored
+   *  define of the same name then takes the slot outright and the marker is
+   *  dropped; an authored `store` or `const` of that name is reported as a
+   *  duplicate identifier, as it is in a seeded compile (see
+   *  FlowBase.AddNewVariableDeclaration).
+   *
+   *  `names` must hold only names the seeded runtime really has: a marker
+   *  captures every `-> name` divert as a variable divert, exactly as the
+   *  real global does in a seeded compile, so a name that is not a runtime
+   *  global would make a same-named scene unreachable. The compiler reports
+   *  each divert so captured, and each top-level scene or function that
+   *  shares a real global's name
+   *  (SparkdownCompiler.reportBuiltinGlobalCollisions). */
   public DeclareBuiltinGlobals(names: Iterable<string>): void {
+    const declared = new Set<string>();
     for (const name of names) {
-      if (!name || this.variableDeclarations.has(name)) {
+      if (!name) {
         continue;
       }
+      declared.add(name);
       const va = new VariableAssignment({
         variableIdentifier: new Identifier(name),
         isGlobalDeclaration: true,
         isDefineDeclaration: true,
       });
       va.isPreludeDeclaration = true;
-      this._builtinGlobalNames.add(name);
       this.AddNewVariableDeclaration(va);
     }
+    this.builtinGlobalNames = declared;
   }
+
+  /** The names {@link DeclareBuiltinGlobals} declared for this compile. */
+  public builtinGlobalNames: ReadonlySet<string> = new Set();
+
+  /** Diverts whose target resolved, during ResolveReferences, to a global
+   *  named in {@link builtinGlobalNames}: `-> game` binds to the builtin's
+   *  variable (a table at runtime, whether the prelude's own or an authored
+   *  override), so it can never reach a scene, branch, or label of that
+   *  name and fails when run. `warning` marks a divert whose name a parameter
+   *  or local somewhere in its top-level flow declares, so what it binds to
+   *  depends on whether that declaration holds a divert target when it runs.
+   *  The compiler reports each one
+   *  (SparkdownCompiler.reportBuiltinGlobalCollisions). */
+  public builtinGlobalDiverts: {
+    name: string;
+    divert: ParsedObject;
+    warning: boolean;
+  }[] = [];
 
   // Build setting for exporting:
   // When true, the visit count for *all* knots, stitches, choices,
@@ -342,6 +372,7 @@ export class Story extends FlowBase {
     this._generationPhase = true;
     this.flowsWithGenerationDiagnostics = new Set();
     this.hadUnattributableGenerationDiagnostic = false;
+    this.builtinGlobalDiverts = [];
 
     // Get default implementation of runtimeObject, which calls ContainerBase's generation method
     const rootContainer = this.runtimeObject as RuntimeContainer;
@@ -394,9 +425,17 @@ export class Story extends FlowBase {
     const runtimeLists: RuntimeListDefinition[] = [];
     for (const [key, value] of this.variableDeclarations) {
       // Implicit parents are declaration-only (lazily minted by a
-      // child's `__def` at runtime), as are the builtin globals of an
-      // unseeded compile — nothing to initialize here.
-      if (implicitParentNames.has(key) || this._builtinGlobalNames.has(key)) {
+      // child's `__def` at runtime), as are the builtin markers of an
+      // unseeded compile (DeclareBuiltinGlobals) — nothing to initialize
+      // here. A marker is recognized by shape rather than by key so it is
+      // skipped under whatever key it ends up holding.
+      if (
+        implicitParentNames.has(key) ||
+        (value.isPreludeDeclaration &&
+          !value.expression &&
+          !value.structDefinition &&
+          !value.listDefinition)
+      ) {
         continue;
       }
       if (value.isGlobalDeclaration) {

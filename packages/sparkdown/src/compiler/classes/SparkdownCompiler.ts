@@ -199,24 +199,94 @@ function getCompiledPrelude(): {
 }
 
 let _preludeGlobalNames: Set<string> | undefined;
-/** Every global the seeded prelude creates: a type's root table (`config`,
- *  `game`) and each named define (`assets`, `ui`, the colors, …). An unseeded
- *  compile declares them so references resolve (Story.DeclareBuiltinGlobals). */
+/** The bare global names the seeded prelude creates at runtime: the type
+ *  roots (`config`, `game`, `color`, `world`, …). An unseeded compile declares
+ *  exactly these so references such as `game.loading.percent` resolve
+ *  (Story.DeclareBuiltinGlobals).
+ *
+ *  The names come from the cached prelude's compiled "global decl" container,
+ *  the list of globals a seeded story initializes, rather than from the
+ *  prelude's `context`. The context also holds names that are never runtime
+ *  globals — every layout and style, and each instance's bare name (`main`
+ *  is a layout, a style, and a mixer; `red` a color; `title` a typewriter).
+ *  Declaring one of those makes an authored scene of the same name
+ *  unreachable: `-> main` binds to the declared variable instead of the
+ *  scene, and the runtime then fails to find a variable that never existed
+ *  (#437). A bare instance name is not a runtime global either: `assets` is
+ *  reached as `config.assets`, and a seeded story fails at runtime on a bare
+ *  `assets.predict_distance`, so the unseeded compile is right to warn on it.
+ *
+ *  The initializer also lists each leaf instance under its scoped
+ *  `$<type>_<name>` key (`$config_assets`; see `scopeDefineInstances`). Those
+ *  are left out: no authored source can spell a `$` name, so no reference
+ *  needs them, and declaring them would occupy the very keys an authored
+ *  override of the same builtin is scoped to, which either re-keys that
+ *  override to `$color_$color_red` or drops it from the registry outright. */
 function getPreludeGlobalNames(): Set<string> {
   if (_preludeGlobalNames) {
     return _preludeGlobalNames;
   }
   const names = new Set<string>();
-  for (const [type, structs] of Object.entries(getCompiledPrelude().context)) {
-    names.add(type);
-    for (const name of Object.keys(structs ?? {})) {
-      if (!name.startsWith("$")) {
-        names.add(name);
+  const compiled = getCompiledPrelude().compiled as
+    | { root?: unknown }
+    | undefined;
+  const root = compiled?.root;
+  // A serialized container is an array whose final element carries the named
+  // sub-containers; the global initializer is the one named "global decl".
+  const terminal = Array.isArray(root) ? root[root.length - 1] : undefined;
+  const globalDecl =
+    terminal && typeof terminal === "object"
+      ? (terminal as Record<string, unknown>)["global decl"]
+      : undefined;
+  const visit = (node: unknown): void => {
+    if (Array.isArray(node)) {
+      for (const child of node) {
+        visit(child);
+      }
+      return;
+    }
+    if (node && typeof node === "object") {
+      const entry = node as Record<string, unknown>;
+      // `{"VAR=": name}` declares a global; `re: true` marks a reassignment
+      // of one declared elsewhere, so it adds no name.
+      const declared = entry["VAR="];
+      if (
+        typeof declared === "string" &&
+        !declared.startsWith("$") &&
+        !entry["re"]
+      ) {
+        names.add(declared);
+      }
+      for (const value of Object.values(entry)) {
+        if (Array.isArray(value)) {
+          visit(value);
+        }
       }
     }
-  }
+  };
+  visit(globalDecl);
   _preludeGlobalNames = names;
   return names;
+}
+
+/** The index of `word` in `text` as a whole identifier (not part of a longer
+ *  one), or -1. A literal search rather than a regular expression: `word`
+ *  comes from data (the prelude's global names). */
+function indexOfWord(text: string, word: string): number {
+  const isWordChar = (c: string | undefined): boolean =>
+    c !== undefined && /[A-Za-z0-9_]/.test(c);
+  let from = 0;
+  while (from <= text.length) {
+    const at = text.indexOf(word, from);
+    if (at < 0) {
+      return -1;
+    }
+    if (!isWordChar(text[at - 1]) && !isWordChar(text[at + word.length])) {
+      return at;
+    }
+    from = at + 1;
+  }
+  return -1;
 }
 const FILE_TYPES = GRAMMAR_DEFINITION.fileTypes;
 
@@ -1426,6 +1496,19 @@ export class SparkdownCompiler {
       profile("start", this._profilerId, "ink/compile", uri);
       const story = parsedStory.ExportRuntime(onDiagnostic);
       profile("end", this._profilerId, "ink/compile", uri);
+      // After ExportRuntime: the diverts it reports are recorded while
+      // ExportRuntime resolves references.
+      if (
+        this._config.useBuiltinsPrelude !== false &&
+        !this._config.seedBuiltinsIntoStory
+      ) {
+        this.reportBuiltinGlobalCollisions(
+          parsedStory,
+          getPreludeGlobalNames(),
+          program,
+          uri,
+        );
+      }
       // Bar flows that raised GENERATION-time diagnostics from future reuse —
       // reuse skips generation, which would silently drop them next compile.
       for (const flow of parsedStory.flowsWithGenerationDiagnostics) {
@@ -4092,6 +4175,123 @@ export class SparkdownCompiler {
       }
     }
     profile("end", this._profilerId, "mergePreludeSparkle", uri);
+  }
+
+  /** Report the two ways a builtin global's name breaks a story, in an
+   *  unseeded compile (the editor's), whose diagnostics are the ones an
+   *  author sees:
+   *
+   *  1. A top-level scene or function named after a builtin global. Its
+   *     only route is a bare `-> name`, which binds to the global's variable
+   *     in every compile; the seeded compile rejects the same flow as a
+   *     duplicate identifier when the prelude's own declaration resolves its
+   *     references, and the marker of an unseeded compile has no parsed node
+   *     to do that from, so the clash is reported here, on the name.
+   *  2. Every divert whose target resolved to such a global (recorded in
+   *     `Story.builtinGlobalDiverts` while ExportRuntime resolves references,
+   *     so this runs after it). `-> game` binds to a table and fails when run,
+   *     whether it meant a scene, a branch, or a label of that name, and
+   *     whether the slot holds the prelude's marker or an authored override.
+   *
+   *  A branch or label is not reported for its name alone: one reached by its
+   *  qualified path (`-> start.world`), or never diverted to, is correct in
+   *  every compile, and the seeded compile says nothing about it. */
+  protected reportBuiltinGlobalCollisions(
+    parsedStory: Story,
+    names: ReadonlySet<string>,
+    program: SparkProgram,
+    uri: string,
+  ): void {
+    const reported = new Set<string>();
+    // `characterBias` is what the stamp adds to a 0-based column: the
+    // lowering dispatcher stamps flows with 0-based character numbers, and
+    // a divert's target identifiers carry 1-based ones (see
+    // lower/utils/debugMetadata.ts and lowerDivertPath.ts); line numbers are
+    // 1-based in both, and getDiagnostic takes 0-based positions on both
+    // axes. A target identifier's stamp is the name itself and is used as
+    // is. A flow's stamp covers its declaration line (a scene) or its whole
+    // body (a function), so that range narrows to the name when the name is
+    // on the stamp's first line.
+    const report = (
+      message: string,
+      dm: DebugMetadata | null | undefined,
+      characterBias: number,
+      name: string,
+      exact: boolean,
+      severity: DiagnosticSeverity = DiagnosticSeverity.Error,
+    ): void => {
+      if (!dm) {
+        return;
+      }
+      const diagUri = dm.filePath || uri;
+      const line = dm.startLineNumber - 1;
+      let startCharacter = dm.startCharacterNumber - characterBias;
+      let endLine = dm.endLineNumber - 1;
+      let endCharacter = dm.endCharacterNumber - characterBias;
+      if (!exact) {
+        const lineText = this.documents.get(diagUri)?.getText({
+          start: { line, character: 0 },
+          end: { line: line + 1, character: 0 },
+        });
+        const at = lineText ? indexOfWord(lineText, name) : -1;
+        if (at >= 0) {
+          startCharacter = at;
+          endLine = line;
+          endCharacter = at + name.length;
+        }
+      }
+      const key = `${diagUri}:${line}:${startCharacter}:${message}`;
+      if (reported.has(key)) {
+        return;
+      }
+      reported.add(key);
+      const diagnostic = this.getDiagnostic(
+        message,
+        severity,
+        diagUri,
+        line,
+        startCharacter,
+        endLine,
+        endCharacter,
+      );
+      if (diagnostic) {
+        program.diagnostics ??= {};
+        program.diagnostics[diagUri] ??= [];
+        program.diagnostics[diagUri].push(diagnostic);
+      }
+    };
+    // `content` rather than `subFlowsByName`: the map keeps one flow per
+    // name, and two scenes sharing a builtin's name should both be marked.
+    for (const child of parsedStory.content ?? []) {
+      if (child instanceof FlowBase) {
+        const name = child.identifier?.name;
+        if (name && names.has(name)) {
+          report(
+            `\`${name}\` is a builtin global, so it cannot also be the name of a scene or function`,
+            child.debugMetadata,
+            0,
+            name,
+            false,
+          );
+        }
+      }
+    }
+    for (const { name, divert, warning } of parsedStory.builtinGlobalDiverts) {
+      // The divert's own position is inherited from its statement or scene;
+      // its first target identifier carries the name's position.
+      const target = divert instanceof Divert ? divert.pathIdentifiers?.[0] : null;
+      const stamped = target?.debugMetadata ?? null;
+      report(
+        warning
+          ? `\`${name}\` is a builtin global; unless a \`${name}\` declared in this flow holds a divert target when this divert runs, it binds to the builtin and cannot reach a scene, branch, or label named \`${name}\``
+          : `\`${name}\` is a builtin global, so this divert binds to it and cannot reach a scene, branch, or label named \`${name}\``,
+        stamped ?? divert.debugMetadata,
+        stamped ? 1 : 0,
+        name,
+        stamped !== null,
+        warning ? DiagnosticSeverity.Warning : DiagnosticSeverity.Error,
+      );
+    }
   }
 
   populateBuiltins(program: SparkProgram) {

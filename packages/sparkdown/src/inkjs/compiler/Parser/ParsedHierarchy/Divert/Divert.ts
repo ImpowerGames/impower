@@ -280,6 +280,46 @@ export class Divert extends ParsedObject {
   public readonly PathAsVariableName = () =>
     this.target ? this.target.firstComponent : null;
 
+  // Whether `name` is declared as a parameter or a local
+  // (`variableDeclarations`) anywhere in the top-level flow that contains
+  // this divert: that flow, its branches, and any callable nested in them. A
+  // story-level divert has no such flow and gets `false`.
+  //
+  // This decides only the severity of the report, never its absence. Whether
+  // such a declaration holds a divert target when the divert runs depends on
+  // the path taken: a parameter is bound at the flow's head and not when the
+  // flow is entered at a label, a local is set only if its statement ran and
+  // in the call-stack element it ran in, a tunnel pushes a fresh element, and
+  // a closure captures what the lowering scanned as free. None of that is
+  // modelled here; a declaration anywhere in the flow makes the report a
+  // warning that names the condition, and no declaration makes it an error.
+  private isDeclaredInTopLevelFlow(name: string): boolean {
+    let flow = asOrNull(ClosestFlowBase(this), FlowBase);
+    let top: FlowBase | null = null;
+    while (flow && flow !== flow.story) {
+      top = flow;
+      flow = asOrNull(ClosestFlowBase(flow), FlowBase);
+    }
+    if (!top) {
+      return false;
+    }
+    const declares = (candidate: FlowBase): boolean => {
+      if (
+        candidate.args?.some((arg) => arg.identifier?.name === name) ||
+        candidate.variableDeclarations.has(name)
+      ) {
+        return true;
+      }
+      for (const child of candidate.content ?? []) {
+        if (child instanceof FlowBase && declares(child)) {
+          return true;
+        }
+      }
+      return false;
+    };
+    return declares(top);
+  }
+
   public readonly ResolveTargetContent = (): void => {
     if (this.isEmpty || this.isEnd) {
       return;
@@ -375,6 +415,29 @@ export class Divert extends ParsedObject {
       // so serialization and diagnostics match a cold compile. (Externals
       // re-derive their path in the external branch below.)
       this.runtimeDivert.targetPath = null;
+    }
+
+    // A divert bound to a builtin global's variable (`-> game`, whether the
+    // slot holds the prelude's marker or an authored override) can never
+    // reach a flow of that name and fails when run; the compiler reports each
+    // one from `context.builtinGlobalDiverts`. Recorded here, once per compile
+    // for reused diverts too. Not recorded: a Luau call (`game()` lowers to a
+    // divert too, but names no scene, branch, or label). A divert whose name
+    // a parameter or local somewhere in its top-level flow declares is
+    // recorded as uncertain (`warning`): whether that declaration holds a
+    // divert target when the divert runs depends on the path taken (see
+    // `isDeclaredInTopLevelFlow`).
+    const capturedBy = this.runtimeDivert.variableDivertName;
+    if (
+      capturedBy != null &&
+      !this.isFunctionCall &&
+      context.builtinGlobalNames.has(capturedBy)
+    ) {
+      context.builtinGlobalDiverts.push({
+        name: capturedBy,
+        divert: this,
+        warning: this.isDeclaredInTopLevelFlow(capturedBy),
+      });
     }
 
     // Resolve children (the arguments)

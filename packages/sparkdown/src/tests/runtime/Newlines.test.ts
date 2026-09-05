@@ -12,7 +12,9 @@ import { makeRuntimeStoryFromFile, runToEnd } from "./runtimeTestHarness";
 
 describe("Newlines (ported from inkjs)", () => {
   test("newline consistency: same-line divert", () => {
-    // Inline mid-line divert `hello -> world` joins the `hello` segment with
+    // The scene is named `there` rather than `world`: `world` is a builtin
+    // type root, a real runtime global that captures every `-> world`.
+    // Inline mid-line divert `hello -> there` joins the `hello` segment with
     // the diverted-to scene's content onto one logical line. Covered by the
     // inline-divert lowerer added in Slice D.
     const ctx = makeRuntimeStoryFromFile(
@@ -23,9 +25,9 @@ describe("Newlines (ported from inkjs)", () => {
     expect(runToEnd(ctx.story)).toBe("hello world\n");
   });
 
-  test("newline consistency: same-line choice + divert (* hello -> world)", () => {
-    // `* hello -> world` is a choice whose chosen output is "hello"
-    // followed by a same-line divert to world. Expected combined
+  test("newline consistency: same-line choice + divert (* hello -> there)", () => {
+    // `* hello -> there` is a choice whose chosen output is "hello"
+    // followed by a same-line divert to `there`. Expected combined
     // output: `"hello world\n"` — the same-line divert glues choice
     // text to the diverted-to scene's content.
     const ctx = makeRuntimeStoryFromFile("newlines", "newline-consistency-2");
@@ -36,7 +38,7 @@ describe("Newlines (ported from inkjs)", () => {
   });
 
   test("newline consistency: choice + next-line divert", () => {
-    // `* hello\n  -> world` is a choice with the divert on the
+    // `* hello\n  -> there` is a choice with the divert on the
     // following indented line. Unlike the same-line form, the chosen
     // output and the diverted-to scene's content stay on separate
     // lines. Expected: `"hello\nworld\n"`. Exercises the

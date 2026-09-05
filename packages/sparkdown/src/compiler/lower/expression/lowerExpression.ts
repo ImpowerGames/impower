@@ -33,6 +33,7 @@ import { Text } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Text";
 import { VariableReference } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Variable/VariableReference";
 import type { LowerContext,SiblingSubFlowInfo } from "../context";
 import { stampDebugMetadata } from "../utils/debugMetadata";
+import { lowerDivertPath } from "../utils/lowerDivertPath";
 import { lowerStatements } from "../lower";
 import { getFunctionBodyContent } from "../utils/getFunctionBodyContent";
 import { lowerArguments, VARARGS_LOCAL_NAME } from "../utils/lowerArguments";
@@ -1828,23 +1829,8 @@ function lowerDivertTargetLiteral(
   // address captures by name, not by `_cN` index). `DivertPath` is a
   // descendant of `LuauDivertTargetLiteral` (one level deep via the
   // capture's auto-generated `_cN` wrapper), so use `getDescendent`.
-  const parts: Identifier[] = [];
   const pathNode = getDescendent("DivertPath", node);
-  if (pathNode) {
-    const stack: SyntaxNode[] = [pathNode];
-    while (stack.length > 0) {
-      const n = stack.pop()!;
-      if (n.name === "DivertPartName") {
-        parts.push(new Identifier(ctx.read(n.from, n.to)));
-      } else {
-        let c = n.firstChild;
-        while (c) {
-          stack.push(c);
-          c = c.nextSibling;
-        }
-      }
-    }
-  }
+  const parts: Identifier[] = pathNode ? lowerDivertPath(pathNode, ctx) : [];
   const divert = new Divert(parts);
   return new DivertTarget(divert);
 }

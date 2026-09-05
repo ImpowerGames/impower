@@ -9,7 +9,7 @@ import { Text } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Text";
 import { TunnelOnwards } from "../../../inkjs/compiler/Parser/ParsedHierarchy/TunnelOnwards";
 import { lowerExpressionFromNodes } from "../expression/lowerExpression";
 import type { LowerContext } from "../context";
-import { lowerDivertPath } from "./lowerDivertPath";
+import { divertPartIdentifier, lowerDivertPath } from "./lowerDivertPath";
 
 // Lower a `DivertTarget` that may include a `LuauFunctionCall` shape
 // (`-> X(arg)`). Returns the path identifiers and any lowered args.
@@ -20,9 +20,7 @@ function lowerTargetWithArgs(
   const fnCall = getDescendent("LuauFunctionCall", targetNode);
   if (fnCall) {
     const nameNode = getDescendent("LuauFunctionName", fnCall);
-    const path = nameNode
-      ? [new Identifier(ctx.read(nameNode.from, nameNode.to))]
-      : [];
+    const path = nameNode ? [divertPartIdentifier(nameNode, ctx)] : [];
     const args: Expression[] = [];
     const params = getDescendent("LuauFunctionCallParameters_content", fnCall);
     if (params) {

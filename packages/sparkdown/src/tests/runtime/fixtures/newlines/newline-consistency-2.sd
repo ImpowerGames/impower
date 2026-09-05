@@ -1,10 +1,10 @@
 -> main
 scene main
   choose
-    * hello -> world
+    * hello -> there
   end
 end
-scene world
+scene there
   world
   done
 end
