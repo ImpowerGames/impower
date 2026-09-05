@@ -486,6 +486,13 @@ check("classifyRedFailure tells the reasons apart on real runner output", () => 
   const spawned = "Error: Cannot find module 'C:\\x\\scripts\\tool.mjs'\n{ code: 'MODULE_NOT_FOUND', requireStack: [] }";
   assert.equal(classifyRedFailure(spawned), "shell");
   assert.equal(classifyRedFailure(spawned, { removed: ["scripts/tool.mjs"] }), "import");
+  // The removed-file match needs a path boundary: "a.mjs" is not "schema.mjs".
+  const schema = "Error: Cannot find module 'C:\\x\\scripts\\schema.mjs'\n{ code: 'MODULE_NOT_FOUND', requireStack: [] }";
+  assert.equal(classifyRedFailure(schema, { removed: ["a.mjs"] }), "shell");
+  assert.equal(classifyRedFailure(schema, { removed: ["scripts/schema.mjs"] }), "import");
+  assert.equal(classifyRedFailure(schema, { removed: ["schema.mjs"] }), "import");
+  // A runner that indents forwarded stderr still reports the crash.
+  assert.equal(classifyRedFailure("    FATAL ERROR: Reached heap limit Allocation failed - JavaScript heap out of memory"), "crash");
   // A second, unrelated empty requireStack later in the output does not turn an import break into a shell failure.
   assert.equal(
     classifyRedFailure("Error: Cannot find module './added.mjs'\n{ code: 'MODULE_NOT_FOUND', requireStack: [ 'C:/x/check.mjs' ] }\n--- second runner ---\nError: Cannot find module 'z'\n{ requireStack: [] }"),

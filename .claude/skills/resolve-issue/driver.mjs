@@ -462,7 +462,7 @@ async function waitForGame(page, { timeout = 45_000 } = {}) {
 
   await page.reload({ waitUntil: "domcontentloaded", timeout: 120_000 });
   const back = await ensureScriptEditor(page);
-  if (!back.present) return { mounted: false, reloaded: true, error: back.reason };
+  if (!back.present) return { mounted: false, reloaded: true, error: back.reason, switched: back.switched };
   const deadline2 = Date.now() + timeout;
   while (Date.now() < deadline2) {
     if (await mounted()) return { mounted: true, reloaded: true };
@@ -674,6 +674,15 @@ async function verify(args) {
         return result;
       }
       result.editorSettled = shell.settled;
+      // Which editor is on screen: the main tab's, or the fullscreen scripts
+      // view with another file open. --sd writes main.sd either way, so in
+      // the second case the script on screen is not the one being scrubbed.
+      result.editorView = await page.evaluate(() =>
+        document.querySelector('[role="tab"][id$="-trigger-main"]') ? "main" : "scripts-view",
+      );
+      if (result.editorView === "scripts-view") {
+        result.editorWarning = "the logic pane is showing its fullscreen scripts view (another file is open); --sd writes main.sd and the scrub reads the file on screen, so the two may differ. Close that file in the editor before trusting this run.";
+      }
       // The preview pane remembers screenplay mode across runs, and in that
       // mode the game never mounts (window.__preview is installed by the game
       // preview alone). verify needs the game, so switch back, the way a user
@@ -683,7 +692,8 @@ async function verify(args) {
         .then(() => true, () => false);
       if (!gameObservable) {
         const toGame = page.locator('[aria-label="Preview Game"]').first();
-        if (await toGame.isVisible().catch(() => false)) {
+        const toolbarUp = await toGame.waitFor({ state: "visible", timeout: 5_000 }).then(() => true, () => false);
+        if (toolbarUp) {
           await toGame.click();
           result.switchedToGamePreview = true;
           await waitForDomQuiet(page, { quiet: 600, timeout: 10_000 });
@@ -719,10 +729,14 @@ async function verify(args) {
       const mount = await waitForGame(page);
       result.gameMounted = mount.mounted;
       if (mount.reloaded) result.neededReload = true;
+      if (mount.switched) result.switchedToLogic = true;
       if (!mount.mounted) {
+        // The retry's own reason (the editor is on another screen after the
+        // reload) beats the generic advice to restart the servers.
         result.error =
+          mount.error ??
           "the game never mounted (#game absent) — the Game Preview is blank. " +
-          "Screenshot is NOT valid evidence. Try `down` then `up`.";
+            "Screenshot is NOT valid evidence. Try `down` then `up`.";
       }
 
       // Let the FIRST compile finish before touching the cursor. On a cold
@@ -1035,31 +1049,30 @@ async function settleEditor(page, timeout = 30_000) {
 async function ensureScriptEditor(page) {
   await waitForApp(page);
   let switched = false;
-  let first = await scriptEditorPresent(page, 15_000);
+  let first = await scriptEditorPresent(page, 10_000);
   if (!first.present) {
-    // The editor lives on the logic screen's `main` tab. Clicking the logic
-    // screen tab only changes the screen (WorkspaceWindow.openPane sets the
-    // pane, not the panel), so a profile left on the `scripts` tab needs the
-    // inner tab clicked as well. A tab already on display is not clicked, so
-    // `switched` is only ever true for a click that changed something; the
-    // screen is judged from its content, not its highlight (see SCREENS).
-    for (const value of ["logic", "main"]) {
+    // The editor lives on the logic screen's `main` tab (or its fullscreen
+    // scripts view). Clicking the logic screen tab only changes the screen
+    // (WorkspaceWindow.openPane sets the pane, not the panel), so a profile
+    // left on the `scripts` tab needs the inner tab clicked as well. Both
+    // clicks happen before the one long wait, so a `scripts` profile does not
+    // pay a dead budget on the logic click. A tab already on display is not
+    // clicked, so `switched` is only ever true for a click that changed
+    // something; the screen is judged from its content, not its highlight.
+    const clickIfNeeded = async (value, needed) => {
       const tab = page.locator(tabSelector(value)).first();
-      if (!(await tab.isVisible().catch(() => false))) continue;
-      if (value === "logic" && (await activeScreen(page)) === "logic") continue;
-      if (value === "main" && (await tab.getAttribute("aria-selected")) === "true") continue;
+      if (!(await tab.isVisible().catch(() => false))) return false;
+      if (!(await needed(tab))) return false;
       await tab.click();
       await waitForDomQuiet(page, { quiet: 600, timeout: 10_000 });
-      // A cold editor after a switch gets the budget the pre-fix code gave it.
-      first = await scriptEditorPresent(page, 45_000);
-      if (first.present) {
-        switched = true;
-        break;
-      }
-    }
-    // Nothing to click (already on logic/main) and still no editor: give a
-    // cold mount the same long budget before giving up.
-    if (!first.present && !switched) first = await scriptEditorPresent(page, 45_000);
+      return true;
+    };
+    const clickedLogic = await clickIfNeeded("logic", async () => (await activeScreen(page)) !== "logic");
+    const clickedMain = await clickIfNeeded("main", async (tab) => (await tab.getAttribute("aria-selected")) !== "true");
+    // One long wait for a cold mount, whether or not anything was clicked;
+    // the pre-change code gave 90 s after its probe, this gives 45 s.
+    first = await scriptEditorPresent(page, 45_000);
+    switched = first.present && (clickedLogic || clickedMain);
   }
   if (!first.present) return { present: false, switched, reason: first.reason };
   // The view can be replaced when the document arrives, on a cold load as
@@ -1086,7 +1099,9 @@ async function openSurface(page, name) {
   if (!editor.present) return { surface: name, open: false, reason: editor.reason };
   // The view can still be replaced a moment after it appears; a shortcut sent
   // into the old view opens nothing. Cheap when the editor is already stable.
-  await settleEditor(page, 15_000);
+  if (!(await settleEditor(page, 15_000))) {
+    return { surface: name, open: false, reason: "the script editor kept being replaced for 15s and never settled; the shortcut was not sent. Re-run; if it persists the machine is saturated" };
+  }
   await focusEditor(page);
   const key = await pressKey(page, s.open);
   try {
@@ -1259,7 +1274,14 @@ async function switchScreen(page, name) {
   // that runs before that lands in a view about to go away.
   // A point check right after the click is too early: the editor mounts up
   // to ~4.6 s after the pane does. Wait for it where the tab can bring it.
-  const landsOnEditor = name === "logic" || name === "main";
+  // `--screen logic` lands on an editor only when the logic pane's own tab is
+  // `main` (or the pane shows its fullscreen scripts view, which has no tab
+  // row); on the `scripts` tab no editor can appear, so waiting would be dead.
+  const mainTabSelectedOrAbsent = await page.evaluate(() => {
+    const main = document.querySelector('[role="tab"][id$="-trigger-main"]');
+    return main == null || main.getAttribute("aria-selected") === "true";
+  });
+  const landsOnEditor = name === "main" || (name === "logic" && mainTabSelectedOrAbsent);
   const editorHere = landsOnEditor
     ? (await scriptEditorPresent(page, 15_000)).present
     : await page.evaluate(() => document.querySelector(".sparkdown-script-editor-root .cm-content") != null);
@@ -1286,6 +1308,13 @@ async function readSurfaces(page) {
   out.screens = await mountedScreens(page);
   out.screen = out.screens.length === 1 ? out.screens[0] : null;
   out.panelTab = out.tabs.find((t) => t.selected && !(t.value in SCREENS))?.value ?? null;
+  // Which script editor is on screen: the `main` tab's, or the logic pane's
+  // fullscreen scripts view (another file open, no tab row). --sd writes
+  // main.sd, which in the second case is not the file being shown.
+  out.editorView = await page.evaluate(() => {
+    if (!document.querySelector(".sparkdown-script-editor-root .cm-content")) return null;
+    return document.querySelector('[role="tab"][id$="-trigger-main"]') ? "main" : "scripts-view";
+  });
 
   if (await surfaceOpen(page, "find")) {
     out.find = {
@@ -1444,11 +1473,23 @@ async function ui(args) {
       // Settle the editor only when it is there to settle: the logic screen's
       // `scripts` tab has no script editor, and a step that needs one reports
       // that itself.
-      const editorHere = await page.waitForFunction(() => document.querySelector(".sparkdown-script-editor-root .cm-content") != null, null, { timeout: 5_000 }).then(() => true, () => false);
-      if (editorHere) {
-        result.editorSettled = await settleEditor(page);
-        if (!result.editorSettled) {
-          result.steps.push({ start: true, reason: "the script editor never settled within 30s of the page loading; the steps below may have hit a view that was being replaced" });
+      // On the logic screen the editor is expected; give it the same 10 s the
+      // panel steps do (a cold mount was measured at ~4.6 s), settle it, and
+      // say so when it never came, so an absent `editorSettled` only ever
+      // means "no editor on this screen".
+      if (result.startedOn === "logic") {
+        const here = await scriptEditorPresent(page, 10_000);
+        if (here.present) {
+          result.editorSettled = await settleEditor(page);
+          if (!result.editorSettled) {
+            result.steps.push({ start: true, reason: "the script editor never settled within 30s of the page loading; the steps below may have hit a view that was being replaced" });
+          }
+        } else {
+          // Not a failure yet: a run that starts on the `scripts` tab and
+          // opens with `--screen main` is the documented recovery. A later
+          // step that needs the editor reports for itself.
+          result.editorSettled = false;
+          result.startNote = here.reason;
         }
       }
 
@@ -1562,7 +1603,7 @@ async function redgreenCli(args) {
       })();
       die(
         top && !sameDir(top, REPO_ROOT)
-          ? `redgreen: run it from this driver's own worktree root (${REPO_ROOT}), not from ${cwd}, which is inside a different checkout (${path.resolve(top)})`
+          ? `redgreen: run it from this driver's own worktree root (${REPO_ROOT}), not from ${cwd}, which is ${sameDir(top, cwd) ? "the root of" : "inside"} a different checkout${sameDir(top, cwd) ? "" : ` (${path.resolve(top)})`}`
           : `redgreen: run from the repository root (${REPO_ROOT}), not from ${cwd}; --files paths and the test command resolve from there`,
       );
     }

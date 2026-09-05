@@ -167,7 +167,14 @@ export function classifyRedFailure(output, { removed = [] } = {}) {
   // script), is the §5b case, not a shell one.
   const moduleBlocks = [...output.matchAll(/Cannot find module '([^']+)'[^{}]*\{[^{}]*requireStack: \[([^\]]*)\]/g)];
   const esmImportBreak = /Cannot find module '[^']+' imported from /.test(output);
-  const namesRemovedFile = (p) => removed.some((r) => r && p.replace(/\\/g, "/").endsWith(r.replace(/\\/g, "/")));
+  // A path boundary is required: `a.mjs` must not match `schema.mjs`.
+  const namesRemovedFile = (p) => {
+    const q = p.replace(/\\/g, "/");
+    return removed.some((r) => {
+      const s = r && r.replace(/\\/g, "/");
+      return s && (q === s || q.endsWith("/" + s));
+    });
+  };
   const missingEntryScript =
     moduleBlocks.length > 0 && !esmImportBreak && moduleBlocks.every((m) => m[2].trim() === "" && !namesRemovedFile(m[1]));
   if (
@@ -193,7 +200,7 @@ export function classifyRedFailure(output, { removed = [] } = {}) {
   }
   // Anchored to how a runner reports its own death, at the start of a line:
   // a test name or an assertion diff can carry any of these words mid-line.
-  if (/^\s*(?:Error: )?Worker exited unexpectedly|^FATAL ERROR: |^Segmentation fault|^Killed$/im.test(output)) {
+  if (/^\s*(?:Error: )?Worker exited unexpectedly|^\s*FATAL ERROR: |^\s*Segmentation fault|^\s*Killed\s*$/im.test(output)) {
     return "crash";
   }
   if (
