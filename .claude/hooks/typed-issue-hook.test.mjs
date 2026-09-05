@@ -168,6 +168,28 @@ const denies = [
   ["curl with type= in an Accept header", "curl -X POST https://api.github.com/repos/ImpowerGames/impower/issues -H 'Accept: application/json; type=x' -d '{\"title\":\"y\"}'"],
   ["Invoke-RestMethod with type= in a header hashtable", "Invoke-RestMethod -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Method Post -Body $b -Headers @{Accept='v3; type=x'}"],
   ["Invoke-RestMethod with a $( ) body that has no type", "irm -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Body $(@{title='x'} | ConvertTo-Json)"],
+  ["Invoke-RestMethod with a parenthesised body before -Uri", "Invoke-RestMethod -Method Post -Body (@{title='x'} | ConvertTo-Json) -Uri https://api.github.com/repos/ImpowerGames/impower/issues"],
+  ["irm with a $( ) body before -Uri", "irm -Method Post -Body $(@{title='x'} | ConvertTo-Json) -Uri https://api.github.com/repos/ImpowerGames/impower/issues"],
+  ["irm with an untyped here-string body", 'irm -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Body @"\n{"title":"x"}\n"@'],
+  ["create after a spaced &> redirection", "&> out.txt gh issue create --title x"],
+  ["create after a >& redirection", ">& out.txt gh issue create --title x"],
+  ["create after a glued &>> redirection", "&>>log.txt gh issue create --title x"],
+  ["create after nohup &> out.txt", "nohup &> out.txt gh issue create --title x"],
+  ["create after 2>&-", "2>&- gh issue create --title x"],
+  ["curl with '(type=Bug)' in a body string", 'curl -X POST https://api.github.com/repos/ImpowerGames/impower/issues -d \'{"title":"x","body":"the call needs the field (type=Bug)"}\''],
+  ["curl with ', type=Bug,' in a body string", 'curl -X POST https://api.github.com/repos/ImpowerGames/impower/issues -d \'{"title":"x","body":"add it, type=Bug, to the call"}\''],
+  ["curl with 'x, type=y' in the title", 'curl -X POST https://api.github.com/repos/ImpowerGames/impower/issues -d \'{"title":"parser drops x, type=y is ignored"}\''],
+  ["curl with '(type=Task)' in the title", 'curl -X POST https://api.github.com/repos/ImpowerGames/impower/issues -d \'{"title":"support (type=Task) syntax"}\''],
+  ["curl with a nested type key only", 'curl -X POST https://api.github.com/repos/ImpowerGames/impower/issues -d \'{"title":"x","labels":[{"type":"x"}]}\''],
+  ["curl with an empty type", 'curl -X POST https://api.github.com/repos/ImpowerGames/impower/issues -d \'{"title":"x","type":""}\''],
+  ["Invoke-RestMethod with '(type=Bug)' in a hashtable body string", "Invoke-RestMethod -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Body (@{title='x'; body='needs (type=Bug)'} | ConvertTo-Json)"],
+  ["curl with a trailing bare -X", "curl https://api.github.com/repos/ImpowerGames/impower/issues -d '{\"title\":\"x\"}' -X"],
+  ["curl with an empty --request=", "curl --request= https://api.github.com/repos/ImpowerGames/impower/issues -d '{\"title\":\"x\"}'"],
+  ["create inside sh -f -c", "sh -f -c 'gh issue create --title x'"],
+  ["PowerShell capture with =gh glued to the operator", "$x =gh issue create --title x"],
+  ["PowerShell += capture of a create", "$out += gh issue create --title x"],
+  ["PowerShell ${x} capture of a create", "${x} = gh issue create --title x"],
+  ["create in a backquote inside double quotes holding an inner quote", 'N="`gh issue create --title "x"`"'],
 ];
 
 const allows = [
@@ -264,8 +286,25 @@ const allows = [
   ["echo of a shell -c string", "echo bash -c 'gh issue create --title x'"],
   ["a glued group before a here-doc holding the phrase", "Write-Output ((Get-Item x).Length)\ncat > t.md <<'EOF'\ngh issue create is refused here.\nEOF"],
   ["a 2>&1 view", "2>&1 gh issue view 443"],
+  ["Invoke-RestMethod typed double-quoted body with backtick-escaped quotes", 'irm -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Method Post -Body "{`"title`":`"x`",`"type`":`"Bug`"}"'],
+  ["Invoke-RestMethod typed double-quoted body with backslash-escaped quotes", 'irm -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Method Post -Body "{\\"title\\":\\"x\\",\\"type\\":\\"Bug\\"}"'],
+  ["Invoke-RestMethod typed single-quoted body with a doubled apostrophe", "Invoke-RestMethod -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Body '{\"title\":\"it''s broken\",\"type\":\"Bug\"}'"],
+  ["Invoke-RestMethod typed here-string body", 'Invoke-RestMethod -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower/issues -ContentType application/json -Body @"\n{"title":"x","type":"Bug"}\n"@'],
+  ["Invoke-RestMethod typed parenthesised body before -Uri", "Invoke-RestMethod -Method Post -Body (@{title='x'; type='Bug'} | ConvertTo-Json) -Uri https://api.github.com/repos/ImpowerGames/impower/issues"],
+  ["Invoke-RestMethod typed hashtable with a header hashtable before it", "irm -Method Post -Headers @{'Content-Type'='application/json'} -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Body @{title=\"Don't\"; type='Bug'}"],
+  ["curl -sX GET with data", "curl -sX GET https://api.github.com/repos/ImpowerGames/impower/issues -d q=1"],
+  ["curl typed form data", "curl -X POST https://api.github.com/repos/ImpowerGames/impower/issues -d 'title=x&type=Bug'"],
+  ["curl typed --data-urlencode", "curl https://api.github.com/repos/ImpowerGames/impower/issues --data-urlencode 'title=x' --data-urlencode 'type=Bug'"],
+  ["a long PowerShell string full of escapes before a view", 'Write-Host "' + "line`n".repeat(20000) + '"; gh issue view 443'],
   ["empty command", ""],
 ];
+
+// The backtick scan inside a double-quoted string must stay linear.
+{
+  const t0 = Date.now();
+  decide('Write-Host "' + "a`n".repeat(40000) + '"; gh issue create --title x');
+  check(Date.now() - t0 < 2000, "40000 backtick escapes in one string decide in under 2 s", `${Date.now() - t0} ms`);
+}
 
 // The here-doc and command-position passes must stay linear: a large command
 // full of `<<` operators, and a segment of many assignments, both decide fast.

@@ -66,11 +66,14 @@ const WRAPPERS = new Map([
 // Shell keywords after which a command starts.
 const KEYWORDS = new Set(["do", "then", "else", "elif", "if", "while", "until", "!", "%", "foreach-object"]);
 const SHELLS = new Set(["bash", "sh", "zsh", "dash", "ksh", "ash", "busybox", "pwsh", "powershell", "cmd"]);
-// A bare redirection operator (`>`, `2>`, `>>`, `<`, `2>&1`, `&>`) or one glued to its target.
-const REDIRECT_OP = /^(\d*[<>]{1,2}(&\d*)?|&>)$/;
-const REDIRECT_GLUED = /^(\d*[<>]{1,2}|&>)[^<>&]/;
-// A PowerShell variable assignment target: `$x`, `$x=`, `$x=value`.
-const PS_ASSIGN = /^\$[A-Za-z_][A-Za-z0-9_:]*(=(.*))?$/;
+// Redirections: a descriptor duplication that takes no target (`2>&1`,
+// `<&0`, `2>&-`), a bare operator whose target is the next token (`>`,
+// `2>`, `>>`, `<`, `&>`, `&>>`, `>&`), and an operator glued to its target.
+const REDIRECT_DUP = /^\d*[<>]{1,2}&[\d-]+$/;
+const REDIRECT_OP = /^(\d*[<>]{1,2}|&>>?|>&)$/;
+const REDIRECT_GLUED = /^(\d*[<>]{1,2}&?|&>>?)[^<>&\d-]/;
+// A PowerShell variable assignment target: `$x`, `${x}`, `$x=`, `$x=value`.
+const PS_ASSIGN = /^\$([A-Za-z_][A-Za-z0-9_:]*|\{[^}]+\})(=(.*))?$/;
 
 /**
  * Split a command line into tokens the way Bash or PowerShell roughly would.
@@ -101,15 +104,41 @@ export function tokenize(command) {
     if (!started) start = at;
     started = true;
   };
+  // True while the previous token in this segment is a `-Flag`, so a
+  // parenthesised or hashtable group that follows is that flag's value.
+  let afterFlag = false;
+  const lastIsFlag = () => {
+    const last = tokens[tokens.length - 1];
+    return Boolean(last && !last.sep && !last.quoted && /^-[A-Za-z]/.test(last.text));
+  };
   let i = 0;
   const n = command.length;
   while (i < n) {
     const c = command[i];
+    if (c === "@" && (command[i + 1] === '"' || command[i + 1] === "'") && !started && /^\r?\n/.test(command.slice(i + 2, i + 4))) {
+      // PowerShell here-string: @" ... "@ or @' ... '@, one quoted token.
+      const q = command[i + 1];
+      const close = command.indexOf(`\n${q}@`, i + 2);
+      const end = close < 0 ? n : close + 3;
+      tokens.push({ text: command.slice(i + 2, close < 0 ? n : close).replace(/^\r?\n/, ""), quoted: true, start: i, end });
+      i = end;
+      continue;
+    }
     if (c === "'") {
       begin(i);
       quoted = true;
       i++;
-      while (i < n && command[i] !== "'") text += command[i++];
+      while (i < n) {
+        if (command[i] === "'") {
+          if (command[i + 1] === "'") {
+            text += "'"; // PowerShell doubled quote
+            i += 2;
+            continue;
+          }
+          break;
+        }
+        text += command[i++];
+      }
       i++;
       continue;
     }
@@ -132,12 +161,13 @@ export function tokenize(command) {
           continue;
         }
         if (command[i] === "`") {
-          // A backtick with a partner before the closing quote is a Bash
-          // substitution; one without is a PowerShell escape (`n, `t, `").
-          const close = command.indexOf("`", i + 1);
-          const quoteEnd = closingDoubleQuote(command, i + 1);
-          if (close < 0 || close > quoteEnd) {
-            if (i + 1 < n) text += command[i + 1];
+          // A backtick before one of PowerShell's escape characters (`n,
+          // `t, `", `$) is an escape; otherwise, with a partner backtick
+          // later, it is a Bash substitution; alone, it is literal.
+          const next = command[i + 1] ?? "";
+          const close = "0abfnrtv\"'$` ".includes(next) ? -1 : command.indexOf("`", i + 1);
+          if (close < 0) {
+            if (i + 1 < n) text += next;
             i += 2;
             continue;
           }
@@ -149,6 +179,16 @@ export function tokenize(command) {
         text += command[i++];
       }
       i++;
+      continue;
+    }
+    if (!started && lastIsFlag() && (c === "(" || (c === "$" && command[i + 1] === "(") || (c === "@" && (command[i + 1] === "(" || command[i + 1] === "{")))) {
+      // A group that is a flag's value (`-Body (...)`, `-Headers @{...}`)
+      // stays one token so the invocation continues after it.
+      const openAt = c === "(" ? i : i + 1;
+      const close = command[openAt] === "{" ? matchBracket(command, openAt, "{", "}") : matchParen(command, openAt);
+      const end = Math.min(close + 1, n);
+      tokens.push({ text: command.slice(i, end), quoted: true, group: true, start: i, end });
+      i = end;
       continue;
     }
     if (c === "\\") {
@@ -326,15 +366,6 @@ function matchBracket(command, open, openCh, closeCh) {
     }
     if (ch === openCh) depth++;
     else if (ch === closeCh && --depth === 0) return k;
-  }
-  return command.length;
-}
-
-/** Index of the `"` that closes a double-quoted string whose body starts at `from`. */
-function closingDoubleQuote(command, from) {
-  for (let k = from; k < command.length; k++) {
-    if (command[k] === "\\") k++;
-    else if (command[k] === '"') return k;
   }
   return command.length;
 }
@@ -518,18 +549,55 @@ function checkGhApi(args) {
 }
 
 const COLLECTION_URL = /api\.github\.com\/repos\/([^/\s"']+\/[^/\s"']+)\/issues\/?(\?|$)/i;
-// A `type` field in a request body: a quoted JSON key (`"type":`) or a
-// hashtable entry (`type=`) that follows `{`, `;`, `,`, or `(`. Lowercase,
-// because JSON keys are case-sensitive. `type=` after a word is prose.
-const TYPE_FIELD = /(["']type["']\s*[:=]|(^|[{;,(])\s*type\s*=\s*\S)/;
+// A `type` entry in a non-JSON body once string values are blanked: a
+// hashtable entry (`type=`) after `{`, `;`, `,`, `(`, or `&`, or a quoted
+// JSON key in text that did not parse. Lowercase, because keys are
+// case-sensitive.
+const TYPE_ENTRY = /(["']type["']\s*[:=]\s*\S|(^|[{;,(&])\s*type\s*=\s*\S)/;
 
-/** True when a request body carries a `type` field. */
+/**
+ * True when a request body carries a top-level `type` field with a value.
+ * A JSON body is parsed; anything else has its string values blanked first,
+ * so prose inside a title or a body text does not count.
+ */
 function bodyHasTypeField(body) {
-  return TYPE_FIELD.test(body);
+  const inner = unwrapBody(body);
+  if (/^[{[]/.test(inner)) {
+    try {
+      const obj = JSON.parse(inner);
+      if (obj && typeof obj === "object" && !Array.isArray(obj)) return typeof obj.type === "string" && obj.type.length > 0;
+      return false;
+    } catch {}
+  }
+  const blanked = inner
+    .replace(/["']?type["']?\s*[:=]\s*(["'])\1/g, "") // an empty type value is no type
+    .replace(/([:=]\s*)(["'])(?:(?!\2)[^\\]|\\.)*\2/g, "$1$2$2");
+  return TYPE_ENTRY.test(blanked);
 }
 
-// curl short flags that take no value and may be clustered before -d or -F.
-const CURL_CLUSTER = /^-([sSfLkviIgNjBanlOpqRZ46#G]*)([dF])?/;
+/** Strips the wrappers a body may sit in (`(...)`, `$(...)`, `@(...)`, one layer of quotes) and unescapes the quotes inside. */
+function unwrapBody(body) {
+  let s = body.trim();
+  for (let guard = 0; guard < 4; guard++) {
+    if (/^[$@]?\(/.test(s) && s.endsWith(")")) {
+      s = s.replace(/^[$@]?\(/, "").slice(0, -1).trim();
+      continue;
+    }
+    if (s.length >= 2 && s.startsWith("'") && s.endsWith("'")) {
+      s = s.slice(1, -1).replace(/''/g, "'");
+      continue;
+    }
+    if (s.length >= 2 && s.startsWith('"') && s.endsWith('"')) {
+      s = s.slice(1, -1).replace(/`(["`$])/g, "$1").replace(/\\(["\\])/g, "$1");
+      continue;
+    }
+    break;
+  }
+  return s;
+}
+
+// curl short flags that take no value and may be clustered before one that does.
+const CURL_BOOLEAN = "sSfLkviIgNjBanlOpqRZ46#G";
 const CURL_DATA_LONG = /^--(data(-ascii|-raw|-binary|-urlencode)?|form(-string)?|json)(=|$)/;
 
 function checkCurl(args) {
@@ -538,20 +606,31 @@ function checkCurl(args) {
   let method = null;
   const bodies = [];
   let get = false;
+  const setMethod = (value) => {
+    if (value) method = value.toUpperCase();
+  };
   for (let i = 0; i < args.length; i++) {
     const t = args[i].text;
-    if (/^(-X|--request)$/.test(t)) method = (args[++i]?.text ?? "").toUpperCase();
-    else if (/^(-X|--request=)/.test(t)) method = t.replace(/^(-X=?|--request=)/, "").toUpperCase();
+    if (/^(-X|--request)$/.test(t)) setMethod(args[++i]?.text);
+    else if (/^--request=/.test(t)) setMethod(t.slice("--request=".length));
     else if (t === "--get") get = true;
     else if (CURL_DATA_LONG.test(t)) {
       const eq = t.indexOf("=");
       bodies.push(eq > 0 ? t.slice(eq + 1) : (args[++i]?.text ?? ""));
     } else if (t.startsWith("-") && !t.startsWith("--")) {
-      const m = t.match(CURL_CLUSTER);
-      if (m[1].includes("G")) get = true;
-      if (m[2]) {
-        const attached = t.slice(m[0].length);
-        bodies.push(attached.length ? attached : (args[++i]?.text ?? ""));
+      // Walk a short-flag cluster: booleans continue, the first flag that
+      // takes a value ends it and takes the rest of the token or the next one.
+      for (let p = 1; p < t.length; p++) {
+        const ch = t[p];
+        if (CURL_BOOLEAN.includes(ch)) {
+          if (ch === "G") get = true;
+          continue;
+        }
+        const rest = t.slice(p + 1).replace(/^=/, "");
+        const value = rest.length ? rest : (args[++i]?.text ?? "");
+        if (ch === "d" || ch === "F") bodies.push(value);
+        else if (ch === "X") setMethod(value);
+        break;
       }
     }
   }
@@ -565,36 +644,23 @@ function checkCurl(args) {
 }
 
 /**
- * The `-Body` value of a PowerShell invocation, read from the command text
- * so that a sub-expression, a hashtable literal, or a quoted string that
- * the tokenizer split across segments comes back whole. Null when there is
- * no `-Body` in the segment.
+ * The `-Body` value of a PowerShell invocation: the token after `-Body`,
+ * which the tokenizer keeps whole for a quoted string, a here-string, a
+ * parenthesised group, or a hashtable literal. Null when there is no
+ * `-Body` in the segment.
  */
-function bodyText(command, seg) {
+function bodyText(seg) {
   const bodyIndex = seg.findIndex((t) => /^-body$/i.test(t.text));
   if (bodyIndex < 0) return null;
-  let at = seg[bodyIndex].end;
-  while (at < command.length && " \t\r\n`".includes(command[at])) at++;
-  const c = command[at];
-  const c2 = command[at + 1];
-  if (c === "(" || (c === "$" && c2 === "(") || (c === "@" && c2 === "(")) {
-    const open = c === "(" ? at : at + 1;
-    return command.slice(at, matchParen(command, open) + 1);
-  }
-  if (c === "@" && c2 === "{") return command.slice(at, matchBracket(command, at + 1, "{", "}") + 1);
-  if (c === "'" || c === '"') {
-    const end = command.indexOf(c, at + 1);
-    return command.slice(at, end < 0 ? command.length : end + 1);
-  }
   const next = seg[bodyIndex + 1];
   return next ? next.text : "";
 }
 
-function checkInvokeRestMethod(args, command, seg) {
+function checkInvokeRestMethod(args) {
   const urlToken = args.find((a) => COLLECTION_URL.test(a.text));
   if (!urlToken || !isThisRepo(urlToken.text.match(COLLECTION_URL)[1])) return null;
   const joined = args.map((a) => a.text).join(" ");
-  const body = bodyText(command, seg);
+  const body = bodyText(args);
   const posts = /(^|\s)-method\s+post\b/i.test(joined) || body !== null;
   if (!posts) return null;
   if (body !== null && bodyHasTypeField(body)) return null;
@@ -625,14 +691,17 @@ function commandPositions(seg) {
       continue;
     }
     if (!tok.quoted && PS_ASSIGN.test(t)) {
-      // `$x = cmd`, `$x= cmd`, `$x =cmd`
+      // `$x = cmd`, `$x= cmd`, `$x =cmd`, `$x += cmd`
       k++;
-      if (!t.includes("=") && seg[k]?.text === "=") k++;
-      else if (!t.includes("=") && seg[k]?.text.startsWith("=")) k++;
+      if (!t.includes("=") && /^[+-]?=$/.test(seg[k]?.text ?? "")) k++;
+      continue;
+    }
+    if (!tok.quoted && REDIRECT_DUP.test(t)) {
+      k++;
       continue;
     }
     if (!tok.quoted && REDIRECT_OP.test(t)) {
-      k += t.includes("&") ? 1 : 2;
+      k += 2;
       continue;
     }
     if (!tok.quoted && REDIRECT_GLUED.test(t)) {
@@ -690,7 +759,7 @@ function programBefore(seg, flagIndex) {
   for (let k = flagIndex - 1, steps = 0; k >= 0 && steps < 16; k--, steps++) {
     const t = seg[k].text;
     const lower = t.toLowerCase();
-    if (t === "--" || lower === "-file" || lower === "-f") return -1;
+    if (t === "--" || lower === "-file") return -1;
     if (!seg[k].quoted) {
       const base = baseName(seg[k]);
       if (SHELLS.has(base) || base === "env") return k;
@@ -739,7 +808,7 @@ export function decide(command, depth = 0) {
       } else if (base === "curl") {
         reason = checkCurl(seg.slice(i + 1));
       } else if (base === "invoke-restmethod" || base === "irm" || base === "invoke-webrequest" || base === "iwr") {
-        reason = checkInvokeRestMethod(seg.slice(i + 1), command, seg.slice(i + 1));
+        reason = checkInvokeRestMethod(seg.slice(i + 1));
       }
       if (reason) return reason;
     }
@@ -747,11 +816,13 @@ export function decide(command, depth = 0) {
   return null;
 }
 
-/** Splits a glued PowerShell assignment `$x=gh ...` into `$x=` and the program token, in place. */
+/** Splits a glued PowerShell assignment (`$x=gh ...`, or `$x =gh ...`) into the assignment and the program token, in place. */
 function splitPsAssignments(seg) {
   for (let k = 0; k < seg.length; k++) {
     const tok = seg[k];
-    const m = tok.quoted ? null : tok.text.match(/^(\$[A-Za-z_][A-Za-z0-9_:]*=)(.+)$/);
+    if (tok.quoted) continue;
+    let m = tok.text.match(/^(\$(?:[A-Za-z_][A-Za-z0-9_:]*|\{[^}]+\})[+-]?=)(.+)$/);
+    if (!m && k > 0 && PS_ASSIGN.test(seg[k - 1].text) && !seg[k - 1].text.includes("=")) m = tok.text.match(/^([+-]?=)(.+)$/);
     if (!m) continue;
     seg.splice(k, 1, { ...tok, text: m[1], end: tok.start + m[1].length }, { ...tok, text: m[2], start: tok.start + m[1].length });
   }
