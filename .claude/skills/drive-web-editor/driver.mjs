@@ -68,34 +68,65 @@ function pidAlive(pid, kill = process.kill) {
 // How long a launch gets to answer before `up` gives up on it.
 const READY_WAIT_MS = 15 * 60_000;
 
-// Whether the tree a state file records is still there. A live pid alone
-// proves nothing, because the system hands a freed pid to the next process it
-// starts, so a record whose tree is long gone can name any live process; and a
-// held port alone could be another tree's. The record stands while its pid is
-// alive and either its editor port is held (the editor binds the port when it
-// starts, before the cold worker build, so a tree that is building or slow to
-// answer holds it) or the record is younger than a launch's wait, the window
-// in which the launcher may not have bound the port yet. Anything else is
-// stale. `probe` supplies the three checks so state-path.test.mjs can pin the
-// table without a process, a socket or a file.
+// Whether the pid a state file records is still the launcher it recorded. A
+// live pid alone proves nothing, because the system hands a freed pid to the
+// next process it starts, so a record whose tree is long gone can name any
+// live process. What ties the pid to the launch is when the process behind it
+// started: the launcher was created just before its record was written, and
+// any later process on the same pid was created after that. So the record
+// stands while its pid is alive and that process started within
+// LAUNCH_SLACK_MS before the record's `startedAt` (spawn latency on a loaded
+// machine) or START_GRAIN_MS after it (a start reported in whole seconds). A
+// record from a driver that wrote no `startedAt` uses its file's mtime, which
+// that driver wrote once, at launch. A start the system will not report (no
+// such process, another user's, or nothing to ask) does not stand. `probe`
+// supplies the three readings so state-path.test.mjs can pin the table
+// without a process or a file.
+const LAUNCH_SLACK_MS = 60_000;
+const START_GRAIN_MS = 2_000;
 async function recordStands(record, probe = liveProbe) {
   if (!record?.url) return false;
   if (!probe.pidAlive(record.pid)) return false;
-  if (await probe.portHeld(record.url)) return true;
-  return probe.ageMs() < READY_WAIT_MS;
+  const started = await probe.startedMs(record.pid);
+  if (started == null) return false;
+  const recorded = record.startedAt ?? probe.recordWrittenMs();
+  if (recorded == null) return false;
+  return started >= recorded - LAUNCH_SLACK_MS && started <= recorded + START_GRAIN_MS;
 }
 
 const liveProbe = {
   pidAlive,
-  portHeld: async (url) => !(await portFree(Number(new URL(url).port))),
-  ageMs: () => {
+  startedMs: processStartedMs,
+  recordWrittenMs: () => {
     try {
-      return Date.now() - fs.statSync(stateFile()).mtimeMs;
+      return fs.statSync(stateFile()).mtimeMs;
     } catch {
-      return Infinity;
+      return null;
     }
   },
 };
+
+// When the process behind a pid was created, in ms since the epoch, or null
+// when the system will not say. Windows answers through PowerShell (about half
+// a second); elsewhere `ps` prints the start as a date `Date.parse` reads.
+function processStartedMs(pid) {
+  if (!Number.isInteger(pid) || pid <= 0) return Promise.resolve(null);
+  const win = process.platform === "win32";
+  const [cmd, args] = win
+    ? ["powershell", ["-NoProfile", "-Command", `([DateTimeOffset](Get-Process -Id ${pid}).StartTime).ToUnixTimeMilliseconds()`]]
+    : ["ps", ["-o", "lstart=", "-p", String(pid)]];
+  return new Promise((resolve) => {
+    const p = spawn(cmd, args, { stdio: ["ignore", "pipe", "ignore"], windowsHide: true });
+    let out = "";
+    p.stdout.on("data", (d) => (out += d));
+    p.on("error", () => resolve(null));
+    p.on("close", (code) => {
+      const text = out.trim();
+      const ms = win ? Number(text) : Date.parse(text);
+      resolve(code === 0 && text !== "" && Number.isFinite(ms) ? ms : null);
+    });
+  });
+}
 
 const log = (...a) => console.log(...a);
 const die = (msg) => {
@@ -232,12 +263,15 @@ async function up(args) {
   // One probe timing out is not evidence the servers are gone: a cold build
   // takes minutes, and a loaded machine stalls the first response. While the
   // record stands (recordStands) this waits for its URL, the same wait a fresh
-  // launch gets, and stops waiting the moment the record goes stale. A stale
-  // record is dropped so the file written below is the only record.
+  // launch gets, and stops the moment the launcher exits. A pid verified as
+  // the launcher's stays its own until it exits, so each poll asks only that;
+  // a pid the system reuses mid-wait ends the wait at the deadline instead,
+  // where the `down` the message names finds the record stale and removes it.
+  // A stale record is dropped so the file written below is the only record.
   if (await recordStands(existing)) {
     log(`servers pid ${existing.pid} are still starting → ${existing.url} (state: ${stateFile()})`);
-    if (await waitReady(existing.url, existing.mode, () => recordStands(existing))) return;
-    log(`servers pid ${existing.pid} are gone; launching`);
+    if (await waitReady(existing.url, existing.mode, () => pidAlive(existing.pid))) return;
+    log(`servers pid ${existing.pid} have exited; launching`);
   }
   removeState();
 
@@ -264,7 +298,7 @@ async function up(args) {
   );
   child.unref();
 
-  writeState({ url, pid: child.pid, mode, ports });
+  writeState({ url, pid: child.pid, mode, ports, startedAt: Date.now() });
 
   log(`launching dev servers (${mode}) pid ${child.pid} → ${url}`);
   await waitReady(url, mode);
@@ -284,7 +318,7 @@ async function waitReady(url, mode, keep) {
     }
     await sleep(3000);
   }
-  die(`timed out after ${READY_WAIT_MS / 60_000} min waiting for ${url}; \`down\` stops the tree the state file records`);
+  die(`timed out after ${READY_WAIT_MS / 60_000} min waiting for ${url}; \`down\` stops the tree the state file records, or removes the record if its launcher is gone`);
 }
 
 async function isUp(url) {
@@ -298,26 +332,27 @@ async function isUp(url) {
 
 // Names the state file it read, because with the fallback above there are two
 // places it can come from, and an unreadable file is reported as itself rather
-// than as absence.
+// than as absence. Exits 0 only when the recorded URL answers.
 async function status() {
   const file = stateFile();
+  process.exitCode = 1;
   if (stateUnreadable()) {
     log(`down (state file unreadable: ${file}; \`down\` removes it)`);
-    process.exitCode = 1;
     return;
   }
   const s = readState();
   if (!s) return log("down (no state file)");
   const alive = await isUp(s.url);
   log(`${alive ? "UP" : "DOWN"}  url=${s.url}  pid=${s.pid}  mode=${s.mode}  state=${file}`);
-  if (!alive) process.exitCode = 1;
+  if (alive) process.exitCode = 0;
 }
 
 // The launcher spawns npm -> node grandchildren. Killing the launcher pid alone
 // orphans the two vite servers and they keep holding their ports. taskkill /T
 // tears down the whole tree. Only a record that stands names a tree to kill: a
 // stale record's pid may belong to any process by now, so that record is
-// removed and nothing is signalled.
+// removed and nothing is signalled. The record goes only with a kill that
+// reported success; a refused kill keeps it, so the tree stays stoppable.
 async function down() {
   const file = stateFile();
   const s = readState();
@@ -332,7 +367,7 @@ async function down() {
   }
   if (!(await recordStands(s))) {
     removeState();
-    log(`removed ${file}: pid ${s.pid} is not this tree's launcher any more (its port is free and the record is stale), so nothing was stopped`);
+    log(`removed ${file}: pid ${s.pid} is no longer the launcher it recorded (that process exited, and the system may have reused its pid), so nothing was stopped`);
     return;
   }
   const killer =
@@ -341,7 +376,13 @@ async function down() {
           stdio: "inherit",
         })
       : spawn("kill", ["-TERM", String(-s.pid)], { stdio: "inherit" });
-  killer.on("exit", () => {
+  const failed = (why) => {
+    log(`could not stop pid ${s.pid} (${why}); the record is kept`);
+    process.exitCode = 1;
+  };
+  killer.on("error", (err) => failed(err.message));
+  killer.on("exit", (code) => {
+    if (code !== 0) return failed(`exit ${code}`);
     removeState();
     log("stopped");
   });
@@ -2066,7 +2107,10 @@ export {
   hereOrPrevious,
   pidAlive,
   recordStands,
+  liveProbe,
   READY_WAIT_MS,
+  LAUNCH_SLACK_MS,
+  START_GRAIN_MS,
 };
 
 // ------------------------------------------------------------------ utils ---
