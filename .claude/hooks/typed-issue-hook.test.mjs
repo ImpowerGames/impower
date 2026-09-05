@@ -237,6 +237,8 @@ const denies = [
   ["unparseable JSON whose title holds an escaped quote and ', type=Bug' as prose", 'curl -X POST https://api.github.com/repos/ImpowerGames/impower/issues -d \'{"title":"say \\"hi\\", type=Bug","body":"x",}\''],
   ["a curl prose body of the shape word {type=Bug}", "curl -X POST https://api.github.com/repos/ImpowerGames/impower/issues -d 'Fix {type=Bug} handling'"],
   ["an unknown cmdlet before a hashtable", "irm -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Body (Out-String @{title='x'})"],
+  ["an untyped body behind a second -d with prose after an early-closing quote", "curl -X POST https://api.github.com/repos/ImpowerGames/impower/issues -d 'a=1' -d '{\"title\":\"C:\\path\\\", type=Bug is prose\",\"body\":\"x\",}'"],
+  ["an untyped PowerShell JSON string body with prose after an early-closing quote", "irm -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Body '{\"title\":\"C:\\path\\\", type=Bug is prose\",\"body\":\"x\",}'"],
 ];
 
 const allows = [
@@ -332,7 +334,12 @@ const allows = [
   ["a typed body in the ConvertTo-Json -Compress form", "irm -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Body (ConvertTo-Json -Compress @{title='x'; type='Bug'})"],
   ["a typed body in a double-parenthesised pipe form", "irm -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Body ((@{title='x'; type='Bug'}) | ConvertTo-Json)"],
   ["a typed body piped to ConvertTo-Json -Depth", "irm -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Body (@{title='x'; type='Bug'} | ConvertTo-Json -Depth 4)"],
-  ["a typed PowerShell JSON string body with a path ending in a backslash", "irm -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Body '{\"title\":\"C:\\src\\\",\"type\":\"Bug\"}'"],
+  ["a typed PowerShell JSON string body with a raw newline and an escaped quote", "irm -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Body '{\"title\":\"x\",\"body\":\"He said \\\" once\nand again\",\"type\":\"Bug\"}'"],
+  ["a typed here-string JSON body with an escaped quote and a trailing comma", "irm -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Body @\"\n{\n  \"title\": \"Fix the \\\" escape\",\n  \"type\": \"Bug\",\n}\n\"@"],
+  ["a typed body behind a second -d", "curl -X POST https://api.github.com/repos/ImpowerGames/impower/issues -d 'note=1' -d '{\"title\":\"a \\\" b\",\"type\":\"Bug\",}'"],
+  ["a typed PowerShell hashtable handed to curl", "curl -X POST https://api.github.com/repos/ImpowerGames/impower/issues -d '@{path=\"C:\\logs\\\"; note=\"x\"; type=\"Bug\"}'"],
+  ["a typed body in the ConvertTo-Json -Depth:10 colon form", "irm -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Body (ConvertTo-Json -Depth:10 @{title='x'; type='Bug'})"],
+  ["a typed body piped to ConvertTo-Json then Out-String", "irm -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Body (@{title='x'; type='Bug'} | ConvertTo-Json | Out-String)"],
   ["unparseable JSON with a quoted type key kept", 'curl -X POST https://api.github.com/repos/ImpowerGames/impower/issues -d \'{"type":"Bug","title":"x",}\''],
   ["a typed hashtable whose value holds an escaped quote in JSON-like text", 'curl -X POST https://api.github.com/repos/ImpowerGames/impower/issues -d \'{"title":"a \\"quoted\\" word","type":"Bug",}\''],
   ["typed form data in Bash ANSI-C quoting", "curl -X POST https://api.github.com/repos/ImpowerGames/impower/issues --data $'title=x&type=Bug'"],
@@ -419,9 +426,11 @@ const allows = [
   guard("a 400 KB hashtable value mentioning me@\"work\" 16000 times", "irm -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Body @{title='x'; type='Bug'; body='" + 'mail me@"work" about it. '.repeat(16000) + "'}");
   guard("a hashtable with 8000 here-string values", "irm -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Body @{title='x'; type='Bug'; " + Array.from({ length: 8000 }, (_, i) => `k${i} = @"\nline\n"@`).join("\n") + "\n}");
   guard("a hashtable with 64000 unterminated here-string openers", "irm -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Body @{title='x'; type='Bug'; " + Array.from({ length: 64000 }, (_, i) => `k${i} = @"`).join("\n") + "\n}");
-  guard("a hashtable with 16000 here-string values whose terminators are indented", "irm -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Body @{title='x'; type='Bug'; " + Array.from({ length: 16000 }, (_, i) => `k${i} = @"\nline\n  "@`).join("\n") + "\n}");
-  guard("a 170 KB unparseable JSON body with 8000 escaped quotes and a value ending in a backslash", "curl -X POST https://api.github.com/repos/ImpowerGames/impower/issues -d '{\"title\":\"x\",\"type\":\"Bug\",\"body\":\"" + 'He said \\"hi\\" then. '.repeat(8000) + "see C:\\logs\\\",}'");
-  guard("a command with 8000 unterminated double quotes after a $( ) in quotes", 'echo "$(date)" ' + '`"'.repeat(8000));
+  guard("a hashtable with 32000 here-string values whose terminators are indented", "irm -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Body @{title='x'; type='Bug'; " + Array.from({ length: 32000 }, (_, i) => `k${i} = @"\nline\n  "@`).join("\n") + "\n}");
+  guard("a 340 KB unparseable JSON body with 16000 escaped quotes and a value ending in a backslash", "curl -X POST https://api.github.com/repos/ImpowerGames/impower/issues -d '{\"title\":\"x\",\"type\":\"Bug\",\"body\":\"" + 'He said \\"hi\\" then. '.repeat(16000) + "see C:\\logs\\\",}'");
+  guard("a command with 32000 unterminated double quotes after a $( ) in quotes", 'echo "$(date)" ' + '`"'.repeat(32000));
+  guard("a command with 16000 backtick-escaped quotes in a row", "echo " + '"`=`'.repeat(16000) + " && gh issue view 443");
+  guard("a 64 KB run of spaces inside a hashtable value", "irm -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Body @{title='x'; type='Bug'; body='" + " ".repeat(65536) + "'}");
   guard("10000 shifts with named operands, then a typed create", Array.from({ length: 10000 }, (_, i) => `x=$((y << n${i}))`).join("\n") + "\ngh api -X POST repos/ImpowerGames/impower/issues -f title=x -f type=Bug");
   guard("32000 unbalanced groups after flags", "echo " + "-a ( ".repeat(32000));
   guard("32000 unbalanced hashtables after flags", "echo " + "-a @{ ".repeat(32000) + "}");

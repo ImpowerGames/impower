@@ -89,6 +89,7 @@ export function tokenize(command) {
   let started = false;
   let start = 0;
   let arith = 0;
+  let noEscapedCloseFrom = command.length;
   const heredocs = [];
   const flush = (end) => {
     if (started) tokens.push({ text, quoted, start, end });
@@ -146,7 +147,10 @@ export function tokenize(command) {
       quoted = true;
       // Backslash escapes apply only when they lead to a closing quote;
       // otherwise this is a PowerShell string where backslash is literal.
-      const backslashEscapes = scanQuote(command, i, true) >= 0;
+      // Once the escaping reading fails from some offset, it fails from
+      // every later one, so the scan is not repeated.
+      const backslashEscapes = i < noEscapedCloseFrom && scanQuote(command, i, true) >= 0;
+      if (!backslashEscapes) noEscapedCloseFrom = Math.min(noEscapedCloseFrom, i);
       i++;
       while (i < n && command[i] !== '"') {
         if (backslashEscapes && command[i] === "\\" && i + 1 < n && '"\\$`\n'.includes(command[i + 1])) {
@@ -726,7 +730,7 @@ const TYPE_ENTRY = /(["']type["']\s*[:=]\s*\S|(^|[{;,(&\n\r])\s*type\s*=\s*\S)/;
  * A JSON body is parsed; anything else has its string values blanked first,
  * so prose inside a title or a body text does not count.
  */
-function bodyHasTypeField(body, powershell = false) {
+function bodyHasTypeField(body) {
   const inner = unwrapBody(body);
   if (/^[{[]/.test(inner)) {
     try {
@@ -748,7 +752,7 @@ function bodyHasTypeField(body, powershell = false) {
   // Every quoted or here-string value is blanked first (a one-character
   // placeholder when it has content, an empty string otherwise), then empty
   // type entries are dropped, then the entry regex runs on what is left.
-  const blanked = blankValues(inner, powershell).replace(/["']?type["']?\s*[:=]\s*(["'])\1/g, "");
+  const blanked = blankValues(inner).replace(/["']?type["']?\s*[:=]\s*(["'])\1/g, "");
   return TYPE_ENTRY.test(blanked);
 }
 
@@ -759,16 +763,15 @@ function bodyHasTypeField(body, powershell = false) {
  * here-string (`@"` or `@'` at a line end, through the matching `"@` or
  * `'@` at a line start); a here-string with no terminator is text. Quoted
  * text is consumed as a unit, so an `= @"` inside a value is never taken
- * for an opener, and every character is visited once. A PowerShell body
- * (the caller says which) reads a backslash as literal; a Bash body reads
- * it as an escape while that reading keeps reaching closing quotes.
+ * for an opener, and every character is visited once. A hashtable literal
+ * is PowerShell, where a backslash is literal; any other body is JSON-like,
+ * where a backslash escapes while that reading keeps reaching closing
+ * quotes and is literal from the first time it does not, so each quote is
+ * scanned at most twice over the whole body.
  */
-function blankValues(text, powershell) {
+function blankValues(text) {
   const n = text.length;
-  // Bash bodies read a backslash as an escape until that reading first
-  // fails to find a closing quote; from then on backslashes are literal,
-  // so each quote is scanned at most twice over the whole body.
-  let backslashEscapes = !powershell;
+  let backslashEscapes = !text.startsWith("@{");
   const noTerminator = { '"': false, "'": false };
   let out = "";
   let k = 0;
@@ -812,17 +815,20 @@ function blankValues(text, powershell) {
 /** Strips the wrappers a body may sit in (`(...)`, `$(...)`, `@(...)`, one layer of quotes) and unescapes the quotes inside. */
 function unwrapBody(body) {
   let s = body.trim();
-  // `ConvertTo-Json`, with any flags, before or after (piped) the object.
-  const toJsonFlags = String.raw`(?:\s+-[\w-]+(?:\s+(?!-)[^\s@{(]\S*)?)*`;
+  // `ConvertTo-Json`, with any flags (`-Depth 10`, `-Depth:10`), before or
+  // after (piped) the object. The pipe form is tested only on the text
+  // after the last `|`, anchored, so no whitespace run is backtracked.
+  const toJsonFlags = String.raw`(?:\s+-[\w-]+(?:(?:\s+|[:=]\s*)(?!-)[^\s@{(]\S*)?)*`;
   const toJsonPrefix = new RegExp(String.raw`^convertto-json${toJsonFlags}\s+(?=[$@(]?[{(])`, "i");
-  const toJsonPipe = new RegExp(String.raw`\s*\|\s*convertto-json${toJsonFlags}\s*$`, "i");
+  const toJsonTail = new RegExp(String.raw`^\|\s*convertto-json${toJsonFlags}\s*$`, "i");
   for (let guard = 0; guard < 6; guard++) {
     if (/^[$@]?\(/.test(s) && s.endsWith(")")) {
       s = s.replace(/^[$@]?\(/, "").slice(0, -1).trim();
       continue;
     }
-    if (toJsonPipe.test(s)) {
-      s = s.replace(toJsonPipe, "").trim();
+    const pipe = s.lastIndexOf("|");
+    if (pipe > 0 && toJsonTail.test(s.slice(pipe))) {
+      s = s.slice(0, pipe).trim();
       continue;
     }
     if (toJsonPrefix.test(s)) {
@@ -891,7 +897,7 @@ function checkCurl(args) {
   }
   const creates = method === null ? bodies.length > 0 && !get : method === "POST";
   if (!creates) return null;
-  if (bodies.some(bodyHasTypeField)) return null;
+  if (bodies.some((b) => bodyHasTypeField(b))) return null;
   return (
     "This creates an issue without an issue type (or from a body the hook cannot read). " +
     "Use the gh recipe instead: " + RECIPE
@@ -920,7 +926,7 @@ function checkInvokeRestMethod(args) {
   const body = bodyText(args);
   const posts = /(^|\s)-method\s+post\b/i.test(joined) || body !== null;
   if (!posts) return null;
-  if (body !== null && bodyHasTypeField(body, true)) return null;
+  if (body !== null && bodyHasTypeField(body)) return null;
   return (
     "This creates an issue without an issue type (or from a body the hook cannot read). " +
     "Use the gh recipe instead: " + RECIPE
