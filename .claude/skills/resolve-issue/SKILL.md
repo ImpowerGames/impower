@@ -316,14 +316,30 @@ Where a whole-file revert would break the test's imports (the fix adds an export
 
 **5c — run the suite.** Start with the file, widen to the package.
 
+Then typecheck. `npm run typecheck` at the repo root runs `tsc --noEmit` over all 41 projects and takes about four minutes. Mid-change you usually want a subset, so it takes filters — each one a **substring** of a project's config path, not a directory:
+
+```bash
+npm run typecheck -- packages/sparkdown/tsconfig.json
+```
+
+```
+ok   101641ms  packages/sparkdown/tsconfig.json
+
+1/1 project(s) clean in 101.6s
+```
+
+Because it is a substring, `packages/sparkdown` matches six projects (`sparkdown`, `sparkdown-language-server`, `sparkdown-document-views`, and three more) — useful when you want the neighbours too, surprising when you did not. `--list` prints every project without checking any, and `--jobs N` sets how many run at once (default 2, which is what CI uses).
+
+A project your change reaches through an import is checked when that project runs, not when yours does, so widen to the whole gate before you push. CI runs the same command on every pull request (`.github/workflows/typecheck.yml`), so a type error blocks the merge — a clean local run is now worth something, and a red one is a real failure rather than noise to route around.
+
 Then run the standalone checks under `.claude/`. Nothing in CI invokes them, so they only ever run because someone remembers to; they are quick, and each one pins a footgun that has already cost a session. There are two kinds — shell checks over the skill's own prose, and `.mjs` checks over the pure functions in `driver.mjs`:
 
 ```bash
-for t in .claude/**/*.test.sh; do echo "--- $t"; bash "$t" || echo "FAILED: $t"; done
-for t in .claude/**/*.test.mjs; do echo "--- $t"; node "$t" || echo "FAILED: $t"; done
+for t in $(find .claude -name "*.test.sh"); do echo "--- $t"; bash "$t" || echo "FAILED: $t"; done
+for t in $(find .claude -name "*.test.mjs"); do echo "--- $t"; node "$t" || echo "FAILED: $t"; done
 ```
 
-(Needs `shopt -s globstar` in bash, or list them explicitly.)
+`find` rather than a `**` glob on purpose: bash only expands `**` across directories with `shopt -s globstar` set, and without it the loop matches nothing, runs nothing, and prints nothing — which reads exactly like a pass. Count the `---` lines against what `find .claude -name "*.test.*"` returns.
 
 A shell check that hangs rather than failing is usually the machine, not your change: they spawn many small processes and a running dev-server build starves them. Re-run once the build finishes before believing a timeout.
 
@@ -638,7 +654,6 @@ Things that look like they work and don't:
   ```
   Grep for the **rule name**, not the regex — the YAML uses `{{WS}}`-style templating so the expanded pattern does not appear in the source.
 - **Heredocs are lossy through some shell paths here** (a `//` comment came out as `/`, breaking a file mid-edit). Write files with the editor tool, not by piping a heredoc.
-- **`tsc` is not a gate** — there is no CI typecheck anywhere in the repo, and the only PR workflow is the VS Code extension's _bundler_ build (esbuild strips types without checking them). A clean `tsc` proves nothing about CI, and a broken one blocks nothing. Verify with vitest. **This is being fixed — see [#320](https://github.com/ImpowerGames/impower/issues/320). When that lands on `main`, delete this bullet** and add the typecheck command to §5 alongside the test suite.
 - These console messages are **pre-existing noise** on every run, not something your change caused: `Unhandled method workspace/semanticTokens/refresh`, `.../diagnostic/refresh`, `.../foldingRange/refresh`, and a couple of resource 404s.
 
 ---
