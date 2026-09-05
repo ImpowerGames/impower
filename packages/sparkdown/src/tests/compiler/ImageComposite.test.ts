@@ -128,7 +128,7 @@ describe("getImageCompositeSrc", () => {
     expect(drawn).toEqual(["base", "prop", "light"]);
   });
 
-  it("does not composite a single-layer asset", async () => {
+  it("does not composite a single-layer asset the host can load as it is", async () => {
     stubRasterizer();
     const calls = stubFetch();
     const ctx = makeContext("single", ["only"]);
@@ -137,6 +137,53 @@ describe("getImageCompositeSrc", () => {
     // Nothing to flatten, so nothing should have been fetched or drawn.
     expect(calls).toEqual([]);
     expect(drawn).toEqual([]);
+  });
+
+  // #440: in VS Code a single raster image's src is a workspace uri, which the
+  // markdown sanitizer strips off the element — leaving an image with nothing
+  // to load. It has to be inlined as `data:` the way a composite already is.
+  it("inlines a single image whose src the host cannot load", async () => {
+    stubRasterizer();
+    stubFetch({ fails: true });
+    const ctx = makeContext("workspaceuri", ["lone"]);
+    ctx.image["lone"]!.src = "file://proj/workspaceuri/lone.png";
+    const asked: string[] = [];
+    const src = await getImageCompositeSrc(ctx, ctx.image["lone"], {
+      readFileBytes: async (uri) => {
+        asked.push(uri);
+        return btoa("lone");
+      },
+    });
+    expect(src).toMatch(/^data:image\/webp;base64,/);
+    expect(asked).toEqual(["file://proj/workspaceuri/lone.png"]);
+    expect(drawn).toEqual(["lone"]);
+  });
+
+  it.each([
+    ["served-url", "https://cdn.example/pic.png"],
+    ["inlined-data-uri", "data:image/svg+xml,%3Csvg%2F%3E"],
+    ["page-relative-path", "/file:/local/assets/pic.png?v=1-2"],
+  ])("leaves a single image on a %s alone", async (label, srcValue) => {
+    stubRasterizer();
+    const calls = stubFetch();
+    const ctx = makeContext(label, ["lone"]);
+    ctx.image["lone"]!.src = srcValue;
+    const src = await getImageCompositeSrc(ctx, ctx.image["lone"], {
+      readFileBytes: async () => btoa("lone"),
+    });
+    // Re-encoding a source the host already renders costs work and sharpness.
+    expect(src).toBeUndefined();
+    expect(calls).toEqual([]);
+    expect(drawn).toEqual([]);
+  });
+
+  it("degrades to the plain src when a lone workspace uri has no bridge", async () => {
+    stubRasterizer();
+    stubFetch({ fails: true });
+    const ctx = makeContext("nobridge", ["lone"]);
+    ctx.image["lone"]!.src = "file://proj/nobridge/lone.png";
+    const src = await getImageCompositeSrc(ctx, ctx.image["lone"]);
+    expect(src).toBeUndefined();
   });
 
   it("falls back to the byte bridge when a layer can't be fetched", async () => {
