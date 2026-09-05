@@ -24,12 +24,15 @@ const NODE_ID = "packages/textmate-grammar-tree/src/core/enums/NodeID.ts";
 const NODE_NAME = "packages/textmate-grammar-tree/src/grammar/types/NodeName.ts";
 const ROOT_RULE = "sparkdown";
 
-// Files whose node names belong to another grammar, or to none.
+// Files whose node names belong to another grammar, or to none, and the
+// typecheck fixture that deliberately uses names the grammar cannot produce
+// to prove that `tsc` rejects them.
 export const SKIPPED_PREFIXES = [
   "packages/sparkdown/src/inkjs/",
   "packages/textmate-grammar-tree/",
   "packages/codemirror-vscode-language/",
   "packages/sparkdown/src/tests/incremental/crossChunkAssemblySpike.test.ts",
+  "packages/sparkdown-language-server/src/tests/types/nodeNameTyping.typecheck.ts",
 ];
 
 // A file can hold a node name only if it reaches the tree: through a tree

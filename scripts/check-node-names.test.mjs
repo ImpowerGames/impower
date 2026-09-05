@@ -109,5 +109,10 @@ test("the file filter keeps the files the check exists for", () => {
     assert.ok(!p.startsWith("packages/sparkdown/src/inkjs/"), `${p} belongs to the ink engine`);
     assert.ok(!p.startsWith("packages/textmate-grammar-tree/"), `${p} has no sparkdown names`);
   }
+  // The typecheck fixture holds names the grammar cannot produce on purpose.
+  assert.ok(
+    !files.includes("packages/sparkdown-language-server/src/tests/types/nodeNameTyping.typecheck.ts"),
+    "the typecheck fixture must not be scanned",
+  );
   assert.ok(files.length >= 100, `expected at least 100 scanned files, got ${files.length}`);
 });
