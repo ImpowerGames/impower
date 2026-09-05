@@ -9,7 +9,7 @@ import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { decide, inferShell } from "./typed-issue-hook.mjs";
+import { decide } from "./typed-issue-hook.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 let failed = 0;
@@ -272,25 +272,38 @@ const denies = [
   ["a create after a Set-Location to a path ending in a backslash under PowerShell", 'Set-Location "C:\\out\\" ; gh issue create --title "x" --body-file t.md', "powershell"],
   ["a create between an assignment of a path ending in a backslash and a Write-Host under PowerShell", '$y = "C:\\out\\" ; gh issue create --title x ; Write-Host "done"', "powershell"],
   ["an untyped irm create after a Write-Host of a path ending in a backslash under PowerShell", 'Write-Host "C:\\dist\\" ; irm -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Body @{title="x"; body="y"}', "powershell"],
-  ["a create after a $( ) following curl -H with a backslash-quote under PowerShell", 'curl -H $(python -c "print(\\"X-A: b\\")") https://x ; gh issue create -t x', "powershell"],
-  ["a create after a $( ) following git -C with a backslash-quote under PowerShell", 'git -C $(node -e "console.log(\\"d\\")") log ; gh issue create -t x', "powershell"],
+  ["a create after a $( ) following curl -H with a backslash-quote under PowerShell", 'curl -H $(python -c "print(\\"X-A: b\\")") https://x ; gh issue create -t x'],
+  ["a create after a $( ) following git -C with a backslash-quote under PowerShell", 'git -C $(node -e "console.log(\\"d\\")") log ; gh issue create -t x'],
   ["an untyped irm create with a backslash-quoted body under PowerShell", 'irm -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Method Post -Body "{\\"title\\":\\"x\\",\\"type\\":\\"Bug\\"}"', "powershell"],
   ["a create after a bare path ending in a backslash glued to a semicolon under PowerShell", "cd C:\\out\\; gh issue create --title x", "powershell"],
-  // A Bash-style continuation under PowerShell joins the lines only when
-  // the next line begins with a flag.
-  ["an untyped implicit-POST create continued onto a flag line under PowerShell", "gh api repos/ImpowerGames/impower/issues \\\n  -f title=x", "powershell"],
+  // PowerShell runs a backslash-terminated line on its own, so the type on
+  // the next line does not count and a create on the next line is a
+  // statement of its own.
   ["a create on the line after a backslash-terminated echo under PowerShell", "echo a \\\ngh issue create -t x", "powershell"],
-  ["an untyped implicit-POST create continued onto a flag line whose body says read-only, with the shell inferred", "gh api repos/ImpowerGames/impower/issues \\\n  -f title=x \\\n  -f 'body=the tree is read-only'"],
+  ["a typed create split over Bash-style backslash lines under PowerShell, whose first line is an untyped POST", "gh api -X POST repos/ImpowerGames/impower/issues \\\n  -f title=x \\\n  -f type=Bug", "powershell"],
+  ["a typed create split over CRLF Bash-style backslash lines under PowerShell", "gh api -X POST repos/ImpowerGames/impower/issues \\\r\n  -f title=x \\\r\n  -f type=Bug", "powershell"],
+  ["a create whose body file argument ends in a backslash before the type line under PowerShell", "gh api -X POST repos/ImpowerGames/impower/issues -f title=x -F body=@ticket.md\\\n  -f type=Bug", "powershell"],
+  ["a create whose body path ends in a backslash before the type line under PowerShell", "gh api -X POST repos/ImpowerGames/impower/issues -f title=x -f body=C:\\repro\\\n  -f type=Bug", "powershell"],
+  ["a gh issue create whose title ends in a backslash before a --repo line under PowerShell", "gh issue create --title x\\\n  -R other/repo", "powershell"],
+  ["an untyped implicit-POST create continued onto a flag line whose body says read-only, with no tool name", "gh api repos/ImpowerGames/impower/issues \\\n  -f title=x \\\n  -f 'body=the tree is read-only'", "bash"],
+  ["a create after a comment naming a cmdlet and a bare path ending in a backslash, with no tool name", "# Get-Content leaves the file locked\ncd C:\\out\\\ngh issue create --title x", "powershell"],
+  // In a Bash command a backtick pair is a substitution even before `$`.
+  ["a create in a backquote around a $( ) inside double quotes under Bash", 'echo "`$(gh issue create --title x)`"', "bash"],
+  // gh issue create needs a --type value.
+  ["gh issue create with --type and no value", "gh issue create --title x --type"],
+  ["gh issue create with --type followed by another flag", "gh issue create --type --title x"],
+  ["gh issue create with an empty --type", 'gh issue create --title x --type ""'],
+  ["gh issue create with -T, which is the template flag", "gh issue create -T Bug --title x"],
   // A hashtable group after a flag is analysed for the commands it runs.
-  ["a create inside a hashtable value after a flag under Bash", "echo -x @{a=$(gh issue create -t x)}", "bash"],
-  ["a create inside a hashtable value after a flag under PowerShell", "echo -x @{a=$(gh issue create -t x)}", "powershell"],
-  ["a create inside an irm -Headers hashtable value under PowerShell", "irm -Headers @{a=$(gh issue create -t x)} -Uri https://x", "powershell"],
-  ["a create in a parenthesised irm -Headers hashtable value under PowerShell", "irm -Headers @{a=(gh issue create -t x)} -Uri https://x", "powershell"],
-  ["a create as an irm -Body group under PowerShell", "irm -Body (gh issue create -t x) -Uri https://x", "powershell"],
+  ["a create inside a hashtable value after a flag under Bash", "echo -x @{a=$(gh issue create -t x)}"],
+  ["a create inside a hashtable value after a flag under PowerShell", "echo -x @{a=$(gh issue create -t x)}"],
+  ["a create inside an irm -Headers hashtable value under PowerShell", "irm -Headers @{a=$(gh issue create -t x)} -Uri https://x"],
+  ["a create in a parenthesised irm -Headers hashtable value under PowerShell", "irm -Headers @{a=(gh issue create -t x)} -Uri https://x"],
+  ["a create as an irm -Body group under PowerShell", "irm -Body (gh issue create -t x) -Uri https://x"],
   // A backtick pair inside a double-quoted string is a substitution only
   // in a Bash command.
   ["a PR comment quoting the phrase in backticks under Bash", 'gh pr comment 445 --body "prefer `gh api` over `gh issue create` here"', "bash"],
-  ["a create after a backtick-escaped quote in a Write-Host string under PowerShell", 'Write-Host "x`"y" ; gh issue create -t x', "powershell"],
+  ["a create after a backtick-escaped quote in a Write-Host string under PowerShell", 'Write-Host "x`"y" ; gh issue create -t x'],
   ["an untyped curl create after an unbalanced flag group", 'echo -a @{ ; curl -X POST https://api.github.com/repos/ImpowerGames/impower/issues -d "{\\"title\\":\\"x\\",\\"body\\":\\"y\\"}"'],
   // A JSON string body is read with JSON escapes whichever shell sends it,
   // so this body, which is not valid JSON (a bare `\s` and a `\"` that
@@ -307,7 +320,7 @@ const allows = [
   ["typed create, -F type=Bug is still a string", "gh api repos/ImpowerGames/impower/issues -f title=x -F type=Bug"],
   ["typed create, absolute URL", "gh api https://api.github.com/repos/ImpowerGames/impower/issues -f title=x -f type=Bug"],
   ["typed create, -X=POST", "gh api -X=POST repos/ImpowerGames/impower/issues -f title=x -f type=Bug"],
-  ["typed create, multi-line with --jq", "gh api -X POST repos/ImpowerGames/impower/issues \\\n  -f title=x -f type=Bug \\\n  --jq '{number, url: .html_url, type: .type.name}'"],
+  ["typed create, multi-line with --jq", "gh api -X POST repos/ImpowerGames/impower/issues \\\n  -f title=x -f type=Bug \\\n  --jq '{number, url: .html_url, type: .type.name}'", "bash"],
   ["typed create, PowerShell backtick continuation", "gh api -X POST repos/ImpowerGames/impower/issues `\n  -f title=x `\n  -f type=Bug"],
   ["typed create, PowerShell backtick continuation with CRLF", "gh api -X POST repos/ImpowerGames/impower/issues `\r\n  -f title=x `\r\n  -f type=Bug"],
   ["typed create with a trailing comment", "gh api repos/ImpowerGames/impower/issues -f title=x -f type=Bug   # not gh issue create"],
@@ -454,15 +467,21 @@ const allows = [
   ["echo of a shell -c string", "echo bash -c 'gh issue create --title x'"],
   ["a glued group before a here-doc holding the phrase", "Write-Output ((Get-Item x).Length)\ncat > t.md <<'EOF'\ngh issue create is refused here.\nEOF"],
   ["a 2>&1 view", "2>&1 gh issue view 443"],
-  ["Invoke-RestMethod typed double-quoted body with backtick-escaped quotes", 'irm -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Method Post -Body "{`"title`":`"x`",`"type`":`"Bug`"}"'],
+  ["Invoke-RestMethod typed double-quoted body with backtick-escaped quotes", 'irm -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Method Post -Body "{`"title`":`"x`",`"type`":`"Bug`"}"', "powershell"],
   ["Invoke-RestMethod typed double-quoted body with backslash-escaped quotes, read as Bash", 'irm -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Method Post -Body "{\\"title\\":\\"x\\",\\"type\\":\\"Bug\\"}"', "bash"],
   // Under the PowerShell tool a backslash is literal, so a Windows path
   // ending in one does not swallow the rest of the line.
-  ["a typed create after a cd to a path ending in a backslash under PowerShell", 'cd "C:\\out\\" ; gh api -X POST repos/ImpowerGames/impower/issues -f title=x -f type=Bug', "powershell"],
-  ["a typed irm create after a Write-Host of a path ending in a backslash under PowerShell", 'Write-Host "C:\\dist\\" ; irm -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Body @{title="x"; type="Bug"}', "powershell"],
-  ["a comment on an issue after a cd to a path ending in a backslash under PowerShell", 'cd "C:\\out\\" ; gh api -X POST repos/ImpowerGames/impower/issues/443/comments -f body=x', "powershell"],
-  ["a typed create continued over Bash-style backslash lines under PowerShell", "gh api -X POST repos/ImpowerGames/impower/issues \\\n  -f title=x \\\n  -f type=Bug", "powershell"],
-  ["a typed create continued over CRLF Bash-style backslash lines under PowerShell", "gh api -X POST repos/ImpowerGames/impower/issues \\\r\n  -f title=x \\\r\n  -f type=Bug", "powershell"],
+  ["a typed create after a cd to a path ending in a backslash under PowerShell", 'cd "C:\\out\\" ; gh api -X POST repos/ImpowerGames/impower/issues -f title=x -f type=Bug'],
+  ["a typed irm create after a Write-Host of a path ending in a backslash under PowerShell", 'Write-Host "C:\\dist\\" ; irm -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Body @{title="x"; type="Bug"}'],
+  ["a comment on an issue after a cd to a path ending in a backslash under PowerShell", 'cd "C:\\out\\" ; gh api -X POST repos/ImpowerGames/impower/issues/443/comments -f body=x'],
+  ["an implicit-POST create split over a Bash-style backslash line under PowerShell, where neither line creates", "gh api repos/ImpowerGames/impower/issues \\\n  -f title=x", "powershell"],
+  ["a backquote around a $( ) inside double quotes under PowerShell, where the backtick escapes the dollar", 'echo "`$(gh issue create --title x)`"', "powershell"],
+  ["a typed create inside a hashtable value after a flag under Bash", "echo -x @{a=$(gh api -X POST repos/ImpowerGames/impower/issues -f title=x -f type=Bug)}"],
+  ["a typed create inside an irm -Headers hashtable value under PowerShell", "irm -Headers @{a=$(gh api -X POST repos/ImpowerGames/impower/issues -f title=x -f type=Bug)} -Uri https://x"],
+  ["gh issue create with --type Bug", "gh issue create --title x --body y --type Bug"],
+  ["gh issue create with --type=Task", "gh issue create --type=Task --title x --body-file ticket.md"],
+  ["gh issue create with --type Feature and this repo named", "gh issue create --type Feature -R ImpowerGames/impower --title x"],
+  ["gh issue create with --type Bug under PowerShell", "gh issue create --title x --type Bug"],
   ["a PR comment quoting the phrase in backticks under PowerShell", 'gh pr comment 445 --body "prefer `gh api` over `gh issue create` here"', "powershell"],
   ["a Write-Host quoting the phrase in backticks under PowerShell", 'Write-Host "run `gh issue create` by hand"', "powershell"],
   ["Invoke-RestMethod typed single-quoted body with a doubled apostrophe", "Invoke-RestMethod -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Body '{\"title\":\"it''s broken\",\"type\":\"Bug\"}'"],
@@ -580,14 +599,6 @@ for (const [label, command, shell] of allows) {
   const unnamed = denies.filter((r) => !r[2]).length + allows.filter((r) => !r[2]).length;
   check(shellNeutral === unnamed, "every row without a named shell decides the same under both shells", `${unnamed - shellNeutral} row(s) depend on the shell`);
 }
-// The shell inferred when a payload carries no tool name: a cmdlet at
-// command position means PowerShell; a hyphenated word elsewhere does not.
-for (const c of ["npm run test-watch", "npm run start-dev", "npm run format-check", "python get-pip.py", "mount -o read-only /mnt", "make clear-cache", "add-apt-repository ppa:x/y", "gh api repos/ImpowerGames/impower/issues -f 'body=the tree is read-only'", "echo add-apt-repository", "kubectl get-all", "git log --format=%s", "gh issue create --title x"]) {
-  check(inferShell(c) === "bash", `inferred Bash: ${c}`, `got ${inferShell(c)}`);
-}
-for (const c of ["irm https://x", "iwr https://x", "$x = Get-Content f", 'Set-Location "C:\\out\\" ; gh issue view 1', "irm -Body (ConvertTo-Json @{a=1})", "ls | Select-Object name", "Test-Path x", "cd x; Get-ChildItem", "Invoke-RestMethod -Uri https://x", "New-Item -ItemType Directory x"]) {
-  check(inferShell(c) === "powershell", `inferred PowerShell: ${c}`, `got ${inferShell(c)}`);
-}
 // The shell decides how a `$(` after a flag is read: in PowerShell it is
 // the flag's value, in Bash it is a substitution and the flag is ignored.
 {
@@ -606,9 +617,12 @@ for (const c of ["irm https://x", "iwr https://x", "$x = Get-Content f", 'Set-Lo
   // the text is the one the Bash reading allows above.
   check(typeof decide(`pwsh -Command '${psInFile}'`, "bash") === "string", "denied: an untyped irm create after -InFile $( ) inside pwsh -Command under the Bash tool");
   check(typeof decide(`bash -c '${bashWall}'`, "powershell") === "string", "denied: a create after gcc -Wall $( ) inside bash -c under the PowerShell tool");
-  check(typeof decide(psInFile) === "string", "denied: an untyped irm create after -InFile $( ) with the shell inferred");
-  check(decide(psTyped) === null, "allowed: a typed irm create after -InFile $( ) with the shell inferred");
-  check(typeof decide(bashWall) === "string", "denied: a create after gcc -Wall $( ) with the shell inferred");
+  // Without a tool name the command is read both ways and refused if
+  // either reading refuses it.
+  check(typeof decide(psInFile) === "string", "denied: an untyped irm create after -InFile $( ) with no tool name");
+  check(decide(psTyped) === null, "allowed: a typed irm create after -InFile $( ) with no tool name");
+  check(typeof decide(bashWall) === "string", "denied: a create after gcc -Wall $( ) with no tool name");
+  check(decide(psInFile, "bash") === null && typeof decide(psInFile, "powershell") === "string" && typeof decide(psInFile) === "string", "a text one reading allows and the other refuses is refused with no tool name");
 }
 
 // The wired command string, under bash and under a plain POSIX shell.
@@ -650,6 +664,11 @@ for (const c of ["irm https://x", "iwr https://x", "$x = Get-Content f", 'Set-Lo
     wire("payload without tool_input", payload("Bash", undefined), false);
     wire("pretty-printed multi-line payload", JSON.stringify({ tool_name: "Bash", tool_input: { command: "gh issue create --title x" } }, null, 2), true);
     wire("unparseable payload mentioning gh api", "{not json gh api repos/x/y/issues", true);
+    {
+      const r = run("{not json gh api repos/x/y/issues");
+      const reason = (() => { try { return JSON.parse(r.stdout).hookSpecificOutput.permissionDecisionReason; } catch { return ""; } })();
+      check(/could not parse the tool payload.*File it with: gh api -X POST .* # /.test(reason), `[${shell}] the unparseable-payload reason carries the recipe`, JSON.stringify(reason));
+    }
     wire("unparseable payload without gh", "{not json", false);
     wire("deny reason survives a percent sign", payload("Bash", { command: "gh issue create --title '100%'" }), true);
     wire("large payload without gh", payload("Bash", { command: "echo " + "x".repeat(200000) }), false);
@@ -677,10 +696,16 @@ for (const c of ["irm https://x", "iwr https://x", "$x = Get-Content f", 'Set-Lo
     // mentions a PowerShell cmdlet, and read as PowerShell its create
     // would vanish into the -Lsf group.
     wire("create after curl -Lsf $( ) in a Bash command that mentions Get-Content", payload("Bash", { command: 'grep -rn Get-Content notes.md ; curl -Lsf $(node -e "console.log(\\"Bearer \\" + t)") https://x ; gh issue create --title x --body-file t.md' }), true);
-    wire("tool name in another case still wins over the text", payload("bash", { command: 'Get-Content notes.md ; echo -n $(cmd "a \\") b") ; gh issue create -t x' }), true);
+    // A text the Bash reading allows and the PowerShell reading refuses:
+    // allowed under the Bash tool in any spelling, refused with no tool name.
+    wire("PowerShell-only text under the Bash tool", payload("Bash", { command: 'irm -InFile $(Get-Content "C:\\dist\\") -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Body @{title="x"; body="y"}' }), false);
+    wire("PowerShell-only text under the Bash tool named in lower case", payload("bash", { command: 'irm -InFile $(Get-Content "C:\\dist\\") -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Body @{title="x"; body="y"}' }), false);
+    wire("PowerShell-only text with no tool name", JSON.stringify({ tool_input: { command: 'irm -InFile $(Get-Content "C:\\dist\\") -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Body @{title="x"; body="y"}' } }), true);
+    wire("gh issue create with --type Bug", payload("Bash", { command: "gh issue create --title x --body-file t.md --type Bug" }), false);
     wire("create after a path ending in a backslash under the PowerShell tool", payload("PowerShell", { command: 'cd "C:\\out\\" ; gh issue create --title "x" --body-file t.md' }), true);
     wire("typed create after a path ending in a backslash under the PowerShell tool", payload("PowerShell", { command: 'cd "C:\\out\\" ; gh api -X POST repos/ImpowerGames/impower/issues -f title=x -f type=Bug' }), false);
-    wire("typed create over Bash-style backslash lines under the PowerShell tool", payload("PowerShell", { command: "gh api -X POST repos/ImpowerGames/impower/issues \\\n  -f title=x \\\n  -f type=Bug" }), false);
+    wire("typed create split over Bash-style backslash lines under the PowerShell tool, whose first line is an untyped POST", payload("PowerShell", { command: "gh api -X POST repos/ImpowerGames/impower/issues \\\n  -f title=x \\\n  -f type=Bug" }), true);
+    wire("create whose body file argument ends in a backslash before the type line under the PowerShell tool", payload("PowerShell", { command: "gh api -X POST repos/ImpowerGames/impower/issues -f title=x -F body=@ticket.md\\\n  -f type=Bug" }), true);
     wire("untyped create over backslash lines with a read-only body and no tool name", JSON.stringify({ tool_input: { command: "gh api repos/ImpowerGames/impower/issues \\\n  -f title=x \\\n  -f 'body=the tree is read-only'" } }), true);
     wire("PR comment quoting the phrase in backticks under the PowerShell tool", payload("PowerShell", { command: 'gh pr comment 445 --body "prefer `gh api` over `gh issue create` here"' }), false);
     // The recipe in the deny reason is a runnable line under both tools.

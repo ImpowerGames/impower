@@ -54,13 +54,13 @@ Every issue and pull request follows a template under `.github/`. Two skills dri
 | Task (refactor, tooling, perf, docs, follow-up) | `.github/ISSUE_TEMPLATE/task.md`            |
 | Pull request                                    | `.github/PULL_REQUEST_TEMPLATE.md`          |
 
-Each template's leading comment gives the title convention and the label list; its `type:` front matter names the issue type to set (`Bug`, `Feature`, or `Task`). GitHub applies that type only through the web form, and `gh issue create` has no flag for it. From the command line, create the issue with one REST call that carries the type, so the issue never exists untyped:
+Each template's leading comment gives the title convention and the label list; its `type:` front matter names the issue type to set (`Bug`, `Feature`, or `Task`). GitHub applies that type through the web form, through `gh issue create --type`, and through the REST create call's `type` field. From the command line, create the issue with one call that carries the type, so the issue never exists untyped; the REST call also sets the labels and returns the type for checking:
 
 ```sh
 gh api -X POST repos/ImpowerGames/impower/issues -f title="<title>" -F body=@ticket.md -f type=Bug -f "labels[]=system: sparkdown"   # type is Bug, Feature, or Task; repeat labels[] per label
 ```
 
-A hook in `.claude/settings.json` (`.claude/hooks/typed-issue-hook.mjs`) refuses `gh issue create` on this repo, and a `gh api` call to this repo's issues collection that creates (an explicit POST, or field flags with no method) unless one of its field flags is `type=...`; the same rule applies to a `curl` or Invoke-RestMethod POST to that collection, and a GraphQL `createIssue` mutation is refused outright. It reads the command text statically, so it is a guard against forgetting the type rather than against evasion: an endpoint or method built from a shell variable, a gh alias, or a wrapper script is not seen, and untyped issues can still arrive from outside a Claude Code session in this checkout.
+A hook in `.claude/settings.json` (`.claude/hooks/typed-issue-hook.mjs`) refuses `gh issue create` on this repo unless it carries `--type <name>`, and a `gh api` call to this repo's issues collection that creates (an explicit POST, or field flags with no method) unless one of its field flags is `type=...`; the same rule applies to a `curl`, Invoke-RestMethod, or Invoke-WebRequest POST to that collection (including the `irm` and `iwr` aliases), and a GraphQL `createIssue` mutation is refused outright. It reads the command text statically, so it is a guard against forgetting the type rather than against evasion: an endpoint or method built from a shell variable, a gh alias, or a wrapper script is not seen, and untyped issues can still arrive from outside a Claude Code session in this checkout.
 
 Keep every heading, write "None", "Unknown", or "Not applicable" with a short reason under one you cannot fill, tick only the checklist items you actually did, and strip the HTML comments before filing. After filing, read the artifact back (`gh issue view N --json body`, `gh pr view N --json body`).
 

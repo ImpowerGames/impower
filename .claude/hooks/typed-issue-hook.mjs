@@ -2,20 +2,20 @@
 // that would create an issue in this repo's tracker without an issue type.
 //
 // Every ticket here carries one of Bug, Feature, or Task. `gh issue create`
-// cannot set a type, so it is refused. The REST create endpoint can, so a
-// `gh api` call that creates an issue is allowed only when one of its field
-// flags is `type=<value>`. `gh api` switches to POST on its own as soon as a
-// field flag is present, so the check looks at what the call does, not at
-// whether `-X POST` was typed.
+// is allowed only with `--type <value>`, and a `gh api` call that creates an
+// issue only when one of its field flags is `type=<value>`. `gh api`
+// switches to POST on its own as soon as a field flag is present, so the
+// check looks at what the call does, not at whether `-X POST` was typed.
 //
 // The payload arrives on stdin as JSON. tool_input.command is the text
 // checked and tool_name says which shell it is written for (PowerShell or
-// Bash); without a tool name the shell is inferred from PowerShell cmdlet
-// names in the command. The command is split into shell-style tokens (Bash
-// and PowerShell quoting, line continuations, comments, here-doc bodies,
-// and in a PowerShell command a `-Parameter`'s parenthesised, hashtable, or
-// `$(...)` value, with every backslash literal), so a mention of the phrase
-// in a quoted string, a comment, or a here-doc body is not a match. A `gh`
+// Bash); without a tool name the command is read both ways and refused if
+// either reading refuses it. The command is split into shell-style tokens
+// (Bash and PowerShell quoting, Bash line continuations, comments, here-doc
+// bodies, and a `-Parameter`'s parenthesised, hashtable, or `$(...)` value
+// in either shell, with every backslash literal and every backtick an escape
+// in a PowerShell command), so a mention of the phrase in a quoted string, a
+// comment, or a here-doc body is not a match. A `gh`
 // or `curl` token counts as an invocation only at command position: the
 // start of a segment, after a shell keyword such as `do` or `then`, after
 // environment assignments or redirections, or after a wrapper such as sudo,
@@ -173,11 +173,10 @@ function tokenize(command) {
         }
         if (command[i] === "`") {
           // In a PowerShell command a backtick escapes the next character.
-          // In a Bash command a backtick before one of PowerShell's escape
-          // characters (`n, `t, `", `$) is still an escape; otherwise, with
-          // a partner backtick later, it is a substitution; alone, literal.
+          // In a Bash command a backtick with a partner later opens a
+          // substitution; alone, it is literal.
           const next = command[i + 1] ?? "";
-          const close = currentShell === "powershell" || "0abfnrtv\"'$` ".includes(next) ? -1 : command.indexOf("`", i + 1);
+          const close = currentShell === "powershell" ? -1 : command.indexOf("`", i + 1);
           if (close < 0) {
             if (i + 1 < n) text += next;
             i += 2;
@@ -219,21 +218,17 @@ function tokenize(command) {
         continue;
       }
     }
-    if (c === "\\" && (command[i + 1] === "\n" || (command[i + 1] === "\r" && command[i + 2] === "\n"))) {
-      // A Bash line continuation joins the lines. PowerShell does not join
-      // them, but a Bash-style recipe pasted into the PowerShell tool is
-      // read joined when the next line begins with a flag: PowerShell would
-      // run nothing there, and the joined reading keeps a create together
-      // with its fields.
-      const after = command[i + 1] === "\n" ? i + 2 : i + 3;
-      if (currentShell !== "powershell" || /^[ \t]*-/.test(command.slice(after, after + 64))) {
-        i = after;
-        continue;
-      }
-    }
     if (c === "\\" && currentShell !== "powershell") {
       if (i + 1 < n) {
         const next = command[i + 1];
+        if (next === "\n") {
+          i += 2; // Bash line continuation; PowerShell runs the lines apart
+          continue;
+        }
+        if (next === "\r" && command[i + 2] === "\n") {
+          i += 3;
+          continue;
+        }
         begin(i);
         // A backslash before a quote, space, or another backslash escapes
         // it; anywhere else it is kept, so a Windows path from the
@@ -421,21 +416,8 @@ let partnerCacheShell = null;
 let partnerCache = null;
 
 // The shell the command under analysis is written for: "powershell" or
-// "bash". Set by decide() from the tool name in the payload, or inferred
-// from the command when no tool name is known.
+// "bash". Set by decide() from the tool name in the payload.
 let currentShell = "bash";
-
-// A PowerShell cmdlet at command position: the start of the text or of a
-// line, or after `;`, `|`, `&`, `(`, `{`, or an assignment's `= `. A
-// hyphenated word elsewhere (`npm run test-watch`, `-f body=read-only`) is
-// not one, and a longer hyphenated name (`add-apt-repository`) is not one
-// either.
-const POWERSHELL_WORDS = /(^|[;|&({\n\r]|=[ \t])[ \t]*(irm|iwr|(invoke|get|set|new|remove|start|stop|test|write|read|out|select|where|foreach|convertto|convertfrom|join|split|add|clear|copy|move|import|export|format|sort|measure|resolve|wait)-[a-z]+)(?![\w-])/i;
-
-/** "powershell" when the command uses a PowerShell cmdlet, else "bash". */
-export function inferShell(command) {
-  return POWERSHELL_WORDS.test(command) ? "powershell" : "bash";
-}
 
 /**
  * Map from the index of every balanced `(` or `{` to the index of its
@@ -682,6 +664,7 @@ function ghInvocation(args) {
 
 function checkGhIssueCreate(args, presetRepo) {
   let repo = presetRepo;
+  let typed = false;
   for (let i = 0; i < args.length; i++) {
     const t = args[i].text;
     const name = flagName(t);
@@ -692,12 +675,19 @@ function checkGhIssueCreate(args, presetRepo) {
       i += used - 1;
       continue;
     }
+    if (name === "--type") {
+      const [value, used] = flagValue(args, i);
+      const isValue = value !== "" && !value.startsWith("-");
+      if (isValue) typed = true;
+      if (isValue || used === 1) i += used - 1;
+      continue;
+    }
     if (GH_ISSUE_CREATE_VALUE_FLAGS.has(name) && takesNextToken(t, name)) i++;
   }
-  if (repo !== null && !isThisRepo(repo)) return null;
+  if (typed || (repo !== null && !isThisRepo(repo))) return null;
   return (
-    "gh issue create cannot set an issue type, and every ticket here carries one (Bug, Feature, or Task). " +
-    "Create the issue with one typed REST call instead: " + RECIPE
+    "gh issue create without --type leaves the issue untyped, and every ticket here carries one (Bug, Feature, or Task). " +
+    "Add --type Bug (or Feature, or Task), or create the issue with one typed REST call instead: " + RECIPE
   );
 }
 
@@ -1126,11 +1116,14 @@ function programBefore(seg, flagIndex) {
 
 /**
  * Returns a deny reason for the command, or null to allow it. `shell` is
- * "powershell" or "bash"; when omitted it is inferred from the command.
+ * "powershell" or "bash"; when omitted the command is read both ways and
+ * refused if either reading refuses it. Substitutions and -c strings are
+ * analysed to a depth of three; a create nested deeper is not seen.
  */
 export function decide(command, shell, depth = 0) {
   if (typeof command !== "string" || command.length === 0 || depth > 3) return null;
-  currentShell = shell === "powershell" || shell === "bash" ? shell : inferShell(command);
+  if (shell !== "powershell" && shell !== "bash") return decide(command, "bash", depth) ?? decide(command, "powershell", depth);
+  currentShell = shell;
   const tokens = tokenize(command);
   const outerShell = currentShell;
   for (const sub of tokens.subs) {
