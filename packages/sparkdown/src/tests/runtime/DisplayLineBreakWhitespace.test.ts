@@ -37,6 +37,15 @@ describe("display line-break whitespace", () => {
     expect(render("ALICE:\n  first\n  .. second\n")).toBe("first second\n");
   });
 
+  // A line break and a `{...}` interpolation are lowered by different parts
+  // of the same function, and both decide what happens to a space. Pinned
+  // together so a later change to one cannot quietly eat the other's.
+  test("a break and an interpolation each keep their own spacing", () => {
+    expect(
+      render("store n = 5\nALICE:\n  The limit is {n} tonight.\n  Sleep well.\n"),
+    ).toBe("The limit is 5 tonight.\nSleep well.\n");
+  });
+
   // A backslash before a space, a tab, or a line ending is one rule with
   // three triggers, so all three are pinned rather than the one that is
   // easiest to write.
