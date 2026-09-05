@@ -335,16 +335,16 @@ A project your change reaches through an import is checked when that project run
 Then run the standalone checks under `.claude/`. Nothing in CI invokes them, so they only ever run because someone remembers to; they are quick, and each one pins a footgun that has already cost a session. There are two kinds — shell checks over the skill's own prose, and `.mjs` checks over the pure functions in `driver.mjs`:
 
 ```bash
-for t in $(find .claude -name "*.test.sh"); do echo "--- $t"; bash "$t" || echo "FAILED: $t"; done
-for t in $(find .claude -name "*.test.mjs"); do echo "--- $t"; node "$t" || echo "FAILED: $t"; done
+for t in $(git ls-files '.claude/**/*.test.sh'); do echo "--- $t"; bash "$t" || echo "FAILED: $t"; done
+for t in $(git ls-files '.claude/**/*.test.mjs'); do echo "--- $t"; node "$t" || echo "FAILED: $t"; done
 ```
 
-`find` rather than a `**` glob on purpose. Bash expands `**` across directories only with `shopt -s globstar` set, and it is not set here, so `**` collapses to a single-level `*` and the two loops fail differently:
+`git ls-files` rather than a shell glob or `find`, because both of those go wrong here in ways that look like a pass:
 
-- The shell loop runs **one of the two checks**. `.claude/**/*.test.sh` matches `hooks/grammar-edit-hook.test.sh`, one level down, and silently skips `skills/resolve-issue/reviewer-model-values.test.sh`, which is two. A half-run that prints no failure is indistinguishable from a full pass.
-- The `.mjs` loop matches nothing, and bash hands an unmatched pattern to the loop body unexpanded, so you get `FAILED: .claude/**/*.test.mjs` — wrong, but at least visible.
+- A `**` glob half-runs. Bash expands `**` across directories only with `shopt -s globstar` set, and it is not set here, so `**` collapses to a single-level `*`: `.claude/**/*.test.sh` matches `hooks/grammar-edit-hook.test.sh` one level down and silently skips `skills/resolve-issue/reviewer-model-values.test.sh` two levels down. The `.mjs` pattern matches nothing at all, and bash hands an unmatched pattern to the loop body unexpanded, so you get `FAILED: .claude/**/*.test.mjs` — wrong, but at least visible.
+- `find .claude` over-matches in the **main checkout**. `.gitignore` puts `.claude/worktrees/` there, holding whole checkouts with their own `node_modules`, so `find` returns fifteen files rather than three — twelve of them third-party tests it would then try to execute. A fresh worktree has no such directory, so `find` looks correct there and only misbehaves where the skill is normally run.
 
-Count the `---` lines against what `find .claude -name "*.test.*"` returns; there are three checks at the time of writing.
+`git ls-files` sidesteps both: the checks are tracked, and everything `find` picks up by mistake is ignored or untracked. Count the `---` lines against what `git ls-files '.claude/**/*.test.*'` returns; there are three checks at the time of writing.
 
 A shell check that hangs rather than failing is usually the machine, not your change: they spawn many small processes and a running dev-server build starves them. Re-run once the build finishes before believing a timeout.
 
