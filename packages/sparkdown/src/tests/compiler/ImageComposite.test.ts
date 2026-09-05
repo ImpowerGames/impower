@@ -191,6 +191,59 @@ describe("thumbnail sizing", () => {
     // Both layers re-decoded under the same transform, never one of each.
     expect(decoded).toEqual(["360x10800", "360x10800", "12x360", "12x360"]);
   });
+
+  // Layers of a `layered_image` share dimensions by convention, but nothing
+  // enforces it. Re-fitting each layer to the box independently would bound the
+  // tall one and leave the wide one overhanging by 30x, back over the caller's
+  // size ceiling. One common scale factor bounds the union instead.
+  it("bounds the canvas when layers disagree wildly about aspect ratio", async () => {
+    const drawnOn: string[] = [];
+    let canvasSize = "";
+    // Two sources of opposite extremes, decoded from the same call.
+    const sizes = [
+      { w: 200, h: 6000 },
+      { w: 6000, h: 200 },
+    ];
+    let call = 0;
+    vi.stubGlobal("createImageBitmap", async (_blob: Blob, opts: any) => {
+      const s = sizes[call % sizes.length]!;
+      call++;
+      const scale = opts.resizeWidth / s.w;
+      const width = Math.max(1, Math.round(s.w * scale));
+      const height = Math.max(1, Math.round(s.h * scale));
+      drawnOn.push(`${width}x${height}`);
+      return { width, height, close() {} };
+    });
+    vi.stubGlobal(
+      "OffscreenCanvas",
+      class {
+        constructor(
+          public width: number,
+          public height: number,
+        ) {
+          canvasSize = `${width}x${height}`;
+        }
+        getContext() {
+          return { drawImage: () => {} };
+        }
+        async convertToBlob() {
+          return new Blob([new Uint8Array(16)], { type: "image/webp" });
+        }
+      },
+    );
+
+    await composeThumbnailBlob(
+      [
+        { path: "/tall.png", blob: new Blob(["t"]), lastModified: 0, size: 1 },
+        { path: "/wide.png", blob: new Blob(["w"]), lastModified: 0, size: 1 },
+      ],
+      360,
+    );
+
+    const [w, h] = canvasSize.split("x").map(Number);
+    expect(w).toBeLessThanOrEqual(360);
+    expect(h).toBeLessThanOrEqual(360);
+  });
 });
 
 describe("getImageCompositeSrc", () => {

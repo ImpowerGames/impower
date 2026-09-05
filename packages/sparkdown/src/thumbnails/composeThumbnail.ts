@@ -107,23 +107,28 @@ export const composeThumbnailBlob = async (
         }),
       ),
     );
-    if (bitmaps.some((b) => b.height > width)) {
+    const tallest = Math.max(...bitmaps.map((b) => b.height));
+    if (tallest > width) {
       // Fitting the width alone bounds nothing on a tall source: a 200 x 6000
       // strip fitted to 360 wide becomes 360 x 10800, which encodes to well
       // over a megabyte and is then thrown away for exceeding the caller's
-      // size ceiling — so the preview shows nothing at all. Re-fit the set by
-      // HEIGHT instead, which bounds it into a square box either way.
+      // size ceiling — so the preview shows nothing at all.
       //
-      // Re-decoding every source rather than just the tall one keeps a
-      // composite's layers under one common transform, so their alignment
-      // survives. The second decode only happens for extreme aspect ratios.
+      // Shrink the whole set by ONE common factor, chosen so the tallest layer
+      // lands exactly on the box. A uniform factor is what keeps a composite's
+      // layers registered against each other; re-fitting each layer to the box
+      // independently would rescale them unequally and pull the stack apart,
+      // and would still let a very wide layer overhang. The second decode only
+      // happens for extreme aspect ratios.
+      const scale = width / tallest;
       const previous = bitmaps;
       bitmaps = [];
       previous.forEach((b) => b?.close());
+      const fitted = Math.max(1, Math.round(width * scale));
       bitmaps = await Promise.all(
         sources.map((s) =>
           createImageBitmap(s.blob, {
-            resizeHeight: width,
+            resizeWidth: fitted,
             resizeQuality: "low",
           }),
         ),
