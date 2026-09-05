@@ -34,21 +34,36 @@ const REPO_ROOT = path.resolve(SKILL_DIR, "..", "..", "..");
 const STATE_FILE = path.join(SKILL_DIR, ".state.json");
 // The state file and the Chromium profile sit beside this script. A worktree
 // whose servers are still running from this driver's location under the
-// resolve-issue skill keeps both there, so each path falls back to that
-// directory while nothing exists here; `down` can then still stop those
-// servers, and `up` reuses their origin instead of starting a second tree on
-// the next free ports, which would hide the project loaded into the first.
+// resolve-issue skill keeps both there, so each path resolves to that
+// directory while nothing exists here. The state file migrates: `down` stops
+// those servers and deletes it, and the next `up` writes beside this script.
+// The profile stays wherever it is found, because OPFS is scoped per profile
+// and moving it would lose every project loaded into it. `exists` is a
+// parameter so state-path.test.mjs can pin the choice without touching disk.
 const PREVIOUS_SKILL_DIR = path.resolve(SKILL_DIR, "..", "resolve-issue");
-const hereOrPrevious = (name) => {
+const hereOrPrevious = (name, exists = fs.existsSync) => {
   const here = path.join(SKILL_DIR, name);
   const previous = path.join(PREVIOUS_SKILL_DIR, name);
-  return !fs.existsSync(here) && fs.existsSync(previous) ? previous : here;
+  return !exists(here) && exists(previous) ? previous : here;
 };
 const stateFile = () => hereOrPrevious(".state.json");
 // Persistent Chromium profile. OPFS is scoped per ORIGIN *and* per profile, so
 // reusing one profile plus the pinned port (see pickPorts) means a script you
 // loaded stays loaded across driver invocations and across down/up.
 const PROFILE_DIR = hereOrPrevious(".chrome-profile");
+
+// Signal 0 delivers nothing and only asks whether the pid exists; EPERM means
+// it exists under another user. A recorded pid that is gone is the one fact
+// that makes a state file stale, so `up` asks this before deleting one.
+function pidAlive(pid) {
+  if (!Number.isInteger(pid) || pid <= 0) return false;
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (err) {
+    return err?.code === "EPERM";
+  }
+}
 
 const log = (...a) => console.log(...a);
 const die = (msg) => {
@@ -164,8 +179,16 @@ async function up(args) {
     log(`already up → ${existing.url}`);
     return;
   }
-  // A state file whose servers are gone is stale wherever it sits; drop it so
-  // the one written below is the only record.
+  // One probe timing out is not evidence the servers are gone: a cold build
+  // takes minutes, and a loaded machine stalls the first response. While the
+  // recorded pid is alive the record stands and this waits for its URL, the
+  // same wait a fresh launch gets. Only a record whose pid is gone is stale,
+  // and that one is dropped so the file written below is the only record.
+  if (existing?.url && pidAlive(existing.pid)) {
+    log(`servers pid ${existing.pid} are still starting → ${existing.url} (state: ${stateFile()})`);
+    await waitReady(existing.url, existing.mode);
+    return;
+  }
   removeState();
 
   const mode = args.includes("--cross-origin") ? "cross-origin" : "same-origin";
@@ -197,8 +220,11 @@ async function up(args) {
   );
 
   log(`launching dev servers (${mode}) pid ${child.pid} → ${url}`);
-  log("COLD build takes 4-8 min (esbuild builds every worker bundle). Waiting...");
+  await waitReady(url, mode);
+}
 
+async function waitReady(url, mode) {
+  log("COLD build takes 4-8 min (esbuild builds every worker bundle). Waiting...");
   const deadline = Date.now() + 15 * 60_000;
   while (Date.now() < deadline) {
     if (await isUp(url)) {
@@ -207,7 +233,7 @@ async function up(args) {
     }
     await sleep(3000);
   }
-  die(`timed out after 15 min waiting for ${url}`);
+  die(`timed out after 15 min waiting for ${url}; \`down\` stops the recorded pid if it is stuck`);
 }
 
 async function isUp(url) {
@@ -219,11 +245,22 @@ async function isUp(url) {
   }
 }
 
+// Names the state file it read, because with the fallback above there are two
+// places it can come from, and an unreadable file is reported as itself rather
+// than as absence.
 async function status() {
+  const file = stateFile();
   const s = readState();
-  if (!s) return log("down (no state file)");
+  if (!s) {
+    if (fs.existsSync(file)) {
+      log(`down (state file unreadable: ${file})`);
+      process.exitCode = 1;
+      return;
+    }
+    return log("down (no state file)");
+  }
   const alive = await isUp(s.url);
-  log(`${alive ? "UP" : "DOWN"}  url=${s.url}  pid=${s.pid}  mode=${s.mode}`);
+  log(`${alive ? "UP" : "DOWN"}  url=${s.url}  pid=${s.pid}  mode=${s.mode}  state=${file}`);
   if (!alive) process.exitCode = 1;
 }
 
@@ -1964,6 +2001,8 @@ export {
   shotOf,
   SURFACES,
   SCREENS,
+  hereOrPrevious,
+  pidAlive,
 };
 
 // ------------------------------------------------------------------ utils ---
