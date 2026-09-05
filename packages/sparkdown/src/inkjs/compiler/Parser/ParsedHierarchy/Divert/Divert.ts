@@ -281,43 +281,81 @@ export class Divert extends ParsedObject {
     this.target ? this.target.firstComponent : null;
 
   // Whether `name` is declared as a parameter or a local
-  // (`variableDeclarations`) anywhere in the top-level flow that contains
-  // this divert: that flow, its branches, and any callable nested in them. A
+  // (`variableDeclarations`), or assigned, in the flow this divert belongs
+  // to: the divert's own flow and the flows enclosing it up to the nearest
+  // callable or the top-level flow, plus the branches of that top. A
   // story-level divert has no such flow and gets `false`.
   //
   // This decides only the severity of the report, never its absence. Whether
   // such a declaration holds a divert target when the divert runs depends on
   // the path taken: a parameter is bound at the flow's head and not when the
   // flow is entered at a label, a local is set only if its statement ran and
-  // in the call-stack element it ran in, a tunnel pushes a fresh element, and
-  // a closure captures what the lowering scanned as free. None of that is
-  // modelled here; a declaration anywhere in the flow makes the report a
-  // warning that names the condition, and no declaration makes it an error.
-  private isDeclaredInTopLevelFlow(name: string): boolean {
-    let flow = asOrNull(ClosestFlowBase(this), FlowBase);
-    let top: FlowBase | null = null;
-    while (flow && flow !== flow.story) {
-      top = flow;
-      flow = asOrNull(ClosestFlowBase(flow), FlowBase);
-    }
-    if (!top) {
+  // in the call-stack element it ran in, and a tunnel pushes a fresh element.
+  // None of that is modelled; a declaration or assignment in the flow makes
+  // the report a warning that names the condition, and none makes it an
+  // error. Callables are a boundary in both directions: a callable written
+  // in a scene is hoisted to the top level, so its body is never inside the
+  // scene's flow, and a callable's divert-target literals are not captured
+  // as upvalues, so the same holds for one nested in another callable.
+  private isDeclaredInEnclosingFlow(name: string): boolean {
+    const own = asOrNull(ClosestFlowBase(this), FlowBase);
+    if (!own || own === own.story) {
       return false;
     }
-    const declares = (candidate: FlowBase): boolean => {
-      if (
-        candidate.args?.some((arg) => arg.identifier?.name === name) ||
-        candidate.variableDeclarations.has(name)
-      ) {
-        return true;
-      }
+    const declares = (candidate: FlowBase): boolean =>
+      (candidate.args?.some((arg) => arg.identifier?.name === name) ??
+        false) || candidate.variableDeclarations.has(name);
+    // An assignment (`& game = -> there`) registers no declaration when the
+    // name already resolves to the builtin, yet it does bind the divert.
+    const assigns = (candidate: ParsedObject): boolean => {
       for (const child of candidate.content ?? []) {
-        if (child instanceof FlowBase && declares(child)) {
+        if (child instanceof FlowBase) {
+          continue;
+        }
+        if (
+          "variableName" in child &&
+          (child as { variableName?: string }).variableName === name
+        ) {
+          return true;
+        }
+        if (assigns(child)) {
           return true;
         }
       }
       return false;
     };
-    return declares(top);
+    const covers = (candidate: FlowBase): boolean =>
+      declares(candidate) || assigns(candidate);
+    // Up from the own flow to the nearest callable or the top-level flow.
+    let top: FlowBase = own;
+    let flow: FlowBase | null = own;
+    while (flow && flow !== flow.story) {
+      if (covers(flow)) {
+        return true;
+      }
+      top = flow;
+      if (flow.isFunction) {
+        break;
+      }
+      flow = asOrNull(ClosestFlowBase(flow), FlowBase);
+    }
+    if (top.isFunction) {
+      return false;
+    }
+    // Down through the top's branches (not its callables).
+    const branchCovers = (candidate: FlowBase): boolean => {
+      for (const child of candidate.content ?? []) {
+        if (
+          child instanceof FlowBase &&
+          !child.isFunction &&
+          (covers(child) || branchCovers(child))
+        ) {
+          return true;
+        }
+      }
+      return false;
+    };
+    return branchCovers(top);
   }
 
   public readonly ResolveTargetContent = (): void => {
@@ -423,10 +461,10 @@ export class Divert extends ParsedObject {
     // one from `context.builtinGlobalDiverts`. Recorded here, once per compile
     // for reused diverts too. Not recorded: a Luau call (`game()` lowers to a
     // divert too, but names no scene, branch, or label). A divert whose name
-    // a parameter or local somewhere in its top-level flow declares is
+    // a parameter, local, or assignment in its enclosing flow declares is
     // recorded as uncertain (`warning`): whether that declaration holds a
     // divert target when the divert runs depends on the path taken (see
-    // `isDeclaredInTopLevelFlow`).
+    // `isDeclaredInEnclosingFlow`).
     const capturedBy = this.runtimeDivert.variableDivertName;
     if (
       capturedBy != null &&
@@ -436,7 +474,7 @@ export class Divert extends ParsedObject {
       context.builtinGlobalDiverts.push({
         name: capturedBy,
         divert: this,
-        warning: this.isDeclaredInTopLevelFlow(capturedBy),
+        warning: this.isDeclaredInEnclosingFlow(capturedBy),
       });
     }
 
