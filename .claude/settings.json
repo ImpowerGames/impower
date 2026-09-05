@@ -16,7 +16,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash \"${CLAUDE_PROJECT_DIR:-.}/.claude/hooks/typed-issue-hook.sh\""
+            "command": "IFS= read -r -d '' payload; case \"$payload\" in *gh*|*curl*) node \"${CLAUDE_PROJECT_DIR:-.}/.claude/hooks/typed-issue-hook.mjs\" <<<\"$payload\" || exit 2;; esac"
           }
         ]
       }

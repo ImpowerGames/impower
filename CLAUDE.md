@@ -60,7 +60,7 @@ Each template's leading comment gives the title convention and the label list; i
 gh api -X POST repos/ImpowerGames/impower/issues -f title="<title>" -F body=@ticket.md -f type=Bug -f "labels[]=system: sparkdown"   # type is Bug, Feature, or Task; repeat labels[] per label
 ```
 
-A hook in `.claude/settings.json` (`.claude/hooks/typed-issue-hook.sh`) refuses `gh issue create` and any `gh api` POST to the issues collection that lacks `type=`, so the two-step form cannot slip through.
+A hook in `.claude/settings.json` (`.claude/hooks/typed-issue-hook.mjs`) refuses `gh issue create`, and any `gh api` call that creates an issue in this repo (a POST to the issues collection, explicit or implied by field flags) unless one of its field flags is `type=...`, so the two-step form cannot slip through. Untyped issues can still arrive from outside a Claude Code session in this checkout; the hook does not see those.
 
 Keep every heading, write "None", "Unknown", or "Not applicable" with a short reason under one you cannot fill, tick only the checklist items you actually did, and strip the HTML comments before filing. After filing, read the artifact back (`gh issue view N --json body`, `gh pr view N --json body`).
 
