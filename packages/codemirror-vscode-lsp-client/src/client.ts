@@ -362,7 +362,7 @@ export class LSPClient {
         } as lsp.InitializeParams["clientInfo"],
         capabilities: mergeCapabilities(
           defaultInitializeParams.capabilities,
-          initializeParams!.capabilities,
+          initializeParams?.capabilities,
         ),
       };
       this.requestInner<

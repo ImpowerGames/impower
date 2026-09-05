@@ -287,8 +287,6 @@ export class SparkDebugSession extends LoggingDebugSession {
     response: DebugProtocol.InitializeResponse,
     args: DebugProtocol.InitializeRequestArguments,
   ): void {
-    if (args.supportsProgressReporting) {
-    }
     if (args.supportsInvalidatedEvent) {
       this._useInvalidatedEvent = true;
     }

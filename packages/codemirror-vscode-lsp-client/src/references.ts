@@ -429,19 +429,22 @@ const referencePanel: PanelConstructor = (view: EditorView) => {
 };
 
 function findCommonPrefix(uris: string[]) {
-  let first = uris[0],
-    prefix = first!.length;
+  const first = uris[0];
+  if (first === undefined) {
+    return 0;
+  }
+  let prefix = first.length;
   for (let i = 1; i < uris.length; i++) {
     let uri = uris[i],
       j = 0;
     for (
       let e = Math.min(prefix, uri!.length);
-      j < e && first![j] == uri![j];
+      j < e && first[j] == uri![j];
       j++
     ) {}
     prefix = j;
   }
-  while (prefix && first![prefix - 1] != "/") prefix--;
+  while (prefix && first[prefix - 1] != "/") prefix--;
   return prefix;
 }
 
@@ -515,19 +518,13 @@ export function serverReferences(): LSPClientExtension {
       },
     },
     notificationListeners: {
-      "textDocument/didOpen": (
-        client,
-      ) => {
+      "textDocument/didOpen": (client) => {
         updateDocumentReferences(client);
       },
-      "textDocument/didChange": (
-        client,
-      ) => {
+      "textDocument/didChange": (client) => {
         updateDocumentReferences(client);
       },
-      "textDocument/publishDiagnostics": (
-        client,
-      ) => {
+      "textDocument/publishDiagnostics": (client) => {
         updateDocumentReferences(client);
       },
     },

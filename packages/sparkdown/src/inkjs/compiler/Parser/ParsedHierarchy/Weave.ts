@@ -640,10 +640,10 @@ export class Weave extends ParsedObject {
         break;
       }
 
-      returned.push(laterObj);
+      returned.push(laterObj!);
     }
 
-    return returned as ParsedObject[];
+    return returned;
   };
 
   public readonly ValidateTermination = (

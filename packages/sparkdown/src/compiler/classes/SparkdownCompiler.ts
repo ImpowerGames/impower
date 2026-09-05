@@ -4563,9 +4563,12 @@ export class SparkdownCompiler {
     // stringifying it directly would collapse every declaration onto one entry.
     const declarationCacheKey = (declaration: SparkDeclaration | undefined) =>
       declaration
-        ? `${declaration.modifier}|${declaration.type}|${declaration.name}|${
-            declaration.property ?? ""
-          }`
+        ? [
+            declaration.modifier,
+            declaration.type,
+            declaration.name,
+            declaration.property ?? "",
+          ].join("\u0000")
         : "";
     const stringIdentifiersByDeclaration = new Map<string, string[]>();
     const selectorTypesByDeclaration = new Map<string, string[]>();

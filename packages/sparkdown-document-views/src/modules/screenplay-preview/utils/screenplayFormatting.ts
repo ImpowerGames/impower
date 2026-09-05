@@ -495,7 +495,6 @@ export const decorate = (
   let frontMatterPositionContent: Record<string, MarkupContent[]> = {};
   let frontMatterFieldCaptureBlocks: MarkupContent[] = [];
   let frontMatterKeyword = "";
-  const inConditionalBlock: boolean[] = [];
 
   const tree = treeOverride ?? syntaxTree(state);
 
@@ -535,7 +534,7 @@ export const decorate = (
         inDialogue = true;
         dialoguePosition = 0;
         dialogueContent = [];
-            } else if (name === "DialogueCharacter") {
+      } else if (name === "DialogueCharacter") {
         const value = doc.sliceString(from, to).trim();
         dialogueContent.push({
           type: "character",
@@ -610,10 +609,7 @@ export const decorate = (
           }),
         );
         return false;
-      } else if (
-        isLeadingIndent(name, from, to) &&
-        inConditionalBlock.length === 0
-      ) {
+      } else if (isLeadingIndent(name, from, to)) {
         // Leading indentation of a block line — hide it so the rendered
         // body doesn't show its source indent. The grammar has no dedicated
         // `Indent` node; leading whitespace surfaces as a line-start
@@ -665,7 +661,7 @@ export const decorate = (
       } else if (isBlockHidden(nodeRef)) {
         hideBlockRange(nodeRef);
         return false;
-      } else if (isInlineHidden(nodeRef) && inConditionalBlock.length === 0) {
+      } else if (isInlineHidden(nodeRef)) {
         hideInlineRange(nodeRef);
       }
       return true;
@@ -849,7 +845,7 @@ export const decorate = (
         }
         inDialogue = false;
         inDualDialogue = false;
-            }
+      }
     },
   });
 
@@ -876,13 +872,11 @@ export const decorate = (
     to,
   );
 
-
   // console.log("REPARSED TREE");
   // console.log(printTree(tree, doc.toString(), { from, to }));
 
   return decorations;
 };
-
 
 const replaceDecorations = StateField.define<DecorationSet>({
   create(state) {

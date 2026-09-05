@@ -737,7 +737,7 @@ const editTextFiles = async (textDocumentEdits: TextDocumentEdit[]) => {
       const changes = textDocumentEdit.edits.filter(
         (e): e is TextEdit | AnnotatedTextEdit => "newText" in e,
       );
-      if (textDocumentEdit.edits.length === 0) {
+      if (changes.length === 0) {
         return {
           file: { uri: td.uri } as FileData,
           created: false,
