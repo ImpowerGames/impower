@@ -1079,29 +1079,38 @@ async function editorExpectedHere(page) {
  */
 function editorGate({ expected = editorExpectedHere, present = scriptEditorPresent, settle = settleEditor } = {}) {
   let settledOnce = false;
+  // What the first failed step found, and which step it was, so later steps
+  // can fail fast and point at it. `kind` decides what a recovery look does.
   let gaveUp = null;
-  return async (page, what) => {
+  // scriptEditorPresent's reason ends in its own advice; the gate adds its
+  // own once, so the tail is dropped here rather than said twice.
+  const where = (reason) => reason.replace(/; the editor did not mount within \d+s; the machine may be saturated, re-run$/, "").replace(/; put --screen \S+ before this step$/, "");
+  return async (page, what, step = null) => {
     // The question comes first: a step on a screen where no editor is
     // expected is never refused, whatever an earlier step found.
     const exp = await expected(page);
     if (exp === false) return { required: false };
+    const at = gaveUp?.step != null ? `step ${gaveUp.step}` : "an earlier step";
     if (gaveUp) {
-      // Fail fast, but let a recovery show: a quick look that finds the
-      // editor up clears the latch and the step proceeds.
+      // Fail fast, but let a recovery show: a short look that finds the
+      // editor up and settled clears the latch and the step proceeds.
       const quick = await present(page, 2_000);
-      if (!quick.present) return { required: true, ok: false, reason: `the script editor is still not up (an earlier step reported: ${gaveUp}); this ${what} was skipped` };
+      if (!quick.present) return { required: true, ok: false, reason: `the script editor is still not up (${at} reported: ${gaveUp.what}); this ${what} was skipped` };
+      if (gaveUp.kind === "unsettled" && !(await settle(page, 3_000))) {
+        return { required: true, ok: false, reason: `the script editor is still being replaced (${at} reported: ${gaveUp.what}); this ${what} was skipped` };
+      }
       gaveUp = null;
     }
     const budget = settledOnce ? 8_000 : 20_000;
     const here = await present(page, budget);
     if (!here.present) {
-      gaveUp = here.reason;
-      const state = exp == null ? `no pane had mounted; ${here.reason}` : here.reason;
-      return { required: true, ok: false, reason: `this ${what} needs the script editor, which had not mounted within ${budget / 1000}s: ${state}. Re-run; if it persists the machine is saturated` };
+      const state = (exp == null ? "no pane had mounted; " : "") + where(here.reason);
+      gaveUp = { kind: "absent", what: state, step };
+      return { required: true, ok: false, reason: `this ${what} needs the script editor, which had not mounted within ${budget / 1000}s (${state}). Re-run; if it persists the machine is saturated` };
     }
     const settleBudget = settledOnce ? 8_000 : 15_000;
     if (!(await settle(page, settleBudget))) {
-      gaveUp = `the editor kept being replaced for ${settleBudget / 1000}s`;
+      gaveUp = { kind: "unsettled", what: `the view kept being replaced for ${settleBudget / 1000}s`, step };
       return { required: true, ok: false, reason: `this ${what} needs a settled script editor, and the view kept being replaced for ${settleBudget / 1000}s. Re-run; if it persists the machine is saturated` };
     }
     settledOnce = true;
@@ -1113,8 +1122,8 @@ function editorGate({ expected = editorExpectedHere, present = scriptEditorPrese
  * Wait until the script editor is not only present but stable: the logic pane
  * mounts a CodeMirror view, and a moment later the document arrives and the
  * view can be replaced. A shortcut pressed into the first view goes nowhere,
- * and a cursor read from it is null. Stable means the same view object across
- * two checks and a quiet DOM in between.
+ * and a cursor read from it is null. Stable means the same view object with
+ * the same document length across three reads 600 ms apart.
  */
 async function settleEditor(page, timeout = 30_000) {
   // Stability is the view's own identity and document length holding across
@@ -1200,14 +1209,15 @@ async function surfaceOpen(page, name) {
 }
 
 /** Open a panel on its own shortcut and wait for it to be on screen. */
-async function openSurface(page, name) {
+async function openSurface(page, name, { settled = false } = {}) {
   const s = surfaceOf(name);
   if (await surfaceOpen(page, name)) return { surface: name, open: true, alreadyOpen: true };
   const editor = await scriptEditorPresent(page);
   if (!editor.present) return { surface: name, open: false, reason: editor.reason };
   // The view can still be replaced a moment after it appears; a shortcut sent
-  // into the old view opens nothing. Cheap when the editor is already stable.
-  if (!(await settleEditor(page, 15_000))) {
+  // into the old view opens nothing. `ui` settles through its gate first and
+  // says so; a caller outside `ui` gets the settle here.
+  if (!settled && !(await settleEditor(page, 15_000))) {
     return { surface: name, open: false, reason: "the script editor kept being replaced for 15s and never settled; the shortcut was not sent. Re-run; if it persists the machine is saturated" };
   }
   await focusEditor(page);
@@ -1274,9 +1284,9 @@ async function readField(page, field) {
  * user gets a multi-line find or replace. A read-back that differs from what
  * was typed is a `reason`, so it lands in `failed`.
  */
-async function typeInto(page, field, text) {
+async function typeInto(page, field, text, { settled = false } = {}) {
   const name = surfaceForField(field);
-  const opened = await openSurface(page, name);
+  const opened = await openSurface(page, name, { settled });
   if (opened.reason) return { field, typed: false, reason: opened.reason };
   const loc = fieldLocator(page, field);
   if ((await loc.count()) === 0) {
@@ -1403,13 +1413,15 @@ async function switchScreen(page, name) {
     // came up, and the step says so rather than reading as a full recovery.
     return { screen: name, active: true, settled, editorHere: false, note: "the logic pane's own tab is scripts, so no script editor is on screen; use --screen main to reach it" };
   }
+  // Same budget as a capture step's gate, so a slow-but-fine mount does not
+  // fail the switch and then pass the screenshot that follows it.
   const editorHere = landsOnEditor
-    ? (await scriptEditorPresent(page, 15_000)).present
+    ? (await scriptEditorPresent(page, 20_000)).present
     : await page.evaluate(() => document.querySelector(".sparkdown-script-editor-root .cm-content") != null);
   if (landsOnEditor && !editorHere) {
     // The tab is up but the editor it should carry never mounted: a switch
     // that reads as a success here would let a later screenshot lie.
-    return { screen: name, active: true, settled, editorHere: false, reason: `the ${name} tab is up but no script editor mounted within 15s. Re-run; if it persists the machine is saturated` };
+    return { screen: name, active: true, settled, editorHere: false, reason: `the ${name} tab is up but no script editor mounted within 20s. Re-run; if it persists the machine is saturated` };
   }
   if (editorHere) {
     const editorSettled = await settleEditor(page);
@@ -1622,7 +1634,8 @@ async function ui(args) {
         }
       }
 
-      for (const step of steps) {
+      for (const [index, step] of steps.entries()) {
+        const stepNo = index + 1;
         try {
           if (step.sd) {
             const src = fs.readFileSync(path.resolve(step.sd), "utf8");
@@ -1673,23 +1686,23 @@ async function ui(args) {
           } else if (step.screen) {
             result.steps.push(await switchScreen(page, step.screen));
           } else if (step.open) {
-            const ready = await requireEditor(page, "panel");
+            const ready = await requireEditor(page, "panel", stepNo);
             if (ready.ok === false) {
               result.steps.push({ surface: step.open, open: false, gated: true, reason: ready.reason });
               continue;
             }
-            result.steps.push(await openSurface(page, step.open));
+            result.steps.push(await openSurface(page, step.open, { settled: true }));
           } else if (step.close) {
             result.steps.push(await closeSurface(page, step.close));
           } else if (step.type) {
-            const ready = await requireEditor(page, "panel");
+            const ready = await requireEditor(page, "field", stepNo);
             if (ready.ok === false) {
-              result.steps.push({ field: step.type, typed: false, gated: true, reason: ready.reason });
+              result.steps.push({ field: step.type, typed: false, text: step.text, readBack: null, matches: false, gated: true, reason: ready.reason });
               continue;
             }
-            result.steps.push(await typeInto(page, step.type, step.text));
+            result.steps.push(await typeInto(page, step.type, step.text, { settled: true }));
           } else if (step.press) {
-            const ready = await requireEditor(page, "key press");
+            const ready = await requireEditor(page, "key press", stepNo);
             if (ready.ok === false) {
               result.steps.push({ press: step.press, sent: null, gated: true, reason: ready.reason });
               continue;
@@ -1702,7 +1715,7 @@ async function ui(args) {
           } else if (step.toggle) {
             result.steps.push(await toggleSurfaceOption(page, step.toggle));
           } else if (step.shotOf) {
-            const ready = await requireEditor(page, "screenshot");
+            const ready = await requireEditor(page, "screenshot", stepNo);
             if (ready.ok === false) {
               result.steps.push({ of: step.shotOf, screenshot: null, gated: true, reason: ready.reason });
               continue;
