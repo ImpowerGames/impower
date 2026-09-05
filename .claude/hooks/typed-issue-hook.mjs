@@ -184,7 +184,9 @@ export function tokenize(command) {
       continue;
     }
     const opensGroup = c === "(" || (c === "$" && command[i + 1] === "(") || (c === "@" && (command[i + 1] === "(" || command[i + 1] === "{"));
-    const flagPrefix = started && text.startsWith("-") && text.endsWith(":"); // -Body:@{...}
+    // -Body:@{...}; tested only at an opener so a long bare word is not
+    // re-read at every character.
+    const flagPrefix = opensGroup && started && text.startsWith("-") && text.endsWith(":");
     if (opensGroup && ((!started && lastIsFlag()) || flagPrefix)) {
       // A balanced group that is a flag's value (`-Body (...)`, `-Headers
       // @{...}`, `-Body:@{...}`) stays one token so the invocation continues
@@ -192,7 +194,7 @@ export function tokenize(command) {
       // its own, since in Bash it may be a substitution. An unbalanced group
       // falls through to the ordinary separator handling.
       const openAt = c === "(" ? i : i + 1;
-      const close = command[openAt] === "{" ? matchBracket(command, openAt, "{", "}") : matchParen(command, openAt);
+      const close = matchBracket(command, openAt);
       if (close < n) {
         if (command[openAt] === "(") tokens.subs.push(command.slice(openAt + 1, close));
         if (flagPrefix) {
@@ -263,27 +265,11 @@ export function tokenize(command) {
       // at the next newline; a body with no terminator runs to the end of
       // the command, as it does in the shell. A purely numeric delimiter is
       // a shift operator, not a here-doc.
-      let j = i + 2;
-      let strip = false;
-      if (command[j] === "-") {
-        strip = true;
-        j++;
-      }
-      while (j < n && " \t".includes(command[j])) j++;
-      let delim = "";
-      while (j < n && !" \t\r\n;|&<>()".includes(command[j])) {
-        const ch = command[j++];
-        if (ch === "'" || ch === '"') continue;
-        if (ch === "\\" && j < n) {
-          delim += command[j++];
-          continue;
-        }
-        delim += ch;
-      }
       flush(i);
-      if (delim && !/^\d+$/.test(delim)) {
-        heredocs.push({ delim, strip });
-        i = j;
+      const doc = readHeredocOperator(command, i);
+      if (doc) {
+        heredocs.push(doc);
+        i = doc.next;
       } else {
         i += 2;
       }
@@ -298,18 +284,7 @@ export function tokenize(command) {
       sep(i);
       i++;
       arith = 0;
-      while (heredocs.length && i < n) {
-        const { delim, strip } = heredocs.shift();
-        while (i < n) {
-          let end = command.indexOf("\n", i);
-          if (end < 0) end = n;
-          let line = command.slice(i, end).replace(/\r$/, "");
-          if (strip) line = line.replace(/^\t+/, "");
-          i = Math.min(end + 1, n);
-          if (line === delim) break;
-        }
-      }
-      heredocs.length = 0;
+      i = skipHeredocBodies(command, i, heredocs);
       continue;
     }
     if (c === "(" && command[i + 1] === "(") {
@@ -364,16 +339,63 @@ export function tokenize(command) {
 
 /** Index of the `)` matching the `(` at `open`, or the end of the string. */
 function matchParen(command, open) {
-  return matchBracket(command, open, "(", ")");
+  return matchBracket(command, open);
+}
+
+/**
+ * Reads a here-doc operator at `i` (`<<`, `<<-`, then the delimiter, with
+ * quotes and backslashes stripped). Returns the delimiter, whether leading
+ * tabs are stripped from body lines, and the index after the delimiter, or
+ * null when the delimiter is empty or purely numeric (a shift operator).
+ */
+function readHeredocOperator(command, i) {
+  const n = command.length;
+  let j = i + 2;
+  let strip = false;
+  if (command[j] === "-") {
+    strip = true;
+    j++;
+  }
+  while (j < n && " \t".includes(command[j])) j++;
+  let delim = "";
+  while (j < n && !" \t\r\n;|&<>()".includes(command[j])) {
+    const ch = command[j++];
+    if (ch === "'" || ch === '"') continue;
+    if (ch === "\\" && j < n) {
+      delim += command[j++];
+      continue;
+    }
+    delim += ch;
+  }
+  if (!delim || /^\d+$/.test(delim)) return null;
+  return { delim, strip, next: j };
+}
+
+/** Skips the bodies of the pending here-docs starting at line offset `i`; returns the offset after the last terminator. */
+function skipHeredocBodies(command, i, heredocs) {
+  const n = command.length;
+  while (heredocs.length && i < n) {
+    const { delim, strip } = heredocs.shift();
+    while (i < n) {
+      let end = command.indexOf("\n", i);
+      if (end < 0) end = n;
+      let line = command.slice(i, end).replace(/\r$/, "");
+      if (strip) line = line.replace(/^\t+/, "");
+      i = Math.min(end + 1, n);
+      if (line === delim) break;
+    }
+  }
+  heredocs.length = 0;
+  return i;
 }
 
 /**
  * Index of the closing bracket matching the opener at `open`, or the end of
- * the string when unbalanced. Partners come from one quote-aware pass over
- * the command (cached for the last command seen), so every lookup is
- * constant time and a run of unbalanced openers costs nothing extra.
+ * the string when unbalanced. Partners come from one pass over the command
+ * (cached for the last command seen), so every lookup is constant time and
+ * a run of unbalanced openers costs nothing extra.
  */
-function matchBracket(command, open, openCh, closeCh) {
+function matchBracket(command, open) {
   const partner = bracketPartners(command).get(open);
   return partner === undefined ? command.length : partner;
 }
@@ -383,16 +405,21 @@ let partnerCache = null;
 
 /**
  * Map from the index of every balanced `(` or `{` to the index of its
- * partner. Quoted text is skipped, except that a `$(` inside double quotes
- * opens a substitution whose contents are code again until its partner.
+ * partner. The pass skips what the tokenizer skips: quoted text, comments,
+ * and here-doc bodies. A `$(` inside double quotes opens a substitution
+ * whose contents are code again until its partner. A quote with no
+ * partner is an ordinary character, so a stray apostrophe in prose does
+ * not unbalance everything after it.
  */
 function bracketPartners(command) {
   if (partnerCacheKey === command) return partnerCache;
   const map = new Map();
   const stack = []; // { ch, at, resumesString }
+  const heredocs = [];
   const n = command.length;
   let inString = false; // inside double quotes
   let backslashEscapes = true;
+  let wordStart = true; // at the start of a word, where `#` opens a comment
   for (let k = 0; k < n; k++) {
     const ch = command[k];
     if (inString) {
@@ -411,15 +438,40 @@ function bracketPartners(command) {
       }
       continue;
     }
+    if (ch === "\\") {
+      k++;
+      wordStart = false;
+      continue;
+    }
     if (ch === "'") {
       const end = scanQuote(command, k, false);
-      if (end < 0) break;
-      k = end;
+      if (end >= 0) k = end;
+      wordStart = false;
       continue;
     }
     if (ch === '"') {
-      inString = true;
       backslashEscapes = scanQuote(command, k, true) >= 0;
+      if (backslashEscapes || scanQuote(command, k, false) >= 0) inString = true;
+      wordStart = false;
+      continue;
+    }
+    if (ch === "#" && wordStart) {
+      const end = command.indexOf("\n", k);
+      k = end < 0 ? n : end - 1;
+      continue;
+    }
+    if (ch === "<" && command[k + 1] === "<" && command[k + 2] !== "<") {
+      const doc = readHeredocOperator(command, k);
+      if (doc) {
+        heredocs.push(doc);
+        k = doc.next - 1;
+      } else k++;
+      wordStart = false;
+      continue;
+    }
+    if (ch === "\n") {
+      wordStart = true;
+      if (heredocs.length) k = skipHeredocBodies(command, k + 1, heredocs) - 1;
       continue;
     }
     if (ch === "(" || ch === "{") stack.push({ ch, at: k, resumesString: false });
@@ -435,26 +487,11 @@ function bracketPartners(command) {
         stack.length = j;
       }
     }
+    wordStart = " \t;|&(".includes(ch);
   }
   partnerCacheKey = command;
   partnerCache = map;
   return map;
-}
-
-/**
- * Index of the quote that closes the string opened at `open`, or -1. Inside
- * double quotes a backtick escapes the next character (PowerShell) and so
- * does a backslash (Bash); when the backslash rule finds no closing quote,
- * the string is read again with backslashes literal, which is how a
- * PowerShell value ending in a path separator closes.
- */
-function closingQuote(command, open) {
-  const q = command[open];
-  if (q === '"') {
-    const withBackslash = scanQuote(command, open, true);
-    return withBackslash >= 0 ? withBackslash : scanQuote(command, open, false);
-  }
-  return scanQuote(command, open, false);
 }
 
 function scanQuote(command, open, backslashEscapes) {
@@ -678,19 +715,44 @@ function bodyHasTypeField(body) {
       // lenient text check below.
     }
   }
-  if (/^[A-Za-z_][^{[@(\s"'=]*=/.test(inner)) {
-    // Form-encoded data: title=x&type=Bug
+  if (/^&?[A-Za-z0-9_][^{@(\s"'=]*=/.test(inner)) {
+    // Form-encoded data: title=x&type=Bug, labels[]=bug&type=Bug
     const type = new URLSearchParams(inner).get("type");
     return typeof type === "string" && type.length > 0;
   }
   // Anything else is a hashtable or JSON-like text; prose is not a body.
   if (!/^(@?\{|\[)/.test(inner)) return false;
-  const blanked = inner
+  const blanked = blankHereStrings(inner)
     .replace(/["']?type["']?\s*[:=]\s*(["'])\1/g, "") // an empty type value is no type
-    .replace(/([:=]\s*)@(["'])[\s\S]*?\r?\n\2@/g, "$1$2$2") // here-string value
     .replace(/([:=]\s*)"(?:[^"\\]|\\.)*"/g, '$1""')
     .replace(/([:=]\s*)'(?:[^']|'')*'/g, "$1''");
   return TYPE_ENTRY.test(blanked);
+}
+
+/**
+ * Replaces every here-string value (`= @"` ... `"@` on its own line, or the
+ * single-quoted form) with an empty string, in one forward pass: for each
+ * terminator, the nearest opener since the previous terminator is paired
+ * with it.
+ */
+function blankHereStrings(text) {
+  let out = "";
+  let pos = 0;
+  for (;;) {
+    const termD = text.indexOf('\n"@', pos);
+    const termS = text.indexOf("\n'@", pos);
+    if (termD < 0 && termS < 0) break;
+    const term = termD < 0 ? termS : termS < 0 ? termD : Math.min(termD, termS);
+    const q = text[term + 1];
+    const open = text.lastIndexOf(`@${q}`, term);
+    if (open < pos || !/[:=]\s*$/.test(text.slice(Math.max(pos, open - 8), open))) {
+      out += text.slice(pos, term + 3);
+    } else {
+      out += text.slice(pos, open) + q + q;
+    }
+    pos = term + 3;
+  }
+  return out + text.slice(pos);
 }
 
 /** Strips the wrappers a body may sit in (`(...)`, `$(...)`, `@(...)`, one layer of quotes) and unescapes the quotes inside. */
@@ -699,6 +761,14 @@ function unwrapBody(body) {
   for (let guard = 0; guard < 4; guard++) {
     if (/^[$@]?\(/.test(s) && s.endsWith(")")) {
       s = s.replace(/^[$@]?\(/, "").slice(0, -1).trim();
+      continue;
+    }
+    if (s.length >= 3 && s.startsWith("$'") && s.endsWith("'")) {
+      s = s.slice(2, -1).replace(/\\(["'\\])/g, "$1"); // Bash ANSI-C quoting
+      continue;
+    }
+    if (/^\$[{[]/.test(s)) {
+      s = s.slice(1); // ANSI-C quoting after the tokenizer removed the quotes
       continue;
     }
     if (s.length >= 2 && s.startsWith("'") && s.endsWith("'")) {

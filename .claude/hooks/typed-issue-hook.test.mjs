@@ -215,6 +215,10 @@ const denies = [
   ["parenthesised hashtable body whose double-quoted here-string has an indented type= line", "irm -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Body (@{\n  title = 'x'\n  body  = @\"\nRepro:\n    type = Bug\n\"@\n} | ConvertTo-Json)"],
   ["untyped create after a 9 KB $( ) inside double quotes", 'echo "$(printf %s \'' + "y".repeat(9000) + '\')" && gh issue create --title x'],
   ["untyped api create after a 9 KB $( ) inside double quotes on the next line", 'echo "$(printf %s \'' + "y".repeat(9000) + '\')"\ngh api -X POST repos/ImpowerGames/impower/issues -f title=x'],
+  ["untyped api create after a comment with an apostrophe and a $( ) in quotes", "# don't forget\necho \"$(date)\" && gh api -X POST repos/ImpowerGames/impower/issues -f title=x"],
+  ["create after a comment with an apostrophe and a $( ) in quotes", "# don't forget\necho \"$(date)\" && gh issue create --title x --body y"],
+  ["untyped create after a here-doc body with an apostrophe and a $( ) in quotes", "cat > b.md <<'EOF'\nIt doesn't work.\nEOF\necho \"$(date)\" && gh issue create --title x"],
+  ["form-encoded body led by labels[] without a type", "curl -X POST https://api.github.com/repos/ImpowerGames/impower/issues -d 'labels[]=bug&title=x'"],
 ];
 
 const allows = [
@@ -340,6 +344,16 @@ const allows = [
   ["typed api create with a 9 KB $( ) title", "gh api -X POST repos/ImpowerGames/impower/issues -f \"title=$(printf '%s' '" + "z".repeat(9000) + "')\" -f type=Bug"],
   ["curl -w with -d as its value", "curl -w -d out.json https://api.github.com/repos/ImpowerGames/impower/issues"],
   ["curl -u with -d as its value", "curl -u -d out.json https://api.github.com/repos/ImpowerGames/impower/issues"],
+  ["typed api create after a here-doc body with an apostrophe (the recipe)", "cat > ticket.md <<'EOF'\nThe preview doesn't load.\nEOF\ngh api -X POST repos/ImpowerGames/impower/issues -f \"title=$(head -1 ticket.md)\" -F body=@ticket.md -f type=Bug"],
+  ["typed api create after a comment with an apostrophe", "# gh can't set the type, so use the REST call\ngh api -X POST repos/ImpowerGames/impower/issues -f \"title=$(cat title.txt)\" -f type=Bug"],
+  ["typed PowerShell create after a comment with an apostrophe", "# don't forget the type\nInvoke-RestMethod -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Body (@{title='x'; type='Bug'} | ConvertTo-Json)"],
+  ["typed -Body: create after a comment with an apostrophe", "# don't forget the type\nirm -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Body:@{title='x'; type='Bug'}"],
+  ["typed hashtable create after a comment with a lone double quote", "# say \"hello\nirm -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Body @{title='x'; type='Bug'}"],
+  ["typed api create with the Bash apostrophe idiom in a title", "gh api -X POST repos/ImpowerGames/impower/issues -f 'title=it'\\''s broken' -f \"body=$(cat b.md)\" -f type=Bug"],
+  ["form-encoded body led by labels[] with a type", "curl -X POST https://api.github.com/repos/ImpowerGames/impower/issues -d 'labels[]=bug&title=x&type=Bug'"],
+  ["form-encoded body with a leading ampersand and a type", "curl -X POST https://api.github.com/repos/ImpowerGames/impower/issues -d '&title=x&type=Bug'"],
+  ["typed JSON body in Bash ANSI-C quoting", "curl -X POST https://api.github.com/repos/ImpowerGames/impower/issues --data $'{\"title\":\"x\",\"type\":\"Bug\"}'"],
+  ["typed hashtable whose value mentions '= @\"' many times", "irm -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Body @{title='x'; type='Bug'; body='" + "the script writes $x = @\" then more text. ".repeat(2000) + "'}"],
   ["empty command", ""],
 ];
 
@@ -354,6 +368,8 @@ const allows = [
   };
   guard("128000 glued PowerShell assignments", Array.from({ length: 128000 }, (_, i) => `$a${i}=1`).join(" ") + " gh issue view 443");
   guard("40000 chained PowerShell assignments in one token", "$a=".repeat(40000) + "gh issue view 443");
+  guard("a 240000-character bare word", "echo " + "x".repeat(240000) + " && gh issue view 443");
+  guard("a 300 KB hashtable value mentioning '= @\"' 8000 times", "irm -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Body @{title='x'; type='Bug'; body='" + "the script writes $x = @\" then more. ".repeat(8000) + "'}");
   guard("32000 unbalanced groups after flags", "echo " + "-a ( ".repeat(32000));
   guard("32000 unbalanced hashtables after flags", "echo " + "-a @{ ".repeat(32000) + "}");
   guard("32000 balanced groups after flags", "echo " + "-a (1) ".repeat(32000));
