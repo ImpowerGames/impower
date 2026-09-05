@@ -835,6 +835,10 @@ function unwrapBody(body) {
       s = s.replace(toJsonPrefix, "").trim();
       continue;
     }
+    if (/^\[[^\][]+\]\s*@\{/.test(s)) {
+      s = s.replace(/^\[[^\][]+\]\s*/, ""); // [ordered]@{...}, [pscustomobject]@{...}
+      continue;
+    }
     if (s.length >= 3 && s.startsWith("$'") && s.endsWith("'")) {
       s = s.slice(2, -1).replace(/\\(["'\\])/g, "$1"); // Bash ANSI-C quoting
       continue;
