@@ -141,8 +141,10 @@ interface Entry {
   state: EntryState;
   priority: AssetPriority;
   pins: Set<string>;
-  /** The pins among `pins` that a priority-0 request put there: the gates
-   *  someone is waiting on. A `load:` pin is not one, nor is a hint. */
+  /** The pins among `pins` that a priority-0 request put there, whatever
+   *  they are called: the gates someone is waiting on. A hint carries no
+   *  pin, and an explicit load's set is requested at priority 1, so its
+   *  `load:` pin never lands here. */
   gatePins: Set<string>;
   bytes: number;
   lastUsed: number;
@@ -502,12 +504,10 @@ export class AssetCache {
       if (
         e.state === "queued" &&
         e.priority === 0 &&
-        e.pins.size === 0 &&
+        e.gatePins.size === 0 &&
         this._entries.get(e.key) === e
       ) {
-        this.dequeue(e);
-        e.priority = 2;
-        this._queues[2]!.push(e);
+        this.demote(e);
       }
     }
     this._hinted = [];
@@ -548,9 +548,7 @@ export class AssetCache {
         // A gate nobody waits on any more is just a prefetch: out of the
         // express lane, or every abandoned scrub's pictures would sit ahead
         // of the beat the cursor is on now.
-        this.dequeue(e);
-        e.priority = 2;
-        this._queues[2]!.push(e);
+        this.demote(e);
       }
       if (!touched || !drop || e.pins.size > 0 || derived!.has(e.key)) {
         continue;
@@ -853,6 +851,15 @@ export class AssetCache {
     return false;
   }
 
+  /** Take a queued express-lane entry that no gate waits on out of the lane:
+   *  to priority 1 while an explicit load's pin still waits on it (that is
+   *  the priority the load asked for), else to the window's priority. */
+  protected demote(entry: Entry): void {
+    this.dequeue(entry);
+    entry.priority = entry.pins.size > 0 ? 1 : 2;
+    this._queues[entry.priority]!.push(entry);
+  }
+
   /** Put a queued gate ahead of the hints in the express lane: a gate is
    *  waited on, a hint is a guess, and the lane is served in order. */
   protected promoteInLane(entry: Entry): void {
@@ -980,9 +987,11 @@ export class AssetCache {
         entry.attempts++;
         this.releasePlatform(entry);
         if (entry.attempts < MAX_LOAD_ATTEMPTS) {
-          // Back of its own line, so the others get their turn first.
+          // Back of its own line, so the others get their turn first; a
+          // gate still goes ahead of the hints, since someone waits on it.
           entry.state = "queued";
           this._queues[entry.priority]!.push(entry);
+          this.promoteInLane(entry);
         } else {
           entry.state = "failed";
           entry.failedAt = this.now();

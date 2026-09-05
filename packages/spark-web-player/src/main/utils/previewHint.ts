@@ -4,13 +4,22 @@ import { assetsBuiltinDefinitions } from "@impower/spark-engine/src/game/modules
 import { type AssetItem } from "@impower/spark-engine/src/game/modules/assets/types/AssetItem";
 import {
   beatIndexIn,
-  exactBeatIndex,
-  gateBeats,
   previewWindow,
 } from "@impower/spark-engine/src/game/modules/assets/utils/previewWindow";
 import { type SceneBeat } from "@impower/sparkdown/src/compiler/types/SceneAssets";
 import { type SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
 import { resolveImageSrcs } from "./resolveImageSrcs";
+
+/**
+ * How many beats the hint guesses a preview at the cursor writes: the beat
+ * at or before the cursor and the ones after it, up to this many in all. The
+ * engine's gate is exact, since it runs the beat dry once the checkpoint is
+ * loaded; the hint is issued before the route is even planned, when nothing
+ * can run, so it guesses. A guess too wide costs express-lane bandwidth on
+ * pictures the next scrub is likely to want anyway; one too narrow costs
+ * the overlap the hint exists for.
+ */
+export const HINT_BEATS = 3;
 
 /** Where the cursor last was, as far as the hint is concerned. */
 export interface PreviewHintState {
@@ -26,7 +35,7 @@ export interface PreviewHintState {
 /** What the page asks the cache for after a cursor move. */
 export interface PreviewHintPlan {
   state: PreviewHintState;
-  /** The beats a preview at the cursor writes at once: the express lane. */
+  /** The hint's guess at what a preview at the cursor writes: the express lane. */
   cursor: AssetItem[];
   /** The window around the cursor, at the window's priority; empty while
    *  the cursor stays inside half of the last window sent. */
@@ -122,18 +131,7 @@ export function planPreviewHint(
       src,
     }));
   const namesOf = (beats: SceneBeat[]) => beats.flatMap((b) => b.image ?? []);
-  // The cursor's own beats, only when the cursor resolved to a beat (or lies
-  // before the scene's first): a plain line between beats writes nothing
-  // that names an asset.
-  const exact = exactBeatIndex(entry.beats, path);
-  const gateFrom =
-    exact >= 0
-      ? exact
-      : beatIndexIn(entry.beats, locations, path) < 0
-        ? 0
-        : -1;
-  const cursor =
-    gateFrom >= 0 ? items(namesOf(gateBeats(entry, gateFrom, locations))) : [];
+  const cursor = items(namesOf(entry.beats.slice(beat, beat + HINT_BEATS)));
   if (sameBeat) {
     // A recompile with the cursor on its beat: its own pictures again, in
     // case the edit changed them; the window and the scene stand.

@@ -23,6 +23,7 @@ import type { GameConfiguration } from "../types/GameConfiguration";
 import type { GameContext } from "../types/GameContext";
 import type { GameState } from "../types/GameState";
 import type { InstanceMap } from "../types/InstanceMap";
+import type { Instructions } from "../types/Instructions";
 import { SceneTracker } from "./SceneTracker";
 import type { SaveData } from "../types/SaveData";
 import type { ScriptLocation } from "../types/ScriptLocation";
@@ -104,6 +105,13 @@ export class Game<T extends M = {}> {
   protected _pathLocationEntries: [string, ScriptLocation][] = [];
 
   protected _coordinator: Coordinator<typeof this> | null = null;
+
+  /** While a preview's beat runs dry ({@link peekPreviewInstructions}): the
+   *  flush that would build a coordinator is kept instead, and nothing is
+   *  displayed, notified, checkpointed, or tracked. */
+  protected _peeking = false;
+
+  protected _peeked: Instructions | null = null;
 
   /**
    * How many times one uninterrupted stretch of execution may advance the
@@ -1446,7 +1454,7 @@ export class Game<T extends M = {}> {
       done = this.stepWithinBudget();
     } while (!done);
 
-    if (this._simulation !== "simulating") {
+    if (this._simulation !== "simulating" && !this._peeking) {
       this.notifyExecuted();
     }
 
@@ -1486,7 +1494,7 @@ export class Game<T extends M = {}> {
       this._executionStepsRemaining -= 1;
 
       const pointerPath = this._story.state.previousPointer.path?.toString();
-      if (pointerPath) {
+      if (pointerPath && !this._peeking) {
         if (pointerPath !== this._executingPath) {
           this._executingPath = pointerPath;
           this.observeScene(pointerPath);
@@ -1528,6 +1536,10 @@ export class Game<T extends M = {}> {
 
       if (this.module.interpreter.shouldFlush() || !this._story.canContinue) {
         const instructions = this.module.interpreter.flush();
+        if (this._peeking) {
+          this._peeked = instructions ?? null;
+          return true;
+        }
         if (instructions) {
           this._coordinator = new Coordinator(this, instructions);
           if (
@@ -1608,7 +1620,7 @@ export class Game<T extends M = {}> {
           }
         }
 
-        if (this._simulation !== "simulating") {
+        if (this._simulation !== "simulating" && !this._peeking) {
           // Skip duplicate stops (avoid breaking at the same location)
           if (
             JSON.stringify(prevExecutedLocation) ===
@@ -2215,6 +2227,86 @@ export class Game<T extends M = {}> {
     this._context.system.previewing = previewPath || true;
   }
 
+  /** Run the story to the preview point's beat, the way `preview()` does:
+   *  from the loaded checkpoint when the route to it succeeded, else from
+   *  the start of the flow. */
+  protected runPreview(previewPath: string) {
+    if (this._simulation === "success") {
+      this.continue(true);
+    } else if (this._simulation === "fail") {
+      // Same reason as the `start` fail branch: modules are already connected
+      // and mounted here, so a full `reset` would clear the ui module's mounted
+      // layouts and `_events` and nothing would mount again. Only the story
+      // needs rewinding before jumping to the preview path — plus discarding
+      // any beats the abandoned run left queued (see the start-branch residue
+      // audit; idempotent between previews, where the queue is already
+      // drained).
+      this.module.interpreter.clearQueuedBeats();
+      this.rewindStory();
+      this.clearChoices();
+      this._startPath = previewPath;
+      this.jumpToPath(previewPath);
+      this.continue();
+    } else {
+      this.clearChoices();
+      this._startPath = previewPath;
+      this.jumpToPath(previewPath);
+      this.continue();
+    }
+  }
+
+  /**
+   * The instructions the preview at the marked preview point is about to
+   * display, found by running that beat dry: the game is saved, the beat is
+   * stepped to its flush exactly as `preview()` will step it, the flushed
+   * instructions are kept instead of displayed, and the save is loaded
+   * back, story, runtime and every module's state with it. What displays
+   * together is decided by the story as it runs (a conditional, a divert, a
+   * `[[hide]]`, a line of dialogue, a beat that spills into the next scene),
+   * so nothing read off the source can say it; the beat itself can. Null
+   * when nothing is being previewed, or when the beat has nothing to display.
+   * Costs one save and one load, which a scrub already pays once.
+   */
+  peekPreviewInstructions(): Instructions | null {
+    const previewPath = this._context.system.previewing;
+    if (
+      typeof previewPath !== "string" ||
+      this._state === "running" ||
+      // A remembered preview point the last edit removed: nothing to run.
+      !this._program.pathLocations?.[previewPath]
+    ) {
+      return null;
+    }
+    const snapshot = this.save();
+    const simulation = this._simulation;
+    const startPath = this._startPath;
+    const executingPath = this._executingPath;
+    const executingLocation = this._executingLocation;
+    const coordinator = this._coordinator;
+    this._peeking = true;
+    this._peeked = null;
+    this._executingPath = "";
+    this._executingLocation = [-1, -1, -1, -1, -1];
+    try {
+      this.runPreview(previewPath);
+      return this._peeked;
+    } catch (e) {
+      // The preview itself will report it; a gate on nothing is the safe
+      // answer here.
+      this.log(e, "error");
+      return null;
+    } finally {
+      this._peeking = false;
+      this._peeked = null;
+      this.load(snapshot);
+      this._simulation = simulation;
+      this._startPath = startPath;
+      this._executingPath = executingPath;
+      this._executingLocation = executingLocation;
+      this._coordinator = coordinator;
+    }
+  }
+
   preview(file: string, line: number): string | null {
     if (this._state === "running") {
       // Don't preview while running
@@ -2251,28 +2343,7 @@ export class Game<T extends M = {}> {
     this._previewedPath = previewPath;
     this._context.system.simulating = undefined;
     this.observeScene(previewPath);
-    if (this._simulation === "success") {
-      this.continue(true);
-    } else if (this._simulation === "fail") {
-      // Same reason as the `start` fail branch: modules are already connected
-      // and mounted here, so a full `reset` would clear the ui module's mounted
-      // layouts and `_events` and nothing would mount again. Only the story
-      // needs rewinding before jumping to the preview path — plus discarding
-      // any beats the abandoned run left queued (see the start-branch residue
-      // audit; idempotent between previews, where the queue is already
-      // drained).
-      this.module.interpreter.clearQueuedBeats();
-      this.rewindStory();
-      this.clearChoices();
-      this._startPath = previewPath;
-      this.jumpToPath(previewPath);
-      this.continue();
-    } else {
-      this.clearChoices();
-      this._startPath = previewPath;
-      this.jumpToPath(previewPath);
-      this.continue();
-    }
+    this.runPreview(previewPath);
     for (const k of this._moduleNames) {
       this._modules[k]?.onPreview();
     }

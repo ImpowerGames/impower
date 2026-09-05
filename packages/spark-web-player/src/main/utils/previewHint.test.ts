@@ -101,10 +101,11 @@ describe("planPreviewHint", () => {
   const plan = (line: number, last?: PreviewHintState) =>
     planPreviewHint(program, URI, line, entries, last);
 
-  it("asks for the cursor's beat first, the window next, and the rest of the scene once on entering it", () => {
+  it("asks for the cursor's beats first, the window next, and the rest of the scene once on entering it", () => {
     const first = plan(3)!;
     expect(first).not.toBeNull();
-    expect(srcs(first.cursor)).toEqual([src("bunny")]);
+    // The guess: the cursor's beat and the two after it.
+    expect(srcs(first.cursor)).toEqual([src("bunny"), src("hat"), src("cat")]);
     // The default window is 32 beats either side: the whole of this scene.
     expect(srcs(first.near)).toEqual([
       src("room"),
@@ -175,15 +176,41 @@ end
     expect(same.state.beat).toBe(first.state.beat);
   });
 
-  it("hints nothing for a cursor on a line between beats, and only the beat for a cursor on one", () => {
+  it("guesses from the beat at or before the cursor, wherever in the beat the cursor is", () => {
     const first = plan(3)!;
-    // Line 6 is `Line three.`: the beat before it is hat's, which the
-    // checkpoint already shows.
+    // Line 6 is `Line three.`: the beat before it is hat's.
     const between = plan(6, first.state)!;
-    expect(between.cursor).toEqual([]);
+    expect(srcs(between.cursor)).toEqual([src("hat"), src("cat"), src("dog")]);
     expect(between.state.beat).toBe(2);
     const onBeat = plan(10, between.state)!;
-    expect(srcs(onBeat.cursor)).toEqual([src("cat")]);
+    expect(srcs(onBeat.cursor)).toEqual([src("cat"), src("dog")]);
+    // Arriving at a beat's line from the line below it asks for nothing
+    // new: that line's hint already covered the beat.
+    const below = plan(4)!;
+    expect(srcs(below.cursor)).toEqual([src("bunny"), src("hat"), src("cat")]);
+    const up = plan(3, below.state)!;
+    expect(up.cursor).toEqual([]);
+    expect(up.near).toEqual([]);
+  });
+
+  it("re-sends the window only when the cursor leaves half of it, not the whole of it", () => {
+    // Five beats and a reach of six: the whole scene is the window, and
+    // half the reach is three beats.
+    const wide = compile(
+      `define assets as config with\n  predict_distance = 6\nend\n\n${STORY}`,
+    );
+    const at = (line: number, last?: PreviewHintState) =>
+      planPreviewHint(wide, URI, line + 4, entriesOf(wide), last);
+    const first = at(1)!;
+    expect(srcs(first.near)).toHaveLength(5);
+    // Three beats on: within half the reach, nothing.
+    const three = at(10, first.state)!;
+    expect(three.near).toEqual([]);
+    expect(three.state.nearBeat).toBe(0);
+    // Four beats on: past half the reach, though well within the whole.
+    const four = at(12, three.state)!;
+    expect(srcs(four.near)).toHaveLength(5);
+    expect(four.state.nearBeat).toBe(4);
   });
 
   it("re-sends the window only when the cursor leaves half of it", () => {
@@ -231,7 +258,7 @@ end
       first.state,
     )!;
     expect(again).not.toBeNull();
-    expect(srcs(again.cursor)).toEqual([src("cat")]);
+    expect(srcs(again.cursor)).toEqual([src("cat"), src("hat")]);
     expect(again.near).toEqual([]);
     expect(again.rest).toBeNull();
     expect(again.state.version).toBe(recompiled.version);

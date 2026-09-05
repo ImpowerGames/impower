@@ -15,12 +15,7 @@ import {
 } from "../assetsBuiltinDefinitions";
 import { assetItemKey, type AssetItem } from "../types/AssetItem";
 import { type LoadAssetsResult } from "../types/LoadAssetsResult";
-import {
-  beatIndexIn,
-  exactBeatIndex,
-  gateBeats,
-  previewWindow,
-} from "../utils/previewWindow";
+import { beatIndexIn, previewWindow } from "../utils/previewWindow";
 import { AssetsProgressMessage } from "./messages/AssetsProgressMessage";
 import { ConfigureAssetsMessage } from "./messages/ConfigureAssetsMessage";
 import {
@@ -433,6 +428,21 @@ export class AssetModule extends Module<
   // ---------------------------------------------------------------------------
 
   /**
+   * The names of every image a beat's instructions show.
+   */
+  protected imageNamesOf(instructions: Instructions): string[] {
+    const names: string[] = [];
+    for (const events of Object.values(instructions.image ?? {})) {
+      for (const event of events) {
+        if (event.control !== "hide" && event.assets?.length) {
+          names.push(...event.assets);
+        }
+      }
+    }
+    return names;
+  }
+
+  /**
    * Start loading everything a beat shows and return a trigger the
    * Coordinator waits on before displaying it, or null when nothing needs
    * loading. The pin is released once the trigger fires: by then the images
@@ -442,14 +452,7 @@ export class AssetModule extends Module<
     if (this.silent) {
       return null;
     }
-    const names: string[] = [];
-    for (const events of Object.values(instructions.image ?? {})) {
-      for (const event of events) {
-        if (event.control !== "hide" && event.assets?.length) {
-          names.push(...event.assets);
-        }
-      }
-    }
+    const names = this.imageNamesOf(instructions);
     const items = this.resolveImageItems(names);
     if (items.length === 0) {
       return null;
@@ -676,38 +679,6 @@ export class AssetModule extends Module<
     }
   }
 
-  /**
-   * Image names of what a preview at `path` is about to write: the beat the
-   * cursor resolved to and the beats that display with it
-   * ({@link gateBeats}). Nothing when the cursor resolved to something that
-   * is not a beat: a plain line between beats writes that line and nothing
-   * that names an asset, and what an earlier beat showed is in the
-   * checkpoint, which this gate covers on its own; a path the program does
-   * not know (a remembered preview point the last edit removed); or a path
-   * inside a function, which a preview cannot start in. A cursor before the
-   * scene's first beat starts from that beat. A gate on a guess would hold
-   * the line for pictures it never shows.
-   */
-  protected previewedImageNames(path: string): string[] {
-    const program = this._game.program;
-    const flow = SceneTracker.sceneOf(path);
-    const entry = flow ? program.sceneAssets?.[flow] : undefined;
-    if (!flow || !entry || entry.kind === "function") {
-      return [];
-    }
-    const locations = program.pathLocations;
-    let index = exactBeatIndex(entry.beats, path);
-    if (index < 0) {
-      if (!locations?.[path] || this.beatIndexFor(flow, path) >= 0) {
-        return [];
-      }
-      index = 0;
-    }
-    return gateBeats(entry, index, locations).flatMap(
-      (beat) => beat.image ?? [],
-    );
-  }
-
   /** Advance the prediction window past the beat that just displayed; in
    *  preview, send the window around the cursor if it moved since the last
    *  one (each scrub declares its cursor before it connects, and a scrub
@@ -884,10 +855,14 @@ export class AssetModule extends Module<
     // A preview writes the beat at the cursor the moment it is connected,
     // with no clock to wait on, so that beat's images are part of the same
     // gate: the line and its portrait land together, and behind a burst of
-    // background loads the portrait still takes the express lane.
-    const previewPath = this.context.system.previewing;
-    if (typeof previewPath === "string") {
-      names.push(...this.previewedImageNames(previewPath));
+    // background loads the portrait still takes the express lane. The beat
+    // is run dry to learn them: what it writes is the story's decision, not
+    // the source's.
+    if (typeof this.context.system.previewing === "string") {
+      const beat = this._game.peekPreviewInstructions();
+      if (beat) {
+        names.push(...this.imageNamesOf(beat));
+      }
     }
     const items = this.resolveImageItems(names).filter(
       (item) => this.timed || item.kind !== "video",

@@ -142,11 +142,11 @@ describe("AssetCache: warming through the document", () => {
   it("removes the element the moment a loading entry is dropped, changed, or disposed", async () => {
     const { cache, warmed, loading } = makeCache();
     cache.prefetch([image("/x.png")], 2);
-    cache.request([image("/y.png?v=1")], 0, "load:A");
-    cache.request([image("/z.png")], 0, "load:B");
+    cache.request([image("/y.png?v=1")], 0, "beat:1");
+    cache.request([image("/z.png")], 0, "beat:2");
     expect(warmed.map((w) => w.removed)).toEqual([false, false, false]);
     // A drop of a pinned, still-loading picture.
-    cache.release(["load:A"], true);
+    cache.release(["beat:1"], true);
     expect(warmed.find((w) => w.src === "/y.png?v=1")!.removed).toBe(true);
     // The file behind a loading picture changed.
     cache.evictFile("/x.png?v=2");
@@ -261,9 +261,10 @@ describe("AssetCache: warming through the document", () => {
     expect(loading("/next.svg")).toBeDefined();
   });
 
-  it("does not count a `load:` pin, a hint, or an entry the cache has forgotten", async () => {
+  it("does not count a priority-1 pin, a hint, or an entry the cache has forgotten", async () => {
     const { cache, loading } = makeCache();
-    // A load's set on a hinted picture: not a gate.
+    // A load's set on a hinted picture: requested at priority 1, so not a
+    // gate, whatever its pin is called.
     cache.hint([image("/shared.svg")]);
     void cache.request([image("/shared.svg")], 1, "load:B");
     cache.prefetch([image("/w0.svg")], 2);
@@ -277,24 +278,115 @@ describe("AssetCache: warming through the document", () => {
     expect(loading("/w1.svg")).toBeDefined();
   });
 
-  it("leaves a hint two express slots short, so a gate never waits behind hints alone", async () => {
+  it("leaves a hint two express slots short, so a gate always has slots hints cannot take", async () => {
     const { cache, loading } = makeCache();
     cache.hint(images(8, "h"));
     expect(cache.inFlightCount).toBe(BACKGROUND_SLOTS);
     expect(loading("/h4.svg")).toBeUndefined();
-    // A gate arrives while the hint's leftovers are queued: it goes ahead
-    // of them in the lane and starts at once in an express slot.
-    void cache.request(images(2, "gate"), 0, "restore");
+    // A gate wider than the slots the hints left arrives while the hint's
+    // leftovers are queued: it goes ahead of them in the lane, two of its
+    // loads start at once, and every slot that frees goes to it before any
+    // queued hint. The hint loads in flight cannot be taken back, so that
+    // is the bound: a gate waits behind at most the four hint loads that
+    // were already running, never behind a queued one.
+    void cache.request(images(6, "gate"), 0, "restore");
     expect(loading("/gate0.svg")).toBeDefined();
     expect(loading("/gate1.svg")).toBeDefined();
+    expect(loading("/gate2.svg")).toBeUndefined();
     expect(loading("/h4.svg")).toBeUndefined();
-    // A gate slot freeing goes to the queued gate before a queued hint.
-    void cache.request(images(1, "more"), 0, "beat:1");
-    expect(loading("/more0.svg")).toBeUndefined();
-    loading("/gate0.svg")!.finishLoad();
+    for (let i = 0; i < 4; i++) {
+      loading(`/h${i}.svg`)!.finishLoad();
+      await settle();
+      expect(loading(`/gate${i + 2}.svg`)).toBeDefined();
+      expect(loading("/h4.svg")).toBeUndefined();
+    }
+    // A hint takes a freed slot only once no gate load is queued and fewer
+    // than four express loads are in flight.
+    for (let i = 0; i < 2; i++) {
+      loading(`/gate${i}.svg`)!.finishLoad();
+      await settle();
+      expect(loading("/h4.svg")).toBeUndefined();
+    }
+    loading("/gate2.svg")!.finishLoad();
     await settle();
-    expect(loading("/more0.svg")).toBeDefined();
-    expect(loading("/h4.svg")).toBeUndefined();
+    expect(loading("/h4.svg")).toBeDefined();
+  });
+
+  it("re-queues a gate that failed once ahead of the hints", async () => {
+    const { cache, loading } = makeCache();
+    cache.hint(images(8, "h"));
+    void cache.request([image("/g.svg")], 0, "beat:1");
+    expect(loading("/g.svg")).toBeDefined();
+    // A cold service worker answers the gate's first attempt with a 404.
+    loading("/g.svg")!.fail();
+    await settle();
+    // The retry goes back to the head of the lane, not behind the four
+    // queued hints, and starts in the slot it freed; the hints stay queued
+    // and nothing background moved meanwhile, since the gate was pending.
+    expect(loading("/g.svg")).toBeDefined();
+    expect(cache.stateOf("/h4.svg")).toBe("queued");
+    expect((cache as any)._queues[0].map((e: any) => e.key)).toEqual([
+      "/h4.svg",
+      "/h5.svg",
+      "/h6.svg",
+      "/h7.svg",
+    ]);
+  });
+
+  it("sends a released gate's picture back to the load's priority when a load still waits on it", async () => {
+    const { cache, loading, priorityOf } = makeCache();
+    void cache.request(images(5, "b"), 1, "load:X");
+    expect(cache.stateOf("/b4.svg")).toBe("queued");
+    void cache.request(images(6, "g"), 0, "restore");
+    // A beat gates a picture the load's set is already queued for.
+    void cache.request([image("/b4.svg")], 0, "beat:1");
+    expect(priorityOf("/b4.svg")).toBe(0);
+    cache.release(["beat:1"], false);
+    // Back to the priority the load asked for, not to a prefetch's: the
+    // load is waited on too, and a prefetch would yield to the next gate.
+    expect(priorityOf("/b4.svg")).toBe(1);
+    loading("/b0.svg")!.finishLoad();
+    await settle();
+    expect(loading("/b4.svg")).toBeDefined();
+  });
+
+  it("retires a hinted picture an explicit load also wants to the load's priority", async () => {
+    const { cache, priorityOf } = makeCache();
+    cache.hint(images(8, "h"));
+    void cache.request([image("/h5.svg")], 1, "load:B");
+    expect(priorityOf("/h5.svg")).toBe(0);
+    cache.hint([image("/k0.svg")]);
+    expect(priorityOf("/h4.svg")).toBe(2);
+    expect(priorityOf("/h5.svg")).toBe(1);
+  });
+
+  it("clears the decode timer with the load's", async () => {
+    vi.useFakeTimers();
+    try {
+      class DecodingImage extends FakeImage {
+        decode = () => Promise.resolve();
+      }
+      const created: DecodingImage[] = [];
+      const cache = new AssetCache({
+        createImage: () => {
+          const img = new DecodingImage();
+          created.push(img);
+          return img;
+        },
+      });
+      const done = cache.request([image("/a.png")], 0, "restore");
+      expect(created).toHaveLength(1);
+      // The load fires and the decode settles: the decode's timer goes the
+      // way the load's does, and nothing stays armed behind a resident
+      // picture.
+      created[0]!.finishLoad();
+      await vi.advanceTimersByTimeAsync(0);
+      await done;
+      expect(cache.isResident("/a.png")).toBe(true);
+      expect(vi.getTimerCount()).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("never pauses prefetches for the page's own hint", async () => {
