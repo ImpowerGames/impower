@@ -51,8 +51,9 @@ export interface AssetCacheDeps {
    *  same url: a background, a `mask-image`, an `<img>`. A picture loaded
    *  through an `Image` object alone is reused by backgrounds but not by
    *  masks, and the renderer's shadow layers are masks, so an image warmed
-   *  without this is fetched again the moment it is displayed. */
-  warmImage?: (src: string) => WarmHandle;
+   *  without this is fetched again the moment it is displayed. Returns
+   *  nothing when there is nowhere to put the element yet. */
+  warmImage?: (src: string) => WarmHandle | undefined;
   decodeAudio?: (params: LoadAudioPlayerParams) => Promise<AudioBuffer | null>;
   fetchBytes?: (src: string) => Promise<{ bytes: ArrayBuffer; type: string }>;
   createFontFace?: (
@@ -68,14 +69,16 @@ export interface AssetCacheDeps {
 }
 
 export interface AssetCacheOptions {
-  /** Requests in flight at once. Assets are served by a service worker that
-   *  reads OPFS (and, in the cross-origin player, round-trips through the
-   *  editor), so an unbounded burst puts every asset behind every other one:
-   *  warming 261 images at project open still left the first portrait cold
-   *  (#344). */
+  /** Background requests (priority 1 and up) in flight at once, less the
+   *  express slots; and, separately, priority-0 loads in flight at once.
+   *  Assets are served by a service worker that reads OPFS (and, in the
+   *  cross-origin player, round-trips through the editor), so an unbounded
+   *  burst puts every asset behind every other one: warming 261 images at
+   *  project open still left the first portrait cold (#344). */
   maxConcurrent?: number;
-  /** Slots only priority 0 (a gate) may use, so a gate never waits behind a
-   *  full window of background prefetches. */
+  /** Slots held back from background requests, so a gate's own loads are
+   *  never the only thing waiting on a full window of prefetches; a gate
+   *  never waits for a slot at all (see `canStart`). */
   expressSlots?: number;
   /** Bytes prediction may keep resident: the pool of entries that are neither
    *  pinned nor displayed nor playing, evicted least recently used first once
@@ -89,15 +92,19 @@ export interface AssetCacheOptions {
    *  resident anyway. Decoding ahead is an optimization; some browsers never
    *  settle the promise for an image that is not in the document. */
   decodeTimeoutMs?: number;
-  /** How long a single load may stay in flight before it counts as failed
-   *  (and is retried like any failure). A fetch the service worker never
-   *  answers would otherwise hold its slot for the session, and a gate that
-   *  never settles would hold every background load behind it. */
+  /** How long a single load may stay in flight before it counts as a final
+   *  failure (no retry: a hang is not a 404). A fetch the service worker
+   *  never answers would otherwise hold its slot for the session. 0 = never;
+   *  a hung load then holds its slot until the page goes away, though a gate
+   *  stops pausing background loads as soon as its pin is released. */
   loadTimeoutMs?: number;
 }
 
 export const DEFAULT_DECODE_TIMEOUT_MS = 1500;
-export const DEFAULT_LOAD_TIMEOUT_MS = 30_000;
+/** Generous, because a cold service worker generating filtered SVGs for a
+ *  whole scene has been seen to take over twenty seconds for one file, and
+ *  a load that times out cannot be cancelled, only started over. */
+export const DEFAULT_LOAD_TIMEOUT_MS = 60_000;
 
 export const DEFAULT_MAX_CONCURRENT = 6;
 export const DEFAULT_EXPRESS_SLOTS = 2;
@@ -187,8 +194,16 @@ export class AssetCache {
 
   protected _inFlightBackground = 0;
 
-  /** Priority-0 loads in flight: while one is, no background load starts. */
+  /** Priority-0 loads in flight, capped at `maxConcurrent` on their own. */
   protected _inFlightGate = 0;
+
+  /** Every entry in flight, so a pinned priority-0 load can be told apart
+   *  from an unpinned one without walking the whole map. */
+  protected _loading = new Set<Entry>();
+
+  /** What the last {@link hint} asked for, so the next one can demote what
+   *  is still queued. */
+  protected _hinted: Entry[] = [];
 
   protected _pumping = false;
 
@@ -464,6 +479,38 @@ export class AssetCache {
     this.pump();
   }
 
+  /**
+   * The page's guess at what the next gate will ask for (the beats under
+   * the editor's cursor): loaded in the express lane, unpinned, and replaced
+   * by the next guess. Whatever an earlier guess left queued goes back to
+   * the window's priority, so a cursor moving faster than the loads does not
+   * pile every beat it passed in front of the beat it stops on. A hint never
+   * pauses background loads; only a pinned request does (see `canStart`).
+   */
+  hint(items: AssetItem[]): void {
+    this.tick();
+    for (const e of this._hinted) {
+      if (
+        e.state === "queued" &&
+        e.priority === 0 &&
+        e.pins.size === 0 &&
+        this._entries.get(e.key) === e
+      ) {
+        this.dequeue(e);
+        e.priority = 2;
+        this._queues[2]!.push(e);
+      }
+    }
+    this._hinted = [];
+    for (const item of items) {
+      const entry = this.ensure(item, 0);
+      if (entry) {
+        this._hinted.push(entry);
+      }
+    }
+    this.pump();
+  }
+
   /** Let go of pins; with `drop`, evict at once whatever they leave unpinned
    *  unless the page still displays or plays it. A queued item left unpinned
    *  by a drop is cancelled rather than loaded for nothing. */
@@ -500,6 +547,9 @@ export class AssetCache {
         this.remove(e);
       }
     }
+    // A released gate stops pausing the background queue, whether or not
+    // its loads have settled.
+    this.pump();
   }
 
   /** Forget every failure record, so the next request tries again at once.
@@ -648,6 +698,16 @@ export class AssetCache {
   protected remove(entry: Entry): void {
     if (entry.state === "loading") {
       entry.stale = true;
+      // The picture may still arrive, but nothing wants it held in the
+      // document any more; the load's completion discards the rest.
+      if (entry.warm) {
+        try {
+          entry.warm.remove();
+        } catch {
+          // Already gone from the document.
+        }
+        entry.warm = undefined;
+      }
     }
     if (entry.state === "resident") {
       this._bytes -= entry.bytes;
@@ -739,6 +799,25 @@ export class AssetCache {
     }
   }
 
+  /** Whether a request someone is waiting on is queued or loading at
+   *  priority 0. A hint (an unpinned priority-0 prefetch) never counts, and
+   *  a gate stops counting the moment its pins are released, whether or not
+   *  its loads have settled: the engine's own timeouts bound its wait, and
+   *  the page must not keep waiting on its behalf. */
+  protected gatePending(): boolean {
+    for (const e of this._queues[0]!) {
+      if (e.pins.size > 0) {
+        return true;
+      }
+    }
+    for (const e of this._loading) {
+      if (e.priority === 0 && e.pins.size > 0) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   protected canStart(priority: AssetPriority): boolean {
     if (priority === 0) {
       // A gate never waits for a slot. A background load in flight cannot
@@ -750,11 +829,12 @@ export class AssetCache {
     if (this._inFlight >= this._maxConcurrent) {
       return false;
     }
-    // A gate has the lane to itself while it is queued or in flight: every
-    // load in flight shares the service worker's time with it (a filtered
-    // SVG is a filter pass in the worker before it is bytes), and someone
-    // is waiting on the gate; nobody is waiting on a prefetch.
-    if (this._queues[0]!.length > 0 || this._inFlightGate > 0) {
+    // Prefetches yield to a pending gate: every load in flight shares the
+    // service worker's time with it (a filtered SVG is a filter pass in the
+    // worker before it is bytes), and someone is waiting on the gate while
+    // nobody waits on a prefetch. An explicit load's set (priority 1) is
+    // waited on too, behind the loading layout, so it keeps its slots.
+    if (priority >= 2 && this.gatePending()) {
       return false;
     }
     return this._inFlightBackground < this._maxConcurrent - this._expressSlots;
@@ -797,12 +877,19 @@ export class AssetCache {
     } else {
       this._inFlightGate++;
     }
+    this._loading.add(entry);
     let done = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
     const finish = (ok: boolean, bytes: number) => {
       if (done) {
         return;
       }
       done = true;
+      if (timer !== undefined) {
+        clearTimeout(timer);
+        timer = undefined;
+      }
+      this._loading.delete(entry);
       this._inFlight--;
       if (background) {
         this._inFlightBackground--;
@@ -849,10 +936,12 @@ export class AssetCache {
       );
       if (this._loadTimeoutMs > 0) {
         // A load that never settles is a final failure, not a retry (a hang
-        // is not a 404, and three of them would hold the queue for minutes):
-        // it gives up its slot, and a gate it was holding stops holding the
-        // queue. The cool-down lets a later request try again.
-        setTimeout(() => {
+        // is not a 404, and three of them would hold a slot for minutes):
+        // it gives up its slot, and the cool-down lets a later request try
+        // again. Cleared by `finish`, so a load that settles leaves nothing
+        // armed behind it.
+        timer = setTimeout(() => {
+          timer = undefined;
           if (!done) {
             entry.attempts = MAX_LOAD_ATTEMPTS - 1;
             finish(false, 0);

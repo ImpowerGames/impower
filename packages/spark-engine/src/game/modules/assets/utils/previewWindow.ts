@@ -6,10 +6,54 @@ import {
 /** `[scriptIndex, line, column, …]` per runtime path, as the program records it. */
 export type PathLocations = Record<string, ArrayLike<number> | undefined>;
 
-/** Beats from the cursor's whose images a preview waits for before it
- *  writes: the cursor's own beat, and the two after it, because a beat that
- *  only shows an image displays together with the line that follows. */
+/** At most this many beats go through a preview's gate at once. */
 export const PREVIEW_GATE_BEATS = 3;
+
+/** A beat that begins within this many source lines of where the gated
+ *  beat ends displays with it (an image-only line and the line below it);
+ *  one further away is the next scrub's, and waiting on it would only delay
+ *  this one. */
+export const PREVIEW_GATE_LINES = 2;
+
+/**
+ * The beats a preview at beat `index` of `entry` writes at once: the beat
+ * itself and, up to {@link PREVIEW_GATE_BEATS} in all, the beats after it
+ * that begin within {@link PREVIEW_GATE_LINES} lines of where the last
+ * included one ends, in the same script. Beats are the leaves that name
+ * assets, so "the next beat" can be far down the scene; the line distance is
+ * what tells a beat that displays with this one from the next scrub's.
+ */
+export function gateBeats(
+  entry: SceneAssets,
+  index: number,
+  locations: PathLocations | undefined,
+): SceneBeat[] {
+  const beats = entry.beats;
+  const first = beats[index];
+  if (!first) {
+    return [];
+  }
+  const out = [first];
+  const firstAt = locations?.[first.path];
+  if (!firstAt) {
+    return out;
+  }
+  let endLine = firstAt[3] ?? firstAt[1]!;
+  for (
+    let i = index + 1;
+    i < beats.length && out.length < PREVIEW_GATE_BEATS;
+    i++
+  ) {
+    const beat = beats[i]!;
+    const at = locations?.[beat.path];
+    if (!at || at[0] !== firstAt[0] || at[1]! > endLine + PREVIEW_GATE_LINES) {
+      break;
+    }
+    out.push(beat);
+    endLine = Math.max(endLine, at[3] ?? at[1]!);
+  }
+  return out;
+}
 
 /**
  * The index of the beat at `path` in `beats`, or of the last beat before it

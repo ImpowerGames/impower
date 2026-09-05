@@ -2206,8 +2206,11 @@ export class Game<T extends M = {}> {
    *  Do not call this on a game that is about to run for real: `Application`
    *  reads the same flag to decide whether to skip building a renderer.
    *
-   *  Without a path the flag is simply `true`. Nothing reads it as a path — the
-   *  path a preview settled on is `previewedPath`. */
+   *  Pass the path the cursor resolved to whenever there is one: the asset
+   *  module reads it as the preview's anchor, to gate the beat about to be
+   *  written at connect and to centre its prediction window; without a path
+   *  the flag is simply `true` and neither happens. The path a preview settled
+   *  on afterwards is `previewedPath`. */
   markPreviewing(previewPath?: string): void {
     this._context.system.previewing = previewPath || true;
   }

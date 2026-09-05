@@ -117,13 +117,21 @@ describe("AssetCache", () => {
     expect(gates.length).toBe(3);
   });
 
-  it("starts a gate before queued background work when a slot frees", async () => {
+  it("starts a queued gate load before queued background work when a gate slot frees", async () => {
     const { cache, inFlight, finish } = makeCache();
     cache.prefetch(images(10), 3);
-    void cache.request(images(3, "gate"), 0, "beat:1");
+    // Seven gate loads: six run at once, the seventh waits for a gate slot,
+    // never for a background one.
+    void cache.request(images(7, "gate"), 0, "beat:1");
+    expect(inFlight().filter((i) => i.src.includes("gate")).length).toBe(
+      DEFAULT_MAX_CONCURRENT,
+    );
+    expect(inFlight().some((i) => i.src === "/file:/gate6.png?v=1")).toBe(false);
+    await finish("/file:/gate0.png?v=1");
+    // The freed gate slot went to the waiting gate load; and a freed
+    // background slot goes nowhere while the gate is pending.
+    expect(inFlight().some((i) => i.src === "/file:/gate6.png?v=1")).toBe(true);
     await finish("/file:/i0.png?v=1");
-    // The freed background slot went to the waiting gate, not to i4.
-    expect(inFlight().some((i) => i.src === "/file:/gate2.png?v=1")).toBe(true);
     expect(inFlight().some((i) => i.src === "/file:/i4.png?v=1")).toBe(false);
   });
 

@@ -9,20 +9,14 @@ import { DidSelectTextDocumentMessage } from "@impower/spark-editor-protocol/src
 import { DidChangeConfigurationMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeConfigurationMessage";
 import { DidChangeWatchedFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeWatchedFilesMessage";
 import { ExecuteCommandMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/ExecuteCommandMessage";
-import { SceneTracker } from "@impower/spark-engine/src/game/core/classes/SceneTracker";
-import { findClosestPath } from "@impower/spark-engine/src/game/core/utils/findClosestPath";
-import { assetsBuiltinDefinitions } from "@impower/spark-engine/src/game/modules/assets/assetsBuiltinDefinitions";
-import {
-  beatIndexIn,
-  PREVIEW_GATE_BEATS,
-  previewWindow,
-} from "@impower/spark-engine/src/game/modules/assets/utils/previewWindow";
 import { File } from "@impower/sparkdown/src/compiler";
-import { type SceneBeat } from "@impower/sparkdown/src/compiler/types/SceneAssets";
 import { SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
 import { SparkdownWorkspace } from "@impower/sparkdown/src/workspace/classes/SparkdownWorkspace";
 import { getSharedAssetCache } from "../assets/sharedAssetCache";
-import { resolveImageSrcs } from "../utils/resolveImageSrcs";
+import {
+  planPreviewHint,
+  type PreviewHintState,
+} from "../utils/previewHint";
 import WORKSPACE_INLINE_WORKER_STRING from "./workspace.worker";
 
 const ASSET_FILE_TYPES = new Set(["image", "audio", "font", "video"]);
@@ -34,29 +28,11 @@ const pathEntriesOf = new WeakMap<
   Array<[string, [number, number, number, number, number]]>
 >();
 
-/** The program's `predict_distance`, as the engine will read it. */
-const predictDistanceOf = (program: SparkProgram): number => {
-  const authored = (program.context as Record<string, any> | undefined)?.[
-    "config"
-  ]?.["assets"]?.["predict_distance"];
-  return typeof authored === "number" && Number.isFinite(authored) && authored >= 0
-    ? authored
-    : assetsBuiltinDefinitions().config.assets.predict_distance;
-};
-
 export function installWorkspaceWorker(connection: MessageConnection) {
   const cache = getSharedAssetCache();
   // The beat the cursor last landed on, so a cursor that only moves within
   // a beat (the editor re-selects on every column change) asks for nothing.
-  let lastHint:
-    | {
-        uri: string;
-        version: number | undefined;
-        scene: string;
-        beat: number;
-        line: number;
-      }
-    | undefined;
+  let lastHint: PreviewHintState | undefined;
 
   class SparkdownGameWorkspace extends SparkdownWorkspace {
     constructor(profilerId?: string) {
@@ -162,60 +138,27 @@ export function installWorkspaceWorker(connection: MessageConnection) {
           return;
         }
         const line = params.selectedRange.start.line;
-        // The same line of the same program asks for nothing; the scan
-        // below is proportional to the whole program.
-        if (
-          lastHint &&
-          lastHint.uri === uri &&
-          lastHint.version === program.version &&
-          lastHint.line === line
-        ) {
-          return;
-        }
         let entries = pathEntriesOf.get(program);
         if (!entries) {
           entries = Object.entries(program.pathLocations ?? {});
           pathEntriesOf.set(program, entries);
         }
-        const path = findClosestPath(
-          { file: uri, line },
-          entries,
-          Object.keys(program.scripts ?? {}),
-        );
-        const scene = SceneTracker.sceneOf(path) ?? "0";
-        const entry = sceneAssets[scene];
-        const beat = entry
-          ? Math.max(0, beatIndexIn(entry.beats, program.pathLocations, path))
-          : 0;
-        if (
-          lastHint &&
-          lastHint.uri === uri &&
-          lastHint.version === program.version &&
-          lastHint.scene === scene &&
-          lastHint.beat === beat
-        ) {
-          lastHint.line = line;
+        const plan = planPreviewHint(program, uri, line, entries, lastHint);
+        if (!plan) {
           return;
         }
-        lastHint = { uri, version: program.version, scene, beat, line };
-        if (!entry) {
-          return;
-        }
+        lastHint = plan.state;
         // Visuals only, as a preview shows; fonts are gated by the layouts
         // as they mount. A superset of what the engine will ask for is fine.
-        const items = (beats: SceneBeat[]) =>
-          resolveImageSrcs(
-            program.context,
-            beats.flatMap((b) => b.image ?? []),
-          ).map((src) => ({ kind: "image" as const, src }));
-        const distance = predictDistanceOf(program);
-        const { near, rest } = previewWindow(entry, beat, distance);
-        cache.prefetch(
-          items(entry.beats.slice(beat, beat + PREVIEW_GATE_BEATS)),
-          0,
-        );
-        cache.prefetch(items(near), 2);
-        cache.prefetch(items(rest), 3);
+        if (plan.cursor.length > 0) {
+          cache.hint(plan.cursor);
+        }
+        if (plan.near.length > 0) {
+          cache.prefetch(plan.near, 2);
+        }
+        if (plan.rest && plan.rest.length > 0) {
+          cache.prefetch(plan.rest, 3);
+        }
       } catch (e) {
         // A hint is an optimization; it must never take the selection down.
         console.warn("Could not prefetch the selected scene's images:", e);
