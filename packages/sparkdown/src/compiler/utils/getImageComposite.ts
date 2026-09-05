@@ -48,10 +48,22 @@ const PREVIEW_WIDTH = 360;
  * impower-dev's assets are served that way — and is equally loadable, so the
  * test is "an explicit scheme outside this set", not "not in this set".
  *
- * Anything else is a workspace uri (`file:`, `vscode-vfs:`), which VS Code's
- * markdown sanitizer strips off the element entirely, leaving an image with
- * nothing to load. Those have to be inlined as `data:` instead, from bytes
- * read back over the host's `readFileBytes` bridge.
+ * Everything else is a workspace uri, and VS Code shows nothing for one. Two
+ * separate mechanisms produce that, so neither alone can be relied on:
+ *
+ *  - The markdown sanitizer's own allowlist. Measured against the stable web
+ *    build by emitting one `<img>` per scheme and reading the DOM back: it
+ *    KEEPS `http`, `https`, `data`, `file`, `vscode-file` and
+ *    `vscode-remote-resource`, and strips `vscode-vfs`, `vscode-userdata` and
+ *    `vscode-resource`.
+ *  - The workbench's refusal to load a local resource, which is what stops a
+ *    `file:` src that survived the sanitizer ("Not allowed to load local
+ *    resource"). That one is not visible in the markup at all — the attribute
+ *    is still there and the image is still blank.
+ *
+ * Inlining as `data:` from bytes read over the host's `readFileBytes` bridge
+ * is the one route that clears both, which is why the test below is an
+ * allowlist of what definitely renders rather than a list of what to avoid.
  */
 const DIRECTLY_LOADABLE_SCHEMES = new Set(["http", "https", "data"]);
 

@@ -14,10 +14,17 @@ const getFileText = async (uri: string) => {
 /**
  * Raw bytes as base64, for the language server's asset previews.
  *
- * The server runs in a worker and cannot `fetch` a workspace uri, and VS
- * Code's markdown sanitizer refuses any non-http(s) `<img src>` — so previews
- * there are inlined `data:` URIs built from bytes read here. Base64 because
- * the LSP transport is JSON.
+ * The server runs in a worker and cannot `fetch` a workspace uri, and a hover
+ * cannot render one either — so previews are inlined `data:` URIs built from
+ * bytes read here. Base64 because the LSP transport is JSON.
+ *
+ * Two mechanisms independently break a workspace uri in a hover, so an
+ * inlined `data:` uri is the only route that clears both. The markdown
+ * sanitizer strips `vscode-vfs:`, `vscode-userdata:` and `vscode-resource:`
+ * outright. It permits `file:`, but the workbench then declines to load it
+ * ("Not allowed to load local resource"), leaving the attribute in place and
+ * the image blank — the reason a `file:` src in a hover stopped working in
+ * VS Code 1.58 (microsoft/vscode#128315).
  */
 const getFileBytes = async (uri: string) => {
   const buffer = await vscode.workspace.fs.readFile(vscode.Uri.parse(uri));
