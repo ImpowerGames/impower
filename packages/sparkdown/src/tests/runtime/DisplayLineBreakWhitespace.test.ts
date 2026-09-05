@@ -37,8 +37,19 @@ describe("display line-break whitespace", () => {
     expect(render("ALICE:\n  first\n  .. second\n")).toBe("first second\n");
   });
 
-  test("an escaped whitespace break keeps no leading space", () => {
+  // A backslash before a space, a tab, or a line ending is one rule with
+  // three triggers, so all three are pinned rather than the one that is
+  // easiest to write.
+  test("an escaped space break keeps no leading space", () => {
     expect(render("ALICE: hello\\ world\n")).toBe("hello\nworld\n");
+  });
+
+  test("an escaped tab break keeps no leading space", () => {
+    expect(render("ALICE: hello\\\tworld\n")).toBe("hello\nworld\n");
+  });
+
+  test("an escaped line-ending break keeps no leading space", () => {
+    expect(render("ALICE:\n  hello\\\n  world\n")).toBe("hello\nworld\n");
   });
 
   // Positive controls. These hold both before and after the fix, so a red
@@ -52,9 +63,16 @@ describe("display line-break whitespace", () => {
     expect(render("ALICE: two  spaces here\n")).toBe("two  spaces here\n");
   });
 
+  // The condition both tickets name as what must stay true: a break still
+  // breaks, and the words on either side of it do not fuse. Trimming each
+  // line makes this hold regardless of the whitespace the tests above pin,
+  // which is what keeps it a control rather than a second copy of them.
   test("a multi-line body still breaks where the author broke it", () => {
-    const out = render("ALICE:\n  first line\n  second line\n");
-    expect(out).toContain("\n");
-    expect(out).not.toContain("first linesecond line");
+    const lines = render("$:\n  alpha\n  beta\n  gamma\n").split("\n");
+    expect(lines.map((l) => l.trim()).filter((l) => l.length > 0)).toEqual([
+      "alpha",
+      "beta",
+      "gamma",
+    ]);
   });
 });
