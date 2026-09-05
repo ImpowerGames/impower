@@ -209,28 +209,26 @@ await check("a page that never mounts a pane is told to re-run, not to switch sc
 // mounted, answering by the source of the function it is handed. The
 // editor-presence wait (the only waitForFunction that reads cmTile) rejects,
 // as Playwright's does on timeout; everything else answers at once.
-const editorlessLogicPage = () => {
-  const evaluated = [];
-  return {
-    evaluated,
-    locator: () => ({ first: () => ({ waitFor: async () => {}, click: async () => {} }) }),
-    waitForFunction: async (fn) => {
-      const src = String(fn);
-      if (src.includes("cmTile")) throw new Error("Timeout 20000ms exceeded");
-      return true;
-    },
-    evaluate: async (fn) => {
-      const src = String(fn);
-      evaluated.push(src);
-      if (src.includes("MutationObserver")) return true; // waitForDomQuiet
-      if (src.includes("Object.entries(screens)")) return ["logic"]; // mountedScreens
-      if (src.includes('["logic", "assets", "share"]')) return "main"; // the selected inner tab
-      if (src.includes("-trigger-main")) return true; // main tab selected or absent
-      if (src.includes('.cm-content") != null')) return false;
-      throw new Error(`stub page asked something it has no answer for: ${src.slice(0, 80)}`);
-    },
-  };
-};
+const editorlessLogicPage = () => ({
+  locator: () => ({ first: () => ({ waitFor: async () => {}, click: async () => {} }) }),
+  waitForFunction: async (fn) => {
+    const src = String(fn);
+    if (src.includes("cmTile")) throw new Error("Timeout 20000ms exceeded");
+    return true;
+  },
+  evaluate: async (fn) => {
+    const src = String(fn);
+    if (src.includes("MutationObserver")) return true; // waitForDomQuiet
+    if (src.includes("Object.entries(screens)")) return ["logic"]; // mountedScreens
+    if (src.includes('["logic", "assets", "share"]')) return "main"; // the selected inner tab
+    // Any question that reads the editor's content element (including the
+    // fullscreen-scripts-view predicate, which also reads the main tab) is
+    // answered before the main-tab question, since no editor is mounted here.
+    if (src.includes('.cm-content") != null')) return false;
+    if (src.includes("-trigger-main")) return true; // main tab selected or absent
+    throw new Error(`stub page asked something it has no answer for: ${src.slice(0, 80)}`);
+  },
+});
 
 await check("a --screen logic whose editor never mounts is a note only when --screen main follows, and a failure otherwise; --screen main itself never gets the note", async () => {
   const paired = await switchScreen(editorlessLogicPage(), "logic", { followedByMain: true });

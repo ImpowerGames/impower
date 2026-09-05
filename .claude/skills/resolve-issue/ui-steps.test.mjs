@@ -15,7 +15,7 @@
 // Pure function, no browser. Node's built-in assert only.
 
 import assert from "node:assert/strict";
-import { parseUiSteps } from "./driver.mjs";
+import { followedByMain, parseUiSteps } from "./driver.mjs";
 
 let failures = 0;
 const check = (name, fn) => {
@@ -87,6 +87,18 @@ check("a screen is any lowercase tab value, so a tab the editor grows later is n
   }
   assert.throws(() => parseUiSteps(["--screen", "Logic"]), /lowercase/);
   assert.throws(() => parseUiSteps(["--screen", "main scripts"]), /lowercase/);
+});
+
+check("a --screen logic is 'followed by main' only when the very next step is --screen main", () => {
+  // The condition the ui loop hands switchScreen, decided from the parsed
+  // steps. Only --screen main waits for the script editor, so only it may
+  // turn a logic switch's missing editor into a note.
+  assert.equal(followedByMain(parseUiSteps(["--screen", "logic", "--screen", "main"]), 0), true);
+  assert.equal(followedByMain(parseUiSteps(["--screen", "logic", "--screen", "scripts"]), 0), false);
+  assert.equal(followedByMain(parseUiSteps(["--screen", "logic", "--screen", "assets", "--shot", "b.png"]), 0), false);
+  assert.equal(followedByMain(parseUiSteps(["--screen", "logic", "--shot", "b.png", "--screen", "main"]), 0), false);
+  assert.equal(followedByMain(parseUiSteps(["--screen", "logic"]), 0), false);
+  assert.equal(followedByMain(parseUiSteps(["--screen", "assets", "--screen", "logic", "--screen", "main"]), 1), true);
 });
 
 if (failures > 0) {

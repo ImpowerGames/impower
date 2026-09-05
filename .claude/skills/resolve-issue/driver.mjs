@@ -851,8 +851,8 @@ async function verify(args) {
         // verify's evidence is the game preview, but the editor pane is in
         // the same picture; a settled view can still be unpainted, so wait
         // for its lines and gutter and say so if they never came.
-        if (!(await editorPainted(page, 5_000))) {
-          result.editorPaintWarning = "the script editor had not painted its lines and gutter within 5s of the screenshot; the editor half of the picture may be blank";
+        if (!(await editorPainted(page, PAINT_BUDGET_MS))) {
+          result.editorPaintWarning = `the script editor had not painted its lines and gutter within ${PAINT_BUDGET_MS / 1000}s of the screenshot; the editor half of the picture may be blank`;
         }
         await page.screenshot({ path: out, fullPage: false });
         result.screenshot = out;
@@ -1084,12 +1084,15 @@ async function editorExpectedHere(page) {
   });
 }
 
+/** How long a screenshot waits for a settled editor to paint. */
+const PAINT_BUDGET_MS = 5_000;
+
 /**
  * A settled view is not yet a painted one: the identity and document length
  * can hold still while the editor has drawn nothing. A screenshot needs the
  * lines and the gutter on screen; this waits for them.
  */
-async function editorPainted(page, timeout = 5_000) {
+async function editorPainted(page, timeout = PAINT_BUDGET_MS) {
   return page
     .waitForFunction(
       () => {
@@ -1163,8 +1166,8 @@ function editorGate({ expected = editorExpectedHere, present = scriptEditorPrese
     settledOnce = true;
     // A settled view can still be unpainted; a screenshot of it is a picture
     // of nothing, so the capture step alone also waits for the paint.
-    if (what === "screenshot" && !(await painted(page, 5_000))) {
-      return { required: true, ok: false, reason: "the script editor is mounted and settled but has not painted its lines and gutter within 5s; this screenshot would have shown an unpainted editor pane. Re-run; if it persists the machine is saturated" };
+    if (what === "screenshot" && !(await painted(page, PAINT_BUDGET_MS))) {
+      return { required: true, ok: false, reason: `the script editor is mounted and settled but has not painted its lines and gutter within ${PAINT_BUDGET_MS / 1000}s; this screenshot would have shown an unpainted editor pane. Re-run; if it persists the machine is saturated` };
     }
     return { required: true, ok: true };
   };
@@ -1574,6 +1577,17 @@ async function shotOf(page, what, out) {
  * toggle, screen or shot target, or an empty field name. Pure; tested in
  * ui-steps.test.mjs.
  */
+/**
+ * Whether the step after `index` is `--screen main`, the one switch that
+ * waits for the script editor itself. A `--screen logic` whose editor never
+ * mounts is a note rather than a failure only then; any other following step
+ * would let the missing editor pass unreported. Pure, so the test can pin the
+ * condition where it is decided.
+ */
+export function followedByMain(steps, index) {
+  return steps[index + 1]?.screen === "main";
+}
+
 export function parseUiSteps(args) {
   const steps = [];
   // Any tab value is accepted here; the editor can grow a tab, and whether one
@@ -1766,7 +1780,7 @@ async function ui(args) {
             // In the documented recovery pair `--screen logic --screen main`,
             // the logic switch has no business failing for an editor the
             // main switch is about to wait for.
-            const switched = await switchScreen(page, step.screen, { followedByMain: steps[index + 1]?.screen === "main" });
+            const switched = await switchScreen(page, step.screen, { followedByMain: followedByMain(steps, index) });
             if (switched.editorSettled) requireEditor.noteSettled();
             result.steps.push(switched);
           } else if (step.open) {
