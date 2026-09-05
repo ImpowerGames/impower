@@ -220,6 +220,7 @@ How to read it — **check these before trusting the PNG**:
 - `visible` — the game's rendered text, which is what `scrubCheck` reads. **Every line appears twice**: the second copy is the text _outline_ layer. Expected — not duplicated output.
 - `scrub` — the click that drove the scrub. `clicked: true` with a `cursorLine` matching your target is the click landing. `clicked: false` carries a `reason` instead, and that is a real failure worth reading rather than a note.
 - `settled: false` — the DOM never stopped mutating. Re-run.
+- `editorPaintWarning` — the script editor was settled but had not painted its lines and gutter within 5 s of the screenshot. The game half of the PNG is still evidence; the editor half may be blank, so do not present that PNG as a picture of the editor. Re-run for one that is.
 
 `--sd` is only needed when the script changes: the pinned port keeps the same origin, so OPFS survives `down`/`up` and a plain `verify --line N --shot x.png` re-uses the script already loaded.
 
@@ -230,6 +231,67 @@ Repeat after the fix to produce `after.png`. Stop the servers when done:
 ```bash
 node .claude/skills/resolve-issue/driver.mjs down
 ```
+
+### When the change is in the editor's own interface
+
+`verify` reaches the game preview and nothing else. A change to the find panel, the go-to-line panel, the file list, the asset views, or the screens the bottom tabs switch between is invisible to it, and a `verify` screenshot of such a change is not evidence. Use `ui` instead: it performs the steps you give it, in order, as a user would — panels open on their own shortcut, text goes in as real keystrokes, screens switch by clicking the tab — and then reads every surface back.
+
+```bash
+node .claude/skills/resolve-issue/driver.mjs ui --sd repro.sd --open find --type "search=Hello" --type "replace=Goodbye" --shot-of find panel.png --shot page.png
+```
+
+Verified output shape (steps first, then the read-back; `url`, `startedOn`, `ui.tabs` and `consoleErrors` are also present and omitted here, as is the run's top-level `editorSettled`, which is set only when an editor was expected where the run started):
+
+```json
+{
+  "steps": [
+    { "sd": "repro.sd", "wroteChars": 171, "editorSettled": true, "previewSettled": true, "editorView": "main" },
+    { "surface": "find", "open": true, "pressed": "Control+f" },
+    { "field": "search", "typed": true, "text": "Hello", "readBack": "Hello", "matches": true },
+    { "field": "replace", "typed": true, "text": "Goodbye", "readBack": "Goodbye", "matches": true },
+    { "of": "find", "screenshot": "C:\\...\\panel.png" },
+    { "of": "page", "screenshot": "C:\\...\\page.png" }
+  ],
+  "ui": {
+    "screen": "logic",
+    "panelTab": "main",
+    "find": { "open": true, "search": "Hello", "replace": "Goodbye", "matches": "1 of 3", "toggles": { "case": false, "word": false, "re": false } },
+    "goto": { "open": false },
+    "cursorLine": 5
+  },
+  "failed": []
+}
+```
+
+The steps, each usable any number of times and in any order. Every name is checked before the browser launches, so a misspelt panel, field, button, screen or shot target, or a flag with no value, is refused at once rather than after the run:
+
+| Step                     | Does                                                                                                                                                  |
+| ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--sd <file.sd>`         | load the script into OPFS and reload, as `verify` does; then waits for the editor view to settle (`editorSettled`) and, where the game preview is observable, for the first compile (`previewSettled`; `previewNote` says when it is not: cross-origin mode, or the preview showing the screenplay) |
+| `--screen <name>`        | click a tab: `logic`, `assets`, `share`, or a tab inside a pane (`main`, `scripts`, `files`, `urls`, `game`, `screenplay`); a main screen counts as active once its own content is mounted |
+| `--open <panel>`         | `find` (Ctrl+F) or `goto` (Ctrl+G); waits for the panel to be on screen; needs the script editor, so the logic screen's `main` tab                     |
+| `--close <panel>`        | Escape from inside it                                                                                                                                 |
+| `--type <field>=<text>`  | real keystrokes into `search`, `replace`, or `line`; opens the panel if needed; a literal `\n` becomes Ctrl+Enter, the field's own line break           |
+| `--press <combo>`        | one key combo, e.g. `Control+Shift+G`; a shifted lowercase letter is uppercased first (see Gotchas); the `+` key is written `Control++`                |
+| `--click <button>`       | a panel button by name: `next`, `prev`, `select`, `replace`, `replaceAll`, `close`, `submit`; goes to whichever owning panel is open                    |
+| `--toggle <option>`      | flip a find-panel checkbox: `case`, `re`, `word`; reports the state it ended in                                                                        |
+| `--shot <out.png>`       | the whole page                                                                                                                                        |
+| `--shot-of <what> <png>` | one surface: `find`, `goto`, `editor` (the script editor), or `page`                                                                                  |
+| `--probe <file.js>`      | as in `verify`                                                                                                                                        |
+
+How to read it:
+
+- Every `--type` reports `readBack` — the field's rendered text, which is what a user sees; the panel's own reader agrees with it on anything `--type` can type and differs only on a non-breaking space that arrives by paste — and `matches`. A `matches: false` carries a `reason` and lands in `failed`: either the keystrokes did not land or the field changed what it was given, and both are findings, not noise; a `--type` refused by the editor gate also reads `matches: false`, with `typed: false, gated: true` and the gate's reason, and typed nothing.
+- `failed` lists every step that could not do what it was asked (a panel that never appeared, a tab not on the page, a read-back that differs, a step that threw). An empty list with the screenshot you wanted is the pass; a non-empty list means the screenshot is of something else. A step that fails never discards the report: the steps before it, their screenshots, and the read-back are still there.
+- `ui.screen` is the screen whose content is on display, read from the pane itself rather than from the tab highlight — on a fresh load the app highlights no screen tab at all, so the highlight would say "none" while the logic screen is plainly showing. `ui.panelTab` is the selected tab inside it. `ui.find.matches` is the panel's own match counter, which is what tells you a search took.
+- **The script editor exists only on the logic screen — on its `main` tab, or in its fullscreen scripts view when another script file is open — and the persistent browser profile remembers which screen, tab and view were last on display.** `ui.editorView` says which: `main`, `scripts-view`, or null. In `scripts-view` the editor on screen is the other file while `--sd` still writes `main.sd`, and no `main` tab exists to click; the view's own header button is the way back, and `ui` has no step for it, so leave the editor on `main.sd` when you finish a run. A run that ends on `assets`, `share`, or the logic screen's `scripts` tab leaves the next run starting there; a panel step then reports `the script editor is not on screen (active screen: assets, tab: files); put --screen logic before this step` — or `(active screen: logic, tab: scripts); put --screen main before this step` — in `failed` rather than running. Put `--screen logic --screen main` first when the previous run may have left the profile on `assets`, `share`, or the `scripts` tab: the `main` tab exists only inside the logic pane, so from another screen the logic click has to come first, and from the `scripts` tab the `main` click is the one that matters (`--screen logic` there reports `active: true, editorHere: false` with a `note` saying so). A switch that lands on the editor (`--screen logic` onto the `main` tab, or `--screen main`) always waits up to 20 s for it and then settles it with a 15 s budget, whatever the run has settled before, because the switch mounted a fresh view; those are also the budgets a gated step uses before any settle has happened in the run; it fails the step with `editorHere: false` if the editor never mounts, or with `editorSettled: false` if it mounts but keeps being replaced for 15 s, and reports `editorSettled: true` when the switch did the settling. A `--screen logic` that is followed at once by `--screen main` does not fail for an editor the main switch is about to wait for; it carries a `note` instead, and the main switch gives the verdict. Followed by anything else, a logic switch whose editor never mounts fails as any other. A gated `--shot` or `--shot-of` also waits up to 5 s for the editor to have painted its lines and gutter, because a settled view can still be a blank pane, and fails the step if it has not; `verify` does the same wait before its screenshot and, since its evidence is the game preview, reports an `editorPaintWarning` instead of failing. That recovery does not apply to the fullscreen scripts view, which has no tab row: `--screen main` there reports that the view is open and that its own header button is the way back, and `ui` has no step for that button. A run does not fail at its start for a slow editor; a step that captures or acts on the screen — `--shot`, `--shot-of`, `--press`, and the panel-opening steps `--open` and `--type` — waits for an expected editor to mount and settle at the moment it runs, and fails with that reason if it does not, so the failure lands on the step that would otherwise have captured a page still loading. "Expected" is decided by the pane that is mounted; a page with no pane mounted yet counts as expected and waits. The wait is paid once per run, and any settle the run already did counts — at the start, after `--sd`, or in a `--screen` step that landed on the editor (all with the gate's own 15 s budget): later steps re-check with 8 s budgets for the mount and the settle, and a failure names the budget it used. After one step has given up, later gated steps take a two-second look and, if the give-up was a view that never settled, a six-second re-settle; they fail at once with `still not up` or `still being replaced` naming the step that first reported it, or clear the give-up and proceed with the run's current budgets (the shorter ones if any settle already happened) once the editor is back: a missing editor needs only the two-second look to have found it, a replaced one also needs the re-settle. A `--sd` reload resets the gate, since the settled view is gone with the page. A step on a screen where no editor is expected is never refused, whatever an earlier step found. A gate failure keeps the presence check's navigational advice (`put --screen main before this step`) when there is one, and otherwise says once to re-run. The settle check reads the editor view's own identity and document length, not the page's DOM going quiet, so an animating preview or a busy language server does not fail it. `--probe` is never gated, so a probe can diagnose a page whose editor will not mount. The start records `editorSettled` and, when the editor was expected and not yet up, or the run began on the `scripts` tab, a `startNote`. `verify` reports `editorView` and, when the logic pane is showing another file, an `editorWarning`; `ui --sd` fails its step in that state, since the file it wrote is not the one on screen. `verify` switches back on its own — the logic screen tab, then the `main` tab if the profile was on `scripts` — and reports `switchedToLogic: true` for a click that changed the screen or tab, whether or not the editor then came up (`gameMounted` and `error` say that); if it still cannot reach the editor it prints a report with `gameMounted: false` and an `error` naming the screen, and exits 1.
+- **A non-empty `failed` exits 1.** `ui --sd x.sd --shot out.png && open out.png` cannot open a screenshot of the wrong document under a green shell.
+- `ui.screens` lists every main screen whose content is mounted (the pane's inner tab row, or for logic the script editor itself, since the logic pane's fullscreen scripts view mounts no tab row); `ui.screen` is set only when that is exactly one, and null when it is none, which is what a page still loading looks like. The app mounts one pane at a time. Every editor selector the driver uses is scoped to the script editor's own root (`.sparkdown-script-editor-root`): the screenplay preview in the right-hand pane is a CodeMirror editor too, and an unscoped `.cm-content` would find it from any screen and type into it.
+- **The preview pane remembers screenplay mode across runs as well.** In that mode the game never mounts, so `verify` clicks the preview's "Preview Game" button itself and reports `switchedToGamePreview: true`; `ui --sd` does not switch (it may be what you are testing) and reports `previewNote` instead.
+
+**Then open the PNG and look**, as with `verify`. `--shot-of find` crops to the panel, which is the right picture for a panel change and useless for anything else; take `--shot` as well when the change could have moved something outside the panel.
+
+The browser helpers `ui` is built from — `withEditor`, `writeMainSd`, `waitForEditor`, `openSurface`, `typeInto`, `pressKey`, `switchScreen`, `readSurfaces`, `shotOf` and the rest — are exported from `driver.mjs` for the case `ui` does not cover. Import them from a script that lives inside the repo tree (see The driver: Node resolves `playwright` from the importing script's directory, not from the working directory), and prefer adding the missing step to `ui` over leaving the script behind.
 
 ### When the change has no visual signature
 
@@ -242,10 +304,13 @@ What makes a timing here honest:
 - **One candidate per process.** A shared process inflates whatever runs second by several times. Run the baseline and the patch as separate commands.
 - **Interleave and take medians.** Run-to-run variance on this machine is large enough to invert a real 2× difference. Three alternating pairs is the minimum.
 - **Carry a control** — a second measurement the change should NOT affect. If the control moves as much as the candidate, the pair is noise; measure again.
+- **Size the fixture until the phase you changed is a visible share of the whole**, and check that by timing the phase itself as well as the total. The first fixture reached for is usually too small: a 60-scene and a 400-scene script both put one session's change inside run-to-run noise, and only more content per scene made it readable. If the total moves no more than the control does, the fixture is too small — scale it up rather than concluding there is no effect, and scale what the phase actually processes (content per unit), not just the count of units.
 - **Report absolute numbers, not just ratios.** "2×" hides whether that is 4ms → 8ms or 400ms → 800ms.
 - **Say where the number came from.** If no benchmark in the repo covers the path — several don't; `perfProfile.test.ts` drives `SparkdownCompiler`, whose annotate set excludes `formatting` and `semantics` — say the figure comes from a scratch harness and name what it drove.
 
 Same shape for a memory or count regression: measure the quantity over a fixed number of operations, before and after, and report both numbers.
+
+A screenshot can also be misleading rather than merely uninformative. Display text lays out with collapsing whitespace (the game text style is `white_space: pre-line`), so one space and several look the same on screen while the letter-by-letter typing pauses differently. For anything about whitespace or timing, assert on the string the engine actually consumes and treat the screenshot as a sanity check only. The engine's own test shows the working recipe (`packages/spark-engine/src/game/modules/interpreter/classes/InterpreterModule.test.ts`, `createModule` and `render`): build a bare game context carrying `context.system`, `context.character` and `context.config.interpreter.directives`, construct `new InterpreterModule(game)` and call `setup()`, then `module.parse(source, target).text?.[target] ?? []` is the array of text instructions — join their `.text` fields yourself for the string. `parse` is an instance method, so `InterpreterModule.parse(...)` on the class throws.
 
 A performance cost the fix knowingly carries is a **headline, not a footnote** — put it at the top of the PR body.
 
@@ -281,38 +346,49 @@ Assert the **behaviour from the ticket**, not the shape of your patch. If the is
 
 **Never use `git stash` for this.** The stash stack is per-**repo**, not per-worktree, and this checkout has ~17 live worktrees with other sessions running concurrently. A `git stash pop` takes whatever is at `stash@{0}` _at that moment_ — which may be another session's WIP pushed between your push and your pop. That lands their work in your tree and leaves your fix on the stack.
 
-Copy the file aside instead, revert it, and copy it back:
+Run the whole cycle through the driver, from the repo root, naming the test invocation (under the caps in Running vitest safely) and every changed source file the test exercises:
 
 ```bash
-cp packages/sparkdown/src/compiler/utils/filterImage.ts "$SCRATCH/fix.ts"
-git checkout -- packages/sparkdown/src/compiler/utils/filterImage.ts
+node .claude/skills/resolve-issue/driver.mjs redgreen --test "cd packages/sparkdown && NODE_OPTIONS=--max-old-space-size=1024 npx vitest run src/tests/compiler/FilterImageLayers.test.ts --pool=forks --poolOptions.forks.minForks=1 --poolOptions.forks.maxForks=1" --files packages/sparkdown/src/compiler/utils/filterImage.ts
 ```
 
-Re-run the new test — it **must fail**, and fail for the reason in the ticket, not on an import error or a typo. Then restore **from the copy**:
+It snapshots the files, reverts them to the base revision, runs the test and requires it to fail, restores the files from the snapshot, proves each restore by content hash, and runs the test again. Verified output shape:
 
-```bash
-cp "$SCRATCH/fix.ts" packages/sparkdown/src/compiler/utils/filterImage.ts
+```json
+{
+  "ok": true,
+  "base": "HEAD",
+  "baseCommit": "4538f1319…",
+  "test": "cd packages/sparkdown && …",
+  "snapshotDir": "C:\\...\\Temp\\redgreen-abc123",
+  "files": [{ "path": "packages/sparkdown/src/compiler/utils/filterImage.ts", "snapshotPath": "C:\\...\\redgreen-abc123\\01-filterImage.ts", "snapshotSha": "…", "baseSha": "…", "changedDuringRed": false, "restored": true, "matches": true, "restoreError": null }],
+  "red": { "exit": 1, "outcome": "failed", "reason": "assertion", "tail": ["…"] },
+  "green": { "exit": 0, "outcome": "passed", "tail": ["…"] },
+  "problems": []
+}
 ```
 
-Both of those depend on `HEAD` still being the pre-fix state, so they work only _before_ you commit. **After §6, `HEAD` is your fix**, and any baseline taken from it silently contains the very change it is supposed to lack — the run then reproduces nothing, which reads as "the bug was never real". Once you have committed, take the baseline from `origin/main` instead:
+`ok: true` means exactly this: every named file differs from the base, the test exited non-zero on the base with output that reads as a test failure, every file came back byte-for-byte, and the test exited zero on the fix. It is an exit-code proof. **Which test failed is in `red.tail`, and reading it is your job**: a red where the ticket's new case passed and an unrelated case in the same file failed looks identical to the command. Quote the assertion from `red.tail` and the `green` count in the PR body. `ok: false` exits non-zero, and `problems` is never empty when it does:
 
-```bash
-MSYS_NO_PATHCONV=1 git cat-file -p "origin/main:path/to/file.ts" > "$SCRATCH/baseline.ts"
-```
+- **The test passed against the base** — it pins nothing. Either it does not assert the ticket's behaviour, or `--files` does not name where the fix lives.
+- **A file is identical to the base.** Nothing to revert in it: either the fix is committed (pass `--base origin/main`) or the file is not where the fix lives.
+- **The red run died on an import or syntax error** (`red.reason`) rather than the defect. A whole-file revert broke the test's imports; use the in-place path below.
+- **The runner found no test** — `--files` named the test file itself, so the revert removed it. List only the changed sources.
+- **The test command could not run** (`reason: "shell"`): the shell reported a missing command or script. Fix `--test`.
+- **The red run's output does not read as a test failure** (`reason: "unknown"`, or no output at all). Read `red.tail` yourself: if it is the ticket's assertion in a form the command does not recognise, say so in the PR; if it is a config error, a worker crash, or a truncated run, it proves nothing.
+- **The runner crashed on the base** (`reason: "crash"`: a killed worker, an out-of-memory, a fatal error). Proves nothing; lower the caps or split the run.
+- **A file could not be reverted** (read-only, locked). The red run is not attempted; files already reverted come back, the rest were never touched.
+- **A file changed while it was reverted.** A review round, an editor, or a watcher wrote to it. The command does not restore that file — overwriting it would replace the newer edit with the snapshot, which is exactly the stale-copy failure this command exists to prevent. The file then holds the base content plus that edit, not the fix; the fix is at the `snapshotPath` the report names. Merge the two by hand and run again.
+- **A restored file does not match its snapshot, or could not be checked** (`restoreError` says why, e.g. a read-only file, or a path that became a directory). The fix is at `snapshotPath`; put it back by hand. The other files still come back on their own.
+- **The test failed against the fix.** The restore is verified by hash, so this is the fix itself: the test does not pass on your change.
 
-(`MSYS_NO_PATHCONV=1` is needed on Git Bash for Windows, which otherwise rewrites the `rev:path` argument into a Windows path and fails with `fatal: ambiguous argument`.)
+The snapshot and the restore happen inside one process, so there is no copy to go stale between review rounds; run the command again after each round rather than reusing anything from the last one. Once the snapshot is taken the command does not throw: the restore runs in a `finally`, every later error becomes a `problems` entry, and the report always prints. A Ctrl+C during the test run reaches the test child first, so the command returns through that `finally` and restores; a hard kill of the process (a tool timeout on Windows) restores nothing, which is why the snapshot directory is printed before the first revert.
 
-`git checkout --` reverts to HEAD, so it restores the _pre-fix_ file — using it to undo the revert silently throws the fix away. **Confirm the restore landed before trusting anything downstream:**
+`--base` is where the pre-fix content comes from and defaults to `HEAD`. That is right only _before_ you commit. **After §6, `HEAD` is your fix**, and a baseline taken from it silently contains the very change it is supposed to lack — the run then "reproduces nothing", which reads as "the bug was never real", and `redgreen` reports the file as identical to the base and the test as pinning nothing. Once you have committed, pass `--base origin/main`. A base that does not resolve (a typo, or a remote branch never fetched in this worktree) is refused before any file is touched, as is a run from anywhere but the repository root.
 
-```bash
-git diff --stat
-```
+Where a whole-file revert would break the test's imports (the fix adds an export the test uses), simulate the old behaviour in place instead: disable the one branch that matters, or restore the old function body under the new name, run the test by hand for the red, then put the fix back. Keep a **positive control** in the file — an assertion that passes both before and after — so a red run proves the defect, not a broken harness. `redgreen` sends you here itself when the red run fails on an import.
 
-The file must still be listed. A test that passed alone and then fails in the full suite is usually this, not a flake — check the diff before blaming timing.
-
-Re-run — it must pass. Record both outcomes for the PR body.
-
-Where a whole-file revert would break the test's imports (the fix adds an export the test uses), simulate the old behaviour in place instead: disable the one branch that matters, or restore the old function body under the new name. Keep a **positive control** in the file — an assertion that passes both before and after — so a red run proves the defect, not a broken harness.
+Record both outcomes for the PR body.
 
 **5c — run the suite.** Start with the file, widen to the package.
 
@@ -344,9 +420,9 @@ for t in $(git ls-files '.claude/**/*.test.mjs'); do echo "--- $t"; node "$t" ||
 - A `**` glob half-runs. Bash expands `**` across directories only with `shopt -s globstar` set, and it is not set here, so `**` collapses to a single-level `*`: `.claude/**/*.test.sh` matches `hooks/grammar-edit-hook.test.sh` one level down and silently skips `skills/resolve-issue/reviewer-model-values.test.sh` two levels down. The `.mjs` pattern matches nothing at all, and bash hands an unmatched pattern to the loop body unexpanded, so you get `FAILED: .claude/**/*.test.mjs` — wrong, but at least visible.
 - `find .claude` over-matches in the **main checkout**. `.gitignore` puts `.claude/worktrees/` there, holding whole checkouts with their own `node_modules`, so `find` returns fifteen files rather than three — twelve of them third-party tests it would then try to execute. A fresh worktree has no such directory, so `find` looks correct there and only misbehaves where the skill is normally run.
 
-`git ls-files` sidesteps both: the checks are tracked, and everything `find` picks up by mistake is ignored or untracked. Count the `---` lines against what `git ls-files '.claude/**/*.test.*'` returns; there are three checks at the time of writing.
+`git ls-files` sidesteps both: the checks are tracked, and everything `find` picks up by mistake is ignored or untracked. Count the `---` lines against what `git ls-files '.claude/**/*.test.*'` returns; there are seven at the time of writing: two shell checks (`.claude/hooks/`, `.claude/skills/resolve-issue/`) and five Node ones, all under `.claude/skills/resolve-issue/`.
 
-A shell check that hangs rather than failing is usually the machine, not your change: they spawn many small processes and a running dev-server build starves them. Re-run once the build finishes before believing a timeout.
+One of the seven is not quick. `reviewer-model-values.test.sh` re-runs itself once per control case (about thirty-five) and spawns `awk`/`grep`/`sed` per field, so on the reference machine it takes about eighteen minutes idle (measured 17m44s, 46 assertions passing) and longer under load, and prints nothing until its base section is done. Run it in the background with a long timeout, or `REVIEWER_CHECK_INNER=1 bash …` for the quick pass over the real files only. The controls build their own fixtures and never read the real definitions, so a change to a reviewer definition is covered by the quick pass; the controls matter when that script itself changes. The other six finish in seconds. A shell check that hangs rather than failing is usually the machine, not your change: they spawn many small processes and a running dev-server build starves them. Re-run once the build finishes before believing a timeout.
 
 ---
 
@@ -397,6 +473,14 @@ grep -c "✓ src/" testrun.log
 ```
 
 Report the real numbers in the PR body. If a pre-existing failure is unrelated to your change, say so explicitly rather than quietly ignoring it — confirm it also fails on `origin/main`.
+
+Capture the failing-test names, not just the count. With a large pre-existing failure set — one session met 103 — equal counts do not mean equal failures: a run that fixes one test and breaks another shows the same number. Save the `FAIL` lines from the baseline run and from your branch, strip the colour codes, and diff the two lists; that is what isolates the test your change actually affected:
+
+```bash
+grep -a "FAIL " base-run.log | sed 's/\x1b\[[0-9;]*m//g' | sort -u > fail-base.txt
+grep -a "FAIL " branch-run.log | sed 's/\x1b\[[0-9;]*m//g' | sort -u > fail-branch.txt
+diff fail-base.txt fail-branch.txt
+```
 
 ---
 
@@ -515,6 +599,14 @@ git diff origin/main...HEAD > "$SCRATCH/review-diff.patch"
 
 (`...` is deliberate: changes on your branch since it diverged from `main`, not `main`'s subsequent commits.)
 
+Do not merge `main` into the branch while reviewers are running. They read the working tree as well as the patch, so a merge mid-review makes `main`'s new commits look like yours — one session's reviewer filed a finding that the pull request bundled unrelated feature work for exactly this reason. Merge first, then capture the diff, then spawn.
+
+If the change regenerates a large snapshot or other generated file, exclude it from the patch by path and tell the reviewers the command to inspect it separately — a multi-megabyte patch file wastes a reviewer's context before it reads a line of the actual change (one session's patch came out at 2.6 MB for this reason):
+
+```bash
+git diff origin/main...HEAD -- . ':(exclude)packages/sparkdown/src/tests/__snapshots__/big.snap' > "$SCRATCH/review-diff.patch"
+```
+
 Write it to your scratchpad, never into the checkout. A patch file inside the repo is one `git add -A` away from being committed, and it leaves the tree dirty for as long as the review runs — long enough to trip any hook or check that expects a clean tree, on every single run of this skill. Give reviewers the absolute path (`$SCRATCH` is your session's scratchpad directory).
 
 Spawn the reviewers in parallel — one message, multiple Agent tool calls, each with the `subagent_type` from §7b (or `general-purpose` plus a `model:`, on the fallback path). Posting a PR comment needs Bash and a scratch file, so read-only is not tool-enforced for reviewers; the prompt forbids repo edits and §7d checks that it was obeyed. Give each one, verbatim (fill in N = issue number, P = PR number, DIFF = the absolute path you just wrote the patch to, WORKTREE = the absolute path of the worktree from §2, LENS, and WRITER = your own model id — the reviewer supplies its own model, so that one is not yours to fill in). WORKTREE is not optional: a subagent starts in the main checkout, not in your worktree, so a reviewer told only "the working tree is the branch under review" reads the unchanged files on `main` and reviews nothing you wrote.
@@ -622,17 +714,23 @@ Every round posts its own comments and its own adjudication. Do not edit the pre
 | `up [--cross-origin]` | boot both dev servers on pinned ports, wait for ready |
 | `status`              | is it up? prints the editor URL                       |
 | `down`                | kill the whole server tree                            |
-| `verify [opts]`       | drive the editor, print a JSON report                 |
+| `verify [opts]`       | drive the game preview, print a JSON report           |
+| `ui [steps]`          | drive the editor's own panels and screens (§4)        |
+| `redgreen [opts]`     | prove a regression test fails on the base, passes on the fix (§5b) |
 
 `verify` options: `--sd <file.sd>` (load into OPFS `/local/main.sd`, then reload), `--line <N>` (scrub the preview to that source line), `--shot <out.png>`, `--probe <file.js>` (body of an async function evaluated in the editor page; its return value lands in the JSON), `--headed` (visible browser).
 
 `verify` scrubs with a real mouse click on the target line, driven through Playwright. It scrolls the line into view by moving the scroller directly, checks that the coordinates are really over the text rather than an overlay, then clicks. Nothing in that path dispatches a CodeMirror selection.
 
+`ui` steps are tabulated in §4. It finds a panel by the class its CodeMirror `Panel` sets on its root (`.cm-search`, `.cm-gotoLine`) and a field by its `name`; it finds a tab by the `-trigger-<value>` suffix of its id, where the value is the workspace's own name for the pane or panel; it decides which screen is on display by which pane's inner tab row is mounted (`main` for logic, `files` for assets, `game` for share), because the screen tab's own highlight is blank on a fresh load. None of that is a test hook added to the app; if a surface you need has no such handle, adding one is in scope (#423).
+
+`redgreen` options: `--test <command>` (run twice, from the repo root), `--files <a> [<b>...]` (the changed sources the test exercises), `--base <rev>` (where the pre-fix content comes from; `HEAD` by default, `origin/main` once the fix is committed). It runs no browser. `redgreen.mjs` beside the driver holds the implementation; `redgreen.test.mjs` pins it on a throwaway repository.
+
 State lives in `.claude/skills/resolve-issue/.state.json` (gitignored).
 
 Playwright is a **declared root devDependency** (`playwright: ^1.61.0`). Browsers come from the local `ms-playwright` cache — if it's empty on a new machine, `npx playwright install chromium`. Always run `npm install` with `PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1` set (see §2) — otherwise a transitive `@playwright/browser-chromium` dependency tries to download its own Chromium build from a host this network blocks, and the whole install fails. The driver itself doesn't need that variable: if the pinned `playwright` version expects a Chromium revision the cache doesn't have, it launches whatever build the cache does have instead of failing.
 
-The driver must still live **inside the repo tree**: Node resolves `playwright` relative to the **script's** directory, not the working directory. Copy it to a temp dir and it dies with `ERR_MODULE_NOT_FOUND`.
+The driver must still live **inside the repo tree**: Node resolves `playwright` relative to the **script's** directory, not the working directory. Copy it to a temp dir and it dies with `ERR_MODULE_NOT_FOUND`. The same applies to any script of your own that imports the driver's exported helpers: put it under the worktree (and never `git add` it), not in the scratchpad.
 
 ---
 
@@ -658,6 +756,7 @@ Things that look like they work and don't:
   cd definitions && npx tsx src/language.ts ../packages/sparkdown/language
   ```
   Grep for the **rule name**, not the regex — the YAML uses `{{WS}}`-style templating so the expanded pattern does not appear in the source.
+- **A synthesised shortcut with a lowercase letter under Shift is not the shortcut a keyboard sends.** Playwright's key strings are case-sensitive for a single character: `Control+Shift+g` delivers `key: "g"` with `shiftKey: true`, where a keyboard delivers `key: "G"`. CodeMirror resolves a letter binding from the reported key, so the shifted variant of a binding never runs from that form and the unshifted one runs instead — Ctrl+Shift+G steps _forward_ through matches instead of back, which looks exactly like a broken keybinding and is not one. Measured in the live editor on 2026-09-04 with playwright 1.61: `Control+Shift+G`, `Control+Shift+KeyG`, and holding Control and Shift around `press("KeyG")` all deliver `G`; only the lowercase spelling delivers `g`. The driver's `--press` and `pressKey` uppercase a shifted letter before pressing it and report `rewritten: true`. In a script of your own, write the letter uppercase, and before filing any keybinding bug confirm the keydown carried the key a keyboard would report.
 - **Heredocs are lossy through some shell paths here** (a `//` comment came out as `/`, breaking a file mid-edit). Write files with the editor tool, not by piping a heredoc.
 - These console messages are **pre-existing noise** on every run, not something your change caused: `Unhandled method workspace/semanticTokens/refresh`, `.../diagnostic/refresh`, `.../foldingRange/refresh`, and a couple of resource 404s.
 
@@ -681,6 +780,14 @@ Things that look like they work and don't:
 | `npm install` dies with `request blocked: no rule or allowlist entry allows host "cdn.playwright.dev"` (or any `@playwright/browser-chromium` download failure) | A workspace depends on `@playwright/browser-chromium`, whose install script tries to fetch its own Chromium build from a blocked host. Re-run as `PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 npm install` — see §2. |
 | `git worktree remove` → `Directory not empty`                                                              | Windows can't delete `node_modules` that way. `Remove-Item -Recurse -Force <path>`, then `git worktree prune`.                                                                                                                                                                              |
 | A `gh` PR/issue body came out as the literal `@-`                                                          | You used `--body @-`. Use `--body-file`, then read it back with `gh pr view --json body`.                                                                                                                                                                                                   |
+| `ui` reports a panel that `did not appear within 10s of pressing`                                          | The shortcut went to something other than the script editor: the editor was not on screen (`ui.screen` says which pane is), or another panel had focus. Put `--screen logic` first; `--close` the other panel. If the editor is up and it still fails, the binding itself changed — check `customSearch.ts`'s keymap. |
+| `ui` says `no tab named "..."` and lists the tabs present                                                 | Tab values are the workspace's names (`logic`, `assets`, `share`, `main`, `scripts`), not the labels. Pick from the list in the message.                                                                                                                                                       |
+| `ui` reports `the script editor is not on screen (active screen: assets)`                                 | The previous run left the persistent profile on another screen, and panels live only on the logic screen's `main` tab. Put `--screen logic` first. The report is still complete; only that step did not run. `(active screen: logic, tab: scripts)` means the inner tab: `--screen main`. `(active screen: logic, tab: main)` with "did not mount" is a cold editor on a saturated machine; re-run. |
+| `redgreen` says a file `changed while it was reverted`                                                     | Something wrote to the file while it held the base content — a review-round edit landing, an editor, a formatter, a watcher. The file now holds the base content plus that edit, not the fix; the fix is at the `snapshotPath` in the report. Merge by hand, then run again. Never copy the snapshot over the file blind. |
+| `redgreen` says the file is `identical to HEAD` and the test `pins nothing`                                | The fix is already committed, so `HEAD` contains it. Pass `--base origin/main`.                                                                                                                                                                                                             |
+| `redgreen` refuses: `--base "…" does not resolve to a commit`                                              | A typo, or a remote branch this worktree has never fetched. `git fetch origin main` and spell it `origin/main`. Nothing was touched.                                                                                                                                                       |
+| `redgreen` refuses: `run from the repository root`, or `run it from this driver's own worktree root`      | Started from a package directory, or from another checkout's root. `--files` and the test command resolve from where you stand, so `cd` to the worktree that holds the driver; the `--test` command can still `cd` into the package itself.                                                 |
+| `redgreen` red `reason` is `unknown`, `ok: false`, output present                                          | The failure output did not look like an assertion to the command. Read `red.tail`: the ticket's assertion in an unfamiliar form is fine to cite (say so in the PR); anything else is not a red.                                                                                             |
 | `git show origin/main:some/path` → `fatal: ambiguous argument 'origin\main;some\path'`                     | Git Bash rewrote the `rev:path` argument as a Windows path. Prefix the command with `MSYS_NO_PATHCONV=1`, and quote the argument.                                                                                                                                                            |
 | A "pre-fix" copy pulled from `HEAD:` still contains the fix                                                | Once you have committed, `HEAD` **is** your fix. Extract the baseline from `origin/main:` instead. The failure is silent: the run looks like a baseline and reproduces nothing, which reads as "the bug isn't real".                                                                          |
 
@@ -689,3 +796,5 @@ Things that look like they work and don't:
 ## Improving this skill
 
 If any step above failed, needed a flag or path it does not give, did not apply to your ticket without saying so, or cost you time on something Gotchas and Troubleshooting do not cover, report it under a "Skill feedback" heading in your final message with the edit you propose, as `CLAUDE.md` describes. This skill is long because earlier sessions hit exactly those walls and wrote them down; yours belongs here too. When you are certain of the fix, make it in this file in its own commit on the PR branch and mention it under the PR's Notes for reviewers. A new trap goes in Gotchas; a new failure with a known fix goes in the Troubleshooting table.
+
+Prefer a mechanism to a warning. When the problem is a step a session can forget or get wrong — a copy that goes stale, a value that has to be re-derived, a check that only works if someone remembers it — propose the driver command or the check that makes the mistake impossible, not a sentence telling the next session to be careful; the sentence is what just failed. A warning is the right proposal only for something a tool cannot absorb: a judgement call, a fact about the machine, a trap in a library the driver does not wrap. `redgreen` (#426) is the shape to copy — the by-hand cycle it replaced had a warning-sentence fix proposed first.
