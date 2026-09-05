@@ -5,8 +5,8 @@
  *  - impower-dev's service worker, answering `?thumb=<width>` with an HTTP
  *    response it caches in Cache Storage.
  *  - the language server, inlining the result as a `data:` URI for hosts with
- *    no service worker to intercept a URL (VS Code, where the markdown
- *    sanitizer also refuses any non-http(s) src).
+ *    no service worker to intercept a URL (VS Code, where a workspace uri does
+ *    not render in a hover — see `getImageComposite`).
  *
  * Only the DELIVERY differs between those two. Generation, sizing and the
  * cache-key discipline are identical, so they live here — if they drift, the
@@ -19,7 +19,7 @@
  * logic changes (encoder, quality, sizing). Callers fold this into their cache
  * key; nothing else needs to know.
  */
-export const THUMB_VERSION = 1;
+export const THUMB_VERSION = 2;
 
 export const THUMB_MIN_WIDTH = 16;
 export const THUMB_MAX_WIDTH = 512;
@@ -107,6 +107,28 @@ export const composeThumbnailBlob = async (
         }),
       ),
     );
+    if (bitmaps.some((b) => b.height > width)) {
+      // Fitting the width alone bounds nothing on a tall source: a 200 x 6000
+      // strip fitted to 360 wide becomes 360 x 10800, which encodes to well
+      // over a megabyte and is then thrown away for exceeding the caller's
+      // size ceiling — so the preview shows nothing at all. Re-fit the set by
+      // HEIGHT instead, which bounds it into a square box either way.
+      //
+      // Re-decoding every source rather than just the tall one keeps a
+      // composite's layers under one common transform, so their alignment
+      // survives. The second decode only happens for extreme aspect ratios.
+      const previous = bitmaps;
+      bitmaps = [];
+      previous.forEach((b) => b?.close());
+      bitmaps = await Promise.all(
+        sources.map((s) =>
+          createImageBitmap(s.blob, {
+            resizeHeight: width,
+            resizeQuality: "low",
+          }),
+        ),
+      );
+    }
     const w = Math.max(...bitmaps.map((b) => b.width));
     const h = Math.max(...bitmaps.map((b) => b.height));
     if (!w || !h) {

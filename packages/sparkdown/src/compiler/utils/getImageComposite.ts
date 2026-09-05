@@ -48,24 +48,26 @@ const PREVIEW_WIDTH = 360;
  * impower-dev's assets are served that way — and is equally loadable, so the
  * test is "an explicit scheme outside this set", not "not in this set".
  *
- * Everything else is a workspace uri, and VS Code shows nothing for one. Two
- * separate mechanisms produce that, so neither alone can be relied on:
+ * `file:` is here because desktop VS Code rewrites it. Measured on 1.136.1 by
+ * emitting a real on-disk image into a hover and into the completion details
+ * pane and reading both back: the src arrives as `vscode-file://vscode-app/…`
+ * and the picture loads at its natural size. So a desktop workspace uri needs
+ * no help, and inlining one would spend an encode to get a smaller picture.
+ * That rewrite landed in VS Code 1.60 (microsoft/vscode#119786), long before
+ * the 1.97 this extension requires.
  *
- *  - The markdown sanitizer's own allowlist. Measured against the stable web
- *    build by emitting one `<img>` per scheme and reading the DOM back: it
- *    KEEPS `http`, `https`, `data`, `file`, `vscode-file` and
- *    `vscode-remote-resource`, and strips `vscode-vfs`, `vscode-userdata` and
- *    `vscode-resource`.
- *  - The workbench's refusal to load a local resource, which is what stops a
- *    `file:` src that survived the sanitizer ("Not allowed to load local
- *    resource"). That one is not visible in the markup at all — the attribute
- *    is still there and the image is still blank.
+ * What is left out is left out because it was measured to fail, by emitting
+ * one `<img>` per scheme and reading the DOM back: the markdown sanitizer
+ * strips `vscode-vfs:` (VS Code for Web's workspace scheme), `vscode-userdata:`
+ * and `vscode-resource:` off the element entirely. Those get an inlined `data:`
+ * uri built from bytes read over the host's `readFileBytes` bridge, the one
+ * route no host refuses.
  *
- * Inlining as `data:` from bytes read over the host's `readFileBytes` bridge
- * is the one route that clears both, which is why the test below is an
- * allowlist of what definitely renders rather than a list of what to avoid.
+ * Keep this an allowlist of what is known to render. A scheme nobody has
+ * measured should fall to the bridge, which is slower and always works, rather
+ * than to a blank image.
  */
-const DIRECTLY_LOADABLE_SCHEMES = new Set(["http", "https", "data"]);
+const DIRECTLY_LOADABLE_SCHEMES = new Set(["http", "https", "data", "file"]);
 
 const isDirectlyLoadable = (src: string) => {
   const scheme = /^([a-z][a-z0-9+.-]*):/i.exec(src)?.[1];

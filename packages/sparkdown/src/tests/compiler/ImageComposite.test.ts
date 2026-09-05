@@ -13,6 +13,7 @@ import {
 } from "../../compiler/utils/getImageComposite";
 import {
   clampThumbnailWidth,
+  composeThumbnailBlob,
   thumbnailCacheKey,
   THUMB_MAX_WIDTH,
   THUMB_MIN_WIDTH,
@@ -120,6 +121,78 @@ describe("thumbnail cache key", () => {
   });
 });
 
+describe("thumbnail sizing", () => {
+  /**
+   * A rasterizer that respects whichever resize dimension it is given and keeps
+   * the source's aspect ratio, so the shape of what gets decoded is assertable.
+   */
+  const stubAspectRasterizer = (srcW: number, srcH: number) => {
+    const decoded: string[] = [];
+    vi.stubGlobal("createImageBitmap", async (_blob: Blob, opts: any) => {
+      const scale = opts?.resizeWidth
+        ? opts.resizeWidth / srcW
+        : opts?.resizeHeight
+          ? opts.resizeHeight / srcH
+          : 1;
+      const width = Math.max(1, Math.round(srcW * scale));
+      const height = Math.max(1, Math.round(srcH * scale));
+      decoded.push(`${width}x${height}`);
+      return { width, height, close() {} };
+    });
+    vi.stubGlobal(
+      "OffscreenCanvas",
+      class {
+        constructor(
+          public width: number,
+          public height: number,
+        ) {}
+        getContext() {
+          return { drawImage: () => {} };
+        }
+        async convertToBlob() {
+          return new Blob([new Uint8Array(16)], { type: "image/webp" });
+        }
+      },
+    );
+    return decoded;
+  };
+
+  it("fits a wide source by width", async () => {
+    const decoded = stubAspectRasterizer(4000, 3000);
+    await composeThumbnailBlob(
+      [{ path: "/a.png", blob: new Blob(["a"]), lastModified: 0, size: 1 }],
+      360,
+    );
+    expect(decoded).toEqual(["360x270"]);
+  });
+
+  // A tall source fitted by width alone is unbounded: 200 x 6000 becomes
+  // 360 x 10800, which encodes past the caller's size ceiling and is discarded,
+  // leaving the preview blank. It has to be fitted by height instead.
+  it("fits a very tall source by height, so nothing exceeds the box", async () => {
+    const decoded = stubAspectRasterizer(200, 6000);
+    await composeThumbnailBlob(
+      [{ path: "/tall.png", blob: new Blob(["t"]), lastModified: 0, size: 1 }],
+      360,
+    );
+    // First attempt fits the width and overshoots; the retry fits the height.
+    expect(decoded).toEqual(["360x10800", "12x360"]);
+  });
+
+  it("re-fits every layer together, so a composite stays aligned", async () => {
+    const decoded = stubAspectRasterizer(200, 6000);
+    await composeThumbnailBlob(
+      [
+        { path: "/a.png", blob: new Blob(["a"]), lastModified: 0, size: 1 },
+        { path: "/b.png", blob: new Blob(["b"]), lastModified: 0, size: 1 },
+      ],
+      360,
+    );
+    // Both layers re-decoded under the same transform, never one of each.
+    expect(decoded).toEqual(["360x10800", "360x10800", "12x360", "12x360"]);
+  });
+});
+
 describe("getImageCompositeSrc", () => {
   it("draws layers bottom-first, matching the order the game paints", async () => {
     stubRasterizer();
@@ -171,7 +244,7 @@ describe("getImageCompositeSrc", () => {
     stubRasterizer();
     stubFetch({ fails: true });
     const ctx = makeContext("markup", ["lone"]);
-    ctx.image["lone"]!.src = "file://proj/markup/lone.png";
+    ctx.image["lone"]!.src = "vscode-vfs://host/markup/lone.png";
     const markup = await getImagePreviewMarkupComposited(ctx, ctx.image["lone"], {
       readFileBytes: async () => btoa("lone"),
     });
@@ -185,6 +258,9 @@ describe("getImageCompositeSrc", () => {
     ["served-url", "https://cdn.example/pic.png"],
     ["inlined-data-uri", "data:image/svg+xml,%3Csvg%2F%3E"],
     ["page-relative-path", "/file:/local/assets/pic.png?v=1-2"],
+    // Desktop VS Code rewrites this one to `vscode-file:` and renders it, so
+    // inlining it would buy a smaller picture for the cost of an encode.
+    ["desktop workspace uri", "file:///c:/workspace/images/pic.png"],
   ])("leaves a single image on a %s alone", async (label, srcValue) => {
     stubRasterizer();
     const calls = stubFetch();
@@ -203,7 +279,7 @@ describe("getImageCompositeSrc", () => {
     stubRasterizer();
     stubFetch({ fails: true });
     const ctx = makeContext("nobridge", ["lone"]);
-    ctx.image["lone"]!.src = "file://proj/nobridge/lone.png";
+    ctx.image["lone"]!.src = "vscode-vfs://host/nobridge/lone.png";
     const src = await getImageCompositeSrc(ctx, ctx.image["lone"]);
     expect(src).toBeUndefined();
   });
