@@ -4,6 +4,7 @@ import {
   type SceneBeat,
 } from "@impower/sparkdown/src/compiler/types/SceneAssets";
 import { Module } from "../../../core/classes/Module";
+import { SceneTracker } from "../../../core/classes/SceneTracker";
 import { type LoadInstruction } from "../../../core/types/Instruction";
 import { type Instructions } from "../../../core/types/Instructions";
 import { getTimeValue } from "../../../core/utils/getTimeValue";
@@ -14,6 +15,7 @@ import {
 } from "../assetsBuiltinDefinitions";
 import { assetItemKey, type AssetItem } from "../types/AssetItem";
 import { type LoadAssetsResult } from "../types/LoadAssetsResult";
+import { beatIndexIn, previewWindow } from "../utils/previewWindow";
 import { AssetsProgressMessage } from "./messages/AssetsProgressMessage";
 import { ConfigureAssetsMessage } from "./messages/ConfigureAssetsMessage";
 import {
@@ -70,6 +72,11 @@ export class AssetModule extends Module<
   /** Font names per layout, resolved once per program: the walk over a
    *  layout's tree and styles is repeated for every predicted beat otherwise. */
   protected _fontNamesByLayout = new Map<string, string[]>();
+
+  /** The window a preview last sent: its flow and the beat it was centred
+   *  on, so the beats one preview writes do not each send it again, and a
+   *  cursor that stays inside half of it does not either. */
+  protected _previewWindow: { flow: string; index: number } | null = null;
 
   /** Latest progress per pin, as the page reports it. */
   protected _progress = new Map<
@@ -158,6 +165,23 @@ export class AssetModule extends Module<
    *  play them, which a preview never does. */
   protected get timed(): boolean {
     return !this.previewing;
+  }
+
+  /** Where a preview stands: the path the cursor resolved to, which the
+   *  story may not have executed yet. In play, the executing path. */
+  protected get anchorPath(): string | null | undefined {
+    const previewing = this.context.system.previewing;
+    return typeof previewing === "string"
+      ? previewing
+      : this._game.executingPath;
+  }
+
+  /** The cursor's path as the window's anchor inside `scene`, or nothing
+   *  when the cursor is in another scene (a preview whose line diverts on
+   *  into the next scene enters it from its first beat). */
+  protected previewAnchorIn(scene: string): string | undefined {
+    const anchor = this.anchorPath;
+    return anchor && SceneTracker.sceneOf(anchor) === scene ? anchor : undefined;
   }
 
   // ---------------------------------------------------------------------------
@@ -404,6 +428,21 @@ export class AssetModule extends Module<
   // ---------------------------------------------------------------------------
 
   /**
+   * The names of every image a beat's instructions show.
+   */
+  protected imageNamesOf(instructions: Instructions): string[] {
+    const names: string[] = [];
+    for (const events of Object.values(instructions.image ?? {})) {
+      for (const event of events) {
+        if (event.control !== "hide" && event.assets?.length) {
+          names.push(...event.assets);
+        }
+      }
+    }
+    return names;
+  }
+
+  /**
    * Start loading everything a beat shows and return a trigger the
    * Coordinator waits on before displaying it, or null when nothing needs
    * loading. The pin is released once the trigger fires: by then the images
@@ -413,14 +452,7 @@ export class AssetModule extends Module<
     if (this.silent) {
       return null;
     }
-    const names: string[] = [];
-    for (const events of Object.values(instructions.image ?? {})) {
-      for (const event of events) {
-        if (event.control !== "hide" && event.assets?.length) {
-          names.push(...event.assets);
-        }
-      }
-    }
+    const names = this.imageNamesOf(instructions);
     const items = this.resolveImageItems(names);
     if (items.length === 0) {
       return null;
@@ -478,7 +510,9 @@ export class AssetModule extends Module<
    * parses them, before the line's gate runs.
    */
   notice(kind: "image" | "audio", names: string[]): void {
-    if (this.silent || names.length === 0) {
+    // A beat running ahead of its display is about to be gated on exactly
+    // these; a prefetch now would start them in a background slot first.
+    if (this.silent || this._game.peeking || names.length === 0) {
       return;
     }
     if (kind === "image") {
@@ -516,26 +550,7 @@ export class AssetModule extends Module<
     }
     // Not a beat path: the last beat at or before the current position in
     // the source, which is what "the beats after this one" means.
-    const locations = program.pathLocations;
-    const here = locations?.[path];
-    if (!here) {
-      return -1;
-    }
-    let index = -1;
-    for (let i = 0; i < beats.length; i++) {
-      const at = locations?.[beats[i]!.path];
-      if (!at) {
-        continue;
-      }
-      const before =
-        at[0] < here[0] ||
-        (at[0] === here[0] &&
-          (at[1] < here[1] || (at[1] === here[1] && at[2] <= here[2])));
-      if (before) {
-        index = i;
-      }
-    }
-    return index;
+    return beatIndexIn(beats, program.pathLocations, path);
   }
 
   /**
@@ -561,39 +576,47 @@ export class AssetModule extends Module<
       primary.push(entry.beats[i]!);
       remaining--;
     }
-    const spill: SceneBeat[] = [];
-    if (remaining > 0 && distance !== 0) {
-      const visited = new Set<string>([flow]);
-      const queue = [...entry.loads, ...entry.successors];
-      let flowsVisited = 0;
-      while (
-        queue.length > 0 &&
-        remaining > 0 &&
-        flowsVisited < MAX_PREDICTED_FLOWS
-      ) {
-        const next = queue.shift()!;
-        if (visited.has(next)) {
-          continue;
-        }
-        visited.add(next);
-        flowsVisited++;
-        const nextEntry: SceneAssets | undefined = sceneAssets[next];
-        if (!nextEntry) {
-          continue;
-        }
-        for (
-          let i = 0;
-          i < nextEntry.beats.length && remaining > 0;
-          i++
-        ) {
-          spill.push(nextEntry.beats[i]!);
-          remaining--;
-        }
-        queue.push(...nextEntry.loads, ...nextEntry.successors);
-      }
-    }
+    const spill =
+      remaining > 0 && distance !== 0 ? this.spillBeats(flow, remaining) : [];
     this.prefetchBeats(primary, 2);
     this.prefetchBeats(spill, 3);
+  }
+
+  /** The first `remaining` beats of the flows `flow` loads and diverts to,
+   *  breadth first, each from its first beat: where the window goes once it
+   *  has run past the end of the flow. */
+  protected spillBeats(flow: string, remaining: number): SceneBeat[] {
+    const sceneAssets = this._game.program.sceneAssets;
+    const entry = sceneAssets?.[flow];
+    const spill: SceneBeat[] = [];
+    if (!sceneAssets || !entry) {
+      return spill;
+    }
+    const visited = new Set<string>([flow]);
+    const queue = [...entry.loads, ...entry.successors];
+    let flowsVisited = 0;
+    while (
+      queue.length > 0 &&
+      remaining > 0 &&
+      flowsVisited < MAX_PREDICTED_FLOWS
+    ) {
+      const next = queue.shift()!;
+      if (visited.has(next)) {
+        continue;
+      }
+      visited.add(next);
+      flowsVisited++;
+      const nextEntry: SceneAssets | undefined = sceneAssets[next];
+      if (!nextEntry) {
+        continue;
+      }
+      for (let i = 0; i < nextEntry.beats.length && remaining > 0; i++) {
+        spill.push(nextEntry.beats[i]!);
+        remaining--;
+      }
+      queue.push(...nextEntry.loads, ...nextEntry.successors);
+    }
+    return spill;
   }
 
   protected prefetchBeats(beats: SceneBeat[], priority: 2 | 3): void {
@@ -612,30 +635,74 @@ export class AssetModule extends Module<
     this.prefetch(items, priority);
   }
 
-  /** Preview: the cursor moves anywhere inside a scene, so warm all of it. */
-  protected prefetchScene(flow: string): void {
+  /**
+   * Preview: the cursor can land anywhere in a scene, so all of it warms,
+   * but the beats around the cursor first, at the window's priority, and
+   * the rest of the scene behind them; then the window's spill into the
+   * scenes that follow, so the first click into the next scene is not cold.
+   * The rest of the scene and the spill are sent once, on entering the
+   * scene (`wholeScene`); the window around the cursor is sent when the
+   * cursor moves more than half the window's reach from where the last one
+   * was centred, and not for the beats one preview writes with the cursor
+   * where it was. Nothing here can delay what the author clicked: that
+   * beat's images go through the gate at priority 0 ({@link onConnected}).
+   */
+  protected predictAround(
+    flow: string,
+    path: string | null | undefined,
+    wholeScene: boolean,
+  ): void {
     const entry = this._game.program.sceneAssets?.[flow];
     if (!entry) {
       return;
     }
-    this.prefetchBeats(entry.beats, 2);
+    const distance = this.config.predict_distance;
+    const index = Math.max(0, this.beatIndexFor(flow, path));
+    const last = this._previewWindow;
+    // The last window still covers a cursor that moved less than half its
+    // reach, so it is not sent again for that.
+    if (
+      !wholeScene &&
+      last &&
+      last.flow === flow &&
+      Math.abs(last.index - index) <= Math.floor(distance / 2)
+    ) {
+      return;
+    }
+    this._previewWindow = { flow, index };
+    const { near, rest } = previewWindow(entry, index, distance);
+    this.prefetchBeats(near, 2);
+    if (!wholeScene) {
+      return;
+    }
+    this.prefetchBeats(rest, 3);
+    if (distance > 0) {
+      this.prefetchBeats(this.spillBeats(flow, distance), 3);
+    }
   }
 
-  /** Advance the prediction window past the beat that just displayed. */
+  /** Advance the prediction window past the beat that just displayed; in
+   *  preview, send the window around the cursor if it moved since the last
+   *  one (each scrub declares its cursor before it connects, and a scrub
+   *  inside a scene enters no scene). */
   onBeatDisplayed(): void {
     if (this._pendingBeatPins.size > 0) {
       const pins = [...this._pendingBeatPins];
       this._pendingBeatPins.clear();
       this.release(pins, false);
     }
-    if (this.silent || this.previewing) {
+    if (this.silent) {
       return;
     }
     const flow = this._game.sceneTracker.current;
     if (!flow) {
       return;
     }
-    this.predictFrom(flow, this._game.executingPath, false);
+    if (this.previewing) {
+      this.predictAround(flow, this.previewAnchorIn(flow), false);
+    } else {
+      this.predictFrom(flow, this._game.executingPath, false);
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -787,17 +854,44 @@ export class AssetModule extends Module<
         }
       }
     }
-    const items = this.resolveImageItems(names).filter(
-      (item) => this.timed || item.kind !== "video",
-    );
+    const gate = (list: string[]) =>
+      this.resolveImageItems(list).filter(
+        (item) => this.timed || item.kind !== "video",
+      );
     this._restorePending = true;
-    await this.ensureResident(
-      items,
-      0,
-      "restore",
-      this.config.restore_timeout,
-      "restore",
+    const waits: Promise<unknown>[] = [];
+    // The checkpoint's own pictures first, so their loads are under way
+    // while the beat runs.
+    waits.push(
+      this.ensureResident(
+        gate(names),
+        0,
+        "restore",
+        this.config.restore_timeout,
+        "restore",
+      ),
     );
+    // A preview writes the beat at the cursor the moment it is connected,
+    // with no clock to wait on, so that beat's images are part of the same
+    // gate: the line and its portrait land together, and behind a burst of
+    // background loads the portrait still takes the express lane. The beat
+    // runs now to learn them, and the preview displays that run: what it
+    // writes is the story's decision, not the source's.
+    if (typeof this.context.system.previewing === "string") {
+      const beat = this._game.peekPreviewInstructions();
+      if (beat) {
+        waits.push(
+          this.ensureResident(
+            gate(this.imageNamesOf(beat)),
+            0,
+            "restore",
+            this.config.restore_timeout,
+            "restore",
+          ),
+        );
+      }
+    }
+    await Promise.all(waits);
   }
 
   override async onRestore(): Promise<void> {
@@ -827,7 +921,7 @@ export class AssetModule extends Module<
       );
     }
     if (this.previewing) {
-      this.prefetchScene(scene);
+      this.predictAround(scene, this.previewAnchorIn(scene), true);
     } else {
       this.predictFrom(scene, this._game.executingPath, true);
     }
@@ -836,6 +930,7 @@ export class AssetModule extends Module<
   override onProgramUpdate(): void {
     this._beatIndex = undefined;
     this._fontNamesByLayout.clear();
+    this._previewWindow = null;
   }
 
   override onReceiveNotification(msg: NotificationMessage): void {
@@ -883,6 +978,7 @@ export class AssetModule extends Module<
     this._loadPins.clear();
     this._layoutPins.clear();
     this._fontNamesByLayout.clear();
+    this._previewWindow = null;
     this._progress.clear();
     this._warned.clear();
     this._activeLoadPins = null;

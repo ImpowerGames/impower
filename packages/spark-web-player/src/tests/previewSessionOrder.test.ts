@@ -135,4 +135,31 @@ describe("preview session ordering", () => {
 
     expect(calls).toContain("connectGame");
   });
+
+  test("the preview is not written until the connect has settled", async () => {
+    // The connect holds the restore gate: the pictures the checkpoint shows
+    // and the beat under the cursor is about to show. `preview()` writes
+    // that beat synchronously, so it has to wait for the connect to resolve,
+    // not merely to have been called (#429).
+    const calls: string[] = [];
+    let settleConnect = () => {};
+    const app = stubApp(calls);
+    app.connectGame = () => {
+      calls.push("connectGame");
+      return new Promise<void>((resolve) => {
+        settleConnect = resolve;
+      });
+    };
+    const controller = controllerWith(recordingGame(calls), app);
+
+    const updating = controller.updatePreview(PROGRAM, PROGRAM.uri, 4, "SAVE");
+    for (let i = 0; i < 10; i++) {
+      await Promise.resolve();
+    }
+    expect(calls).toContain("connectGame");
+    expect(calls).not.toContain("preview");
+    settleConnect();
+    await updating;
+    expect(calls.indexOf("connectGame")).toBeLessThan(calls.indexOf("preview"));
+  });
 });

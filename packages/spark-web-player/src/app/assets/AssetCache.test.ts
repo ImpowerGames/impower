@@ -104,22 +104,34 @@ describe("AssetCache", () => {
     expect(cache.isResident("/file:/i0.png?v=1")).toBe(true);
   });
 
-  it("lets a gate use the express lane while background loads fill the rest", async () => {
+  it("starts every gate load at once while background loads fill their slots", async () => {
     const { cache, inFlight } = makeCache();
     cache.prefetch(images(8), 2);
+    // Background loads never take the express slots.
+    expect(inFlight().length).toBe(DEFAULT_MAX_CONCURRENT - DEFAULT_EXPRESS_SLOTS);
     void cache.request(images(3, "gate"), 0, "beat:1");
-    expect(inFlight().length).toBe(DEFAULT_MAX_CONCURRENT);
+    // A gate never waits for a slot, so all three run alongside the four
+    // background loads already in flight.
+    expect(inFlight().length).toBe(DEFAULT_MAX_CONCURRENT - DEFAULT_EXPRESS_SLOTS + 3);
     const gates = inFlight().filter((i) => i.src.includes("gate"));
-    expect(gates.length).toBe(DEFAULT_EXPRESS_SLOTS);
+    expect(gates.length).toBe(3);
   });
 
-  it("starts a gate before queued background work when a slot frees", async () => {
+  it("starts a queued gate load before queued background work when a gate slot frees", async () => {
     const { cache, inFlight, finish } = makeCache();
     cache.prefetch(images(10), 3);
-    void cache.request(images(3, "gate"), 0, "beat:1");
+    // Seven gate loads: six run at once, the seventh waits for a gate slot,
+    // never for a background one.
+    void cache.request(images(7, "gate"), 0, "beat:1");
+    expect(inFlight().filter((i) => i.src.includes("gate")).length).toBe(
+      DEFAULT_MAX_CONCURRENT,
+    );
+    expect(inFlight().some((i) => i.src === "/file:/gate6.png?v=1")).toBe(false);
+    await finish("/file:/gate0.png?v=1");
+    // The freed gate slot went to the waiting gate load; and a freed
+    // background slot goes nowhere while the gate is pending.
+    expect(inFlight().some((i) => i.src === "/file:/gate6.png?v=1")).toBe(true);
     await finish("/file:/i0.png?v=1");
-    // The freed background slot went to the waiting gate, not to i4.
-    expect(inFlight().some((i) => i.src === "/file:/gate2.png?v=1")).toBe(true);
     expect(inFlight().some((i) => i.src === "/file:/i4.png?v=1")).toBe(false);
   });
 
@@ -212,17 +224,20 @@ describe("AssetCache", () => {
     cache.prefetch([image("/file:/a.svg?v=1&filters=y")], 3);
     expect(cache.has("/file:/a.svg?v=1")).toBe(true);
     expect(cache.has("/file:/a.svg?v=1&filters=y")).toBe(true);
+    // The prefetch waits behind the gate still in flight, so it is queued,
+    // not loading, when the file changes.
+    expect(created.some((i) => i.src === "/file:/a.svg?v=1&filters=y")).toBe(false);
     cache.evictFile("/file:/a.svg?v=2");
     expect(cache.has("/file:/a.svg?v=1")).toBe(false);
     expect(cache.has("/file:/a.svg?v=1&filters=x")).toBe(false);
     expect(cache.has("/file:/a.svg?v=1&filters=y")).toBe(false);
-    // The variants that were mid-load finish now; nobody is home.
-    for (const src of ["/file:/a.svg?v=1&filters=x", "/file:/a.svg?v=1&filters=y"]) {
-      created.find((i) => i.src === src && !i.done)!.finishLoad();
-    }
+    // The variant that was mid-load finishes now; nobody is home. The queued
+    // one left the queue and never starts.
+    created.find((i) => i.src === "/file:/a.svg?v=1&filters=x" && !i.done)!.finishLoad();
     await settle();
     expect(cache.has("/file:/a.svg?v=1&filters=x")).toBe(false);
     expect(cache.has("/file:/a.svg?v=1&filters=y")).toBe(false);
+    expect(created.some((i) => i.src === "/file:/a.svg?v=1&filters=y")).toBe(false);
     expect(cache.inFlightCount).toBe(0);
   });
 
