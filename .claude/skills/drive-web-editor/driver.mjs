@@ -32,10 +32,23 @@ import { gitTopLevel, parseRedGreenArgs, runRedGreen, sameDir } from "./redgreen
 const SKILL_DIR = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(SKILL_DIR, "..", "..", "..");
 const STATE_FILE = path.join(SKILL_DIR, ".state.json");
+// The state file and the Chromium profile sit beside this script. A worktree
+// whose servers are still running from this driver's location under the
+// resolve-issue skill keeps both there, so each path falls back to that
+// directory while nothing exists here; `down` can then still stop those
+// servers, and `up` reuses their origin instead of starting a second tree on
+// the next free ports, which would hide the project loaded into the first.
+const PREVIOUS_SKILL_DIR = path.resolve(SKILL_DIR, "..", "resolve-issue");
+const hereOrPrevious = (name) => {
+  const here = path.join(SKILL_DIR, name);
+  const previous = path.join(PREVIOUS_SKILL_DIR, name);
+  return !fs.existsSync(here) && fs.existsSync(previous) ? previous : here;
+};
+const stateFile = () => hereOrPrevious(".state.json");
 // Persistent Chromium profile. OPFS is scoped per ORIGIN *and* per profile, so
 // reusing one profile plus the pinned port (see pickPorts) means a script you
 // loaded stays loaded across driver invocations and across down/up.
-const PROFILE_DIR = path.join(SKILL_DIR, ".chrome-profile");
+const PROFILE_DIR = hereOrPrevious(".chrome-profile");
 
 const log = (...a) => console.log(...a);
 const die = (msg) => {
@@ -44,11 +57,20 @@ const die = (msg) => {
 };
 
 function readState() {
-  if (!fs.existsSync(STATE_FILE)) return null;
+  const file = stateFile();
+  if (!fs.existsSync(file)) return null;
   try {
-    return JSON.parse(fs.readFileSync(STATE_FILE, "utf8"));
+    return JSON.parse(fs.readFileSync(file, "utf8"));
   } catch {
     return null;
+  }
+}
+
+function removeState() {
+  try {
+    fs.unlinkSync(stateFile());
+  } catch {
+    /* already gone */
   }
 }
 
@@ -142,6 +164,9 @@ async function up(args) {
     log(`already up → ${existing.url}`);
     return;
   }
+  // A state file whose servers are gone is stale wherever it sits; drop it so
+  // the one written below is the only record.
+  removeState();
 
   const mode = args.includes("--cross-origin") ? "cross-origin" : "same-origin";
   const ports = await pickPorts();
@@ -218,11 +243,7 @@ function down() {
         })
       : spawn("kill", ["-TERM", String(-s.pid)], { stdio: "inherit" });
   killer.on("exit", () => {
-    try {
-      fs.unlinkSync(STATE_FILE);
-    } catch {
-      /* already gone */
-    }
+    removeState();
     log("stopped");
   });
 }
