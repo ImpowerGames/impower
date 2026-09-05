@@ -231,6 +231,23 @@ Repeat after the fix to produce `after.png`. Stop the servers when done:
 node .claude/skills/resolve-issue/driver.mjs down
 ```
 
+### When the thing to look at is not the game preview
+
+`verify` drives the game preview: it loads a script, scrubs to a line, and screenshots. A defect in the editor's own surfaces — a hover tooltip, the completion list and its info panel, a diagnostic, the asset panel — is not reachable that way. `--probe` does not close the gap either: it evaluates a function body inside the page, and a hover tooltip only opens for real pointer movement, so a synthetic event gets you nothing.
+
+For those, drive the page yourself with Playwright and keep the driver for the servers (`up` / `down` / `status`). Read the editor URL out of `.claude/skills/resolve-issue/.state.json` rather than hardcoding a port. Put the script in your scratchpad, not the repo, and resolve `playwright` from the worktree:
+
+```js
+import { createRequire } from "node:module";
+const require = createRequire("<absolute worktree path>/package.json");
+const { chromium } = require("playwright");
+```
+
+Two things that will waste a run:
+
+- **Seed and measure in ONE launch.** OPFS is per browser profile, so a second script starts with an empty project.
+- **Measure the rendered rect, never `naturalWidth`/`naturalHeight`.** A `viewBox`-only SVG reports a non-zero natural size while laying out at 0 × 0, and a failed load reports `complete: true` with a natural size of 0 — so `natural` tells you neither what is drawn nor whether it loaded. `getBoundingClientRect()` on the `<img>` is the answer, and the screenshot is the check.
+
 ### When the change has no visual signature
 
 Some fixes cannot show up in a screenshot — a perf change, a memory leak, an internal data structure no pixel depends on. Two before/after PNGs that look identical prove nothing, and presenting them as the gate is worse than useless: they read as evidence while carrying none.
@@ -315,6 +332,14 @@ Re-run — it must pass. Record both outcomes for the PR body.
 Where a whole-file revert would break the test's imports (the fix adds an export the test uses), simulate the old behaviour in place instead: disable the one branch that matters, or restore the old function body under the new name. Keep a **positive control** in the file — an assertion that passes both before and after — so a red run proves the defect, not a broken harness.
 
 **5c — run the suite.** Start with the file, widen to the package.
+
+Then typecheck. CI runs `tsc --noEmit` over every TypeScript project in the monorepo on any pull request touching a `.ts`/`.js`/`tsconfig`/`package.json` file (`.github/workflows/typecheck.yml`), so a type error you do not catch here fails the pull request instead. Pass the packages you touched rather than running all 41:
+
+```bash
+node scripts/typecheck.mjs packages/sparkdown/ packages/codemirror-vscode-lsp-client/
+```
+
+Expect `2/2 project(s) clean`, one `ok` line per project, and exit 0. Each `tsc` peaks above 1 GB, so pass paths rather than bare `npm run typecheck` unless you mean to check everything.
 
 Then run the standalone checks under `.claude/`. Nothing in CI invokes them, so they only ever run because someone remembers to; they are quick, and each one pins a footgun that has already cost a session. There are two kinds — shell checks over the skill's own prose, and `.mjs` checks over the pure functions in `driver.mjs`:
 
@@ -638,7 +663,7 @@ Things that look like they work and don't:
   ```
   Grep for the **rule name**, not the regex — the YAML uses `{{WS}}`-style templating so the expanded pattern does not appear in the source.
 - **Heredocs are lossy through some shell paths here** (a `//` comment came out as `/`, breaking a file mid-edit). Write files with the editor tool, not by piping a heredoc.
-- **`tsc` is not a gate** — there is no CI typecheck anywhere in the repo, and the only PR workflow is the VS Code extension's _bundler_ build (esbuild strips types without checking them). A clean `tsc` proves nothing about CI, and a broken one blocks nothing. Verify with vitest. **This is being fixed — see [#320](https://github.com/ImpowerGames/impower/issues/320). When that lands on `main`, delete this bullet** and add the typecheck command to §5 alongside the test suite.
+- **The first asset request after a cold server boot can fail**, in a fresh browser profile: the image comes back `complete: true` with a natural size of 0 and draws as nothing, while the identical url loads a few seconds later in the same page. The service worker that serves `/file:/` is not controlling the page yet. Re-run before concluding an asset does not load; it is not evidence about your change.
 - These console messages are **pre-existing noise** on every run, not something your change caused: `Unhandled method workspace/semanticTokens/refresh`, `.../diagnostic/refresh`, `.../foldingRange/refresh`, and a couple of resource 404s.
 
 ---
