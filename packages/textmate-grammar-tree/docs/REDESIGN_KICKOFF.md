@@ -90,7 +90,7 @@ whole-block model (the spike's outcome should inform that).
 
 - **Byte-identity is the contract.** Tree must equal a from-scratch parse.
 - **No grammar (`*.language-grammar.json`) or lowerer changes** (last-resort only).
-- **`tsc` is NOT a gate** — verify via vitest.
+- **Typecheck as well as test** — `npm run typecheck` runs in CI on any pull request that touches code, so a type error blocks the merge.
 - **Run vitest memory-safely** — one suite at a time, single fork, capped heap:
   `node --max-old-space-size=3072 ../../node_modules/vitest/vitest.mjs run <path>
   --pool=forks --poolOptions.forks.singleFork=true --poolOptions.forks.maxForks=1
