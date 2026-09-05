@@ -39,7 +39,7 @@ export class TernaryExpression extends Expression {
     }));
   }
 
-  get typeName(): string {
+  override get typeName(): string {
     return "TernaryExpression";
   }
 
@@ -73,7 +73,7 @@ export class TernaryExpression extends Expression {
     this.story.DontFlattenContainer(elseContainer);
   }
 
-  public readonly toString = (): string =>
+  public override readonly toString = (): string =>
     `(if ${this.branches
       .map((b) => (b.condition ? `${b.condition} then ${b.value}` : `else ${b.value}`))
       .join(" ")})`;

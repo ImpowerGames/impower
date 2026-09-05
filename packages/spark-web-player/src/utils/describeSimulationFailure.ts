@@ -1,5 +1,5 @@
-import { GameExecutedParams } from "@impower/spark-engine/src/game/core/classes/messages/GameExecutedMessage";
-import { SimulationFailure } from "@impower/sparkdown/src/compiler/types/SimulationFailure";
+import type { GameExecutedParams } from "@impower/spark-engine/src/game/core/classes/messages/GameExecutedMessage";
+import type { SimulationFailure } from "@impower/sparkdown/src/compiler/types/SimulationFailure";
 
 /**
  * What the status bar says when it could not simulate a way to the line the

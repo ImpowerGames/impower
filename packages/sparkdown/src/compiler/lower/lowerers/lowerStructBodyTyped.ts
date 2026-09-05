@@ -1,5 +1,5 @@
 import { type SyntaxNode } from "@lezer/common";
-import { LowerContext } from "../context";
+import type { LowerContext } from "../context";
 import {
   UNQUOTED_VALUE_NODES,
   stripTrailingLineComment,

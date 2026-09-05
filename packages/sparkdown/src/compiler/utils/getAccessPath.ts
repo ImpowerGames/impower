@@ -1,4 +1,4 @@
-import { SparkDeclaration } from "../types/SparkDeclaration";
+import type { SparkDeclaration } from "../types/SparkDeclaration";
 
 export const getAccessPath = (declaration: SparkDeclaration) => {
   const nameParts: string[] = [];

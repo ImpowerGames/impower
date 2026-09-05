@@ -2,6 +2,7 @@ import { ToneSequence } from "../../../spark-engine/src/game/modules/audio/types
 
 export const loadMidi = async (
   arrayBuffer: ArrayBuffer,
+  sampleRate: number,
   onProgress?: (percentage: number) => void,
 ): Promise<ToneSequence[]> => {
   return new Promise((resolve) => {
@@ -16,6 +17,6 @@ export const loadMidi = async (
         resolve(result);
       }
     });
-    worker.postMessage(arrayBuffer);
+    worker.postMessage({ arrayBuffer, sampleRate });
   });
 };

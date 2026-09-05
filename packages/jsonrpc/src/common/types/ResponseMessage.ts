@@ -1,5 +1,5 @@
-import { IMessage } from "./IMessage";
-import { ResponseError } from "./ResponseError";
+import type { IMessage } from "./IMessage";
+import type { ResponseError } from "./ResponseError";
 
 export interface ResponseMessage<M extends string = string, R = unknown>
   extends

@@ -594,7 +594,7 @@ describe("multi-line find and replace fields (#360)", () => {
       const view = mount();
       const { search, replace } = fields(view);
       const calls: unknown[][] = [];
-      const doc = replace.ownerDocument as Document & {
+      const doc = replace.ownerDocument as Omit<Document, "execCommand"> & {
         execCommand?: (...args: unknown[]) => boolean;
       };
       doc.execCommand = (...args: unknown[]) => {
@@ -623,7 +623,7 @@ describe("multi-line find and replace fields (#360)", () => {
     it("writes the field itself when the command changes nothing", () => {
       const view = mount();
       const { search, replace } = fields(view);
-      const doc = replace.ownerDocument as Document & {
+      const doc = replace.ownerDocument as Omit<Document, "execCommand"> & {
         execCommand?: (...args: unknown[]) => boolean;
       };
       // A browser whose insert leaves only the newline the reader treats as
@@ -648,7 +648,7 @@ describe("multi-line find and replace fields (#360)", () => {
     it("writes the field itself when the command reports failure", () => {
       const view = mount();
       const { search, replace } = fields(view);
-      const doc = replace.ownerDocument as Document & {
+      const doc = replace.ownerDocument as Omit<Document, "execCommand"> & {
         execCommand?: (...args: unknown[]) => boolean;
       };
       doc.execCommand = () => false;

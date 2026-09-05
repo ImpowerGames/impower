@@ -1,4 +1,4 @@
-import { EventMap } from "../../../../spark-engine/src/game/core/types/EventMap";
+import type { EventMap } from "../../../../spark-engine/src/game/core/types/EventMap";
 
 // The engine keys its `_events` handler registry by the STRUCTURAL element id.
 // The renderer stamps that id as the `__sdId` JS property (UIManager), while

@@ -1,9 +1,9 @@
-import {
-  AudioInstruction,
-  ImageInstruction,
-  LoadInstruction,
-  LayoutInstruction,
-  TextInstruction,
+import type {
+AudioInstruction,
+ImageInstruction,
+LoadInstruction,
+LayoutInstruction,
+TextInstruction,
 } from "./Instruction";
 
 export interface Instructions {

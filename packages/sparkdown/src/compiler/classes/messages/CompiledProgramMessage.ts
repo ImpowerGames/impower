@@ -1,8 +1,8 @@
 import { MessageProtocolNotificationType } from "@impower/jsonrpc/src/common/classes/MessageProtocolNotificationType";
-import { NotificationMessage } from "@impower/jsonrpc/src/common/types/NotificationMessage";
+import type { NotificationMessage } from "@impower/jsonrpc/src/common/types/NotificationMessage";
 import { type SparkProgram } from "../../types/SparkProgram";
-import { SimulationFailure } from "../../types/SimulationFailure";
-import { VersionedTextDocumentIdentifier } from "../../types/VersionedTextDocumentIdentifier";
+import type { SimulationFailure } from "../../types/SimulationFailure";
+import type { VersionedTextDocumentIdentifier } from "../../types/VersionedTextDocumentIdentifier";
 
 export type CompiledProgramMethod = typeof CompiledProgramMessage.method;
 

@@ -1,8 +1,8 @@
 import { Glue as RuntimeGlue } from "../../../inkjs/engine/Glue";
 import { Glue as ParsedGlue } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Glue";
-import { CompiledBlock } from "../../classes/annotators/CompilationAnnotator";
-import { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
-import { LowerContext } from "../context";
+import type { CompiledBlock } from "../../classes/annotators/CompilationAnnotator";
+import type { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
+import type { LowerContext } from "../context";
 import { wrapInWeave } from "../utils/wrapInWeave";
 
 // Sparkdown's `..` glue marker. The grammar's `Glue` rule recognizes

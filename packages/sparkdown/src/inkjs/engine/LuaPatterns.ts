@@ -750,7 +750,7 @@ function advanceForQuantifier(
 
 // Plain literal chars that JS treats as regex metacharacters. Lua
 // treats them as literals so we escape on the way out.
-function needsLiteralEscape(c: string): boolean {
+function needsLiteralEscape(_c: string): boolean {
   // `^ $ . * + ? ( ) [ ]` are handled by their dedicated branches;
   // this list catches the rest of JS's metachars that don't appear
   // in Lua's syntax: `\` (handled earlier), `{`, `}`, `|`.

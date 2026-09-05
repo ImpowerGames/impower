@@ -1,5 +1,5 @@
 import { MessageProtocolRequestType } from "@impower/jsonrpc/src/common/classes/MessageProtocolRequestType";
-import { Animation } from "../../types/Animation";
+import type { Animation } from "../../types/Animation";
 
 /**
  * [D15] A single image event, with all engine-context-dependent values already

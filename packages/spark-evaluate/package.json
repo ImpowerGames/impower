@@ -2,5 +2,8 @@
   "name": "@impower/spark-evaluate",
   "displayName": "Spark Evaluate",
   "description": "Evaluates Sparkdown expressions.",
-  "version": "0.0.1"
+  "version": "0.0.1",
+  "scripts": {
+    "typecheck": "node ../../scripts/typecheck.mjs packages/spark-evaluate/"
+  }
 }

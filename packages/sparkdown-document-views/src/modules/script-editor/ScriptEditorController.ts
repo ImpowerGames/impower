@@ -759,7 +759,7 @@ export class ScriptEditorController {
               );
             }
           },
-          onBreakpointsChanged: (update, breakpointLineNumbers) => {
+          onBreakpointsChanged: (_update, breakpointLineNumbers) => {
             const uri = this._textDocument?.uri;
             if (uri) {
               sendProtocolMessage(
@@ -773,7 +773,7 @@ export class ScriptEditorController {
               );
             }
           },
-          onPinpointsChanged: (update, pinpointLineNumbers) => {
+          onPinpointsChanged: (_update, pinpointLineNumbers) => {
             const uri = this._textDocument?.uri;
             if (uri) {
               sendProtocolMessage(
@@ -787,7 +787,7 @@ export class ScriptEditorController {
               );
             }
           },
-          onHighlightsChanged: (update, highlightLineNumbers) => {
+          onHighlightsChanged: (_update, highlightLineNumbers) => {
             const uri = this._textDocument?.uri;
             if (uri) {
               sendProtocolMessage(

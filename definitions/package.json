@@ -8,7 +8,8 @@
     "language": "tsx src/language.ts ../packages/sparkdown/language ../vscode-sparkdown/language",
     "watch": "tsx src/language.ts ../packages/sparkdown/language ../vscode-sparkdown/language --watch",
     "build": "npm run language",
-    "package": "npm run language"
+    "package": "npm run language",
+    "typecheck": "node ../scripts/typecheck.mjs definitions/"
   },
   "dependencies": {
     "tsx": "^3.12.7",

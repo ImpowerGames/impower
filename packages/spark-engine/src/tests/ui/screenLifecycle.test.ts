@@ -76,7 +76,7 @@ describe("screen lifecycle ([[open/close SCREEN]])", () => {
     h.reset();
     // The `[[open hud]]` directive is its own beat (before the "Hello." textbox).
     const beat = h.nextBeat();
-    expect(beat?.layout?.hud?.[0]?.control).toBe("open");
+    expect(beat?.layout?.["hud"]?.[0]?.control).toBe("open");
     await h.display(beat!, true);
     await flushMicrotasks();
     // hud + its bound span are now created.
@@ -117,7 +117,7 @@ describe("screen lifecycle ([[open/close SCREEN]])", () => {
     // Next: the [[close hud]] beat.
     h.reset();
     const closeBeat = h.nextBeat();
-    expect(closeBeat?.layout?.hud?.[0]?.control).toBe("close");
+    expect(closeBeat?.layout?.["hud"]?.[0]?.control).toBe("close");
     await h.display(closeBeat!, true);
     await flushMicrotasks();
     // A ui/destroy was emitted and hud is gone from the tracking map.

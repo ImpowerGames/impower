@@ -13,9 +13,9 @@ import { Text } from "../../inkjs/compiler/Parser/ParsedHierarchy/Text";
 import { VariableAssignment } from "../../inkjs/compiler/Parser/ParsedHierarchy/Variable/VariableAssignment";
 import { VariableReference } from "../../inkjs/compiler/Parser/ParsedHierarchy/Variable/VariableReference";
 import { Weave } from "../../inkjs/compiler/Parser/ParsedHierarchy/Weave";
-import { CompiledBlock } from "../classes/annotators/CompilationAnnotator";
-import { SparkdownSyntaxNodeRef } from "../types/SparkdownSyntaxNodeRef";
-import { LowerContext } from "./context";
+import type { CompiledBlock } from "../classes/annotators/CompilationAnnotator";
+import type { SparkdownSyntaxNodeRef } from "../types/SparkdownSyntaxNodeRef";
+import type { LowerContext } from "./context";
 import { findChildByName } from "./utils/alternatorArms";
 import {
   lowerExpressionFromContainer,
@@ -69,7 +69,6 @@ import {
 } from "./lowerers/lowerLuauBreakContinue";
 import { lowerLuauDoBlock } from "./lowerers/lowerLuauDoBlock";
 import { lowerLuauForLoop } from "./lowerers/lowerLuauForLoop";
-import { lowerLuauLoopStub } from "./lowerers/lowerLuauLoopStub";
 import {
   lowerLuauRepeatLoop,
   lowerLuauUntilStatement,

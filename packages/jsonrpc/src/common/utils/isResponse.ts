@@ -1,4 +1,4 @@
-import { ResponseMessage } from "../types/ResponseMessage";
+import type { ResponseMessage } from "../types/ResponseMessage";
 
 export const isResponse = <M extends string, R>(
   obj: any,

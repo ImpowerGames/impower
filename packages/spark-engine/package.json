@@ -5,7 +5,8 @@
   "version": "0.0.1",
   "scripts": {
     "test": "vitest",
-    "test:run": "vitest run"
+    "test:run": "vitest run",
+    "typecheck": "node ../../scripts/typecheck.mjs packages/spark-engine/"
   },
   "dependencies": {
     "@impower/sparkdown": "file:../sparkdown",

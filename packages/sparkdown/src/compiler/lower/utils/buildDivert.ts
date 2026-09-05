@@ -8,7 +8,7 @@ import { ParsedObject } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Obj
 import { Text } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Text";
 import { TunnelOnwards } from "../../../inkjs/compiler/Parser/ParsedHierarchy/TunnelOnwards";
 import { lowerExpressionFromNodes } from "../expression/lowerExpression";
-import { LowerContext } from "../context";
+import type { LowerContext } from "../context";
 import { lowerDivertPath } from "./lowerDivertPath";
 
 // Lower a `DivertTarget` that may include a `LuauFunctionCall` shape

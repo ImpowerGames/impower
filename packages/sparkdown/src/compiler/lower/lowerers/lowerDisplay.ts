@@ -16,9 +16,9 @@ import { Tag } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Tag";
 import { Text } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Text";
 import { Weave } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Weave";
 import { Glue as RuntimeGlue } from "../../../inkjs/engine/Glue";
-import { CompiledBlock } from "../../classes/annotators/CompilationAnnotator";
-import { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
-import { LowerContext } from "../context";
+import type { CompiledBlock } from "../../classes/annotators/CompilationAnnotator";
+import type { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
+import type { LowerContext } from "../context";
 import {
   FUNCTION_CALL_SHORTHAND_NODES,
   lowerExpressionFromContainer,
@@ -381,7 +381,12 @@ function collectBreaksInRange(
 // ----- Body walking with interpolation splicing -----
 
 type BodySegment =
-  | { kind: "text"; raw: string }
+  // `start` is the source offset the segment's raw text begins at. Block-mode
+  // trimming needs it to tell a segment that begins a source line (its leading
+  // whitespace is the body's indentation) from one that begins mid-line
+  // because another segment preceded it (its leading whitespace is the
+  // author's own spacing).
+  | { kind: "text"; raw: string; start: number }
   | { kind: "expr"; node: SyntaxNode }
   | { kind: "divert"; node: SyntaxNode }
   | { kind: "inlineGluedAlt"; node: SyntaxNode }
@@ -409,17 +414,25 @@ function processDisplayBody(
       const seg = segments[i]!;
       if (seg.kind === "text") {
         // Strip each line's leading indentation (block body lines are
-        // indented under their heading/cue). EXCEPTION: when this text
-        // segment immediately follows a `..` glue marker, its first line's
-        // leading whitespace is the glue's word separator (the space after
-        // `.. ` in a mid-block leading-glue line), not indentation — keep it
-        // so the joined words don't fuse (`first` + `.. second` → `first
-        // second`, not `firstsecond`).
-        const followsGlue = i > 0 && segments[i - 1]!.kind === "glue";
+        // indented under their heading/cue). A segment's second and later
+        // lines always begin a source line, so they are always stripped. Its
+        // FIRST line begins a source line only when the segment itself starts
+        // at one; when another segment precedes it on the same line — a
+        // `{...}` interpolation, a `..` glue marker, a divert, a tag — the
+        // leading whitespace is the author's own word separator, and stripping
+        // it fuses the words (`The limit is {LIMIT} tonight.` →
+        // `The limit is 5tonight.`).
+        //
+        // A block body range always begins at a line start
+        // (`extractBlockBodyRange` starts it after the cue's newline, and a
+        // break-split range starts after the break's newline), so the source
+        // character before a line-starting segment is a newline.
+        const startsSourceLine =
+          seg.start <= 0 || ctx.read(seg.start - 1, seg.start) === "\n";
         seg.raw = seg.raw
           .split(/\r?\n/)
           .map((line, lineIndex) =>
-            lineIndex === 0 && followsGlue
+            lineIndex === 0 && !startsSourceLine
               ? line
               : line.replace(/^[ \t]+/, ""),
           )
@@ -573,12 +586,13 @@ function collectBodySegments(
   const injections = collectTopLevelInjections(parent, bodyStart, bodyEnd);
   const out: BodySegment[] = [];
   let textBuf = "";
+  let textStart = bodyStart;
   let i = bodyStart;
   let idx = 0;
 
   const flush = () => {
     if (textBuf.length > 0) {
-      out.push({ kind: "text", raw: textBuf });
+      out.push({ kind: "text", raw: textBuf, start: textStart });
       textBuf = "";
     }
   };
@@ -621,6 +635,7 @@ function collectBodySegments(
       idx++;
       continue;
     }
+    if (textBuf.length === 0) textStart = i;
     textBuf += ctx.read(i, i + 1);
     i++;
   }

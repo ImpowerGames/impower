@@ -1,5 +1,5 @@
 import { clone } from "../../../core/utils/clone";
-import { _synth } from "../specs/_synth";
+import { default_synth } from "../constructors/default_synth";
 import { SynthConfig } from "../types/Synth";
 
 export const DEFAULT_MONOPHONIC_INSTRUMENT: SynthConfig = {
@@ -103,5 +103,5 @@ const MIDI_MONOPHONIC_INSTRUMENT_MAP: Record<string, SynthConfig> = {
 export const MIDI_MONOPHONIC_INSTRUMENTS = Object.values(
   MIDI_MONOPHONIC_INSTRUMENT_MAP,
 ).map((value) =>
-  clone(_synth(), { ...DEFAULT_MONOPHONIC_INSTRUMENT, ...value }),
+  clone(default_synth(), { ...DEFAULT_MONOPHONIC_INSTRUMENT, ...value }),
 );

@@ -32,7 +32,7 @@ const POLL_MS = Number(process.argv[3] || 3000);
 // Optional: after each successful optimize, also copy the result (flat, same
 // basename) into this directory. Set via the OPTIMIZED_COPY_DIR env var so the
 // watcher itself stays project-agnostic.
-const COPY_DIR = process.env.OPTIMIZED_COPY_DIR || "";
+const COPY_DIR = process.env["OPTIMIZED_COPY_DIR"] || "";
 
 const OPTIMIZE_SCRIPT = path.join(import.meta.dirname, "optimize.ts");
 

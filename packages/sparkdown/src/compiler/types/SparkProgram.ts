@@ -1,7 +1,7 @@
 import type { ProgramBuffer } from "../../binary/programBinary";
 import { type File } from "./File";
 import { type SceneAssets } from "./SceneAssets";
-import { Range, type SparkDiagnostic } from "./SparkDiagnostic";
+import type { Range,SparkDiagnostic } from "./SparkDiagnostic";
 import {
   type ComponentNode,
   type LayoutNode,

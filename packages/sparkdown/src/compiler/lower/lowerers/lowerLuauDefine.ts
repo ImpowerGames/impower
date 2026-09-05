@@ -17,9 +17,9 @@ import { StructDefinition } from "../../../inkjs/compiler/Parser/ParsedHierarchy
 import { StructPropertyDefinition } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Struct/StructPropertyDefinition";
 import { Text } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Text";
 import { VariableAssignment } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Variable/VariableAssignment";
-import { CompiledBlock } from "../../classes/annotators/CompilationAnnotator";
-import { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
-import { LowerContext, SiblingSubFlowInfo } from "../context";
+import type { CompiledBlock } from "../../classes/annotators/CompilationAnnotator";
+import type { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
+import type { LowerContext,SiblingSubFlowInfo } from "../context";
 import {
   buildClosureExpression,
   lowerExpressionFromContainer,
@@ -536,7 +536,7 @@ export function lowerLuauDefine(
 // (`function Class:method(...)`) — same upval capture, same
 // `__closure_user_arity` contract (counts `self`).
 function lowerDefineMethod(
-  methodName: string,
+  _methodName: string,
   node: SyntaxNode,
   ctx: LowerContext,
 ): Expression | null {
@@ -678,7 +678,7 @@ function readPropertyDefinition(
   // significant child following the `LuauAssignmentOperator` marker. Read
   // from that node's start to the operation's end (covers multi-node
   // expressions) instead of re-deriving the RHS by string-scanning for `=`.
-  const valueNode = findAssignmentValueNode(opNode);
+  const valueNode = findAssignmentValueNode(opNode ?? null);
   const rawValue = valueNode ? ctx.read(valueNode.from, opNode!.to) : "";
 
   // Anchor the property's value expression to its source range. Diagnostics

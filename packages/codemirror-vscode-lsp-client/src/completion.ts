@@ -157,7 +157,7 @@ export const getValidFor = (triggerCharacters: string[] | undefined) => {
 };
 
 export const getServerCompletionContext = (
-  triggerCharacters: string[],
+  triggerCharacters: string[] | undefined,
   context: CompletionContext,
 ): lsp.CompletionContext | null => {
   const line = context.state.doc.lineAt(context.pos);
@@ -264,9 +264,9 @@ function getCompletions(
 /// server.
 export const serverCompletionSource: CompletionSource = (context) => {
   const plugin = context.view && LSPPlugin.get(context.view);
+  if (!plugin) return null;
   const triggerCharacters =
     plugin.client.serverCapabilities?.completionProvider?.triggerCharacters;
-  if (!plugin) return null;
   const serverContext = getServerCompletionContext(triggerCharacters, context);
   if (!serverContext) {
     return null;

@@ -1,7 +1,7 @@
 import { ParsedObject } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Object";
 import { Weave } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Weave";
-import { CompiledBlock } from "../../classes/annotators/CompilationAnnotator";
-import { LowerContext } from "../context";
+import type { CompiledBlock } from "../../classes/annotators/CompilationAnnotator";
+import type { LowerContext } from "../context";
 import { buildDebugMetadata } from "./debugMetadata";
 
 // Wrap the given parsed objects in a statement-level Weave.

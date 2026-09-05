@@ -1,7 +1,7 @@
-import { Graphics, GraphicsContext, Rectangle, Renderer } from "pixi.js";
+import { Graphics, GraphicsContext, Rectangle, type Renderer } from "pixi.js";
 import {
   AnimatedSVGParser,
-  AnimatedSVGParserOptions,
+  type AnimatedSVGParserOptions,
 } from "../AnimatedSVGParser";
 import { parseSVGViewBoxAttribute } from "./parseSVGViewBoxAttribute";
 

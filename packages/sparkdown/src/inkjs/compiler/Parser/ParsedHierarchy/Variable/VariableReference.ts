@@ -1,12 +1,10 @@
 import { Container as RuntimeContainer } from "../../../../engine/Container";
-import { ContentList } from "../ContentList";
 import { Expression } from "../Expression/Expression";
 import { FlowBase } from "../Flow/FlowBase";
 import { ParsedObject } from "../Object";
 import { Path } from "../Path";
 import { Story } from "../Story";
 import { VariableReference as RuntimeVariableReference } from "../../../../engine/VariableReference";
-import { Weave } from "../Weave";
 import { Identifier } from "../Identifier";
 import { asOrNull, filterUndef } from "../../../../engine/TypeAssertion";
 
@@ -48,7 +46,7 @@ export class VariableReference extends Expression {
     this.identifier = new Identifier(...this.pathIdentifiers);
   }
 
-  get typeName(): string {
+  override get typeName(): string {
     return "ref";
   }
 
@@ -76,10 +74,10 @@ export class VariableReference extends Expression {
       let listName: string = "";
 
       if (this.path.length === 1) {
-        listItemName = this.path[0];
+        listItemName = this.path[0]!;
       } else {
-        listName = this.path[0];
-        listItemName = this.path[1];
+        listName = this.path[0]!;
+        listItemName = this.path[1]!;
       }
 
       const listItem = this.story.ResolveListItem(listName, listItemName, this);
@@ -226,7 +224,7 @@ export class VariableReference extends Expression {
     }
   }
 
-  public readonly toString = (): string => `{${this.path.join(".")}}`;
+  public override readonly toString = (): string => `{${this.path.join(".")}}`;
 
   override OnResetRuntime(): void {
     this._runtimeVarRef = null;

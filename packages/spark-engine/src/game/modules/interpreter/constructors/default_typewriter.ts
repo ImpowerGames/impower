@@ -1,5 +1,5 @@
-import { Create } from "../../../core/types/Create";
-import { Typewriter } from "../types/Typewriter";
+import type { Create } from "../../../core/types/Create";
+import type { Typewriter } from "../types/Typewriter";
 
 export const default_typewriter: Create<Typewriter> = (obj) => ({
   $type: "typewriter",

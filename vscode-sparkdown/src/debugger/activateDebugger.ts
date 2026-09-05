@@ -62,7 +62,7 @@ export const activateDebugger = (
   );
 
   context.subscriptions.push(
-    vscode.commands.registerCommand("sparkdown.getProgramName", (config) => {
+    vscode.commands.registerCommand("sparkdown.getProgramName", () => {
       return vscode.window.showInputBox({
         placeHolder:
           "Please enter the name of a .sd file in the workspace folder",
@@ -72,7 +72,7 @@ export const activateDebugger = (
   );
 
   context.subscriptions.push(
-    vscode.commands.registerCommand("sparkdown.getSaveName", (config) => {
+    vscode.commands.registerCommand("sparkdown.getSaveName", () => {
       return vscode.window.showInputBox({
         placeHolder:
           "Please enter the name of a .sav file in the workspace folder",
@@ -214,9 +214,9 @@ class MockConfigurationProvider implements vscode.DebugConfigurationProvider {
    * e.g. add all missing attributes to the debug configuration.
    */
   resolveDebugConfiguration(
-    folder: WorkspaceFolder | undefined,
+    _folder: WorkspaceFolder | undefined,
     config: DebugConfiguration,
-    token?: CancellationToken,
+    _token?: CancellationToken,
   ): ProviderResult<DebugConfiguration> {
     // if launch.json is missing or empty
     if (!config.type && !config.request && !config.name) {

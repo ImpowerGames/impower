@@ -62,8 +62,9 @@ const GLOBAL_DECLARATION_KEYWORDS =
 const LOCAL_DECLARATION_KEYWORDS =
   GRAMMAR_DEFINITION.variables.LUAU_LOCAL_DECLARATION_KEYWORDS || [];
 
-const STYLING_DEFINE_TYPES =
-  GRAMMAR_DEFINITION.variables.STYLING_DEFINE_TYPES || [];
+// The grammar no longer defines STYLING_DEFINE_TYPES, so this is empty and the
+// completion paths that consult it are inert.
+const STYLING_DEFINE_TYPES: string[] = [];
 
 const IMAGE_TYPES = ["filtered_image", "layered_image", "image"];
 const AUDIO_TYPES = ["layered_audio", "audio", "synth"];

@@ -1,4 +1,4 @@
-import { Tone } from "../types/Tone";
+import type { Tone } from "../types/Tone";
 
 const PARAM_REGEX = /([a-z])/;
 

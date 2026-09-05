@@ -12,7 +12,7 @@ import { Vec3 } from "../math/vec3";
 import { MatrixComponent } from "./matrix-component";
 import { Point3D } from "./point";
 import { Quaternion } from "./quaternion";
-import { TransformId } from "./transform-id";
+import type { TransformId } from "./transform-id";
 
 const temp = new Float32Array(16);
 

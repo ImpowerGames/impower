@@ -2,12 +2,12 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
-import { GrammarToken, NodeID } from "../../core";
+import { type GrammarToken, NodeID } from "../../core";
 import { Grammar } from "../../grammar";
 import { type TokenizerResume } from "../../grammar/classes/ResumableTokenizer";
 
 import { SpecialRecord } from "../enums/SpecialRecord";
-import { ITreeBuffer } from "../types/ITreeBuffer";
+import type { ITreeBuffer } from "../types/ITreeBuffer";
 import { Chunk } from "./Chunk";
 import { CompileStack } from "./CompileStack";
 import { FlatBufferCursor } from "./FlatBufferCursor";

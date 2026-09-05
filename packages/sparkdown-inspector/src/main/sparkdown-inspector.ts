@@ -127,7 +127,7 @@ export default class SparkdownInspector extends Component(spec) {
             e.preventDefault();
           });
 
-          summary.addEventListener("click", (e) => {
+          summary.addEventListener("click", () => {
             const willOpen = !el.open;
 
             setTimeout(() => {
@@ -202,6 +202,6 @@ export default class SparkdownInspector extends Component(spec) {
 
 declare global {
   interface HTMLElementTagNameMap {
-    "spark-web-player": SparkdownInspector;
+    "sparkdown-inspector": SparkdownInspector;
   }
 }

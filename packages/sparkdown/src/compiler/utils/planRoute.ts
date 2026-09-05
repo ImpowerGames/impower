@@ -1,4 +1,4 @@
-import { Simulator, SimulatorSnapshot } from "../../inkjs/engine/Simulator";
+import type { Simulator,SimulatorSnapshot } from "../../inkjs/engine/Simulator";
 import { Story } from "../../inkjs/engine/Story";
 
 export interface RoutePlan {

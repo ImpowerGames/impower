@@ -2,9 +2,9 @@ import { type SyntaxNode } from "@lezer/common";
 import { getDescendents } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendents";
 import { ParsedObject } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Object";
 import { Text } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Text";
-import { CompiledBlock } from "../../classes/annotators/CompilationAnnotator";
-import { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
-import { LowerContext } from "../context";
+import type { CompiledBlock } from "../../classes/annotators/CompilationAnnotator";
+import type { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
+import type { LowerContext } from "../context";
 import { wrapInWeave } from "../utils/wrapInWeave";
 
 // Asset lines lower to their raw bracketed directive text, emitted inline:

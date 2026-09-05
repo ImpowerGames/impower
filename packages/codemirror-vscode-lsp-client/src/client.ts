@@ -130,7 +130,7 @@ export class WorkspaceMapping {
 const defaultNotificationListeners: {
   [method: string]: (client: LSPClient, params: any) => void;
 } = {
-  "window/logMessage": (client, params: lsp.LogMessageParams) => {
+  "window/logMessage": (_client, params: lsp.LogMessageParams) => {
     if (params.type == 1) console.error("[lsp] " + params.message);
     else if (params.type == 2) console.warn("[lsp] " + params.message);
   },
@@ -241,7 +241,6 @@ export class LSPClient {
   transport: Transport | null = null;
   /// The client's [workspace](#lsp-client.Workspace).
   workspace: Workspace;
-  private nextReqID = 0;
   /// @internal
   activeMappings: WorkspaceMapping[] = [];
 
@@ -258,15 +257,16 @@ export class LSPClient {
   /// The capabilities advertised by the server. Will be null when not
   /// connected or initialized.
   get serverCapabilities() {
-    return this._initializeResult.capabilities;
+    return this._initializeResult?.capabilities ?? null;
   }
 
   private get supportSync() {
-    return this._initializeResult.capabilities.textDocumentSync == null
+    const sync = this._initializeResult?.capabilities.textDocumentSync;
+    return sync == null
       ? 0
-      : typeof this._initializeResult.capabilities.textDocumentSync == "number"
-        ? this._initializeResult.capabilities.textDocumentSync
-        : (this._initializeResult.capabilities.textDocumentSync.change ?? 0);
+      : typeof sync == "number"
+        ? sync
+        : (sync.change ?? 0);
   }
   /// A promise that resolves once the client connection is initialized. Will be
   /// replaced by a new promise object when you call `disconnect`.
@@ -359,17 +359,17 @@ export class LSPClient {
         clientInfo: {
           ...defaultInitializeParams.clientInfo,
           ...(initializeParams?.clientInfo || {}),
-        },
+        } as lsp.InitializeParams["clientInfo"],
         capabilities: mergeCapabilities(
           defaultInitializeParams.capabilities,
-          initializeParams.capabilities,
+          initializeParams?.capabilities,
         ),
       };
       this.requestInner<
         lsp.InitializeParams,
         lsp.InitializeResult,
         "initialize"
-      >("initialize", this._initializeParams).promise.then((result) => {
+      >("initialize", this._initializeParams!).promise.then((result) => {
         this._initializeResult = result;
         transport.send(
           JSON.stringify({
@@ -536,7 +536,7 @@ export class LSPClient {
       | lsp.NotificationMessage
       | lsp.RequestMessage;
     if ("id" in value && !("method" in value)) {
-      const req = this.requests.get(value.id);
+      const req = this.requests.get(value.id!);
       if (req) {
         clearTimeout(req.timeout);
         if (value.error) {
@@ -544,8 +544,8 @@ export class LSPClient {
         } else {
           req.resolve(value.result);
         }
-        this.cancellationTokens.delete(req.cancellationToken);
-        this.requests.delete(value.id);
+        this.cancellationTokens.delete(req.cancellationToken!);
+        this.requests.delete(value.id!);
       }
     } else if (!("id" in value)) {
       let handler = this.config.notificationListeners?.[value.method];
@@ -566,7 +566,7 @@ export class LSPClient {
         deflt(this, value.params);
       }
     } else if ("id" in value && "method" in value) {
-      if (!this.transport.connection) {
+      if (!this.transport?.connection) {
         // If no connection is provided, handle responding to requests directly
         if (value.method === "workspace/textDocumentContent/refresh") {
           this.respond(value, (client, params: { uri: string }) =>
@@ -670,7 +670,7 @@ export class LSPClient {
     let req = new Request<Result>(
       id,
       params,
-      setTimeout(() => {
+      self.setTimeout(() => {
         req.reject(new Error("Request timed out"));
         if (cancellationToken) {
           this.cancellationTokens.delete(cancellationToken);
@@ -726,7 +726,7 @@ export class LSPClient {
   /// @internal
   hasCapability(name: keyof lsp.ServerCapabilities) {
     return this._initializeResult
-      ? Boolean(this.serverCapabilities[name])
+      ? Boolean(this.serverCapabilities?.[name])
       : null;
   }
 

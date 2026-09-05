@@ -10,5 +10,8 @@
     "@codemirror/view": "^6.38.6",
     "@impower/textmate-grammar-tree": "file:../textmate-grammar-tree",
     "@lezer/common": "^1.2.3"
+  },
+  "scripts": {
+    "typecheck": "node ../../scripts/typecheck.mjs packages/codemirror-vscode-language/"
   }
 }

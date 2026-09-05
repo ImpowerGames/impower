@@ -1,10 +1,10 @@
-import { IMessage } from "@impower/jsonrpc/src/common/types/IMessage";
-import { Message } from "@impower/jsonrpc/src/common/types/Message";
-import { MessageCallback } from "@impower/jsonrpc/src/common/types/MessageCallback";
-import { NotificationMessage } from "@impower/jsonrpc/src/common/types/NotificationMessage";
-import { RequestMessage } from "@impower/jsonrpc/src/common/types/RequestMessage";
-import { ResponseError } from "@impower/jsonrpc/src/common/types/ResponseError";
-import { ResponseMessage } from "@impower/jsonrpc/src/common/types/ResponseMessage";
+import type { IMessage } from "@impower/jsonrpc/src/common/types/IMessage";
+import type { Message } from "@impower/jsonrpc/src/common/types/Message";
+import type { MessageCallback } from "@impower/jsonrpc/src/common/types/MessageCallback";
+import type { NotificationMessage } from "@impower/jsonrpc/src/common/types/NotificationMessage";
+import type { RequestMessage } from "@impower/jsonrpc/src/common/types/RequestMessage";
+import type { ResponseError } from "@impower/jsonrpc/src/common/types/ResponseError";
+import type { ResponseMessage } from "@impower/jsonrpc/src/common/types/ResponseMessage";
 import { Socket } from "./Socket";
 
 export interface ConnectionConfig {

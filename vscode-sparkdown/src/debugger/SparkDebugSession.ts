@@ -41,7 +41,6 @@ import { SetGameFunctionBreakpointsMessage } from "@impower/spark-engine/src/gam
 import { StepGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/StepGameMessage";
 import { StopGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/StopGameMessage";
 import { UnpauseGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/UnpauseGameMessage";
-import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
 import {
   ContinuedEvent,
   ExitedEvent,
@@ -52,9 +51,6 @@ import {
   logger,
   LoggingDebugSession,
   OutputEvent,
-  ProgressEndEvent,
-  ProgressStartEvent,
-  ProgressUpdateEvent,
   Scope,
   Source,
   StackFrame,
@@ -65,7 +61,6 @@ import {
 } from "@vscode/debugadapter";
 import { DebugProtocol } from "@vscode/debugprotocol";
 import { SparkdownDebugManager } from "../managers/SparkdownDebugManager";
-import { timeout } from "./mockRuntime";
 
 export interface FileAccessor {
   isWindows: boolean;
@@ -107,16 +102,6 @@ export class SparkDebugSession extends LoggingDebugSession {
   private _variableHandles = new Handles<
     "temps" | "vars" | "lists" | "defines"
   >(-3);
-
-  private _launchProgram = "";
-  private _launchLine = 0;
-
-  private _cancellationTokens = new Map<number, boolean>();
-
-  private _reportProgress = false;
-  private _progressId = 10000;
-  private _cancelledProgressId: string | undefined = undefined;
-  private _isProgressCancellable = true;
 
   private _valuesInHex = false;
   private _useInvalidatedEvent = false;
@@ -302,9 +287,6 @@ export class SparkDebugSession extends LoggingDebugSession {
     response: DebugProtocol.InitializeResponse,
     args: DebugProtocol.InitializeRequestArguments,
   ): void {
-    if (args.supportsProgressReporting) {
-      this._reportProgress = true;
-    }
     if (args.supportsInvalidatedEvent) {
       this._useInvalidatedEvent = true;
     }
@@ -382,7 +364,7 @@ export class SparkDebugSession extends LoggingDebugSession {
   protected override async disconnectRequest(
     response: DebugProtocol.DisconnectResponse,
     args: DebugProtocol.DisconnectArguments,
-    request?: DebugProtocol.Request,
+    _request?: DebugProtocol.Request,
   ) {
     // console.log("disconnectRequest", args);
     if (!args.restart) {
@@ -431,17 +413,13 @@ export class SparkDebugSession extends LoggingDebugSession {
 
     await this._fileAccessor.showFile(args.program);
 
-    this._launchProgram = args.program;
-    this._launchLine =
-      (await this._fileAccessor.getSelectedLine(args.program)) ?? 0;
-
     this.sendResponse(response);
   }
 
   protected override async pauseRequest(
     response: DebugProtocol.PauseResponse,
-    args: DebugProtocol.PauseArguments,
-    request?: DebugProtocol.Request,
+    _args: DebugProtocol.PauseArguments,
+    _request?: DebugProtocol.Request,
   ) {
     await this._connection.emit(PauseGameMessage.type.request({}));
     this.sendResponse(response);
@@ -450,7 +428,7 @@ export class SparkDebugSession extends LoggingDebugSession {
 
   protected override async continueRequest(
     response: DebugProtocol.ContinueResponse,
-    args: DebugProtocol.ContinueArguments,
+    _args: DebugProtocol.ContinueArguments,
   ) {
     // console.log("continueRequest", args);
     await this._connection.emit(UnpauseGameMessage.type.request({}));
@@ -460,7 +438,7 @@ export class SparkDebugSession extends LoggingDebugSession {
 
   protected override async reverseContinueRequest(
     response: DebugProtocol.ReverseContinueResponse,
-    args: DebugProtocol.ReverseContinueArguments,
+    _args: DebugProtocol.ReverseContinueArguments,
   ) {
     // console.log("reverseContinueRequest", args);
     // TODO
@@ -469,7 +447,7 @@ export class SparkDebugSession extends LoggingDebugSession {
 
   protected override async nextRequest(
     response: DebugProtocol.NextResponse,
-    args: DebugProtocol.NextArguments,
+    _args: DebugProtocol.NextArguments,
   ) {
     // console.log("nextRequest", args);
     await this._connection.emit(
@@ -482,7 +460,7 @@ export class SparkDebugSession extends LoggingDebugSession {
 
   protected override async stepInRequest(
     response: DebugProtocol.StepInResponse,
-    args: DebugProtocol.StepInArguments,
+    _args: DebugProtocol.StepInArguments,
   ) {
     // console.log("stepInRequest", args);
     await this._connection.emit(
@@ -495,7 +473,7 @@ export class SparkDebugSession extends LoggingDebugSession {
 
   protected override async stepOutRequest(
     response: DebugProtocol.StepOutResponse,
-    args: DebugProtocol.StepOutArguments,
+    _args: DebugProtocol.StepOutArguments,
   ) {
     // console.log("stepOutRequest", args);
     await this._connection.emit(
@@ -508,7 +486,7 @@ export class SparkDebugSession extends LoggingDebugSession {
 
   protected override async stepBackRequest(
     response: DebugProtocol.StepBackResponse,
-    args: DebugProtocol.StepBackArguments,
+    _args: DebugProtocol.StepBackArguments,
   ) {
     // console.log("stepBackRequest", args);
     // TODO
@@ -517,7 +495,7 @@ export class SparkDebugSession extends LoggingDebugSession {
 
   protected override stepInTargetsRequest(
     response: DebugProtocol.StepInTargetsResponse,
-    args: DebugProtocol.StepInTargetsArguments,
+    _args: DebugProtocol.StepInTargetsArguments,
   ) {
     // console.log("stepInTargetsRequest", args);
     // TODO ?
@@ -532,7 +510,7 @@ export class SparkDebugSession extends LoggingDebugSession {
 
   protected override async loadedSourcesRequest(
     response: DebugProtocol.LoadedSourcesResponse,
-    args: DebugProtocol.LoadedSourcesArguments,
+    _args: DebugProtocol.LoadedSourcesArguments,
   ) {
     // console.log("loadedSourcesRequest", args);
     const { uris } = await this._connection.emit(
@@ -607,7 +585,7 @@ export class SparkDebugSession extends LoggingDebugSession {
   protected override async setFunctionBreakPointsRequest(
     response: DebugProtocol.SetFunctionBreakpointsResponse,
     args: DebugProtocol.SetFunctionBreakpointsArguments,
-    request?: DebugProtocol.Request,
+    _request?: DebugProtocol.Request,
   ) {
     // console.log("setFunctionBreakPointsRequest", args);
 
@@ -664,7 +642,7 @@ export class SparkDebugSession extends LoggingDebugSession {
   protected override async breakpointLocationsRequest(
     response: DebugProtocol.BreakpointLocationsResponse,
     args: DebugProtocol.BreakpointLocationsArguments,
-    request?: DebugProtocol.Request,
+    _request?: DebugProtocol.Request,
   ) {
     // console.log("breakpointLocationsRequest", args);
 
@@ -703,7 +681,7 @@ export class SparkDebugSession extends LoggingDebugSession {
 
   protected override async setExceptionBreakPointsRequest(
     response: DebugProtocol.SetExceptionBreakpointsResponse,
-    args: DebugProtocol.SetExceptionBreakpointsArguments,
+    _args: DebugProtocol.SetExceptionBreakpointsArguments,
   ): Promise<void> {
     // console.log("setExceptionBreakPointsRequest", args);
     // let namedException: string | undefined = undefined;
@@ -735,7 +713,7 @@ export class SparkDebugSession extends LoggingDebugSession {
 
   protected override exceptionInfoRequest(
     response: DebugProtocol.ExceptionInfoResponse,
-    args: DebugProtocol.ExceptionInfoArguments,
+    _args: DebugProtocol.ExceptionInfoArguments,
   ) {
     // console.log("exceptionInfoRequest", args);
     response.body = {
@@ -822,7 +800,7 @@ export class SparkDebugSession extends LoggingDebugSession {
 
   protected override scopesRequest(
     response: DebugProtocol.ScopesResponse,
-    args: DebugProtocol.ScopesArguments,
+    _args: DebugProtocol.ScopesArguments,
   ): void {
     // console.log("scopesRequest", args);
     response.body = {
@@ -839,7 +817,7 @@ export class SparkDebugSession extends LoggingDebugSession {
   protected override async variablesRequest(
     response: DebugProtocol.VariablesResponse,
     args: DebugProtocol.VariablesArguments,
-    request?: DebugProtocol.Request,
+    _request?: DebugProtocol.Request,
   ): Promise<void> {
     // console.log("variablesRequest", args);
 
@@ -903,8 +881,13 @@ export class SparkDebugSession extends LoggingDebugSession {
       GetGameEvaluationContextMessage.type.request({}),
     );
 
-    const compiler = new SparkdownCompiler();
-    const value = compiler.evaluate(args.expression, context);
+    const value = args.expression
+      .split(".")
+      .reduce(
+        (obj, key) =>
+          obj != null && typeof obj === "object" ? obj[key] : undefined,
+        context,
+      );
 
     const { variables } = await this._connection.emit(
       GetGameVariablesMessage.type.request({
@@ -925,7 +908,7 @@ export class SparkDebugSession extends LoggingDebugSession {
 
   protected override async setVariableRequest(
     response: DebugProtocol.SetVariableResponse,
-    args: DebugProtocol.SetVariableArguments,
+    _args: DebugProtocol.SetVariableArguments,
   ) {
     // console.log("setVariableRequest", args);
 
@@ -1036,7 +1019,7 @@ export class SparkDebugSession extends LoggingDebugSession {
 
   protected override setExpressionRequest(
     response: DebugProtocol.SetExpressionResponse,
-    args: DebugProtocol.SetExpressionArguments,
+    _args: DebugProtocol.SetExpressionArguments,
   ): void {
     // console.log("setExpressionRequest", args);
     // if (args.expression.startsWith("$")) {
@@ -1064,44 +1047,9 @@ export class SparkDebugSession extends LoggingDebugSession {
     this.sendResponse(response);
   }
 
-  private async progressSequence() {
-    const ID = "" + this._progressId++;
-
-    await timeout(100);
-
-    const title = this._isProgressCancellable
-      ? "Cancellable operation"
-      : "Long running operation";
-    const startEvent: DebugProtocol.ProgressStartEvent = new ProgressStartEvent(
-      ID,
-      title,
-    );
-    startEvent.body.cancellable = this._isProgressCancellable;
-    this._isProgressCancellable = !this._isProgressCancellable;
-    this.sendEvent(startEvent);
-    this.sendEvent(new OutputEvent(`start progress: ${ID}\n`));
-
-    let endMessage = "progress ended";
-
-    for (let i = 0; i < 100; i++) {
-      await timeout(500);
-      this.sendEvent(new ProgressUpdateEvent(ID, `progress: ${i}`));
-      if (this._cancelledProgressId === ID) {
-        endMessage = "progress cancelled";
-        this._cancelledProgressId = undefined;
-        this.sendEvent(new OutputEvent(`cancel progress: ${ID}\n`));
-        break;
-      }
-    }
-    this.sendEvent(new ProgressEndEvent(ID, endMessage));
-    this.sendEvent(new OutputEvent(`end progress: ${ID}\n`));
-
-    this._cancelledProgressId = undefined;
-  }
-
   protected override cancelRequest(
-    response: DebugProtocol.CancelResponse,
-    args: DebugProtocol.CancelArguments,
+    _response: DebugProtocol.CancelResponse,
+    _args: DebugProtocol.CancelArguments,
   ) {
     // console.log("cancelRequest", args);
     // if (args.requestId) {

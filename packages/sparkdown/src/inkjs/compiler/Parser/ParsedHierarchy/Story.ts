@@ -3,9 +3,8 @@ import { bumpCompileEpoch } from "./CompileEpoch";
 import { ConstantDeclaration } from "./Declaration/ConstantDeclaration";
 import { Container as RuntimeContainer } from "../../../engine/Container";
 import { ControlCommand as RuntimeControlCommand } from "../../../engine/ControlCommand";
-import { ErrorHandler } from "../../../engine/Error";
+import type { ErrorHandler } from "../../../engine/Error";
 import { ErrorType } from "../ErrorType";
-import { Expression } from "./Expression/Expression";
 import { ExternalDeclaration } from "./Declaration/ExternalDeclaration";
 import { FlowBase } from "./Flow/FlowBase";
 import { FlowLevel } from "./Flow/FlowLevel";
@@ -1016,7 +1015,7 @@ export class Story extends FlowBase {
     const constDecl =
       (identifier?.name && this.constants.get(identifier.name)) || null;
     if (constDecl && constDecl !== obj) {
-      this.NameConflictError(constDecl, constDecl.identifier, identifier);
+      this.NameConflictError(constDecl, constDecl.identifier!, identifier);
     }
 
     // Don't check for var->var conflicts because that's handled separately
@@ -1042,7 +1041,7 @@ export class Story extends FlowBase {
       // genuine plain-var collision should error here.
       !varDecl.isDefineDeclaration
     ) {
-      this.NameConflictError(obj, identifier, varDecl.identifier);
+      this.NameConflictError(obj, identifier, varDecl.identifier!);
     }
 
     if (symbolType < SymbolType.SubFlowAndWeave) {
@@ -1095,7 +1094,7 @@ export class Story extends FlowBase {
           if (arg.identifier?.name === identifier?.name) {
             obj.Error(
               `Duplicate identifier \`${identifier}\`. A parameter named \`${identifier}\` already exists for ${flow.identifier} on ${flow.debugMetadata}`,
-              varDecl?.identifier.debugMetadata,
+              varDecl?.identifier!.debugMetadata,
             );
 
             return;

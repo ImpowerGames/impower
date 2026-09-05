@@ -20,11 +20,6 @@ import { formatDisplayRoutingTag } from "../../compiler/utils/displayRoutingTag"
 // Drive `Continue()` one beat at a time. A correctly-glued continuation
 // joins onto the previous line's beat, so the whole join is a SINGLE
 // `Continue()` boundary (mirrors `ChainedDialogueBreak.test.ts`).
-function continueBeats(story: RuntimeStory): string[] {
-  const beats: string[] = [];
-  while (story.canContinue) beats.push(story.Continue() ?? "");
-  return beats;
-}
 
 // Same, but paired with each beat's tags. Routing lives in a reserved tag
 // rather than a `<prefix>:` in the visible text, so asserting the tag is what
