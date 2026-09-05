@@ -202,6 +202,14 @@ const denies = [
   ["create after a redirection glued to a dated log file", ">2026-09-05.log gh issue create --title x"],
   ["curl form data with '(type=Bug)' in the title", "curl -X POST https://api.github.com/repos/ImpowerGames/impower/issues -d 'title=Support (type=Bug) syntax&body=z'"],
   ["irm -Body: colon form without a type", "irm -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Body:@{title='x'}"],
+  ["irm -Body: multi-line hashtable without a type, followed by a typed-looking token", "irm -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Body:@{\n  title = 'x'\n} @{type='Bug'}"],
+  ["chained PowerShell captures of a create", "$x=$y=gh issue create --title x"],
+  ["chained PowerShell captures of an untyped api create", "$a=$b=gh api -X POST repos/ImpowerGames/impower/issues -f title=y"],
+  ["curl -F form field without a type", "curl -F 'title=x' https://api.github.com/repos/ImpowerGames/impower/issues"],
+  ["curl -o before -d", "curl -o out.json -d '{\"title\":\"x\"}' https://api.github.com/repos/ImpowerGames/impower/issues"],
+  ["curl -w before -d", "curl -w '%{http_code}' -d '{\"title\":\"x\"}' https://api.github.com/repos/ImpowerGames/impower/issues"],
+  ["curl -su before -d", "curl -su user:pass -d '{\"title\":\"x\"}' https://api.github.com/repos/ImpowerGames/impower/issues"],
+  ["curl form data with an apostrophe and '(type=Bug)' in the title", 'curl -X POST https://api.github.com/repos/ImpowerGames/impower/issues -d "title=Support (type=Bug) in someone\'s editor&body=z"'],
 ];
 
 const allows = [
@@ -311,14 +319,29 @@ const allows = [
   ["irm -Body: colon form with a type", "irm -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Body:@{title='x'; type='Bug'}"],
   ["a view in a $( ) after a short flag", "echo -n $(gh issue view 443 --json number)"],
   ["curl -sJ -o download", "curl -sJ -o out.json https://api.github.com/repos/ImpowerGames/impower/issues"],
+  ["curl -o eating a -d that is its value", "curl -o -d out.json https://api.github.com/repos/ImpowerGames/impower/issues"],
+  ["curl -F form fields with a type", "curl -F 'title=x' -F 'type=Bug' https://api.github.com/repos/ImpowerGames/impower/issues"],
+  ["irm -Body: with a space after the colon", "irm -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Body: @{title='x'; type='Bug'}"],
+  ["irm -Body: multi-line typed hashtable", "irm -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Body:@{\n  title = 'x'\n  type = 'Bug'\n} -ContentType 'application/json'"],
+  ["Invoke-RestMethod typed newline-separated hashtable body", "Invoke-RestMethod -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Body (@{\n  title = 'x'\n  type  = 'Bug'\n} | ConvertTo-Json)"],
+  ["Invoke-RestMethod typed hashtable with a backtick-escaped quote in a value", 'irm -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Body @{title="5`" display"; type=\'Bug\'}'],
+  ["Invoke-RestMethod typed hashtable with a doubled apostrophe in a value", "irm -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Body @{title='it''s'; type='Bug'}"],
   ["empty command", ""],
 ];
 
-// Splitting glued PowerShell assignments must stay linear in the segment.
+// Splitting glued PowerShell assignments must stay linear in the segment
+// (the quadratic version took over ten seconds at this size), and a run of
+// unbalanced groups after flags must cost a bounded amount each.
 {
-  const t0 = Date.now();
-  decide(Array.from({ length: 32000 }, (_, i) => `$a${i}=1`).join(" ") + " gh issue view 443");
-  check(Date.now() - t0 < 2000, "32000 glued PowerShell assignments decide in under 2 s", `${Date.now() - t0} ms`);
+  let t0 = Date.now();
+  decide(Array.from({ length: 128000 }, (_, i) => `$a${i}=1`).join(" ") + " gh issue view 443");
+  check(Date.now() - t0 < 2000, "128000 glued PowerShell assignments decide in under 2 s", `${Date.now() - t0} ms`);
+  t0 = Date.now();
+  decide("echo " + "-a ( ".repeat(16000));
+  check(Date.now() - t0 < 2000, "16000 unbalanced groups after flags decide in under 2 s", `${Date.now() - t0} ms`);
+  t0 = Date.now();
+  decide("echo " + "-a @{ ".repeat(16000) + "}");
+  check(Date.now() - t0 < 2000, "16000 unbalanced hashtables after flags decide in under 2 s", `${Date.now() - t0} ms`);
 }
 
 // The backtick scan inside a double-quoted string must stay linear.

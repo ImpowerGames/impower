@@ -364,21 +364,52 @@ function matchParen(command, open) {
   return matchBracket(command, open, "(", ")");
 }
 
-/** Index of the closing bracket matching the opener at `open`, skipping quoted text, or the end of the string. */
+// A group scan gives up after this many characters, so a run of unbalanced
+// openers costs a bounded amount each rather than a rescan to the end.
+const GROUP_SCAN_LIMIT = 8192;
+
+/**
+ * Index of the closing bracket matching the opener at `open`, skipping
+ * quoted text (with Bash backslash and PowerShell backtick escapes, and
+ * doubled apostrophes), or the end of the string when unbalanced.
+ */
 function matchBracket(command, open, openCh, closeCh) {
+  const n = command.length;
+  if (command.lastIndexOf(closeCh) < open) return n;
+  const limit = Math.min(n, open + GROUP_SCAN_LIMIT);
   let depth = 0;
-  for (let k = open; k < command.length; k++) {
+  for (let k = open; k < limit; k++) {
     const ch = command[k];
     if (ch === "'" || ch === '"') {
-      const end = command.indexOf(ch, k + 1);
-      if (end < 0) return command.length;
+      const end = closingQuote(command, k);
+      if (end < 0) return n;
       k = end;
       continue;
     }
     if (ch === openCh) depth++;
     else if (ch === closeCh && --depth === 0) return k;
   }
-  return command.length;
+  return n;
+}
+
+/** Index of the quote that closes the string opened at `open`, or -1. */
+function closingQuote(command, open) {
+  const q = command[open];
+  for (let k = open + 1; k < command.length; k++) {
+    const ch = command[k];
+    if (q === '"' && (ch === "\\" || ch === "`")) {
+      k++;
+      continue;
+    }
+    if (ch === q) {
+      if (q === "'" && command[k + 1] === "'") {
+        k++; // doubled apostrophe
+        continue;
+      }
+      return k;
+    }
+  }
+  return -1;
 }
 
 function baseName(token) {
@@ -564,7 +595,7 @@ const COLLECTION_URL = /api\.github\.com\/repos\/([^/\s"']+\/[^/\s"']+)\/issues\
 // hashtable entry (`type=`) after `{`, `;`, `,`, `(`, or `&`, or a quoted
 // JSON key in text that did not parse. Lowercase, because keys are
 // case-sensitive.
-const TYPE_ENTRY = /(["']type["']\s*[:=]\s*\S|(^|[{;,(&])\s*type\s*=\s*\S)/;
+const TYPE_ENTRY = /(["']type["']\s*[:=]\s*\S|(^|[{;,(&\n\r])\s*type\s*=\s*\S)/;
 
 /**
  * True when a request body carries a top-level `type` field with a value.
@@ -583,7 +614,7 @@ function bodyHasTypeField(body) {
       // lenient text check below.
     }
   }
-  if (!/["'{}]/.test(inner) && inner.includes("=")) {
+  if (!/^[{[@(]/.test(inner) && inner.includes("=")) {
     // Form-encoded data: title=x&type=Bug
     const type = new URLSearchParams(inner).get("type");
     return typeof type === "string" && type.length > 0;
@@ -672,9 +703,9 @@ function checkCurl(args) {
 function bodyText(seg) {
   const bodyIndex = seg.findIndex((t) => /^-body(:|$)/i.test(t.text));
   if (bodyIndex < 0) return null;
-  const colon = seg[bodyIndex].text.match(/^-body:(.*)$/i);
-  if (colon) return colon[1];
-  const next = seg[bodyIndex + 1];
+  const colon = seg[bodyIndex].text.match(/^-body:([\s\S]*)$/i);
+  if (colon && colon[1]) return colon[1];
+  const next = seg[bodyIndex + 1]; // `-Body value` or `-Body: value`
   return next ? next.text : "";
 }
 
@@ -841,15 +872,22 @@ export function decide(command, depth = 0) {
 /** Splits a glued PowerShell assignment (`$x=gh ...`, or `$x =gh ...`) into the assignment and the program token, in place. */
 function splitPsAssignments(seg) {
   const out = [];
+  const head = /^(\$(?:[A-Za-z_][A-Za-z0-9_:]*|\{[^}]+\})[+-]?=)(.+)$/;
   for (let k = 0; k < seg.length; k++) {
-    const tok = seg[k];
-    let m = tok.quoted ? null : tok.text.match(/^(\$(?:[A-Za-z_][A-Za-z0-9_:]*|\{[^}]+\})[+-]?=)(.+)$/);
-    if (!m && !tok.quoted && k > 0 && PS_ASSIGN.test(seg[k - 1].text) && !seg[k - 1].text.includes("=")) m = tok.text.match(/^([+-]?=)(.+)$/);
-    if (!m) {
+    let tok = seg[k];
+    if (tok.quoted) {
       out.push(tok);
       continue;
     }
-    out.push({ ...tok, text: m[1], end: tok.start + m[1].length }, { ...tok, text: m[2], start: tok.start + m[1].length });
+    let m = tok.text.match(head);
+    if (!m && k > 0 && PS_ASSIGN.test(seg[k - 1].text) && !seg[k - 1].text.includes("=")) m = tok.text.match(/^([+-]?=)(.+)$/);
+    // A chained `$x=$y=gh` splits once per assignment; each step shortens the tail.
+    while (m) {
+      out.push({ ...tok, text: m[1], end: tok.start + m[1].length });
+      tok = { ...tok, text: m[2], start: tok.start + m[1].length };
+      m = tok.text.match(head);
+    }
+    out.push(tok);
   }
   seg.length = 0;
   for (const t of out) seg.push(t);
