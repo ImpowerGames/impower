@@ -4283,7 +4283,7 @@ export class SparkdownCompiler {
       const stamped = target?.debugMetadata ?? null;
       report(
         warning
-          ? `\`${name}\` is a builtin global; this divert binds to it, and cannot reach a scene, branch, or label named \`${name}\`, unless the \`${name}\` declared in this scene has been set to a divert target before this divert runs`
+          ? `\`${name}\` is a builtin global; unless a \`${name}\` declared in this flow holds a divert target when this divert runs, it binds to the builtin and cannot reach a scene, branch, or label named \`${name}\``
           : `\`${name}\` is a builtin global, so this divert binds to it and cannot reach a scene, branch, or label named \`${name}\``,
         stamped ?? divert.debugMetadata,
         stamped ? 1 : 0,

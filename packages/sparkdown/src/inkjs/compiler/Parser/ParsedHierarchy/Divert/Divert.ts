@@ -280,74 +280,44 @@ export class Divert extends ParsedObject {
   public readonly PathAsVariableName = () =>
     this.target ? this.target.firstComponent : null;
 
-  // Where, if anywhere, `name` is declared as a parameter or a local
-  // (`variableDeclarations`) in the part of the story that shares this
-  // divert's call-stack element:
+  // Whether `name` is declared as a parameter or a local
+  // (`variableDeclarations`) anywhere in the top-level flow that contains
+  // this divert: that flow, its branches, and any callable nested in them. A
+  // story-level divert has no such flow and gets `false`.
   //
-  //   "own-parameter"  a parameter of the divert's own flow, bound on entry,
-  //                    so the divert always sees it;
-  //   "declared"       a local of the divert's own flow, or a parameter or
-  //                    local of a flow enclosing it, or of another branch of
-  //                    the same top-level flow: whether it has been set when
-  //                    the divert runs depends on the path taken;
-  //   "none"           nothing declares it (a story-level divert gets this).
-  //
-  // A static approximation of the runtime, where a temporary lives in the
-  // current call-stack element and is set only if the statement that sets it
-  // ran. Position and reachability are not modelled, so a local declared
-  // after the divert, or in a block that did not run, still counts as
-  // "declared". A callable runs in its own element, so the walk stops at
-  // the nearest enclosing function (a function nested in a callable neither
-  // sees the enclosing callable's locals nor lends its own), and sibling
-  // branches are consulted only when no function encloses the divert (a
-  // function written in a scene is hoisted to the top level and is never
-  // inside the scene's flow).
-  private declarationScopeFor(
-    name: string,
-  ): "own-parameter" | "declared" | "none" {
-    const declaresParameter = (candidate: FlowBase): boolean =>
-      candidate.args?.some((arg) => arg.identifier?.name === name) ?? false;
-    const declares = (candidate: FlowBase): boolean =>
-      declaresParameter(candidate) || candidate.variableDeclarations.has(name);
-    const own = asOrNull(ClosestFlowBase(this), FlowBase);
-    if (!own || own === own.story) {
-      return "none";
-    }
-    if (declaresParameter(own)) {
-      return "own-parameter";
-    }
-    // The flows sharing this divert's element: from its own flow up to the
-    // nearest function, or to the top-level flow when no function encloses it.
-    const shared: FlowBase[] = [];
-    let flow: FlowBase | null = own;
-    let boundary: FlowBase = own;
+  // This decides only the severity of the report, never its absence. Whether
+  // such a declaration holds a divert target when the divert runs depends on
+  // the path taken: a parameter is bound at the flow's head and not when the
+  // flow is entered at a label, a local is set only if its statement ran and
+  // in the call-stack element it ran in, a tunnel pushes a fresh element, and
+  // a closure captures what the lowering scanned as free. None of that is
+  // modelled here; a declaration anywhere in the flow makes the report a
+  // warning that names the condition, and no declaration makes it an error.
+  private isDeclaredInTopLevelFlow(name: string): boolean {
+    let flow = asOrNull(ClosestFlowBase(this), FlowBase);
+    let top: FlowBase | null = null;
     while (flow && flow !== flow.story) {
-      shared.push(flow);
-      boundary = flow;
-      if (flow.isFunction) {
-        break;
-      }
+      top = flow;
       flow = asOrNull(ClosestFlowBase(flow), FlowBase);
     }
-    if (shared.some(declares)) {
-      return "declared";
+    if (!top) {
+      return false;
     }
-    if (boundary.isFunction) {
-      return "none";
-    }
-    const branchDeclares = (candidate: FlowBase): boolean => {
+    const declares = (candidate: FlowBase): boolean => {
+      if (
+        candidate.args?.some((arg) => arg.identifier?.name === name) ||
+        candidate.variableDeclarations.has(name)
+      ) {
+        return true;
+      }
       for (const child of candidate.content ?? []) {
-        if (
-          child instanceof FlowBase &&
-          !child.isFunction &&
-          (declares(child) || branchDeclares(child))
-        ) {
+        if (child instanceof FlowBase && declares(child)) {
           return true;
         }
       }
       return false;
     };
-    return branchDeclares(boundary) ? "declared" : "none";
+    return declares(top);
   }
 
   public readonly ResolveTargetContent = (): void => {
@@ -452,26 +422,22 @@ export class Divert extends ParsedObject {
     // reach a flow of that name and fails when run; the compiler reports each
     // one from `context.builtinGlobalDiverts`. Recorded here, once per compile
     // for reused diverts too. Not recorded: a Luau call (`game()` lowers to a
-    // divert too, but names no scene, branch, or label), and a divert whose
-    // name is a parameter of its own flow, which is the author's own divert
-    // target and always bound. A divert whose name some other local or
-    // parameter in the same call-stack element declares is recorded as
-    // uncertain (`warning`): whether that declaration has been set when the
-    // divert runs depends on the path taken (see `declarationScopeFor`).
+    // divert too, but names no scene, branch, or label). A divert whose name
+    // a parameter or local somewhere in its top-level flow declares is
+    // recorded as uncertain (`warning`): whether that declaration holds a
+    // divert target when the divert runs depends on the path taken (see
+    // `isDeclaredInTopLevelFlow`).
     const capturedBy = this.runtimeDivert.variableDivertName;
     if (
       capturedBy != null &&
       !this.isFunctionCall &&
       context.builtinGlobalNames.has(capturedBy)
     ) {
-      const scope = this.declarationScopeFor(capturedBy);
-      if (scope !== "own-parameter") {
-        context.builtinGlobalDiverts.push({
-          name: capturedBy,
-          divert: this,
-          warning: scope === "declared",
-        });
-      }
+      context.builtinGlobalDiverts.push({
+        name: capturedBy,
+        divert: this,
+        warning: this.isDeclaredInTopLevelFlow(capturedBy),
+      });
     }
 
     // Resolve children (the arguments)

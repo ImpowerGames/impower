@@ -71,6 +71,8 @@ const SCENE_MESSAGE = (name: string) =>
   `\`${name}\` is a builtin global, so it cannot also be the name of a scene or function`;
 const DIVERT_MESSAGE = (name: string) =>
   `\`${name}\` is a builtin global, so this divert binds to it and cannot reach a scene, branch, or label named \`${name}\``;
+const DIVERT_WARNING = (name: string) =>
+  `\`${name}\` is a builtin global; unless a \`${name}\` declared in this flow holds a divert target when this divert runs, it binds to the builtin and cannot reach a scene, branch, or label named \`${name}\``;
 
 describe("targets named after prelude entries that are not runtime globals", () => {
   // Each name is a prelude context entry: the `main` layout, mixer, and style;
@@ -478,26 +480,7 @@ end
     expect(collisionsOf(program)).toEqual([]);
   });
 
-  test("a local declared in an enclosing scene shadows the global for a divert in its branch", () => {
-    const ctx = makeRuntimeStoryFromSource(`-> s
-scene s
-  & local game = -> there
-  -> s.inner
-  branch inner
-    -> game
-  end
-end
-scene there
-  Arrived.
-  fin
-
-end
-`);
-    expect(ctx.errorMessages).toEqual([]);
-    expect(ctx.story.ContinueMaximally()).toBe("Arrived.\n");
-  });
-
-  test("a parameter of an enclosing scene shadows the global for a divert in its branch", () => {
+  test("a parameter of an enclosing scene used from its branch is a warning, and the story runs when entered at the head", () => {
     const ctx = makeRuntimeStoryFromSource(`-> start
 scene start
   -> go(-> there)
@@ -516,6 +499,7 @@ scene there
 end
 `);
     expect(ctx.errorMessages).toEqual([]);
+    expect(ctx.warningMessages).toContain(DIVERT_WARNING("game"));
     expect(ctx.story.ContinueMaximally()).toBe("Arrived.\n");
   });
 
@@ -568,7 +552,7 @@ end
     expect(reports.map((d) => [d.severity, d.range.start])).toEqual([
       [2, { line: 7, character: 7 }],
     ]);
-    expect(String(reports[0].message?.value)).toContain("declared in this scene has been set to a divert target before this divert runs");
+    expect(String(reports[0].message?.value)).toBe(DIVERT_WARNING("game"));
   });
 
   test("a local declared after the divert in the same flow is a warning, not silence", () => {
@@ -619,11 +603,12 @@ end
     expect(ctx.story.ContinueMaximally()).toBe("Arrived.\n");
   });
 
-  test("a divert inside a nested closure does not see the enclosing function's local", () => {
-    // The closure runs in its own call-stack element, so `outer`'s local is
-    // not consulted for it: the divert is reported as an error. (The
-    // divert-target literal keeps this story from serializing, which is
-    // #457 and independent of the report; the diagnostics come first.)
+  test("a divert inside a nested closure with the enclosing function's local is a warning", () => {
+    // Whether the closure captured `outer`'s local is not modelled; the
+    // declaration exists in the same top-level flow, so the report is a
+    // warning. (The divert-target literal keeps this story from
+    // serializing, which is #457 and independent of the report; the
+    // diagnostics come first.)
     const program = compileUnseeded(`-> start
 scene start
   & outer()
@@ -644,12 +629,13 @@ scene there
 
 end
 `);
-    expect(collisionsOf(program).map((c) => c.message)).toEqual([DIVERT_MESSAGE("game")]);
+    expect(collisionsOf(program).map((c) => c.message)).toEqual([DIVERT_WARNING("game")]);
   });
 
-  test("a local inside a nested function does not exempt a divert in the enclosing function", () => {
-    // The nested function runs in its own call-stack element, so its local
-    // is never visible to `outer`; the divert still binds to the builtin.
+  test("a local inside a nested function makes the enclosing function's divert a warning, not silence", () => {
+    // The nested function's local can never be visible to `outer`, so this
+    // story fails; the report cannot tell that apart from a captured local
+    // and warns, which is the level a declaration anywhere in the flow gets.
     // (The divert-target literal keeps this story from serializing, which
     // is #457 and independent of the report; the diagnostics come first.)
     const program = compileUnseeded(`-> start
@@ -672,7 +658,7 @@ scene there
 
 end
 `);
-    expect(collisionsOf(program).map((c) => c.message)).toEqual([DIVERT_MESSAGE("game")]);
+    expect(collisionsOf(program).map((c) => c.message)).toEqual([DIVERT_WARNING("game")]);
   });
 
   test("a dotted divert target in an expression keeps its segments in source order", () => {
@@ -712,7 +698,9 @@ end
     ]);
   });
 
-  test("a parameter named after a builtin global is the author's own divert target", () => {
+  test("a parameter of the divert's own flow is a warning, and the story runs when entered at the head", () => {
+    // A parameter is bound at the flow's head, not when the flow is entered
+    // at a label, so even this shape is reported, at warning level.
     const ctx = makeRuntimeStoryFromSource(`-> start
 scene start
   -> go(-> there)
@@ -729,6 +717,7 @@ scene there
 end
 `);
     expect(ctx.errorMessages).toEqual([]);
+    expect(ctx.warningMessages).toContain(DIVERT_WARNING("game"));
     expect(ctx.story.ContinueMaximally()).toBe("Arrived.\n");
   });
 
