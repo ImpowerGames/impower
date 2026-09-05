@@ -20,9 +20,21 @@ export function lowerDivertPath(
   target: SyntaxNode,
   ctx: LowerContext,
 ): Identifier[] {
-  return getDescendents("DivertPartName", target).map((part) => {
-    const identifier = new Identifier(ctx.read(part.from, part.to));
-    identifier.debugMetadata = buildDebugMetadata(part.from, part.to, ctx, true);
-    return identifier;
-  });
+  return getDescendents("DivertPartName", target).map((part) =>
+    divertPartIdentifier(part, ctx),
+  );
+}
+
+// One segment of a divert's target path as an Identifier stamped with the
+// segment's own position. Every place that builds a divert's path
+// identifiers goes through here, so a divert is positioned the same way
+// whatever syntax produced it (`-> a.b`, `-> f(x)`, a divert target in an
+// expression, an alternator arm).
+export function divertPartIdentifier(
+  part: SyntaxNode,
+  ctx: LowerContext,
+): Identifier {
+  const identifier = new Identifier(ctx.read(part.from, part.to));
+  identifier.debugMetadata = buildDebugMetadata(part.from, part.to, ctx, true);
+  return identifier;
 }

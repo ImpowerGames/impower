@@ -4208,14 +4208,16 @@ export class SparkdownCompiler {
     // a divert's target identifiers carry 1-based ones (see
     // lower/utils/debugMetadata.ts and lowerDivertPath.ts); line numbers are
     // 1-based in both, and getDiagnostic takes 0-based positions on both
-    // axes. A scene's stamp covers its declaration line and a function's
-    // its whole body, so the range narrows to the name when the name is on
-    // the stamp's first line.
+    // axes. A target identifier's stamp is the name itself and is used as
+    // is. A flow's stamp covers its declaration line (a scene) or its whole
+    // body (a function), so that range narrows to the name when the name is
+    // on the stamp's first line.
     const report = (
       message: string,
       dm: DebugMetadata | null | undefined,
       characterBias: number,
       name: string,
+      exact: boolean,
     ): void => {
       if (!dm) {
         return;
@@ -4225,15 +4227,17 @@ export class SparkdownCompiler {
       let startCharacter = dm.startCharacterNumber - characterBias;
       let endLine = dm.endLineNumber - 1;
       let endCharacter = dm.endCharacterNumber - characterBias;
-      const lineText = this.documents.get(diagUri)?.getText({
-        start: { line, character: 0 },
-        end: { line: line + 1, character: 0 },
-      });
-      const at = lineText ? indexOfWord(lineText, name) : -1;
-      if (at >= 0) {
-        startCharacter = at;
-        endLine = line;
-        endCharacter = at + name.length;
+      if (!exact) {
+        const lineText = this.documents.get(diagUri)?.getText({
+          start: { line, character: 0 },
+          end: { line: line + 1, character: 0 },
+        });
+        const at = lineText ? indexOfWord(lineText, name) : -1;
+        if (at >= 0) {
+          startCharacter = at;
+          endLine = line;
+          endCharacter = at + name.length;
+        }
       }
       const key = `${diagUri}:${line}:${startCharacter}:${message}`;
       if (reported.has(key)) {
@@ -4266,6 +4270,7 @@ export class SparkdownCompiler {
             child.debugMetadata,
             0,
             name,
+            false,
           );
         }
       }
@@ -4274,11 +4279,13 @@ export class SparkdownCompiler {
       // The divert's own position is inherited from its statement or scene;
       // its first target identifier carries the name's position.
       const target = divert instanceof Divert ? divert.pathIdentifiers?.[0] : null;
+      const stamped = target?.debugMetadata ?? null;
       report(
-        `\`-> ${name}\` diverts to the builtin global \`${name}\`, so it cannot reach a scene, branch, or label of that name`,
-        target?.debugMetadata ?? divert.debugMetadata,
-        target?.debugMetadata ? 1 : 0,
+        `\`${name}\` is a builtin global, so this divert binds to it and cannot reach a scene, branch, or label named \`${name}\``,
+        stamped ?? divert.debugMetadata,
+        stamped ? 1 : 0,
         name,
+        stamped !== null,
       );
     }
   }

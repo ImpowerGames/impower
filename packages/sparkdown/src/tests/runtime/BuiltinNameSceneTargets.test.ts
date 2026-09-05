@@ -70,7 +70,7 @@ function collisionsOf(program: { diagnostics?: Record<string, any[]> }) {
 const SCENE_MESSAGE = (name: string) =>
   `\`${name}\` is a builtin global, so it cannot also be the name of a scene or function`;
 const DIVERT_MESSAGE = (name: string) =>
-  `\`-> ${name}\` diverts to the builtin global \`${name}\`, so it cannot reach a scene, branch, or label of that name`;
+  `\`${name}\` is a builtin global, so this divert binds to it and cannot reach a scene, branch, or label named \`${name}\``;
 
 describe("targets named after prelude entries that are not runtime globals", () => {
   // Each name is a prelude context entry: the `main` layout, mixer, and style;
@@ -420,6 +420,122 @@ end
 `);
     expect(ctx.errorMessages).toEqual([]);
     expect(ctx.story.ContinueMaximally()).toBe("Nested.\n");
+  });
+
+  test("the report sits on the divert's target, not on the same word earlier in the line", () => {
+    const program = compileUnseeded(`-> start
+scene start
+  choose
+    + Play game -> game
+  end
+
+end
+`);
+    expect(collisionsOf(program).map((c) => [c.start, c.end])).toEqual([
+      [
+        { line: 3, character: 19 },
+        { line: 3, character: 23 },
+      ],
+    ]);
+  });
+
+  test("a call-form divert (`-> game(5)`) is reported on its target", () => {
+    const program = compileUnseeded(`-> start
+scene start
+  -> game(5)
+
+end
+`);
+    expect(collisionsOf(program).map((c) => [c.start, c.end])).toEqual([
+      [
+        { line: 2, character: 5 },
+        { line: 2, character: 9 },
+      ],
+    ]);
+  });
+
+  test("two diverts to the same builtin global on one line are both reported", () => {
+    const program = compileUnseeded(`-> start
+scene start
+  -> game -> game
+
+end
+`);
+    expect(collisionsOf(program).map((c) => c.start.character)).toEqual([5, 13]);
+  });
+
+  test("a Luau call to a builtin global's name is not a divert and draws no divert report", () => {
+    // `color("red")` lowers to a divert too, but it names no scene, branch,
+    // or label; whatever it does at runtime is not this report's subject.
+    const program = compileUnseeded(`-> start
+scene start
+  & local c = color("red")
+  Hi.
+  fin
+
+end
+`);
+    expect(collisionsOf(program)).toEqual([]);
+  });
+
+  test("a local declared in an enclosing scene shadows the global for a divert in its branch", () => {
+    const ctx = makeRuntimeStoryFromSource(`-> s
+scene s
+  & local game = -> there
+  -> s.inner
+  branch inner
+    -> game
+  end
+end
+scene there
+  Arrived.
+  fin
+
+end
+`);
+    expect(ctx.errorMessages).toEqual([]);
+    expect(ctx.story.ContinueMaximally()).toBe("Arrived.\n");
+  });
+
+  test("a parameter of an enclosing scene shadows the global for a divert in its branch", () => {
+    const ctx = makeRuntimeStoryFromSource(`-> start
+scene start
+  -> go(-> there)
+
+end
+scene go(game)
+  -> go.inner
+  branch inner
+    -> game
+  end
+end
+scene there
+  Arrived.
+  fin
+
+end
+`);
+    expect(ctx.errorMessages).toEqual([]);
+    expect(ctx.story.ContinueMaximally()).toBe("Arrived.\n");
+  });
+
+  test("`target not found` covers the whole path now that its identifiers carry positions", () => {
+    const program = compileUnseeded(`-> start
+scene start
+  -> start.nowhere
+
+end
+`);
+    const notFound = Object.values(program.diagnostics ?? {})
+      .flat()
+      .filter((d: any) => String(d.message?.value ?? d.message).includes("target not found"))
+      .map((d: any) => [d.range.start, d.range.end]);
+    expect(notFound).toEqual([
+      [
+        { line: 2, character: 5 },
+        { line: 2, character: 18 },
+      ],
+    ]);
   });
 
   test("a parameter named after a builtin global is the author's own divert target", () => {

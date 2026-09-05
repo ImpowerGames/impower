@@ -119,8 +119,9 @@ export class Story extends FlowBase {
    *  captures every `-> name` divert as a variable divert, exactly as the
    *  real global does in a seeded compile, so a name that is not a runtime
    *  global would make a same-named scene unreachable. The compiler reports
-   *  a scene, branch, function, or label that shares a real global's name
-   *  (SparkdownCompiler.reportBuiltinGlobalFlowCollisions). */
+   *  each divert so captured, and each top-level scene or function that
+   *  shares a real global's name
+   *  (SparkdownCompiler.reportBuiltinGlobalCollisions). */
   public DeclareBuiltinGlobals(names: Iterable<string>): void {
     const declared = new Set<string>();
     for (const name of names) {

@@ -280,6 +280,24 @@ export class Divert extends ParsedObject {
   public readonly PathAsVariableName = () =>
     this.target ? this.target.firstComponent : null;
 
+  // Whether `name` is a parameter or a local (`variableDeclarations`) of
+  // this divert's flow or of any flow enclosing it, up to but not including
+  // the story. `FlowBase.ResolveVariableWithName` consults the innermost
+  // flow only; the runtime searches every scope on the call stack.
+  private isDeclaredByEnclosingFlow(name: string): boolean {
+    let flow = asOrNull(ClosestFlowBase(this), FlowBase);
+    while (flow && flow !== flow.story) {
+      if (
+        flow.args?.some((arg) => arg.identifier?.name === name) ||
+        flow.variableDeclarations.has(name)
+      ) {
+        return true;
+      }
+      flow = asOrNull(ClosestFlowBase(flow), FlowBase);
+    }
+    return false;
+  }
+
   public readonly ResolveTargetContent = (): void => {
     if (this.isEmpty || this.isEnd) {
       return;
@@ -381,14 +399,19 @@ export class Divert extends ParsedObject {
     // slot holds the prelude's marker or an authored override) can never
     // reach a flow of that name and fails when run; the compiler reports each
     // one from `context.builtinGlobalDiverts`. Recorded here, once per compile
-    // for reused diverts too, and only for a global binding: a parameter or
-    // local of that name is the author's own divert target.
+    // for reused diverts too. Not recorded: a Luau call (`game()` lowers to a
+    // divert too, but names no scene, branch, or label), and a divert whose
+    // name is a parameter or local of any enclosing flow, which is the
+    // author's own divert target — at runtime a temporary shadows a global,
+    // and the call stack is searched through every enclosing scope.
     const capturedBy = this.runtimeDivert.variableDivertName;
-    if (capturedBy != null && context.builtinGlobalNames.has(capturedBy)) {
-      const scope = asOrNull(ClosestFlowBase(this), FlowBase);
-      if (scope?.ResolveVariableWithName(capturedBy, this).isGlobal) {
-        context.builtinGlobalDiverts.push({ name: capturedBy, divert: this });
-      }
+    if (
+      capturedBy != null &&
+      !this.isFunctionCall &&
+      context.builtinGlobalNames.has(capturedBy) &&
+      !this.isDeclaredByEnclosingFlow(capturedBy)
+    ) {
+      context.builtinGlobalDiverts.push({ name: capturedBy, divert: this });
     }
 
     // Resolve children (the arguments)

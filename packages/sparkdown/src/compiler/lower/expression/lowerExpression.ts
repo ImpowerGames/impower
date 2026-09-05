@@ -31,6 +31,7 @@ import { Text } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Text";
 import { VariableReference } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Variable/VariableReference";
 import type { LowerContext,SiblingSubFlowInfo } from "../context";
 import { stampDebugMetadata } from "../utils/debugMetadata";
+import { divertPartIdentifier } from "../utils/lowerDivertPath";
 import { lowerStatements } from "../lower";
 import { getFunctionBodyContent } from "../utils/getFunctionBodyContent";
 import { lowerArguments, VARARGS_LOCAL_NAME } from "../utils/lowerArguments";
@@ -1830,7 +1831,7 @@ function lowerDivertTargetLiteral(
     while (stack.length > 0) {
       const n = stack.pop()!;
       if (n.name === "DivertPartName") {
-        parts.push(new Identifier(ctx.read(n.from, n.to)));
+        parts.push(divertPartIdentifier(n, ctx));
       } else {
         let c = n.firstChild;
         while (c) {

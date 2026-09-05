@@ -2,6 +2,7 @@ import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/get
 import { type SyntaxNode } from "@lezer/common";
 import { Divert } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Divert/Divert";
 import { Identifier } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Identifier";
+import { divertPartIdentifier } from "./lowerDivertPath";
 import { ParsedObject } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Object";
 import { Tag } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Tag";
 import { Text } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Text";
@@ -29,7 +30,7 @@ function buildDivertFromTargetLiteral(
   // that a stack-based DFS would produce).
   const visit = (n: SyntaxNode): void => {
     if (n.name === "DivertPartName") {
-      parts.push(new Identifier(ctx.read(n.from, n.to)));
+      parts.push(divertPartIdentifier(n, ctx));
     }
     let kid = n.firstChild;
     while (kid) {
