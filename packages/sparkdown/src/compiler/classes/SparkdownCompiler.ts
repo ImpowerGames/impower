@@ -3347,7 +3347,7 @@ export class SparkdownCompiler {
       // non-`global decl` flow is stored), so this is a free comparison.
       let effPrevCache = prevCache;
       if (prevCache) {
-        const curNames = flows.filter((f) => f.name !== "global decl");
+        const curNames = flows.filter((f) => f.name !== "global decl"); // not a node name
         let sameSet = curNames.length === prevCache.size;
         if (sameSet) {
           for (const f of curNames) {
@@ -3382,7 +3382,7 @@ export class SparkdownCompiler {
           f.container != null &&
           f.start0 >= 0 &&
           f.uri !== "" &&
-          f.name !== "global decl" &&
+          f.name !== "global decl" && // not a node name
           !CANONICAL_SYNTH_NAME.test(f.name) &&
           effPrevCache != null;
         if (reusable) {
@@ -3403,7 +3403,7 @@ export class SparkdownCompiler {
         // Recompute (and capture, unless it's the uncacheable global decl).
         if (f.container) {
           const capture =
-            f.name === "global decl"
+            f.name === "global decl" // not a node name
               ? null
               : {
                   pathEntries: [],

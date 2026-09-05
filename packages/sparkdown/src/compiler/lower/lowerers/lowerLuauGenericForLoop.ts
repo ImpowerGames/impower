@@ -1,3 +1,4 @@
+import { nodeNameSet } from "../../utils/nodeNameSet";
 import { type SyntaxNode } from "@lezer/common";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 import { BinaryExpression } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expression/BinaryExpression";
@@ -60,7 +61,7 @@ import { wrapInWeave } from "../utils/wrapInWeave";
 //     at the SAME slot (Luau gives each a fresh slot). Acceptable for
 //     v1 of the iterator protocol.
 
-const FOR_IN_BODY_SKIP: ReadonlySet<string> = new Set([
+const FOR_IN_BODY_SKIP: ReadonlySet<string> = nodeNameSet([
   "LuauForCondition",
   "LuauForKeyword",
   "LuauDoKeyword",

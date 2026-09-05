@@ -1,3 +1,4 @@
+import { nodeNameSet } from "@impower/sparkdown/src/compiler/utils/nodeNameSet";
 import { FormatType } from "@impower/sparkdown/src/compiler/classes/annotators/FormattingAnnotator";
 import { SparkdownAnnotations } from "@impower/sparkdown/src/compiler/classes/SparkdownCombinedAnnotator";
 import { SparkdownDocument } from "@impower/sparkdown/src/compiler/classes/SparkdownDocument";
@@ -45,7 +46,7 @@ function shouldInsertSpaceBetween(
 // e.g. `LuauSparkdownIfBlock_content`. The header / footer (`_begin` /
 // `_end`) stays at the parent level, so the closing `end` keyword
 // aligns with the opening `if`.
-const INDENTING_BLOCKS = new Set<SparkdownNodeName>([
+const INDENTING_BLOCKS = nodeNameSet([
   "BlockTitle",
   "BlockHeading",
   "BlockTransitional",
@@ -93,7 +94,7 @@ const INDENTING_BLOCKS = new Set<SparkdownNodeName>([
 // shows up inside the parent block's body, the parent's contribution
 // is replaced by the sibling's own — otherwise both would stack and
 // the clause body would indent +1 too deep.
-const SIBLING_CLAUSES: Record<string, string[]> = {
+const SIBLING_CLAUSES: Partial<Record<SparkdownNodeName, SparkdownNodeName[]>> = {
   LuauSparkdownIfBlock: [
     "LuauSparkdownElseifBlock",
     "LuauSparkdownElseBlock",
@@ -106,7 +107,7 @@ const SIBLING_CLAUSES: Record<string, string[]> = {
 // `Choice` ends at the marker line's EOL so a free-standing `Scene`
 // or `LuauFunctionDefinition` after some top-level choices isn't
 // inside any choice's "body" — it's started a new top-level scope.
-const CHOICE_SCOPE_TERMINATORS = new Set<string>([
+const CHOICE_SCOPE_TERMINATORS = nodeNameSet([
   "Scene",
   "Branch",
   "LuauFunctionDefinition",
@@ -155,12 +156,12 @@ function countChoiceBodies(
 // when this node is one of those merge-eligible else blocks so the
 // indent logic can treat it as transparent (and the post-format
 // rewrite pass deletes the outer `end` and joins keywords).
-const MERGEABLE_ELSE_BLOCKS = new Set<SparkdownNodeName>([
+const MERGEABLE_ELSE_BLOCKS = nodeNameSet([
   "LuauSparkdownElseBlock",
   "LuauElseBlock",
-] as SparkdownNodeName[]);
+]);
 
-const MATCHING_IF_BLOCK: Record<string, string> = {
+const MATCHING_IF_BLOCK: Partial<Record<SparkdownNodeName, SparkdownNodeName>> = {
   LuauSparkdownElseBlock: "LuauSparkdownIfBlock",
   LuauElseBlock: "LuauIfBlock",
 };
@@ -253,7 +254,7 @@ function isHeaderOpenerLine(
 // inside an operator scope (e.g. the RHS operand on the same line as
 // the operator) don't trigger; only lines that LEAD with the operator
 // token do.
-const CONTINUATION_OPERATOR_RULES = new Set<string>([
+const CONTINUATION_OPERATOR_RULES = nodeNameSet([
   "LuauArithmeticOperator",
   "LuauCompareOperator",
   "LuauLogicalOperator",
@@ -956,7 +957,7 @@ export const getFormatting = (
     // parser saw a `{...}` arm-table instead of `|`, the LuauTable
     // shows up as a descendant — we walk up the ancestor chain to
     // see if it's inside one of these constructs.
-    const INLINE_ALTERNATOR_BLOCKS = new Set([
+    const INLINE_ALTERNATOR_BLOCKS = nodeNameSet([
       "LuauConditionalAlternatorBlock",
       "LuauSequentialAlternatorBlock",
     ]);
@@ -1082,7 +1083,7 @@ export const getFormatting = (
         void endNode;
         // Verify the eligible pattern (single inner IfBlock).
         const expectedIfName =
-          MATCHING_IF_BLOCK[nodeRef.name as string] ?? "";
+          MATCHING_IF_BLOCK[nodeRef.name as SparkdownNodeName] ?? "";
         let innerIfNode;
         let c = contentNode.firstChild;
         while (c) {
@@ -1214,7 +1215,7 @@ export const getFormatting = (
     // nothing meaningful collapse onto one line. Skips blocks that
     // already have a single-line body and ones with comments / any
     // real statement inside.
-    const EMPTY_COMPACTABLE_BLOCKS = new Set<string>([
+    const EMPTY_COMPACTABLE_BLOCKS = nodeNameSet([
       "LuauFunctionDefinition",
       "LuauDefine",
       "LuauMethodDefinition",
@@ -1238,12 +1239,13 @@ export const getFormatting = (
         // inheritance for define). Everything after the signature
         // until `_end` is the body. We pick the LAST signature-like
         // child as the boundary.
-        const SIGNATURE_NAMES = new Set([
+        // A method's name sits in its `_begin` capture, so inside `_content`
+        // the signature is the parameters and the return type.
+        const SIGNATURE_NAMES = nodeNameSet([
           "LuauFunctionParameters",
-          "LuauFunctionReturnTypeAnnotation",
+          "LuauFunctionReturnType",
           "LuauFunctionDeclarationName",
           "LuauDefineNameAndInheritance",
-          "LuauMethodDeclarationName",
         ]);
         let signatureEnd: number | undefined;
         let bodyHasContent = false;
@@ -1329,8 +1331,8 @@ export const getFormatting = (
     // `choose ... then ... end` construct, where it MUST stay on
     // its own line (separates choices from the result body). Skip
     // join when the keyword sits inside a `LuauSparkdownChooseThenClause`.
-    const BLOCK_OPENER_KEYWORDS = new Set(["LuauDoKeyword", "LuauThenKeyword"]);
-    const LOOP_CONTENT_NAMES = new Set([
+    const BLOCK_OPENER_KEYWORDS = nodeNameSet(["LuauDoKeyword", "LuauThenKeyword"]);
+    const LOOP_CONTENT_NAMES = nodeNameSet([
       "LuauSparkdownForLoop_content",
       "LuauSparkdownWhileLoop_content",
       "LuauSparkdownRepeatLoop_content",
