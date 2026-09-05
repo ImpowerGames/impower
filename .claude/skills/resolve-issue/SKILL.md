@@ -328,9 +328,9 @@ ok   101641ms  packages/sparkdown/tsconfig.json
 1/1 project(s) clean in 101.6s
 ```
 
-Because it is a substring, `packages/sparkdown` matches six projects (`sparkdown`, `sparkdown-language-server`, `sparkdown-document-views`, and three more) — useful when you want the neighbours too, surprising when you did not. `--list` prints every project without checking any, and `--jobs N` sets how many run at once (default 2, which is what CI uses).
+Because it is a substring, `packages/sparkdown` matches six projects (`sparkdown`, `sparkdown-language-server`, `sparkdown-document-views`, and three more) — useful when you want the neighbours too, surprising when you did not. `--list` prints every project without checking any, and `--jobs N` sets how many run at once (default 2, which is what CI uses); the value is capped at the machine's core count, so asking for more than that silently gives you the cores.
 
-A project your change reaches through an import is checked when that project runs, not when yours does, so widen to the whole gate before you push. CI runs the same command on every pull request (`.github/workflows/typecheck.yml`), so a type error blocks the merge — a clean local run is now worth something, and a red one is a real failure rather than noise to route around.
+A project your change reaches through an import is checked when that project runs, not when yours does, so widen to the whole gate before you push. CI runs the same command on any pull request that touches code, a `tsconfig`, or a `package.json` — `.github/workflows/typecheck.yml` has a paths filter, so a branch that changes only docs gets no typecheck run at all. Where it does run, a type error blocks the merge — a clean local run is now worth something, and a red one is a real failure rather than noise to route around.
 
 Then run the standalone checks under `.claude/`. Nothing in CI invokes them, so they only ever run because someone remembers to; they are quick, and each one pins a footgun that has already cost a session. There are two kinds — shell checks over the skill's own prose, and `.mjs` checks over the pure functions in `driver.mjs`:
 
@@ -339,7 +339,12 @@ for t in $(find .claude -name "*.test.sh"); do echo "--- $t"; bash "$t" || echo 
 for t in $(find .claude -name "*.test.mjs"); do echo "--- $t"; node "$t" || echo "FAILED: $t"; done
 ```
 
-`find` rather than a `**` glob on purpose: bash only expands `**` across directories with `shopt -s globstar` set, and without it the loop matches nothing, runs nothing, and prints nothing — which reads exactly like a pass. Count the `---` lines against what `find .claude -name "*.test.*"` returns.
+`find` rather than a `**` glob on purpose. Bash expands `**` across directories only with `shopt -s globstar` set, and it is not set here, so `**` collapses to a single-level `*` and the two loops fail differently:
+
+- The shell loop runs **one of the two checks**. `.claude/**/*.test.sh` matches `hooks/grammar-edit-hook.test.sh`, one level down, and silently skips `skills/resolve-issue/reviewer-model-values.test.sh`, which is two. A half-run that prints no failure is indistinguishable from a full pass.
+- The `.mjs` loop matches nothing, and bash hands an unmatched pattern to the loop body unexpanded, so you get `FAILED: .claude/**/*.test.mjs` — wrong, but at least visible.
+
+Count the `---` lines against what `find .claude -name "*.test.*"` returns; there are three checks at the time of writing.
 
 A shell check that hangs rather than failing is usually the machine, not your change: they spawn many small processes and a running dev-server build starves them. Re-run once the build finishes before believing a timeout.
 
