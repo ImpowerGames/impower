@@ -168,10 +168,12 @@ export function classifyRedFailure(output, { removed = [] } = {}) {
   const moduleBlocks = [...output.matchAll(/Cannot find module '([^']+)'[^{}]*\{[^{}]*requireStack: \[([^\]]*)\]/g)];
   const esmImportBreak = /Cannot find module '[^']+' imported from /.test(output);
   // A path boundary is required: `a.mjs` must not match `schema.mjs`.
+  // Case-insensitive on Windows, where the file system is.
+  const fold = (s) => (process.platform === "win32" ? s.toLowerCase() : s);
   const namesRemovedFile = (p) => {
-    const q = p.replace(/\\/g, "/");
+    const q = fold(p.replace(/\\/g, "/"));
     return removed.some((r) => {
-      const s = r && r.replace(/\\/g, "/");
+      const s = r && fold(r.replace(/\\/g, "/"));
       return s && (q === s || q.endsWith("/" + s));
     });
   };

@@ -465,10 +465,10 @@ async function waitForGame(page, { timeout = 45_000 } = {}) {
   if (!back.present) return { mounted: false, reloaded: true, error: back.reason, switched: back.switched };
   const deadline2 = Date.now() + timeout;
   while (Date.now() < deadline2) {
-    if (await mounted()) return { mounted: true, reloaded: true };
+    if (await mounted()) return { mounted: true, reloaded: true, switched: back.switched };
     await page.waitForTimeout(1000);
   }
-  return { mounted: false, reloaded: true };
+  return { mounted: false, reloaded: true, switched: back.switched };
 }
 
 async function previewSummary(page) {
@@ -660,7 +660,16 @@ async function verify(args) {
     async ({ page, url, consoleLines }) => {
       const result = { url };
 
-      await page.goto(url, { waitUntil: "domcontentloaded", timeout: 120_000 });
+      // A navigation that never completes is a report, not a stack trace.
+      try {
+        await page.goto(url, { waitUntil: "domcontentloaded", timeout: 120_000 });
+      } catch (err) {
+        result.gameMounted = false;
+        result.error = `the editor page did not load within 120s (${String(err.message || err).split("\n")[0]}). Check \`status\`; the machine may be saturated.`;
+        console.log(JSON.stringify(result, null, 2));
+        process.exitCode = 1;
+        return result;
+      }
       const shell = await ensureScriptEditor(page);
       if (shell.switched) result.switchedToLogic = true;
       if (!shell.present) {
@@ -707,6 +716,7 @@ async function verify(args) {
         // finish their first compile.
         await page.reload({ waitUntil: "domcontentloaded", timeout: 120_000 });
         const again = await ensureScriptEditor(page);
+        if (again.switched) result.switchedToLogic = true;
         if (!again.present) {
           result.gameMounted = false;
           result.error = again.reason;
@@ -715,6 +725,11 @@ async function verify(args) {
           return result;
         }
         result.editorSettled = again.settled;
+        // The reload restores the view from storage; read it again rather
+        // than trusting the pre-reload answer.
+        result.editorView = await page.evaluate(() =>
+          document.querySelector('[role="tab"][id$="-trigger-main"]') ? "main" : "scripts-view",
+        );
       }
 
       await page
@@ -731,12 +746,15 @@ async function verify(args) {
       if (mount.reloaded) result.neededReload = true;
       if (mount.switched) result.switchedToLogic = true;
       if (!mount.mounted) {
-        // The retry's own reason (the editor is on another screen after the
-        // reload) beats the generic advice to restart the servers.
+        // A game that never mounted is a failed run: the screenshot is not
+        // evidence and the shell must not stay green. The retry's own reason
+        // (the editor was on another screen after the reload) is added to the
+        // generic text rather than replacing it.
         result.error =
-          mount.error ??
           "the game never mounted (#game absent) — the Game Preview is blank. " +
-            "Screenshot is NOT valid evidence. Try `down` then `up`.";
+          "Screenshot is NOT valid evidence. Try `down` then `up`." +
+          (mount.error ? ` On the reload retry: ${mount.error}.` : "");
+        process.exitCode = 1;
       }
 
       // Let the FIRST compile finish before touching the cursor. On a cold
@@ -1072,7 +1090,9 @@ async function ensureScriptEditor(page) {
     // One long wait for a cold mount, whether or not anything was clicked;
     // the pre-change code gave 90 s after its probe, this gives 45 s.
     first = await scriptEditorPresent(page, 45_000);
-    switched = first.present && (clickedLogic || clickedMain);
+    // A click that changed the screen is reported whether or not the editor
+    // then came up; the caller can say both things.
+    switched = clickedLogic || clickedMain;
   }
   if (!first.present) return { present: false, switched, reason: first.reason };
   // The view can be replaced when the document arrives, on a cold load as
@@ -1282,6 +1302,11 @@ async function switchScreen(page, name) {
     return main == null || main.getAttribute("aria-selected") === "true";
   });
   const landsOnEditor = name === "main" || (name === "logic" && mainTabSelectedOrAbsent);
+  if (name === "logic" && !mainTabSelectedOrAbsent) {
+    // The screen switched, but the pane's own tab is `scripts`: no editor
+    // came up, and the step says so rather than reading as a full recovery.
+    return { screen: name, active: true, settled, editorHere: false, note: "the logic pane's own tab is scripts, so no script editor is on screen; use --screen main to reach it" };
+  }
   const editorHere = landsOnEditor
     ? (await scriptEditorPresent(page, 15_000)).present
     : await page.evaluate(() => document.querySelector(".sparkdown-script-editor-root .cm-content") != null);
@@ -1467,8 +1492,15 @@ async function ui(args) {
   return withEditor(
     async ({ page, url, consoleLines }) => {
       const result = { url, steps: [] };
-      await page.goto(url, { waitUntil: "domcontentloaded", timeout: 120_000 });
-      await waitForApp(page);
+      try {
+        await page.goto(url, { waitUntil: "domcontentloaded", timeout: 120_000 });
+        await waitForApp(page);
+      } catch (err) {
+        result.failed = [`the editor page did not load within 120s (${String(err.message || err).split("\n")[0]}). Check \`status\`; the machine may be saturated.`];
+        console.log(JSON.stringify(result, null, 2));
+        process.exitCode = 1;
+        return result;
+      }
       result.startedOn = await activeScreen(page);
       // Settle the editor only when it is there to settle: the logic screen's
       // `scripts` tab has no script editor, and a step that needs one reports
@@ -1478,18 +1510,32 @@ async function ui(args) {
       // say so when it never came, so an absent `editorSettled` only ever
       // means "no editor on this screen".
       if (result.startedOn === "logic") {
-        const here = await scriptEditorPresent(page, 10_000);
-        if (here.present) {
-          result.editorSettled = await settleEditor(page);
-          if (!result.editorSettled) {
-            result.steps.push({ start: true, reason: "the script editor never settled within 30s of the page loading; the steps below may have hit a view that was being replaced" });
+        // Is an editor expected here? On the `main` tab (or the fullscreen
+        // scripts view, which has no tab row) yes; on the `scripts` tab no.
+        const editorExpected = await page.evaluate(() => {
+          const main = document.querySelector('[role="tab"][id$="-trigger-main"]');
+          return main == null || main.getAttribute("aria-selected") === "true";
+        });
+        if (editorExpected) {
+          // 20 s: a cold mount was measured at ~4.6 s idle and past 10 s six
+          // times on a loaded machine, and a miss here fails the run.
+          const here = await scriptEditorPresent(page, 20_000);
+          if (here.present) {
+            result.editorSettled = await settleEditor(page);
+            if (!result.editorSettled) {
+              result.steps.push({ start: true, reason: "the script editor never settled within 30s of the page loading; the steps below may have hit a view that was being replaced" });
+            }
+          } else {
+            // The editor should be here and is not: every later step ran
+            // against a page still loading, so the run fails and says so.
+            result.editorSettled = false;
+            result.steps.push({ start: true, reason: `the script editor did not mount within 20s of the page loading (${here.reason}); the steps below ran against a page still loading. Re-run; if it persists the machine is saturated` });
           }
         } else {
-          // Not a failure yet: a run that starts on the `scripts` tab and
-          // opens with `--screen main` is the documented recovery. A later
-          // step that needs the editor reports for itself.
-          result.editorSettled = false;
-          result.startNote = here.reason;
+          // The `scripts` tab: no editor is expected, `editorSettled` stays
+          // absent, and a run opening with `--screen main` is the documented
+          // recovery. A later step that needs the editor reports for itself.
+          result.startNote = "the run started on the logic screen's scripts tab, where there is no script editor; --screen main reaches it";
         }
       }
 
@@ -1523,6 +1569,12 @@ async function ui(args) {
                 out.previewNote = "the game preview is not observable (cross-origin mode, or the preview is showing the screenplay), so the first compile was not waited for";
               }
               if (!out.editorSettled) out.reason = "the script editor never settled within 30s after the reload; later steps may have hit a view that was being replaced";
+              // --sd wrote main.sd; if the pane is showing another file in
+              // its fullscreen scripts view, the editor on screen is not it.
+              out.editorView = await page.evaluate(() => (document.querySelector('[role="tab"][id$="-trigger-main"]') ? "main" : "scripts-view"));
+              if (out.editorView === "scripts-view") {
+                out.reason = "the logic pane is showing its fullscreen scripts view (another file is open); --sd wrote main.sd, which is not the file on screen. Close that file in the editor and re-run";
+              }
             } else {
               out.reason = editor.reason;
             }
