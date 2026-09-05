@@ -440,12 +440,14 @@ function computePartners(command, suppressed) {
   // @{...}`, `-Body:@{...}`) is PowerShell, where a backslash inside a
   // string is literal. A PowerShell flag word has a capital letter or at
   // least three letters; a Bash short flag (`-n`, `-e`) does not count. A
-  // `$(` counts only after a capitalised word of two or more characters
-  // (`-Body $(...)`): a single capital letter is a Bash short flag (`curl
-  // -H $(...)`, `grep -E $(...)`), and a lowercase word is as likely a
-  // Bash substitution (`find -name $(...)`), so `-body $(...)` is read as
-  // Bash even though PowerShell parameters are case-insensitive. A
-  // backtick line continuation may separate the flag from its group.
+  // `$(` counts only after a word shaped like a PowerShell parameter: a
+  // capital, at least two lowercase letters, then optional camel-case
+  // words (`-Body`, `-Uri`, `-ContentType`). A capital Bash flag cluster
+  // (`curl -H`, `curl -Ls`, `sed -En`, `java -Xmx2g`) does not fit that
+  // shape, and a lowercase word is as likely a Bash substitution (`find
+  // -name $(...)`), so `-body $(...)` and a one-letter PowerShell
+  // abbreviation such as `-H $(...)` are read as Bash. A backtick line
+  // continuation may separate the flag from its group.
   const flagValue = (at) => {
     if (suppressed.has(at)) return false;
     let j = at - 1;
@@ -462,7 +464,7 @@ function computePartners(command, suppressed) {
     let start = j;
     while (start >= 0 && /[\w:-]/.test(command[start])) start--;
     const word = command.slice(start + 1, j + 1);
-    return dollar ? /^-[A-Z][\w-]+:?$/.test(word) : /^-(?:[A-Z][\w-]*|[a-z][\w-]{2,}):?$/.test(word);
+    return dollar ? /^-[A-Z][a-z]{2,}(?:[A-Z][a-z]+)*:?$/.test(word) : /^-(?:[A-Z][\w-]*|[a-z][\w-]{2,}):?$/.test(word);
   };
   // Each stack entry carries whether it or any entry below it is a flag
   // value, so the test is constant time.
