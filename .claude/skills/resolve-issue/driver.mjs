@@ -851,8 +851,9 @@ async function verify(args) {
         // verify's evidence is the game preview, but the editor pane is in
         // the same picture; a settled view can still be unpainted, so wait
         // for its lines and gutter and say so if they never came.
-        if (!(await editorPainted(page, PAINT_BUDGET_MS))) {
-          result.editorPaintWarning = `the script editor had not painted its lines and gutter within ${PAINT_BUDGET_MS / 1000}s of the screenshot; the editor half of the picture may be blank`;
+        const paintBudget = PAINT_BUDGET_MS;
+        if (!(await editorPainted(page, paintBudget))) {
+          result.editorPaintWarning = `the script editor had not painted its lines and gutter within ${seconds(paintBudget)} of the screenshot; the editor half of the picture may be blank`;
         }
         await page.screenshot({ path: out, fullPage: false });
         result.screenshot = out;
@@ -1057,7 +1058,7 @@ export function editorAbsentReason({ screen, panelTab, budgetMs }) {
       : screen != null && screen !== "logic"
         ? "put --screen logic before this step"
         : null;
-  const advice = navigational ?? `the editor did not mount within ${budgetMs / 1000}s; the machine may be saturated, re-run`;
+  const advice = navigational ?? `the editor did not mount within ${seconds(budgetMs)}; the machine may be saturated, re-run`;
   return { reason: `${where}; ${advice}`, where, advice, navigational };
 }
 
@@ -1083,17 +1084,19 @@ async function editorExpectedHere(page) {
   });
 }
 
-/**
- * The editor budgets, in one place so every wait and the message that names
- * it read the same number. Before any settle has happened in a run, a mount
- * gets MOUNT_BUDGET_MS and a settle SETTLE_BUDGET_MS; a screen switch that
- * lands on the editor and the run's start use the same two. Once the run has
- * settled the editor anywhere, a gated step re-checks with WARM_BUDGET_MS for
- * both. A screenshot waits PAINT_BUDGET_MS for a settled editor to paint.
- */
+// The budgets the gate, the screen switch, the run's start, the --sd settle
+// and the panel opener share. A site that names one in a message formats the
+// local it waited with `seconds`, so the wait and the sentence cannot part.
+// `verify`'s own mount waits, the --sd reload's, and the gate's short
+// recovery look and re-settle are each their own number at their own site.
+// A cold mount gets MOUNT_BUDGET_MS and a cold settle SETTLE_BUDGET_MS; a
+// screen switch that lands on the editor and the run's start always use
+// those two. Once the run has settled the editor anywhere, a gated step
+// re-checks with WARM_BUDGET_MS for both.
 const MOUNT_BUDGET_MS = 20_000;
 const SETTLE_BUDGET_MS = 15_000;
 const WARM_BUDGET_MS = 8_000;
+// How long a screenshot waits for a settled editor to paint.
 const PAINT_BUDGET_MS = 5_000;
 const seconds = (ms) => `${ms / 1000}s`;
 
@@ -1167,18 +1170,19 @@ function editorGate({ expected = editorExpectedHere, present = scriptEditorPrese
       const state = (stillNoPane ? "no pane had mounted; " : "") + (here.where ?? here.reason);
       const advice = here.navigational ?? "Re-run; if it persists the machine is saturated";
       gaveUp = { kind: "absent", what: state, step };
-      return { required: true, ok: false, reason: `this ${what} needs the script editor, which had not mounted within ${budget / 1000}s (${state}); ${advice}` };
+      return { required: true, ok: false, reason: `this ${what} needs the script editor, which had not mounted within ${seconds(budget)} (${state}); ${advice}` };
     }
     const settleBudget = settledOnce ? WARM_BUDGET_MS : SETTLE_BUDGET_MS;
     if (!(await settle(page, settleBudget))) {
-      gaveUp = { kind: "unsettled", what: `the view kept being replaced for ${settleBudget / 1000}s`, step };
-      return { required: true, ok: false, reason: `this ${what} needs a settled script editor, and the view kept being replaced for ${settleBudget / 1000}s. Re-run; if it persists the machine is saturated` };
+      gaveUp = { kind: "unsettled", what: `the view kept being replaced for ${seconds(settleBudget)}`, step };
+      return { required: true, ok: false, reason: `this ${what} needs a settled script editor, and the view kept being replaced for ${seconds(settleBudget)}. Re-run; if it persists the machine is saturated` };
     }
     settledOnce = true;
     // A settled view can still be unpainted; a screenshot of it is a picture
     // of nothing, so the capture step alone also waits for the paint.
-    if (what === "screenshot" && !(await painted(page, PAINT_BUDGET_MS))) {
-      return { required: true, ok: false, reason: `the script editor is mounted and settled but has not painted its lines and gutter within ${PAINT_BUDGET_MS / 1000}s; this screenshot would have shown an unpainted editor pane. Re-run; if it persists the machine is saturated` };
+    const paintBudget = PAINT_BUDGET_MS;
+    if (what === "screenshot" && !(await painted(page, paintBudget))) {
+      return { required: true, ok: false, reason: `the script editor is mounted and settled but has not painted its lines and gutter within ${seconds(paintBudget)}; this screenshot would have shown an unpainted editor pane. Re-run; if it persists the machine is saturated` };
     }
     return { required: true, ok: true };
   };
@@ -1265,8 +1269,7 @@ async function ensureScriptEditor(page) {
     };
     const clickedLogic = await clickIfNeeded("logic", async () => (await activeScreen(page)) !== "logic");
     const clickedMain = await clickIfNeeded("main", async (tab) => (await tab.getAttribute("aria-selected")) !== "true");
-    // One long wait for a cold mount, whether or not anything was clicked: a
-    // cold editor after a switch gets 45 s.
+    // One long wait for a cold mount, whether or not anything was clicked.
     first = await scriptEditorPresent(page, 45_000);
     // A click that changed the screen is reported whether or not the editor
     // then came up; the caller can say both things.
@@ -1497,8 +1500,9 @@ async function switchScreen(page, name, { followedByMain = false } = {}) {
   // The cold mount budget, whatever the run has settled so far: the switch
   // mounted a fresh view, so a slow-but-fine mount must not fail the switch
   // and then pass the screenshot that follows it.
+  const mountBudget = MOUNT_BUDGET_MS;
   const editorHere = landsOnEditor
-    ? (await scriptEditorPresent(page, MOUNT_BUDGET_MS)).present
+    ? (await scriptEditorPresent(page, mountBudget)).present
     : await page.evaluate(() => document.querySelector(".sparkdown-script-editor-root .cm-content") != null);
   if (landsOnEditor && !editorHere) {
     // The tab is up but the editor it should carry never mounted: a switch
@@ -1506,17 +1510,18 @@ async function switchScreen(page, name, { followedByMain = false } = {}) {
     // documented pair `--screen logic --screen main`, the main switch that
     // follows waits for the editor and gives the verdict, so this is a note;
     // any other following step does not, so this is a failure.
-    const text = `the ${name} tab is up but no script editor mounted within ${seconds(MOUNT_BUDGET_MS)}`;
+    const text = `the ${name} tab is up but no script editor mounted within ${seconds(mountBudget)}`;
     if (name === "logic" && followedByMain) return { screen: name, active: true, settled, editorHere: false, note: `${text}; the --screen main that follows waits for it` };
     return { screen: name, active: true, settled, editorHere: false, reason: `${text}. Re-run; if it persists the machine is saturated` };
   }
   if (editorHere) {
     // The cold settle budget, so a switch that reports the editor settled
     // means what the gate means by it.
-    const editorSettled = await settleEditor(page, SETTLE_BUDGET_MS);
+    const settleBudget = SETTLE_BUDGET_MS;
+    const editorSettled = await settleEditor(page, settleBudget);
     settled = editorSettled && settled;
     if (!editorSettled) {
-      return { screen: name, active: true, settled, editorHere: true, editorSettled: false, reason: `the ${name} tab is up but its script editor never settled within ${seconds(SETTLE_BUDGET_MS)}; later steps may have hit a view that was being replaced` };
+      return { screen: name, active: true, settled, editorHere: true, editorSettled: false, reason: `the ${name} tab is up but its script editor never settled within ${seconds(settleBudget)}; later steps may have hit a view that was being replaced` };
     }
     return { screen: name, active: true, settled, editorHere: true, editorSettled: true };
   }
@@ -1726,13 +1731,14 @@ async function ui(args) {
       if (expectedAtStart === false) {
         if (result.startedOn === "logic") result.startNote = "the run started on the logic screen's scripts tab, where there is no script editor; --screen main reaches it";
       } else {
-        const here = await scriptEditorPresent(page, MOUNT_BUDGET_MS);
+        const mountBudget = MOUNT_BUDGET_MS;
+        const here = await scriptEditorPresent(page, mountBudget);
         result.editorSettled = here.present ? await settleEditor(page, SETTLE_BUDGET_MS) : false;
         if (result.editorSettled) requireEditor.noteSettled();
         if (!here.present) {
           result.startNote = expectedAtStart == null
-            ? `no pane had mounted ${seconds(MOUNT_BUDGET_MS)} after the page loaded; each later step that needs the editor waits again and reports for itself`
-            : `the script editor had not mounted ${seconds(MOUNT_BUDGET_MS)} after the page loaded; each later step that needs it waits again and reports for itself`;
+            ? `no pane had mounted ${seconds(mountBudget)} after the page loaded; each later step that needs the editor waits again and reports for itself`
+            : `the script editor had not mounted ${seconds(mountBudget)} after the page loaded; each later step that needs it waits again and reports for itself`;
         }
       }
 

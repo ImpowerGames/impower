@@ -210,10 +210,16 @@ await check("a page that never mounts a pane is told to re-run, not to switch sc
 // editor-presence wait (the only waitForFunction that reads cmTile) rejects,
 // as Playwright's does on timeout; everything else answers at once.
 const editorlessLogicPage = () => ({
+  // The budgets the editor-presence wait was given, so a case can pin that
+  // the switch waited the number its message names.
+  waited: [],
   locator: () => ({ first: () => ({ waitFor: async () => {}, click: async () => {} }) }),
-  waitForFunction: async (fn) => {
+  async waitForFunction(fn, _arg, opts) {
     const src = String(fn);
-    if (src.includes("cmTile")) throw new Error("Timeout 20000ms exceeded");
+    if (src.includes("cmTile")) {
+      this.waited.push(opts?.timeout);
+      throw new Error(`Timeout ${opts?.timeout}ms exceeded`);
+    }
     return true;
   },
   evaluate: async (fn) => {
@@ -231,11 +237,14 @@ const editorlessLogicPage = () => ({
 });
 
 await check("a --screen logic whose editor never mounts is a note only when --screen main follows, and a failure otherwise; --screen main itself never gets the note", async () => {
-  const paired = await switchScreen(editorlessLogicPage(), "logic", { followedByMain: true });
+  const page = editorlessLogicPage();
+  const paired = await switchScreen(page, "logic", { followedByMain: true });
   assert.equal(paired.active, true);
   assert.equal(paired.editorHere, false);
   assert.equal(paired.reason, undefined);
   assert.match(paired.note, /the logic tab is up but no script editor mounted within 20s; the --screen main that follows waits for it$/);
+  // The switch waited the budget its note names.
+  assert.deepEqual(page.waited, [20_000]);
   const alone = await switchScreen(editorlessLogicPage(), "logic", { followedByMain: false });
   assert.equal(alone.note, undefined);
   assert.match(alone.reason, /the logic tab is up but no script editor mounted within 20s\. Re-run; if it persists the machine is saturated$/);
