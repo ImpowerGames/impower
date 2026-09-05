@@ -105,13 +105,16 @@ describe("AssetModule", () => {
     await h.ready;
     h.reset();
     h.game.observeScene("A.0");
+    // The window around the cursor first, then the rest of the scene and
+    // the scene it diverts to, all visuals and nothing timed.
     const prefetches = byMethod(h.messages, "assets/prefetch");
-    expect(prefetches).toHaveLength(1);
+    expect(prefetches.length).toBeGreaterThan(0);
     expect(prefetches[0].params.priority).toBe(2);
-    const keys = itemKeys(prefetches[0]);
+    const keys = prefetches.flatMap((m) => itemKeys(m));
     expect(keys).toContain("/file:/proj/room.png?v=1");
     expect(keys).toContain("/file:/proj/bunny.png?v=1");
     expect(keys).toContain("/file:/proj/hat.png?v=1");
+    expect(keys).toContain("/file:/proj/room2.png?v=1");
     expect(keys.some((k) => k.startsWith("audio."))).toBe(false);
   });
 

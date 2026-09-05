@@ -68,6 +68,71 @@ function controllerWith(game: any, app: any) {
 }
 
 describe("preview session ordering", () => {
+  test("marks the path the remembered point resolves to now, not the one it resolved to before", async () => {
+    // The cursor sits in a file the program does not know, so the controller
+    // keeps the game's remembered point (main.sd line 4). The program has
+    // changed since that point last resolved: the mark, and so the beat the
+    // connect runs ahead, must be the point's path in this program, the one
+    // `preview()` will resolve, not the path it had before.
+    const calls: string[] = [];
+    const game = recordingGame(calls);
+    game.markPreviewing = (path: string) => calls.push(`markPreviewing:${path}`);
+    const program = {
+      ...PROGRAM,
+      pathLocations: { "1.0": [0, 4, 0, 4, 5] },
+    };
+    await controllerWith(game, stubApp(calls)).updatePreview(
+      program,
+      "file://proj/other.sd",
+      1,
+      "SAVE",
+    );
+    expect(calls).toContain("markPreviewing:1.0");
+    expect(calls).not.toContain("markPreviewing:0.0");
+  });
+
+  test("marks nothing for a remembered point that no longer resolves, and still previews", async () => {
+    // The remembered point's script is gone from the program (renamed, or
+    // deleted), so no path resolves for it now, and the cursor sits in a
+    // file the program does not know either; the point's old path must not
+    // be marked, or the connect would run a beat the preview cannot display.
+    // The preview still happens, so the game can reveal what it has.
+    const calls: string[] = [];
+    const game = recordingGame(calls);
+    game.markPreviewing = (path: string) => calls.push(`markPreviewing:${path}`);
+    const program = {
+      ...PROGRAM,
+      pathLocations: { "0.0": [0, 4, 0, 4, 5] },
+      scripts: { "file://proj/other.sd": {} },
+    };
+    await controllerWith(game, stubApp(calls)).updatePreview(
+      program,
+      "file://proj/third.sd",
+      1,
+      "SAVE",
+    );
+    expect(calls).toContain("markPreviewing:undefined");
+    expect(calls).not.toContain("markPreviewing:0.0");
+    expect(calls).toContain("preview");
+  });
+
+  test("marks the game's own path for the remembered point while the program stands", async () => {
+    // The cursor sits on a line that resolves to nothing and nothing was
+    // recompiled: the remembered point's path is the one the game resolved
+    // for it, and it is marked without resolving the point again.
+    const calls: string[] = [];
+    const game = recordingGame(calls);
+    game.markPreviewing = (path: string) => calls.push(`markPreviewing:${path}`);
+    game.program = { uri: PROGRAM.uri, version: PROGRAM.version };
+    await controllerWith(game, stubApp(calls)).updatePreview(
+      PROGRAM,
+      PROGRAM.uri,
+      9,
+      "SAVE",
+    );
+    expect(calls).toContain("markPreviewing:0.0");
+  });
+
   test("the game is told it is previewing before the load and the connect", async () => {
     const calls: string[] = [];
     const controller = controllerWith(recordingGame(calls), stubApp(calls));
@@ -134,5 +199,32 @@ describe("preview session ordering", () => {
     );
 
     expect(calls).toContain("connectGame");
+  });
+
+  test("the preview is not written until the connect has settled", async () => {
+    // The connect holds the restore gate: the pictures the checkpoint shows
+    // and the beat under the cursor is about to show. `preview()` writes
+    // that beat synchronously, so it has to wait for the connect to resolve,
+    // not merely to have been called (#429).
+    const calls: string[] = [];
+    let settleConnect = () => {};
+    const app = stubApp(calls);
+    app.connectGame = () => {
+      calls.push("connectGame");
+      return new Promise<void>((resolve) => {
+        settleConnect = resolve;
+      });
+    };
+    const controller = controllerWith(recordingGame(calls), app);
+
+    const updating = controller.updatePreview(PROGRAM, PROGRAM.uri, 4, "SAVE");
+    for (let i = 0; i < 10; i++) {
+      await Promise.resolve();
+    }
+    expect(calls).toContain("connectGame");
+    expect(calls).not.toContain("preview");
+    settleConnect();
+    await updating;
+    expect(calls.indexOf("connectGame")).toBeLessThan(calls.indexOf("preview"));
   });
 });

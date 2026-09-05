@@ -34,12 +34,26 @@ export interface FontDescriptors {
   unicodeRange?: string;
 }
 
+/** An element the page keeps in its document with the image as a CSS
+ *  background, for as long as the entry is resident. */
+export interface WarmHandle {
+  remove(): void;
+}
+
 /** Everything the cache reaches into the platform for, injectable so tests
  *  run without a browser and the real page passes the real APIs. A missing
  *  capability makes that kind resident without loading anything (jsdom has
  *  no fonts, no fetch, no audio). */
 export interface AssetCacheDeps {
   createImage: () => ImageTarget;
+  /** Put the image in the document as a CSS background on a hidden element.
+   *  Chromium reuses a picture loaded that way for every later use of the
+   *  same url: a background, a `mask-image`, an `<img>`. A picture loaded
+   *  through an `Image` object alone is reused by backgrounds but not by
+   *  masks, and the renderer's shadow layers are masks, so an image warmed
+   *  without this is fetched again the moment it is displayed. Returns
+   *  nothing when there is nowhere to put the element yet. */
+  warmImage?: (src: string) => WarmHandle | undefined;
   decodeAudio?: (params: LoadAudioPlayerParams) => Promise<AudioBuffer | null>;
   fetchBytes?: (src: string) => Promise<{ bytes: ArrayBuffer; type: string }>;
   createFontFace?: (
@@ -55,14 +69,16 @@ export interface AssetCacheDeps {
 }
 
 export interface AssetCacheOptions {
-  /** Requests in flight at once. Assets are served by a service worker that
-   *  reads OPFS (and, in the cross-origin player, round-trips through the
-   *  editor), so an unbounded burst puts every asset behind every other one:
-   *  warming 261 images at project open still left the first portrait cold
-   *  (#344). */
+  /** Background requests (priority 1 and up) in flight at once, less the
+   *  express slots; and, separately, priority-0 loads in flight at once.
+   *  Assets are served by a service worker that reads OPFS (and, in the
+   *  cross-origin player, round-trips through the editor), so an unbounded
+   *  burst puts every asset behind every other one: warming 261 images at
+   *  project open still left the first portrait cold (#344). */
   maxConcurrent?: number;
-  /** Slots only priority 0 (a gate) may use, so a gate never waits behind a
-   *  full window of background prefetches. */
+  /** Slots held back from background requests and from the page's hints,
+   *  so a gate always has a slot neither can take; the express lane runs
+   *  beside the background lane, not inside it (see `canStart`). */
   expressSlots?: number;
   /** Bytes prediction may keep resident: the pool of entries that are neither
    *  pinned nor displayed nor playing, evicted least recently used first once
@@ -76,9 +92,19 @@ export interface AssetCacheOptions {
    *  resident anyway. Decoding ahead is an optimization; some browsers never
    *  settle the promise for an image that is not in the document. */
   decodeTimeoutMs?: number;
+  /** How long a single load may stay in flight before it counts as a final
+   *  failure (no retry: a hang is not a 404). A fetch the service worker
+   *  never answers would otherwise hold its slot for the session. 0 = never;
+   *  a hung load then holds its slot until the page goes away, though a gate
+   *  stops pausing background loads as soon as its pin is released. */
+  loadTimeoutMs?: number;
 }
 
 export const DEFAULT_DECODE_TIMEOUT_MS = 1500;
+/** Generous, because a cold service worker generating filtered SVGs for a
+ *  whole scene has been seen to take over twenty seconds for one file, and
+ *  a load that times out cannot be cancelled, only started over. */
+export const DEFAULT_LOAD_TIMEOUT_MS = 60_000;
 
 export const DEFAULT_MAX_CONCURRENT = 6;
 export const DEFAULT_EXPRESS_SLOTS = 2;
@@ -98,8 +124,11 @@ const KIB = 1024;
 const MIB = 1024 * KIB;
 /** Below this an image's pixel estimate is not worth trusting. */
 const MIN_IMAGE_BYTES = 256 * KIB;
-/** An SVG's intrinsic size says little about what it costs to rasterize. */
-const MIN_SVG_BYTES = 4 * MIB;
+/** What a resident SVG costs: its parsed document. The browser keeps no
+ *  bitmap for it (it rasterizes at paint, for the displayed size only), and
+ *  its intrinsic size is whatever its viewBox says, so the pixel formula is
+ *  meaningless for it. A 100 KB portrait parses to about this much. */
+const SVG_BYTES = 1 * MIB;
 
 type EntryState = "queued" | "loading" | "resident" | "failed";
 
@@ -112,6 +141,11 @@ interface Entry {
   state: EntryState;
   priority: AssetPriority;
   pins: Set<string>;
+  /** The pins among `pins` that a priority-0 request put there, whatever
+   *  they are called: the gates someone is waiting on. A hint carries no
+   *  pin, and an explicit load's set is requested at priority 1, so its
+   *  `load:` pin never lands here. */
+  gatePins: Set<string>;
   bytes: number;
   lastUsed: number;
   attempts: number;
@@ -122,6 +156,9 @@ interface Entry {
    *  ignored rather than resurrecting it. */
   stale: boolean;
   image?: ImageTarget;
+  /** The hidden element holding the image as a CSS background while the
+   *  entry is resident (see {@link AssetCacheDeps.warmImage}). */
+  warm?: WarmHandle;
   font?: FontFaceLike;
   audio?: AudioBuffer;
   videoUrl?: string;
@@ -162,6 +199,17 @@ export class AssetCache {
 
   protected _inFlightBackground = 0;
 
+  /** Priority-0 loads in flight, capped at `maxConcurrent` on their own. */
+  protected _inFlightGate = 0;
+
+  /** Every entry in flight, so a pinned priority-0 load can be told apart
+   *  from an unpinned one without walking the whole map. */
+  protected _loading = new Set<Entry>();
+
+  /** What the last {@link hint} asked for, so the next one can demote what
+   *  is still queued. */
+  protected _hinted: Entry[] = [];
+
   protected _pumping = false;
 
   protected _tick = 1;
@@ -177,6 +225,8 @@ export class AssetCache {
   protected _loadBytes: number;
 
   protected _decodeTimeoutMs: number;
+
+  protected _loadTimeoutMs: number;
 
   protected _derivedPins: () => Iterable<string> = () => [];
 
@@ -205,6 +255,10 @@ export class AssetCache {
     this._decodeTimeoutMs = Math.max(
       0,
       options.decodeTimeoutMs ?? DEFAULT_DECODE_TIMEOUT_MS,
+    );
+    this._loadTimeoutMs = Math.max(
+      0,
+      options.loadTimeoutMs ?? DEFAULT_LOAD_TIMEOUT_MS,
     );
   }
 
@@ -360,6 +414,18 @@ export class AssetCache {
       }
       seen.add(entry.key);
       entry.pins.add(pin);
+      if (priority === 0) {
+        entry.gatePins.add(pin);
+        // A picture a prefetch already had in flight is a gate's now: its
+        // priority goes to the express lane too, so a retry after a failed
+        // attempt re-enters the lane instead of the queue it was prefetched
+        // in, which yields to every gate. The in-flight accounting keeps
+        // the lane the load started in.
+        if (entry.state === "loading") {
+          entry.priority = 0;
+        }
+        this.promoteInLane(entry);
+      }
       entries.push(entry);
     }
     const tracked = this._tracked.get(pin) ?? [];
@@ -391,10 +457,12 @@ export class AssetCache {
             pinned.push(e.key);
           } else {
             e.pins.delete(pin);
+            e.gatePins.delete(pin);
           }
         } else {
           failed.push(e.key);
           e.pins.delete(pin);
+          e.gatePins.delete(pin);
         }
       }
       this.maybeEvict();
@@ -430,6 +498,36 @@ export class AssetCache {
     this.pump();
   }
 
+  /**
+   * The page's guess at what the next gate will ask for (the beats under
+   * the editor's cursor): loaded in the express lane, unpinned, and replaced
+   * by the next guess. Whatever an earlier guess left queued goes back to
+   * the window's priority, so a cursor moving faster than the loads does not
+   * pile every beat it passed in front of the beat it stops on. A hint never
+   * pauses background loads; only a pinned request does (see `canStart`).
+   */
+  hint(items: AssetItem[]): void {
+    this.tick();
+    for (const e of this._hinted) {
+      if (
+        e.state === "queued" &&
+        e.priority === 0 &&
+        e.gatePins.size === 0 &&
+        this._entries.get(e.key) === e
+      ) {
+        this.demote(e);
+      }
+    }
+    this._hinted = [];
+    for (const item of items) {
+      const entry = this.ensure(item, 0);
+      if (entry) {
+        this._hinted.push(entry);
+      }
+    }
+    this.pump();
+  }
+
   /** Let go of pins; with `drop`, evict at once whatever they leave unpinned
    *  unless the page still displays or plays it. A queued item left unpinned
    *  by a drop is cancelled rather than loaded for nothing. */
@@ -445,6 +543,20 @@ export class AssetCache {
         if (e.pins.delete(pin)) {
           touched = true;
         }
+        e.gatePins.delete(pin);
+      }
+      if (
+        touched &&
+        !drop &&
+        e.state === "queued" &&
+        e.priority === 0 &&
+        e.gatePins.size === 0 &&
+        !this._hinted.includes(e)
+      ) {
+        // A gate nobody waits on any more is just a prefetch: out of the
+        // express lane, or every abandoned scrub's pictures would sit ahead
+        // of the beat the cursor is on now.
+        this.demote(e);
       }
       if (!touched || !drop || e.pins.size > 0 || derived!.has(e.key)) {
         continue;
@@ -466,6 +578,9 @@ export class AssetCache {
         this.remove(e);
       }
     }
+    // A released gate stops pausing the background queue, whether or not
+    // its loads have settled.
+    this.pump();
   }
 
   /** Forget every failure record, so the next request tries again at once.
@@ -499,6 +614,8 @@ export class AssetCache {
         w();
       }
     }
+    // A gate the change forgot stops pausing the queue.
+    this.pump();
   }
 
   stats() {
@@ -591,6 +708,7 @@ export class AssetCache {
       state: "queued",
       priority,
       pins: new Set(),
+      gatePins: new Set(),
       bytes: 0,
       lastUsed: this._tick,
       attempts: 0,
@@ -614,6 +732,21 @@ export class AssetCache {
   protected remove(entry: Entry): void {
     if (entry.state === "loading") {
       entry.stale = true;
+      // Nobody waits on a removed entry: its request settles through the
+      // waiters the caller fires, so it must not keep pausing the queue
+      // (its slot stays taken until the load ends, which cannot be helped).
+      this._loading.delete(entry);
+      entry.gatePins.clear();
+      // The picture may still arrive, but nothing wants it held in the
+      // document any more; the load's completion discards the rest.
+      if (entry.warm) {
+        try {
+          entry.warm.remove();
+        } catch {
+          // Already gone from the document.
+        }
+        entry.warm = undefined;
+      }
     }
     if (entry.state === "resident") {
       this._bytes -= entry.bytes;
@@ -633,7 +766,15 @@ export class AssetCache {
     if (entry.videoUrl) {
       this._deps.revokeObjectURL?.(entry.videoUrl);
     }
+    if (entry.warm) {
+      try {
+        entry.warm.remove();
+      } catch {
+        // An element already gone from the document is what was wanted.
+      }
+    }
     entry.image = undefined;
+    entry.warm = undefined;
     entry.font = undefined;
     entry.audio = undefined;
     entry.videoUrl = undefined;
@@ -697,12 +838,84 @@ export class AssetCache {
     }
   }
 
-  protected canStart(priority: AssetPriority): boolean {
-    if (this._inFlight >= this._maxConcurrent) {
-      return false;
+  /** Whether a request someone is waiting on is queued or loading: an entry
+   *  carrying a gate pin, whatever priority its load started at (a picture a
+   *  prefetch had already put in flight counts from the moment a gate pins
+   *  it). A hint never counts, a `load:` pin never counts, and a gate stops
+   *  counting the moment its pins are released, whether or not its loads
+   *  have settled: the engine's own timeouts bound its wait, and the page
+   *  must not keep waiting on its behalf. */
+  protected gatePending(): boolean {
+    for (const e of this._queues[0]!) {
+      if (e.gatePins.size > 0) {
+        return true;
+      }
     }
+    for (const e of this._loading) {
+      if (e.gatePins.size > 0) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /** Take a queued express-lane entry that no gate waits on out of the lane:
+   *  to priority 1 while a pin still waits on it, else to the window's
+   *  priority. A pin that is not a gate pin came from a priority-1 request,
+   *  which is an explicit load's set, so 1 is the priority that request asked
+   *  for. */
+  protected demote(entry: Entry): void {
+    this.dequeue(entry);
+    entry.priority = entry.pins.size > 0 ? 1 : 2;
+    this._queues[entry.priority]!.push(entry);
+  }
+
+  /** Put a queued gate ahead of the hints in the express lane: a gate is
+   *  waited on, a hint is a guess, and the lane is served in order. */
+  protected promoteInLane(entry: Entry): void {
+    if (entry.state !== "queued" || entry.priority !== 0) {
+      return;
+    }
+    const lane = this._queues[0]!;
+    const from = lane.indexOf(entry);
+    if (from < 0) {
+      return;
+    }
+    let to = 0;
+    while (to < from && lane[to]!.gatePins.size > 0) {
+      to++;
+    }
+    if (to < from) {
+      lane.splice(from, 1);
+      lane.splice(to, 0, entry);
+    }
+  }
+
+  /**
+   * Whether `entry` may start now. The express lane (priority 0) runs
+   * beside the background lane rather than inside it, since a background
+   * load in flight cannot be cancelled and a gate held behind one holds a
+   * reader: up to `maxConcurrent` gate loads, and, for the page's hints, up
+   * to that less the express slots, so a gate always has a slot a hint
+   * cannot take. Background loads (priority 1 and up) get `maxConcurrent`
+   * less the express slots, whatever the express lane holds; prefetches
+   * (priority 2 and up) yield entirely while a gate is pending, because
+   * every load in flight shares the service worker's time with it (a
+   * filtered SVG is a filter pass in the worker before it is bytes) and
+   * nobody waits on a prefetch. An explicit load's set (priority 1) is
+   * waited on too, behind the loading layout, so it keeps its slots.
+   */
+  protected canStart(entry: Entry): boolean {
+    const priority = entry.priority;
     if (priority === 0) {
-      return true;
+      const lane =
+        entry.gatePins.size > 0
+          ? this._maxConcurrent
+          : this._maxConcurrent - this._expressSlots;
+      return this._inFlightGate < lane;
+    }
+    if (priority >= 2 && this.gatePending()) {
+      return false;
     }
     return this._inFlightBackground < this._maxConcurrent - this._expressSlots;
   }
@@ -721,11 +934,12 @@ export class AssetCache {
         started = false;
         for (let priority = 0; priority < this._queues.length; priority++) {
           const queue = this._queues[priority]!;
-          if (queue.length === 0 || !this.canStart(priority as AssetPriority)) {
+          const head = queue[0];
+          if (!head || !this.canStart(head)) {
             continue;
           }
-          const entry = queue.shift()!;
-          this.start(entry);
+          queue.shift();
+          this.start(head);
           started = true;
           break;
         }
@@ -741,16 +955,27 @@ export class AssetCache {
     const background = entry.priority > 0;
     if (background) {
       this._inFlightBackground++;
+    } else {
+      this._inFlightGate++;
     }
+    this._loading.add(entry);
     let done = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
     const finish = (ok: boolean, bytes: number) => {
       if (done) {
         return;
       }
       done = true;
+      if (timer !== undefined) {
+        clearTimeout(timer);
+        timer = undefined;
+      }
+      this._loading.delete(entry);
       this._inFlight--;
       if (background) {
         this._inFlightBackground--;
+      } else {
+        this._inFlightGate--;
       }
       if (entry.stale || this._entries.get(entry.key) !== entry) {
         // Removed while loading (the file changed, or a drop): whatever came
@@ -772,9 +997,27 @@ export class AssetCache {
         entry.attempts++;
         this.releasePlatform(entry);
         if (entry.attempts < MAX_LOAD_ATTEMPTS) {
-          // Back of its own line, so the others get their turn first.
+          // Back of its own line, so the others get their turn first (a
+          // service worker that is coming up fails what it is asked first,
+          // so every picture gets a first attempt before any gets a second);
+          // a gate still goes ahead of the hints, since someone waits on it;
+          // and an express-lane entry that no gate waits on any more and
+          // that is not the current hint (a gate released while its load
+          // was in flight) leaves the lane, as the release rule would have
+          // sent it had it been queued.
           entry.state = "queued";
-          this._queues[entry.priority]!.push(entry);
+          if (
+            entry.priority === 0 &&
+            entry.gatePins.size === 0 &&
+            !this._hinted.includes(entry)
+          ) {
+            this.demote(entry);
+          } else {
+            this._queues[entry.priority]!.push(entry);
+            if (entry.gatePins.size > 0) {
+              this.promoteInLane(entry);
+            }
+          }
         } else {
           entry.state = "failed";
           entry.failedAt = this.now();
@@ -790,6 +1033,20 @@ export class AssetCache {
         (bytes) => finish(bytes != null, bytes ?? 0),
         () => finish(false, 0),
       );
+      if (this._loadTimeoutMs > 0) {
+        // A load that never settles is a final failure, not a retry (a hang
+        // is not a 404, and three of them would hold a slot for minutes):
+        // it gives up its slot, and the cool-down lets a later request try
+        // again. Cleared by `finish`, so a load that settles leaves nothing
+        // armed behind it.
+        timer = setTimeout(() => {
+          timer = undefined;
+          if (!done) {
+            entry.attempts = MAX_LOAD_ATTEMPTS - 1;
+            finish(false, 0);
+          }
+        }, this._loadTimeoutMs);
+      }
     } catch {
       // Creating or arming the load threw. Release the slot, or the cap fills
       // with phantoms and the pump never starts anything again.
@@ -812,16 +1069,28 @@ export class AssetCache {
     }
   }
 
+  /**
+   * Load an image the way the renderer will use it. The picture goes into
+   * the document as a CSS background on a hidden element, which is the one
+   * form of load Chromium reuses for a later background, mask or `<img>`
+   * with the same url; an `Image` object for the same url is the completion
+   * signal (it attaches to the fetch in flight and fires `load` when the
+   * shared resource is complete) and the source of the size estimate.
+   */
   protected loadImage(entry: Entry, src: string): Promise<number | null> {
     return new Promise((resolve) => {
       const target = this._deps.createImage();
       entry.image = target;
+      const warm = this._deps.warmImage?.(src);
+      entry.warm = warm;
       target.onload = () => {
         const estimate = () => {
+          if (isSvg(entry.item)) {
+            return SVG_BYTES;
+          }
           const w = target.naturalWidth ?? 0;
           const h = target.naturalHeight ?? 0;
-          const floor = isSvg(entry.item) ? MIN_SVG_BYTES : MIN_IMAGE_BYTES;
-          return Math.max(floor, w * h * 4);
+          return Math.max(MIN_IMAGE_BYTES, w * h * 4);
         };
         let decode: Promise<void> | undefined;
         try {
@@ -835,14 +1104,18 @@ export class AssetCache {
           // in the document) still leaves a loaded image the renderer can
           // use; it just paints a moment later.
           let settled = false;
+          let timer: ReturnType<typeof setTimeout> | undefined;
           const done = () => {
             if (!settled) {
               settled = true;
+              if (timer !== undefined) {
+                clearTimeout(timer);
+              }
               resolve(estimate());
             }
           };
           decode.then(done, done);
-          setTimeout(done, this._decodeTimeoutMs);
+          timer = setTimeout(done, this._decodeTimeoutMs);
         } else {
           resolve(estimate());
         }

@@ -1573,9 +1573,25 @@ export class GamePlayerController {
     // gets its preview call and can reveal the UI (Game.preview's no-path branch).
     const validPreviewFrom =
       (previewPath ? previewFrom : this._game?.previewFrom) ?? previewFrom;
-    const validPreviewPath = previewPath
+    // The path `game.preview()` below will resolve for that point against
+    // THIS program: the cursor's own, or the remembered point's, which is the
+    // game's own path for it while the program stands and is resolved again
+    // after a recompile, which can move it. The mark below names this path,
+    // so the beat the connect runs ahead is the beat the preview displays,
+    // and a point that no longer resolves (its script renamed, its line
+    // deleted) marks nothing, so nothing runs ahead for it.
+    const resolvedPreviewPath = previewPath
       ? previewPath
-      : this._game?.previewPath;
+      : programChanged
+        ? findClosestPath(
+            validPreviewFrom,
+            Object.entries(program.pathLocations ?? {}),
+            Object.keys(program.scripts),
+          )
+        : this._game?.previewPath;
+    // A point that no longer resolves keeps its old path for the skip below,
+    // which needs it to tell a repeat from a first preview.
+    const validPreviewPath = resolvedPreviewPath ?? this._game?.previewPath;
 
     // Skip only a repeat of a preview that actually ran. A UI-only project
     // resolves no path at all, so both sides of the comparison are undefined
@@ -1624,7 +1640,7 @@ export class GamePlayerController {
     // run — and `Application.init` skips the renderer for anything flagged as
     // previewing, which would leave that run with nothing to draw on.
     if (this._game.state === "previewing") {
-      this._game.markPreviewing(validPreviewPath);
+      this._game.markPreviewing(resolvedPreviewPath ?? undefined);
       // Drop what the LAST preview left displayed. The restore below re-applies
       // whatever the new point genuinely has, and the replay writes the rest;
       // carrying the old record forward is what put the previous preview's
