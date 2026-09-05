@@ -72,7 +72,7 @@ const SCENE_MESSAGE = (name: string) =>
 const DIVERT_MESSAGE = (name: string) =>
   `\`${name}\` is a builtin global, so this divert binds to it and cannot reach a scene, branch, or label named \`${name}\``;
 const DIVERT_WARNING = (name: string) =>
-  `\`${name}\` is a builtin global; unless a \`${name}\` declared in this flow holds a divert target when this divert runs, it binds to the builtin and cannot reach a scene, branch, or label named \`${name}\``;
+  `\`${name}\` is a builtin global; unless the \`${name}\` this divert reads holds a divert target when it runs, the divert binds to the builtin and cannot reach a scene, branch, or label named \`${name}\``;
 
 describe("targets named after prelude entries that are not runtime globals", () => {
   // Each name is a prelude context entry: the `main` layout, mixer, and style;
@@ -699,6 +699,85 @@ end
     expect(ctx.errorMessages).toEqual([]);
     expect(ctx.warningMessages).toContain(DIVERT_WARNING("game"));
     expect(ctx.story.ContinueMaximally()).toBe("Arrived.\n");
+  });
+
+  test("an assignment to the builtin's name in another scene is a warning, and the story runs", () => {
+    // A plain assignment writes the global, which every flow reads, so the
+    // scene holding the write does not matter.
+    const ctx = makeRuntimeStoryFromSource(`-> s
+scene s
+  & game = -> there
+  -> t
+
+end
+scene t
+  -> game
+
+end
+scene there
+  Arrived.
+  fin
+
+end
+`);
+    expect(ctx.errorMessages).toEqual([]);
+    expect(ctx.warningMessages).toContain(DIVERT_WARNING("game"));
+    expect(ctx.story.ContinueMaximally()).toBe("Arrived.\n");
+  });
+
+  test("an assignment to the builtin's name inside a closure is a warning, and the story runs", () => {
+    // The closure is hoisted out of the scene, but its write is to the
+    // global all the same.
+    const ctx = makeRuntimeStoryFromSource(`-> s
+scene s
+  & local f = function()
+      game = -> there
+    end
+  & f()
+  -> game
+
+end
+scene there
+  Arrived.
+  fin
+
+end
+`);
+    expect(ctx.errorMessages).toEqual([]);
+    expect(ctx.warningMessages).toContain(DIVERT_WARNING("game"));
+    expect(ctx.story.ContinueMaximally()).toBe("Arrived.\n");
+  });
+
+  test("a closure that only reads the builtin's name does not soften the report", () => {
+    // Capturing `game` as an upvalue plants a pointer to it in the scene,
+    // which is a read, not a binding: the divert still fails, and the
+    // report stays an error.
+    const source = `-> s
+scene s
+  & local f = function()
+      local q = game
+      return q
+    end
+  & f()
+  -> game
+
+end
+scene there
+  Arrived.
+  fin
+
+end
+`;
+    expect(collisionsOf(compileUnseeded(source)).map((c) => c.message)).toEqual([
+      DIVERT_MESSAGE("game"),
+    ]);
+    const ctx = makeRuntimeStoryFromSource(source);
+    const runtimeErrors: string[] = [];
+    ctx.story.onError = (message) => {
+      runtimeErrors.push(message);
+    };
+    expect(ctx.story.ContinueMaximally()).toBe("");
+    expect(runtimeErrors.join("\n")).toContain("could not be found (game)");
   });
 
   test("`target not found` covers the whole path now that its identifiers carry positions", () => {

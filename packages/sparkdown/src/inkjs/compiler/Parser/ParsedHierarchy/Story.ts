@@ -147,10 +147,10 @@ export class Story extends FlowBase {
    *  named in {@link builtinGlobalNames}: `-> game` binds to the builtin's
    *  variable (a table at runtime, whether the prelude's own or an authored
    *  override), so it can never reach a scene, branch, or label of that
-   *  name and fails when run. `warning` marks a divert whose name a
-   *  parameter, local, or assignment in its enclosing flow declares, so what
-   *  it binds to depends on whether that declaration holds a divert target
-   *  when it runs.
+   *  name and fails when run. `warning` marks a divert whose name the author
+   *  binds, by a parameter or local of its enclosing flow or by an
+   *  assignment to the global anywhere in the story, so what it binds to
+   *  depends on whether that binding holds a divert target when it runs.
    *  The compiler reports each one
    *  (SparkdownCompiler.reportBuiltinGlobalCollisions). */
   public builtinGlobalDiverts: {
@@ -158,6 +158,30 @@ export class Story extends FlowBase {
     divert: ParsedObject;
     warning: boolean;
   }[] = [];
+
+  private _globalAssignmentNames: Set<string> | null = null;
+
+  /** The names written by a plain assignment (`game = -> there`, not a
+   *  `local` or a declaration) anywhere in the story, callables included: a
+   *  global write is visible from every flow. Walked once per export, on
+   *  first use, for {@link builtinGlobalDiverts}'s severity. */
+  public globalAssignmentNames(): ReadonlySet<string> {
+    if (this._globalAssignmentNames) {
+      return this._globalAssignmentNames;
+    }
+    const names = new Set<string>();
+    const visit = (obj: ParsedObject): void => {
+      for (const child of obj.content ?? []) {
+        if (child instanceof VariableAssignment && !child.isDeclaration) {
+          names.add(child.variableName);
+        }
+        visit(child);
+      }
+    };
+    visit(this);
+    this._globalAssignmentNames = names;
+    return names;
+  }
 
   // Build setting for exporting:
   // When true, the visit count for *all* knots, stitches, choices,
@@ -374,6 +398,7 @@ export class Story extends FlowBase {
     this.flowsWithGenerationDiagnostics = new Set();
     this.hadUnattributableGenerationDiagnostic = false;
     this.builtinGlobalDiverts = [];
+    this._globalAssignmentNames = null;
 
     // Get default implementation of runtimeObject, which calls ContainerBase's generation method
     const rootContainer = this.runtimeObject as RuntimeContainer;
