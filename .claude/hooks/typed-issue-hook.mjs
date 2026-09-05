@@ -35,7 +35,7 @@
 import { pathToFileURL } from "node:url";
 
 const RECIPE =
-  'gh api -X POST repos/ImpowerGames/impower/issues -f title="<title>" -F body=@ticket.md -f type=Bug -f "labels[]=<label>"   (type is Bug, Feature, or Task; repeat labels[] per label)';
+  'gh api -X POST repos/ImpowerGames/impower/issues -f title="<title>" -F body=@ticket.md -f type=Bug -f "labels[]=<label>"   # type is Bug, Feature, or Task; repeat labels[] per label';
 
 const THIS_REPO = "impowergames/impower";
 
@@ -85,7 +85,7 @@ const PS_ASSIGN = /^\$([A-Za-z_][A-Za-z0-9_:]*|\{[^}]+\})([+-]?=(.*))?$/;
  * returned array also has a `subs` property: the text of every `$(...)` or
  * backquote substitution found inside double quotes.
  */
-export function tokenize(command) {
+function tokenize(command) {
   const tokens = [];
   tokens.subs = [];
   let text = "";
@@ -172,11 +172,12 @@ export function tokenize(command) {
           continue;
         }
         if (command[i] === "`") {
-          // A backtick before one of PowerShell's escape characters (`n,
-          // `t, `", `$) is an escape; otherwise, with a partner backtick
-          // later, it is a Bash substitution; alone, it is literal.
+          // In a PowerShell command a backtick escapes the next character.
+          // In a Bash command a backtick before one of PowerShell's escape
+          // characters (`n, `t, `", `$) is still an escape; otherwise, with
+          // a partner backtick later, it is a substitution; alone, literal.
           const next = command[i + 1] ?? "";
-          const close = "0abfnrtv\"'$` ".includes(next) ? -1 : command.indexOf("`", i + 1);
+          const close = currentShell === "powershell" || "0abfnrtv\"'$` ".includes(next) ? -1 : command.indexOf("`", i + 1);
           if (close < 0) {
             if (i + 1 < n) text += next;
             i += 2;
@@ -197,15 +198,17 @@ export function tokenize(command) {
     // re-read at every character.
     const flagPrefix = opensGroup && started && text.startsWith("-") && text.endsWith(":");
     if (opensGroup && ((!started && lastIsFlag()) || flagPrefix)) {
-      // A balanced group that is a flag's value (`-Body (...)`, `-Headers
-      // @{...}`, `-Body:@{...}`) stays one token so the invocation continues
-      // after it. A parenthesised group is still analysed as a command of
-      // its own, since in Bash it may be a substitution. An unbalanced group
-      // falls through to the ordinary separator handling.
+      // A balanced group that is a parameter's value (`-Body (...)`,
+      // `-Headers @{...}`, `-Body:@{...}`) stays one token so the invocation
+      // continues after it, in either shell, so PowerShell text typed into
+      // the Bash tool reads the same way. Its contents are still analysed
+      // as a command of their own, since a sub-expression or a hashtable
+      // value may run one. An unbalanced group falls through to the
+      // ordinary separator handling.
       const openAt = c === "(" ? i : i + 1;
       const close = matchBracket(command, openAt);
       if (close < n) {
-        if (command[openAt] === "(") tokens.subs.push(command.slice(openAt + 1, close));
+        tokens.subs.push(command.slice(openAt + 1, close));
         if (flagPrefix) {
           text += command.slice(i, close + 1);
           quoted = true;
@@ -216,17 +219,21 @@ export function tokenize(command) {
         continue;
       }
     }
+    if (c === "\\" && (command[i + 1] === "\n" || (command[i + 1] === "\r" && command[i + 2] === "\n"))) {
+      // A Bash line continuation joins the lines. PowerShell does not join
+      // them, but a Bash-style recipe pasted into the PowerShell tool is
+      // read joined when the next line begins with a flag: PowerShell would
+      // run nothing there, and the joined reading keeps a create together
+      // with its fields.
+      const after = command[i + 1] === "\n" ? i + 2 : i + 3;
+      if (currentShell !== "powershell" || /^[ \t]*-/.test(command.slice(after, after + 64))) {
+        i = after;
+        continue;
+      }
+    }
     if (c === "\\" && currentShell !== "powershell") {
       if (i + 1 < n) {
         const next = command[i + 1];
-        if (next === "\n") {
-          i += 2; // Bash line continuation
-          continue;
-        }
-        if (next === "\r" && command[i + 2] === "\n") {
-          i += 3;
-          continue;
-        }
         begin(i);
         // A backslash before a quote, space, or another backslash escapes
         // it; anywhere else it is kept, so a Windows path from the
@@ -418,7 +425,12 @@ let partnerCache = null;
 // from the command when no tool name is known.
 let currentShell = "bash";
 
-const POWERSHELL_WORDS = /(^|[\s;|&({])(irm|iwr|(invoke|get|set|new|remove|start|stop|test|write|read|out|select|where|foreach|convertto|convertfrom|join|split|add|clear|copy|move|import|export|format|sort|measure|resolve|wait)-[a-z]+)\b/i;
+// A PowerShell cmdlet at command position: the start of the text or of a
+// line, or after `;`, `|`, `&`, `(`, `{`, or an assignment's `= `. A
+// hyphenated word elsewhere (`npm run test-watch`, `-f body=read-only`) is
+// not one, and a longer hyphenated name (`add-apt-repository`) is not one
+// either.
+const POWERSHELL_WORDS = /(^|[;|&({\n\r]|=[ \t])[ \t]*(irm|iwr|(invoke|get|set|new|remove|start|stop|test|write|read|out|select|where|foreach|convertto|convertfrom|join|split|add|clear|copy|move|import|export|format|sort|measure|resolve|wait)-[a-z]+)(?![\w-])/i;
 
 /** "powershell" when the command uses a PowerShell cmdlet, else "bash". */
 export function inferShell(command) {
@@ -459,8 +471,8 @@ function computePartners(command, suppressed) {
   // (...)`, `-Headers @{...}`, `-Body:@{...}`, `-InFile $(...)`) is that
   // parameter's value, where a backslash inside a string is literal. A
   // backtick line continuation may separate the parameter from its group.
-  // A Bash command has no such groups: its `$(` is a substitution and its
-  // flags take no parenthesised values.
+  // In a Bash command no group is read this way: its `$(` is a substitution
+  // and a backslash inside any group escapes as usual.
   const powershell = currentShell === "powershell";
   const flagValue = (at) => {
     if (!powershell || suppressed.has(at)) return false;
@@ -1219,7 +1231,7 @@ async function main() {
     // An unparseable payload is refused only when it looks like it carries a
     // gh call, so a broken harness cannot let an untyped create through and
     // cannot block unrelated commands either.
-    if (/\bgh\s+(issue|api)\b/i.test(raw)) deny("The typed-issue hook could not parse the tool payload, so it cannot tell whether this command creates an untyped issue. " + RECIPE);
+    if (/\bgh\s+(issue|api)\b/i.test(raw)) deny("The typed-issue hook could not parse the tool payload, so it cannot tell whether this command creates an untyped issue. File it with: " + RECIPE);
     return;
   }
   const reason = decide(command, shell);
