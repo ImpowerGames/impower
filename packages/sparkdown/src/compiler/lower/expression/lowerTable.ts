@@ -1,3 +1,4 @@
+import { nodeNameSet } from "../../utils/nodeNameSet";
 import { type SyntaxNode } from "@lezer/common";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 import { Expression } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expression/Expression";
@@ -150,12 +151,12 @@ function readStaticBracketKey(
   indexDecl: SyntaxNode,
   ctx: LowerContext,
 ): string | null {
-  const STRING_NODES = new Set([
+  const STRING_NODES = nodeNameSet([
     "LuauDoubleQuotedString",
     "LuauSingleQuotedString",
     "LuauMultilineString",
   ]);
-  const NUMBER_NODES = new Set([
+  const NUMBER_NODES = nodeNameSet([
     "LuauNumericDecimal",
     "LuauNumericHex",
     "LuauNumericBinary",

@@ -27,6 +27,7 @@ import fs from "node:fs";
 import net from "node:net";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { gitTopLevel, parseRedGreenArgs, runRedGreen, sameDir } from "./redgreen.mjs";
 
 const SKILL_DIR = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(SKILL_DIR, "..", "..", "..");
@@ -338,9 +339,9 @@ async function writeMainSd(page, source) {
 // <spark-editor> custom element to wait for. The CodeMirror instance stashes
 // its EditorView on the .cm-content node as `.cmTile.view`.
 async function waitForEditor(page, timeout = 90_000) {
-  await page.waitForSelector(".cm-content", { timeout });
+  await page.waitForSelector(".sparkdown-script-editor-root .cm-content", { timeout });
   await page.waitForFunction(
-    () => document.querySelector(".cm-content")?.cmTile?.view != null,
+    () => document.querySelector(".sparkdown-script-editor-root .cm-content")?.cmTile?.view != null,
     null,
     { timeout },
   );
@@ -375,7 +376,7 @@ async function waitForEditor(page, timeout = 90_000) {
 //      scrubbing, or the restore lands afterwards and wins.
 async function clickLine(page, line) {
   const scrolled = await page.evaluate((target) => {
-    const view = document.querySelector(".cm-content")?.cmTile?.view;
+    const view = document.querySelector(".sparkdown-script-editor-root .cm-content")?.cmTile?.view;
     if (!view) return { ok: false, reason: "no CodeMirror view" };
     const total = view.state.doc.lines;
     const clamped = Math.min(Math.max(1, target), total);
@@ -394,7 +395,7 @@ async function clickLine(page, line) {
   await page.waitForTimeout(600); // let the scroll land and the view re-measure
 
   const spot = await page.evaluate((target) => {
-    const view = document.querySelector(".cm-content")?.cmTile?.view;
+    const view = document.querySelector(".sparkdown-script-editor-root .cm-content")?.cmTile?.view;
     if (!view) return { ok: false, reason: "no CodeMirror view" };
     const l = view.state.doc.line(target);
     const pos = l.from + Math.min(6, l.length);
@@ -419,7 +420,7 @@ async function clickLine(page, line) {
     // preview exactly where it was, so check what is under the point rather
     // than assuming the coordinates are reachable.
     const hit = document.elementFromPoint(x, y);
-    if (!hit || !hit.closest(".cm-content")) {
+    if (!hit || !hit.closest(".sparkdown-script-editor-root .cm-content")) {
       return {
         ok: false,
         reason: `point (${x}, ${y}) is covered by ${hit ? hit.tagName.toLowerCase() : "nothing"}`,
@@ -432,7 +433,7 @@ async function clickLine(page, line) {
   await page.mouse.click(spot.x, spot.y);
 
   const cursorLine = await page.evaluate(() => {
-    const view = document.querySelector(".cm-content")?.cmTile?.view;
+    const view = document.querySelector(".sparkdown-script-editor-root .cm-content")?.cmTile?.view;
     if (!view) return null;
     return view.state.doc.lineAt(view.state.selection.main.head).number;
   });
@@ -459,14 +460,19 @@ async function waitForGame(page, { timeout = 45_000 } = {}) {
     await page.waitForTimeout(1000);
   }
 
-  await page.reload({ waitUntil: "domcontentloaded", timeout: 120_000 });
-  await waitForEditor(page);
+  try {
+    await page.reload({ waitUntil: "domcontentloaded", timeout: 120_000 });
+  } catch (err) {
+    return { mounted: false, reloaded: true, error: `the recovery reload did not complete (${String(err.message || err).split("\n")[0]})` };
+  }
+  const back = await ensureScriptEditor(page);
+  if (!back.present) return { mounted: false, reloaded: true, error: back.reason, switched: back.switched };
   const deadline2 = Date.now() + timeout;
   while (Date.now() < deadline2) {
-    if (await mounted()) return { mounted: true, reloaded: true };
+    if (await mounted()) return { mounted: true, reloaded: true, switched: back.switched };
     await page.waitForTimeout(1000);
   }
-  return { mounted: false, reloaded: true };
+  return { mounted: false, reloaded: true, switched: back.switched };
 }
 
 async function previewSummary(page) {
@@ -508,7 +514,7 @@ async function routeLabel(page) {
 // Every line of the open document, as source text.
 async function documentLines(page) {
   return page.evaluate(() => {
-    const view = document.querySelector(".cm-content")?.cmTile?.view;
+    const view = document.querySelector(".sparkdown-script-editor-root .cm-content")?.cmTile?.view;
     if (!view) return null;
     const out = [];
     for (let i = 1; i <= view.state.doc.lines; i++) {
@@ -658,16 +664,89 @@ async function verify(args) {
     async ({ page, url, consoleLines }) => {
       const result = { url };
 
-      await page.goto(url, { waitUntil: "domcontentloaded", timeout: 120_000 });
-      await waitForEditor(page);
+      // A navigation that never completes is a report, not a stack trace.
+      try {
+        await page.goto(url, { waitUntil: "domcontentloaded", timeout: 120_000 });
+      } catch (err) {
+        result.gameMounted = false;
+        result.error = `the editor page did not load (${String(err.message || err).split("\n")[0]}). Check \`status\`; the machine may be saturated.`;
+        console.log(JSON.stringify(result, null, 2));
+        process.exitCode = 1;
+        return result;
+      }
+      const shell = await ensureScriptEditor(page);
+      if (shell.switched) result.switchedToLogic = true;
+      if (!shell.present) {
+        // No editor, no scrub, no evidence: say so in the report rather than
+        // dying in a Playwright timeout with nothing printed.
+        result.gameMounted = false;
+        result.error = shell.reason;
+        result.preview = await previewSummary(page).catch(() => null);
+        console.log(JSON.stringify(result, null, 2));
+        process.exitCode = 1;
+        return result;
+      }
+      result.editorSettled = shell.settled;
+      // Which editor is on screen: the main tab's, or the fullscreen scripts
+      // view with another file open. --sd writes main.sd either way, so in
+      // the second case the script on screen is not the one being scrubbed.
+      result.editorView = await page.evaluate(() =>
+        document.querySelector('[role="tab"][id$="-trigger-main"]') ? "main" : "scripts-view",
+      );
+      if (result.editorView === "scripts-view") {
+        result.editorWarning = "the logic pane is showing its fullscreen scripts view (another file is open); --sd writes main.sd and the scrub reads the file on screen, so the two may differ. Close that file in the editor before trusting this run.";
+      }
+      // The preview pane remembers screenplay mode across runs, and in that
+      // mode the game never mounts (window.__preview is installed by the game
+      // preview alone). verify needs the game, so switch back, the way a user
+      // does: the screenplay toolbar's "Preview Game" button.
+      const gameObservable = await page
+        .waitForFunction(() => window.__preview != null, null, { timeout: 5_000 })
+        .then(() => true, () => false);
+      if (!gameObservable) {
+        const toGame = page.locator('[aria-label="Preview Game"]').first();
+        const toolbarUp = await toGame.waitFor({ state: "visible", timeout: 5_000 }).then(() => true, () => false);
+        if (toolbarUp) {
+          await toGame.click();
+          result.switchedToGamePreview = true;
+          await waitForDomQuiet(page, { quiet: 600, timeout: 10_000 });
+        }
+      }
 
       if (sdPath) {
         const src = fs.readFileSync(path.resolve(sdPath), "utf8");
         result.wroteChars = await writeMainSd(page, src);
         // Reload so loadInitialFiles re-reads OPFS, then let the LSP + player
         // finish their first compile.
-        await page.reload({ waitUntil: "domcontentloaded", timeout: 120_000 });
-        await waitForEditor(page);
+        try {
+          await page.reload({ waitUntil: "domcontentloaded", timeout: 120_000 });
+        } catch (err) {
+          result.gameMounted = false;
+          result.error = `the editor page did not reload after writing the script (${String(err.message || err).split("\n")[0]}). Check \`status\`; the machine may be saturated.`;
+          console.log(JSON.stringify(result, null, 2));
+          process.exitCode = 1;
+          return result;
+        }
+        const again = await ensureScriptEditor(page);
+        if (again.switched) result.switchedToLogic = true;
+        if (!again.present) {
+          result.gameMounted = false;
+          result.error = again.reason;
+          console.log(JSON.stringify(result, null, 2));
+          process.exitCode = 1;
+          return result;
+        }
+        result.editorSettled = again.settled;
+        // The reload restores the view from storage; read it again rather
+        // than trusting the pre-reload answer.
+        result.editorView = await page.evaluate(() =>
+          document.querySelector('[role="tab"][id$="-trigger-main"]') ? "main" : "scripts-view",
+        );
+        if (result.editorView === "scripts-view") {
+          result.editorWarning = "the logic pane is showing its fullscreen scripts view (another file is open); --sd writes main.sd and the scrub reads the file on screen, so the two may differ. Close that file in the editor before trusting this run.";
+        } else {
+          delete result.editorWarning;
+        }
       }
 
       await page
@@ -682,10 +761,17 @@ async function verify(args) {
       const mount = await waitForGame(page);
       result.gameMounted = mount.mounted;
       if (mount.reloaded) result.neededReload = true;
+      if (mount.switched) result.switchedToLogic = true;
       if (!mount.mounted) {
+        // A game that never mounted is a failed run: the screenshot is not
+        // evidence and the shell must not stay green. The retry's own reason
+        // (the editor was on another screen after the reload) is added to the
+        // generic text rather than replacing it.
         result.error =
           "the game never mounted (#game absent) — the Game Preview is blank. " +
-          "Screenshot is NOT valid evidence. Try `down` then `up`.";
+          "Screenshot is NOT valid evidence. Try `down` then `up`." +
+          (mount.error ? ` On the reload retry: ${mount.error}.` : "");
+        process.exitCode = 1;
       }
 
       // Let the FIRST compile finish before touching the cursor. On a cold
@@ -762,6 +848,13 @@ async function verify(args) {
       if (shot) {
         const out = path.resolve(shot);
         fs.mkdirSync(path.dirname(out), { recursive: true });
+        // verify's evidence is the game preview, but the editor pane is in
+        // the same picture; a settled view can still be unpainted, so wait
+        // for its lines and gutter and say so if they never came.
+        const paintBudget = PAINT_BUDGET_MS;
+        if (!(await editorPainted(page, paintBudget))) {
+          result.editorPaintWarning = `the script editor had not painted its lines and gutter within ${seconds(paintBudget)} of the screenshot; the editor half of the picture may be blank`;
+        }
         await page.screenshot({ path: out, fullPage: false });
         result.screenshot = out;
       }
@@ -776,6 +869,1081 @@ async function verify(args) {
     { headless },
   );
 }
+
+// ------------------------------------------------------- editor surfaces ---
+//
+// `verify` reaches the game preview. These reach the editor's own interface:
+// the find and go-to-line panels inside the script editor, and the three main
+// screens the bottom tabs switch between. A change to any of those is invisible
+// to `verify`, and before this every session that touched one wrote its own
+// Playwright script to satisfy the skill's completion gate (#423).
+//
+// Every action here is the one a user performs: the panels open on their own
+// keyboard shortcut, text goes in as real keystrokes, screens switch by
+// clicking the tab. Nothing dispatches into CodeMirror or pokes the workspace
+// store, so what these observe is what a user would see.
+
+// Panels the script editor owns. Each opens on a CodeMirror keymap binding and
+// is identified by the class its Panel implementation sets on its root
+// (customSearch.ts in sparkdown-document-views). The fields are contenteditable
+// divs carrying a `name`, not <input>s.
+const SURFACES = {
+  find: {
+    selector: ".sparkdown-script-editor-root .cm-search",
+    open: "Control+f",
+    fields: { search: "[name=search]", replace: "[name=replace]" },
+    buttons: ["next", "prev", "select", "replace", "replaceAll", "close"],
+    toggles: ["case", "re", "word"],
+  },
+  goto: {
+    selector: ".sparkdown-script-editor-root .cm-gotoLine",
+    open: "Control+g",
+    fields: { line: "[name=line]" },
+    buttons: ["submit", "close"],
+    toggles: [],
+  },
+};
+
+// The main screens. Every tab in the editor is a Radix trigger whose id ends in
+// `-trigger-<value>`, and the value is the workspace's own name for the pane
+// (`logic`, `assets`, `share`) or, for the tab row inside a pane, its panel
+// (`main`, `scripts`, ...). The tab's text is not usable as a name: it renders
+// twice (an active and an inactive label), so its accessible name is
+// "LogicLogic".
+//
+// Which screen is on display is read from the pane's content, not from the
+// screen tab's selected state: on a fresh load the app highlights no screen tab
+// at all (MainWindow.tsx pins the tab row to a non-matching value until the
+// workspace reports ready), so the tab says "none" while the logic screen is
+// plainly showing. Each pane mounts its own inner tab row and nothing else
+// does, so that row is the marker; the logic pane's fullscreen scripts view
+// (Logic.tsx, view "logic-editor") mounts no tab row but does mount a script
+// editor, so that counts for logic too. The Router mounts one pane at a time.
+const SCREENS = {
+  logic: '[role="tab"][id$="-trigger-main"], .sparkdown-script-editor-root .cm-content',
+  assets: '[role="tab"][id$="-trigger-files"]',
+  share: '[role="tab"][id$="-trigger-game"]',
+};
+const tabSelector = (value) => `[role="tab"][id$="-trigger-${value}"]`;
+const SHOT_TARGETS = { find: SURFACES.find.selector, goto: SURFACES.goto.selector, editor: ".sparkdown-script-editor-root .cm-editor", page: null };
+
+/**
+ * Playwright's key strings are case-sensitive for a single character: `Shift+g`
+ * delivers `key: "g"` with `shiftKey: true`, which no keyboard produces (a
+ * keyboard reports `G`), and CodeMirror resolves a letter binding from the
+ * reported key, so the shifted variant of a binding never runs from that form
+ * and the unshifted one runs instead. Measured in the live editor on
+ * 2026-09-04 with playwright 1.61: `Control+Shift+G`, `Control+Shift+KeyG`,
+ * and holding Control and Shift around `press("KeyG")` all deliver `key: "G"`;
+ * only `Control+Shift+g` delivers `g`. So a lowercase letter under Shift is
+ * rewritten to its uppercase form before it is pressed.
+ *
+ * A `+` key is written as a trailing `+` (`Control++`), the way Playwright
+ * reads it; an empty combo is refused rather than pressed as nothing.
+ */
+export function normalizeKeyCombo(combo) {
+  const raw = String(combo ?? "").trim();
+  if (raw === "") throw new Error("empty key combo");
+  let key;
+  let modsText;
+  if (raw === "+" || raw.endsWith("++")) {
+    key = "+";
+    modsText = raw === "+" ? "" : raw.slice(0, -2);
+  } else if (raw.endsWith("+")) {
+    throw new Error(`key combo "${combo}" names no key (write a + key as "Control++")`);
+  } else {
+    const at = raw.lastIndexOf("+");
+    key = at < 0 ? raw : raw.slice(at + 1);
+    modsText = at < 0 ? "" : raw.slice(0, at);
+  }
+  key = key.trim();
+  if (key === "") throw new Error(`key combo "${combo}" names no key`);
+  const mods = modsText.split("+").map((m) => m.trim()).filter(Boolean);
+  const shifted = mods.some((m) => /^shift$/i.test(m));
+  const fixed = shifted && /^[a-z]$/.test(key) ? key.toUpperCase() : key;
+  return { combo: [...mods, fixed].join("+"), rewritten: fixed !== key };
+}
+
+async function pressKey(page, combo) {
+  const n = normalizeKeyCombo(combo);
+  await page.keyboard.press(n.combo);
+  return n;
+}
+
+/** Focus the CodeMirror view so editor-scoped keymap bindings receive keys. */
+async function focusEditor(page) {
+  await page.evaluate(() => document.querySelector(".sparkdown-script-editor-root .cm-content")?.cmTile?.view?.focus());
+}
+
+/** Resolve while the DOM has been still for `quiet` ms, or give up at `timeout`. */
+async function waitForDomQuiet(page, { quiet = 400, timeout = 8_000 } = {}) {
+  return page.evaluate(
+    ({ quiet, timeout }) =>
+      new Promise((resolve) => {
+        let timer;
+        const done = (settled) => {
+          obs.disconnect();
+          clearTimeout(giveUp);
+          resolve(settled);
+        };
+        const arm = () => {
+          clearTimeout(timer);
+          timer = setTimeout(() => done(true), quiet);
+        };
+        const obs = new MutationObserver(arm);
+        obs.observe(document.body, { subtree: true, childList: true, characterData: true, attributes: true });
+        const giveUp = setTimeout(() => done(false), timeout);
+        arm();
+      }),
+    { quiet, timeout },
+  );
+}
+
+/** The editor shell is up: its tab row exists. Does not need the script editor. */
+async function waitForApp(page, timeout = 90_000) {
+  await page.waitForSelector('[role="tab"]', { timeout });
+}
+
+/** The screen on display, read from pane content; null while no pane is mounted. */
+async function activeScreen(page) {
+  const mounted = await mountedScreens(page);
+  return mounted.length === 1 ? mounted[0] : null;
+}
+
+/** Every main screen whose content is mounted; empty while no pane is. */
+async function mountedScreens(page) {
+  return page.evaluate(
+    (screens) => Object.entries(screens).filter(([, selector]) => document.querySelector(selector)).map(([name]) => name),
+    SCREENS,
+  );
+}
+
+/**
+ * The script editor is only on the logic screen, and the screen is remembered
+ * by the persistent profile across runs. A command that needs the editor
+ * cannot assume it is there; this says whether it is, and why not.
+ */
+async function scriptEditorPresent(page, timeout = 10_000) {
+  // Fail fast when another screen is on display: the editor cannot appear
+  // there, so waiting the full budget would only cost the session time. On
+  // the logic screen the budget stays, because a cold editor's mount was
+  // measured at up to ~4.6 s on the reference machine.
+  const screenNow = await activeScreen(page);
+  const budget = screenNow != null && screenNow !== "logic" ? 500 : timeout;
+  try {
+    await page.waitForFunction(() => document.querySelector(".sparkdown-script-editor-root .cm-content")?.cmTile?.view != null, null, { timeout: budget });
+    return { present: true };
+  } catch {
+    const screen = await activeScreen(page);
+    const panelTab = await page.evaluate(() =>
+      [...document.querySelectorAll('[role="tab"][aria-selected="true"]')].map((t) => t.id.replace(/^.*-trigger-/, "")).find((v) => !["logic", "assets", "share"].includes(v)) ?? null,
+    );
+    return { present: false, ...editorAbsentReason({ screen, panelTab, budgetMs: budget }) };
+  }
+}
+
+/**
+ * The words for an absent editor, in parts, so a caller that adds its own
+ * advice can keep the navigational kind ("put --screen main before this
+ * step") and drop only the generic kind (re-run). Pure; the gate test builds
+ * its stubs from it so the strings cannot drift apart.
+ */
+export function editorAbsentReason({ screen, panelTab, budgetMs }) {
+  const where = `the script editor is not on screen (active screen: ${screen ?? "none"}${panelTab ? `, tab: ${panelTab}` : ""})`;
+  // No screen at all is a page still loading, not a wrong screen: nothing to
+  // navigate to, so no navigational advice.
+  const navigational =
+    screen === "logic" && panelTab && panelTab !== "main"
+      ? "put --screen main before this step"
+      : screen != null && screen !== "logic"
+        ? "put --screen logic before this step"
+        : null;
+  const advice = navigational ?? `the editor did not mount within ${seconds(budgetMs)}; the machine may be saturated, re-run`;
+  return { reason: `${where}; ${advice}`, where, advice, navigational };
+}
+
+/**
+ * Is a script editor expected on the screen as it is now? Yes on the logic
+ * pane's `main` tab and in its fullscreen scripts view (no tab row); no on the
+ * `scripts` tab or on any other screen. Waits briefly for a pane to mount, so
+ * a page still hydrating does not read as "nothing expected".
+ */
+async function editorExpectedHere(page) {
+  await page
+    .waitForFunction((screens) => Object.values(screens).some((sel) => document.querySelector(sel)), SCREENS, { timeout: 5_000 })
+    .catch(() => {});
+  const screen = await activeScreen(page);
+  // No pane mounted at all is a page still loading, and in the fullscreen
+  // scripts view the editor is its own pane marker; neither is "nothing
+  // expected". Only a mounted pane can say no.
+  if (screen == null) return null;
+  if (screen !== "logic") return false;
+  return page.evaluate(() => {
+    const main = document.querySelector('[role="tab"][id$="-trigger-main"]');
+    return main == null || main.getAttribute("aria-selected") === "true";
+  });
+}
+
+// The budgets the gate, the screen switch, the run's start, the --sd settle
+// and the panel opener share. A site that names one in a message formats the
+// local it waited with `seconds`, so the wait and the sentence cannot part.
+// `verify`'s own mount waits, the --sd reload's, and the gate's short
+// recovery look and re-settle are each their own number at their own site.
+// A cold mount gets MOUNT_BUDGET_MS and a cold settle SETTLE_BUDGET_MS; a
+// screen switch that lands on the editor and the run's start always use
+// those two. Once the run has settled the editor anywhere, a gated step
+// re-checks with WARM_BUDGET_MS for both.
+const MOUNT_BUDGET_MS = 20_000;
+const SETTLE_BUDGET_MS = 15_000;
+const WARM_BUDGET_MS = 8_000;
+// How long a screenshot waits for a settled editor to paint.
+const PAINT_BUDGET_MS = 5_000;
+const seconds = (ms) => `${ms / 1000}s`;
+
+/**
+ * A settled view is not yet a painted one: the identity and document length
+ * can hold still while the editor has drawn nothing. A screenshot needs the
+ * lines and the gutter on screen; this waits for them.
+ */
+async function editorPainted(page, timeout = PAINT_BUDGET_MS) {
+  return page
+    .waitForFunction(
+      () => {
+        const root = document.querySelector(".sparkdown-script-editor-root");
+        if (!root) return false;
+        const lines = root.querySelectorAll(".cm-line").length;
+        const gutter = root.querySelector(".cm-gutters");
+        return lines > 0 && gutter != null && gutter.getBoundingClientRect().height > 0;
+      },
+      null,
+      { timeout },
+    )
+    .then(() => true, () => false);
+}
+
+/**
+ * For a step that captures or acts on whatever is on screen (a screenshot or
+ * a key press): if an editor is expected here — or nothing has mounted yet to
+ * say otherwise — it must be mounted and settled first, or the step reports
+ * why not and the run fails. If a mounted pane says none is expected (another
+ * screen, the `scripts` tab), the step proceeds; it is not the driver's place
+ * to guess what the session wanted to capture there.
+ *
+ * The wait is paid once per run: after anything has settled the editor (the
+ * run's start, a reload, a screen switch, or an earlier step), later steps
+ * re-check it with the shorter warm budgets, and after a step has given up
+ * on it, later steps fail at once and point at the first. A screenshot alone
+ * also waits for the editor to paint.
+ */
+function editorGate({ expected = editorExpectedHere, present = scriptEditorPresent, settle = settleEditor, painted = editorPainted } = {}) {
+  let settledOnce = false;
+  // What the first failed step found, and which step it was, so later steps
+  // can fail fast and point at it. `kind` decides what a recovery look does.
+  let gaveUp = null;
+  const gate = async (page, what, step = null) => {
+    // The question comes first: a step on a screen where no editor is
+    // expected is never refused, whatever an earlier step found.
+    const exp = await expected(page);
+    if (exp === false) return { required: false };
+    const at = gaveUp?.step != null ? `step ${gaveUp.step}` : "an earlier step";
+    if (gaveUp) {
+      // Fail fast, but let a recovery show: a short look that finds the
+      // editor up and settled clears the latch and the step proceeds. The
+      // re-settle needs three reads 600 ms apart plus their round trips, so
+      // its budget leaves room for a slow machine.
+      const quick = await present(page, 2_000);
+      if (!quick.present) return { required: true, ok: false, reason: `the script editor is still not up (${at} reported: ${gaveUp.what}); this ${what} was skipped` };
+      if (gaveUp.kind === "unsettled" && !(await settle(page, 6_000))) {
+        return { required: true, ok: false, reason: `the script editor is still being replaced (${at} reported: ${gaveUp.what}); this ${what} was skipped` };
+      }
+      gaveUp = null;
+    }
+    const budget = settledOnce ? WARM_BUDGET_MS : MOUNT_BUDGET_MS;
+    const here = await present(page, budget);
+    if (!here.present) {
+      // The presence check's navigational advice ("put --screen main before
+      // this step") is the fix and is kept; its generic advice is the same
+      // as the gate's and is said once.
+      // "no pane had mounted" is said only while that is still so; a pane
+      // that mounted during the wait is named by the presence check itself.
+      const stillNoPane = exp == null && /active screen: none/.test(here.where ?? "");
+      const state = (stillNoPane ? "no pane had mounted; " : "") + (here.where ?? here.reason);
+      const advice = here.navigational ?? "Re-run; if it persists the machine is saturated";
+      gaveUp = { kind: "absent", what: state, step };
+      return { required: true, ok: false, reason: `this ${what} needs the script editor, which had not mounted within ${seconds(budget)} (${state}); ${advice}` };
+    }
+    const settleBudget = settledOnce ? WARM_BUDGET_MS : SETTLE_BUDGET_MS;
+    if (!(await settle(page, settleBudget))) {
+      gaveUp = { kind: "unsettled", what: `the view kept being replaced for ${seconds(settleBudget)}`, step };
+      return { required: true, ok: false, reason: `this ${what} needs a settled script editor, and the view kept being replaced for ${seconds(settleBudget)}. Re-run; if it persists the machine is saturated` };
+    }
+    settledOnce = true;
+    // A settled view can still be unpainted; a screenshot of it is a picture
+    // of nothing, so the capture step alone also waits for the paint.
+    const paintBudget = PAINT_BUDGET_MS;
+    if (what === "screenshot" && !(await painted(page, paintBudget))) {
+      return { required: true, ok: false, reason: `the script editor is mounted and settled but has not painted its lines and gutter within ${seconds(paintBudget)}; this screenshot would have shown an unpainted editor pane. Re-run; if it persists the machine is saturated` };
+    }
+    return { required: true, ok: true };
+  };
+  // A settle the run did elsewhere (at the start, after --sd, in a screen
+  // switch that landed on the editor) tells the gate, so the once-per-run
+  // rule holds across it; a settled editor is a present one, so either kind
+  // of give-up is cleared.
+  gate.noteSettled = () => {
+    settledOnce = true;
+    gaveUp = null;
+  };
+  // A reload throws the settled view away; nothing the gate learned about it
+  // holds for the next one.
+  gate.reset = () => {
+    settledOnce = false;
+    gaveUp = null;
+  };
+  return gate;
+}
+
+/**
+ * Wait until the script editor is not only present but stable: the logic pane
+ * mounts a CodeMirror view, and a moment later the document arrives and the
+ * view can be replaced. A shortcut pressed into the first view goes nowhere,
+ * and a cursor read from it is null. Stable means the same view object with
+ * the same document length across three reads 600 ms apart.
+ */
+async function settleEditor(page, timeout = 30_000) {
+  // Stability is the view's own identity and document length holding across
+  // three reads 600 ms apart. It does not wait for the whole page's DOM to go
+  // quiet: the game preview animates and the language server churns
+  // attributes, and neither says anything about whether the editor view is
+  // about to be replaced.
+  const deadline = Date.now() + timeout;
+  let last = null;
+  let stableFor = 0;
+  while (Date.now() < deadline) {
+    const id = await page.evaluate(() => {
+      const view = document.querySelector(".sparkdown-script-editor-root .cm-content")?.cmTile?.view;
+      if (!view) return null;
+      // Identity is tracked in a WeakMap on the window, not written onto the
+      // view, so the editor is observed and not touched.
+      const ids = (window.__driverViewIds ??= new WeakMap());
+      if (!ids.has(view)) ids.set(view, Math.random().toString(36).slice(2));
+      return `${ids.get(view)}:${view.state.doc.length}`;
+    });
+    if (id != null && id === last) {
+      stableFor += 1;
+      if (stableFor >= 2) return true;
+    } else {
+      stableFor = 0;
+    }
+    last = id;
+    await sleep(600);
+  }
+  return false;
+}
+
+/**
+ * For commands that always need the script editor (`verify`): bring the logic
+ * screen back if a previous run left the profile elsewhere, then wait for the
+ * editor as before.
+ */
+async function ensureScriptEditor(page) {
+  await waitForApp(page);
+  let switched = false;
+  let first = await scriptEditorPresent(page, 10_000);
+  if (!first.present) {
+    // The editor lives on the logic screen's `main` tab (or its fullscreen
+    // scripts view). Clicking the logic screen tab only changes the screen
+    // (WorkspaceWindow.openPane sets the pane, not the panel), so a profile
+    // left on the `scripts` tab needs the inner tab clicked as well. Both
+    // clicks happen before the one long wait, so a `scripts` profile does not
+    // pay a dead budget on the logic click. A tab already on display is not
+    // clicked, so `switched` is only ever true for a click that changed
+    // something; the screen is judged from its content, not its highlight.
+    const clickIfNeeded = async (value, needed) => {
+      const tab = page.locator(tabSelector(value)).first();
+      if (!(await tab.isVisible().catch(() => false))) return false;
+      if (!(await needed(tab))) return false;
+      await tab.click();
+      await waitForDomQuiet(page, { quiet: 600, timeout: 10_000 });
+      return true;
+    };
+    const clickedLogic = await clickIfNeeded("logic", async () => (await activeScreen(page)) !== "logic");
+    const clickedMain = await clickIfNeeded("main", async (tab) => (await tab.getAttribute("aria-selected")) !== "true");
+    // One long wait for a cold mount, whether or not anything was clicked.
+    first = await scriptEditorPresent(page, 45_000);
+    // A click that changed the screen is reported whether or not the editor
+    // then came up; the caller can say both things.
+    switched = clickedLogic || clickedMain;
+  }
+  if (!first.present) return { present: false, switched, reason: first.reason };
+  // The view can be replaced when the document arrives, on a cold load as
+  // much as after a switch, so settle it on every path.
+  const settled = await settleEditor(page);
+  return { present: true, switched, settled };
+}
+
+function surfaceOf(name) {
+  const s = SURFACES[name];
+  if (!s) throw new Error(`unknown surface "${name}" (know: ${Object.keys(SURFACES).join(", ")})`);
+  return s;
+}
+
+async function surfaceOpen(page, name) {
+  return page.locator(surfaceOf(name).selector).first().isVisible().catch(() => false);
+}
+
+/** Open a panel on its own shortcut and wait for it to be on screen. */
+async function openSurface(page, name, { settled = false } = {}) {
+  const s = surfaceOf(name);
+  if (await surfaceOpen(page, name)) return { surface: name, open: true, alreadyOpen: true };
+  const editor = await scriptEditorPresent(page);
+  if (!editor.present) return { surface: name, open: false, reason: editor.reason };
+  // The view can still be replaced a moment after it appears; a shortcut sent
+  // into the old view opens nothing. `ui` settles through its gate first and
+  // says so; a caller outside `ui` gets the settle here.
+  if (!settled && !(await settleEditor(page, SETTLE_BUDGET_MS))) {
+    return { surface: name, open: false, reason: `the script editor kept being replaced for ${seconds(SETTLE_BUDGET_MS)} and never settled; the shortcut was not sent. Re-run; if it persists the machine is saturated` };
+  }
+  await focusEditor(page);
+  const key = await pressKey(page, s.open);
+  try {
+    await page.locator(s.selector).first().waitFor({ state: "visible", timeout: 10_000 });
+  } catch {
+    return {
+      surface: name,
+      open: false,
+      pressed: key.combo,
+      reason: `${s.selector} did not appear within 10s of pressing ${key.combo} with the editor focused`,
+    };
+  }
+  return { surface: name, open: true, pressed: key.combo };
+}
+
+/** Close a panel the way a user does: Escape from inside it. */
+async function closeSurface(page, name) {
+  const s = surfaceOf(name);
+  if (!(await surfaceOpen(page, name))) return { surface: name, open: false, alreadyClosed: true };
+  const firstField = Object.values(s.fields)[0];
+  await page.locator(`${s.selector} ${firstField}`).first().click();
+  await pressKey(page, "Escape");
+  try {
+    await page.locator(s.selector).first().waitFor({ state: "hidden", timeout: 5_000 });
+  } catch {
+    return { surface: name, open: true, reason: `${s.selector} still visible 5s after Escape` };
+  }
+  return { surface: name, open: false, closed: true };
+}
+
+/** Which panel a field name belongs to. */
+function surfaceForField(field) {
+  for (const [name, s] of Object.entries(SURFACES)) if (s.fields[field]) return name;
+  throw new Error(
+    `unknown field "${field}" (know: ${Object.values(SURFACES).flatMap((s) => Object.keys(s.fields)).join(", ")})`,
+  );
+}
+
+function fieldLocator(page, field) {
+  const name = surfaceForField(field);
+  const s = surfaceOf(name);
+  return page.locator(`${s.selector} ${s.fields[field]}`).first();
+}
+
+/**
+ * What a field is showing: its rendered text (`innerText`, with the trailing
+ * break a contenteditable leaves stripped). This is the browser's rendering,
+ * not the panel's own reader (`readFieldText` in customSearch.ts); the two
+ * agree on everything `typeInto` can type, and differ only on a non-breaking
+ * space that arrives by paste or a restored query. Absent field → null.
+ */
+async function readField(page, field) {
+  const loc = fieldLocator(page, field);
+  if ((await loc.count()) === 0) return null;
+  return loc.evaluate((el) => el.innerText.replace(/\n$/, ""));
+}
+
+/**
+ * Put text into a panel field with real keystrokes: click it, select what is
+ * there, type. A `\n` in the text is entered as the field's own line-break
+ * shortcut (Control+Enter — plain Enter submits the panel), which is how a
+ * user gets a multi-line find or replace. A read-back that differs from what
+ * was typed is a `reason`, so it lands in `failed`.
+ */
+async function typeInto(page, field, text, { settled = false } = {}) {
+  const name = surfaceForField(field);
+  const opened = await openSurface(page, name, { settled });
+  if (opened.reason) return { field, typed: false, text, readBack: null, matches: false, reason: opened.reason };
+  const loc = fieldLocator(page, field);
+  if ((await loc.count()) === 0) {
+    return { field, typed: false, text, readBack: null, matches: false, reason: `the ${name} panel is open but has no "${field}" field (the replace field is absent while the editor is read-only)` };
+  }
+  await loc.click();
+  await page.keyboard.press("Control+a");
+  await page.keyboard.press("Backspace");
+  const segments = text.split("\n");
+  for (let i = 0; i < segments.length; i++) {
+    if (i > 0) await page.keyboard.press("Control+Enter");
+    if (segments[i]) await page.keyboard.type(segments[i]);
+  }
+  await waitForDomQuiet(page, { quiet: 300, timeout: 4_000 });
+  const readBack = await readField(page, field);
+  const matches = readBack === text;
+  return {
+    field,
+    typed: true,
+    text,
+    readBack,
+    matches,
+    ...(matches ? {} : { reason: `the ${field} field reads back ${JSON.stringify(readBack)} after typing ${JSON.stringify(text)}` }),
+  };
+}
+
+/** The surfaces that own a button or toggle name, open ones first. */
+async function openSurfacesOwning(page, kind, name) {
+  const owners = Object.entries(SURFACES).filter(([, s]) => s[kind].includes(name));
+  if (owners.length === 0) {
+    throw new Error(`unknown ${kind === "buttons" ? "button" : "toggle"} "${name}" (know: ${Object.values(SURFACES).flatMap((s) => s[kind]).join(", ")})`);
+  }
+  const open = [];
+  for (const [surface] of owners) if (await surfaceOpen(page, surface)) open.push(surface);
+  return { owners: owners.map(([n]) => n), open };
+}
+
+/** Click a panel button by its `name`, on whichever owning panel is open. */
+async function clickSurfaceButton(page, name) {
+  const { owners, open } = await openSurfacesOwning(page, "buttons", name);
+  if (open.length === 0) return { button: name, clicked: false, reason: `no panel with a "${name}" button is open (${owners.join(" or ")})` };
+  const surface = open[0];
+  await page.locator(`${SURFACES[surface].selector} button[name=${name}]`).first().click();
+  await waitForDomQuiet(page, { quiet: 300, timeout: 4_000 });
+  return { button: name, surface, clicked: true };
+}
+
+/** Flip one of the find panel's checkboxes (`case`, `re`, `word`) and report its state. */
+async function toggleSurfaceOption(page, name) {
+  const { owners, open } = await openSurfacesOwning(page, "toggles", name);
+  if (open.length === 0) return { toggle: name, toggled: false, reason: `no panel with a "${name}" toggle is open (${owners.join(" or ")})` };
+  const surface = open[0];
+  const box = page.locator(`${SURFACES[surface].selector} input[name=${name}]`).first();
+  const before = await box.isChecked();
+  // The box is visually hidden behind its label; clicking the label is what a user does.
+  const label = page.locator(`${SURFACES[surface].selector} label:has(input[name=${name}])`).first();
+  if ((await label.count()) > 0) await label.click();
+  else await box.click({ force: true });
+  await waitForDomQuiet(page, { quiet: 300, timeout: 4_000 });
+  const after = await box.isChecked();
+  return {
+    toggle: name,
+    surface,
+    toggled: after !== before,
+    checked: after,
+    ...(after !== before ? {} : { reason: `clicking the "${name}" toggle left it ${after ? "checked" : "unchecked"}` }),
+  };
+}
+
+/**
+ * Bring a screen to the front by clicking its tab. `name` is a main screen
+ * (logic, assets, share) or any other tab value on the page, such as the
+ * `main` / `scripts` row inside the logic pane. Success is the screen's own
+ * content being mounted (for a main screen) or the tab reporting selected (for
+ * an inner tab); the screen tab's own highlight is not trusted, see SCREENS.
+ */
+async function switchScreen(page, name, { followedByMain = false } = {}) {
+  const tab = page.locator(tabSelector(name)).first();
+  try {
+    await tab.waitFor({ state: "visible", timeout: 10_000 });
+  } catch {
+    const known = await page.evaluate(() => [...document.querySelectorAll('[role="tab"]')].map((t) => t.id.replace(/^.*-trigger-/, "")));
+    // The logic pane's fullscreen scripts view has no tab row at all; the
+    // way back is its own header button, which `ui` has no step for.
+    const inScriptsView = await page.evaluate(
+      () => document.querySelector(".sparkdown-script-editor-root .cm-content") != null && document.querySelector('[role="tab"][id$="-trigger-main"]') == null,
+    );
+    if (inScriptsView && (name === "main" || name === "scripts")) {
+      return { screen: name, active: false, reason: `the logic pane is in its fullscreen scripts view (another file is open), which has no tab row; close that file with the view's own header button, then re-run` };
+    }
+    return { screen: name, active: false, reason: `no tab named "${name}" on the page (tabs present: ${known.join(", ")})` };
+  }
+  await tab.click();
+  const isMain = name in SCREENS;
+  try {
+    if (isMain) {
+      await page.waitForFunction((selector) => document.querySelector(selector) != null, SCREENS[name], { timeout: 10_000 });
+    } else {
+      await page.locator(`${tabSelector(name)}[aria-selected="true"]`).first().waitFor({ state: "attached", timeout: 10_000 });
+    }
+  } catch {
+    return {
+      screen: name,
+      active: false,
+      reason: isMain ? `the ${name} screen's content never mounted after the click` : `the ${name} tab never reported itself selected after the click`,
+    };
+  }
+  let settled = await waitForDomQuiet(page, { quiet: 600, timeout: 10_000 });
+  // A switch that lands on the script editor (the logic screen, or its `main`
+  // tab) mounts a view that can be replaced when the document arrives; a step
+  // that runs before that lands in a view about to go away.
+  // A point check right after the click is too early: the editor mounts up
+  // to ~4.6 s after the pane does. Wait for it where the tab can bring it.
+  // `--screen logic` lands on an editor only when the logic pane's own tab is
+  // `main` (or the pane shows its fullscreen scripts view, which has no tab
+  // row); on the `scripts` tab no editor can appear, so waiting would be dead.
+  const mainTabSelectedOrAbsent = await page.evaluate(() => {
+    const main = document.querySelector('[role="tab"][id$="-trigger-main"]');
+    return main == null || main.getAttribute("aria-selected") === "true";
+  });
+  const landsOnEditor = name === "main" || (name === "logic" && mainTabSelectedOrAbsent);
+  if (name === "logic" && !mainTabSelectedOrAbsent) {
+    // The screen switched, but the pane's own tab is `scripts`: no editor
+    // came up, and the step says so rather than reading as a full recovery.
+    return { screen: name, active: true, settled, editorHere: false, note: "the logic pane's own tab is scripts, so no script editor is on screen; use --screen main to reach it" };
+  }
+  // The cold mount budget, whatever the run has settled so far: the switch
+  // mounted a fresh view, so a slow-but-fine mount must not fail the switch
+  // and then pass the screenshot that follows it.
+  const mountBudget = MOUNT_BUDGET_MS;
+  const editorHere = landsOnEditor
+    ? (await scriptEditorPresent(page, mountBudget)).present
+    : await page.evaluate(() => document.querySelector(".sparkdown-script-editor-root .cm-content") != null);
+  if (landsOnEditor && !editorHere) {
+    // The tab is up but the editor it should carry never mounted: a switch
+    // that reads as a success here would let a later screenshot lie. In the
+    // documented pair `--screen logic --screen main`, the main switch that
+    // follows waits for the editor and gives the verdict, so this is a note;
+    // any other following step does not, so this is a failure.
+    const text = `the ${name} tab is up but no script editor mounted within ${seconds(mountBudget)}`;
+    if (name === "logic" && followedByMain) return { screen: name, active: true, settled, editorHere: false, note: `${text}; the --screen main that follows waits for it` };
+    return { screen: name, active: true, settled, editorHere: false, reason: `${text}. Re-run; if it persists the machine is saturated` };
+  }
+  if (editorHere) {
+    // The cold settle budget, so a switch that reports the editor settled
+    // means what the gate means by it.
+    const settleBudget = SETTLE_BUDGET_MS;
+    const editorSettled = await settleEditor(page, settleBudget);
+    settled = editorSettled && settled;
+    if (!editorSettled) {
+      return { screen: name, active: true, settled, editorHere: true, editorSettled: false, reason: `the ${name} tab is up but its script editor never settled within ${seconds(settleBudget)}; later steps may have hit a view that was being replaced` };
+    }
+    return { screen: name, active: true, settled, editorHere: true, editorSettled: true };
+  }
+  return { screen: name, active: true, settled };
+}
+
+/** Everything a session might want to read back, in one object. */
+async function readSurfaces(page) {
+  const out = { screen: null, panelTab: null, tabs: [], find: { open: false }, goto: { open: false }, cursorLine: null };
+  out.tabs = await page.evaluate(() =>
+    [...document.querySelectorAll('[role="tab"]')].map((t) => ({
+      value: t.id.replace(/^.*-trigger-/, ""),
+      label: t.innerText.split("\n")[0].trim(),
+      selected: t.getAttribute("aria-selected") === "true",
+    })),
+  );
+  out.screens = await mountedScreens(page);
+  out.screen = out.screens.length === 1 ? out.screens[0] : null;
+  out.panelTab = out.tabs.find((t) => t.selected && !(t.value in SCREENS))?.value ?? null;
+  // Which script editor is on screen: the `main` tab's, or the logic pane's
+  // fullscreen scripts view (another file open, no tab row). --sd writes
+  // main.sd, which in the second case is not the file being shown.
+  out.editorView = await page.evaluate(() => {
+    if (!document.querySelector(".sparkdown-script-editor-root .cm-content")) return null;
+    return document.querySelector('[role="tab"][id$="-trigger-main"]') ? "main" : "scripts-view";
+  });
+
+  if (await surfaceOpen(page, "find")) {
+    out.find = {
+      open: true,
+      search: await readField(page, "search"),
+      replace: await readField(page, "replace"),
+      matches: await page.locator(".sparkdown-script-editor-root .cm-search .cm-search-matches-label").first().innerText().catch(() => ""),
+      toggles: await page.evaluate(() =>
+        Object.fromEntries([...document.querySelectorAll('.sparkdown-script-editor-root .cm-search input[type="checkbox"]')].map((c) => [c.name, c.checked])),
+      ),
+    };
+  }
+  if (await surfaceOpen(page, "goto")) {
+    out.goto = { open: true, line: await readField(page, "line") };
+  }
+  out.cursorLine = await page.evaluate(() => {
+    const view = document.querySelector(".sparkdown-script-editor-root .cm-content")?.cmTile?.view;
+    return view ? view.state.doc.lineAt(view.state.selection.main.head).number : null;
+  });
+  return out;
+}
+
+/** Screenshot one surface: a panel, the script editor, or the whole page. */
+async function shotOf(page, what, out) {
+  if (!(what in SHOT_TARGETS)) throw new Error(`unknown --shot-of target "${what}" (know: ${Object.keys(SHOT_TARGETS).join(", ")})`);
+  if (!out) throw new Error(`--shot-of ${what} needs an output path`);
+  const target = path.resolve(out);
+  fs.mkdirSync(path.dirname(target), { recursive: true });
+  if (SHOT_TARGETS[what] == null) {
+    await page.screenshot({ path: target, fullPage: false });
+  } else {
+    const loc = page.locator(SHOT_TARGETS[what]).first();
+    if (!(await loc.isVisible().catch(() => false))) {
+      return { of: what, screenshot: null, reason: `${SHOT_TARGETS[what]} is not on screen` };
+    }
+    await loc.screenshot({ path: target });
+  }
+  return { of: what, screenshot: target };
+}
+
+/**
+ * Whether the step after `index` is `--screen main`, the one switch that
+ * waits for the script editor itself. A `--screen logic` whose editor never
+ * mounts is a note rather than a failure only then; any other following step
+ * would let the missing editor pass unreported. Pure, so the test can pin the
+ * condition where it is decided.
+ */
+export function followedByMain(steps, index) {
+  return steps[index + 1]?.screen === "main";
+}
+
+/**
+ * Parse `ui` arguments into steps, refusing anything malformed before a
+ * browser is launched: a flag with no value, an unknown panel, field, button,
+ * toggle, screen or shot target, or an empty field name. Pure; tested in
+ * ui-steps.test.mjs.
+ */
+export function parseUiSteps(args) {
+  const steps = [];
+  // Any tab value is accepted here; the editor can grow a tab, and whether one
+  // exists is decided at run time, where the failure lists the tabs present.
+  const screenName = /^[a-z][a-z0-9-]*$/;
+  const fields = Object.values(SURFACES).flatMap((s) => Object.keys(s.fields));
+  const buttons = Object.values(SURFACES).flatMap((s) => s.buttons);
+  const toggles = Object.values(SURFACES).flatMap((s) => s.toggles);
+  const bad = (msg) => {
+    throw new Error(`ui: ${msg}`);
+  };
+  for (let i = 0; i < args.length; i++) {
+    const a = args[i];
+    const value = () => {
+      const v = args[i + 1];
+      if (v == null || v === "" || v.startsWith("--")) bad(`${a} needs a value`);
+      i++;
+      return v;
+    };
+    switch (a) {
+      case "--sd":
+        steps.push({ sd: value() });
+        break;
+      case "--screen": {
+        const v = value();
+        if (!screenName.test(v)) bad(`a screen is a tab value such as logic, assets, share, main, scripts (lowercase), got "${v}"`);
+        steps.push({ screen: v });
+        break;
+      }
+      case "--open":
+      case "--close": {
+        const v = value();
+        if (!SURFACES[v]) bad(`unknown panel "${v}" (know: ${Object.keys(SURFACES).join(", ")})`);
+        steps.push(a === "--open" ? { open: v } : { close: v });
+        break;
+      }
+      case "--type": {
+        const spec = value();
+        const eq = spec.indexOf("=");
+        if (eq <= 0) bad(`--type wants field=text with a field name, got "${spec}"`);
+        const field = spec.slice(0, eq);
+        if (!fields.includes(field)) bad(`unknown field "${field}" (know: ${fields.join(", ")})`);
+        steps.push({ type: field, text: spec.slice(eq + 1).replace(/\\n/g, "\n") });
+        break;
+      }
+      case "--press": {
+        const v = value();
+        try {
+          normalizeKeyCombo(v);
+        } catch (e) {
+          bad(e.message);
+        }
+        steps.push({ press: v });
+        break;
+      }
+      case "--click": {
+        const v = value();
+        if (!buttons.includes(v)) bad(`unknown button "${v}" (know: ${buttons.join(", ")})`);
+        steps.push({ click: v });
+        break;
+      }
+      case "--toggle": {
+        const v = value();
+        if (!toggles.includes(v)) bad(`unknown toggle "${v}" (know: ${toggles.join(", ")})`);
+        steps.push({ toggle: v });
+        break;
+      }
+      case "--shot":
+        steps.push({ shotOf: "page", out: value() });
+        break;
+      case "--shot-of": {
+        const what = value();
+        if (!(what in SHOT_TARGETS)) bad(`unknown --shot-of target "${what}" (know: ${Object.keys(SHOT_TARGETS).join(", ")})`);
+        const out = value();
+        steps.push({ shotOf: what, out });
+        break;
+      }
+      case "--probe":
+        steps.push({ probe: value() });
+        break;
+      case "--headed":
+        break;
+      default:
+        bad(`unknown argument ${a}`);
+    }
+  }
+  return steps;
+}
+
+/**
+ * `ui`: run the steps in the order given, then read every surface back. Each
+ * step records its own outcome under `steps`; a step that fails, or throws,
+ * records a `reason` and the run continues, so the report is never lost.
+ */
+async function ui(args) {
+  const headless = !args.includes("--headed");
+  let steps;
+  try {
+    steps = parseUiSteps(args);
+  } catch (e) {
+    die(e.message);
+  }
+
+  return withEditor(
+    async ({ page, url, consoleLines }) => {
+      const result = { url, steps: [] };
+      const requireEditor = editorGate();
+      try {
+        await page.goto(url, { waitUntil: "domcontentloaded", timeout: 120_000 });
+        await waitForApp(page);
+      } catch (err) {
+        result.failed = [`the editor page did not load (${String(err.message || err).split("\n")[0]}). Check \`status\`; the machine may be saturated.`];
+        console.log(JSON.stringify(result, null, 2));
+        process.exitCode = 1;
+        return result;
+      }
+      result.startedOn = await activeScreen(page);
+      // The start only records what it finds. A step that needs a settled
+      // editor (a screenshot, a key press, a panel) checks for one itself at
+      // the moment it runs, so the failure lands on the step that would
+      // otherwise have lied, and a run whose steps never needed the editor is
+      // not failed for a slow mount it never depended on.
+      const expectedAtStart = await editorExpectedHere(page);
+      if (expectedAtStart === false) {
+        if (result.startedOn === "logic") result.startNote = "the run started on the logic screen's scripts tab, where there is no script editor; --screen main reaches it";
+      } else {
+        const mountBudget = MOUNT_BUDGET_MS;
+        const here = await scriptEditorPresent(page, mountBudget);
+        result.editorSettled = here.present ? await settleEditor(page, SETTLE_BUDGET_MS) : false;
+        if (result.editorSettled) requireEditor.noteSettled();
+        if (!here.present) {
+          result.startNote = expectedAtStart == null
+            ? `no pane had mounted ${seconds(mountBudget)} after the page loaded; each later step that needs the editor waits again and reports for itself`
+            : `the script editor had not mounted ${seconds(mountBudget)} after the page loaded; each later step that needs it waits again and reports for itself`;
+        }
+      }
+
+      for (const [index, step] of steps.entries()) {
+        const stepNo = index + 1;
+        try {
+          if (step.sd) {
+            const src = fs.readFileSync(path.resolve(step.sd), "utf8");
+            const wroteChars = await writeMainSd(page, src);
+            // The reload throws the settled view away.
+            requireEditor.reset();
+            await page.reload({ waitUntil: "domcontentloaded", timeout: 120_000 });
+            await waitForApp(page);
+            const out = { sd: step.sd, wroteChars };
+            // No editor can appear on the `scripts` tab or another screen;
+            // say so at once instead of waiting a minute for it.
+            // Only a mounted pane can say no editor is coming; a page with no
+            // pane yet, or the scripts view whose marker is the editor itself,
+            // gets the full wait.
+            const expectedAfterReload = await editorExpectedHere(page);
+            const editor = expectedAfterReload === false ? await scriptEditorPresent(page, 1_000) : await scriptEditorPresent(page, 60_000);
+            if (editor.present) {
+              // As verify does on its own path: let the view stop being
+              // replaced, let the first compile settle, and let the editor's
+              // asynchronous cursor restore land, before any step reads or
+              // moves the cursor. The preview is observable only in
+              // same-origin mode (window.__preview); elsewhere waiting on it
+              // would burn the full timeout for nothing.
+              out.editorSettled = await settleEditor(page, SETTLE_BUDGET_MS);
+              if (out.editorSettled) requireEditor.noteSettled();
+              // window.__preview is installed by the game preview's own effect,
+              // a moment after mount, and never in cross-origin mode or while
+              // the preview is in screenplay mode; wait for it, then give up.
+              const observable = await page
+                .waitForFunction(() => window.__preview != null, null, { timeout: 15_000 })
+                .then(() => true, () => false);
+              if (observable) {
+                out.previewSettled = (await waitForPreviewSettle(page)).settled;
+              } else {
+                out.previewSettled = null;
+                out.previewNote = "the game preview is not observable (cross-origin mode, or the preview is showing the screenplay), so the first compile was not waited for";
+              }
+              if (!out.editorSettled) out.reason = `the script editor never settled within ${seconds(SETTLE_BUDGET_MS)} after the reload; later steps may have hit a view that was being replaced`;
+              // --sd wrote main.sd; if the pane is showing another file in
+              // its fullscreen scripts view, the editor on screen is not it.
+              out.editorView = await page.evaluate(() => (document.querySelector('[role="tab"][id$="-trigger-main"]') ? "main" : "scripts-view"));
+              if (out.editorView === "scripts-view") {
+                const viewReason = "the logic pane is showing its fullscreen scripts view (another file is open); --sd wrote main.sd, which is not the file on screen. Close that file in the editor and re-run";
+                out.reason = out.reason ? `${out.reason}; also ${viewReason}` : viewReason;
+              }
+            } else {
+              out.reason = editor.reason;
+            }
+            await waitForDomQuiet(page, { quiet: 1500, timeout: 30_000 });
+            result.steps.push(out);
+          } else if (step.screen) {
+            // In the documented recovery pair `--screen logic --screen main`,
+            // the logic switch has no business failing for an editor the
+            // main switch is about to wait for.
+            const switched = await switchScreen(page, step.screen, { followedByMain: followedByMain(steps, index) });
+            if (switched.editorSettled) requireEditor.noteSettled();
+            result.steps.push(switched);
+          } else if (step.open) {
+            const ready = await requireEditor(page, "panel", stepNo);
+            if (ready.ok === false) {
+              result.steps.push({ surface: step.open, open: false, gated: true, reason: ready.reason });
+              continue;
+            }
+            result.steps.push(await openSurface(page, step.open, { settled: ready.ok === true }));
+          } else if (step.close) {
+            result.steps.push(await closeSurface(page, step.close));
+          } else if (step.type) {
+            const ready = await requireEditor(page, "field", stepNo);
+            if (ready.ok === false) {
+              result.steps.push({ field: step.type, typed: false, text: step.text, readBack: null, matches: false, gated: true, reason: ready.reason });
+              continue;
+            }
+            result.steps.push(await typeInto(page, step.type, step.text, { settled: ready.ok === true }));
+          } else if (step.press) {
+            const ready = await requireEditor(page, "key press", stepNo);
+            if (ready.ok === false) {
+              result.steps.push({ press: step.press, sent: null, gated: true, reason: ready.reason });
+              continue;
+            }
+            const n = await pressKey(page, step.press);
+            await waitForDomQuiet(page, { quiet: 300, timeout: 4_000 });
+            result.steps.push({ press: step.press, sent: n.combo, rewritten: n.rewritten });
+          } else if (step.click) {
+            result.steps.push(await clickSurfaceButton(page, step.click));
+          } else if (step.toggle) {
+            result.steps.push(await toggleSurfaceOption(page, step.toggle));
+          } else if (step.shotOf) {
+            const ready = await requireEditor(page, "screenshot", stepNo);
+            if (ready.ok === false) {
+              result.steps.push({ of: step.shotOf, screenshot: null, gated: true, reason: ready.reason });
+              continue;
+            }
+            result.steps.push(await shotOf(page, step.shotOf, step.out));
+          } else if (step.probe) {
+            // Never gated: a probe captures no pixels, and it is the one step
+            // that can diagnose a page whose editor will not mount.
+            const code = fs.readFileSync(path.resolve(step.probe), "utf8");
+            result.steps.push({
+              probe: step.probe,
+              result: await page.evaluate(
+                // eslint-disable-next-line no-new-func
+                (src) => new Function(`return (async () => { ${src} })()`)(),
+                code,
+              ),
+            });
+          }
+        } catch (err) {
+          result.steps.push({ ...step, reason: `step threw: ${String(err.message || err).split("\n")[0]}` });
+        }
+      }
+
+      try {
+        result.ui = await readSurfaces(page);
+      } catch (err) {
+        result.ui = null;
+        result.readError = String(err.message || err).split("\n")[0];
+      }
+      result.failed = result.steps.filter((s) => s.reason).map((s) => s.reason);
+      if (result.readError) result.failed.push(`read-back failed: ${result.readError}`);
+      result.consoleErrors = consoleLines.filter((l) => l.startsWith("[error]") || l.startsWith("[pageerror]")).slice(0, 25);
+      console.log(JSON.stringify(result, null, 2));
+      // A step that could not do what it was asked is a failed run, whatever
+      // else succeeded: `ui --sd x.sd --shot out.png && open out.png` must not
+      // open a screenshot of the wrong document under a green shell.
+      process.exitCode = result.failed.length > 0 ? 1 : 0;
+      return result;
+    },
+    { headless },
+  );
+}
+
+// ---------------------------------------------------------------- redgreen ---
+
+// Paths in --files and the test command's cwd are the directory the session
+// is standing in, which must be this driver's own worktree root: runRedGreen
+// refuses a subdirectory (git resolves rev:path from the root), and this
+// refuses another checkout, so the worktree's driver never edits main's tree.
+async function redgreenCli(args) {
+  let report;
+  try {
+    const opts = parseRedGreenArgs(args);
+    const cwd = process.cwd();
+    if (!sameDir(cwd, REPO_ROOT)) {
+      const top = (() => {
+        try {
+          return gitTopLevel(cwd);
+        } catch {
+          return null;
+        }
+      })();
+      die(
+        top && !sameDir(top, REPO_ROOT)
+          ? `redgreen: run it from this driver's own worktree root (${REPO_ROOT}), not from ${cwd}, which is ${sameDir(top, cwd) ? "the root of" : "inside"} a different checkout${sameDir(top, cwd) ? "" : ` (${path.resolve(top)})`}`
+          : `redgreen: run from the repository root (${REPO_ROOT}), not from ${cwd}; --files paths and the test command resolve from there`,
+      );
+    }
+    report = runRedGreen({
+      repoRoot: cwd,
+      test: opts.test,
+      files: opts.files,
+      base: opts.base,
+      log: (line) => console.error(line),
+    });
+  } catch (e) {
+    die(e.message);
+  }
+  console.log(JSON.stringify(report, null, 2));
+  if (!report.ok) process.exit(1);
+}
+
+// Helpers for a session that has to drive the editor beyond what `ui` and
+// `verify` cover. Import them from a script INSIDE the repo tree (Node resolves
+// playwright from the importing script's directory), e.g.
+//   import { withEditor, writeMainSd, waitForEditor } from "../../.claude/skills/resolve-issue/driver.mjs";
+export {
+  withEditor,
+  writeMainSd,
+  waitForEditor,
+  waitForApp,
+  ensureScriptEditor,
+  settleEditor,
+  scriptEditorPresent,
+  editorExpectedHere,
+  editorGate,
+  activeScreen,
+  waitForDomQuiet,
+  focusEditor,
+  pressKey,
+  openSurface,
+  closeSurface,
+  typeInto,
+  readField,
+  readSurfaces,
+  clickSurfaceButton,
+  toggleSurfaceOption,
+  switchScreen,
+  shotOf,
+  SURFACES,
+  SCREENS,
+};
 
 // ------------------------------------------------------------------ utils ---
 
@@ -810,6 +1978,12 @@ switch (cmd) {
   case "verify":
     await verify(rest);
     break;
+  case "ui":
+    await ui(rest);
+    break;
+  case "redgreen":
+    await redgreenCli(rest);
+    break;
   default:
     log(
       [
@@ -819,7 +1993,9 @@ switch (cmd) {
         "  up [--cross-origin]   boot both dev servers, wait for ready, record the URL",
         "  status                is it up? prints the editor URL",
         "  down                  kill the server tree",
-        "  verify [options]      drive the editor and print a JSON report",
+        "  verify [options]      drive the game preview and print a JSON report",
+        "  ui [steps]            drive the editor's own panels and screens; print a JSON report",
+        "  redgreen [options]    prove a regression test fails on the base and passes on the fix",
         "",
         "verify options:",
         "  --sd <file.sd>   load this script into OPFS /local/main.sd, then reload",
@@ -827,6 +2003,26 @@ switch (cmd) {
         "  --shot <out.png> screenshot the editor page",
         "  --probe <file.js> body of an async fn evaluated in the editor page; result -> JSON",
         "  --headed         run a visible browser instead of headless",
+        "",
+        "ui steps (run in the order given, then every surface is read back):",
+        "  --sd <file.sd>          load this script into OPFS /local/main.sd, then reload",
+        "  --screen <name>         click a tab: logic | assets | share, or one inside a pane: main | scripts | files | urls | game | screenplay",
+        "  --open <panel>          open a panel on its shortcut: find (Ctrl+F) | goto (Ctrl+G)",
+        "  --close <panel>         close it with Escape",
+        "  --type <field>=<text>   real keystrokes into search | replace | line; \\n = Ctrl+Enter",
+        "  --press <combo>         a key combo, e.g. Control+Shift+G (a shifted letter is uppercased)",
+        "  --click <button>        a panel button: next prev select replace replaceAll close submit",
+        "  --toggle <option>       flip a find-panel checkbox: case | re | word",
+        "  --shot <out.png>        screenshot the page",
+        "  --shot-of <what> <png>  screenshot one surface: find | goto | editor | page",
+        "  --probe <file.js>       body of an async fn evaluated in the page; result -> JSON",
+        "  --headed                run a visible browser instead of headless",
+        "",
+        "redgreen options:",
+        "  --test <command>        the test invocation, run twice from the repo root",
+        "  --files <a> [<b>...]    the changed source files the test exercises",
+        "  --base <rev>            where the pre-fix content comes from (default HEAD;",
+        "                          pass origin/main once the fix is committed)",
       ].join("\n"),
     );
 }

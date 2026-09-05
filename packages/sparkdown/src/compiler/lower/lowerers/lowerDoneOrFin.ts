@@ -1,3 +1,4 @@
+import { nodeNameSet } from "../../utils/nodeNameSet";
 import { type SyntaxNode } from "@lezer/common";
 import { ErrorType } from "../../../inkjs/compiler/Parser/ErrorType";
 import { Divert } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Divert/Divert";
@@ -19,7 +20,7 @@ import { wrapInWeave } from "../utils/wrapInWeave";
 
 const UNNECESSARY_TAG = 1; // LSP DiagnosticTag.Unnecessary
 
-const IGNORABLE_SIBLINGS: ReadonlySet<string> = new Set([
+const IGNORABLE_SIBLINGS: ReadonlySet<string> = nodeNameSet([
   "Newline",
   "Whitespace",
   "ExtraWhitespace",

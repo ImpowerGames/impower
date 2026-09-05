@@ -36,12 +36,12 @@
             "#",
             "^\u0000action",
             "/#",
-            "^A character walks into location 0.\n The light shifts as the scene 0 opens.",
+            "^A character walks into location 0.\nThe light shifts as the scene 0 opens.",
             "\n",
             "#",
             "^\u0000dialogue:char_0",
             "/#",
-            "^This is dialogue line one in scene 0.\n And here is a second line with *emphasis* and ",
+            "^This is dialogue line one in scene 0.\nAnd here is a second line with *emphasis* and ",
             "ev",
             {
               "VAR?": "trust"
@@ -278,12 +278,12 @@
             "#",
             "^\u0000action",
             "/#",
-            "^A character walks into location 1.\n The light shifts as the scene 1 opens.",
+            "^A character walks into location 1.\nThe light shifts as the scene 1 opens.",
             "\n",
             "#",
             "^\u0000dialogue:char_1",
             "/#",
-            "^This is dialogue line one in scene 1.\n And here is a second line with *emphasis* and ",
+            "^This is dialogue line one in scene 1.\nAnd here is a second line with *emphasis* and ",
             "ev",
             {
               "VAR?": "trust"
@@ -520,12 +520,12 @@
             "#",
             "^\u0000action",
             "/#",
-            "^A character walks into location 10.\n The light shifts as the scene 10 opens.",
+            "^A character walks into location 10.\nThe light shifts as the scene 10 opens.",
             "\n",
             "#",
             "^\u0000dialogue:char_2",
             "/#",
-            "^This is dialogue line one in scene 10.\n And here is a second line with *emphasis* and ",
+            "^This is dialogue line one in scene 10.\nAnd here is a second line with *emphasis* and ",
             "ev",
             {
               "VAR?": "trust"
@@ -762,12 +762,12 @@
             "#",
             "^\u0000action",
             "/#",
-            "^A character walks into location 11.\n The light shifts as the scene 11 opens.",
+            "^A character walks into location 11.\nThe light shifts as the scene 11 opens.",
             "\n",
             "#",
             "^\u0000dialogue:char_3",
             "/#",
-            "^This is dialogue line one in scene 11.\n And here is a second line with *emphasis* and ",
+            "^This is dialogue line one in scene 11.\nAnd here is a second line with *emphasis* and ",
             "ev",
             {
               "VAR?": "trust"
@@ -1004,12 +1004,12 @@
             "#",
             "^\u0000action",
             "/#",
-            "^A character walks into location 12.\n The light shifts as the scene 12 opens.",
+            "^A character walks into location 12.\nThe light shifts as the scene 12 opens.",
             "\n",
             "#",
             "^\u0000dialogue:char_4",
             "/#",
-            "^This is dialogue line one in scene 12.\n And here is a second line with *emphasis* and ",
+            "^This is dialogue line one in scene 12.\nAnd here is a second line with *emphasis* and ",
             "ev",
             {
               "VAR?": "trust"
@@ -1246,12 +1246,12 @@
             "#",
             "^\u0000action",
             "/#",
-            "^A character walks into location 13.\n The light shifts as the scene 13 opens.",
+            "^A character walks into location 13.\nThe light shifts as the scene 13 opens.",
             "\n",
             "#",
             "^\u0000dialogue:char_5",
             "/#",
-            "^This is dialogue line one in scene 13.\n And here is a second line with *emphasis* and ",
+            "^This is dialogue line one in scene 13.\nAnd here is a second line with *emphasis* and ",
             "ev",
             {
               "VAR?": "trust"
@@ -1488,12 +1488,12 @@
             "#",
             "^\u0000action",
             "/#",
-            "^A character walks into location 14.\n The light shifts as the scene 14 opens.",
+            "^A character walks into location 14.\nThe light shifts as the scene 14 opens.",
             "\n",
             "#",
             "^\u0000dialogue:char_6",
             "/#",
-            "^This is dialogue line one in scene 14.\n And here is a second line with *emphasis* and ",
+            "^This is dialogue line one in scene 14.\nAnd here is a second line with *emphasis* and ",
             "ev",
             {
               "VAR?": "trust"
@@ -1730,12 +1730,12 @@
             "#",
             "^\u0000action",
             "/#",
-            "^A character walks into location 15.\n The light shifts as the scene 15 opens.",
+            "^A character walks into location 15.\nThe light shifts as the scene 15 opens.",
             "\n",
             "#",
             "^\u0000dialogue:char_7",
             "/#",
-            "^This is dialogue line one in scene 15.\n And here is a second line with *emphasis* and ",
+            "^This is dialogue line one in scene 15.\nAnd here is a second line with *emphasis* and ",
             "ev",
             {
               "VAR?": "trust"
@@ -1972,12 +1972,12 @@
             "#",
             "^\u0000action",
             "/#",
-            "^A character walks into location 16.\n The light shifts as the scene 16 opens.",
+            "^A character walks into location 16.\nThe light shifts as the scene 16 opens.",
             "\n",
             "#",
             "^\u0000dialogue:char_0",
             "/#",
-            "^This is dialogue line one in scene 16.\n And here is a second line with *emphasis* and ",
+            "^This is dialogue line one in scene 16.\nAnd here is a second line with *emphasis* and ",
             "ev",
             {
               "VAR?": "trust"
@@ -2214,12 +2214,12 @@
             "#",
             "^\u0000action",
             "/#",
-            "^A character walks into location 17.\n The light shifts as the scene 17 opens.",
+            "^A character walks into location 17.\nThe light shifts as the scene 17 opens.",
             "\n",
             "#",
             "^\u0000dialogue:char_1",
             "/#",
-            "^This is dialogue line one in scene 17.\n And here is a second line with *emphasis* and ",
+            "^This is dialogue line one in scene 17.\nAnd here is a second line with *emphasis* and ",
             "ev",
             {
               "VAR?": "trust"
@@ -2456,12 +2456,12 @@
             "#",
             "^\u0000action",
             "/#",
-            "^A character walks into location 18.\n The light shifts as the scene 18 opens.",
+            "^A character walks into location 18.\nThe light shifts as the scene 18 opens.",
             "\n",
             "#",
             "^\u0000dialogue:char_2",
             "/#",
-            "^This is dialogue line one in scene 18.\n And here is a second line with *emphasis* and ",
+            "^This is dialogue line one in scene 18.\nAnd here is a second line with *emphasis* and ",
             "ev",
             {
               "VAR?": "trust"
@@ -2698,12 +2698,12 @@
             "#",
             "^\u0000action",
             "/#",
-            "^A character walks into location 19.\n The light shifts as the scene 19 opens.",
+            "^A character walks into location 19.\nThe light shifts as the scene 19 opens.",
             "\n",
             "#",
             "^\u0000dialogue:char_3",
             "/#",
-            "^This is dialogue line one in scene 19.\n And here is a second line with *emphasis* and ",
+            "^This is dialogue line one in scene 19.\nAnd here is a second line with *emphasis* and ",
             "ev",
             {
               "VAR?": "trust"
@@ -2940,12 +2940,12 @@
             "#",
             "^\u0000action",
             "/#",
-            "^A character walks into location 2.\n The light shifts as the scene 2 opens.",
+            "^A character walks into location 2.\nThe light shifts as the scene 2 opens.",
             "\n",
             "#",
             "^\u0000dialogue:char_2",
             "/#",
-            "^This is dialogue line one in scene 2.\n And here is a second line with *emphasis* and ",
+            "^This is dialogue line one in scene 2.\nAnd here is a second line with *emphasis* and ",
             "ev",
             {
               "VAR?": "trust"
@@ -3182,12 +3182,12 @@
             "#",
             "^\u0000action",
             "/#",
-            "^A character walks into location 20.\n The light shifts as the scene 20 opens.",
+            "^A character walks into location 20.\nThe light shifts as the scene 20 opens.",
             "\n",
             "#",
             "^\u0000dialogue:char_4",
             "/#",
-            "^This is dialogue line one in scene 20.\n And here is a second line with *emphasis* and ",
+            "^This is dialogue line one in scene 20.\nAnd here is a second line with *emphasis* and ",
             "ev",
             {
               "VAR?": "trust"
@@ -3424,12 +3424,12 @@
             "#",
             "^\u0000action",
             "/#",
-            "^A character walks into location 21.\n The light shifts as the scene 21 opens.",
+            "^A character walks into location 21.\nThe light shifts as the scene 21 opens.",
             "\n",
             "#",
             "^\u0000dialogue:char_5",
             "/#",
-            "^This is dialogue line one in scene 21.\n And here is a second line with *emphasis* and ",
+            "^This is dialogue line one in scene 21.\nAnd here is a second line with *emphasis* and ",
             "ev",
             {
               "VAR?": "trust"
@@ -3666,12 +3666,12 @@
             "#",
             "^\u0000action",
             "/#",
-            "^A character walks into location 22.\n The light shifts as the scene 22 opens.",
+            "^A character walks into location 22.\nThe light shifts as the scene 22 opens.",
             "\n",
             "#",
             "^\u0000dialogue:char_6",
             "/#",
-            "^This is dialogue line one in scene 22.\n And here is a second line with *emphasis* and ",
+            "^This is dialogue line one in scene 22.\nAnd here is a second line with *emphasis* and ",
             "ev",
             {
               "VAR?": "trust"
@@ -3908,12 +3908,12 @@
             "#",
             "^\u0000action",
             "/#",
-            "^A character walks into location 23.\n The light shifts as the scene 23 opens.",
+            "^A character walks into location 23.\nThe light shifts as the scene 23 opens.",
             "\n",
             "#",
             "^\u0000dialogue:char_7",
             "/#",
-            "^This is dialogue line one in scene 23.\n And here is a second line with *emphasis* and ",
+            "^This is dialogue line one in scene 23.\nAnd here is a second line with *emphasis* and ",
             "ev",
             {
               "VAR?": "trust"
@@ -4150,12 +4150,12 @@
             "#",
             "^\u0000action",
             "/#",
-            "^A character walks into location 24.\n The light shifts as the scene 24 opens.",
+            "^A character walks into location 24.\nThe light shifts as the scene 24 opens.",
             "\n",
             "#",
             "^\u0000dialogue:char_0",
             "/#",
-            "^This is dialogue line one in scene 24.\n And here is a second line with *emphasis* and ",
+            "^This is dialogue line one in scene 24.\nAnd here is a second line with *emphasis* and ",
             "ev",
             {
               "VAR?": "trust"
@@ -4392,12 +4392,12 @@
             "#",
             "^\u0000action",
             "/#",
-            "^A character walks into location 25.\n The light shifts as the scene 25 opens.",
+            "^A character walks into location 25.\nThe light shifts as the scene 25 opens.",
             "\n",
             "#",
             "^\u0000dialogue:char_1",
             "/#",
-            "^This is dialogue line one in scene 25.\n And here is a second line with *emphasis* and ",
+            "^This is dialogue line one in scene 25.\nAnd here is a second line with *emphasis* and ",
             "ev",
             {
               "VAR?": "trust"
@@ -4634,12 +4634,12 @@
             "#",
             "^\u0000action",
             "/#",
-            "^A character walks into location 26.\n The light shifts as the scene 26 opens.",
+            "^A character walks into location 26.\nThe light shifts as the scene 26 opens.",
             "\n",
             "#",
             "^\u0000dialogue:char_2",
             "/#",
-            "^This is dialogue line one in scene 26.\n And here is a second line with *emphasis* and ",
+            "^This is dialogue line one in scene 26.\nAnd here is a second line with *emphasis* and ",
             "ev",
             {
               "VAR?": "trust"
@@ -4876,12 +4876,12 @@
             "#",
             "^\u0000action",
             "/#",
-            "^A character walks into location 27.\n The light shifts as the scene 27 opens.",
+            "^A character walks into location 27.\nThe light shifts as the scene 27 opens.",
             "\n",
             "#",
             "^\u0000dialogue:char_3",
             "/#",
-            "^This is dialogue line one in scene 27.\n And here is a second line with *emphasis* and ",
+            "^This is dialogue line one in scene 27.\nAnd here is a second line with *emphasis* and ",
             "ev",
             {
               "VAR?": "trust"
@@ -5118,12 +5118,12 @@
             "#",
             "^\u0000action",
             "/#",
-            "^A character walks into location 28.\n The light shifts as the scene 28 opens.",
+            "^A character walks into location 28.\nThe light shifts as the scene 28 opens.",
             "\n",
             "#",
             "^\u0000dialogue:char_4",
             "/#",
-            "^This is dialogue line one in scene 28.\n And here is a second line with *emphasis* and ",
+            "^This is dialogue line one in scene 28.\nAnd here is a second line with *emphasis* and ",
             "ev",
             {
               "VAR?": "trust"
@@ -5360,12 +5360,12 @@
             "#",
             "^\u0000action",
             "/#",
-            "^A character walks into location 29.\n The light shifts as the scene 29 opens.",
+            "^A character walks into location 29.\nThe light shifts as the scene 29 opens.",
             "\n",
             "#",
             "^\u0000dialogue:char_5",
             "/#",
-            "^This is dialogue line one in scene 29.\n And here is a second line with *emphasis* and ",
+            "^This is dialogue line one in scene 29.\nAnd here is a second line with *emphasis* and ",
             "ev",
             {
               "VAR?": "trust"
@@ -5602,12 +5602,12 @@
             "#",
             "^\u0000action",
             "/#",
-            "^A character walks into location 3.\n The light shifts as the scene 3 opens.",
+            "^A character walks into location 3.\nThe light shifts as the scene 3 opens.",
             "\n",
             "#",
             "^\u0000dialogue:char_3",
             "/#",
-            "^This is dialogue line one in scene 3.\n And here is a second line with *emphasis* and ",
+            "^This is dialogue line one in scene 3.\nAnd here is a second line with *emphasis* and ",
             "ev",
             {
               "VAR?": "trust"
@@ -5844,12 +5844,12 @@
             "#",
             "^\u0000action",
             "/#",
-            "^A character walks into location 30.\n The light shifts as the scene 30 opens.",
+            "^A character walks into location 30.\nThe light shifts as the scene 30 opens.",
             "\n",
             "#",
             "^\u0000dialogue:char_6",
             "/#",
-            "^This is dialogue line one in scene 30.\n And here is a second line with *emphasis* and ",
+            "^This is dialogue line one in scene 30.\nAnd here is a second line with *emphasis* and ",
             "ev",
             {
               "VAR?": "trust"
@@ -6086,12 +6086,12 @@
             "#",
             "^\u0000action",
             "/#",
-            "^A character walks into location 31.\n The light shifts as the scene 31 opens.",
+            "^A character walks into location 31.\nThe light shifts as the scene 31 opens.",
             "\n",
             "#",
             "^\u0000dialogue:char_7",
             "/#",
-            "^This is dialogue line one in scene 31.\n And here is a second line with *emphasis* and ",
+            "^This is dialogue line one in scene 31.\nAnd here is a second line with *emphasis* and ",
             "ev",
             {
               "VAR?": "trust"
@@ -6328,12 +6328,12 @@
             "#",
             "^\u0000action",
             "/#",
-            "^A character walks into location 32.\n The light shifts as the scene 32 opens.",
+            "^A character walks into location 32.\nThe light shifts as the scene 32 opens.",
             "\n",
             "#",
             "^\u0000dialogue:char_0",
             "/#",
-            "^This is dialogue line one in scene 32.\n And here is a second line with *emphasis* and ",
+            "^This is dialogue line one in scene 32.\nAnd here is a second line with *emphasis* and ",
             "ev",
             {
               "VAR?": "trust"
@@ -6570,12 +6570,12 @@
             "#",
             "^\u0000action",
             "/#",
-            "^A character walks into location 33.\n The light shifts as the scene 33 opens.",
+            "^A character walks into location 33.\nThe light shifts as the scene 33 opens.",
             "\n",
             "#",
             "^\u0000dialogue:char_1",
             "/#",
-            "^This is dialogue line one in scene 33.\n And here is a second line with *emphasis* and ",
+            "^This is dialogue line one in scene 33.\nAnd here is a second line with *emphasis* and ",
             "ev",
             {
               "VAR?": "trust"
@@ -6812,12 +6812,12 @@
             "#",
             "^\u0000action",
             "/#",
-            "^A character walks into location 34.\n The light shifts as the scene 34 opens.",
+            "^A character walks into location 34.\nThe light shifts as the scene 34 opens.",
             "\n",
             "#",
             "^\u0000dialogue:char_2",
             "/#",
-            "^This is dialogue line one in scene 34.\n And here is a second line with *emphasis* and ",
+            "^This is dialogue line one in scene 34.\nAnd here is a second line with *emphasis* and ",
             "ev",
             {
               "VAR?": "trust"
@@ -7054,12 +7054,12 @@
             "#",
             "^\u0000action",
             "/#",
-            "^A character walks into location 35.\n The light shifts as the scene 35 opens.",
+            "^A character walks into location 35.\nThe light shifts as the scene 35 opens.",
             "\n",
             "#",
             "^\u0000dialogue:char_3",
             "/#",
-            "^This is dialogue line one in scene 35.\n And here is a second line with *emphasis* and ",
+            "^This is dialogue line one in scene 35.\nAnd here is a second line with *emphasis* and ",
             "ev",
             {
               "VAR?": "trust"
@@ -7296,12 +7296,12 @@
             "#",
             "^\u0000action",
             "/#",
-            "^A character walks into location 36.\n The light shifts as the scene 36 opens.",
+            "^A character walks into location 36.\nThe light shifts as the scene 36 opens.",
             "\n",
             "#",
             "^\u0000dialogue:char_4",
             "/#",
-            "^This is dialogue line one in scene 36.\n And here is a second line with *emphasis* and ",
+            "^This is dialogue line one in scene 36.\nAnd here is a second line with *emphasis* and ",
             "ev",
             {
               "VAR?": "trust"
@@ -7538,12 +7538,12 @@
             "#",
             "^\u0000action",
             "/#",
-            "^A character walks into location 37.\n The light shifts as the scene 37 opens.",
+            "^A character walks into location 37.\nThe light shifts as the scene 37 opens.",
             "\n",
             "#",
             "^\u0000dialogue:char_5",
             "/#",
-            "^This is dialogue line one in scene 37.\n And here is a second line with *emphasis* and ",
+            "^This is dialogue line one in scene 37.\nAnd here is a second line with *emphasis* and ",
             "ev",
             {
               "VAR?": "trust"
@@ -7780,12 +7780,12 @@
             "#",
             "^\u0000action",
             "/#",
-            "^A character walks into location 38.\n The light shifts as the scene 38 opens.",
+            "^A character walks into location 38.\nThe light shifts as the scene 38 opens.",
             "\n",
             "#",
             "^\u0000dialogue:char_6",
             "/#",
-            "^This is dialogue line one in scene 38.\n And here is a second line with *emphasis* and ",
+            "^This is dialogue line one in scene 38.\nAnd here is a second line with *emphasis* and ",
             "ev",
             {
               "VAR?": "trust"
@@ -8022,12 +8022,12 @@
             "#",
             "^\u0000action",
             "/#",
-            "^A character walks into location 39.\n The light shifts as the scene 39 opens.",
+            "^A character walks into location 39.\nThe light shifts as the scene 39 opens.",
             "\n",
             "#",
             "^\u0000dialogue:char_7",
             "/#",
-            "^This is dialogue line one in scene 39.\n And here is a second line with *emphasis* and ",
+            "^This is dialogue line one in scene 39.\nAnd here is a second line with *emphasis* and ",
             "ev",
             {
               "VAR?": "trust"
@@ -8264,12 +8264,12 @@
             "#",
             "^\u0000action",
             "/#",
-            "^A character walks into location 4.\n The light shifts as the scene 4 opens.",
+            "^A character walks into location 4.\nThe light shifts as the scene 4 opens.",
             "\n",
             "#",
             "^\u0000dialogue:char_4",
             "/#",
-            "^This is dialogue line one in scene 4.\n And here is a second line with *emphasis* and ",
+            "^This is dialogue line one in scene 4.\nAnd here is a second line with *emphasis* and ",
             "ev",
             {
               "VAR?": "trust"
@@ -8506,12 +8506,12 @@
             "#",
             "^\u0000action",
             "/#",
-            "^A character walks into location 40.\n The light shifts as the scene 40 opens.",
+            "^A character walks into location 40.\nThe light shifts as the scene 40 opens.",
             "\n",
             "#",
             "^\u0000dialogue:char_0",
             "/#",
-            "^This is dialogue line one in scene 40.\n And here is a second line with *emphasis* and ",
+            "^This is dialogue line one in scene 40.\nAnd here is a second line with *emphasis* and ",
             "ev",
             {
               "VAR?": "trust"
@@ -8748,12 +8748,12 @@
             "#",
             "^\u0000action",
             "/#",
-            "^A character walks into location 41.\n The light shifts as the scene 41 opens.",
+            "^A character walks into location 41.\nThe light shifts as the scene 41 opens.",
             "\n",
             "#",
             "^\u0000dialogue:char_1",
             "/#",
-            "^This is dialogue line one in scene 41.\n And here is a second line with *emphasis* and ",
+            "^This is dialogue line one in scene 41.\nAnd here is a second line with *emphasis* and ",
             "ev",
             {
               "VAR?": "trust"
@@ -8990,12 +8990,12 @@
             "#",
             "^\u0000action",
             "/#",
-            "^A character walks into location 42.\n The light shifts as the scene 42 opens.",
+            "^A character walks into location 42.\nThe light shifts as the scene 42 opens.",
             "\n",
             "#",
             "^\u0000dialogue:char_2",
             "/#",
-            "^This is dialogue line one in scene 42.\n And here is a second line with *emphasis* and ",
+            "^This is dialogue line one in scene 42.\nAnd here is a second line with *emphasis* and ",
             "ev",
             {
               "VAR?": "trust"
@@ -9232,12 +9232,12 @@
             "#",
             "^\u0000action",
             "/#",
-            "^A character walks into location 43.\n The light shifts as the scene 43 opens.",
+            "^A character walks into location 43.\nThe light shifts as the scene 43 opens.",
             "\n",
             "#",
             "^\u0000dialogue:char_3",
             "/#",
-            "^This is dialogue line one in scene 43.\n And here is a second line with *emphasis* and ",
+            "^This is dialogue line one in scene 43.\nAnd here is a second line with *emphasis* and ",
             "ev",
             {
               "VAR?": "trust"
@@ -9474,12 +9474,12 @@
             "#",
             "^\u0000action",
             "/#",
-            "^A character walks into location 44.\n The light shifts as the scene 44 opens.",
+            "^A character walks into location 44.\nThe light shifts as the scene 44 opens.",
             "\n",
             "#",
             "^\u0000dialogue:char_4",
             "/#",
-            "^This is dialogue line one in scene 44.\n And here is a second line with *emphasis* and ",
+            "^This is dialogue line one in scene 44.\nAnd here is a second line with *emphasis* and ",
             "ev",
             {
               "VAR?": "trust"
@@ -9716,12 +9716,12 @@
             "#",
             "^\u0000action",
             "/#",
-            "^A character walks into location 45.\n The light shifts as the scene 45 opens.",
+            "^A character walks into location 45.\nThe light shifts as the scene 45 opens.",
             "\n",
             "#",
             "^\u0000dialogue:char_5",
             "/#",
-            "^This is dialogue line one in scene 45.\n And here is a second line with *emphasis* and ",
+            "^This is dialogue line one in scene 45.\nAnd here is a second line with *emphasis* and ",
             "ev",
             {
               "VAR?": "trust"
@@ -9958,12 +9958,12 @@
             "#",
             "^\u0000action",
             "/#",
-            "^A character walks into location 46.\n The light shifts as the scene 46 opens.",
+            "^A character walks into location 46.\nThe light shifts as the scene 46 opens.",
             "\n",
             "#",
             "^\u0000dialogue:char_6",
             "/#",
-            "^This is dialogue line one in scene 46.\n And here is a second line with *emphasis* and ",
+            "^This is dialogue line one in scene 46.\nAnd here is a second line with *emphasis* and ",
             "ev",
             {
               "VAR?": "trust"
@@ -10200,12 +10200,12 @@
             "#",
             "^\u0000action",
             "/#",
-            "^A character walks into location 47.\n The light shifts as the scene 47 opens.",
+            "^A character walks into location 47.\nThe light shifts as the scene 47 opens.",
             "\n",
             "#",
             "^\u0000dialogue:char_7",
             "/#",
-            "^This is dialogue line one in scene 47.\n And here is a second line with *emphasis* and ",
+            "^This is dialogue line one in scene 47.\nAnd here is a second line with *emphasis* and ",
             "ev",
             {
               "VAR?": "trust"
@@ -10442,12 +10442,12 @@
             "#",
             "^\u0000action",
             "/#",
-            "^A character walks into location 48.\n The light shifts as the scene 48 opens.",
+            "^A character walks into location 48.\nThe light shifts as the scene 48 opens.",
             "\n",
             "#",
             "^\u0000dialogue:char_0",
             "/#",
-            "^This is dialogue line one in scene 48.\n And here is a second line with *emphasis* and ",
+            "^This is dialogue line one in scene 48.\nAnd here is a second line with *emphasis* and ",
             "ev",
             {
               "VAR?": "trust"
@@ -10684,12 +10684,12 @@
             "#",
             "^\u0000action",
             "/#",
-            "^A character walks into location 49.\n The light shifts as the scene 49 opens.",
+            "^A character walks into location 49.\nThe light shifts as the scene 49 opens.",
             "\n",
             "#",
             "^\u0000dialogue:char_1",
             "/#",
-            "^This is dialogue line one in scene 49.\n And here is a second line with *emphasis* and ",
+            "^This is dialogue line one in scene 49.\nAnd here is a second line with *emphasis* and ",
             "ev",
             {
               "VAR?": "trust"
@@ -10926,12 +10926,12 @@
             "#",
             "^\u0000action",
             "/#",
-            "^A character walks into location 5.\n The light shifts as the scene 5 opens.",
+            "^A character walks into location 5.\nThe light shifts as the scene 5 opens.",
             "\n",
             "#",
             "^\u0000dialogue:char_5",
             "/#",
-            "^This is dialogue line one in scene 5.\n And here is a second line with *emphasis* and ",
+            "^This is dialogue line one in scene 5.\nAnd here is a second line with *emphasis* and ",
             "ev",
             {
               "VAR?": "trust"
@@ -11168,12 +11168,12 @@
             "#",
             "^\u0000action",
             "/#",
-            "^A character walks into location 50.\n The light shifts as the scene 50 opens.",
+            "^A character walks into location 50.\nThe light shifts as the scene 50 opens.",
             "\n",
             "#",
             "^\u0000dialogue:char_2",
             "/#",
-            "^This is dialogue line one in scene 50.\n And here is a second line with *emphasis* and ",
+            "^This is dialogue line one in scene 50.\nAnd here is a second line with *emphasis* and ",
             "ev",
             {
               "VAR?": "trust"
@@ -11410,12 +11410,12 @@
             "#",
             "^\u0000action",
             "/#",
-            "^A character walks into location 51.\n The light shifts as the scene 51 opens.",
+            "^A character walks into location 51.\nThe light shifts as the scene 51 opens.",
             "\n",
             "#",
             "^\u0000dialogue:char_3",
             "/#",
-            "^This is dialogue line one in scene 51.\n And here is a second line with *emphasis* and ",
+            "^This is dialogue line one in scene 51.\nAnd here is a second line with *emphasis* and ",
             "ev",
             {
               "VAR?": "trust"
@@ -11652,12 +11652,12 @@
             "#",
             "^\u0000action",
             "/#",
-            "^A character walks into location 52.\n The light shifts as the scene 52 opens.",
+            "^A character walks into location 52.\nThe light shifts as the scene 52 opens.",
             "\n",
             "#",
             "^\u0000dialogue:char_4",
             "/#",
-            "^This is dialogue line one in scene 52.\n And here is a second line with *emphasis* and ",
+            "^This is dialogue line one in scene 52.\nAnd here is a second line with *emphasis* and ",
             "ev",
             {
               "VAR?": "trust"
@@ -11894,12 +11894,12 @@
             "#",
             "^\u0000action",
             "/#",
-            "^A character walks into location 53.\n The light shifts as the scene 53 opens.",
+            "^A character walks into location 53.\nThe light shifts as the scene 53 opens.",
             "\n",
             "#",
             "^\u0000dialogue:char_5",
             "/#",
-            "^This is dialogue line one in scene 53.\n And here is a second line with *emphasis* and ",
+            "^This is dialogue line one in scene 53.\nAnd here is a second line with *emphasis* and ",
             "ev",
             {
               "VAR?": "trust"
@@ -12136,12 +12136,12 @@
             "#",
             "^\u0000action",
             "/#",
-            "^A character walks into location 54.\n The light shifts as the scene 54 opens.",
+            "^A character walks into location 54.\nThe light shifts as the scene 54 opens.",
             "\n",
             "#",
             "^\u0000dialogue:char_6",
             "/#",
-            "^This is dialogue line one in scene 54.\n And here is a second line with *emphasis* and ",
+            "^This is dialogue line one in scene 54.\nAnd here is a second line with *emphasis* and ",
             "ev",
             {
               "VAR?": "trust"
@@ -12378,12 +12378,12 @@
             "#",
             "^\u0000action",
             "/#",
-            "^A character walks into location 55.\n The light shifts as the scene 55 opens.",
+            "^A character walks into location 55.\nThe light shifts as the scene 55 opens.",
             "\n",
             "#",
             "^\u0000dialogue:char_7",
             "/#",
-            "^This is dialogue line one in scene 55.\n And here is a second line with *emphasis* and ",
+            "^This is dialogue line one in scene 55.\nAnd here is a second line with *emphasis* and ",
             "ev",
             {
               "VAR?": "trust"
@@ -12620,12 +12620,12 @@
             "#",
             "^\u0000action",
             "/#",
-            "^A character walks into location 56.\n The light shifts as the scene 56 opens.",
+            "^A character walks into location 56.\nThe light shifts as the scene 56 opens.",
             "\n",
             "#",
             "^\u0000dialogue:char_0",
             "/#",
-            "^This is dialogue line one in scene 56.\n And here is a second line with *emphasis* and ",
+            "^This is dialogue line one in scene 56.\nAnd here is a second line with *emphasis* and ",
             "ev",
             {
               "VAR?": "trust"
@@ -12862,12 +12862,12 @@
             "#",
             "^\u0000action",
             "/#",
-            "^A character walks into location 57.\n The light shifts as the scene 57 opens.",
+            "^A character walks into location 57.\nThe light shifts as the scene 57 opens.",
             "\n",
             "#",
             "^\u0000dialogue:char_1",
             "/#",
-            "^This is dialogue line one in scene 57.\n And here is a second line with *emphasis* and ",
+            "^This is dialogue line one in scene 57.\nAnd here is a second line with *emphasis* and ",
             "ev",
             {
               "VAR?": "trust"
@@ -13104,12 +13104,12 @@
             "#",
             "^\u0000action",
             "/#",
-            "^A character walks into location 58.\n The light shifts as the scene 58 opens.",
+            "^A character walks into location 58.\nThe light shifts as the scene 58 opens.",
             "\n",
             "#",
             "^\u0000dialogue:char_2",
             "/#",
-            "^This is dialogue line one in scene 58.\n And here is a second line with *emphasis* and ",
+            "^This is dialogue line one in scene 58.\nAnd here is a second line with *emphasis* and ",
             "ev",
             {
               "VAR?": "trust"
@@ -13346,12 +13346,12 @@
             "#",
             "^\u0000action",
             "/#",
-            "^A character walks into location 59.\n The light shifts as the scene 59 opens.",
+            "^A character walks into location 59.\nThe light shifts as the scene 59 opens.",
             "\n",
             "#",
             "^\u0000dialogue:char_3",
             "/#",
-            "^This is dialogue line one in scene 59.\n And here is a second line with *emphasis* and ",
+            "^This is dialogue line one in scene 59.\nAnd here is a second line with *emphasis* and ",
             "ev",
             {
               "VAR?": "trust"
@@ -13588,12 +13588,12 @@
             "#",
             "^\u0000action",
             "/#",
-            "^A character walks into location 6.\n The light shifts as the scene 6 opens.",
+            "^A character walks into location 6.\nThe light shifts as the scene 6 opens.",
             "\n",
             "#",
             "^\u0000dialogue:char_6",
             "/#",
-            "^This is dialogue line one in scene 6.\n And here is a second line with *emphasis* and ",
+            "^This is dialogue line one in scene 6.\nAnd here is a second line with *emphasis* and ",
             "ev",
             {
               "VAR?": "trust"
@@ -13830,12 +13830,12 @@
             "#",
             "^\u0000action",
             "/#",
-            "^A character walks into location 7.\n The light shifts as the scene 7 opens.",
+            "^A character walks into location 7.\nThe light shifts as the scene 7 opens.",
             "\n",
             "#",
             "^\u0000dialogue:char_7",
             "/#",
-            "^This is dialogue line one in scene 7.\n And here is a second line with *emphasis* and ",
+            "^This is dialogue line one in scene 7.\nAnd here is a second line with *emphasis* and ",
             "ev",
             {
               "VAR?": "trust"
@@ -14072,12 +14072,12 @@
             "#",
             "^\u0000action",
             "/#",
-            "^A character walks into location 8.\n The light shifts as the scene 8 opens.",
+            "^A character walks into location 8.\nThe light shifts as the scene 8 opens.",
             "\n",
             "#",
             "^\u0000dialogue:char_0",
             "/#",
-            "^This is dialogue line one in scene 8.\n And here is a second line with *emphasis* and ",
+            "^This is dialogue line one in scene 8.\nAnd here is a second line with *emphasis* and ",
             "ev",
             {
               "VAR?": "trust"
@@ -14314,12 +14314,12 @@
             "#",
             "^\u0000action",
             "/#",
-            "^A character walks into location 9.\n The light shifts as the scene 9 opens.",
+            "^A character walks into location 9.\nThe light shifts as the scene 9 opens.",
             "\n",
             "#",
             "^\u0000dialogue:char_1",
             "/#",
-            "^This is dialogue line one in scene 9.\n And here is a second line with *emphasis* and ",
+            "^This is dialogue line one in scene 9.\nAnd here is a second line with *emphasis* and ",
             "ev",
             {
               "VAR?": "trust"
@@ -72245,12 +72245,12 @@
             "#",
             "^\u0000action",
             "/#",
-            "^A character walks into location 0.\n The light shifts as the scene 0 opens.",
+            "^A character walks into location 0.\nThe light shifts as the scene 0 opens.",
             "\n",
             "#",
             "^\u0000dialogue:char_0",
             "/#",
-            "^This is dialogue line one in scene 0.\n And here is a second line with *emphasis* and ",
+            "^This is dialogue line one in scene 0.\nAnd here is a second line with *emphasis* and ",
             "ev",
             {
               "VAR?": "trust"
@@ -72487,12 +72487,12 @@
             "#",
             "^\u0000action",
             "/#",
-            "^A character walks into location 1.\n The light shifts as the scene 1 opens.",
+            "^A character walks into location 1.\nThe light shifts as the scene 1 opens.",
             "\n",
             "#",
             "^\u0000dialogue:char_1",
             "/#",
-            "^This is dialogue line one in scene 1.\n And here is a second line with *emphasis* and ",
+            "^This is dialogue line one in scene 1.\nAnd here is a second line with *emphasis* and ",
             "ev",
             {
               "VAR?": "trust"
@@ -72729,12 +72729,12 @@
             "#",
             "^\u0000action",
             "/#",
-            "^A character walks into location 10.\n The light shifts as the scene 10 opens.",
+            "^A character walks into location 10.\nThe light shifts as the scene 10 opens.",
             "\n",
             "#",
             "^\u0000dialogue:char_2",
             "/#",
-            "^This is dialogue line one in scene 10.\n And here is a second line with *emphasis* and ",
+            "^This is dialogue line one in scene 10.\nAnd here is a second line with *emphasis* and ",
             "ev",
             {
               "VAR?": "trust"
@@ -72971,12 +72971,12 @@
             "#",
             "^\u0000action",
             "/#",
-            "^A character walks into location 11.\n The light shifts as the scene 11 opens.",
+            "^A character walks into location 11.\nThe light shifts as the scene 11 opens.",
             "\n",
             "#",
             "^\u0000dialogue:char_3",
             "/#",
-            "^This is dialogue line one in scene 11.\n And here is a second line with *emphasis* and ",
+            "^This is dialogue line one in scene 11.\nAnd here is a second line with *emphasis* and ",
             "ev",
             {
               "VAR?": "trust"
@@ -73213,12 +73213,12 @@
             "#",
             "^\u0000action",
             "/#",
-            "^A character walks into location 12.\n The light shifts as the scene 12 opens.",
+            "^A character walks into location 12.\nThe light shifts as the scene 12 opens.",
             "\n",
             "#",
             "^\u0000dialogue:char_4",
             "/#",
-            "^This is dialogue line one in scene 12.\n And here is a second line with *emphasis* and ",
+            "^This is dialogue line one in scene 12.\nAnd here is a second line with *emphasis* and ",
             "ev",
             {
               "VAR?": "trust"
@@ -73455,12 +73455,12 @@
             "#",
             "^\u0000action",
             "/#",
-            "^A character walks into location 13.\n The light shifts as the scene 13 opens.",
+            "^A character walks into location 13.\nThe light shifts as the scene 13 opens.",
             "\n",
             "#",
             "^\u0000dialogue:char_5",
             "/#",
-            "^This is dialogue line one in scene 13.\n And here is a second line with *emphasis* and ",
+            "^This is dialogue line one in scene 13.\nAnd here is a second line with *emphasis* and ",
             "ev",
             {
               "VAR?": "trust"
@@ -73697,12 +73697,12 @@
             "#",
             "^\u0000action",
             "/#",
-            "^A character walks into location 14.\n The light shifts as the scene 14 opens.",
+            "^A character walks into location 14.\nThe light shifts as the scene 14 opens.",
             "\n",
             "#",
             "^\u0000dialogue:char_6",
             "/#",
-            "^This is dialogue line one in scene 14.\n And here is a second line with *emphasis* and ",
+            "^This is dialogue line one in scene 14.\nAnd here is a second line with *emphasis* and ",
             "ev",
             {
               "VAR?": "trust"
@@ -73939,12 +73939,12 @@
             "#",
             "^\u0000action",
             "/#",
-            "^A character walks into location 15.\n The light shifts as the scene 15 opens.",
+            "^A character walks into location 15.\nThe light shifts as the scene 15 opens.",
             "\n",
             "#",
             "^\u0000dialogue:char_7",
             "/#",
-            "^This is dialogue line one in scene 15.\n And here is a second line with *emphasis* and ",
+            "^This is dialogue line one in scene 15.\nAnd here is a second line with *emphasis* and ",
             "ev",
             {
               "VAR?": "trust"
@@ -74181,12 +74181,12 @@
             "#",
             "^\u0000action",
             "/#",
-            "^A character walks into location 16.\n The light shifts as the scene 16 opens.",
+            "^A character walks into location 16.\nThe light shifts as the scene 16 opens.",
             "\n",
             "#",
             "^\u0000dialogue:char_0",
             "/#",
-            "^This is dialogue line one in scene 16.\n And here is a second line with *emphasis* and ",
+            "^This is dialogue line one in scene 16.\nAnd here is a second line with *emphasis* and ",
             "ev",
             {
               "VAR?": "trust"
@@ -74423,12 +74423,12 @@
             "#",
             "^\u0000action",
             "/#",
-            "^A character walks into location 17.\n The light shifts as the scene 17 opens.",
+            "^A character walks into location 17.\nThe light shifts as the scene 17 opens.",
             "\n",
             "#",
             "^\u0000dialogue:char_1",
             "/#",
-            "^This is dialogue line one in scene 17.\n And here is a second line with *emphasis* and ",
+            "^This is dialogue line one in scene 17.\nAnd here is a second line with *emphasis* and ",
             "ev",
             {
               "VAR?": "trust"
@@ -74665,12 +74665,12 @@
             "#",
             "^\u0000action",
             "/#",
-            "^A character walks into location 18.\n The light shifts as the scene 18 opens.",
+            "^A character walks into location 18.\nThe light shifts as the scene 18 opens.",
             "\n",
             "#",
             "^\u0000dialogue:char_2",
             "/#",
-            "^This is dialogue line one in scene 18.\n And here is a second line with *emphasis* and ",
+            "^This is dialogue line one in scene 18.\nAnd here is a second line with *emphasis* and ",
             "ev",
             {
               "VAR?": "trust"
@@ -74907,12 +74907,12 @@
             "#",
             "^\u0000action",
             "/#",
-            "^A character walks into location 19.\n The light shifts as the scene 19 opens.",
+            "^A character walks into location 19.\nThe light shifts as the scene 19 opens.",
             "\n",
             "#",
             "^\u0000dialogue:char_3",
             "/#",
-            "^This is dialogue line one in scene 19.\n And here is a second line with *emphasis* and ",
+            "^This is dialogue line one in scene 19.\nAnd here is a second line with *emphasis* and ",
             "ev",
             {
               "VAR?": "trust"
@@ -75149,12 +75149,12 @@
             "#",
             "^\u0000action",
             "/#",
-            "^A character walks into location 2.\n The light shifts as the scene 2 opens.",
+            "^A character walks into location 2.\nThe light shifts as the scene 2 opens.",
             "\n",
             "#",
             "^\u0000dialogue:char_2",
             "/#",
-            "^This is dialogue line one in scene 2.\n And here is a second line with *emphasis* and ",
+            "^This is dialogue line one in scene 2.\nAnd here is a second line with *emphasis* and ",
             "ev",
             {
               "VAR?": "trust"
@@ -75391,12 +75391,12 @@
             "#",
             "^\u0000action",
             "/#",
-            "^A character walks into location 20.\n The light shifts as the scene 20 opens.",
+            "^A character walks into location 20.\nThe light shifts as the scene 20 opens.",
             "\n",
             "#",
             "^\u0000dialogue:char_4",
             "/#",
-            "^This is dialogue line one in scene 20.\n And here is a second line with *emphasis* and ",
+            "^This is dialogue line one in scene 20.\nAnd here is a second line with *emphasis* and ",
             "ev",
             {
               "VAR?": "trust"
@@ -75633,12 +75633,12 @@
             "#",
             "^\u0000action",
             "/#",
-            "^A character walks into location 21.\n The light shifts as the scene 21 opens.",
+            "^A character walks into location 21.\nThe light shifts as the scene 21 opens.",
             "\n",
             "#",
             "^\u0000dialogue:char_5",
             "/#",
-            "^This is dialogue line one in scene 21.\n And here is a second line with *emphasis* and ",
+            "^This is dialogue line one in scene 21.\nAnd here is a second line with *emphasis* and ",
             "ev",
             {
               "VAR?": "trust"
@@ -75875,12 +75875,12 @@
             "#",
             "^\u0000action",
             "/#",
-            "^A character walks into location 22.\n The light shifts as the scene 22 opens.",
+            "^A character walks into location 22.\nThe light shifts as the scene 22 opens.",
             "\n",
             "#",
             "^\u0000dialogue:char_6",
             "/#",
-            "^This is dialogue line one in scene 22.\n And here is a second line with *emphasis* and ",
+            "^This is dialogue line one in scene 22.\nAnd here is a second line with *emphasis* and ",
             "ev",
             {
               "VAR?": "trust"
@@ -76117,12 +76117,12 @@
             "#",
             "^\u0000action",
             "/#",
-            "^A character walks into location 23.\n The light shifts as the scene 23 opens.",
+            "^A character walks into location 23.\nThe light shifts as the scene 23 opens.",
             "\n",
             "#",
             "^\u0000dialogue:char_7",
             "/#",
-            "^This is dialogue line one in scene 23.\n And here is a second line with *emphasis* and ",
+            "^This is dialogue line one in scene 23.\nAnd here is a second line with *emphasis* and ",
             "ev",
             {
               "VAR?": "trust"
@@ -76359,12 +76359,12 @@
             "#",
             "^\u0000action",
             "/#",
-            "^A character walks into location 24.\n The light shifts as the scene 24 opens.",
+            "^A character walks into location 24.\nThe light shifts as the scene 24 opens.",
             "\n",
             "#",
             "^\u0000dialogue:char_0",
             "/#",
-            "^This is dialogue line one in scene 24.\n And here is a second line with *emphasis* and ",
+            "^This is dialogue line one in scene 24.\nAnd here is a second line with *emphasis* and ",
             "ev",
             {
               "VAR?": "trust"
@@ -76601,12 +76601,12 @@
             "#",
             "^\u0000action",
             "/#",
-            "^A character walks into location 25.\n The light shifts as the scene 25 opens.",
+            "^A character walks into location 25.\nThe light shifts as the scene 25 opens.",
             "\n",
             "#",
             "^\u0000dialogue:char_1",
             "/#",
-            "^This is dialogue line one in scene 25.\n And here is a second line with *emphasis* and ",
+            "^This is dialogue line one in scene 25.\nAnd here is a second line with *emphasis* and ",
             "ev",
             {
               "VAR?": "trust"
@@ -76843,12 +76843,12 @@
             "#",
             "^\u0000action",
             "/#",
-            "^A character walks into location 26.\n The light shifts as the scene 26 opens.",
+            "^A character walks into location 26.\nThe light shifts as the scene 26 opens.",
             "\n",
             "#",
             "^\u0000dialogue:char_2",
             "/#",
-            "^This is dialogue line one in scene 26.\n And here is a second line with *emphasis* and ",
+            "^This is dialogue line one in scene 26.\nAnd here is a second line with *emphasis* and ",
             "ev",
             {
               "VAR?": "trust"
@@ -77085,12 +77085,12 @@
             "#",
             "^\u0000action",
             "/#",
-            "^A character walks into location 27.\n The light shifts as the scene 27 opens.",
+            "^A character walks into location 27.\nThe light shifts as the scene 27 opens.",
             "\n",
             "#",
             "^\u0000dialogue:char_3",
             "/#",
-            "^This is dialogue line one in scene 27.\n And here is a second line with *emphasis* and ",
+            "^This is dialogue line one in scene 27.\nAnd here is a second line with *emphasis* and ",
             "ev",
             {
               "VAR?": "trust"
@@ -77327,12 +77327,12 @@
             "#",
             "^\u0000action",
             "/#",
-            "^A character walks into location 28.\n The light shifts as the scene 28 opens.",
+            "^A character walks into location 28.\nThe light shifts as the scene 28 opens.",
             "\n",
             "#",
             "^\u0000dialogue:char_4",
             "/#",
-            "^This is dialogue line one in scene 28.\n And here is a second line with *emphasis* and ",
+            "^This is dialogue line one in scene 28.\nAnd here is a second line with *emphasis* and ",
             "ev",
             {
               "VAR?": "trust"
@@ -77569,12 +77569,12 @@
             "#",
             "^\u0000action",
             "/#",
-            "^A character walks into location 29.\n The light shifts as the scene 29 opens.",
+            "^A character walks into location 29.\nThe light shifts as the scene 29 opens.",
             "\n",
             "#",
             "^\u0000dialogue:char_5",
             "/#",
-            "^This is dialogue line one in scene 29.\n And here is a second line with *emphasis* and ",
+            "^This is dialogue line one in scene 29.\nAnd here is a second line with *emphasis* and ",
             "ev",
             {
               "VAR?": "trust"
@@ -77811,12 +77811,12 @@
             "#",
             "^\u0000action",
             "/#",
-            "^A character walks into location 3.\n The light shifts as the scene 3 opens.",
+            "^A character walks into location 3.\nThe light shifts as the scene 3 opens.",
             "\n",
             "#",
             "^\u0000dialogue:char_3",
             "/#",
-            "^This is dialogue line one in scene 3.\n And here is a second line with *emphasis* and ",
+            "^This is dialogue line one in scene 3.\nAnd here is a second line with *emphasis* and ",
             "ev",
             {
               "VAR?": "trust"
@@ -78053,12 +78053,12 @@
             "#",
             "^\u0000action",
             "/#",
-            "^A character walks into location 30.\n The light shifts as the scene 30 opens.",
+            "^A character walks into location 30.\nThe light shifts as the scene 30 opens.",
             "\n",
             "#",
             "^\u0000dialogue:char_6",
             "/#",
-            "^This is dialogue line one in scene 30.\n And here is a second line with *emphasis* and ",
+            "^This is dialogue line one in scene 30.\nAnd here is a second line with *emphasis* and ",
             "ev",
             {
               "VAR?": "trust"
@@ -78295,12 +78295,12 @@
             "#",
             "^\u0000action",
             "/#",
-            "^A character walks into location 31.\n The light shifts as the scene 31 opens.",
+            "^A character walks into location 31.\nThe light shifts as the scene 31 opens.",
             "\n",
             "#",
             "^\u0000dialogue:char_7",
             "/#",
-            "^This is dialogue line one in scene 31.\n And here is a second line with *emphasis* and ",
+            "^This is dialogue line one in scene 31.\nAnd here is a second line with *emphasis* and ",
             "ev",
             {
               "VAR?": "trust"
@@ -78537,12 +78537,12 @@
             "#",
             "^\u0000action",
             "/#",
-            "^A character walks into location 32.\n The light shifts as the scene 32 opens.",
+            "^A character walks into location 32.\nThe light shifts as the scene 32 opens.",
             "\n",
             "#",
             "^\u0000dialogue:char_0",
             "/#",
-            "^This is dialogue line one in scene 32.\n And here is a second line with *emphasis* and ",
+            "^This is dialogue line one in scene 32.\nAnd here is a second line with *emphasis* and ",
             "ev",
             {
               "VAR?": "trust"
@@ -78779,12 +78779,12 @@
             "#",
             "^\u0000action",
             "/#",
-            "^A character walks into location 33.\n The light shifts as the scene 33 opens.",
+            "^A character walks into location 33.\nThe light shifts as the scene 33 opens.",
             "\n",
             "#",
             "^\u0000dialogue:char_1",
             "/#",
-            "^This is dialogue line one in scene 33.\n And here is a second line with *emphasis* and ",
+            "^This is dialogue line one in scene 33.\nAnd here is a second line with *emphasis* and ",
             "ev",
             {
               "VAR?": "trust"
@@ -79021,12 +79021,12 @@
             "#",
             "^\u0000action",
             "/#",
-            "^A character walks into location 34.\n The light shifts as the scene 34 opens.",
+            "^A character walks into location 34.\nThe light shifts as the scene 34 opens.",
             "\n",
             "#",
             "^\u0000dialogue:char_2",
             "/#",
-            "^This is dialogue line one in scene 34.\n And here is a second line with *emphasis* and ",
+            "^This is dialogue line one in scene 34.\nAnd here is a second line with *emphasis* and ",
             "ev",
             {
               "VAR?": "trust"
@@ -79263,12 +79263,12 @@
             "#",
             "^\u0000action",
             "/#",
-            "^A character walks into location 35.\n The light shifts as the scene 35 opens.",
+            "^A character walks into location 35.\nThe light shifts as the scene 35 opens.",
             "\n",
             "#",
             "^\u0000dialogue:char_3",
             "/#",
-            "^This is dialogue line one in scene 35.\n And here is a second line with *emphasis* and ",
+            "^This is dialogue line one in scene 35.\nAnd here is a second line with *emphasis* and ",
             "ev",
             {
               "VAR?": "trust"
@@ -79505,12 +79505,12 @@
             "#",
             "^\u0000action",
             "/#",
-            "^A character walks into location 36.\n The light shifts as the scene 36 opens.",
+            "^A character walks into location 36.\nThe light shifts as the scene 36 opens.",
             "\n",
             "#",
             "^\u0000dialogue:char_4",
             "/#",
-            "^This is dialogue line one in scene 36.\n And here is a second line with *emphasis* and ",
+            "^This is dialogue line one in scene 36.\nAnd here is a second line with *emphasis* and ",
             "ev",
             {
               "VAR?": "trust"
@@ -79747,12 +79747,12 @@
             "#",
             "^\u0000action",
             "/#",
-            "^A character walks into location 37.\n The light shifts as the scene 37 opens.",
+            "^A character walks into location 37.\nThe light shifts as the scene 37 opens.",
             "\n",
             "#",
             "^\u0000dialogue:char_5",
             "/#",
-            "^This is dialogue line one in scene 37.\n And here is a second line with *emphasis* and ",
+            "^This is dialogue line one in scene 37.\nAnd here is a second line with *emphasis* and ",
             "ev",
             {
               "VAR?": "trust"
@@ -79989,12 +79989,12 @@
             "#",
             "^\u0000action",
             "/#",
-            "^A character walks into location 38.\n The light shifts as the scene 38 opens.",
+            "^A character walks into location 38.\nThe light shifts as the scene 38 opens.",
             "\n",
             "#",
             "^\u0000dialogue:char_6",
             "/#",
-            "^This is dialogue line one in scene 38.\n And here is a second line with *emphasis* and ",
+            "^This is dialogue line one in scene 38.\nAnd here is a second line with *emphasis* and ",
             "ev",
             {
               "VAR?": "trust"
@@ -80231,12 +80231,12 @@
             "#",
             "^\u0000action",
             "/#",
-            "^A character walks into location 39.\n The light shifts as the scene 39 opens.",
+            "^A character walks into location 39.\nThe light shifts as the scene 39 opens.",
             "\n",
             "#",
             "^\u0000dialogue:char_7",
             "/#",
-            "^This is dialogue line one in scene 39.\n And here is a second line with *emphasis* and ",
+            "^This is dialogue line one in scene 39.\nAnd here is a second line with *emphasis* and ",
             "ev",
             {
               "VAR?": "trust"
@@ -80473,12 +80473,12 @@
             "#",
             "^\u0000action",
             "/#",
-            "^A character walks into location 4.\n The light shifts as the scene 4 opens.",
+            "^A character walks into location 4.\nThe light shifts as the scene 4 opens.",
             "\n",
             "#",
             "^\u0000dialogue:char_4",
             "/#",
-            "^This is dialogue line one in scene 4.\n And here is a second line with *emphasis* and ",
+            "^This is dialogue line one in scene 4.\nAnd here is a second line with *emphasis* and ",
             "ev",
             {
               "VAR?": "trust"
@@ -80715,12 +80715,12 @@
             "#",
             "^\u0000action",
             "/#",
-            "^A character walks into location 40.\n The light shifts as the scene 40 opens.",
+            "^A character walks into location 40.\nThe light shifts as the scene 40 opens.",
             "\n",
             "#",
             "^\u0000dialogue:char_0",
             "/#",
-            "^This is dialogue line one in scene 40.\n And here is a second line with *emphasis* and ",
+            "^This is dialogue line one in scene 40.\nAnd here is a second line with *emphasis* and ",
             "ev",
             {
               "VAR?": "trust"
@@ -80957,12 +80957,12 @@
             "#",
             "^\u0000action",
             "/#",
-            "^A character walks into location 41.\n The light shifts as the scene 41 opens.",
+            "^A character walks into location 41.\nThe light shifts as the scene 41 opens.",
             "\n",
             "#",
             "^\u0000dialogue:char_1",
             "/#",
-            "^This is dialogue line one in scene 41.\n And here is a second line with *emphasis* and ",
+            "^This is dialogue line one in scene 41.\nAnd here is a second line with *emphasis* and ",
             "ev",
             {
               "VAR?": "trust"
@@ -81199,12 +81199,12 @@
             "#",
             "^\u0000action",
             "/#",
-            "^A character walks into location 42.\n The light shifts as the scene 42 opens.",
+            "^A character walks into location 42.\nThe light shifts as the scene 42 opens.",
             "\n",
             "#",
             "^\u0000dialogue:char_2",
             "/#",
-            "^This is dialogue line one in scene 42.\n And here is a second line with *emphasis* and ",
+            "^This is dialogue line one in scene 42.\nAnd here is a second line with *emphasis* and ",
             "ev",
             {
               "VAR?": "trust"
@@ -81441,12 +81441,12 @@
             "#",
             "^\u0000action",
             "/#",
-            "^A character walks into location 43.\n The light shifts as the scene 43 opens.",
+            "^A character walks into location 43.\nThe light shifts as the scene 43 opens.",
             "\n",
             "#",
             "^\u0000dialogue:char_3",
             "/#",
-            "^This is dialogue line one in scene 43.\n And here is a second line with *emphasis* and ",
+            "^This is dialogue line one in scene 43.\nAnd here is a second line with *emphasis* and ",
             "ev",
             {
               "VAR?": "trust"
@@ -81683,12 +81683,12 @@
             "#",
             "^\u0000action",
             "/#",
-            "^A character walks into location 44.\n The light shifts as the scene 44 opens.",
+            "^A character walks into location 44.\nThe light shifts as the scene 44 opens.",
             "\n",
             "#",
             "^\u0000dialogue:char_4",
             "/#",
-            "^This is dialogue line one in scene 44.\n And here is a second line with *emphasis* and ",
+            "^This is dialogue line one in scene 44.\nAnd here is a second line with *emphasis* and ",
             "ev",
             {
               "VAR?": "trust"
@@ -81925,12 +81925,12 @@
             "#",
             "^\u0000action",
             "/#",
-            "^A character walks into location 45.\n The light shifts as the scene 45 opens.",
+            "^A character walks into location 45.\nThe light shifts as the scene 45 opens.",
             "\n",
             "#",
             "^\u0000dialogue:char_5",
             "/#",
-            "^This is dialogue line one in scene 45.\n And here is a second line with *emphasis* and ",
+            "^This is dialogue line one in scene 45.\nAnd here is a second line with *emphasis* and ",
             "ev",
             {
               "VAR?": "trust"
@@ -82167,12 +82167,12 @@
             "#",
             "^\u0000action",
             "/#",
-            "^A character walks into location 46.\n The light shifts as the scene 46 opens.",
+            "^A character walks into location 46.\nThe light shifts as the scene 46 opens.",
             "\n",
             "#",
             "^\u0000dialogue:char_6",
             "/#",
-            "^This is dialogue line one in scene 46.\n And here is a second line with *emphasis* and ",
+            "^This is dialogue line one in scene 46.\nAnd here is a second line with *emphasis* and ",
             "ev",
             {
               "VAR?": "trust"
@@ -82409,12 +82409,12 @@
             "#",
             "^\u0000action",
             "/#",
-            "^A character walks into location 47.\n The light shifts as the scene 47 opens.",
+            "^A character walks into location 47.\nThe light shifts as the scene 47 opens.",
             "\n",
             "#",
             "^\u0000dialogue:char_7",
             "/#",
-            "^This is dialogue line one in scene 47.\n And here is a second line with *emphasis* and ",
+            "^This is dialogue line one in scene 47.\nAnd here is a second line with *emphasis* and ",
             "ev",
             {
               "VAR?": "trust"
@@ -82651,12 +82651,12 @@
             "#",
             "^\u0000action",
             "/#",
-            "^A character walks into location 48.\n The light shifts as the scene 48 opens.",
+            "^A character walks into location 48.\nThe light shifts as the scene 48 opens.",
             "\n",
             "#",
             "^\u0000dialogue:char_0",
             "/#",
-            "^This is dialogue line one in scene 48.\n And here is a second line with *emphasis* and ",
+            "^This is dialogue line one in scene 48.\nAnd here is a second line with *emphasis* and ",
             "ev",
             {
               "VAR?": "trust"
@@ -82893,12 +82893,12 @@
             "#",
             "^\u0000action",
             "/#",
-            "^A character walks into location 49.\n The light shifts as the scene 49 opens.",
+            "^A character walks into location 49.\nThe light shifts as the scene 49 opens.",
             "\n",
             "#",
             "^\u0000dialogue:char_1",
             "/#",
-            "^This is dialogue line one in scene 49.\n And here is a second line with *emphasis* and ",
+            "^This is dialogue line one in scene 49.\nAnd here is a second line with *emphasis* and ",
             "ev",
             {
               "VAR?": "trust"
@@ -83135,12 +83135,12 @@
             "#",
             "^\u0000action",
             "/#",
-            "^A character walks into location 5.\n The light shifts as the scene 5 opens.",
+            "^A character walks into location 5.\nThe light shifts as the scene 5 opens.",
             "\n",
             "#",
             "^\u0000dialogue:char_5",
             "/#",
-            "^This is dialogue line one in scene 5x.\n And here is a second line with *emphasis* and ",
+            "^This is dialogue line one in scene 5x.\nAnd here is a second line with *emphasis* and ",
             "ev",
             {
               "VAR?": "trust"
@@ -83377,12 +83377,12 @@
             "#",
             "^\u0000action",
             "/#",
-            "^A character walks into location 50.\n The light shifts as the scene 50 opens.",
+            "^A character walks into location 50.\nThe light shifts as the scene 50 opens.",
             "\n",
             "#",
             "^\u0000dialogue:char_2",
             "/#",
-            "^This is dialogue line one in scene 50.\n And here is a second line with *emphasis* and ",
+            "^This is dialogue line one in scene 50.\nAnd here is a second line with *emphasis* and ",
             "ev",
             {
               "VAR?": "trust"
@@ -83619,12 +83619,12 @@
             "#",
             "^\u0000action",
             "/#",
-            "^A character walks into location 51.\n The light shifts as the scene 51 opens.",
+            "^A character walks into location 51.\nThe light shifts as the scene 51 opens.",
             "\n",
             "#",
             "^\u0000dialogue:char_3",
             "/#",
-            "^This is dialogue line one in scene 51.\n And here is a second line with *emphasis* and ",
+            "^This is dialogue line one in scene 51.\nAnd here is a second line with *emphasis* and ",
             "ev",
             {
               "VAR?": "trust"
@@ -83861,12 +83861,12 @@
             "#",
             "^\u0000action",
             "/#",
-            "^A character walks into location 52.\n The light shifts as the scene 52 opens.",
+            "^A character walks into location 52.\nThe light shifts as the scene 52 opens.",
             "\n",
             "#",
             "^\u0000dialogue:char_4",
             "/#",
-            "^This is dialogue line one in scene 52.\n And here is a second line with *emphasis* and ",
+            "^This is dialogue line one in scene 52.\nAnd here is a second line with *emphasis* and ",
             "ev",
             {
               "VAR?": "trust"
@@ -84103,12 +84103,12 @@
             "#",
             "^\u0000action",
             "/#",
-            "^A character walks into location 53.\n The light shifts as the scene 53 opens.",
+            "^A character walks into location 53.\nThe light shifts as the scene 53 opens.",
             "\n",
             "#",
             "^\u0000dialogue:char_5",
             "/#",
-            "^This is dialogue line one in scene 53.\n And here is a second line with *emphasis* and ",
+            "^This is dialogue line one in scene 53.\nAnd here is a second line with *emphasis* and ",
             "ev",
             {
               "VAR?": "trust"
@@ -84345,12 +84345,12 @@
             "#",
             "^\u0000action",
             "/#",
-            "^A character walks into location 54.\n The light shifts as the scene 54 opens.",
+            "^A character walks into location 54.\nThe light shifts as the scene 54 opens.",
             "\n",
             "#",
             "^\u0000dialogue:char_6",
             "/#",
-            "^This is dialogue line one in scene 54.\n And here is a second line with *emphasis* and ",
+            "^This is dialogue line one in scene 54.\nAnd here is a second line with *emphasis* and ",
             "ev",
             {
               "VAR?": "trust"
@@ -84587,12 +84587,12 @@
             "#",
             "^\u0000action",
             "/#",
-            "^A character walks into location 55.\n The light shifts as the scene 55 opens.",
+            "^A character walks into location 55.\nThe light shifts as the scene 55 opens.",
             "\n",
             "#",
             "^\u0000dialogue:char_7",
             "/#",
-            "^This is dialogue line one in scene 55.\n And here is a second line with *emphasis* and ",
+            "^This is dialogue line one in scene 55.\nAnd here is a second line with *emphasis* and ",
             "ev",
             {
               "VAR?": "trust"
@@ -84829,12 +84829,12 @@
             "#",
             "^\u0000action",
             "/#",
-            "^A character walks into location 56.\n The light shifts as the scene 56 opens.",
+            "^A character walks into location 56.\nThe light shifts as the scene 56 opens.",
             "\n",
             "#",
             "^\u0000dialogue:char_0",
             "/#",
-            "^This is dialogue line one in scene 56.\n And here is a second line with *emphasis* and ",
+            "^This is dialogue line one in scene 56.\nAnd here is a second line with *emphasis* and ",
             "ev",
             {
               "VAR?": "trust"
@@ -85071,12 +85071,12 @@
             "#",
             "^\u0000action",
             "/#",
-            "^A character walks into location 57.\n The light shifts as the scene 57 opens.",
+            "^A character walks into location 57.\nThe light shifts as the scene 57 opens.",
             "\n",
             "#",
             "^\u0000dialogue:char_1",
             "/#",
-            "^This is dialogue line one in scene 57.\n And here is a second line with *emphasis* and ",
+            "^This is dialogue line one in scene 57.\nAnd here is a second line with *emphasis* and ",
             "ev",
             {
               "VAR?": "trust"
@@ -85313,12 +85313,12 @@
             "#",
             "^\u0000action",
             "/#",
-            "^A character walks into location 58.\n The light shifts as the scene 58 opens.",
+            "^A character walks into location 58.\nThe light shifts as the scene 58 opens.",
             "\n",
             "#",
             "^\u0000dialogue:char_2",
             "/#",
-            "^This is dialogue line one in scene 58.\n And here is a second line with *emphasis* and ",
+            "^This is dialogue line one in scene 58.\nAnd here is a second line with *emphasis* and ",
             "ev",
             {
               "VAR?": "trust"
@@ -85555,12 +85555,12 @@
             "#",
             "^\u0000action",
             "/#",
-            "^A character walks into location 59.\n The light shifts as the scene 59 opens.",
+            "^A character walks into location 59.\nThe light shifts as the scene 59 opens.",
             "\n",
             "#",
             "^\u0000dialogue:char_3",
             "/#",
-            "^This is dialogue line one in scene 59.\n And here is a second line with *emphasis* and ",
+            "^This is dialogue line one in scene 59.\nAnd here is a second line with *emphasis* and ",
             "ev",
             {
               "VAR?": "trust"
@@ -85797,12 +85797,12 @@
             "#",
             "^\u0000action",
             "/#",
-            "^A character walks into location 6.\n The light shifts as the scene 6 opens.",
+            "^A character walks into location 6.\nThe light shifts as the scene 6 opens.",
             "\n",
             "#",
             "^\u0000dialogue:char_6",
             "/#",
-            "^This is dialogue line one in scene 6.\n And here is a second line with *emphasis* and ",
+            "^This is dialogue line one in scene 6.\nAnd here is a second line with *emphasis* and ",
             "ev",
             {
               "VAR?": "trust"
@@ -86039,12 +86039,12 @@
             "#",
             "^\u0000action",
             "/#",
-            "^A character walks into location 7.\n The light shifts as the scene 7 opens.",
+            "^A character walks into location 7.\nThe light shifts as the scene 7 opens.",
             "\n",
             "#",
             "^\u0000dialogue:char_7",
             "/#",
-            "^This is dialogue line one in scene 7.\n And here is a second line with *emphasis* and ",
+            "^This is dialogue line one in scene 7.\nAnd here is a second line with *emphasis* and ",
             "ev",
             {
               "VAR?": "trust"
@@ -86281,12 +86281,12 @@
             "#",
             "^\u0000action",
             "/#",
-            "^A character walks into location 8.\n The light shifts as the scene 8 opens.",
+            "^A character walks into location 8.\nThe light shifts as the scene 8 opens.",
             "\n",
             "#",
             "^\u0000dialogue:char_0",
             "/#",
-            "^This is dialogue line one in scene 8.\n And here is a second line with *emphasis* and ",
+            "^This is dialogue line one in scene 8.\nAnd here is a second line with *emphasis* and ",
             "ev",
             {
               "VAR?": "trust"
@@ -86523,12 +86523,12 @@
             "#",
             "^\u0000action",
             "/#",
-            "^A character walks into location 9.\n The light shifts as the scene 9 opens.",
+            "^A character walks into location 9.\nThe light shifts as the scene 9 opens.",
             "\n",
             "#",
             "^\u0000dialogue:char_1",
             "/#",
-            "^This is dialogue line one in scene 9.\n And here is a second line with *emphasis* and ",
+            "^This is dialogue line one in scene 9.\nAnd here is a second line with *emphasis* and ",
             "ev",
             {
               "VAR?": "trust"

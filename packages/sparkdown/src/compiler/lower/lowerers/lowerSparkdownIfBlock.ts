@@ -1,3 +1,5 @@
+import { type SparkdownNodeName } from "../../types/SparkdownNodeName";
+import { nodeNameSet } from "../../utils/nodeNameSet";
 import { type SyntaxNode } from "@lezer/common";
 import { Conditional } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Conditional/Conditional";
 import { ConditionalSingleBranch } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Conditional/ConditionalSingleBranch";
@@ -21,7 +23,7 @@ import { wrapInWeave } from "../utils/wrapInWeave";
 
 export interface IfBlockVariant {
   /** Top-level if-block node name, e.g. "LuauSparkdownIfBlock" or "LuauIfBlock". */
-  prefix: string;
+  prefix: SparkdownNodeName;
 }
 
 export function lowerSparkdownIfBlock(
@@ -47,6 +49,8 @@ function lowerIfBlock(
   const elseNodeName = variant.prefix.replace("IfBlock", "ElseBlock");
 
   const content = findChildByName(nodeRef.node, `${variant.prefix}_content`);
+  // Two of the members are computed from the variant, so this set cannot be
+  // declared with the union; the check script covers the literal.
   const ifBodySkip = new Set<string>([
     "LuauIfBlockCondition",
     elseifNodeName,
@@ -110,7 +114,7 @@ function lowerIfBlock(
   return wrapInWeave([conditional]);
 }
 
-const ELSEIF_BODY_SKIP = new Set<string>(["LuauElseifBlockCondition"]);
+const ELSEIF_BODY_SKIP = nodeNameSet(["LuauElseifBlockCondition"]);
 
 function buildBranch(
   condition: Expression | null,

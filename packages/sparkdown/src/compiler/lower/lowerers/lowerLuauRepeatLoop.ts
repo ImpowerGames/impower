@@ -1,3 +1,4 @@
+import { nodeNameSet } from "../../utils/nodeNameSet";
 import { type SyntaxNode } from "@lezer/common";
 import { Conditional } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Conditional/Conditional";
 import { ConditionalSingleBranch } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Conditional/ConditionalSingleBranch";
@@ -54,7 +55,7 @@ import { wrapInScope } from "../utils/wrapInScope";
 // condition; the `LuauUntilStatement` dispatch case is a no-op so
 // it isn't lowered twice.
 
-const REPEAT_BODY_SKIP: ReadonlySet<string> = new Set([
+const REPEAT_BODY_SKIP: ReadonlySet<string> = nodeNameSet([
   "LuauRepeatKeyword",
   "LuauComment",
 ]);

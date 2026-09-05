@@ -4,7 +4,11 @@ import {
   thumbnailCacheKey,
   type ThumbnailSource,
 } from "../../thumbnails/composeThumbnail";
-import { getImagePreviewMarkup, getImagePreviewSrc } from "./getImagePreviewSrc";
+import {
+  buildImagePreviewMarkup,
+  getImagePreviewMarkup,
+  getImagePreviewSrc,
+} from "./getImagePreviewSrc";
 import { resolveImageLayers, type ImageLayer } from "./resolveImageLayers";
 
 /**
@@ -228,9 +232,6 @@ export const getImageCompositeSrc = async (
   return value || undefined;
 };
 
-const escapeAttribute = (value: string) =>
-  value.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
-
 /**
  * Preview markup for an image-ish struct, inlining a generated thumbnail when
  * the host can build one and falling back to the plain resolved source when it
@@ -244,9 +245,7 @@ export const getImagePreviewMarkupComposited = async (
   const composite = await getImageCompositeSrc(context, struct, options);
   if (composite) {
     const name = struct?.["$name"] ?? "";
-    return `<img src="${escapeAttribute(composite)}" alt="${escapeAttribute(
-      name,
-    )}" height="180" />`;
+    return buildImagePreviewMarkup(composite, name);
   }
   // Either a source the host loads as it stands, or one no thumbnail could be
   // built from.

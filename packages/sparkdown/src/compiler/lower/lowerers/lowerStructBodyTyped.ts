@@ -1,3 +1,4 @@
+import { nodeNameSet } from "../../utils/nodeNameSet";
 import { type SyntaxNode } from "@lezer/common";
 import type { LowerContext } from "../context";
 import {
@@ -27,7 +28,7 @@ interface NodeLine {
   node: SyntaxNode; // LuauStructBodyContent
 }
 
-const LINE_KIND_NAMES = new Set([
+const LINE_KIND_NAMES = nodeNameSet([
   "LuauStructScalarProperty",
   "LuauStructObjectHeader",
   "LuauStructArrayItem",
@@ -35,14 +36,14 @@ const LINE_KIND_NAMES = new Set([
   "LuauStructBodyFallback",
 ]);
 
-const KEY_TOKEN_NAMES = new Set([
+const KEY_TOKEN_NAMES = nodeNameSet([
   "BuiltinComponentName",
   "DeclarationScalarPropertyKey",
   "CustomComponentName",
   "PropertyName",
 ]);
 
-const FIELD_VALUE_NAMES = new Set([
+const FIELD_VALUE_NAMES = nodeNameSet([
   "StringFieldValue",
   "NumericFieldValue",
   "BooleanFieldValue",
@@ -97,7 +98,7 @@ function readTypedValue(value: SyntaxNode | null, ctx: LowerContext): unknown {
   return raw;
 }
 
-const PLAIN_STRING_CONTENT = new Set(["PlainStringContent"]);
+const PLAIN_STRING_CONTENT = nodeNameSet(["PlainStringContent"]);
 
 /** The text of a `key:` object-header key (everything before the colon). */
 function headerKey(content: SyntaxNode, ctx: LowerContext): string {

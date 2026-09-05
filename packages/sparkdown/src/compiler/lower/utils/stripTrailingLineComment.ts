@@ -1,9 +1,11 @@
+import { nodeNameSet } from "../../utils/nodeNameSet";
+
 // Grammar value tokens whose match greedily spans to end-of-line, so any
 // trailing `-- comment` / `// comment` ends up INSIDE the value node. Quoted
 // value tokens (`StringFieldValue` / `StringFieldValueInterpolated`) are bounded
 // by their quotes and must NOT be stripped — a `--`/`//` inside the quotes is
 // legitimate content.
-export const UNQUOTED_VALUE_NODES: ReadonlySet<string> = new Set([
+export const UNQUOTED_VALUE_NODES: ReadonlySet<string> = nodeNameSet([
   "StylingValue",
   "UnquotedStringFieldValue",
 ]);

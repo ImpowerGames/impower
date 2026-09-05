@@ -11,6 +11,7 @@ import {
   getImageCompositeSrc,
   getImagePreviewMarkupComposited,
 } from "../../compiler/utils/getImageComposite";
+import { IMAGE_PREVIEW_HEIGHT } from "../../compiler/utils/getImagePreviewSrc";
 import {
   clampThumbnailWidth,
   composeThumbnailBlob,
@@ -296,15 +297,17 @@ describe("getImageCompositeSrc", () => {
   it("emits markup carrying the inlined image, not the workspace uri", async () => {
     stubRasterizer();
     stubFetch({ fails: true });
-    const ctx = makeContext("markup", ["lone"]);
-    ctx.image["lone"]!.src = "vscode-vfs://host/markup/lone.png";
+    const ctx = makeContext("markupinlined", ["lone"]);
+    ctx.image["lone"]!.src = "vscode-vfs://host/markupinlined/lone.png";
     const markup = await getImagePreviewMarkupComposited(ctx, ctx.image["lone"], {
       readFileBytes: async () => btoa("lone"),
     });
     expect(markup).toMatch(/^<img src="data:image\/webp;base64,/);
     // VS Code's markdown sanitizer strips this scheme off the element.
-    expect(markup).not.toContain("file://");
+    expect(markup).not.toContain("vscode-vfs://");
     expect(markup).toContain('alt="lone"');
+    // #432's inline height has to survive the composited path too.
+    expect(markup).toContain(`style="height:${IMAGE_PREVIEW_HEIGHT}px"`);
   });
 
   it.each([
@@ -460,5 +463,33 @@ describe("getImageCompositeSrc", () => {
     const ctx = makeContext("norender", ["base", "prop"]);
     const src = await getImageCompositeSrc(ctx, ctx.layered_image.bg);
     expect(src).toBeUndefined();
+  });
+});
+
+// The composited preview builds its own `<img>` rather than going through the
+// single-layer path, so it needs the same inline height. Without it the web
+// editor's `img { height: auto }` reset cancels the size and the thumbnail
+// collapses (#432).
+describe("getImagePreviewMarkupComposited", () => {
+  it("states the thumbnail height inline on the composited image", async () => {
+    stubRasterizer();
+    stubFetch();
+    const ctx = makeContext("markup", ["base", "prop"]);
+    const markup = await getImagePreviewMarkupComposited(
+      ctx,
+      ctx.layered_image.bg,
+    );
+    expect(markup).toContain("src=\"data:image/webp;base64,");
+    expect(markup).toContain(`style="height:${IMAGE_PREVIEW_HEIGHT}px"`);
+    expect(markup).toContain(`height="${IMAGE_PREVIEW_HEIGHT}"`);
+  });
+
+  it("states it on the single-layer fallback as well", async () => {
+    stubRasterizer();
+    stubFetch();
+    const ctx = makeContext("markupfallback", ["only"]);
+    // One layer is never composited, so this returns the plain preview.
+    const markup = await getImagePreviewMarkupComposited(ctx, ctx.image["only"]);
+    expect(markup).toContain(`style="height:${IMAGE_PREVIEW_HEIGHT}px"`);
   });
 });

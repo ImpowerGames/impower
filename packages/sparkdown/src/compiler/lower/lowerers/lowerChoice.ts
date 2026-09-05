@@ -1,3 +1,4 @@
+import { nodeNameSet } from "../../utils/nodeNameSet";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 import { type SyntaxNode } from "@lezer/common";
 import { ErrorType } from "../../../inkjs/compiler/Parser/ErrorType";
@@ -462,7 +463,7 @@ function collectTrailingWhitespace(
 // In that case the choice's chosen-output should NOT receive an
 // extra trailing newline — the terminator runs immediately, matching
 // what the legacy inline `* "X" -> END` form used to emit.
-const CHOICE_BODY_SKIP: ReadonlySet<string> = new Set([
+const CHOICE_BODY_SKIP: ReadonlySet<string> = nodeNameSet([
   "Newline",
   "Whitespace",
   "ExtraWhitespace",
