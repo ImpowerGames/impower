@@ -7,9 +7,13 @@
 // fallback, failure caching, and the byte cap — not the browser's rasterizer.
 
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { getImageCompositeSrc } from "../../compiler/utils/getImageComposite";
+import {
+  getImageCompositeSrc,
+  getImagePreviewMarkupComposited,
+} from "../../compiler/utils/getImageComposite";
 import {
   clampThumbnailWidth,
+  composeThumbnailBlob,
   thumbnailCacheKey,
   THUMB_MAX_WIDTH,
   THUMB_MIN_WIDTH,
@@ -117,6 +121,131 @@ describe("thumbnail cache key", () => {
   });
 });
 
+describe("thumbnail sizing", () => {
+  /**
+   * A rasterizer that respects whichever resize dimension it is given and keeps
+   * the source's aspect ratio, so the shape of what gets decoded is assertable.
+   */
+  const stubAspectRasterizer = (srcW: number, srcH: number) => {
+    const decoded: string[] = [];
+    vi.stubGlobal("createImageBitmap", async (_blob: Blob, opts: any) => {
+      const scale = opts?.resizeWidth
+        ? opts.resizeWidth / srcW
+        : opts?.resizeHeight
+          ? opts.resizeHeight / srcH
+          : 1;
+      const width = Math.max(1, Math.round(srcW * scale));
+      const height = Math.max(1, Math.round(srcH * scale));
+      decoded.push(`${width}x${height}`);
+      return { width, height, close() {} };
+    });
+    vi.stubGlobal(
+      "OffscreenCanvas",
+      class {
+        constructor(
+          public width: number,
+          public height: number,
+        ) {}
+        getContext() {
+          return { drawImage: () => {} };
+        }
+        async convertToBlob() {
+          return new Blob([new Uint8Array(16)], { type: "image/webp" });
+        }
+      },
+    );
+    return decoded;
+  };
+
+  it("fits a wide source by width", async () => {
+    const decoded = stubAspectRasterizer(4000, 3000);
+    await composeThumbnailBlob(
+      [{ path: "/a.png", blob: new Blob(["a"]), lastModified: 0, size: 1 }],
+      360,
+    );
+    expect(decoded).toEqual(["360x270"]);
+  });
+
+  // A tall source fitted by width alone is unbounded: 200 x 6000 becomes
+  // 360 x 10800, which encodes past the caller's size ceiling and is discarded,
+  // leaving the preview blank. It has to be fitted by height instead.
+  it("fits a very tall source by height, so nothing exceeds the box", async () => {
+    const decoded = stubAspectRasterizer(200, 6000);
+    await composeThumbnailBlob(
+      [{ path: "/tall.png", blob: new Blob(["t"]), lastModified: 0, size: 1 }],
+      360,
+    );
+    // First attempt fits the width and overshoots; the retry fits the height.
+    expect(decoded).toEqual(["360x10800", "12x360"]);
+  });
+
+  it("re-fits every layer together, so a composite stays aligned", async () => {
+    const decoded = stubAspectRasterizer(200, 6000);
+    await composeThumbnailBlob(
+      [
+        { path: "/a.png", blob: new Blob(["a"]), lastModified: 0, size: 1 },
+        { path: "/b.png", blob: new Blob(["b"]), lastModified: 0, size: 1 },
+      ],
+      360,
+    );
+    // Both layers re-decoded under the same transform, never one of each.
+    expect(decoded).toEqual(["360x10800", "360x10800", "12x360", "12x360"]);
+  });
+
+  // Layers of a `layered_image` share dimensions by convention, but nothing
+  // enforces it. Re-fitting each layer to the box independently would bound the
+  // tall one and leave the wide one overhanging by 30x, back over the caller's
+  // size ceiling. One common scale factor bounds the union instead.
+  it("bounds the canvas when layers disagree wildly about aspect ratio", async () => {
+    const drawnOn: string[] = [];
+    let canvasSize = "";
+    // Two sources of opposite extremes, decoded from the same call.
+    const sizes = [
+      { w: 200, h: 6000 },
+      { w: 6000, h: 200 },
+    ];
+    let call = 0;
+    vi.stubGlobal("createImageBitmap", async (_blob: Blob, opts: any) => {
+      const s = sizes[call % sizes.length]!;
+      call++;
+      const scale = opts.resizeWidth / s.w;
+      const width = Math.max(1, Math.round(s.w * scale));
+      const height = Math.max(1, Math.round(s.h * scale));
+      drawnOn.push(`${width}x${height}`);
+      return { width, height, close() {} };
+    });
+    vi.stubGlobal(
+      "OffscreenCanvas",
+      class {
+        constructor(
+          public width: number,
+          public height: number,
+        ) {
+          canvasSize = `${width}x${height}`;
+        }
+        getContext() {
+          return { drawImage: () => {} };
+        }
+        async convertToBlob() {
+          return new Blob([new Uint8Array(16)], { type: "image/webp" });
+        }
+      },
+    );
+
+    await composeThumbnailBlob(
+      [
+        { path: "/tall.png", blob: new Blob(["t"]), lastModified: 0, size: 1 },
+        { path: "/wide.png", blob: new Blob(["w"]), lastModified: 0, size: 1 },
+      ],
+      360,
+    );
+
+    const [w, h] = canvasSize.split("x").map(Number);
+    expect(w).toBeLessThanOrEqual(360);
+    expect(h).toBeLessThanOrEqual(360);
+  });
+});
+
 describe("getImageCompositeSrc", () => {
   it("draws layers bottom-first, matching the order the game paints", async () => {
     stubRasterizer();
@@ -128,7 +257,7 @@ describe("getImageCompositeSrc", () => {
     expect(drawn).toEqual(["base", "prop", "light"]);
   });
 
-  it("does not composite a single-layer asset", async () => {
+  it("does not composite a single-layer asset the host can load as it is", async () => {
     stubRasterizer();
     const calls = stubFetch();
     const ctx = makeContext("single", ["only"]);
@@ -137,6 +266,75 @@ describe("getImageCompositeSrc", () => {
     // Nothing to flatten, so nothing should have been fetched or drawn.
     expect(calls).toEqual([]);
     expect(drawn).toEqual([]);
+  });
+
+  // #440: in VS Code a single raster image's src is a workspace uri, which the
+  // markdown sanitizer strips off the element — leaving an image with nothing
+  // to load. It has to be inlined as `data:` the way a composite already is.
+  it("inlines a single image whose src the host cannot load", async () => {
+    stubRasterizer();
+    stubFetch({ fails: true });
+    const ctx = makeContext("workspaceuri", ["lone"]);
+    // Deliberately unlike the layer's `uri`, so the assertion below pins that
+    // the bridge is asked by workspace uri rather than by display src.
+    ctx.image["lone"]!.src = "vscode-vfs://host/workspaceuri/lone.png";
+    const asked: string[] = [];
+    const src = await getImageCompositeSrc(ctx, ctx.image["lone"], {
+      readFileBytes: async (uri) => {
+        asked.push(uri);
+        return btoa("lone");
+      },
+    });
+    expect(src).toMatch(/^data:image\/webp;base64,/);
+    expect(asked).toEqual(["file://proj/workspaceuri/lone.png"]);
+    expect(drawn).toEqual(["lone"]);
+  });
+
+  // The surface the ticket actually reports: what the hover and the completion
+  // details pane receive. Asserting on `getImageCompositeSrc` alone would still
+  // pass if the markup builder stopped consulting it.
+  it("emits markup carrying the inlined image, not the workspace uri", async () => {
+    stubRasterizer();
+    stubFetch({ fails: true });
+    const ctx = makeContext("markup", ["lone"]);
+    ctx.image["lone"]!.src = "vscode-vfs://host/markup/lone.png";
+    const markup = await getImagePreviewMarkupComposited(ctx, ctx.image["lone"], {
+      readFileBytes: async () => btoa("lone"),
+    });
+    expect(markup).toMatch(/^<img src="data:image\/webp;base64,/);
+    // VS Code's markdown sanitizer strips this scheme off the element.
+    expect(markup).not.toContain("file://");
+    expect(markup).toContain('alt="lone"');
+  });
+
+  it.each([
+    ["served-url", "https://cdn.example/pic.png"],
+    ["inlined-data-uri", "data:image/svg+xml,%3Csvg%2F%3E"],
+    ["page-relative-path", "/file:/local/assets/pic.png?v=1-2"],
+    // Desktop VS Code rewrites this one to `vscode-file:` and renders it, so
+    // inlining it would buy a smaller picture for the cost of an encode.
+    ["desktop workspace uri", "file:///c:/workspace/images/pic.png"],
+  ])("leaves a single image on a %s alone", async (label, srcValue) => {
+    stubRasterizer();
+    const calls = stubFetch();
+    const ctx = makeContext(label, ["lone"]);
+    ctx.image["lone"]!.src = srcValue;
+    const src = await getImageCompositeSrc(ctx, ctx.image["lone"], {
+      readFileBytes: async () => btoa("lone"),
+    });
+    // Re-encoding a source the host already renders costs work and sharpness.
+    expect(src).toBeUndefined();
+    expect(calls).toEqual([]);
+    expect(drawn).toEqual([]);
+  });
+
+  it("degrades to the plain src when a lone workspace uri has no bridge", async () => {
+    stubRasterizer();
+    stubFetch({ fails: true });
+    const ctx = makeContext("nobridge", ["lone"]);
+    ctx.image["lone"]!.src = "vscode-vfs://host/nobridge/lone.png";
+    const src = await getImageCompositeSrc(ctx, ctx.image["lone"]);
+    expect(src).toBeUndefined();
   });
 
   it("falls back to the byte bridge when a layer can't be fetched", async () => {

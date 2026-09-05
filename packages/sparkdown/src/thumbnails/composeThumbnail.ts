@@ -5,8 +5,8 @@
  *  - impower-dev's service worker, answering `?thumb=<width>` with an HTTP
  *    response it caches in Cache Storage.
  *  - the language server, inlining the result as a `data:` URI for hosts with
- *    no service worker to intercept a URL (VS Code, where the markdown
- *    sanitizer also refuses any non-http(s) src).
+ *    no service worker to intercept a URL (VS Code, where a workspace uri does
+ *    not render in a hover — see `getImageComposite`).
  *
  * Only the DELIVERY differs between those two. Generation, sizing and the
  * cache-key discipline are identical, so they live here — if they drift, the
@@ -19,7 +19,7 @@
  * logic changes (encoder, quality, sizing). Callers fold this into their cache
  * key; nothing else needs to know.
  */
-export const THUMB_VERSION = 1;
+export const THUMB_VERSION = 2;
 
 export const THUMB_MIN_WIDTH = 16;
 export const THUMB_MAX_WIDTH = 512;
@@ -107,6 +107,33 @@ export const composeThumbnailBlob = async (
         }),
       ),
     );
+    const tallest = Math.max(...bitmaps.map((b) => b.height));
+    if (tallest > width) {
+      // Fitting the width alone bounds nothing on a tall source: a 200 x 6000
+      // strip fitted to 360 wide becomes 360 x 10800, which encodes to well
+      // over a megabyte and is then thrown away for exceeding the caller's
+      // size ceiling — so the preview shows nothing at all.
+      //
+      // Shrink the whole set by ONE common factor, chosen so the tallest layer
+      // lands exactly on the box. A uniform factor is what keeps a composite's
+      // layers registered against each other; re-fitting each layer to the box
+      // independently would rescale them unequally and pull the stack apart,
+      // and would still let a very wide layer overhang. The second decode only
+      // happens for extreme aspect ratios.
+      const scale = width / tallest;
+      const previous = bitmaps;
+      bitmaps = [];
+      previous.forEach((b) => b?.close());
+      const fitted = Math.max(1, Math.round(width * scale));
+      bitmaps = await Promise.all(
+        sources.map((s) =>
+          createImageBitmap(s.blob, {
+            resizeWidth: fitted,
+            resizeQuality: "low",
+          }),
+        ),
+      );
+    }
     const w = Math.max(...bitmaps.map((b) => b.width));
     const h = Math.max(...bitmaps.map((b) => b.height));
     if (!w || !h) {
