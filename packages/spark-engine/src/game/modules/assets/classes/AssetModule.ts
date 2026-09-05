@@ -842,11 +842,19 @@ export class AssetModule extends Module<
     );
     // The restore gate: what the checkpoint displays must be resident before
     // `restore()` writes it, or a preview shows its backdrop late. Fonts are
-    // gated by the layouts as they mount.
+    // gated by the layouts as they mount. A target the connect clears (a
+    // portrait, which shows only with the beat that writes it) is not
+    // restored, so its picture is not waited for: the beat's own gate asks
+    // for the portrait the beat shows.
     const names: string[] = [];
-    const imageState = this._game.module.ui.state.image;
+    const ui = this._game.module.ui;
+    const imageState = ui.state.image;
     if (imageState) {
-      for (const events of Object.values(imageState)) {
+      const cleared = new Set(ui.getTransientTargets());
+      for (const [target, events] of Object.entries(imageState)) {
+        if (cleared.has(target)) {
+          continue;
+        }
         for (const event of events ?? []) {
           if (event.control === "show" && event.assets?.length) {
             names.push(...event.assets);

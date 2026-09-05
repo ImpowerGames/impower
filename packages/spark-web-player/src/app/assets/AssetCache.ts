@@ -416,6 +416,14 @@ export class AssetCache {
       entry.pins.add(pin);
       if (priority === 0) {
         entry.gatePins.add(pin);
+        // A picture a prefetch already had in flight is a gate's now: its
+        // priority goes to the express lane too, so a retry after a failed
+        // attempt re-enters the lane instead of the queue it was prefetched
+        // in, which yields to every gate. The in-flight accounting keeps
+        // the lane the load started in.
+        if (entry.state === "loading") {
+          entry.priority = 0;
+        }
         this.promoteInLane(entry);
       }
       entries.push(entry);
@@ -992,11 +1000,23 @@ export class AssetCache {
           // Back of its own line, so the others get their turn first (a
           // service worker that is coming up fails what it is asked first,
           // so every picture gets a first attempt before any gets a second);
-          // a gate still goes ahead of the hints, since someone waits on it.
+          // a gate still goes ahead of the hints, since someone waits on it;
+          // and an express-lane entry that no gate waits on any more and
+          // that is not the current hint (a gate released while its load
+          // was in flight) leaves the lane, as the release rule would have
+          // sent it had it been queued.
           entry.state = "queued";
-          this._queues[entry.priority]!.push(entry);
-          if (entry.gatePins.size > 0) {
-            this.promoteInLane(entry);
+          if (
+            entry.priority === 0 &&
+            entry.gatePins.size === 0 &&
+            !this._hinted.includes(entry)
+          ) {
+            this.demote(entry);
+          } else {
+            this._queues[entry.priority]!.push(entry);
+            if (entry.gatePins.size > 0) {
+              this.promoteInLane(entry);
+            }
           }
         } else {
           entry.state = "failed";

@@ -135,18 +135,32 @@ describe("planPreviewHint", () => {
     });
   });
 
-  it("covers the cursor's own beat from any line of it, and stays inside the window", () => {
-    const beats = program.sceneAssets!["A"]!.beats;
-    const locations = program.pathLocations!;
+  it("covers the cursor's own beat from any line of it, and never reaches past the window it is issued with", () => {
+    // With a window of one beat either side of the cursor, a guess reaches
+    // past the window as soon as it is wider than the cursor's beat and the
+    // next: this holds the guess to two beats from above, and covering the
+    // cursor's own beat holds it from below.
+    const narrow = compile(
+      `define assets as config with\n  predict_distance = 1\nend\n\n${STORY}`,
+    );
+    const narrowEntries = entriesOf(narrow);
+    const beats = narrow.sceneAssets!["A"]!.beats;
+    const locations = narrow.pathLocations!;
     for (let line = 1; line <= 13; line++) {
-      const fresh = plan(line)!;
+      const fresh = planPreviewHint(
+        narrow,
+        URI,
+        line + 4,
+        narrowEntries,
+        undefined,
+      )!;
       const path = findClosestPath(
-        { file: URI, line },
-        entries,
-        Object.keys(program.scripts ?? {}),
+        { file: URI, line: line + 4 },
+        narrowEntries,
+        Object.keys(narrow.scripts ?? {}),
       );
       const at = beatIndexIn(beats, locations, path);
-      const own = srcs(items(program, beats[Math.max(0, at)]!.image ?? []));
+      const own = srcs(items(narrow, beats[Math.max(0, at)]!.image ?? []));
       const cursor = srcs(fresh.cursor)!;
       const near = new Set(srcs(fresh.near));
       expect({ line, coversOwn: own!.every((s) => cursor.includes(s)) }).toEqual(

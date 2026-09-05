@@ -1573,9 +1573,19 @@ export class GamePlayerController {
     // gets its preview call and can reveal the UI (Game.preview's no-path branch).
     const validPreviewFrom =
       (previewPath ? previewFrom : this._game?.previewFrom) ?? previewFrom;
+    // The path `game.preview()` below will resolve for that point against
+    // THIS program. A remembered point is re-resolved rather than reused, so
+    // a recompile that moved it lands the mark below and the preview on one
+    // beat, and the beat the connect runs ahead is the beat the preview
+    // displays; a point that no longer resolves keeps its old path, which
+    // the skip below needs to tell a repeat from a first preview.
     const validPreviewPath = previewPath
       ? previewPath
-      : this._game?.previewPath;
+      : (findClosestPath(
+          validPreviewFrom,
+          Object.entries(program.pathLocations ?? {}),
+          Object.keys(program.scripts),
+        ) ?? this._game?.previewPath);
 
     // Skip only a repeat of a preview that actually ran. A UI-only project
     // resolves no path at all, so both sides of the comparison are undefined

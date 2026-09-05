@@ -333,8 +333,26 @@ describe("AssetCache: warming through the document", () => {
     ]);
   });
 
+  it("retries a gate's picture in the express lane when a prefetch had it in flight first", async () => {
+    const { cache, loading, priorityOf } = makeCache();
+    // The window went out first, at the rest-of-scene priority; then the
+    // gate asked for the same picture. The picture is a gate's now.
+    cache.prefetch([image("/portrait.svg")], 3);
+    expect(loading("/portrait.svg")).toBeDefined();
+    void cache.request([image("/portrait.svg")], 0, "restore");
+    expect(priorityOf("/portrait.svg")).toBe(0);
+    cache.hint(images(6, "h"));
+    // A cold service worker fails the first attempt: the retry goes to the
+    // head of the express lane, not to the back of a queue that yields to
+    // every gate, and starts in the next express slot.
+    loading("/portrait.svg")!.fail();
+    await settle();
+    expect(loading("/portrait.svg")).toBeDefined();
+    expect(cache.stateOf("/h4.svg")).toBe("queued");
+  });
+
   it("retries a failed hint behind the hints that have not been tried", async () => {
-    const { cache, loading } = makeCache();
+    const { cache, loading, priorityOf } = makeCache();
     // A service worker that is coming up fails what it is asked first: every
     // picture gets a first attempt before any gets a second, so the ones
     // asked later, when the worker is up, load on their first.
@@ -347,14 +365,16 @@ describe("AssetCache: warming through the document", () => {
       "/h0.svg",
     ]);
     // A gate nobody waits on any more (its pin released while its load was
-    // in flight) is retried like a hint: behind them, not ahead.
+    // in flight) leaves the express lane on retry, as a queued one would
+    // have on release: a prefetch now, behind every hint.
     void cache.request([image("/old.svg")], 0, "beat:old");
     cache.release(["beat:old"], false);
     loading("/old.svg")!.fail();
     await settle();
-    expect(
-      (cache as any)._queues[0].map((e: any) => e.key).indexOf("/old.svg"),
-    ).toBe((cache as any)._queues[0].length - 1);
+    expect(priorityOf("/old.svg")).toBe(2);
+    expect((cache as any)._queues[0].map((e: any) => e.key)).not.toContain(
+      "/old.svg",
+    );
   });
 
   it("sends a released gate's picture back to the load's priority when a load still waits on it", async () => {

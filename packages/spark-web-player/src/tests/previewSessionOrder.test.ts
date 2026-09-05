@@ -68,6 +68,29 @@ function controllerWith(game: any, app: any) {
 }
 
 describe("preview session ordering", () => {
+  test("marks the path the remembered point resolves to now, not the one it resolved to before", async () => {
+    // The cursor sits in a file the program does not know, so the controller
+    // keeps the game's remembered point (main.sd line 4). The program has
+    // changed since that point last resolved: the mark, and so the beat the
+    // connect runs ahead, must be the point's path in this program, the one
+    // `preview()` will resolve, not the path it had before.
+    const calls: string[] = [];
+    const game = recordingGame(calls);
+    game.markPreviewing = (path: string) => calls.push(`markPreviewing:${path}`);
+    const program = {
+      ...PROGRAM,
+      pathLocations: { "1.0": [0, 4, 0, 4, 5] },
+    };
+    await controllerWith(game, stubApp(calls)).updatePreview(
+      program,
+      "file://proj/other.sd",
+      1,
+      "SAVE",
+    );
+    expect(calls).toContain("markPreviewing:1.0");
+    expect(calls).not.toContain("markPreviewing:0.0");
+  });
+
   test("the game is told it is previewing before the load and the connect", async () => {
     const calls: string[] = [];
     const controller = controllerWith(recordingGame(calls), stubApp(calls));
