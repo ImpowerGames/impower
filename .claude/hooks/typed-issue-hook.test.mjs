@@ -242,6 +242,9 @@ const denies = [
   ["an untyped [ordered] hashtable with a path ending in a backslash and type=Bug in prose", "irm -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Body ([ordered]@{title=\"C:\\dist\\\"; body=\"remember, type=Bug goes on the call\"} | ConvertTo-Json)"],
   ["an untyped hashtable with a trailing-backslash value followed by a header", "irm -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Body @{title=\"C:\\dist\\\"; body=\"x\"} -Headers @{Authorization=\"Bearer x\"}"],
   ["an untyped body behind a ConvertTo-Json prefix with -Depth after it", "irm -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Body (ConvertTo-Json ([pscustomobject]@{title=\"x\"}) -Depth 10)"],
+  ["an untyped compact hashtable whose value holds a closer and a flag-like word, with -Depth after", "irm -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Body (ConvertTo-Json @{title=\"x\";body=\"run (a) -Raw f\"} -Depth 5)"],
+  ["a create after a $( ) following a short flag with an escaped quote", 'echo -n $(cmd "a \\") b") ; gh issue create -t x'],
+  ["an untyped curl create after an unbalanced flag group", 'echo -a @{ ; curl -X POST https://api.github.com/repos/ImpowerGames/impower/issues -d "{\\"title\\":\\"x\\",\\"body\\":\\"y\\"}"'],
   // A JSON string body is read with JSON escapes whichever shell sends it,
   // so this body, which is not valid JSON (a bare `\s` and a `\"` that
   // swallows the closing quote), is refused.
@@ -353,6 +356,12 @@ const allows = [
   ["a typed plain hashtable with a trailing-backslash value followed by a header", "irm -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Body @{title=\"C:\\dist\\\"; type=\"Bug\"} -Headers @{Authorization=\"Bearer x\"}"],
   ["a typed [pscustomobject] hashtable behind a ConvertTo-Json prefix with -Depth after it", "irm -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Body (ConvertTo-Json ([pscustomobject]@{title=\"x\"; type=\"Bug\"}) -Depth 10)"],
   ["a typed hashtable behind a ConvertTo-Json prefix with -Compress after it", "irm -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Body (ConvertTo-Json @{title='x'; type='Bug'} -Compress)"],
+  ["a typed compact hashtable whose value holds a closer and a flag-like word, with -Depth after", "irm -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Body (ConvertTo-Json @{title=\"preview is black\";body=\"repro: Get-Content (main.sd) -Raw fails\";type=\"Bug\"} -Depth 5)"],
+  ["a typed compact hashtable whose value holds a bracket and a flag-like word, with -Depth after", "irm -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Body (ConvertTo-Json @{title=\"x\";body=\"see step [2] -Raw output\";type=\"Bug\"} -Depth 10)"],
+  ["a typed Bash create inside a $( ) after a short flag with an escaped quote in a title", 'echo -n $(gh api -X POST repos/ImpowerGames/impower/issues -f "title=x \\") y" -f type=Bug)'],
+  ["a typed curl create inside a $( ) after a short flag with a closer in the body", 'echo -n $(curl -X POST https://api.github.com/repos/ImpowerGames/impower/issues -d "{\\"title\\":\\"x\\",\\"body\\":\\"step 1) do it\\",\\"type\\":\\"Bug\\"}")'],
+  ["a typed double-parenthesised body followed by a header", "irm -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Body ((@{title=\"C:\\dist\\\"; type=\"Bug\"}) | ConvertTo-Json) -ContentType \"application/json\""],
+  ["a typed double-parenthesised ConvertTo-Json prefix followed by a ContentType", "irm -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Body ((ConvertTo-Json @{title=\"C:\\dist\\\"; type=\"Bug\"})) -ContentType \"application/json\""],
   ["a typed body in the ConvertTo-Json -Depth:10 colon form", "irm -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Body (ConvertTo-Json -Depth:10 @{title='x'; type='Bug'})"],
   ["a typed body piped to ConvertTo-Json then Out-String", "irm -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Body (@{title='x'; type='Bug'} | ConvertTo-Json | Out-String)"],
   ["unparseable JSON with a quoted type key kept", 'curl -X POST https://api.github.com/repos/ImpowerGames/impower/issues -d \'{"type":"Bug","title":"x",}\''],

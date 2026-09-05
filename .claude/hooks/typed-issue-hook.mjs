@@ -417,6 +417,16 @@ let partnerCache = null;
  */
 function bracketPartners(command) {
   if (partnerCacheKey === command) return partnerCache;
+  // A flag-value opener that never closes would keep the PowerShell reading
+  // on for the rest of the command, so the pass runs again without it.
+  let result = computePartners(command, new Set());
+  if (result.unclosedFlagValues.length) result = computePartners(command, new Set(result.unclosedFlagValues));
+  partnerCacheKey = command;
+  partnerCache = result.map;
+  return result.map;
+}
+
+function computePartners(command, suppressed) {
   const map = new Map();
   const stack = []; // { ch, at, resumesString }
   const heredocs = [];
@@ -426,17 +436,22 @@ function bracketPartners(command) {
   let wordStart = true; // at the start of a word, where `#` opens a comment
   let arith = 0; // inside `$((...))` or `((...))`, where `<<` is a shift
   let noCloseFrom = n; // offset from which no `"` has a closing partner
-  // Depth of groups that are a `-Flag`'s value (`-Body (...)`, `-Headers
-  // @{...}`): PowerShell, where a backslash inside a string is literal.
-  let psDepth = 0;
+  // A group that is a PowerShell `-Flag`'s value (`-Body (...)`, `-Headers
+  // @{...}`, `-Body:@{...}`) is PowerShell, where a backslash inside a
+  // string is literal. A PowerShell flag word has a capital letter or at
+  // least three letters; a Bash short flag (`-n`, `-e`) does not count, and
+  // a `$(` is a substitution in either shell and never counts.
   const flagValue = (at) => {
+    if (suppressed.has(at)) return false;
     let j = at - 1;
-    if (command[j] === "@" || command[j] === "$") j--;
+    if (command[j] === "$") return false;
+    if (command[j] === "@") j--;
     while (j >= 0 && " \t".includes(command[j])) j--;
     let start = j;
     while (start >= 0 && /[\w:-]/.test(command[start])) start--;
-    return /^-[A-Za-z][\w-]*:?$/.test(command.slice(start + 1, j + 1));
+    return /^-(?:[A-Z][\w-]*|[a-z][\w-]{2,}):?$/.test(command.slice(start + 1, j + 1));
   };
+  const inFlagValue = () => stack.some((e) => e.ps);
   for (let k = 0; k < n; k++) {
     const ch = command[k];
     if (inString) {
@@ -477,7 +492,7 @@ function bracketPartners(command) {
       // Inside a flag's value group the string is PowerShell and the
       // backslash is always literal.
       if (k < noCloseFrom && scanQuote(command, k, false) >= 0) {
-        backslashEscapes = psDepth === 0 && scanQuote(command, k, true) >= 0;
+        backslashEscapes = !inFlagValue() && scanQuote(command, k, true) >= 0;
         inString = true;
       } else noCloseFrom = Math.min(noCloseFrom, k);
       wordStart = false;
@@ -508,16 +523,15 @@ function bracketPartners(command) {
     // parentheses are still paired normally.
     if (ch === "(" && command[k + 1] === "(") {
       arith++;
-      stack.push({ ch, at: k, resumesString: false }, { ch, at: k + 1, resumesString: false });
+      const ps = flagValue(k);
+      stack.push({ ch, at: k, resumesString: false, ps }, { ch, at: k + 1, resumesString: false, ps: false });
       k++;
       wordStart = false;
       continue;
     }
     if (ch === ")" && command[k + 1] === ")" && arith > 0) arith--;
     if (ch === "(" || ch === "{") {
-      const ps = flagValue(k);
-      if (ps) psDepth++;
-      stack.push({ ch, at: k, resumesString: false, ps });
+      stack.push({ ch, at: k, resumesString: false, ps: flagValue(k) });
     } else if (ch === ")" || ch === "}") {
       const want = ch === ")" ? "(" : "{";
       // Pop back to the nearest opener of this kind; an unmatched closer
@@ -527,15 +541,12 @@ function bracketPartners(command) {
       if (j >= 0) {
         map.set(stack[j].at, k);
         if (stack[j].resumesString) inString = true;
-        for (let d = j; d < stack.length; d++) if (stack[d].ps) psDepth--;
         stack.length = j;
       }
     }
     wordStart = " \t;|&(".includes(ch);
   }
-  partnerCacheKey = command;
-  partnerCache = map;
-  return map;
+  return { map, unclosedFlagValues: stack.filter((e) => e.ps).map((e) => e.at) };
 }
 
 function scanQuote(command, open, backslashEscapes) {
@@ -831,8 +842,9 @@ function blankValues(text) {
 
 /**
  * Strips the wrappers a body may sit in: `(...)`, `$(...)`, `@(...)`, one
- * layer of quotes, Bash `$'...'`, a `ConvertTo-Json` call (prefix with
- * flags before or after the object, or a trailing pipe), and a `[Type]`
+ * layer of quotes, Bash `$'...'` (or the bare `$` the tokenizer leaves
+ * after removing its quotes), a `ConvertTo-Json` call (prefix with flags
+ * before or after the object, or a trailing pipe), and a `[Type]`
  * accelerator before a hashtable literal; unescapes the quotes inside.
  */
 function unwrapBody(body) {
@@ -843,7 +855,10 @@ function unwrapBody(body) {
   const toJsonFlags = String.raw`(?:\s+-[\w-]+(?:(?:\s+|[:=]\s*)(?!-)[^\s@{(]\S*)?)*`;
   const toJsonPrefix = new RegExp(String.raw`^convertto-json${toJsonFlags}\s+(?=[$@(\[]?[{(\[])`, "i");
   const toJsonTail = new RegExp(String.raw`^\|\s*convertto-json${toJsonFlags}\s*$`, "i");
-  const trailingFlags = new RegExp(String.raw`^([$@(\[].*?[)}\]])${toJsonFlags}\s*$`, "is");
+  // Greedy, so a closer inside a value cannot end the object early; the
+  // flag run is anchored to the end, so the object's own closer is found
+  // from the right.
+  const trailingFlags = new RegExp(String.raw`^([$@(\[].*[)}\]])${toJsonFlags}\s*$`, "is");
   for (let guard = 0; guard < 8; guard++) {
     if (/^[$@]?\(/.test(s) && s.endsWith(")")) {
       s = s.replace(/^[$@]?\(/, "").slice(0, -1).trim();
