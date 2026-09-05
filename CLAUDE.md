@@ -80,7 +80,7 @@ Use the file flags instead (`-` means stdin):
 
 ```sh
 gh pr create    --body-file body.md     # or --body-file -
-gh api -X POST repos/ImpowerGames/impower/issues -F body=@body.md ...   # -F reads the file
+gh api -X POST repos/ImpowerGames/impower/issues -f title="x" -F body=@body.md -f type=Bug   # -F reads the file
 gh issue edit N --body-file body.md     # also how you repair a mangled one
 git commit -F msg.txt                   # or -F -
 ```

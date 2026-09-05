@@ -14,7 +14,7 @@
 // names in the command. The command is split into shell-style tokens (Bash
 // and PowerShell quoting, line continuations, comments, here-doc bodies,
 // and in a PowerShell command a `-Parameter`'s parenthesised, hashtable, or
-// `$(...)` value), so a mention of the phrase
+// `$(...)` value, with every backslash literal), so a mention of the phrase
 // in a quoted string, a comment, or a here-doc body is not a match. A `gh`
 // or `curl` token counts as an invocation only at command position: the
 // start of a segment, after a shell keyword such as `do` or `then`, after
@@ -149,11 +149,12 @@ export function tokenize(command) {
     if (c === '"') {
       begin(i);
       quoted = true;
-      // Backslash escapes apply only when they lead to a closing quote;
-      // otherwise this is a PowerShell string where backslash is literal.
+      // In a PowerShell command a backslash is literal. In a Bash command
+      // backslash escapes apply only when they lead to a closing quote;
+      // otherwise the string is PowerShell text typed into a Bash command.
       // Once the escaping reading fails from some offset, it fails from
       // every later one, so the scan is not repeated.
-      const backslashEscapes = i < noEscapedCloseFrom && scanQuote(command, i, true) >= 0;
+      const backslashEscapes = currentShell !== "powershell" && i < noEscapedCloseFrom && scanQuote(command, i, true) >= 0;
       if (!backslashEscapes) noEscapedCloseFrom = Math.min(noEscapedCloseFrom, i);
       i++;
       while (i < n && command[i] !== '"') {
@@ -215,7 +216,7 @@ export function tokenize(command) {
         continue;
       }
     }
-    if (c === "\\") {
+    if (c === "\\" && currentShell !== "powershell") {
       if (i + 1 < n) {
         const next = command[i + 1];
         if (next === "\n") {
@@ -417,7 +418,7 @@ let partnerCache = null;
 // from the command when no tool name is known.
 let currentShell = "bash";
 
-const POWERSHELL_WORDS = /(^|[\s;|&({])(irm|iwr|invoke-[a-z]+|convertto-json|convertfrom-json|write-host|write-output|get-content|set-content|join-path|foreach-object|select-object|out-string|get-childitem|get-date)\b/i;
+const POWERSHELL_WORDS = /(^|[\s;|&({])(irm|iwr|(invoke|get|set|new|remove|start|stop|test|write|read|out|select|where|foreach|convertto|convertfrom|join|split|add|clear|copy|move|import|export|format|sort|measure|resolve|wait)-[a-z]+)\b/i;
 
 /** "powershell" when the command uses a PowerShell cmdlet, else "bash". */
 export function inferShell(command) {
@@ -454,21 +455,17 @@ function computePartners(command, suppressed) {
   let wordStart = true; // at the start of a word, where `#` opens a comment
   let arith = 0; // inside `$((...))` or `((...))`, where `<<` is a shift
   let noCloseFrom = n; // offset from which no `"` has a closing partner
-  // A group that is a PowerShell `-Flag`'s value (`-Body (...)`, `-Headers
-  // @{...}`, `-Body:@{...}`, `-InFile $(...)`) is PowerShell, where a
-  // backslash inside a string is literal. In a PowerShell command any
-  // `-Word` parameter counts. In a Bash command a `$(` is a substitution
-  // and never counts, and a `(` or `@{` counts only after a word with a
-  // capital letter or at least three letters, so a Bash short flag (`-n`,
-  // `-e`) leaves the group alone. A backtick line continuation may
-  // separate the flag from its group.
+  // In a PowerShell command, a group after a `-Parameter` word (`-Body
+  // (...)`, `-Headers @{...}`, `-Body:@{...}`, `-InFile $(...)`) is that
+  // parameter's value, where a backslash inside a string is literal. A
+  // backtick line continuation may separate the parameter from its group.
+  // A Bash command has no such groups: its `$(` is a substitution and its
+  // flags take no parenthesised values.
   const powershell = currentShell === "powershell";
   const flagValue = (at) => {
-    if (suppressed.has(at)) return false;
+    if (!powershell || suppressed.has(at)) return false;
     let j = at - 1;
-    const dollar = command[j] === "$";
-    if (dollar && !powershell) return false;
-    if (command[j] === "@" || dollar) j--;
+    if (command[j] === "@" || command[j] === "$") j--;
     for (;;) {
       while (j >= 0 && " \t".includes(command[j])) j--;
       if (j >= 1 && command[j] === "\n" && (command[j - 1] === "`" || (command[j - 1] === "\r" && command[j - 2] === "`"))) {
@@ -480,7 +477,7 @@ function computePartners(command, suppressed) {
     let start = j;
     while (start >= 0 && /[\w:-]/.test(command[start])) start--;
     const word = command.slice(start + 1, j + 1);
-    return powershell ? /^-[A-Za-z][\w-]*:?$/.test(word) : /^-(?:[A-Z][\w-]*|[a-z][\w-]{2,}):?$/.test(word);
+    return /^-[A-Za-z][\w-]*:?$/.test(word);
   };
   // Each stack entry carries whether it or any entry below it is a flag
   // value, so the test is constant time.
@@ -511,7 +508,7 @@ function computePartners(command, suppressed) {
       }
       continue;
     }
-    if (ch === "\\") {
+    if (ch === "\\" && !powershell) {
       k++;
       wordStart = false;
       continue;
@@ -525,10 +522,10 @@ function computePartners(command, suppressed) {
     if (ch === '"') {
       // The literal reading finds a partner whenever the escaping one does,
       // so it is tried first; once it fails, no later quote closes either.
-      // Inside a flag's value group the string is PowerShell and the
-      // backslash is always literal.
+      // In a PowerShell command, and inside a parameter's value group in
+      // any command, the string is PowerShell and the backslash is literal.
       if (k < noCloseFrom && scanQuote(command, k, false) >= 0) {
-        backslashEscapes = !inFlagValue() && scanQuote(command, k, true) >= 0;
+        backslashEscapes = !powershell && !inFlagValue() && scanQuote(command, k, true) >= 0;
         inString = true;
       } else noCloseFrom = Math.min(noCloseFrom, k);
       wordStart = false;
@@ -1216,7 +1213,8 @@ async function main() {
   try {
     const payload = JSON.parse(raw);
     command = payload?.tool_input?.command;
-    shell = payload?.tool_name === "PowerShell" ? "powershell" : payload?.tool_name === "Bash" ? "bash" : undefined;
+    const tool = String(payload?.tool_name ?? "").toLowerCase();
+    shell = tool === "powershell" ? "powershell" : tool === "bash" ? "bash" : undefined;
   } catch {
     // An unparseable payload is refused only when it looks like it carries a
     // gh call, so a broken harness cannot let an untyped create through and
