@@ -60,7 +60,7 @@ Each template's leading comment gives the title convention and the label list; i
 gh api -X PATCH repos/ImpowerGames/impower/issues/N -f type=Bug   # or Feature, or Task
 ```
 
-Keep every heading, write "None", "Unknown", or "Not applicable" with a short reason under one you cannot fill, tick only the checklist items you actually did, and strip the HTML comments before filing. After filing, read the artifact back (`gh issue view N --json body`, `gh pr view N --json body`).
+Keep every heading, write "None", "Unknown", or "Not applicable" with a short reason under one you cannot fill, tick only the issue template's checkbox items you actually did, fill in the pull request template's Type of change and Checklist lines as plain text rather than checkboxes, and strip the HTML comments before filing. After filing, read the artifact back (`gh issue view N --json body`, `gh pr view N --json body`).
 
 A pull request that resolves an issue must carry `Closes #N` in its body (the template's line under Summary). GitHub closes the issue on merge only when a closing keyword and the number appear together in the body; the issue number in the title is a mention and closes nothing. The "Check Linked Issue" workflow fails any pull request whose body has neither a closing reference nor the sentence "No linked issue."; the check is `.github/scripts/check-linked-issue.mjs`, runnable locally with `PR_BODY="$(cat pr-body.md)" node .github/scripts/check-linked-issue.mjs`.
 

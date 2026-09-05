@@ -32,15 +32,15 @@ Type:
 
 ## Checklist
 
-<!-- Keep each statement as written if it's true, or edit it to say what actually happened. -->
+<!-- Fill in what you actually did after each label. Leave a label blank, or write "not applicable" with a reason, rather than describing something you didn't do. -->
 
-Tests pass locally for the packages this touches.
+Tests run:
 
-Visual changes were checked in the running app; screenshots above.
+Visual check:
 
-Documentation updated where behavior changed.
+Docs:
 
-Body read back after opening.
+Body read back:
 
 ## Notes for reviewers
 
