@@ -280,6 +280,75 @@ export class Divert extends ParsedObject {
   public readonly PathAsVariableName = () =>
     this.target ? this.target.firstComponent : null;
 
+  // Whether the author binds `name` somewhere the divert can read it: an
+  // assignment to the global anywhere in the story (`& game = -> there`,
+  // whichever flow or callable holds it, since a global write is visible
+  // everywhere; `Story.globalAssignmentNames` leaves out a write to a
+  // parameter or local of that name), or a parameter or local
+  // (`variableDeclarations`) of the flow this divert belongs to: the
+  // divert's own flow and the flows enclosing it up to the nearest callable
+  // or the top-level flow, plus the branches of that top. A story-level
+  // divert has no such flow and only the global assignments apply to it.
+  //
+  // This decides only the severity of the report, never its absence. Whether
+  // such a binding holds a divert target when the divert runs depends on the
+  // path taken: a parameter is bound at the flow's head and not when the
+  // flow is entered at a label, a local is set only if its statement ran and
+  // in the call-stack element it ran in, a tunnel pushes a fresh element,
+  // and a global assignment binds only once it has run. None of that is
+  // modelled, and the assigned value is not inspected; a binding makes the
+  // report a warning that names the condition, and none makes it an error.
+  // Callables are a boundary for locals in both directions: a callable
+  // written in a scene is hoisted to the top level, so its body is never
+  // inside the scene's flow, and a callable's divert-target literals are not
+  // captured as upvalues, so the same holds for one nested in another
+  // callable. Neither this walk nor the index treats a loop body specially;
+  // they see whatever statements the flow holds. A `while` or `for` body
+  // written in a scene currently contributes none (#470), so nothing
+  // declared or assigned there is seen and the report stays an error.
+  private hasAuthoredBinding(name: string, story: Story): boolean {
+    if (story.globalAssignmentNames().has(name)) {
+      return true;
+    }
+    const own = asOrNull(ClosestFlowBase(this), FlowBase);
+    if (!own || own === own.story) {
+      return false;
+    }
+    const declares = (candidate: FlowBase): boolean =>
+      (candidate.args?.some((arg) => arg.identifier?.name === name) ??
+        false) || candidate.variableDeclarations.has(name);
+    // Up from the own flow to the nearest callable or the top-level flow.
+    let top: FlowBase = own;
+    let flow: FlowBase | null = own;
+    while (flow && flow !== flow.story) {
+      if (declares(flow)) {
+        return true;
+      }
+      top = flow;
+      if (flow.isFunction) {
+        break;
+      }
+      flow = asOrNull(ClosestFlowBase(flow), FlowBase);
+    }
+    if (top.isFunction) {
+      return false;
+    }
+    // Down through the top's branches (not its callables).
+    const branchDeclares = (candidate: FlowBase): boolean => {
+      for (const child of candidate.content ?? []) {
+        if (
+          child instanceof FlowBase &&
+          !child.isFunction &&
+          (declares(child) || branchDeclares(child))
+        ) {
+          return true;
+        }
+      }
+      return false;
+    };
+    return branchDeclares(top);
+  }
+
   public readonly ResolveTargetContent = (): void => {
     if (this.isEmpty || this.isEnd) {
       return;
@@ -375,6 +444,29 @@ export class Divert extends ParsedObject {
       // so serialization and diagnostics match a cold compile. (Externals
       // re-derive their path in the external branch below.)
       this.runtimeDivert.targetPath = null;
+    }
+
+    // A divert bound to a builtin global's variable (`-> game`, whether the
+    // slot holds the prelude's marker or an authored override) can never
+    // reach a flow of that name and fails when run; the compiler reports each
+    // one from `context.builtinGlobalDiverts`. Recorded here, once per compile
+    // for reused diverts too. Not recorded: a Luau call (`game()` lowers to a
+    // divert too, but names no scene, branch, or label). A divert whose name
+    // the author binds, by a parameter or local of its enclosing flow or by
+    // an assignment to the global anywhere, is recorded as uncertain
+    // (`warning`): whether that binding holds a divert target when the
+    // divert runs depends on the path taken (see `hasAuthoredBinding`).
+    const capturedBy = this.runtimeDivert.variableDivertName;
+    if (
+      capturedBy != null &&
+      !this.isFunctionCall &&
+      context.builtinGlobalNames.has(capturedBy)
+    ) {
+      context.builtinGlobalDiverts.push({
+        name: capturedBy,
+        divert: this,
+        warning: this.hasAuthoredBinding(capturedBy, context),
+      });
     }
 
     // Resolve children (the arguments)

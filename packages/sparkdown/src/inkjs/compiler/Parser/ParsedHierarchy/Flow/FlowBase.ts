@@ -271,9 +271,18 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
         varDecl.isDefineDeclaration
       ) {
         this.variableDeclarations.delete(varName);
-        const shadowKey = `$prelude_${varName}`;
-        if (!this.variableDeclarations.has(shadowKey)) {
-          this.variableDeclarations.set(shadowKey, varab);
+        // A declaration-only marker of an unseeded compile
+        // (Story.DeclareBuiltinGlobals) has no parsed node and nothing to
+        // generate, so it is simply dropped rather than re-registered.
+        const incumbentIsMarker =
+          !varab.expression &&
+          !varab.structDefinition &&
+          !varab.listDefinition;
+        if (!incumbentIsMarker) {
+          const shadowKey = `$prelude_${varName}`;
+          if (!this.variableDeclarations.has(shadowKey)) {
+            this.variableDeclarations.set(shadowKey, varab);
+          }
         }
         this.variableDeclarations.set(varName, varDecl);
         return;

@@ -27,8 +27,10 @@ export interface ImageCompositeOptions {
 }
 
 /**
- * Flatten a `layered_image`'s layers into a single thumbnail so previews show
- * what the asset actually looks like instead of just its base plate.
+ * Turn an image-ish struct into a single thumbnail a preview can display:
+ * flattening a `layered_image`'s layers so previews show what the asset
+ * actually looks like instead of just its base plate, and inlining a lone
+ * image whose source the host cannot load on its own.
  *
  * Why one flattened image rather than stacked HTML: VS Code's markdown
  * sanitizer drops `style` and `class`, so a CSS stack works in the editor and
@@ -42,6 +44,39 @@ export interface ImageCompositeOptions {
 
 /** 2x the width the completion panel displays, so it stays sharp on retina. */
 const PREVIEW_WIDTH = 360;
+
+/**
+ * Schemes a markdown host renders straight from an `<img src>`.
+ *
+ * A src carrying no scheme at all is a path resolved against the host page —
+ * impower-dev's assets are served that way — and is equally loadable, so the
+ * test is "an explicit scheme outside this set", not "not in this set".
+ *
+ * `file:` is here because desktop VS Code rewrites it. Measured on 1.136.1 by
+ * emitting a real on-disk image into a hover and into the completion details
+ * pane and reading both back: the src arrives as `vscode-file://vscode-app/…`
+ * and the picture loads at its natural size. So a desktop workspace uri needs
+ * no help, and inlining one would spend an encode to get a smaller picture.
+ * That rewrite landed in VS Code 1.60 (microsoft/vscode#119786), long before
+ * the 1.97 this extension requires.
+ *
+ * What is left out is left out because it was measured to fail, by emitting
+ * one `<img>` per scheme and reading the DOM back: the markdown sanitizer
+ * strips `vscode-vfs:` (VS Code for Web's workspace scheme), `vscode-userdata:`
+ * and `vscode-resource:` off the element entirely. Those get an inlined `data:`
+ * uri built from bytes read over the host's `readFileBytes` bridge, the one
+ * route no host refuses.
+ *
+ * Keep this an allowlist of what is known to render. A scheme nobody has
+ * measured should fall to the bridge, which is slower and always works, rather
+ * than to a blank image.
+ */
+const DIRECTLY_LOADABLE_SCHEMES = new Set(["http", "https", "data", "file"]);
+
+const isDirectlyLoadable = (src: string) => {
+  const scheme = /^([a-z][a-z0-9+.-]*):/i.exec(src)?.[1];
+  return !scheme || DIRECTLY_LOADABLE_SCHEMES.has(scheme.toLowerCase());
+};
 
 /**
  * Ceiling for the generated data URI. Anything past this suggests something
@@ -82,8 +117,8 @@ const toDataUri = (bytes: Uint8Array, mime: string) =>
  *
  * `fetch` covers impower-dev, where layer srcs are served urls. It does NOT
  * cover VS Code, whose srcs are workspace uris a worker can't fetch — that
- * host needs bytes handed to it over the extension bridge (see #292), and
- * until then falls back to the single-layer preview.
+ * host hands the bytes over the extension bridge instead. A host offering
+ * neither route gets `undefined`, and the caller falls back to plain markup.
  */
 const base64ToBlob = (base64: string) => {
   const binary = atob(base64);
@@ -134,9 +169,14 @@ const loadLayer = async (
 };
 
 /**
- * Composited data URI for a struct, or `undefined` when compositing isn't
- * possible or isn't worth it (fewer than two layers, no canvas, an
- * un-fetchable layer, or an oversized result).
+ * Inlined data URI for a struct, or `undefined` when generating one isn't
+ * possible or isn't worth it (nothing resolved, no canvas, an un-fetchable
+ * layer, or an oversized result).
+ *
+ * Two cases reach the generator. Several layers are flattened into one image.
+ * A single layer is inlined only when the host cannot load its source as it
+ * stands — otherwise the plain resolver's `<img src>` is cheaper and sharper,
+ * and re-encoding it would buy nothing.
  */
 export const getImageCompositeSrc = async (
   context: { [type: string]: { [name: string]: any } } | undefined,
@@ -144,8 +184,12 @@ export const getImageCompositeSrc = async (
   options?: ImageCompositeOptions,
 ): Promise<string | undefined> => {
   const layers = resolveImageLayers(context, struct);
-  if (layers.length < 2) {
-    // Nothing to flatten — the plain resolver already returns the right thing.
+  if (layers.length === 0) {
+    return undefined;
+  }
+  if (layers.length === 1 && isDirectlyLoadable(layers[0]!.src)) {
+    // Nothing to flatten and nothing to rescue — the plain resolver already
+    // returns the right thing.
     return undefined;
   }
   // Provisional key from the srcs, to avoid re-fetching layers on every
@@ -189,8 +233,9 @@ export const getImageCompositeSrc = async (
 };
 
 /**
- * Preview markup for an image-ish struct, compositing layered images when the
- * host can and falling back to the single-layer preview when it can't.
+ * Preview markup for an image-ish struct, inlining a generated thumbnail when
+ * the host can build one and falling back to the plain resolved source when it
+ * can't.
  */
 export const getImagePreviewMarkupComposited = async (
   context: { [type: string]: { [name: string]: any } } | undefined,
@@ -202,7 +247,8 @@ export const getImagePreviewMarkupComposited = async (
     const name = struct?.["$name"] ?? "";
     return buildImagePreviewMarkup(composite, name);
   }
-  // Either a single-layer asset or a host/asset that can't be composited.
+  // Either a source the host loads as it stands, or one no thumbnail could be
+  // built from.
   if (getImagePreviewSrc(context, struct)) {
     return getImagePreviewMarkup(context, struct);
   }

@@ -79,7 +79,7 @@ const DEFAULT_TRASH_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
 // sw.ts` (cache name, width, tv, key format).
 const THUMB_CACHE_NAME = "asset-thumbnails";
 const THUMB_WIDTH = 144;
-const THUMB_VERSION = 1;
+const THUMB_VERSION = 2;
 const RASTER_IMAGE_REGEX = /[.](png|jpe?g|gif|webp)$/i;
 const THUMBNAILS_SUPPORTED =
   typeof createImageBitmap === "function" &&
