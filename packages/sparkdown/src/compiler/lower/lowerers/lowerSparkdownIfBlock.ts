@@ -1,3 +1,4 @@
+import { type SparkdownNodeName } from "../../types/SparkdownNodeName";
 import { nodeNameSet } from "../../utils/nodeNameSet";
 import { type SyntaxNode } from "@lezer/common";
 import { Conditional } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Conditional/Conditional";
@@ -22,7 +23,7 @@ import { wrapInWeave } from "../utils/wrapInWeave";
 
 export interface IfBlockVariant {
   /** Top-level if-block node name, e.g. "LuauSparkdownIfBlock" or "LuauIfBlock". */
-  prefix: string;
+  prefix: SparkdownNodeName;
 }
 
 export function lowerSparkdownIfBlock(

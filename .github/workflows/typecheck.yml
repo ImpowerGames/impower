@@ -30,9 +30,11 @@ on:
       - "**/package.json"
       - "package-lock.json"
       - "scripts/typecheck.mjs"
-      # The node-name check reads both generated grammars; a change to their
-      # YAML source has to run it too, so a regeneration that is forgotten or
-      # done for one output only is caught here.
+      # The node-name check reads both generated grammars and fails when they
+      # declare different rules, so a change to their YAML source has to run
+      # it too. A regeneration done for one output only is caught that way; a
+      # regeneration forgotten entirely leaves both copies stale and agreeing,
+      # which nothing here detects.
       - "definitions/yaml/**"
       - "packages/sparkdown/language/sparkdown.language-grammar.json"
       - "vscode-sparkdown/language/sparkdown.language-grammar.json"
@@ -63,9 +65,6 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      # Two at a time: each `tsc` holds a whole program in memory and the
-      # largest projects here peak above 1 GB, which a standard runner cannot
-      # sustain four-wide.
       # Grammar node names written as string literals where the type system
       # cannot see them: lookups on untyped lezer nodes, `.getChild("...")`,
       # and comparisons on values typed as plain strings. See the script's
@@ -78,5 +77,8 @@ jobs:
       - name: Check grammar node names
         run: npm run check:node-names
 
+      # Two at a time: each `tsc` holds a whole program in memory and the
+      # largest projects here peak above 1 GB, which a standard runner cannot
+      # sustain four-wide.
       - name: Typecheck
         run: npm run typecheck -- --jobs 2

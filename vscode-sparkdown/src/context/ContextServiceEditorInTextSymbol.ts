@@ -1,6 +1,8 @@
 import { ExtensionContext, Position, TextDocument } from "vscode";
 import { type SparkdownNodeName } from "../../../packages/sparkdown/src/compiler/types/SparkdownNodeName";
 import { getSymbol } from "../../../packages/sparkdown-language-server/src/utils/providers/getSymbol";
+import { SparkdownDocumentManager } from "../managers/SparkdownDocumentManager";
+import { AbsContextService } from "./IContextService";
 
 // The in-text symbol names this context key reports.
 const IN_TEXT_SYMBOLS: SparkdownNodeName[] = [
@@ -9,8 +11,6 @@ const IN_TEXT_SYMBOLS: SparkdownNodeName[] = [
   "EmDash",
   "Punctuation",
 ];
-import { SparkdownDocumentManager } from "../managers/SparkdownDocumentManager";
-import { AbsContextService } from "./IContextService";
 
 export class ContextServiceEditorInTextSymbol extends AbsContextService {
   public contextName: string = "sparkdown.extension.editor.cursor.inTextSymbol";

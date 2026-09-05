@@ -1,3 +1,4 @@
+import { type SparkdownNodeName } from "../../types/SparkdownNodeName";
 import { nodeNameSet } from "../../utils/nodeNameSet";
 import { Range } from "@codemirror/state";
 import { getContextNames } from "@impower/textmate-grammar-tree/src/tree/utils/getContextNames";
@@ -116,7 +117,7 @@ const STRUCT_KEY_TOKENS = nodeNameSet([
 // Top-level structural-define keyword nodes → the engine type they declare.
 // Their `name` (LuauDefineName) is an INSTANCE under that type, and a trailing
 // `as PARENT` is `$extends` (a sibling of the SAME type), not the type itself.
-const STRUCTURAL_TYPE_BY_NODE: Record<string, string> = {
+const STRUCTURAL_TYPE_BY_NODE: Partial<Record<SparkdownNodeName, string>> = {
   LuauStyle: "style",
   LuauLayout: "layout",
   LuauScreen: "screen",

@@ -39,7 +39,7 @@ export const SKIPPED_PREFIXES = [
 // helper, the sparkdown node types, lezer's own node type, or a walk that
 // starts from a tree's `topNode`.
 export const GRAMMAR_FILE_MARKERS =
-  /textmate-grammar-tree\/src\/tree\/|SparkdownNodeName|SparkdownSyntaxNodeRef|@lezer\/common|\bSyntaxNode\b|\.topNode\b/;
+  /textmate-grammar-tree\/src\/tree\/|SparkdownNodeName|SparkdownSyntaxNodeRef|nodeNameSet|@lezer\/common|\bSyntaxNode\b|\.topNode\b/;
 
 export const OPT_OUT = "not a node name";
 
@@ -271,8 +271,9 @@ export function nodeNameLiterals(source, legal = new Set()) {
   for (const m of src.matchAll(nameSecond)) {
     push(literalsIn(m[1], m.index + m[0].lastIndexOf(m[1])));
   }
-  // node.getChild("X"), node.getChildren("X"), node.getChild("X", "Y", "Z")
-  for (const m of src.matchAll(/\.getChild(?:ren)?\s*(\([^()]*\))/g)) {
+  // node.getChild("X"), node.getChildren("X"), node.getChild("X", "Y", "Z");
+  // one level of nested parentheses is allowed inside the argument list.
+  for (const m of src.matchAll(/\.getChild(?:ren)?\s*(\((?:[^()]|\([^()]*\))*\))/g)) {
     push(literalsIn(m[1], at(m, 1)));
   }
   // switch (node.name) { case "X": ... }

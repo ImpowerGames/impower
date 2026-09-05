@@ -94,7 +94,7 @@ const INDENTING_BLOCKS = nodeNameSet([
 // shows up inside the parent block's body, the parent's contribution
 // is replaced by the sibling's own — otherwise both would stack and
 // the clause body would indent +1 too deep.
-const SIBLING_CLAUSES: Record<string, string[]> = {
+const SIBLING_CLAUSES: Partial<Record<SparkdownNodeName, SparkdownNodeName[]>> = {
   LuauSparkdownIfBlock: [
     "LuauSparkdownElseifBlock",
     "LuauSparkdownElseBlock",
@@ -159,9 +159,9 @@ function countChoiceBodies(
 const MERGEABLE_ELSE_BLOCKS = nodeNameSet([
   "LuauSparkdownElseBlock",
   "LuauElseBlock",
-] as SparkdownNodeName[]);
+]);
 
-const MATCHING_IF_BLOCK: Record<string, string> = {
+const MATCHING_IF_BLOCK: Partial<Record<SparkdownNodeName, SparkdownNodeName>> = {
   LuauSparkdownElseBlock: "LuauSparkdownIfBlock",
   LuauElseBlock: "LuauIfBlock",
 };
@@ -1083,7 +1083,7 @@ export const getFormatting = (
         void endNode;
         // Verify the eligible pattern (single inner IfBlock).
         const expectedIfName =
-          MATCHING_IF_BLOCK[nodeRef.name as string] ?? "";
+          MATCHING_IF_BLOCK[nodeRef.name as SparkdownNodeName] ?? "";
         let innerIfNode;
         let c = contentNode.firstChild;
         while (c) {

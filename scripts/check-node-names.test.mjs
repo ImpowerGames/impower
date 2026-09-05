@@ -40,10 +40,15 @@ test("every comparison and lookup shape is recognised", () => {
   assert.deepEqual(names(`getNodesInsideParent(target, "R", stack)`), ["1:R"]);
   assert.deepEqual(names(`getDescendent<SparkdownNodeName>("S", parent)`), ["1:S"]);
   assert.deepEqual(names(`node.getChild("T", "U", "V")`), ["1:T", "1:U", "1:V"]);
+  assert.deepEqual(names(`node.getChild("T2", f(1))`), ["1:T2"]);
   assert.deepEqual(names(`if (stack[0]?.name === "W") {}`), ["1:W"]);
   assert.deepEqual(names(`if (n.name === 'X') {}`), ["1:X"]);
 });
 
+// A set with no legal member is left alone on purpose: it is either another
+// grammar's names or not node names at all, and a set whose every member has
+// gone stale at once is the price of not flagging those. Sets built with
+// `nodeNameSet` are checked by tsc regardless.
 test("a constant set is checked only when it holds node names", () => {
   const legal = new Set(["Scene"]);
   const set = (body) => nodeNameLiterals(`const S = new Set(${body});`, legal).map((f) => f.name);

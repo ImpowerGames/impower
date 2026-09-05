@@ -80,7 +80,7 @@ const INSERT_TEXT_CURSOR_REGEX = /[$]\d+/g;
 const isPrefilteredName = (name: string) => name.includes("~");
 
 // Top-level structural-define keyword node → the engine type it declares.
-const STRUCTURAL_DEFINE_TYPE: Record<string, string> = {
+const STRUCTURAL_DEFINE_TYPE: Partial<Record<SparkdownNodeName, string>> = {
   LuauStyle: "style",
   LuauLayout: "layout",
   LuauScreen: "screen",
