@@ -61,6 +61,22 @@ describe("display line-break whitespace", () => {
     expect(render("ALICE:\n  hello\\\n  world\n")).toBe("hello\nworld\n");
   });
 
+  // An escape sits inside a text segment while an interpolation is a segment
+  // of its own, so the two land either side of a segment edge in a block
+  // body. Pinned on both orders, the edge being where the break's rule and
+  // the separator's rule meet.
+  test("an escaped break before an interpolation in a block body", () => {
+    expect(render("store n = 5\nALICE:\n  hello\\ {n} world\n")).toBe(
+      "hello\n5 world\n",
+    );
+  });
+
+  test("an escaped break after an interpolation in a block body", () => {
+    expect(render("store n = 5\nALICE:\n  hello {n}\\ world\n")).toBe(
+      "hello 5\nworld\n",
+    );
+  });
+
   // Positive controls. These hold both before and after the fix, so a red
   // run above is the defect rather than a broken harness or a wrong
   // `collapseWhitespace` setting.
