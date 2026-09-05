@@ -748,6 +748,61 @@ end
     expect(ctx.story.ContinueMaximally()).toBe("Arrived.\n");
   });
 
+  test("an assignment to a parameter of the builtin's name elsewhere does not soften the report", () => {
+    // `game = 1` inside `pick(game)` writes the parameter, not the global,
+    // so nothing binds the scene's divert and the report stays an error.
+    const source = `-> s
+scene s
+  -> game
+
+end
+function pick(game)
+  game = 1
+  return game
+end
+scene there
+  Arrived.
+  fin
+
+end
+`;
+    expect(collisionsOf(compileUnseeded(source)).map((c) => c.message)).toEqual([
+      DIVERT_MESSAGE("game"),
+    ]);
+    const ctx = makeRuntimeStoryFromSource(source);
+    const runtimeErrors: string[] = [];
+    ctx.story.onError = (message) => {
+      runtimeErrors.push(message);
+    };
+    expect(ctx.story.ContinueMaximally()).toBe("");
+    expect(runtimeErrors.join("\n")).toContain("could not be found (game)");
+  });
+
+  test("a nested function named after the builtin does not soften the report", () => {
+    // `function color()` inside `outer` is a local of `outer`, hoisted as a
+    // `local color` plus an assignment to it, which writes the local.
+    const source = `-> s
+scene s
+  -> color
+
+end
+function outer()
+  function color()
+    return 1
+  end
+  return color()
+end
+scene there
+  Arrived.
+  fin
+
+end
+`;
+    expect(collisionsOf(compileUnseeded(source)).map((c) => c.message)).toEqual([
+      DIVERT_MESSAGE("color"),
+    ]);
+  });
+
   test("a closure that only reads the builtin's name does not soften the report", () => {
     // Capturing `game` as an upvalue plants a pointer to it in the scene,
     // which is a read, not a binding: the divert still fails, and the

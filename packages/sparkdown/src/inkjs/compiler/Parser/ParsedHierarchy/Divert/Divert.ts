@@ -283,11 +283,12 @@ export class Divert extends ParsedObject {
   // Whether the author binds `name` somewhere the divert can read it: an
   // assignment to the global anywhere in the story (`& game = -> there`,
   // whichever flow or callable holds it, since a global write is visible
-  // everywhere), or a parameter or local (`variableDeclarations`) of the flow
-  // this divert belongs to: the divert's own flow and the flows enclosing it
-  // up to the nearest callable or the top-level flow, plus the branches of
-  // that top. A story-level divert has no such flow and only the global
-  // assignments apply to it.
+  // everywhere; `Story.globalAssignmentNames` leaves out a write to a
+  // parameter or local of that name), or a parameter or local
+  // (`variableDeclarations`) of the flow this divert belongs to: the
+  // divert's own flow and the flows enclosing it up to the nearest callable
+  // or the top-level flow, plus the branches of that top. A story-level
+  // divert has no such flow and only the global assignments apply to it.
   //
   // This decides only the severity of the report, never its absence. Whether
   // such a binding holds a divert target when the divert runs depends on the
@@ -301,11 +302,10 @@ export class Divert extends ParsedObject {
   // written in a scene is hoisted to the top level, so its body is never
   // inside the scene's flow, and a callable's divert-target literals are not
   // captured as upvalues, so the same holds for one nested in another
-  // callable. Loop bodies lower through callables, so a local declared
-  // inside a `while` or `for` body is outside the flow too, and a plain
-  // assignment there lowers as a Luau statement rather than an assignment
-  // node, so the index does not see it; a divert after such a loop fails at
-  // runtime all the same, so the error stands.
+  // callable. Neither this walk nor the index treats a loop body specially;
+  // they see whatever statements the flow holds. A `while` or `for` body
+  // written in a scene currently contributes none (#470), so nothing
+  // declared or assigned there is seen and the report stays an error.
   private hasAuthoredBinding(name: string, story: Story): boolean {
     if (story.globalAssignmentNames().has(name)) {
       return true;

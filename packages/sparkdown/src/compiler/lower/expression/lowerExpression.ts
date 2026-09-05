@@ -1780,7 +1780,8 @@ export function buildAnonymousFunction(
   // `CallValueAsFunction` pushes upvals before user args so the
   // parameter binding reads them in this order.
   const upvalArgs = upvals.map(
-    (upvalName) => new Argument(new Identifier(upvalName), false, false),
+    (upvalName) =>
+      new Argument(new Identifier(upvalName), false, false, false, true),
   );
   const args = [...upvalArgs, ...userArgs];
   const content = getFunctionBodyContent(node);
