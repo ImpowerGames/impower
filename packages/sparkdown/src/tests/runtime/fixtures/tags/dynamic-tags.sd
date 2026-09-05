@@ -1,4 +1,4 @@
-store color = "red"
+store hue = "red"
 store amount = 8
-tag # pic{amount}{color}.jpg
+tag # pic{amount}{hue}.jpg
 done

@@ -105,13 +105,20 @@ export class Story extends FlowBase {
    *  {@link DeclareBuiltinGlobals}); they have no runtime initialization. */
   protected _builtinGlobalNames: Set<string> = new Set();
 
-  /** Declare the builtin defines of the prelude as globals that exist at
-   *  runtime without initializing them here. A compile that does not seed
-   *  the prelude into the story (the editor's diagnostics compiler) still
-   *  has every builtin table at runtime, because every host seeds it; without
-   *  these markers a reference such as `game.loading.percent` reports
-   *  "Cannot find item or path" in the editor and nowhere else. A name the
-   *  program already declares (an authored override) is left alone. */
+  /** Declare the globals the builtins prelude creates at runtime, without
+   *  initializing them here. A compile that does not seed the prelude into
+   *  the story (the editor's diagnostics compiler) still has every builtin
+   *  table at runtime, because every host seeds it; without these markers a
+   *  reference such as `game.loading.percent` reports "Cannot find item or
+   *  path" in the editor and nowhere else. A name the program already
+   *  declares (an authored override) is left alone.
+   *
+   *  `names` must hold only names the seeded runtime really has, under the
+   *  key it holds them by: a marker captures every `-> name` divert as a
+   *  variable divert, exactly as the real global does in a seeded compile,
+   *  so a name that is not a runtime global would make a same-named scene
+   *  unreachable. The compiler reports a scene or function that shares a
+   *  real global's name (SparkdownCompiler.reportBuiltinGlobalFlowCollisions). */
   public DeclareBuiltinGlobals(names: Iterable<string>): void {
     for (const name of names) {
       if (!name || this.variableDeclarations.has(name)) {

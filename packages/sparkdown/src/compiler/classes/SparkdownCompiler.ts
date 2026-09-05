@@ -23,6 +23,7 @@ import { StructDefinition } from "../../inkjs/compiler/Parser/ParsedHierarchy/St
 import { VariableAssignment as ParsedVariableAssignment } from "../../inkjs/compiler/Parser/ParsedHierarchy/Variable/VariableAssignment";
 import { Divert } from "../../inkjs/compiler/Parser/ParsedHierarchy/Divert/Divert";
 import { FlowBase } from "../../inkjs/compiler/Parser/ParsedHierarchy/Flow/FlowBase";
+import { FlowLevel } from "../../inkjs/compiler/Parser/ParsedHierarchy/Flow/FlowLevel";
 import { Gather } from "../../inkjs/compiler/Parser/ParsedHierarchy/Gather/Gather";
 import { Identifier } from "../../inkjs/compiler/Parser/ParsedHierarchy/Identifier";
 import { IncludedFile } from "../../inkjs/compiler/Parser/ParsedHierarchy/IncludedFile";
@@ -199,22 +200,61 @@ function getCompiledPrelude(): {
 }
 
 let _preludeGlobalNames: Set<string> | undefined;
-/** Every global the seeded prelude creates: a type's root table (`config`,
- *  `game`) and each named define (`assets`, `ui`, the colors, …). An unseeded
- *  compile declares them so references resolve (Story.DeclareBuiltinGlobals). */
+/** Every global the seeded prelude creates at runtime, under the key the
+ *  runtime holds it by: a type's root table (`config`, `game`) sits on its
+ *  bare name, and a leaf-instance define sits on its scoped `$<type>_<name>`
+ *  key (`$config_assets`, `$color_red` — see `scopeDefineInstances`). An
+ *  unseeded compile declares exactly these so references resolve
+ *  (Story.DeclareBuiltinGlobals).
+ *
+ *  The names come from the cached prelude's compiled "global decl" container,
+ *  the list of globals a seeded story initializes, rather than from the
+ *  prelude's `context`. The context also holds names that are never runtime
+ *  globals — every layout and style, and each instance's bare name (`main`
+ *  is a layout, a style, and a mixer; `red` a color; `title` a typewriter).
+ *  Declaring one of those makes an authored scene of the same name
+ *  unreachable: `-> main` binds to the declared variable instead of the
+ *  scene, and the runtime then fails to find a variable that never existed
+ *  (#437). */
 function getPreludeGlobalNames(): Set<string> {
   if (_preludeGlobalNames) {
     return _preludeGlobalNames;
   }
   const names = new Set<string>();
-  for (const [type, structs] of Object.entries(getCompiledPrelude().context)) {
-    names.add(type);
-    for (const name of Object.keys(structs ?? {})) {
-      if (!name.startsWith("$")) {
-        names.add(name);
+  const compiled = getCompiledPrelude().compiled as
+    | { root?: unknown }
+    | undefined;
+  const root = compiled?.root;
+  // A serialized container is an array whose final element carries the named
+  // sub-containers; the global initializer is the one named "global decl".
+  const terminal = Array.isArray(root) ? root[root.length - 1] : undefined;
+  const globalDecl =
+    terminal && typeof terminal === "object"
+      ? (terminal as Record<string, unknown>)["global decl"]
+      : undefined;
+  const visit = (node: unknown): void => {
+    if (Array.isArray(node)) {
+      for (const child of node) {
+        visit(child);
+      }
+      return;
+    }
+    if (node && typeof node === "object") {
+      const entry = node as Record<string, unknown>;
+      // `{"VAR=": name}` declares a global; `re: true` marks a reassignment
+      // of one declared elsewhere, so it adds no name.
+      const declared = entry["VAR="];
+      if (typeof declared === "string" && !entry["re"]) {
+        names.add(declared);
+      }
+      for (const value of Object.values(entry)) {
+        if (Array.isArray(value)) {
+          visit(value);
+        }
       }
     }
-  }
+  };
+  visit(globalDecl);
   _preludeGlobalNames = names;
   return names;
 }
@@ -1421,7 +1461,14 @@ export class SparkdownCompiler {
         this._config.useBuiltinsPrelude !== false &&
         !this._config.seedBuiltinsIntoStory
       ) {
-        parsedStory.DeclareBuiltinGlobals(getPreludeGlobalNames());
+        const builtinGlobalNames = getPreludeGlobalNames();
+        parsedStory.DeclareBuiltinGlobals(builtinGlobalNames);
+        this.reportBuiltinGlobalFlowCollisions(
+          parsedStory,
+          builtinGlobalNames,
+          program,
+          uri,
+        );
       }
       profile("start", this._profilerId, "ink/compile", uri);
       const story = parsedStory.ExportRuntime(onDiagnostic);
@@ -4092,6 +4139,52 @@ export class SparkdownCompiler {
       }
     }
     profile("end", this._profilerId, "mergePreludeSparkle", uri);
+  }
+
+  /** Report a top-level scene or function named after a builtin global. Such
+   *  a flow can never be reached: `-> name` binds to the global's variable, in
+   *  a seeded compile as much as in the unseeded one that declares the marker
+   *  (Story.DeclareBuiltinGlobals), and the seeded runtime then fails at that
+   *  divert. The seeded compile reports the clash as a duplicate identifier
+   *  when the prelude's own declaration resolves its references; the
+   *  unseeded compile, whose diagnostics the editor shows, has no such
+   *  declaration, so the clash is checked here. Runs as a whole-program pass
+   *  each compile, like {@link validateSceneStructure}: the flow and the
+   *  marker can live in different files. */
+  protected reportBuiltinGlobalFlowCollisions(
+    parsedStory: Story,
+    names: Iterable<string>,
+    program: SparkProgram,
+    uri: string,
+  ): void {
+    for (const name of names) {
+      const flow = parsedStory.ContentWithNameAtLevel(name, FlowLevel.Knot);
+      if (!(flow instanceof FlowBase)) {
+        continue;
+      }
+      const dm = flow.debugMetadata;
+      if (!dm) {
+        continue;
+      }
+      // The lowering dispatcher stamps a flow with 1-based line numbers and
+      // 0-based character numbers (see lower/utils/debugMetadata.ts);
+      // getDiagnostic takes 0-based positions on both axes.
+      const diagUri = dm.filePath || uri;
+      const diagnostic = this.getDiagnostic(
+        `\`${name}\` is a builtin global, so it cannot also be the name of a scene or function`,
+        DiagnosticSeverity.Error,
+        diagUri,
+        dm.startLineNumber - 1,
+        dm.startCharacterNumber,
+        dm.endLineNumber - 1,
+        dm.endCharacterNumber,
+      );
+      if (diagnostic) {
+        program.diagnostics ??= {};
+        program.diagnostics[diagUri] ??= [];
+        program.diagnostics[diagUri].push(diagnostic);
+      }
+    }
   }
 
   populateBuiltins(program: SparkProgram) {
