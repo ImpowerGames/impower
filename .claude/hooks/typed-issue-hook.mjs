@@ -8,9 +8,13 @@
 // field flag is present, so the check looks at what the call does, not at
 // whether `-X POST` was typed.
 //
-// The payload arrives on stdin as JSON. Only tool_input.command is read; the
-// command is split into shell-style tokens (Bash and PowerShell quoting,
-// line continuations, comments, here-doc bodies), so a mention of the phrase
+// The payload arrives on stdin as JSON. tool_input.command is the text
+// checked and tool_name says which shell it is written for (PowerShell or
+// Bash); without a tool name the shell is inferred from PowerShell cmdlet
+// names in the command. The command is split into shell-style tokens (Bash
+// and PowerShell quoting, line continuations, comments, here-doc bodies,
+// and in a PowerShell command a `-Parameter`'s parenthesised, hashtable, or
+// `$(...)` value), so a mention of the phrase
 // in a quoted string, a comment, or a here-doc body is not a match. A `gh`
 // or `curl` token counts as an invocation only at command position: the
 // start of a segment, after a shell keyword such as `do` or `then`, after
@@ -405,7 +409,20 @@ function matchBracket(command, open) {
 }
 
 let partnerCacheKey = null;
+let partnerCacheShell = null;
 let partnerCache = null;
+
+// The shell the command under analysis is written for: "powershell" or
+// "bash". Set by decide() from the tool name in the payload, or inferred
+// from the command when no tool name is known.
+let currentShell = "bash";
+
+const POWERSHELL_WORDS = /(^|[\s;|&({])(irm|iwr|invoke-[a-z]+|convertto-json|convertfrom-json|write-host|write-output|get-content|set-content|join-path|foreach-object|select-object|out-string|get-childitem|get-date)\b/i;
+
+/** "powershell" when the command uses a PowerShell cmdlet, else "bash". */
+export function inferShell(command) {
+  return POWERSHELL_WORDS.test(command) ? "powershell" : "bash";
+}
 
 /**
  * Map from the index of every balanced `(` or `{` to the index of its
@@ -416,12 +433,13 @@ let partnerCache = null;
  * not unbalance everything after it.
  */
 function bracketPartners(command) {
-  if (partnerCacheKey === command) return partnerCache;
+  if (partnerCacheKey === command && partnerCacheShell === currentShell) return partnerCache;
   // A flag-value opener that never closes would keep the PowerShell reading
   // on for the rest of the command, so the pass runs again without it.
   let result = computePartners(command, new Set());
   if (result.unclosedFlagValues.length) result = computePartners(command, new Set(result.unclosedFlagValues));
   partnerCacheKey = command;
+  partnerCacheShell = currentShell;
   partnerCache = result.map;
   return result.map;
 }
@@ -437,21 +455,19 @@ function computePartners(command, suppressed) {
   let arith = 0; // inside `$((...))` or `((...))`, where `<<` is a shift
   let noCloseFrom = n; // offset from which no `"` has a closing partner
   // A group that is a PowerShell `-Flag`'s value (`-Body (...)`, `-Headers
-  // @{...}`, `-Body:@{...}`) is PowerShell, where a backslash inside a
-  // string is literal. A PowerShell flag word has a capital letter or at
-  // least three letters; a Bash short flag (`-n`, `-e`) does not count. A
-  // `$(` counts only after a word shaped like a PowerShell parameter: a
-  // capital, at least two lowercase letters, then optional camel-case
-  // words (`-Body`, `-Uri`, `-ContentType`). A capital Bash flag cluster
-  // (`curl -H`, `curl -Ls`, `sed -En`, `java -Xmx2g`) does not fit that
-  // shape, and a lowercase word is as likely a Bash substitution (`find
-  // -name $(...)`), so `-body $(...)` and a one-letter PowerShell
-  // abbreviation such as `-H $(...)` are read as Bash. A backtick line
-  // continuation may separate the flag from its group.
+  // @{...}`, `-Body:@{...}`, `-InFile $(...)`) is PowerShell, where a
+  // backslash inside a string is literal. In a PowerShell command any
+  // `-Word` parameter counts. In a Bash command a `$(` is a substitution
+  // and never counts, and a `(` or `@{` counts only after a word with a
+  // capital letter or at least three letters, so a Bash short flag (`-n`,
+  // `-e`) leaves the group alone. A backtick line continuation may
+  // separate the flag from its group.
+  const powershell = currentShell === "powershell";
   const flagValue = (at) => {
     if (suppressed.has(at)) return false;
     let j = at - 1;
     const dollar = command[j] === "$";
+    if (dollar && !powershell) return false;
     if (command[j] === "@" || dollar) j--;
     for (;;) {
       while (j >= 0 && " \t".includes(command[j])) j--;
@@ -464,7 +480,7 @@ function computePartners(command, suppressed) {
     let start = j;
     while (start >= 0 && /[\w:-]/.test(command[start])) start--;
     const word = command.slice(start + 1, j + 1);
-    return dollar ? /^-[A-Z][a-z]{2,}(?:[A-Z][a-z]+)*:?$/.test(word) : /^-(?:[A-Z][\w-]*|[a-z][\w-]{2,}):?$/.test(word);
+    return powershell ? /^-[A-Za-z][\w-]*:?$/.test(word) : /^-(?:[A-Z][\w-]*|[a-z][\w-]{2,}):?$/.test(word);
   };
   // Each stack entry carries whether it or any entry below it is a flag
   // value, so the test is constant time.
@@ -1099,12 +1115,18 @@ function programBefore(seg, flagIndex) {
   return -1;
 }
 
-/** Returns a deny reason for the command, or null to allow it. */
-export function decide(command, depth = 0) {
+/**
+ * Returns a deny reason for the command, or null to allow it. `shell` is
+ * "powershell" or "bash"; when omitted it is inferred from the command.
+ */
+export function decide(command, shell, depth = 0) {
   if (typeof command !== "string" || command.length === 0 || depth > 3) return null;
+  currentShell = shell === "powershell" || shell === "bash" ? shell : inferShell(command);
   const tokens = tokenize(command);
+  const outerShell = currentShell;
   for (const sub of tokens.subs) {
-    const inner = decide(sub, depth + 1);
+    const inner = decide(sub, outerShell, depth + 1);
+    currentShell = outerShell;
     if (inner) return inner;
   }
   const segments = [];
@@ -1123,7 +1145,11 @@ export function decide(command, depth = 0) {
     for (let i = 0; i < seg.length; i++) {
       const tok = seg[i];
       if (tok.quoted && isShellCommandString(seg, i, positions)) {
-        const inner = decide(tok.text, depth + 1);
+        // A string handed to a shell's -c is written for that shell.
+        const program = programBefore(seg, i - 1);
+        const innerShell = program >= 0 && /^(pwsh|powershell)$/.test(baseName(seg[program])) ? "powershell" : program >= 0 ? "bash" : outerShell;
+        const inner = decide(tok.text, innerShell, depth + 1);
+        currentShell = outerShell;
         if (inner) return inner;
       }
       if (!positions.has(i)) continue;
@@ -1186,8 +1212,11 @@ async function main() {
   let raw = "";
   for await (const chunk of process.stdin) raw += chunk;
   let command;
+  let shell;
   try {
-    command = JSON.parse(raw)?.tool_input?.command;
+    const payload = JSON.parse(raw);
+    command = payload?.tool_input?.command;
+    shell = payload?.tool_name === "PowerShell" ? "powershell" : payload?.tool_name === "Bash" ? "bash" : undefined;
   } catch {
     // An unparseable payload is refused only when it looks like it carries a
     // gh call, so a broken harness cannot let an untyped create through and
@@ -1195,7 +1224,7 @@ async function main() {
     if (/\bgh\s+(issue|api)\b/i.test(raw)) deny("The typed-issue hook could not parse the tool payload, so it cannot tell whether this command creates an untyped issue. " + RECIPE);
     return;
   }
-  const reason = decide(command);
+  const reason = decide(command, shell);
   if (reason) deny(reason);
 }
 

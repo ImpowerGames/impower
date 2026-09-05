@@ -257,6 +257,14 @@ const denies = [
   ["an untyped curl create after a $( ) following curl -LsS with a python one-liner", 'curl -LsS $(python -c "print(\\"X-A: b\\")") https://x ; curl -X POST https://api.github.com/repos/ImpowerGames/impower/issues -d "{\\"title\\":\\"x\\"}"'],
   ["a create after a $( ) following java -Xmx2g with an escaped quote", 'java -Xmx2g $(node -e "console.log(\\"d\\")") ; gh issue create -t x'],
   ["an untyped irm create with a -Headers $( ) holding a trailing-backslash string before the body", 'irm -Headers $(Get-Content "C:\\dist\\") -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Body @{title="x"; body="y"}'],
+  ["an untyped irm create with a -NoProxy:$( ) holding a trailing-backslash string before the body", 'irm -NoProxy:$(Test-Path "C:\\dist\\") -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Body @{title="x"; body="y"}'],
+  ["an untyped irm create with an all-caps -HEADERS $( ) holding a trailing-backslash string before the body", 'irm -HEADERS $(Get-Content "C:\\dist\\") -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Body @{title="x"; body="y"}'],
+  ["a create after a $( ) following curl -Lsf with an escaped quote", 'curl -Lsf $(node -e "console.log(\\"Bearer \\" + t)") https://x ; gh issue create --title x --body-file t.md'],
+  ["a create after a $( ) following sed -Enr with an escaped quote", 'sed -Enr $(node -e "console.log(\\"s/a/b/\\")") f ; gh issue create --title x --body-file t.md'],
+  ["a create after a $( ) following tar -Jxvf with an escaped quote", 'tar -Jxvf $(node -e "console.log(\\"a.tar.xz\\")") ; gh issue create --title x --body-file t.md'],
+  ["a create after a $( ) following gcc -Wall with an escaped quote", 'gcc -Wall $(node -e "console.log(\\"-DX\\")") main.c ; gh issue create --title x --body-file t.md'],
+  ["a create after a $( ) following a lowercase -body with an escaped quote", 'tool -body $(node -e "console.log(\\"x\\")") ; gh issue create --title x --body-file t.md'],
+  ["a create after a $( ) following -Uri in a Bash command with an escaped quote", 'tool -Uri $(node -e "console.log(\\"x\\")") ; gh issue create --title x --body-file t.md'],
   ["an untyped curl create after an unbalanced flag group", 'echo -a @{ ; curl -X POST https://api.github.com/repos/ImpowerGames/impower/issues -d "{\\"title\\":\\"x\\",\\"body\\":\\"y\\"}"'],
   // A JSON string body is read with JSON escapes whichever shell sends it,
   // so this body, which is not valid JSON (a bare `\s` and a `\"` that
@@ -383,6 +391,13 @@ const allows = [
   ["a typed curl create inside a $( ) after curl -Ls with a closer in the body", 'curl -Ls $(curl -X POST https://api.github.com/repos/ImpowerGames/impower/issues -d "{\\"title\\":\\"x\\",\\"body\\":\\"step 1) do it\\",\\"type\\":\\"Bug\\"}") https://x'],
   ["a typed irm create with a -Headers $( ) holding a trailing-backslash string before the body", 'irm -Headers $(Get-Content "C:\\dist\\") -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Body @{title="x"; type="Bug"}'],
   ["a typed irm create with a -Uri $( ) holding a trailing-backslash string before the body", 'irm -Method Post -Uri $(Get-Content "C:\\u\\") -Body @{title="x"; type="Bug"} -ContentType "application/json"'],
+  ["a typed irm create with a -Uri: $( ) holding a trailing-backslash string before the body", 'irm -Method Post -Uri:$(Get-Content "C:\\u\\") -Body @{title="x"; type="Bug"} -ContentType "application/json"'],
+  ["a typed irm create with a -ContentType $( ) holding a trailing-backslash string before the body", 'irm -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower/issues -ContentType $(Get-Content "C:\\u\\") -Body @{title="x"; type="Bug"}'],
+  ["a typed irm create with an all-caps -HEADERS $( ) holding a trailing-backslash string before the body", 'irm -HEADERS $(Get-Content "C:\\dist\\") -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Body @{title="x"; type="Bug"}'],
+  ["a typed irm create with a -H $( ) holding a trailing-backslash string before the body", 'irm -H $(Get-Content "C:\\dist\\") -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Body @{title="x"; type="Bug"}'],
+  ["a typed irm create with a lowercase -headers $( ) holding a trailing-backslash string before the body", 'irm -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower/issues -headers $(Get-Content "C:\\dist\\") -Body @{title="x"; type="Bug"}'],
+  ["a typed curl create inside a $( ) after curl -Lsf with a closer in the body", 'curl -Lsf $(curl -X POST https://api.github.com/repos/ImpowerGames/impower/issues -d "{\\"title\\":\\"x\\",\\"body\\":\\"step 1) do it\\",\\"type\\":\\"Bug\\"}") https://x'],
+  ["a typed curl create inside a $( ) after gcc -Wall with a closer in the body", 'gcc -Wall $(curl -X POST https://api.github.com/repos/ImpowerGames/impower/issues -d "{\\"title\\":\\"x\\",\\"body\\":\\"step 1) do it\\",\\"type\\":\\"Bug\\"}") main.c'],
   ["a typed -Body after a CRLF backtick continuation with a trailing-backslash value and a ContentType", "irm -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Body `\r\n(@{title=\"C:\\dist\\\"; type=\"Bug\"} | ConvertTo-Json) -ContentType \"application/json\""],
   ["a typed body in the ConvertTo-Json -Depth:10 colon form", "irm -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Body (ConvertTo-Json -Depth:10 @{title='x'; type='Bug'})"],
   ["a typed body piped to ConvertTo-Json then Out-String", "irm -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Body (@{title='x'; type='Bug'} | ConvertTo-Json | Out-String)"],
@@ -506,13 +521,29 @@ const allows = [
   check(typeof r === "string" && Date.now() - t0 < 2000, "50000 assignments before a create decide in under 2 s", `${Date.now() - t0} ms, ${JSON.stringify(r)?.slice(0, 40)}`);
 }
 
-for (const [label, command] of denies) {
-  const reason = decide(command);
+// A third column names the shell the tool name would give the hook;
+// without one the hook infers it from the command.
+for (const [label, command, shell] of denies) {
+  const reason = decide(command, shell);
   check(typeof reason === "string" && reason.includes("type=Bug"), `denied: ${label}`, `got ${JSON.stringify(reason)}`);
 }
-for (const [label, command] of allows) {
-  const reason = decide(command);
+for (const [label, command, shell] of allows) {
+  const reason = decide(command, shell);
   check(reason === null, `allowed: ${label}`, `got ${JSON.stringify(reason)}`);
+}
+// The shell decides how a `$(` after a flag is read: in PowerShell it is
+// the flag's value, in Bash it is a substitution and the flag is ignored.
+{
+  const psInFile = 'irm -InFile $(Get-Content "C:\\dist\\") -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Body @{title="x"; body="y"}';
+  const psTyped = 'irm -InFile $(Get-Content "C:\\dist\\") -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Body @{title="x"; type="Bug"}';
+  const bashWall = 'gcc -Wall $(pkg-config --cflags "x\\") main.c ; gh issue create --title x';
+  check(typeof decide(psInFile, "powershell") === "string", "denied: an untyped irm create after -InFile $( ) under the PowerShell tool");
+  check(decide(psTyped, "powershell") === null, "allowed: a typed irm create after -InFile $( ) under the PowerShell tool");
+  check(typeof decide(bashWall, "bash") === "string", "denied: a create after gcc -Wall $( ) under the Bash tool");
+  check(typeof decide(bashWall, "powershell") === "string", "denied: a create after gcc -Wall $( ) under the PowerShell tool");
+  check(typeof decide(psInFile) === "string", "denied: an untyped irm create after -InFile $( ) with the shell inferred");
+  check(decide(psTyped) === null, "allowed: a typed irm create after -InFile $( ) with the shell inferred");
+  check(typeof decide(bashWall) === "string", "denied: a create after gcc -Wall $( ) with the shell inferred");
 }
 
 // The wired command string, under bash and under a plain POSIX shell.
@@ -572,6 +603,11 @@ for (const [label, command] of allows) {
     wire("create after a PowerShell newline escape", payload("PowerShell", { command: 'Write-Host "Done.`n"; gh issue create --title x' }), true);
     wire("PowerShell capture of a create", payload("PowerShell", { command: "$out = gh issue create --title x" }), true);
     wire("create after a leading 2>&1", payload("Bash", { command: "2>&1 gh issue create --title x" }), true);
+    // The tool name picks the shell: the same text is a PowerShell flag
+    // value under one tool and a Bash substitution under the other.
+    wire("untyped irm create after -InFile $( ) under the PowerShell tool", payload("PowerShell", { command: 'irm -InFile $(Get-Content "C:\\dist\\") -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Body @{title="x"; body="y"}' }), true);
+    wire("typed irm create after -InFile $( ) under the PowerShell tool", payload("PowerShell", { command: 'irm -InFile $(Get-Content "C:\\dist\\") -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Body @{title="x"; type="Bug"}' }), false);
+    wire("create after gcc -Wall $( ) under the Bash tool", payload("Bash", { command: 'gcc -Wall $(pkg-config --cflags "x\\") main.c ; gh issue create --title x' }), true);
 
     // A wrong project directory must block loudly on a gh command, with a
     // readable reason on stderr, and stay silent on everything else.
