@@ -14,12 +14,12 @@
 // `playwright` from the SCRIPT's directory, not from cwd, so a copy of this
 // script in a temp dir will not find it.
 //
-//   node .claude/skills/resolve-issue/driver.mjs up
-//   node .claude/skills/resolve-issue/driver.mjs status
-//   node .claude/skills/resolve-issue/driver.mjs verify --sd repro.sd --shot out.png
-//   node .claude/skills/resolve-issue/driver.mjs down
+//   node .claude/skills/drive-web-editor/driver.mjs up
+//   node .claude/skills/drive-web-editor/driver.mjs status
+//   node .claude/skills/drive-web-editor/driver.mjs verify --sd repro.sd --shot out.png
+//   node .claude/skills/drive-web-editor/driver.mjs down
 //
-// State (editor URL + launcher pid) lives in .claude/skills/resolve-issue/.state.json,
+// State (editor URL + launcher pid) lives in .claude/skills/drive-web-editor/.state.json,
 // which is gitignored — every command after `up` reads the URL from there.
 
 import { spawn } from "node:child_process";
@@ -55,7 +55,7 @@ function readState() {
 function requireUrl() {
   const s = readState();
   if (!s?.url) {
-    die("no editor URL — run `node .claude/skills/resolve-issue/driver.mjs up` first");
+    die("no editor URL — run `node .claude/skills/drive-web-editor/driver.mjs up` first");
   }
   return s.url;
 }
@@ -1917,7 +1917,7 @@ async function redgreenCli(args) {
 // Helpers for a session that has to drive the editor beyond what `ui` and
 // `verify` cover. Import them from a script INSIDE the repo tree (Node resolves
 // playwright from the importing script's directory), e.g.
-//   import { withEditor, writeMainSd, waitForEditor } from "../../.claude/skills/resolve-issue/driver.mjs";
+//   import { withEditor, writeMainSd, waitForEditor } from "../../.claude/skills/drive-web-editor/driver.mjs";
 export {
   withEditor,
   writeMainSd,
@@ -1987,7 +1987,7 @@ switch (cmd) {
   default:
     log(
       [
-        "usage: node .claude/skills/resolve-issue/driver.mjs <command>",
+        "usage: node .claude/skills/drive-web-editor/driver.mjs <command>",
         "",
         "  preflight             check disk headroom, playwright, gh auth BEFORE doing work",
         "  up [--cross-origin]   boot both dev servers, wait for ready, record the URL",

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Pins classifyScrub, which decides whether a preview scrub landed. Run:
-//   node .claude/skills/resolve-issue/scrub-classification.test.mjs
+//   node .claude/skills/drive-web-editor/scrub-classification.test.mjs
 //
 // This is the check that replaced comparing the route number against the
 // requested line (#419). That comparison called every healthy mid-script scrub

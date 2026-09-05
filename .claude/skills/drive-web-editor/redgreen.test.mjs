@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Pins the red/green cycle in redgreen.mjs (#426). Run:
-//   node .claude/skills/resolve-issue/redgreen.test.mjs
+//   node .claude/skills/drive-web-editor/redgreen.test.mjs
 //
 // Each case builds a throwaway git repository holding a one-line module, a
 // check script that fails until the module carries the fix, and a commit of

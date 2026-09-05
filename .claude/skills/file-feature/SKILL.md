@@ -80,7 +80,7 @@ Branches that nearly always exist for a feature here, in the order they usually 
 4. Preview versus play. The editor preview is scrub-driven and time-free; play is time-driven. Most features behave differently in each (timed assets load only in play, the loading screen is a no-op in preview) and the difference has to be decided, not discovered.
 5. Which surfaces ship it. Web editor, VS Code extension, standalone player, or all three. The compile runs in each, so a compiler change lands everywhere; an editor-only feature does not.
 6. What is reused. The existing code, branch, or prior ticket that partly covers it, and whether it is extended or replaced.
-7. Tests. Which seam proves it works: a compiler test on the program output, an engine test on module behavior, a player DOM test, a live check in the running editor. Prefer the highest existing seam; new seams are a cost.
+7. Tests. Which seam proves it works: a compiler test on the program output, an engine test on module behavior, a player DOM test, a live check in the running editor. Prefer the highest existing seam; new seams are a cost. The write-regression-test skill lists where each package's tests live and which packages have none, and the drive-web-editor skill is what a live check in the editor can and cannot see; name the seam in the ticket in those terms, because they are the steps the implementer runs.
 8. Scope edges. What is deliberately left out, and whether the work is one pull request or several. A ticket sized to one fresh context window is one resolve-issue run; larger than that, split it (section 4).
 
 Not every feature has all eight, and some have branches this list does not. The list is a checklist against silent assumptions, not a script.
@@ -125,7 +125,7 @@ FILE #421: preload images named in an upcoming scene
 
 ## 7. Hand off
 
-Tell the user the issue number and the one-paragraph plan. Implementation is the resolve-issue skill on that number, in a fresh session with the ticket as its brief; do not begin it here, even if the plan looks small. The point of the split is that the plan is reviewed as a plan before any code exists.
+Tell the user the issue number and the one-paragraph plan. Implementation is the resolve-issue skill on that number, in a fresh session with the ticket as its brief; do not begin it here, even if the plan looks small. The point of the split is that the plan is reviewed as a plan before any code exists. That run invokes write-regression-test, drive-web-editor and review-pr in turn, so acceptance criteria written as a test that exists, a screenshot that shows the change, and a review that found nothing are criteria those steps can tick; the review-pr skill also runs directly on any open pull request, which is where a plan that lands in pieces gets each piece reviewed.
 
 ## Gotchas
 
