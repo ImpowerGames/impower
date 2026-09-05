@@ -7,7 +7,10 @@
 // fallback, failure caching, and the byte cap — not the browser's rasterizer.
 
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { getImageCompositeSrc } from "../../compiler/utils/getImageComposite";
+import {
+  getImageCompositeSrc,
+  getImagePreviewMarkupComposited,
+} from "../../compiler/utils/getImageComposite";
 import {
   clampThumbnailWidth,
   thumbnailCacheKey,
@@ -146,7 +149,9 @@ describe("getImageCompositeSrc", () => {
     stubRasterizer();
     stubFetch({ fails: true });
     const ctx = makeContext("workspaceuri", ["lone"]);
-    ctx.image["lone"]!.src = "file://proj/workspaceuri/lone.png";
+    // Deliberately unlike the layer's `uri`, so the assertion below pins that
+    // the bridge is asked by workspace uri rather than by display src.
+    ctx.image["lone"]!.src = "vscode-vfs://host/workspaceuri/lone.png";
     const asked: string[] = [];
     const src = await getImageCompositeSrc(ctx, ctx.image["lone"], {
       readFileBytes: async (uri) => {
@@ -157,6 +162,23 @@ describe("getImageCompositeSrc", () => {
     expect(src).toMatch(/^data:image\/webp;base64,/);
     expect(asked).toEqual(["file://proj/workspaceuri/lone.png"]);
     expect(drawn).toEqual(["lone"]);
+  });
+
+  // The surface the ticket actually reports: what the hover and the completion
+  // details pane receive. Asserting on `getImageCompositeSrc` alone would still
+  // pass if the markup builder stopped consulting it.
+  it("emits markup carrying the inlined image, not the workspace uri", async () => {
+    stubRasterizer();
+    stubFetch({ fails: true });
+    const ctx = makeContext("markup", ["lone"]);
+    ctx.image["lone"]!.src = "file://proj/markup/lone.png";
+    const markup = await getImagePreviewMarkupComposited(ctx, ctx.image["lone"], {
+      readFileBytes: async () => btoa("lone"),
+    });
+    expect(markup).toMatch(/^<img src="data:image\/webp;base64,/);
+    // VS Code's markdown sanitizer strips this scheme off the element.
+    expect(markup).not.toContain("file://");
+    expect(markup).toContain('alt="lone"');
   });
 
   it.each([
