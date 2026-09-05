@@ -147,9 +147,15 @@ export class Story extends FlowBase {
    *  named in {@link builtinGlobalNames}: `-> game` binds to the builtin's
    *  variable (a table at runtime, whether the prelude's own or an authored
    *  override), so it can never reach a scene, branch, or label of that
-   *  name and fails when run. The compiler reports each one
-   *  (SparkdownCompiler.reportBuiltinGlobalCollisions). */
-  public builtinGlobalDiverts: { name: string; divert: ParsedObject }[] = [];
+   *  name and fails when run. `warning` marks a divert whose name a sibling
+   *  branch of its scene declares as a local or parameter, so what it binds
+   *  to depends on whether that branch ran first. The compiler reports each
+   *  one (SparkdownCompiler.reportBuiltinGlobalCollisions). */
+  public builtinGlobalDiverts: {
+    name: string;
+    divert: ParsedObject;
+    warning: boolean;
+  }[] = [];
 
   // Build setting for exporting:
   // When true, the visit count for *all* knots, stitches, choices,

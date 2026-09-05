@@ -1,5 +1,4 @@
 import { type SyntaxNode } from "@lezer/common";
-import { getDescendents } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendents";
 import { Identifier } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Identifier";
 import type { LowerContext } from "../context";
 import { buildDebugMetadata } from "./debugMetadata";
@@ -20,9 +19,22 @@ export function lowerDivertPath(
   target: SyntaxNode,
   ctx: LowerContext,
 ): Identifier[] {
-  return getDescendents("DivertPartName", target).map((part) =>
-    divertPartIdentifier(part, ctx),
-  );
+  // In-order walk of the target's own subtree, so `a.b` yields [a, b] and
+  // nothing past the target is picked up.
+  const parts: Identifier[] = [];
+  const visit = (node: SyntaxNode): void => {
+    if (node.name === "DivertPartName") {
+      parts.push(divertPartIdentifier(node, ctx));
+      return;
+    }
+    let child = node.firstChild;
+    while (child) {
+      visit(child);
+      child = child.nextSibling;
+    }
+  };
+  visit(target);
+  return parts;
 }
 
 // One segment of a divert's target path as an Identifier stamped with the

@@ -280,43 +280,51 @@ export class Divert extends ParsedObject {
   public readonly PathAsVariableName = () =>
     this.target ? this.target.firstComponent : null;
 
-  // Whether `name` is a parameter or a local (`variableDeclarations`) of any
-  // flow in the top-level flow that contains this divert: the flow itself,
-  // its branches, and its functions. A story-level divert has no such flow
-  // and gets `false`.
+  // Where, if anywhere, `name` is declared as a parameter or a local
+  // (`variableDeclarations`) in the top-level flow that contains this divert:
   //
-  // This is a static approximation. At runtime a temporary lives in the
-  // current call-stack element, so whether `-> game` inside a branch sees a
-  // `local game` declared in its scene depends on the path that reached the
-  // branch, not on where the declaration sits. The rule here errs toward
-  // silence: a name the author declared anywhere in the scene is treated as
-  // the author's own divert target, and the story's behaviour is then a
-  // matter of the author's own declaration rather than of the builtin.
-  private isDeclaredWithinTopLevelFlow(name: string): boolean {
+  //   "ancestor"  the divert's own flow or a flow enclosing it declares it;
+  //   "sibling"   only another branch of the same top-level flow declares it;
+  //   "none"      nothing in that top-level flow declares it (a story-level
+  //               divert has no such flow and gets this too).
+  //
+  // A static approximation of the runtime, where a temporary lives in the
+  // current call-stack element: a local set in a sibling branch is visible
+  // if that branch ran first in the same element and absent if it did not,
+  // and the path taken decides which. A function nested in a callable runs
+  // in its own element, so its declarations are not consulted (a function
+  // written in a scene is hoisted to the top level and is never inside the
+  // scene's flow).
+  private declarationScopeFor(name: string): "ancestor" | "sibling" | "none" {
+    const declares = (candidate: FlowBase): boolean =>
+      candidate.args?.some((arg) => arg.identifier?.name === name) ||
+      candidate.variableDeclarations.has(name);
+    const ancestors: FlowBase[] = [];
     let flow = asOrNull(ClosestFlowBase(this), FlowBase);
-    let top: FlowBase | null = null;
     while (flow && flow !== flow.story) {
-      top = flow;
+      ancestors.push(flow);
       flow = asOrNull(ClosestFlowBase(flow), FlowBase);
     }
-    if (!top) {
-      return false;
+    if (ancestors.some(declares)) {
+      return "ancestor";
     }
-    const declares = (candidate: FlowBase): boolean => {
-      if (
-        candidate.args?.some((arg) => arg.identifier?.name === name) ||
-        candidate.variableDeclarations.has(name)
-      ) {
-        return true;
-      }
+    const top = ancestors[ancestors.length - 1];
+    if (!top) {
+      return "none";
+    }
+    const branchDeclares = (candidate: FlowBase): boolean => {
       for (const child of candidate.content ?? []) {
-        if (child instanceof FlowBase && declares(child)) {
+        if (
+          child instanceof FlowBase &&
+          !child.isFunction &&
+          (declares(child) || branchDeclares(child))
+        ) {
           return true;
         }
       }
       return false;
     };
-    return declares(top);
+    return branchDeclares(top) ? "sibling" : "none";
   }
 
   public readonly ResolveTargetContent = (): void => {
@@ -422,18 +430,25 @@ export class Divert extends ParsedObject {
     // one from `context.builtinGlobalDiverts`. Recorded here, once per compile
     // for reused diverts too. Not recorded: a Luau call (`game()` lowers to a
     // divert too, but names no scene, branch, or label), and a divert whose
-    // name the author declared as a parameter or local somewhere in the
-    // enclosing top-level flow, which is treated as the author's own divert
-    // target (see `isDeclaredWithinTopLevelFlow` for the approximation this
-    // makes).
+    // name the author declared as a parameter or local in its own flow or an
+    // enclosing one, which is the author's own divert target. A declaration
+    // in a sibling branch only is recorded as uncertain (`warning`): whether
+    // that branch ran first decides what the divert binds to at runtime (see
+    // `declarationScopeFor`).
     const capturedBy = this.runtimeDivert.variableDivertName;
     if (
       capturedBy != null &&
       !this.isFunctionCall &&
-      context.builtinGlobalNames.has(capturedBy) &&
-      !this.isDeclaredWithinTopLevelFlow(capturedBy)
+      context.builtinGlobalNames.has(capturedBy)
     ) {
-      context.builtinGlobalDiverts.push({ name: capturedBy, divert: this });
+      const scope = this.declarationScopeFor(capturedBy);
+      if (scope !== "ancestor") {
+        context.builtinGlobalDiverts.push({
+          name: capturedBy,
+          divert: this,
+          warning: scope === "sibling",
+        });
+      }
     }
 
     // Resolve children (the arguments)

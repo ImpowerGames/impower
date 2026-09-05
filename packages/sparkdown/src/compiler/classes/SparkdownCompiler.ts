@@ -4218,6 +4218,7 @@ export class SparkdownCompiler {
       characterBias: number,
       name: string,
       exact: boolean,
+      severity: DiagnosticSeverity = DiagnosticSeverity.Error,
     ): void => {
       if (!dm) {
         return;
@@ -4246,7 +4247,7 @@ export class SparkdownCompiler {
       reported.add(key);
       const diagnostic = this.getDiagnostic(
         message,
-        DiagnosticSeverity.Error,
+        severity,
         diagUri,
         line,
         startCharacter,
@@ -4275,17 +4276,20 @@ export class SparkdownCompiler {
         }
       }
     }
-    for (const { name, divert } of parsedStory.builtinGlobalDiverts) {
+    for (const { name, divert, warning } of parsedStory.builtinGlobalDiverts) {
       // The divert's own position is inherited from its statement or scene;
       // its first target identifier carries the name's position.
       const target = divert instanceof Divert ? divert.pathIdentifiers?.[0] : null;
       const stamped = target?.debugMetadata ?? null;
       report(
-        `\`${name}\` is a builtin global, so this divert binds to it and cannot reach a scene, branch, or label named \`${name}\``,
+        warning
+          ? `\`${name}\` is a builtin global; this divert binds to it, and cannot reach a scene, branch, or label named \`${name}\`, unless the \`${name}\` declared in another branch of this scene has run first`
+          : `\`${name}\` is a builtin global, so this divert binds to it and cannot reach a scene, branch, or label named \`${name}\``,
         stamped ?? divert.debugMetadata,
         stamped ? 1 : 0,
         name,
         stamped !== null,
+        warning ? DiagnosticSeverity.Warning : DiagnosticSeverity.Error,
       );
     }
   }

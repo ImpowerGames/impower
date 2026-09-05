@@ -543,16 +543,76 @@ end
     expect(ctx.story.ContinueMaximally()).toBe("Arrived.\n");
   });
 
-  test("a dotted divert target in an expression keeps its segments in source order", () => {
-    const program = compileUnseeded(`-> start
-scene start
-  & local f = -> aaaa.bbbb
+  test("a sibling branch's local that may not have run downgrades the report to a warning", () => {
+    // Entering `two` directly leaves `one`'s local unset, and the divert then
+    // binds to the builtin at runtime; entering through `one` first would
+    // make it work. The compile cannot tell which, so it warns.
+    const program = compileUnseeded(`-> s.two
+scene s
+  branch one
+    & local game = -> there
+    fin
+  end
+  branch two
+    -> game
+  end
+end
+scene there
+  Arrived.
   fin
 
 end
 `);
-    const notFound = messagesOf(program).filter((m) => m.includes("target not found"));
-    expect(notFound).toEqual(["target not found: `-> aaaa.bbbb`"]);
+    const all: any[] = Object.values(program.diagnostics ?? {}).flat();
+    const reports = all.filter((d) => /builtin global/.test(String(d.message?.value ?? d.message)));
+    expect(reports.map((d) => [d.severity, d.range.start])).toEqual([
+      [2, { line: 7, character: 7 }],
+    ]);
+    expect(String(reports[0].message?.value)).toContain("declared in another branch of this scene has run first");
+  });
+
+  test("a local inside a nested function does not exempt a divert in the enclosing function", () => {
+    // The nested function runs in its own call-stack element, so its local
+    // is never visible to `outer`; the divert still binds to the builtin.
+    const program = compileUnseeded(`-> start
+scene start
+  & outer()
+  fin
+
+end
+function outer()
+  local inner = function()
+    local game = -> there
+    return 1
+  end
+  local f = -> game
+  return f
+end
+scene there
+  Arrived.
+  fin
+
+end
+`);
+    expect(collisionsOf(program).map((c) => c.message)).toEqual([DIVERT_MESSAGE("game")]);
+  });
+
+  test("a dotted divert target in an expression keeps its segments in source order", () => {
+    const ctx = makeRuntimeStoryFromSource(`-> start
+scene start
+  & local f = -> there.inner
+  -> f
+
+end
+scene there
+  branch inner
+    Arrived.
+    fin
+  end
+end
+`);
+    expect(ctx.errorMessages).toEqual([]);
+    expect(ctx.story.ContinueMaximally()).toBe("Arrived.\n");
   });
 
   test("`target not found` covers the whole path now that its identifiers carry positions", () => {
