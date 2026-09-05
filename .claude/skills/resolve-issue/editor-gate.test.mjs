@@ -85,7 +85,8 @@ await check("a screen where no editor is expected is never gated, even after an 
 await check("navigational advice from the presence check survives into the gate's message, and the generic advice is not added on top", async () => {
   const scripts = script({ expected: [null], present: [false], settle: [] }, SCRIPTS_TAB);
   const r1 = await scripts.gate(page, "panel", 1);
-  assert.match(r1.reason, /\(no pane had mounted; the script editor is not on screen \(active screen: logic, tab: scripts\)\); put --screen main before this step$/);
+  // The pane mounted during the wait, so the no-pane prefix is not said.
+  assert.match(r1.reason, /within 20s \(the script editor is not on screen \(active screen: logic, tab: scripts\)\); put --screen main before this step$/);
   noRepeats(r1.reason);
   const assets = script({ expected: [null], present: [false], settle: [] }, ASSETS);
   const r2 = await assets.gate(page, "screenshot", 1);
@@ -145,11 +146,26 @@ await check("a view that never settles fails the step with the settle budget nam
   assert.deepEqual(calls.settle, [15_000, 6_000, 6_000, 15_000]);
 });
 
-await check("editorAbsentReason keeps its three advice branches apart", async () => {
+await check("editorAbsentReason keeps its three advice branches apart, and a page with no screen gets no navigational advice", async () => {
   assert.equal(editorAbsentReason({ ...MAIN_TAB, budgetMs: 20_000 }).navigational, null);
   assert.equal(editorAbsentReason({ ...SCRIPTS_TAB, budgetMs: 20_000 }).navigational, "put --screen main before this step");
   assert.equal(editorAbsentReason({ ...ASSETS, budgetMs: 500 }).navigational, "put --screen logic before this step");
-  assert.equal(editorAbsentReason({ screen: null, panelTab: null, budgetMs: 20_000 }).where, "the script editor is not on screen (active screen: none)");
+  const none = editorAbsentReason({ screen: null, panelTab: null, budgetMs: 20_000 });
+  assert.equal(none.where, "the script editor is not on screen (active screen: none)");
+  assert.equal(none.navigational, null);
+});
+
+await check("a page that never mounts a pane is told to re-run, not to switch screens, and a pane that mounted during the wait is named without the no-pane prefix", async () => {
+  const NONE = { screen: null, panelTab: null };
+  const never = script({ expected: [null], present: [false], settle: [] }, NONE);
+  const r1 = await never.gate(page, "screenshot", 1);
+  assert.match(r1.reason, /\(no pane had mounted; the script editor is not on screen \(active screen: none\)\); Re-run; if it persists the machine is saturated$/);
+  noRepeats(r1.reason);
+  // The presence check saw the assets pane arrive during its wait.
+  const late = script({ expected: [null], present: [false], settle: [] }, ASSETS);
+  const r2 = await late.gate(page, "screenshot", 1);
+  assert.match(r2.reason, /within 20s \(the script editor is not on screen \(active screen: assets, tab: files\)\); put --screen logic before this step$/);
+  assert.doesNotMatch(r2.reason, /no pane had mounted/);
 });
 
 if (failures > 0) {

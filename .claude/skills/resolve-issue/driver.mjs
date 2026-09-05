@@ -1044,7 +1044,14 @@ async function scriptEditorPresent(page, timeout = 10_000) {
  */
 export function editorAbsentReason({ screen, panelTab, budgetMs }) {
   const where = `the script editor is not on screen (active screen: ${screen ?? "none"}${panelTab ? `, tab: ${panelTab}` : ""})`;
-  const navigational = screen === "logic" && panelTab && panelTab !== "main" ? "put --screen main before this step" : screen !== "logic" ? "put --screen logic before this step" : null;
+  // No screen at all is a page still loading, not a wrong screen: nothing to
+  // navigate to, so no navigational advice.
+  const navigational =
+    screen === "logic" && panelTab && panelTab !== "main"
+      ? "put --screen main before this step"
+      : screen != null && screen !== "logic"
+        ? "put --screen logic before this step"
+        : null;
   const advice = navigational ?? `the editor did not mount within ${budgetMs / 1000}s; the machine may be saturated, re-run`;
   return { reason: `${where}; ${advice}`, where, advice, navigational };
 }
@@ -1112,7 +1119,10 @@ function editorGate({ expected = editorExpectedHere, present = scriptEditorPrese
       // The presence check's navigational advice ("put --screen main before
       // this step") is the fix and is kept; its generic advice is the same
       // as the gate's and is said once.
-      const state = (exp == null ? "no pane had mounted; " : "") + (here.where ?? here.reason);
+      // "no pane had mounted" is said only while that is still so; a pane
+      // that mounted during the wait is named by the presence check itself.
+      const stillNoPane = exp == null && /active screen: none/.test(here.where ?? "");
+      const state = (stillNoPane ? "no pane had mounted; " : "") + (here.where ?? here.reason);
       const advice = here.navigational ?? "Re-run; if it persists the machine is saturated";
       gaveUp = { kind: "absent", what: state, step };
       return { required: true, ok: false, reason: `this ${what} needs the script editor, which had not mounted within ${budget / 1000}s (${state}); ${advice}` };
@@ -1303,7 +1313,7 @@ async function readField(page, field) {
 async function typeInto(page, field, text, { settled = false } = {}) {
   const name = surfaceForField(field);
   const opened = await openSurface(page, name, { settled });
-  if (opened.reason) return { field, typed: false, reason: opened.reason };
+  if (opened.reason) return { field, typed: false, text, readBack: null, matches: false, reason: opened.reason };
   const loc = fieldLocator(page, field);
   if ((await loc.count()) === 0) {
     return { field, typed: false, reason: `the ${name} panel is open but has no "${field}" field (the replace field is absent while the editor is read-only)` };
@@ -1440,10 +1450,12 @@ async function switchScreen(page, name) {
     return { screen: name, active: true, settled, editorHere: false, reason: `the ${name} tab is up but no script editor mounted within 20s. Re-run; if it persists the machine is saturated` };
   }
   if (editorHere) {
-    const editorSettled = await settleEditor(page);
+    // The gate's own first-settle budget, so a switch that reports the editor
+    // settled means what the gate means by it.
+    const editorSettled = await settleEditor(page, 15_000);
     settled = editorSettled && settled;
     if (!editorSettled) {
-      return { screen: name, active: true, settled, editorHere: true, editorSettled: false, reason: `the ${name} tab is up but its script editor never settled within 30s; later steps may have hit a view that was being replaced` };
+      return { screen: name, active: true, settled, editorHere: true, editorSettled: false, reason: `the ${name} tab is up but its script editor never settled within 15s; later steps may have hit a view that was being replaced` };
     }
     return { screen: name, active: true, settled, editorHere: true, editorSettled: true };
   }
@@ -1643,7 +1655,8 @@ async function ui(args) {
         if (result.startedOn === "logic") result.startNote = "the run started on the logic screen's scripts tab, where there is no script editor; --screen main reaches it";
       } else {
         const here = await scriptEditorPresent(page, 20_000);
-        result.editorSettled = here.present ? await settleEditor(page) : false;
+        result.editorSettled = here.present ? await settleEditor(page, 15_000) : false;
+        if (result.editorSettled) requireEditor.noteSettled();
         if (!here.present) {
           result.startNote = expectedAtStart == null
             ? "no pane had mounted 20s after the page loaded; each later step that needs the editor waits again and reports for itself"
@@ -1674,7 +1687,8 @@ async function ui(args) {
               // moves the cursor. The preview is observable only in
               // same-origin mode (window.__preview); elsewhere waiting on it
               // would burn the full timeout for nothing.
-              out.editorSettled = await settleEditor(page);
+              out.editorSettled = await settleEditor(page, 15_000);
+              if (out.editorSettled) requireEditor.noteSettled();
               // window.__preview is installed by the game preview's own effect,
               // a moment after mount, and never in cross-origin mode or while
               // the preview is in screenplay mode; wait for it, then give up.
