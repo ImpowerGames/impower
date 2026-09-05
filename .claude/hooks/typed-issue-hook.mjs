@@ -426,6 +426,17 @@ function bracketPartners(command) {
   let wordStart = true; // at the start of a word, where `#` opens a comment
   let arith = 0; // inside `$((...))` or `((...))`, where `<<` is a shift
   let noCloseFrom = n; // offset from which no `"` has a closing partner
+  // Depth of groups that are a `-Flag`'s value (`-Body (...)`, `-Headers
+  // @{...}`): PowerShell, where a backslash inside a string is literal.
+  let psDepth = 0;
+  const flagValue = (at) => {
+    let j = at - 1;
+    if (command[j] === "@" || command[j] === "$") j--;
+    while (j >= 0 && " \t".includes(command[j])) j--;
+    let start = j;
+    while (start >= 0 && /[\w:-]/.test(command[start])) start--;
+    return /^-[A-Za-z][\w-]*:?$/.test(command.slice(start + 1, j + 1));
+  };
   for (let k = 0; k < n; k++) {
     const ch = command[k];
     if (inString) {
@@ -463,8 +474,10 @@ function bracketPartners(command) {
     if (ch === '"') {
       // The literal reading finds a partner whenever the escaping one does,
       // so it is tried first; once it fails, no later quote closes either.
+      // Inside a flag's value group the string is PowerShell and the
+      // backslash is always literal.
       if (k < noCloseFrom && scanQuote(command, k, false) >= 0) {
-        backslashEscapes = scanQuote(command, k, true) >= 0;
+        backslashEscapes = psDepth === 0 && scanQuote(command, k, true) >= 0;
         inString = true;
       } else noCloseFrom = Math.min(noCloseFrom, k);
       wordStart = false;
@@ -501,8 +514,11 @@ function bracketPartners(command) {
       continue;
     }
     if (ch === ")" && command[k + 1] === ")" && arith > 0) arith--;
-    if (ch === "(" || ch === "{") stack.push({ ch, at: k, resumesString: false });
-    else if (ch === ")" || ch === "}") {
+    if (ch === "(" || ch === "{") {
+      const ps = flagValue(k);
+      if (ps) psDepth++;
+      stack.push({ ch, at: k, resumesString: false, ps });
+    } else if (ch === ")" || ch === "}") {
       const want = ch === ")" ? "(" : "{";
       // Pop back to the nearest opener of this kind; an unmatched closer
       // of the other kind is ignored.
@@ -511,6 +527,7 @@ function bracketPartners(command) {
       if (j >= 0) {
         map.set(stack[j].at, k);
         if (stack[j].resumesString) inString = true;
+        for (let d = j; d < stack.length; d++) if (stack[d].ps) psDepth--;
         stack.length = j;
       }
     }
@@ -812,16 +829,22 @@ function blankValues(text) {
   return out;
 }
 
-/** Strips the wrappers a body may sit in (`(...)`, `$(...)`, `@(...)`, one layer of quotes) and unescapes the quotes inside. */
+/**
+ * Strips the wrappers a body may sit in: `(...)`, `$(...)`, `@(...)`, one
+ * layer of quotes, Bash `$'...'`, a `ConvertTo-Json` call (prefix with
+ * flags before or after the object, or a trailing pipe), and a `[Type]`
+ * accelerator before a hashtable literal; unescapes the quotes inside.
+ */
 function unwrapBody(body) {
   let s = body.trim();
   // `ConvertTo-Json`, with any flags (`-Depth 10`, `-Depth:10`), before or
-  // after (piped) the object. The pipe form is tested only on the text
-  // after the last `|`, anchored, so no whitespace run is backtracked.
+  // after the object, or after a pipe. The pipe form is tested only on the
+  // text after the last `|`, anchored, so no whitespace run is backtracked.
   const toJsonFlags = String.raw`(?:\s+-[\w-]+(?:(?:\s+|[:=]\s*)(?!-)[^\s@{(]\S*)?)*`;
-  const toJsonPrefix = new RegExp(String.raw`^convertto-json${toJsonFlags}\s+(?=[$@(]?[{(])`, "i");
+  const toJsonPrefix = new RegExp(String.raw`^convertto-json${toJsonFlags}\s+(?=[$@(\[]?[{(\[])`, "i");
   const toJsonTail = new RegExp(String.raw`^\|\s*convertto-json${toJsonFlags}\s*$`, "i");
-  for (let guard = 0; guard < 6; guard++) {
+  const trailingFlags = new RegExp(String.raw`^([$@(\[].*?[)}\]])${toJsonFlags}\s*$`, "is");
+  for (let guard = 0; guard < 8; guard++) {
     if (/^[$@]?\(/.test(s) && s.endsWith(")")) {
       s = s.replace(/^[$@]?\(/, "").slice(0, -1).trim();
       continue;
@@ -833,6 +856,9 @@ function unwrapBody(body) {
     }
     if (toJsonPrefix.test(s)) {
       s = s.replace(toJsonPrefix, "").trim();
+      // `ConvertTo-Json (...) -Depth 10`: flags after the object.
+      const m = /^([$@(\[])/.test(s) && !/[)}\]]$/.test(s) ? s.match(trailingFlags) : null;
+      if (m) s = m[1];
       continue;
     }
     if (/^\[[^\][]+\]\s*@\{/.test(s)) {
