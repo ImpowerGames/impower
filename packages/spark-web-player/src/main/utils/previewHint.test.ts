@@ -1,13 +1,17 @@
 // The page's cursor hint (#434): what it asks the cache for when the cursor
-// lands, what it does not ask twice, and that it asks for the same pictures
-// the engine will gate.
+// lands, what it does not ask twice, and that its guess covers the cursor's
+// own beat and stays inside the window it is issued with. The engine's gate
+// is exact (it runs the beat); the hint is issued before anything can run.
 
 import { Game } from "@impower/spark-engine/src/game/core/classes/Game";
+import { findClosestPath } from "@impower/spark-engine/src/game/core/utils/findClosestPath";
 import { type AssetItem } from "@impower/spark-engine/src/game/modules/assets/types/AssetItem";
+import { beatIndexIn } from "@impower/spark-engine/src/game/modules/assets/utils/previewWindow";
 import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
 import { type File } from "@impower/sparkdown/src/compiler/types/File";
 import { type SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
 import { describe, expect, it } from "vitest";
+import { resolveImageSrcs } from "./resolveImageSrcs";
 import {
   applyPreviewHint,
   planPreviewHint,
@@ -93,6 +97,13 @@ const entriesOf = (program: SparkProgram) =>
 const srcs = (items: AssetItem[] | null) =>
   items?.map((i) => ("src" in i ? i.src : "")) ?? null;
 
+/** The items the hint would make of these names, resolved as it resolves them. */
+const items = (program: SparkProgram, names: string[]): AssetItem[] =>
+  resolveImageSrcs(program.context, names).map((src) => ({
+    kind: "image" as const,
+    src,
+  }));
+
 const src = (name: string) => `/file:/proj/${name}.png?v=1`;
 
 describe("planPreviewHint", () => {
@@ -104,8 +115,8 @@ describe("planPreviewHint", () => {
   it("asks for the cursor's beats first, the window next, and the rest of the scene once on entering it", () => {
     const first = plan(3)!;
     expect(first).not.toBeNull();
-    // The guess: the cursor's beat and the two after it.
-    expect(srcs(first.cursor)).toEqual([src("bunny"), src("hat"), src("cat")]);
+    // The guess: the cursor's beat and the one after it.
+    expect(srcs(first.cursor)).toEqual([src("bunny"), src("hat")]);
     // The default window is 32 beats either side: the whole of this scene.
     expect(srcs(first.near)).toEqual([
       src("room"),
@@ -122,6 +133,29 @@ describe("planPreviewHint", () => {
       line: 3,
       nearBeat: 1,
     });
+  });
+
+  it("covers the cursor's own beat from any line of it, and stays inside the window", () => {
+    const beats = program.sceneAssets!["A"]!.beats;
+    const locations = program.pathLocations!;
+    for (let line = 1; line <= 13; line++) {
+      const fresh = plan(line)!;
+      const path = findClosestPath(
+        { file: URI, line },
+        entries,
+        Object.keys(program.scripts ?? {}),
+      );
+      const at = beatIndexIn(beats, locations, path);
+      const own = srcs(items(program, beats[Math.max(0, at)]!.image ?? []));
+      const cursor = srcs(fresh.cursor)!;
+      const near = new Set(srcs(fresh.near));
+      expect({ line, coversOwn: own!.every((s) => cursor.includes(s)) }).toEqual(
+        { line, coversOwn: true },
+      );
+      expect({ line, insideWindow: cursor.every((s) => near.has(s)) }).toEqual(
+        { line, insideWindow: true },
+      );
+    }
   });
 
   it("asks for the same pictures the engine resolves for the same names", () => {
@@ -180,14 +214,14 @@ end
     const first = plan(3)!;
     // Line 6 is `Line three.`: the beat before it is hat's.
     const between = plan(6, first.state)!;
-    expect(srcs(between.cursor)).toEqual([src("hat"), src("cat"), src("dog")]);
+    expect(srcs(between.cursor)).toEqual([src("hat"), src("cat")]);
     expect(between.state.beat).toBe(2);
     const onBeat = plan(10, between.state)!;
     expect(srcs(onBeat.cursor)).toEqual([src("cat"), src("dog")]);
     // Arriving at a beat's line from the line below it asks for nothing
     // new: that line's hint already covered the beat.
     const below = plan(4)!;
-    expect(srcs(below.cursor)).toEqual([src("bunny"), src("hat"), src("cat")]);
+    expect(srcs(below.cursor)).toEqual([src("bunny"), src("hat")]);
     const up = plan(3, below.state)!;
     expect(up.cursor).toEqual([]);
     expect(up.near).toEqual([]);

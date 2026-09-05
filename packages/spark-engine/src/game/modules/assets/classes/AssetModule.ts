@@ -510,7 +510,9 @@ export class AssetModule extends Module<
    * parses them, before the line's gate runs.
    */
   notice(kind: "image" | "audio", names: string[]): void {
-    if (this.silent || names.length === 0) {
+    // A beat running ahead of its display is about to be gated on exactly
+    // these; a prefetch now would start them in a background slot first.
+    if (this.silent || this._game.peeking || names.length === 0) {
       return;
     }
     if (kind === "image") {
@@ -852,29 +854,44 @@ export class AssetModule extends Module<
         }
       }
     }
+    const gate = (list: string[]) =>
+      this.resolveImageItems(list).filter(
+        (item) => this.timed || item.kind !== "video",
+      );
+    this._restorePending = true;
+    const waits: Promise<unknown>[] = [];
+    // The checkpoint's own pictures first, so their loads are under way
+    // while the beat runs.
+    waits.push(
+      this.ensureResident(
+        gate(names),
+        0,
+        "restore",
+        this.config.restore_timeout,
+        "restore",
+      ),
+    );
     // A preview writes the beat at the cursor the moment it is connected,
     // with no clock to wait on, so that beat's images are part of the same
     // gate: the line and its portrait land together, and behind a burst of
     // background loads the portrait still takes the express lane. The beat
-    // is run dry to learn them: what it writes is the story's decision, not
-    // the source's.
+    // runs now to learn them, and the preview displays that run: what it
+    // writes is the story's decision, not the source's.
     if (typeof this.context.system.previewing === "string") {
       const beat = this._game.peekPreviewInstructions();
       if (beat) {
-        names.push(...this.imageNamesOf(beat));
+        waits.push(
+          this.ensureResident(
+            gate(this.imageNamesOf(beat)),
+            0,
+            "restore",
+            this.config.restore_timeout,
+            "restore",
+          ),
+        );
       }
     }
-    const items = this.resolveImageItems(names).filter(
-      (item) => this.timed || item.kind !== "video",
-    );
-    this._restorePending = true;
-    await this.ensureResident(
-      items,
-      0,
-      "restore",
-      this.config.restore_timeout,
-      "restore",
-    );
+    await Promise.all(waits);
   }
 
   override async onRestore(): Promise<void> {

@@ -852,8 +852,10 @@ export class AssetCache {
   }
 
   /** Take a queued express-lane entry that no gate waits on out of the lane:
-   *  to priority 1 while an explicit load's pin still waits on it (that is
-   *  the priority the load asked for), else to the window's priority. */
+   *  to priority 1 while a pin still waits on it, else to the window's
+   *  priority. A pin that is not a gate pin came from a priority-1 request,
+   *  which is an explicit load's set, so 1 is the priority that request asked
+   *  for. */
   protected demote(entry: Entry): void {
     this.dequeue(entry);
     entry.priority = entry.pins.size > 0 ? 1 : 2;
@@ -987,11 +989,15 @@ export class AssetCache {
         entry.attempts++;
         this.releasePlatform(entry);
         if (entry.attempts < MAX_LOAD_ATTEMPTS) {
-          // Back of its own line, so the others get their turn first; a
-          // gate still goes ahead of the hints, since someone waits on it.
+          // Back of its own line, so the others get their turn first (a
+          // service worker that is coming up fails what it is asked first,
+          // so every picture gets a first attempt before any gets a second);
+          // a gate still goes ahead of the hints, since someone waits on it.
           entry.state = "queued";
           this._queues[entry.priority]!.push(entry);
-          this.promoteInLane(entry);
+          if (entry.gatePins.size > 0) {
+            this.promoteInLane(entry);
+          }
         } else {
           entry.state = "failed";
           entry.failedAt = this.now();

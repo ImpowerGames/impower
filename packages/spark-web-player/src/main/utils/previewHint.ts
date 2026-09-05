@@ -12,14 +12,16 @@ import { resolveImageSrcs } from "./resolveImageSrcs";
 
 /**
  * How many beats the hint guesses a preview at the cursor writes: the beat
- * at or before the cursor and the ones after it, up to this many in all. The
- * engine's gate is exact, since it runs the beat dry once the checkpoint is
- * loaded; the hint is issued before the route is even planned, when nothing
- * can run, so it guesses. A guess too wide costs express-lane bandwidth on
- * pictures the next scrub is likely to want anyway; one too narrow costs
- * the overlap the hint exists for.
+ * at or before the cursor and the one after it. The engine's gate is exact,
+ * since it runs the beat dry once the checkpoint is loaded; the hint is
+ * issued before the route is even planned, when nothing can run, so it
+ * guesses. A hint's loads hold express slots the gate then finds taken, so a
+ * guess too wide costs the gate the concurrency the lane exists to give it,
+ * while one too narrow costs the overlap the hint exists for. Two image
+ * lines in a row is the common shape that displays together; a third is
+ * more often the next scrub's, and the window covers it at its own priority.
  */
-export const HINT_BEATS = 3;
+export const HINT_BEATS = 2;
 
 /** Where the cursor last was, as far as the hint is concerned. */
 export interface PreviewHintState {

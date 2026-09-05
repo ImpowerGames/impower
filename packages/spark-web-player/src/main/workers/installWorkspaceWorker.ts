@@ -121,12 +121,14 @@ export function installWorkspaceWorker(connection: MessageConnection) {
     // The cursor landed on a beat. This runs on the page BEFORE the worker
     // starts planning the route to the line, which can take hundreds of
     // milliseconds on a long scene, so the images are fetching while the
-    // simulation runs and are resident by the time the checkpoint lands: the
-    // cursor's own beats first, in the express lane, because the engine's
-    // gate will ask for exactly those once the route is planned; then the
-    // beats around the cursor, then the rest of the scene. The engine asks
-    // for the same window again at connect; the cache answers from what is
-    // already in flight.
+    // simulation runs and are resident by the time the checkpoint lands: a
+    // guess at the cursor's own beat first, in the express lane, because the
+    // engine's gate asks for what that beat shows once the route is planned
+    // and the beat has run (a guess, since nothing can run yet: the beat at
+    // or before the cursor and the one after it); then the beats around the
+    // cursor, then the rest of the scene. The engine asks for the same
+    // window again at connect; the cache answers from what is already in
+    // flight.
     override onSelectTextDocument(params: {
       textDocument: { uri: string };
       selectedRange: { start: { line: number } };

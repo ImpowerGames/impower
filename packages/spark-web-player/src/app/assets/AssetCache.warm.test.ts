@@ -333,6 +333,30 @@ describe("AssetCache: warming through the document", () => {
     ]);
   });
 
+  it("retries a failed hint behind the hints that have not been tried", async () => {
+    const { cache, loading } = makeCache();
+    // A service worker that is coming up fails what it is asked first: every
+    // picture gets a first attempt before any gets a second, so the ones
+    // asked later, when the worker is up, load on their first.
+    cache.hint(images(6, "h"));
+    loading("/h0.svg")!.fail();
+    await settle();
+    expect(loading("/h4.svg")).toBeDefined();
+    expect((cache as any)._queues[0].map((e: any) => e.key)).toEqual([
+      "/h5.svg",
+      "/h0.svg",
+    ]);
+    // A gate nobody waits on any more (its pin released while its load was
+    // in flight) is retried like a hint: behind them, not ahead.
+    void cache.request([image("/old.svg")], 0, "beat:old");
+    cache.release(["beat:old"], false);
+    loading("/old.svg")!.fail();
+    await settle();
+    expect(
+      (cache as any)._queues[0].map((e: any) => e.key).indexOf("/old.svg"),
+    ).toBe((cache as any)._queues[0].length - 1);
+  });
+
   it("sends a released gate's picture back to the load's priority when a load still waits on it", async () => {
     const { cache, loading, priorityOf } = makeCache();
     void cache.request(images(5, "b"), 1, "load:X");

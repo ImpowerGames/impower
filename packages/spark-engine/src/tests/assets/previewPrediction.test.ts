@@ -8,6 +8,7 @@ import {
   previewWindow,
 } from "../../game/modules/assets/utils/previewWindow";
 import {
+  compileUI,
   createHarness,
   flushMicrotasks,
   MAIN_URI,
@@ -204,17 +205,89 @@ const settled = async (promise: Promise<unknown>): Promise<boolean> => {
   return done;
 };
 
+/** The pictures the messages show, by file. */
+const imagesWritten = (messages: any[]) =>
+  [
+    ...new Set(
+      byMethod(messages, "ui/write-image")
+        .filter((m) => m.params?.control !== "hide")
+        .flatMap(
+          (m) => JSON.stringify(m.params).match(/[a-z0-9_]+\.png/g) ?? [],
+        ),
+    ),
+  ].sort();
+
+const syncTimeout = ((fn: Function, _ms?: number, ...a: any[]) => {
+  fn(...a);
+  return 0;
+}) as any;
+
+/** The checkpoint the compile worker hands the page for a preview at
+ *  `line`: a real route simulation, as `patchAndSimulateRoute` runs it in
+ *  production. Null when no route reaches the line. */
+const checkpointFor = (story: string, line: number): string | null => {
+  const { program } = compileUI(story, {
+    experimentalDisplayCalls: true,
+    assets: ASSETS,
+  });
+  const sim: any = new Game({
+    program: program as any,
+    now: () => 0,
+    setTimeout: syncTimeout,
+  } as any);
+  sim.setStartFrom({ file: MAIN_URI, line });
+  const toPath = sim.startPath as string;
+  const fromPath = Game.getSimulateFromPath(toPath);
+  const route = Game.planRoute(sim.story, program as any, fromPath, toPath);
+  return route ? sim.patchAndSimulateRoute(route) : null;
+};
+
+/** How a preview gets to its beat: by jumping to it from a reset story
+ *  (no route, or a failed one), or by continuing from the route's checkpoint. */
+type Arrival = { simulation?: "fail"; checkpoint?: string };
+
+/** What a game that never ran the beat ahead writes when it previews
+ *  `line`: the oracle for the gate. Its preview point is a boolean, so the
+ *  connect runs nothing and the preview runs the beat itself. `restore` is
+ *  what the connect wrote (a loaded checkpoint's pictures), `preview` what
+ *  the preview wrote after it. */
+const writesOf = async (story: string, line: number, arrival: Arrival = {}) => {
+  const h = createHarness(story, line, {
+    assets: ASSETS,
+    loadCheckpoint: arrival.checkpoint,
+    beforeConnect: (game) => {
+      if (arrival.simulation) {
+        game.simulation = arrival.simulation;
+      }
+    },
+  });
+  await h.ready;
+  const restore = [...h.messages];
+  h.reset();
+  h.preview(line);
+  return { restore, preview: h.messages };
+};
+
 /**
  * What the restore gate asks for when the cursor is on `line`, against the
- * pictures a real preview from that line writes. The two must agree: a
- * picture in the gate the preview never writes holds the line for nothing,
- * and a picture the preview writes that the gate skipped lands late.
+ * pictures a preview from that line writes in a game that never ran the
+ * beat ahead. The two must agree: a picture in the gate the preview never
+ * writes holds the line for nothing, and a picture the preview writes that
+ * the gate skipped lands late.
  */
-const gateAgainstPreview = async (story: string, line: number) => {
+const gateAgainstPreview = async (
+  story: string,
+  line: number,
+  arrival: Arrival = {},
+) => {
   const h = createHarness(story, line, {
     assets: ASSETS,
     holdAssets: true,
+    loadCheckpoint: arrival.checkpoint,
     beforeConnect: (game) => {
+      if (arrival.simulation) {
+        game.simulation = arrival.simulation;
+      }
       const path = pathAt(game, line);
       if (path) {
         game.markPreviewing(path);
@@ -228,17 +301,18 @@ const gateAgainstPreview = async (story: string, line: number) => {
     .sort();
   h.releaseAssets();
   await h.ready;
-  h.reset();
-  h.preview(line);
-  const written = [
-    ...new Set(
-      byMethod(h.messages, "ui/write-image").flatMap(
-        (m) => JSON.stringify(m.params).match(/[a-z0-9_]+\.png/g) ?? [],
-      ),
-    ),
-  ].sort();
+  // The gate covers the restore and the preview together: what the loaded
+  // checkpoint shows and what the beat then writes.
+  const oracle = await writesOf(story, line, arrival);
+  const written = imagesWritten([...oracle.restore, ...oracle.preview]);
   return { gated, written };
 };
+
+/** The writes of a preview, in order, as the page would receive them. */
+const writes = (messages: any[]) =>
+  messages
+    .filter((m) => m?.method === "ui/write-text" || m?.method === "ui/write-image")
+    .map((m) => `${m.method} ${JSON.stringify(m.params)}`);
 
 describe("preview prediction and gate", () => {
   it("holds the connect on the cursor beat's pictures, and only what the preview writes with it", async () => {
@@ -257,6 +331,12 @@ describe("preview prediction and gate", () => {
     expect(load[0].params.pin).toBe("restore");
     expect(load[0].params.priority).toBe(0);
     expect(itemKeys(load[0])).toEqual([src("bunny")]);
+    // The beat's run sends no prefetch of its own for the picture the gate
+    // is about to ask for: that would start it in a background slot first.
+    const own = byMethod(h.messages, "assets/prefetch").filter(
+      (m) => itemKeys(m).length === 1 && itemKeys(m)[0] === src("bunny"),
+    );
+    expect(own).toHaveLength(0);
     // The connect is what the page waits on before it previews: it does
     // not settle until the gate does.
     expect(await settled(h.ready)).toBe(false);
@@ -328,9 +408,158 @@ describe("preview prediction and gate", () => {
     }
   });
 
-  it("gates nothing for a cursor on a line between beats, or on a path the program does not know", async () => {
-    // Line 2 of the alternating shape is `Line one.`: the preview writes
-    // that line; the backdrop above it is the checkpoint's business.
+  it("gates exactly what a preview writes from a route's checkpoint too", async () => {
+    // The page loads the checkpoint the route simulation built for the
+    // cursor's line before it connects, and the preview continues from it
+    // rather than jumping; the gate must follow that run.
+    const cases: Array<[string, number]> = [
+      ["alternating", 1],
+      ["alternating", 3],
+      ["consecutive", 1],
+      ["blank", 3],
+      ["hide", 1],
+      ["divert", 1],
+      ["textAbove", 1],
+      ["seven", 1],
+    ];
+    for (const [shape, line] of cases) {
+      const checkpoint = checkpointFor(SHAPES[shape]!, line);
+      expect({ shape, line, checkpoint: checkpoint != null }).toEqual({
+        shape,
+        line,
+        checkpoint: true,
+      });
+      const { gated, written } = await gateAgainstPreview(
+        SHAPES[shape]!,
+        line,
+        { checkpoint: checkpoint! },
+      );
+      expect({ shape, line, gated }).toEqual({ shape, line, gated: written });
+    }
+  });
+
+  it("displays the beat that ran ahead exactly as a preview that runs it itself, from a reset story or a checkpoint", async () => {
+    // The oracle writes the beat by running it at preview time; the game
+    // under test ran it at connect and displays what it flushed. The page
+    // must not be able to tell the two apart, whichever way the story got
+    // to the beat: reset and jumped to (no route, or a failed one) or
+    // continued from a loaded checkpoint (a route that succeeded).
+    const arrivals: Array<[string, Arrival]> = [
+      ["no route", {}],
+      ["failed route", { simulation: "fail" }],
+      ["checkpoint", { checkpoint: checkpointFor(STORY, 3)! }],
+    ];
+    for (const [how, arrival] of arrivals) {
+      const oracle = writes((await writesOf(STORY, 3, arrival)).preview);
+      expect({ how, count: oracle.length }).not.toEqual({ how, count: 0 });
+      const h = createHarness(STORY, 3, {
+        assets: ASSETS,
+        loadCheckpoint: arrival.checkpoint,
+        beforeConnect: (game) => {
+          if (arrival.simulation) {
+            game.simulation = arrival.simulation;
+          }
+          game.markPreviewing(pathAt(game, 3)!);
+        },
+      });
+      await h.ready;
+      h.reset();
+      h.preview(3);
+      expect({ how, writes: writes(h.messages) }).toEqual({
+        how,
+        writes: oracle,
+      });
+    }
+  });
+
+  it("raises a runtime error in the beat once, from the run ahead, and not again at preview", async () => {
+    const story = `scene A
+  [[show backdrop room]]
+  & error("boom")
+  Line one.
+  done
+end
+`;
+    const h = createHarness(story, 1, {
+      assets: ASSETS,
+      beforeConnect: (game) => {
+        game.markPreviewing(pathAt(game, 1)!);
+      },
+    });
+    await h.ready;
+    expect(byMethod(h.messages, "game/runtimeError")).toHaveLength(1);
+    h.reset();
+    h.preview(1);
+    expect(byMethod(h.messages, "game/runtimeError")).toHaveLength(0);
+  });
+
+  it("runs the beat once: at connect, and never again at preview", async () => {
+    const h = createHarness(STORY, 3, {
+      assets: ASSETS,
+      beforeConnect: (game) => {
+        game.markPreviewing(beatShowing(game, "A", "bunny"));
+      },
+    });
+    await h.ready;
+    // One run at connect, none at preview: the story executed once.
+    expect(byMethod(h.messages, "game/executed")).toHaveLength(1);
+    h.reset();
+    h.preview(3);
+    expect(byMethod(h.messages, "game/executed")).toHaveLength(0);
+    expect(imagesWritten(h.messages)).toEqual(["bunny.png"]);
+  });
+
+  it("runs the beat itself when the one that ran ahead was for another path", async () => {
+    // The page marks the last valid preview point and then previews the
+    // cursor's line; when the two disagree, the run ahead is dropped.
+    const h = createHarness(STORY, 5, {
+      assets: ASSETS,
+      beforeConnect: (game) => {
+        game.markPreviewing(beatShowing(game, "A", "bunny"));
+      },
+    });
+    await h.ready;
+    h.reset();
+    h.preview(5);
+    expect(imagesWritten(h.messages)).toEqual(["hat.png"]);
+    expect(byMethod(h.messages, "game/executed")).toHaveLength(1);
+  });
+
+  it("runs nothing and gates nothing for a cursor inside a function", async () => {
+    const story = `function greet
+  [[show portrait bunny]]
+  Hello there.
+end
+
+scene A
+  [[show backdrop room]]
+  Line one.
+  done
+end
+`;
+    const h = createHarness(story, 1, {
+      assets: ASSETS,
+      holdAssets: true,
+      beforeConnect: (game) => {
+        const path = Object.keys(game.program.pathLocations ?? {}).find((p) =>
+          /^greet\./.test(p),
+        );
+        expect(path).toBeDefined();
+        game.markPreviewing(path!);
+      },
+    });
+    await flushMicrotasks(20);
+    expect(byMethod(h.messages, "assets/load")).toHaveLength(0);
+    expect(byMethod(h.messages, "game/executed")).toHaveLength(0);
+    expect(byMethod(h.messages, "game/runtimeError")).toHaveLength(0);
+    expect(await settled(h.ready)).toBe(true);
+  });
+
+  it("gates what a jump to a line between beats writes, which is nothing, and nothing for a path the program does not know", async () => {
+    // Line 2 of the alternating shape is `Line one.`. A preview that jumps
+    // to it writes that line and no picture; from a route's checkpoint the
+    // same line writes the backdrop above it too, and the gate follows the
+    // run either way (the checkpoint table above).
     const between = await gateAgainstPreview(SHAPES["alternating"]!, 2);
     expect(between.gated).toEqual([]);
     expect(between.written).toEqual([]);
