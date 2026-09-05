@@ -71,9 +71,9 @@ const SHELLS = new Set(["bash", "sh", "zsh", "dash", "ksh", "ash", "busybox", "p
 // `2>`, `>>`, `<`, `&>`, `&>>`, `>&`), and an operator glued to its target.
 const REDIRECT_DUP = /^\d*[<>]{1,2}&[\d-]+$/;
 const REDIRECT_OP = /^(\d*[<>]{1,2}|&>>?|>&)$/;
-const REDIRECT_GLUED = /^(\d*[<>]{1,2}&?|&>>?)[^<>&\d-]/;
-// A PowerShell variable assignment target: `$x`, `${x}`, `$x=`, `$x=value`.
-const PS_ASSIGN = /^\$([A-Za-z_][A-Za-z0-9_:]*|\{[^}]+\})(=(.*))?$/;
+const REDIRECT_GLUED = /^(\d*[<>]{1,2}&?|&>>?)[^<>&]/;
+// A PowerShell variable assignment target: `$x`, `${x}`, `$x=`, `$x+=`, `$x=value`.
+const PS_ASSIGN = /^\$([A-Za-z_][A-Za-z0-9_:]*|\{[^}]+\})([+-]?=(.*))?$/;
 
 /**
  * Split a command line into tokens the way Bash or PowerShell roughly would.
@@ -104,9 +104,8 @@ export function tokenize(command) {
     if (!started) start = at;
     started = true;
   };
-  // True while the previous token in this segment is a `-Flag`, so a
-  // parenthesised or hashtable group that follows is that flag's value.
-  let afterFlag = false;
+  // A parenthesised or hashtable group that follows a `-Flag` token is that
+  // flag's value and stays one token.
   const lastIsFlag = () => {
     const last = tokens[tokens.length - 1];
     return Boolean(last && !last.sep && !last.quoted && /^-[A-Za-z]/.test(last.text));
@@ -181,15 +180,27 @@ export function tokenize(command) {
       i++;
       continue;
     }
-    if (!started && lastIsFlag() && (c === "(" || (c === "$" && command[i + 1] === "(") || (c === "@" && (command[i + 1] === "(" || command[i + 1] === "{")))) {
-      // A group that is a flag's value (`-Body (...)`, `-Headers @{...}`)
-      // stays one token so the invocation continues after it.
+    const opensGroup = c === "(" || (c === "$" && command[i + 1] === "(") || (c === "@" && (command[i + 1] === "(" || command[i + 1] === "{"));
+    const flagPrefix = started && text.startsWith("-") && text.endsWith(":"); // -Body:@{...}
+    if (opensGroup && ((!started && lastIsFlag()) || flagPrefix)) {
+      // A balanced group that is a flag's value (`-Body (...)`, `-Headers
+      // @{...}`, `-Body:@{...}`) stays one token so the invocation continues
+      // after it. A parenthesised group is still analysed as a command of
+      // its own, since in Bash it may be a substitution. An unbalanced group
+      // falls through to the ordinary separator handling.
       const openAt = c === "(" ? i : i + 1;
       const close = command[openAt] === "{" ? matchBracket(command, openAt, "{", "}") : matchParen(command, openAt);
-      const end = Math.min(close + 1, n);
-      tokens.push({ text: command.slice(i, end), quoted: true, group: true, start: i, end });
-      i = end;
-      continue;
+      if (close < n) {
+        if (command[openAt] === "(") tokens.subs.push(command.slice(openAt + 1, close));
+        if (flagPrefix) {
+          text += command.slice(i, close + 1);
+          quoted = true;
+        } else {
+          tokens.push({ text: command.slice(i, close + 1), quoted: true, group: true, start: i, end: close + 1 });
+        }
+        i = close + 1;
+        continue;
+      }
     }
     if (c === "\\") {
       if (i + 1 < n) {
@@ -567,7 +578,15 @@ function bodyHasTypeField(body) {
       const obj = JSON.parse(inner);
       if (obj && typeof obj === "object" && !Array.isArray(obj)) return typeof obj.type === "string" && obj.type.length > 0;
       return false;
-    } catch {}
+    } catch {
+      // Not valid JSON (a trailing comma, a comment): fall through to the
+      // lenient text check below.
+    }
+  }
+  if (!/["'{}]/.test(inner) && inner.includes("=")) {
+    // Form-encoded data: title=x&type=Bug
+    const type = new URLSearchParams(inner).get("type");
+    return typeof type === "string" && type.length > 0;
   }
   const blanked = inner
     .replace(/["']?type["']?\s*[:=]\s*(["'])\1/g, "") // an empty type value is no type
@@ -596,8 +615,9 @@ function unwrapBody(body) {
   return s;
 }
 
-// curl short flags that take no value and may be clustered before one that does.
-const CURL_BOOLEAN = "sSfLkviIgNjBanlOpqRZ46#G";
+// curl short flags that take a value; every other letter in a cluster is
+// taken as a boolean, so an unlisted flag cannot swallow the next token.
+const CURL_VALUE = "AbcCdDeEFHKmoQrtTuUwxXyYzP";
 const CURL_DATA_LONG = /^--(data(-ascii|-raw|-binary|-urlencode)?|form(-string)?|json)(=|$)/;
 
 function checkCurl(args) {
@@ -622,7 +642,7 @@ function checkCurl(args) {
       // takes a value ends it and takes the rest of the token or the next one.
       for (let p = 1; p < t.length; p++) {
         const ch = t[p];
-        if (CURL_BOOLEAN.includes(ch)) {
+        if (!CURL_VALUE.includes(ch)) {
           if (ch === "G") get = true;
           continue;
         }
@@ -650,8 +670,10 @@ function checkCurl(args) {
  * `-Body` in the segment.
  */
 function bodyText(seg) {
-  const bodyIndex = seg.findIndex((t) => /^-body$/i.test(t.text));
+  const bodyIndex = seg.findIndex((t) => /^-body(:|$)/i.test(t.text));
   if (bodyIndex < 0) return null;
+  const colon = seg[bodyIndex].text.match(/^-body:(.*)$/i);
+  if (colon) return colon[1];
   const next = seg[bodyIndex + 1];
   return next ? next.text : "";
 }
@@ -818,14 +840,19 @@ export function decide(command, depth = 0) {
 
 /** Splits a glued PowerShell assignment (`$x=gh ...`, or `$x =gh ...`) into the assignment and the program token, in place. */
 function splitPsAssignments(seg) {
+  const out = [];
   for (let k = 0; k < seg.length; k++) {
     const tok = seg[k];
-    if (tok.quoted) continue;
-    let m = tok.text.match(/^(\$(?:[A-Za-z_][A-Za-z0-9_:]*|\{[^}]+\})[+-]?=)(.+)$/);
-    if (!m && k > 0 && PS_ASSIGN.test(seg[k - 1].text) && !seg[k - 1].text.includes("=")) m = tok.text.match(/^([+-]?=)(.+)$/);
-    if (!m) continue;
-    seg.splice(k, 1, { ...tok, text: m[1], end: tok.start + m[1].length }, { ...tok, text: m[2], start: tok.start + m[1].length });
+    let m = tok.quoted ? null : tok.text.match(/^(\$(?:[A-Za-z_][A-Za-z0-9_:]*|\{[^}]+\})[+-]?=)(.+)$/);
+    if (!m && !tok.quoted && k > 0 && PS_ASSIGN.test(seg[k - 1].text) && !seg[k - 1].text.includes("=")) m = tok.text.match(/^([+-]?=)(.+)$/);
+    if (!m) {
+      out.push(tok);
+      continue;
+    }
+    out.push({ ...tok, text: m[1], end: tok.start + m[1].length }, { ...tok, text: m[2], start: tok.start + m[1].length });
   }
+  seg.length = 0;
+  for (const t of out) seg.push(t);
 }
 
 function deny(reason) {

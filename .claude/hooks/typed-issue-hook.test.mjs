@@ -190,6 +190,18 @@ const denies = [
   ["PowerShell += capture of a create", "$out += gh issue create --title x"],
   ["PowerShell ${x} capture of a create", "${x} = gh issue create --title x"],
   ["create in a backquote inside double quotes holding an inner quote", 'N="`gh issue create --title "x"`"'],
+  ["create in a $( ) after a short flag", "echo -n $(gh issue create --title x)"],
+  ["create in a parenthesised group after a short flag", "echo -n (gh issue create --title x)"],
+  ["create on the line after an unclosed group", "Write-Host -f (1+2\ngh issue create --title x"],
+  ["create on the line after an unclosed hashtable", "irm -Headers @{a=1 -Uri z\ngh issue create --title y"],
+  ["PowerShell glued += capture of a create", "$x+=gh issue create --title x"],
+  ["PowerShell glued ${x}+= capture of an untyped api create", "${x}+=gh api -X POST repos/ImpowerGames/impower/issues -f title=y"],
+  ["curl -J before -d", "curl -J -d '{\"title\":\"x\"}' https://api.github.com/repos/ImpowerGames/impower/issues"],
+  ["curl -sJ before -d", "curl -sJ -d '{\"title\":\"x\"}' https://api.github.com/repos/ImpowerGames/impower/issues"],
+  ["curl -0 before -d", "curl -0 -d '{\"title\":\"x\"}' https://api.github.com/repos/ImpowerGames/impower/issues"],
+  ["create after a redirection glued to a dated log file", ">2026-09-05.log gh issue create --title x"],
+  ["curl form data with '(type=Bug)' in the title", "curl -X POST https://api.github.com/repos/ImpowerGames/impower/issues -d 'title=Support (type=Bug) syntax&body=z'"],
+  ["irm -Body: colon form without a type", "irm -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Body:@{title='x'}"],
 ];
 
 const allows = [
@@ -296,8 +308,18 @@ const allows = [
   ["curl typed form data", "curl -X POST https://api.github.com/repos/ImpowerGames/impower/issues -d 'title=x&type=Bug'"],
   ["curl typed --data-urlencode", "curl https://api.github.com/repos/ImpowerGames/impower/issues --data-urlencode 'title=x' --data-urlencode 'type=Bug'"],
   ["a long PowerShell string full of escapes before a view", 'Write-Host "' + "line`n".repeat(20000) + '"; gh issue view 443'],
+  ["irm -Body: colon form with a type", "irm -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Body:@{title='x'; type='Bug'}"],
+  ["a view in a $( ) after a short flag", "echo -n $(gh issue view 443 --json number)"],
+  ["curl -sJ -o download", "curl -sJ -o out.json https://api.github.com/repos/ImpowerGames/impower/issues"],
   ["empty command", ""],
 ];
+
+// Splitting glued PowerShell assignments must stay linear in the segment.
+{
+  const t0 = Date.now();
+  decide(Array.from({ length: 32000 }, (_, i) => `$a${i}=1`).join(" ") + " gh issue view 443");
+  check(Date.now() - t0 < 2000, "32000 glued PowerShell assignments decide in under 2 s", `${Date.now() - t0} ms`);
+}
 
 // The backtick scan inside a double-quoted string must stay linear.
 {
