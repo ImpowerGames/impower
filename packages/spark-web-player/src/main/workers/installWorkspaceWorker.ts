@@ -14,6 +14,7 @@ import { SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram
 import { SparkdownWorkspace } from "@impower/sparkdown/src/workspace/classes/SparkdownWorkspace";
 import { getSharedAssetCache } from "../assets/sharedAssetCache";
 import {
+  applyPreviewHint,
   planPreviewHint,
   type PreviewHintState,
 } from "../utils/previewHint";
@@ -150,15 +151,7 @@ export function installWorkspaceWorker(connection: MessageConnection) {
         lastHint = plan.state;
         // Visuals only, as a preview shows; fonts are gated by the layouts
         // as they mount. A superset of what the engine will ask for is fine.
-        if (plan.cursor.length > 0) {
-          cache.hint(plan.cursor);
-        }
-        if (plan.near.length > 0) {
-          cache.prefetch(plan.near, 2);
-        }
-        if (plan.rest && plan.rest.length > 0) {
-          cache.prefetch(plan.rest, 3);
-        }
+        applyPreviewHint(cache, plan);
       } catch (e) {
         // A hint is an optimization; it must never take the selection down.
         console.warn("Could not prefetch the selected scene's images:", e);

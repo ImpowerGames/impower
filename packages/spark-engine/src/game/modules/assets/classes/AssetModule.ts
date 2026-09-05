@@ -15,7 +15,12 @@ import {
 } from "../assetsBuiltinDefinitions";
 import { assetItemKey, type AssetItem } from "../types/AssetItem";
 import { type LoadAssetsResult } from "../types/LoadAssetsResult";
-import { beatIndexIn, gateBeats, previewWindow } from "../utils/previewWindow";
+import {
+  beatIndexIn,
+  exactBeatIndex,
+  gateBeats,
+  previewWindow,
+} from "../utils/previewWindow";
 import { AssetsProgressMessage } from "./messages/AssetsProgressMessage";
 import { ConfigureAssetsMessage } from "./messages/ConfigureAssetsMessage";
 import {
@@ -73,10 +78,10 @@ export class AssetModule extends Module<
    *  layout's tree and styles is repeated for every predicted beat otherwise. */
   protected _fontNamesByLayout = new Map<string, string[]>();
 
-  /** The window a preview last sent, so the beats one preview writes (one
-   *  or two, with the cursor where it was) do not each send it again. */
-  protected _previewWindow: { flow: string; anchor: string | null } | null =
-    null;
+  /** The window a preview last sent: its flow and the beat it was centred
+   *  on, so the beats one preview writes do not each send it again, and a
+   *  cursor that stays inside half of it does not either. */
+  protected _previewWindow: { flow: string; index: number } | null = null;
 
   /** Latest progress per pin, as the page reports it. */
   protected _progress = new Map<
@@ -631,11 +636,11 @@ export class AssetModule extends Module<
    * the rest of the scene behind them; then the window's spill into the
    * scenes that follow, so the first click into the next scene is not cold.
    * The rest of the scene and the spill are sent once, on entering the
-   * scene (`wholeScene`); the window around the cursor is sent whenever the
-   * cursor moves, and not again for the beats one preview writes with the
-   * cursor where it was. Nothing here can delay what the author clicked:
-   * that beat's images go through the gate at priority 0
-   * ({@link onConnected}).
+   * scene (`wholeScene`); the window around the cursor is sent when the
+   * cursor moves more than half the window's reach from where the last one
+   * was centred, and not for the beats one preview writes with the cursor
+   * where it was. Nothing here can delay what the author clicked: that
+   * beat's images go through the gate at priority 0 ({@link onConnected}).
    */
   protected predictAround(
     flow: string,
@@ -646,44 +651,42 @@ export class AssetModule extends Module<
     if (!entry) {
       return;
     }
-    const anchor = path ?? null;
+    const distance = this.config.predict_distance;
+    const index = Math.max(0, this.beatIndexFor(flow, path));
     const last = this._previewWindow;
-    if (!wholeScene && last && last.flow === flow && last.anchor === anchor) {
+    // The last window still covers a cursor that moved less than half its
+    // reach, so it is not sent again for that.
+    if (
+      !wholeScene &&
+      last &&
+      last.flow === flow &&
+      Math.abs(last.index - index) <= Math.floor(distance / 2)
+    ) {
       return;
     }
-    this._previewWindow = { flow, anchor };
-    const distance = this.config.predict_distance;
-    const { near, rest } = previewWindow(
-      entry,
-      Math.max(0, this.beatIndexFor(flow, path)),
-      distance,
-    );
+    this._previewWindow = { flow, index };
+    const { near, rest } = previewWindow(entry, index, distance);
     this.prefetchBeats(near, 2);
     if (!wholeScene) {
       return;
     }
     this.prefetchBeats(rest, 3);
-    // The flow's union holds what its beats do not: the images of the
-    // functions it calls.
-    const inBeats = new Set(entry.beats.flatMap((beat) => beat.image ?? []));
-    this.prefetch(
-      this.resolveImageItems(
-        entry.image.filter((name) => !inBeats.has(name)),
-      ).filter((item) => this.timed || item.kind !== "video"),
-      3,
-    );
     if (distance > 0) {
       this.prefetchBeats(this.spillBeats(flow, distance), 3);
     }
   }
 
   /**
-   * Image names of what a preview at `path` is about to write: the beat at
-   * the cursor and the beats that display with it ({@link gateBeats}).
-   * Nothing for a path the program does not know (a remembered preview point
-   * the last edit removed) or one inside a function, which a preview cannot
-   * start in; a gate on a guess would hold the line for pictures it never
-   * shows.
+   * Image names of what a preview at `path` is about to write: the beat the
+   * cursor resolved to and the beats that display with it
+   * ({@link gateBeats}). Nothing when the cursor resolved to something that
+   * is not a beat: a plain line between beats writes that line and nothing
+   * that names an asset, and what an earlier beat showed is in the
+   * checkpoint, which this gate covers on its own; a path the program does
+   * not know (a remembered preview point the last edit removed); or a path
+   * inside a function, which a preview cannot start in. A cursor before the
+   * scene's first beat starts from that beat. A gate on a guess would hold
+   * the line for pictures it never shows.
    */
   protected previewedImageNames(path: string): string[] {
     const program = this._game.program;
@@ -692,11 +695,15 @@ export class AssetModule extends Module<
     if (!flow || !entry || entry.kind === "function") {
       return [];
     }
-    const at = this.beatIndexFor(flow, path);
-    if (at < 0 && !program.pathLocations?.[path]) {
-      return [];
+    const locations = program.pathLocations;
+    let index = exactBeatIndex(entry.beats, path);
+    if (index < 0) {
+      if (!locations?.[path] || this.beatIndexFor(flow, path) >= 0) {
+        return [];
+      }
+      index = 0;
     }
-    return gateBeats(entry, Math.max(0, at), program.pathLocations).flatMap(
+    return gateBeats(entry, index, locations).flatMap(
       (beat) => beat.image ?? [],
     );
   }

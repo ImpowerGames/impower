@@ -2,20 +2,26 @@ import { type File } from "@impower/sparkdown/src/compiler/types/File";
 import { describe, expect, it } from "vitest";
 import { Coordinator } from "../../game/core/classes/Coordinator";
 import { Game } from "../../game/core/classes/Game";
+import { findClosestPath } from "../../game/core/utils/findClosestPath";
 import {
   beatIndexIn,
+  exactBeatIndex,
   gateBeats,
+  leafBetween,
   PREVIEW_GATE_BEATS,
-  PREVIEW_GATE_LINES,
   previewWindow,
 } from "../../game/modules/assets/utils/previewWindow";
-import { createHarness, flushMicrotasks } from "../ui/harness/uiTestHarness";
+import {
+  createHarness,
+  flushMicrotasks,
+  MAIN_URI,
+} from "../ui/harness/uiTestHarness";
 
 // What a preview loads and waits for (#429, #434): the beat under the cursor
-// goes through the restore gate before the connect settles, and only the
-// beats that display with it; the window around the cursor warms first and
-// the rest of the scene behind it, once per scene; and the window follows
-// the cursor without being sent twice for one position.
+// goes through the restore gate before the connect settles, and exactly the
+// beats the preview writes with it; the window around the cursor warms first
+// and the rest of the scene behind it, once per scene; and the window follows
+// the cursor without being sent for every beat.
 
 const asset = (type: string, name: string, ext: string): File => ({
   uri: `file://proj/${name}.${ext}`,
@@ -35,8 +41,8 @@ const ASSETS: File[] = [
   asset("audio", "theme", "mp3"),
 ];
 
-// Line numbers matter here: `bunny` (line 3) and `hat` (line 5) display
-// together with the line between them; `cat` (line 10) is a later scrub's.
+// Line numbers matter: what displays together is decided by whether a line
+// that displays on its own lies between two beats, not by their distance.
 const STORY = `scene A
   [[show backdrop room]]
   Line one.
@@ -61,6 +67,42 @@ scene B
 end
 `;
 
+/** Three shapes with the same beats and different answers. */
+const SHAPES: Record<string, string> = {
+  // A line of dialogue between every two beats: each displays alone.
+  alternating: `scene A
+  [[show backdrop room]]
+  Line one.
+  [[show portrait bunny]]
+  Line two.
+  [[show portrait hat]]
+  Line three.
+  done
+end
+`,
+  // Two image-only lines in a row display together with the line below.
+  consecutive: `scene A
+  [[show backdrop room]]
+  [[show portrait bunny]]
+  Line one.
+  [[show portrait hat]]
+  Line two.
+  done
+end
+`,
+  // Blank lines change nothing: three image-only lines display together.
+  blank: `scene A
+  [[show backdrop room]]
+
+  [[show portrait bunny]]
+
+  [[show portrait hat]]
+  Line one.
+  done
+end
+`,
+};
+
 const byMethod = (messages: any[], method: string) =>
   messages.filter((m) => m?.method === method);
 
@@ -71,6 +113,8 @@ const itemKeys = (msg: any): string[] =>
 
 const src = (name: string) => `/file:/proj/${name}.png?v=1`;
 
+const fileOf = (key: string) => key.split("/").pop()!.split("?")[0]!;
+
 /** The path of the beat in `flow` that shows `image`. */
 const beatShowing = (game: Game, flow: string, image: string): string => {
   const beats = game.program.sceneAssets![flow]!.beats;
@@ -80,6 +124,14 @@ const beatShowing = (game: Game, flow: string, image: string): string => {
   }
   return beat.path;
 };
+
+/** The path the editor's cursor on `line` resolves to. */
+const pathAt = (game: Game, line: number): string | null =>
+  findClosestPath(
+    { file: MAIN_URI, line },
+    Object.entries(game.program.pathLocations ?? {}) as any,
+    Object.keys(game.program.scripts ?? {}),
+  );
 
 /** Whether a promise has settled by the time the microtasks drain. */
 const settled = async (promise: Promise<unknown>): Promise<boolean> => {
@@ -96,9 +148,46 @@ const settled = async (promise: Promise<unknown>): Promise<boolean> => {
   return done;
 };
 
+/**
+ * What the restore gate asks for when the cursor is on `line`, against the
+ * pictures a real preview from that line writes. The two must agree: a
+ * picture in the gate the preview never writes holds the line for nothing,
+ * and a picture the preview writes that the gate skipped lands late.
+ */
+const gateAgainstPreview = async (story: string, line: number) => {
+  const h = createHarness(story, line, {
+    assets: ASSETS,
+    holdAssets: true,
+    beforeConnect: (game) => {
+      const path = pathAt(game, line);
+      if (path) {
+        game.markPreviewing(path);
+      }
+    },
+  });
+  await flushMicrotasks(20);
+  const gated = byMethod(h.messages, "assets/load")
+    .flatMap((m) => itemKeys(m))
+    .map(fileOf)
+    .sort();
+  h.releaseAssets();
+  await h.ready;
+  h.reset();
+  h.preview(line);
+  const written = [
+    ...new Set(
+      byMethod(h.messages, "ui/write-image").flatMap(
+        (m) => JSON.stringify(m.params).match(/[a-z0-9_]+\.png/g) ?? [],
+      ),
+    ),
+  ].sort();
+  return { gated, written };
+};
+
 describe("preview prediction and gate", () => {
-  it("holds the connect on the cursor beat's pictures, and those of the beats that display with it", async () => {
-    // Line 3 is `[[show portrait bunny]]`, the beat that shows the portrait.
+  it("holds the connect on the cursor beat's pictures, and only what the preview writes with it", async () => {
+    // Line 3 is `[[show portrait bunny]]`; line 4, `Line two.`, displays on
+    // its own before `hat` on line 5.
     const h = createHarness(STORY, 3, {
       assets: ASSETS,
       holdAssets: true,
@@ -111,10 +200,7 @@ describe("preview prediction and gate", () => {
     expect(load).toHaveLength(1);
     expect(load[0].params.pin).toBe("restore");
     expect(load[0].params.priority).toBe(0);
-    // The cursor's beat and the one two lines below it, which the same
-    // preview writes; not the portrait several lines further down, which
-    // the next scrub writes.
-    expect(itemKeys(load[0])).toEqual([src("bunny"), src("hat")]);
+    expect(itemKeys(load[0])).toEqual([src("bunny")]);
     // The connect is what the page waits on before it previews: it does
     // not settle until the gate does.
     expect(await settled(h.ready)).toBe(false);
@@ -136,7 +222,37 @@ describe("preview prediction and gate", () => {
     expect(bunnyWrites().length).toBeGreaterThan(0);
   });
 
-  it("gates nothing for a path the program does not know", async () => {
+  it("gates exactly what a preview writes, whatever the source shape", async () => {
+    // Beat lines: 1, 3, 5 in the alternating and blank shapes; 1, 2, 4 in
+    // the consecutive one.
+    const cases: Array<[string, number, string[]]> = [
+      ["alternating", 1, ["room.png"]],
+      ["alternating", 3, ["bunny.png"]],
+      ["alternating", 5, ["hat.png"]],
+      ["consecutive", 1, ["bunny.png", "room.png"]],
+      ["consecutive", 2, ["bunny.png"]],
+      ["consecutive", 4, ["hat.png"]],
+      ["blank", 1, ["bunny.png", "hat.png", "room.png"]],
+      ["blank", 3, ["bunny.png", "hat.png"]],
+      ["blank", 5, ["hat.png"]],
+    ];
+    for (const [shape, line, expected] of cases) {
+      const { gated, written } = await gateAgainstPreview(SHAPES[shape]!, line);
+      expect({ shape, line, gated }).toEqual({ shape, line, gated: expected });
+      expect({ shape, line, written }).toEqual({
+        shape,
+        line,
+        written: expected,
+      });
+    }
+  });
+
+  it("gates nothing for a cursor on a line between beats, or on a path the program does not know", async () => {
+    // Line 2 of the alternating shape is `Line one.`: the preview writes
+    // that line; the backdrop above it is the checkpoint's business.
+    const between = await gateAgainstPreview(SHAPES["alternating"]!, 2);
+    expect(between.gated).toEqual([]);
+    expect(between.written).toEqual([]);
     const h = createHarness(STORY, 3, {
       assets: ASSETS,
       holdAssets: true,
@@ -202,34 +318,36 @@ describe("preview prediction and gate", () => {
     expect(itemKeys(prefetches[0])).toEqual([src("room2")]);
   });
 
-  it("enters a scene the cursor is not in from that scene's first beat", async () => {
+  it("enters a scene the cursor is not in from that scene's first beat, whichever side of the cursor it lies", async () => {
+    // The cursor sits in B, defined after A in the source; the story enters
+    // A (a divert back). Anchored on the cursor, the window would start from
+    // A's last beat, the one before the cursor in the source.
     const h = createHarness(
       `define assets as config with\n  predict_distance = 1\nend\n\n${STORY}`,
-      13,
+      18,
       {
         assets: ASSETS,
         beforeConnect: (game) => {
-          // The cursor sits on A's last beat; the preview diverts on into B.
-          game.markPreviewing(beatShowing(game, "A", "dog"));
+          game.markPreviewing(beatShowing(game, "B", "room2"));
         },
       },
     );
     await h.ready;
     h.reset();
-    (h.game.module.assets as any).onEnterScene("B", "A", []);
+    (h.game.module.assets as any).onEnterScene("A", "B", []);
     const prefetches = byMethod(h.messages, "assets/prefetch");
     expect(prefetches[0].params.priority).toBe(2);
-    expect(itemKeys(prefetches[0])).toEqual([src("room2")]);
+    expect(itemKeys(prefetches[0])).toEqual([src("room"), src("bunny")]);
   });
 
-  it("sends the window around the cursor once per cursor position", async () => {
+  it("sends the window around the cursor when the cursor leaves half of the last one", async () => {
     const h = createHarness(
-      `define assets as config with\n  predict_distance = 1\nend\n\n${STORY}`,
-      3,
+      `define assets as config with\n  predict_distance = 2\nend\n\n${STORY}`,
+      1,
       {
         assets: ASSETS,
         beforeConnect: (game) => {
-          game.markPreviewing(beatShowing(game, "A", "bunny"));
+          game.markPreviewing(beatShowing(game, "A", "room"));
         },
       },
     );
@@ -240,16 +358,24 @@ describe("preview prediction and gate", () => {
     new Coordinator(h.game, { text: { dialogue: [] }, end: 0 });
     new Coordinator(h.game, { text: { dialogue: [] }, end: 0 });
     expect(byMethod(h.messages, "assets/prefetch")).toHaveLength(0);
-    // The cursor moves within the scene: the window around it, and only
-    // that; the rest of the scene was sent on entry.
-    h.game.markPreviewing(beatShowing(h.game, "A", "dog"));
+    // One beat further (within half the reach of two): the last window
+    // still covers it, nothing is sent.
+    h.game.markPreviewing(beatShowing(h.game, "A", "bunny"));
+    new Coordinator(h.game, { text: { dialogue: [] }, end: 0 });
+    expect(byMethod(h.messages, "assets/prefetch")).toHaveLength(0);
+    // Two beats further: the window around the new position, and only that.
+    h.game.markPreviewing(beatShowing(h.game, "A", "hat"));
     new Coordinator(h.game, { text: { dialogue: [] }, end: 0 });
     let prefetches = byMethod(h.messages, "assets/prefetch");
     expect(prefetches.map((m) => m.params.priority)).toEqual([2]);
-    expect(itemKeys(prefetches[0])).toEqual([src("cat"), src("dog")]);
+    expect(itemKeys(prefetches[0])).toEqual([
+      src("room"),
+      src("bunny"),
+      src("hat"),
+      src("cat"),
+      src("dog"),
+    ]);
     h.reset();
-    new Coordinator(h.game, { text: { dialogue: [] }, end: 0 });
-    expect(byMethod(h.messages, "assets/prefetch")).toHaveLength(0);
     // Another program: what was sent is forgotten.
     h.game.module.assets.onProgramUpdate();
     new Coordinator(h.game, { text: { dialogue: [] }, end: 0 });
@@ -308,7 +434,7 @@ describe("preview prediction and gate", () => {
     });
   });
 
-  it("gates the beats that display together, by their distance in the source", () => {
+  it("gates the beats that display together: nothing located between them", () => {
     const beats = ["a", "b", "c", "d", "e"].map((path) => ({ path }));
     const entry = {
       kind: "scene" as const,
@@ -321,27 +447,46 @@ describe("preview prediction and gate", () => {
       calls: [],
     };
     const paths = (list: { path: string }[]) => list.map((b) => b.path);
-    // a ends on line 3; b begins on line 5 (within reach), c on line 6
-    // (within reach of b), d on line 20 (too far), e in another script.
+    // a on line 1; b on line 4 with blank lines between; a plain line on
+    // line 6 between b and c on line 8; d on line 9, right after c; e in
+    // another script.
     const locations = {
-      a: [0, 3, -1, 3, 10],
-      b: [0, 3 + PREVIEW_GATE_LINES, -1, 5, 10],
-      c: [0, 6, -1, 6, 10],
-      d: [0, 20, -1, 20, 10],
-      e: [1, 7, -1, 7, 10],
+      a: [0, 1, -1, 1, 20],
+      b: [0, 4, -1, 4, 20],
+      "A.line": [0, 6, -1, 6, 12],
+      c: [0, 8, -1, 8, 20],
+      d: [0, 9, -1, 9, 20],
+      e: [1, 10, -1, 10, 20],
     };
-    expect(paths(gateBeats(entry, 0, locations))).toEqual(["a", "b", "c"]);
-    expect(paths(gateBeats(entry, 2, locations))).toEqual(["c"]);
+    expect(leafBetween(locations, 0, 1, 4)).toBe(false);
+    expect(leafBetween(locations, 0, 4, 8)).toBe(true);
+    expect(leafBetween(locations, 0, 8, 9)).toBe(false);
+    expect(paths(gateBeats(entry, 0, locations))).toEqual(["a", "b"]);
+    expect(paths(gateBeats(entry, 1, locations))).toEqual(["b"]);
+    expect(paths(gateBeats(entry, 2, locations))).toEqual(["c", "d"]);
     expect(paths(gateBeats(entry, 3, locations))).toEqual(["d"]);
-    // Never more than the cap, however close the beats are.
-    const close = { a: [0, 1, -1, 1, 5], b: [0, 2, -1, 2, 5], c: [0, 3, -1, 3, 5], d: [0, 4, -1, 4, 5], e: [0, 5, -1, 5, 5] };
-    expect(gateBeats(entry, 0, close)).toHaveLength(PREVIEW_GATE_BEATS);
+    // Never more than the cap, however many display together.
+    const many = ["p0", "p1", "p2", "p3", "p4", "p5", "p6", "p7"].map(
+      (path) => ({ path }),
+    );
+    const close = Object.fromEntries(
+      many.map((b, i) => [b.path, [0, i + 1, -1, i + 1, 5]]),
+    );
+    expect(PREVIEW_GATE_BEATS).toBe(6);
+    expect(paths(gateBeats({ ...entry, beats: many }, 0, close))).toEqual([
+      "p0",
+      "p1",
+      "p2",
+      "p3",
+      "p4",
+      "p5",
+    ]);
     // No location for the cursor's beat: the beat alone.
     expect(paths(gateBeats(entry, 0, {}))).toEqual(["a"]);
     expect(gateBeats(entry, 9, locations)).toEqual([]);
   });
 
-  it("finds the beat at or before a path", () => {
+  it("finds the beat at or before a path, and the beat that is the path", () => {
     const beats = [{ path: "A.0" }, { path: "A.3" }, { path: "A.7" }];
     const locations = {
       "A.0": [0, 1, 0],
@@ -357,5 +502,8 @@ describe("preview prediction and gate", () => {
     expect(beatIndexIn(beats, locations, "B.0")).toBe(2);
     expect(beatIndexIn(beats, locations, "nowhere")).toBe(-1);
     expect(beatIndexIn(beats, locations, null)).toBe(-1);
+    expect(exactBeatIndex(beats, "A.3")).toBe(1);
+    expect(exactBeatIndex(beats, "A.5")).toBe(-1);
+    expect(exactBeatIndex(beats, null)).toBe(-1);
   });
 });

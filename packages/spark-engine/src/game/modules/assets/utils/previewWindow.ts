@@ -7,21 +7,66 @@ import {
 export type PathLocations = Record<string, ArrayLike<number> | undefined>;
 
 /** At most this many beats go through a preview's gate at once. */
-export const PREVIEW_GATE_BEATS = 3;
+export const PREVIEW_GATE_BEATS = 6;
 
-/** A beat that begins within this many source lines of where the gated
- *  beat ends displays with it (an image-only line and the line below it);
- *  one further away is the next scrub's, and waiting on it would only delay
- *  this one. */
-export const PREVIEW_GATE_LINES = 2;
+/** The index of the beat whose path is exactly `path`, or -1. A preview
+ *  gates from a beat only when the cursor resolved to that beat itself: a
+ *  cursor on a plain line between two beats writes that line and nothing
+ *  that names an asset (what the earlier beat showed is in the checkpoint,
+ *  which the restore gate covers on its own). */
+export function exactBeatIndex(
+  beats: readonly SceneBeat[],
+  path: string | null | undefined,
+): number {
+  if (!path) {
+    return -1;
+  }
+  for (let i = 0; i < beats.length; i++) {
+    if (beats[i]!.path === path) {
+      return i;
+    }
+  }
+  return -1;
+}
+
+/**
+ * Whether anything the program located begins on a line strictly between
+ * `afterLine` and `beforeLine` of script `script`: a line that displays on
+ * its own, a divert, a branch heading. A preview that reaches such a thing
+ * writes it and stops, so a beat beyond it is the next scrub's.
+ */
+export function leafBetween(
+  locations: PathLocations | undefined,
+  script: number,
+  afterLine: number,
+  beforeLine: number,
+): boolean {
+  if (!locations || beforeLine - afterLine < 2) {
+    return false;
+  }
+  for (const key in locations) {
+    const at = locations[key];
+    if (!at || at[0] !== script) {
+      continue;
+    }
+    const line = at[1]!;
+    if (line > afterLine && line < beforeLine) {
+      return true;
+    }
+  }
+  return false;
+}
 
 /**
  * The beats a preview at beat `index` of `entry` writes at once: the beat
  * itself and, up to {@link PREVIEW_GATE_BEATS} in all, the beats after it
- * that begin within {@link PREVIEW_GATE_LINES} lines of where the last
- * included one ends, in the same script. Beats are the leaves that name
- * assets, so "the next beat" can be far down the scene; the line distance is
- * what tells a beat that displays with this one from the next scrub's.
+ * with nothing the program located between them, in the same script. Beats
+ * are the leaves that name assets, so "the next beat" can be far down the
+ * scene, and the source distance says nothing by itself: two image-only
+ * lines display together across any number of blank lines, while a line of
+ * dialogue between two of them displays on its own and stops the preview
+ * there. What tells the two apart is whether a located line lies between
+ * the beats ({@link leafBetween}).
  */
 export function gateBeats(
   entry: SceneAssets,
@@ -38,6 +83,7 @@ export function gateBeats(
   if (!firstAt) {
     return out;
   }
+  const script = firstAt[0]!;
   let endLine = firstAt[3] ?? firstAt[1]!;
   for (
     let i = index + 1;
@@ -46,7 +92,11 @@ export function gateBeats(
   ) {
     const beat = beats[i]!;
     const at = locations?.[beat.path];
-    if (!at || at[0] !== firstAt[0] || at[1]! > endLine + PREVIEW_GATE_LINES) {
+    if (
+      !at ||
+      at[0] !== script ||
+      leafBetween(locations, script, endLine, at[1]!)
+    ) {
       break;
     }
     out.push(beat);

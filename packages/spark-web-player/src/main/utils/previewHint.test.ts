@@ -1,12 +1,19 @@
 // The page's cursor hint (#434): what it asks the cache for when the cursor
-// lands, and what it does not ask twice.
+// lands, what it does not ask twice, and that it asks for the same pictures
+// the engine will gate.
 
+import { Game } from "@impower/spark-engine/src/game/core/classes/Game";
 import { type AssetItem } from "@impower/spark-engine/src/game/modules/assets/types/AssetItem";
 import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
 import { type File } from "@impower/sparkdown/src/compiler/types/File";
 import { type SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
 import { describe, expect, it } from "vitest";
-import { planPreviewHint, type PreviewHintState } from "./previewHint";
+import {
+  applyPreviewHint,
+  planPreviewHint,
+  type PreviewHintCache,
+  type PreviewHintState,
+} from "./previewHint";
 
 const URI = "file://proj/main.sd";
 
@@ -18,8 +25,9 @@ const asset = (name: string): File => ({
   src: `/file:/proj/${name}.png?v=1`,
 });
 
-// Line numbers matter: `bunny` (line 3) and `hat` (line 5) display together
-// with the line between them; `cat` (line 10) is a later scrub's.
+// Line numbers matter: `bunny` on line 3 and `hat` on line 5 each display
+// alone, because line 4 displays between them; `cat` (line 10) and `dog`
+// (line 12) likewise.
 const STORY = `scene A
   [[show backdrop room]]
   Line one.
@@ -44,7 +52,17 @@ scene B
 end
 `;
 
-function compile(source: string, version = 1): SparkProgram {
+// An SVG served through the service worker, its source not inlined: a
+// filtered use of it resolves to a `?filters=` variant of this url.
+const svg = (name: string): File => ({
+  uri: `file://proj/${name}.svg`,
+  type: "image",
+  name,
+  ext: "svg",
+  src: `/file:/proj/${name}.svg?v=1`,
+});
+
+function compile(source: string, version = 1, extra: File[] = []): SparkProgram {
   const compiler = new SparkdownCompiler();
   compiler.configure({
     useBuiltinsPrelude: true,
@@ -61,6 +79,7 @@ function compile(source: string, version = 1): SparkProgram {
         languageId: "sparkdown",
       },
       ...["room", "room2", "bunny", "hat", "cat", "dog"].map(asset),
+      ...extra,
     ],
   } as any);
   return compiler.compile({ textDocument: { uri: URI } } as any).program;
@@ -72,9 +91,9 @@ const entriesOf = (program: SparkProgram) =>
   >;
 
 const srcs = (items: AssetItem[] | null) =>
-  items?.map((i) =>
-    ("src" in i ? i.src : "").split("/").pop()!.split("?")[0],
-  ) ?? null;
+  items?.map((i) => ("src" in i ? i.src : "")) ?? null;
+
+const src = (name: string) => `/file:/proj/${name}.png?v=1`;
 
 describe("planPreviewHint", () => {
   const program = compile(STORY);
@@ -82,26 +101,73 @@ describe("planPreviewHint", () => {
   const plan = (line: number, last?: PreviewHintState) =>
     planPreviewHint(program, URI, line, entries, last);
 
-  it("asks for the cursor's beats first, the window next, and the scene once on entering it", () => {
+  it("asks for the cursor's beat first, the window next, and the rest of the scene once on entering it", () => {
     const first = plan(3)!;
     expect(first).not.toBeNull();
-    expect(srcs(first.cursor)).toEqual(["bunny.png", "hat.png"]);
+    expect(srcs(first.cursor)).toEqual([src("bunny")]);
     // The default window is 32 beats either side: the whole of this scene.
     expect(srcs(first.near)).toEqual([
-      "room.png",
-      "bunny.png",
-      "hat.png",
-      "cat.png",
-      "dog.png",
+      src("room"),
+      src("bunny"),
+      src("hat"),
+      src("cat"),
+      src("dog"),
     ]);
     expect(srcs(first.rest)).toEqual([]);
-    expect(first.state).toMatchObject({ uri: URI, scene: "A", beat: 1, line: 3 });
+    expect(first.state).toMatchObject({
+      uri: URI,
+      scene: "A",
+      beat: 1,
+      line: 3,
+      nearBeat: 1,
+    });
+  });
+
+  it("asks for the same pictures the engine resolves for the same names", () => {
+    const game = new Game({ program } as any);
+    const names = program.sceneAssets!["A"]!.beats.flatMap((b) => b.image ?? []);
+    for (const name of names) {
+      const theirs = game.module.ui.getImageSrcsByName(name) ?? [];
+      const ours = srcs(plan(3)!.near)!.filter((s) => theirs.includes(s));
+      expect({ name, ours }).toEqual({ name, ours: theirs });
+    }
+  });
+
+  it("asks for the filtered variant the engine resolves, query string and all", () => {
+    // The url a filtered SVG renders through carries the filter in its query
+    // string, and nothing else ever fetches it; the hint is useless unless
+    // it names that exact url.
+    const story = `define dim as filter with
+  includes = { "glow" }
+end
+
+scene A
+  [[show backdrop hall~dim]]
+  Line one.
+  done
+end
+`;
+    const filtered = compile(story, 1, [svg("hall")]);
+    const game = new Game({ program: filtered } as any);
+    const theirs = game.module.ui.getImageSrcsByName("hall~dim");
+    expect(theirs).toHaveLength(1);
+    expect(theirs![0]).toMatch(/^\/file:\/proj\/hall\.svg\?v=1&filters=/);
+    const hint = planPreviewHint(
+      filtered,
+      URI,
+      5,
+      entriesOf(filtered),
+      undefined,
+    )!;
+    expect(srcs(hint.cursor)).toEqual(theirs);
+    expect(srcs(hint.near)).toEqual(theirs);
   });
 
   it("asks for nothing again on the same line, or on another line of the same beat", () => {
     const first = plan(3)!;
     expect(plan(3, first.state)).toBeNull();
-    // Line 4 is the line that displays with the bunny beat.
+    // Line 4 is the line below the bunny beat: not a beat, and the window
+    // already covers it.
     const same = plan(4, first.state)!;
     expect(same.cursor).toEqual([]);
     expect(same.near).toEqual([]);
@@ -109,29 +175,111 @@ describe("planPreviewHint", () => {
     expect(same.state.beat).toBe(first.state.beat);
   });
 
-  it("asks for a new beat's pictures, and not the scene again, when the cursor moves inside the scene", () => {
+  it("hints nothing for a cursor on a line between beats, and only the beat for a cursor on one", () => {
     const first = plan(3)!;
-    const moved = plan(10, first.state)!;
-    expect(srcs(moved.cursor)).toEqual(["cat.png", "dog.png"]);
-    expect(moved.rest).toBeNull();
-    expect(moved.state.beat).toBe(3);
+    // Line 6 is `Line three.`: the beat before it is hat's, which the
+    // checkpoint already shows.
+    const between = plan(6, first.state)!;
+    expect(between.cursor).toEqual([]);
+    expect(between.state.beat).toBe(2);
+    const onBeat = plan(10, between.state)!;
+    expect(srcs(onBeat.cursor)).toEqual([src("cat")]);
+  });
+
+  it("re-sends the window only when the cursor leaves half of it", () => {
+    // The config block adds four lines above the story.
+    const narrow = compile(
+      `define assets as config with\n  predict_distance = 2\nend\n\n${STORY}`,
+    );
+    const at = (line: number, last?: PreviewHintState) =>
+      planPreviewHint(narrow, URI, line + 4, entriesOf(narrow), last);
+    const first = at(1)!;
+    expect(srcs(first.near)).toEqual([src("room"), src("bunny"), src("hat")]);
+    // One beat further: within half the reach, the last window stands.
+    const one = at(3, first.state)!;
+    expect(one.near).toEqual([]);
+    expect(one.state.nearBeat).toBe(0);
+    // Two beats further: a new window, centred there.
+    const two = at(5, one.state)!;
+    expect(srcs(two.near)).toEqual([
+      src("room"),
+      src("bunny"),
+      src("hat"),
+      src("cat"),
+      src("dog"),
+    ]);
+    expect(two.state.nearBeat).toBe(2);
+    expect(two.rest).toBeNull();
   });
 
   it("asks for the scene again when the cursor enters another scene", () => {
     const first = plan(3)!;
     const inB = plan(18, first.state)!;
     expect(inB.state.scene).toBe("B");
-    expect(srcs(inB.cursor)).toEqual(["room2.png"]);
+    expect(srcs(inB.cursor)).toEqual([src("room2")]);
     expect(inB.rest).not.toBeNull();
   });
 
-  it("treats a recompile that left the cursor on its beat as nothing new", () => {
+  it("asks for the beat's own pictures again after a recompile, and nothing else", () => {
     const first = plan(3)!;
-    const recompiled = compile(STORY, 2);
-    const again = planPreviewHint(recompiled, URI, 3, entriesOf(recompiled), first.state)!;
+    const recompiled = compile(STORY.replace("portrait bunny", "portrait cat"), 2);
+    const again = planPreviewHint(
+      recompiled,
+      URI,
+      3,
+      entriesOf(recompiled),
+      first.state,
+    )!;
     expect(again).not.toBeNull();
-    expect(again.cursor).toEqual([]);
+    expect(srcs(again.cursor)).toEqual([src("cat")]);
+    expect(again.near).toEqual([]);
     expect(again.rest).toBeNull();
     expect(again.state.version).toBe(recompiled.version);
+  });
+
+  it("hints nothing for a path the program does not know", () => {
+    const first = plan(3)!;
+    const nowhere = planPreviewHint(program, URI, 999, [], first.state)!;
+    expect(nowhere.cursor).toEqual([]);
+    expect(nowhere.near).toEqual([]);
+    expect(nowhere.rest).toBeNull();
+  });
+});
+
+describe("applyPreviewHint", () => {
+  const fake = () => {
+    const calls: string[] = [];
+    const cache: PreviewHintCache = {
+      hint: (items) => calls.push(`hint:${items.length}`),
+      prefetch: (items, priority) =>
+        calls.push(`prefetch:${items.length}@${priority}`),
+    };
+    return { calls, cache };
+  };
+  const item = (n: number): AssetItem => ({ kind: "image", src: `/p${n}.png` });
+  const state: PreviewHintState = {
+    uri: URI,
+    version: 1,
+    scene: "A",
+    beat: 0,
+    line: 0,
+    nearBeat: 0,
+  };
+
+  it("hints the cursor's beats, always, and prefetches the window at 2 and the rest at 3", () => {
+    const { calls, cache } = fake();
+    applyPreviewHint(cache, {
+      state,
+      cursor: [item(1)],
+      near: [item(1), item(2)],
+      rest: [item(3)],
+    });
+    expect(calls).toEqual(["hint:1", "prefetch:2@2", "prefetch:1@3"]);
+  });
+
+  it("retires the last hint with an empty one, and skips empty prefetches", () => {
+    const { calls, cache } = fake();
+    applyPreviewHint(cache, { state, cursor: [], near: [], rest: null });
+    expect(calls).toEqual(["hint:0"]);
   });
 });

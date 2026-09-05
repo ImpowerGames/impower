@@ -1,8 +1,9 @@
 // How a resident image is held (#433): as a CSS background on a hidden
 // element for as long as it is resident, loaded before the completion-signal
 // image so the browser reuses it for a later background, mask or `<img>`;
-// how a gate is served (#434): never waiting for a slot, pausing prefetches
-// only while someone holds its pin, and never held up by the page's own hint;
+// how a gate is served (#434): never waiting for a slot a hint or a prefetch
+// could take, pausing prefetches only while someone holds a gate pin, on
+// whatever entry carries it, and leaving the express lane when nobody does;
 // and what an SVG counts for: its parsed document, not a bitmap of its
 // viewBox.
 
@@ -10,6 +11,7 @@ import { type AssetItem } from "../../../../spark-engine/src/game/modules/assets
 import { describe, expect, it, vi } from "vitest";
 import {
   AssetCache,
+  DEFAULT_EXPRESS_SLOTS,
   DEFAULT_LOAD_TIMEOUT_MS,
   DEFAULT_MAX_CONCURRENT,
   type ImageTarget,
@@ -55,17 +57,22 @@ const settle = () => new Promise<void>((resolve) => setTimeout(resolve, 0));
 
 const MIB = 1024 * 1024;
 
+const BACKGROUND_SLOTS = DEFAULT_MAX_CONCURRENT - DEFAULT_EXPRESS_SLOTS;
+
 const image = (src: string): AssetItem => ({ kind: "image", src });
 
+const images = (n: number, prefix: string): AssetItem[] =>
+  Array.from({ length: n }, (_, i) => image(`/${prefix}${i}.svg`));
+
 const makeCache = (options?: ConstructorParameters<typeof AssetCache>[1]) => {
-  const images: FakeImage[] = [];
+  const created: FakeImage[] = [];
   const warmed: { src: string; removed: boolean }[] = [];
   const log: string[] = [];
   const cache = new AssetCache(
     {
       createImage: () => {
         const img = new FakeImage(log);
-        images.push(img);
+        created.push(img);
         return img;
       },
       warmImage: (src: string): WarmHandle => {
@@ -81,12 +88,14 @@ const makeCache = (options?: ConstructorParameters<typeof AssetCache>[1]) => {
     },
     options,
   );
-  const loading = (src: string) => images.find((i) => i.src === src && !i.done);
+  const loading = (src: string) => created.find((i) => i.src === src && !i.done);
   const finish = async (src: string) => {
     loading(src)!.finishLoad();
     await settle();
   };
-  return { cache, images, warmed, log, loading, finish };
+  const priorityOf = (src: string) =>
+    (cache as any)._entries.get(src)?.priority as number | undefined;
+  return { cache, created, warmed, log, loading, finish, priorityOf };
 };
 
 describe("AssetCache: warming through the document", () => {
@@ -153,80 +162,145 @@ describe("AssetCache: warming through the document", () => {
   });
 
   it("loads without a document too", async () => {
-    const images: FakeImage[] = [];
+    const created: FakeImage[] = [];
     const cache = new AssetCache({
       createImage: () => {
         const img = new FakeImage();
-        images.push(img);
+        created.push(img);
         return img;
       },
     });
     const done = cache.request([image("/a.png")], 0, "p");
-    images[0]!.finishLoad();
+    created[0]!.finishLoad();
     await settle();
     expect((await done).loaded).toEqual(["/a.png"]);
   });
 
-  it("starts no prefetch while a pinned gate is queued or in flight, and resumes when it settles", async () => {
+  it("runs the express lane beside the background lane, not inside it", async () => {
     const { cache, loading } = makeCache();
-    const bg = (n: number) => `/bg${n}.svg`;
-    // Six background loads: four start (two slots are the express lane).
-    cache.prefetch(Array.from({ length: 6 }, (_, i) => image(bg(i))), 2);
-    expect(cache.inFlightCount).toBe(4);
-    // A gate with more loads than the lane holds: six start at once, the
-    // seventh queues, and none of them waits for a background slot.
-    const gate = cache.request(
-      Array.from({ length: 7 }, (_, i) => image(`/portrait${i}.svg`)),
-      0,
-      "restore",
-    );
-    expect(cache.inFlightCount).toBe(4 + DEFAULT_MAX_CONCURRENT);
+    cache.prefetch(images(6, "bg"), 2);
+    expect(cache.inFlightCount).toBe(BACKGROUND_SLOTS);
+    // A gate with more loads than the lane holds: six start at once,
+    // the seventh queues, and none of them waits for a background slot.
+    const gate = cache.request(images(7, "portrait"), 0, "restore");
+    expect(cache.inFlightCount).toBe(BACKGROUND_SLOTS + DEFAULT_MAX_CONCURRENT);
     expect(loading("/portrait6.svg")).toBeUndefined();
-    // A background load finishing frees a slot; nothing background takes it
-    // while a gate load is queued, then while gate loads are in flight.
-    loading(bg(0))!.finishLoad();
+    // An explicit load's set is waited on too: it takes the background
+    // slots as they free, whatever the express lane holds.
+    void cache.request(images(2, "set"), 1, "load:B");
+    expect(loading("/set0.svg")).toBeUndefined();
+    loading("/bg0.svg")!.finishLoad();
     await settle();
-    expect(loading(bg(4))).toBeUndefined();
+    expect(loading("/set0.svg")).toBeDefined();
+    expect(cache.inFlightCount).toBe(BACKGROUND_SLOTS + DEFAULT_MAX_CONCURRENT);
+    // A prefetch does not: someone is waiting on the gate.
+    loading("/bg1.svg")!.finishLoad();
+    await settle();
+    expect(loading("/set1.svg")).toBeDefined();
+    loading("/bg2.svg")!.finishLoad();
+    await settle();
+    expect(loading("/bg4.svg")).toBeUndefined();
+    // A gate slot freeing goes to the queued gate load.
     loading("/portrait0.svg")!.finishLoad();
     await settle();
     expect(loading("/portrait6.svg")).toBeDefined();
-    expect(loading(bg(4))).toBeUndefined();
     for (let i = 1; i < 7; i++) {
       loading(`/portrait${i}.svg`)!.finishLoad();
     }
     await settle();
     await gate;
     // The gate settled: the background queue resumes.
-    expect(loading(bg(4))).toBeDefined();
-    expect(cache.inFlightCount).toBe(4);
+    expect(loading("/bg4.svg")).toBeDefined();
   });
 
-  it("stops pausing prefetches the moment a gate's pin is released, settled or not", async () => {
+  it("stops pausing prefetches the moment a gate's pin is released, whatever the lane holds", async () => {
     const { cache, loading } = makeCache();
-    cache.prefetch([image("/next.svg"), image("/later.svg")], 2);
-    loading("/next.svg")!.finishLoad();
-    loading("/later.svg")!.finishLoad();
-    await settle();
-    cache.prefetch([image("/queued.svg")], 3);
-    expect(loading("/queued.svg")).toBeDefined();
-    loading("/queued.svg")!.finishLoad();
-    await settle();
-    // A gate whose picture the service worker is slow to answer.
-    void cache.request([image("/slow.svg")], 0, "restore");
+    // Six gate loads the service worker is slow to answer fill the lane.
+    void cache.request(images(6, "slow"), 0, "restore");
     cache.prefetch([image("/after.svg")], 2);
     expect(loading("/after.svg")).toBeUndefined();
     // The engine gave up on the gate (its own timeout) and released the pin:
-    // the page must not keep waiting on its behalf.
+    // the page must not keep waiting on its behalf, and a full express lane
+    // is no reason for a background slot to stay empty.
     cache.release(["restore"], false);
     expect(loading("/after.svg")).toBeDefined();
-    expect(loading("/slow.svg")).toBeDefined();
+    expect(loading("/slow0.svg")).toBeDefined();
+  });
+
+  it("pauses prefetches for a gate queued behind a released gate's loads", async () => {
+    const { cache, loading } = makeCache();
+    // A gate the engine gave up on: its six loads keep their slots, unpinned.
+    void cache.request(images(6, "old"), 0, "restore");
+    cache.release(["restore"], false);
+    // The next scrub's gate queues behind them. Someone waits on it, so no
+    // prefetch starts while it is queued, though nothing pinned is loading.
+    void cache.request([image("/new.svg")], 0, "restore");
+    expect(loading("/new.svg")).toBeUndefined();
+    cache.prefetch([image("/w.svg")], 2);
+    expect(loading("/w.svg")).toBeUndefined();
+    loading("/old0.svg")!.finishLoad();
+    await settle();
+    expect(loading("/new.svg")).toBeDefined();
+    expect(loading("/w.svg")).toBeUndefined();
+    loading("/new.svg")!.finishLoad();
+    await settle();
+    expect(loading("/w.svg")).toBeDefined();
+  });
+
+  it("counts a gate that pins a picture a prefetch already had in flight", async () => {
+    const { cache, loading } = makeCache();
+    // The window went out first (the scene's opening backdrop among it),
+    // then the restore gate asked for that backdrop.
+    cache.prefetch([image("/backdrop.svg")], 2);
+    expect(loading("/backdrop.svg")).toBeDefined();
+    void cache.request([image("/backdrop.svg")], 0, "restore");
+    cache.prefetch([image("/next.svg")], 2);
+    expect(loading("/next.svg")).toBeUndefined();
+    loading("/backdrop.svg")!.finishLoad();
+    await settle();
+    expect(loading("/next.svg")).toBeDefined();
+  });
+
+  it("does not count a `load:` pin, a hint, or an entry the cache has forgotten", async () => {
+    const { cache, loading } = makeCache();
+    // A load's set on a hinted picture: not a gate.
+    cache.hint([image("/shared.svg")]);
+    void cache.request([image("/shared.svg")], 1, "load:B");
+    cache.prefetch([image("/w0.svg")], 2);
+    expect(loading("/w0.svg")).toBeDefined();
+    // A gate whose picture the author then saved over: nobody waits on it
+    // any more, so it must not pause anything until its load settles.
+    void cache.request([image("/gone.svg?v=1")], 0, "restore");
+    cache.prefetch([image("/w1.svg")], 2);
+    expect(loading("/w1.svg")).toBeUndefined();
+    cache.evictFile("/gone.svg?v=2");
+    expect(loading("/w1.svg")).toBeDefined();
+  });
+
+  it("leaves a hint two express slots short, so a gate never waits behind hints alone", async () => {
+    const { cache, loading } = makeCache();
+    cache.hint(images(8, "h"));
+    expect(cache.inFlightCount).toBe(BACKGROUND_SLOTS);
+    expect(loading("/h4.svg")).toBeUndefined();
+    // A gate arrives while the hint's leftovers are queued: it goes ahead
+    // of them in the lane and starts at once in an express slot.
+    void cache.request(images(2, "gate"), 0, "restore");
+    expect(loading("/gate0.svg")).toBeDefined();
+    expect(loading("/gate1.svg")).toBeDefined();
+    expect(loading("/h4.svg")).toBeUndefined();
+    // A gate slot freeing goes to the queued gate before a queued hint.
+    void cache.request(images(1, "more"), 0, "beat:1");
+    expect(loading("/more0.svg")).toBeUndefined();
+    loading("/gate0.svg")!.finishLoad();
+    await settle();
+    expect(loading("/more0.svg")).toBeDefined();
+    expect(loading("/h4.svg")).toBeUndefined();
   });
 
   it("never pauses prefetches for the page's own hint", async () => {
     const { cache, loading } = makeCache();
-    cache.prefetch(Array.from({ length: 4 }, (_, i) => image(`/bg${i}.svg`)), 2);
-    expect(cache.inFlightCount).toBe(4);
-    // A hint: unpinned, in the express lane at once.
+    cache.prefetch(images(4, "bg"), 2);
+    expect(cache.inFlightCount).toBe(BACKGROUND_SLOTS);
     cache.hint([image("/h0.svg")]);
     expect(loading("/h0.svg")).toBeDefined();
     cache.prefetch([image("/bg4.svg")], 2);
@@ -239,39 +313,64 @@ describe("AssetCache: warming through the document", () => {
     expect(loading("/h0.svg")).toBeDefined();
   });
 
-  it("lets a new hint replace what the last one left queued", async () => {
-    const { cache, loading } = makeCache();
-    const priorityOf = (src: string) =>
-      (cache as any)._entries.get(src)?.priority as number | undefined;
-    cache.hint(Array.from({ length: 8 }, (_, i) => image(`/h${i}.svg`)));
-    expect(cache.inFlightCount).toBe(DEFAULT_MAX_CONCURRENT);
-    expect(cache.stateOf("/h6.svg")).toBe("queued");
-    expect(priorityOf("/h6.svg")).toBe(0);
+  it("lets a new hint, even an empty one, replace what the last one left queued", async () => {
+    const { cache, loading, priorityOf } = makeCache();
+    cache.hint(images(6, "h"));
+    expect(cache.inFlightCount).toBe(BACKGROUND_SLOTS);
+    expect(cache.stateOf("/h4.svg")).toBe("queued");
+    expect(priorityOf("/h4.svg")).toBe(0);
     // The cursor moved on before the last hint drained: what it left queued
     // goes back to the window's priority, so the new hint is next in the
     // express lane rather than behind every beat the cursor passed.
     cache.hint([image("/k0.svg")]);
-    expect(priorityOf("/h6.svg")).toBe(2);
-    expect(priorityOf("/h7.svg")).toBe(2);
+    expect(priorityOf("/h4.svg")).toBe(2);
+    expect(priorityOf("/h5.svg")).toBe(2);
     expect(priorityOf("/k0.svg")).toBe(0);
     loading("/h0.svg")!.finishLoad();
     await settle();
     expect(loading("/k0.svg")).toBeDefined();
-    expect(loading("/h6.svg")).toBeUndefined();
     // What was loading when the cursor moved is still wanted, and stays.
     expect(loading("/h1.svg")).toBeDefined();
+    // A cursor on a beat with no pictures hints nothing, and that too
+    // retires the last hint's leftovers.
+    cache.hint(images(3, "j"));
+    cache.hint([]);
+    expect(priorityOf("/j2.svg")).toBe(2);
+  });
+
+  it("takes a released gate's queued pictures out of the express lane", async () => {
+    const { cache, loading, priorityOf } = makeCache();
+    // Three scrubs, each gating eight pictures and giving up at the
+    // engine's timeout before the lane drains.
+    for (let scrub = 0; scrub < 3; scrub++) {
+      void cache.request(images(8, `s${scrub}p`), 0, "restore");
+      cache.release(["restore"], false);
+    }
+    // Nothing abandoned stays at priority 0; the lane holds only what is
+    // loading.
+    for (let scrub = 0; scrub < 3; scrub++) {
+      for (let i = 0; i < 8; i++) {
+        const src = `/s${scrub}p${i}.svg`;
+        if (!loading(src)) {
+          expect({ src, priority: priorityOf(src) }).toEqual({ src, priority: 2 });
+        }
+      }
+    }
+    expect((cache as any)._queues[0]).toEqual([]);
+    // The fourth scrub's gate is next in the lane.
+    void cache.request([image("/wanted.svg")], 0, "restore");
+    expect(cache.stateOf("/wanted.svg")).toBe("queued");
+    loading("/s0p0.svg")!.finishLoad();
+    await settle();
+    expect(loading("/wanted.svg")).toBeDefined();
   });
 
   it("keeps an explicit load's set moving while a gate is in flight", async () => {
     const { cache, loading } = makeCache();
-    void cache.request([image("/font-ish.svg")], 0, "layout:loading");
-    void cache.request(
-      Array.from({ length: 3 }, (_, i) => image(`/set${i}.svg`)),
-      1,
-      "load:B",
-    );
+    void cache.request(images(6, "font-ish"), 0, "layout:loading");
+    void cache.request(images(3, "set"), 1, "load:B");
     // Someone is waiting on the load's set too (behind the loading layout),
-    // so it takes background slots as before.
+    // so it takes background slots whatever the express lane holds.
     expect(loading("/set0.svg")).toBeDefined();
     expect(loading("/set2.svg")).toBeDefined();
   });
@@ -306,7 +405,7 @@ describe("AssetCache: warming through the document", () => {
   });
 
   it("counts an SVG as its parsed document, whatever its viewBox says", async () => {
-    const { cache, images, loading } = makeCache();
+    const { cache, created, loading } = makeCache();
     cache.prefetch(
       [image("/portrait.svg?v=1&filters=x"), image("/backdrop.webp")],
       2,
@@ -323,7 +422,7 @@ describe("AssetCache: warming through the document", () => {
     await settle();
     const stats = cache.stats();
     expect(stats.bytes.image).toBe(1 * MIB + 1920 * 1080 * 4);
-    expect(images).toHaveLength(2);
+    expect(created).toHaveLength(2);
   });
 
   it("keeps an act's worth of portraits in a pool that held sixty before", async () => {
