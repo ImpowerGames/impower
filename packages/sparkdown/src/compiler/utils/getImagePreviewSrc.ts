@@ -127,6 +127,12 @@ export const IMAGE_PREVIEW_HEIGHT = 180;
  *
  * The CodeMirror client therefore states no `img` height rule of its own: it
  * matches VS Code by letting this markup decide.
+ *
+ * What this depends on: a host that both strips inline styles and resets image
+ * heights has nothing left to size the thumbnail by, and the preview collapses
+ * again. VS Code strips the style but resets nothing; the web editor resets but
+ * strips nothing, and configures no `sanitizeHTML` hook on its language client.
+ * A host doing both would have to state a height of its own.
  */
 export const buildImagePreviewMarkup = (src: string, name: string): string =>
   `<img src="${escapeAttribute(src)}" alt="${escapeAttribute(

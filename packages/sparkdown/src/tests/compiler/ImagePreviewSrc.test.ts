@@ -254,4 +254,15 @@ end
     expect(attribute).toBe(String(IMAGE_PREVIEW_HEIGHT));
     expect(inline).toBe(attribute);
   });
+
+  // Everything above compares the markup against the constant, so all of it
+  // would still pass if the constant itself became 0 or NaN -- which renders
+  // as the same empty box the ticket is about. Pin the literal once.
+  it("asks for a height that draws something", () => {
+    expect(IMAGE_PREVIEW_HEIGHT).toBe(180);
+    const program = compile("", [assetFile("file://proj/a/backdrop.png")]);
+    expect(markupFor(program, "image", "backdrop")).toContain(
+      `height="180" style="height:180px"`,
+    );
+  });
 });
