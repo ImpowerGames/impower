@@ -752,13 +752,26 @@ function collectTopLevelInjections(
   return out;
 }
 
-// ----- Escape / break / newline parity with `ContentTextAllowingEscapeChar` -----
+// ----- Escape / break / newline handling for display text -----
 
-// Mirrors upstream inkjs's `ContentTextAllowingEscapeChar` ink-parsing behavior:
-//   - `\<space|tab|newline>` → paragraph break, inserts `\n ` (trailing space
-//     prevents the next chunk's `{...}` logic from being read as escaped)
+// Resolves escapes in one raw text segment of a display body:
+//   - `\<space|tab|newline>` → a line break, plus the run of spaces/tabs
+//     immediately after it (the author's line-continuation indent) is dropped
 //   - `\<other>`             → kept as literal `\<char>` (so `\*` stays `\*`)
-//   - plain `\n` mid-content → also `\n ` (same trailing-space rule)
+//   - plain `\n` mid-content → a line break
+//
+// A line break carries no whitespace of its own, whichever of the two forms
+// the author used to write it. The block-body caller has already stripped the
+// indentation that puts continuation lines under their cue, so adding a space
+// back here would put a space in the story text that the author never wrote —
+// and, next to a `..` glue marker whose own separating space is already in the
+// preceding segment, would make the join two spaces wide and audibly lengthen
+// the pause the letter-by-letter typing puts between the joined words.
+//
+// The result goes straight into a `Text` object and is never re-scanned, so
+// nothing downstream can mistake a `{` after a break for an escaped one:
+// `collectBodySegments` lifts every interpolation out into its own segment
+// before this function sees the text.
 function applyDisplayEscapes(raw: string): string {
   const input = raw.replace(/\r\n?/g, "\n");
   let out = "";
@@ -771,7 +784,7 @@ function applyDisplayEscapes(raw: string): string {
         out += "\\";
         i++;
       } else if (next === " " || next === "\t" || next === "\n") {
-        out += "\n ";
+        out += "\n";
         i += 2;
         while (i < input.length && (input[i] === " " || input[i] === "\t")) {
           i++;
@@ -781,7 +794,7 @@ function applyDisplayEscapes(raw: string): string {
         i += 2;
       }
     } else if (c === "\n") {
-      out += "\n ";
+      out += "\n";
       i++;
     } else {
       out += c;
