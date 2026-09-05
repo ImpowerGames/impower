@@ -1049,11 +1049,16 @@ async function scriptEditorPresent(page, timeout = 10_000) {
  * `scripts` tab or on any other screen. Waits briefly for a pane to mount, so
  * a page still hydrating does not read as "nothing expected".
  */
-async function editorExpectedHere(page) {
+async function editorExpectedHere(page, { paneWait = 5_000 } = {}) {
   await page
-    .waitForFunction((screens) => Object.values(screens).some((sel) => document.querySelector(sel)), SCREENS, { timeout: 5_000 })
+    .waitForFunction((screens) => Object.values(screens).some((sel) => document.querySelector(sel)), SCREENS, { timeout: paneWait })
     .catch(() => {});
-  if ((await activeScreen(page)) !== "logic") return false;
+  const screen = await activeScreen(page);
+  // No pane mounted at all is a page still loading, and in the fullscreen
+  // scripts view the editor is its own pane marker; neither is "nothing
+  // expected". Only a mounted pane can say no.
+  if (screen == null) return null;
+  if (screen !== "logic") return false;
   return page.evaluate(() => {
     const main = document.querySelector('[role="tab"][id$="-trigger-main"]');
     return main == null || main.getAttribute("aria-selected") === "true";
@@ -1061,22 +1066,37 @@ async function editorExpectedHere(page) {
 }
 
 /**
- * For a step that captures or acts on whatever is on screen (a screenshot, a
- * key press, a probe): if an editor is expected here, it must be mounted and
- * settled first, or the step reports why not and the run fails. If none is
- * expected (another screen, the `scripts` tab), the step proceeds; it is not
- * the driver's place to guess what the session wanted to capture there.
+ * For a step that captures or acts on whatever is on screen (a screenshot or
+ * a key press): if an editor is expected here — or nothing has mounted yet to
+ * say otherwise — it must be mounted and settled first, or the step reports
+ * why not and the run fails. If a mounted pane says none is expected (another
+ * screen, the `scripts` tab), the step proceeds; it is not the driver's place
+ * to guess what the session wanted to capture there.
+ *
+ * The wait is paid once per run: after a step has settled the editor, later
+ * steps re-check it in a second or so, and after a step has given up on it,
+ * later steps fail at once and point at the first.
  */
-async function requireEditorIfExpected(page) {
-  if (!(await editorExpectedHere(page))) return { required: false };
-  const here = await scriptEditorPresent(page, 20_000);
-  if (!here.present) {
-    return { required: true, ok: false, reason: `the script editor is expected here and had not mounted within 20s (${here.reason}); this step would have captured a page still loading. Re-run; if it persists the machine is saturated` };
-  }
-  if (!(await settleEditor(page, 15_000))) {
-    return { required: true, ok: false, reason: "the script editor kept being replaced for 15s and never settled; this step would have captured a view about to go away. Re-run; if it persists the machine is saturated" };
-  }
-  return { required: true, ok: true };
+function editorGate() {
+  let settledOnce = false;
+  let gaveUp = null;
+  return async (page, what) => {
+    if (gaveUp) return { required: true, ok: false, reason: `the script editor is still not up (see the first step that reported it); this ${what} was skipped` };
+    const expected = await editorExpectedHere(page);
+    if (expected === false) return { required: false };
+    const here = await scriptEditorPresent(page, settledOnce ? 5_000 : 20_000);
+    if (!here.present) {
+      gaveUp = here.reason;
+      const where = expected == null ? "no pane had mounted, so the page was still loading" : here.reason.replace(/; the editor did not mount within \d+s.*$/, "");
+      return { required: true, ok: false, reason: `the script editor is expected here and had not mounted within 20s (${where}); this ${what} would have acted on a page still loading. Re-run; if it persists the machine is saturated` };
+    }
+    if (!(await settleEditor(page, settledOnce ? 5_000 : 15_000))) {
+      gaveUp = "never settled";
+      return { required: true, ok: false, reason: `the script editor kept being replaced and never settled; this ${what} would have acted on a view about to go away. Re-run; if it persists the machine is saturated` };
+    }
+    settledOnce = true;
+    return { required: true, ok: true };
+  };
 }
 
 /**
@@ -1324,6 +1344,14 @@ async function switchScreen(page, name) {
     await tab.waitFor({ state: "visible", timeout: 10_000 });
   } catch {
     const known = await page.evaluate(() => [...document.querySelectorAll('[role="tab"]')].map((t) => t.id.replace(/^.*-trigger-/, "")));
+    // The logic pane's fullscreen scripts view has no tab row at all; the
+    // way back is its own header button, which `ui` has no step for.
+    const inScriptsView = await page.evaluate(
+      () => document.querySelector(".sparkdown-script-editor-root .cm-content") != null && document.querySelector('[role="tab"][id$="-trigger-main"]') == null,
+    );
+    if (inScriptsView && (name === "main" || name === "scripts")) {
+      return { screen: name, active: false, reason: `the logic pane is in its fullscreen scripts view (another file is open), which has no tab row; close that file with the view's own header button, then re-run` };
+    }
     return { screen: name, active: false, reason: `no tab named "${name}" on the page (tabs present: ${known.join(", ")})` };
   }
   await tab.click();
@@ -1545,6 +1573,7 @@ async function ui(args) {
   return withEditor(
     async ({ page, url, consoleLines }) => {
       const result = { url, steps: [] };
+      const requireEditor = editorGate();
       try {
         await page.goto(url, { waitUntil: "domcontentloaded", timeout: 120_000 });
         await waitForApp(page);
@@ -1555,26 +1584,21 @@ async function ui(args) {
         return result;
       }
       result.startedOn = await activeScreen(page);
-      // Settle the editor only when it is there to settle: the logic screen's
-      // `scripts` tab has no script editor, and a step that needs one reports
-      // that itself.
-      // On the logic screen the editor is expected; give it the same 10 s the
-      // panel steps do (a cold mount was measured at ~4.6 s), settle it, and
-      // say so when it never came, so an absent `editorSettled` only ever
-      // means "no editor on this screen".
       // The start only records what it finds. A step that needs a settled
-      // editor (a screenshot, a key press, a probe, a panel) checks for one
-      // itself at the moment it runs, so the failure lands on the step that
-      // would otherwise have lied, and a run whose steps never needed the
-      // editor is not failed for a slow mount it never depended on.
-      if (result.startedOn === "logic") {
-        const expected = await editorExpectedHere(page);
-        if (expected) {
-          const here = await scriptEditorPresent(page, 20_000);
-          result.editorSettled = here.present ? await settleEditor(page) : false;
-          if (!here.present) result.startNote = `the script editor had not mounted 20s after the page loaded; each later step that needs it waits again and reports for itself`;
-        } else {
-          result.startNote = "the run started on the logic screen's scripts tab, where there is no script editor; --screen main reaches it";
+      // editor (a screenshot, a key press, a panel) checks for one itself at
+      // the moment it runs, so the failure lands on the step that would
+      // otherwise have lied, and a run whose steps never needed the editor is
+      // not failed for a slow mount it never depended on.
+      const expectedAtStart = await editorExpectedHere(page);
+      if (expectedAtStart === false) {
+        if (result.startedOn === "logic") result.startNote = "the run started on the logic screen's scripts tab, where there is no script editor; --screen main reaches it";
+      } else {
+        const here = await scriptEditorPresent(page, 20_000);
+        result.editorSettled = here.present ? await settleEditor(page) : false;
+        if (!here.present) {
+          result.startNote = expectedAtStart == null
+            ? "no pane had mounted 20s after the page loaded; each later step that needs the editor waits again and reports for itself"
+            : "the script editor had not mounted 20s after the page loaded; each later step that needs it waits again and reports for itself";
         }
       }
 
@@ -1588,8 +1612,11 @@ async function ui(args) {
             const out = { sd: step.sd, wroteChars };
             // No editor can appear on the `scripts` tab or another screen;
             // say so at once instead of waiting a minute for it.
+            // Only a mounted pane can say no editor is coming; a page with no
+            // pane yet, or the scripts view whose marker is the editor itself,
+            // gets the full wait.
             const expectedAfterReload = await editorExpectedHere(page);
-            const editor = expectedAfterReload ? await scriptEditorPresent(page, 60_000) : await scriptEditorPresent(page, 1_000);
+            const editor = expectedAfterReload === false ? await scriptEditorPresent(page, 1_000) : await scriptEditorPresent(page, 60_000);
             if (editor.present) {
               // As verify does on its own path: let the view stop being
               // replaced, let the first compile settle, and let the editor's
@@ -1632,9 +1659,9 @@ async function ui(args) {
           } else if (step.type) {
             result.steps.push(await typeInto(page, step.type, step.text));
           } else if (step.press) {
-            const ready = await requireEditorIfExpected(page);
+            const ready = await requireEditor(page, "key press");
             if (ready.ok === false) {
-              result.steps.push({ press: step.press, sent: null, reason: ready.reason });
+              result.steps.push({ press: step.press, sent: null, gated: true, reason: ready.reason });
               continue;
             }
             const n = await pressKey(page, step.press);
@@ -1645,18 +1672,15 @@ async function ui(args) {
           } else if (step.toggle) {
             result.steps.push(await toggleSurfaceOption(page, step.toggle));
           } else if (step.shotOf) {
-            const ready = await requireEditorIfExpected(page);
+            const ready = await requireEditor(page, "screenshot");
             if (ready.ok === false) {
-              result.steps.push({ of: step.shotOf, screenshot: null, reason: ready.reason });
+              result.steps.push({ of: step.shotOf, screenshot: null, gated: true, reason: ready.reason });
               continue;
             }
             result.steps.push(await shotOf(page, step.shotOf, step.out));
           } else if (step.probe) {
-            const ready = await requireEditorIfExpected(page);
-            if (ready.ok === false) {
-              result.steps.push({ probe: step.probe, result: null, reason: ready.reason });
-              continue;
-            }
+            // Never gated: a probe captures no pixels, and it is the one step
+            // that can diagnose a page whose editor will not mount.
             const code = fs.readFileSync(path.resolve(step.probe), "utf8");
             result.steps.push({
               probe: step.probe,
