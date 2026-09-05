@@ -436,6 +436,11 @@ function bracketPartners(command) {
         stack.push({ ch: "(", at: k + 1, resumesString: true });
         inString = false;
         k++;
+        if (command[k + 1] === "(") {
+          arith++; // "$((1 << n))": a shift, not a here-doc
+          stack.push({ ch: "(", at: k + 1, resumesString: false });
+          k++;
+        }
       }
       continue;
     }
@@ -476,8 +481,16 @@ function bracketPartners(command) {
       if (heredocs.length) k = skipHeredocBodies(command, k + 1, heredocs) - 1;
       continue;
     }
-    if (ch === "(" && command[k + 1] === "(") arith++;
-    else if (ch === ")" && command[k + 1] === ")" && arith > 0 && command[k - 1] !== ")") arith--;
+    // `$((` and a `((` command open an arithmetic context (counted once per
+    // pair); `))` closes one. Both parentheses are still paired normally.
+    if (ch === "(" && command[k + 1] === "(" && (k === 0 || "$ \t;|&".includes(command[k - 1]))) {
+      arith++;
+      stack.push({ ch, at: k, resumesString: false }, { ch, at: k + 1, resumesString: false });
+      k++;
+      wordStart = false;
+      continue;
+    }
+    if (ch === ")" && command[k + 1] === ")" && arith > 0) arith--;
     if (ch === "(" || ch === "{") stack.push({ ch, at: k, resumesString: false });
     else if (ch === ")" || ch === "}") {
       const want = ch === ")" ? "(" : "{";
@@ -726,50 +739,55 @@ function bodyHasTypeField(body) {
   }
   // Anything else is a hashtable or JSON-like text; prose is not a body.
   if (!/^(@?\{|\[)/.test(inner)) return false;
-  // Here-string values are replaced by a one-character placeholder first
-  // (a here-string type is a non-empty value), then empty type entries are
-  // dropped, then quoted values are blanked so their text cannot match.
-  const blanked = blankHereStrings(inner)
-    .replace(/["']?type["']?\s*[:=]\s*(["'])\1/g, "") // an empty type value is no type
-    .replace(/([:=]\s*)"(?:[^"\\]|\\.)*"/g, '$1""')
-    .replace(/([:=]\s*)'(?:[^']|'')*'/g, "$1''");
+  // Every value is blanked first (a here-string value becomes a one-character
+  // placeholder when it has content, an empty string otherwise), then empty
+  // type entries are dropped, then the entry regex runs on what is left.
+  const blanked = blankValues(inner).replace(/["']?type["']?\s*[:=]\s*(["'])\1/g, "");
   return TYPE_ENTRY.test(blanked);
 }
 
 /**
- * Replaces every here-string value (`= @"` on its own line-end through the
- * next `"@` at a line start, or the single-quoted form) with a placeholder,
- * in one forward pass: the first opener after the previous terminator is
- * paired with the first matching terminator after it, so a stray `@"`
- * inside a body cannot shorten the blanked region.
+ * One forward pass over a hashtable or object-literal body that replaces
+ * every value with a placeholder: a quoted string that follows `=` or `:`
+ * becomes `"h"` when it has content and `""` when empty, and so does a
+ * here-string (`@"` or `@'` at a line end, through the matching `"@` or
+ * `'@` at a line start); a here-string with no terminator is text.
+ * Quoted text is consumed as a unit, so an `= @"` inside a value is never
+ * taken for an opener, and every character is visited once.
  */
-function blankHereStrings(text) {
+function blankValues(text) {
+  const n = text.length;
   let out = "";
-  let pos = 0;
-  for (;;) {
-    const open = nextHereStringOpener(text, pos);
-    if (open < 0) break;
-    const q = text[open + 1];
-    const term = text.indexOf(`\n${q}@`, open + 2);
-    if (term < 0) break;
-    out += text.slice(pos, open) + q + "h" + q;
-    pos = term + 3;
-  }
-  return out + text.slice(pos);
-}
-
-/** Index of the next `@"` or `@'` that follows `:` or `=` and whitespace, at or after `from`, or -1. */
-function nextHereStringOpener(text, from) {
-  for (let k = from; ; ) {
-    const d = text.indexOf('@"', k);
-    const s = text.indexOf("@'", k);
-    if (d < 0 && s < 0) return -1;
-    const at = d < 0 ? s : s < 0 ? d : Math.min(d, s);
+  let k = 0;
+  const isValue = (at) => {
     let j = at - 1;
-    while (j >= from && " \t\r\n".includes(text[j])) j--;
-    if (j >= from && (text[j] === "=" || text[j] === ":")) return at;
-    k = at + 2;
+    while (j >= 0 && " \t\r\n".includes(text[j])) j--;
+    return j >= 0 && (text[j] === "=" || text[j] === ":");
+  };
+  while (k < n) {
+    const ch = text[k];
+    if (ch === "@" && (text[k + 1] === '"' || text[k + 1] === "'") && /^\r?\n/.test(text.slice(k + 2, k + 4))) {
+      const q = text[k + 1];
+      const term = text.indexOf(`\n${q}@`, k + 2);
+      if (term >= 0) {
+        const body = text.slice(k + 2, term);
+        out += body.trim().length ? `${q}h${q}` : `${q}${q}`;
+        k = term + 3;
+        continue;
+      }
+    }
+    if (ch === '"' || ch === "'") {
+      const end = scanQuote(text, k, ch === '"');
+      const close = end < 0 ? n - 1 : end;
+      if (isValue(k)) out += close > k + 1 ? `${ch}h${ch}` : ch + ch;
+      else out += text.slice(k, close + 1);
+      k = close + 1;
+      continue;
+    }
+    out += ch;
+    k++;
   }
+  return out;
 }
 
 /** Strips the wrappers a body may sit in (`(...)`, `$(...)`, `@(...)`, one layer of quotes) and unescapes the quotes inside. */

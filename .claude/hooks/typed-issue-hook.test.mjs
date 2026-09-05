@@ -225,6 +225,10 @@ const denies = [
   ["here-string body with nine spaces before the opener and a type= line", "irm -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Body (@{\n  title = 'x'\n  body =         @\"\ntype = Bug\n\"@\n} | ConvertTo-Json)"],
   ["here-string body holding an inner = @\" and a type= line", "irm -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Body (@{\n  title = 'x'\n  body = @\"\ntype = Bug\nthe snippet has $x = @\" in it\n\"@\n} | ConvertTo-Json)"],
   ["here-string body holding an inner @\" and a type= line", "irm -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Body (@{\n  title = 'x'\n  body = @\"\ntype = Bug\nmail me@\"work\" about it\n\"@\n} | ConvertTo-Json)"],
+  ["an unterminated @' mention before a here-string with a type= line", "irm -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Body @{\n  title = 'x'\n  note = \"the marker is = @'\"\n  body = @\"\ntype = Bug is prose here\n\"@\n}"],
+  ["an empty here-string as the type", "irm -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Body @{title='x'; type = @\"\n\"@\n}"],
+  ["a whitespace-only here-string as the type", "irm -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Body @{title='x'; type = @\"\n\n\"@\n}"],
+  ["a multi-line single-quoted note whose second line starts type = @\", then a real here-string", "irm -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Body @{\n  title = 'x'\n  note = 'first line\ntype = @\" second'\n  body = @\"\nsteps\n\"@\n}"],
 ];
 
 const allows = [
@@ -300,6 +304,13 @@ const allows = [
   ["a shift with a variable operand, then a typed create with a $( ) title", 'echo $((a << b))\ngh api -X POST repos/ImpowerGames/impower/issues -f "title=$(cat t.md)" -f type=Bug'],
   ["a shift with a variable operand, then a typed hashtable create", "x=$((1 << n))\nirm -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Body @{title='x'; type='Bug'}"],
   ["a type supplied as a here-string", "irm -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Body @{title='x'; type = @\"\nBug\n\"@\n}"],
+  ["a typed body with a '= @\"' mention in a value before the here-string", "irm -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Body @{\n  note = 'the idiom is $x = @\" here'\n  type = 'Bug'\n  body = @\"\nrepro\n\"@\n}"],
+  ["a typed body with a ': @\"' mention in a value before the here-string", "irm -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Body @{\n  note = 'see the docs: @\" is a here-string'\n  type = 'Bug'\n  body = @\"\nrepro\n\"@\n}"],
+  ["a typed body with a '= @\"' mention in a double-quoted value before the here-string", "irm -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Body (@{\n  note = \"the idiom is = @\"\n  type = 'Bug'\n  body = @\"\nrepro\n\"@\n} | ConvertTo-Json)"],
+  ["a quoted shift with a named operand, then a typed create with a $( ) title", 'echo "mask=$((1 << n))"\ngh api -X POST repos/ImpowerGames/impower/issues -f "title=$(date +%F) crash" -f type=Bug'],
+  ["a quoted shift with a named operand, then a typed hashtable create", 'echo "shift: $((1 << n))"\nirm -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Body @{title=\'x\'; type=\'Bug\'}'],
+  ["a triple-paren arithmetic, a here-doc with a lone quote, then a typed create", "x=$(((a+b)*c)) && cat > n.md <<'EOF'\npass the \" flag\nEOF\nirm -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Body @{title=\"x\"; type=\"Bug\"}"],
+  ["a nested-paren shift, then a here-doc, then a typed create", "x=$(((a) << b)); cat <<EOF\nbody (\nEOF\ngh api -X POST repos/ImpowerGames/impower/issues -f \"title=$(cat t.md)\" -f type=Bug"],
   ["typed form data in Bash ANSI-C quoting", "curl -X POST https://api.github.com/repos/ImpowerGames/impower/issues --data $'title=x&type=Bug'"],
   ["a view inside a double-quoted $( )", 'echo "issue: $(gh issue view 443 --json title)"'],
   ["curl -G with query data", "curl -G -d labels=bug https://api.github.com/repos/ImpowerGames/impower/issues"],
@@ -381,6 +392,8 @@ const allows = [
   guard("a 240000-character bare word", "echo " + "x".repeat(240000) + " && gh issue view 443");
   guard("a 300 KB hashtable value mentioning '= @\"' 8000 times", "irm -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Body @{title='x'; type='Bug'; body='" + "the script writes $x = @\" then more. ".repeat(8000) + "'}");
   guard("a hashtable value with 32000 lines starting with \"@", "irm -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Body @{title='x'; type='Bug'; body='" + "\n\"@".repeat(32000) + "'}");
+  guard("a 400 KB hashtable value mentioning me@\"work\" 16000 times", "irm -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Body @{title='x'; type='Bug'; body='" + 'mail me@"work" about it. '.repeat(16000) + "'}");
+  guard("a hashtable with 8000 here-string values", "irm -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Body @{title='x'; type='Bug'; " + Array.from({ length: 8000 }, (_, i) => `k${i} = @"\nline\n"@`).join("\n") + "\n}");
   guard("10000 shifts with named operands, then a typed create", Array.from({ length: 10000 }, (_, i) => `x=$((y << n${i}))`).join("\n") + "\ngh api -X POST repos/ImpowerGames/impower/issues -f title=x -f type=Bug");
   guard("32000 unbalanced groups after flags", "echo " + "-a ( ".repeat(32000));
   guard("32000 unbalanced hashtables after flags", "echo " + "-a @{ ".repeat(32000) + "}");
