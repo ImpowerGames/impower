@@ -66,9 +66,11 @@ const WRAPPERS = new Map([
 // Shell keywords after which a command starts.
 const KEYWORDS = new Set(["do", "then", "else", "elif", "if", "while", "until", "!", "%", "foreach-object"]);
 const SHELLS = new Set(["bash", "sh", "zsh", "dash", "ksh", "ash", "busybox", "pwsh", "powershell", "cmd"]);
-// A bare redirection operator (`>`, `2>`, `>>`, `<`, `2>&1`) or one glued to its target.
-const REDIRECT_OP = /^\d*[<>]{1,2}(&\d*)?$/;
-const REDIRECT_GLUED = /^\d*[<>]{1,2}[^<>&]/;
+// A bare redirection operator (`>`, `2>`, `>>`, `<`, `2>&1`, `&>`) or one glued to its target.
+const REDIRECT_OP = /^(\d*[<>]{1,2}(&\d*)?|&>)$/;
+const REDIRECT_GLUED = /^(\d*[<>]{1,2}|&>)[^<>&]/;
+// A PowerShell variable assignment target: `$x`, `$x=`, `$x=value`.
+const PS_ASSIGN = /^\$[A-Za-z_][A-Za-z0-9_:]*(=(.*))?$/;
 
 /**
  * Split a command line into tokens the way Bash or PowerShell roughly would.
@@ -130,8 +132,15 @@ export function tokenize(command) {
           continue;
         }
         if (command[i] === "`") {
-          let close = command.indexOf("`", i + 1);
-          if (close < 0) close = n;
+          // A backtick with a partner before the closing quote is a Bash
+          // substitution; one without is a PowerShell escape (`n, `t, `").
+          const close = command.indexOf("`", i + 1);
+          const quoteEnd = closingDoubleQuote(command, i + 1);
+          if (close < 0 || close > quoteEnd) {
+            if (i + 1 < n) text += command[i + 1];
+            i += 2;
+            continue;
+          }
           tokens.subs.push(command.slice(i + 1, close));
           text += command.slice(i, close + 1);
           i = close + 1;
@@ -234,6 +243,7 @@ export function tokenize(command) {
     if (c === "\n") {
       sep(i);
       i++;
+      arith = 0;
       while (heredocs.length && i < n) {
         const { delim, strip } = heredocs.shift();
         while (i < n) {
@@ -257,6 +267,17 @@ export function tokenize(command) {
     if (c === ")" && command[i + 1] === ")" && arith > 0) {
       arith--;
       sep(i);
+      i += 2;
+      continue;
+    }
+    if (c === "&" && started && /[<>]$/.test(text)) {
+      text += c; // 2>&1, >&2
+      i++;
+      continue;
+    }
+    if (c === "&" && !started && command[i + 1] === ">") {
+      begin(i); // &>file
+      text += "&>";
       i += 2;
       continue;
     }
@@ -289,10 +310,31 @@ export function tokenize(command) {
 
 /** Index of the `)` matching the `(` at `open`, or the end of the string. */
 function matchParen(command, open) {
+  return matchBracket(command, open, "(", ")");
+}
+
+/** Index of the closing bracket matching the opener at `open`, skipping quoted text, or the end of the string. */
+function matchBracket(command, open, openCh, closeCh) {
   let depth = 0;
   for (let k = open; k < command.length; k++) {
-    if (command[k] === "(") depth++;
-    else if (command[k] === ")" && --depth === 0) return k;
+    const ch = command[k];
+    if (ch === "'" || ch === '"') {
+      const end = command.indexOf(ch, k + 1);
+      if (end < 0) return command.length;
+      k = end;
+      continue;
+    }
+    if (ch === openCh) depth++;
+    else if (ch === closeCh && --depth === 0) return k;
+  }
+  return command.length;
+}
+
+/** Index of the `"` that closes a double-quoted string whose body starts at `from`. */
+function closingDoubleQuote(command, from) {
+  for (let k = from; k < command.length; k++) {
+    if (command[k] === "\\") k++;
+    else if (command[k] === '"') return k;
   }
   return command.length;
 }
@@ -476,37 +518,46 @@ function checkGhApi(args) {
 }
 
 const COLLECTION_URL = /api\.github\.com\/repos\/([^/\s"']+\/[^/\s"']+)\/issues\/?(\?|$)/i;
-// A `type` field as a JSON key (`"type":`) or a hashtable entry (`type=`),
-// lowercase because JSON keys are case-sensitive, and not part of a longer
-// name. A bare `type:` is prose, not a field.
-const TYPE_FIELD = /(^|[\s{,;(])(["']type["']\s*[:=]|type\s*=)/;
-const CONTENT_TYPE = /["']?content-type["']?\s*[:=]/gi;
+// A `type` field in a request body: a quoted JSON key (`"type":`) or a
+// hashtable entry (`type=`) that follows `{`, `;`, `,`, or `(`. Lowercase,
+// because JSON keys are case-sensitive. `type=` after a word is prose.
+const TYPE_FIELD = /(["']type["']\s*[:=]|(^|[{;,(])\s*type\s*=\s*\S)/;
 
-/** True when text carries a `type` field, ignoring content-type headers. */
-function mentionsTypeField(text) {
-  return TYPE_FIELD.test(text.replace(CONTENT_TYPE, ""));
+/** True when a request body carries a `type` field. */
+function bodyHasTypeField(body) {
+  return TYPE_FIELD.test(body);
 }
 
-// Short curl flags that take no value and may be clustered before -d or -F.
-const CURL_BOOLEAN_CLUSTER = /^-[sSfLkviIgNjBanlOpqRZ46#]*[dF]/;
+// curl short flags that take no value and may be clustered before -d or -F.
+const CURL_CLUSTER = /^-([sSfLkviIgNjBanlOpqRZ46#G]*)([dF])?/;
 const CURL_DATA_LONG = /^--(data(-ascii|-raw|-binary|-urlencode)?|form(-string)?|json)(=|$)/;
 
 function checkCurl(args) {
   const urlIndex = args.findIndex((a) => COLLECTION_URL.test(a.text));
   if (urlIndex < 0 || !isThisRepo(args[urlIndex].text.match(COLLECTION_URL)[1])) return null;
-  let posts = false;
-  let hasData = false;
+  let method = null;
+  const bodies = [];
   let get = false;
   for (let i = 0; i < args.length; i++) {
     const t = args[i].text;
-    if (/^(-X|--request)$/.test(t)) posts ||= /^post$/i.test(args[i + 1]?.text ?? "");
-    else if (/^(-X|--request=)/.test(t)) posts ||= /post$/i.test(t);
-    else if (t === "-G" || t === "--get") get = true;
-    else if (CURL_BOOLEAN_CLUSTER.test(t) || CURL_DATA_LONG.test(t)) hasData = true;
+    if (/^(-X|--request)$/.test(t)) method = (args[++i]?.text ?? "").toUpperCase();
+    else if (/^(-X|--request=)/.test(t)) method = t.replace(/^(-X=?|--request=)/, "").toUpperCase();
+    else if (t === "--get") get = true;
+    else if (CURL_DATA_LONG.test(t)) {
+      const eq = t.indexOf("=");
+      bodies.push(eq > 0 ? t.slice(eq + 1) : (args[++i]?.text ?? ""));
+    } else if (t.startsWith("-") && !t.startsWith("--")) {
+      const m = t.match(CURL_CLUSTER);
+      if (m[1].includes("G")) get = true;
+      if (m[2]) {
+        const attached = t.slice(m[0].length);
+        bodies.push(attached.length ? attached : (args[++i]?.text ?? ""));
+      }
+    }
   }
-  if (!posts && (!hasData || get)) return null;
-  const joined = args.filter((_, i) => i !== urlIndex).map((a) => a.text).join(" ");
-  if (mentionsTypeField(joined)) return null;
+  const creates = method === null ? bodies.length > 0 && !get : method === "POST";
+  if (!creates) return null;
+  if (bodies.some(bodyHasTypeField)) return null;
   return (
     "This creates an issue without an issue type (or from a body the hook cannot read). " +
     "Use the gh recipe instead: " + RECIPE
@@ -514,32 +565,39 @@ function checkCurl(args) {
 }
 
 /**
- * The text of one PowerShell invocation: from its first argument to the end
- * of its segment, extended over a `-Body (...)` sub-expression that the
- * tokenizer split into its own segments.
+ * The `-Body` value of a PowerShell invocation, read from the command text
+ * so that a sub-expression, a hashtable literal, or a quoted string that
+ * the tokenizer split across segments comes back whole. Null when there is
+ * no `-Body` in the segment.
  */
-function invocationText(command, seg, i) {
-  const first = seg[i + 1];
-  if (!first) return "";
-  const last = seg[seg.length - 1];
-  let end = last.end;
-  if (/^-body$/i.test(last.text) && command[skipSpaces(command, end)] === "(") {
-    end = matchParen(command, skipSpaces(command, end)) + 1;
+function bodyText(command, seg) {
+  const bodyIndex = seg.findIndex((t) => /^-body$/i.test(t.text));
+  if (bodyIndex < 0) return null;
+  let at = seg[bodyIndex].end;
+  while (at < command.length && " \t\r\n`".includes(command[at])) at++;
+  const c = command[at];
+  const c2 = command[at + 1];
+  if (c === "(" || (c === "$" && c2 === "(") || (c === "@" && c2 === "(")) {
+    const open = c === "(" ? at : at + 1;
+    return command.slice(at, matchParen(command, open) + 1);
   }
-  return command.slice(first.start, end);
+  if (c === "@" && c2 === "{") return command.slice(at, matchBracket(command, at + 1, "{", "}") + 1);
+  if (c === "'" || c === '"') {
+    const end = command.indexOf(c, at + 1);
+    return command.slice(at, end < 0 ? command.length : end + 1);
+  }
+  const next = seg[bodyIndex + 1];
+  return next ? next.text : "";
 }
 
-function skipSpaces(command, at) {
-  while (at < command.length && " \t".includes(command[at])) at++;
-  return at;
-}
-
-function checkInvokeRestMethod(args, text) {
+function checkInvokeRestMethod(args, command, seg) {
   const urlToken = args.find((a) => COLLECTION_URL.test(a.text));
   if (!urlToken || !isThisRepo(urlToken.text.match(COLLECTION_URL)[1])) return null;
-  const posts = /-method\s+post\b/i.test(text) || /(^|\s)-body\b/i.test(text);
+  const joined = args.map((a) => a.text).join(" ");
+  const body = bodyText(command, seg);
+  const posts = /(^|\s)-method\s+post\b/i.test(joined) || body !== null;
   if (!posts) return null;
-  if (mentionsTypeField(text.replace(urlToken.text, ""))) return null;
+  if (body !== null && bodyHasTypeField(body)) return null;
   return (
     "This creates an issue without an issue type (or from a body the hook cannot read). " +
     "Use the gh recipe instead: " + RECIPE
@@ -564,6 +622,13 @@ function commandPositions(seg) {
     }
     if (/^[A-Za-z_][A-Za-z0-9_]*=/.test(t)) {
       k++;
+      continue;
+    }
+    if (!tok.quoted && PS_ASSIGN.test(t)) {
+      // `$x = cmd`, `$x= cmd`, `$x =cmd`
+      k++;
+      if (!t.includes("=") && seg[k]?.text === "=") k++;
+      else if (!t.includes("=") && seg[k]?.text.startsWith("=")) k++;
       continue;
     }
     if (!tok.quoted && REDIRECT_OP.test(t)) {
@@ -600,32 +665,41 @@ function commandPositions(seg) {
 /**
  * True when the quoted token at index i is run as a command: it follows a
  * shell's `-c` (in any short-flag cluster, after the shell's own options),
- * `cmd /c`, a PowerShell `-Command`, `env -S`, `eval`, or a shell's `<<<`.
+ * `cmd /c`, a PowerShell `-Command`, `env -S`, `eval`, or a shell's `<<<`,
+ * and that shell itself stands at command position.
  */
-function isShellCommandString(seg, i) {
+function isShellCommandString(seg, i, positions) {
   const prev = seg[i - 1];
   if (!prev) return false;
   const p = prev.text.toLowerCase();
-  if (p === "eval") return true;
-  const program = programBefore(seg, i - 1);
+  if (p === "eval") return positions.has(i - 1);
+  const at = programBefore(seg, i - 1);
+  if (at < 0 || !positions.has(at)) return false;
+  const program = baseName(seg[at]);
   if (program === "env") return p === "-s" || p === "--split-string";
-  if (!SHELLS.has(program)) return false;
   if (p === "<<<" || p === "/c" || p === "-c" || p.startsWith("-comm")) return true;
   return /^-[a-z]*c[a-z]*$/.test(p);
 }
 
-/** The base name of the program whose options run up to index `flagIndex`, walking back over options and their values. */
+/**
+ * The index of the shell (or env) whose options run up to `flagIndex`,
+ * walking back over options and their values, or -1. `--` ends a shell's
+ * options, and `-File` hands control to a script, so both stop the walk.
+ */
 function programBefore(seg, flagIndex) {
-  for (let k = flagIndex - 1, steps = 0; k >= 0 && steps < 8; k--, steps++) {
+  for (let k = flagIndex - 1, steps = 0; k >= 0 && steps < 16; k--, steps++) {
     const t = seg[k].text;
-    if (seg[k].quoted) return "";
-    const base = baseName(seg[k]);
-    if (SHELLS.has(base) || base === "env") return base;
-    if (t.startsWith("-") || t.startsWith("/")) continue;
-    if (k > 0 && seg[k - 1].text.startsWith("-")) continue; // an option's value
-    return "";
+    const lower = t.toLowerCase();
+    if (t === "--" || lower === "-file" || lower === "-f") return -1;
+    if (!seg[k].quoted) {
+      const base = baseName(seg[k]);
+      if (SHELLS.has(base) || base === "env") return k;
+      if (t.startsWith("-") || t.startsWith("/")) continue;
+    }
+    if (k > 0 && seg[k - 1].text.startsWith("-") && seg[k - 1].text !== "--") continue; // an option's value
+    return -1;
   }
-  return "";
+  return -1;
 }
 
 /** Returns a deny reason for the command, or null to allow it. */
@@ -647,10 +721,11 @@ export function decide(command, depth = 0) {
   if (current.length) segments.push(current);
 
   for (const seg of segments) {
+    splitPsAssignments(seg);
     const positions = commandPositions(seg);
     for (let i = 0; i < seg.length; i++) {
       const tok = seg[i];
-      if (tok.quoted && isShellCommandString(seg, i)) {
+      if (tok.quoted && isShellCommandString(seg, i, positions)) {
         const inner = decide(tok.text, depth + 1);
         if (inner) return inner;
       }
@@ -664,12 +739,22 @@ export function decide(command, depth = 0) {
       } else if (base === "curl") {
         reason = checkCurl(seg.slice(i + 1));
       } else if (base === "invoke-restmethod" || base === "irm" || base === "invoke-webrequest" || base === "iwr") {
-        reason = checkInvokeRestMethod(seg.slice(i + 1), invocationText(command, seg, i));
+        reason = checkInvokeRestMethod(seg.slice(i + 1), command, seg.slice(i + 1));
       }
       if (reason) return reason;
     }
   }
   return null;
+}
+
+/** Splits a glued PowerShell assignment `$x=gh ...` into `$x=` and the program token, in place. */
+function splitPsAssignments(seg) {
+  for (let k = 0; k < seg.length; k++) {
+    const tok = seg[k];
+    const m = tok.quoted ? null : tok.text.match(/^(\$[A-Za-z_][A-Za-z0-9_:]*=)(.+)$/);
+    if (!m) continue;
+    seg.splice(k, 1, { ...tok, text: m[1], end: tok.start + m[1].length }, { ...tok, text: m[2], start: tok.start + m[1].length });
+  }
 }
 
 function deny(reason) {

@@ -148,6 +148,26 @@ const denies = [
   ["curl with clustered -sfd @file", "curl -sfd @ticket.json https://api.github.com/repos/ImpowerGames/impower/issues"],
   ["curl with --data-ascii", "curl --data-ascii @t.json https://api.github.com/repos/ImpowerGames/impower/issues"],
   ["curl with --form-string", "curl --form-string 'title=x' https://api.github.com/repos/ImpowerGames/impower/issues"],
+  ["create after a PowerShell newline escape in a string", 'Write-Host "hello`nworld"; gh issue create --title x'],
+  ["create after a PowerShell tab escape in a string", 'Write-Output "a`tb"; gh issue create --title x'],
+  ["untyped api create after a PowerShell percent escape", 'Write-Host "50`% done"; gh api repos/ImpowerGames/impower/issues -f title=x'],
+  ["create after a Windows path with a backtick-b in a string", 'Write-Host "C:\\a`b"; gh issue create --title x'],
+  ["create after a leading 2>&1", "2>&1 gh issue create --title x"],
+  ["create after a leading >&2", ">&2 gh issue create --title x"],
+  ["create after nohup 2>&1", "nohup 2>&1 gh issue create --title x"],
+  ["create after a leading &>file", "&>out.txt gh issue create --title x"],
+  ["PowerShell capture of a create", "$out = gh issue create --title x"],
+  ["PowerShell glued capture of a create", "$out=gh issue create --title x"],
+  ["PowerShell capture of an untyped api create", "$json = gh api repos/ImpowerGames/impower/issues -f title=x"],
+  ["PowerShell capture of an untyped Invoke-RestMethod", "$r = Invoke-RestMethod -Method POST -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Body $b"],
+  ["pwsh with a quoted option value before -Command", "pwsh -ExecutionPolicy 'Bypass' -Command 'gh issue create --title x'"],
+  ["bash with a quoted option value before -c", "bash -o 'errexit' -c 'gh issue create --title x'"],
+  ["powershell with nine options before -Command", "powershell -NoProfile -NonInteractive -NoLogo -ExecutionPolicy Bypass -WindowStyle Hidden -Sta -Command 'gh issue create --title x'"],
+  ["curl with 'the field type = wrong' in the title", 'curl -X POST https://api.github.com/repos/ImpowerGames/impower/issues -d \'{"title":"the field type = wrong"}\''],
+  ["curl with 'the type= is wrong' in the title", 'curl -X POST https://api.github.com/repos/ImpowerGames/impower/issues -d \'{"title":"the type= is wrong"}\''],
+  ["curl with type= in an Accept header", "curl -X POST https://api.github.com/repos/ImpowerGames/impower/issues -H 'Accept: application/json; type=x' -d '{\"title\":\"y\"}'"],
+  ["Invoke-RestMethod with type= in a header hashtable", "Invoke-RestMethod -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Method Post -Body $b -Headers @{Accept='v3; type=x'}"],
+  ["Invoke-RestMethod with a $( ) body that has no type", "irm -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Body $(@{title='x'} | ConvertTo-Json)"],
 ];
 
 const allows = [
@@ -229,13 +249,30 @@ const allows = [
   ["pwsh -NoProfile -Command with a view", "pwsh -NoProfile -Command 'gh issue view 443'"],
   ["grep -c after a shell name elsewhere in the command", "bash script.sh && grep -c 'gh issue create' README.md"],
   ["a C++ file written through a terminated here-doc", "cat > f.cpp <<'EOF'\nstd::cout << a << b;\nstd::cout << c;\nEOF\ngh issue view 443"],
+  ["a PowerShell newline escape before a view", 'Write-Host "hello`nworld"; gh issue view 443'],
+  ["a PowerShell capture of a view", "$n = gh issue view 443 --json number"],
+  ["a PowerShell capture of a typed create", "$out = gh api repos/ImpowerGames/impower/issues -f title=x -f type=Bug"],
+  ["Invoke-RestMethod typed $( ) body", "irm -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Body $(@{title='x'; type='Bug'} | ConvertTo-Json)"],
+  ["Invoke-RestMethod typed bare hashtable body", "irm -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Body @{title='x'; type='Bug'}"],
+  ["Invoke-RestMethod typed body on the next line", "irm -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Body `\n(@{title='x'; type='Bug'} | ConvertTo-Json)"],
+  ["Invoke-RestMethod typed body with a paren in the title", "Invoke-RestMethod -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Method Post -Body ('{\"title\":\"a :) b\",\"type\":\"Bug\"}')"],
+  ["Invoke-RestMethod typed hashtable with a paren in the title", "Invoke-RestMethod -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Method Post -Body (@{title='smile :)'; type='Bug'} | ConvertTo-Json)"],
+  ["curl -sG with query data", "curl -sG -d labels=bug https://api.github.com/repos/ImpowerGames/impower/issues"],
+  ["curl -X GET with data", "curl -X GET https://api.github.com/repos/ImpowerGames/impower/issues -d q=1"],
+  ["bash -s -- grep -c for the phrase", "bash -s -- grep -c 'gh issue create' README.md"],
+  ["pwsh -File with a -c argument", "pwsh -File run.ps1 -c 'gh issue create'"],
+  ["echo of a shell -c string", "echo bash -c 'gh issue create --title x'"],
+  ["a glued group before a here-doc holding the phrase", "Write-Output ((Get-Item x).Length)\ncat > t.md <<'EOF'\ngh issue create is refused here.\nEOF"],
+  ["a 2>&1 view", "2>&1 gh issue view 443"],
   ["empty command", ""],
 ];
 
 // The here-doc and command-position passes must stay linear: a large command
 // full of `<<` operators, and a segment of many assignments, both decide fast.
 {
-  const many = Array.from({ length: 10000 }, () => "std::cout << a << b;").join("\n");
+  // Arithmetic shifts, so every line is tokenized rather than swallowed as a
+  // here-doc body.
+  const many = Array.from({ length: 10000 }, (_, i) => `x=$((y << ${i % 7}))`).join("\n");
   let t0 = Date.now();
   decide(many);
   check(Date.now() - t0 < 2000, "10000 lines of << operators decide in under 2 s", `${Date.now() - t0} ms`);
@@ -308,6 +345,9 @@ for (const [label, command] of allows) {
     wire("pwsh -NoProfile -Command create", payload("PowerShell", { command: "pwsh -NoProfile -Command 'gh issue create --title x'" }), true);
     wire("create in a $( ) inside double quotes", payload("Bash", { command: 'N="$(gh issue create --title x)"' }), true);
     wire("clustered curl -sd create", payload("Bash", { command: "curl -sd '{\"title\":\"x\"}' https://api.github.com/repos/ImpowerGames/impower/issues" }), true);
+    wire("create after a PowerShell newline escape", payload("PowerShell", { command: 'Write-Host "Done.`n"; gh issue create --title x' }), true);
+    wire("PowerShell capture of a create", payload("PowerShell", { command: "$out = gh issue create --title x" }), true);
+    wire("create after a leading 2>&1", payload("Bash", { command: "2>&1 gh issue create --title x" }), true);
 
     // A wrong project directory must block loudly on a gh command, with a
     // readable reason on stderr, and stay silent on everything else.
