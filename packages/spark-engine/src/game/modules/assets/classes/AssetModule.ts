@@ -4,6 +4,7 @@ import {
   type SceneBeat,
 } from "@impower/sparkdown/src/compiler/types/SceneAssets";
 import { Module } from "../../../core/classes/Module";
+import { SceneTracker } from "../../../core/classes/SceneTracker";
 import { type LoadInstruction } from "../../../core/types/Instruction";
 import { type Instructions } from "../../../core/types/Instructions";
 import { getTimeValue } from "../../../core/utils/getTimeValue";
@@ -14,6 +15,11 @@ import {
 } from "../assetsBuiltinDefinitions";
 import { assetItemKey, type AssetItem } from "../types/AssetItem";
 import { type LoadAssetsResult } from "../types/LoadAssetsResult";
+import {
+  beatIndexIn,
+  PREVIEW_GATE_BEATS,
+  previewWindow,
+} from "../utils/previewWindow";
 import { AssetsProgressMessage } from "./messages/AssetsProgressMessage";
 import { ConfigureAssetsMessage } from "./messages/ConfigureAssetsMessage";
 import {
@@ -158,6 +164,15 @@ export class AssetModule extends Module<
    *  play them, which a preview never does. */
   protected get timed(): boolean {
     return !this.previewing;
+  }
+
+  /** Where a preview stands: the path the cursor resolved to, which the
+   *  story may not have executed yet. In play, the executing path. */
+  protected get anchorPath(): string | null | undefined {
+    const previewing = this.context.system.previewing;
+    return typeof previewing === "string"
+      ? previewing
+      : this._game.executingPath;
   }
 
   // ---------------------------------------------------------------------------
@@ -516,26 +531,7 @@ export class AssetModule extends Module<
     }
     // Not a beat path: the last beat at or before the current position in
     // the source, which is what "the beats after this one" means.
-    const locations = program.pathLocations;
-    const here = locations?.[path];
-    if (!here) {
-      return -1;
-    }
-    let index = -1;
-    for (let i = 0; i < beats.length; i++) {
-      const at = locations?.[beats[i]!.path];
-      if (!at) {
-        continue;
-      }
-      const before =
-        at[0] < here[0] ||
-        (at[0] === here[0] &&
-          (at[1] < here[1] || (at[1] === here[1] && at[2] <= here[2])));
-      if (before) {
-        index = i;
-      }
-    }
-    return index;
+    return beatIndexIn(beats, program.pathLocations, path);
   }
 
   /**
@@ -561,39 +557,47 @@ export class AssetModule extends Module<
       primary.push(entry.beats[i]!);
       remaining--;
     }
-    const spill: SceneBeat[] = [];
-    if (remaining > 0 && distance !== 0) {
-      const visited = new Set<string>([flow]);
-      const queue = [...entry.loads, ...entry.successors];
-      let flowsVisited = 0;
-      while (
-        queue.length > 0 &&
-        remaining > 0 &&
-        flowsVisited < MAX_PREDICTED_FLOWS
-      ) {
-        const next = queue.shift()!;
-        if (visited.has(next)) {
-          continue;
-        }
-        visited.add(next);
-        flowsVisited++;
-        const nextEntry: SceneAssets | undefined = sceneAssets[next];
-        if (!nextEntry) {
-          continue;
-        }
-        for (
-          let i = 0;
-          i < nextEntry.beats.length && remaining > 0;
-          i++
-        ) {
-          spill.push(nextEntry.beats[i]!);
-          remaining--;
-        }
-        queue.push(...nextEntry.loads, ...nextEntry.successors);
-      }
-    }
+    const spill =
+      remaining > 0 && distance !== 0 ? this.spillBeats(flow, remaining) : [];
     this.prefetchBeats(primary, 2);
     this.prefetchBeats(spill, 3);
+  }
+
+  /** The first `remaining` beats of the flows `flow` loads and diverts to,
+   *  breadth first, each from its first beat: where the window goes once it
+   *  has run past the end of the flow. */
+  protected spillBeats(flow: string, remaining: number): SceneBeat[] {
+    const sceneAssets = this._game.program.sceneAssets;
+    const entry = sceneAssets?.[flow];
+    const spill: SceneBeat[] = [];
+    if (!sceneAssets || !entry) {
+      return spill;
+    }
+    const visited = new Set<string>([flow]);
+    const queue = [...entry.loads, ...entry.successors];
+    let flowsVisited = 0;
+    while (
+      queue.length > 0 &&
+      remaining > 0 &&
+      flowsVisited < MAX_PREDICTED_FLOWS
+    ) {
+      const next = queue.shift()!;
+      if (visited.has(next)) {
+        continue;
+      }
+      visited.add(next);
+      flowsVisited++;
+      const nextEntry: SceneAssets | undefined = sceneAssets[next];
+      if (!nextEntry) {
+        continue;
+      }
+      for (let i = 0; i < nextEntry.beats.length && remaining > 0; i++) {
+        spill.push(nextEntry.beats[i]!);
+        remaining--;
+      }
+      queue.push(...nextEntry.loads, ...nextEntry.successors);
+    }
+    return spill;
   }
 
   protected prefetchBeats(beats: SceneBeat[], priority: 2 | 3): void {
@@ -612,30 +616,70 @@ export class AssetModule extends Module<
     this.prefetch(items, priority);
   }
 
-  /** Preview: the cursor moves anywhere inside a scene, so warm all of it. */
-  protected prefetchScene(flow: string): void {
+  /**
+   * Preview: the cursor can land anywhere in a scene, so all of it warms,
+   * but the beats around the cursor first, at the window's priority, and
+   * the rest of the scene behind them; then the window's spill into the
+   * scenes that follow, so the first click into the next scene is not cold.
+   * Nothing here can delay what the author clicked: that beat's images go
+   * through the gate at priority 0 ({@link onConnected}).
+   */
+  protected predictAround(flow: string, path: string | null | undefined): void {
     const entry = this._game.program.sceneAssets?.[flow];
     if (!entry) {
       return;
     }
-    this.prefetchBeats(entry.beats, 2);
+    const distance = this.config.predict_distance;
+    const { near, rest } = previewWindow(
+      entry,
+      Math.max(0, this.beatIndexFor(flow, path)),
+      distance,
+    );
+    this.prefetchBeats(near, 2);
+    this.prefetchBeats(rest, 3);
+    if (distance > 0) {
+      this.prefetchBeats(this.spillBeats(flow, distance), 3);
+    }
   }
 
-  /** Advance the prediction window past the beat that just displayed. */
+  /** Image names of the beats a preview at `path` is about to write: the
+   *  cursor's beat and the {@link PREVIEW_GATE_BEATS} from it. */
+  protected previewedImageNames(path: string): string[] {
+    const flow = SceneTracker.sceneOf(path);
+    const entry = flow ? this._game.program.sceneAssets?.[flow] : undefined;
+    if (!flow || !entry) {
+      return [];
+    }
+    const at = Math.max(0, this.beatIndexFor(flow, path));
+    const names: string[] = [];
+    for (const beat of entry.beats.slice(at, at + PREVIEW_GATE_BEATS)) {
+      if (beat.image) {
+        names.push(...beat.image);
+      }
+    }
+    return names;
+  }
+
+  /** Advance the prediction window past the beat that just displayed; in
+   *  preview, re-centre it on the beat the cursor reached. */
   onBeatDisplayed(): void {
     if (this._pendingBeatPins.size > 0) {
       const pins = [...this._pendingBeatPins];
       this._pendingBeatPins.clear();
       this.release(pins, false);
     }
-    if (this.silent || this.previewing) {
+    if (this.silent) {
       return;
     }
     const flow = this._game.sceneTracker.current;
     if (!flow) {
       return;
     }
-    this.predictFrom(flow, this._game.executingPath, false);
+    if (this.previewing) {
+      this.predictAround(flow, this.anchorPath);
+    } else {
+      this.predictFrom(flow, this._game.executingPath, false);
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -787,6 +831,14 @@ export class AssetModule extends Module<
         }
       }
     }
+    // A preview writes the beat at the cursor the moment it is connected,
+    // with no clock to wait on, so that beat's images are part of the same
+    // gate: the line and its portrait land together, and behind a burst of
+    // background loads the portrait still takes the express lane.
+    const previewPath = this.context.system.previewing;
+    if (typeof previewPath === "string") {
+      names.push(...this.previewedImageNames(previewPath));
+    }
     const items = this.resolveImageItems(names).filter(
       (item) => this.timed || item.kind !== "video",
     );
@@ -827,7 +879,7 @@ export class AssetModule extends Module<
       );
     }
     if (this.previewing) {
-      this.prefetchScene(scene);
+      this.predictAround(scene, this.anchorPath);
     } else {
       this.predictFrom(scene, this._game.executingPath, true);
     }

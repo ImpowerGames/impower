@@ -104,13 +104,17 @@ describe("AssetCache", () => {
     expect(cache.isResident("/file:/i0.png?v=1")).toBe(true);
   });
 
-  it("lets a gate use the express lane while background loads fill the rest", async () => {
+  it("starts every gate load at once while background loads fill their slots", async () => {
     const { cache, inFlight } = makeCache();
     cache.prefetch(images(8), 2);
+    // Background loads never take the express slots.
+    expect(inFlight().length).toBe(DEFAULT_MAX_CONCURRENT - DEFAULT_EXPRESS_SLOTS);
     void cache.request(images(3, "gate"), 0, "beat:1");
-    expect(inFlight().length).toBe(DEFAULT_MAX_CONCURRENT);
+    // A gate never waits for a slot, so all three run alongside the four
+    // background loads already in flight.
+    expect(inFlight().length).toBe(DEFAULT_MAX_CONCURRENT - DEFAULT_EXPRESS_SLOTS + 3);
     const gates = inFlight().filter((i) => i.src.includes("gate"));
-    expect(gates.length).toBe(DEFAULT_EXPRESS_SLOTS);
+    expect(gates.length).toBe(3);
   });
 
   it("starts a gate before queued background work when a slot frees", async () => {
@@ -212,17 +216,20 @@ describe("AssetCache", () => {
     cache.prefetch([image("/file:/a.svg?v=1&filters=y")], 3);
     expect(cache.has("/file:/a.svg?v=1")).toBe(true);
     expect(cache.has("/file:/a.svg?v=1&filters=y")).toBe(true);
+    // The prefetch waits behind the gate still in flight, so it is queued,
+    // not loading, when the file changes.
+    expect(created.some((i) => i.src === "/file:/a.svg?v=1&filters=y")).toBe(false);
     cache.evictFile("/file:/a.svg?v=2");
     expect(cache.has("/file:/a.svg?v=1")).toBe(false);
     expect(cache.has("/file:/a.svg?v=1&filters=x")).toBe(false);
     expect(cache.has("/file:/a.svg?v=1&filters=y")).toBe(false);
-    // The variants that were mid-load finish now; nobody is home.
-    for (const src of ["/file:/a.svg?v=1&filters=x", "/file:/a.svg?v=1&filters=y"]) {
-      created.find((i) => i.src === src && !i.done)!.finishLoad();
-    }
+    // The variant that was mid-load finishes now; nobody is home. The queued
+    // one left the queue and never starts.
+    created.find((i) => i.src === "/file:/a.svg?v=1&filters=x" && !i.done)!.finishLoad();
     await settle();
     expect(cache.has("/file:/a.svg?v=1&filters=x")).toBe(false);
     expect(cache.has("/file:/a.svg?v=1&filters=y")).toBe(false);
+    expect(created.some((i) => i.src === "/file:/a.svg?v=1&filters=y")).toBe(false);
     expect(cache.inFlightCount).toBe(0);
   });
 

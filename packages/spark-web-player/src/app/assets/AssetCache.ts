@@ -34,12 +34,25 @@ export interface FontDescriptors {
   unicodeRange?: string;
 }
 
+/** An element the page keeps in its document with the image as a CSS
+ *  background, for as long as the entry is resident. */
+export interface WarmHandle {
+  remove(): void;
+}
+
 /** Everything the cache reaches into the platform for, injectable so tests
  *  run without a browser and the real page passes the real APIs. A missing
  *  capability makes that kind resident without loading anything (jsdom has
  *  no fonts, no fetch, no audio). */
 export interface AssetCacheDeps {
   createImage: () => ImageTarget;
+  /** Put the image in the document as a CSS background on a hidden element.
+   *  Chromium reuses a picture loaded that way for every later use of the
+   *  same url: a background, a `mask-image`, an `<img>`. A picture loaded
+   *  through an `Image` object alone is reused by backgrounds but not by
+   *  masks, and the renderer's shadow layers are masks, so an image warmed
+   *  without this is fetched again the moment it is displayed. */
+  warmImage?: (src: string) => WarmHandle;
   decodeAudio?: (params: LoadAudioPlayerParams) => Promise<AudioBuffer | null>;
   fetchBytes?: (src: string) => Promise<{ bytes: ArrayBuffer; type: string }>;
   createFontFace?: (
@@ -76,9 +89,15 @@ export interface AssetCacheOptions {
    *  resident anyway. Decoding ahead is an optimization; some browsers never
    *  settle the promise for an image that is not in the document. */
   decodeTimeoutMs?: number;
+  /** How long a single load may stay in flight before it counts as failed
+   *  (and is retried like any failure). A fetch the service worker never
+   *  answers would otherwise hold its slot for the session, and a gate that
+   *  never settles would hold every background load behind it. */
+  loadTimeoutMs?: number;
 }
 
 export const DEFAULT_DECODE_TIMEOUT_MS = 1500;
+export const DEFAULT_LOAD_TIMEOUT_MS = 30_000;
 
 export const DEFAULT_MAX_CONCURRENT = 6;
 export const DEFAULT_EXPRESS_SLOTS = 2;
@@ -98,8 +117,11 @@ const KIB = 1024;
 const MIB = 1024 * KIB;
 /** Below this an image's pixel estimate is not worth trusting. */
 const MIN_IMAGE_BYTES = 256 * KIB;
-/** An SVG's intrinsic size says little about what it costs to rasterize. */
-const MIN_SVG_BYTES = 4 * MIB;
+/** What a resident SVG costs: its parsed document. The browser keeps no
+ *  bitmap for it (it rasterizes at paint, for the displayed size only), and
+ *  its intrinsic size is whatever its viewBox says, so the pixel formula is
+ *  meaningless for it. A 100 KB portrait parses to about this much. */
+const SVG_BYTES = 1 * MIB;
 
 type EntryState = "queued" | "loading" | "resident" | "failed";
 
@@ -122,6 +144,9 @@ interface Entry {
    *  ignored rather than resurrecting it. */
   stale: boolean;
   image?: ImageTarget;
+  /** The hidden element holding the image as a CSS background while the
+   *  entry is resident (see {@link AssetCacheDeps.warmImage}). */
+  warm?: WarmHandle;
   font?: FontFaceLike;
   audio?: AudioBuffer;
   videoUrl?: string;
@@ -162,6 +187,9 @@ export class AssetCache {
 
   protected _inFlightBackground = 0;
 
+  /** Priority-0 loads in flight: while one is, no background load starts. */
+  protected _inFlightGate = 0;
+
   protected _pumping = false;
 
   protected _tick = 1;
@@ -177,6 +205,8 @@ export class AssetCache {
   protected _loadBytes: number;
 
   protected _decodeTimeoutMs: number;
+
+  protected _loadTimeoutMs: number;
 
   protected _derivedPins: () => Iterable<string> = () => [];
 
@@ -205,6 +235,10 @@ export class AssetCache {
     this._decodeTimeoutMs = Math.max(
       0,
       options.decodeTimeoutMs ?? DEFAULT_DECODE_TIMEOUT_MS,
+    );
+    this._loadTimeoutMs = Math.max(
+      0,
+      options.loadTimeoutMs ?? DEFAULT_LOAD_TIMEOUT_MS,
     );
   }
 
@@ -633,7 +667,15 @@ export class AssetCache {
     if (entry.videoUrl) {
       this._deps.revokeObjectURL?.(entry.videoUrl);
     }
+    if (entry.warm) {
+      try {
+        entry.warm.remove();
+      } catch {
+        // An element already gone from the document is what was wanted.
+      }
+    }
     entry.image = undefined;
+    entry.warm = undefined;
     entry.font = undefined;
     entry.audio = undefined;
     entry.videoUrl = undefined;
@@ -698,11 +740,22 @@ export class AssetCache {
   }
 
   protected canStart(priority: AssetPriority): boolean {
+    if (priority === 0) {
+      // A gate never waits for a slot. A background load in flight cannot
+      // be cancelled, and a gate held behind one holds a reader, so up to
+      // a whole window of gate loads runs alongside whatever background
+      // loads were already in flight.
+      return this._inFlightGate < this._maxConcurrent;
+    }
     if (this._inFlight >= this._maxConcurrent) {
       return false;
     }
-    if (priority === 0) {
-      return true;
+    // A gate has the lane to itself while it is queued or in flight: every
+    // load in flight shares the service worker's time with it (a filtered
+    // SVG is a filter pass in the worker before it is bytes), and someone
+    // is waiting on the gate; nobody is waiting on a prefetch.
+    if (this._queues[0]!.length > 0 || this._inFlightGate > 0) {
+      return false;
     }
     return this._inFlightBackground < this._maxConcurrent - this._expressSlots;
   }
@@ -741,6 +794,8 @@ export class AssetCache {
     const background = entry.priority > 0;
     if (background) {
       this._inFlightBackground++;
+    } else {
+      this._inFlightGate++;
     }
     let done = false;
     const finish = (ok: boolean, bytes: number) => {
@@ -751,6 +806,8 @@ export class AssetCache {
       this._inFlight--;
       if (background) {
         this._inFlightBackground--;
+      } else {
+        this._inFlightGate--;
       }
       if (entry.stale || this._entries.get(entry.key) !== entry) {
         // Removed while loading (the file changed, or a drop): whatever came
@@ -790,6 +847,18 @@ export class AssetCache {
         (bytes) => finish(bytes != null, bytes ?? 0),
         () => finish(false, 0),
       );
+      if (this._loadTimeoutMs > 0) {
+        // A load that never settles is a final failure, not a retry (a hang
+        // is not a 404, and three of them would hold the queue for minutes):
+        // it gives up its slot, and a gate it was holding stops holding the
+        // queue. The cool-down lets a later request try again.
+        setTimeout(() => {
+          if (!done) {
+            entry.attempts = MAX_LOAD_ATTEMPTS - 1;
+            finish(false, 0);
+          }
+        }, this._loadTimeoutMs);
+      }
     } catch {
       // Creating or arming the load threw. Release the slot, or the cap fills
       // with phantoms and the pump never starts anything again.
@@ -812,16 +881,28 @@ export class AssetCache {
     }
   }
 
+  /**
+   * Load an image the way the renderer will use it. The picture goes into
+   * the document as a CSS background on a hidden element, which is the one
+   * form of load Chromium reuses for a later background, mask or `<img>`
+   * with the same url; an `Image` object for the same url is the completion
+   * signal (it attaches to the fetch in flight and fires `load` when the
+   * shared resource is complete) and the source of the size estimate.
+   */
   protected loadImage(entry: Entry, src: string): Promise<number | null> {
     return new Promise((resolve) => {
       const target = this._deps.createImage();
       entry.image = target;
+      const warm = this._deps.warmImage?.(src);
+      entry.warm = warm;
       target.onload = () => {
         const estimate = () => {
+          if (isSvg(entry.item)) {
+            return SVG_BYTES;
+          }
           const w = target.naturalWidth ?? 0;
           const h = target.naturalHeight ?? 0;
-          const floor = isSvg(entry.item) ? MIN_SVG_BYTES : MIN_IMAGE_BYTES;
-          return Math.max(floor, w * h * 4);
+          return Math.max(MIN_IMAGE_BYTES, w * h * 4);
         };
         let decode: Promise<void> | undefined;
         try {

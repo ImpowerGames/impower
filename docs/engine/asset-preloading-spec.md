@@ -24,7 +24,7 @@ A scene (`scene … end`, an ink knot whose runtime paths start with the scene n
 
 Visual: images, including filtered (`name~filter`) and layered (`a+b`) variants, and fonts. Timed: audio and video.
 
-Preview loads the visual group only, and in preview the whole scene's visuals are prefetched when the cursor enters the scene, because the cursor moves arbitrarily and a forward window is not enough. Play loads both groups.
+Preview loads the visual group only. In preview the prediction window is centred on the cursor rather than pointing forward, and the rest of the scene warms behind it, because the cursor moves arbitrarily inside a scene; the beat under the cursor itself goes through the restore gate before the preview writes anything. Play loads both groups.
 
 Fonts load per layout. A font is needed by a layout when a style that applies to that layout's elements references it, directly by family name or through the `--font-<name>` variable. The fonts of `main` load at connect; the fonts of another layout load when it opens (and are prefetched when a predicted beat opens it); a layout's fonts are released when it closes.
 
@@ -38,7 +38,9 @@ Worlds (authored JavaScript modules) load only in play, through `load`.
 
 One cache on the page with two budgets. `predict_cache_size` (megabytes) bounds the prediction pool: the entries that are neither pinned nor displayed nor playing, evicted least recently used first once the pool exceeds it; `0` means never evict. `load_cache_size` (megabytes) bounds what the `load:` pins may hold between them; `0`, the default, means a `load` keeps its whole scene. Pinned bytes never count against the prediction pool, so a loaded scene does not shrink what prediction may keep for the scenes after it. Entries are keyed by image src, font src plus descriptors, audio load key, or video src. An entry is resident when its bytes are local and usable: an image after its `load` event, a font after its `FontFace` is added to `document.fonts` and loaded, audio after `decodeAudioData`, video once its bytes are held in a blob with an object URL. The `load` and `error` events are the completion signals for images because they fire as soon as the bytes arrive, wherever the page is. `decode()` is only a warm-up on top: the cache asks for it after `load` and waits at most `decodeTimeoutMs` (1.5 s) for it, because Chromium settles that promise as part of producing a frame, so it never settles while the page produces no frames (a hidden tab, a throttled embedded view) and can reject for reasons unrelated to the image.
 
-Bytes are estimated per kind: images as `naturalWidth * naturalHeight * 4` with a floor of 256 KiB and, for SVG variants, a floor of 4 MiB; fonts and video by response size; audio as `length * numberOfChannels * 4`.
+An image is loaded into the document, as a CSS background on a hidden element that stays there while the entry is resident; the `Image` object for the same url is the completion signal and the source of the size estimate. Chromium reuses a picture loaded that way for every later use of the url: a background, a `mask-image`, an `<img>`. A picture loaded through an `Image` object alone is reused by a later background but not by a mask, and a picture loaded through a mask is reused by nothing but masks. The renderer paints a portrait as a background and its shadow layers as masks of the same url, so an image warmed any other way is fetched again the moment it is displayed, a frame or more after the line's text.
+
+Bytes are estimated per kind: raster images as `naturalWidth * naturalHeight * 4` with a floor of 256 KiB; SVG variants as 1 MiB each, because the browser holds a resident SVG as its parsed document and rasterizes it at paint for the displayed size only, while its intrinsic size is whatever its viewBox says (a 100 KB portrait on a 5760 by 3240 viewBox is not 75 MB); fonts and video by response size; audio as `length * numberOfChannels * 4`.
 
 Pinned entries never evict. Pinned: what is displayed, playing, or used by a mounted layout; the sets brought in by explicit loads while their scene is current or on the ink callstack; the assets a line or layout mount is waiting on.
 
@@ -62,11 +64,11 @@ By default a `load` pins its whole scene. With `load_cache_size` set, the `load:
 
 Requests carry a priority and, when they must be waited for or kept, a pin.
 
-Priority 0 is the express lane: a line's gate, the checkpoint restore gate, and a layout mount's fonts. Two of the six concurrent request slots are reserved for it. Priority 1 is an explicit load's set. Priority 2 is the prediction window and the preview cursor-scene prefetch. Priority 3 is the window's spill into loaded and successor scenes. A later request for a queued key at a better priority moves it forward.
+Priority 0 is the express lane: a line's gate, the checkpoint restore gate, a layout mount's fonts, and the preview cursor's own beats, which the page prefetches the moment the cursor lands, before the route to it is planned, because the restore gate will ask for exactly those. A gate never waits for a slot: up to a whole window of gate loads runs alongside whatever background loads were already in flight (a background load cannot be cancelled, and a gate held behind one holds a reader), and while a priority 0 request is queued or in flight no background load starts at all, because every load in flight shares the service worker's time with the gate (a filtered SVG is a filter pass in the worker before it is bytes), and someone is waiting on the gate while nobody waits on a prefetch. Priority 1 is an explicit load's set. Priority 2 is the prediction window, in play and in preview. Priority 3 is the window's spill into loaded and successor scenes and, in preview, the rest of the current scene. A later request for a queued key at a better priority moves it forward.
 
 Pins: `restore` (released when the restore gate settles), `beat:<id>` (released when the line displays), `layout:<name>` (released when the layout closes), `load:<flow>` (released, and dropped, when the flow leaves the callstack). The page derives two more pins itself and never receives them: the srcs of the image elements currently in the overlay, and the keys of audio players currently playing.
 
-Six requests may be in flight at once. Assets are served through a service worker that relays to the editor, so an unbounded burst puts the first-needed asset behind every other one. A request that fails is retried up to three times, then left alone for five seconds; a request after that cool-down starts a fresh set of attempts, and a change to the file clears the failure at once. The cool-down exists because a cold editor start can answer the first requests with 404s before its service worker and file mirror are ready, and those files must not stay blacklisted for the session.
+Four background requests may be in flight at once, and up to six gate loads besides them. Assets are served through a service worker that relays to the editor, so an unbounded burst puts the first-needed asset behind every other one. A request that fails is retried up to three times, then left alone for five seconds; a request after that cool-down starts a fresh set of attempts, and a change to the file clears the failure at once. A load that has not settled after thirty seconds counts as a failure, so a fetch the service worker never answers cannot hold its slot for the session, or hold every background load behind a gate that never settles. The cool-down exists because a cold editor start can answer the first requests with 404s before its service worker and file mirror are ready, and those files must not stay blacklisted for the session.
 
 ## Message protocol
 
@@ -97,7 +99,7 @@ A line waits for the images its instructions show and the audio they play. Loads
 
 A layout mount waits for its fonts.
 
-A checkpoint restore waits for the images and fonts the checkpoint displays, bounded by `restore_timeout`. Preview has no running clock, so this is how preview avoids showing a restored backdrop late.
+A checkpoint restore waits for the images and fonts the checkpoint displays, bounded by `restore_timeout`. Preview has no running clock, so this is how preview avoids showing a restored backdrop late, and the same gate covers the beat the preview is about to write: the cursor's beat and the two after it, because a beat that only shows an image displays together with the line that follows. The preview then writes that beat the moment the game is connected, with its line and its portrait resident together.
 
 A `load` beat waits for its pinned set and its world, bounded by `load_timeout`, and for the loading layout's minimum display time.
 
@@ -139,11 +141,11 @@ Names that cannot be known statically are handled at runtime: the interpreter re
 
 ## Prediction
 
-The engine keeps a per-flow index from runtime path to beat index. From the current path it takes the beats after the current one, up to `predict_distance` (or the rest of the flow when `0`). When the window passes the end of the flow, it continues into the flow's `loads` targets, then its `successors`, each from its first beat, until the distance is spent. It resolves every image, every font of every layout, and, in play, every audio and video name in the window, and prefetches them at priority 2 (spill at 3). The window advances at scene entry and after every displayed beat. In preview, the window is replaced by a prefetch of the whole scene's visuals when the cursor enters the scene.
+The engine keeps a per-flow index from runtime path to beat index. From the current path it takes the beats after the current one, up to `predict_distance` (or the rest of the flow when `0`). When the window passes the end of the flow, it continues into the flow's `loads` targets, then its `successors`, each from its first beat, until the distance is spent. It resolves every image, every font of every layout, and, in play, every audio and video name in the window, and prefetches them at priority 2 (spill at 3). The window advances at scene entry and after every displayed beat. In preview the window is centred on the cursor's beat instead: `predict_distance` beats on either side of it at priority 2, then the rest of the scene at priority 3 (the beats after the window before the ones behind it), then the spill at priority 3; it moves with every previewed beat, and the page issues the same window, with the cursor's own beats in the express lane, the moment the cursor lands, so the fetches overlap the route planning. With `predict_distance` 0 the whole scene is the window.
 
 ## Scene entry
 
-The engine detects a scene change when the first segment of the runtime path changes to a flow that is not a function. Every module receives `onEnterScene(scene, previous, stack)`, where `stack` is the set of flows on the ink callstack, the flows a tunnel or thread will return to. The asset module then releases, with drop, every `load:` pin whose flow is neither the new scene nor on the stack, and runs prediction (or, in preview, the whole-scene prefetch).
+The engine detects a scene change when the first segment of the runtime path changes to a flow that is not a function. Every module receives `onEnterScene(scene, previous, stack)`, where `stack` is the set of flows on the ink callstack, the flows a tunnel or thread will return to. The asset module then releases, with drop, every `load:` pin whose flow is neither the new scene nor on the stack, and runs prediction (in preview, the cursor-centred window).
 
 ## The `load` syntax
 
@@ -191,5 +193,5 @@ Video playback is a separate effort. This system guarantees it: a `video` asset 
 
 1. Compiler: `sceneAssets`, the directive scanner, `video` as an asset type.
 2. Engine: scene tracking, the asset module (resolution, prediction, gates, `load` beats, pins), the coordinator gate, the interpreter's `load` verb.
-3. Page: the asset cache, the asset manager, the shared cache across play sessions, font and synth ownership, the preview cursor-scene prefetch, the SVG measurement.
+3. Page: the asset cache, the asset manager, the shared cache across play sessions, font and synth ownership, the preview cursor hint, the SVG measurement.
 4. Syntax, config, and the loading layout: `load` on arrows and in directives, `define assets as config`, the built-in `loading` layout and its protections, documentation.
