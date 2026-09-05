@@ -48,7 +48,7 @@ const script = (answers, absentAt = MAIN_TAB) => {
     if (list.length === 0) throw new Error(`stub "${name}" asked more times than scripted`);
     return list.shift();
   };
-  const calls = { present: [], settle: [] };
+  const calls = { present: [], settle: [], painted: [] };
   const gate = editorGate({
     expected: async () => take(answers.expected, "expected"),
     present: async (_p, budget) => {
@@ -59,6 +59,12 @@ const script = (answers, absentAt = MAIN_TAB) => {
     settle: async (_p, budget) => {
       calls.settle.push(budget);
       return take(answers.settle, "settle");
+    },
+    // Painted is asked only for a screenshot; a case that scripts no answers
+    // gets a painted editor.
+    painted: async (_p, budget) => {
+      calls.painted.push(budget);
+      return answers.painted ? take(answers.painted, "painted") : true;
     },
   });
   return { gate, calls };
@@ -144,6 +150,30 @@ await check("a view that never settles fails the step with the settle budget nam
   assert.deepEqual(third, { required: true, ok: true });
   assert.deepEqual(calls.present, [20_000, 2_000, 2_000, 20_000]);
   assert.deepEqual(calls.settle, [15_000, 6_000, 6_000, 15_000]);
+});
+
+await check("a settled but unpainted editor fails a screenshot and no other step", async () => {
+  const { gate, calls } = script({ expected: [true, true], present: [true, true], settle: [true, true], painted: [false] });
+  const shot = await gate(page, "screenshot", 1);
+  assert.equal(shot.ok, false);
+  assert.match(shot.reason, /has not painted its lines and gutter within 5s; this screenshot would have captured an empty pane/);
+  noRepeats(shot.reason);
+  // A key press on the same page needs no paint and proceeds.
+  assert.deepEqual(await gate(page, "key press", 2), { required: true, ok: true });
+  assert.deepEqual(calls.painted, [5_000]);
+});
+
+await check("a settle done elsewhere clears an absent give-up, and a reload resets the gate to cold", async () => {
+  const { gate, calls } = script({ expected: [true, true, true], present: [false, true, true], settle: [true, true] });
+  await gate(page, "screenshot", 1);
+  gate.noteSettled();
+  // No two-second look: the give-up is gone and the run is warm.
+  assert.deepEqual(await gate(page, "screenshot", 2), { required: true, ok: true });
+  assert.deepEqual(calls.present, [20_000, 8_000]);
+  gate.reset();
+  assert.deepEqual(await gate(page, "screenshot", 3), { required: true, ok: true });
+  assert.deepEqual(calls.present, [20_000, 8_000, 20_000]);
+  assert.deepEqual(calls.settle, [8_000, 15_000]);
 });
 
 await check("editorAbsentReason keeps its three advice branches apart, and a page with no screen gets no navigational advice", async () => {

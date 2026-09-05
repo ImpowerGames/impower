@@ -1090,7 +1090,28 @@ async function editorExpectedHere(page) {
  * steps re-check it in a second or so, and after a step has given up on it,
  * later steps fail at once and point at the first.
  */
-function editorGate({ expected = editorExpectedHere, present = scriptEditorPresent, settle = settleEditor } = {}) {
+/**
+ * A settled view is not yet a painted one: the identity and document length
+ * can hold still while the editor has drawn nothing. A screenshot needs the
+ * lines and the gutter on screen; this waits for them.
+ */
+async function editorPainted(page, timeout = 5_000) {
+  return page
+    .waitForFunction(
+      () => {
+        const root = document.querySelector(".sparkdown-script-editor-root");
+        if (!root) return false;
+        const lines = root.querySelectorAll(".cm-line").length;
+        const gutter = root.querySelector(".cm-gutters");
+        return lines > 0 && gutter != null && gutter.getBoundingClientRect().height > 0;
+      },
+      null,
+      { timeout },
+    )
+    .then(() => true, () => false);
+}
+
+function editorGate({ expected = editorExpectedHere, present = scriptEditorPresent, settle = settleEditor, painted = editorPainted } = {}) {
   let settledOnce = false;
   // What the first failed step found, and which step it was, so later steps
   // can fail fast and point at it. `kind` decides what a recovery look does.
@@ -1133,13 +1154,26 @@ function editorGate({ expected = editorExpectedHere, present = scriptEditorPrese
       return { required: true, ok: false, reason: `this ${what} needs a settled script editor, and the view kept being replaced for ${settleBudget / 1000}s. Re-run; if it persists the machine is saturated` };
     }
     settledOnce = true;
+    // A settled view can still be unpainted; a screenshot of it is a picture
+    // of nothing, so the capture step alone also waits for the paint.
+    if (what === "screenshot" && !(await painted(page, 5_000))) {
+      return { required: true, ok: false, reason: "the script editor is mounted and settled but has not painted its lines and gutter within 5s; this screenshot would have captured an empty pane. Re-run; if it persists the machine is saturated" };
+    }
     return { required: true, ok: true };
   };
-  // A screen switch that settled the editor itself tells the gate, so the
-  // once-per-run rule holds across `--screen main --shot`.
+  // A settle the run did elsewhere (at the start, after --sd, in a screen
+  // switch that landed on the editor) tells the gate, so the once-per-run
+  // rule holds across it; a settled editor is a present one, so either kind
+  // of give-up is cleared.
   gate.noteSettled = () => {
     settledOnce = true;
-    if (gaveUp?.kind === "unsettled") gaveUp = null;
+    gaveUp = null;
+  };
+  // A reload throws the settled view away; nothing the gate learned about it
+  // holds for the next one.
+  gate.reset = () => {
+    settledOnce = false;
+    gaveUp = null;
   };
   return gate;
 }
@@ -1316,7 +1350,7 @@ async function typeInto(page, field, text, { settled = false } = {}) {
   if (opened.reason) return { field, typed: false, text, readBack: null, matches: false, reason: opened.reason };
   const loc = fieldLocator(page, field);
   if ((await loc.count()) === 0) {
-    return { field, typed: false, reason: `the ${name} panel is open but has no "${field}" field (the replace field is absent while the editor is read-only)` };
+    return { field, typed: false, text, readBack: null, matches: false, reason: `the ${name} panel is open but has no "${field}" field (the replace field is absent while the editor is read-only)` };
   }
   await loc.click();
   await page.keyboard.press("Control+a");
@@ -1389,7 +1423,7 @@ async function toggleSurfaceOption(page, name) {
  * content being mounted (for a main screen) or the tab reporting selected (for
  * an inner tab); the screen tab's own highlight is not trusted, see SCREENS.
  */
-async function switchScreen(page, name) {
+async function switchScreen(page, name, { followedBySwitch = false } = {}) {
   const tab = page.locator(tabSelector(name)).first();
   try {
     await tab.waitFor({ state: "visible", timeout: 10_000 });
@@ -1446,8 +1480,12 @@ async function switchScreen(page, name) {
     : await page.evaluate(() => document.querySelector(".sparkdown-script-editor-root .cm-content") != null);
   if (landsOnEditor && !editorHere) {
     // The tab is up but the editor it should carry never mounted: a switch
-    // that reads as a success here would let a later screenshot lie.
-    return { screen: name, active: true, settled, editorHere: false, reason: `the ${name} tab is up but no script editor mounted within 20s. Re-run; if it persists the machine is saturated` };
+    // that reads as a success here would let a later screenshot lie. When
+    // another switch follows at once, that one carries the wait and the
+    // verdict, and this is a note.
+    const text = `the ${name} tab is up but no script editor mounted within 20s`;
+    if (followedBySwitch) return { screen: name, active: true, settled, editorHere: false, note: `${text}; the switch that follows waits for it` };
+    return { screen: name, active: true, settled, editorHere: false, reason: `${text}. Re-run; if it persists the machine is saturated` };
   }
   if (editorHere) {
     // The gate's own first-settle budget, so a switch that reports the editor
@@ -1670,6 +1708,8 @@ async function ui(args) {
           if (step.sd) {
             const src = fs.readFileSync(path.resolve(step.sd), "utf8");
             const wroteChars = await writeMainSd(page, src);
+            // The reload throws the settled view away.
+            requireEditor.reset();
             await page.reload({ waitUntil: "domcontentloaded", timeout: 120_000 });
             await waitForApp(page);
             const out = { sd: step.sd, wroteChars };
@@ -1701,7 +1741,7 @@ async function ui(args) {
                 out.previewSettled = null;
                 out.previewNote = "the game preview is not observable (cross-origin mode, or the preview is showing the screenplay), so the first compile was not waited for";
               }
-              if (!out.editorSettled) out.reason = "the script editor never settled within 30s after the reload; later steps may have hit a view that was being replaced";
+              if (!out.editorSettled) out.reason = "the script editor never settled within 15s after the reload; later steps may have hit a view that was being replaced";
               // --sd wrote main.sd; if the pane is showing another file in
               // its fullscreen scripts view, the editor on screen is not it.
               out.editorView = await page.evaluate(() => (document.querySelector('[role="tab"][id$="-trigger-main"]') ? "main" : "scripts-view"));
@@ -1715,7 +1755,10 @@ async function ui(args) {
             await waitForDomQuiet(page, { quiet: 1500, timeout: 30_000 });
             result.steps.push(out);
           } else if (step.screen) {
-            const switched = await switchScreen(page, step.screen);
+            // In the documented recovery pair `--screen logic --screen main`,
+            // the logic switch has no business failing for an editor the
+            // main switch is about to wait for.
+            const switched = await switchScreen(page, step.screen, { followedBySwitch: steps[index + 1]?.screen != null });
             if (switched.editorSettled) requireEditor.noteSettled();
             result.steps.push(switched);
           } else if (step.open) {
