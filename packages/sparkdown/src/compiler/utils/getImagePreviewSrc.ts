@@ -105,6 +105,34 @@ export const getImagePreviewSrc = (
 const escapeAttribute = (value: string) =>
   value.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
 
+/** How tall an asset thumbnail is drawn, in CSS pixels, on every host. */
+export const IMAGE_PREVIEW_HEIGHT = 180;
+
+/**
+ * Build the `<img>` a host renders for an asset thumbnail. Every preview goes
+ * through here so one number governs every surface.
+ *
+ * The height is written twice on purpose, and the two spellings are read by
+ * different hosts:
+ *
+ * - `height="180"` is an HTML presentational hint. VS Code's markdown
+ *   sanitizer drops the `style` attribute but keeps this one, and VS Code
+ *   applies no width/height CSS of its own, so the attribute governs there.
+ * - `style="height:180px"` is an inline declaration. A presentational hint is
+ *   the weakest thing in the CSS cascade, so in the web editor the page's own
+ *   `img { height: auto }` reset beats the attribute; an SVG that declares
+ *   only a `viewBox` has no intrinsic size, `auto` resolves to zero in both
+ *   axes, and the thumbnail vanishes. An inline declaration outranks the reset
+ *   and pins the height that the attribute asked for.
+ *
+ * The CodeMirror client therefore states no `img` height rule of its own: it
+ * matches VS Code by letting this markup decide.
+ */
+export const buildImagePreviewMarkup = (src: string, name: string): string =>
+  `<img src="${escapeAttribute(src)}" alt="${escapeAttribute(
+    name,
+  )}" height="${IMAGE_PREVIEW_HEIGHT}" style="height:${IMAGE_PREVIEW_HEIGHT}px" />`;
+
 /**
  * Markdown/HTML preview for an image-ish struct, shared by hover and
  * completion so the two never disagree about what an asset looks like.
@@ -119,8 +147,6 @@ export const getImagePreviewMarkup = (
     return undefined;
   }
   const name = struct?.["$name"] ?? "";
-  return `<img src="${escapeAttribute(src)}" alt="${escapeAttribute(
-    name,
-  )}" height="180" />`;
+  return buildImagePreviewMarkup(src, name);
 };
 
