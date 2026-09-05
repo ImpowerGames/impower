@@ -1024,9 +1024,8 @@ async function mountedScreens(page) {
  */
 async function scriptEditorPresent(page, timeout = 10_000) {
   // Fail fast when another screen is on display: the editor cannot appear
-  // there, so waiting the full budget would only cost the session time (three
-  // --type steps on the assets screen used to spend 30 s learning one thing).
-  // On the logic screen the budget stays, because a cold editor's mount was
+  // there, so waiting the full budget would only cost the session time. On
+  // the logic screen the budget stays, because a cold editor's mount was
   // measured at up to ~4.6 s on the reference machine.
   const screenNow = await activeScreen(page);
   const budget = screenNow != null && screenNow !== "logic" ? 500 : timeout;
@@ -1084,8 +1083,19 @@ async function editorExpectedHere(page) {
   });
 }
 
-/** How long a screenshot waits for a settled editor to paint. */
+/**
+ * The editor budgets, in one place so every wait and the message that names
+ * it read the same number. Before any settle has happened in a run, a mount
+ * gets MOUNT_BUDGET_MS and a settle SETTLE_BUDGET_MS; a screen switch that
+ * lands on the editor and the run's start use the same two. Once the run has
+ * settled the editor anywhere, a gated step re-checks with WARM_BUDGET_MS for
+ * both. A screenshot waits PAINT_BUDGET_MS for a settled editor to paint.
+ */
+const MOUNT_BUDGET_MS = 20_000;
+const SETTLE_BUDGET_MS = 15_000;
+const WARM_BUDGET_MS = 8_000;
 const PAINT_BUDGET_MS = 5_000;
+const seconds = (ms) => `${ms / 1000}s`;
 
 /**
  * A settled view is not yet a painted one: the identity and document length
@@ -1116,10 +1126,11 @@ async function editorPainted(page, timeout = PAINT_BUDGET_MS) {
  * screen, the `scripts` tab), the step proceeds; it is not the driver's place
  * to guess what the session wanted to capture there.
  *
- * The wait is paid once per run: after a step has settled the editor, later
- * steps re-check it in a second or so, and after a step has given up on it,
- * later steps fail at once and point at the first. A screenshot alone also
- * waits for the editor to paint.
+ * The wait is paid once per run: after anything has settled the editor (the
+ * run's start, a reload, a screen switch, or an earlier step), later steps
+ * re-check it with the shorter warm budgets, and after a step has given up
+ * on it, later steps fail at once and point at the first. A screenshot alone
+ * also waits for the editor to paint.
  */
 function editorGate({ expected = editorExpectedHere, present = scriptEditorPresent, settle = settleEditor, painted = editorPainted } = {}) {
   let settledOnce = false;
@@ -1144,7 +1155,7 @@ function editorGate({ expected = editorExpectedHere, present = scriptEditorPrese
       }
       gaveUp = null;
     }
-    const budget = settledOnce ? 8_000 : 20_000;
+    const budget = settledOnce ? WARM_BUDGET_MS : MOUNT_BUDGET_MS;
     const here = await present(page, budget);
     if (!here.present) {
       // The presence check's navigational advice ("put --screen main before
@@ -1158,7 +1169,7 @@ function editorGate({ expected = editorExpectedHere, present = scriptEditorPrese
       gaveUp = { kind: "absent", what: state, step };
       return { required: true, ok: false, reason: `this ${what} needs the script editor, which had not mounted within ${budget / 1000}s (${state}); ${advice}` };
     }
-    const settleBudget = settledOnce ? 8_000 : 15_000;
+    const settleBudget = settledOnce ? WARM_BUDGET_MS : SETTLE_BUDGET_MS;
     if (!(await settle(page, settleBudget))) {
       gaveUp = { kind: "unsettled", what: `the view kept being replaced for ${settleBudget / 1000}s`, step };
       return { required: true, ok: false, reason: `this ${what} needs a settled script editor, and the view kept being replaced for ${settleBudget / 1000}s. Re-run; if it persists the machine is saturated` };
@@ -1254,8 +1265,8 @@ async function ensureScriptEditor(page) {
     };
     const clickedLogic = await clickIfNeeded("logic", async () => (await activeScreen(page)) !== "logic");
     const clickedMain = await clickIfNeeded("main", async (tab) => (await tab.getAttribute("aria-selected")) !== "true");
-    // One long wait for a cold mount, whether or not anything was clicked;
-    // the pre-change code gave 90 s after its probe, this gives 45 s.
+    // One long wait for a cold mount, whether or not anything was clicked: a
+    // cold editor after a switch gets 45 s.
     first = await scriptEditorPresent(page, 45_000);
     // A click that changed the screen is reported whether or not the editor
     // then came up; the caller can say both things.
@@ -1287,8 +1298,8 @@ async function openSurface(page, name, { settled = false } = {}) {
   // The view can still be replaced a moment after it appears; a shortcut sent
   // into the old view opens nothing. `ui` settles through its gate first and
   // says so; a caller outside `ui` gets the settle here.
-  if (!settled && !(await settleEditor(page, 15_000))) {
-    return { surface: name, open: false, reason: "the script editor kept being replaced for 15s and never settled; the shortcut was not sent. Re-run; if it persists the machine is saturated" };
+  if (!settled && !(await settleEditor(page, SETTLE_BUDGET_MS))) {
+    return { surface: name, open: false, reason: `the script editor kept being replaced for ${seconds(SETTLE_BUDGET_MS)} and never settled; the shortcut was not sent. Re-run; if it persists the machine is saturated` };
   }
   await focusEditor(page);
   const key = await pressKey(page, s.open);
@@ -1483,10 +1494,11 @@ async function switchScreen(page, name, { followedByMain = false } = {}) {
     // came up, and the step says so rather than reading as a full recovery.
     return { screen: name, active: true, settled, editorHere: false, note: "the logic pane's own tab is scripts, so no script editor is on screen; use --screen main to reach it" };
   }
-  // Same budget as a capture step's gate, so a slow-but-fine mount does not
-  // fail the switch and then pass the screenshot that follows it.
+  // The cold mount budget, whatever the run has settled so far: the switch
+  // mounted a fresh view, so a slow-but-fine mount must not fail the switch
+  // and then pass the screenshot that follows it.
   const editorHere = landsOnEditor
-    ? (await scriptEditorPresent(page, 20_000)).present
+    ? (await scriptEditorPresent(page, MOUNT_BUDGET_MS)).present
     : await page.evaluate(() => document.querySelector(".sparkdown-script-editor-root .cm-content") != null);
   if (landsOnEditor && !editorHere) {
     // The tab is up but the editor it should carry never mounted: a switch
@@ -1494,17 +1506,17 @@ async function switchScreen(page, name, { followedByMain = false } = {}) {
     // documented pair `--screen logic --screen main`, the main switch that
     // follows waits for the editor and gives the verdict, so this is a note;
     // any other following step does not, so this is a failure.
-    const text = `the ${name} tab is up but no script editor mounted within 20s`;
+    const text = `the ${name} tab is up but no script editor mounted within ${seconds(MOUNT_BUDGET_MS)}`;
     if (name === "logic" && followedByMain) return { screen: name, active: true, settled, editorHere: false, note: `${text}; the --screen main that follows waits for it` };
     return { screen: name, active: true, settled, editorHere: false, reason: `${text}. Re-run; if it persists the machine is saturated` };
   }
   if (editorHere) {
-    // The gate's own first-settle budget, so a switch that reports the editor
-    // settled means what the gate means by it.
-    const editorSettled = await settleEditor(page, 15_000);
+    // The cold settle budget, so a switch that reports the editor settled
+    // means what the gate means by it.
+    const editorSettled = await settleEditor(page, SETTLE_BUDGET_MS);
     settled = editorSettled && settled;
     if (!editorSettled) {
-      return { screen: name, active: true, settled, editorHere: true, editorSettled: false, reason: `the ${name} tab is up but its script editor never settled within 15s; later steps may have hit a view that was being replaced` };
+      return { screen: name, active: true, settled, editorHere: true, editorSettled: false, reason: `the ${name} tab is up but its script editor never settled within ${seconds(SETTLE_BUDGET_MS)}; later steps may have hit a view that was being replaced` };
     }
     return { screen: name, active: true, settled, editorHere: true, editorSettled: true };
   }
@@ -1572,12 +1584,6 @@ async function shotOf(page, what, out) {
 }
 
 /**
- * Parse `ui` arguments into steps, refusing anything malformed before a
- * browser is launched: a flag with no value, an unknown panel, field, button,
- * toggle, screen or shot target, or an empty field name. Pure; tested in
- * ui-steps.test.mjs.
- */
-/**
  * Whether the step after `index` is `--screen main`, the one switch that
  * waits for the script editor itself. A `--screen logic` whose editor never
  * mounts is a note rather than a failure only then; any other following step
@@ -1588,6 +1594,12 @@ export function followedByMain(steps, index) {
   return steps[index + 1]?.screen === "main";
 }
 
+/**
+ * Parse `ui` arguments into steps, refusing anything malformed before a
+ * browser is launched: a flag with no value, an unknown panel, field, button,
+ * toggle, screen or shot target, or an empty field name. Pure; tested in
+ * ui-steps.test.mjs.
+ */
 export function parseUiSteps(args) {
   const steps = [];
   // Any tab value is accepted here; the editor can grow a tab, and whether one
@@ -1714,13 +1726,13 @@ async function ui(args) {
       if (expectedAtStart === false) {
         if (result.startedOn === "logic") result.startNote = "the run started on the logic screen's scripts tab, where there is no script editor; --screen main reaches it";
       } else {
-        const here = await scriptEditorPresent(page, 20_000);
-        result.editorSettled = here.present ? await settleEditor(page, 15_000) : false;
+        const here = await scriptEditorPresent(page, MOUNT_BUDGET_MS);
+        result.editorSettled = here.present ? await settleEditor(page, SETTLE_BUDGET_MS) : false;
         if (result.editorSettled) requireEditor.noteSettled();
         if (!here.present) {
           result.startNote = expectedAtStart == null
-            ? "no pane had mounted 20s after the page loaded; each later step that needs the editor waits again and reports for itself"
-            : "the script editor had not mounted 20s after the page loaded; each later step that needs it waits again and reports for itself";
+            ? `no pane had mounted ${seconds(MOUNT_BUDGET_MS)} after the page loaded; each later step that needs the editor waits again and reports for itself`
+            : `the script editor had not mounted ${seconds(MOUNT_BUDGET_MS)} after the page loaded; each later step that needs it waits again and reports for itself`;
         }
       }
 
@@ -1749,7 +1761,7 @@ async function ui(args) {
               // moves the cursor. The preview is observable only in
               // same-origin mode (window.__preview); elsewhere waiting on it
               // would burn the full timeout for nothing.
-              out.editorSettled = await settleEditor(page, 15_000);
+              out.editorSettled = await settleEditor(page, SETTLE_BUDGET_MS);
               if (out.editorSettled) requireEditor.noteSettled();
               // window.__preview is installed by the game preview's own effect,
               // a moment after mount, and never in cross-origin mode or while
@@ -1763,7 +1775,7 @@ async function ui(args) {
                 out.previewSettled = null;
                 out.previewNote = "the game preview is not observable (cross-origin mode, or the preview is showing the screenplay), so the first compile was not waited for";
               }
-              if (!out.editorSettled) out.reason = "the script editor never settled within 15s after the reload; later steps may have hit a view that was being replaced";
+              if (!out.editorSettled) out.reason = `the script editor never settled within ${seconds(SETTLE_BUDGET_MS)} after the reload; later steps may have hit a view that was being replaced`;
               // --sd wrote main.sd; if the pane is showing another file in
               // its fullscreen scripts view, the editor on screen is not it.
               out.editorView = await page.evaluate(() => (document.querySelector('[role="tab"][id$="-trigger-main"]') ? "main" : "scripts-view"));
