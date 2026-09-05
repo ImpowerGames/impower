@@ -1,0 +1,37 @@
+name: Hook Tests
+
+# Runs the checks for the Claude Code hooks under .claude/hooks on every pull
+# request that touches them or the settings file that wires them, and on
+# main. The hooks guard what agents can do in this repo (the typed-issue hook
+# refuses untyped issue creation), and nothing else runs their tests.
+
+on:
+  pull_request:
+    paths:
+      - ".claude/hooks/**"
+      - ".claude/settings.json"
+      - ".github/workflows/hook-tests.yml"
+  push:
+    branches: [main]
+    paths:
+      - ".claude/hooks/**"
+      - ".claude/settings.json"
+      - ".github/workflows/hook-tests.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  hooks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: .claude
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Typed-issue hook
+        run: node .claude/hooks/typed-issue-hook.test.mjs
+      - name: Grammar-edit hook
+        run: bash .claude/hooks/grammar-edit-hook.test.sh
