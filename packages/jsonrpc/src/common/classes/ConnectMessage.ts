@@ -1,5 +1,5 @@
-import { RequestMessage } from "../types/RequestMessage";
-import { ResponseMessage } from "../types/ResponseMessage";
+import type { RequestMessage } from "../types/RequestMessage";
+import type { ResponseMessage } from "../types/ResponseMessage";
 import { MessageProtocolRequestType } from "./MessageProtocolRequestType";
 
 export type ConnectMethod = typeof ConnectMessage.method;

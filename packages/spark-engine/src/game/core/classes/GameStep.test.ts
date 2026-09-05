@@ -68,8 +68,8 @@ const createGame = (
   const emitted: Recorded[] = [];
   game.connection.outgoing.addListener("*", (message) => {
     emitted.push({
-      method: (message as Recorded).method,
-      params: (message as Recorded).params,
+      method: (message as unknown as Recorded).method,
+      params: (message as unknown as Recorded).params,
     });
   });
 

@@ -18,6 +18,14 @@ export type RuleName<T extends string> =
  * If a capture is semantically important, give it a proper named rule
  * wrapper (e.g. `match: (.+)`) and address the wrapper by name instead.
  */
+/**
+ * The two synthetic error nodes are emitted under the names
+ * `defineNodeType` gives them, not under their `NodeID` keys, so a comparison
+ * against `node.name` has to see them here.
+ */
+export type ErrorNodeName = "ERROR_UNRECOGNIZED" | "ERROR_INCOMPLETE";
+
 export type NodeName<T extends string> =
   | keyof typeof NodeID
+  | ErrorNodeName
   | RuleName<T>;

@@ -60,7 +60,7 @@ export class MultiVariableAssignment extends ParsedObject {
     );
   }
 
-  get typeName(): string {
+  override get typeName(): string {
     return "MultiVariableAssignment";
   }
 

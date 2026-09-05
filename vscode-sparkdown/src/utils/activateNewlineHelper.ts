@@ -56,17 +56,19 @@ const handleNewline = (args: { text: string }): boolean => {
     ) {
       continue;
     }
+    const deleteText =
+      "deleteText" in onEnterRule.action &&
+      typeof onEnterRule.action.deleteText === "string"
+        ? onEnterRule.action.deleteText
+        : undefined;
     // Delete empty marks
-    if (
-      onEnterRule.action.deleteText &&
-      beforeText.endsWith(onEnterRule.action.deleteText)
-    ) {
+    if (deleteText && beforeText.endsWith(deleteText)) {
       editor.insertSnippet(
         new vscode.SnippetString(""),
         new vscode.Range(
           new vscode.Position(
             position.line,
-            lineText.length - onEnterRule.action.deleteText.length,
+            lineText.length - deleteText.length,
           ),
           new vscode.Position(position.line, lineText.length),
         ),

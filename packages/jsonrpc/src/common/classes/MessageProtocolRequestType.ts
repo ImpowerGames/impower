@@ -1,8 +1,8 @@
-import { ProgressResponseMessage } from "../types/ProgressResponseMessage";
-import { ProgressValue } from "../types/ProgressValue";
-import { RequestMessage } from "../types/RequestMessage";
-import { ResponseError } from "../types/ResponseError";
-import { ResponseMessage } from "../types/ResponseMessage";
+import type { ProgressResponseMessage } from "../types/ProgressResponseMessage";
+import type { ProgressValue } from "../types/ProgressValue";
+import type { RequestMessage } from "../types/RequestMessage";
+import type { ResponseError } from "../types/ResponseError";
+import type { ResponseMessage } from "../types/ResponseMessage";
 import { isProgressResponse } from "../utils/isProgressResponse";
 import { isRequest } from "../utils/isRequest";
 import { isResponse } from "../utils/isResponse";

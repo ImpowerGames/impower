@@ -27,7 +27,7 @@ export class MultiReturnType extends ParsedObject {
     );
   }
 
-  get typeName(): string {
+  override get typeName(): string {
     return "MultiReturnType";
   }
 

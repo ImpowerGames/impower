@@ -1,3 +1,4 @@
+/// <reference path="../../declaration.d.ts" />
 import { LoadingBar } from "@impower/impower-ui/loading-bar";
 import { useEffect, useRef } from "preact/hooks";
 import type { ScreenplayPreviewController as ScreenplayPreviewControllerType } from "./ScreenplayPreviewController";

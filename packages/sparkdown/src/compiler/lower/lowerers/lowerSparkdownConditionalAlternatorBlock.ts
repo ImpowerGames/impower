@@ -1,4 +1,3 @@
-import { type SyntaxNode } from "@lezer/common";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 import { Conditional } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Conditional/Conditional";
 import { ConditionalSingleBranch } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Conditional/ConditionalSingleBranch";
@@ -7,10 +6,9 @@ import { StringExpression } from "../../../inkjs/compiler/Parser/ParsedHierarchy
 import { FunctionCall } from "../../../inkjs/compiler/Parser/ParsedHierarchy/FunctionCall";
 import { Identifier } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Identifier";
 import { Text } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Text";
-import { VariableReference } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Variable/VariableReference";
-import { CompiledBlock } from "../../classes/annotators/CompilationAnnotator";
-import { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
-import { LowerContext } from "../context";
+import type { CompiledBlock } from "../../classes/annotators/CompilationAnnotator";
+import type { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
+import type { LowerContext } from "../context";
 import { lowerExpressionFromContainer } from "../expression/lowerExpression";
 import { findChildByName, lowerArms } from "../utils/alternatorArms";
 import { wrapInWeave } from "../utils/wrapInWeave";
@@ -117,7 +115,7 @@ export function lowerSparkdownConditionalAlternatorBlock(
     prefix === "LuauSparkdownInlineGluedConditionalAlternatorBlock" ||
     prefix === "LuauSparkdownSingleLineConditionalAlternatorBlock";
 
-  const branches = arms.map((arm, i) => {
+  const branches = arms.map((arm) => {
     const branch = new ConditionalSingleBranch(
       arm.body.length > 0 ? arm.body : null,
     );

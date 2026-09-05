@@ -1,11 +1,11 @@
 import { Module } from "../../../core/classes/Module";
 import {
   worldBuiltinDefinitions,
-  WorldBuiltins,
+  type WorldBuiltins,
 } from "../worldBuiltinDefinitions";
 import {
   LoadWorldMessage,
-  LoadWorldMessageMap,
+  type LoadWorldMessageMap,
 } from "./messages/LoadWorldMessage";
 
 export interface WorldConfig {}

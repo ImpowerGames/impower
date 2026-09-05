@@ -18,7 +18,7 @@ import { GameClickedToContinueMessage } from "@impower/spark-engine/src/game/cor
 import { GameEncounteredRuntimeErrorMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameEncounteredRuntimeError";
 import {
   GameExecutedMessage,
-  GameExecutedParams,
+  type GameExecutedParams,
 } from "@impower/spark-engine/src/game/core/classes/messages/GameExecutedMessage";
 import { GameExitedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameExitedMessage";
 import { GameExitedThreadMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameExitedThreadMessage";
@@ -49,13 +49,13 @@ import { StepGameMessage } from "@impower/spark-engine/src/game/core/classes/mes
 import { StopGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/StopGameMessage";
 import { UnpauseGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/UnpauseGameMessage";
 import { ErrorType } from "@impower/spark-engine/src/game/core/enums/ErrorType";
-import { DocumentLocation } from "@impower/spark-engine/src/game/core/types/DocumentLocation";
+import type { DocumentLocation } from "@impower/spark-engine/src/game/core/types/DocumentLocation";
 import { findClosestPath } from "@impower/spark-engine/src/game/core/utils/findClosestPath";
 import { CompiledProgramMessage } from "@impower/sparkdown/src/compiler/classes/messages/CompiledProgramMessage";
 import { RemovedCompilerFileMessage } from "@impower/sparkdown/src/compiler/classes/messages/RemovedCompilerFileMessage";
 import { SelectedCompilerDocumentMessage } from "@impower/sparkdown/src/compiler/classes/messages/SelectedCompilerDocumentMessage";
-import { SimulationFailure } from "@impower/sparkdown/src/compiler/types/SimulationFailure";
-import { SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
+import type { SimulationFailure } from "@impower/sparkdown/src/compiler/types/SimulationFailure";
+import type { SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
 import { SparkdownWorkspace } from "@impower/sparkdown/src/workspace/classes/SparkdownWorkspace";
 import { Application } from "./app/Application";
 import { conflate } from "./utils/conflate";

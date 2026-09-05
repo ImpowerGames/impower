@@ -6,7 +6,8 @@
   "type": "module",
   "scripts": {
     "test": "vitest",
-    "test:run": "vitest run"
+    "test:run": "vitest run",
+    "typecheck": "node ../../scripts/typecheck.mjs packages/sparkdown/"
   },
   "dependencies": {
     "@impower/jsonrpc": "file:../jsonrpc",

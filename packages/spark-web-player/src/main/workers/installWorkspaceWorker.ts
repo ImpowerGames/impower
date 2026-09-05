@@ -9,8 +9,8 @@ import { DidSelectTextDocumentMessage } from "@impower/spark-editor-protocol/src
 import { DidChangeConfigurationMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeConfigurationMessage";
 import { DidChangeWatchedFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeWatchedFilesMessage";
 import { ExecuteCommandMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/ExecuteCommandMessage";
-import { File } from "@impower/sparkdown/src/compiler";
-import { SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
+import type { File } from "@impower/sparkdown/src/compiler";
+import type { SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
 import { SparkdownWorkspace } from "@impower/sparkdown/src/workspace/classes/SparkdownWorkspace";
 import { getSharedAssetCache } from "../assets/sharedAssetCache";
 import {

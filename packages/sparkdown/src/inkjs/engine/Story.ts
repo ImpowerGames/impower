@@ -46,14 +46,14 @@ import { ListDefinitionsOrigin } from "./ListDefinitionsOrigin";
 import { ListDefinition } from "./ListDefinition";
 import { Stopwatch } from "./StopWatch";
 import { Pointer } from "./Pointer";
-import { InkList, InkListItem, KeyValuePair } from "./InkList";
+import { InkList, InkListItem, type KeyValuePair } from "./InkList";
 import { asOrNull, asOrThrows } from "./TypeAssertion";
 import { DebugMetadata } from "./DebugMetadata";
 import { throwNullException } from "./NullException";
 import { SimpleJson } from "./SimpleJson";
-import { ErrorHandler, ErrorType } from "./Error";
+import { type ErrorHandler, ErrorType } from "./Error";
 import { StructDefinition } from "./StructDefinition";
-import { Simulator, SimulatorSnapshot } from "./Simulator";
+import type { Simulator,SimulatorSnapshot } from "./Simulator";
 
 export { InkList } from "./InkList";
 
@@ -317,7 +317,7 @@ function tryInvokeStdLibMarkerValue(
     "__stdlib_fn",
   );
   if (!(tag instanceof StringValue)) return null;
-  const entry = lookupAnyStdLib(tag.value);
+  const entry = lookupAnyStdLib(tag.value!);
   if (!entry) return null;
   if (
     entry.arity >= 0 &&
@@ -330,7 +330,7 @@ function tryInvokeStdLibMarkerValue(
     entry,
     entry.arity >= 0 ? args.slice(0, entry.arity) : [...args],
     story,
-    tag.value,
+    tag.value!,
   );
   const result = entry.fn(story, callArgs);
   if (result === undefined) return [];
@@ -660,7 +660,7 @@ function newindexThroughMetatable(
       if (patch !== null) {
         patch.RecordPropertyMutation(base.value, keyStr, undefined);
       }
-      base.value.set(keyStr, newVal);
+      base.value!.set(keyStr, newVal);
       return true;
     }
     return false;
@@ -1343,8 +1343,8 @@ export class Story extends InkObject {
         );
         sb.Append(
           this.state.hasError
-            ? this.state.currentErrors![0]
-            : this.state.currentWarnings![0],
+            ? this.state.currentErrors![0]!
+            : this.state.currentWarnings![0]!,
         );
 
         throw new StoryException(sb.toString());
@@ -1944,7 +1944,6 @@ export class Story extends InkObject {
     }
 
     let choice = new Choice();
-    choice.point = choicePoint;
     choice.targetPath = choicePoint.pathOnChoice;
     choice.sourcePath = choicePoint.path.toString();
     choice.isInvisibleDefault = choicePoint.isInvisibleDefault;
@@ -2057,7 +2056,7 @@ export class Story extends InkObject {
             );
             if (stdlibTag instanceof StringValue) {
               const stdlibName = stdlibTag.value;
-              const entry = lookupAnyStdLib(stdlibName);
+              const entry = lookupAnyStdLib(stdlibName!);
               if (entry && entry.arity >= 0) {
                 const args: any[] = [];
                 for (let i = 0; i < entry.arity; i++) {
@@ -2078,7 +2077,7 @@ export class Story extends InkObject {
                 }
                 const result = entry.fn(
                   this,
-                  unwrapArgsForPureStdLibFn(entry, args, this, stdlibName),
+                  unwrapArgsForPureStdLibFn(entry, args, this, stdlibName!),
                 );
                 if (result !== undefined) {
                   if (Array.isArray(result)) {
@@ -2276,7 +2275,7 @@ export class Story extends InkObject {
           break;
 
         case ControlCommand.CommandType.Duplicate:
-          this.state.PushEvaluationStack(this.state.PeekEvaluationStack());
+          this.state.PushEvaluationStack(this.state.PeekEvaluationStack()!);
           break;
 
         case ControlCommand.CommandType.PopEvaluatedValue:
@@ -2306,7 +2305,7 @@ export class Story extends InkObject {
           if (this.state.TryExitFunctionEvaluationFromGame()) {
             break;
           } else if (
-            this.state.callStack.currentElement.type != popType ||
+            this.state.callStack.currentElement!.type != popType ||
             !this.state.callStack.canPop
           ) {
             let names: Map<PushPopType, string> = new Map();
@@ -2316,7 +2315,7 @@ export class Story extends InkObject {
             );
             names.set(PushPopType.Tunnel, "tunnel onwards statement (->->)");
 
-            let expected = names.get(this.state.callStack.currentElement.type);
+            let expected = names.get(this.state.callStack.currentElement!.type);
             if (!this.state.callStack.canPop) {
               expected = "end of flow (-> END or choice)";
             }
@@ -2608,7 +2607,7 @@ export class Story extends InkObject {
             // Reactive dep tracking: this binding read into a table — record the
             // table's identity so an in-place mutation of it re-runs the binding.
             if (this.state.variablesState.reactiveDepsEnabled) {
-              this.state.variablesState.recordReactiveTableRead(indexBase.value);
+              this.state.variablesState.recordReactiveTableRead(indexBase.value!);
             }
             const direct = indexBase.value?.get(keyStr) ?? null;
             if (direct != null) {
@@ -2896,7 +2895,7 @@ export class Story extends InkObject {
             );
             if (stdlibTag instanceof StringValue) {
               const stdlibName = stdlibTag.value;
-              const entry = lookupAnyStdLib(stdlibName);
+              const entry = lookupAnyStdLib(stdlibName!);
               const callSiteArgCount =
                 evalCommand._callValueArgCount ?? -1;
               const popCount =
@@ -2922,7 +2921,7 @@ export class Story extends InkObject {
                 }
                 const result = entry.fn(
                   this,
-                  unwrapArgsForPureStdLibFn(entry, args, this, stdlibName),
+                  unwrapArgsForPureStdLibFn(entry, args, this, stdlibName!),
                 );
                 if (result !== undefined) {
                   if (Array.isArray(result)) {
@@ -3090,7 +3089,7 @@ export class Story extends InkObject {
           // an inner `local x` shadows an outer `x` for the rest of
           // the inner block, then the outer is visible again after
           // the matching `EndScope`.
-          this.state.callStack.currentElement.PushScope();
+          this.state.callStack.currentElement!.PushScope();
           break;
 
         case ControlCommand.CommandType.EndScope:
@@ -3098,7 +3097,7 @@ export class Story extends InkObject {
           // pop the outermost (function-level) frame, which would
           // leave the call-stack element with no scope frames at
           // all and break subsequent temp-var lookups.
-          this.state.callStack.currentElement.PopScope();
+          this.state.callStack.currentElement!.PopScope();
           break;
 
         case ControlCommand.CommandType.TurnsSince:
@@ -3160,7 +3159,7 @@ export class Story extends InkObject {
 
         case ControlCommand.CommandType.SequenceShuffleIndex:
           let shuffleIndex = this.NextSequenceShuffleIndex();
-          this.state.PushEvaluationStack(new IntValue(shuffleIndex));
+          this.state.PushEvaluationStack(new IntValue(shuffleIndex!));
           break;
 
         case ControlCommand.CommandType.StartThread:
@@ -3709,7 +3708,7 @@ export class Story extends InkObject {
                 // Reactive dep tracking: this dotted read walked through `cur` —
                 // record its identity so an in-place mutation re-runs the binding.
                 if (this.state.variablesState.reactiveDepsEnabled) {
-                  this.state.variablesState.recordReactiveTableRead(cur.value);
+                  this.state.variablesState.recordReactiveTableRead(cur.value!);
                 }
                 const direct = cur.value?.get(seg);
                 if (direct != null) {
@@ -3748,7 +3747,7 @@ export class Story extends InkObject {
               }
             }
             if (cur != null) {
-              foundValue = cur as Value;
+              foundValue = cur as Value<any>;
             } else if (dottedIndexError == null) {
               dottedResolvedToNil = true;
             }
@@ -3936,10 +3935,10 @@ export class Story extends InkObject {
     if (resetCallstack) {
       this.ResetCallstack();
     } else {
-      if (this.state.callStack.currentElement.type == PushPopType.Function) {
+      if (this.state.callStack.currentElement!.type == PushPopType.Function) {
         let funcDetail = "";
         let container =
-          this.state.callStack.currentElement.currentPointer.container;
+          this.state.callStack.currentElement!.currentPointer.container;
         if (container != null) {
           funcDetail = "(" + container.path.toString() + ") ";
         }
@@ -4736,7 +4735,7 @@ export class Story extends InkObject {
     observers: Story.VariableObserver[],
   ) {
     for (let i = 0, l = variableNames.length; i < l; i++) {
-      this.ObserveVariable(variableNames[i], observers[i]);
+      this.ObserveVariable(variableNames[i]!, observers[i]!);
     }
   }
 
@@ -4842,7 +4841,7 @@ export class Story extends InkObject {
       );
     };
     while (true) {
-      let firstContent: InkObject = flowContainer.content[0];
+      let firstContent: InkObject = flowContainer.content[0]!;
       if (firstContent instanceof Container) {
         if (
           isTagWrapper(firstContent) &&
@@ -5025,9 +5024,9 @@ export class Story extends InkObject {
 
     if (!successfulIncrement) pointer = Pointer.Null;
 
-    this.state.callStack.currentElement.previousPointer =
-      this.state.callStack.currentElement.currentPointer.copy();
-    this.state.callStack.currentElement.currentPointer = pointer.copy();
+    this.state.callStack.currentElement!.previousPointer =
+      this.state.callStack.currentElement!.currentPointer.copy();
+    this.state.callStack.currentElement!.currentPointer = pointer.copy();
 
     return successfulIncrement;
   }
@@ -5045,21 +5044,21 @@ export class Story extends InkObject {
 
     let choice = invisibleChoices[0];
 
-    if (choice.targetPath === null) {
+    if (choice!.targetPath === null) {
       return throwNullException("choice.targetPath");
     }
 
-    if (choice.threadAtGeneration === null) {
+    if (choice!.threadAtGeneration === null) {
       return throwNullException("choice.threadAtGeneration");
     }
 
-    this.state.callStack.currentThread = choice.threadAtGeneration;
+    this.state.callStack.currentThread = choice!.threadAtGeneration;
 
     if (this._stateSnapshotAtLastNewline !== null) {
       this.state.callStack.currentThread = this.state.callStack.ForkThread();
     }
 
-    this.ChoosePath(choice.targetPath, false);
+    this.ChoosePath(choice!.targetPath, false);
 
     return true;
   }
@@ -5193,7 +5192,7 @@ export class Story extends InkObject {
     }
 
     for (let i = this.state.callStack.elements.length - 1; i >= 0; --i) {
-      pointer = this.state.callStack.elements[i].currentPointer;
+      pointer = this.state.callStack.elements[i]!.currentPointer;
       if (!pointer.isNull && pointer.Resolve() !== null) {
         dm = pointer.Resolve()!.debugMetadata;
         if (dm !== null) {
@@ -5204,7 +5203,7 @@ export class Story extends InkObject {
 
     for (let i = this.state.outputStream.length - 1; i >= 0; --i) {
       let outputObj = this.state.outputStream[i];
-      dm = outputObj.debugMetadata;
+      dm = outputObj!.debugMetadata;
       if (dm !== null) {
         return dm;
       }

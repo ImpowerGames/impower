@@ -1,5 +1,5 @@
-import { Range, TextDocumentIdentifier } from "../../types";
-import { NotificationMessage } from "../../types/base/NotificationMessage";
+import type { Range,TextDocumentIdentifier } from "../../types";
+import type { NotificationMessage } from "../../types/base/NotificationMessage";
 import { MessageProtocolNotificationType } from "../MessageProtocolNotificationType";
 
 export type DidSelectTextDocumentMethod =

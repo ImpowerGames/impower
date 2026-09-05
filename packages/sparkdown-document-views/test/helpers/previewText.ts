@@ -23,7 +23,6 @@ import { language } from "@codemirror/language";
 import { EditorState } from "@codemirror/state";
 import type { Range } from "@codemirror/state";
 import type { Decoration } from "@codemirror/view";
-import { SparkdownNodeName } from "@impower/sparkdown/src/compiler/types/SparkdownNodeName";
 import type { Tree } from "@lezer/common";
 import {
   SCREENPLAY_LANGUAGE_SUPPORT,

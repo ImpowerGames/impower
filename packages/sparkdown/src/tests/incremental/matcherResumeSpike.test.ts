@@ -473,7 +473,7 @@ function runCase(
     it("stage 2 — per-line machine is BYTE-IDENTICAL to whole-block oracle", () => {
       const oracle = fmt(grammar, src, wholeBlockTokens(grammar, src));
       const perLine = fmt(grammar, src, perLineTokenize(grammar, src));
-      if (process.env.SPIKE_DUMP && oracle !== perLine) {
+      if (process.env["SPIKE_DUMP"] && oracle !== perLine) {
         console.log(`\n=== [${label}] ORACLE ===\n` + oracle);
         console.log(`\n=== [${label}] PER-LINE ===\n` + perLine);
       }
@@ -495,7 +495,7 @@ function runCase(
 
         const restartedStr = fmt(grammar, src, restarted);
         const suffixStr = fmt(grammar, src, suffix);
-        if (process.env.SPIKE_DUMP && restartedStr !== suffixStr) {
+        if (process.env["SPIKE_DUMP"] && restartedStr !== suffixStr) {
           console.log(`\n=== [${label}] RESTART@${at} ===\n` + restartedStr);
           console.log(`\n=== [${label}] ORACLE SUFFIX@${at} ===\n` + suffixStr);
         }
@@ -509,7 +509,7 @@ describe("matcher-resume spike — Case A oracle sanity", () => {
   const grammar = getGrammar(GRAMMAR_DEFINITION);
   it("whole-block oracle nests correctly", () => {
     const tokens = wholeBlockTokens(grammar, SRC_A);
-    if (process.env.SPIKE_DUMP) {
+    if (process.env["SPIKE_DUMP"]) {
       console.log("\n=== [A] ORACLE ===\n" + fmt(grammar, SRC_A, tokens));
     }
     const blockId = grammar.nodeNames.indexOf("Block");

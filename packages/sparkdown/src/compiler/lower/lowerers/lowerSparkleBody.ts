@@ -1,5 +1,5 @@
 import { type SyntaxNode } from "@lezer/common";
-import { LowerContext } from "../context";
+import type { LowerContext } from "../context";
 import { ErrorType } from "../../../inkjs/engine/Error";
 import { Argument } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Argument";
 import { Function } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Flow/Function";
@@ -769,6 +769,9 @@ function readContentParts(
         ? unescapeString(literal.value)
         : String(literal.value);
     return [{ kind: "literal", text }];
+  }
+  if (literal.kind === "content") {
+    return literal.content;
   }
   return [{ kind: "binding", binding: literal.binding }];
 }

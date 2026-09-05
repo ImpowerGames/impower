@@ -1,8 +1,8 @@
 import { Range } from "@codemirror/state";
 import { getContextStack } from "@impower/textmate-grammar-tree/src/tree/utils/getContextStack";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
-import { SyntaxNodeRef } from "@lezer/common";
-import { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
+import type { SyntaxNode, SyntaxNodeRef } from "@lezer/common";
+import type { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
 import { SparkdownAnnotation } from "../SparkdownAnnotation";
 import { SparkdownAnnotator } from "../SparkdownAnnotator";
 
@@ -94,7 +94,7 @@ function isInsideAnyInlineAlternator(
 // "Unary" = NEITHER shape produced a value before the operator.
 function isAfterUnaryOperator(node: SparkdownSyntaxNodeRef): boolean {
   let walker = node.node.parent;
-  let opNode: SparkdownSyntaxNodeRef["node"] | null = null;
+  let opNode: SyntaxNode | null = null;
   while (walker) {
     if (walker.name === "LuauArithmeticOperator") {
       opNode = walker;
@@ -104,7 +104,7 @@ function isAfterUnaryOperator(node: SparkdownSyntaxNodeRef): boolean {
   }
   if (!opNode) return false;
   if (node.from <= opNode.from) return false;
-  let operation: SparkdownSyntaxNodeRef["node"] | null = opNode.parent;
+  let operation: SyntaxNode | null = opNode.parent;
   while (operation && operation.name !== "LuauArithmeticOperation") {
     operation = operation.parent;
   }

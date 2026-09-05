@@ -5,7 +5,7 @@
  * Released under the MIT license.
  */
 
-import { ObservablePoint, Observer, PointData, PointLike } from "pixi.js";
+import { ObservablePoint, type Observer, type PointData, type PointLike } from "pixi.js";
 import { Quat } from "../math/quat";
 
 const temp = new Float32Array(4);

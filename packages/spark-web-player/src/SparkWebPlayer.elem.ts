@@ -1,3 +1,6 @@
+/// <reference path="./declaration.d.ts" />
+// The asset declarations above travel with this file, so a project that
+// type-checks it through an import loads them too.
 import { PreactComponent } from "@impower/impower-ui/preact";
 import SparkWebPlayer, { propDefaults } from "./SparkWebPlayer";
 import cssText from "./spark-web-player.css?inline";

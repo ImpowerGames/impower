@@ -1,4 +1,4 @@
-﻿import { BinaryExpression } from "../Expression/BinaryExpression";
+import { BinaryExpression } from "../Expression/BinaryExpression";
 import { Choice } from "../Choice";
 import { Conditional } from "../Conditional/Conditional";
 import { ConditionalSingleBranch } from "../Conditional/ConditionalSingleBranch";
@@ -42,7 +42,7 @@ export class DivertTarget extends Expression {
     this.divert = this.AddContent(divert) as Divert;
   }
 
-  get typeName(): string {
+  override get typeName(): string {
     return "DivertTarget";
   }
 
@@ -234,7 +234,7 @@ export class DivertTarget extends Expression {
   }
 
   // Equals override necessary in order to check for const multiple definition equality
-  public readonly Equals = (obj: ParsedObject): boolean => {
+  public override readonly Equals = (obj: ParsedObject): boolean => {
     const otherDivTarget = asOrNull(obj, DivertTarget);
     if (
       !otherDivTarget ||

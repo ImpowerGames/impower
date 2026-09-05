@@ -29,13 +29,6 @@ export const getSymbolContext = (
           name: document.read(cur.from, cur.to),
         });
       }
-      if (cur.value.type.declaration === "knot") {
-        scopePathParts = [];
-        scopePathParts.push({
-          kind: "knot",
-          name: document.read(cur.from, cur.to),
-        });
-      }
       if (cur.value.type.declaration === "branch") {
         const prevKind = scopePathParts.at(-1)?.kind || "";
         if (prevKind === "branch") {
@@ -43,16 +36,6 @@ export const getSymbolContext = (
         }
         scopePathParts.push({
           kind: "branch",
-          name: document.read(cur.from, cur.to),
-        });
-      }
-      if (cur.value.type.declaration === "stitch") {
-        const prevKind = scopePathParts.at(-1)?.kind || "";
-        if (prevKind === "stitch") {
-          scopePathParts.pop();
-        }
-        scopePathParts.push({
-          kind: "stitch",
           name: document.read(cur.from, cur.to),
         });
       }

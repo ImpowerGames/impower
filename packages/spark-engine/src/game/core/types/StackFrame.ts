@@ -1,4 +1,4 @@
-import { DocumentLocation } from "./DocumentLocation";
+import type { DocumentLocation } from "./DocumentLocation";
 
 export interface StackFrame {
   /** An identifier for the stack frame. It must be unique across all threads.

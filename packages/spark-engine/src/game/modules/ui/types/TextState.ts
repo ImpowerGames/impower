@@ -1,4 +1,4 @@
-import { TextInstruction } from "../../../core/types/Instruction";
+import type { TextInstruction } from "../../../core/types/Instruction";
 
 export type TextState = Omit<
   TextInstruction,

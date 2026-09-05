@@ -96,7 +96,7 @@ export class Divert extends ParsedObject {
     }
   }
 
-  get typeName(): string {
+  override get typeName(): string {
     return "Divert";
   }
 
@@ -583,8 +583,8 @@ export class Divert extends ParsedObject {
     // call-site args doesn't crash on `this.args[ii]` being undefined.
     const checkCount = Math.min(paramCount, numArgs);
     for (let ii = 0; ii < checkCount; ++ii) {
-      const flowArg: Argument = targetFlow!.args![ii];
-      const divArgExpr: Expression = this.args[ii];
+      const flowArg: Argument = targetFlow!.args![ii]!;
+      const divArgExpr: Expression = this.args[ii]!;
 
       // Expecting a divert target as an argument, let's do some basic type checking
       if (flowArg.isDivertTarget) {
@@ -647,7 +647,7 @@ export class Divert extends ParsedObject {
     }
   };
 
-  public Error(
+  public override Error(
     message: string,
     source:
       | ParsedObject
@@ -675,7 +675,7 @@ export class Divert extends ParsedObject {
     }
   }
 
-  public toString = (): string => {
+  public override toString = (): string => {
     let returnString = "";
     if (this.target !== null) {
       returnString += this.target.toString();

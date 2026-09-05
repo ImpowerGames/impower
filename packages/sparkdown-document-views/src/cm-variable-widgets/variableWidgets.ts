@@ -20,7 +20,8 @@ import { clone } from "@impower/spark-engine/src/game/core/utils/clone";
 import { randomizeProperties } from "@impower/spark-engine/src/game/core/utils/randomizeProperties";
 import { SynthBuffer } from "@impower/spark-engine/src/game/modules/audio/classes/helpers/SynthBuffer";
 import { structStringify } from "@impower/sparkdown/src/compiler/utils/structStringify";
-import { SparkProgram, SparkVariable } from "@impower/sparkdown/src/index";
+import type { SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
+
 import { FileSystemReader } from "../cm-language-client/types/FileSystemReader";
 import StructKeyboardWidgetType from "./classes/StructKeyboardWidgetType";
 import StructPlayWidgetType, {
@@ -35,6 +36,41 @@ import { WaveformConfig } from "./types/WaveformConfig";
 import { WaveformContext } from "./types/WaveformContext";
 import { getAudioBuffer } from "./utils/getAudioBuffer";
 import { updateWaveformElement } from "./utils/updateWaveformElement";
+
+/**
+ * The per-variable detail these widgets render.
+ *
+ * `SparkProgram` stopped carrying a `variables` map when the compiler moved
+ * struct data into `context`, so nothing populates this today and the widgets
+ * below never render. The shape is written out rather than left as `any` so
+ * the gap stays visible.
+ */
+interface SparkVariableField {
+  from: number;
+  to: number;
+  key?: string;
+  path?: string;
+  /** Compiled value; its shape depends on the field's declared type. */
+  compiled?: any;
+  ranges?: Record<string, { from: number; to: number }>;
+}
+
+interface SparkVariable {
+  from: number;
+  to: number;
+  type?: string;
+  implicit?: boolean;
+  /** Compiled struct; its shape depends on the variable's declared type. */
+  compiled?: any;
+  ranges?: Record<string, { from: number; to: number }>;
+  fields?: SparkVariableField[];
+}
+
+/** A program as these widgets expect it. See `SparkVariable`. */
+type VariableProgram = SparkProgram & {
+  variables?: Record<string, SparkVariable>;
+};
+
 
 const updateVariableDecorationsEffect = StateEffect.define<{
   variables: Record<string, SparkVariable>;
@@ -69,7 +105,7 @@ export interface VariableWidgetsConfiguration {
   fileSystemReader?: FileSystemReader;
   waveformSettings?: WaveformConfig;
   previewSettings?: PreviewConfig;
-  programContext?: { program?: SparkProgram };
+  programContext?: { program?: VariableProgram };
 }
 
 interface VariableWidgetContext {
@@ -204,15 +240,17 @@ const playLayeredAudioVariable = async (
   const audioContext = context.audioContext;
   const getPlayers = () =>
     Promise.all<AudioPlayer>(
-      layeredAudio?.assets?.map(async (a) => {
-        const url = await fileSystemReader.url(a?.src);
+      (
+        layeredAudio?.assets as { src?: string; volume?: number }[] | undefined
+      )?.map(async (a): Promise<AudioPlayer> => {
+        const url = await fileSystemReader.url(a?.src ?? "");
         const buffer = await getAudioBuffer(url, audioContext);
         const player = new AudioPlayer(buffer, audioContext, {
           cues: layeredAudio.cues,
           volume: a?.volume ?? 1,
         });
         return player;
-      }),
+      }) ?? [],
     );
   playAudio(context, buttonId, dom, toggle, getPlayers, duration, offset);
 };
@@ -710,7 +748,7 @@ const createVariableWidgets = (
 ) => {
   const widgetRanges: Range<Decoration>[] = [];
   Object.entries(variables).forEach(([variableId, variable]) => {
-    const to = variable.ranges?.name?.to;
+    const to = variable.ranges?.["name"]?.to;
     if (to != null && to < state.doc.length - 1) {
       if (variable.type === "synth" && !variable.implicit) {
         widgetRanges.push(

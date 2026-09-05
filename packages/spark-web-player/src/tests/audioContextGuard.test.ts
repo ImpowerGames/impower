@@ -14,7 +14,7 @@ function fakeApp(clock: Clock) {
 }
 
 function fakeAudioContext(currentTime: number) {
-  return { state: "running" as const, currentTime };
+  return { state: "running" as const, currentTime } as unknown as AudioContext;
 }
 
 describe("Application.setAudioContext identity guard (#394)", () => {
@@ -63,7 +63,7 @@ describe("Application.setAudioContext identity guard (#394)", () => {
     source.currentTime = 2;
     setAudioContext.call(app, ctx);
 
-    ctx.currentTime = 8.5;
+    (ctx as { currentTime: number }).currentTime = 8.5;
     setAudioContext.call(app, ctx);
 
     tickCount = 0;
@@ -76,7 +76,10 @@ describe("Application.setAudioContext identity guard (#394)", () => {
     const clock = new Clock(source, () => 0);
     const syncSpy = vi.spyOn(clock, "syncToClock");
 
-    const ctx = { state: "suspended" as const, currentTime: 5 };
+    const ctx = {
+      state: "suspended" as const,
+      currentTime: 5,
+    } as unknown as AudioContext;
     const app = fakeApp(clock);
 
     setAudioContext.call(app, ctx);

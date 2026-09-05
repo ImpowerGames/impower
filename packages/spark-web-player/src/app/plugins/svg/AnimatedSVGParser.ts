@@ -8,13 +8,13 @@
 
 import {
   FillGradient,
-  FillStyle,
+  type FillStyle,
   GraphicsContext,
   GraphicsPath,
   parseSVGDefinitions,
   parseSVGFloatAttribute,
   parseSVGStyle,
-  StrokeStyle,
+  type StrokeStyle,
   warn,
 } from "pixi.js";
 import { getClosestFractionalIndex } from "../path/utils/getClosestFractionalIndex";

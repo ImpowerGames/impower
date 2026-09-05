@@ -1,4 +1,4 @@
-import { IBufferCursor } from "../types/IBufferCursor";
+import type { IBufferCursor } from "../types/IBufferCursor";
 
 export class FlatBufferCursor implements IBufferCursor {
   constructor(

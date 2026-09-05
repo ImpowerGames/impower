@@ -5,5 +5,8 @@
   "version": "0.0.1",
   "dependencies": {
     "@impower/spark-engine": "file:../spark-engine"
+  },
+  "scripts": {
+    "typecheck": "node ../../scripts/typecheck.mjs packages/spark-dom/"
   }
 }

@@ -1,14 +1,13 @@
 import {
-  Input,
+  type Input,
   NodeSet,
-  PartialParse,
+  type PartialParse,
   Tree,
   TreeBuffer,
   TreeFragment,
 } from "@lezer/common";
 import { Compiler } from "../../compiler/classes/Compiler";
 import { NodeID } from "../../core/enums/NodeID";
-import { GrammarToken } from "../../core/types/GrammarToken";
 import { Grammar } from "../../grammar/classes/Grammar";
 import { ResumableTokenizer } from "../../grammar/classes/ResumableTokenizer";
 import { cachedCompilerProp } from "../props/cachedCompilerProp";

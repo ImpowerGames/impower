@@ -11,7 +11,7 @@ export class Tag extends ParsedObject {
     this.isStart = isStart;
     this.inChoice = inChoice;
   }
-  get typeName(): string {
+  override get typeName(): string {
     return "Tag";
   }
   public readonly GenerateRuntimeObject = (): RuntimeObject => {
@@ -22,7 +22,7 @@ export class Tag extends ParsedObject {
     }
   };
 
-  public readonly toString = () => {
+  public override readonly toString = () => {
     if (this.isStart) {
       return "#StartTag";
     } else {
@@ -37,7 +37,7 @@ export class LegacyTag extends Wrap<RuntimeTag> {
   constructor(tag: RuntimeTag) {
     super(tag);
   }
-  get typeName(): string {
+  override get typeName(): string {
     return "Tag";
   }
 }

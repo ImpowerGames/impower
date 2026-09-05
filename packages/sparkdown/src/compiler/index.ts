@@ -37,7 +37,6 @@ export * from "./utils/getCharacterIdentifier";
 export * from "./utils/getExpectedSelectorTypes";
 export * from "./utils/getProperty";
 export * from "./utils/getRuntimeString";
-export * from "./utils/isIdentifier";
 export * from "./utils/isMonologue";
 export * from "./utils/profile";
 export * from "./utils/resolveSelector";

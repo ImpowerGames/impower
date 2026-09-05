@@ -1,12 +1,10 @@
-import { IMessage } from "@impower/jsonrpc/src/common/types/IMessage";
-import { NotificationMessage } from "@impower/jsonrpc/src/common/types/NotificationMessage";
+import type { IMessage } from "@impower/jsonrpc/src/common/types/IMessage";
+import type { NotificationMessage } from "@impower/jsonrpc/src/common/types/NotificationMessage";
 import { ErrorType } from "../../../core/enums/ErrorType";
 import { filterImage } from "@impower/sparkdown/src/compiler/utils/filterImage";
 import { sortFilteredName } from "@impower/sparkdown/src/compiler/utils/sortFilteredName";
 import {
-  ATTRIBUTE_PROPS,
   BOOLEAN_ATTRIBUTES,
-  isAliasedAttributeProp,
   isAttributeProp,
   toDataAttributeName,
 } from "@impower/sparkdown/src/compiler/constants/dataAttributeProps";
@@ -35,74 +33,74 @@ import {
 import type { Game } from "../../../core/classes/Game";
 import { EventMessage } from "../../../core/classes/messages/EventMessage";
 import { Module } from "../../../core/classes/Module";
-import { Event } from "../../../core/types/Event";
-import { EventMap } from "../../../core/types/EventMap";
-import {
-  ImageInstruction,
-  LayoutInstruction,
-  TextInstruction,
+import type { Event } from "../../../core/types/Event";
+import type { EventMap } from "../../../core/types/EventMap";
+import type {
+ImageInstruction,
+LayoutInstruction,
+TextInstruction,
 } from "../../../core/types/Instruction";
 import { getAllProperties } from "../../../core/utils/getAllProperties";
 import { getTimeValue } from "../../../core/utils/getTimeValue";
-import { Animation } from "../types/Animation";
-import { Ease } from "../types/Ease";
-import { ElementContent } from "../types/ElementContent";
-import { ElementState } from "../types/ElementState";
-import { Image } from "../types/Image";
-import { ImageState } from "../types/ImageState";
-import { TextState } from "../types/TextState";
-import { UIBuiltins, uiBuiltinDefinitions } from "../uiBuiltinDefinitions";
+import type { Animation } from "../types/Animation";
+import type { Ease } from "../types/Ease";
+import type { ElementContent } from "../types/ElementContent";
+import type { ElementState } from "../types/ElementState";
+import type { Image } from "../types/Image";
+import type { ImageState } from "../types/ImageState";
+import type { TextState } from "../types/TextState";
+import { type UIBuiltins, uiBuiltinDefinitions } from "../uiBuiltinDefinitions";
 import { getVarName } from "../utils/getVarName";
 import {
   isPlainRun,
   parseRichText,
-  RichTextRun,
+  type RichTextRun,
 } from "../utils/parseRichText";
 import { Element } from "./helpers/Element";
 import {
   AnimateElementsMessage,
-  AnimateElementsMessageMap,
+  type AnimateElementsMessageMap,
 } from "./messages/AnimateElementsMessage";
 import {
   BatchElementsMessage,
-  BatchElementsMessageMap,
+  type BatchElementsMessageMap,
 } from "./messages/BatchElementsMessage";
 import {
   CreateElementMessage,
-  CreateElementMessageMap,
+  type CreateElementMessageMap,
 } from "./messages/CreateElementMessage";
 import {
   DestroyElementMessage,
-  DestroyElementMessageMap,
+  type DestroyElementMessageMap,
 } from "./messages/DestroyElementMessage";
 import {
   MoveElementMessage,
-  MoveElementMessageMap,
+  type MoveElementMessageMap,
 } from "./messages/MoveElementMessage";
 import {
   ObserveElementMessage,
-  ObserveElementMessageMap,
+  type ObserveElementMessageMap,
 } from "./messages/ObserveElementMessage";
 import {
   SetThemeMessage,
-  SetThemeMessageMap,
+  type SetThemeMessageMap,
 } from "./messages/SetThemeMessage";
 import {
   UnobserveElementMessage,
-  UnobserveElementMessageMap,
+  type UnobserveElementMessageMap,
 } from "./messages/UnobserveElementMessage";
 import {
   UpdateElementMessage,
-  UpdateElementMessageMap,
+  type UpdateElementMessageMap,
 } from "./messages/UpdateElementMessage";
 import {
-  WriteImageInstruction,
+  type WriteImageInstruction,
   WriteImageMessage,
-  WriteImageMessageMap,
+  type WriteImageMessageMap,
 } from "./messages/WriteImageMessage";
 import {
   WriteTextMessage,
-  WriteTextMessageMap,
+  type WriteTextMessageMap,
 } from "./messages/WriteTextMessage";
 
 export interface UIState {

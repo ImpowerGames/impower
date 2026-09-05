@@ -10,8 +10,9 @@ import "../../../inkjs/engine/Container";
 import { Range } from "@codemirror/state";
 import { ErrorType } from "../../../inkjs/compiler/Parser/ErrorType";
 import { ParsedObject } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Object";
-import { SourceMetadata } from "../../../inkjs/engine/Error";
+import type { SourceMetadata } from "../../../inkjs/engine/Error";
 import { collectDefineTypeNames } from "../../utils/collectDefineTypeNames";
+import type { SiblingSubFlowInfo } from "../../lower/context";
 import { lower } from "../../lower/lower";
 import { type SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
 import { SparkdownAnnotation } from "../SparkdownAnnotation";
@@ -260,7 +261,7 @@ export class CompilationAnnotator extends SparkdownAnnotator<
       // fns) rather than emitting a local-binding closure. References to
       // these names from inner closures must skip upval capture so the
       // call site resolves via FunctionCall + static `PackTuple`.
-      const siblingSubFlowNamesStack: Set<string>[] = [];
+      const siblingSubFlowNamesStack: Map<string, SiblingSubFlowInfo>[] = [];
       const lowered = lower(nodeRef, {
         // The document being lowered. Absent here until now, which made
         // `ctx.filePath` undefined on the PRODUCTION path — so anything
@@ -324,8 +325,8 @@ export class CompilationAnnotator extends SparkdownAnnotator<
   }
 
   override end(
-    iterateFrom: number,
-    iterateTo: number,
+    _iterateFrom: number,
+    _iterateTo: number,
     added: Range<SparkdownAnnotation<CompiledBlock>>[],
     removed: Range<SparkdownAnnotation<CompiledBlock>>[],
   ): void {

@@ -1,4 +1,4 @@
-import { PathCommand } from "../types/Path";
+import type { PathCommand } from "../types/Path";
 
 /**
  * Stringify segment array to path string
