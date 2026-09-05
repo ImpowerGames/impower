@@ -16,7 +16,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "IFS= read -r p; case \"$p\" in *[gG][hH]*|*[cC][uU][rR][lL]*|*[iI][rR][mM]*|*[iI][wW][rR]*|*[iI]nvoke-*|*[!}]) f=\"${CLAUDE_PROJECT_DIR:-.}/.claude/hooks/typed-issue-hook.mjs\"; [ -f \"$f\" ] || { printf '%s\\n' \"typed-issue hook: $f not found; set CLAUDE_PROJECT_DIR to the checkout root\" >&2; exit 2; }; command -v node >/dev/null 2>&1 || { printf '%s\\n' 'typed-issue hook: node is not on PATH, so the command cannot be checked' >&2; exit 2; }; { printf '%s\\n' \"$p\"; cat; } | node \"$f\" || { printf '%s\\n' 'typed-issue hook: the check itself failed, so the command is refused' >&2; exit 2; };; esac"
+            "command": "p=$(cat); case \"$p\" in *[gG][hH]*|*[cC][uU][rR][lL]*|*[iI][rR][mM]*|*[iI][wW][rR]*|*[iI][nN][vV][oO][kK][eE]-*) f=\"${CLAUDE_PROJECT_DIR:-.}/.claude/hooks/typed-issue-hook.mjs\"; [ -f \"$f\" ] || { printf '%s\\n' \"typed-issue hook: $f not found; set CLAUDE_PROJECT_DIR to the checkout root\" >&2; exit 2; }; command -v node >/dev/null 2>&1 || { printf '%s\\n' 'typed-issue hook: node is not on PATH, so the command cannot be checked' >&2; exit 2; }; printf '%s' \"$p\" | node \"$f\" || { printf '%s\\n' 'typed-issue hook: the check itself failed, so the command is refused' >&2; exit 2; };; esac"
           }
         ]
       }

@@ -12,10 +12,12 @@
 // command is split into shell-style tokens (Bash and PowerShell quoting,
 // line continuations, comments, here-doc bodies), so a mention of the phrase
 // in a quoted string, a comment, or a here-doc body is not a match. A `gh`
-// or `curl` token counts as an invocation only at the start of a command
-// segment, after environment assignments, or after a wrapper such as sudo,
-// npx, env, or xargs; a string handed to `bash -c`, `sh -lc`, `eval`, or
-// `pwsh -Command` is analysed as a command of its own.
+// or `curl` token counts as an invocation only at command position: the
+// start of a segment, after a shell keyword such as `do` or `then`, after
+// environment assignments, or after a wrapper such as sudo, env, xargs, or
+// timeout and that wrapper's own flags. A string handed to a shell's `-c`
+// (or `-lc`, `-euc`), to `eval`, or to `pwsh -Command` is analysed as a
+// command of its own.
 //
 // This is a guardrail against forgetting the type, not against evasion: an
 // endpoint or method built from a shell variable, a gh alias, or a wrapper
@@ -39,8 +41,29 @@ const GH_ISSUE_CREATE_VALUE_FLAGS = new Set([
   "-t", "--title", "-b", "--body", "-F", "--body-file", "-l", "--label", "-a", "--assignee",
   "-m", "--milestone", "-p", "--project", "-T", "--template", "-R", "--repo", "--recover",
 ]);
-// Words that may precede a program name in a segment without being the program.
-const WRAPPERS = new Set(["sudo", "npx", "time", "command", "exec", "nohup", "xargs", "env", "builtin", "&", "doas"]);
+
+// Words that may precede a program name in a segment without being the
+// program, with the flags of each that take a value. `positional` is the
+// number of non-flag words the wrapper consumes before the program.
+const WRAPPERS = new Map([
+  ["sudo", { flags: new Set(["-u", "-g", "-p", "-h", "-C", "-D", "-r", "-t", "-T", "-U", "--user", "--group", "--host", "--prompt", "--chdir"]) }],
+  ["doas", { flags: new Set(["-u", "-C"]) }],
+  ["env", { flags: new Set(["-u", "-C", "-S", "--unset", "--chdir", "--split-string"]) }],
+  ["xargs", { flags: new Set(["-I", "-i", "-n", "-P", "-L", "-l", "-d", "-a", "-s", "-E", "-e", "--max-args", "--max-procs", "--max-lines", "--delimiter", "--replace", "--arg-file", "--max-chars", "--eof"]) }],
+  ["time", { flags: new Set(["-f", "-o", "--format", "--output"]) }],
+  ["timeout", { flags: new Set(["-s", "-k", "--signal", "--kill-after"]), positional: 1 }],
+  ["nice", { flags: new Set(["-n", "--adjustment"]) }],
+  ["stdbuf", { flags: new Set(["-o", "-e", "-i", "--output", "--error", "--input"]) }],
+  ["npx", { flags: new Set(["-p", "--package", "-c", "--call"]) }],
+  ["nohup", { flags: new Set() }],
+  ["command", { flags: new Set() }],
+  ["builtin", { flags: new Set() }],
+  ["exec", { flags: new Set(["-a"]) }],
+  ["winpty", { flags: new Set() }],
+]);
+// Shell keywords after which a command starts.
+const KEYWORDS = new Set(["do", "then", "else", "elif", "if", "while", "until", "!", "%", "foreach-object"]);
+const SHELLS = new Set(["bash", "sh", "zsh", "dash", "ksh", "ash", "busybox", "pwsh", "powershell", "cmd"]);
 
 /** Split a command line into tokens the way Bash or PowerShell roughly would. */
 export function tokenize(command) {
@@ -48,7 +71,7 @@ export function tokenize(command) {
   let text = "";
   let quoted = false;
   let started = false;
-  let heredocs = [];
+  const heredocs = [];
   const flush = () => {
     if (started) tokens.push({ text, quoted });
     text = "";
@@ -94,6 +117,10 @@ export function tokenize(command) {
           i += 2; // Bash line continuation
           continue;
         }
+        if (next === "\r" && command[i + 2] === "\n") {
+          i += 3;
+          continue;
+        }
         started = true;
         // A backslash before a quote, space, or another backslash escapes
         // it; anywhere else it is kept, so a Windows path from the
@@ -114,9 +141,10 @@ export function tokenize(command) {
         i += 3;
         continue;
       }
-      // Bash command substitution opens a new segment; a PowerShell escape
-      // inside a bare word is kept as its character.
-      if (started && i + 1 < n && !" \t".includes(command[i + 1])) {
+      // At the start of a word or right after `=`, a backtick is a Bash
+      // command substitution and opens a new segment. Inside a bare word it
+      // is a PowerShell escape and keeps its character.
+      if (started && !text.endsWith("=") && i + 1 < n && !" \t".includes(command[i + 1])) {
         text += command[i + 1];
         i += 2;
         continue;
@@ -130,25 +158,32 @@ export function tokenize(command) {
       continue;
     }
     if (c === "<" && command[i + 1] === "<" && command[i + 2] !== "<") {
-      // Here-doc: record the delimiter; the body is skipped at the newline.
-      i += 2;
-      if (command[i] === "-") i++;
-      while (i < n && " \t".includes(command[i])) i++;
+      // Here-doc operator. The delimiter is recorded and the body is skipped
+      // at the next newline, but only when a line equal to the delimiter
+      // exists later in the command: `$((1 << 2))` is not a here-doc.
+      let j = i + 2;
+      let strip = false;
+      if (command[j] === "-") {
+        strip = true;
+        j++;
+      }
+      while (j < n && " \t".includes(command[j])) j++;
       let delim = "";
-      let q = null;
-      while (i < n && !" \t\n;|&".includes(command[i])) {
-        const ch = command[i++];
-        if (ch === "'" || ch === '"') {
-          q = q === ch ? null : q ?? ch;
-          continue;
-        }
-        if (ch === "\\" && i < n) {
-          delim += command[i++];
+      while (j < n && !" \t\r\n;|&<>()".includes(command[j])) {
+        const ch = command[j++];
+        if (ch === "'" || ch === '"') continue;
+        if (ch === "\\" && j < n) {
+          delim += command[j++];
           continue;
         }
         delim += ch;
       }
-      if (delim) heredocs.push(delim);
+      if (delim && hasTerminator(command, j, delim, strip)) {
+        heredocs.push({ delim, strip });
+        i = j;
+      } else {
+        i += 2;
+      }
       continue;
     }
     if (c === " " || c === "\t" || c === "\r") {
@@ -160,11 +195,12 @@ export function tokenize(command) {
       sep();
       i++;
       while (heredocs.length && i < n) {
-        const delim = heredocs.shift();
+        const { delim, strip } = heredocs.shift();
         while (i < n) {
           let end = command.indexOf("\n", i);
           if (end < 0) end = n;
-          const line = command.slice(i, end).replace(/^\t+/, "").replace(/\r$/, "");
+          let line = command.slice(i, end).replace(/\r$/, "");
+          if (strip) line = line.replace(/^\t+/, "");
           i = Math.min(end + 1, n);
           if (line === delim) break;
         }
@@ -173,6 +209,11 @@ export function tokenize(command) {
     }
     if (c === ";" || c === "|" || c === "&" || c === "(" || c === ")") {
       sep();
+      i++;
+      continue;
+    }
+    if ((c === "{" || c === "}") && !started && (i + 1 >= n || " \t\r\n;|&".includes(command[i + 1]))) {
+      sep(); // a standalone brace groups commands, in Bash and in PowerShell
       i++;
       continue;
     }
@@ -187,6 +228,20 @@ export function tokenize(command) {
   }
   flush();
   return tokens;
+}
+
+/** True when a line equal to `delim` (tabs stripped for `<<-`) follows position `from`. */
+function hasTerminator(command, from, delim, strip) {
+  let i = command.indexOf("\n", from);
+  while (i >= 0 && i < command.length) {
+    let end = command.indexOf("\n", i + 1);
+    if (end < 0) end = command.length;
+    let line = command.slice(i + 1, end).replace(/\r$/, "");
+    if (strip) line = line.replace(/^\t+/, "");
+    if (line === delim) return true;
+    i = end;
+  }
+  return false;
 }
 
 function baseName(token) {
@@ -217,6 +272,11 @@ function flagName(t) {
   if (t.startsWith("--")) return t.toLowerCase().split("=")[0];
   if (t.startsWith("-") && t.length > 1) return t.slice(0, 2);
   return null;
+}
+
+/** True when the flag token carries no joined value, so the next token is its value. */
+function takesNextToken(t, name) {
+  return !t.includes("=") && t.length === name.length;
 }
 
 /**
@@ -263,7 +323,7 @@ function checkGhIssueCreate(args, presetRepo) {
       i += used - 1;
       continue;
     }
-    if (GH_ISSUE_CREATE_VALUE_FLAGS.has(name) && !t.includes("=") && t.length === name.length) i++;
+    if (GH_ISSUE_CREATE_VALUE_FLAGS.has(name) && takesNextToken(t, name)) i++;
   }
   if (repo !== null && !isThisRepo(repo)) return null;
   return (
@@ -348,12 +408,12 @@ function checkGhApi(args) {
       "(field flags next to --input go to the query string, not the body). Use field flags instead: " + RECIPE
     );
   }
-  // -F converts true, false, null, and integers to JSON values, so those are
-  // not a type name.
+  // -F converts true, false, null, and integers to JSON values and reads
+  // `@file` from a file, so none of those is a type name the hook can see.
   const typed = fields.some((f) => {
     const v = f.value.match(/^type=(.+)$/)?.[1];
     if (!v) return false;
-    return f.raw || !/^(true|false|null|-?\d+)$/.test(v);
+    return f.raw || !/^(true|false|null|-?\d+|@.*)$/.test(v);
   });
   if (typed) return null;
   return (
@@ -363,54 +423,102 @@ function checkGhApi(args) {
 }
 
 const COLLECTION_URL = /api\.github\.com\/repos\/([^/\s"']+\/[^/\s"']+)\/issues\/?(\?|$)/i;
+const TYPE_IN_BODY = /(^|[^a-z])["']?type["']?\s*[=:]/i;
+
+/** True when text carries a `type` field (a JSON key or a hashtable entry), ignoring content-type headers and the URL. */
+function mentionsTypeField(text) {
+  return TYPE_IN_BODY.test(text.replace(COLLECTION_URL, "").replace(/content-type\s*[:=]/gi, ""));
+}
 
 function checkCurl(args) {
-  const joined = args.map((a) => a.text).join(" ");
   const url = args.find((a) => COLLECTION_URL.test(a.text));
   if (!url || !isThisRepo(url.text.match(COLLECTION_URL)[1])) return null;
-  const posts =
-    /(^|\s)(-X|--request)\s*=?\s*post(\s|$)/i.test(joined) ||
-    /(^|\s)(-d|--data|--data-raw|--data-binary|--json|-F|--form)(\s|=)/.test(joined);
+  let posts = false;
+  for (let i = 0; i < args.length; i++) {
+    const t = args[i].text;
+    if (/^(-X|--request)$/.test(t)) posts ||= /^post$/i.test(args[i + 1]?.text ?? "");
+    else if (/^(-X|--request=)/.test(t)) posts ||= /post$/i.test(t);
+    else if (/^(-d|-F)/.test(t) || /^--(data|data-raw|data-binary|data-urlencode|form|json)(=|$)/.test(t)) posts = true;
+  }
   if (!posts) return null;
-  if (/"type"\s*:/.test(joined)) return null;
+  if (mentionsTypeField(args.map((a) => a.text).join(" "))) return null;
   return (
     "This creates an issue without an issue type (or from a body the hook cannot read). " +
     "Use the gh recipe instead: " + RECIPE
   );
 }
 
-function checkInvokeRestMethod(args) {
+// PowerShell splits a sub-expression body such as `-Body (@{...} | ConvertTo-Json)`
+// across segments, so the type field is looked for in the whole command.
+function checkInvokeRestMethod(args, command) {
   const joined = args.map((a) => a.text).join(" ");
   const url = args.find((a) => COLLECTION_URL.test(a.text));
   if (!url || !isThisRepo(url.text.match(COLLECTION_URL)[1])) return null;
-  const posts = /-method\s+post\b/i.test(joined) || /-body\b/i.test(joined);
+  const posts = /-method\s+post\b/i.test(joined) || /(^|\s)-body\b/i.test(joined);
   if (!posts) return null;
-  if (/type/i.test(joined.replace(COLLECTION_URL, ""))) return null;
+  if (mentionsTypeField(command)) return null;
   return (
     "This creates an issue without an issue type (or from a body the hook cannot read). " +
     "Use the gh recipe instead: " + RECIPE
   );
 }
 
-/** True when every token before index i in the segment is a prefix a program name may follow. */
+/**
+ * True when index i in the segment is where a program name may stand: every
+ * earlier token is a shell keyword, an environment assignment, or a wrapper
+ * together with its own flags, flag values, and positional arguments.
+ */
 function isCommandPosition(seg, i) {
-  for (let k = 0; k < i; k++) {
-    const t = seg[k].text;
-    if (seg[k].quoted) return false;
-    if (/^[A-Za-z_][A-Za-z0-9_]*=/.test(t)) continue; // FOO=bar
-    if (t.startsWith("-")) continue; // a wrapper's own flag, e.g. env -u X
-    if (WRAPPERS.has(t.toLowerCase())) continue;
-    return false;
+  let k = 0;
+  while (k < i) {
+    const tok = seg[k];
+    const t = tok.text;
+    const lower = t.toLowerCase();
+    if (!tok.quoted && KEYWORDS.has(lower)) {
+      k++;
+      continue;
+    }
+    if (/^[A-Za-z_][A-Za-z0-9_]*=/.test(t)) {
+      k++;
+      continue;
+    }
+    const wrapper = WRAPPERS.get(baseName(tok));
+    if (!wrapper || tok.quoted) return false;
+    k++;
+    let positional = wrapper.positional ?? 0;
+    while (k < i) {
+      const f = seg[k].text;
+      if (f.startsWith("-")) {
+        const name = flagName(f);
+        k++;
+        if (wrapper.flags.has(name) && takesNextToken(f, name)) k++;
+        continue;
+      }
+      if (positional > 0) {
+        positional--;
+        k++;
+        continue;
+      }
+      break;
+    }
   }
   return true;
 }
 
-function isShellCommandFlag(prev) {
+/**
+ * True when the token before a quoted string means the string is run as a
+ * command: a shell's `-c` (in any short-flag cluster), `cmd /c`, a
+ * PowerShell `-Command`, or `eval`.
+ */
+function isShellCommandFlag(seg, i) {
+  const prev = seg[i - 1];
   if (!prev) return false;
-  const p = prev.toLowerCase();
-  if (p === "eval" || p === "/c" || p === "-c") return true;
-  if (p.startsWith("-comm")) return true; // PowerShell -Command and its prefixes
-  return /^-[a-z]*c[a-z]*$/.test(p); // -lc, -euc, -xc
+  const p = prev.text.toLowerCase();
+  if (p === "eval") return true;
+  const program = seg[i - 2] ? baseName(seg[i - 2]) : "";
+  if (!SHELLS.has(program)) return false;
+  if (p === "/c" || p === "-c" || p.startsWith("-comm")) return true;
+  return /^-[a-z]*c[a-z]*$/.test(p);
 }
 
 /** Returns a deny reason for the command, or null to allow it. */
@@ -430,7 +538,7 @@ export function decide(command, depth = 0) {
   for (const seg of segments) {
     for (let i = 0; i < seg.length; i++) {
       const tok = seg[i];
-      if (tok.quoted && isShellCommandFlag(seg[i - 1]?.text)) {
+      if (tok.quoted && isShellCommandFlag(seg, i)) {
         const inner = decide(tok.text, depth + 1);
         if (inner) return inner;
       }
@@ -444,7 +552,7 @@ export function decide(command, depth = 0) {
       } else if (base === "curl") {
         reason = checkCurl(seg.slice(i + 1));
       } else if (base === "invoke-restmethod" || base === "irm" || base === "invoke-webrequest" || base === "iwr") {
-        reason = checkInvokeRestMethod(seg.slice(i + 1));
+        reason = checkInvokeRestMethod(seg.slice(i + 1), command);
       }
       if (reason) return reason;
     }
