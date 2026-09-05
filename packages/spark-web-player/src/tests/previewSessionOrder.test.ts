@@ -91,6 +91,48 @@ describe("preview session ordering", () => {
     expect(calls).not.toContain("markPreviewing:0.0");
   });
 
+  test("marks nothing for a remembered point that no longer resolves, and still previews", async () => {
+    // The remembered point's script is gone from the program (renamed, or
+    // deleted), so no path resolves for it now, and the cursor sits in a
+    // file the program does not know either; the point's old path must not
+    // be marked, or the connect would run a beat the preview cannot display.
+    // The preview still happens, so the game can reveal what it has.
+    const calls: string[] = [];
+    const game = recordingGame(calls);
+    game.markPreviewing = (path: string) => calls.push(`markPreviewing:${path}`);
+    const program = {
+      ...PROGRAM,
+      pathLocations: { "0.0": [0, 4, 0, 4, 5] },
+      scripts: { "file://proj/other.sd": {} },
+    };
+    await controllerWith(game, stubApp(calls)).updatePreview(
+      program,
+      "file://proj/third.sd",
+      1,
+      "SAVE",
+    );
+    expect(calls).toContain("markPreviewing:undefined");
+    expect(calls).not.toContain("markPreviewing:0.0");
+    expect(calls).toContain("preview");
+  });
+
+  test("marks the game's own path for the remembered point while the program stands", async () => {
+    // The cursor sits on a line that resolves to nothing and nothing was
+    // recompiled: the remembered point's path is the one the game resolved
+    // for it, and it is marked without resolving the point again.
+    const calls: string[] = [];
+    const game = recordingGame(calls);
+    game.markPreviewing = (path: string) => calls.push(`markPreviewing:${path}`);
+    game.program = { uri: PROGRAM.uri, version: PROGRAM.version };
+    await controllerWith(game, stubApp(calls)).updatePreview(
+      PROGRAM,
+      PROGRAM.uri,
+      9,
+      "SAVE",
+    );
+    expect(calls).toContain("markPreviewing:0.0");
+  });
+
   test("the game is told it is previewing before the load and the connect", async () => {
     const calls: string[] = [];
     const controller = controllerWith(recordingGame(calls), stubApp(calls));

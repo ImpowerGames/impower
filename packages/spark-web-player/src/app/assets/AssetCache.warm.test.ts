@@ -334,21 +334,23 @@ describe("AssetCache: warming through the document", () => {
   });
 
   it("retries a gate's picture in the express lane when a prefetch had it in flight first", async () => {
-    const { cache, loading, priorityOf } = makeCache();
+    const { cache, loading } = makeCache();
     // The window went out first, at the rest-of-scene priority; then the
-    // gate asked for the same picture. The picture is a gate's now.
+    // gate asked for the same picture, and for the checkpoint's backdrop.
     cache.prefetch([image("/portrait.svg")], 3);
     expect(loading("/portrait.svg")).toBeDefined();
     void cache.request([image("/portrait.svg")], 0, "restore");
-    expect(priorityOf("/portrait.svg")).toBe(0);
-    cache.hint(images(6, "h"));
-    // A cold service worker fails the first attempt: the retry goes to the
-    // head of the express lane, not to the back of a queue that yields to
-    // every gate, and starts in the next express slot.
+    void cache.request([image("/backdrop.svg")], 0, "restore");
+    expect(loading("/backdrop.svg")).toBeDefined();
+    // A cold service worker fails the portrait's first attempt. The retry
+    // is a gate's now: it starts again at once in the express lane. A retry
+    // at the prefetch's own priority would sit in the background queue, which
+    // yields while the backdrop's gate is in flight, and the picture the
+    // preview is waiting for would wait on a load nobody is waiting for.
     loading("/portrait.svg")!.fail();
     await settle();
+    expect(cache.stateOf("/portrait.svg")).toBe("loading");
     expect(loading("/portrait.svg")).toBeDefined();
-    expect(cache.stateOf("/h4.svg")).toBe("queued");
   });
 
   it("retries a failed hint behind the hints that have not been tried", async () => {

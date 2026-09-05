@@ -159,6 +159,16 @@ end
   done
 end
 `,
+  // A hide that names the picture it hides shows nothing, and gates nothing.
+  hideNamed: `scene A
+  [[show backdrop room]]
+  [[show portrait bunny]]
+  Line one.
+  [[hide portrait bunny]]
+  Line two.
+  done
+end
+`,
 };
 
 const byMethod = (messages: any[], method: string) =>
@@ -206,14 +216,18 @@ const settled = async (promise: Promise<unknown>): Promise<boolean> => {
   return done;
 };
 
-/** The pictures the messages show, by file. */
+/** The pictures the messages show, by file: what a write-image message's
+ *  instructions show, leaving out a hide, which can name the picture it
+ *  hides. */
 const imagesWritten = (messages: any[]) =>
   [
     ...new Set(
       byMethod(messages, "ui/write-image")
-        .filter((m) => m.params?.control !== "hide")
+        .flatMap((m) => m.params?.instructions ?? [])
+        .filter((instruction: any) => instruction?.control !== "hide")
         .flatMap(
-          (m) => JSON.stringify(m.params).match(/[a-z0-9_]+\.png/g) ?? [],
+          (instruction: any) =>
+            JSON.stringify(instruction).match(/[a-z0-9_]+\.png/g) ?? [],
         ),
     ),
   ].sort();
@@ -375,13 +389,16 @@ const gameNotices = (messages: any[]) =>
 
 /** A game's save, comparable across two games. Left out: the story's
  *  random seed, drawn when the story is made; the paths of the layouts'
- *  binding evaluators, for the reason `stream` gives; and the story's
- *  previous content pointer, which names the last thing the story ran and
- *  so names a binding evaluator whenever the layouts refreshed after the
- *  beat (in the oracle, when the beat changed what a binding reads; in a
- *  game whose beat ran at connect, at the mount that followed the run),
- *  and which the next checkpoint load or jump replaces before a preview
- *  continues the story. */
+ *  binding evaluators among the executed paths, which sit where each game
+ *  ran them (after the beat in a game whose beat ran at connect, before it
+ *  in a game whose layouts mounted first); and the story's previous
+ *  content pointer, where the two games genuinely differ: it names the
+ *  last thing the story ran, which for a beat that ran at connect is a
+ *  binding evaluator the layouts' mount ran after the beat, and for a beat
+ *  the preview ran itself is the beat's last content, or a binding
+ *  evaluator again when the beat changed what a binding reads. The pointer
+ *  feeds only the first step of the next continue, and the next preview's
+ *  checkpoint load or jump replaces it before one. */
 const saveOf = (game: Game) =>
   game
     .save()
@@ -389,6 +406,24 @@ const saveOf = (game: Game) =>
     .replace(/,?\\*"__binding_[^"\\]*\\*"/g, "")
     .replace(/\[,/g, "[")
     .replace(/,?\\*"previousContentObject\\*":(?:\\*"[^"\\]*\\*")?/g, "");
+
+/** How often the story has visited each of its containers. */
+const visitCountsOf = (game: Game) =>
+  JSON.parse(JSON.parse(game.save()).story).visitCounts;
+
+/** The story's own state, comparable across two games: the callstack,
+ *  the variables, the visit counts; not the seed or the previous content
+ *  pointer, for the reasons `saveOf` gives. */
+const storyOf = (game: Game) => {
+  const story = JSON.parse(JSON.parse(game.save()).story);
+  delete story.storySeed;
+  for (const flow of Object.values<any>(story.flows ?? {})) {
+    for (const thread of flow?.callstack?.threads ?? []) {
+      delete thread.previousContentObject;
+    }
+  }
+  return story;
+};
 
 describe("preview prediction and gate", () => {
   it("holds the connect on the cursor beat's pictures, and only what the preview writes with it", async () => {
@@ -459,6 +494,8 @@ describe("preview prediction and gate", () => {
       ["textAbove", 0, []],
       ["textAbove", 1, []],
       ["textAbove", 2, ["bunny.png"]],
+      ["hideNamed", 2, ["bunny.png"]],
+      ["hideNamed", 4, []],
       [
         "seven",
         1,
@@ -567,6 +604,12 @@ describe("preview prediction and gate", () => {
         restore: got.restore,
         preview: got.preview,
       }).toEqual({ shape, line, loads, restore, preview });
+      // And the gate is what the restore and the preview wrote together.
+      expect({ shape, line, gated: got.gated }).toEqual({
+        shape,
+        line,
+        gated: got.written,
+      });
     }
   });
 
@@ -659,6 +702,10 @@ end
     ];
     for (const [how, story, line, arrival] of cases) {
       const oracle = await writesOf(story, line, arrival);
+      expect({ how, told: stream(oracle.preview).length }).not.toEqual({
+        how,
+        told: 0,
+      });
       const h = await runAhead(story, line, arrival);
       expect({
         how,
@@ -682,6 +729,55 @@ end
     }
   });
 
+  it("reports the beat's own paths and conditions for a beat that ran ahead, whatever the layouts' bindings evaluate at their mount", async () => {
+    // A layout whose binding calls a function with a condition in it. The
+    // layouts mount after the run, and what their bindings evaluate then is
+    // not the beat's: the report a kept run sends names the beat's paths
+    // and the conditions the beat met, so the next route's favoured
+    // conditions are the beat's, not the binding's. A preview that runs the
+    // beat itself, with the layouts already mounted, reports the binding's
+    // work as well; everything else it tells the page is the same.
+    const story = `store hp = 100
+function label()
+  if hp > 50 then
+    return "high"
+  end
+  return "low"
+end
+
+layout hud
+  text
+    text = "{label()}"
+
+scene A
+  [[show backdrop room]]
+  Line one.
+  [[show portrait bunny]]
+  Line two.
+  done
+end
+`;
+    // Line 15 is the portrait's beat.
+    const oracle = await writesOf(story, 15);
+    const h = await runAhead(story, 15);
+    expect(gameNotices(h.messages).map((m) => m.method)).toEqual([]);
+    h.reset();
+    h.preview(15);
+    const executed = byMethod(h.messages, "game/executed");
+    expect(executed).toHaveLength(1);
+    const report = executed[0].params;
+    expect(report.executedPaths.length).toBeGreaterThan(0);
+    expect(
+      report.executedPaths.filter((p: string) => !p.startsWith("A.")),
+    ).toEqual([]);
+    expect(report.conditions).toEqual([]);
+    expect(report.choices).toEqual([]);
+    const butExecuted = (messages: any[]) =>
+      stream(messages.filter((m) => m?.method !== "game/executed"));
+    expect(butExecuted(h.messages)).toEqual(butExecuted(oracle.preview));
+    expect(imagesWritten(h.messages)).toEqual(["bunny.png"]);
+  });
+
   it("reports a runtime error in the beat once, when the beat displays", async () => {
     const story = `scene A
   [[show backdrop room]]
@@ -699,14 +795,15 @@ end
   });
 
   it("runs the beat once, and reports its execution once, when it displays", async () => {
+    const oracle = await writesOf(STORY, 3);
     const h = await runAhead(STORY, 3);
     expect(byMethod(h.messages, "game/executed")).toHaveLength(0);
     h.preview(3);
     expect(byMethod(h.messages, "game/executed")).toHaveLength(1);
     expect(imagesWritten(h.messages)).toEqual(["bunny.png"]);
-    // The story ran the beat once: its lines were visited once.
-    h.preview(3);
-    expect(byMethod(h.messages, "game/executed")).toHaveLength(1);
+    // The story ran the beat once: its lines were visited as often as a
+    // preview that ran the beat itself visited them.
+    expect(visitCountsOf(h.game)).toEqual(visitCountsOf(oracle.game));
   });
 
   it("stops at a breakpoint inside the beat as a preview that runs the beat itself does, after the game is connected", async () => {
@@ -753,6 +850,8 @@ end
       },
     });
     await h.ready;
+    // The run that is about to be dropped told the page nothing at connect.
+    expect(gameNotices(h.messages).map((m) => m.method)).toEqual([]);
     h.reset();
     h.preview(5);
     expect(imagesWritten(h.messages)).toEqual(["hat.png"]);
@@ -769,10 +868,110 @@ end
       },
     });
     await kept.ready;
+    expect(gameNotices(kept.messages).map((m) => m.method)).toEqual([]);
     kept.reset();
     kept.preview(5);
     expect(stream(kept.messages)).toEqual(stream(fromCheckpoint.preview));
     expect(saveOf(kept.game)).toEqual(saveOf(fromCheckpoint.game));
+  });
+
+  it("drops a kept run when the preview resolves no path, so nothing of it is stranded", async () => {
+    // The point the page marked no longer resolves for the preview (its
+    // script renamed, its line deleted since the mark): the run is dropped,
+    // its game put back, and the page hears nothing of it; the next preview
+    // runs its beat itself.
+    const story = `scene A
+  [[show backdrop room]]
+  & error("boom")
+  Line one.
+  done
+end
+`;
+    const h = await runAhead(story, 1);
+    expect(gameNotices(h.messages).map((m) => m.method)).toEqual([]);
+    h.reset();
+    expect(h.game.preview("file://proj/deleted.sd", 1)).toBeNull();
+    expect(gameNotices(h.messages).map((m) => m.method)).toEqual([]);
+    // The story is put back where a game that never ran the beat stands: a
+    // run left in place would sit past the beat, and the next preview of
+    // its path would display it instead of running the beat itself.
+    const untouched = createHarness(story, 1, { assets: ASSETS });
+    await untouched.ready;
+    expect(storyOf(h.game)).toEqual(storyOf(untouched.game));
+    h.reset();
+    h.preview(1);
+    expect(byMethod(h.messages, "game/executed")).toHaveLength(1);
+    expect(byMethod(h.messages, "game/runtimeError")).toHaveLength(1);
+    expect(imagesWritten(h.messages)).toEqual(["room.png"]);
+  });
+
+  it("completes the connect when the run throws out of a story step, and leaves the throw to the preview", async () => {
+    // An error thrown out of a step, not a story error the runtime reports,
+    // leaves the runtime counting the step as open, so the story cannot be
+    // put back. The connect must still complete and release its gate; the
+    // preview then runs the beat itself and meets the same throw.
+    const h = createHarness(STORY, 3, {
+      assets: ASSETS,
+      beforeConnect: (game) => {
+        game.markPreviewing(pathAt(game, 3)!);
+        // A throw from inside a step: past the point where the runtime
+        // counts the continue as open, which is what leaves it unable to
+        // cancel the line afterwards.
+        const story: any = game.story;
+        const original = story.ContinueSingleStep;
+        let steps = 0;
+        story.ContinueSingleStep = function () {
+          steps += 1;
+          if (steps === 2) {
+            throw new TypeError("a step threw");
+          }
+          return original.call(this);
+        };
+      },
+    });
+    await h.ready;
+    expect(byMethod(h.messages, "assets/release").at(-1)?.params).toEqual({
+      pins: ["restore"],
+      drop: false,
+    });
+    // Nothing of the run itself reaches the page; what does is the
+    // runtime's own complaint, raised by the layouts' bindings as they
+    // mount against a line the runtime still counts as open.
+    expect(byMethod(h.messages, "game/executed")).toHaveLength(0);
+    expect(byMethod(h.messages, "game/hitBreakpoint")).toHaveLength(0);
+    expect(() => h.preview(3)).toThrow();
+  });
+
+  it("puts a kept run back before the game starts, so play begins at the preview point", async () => {
+    // A host that previews and then starts the same game must start where
+    // the checkpoint left the story, not a beat past it.
+    const checkpoint = checkpointFor(STORY, 5)!;
+    const control = createHarness(STORY, 5, {
+      assets: ASSETS,
+      loadCheckpoint: checkpoint,
+    });
+    await control.ready;
+    const h = await runAhead(STORY, 5, { checkpoint });
+    control.game.start();
+    h.game.start();
+    expect(h.game.story.state.currentPathString).toEqual(
+      control.game.story.state.currentPathString,
+    );
+    expect(imagesWritten(h.messages)).toEqual(imagesWritten(control.messages));
+  });
+
+  it("runs nothing ahead for a connect the page did not mark, and keeps a kept run for the preview", async () => {
+    // A preview leaves the preview point set to the path it settled on. A
+    // host that connects the same game again without marking (the game
+    // worker does) gets a connect that runs nothing and gates nothing.
+    const h = createHarness(STORY, 3, { assets: ASSETS });
+    await h.ready;
+    h.preview(3);
+    h.reset();
+    await h.game.module.assets.onConnected();
+    await flushMicrotasks(20);
+    expect(byMethod(h.messages, "assets/load")).toHaveLength(0);
+    expect(gameNotices(h.messages).map((m) => m.method)).toEqual([]);
   });
 
   it("drops a kept run when the program changes, and runs the beat of the new one", async () => {
@@ -824,24 +1023,39 @@ end
     expect(byMethod(h.messages, "assets/prefetch")).toHaveLength(0);
   });
 
-  it("runs the beat from the same place when connected twice before the preview", async () => {
-    // The route's checkpoint sits at the beat; a second connect must not
-    // continue from where the first run stopped.
+  it("keeps a run across a connect with no fresh mark, and runs again from the same place for one", async () => {
+    // The route's checkpoint sits at the beat. A second connect with no new
+    // mark leaves the kept run for the preview; a second connect for a new
+    // mark puts the first run back and runs from the checkpoint again, not
+    // from where the first run stopped.
     const checkpoint = checkpointFor(STORY, 5)!;
     expect(checkpoint).not.toBeNull();
-    const h = createHarness(STORY, 5, {
-      assets: ASSETS,
-      loadCheckpoint: checkpoint,
-      beforeConnect: (game) => {
-        game.markPreviewing(pathAt(game, 5)!);
-      },
-    });
-    await h.ready;
+    const h = await runAhead(STORY, 5, { checkpoint });
+    h.reset();
     await h.game.module.assets.onConnected();
     await flushMicrotasks(20);
-    h.reset();
+    // The checkpoint's own pictures are gated again; no beat runs, so no
+    // second request.
+    expect(byMethod(h.messages, "assets/load").map(itemKeys)).toEqual([
+      [src("room")],
+    ]);
     h.preview(5);
     expect(imagesWritten(h.messages)).toEqual(["hat.png"]);
+    expect(byMethod(h.messages, "game/executed")).toHaveLength(1);
+    const again = await runAhead(STORY, 5, { checkpoint });
+    again.reset();
+    again.game.markPreviewing(pathAt(again.game, 5)!);
+    await again.game.module.assets.onConnected();
+    await flushMicrotasks(20);
+    expect(byMethod(again.messages, "assets/load").map(itemKeys)).toEqual([
+      [src("room")],
+      [src("hat")],
+    ]);
+    expect(gameNotices(again.messages).map((m) => m.method)).toEqual([]);
+    again.reset();
+    again.preview(5);
+    expect(imagesWritten(again.messages)).toEqual(["hat.png"]);
+    expect(byMethod(again.messages, "game/executed")).toHaveLength(1);
   });
 
   it("displays a kept run even when the preview's memo says the path was previewed", async () => {
