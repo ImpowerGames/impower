@@ -60,7 +60,9 @@ function completionLabelsAt(source: string) {
   return (items ?? []).map((i) => i.label);
 }
 
-// `@@` marks the completion point inside `helper`; `##` the one inside `other`.
+// `@@` marks the completion point inside `helper`; `##` the one inside
+// `other`. The unused marker's whole line is dropped so no whitespace-only
+// line is left behind in the other function's body.
 const SCRIPT = `scene intro
   (start)
   Hello.
@@ -80,8 +82,10 @@ scene elsewhere
 end
 `;
 
-const inHelper = (text: string) => SCRIPT.replace("@@", text).replace("##", "");
-const inOther = (text: string) => SCRIPT.replace("##", text).replace("@@", "");
+const dropLine = (script: string, marker: string) =>
+  script.replace(new RegExp(`^.*${marker}.*\\n`, "m"), "");
+const inHelper = (text: string) => dropLine(SCRIPT, "##").replace("@@", text);
+const inOther = (text: string) => dropLine(SCRIPT, "@@").replace("##", text);
 
 const AT_TOP = `function helper(alpha)
   |

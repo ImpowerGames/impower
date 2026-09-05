@@ -1,3 +1,4 @@
+import { nodeNameSet } from "../../utils/nodeNameSet";
 import { Range } from "@codemirror/state";
 import { getContextNames } from "@impower/textmate-grammar-tree/src/tree/utils/getContextNames";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
@@ -61,33 +62,33 @@ function firstDescendant(node: any, names: Set<string>): any {
   return null;
 }
 
-const FUNCTION_DECL_NAME = new Set(["LuauFunctionDeclarationName"]);
-const FUNCTION_DEFINITION = new Set(["LuauFunctionDefinition"]);
-const VARIABLE_DECL_SITE = new Set(["LuauVariableAssignment_begin"]);
-const VARIABLE_DEFINITION = new Set(["LuauVariableDefinition"]);
-const ASSET_COMMAND_INSTRUCTION = new Set(["AssetCommandInstruction"]);
-const ASSET_COMMAND_CONTROL = new Set(["AssetCommandControl"]);
+const FUNCTION_DECL_NAME = nodeNameSet(["LuauFunctionDeclarationName"]);
+const FUNCTION_DEFINITION = nodeNameSet(["LuauFunctionDefinition"]);
+const VARIABLE_DECL_SITE = nodeNameSet(["LuauVariableAssignment_begin"]);
+const VARIABLE_DEFINITION = nodeNameSet(["LuauVariableDefinition"]);
+const ASSET_COMMAND_INSTRUCTION = nodeNameSet(["AssetCommandInstruction"]);
+const ASSET_COMMAND_CONTROL = nodeNameSet(["AssetCommandControl"]);
 // The whole `[[…]]` / `((…))` command. A clause value (NameValue) is a SIBLING
 // of AssetCommandInstruction (both under the command), so reading the control
 // from a clause value walks up to the command, not the instruction.
-const ASSET_COMMAND = new Set(["ImageCommand", "AudioCommand"]);
+const ASSET_COMMAND = nodeNameSet(["ImageCommand", "AudioCommand"]);
 
 // The OOP define property line (`store trust = 0`, `name = "RAFFLES"`). Its LHS
 // name LuauVariableName must be claimed as a `property` declaration by the
 // LuauPropertyDefinition branch, NOT emitted as a generic variable read.
-const PROPERTY_DEFINITION = new Set(["LuauPropertyDefinition"]);
+const PROPERTY_DEFINITION = nodeNameSet(["LuauPropertyDefinition"]);
 
 // A Sparkle `@event=handler` binding and its parts. When the handler is a bare
 // function ref (`@click=go_back`) or a direct call (`@click=use_item(item)`),
 // the target must be a runtime-callable function/knot; an inline closure
 // (`@e={ … }`) or a member/method target (`@click=hero:jump()`) carries no bare
 // function name to resolve.
-const EVENT_ATTR_CONTENT = new Set(["LuauEventAttribute_content"]);
-const EVENT_HANDLER_CLOSURE = new Set(["LuauSparkleHandlerClosure"]);
+const EVENT_ATTR_CONTENT = nodeNameSet(["LuauEventAttribute_content"]);
+const EVENT_HANDLER_CLOSURE = nodeNameSet(["LuauSparkleHandlerClosure"]);
 // A bare-ref handler (`@e=go_back`) is its own grammar node (highlighted like a
 // divert path); a direct call (`@e=use_item(a)`) keeps the callee as a
 // `LuauFunctionName`. Either is the resolvable handler target.
-const EVENT_HANDLER_NAME = new Set([
+const EVENT_HANDLER_NAME = nodeNameSet([
   "LuauSparkleEventHandlerName",
   "LuauFunctionName",
   "LuauVariableName",
@@ -96,13 +97,13 @@ const EVENT_HANDLER_NAME = new Set([
 // `LuauStructBodyLine` is the per-physical-line wrapper of a structural
 // (style/screen/component/animation/theme) body; the indent is the column of
 // the body content relative to that line's start.
-const STRUCT_BODY_LINE = new Set(["LuauStructBodyLine"]);
+const STRUCT_BODY_LINE = nodeNameSet(["LuauStructBodyLine"]);
 
 // The identifier tokens that carry a struct property/header KEY in the Luau-port
 // grammar (LuauStructScalarProperty / LuauStructObjectHeader capture-2). The old
 // per-flavor `*DeclarationScalarPropertyName` / `*ObjectPropertyName` nodes are
 // gone; these are the generic replacements.
-const STRUCT_KEY_TOKENS = new Set([
+const STRUCT_KEY_TOKENS = nodeNameSet([
   "BuiltinComponentName",
   "StylingDeclarationScalarPropertyName",
   "DeclarationScalarPropertyKey",

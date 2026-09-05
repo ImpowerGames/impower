@@ -1,3 +1,4 @@
+import { nodeNameSet } from "../../utils/nodeNameSet";
 import { type SyntaxNode } from "@lezer/common";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 import { BinaryExpression } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expression/BinaryExpression";
@@ -70,7 +71,7 @@ import { lowerLuauGenericForLoop } from "./lowerLuauGenericForLoop";
 // `for k, v in iter` is NOT handled here — that goes through
 // `lowerLuauGenericForLoop`.
 
-const FOR_BODY_SKIP: ReadonlySet<string> = new Set([
+const FOR_BODY_SKIP: ReadonlySet<string> = nodeNameSet([
   "LuauForCondition",
   "LuauForKeyword",
   "LuauDoKeyword",

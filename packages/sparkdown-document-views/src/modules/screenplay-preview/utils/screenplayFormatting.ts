@@ -426,11 +426,11 @@ export const decorate = (
 
   // Source-based blank-line detection. Read the line text directly rather
   // than tracking a flag across node visits — the grammar wraps a
-  // whitespace-only "blank" line as `BlockLineBlank > BlockLineBlank_c1 >
-  // Indent`, and a flag-based approach would mis-classify those wrapper
-  // nodes as "content" and drop the separator (visible as missing blank
-  // line between consecutive dialogue blocks once the editor leaves indent
-  // on the otherwise-empty line).
+  // whitespace-only "blank" line in `BlockLineBlank` with the indent as a
+  // capture inside it, and a flag-based approach would mis-classify those
+  // wrapper nodes as "content" and drop the separator (visible as missing
+  // blank line between consecutive dialogue blocks once the editor leaves
+  // indent on the otherwise-empty line).
   const isWhitespaceOnly = (start: number, end: number): boolean => {
     if (end <= start) return true;
     const slice = doc.sliceString(start, end);
@@ -856,8 +856,7 @@ export const decorate = (
       // thing anchoring the line-box. Hiding it would collapse the line to
       // zero height and erase the inter-block separator. Skip highlighting
       // the leading whitespace of a whitespace-only line so it renders as
-      // bare, visible text (matching how the now-removed dedicated `Indent`
-      // node used to render).
+      // bare, visible text.
       const line = doc.lineAt(from);
       if (line.from === from && isWhitespaceOnly(line.from, line.to)) {
         return;

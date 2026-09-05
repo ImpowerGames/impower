@@ -30,8 +30,12 @@ on:
       - "**/package.json"
       - "package-lock.json"
       - "scripts/typecheck.mjs"
-      - "scripts/check-node-names.mjs"
+      # The node-name check reads both generated grammars; a change to their
+      # YAML source has to run it too, so a regeneration that is forgotten or
+      # done for one output only is caught here.
+      - "definitions/yaml/**"
       - "packages/sparkdown/language/sparkdown.language-grammar.json"
+      - "vscode-sparkdown/language/sparkdown.language-grammar.json"
       - ".github/workflows/typecheck.yml"
 
 # A superseded PR run is of no interest; keep only the newest per branch.
@@ -62,12 +66,17 @@ jobs:
       # Two at a time: each `tsc` holds a whole program in memory and the
       # largest projects here peak above 1 GB, which a standard runner cannot
       # sustain four-wide.
-      - name: Typecheck
-        run: npm run typecheck -- --jobs 2
-
       # Grammar node names written as string literals where the type system
       # cannot see them: lookups on untyped lezer nodes, `.getChild("...")`,
       # and comparisons on values typed as plain strings. See the script's
-      # header for what it covers and why `tsc` alone is not enough.
+      # header for what it covers and why `tsc` alone is not enough. It runs
+      # before the typecheck, which takes minutes, so its findings are not
+      # hidden behind a type error elsewhere.
+      - name: Test the node-name scanner
+        run: node --test scripts/check-node-names.test.mjs
+
       - name: Check grammar node names
         run: npm run check:node-names
+
+      - name: Typecheck
+        run: npm run typecheck -- --jobs 2

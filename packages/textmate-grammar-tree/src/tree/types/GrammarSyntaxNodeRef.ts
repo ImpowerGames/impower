@@ -1,6 +1,10 @@
 import { type NodeType, type SyntaxNodeRef } from "@lezer/common";
 
-export type GrammarSyntaxNodeRef<T extends string> = SyntaxNodeRef & {
+/**
+ * A lezer node reference whose names are drawn from a grammar's node-name
+ * union `N`; see `GrammarSyntaxNode` for the `N`/`T` split.
+ */
+export type GrammarSyntaxNodeRef<N extends string, T extends N = N> = SyntaxNodeRef & {
   name: T;
-  type: NodeType & { name: T };
+  type: NodeType & { name: N };
 };

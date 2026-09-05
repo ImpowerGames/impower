@@ -1,3 +1,5 @@
+import { type SparkdownNodeName } from "../../types/SparkdownNodeName";
+import { nodeNameSet } from "../../utils/nodeNameSet";
 import { Range } from "@codemirror/state";
 import { getContextStack } from "@impower/textmate-grammar-tree/src/tree/utils/getContextStack";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
@@ -25,7 +27,7 @@ import { SparkdownAnnotator } from "../SparkdownAnnotator";
 // shouldn't tighten against them like `foo(x)` does. Only triggers
 // for the multi-line / block forms; inline alternators inside `{}`
 // interpolations stay collapsed via `isInsideInlineAlternator`.
-const KEYWORDS_REQUIRING_TRAILING_SPACE = new Set([
+const KEYWORDS_REQUIRING_TRAILING_SPACE = nodeNameSet([
   "LuauIfKeyword",
   "LuauElseifKeyword",
   "LuauForKeyword",
@@ -52,19 +54,22 @@ const KEYWORDS_REQUIRING_TRAILING_SPACE = new Set([
 // expression). These carry typing-pacing significance: whitespace
 // between/around the `|` separators is part of the rendered output,
 // so the formatter must leave it alone.
-const PRESERVE_WHITESPACE_ALTERNATOR_NAMES = new Set([
+const PRESERVE_WHITESPACE_ALTERNATOR_NAME_LIST: SparkdownNodeName[] = [
   "LuauSparkdownInlineGluedSequentialAlternatorBlock",
   "LuauSparkdownInlineGluedConditionalAlternatorBlock",
   "LuauSparkdownSingleLineSequentialAlternatorBlock",
   "LuauSparkdownSingleLineConditionalAlternatorBlock",
-]);
+];
+const PRESERVE_WHITESPACE_ALTERNATOR_NAMES = nodeNameSet(
+  PRESERVE_WHITESPACE_ALTERNATOR_NAME_LIST,
+);
 
 // Any inline alternator form — these all live on a single line and
 // should be tight (no `keyword (paren)` separation). Includes both
 // the display-text variants above AND the Luau-expression variants
 // (`{plural(n)|one="is"|other="are"}`).
-const ALL_INLINE_ALTERNATOR_NAMES = new Set([
-  ...PRESERVE_WHITESPACE_ALTERNATOR_NAMES,
+const ALL_INLINE_ALTERNATOR_NAMES = nodeNameSet([
+  ...PRESERVE_WHITESPACE_ALTERNATOR_NAME_LIST,
   "LuauSequentialAlternatorBlock",
   "LuauConditionalAlternatorBlock",
 ]);
