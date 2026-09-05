@@ -1049,9 +1049,9 @@ async function scriptEditorPresent(page, timeout = 10_000) {
  * `scripts` tab or on any other screen. Waits briefly for a pane to mount, so
  * a page still hydrating does not read as "nothing expected".
  */
-async function editorExpectedHere(page, { paneWait = 5_000 } = {}) {
+async function editorExpectedHere(page) {
   await page
-    .waitForFunction((screens) => Object.values(screens).some((sel) => document.querySelector(sel)), SCREENS, { timeout: paneWait })
+    .waitForFunction((screens) => Object.values(screens).some((sel) => document.querySelector(sel)), SCREENS, { timeout: 5_000 })
     .catch(() => {});
   const screen = await activeScreen(page);
   // No pane mounted at all is a page still loading, and in the fullscreen
@@ -1077,22 +1077,32 @@ async function editorExpectedHere(page, { paneWait = 5_000 } = {}) {
  * steps re-check it in a second or so, and after a step has given up on it,
  * later steps fail at once and point at the first.
  */
-function editorGate() {
+function editorGate({ expected = editorExpectedHere, present = scriptEditorPresent, settle = settleEditor } = {}) {
   let settledOnce = false;
   let gaveUp = null;
   return async (page, what) => {
-    if (gaveUp) return { required: true, ok: false, reason: `the script editor is still not up (see the first step that reported it); this ${what} was skipped` };
-    const expected = await editorExpectedHere(page);
-    if (expected === false) return { required: false };
-    const here = await scriptEditorPresent(page, settledOnce ? 5_000 : 20_000);
+    // The question comes first: a step on a screen where no editor is
+    // expected is never refused, whatever an earlier step found.
+    const exp = await expected(page);
+    if (exp === false) return { required: false };
+    if (gaveUp) {
+      // Fail fast, but let a recovery show: a quick look that finds the
+      // editor up clears the latch and the step proceeds.
+      const quick = await present(page, 2_000);
+      if (!quick.present) return { required: true, ok: false, reason: `the script editor is still not up (an earlier step reported: ${gaveUp}); this ${what} was skipped` };
+      gaveUp = null;
+    }
+    const budget = settledOnce ? 8_000 : 20_000;
+    const here = await present(page, budget);
     if (!here.present) {
       gaveUp = here.reason;
-      const where = expected == null ? "no pane had mounted, so the page was still loading" : here.reason.replace(/; the editor did not mount within \d+s.*$/, "");
-      return { required: true, ok: false, reason: `the script editor is expected here and had not mounted within 20s (${where}); this ${what} would have acted on a page still loading. Re-run; if it persists the machine is saturated` };
+      const state = exp == null ? `no pane had mounted; ${here.reason}` : here.reason;
+      return { required: true, ok: false, reason: `this ${what} needs the script editor, which had not mounted within ${budget / 1000}s: ${state}. Re-run; if it persists the machine is saturated` };
     }
-    if (!(await settleEditor(page, settledOnce ? 5_000 : 15_000))) {
-      gaveUp = "never settled";
-      return { required: true, ok: false, reason: `the script editor kept being replaced and never settled; this ${what} would have acted on a view about to go away. Re-run; if it persists the machine is saturated` };
+    const settleBudget = settledOnce ? 8_000 : 15_000;
+    if (!(await settle(page, settleBudget))) {
+      gaveUp = `the editor kept being replaced for ${settleBudget / 1000}s`;
+      return { required: true, ok: false, reason: `this ${what} needs a settled script editor, and the view kept being replaced for ${settleBudget / 1000}s. Re-run; if it persists the machine is saturated` };
     }
     settledOnce = true;
     return { required: true, ok: true };
@@ -1107,6 +1117,11 @@ function editorGate() {
  * two checks and a quiet DOM in between.
  */
 async function settleEditor(page, timeout = 30_000) {
+  // Stability is the view's own identity and document length holding across
+  // three reads 600 ms apart. It does not wait for the whole page's DOM to go
+  // quiet: the game preview animates and the language server churns
+  // attributes, and neither says anything about whether the editor view is
+  // about to be replaced.
   const deadline = Date.now() + timeout;
   let last = null;
   let stableFor = 0;
@@ -1127,7 +1142,7 @@ async function settleEditor(page, timeout = 30_000) {
       stableFor = 0;
     }
     last = id;
-    await waitForDomQuiet(page, { quiet: 500, timeout: 3_000 });
+    await sleep(600);
   }
   return false;
 }
@@ -1391,6 +1406,11 @@ async function switchScreen(page, name) {
   const editorHere = landsOnEditor
     ? (await scriptEditorPresent(page, 15_000)).present
     : await page.evaluate(() => document.querySelector(".sparkdown-script-editor-root .cm-content") != null);
+  if (landsOnEditor && !editorHere) {
+    // The tab is up but the editor it should carry never mounted: a switch
+    // that reads as a success here would let a later screenshot lie.
+    return { screen: name, active: true, settled, editorHere: false, reason: `the ${name} tab is up but no script editor mounted within 15s. Re-run; if it persists the machine is saturated` };
+  }
   if (editorHere) {
     const editorSettled = await settleEditor(page);
     settled = editorSettled && settled;
@@ -1653,10 +1673,20 @@ async function ui(args) {
           } else if (step.screen) {
             result.steps.push(await switchScreen(page, step.screen));
           } else if (step.open) {
+            const ready = await requireEditor(page, "panel");
+            if (ready.ok === false) {
+              result.steps.push({ surface: step.open, open: false, gated: true, reason: ready.reason });
+              continue;
+            }
             result.steps.push(await openSurface(page, step.open));
           } else if (step.close) {
             result.steps.push(await closeSurface(page, step.close));
           } else if (step.type) {
+            const ready = await requireEditor(page, "panel");
+            if (ready.ok === false) {
+              result.steps.push({ field: step.type, typed: false, gated: true, reason: ready.reason });
+              continue;
+            }
             result.steps.push(await typeInto(page, step.type, step.text));
           } else if (step.press) {
             const ready = await requireEditor(page, "key press");
@@ -1767,6 +1797,8 @@ export {
   ensureScriptEditor,
   settleEditor,
   scriptEditorPresent,
+  editorExpectedHere,
+  editorGate,
   activeScreen,
   waitForDomQuiet,
   focusEditor,
