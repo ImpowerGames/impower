@@ -23,7 +23,7 @@ For a fix, it pins the defect. For a feature, it pins the new behaviour. Put it 
 
 Copy an existing neighbouring test's imports rather than inventing them; in `src/tests/compiler/`, `compileSnapshot.ts`'s import order is load-bearing (it primes `Container` first to break a class-extends TDZ cycle). Copy repro syntax from a passing fixture rather than from memory.
 
-If the package has no tests at all, set it up; do not skip the test. Most packages here have no `vitest.config.ts` yet, and standing one up is part of the work rather than a reason to land untested code. Use `packages/opfs-workspace` as the template, three pieces:
+If the package has no tests at all, set it up; do not skip the test. Most packages here have no `vitest.config.ts` yet, and standing one up is part of landing a fix rather than a reason to land it untested; a session that is only filing a bug hosts its repro where a harness already exists (file-bug says where) and leaves the setup to the fix. Use `packages/opfs-workspace` as the template, three pieces:
 
 1. `vitest.config.ts` at the package root. Copy `packages/opfs-workspace/vitest.config.ts` verbatim and keep its `pool: "forks"` + `singleFork` + `fileParallelism: false` settings; parallel runs OOM this machine.
 2. `"test": "vitest run"` in the package's `scripts`, and `vitest` in its `devDependencies` (match the version other packages use, `^2.1.9`).
@@ -48,6 +48,8 @@ Run the whole cycle through the driver, from the repo root, naming the test invo
 ```bash
 node .claude/skills/drive-web-editor/driver.mjs redgreen --test "cd packages/sparkdown && NODE_OPTIONS=--max-old-space-size=1024 npx vitest run src/tests/compiler/FilterImageLayers.test.ts --pool=forks --poolOptions.forks.minForks=1 --poolOptions.forks.maxForks=1" --files packages/sparkdown/src/compiler/utils/filterImage.ts
 ```
+
+`--test` is the test command, run twice from the repo root (it may `cd` into the package itself); `--files` takes every changed source the test exercises, one path or several, and never the test file; `--base` is the revision the pre-fix content comes from, `HEAD` by default and `origin/main` once the fix is committed.
 
 It snapshots the files, reverts them to the base revision, runs the test and requires it to fail, restores the files from the snapshot, proves each restore by content hash, and runs the test again. Verified output shape:
 
@@ -109,23 +111,24 @@ Because it is a substring, `packages/sparkdown` matches six projects (`sparkdown
 
 A project your change reaches through an import is checked when that project runs, not when yours does, so widen to the whole gate before you push. CI runs the same command on any pull request that touches code, a `tsconfig`, or a `package.json`; `.github/workflows/typecheck.yml` has a paths filter, so a branch that changes only docs gets no typecheck run at all. Where it does run, a type error blocks the merge, so a clean local run is worth something and a red one is a real failure rather than noise to route around.
 
-Then run the standalone checks under `.claude/`. Nothing in CI invokes them, so they only ever run because someone remembers to; each one pins a footgun that has already cost a session. There are two kinds, shell checks over hooks and skill prose, and `.mjs` checks over the hook and the pure functions in `driver.mjs`:
+Then run the standalone checks under `.claude/`. Only the two under `.claude/hooks/` have a CI job (`.github/workflows/hook-tests.yml`, on a pull request that touches `.claude/hooks/**` or `.claude/settings.json`); the ones under `.claude/skills/` run only because someone remembers to, and each pins a footgun that has already cost a session. There are two kinds, shell checks over hooks and skill prose, and `.mjs` checks over the hook and the pure functions in `driver.mjs`. The reviewer check stays out of the loop and gets its quick pass on its own line, because in full it runs for about eighteen minutes (below):
 
 ```bash
-for t in $(git ls-files '.claude/**/*.test.sh'); do echo "--- $t"; bash "$t" || echo "FAILED: $t"; done
+for t in $(git ls-files '.claude/**/*.test.sh' ':!.claude/skills/review-pr/reviewer-model-values.test.sh'); do echo "--- $t"; bash "$t" || echo "FAILED: $t"; done
 for t in $(git ls-files '.claude/**/*.test.mjs'); do echo "--- $t"; node "$t" || echo "FAILED: $t"; done
+REVIEWER_CHECK_INNER=1 bash .claude/skills/review-pr/reviewer-model-values.test.sh
 ```
 
 `git ls-files` rather than a shell glob or `find`, because both of those go wrong here in ways that look like a pass:
 
-- A `**` glob half-runs. Bash expands `**` across directories only with `shopt -s globstar` set, and it is not set here, so `**` collapses to a single-level `*`: `.claude/**/*.test.sh` matches `hooks/grammar-edit-hook.test.sh` one level down and silently skips `skills/review-pr/reviewer-model-values.test.sh` two levels down. The `.mjs` pattern matches nothing at all, and bash hands an unmatched pattern to the loop body unexpanded, so you get `FAILED: .claude/**/*.test.mjs`: wrong, but at least visible.
+- A `**` glob half-runs. Bash expands `**` across directories only with `shopt -s globstar` set, and it is not set here, so `**` collapses to a single-level `*`: each pattern matches only the one check a single level down under `.claude/hooks/` and silently skips every check under `.claude/skills/`, two levels down. The check it finds passes, so the loop reports a clean run having skipped most of the checks; nothing fails and there is nothing to notice.
 - `find .claude` over-matches in the main checkout. `.gitignore` puts `.claude/worktrees/` there, holding whole checkouts with their own `node_modules`, so `find` returns many more files than the checks, most of them third-party tests it would then try to execute. A fresh worktree has no such directory, so `find` looks correct there and only misbehaves where the skill is normally run.
 
-`git ls-files` sidesteps both: the checks are tracked, and everything `find` picks up by mistake is ignored or untracked. Count the `---` lines against what `git ls-files '.claude/**/*.test.*'` returns; there are eight: two under `.claude/hooks/` (one shell, one Node), five Node checks under `.claude/skills/drive-web-editor/`, and one shell check under `.claude/skills/review-pr/`. Stage a new check before running the loop, because `git ls-files` sees only what is tracked.
+`git ls-files` sidesteps both: the checks are tracked, and everything `find` picks up by mistake is ignored or untracked. Count the `---` lines against what `git ls-files '.claude/**/*.test.*'` returns; there are nine: two under `.claude/hooks/` (one shell, one Node), five Node checks under `.claude/skills/drive-web-editor/`, and one shell check each under `.claude/skills/resolve-issue/` and `.claude/skills/review-pr/`. Stage a new check before running the loop, because `git ls-files` sees only what is tracked.
 
-The checks need no `node_modules`: the driver imports `playwright` only inside the commands that launch a browser, so a worktree that skipped `npm install` still runs all eight.
+The checks need no `node_modules`: the driver imports `playwright` only inside the commands that launch a browser, so a worktree that skipped `npm install` still runs all nine.
 
-The shell checks take minutes on a loaded machine (7m25s measured at `d90fa38c0` with a dev-server build and a vitest run alongside), because they spawn many small processes; give them a ten-minute timeout and read the result rather than concluding they hang. `reviewer-model-values.test.sh` is the slow one even on an idle machine: it re-runs itself once per control case (about thirty-five) and spawns `awk`/`grep`/`sed` per field, so it takes about eighteen minutes idle (measured 17m44s, 46 assertions passing) and prints nothing until its base section is done. Run it in the background with a long timeout, or `REVIEWER_CHECK_INNER=1 bash …` for the quick pass over the real files only. The controls build their own fixtures and never read the real definitions, so a change to a reviewer definition or to the review-pr skill is covered by the quick pass; the controls matter when that script itself changes. The other seven finish in seconds.
+The shell checks take minutes on a loaded machine (7m25s measured at `d90fa38c0` with a dev-server build and a vitest run alongside), because they spawn many small processes; give the loop a ten-minute timeout and read the result rather than concluding it hangs. `reviewer-model-values.test.sh` is out of the loop because on its own it runs for about eighteen minutes even on an idle machine (measured 17m44s, 46 assertions passing) and prints nothing until its controls are done, so a ten-minute timeout kills it in silence. The quick pass above covers a change to a reviewer definition or to the review-pr skill; the review-pr skill, which owns the check, says when the full run is needed and how to run it. The other eight finish in seconds.
 
 ---
 

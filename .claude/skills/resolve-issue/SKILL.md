@@ -1,6 +1,6 @@
 ---
 name: resolve-issue
-description: Resolve a GitHub issue in this repo end-to-end — read the ticket, reproduce it, fix it, add a regression test and run the suite, verify it live in the running editor with a screenshot, open a draft PR, adversarially review it with cross-model subagents that post their findings as PR comments, and mark it ready. Use when asked to fix, resolve, work on, or take an issue/ticket/bug by number (e.g. "fix #302", "resolve issue 214", "take a look at #281"). The step skills it invokes (write-regression-test, drive-web-editor, review-pr) are usable on their own; this one is the ordered checklist that ties them together.
+description: Resolve a GitHub issue in this repo end-to-end — read the ticket, reproduce it, fix it, add a regression test and run the suite, see it running where it runs (a screenshot from the editor, or the checks that exercise a change with nothing to boot), open a draft PR, adversarially review it with cross-model subagents that post their findings as PR comments, and mark it ready. Use when asked to fix, resolve, work on, or take an issue/ticket/bug by number (e.g. "fix #302", "resolve issue 214", "take a look at #281"). The step skills it invokes (write-regression-test, drive-web-editor, review-pr) are usable on their own; this one is the ordered checklist that ties them together.
 ---
 
 # Resolve a GitHub issue
@@ -60,14 +60,14 @@ If §3 shows the ticket is about something other than what its title says, renam
 
 Never work on `main`, and never reuse another issue's worktree.
 
-The branch is `<type>/<issue>-<slug>`, and the worktree path is that same string under `../impower.worktrees/` (a sibling of the repo checkout): `fix/302-filterimage-layers` lives at `../impower.worktrees/fix/302-filterimage-layers`. `<type>` is the commit-prefix vocabulary (`fix`, `feat`, `perf`, `docs`, `test`, `refactor`); a Task ticket takes the type of the work it produces (`refactor`, `docs`, `test`, `perf`). `<issue>` is the bare number, first, so branches sort by ticket. `<slug>` is 2–4 dash-separated words naming the defect or capability, not the area (`filterimage-layers`, not `sparkdown-compiler`).
+The branch is `<type>/<issue>-<slug>`, and the worktree path is that same string under `../impower.worktrees/` (a sibling of the repo checkout): `fix/302-filterimage-layers` lives at `../impower.worktrees/fix/302-filterimage-layers`. `<type>` is the commit-prefix vocabulary (`fix`, `feat`, `perf`, `docs`, `test`, `refactor`, `ci`); a Bug takes `fix`, a Feature `feat`, and a Task the type of the work it produces (`refactor`, `docs`, `test`, `perf`, `ci`). `<issue>` is the bare number, first, so branches sort by ticket. `<slug>` is 2–4 dash-separated words naming the defect or capability, not the area (`filterimage-layers`, not `sparkdown-compiler`).
 
 ```bash
 git fetch origin main
 git worktree add -b fix/302-filterimage-layers ../impower.worktrees/fix/302-filterimage-layers origin/main
 ```
 
-If the checkout you are launched from is itself a worktree, resolve the sibling directory from the main checkout (`git worktree list | head -1`) rather than from `../`. Where worktrees live is a local preference: follow whatever `git worktree list` already shows rather than creating a second layout. Removing a worktree leaves the now-empty `<type>/` directory behind; `rmdir` it.
+If the checkout you are launched from is itself a worktree, resolve the sibling directory from the main checkout (`git worktree list | head -1`) rather than from `../`. Where worktrees live is a local preference: follow whatever `git worktree list` already shows rather than creating a second layout. `git worktree add` creates the `<type>/` directory, and removing the worktree leaves it behind empty; `rmdir` it.
 
 A fresh worktree has no `node_modules`. Install dependencies when the work will run anything from `node_modules` (a build, a test, the driver's browser commands); a hooks-only, skills-only or docs-only change skips the install, and the preflight's disk check still runs. The monorepo is npm workspaces, so install once at the new worktree's root, always with the variable set:
 
@@ -75,7 +75,7 @@ A fresh worktree has no `node_modules`. Install dependencies when the work will 
 PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 npm install
 ```
 
-A bare `npm install` fails outright here: a workspace pulls in `@playwright/browser-chromium`, whose install script fetches a Chromium build from `cdn.playwright.dev`, a host outside this network's allowlist, and npm aborts the whole install on that 403. Skipping the download is safe; the driver runs against the Chromium build the sandbox pre-installs.
+A bare `npm install` fails outright here: a workspace pulls in `@playwright/browser-chromium`, whose install script fetches a Chromium build from `cdn.playwright.dev`, a host outside this network's allowlist, and npm aborts the whole install on that 403. Skipping the download is safe; the driver runs against the Chromium build the sandbox pre-installs under `PLAYWRIGHT_BROWSERS_PATH`.
 
 The install takes several minutes and roughly 2–3 GB. Verify it before trusting it: a full disk leaves a silently corrupted `node_modules` (truncated binaries, empty package dirs, missing `dist/*.mjs`) that surfaces much later as a baffling build error. Execute the binaries rather than checking file sizes; `npx esbuild --version` and `npx vitest --version` must each print a version and exit 0. A spawn error, `EFTYPE`, or "not found" means a corrupted install (see Troubleshooting).
 
@@ -101,13 +101,13 @@ Make the change in the worktree. `CLAUDE.md` carries the repo-wide traps that ap
 
 ## 5. Regression test
 
-Invoke `/write-regression-test` now (skill name `write-regression-test`). It covers where the test lives, the `redgreen` proof that it fails on the pre-fix source and passes on the fix, the capped vitest runs, the typecheck, and the standalone checks under `.claude/`. Record the red assertion, the green count and the suite numbers for the PR body.
+Invoke `/write-regression-test` now (skill name `write-regression-test`). It covers where the test lives, the `redgreen` proof that it fails on the pre-fix source and passes on the fix, the capped vitest runs, the typecheck, and the standalone checks under `.claude/`. For a change with nothing to boot, the test that pins it is the check that exercises it (§3), and that skill's standalone-checks loop is the run. Record the red assertion, the green count and the suite numbers for the PR body.
 
 ---
 
 ## 6. See the change where it runs
 
-A change is not done until you have seen it running where it runs; passing tests are necessary, never sufficient. For anything under `impower-dev/`, `packages/` or `vscode-sparkdown/`, invoke `/drive-web-editor` now (skill name `drive-web-editor`): it boots the servers, drives the preview or the editor's own panels, and writes the `after.png` you then open and look at, or, for a change with no visual signature, replaces the screenshot with a measured before/after. A change that touches nothing under those directories has nothing to boot; the pull request says so, and the gate is the checks that exercise it, run at their new state and passing.
+A change is not done until you have seen it running where it runs; passing tests are necessary, never sufficient. For anything under `impower-dev/` or `packages/`, invoke `/drive-web-editor` now (skill name `drive-web-editor`): it boots the servers, drives the preview or the editor's own panels, and writes the `after.png` you then open and look at, or, for a change with no visual signature, replaces the screenshot with a measured before/after. For anything under `vscode-sparkdown/` there is no headless driver (#463): see the change in a development host if you have one, otherwise see the shared package underneath it through the web editor, and say in the pull request which you did. A change that touches nothing under those three directories has nothing to boot; the pull request says so, and the gate is the checks that exercise it, run at their new state and passing.
 
 ---
 
@@ -141,7 +141,7 @@ Invoke `/review-pr` now (skill name `review-pr`). It sizes the review, spawns re
 
 The ticket is resolved when all of these hold, and not before:
 
-- A regression test pins the behaviour, and `redgreen` showed it red on the pre-fix source and green on the fix (§5).
+- A test pins the behaviour, red before the change and green after: `redgreen` on the regression test (§5), or, for a change with nothing to boot, the check that exercises it (§3).
 - You have seen the change where it runs: the `after.png` you opened, the measurement that replaces it, or, for a change with nothing to boot, the checks that exercise it (§6).
 - The pull request is open with `Closes #N` in its body and the evidence in its Testing and verification section (§7).
 - `/review-pr` has marked it ready, or the PR says plainly what is still outstanding (§8).
