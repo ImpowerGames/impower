@@ -1,4 +1,4 @@
-import { INamedContent } from "./INamedContent";
+import type { INamedContent } from "./INamedContent";
 
 export function asOrNull<T>(
   obj: any,
@@ -64,7 +64,7 @@ export function isEquatable(type: any) {
 function unsafeTypeAssertion<T>(
   obj: any,
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  type: (new () => T) | (Function & { prototype: T }),
+  _type: (new () => T) | (Function & { prototype: T }),
 ) {
   return obj as T;
 }

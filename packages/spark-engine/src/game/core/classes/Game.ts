@@ -1,15 +1,15 @@
-import { Message } from "@impower/jsonrpc/src/common/types/Message";
-import { NotificationMessage } from "@impower/jsonrpc/src/common/types/NotificationMessage";
-import { RequestMessage } from "@impower/jsonrpc/src/common/types/RequestMessage";
-import { ResponseError } from "@impower/jsonrpc/src/common/types/ResponseError";
+import type { Message } from "@impower/jsonrpc/src/common/types/Message";
+import type { NotificationMessage } from "@impower/jsonrpc/src/common/types/NotificationMessage";
+import type { RequestMessage } from "@impower/jsonrpc/src/common/types/RequestMessage";
+import type { ResponseError } from "@impower/jsonrpc/src/common/types/ResponseError";
 import { type SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
 import { resolveCompiledProgram } from "@impower/sparkdown/src/binary/programBinary";
 import {
   buildRouteSimulator,
   lastSearchStats,
   planRoute,
-  SearchOptions,
-  RoutePlan,
+  type SearchOptions,
+  type RoutePlan,
 } from "@impower/sparkdown/src/compiler/utils/planRoute";
 import { uuid } from "@impower/sparkdown/src/compiler/utils/uuid";
 import { InkObject } from "@impower/sparkdown/src/inkjs/engine/Object";
@@ -17,19 +17,19 @@ import { PushPopType } from "@impower/sparkdown/src/inkjs/engine/PushPop";
 import { InkList, Story } from "@impower/sparkdown/src/inkjs/engine/Story";
 import { DEFAULT_MODULES } from "../../modules/DEFAULT_MODULES";
 import { ErrorType } from "../enums/ErrorType";
-import { Breakpoint } from "../types/Breakpoint";
-import { DocumentLocation } from "../types/DocumentLocation";
-import { GameConfiguration } from "../types/GameConfiguration";
-import { GameContext } from "../types/GameContext";
-import { GameState } from "../types/GameState";
-import { InstanceMap } from "../types/InstanceMap";
+import type { Breakpoint } from "../types/Breakpoint";
+import type { DocumentLocation } from "../types/DocumentLocation";
+import type { GameConfiguration } from "../types/GameConfiguration";
+import type { GameContext } from "../types/GameContext";
+import type { GameState } from "../types/GameState";
+import type { InstanceMap } from "../types/InstanceMap";
 import { SceneTracker } from "./SceneTracker";
-import { SaveData } from "../types/SaveData";
-import { ScriptLocation } from "../types/ScriptLocation";
-import { StackFrame } from "../types/StackFrame";
-import { SystemConfiguration } from "../types/SystemConfiguration";
-import { Thread } from "../types/Thread";
-import { Variable, VariablePresentationHint } from "../types/Variable";
+import type { SaveData } from "../types/SaveData";
+import type { ScriptLocation } from "../types/ScriptLocation";
+import type { StackFrame } from "../types/StackFrame";
+import type { SystemConfiguration } from "../types/SystemConfiguration";
+import type { Thread } from "../types/Thread";
+import type { Variable,VariablePresentationHint } from "../types/Variable";
 import { buildDefinesContext } from "../utils/buildContextFromStory";
 import { findClosestPath } from "../utils/findClosestPath";
 import { findClosestPathLocation } from "../utils/findClosestPathLocation";
@@ -44,7 +44,7 @@ import { GameClickedToContinueMessage } from "./messages/GameClickedToContinueMe
 import { GameEncounteredRuntimeErrorMessage } from "./messages/GameEncounteredRuntimeError";
 import {
   GameExecutedMessage,
-  SimulationFailure,
+  type SimulationFailure,
 } from "./messages/GameExecutedMessage";
 import { GameExitedThreadMessage } from "./messages/GameExitedThreadMessage";
 import { GameFinishedMessage } from "./messages/GameFinishedMessage";

@@ -165,8 +165,8 @@ describe("compiler perf profile", () => {
     const editStats = collectMeasures();
     const stat = (a: number[]) => {
       const sorted = [...a].sort((x, y) => x - y);
-      const min = sorted[0];
-      const median = sorted[Math.floor(sorted.length / 2)];
+      const min = sorted[0] ?? 0;
+      const median = sorted[Math.floor(sorted.length / 2)] ?? 0;
       const avg = a.reduce((x, y) => x + y, 0) / a.length;
       return { min, median, avg };
     };

@@ -1,6 +1,7 @@
-import { CompiledBlock } from "../../classes/annotators/CompilationAnnotator";
-import { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
-import { LowerContext } from "../context";
+import { nodeNameSet } from "../../utils/nodeNameSet";
+import type { CompiledBlock } from "../../classes/annotators/CompilationAnnotator";
+import type { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
+import type { LowerContext } from "../context";
 import { lowerStatements } from "../lower";
 import { findChildByName } from "../utils/alternatorArms";
 import { wrapInScope } from "../utils/wrapInScope";
@@ -21,7 +22,7 @@ import { wrapInWeave } from "../utils/wrapInWeave";
 // lowerer. This handler is reached only when `do ... end` appears as
 // a STATEMENT in its own right.
 
-const DO_BLOCK_SKIP: ReadonlySet<string> = new Set([
+const DO_BLOCK_SKIP: ReadonlySet<string> = nodeNameSet([
   "LuauDoKeyword",
   "LuauEndKeyword",
   "LuauComment",

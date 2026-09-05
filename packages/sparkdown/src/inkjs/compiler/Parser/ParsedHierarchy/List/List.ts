@@ -11,7 +11,7 @@ export class List extends Expression {
     super();
   }
 
-  get typeName(): string {
+  override get typeName(): string {
     return "List";
   }
 
@@ -27,10 +27,10 @@ export class List extends Expression {
         let listName: string | null = null;
         let listItemName: string = "";
         if (nameParts.length > 1) {
-          listName = nameParts[0];
-          listItemName = nameParts[1];
+          listName = nameParts[0]!;
+          listItemName = nameParts[1]!;
         } else {
-          listItemName = nameParts[0];
+          listItemName = nameParts[0]!;
         }
 
         const listItem = this.story.ResolveListItem(

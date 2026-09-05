@@ -20,7 +20,7 @@ export class BinaryExpression extends Expression {
     this.opName = opName;
   }
 
-  get typeName(): string {
+  override get typeName(): string {
     return "BinaryExpression";
   }
 
@@ -92,6 +92,6 @@ export class BinaryExpression extends Expression {
     return opName;
   };
 
-  public readonly toString = (): string =>
+  public override readonly toString = (): string =>
     `(${this.leftExpression} ${this.opName} ${this.rightExpression})`;
 }

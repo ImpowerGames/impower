@@ -10,7 +10,8 @@
     "watch": "node scripts/watch.ts",
     "transform": "node scripts/transform.ts",
     "optimize-flattened": "node scripts/optimize-flattened.ts",
-    "optimize-animated": "node scripts/optimize-animated.ts"
+    "optimize-animated": "node scripts/optimize-animated.ts",
+    "typecheck": "node ../../scripts/typecheck.mjs packages/animated-svg-optimizer/"
   },
   "dependencies": {
     "@xmldom/xmldom": "^0.9.8",

@@ -1,5 +1,5 @@
 import type * as LSP from "../../types";
-import { NotificationMessage } from "../../types/base/NotificationMessage";
+import type { NotificationMessage } from "../../types/base/NotificationMessage";
 import { MessageProtocolNotificationType } from "../MessageProtocolNotificationType";
 
 export type DidChangeWatchedFilesMethod =

@@ -1,8 +1,21 @@
-export const getUnitlessValue = (
+// Overloaded so a caller that supplies a default gets `number` back rather
+// than `number | undefined`: with a default there is no path that returns
+// undefined.
+export function getUnitlessValue(
+  value: string | null,
+  defaultValue: number,
+  emptyValue?: number,
+): number;
+export function getUnitlessValue(
+  value: string | null,
+  defaultValue?: number,
+  emptyValue?: number,
+): number | undefined;
+export function getUnitlessValue(
   value: string | null,
   defaultValue?: number,
   emptyValue: number | undefined = defaultValue,
-): number | undefined => {
+): number | undefined {
   if (value === "") {
     return emptyValue;
   }
@@ -25,4 +38,4 @@ export const getUnitlessValue = (
     return Number(v.slice(0, lastAlphaIndex));
   }
   return Number(v);
-};
+}

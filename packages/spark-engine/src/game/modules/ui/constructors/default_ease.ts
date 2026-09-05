@@ -1,5 +1,5 @@
-import { Create } from "../../../core/types/Create";
-import { Ease } from "../types/Ease";
+import type { Create } from "../../../core/types/Create";
+import type { Ease } from "../types/Ease";
 
 export const default_ease: Create<Ease> = (obj) => ({
   $type: "ease",

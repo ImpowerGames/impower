@@ -1,7 +1,7 @@
-import { Chunk } from "../types/Chunk";
-import { Inflection } from "../types/Inflection";
-import { Phrase } from "../types/Phrase";
-import { Prosody } from "../types/Prosody";
+import type { Chunk } from "../types/Chunk";
+import type { Inflection } from "../types/Inflection";
+import type { Phrase } from "../types/Phrase";
+import type { Prosody } from "../types/Prosody";
 import { getStressMatch } from "./getStressMatch";
 
 const getFormattingStress = (

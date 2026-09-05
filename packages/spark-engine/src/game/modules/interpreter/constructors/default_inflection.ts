@@ -1,4 +1,4 @@
-import { Inflection } from "../types/Inflection";
+import type { Inflection } from "../types/Inflection";
 
 export const default_inflection = (obj?: Partial<Inflection>): Inflection => ({
   $link: {

@@ -392,14 +392,35 @@ Record both outcomes for the PR body.
 
 **5c — run the suite.** Start with the file, widen to the package.
 
+Then typecheck. `npm run typecheck` at the repo root runs `tsc --noEmit` over all 41 projects and takes about four minutes. Mid-change you usually want a subset, so it takes filters — each one a **substring** of a project's config path, not a directory:
+
+```bash
+npm run typecheck -- packages/sparkdown/tsconfig.json
+```
+
+```
+ok   101641ms  packages/sparkdown/tsconfig.json
+
+1/1 project(s) clean in 101.6s
+```
+
+Because it is a substring, `packages/sparkdown` matches six projects (`sparkdown`, `sparkdown-language-server`, `sparkdown-document-views`, and three more) — useful when you want the neighbours too, surprising when you did not. `--list` prints every project without checking any, and `--jobs N` sets how many run at once (default 2, which is what CI uses); the value is capped at the machine's core count, so asking for more than that silently gives you the cores.
+
+A project your change reaches through an import is checked when that project runs, not when yours does, so widen to the whole gate before you push. CI runs the same command on any pull request that touches code, a `tsconfig`, or a `package.json` — `.github/workflows/typecheck.yml` has a paths filter, so a branch that changes only docs gets no typecheck run at all. Where it does run, a type error blocks the merge — a clean local run is now worth something, and a red one is a real failure rather than noise to route around.
+
 Then run the standalone checks under `.claude/`. Nothing in CI invokes them, so they only ever run because someone remembers to; they are quick, and each one pins a footgun that has already cost a session. There are two kinds — shell checks over the skill's own prose, and `.mjs` checks over the pure functions in `driver.mjs`:
 
 ```bash
-for t in $(find .claude -name "*.test.sh" -not -path "*/node_modules/*"); do echo "--- $t"; bash "$t" || echo "FAILED: $t"; done
-for t in $(find .claude -name "*.test.mjs" -not -path "*/node_modules/*"); do echo "--- $t"; node "$t" || echo "FAILED: $t"; done
+for t in $(git ls-files '.claude/**/*.test.sh'); do echo "--- $t"; bash "$t" || echo "FAILED: $t"; done
+for t in $(git ls-files '.claude/**/*.test.mjs'); do echo "--- $t"; node "$t" || echo "FAILED: $t"; done
 ```
 
-`find`, not a `**` glob: without `shopt -s globstar` bash reads `**` as `*`, so `.claude/**/*.test.sh` silently matches only the check under `.claude/hooks/` and skips the skill's own, and the loop reports success having run half the checks. There are two shell checks (`.claude/hooks/`, `.claude/skills/resolve-issue/`) and five Node ones, all under `.claude/skills/resolve-issue/`; the loops should print seven `---` lines between them.
+`git ls-files` rather than a shell glob or `find`, because both of those go wrong here in ways that look like a pass:
+
+- A `**` glob half-runs. Bash expands `**` across directories only with `shopt -s globstar` set, and it is not set here, so `**` collapses to a single-level `*`: `.claude/**/*.test.sh` matches `hooks/grammar-edit-hook.test.sh` one level down and silently skips `skills/resolve-issue/reviewer-model-values.test.sh` two levels down. The `.mjs` pattern matches nothing at all, and bash hands an unmatched pattern to the loop body unexpanded, so you get `FAILED: .claude/**/*.test.mjs` — wrong, but at least visible.
+- `find .claude` over-matches in the **main checkout**. `.gitignore` puts `.claude/worktrees/` there, holding whole checkouts with their own `node_modules`, so `find` returns fifteen files rather than three — twelve of them third-party tests it would then try to execute. A fresh worktree has no such directory, so `find` looks correct there and only misbehaves where the skill is normally run.
+
+`git ls-files` sidesteps both: the checks are tracked, and everything `find` picks up by mistake is ignored or untracked. Count the `---` lines against what `git ls-files '.claude/**/*.test.*'` returns; there are seven at the time of writing: two shell checks (`.claude/hooks/`, `.claude/skills/resolve-issue/`) and five Node ones, all under `.claude/skills/resolve-issue/`.
 
 One of the seven is not quick. `reviewer-model-values.test.sh` re-runs itself once per control case (about thirty-five) and spawns `awk`/`grep`/`sed` per field, so on the reference machine it takes about eighteen minutes idle (measured 17m44s, 46 assertions passing) and longer under load, and prints nothing until its base section is done. Run it in the background with a long timeout, or `REVIEWER_CHECK_INNER=1 bash …` for the quick pass over the real files only. The controls build their own fixtures and never read the real definitions, so a change to a reviewer definition is covered by the quick pass; the controls matter when that script itself changes. The other six finish in seconds. A shell check that hangs rather than failing is usually the machine, not your change: they spawn many small processes and a running dev-server build starves them. Re-run once the build finishes before believing a timeout.
 
@@ -737,7 +758,6 @@ Things that look like they work and don't:
   Grep for the **rule name**, not the regex — the YAML uses `{{WS}}`-style templating so the expanded pattern does not appear in the source.
 - **A synthesised shortcut with a lowercase letter under Shift is not the shortcut a keyboard sends.** Playwright's key strings are case-sensitive for a single character: `Control+Shift+g` delivers `key: "g"` with `shiftKey: true`, where a keyboard delivers `key: "G"`. CodeMirror resolves a letter binding from the reported key, so the shifted variant of a binding never runs from that form and the unshifted one runs instead — Ctrl+Shift+G steps _forward_ through matches instead of back, which looks exactly like a broken keybinding and is not one. Measured in the live editor on 2026-09-04 with playwright 1.61: `Control+Shift+G`, `Control+Shift+KeyG`, and holding Control and Shift around `press("KeyG")` all deliver `G`; only the lowercase spelling delivers `g`. The driver's `--press` and `pressKey` uppercase a shifted letter before pressing it and report `rewritten: true`. In a script of your own, write the letter uppercase, and before filing any keybinding bug confirm the keydown carried the key a keyboard would report.
 - **Heredocs are lossy through some shell paths here** (a `//` comment came out as `/`, breaking a file mid-edit). Write files with the editor tool, not by piping a heredoc.
-- **`tsc` is not a gate** — there is no CI typecheck anywhere in the repo, and the only PR workflow is the VS Code extension's _bundler_ build (esbuild strips types without checking them). A clean `tsc` proves nothing about CI, and a broken one blocks nothing. Verify with vitest. **This is being fixed — see [#320](https://github.com/ImpowerGames/impower/issues/320). When that lands on `main`, delete this bullet** and add the typecheck command to §5 alongside the test suite.
 - These console messages are **pre-existing noise** on every run, not something your change caused: `Unhandled method workspace/semanticTokens/refresh`, `.../diagnostic/refresh`, `.../foldingRange/refresh`, and a couple of resource 404s.
 
 ---

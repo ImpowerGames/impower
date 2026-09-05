@@ -33,7 +33,7 @@ export class Function extends FlowBase {
     super(name, topLevelObjects, args, true);
   }
 
-  get typeName(): string {
+  override get typeName(): string {
     return "Function";
   }
 }

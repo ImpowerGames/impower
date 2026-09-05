@@ -1,5 +1,5 @@
-import { GrammarStackElement } from "../types/GrammarStackElement";
-import { Rule } from "../types/Rule";
+import type { GrammarStackElement } from "../types/GrammarStackElement";
+import type { Rule } from "../types/Rule";
 import type { GrammarNode } from "./GrammarNode";
 
 /** A stack of {@link GrammarStackElement}s used by a {@link Grammar}. */

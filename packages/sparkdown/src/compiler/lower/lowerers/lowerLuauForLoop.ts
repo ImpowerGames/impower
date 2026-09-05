@@ -1,3 +1,4 @@
+import { nodeNameSet } from "../../utils/nodeNameSet";
 import { type SyntaxNode } from "@lezer/common";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 import { BinaryExpression } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expression/BinaryExpression";
@@ -10,12 +11,11 @@ import { Gather } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Gather/Ga
 import { Identifier } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Identifier";
 import { NumberExpression } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expression/NumberExpression";
 import { UnaryExpression } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expression/UnaryExpression";
-import { ParsedObject } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Object";
 import { VariableAssignment } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Variable/VariableAssignment";
 import { VariableReference } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Variable/VariableReference";
-import { CompiledBlock } from "../../classes/annotators/CompilationAnnotator";
-import { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
-import { LowerContext } from "../context";
+import type { CompiledBlock } from "../../classes/annotators/CompilationAnnotator";
+import type { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
+import type { LowerContext } from "../context";
 import {
   lowerExpressionFromContainer,
   lowerExpressionFromNodes,
@@ -71,7 +71,7 @@ import { lowerLuauGenericForLoop } from "./lowerLuauGenericForLoop";
 // `for k, v in iter` is NOT handled here — that goes through
 // `lowerLuauGenericForLoop`.
 
-const FOR_BODY_SKIP: ReadonlySet<string> = new Set([
+const FOR_BODY_SKIP: ReadonlySet<string> = nodeNameSet([
   "LuauForCondition",
   "LuauForKeyword",
   "LuauDoKeyword",

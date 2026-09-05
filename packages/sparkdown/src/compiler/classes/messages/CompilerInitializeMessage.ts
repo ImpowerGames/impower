@@ -1,5 +1,5 @@
 import { MessageProtocolRequestType } from "@impower/jsonrpc/src/common/classes/MessageProtocolRequestType";
-import { RequestMessage } from "@impower/jsonrpc/src/common/types/RequestMessage";
+import type { RequestMessage } from "@impower/jsonrpc/src/common/types/RequestMessage";
 
 export type CompilerInitializeMethod = typeof CompilerInitializeMessage.method;
 

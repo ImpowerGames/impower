@@ -1,5 +1,5 @@
-import { Create } from "../types/Create";
-import { Metadata } from "../types/Metadata";
+import type { Create } from "../types/Create";
+import type { Metadata } from "../types/Metadata";
 
 export const default_metadata: Create<Metadata> = (obj) => ({
   $type: "metadata",

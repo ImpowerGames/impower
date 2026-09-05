@@ -192,7 +192,7 @@ export class VariableAssignment extends ParsedObject {
     ) {
       context.CheckForNamingCollisions(
         this,
-        this.identifier,
+        this.identifier!,
         this.isGlobalDeclaration ? SymbolType.Var : SymbolType.Temp,
       );
     }
@@ -272,7 +272,7 @@ export class VariableAssignment extends ParsedObject {
     }
   }
 
-  public readonly toString = (): string =>
+  public override readonly toString = (): string =>
     `${
       this.isGlobalDeclaration
         ? "var"

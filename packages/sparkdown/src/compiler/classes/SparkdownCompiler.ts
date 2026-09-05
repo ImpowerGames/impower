@@ -1,3 +1,4 @@
+/// <reference path="../../sd-raw.d.ts" />
 // Side-effect import to stabilize the inkjs engine module load order.
 // `engine/Container.ts` ↔ `engine/Value.ts` ↔ `engine/Object.ts` form a
 // dependency cycle; if `Object.ts` loads first, `Value.ts` resolves
@@ -12,7 +13,7 @@ import GRAMMAR_DEFINITION from "../../../language/sparkdown.language-grammar.jso
 // No generated wrapper / codegen step — `builtins.sd` is the single source of
 // truth.
 import BUILTINS_PRELUDE from "../builtins/builtins.sd?raw";
-import { IFileHandler } from "../../inkjs/compiler/IFileHandler";
+import type { IFileHandler } from "../../inkjs/compiler/IFileHandler";
 import { ErrorType } from "../../inkjs/compiler/Parser/ErrorType";
 import { Choice } from "../../inkjs/compiler/Parser/ParsedHierarchy/Choice";
 import { ConstantDeclaration } from "../../inkjs/compiler/Parser/ParsedHierarchy/Declaration/ConstantDeclaration";
@@ -32,9 +33,8 @@ import {
   ObjectExpression,
   ObjectExpressionEntry,
 } from "../../inkjs/compiler/Parser/ParsedHierarchy/Expression/ObjectExpression";
-import { VariableAssignment as ParsedVariableAssignment } from "../../inkjs/compiler/Parser/ParsedHierarchy/Variable/VariableAssignment";
 import { contextValueToExpression } from "../lower/lowerers/lowerLuauDefine";
-import { ReturnType } from "../../inkjs/compiler/Parser/ParsedHierarchy/ReturnType";
+import { ReturnType as ParsedReturnType } from "../../inkjs/compiler/Parser/ParsedHierarchy/ReturnType";
 import { Statement } from "../../inkjs/compiler/Parser/ParsedHierarchy/Statement";
 import { Stitch } from "../../inkjs/compiler/Parser/ParsedHierarchy/Stitch";
 import { Story } from "../../inkjs/compiler/Parser/ParsedHierarchy/Story";
@@ -44,12 +44,12 @@ import { TunnelOnwards } from "../../inkjs/compiler/Parser/ParsedHierarchy/Tunne
 import { Weave } from "../../inkjs/compiler/Parser/ParsedHierarchy/Weave";
 import { ControlCommand } from "../../inkjs/engine/ControlCommand";
 import { DebugMetadata } from "../../inkjs/engine/DebugMetadata";
-import { SourceMetadata } from "../../inkjs/engine/Error";
+import type { SourceMetadata } from "../../inkjs/engine/Error";
 import {
   validateScene,
   validateBranch,
 } from "../lower/utils/validateSceneBranchScope";
-import { LowerContext } from "../lower/context";
+import type { LowerContext } from "../lower/context";
 import { InkObject } from "../../inkjs/engine/Object";
 import { SimpleJson } from "../../inkjs/engine/SimpleJson";
 import { JsonSerialisation } from "../../inkjs/engine/JsonSerialisation";
@@ -76,12 +76,12 @@ import {
 } from "../types/SceneAssets";
 import { scanAssetDirectives } from "../utils/scanAssetDirectives";
 import { VariableAssignment } from "../../inkjs/engine/VariableAssignment";
-import { SparkDeclaration } from "../types/SparkDeclaration";
-import { DiagnosticSeverity, SparkDiagnostic } from "../types/SparkDiagnostic";
-import { SparkdownCompilerConfig } from "../types/SparkdownCompilerConfig";
-import { SparkdownCompilerState } from "../types/SparkdownCompilerState";
-import { SparkProgram } from "../types/SparkProgram";
-import { SparkSelector } from "../types/SparkSelector";
+import type { SparkDeclaration } from "../types/SparkDeclaration";
+import { DiagnosticSeverity, type SparkDiagnostic } from "../types/SparkDiagnostic";
+import type { SparkdownCompilerConfig } from "../types/SparkdownCompilerConfig";
+import type { SparkdownCompilerState } from "../types/SparkdownCompilerState";
+import type { SparkProgram } from "../types/SparkProgram";
+import type { SparkSelector } from "../types/SparkSelector";
 import { setBuiltinTypeNames } from "../utils/builtinTypeNames";
 import { cloneBuiltinStructs } from "../utils/cloneBuiltinStructs";
 import { collectDefineTypeNames } from "../utils/collectDefineTypeNames";
@@ -94,24 +94,24 @@ import { profile } from "../utils/profile";
 import { readProperty } from "../utils/readProperty";
 import { resolveFileUsingImpliedExtension } from "../utils/resolveFileUsingImpliedExtension";
 import { resolveSelector } from "../utils/resolveSelector";
-import { AddCompilerFileParams } from "./messages/AddCompilerFileMessage";
+import type { AddCompilerFileParams } from "./messages/AddCompilerFileMessage";
 import {
   CompiledProgramMessage,
-  CompiledProgramParams,
+  type CompiledProgramParams,
 } from "./messages/CompiledProgramMessage";
-import { CompileProgramParams } from "./messages/CompileProgramMessage";
-import { RemoveCompilerFileParams } from "./messages/RemoveCompilerFileMessage";
+import type { CompileProgramParams } from "./messages/CompileProgramMessage";
+import type { RemoveCompilerFileParams } from "./messages/RemoveCompilerFileMessage";
 import {
   RemovedCompilerFileMessage,
-  RemovedCompilerFileParams,
+  type RemovedCompilerFileParams,
 } from "./messages/RemovedCompilerFileMessage";
-import { SelectCompilerDocumentParams } from "./messages/SelectCompilerDocumentMessage";
+import type { SelectCompilerDocumentParams } from "./messages/SelectCompilerDocumentMessage";
 import {
   SelectedCompilerDocumentMessage,
-  SelectedCompilerDocumentParams,
+  type SelectedCompilerDocumentParams,
 } from "./messages/SelectedCompilerDocumentMessage";
-import { UpdateCompilerDocumentParams } from "./messages/UpdateCompilerDocumentMessage";
-import { UpdateCompilerFileParams } from "./messages/UpdateCompilerFileMessage";
+import type { UpdateCompilerDocumentParams } from "./messages/UpdateCompilerDocumentMessage";
+import type { UpdateCompilerFileParams } from "./messages/UpdateCompilerFileMessage";
 import { SparkdownDocumentRegistry } from "./SparkdownDocumentRegistry";
 import { SparkdownFileRegistry } from "./SparkdownFileRegistry";
 
@@ -982,7 +982,10 @@ export class SparkdownCompiler {
           return value;
         },
       };
-      story.ToJson(writer, flowMemo);
+      // ProgramBinaryWriter mirrors the streaming surface ToJson drives, but
+      // it is not a SimpleJson.Writer: its callbacks hand back itself, not a
+      // Writer. The two are interchangeable on this path only.
+      story.ToJson(writer as SimpleJson.Writer, flowMemo);
       this._flowJsonCache = nextFlowCache;
     }
     if (binary) {
@@ -1500,8 +1503,11 @@ export class SparkdownCompiler {
       // Restore the parents of containers committed to reuse — the previous
       // RuntimeStory is still live (checkpoint-builder Game) and generation
       // may have re-parented them into the now-discarded half-built tree.
-      if (this._reuseParentBackups) {
-        for (const [container, parent] of this._reuseParentBackups) {
+      const reuseParentBackups = this._reuseParentBackups as
+        | Array<[Container, InkObject | null]>
+        | undefined;
+      if (reuseParentBackups) {
+        for (const [container, parent] of reuseParentBackups) {
           container.parent = parent;
         }
       }
@@ -2426,7 +2432,10 @@ export class SparkdownCompiler {
         // builtin's children into the authored one. (They likewise override by
         // replace in the reactive `sparkle` channel; see mergePreludeSparkle.)
         const REPLACE_TYPES = new Set(["layout", "screen", "component"]);
-        for (const [type, structs] of Object.entries(context)) {
+        for (const [type, structs] of Object.entries(context) as [
+          string,
+          Record<string, any>,
+        ][]) {
           for (const [name, struct] of Object.entries(structs)) {
             program.context ??= {};
             program.context[type] ??= {};
@@ -2497,7 +2506,7 @@ export class SparkdownCompiler {
           const alreadyTerminates =
             last instanceof Divert ||
             last instanceof TunnelOnwards ||
-            last instanceof ReturnType;
+            last instanceof ParsedReturnType;
           if (!alreadyTerminates) {
             const doneDivert = new Divert([Identifier.Done()]);
             // Inherit debug metadata from the enclosing flow so any
@@ -3236,9 +3245,9 @@ export class SparkdownCompiler {
         } else {
           this.populateLocations(
             program,
-            child,
+            child!,
             childPath,
-            child.ownDebugMetadata ?? containerMeta,
+            child!.ownDebugMetadata ?? containerMeta,
           );
         }
       }
@@ -3291,9 +3300,9 @@ export class SparkdownCompiler {
       } else {
         this.populateLocations(
           program,
-          child,
+          child!,
           childPath,
-          child.ownDebugMetadata ?? rootMeta,
+          child!.ownDebugMetadata ?? rootMeta,
         );
       }
     }
@@ -3338,7 +3347,7 @@ export class SparkdownCompiler {
       // non-`global decl` flow is stored), so this is a free comparison.
       let effPrevCache = prevCache;
       if (prevCache) {
-        const curNames = flows.filter((f) => f.name !== "global decl");
+        const curNames = flows.filter((f) => f.name !== "global decl"); // not a node name
         let sameSet = curNames.length === prevCache.size;
         if (sameSet) {
           for (const f of curNames) {
@@ -3373,7 +3382,7 @@ export class SparkdownCompiler {
           f.container != null &&
           f.start0 >= 0 &&
           f.uri !== "" &&
-          f.name !== "global decl" &&
+          f.name !== "global decl" && // not a node name
           !CANONICAL_SYNTH_NAME.test(f.name) &&
           effPrevCache != null;
         if (reusable) {
@@ -3394,7 +3403,7 @@ export class SparkdownCompiler {
         // Recompute (and capture, unless it's the uncacheable global decl).
         if (f.container) {
           const capture =
-            f.name === "global decl"
+            f.name === "global decl" // not a node name
               ? null
               : {
                   pathEntries: [],
@@ -3454,8 +3463,8 @@ export class SparkdownCompiler {
         t[3] + delta,
         t[4],
       ];
-      if (!(pe.path in program.pathLocations)) {
-        program.pathLocations[pe.path] = nt;
+      if (!(pe.path in program.pathLocations!)) {
+        program.pathLocations![pe.path] = nt;
         if (order) {
           let byLine = order.get(nt[0]);
           if (!byLine) {
@@ -3482,8 +3491,8 @@ export class SparkdownCompiler {
         t[3] + delta,
         t[4],
       ];
-      if (!(de.key in program.dataLocations)) {
-        program.dataLocations[de.key] = nt;
+      if (!(de.key in program.dataLocations!)) {
+        program.dataLocations![de.key] = nt;
       }
       dataEntries.push({ key: de.key, tuple: nt });
     }
@@ -3734,8 +3743,8 @@ export class SparkdownCompiler {
             bucket.sort((a, b) => a[1] - b[1]);
           }
           for (let i = 0; i < bucket.length; i++) {
-            const path = bucket[i][0];
-            sorted[path] = entries[path];
+            const path = bucket[i]![0];
+            sorted[path] = entries[path]!;
           }
         }
       }
@@ -3810,21 +3819,6 @@ export class SparkdownCompiler {
                 range.end.character,
               ];
             }
-            if (cur.value.type === "knot") {
-              scopePathParts = [];
-              scopePathParts.push({
-                kind: "knot",
-                name: doc.read(cur.from, cur.to),
-              });
-              program.knotLocations ??= {};
-              program.knotLocations[name] = [
-                scriptIndex,
-                range.start.line,
-                range.start.character,
-                range.end.line,
-                range.end.character,
-              ];
-            }
             if (cur.value.type === "branch") {
               const prevKind = scopePathParts.at(-1)?.kind || "";
               if (prevKind !== "scene" && prevKind !== "knot") {
@@ -3837,25 +3831,6 @@ export class SparkdownCompiler {
               const name = scopePathParts.map((p) => p.name).join(".");
               program.branchLocations ??= {};
               program.branchLocations[name] = [
-                scriptIndex,
-                range.start.line,
-                range.start.character,
-                range.end.line,
-                range.end.character,
-              ];
-            }
-            if (cur.value.type === "stitch") {
-              const prevKind = scopePathParts.at(-1)?.kind || "";
-              if (prevKind !== "scene" && prevKind !== "knot") {
-                scopePathParts.pop();
-              }
-              scopePathParts.push({
-                kind: "stitch",
-                name: doc.read(cur.from, cur.to),
-              });
-              const name = scopePathParts.map((p) => p.name).join(".");
-              program.stitchLocations ??= {};
-              program.stitchLocations[name] = [
                 scriptIndex,
                 range.start.line,
                 range.start.character,
@@ -4280,7 +4255,7 @@ export class SparkdownCompiler {
     });
   }
 
-  populateImplicitDefs(state: SparkdownCompilerState, program: SparkProgram) {
+  populateImplicitDefs(_state: SparkdownCompilerState, program: SparkProgram) {
     const uri = program.uri;
     profile("start", this._profilerId, "populateImplicitDefs", uri);
     const images = program.context?.["image"];
@@ -4350,7 +4325,7 @@ export class SparkdownCompiler {
   }
 
   populateDefinedDefaultProperties(
-    state: SparkdownCompilerState,
+    _state: SparkdownCompilerState,
     program: SparkProgram,
   ) {
     const uri = program.uri;
@@ -4584,6 +4559,17 @@ export class SparkdownCompiler {
     // hundreds of references (every `[[show backdrop X]]` shares one). Scoped
     // to this call deliberately: nothing here survives to the next compile,
     // so there is no staleness surface.
+    // A declaration is an object, so it needs a key built from its fields;
+    // stringifying it directly would collapse every declaration onto one entry.
+    const declarationCacheKey = (declaration: SparkDeclaration | undefined) =>
+      declaration
+        ? [
+            declaration.modifier,
+            declaration.type,
+            declaration.name,
+            declaration.property ?? "",
+          ].join("\u0000")
+        : "";
     const stringIdentifiersByDeclaration = new Map<string, string[]>();
     const selectorTypesByDeclaration = new Map<string, string[]>();
     // A `[[show/hide/animate <layer> …]]` target names an ELEMENT in the
@@ -4610,8 +4596,10 @@ export class SparkdownCompiler {
       layerNames ??= collectLayerNames(program);
       return Boolean(name) && layerNames.has(name!);
     };
-    const possibleStringIdentifiersFor = (declaration: string | undefined) => {
-      const key = declaration ?? "";
+    const possibleStringIdentifiersFor = (
+      declaration: SparkDeclaration | undefined,
+    ) => {
+      const key = declarationCacheKey(declaration);
       let cached = stringIdentifiersByDeclaration.get(key);
       if (!cached) {
         cached = getPossibleStringIdentifiers(
@@ -4652,8 +4640,10 @@ export class SparkdownCompiler {
       resolvedSelectors.set(key, resolved);
       return resolved;
     };
-    const expectedSelectorTypesFor = (declaration: string | undefined) => {
-      const key = declaration ?? "";
+    const expectedSelectorTypesFor = (
+      declaration: SparkDeclaration | undefined,
+    ) => {
+      const key = declarationCacheKey(declaration);
       let cached = selectorTypesByDeclaration.get(key);
       if (!cached) {
         cached = getExpectedSelectorTypes(
@@ -4706,11 +4696,7 @@ export class SparkdownCompiler {
                 if (
                   reference.declaration === "const" ||
                   reference.declaration === "var" ||
-                  reference.declaration === "temp" ||
-                  reference.declaration === "param" ||
-                  reference.declaration === "list" ||
-                  reference.declaration === "knot" ||
-                  reference.declaration === "stitch"
+                  reference.declaration === "param"
                 ) {
                   const message = `Cannot declare ${reference.declaration} named \`${symbolId}\`:\nConflicts with builtin type \`${symbolId}\``;
                   const range = doc.range(cur.from, cur.to);

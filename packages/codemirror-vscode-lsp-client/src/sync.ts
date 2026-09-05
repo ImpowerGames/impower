@@ -19,7 +19,7 @@ export function serverAutoSync(
         if (update.docChanged) {
           if (delay > 0) {
             if (pending > -1) clearTimeout(pending);
-            pending = setTimeout(() => {
+            pending = self.setTimeout(() => {
               pending = -1;
               let plugin = LSPPlugin.get(update.view);
               if (plugin) plugin.client.sync();

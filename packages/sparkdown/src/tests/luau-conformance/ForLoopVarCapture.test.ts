@@ -14,8 +14,8 @@ import { runConformanceSource } from "./conformanceTestHarness";
 // `b` already exists for __anon_fn_X" when the for-loop's own runtime
 // declaration of `b` then collided with the synthesized upval-param.
 //
-// Fix: both helpers now walk into LuauForLoop / LuauGenericForLoop
-// nodes and add the loop variable name(s) to the locally-bound set.
+// Both helpers walk into LuauForLoop nodes (numeric and generic loops share
+// the rule) and add the loop variable name(s) to the locally-bound set.
 
 describe("for-loop variable is treated as locally bound", () => {
   test("numeric for inside anonymous function compiles (basic.luau-178)", () => {

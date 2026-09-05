@@ -1,15 +1,23 @@
 import { type GrammarSyntaxNode } from "../types/GrammarSyntaxNode";
 
-export const getNodesInsideParent = <T extends string>(
+/**
+ * `N` is the grammar's node-name union, inferred from `stack`; the looked-up
+ * names `T` and `P` must belong to it. See `getDescendent`.
+ */
+export const getNodesInsideParent = <
+  N extends string,
+  T extends N = N,
+  P extends N = N,
+>(
   targetTypeName: T | T[],
-  parentTypeName: T | T[],
-  stack: GrammarSyntaxNode<T>[],
-): GrammarSyntaxNode<T>[] => {
-  const matches: GrammarSyntaxNode<T>[] = [];
+  parentTypeName: P | P[],
+  stack: GrammarSyntaxNode<N>[],
+): GrammarSyntaxNode<N, T>[] => {
+  const matches: GrammarSyntaxNode<N, T>[] = [];
   const parent = stack.find((n) =>
     typeof parentTypeName === "string"
       ? n.name === parentTypeName
-      : parentTypeName.includes(n.name as T),
+      : parentTypeName.includes(n.name as P),
   );
   if (parent) {
     const cur = parent?.node.cursor();
@@ -19,7 +27,7 @@ export const getNodesInsideParent = <T extends string>(
           ? targetTypeName === cur.name
           : targetTypeName.includes(cur.name as T)
       ) {
-        matches.push(cur.node as GrammarSyntaxNode<T>);
+        matches.push(cur.node as GrammarSyntaxNode<N, T>);
       }
       if (!cur?.next()) {
         break;

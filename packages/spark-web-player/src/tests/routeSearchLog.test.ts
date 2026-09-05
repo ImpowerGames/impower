@@ -14,6 +14,7 @@
 //     search that found no route leaves the previous start point's checkpoints
 //     in place.
 
+import type { SimulationFailure } from "@impower/sparkdown/src/compiler/types/SimulationFailure";
 import { describe, expect, test } from "vitest";
 import { RouteSearchLog } from "../main/workers/RouteSearchLog";
 
@@ -35,7 +36,7 @@ describe("reporting why a route search did not get there (#379)", () => {
     const params: {
       checkpoint?: string;
       simulatedPath?: string | null;
-      simulationFailure?: string;
+      simulationFailure?: SimulationFailure;
     } = {};
     log.report(params, "main.3");
 
@@ -57,7 +58,7 @@ describe("reporting why a route search did not get there (#379)", () => {
     const params: {
       checkpoint?: string;
       simulatedPath?: string | null;
-      simulationFailure?: string;
+      simulationFailure?: SimulationFailure;
     } = {};
     log.report(params, "main.3");
 
@@ -76,7 +77,7 @@ describe("reporting why a route search did not get there (#379)", () => {
 
     const params: {
       checkpoint?: string;
-      simulationFailure?: string;
+      simulationFailure?: SimulationFailure;
     } = {};
     log.report(params, "main.3");
 
@@ -95,7 +96,7 @@ describe("reporting why a route search did not get there (#379)", () => {
       simulationFailure: "timeout",
     });
 
-    const params: { simulationFailure?: string } = {};
+    const params: { simulationFailure?: SimulationFailure } = {};
     log.report(params, "main.3");
 
     expect(params.simulationFailure).toBeUndefined();

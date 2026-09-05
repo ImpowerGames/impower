@@ -7,6 +7,7 @@
   "scripts": {
     "build": "node ./scripts/bundle-globals.ts",
     "watch": "node ./scripts/bundle-globals.ts --watch",
-    "package": "node ./scripts/bundle-globals.ts --production"
+    "package": "node ./scripts/bundle-globals.ts --production",
+    "typecheck": "node ../../scripts/typecheck.mjs packages/sparkle-screen-preview/"
   }
 }

@@ -1,3 +1,4 @@
+import { nodeNameSet } from "../../utils/nodeNameSet";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 import { type SyntaxNode } from "@lezer/common";
 import { Conditional } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Conditional/Conditional";
@@ -16,9 +17,10 @@ import { Tag } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Tag";
 import { Text } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Text";
 import { Weave } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Weave";
 import { Glue as RuntimeGlue } from "../../../inkjs/engine/Glue";
-import { CompiledBlock } from "../../classes/annotators/CompilationAnnotator";
-import { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
-import { LowerContext } from "../context";
+import type { CompiledBlock } from "../../classes/annotators/CompilationAnnotator";
+import type { SparkdownNodeName } from "../../types/SparkdownNodeName";
+import type { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
+import type { LowerContext } from "../context";
 import {
   FUNCTION_CALL_SHORTHAND_NODES,
   lowerExpressionFromContainer,
@@ -381,14 +383,19 @@ function collectBreaksInRange(
 // ----- Body walking with interpolation splicing -----
 
 type BodySegment =
-  | { kind: "text"; raw: string }
+  // `start` is the source offset the segment's raw text begins at. Block-mode
+  // trimming needs it to tell a segment that begins a source line (its leading
+  // whitespace is the body's indentation) from one that begins mid-line
+  // because another segment preceded it (its leading whitespace is the
+  // author's own spacing).
+  | { kind: "text"; raw: string; start: number }
   | { kind: "expr"; node: SyntaxNode }
   | { kind: "divert"; node: SyntaxNode }
   | { kind: "inlineGluedAlt"; node: SyntaxNode }
   | { kind: "tag"; node: SyntaxNode }
   | { kind: "glue" };
 
-const INLINE_GLUED_ALTERNATOR_NAMES = new Set([
+const INLINE_GLUED_ALTERNATOR_NAMES = nodeNameSet([
   "LuauSparkdownInlineGluedSequentialAlternatorBlock",
   "LuauSparkdownInlineGluedConditionalAlternatorBlock",
 ]);
@@ -409,17 +416,25 @@ function processDisplayBody(
       const seg = segments[i]!;
       if (seg.kind === "text") {
         // Strip each line's leading indentation (block body lines are
-        // indented under their heading/cue). EXCEPTION: when this text
-        // segment immediately follows a `..` glue marker, its first line's
-        // leading whitespace is the glue's word separator (the space after
-        // `.. ` in a mid-block leading-glue line), not indentation — keep it
-        // so the joined words don't fuse (`first` + `.. second` → `first
-        // second`, not `firstsecond`).
-        const followsGlue = i > 0 && segments[i - 1]!.kind === "glue";
+        // indented under their heading/cue). A segment's second and later
+        // lines always begin a source line, so they are always stripped. Its
+        // FIRST line begins a source line only when the segment itself starts
+        // at one; when another segment precedes it on the same line — a
+        // `{...}` interpolation, a `..` glue marker, a divert, a tag — the
+        // leading whitespace is the author's own word separator, and stripping
+        // it fuses the words (`The limit is {LIMIT} tonight.` →
+        // `The limit is 5tonight.`).
+        //
+        // A block body range always begins at a line start
+        // (`extractBlockBodyRange` starts it after the cue's newline, and a
+        // break-split range starts after the break's newline), so the source
+        // character before a line-starting segment is a newline.
+        const startsSourceLine =
+          seg.start <= 0 || ctx.read(seg.start - 1, seg.start) === "\n";
         seg.raw = seg.raw
           .split(/\r?\n/)
           .map((line, lineIndex) =>
-            lineIndex === 0 && followsGlue
+            lineIndex === 0 && !startsSourceLine
               ? line
               : line.replace(/^[ \t]+/, ""),
           )
@@ -573,12 +588,13 @@ function collectBodySegments(
   const injections = collectTopLevelInjections(parent, bodyStart, bodyEnd);
   const out: BodySegment[] = [];
   let textBuf = "";
+  let textStart = bodyStart;
   let i = bodyStart;
   let idx = 0;
 
   const flush = () => {
     if (textBuf.length > 0) {
-      out.push({ kind: "text", raw: textBuf });
+      out.push({ kind: "text", raw: textBuf, start: textStart });
       textBuf = "";
     }
   };
@@ -621,6 +637,7 @@ function collectBodySegments(
       idx++;
       continue;
     }
+    if (textBuf.length === 0) textStart = i;
     textBuf += ctx.read(i, i + 1);
     i++;
   }
@@ -752,13 +769,26 @@ function collectTopLevelInjections(
   return out;
 }
 
-// ----- Escape / break / newline parity with `ContentTextAllowingEscapeChar` -----
+// ----- Escape / break / newline handling for display text -----
 
-// Mirrors upstream inkjs's `ContentTextAllowingEscapeChar` ink-parsing behavior:
-//   - `\<space|tab|newline>` → paragraph break, inserts `\n ` (trailing space
-//     prevents the next chunk's `{...}` logic from being read as escaped)
+// Resolves escapes in one raw text segment of a display body:
+//   - `\<space|tab|newline>` → a line break, plus the run of spaces/tabs
+//     immediately after it (the author's line-continuation indent) is dropped
 //   - `\<other>`             → kept as literal `\<char>` (so `\*` stays `\*`)
-//   - plain `\n` mid-content → also `\n ` (same trailing-space rule)
+//   - plain `\n` mid-content → a line break
+//
+// A line break carries no whitespace of its own, whichever of the two forms
+// the author used to write it. The block-body caller has already stripped the
+// indentation that puts continuation lines under their cue, so adding a space
+// back here would put a space in the story text that the author never wrote —
+// and, next to a `..` glue marker whose own separating space is already in the
+// preceding segment, would make the join two spaces wide and audibly lengthen
+// the pause the letter-by-letter typing puts between the joined words.
+//
+// The result goes straight into a `Text` object and is never re-scanned, so
+// nothing downstream can mistake a `{` after a break for an escaped one:
+// `collectBodySegments` lifts every interpolation out into its own segment
+// before this function sees the text.
 function applyDisplayEscapes(raw: string): string {
   const input = raw.replace(/\r\n?/g, "\n");
   let out = "";
@@ -771,7 +801,7 @@ function applyDisplayEscapes(raw: string): string {
         out += "\\";
         i++;
       } else if (next === " " || next === "\t" || next === "\n") {
-        out += "\n ";
+        out += "\n";
         i += 2;
         while (i < input.length && (input[i] === " " || input[i] === "\t")) {
           i++;
@@ -781,7 +811,7 @@ function applyDisplayEscapes(raw: string): string {
         i += 2;
       }
     } else if (c === "\n") {
-      out += "\n ";
+      out += "\n";
       i++;
     } else {
       out += c;
@@ -869,7 +899,7 @@ function hasLeadingGlue(nodeRef: SparkdownSyntaxNodeRef): boolean {
 
 // Sibling node names that sit between two display constructs without being
 // content themselves — skipped when looking back for the preceding construct.
-const GLUE_SKIP_SIBLINGS: ReadonlySet<string> = new Set([
+const GLUE_SKIP_SIBLINGS: ReadonlySet<string> = nodeNameSet([
   "Newline",
   "Whitespace",
   "ExtraWhitespace",
@@ -982,7 +1012,7 @@ function extractBlockBodyRange(
 function readIdentifier(
   nodeRef: SparkdownSyntaxNodeRef,
   ctx: LowerContext,
-  name: string,
+  name: SparkdownNodeName,
 ): string | null {
   const node = getDescendent(name, nodeRef.node);
   if (!node) return null;

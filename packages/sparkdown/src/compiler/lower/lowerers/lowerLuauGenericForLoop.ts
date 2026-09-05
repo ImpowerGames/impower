@@ -1,3 +1,4 @@
+import { nodeNameSet } from "../../utils/nodeNameSet";
 import { type SyntaxNode } from "@lezer/common";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 import { BinaryExpression } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expression/BinaryExpression";
@@ -14,9 +15,9 @@ import { NullExpression } from "../../../inkjs/compiler/Parser/ParsedHierarchy/E
 import { ParsedObject } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Object";
 import { VariableAssignment } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Variable/VariableAssignment";
 import { VariableReference } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Variable/VariableReference";
-import { CompiledBlock } from "../../classes/annotators/CompilationAnnotator";
-import { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
-import { LowerContext } from "../context";
+import type { CompiledBlock } from "../../classes/annotators/CompilationAnnotator";
+import type { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
+import type { LowerContext } from "../context";
 import { lowerExpressionFromNodes } from "../expression/lowerExpression";
 import { lowerStatements } from "../lower";
 import { findChildByName } from "../utils/alternatorArms";
@@ -60,7 +61,7 @@ import { wrapInWeave } from "../utils/wrapInWeave";
 //     at the SAME slot (Luau gives each a fresh slot). Acceptable for
 //     v1 of the iterator protocol.
 
-const FOR_IN_BODY_SKIP: ReadonlySet<string> = new Set([
+const FOR_IN_BODY_SKIP: ReadonlySet<string> = nodeNameSet([
   "LuauForCondition",
   "LuauForKeyword",
   "LuauDoKeyword",

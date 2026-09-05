@@ -1,5 +1,5 @@
-import { Create } from "../../../core/types/Create";
-import { Font } from "../types/Font";
+import type { Create } from "../../../core/types/Create";
+import type { Font } from "../types/Font";
 
 export const default_font: Create<Font> = (obj) => ({
   $type: "font",

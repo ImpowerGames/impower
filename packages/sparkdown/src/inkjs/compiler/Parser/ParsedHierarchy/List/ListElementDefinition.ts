@@ -8,7 +8,7 @@ import { Identifier } from "../Identifier";
 export class ListElementDefinition extends ParsedObject {
   public seriesValue: number = 0;
 
-  public parent: ListDefinition | null = null;
+  public override parent: ListDefinition | null = null;
 
   get fullName(): string {
     const parentList = this.parent;
@@ -19,7 +19,7 @@ export class ListElementDefinition extends ParsedObject {
     return `${parentList.identifier?.name}.${this.name}`;
   }
 
-  get typeName(): string {
+  override get typeName(): string {
     return "ListElement";
   }
 
@@ -49,5 +49,5 @@ export class ListElementDefinition extends ParsedObject {
     );
   }
 
-  public readonly toString = (): string => this.fullName;
+  public override readonly toString = (): string => this.fullName;
 }

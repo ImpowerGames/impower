@@ -1,4 +1,4 @@
-import { IEvent } from "./IEvent";
+import type { IEvent } from "./IEvent";
 
 export interface IElementEvent<T extends string> extends IEvent<T> {
   /** The id of the element the event originated from */

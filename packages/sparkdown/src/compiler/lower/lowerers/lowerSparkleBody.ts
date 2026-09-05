@@ -1,5 +1,6 @@
+import { nodeNameSet } from "../../utils/nodeNameSet";
 import { type SyntaxNode } from "@lezer/common";
-import { LowerContext } from "../context";
+import type { LowerContext } from "../context";
 import { ErrorType } from "../../../inkjs/engine/Error";
 import { Argument } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Argument";
 import { Function } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Flow/Function";
@@ -58,14 +59,14 @@ interface NodeLine {
   control?: boolean;
 }
 
-const CONTROL_BLOCK_NAMES = new Set([
+const CONTROL_BLOCK_NAMES = nodeNameSet([
   "LuauSparkleIfBlock",
   "LuauSparkleForLoop",
   "LuauSparkleMatchBlock",
 ]);
 // Clause sub-blocks of a control block — collected explicitly by the control
 // builder, so the generic item walk must NOT descend into or emit them.
-const CONTROL_CLAUSE_NAMES = new Set([
+const CONTROL_CLAUSE_NAMES = nodeNameSet([
   "LuauSparkleElseifBlock",
   "LuauSparkleElseBlock",
   "LuauSparkleCaseClause",
@@ -130,7 +131,7 @@ function lineKindNode(content: SyntaxNode): SyntaxNode | null {
   return firstDescendant(content, LINE_KIND_NAMES);
 }
 
-const LINE_KIND_NAMES = new Set([
+const LINE_KIND_NAMES = nodeNameSet([
   "LuauStructScalarProperty",
   "LuauStructComponentCall",
   "LuauStructAdjacencyContent",
@@ -140,22 +141,22 @@ const LINE_KIND_NAMES = new Set([
   "LuauStructBodyFallback",
 ]);
 
-const NAME_TOKEN_NAMES = new Set([
+const NAME_TOKEN_NAMES = nodeNameSet([
   "BuiltinComponentName",
   "CustomComponentName",
   "NumberLiteral",
 ]);
 
-const KEY_TOKEN_NAMES = new Set([
+const KEY_TOKEN_NAMES = nodeNameSet([
   "BuiltinComponentName",
   "DeclarationScalarPropertyKey",
 ]);
 
 /** Content on a block-opening element line, which the grammar parses as an
  *  object header rather than adjacency content. */
-const ELEMENT_HEADER_CONTENT_NAMES = new Set(["StringContent"]);
+const ELEMENT_HEADER_CONTENT_NAMES = nodeNameSet(["StringContent"]);
 
-const FIELD_VALUE_NAMES = new Set([
+const FIELD_VALUE_NAMES = nodeNameSet([
   "StringFieldValueInterpolated",
   "StringFieldValue",
   "LuauElementContentStringInterpolated",
@@ -169,12 +170,12 @@ const FIELD_VALUE_NAMES = new Set([
 
 // Interpolation-aware content-string nodes (EOPL-bound + inline EOPL-less). Each
 // wraps its parts under a `<name>_content` child the reader walks.
-const INTERP_CONTENT_NODES = new Set([
+const INTERP_CONTENT_NODES = nodeNameSet([
   "StringFieldValueInterpolated",
   "LuauElementContentStringInterpolated",
 ]);
 // Plain (non-interpolated) quoted content-string nodes — read as a literal.
-const PLAIN_CONTENT_NODES = new Set([
+const PLAIN_CONTENT_NODES = nodeNameSet([
   "StringFieldValue",
   "LuauElementContentStringPlain",
   // Single-quoted content never interpolates, so it is always read literally —
@@ -225,7 +226,7 @@ function firstDescendant(
 /** Inline-attribute subtrees (`@event`/`#prop`) — opaque to tag/class
  *  collection, so a prop value (`#gap=16` → NumberLiteral) isn't mistaken for a
  *  class and a handler's tokens don't leak in. */
-const ATTRIBUTE_NODES = new Set(["LuauEventAttribute", "LuauPropAttribute"]);
+const ATTRIBUTE_NODES = nodeNameSet(["LuauEventAttribute", "LuauPropAttribute"]);
 
 /** {@link firstDescendant}, but opaque to inline-attribute subtrees.
  *
@@ -402,7 +403,7 @@ function lowerBinding(
   };
 }
 
-const COMPONENT_CALL_CONTENT = new Set(["LuauStructComponentCall_content"]);
+const COMPONENT_CALL_CONTENT = nodeNameSet(["LuauStructComponentCall_content"]);
 /** Nodes inside a call's arg list that carry no expression value (separators,
  *  whitespace, comments) — skipped when grouping args. */
 const ARG_SKIP_RE = /Whitespace|Newline|Comment|Separator/;
@@ -493,16 +494,16 @@ function lowerComponentArg(
   };
 }
 
-const EVENT_ATTR = new Set(["LuauEventAttribute"]);
-const EVENT_NAME = new Set(["EventAttributeName"]);
-const EVENT_CONTENT = new Set(["LuauEventAttribute_content"]);
+const EVENT_ATTR = nodeNameSet(["LuauEventAttribute"]);
+const EVENT_NAME = nodeNameSet(["EventAttributeName"]);
+const EVENT_CONTENT = nodeNameSet(["LuauEventAttribute_content"]);
 /** A bare `@e=name` handler, emitted by the grammar as its own node — which is
  *  the only reliable way to tell one from a call once a trailing comment is in
  *  the raw text. */
-const EVENT_HANDLER_NAME = new Set(["LuauSparkleEventHandlerName"]);
-const EVENT_CLOSURE = new Set(["LuauSparkleHandlerClosure"]);
-const EVENT_CLOSURE_BODY = new Set(["LuauSparkleHandlerClosure_content"]);
-const EVENT_CLOSURE_END = new Set(["LuauSparkleHandlerClosure_end"]);
+const EVENT_HANDLER_NAME = nodeNameSet(["LuauSparkleEventHandlerName"]);
+const EVENT_CLOSURE = nodeNameSet(["LuauSparkleHandlerClosure"]);
+const EVENT_CLOSURE_BODY = nodeNameSet(["LuauSparkleHandlerClosure_content"]);
+const EVENT_CLOSURE_END = nodeNameSet(["LuauSparkleHandlerClosure_end"]);
 const BARE_NAME_RE = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
 /** DFS: every `LuauEventAttribute` descendant, in source order. */
@@ -647,14 +648,14 @@ function lowerHandlerClosure(
   };
 }
 
-const PROP_ATTR = new Set(["LuauPropAttribute"]);
-const PROP_NAME = new Set(["StyleAttributeName"]);
-const PROP_INTERP = new Set([
+const PROP_ATTR = nodeNameSet(["LuauPropAttribute"]);
+const PROP_NAME = nodeNameSet(["StyleAttributeName"]);
+const PROP_INTERP = nodeNameSet([
   "LuauInterpolatedStringExpression",
   "LuauFunctionCallShorthand",
 ]);
-const PROP_QUOTED = new Set(["InlinePropQuotedValue"]);
-const PROP_LITERAL = new Set(["InlinePropLiteralValue"]);
+const PROP_QUOTED = nodeNameSet(["InlinePropQuotedValue"]);
+const PROP_LITERAL = nodeNameSet(["InlinePropLiteralValue"]);
 
 /** DFS: every `LuauPropAttribute` descendant, in source order. */
 function propAttributes(node: SyntaxNode): SyntaxNode[] {
@@ -770,13 +771,16 @@ function readContentParts(
         : String(literal.value);
     return [{ kind: "literal", text }];
   }
+  if (literal.kind === "content") {
+    return literal.content;
+  }
   return [{ kind: "binding", binding: literal.binding }];
 }
 
 /** Read a field-value node as a literal PropValue, used for inline props/style
  *  values (Luau-position values that are NOT reactive in v1). Display content
  *  goes through {@link readContentParts} instead. */
-const PLAIN_STRING_CONTENT = new Set([
+const PLAIN_STRING_CONTENT = nodeNameSet([
   "PlainStringContent",
   // Same role, but bounded by `'` — `PlainStringContent` stops at a double
   // quote, so it reads as empty inside single-quoted content that contains one.
@@ -1035,9 +1039,9 @@ function buildBranchChildren(
   return buildBlock(rebased.lines, 0, rebased.base, ctx).children;
 }
 
-const IF_CONDITION = new Set(["LuauIfBlockCondition"]);
-const IF_CONDITION_CONTENT = new Set(["LuauIfBlockCondition_content"]);
-const ELSEIF_CONDITION_CONTENT = new Set(["LuauElseifBlockCondition_content"]);
+const IF_CONDITION = nodeNameSet(["LuauIfBlockCondition"]);
+const IF_CONDITION_CONTENT = nodeNameSet(["LuauIfBlockCondition_content"]);
+const ELSEIF_CONDITION_CONTENT = nodeNameSet(["LuauElseifBlockCondition_content"]);
 
 /** Compile a control-block condition node (the expression up to `then`) into a
  *  Binding the reactive runtime evaluates. Prefers the `_content` wrapper so the
@@ -1061,8 +1065,8 @@ function buildControl(node: SyntaxNode, ctx: LowerContext): BodyNode {
   return buildIfNode(node, ctx);
 }
 
-const MATCH_CONDITION_CONTENT = new Set(["LuauSparkleMatchCondition_content"]);
-const CASE_VALUE_CONTENT = new Set(["LuauSparkleCaseValue_content"]);
+const MATCH_CONDITION_CONTENT = nodeNameSet(["LuauSparkleMatchCondition_content"]);
+const CASE_VALUE_CONTENT = nodeNameSet(["LuauSparkleCaseValue_content"]);
 
 /** `LuauSparkleMatchBlock` → MatchNode (spec §4.6). `match <expr> do  case
  *  <value> …  [else …]  end`: each `case` arm (value + children) is a grammar
@@ -1070,7 +1074,7 @@ const CASE_VALUE_CONTENT = new Set(["LuauSparkleCaseValue_content"]);
 function buildMatchNode(matchBlock: SyntaxNode, ctx: LowerContext): MatchNode {
   const content = firstDescendant(
     matchBlock,
-    new Set(["LuauSparkleMatchBlock_content"]),
+    nodeNameSet(["LuauSparkleMatchBlock_content"]),
   );
   const cases: MatchNode["cases"] = [];
   let elseChildren: BodyNode[] | undefined;
@@ -1078,22 +1082,22 @@ function buildMatchNode(matchBlock: SyntaxNode, ctx: LowerContext): MatchNode {
   if (content) {
     const condNode = firstDescendant(
       content,
-      new Set(["LuauSparkleMatchCondition"]),
+      nodeNameSet(["LuauSparkleMatchCondition"]),
     );
     if (condNode) {
       exprBinding = lowerCondition(condNode, MATCH_CONDITION_CONTENT, ctx);
     }
     for (const clause of childrenByName(
       content,
-      new Set(["LuauSparkleCaseClause"]),
+      nodeNameSet(["LuauSparkleCaseClause"]),
     )) {
       const valueNode = firstDescendant(
         clause,
-        new Set(["LuauSparkleCaseValue"]),
+        nodeNameSet(["LuauSparkleCaseValue"]),
       );
       const clauseContent = firstDescendant(
         clause,
-        new Set(["LuauSparkleCaseClause_content"]),
+        nodeNameSet(["LuauSparkleCaseClause_content"]),
       );
       if (valueNode) {
         cases.push({
@@ -1104,12 +1108,12 @@ function buildMatchNode(matchBlock: SyntaxNode, ctx: LowerContext): MatchNode {
     }
     const elseBlock = childrenByName(
       content,
-      new Set(["LuauSparkleElseBlock"]),
+      nodeNameSet(["LuauSparkleElseBlock"]),
     )[0];
     if (elseBlock) {
       const elseContent = firstDescendant(
         elseBlock,
-        new Set(["LuauSparkleElseBlock_content"]),
+        nodeNameSet(["LuauSparkleElseBlock_content"]),
       );
       elseChildren = buildBranchChildren(elseContent, ctx);
     }
@@ -1123,7 +1127,7 @@ function buildMatchNode(matchBlock: SyntaxNode, ctx: LowerContext): MatchNode {
   return node;
 }
 
-const WS_NODE_NAMES = new Set([
+const WS_NODE_NAMES = nodeNameSet([
   "ExtraWhitespace",
   "OptionalWhitespace",
   "RequiredWhitespace",
@@ -1173,16 +1177,16 @@ function lowerBindingFromNodes(nodes: SyntaxNode[], ctx: LowerContext): Binding 
 function buildForNode(forBlock: SyntaxNode, ctx: LowerContext): ForNode {
   const content = firstDescendant(
     forBlock,
-    new Set(["LuauSparkleForLoop_content"]),
+    nodeNameSet(["LuauSparkleForLoop_content"]),
   );
   const condContent = content
-    ? firstDescendant(content, new Set(["LuauForCondition_content"]))
+    ? firstDescendant(content, nodeNameSet(["LuauForCondition_content"]))
     : null;
   let bindings: string[] = [];
   let each: Binding | undefined;
   let numeric: ForNode["numeric"] | undefined;
   if (condContent) {
-    const inKw = firstDescendant(condContent, new Set(["LuauInKeyword"]));
+    const inKw = firstDescendant(condContent, nodeNameSet(["LuauInKeyword"]));
     if (inKw) {
       bindings = ctx
         .read(condContent.from, inKw.from)
@@ -1211,7 +1215,7 @@ function buildForNode(forBlock: SyntaxNode, ctx: LowerContext): ForNode {
     }
   }
   const elseBlock = content
-    ? childrenByName(content, new Set(["LuauSparkleElseBlock"]))[0]
+    ? childrenByName(content, nodeNameSet(["LuauSparkleElseBlock"]))[0]
     : undefined;
   // Lower the body WITH the loop variables in scope, so body bindings emit them
   // as evaluator params; the iterable (lowered above) and `else` (below) stay
@@ -1231,7 +1235,7 @@ function buildForNode(forBlock: SyntaxNode, ctx: LowerContext): ForNode {
   if (elseBlock) {
     const elseContent = firstDescendant(
       elseBlock,
-      new Set(["LuauSparkleElseBlock_content"]),
+      nodeNameSet(["LuauSparkleElseBlock_content"]),
     );
     forNode.else = buildBranchChildren(elseContent, ctx);
   }
@@ -1249,7 +1253,7 @@ function parseNumericForHeader(
 ): { loopVar: string; numeric: NonNullable<ForNode["numeric"]> } | null {
   const asn = firstDescendant(
     condContent,
-    new Set(["LuauAssignmentOperation"]),
+    nodeNameSet(["LuauAssignmentOperation"]),
   );
   if (!asn) {
     return null;
@@ -1261,7 +1265,7 @@ function parseNumericForHeader(
   // `from` = the assignment value: its content nodes after the `=` operator.
   const asnContent = firstDescendant(
     asn,
-    new Set(["LuauAssignmentOperation_content"]),
+    nodeNameSet(["LuauAssignmentOperation_content"]),
   );
   const fromNodes: SyntaxNode[] = [];
   let cc = asnContent?.firstChild ?? null;
@@ -1312,7 +1316,7 @@ function parseNumericForHeader(
 function buildIfNode(ifBlock: SyntaxNode, ctx: LowerContext): IfNode {
   const ifContent = firstDescendant(
     ifBlock,
-    new Set(["LuauSparkleIfBlock_content"]),
+    nodeNameSet(["LuauSparkleIfBlock_content"]),
   );
   const branches: IfNode["branches"] = [];
   if (ifContent) {
@@ -1325,15 +1329,15 @@ function buildIfNode(ifBlock: SyntaxNode, ctx: LowerContext): IfNode {
     }
     for (const elseif of childrenByName(
       ifContent,
-      new Set(["LuauSparkleElseifBlock"]),
+      nodeNameSet(["LuauSparkleElseifBlock"]),
     )) {
       const elseifContent = firstDescendant(
         elseif,
-        new Set(["LuauSparkleElseifBlock_content"]),
+        nodeNameSet(["LuauSparkleElseifBlock_content"]),
       );
       const cond = firstDescendant(
         elseif,
-        new Set(["LuauElseifBlockCondition"]),
+        nodeNameSet(["LuauElseifBlockCondition"]),
       );
       if (cond) {
         branches.push({
@@ -1344,12 +1348,12 @@ function buildIfNode(ifBlock: SyntaxNode, ctx: LowerContext): IfNode {
     }
     const elseBlock = childrenByName(
       ifContent,
-      new Set(["LuauSparkleElseBlock"]),
+      nodeNameSet(["LuauSparkleElseBlock"]),
     )[0];
     if (elseBlock) {
       const elseContent = firstDescendant(
         elseBlock,
-        new Set(["LuauSparkleElseBlock_content"]),
+        nodeNameSet(["LuauSparkleElseBlock_content"]),
       );
       return { kind: "if", branches, else: buildBranchChildren(elseContent, ctx) };
     }

@@ -1,8 +1,8 @@
 import { MessageProtocolRequestType } from "@impower/jsonrpc/src/common/classes/MessageProtocolRequestType";
-import { RequestMessage } from "@impower/jsonrpc/src/common/types/RequestMessage";
-import { ResponseMessage } from "@impower/jsonrpc/src/common/types/ResponseMessage";
-import { SparkProgram } from "../../types/SparkProgram";
-import { VersionedTextDocumentIdentifier } from "../../types/VersionedTextDocumentIdentifier";
+import type { RequestMessage } from "@impower/jsonrpc/src/common/types/RequestMessage";
+import type { ResponseMessage } from "@impower/jsonrpc/src/common/types/ResponseMessage";
+import type { SparkProgram } from "../../types/SparkProgram";
+import type { VersionedTextDocumentIdentifier } from "../../types/VersionedTextDocumentIdentifier";
 
 export type CompileProgramMethod = typeof CompileProgramMessage.method;
 

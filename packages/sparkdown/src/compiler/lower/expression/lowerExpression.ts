@@ -1,3 +1,5 @@
+import { type SparkdownNodeName } from "../../types/SparkdownNodeName";
+import { nodeNameSet } from "../../utils/nodeNameSet";
 import { type SyntaxNode } from "@lezer/common";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 import { findOwnDeclarationName } from "../utils/findOwnDeclarationName";
@@ -12,7 +14,7 @@ import { SingleValueExpression } from "../../../inkjs/compiler/Parser/ParsedHier
 import { StashAndRereadExpression } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expression/StashAndRereadExpression";
 import {
   TernaryExpression,
-  TernaryBranch,
+  type TernaryBranch,
 } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expression/TernaryExpression";
 import { NumberExpression } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expression/NumberExpression";
 import {
@@ -26,12 +28,10 @@ import { FunctionCall } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Fun
 import { Function } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Flow/Function";
 import { Argument } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Argument";
 import { Identifier } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Identifier";
-import { Knot } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Knot";
 import { ParsedObject } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Object";
 import { Text } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Text";
 import { VariableReference } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Variable/VariableReference";
-import { Weave } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Weave";
-import { LowerContext, SiblingSubFlowInfo } from "../context";
+import type { LowerContext,SiblingSubFlowInfo } from "../context";
 import { stampDebugMetadata } from "../utils/debugMetadata";
 import { lowerStatements } from "../lower";
 import { getFunctionBodyContent } from "../utils/getFunctionBodyContent";
@@ -85,11 +85,14 @@ function makeGlobalFunctionCall(
 // interpolations; the coercion lives in `lowerExpressionFromContainer` so
 // every context (display text, content strings, prop values, Luau strings,
 // Sparkle bindings) picks it up through the one funnel they already call.
-export const FUNCTION_CALL_SHORTHAND_NODES = new Set([
+const FUNCTION_CALL_SHORTHAND_NODE_LIST: SparkdownNodeName[] = [
   "LuauFunctionCallShorthand",
   "LuauDoubleQuotedFunctionCallShorthand",
   "LuauBacktickFunctionCallShorthand",
-]);
+];
+export const FUNCTION_CALL_SHORTHAND_NODES = nodeNameSet(
+  FUNCTION_CALL_SHORTHAND_NODE_LIST,
+);
 
 // Lower the value-expression formed by the children of `parent`. Operator
 // markers that aren't part of the expression value (e.g. LuauAssignmentOperator
@@ -295,7 +298,7 @@ type Token =
 // syntax sugar allows a single string literal or table constructor in
 // place of a parenthesized arg list: `f"str"`, `f[[str]]`, `f{...}`,
 // `s:rep(3)` vs `string.reverse"abc"`.
-const CALL_ARG_NODE_NAMES = new Set([
+const CALL_ARG_NODE_NAMES = nodeNameSet([
   "LuauParenthetical",
   "LuauRegexLiteral",
   "LuauDoubleQuotedString",
@@ -340,7 +343,7 @@ function lowerNewExpression(
   ]);
 }
 
-const OPERATION_WRAPPERS = new Set([
+const OPERATION_WRAPPERS = nodeNameSet([
   "LuauArithmeticOperation",
   "LuauCompareOperation",
   "LuauLogicalOperation",
@@ -350,21 +353,21 @@ const OPERATION_WRAPPERS = new Set([
 
 // Nodes whose entire subtree contributes nothing to the runtime expression —
 // they're type-only annotations. The LHS expression continues unchanged.
-const TYPE_ONLY_WRAPPERS = new Set([
+const TYPE_ONLY_WRAPPERS = nodeNameSet([
   "LuauTypeCastOperation",
   "LuauTypeAnnotationOperation",
 ]);
 
-const BINARY_OPERATOR_MARKERS = new Set([
+const BINARY_OPERATOR_MARKERS = nodeNameSet([
   "LuauArithmeticOperator",
   "LuauCompareOperator",
   "LuauLogicalOperator",
   "LuauConcatOperator",
 ]);
 
-const UNARY_OPERATOR_MARKERS = new Set(["LuauLengthOperator"]);
+const UNARY_OPERATOR_MARKERS = nodeNameSet(["LuauLengthOperator"]);
 
-const PRIMARY_NODES = new Set([
+const PRIMARY_NODES = nodeNameSet([
   "LuauNumericDecimal",
   "LuauNumericHex",
   "LuauNumericBinary",
@@ -652,7 +655,6 @@ function lowerMethodCall(
   const methodNameNode = getDescendent("LuauFunctionName", methodAccessor);
   if (!methodNameNode) return null;
   const methodNameText = ctx.read(methodNameNode.from, methodNameNode.to);
-  const methodName = new Identifier(methodNameText);
 
   // Lower the call's argument node — parenthesized list or the
   // single-literal sugar forms (`string.reverse"abc"`).
@@ -1223,7 +1225,7 @@ function lowerAnonymousFunction(
   // Otherwise (top-level expression context) fall back to the chunk-
   // wide hoist list so the anonymous knot still ends up addressable.
   if (stack && stack.length > 0) {
-    stack[stack.length - 1].push(fn);
+    stack[stack.length - 1]!.push(fn);
   } else if (ctx.hoistedKnots) {
     ctx.hoistedKnots.push(fn);
   } else {
@@ -1312,7 +1314,7 @@ export function collectImmediateBodyDeclarations(
     // binding. ONLY the loop targets count — names inside the
     // start/stop/step or iterator expressions are ordinary reads
     // (see collectForLoopTargetNames).
-    if (n.name === "LuauForLoop" || n.name === "LuauGenericForLoop") {
+    if (n.name === "LuauForLoop") {
       const condNode = getDescendent("LuauForCondition", n);
       if (condNode) {
         for (const name of collectForLoopTargetNames(condNode, ctx)) {
@@ -1440,7 +1442,7 @@ export function scanFreeVariables(
     // ONLY the loop targets are bound — names in the start/stop/step
     // or iterator expressions are reads of enclosing-scope variables
     // that MUST still be captured (see collectForLoopTargetNames).
-    if (n.name === "LuauForLoop" || n.name === "LuauGenericForLoop") {
+    if (n.name === "LuauForLoop") {
       const condNode = getDescendent("LuauForCondition", n);
       if (condNode) {
         for (const name of collectForLoopTargetNames(condNode, ctx)) {
@@ -1746,7 +1748,7 @@ export function buildClosureExpression(
   ]);
 }
 
-const ANON_FUNCTION_BODY_SKIP: ReadonlySet<string> = new Set([
+const ANON_FUNCTION_BODY_SKIP: ReadonlySet<string> = nodeNameSet([
   "LuauFunctionDeclarationName",
   "LuauFunctionParameters",
   "LuauFunctionReturnType",
@@ -2028,11 +2030,11 @@ export function processLuauEscapes(s: string): string {
 // `"..."` uses its own interpolation rule (bounded by the closing quote), so
 // both node names count as an interpolation. The `{{fn}}` call-shorthand
 // containers interpolate their call's return value the same way.
-const INTERPOLATION_NODES = new Set([
+const INTERPOLATION_NODES = nodeNameSet([
   "LuauInterpolatedStringExpression",
   "LuauDoubleQuotedStringInterpolation",
   "LuauBacktickStringInterpolation",
-  ...FUNCTION_CALL_SHORTHAND_NODES,
+  ...FUNCTION_CALL_SHORTHAND_NODE_LIST,
 ]);
 
 function hasInterpolation(node: SyntaxNode): boolean {
@@ -2332,7 +2334,6 @@ export function lowerValueChainAccessPath(
   if (firstInner?.name === "LuauFunctionCall") {
     const nameStr = readFunctionCallName(firstInner, ctx);
     if (!nameStr) return null;
-    const name = new Identifier(nameStr);
     // Greedy grammar packs `f(a)(b)(c)` into one call node with N
     // parameter-sets. Collect all, use the first as the base call's
     // args, and chain the rest as `CallValueExpression` wrappers.
@@ -2445,14 +2446,6 @@ export function lowerValueChainAccessPath(
 // `siblingSubFlowNamesStack`) are intentionally NOT here — those
 // resolve via FunctionCall + Divert against the SubFlow's actual
 // name, which the resolver finds via ink's relative-path walk.
-function isEnclosingLocalName(name: string, ctx: LowerContext): boolean {
-  const stack = ctx.declaredLocalsStack;
-  if (!stack) return false;
-  for (let i = stack.length - 1; i >= 0; i--) {
-    if (stack[i]!.has(name)) return true;
-  }
-  return false;
-}
 
 // Resolve a bare callable name against the lexical scope chain,
 // innermost frame first. Every function-lowering site pushes one
@@ -2493,14 +2486,6 @@ function resolveCallableBinding(
 // per-frame shadowing (a lambda param `f` beats an outer sibling
 // `f`); this flat check remains for the free-variable scan, where
 // any-frame membership is the right question.
-function isSiblingSubFlowName(name: string, ctx: LowerContext): boolean {
-  const stack = ctx.siblingSubFlowNamesStack;
-  if (!stack) return false;
-  for (let i = stack.length - 1; i >= 0; i--) {
-    if (stack[i]!.has(name)) return true;
-  }
-  return false;
-}
 
 // The registry entry of a sibling variadic SubFlow (captured upval
 // names + declared fixed arity), or null when `name` isn't a
@@ -2567,41 +2552,9 @@ function readFunctionCallName(
   return nameNode ? ctx.read(nameNode.from, nameNode.to) : null;
 }
 
-function lowerCallArguments(
-  callNode: SyntaxNode,
-  ctx: LowerContext,
-): Expression[] {
-  // Lua/Luau call-sugar: `f{...}` and `f"..."` are equivalent to
-  // `f({...})` / `f("...")` — a single table-/string-arg call. The
-  // grammar absorbs the table/string as a body child of the
-  // LuauFunctionCall instead of wrapping it in LuauFunctionCallParameters.
-  // Check the FIRST `_content` child to see which shape we have, then
-  // route accordingly. Falls back to () empty args if neither shape
-  // matches (defensive — should not happen in practice).
-  const params = getDescendent("LuauFunctionCallParameters", callNode);
-  if (params) {
-    return lowerArgListFromParams(params, ctx);
-  }
-  const sugar = findCallSugarArgNode(callNode);
-  if (sugar) {
-    const expr = lowerPrimary(sugar, ctx);
-    return expr ? [expr] : [];
-  }
-  return [];
-}
 
 // Find the first table-/string-sugar arg child of a LuauFunctionCall —
 // the body shape used by `f{...}` and `f"..."` / `f[[...]]` calls.
-function findCallSugarArgNode(callNode: SyntaxNode): SyntaxNode | null {
-  const content = findChildByName(callNode, "LuauFunctionCall_content");
-  const root = content ?? callNode;
-  let child = root.firstChild;
-  while (child) {
-    if (isCallSugarArg(child)) return child;
-    child = child.nextSibling;
-  }
-  return null;
-}
 
 
 function isCallSugarArg(node: SyntaxNode): boolean {

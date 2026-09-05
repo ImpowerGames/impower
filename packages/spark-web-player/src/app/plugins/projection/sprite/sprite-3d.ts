@@ -1,5 +1,5 @@
 import {
-  DestroyOptions,
+  type DestroyOptions,
   ObservablePoint,
   PerspectiveMesh,
   Point,
@@ -10,7 +10,7 @@ import { Container3D } from "../container-3d";
 import { Vec3 } from "../math/vec3";
 import { Point3D } from "../transform/point";
 import { Transform3D } from "../transform/transform-3d";
-import { SpriteBillboardType } from "./sprite-billboard-type";
+import type { SpriteBillboardType } from "./sprite-billboard-type";
 
 // Allocate these once and then reuse them
 const point = new Point3D();

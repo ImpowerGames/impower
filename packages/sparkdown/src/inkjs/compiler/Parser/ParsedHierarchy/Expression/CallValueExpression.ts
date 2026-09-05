@@ -35,7 +35,7 @@ export class CallValueExpression extends Expression {
     this.args = args.map((a) => this.AddContent(a) as Expression);
   }
 
-  get typeName(): string {
+  override get typeName(): string {
     return "CallValueExpression";
   }
 
@@ -59,6 +59,6 @@ export class CallValueExpression extends Expression {
     }
   };
 
-  public readonly toString = (): string =>
+  public override readonly toString = (): string =>
     `${this.targetExpression}(${this.args.map((a) => a.toString()).join(", ")})`;
 }

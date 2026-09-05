@@ -24,11 +24,6 @@ export const getColorPresentations = (color: Color): ColorPresentation[] => {
   presentations.push({ label: c.toHex().toLowerCase() });
   presentations.push({ label: c.toHex().toUpperCase() });
 
-  // NAMED COLOR
-  if (name) {
-    presentations.push({ label: name });
-  }
-
   // RGB & RGBA
   // Modern space-separated
   presentations.push({

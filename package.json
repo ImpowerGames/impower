@@ -6,7 +6,9 @@
     "web:dev": "node scripts/dev-preview.mjs --mode same-origin",
     "web:dev:same-origin": "node scripts/dev-preview.mjs --mode same-origin",
     "web:dev:cross-origin": "node scripts/dev-preview.mjs --mode cross-origin",
-    "vscode:dev": "npm --prefix vscode-sparkdown run watch"
+    "vscode:dev": "npm --prefix vscode-sparkdown run watch",
+    "typecheck": "node scripts/typecheck.mjs",
+    "check:node-names": "node scripts/check-node-names.mjs"
   },
   "workspaces": [
     "packages/*",
@@ -22,6 +24,7 @@
     "ajv": "^8.17.1",
     "eslint": "^9.18.0",
     "eslint-plugin-yml": "^1.14.0",
-    "playwright": "^1.61.0"
+    "playwright": "^1.61.0",
+    "typescript": "^5.9.3"
   }
 }

@@ -1,4 +1,4 @@
-import { SimulationFailure } from "@impower/sparkdown/src/compiler/types/SimulationFailure";
+import type { SimulationFailure } from "@impower/sparkdown/src/compiler/types/SimulationFailure";
 
 /** What the last route search established about a start point, and the rule for
  *  when that is safe to hand to a client that will skip its own search on the

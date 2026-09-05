@@ -1,4 +1,4 @@
-export interface Message<M extends string = string, P = any> {
+export interface Message<M extends string = string> {
   jsonrpc: string;
   method: M;
 }

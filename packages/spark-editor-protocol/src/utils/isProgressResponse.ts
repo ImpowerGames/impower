@@ -1,4 +1,4 @@
-import { ProgressResponseMessage } from "../types/base/ProgressResponseMessage";
+import type { ProgressResponseMessage } from "../types/base/ProgressResponseMessage";
 
 export const isProgressResponse = <M extends string>(
   obj: any,

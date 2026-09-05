@@ -47,7 +47,7 @@ function run(source: string, opts?: { experimentalDisplayCalls?: boolean }) {
 }
 
 function field(obj: ObjectValue, key: string): unknown {
-  return obj.value?.get(key)?.value;
+  return (obj.value?.get(key) as { value?: unknown } | undefined)?.value;
 }
 
 describe("lowerer synthesis: display() from authored prose", () => {

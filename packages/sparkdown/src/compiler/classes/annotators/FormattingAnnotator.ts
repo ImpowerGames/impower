@@ -1,8 +1,10 @@
+import { type SparkdownNodeName } from "../../types/SparkdownNodeName";
+import { nodeNameSet } from "../../utils/nodeNameSet";
 import { Range } from "@codemirror/state";
 import { getContextStack } from "@impower/textmate-grammar-tree/src/tree/utils/getContextStack";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
-import { SyntaxNodeRef } from "@lezer/common";
-import { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
+import type { SyntaxNode, SyntaxNodeRef } from "@lezer/common";
+import type { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
 import { SparkdownAnnotation } from "../SparkdownAnnotation";
 import { SparkdownAnnotator } from "../SparkdownAnnotator";
 
@@ -25,7 +27,7 @@ import { SparkdownAnnotator } from "../SparkdownAnnotator";
 // shouldn't tighten against them like `foo(x)` does. Only triggers
 // for the multi-line / block forms; inline alternators inside `{}`
 // interpolations stay collapsed via `isInsideInlineAlternator`.
-const KEYWORDS_REQUIRING_TRAILING_SPACE = new Set([
+const KEYWORDS_REQUIRING_TRAILING_SPACE = nodeNameSet([
   "LuauIfKeyword",
   "LuauElseifKeyword",
   "LuauForKeyword",
@@ -52,19 +54,22 @@ const KEYWORDS_REQUIRING_TRAILING_SPACE = new Set([
 // expression). These carry typing-pacing significance: whitespace
 // between/around the `|` separators is part of the rendered output,
 // so the formatter must leave it alone.
-const PRESERVE_WHITESPACE_ALTERNATOR_NAMES = new Set([
+const PRESERVE_WHITESPACE_ALTERNATOR_NAME_LIST: SparkdownNodeName[] = [
   "LuauSparkdownInlineGluedSequentialAlternatorBlock",
   "LuauSparkdownInlineGluedConditionalAlternatorBlock",
   "LuauSparkdownSingleLineSequentialAlternatorBlock",
   "LuauSparkdownSingleLineConditionalAlternatorBlock",
-]);
+];
+const PRESERVE_WHITESPACE_ALTERNATOR_NAMES = nodeNameSet(
+  PRESERVE_WHITESPACE_ALTERNATOR_NAME_LIST,
+);
 
 // Any inline alternator form — these all live on a single line and
 // should be tight (no `keyword (paren)` separation). Includes both
 // the display-text variants above AND the Luau-expression variants
 // (`{plural(n)|one="is"|other="are"}`).
-const ALL_INLINE_ALTERNATOR_NAMES = new Set([
-  ...PRESERVE_WHITESPACE_ALTERNATOR_NAMES,
+const ALL_INLINE_ALTERNATOR_NAMES = nodeNameSet([
+  ...PRESERVE_WHITESPACE_ALTERNATOR_NAME_LIST,
   "LuauSequentialAlternatorBlock",
   "LuauConditionalAlternatorBlock",
 ]);
@@ -94,7 +99,7 @@ function isInsideAnyInlineAlternator(
 // "Unary" = NEITHER shape produced a value before the operator.
 function isAfterUnaryOperator(node: SparkdownSyntaxNodeRef): boolean {
   let walker = node.node.parent;
-  let opNode: SparkdownSyntaxNodeRef["node"] | null = null;
+  let opNode: SyntaxNode | null = null;
   while (walker) {
     if (walker.name === "LuauArithmeticOperator") {
       opNode = walker;
@@ -104,7 +109,7 @@ function isAfterUnaryOperator(node: SparkdownSyntaxNodeRef): boolean {
   }
   if (!opNode) return false;
   if (node.from <= opNode.from) return false;
-  let operation: SparkdownSyntaxNodeRef["node"] | null = opNode.parent;
+  let operation: SyntaxNode | null = opNode.parent;
   while (operation && operation.name !== "LuauArithmeticOperation") {
     operation = operation.parent;
   }

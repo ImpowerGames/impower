@@ -132,7 +132,7 @@ describe("getImageCompositeSrc", () => {
     stubRasterizer();
     const calls = stubFetch();
     const ctx = makeContext("single", ["only"]);
-    const src = await getImageCompositeSrc(ctx, ctx.image.only);
+    const src = await getImageCompositeSrc(ctx, ctx.image["only"]);
     expect(src).toBeUndefined();
     // Nothing to flatten, so nothing should have been fetched or drawn.
     expect(calls).toEqual([]);

@@ -12,7 +12,7 @@ export class Statement extends ParsedObject {
     this.AddContent(topLevelObjects);
   }
 
-  get typeName(): string {
+  override get typeName(): string {
     return "Paragraph";
   }
 

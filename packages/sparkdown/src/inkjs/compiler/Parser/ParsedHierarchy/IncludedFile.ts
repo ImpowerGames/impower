@@ -12,7 +12,7 @@ export class IncludedFile extends ParsedObject {
     return null;
   };
 
-  get typeName(): string {
+  override get typeName(): string {
     return "IncludedFile";
   }
 }

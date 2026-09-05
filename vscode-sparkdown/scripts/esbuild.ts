@@ -2,7 +2,6 @@ import * as polyfill from "@esbuild-plugins/node-globals-polyfill";
 import esbuild from "esbuild";
 import copy from "esbuild-plugin-copy-watch";
 import fs from "fs";
-import * as glob from "glob";
 import path from "path";
 
 const PRODUCTION = process.argv.includes("--production");
@@ -36,36 +35,6 @@ const rawPlugin = (): esbuild.Plugin => ({
 const LOG_PREFIX =
   (WATCH ? "[watch] " : "") + `${path.basename(process.cwd())}: `;
 
-/**
- * For web extension, all tests, including the test runner, need to be bundled into
- * a single module that has a exported `run` function .
- * This plugin bundles implements a virtual file extensionTests.ts that bundles all these together.
- */
-const testBundle = (): esbuild.Plugin => ({
-  name: "testBundle",
-  setup(build) {
-    build.onResolve({ filter: /[\/\\]extensionTests\.ts$/ }, (args) => {
-      if (args.kind === "entry-point") {
-        return { path: path.resolve(args.path) };
-      }
-    });
-    build.onLoad({ filter: /[\/\\]extensionTests\.ts$/ }, async (args) => {
-      const testsRoot = path.join(process.cwd(), "./src/web/test/suite");
-      const files = await glob.glob("*.test.{ts,tsx}", {
-        cwd: testsRoot,
-        posix: true,
-      });
-      return {
-        contents:
-          `export { run } from './mochaTestRunner.ts';` +
-          files.map((f) => `import('./${f}');`).join(""),
-        watchDirs: files.map((f) => path.dirname(path.resolve(testsRoot, f))),
-        watchFiles: files.map((f) => path.resolve(testsRoot, f)),
-      };
-    });
-  },
-});
-
 const esbuildProblemMatcher = (): esbuild.Plugin => ({
   name: "esbuildProblemMatcher",
   setup(build) {
@@ -86,7 +55,7 @@ const esbuildProblemMatcher = (): esbuild.Plugin => ({
 });
 
 const config: esbuild.BuildOptions = {
-  entryPoints: ["src/extension.ts", "src/web/test/suite/extensionTests.ts"],
+  entryPoints: ["src/extension.ts"],
   bundle: true,
   format: "cjs",
   minify: PRODUCTION,
@@ -128,12 +97,16 @@ const config: esbuild.BuildOptions = {
     js: `const window = {};`,
   },
 
+  // esbuild is installed twice and always will be: `tsx` pins ~0.18 and wins
+  // the hoist, while this extension needs ^0.25. Plugins from packages that
+  // depend on the hoisted copy therefore carry its `Plugin` type, which is
+  // structurally the same but nominally distinct.
   plugins: [
     rawPlugin(),
     polyfill.NodeGlobalsPolyfillPlugin({
       process: true,
       buffer: true,
-    }),
+    }) as unknown as esbuild.Plugin,
     copy({
       paths: [
         { from: "./data/*", to: "./data" },
@@ -161,8 +134,7 @@ const config: esbuild.BuildOptions = {
           to: "./workers",
         },
       ],
-    }),
-    testBundle(),
+    }) as unknown as esbuild.Plugin,
     esbuildProblemMatcher() /* add to the end of plugins array */,
   ],
   metafile: true,

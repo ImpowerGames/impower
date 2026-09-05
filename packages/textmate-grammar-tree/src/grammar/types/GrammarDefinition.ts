@@ -54,10 +54,19 @@ export interface ScopedRuleDefinition extends RuleDefinition {
 
 export type IncludeDefinition = { include: string };
 
+/**
+ * A rule that carries only `captures`, contributing capture handling to the
+ * rule that includes it rather than matching anything itself.
+ */
+export interface CapturesOnlyRuleDefinition extends RuleDefinition {
+  captures: Record<string, RuleDefinition | SwitchRuleDefinition>;
+}
+
 export type RepositoryDefinition =
   | MatchRuleDefinition
   | SwitchRuleDefinition
-  | ScopedRuleDefinition;
+  | ScopedRuleDefinition
+  | CapturesOnlyRuleDefinition;
 
 export interface GrammarDefinition {
   // VSCode properties

@@ -1,7 +1,8 @@
+import { nodeNameSet } from "../../utils/nodeNameSet";
 import { type SyntaxNode } from "@lezer/common";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
-import { ErrorType, SourceMetadata } from "../../../inkjs/engine/Error";
-import { LowerContext } from "../context";
+import { ErrorType, type SourceMetadata } from "../../../inkjs/engine/Error";
+import type { LowerContext } from "../context";
 
 // How far past the `=` to scan for the token Luau reports as "got '<token>'".
 // Generous enough to skip whitespace, blank lines, and a trailing comment to
@@ -14,7 +15,7 @@ const LOOKAHEAD = 4096;
 // Grammar node names that carry no value — whitespace and comments. A comment
 // is lexical whitespace to Luau, so `name = -- todo` has an EMPTY right-hand
 // side just like a bare `name =`.
-const COMMENT_NAMES: ReadonlySet<string> = new Set([
+const COMMENT_NAMES: ReadonlySet<string> = nodeNameSet([
   "LuauLineComment",
   "LuauBlockComment",
   "LuauComment",
