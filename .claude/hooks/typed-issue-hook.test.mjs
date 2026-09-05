@@ -229,6 +229,11 @@ const denies = [
   ["an empty here-string as the type", "irm -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Body @{title='x'; type = @\"\n\"@\n}"],
   ["a whitespace-only here-string as the type", "irm -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Body @{title='x'; type = @\"\n\n\"@\n}"],
   ["a multi-line single-quoted note whose second line starts type = @\", then a real here-string", "irm -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Body @{\n  title = 'x'\n  note = 'first line\ntype = @\" second'\n  body = @\"\nsteps\n\"@\n}"],
+  ["create after a (( )) shift command at a line start", 'echo "$(date)"\n((y = 1 << m))\necho "$(date)"\ngh issue create -t x'],
+  ["untyped api create after a (( )) shift command at a line start", "x=1\n((mask = 1 << n))\ngh api -X POST repos/ImpowerGames/impower/issues -f title=x"],
+  ["a multi-line array element whose second line starts type=Bug", "irm -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Body @{title='x'; labels=@('bug','one\ntype=Bug\n')}"],
+  ["an empty single-quoted type", "irm -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Body @{title='x'; type=''}"],
+  ["unparseable JSON with a type key but no title key kept as prose", 'curl -X POST https://api.github.com/repos/ImpowerGames/impower/issues -d \'{"title":"the type key is quoted here","body":"x",}\''],
 ];
 
 const allows = [
@@ -311,6 +316,16 @@ const allows = [
   ["a quoted shift with a named operand, then a typed hashtable create", 'echo "shift: $((1 << n))"\nirm -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Body @{title=\'x\'; type=\'Bug\'}'],
   ["a triple-paren arithmetic, a here-doc with a lone quote, then a typed create", "x=$(((a+b)*c)) && cat > n.md <<'EOF'\npass the \" flag\nEOF\nirm -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Body @{title=\"x\"; type=\"Bug\"}"],
   ["a nested-paren shift, then a here-doc, then a typed create", "x=$(((a) << b)); cat <<EOF\nbody (\nEOF\ngh api -X POST repos/ImpowerGames/impower/issues -f \"title=$(cat t.md)\" -f type=Bug"],
+  ["a (( )) shift command at a line start, then a typed create with a $( ) title", "x=4\n((mask = 1 << n))\ngh api -X POST repos/ImpowerGames/impower/issues -f \"title=$(cat t.md)\" -f type=Bug"],
+  ["a (( )) shift command at a line start, then a typed hashtable create", "x=4\n((mask = 1 << n))\nirm -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Body @{title='x'; type='Bug'}"],
+  ["a negated (( )) shift, then a typed create", "!((1 << n))\ngh api -X POST repos/ImpowerGames/impower/issues -f \"title=$(cat t.md)\" -f type=Bug"],
+  ["a (( )) shift command at a CRLF line start, then a typed create", "x=4\r\n((mask = 1 << n))\r\ngh api -X POST repos/ImpowerGames/impower/issues -f \"title=$(cat t.md)\" -f type=Bug"],
+  ["a typed hashtable with a double-quoted path ending in a backslash before the type", "irm -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Body @{title='x'; path=\"C:\\src\\\"; type='Bug'}"],
+  ["a typed hashtable with a double-quoted path ending in a backslash and a double-quoted type", "irm -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Body @{path=\"C:\\repo\\\"; type=\"Bug\"}"],
+  ["a typed hashtable with a regex value ending in a backslash", "irm -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Body @{title='x'; pattern=\"\\d+\\\"; type='Bug'}"],
+  ["a typed body in the prefix-call ConvertTo-Json form", "irm -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Body (ConvertTo-Json @{title='x'; type='Bug'})"],
+  ["unparseable JSON with a quoted type key kept", 'curl -X POST https://api.github.com/repos/ImpowerGames/impower/issues -d \'{"type":"Bug","title":"x",}\''],
+  ["a typed hashtable whose value holds an escaped quote in JSON-like text", 'curl -X POST https://api.github.com/repos/ImpowerGames/impower/issues -d \'{"title":"a \\"quoted\\" word","type":"Bug",}\''],
   ["typed form data in Bash ANSI-C quoting", "curl -X POST https://api.github.com/repos/ImpowerGames/impower/issues --data $'title=x&type=Bug'"],
   ["a view inside a double-quoted $( )", 'echo "issue: $(gh issue view 443 --json title)"'],
   ["curl -G with query data", "curl -G -d labels=bug https://api.github.com/repos/ImpowerGames/impower/issues"],
@@ -394,6 +409,8 @@ const allows = [
   guard("a hashtable value with 32000 lines starting with \"@", "irm -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Body @{title='x'; type='Bug'; body='" + "\n\"@".repeat(32000) + "'}");
   guard("a 400 KB hashtable value mentioning me@\"work\" 16000 times", "irm -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Body @{title='x'; type='Bug'; body='" + 'mail me@"work" about it. '.repeat(16000) + "'}");
   guard("a hashtable with 8000 here-string values", "irm -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Body @{title='x'; type='Bug'; " + Array.from({ length: 8000 }, (_, i) => `k${i} = @"\nline\n"@`).join("\n") + "\n}");
+  guard("a hashtable with 32000 unterminated here-string openers", "irm -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Body @{title='x'; type='Bug'; " + Array.from({ length: 32000 }, (_, i) => `k${i} = @"`).join("\n") + "\n}");
+  guard("a hashtable with 8000 here-string values whose terminators are indented", "irm -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Body @{title='x'; type='Bug'; " + Array.from({ length: 8000 }, (_, i) => `k${i} = @"\nline\n  "@`).join("\n") + "\n}");
   guard("10000 shifts with named operands, then a typed create", Array.from({ length: 10000 }, (_, i) => `x=$((y << n${i}))`).join("\n") + "\ngh api -X POST repos/ImpowerGames/impower/issues -f title=x -f type=Bug");
   guard("32000 unbalanced groups after flags", "echo " + "-a ( ".repeat(32000));
   guard("32000 unbalanced hashtables after flags", "echo " + "-a @{ ".repeat(32000) + "}");

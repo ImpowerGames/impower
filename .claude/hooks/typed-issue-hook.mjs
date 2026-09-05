@@ -481,9 +481,10 @@ function bracketPartners(command) {
       if (heredocs.length) k = skipHeredocBodies(command, k + 1, heredocs) - 1;
       continue;
     }
-    // `$((` and a `((` command open an arithmetic context (counted once per
-    // pair); `))` closes one. Both parentheses are still paired normally.
-    if (ch === "(" && command[k + 1] === "(" && (k === 0 || "$ \t;|&".includes(command[k - 1]))) {
+    // Arithmetic is counted exactly as the tokenizer counts it: any `((`
+    // opens a context and any `))` while one is open closes it. Both
+    // parentheses are still paired normally.
+    if (ch === "(" && command[k + 1] === "(") {
       arith++;
       stack.push({ ch, at: k, resumesString: false }, { ch, at: k + 1, resumesString: false });
       k++;
@@ -739,7 +740,7 @@ function bodyHasTypeField(body) {
   }
   // Anything else is a hashtable or JSON-like text; prose is not a body.
   if (!/^(@?\{|\[)/.test(inner)) return false;
-  // Every value is blanked first (a here-string value becomes a one-character
+  // Every quoted or here-string value is blanked first (a one-character
   // placeholder when it has content, an empty string otherwise), then empty
   // type entries are dropped, then the entry regex runs on what is left.
   const blanked = blankValues(inner).replace(/["']?type["']?\s*[:=]\s*(["'])\1/g, "");
@@ -748,39 +749,46 @@ function bodyHasTypeField(body) {
 
 /**
  * One forward pass over a hashtable or object-literal body that replaces
- * every value with a placeholder: a quoted string that follows `=` or `:`
- * becomes `"h"` when it has content and `""` when empty, and so does a
+ * every quoted string except a key (one followed by `=` or `:`) with `"h"`
+ * when it has content and `""` when empty, and does the same for a
  * here-string (`@"` or `@'` at a line end, through the matching `"@` or
- * `'@` at a line start); a here-string with no terminator is text.
- * Quoted text is consumed as a unit, so an `= @"` inside a value is never
- * taken for an opener, and every character is visited once.
+ * `'@` at a line start); a here-string with no terminator is text. Quoted
+ * text is consumed as a unit, so an `= @"` inside a value is never taken
+ * for an opener, and every character is visited once. A hashtable body is
+ * PowerShell, where a backslash is literal; any other body reads a
+ * backslash as an escape when that reading reaches a closing quote.
  */
 function blankValues(text) {
   const n = text.length;
+  const powershell = text.startsWith("@{");
+  const noTerminator = { '"': false, "'": false };
   let out = "";
   let k = 0;
-  const isValue = (at) => {
-    let j = at - 1;
-    while (j >= 0 && " \t\r\n".includes(text[j])) j--;
-    return j >= 0 && (text[j] === "=" || text[j] === ":");
+  const isKey = (after) => {
+    let j = after;
+    while (j < n && " \t\r\n".includes(text[j])) j++;
+    return j < n && (text[j] === "=" || text[j] === ":");
   };
   while (k < n) {
     const ch = text[k];
     if (ch === "@" && (text[k + 1] === '"' || text[k + 1] === "'") && /^\r?\n/.test(text.slice(k + 2, k + 4))) {
       const q = text[k + 1];
-      const term = text.indexOf(`\n${q}@`, k + 2);
+      const term = noTerminator[q] ? -1 : text.indexOf(`\n${q}@`, k + 2);
       if (term >= 0) {
         const body = text.slice(k + 2, term);
         out += body.trim().length ? `${q}h${q}` : `${q}${q}`;
         k = term + 3;
         continue;
       }
+      noTerminator[q] = true;
     }
     if (ch === '"' || ch === "'") {
-      const end = scanQuote(text, k, ch === '"');
+      let end = -1;
+      if (ch === '"' && !powershell) end = scanQuote(text, k, true);
+      if (end < 0) end = scanQuote(text, k, false);
       const close = end < 0 ? n - 1 : end;
-      if (isValue(k)) out += close > k + 1 ? `${ch}h${ch}` : ch + ch;
-      else out += text.slice(k, close + 1);
+      if (isKey(close + 1)) out += text.slice(k, close + 1);
+      else out += close > k + 1 ? `${ch}h${ch}` : ch + ch;
       k = close + 1;
       continue;
     }
@@ -796,6 +804,10 @@ function unwrapBody(body) {
   for (let guard = 0; guard < 4; guard++) {
     if (/^[$@]?\(/.test(s) && s.endsWith(")")) {
       s = s.replace(/^[$@]?\(/, "").slice(0, -1).trim();
+      continue;
+    }
+    if (/^[A-Za-z][\w-]*\s+@?\{/.test(s)) {
+      s = s.replace(/^[A-Za-z][\w-]*\s+/, ""); // ConvertTo-Json @{...}
       continue;
     }
     if (s.length >= 3 && s.startsWith("$'") && s.endsWith("'")) {
