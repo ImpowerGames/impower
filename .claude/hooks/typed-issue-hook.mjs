@@ -9,10 +9,17 @@
 // whether `-X POST` was typed.
 //
 // The payload arrives on stdin as JSON. Only tool_input.command is read; the
-// command is split into shell-style tokens, so a mention of the phrase inside
-// a quoted string (a commit message, a comment body) is not a match, while a
-// string handed to `bash -c`, `sh -c`, `eval`, or `pwsh -Command` is analysed
-// as a command of its own.
+// command is split into shell-style tokens (Bash and PowerShell quoting,
+// line continuations, comments, here-doc bodies), so a mention of the phrase
+// in a quoted string, a comment, or a here-doc body is not a match. A `gh`
+// or `curl` token counts as an invocation only at the start of a command
+// segment, after environment assignments, or after a wrapper such as sudo,
+// npx, env, or xargs; a string handed to `bash -c`, `sh -lc`, `eval`, or
+// `pwsh -Command` is analysed as a command of its own.
+//
+// This is a guardrail against forgetting the type, not against evasion: an
+// endpoint or method built from a shell variable, a gh alias, or a wrapper
+// script is not seen.
 //
 // Exercised by typed-issue-hook.test.mjs next to this file, which also runs
 // the exact command string .claude/settings.json ships.
@@ -24,23 +31,24 @@ const RECIPE =
 
 const THIS_REPO = "impowergames/impower";
 
-// Fields whose values do not belong to the request body.
-const GH_API_VALUE_FLAGS = new Set([
-  "-H", "--header",
-  "-p", "--preview",
-  "-q", "--jq",
-  "-t", "--template",
-  "--cache",
-  "--hostname",
-]);
+// gh api flags that take a value which is not a request field.
+const GH_API_VALUE_FLAGS = new Set(["-H", "--header", "-p", "--preview", "-q", "--jq", "-t", "--template", "--cache", "--hostname"]);
 const GH_API_FIELD_FLAGS = new Set(["-f", "--raw-field", "-F", "--field"]);
+// gh issue create flags that take a value.
+const GH_ISSUE_CREATE_VALUE_FLAGS = new Set([
+  "-t", "--title", "-b", "--body", "-F", "--body-file", "-l", "--label", "-a", "--assignee",
+  "-m", "--milestone", "-p", "--project", "-T", "--template", "-R", "--repo", "--recover",
+]);
+// Words that may precede a program name in a segment without being the program.
+const WRAPPERS = new Set(["sudo", "npx", "time", "command", "exec", "nohup", "xargs", "env", "builtin", "&", "doas"]);
 
-/** Split a command line into tokens the way a POSIX shell roughly would. */
+/** Split a command line into tokens the way Bash or PowerShell roughly would. */
 export function tokenize(command) {
   const tokens = [];
   let text = "";
   let quoted = false;
   let started = false;
+  let heredocs = [];
   const flush = () => {
     if (started) tokens.push({ text, quoted });
     text = "";
@@ -83,7 +91,7 @@ export function tokenize(command) {
       if (i + 1 < n) {
         const next = command[i + 1];
         if (next === "\n") {
-          i += 2; // line continuation
+          i += 2; // Bash line continuation
           continue;
         }
         started = true;
@@ -97,12 +105,73 @@ export function tokenize(command) {
       i++;
       continue;
     }
+    if (c === "`") {
+      if (command[i + 1] === "\n") {
+        i += 2; // PowerShell line continuation
+        continue;
+      }
+      if (command[i + 1] === "\r" && command[i + 2] === "\n") {
+        i += 3;
+        continue;
+      }
+      // Bash command substitution opens a new segment; a PowerShell escape
+      // inside a bare word is kept as its character.
+      if (started && i + 1 < n && !" \t".includes(command[i + 1])) {
+        text += command[i + 1];
+        i += 2;
+        continue;
+      }
+      sep();
+      i++;
+      continue;
+    }
+    if (c === "#" && !started) {
+      while (i < n && command[i] !== "\n") i++; // comment to end of line
+      continue;
+    }
+    if (c === "<" && command[i + 1] === "<" && command[i + 2] !== "<") {
+      // Here-doc: record the delimiter; the body is skipped at the newline.
+      i += 2;
+      if (command[i] === "-") i++;
+      while (i < n && " \t".includes(command[i])) i++;
+      let delim = "";
+      let q = null;
+      while (i < n && !" \t\n;|&".includes(command[i])) {
+        const ch = command[i++];
+        if (ch === "'" || ch === '"') {
+          q = q === ch ? null : q ?? ch;
+          continue;
+        }
+        if (ch === "\\" && i < n) {
+          delim += command[i++];
+          continue;
+        }
+        delim += ch;
+      }
+      if (delim) heredocs.push(delim);
+      continue;
+    }
     if (c === " " || c === "\t" || c === "\r") {
       flush();
       i++;
       continue;
     }
-    if (c === "\n" || c === ";" || c === "|" || c === "&" || c === "(" || c === ")") {
+    if (c === "\n") {
+      sep();
+      i++;
+      while (heredocs.length && i < n) {
+        const delim = heredocs.shift();
+        while (i < n) {
+          let end = command.indexOf("\n", i);
+          if (end < 0) end = n;
+          const line = command.slice(i, end).replace(/^\t+/, "").replace(/\r$/, "");
+          i = Math.min(end + 1, n);
+          if (line === delim) break;
+        }
+      }
+      continue;
+    }
+    if (c === ";" || c === "|" || c === "&" || c === "(" || c === ")") {
       sep();
       i++;
       continue;
@@ -110,11 +179,6 @@ export function tokenize(command) {
     if (c === "$" && command[i + 1] === "(") {
       sep();
       i += 2;
-      continue;
-    }
-    if (c === "`") {
-      sep();
-      i++;
       continue;
     }
     started = true;
@@ -125,13 +189,12 @@ export function tokenize(command) {
   return tokens;
 }
 
-function isGh(token) {
-  const base = token.text.replace(/\\/g, "/").split("/").pop().toLowerCase();
-  return base === "gh" || base === "gh.exe";
+function baseName(token) {
+  return token.text.replace(/\\/g, "/").split("/").pop().toLowerCase().replace(/\.exe$/, "");
 }
 
 function normalizeRepo(value) {
-  const v = value.trim().replace(/\/+$/, "").toLowerCase();
+  const v = value.trim().replace(/^=/, "").replace(/\/+$/, "").replace(/\.git$/, "").toLowerCase();
   const m = v.match(/(?:^|[/:])([^/:]+\/[^/:]+)$/);
   return m ? m[1] : v;
 }
@@ -141,28 +204,81 @@ function isThisRepo(repo) {
   return r === THIS_REPO || r === "{owner}/{repo}" || r === ":owner/:repo";
 }
 
-/** Reads `--flag value` and `--flag=value`; returns [value, tokensConsumed]. */
+/** Reads `--flag value`, `--flag=value`, `-Xvalue`, `-X=value`; returns [value, tokensConsumed]. */
 function flagValue(args, i) {
   const t = args[i].text;
   const eq = t.indexOf("=");
   if (t.startsWith("--") && eq > 0) return [t.slice(eq + 1), 1];
-  if (!t.startsWith("--") && t.length > 2) return [t.slice(2), 1];
+  if (!t.startsWith("--") && t.length > 2) return [t.slice(2).replace(/^=/, ""), 1];
   return [args[i + 1]?.text ?? "", 2];
 }
 
-function checkGhIssueCreate(args) {
+function flagName(t) {
+  if (t.startsWith("--")) return t.toLowerCase().split("=")[0];
+  if (t.startsWith("-") && t.length > 1) return t.slice(0, 2);
+  return null;
+}
+
+/**
+ * Reads the arguments after `gh`: the subcommand words (`api`, or `issue`
+ * plus its action), the remaining tokens in order, and a repo given by
+ * `-R`/`--repo` before the action. gh accepts those flags before the
+ * subcommand, so `gh -R o/r issue create` and `gh issue -R o/r create` both
+ * resolve here; `--hostname` is consumed the same way so its value is not
+ * mistaken for a subcommand.
+ */
+function ghInvocation(args) {
+  const words = [];
+  const rest = [];
   let repo = null;
   for (let i = 0; i < args.length; i++) {
     const t = args[i].text;
-    if (t === "-R" || t === "--repo" || t.startsWith("--repo=") || (t.startsWith("-R") && t.length > 2)) {
-      [repo] = flagValue(args, i);
+    const wantWord = words.length === 0 || (words.length === 1 && words[0] === "issue");
+    if (wantWord && t.startsWith("-")) {
+      const name = flagName(t);
+      if (name === "-R" || name === "--repo" || name === "--hostname") {
+        const [value, used] = flagValue(args, i);
+        if (name !== "--hostname") repo = value;
+        i += used - 1;
+        continue;
+      }
+      rest.push(args[i]);
+      continue;
     }
+    if (wantWord) words.push(t.toLowerCase());
+    else rest.push(args[i]);
+  }
+  return { words, rest, repo };
+}
+
+function checkGhIssueCreate(args, presetRepo) {
+  let repo = presetRepo;
+  for (let i = 0; i < args.length; i++) {
+    const t = args[i].text;
+    const name = flagName(t);
+    if (name === null) continue;
+    if (name === "-R" || name === "--repo") {
+      const [value, used] = flagValue(args, i);
+      repo = value;
+      i += used - 1;
+      continue;
+    }
+    if (GH_ISSUE_CREATE_VALUE_FLAGS.has(name) && !t.includes("=") && t.length === name.length) i++;
   }
   if (repo !== null && !isThisRepo(repo)) return null;
   return (
     "gh issue create cannot set an issue type, and every ticket here carries one (Bug, Feature, or Task). " +
     "Create the issue with one typed REST call instead: " + RECIPE
   );
+}
+
+function normalizeEndpoint(raw) {
+  return raw
+    .replace(/^https?:\/\/[^/]+\//i, "")
+    .split("?")[0]
+    .replace(/^\/+/, "")
+    .replace(/\/+$/, "")
+    .toLowerCase();
 }
 
 function checkGhApi(args) {
@@ -178,40 +294,40 @@ function checkGhApi(args) {
     }
     // Long flags are case-insensitive here; short flags keep their case
     // because -f and -F are different flags to gh.
-    const flagName = t.startsWith("--") ? t.toLowerCase().split("=")[0] : t.startsWith("-") ? t.slice(0, 2) : null;
-    if (flagName === null) {
+    const name = flagName(t);
+    if (name === null) {
       positional.push(t);
       continue;
     }
-    if (GH_API_FIELD_FLAGS.has(flagName)) {
+    if (GH_API_FIELD_FLAGS.has(name)) {
       const [value, used] = flagValue(args, i);
-      fields.push(value);
+      fields.push({ raw: name === "-f" || name === "--raw-field", value });
       i += used - 1;
       continue;
     }
-    if (flagName === "-X" || flagName === "--method") {
+    if (name === "-X" || name === "--method") {
       const [value, used] = flagValue(args, i);
       method = value.toUpperCase();
       i += used - 1;
       continue;
     }
-    if (flagName === "--input") {
+    if (name === "--input") {
       const [, used] = flagValue(args, i);
       input = true;
       i += used - 1;
       continue;
     }
-    if (GH_API_VALUE_FLAGS.has(flagName)) {
+    if (GH_API_VALUE_FLAGS.has(name)) {
       const [, used] = flagValue(args, i);
       i += used - 1;
       continue;
     }
     // boolean flag: --paginate, --slurp, --silent, -i, --verbose, ...
   }
-  const endpoint = (positional[0] ?? "").split("?")[0].replace(/^\/+/, "").replace(/\/+$/, "").toLowerCase();
+  const endpoint = normalizeEndpoint(positional[0] ?? "");
 
   if (endpoint === "graphql") {
-    if (fields.some((f) => /createissue/i.test(f))) {
+    if (fields.some((f) => /createissue/i.test(f.value))) {
       return (
         "This GraphQL mutation creates an issue, and the hook cannot see whether it sets an issue type. " +
         "Use the REST call instead: " + RECIPE
@@ -232,7 +348,13 @@ function checkGhApi(args) {
       "(field flags next to --input go to the query string, not the body). Use field flags instead: " + RECIPE
     );
   }
-  const typed = fields.some((f) => /^type=.+/.test(f));
+  // -F converts true, false, null, and integers to JSON values, so those are
+  // not a type name.
+  const typed = fields.some((f) => {
+    const v = f.value.match(/^type=(.+)$/)?.[1];
+    if (!v) return false;
+    return f.raw || !/^(true|false|null|-?\d+)$/.test(v);
+  });
   if (typed) return null;
   return (
     "This creates an issue without an issue type, and every ticket here carries one (Bug, Feature, or Task). " +
@@ -240,19 +362,55 @@ function checkGhApi(args) {
   );
 }
 
+const COLLECTION_URL = /api\.github\.com\/repos\/([^/\s"']+\/[^/\s"']+)\/issues\/?(\?|$)/i;
+
 function checkCurl(args) {
   const joined = args.map((a) => a.text).join(" ");
-  const url = args.find((a) => /api\.github\.com\/repos\/[^/\s]+\/[^/\s]+\/issues(\?|$)/i.test(a.text));
-  if (!url) return null;
-  const repo = url.text.match(/repos\/([^/\s]+\/[^/\s]+)\/issues/i)[1];
-  if (!isThisRepo(repo)) return null;
-  const posts = /(^|\s)(-X|--request)\s*=?\s*post(\s|$)/i.test(joined) || /(^|\s)(-d|--data|--data-raw|--data-binary|--json)(\s|=)/.test(joined);
+  const url = args.find((a) => COLLECTION_URL.test(a.text));
+  if (!url || !isThisRepo(url.text.match(COLLECTION_URL)[1])) return null;
+  const posts =
+    /(^|\s)(-X|--request)\s*=?\s*post(\s|$)/i.test(joined) ||
+    /(^|\s)(-d|--data|--data-raw|--data-binary|--json|-F|--form)(\s|=)/.test(joined);
   if (!posts) return null;
   if (/"type"\s*:/.test(joined)) return null;
   return (
     "This creates an issue without an issue type (or from a body the hook cannot read). " +
     "Use the gh recipe instead: " + RECIPE
   );
+}
+
+function checkInvokeRestMethod(args) {
+  const joined = args.map((a) => a.text).join(" ");
+  const url = args.find((a) => COLLECTION_URL.test(a.text));
+  if (!url || !isThisRepo(url.text.match(COLLECTION_URL)[1])) return null;
+  const posts = /-method\s+post\b/i.test(joined) || /-body\b/i.test(joined);
+  if (!posts) return null;
+  if (/type/i.test(joined.replace(COLLECTION_URL, ""))) return null;
+  return (
+    "This creates an issue without an issue type (or from a body the hook cannot read). " +
+    "Use the gh recipe instead: " + RECIPE
+  );
+}
+
+/** True when every token before index i in the segment is a prefix a program name may follow. */
+function isCommandPosition(seg, i) {
+  for (let k = 0; k < i; k++) {
+    const t = seg[k].text;
+    if (seg[k].quoted) return false;
+    if (/^[A-Za-z_][A-Za-z0-9_]*=/.test(t)) continue; // FOO=bar
+    if (t.startsWith("-")) continue; // a wrapper's own flag, e.g. env -u X
+    if (WRAPPERS.has(t.toLowerCase())) continue;
+    return false;
+  }
+  return true;
+}
+
+function isShellCommandFlag(prev) {
+  if (!prev) return false;
+  const p = prev.toLowerCase();
+  if (p === "eval" || p === "/c" || p === "-c") return true;
+  if (p.startsWith("-comm")) return true; // PowerShell -Command and its prefixes
+  return /^-[a-z]*c[a-z]*$/.test(p); // -lc, -euc, -xc
 }
 
 /** Returns a deny reason for the command, or null to allow it. */
@@ -272,22 +430,22 @@ export function decide(command, depth = 0) {
   for (const seg of segments) {
     for (let i = 0; i < seg.length; i++) {
       const tok = seg[i];
-      const prev = seg[i - 1]?.text.toLowerCase();
-      if (tok.quoted && (prev === "-c" || prev === "-command" || prev === "/c" || prev === "eval")) {
+      if (tok.quoted && isShellCommandFlag(seg[i - 1]?.text)) {
         const inner = decide(tok.text, depth + 1);
         if (inner) return inner;
       }
-      if (!isGh(tok)) continue;
-      const args = seg.slice(i + 1);
-      const sub = args[0]?.text.toLowerCase();
+      if (!isCommandPosition(seg, i)) continue;
+      const base = baseName(tok);
       let reason = null;
-      if (sub === "issue" && args[1]?.text.toLowerCase() === "create") reason = checkGhIssueCreate(args.slice(2));
-      else if (sub === "api") reason = checkGhApi(args.slice(1));
-      if (reason) return reason;
-    }
-    const first = seg[0]?.text.replace(/\\/g, "/").split("/").pop().toLowerCase();
-    if (first === "curl" || first === "curl.exe") {
-      const reason = checkCurl(seg.slice(1));
+      if (base === "gh") {
+        const { words, rest, repo } = ghInvocation(seg.slice(i + 1));
+        if (words[0] === "issue" && words[1] === "create") reason = checkGhIssueCreate(rest, repo);
+        else if (words[0] === "api") reason = checkGhApi(rest);
+      } else if (base === "curl") {
+        reason = checkCurl(seg.slice(i + 1));
+      } else if (base === "invoke-restmethod" || base === "irm" || base === "invoke-webrequest" || base === "iwr") {
+        reason = checkInvokeRestMethod(seg.slice(i + 1));
+      }
       if (reason) return reason;
     }
   }
