@@ -1,3 +1,4 @@
+import { nodeNameSet } from "../utils/nodeNameSet";
 import { type SyntaxNode } from "@lezer/common";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 import { CallValueExpression } from "../../inkjs/compiler/Parser/ParsedHierarchy/Expression/CallValueExpression";
@@ -321,7 +322,7 @@ function lowerInner(
 // the sibling-pair detection for implicit assignments. When we see
 // `LuauAccessPath` followed by these and then `LuauAssignmentOperation`, the
 // access path + operation still form one assignment statement.
-const ASSIGNMENT_PAIR_BRIDGE: ReadonlySet<string> = new Set([
+const ASSIGNMENT_PAIR_BRIDGE: ReadonlySet<string> = nodeNameSet([
   "Newline",
   "ExtraWhitespace",
   "LuauComment",

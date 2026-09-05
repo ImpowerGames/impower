@@ -1,3 +1,4 @@
+import { nodeNameSet } from "../../utils/nodeNameSet";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 import { Conditional } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Conditional/Conditional";
 import { ConditionalSingleBranch } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Conditional/ConditionalSingleBranch";
@@ -60,7 +61,7 @@ import { findChildByName } from "../utils/alternatorArms";
 //     works; the lowerer just emits the init / step / bound checks.
 //   - No generic `for k, v in pairs(t)`. Needs the iterator protocol.
 
-const WHILE_BODY_SKIP: ReadonlySet<string> = new Set([
+const WHILE_BODY_SKIP: ReadonlySet<string> = nodeNameSet([
   "LuauWhileCondition",
   "LuauWhileKeyword",
   "LuauDoKeyword",

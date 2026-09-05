@@ -1,3 +1,4 @@
+import { nodeNameSet } from "../../utils/nodeNameSet";
 import { type SyntaxNode } from "@lezer/common";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 import { ConstantDeclaration } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Declaration/ConstantDeclaration";
@@ -26,7 +27,7 @@ import { wrapInWeave } from "../utils/wrapInWeave";
 // grammar parses these correctly; the lowerer must recognize them
 // as ADJACENT statements rather than mis-treating them as trailing
 // multi-RHS values.
-const TRAILING_STATEMENT_NAMES: ReadonlySet<string> = new Set([
+const TRAILING_STATEMENT_NAMES: ReadonlySet<string> = nodeNameSet([
   "LuauReturnStatement",
   "LuauBreakStatement",
   "LuauContinueStatement",

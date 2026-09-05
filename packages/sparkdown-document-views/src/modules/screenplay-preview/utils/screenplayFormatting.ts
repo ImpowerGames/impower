@@ -426,11 +426,11 @@ export const decorate = (
 
   // Source-based blank-line detection. Read the line text directly rather
   // than tracking a flag across node visits — the grammar wraps a
-  // whitespace-only "blank" line as `BlockLineBlank > BlockLineBlank_c1 >
-  // Indent`, and a flag-based approach would mis-classify those wrapper
-  // nodes as "content" and drop the separator (visible as missing blank
-  // line between consecutive dialogue blocks once the editor leaves indent
-  // on the otherwise-empty line).
+  // whitespace-only "blank" line in `BlockLineBlank` with the indent as a
+  // capture inside it, and a flag-based approach would mis-classify those
+  // wrapper nodes as "content" and drop the separator (visible as missing
+  // blank line between consecutive dialogue blocks once the editor leaves
+  // indent on the otherwise-empty line).
   const isWhitespaceOnly = (start: number, end: number): boolean => {
     if (end <= start) return true;
     const slice = doc.sliceString(start, end);
@@ -443,16 +443,14 @@ export const decorate = (
 
   // A node is "leading indentation" when it's a non-empty whitespace run at
   // the very start of its line. The grammar exposes leading whitespace as a
-  // line-start `OptionalWhitespace` capture (there's no dedicated `Indent`
-  // node — indent is detected by position, not name). `Indent` is kept as a
-  // legacy alias so older grammars still work. Zero-width runs (the `*`
-  // capture matched nothing) and mid-line whitespace are excluded.
+  // line-start `OptionalWhitespace` capture (there's no dedicated indent
+  // node — indent is detected by position, not name). Zero-width runs (the
+  // `*` capture matched nothing) and mid-line whitespace are excluded.
   const isLeadingIndent = (
-    nodeName: string,
+    nodeName: SparkdownNodeName,
     nodeFrom: number,
     nodeTo: number,
   ): boolean => {
-    if (nodeName === "Indent") return true;
     if (nodeName !== "OptionalWhitespace") return false;
     if (nodeTo <= nodeFrom) return false;
     return doc.lineAt(nodeFrom).from === nodeFrom;
@@ -612,11 +610,9 @@ export const decorate = (
       } else if (isLeadingIndent(name, from, to)) {
         // Leading indentation of a block line — hide it so the rendered
         // body doesn't show its source indent. The grammar has no dedicated
-        // `Indent` node; leading whitespace surfaces as a line-start
-        // `OptionalWhitespace` run (the formatter detects indent by
-        // position, not node name — see the grammar's whitespace section),
-        // so `isLeadingIndent` keys off position, treating Indent as a
-        // legacy alias.
+        // indent node; leading whitespace surfaces as a line-start
+        // `OptionalWhitespace` run, so `isLeadingIndent` keys off position
+        // rather than node name.
         //
         // EXCEPTION: if the indent is the entire content of a
         // whitespace-only line (an indented "blank" line — what the editor
@@ -860,8 +856,7 @@ export const decorate = (
       // thing anchoring the line-box. Hiding it would collapse the line to
       // zero height and erase the inter-block separator. Skip highlighting
       // the leading whitespace of a whitespace-only line so it renders as
-      // bare, visible text (matching how the now-removed dedicated `Indent`
-      // node used to render).
+      // bare, visible text.
       const line = doc.lineAt(from);
       if (line.from === from && isWhitespaceOnly(line.from, line.to)) {
         return;

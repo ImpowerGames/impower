@@ -1,3 +1,4 @@
+import { nodeNameSet } from "../../utils/nodeNameSet";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 import { type SyntaxNode } from "@lezer/common";
 import { Argument } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Argument";
@@ -45,7 +46,7 @@ import { wrapInWeave } from "../utils/wrapInWeave";
 // Luau-statement patterns, so display lines and `-> divert` syntax can't
 // land here. No lowerer-side validation is needed.
 
-const FUNCTION_BODY_SKIP: ReadonlySet<string> = new Set([
+const FUNCTION_BODY_SKIP: ReadonlySet<string> = nodeNameSet([
   "LuauFunctionDeclarationName",
   "LuauFunctionParameters",
   "LuauFunctionReturnType",

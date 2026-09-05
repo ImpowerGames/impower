@@ -1,3 +1,4 @@
+import { nodeNameSet } from "../../utils/nodeNameSet";
 import { type SyntaxNode } from "@lezer/common";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 import { Argument } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Argument";
@@ -278,7 +279,7 @@ export function contextValueToExpression(value: unknown): Expression {
   return new ObjectExpression([]);
 }
 
-const METHOD_BODY_SKIP: ReadonlySet<string> = new Set([
+const METHOD_BODY_SKIP: ReadonlySet<string> = nodeNameSet([
   "LuauFunctionDeclarationName",
   "LuauFunctionName",
   "LuauFunctionParameters",
@@ -598,7 +599,7 @@ function lowerDefineMethod(
 // marker (`= `) followed by the value node(s); descend into the generated
 // `_content` wrapper if present and return the first child past the operator
 // and any leading whitespace.
-const ASSIGNMENT_RHS_SKIP: ReadonlySet<string> = new Set([
+const ASSIGNMENT_RHS_SKIP: ReadonlySet<string> = nodeNameSet([
   "LuauAssignmentOperator",
   "ExtraWhitespace",
   "Whitespace",

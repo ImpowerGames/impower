@@ -1,29 +1,34 @@
+import { type SparkdownNodeName } from "@impower/sparkdown/src/compiler/types/SparkdownNodeName";
 import { type GrammarSyntaxNode } from "@impower/textmate-grammar-tree/src/tree/types/GrammarSyntaxNode";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 
-export const getParentSectionPath = <T extends string>(
-  stack: GrammarSyntaxNode<T>[],
+/**
+ * The scope path of the cursor position: the names of the enclosing scene and
+ * branch, outermost first. This mirrors the scope keys that
+ * `getDeclarationScopes` builds, which nest only scenes and branches;
+ * functions, consts and vars are global there, so a function definition does
+ * not contribute a path part here either.
+ *
+ * `Scene` and `Branch` are boundary-only nodes: each covers its declaration
+ * line and its body follows as root-level siblings. So the walk starts at the
+ * root-level ancestor of the cursor and moves backwards through its siblings,
+ * collecting the nearest branch and stopping at the first scene.
+ */
+export const getParentSectionPath = (
+  stack: GrammarSyntaxNode<SparkdownNodeName>[],
   read: (from: number, to: number) => string,
-): T[] => {
+): string[] => {
   let parentPathParts: {
-    kind: "" | "function" | "scene" | "branch" | "knot" | "stitch";
+    kind: "scene" | "branch";
     name: string;
   }[] = [];
-  let topLevelNode = stack.at(-2)?.prevSibling;
+  // A lezer sibling is a plain `SyntaxNode`; it belongs to the same tree, so
+  // typing it with the grammar's names keeps the lookups below checked.
+  let topLevelNode = stack.at(-2)?.prevSibling as
+    | GrammarSyntaxNode<SparkdownNodeName>
+    | null
+    | undefined;
   while (topLevelNode) {
-    if (topLevelNode.name === "Function") {
-      const functionNameNode = getDescendent(
-        "FunctionDeclarationName",
-        topLevelNode,
-      );
-      if (functionNameNode) {
-        parentPathParts.unshift({
-          kind: "function",
-          name: read(functionNameNode.from, functionNameNode.to),
-        });
-      }
-      break;
-    }
     if (topLevelNode.name === "Scene") {
       const sceneNameNode = getDescendent("SceneDeclarationName", topLevelNode);
       if (sceneNameNode) {
@@ -49,32 +54,9 @@ export const getParentSectionPath = <T extends string>(
         }
       }
     }
-    if (topLevelNode.name === "Knot") {
-      const knotNameNode = getDescendent("KnotDeclarationName", topLevelNode);
-      if (knotNameNode) {
-        parentPathParts.unshift({
-          kind: "knot",
-          name: read(knotNameNode.from, knotNameNode.to),
-        });
-      }
-      break;
-    }
-    if (topLevelNode.name === "Stitch") {
-      const lastPart = parentPathParts.at(-1);
-      if (lastPart?.kind !== "stitch") {
-        const stitchNameNode = getDescendent(
-          "StitchDeclarationName",
-          topLevelNode,
-        );
-        if (stitchNameNode) {
-          parentPathParts.unshift({
-            kind: "stitch",
-            name: read(stitchNameNode.from, stitchNameNode.to),
-          });
-        }
-      }
-    }
-    topLevelNode = topLevelNode.prevSibling;
+    topLevelNode = topLevelNode.prevSibling as
+      | GrammarSyntaxNode<SparkdownNodeName>
+      | null;
   }
-  return parentPathParts.map((p) => p.name as T);
+  return parentPathParts.map((p) => p.name);
 };

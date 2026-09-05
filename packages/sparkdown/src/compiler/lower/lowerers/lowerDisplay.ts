@@ -1,3 +1,4 @@
+import { nodeNameSet } from "../../utils/nodeNameSet";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 import { type SyntaxNode } from "@lezer/common";
 import { Conditional } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Conditional/Conditional";
@@ -17,6 +18,7 @@ import { Text } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Text";
 import { Weave } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Weave";
 import { Glue as RuntimeGlue } from "../../../inkjs/engine/Glue";
 import type { CompiledBlock } from "../../classes/annotators/CompilationAnnotator";
+import type { SparkdownNodeName } from "../../types/SparkdownNodeName";
 import type { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
 import type { LowerContext } from "../context";
 import {
@@ -393,7 +395,7 @@ type BodySegment =
   | { kind: "tag"; node: SyntaxNode }
   | { kind: "glue" };
 
-const INLINE_GLUED_ALTERNATOR_NAMES = new Set([
+const INLINE_GLUED_ALTERNATOR_NAMES = nodeNameSet([
   "LuauSparkdownInlineGluedSequentialAlternatorBlock",
   "LuauSparkdownInlineGluedConditionalAlternatorBlock",
 ]);
@@ -897,7 +899,7 @@ function hasLeadingGlue(nodeRef: SparkdownSyntaxNodeRef): boolean {
 
 // Sibling node names that sit between two display constructs without being
 // content themselves — skipped when looking back for the preceding construct.
-const GLUE_SKIP_SIBLINGS: ReadonlySet<string> = new Set([
+const GLUE_SKIP_SIBLINGS: ReadonlySet<string> = nodeNameSet([
   "Newline",
   "Whitespace",
   "ExtraWhitespace",
@@ -1010,7 +1012,7 @@ function extractBlockBodyRange(
 function readIdentifier(
   nodeRef: SparkdownSyntaxNodeRef,
   ctx: LowerContext,
-  name: string,
+  name: SparkdownNodeName,
 ): string | null {
   const node = getDescendent(name, nodeRef.node);
   if (!node) return null;

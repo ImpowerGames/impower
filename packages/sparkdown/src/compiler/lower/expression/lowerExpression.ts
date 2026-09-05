@@ -1,3 +1,5 @@
+import { type SparkdownNodeName } from "../../types/SparkdownNodeName";
+import { nodeNameSet } from "../../utils/nodeNameSet";
 import { type SyntaxNode } from "@lezer/common";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 import { findOwnDeclarationName } from "../utils/findOwnDeclarationName";
@@ -83,11 +85,14 @@ function makeGlobalFunctionCall(
 // interpolations; the coercion lives in `lowerExpressionFromContainer` so
 // every context (display text, content strings, prop values, Luau strings,
 // Sparkle bindings) picks it up through the one funnel they already call.
-export const FUNCTION_CALL_SHORTHAND_NODES = new Set([
+const FUNCTION_CALL_SHORTHAND_NODE_LIST: SparkdownNodeName[] = [
   "LuauFunctionCallShorthand",
   "LuauDoubleQuotedFunctionCallShorthand",
   "LuauBacktickFunctionCallShorthand",
-]);
+];
+export const FUNCTION_CALL_SHORTHAND_NODES = nodeNameSet(
+  FUNCTION_CALL_SHORTHAND_NODE_LIST,
+);
 
 // Lower the value-expression formed by the children of `parent`. Operator
 // markers that aren't part of the expression value (e.g. LuauAssignmentOperator
@@ -293,7 +298,7 @@ type Token =
 // syntax sugar allows a single string literal or table constructor in
 // place of a parenthesized arg list: `f"str"`, `f[[str]]`, `f{...}`,
 // `s:rep(3)` vs `string.reverse"abc"`.
-const CALL_ARG_NODE_NAMES = new Set([
+const CALL_ARG_NODE_NAMES = nodeNameSet([
   "LuauParenthetical",
   "LuauRegexLiteral",
   "LuauDoubleQuotedString",
@@ -338,7 +343,7 @@ function lowerNewExpression(
   ]);
 }
 
-const OPERATION_WRAPPERS = new Set([
+const OPERATION_WRAPPERS = nodeNameSet([
   "LuauArithmeticOperation",
   "LuauCompareOperation",
   "LuauLogicalOperation",
@@ -348,21 +353,21 @@ const OPERATION_WRAPPERS = new Set([
 
 // Nodes whose entire subtree contributes nothing to the runtime expression —
 // they're type-only annotations. The LHS expression continues unchanged.
-const TYPE_ONLY_WRAPPERS = new Set([
+const TYPE_ONLY_WRAPPERS = nodeNameSet([
   "LuauTypeCastOperation",
   "LuauTypeAnnotationOperation",
 ]);
 
-const BINARY_OPERATOR_MARKERS = new Set([
+const BINARY_OPERATOR_MARKERS = nodeNameSet([
   "LuauArithmeticOperator",
   "LuauCompareOperator",
   "LuauLogicalOperator",
   "LuauConcatOperator",
 ]);
 
-const UNARY_OPERATOR_MARKERS = new Set(["LuauLengthOperator"]);
+const UNARY_OPERATOR_MARKERS = nodeNameSet(["LuauLengthOperator"]);
 
-const PRIMARY_NODES = new Set([
+const PRIMARY_NODES = nodeNameSet([
   "LuauNumericDecimal",
   "LuauNumericHex",
   "LuauNumericBinary",
@@ -1309,7 +1314,7 @@ export function collectImmediateBodyDeclarations(
     // binding. ONLY the loop targets count — names inside the
     // start/stop/step or iterator expressions are ordinary reads
     // (see collectForLoopTargetNames).
-    if (n.name === "LuauForLoop" || n.name === "LuauGenericForLoop") {
+    if (n.name === "LuauForLoop") {
       const condNode = getDescendent("LuauForCondition", n);
       if (condNode) {
         for (const name of collectForLoopTargetNames(condNode, ctx)) {
@@ -1437,7 +1442,7 @@ export function scanFreeVariables(
     // ONLY the loop targets are bound — names in the start/stop/step
     // or iterator expressions are reads of enclosing-scope variables
     // that MUST still be captured (see collectForLoopTargetNames).
-    if (n.name === "LuauForLoop" || n.name === "LuauGenericForLoop") {
+    if (n.name === "LuauForLoop") {
       const condNode = getDescendent("LuauForCondition", n);
       if (condNode) {
         for (const name of collectForLoopTargetNames(condNode, ctx)) {
@@ -1743,7 +1748,7 @@ export function buildClosureExpression(
   ]);
 }
 
-const ANON_FUNCTION_BODY_SKIP: ReadonlySet<string> = new Set([
+const ANON_FUNCTION_BODY_SKIP: ReadonlySet<string> = nodeNameSet([
   "LuauFunctionDeclarationName",
   "LuauFunctionParameters",
   "LuauFunctionReturnType",
@@ -2025,11 +2030,11 @@ export function processLuauEscapes(s: string): string {
 // `"..."` uses its own interpolation rule (bounded by the closing quote), so
 // both node names count as an interpolation. The `{{fn}}` call-shorthand
 // containers interpolate their call's return value the same way.
-const INTERPOLATION_NODES = new Set([
+const INTERPOLATION_NODES = nodeNameSet([
   "LuauInterpolatedStringExpression",
   "LuauDoubleQuotedStringInterpolation",
   "LuauBacktickStringInterpolation",
-  ...FUNCTION_CALL_SHORTHAND_NODES,
+  ...FUNCTION_CALL_SHORTHAND_NODE_LIST,
 ]);
 
 function hasInterpolation(node: SyntaxNode): boolean {

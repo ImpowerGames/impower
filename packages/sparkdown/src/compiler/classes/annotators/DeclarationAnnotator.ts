@@ -1,3 +1,4 @@
+import { nodeNameSet } from "../../utils/nodeNameSet";
 import { Range } from "@codemirror/state";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 import type { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
@@ -29,9 +30,9 @@ function ancestorMatching(
   return null;
 }
 
-const VARIABLE_DECL_SITE = new Set(["LuauVariableAssignment_begin"]);
-const VARIABLE_DEFINITION = new Set(["LuauVariableDefinition"]);
-const FUNCTION_DECL_NAME = new Set(["LuauFunctionDeclarationName"]);
+const VARIABLE_DECL_SITE = nodeNameSet(["LuauVariableAssignment_begin"]);
+const VARIABLE_DEFINITION = nodeNameSet(["LuauVariableDefinition"]);
+const FUNCTION_DECL_NAME = nodeNameSet(["LuauFunctionDeclarationName"]);
 
 // Records the NAME span of each declaration as a flat `(type, range)` mark in
 // the `declarations` channel, consumed by the document outline
