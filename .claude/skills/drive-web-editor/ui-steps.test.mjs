@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Pins parseUiSteps, which turns `driver.mjs ui` arguments into steps and
 // refuses anything malformed before a browser is launched (#423). Run:
-//   node .claude/skills/resolve-issue/ui-steps.test.mjs
+//   node .claude/skills/drive-web-editor/ui-steps.test.mjs
 //
 // The failure this guards against: a flag with a missing or empty value used
 // to produce a step that matched no branch and vanished, so `ui --sd` or

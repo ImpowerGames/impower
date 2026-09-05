@@ -45,7 +45,7 @@ invisible at another — use the URL the launcher prints.
 
 ## Filing issues and pull requests — follow the templates
 
-Every issue and pull request follows a template under `.github/`. Two skills drive the filing itself and enforce what a template cannot: `file-bug` reproduces the bug before it files (no reproduction, no ticket) and `file-feature` interviews the user until every design decision is settled before it files. Use them whenever you are about to file a bug or a feature; `resolve-issue` then implements the ticket. GitHub only fills a template in for someone using the web form, so when you file from the command line (`gh api`, `gh pr create`) read the template file yourself and produce a body with the same headings in the same order:
+Every issue and pull request follows a template under `.github/`. Two skills drive the filing itself and enforce what a template cannot: `file-bug` reproduces the bug before it files (no reproduction, no ticket) and `file-feature` interviews the user until every design decision is settled before it files. Use them whenever you are about to file a bug or a feature; `resolve-issue` then implements the ticket, invoking `write-regression-test`, `drive-web-editor` and `review-pr` at the steps where each applies (all three also run on their own). GitHub only fills a template in for someone using the web form, so when you file from the command line (`gh api`, `gh pr create`) read the template file yourself and produce a body with the same headings in the same order:
 
 | Filing a…                                       | Template                                    |
 | ----------------------------------------------- | ------------------------------------------- |

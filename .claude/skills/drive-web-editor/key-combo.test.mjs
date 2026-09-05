@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Pins normalizeKeyCombo and pressKey, which rewrite a shifted lowercase
 // letter before the driver presses it (#423). Run:
-//   node .claude/skills/resolve-issue/key-combo.test.mjs
+//   node .claude/skills/drive-web-editor/key-combo.test.mjs
 //
 // Playwright's key strings are case-sensitive for a single character, so
 // `Control+Shift+g` delivers `key: "g"` with Shift held, which no keyboard

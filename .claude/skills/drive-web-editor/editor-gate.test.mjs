@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Pins editorGate, the once-per-run check a ui step runs before it captures or
 // acts on the screen (#423). Run:
-//   node .claude/skills/resolve-issue/editor-gate.test.mjs
+//   node .claude/skills/drive-web-editor/editor-gate.test.mjs
 //
 // The gate is built from three injectable questions — is an editor expected
 // where the page is now, is it present, has it settled — so these cases drive

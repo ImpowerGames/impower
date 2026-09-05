@@ -14,12 +14,12 @@
 // `playwright` from the SCRIPT's directory, not from cwd, so a copy of this
 // script in a temp dir will not find it.
 //
-//   node .claude/skills/resolve-issue/driver.mjs up
-//   node .claude/skills/resolve-issue/driver.mjs status
-//   node .claude/skills/resolve-issue/driver.mjs verify --sd repro.sd --shot out.png
-//   node .claude/skills/resolve-issue/driver.mjs down
+//   node .claude/skills/drive-web-editor/driver.mjs up
+//   node .claude/skills/drive-web-editor/driver.mjs status
+//   node .claude/skills/drive-web-editor/driver.mjs verify --sd repro.sd --shot out.png
+//   node .claude/skills/drive-web-editor/driver.mjs down
 //
-// State (editor URL + launcher pid) lives in .claude/skills/resolve-issue/.state.json,
+// State (editor URL + launcher pid) lives in .claude/skills/drive-web-editor/.state.json,
 // which is gitignored — every command after `up` reads the URL from there.
 
 import { spawn } from "node:child_process";
@@ -32,10 +32,101 @@ import { gitTopLevel, parseRedGreenArgs, runRedGreen, sameDir } from "./redgreen
 const SKILL_DIR = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(SKILL_DIR, "..", "..", "..");
 const STATE_FILE = path.join(SKILL_DIR, ".state.json");
+// The state file and the Chromium profile sit beside this script. A worktree
+// whose servers are still running from this driver's location under the
+// resolve-issue skill keeps both there, so each path resolves to that
+// directory while nothing exists here. The state file migrates: `down` stops
+// those servers and deletes it, and the next `up` writes beside this script.
+// The profile stays wherever it is found, because OPFS is scoped per profile
+// and moving it would lose every project loaded into it. `exists` is a
+// parameter so state-path.test.mjs can pin the choice without touching disk.
+const PREVIOUS_SKILL_DIR = path.resolve(SKILL_DIR, "..", "resolve-issue");
+const hereOrPrevious = (name, exists = fs.existsSync) => {
+  const here = path.join(SKILL_DIR, name);
+  const previous = path.join(PREVIOUS_SKILL_DIR, name);
+  return !exists(here) && exists(previous) ? previous : here;
+};
+const stateFile = () => hereOrPrevious(".state.json");
 // Persistent Chromium profile. OPFS is scoped per ORIGIN *and* per profile, so
 // reusing one profile plus the pinned port (see pickPorts) means a script you
 // loaded stays loaded across driver invocations and across down/up.
-const PROFILE_DIR = path.join(SKILL_DIR, ".chrome-profile");
+const PROFILE_DIR = hereOrPrevious(".chrome-profile");
+
+// Signal 0 delivers nothing and only asks whether the pid exists; EPERM means
+// it exists under another user. `kill` is a parameter so state-path.test.mjs
+// can pin the EPERM rule without a protected pid.
+function pidAlive(pid, kill = process.kill) {
+  if (!Number.isInteger(pid) || pid <= 0) return false;
+  try {
+    kill(pid, 0);
+    return true;
+  } catch (err) {
+    return err?.code === "EPERM";
+  }
+}
+
+// How long a launch gets to answer before `up` gives up on it.
+const READY_WAIT_MS = 15 * 60_000;
+
+// Whether the pid a state file records is still the launcher it recorded. A
+// live pid alone proves nothing, because the system hands a freed pid to the
+// next process it starts, so a record whose tree is long gone can name any
+// live process. What ties the pid to the launch is when the process behind it
+// started: the launcher was created just before its record was written, and
+// any later process on the same pid was created after that. So the record
+// stands while its pid is alive and that process started within
+// LAUNCH_SLACK_MS before the record's `startedAt` (spawn latency on a loaded
+// machine) or START_GRAIN_MS after it (a start reported in whole seconds). A
+// record from a driver that wrote no `startedAt` uses its file's mtime, which
+// that driver wrote once, at launch. A start the system will not report (no
+// such process, another user's, or nothing to ask) does not stand. `probe`
+// supplies the three readings so state-path.test.mjs can pin the table
+// without a process or a file.
+const LAUNCH_SLACK_MS = 60_000;
+const START_GRAIN_MS = 2_000;
+async function recordStands(record, probe = liveProbe) {
+  if (!record?.url) return false;
+  if (!probe.pidAlive(record.pid)) return false;
+  const started = await probe.startedMs(record.pid);
+  if (started == null) return false;
+  const recorded = record.startedAt ?? probe.recordWrittenMs();
+  if (recorded == null) return false;
+  return started >= recorded - LAUNCH_SLACK_MS && started <= recorded + START_GRAIN_MS;
+}
+
+const liveProbe = {
+  pidAlive,
+  startedMs: processStartedMs,
+  recordWrittenMs: () => {
+    try {
+      return fs.statSync(stateFile()).mtimeMs;
+    } catch {
+      return null;
+    }
+  },
+};
+
+// When the process behind a pid was created, in ms since the epoch, or null
+// when the system will not say. Windows answers through PowerShell (about half
+// a second); elsewhere `ps` prints the start as a date `Date.parse` reads.
+function processStartedMs(pid) {
+  if (!Number.isInteger(pid) || pid <= 0) return Promise.resolve(null);
+  const win = process.platform === "win32";
+  const [cmd, args] = win
+    ? ["powershell", ["-NoProfile", "-Command", `([DateTimeOffset](Get-Process -Id ${pid}).StartTime).ToUnixTimeMilliseconds()`]]
+    : ["ps", ["-o", "lstart=", "-p", String(pid)]];
+  return new Promise((resolve) => {
+    const p = spawn(cmd, args, { stdio: ["ignore", "pipe", "ignore"], windowsHide: true });
+    let out = "";
+    p.stdout.on("data", (d) => (out += d));
+    p.on("error", () => resolve(null));
+    p.on("close", (code) => {
+      const text = out.trim();
+      const ms = win ? Number(text) : Date.parse(text);
+      resolve(code === 0 && text !== "" && Number.isFinite(ms) ? ms : null);
+    });
+  });
+}
 
 const log = (...a) => console.log(...a);
 const die = (msg) => {
@@ -44,18 +135,42 @@ const die = (msg) => {
 };
 
 function readState() {
-  if (!fs.existsSync(STATE_FILE)) return null;
+  const file = stateFile();
+  if (!fs.existsSync(file)) return null;
   try {
-    return JSON.parse(fs.readFileSync(STATE_FILE, "utf8"));
+    return JSON.parse(fs.readFileSync(file, "utf8"));
   } catch {
     return null;
+  }
+}
+
+// A state file that is there but does not parse. writeState renames a finished
+// file into place, so this means a hand edit or a truncation from outside;
+// `status` reports it, `up` refuses to launch over it, `down` removes it.
+function stateUnreadable() {
+  return readState() === null && fs.existsSync(stateFile());
+}
+
+// Written beside this script whatever `stateFile()` read, and renamed into
+// place so no reader ever sees a partial file.
+function writeState(record) {
+  const tmp = STATE_FILE + ".tmp";
+  fs.writeFileSync(tmp, JSON.stringify(record, null, 2));
+  fs.renameSync(tmp, STATE_FILE);
+}
+
+function removeState() {
+  try {
+    fs.unlinkSync(stateFile());
+  } catch {
+    /* already gone */
   }
 }
 
 function requireUrl() {
   const s = readState();
   if (!s?.url) {
-    die("no editor URL — run `node .claude/skills/resolve-issue/driver.mjs up` first");
+    die("no editor URL — run `node .claude/skills/drive-web-editor/driver.mjs up` first");
   }
   return s.url;
 }
@@ -137,11 +252,28 @@ async function pickPorts() {
 // handle, so the log stays 0 bytes forever while the servers run perfectly.
 // Since the port is pinned, readiness is just an HTTP poll.
 async function up(args) {
+  if (stateUnreadable()) {
+    die(`state file unreadable: ${stateFile()}; \`down\` removes it, and any servers it recorded keep running`);
+  }
   const existing = readState();
   if (existing?.url && (await isUp(existing.url))) {
     log(`already up → ${existing.url}`);
     return;
   }
+  // One probe timing out is not evidence the servers are gone: a cold build
+  // takes minutes, and a loaded machine stalls the first response. While the
+  // record stands (recordStands) this waits for its URL, the same wait a fresh
+  // launch gets, and stops the moment the launcher exits. A pid verified as
+  // the launcher's stays its own until it exits, so each poll asks only that;
+  // a pid the system reuses mid-wait ends the wait at the deadline instead,
+  // where the `down` the message names finds the record stale and removes it.
+  // A stale record is dropped so the file written below is the only record.
+  if (await recordStands(existing)) {
+    log(`servers pid ${existing.pid} are still starting → ${existing.url} (state: ${stateFile()})`);
+    if (await waitReady(existing.url, existing.mode, () => pidAlive(existing.pid))) return;
+    log(`servers pid ${existing.pid} have exited; launching`);
+  }
+  removeState();
 
   const mode = args.includes("--cross-origin") ? "cross-origin" : "same-origin";
   const ports = await pickPorts();
@@ -166,23 +298,27 @@ async function up(args) {
   );
   child.unref();
 
-  fs.writeFileSync(
-    STATE_FILE,
-    JSON.stringify({ url, pid: child.pid, mode, ports }, null, 2),
-  );
+  writeState({ url, pid: child.pid, mode, ports, startedAt: Date.now() });
 
   log(`launching dev servers (${mode}) pid ${child.pid} → ${url}`);
-  log("COLD build takes 4-8 min (esbuild builds every worker bundle). Waiting...");
+  await waitReady(url, mode);
+}
 
-  const deadline = Date.now() + 15 * 60_000;
+// Polls until the URL answers and returns true. `keep`, when given, is asked
+// before each poll whether the wait is still worth it, and a false ends the
+// wait with a false return; the deadline ends it with an exit.
+async function waitReady(url, mode, keep) {
+  log("COLD build takes 4-8 min (esbuild builds every worker bundle). Waiting...");
+  const deadline = Date.now() + READY_WAIT_MS;
   while (Date.now() < deadline) {
+    if (keep && !(await keep())) return false;
     if (await isUp(url)) {
       log(`READY ${url}   (mode: ${mode})`);
-      return;
+      return true;
     }
     await sleep(3000);
   }
-  die(`timed out after 15 min waiting for ${url}`);
+  die(`timed out after ${READY_WAIT_MS / 60_000} min waiting for ${url}; \`down\` stops the tree the state file records, or removes the record if its launcher is gone`);
 }
 
 async function isUp(url) {
@@ -194,21 +330,44 @@ async function isUp(url) {
   }
 }
 
+// Names the state file it read, because with the fallback above there are two
+// places it can come from, and an unreadable file is reported as itself rather
+// than as absence. Exits 0 only when the recorded URL answers.
 async function status() {
+  const file = stateFile();
+  process.exitCode = 1;
+  if (stateUnreadable()) {
+    log(`down (state file unreadable: ${file}; \`down\` removes it)`);
+    return;
+  }
   const s = readState();
   if (!s) return log("down (no state file)");
   const alive = await isUp(s.url);
-  log(`${alive ? "UP" : "DOWN"}  url=${s.url}  pid=${s.pid}  mode=${s.mode}`);
-  if (!alive) process.exitCode = 1;
+  log(`${alive ? "UP" : "DOWN"}  url=${s.url}  pid=${s.pid}  mode=${s.mode}  state=${file}`);
+  if (alive) process.exitCode = 0;
 }
 
 // The launcher spawns npm -> node grandchildren. Killing the launcher pid alone
 // orphans the two vite servers and they keep holding their ports. taskkill /T
-// tears down the whole tree.
-function down() {
+// tears down the whole tree. Only a record that stands names a tree to kill: a
+// stale record's pid may belong to any process by now, so that record is
+// removed and nothing is signalled. The record goes only with a kill that
+// reported success; a refused kill keeps it, so the tree stays stoppable.
+async function down() {
+  const file = stateFile();
   const s = readState();
   if (s?.pid == null) {
-    log("nothing to stop");
+    if (fs.existsSync(file)) {
+      removeState();
+      log(`removed ${file}, which recorded no pid to stop; servers it belonged to keep running`);
+    } else {
+      log("nothing to stop");
+    }
+    return;
+  }
+  if (!(await recordStands(s))) {
+    removeState();
+    log(`removed ${file}: pid ${s.pid} is no longer the launcher it recorded (that process exited, and the system may have reused its pid), so nothing was stopped`);
     return;
   }
   const killer =
@@ -217,12 +376,14 @@ function down() {
           stdio: "inherit",
         })
       : spawn("kill", ["-TERM", String(-s.pid)], { stdio: "inherit" });
-  killer.on("exit", () => {
-    try {
-      fs.unlinkSync(STATE_FILE);
-    } catch {
-      /* already gone */
-    }
+  const failed = (why) => {
+    log(`could not stop pid ${s.pid} (${why}); the record is kept`);
+    process.exitCode = 1;
+  };
+  killer.on("error", (err) => failed(err.message));
+  killer.on("exit", (code) => {
+    if (code !== 0) return failed(`exit ${code}`);
+    removeState();
     log("stopped");
   });
 }
@@ -1917,7 +2078,7 @@ async function redgreenCli(args) {
 // Helpers for a session that has to drive the editor beyond what `ui` and
 // `verify` cover. Import them from a script INSIDE the repo tree (Node resolves
 // playwright from the importing script's directory), e.g.
-//   import { withEditor, writeMainSd, waitForEditor } from "../../.claude/skills/resolve-issue/driver.mjs";
+//   import { withEditor, writeMainSd, waitForEditor } from "../../.claude/skills/drive-web-editor/driver.mjs";
 export {
   withEditor,
   writeMainSd,
@@ -1943,6 +2104,13 @@ export {
   shotOf,
   SURFACES,
   SCREENS,
+  hereOrPrevious,
+  pidAlive,
+  recordStands,
+  liveProbe,
+  READY_WAIT_MS,
+  LAUNCH_SLACK_MS,
+  START_GRAIN_MS,
 };
 
 // ------------------------------------------------------------------ utils ---
@@ -1970,7 +2138,7 @@ switch (cmd) {
     await up(rest);
     break;
   case "down":
-    down();
+    await down();
     break;
   case "status":
     await status();
@@ -1987,7 +2155,7 @@ switch (cmd) {
   default:
     log(
       [
-        "usage: node .claude/skills/resolve-issue/driver.mjs <command>",
+        "usage: node .claude/skills/drive-web-editor/driver.mjs <command>",
         "",
         "  preflight             check disk headroom, playwright, gh auth BEFORE doing work",
         "  up [--cross-origin]   boot both dev servers, wait for ready, record the URL",

@@ -39,46 +39,13 @@ The app swaps a title it generated itself without asking. If the user named the 
 
 ## 2. Build the reproduction
 
-The technique here is adapted from Matt Pocock's diagnosing-bugs skill (github.com/mattpocock/skills, MIT): build a tight pass/fail signal first, then minimise. The repo has three seams that reach most bugs.
+The technique here is adapted from Matt Pocock's diagnosing-bugs skill (github.com/mattpocock/skills, MIT): build a tight pass/fail signal first, then minimise. The repo has three seams that reach most bugs. Any report, from a person or from a reviewer subagent, is a claim to reproduce before filing; a reviewer's finding gets the same loop as a user's.
 
-Compiler, parser, or engine bug (label `system: sparkdown`): write a vitest test that asserts the user's symptom, in the directory that already holds tests for that area:
+Host the repro where a harness already exists, and say in the ticket which one: a package that has tests takes a test, the editor takes a `.sd` script through the driver. Standing up a harness for a package that has none is resolve-issue's job, not this skill's; a repro for such a package is a script or a driver probe, and the ticket says the package has no test setup. Copy repro syntax from a passing fixture rather than from memory; a repro written from recalled syntax fails on the syntax and reads as the bug.
 
-| Area                                       | Tests live in                                    |
-| ------------------------------------------ | ------------------------------------------------ |
-| `packages/sparkdown` compiler and lowering | `packages/sparkdown/src/tests/compiler/`         |
-| `packages/sparkdown` runtime               | `packages/sparkdown/src/tests/runtime/`          |
-| Luau semantics                             | `packages/sparkdown/src/tests/luau-conformance/` |
-| Another package                            | that package's `test/` or `src/tests/`           |
+Compiler, parser, or engine bug (label `system: sparkdown`): write a vitest test that asserts the user's symptom. Invoke `/write-regression-test` (the Skill tool, skill name `write-regression-test`) for where the test lives, which neighbour's imports to copy, and the capped single-file command; parallel or uncapped vitest runs have hard-crashed machines here, and that skill's resource rule is the one to follow.
 
-Copy a neighbouring test's imports rather than inventing them; in `src/tests/compiler/` the import order in `compileSnapshot.ts` is load-bearing. Run only your file, capped, because parallel or uncapped vitest runs have hard-crashed machines here:
-
-```sh
-cd packages/sparkdown && NODE_OPTIONS="--max-old-space-size=1024" npx vitest run src/tests/compiler/<your>.test.ts --pool=forks --poolOptions.forks.minForks=1 --poolOptions.forks.maxForks=1
-```
-
-Editor, preview, or visual bug (labels `app: web-editor`, `system: sparkle-ui`): write the smallest `.sd` script that shows it and drive it through the running editor with the resolve-issue driver, which boots both dev servers correctly, loads the script, scrubs the preview to a line, and screenshots:
-
-```sh
-node .claude/skills/resolve-issue/driver.mjs preflight
-node .claude/skills/resolve-issue/driver.mjs up
-node .claude/skills/resolve-issue/driver.mjs verify --sd repro.sd --line 6 --shot before.png
-node .claude/skills/resolve-issue/driver.mjs down
-```
-
-Read the "The driver" and "Gotchas" sections of `.claude/skills/resolve-issue/SKILL.md` before the first run; several failures there look like the bug you are chasing and are not (a black preview from hand-launched servers, a white one from an unmounted game scaffold, a scrub that lands on the old line). Then look at the screenshot. A visual bug is confirmed by what the pixels show, never by DOM geometry, computed styles, or log counts. If you cannot see it, say so; do not describe a screenshot you did not look at.
-
-Dialogue in a repro script is `NAME:` followed by an indented body:
-
-```
-$:
-  A MOONLIT ROOFTOP
-
-ALICE:
-  First line.
-
-BOB:
-  Second line.
-```
+Editor, preview, or visual bug (labels `app: web-editor`, `system: sparkle-ui`): write the smallest `.sd` script that shows it and drive it through the running editor. Invoke `/drive-web-editor` (skill name `drive-web-editor`) before the first run: it owns the driver that boots both dev servers, loads the script, scrubs the preview to a line, and screenshots, and its Gotchas name several failures that look like the bug you are chasing and are not (a black preview from hand-launched servers, a white one from an unmounted game scaffold, a scrub that lands on the old line). Then look at the screenshot. A visual bug is confirmed by what the pixels show, never by DOM geometry, computed styles, or log counts. If you cannot see it, say so; do not describe a screenshot you did not look at.
 
 VS Code extension bug (label `app: vscode-extension`): there is no headless driver. Reproduce in a development host if you have one, otherwise reduce to the shared package underneath (most extension behavior comes from `packages/sparkdown` or the language server) and reproduce there. Say in the ticket which of the two you did.
 
@@ -147,7 +114,6 @@ Remove the scratch test and repro script from the worktree (`git status --short`
 
 - A fresh worktree has no `node_modules`. Install once at its root with `PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 npm install`; a bare `npm install` fails here because a workspace dependency tries to download its own Chromium from a blocked host. Then check `npx vitest --version` exits 0 before trusting the install.
 - Heredocs are lossy through some shell paths on this machine (a `//` comment came out as `/`). Write the ticket body, test file, and repro script with the editor tool, not by piping a heredoc.
-- Exit code 0 from vitest does not mean green. A worker killed by the OS exits 0 with no `Test Files` summary. Check the summary lines.
 - Do not edit `packages/sparkdown/language/*.json` while probing; they are generated from `definitions/yaml/` and a hook refuses the edit anyway.
 - Do not use `git stash` to compare before and after; the stash stack is shared across the worktrees other sessions are using. Copy the file aside and back.
 - A repro that only reproduces on a loaded machine is a timing artifact until proven otherwise. Note it, and check whether a vitest suite from another worktree was running.

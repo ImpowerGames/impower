@@ -1,4 +1,4 @@
-// The "prove the regression test is honest" cycle from §5b of the skill, in
+// The "prove the regression test is honest" cycle from the write-regression-test skill, in
 // one process.
 //
 // A regression test that passes against the pre-fix source pins nothing, so
@@ -164,7 +164,7 @@ export function classifyRedFailure(output, { removed = [] } = {}) {
   // imported from …" carries no requireStack at all), and the missing path is
   // not one the revert removed. One import break anywhere, or a missing file
   // that the fix adds (the test spawns it, so it is the child's own entry
-  // script), is the §5b case, not a shell one.
+  // script), is the in-place case the write-regression-test skill describes, not a shell one.
   const moduleBlocks = [...output.matchAll(/Cannot find module '([^']+)'[^{}]*\{[^{}]*requireStack: \[([^\]]*)\]/g)];
   const esmImportBreak = /Cannot find module '[^']+' imported from /.test(output);
   // A path boundary is required: `a.mjs` must not match `schema.mjs`.
@@ -407,7 +407,7 @@ export function runRedGreen({ repoRoot, test, files, base = "HEAD", snapshotDir,
         );
       } else if (redReason === "import" || redReason === "syntax") {
         report.problems.push(
-          `The red run failed on a ${redReason} error, not on the defect. A whole-file revert broke the test's imports; simulate the old behaviour in place instead (§5b) and keep a positive control in the file.`,
+          `The red run failed on a ${redReason} error, not on the defect. A whole-file revert broke the test's imports; simulate the old behaviour in place instead (see the write-regression-test skill) and keep a positive control in the file.`,
         );
       } else if (redReason === "crash") {
         report.problems.push(

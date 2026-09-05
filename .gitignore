@@ -19,6 +19,7 @@
 !.claude/agents/reviewer-opus-5.md
 # Driver runtime artifacts: chosen ports + the Chromium profile it drives with.
 .claude/skills/*/.state.json
+.claude/skills/*/.state.json.tmp
 .claude/skills/*/.chrome-profile/
 .spark
 **/node_modules/

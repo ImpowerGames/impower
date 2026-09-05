@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Pins section 7b of SKILL.md against telling the writer to spawn a reviewer
+# Pins the reviewer-model section of the review-pr skill against telling the writer to spawn a reviewer
 # that cannot start, or that runs the writer's own model. Run:
-#   bash .claude/skills/resolve-issue/reviewer-model-values.test.sh
+#   bash .claude/skills/review-pr/reviewer-model-values.test.sh
 #
 # Two ways a reviewer is spawned, and both can break silently.
 #
@@ -15,20 +15,20 @@
 # refuses everything else -- a spaced version like "opus 4.6", or a full id like
 # claude-opus-4-6 -- with an InputValidationError before any agent starts. The
 # natural recovery from that error is the writer's own alias, which is again a
-# same-model review: the outcome section 7b exists to prevent.
+# same-model review: the outcome that section exists to prevent.
 #
 # The alias list below is transcribed from the tool's own rejection message,
 # observed 2026-09-04. It is a property of the harness, not of this repo, so
 # nothing here can detect it drifting. To re-check it, pass a junk model to the
 # Agent tool and read the accepted values back out of the error.
 #
-# Assertions over the section 7b writer-to-reviewer table:
+# Assertions over the writer-to-reviewer table:
 #   1. every reviewer named by subagent_type has a definition under
 #      .claude/agents/, and that definition pins a full claude-... model id
 #      rather than a bare alias;
 #   2. no row routes a writer to a reviewer running the writer's own model;
 #   3. every model value named anywhere is exactly one of the four aliases;
-#   4. the section 7c reviewer prompt still asks each reviewer to report the
+#   4. the reviewer prompt still asks each reviewer to report the
 #      model it is actually running as;
 #   5. the abort contract survives -- the prompt names the writer's own model
 #      and covers a placeholder that was never substituted, every definition
@@ -44,7 +44,7 @@
 # telling a reviewer to disregard an abort passes every grep here. Nor can it
 # make a reviewer obey: the abort is an instruction a model chooses to follow,
 # not something the harness enforces. Reading each reviewer's first line, which
-# section 7b requires, is the check this file cannot be.
+# the skill requires, is the check this file cannot be.
 #
 # Only bash, grep and sed are used, so this runs on any checkout.
 #
@@ -55,7 +55,7 @@ set -u
 
 self="${BASH_SOURCE[0]:-$0}"
 dir="$(cd "$(dirname "$self")/../../.." && pwd)"
-skill="${SKILL_MD:-$dir/.claude/skills/resolve-issue/SKILL.md}"
+skill="${SKILL_MD:-$dir/.claude/skills/review-pr/SKILL.md}"
 agents="${AGENTS_DIR:-$dir/.claude/agents}"
 
 # The exact set the Agent tool accepts.
@@ -200,7 +200,7 @@ cell_values() {
   done <<< "$matches"
 }
 
-# --- assertions 1, 2 and 3, over the section 7b table ---------------------
+# --- assertions 1, 2 and 3, over the writer-to-reviewer table---------------
 #
 # A row is a writer row when its first cell names one of the aliases, matched
 # case-insensitively anywhere inside the cell, so relabelling or emphasising it
