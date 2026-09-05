@@ -26,10 +26,12 @@ export function lowerDivertPath(
 }
 
 // One segment of a divert's target path as an Identifier stamped with the
-// segment's own position. Every place that builds a divert's path
-// identifiers goes through here, so a divert is positioned the same way
-// whatever syntax produced it (`-> a.b`, `-> f(x)`, a divert target in an
-// expression, an alternator arm).
+// segment's own position. Every builder of a divert path that the author
+// wrote goes through here (`-> a.b`, `-> f(x)`, a divert target in an
+// expression, an alternator arm), so such a divert is positioned the same
+// way whatever syntax produced it. Diverts the lowerers synthesize (loop
+// and `done` control flow, function-call proxies) build their identifiers
+// from names and carry no position.
 export function divertPartIdentifier(
   part: SyntaxNode,
   ctx: LowerContext,

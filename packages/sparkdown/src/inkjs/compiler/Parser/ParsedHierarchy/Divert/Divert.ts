@@ -280,22 +280,43 @@ export class Divert extends ParsedObject {
   public readonly PathAsVariableName = () =>
     this.target ? this.target.firstComponent : null;
 
-  // Whether `name` is a parameter or a local (`variableDeclarations`) of
-  // this divert's flow or of any flow enclosing it, up to but not including
-  // the story. `FlowBase.ResolveVariableWithName` consults the innermost
-  // flow only; the runtime searches every scope on the call stack.
-  private isDeclaredByEnclosingFlow(name: string): boolean {
+  // Whether `name` is a parameter or a local (`variableDeclarations`) of any
+  // flow in the top-level flow that contains this divert: the flow itself,
+  // its branches, and its functions. A story-level divert has no such flow
+  // and gets `false`.
+  //
+  // This is a static approximation. At runtime a temporary lives in the
+  // current call-stack element, so whether `-> game` inside a branch sees a
+  // `local game` declared in its scene depends on the path that reached the
+  // branch, not on where the declaration sits. The rule here errs toward
+  // silence: a name the author declared anywhere in the scene is treated as
+  // the author's own divert target, and the story's behaviour is then a
+  // matter of the author's own declaration rather than of the builtin.
+  private isDeclaredWithinTopLevelFlow(name: string): boolean {
     let flow = asOrNull(ClosestFlowBase(this), FlowBase);
+    let top: FlowBase | null = null;
     while (flow && flow !== flow.story) {
+      top = flow;
+      flow = asOrNull(ClosestFlowBase(flow), FlowBase);
+    }
+    if (!top) {
+      return false;
+    }
+    const declares = (candidate: FlowBase): boolean => {
       if (
-        flow.args?.some((arg) => arg.identifier?.name === name) ||
-        flow.variableDeclarations.has(name)
+        candidate.args?.some((arg) => arg.identifier?.name === name) ||
+        candidate.variableDeclarations.has(name)
       ) {
         return true;
       }
-      flow = asOrNull(ClosestFlowBase(flow), FlowBase);
-    }
-    return false;
+      for (const child of candidate.content ?? []) {
+        if (child instanceof FlowBase && declares(child)) {
+          return true;
+        }
+      }
+      return false;
+    };
+    return declares(top);
   }
 
   public readonly ResolveTargetContent = (): void => {
@@ -401,15 +422,16 @@ export class Divert extends ParsedObject {
     // one from `context.builtinGlobalDiverts`. Recorded here, once per compile
     // for reused diverts too. Not recorded: a Luau call (`game()` lowers to a
     // divert too, but names no scene, branch, or label), and a divert whose
-    // name is a parameter or local of any enclosing flow, which is the
-    // author's own divert target — at runtime a temporary shadows a global,
-    // and the call stack is searched through every enclosing scope.
+    // name the author declared as a parameter or local somewhere in the
+    // enclosing top-level flow, which is treated as the author's own divert
+    // target (see `isDeclaredWithinTopLevelFlow` for the approximation this
+    // makes).
     const capturedBy = this.runtimeDivert.variableDivertName;
     if (
       capturedBy != null &&
       !this.isFunctionCall &&
       context.builtinGlobalNames.has(capturedBy) &&
-      !this.isDeclaredByEnclosingFlow(capturedBy)
+      !this.isDeclaredWithinTopLevelFlow(capturedBy)
     ) {
       context.builtinGlobalDiverts.push({ name: capturedBy, divert: this });
     }

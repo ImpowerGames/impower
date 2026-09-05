@@ -519,6 +519,42 @@ end
     expect(ctx.story.ContinueMaximally()).toBe("Arrived.\n");
   });
 
+  test("a local declared in a sibling branch of the same scene also counts as the author's", () => {
+    // At runtime both branches run in one call-stack element, so the local
+    // set in `one` is visible to the divert in `two`.
+    const ctx = makeRuntimeStoryFromSource(`-> s
+scene s
+  -> s.one
+  branch one
+    & local game = -> there
+    -> s.two
+  end
+  branch two
+    -> game
+  end
+end
+scene there
+  Arrived.
+  fin
+
+end
+`);
+    expect(ctx.errorMessages).toEqual([]);
+    expect(ctx.story.ContinueMaximally()).toBe("Arrived.\n");
+  });
+
+  test("a dotted divert target in an expression keeps its segments in source order", () => {
+    const program = compileUnseeded(`-> start
+scene start
+  & local f = -> aaaa.bbbb
+  fin
+
+end
+`);
+    const notFound = messagesOf(program).filter((m) => m.includes("target not found"));
+    expect(notFound).toEqual(["target not found: `-> aaaa.bbbb`"]);
+  });
+
   test("`target not found` covers the whole path now that its identifiers carry positions", () => {
     const program = compileUnseeded(`-> start
 scene start

@@ -1827,19 +1827,20 @@ function lowerDivertTargetLiteral(
   const parts: Identifier[] = [];
   const pathNode = getDescendent("DivertPath", node);
   if (pathNode) {
-    const stack: SyntaxNode[] = [pathNode];
-    while (stack.length > 0) {
-      const n = stack.pop()!;
+    // In-order walk, so `a.b` yields [a, b]; a stack-based walk reverses
+    // sibling segments.
+    const visit = (n: SyntaxNode): void => {
       if (n.name === "DivertPartName") {
         parts.push(divertPartIdentifier(n, ctx));
-      } else {
-        let c = n.firstChild;
-        while (c) {
-          stack.push(c);
-          c = c.nextSibling;
-        }
+        return;
       }
-    }
+      let c = n.firstChild;
+      while (c) {
+        visit(c);
+        c = c.nextSibling;
+      }
+    };
+    visit(pathNode);
   }
   const divert = new Divert(parts);
   return new DivertTarget(divert);
