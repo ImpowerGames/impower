@@ -27,7 +27,7 @@
         },
         {
           "type": "Text",
-          "text": ".\n Score is "
+          "text": ".\nScore is "
         },
         {
           "type": "VariableReference",
