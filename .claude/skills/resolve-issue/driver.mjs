@@ -339,9 +339,9 @@ async function writeMainSd(page, source) {
 // <spark-editor> custom element to wait for. The CodeMirror instance stashes
 // its EditorView on the .cm-content node as `.cmTile.view`.
 async function waitForEditor(page, timeout = 90_000) {
-  await page.waitForSelector(".cm-content", { timeout });
+  await page.waitForSelector(".sparkdown-script-editor-root .cm-content", { timeout });
   await page.waitForFunction(
-    () => document.querySelector(".cm-content")?.cmTile?.view != null,
+    () => document.querySelector(".sparkdown-script-editor-root .cm-content")?.cmTile?.view != null,
     null,
     { timeout },
   );
@@ -376,7 +376,7 @@ async function waitForEditor(page, timeout = 90_000) {
 //      scrubbing, or the restore lands afterwards and wins.
 async function clickLine(page, line) {
   const scrolled = await page.evaluate((target) => {
-    const view = document.querySelector(".cm-content")?.cmTile?.view;
+    const view = document.querySelector(".sparkdown-script-editor-root .cm-content")?.cmTile?.view;
     if (!view) return { ok: false, reason: "no CodeMirror view" };
     const total = view.state.doc.lines;
     const clamped = Math.min(Math.max(1, target), total);
@@ -395,7 +395,7 @@ async function clickLine(page, line) {
   await page.waitForTimeout(600); // let the scroll land and the view re-measure
 
   const spot = await page.evaluate((target) => {
-    const view = document.querySelector(".cm-content")?.cmTile?.view;
+    const view = document.querySelector(".sparkdown-script-editor-root .cm-content")?.cmTile?.view;
     if (!view) return { ok: false, reason: "no CodeMirror view" };
     const l = view.state.doc.line(target);
     const pos = l.from + Math.min(6, l.length);
@@ -420,7 +420,7 @@ async function clickLine(page, line) {
     // preview exactly where it was, so check what is under the point rather
     // than assuming the coordinates are reachable.
     const hit = document.elementFromPoint(x, y);
-    if (!hit || !hit.closest(".cm-content")) {
+    if (!hit || !hit.closest(".sparkdown-script-editor-root .cm-content")) {
       return {
         ok: false,
         reason: `point (${x}, ${y}) is covered by ${hit ? hit.tagName.toLowerCase() : "nothing"}`,
@@ -433,7 +433,7 @@ async function clickLine(page, line) {
   await page.mouse.click(spot.x, spot.y);
 
   const cursorLine = await page.evaluate(() => {
-    const view = document.querySelector(".cm-content")?.cmTile?.view;
+    const view = document.querySelector(".sparkdown-script-editor-root .cm-content")?.cmTile?.view;
     if (!view) return null;
     return view.state.doc.lineAt(view.state.selection.main.head).number;
   });
@@ -461,7 +461,8 @@ async function waitForGame(page, { timeout = 45_000 } = {}) {
   }
 
   await page.reload({ waitUntil: "domcontentloaded", timeout: 120_000 });
-  await waitForEditor(page);
+  const back = await ensureScriptEditor(page);
+  if (!back.present) return { mounted: false, reloaded: true, error: back.reason };
   const deadline2 = Date.now() + timeout;
   while (Date.now() < deadline2) {
     if (await mounted()) return { mounted: true, reloaded: true };
@@ -509,7 +510,7 @@ async function routeLabel(page) {
 // Every line of the open document, as source text.
 async function documentLines(page) {
   return page.evaluate(() => {
-    const view = document.querySelector(".cm-content")?.cmTile?.view;
+    const view = document.querySelector(".sparkdown-script-editor-root .cm-content")?.cmTile?.view;
     if (!view) return null;
     const out = [];
     for (let i = 1; i <= view.state.doc.lines; i++) {
@@ -673,6 +674,21 @@ async function verify(args) {
         return result;
       }
       result.editorSettled = shell.settled;
+      // The preview pane remembers screenplay mode across runs, and in that
+      // mode the game never mounts (window.__preview is installed by the game
+      // preview alone). verify needs the game, so switch back, the way a user
+      // does: the screenplay toolbar's "Preview Game" button.
+      const gameObservable = await page
+        .waitForFunction(() => window.__preview != null, null, { timeout: 5_000 })
+        .then(() => true, () => false);
+      if (!gameObservable) {
+        const toGame = page.locator('[aria-label="Preview Game"]').first();
+        if (await toGame.isVisible().catch(() => false)) {
+          await toGame.click();
+          result.switchedToGamePreview = true;
+          await waitForDomQuiet(page, { quiet: 600, timeout: 10_000 });
+        }
+      }
 
       if (sdPath) {
         const src = fs.readFileSync(path.resolve(sdPath), "utf8");
@@ -817,14 +833,14 @@ async function verify(args) {
 // divs carrying a `name`, not <input>s.
 const SURFACES = {
   find: {
-    selector: ".cm-search",
+    selector: ".sparkdown-script-editor-root .cm-search",
     open: "Control+f",
     fields: { search: "[name=search]", replace: "[name=replace]" },
     buttons: ["next", "prev", "select", "replace", "replaceAll", "close"],
     toggles: ["case", "re", "word"],
   },
   goto: {
-    selector: ".cm-gotoLine",
+    selector: ".sparkdown-script-editor-root .cm-gotoLine",
     open: "Control+g",
     fields: { line: "[name=line]" },
     buttons: ["submit", "close"],
@@ -848,12 +864,12 @@ const SURFACES = {
 // (Logic.tsx, view "logic-editor") mounts no tab row but does mount a script
 // editor, so that counts for logic too. The Router mounts one pane at a time.
 const SCREENS = {
-  logic: '[role="tab"][id$="-trigger-main"], .cm-content',
+  logic: '[role="tab"][id$="-trigger-main"], .sparkdown-script-editor-root .cm-content',
   assets: '[role="tab"][id$="-trigger-files"]',
   share: '[role="tab"][id$="-trigger-game"]',
 };
 const tabSelector = (value) => `[role="tab"][id$="-trigger-${value}"]`;
-const SHOT_TARGETS = { find: SURFACES.find.selector, goto: SURFACES.goto.selector, editor: ".cm-editor", page: null };
+const SHOT_TARGETS = { find: SURFACES.find.selector, goto: SURFACES.goto.selector, editor: ".sparkdown-script-editor-root .cm-editor", page: null };
 
 /**
  * Playwright's key strings are case-sensitive for a single character: `Shift+g`
@@ -900,7 +916,7 @@ async function pressKey(page, combo) {
 
 /** Focus the CodeMirror view so editor-scoped keymap bindings receive keys. */
 async function focusEditor(page) {
-  await page.evaluate(() => document.querySelector(".cm-content")?.cmTile?.view?.focus());
+  await page.evaluate(() => document.querySelector(".sparkdown-script-editor-root .cm-content")?.cmTile?.view?.focus());
 }
 
 /** Resolve while the DOM has been still for `quiet` ms, or give up at `timeout`. */
@@ -951,9 +967,16 @@ async function mountedScreens(page) {
  * by the persistent profile across runs. A command that needs the editor
  * cannot assume it is there; this says whether it is, and why not.
  */
-async function scriptEditorPresent(page, timeout = 4_000) {
+async function scriptEditorPresent(page, timeout = 10_000) {
+  // Fail fast when another screen is on display: the editor cannot appear
+  // there, so waiting the full budget would only cost the session time (three
+  // --type steps on the assets screen used to spend 30 s learning one thing).
+  // On the logic screen the budget stays, because a cold editor's mount was
+  // measured at up to ~4.6 s on the reference machine.
+  const screenNow = await activeScreen(page);
+  const budget = screenNow != null && screenNow !== "logic" ? 500 : timeout;
   try {
-    await page.waitForFunction(() => document.querySelector(".cm-content")?.cmTile?.view != null, null, { timeout });
+    await page.waitForFunction(() => document.querySelector(".sparkdown-script-editor-root .cm-content")?.cmTile?.view != null, null, { timeout: budget });
     return { present: true };
   } catch {
     const screen = await activeScreen(page);
@@ -965,7 +988,7 @@ async function scriptEditorPresent(page, timeout = 4_000) {
       screen === "logic" && panelTab && panelTab !== "main"
         ? `put --screen main before this step`
         : screen === "logic"
-          ? `the editor did not mount within ${timeout / 1000}s; the machine may be saturated, re-run`
+          ? `the editor did not mount within ${budget / 1000}s; the machine may be saturated, re-run`
           : `put --screen logic before this step`;
     return { present: false, reason: `the script editor is not on screen (${where}); ${advice}` };
   }
@@ -984,7 +1007,7 @@ async function settleEditor(page, timeout = 30_000) {
   let stableFor = 0;
   while (Date.now() < deadline) {
     const id = await page.evaluate(() => {
-      const view = document.querySelector(".cm-content")?.cmTile?.view;
+      const view = document.querySelector(".sparkdown-script-editor-root .cm-content")?.cmTile?.view;
       if (!view) return null;
       // Identity is tracked in a WeakMap on the window, not written onto the
       // view, so the editor is observed and not touched.
@@ -1017,20 +1040,26 @@ async function ensureScriptEditor(page) {
     // The editor lives on the logic screen's `main` tab. Clicking the logic
     // screen tab only changes the screen (WorkspaceWindow.openPane sets the
     // pane, not the panel), so a profile left on the `scripts` tab needs the
-    // inner tab clicked as well.
+    // inner tab clicked as well. A tab already on display is not clicked, so
+    // `switched` is only ever true for a click that changed something; the
+    // screen is judged from its content, not its highlight (see SCREENS).
     for (const value of ["logic", "main"]) {
       const tab = page.locator(tabSelector(value)).first();
       if (!(await tab.isVisible().catch(() => false))) continue;
-      const selected = (await tab.getAttribute("aria-selected")) === "true";
-      if (value === "main" && selected) continue;
+      if (value === "logic" && (await activeScreen(page)) === "logic") continue;
+      if (value === "main" && (await tab.getAttribute("aria-selected")) === "true") continue;
       await tab.click();
       await waitForDomQuiet(page, { quiet: 600, timeout: 10_000 });
-      first = await scriptEditorPresent(page, 15_000);
+      // A cold editor after a switch gets the budget the pre-fix code gave it.
+      first = await scriptEditorPresent(page, 45_000);
       if (first.present) {
         switched = true;
         break;
       }
     }
+    // Nothing to click (already on logic/main) and still no editor: give a
+    // cold mount the same long budget before giving up.
+    if (!first.present && !switched) first = await scriptEditorPresent(page, 45_000);
   }
   if (!first.present) return { present: false, switched, reason: first.reason };
   // The view can be replaced when the document arrives, on a cold load as
@@ -1055,6 +1084,9 @@ async function openSurface(page, name) {
   if (await surfaceOpen(page, name)) return { surface: name, open: true, alreadyOpen: true };
   const editor = await scriptEditorPresent(page);
   if (!editor.present) return { surface: name, open: false, reason: editor.reason };
+  // The view can still be replaced a moment after it appears; a shortcut sent
+  // into the old view opens nothing. Cheap when the editor is already stable.
+  await settleEditor(page, 15_000);
   await focusEditor(page);
   const key = await pressKey(page, s.open);
   try {
@@ -1225,7 +1257,12 @@ async function switchScreen(page, name) {
   // A switch that lands on the script editor (the logic screen, or its `main`
   // tab) mounts a view that can be replaced when the document arrives; a step
   // that runs before that lands in a view about to go away.
-  const editorHere = await page.evaluate(() => document.querySelector(".cm-content") != null);
+  // A point check right after the click is too early: the editor mounts up
+  // to ~4.6 s after the pane does. Wait for it where the tab can bring it.
+  const landsOnEditor = name === "logic" || name === "main";
+  const editorHere = landsOnEditor
+    ? (await scriptEditorPresent(page, 15_000)).present
+    : await page.evaluate(() => document.querySelector(".sparkdown-script-editor-root .cm-content") != null);
   if (editorHere) {
     const editorSettled = await settleEditor(page);
     settled = editorSettled && settled;
@@ -1255,9 +1292,9 @@ async function readSurfaces(page) {
       open: true,
       search: await readField(page, "search"),
       replace: await readField(page, "replace"),
-      matches: await page.locator(".cm-search .cm-search-matches-label").first().innerText().catch(() => ""),
+      matches: await page.locator(".sparkdown-script-editor-root .cm-search .cm-search-matches-label").first().innerText().catch(() => ""),
       toggles: await page.evaluate(() =>
-        Object.fromEntries([...document.querySelectorAll('.cm-search input[type="checkbox"]')].map((c) => [c.name, c.checked])),
+        Object.fromEntries([...document.querySelectorAll('.sparkdown-script-editor-root .cm-search input[type="checkbox"]')].map((c) => [c.name, c.checked])),
       ),
     };
   }
@@ -1265,7 +1302,7 @@ async function readSurfaces(page) {
     out.goto = { open: true, line: await readField(page, "line") };
   }
   out.cursorLine = await page.evaluate(() => {
-    const view = document.querySelector(".cm-content")?.cmTile?.view;
+    const view = document.querySelector(".sparkdown-script-editor-root .cm-content")?.cmTile?.view;
     return view ? view.state.doc.lineAt(view.state.selection.main.head).number : null;
   });
   return out;
@@ -1407,7 +1444,7 @@ async function ui(args) {
       // Settle the editor only when it is there to settle: the logic screen's
       // `scripts` tab has no script editor, and a step that needs one reports
       // that itself.
-      const editorHere = await page.waitForFunction(() => document.querySelector(".cm-content") != null, null, { timeout: 5_000 }).then(() => true, () => false);
+      const editorHere = await page.waitForFunction(() => document.querySelector(".sparkdown-script-editor-root .cm-content") != null, null, { timeout: 5_000 }).then(() => true, () => false);
       if (editorHere) {
         result.editorSettled = await settleEditor(page);
         if (!result.editorSettled) {
@@ -1525,7 +1562,7 @@ async function redgreenCli(args) {
       })();
       die(
         top && !sameDir(top, REPO_ROOT)
-          ? `redgreen: run it from this driver's own worktree root (${REPO_ROOT}), not from ${cwd}, which is inside a different checkout (${top})`
+          ? `redgreen: run it from this driver's own worktree root (${REPO_ROOT}), not from ${cwd}, which is inside a different checkout (${path.resolve(top)})`
           : `redgreen: run from the repository root (${REPO_ROOT}), not from ${cwd}; --files paths and the test command resolve from there`,
       );
     }

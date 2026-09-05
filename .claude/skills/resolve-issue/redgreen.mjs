@@ -158,12 +158,18 @@ export function runTest(cmd, cwd, shell = testShell()) {
  * assertion merely quotes an ENOENT is not mistaken for one. The assertion
  * patterns are word-bounded: `/toBe/i` on its own matches "October".
  */
-export function classifyRedFailure(output) {
+export function classifyRedFailure(output, { removed = [] } = {}) {
   // Node could not find the script it was handed: every "Cannot find module"
-  // block carries an empty requireStack. One block with a non-empty stack is
-  // a test whose own import broke, which is the §5b case, not a shell one.
-  const moduleBlocks = [...output.matchAll(/Cannot find module '[^']+'[^{}]*\{[^{}]*requireStack: \[([^\]]*)\]/g)];
-  const missingEntryScript = moduleBlocks.length > 0 && moduleBlocks.every((m) => m[1].trim() === "");
+  // block carries an empty requireStack, no block names an ESM import ("…
+  // imported from …" carries no requireStack at all), and the missing path is
+  // not one the revert removed. One import break anywhere, or a missing file
+  // that the fix adds (the test spawns it, so it is the child's own entry
+  // script), is the §5b case, not a shell one.
+  const moduleBlocks = [...output.matchAll(/Cannot find module '([^']+)'[^{}]*\{[^{}]*requireStack: \[([^\]]*)\]/g)];
+  const esmImportBreak = /Cannot find module '[^']+' imported from /.test(output);
+  const namesRemovedFile = (p) => removed.some((r) => r && p.replace(/\\/g, "/").endsWith(r.replace(/\\/g, "/")));
+  const missingEntryScript =
+    moduleBlocks.length > 0 && !esmImportBreak && moduleBlocks.every((m) => m[2].trim() === "" && !namesRemovedFile(m[1]));
   if (
     /^(?:bash|sh|zsh|\/bin\/sh|\/usr\/bin\/bash)(?:: line \d+)?: .*: (?:command not found|No such file or directory)/im.test(output) ||
     /is not recognized as an internal or external command/i.test(output) ||
@@ -187,7 +193,7 @@ export function classifyRedFailure(output) {
   }
   // Anchored to how a runner reports its own death, at the start of a line:
   // a test name or an assertion diff can carry any of these words mid-line.
-  if (/^\s*(?:Error: )?Worker exited unexpectedly|^FATAL ERROR: |heap out of memory|^Segmentation fault|^Killed$/im.test(output)) {
+  if (/^\s*(?:Error: )?Worker exited unexpectedly|^FATAL ERROR: |^Segmentation fault|^Killed$/im.test(output)) {
     return "crash";
   }
   if (
@@ -370,7 +376,8 @@ export function runRedGreen({ repoRoot, test, files, base = "HEAD", snapshotDir,
       // 3. Red run.
       log(`red     ${test}`);
       const red = runTest(test, repoRoot);
-      const redReason = red.exit === 0 ? null : classifyRedFailure(red.output);
+      const removed = entries.filter((e) => e.baseBytes == null).map((e) => e.path);
+      const redReason = red.exit === 0 ? null : classifyRedFailure(red.output, { removed });
       report.red = {
         exit: red.exit,
         outcome: red.exit === 0 ? "passed" : "failed",

@@ -472,6 +472,20 @@ check("classifyRedFailure tells the reasons apart on real runner output", () => 
   // A test name or an assertion that carries a crash word mid-line is still an assertion.
   assert.equal(classifyRedFailure(" FAIL src/game.test.ts > the enemy is killed when health reaches 0\nAssertionError: expected 1 to be 0\nTests  1 failed | 12 passed"), "assertion");
   assert.equal(classifyRedFailure("AssertionError: expected 'FATAL ERROR: heap' to be 'ok'\nTests  1 failed"), "assertion");
+  // A quoted OOM message, or a test name mentioning it, is still an assertion.
+  assert.equal(
+    classifyRedFailure("AssertionError: expected the log to contain 'FATAL ERROR: Reached heap limit Allocation failed - JavaScript heap out of memory' but it did not\nTests  1 failed | 3 passed"),
+    "assertion",
+  );
+  assert.equal(classifyRedFailure(" FAIL  src/a.test.ts > reports when the worker dies from heap out of memory\nAssertionError: expected 1 to be 0\nTests  1 failed"), "assertion");
+  // ESM import breaks carry no requireStack; alone or beside a missing entry script they are import breaks.
+  const esm = "Error [ERR_MODULE_NOT_FOUND]: Cannot find module 'C:\\x\\added.mjs' imported from C:\\x\\check.mjs\n{ code: 'ERR_MODULE_NOT_FOUND', url: 'file:///C:/x/added.mjs' }";
+  assert.equal(classifyRedFailure(esm), "import");
+  assert.equal(classifyRedFailure(esm + "\nError: Cannot find module 'C:\\x\\tool.mjs'\n{ code: 'MODULE_NOT_FOUND', requireStack: [] }"), "import");
+  // A script the fix adds, spawned by the test and removed by the revert, is the child's own entry script and still an import break.
+  const spawned = "Error: Cannot find module 'C:\\x\\scripts\\tool.mjs'\n{ code: 'MODULE_NOT_FOUND', requireStack: [] }";
+  assert.equal(classifyRedFailure(spawned), "shell");
+  assert.equal(classifyRedFailure(spawned, { removed: ["scripts/tool.mjs"] }), "import");
   // A second, unrelated empty requireStack later in the output does not turn an import break into a shell failure.
   assert.equal(
     classifyRedFailure("Error: Cannot find module './added.mjs'\n{ code: 'MODULE_NOT_FOUND', requireStack: [ 'C:/x/check.mjs' ] }\n--- second runner ---\nError: Cannot find module 'z'\n{ requireStack: [] }"),
