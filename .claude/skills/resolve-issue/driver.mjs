@@ -1032,15 +1032,21 @@ async function scriptEditorPresent(page, timeout = 10_000) {
     const panelTab = await page.evaluate(() =>
       [...document.querySelectorAll('[role="tab"][aria-selected="true"]')].map((t) => t.id.replace(/^.*-trigger-/, "")).find((v) => !["logic", "assets", "share"].includes(v)) ?? null,
     );
-    const where = `active screen: ${screen ?? "none"}${panelTab ? `, tab: ${panelTab}` : ""}`;
-    const advice =
-      screen === "logic" && panelTab && panelTab !== "main"
-        ? `put --screen main before this step`
-        : screen === "logic"
-          ? `the editor did not mount within ${budget / 1000}s; the machine may be saturated, re-run`
-          : `put --screen logic before this step`;
-    return { present: false, reason: `the script editor is not on screen (${where}); ${advice}` };
+    return { present: false, ...editorAbsentReason({ screen, panelTab, budgetMs: budget }) };
   }
+}
+
+/**
+ * The words for an absent editor, in parts, so a caller that adds its own
+ * advice can keep the navigational kind ("put --screen main before this
+ * step") and drop only the generic kind (re-run). Pure; the gate test builds
+ * its stubs from it so the strings cannot drift apart.
+ */
+export function editorAbsentReason({ screen, panelTab, budgetMs }) {
+  const where = `the script editor is not on screen (active screen: ${screen ?? "none"}${panelTab ? `, tab: ${panelTab}` : ""})`;
+  const navigational = screen === "logic" && panelTab && panelTab !== "main" ? "put --screen main before this step" : screen !== "logic" ? "put --screen logic before this step" : null;
+  const advice = navigational ?? `the editor did not mount within ${budgetMs / 1000}s; the machine may be saturated, re-run`;
+  return { reason: `${where}; ${advice}`, where, advice, navigational };
 }
 
 /**
@@ -1082,10 +1088,7 @@ function editorGate({ expected = editorExpectedHere, present = scriptEditorPrese
   // What the first failed step found, and which step it was, so later steps
   // can fail fast and point at it. `kind` decides what a recovery look does.
   let gaveUp = null;
-  // scriptEditorPresent's reason ends in its own advice; the gate adds its
-  // own once, so the tail is dropped here rather than said twice.
-  const where = (reason) => reason.replace(/; the editor did not mount within \d+s; the machine may be saturated, re-run$/, "").replace(/; put --screen \S+ before this step$/, "");
-  return async (page, what, step = null) => {
+  const gate = async (page, what, step = null) => {
     // The question comes first: a step on a screen where no editor is
     // expected is never refused, whatever an earlier step found.
     const exp = await expected(page);
@@ -1093,10 +1096,12 @@ function editorGate({ expected = editorExpectedHere, present = scriptEditorPrese
     const at = gaveUp?.step != null ? `step ${gaveUp.step}` : "an earlier step";
     if (gaveUp) {
       // Fail fast, but let a recovery show: a short look that finds the
-      // editor up and settled clears the latch and the step proceeds.
+      // editor up and settled clears the latch and the step proceeds. The
+      // re-settle needs three reads 600 ms apart plus their round trips, so
+      // its budget leaves room for a slow machine.
       const quick = await present(page, 2_000);
       if (!quick.present) return { required: true, ok: false, reason: `the script editor is still not up (${at} reported: ${gaveUp.what}); this ${what} was skipped` };
-      if (gaveUp.kind === "unsettled" && !(await settle(page, 3_000))) {
+      if (gaveUp.kind === "unsettled" && !(await settle(page, 6_000))) {
         return { required: true, ok: false, reason: `the script editor is still being replaced (${at} reported: ${gaveUp.what}); this ${what} was skipped` };
       }
       gaveUp = null;
@@ -1104,9 +1109,13 @@ function editorGate({ expected = editorExpectedHere, present = scriptEditorPrese
     const budget = settledOnce ? 8_000 : 20_000;
     const here = await present(page, budget);
     if (!here.present) {
-      const state = (exp == null ? "no pane had mounted; " : "") + where(here.reason);
+      // The presence check's navigational advice ("put --screen main before
+      // this step") is the fix and is kept; its generic advice is the same
+      // as the gate's and is said once.
+      const state = (exp == null ? "no pane had mounted; " : "") + (here.where ?? here.reason);
+      const advice = here.navigational ?? "Re-run; if it persists the machine is saturated";
       gaveUp = { kind: "absent", what: state, step };
-      return { required: true, ok: false, reason: `this ${what} needs the script editor, which had not mounted within ${budget / 1000}s (${state}). Re-run; if it persists the machine is saturated` };
+      return { required: true, ok: false, reason: `this ${what} needs the script editor, which had not mounted within ${budget / 1000}s (${state}); ${advice}` };
     }
     const settleBudget = settledOnce ? 8_000 : 15_000;
     if (!(await settle(page, settleBudget))) {
@@ -1116,6 +1125,13 @@ function editorGate({ expected = editorExpectedHere, present = scriptEditorPrese
     settledOnce = true;
     return { required: true, ok: true };
   };
+  // A screen switch that settled the editor itself tells the gate, so the
+  // once-per-run rule holds across `--screen main --shot`.
+  gate.noteSettled = () => {
+    settledOnce = true;
+    if (gaveUp?.kind === "unsettled") gaveUp = null;
+  };
+  return gate;
 }
 
 /**
@@ -1427,8 +1443,9 @@ async function switchScreen(page, name) {
     const editorSettled = await settleEditor(page);
     settled = editorSettled && settled;
     if (!editorSettled) {
-      return { screen: name, active: true, settled, reason: `the ${name} tab is up but its script editor never settled within 30s; later steps may have hit a view that was being replaced` };
+      return { screen: name, active: true, settled, editorHere: true, editorSettled: false, reason: `the ${name} tab is up but its script editor never settled within 30s; later steps may have hit a view that was being replaced` };
     }
+    return { screen: name, active: true, settled, editorHere: true, editorSettled: true };
   }
   return { screen: name, active: true, settled };
 }
@@ -1684,14 +1701,16 @@ async function ui(args) {
             await waitForDomQuiet(page, { quiet: 1500, timeout: 30_000 });
             result.steps.push(out);
           } else if (step.screen) {
-            result.steps.push(await switchScreen(page, step.screen));
+            const switched = await switchScreen(page, step.screen);
+            if (switched.editorSettled) requireEditor.noteSettled();
+            result.steps.push(switched);
           } else if (step.open) {
             const ready = await requireEditor(page, "panel", stepNo);
             if (ready.ok === false) {
               result.steps.push({ surface: step.open, open: false, gated: true, reason: ready.reason });
               continue;
             }
-            result.steps.push(await openSurface(page, step.open, { settled: true }));
+            result.steps.push(await openSurface(page, step.open, { settled: ready.ok === true }));
           } else if (step.close) {
             result.steps.push(await closeSurface(page, step.close));
           } else if (step.type) {
@@ -1700,7 +1719,7 @@ async function ui(args) {
               result.steps.push({ field: step.type, typed: false, text: step.text, readBack: null, matches: false, gated: true, reason: ready.reason });
               continue;
             }
-            result.steps.push(await typeInto(page, step.type, step.text, { settled: true }));
+            result.steps.push(await typeInto(page, step.type, step.text, { settled: ready.ok === true }));
           } else if (step.press) {
             const ready = await requireEditor(page, "key press", stepNo);
             if (ready.ok === false) {
