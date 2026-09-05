@@ -10,6 +10,15 @@
             "command": "payload=$(cat); lc=$(printf '%s' \"$payload\" | tr 'A-Z' 'a-z'); case \"$lc\" in *\"/language/sparkdown.language-grammar.json\\\"\"*|*\"\\\\\\\\language\\\\\\\\sparkdown.language-grammar.json\\\"\"*|*\"/language/sparkdown.language-config.json\\\"\"*|*\"\\\\\\\\language\\\\\\\\sparkdown.language-config.json\\\"\"*|*\"/language/sparkdown.language-snippets.json\\\"\"*|*\"\\\\\\\\language\\\\\\\\sparkdown.language-snippets.json\\\"\"*) echo '{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"This file is generated from a YAML source under definitions/yaml/ and is overwritten by the definitions build, which propagates to both packages/sparkdown/language/ and vscode-sparkdown/language/. Edit the matching YAML file instead, then regenerate both locations with: cd definitions && npm run language\"}}' ;; esac"
           }
         ]
+      },
+      {
+        "matcher": "Bash|PowerShell",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PROJECT_DIR:-.}/.claude/hooks/typed-issue-hook.sh\""
+          }
+        ]
       }
     ]
   }

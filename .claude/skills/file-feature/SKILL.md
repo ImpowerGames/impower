@@ -109,13 +109,11 @@ Strip the template's HTML comments. Write "Open" under a heading that is still u
 ## 6. File it and read it back
 
 ```sh
-gh issue create --title "<title>" --body-file ticket.md --label "system: sparkdown" --label "app: web-editor"
-gh api -X PATCH repos/ImpowerGames/impower/issues/<N> -f type=Feature
+gh api -X POST repos/ImpowerGames/impower/issues -f title="<title>" -F body=@ticket.md -f type=Feature -f "labels[]=system: sparkdown" -f "labels[]=app: web-editor" --jq '{number, url: .html_url, type: .type.name}'
 gh issue view <N> --json title,body,labels
-gh api repos/ImpowerGames/impower/issues/<N> --jq .type.name
 ```
 
-Never pass `--body @-`; `gh` takes it as the literal two characters and files an empty-looking ticket that still returns a URL. Read the body back and check that it is the body you wrote. The type step is separate because `gh issue create` cannot set one, and the "Check Issue Type" workflow comments on any issue left without it.
+One call creates the issue with its type and labels, so it never exists untyped. `gh issue create` cannot set a type, and a hook in `.claude/settings.json` refuses it, along with any `gh api` POST to the issues collection that lacks `type=`. `-F body=@ticket.md` reads the body from the file; never pass `--body @-` or `-f body=@-`, which `gh` takes as literal text. Read the body back and check that it is the body you wrote.
 
 Labels: `system: sparkdown` (language, compiler, engine), `system: sparkle-ui` (layout, components, styles, reactive engine, DOM renderer), `app: web-editor` (editor and web player), `app: vscode-extension`, `documentation`. Apply every area the work touches.
 
