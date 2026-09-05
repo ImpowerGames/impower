@@ -65,7 +65,7 @@ export class Identifier {
             } else if (
               name.debugMetadata.endLineNumber ===
                 this.debugMetadata.endLineNumber &&
-              name.debugMetadata.endCharacterNumber <
+              name.debugMetadata.endCharacterNumber >
                 this.debugMetadata.endCharacterNumber
             ) {
               this.debugMetadata.endCharacterNumber =

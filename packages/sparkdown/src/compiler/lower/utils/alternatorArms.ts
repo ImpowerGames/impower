@@ -1,7 +1,7 @@
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 import { type SyntaxNode } from "@lezer/common";
 import { Divert } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Divert/Divert";
-import { Identifier } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Identifier";
+import { lowerDivertPath } from "./lowerDivertPath";
 import { ParsedObject } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Object";
 import { Tag } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Tag";
 import { Text } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Text";
@@ -23,21 +23,7 @@ function buildDivertFromTargetLiteral(
   node: SyntaxNode,
   ctx: LowerContext,
 ): Divert | null {
-  const parts: Identifier[] = [];
-  // Recursive in-order walk so `DivertPartName` nodes are collected in
-  // source order (`knot.stitch.choice`, not the reversed `choice.stitch.knot`
-  // that a stack-based DFS would produce).
-  const visit = (n: SyntaxNode): void => {
-    if (n.name === "DivertPartName") {
-      parts.push(new Identifier(ctx.read(n.from, n.to)));
-    }
-    let kid = n.firstChild;
-    while (kid) {
-      visit(kid);
-      kid = kid.nextSibling;
-    }
-  };
-  visit(node);
+  const parts = lowerDivertPath(node, ctx);
   if (parts.length === 0) return null;
   return new Divert(parts);
 }
