@@ -7,7 +7,11 @@
 // fallback, failure caching, and the byte cap — not the browser's rasterizer.
 
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { getImageCompositeSrc } from "../../compiler/utils/getImageComposite";
+import {
+  getImageCompositeSrc,
+  getImagePreviewMarkupComposited,
+} from "../../compiler/utils/getImageComposite";
+import { IMAGE_PREVIEW_HEIGHT } from "../../compiler/utils/getImagePreviewSrc";
 import {
   clampThumbnailWidth,
   thumbnailCacheKey,
@@ -262,5 +266,33 @@ describe("getImageCompositeSrc", () => {
     const ctx = makeContext("norender", ["base", "prop"]);
     const src = await getImageCompositeSrc(ctx, ctx.layered_image.bg);
     expect(src).toBeUndefined();
+  });
+});
+
+// The composited preview builds its own `<img>` rather than going through the
+// single-layer path, so it needs the same inline height. Without it the web
+// editor's `img { height: auto }` reset cancels the size and the thumbnail
+// collapses (#432).
+describe("getImagePreviewMarkupComposited", () => {
+  it("states the thumbnail height inline on the composited image", async () => {
+    stubRasterizer();
+    stubFetch();
+    const ctx = makeContext("markup", ["base", "prop"]);
+    const markup = await getImagePreviewMarkupComposited(
+      ctx,
+      ctx.layered_image.bg,
+    );
+    expect(markup).toContain("src=\"data:image/webp;base64,");
+    expect(markup).toContain(`style="height:${IMAGE_PREVIEW_HEIGHT}px"`);
+    expect(markup).toContain(`height="${IMAGE_PREVIEW_HEIGHT}"`);
+  });
+
+  it("states it on the single-layer fallback as well", async () => {
+    stubRasterizer();
+    stubFetch();
+    const ctx = makeContext("markupfallback", ["only"]);
+    // One layer is never composited, so this returns the plain preview.
+    const markup = await getImagePreviewMarkupComposited(ctx, ctx.image["only"]);
+    expect(markup).toContain(`style="height:${IMAGE_PREVIEW_HEIGHT}px"`);
   });
 });
