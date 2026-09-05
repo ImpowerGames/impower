@@ -421,6 +421,7 @@ function bracketPartners(command) {
   let backslashEscapes = true;
   let wordStart = true; // at the start of a word, where `#` opens a comment
   let arith = 0; // inside `$((...))` or `((...))`, where `<<` is a shift
+  let noCloseFrom = n; // offset from which no `"` has a closing partner
   for (let k = 0; k < n; k++) {
     const ch = command[k];
     if (inString) {
@@ -456,8 +457,12 @@ function bracketPartners(command) {
       continue;
     }
     if (ch === '"') {
-      backslashEscapes = scanQuote(command, k, true) >= 0;
-      if (backslashEscapes || scanQuote(command, k, false) >= 0) inString = true;
+      // The literal reading finds a partner whenever the escaping one does,
+      // so it is tried first; once it fails, no later quote closes either.
+      if (k < noCloseFrom && scanQuote(command, k, false) >= 0) {
+        backslashEscapes = scanQuote(command, k, true) >= 0;
+        inString = true;
+      } else noCloseFrom = Math.min(noCloseFrom, k);
       wordStart = false;
       continue;
     }
@@ -721,7 +726,7 @@ const TYPE_ENTRY = /(["']type["']\s*[:=]\s*\S|(^|[{;,(&\n\r])\s*type\s*=\s*\S)/;
  * A JSON body is parsed; anything else has its string values blanked first,
  * so prose inside a title or a body text does not count.
  */
-function bodyHasTypeField(body) {
+function bodyHasTypeField(body, powershell = false) {
   const inner = unwrapBody(body);
   if (/^[{[]/.test(inner)) {
     try {
@@ -743,7 +748,7 @@ function bodyHasTypeField(body) {
   // Every quoted or here-string value is blanked first (a one-character
   // placeholder when it has content, an empty string otherwise), then empty
   // type entries are dropped, then the entry regex runs on what is left.
-  const blanked = blankValues(inner).replace(/["']?type["']?\s*[:=]\s*(["'])\1/g, "");
+  const blanked = blankValues(inner, powershell).replace(/["']?type["']?\s*[:=]\s*(["'])\1/g, "");
   return TYPE_ENTRY.test(blanked);
 }
 
@@ -754,13 +759,16 @@ function bodyHasTypeField(body) {
  * here-string (`@"` or `@'` at a line end, through the matching `"@` or
  * `'@` at a line start); a here-string with no terminator is text. Quoted
  * text is consumed as a unit, so an `= @"` inside a value is never taken
- * for an opener, and every character is visited once. A hashtable body is
- * PowerShell, where a backslash is literal; any other body reads a
- * backslash as an escape when that reading reaches a closing quote.
+ * for an opener, and every character is visited once. A PowerShell body
+ * (the caller says which) reads a backslash as literal; a Bash body reads
+ * it as an escape while that reading keeps reaching closing quotes.
  */
-function blankValues(text) {
+function blankValues(text, powershell) {
   const n = text.length;
-  const powershell = text.startsWith("@{");
+  // Bash bodies read a backslash as an escape until that reading first
+  // fails to find a closing quote; from then on backslashes are literal,
+  // so each quote is scanned at most twice over the whole body.
+  let backslashEscapes = !powershell;
   const noTerminator = { '"': false, "'": false };
   let out = "";
   let k = 0;
@@ -784,7 +792,10 @@ function blankValues(text) {
     }
     if (ch === '"' || ch === "'") {
       let end = -1;
-      if (ch === '"' && !powershell) end = scanQuote(text, k, true);
+      if (ch === '"' && backslashEscapes) {
+        end = scanQuote(text, k, true);
+        if (end < 0) backslashEscapes = false;
+      }
       if (end < 0) end = scanQuote(text, k, false);
       const close = end < 0 ? n - 1 : end;
       if (isKey(close + 1)) out += text.slice(k, close + 1);
@@ -801,13 +812,21 @@ function blankValues(text) {
 /** Strips the wrappers a body may sit in (`(...)`, `$(...)`, `@(...)`, one layer of quotes) and unescapes the quotes inside. */
 function unwrapBody(body) {
   let s = body.trim();
-  for (let guard = 0; guard < 4; guard++) {
+  // `ConvertTo-Json`, with any flags, before or after (piped) the object.
+  const toJsonFlags = String.raw`(?:\s+-[\w-]+(?:\s+(?!-)[^\s@{(]\S*)?)*`;
+  const toJsonPrefix = new RegExp(String.raw`^convertto-json${toJsonFlags}\s+(?=[$@(]?[{(])`, "i");
+  const toJsonPipe = new RegExp(String.raw`\s*\|\s*convertto-json${toJsonFlags}\s*$`, "i");
+  for (let guard = 0; guard < 6; guard++) {
     if (/^[$@]?\(/.test(s) && s.endsWith(")")) {
       s = s.replace(/^[$@]?\(/, "").slice(0, -1).trim();
       continue;
     }
-    if (/^[A-Za-z][\w-]*\s+@?\{/.test(s)) {
-      s = s.replace(/^[A-Za-z][\w-]*\s+/, ""); // ConvertTo-Json @{...}
+    if (toJsonPipe.test(s)) {
+      s = s.replace(toJsonPipe, "").trim();
+      continue;
+    }
+    if (toJsonPrefix.test(s)) {
+      s = s.replace(toJsonPrefix, "").trim();
       continue;
     }
     if (s.length >= 3 && s.startsWith("$'") && s.endsWith("'")) {
@@ -901,7 +920,7 @@ function checkInvokeRestMethod(args) {
   const body = bodyText(args);
   const posts = /(^|\s)-method\s+post\b/i.test(joined) || body !== null;
   if (!posts) return null;
-  if (body !== null && bodyHasTypeField(body)) return null;
+  if (body !== null && bodyHasTypeField(body, true)) return null;
   return (
     "This creates an issue without an issue type (or from a body the hook cannot read). " +
     "Use the gh recipe instead: " + RECIPE
