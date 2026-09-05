@@ -439,19 +439,34 @@ function computePartners(command, suppressed) {
   // A group that is a PowerShell `-Flag`'s value (`-Body (...)`, `-Headers
   // @{...}`, `-Body:@{...}`) is PowerShell, where a backslash inside a
   // string is literal. A PowerShell flag word has a capital letter or at
-  // least three letters; a Bash short flag (`-n`, `-e`) does not count, and
-  // a `$(` is a substitution in either shell and never counts.
+  // least three letters; a Bash short flag (`-n`, `-e`) does not count. A
+  // `$(` counts only after a capitalised flag (`-Body $(...)`), since
+  // after a lowercase word it is as likely a Bash substitution (`find
+  // -name $(...)`). A backtick line continuation may separate the two.
   const flagValue = (at) => {
     if (suppressed.has(at)) return false;
     let j = at - 1;
-    if (command[j] === "$") return false;
-    if (command[j] === "@") j--;
-    while (j >= 0 && " \t".includes(command[j])) j--;
+    const dollar = command[j] === "$";
+    if (command[j] === "@" || dollar) j--;
+    for (;;) {
+      while (j >= 0 && " \t".includes(command[j])) j--;
+      if (j >= 1 && command[j] === "\n" && (command[j - 1] === "`" || (command[j - 1] === "\r" && command[j - 2] === "`"))) {
+        j -= command[j - 1] === "`" ? 2 : 3;
+        continue;
+      }
+      break;
+    }
     let start = j;
     while (start >= 0 && /[\w:-]/.test(command[start])) start--;
-    return /^-(?:[A-Z][\w-]*|[a-z][\w-]{2,}):?$/.test(command.slice(start + 1, j + 1));
+    const word = command.slice(start + 1, j + 1);
+    return dollar ? /^-[A-Z][\w-]*:?$/.test(word) : /^-(?:[A-Z][\w-]*|[a-z][\w-]{2,}):?$/.test(word);
   };
-  const inFlagValue = () => stack.some((e) => e.ps);
+  // Each stack entry carries whether it or any entry below it is a flag
+  // value, so the test is constant time.
+  const inFlagValue = () => stack.length > 0 && stack[stack.length - 1].psIn;
+  const push = (ch, at, resumesString, ps) => {
+    stack.push({ ch, at, resumesString, ps, psIn: ps || (stack.length > 0 && stack[stack.length - 1].psIn) });
+  };
   for (let k = 0; k < n; k++) {
     const ch = command[k];
     if (inString) {
@@ -464,12 +479,12 @@ function computePartners(command, suppressed) {
         continue;
       }
       if (ch === "$" && command[k + 1] === "(") {
-        stack.push({ ch: "(", at: k + 1, resumesString: true });
+        push("(", k + 1, true, false);
         inString = false;
         k++;
         if (command[k + 1] === "(") {
           arith++; // "$((1 << n))": a shift, not a here-doc
-          stack.push({ ch: "(", at: k + 1, resumesString: false });
+          push("(", k + 1, false, false);
           k++;
         }
       }
@@ -523,15 +538,15 @@ function computePartners(command, suppressed) {
     // parentheses are still paired normally.
     if (ch === "(" && command[k + 1] === "(") {
       arith++;
-      const ps = flagValue(k);
-      stack.push({ ch, at: k, resumesString: false, ps }, { ch, at: k + 1, resumesString: false, ps: false });
+      push(ch, k, false, flagValue(k));
+      push(ch, k + 1, false, false);
       k++;
       wordStart = false;
       continue;
     }
     if (ch === ")" && command[k + 1] === ")" && arith > 0) arith--;
     if (ch === "(" || ch === "{") {
-      stack.push({ ch, at: k, resumesString: false, ps: flagValue(k) });
+      push(ch, k, false, flagValue(k));
     } else if (ch === ")" || ch === "}") {
       const want = ch === ")" ? "(" : "{";
       // Pop back to the nearest opener of this kind; an unmatched closer

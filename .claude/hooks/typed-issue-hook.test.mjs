@@ -244,6 +244,9 @@ const denies = [
   ["an untyped body behind a ConvertTo-Json prefix with -Depth after it", "irm -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Body (ConvertTo-Json ([pscustomobject]@{title=\"x\"}) -Depth 10)"],
   ["an untyped compact hashtable whose value holds a closer and a flag-like word, with -Depth after", "irm -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Body (ConvertTo-Json @{title=\"x\";body=\"run (a) -Raw f\"} -Depth 5)"],
   ["a create after a $( ) following a short flag with an escaped quote", 'echo -n $(cmd "a \\") b") ; gh issue create -t x'],
+  ["a create after a $( ) following a lowercase find-style flag with an escaped quote", 'find . -name $(cmd "a \\") b") ; gh issue create -t x'],
+  ["a create after a $( ) following a lowercase flag cluster with an escaped quote", 'tar -xzf $(cmd "a \\") b") ; gh issue create -t x'],
+  ["an untyped -Body $( ) sub-expression with a trailing-backslash value followed by a ContentType", "irm -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Body $(ConvertTo-Json @{title=\"C:\\dist\\\"; body=\"x\"}) -ContentType \"application/json\""],
   ["an untyped curl create after an unbalanced flag group", 'echo -a @{ ; curl -X POST https://api.github.com/repos/ImpowerGames/impower/issues -d "{\\"title\\":\\"x\\",\\"body\\":\\"y\\"}"'],
   // A JSON string body is read with JSON escapes whichever shell sends it,
   // so this body, which is not valid JSON (a bare `\s` and a `\"` that
@@ -362,6 +365,10 @@ const allows = [
   ["a typed curl create inside a $( ) after a short flag with a closer in the body", 'echo -n $(curl -X POST https://api.github.com/repos/ImpowerGames/impower/issues -d "{\\"title\\":\\"x\\",\\"body\\":\\"step 1) do it\\",\\"type\\":\\"Bug\\"}")'],
   ["a typed double-parenthesised body followed by a header", "irm -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Body ((@{title=\"C:\\dist\\\"; type=\"Bug\"}) | ConvertTo-Json) -ContentType \"application/json\""],
   ["a typed double-parenthesised ConvertTo-Json prefix followed by a ContentType", "irm -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Body ((ConvertTo-Json @{title=\"C:\\dist\\\"; type=\"Bug\"})) -ContentType \"application/json\""],
+  ["a typed -Body $( ) sub-expression with a trailing-backslash value followed by a ContentType", "irm -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Body $(ConvertTo-Json @{title=\"C:\\dist\\\"; type=\"Bug\"}) -ContentType \"application/json\""],
+  ["a typed -Body $( ) pipe form with a trailing-backslash value followed by a header", "irm -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Body $(@{title=\"C:\\dist\\\"; type=\"Bug\"} | ConvertTo-Json) -Headers @{Accept=\"x\"}"],
+  ["a typed -Body after a backtick continuation with a trailing-backslash value and a header", "irm -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Body `\n(@{title=\"C:\\dist\\\"; type=\"Bug\"} | ConvertTo-Json) -ContentType \"application/json\""],
+  ["a typed create nested 4000 parentheses deep after a short flag", "echo -n " + "(".repeat(4000) + "\"a\" " + ")".repeat(4000) + "; gh api -X POST repos/ImpowerGames/impower/issues -f title=x -f type=Bug"],
   ["a typed body in the ConvertTo-Json -Depth:10 colon form", "irm -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Body (ConvertTo-Json -Depth:10 @{title='x'; type='Bug'})"],
   ["a typed body piped to ConvertTo-Json then Out-String", "irm -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Body (@{title='x'; type='Bug'} | ConvertTo-Json | Out-String)"],
   ["unparseable JSON with a quoted type key kept", 'curl -X POST https://api.github.com/repos/ImpowerGames/impower/issues -d \'{"type":"Bug","title":"x",}\''],
@@ -455,6 +462,7 @@ const allows = [
   guard("a command with 64000 unterminated double quotes after a $( ) in quotes", 'echo "$(date)" ' + '`"'.repeat(64000));
   guard("a command with 64000 backtick-escaped quotes in a row", "echo " + '"`=`'.repeat(64000) + " && gh issue view 443");
   guard("a 64 KB run of spaces inside a hashtable value", "irm -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Body @{title='x'; type='Bug'; body='" + " ".repeat(65536) + "'}");
+  guard("32000 nested parentheses holding 32000 strings after a short flag", "echo -n " + "( ".repeat(32000) + '"a" '.repeat(32000) + ") ".repeat(32000) + "; gh issue create -t x");
   guard("10000 shifts with named operands, then a typed create", Array.from({ length: 10000 }, (_, i) => `x=$((y << n${i}))`).join("\n") + "\ngh api -X POST repos/ImpowerGames/impower/issues -f title=x -f type=Bug");
   guard("32000 unbalanced groups after flags", "echo " + "-a ( ".repeat(32000));
   guard("32000 unbalanced hashtables after flags", "echo " + "-a @{ ".repeat(32000) + "}");
