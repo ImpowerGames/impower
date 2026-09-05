@@ -848,6 +848,12 @@ async function verify(args) {
       if (shot) {
         const out = path.resolve(shot);
         fs.mkdirSync(path.dirname(out), { recursive: true });
+        // verify's evidence is the game preview, but the editor pane is in
+        // the same picture; a settled view can still be unpainted, so wait
+        // for its lines and gutter and say so if they never came.
+        if (!(await editorPainted(page, 5_000))) {
+          result.editorPaintWarning = "the script editor had not painted its lines and gutter within 5s of the screenshot; the editor half of the picture may be blank";
+        }
         await page.screenshot({ path: out, fullPage: false });
         result.screenshot = out;
       }
@@ -1079,18 +1085,6 @@ async function editorExpectedHere(page) {
 }
 
 /**
- * For a step that captures or acts on whatever is on screen (a screenshot or
- * a key press): if an editor is expected here — or nothing has mounted yet to
- * say otherwise — it must be mounted and settled first, or the step reports
- * why not and the run fails. If a mounted pane says none is expected (another
- * screen, the `scripts` tab), the step proceeds; it is not the driver's place
- * to guess what the session wanted to capture there.
- *
- * The wait is paid once per run: after a step has settled the editor, later
- * steps re-check it in a second or so, and after a step has given up on it,
- * later steps fail at once and point at the first.
- */
-/**
  * A settled view is not yet a painted one: the identity and document length
  * can hold still while the editor has drawn nothing. A screenshot needs the
  * lines and the gutter on screen; this waits for them.
@@ -1111,6 +1105,19 @@ async function editorPainted(page, timeout = 5_000) {
     .then(() => true, () => false);
 }
 
+/**
+ * For a step that captures or acts on whatever is on screen (a screenshot or
+ * a key press): if an editor is expected here — or nothing has mounted yet to
+ * say otherwise — it must be mounted and settled first, or the step reports
+ * why not and the run fails. If a mounted pane says none is expected (another
+ * screen, the `scripts` tab), the step proceeds; it is not the driver's place
+ * to guess what the session wanted to capture there.
+ *
+ * The wait is paid once per run: after a step has settled the editor, later
+ * steps re-check it in a second or so, and after a step has given up on it,
+ * later steps fail at once and point at the first. A screenshot alone also
+ * waits for the editor to paint.
+ */
 function editorGate({ expected = editorExpectedHere, present = scriptEditorPresent, settle = settleEditor, painted = editorPainted } = {}) {
   let settledOnce = false;
   // What the first failed step found, and which step it was, so later steps
@@ -1157,7 +1164,7 @@ function editorGate({ expected = editorExpectedHere, present = scriptEditorPrese
     // A settled view can still be unpainted; a screenshot of it is a picture
     // of nothing, so the capture step alone also waits for the paint.
     if (what === "screenshot" && !(await painted(page, 5_000))) {
-      return { required: true, ok: false, reason: "the script editor is mounted and settled but has not painted its lines and gutter within 5s; this screenshot would have captured an empty pane. Re-run; if it persists the machine is saturated" };
+      return { required: true, ok: false, reason: "the script editor is mounted and settled but has not painted its lines and gutter within 5s; this screenshot would have shown an unpainted editor pane. Re-run; if it persists the machine is saturated" };
     }
     return { required: true, ok: true };
   };
@@ -1423,7 +1430,7 @@ async function toggleSurfaceOption(page, name) {
  * content being mounted (for a main screen) or the tab reporting selected (for
  * an inner tab); the screen tab's own highlight is not trusted, see SCREENS.
  */
-async function switchScreen(page, name, { followedBySwitch = false } = {}) {
+async function switchScreen(page, name, { followedByMain = false } = {}) {
   const tab = page.locator(tabSelector(name)).first();
   try {
     await tab.waitFor({ state: "visible", timeout: 10_000 });
@@ -1480,11 +1487,12 @@ async function switchScreen(page, name, { followedBySwitch = false } = {}) {
     : await page.evaluate(() => document.querySelector(".sparkdown-script-editor-root .cm-content") != null);
   if (landsOnEditor && !editorHere) {
     // The tab is up but the editor it should carry never mounted: a switch
-    // that reads as a success here would let a later screenshot lie. When
-    // another switch follows at once, that one carries the wait and the
-    // verdict, and this is a note.
+    // that reads as a success here would let a later screenshot lie. In the
+    // documented pair `--screen logic --screen main`, the main switch that
+    // follows waits for the editor and gives the verdict, so this is a note;
+    // any other following step does not, so this is a failure.
     const text = `the ${name} tab is up but no script editor mounted within 20s`;
-    if (followedBySwitch) return { screen: name, active: true, settled, editorHere: false, note: `${text}; the switch that follows waits for it` };
+    if (name === "logic" && followedByMain) return { screen: name, active: true, settled, editorHere: false, note: `${text}; the --screen main that follows waits for it` };
     return { screen: name, active: true, settled, editorHere: false, reason: `${text}. Re-run; if it persists the machine is saturated` };
   }
   if (editorHere) {
@@ -1758,7 +1766,7 @@ async function ui(args) {
             // In the documented recovery pair `--screen logic --screen main`,
             // the logic switch has no business failing for an editor the
             // main switch is about to wait for.
-            const switched = await switchScreen(page, step.screen, { followedBySwitch: steps[index + 1]?.screen != null });
+            const switched = await switchScreen(page, step.screen, { followedByMain: steps[index + 1]?.screen === "main" });
             if (switched.editorSettled) requireEditor.noteSettled();
             result.steps.push(switched);
           } else if (step.open) {

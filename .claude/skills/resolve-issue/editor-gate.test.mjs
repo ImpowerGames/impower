@@ -18,13 +18,20 @@
 // full budgets; the budgets must be the ones the message names; a page with
 // no pane mounted counts as an editor still to come; navigational advice
 // ("put --screen main before this step") must survive into the gate's
-// message while the generic advice is said once; and a screen switch that
-// settled the editor counts for the once-per-run rule.
+// message while the generic advice is said once; a screen switch that
+// settled the editor counts for the once-per-run rule; a settled but
+// unpainted editor fails only a screenshot; and a reload resets the gate.
+//
+// The last case drives switchScreen itself with a stub page whose evaluate
+// and waitForFunction answer by the source text of the function they are
+// handed, so the recovery pair's note branch — a `--screen logic` whose
+// editor never mounts is a note only when `--screen main` follows — is pinned
+// without a browser.
 //
 // Node's built-in assert only.
 
 import assert from "node:assert/strict";
-import { editorAbsentReason, editorGate } from "./driver.mjs";
+import { editorAbsentReason, editorGate, switchScreen } from "./driver.mjs";
 
 let failures = 0;
 const check = async (name, fn) => {
@@ -156,7 +163,7 @@ await check("a settled but unpainted editor fails a screenshot and no other step
   const { gate, calls } = script({ expected: [true, true], present: [true, true], settle: [true, true], painted: [false] });
   const shot = await gate(page, "screenshot", 1);
   assert.equal(shot.ok, false);
-  assert.match(shot.reason, /has not painted its lines and gutter within 5s; this screenshot would have captured an empty pane/);
+  assert.match(shot.reason, /has not painted its lines and gutter within 5s; this screenshot would have shown an unpainted editor pane/);
   noRepeats(shot.reason);
   // A key press on the same page needs no paint and proceeds.
   assert.deepEqual(await gate(page, "key press", 2), { required: true, ok: true });
@@ -196,6 +203,47 @@ await check("a page that never mounts a pane is told to re-run, not to switch sc
   const r2 = await late.gate(page, "screenshot", 1);
   assert.match(r2.reason, /within 20s \(the script editor is not on screen \(active screen: assets, tab: files\)\); put --screen logic before this step$/);
   assert.doesNotMatch(r2.reason, /no pane had mounted/);
+});
+
+// A page on the logic screen with the main tab selected and no script editor
+// mounted, answering by the source of the function it is handed. The
+// editor-presence wait (the only waitForFunction that reads cmTile) rejects,
+// as Playwright's does on timeout; everything else answers at once.
+const editorlessLogicPage = () => {
+  const evaluated = [];
+  return {
+    evaluated,
+    locator: () => ({ first: () => ({ waitFor: async () => {}, click: async () => {} }) }),
+    waitForFunction: async (fn) => {
+      const src = String(fn);
+      if (src.includes("cmTile")) throw new Error("Timeout 20000ms exceeded");
+      return true;
+    },
+    evaluate: async (fn) => {
+      const src = String(fn);
+      evaluated.push(src);
+      if (src.includes("MutationObserver")) return true; // waitForDomQuiet
+      if (src.includes("Object.entries(screens)")) return ["logic"]; // mountedScreens
+      if (src.includes('["logic", "assets", "share"]')) return "main"; // the selected inner tab
+      if (src.includes("-trigger-main")) return true; // main tab selected or absent
+      if (src.includes('.cm-content") != null')) return false;
+      throw new Error(`stub page asked something it has no answer for: ${src.slice(0, 80)}`);
+    },
+  };
+};
+
+await check("a --screen logic whose editor never mounts is a note only when --screen main follows, and a failure otherwise; --screen main itself never gets the note", async () => {
+  const paired = await switchScreen(editorlessLogicPage(), "logic", { followedByMain: true });
+  assert.equal(paired.active, true);
+  assert.equal(paired.editorHere, false);
+  assert.equal(paired.reason, undefined);
+  assert.match(paired.note, /the logic tab is up but no script editor mounted within 20s; the --screen main that follows waits for it$/);
+  const alone = await switchScreen(editorlessLogicPage(), "logic", { followedByMain: false });
+  assert.equal(alone.note, undefined);
+  assert.match(alone.reason, /the logic tab is up but no script editor mounted within 20s\. Re-run; if it persists the machine is saturated$/);
+  const main = await switchScreen(editorlessLogicPage(), "main", { followedByMain: true });
+  assert.equal(main.note, undefined);
+  assert.match(main.reason, /the main tab is up but no script editor mounted within 20s\. Re-run/);
 });
 
 if (failures > 0) {
