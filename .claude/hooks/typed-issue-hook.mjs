@@ -144,9 +144,12 @@ export function tokenize(command) {
     if (c === '"') {
       begin(i);
       quoted = true;
+      // Backslash escapes apply only when they lead to a closing quote;
+      // otherwise this is a PowerShell string where backslash is literal.
+      const backslashEscapes = scanQuote(command, i, true) >= 0;
       i++;
       while (i < n && command[i] !== '"') {
-        if (command[i] === "\\" && i + 1 < n && '"\\$`\n'.includes(command[i + 1])) {
+        if (backslashEscapes && command[i] === "\\" && i + 1 < n && '"\\$`\n'.includes(command[i + 1])) {
           i++;
           if (command[i] !== "\n") text += command[i];
           i++;
@@ -364,40 +367,101 @@ function matchParen(command, open) {
   return matchBracket(command, open, "(", ")");
 }
 
-// A group scan gives up after this many characters, so a run of unbalanced
-// openers costs a bounded amount each rather than a rescan to the end.
-const GROUP_SCAN_LIMIT = 8192;
-
 /**
- * Index of the closing bracket matching the opener at `open`, skipping
- * quoted text (with Bash backslash and PowerShell backtick escapes, and
- * doubled apostrophes), or the end of the string when unbalanced.
+ * Index of the closing bracket matching the opener at `open`, or the end of
+ * the string when unbalanced. Partners come from one quote-aware pass over
+ * the command (cached for the last command seen), so every lookup is
+ * constant time and a run of unbalanced openers costs nothing extra.
  */
 function matchBracket(command, open, openCh, closeCh) {
+  const partner = bracketPartners(command).get(open);
+  return partner === undefined ? command.length : partner;
+}
+
+let partnerCacheKey = null;
+let partnerCache = null;
+
+/**
+ * Map from the index of every balanced `(` or `{` to the index of its
+ * partner. Quoted text is skipped, except that a `$(` inside double quotes
+ * opens a substitution whose contents are code again until its partner.
+ */
+function bracketPartners(command) {
+  if (partnerCacheKey === command) return partnerCache;
+  const map = new Map();
+  const stack = []; // { ch, at, resumesString }
   const n = command.length;
-  if (command.lastIndexOf(closeCh) < open) return n;
-  const limit = Math.min(n, open + GROUP_SCAN_LIMIT);
-  let depth = 0;
-  for (let k = open; k < limit; k++) {
+  let inString = false; // inside double quotes
+  let backslashEscapes = true;
+  for (let k = 0; k < n; k++) {
     const ch = command[k];
-    if (ch === "'" || ch === '"') {
-      const end = closingQuote(command, k);
-      if (end < 0) return n;
+    if (inString) {
+      if (ch === "`" || (backslashEscapes && ch === "\\")) {
+        k++;
+        continue;
+      }
+      if (ch === '"') {
+        inString = false;
+        continue;
+      }
+      if (ch === "$" && command[k + 1] === "(") {
+        stack.push({ ch: "(", at: k + 1, resumesString: true });
+        inString = false;
+        k++;
+      }
+      continue;
+    }
+    if (ch === "'") {
+      const end = scanQuote(command, k, false);
+      if (end < 0) break;
       k = end;
       continue;
     }
-    if (ch === openCh) depth++;
-    else if (ch === closeCh && --depth === 0) return k;
+    if (ch === '"') {
+      inString = true;
+      backslashEscapes = scanQuote(command, k, true) >= 0;
+      continue;
+    }
+    if (ch === "(" || ch === "{") stack.push({ ch, at: k, resumesString: false });
+    else if (ch === ")" || ch === "}") {
+      const want = ch === ")" ? "(" : "{";
+      // Pop back to the nearest opener of this kind; an unmatched closer
+      // of the other kind is ignored.
+      let j = stack.length - 1;
+      while (j >= 0 && stack[j].ch !== want) j--;
+      if (j >= 0) {
+        map.set(stack[j].at, k);
+        if (stack[j].resumesString) inString = true;
+        stack.length = j;
+      }
+    }
   }
-  return n;
+  partnerCacheKey = command;
+  partnerCache = map;
+  return map;
 }
 
-/** Index of the quote that closes the string opened at `open`, or -1. */
+/**
+ * Index of the quote that closes the string opened at `open`, or -1. Inside
+ * double quotes a backtick escapes the next character (PowerShell) and so
+ * does a backslash (Bash); when the backslash rule finds no closing quote,
+ * the string is read again with backslashes literal, which is how a
+ * PowerShell value ending in a path separator closes.
+ */
 function closingQuote(command, open) {
+  const q = command[open];
+  if (q === '"') {
+    const withBackslash = scanQuote(command, open, true);
+    return withBackslash >= 0 ? withBackslash : scanQuote(command, open, false);
+  }
+  return scanQuote(command, open, false);
+}
+
+function scanQuote(command, open, backslashEscapes) {
   const q = command[open];
   for (let k = open + 1; k < command.length; k++) {
     const ch = command[k];
-    if (q === '"' && (ch === "\\" || ch === "`")) {
+    if (q === '"' && (ch === "`" || (backslashEscapes && ch === "\\"))) {
       k++;
       continue;
     }
@@ -614,14 +678,18 @@ function bodyHasTypeField(body) {
       // lenient text check below.
     }
   }
-  if (!/^[{[@(]/.test(inner) && inner.includes("=")) {
+  if (/^[A-Za-z_][^{[@(\s"'=]*=/.test(inner)) {
     // Form-encoded data: title=x&type=Bug
     const type = new URLSearchParams(inner).get("type");
     return typeof type === "string" && type.length > 0;
   }
+  // Anything else is a hashtable or JSON-like text; prose is not a body.
+  if (!/^(@?\{|\[)/.test(inner)) return false;
   const blanked = inner
     .replace(/["']?type["']?\s*[:=]\s*(["'])\1/g, "") // an empty type value is no type
-    .replace(/([:=]\s*)(["'])(?:(?!\2)[^\\]|\\.)*\2/g, "$1$2$2");
+    .replace(/([:=]\s*)@(["'])[\s\S]*?\r?\n\2@/g, "$1$2$2") // here-string value
+    .replace(/([:=]\s*)"(?:[^"\\]|\\.)*"/g, '$1""')
+    .replace(/([:=]\s*)'(?:[^']|'')*'/g, "$1''");
   return TYPE_ENTRY.test(blanked);
 }
 
@@ -872,7 +940,7 @@ export function decide(command, depth = 0) {
 /** Splits a glued PowerShell assignment (`$x=gh ...`, or `$x =gh ...`) into the assignment and the program token, in place. */
 function splitPsAssignments(seg) {
   const out = [];
-  const head = /^(\$(?:[A-Za-z_][A-Za-z0-9_:]*|\{[^}]+\})[+-]?=)(.+)$/;
+  const head = /^\$(?:[A-Za-z_][A-Za-z0-9_:]*|\{[^}]+\})[+-]?=/;
   for (let k = 0; k < seg.length; k++) {
     let tok = seg[k];
     if (tok.quoted) {
@@ -880,11 +948,13 @@ function splitPsAssignments(seg) {
       continue;
     }
     let m = tok.text.match(head);
-    if (!m && k > 0 && PS_ASSIGN.test(seg[k - 1].text) && !seg[k - 1].text.includes("=")) m = tok.text.match(/^([+-]?=)(.+)$/);
-    // A chained `$x=$y=gh` splits once per assignment; each step shortens the tail.
-    while (m) {
-      out.push({ ...tok, text: m[1], end: tok.start + m[1].length });
-      tok = { ...tok, text: m[2], start: tok.start + m[1].length };
+    if (!m && k > 0 && PS_ASSIGN.test(seg[k - 1].text) && !seg[k - 1].text.includes("=")) m = tok.text.match(/^[+-]?=/);
+    // A chained `$x=$y=gh` splits once per assignment; each step shortens
+    // the tail, and only the head is matched, so the cost is linear.
+    while (m && m[0].length < tok.text.length) {
+      const len = m[0].length;
+      out.push({ ...tok, text: m[0], end: tok.start + len });
+      tok = { ...tok, text: tok.text.slice(len), start: tok.start + len };
       m = tok.text.match(head);
     }
     out.push(tok);

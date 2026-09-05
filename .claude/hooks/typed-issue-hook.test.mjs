@@ -210,6 +210,11 @@ const denies = [
   ["curl -w before -d", "curl -w '%{http_code}' -d '{\"title\":\"x\"}' https://api.github.com/repos/ImpowerGames/impower/issues"],
   ["curl -su before -d", "curl -su user:pass -d '{\"title\":\"x\"}' https://api.github.com/repos/ImpowerGames/impower/issues"],
   ["curl form data with an apostrophe and '(type=Bug)' in the title", 'curl -X POST https://api.github.com/repos/ImpowerGames/impower/issues -d "title=Support (type=Bug) in someone\'s editor&body=z"'],
+  ["curl raw prose body starting with (type=Bug)", "curl -X POST https://api.github.com/repos/ImpowerGames/impower/issues -d '(type=Bug) in the title crashes the parser'"],
+  ["hashtable body whose here-string value has a line starting type=Bug", "irm -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Body @{\n  title = 'Hook allows an untyped body'\n  body = @'\nThe form field is filled in as\ntype=Bug\nand then submitted.\n'@\n}"],
+  ["parenthesised hashtable body whose double-quoted here-string has an indented type= line", "irm -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Body (@{\n  title = 'x'\n  body  = @\"\nRepro:\n    type = Bug\n\"@\n} | ConvertTo-Json)"],
+  ["untyped create after a 9 KB $( ) inside double quotes", 'echo "$(printf %s \'' + "y".repeat(9000) + '\')" && gh issue create --title x'],
+  ["untyped api create after a 9 KB $( ) inside double quotes on the next line", 'echo "$(printf %s \'' + "y".repeat(9000) + '\')"\ngh api -X POST repos/ImpowerGames/impower/issues -f title=x'],
 ];
 
 const allows = [
@@ -326,22 +331,32 @@ const allows = [
   ["Invoke-RestMethod typed newline-separated hashtable body", "Invoke-RestMethod -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Body (@{\n  title = 'x'\n  type  = 'Bug'\n} | ConvertTo-Json)"],
   ["Invoke-RestMethod typed hashtable with a backtick-escaped quote in a value", 'irm -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Body @{title="5`" display"; type=\'Bug\'}'],
   ["Invoke-RestMethod typed hashtable with a doubled apostrophe in a value", "irm -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Body @{title='it''s'; type='Bug'}"],
+  ["Invoke-RestMethod typed hashtable with a value ending in a backslash", 'irm -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Body @{title=\'x\'; type=\'Bug\'; log="C:\\logs\\"}'],
+  ["Invoke-RestMethod typed hashtable with a Windows path value", 'irm -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Body @{title=\'x\'; path="C:\\src\\file.md"; type=\'Bug\'}'],
+  ["Invoke-RestMethod typed hashtable with a single-quoted path ending in a backslash", "irm -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Body @{title='x'; path='C:\\src\\'; type='Bug'}"],
+  ["typed 9 KB hashtable body", "irm -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Body @{title='x'; type='Bug'; body='" + "z".repeat(9000) + "'}"],
+  ["typed 9 KB parenthesised body", "irm -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Body (@{title='x'; type='Bug'; body='" + "z".repeat(9000) + "'} | ConvertTo-Json)"],
+  ["typed 9 KB -Body: value", "irm -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Body:@{title='x'; type='Bug'; body='" + "z".repeat(9000) + "'}"],
+  ["typed api create with a 9 KB $( ) title", "gh api -X POST repos/ImpowerGames/impower/issues -f \"title=$(printf '%s' '" + "z".repeat(9000) + "')\" -f type=Bug"],
+  ["curl -w with -d as its value", "curl -w -d out.json https://api.github.com/repos/ImpowerGames/impower/issues"],
+  ["curl -u with -d as its value", "curl -u -d out.json https://api.github.com/repos/ImpowerGames/impower/issues"],
   ["empty command", ""],
 ];
 
-// Splitting glued PowerShell assignments must stay linear in the segment
-// (the quadratic version took over ten seconds at this size), and a run of
-// unbalanced groups after flags must cost a bounded amount each.
+// These shapes must stay linear: the quadratic versions took ten seconds or
+// more at these sizes, so a two-second budget leaves an order of magnitude
+// of headroom for a slow runner.
 {
-  let t0 = Date.now();
-  decide(Array.from({ length: 128000 }, (_, i) => `$a${i}=1`).join(" ") + " gh issue view 443");
-  check(Date.now() - t0 < 2000, "128000 glued PowerShell assignments decide in under 2 s", `${Date.now() - t0} ms`);
-  t0 = Date.now();
-  decide("echo " + "-a ( ".repeat(16000));
-  check(Date.now() - t0 < 2000, "16000 unbalanced groups after flags decide in under 2 s", `${Date.now() - t0} ms`);
-  t0 = Date.now();
-  decide("echo " + "-a @{ ".repeat(16000) + "}");
-  check(Date.now() - t0 < 2000, "16000 unbalanced hashtables after flags decide in under 2 s", `${Date.now() - t0} ms`);
+  const guard = (label, command) => {
+    const t0 = Date.now();
+    decide(command);
+    check(Date.now() - t0 < 2000, `${label} decide in under 2 s`, `${Date.now() - t0} ms`);
+  };
+  guard("128000 glued PowerShell assignments", Array.from({ length: 128000 }, (_, i) => `$a${i}=1`).join(" ") + " gh issue view 443");
+  guard("40000 chained PowerShell assignments in one token", "$a=".repeat(40000) + "gh issue view 443");
+  guard("32000 unbalanced groups after flags", "echo " + "-a ( ".repeat(32000));
+  guard("32000 unbalanced hashtables after flags", "echo " + "-a @{ ".repeat(32000) + "}");
+  guard("32000 balanced groups after flags", "echo " + "-a (1) ".repeat(32000));
 }
 
 // The backtick scan inside a double-quoted string must stay linear.
