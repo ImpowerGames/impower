@@ -662,6 +662,17 @@ async function verify(args) {
       await page.goto(url, { waitUntil: "domcontentloaded", timeout: 120_000 });
       const shell = await ensureScriptEditor(page);
       if (shell.switched) result.switchedToLogic = true;
+      if (!shell.present) {
+        // No editor, no scrub, no evidence: say so in the report rather than
+        // dying in a Playwright timeout with nothing printed.
+        result.gameMounted = false;
+        result.error = shell.reason;
+        result.preview = await previewSummary(page).catch(() => null);
+        console.log(JSON.stringify(result, null, 2));
+        process.exitCode = 1;
+        return result;
+      }
+      result.editorSettled = shell.settled;
 
       if (sdPath) {
         const src = fs.readFileSync(path.resolve(sdPath), "utf8");
@@ -669,7 +680,15 @@ async function verify(args) {
         // Reload so loadInitialFiles re-reads OPFS, then let the LSP + player
         // finish their first compile.
         await page.reload({ waitUntil: "domcontentloaded", timeout: 120_000 });
-        await ensureScriptEditor(page);
+        const again = await ensureScriptEditor(page);
+        if (!again.present) {
+          result.gameMounted = false;
+          result.error = again.reason;
+          console.log(JSON.stringify(result, null, 2));
+          process.exitCode = 1;
+          return result;
+        }
+        result.editorSettled = again.settled;
       }
 
       await page
@@ -825,8 +844,14 @@ const SURFACES = {
 // at all (MainWindow.tsx pins the tab row to a non-matching value until the
 // workspace reports ready), so the tab says "none" while the logic screen is
 // plainly showing. Each pane mounts its own inner tab row and nothing else
-// does, so that row is the marker.
-const SCREENS = { logic: "main", assets: "files", share: "game" };
+// does, so that row is the marker; the logic pane's fullscreen scripts view
+// (Logic.tsx, view "logic-editor") mounts no tab row but does mount a script
+// editor, so that counts for logic too. The Router mounts one pane at a time.
+const SCREENS = {
+  logic: '[role="tab"][id$="-trigger-main"], .cm-content',
+  assets: '[role="tab"][id$="-trigger-files"]',
+  share: '[role="tab"][id$="-trigger-game"]',
+};
 const tabSelector = (value) => `[role="tab"][id$="-trigger-${value}"]`;
 const SHOT_TARGETS = { find: SURFACES.find.selector, goto: SURFACES.goto.selector, editor: ".cm-editor", page: null };
 
@@ -913,10 +938,10 @@ async function activeScreen(page) {
   return mounted.length === 1 ? mounted[0] : null;
 }
 
-/** Every main screen whose content is mounted; more than one means a transition is in flight. */
+/** Every main screen whose content is mounted; empty while no pane is. */
 async function mountedScreens(page) {
   return page.evaluate(
-    (screens) => Object.entries(screens).filter(([, marker]) => document.querySelector(`[role="tab"][id$="-trigger-${marker}"]`)).map(([name]) => name),
+    (screens) => Object.entries(screens).filter(([, selector]) => document.querySelector(selector)).map(([name]) => name),
     SCREENS,
   );
 }
@@ -926,7 +951,7 @@ async function mountedScreens(page) {
  * by the persistent profile across runs. A command that needs the editor
  * cannot assume it is there; this says whether it is, and why not.
  */
-async function scriptEditorPresent(page, timeout = 10_000) {
+async function scriptEditorPresent(page, timeout = 4_000) {
   try {
     await page.waitForFunction(() => document.querySelector(".cm-content")?.cmTile?.view != null, null, { timeout });
     return { present: true };
@@ -987,20 +1012,31 @@ async function settleEditor(page, timeout = 30_000) {
 async function ensureScriptEditor(page) {
   await waitForApp(page);
   let switched = false;
-  const first = await scriptEditorPresent(page, 15_000);
+  let first = await scriptEditorPresent(page, 15_000);
   if (!first.present) {
-    const logic = page.locator(tabSelector("logic")).first();
-    if (await logic.isVisible().catch(() => false)) {
-      await logic.click();
-      switched = true;
+    // The editor lives on the logic screen's `main` tab. Clicking the logic
+    // screen tab only changes the screen (WorkspaceWindow.openPane sets the
+    // pane, not the panel), so a profile left on the `scripts` tab needs the
+    // inner tab clicked as well.
+    for (const value of ["logic", "main"]) {
+      const tab = page.locator(tabSelector(value)).first();
+      if (!(await tab.isVisible().catch(() => false))) continue;
+      const selected = (await tab.getAttribute("aria-selected")) === "true";
+      if (value === "main" && selected) continue;
+      await tab.click();
       await waitForDomQuiet(page, { quiet: 600, timeout: 10_000 });
+      first = await scriptEditorPresent(page, 15_000);
+      if (first.present) {
+        switched = true;
+        break;
+      }
     }
-    await waitForEditor(page);
   }
+  if (!first.present) return { present: false, switched, reason: first.reason };
   // The view can be replaced when the document arrives, on a cold load as
   // much as after a switch, so settle it on every path.
   const settled = await settleEditor(page);
-  return { switched, settled };
+  return { present: true, switched, settled };
 }
 
 function surfaceOf(name) {
@@ -1174,11 +1210,7 @@ async function switchScreen(page, name) {
   const isMain = name in SCREENS;
   try {
     if (isMain) {
-      await page.waitForFunction(
-        (marker) => document.querySelector(`[role="tab"][id$="-trigger-${marker}"]`) != null,
-        SCREENS[name],
-        { timeout: 10_000 },
-      );
+      await page.waitForFunction((selector) => document.querySelector(selector) != null, SCREENS[name], { timeout: 10_000 });
     } else {
       await page.locator(`${tabSelector(name)}[aria-selected="true"]`).first().waitFor({ state: "attached", timeout: 10_000 });
     }
@@ -1400,9 +1432,18 @@ async function ui(args) {
               // same-origin mode (window.__preview); elsewhere waiting on it
               // would burn the full timeout for nothing.
               out.editorSettled = await settleEditor(page);
-              const observable = await page.evaluate(() => window.__preview != null);
-              if (observable) out.previewSettled = (await waitForPreviewSettle(page)).settled;
-              else out.previewSettled = null;
+              // window.__preview is installed by the game preview's own effect,
+              // a moment after mount, and never in cross-origin mode or while
+              // the preview is in screenplay mode; wait for it, then give up.
+              const observable = await page
+                .waitForFunction(() => window.__preview != null, null, { timeout: 15_000 })
+                .then(() => true, () => false);
+              if (observable) {
+                out.previewSettled = (await waitForPreviewSettle(page)).settled;
+              } else {
+                out.previewSettled = null;
+                out.previewNote = "the game preview is not observable (cross-origin mode, or the preview is showing the screenplay), so the first compile was not waited for";
+              }
               if (!out.editorSettled) out.reason = "the script editor never settled within 30s after the reload; later steps may have hit a view that was being replaced";
             } else {
               out.reason = editor.reason;
@@ -1483,9 +1524,9 @@ async function redgreenCli(args) {
         }
       })();
       die(
-        top && sameDir(top, cwd)
-          ? `redgreen: run it from this driver's own worktree root (${REPO_ROOT}), not from ${cwd}, which is a different checkout`
-          : `redgreen: run from the repository root (${top ?? REPO_ROOT}), not from ${cwd}; --files paths and the test command resolve from there`,
+        top && !sameDir(top, REPO_ROOT)
+          ? `redgreen: run it from this driver's own worktree root (${REPO_ROOT}), not from ${cwd}, which is inside a different checkout (${top})`
+          : `redgreen: run from the repository root (${REPO_ROOT}), not from ${cwd}; --files paths and the test command resolve from there`,
       );
     }
     report = runRedGreen({
@@ -1592,7 +1633,7 @@ switch (cmd) {
         "",
         "ui steps (run in the order given, then every surface is read back):",
         "  --sd <file.sd>          load this script into OPFS /local/main.sd, then reload",
-        "  --screen <name>         click a main tab: logic | assets | share",
+        "  --screen <name>         click a tab: logic | assets | share, or one inside a pane: main | scripts | files | urls | game | screenplay",
         "  --open <panel>          open a panel on its shortcut: find (Ctrl+F) | goto (Ctrl+G)",
         "  --close <panel>         close it with Escape",
         "  --type <field>=<text>   real keystrokes into search | replace | line; \\n = Ctrl+Enter",

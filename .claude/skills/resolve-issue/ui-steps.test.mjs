@@ -6,9 +6,11 @@
 // The failure this guards against: a flag with a missing or empty value used
 // to produce a step that matched no branch and vanished, so `ui --sd` or
 // `--type "=Hello"` printed a clean report saying the run did nothing, which
-// the skill reads as a pass. And an unknown panel, field, button, screen or
+// the skill reads as a pass. And an unknown panel, field, button or
 // screenshot target used to throw from inside the step loop, after the
 // browser was up and earlier steps had run, taking the whole report with it.
+// A screen name is only shape-checked here: whether the tab exists is decided
+// at run time, where the failure lists the tabs present.
 //
 // Pure function, no browser. Node's built-in assert only.
 
@@ -61,7 +63,7 @@ check("a flag with a missing or empty value is refused, not dropped", () => {
   assert.throws(() => parseUiSteps(["--type", "Hello"]), /field=text/);
 });
 
-check("an unknown panel, field, button, toggle, screen or shot target is refused by name", () => {
+check("an unknown panel, field, button, toggle or shot target is refused by name (a screen is checked at run time)", () => {
   assert.throws(() => parseUiSteps(["--open", "finnd"]), /unknown panel "finnd"/);
   assert.throws(() => parseUiSteps(["--close", "search"]), /unknown panel "search"/);
   assert.throws(() => parseUiSteps(["--type", "serch=x"]), /unknown field "serch"/);

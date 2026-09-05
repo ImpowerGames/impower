@@ -159,11 +159,16 @@ export function runTest(cmd, cwd, shell = testShell()) {
  * patterns are word-bounded: `/toBe/i` on its own matches "October".
  */
 export function classifyRedFailure(output) {
+  // Node could not find the script it was handed: every "Cannot find module"
+  // block carries an empty requireStack. One block with a non-empty stack is
+  // a test whose own import broke, which is the §5b case, not a shell one.
+  const moduleBlocks = [...output.matchAll(/Cannot find module '[^']+'[^{}]*\{[^{}]*requireStack: \[([^\]]*)\]/g)];
+  const missingEntryScript = moduleBlocks.length > 0 && moduleBlocks.every((m) => m[1].trim() === "");
   if (
     /^(?:bash|sh|zsh|\/bin\/sh|\/usr\/bin\/bash)(?:: line \d+)?: .*: (?:command not found|No such file or directory)/im.test(output) ||
     /is not recognized as an internal or external command/i.test(output) ||
     /npm ERR! Missing script:|npm error Missing script:/i.test(output) ||
-    /Cannot find module '[^']+'[\s\S]*?requireStack: \[\]/.test(output)
+    missingEntryScript
   ) {
     return "shell";
   }
@@ -180,7 +185,9 @@ export function classifyRedFailure(output) {
   if (/\bSyntaxError\b|Unexpected token|\bTS\d{4}:/i.test(output)) {
     return "syntax";
   }
-  if (/Worker exited unexpectedly|JavaScript heap out of memory|FATAL ERROR:|Segmentation fault|\bkilled\b/i.test(output)) {
+  // Anchored to how a runner reports its own death, at the start of a line:
+  // a test name or an assertion diff can carry any of these words mid-line.
+  if (/^\s*(?:Error: )?Worker exited unexpectedly|^FATAL ERROR: |heap out of memory|^Segmentation fault|^Killed$/im.test(output)) {
     return "crash";
   }
   if (
@@ -280,7 +287,13 @@ export function runRedGreen({ repoRoot, test, files, base = "HEAD", snapshotDir,
       try {
         if (e.reverted) {
           const nowSha = shaOnDisk(e.abs);
-          if (nowSha !== e.baseSha) {
+          if (nowSha == null && e.baseSha != null) {
+            // Deleted while reverted. Nothing of anyone's is in the file to
+            // lose, so it is recreated from the snapshot and noted.
+            report.problems.push(
+              `${e.path} was deleted while it was reverted (by the test run or something alongside it). Recreated from the snapshot; check that whatever deleted it was not meant to.`,
+            );
+          } else if (nowSha !== e.baseSha) {
             e.changedDuringRed = true;
             report.problems.push(
               `${e.path} changed while it was reverted (expected the ${base} content, found something else). Not restored, so that edit is not lost: the file now holds the ${base} content plus the edit, and the snapshot of the fix is at ${e.snapshotPath}. Merge the two by hand, then run redgreen again.`,
@@ -413,15 +426,20 @@ export function runRedGreen({ repoRoot, test, files, base = "HEAD", snapshotDir,
   // 6. Green run, only on a tree that is provably the fix again, and only when
   //    the red run happened.
   if (treeIntact && report.red) {
-    log(`green   ${test}`);
-    const green = runTest(test, repoRoot);
-    report.green = {
-      exit: green.exit,
-      outcome: green.exit === 0 ? "passed" : "failed",
-      tail: green.tail,
-    };
-    if (green.exit !== 0) {
-      report.problems.push("The test failed against the fix. The restore is verified by hash, so this is the fix itself, not a stale copy.");
+    try {
+      log(`green   ${test}`);
+      const green = runTest(test, repoRoot);
+      report.green = {
+        exit: green.exit,
+        outcome: green.exit === 0 ? "passed" : "failed",
+        tail: green.tail,
+      };
+      if (green.exit !== 0) {
+        report.problems.push("The test failed against the fix. The restore is verified by hash, so this is the fix itself, not a stale copy.");
+      }
+    } catch (err) {
+      report.green = { skipped: true, reason: `the green run could not start: ${String(err.message || err)}` };
+      report.problems.push(`The green run could not start (${String(err.message || err)}). The tree is the fix again; run the test by hand.`);
     }
   } else {
     report.green = { skipped: true, reason: treeIntact ? "the red run did not happen; see problems" : "the tree was not fully restored; see problems" };

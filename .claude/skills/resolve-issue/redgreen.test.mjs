@@ -314,6 +314,87 @@ check("a file that cannot be reverted is a problem, the red run is skipped, and 
   assert.equal(fs.readFileSync(path.join(dir, "other.mjs"), "utf8"), "export const other = 2;\n");
 });
 
+check("a revert failure in the middle of the list leaves the files after it untouched, and they are checked from disk", () => {
+  const dir = makeRepo();
+  for (const n of ["a", "c"]) fs.writeFileSync(path.join(dir, `${n}.txt`), `${n} old\n`);
+  fs.writeFileSync(path.join(dir, "b.txt"), "b old\n");
+  git(dir, "add", ".");
+  git(dir, "commit", "-q", "-m", "three");
+  applyFix(dir);
+  for (const n of ["a", "b", "c"]) fs.writeFileSync(path.join(dir, `${n}.txt`), `${n} fixed\n`);
+  fs.chmodSync(path.join(dir, "b.txt"), 0o444);
+  // c.txt is never reverted; something rewrites it under us anyway, and the
+  // restore must notice from the disk rather than assume it is the fix.
+  const r = runRedGreen({
+    repoRoot: dir,
+    test: `${NODE} check.mjs`,
+    files: ["a.txt", "b.txt", "c.txt"],
+    snapshotDir: snapshotDir(),
+    log: (line) => {
+      if (line.startsWith("revert  b.txt")) fs.writeFileSync(path.join(dir, "c.txt"), "c rewritten\n");
+    },
+  });
+  fs.chmodSync(path.join(dir, "b.txt"), 0o644);
+  assert.equal(r.ok, false);
+  assert.equal(r.red, null);
+  assert.deepEqual(r.files.map((f) => f.reverted), [true, false, false]);
+  assert.equal(r.files[0].matches, true);
+  assert.equal(r.files[2].matches, false);
+  assert.match(r.problems.join("\n"), /c\.txt does not match its snapshot/);
+  assert.equal(fs.readFileSync(path.join(dir, "c.txt"), "utf8"), "c rewritten\n");
+});
+
+check("an error after the snapshot becomes a problem and the report still comes back", () => {
+  const dir = makeRepo();
+  applyFix(dir);
+  // The caller's own log callback throws on the red line, which is an error
+  // outside every inner try: the outer catch must turn it into a problem, the
+  // finally must restore, and the report must still be returned.
+  const r = runRedGreen({
+    repoRoot: dir,
+    test: `${NODE} check.mjs`,
+    files: ["lib.mjs"],
+    snapshotDir: snapshotDir(),
+    log: (line) => {
+      if (line.startsWith("red ")) throw new Error("log sink exploded");
+    },
+  });
+  assert.equal(r.ok, false);
+  assert.match(r.problems.join("\n"), /stopped early: log sink exploded/);
+  assert.equal(r.files[0].matches, true);
+  assert.equal(libText(dir), NEW);
+});
+
+check("a file deleted while it was reverted is recreated from the snapshot and noted", () => {
+  const dir = makeRepo();
+  applyFix(dir);
+  fs.writeFileSync(
+    path.join(dir, "del.mjs"),
+    [
+      'import fs from "node:fs";',
+      'if (fs.readFileSync("lib.mjs", "utf8").includes("old")) { fs.rmSync("lib.mjs"); console.error("AssertionError: still old"); process.exit(1); }',
+    ].join("\n") + "\n",
+  );
+  const r = run(dir, { test: `${NODE} del.mjs` });
+  assert.equal(r.ok, false);
+  assert.match(r.problems.join("\n"), /lib\.mjs was deleted while it was reverted/);
+  assert.equal(r.files[0].matches, true);
+  assert.equal(libText(dir), NEW);
+});
+
+check("a repository root reached through a junction is accepted", () => {
+  const dir = makeRepo();
+  applyFix(dir);
+  const link = path.join(os.tmpdir(), `redgreen-link-${process.pid}-${Date.now()}`);
+  fs.symlinkSync(dir, link, "junction");
+  try {
+    const r = runRedGreen({ repoRoot: link, test: `${NODE} check.mjs`, files: ["lib.mjs"], snapshotDir: snapshotDir() });
+    assert.equal(r.ok, true, JSON.stringify(r.problems));
+  } finally {
+    fs.rmdirSync(link);
+  }
+});
+
 check("a file that cannot be read back during the restore does not stop the other files coming back", () => {
   const dir = makeRepo();
   applyFix(dir);
@@ -387,6 +468,15 @@ check("classifyRedFailure tells the reasons apart on real runner output", () => 
   assert.equal(classifyRedFailure("TAP version 13\nnot ok 1 - value is new\n  operator: strictEqual"), "assertion");
   assert.equal(classifyRedFailure("expect(received).toBe(expected)\nExpected: 2\nReceived: 3"), "assertion");
   assert.equal(classifyRedFailure("Error: Worker exited unexpectedly"), "crash");
+  assert.equal(classifyRedFailure("FATAL ERROR: Reached heap limit Allocation failed - JavaScript heap out of memory"), "crash");
+  // A test name or an assertion that carries a crash word mid-line is still an assertion.
+  assert.equal(classifyRedFailure(" FAIL src/game.test.ts > the enemy is killed when health reaches 0\nAssertionError: expected 1 to be 0\nTests  1 failed | 12 passed"), "assertion");
+  assert.equal(classifyRedFailure("AssertionError: expected 'FATAL ERROR: heap' to be 'ok'\nTests  1 failed"), "assertion");
+  // A second, unrelated empty requireStack later in the output does not turn an import break into a shell failure.
+  assert.equal(
+    classifyRedFailure("Error: Cannot find module './added.mjs'\n{ code: 'MODULE_NOT_FOUND', requireStack: [ 'C:/x/check.mjs' ] }\n--- second runner ---\nError: Cannot find module 'z'\n{ requireStack: [] }"),
+    "import",
+  );
   assert.equal(
     classifyRedFailure("node:internal/modules/cjs/loader:1412\n  throw err;\n\nError: Cannot find module 'C:\\x\\redgreen.tests.mjs'\n{\n  code: 'MODULE_NOT_FOUND',\n  requireStack: []\n}"),
     "shell",
