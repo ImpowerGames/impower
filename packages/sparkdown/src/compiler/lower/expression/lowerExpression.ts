@@ -1309,7 +1309,7 @@ export function collectImmediateBodyDeclarations(
     // binding. ONLY the loop targets count — names inside the
     // start/stop/step or iterator expressions are ordinary reads
     // (see collectForLoopTargetNames).
-    if (n.name === "LuauForLoop" || n.name === "LuauGenericForLoop") {
+    if (n.name === "LuauForLoop") {
       const condNode = getDescendent("LuauForCondition", n);
       if (condNode) {
         for (const name of collectForLoopTargetNames(condNode, ctx)) {
@@ -1437,7 +1437,7 @@ export function scanFreeVariables(
     // ONLY the loop targets are bound — names in the start/stop/step
     // or iterator expressions are reads of enclosing-scope variables
     // that MUST still be captured (see collectForLoopTargetNames).
-    if (n.name === "LuauForLoop" || n.name === "LuauGenericForLoop") {
+    if (n.name === "LuauForLoop") {
       const condNode = getDescendent("LuauForCondition", n);
       if (condNode) {
         for (const name of collectForLoopTargetNames(condNode, ctx)) {

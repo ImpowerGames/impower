@@ -1,12 +1,20 @@
 import { type GrammarSyntaxNode } from "../types/GrammarSyntaxNode";
 
-export const getOtherNodesInsideParent = <T extends string>(
+/**
+ * `N` is the grammar's node-name union, inferred from `stack`; the looked-up
+ * names `T` and `P` must belong to it. See `getDescendent`.
+ */
+export const getOtherNodesInsideParent = <
+  N extends string,
+  T extends N = N,
+  P extends N = N,
+>(
   targetTypeName: T | T[],
-  parentTypeName: T | T[],
-  stack: GrammarSyntaxNode<T>[],
+  parentTypeName: P | P[],
+  stack: GrammarSyntaxNode<N>[],
   direction: "both" | "behind" | "ahead" = "both",
-): GrammarSyntaxNode<T>[] => {
-  const matches: GrammarSyntaxNode<T>[] = [];
+): GrammarSyntaxNode<N, T>[] => {
+  const matches: GrammarSyntaxNode<N, T>[] = [];
   const current = stack[0];
   const target =
     stack.find((n) =>
@@ -17,7 +25,7 @@ export const getOtherNodesInsideParent = <T extends string>(
   const parent = stack.find((n) =>
     typeof parentTypeName === "string"
       ? n.name === parentTypeName
-      : parentTypeName.includes(n.name as T),
+      : parentTypeName.includes(n.name as P),
   );
   if (current && parent) {
     if (direction === "both" || direction === "behind") {
@@ -28,7 +36,7 @@ export const getOtherNodesInsideParent = <T extends string>(
             ? prevSibling.name === targetTypeName
             : targetTypeName.includes(prevSibling.name as T)
         ) {
-          matches.unshift(prevSibling.node as GrammarSyntaxNode<T>);
+          matches.unshift(prevSibling.node as GrammarSyntaxNode<N, T>);
         }
         prevSibling = prevSibling?.prevSibling;
       }
@@ -41,7 +49,7 @@ export const getOtherNodesInsideParent = <T extends string>(
             ? nextSibling.name === targetTypeName
             : targetTypeName.includes(nextSibling.name as T)
         ) {
-          matches.unshift(nextSibling.node as GrammarSyntaxNode<T>);
+          matches.unshift(nextSibling.node as GrammarSyntaxNode<N, T>);
         }
         nextSibling = nextSibling?.nextSibling;
       }

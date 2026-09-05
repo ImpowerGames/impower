@@ -443,16 +443,14 @@ export const decorate = (
 
   // A node is "leading indentation" when it's a non-empty whitespace run at
   // the very start of its line. The grammar exposes leading whitespace as a
-  // line-start `OptionalWhitespace` capture (there's no dedicated `Indent`
-  // node — indent is detected by position, not name). `Indent` is kept as a
-  // legacy alias so older grammars still work. Zero-width runs (the `*`
-  // capture matched nothing) and mid-line whitespace are excluded.
+  // line-start `OptionalWhitespace` capture (there's no dedicated indent
+  // node — indent is detected by position, not name). Zero-width runs (the
+  // `*` capture matched nothing) and mid-line whitespace are excluded.
   const isLeadingIndent = (
-    nodeName: string,
+    nodeName: SparkdownNodeName,
     nodeFrom: number,
     nodeTo: number,
   ): boolean => {
-    if (nodeName === "Indent") return true;
     if (nodeName !== "OptionalWhitespace") return false;
     if (nodeTo <= nodeFrom) return false;
     return doc.lineAt(nodeFrom).from === nodeFrom;
@@ -612,11 +610,9 @@ export const decorate = (
       } else if (isLeadingIndent(name, from, to)) {
         // Leading indentation of a block line — hide it so the rendered
         // body doesn't show its source indent. The grammar has no dedicated
-        // `Indent` node; leading whitespace surfaces as a line-start
-        // `OptionalWhitespace` run (the formatter detects indent by
-        // position, not node name — see the grammar's whitespace section),
-        // so `isLeadingIndent` keys off position, treating Indent as a
-        // legacy alias.
+        // indent node; leading whitespace surfaces as a line-start
+        // `OptionalWhitespace` run, so `isLeadingIndent` keys off position
+        // rather than node name.
         //
         // EXCEPTION: if the indent is the entire content of a
         // whitespace-only line (an indented "blank" line — what the editor

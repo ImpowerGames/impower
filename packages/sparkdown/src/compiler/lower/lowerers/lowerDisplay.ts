@@ -17,6 +17,7 @@ import { Text } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Text";
 import { Weave } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Weave";
 import { Glue as RuntimeGlue } from "../../../inkjs/engine/Glue";
 import type { CompiledBlock } from "../../classes/annotators/CompilationAnnotator";
+import type { SparkdownNodeName } from "../../types/SparkdownNodeName";
 import type { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
 import type { LowerContext } from "../context";
 import {
@@ -997,7 +998,7 @@ function extractBlockBodyRange(
 function readIdentifier(
   nodeRef: SparkdownSyntaxNodeRef,
   ctx: LowerContext,
-  name: string,
+  name: SparkdownNodeName,
 ): string | null {
   const node = getDescendent(name, nodeRef.node);
   if (!node) return null;

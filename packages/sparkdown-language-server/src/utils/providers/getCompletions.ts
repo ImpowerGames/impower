@@ -1,5 +1,6 @@
 import GRAMMAR_DEFINITION from "@impower/sparkdown/language/sparkdown.language-grammar.json";
 import { SparkdownAnnotations } from "@impower/sparkdown/src/compiler/classes/SparkdownCombinedAnnotator";
+import { type DeclarationType } from "@impower/sparkdown/src/compiler/classes/annotators/DeclarationAnnotator";
 import { SparkdownDocument } from "@impower/sparkdown/src/compiler/classes/SparkdownDocument";
 import { SparkdownCompilerConfig } from "@impower/sparkdown/src/compiler/types/SparkdownCompilerConfig";
 import { SparkdownNodeName } from "@impower/sparkdown/src/compiler/types/SparkdownNodeName";
@@ -23,7 +24,10 @@ import {
   type CompletionItem,
   type Position,
 } from "vscode-languageserver";
-import { getDeclarationScopes } from "../annotations/getDeclarationScopes";
+import {
+  getDeclarationScopes,
+  type DeclarationScopes,
+} from "../annotations/getDeclarationScopes";
 import { getParentSectionPath } from "../syntax/getParentSectionPath";
 
 const IMAGE_CONTROL_KEYWORDS =
@@ -898,9 +902,7 @@ const addStructPropertyValueCompletions = (
 
 const addMutableAccessPathCompletions = (
   completions: Map<string, CompletionItem>,
-  scopes: {
-    [path: string]: Record<string, string[]>;
-  },
+  scopes: DeclarationScopes,
   valueText: string,
   valueCursorOffset: number,
   scopePath: string,
@@ -910,7 +912,7 @@ const addMutableAccessPathCompletions = (
   if (!valueTextAfterCursor) {
     const parts = valueText?.split(".") || [];
     if (scopes) {
-      const types = ["var", "list", "param", "temp"];
+      const types: DeclarationType[] = ["var", "param"];
       for (const [path, declarations] of Object.entries(scopes)) {
         if (
           (parts.length <= 1 && scopePath.startsWith(path)) ||
@@ -943,9 +945,7 @@ const addMutableAccessPathCompletions = (
 
 const addImmutableAccessPathCompletions = (
   completions: Map<string, CompletionItem>,
-  scopes: {
-    [path: string]: Record<string, string[]>;
-  },
+  scopes: DeclarationScopes,
   valueText: string,
   valueCursorOffset: number,
   scopePath: string,
@@ -955,7 +955,7 @@ const addImmutableAccessPathCompletions = (
   if (!valueTextAfterCursor) {
     const parts = valueText?.split(".") || [];
     if (scopes) {
-      const types = ["const"];
+      const types: DeclarationType[] = ["const"];
       for (const [path, declarations] of Object.entries(scopes)) {
         if (
           (parts.length <= 1 && scopePath.startsWith(path)) ||
@@ -1063,9 +1063,7 @@ const addDivertPathKeywords = (
 
 const addDivertPathCompletions = (
   completions: Map<string, CompletionItem>,
-  scopes: {
-    [path: string]: Record<string, string[]>;
-  },
+  scopes: DeclarationScopes,
   valueText: string,
   valueCursorOffset: number,
   scopePath: string,
@@ -1075,7 +1073,7 @@ const addDivertPathCompletions = (
   if (!valueTextAfterCursor) {
     const parts = valueText?.split(".") || [];
     if (scopes) {
-      const types = ["scene", "branch", "knot", "stitch", "label"];
+      const types: DeclarationType[] = ["scene", "branch", "label"];
       for (const [path, declarations] of Object.entries(scopes)) {
         if (
           (parts.length <= 1 && scopePath.startsWith(path)) ||
@@ -1645,8 +1643,7 @@ export const getCompletions = (
 
   // Struct property NAME completion: cursor editing a struct key. The engine
   // type + instance name come from the enclosing define (getDefineContext).
-  // NOTE: the nested property PATH (deep keys) is not yet recovered — the
-  // pre-port wrapper-node path tracker (getParentPropertyPath) is dead under the
+  // NOTE: the nested property PATH (deep keys) is not recovered under the
   // flat indentation grammar; top-level property names are offered (path ""),
   // which covers the common case. Deep-path completion is a follow-up tied to
   // the reactive-sparkle struct grammar.

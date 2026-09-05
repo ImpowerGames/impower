@@ -30,6 +30,8 @@ on:
       - "**/package.json"
       - "package-lock.json"
       - "scripts/typecheck.mjs"
+      - "scripts/check-node-names.mjs"
+      - "packages/sparkdown/language/sparkdown.language-grammar.json"
       - ".github/workflows/typecheck.yml"
 
 # A superseded PR run is of no interest; keep only the newest per branch.
@@ -62,3 +64,10 @@ jobs:
       # sustain four-wide.
       - name: Typecheck
         run: npm run typecheck -- --jobs 2
+
+      # Grammar node names written as string literals where the type system
+      # cannot see them: lookups on untyped lezer nodes, `.getChild("...")`,
+      # and comparisons on values typed as plain strings. See the script's
+      # header for what it covers and why `tsc` alone is not enough.
+      - name: Check grammar node names
+        run: npm run check:node-names
