@@ -72,6 +72,10 @@ export class AssetModule extends Module<
   /** Counts the preview gates issued, to give each its own pin. */
   protected _previewGates = 0;
 
+  /** Pins of the preview gates not yet released, so destroy can let them
+   *  go with the rest. */
+  protected _previewPins = new Set<string>();
+
   /** Font names per layout, resolved once per program: the walk over a
    *  layout's tree and styles is repeated for every predicted beat otherwise. */
   protected _fontNamesByLayout = new Map<string, string[]>();
@@ -513,13 +517,16 @@ export class AssetModule extends Module<
    * parses them, before the line's gate runs.
    */
   notice(kind: "image" | "audio", names: string[]): void {
-    // A preview's beat running with its flush held is about to be gated on
-    // exactly these; a prefetch now would start them in a background slot
-    // first.
-    if (this.silent || this._game.holdingFlush || names.length === 0) {
+    if (this.silent || names.length === 0) {
       return;
     }
     if (kind === "image") {
+      // A preview's beat running with its flush held is about to be gated
+      // on exactly these pictures; a prefetch now would start them in a
+      // background slot first.
+      if (this._game.holdingFlush) {
+        return;
+      }
       const items = this.resolveImageItems(names).filter(
         (item) => this.timed || item.kind !== "video",
       );
@@ -914,7 +921,7 @@ export class AssetModule extends Module<
     }
     this._previewGates += 1;
     const pin = `preview:${this._previewGates}`;
-    let released = false;
+    this._previewPins.add(pin);
     return {
       settled: this.ensureResident(
         items,
@@ -924,8 +931,7 @@ export class AssetModule extends Module<
         "preview",
       ),
       release: () => {
-        if (!released) {
-          released = true;
+        if (this._previewPins.delete(pin)) {
           this.release([pin], false);
         }
       },
@@ -996,6 +1002,7 @@ export class AssetModule extends Module<
     const pins = [
       ...(this._restorePending ? ["restore"] : []),
       ...this._pendingBeatPins,
+      ...this._previewPins,
       ...[...this._loadPins].map((flow) => `load:${flow}`),
       ...[...this._layoutPins].map((name) => `layout:${name}`),
     ];
@@ -1006,6 +1013,7 @@ export class AssetModule extends Module<
     }
     this._restorePending = false;
     this._pendingBeatPins.clear();
+    this._previewPins.clear();
     this._loadPins.clear();
     this._layoutPins.clear();
     this._fontNamesByLayout.clear();

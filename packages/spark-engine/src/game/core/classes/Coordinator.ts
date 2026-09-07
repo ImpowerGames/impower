@@ -280,8 +280,8 @@ export class Coordinator<G extends Game> {
       if (previewing && !simulating) {
         // The beat is on the page: the preview's prediction window follows
         // the cursor from here (sent once per cursor position; the beat's
-        // own images were gated at connect, since a preview has no clock to
-        // wait on here).
+        // own pictures were waited for by the preview before it displayed
+        // the beat, since there is no clock to wait on here).
         assets.onBeatDisplayed();
       }
       return;

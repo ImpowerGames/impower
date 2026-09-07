@@ -72,8 +72,8 @@ describe("preview session ordering", () => {
     // The cursor sits in a file the program does not know, so the controller
     // keeps the game's remembered point (main.sd line 4). The program has
     // changed since that point last resolved: the mark, and so the beat the
-    // connect runs ahead, must be the point's path in this program, the one
-    // `preview()` will resolve, not the path it had before.
+    // asset module centres its window on, must be the point's path in this
+    // program, the one `preview()` will resolve, not the path it had before.
     const calls: string[] = [];
     const game = recordingGame(calls);
     game.markPreviewing = (path: string) => calls.push(`markPreviewing:${path}`);
@@ -253,5 +253,71 @@ describe("preview session ordering", () => {
     settleConnect();
     await updating;
     expect(calls.indexOf("connectGame")).toBeLessThan(calls.indexOf("preview"));
+  });
+
+  test("a preview update another overtakes while it waits does not sweep the newer update's pass", async () => {
+    // Each update's reconcile pass adopts the screen, and its sweep removes
+    // what the update did not re-emit. When a second update starts while
+    // the first waits for its preview, the second's pass owns the screen: a
+    // sweep by the first would take the second beat's content off it before
+    // that beat is written, and leave the second's own sweep nothing to
+    // remove.
+    const calls: string[] = [];
+    const settles: Array<(path: string | null) => void> = [];
+    const game = recordingGame(calls);
+    game.preview = () => {
+      calls.push(`preview:${settles.length + 1}`);
+      return new Promise<string | null>((resolve) => {
+        settles.push(resolve);
+      });
+    };
+    const controller = controllerWith(game, stubApp(calls));
+    const first = controller.updatePreview(PROGRAM, PROGRAM.uri, 4, "SAVE");
+    for (let i = 0; i < 10; i++) {
+      await Promise.resolve();
+    }
+    const second = controller.updatePreview(PROGRAM, PROGRAM.uri, 6, "SAVE");
+    for (let i = 0; i < 10; i++) {
+      await Promise.resolve();
+    }
+    expect(calls.filter((c) => c.startsWith("preview:"))).toEqual([
+      "preview:1",
+      "preview:2",
+    ]);
+    // The engine lets the first preview go when the second starts.
+    settles[0]!(null);
+    await first;
+    expect(calls).not.toContain("sweepReconcile");
+    settles[1]!("0.0");
+    await second;
+    expect(calls.filter((c) => c === "sweepReconcile")).toHaveLength(1);
+    expect(calls.indexOf("preview:2")).toBeLessThan(
+      calls.indexOf("sweepReconcile"),
+    );
+  });
+
+  test("a preview update whose game the play path replaced while it waited does not sweep", async () => {
+    // PLAY builds a new game and application over the same overlay; the
+    // sweep belongs to an update of the game that owns the screen, not to
+    // one whose preview the replaced game let go of.
+    const calls: string[] = [];
+    let settlePreview = (_path: string | null) => {};
+    const game = recordingGame(calls);
+    game.preview = () => {
+      calls.push("preview");
+      return new Promise<string | null>((resolve) => {
+        settlePreview = resolve;
+      });
+    };
+    const controller = controllerWith(game, stubApp(calls));
+    const updating = controller.updatePreview(PROGRAM, PROGRAM.uri, 4, "SAVE");
+    for (let i = 0; i < 10; i++) {
+      await Promise.resolve();
+    }
+    expect(calls).toContain("preview");
+    (controller as any)._game = recordingGame([], "running");
+    settlePreview(null);
+    await updating;
+    expect(calls).not.toContain("sweepReconcile");
   });
 });
