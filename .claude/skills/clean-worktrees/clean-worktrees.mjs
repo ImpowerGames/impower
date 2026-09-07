@@ -15,25 +15,30 @@
 // A worktree is removed only when every commit on its branch and on its
 // remote is on origin/main, its tree is clean, and nothing is using it.
 // Everything else is kept, with every reason that applies: the main checkout
-// and any other path outside the worktrees directory, a locked worktree, one
-// git no longer sees as a worktree or whose directory is gone, a detached or
-// unborn head, uncommitted changes, commits on neither origin/main nor the
-// branch's remote, commits on the remote that are not on origin/main, a
-// branch with no commit made on it (a fresh worktree a session may be working
-// in: its tip sits on origin/main's first-parent line, where a merged
-// branch's tip never does, or its reflog shows it created at its tip with no
-// commit since), dev servers that the worktree's own driver reports up or
+// and any other path outside the worktrees directory, the default branch
+// (main, and whatever origin/HEAD names) wherever it is checked out, a locked
+// worktree, one git no longer sees as a worktree or whose directory is gone,
+// a detached or unborn head, uncommitted changes, commits on neither
+// origin/main nor the branch's remote, commits on the remote that are not on
+// origin/main, a branch with no commit made on it (a fresh worktree a session
+// may be working in: its tip sits on origin/main's first-parent line, where a
+// merged branch's tip never does, or its reflog holds its creation and no
+// commit since), a branch whose reflog has expired while its tip is off that
+// line (whether a commit was made on it cannot be told, so it is left for a
+// person), dev servers that the worktree's own driver reports up or
 // launching, a running process whose command line names the directory, and a
 // worktree git cannot answer for. Directories under the worktrees root that
 // are not worktrees are listed too, so a tree an interrupted removal left
-// behind is never out of sight.
+// behind is never out of sight, and so is a branch whose worktree an earlier
+// run removed without managing to delete it.
 //
-// --apply must be given --root with the main checkout's path, and refuses
-// when that is not the checkout the current directory belongs to, so the
-// repository acted on always comes from the command line. Every row of an
-// --apply run is appended to .git/clean-worktrees.log in the main checkout as
-// it is decided, so a run that is killed leaves its record, and a later run
-// reads that record to say which branch a failed removal left behind.
+// --apply must be given --root with the main checkout's absolute path, and
+// refuses when that is not the checkout the current directory belongs to, so
+// the repository acted on always comes from the command line. Every row of
+// an --apply run is appended to .git/clean-worktrees.log in the main checkout
+// as it is decided, with a `removing` row before each removal starts, so a
+// run that is killed leaves its record, and a later run reads that record to
+// say which branch a failed or interrupted removal left behind.
 //
 // Removal is `git worktree remove`, which deletes a tree's entries in
 // directory order, stops at the first it cannot delete, and drops its own
@@ -251,20 +256,22 @@ const listSome = (items, max) => (items.length > max ? `${items.slice(0, max).jo
 export function classify(entry, facts) {
   const keep = [];
   if (!facts.insideRoot) keep.push(facts.isMain ? "the main checkout" : `outside ${facts.root}`);
+  if (facts.isDefault) keep.push(`the default branch ${entry.branch}, which is never removed wherever it is checked out`);
   if (entry.locked) keep.push(`locked (${entry.locked})`);
-  if (facts.missing) keep.push("its directory is gone; `git worktree prune` drops the record");
+  if (facts.missing) keep.push(facts.probeLeft ? `its directory is gone and ${path.resolve(entry.path)}${PROBE_SUFFIX} is beside it, which is what an interrupted run's probe leaves; rename it back by hand, and do not run \`git worktree prune\`, which would drop the record the renamed tree points at` : "its directory is gone; `git worktree prune` drops the record");
   else if (entry.prunable) keep.push(`git no longer sees it as a worktree (${entry.prunable}) but the directory is still there; delete it by hand`);
   if (entry.detached) keep.push("detached head, no branch; left for a person");
   if (facts.unborn) keep.push("unborn branch with no commits; left for a person");
   const remote = `origin/${entry.branch}`;
-  if (entry.branch && !facts.isMain && !entry.prunable && !facts.missing && !facts.unborn) {
+  if (entry.branch && !facts.isMain && !facts.isDefault && !entry.prunable && !facts.missing && !facts.unborn) {
     const remoteState = facts.remoteExists ? `${remote} exists` : `no ${remote}`;
     if (facts.dirty > 0) keep.push(`uncommitted changes (${n(facts.dirty, "file")})`);
     if (facts.unpushed > 0) keep.push(facts.remoteExists ? `${n(facts.unpushed, "commit")} on neither origin/main nor ${remote}` : `${n(facts.unpushed, "commit")} not on origin/main, and no ${remote} holds them`);
     else if (facts.ownCommits > 0) keep.push(`${n(facts.ownCommits, "commit")} not on origin/main (all on ${remote}; a pull request may be open)`);
     else if (facts.remoteAhead > 0) keep.push(`${remote} has ${n(facts.remoteAhead, "commit")} not on origin/main and this branch is behind it; a pull request may be open`);
     else if (!facts.committed && facts.onFirstParent) keep.push(`no commit was made on the branch: its tip is on origin/main's first-parent line and its reflog records none (${remoteState}); a fresh worktree a session may be working in, so remove it by hand when it is done`);
-    else if (!facts.committed && facts.createdAtTip) keep.push(`no commit was made on the branch: its reflog shows it created at its tip and nothing since (${remoteState}); a fresh worktree a session may be working in, so remove it by hand when it is done`);
+    else if (!facts.committed && facts.created) keep.push(`no commit was made on the branch: its reflog holds its creation and no commit since (${remoteState}); a fresh worktree a session may be working in, so remove it by hand when it is done`);
+    else if (!facts.committed) keep.push(`its reflog records neither a commit nor its creation, so whether a commit was made on it cannot be told, and its tip is off origin/main's first-parent line (${remoteState}); left for a person, and \`git worktree remove\` plus \`git branch -D\` by hand once its commits are checked`);
     const s = facts.servers;
     if (s.state === "up") keep.push(`dev servers up at ${s.url} (pid ${s.pid})`);
     else if (s.state === "launching") keep.push(`dev servers launching (pid ${s.pid} alive, ${s.url} not answering); the worktree's driver \`down\` settles it`);
@@ -273,7 +280,7 @@ export function classify(entry, facts) {
     else if (facts.users.length) keep.push(`its path is on the command line of ${listSome(facts.users.map((p) => `pid ${p.pid} (${p.name})`), 2)}`);
   }
   if (keep.length) return { remove: false, reasons: keep };
-  const ignored = facts.ignored.length ? `; takes ${n(facts.ignored.length, "ignored path")} with it (${listSome(facts.ignored, 3)})` : "";
+  const ignored = facts.ignored.length ? `; takes ${n(facts.ignored.length, "ignored path")} with it (${facts.ignored.join(", ")})` : "";
   return { remove: true, reasons: [`merged into origin/main; ${facts.remoteExists ? `${remote} still exists` : `no ${remote}`}${ignored}`] };
 }
 
@@ -304,19 +311,22 @@ function statusOf(worktree, deps) {
 }
 
 // The branch's reflog as git keeps it (newest first, entries expire after
-// ninety days by default), read for what was done on the branch: a `commit`
-// or `cherry-pick` entry is a commit made here, and a `branch: Created from`
-// entry still at the tip is a branch nothing has moved since it was made.
-// A fast-forward, a rebase onto origin/main with nothing to replay, a pull
-// or a reset moves the tip without either.
-export function readReflog(text, head) {
+// ninety days by default), read for what was done on the branch: a `commit`,
+// `cherry-pick` or `merge ...: Merge made by` entry is a commit made here,
+// and a `branch: Created from` entry anywhere in it means the reflog reaches
+// back to the branch's creation, so a reflog holding that and no commit entry
+// is a branch no commit was ever made on. A fast-forward, a rebase onto
+// origin/main with nothing to replay, a pull or a reset moves the tip without
+// either. The creation entry is the oldest, so it is the first to expire; a
+// reflog without it says nothing about what expired before its first entry.
+export function readReflog(text) {
   const entries = text.split(/\r?\n/).filter(Boolean).map((l) => {
     const tab = l.indexOf("\t");
     return { sha: tab < 0 ? l : l.slice(0, tab), msg: tab < 0 ? "" : l.slice(tab + 1) };
   });
   return {
-    committed: entries.some((e) => /^(commit|cherry-pick)\b/.test(e.msg)),
-    createdAtTip: entries.some((e) => e.sha === head && /^branch: Created from/.test(e.msg)),
+    committed: entries.some((e) => /^(commit|cherry-pick)\b|^merge .*: Merge made by/.test(e.msg)),
+    created: entries.some((e) => /^branch: Created from/.test(e.msg)),
   };
 }
 
@@ -324,9 +334,11 @@ function gatherFacts(entry, ctx, deps) {
   const abs = path.resolve(entry.path);
   const facts = {
     isMain: samePath(abs, ctx.mainRoot),
+    isDefault: false,
     insideRoot: isUnder(abs, ctx.root),
     root: ctx.root,
     missing: !deps.exists(abs),
+    probeLeft: false,
     unborn: /^0+$/.test(entry.head ?? ""),
     dirty: 0,
     ignored: [],
@@ -336,11 +348,13 @@ function gatherFacts(entry, ctx, deps) {
     remoteAhead: 0,
     onFirstParent: false,
     committed: false,
-    createdAtTip: false,
+    created: false,
     servers: { state: "none" },
     users: [],
   };
-  if (facts.isMain || entry.detached || entry.prunable || facts.missing || facts.unborn) return facts;
+  facts.isDefault = !facts.isMain && Boolean(entry.branch) && ctx.defaultBranches.has(entry.branch);
+  facts.probeLeft = facts.missing && deps.exists(`${abs}${PROBE_SUFFIX}`);
+  if (facts.isMain || facts.isDefault || entry.detached || entry.prunable || facts.missing || facts.unborn) return facts;
   Object.assign(facts, statusOf(abs, deps));
   const ref = `refs/heads/${entry.branch}`;
   const remoteRef = `refs/remotes/origin/${entry.branch}`;
@@ -352,7 +366,7 @@ function gatherFacts(entry, ctx, deps) {
   facts.remoteAhead = facts.remoteExists ? Number(gitOrDie(deps, ["rev-list", "--count", remoteRef, "^refs/remotes/origin/main"], ctx.mainRoot)) : 0;
   facts.onFirstParent = ctx.firstParent.has(entry.head);
   const reflog = deps.exec("git", ["reflog", "show", "--format=%H%x09%gs", ref], ctx.mainRoot);
-  Object.assign(facts, readReflog(reflog.status === 0 ? reflog.out : "", entry.head));
+  Object.assign(facts, readReflog(reflog.status === 0 ? reflog.out : ""));
   facts.servers = probeServers(abs, deps);
   facts.users = ctx.processes.ok ? usersOf(abs, ctx.processes.list, deps.pid()) : null;
   return facts;
@@ -383,22 +397,38 @@ export function strayDirs(entries, root, listDirs) {
 
 const PROBE_SUFFIX = ".removing";
 
+// The removals the log says did not finish: for each path the log's last row
+// about it, kept when that row is `failed` or a `removing` that no outcome
+// row followed, which is a run killed while git was removing it.
+export function unfinishedRemovals(log) {
+  const last = new Map();
+  for (const r of readLogRows(log)) if (r.decision && r.path) last.set(norm(r.path), r);
+  return [...last.values()].filter((r) => r.decision === "failed" || r.decision === "removing");
+}
+
+const unfinishedWhat = (r, object = " it") => `the --apply run at ${r.at} ${r.decision === "removing" ? `was removing${object} when that run stopped (${r.why})` : `failed to remove${object} (${r.why})`}`;
+const unfinishedNote = (r, deps, ctx, object) => {
+  const branchStays = r.branch && deps.exec("git", ["rev-parse", "--verify", "-q", `refs/heads/${r.branch}`], ctx.mainRoot).status === 0;
+  return `${unfinishedWhat(r, object)}${branchStays ? `; its branch ${r.branch} is still local` : ""}`;
+};
+
 // Why a stray directory is there, from its name and from the log of earlier
 // --apply runs: the probe's leftover names the worktree it was renamed from,
-// and a failed removal names the branch it left behind.
+// and a removal that failed or was interrupted names the branch it left
+// behind, whether the directory listed is the leftover itself or the type
+// directory holding it.
 export function strayReason(p, entries, log, deps, ctx) {
   const rel = (q) => path.relative(path.dirname(ctx.mainRoot), q);
   const base = p.endsWith(PROBE_SUFFIX) ? p.slice(0, -PROBE_SUFFIX.length) : null;
   if (base && entries.some((e) => samePath(e.path, base))) {
     return deps.exists(base)
       ? `not a registered worktree, named like the probe of ${rel(base)}, which is registered and present; check it before deleting it by hand`
-      : `the worktree ${rel(base)}, renamed by an interrupted run's probe and not renamed back; rename it back by hand`;
+      : `the worktree ${rel(base)}, renamed by an interrupted run's probe and not renamed back; rename it back by hand, and do not run \`git worktree prune\`, which would drop the record it points at`;
   }
-  const record = readLogRows(log).findLast((r) => r.decision === "failed" && r.path && [p, base].some((q) => q && samePath(r.path, q)));
-  if (record) {
-    const branchStays = record.branch && deps.exec("git", ["rev-parse", "--verify", "-q", `refs/heads/${record.branch}`], ctx.mainRoot).status === 0;
-    return `not a registered worktree; the --apply run at ${record.at} failed to remove it (${record.why})${branchStays ? `; its branch ${record.branch} is still local` : ""}`;
-  }
+  const own = unfinishedRemovals(log).filter((r) => [p, base].some((q) => q && samePath(r.path, q)));
+  if (own.length) return `not a registered worktree; ${unfinishedNote(own.at(-1), deps, ctx)}`;
+  const held = unfinishedRemovals(log).filter((r) => isUnder(r.path, p));
+  if (held.length) return `not a registered worktree; it holds ${held.map((r) => `${rel(r.path)}, which ${unfinishedNote(r, deps, ctx, "")}`).join("; and ")}`;
   return "not a registered worktree, which is what an interrupted removal or add leaves behind; delete it by hand after checking it";
 }
 
@@ -440,14 +470,20 @@ export function formatBytes(bytes) {
 // removal is read again, so -D never deletes work committed since the
 // classification. The direct directory removal is the one destructive call
 // here that git does not guard, so it is made only under the root and only
-// on a directory git has already stopped treating as a worktree.
-const isRegistered = (abs, ctx, deps) => parseWorktreeList(deps.exec("git", ["worktree", "list", "--porcelain"], ctx.mainRoot).out).some((e) => samePath(e.path, abs));
+// on a directory git has already stopped treating as a worktree, which a
+// listing that failed cannot establish: an unknown answer keeps the tree.
+function registration(abs, ctx, deps) {
+  const r = deps.exec("git", ["worktree", "list", "--porcelain"], ctx.mainRoot);
+  if (r.status !== 0) return { known: false, err: r.err || r.out || `exit ${r.status}` };
+  return { known: true, registered: parseWorktreeList(r.out).some((e) => samePath(e.path, abs)) };
+}
 
 async function removeWorktree(entry, ctx, deps) {
   const abs = path.resolve(entry.path);
   const kept = (note) => ({ outcome: "kept", note, remaining: null });
   const failed = (note, remaining) => ({ outcome: "failed", note, remaining });
   if (!isUnder(abs, ctx.root)) return kept(`refusing to touch a path outside ${ctx.root}`);
+  if (ctx.defaultBranches.has(entry.branch)) return kept(`refusing to touch the default branch ${entry.branch}`);
   const st = deps.exec("git", ["status", "--porcelain"], abs);
   if (st.status !== 0) return kept(`git status failed since it was classified (${st.err || st.out}); the tree is untouched`);
   const dirty = st.out.split(/\r?\n/).filter(Boolean).length;
@@ -474,12 +510,15 @@ async function removeWorktree(entry, ctx, deps) {
   if (rm.status !== 0) {
     const gitErr = rm.err || rm.out;
     if (!deps.exists(abs)) notes.push(`git worktree remove reported an error but the directory is gone (${gitErr})`);
-    else if (isRegistered(abs, ctx, deps)) {
-      // Git checks the lock, the submodules and the tree's changes before it
-      // deletes anything and drops its record whatever the deletion managed,
-      // so a record still there means a refusal that touched nothing.
-      return kept(`git worktree remove refused (${gitErr}); the tree is untouched`);
-    } else {
+    else {
+      const reg = registration(abs, ctx, deps);
+      if (!reg.known) return failed(`git worktree remove failed (${gitErr}) and whether git still holds its record could not be read (git worktree list failed: ${reg.err}); nothing more was touched; check the directory and \`git worktree list\` by hand; the branch stays until then`, await deps.dirSize(abs));
+      if (reg.registered) {
+        // Git checks the lock, the submodules and the tree's changes before
+        // it deletes anything and drops its record after deleting, so a
+        // record still there is a refusal; nothing more is done to the tree.
+        return kept(`git worktree remove refused (${gitErr}) and kept its record; nothing more was touched`);
+      }
       // Git deleted the directory's entries in order until one it could not
       // delete, then dropped its record: the directory is no longer a
       // worktree, whatever is left in it, so the rest goes directly.
@@ -496,7 +535,7 @@ async function removeWorktree(entry, ctx, deps) {
     }
     // Git drops the record itself when it fails past its checks; when the
     // record is still there, removing the now-missing path drops it.
-    if (isRegistered(abs, ctx, deps)) {
+    if (registration(abs, ctx, deps).registered !== false) {
       const again = deps.exec("git", ["worktree", "remove", abs], ctx.mainRoot);
       if (again.status !== 0) notes.push(`its record could not be dropped (${again.err || again.out}); \`git worktree prune\` drops it`);
     }
@@ -526,7 +565,7 @@ const DECISION_WIDTH = "removed".length;
 const SIZE_WIDTH = "1023.9 MB".length;
 function rowPrinter(rows, ctx, log) {
   const rel = (p) => path.relative(path.dirname(ctx.mainRoot), path.resolve(p)) || ".";
-  const branchCell = (r) => (r.stray ? "(not a worktree)" : r.entry.branch ?? (r.entry.detached ? "(detached)" : ""));
+  const branchCell = (r) => (r.stray && !r.stranded ? "(not a worktree)" : r.entry.branch ?? (r.entry.detached ? "(detached)" : ""));
   const widths = [DECISION_WIDTH, Math.max(...rows.map((r) => rel(r.entry.path).length)), Math.max(...rows.map((r) => branchCell(r).length)), SIZE_WIDTH];
   return (r) => log([r.decision, rel(r.entry.path), branchCell(r), formatBytes(r.size)].map((v, i) => v.padEnd(widths[i])).concat(r.why).join("  ").trimEnd());
 }
@@ -539,6 +578,7 @@ export function parseArgs(argv) {
     else if (a === "--root" || a.startsWith("--root=")) {
       opts.root = a === "--root" ? argv[++i] : a.slice("--root=".length);
       if (!opts.root) die("--root needs the path of the main checkout after it");
+      if (!path.isAbsolute(opts.root)) die(`--root ${opts.root} is not an absolute path; --root names the main checkout in full, so that a relative path resolved against whatever directory the shell is in never passes for it`);
     } else die(`unknown option ${a}; the options are --apply and --root <path>`);
   }
   if (opts.apply && !opts.root) die("--apply needs --root <path>, the main checkout it is to act on, so the repository comes from the command line and never from the current directory alone; the dry run needs no --root");
@@ -565,8 +605,13 @@ export async function main(argv, deps = liveDeps) {
     mainRoot,
     root: path.join(path.dirname(mainRoot), `${path.basename(mainRoot)}.worktrees`),
     firstParent: new Set(),
+    defaultBranches: new Set(["main"]),
     processes: { ok: false, err: "not listed" },
   };
+  // The default branch is never removed wherever it is checked out: main,
+  // and whatever origin/HEAD names where the clone recorded it.
+  const originHead = deps.exec("git", ["symbolic-ref", "-q", "refs/remotes/origin/HEAD"], mainRoot);
+  if (originHead.status === 0 && originHead.out.startsWith("refs/remotes/origin/")) ctx.defaultBranches.add(originHead.out.slice("refs/remotes/origin/".length));
   const logPath = path.join(mainRoot, ".git", LOG_NAME);
   const record = (obj) => {
     if (!apply) return;
@@ -600,8 +645,16 @@ export async function main(argv, deps = liveDeps) {
     rows.push({ entry, verdict, stray: false, sized: verdict.remove || Boolean(entry.prunable && facts && !facts.missing), size: null, decision: verdict.remove ? "remove" : "keep", why: verdict.reasons.join("; ") });
   }
   const earlier = deps.readLog(logPath);
-  for (const p of strayDirs(entries, ctx.root, deps.listDirs)) {
+  const strayPaths = strayDirs(entries, ctx.root, deps.listDirs);
+  for (const p of strayPaths) {
     rows.push({ entry: { path: p, branch: null, detached: false }, verdict: { remove: false }, stray: true, sized: true, size: null, decision: "keep", why: strayReason(p, entries, earlier, deps, ctx) });
+  }
+  // A branch an earlier run's removal left local with no directory and no
+  // record is listed by the log alone, since nothing else on disk names it.
+  for (const r of unfinishedRemovals(earlier)) {
+    if (!r.branch || entries.some((e) => samePath(e.path, r.path)) || deps.exists(r.path) || strayPaths.some((p) => samePath(p, r.path) || isUnder(r.path, p))) continue;
+    if (deps.exec("git", ["rev-parse", "--verify", "-q", `refs/heads/${r.branch}`], mainRoot).status !== 0) continue;
+    rows.push({ entry: { path: r.path, branch: r.branch, detached: false }, verdict: { remove: false }, stray: true, stranded: true, sized: false, size: null, decision: "keep", why: `its directory is gone and git does not list it, but its branch ${r.branch} is still local: ${unfinishedWhat(r)}; \`git branch -D ${r.branch}\` finishes that removal once its commits are checked` });
   }
 
   const print = rowPrinter(rows, ctx, log);
@@ -620,6 +673,9 @@ export async function main(argv, deps = liveDeps) {
     if (!apply) return row.sizeNote ? { outcome: row.decision, note: row.sizeNote, remaining: null } : null;
     if (!row.verdict.remove) return { outcome: "kept", note: row.sizeNote ?? "", remaining: null };
     if (row.sizeNote) return { outcome: "kept", note: `${row.sizeNote}; the tree is untouched`, remaining: null };
+    // Recorded before git starts, so a run killed during the removal has
+    // left the row that names the branch it may have stranded.
+    record({ decision: "removing", path: path.resolve(row.entry.path), branch: row.entry.branch, why: row.why });
     return removeWorktree(row.entry, ctx, deps);
   };
   for (const row of rows) {
@@ -631,14 +687,18 @@ export async function main(argv, deps = liveDeps) {
       if (r.note) row.why = r.outcome === "removed" ? `${row.why}; ${r.note}` : `${r.note}; ${row.why}`;
     }
     print(row);
-    record({ decision: row.decision, path: path.resolve(row.entry.path), branch: row.entry.branch, why: row.why });
+    // A stray or stranded row is read from the log, never written to it: a
+    // row of its own would stand as the last word on that path and hide the
+    // failed or interrupted removal it reports.
+    if (!row.stray) record({ decision: row.decision, path: path.resolve(row.entry.path), branch: row.entry.branch, why: row.why });
   }
 
   const worktrees = rows.filter((r) => !r.stray && r.entry !== mainEntry);
   const removable = worktrees.filter((r) => r.verdict.remove);
-  const strays = rows.filter((r) => r.stray);
+  const strays = rows.filter((r) => r.stray && !r.stranded);
+  const stranded = rows.filter((r) => r.stranded);
   const kept = worktrees.length - removable.length;
-  const strayNote = strays.length ? `; ${n(strays.length, "directory", "directories")} under the worktrees root ${strays.length === 1 ? "is not a worktree" : "are not worktrees"} (${formatBytes(strays.reduce((s, r) => s + (r.size ?? 0), 0))})` : "";
+  const strayNote = (strays.length ? `; ${n(strays.length, "directory", "directories")} under the worktrees root ${strays.length === 1 ? "is not a worktree" : "are not worktrees"} (${formatBytes(strays.reduce((s, r) => s + (r.size ?? 0), 0))})` : "") + (stranded.length ? `; ${n(stranded.length, "branch", "branches")} whose worktree is gone ${stranded.length === 1 ? "is" : "are"} still local (${stranded.map((r) => r.entry.branch).join(", ")})` : "");
   const scanNote = ctx.processes.ok ? "" : `; the processes on this machine could not be listed (${ctx.processes.err}), which kept every worktree`;
   log("");
   let summary;
