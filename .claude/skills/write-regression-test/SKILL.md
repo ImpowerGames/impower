@@ -127,7 +127,7 @@ for t in $(git ls-files '.claude/**/*.test.mjs'); do echo "--- $t"; node "$t" ||
 
 The checks need no `node_modules`: the driver imports `playwright` only inside the commands that launch a browser, so a worktree that skipped `npm install` still runs all ten.
 
-The two loops take about two minutes here (1m37s at `bfb1d836c`, most of it Node startup for the `.mjs` checks) and longer on a loaded machine, because they spawn many small processes; give them a ten-minute timeout and read the result rather than concluding a hang.
+The two loops take about a minute here (66s: 17s for the shell loop, 49s for the Node loop, most of it Node startup) and longer on a loaded machine, because they spawn many small processes; give them a ten-minute timeout and read the result rather than concluding a hang.
 
 ---
 

@@ -46,13 +46,27 @@
 # not something the harness enforces. Reading each reviewer's first line, which
 # the skill requires, is the check this file cannot be.
 #
-# The check itself is bash builtins only: the files are read with read loops
-# and matched with [[ ]], and helpers hand their result back in REPLY (or the
-# VALUES array) rather than on stdout, because a command substitution forks and
-# on this platform a fork costs more than the work it wraps. The controls at
-# the bottom call the same function on fixtures they build with mktemp, mkdir,
-# rm and grep, so the whole run, controls included, takes seconds anywhere.
+# The check forks no process: the files are read with read loops and matched
+# with [[ ]], and helpers hand their result back in REPLY (or the VALUES array)
+# rather than on stdout, because a command substitution forks and on this
+# platform a fork costs more than the work it wraps. The controls at the bottom
+# call the same function on fixtures they build with mktemp, mkdir, rm and
+# grep, so the whole run, controls included, takes seconds. Given a skill file
+# and an agents directory as arguments, the file runs the assertions on those
+# alone and exits with their status; the last control re-executes it that way
+# to pin the exit status.
+#
+# Needs bash 4.4 or newer: the lowercasing uses ${var,,}, and an empty array
+# is expanded under set -u wherever a row names nothing, which older versions
+# report as an unbound variable. The spellings those versions accept (tr for
+# the lowercasing) cost a fork per row, which is the cost this file exists to
+# avoid, so the floor is stated and checked instead.
 set -u
+
+if [[ "${BASH_VERSINFO[0]}" -lt 4 || ( "${BASH_VERSINFO[0]}" -eq 4 && "${BASH_VERSINFO[1]}" -lt 4 ) ]]; then
+  echo "FAIL: this check needs bash 4.4 or newer; this is bash $BASH_VERSION."
+  exit 1
+fi
 
 self="${BASH_SOURCE[0]:-$0}"
 dir="$(cd "$(dirname "$self")/../../.." && pwd)"
@@ -64,8 +78,8 @@ allowed="sonnet opus haiku fable"
 
 # A double and a single quote, spelled out once so the regexes below stay
 # readable.
-q='"'
-a="'"
+dq='"'
+sq="'"
 
 note_fail() {
   echo "FAIL: $1"
@@ -113,13 +127,14 @@ normalise() {
   REPLY="$s"
 }
 
-# The file with HTML comments removed. A sentinel sitting inside a commented-out
-# block is not an instruction anyone follows, so the prose assertions must not
-# see it -- otherwise deleting a rule and leaving its old text commented above
-# reads as a pass.
+# The file with HTML comments removed and line endings normalised to LF. A
+# sentinel sitting inside a commented-out block is not an instruction anyone
+# follows, so the prose assertions must not see it -- otherwise deleting a rule
+# and leaving its old text commented above reads as a pass.
 uncommented() {
   local line out="" kept incomment=0
   while IFS= read -r line || [[ -n "$line" ]]; do
+    line="${line%$'\r'}"
     kept=""
     while [[ -n "$line" ]]; do
       if [[ "$incomment" -eq 1 ]]; then
@@ -208,9 +223,9 @@ definition_model() {
 # whole.
 cell_values() {
   local key="$1" cell="${2//\`/ }" quoted unquoted prefix rest raw
-  quoted="$q?$key$q? *: *($q[^$q]*$q|$a[^$a]*$a)"
-  unquoted="$q?$key$q? *: *[^,|]*"
-  prefix="^$q?$key$q? *: *"
+  quoted="$dq?$key$dq? *: *($dq[^$dq]*$dq|$sq[^$sq]*$sq)"
+  unquoted="$dq?$key$dq? *: *[^,|]*"
+  prefix="^$dq?$key$dq? *: *"
   VALUES=()
   local -a matches=()
   rest="$cell"
@@ -366,8 +381,8 @@ check() {
   # are swept: unquoted prose has no reliable end, and guessing one would turn
   # ordinary sentences into false failures.
 
-  re="$q?model$q? *: *($q[^$q]*$q|$a[^$a]*$a)"
-  prefix="^$q?model$q? *: *"
+  re="$dq?model$dq? *: *($dq[^$dq]*$dq|$sq[^$sq]*$sq)"
+  prefix="^$dq?model$dq? *: *"
   while IFS= read -r line || [[ -n "$line" ]]; do
     [[ "$line" == "|"* ]] && continue
     rest="$line"
@@ -439,7 +454,7 @@ check() {
     definitions_seen=$((definitions_seen + 1))
     uncommented "$file"
     if [[ "$REPLY" != *'ABORT: pin failed'* ]]; then
-      note_fail "$(basename "$file") does not require its reviewer to abort when it is the writer's own model."
+      note_fail "${file##*/} does not require its reviewer to abort when it is the writer's own model."
       definitions_bad=1
     fi
   done
@@ -459,17 +474,29 @@ check() {
   return "$fail"
 }
 
-check "$skill" "$agents"
+# Turns the collected result into the exit status and the closing line, which
+# is what a loop over the checks and a reader of the output both key on.
+report_and_exit() {
+  if [[ "$overall" -ne 0 ]]; then
+    echo "One or more reviewer-model assertions failed."
+    exit 1
+  fi
+  echo "All reviewer-model assertions passed."
+  exit 0
+}
+
+check "${1:-$skill}" "${2:-$agents}"
 overall=$?
+[[ "$#" -gt 0 ]] && report_and_exit
 
 # --- controls -------------------------------------------------------------
 #
 # A check that cannot go red pins nothing. These run the check function above
 # against broken fixtures and assert its return status, so what is proven is
 # the path from a detected defect to a failing return -- not merely that a
-# helper function can print something. The last lines of this file turn that
-# return into the exit status, and that is the only step a control does not
-# cover.
+# helper function can print something. The last control runs the file itself
+# as a process on one broken fixture, so the step from that return to the exit
+# status is covered too.
 
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
@@ -492,11 +519,19 @@ printf -- '---\nname: body-only\n---\nmodel: claude-opus-4-6\n' > "$tmp/agents/b
 # Filename and declared name deliberately disagree, so the resolver is shown
 # to match on the frontmatter name rather than on the path.
 printf -- '---\nname: declared-name\nmodel: claude-opus-4-6\n---\n' > "$tmp/agents/some-other-file.md"
-# A trailing YAML comment is not part of the value a parser would read.
+# A trailing YAML comment is not part of the value a parser would read. The
+# second definition can only be found at all if the comment on its name is
+# dropped, which is what shows the comment being dropped rather than folded
+# into the value.
 printf -- '---\nname: commented\nmodel: claude-opus-5 # pinned deliberately\n---\n' > "$tmp/agents/commented.md"
-# Two files claiming one name, pinning different models.
-printf -- '---\nname: dupe\nmodel: claude-opus-4-6\n---\n' > "$tmp/agents/aaa-dupe.md"
+printf -- '---\nname: annotated # resolved by this name\nmodel: claude-opus-4-6 # the older version\n---\n' > "$tmp/agents/annotated.md"
+# Two files claiming one name, pinning different models, neither of them the
+# model of the row that spawns the name, so the row can only fail on the
+# duplicate.
+printf -- '---\nname: dupe\nmodel: claude-sonnet-5\n---\n' > "$tmp/agents/aaa-dupe.md"
 printf -- '---\nname: dupe\nmodel: claude-opus-5\n---\n' > "$tmp/agents/zzz-dupe.md"
+# No definitions at all, for the control on an empty directory.
+mkdir -p "$tmp/noagents"
 
 for fixture in "$tmp"/agents/*.md; do
   printf '%s\n' "$abort_line" >> "$fixture"
@@ -562,19 +597,35 @@ control 'a same-family alias route, Fable to fable'    '| Fable | `model: "fable
 control 'two adjacent aliases, "opus haiku"'           '| Opus | `model: "opus haiku"` |'
 control 'an empty model value'                         '| Opus | `model: ""` |'
 control 'a single-quoted rejected value'               "| Opus | \`model: 'opus 4.6'\` |"
-control 'an unquoted rejected value'                   '| Opus | `model: opus 4.6` |'
+# Beside a valid reviewer name, so the row cannot fail for naming nothing.
+control 'an unquoted rejected value'                   '| Fable | `subagent_type: "pinned-old"`, `model: opus 4.6` |'
 control 'a same-family fallback clause'                '| Opus | `model: "fable"`, or `model: "opus"` if rejected |'
 control 'a second row that is same-family'             '| Opus | `model: "fable"` |
 | Opus | `model: "opus"` |'
 control 'an emphasised label, **Opus**, routed to opus' '| **Opus** | `model: "opus"` |'
 control 'a row naming neither a reviewer nor a model'  '| Opus | see below |'
+control 'a rejected value named in prose'              'The fallback is `model: "opus 4.6"` when the definition is missing.
+| Opus 5 | `subagent_type: "pinned-old"` |'
+control 'a document with no table row at all'          ''
 
 accepts 'a correct pinned table' '| Opus 5 | `subagent_type: "pinned-old"` |
 | Opus 4.6 | `subagent_type: "pinned-new"` |
 | Fable, Sonnet, Haiku | `subagent_type: "pinned-new"` |'
 accepts 'a correct alias-fallback table' '| Opus | `model: "fable"` |
 | Fable, Sonnet, Haiku | `model: "opus"` |'
+accepts 'an unquoted accepted value' '| Fable | `model: opus` |'
 accepts 'a definition resolved by its declared name, not its filename' '| Opus 5 | `subagent_type: "declared-name"` |'
+accepts 'a definition with YAML comments on its name and model' '| Opus 5 | `subagent_type: "annotated"` |'
+
+# A row that spawns nothing by name, against a directory with no definitions:
+# only the count of definitions can fail this one.
+printf '%s\n%s\n' '| Opus | `model: "fable"` |' "$clause" > "$tmp/fixture.md"
+if run_fixture "$tmp/fixture.md" "$tmp/noagents"; then
+  echo "FAIL (control): accepted an empty agents directory -- output: $(<"$tmp/out")"
+  overall=1
+else
+  echo "PASS (control): rejects an empty agents directory."
+fi
 
 # Each prose assertion, run against a document missing exactly that one line.
 # Dropping a sentence is how these guards die, so each has to be shown red on
@@ -598,6 +649,16 @@ prose_control 'no abort contract'          'ABORT: pin failed'
 prose_control 'no abort for an unsupplied writer model' 'ABORT: writer model not supplied'
 prose_control 'no writer model to compare against' 'WRITER = your own model id'
 prose_control 'no recovery path for an abort' 'An abort is a result, not an error'
+
+# A reviewer-facing rule that has drifted out of the blockquote is still in the
+# document, so only an assertion that reads the prompt alone can miss it.
+printf '%s\n%s\n' '| Opus 5 | `subagent_type: "pinned-old"` |' "${clause/> if you are my model/if you are my model}" > "$tmp/fixture.md"
+if run_fixture "$tmp/fixture.md" "$tmp/agents"; then
+  echo "FAIL (control): accepted a document whose abort contract sits outside the prompt blockquote -- output: $(<"$tmp/out")"
+  overall=1
+else
+  echo "PASS (control): rejects a document whose abort contract sits outside the prompt blockquote."
+fi
 
 # A rule that was deleted and left commented above is not a rule. Every
 # sentinel present, every one of them inert.
@@ -639,9 +700,19 @@ else
   echo "PASS (control): rejects a definition that does not require the abort check."
 fi
 
-if [[ "$overall" -ne 0 ]]; then
-  echo "One or more reviewer-model assertions failed."
-  exit 1
+# The file as a process, once, on a broken fixture: everything above reads the
+# check function's return, and this is what shows that return reaching the
+# exit status and the closing line.
+printf '%s\n%s\n' '| Opus 5 | `subagent_type: "pinned-new"` |' "$clause" > "$tmp/fixture.md"
+bash "$self" "$tmp/fixture.md" "$tmp/agents" > "$tmp/out" 2>&1
+status=$?
+last=""
+while IFS= read -r line; do last="$line"; done < "$tmp/out"
+if [[ "$status" -ne 0 && "$last" == "One or more reviewer-model assertions failed." ]]; then
+  echo "PASS (control): the file exits non-zero on a broken fixture."
+else
+  echo "FAIL (control): the file exited $status on a broken fixture, closing with '$last' -- output: $(<"$tmp/out")"
+  overall=1
 fi
 
-echo "All reviewer-model assertions passed."
+report_and_exit
