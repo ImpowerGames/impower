@@ -76,6 +76,13 @@ export class AssetModule extends Module<
    *  go with the rest. */
   protected _previewPins = new Set<string>();
 
+  /** Pins of the preview gates a take-over abandoned, let go with the next
+   *  gate's request, with their own load's settle, or on destroy, whichever
+   *  is first. A release before the next gate's request would let the
+   *  page's background queue, which pauses while a gate is pending, start
+   *  loads beside the picture the next beat waits on. */
+  protected _abandonedPins = new Set<string>();
+
   /** Font names per layout, resolved once per program: the walk over a
    *  layout's tree and styles is repeated for every predicted beat otherwise. */
   protected _fontNamesByLayout = new Map<string, string[]>();
@@ -344,7 +351,26 @@ export class AssetModule extends Module<
     if (items.length === 0 || this._destroyed) {
       return Promise.resolve(EMPTY_RESULT);
     }
-    return this.emit(LoadAssetsMessage.type.request({ items, priority, pin }));
+    const result = this.emit(
+      LoadAssetsMessage.type.request({ items, priority, pin }),
+    );
+    if (priority === 0) {
+      // This gate is pinned on the page now, so the pins abandoned since
+      // the last one can go without un-pausing the background queue.
+      this.releaseAbandoned();
+    }
+    return result;
+  }
+
+  /** Release the abandoned preview pins, or those of the given pins that
+   *  are abandoned, in one message. */
+  protected releaseAbandoned(pins?: string[]): void {
+    const going = (pins ?? [...this._abandonedPins]).filter((pin) =>
+      this._abandonedPins.delete(pin),
+    );
+    if (going.length > 0) {
+      this.release(going, false);
+    }
   }
 
   protected prefetch(items: AssetItem[], priority: 2 | 3): void {
@@ -383,6 +409,9 @@ export class AssetModule extends Module<
     pin: string,
     timeoutSeconds: number,
     what: string,
+    // Whether anyone still waits on the gate when its timeout fires: an
+    // abandoned gate settles silently.
+    wanted: () => boolean = () => true,
   ): Promise<{ timedOut: boolean; result: LoadAssetsResult | null }> {
     if (items.length === 0 || this._destroyed) {
       return Promise.resolve({ timedOut: false, result: EMPTY_RESULT });
@@ -417,7 +446,7 @@ export class AssetModule extends Module<
             return;
           }
           settled = true;
-          if (!this._destroyed) {
+          if (!this._destroyed && wanted()) {
             console.warn(
               `spark-engine: ${what} timed out after ${timeoutSeconds}s waiting for ${items
                 .map(assetItemKey)
@@ -902,14 +931,18 @@ export class AssetModule extends Module<
    * loads the portrait still takes the express lane. Returns null when
    * there is nothing to wait for, so a beat with no picture displays at
    * once; otherwise a gate whose `settled` is bounded by `restore_timeout`,
-   * after which the beat displays anyway, and whose `release` lets the
-   * pictures go once the beat is written. Each gate holds a pin of its own
-   * (`preview:<n>`), so a preview that another takes over while it waits
-   * releases only what it asked for.
+   * after which the beat displays anyway, whose `release` lets the
+   * pictures go once the beat is written, and whose `abandon` (a take-over)
+   * keeps the pin until the next gate's request, the load's own settle, or
+   * destroy, whichever is first, and silences the gate's timeout. Each gate
+   * holds a pin of its own (`preview:<n>`), so a preview that another takes
+   * over while it waits lets go only what it asked for.
    */
-  gatePreviewBeat(
-    instructions: Instructions | null,
-  ): { settled: Promise<unknown>; release: () => void } | null {
+  gatePreviewBeat(instructions: Instructions | null): {
+    settled: Promise<unknown>;
+    release: () => void;
+    abandon: () => void;
+  } | null {
     if (this.silent || !instructions) {
       return null;
     }
@@ -922,17 +955,25 @@ export class AssetModule extends Module<
     this._previewGates += 1;
     const pin = `preview:${this._previewGates}`;
     this._previewPins.add(pin);
+    const settled = this.ensureResident(
+      items,
+      0,
+      pin,
+      this.config.restore_timeout,
+      "preview",
+      () => this._previewPins.has(pin),
+    );
     return {
-      settled: this.ensureResident(
-        items,
-        0,
-        pin,
-        this.config.restore_timeout,
-        "preview",
-      ),
+      settled,
       release: () => {
         if (this._previewPins.delete(pin)) {
           this.release([pin], false);
+        }
+      },
+      abandon: () => {
+        if (this._previewPins.delete(pin)) {
+          this._abandonedPins.add(pin);
+          void settled.then(() => this.releaseAbandoned([pin]));
         }
       },
     };
@@ -1003,6 +1044,7 @@ export class AssetModule extends Module<
       ...(this._restorePending ? ["restore"] : []),
       ...this._pendingBeatPins,
       ...this._previewPins,
+      ...this._abandonedPins,
       ...[...this._loadPins].map((flow) => `load:${flow}`),
       ...[...this._layoutPins].map((name) => `layout:${name}`),
     ];
@@ -1014,6 +1056,7 @@ export class AssetModule extends Module<
     this._restorePending = false;
     this._pendingBeatPins.clear();
     this._previewPins.clear();
+    this._abandonedPins.clear();
     this._loadPins.clear();
     this._layoutPins.clear();
     this._fontNamesByLayout.clear();

@@ -2944,12 +2944,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       // once the real run begins.
       return;
     }
-    if (this._game.previewWaiting) {
-      // A preview's beat displays once its pictures are resident, and the
-      // layouts refresh with it; what a handler changes meanwhile shows then,
-      // not before the beat's line.
-      return;
-    }
     const changes = this._game.story.variablesState.takeReactiveChanges();
     try {
       for (const { scope } of this._mountedLayouts.values()) {
