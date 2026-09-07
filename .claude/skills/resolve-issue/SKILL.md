@@ -28,7 +28,7 @@ PASS  gh auth  — needed to read the issue and open the PR
 PASS  git repo  — C:\...\impower.worktrees\impower\issue-214-fix-455354
 ```
 
-If disk headroom fails, free space before creating the worktree (see Troubleshooting).
+If disk headroom fails, free space before creating the worktree: the clean-worktrees skill (`node .claude/skills/clean-worktrees/clean-worktrees.mjs`, from the main checkout, dry run first) removes the worktrees whose work is already on `main`.
 
 ---
 
