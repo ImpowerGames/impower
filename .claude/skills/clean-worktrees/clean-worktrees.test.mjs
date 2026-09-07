@@ -272,6 +272,9 @@ function makeWorld() {
       { path: R("impower.worktrees/fix/22-commits-late"), head: "c22", branch: "fix/22-commits-late", size: 1 * GB, commitsLate: true },
       { path: R("impower.worktrees/perf/23-rmdir-busy"), head: "c23", branch: "perf/23-rmdir-busy", size: 1 * GB, rmdirBusy: true },
       { path: R("impower.worktrees/fix/24-size-throws"), head: "c24", branch: "fix/24-size-throws", size: 1 * GB, sizeThrows: 2 },
+      { path: R("impower.worktrees/fix/25-dirty-late"), head: "c25", branch: "fix/25-dirty-late", size: 1 * GB, dirtyLate: true },
+      { path: R("impower.worktrees/fix/26-old-driver-up"), head: "c26", branch: "fix/26-old-driver-up", driver: "UP  url=http://localhost:3  pid=1  mode=same-origin  state=s", oldDriver: true },
+      { path: R("impower.worktrees/fix/27-git-fails"), head: "c27", branch: "fix/27-git-fails", statusFails: "fatal: index file corrupt" },
     ],
     strays: [R("impower.worktrees/fix/husk-old"), R("impower.worktrees/leftover")],
     processes: [
@@ -301,14 +304,21 @@ function makeWorld() {
   const ok = (out = "") => ({ status: 0, out, err: "" });
   const fail = (err, status = 1) => ({ status, out: "", err });
   const porcelain = () => {
-    const stanza = (t) => [`worktree ${t.path.replaceAll("\\", "/")}`, `HEAD ${t.head}`, t.detached ? "detached" : `branch refs/heads/${t.branch}`, t.locked ? `locked ${t.locked}` : null, t.prunable ? `prunable ${t.prunable}` : null, ""].filter((l) => l != null).join("\n");
-    return [stanza({ path: MAIN, head: "m3", branch: "main" }), ...w.trees.map(stanza)].join("\n");
+    if (w.emptyList) return "";
+    const stanza = (t) => [`worktree ${t.path.replaceAll("\\", "/")}`, `HEAD ${t.head}`, t.bare ? "bare" : null, t.detached ? "detached" : `branch refs/heads/${t.branch}`, t.locked ? `locked ${t.locked}` : null, t.prunable ? `prunable ${t.prunable}` : null, ""].filter((l) => l != null).join("\n");
+    return [stanza({ path: MAIN, head: "m3", branch: "main", bare: w.bare }), ...w.trees.map(stanza)].join("\n");
   };
+  // The classification asks with --ignored=matching and the re-check before
+  // removal asks without, so a tree that turns dirty in between is one whose
+  // plain status has a change the classification did not see.
   const gitStatus = (cwd, withIgnored) => {
     const t = tree(cwd);
     if (!t || t.prunable || t.missing) return fail("fatal: not a git repository (or any of the parent directories): .git", 128);
-    return ok([...(t.dirty ?? []), ...(withIgnored ? (t.ignored ?? []).map((p) => `!! ${p}`) : [])].join("\n"));
+    if (t.statusFails) return fail(t.statusFails, 128);
+    const dirty = [...(t.dirty ?? []), ...(t.dirtyLate && !withIgnored ? [" M late.txt"] : [])];
+    return ok([...dirty, ...(withIgnored ? (t.ignored ?? []).map((p) => `!! ${p}`) : [])].join("\n"));
   };
+  const OLD_DRIVER = path.join(".claude", "skills", "resolve-issue", "driver.mjs");
   w.deps = {
     cwd: () => w.cwd,
     pid: () => SELF_PID,
@@ -374,7 +384,7 @@ function makeWorld() {
       const dir = path.dirname(p);
       const t = tree(dir);
       if (path.basename(p) === ".git") return Boolean(t && !t.prunable && !t.missing && onDisk(dir) && !onDisk(dir).gutted);
-      return w.trees.some((t) => t.driver && same(path.join(t.path, DRIVER), p));
+      return w.trees.some((t) => t.driver && same(path.join(t.path, t.oldDriver ? OLD_DRIVER : DRIVER), p));
     },
     listDirs: (p) => [...new Set([...w.disk.keys()].filter((d) => under(d, p)).map((d) => path.relative(path.resolve(p).toLowerCase(), d).split(path.sep)[0]))],
     isEmptyDir: (p) => ![...w.disk.keys()].some((d) => under(d, p)),
@@ -472,13 +482,28 @@ async function worldChecks(mainFn, report) {
     }
   };
   const all = [...w.trees];
-  const keptRows = ["fix/3-dirty", "fix/4-unpushed", "fix/5-open", "fix/6-fresh", "fix/7-servers-up", "fix/8-servers-launching", "fix/12-locked", "fix/13-outside", "(detached)", "fix/16-in-use", "fix/17-remote-ahead", "fix/18-unborn", "fix/19-broken", "fix/20-missing", "fix/21-no-reflog", "main"];
+  const keptRows = ["fix/3-dirty", "fix/4-unpushed", "fix/5-open", "fix/6-fresh", "fix/7-servers-up", "fix/8-servers-launching", "fix/12-locked", "fix/13-outside", "(detached)", "fix/16-in-use", "fix/17-remote-ahead", "fix/18-unborn", "fix/19-broken", "fix/20-missing", "fix/21-no-reflog", "fix/26-old-driver-up", "fix/27-git-fails", "main"];
 
   await step("an unknown option is refused", async () => {
     const r = await run(mainFn, w, MAIN, "--all");
     assert.equal(r.status, 1, r.out);
     assert.match(r.out, /unknown option --all/);
     assert.equal(w.fetched, 0, "it fetched before refusing");
+  });
+
+  await step("a bare first worktree, and an empty worktree list, are refused before anything is fetched", async () => {
+    w.bare = true;
+    let r = await run(mainFn, w, MAIN, "--apply");
+    assert.equal(r.status, 1, r.out);
+    assert.match(r.out, /the first worktree is bare; run from the main checkout/);
+    w.bare = false;
+    w.emptyList = true;
+    r = await run(mainFn, w, MAIN, "--apply");
+    assert.equal(r.status, 1, r.out);
+    assert.match(r.out, /git worktree list printed nothing; run from the main checkout/);
+    w.emptyList = false;
+    assert.equal(w.fetched, 0, "it fetched before refusing");
+    assert.deepEqual(w.removed, [], "it removed worktrees");
   });
 
   await step("run from a worktree it refuses, naming the main checkout, and removes nothing", async () => {
@@ -508,6 +533,9 @@ async function worldChecks(mainFn, report) {
       ["fix/22-commits-late", "remove", "merged into origin/main"],
       ["perf/23-rmdir-busy", "remove", "merged into origin/main"],
       ["fix/24-size-throws", "remove", "the sizing walk failed; the directory is still there; merged into origin/main"],
+      ["fix/25-dirty-late", "remove", "merged into origin/main"],
+      ["fix/26-old-driver-up", "keep", "dev servers up at http://localhost:3 (pid 1)"],
+      ["fix/27-git-fails", "keep", `git could not judge it (git status --porcelain --ignored=matching failed in ${R("impower.worktrees/fix/27-git-fails")}: fatal: index file corrupt); left for a person`],
       ["fix/3-dirty", "keep", "uncommitted changes (1 file)"],
       ["fix/4-unpushed", "keep", "1 commit not on origin/main, and no origin/fix/4-unpushed holds them"],
       ["fix/5-open", "keep", "1 commit not on origin/main (all on origin/fix/5-open; a pull request may be open)"],
@@ -527,8 +555,8 @@ async function worldChecks(mainFn, report) {
       [rel(R("impower.worktrees/leftover")), "keep", "(not a worktree)"],
     ]);
     assert.ok(!r.out.includes("fix/16-in-use-2"), "a process of a directory whose name extends another's was claimed");
-    assert.match(r.out, /24 worktrees besides the main checkout: 9 to remove \(10\.0 GB\), 15 kept; 2 directories under the worktrees root are not a worktree \(409\.6 MB\)\./);
-    assert.match(r.out, /Dry run; nothing was removed\. Run again with --apply to remove the 9\./);
+    assert.match(r.out, /27 worktrees besides the main checkout: 10 to remove \(11\.0 GB\), 17 kept; 2 directories under the worktrees root are not a worktree \(409\.6 MB\)\./);
+    assert.match(r.out, /Dry run; nothing was removed\. Run again with --apply to remove the 10\./);
   });
 
   await step("--apply removes the merged clean ones, keeps a held or changed tree untouched, and reports a gutted tree and a failed branch deletion with what is left", async () => {
@@ -541,6 +569,7 @@ async function worldChecks(mainFn, report) {
       ["perf/23-rmdir-busy", "removed", `the empty perf${path.sep} could not be removed (EBUSY)`],
       ["fix/9-held", "kept", "a process holds the directory (rename refused: EPERM); stop it and run again"],
       ["fix/22-commits-late", "kept", "changed since it was classified: 1 commit not on origin/main; the tree is untouched"],
+      ["fix/25-dirty-late", "kept", "changed since it was classified: uncommitted changes (1 file); the tree is untouched"],
       ["fix/14-grabbed", "failed", `git worktree remove deleted the tracked files and the .git link, then stopped (error: failed to delete '${R("impower.worktrees/fix/14-grabbed")}': Permission denied); 1.5 GB remain at ${R("impower.worktrees/fix/14-grabbed")}, which is no longer a worktree, so delete the directory by hand once nothing holds it; the branch fix/14-grabbed stays until then`],
       ["fix/15-branch-fails", "failed", "the directory is gone; git branch -D fix/15-branch-fails failed (error: could not delete 'fix/15-branch-fails'), so delete the branch by hand"],
       ["fix/24-size-throws", "failed", "the sizing walk failed; the directory is still there"],
@@ -548,12 +577,13 @@ async function worldChecks(mainFn, report) {
       [rel(R("impower.worktrees/fix/husk-old")), "kept", "(not a worktree)"],
     ]);
     assert.equal(r.status, 1, `exit code ${r.status} though a removal failed:\n${r.out}`);
-    assert.match(r.out, /Removed 4 worktrees and their branches, freeing 5\.5 GB; 17 worktrees kept; 3 failed \(see the rows above for what is left\); 2 directories under the worktrees root are not a worktree \(409\.6 MB\)\. Free space now 26\.0 GB\./);
+    assert.match(r.out, /Removed 4 worktrees and their branches, freeing 5\.5 GB; 20 worktrees kept; 3 failed \(see the rows above for what is left\); 2 directories under the worktrees root are not a worktree \(409\.6 MB\)\. Free space now 26\.0 GB\./);
     assert.deepEqual(w.removed.sort(), ["docs/10-merged-gone", "fix/1-merged-gone", "fix/15-branch-fails", "fix/2-merged-kept-remote", "perf/23-rmdir-busy"]);
     assert.deepEqual(w.branchesDeleted.sort(), ["docs/10-merged-gone", "fix/1-merged-gone", "fix/2-merged-kept-remote", "perf/23-rmdir-busy"]);
     assert.ok(w.branches.has("fix/14-grabbed"), "the gutted tree's branch was deleted");
     assert.ok(w.branches.has("fix/15-branch-fails"));
     assert.ok(w.branches.has("fix/22-commits-late"), "a branch with a commit made after classification was deleted");
+    assert.ok(w.branches.has("fix/25-dirty-late") && w.trees.some((t) => t.branch === "fix/25-dirty-late"), "a tree that turned dirty after classification was removed");
     assert.ok(w.disk.has(R("impower.worktrees/fix/9-held").toLowerCase()), "the held tree is gone");
     assert.ok(w.trees.some((t) => t.branch === "fix/9-held"), "the held tree's record is gone");
     assert.ok(w.disk.get(R("impower.worktrees/fix/14-grabbed").toLowerCase())?.gutted, "the gutted tree's husk is gone");
@@ -571,9 +601,10 @@ async function worldChecks(mainFn, report) {
       [rel(R("impower.worktrees/fix/14-grabbed")), "kept", "(not a worktree)", "1.5 GB", "not a registered worktree"],
       ["fix/9-held", "kept", "a process holds the directory"],
       ["fix/22-commits-late", "kept", "1 commit not on origin/main, and no origin/fix/22-commits-late holds them"],
+      ["fix/25-dirty-late", "kept", "changed since it was classified: uncommitted changes (1 file)"],
       ["fix/24-size-throws", "removed"],
     ]);
-    assert.match(r.out, /Removed 1 worktree and its branch, freeing 1\.0 GB; 17 worktrees kept; 3 directories under the worktrees root are not a worktree \(1\.9 GB\)\./);
+    assert.match(r.out, /Removed 1 worktree and its branch, freeing 1\.0 GB; 20 worktrees kept; 3 directories under the worktrees root are not a worktree \(1\.9 GB\)\./);
   });
 }
 
@@ -625,6 +656,10 @@ try {
   await control("a row that throws loses the table", [[".catch(rowError(row))", ""]], ["the dry run classifies every worktree and removes nothing"]);
   await control("directories that are not worktrees are not listed", [["for (const p of strayDirs(entries, ctx.root, deps.listDirs)) {", "for (const p of []) {"]], ["no row for impower.worktrees"]);
   await control("a failed removal exits 0", [["return failed ? 1 : 0;", "return 0;"]], ["exit code 0 though a removal failed"]);
+  await control("a tree that turned dirty after classification is removed", [["if (dirty > 0) return kept(", "if (false) return kept("]], ["fix/25-dirty-late: expected kept, got removed"]);
+  await control("the older driver location is not looked at", [['".claude/skills/resolve-issue/driver.mjs"', '".claude/skills/resolve-issue/driver-elsewhere.mjs"']], ["fix/26-old-driver-up: expected keep, got remove"]);
+  await control("a worktree git cannot answer for stops the run", [["      verdict = { remove: false, reasons: [`git could not judge it (${err.message}); left for a person`] };", "      throw err;"]], ["the dry run classifies every worktree and removes nothing"]);
+  await control("a worktree git no longer sees, or whose directory is gone, is asked for its status", [["if (facts.isMain || entry.detached || entry.prunable || facts.missing || facts.unborn) return facts;", "if (facts.isMain || entry.detached || facts.unborn) return facts;"]], ["row for fix/19-broken does not say", "row for fix/20-missing does not say"]);
 } finally {
   fs.rmSync(controls, { recursive: true, force: true });
 }

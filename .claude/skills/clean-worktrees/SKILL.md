@@ -20,7 +20,7 @@ A worktree is removed only when every commit on its branch and on its remote is 
 
 - the main checkout, and any other path outside `../impower.worktrees/`; the worktrees under the main checkout's own `.claude/worktrees/` are listed this way and go by hand with `git worktree remove`;
 - a locked worktree, one whose directory is already gone (`git worktree prune` drops that record), and one git no longer sees as a worktree though its directory is there (its `.git` link is gone; delete the directory by hand);
-- a detached or unborn head: the worktree has no branch to judge, so it is listed for a person;
+- a detached or unborn head, or a worktree git cannot answer for (a corrupt index, say): there is no branch to judge or no answer to judge it by, so it is listed for a person;
 - uncommitted changes, counting untracked files; ignored files never count, so a `remove` row names the ignored paths it takes with it (`node_modules/`, a driver's `.chrome-profile/`), and anything worth keeping among them is moved out before `--apply`;
 - commits on neither `origin/main` nor the branch's remote, which is unpushed work whether the remote is gone or never existed;
 - commits on the remote but not on `origin/main`, whether the local branch holds them or is behind the remote, which is a pull request still open or unmerged;

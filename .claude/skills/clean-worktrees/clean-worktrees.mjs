@@ -22,9 +22,10 @@
 // branch that has not moved since it was created (a fresh worktree a session
 // may be working in; the branch's reflog says whether commits were made in
 // it), dev servers that the worktree's own driver reports up or launching,
-// and a running process whose command line names the directory. Directories
-// under the worktrees root that are not worktrees are listed too, so a tree
-// an interrupted removal left behind is never out of sight.
+// a running process whose command line names the directory, and a worktree
+// git cannot answer for. Directories under the worktrees root that are not
+// worktrees are listed too, so a tree an interrupted removal left behind is
+// never out of sight.
 //
 // Removal is `git worktree remove`, which on Windows deletes what it can and
 // then fails when a process holds a directory inside the tree; so before it
@@ -451,7 +452,8 @@ export async function main(argv, deps = liveDeps) {
   if (top.status !== 0) die("not inside a git repository; run from the main checkout");
   const entries = parseWorktreeList(gitOrDie(deps, ["worktree", "list", "--porcelain"], cwd));
   const mainEntry = entries[0];
-  if (!mainEntry || mainEntry.bare) die("the first worktree is bare; run from the main checkout");
+  if (!mainEntry) die("git worktree list printed nothing; run from the main checkout");
+  if (mainEntry.bare) die("the first worktree is bare; run from the main checkout");
   if (!samePath(top.out, mainEntry.path)) die(`run from the main checkout, ${mainEntry.path}; this is the worktree ${top.out}`);
   const mainRoot = path.resolve(mainEntry.path);
   const ctx = {
@@ -464,11 +466,20 @@ export async function main(argv, deps = liveDeps) {
   gitOrDie(deps, ["fetch", "--prune", "origin"], mainRoot);
   ctx.processes = deps.processes();
 
+  // A worktree git cannot answer for is kept and said so, rather than
+  // stopping the run for every other one.
   const rows = [];
   for (const entry of entries) {
-    const facts = gatherFacts(entry, ctx, deps);
-    const verdict = classify(entry, facts);
-    rows.push({ entry, facts, verdict, stray: false, sized: verdict.remove || (entry.prunable && !facts.missing), size: null, decision: verdict.remove ? "remove" : "keep", why: verdict.reasons.join("; ") });
+    let facts = null;
+    let verdict;
+    try {
+      facts = gatherFacts(entry, ctx, deps);
+      verdict = classify(entry, facts);
+    } catch (err) {
+      if (!(err instanceof Refusal)) throw err;
+      verdict = { remove: false, reasons: [`git could not judge it (${err.message}); left for a person`] };
+    }
+    rows.push({ entry, facts, verdict, stray: false, sized: verdict.remove || Boolean(entry.prunable && facts && !facts.missing), size: null, decision: verdict.remove ? "remove" : "keep", why: verdict.reasons.join("; ") });
   }
   for (const p of strayDirs(entries, ctx.root, deps.listDirs)) {
     rows.push({ entry: { path: p, branch: null, detached: false }, facts: null, verdict: { remove: false }, stray: true, sized: true, size: null, decision: "keep", why: "not a registered worktree, which is what an interrupted removal or add leaves behind; delete it by hand after checking it" });
