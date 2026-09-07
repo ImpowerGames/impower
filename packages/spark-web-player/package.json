@@ -9,7 +9,8 @@
     "watch": "node ./scripts/bundle-globals.ts --watch",
     "package": "node ./scripts/bundle-globals.ts --production",
     "test": "vitest",
-    "test:run": "vitest run"
+    "test:run": "vitest run",
+    "typecheck": "node ../../scripts/typecheck.mjs packages/spark-web-player/"
   },
   "dependencies": {
     "@impower/impower-ui": "file:../impower-ui",

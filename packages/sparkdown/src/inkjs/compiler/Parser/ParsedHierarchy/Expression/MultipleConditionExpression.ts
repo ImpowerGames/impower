@@ -13,7 +13,7 @@ export class MultipleConditionExpression extends Expression {
     this.AddContent(conditionExpressions);
   }
 
-  get typeName(): string {
+  override get typeName(): string {
     return "MultipleConditionExpression";
   }
 

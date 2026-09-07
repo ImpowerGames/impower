@@ -4,7 +4,7 @@ import { Identifier } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Ident
 import { ParsedObject } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Object";
 import { Text } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Text";
 import { VariableReference } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Variable/VariableReference";
-import { LowerContext } from "../context";
+import type { LowerContext } from "../context";
 import {
   FUNCTION_CALL_SHORTHAND_NODES,
   lowerExpressionFromContainer,

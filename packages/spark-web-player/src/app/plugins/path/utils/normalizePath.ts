@@ -1,4 +1,4 @@
-import { PathCommand, PathData } from "../types/Path";
+import type { PathCommand,PathData } from "../types/Path";
 
 const degToRad = (degrees: number): number => {
   return (Math.PI * degrees) / 180;

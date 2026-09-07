@@ -1,7 +1,7 @@
 import { Range } from "@codemirror/state";
 import { SparkdownAnnotation } from "../SparkdownAnnotation";
 import { SparkdownAnnotator } from "../SparkdownAnnotator";
-import { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
+import type { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
 import { getContextNames } from "@impower/textmate-grammar-tree/src/tree/utils/getContextNames";
 
 export class ImplicitAnnotator extends SparkdownAnnotator<

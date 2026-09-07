@@ -87,7 +87,7 @@ export function followLink(view: EditorView, link: string) {
     window.open(link, "_blank");
   } else {
     const plugin = LSPPlugin.get(view);
-    plugin.client.workspace.displayFile({ uri: link }, "show.file");
+    plugin!.client.workspace.displayFile({ uri: link }, "show.file");
   }
 }
 
@@ -114,13 +114,14 @@ async function documentLinkTooltipSource(
     return undefined;
   });
 
-  if (!foundRange) {
+  const range = foundRange as { from: number; to: number } | null;
+  if (!range) {
     return null;
   }
 
   return {
-    pos: foundRange.from,
-    end: foundRange.to,
+    pos: range.from,
+    end: range.to,
     above: true,
     create(view) {
       const dom = document.createElement("div");
@@ -130,21 +131,21 @@ async function documentLinkTooltipSource(
 
       const followEl = dom.appendChild(document.createElement("span"));
       followEl.className = "cm-lsp-link-follow";
-      followEl.textContent = link.tooltip ?? "Follow Link";
+      followEl.textContent = link!.tooltip ?? "Follow Link";
       followEl.onclick = (e) => {
         e.preventDefault();
-        if (link.target) {
-          followLink(view, link.target);
+        if (link!.target) {
+          followLink(view, link!.target);
         } else {
           // Resolve if the target wasn't provided initially
           followEl.style.opacity = "0.5";
           const plugin = LSPPlugin.get(view);
-          plugin.client
+          plugin!.client
             .request<
               lsp.DocumentLink,
               lsp.DocumentLink,
               typeof lsp.DocumentLinkResolveRequest.method
-            >("documentLink/resolve", link)
+            >("documentLink/resolve", link!)
             .then((res) => {
               followEl.style.opacity = "1";
               if (res.target) {
@@ -265,7 +266,7 @@ export async function updateDocumentLinks(client: LSPClient, uri: string) {
   view.dispatch(
     setDocumentLinks(
       view.state,
-      convertFromServerDocumentLinks(plugin, result),
+      convertFromServerDocumentLinks(plugin, result!),
     ),
   );
 }

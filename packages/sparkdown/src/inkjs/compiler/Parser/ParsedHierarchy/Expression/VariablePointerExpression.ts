@@ -26,7 +26,7 @@ export class VariablePointerExpression extends Expression {
     super();
   }
 
-  get typeName(): string {
+  override get typeName(): string {
     return "VariablePointerExpression";
   }
 
@@ -36,5 +36,5 @@ export class VariablePointerExpression extends Expression {
     container.AddContent(new VariablePointerValue(this.variableName));
   };
 
-  public readonly toString = (): string => `&${this.variableName}`;
+  public override readonly toString = (): string => `&${this.variableName}`;
 }

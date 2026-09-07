@@ -5,7 +5,7 @@ export const debounce = <T extends (...args: any[]) => void>(
   let timeout = 0;
   return ((...args: Parameters<T>) => {
     clearTimeout(timeout);
-    timeout = setTimeout(() => {
+    timeout = self.setTimeout(() => {
       callback(...args);
     }, delay);
   }) as T;

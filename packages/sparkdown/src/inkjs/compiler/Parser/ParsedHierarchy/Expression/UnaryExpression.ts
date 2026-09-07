@@ -69,7 +69,7 @@ export class UnaryExpression extends Expression {
     this.innerExpression = this.AddContent(inner) as Expression;
   }
 
-  get typeName(): string {
+  override get typeName(): string {
     return "UnaryExpression";
   }
 
@@ -78,6 +78,6 @@ export class UnaryExpression extends Expression {
     container.AddContent(NativeFunctionCall.CallWithName(this.nativeNameForOp));
   };
 
-  public readonly toString = (): string =>
+  public override readonly toString = (): string =>
     this.nativeNameForOp + this.innerExpression;
 }

@@ -1,9 +1,9 @@
 import { type SyntaxNode } from "@lezer/common";
 import { ExternalDeclaration } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Declaration/ExternalDeclaration";
 import { Identifier } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Identifier";
-import { CompiledBlock } from "../../classes/annotators/CompilationAnnotator";
-import { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
-import { LowerContext } from "../context";
+import type { CompiledBlock } from "../../classes/annotators/CompilationAnnotator";
+import type { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
+import type { LowerContext } from "../context";
 import { findChildByName } from "../utils/alternatorArms";
 
 // `external message(x)` — declaration of a host-bound callable. The parsed

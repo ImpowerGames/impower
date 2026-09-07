@@ -1,8 +1,7 @@
 import { type SyntaxNode } from "@lezer/common";
-import { ErrorType, SourceMetadata } from "../../../inkjs/engine/Error";
+import { ErrorType, type SourceMetadata } from "../../../inkjs/engine/Error";
 import { lookupStdLibDeprecation } from "../../../inkjs/engine/StdLib";
-import { InkDiagnostic } from "../../classes/annotators/CompilationAnnotator";
-import { LowerContext } from "../context";
+import type { LowerContext } from "../context";
 
 // LSP `DiagnosticTag.Deprecated`. VS Code renders the affected range
 // with a strikethrough so deprecated calls are visually marked

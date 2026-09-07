@@ -56,7 +56,7 @@ export class ChoicePoint extends InkObject {
     this.isInvisibleDefault = (value & 8) > 0;
     this.onceOnly = (value & 16) > 0;
   }
-  public toString(): string {
+  public override toString(): string {
     if (this.pathOnChoice === null)
       return throwNullException("ChoicePoint.pathOnChoice");
     // int? targetLineNum = DebugLineNumberOfPath (pathOnChoice);

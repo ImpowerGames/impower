@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "typecheck": "node ../scripts/typecheck.mjs sparkdown-player-app/"
   },
   "devDependencies": {
     "@types/node": "^24.4.0",

@@ -412,6 +412,19 @@ const EDITOR_THEME: {
       display: "inline-block",
       width: "calc(100% - 78px)",
     },
+    // The find and replace fields hold more than one line, so they have to
+    // show every space and every break of what they hold: collapsed
+    // whitespace would put an indent on screen that the replacement does not
+    // carry, or drop one that it does. They grow with their content and then
+    // scroll, since what is pasted into them has no bound and the script
+    // underneath still has to be visible.
+    "& [contenteditable][name='search'], & [contenteditable][name='replace']": {
+      whiteSpace: "pre-wrap",
+      overflowWrap: "break-word",
+      verticalAlign: "top",
+      maxHeight: "132px",
+      overflowY: "auto",
+    },
     "& input[name='search'], & [contenteditable][name='search']": {
       paddingRight: "100px",
     },

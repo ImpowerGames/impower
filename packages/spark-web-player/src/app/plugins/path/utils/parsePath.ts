@@ -5,7 +5,13 @@
  * Released under the MIT license.
  */
 
-import { PathCommand, PathData, PathToken } from "../types/Path";
+/*
+* Based on path-data-parser <https://github.com/pshihn/path-data-parser>
+*
+* Copyright (c) 2020 Preet Shihn
+* Released under the MIT license.
+*/
+import type { PathCommand,PathData,PathToken } from "../types/Path";
 
 const COMMAND = 0;
 const NUMBER = 1;

@@ -1,5 +1,5 @@
-import { Create } from "../types/Create";
-import { Filter } from "../types/Filter";
+import type { Create } from "../types/Create";
+import type { Filter } from "../types/Filter";
 
 export const default_filter: Create<Filter> = (obj) => ({
   $type: "filter",

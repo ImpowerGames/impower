@@ -1,9 +1,9 @@
 import { ProtocolRequestType } from "vscode-languageserver-protocol";
-import { ProgressResponseMessage } from "../types/base/ProgressResponseMessage";
-import { ProgressValue } from "../types/base/ProgressValue";
-import { RequestMessage } from "../types/base/RequestMessage";
-import { ResponseError } from "../types/base/ResponseError";
-import { ResponseMessage } from "../types/base/ResponseMessage";
+import type { ProgressResponseMessage } from "../types/base/ProgressResponseMessage";
+import type { ProgressValue } from "../types/base/ProgressValue";
+import type { RequestMessage } from "../types/base/RequestMessage";
+import type { ResponseError } from "../types/base/ResponseError";
+import type { ResponseMessage } from "../types/base/ResponseMessage";
 import { isProgressResponse } from "../utils/isProgressResponse";
 import { isRequest } from "../utils/isRequest";
 import { isResponse } from "../utils/isResponse";

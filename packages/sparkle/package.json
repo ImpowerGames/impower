@@ -4,7 +4,8 @@
   "description": "A web component library for games built with Spark.",
   "version": "0.0.1",
   "scripts": {
-    "extract": "tsx scripts/extract.ts"
+    "extract": "tsx scripts/extract.ts",
+    "typecheck": "node ../../scripts/typecheck.mjs packages/sparkle/"
   },
   "devDependencies": {
     "@custom-elements-manifest/analyzer": "^0.8.0",

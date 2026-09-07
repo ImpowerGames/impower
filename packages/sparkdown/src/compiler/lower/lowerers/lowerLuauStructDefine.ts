@@ -8,9 +8,9 @@ import { FunctionCall } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Fun
 import { Identifier } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Identifier";
 import { Text } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Text";
 import { VariableAssignment } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Variable/VariableAssignment";
-import { CompiledBlock } from "../../classes/annotators/CompilationAnnotator";
-import { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
-import { LowerContext } from "../context";
+import type { CompiledBlock } from "../../classes/annotators/CompilationAnnotator";
+import type { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
+import type { LowerContext } from "../context";
 import { findChildByName } from "../utils/alternatorArms";
 import { wrapInWeave } from "../utils/wrapInWeave";
 import { contextValueToExpression } from "./lowerLuauDefine";

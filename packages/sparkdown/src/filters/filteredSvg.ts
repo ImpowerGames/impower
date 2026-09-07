@@ -148,8 +148,7 @@ export const buildFilteredSrc = (
     return undefined;
   }
   const path = src.split("?")[0] ?? "";
-  const isSvg =
-    rootImage?.ext === "svg" || path.toLowerCase().endsWith(".svg");
+  const isSvg = rootImage?.ext === "svg" || path.toLowerCase().endsWith(".svg");
   if (!isSvg || !src.startsWith(RESOURCE_PROTOCOL)) {
     return src;
   }
@@ -170,7 +169,7 @@ export const buildFilteredSrc = (
  * `thumbnailCacheKey`'s discipline.
  */
 export const filteredSvgCacheKey = (
-  path: string,
+  _path: string,
   lastModified: number,
   size: number,
   canonicalParam: string,
@@ -184,7 +183,7 @@ export interface FilteredSvgCache {
   match(key: string): Promise<Response | undefined>;
   put(key: string, response: Response): Promise<void>;
   delete(key: string): Promise<boolean>;
-  keys(): Promise<{ url: string }[]>;
+  keys(): Promise<readonly { url: string }[]>;
 }
 
 /** A file to filter: its bytes plus the identity its cache key needs. */

@@ -20,8 +20,8 @@ type DocsView = google.picker.DocsView & {
 // time (optional chaining can't guard an *undeclared* identifier). Falls back to
 // undefined when the var isn't set (fine for local dev without Google sync).
 const BROWSER_GOOGLE_API_KEY = import.meta.env.BROWSER_GOOGLE_API_KEY!;
-const BROWSER_GOOGLE_OAUTH_CLIENT_ID =
-  import.meta.env.BROWSER_GOOGLE_OAUTH_CLIENT_ID!;
+const BROWSER_GOOGLE_OAUTH_CLIENT_ID = import.meta.env
+  .BROWSER_GOOGLE_OAUTH_CLIENT_ID!;
 
 // App Id must match first part of OAuth Client Id
 // https://stackoverflow.com/a/17204637
@@ -79,9 +79,7 @@ export default class GoogleDriveSyncProvider {
     responseType: XMLHttpRequestResponseType,
     body?: XMLHttpRequestBodyInit,
     contentType?:
-      | "application/x-www-form-urlencoded"
-      | "application/json"
-      | "text/plain",
+      "application/x-www-form-urlencoded" | "application/json" | "text/plain",
   ) {
     try {
       const result = (await sendServerRequest(
@@ -156,10 +154,10 @@ export default class GoogleDriveSyncProvider {
   protected async loadExportPicker() {
     await this._pickerScriptRef.get();
     const foldersView = new google.picker.DocsView(google.picker.ViewId.FOLDERS)
-      .setParent("root")
       .setIncludeFolders(true)
       .setSelectFolderEnabled(true)
       .setMimeTypes("application/vnd.google-apps.folder");
+    foldersView.setParent("root");
     const sharedWithMeView = new google.picker.DocsView()
       .setIncludeFolders(true)
       .setSelectFolderEnabled(true)
@@ -190,7 +188,7 @@ export default class GoogleDriveSyncProvider {
           if (data.action === google.picker.Action.CANCEL) {
             resolve(null);
           } else if (data.action === google.picker.Action.PICKED) {
-            const document = data[google.picker.Response.DOCUMENTS][0];
+            const document = data[google.picker.Response.DOCUMENTS]?.[0];
             const id = document?.[google.picker.Document.ID];
             if (id) {
               resolve(id);
@@ -216,7 +214,7 @@ export default class GoogleDriveSyncProvider {
           if (data.action === google.picker.Action.CANCEL) {
             resolve(null);
           } else if (data.action === google.picker.Action.PICKED) {
-            const document = data[google.picker.Response.DOCUMENTS][0];
+            const document = data[google.picker.Response.DOCUMENTS]?.[0];
             if (document) {
               const folderId = document[google.picker.Document.ID];
               resolve(folderId);

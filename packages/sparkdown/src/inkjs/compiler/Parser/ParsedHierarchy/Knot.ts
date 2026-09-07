@@ -19,7 +19,7 @@ export class Knot extends FlowBase {
     super(name, topLevelObjects, args, isFunction);
   }
 
-  get typeName(): string {
+  override get typeName(): string {
     return this.isFunction ? "Function" : "Knot";
   }
 

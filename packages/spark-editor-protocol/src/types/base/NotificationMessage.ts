@@ -1,9 +1,9 @@
-import { Message } from "./Message";
+import type { Message } from "./Message";
 
 export interface NotificationMessage<
   M extends string = string,
   P = any,
-> extends Message<M, P> {
+> extends Message<M> {
   /**
    * The method to be invoked.
    */

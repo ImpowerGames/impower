@@ -1,4 +1,4 @@
-import { Animation } from "../../../spark-engine/src/game/modules/ui/types/Animation";
+import type { Animation } from "../../../spark-engine/src/game/modules/ui/types/Animation";
 
 /**
  * [D14] Consumer-side reconstruction of the per-letter `show` reveal animation

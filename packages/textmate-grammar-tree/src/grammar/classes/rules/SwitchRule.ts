@@ -3,11 +3,11 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
 import { Wrapping } from "../../enums/Wrapping";
-import {
-  IncludeDefinition,
-  SwitchRuleDefinition,
+import type {
+IncludeDefinition,
+SwitchRuleDefinition,
 } from "../../types/GrammarDefinition";
-import { Rule } from "../../types/Rule";
+import type { Rule } from "../../types/Rule";
 import { createID } from "../../utils/createID";
 import { GrammarNode } from "../GrammarNode";
 import type { GrammarRepository } from "../GrammarRepository";

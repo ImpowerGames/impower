@@ -1,10 +1,18 @@
 import { type Tree, type TreeCursor } from "@lezer/common";
 import { type GrammarSyntaxNode } from "../types/GrammarSyntaxNode";
 
-export const getOtherMatchesInsideParent = <T extends string>(
+/**
+ * `N` is the grammar's node-name union, inferred from `stack`; the looked-up
+ * names `T` and `P` must belong to it. See `getDescendent`.
+ */
+export const getOtherMatchesInsideParent = <
+  N extends string,
+  T extends N = N,
+  P extends N = N,
+>(
   matchTypeName: T | T[],
-  parentTypeName: T | T[],
-  stack: GrammarSyntaxNode<T>[],
+  parentTypeName: P | P[],
+  stack: GrammarSyntaxNode<N>[],
   tree: Tree,
   read: (from: number, to: number) => string,
 ): string[] => {
@@ -15,7 +23,7 @@ export const getOtherMatchesInsideParent = <T extends string>(
   const parent = stack.find((n) =>
     typeof parentTypeName === "string"
       ? n.name === parentTypeName
-      : parentTypeName.includes(n.name as T),
+      : parentTypeName.includes(n.name as P),
   );
 
   if (!current || !parent) return matches;

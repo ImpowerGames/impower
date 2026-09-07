@@ -197,12 +197,12 @@ export const renameSymbol: Command = (view) => {
   const pos = view.state.selection.main.head;
   const defaultWordSelectionRange = view.state.wordAt(pos);
   const word = view.state.sliceDoc(
-    defaultWordSelectionRange.from,
-    defaultWordSelectionRange.to,
+    defaultWordSelectionRange!.from,
+    defaultWordSelectionRange!.to,
   );
 
   const serverRenameCapabilities =
-    plugin.client.serverCapabilities.renameProvider;
+    plugin.client.serverCapabilities?.renameProvider;
   const shouldPrepareRename =
     typeof serverRenameCapabilities === "object" &&
     serverRenameCapabilities &&
@@ -232,7 +232,7 @@ export const renameSymbol: Command = (view) => {
               : undefined;
           const from = mapping.mapPosition(uri, range.start, 1);
           const to = mapping.mapPosition(uri, range.end, -1);
-          const word = file.doc.sliceString(from, to);
+          const word = file!.doc.sliceString(from, to);
           view.dispatch({
             effects: openRename.of({ pos: from, end: to, word, placeholder }),
           });
@@ -247,8 +247,8 @@ export const renameSymbol: Command = (view) => {
   } else {
     view.dispatch({
       effects: openRename.of({
-        pos: defaultWordSelectionRange.from,
-        end: defaultWordSelectionRange.to,
+        pos: defaultWordSelectionRange!.from,
+        end: defaultWordSelectionRange!.to,
         word,
       }),
     });

@@ -1,7 +1,7 @@
-import { Renderer, Texture } from "pixi.js";
+import { type Renderer, Texture } from "pixi.js";
 import {
   generateAnimatedSVGTexture,
-  GenerateAnimatedSVGTextureOptions,
+  type GenerateAnimatedSVGTextureOptions,
 } from "./generateAnimatedSVGTexture";
 import { parseSVGDurAttribute } from "./parseSVGDurAttribute";
 

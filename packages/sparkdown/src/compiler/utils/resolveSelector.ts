@@ -1,5 +1,5 @@
-import { SparkProgram } from "../types/SparkProgram";
-import { SparkSelector } from "../types/SparkSelector";
+import type { SparkProgram } from "../types/SparkProgram";
+import type { SparkSelector } from "../types/SparkSelector";
 import { selectProperty } from "./selectProperty";
 
 export const resolveSelector = <T>(

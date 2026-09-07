@@ -23,5 +23,10 @@
     "forceConsistentCasingInFileNames": true,
     "isolatedModules": true,
     "allowJs": true
-  }
+  },
+  "exclude": [
+    "node_modules",
+    "dist",
+    "out"
+  ]
 }

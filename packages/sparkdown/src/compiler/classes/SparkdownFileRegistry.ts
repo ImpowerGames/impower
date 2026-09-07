@@ -1,4 +1,4 @@
-import { File } from "../types/File";
+import type { File } from "../types/File";
 import { buildSVGSource } from "../utils/buildSVGSource";
 
 export class SparkdownFileRegistry {

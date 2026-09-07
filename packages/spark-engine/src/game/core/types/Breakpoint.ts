@@ -1,4 +1,4 @@
-import { DocumentLocation } from "./DocumentLocation";
+import type { DocumentLocation } from "./DocumentLocation";
 
 export interface Breakpoint {
   /** If true, the breakpoint could be set (but not necessarily at the desired location). */

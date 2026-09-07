@@ -1,8 +1,8 @@
 import { MessageProtocolRequestType } from "@impower/jsonrpc/src/common/classes/MessageProtocolRequestType";
-import { RequestMessage } from "@impower/jsonrpc/src/common/types/RequestMessage";
-import { ResponseMessage } from "@impower/jsonrpc/src/common/types/ResponseMessage";
+import type { RequestMessage } from "@impower/jsonrpc/src/common/types/RequestMessage";
+import type { ResponseMessage } from "@impower/jsonrpc/src/common/types/ResponseMessage";
 import { type SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
-import { GameConfiguration } from "../../types/GameConfiguration";
+import type { GameConfiguration } from "../../types/GameConfiguration";
 
 export type UpdateGameMethod = typeof UpdateGameMessage.method;
 

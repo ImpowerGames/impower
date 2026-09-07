@@ -1,4 +1,4 @@
-import { IElementEvent } from "./IElementEvent";
+import type { IElementEvent } from "./IElementEvent";
 
 /** An `input` / `change` event from a form control. Carries the control's
  *  current value/checked so an `@input`/`@change` handler can write it back into

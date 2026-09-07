@@ -265,6 +265,30 @@ describe("InterpreterModule text tags", () => {
       });
     });
 
+    // An author spaces a mid-line asset tag out for readability. Removing the
+    // tag must leave exactly ONE space at the junction: the space before the
+    // tag is the word separator, and the space after it belongs to the tag's
+    // own spacing. Two spaces would look identical on screen (the text is laid
+    // out with collapsing whitespace) while lengthening the pause the
+    // letter-by-letter typing puts between the words, so this is asserted on
+    // the text the typing is driven from rather than by eye.
+    it("leaves one space where a spaced-out asset tag was removed", () => {
+      expect(render("The car ((sfx_vroom)) drove.").text).toBe(
+        "The car drove.",
+      );
+      expect(render("The car [[img_car]] drove.").text).toBe("The car drove.");
+      expect(
+        render("The car ((sfx_vroom)) drove as he ((sfx_screech)) slammed.")
+          .text,
+      ).toBe("The car drove as he slammed.");
+    });
+
+    it("leaves no leading space when a spaced-out asset tag opens the line", () => {
+      expect(render("((sfx_vroom)) The car drove.").text).toBe(
+        "The car drove.",
+      );
+    });
+
     // Same rule as text tags: an unterminated asset tag is not a tag, so it
     // stays on screen as authored rather than swallowing the rest of the line.
     it("keeps an unterminated image tag as literal text", () => {

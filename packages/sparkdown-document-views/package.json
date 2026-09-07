@@ -5,7 +5,8 @@
   "version": "0.0.1",
   "scripts": {
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "typecheck": "node ../../scripts/typecheck.mjs packages/sparkdown-document-views/"
   },
   "dependencies": {
     "@codemirror/autocomplete": "^6.19.0",

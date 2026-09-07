@@ -2,9 +2,9 @@ import { type SyntaxNode } from "@lezer/common";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 import { ParsedObject } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Object";
 import { Tag } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Tag";
-import { CompiledBlock } from "../../classes/annotators/CompilationAnnotator";
-import { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
-import { LowerContext } from "../context";
+import type { CompiledBlock } from "../../classes/annotators/CompilationAnnotator";
+import type { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
+import type { LowerContext } from "../context";
 import { lowerTagContent } from "../utils/lowerTagContent";
 import { wrapInWeave } from "../utils/wrapInWeave";
 

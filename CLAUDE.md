@@ -43,6 +43,29 @@ by hand.
 OPFS project storage is **per-origin**, so a project saved at one editor port is
 invisible at another — use the URL the launcher prints.
 
+## Filing issues and pull requests — follow the templates
+
+Every issue and pull request follows a template under `.github/`. Two skills drive the filing itself and enforce what a template cannot: `file-bug` reproduces the bug before it files (no reproduction, no ticket) and `file-feature` interviews the user until every design decision is settled before it files. Use them whenever you are about to file a bug or a feature; `resolve-issue` then implements the ticket, invoking `write-regression-test`, `drive-web-editor` and `review-pr` at the steps where each applies (all three also run on their own). GitHub only fills a template in for someone using the web form, so when you file from the command line (`gh api`, `gh pr create`) read the template file yourself and produce a body with the same headings in the same order:
+
+| Filing a…                                       | Template                                    |
+| ----------------------------------------------- | ------------------------------------------- |
+| Bug (wrong behavior, crash, hang, regression)   | `.github/ISSUE_TEMPLATE/bug_report.md`      |
+| Feature (new functionality or changed behavior) | `.github/ISSUE_TEMPLATE/feature_request.md` |
+| Task (refactor, tooling, perf, docs, follow-up) | `.github/ISSUE_TEMPLATE/task.md`            |
+| Pull request                                    | `.github/PULL_REQUEST_TEMPLATE.md`          |
+
+Each template's leading comment gives the title convention and the label list; its `type:` front matter names the issue type to set (`Bug`, `Feature`, or `Task`). GitHub applies that type through the web form, through `gh issue create --type`, and through the REST create call's `type` field. From the command line, create the issue with one call that carries the type, so the issue never exists untyped; the REST call also sets the labels and returns the type for checking:
+
+```sh
+gh api -X POST repos/ImpowerGames/impower/issues -f title="<title>" -F body=@ticket.md -f type=Bug -f "labels[]=system: sparkdown"   # type is Bug, Feature, or Task; repeat labels[] per label
+```
+
+A hook in `.claude/settings.json` (`.claude/hooks/typed-issue-hook.mjs`) refuses `gh issue create` on this repo unless it carries `--type <name>`, and a `gh api` call to this repo's issues collection that creates (an explicit POST, or field flags with no method) unless one of its field flags is `type=...`; the same rule applies to a `curl`, Invoke-RestMethod, or Invoke-WebRequest POST to that collection (including the `irm` and `iwr` aliases), and a GraphQL `createIssue` mutation is refused outright. It reads the command text statically, so it is a guard against forgetting the type rather than against evasion: an endpoint or method built from a shell variable, a gh alias, or a wrapper script is not seen, and untyped issues can still arrive from outside a Claude Code session in this checkout.
+
+Keep every heading, write "None", "Unknown", or "Not applicable" with a short reason under one you cannot fill, tick only the issue template's checkbox items you actually did, fill in the pull request template's Type of change and Checklist lines as plain text rather than checkboxes, and strip the HTML comments before filing. After filing, read the artifact back (`gh issue view N --json body`, `gh pr view N --json body`).
+
+A pull request that resolves an issue must carry `Closes #N` in its body (the template's line under Summary). GitHub closes the issue on merge only when a closing keyword and the number appear together in the body; the issue number in the title is a mention and closes nothing. The "Check Linked Issue" workflow fails any pull request whose body has neither a closing reference nor the sentence "No linked issue."; the check is `.github/scripts/check-linked-issue.mjs`, runnable locally with `PR_BODY="$(cat pr-body.md)" node .github/scripts/check-linked-issue.mjs`.
+
 ## Multi-line bodies for `gh` and `git` (silent-corruption footgun)
 
 `@-` means "read stdin" to **curl**, not to `gh` or `git`. Both accept it as a
@@ -57,7 +80,7 @@ Use the file flags instead (`-` means stdin):
 
 ```sh
 gh pr create    --body-file body.md     # or --body-file -
-gh issue create --body-file body.md
+gh api -X POST repos/ImpowerGames/impower/issues -f title="x" -F body=@body.md -f type=Bug   # -F reads the file
 gh issue edit N --body-file body.md     # also how you repair a mangled one
 git commit -F msg.txt                   # or -F -
 ```
@@ -83,14 +106,17 @@ repo root. Editing them directly *works* — tests pass, the change ships — an
 then the next `definitions` build silently regenerates them and your change
 vanishes:
 
-| Generated (do NOT edit)                                        | Source of truth                                  |
-| -------------------------------------------------------------- | ------------------------------------------------ |
-| `packages/sparkdown/language/sparkdown.language-grammar.json`  | `definitions/yaml/sparkdown.language-grammar.yaml` |
-| `packages/sparkdown/language/sparkdown.language-config.json`   | `definitions/yaml/sparkdown.language-config.yaml`  |
-| `packages/sparkdown/language/sparkdown.language-snippets.json` | `definitions/yaml/sparkdown.language-snippets.yaml` |
+| Generated (do NOT edit)                                             | Source of truth                                      |
+| -------------------------------------------------------------------- | ------------------------------------------------------ |
+| `packages/sparkdown/language/sparkdown.language-grammar.json`        | `definitions/yaml/sparkdown.language-grammar.yaml`      |
+| `packages/sparkdown/language/sparkdown.language-config.json`         | `definitions/yaml/sparkdown.language-config.yaml`       |
+| `packages/sparkdown/language/sparkdown.language-snippets.json`       | `definitions/yaml/sparkdown.language-snippets.yaml`     |
+| `vscode-sparkdown/language/sparkdown.language-grammar.json`          | `definitions/yaml/sparkdown.language-grammar.yaml`      |
+| `vscode-sparkdown/language/sparkdown.language-config.json`           | `definitions/yaml/sparkdown.language-config.yaml`       |
+| `vscode-sparkdown/language/sparkdown.language-snippets.json`         | `definitions/yaml/sparkdown.language-snippets.yaml`     |
 
-(The full `definitions` build also propagates these to a sibling
-`vscode-sparkdown` checkout; `definitions/yaml/sparkdown.language-completions.yaml`
+(Each YAML source propagates to both `packages/sparkdown/language/` and
+`vscode-sparkdown/language/`; `definitions/yaml/sparkdown.language-completions.yaml`
 exists but is not currently propagated.)
 
 The sources are easy to miss: they live under `definitions/yaml/` at the repo
@@ -103,12 +129,25 @@ To change a grammar/config/snippets rule:
 
 ```sh
 # 1. edit the rule in definitions/yaml/<file>.yaml
-# 2. regenerate (from the repo root):
-cd definitions && npx tsx src/language.ts ../packages/sparkdown/language
+# 2. regenerate BOTH output locations (from the repo root):
+cd definitions && npx tsx src/language.ts ../packages/sparkdown/language ../vscode-sparkdown/language
+# (equivalent to `npm run language` from inside definitions/)
 ```
+
+Passing only one output path regenerates only that location and leaves the
+other stale — `definitions/package.json`'s `language`/`build` scripts always
+pass both paths, so prefer `npm run language` over typing the paths by hand.
 
 Commit the YAML **and** the regenerated JSON together. If your JSON diff
 contains a change with no matching YAML diff, the change is doomed.
+
+## Skills improve through use — report the friction
+
+The skills under `.claude/skills/` are maintained from what happens when they are followed. When you run into a problem with a skill while using it, say so; an agent that quietly works around a wrong instruction leaves the next agent to hit the same wall, and that has been happening. Friction means any of: a command in the skill that fails or needs a flag the skill does not give, a path or name that has moved, a step that does not apply to your case and says nothing about when to skip it, a gotcha you hit that the skill's Gotchas or Troubleshooting section does not list, an ambiguity you had to resolve by guessing, or a step whose reason you could not see.
+
+Report it in the final message of your session under a heading "Skill feedback", one entry per problem: the skill and section, what happened, and the edit you propose (the sentence you would add or change). Keep it to what a maintainer can act on; "it was confusing" is not an entry, "section 5 says to run X, which fails with Y in a fresh worktree because Z; add W before it" is.
+
+When you are certain of the fix and the session already has a branch and pull request, make the edit to the skill file in its own commit on that branch and mention it under the pull request's Notes for reviewers, so the fix ships with the work that found it. When you are not certain, or there is no pull request to carry it, the report is enough; the user decides. Never edit a skill to remove a rule you found inconvenient; those rules are usually there because of a previous session's friction.
 
 ## Strict rule — LOOK. Never guess.
 

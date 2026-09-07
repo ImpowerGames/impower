@@ -1,3 +1,4 @@
+import { nodeNameSet } from "../../utils/nodeNameSet";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 import { type SyntaxNode } from "@lezer/common";
 import { Argument } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Argument";
@@ -13,12 +14,10 @@ import { StringExpression } from "../../../inkjs/compiler/Parser/ParsedHierarchy
 import { Text } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Text";
 import { VariableReference } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Variable/VariableReference";
 import { Weave } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Weave";
-import { DivertTarget } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Divert/DivertTarget";
-import { Divert } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Divert/Divert";
 import { NullExpression } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expression/NullExpression";
-import { CompiledBlock } from "../../classes/annotators/CompilationAnnotator";
-import { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
-import { LowerContext, SiblingSubFlowInfo } from "../context";
+import type { CompiledBlock } from "../../classes/annotators/CompilationAnnotator";
+import type { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
+import type { LowerContext,SiblingSubFlowInfo } from "../context";
 import { lowerStatements } from "../lower";
 import {
   bodyReferencesNameAsCall,
@@ -47,7 +46,7 @@ import { wrapInWeave } from "../utils/wrapInWeave";
 // Luau-statement patterns, so display lines and `-> divert` syntax can't
 // land here. No lowerer-side validation is needed.
 
-const FUNCTION_BODY_SKIP: ReadonlySet<string> = new Set([
+const FUNCTION_BODY_SKIP: ReadonlySet<string> = nodeNameSet([
   "LuauFunctionDeclarationName",
   "LuauFunctionParameters",
   "LuauFunctionReturnType",

@@ -1,4 +1,4 @@
-import { NotificationMessage } from "../types/NotificationMessage";
+import type { NotificationMessage } from "../types/NotificationMessage";
 
 export const isNotification = <M extends string, P>(
   obj: any,

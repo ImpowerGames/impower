@@ -1,7 +1,7 @@
 import { ConnectMessage } from "../../common/classes/ConnectMessage";
 import {
   MessageConnection,
-  MessageConnectionEvents,
+  type MessageConnectionEvents,
 } from "./MessageConnection";
 
 export class Port1MessageConnection extends MessageConnection {

@@ -114,23 +114,23 @@ export const lspContextMenuItems: ContextMenuItem[] = [
   {
     label: "Rename Symbol",
     command: renameSymbol,
-    shortcut: getShortcutLabel(renameKeymap[0]?.key),
+    shortcut: getShortcutLabel(renameKeymap[0]?.key!),
   },
   {
     label: "Format Document",
     command: formatDocument,
-    shortcut: getShortcutLabel(formatKeymap[0]?.key),
+    shortcut: getShortcutLabel(formatKeymap[0]?.key!),
   },
   { type: "separator" },
   {
     label: "Find References",
     command: findReferences,
-    shortcut: getShortcutLabel(findReferencesKeymap[0]?.key),
+    shortcut: getShortcutLabel(findReferencesKeymap[0]?.key!),
   },
   {
     label: "Go to Definition",
     command: jumpToDefinition,
-    shortcut: getShortcutLabel(jumpToDefinitionKeymap[0]?.key),
+    shortcut: getShortcutLabel(jumpToDefinitionKeymap[0]?.key!),
   },
 ];
 

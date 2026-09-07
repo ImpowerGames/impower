@@ -51,7 +51,7 @@ export class ControlCommand extends InkObject {
     this._commandType = commandType;
   }
 
-  public Copy() {
+  public override Copy() {
     const copy = new ControlCommand(this.commandType);
     copy._stdLibName = this._stdLibName;
     copy._stdLibArity = this._stdLibArity;
@@ -202,7 +202,7 @@ export class ControlCommand extends InkObject {
     cmd._shortCircuitSkipCount = skipCount;
     return cmd;
   }
-  public toString() {
+  public override toString() {
     return "ControlCommand " + this.commandType.toString();
   }
 }

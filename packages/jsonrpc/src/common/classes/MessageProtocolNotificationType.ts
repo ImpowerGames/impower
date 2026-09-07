@@ -1,4 +1,4 @@
-import { NotificationMessage } from "../types/NotificationMessage";
+import type { NotificationMessage } from "../types/NotificationMessage";
 import { isNotification } from "../utils/isNotification";
 
 export class MessageProtocolNotificationType<M extends string, P = undefined> {

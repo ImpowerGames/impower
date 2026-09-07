@@ -3,7 +3,7 @@ import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/get
 import { getDescendents } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendents";
 import { Argument } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Argument";
 import { Identifier } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Identifier";
-import { LowerContext } from "../context";
+import type { LowerContext } from "../context";
 
 // Synthetic local name that holds the variadic-args MultiValue inside
 // a `function f(a, ...) ... end` body. The lowerer emits a read of

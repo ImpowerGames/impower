@@ -81,13 +81,13 @@ export abstract class Workspace {
 
   /// Called when the server has changed the content of a closed text file.
   /// The default implementation does nothing when closed files are changed.
-  refreshFileContent(uri: string, text: string): void {}
+  refreshFileContent(_uri: string, _text: string): void {}
 
   /// Called when the client for this workspace is connected. The
   /// default implementation calls
   /// [`LSPClient.didOpen`](#lsp-client.LSPClient.didOpen) on all open
   /// files.
-  connected(client: LSPClient): void {
+  connected(_client: LSPClient): void {
     for (let file of this.files) this.client.didOpen(file);
   }
 
@@ -111,7 +111,9 @@ export abstract class Workspace {
       for (const c of params.edit.documentChanges) {
         if ("textDocument" in c) {
           const uri = c.textDocument.uri;
-          const edits = c.edits;
+          const edits = c.edits.filter(
+            (e): e is lsp.TextEdit | lsp.AnnotatedTextEdit => "newText" in e,
+          );
           const file = this.getFile(uri);
           if (!edits.length || !file) {
             continue;
@@ -140,12 +142,12 @@ export abstract class Workspace {
     userEvent: string,
   ): Promise<void> {
     const file = this.getFile(uri);
-    const view = file.getView();
+    const view = file!.getView();
     if (!view) {
-      throw new Error(`File is not open: ${file.uri}`);
+      throw new Error(`File is not open: ${file!.uri}`);
     }
     let plugin = LSPPlugin.get(view);
-    plugin.client.withMapping(async (mapping) => {
+    plugin!.client.withMapping(async (mapping) => {
       const update = {
         changes: changes.map((change) => ({
           from: mapping.mapPosition(uri, change.range.start),
@@ -174,22 +176,22 @@ export abstract class Workspace {
     userEvent: string,
   ): Promise<void> {
     const file = this.getFile(params.uri);
-    const view = file.getView();
+    const view = file!.getView();
     if (!view) {
-      throw new Error(`File is not open: ${file.uri}`);
+      throw new Error(`File is not open: ${file!.uri}`);
     }
     if (params.takeFocus) {
       view.focus();
     }
     if (params.selection) {
       let plugin = LSPPlugin.get(view);
-      plugin.client.withMapping(async (mapping) => {
+      plugin!.client.withMapping(async (mapping) => {
         const from = mapping.getMapping(params.uri)
-          ? mapping.mapPosition(params.uri, params.selection.start)
-          : plugin.fromPosition(params.selection.start, view.state.doc);
+          ? mapping.mapPosition(params.uri, params.selection!.start)
+          : plugin!.fromPosition(params.selection!.start, view.state.doc);
         const to = mapping.getMapping(params.uri)
-          ? mapping.mapPosition(params.uri, params.selection.end)
-          : plugin.fromPosition(params.selection.end, view.state.doc);
+          ? mapping.mapPosition(params.uri, params.selection!.end)
+          : plugin!.fromPosition(params.selection!.end, view.state.doc);
         if (params.takeFocus) {
           view.focus();
         }
@@ -205,7 +207,7 @@ export abstract class Workspace {
   }
 
   async changeWatchedFiles(
-    params: lsp.DidChangeWatchedFilesParams,
+    _params: lsp.DidChangeWatchedFilesParams,
   ): Promise<void> {}
 }
 

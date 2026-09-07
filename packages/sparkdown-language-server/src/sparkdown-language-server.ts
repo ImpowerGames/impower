@@ -37,6 +37,10 @@ import {
   TOKEN_TYPES,
 } from "./utils/providers/getSemanticTokens";
 
+// This module runs as a dedicated worker; the project also loads the DOM lib,
+// so `self` would otherwise be typed as Window.
+declare const self: DedicatedWorkerGlobalScope;
+
 console.log("running sparkdown-language-server v1.0");
 
 try {

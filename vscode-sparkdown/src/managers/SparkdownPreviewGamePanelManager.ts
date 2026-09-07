@@ -50,6 +50,19 @@ export class SparkdownPreviewGamePanelManager {
     return this._panel;
   }
 
+  /**
+   * The script the preview is showing, which is the last one an editor
+   * selection was reported for. Undefined until a selection has been
+   * reported, and again once that file is closed.
+   */
+  get document(): vscode.TextDocument | undefined {
+    const uri = this._selected?.uri;
+    if (!uri) {
+      return undefined;
+    }
+    return vscode.workspace.textDocuments.find((d) => d.uri.toString() === uri);
+  }
+
   _hovering = false;
   get hovering() {
     return this._hovering;
@@ -484,7 +497,7 @@ export class SparkdownPreviewGamePanelManager {
       context.extensionUri,
       ["out", "data", "courier-prime-bold-italic.ttf"],
     );
-    const  fontFamilyEmoji = "Noto Color Emoji"
+    const fontFamilyEmoji = "Noto Color Emoji";
     const fontFormatEmoji = "truetype";
     const fontPathEmoji = getWebviewUri(webview, context.extensionUri, [
       "out",

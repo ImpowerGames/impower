@@ -4,8 +4,8 @@ import { BinaryExpression } from "../../../inkjs/compiler/Parser/ParsedHierarchy
 import { Identifier } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Identifier";
 import { VariableAssignment } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Variable/VariableAssignment";
 import { VariableReference } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Variable/VariableReference";
-import { CompiledBlock } from "../../classes/annotators/CompilationAnnotator";
-import { LowerContext } from "../context";
+import type { CompiledBlock } from "../../classes/annotators/CompilationAnnotator";
+import type { LowerContext } from "../context";
 import { lowerExpressionFromContainer } from "../expression/lowerExpression";
 import { lowerPropertyTargetAssignment } from "../utils/lowerPropertyTargetAssignment";
 import { validateAssignmentValue } from "../utils/validateAssignmentValue";

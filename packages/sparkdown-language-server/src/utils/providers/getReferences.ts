@@ -283,17 +283,6 @@ export const collectReferencesForTarget = (
           }
           scopeKind = "branch";
         }
-        if (r.value.type.declaration === "knot") {
-          scopePathParts = [];
-          scopeKind = "knot";
-        }
-        if (r.value.type.declaration === "stitch") {
-          const prevKind = scopePathParts.at(-1)?.kind || "";
-          if (prevKind === "branch" || prevKind === "stitch") {
-            scopePathParts.pop();
-          }
-          scopeKind = "stitch";
-        }
         if (document.read(r.from, r.to) === symbolName) {
           const refScopePath = scopePathParts.map((p) => p.name).join(".");
           addMatchingSymbols(uri, r, refScopePath);
@@ -301,9 +290,7 @@ export const collectReferencesForTarget = (
         if (
           r.value.type.declaration === "function" ||
           r.value.type.declaration === "scene" ||
-          r.value.type.declaration === "branch" ||
-          r.value.type.declaration === "knot" ||
-          r.value.type.declaration === "stitch"
+          r.value.type.declaration === "branch"
         ) {
           scopePathParts.push({
             kind: scopeKind,

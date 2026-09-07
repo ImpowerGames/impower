@@ -526,12 +526,6 @@
         "category": "Sparkdown"
       },
       {
-        "command": "sparkdown.statistics",
-        "when": "editorLangId == sparkdown",
-        "title": "View statistics",
-        "category": "Sparkdown"
-      },
-      {
         "command": "sparkdown.debugGame",
         "title": "Run & Debug Game",
         "category": "Sparkdown Debugger",
@@ -959,7 +953,8 @@
     "browser": "npm run build && vscode-test-web --browserType=chromium --extensionDevelopmentPath=. .",
     "vscode:prepublish": "npm run package",
     "publish-minor": "vsce publish minor",
-    "publish-major": "vsce publish major"
+    "publish-major": "vsce publish major",
+    "typecheck": "node ../scripts/typecheck.mjs vscode-sparkdown/tsconfig.json"
   },
   "dependencies": {
     "@impower/spark-editor-protocol": "file:../packages/spark-editor-protocol",

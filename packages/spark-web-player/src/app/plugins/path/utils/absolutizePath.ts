@@ -1,4 +1,4 @@
-import { PathCommand, PathData } from "../types/Path";
+import type { PathCommand,PathData } from "../types/Path";
 
 /**
  * Translate all relative commands to absolute commands

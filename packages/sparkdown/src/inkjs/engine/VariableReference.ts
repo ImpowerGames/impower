@@ -24,7 +24,7 @@ export class VariableReference extends InkObject {
     this.name = name;
   }
 
-  public toString() {
+  public override toString() {
     if (this.name != null) {
       return "var(" + this.name + ")";
     } else {

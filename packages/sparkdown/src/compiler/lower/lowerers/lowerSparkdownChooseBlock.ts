@@ -5,9 +5,9 @@ import { Gather } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Gather/Ga
 import { Identifier } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Identifier";
 import { ParsedObject } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Object";
 import { Weave } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Weave";
-import { CompiledBlock, InkDiagnostic } from "../../classes/annotators/CompilationAnnotator";
-import { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
-import { LowerContext } from "../context";
+import type { CompiledBlock,InkDiagnostic } from "../../classes/annotators/CompilationAnnotator";
+import type { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
+import type { LowerContext } from "../context";
 import { lower, lowerStatements } from "../lower";
 import { findChildByName } from "../utils/alternatorArms";
 import { wrapInWeave } from "../utils/wrapInWeave";

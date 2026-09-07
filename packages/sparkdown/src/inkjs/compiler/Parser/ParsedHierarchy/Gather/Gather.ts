@@ -1,6 +1,6 @@
 import { Container as RuntimeContainer } from "../../../../engine/Container";
-import { INamedContent } from "../../../../engine/INamedContent";
-import { IWeavePoint } from "../IWeavePoint";
+import type { INamedContent } from "../../../../engine/INamedContent";
+import type { IWeavePoint } from "../IWeavePoint";
 import { ParsedObject } from "../Object";
 import { InkObject as RuntimeObject } from "../../../../engine/Object";
 import { Story } from "../Story";
@@ -27,7 +27,7 @@ export class Gather extends ParsedObject implements INamedContent, IWeavePoint {
     if (identifier) this.identifier = identifier;
   }
 
-  get typeName(): string {
+  override get typeName(): string {
     return "Gather";
   }
 
@@ -63,6 +63,6 @@ export class Gather extends ParsedObject implements INamedContent, IWeavePoint {
     }
   }
 
-  public readonly toString = (): string =>
+  public override readonly toString = (): string =>
     `- ${this.identifier?.name ? "(" + this.identifier?.name + ")" : "gather"}`;
 }

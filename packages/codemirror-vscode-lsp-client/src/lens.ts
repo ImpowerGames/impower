@@ -193,7 +193,7 @@ export function convertFromServerCodeLens(
 }
 
 export function setDocumentCodeLenses(
-  state: EditorState,
+  _state: EditorState,
   lenses: DocumentCodeLens[],
 ): TransactionSpec {
   const effects: StateEffect<unknown>[] = [];

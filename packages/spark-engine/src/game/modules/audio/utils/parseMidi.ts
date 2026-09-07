@@ -10,14 +10,14 @@ import {
   MIDI_STATUS_SYSTEM,
   MIDI_STATUS_TYPE,
 } from "../constants/MIDI_STATUS_TYPE";
-import { Midi } from "../types/Midi";
-import {
-  MidiEvent,
-  MidiStatusChannel,
-  MidiStatusVoiceType,
-  MidiSystemExclusiveEvent,
-  MidiSystemMetaEvent,
-  MidiVoiceEvent,
+import type { Midi } from "../types/Midi";
+import type {
+MidiEvent,
+MidiStatusChannel,
+MidiStatusVoiceType,
+MidiSystemExclusiveEvent,
+MidiSystemMetaEvent,
+MidiVoiceEvent,
 } from "../types/MidiEvent";
 import { hexify, hexifyNumber } from "./hexify";
 import { stringifyDataView } from "./stringifyDataView";

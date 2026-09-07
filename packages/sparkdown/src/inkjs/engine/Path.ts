@@ -40,7 +40,7 @@ export class Path {
   }
   get head(): Path.Component | null {
     if (this._components.length > 0) {
-      return this._components[0];
+      return this._components[0]!;
     } else {
       return null;
     }
@@ -61,14 +61,14 @@ export class Path {
   get lastComponent(): Path.Component | null {
     let lastComponentIdx = this._components.length - 1;
     if (lastComponentIdx >= 0) {
-      return this._components[lastComponentIdx];
+      return this._components[lastComponentIdx]!;
     } else {
       return null;
     }
   }
   get containsNamedComponent(): boolean {
     for (let i = 0, l = this._components.length; i < l; i++) {
-      if (!this._components[i].isIndex) {
+      if (!this._components[i]!.isIndex) {
         return true;
       }
     }
@@ -81,14 +81,14 @@ export class Path {
   }
 
   public GetComponent(index: number): Path.Component {
-    return this._components[index];
+    return this._components[index]!;
   }
   public PathByAppendingPath(pathToAppend: Path): Path {
     let p = new Path();
 
     let upwardMoves = 0;
     for (let i = 0; i < pathToAppend._components.length; ++i) {
-      if (pathToAppend._components[i].isParent) {
+      if (pathToAppend._components[i]!.isParent) {
         upwardMoves++;
       } else {
         break;
@@ -96,11 +96,11 @@ export class Path {
     }
 
     for (let i = 0; i < this._components.length - upwardMoves; ++i) {
-      p._components.push(this._components[i]);
+      p._components.push(this._components[i]!);
     }
 
     for (let i = upwardMoves; i < pathToAppend._components.length; ++i) {
-      p._components.push(pathToAppend._components[i]);
+      p._components.push(pathToAppend._components[i]!);
     }
 
     return p;
@@ -152,7 +152,7 @@ export class Path {
     for (let i = 0, l = otherPath._components.length; i < l; i++) {
       // it's not quite clear whether this test should use Equals or a simple == operator,
       // see https://github.com/y-lohse/inkjs/issues/22
-      if (!otherPath._components[i].Equals(this._components[i])) return false;
+      if (!otherPath._components[i]!.Equals(this._components[i]!)) return false;
     }
 
     return true;

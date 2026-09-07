@@ -1,4 +1,4 @@
-import { ResponseError } from "../types/ResponseError";
+import type { ResponseError } from "../types/ResponseError";
 
 export class RequestError extends Error {
   code: number;

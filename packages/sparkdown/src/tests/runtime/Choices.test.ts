@@ -386,12 +386,12 @@ describe("Choices (ported from inkjs)", () => {
     const ctx = makeRuntimeStoryFromFile("choices", "tags-in-choice");
     expect(ctx.errorMessages).toEqual([]);
     ctx.story.Continue();
-    expect(ctx.story.currentTags.length).toBe(0);
+    expect(ctx.story.currentTags!.length).toBe(0);
     expect(ctx.story.currentChoices.length).toBe(1);
     expect(ctx.story.currentChoices[0]?.tags).toEqual(["one", "two"]);
     ctx.story.ChooseChoiceIndex(0);
     expect(ctx.story.Continue()).toBe("one three");
-    expect(ctx.story.currentTags).toEqual(["one", "three"]);
+    expect(ctx.story.currentTags!).toEqual(["one", "three"]);
   });
 
   test("`{expr}` interpolation inside choice tag content", () => {
@@ -404,7 +404,7 @@ describe("Choices (ported from inkjs)", () => {
     );
     expect(ctx.errorMessages).toEqual([]);
     ctx.story.Continue();
-    expect(ctx.story.currentTags.length).toBe(0);
+    expect(ctx.story.currentTags!.length).toBe(0);
     expect(ctx.story.currentChoices.length).toBe(1);
     expect(ctx.story.currentChoices[0]?.text).toBe("choice");
     expect(ctx.story.currentChoices[0]?.tags).toEqual(["tag aaabbb"]);

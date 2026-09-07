@@ -1,4 +1,4 @@
-import { NotificationMessage } from "../../types/base/NotificationMessage";
+import type { NotificationMessage } from "../../types/base/NotificationMessage";
 import { MessageProtocolNotificationType } from "../MessageProtocolNotificationType";
 
 export type ConnectedPreviewMethod = typeof ConnectedPreviewMessage.method;

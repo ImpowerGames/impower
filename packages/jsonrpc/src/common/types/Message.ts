@@ -1,6 +1,6 @@
-import { NotificationMessage } from "./NotificationMessage";
-import { RequestMessage } from "./RequestMessage";
-import { ResponseMessage } from "./ResponseMessage";
+import type { NotificationMessage } from "./NotificationMessage";
+import type { RequestMessage } from "./RequestMessage";
+import type { ResponseMessage } from "./ResponseMessage";
 
 export type Message<M extends string = string, P = any, R = any> =
   | NotificationMessage<M, P>

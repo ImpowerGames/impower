@@ -347,10 +347,8 @@ export const decorate = (
       // This is a top-level node
       return (
         name !== "FrontMatter" &&
-        name !== "Function" && // TODO: Only hide if config doesn't print function
         name !== "Scene" && // TODO: Only hide if config doesn't print scene
         // name !== "Branch" && // TODO: Only hide if config doesn't print branch
-        name !== "Knot" && // TODO: Only hide if config doesn't print knot
         // name !== "Stitch" && // TODO: Only hide if config doesn't print stitch
         name !== "BlockTitle" &&
         name !== "InlineTitle" &&
@@ -428,11 +426,11 @@ export const decorate = (
 
   // Source-based blank-line detection. Read the line text directly rather
   // than tracking a flag across node visits — the grammar wraps a
-  // whitespace-only "blank" line as `BlockLineBlank > BlockLineBlank_c1 >
-  // Indent`, and a flag-based approach would mis-classify those wrapper
-  // nodes as "content" and drop the separator (visible as missing blank
-  // line between consecutive dialogue blocks once the editor leaves indent
-  // on the otherwise-empty line).
+  // whitespace-only "blank" line in `BlockLineBlank` with the indent as a
+  // capture inside it, and a flag-based approach would mis-classify those
+  // wrapper nodes as "content" and drop the separator (visible as missing
+  // blank line between consecutive dialogue blocks once the editor leaves
+  // indent on the otherwise-empty line).
   const isWhitespaceOnly = (start: number, end: number): boolean => {
     if (end <= start) return true;
     const slice = doc.sliceString(start, end);
@@ -445,16 +443,14 @@ export const decorate = (
 
   // A node is "leading indentation" when it's a non-empty whitespace run at
   // the very start of its line. The grammar exposes leading whitespace as a
-  // line-start `OptionalWhitespace` capture (there's no dedicated `Indent`
-  // node — indent is detected by position, not name). `Indent` is kept as a
-  // legacy alias so older grammars still work. Zero-width runs (the `*`
-  // capture matched nothing) and mid-line whitespace are excluded.
+  // line-start `OptionalWhitespace` capture (there's no dedicated indent
+  // node — indent is detected by position, not name). Zero-width runs (the
+  // `*` capture matched nothing) and mid-line whitespace are excluded.
   const isLeadingIndent = (
-    nodeName: string,
+    nodeName: SparkdownNodeName,
     nodeFrom: number,
     nodeTo: number,
   ): boolean => {
-    if (nodeName === "Indent") return true;
     if (nodeName !== "OptionalWhitespace") return false;
     if (nodeTo <= nodeFrom) return false;
     return doc.lineAt(nodeFrom).from === nodeFrom;
@@ -497,7 +493,6 @@ export const decorate = (
   let frontMatterPositionContent: Record<string, MarkupContent[]> = {};
   let frontMatterFieldCaptureBlocks: MarkupContent[] = [];
   let frontMatterKeyword = "";
-  const inConditionalBlock: boolean[] = [];
 
   const tree = treeOverride ?? syntaxTree(state);
 
@@ -537,8 +532,6 @@ export const decorate = (
         inDialogue = true;
         dialoguePosition = 0;
         dialogueContent = [];
-      } else if (name === "ConditionalBracedBlock") {
-        inConditionalBlock.push(true);
       } else if (name === "DialogueCharacter") {
         const value = doc.sliceString(from, to).trim();
         dialogueContent.push({
@@ -605,15 +598,6 @@ export const decorate = (
             },
           });
         }
-      } else if (name === "Function") {
-        decorations.push(
-          ...createDecorations(doc, {
-            type: "page_break",
-            from,
-            to,
-          }),
-        );
-        return false;
       } else if (name === "Scene") {
         decorations.push(
           ...createDecorations(doc, {
@@ -623,26 +607,12 @@ export const decorate = (
           }),
         );
         return false;
-      } else if (name === "Knot") {
-        decorations.push(
-          ...createDecorations(doc, {
-            type: "page_break",
-            from,
-            to,
-          }),
-        );
-        return false;
-      } else if (
-        isLeadingIndent(name, from, to) &&
-        inConditionalBlock.length === 0
-      ) {
+      } else if (isLeadingIndent(name, from, to)) {
         // Leading indentation of a block line — hide it so the rendered
         // body doesn't show its source indent. The grammar has no dedicated
-        // `Indent` node; leading whitespace surfaces as a line-start
-        // `OptionalWhitespace` run (the formatter detects indent by
-        // position, not node name — see the grammar's whitespace section),
-        // so `isLeadingIndent` keys off position, treating Indent as a
-        // legacy alias.
+        // indent node; leading whitespace surfaces as a line-start
+        // `OptionalWhitespace` run, so `isLeadingIndent` keys off position
+        // rather than node name.
         //
         // EXCEPTION: if the indent is the entire content of a
         // whitespace-only line (an indented "blank" line — what the editor
@@ -687,7 +657,7 @@ export const decorate = (
       } else if (isBlockHidden(nodeRef)) {
         hideBlockRange(nodeRef);
         return false;
-      } else if (isInlineHidden(nodeRef) && inConditionalBlock.length === 0) {
+      } else if (isInlineHidden(nodeRef)) {
         hideInlineRange(nodeRef);
       }
       return true;
@@ -871,8 +841,6 @@ export const decorate = (
         }
         inDialogue = false;
         inDualDialogue = false;
-      } else if (name === "ConditionalBracedBlock") {
-        inConditionalBlock.pop();
       }
     },
   });
@@ -888,8 +856,7 @@ export const decorate = (
       // thing anchoring the line-box. Hiding it would collapse the line to
       // zero height and erase the inter-block separator. Skip highlighting
       // the leading whitespace of a whitespace-only line so it renders as
-      // bare, visible text (matching how the now-removed dedicated `Indent`
-      // node used to render).
+      // bare, visible text.
       const line = doc.lineAt(from);
       if (line.from === from && isWhitespaceOnly(line.from, line.to)) {
         return;
@@ -900,13 +867,11 @@ export const decorate = (
     to,
   );
 
-
   // console.log("REPARSED TREE");
   // console.log(printTree(tree, doc.toString(), { from, to }));
 
   return decorations;
 };
-
 
 const replaceDecorations = StateField.define<DecorationSet>({
   create(state) {

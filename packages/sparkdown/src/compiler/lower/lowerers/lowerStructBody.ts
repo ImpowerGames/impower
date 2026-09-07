@@ -1,5 +1,6 @@
+import { nodeNameSet } from "../../utils/nodeNameSet";
 import { type SyntaxNode } from "@lezer/common";
-import { LowerContext } from "../context";
+import type { LowerContext } from "../context";
 import {
   UNQUOTED_VALUE_NODES,
   stripTrailingLineComment,
@@ -49,7 +50,7 @@ interface BodyLine {
 
 // The grammar classifies a body line's content into exactly one of these. The
 // per-line wrapper is `LuauStructBodyContent`; the shape node is a descendant.
-const SHAPE_NAMES: ReadonlySet<string> = new Set([
+const SHAPE_NAMES: ReadonlySet<string> = nodeNameSet([
   "LuauStructScalarProperty",
   "LuauStructArrayItem",
   "LuauStructObjectHeader",
@@ -61,7 +62,7 @@ const SHAPE_NAMES: ReadonlySet<string> = new Set([
 // The grammar's value tokens a scalar / array-item value lowers from (CSS-like
 // tokens, quoted strings, numbers, booleans). Read by name so the lowerer never
 // re-splits the raw line on `=`.
-const FIELD_VALUE_NAMES: ReadonlySet<string> = new Set([
+const FIELD_VALUE_NAMES: ReadonlySet<string> = nodeNameSet([
   "StringFieldValueInterpolated",
   "StringFieldValue",
   "LuauElementContentStringInterpolated",
@@ -73,7 +74,7 @@ const FIELD_VALUE_NAMES: ReadonlySet<string> = new Set([
 ]);
 
 // The grammar's key tokens for a scalar property (`key = value`).
-const KEY_TOKEN_NAMES: ReadonlySet<string> = new Set([
+const KEY_TOKEN_NAMES: ReadonlySet<string> = nodeNameSet([
   "BuiltinComponentName",
   "DeclarationScalarPropertyKey",
   "CustomComponentName",
@@ -81,7 +82,7 @@ const KEY_TOKEN_NAMES: ReadonlySet<string> = new Set([
 ]);
 
 // The element-tag token for an adjacency line (`tag "content"`).
-const TAG_TOKEN_NAMES: ReadonlySet<string> = new Set([
+const TAG_TOKEN_NAMES: ReadonlySet<string> = nodeNameSet([
   "ComponentName",
   "BuiltinComponentName",
   "CustomComponentName",

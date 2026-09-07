@@ -37,7 +37,7 @@ function compile(source: string): Record<string, any> {
 }
 
 function field(obj: ObjectValue, key: string): unknown {
-  return obj.value?.get(key)?.value;
+  return (obj.value?.get(key) as { value?: unknown } | undefined)?.value;
 }
 
 describe("display() output-stream serialization", () => {

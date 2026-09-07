@@ -1,8 +1,15 @@
-import { Binder, Pacman, Router, Tab, Tabs } from "@impower/impower-ui/components";
+import {
+  Binder,
+  Pacman,
+  Router,
+  Tab,
+  Tabs,
+} from "@impower/impower-ui/components";
 import { startTransition } from "preact/compat";
 import workspace from "../../workspace/WorkspaceStore";
 import ShareGame from "../share-game/ShareGame";
 import ShareScreenplay from "../share-screenplay/ShareScreenplay";
+import type { PanelType } from "@impower/spark-editor-protocol/src/types";
 
 export const propDefaults = {};
 export type ShareProps = Partial<typeof propDefaults>;
@@ -21,7 +28,7 @@ export default function Share(_props: ShareProps) {
   const onPanelChange = (next: string) => {
     startTransition(() => {
       void import("../../workspace/Workspace").then(({ Workspace }) => {
-        Workspace.window.openPanel("share", next);
+        Workspace.window.openPanel("share", next as PanelType);
       });
     });
   };

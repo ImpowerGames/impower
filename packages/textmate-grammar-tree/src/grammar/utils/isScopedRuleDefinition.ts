@@ -1,4 +1,4 @@
-import { ScopedRuleDefinition } from "../types/GrammarDefinition";
+import type { ScopedRuleDefinition } from "../types/GrammarDefinition";
 
 export const isScopedRuleDefinition = (
   obj: unknown,

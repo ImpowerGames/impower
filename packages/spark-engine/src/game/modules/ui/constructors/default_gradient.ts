@@ -1,5 +1,5 @@
-import { Create } from "../../../core/types/Create";
-import { Gradient } from "../types/Gradient";
+import type { Create } from "../../../core/types/Create";
+import type { Gradient } from "../types/Gradient";
 
 export const default_gradient: Create<Gradient> = (obj) => ({
   $type: "gradient",

@@ -1,3 +1,4 @@
+import { nodeNameSet } from "../../utils/nodeNameSet";
 import { type SyntaxNode } from "@lezer/common";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 import { ConstantDeclaration } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Declaration/ConstantDeclaration";
@@ -7,9 +8,9 @@ import { NullExpression } from "../../../inkjs/compiler/Parser/ParsedHierarchy/E
 import { ParsedObject } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Object";
 import { VariableAssignment } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Variable/VariableAssignment";
 import { Weave } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Weave";
-import { CompiledBlock } from "../../classes/annotators/CompilationAnnotator";
-import { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
-import { LowerContext } from "../context";
+import type { CompiledBlock } from "../../classes/annotators/CompilationAnnotator";
+import type { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
+import type { LowerContext } from "../context";
 import { lower } from "../lower";
 import {
   lowerExpressionFromContainer,
@@ -26,7 +27,7 @@ import { wrapInWeave } from "../utils/wrapInWeave";
 // grammar parses these correctly; the lowerer must recognize them
 // as ADJACENT statements rather than mis-treating them as trailing
 // multi-RHS values.
-const TRAILING_STATEMENT_NAMES: ReadonlySet<string> = new Set([
+const TRAILING_STATEMENT_NAMES: ReadonlySet<string> = nodeNameSet([
   "LuauReturnStatement",
   "LuauBreakStatement",
   "LuauContinueStatement",

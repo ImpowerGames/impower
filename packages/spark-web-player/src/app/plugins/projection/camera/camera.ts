@@ -7,11 +7,11 @@
 
 import {
   DEG_TO_RAD,
-  DestroyOptions,
+  type DestroyOptions,
   ObservablePoint,
   Point,
-  PointData,
-  Renderer,
+  type PointData,
+  type Renderer,
 } from "pixi.js";
 import { Container3D } from "../container-3d";
 import { Mat4 } from "../math/mat4";
@@ -21,7 +21,7 @@ import { Vec4 } from "../math/vec4";
 import { Matrix4x4 } from "../transform/matrix";
 import { MatrixComponent } from "../transform/matrix-component";
 import { Point3D } from "../transform/point";
-import { TransformId } from "../transform/transform-id";
+import type { TransformId } from "../transform/transform-id";
 
 const vec3 = new Float32Array(3);
 const mat4 = new Float32Array(16);

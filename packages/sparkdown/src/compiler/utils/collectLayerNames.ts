@@ -1,4 +1,4 @@
-import { SparkProgram } from "../types/SparkProgram";
+import type { SparkProgram } from "../types/SparkProgram";
 
 const MAX_DEPTH = 32;
 

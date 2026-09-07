@@ -1,5 +1,5 @@
-import { SynthControllerEvent } from "./SynthControllerEvent";
-import { Tone } from "./Tone";
+import type { SynthControllerEvent } from "./SynthControllerEvent";
+import type { Tone } from "./Tone";
 
 export interface ToneSequence {
   tones: Tone[];

@@ -85,7 +85,7 @@ const updateFilenameElement = (
   previewContext: PreviewConfig,
   el: HTMLElement,
   drawWaveform: () => void,
-  playSound: (buffer: Float32Array) => void,
+  playSound: (buffer: Float32Array<ArrayBuffer>) => void,
 ): void => {
   if (el) {
     if (waveformContext.referenceBuffer && waveformContext.referenceFileName) {
@@ -134,7 +134,7 @@ const getOrCreateFileInput = (
   previewContext: PreviewConfig,
   previewEl: HTMLElement,
   drawWaveform: () => void,
-  playSound: (buffer: Float32Array) => void,
+  playSound: (buffer: Float32Array<ArrayBuffer>) => void,
 ): HTMLInputElement => {
   const existing = Array.from(previewEl.getElementsByTagName("input")).find(
     (el) => el.type === "file",
@@ -270,10 +270,13 @@ export const updateWaveformElement = (
   previewContext: PreviewConfig,
   audioContext: AudioContext,
   el: HTMLElement,
-  playSound: (audioContext: AudioContext, buffer: Float32Array) => void,
+  playSound: (
+    audioContext: AudioContext,
+    buffer: Float32Array<ArrayBuffer>,
+  ) => void,
 ): void => {
   if (el) {
-    const play = (buffer: Float32Array) => playSound?.(audioContext, buffer);
+    const play = (buffer: Float32Array<ArrayBuffer>) => playSound?.(audioContext, buffer);
     const draw = () => drawSoundWaveform(canvasContext, waveformContext);
 
     el.style.minWidth = `${waveformContext.width}px`;
@@ -374,7 +377,7 @@ export const updateWaveformElement = (
           )?.[0];
         if (file) {
           const fileUrl = URL.createObjectURL(file);
-          loadAudioBytes(fileUrl, audioContext).then((value: Float32Array) => {
+          loadAudioBytes(fileUrl, audioContext).then((value: Float32Array<ArrayBuffer>) => {
             waveformContext.referenceFileName = file.name;
             waveformContext.referenceBuffer = value;
             if (filenameEl) {

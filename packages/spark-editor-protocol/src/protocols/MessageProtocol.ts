@@ -1,4 +1,4 @@
-import { Message } from "../types/base/Message";
+import type { Message } from "../types/base/Message";
 
 export class MessageProtocol {
   static readonly event = "jsonrpc";

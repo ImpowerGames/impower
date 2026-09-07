@@ -1,7 +1,7 @@
 import { type SyntaxNode } from "@lezer/common";
-import { ErrorType, SourceMetadata } from "../../../inkjs/engine/Error";
-import { InkDiagnostic } from "../../classes/annotators/CompilationAnnotator";
-import { LowerContext } from "../context";
+import { ErrorType, type SourceMetadata } from "../../../inkjs/engine/Error";
+import type { InkDiagnostic } from "../../classes/annotators/CompilationAnnotator";
+import type { LowerContext } from "../context";
 import { findChildByName } from "./alternatorArms";
 
 // LSP `DiagnosticTag.Unnecessary` — VS Code renders the affected

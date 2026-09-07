@@ -1,4 +1,4 @@
-import { AudioPlayerUpdate } from "./AudioPlayerUpdate";
+import type { AudioPlayerUpdate } from "./AudioPlayerUpdate";
 
 export interface UpdateAudioPlayersParams {
   channel: string;

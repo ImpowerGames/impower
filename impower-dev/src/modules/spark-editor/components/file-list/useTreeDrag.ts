@@ -139,8 +139,8 @@ export function useTreeDrag(opts: TreeDragOpts): TreeDrag {
     const hitDropTarget = (x: number, y: number, srcPaths: string[]) => {
       const el = document.elementFromPoint(x, y);
       const rowEl = el?.closest<HTMLElement>("[data-tree-row]");
-      if (rowEl && rowEl.dataset.dir === "1") {
-        const path = rowEl.dataset.path ?? "";
+      if (rowEl && rowEl.dataset["dir"] === "1") {
+        const path = rowEl.dataset["path"] ?? "";
         if (canDropInto(path, srcPaths)) return path;
       }
       return null;

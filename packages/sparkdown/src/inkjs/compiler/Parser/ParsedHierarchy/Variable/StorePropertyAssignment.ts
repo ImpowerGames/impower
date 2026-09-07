@@ -35,7 +35,7 @@ export class StorePropertyAssignment extends ParsedObject {
     this.valueExpression = this.AddContent(value) as Expression;
   }
 
-  get typeName(): string {
+  override get typeName(): string {
     return "StorePropertyAssignment";
   }
 
@@ -50,6 +50,6 @@ export class StorePropertyAssignment extends ParsedObject {
     return container;
   };
 
-  public readonly toString = (): string =>
+  public override readonly toString = (): string =>
     `${this.baseExpression}[${this.keyExpression}] = ${this.valueExpression}`;
 }

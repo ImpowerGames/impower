@@ -1,6 +1,7 @@
 {
   "compilerOptions": {
-    "module": "commonjs",
+    "module": "esnext",
+    "moduleResolution": "bundler",
     "target": "esnext",
     "lib": ["esnext", "WebWorker", "dom"],
     "skipLibCheck": true,
@@ -20,5 +21,10 @@
     "resolveJsonModule": true,
     "forceConsistentCasingInFileNames": true,
     "isolatedModules": true
-  }
+  },
+  "exclude": [
+    "node_modules",
+    "dist",
+    "out"
+  ]
 }

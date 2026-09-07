@@ -2,11 +2,11 @@ import { ConnectMessage } from "../../common/classes/ConnectMessage";
 import { MessageProtocolNotificationType } from "../../common/classes/MessageProtocolNotificationType";
 import { MessageProtocolRequestType } from "../../common/classes/MessageProtocolRequestType";
 import { RequestError } from "../../common/classes/RequestError";
-import { NotificationMessage } from "../../common/types/NotificationMessage";
-import { ProgressValue } from "../../common/types/ProgressValue";
-import { RequestMessage } from "../../common/types/RequestMessage";
-import { ResponseError } from "../../common/types/ResponseError";
-import { ResponseMessage } from "../../common/types/ResponseMessage";
+import type { NotificationMessage } from "../../common/types/NotificationMessage";
+import type { ProgressValue } from "../../common/types/ProgressValue";
+import type { RequestMessage } from "../../common/types/RequestMessage";
+import type { ResponseError } from "../../common/types/ResponseError";
+import type { ResponseMessage } from "../../common/types/ResponseMessage";
 import { isProgressResponse } from "../../common/utils/isProgressResponse";
 import { isResponse } from "../../common/utils/isResponse";
 import {
@@ -33,7 +33,7 @@ export abstract class MessageConnection {
     this._postMessage = postMessage;
   }
 
-  connect(connection: MessageConnection, ...args: any[]) {
+  connect(connection: MessageConnection, ..._args: any[]) {
     return connection.sendRequest(ConnectMessage.type, {});
   }
 
@@ -63,7 +63,7 @@ export abstract class MessageConnection {
     this._postMessage(message, transfer);
   }
 
-  protected canConnect(event: MessageEvent): boolean {
+  protected canConnect(_event: MessageEvent): boolean {
     return true;
   }
 

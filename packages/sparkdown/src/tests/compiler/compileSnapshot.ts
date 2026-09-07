@@ -106,14 +106,14 @@ export function formatLoweredEntry(entry: LoweredEntry): string {
 
 function blockToJson(block: CompiledBlock): unknown {
   const result: { [k: string]: unknown } = {};
-  if (block.include !== undefined) result.include = block.include;
+  if (block.include !== undefined) result["include"] = block.include;
   if (block.content !== undefined) {
-    result.content = block.content.map(parsedObjectToJson);
+    result["content"] = block.content.map(parsedObjectToJson);
   }
   if (block.diagnostics !== undefined && block.diagnostics.length > 0) {
-    result.diagnostics = block.diagnostics.length;
+    result["diagnostics"] = block.diagnostics.length;
   }
-  if (block.uuid !== undefined) result.uuid = block.uuid;
+  if (block.uuid !== undefined) result["uuid"] = block.uuid;
   return result;
 }
 
@@ -250,7 +250,7 @@ function flowToJson(typeName: "Knot" | "Stitch", flow: Knot | Stitch): unknown {
   };
   const rootWeave = flow._rootWeave;
   if (rootWeave && rootWeave.content.length > 0) {
-    result.body = rootWeave.content.map(parsedObjectToJson);
+    result["body"] = rootWeave.content.map(parsedObjectToJson);
   }
   return result;
 }

@@ -119,7 +119,7 @@ describe("real main.sd — incremental edits in/around the dual dialogue region"
 
       // Edit the right side's content: insert " (extra)" into the middle
       // of the "I REFUSE TO BE..." line.
-      const target = "I REFUSE TO BE 'BUNNY'-ED!!!";
+      const target = "I REFUSE TO BE 'BUNNY'-ED!";
       const targetOffset = original.indexOf(target);
       expect(targetOffset).toBeGreaterThan(-1);
       const insertAt = targetOffset + "I REFUSE".length;
@@ -164,7 +164,7 @@ describe("real main.sd — incremental edits in/around the dual dialogue region"
       scrollTo(incremental.view, anchorOffset);
 
       // Insert a new directive line right before the "I REFUSE..." line.
-      const target = "    I REFUSE TO BE 'BUNNY'-ED!!!";
+      const target = "    I REFUSE TO BE 'BUNNY'-ED!";
       const targetOffset = original.indexOf(target);
       expect(targetOffset).toBeGreaterThan(-1);
       // Insertion text — full new line + its newline.

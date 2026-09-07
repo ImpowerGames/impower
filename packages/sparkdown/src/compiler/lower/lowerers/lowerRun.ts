@@ -1,7 +1,7 @@
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
-import { CompiledBlock } from "../../classes/annotators/CompilationAnnotator";
-import { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
-import { LowerContext } from "../context";
+import type { CompiledBlock } from "../../classes/annotators/CompilationAnnotator";
+import type { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
+import type { LowerContext } from "../context";
 
 // `run "path"` — read the named `.luau` file, wrap its body in a
 // function, and call it immediately (dofile-style). The lowerer here

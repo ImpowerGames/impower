@@ -6,8 +6,12 @@ export interface IInstruction {
   wait?: boolean;
 }
 
+/** `[[load NAME]]` (and every `load` arrow): preload the scene and/or world
+ *  named NAME behind the loading layout before the story goes on. */
 export interface LoadInstruction extends IInstruction {
   name: string;
+  /** Transition for opening and closing the loading layout (`with` clause). */
+  with?: string;
 }
 
 export interface TextInstruction extends IInstruction {

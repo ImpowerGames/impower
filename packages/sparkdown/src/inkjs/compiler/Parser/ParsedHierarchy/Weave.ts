@@ -9,7 +9,7 @@ import { DivertTarget } from "./Divert/DivertTarget";
 import { FlowBase } from "./Flow/FlowBase";
 import { Gather } from "./Gather/Gather";
 import { GatherPointToResolve } from "./Gather/GatherPointToResolve";
-import { IWeavePoint } from "./IWeavePoint";
+import type { IWeavePoint } from "./IWeavePoint";
 import { ParsedObject } from "./Object";
 import { InkObject as RuntimeObject } from "../../../engine/Object";
 import { Sequence } from "./Sequence/Sequence";
@@ -85,14 +85,14 @@ export class Weave extends ParsedObject {
     // since they're "empty" statements outside of the main flow.
     let lastObject: ParsedObject | null = null;
     for (let ii = this.structuredContent.length - 1; ii >= 0; --ii) {
-      lastObject = this.structuredContent[ii];
+      lastObject = this.structuredContent[ii]!;
 
       let lastText = asOrNull(lastObject, Text);
       if (lastText && lastText.text === "\n") {
         continue;
       }
 
-      if (this.IsGlobalDeclaration(lastObject)) {
+      if (this.IsGlobalDeclaration(lastObject!)) {
         continue;
       }
 
@@ -119,7 +119,7 @@ export class Weave extends ParsedObject {
     this.AddContent(cont);
   }
 
-  get typeName(): string {
+  override get typeName(): string {
     return "Weave";
   }
 
@@ -163,7 +163,7 @@ export class Weave extends ParsedObject {
       const structuredContent = [...this.content];
       let contentIdx = 0;
       while (contentIdx < structuredContent.length) {
-        const obj: ParsedObject = structuredContent[contentIdx];
+        const obj: ParsedObject = structuredContent[contentIdx]!;
 
         // Choice or Gather
         if (obj instanceof Choice || obj instanceof Gather) {
@@ -516,14 +516,14 @@ export class Weave extends ParsedObject {
           const receivingWeave =
             closestInnerWeaveAncestor || closestOuterWeaveAncestor;
           if (receivingWeave !== null) {
-            receivingWeave.ReceiveLooseEnd(looseEnd);
+            receivingWeave.ReceiveLooseEnd(looseEnd!);
             received = true;
           }
         }
       } else {
         // No nesting, all loose ends can be safely passed up
         if (closestInnerWeaveAncestor?.hasOwnProperty("ReceiveLooseEnd")) {
-          closestInnerWeaveAncestor!.ReceiveLooseEnd(looseEnd);
+          closestInnerWeaveAncestor!.ReceiveLooseEnd(looseEnd!);
         }
         received = true;
       }
@@ -541,14 +541,12 @@ export class Weave extends ParsedObject {
   public override ResolveReferences(context: Story): void {
     // Check that choices nested within conditionals and sequences are terminated
     if (this.looseEnds !== null && this.looseEnds.length > 0) {
-      let isNestedWeave = false;
       for (
         let ancestor = this.parent;
         ancestor !== null;
         ancestor = ancestor.parent
       ) {
         if (ancestor instanceof Sequence || ancestor instanceof Conditional) {
-          isNestedWeave = true;
           break;
         }
       }
@@ -627,7 +625,7 @@ export class Weave extends ParsedObject {
       const laterObj = parentWeave.content[ii];
 
       // Global VARs and CONSTs are treated as "outside of the flow"
-      if (this.IsGlobalDeclaration(laterObj)) {
+      if (this.IsGlobalDeclaration(laterObj!)) {
         continue;
       }
 
@@ -642,7 +640,7 @@ export class Weave extends ParsedObject {
         break;
       }
 
-      returned.push(laterObj);
+      returned.push(laterObj!);
     }
 
     return returned;

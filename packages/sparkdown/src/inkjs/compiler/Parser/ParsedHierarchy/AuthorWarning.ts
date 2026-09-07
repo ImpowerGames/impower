@@ -1,11 +1,11 @@
-﻿import { ParsedObject } from "./Object";
+import { ParsedObject } from "./Object";
 
 export class AuthorWarning extends ParsedObject {
   constructor(public readonly warningMessage: string) {
     super();
   }
 
-  get typeName(): string {
+  override get typeName(): string {
     return "AuthorWarning";
   }
 

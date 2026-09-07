@@ -5,7 +5,7 @@
 //      BUNNY:                     <- single dialogue
 //        [[directive]]
 //        ((sfx))
-//        I can do crime!!
+//        I can do crime!
 //
 //      RAFFLES [<]:               <- dual LEFT
 //        B--
@@ -16,7 +16,7 @@
 //        Would'ya QUIT Bunny-ing me??
 //        [[directive]]
 //        ((sfx))
-//        I REFUSE TO BE 'BUNNY'-ED!!!
+//        I REFUSE TO BE 'BUNNY'-ED!
 //
 //      RAFFLES:                   <- single dialogue
 //        Bunny, I asked ...
@@ -35,7 +35,7 @@ const FIXTURE =
   `BUNNY:\n` +
   `  [[animate stage with shake]]\n` +
   `  ((m_todo_sfx_emotional_yelling+temp_sfx_smack))\n` +
-  `  I can do crime!!\n` +
+  `  I can do crime!\n` +
   `\n` +
   `RAFFLES [<]:\n` +
   `  B--\n` +
@@ -46,7 +46,7 @@ const FIXTURE =
   `  Would'ya QUIT Bunny-ing me??\n` +
   `  [[animate stage with shake]]\n` +
   `  ((m_todo_sfx_emotional_yelling+temp_sfx_smack))\n` +
-  `  I REFUSE TO BE 'BUNNY'-ED!!!\n` +
+  `  I REFUSE TO BE 'BUNNY'-ED!\n` +
   `\n` +
   `RAFFLES:\n` +
   `  Bunny, I asked if you wanted to movie hop once and you nearly had a panic attack.\n`;
@@ -59,10 +59,10 @@ describe("dual dialogue after single dialogue (user fixture)", () => {
     // Sanity: PDF must contain all the visible cues and content.
     expect(pdf).toContain("BUNNY");
     expect(pdf).toContain("RAFFLES");
-    expect(pdf).toContain("I can do crime!!");
+    expect(pdf).toContain("I can do crime!");
     expect(pdf).toContain("B--");
     expect(pdf).toContain("Would'ya QUIT Bunny-ing me??");
-    expect(pdf).toContain("I REFUSE TO BE 'BUNNY'-ED!!!");
+    expect(pdf).toContain("I REFUSE TO BE 'BUNNY'-ED!");
     expect(pdf).toContain("you wanted to movie hop");
 
     // The dual-dialogue widget must place BOTH cues + their content
@@ -71,7 +71,7 @@ describe("dual dialogue after single dialogue (user fixture)", () => {
     // are encoded, hence the `[&lt;]` / `[&gt;]` we see in the cue chips.)
     expect(r.contentHTML).toContain("B--");
     expect(r.contentHTML).toContain("Would'ya QUIT Bunny-ing me??");
-    expect(r.contentHTML).toContain("I REFUSE TO BE 'BUNNY'-ED!!!");
+    expect(r.contentHTML).toContain("I REFUSE TO BE 'BUNNY'-ED!");
 
     // The dual-dialogue widget is a BLOCK widget (Decoration.replace
     // with block: true) — it renders as a sibling of cm-line elements,

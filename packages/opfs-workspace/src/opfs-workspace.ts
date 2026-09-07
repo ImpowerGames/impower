@@ -22,6 +22,7 @@ import { TrashBatch } from "@impower/spark-editor-protocol/src/types/workspace/T
 import { WillWriteFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/WillWriteFilesMessage";
 import { ZipFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/ZipFilesMessage";
 import {
+  AnnotatedTextEdit,
   CreateFile,
   DeleteFile,
   FileCreate,
@@ -29,6 +30,7 @@ import {
   FileEvent,
   RenameFile,
   TextDocumentEdit,
+  TextEdit,
 } from "@impower/spark-editor-protocol/src/types";
 import { NotificationMessage } from "@impower/spark-editor-protocol/src/types/base/NotificationMessage";
 import { ResponseMessage } from "@impower/spark-editor-protocol/src/types/base/ResponseMessage";
@@ -77,7 +79,7 @@ const DEFAULT_TRASH_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
 // sw.ts` (cache name, width, tv, key format).
 const THUMB_CACHE_NAME = "asset-thumbnails";
 const THUMB_WIDTH = 144;
-const THUMB_VERSION = 1;
+const THUMB_VERSION = 2;
 const RASTER_IMAGE_REGEX = /[.](png|jpe?g|gif|webp)$/i;
 const THUMBNAILS_SUPPORTED =
   typeof createImageBitmap === "function" &&
@@ -732,8 +734,10 @@ const editTextFiles = async (textDocumentEdits: TextDocumentEdit[]) => {
   const result = await Promise.all(
     textDocumentEdits.map(async (textDocumentEdit) => {
       const td = textDocumentEdit.textDocument;
-      const changes = textDocumentEdit.edits;
-      if (textDocumentEdit.edits.length === 0) {
+      const changes = textDocumentEdit.edits.filter(
+        (e): e is TextEdit | AnnotatedTextEdit => "newText" in e,
+      );
+      if (changes.length === 0) {
         return {
           file: { uri: td.uri } as FileData,
           created: false,

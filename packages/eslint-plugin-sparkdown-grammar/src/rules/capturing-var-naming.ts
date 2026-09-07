@@ -13,7 +13,6 @@ import {
   isScalar,
   isSequence,
   scalarKey,
-  type YAMLMapping,
   type YAMLNode,
   type YAMLPair,
 } from "../utils/yaml-ast.ts";

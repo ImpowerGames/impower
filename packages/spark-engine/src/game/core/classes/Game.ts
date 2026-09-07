@@ -1,13 +1,15 @@
-import { Message } from "@impower/jsonrpc/src/common/types/Message";
-import { NotificationMessage } from "@impower/jsonrpc/src/common/types/NotificationMessage";
-import { RequestMessage } from "@impower/jsonrpc/src/common/types/RequestMessage";
-import { ResponseError } from "@impower/jsonrpc/src/common/types/ResponseError";
+import type { Message } from "@impower/jsonrpc/src/common/types/Message";
+import type { NotificationMessage } from "@impower/jsonrpc/src/common/types/NotificationMessage";
+import type { RequestMessage } from "@impower/jsonrpc/src/common/types/RequestMessage";
+import type { ResponseError } from "@impower/jsonrpc/src/common/types/ResponseError";
 import { type SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
 import { resolveCompiledProgram } from "@impower/sparkdown/src/binary/programBinary";
 import {
   buildRouteSimulator,
+  lastSearchStats,
   planRoute,
-  RoutePlan,
+  type SearchOptions,
+  type RoutePlan,
 } from "@impower/sparkdown/src/compiler/utils/planRoute";
 import { uuid } from "@impower/sparkdown/src/compiler/utils/uuid";
 import { InkObject } from "@impower/sparkdown/src/inkjs/engine/Object";
@@ -15,18 +17,19 @@ import { PushPopType } from "@impower/sparkdown/src/inkjs/engine/PushPop";
 import { InkList, Story } from "@impower/sparkdown/src/inkjs/engine/Story";
 import { DEFAULT_MODULES } from "../../modules/DEFAULT_MODULES";
 import { ErrorType } from "../enums/ErrorType";
-import { Breakpoint } from "../types/Breakpoint";
-import { DocumentLocation } from "../types/DocumentLocation";
-import { GameConfiguration } from "../types/GameConfiguration";
-import { GameContext } from "../types/GameContext";
-import { GameState } from "../types/GameState";
-import { InstanceMap } from "../types/InstanceMap";
-import { SaveData } from "../types/SaveData";
-import { ScriptLocation } from "../types/ScriptLocation";
-import { StackFrame } from "../types/StackFrame";
-import { SystemConfiguration } from "../types/SystemConfiguration";
-import { Thread } from "../types/Thread";
-import { Variable, VariablePresentationHint } from "../types/Variable";
+import type { Breakpoint } from "../types/Breakpoint";
+import type { DocumentLocation } from "../types/DocumentLocation";
+import type { GameConfiguration } from "../types/GameConfiguration";
+import type { GameContext } from "../types/GameContext";
+import type { GameState } from "../types/GameState";
+import type { InstanceMap } from "../types/InstanceMap";
+import { SceneTracker } from "./SceneTracker";
+import type { SaveData } from "../types/SaveData";
+import type { ScriptLocation } from "../types/ScriptLocation";
+import type { StackFrame } from "../types/StackFrame";
+import type { SystemConfiguration } from "../types/SystemConfiguration";
+import type { Thread } from "../types/Thread";
+import type { Variable,VariablePresentationHint } from "../types/Variable";
 import { buildDefinesContext } from "../utils/buildContextFromStory";
 import { findClosestPath } from "../utils/findClosestPath";
 import { findClosestPathLocation } from "../utils/findClosestPathLocation";
@@ -39,7 +42,10 @@ import { GameAwaitingInteractionMessage } from "./messages/GameAwaitingInteracti
 import { GameChosePathToContinueMessage } from "./messages/GameChosePathToContinueMessage";
 import { GameClickedToContinueMessage } from "./messages/GameClickedToContinueMessage";
 import { GameEncounteredRuntimeErrorMessage } from "./messages/GameEncounteredRuntimeError";
-import { GameExecutedMessage } from "./messages/GameExecutedMessage";
+import {
+  GameExecutedMessage,
+  type SimulationFailure,
+} from "./messages/GameExecutedMessage";
 import { GameExitedThreadMessage } from "./messages/GameExitedThreadMessage";
 import { GameFinishedMessage } from "./messages/GameFinishedMessage";
 import { GameHitBreakpointMessage } from "./messages/GameHitBreakpointMessage";
@@ -99,13 +105,56 @@ export class Game<T extends M = {}> {
 
   protected _coordinator: Coordinator<typeof this> | null = null;
 
-  protected _executionTimeout = 10000;
+  /**
+   * How many times one uninterrupted stretch of execution may advance the
+   * story before it is stopped as a runaway.
+   *
+   * An author can write a story that never ends, so execution needs a ceiling.
+   * Counting work rather than elapsed time makes the ceiling mean the same
+   * thing on an idle machine and a busy one, which is what keeps it from
+   * mistaking a long scene for a loop.
+   *
+   * The unit is one iteration of the loop in `stepWithinBudget`, which is not
+   * the same as a display line or a runtime path — replaying a scene built as
+   * a test fixture costs about eight iterations per display line (63,992 at
+   * 8,000 lines, 159,992 at 20,000, 191,992 at 24,000).
+   *
+   * Calibrate against what the EDITOR compiles, never against a fixture. The
+   * editor's program is roughly two and a half times finer-grained, so the
+   * same scene costs proportionally more, putting a 20,000-line editor replay
+   * near 400,000 iterations. That last figure is scaled from the measured
+   * fixture cost rather than measured directly, so the margin below is
+   * deliberately wide. Setting this ceiling from fixture numbers is exactly
+   * what shipped the planner's ceiling several times too small.
+   *
+   * Two million is about five times that, so it cannot ration a legitimate
+   * replay. What it costs when it does fire is worth stating plainly rather
+   * than hand-waving: an iteration runs in about 4 µs for a content-free loop
+   * (roughly eight seconds at this ceiling) but around 50 µs for a replay that
+   * captures a checkpoint every beat, which is minutes. A replay only diverges
+   * if its plan has gone stale, so that shape is rare — but this ceiling is not
+   * a fast guard, and on the PLAY path it blocks the interface thread (#385).
+   */
+  protected _executionStepLimit = 2_000_000;
 
-  protected _executionStartTime = 0;
+  protected _executionStepsRemaining = 2_000_000;
 
-  protected _executionTimedOut = false;
+  protected _executionBudgetExhausted = false;
 
   protected _executingPath: string | null = null;
+  /** The runtime path of the object executed most recently. */
+  get executingPath() {
+    return this._executingPath;
+  }
+
+  /** Which top-level flow the story is in, and when that changes
+   *  (`Module.onEnterScene`). Fed from every place the position can move. */
+  protected _sceneTracker = new SceneTracker((flow) =>
+    this.isFunctionFlow(flow),
+  );
+  get sceneTracker() {
+    return this._sceneTracker;
+  }
 
   protected _executingLocation: ScriptLocation | null = null;
 
@@ -205,6 +254,22 @@ export class Game<T extends M = {}> {
     this._simulation = value;
   }
 
+  /** Why the last attempt to simulate a route gave up. Recorded where the
+   *  giving-up happens, because that is the only place that still knows: by the
+   *  time `_simulation` is flipped to `"fail"` — in `start()` or `preview()`,
+   *  which is where the editor learns about it — every distinguishing detail is
+   *  gone. Only meaningful while `_simulation` is `"fail"`. */
+  protected _simulationFailure?: SimulationFailure;
+  get simulationFailure() {
+    return this._simulationFailure;
+  }
+  /** Settable for the same reason `simulation` is: in the editor's preview the
+   *  route is planned in the compile worker, not here, so the host that made
+   *  the attempt is the one that knows how it went. */
+  set simulationFailure(value) {
+    this._simulationFailure = value;
+  }
+
   protected _restarted = false;
   get restarted() {
     return this._restarted;
@@ -280,9 +345,10 @@ export class Game<T extends M = {}> {
     this.updateFunctionBreakpointsMap(options?.functionBreakpoints ?? []);
     this.updateDataBreakpointsMap(options?.dataBreakpoints ?? []);
 
-    if (options?.executionTimeout) {
-      this._executionTimeout = options.executionTimeout;
+    if (options?.executionStepLimit != null) {
+      this._executionStepLimit = options.executionStepLimit;
     }
+    this._executionStepsRemaining = this._executionStepLimit;
 
     this._checkpoints = new CheckpointStore(
       {
@@ -428,6 +494,9 @@ export class Game<T extends M = {}> {
       // without this the reconcile pass sweeps the un-re-emitted elements and
       // the preview goes blank until the cursor moves to a different beat.
       this._previewedPath = undefined;
+      // The scene map may have changed with the program; the next observation
+      // re-enters the current scene and re-requests what it needs.
+      this._sceneTracker?.reset();
     }
     return this._program;
   }
@@ -570,6 +639,7 @@ export class Game<T extends M = {}> {
     >,
   ) {
     this._simulation = "simulating";
+    this._simulationFailure = undefined;
     if (this._startPath) {
       // Plan a route from the top of the startPath container
       const toPath = this._startPath;
@@ -583,16 +653,126 @@ export class Game<T extends M = {}> {
       );
       if (route) {
         this.simulateRoute(route, 0);
+      } else {
+        this._simulationFailure = Game.describeFailedRouteSearch(
+          this._program,
+          toPath,
+        );
       }
+    } else {
+      this._simulationFailure = Game.describeFailedRouteSearch(
+        this._program,
+        this._startPath,
+      );
     }
+  }
+
+  /**
+   * Turn a route search that came back empty into the reason it did.
+   *
+   * Checking whether the target is a real path first is not belt-and-braces: a
+   * line that is not part of the story flow (front matter, a `define` block,
+   * the gap between scenes) resolves to the `"0"` fallback, and the search that
+   * then runs is searching for a target that was never in the story. Whatever
+   * ceiling it stops on, the honest answer is that there was nothing to route
+   * to — not that the scene is too long.
+   *
+   * Every ceiling collapses to `"timeout"` because they are one thing to the
+   * author: the search gave up before it had finished looking, so whether a
+   * route exists is still unknown. Which ceiling it was is a fact about the
+   * planner, and `lastSearchStats.endReason` still carries it for anyone
+   * debugging one.
+   *
+   * A search that BROKE is kept apart from one that ran the story out, because
+   * only the second is entitled to say the script has no path to the line.
+   */
+  static describeFailedRouteSearch(
+    program: SparkProgram,
+    toPath: string | null | undefined,
+  ): SimulationFailure {
+    if (!toPath || !program.pathLocations?.[toPath]) {
+      return "unroutable";
+    }
+    if (lastSearchStats.endReason === "exhausted") {
+      return "exhausted";
+    }
+    if (lastSearchStats.endReason === "errored") {
+      return "errored";
+    }
+    return "timeout";
   }
 
   supports(name: string): boolean {
     return Boolean(this._modules[name]);
   }
 
+  /** A top-level flow the story calls and returns from rather than enters:
+   *  a `function`, a binding evaluator, or a synthetic flow. */
+  isFunctionFlow(flow: string): boolean {
+    const kind = this._program?.sceneAssets?.[flow]?.kind;
+    if (kind) {
+      return kind === "function";
+    }
+    return (
+      Boolean(this._program?.functionLocations?.[flow]) ||
+      flow.startsWith("__")
+    );
+  }
+
+  /** The paths on the ink callstack: where every open tunnel, thread, and
+   *  function call will return to, plus the current position. */
+  protected callStackFlowPaths(): string[] {
+    const paths: string[] = [];
+    const callStack = this._story?.state?.callStack as
+      | { _threads?: Array<{ callstack?: Array<{ currentPointer?: { path?: { toString(): string } | null } }> }> }
+      | undefined;
+    for (const thread of callStack?._threads ?? []) {
+      for (const element of thread?.callstack ?? []) {
+        const path = element?.currentPointer?.path?.toString();
+        if (path) {
+          paths.push(path);
+        }
+      }
+    }
+    return paths;
+  }
+
+  /** Note where the story is; when that is a different scene, tell every
+   *  module. A route simulation is silent: it never enters anything. */
+  observeScene(path: string | null | undefined): void {
+    if (this._destroyed || this._simulation === "simulating") {
+      return;
+    }
+    // This runs on every path change in the step loop; the call stack is
+    // walked only when the scene actually changes.
+    if (SceneTracker.sceneOf(path) === this._sceneTracker.current) {
+      return;
+    }
+    const transition = this._sceneTracker.observe(
+      path,
+      this.callStackFlowPaths(),
+    );
+    if (transition) {
+      for (const k of this._moduleNames) {
+        this._modules[k]?.onEnterScene(
+          transition.scene,
+          transition.previous,
+          transition.stack,
+        );
+      }
+    }
+  }
+
   async connect(send: (message: Message, transfer?: ArrayBuffer[]) => void) {
     this._connection.connectOutput(send);
+    // Before the modules connect, so the scene's assets are requested before
+    // the restore gate waits on the ones already on screen.
+    const previewing = this._context.system.previewing;
+    this.observeScene(
+      typeof previewing === "string"
+        ? previewing
+        : this._story.state.currentPathString,
+    );
     await Promise.all(
       this._moduleNames.map((moduleName) =>
         this._modules[moduleName]?.onConnected(),
@@ -788,9 +968,11 @@ export class Game<T extends M = {}> {
         favoredChoices?: (number | undefined)[];
       }
     >,
+    budget?: Pick<SearchOptions, "maxSteps" | "maxNodes" | "searchTimeout">,
   ) {
     // Plan a route from the top of the knot containing the target path, to the target path itself
     return planRoute(story, fromPath, toPath, {
+      ...budget,
       functions: Object.keys(program.functionLocations || {}),
       stayWithinKnot: true,
       favoredConditions: simulationOptions?.[fromPath]?.favoredConditions,
@@ -835,6 +1017,12 @@ export class Game<T extends M = {}> {
   }
 
   protected simulateRoute(route: RoutePlan, fromStep = 0): void {
+    // A route exists, so whatever the last search concluded no longer applies.
+    // Cleared here rather than only in `simulate()` because
+    // `patchAndSimulateRoute` arrives with a route of its own and never passes
+    // through `simulate()`, which would otherwise leave an older reason to be
+    // reported against this run.
+    this._simulationFailure = undefined;
     const startStep = route.steps[fromStep];
     const fromDecision = startStep?.decision ?? 0;
     const fromCheckpoint = startStep?.checkpoint ?? -1;
@@ -877,7 +1065,10 @@ export class Game<T extends M = {}> {
     this.continue(true);
 
     if (this._simulation === "simulating") {
+      // Still "simulating" means the replay never arrived at the target, even
+      // though the planner said there was a way there.
       this._simulation = "fail";
+      this._simulationFailure = "diverged";
     }
 
     this._story.simulator = null;
@@ -963,6 +1154,7 @@ export class Game<T extends M = {}> {
       this._modules[k]?.onStart();
     }
     if (this._simulation === "success") {
+      this.observeScene(this._story.state.currentPathString);
       this.continue(true);
     } else if (this._simulation === "fail") {
       // `rewindStory`, NOT `reset`. By the time `start` runs, `connect` has
@@ -999,12 +1191,15 @@ export class Game<T extends M = {}> {
       if (this._startPath) {
         this.jumpToPath(this._startPath);
       }
+      this.observeScene(this._startPath);
       this.continue();
     } else {
       if (save) {
         this.load(save);
+        this.observeScene(this._story.state.currentPathString);
       } else if (this._startPath) {
         this.jumpToPath(this._startPath);
+        this.observeScene(this._startPath);
       }
       this.continue();
     }
@@ -1057,6 +1252,7 @@ export class Game<T extends M = {}> {
     for (const k of this._moduleNames) {
       this._modules[k]?.onDestroy();
     }
+    this._sceneTracker.reset();
     this._moduleNames = [];
     this._connection.incoming.removeAllListeners();
     this._connection.outgoing.removeAllListeners();
@@ -1111,9 +1307,6 @@ export class Game<T extends M = {}> {
   }
 
   load(saveJSON: string) {
-    if (this._story.canContinue && !this._story.asyncContinueComplete) {
-      this._story.Continue();
-    }
     try {
       const saveData: SaveData =
         typeof saveJSON === "string" ? JSON.parse(saveJSON) : saveJSON;
@@ -1124,6 +1317,15 @@ export class Game<T extends M = {}> {
         }
       }
       if (saveData.story) {
+        // Only once the save has been read and is known to carry a story:
+        // letting go of the open line is not reversible, so doing it before
+        // the parse would leave a save that turns out to be unreadable — or
+        // one written by a failed serialization, which stores an empty story —
+        // with the current line torn in half and no replacement for it. The
+        // next continue would then resume from the middle of that line,
+        // dropping the text and the routing tag that decide how the beat is
+        // displayed.
+        this.discardOpenStoryLine();
         this._story.state.LoadJson(saveData.story);
         this.restoreReactiveTracking();
       }
@@ -1172,11 +1374,35 @@ export class Game<T extends M = {}> {
    *  `Module.reset` clears `_state` and calls `onReset`, which for the ui module
    *  drops the mounted-layout map and the `_events` handler registry. */
   protected rewindStory() {
-    if (this._story.canContinue && !this._story.asyncContinueComplete) {
-      this._story.Continue();
-    }
+    // End any line the story is part-way through, rather than running it to
+    // its end. See `discardOpenStoryLine`.
+    this.discardOpenStoryLine();
     this._story.ResetState();
     this.restoreReactiveTracking();
+  }
+
+  /** Let go of a story line that is stopped part-way through, so the story
+   *  state can be replaced.
+   *
+   *  The runtime refuses to reset, reload or jump while a line is still open,
+   *  so `rewindStory`, `jumpToPath` and `load` each had to deal with that
+   *  first, and each did it by finishing the line with a bare `Continue()`.
+   *
+   *  Finishing it was never the point — all three replace the story state on
+   *  the very next line, so whatever that work produced was thrown away — and
+   *  it carried a real cost: `Continue()` advances the story until the line
+   *  ends, and a story sitting in a loop that never completes a line never
+   *  ends, so the call ran forever with no error raised and nothing to stop it
+   *  (#386). The path that made that reachable is the preview's own recovery:
+   *  it runs precisely when execution was stopped part-way through a loop for
+   *  running out of budget, so the recovery re-entered the loop that had just
+   *  been declared a runaway, this time with nothing counting the work.
+   *
+   *  Ending the line instead of finishing it removes both problems at once:
+   *  the story is left replaceable, no work is done, and there is no ceiling
+   *  to get wrong. */
+  protected discardOpenStoryLine() {
+    this._story.CancelAsyncContinue();
   }
 
   /** Re-assert reactive dependency tracking after ANY story-state
@@ -1196,6 +1422,7 @@ export class Game<T extends M = {}> {
 
   reset() {
     this.rewindStory();
+    this._sceneTracker.reset();
     // Reset modules to their initial state
     for (const k of this._moduleNames) {
       const module = this._modules[k];
@@ -1210,14 +1437,13 @@ export class Game<T extends M = {}> {
       this._runtimeState = new RuntimeState();
     }
 
-    this._executionTimedOut = false;
-    this._executionStartTime = this.context.system.now();
+    this.resetExecutionBudget();
 
     this.clearVariableReferences();
     this._coordinator = null;
     let done = false;
     do {
-      done = this.step();
+      done = this.stepWithinBudget();
     } while (!done);
 
     if (this._simulation !== "simulating") {
@@ -1227,28 +1453,43 @@ export class Game<T extends M = {}> {
     return done;
   }
 
+  protected resetExecutionBudget() {
+    this._executionBudgetExhausted = false;
+    this._executionStepsRemaining = this._executionStepLimit;
+  }
+
+  /** A debugger traversal is its own stretch of execution, so it starts with a
+   *  full budget rather than sharing whatever the last `continue` left. */
   step(traversal: "in" | "out" | "over" | "continue" = "continue"): boolean {
+    this.resetExecutionBudget();
+    return this.stepWithinBudget(traversal);
+  }
+
+  protected stepWithinBudget(
+    traversal: "in" | "out" | "over" | "continue" = "continue",
+  ): boolean {
     const initialCallstackDepth = this._story.state.callstackDepth;
     const initialExecutedLocation = this._executingLocation;
 
     while (true) {
-      this._executionTimedOut =
-        this.context.system.now() >=
-        this._executionStartTime + this._executionTimeout;
-
-      if (this._executionTimedOut) {
+      if (this._executionStepsRemaining <= 0) {
+        this._executionBudgetExhausted = true;
         this.Error(
-          "Execution timed out: Possible infinite loop",
+          `Execution exceeded ${this._executionStepLimit} ${
+            this._executionStepLimit === 1 ? "step" : "steps"
+          }: possible infinite loop`,
           ErrorType.Error,
         );
-        // Execution is taking too long. Force it to stop.
+        // Execution is running away. Force it to stop.
         return true;
       }
+      this._executionStepsRemaining -= 1;
 
       const pointerPath = this._story.state.previousPointer.path?.toString();
       if (pointerPath) {
         if (pointerPath !== this._executingPath) {
           this._executingPath = pointerPath;
+          this.observeScene(pointerPath);
           if (
             this._plannedRoute &&
             this._plannedRouteStepCursor < this._plannedRoute?.steps.length
@@ -1291,7 +1532,9 @@ export class Game<T extends M = {}> {
           this._coordinator = new Coordinator(this, instructions);
           if (
             !this._coordinator.shouldContinue() &&
-            this._simulation !== "simulating"
+            this._simulation !== "simulating" &&
+            // A load beat is loading, not waiting for the player.
+            (!instructions.load || (instructions.choices?.length ?? 0) > 0)
           ) {
             this.notifyAwaitingInteraction();
           }
@@ -1472,9 +1715,7 @@ export class Game<T extends M = {}> {
   }
 
   jumpToPath(path: string) {
-    if (this._story.canContinue && !this._story.asyncContinueComplete) {
-      this._story.Continue();
-    }
+    this.discardOpenStoryLine();
     this._story.ResetState();
     this._story.ChoosePathString(path);
   }
@@ -1571,6 +1812,11 @@ export class Game<T extends M = {}> {
         state: this._state,
         restarted: this._restarted,
         simulation: this._simulation,
+        // Gated on the state rather than sent whenever it happens to be set, so
+        // a reason recorded by an earlier failed simulation can never ride along
+        // with a run that succeeded.
+        simulationFailure:
+          this._simulation === "fail" ? this._simulationFailure : undefined,
       }),
     );
   }
@@ -2001,6 +2247,7 @@ export class Game<T extends M = {}> {
     this._context.system.previewing = previewPath;
     this._previewedPath = previewPath;
     this._context.system.simulating = undefined;
+    this.observeScene(previewPath);
     if (this._simulation === "success") {
       this.continue(true);
     } else if (this._simulation === "fail") {

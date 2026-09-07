@@ -1,3 +1,4 @@
+import { nodeNameSet } from "../utils/nodeNameSet";
 import { type SyntaxNode } from "@lezer/common";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 import { CallValueExpression } from "../../inkjs/compiler/Parser/ParsedHierarchy/Expression/CallValueExpression";
@@ -13,9 +14,9 @@ import { Text } from "../../inkjs/compiler/Parser/ParsedHierarchy/Text";
 import { VariableAssignment } from "../../inkjs/compiler/Parser/ParsedHierarchy/Variable/VariableAssignment";
 import { VariableReference } from "../../inkjs/compiler/Parser/ParsedHierarchy/Variable/VariableReference";
 import { Weave } from "../../inkjs/compiler/Parser/ParsedHierarchy/Weave";
-import { CompiledBlock } from "../classes/annotators/CompilationAnnotator";
-import { SparkdownSyntaxNodeRef } from "../types/SparkdownSyntaxNodeRef";
-import { LowerContext } from "./context";
+import type { CompiledBlock } from "../classes/annotators/CompilationAnnotator";
+import type { SparkdownSyntaxNodeRef } from "../types/SparkdownSyntaxNodeRef";
+import type { LowerContext } from "./context";
 import { findChildByName } from "./utils/alternatorArms";
 import {
   lowerExpressionFromContainer,
@@ -69,7 +70,6 @@ import {
 } from "./lowerers/lowerLuauBreakContinue";
 import { lowerLuauDoBlock } from "./lowerers/lowerLuauDoBlock";
 import { lowerLuauForLoop } from "./lowerers/lowerLuauForLoop";
-import { lowerLuauLoopStub } from "./lowerers/lowerLuauLoopStub";
 import {
   lowerLuauRepeatLoop,
   lowerLuauUntilStatement,
@@ -322,7 +322,7 @@ function lowerInner(
 // the sibling-pair detection for implicit assignments. When we see
 // `LuauAccessPath` followed by these and then `LuauAssignmentOperation`, the
 // access path + operation still form one assignment statement.
-const ASSIGNMENT_PAIR_BRIDGE: ReadonlySet<string> = new Set([
+const ASSIGNMENT_PAIR_BRIDGE: ReadonlySet<string> = nodeNameSet([
   "Newline",
   "ExtraWhitespace",
   "LuauComment",

@@ -1,26 +1,27 @@
-import { Message } from "@impower/jsonrpc/src/common/types/Message";
-import { NotificationMessage } from "@impower/jsonrpc/src/common/types/NotificationMessage";
-import { RequestMessage } from "@impower/jsonrpc/src/common/types/RequestMessage";
-import { ResponseError } from "@impower/jsonrpc/src/common/types/ResponseError";
+import type { Message } from "@impower/jsonrpc/src/common/types/Message";
+import type { NotificationMessage } from "@impower/jsonrpc/src/common/types/NotificationMessage";
+import type { RequestMessage } from "@impower/jsonrpc/src/common/types/RequestMessage";
+import type { ResponseError } from "@impower/jsonrpc/src/common/types/ResponseError";
 import {
   Container,
   DOMAdapter,
   extensions,
   ExtensionType,
-  Loader,
-  LoaderParser,
+  type LoaderParser,
   LoaderParserPriority,
   loadTextures,
-  Renderer,
-  ResolvedAsset,
+  type Renderer,
+  type ResolvedAsset,
   WebGLRenderer,
 } from "pixi.js";
 import "pixi.js/unsafe-eval";
 import { Clock } from "../../../spark-engine/src/game/core/classes/Clock";
 import { Game } from "../../../spark-engine/src/game/core/classes/Game";
 import { EventMessage } from "../../../spark-engine/src/game/core/classes/messages/EventMessage";
-import { IApplication } from "./IApplication";
+import type { IApplication } from "./IApplication";
+import { type AssetCache } from "./assets/AssetCache";
 import { Manager } from "./Manager";
+import AssetManager from "./managers/AssetManager";
 import AudioManager from "./managers/AudioManager";
 import EventManager from "./managers/EventManager";
 import UIManager from "./managers/UIManager";
@@ -35,10 +36,10 @@ export const loadBuffer: LoaderParser = {
     priority: LoaderParserPriority.Normal, // Actually will be last priority according to the console.log
     type: ExtensionType.LoadParser,
   },
-  test(url: string, resolvedAsset?: ResolvedAsset, loader?: Loader) {
+  test(resolvedAsset?: ResolvedAsset) {
     return resolvedAsset?.loadParser === "loadBuffer";
   },
-  async load(url: string, resolvedAsset?: ResolvedAsset, loader?: Loader) {
+  async load(url: string) {
     const response = await DOMAdapter.get().fetch(url);
     const buffer = await response.arrayBuffer();
     return buffer;
@@ -140,12 +141,19 @@ export class Application implements IApplication {
     audio: AudioManager;
     world: WorldManager;
     event: EventManager;
+    assets: AssetManager;
   } = {
     ui: new UIManager(this),
     audio: new AudioManager(this),
     world: new WorldManager(this),
     event: new EventManager(this),
+    assets: new AssetManager(this),
   };
+
+  protected _assetCache?: AssetCache;
+  get assetCache() {
+    return this._assetCache;
+  }
 
   protected _managers: Manager[] = Object.values(this._manager);
   get managers() {
@@ -158,6 +166,10 @@ export class Application implements IApplication {
 
   get audio() {
     return this._manager.audio;
+  }
+
+  get assets() {
+    return this._manager.assets;
   }
 
   protected _audioContext?: AudioContext;
@@ -195,8 +207,12 @@ export class Application implements IApplication {
     view: HTMLElement,
     overlay: HTMLElement,
     audioContext?: AudioContext,
+    assetCache?: AssetCache,
   ) {
     this._game = game;
+    // Shared by the host across the applications it builds, so STOP then PLAY
+    // does not re-fetch a scene. Without one, the asset manager makes its own.
+    this._assetCache = assetCache;
 
     if (loadTextures.config) {
       // these workers don't work in iframe environments
@@ -322,6 +338,9 @@ export class Application implements IApplication {
 
   setAudioContext(audioContext: AudioContext) {
     if (audioContext.state === "running") {
+      if (this._audioContext === audioContext) {
+        return;
+      }
       this._audioContext = audioContext;
       this._clock.syncToClock(audioContext);
     }

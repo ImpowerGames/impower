@@ -23,7 +23,7 @@ export class ContentList extends ParsedObject {
     }
   }
 
-  get typeName(): string {
+  override get typeName(): string {
     return "ContentList";
   }
 
@@ -63,5 +63,5 @@ export class ContentList extends ParsedObject {
     return container;
   };
 
-  public toString = (): string => `ContentList(${this.content.join(", ")})`;
+  public override toString = (): string => `ContentList(${this.content.join(", ")})`;
 }

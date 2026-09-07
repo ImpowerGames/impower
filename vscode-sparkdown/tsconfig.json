@@ -1,6 +1,9 @@
 {
   "compilerOptions": {
-    "module": "commonjs",
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "jsx": "react-jsx",
+    "jsxImportSource": "preact",
     "target": "esnext",
     "lib": ["esnext", "WebWorker"],
     "skipLibCheck": true,
@@ -21,5 +24,11 @@
     "forceConsistentCasingInFileNames": true,
     "isolatedModules": true,
     "allowArbitraryExtensions": true
-  }
+  },
+  "exclude": [
+    "node_modules",
+    "dist",
+    "out",
+    ".vscode-test-web"
+  ]
 }

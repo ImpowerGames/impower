@@ -1,5 +1,5 @@
-import { Synth } from "../types/Synth";
-import { Tone } from "../types/Tone";
+import type { Synth } from "../types/Synth";
+import type { Tone } from "../types/Tone";
 import { convertPitchNoteToHertz } from "./convertPitchNoteToHertz";
 import { synthesizeSound } from "./synthesizeSound";
 import { transpose } from "./transpose";

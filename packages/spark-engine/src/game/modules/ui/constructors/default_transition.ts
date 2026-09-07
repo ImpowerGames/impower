@@ -1,5 +1,5 @@
-import { Create } from "../../../core/types/Create";
-import { Transition } from "../types/Transition";
+import type { Create } from "../../../core/types/Create";
+import type { Transition } from "../types/Transition";
 
 export const default_transition: Create<Transition> = (obj) => ({
   $type: "transition",

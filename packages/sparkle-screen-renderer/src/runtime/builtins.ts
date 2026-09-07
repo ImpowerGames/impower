@@ -171,7 +171,7 @@ function buildVNodeFromDOM(el: Element): VNode {
       classHost = true;
       const fixed = a.value.replace(CLASSES_PLACEHOLDER, "").trim();
       if (fixed) {
-        props.class = fixed;
+        props["class"] = fixed;
       }
       continue;
     }

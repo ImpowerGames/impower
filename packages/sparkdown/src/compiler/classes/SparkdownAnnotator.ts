@@ -1,5 +1,5 @@
 import { ChangeDesc, Line, Range, RangeSet, Text } from "@codemirror/state";
-import { SyntaxNodeRef, Tree } from "@lezer/common";
+import { type SyntaxNodeRef, Tree } from "@lezer/common";
 import { SparkdownAnnotation } from "./SparkdownAnnotation";
 
 const NON_WHITESPACE_REGEX = /\S/;
@@ -41,33 +41,33 @@ export abstract class SparkdownAnnotator<
    * through an edit. Called once per update, BEFORE the re-annotation window
    * is computed, so `begin` sees offsets in the new document.
    */
-  mapState(changes: ChangeDesc) {}
+  mapState(_changes: ChangeDesc) {}
 
-  begin(iterateFrom: number, iterateTo: number) {}
+  begin(_iterateFrom: number, _iterateTo: number) {}
 
   end(
-    iterateFrom: number,
-    iterateTo: number,
-    added: Range<AnnotationType>[],
-    removed: Range<AnnotationType>[],
+    _iterateFrom: number,
+    _iterateTo: number,
+    _added: Range<AnnotationType>[],
+    _removed: Range<AnnotationType>[],
   ) {}
 
-  remove(from: number, to: number, value: AnnotationType) {}
+  remove(_from: number, _to: number, _value: AnnotationType) {}
 
   enter(
     annotations: Range<AnnotationType>[],
-    nodeRef: SyntaxNodeRef,
-    iteratingFrom: number,
-    iteratingTo: number,
+    _nodeRef: SyntaxNodeRef,
+    _iteratingFrom: number,
+    _iteratingTo: number,
   ): Range<AnnotationType>[] {
     return annotations;
   }
 
   leave(
     annotations: Range<AnnotationType>[],
-    nodeRef: SyntaxNodeRef,
-    iteratingFrom: number,
-    iteratingTo: number,
+    _nodeRef: SyntaxNodeRef,
+    _iteratingFrom: number,
+    _iteratingTo: number,
   ): Range<AnnotationType>[] {
     return annotations;
   }

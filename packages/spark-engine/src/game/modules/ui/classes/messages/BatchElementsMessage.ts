@@ -1,4 +1,4 @@
-import { IMessage } from "@impower/jsonrpc/src/common/types/IMessage";
+import type { IMessage } from "@impower/jsonrpc/src/common/types/IMessage";
 import { MessageProtocolNotificationType } from "@impower/jsonrpc/src/common/classes/MessageProtocolNotificationType";
 
 export type BatchElementsMethod = typeof BatchElementsMessage.method;

@@ -1,10 +1,12 @@
+import { type SparkdownNodeName } from "../../types/SparkdownNodeName";
+import { nodeNameSet } from "../../utils/nodeNameSet";
 import { Range } from "@codemirror/state";
 import { getContextNames } from "@impower/textmate-grammar-tree/src/tree/utils/getContextNames";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 import GRAMMAR_DEFINITION from "../../../../language/sparkdown.language-grammar.json";
-import { SparkDeclaration } from "../../types/SparkDeclaration";
-import { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
-import { SparkSelector } from "../../types/SparkSelector";
+import type { SparkDeclaration } from "../../types/SparkDeclaration";
+import type { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
+import type { SparkSelector } from "../../types/SparkSelector";
 import { sortFilteredName } from "../../utils/sortFilteredName";
 import { SparkdownAnnotation } from "../SparkdownAnnotation";
 import { SparkdownAnnotator } from "../SparkdownAnnotator";
@@ -61,33 +63,33 @@ function firstDescendant(node: any, names: Set<string>): any {
   return null;
 }
 
-const FUNCTION_DECL_NAME = new Set(["LuauFunctionDeclarationName"]);
-const FUNCTION_DEFINITION = new Set(["LuauFunctionDefinition"]);
-const VARIABLE_DECL_SITE = new Set(["LuauVariableAssignment_begin"]);
-const VARIABLE_DEFINITION = new Set(["LuauVariableDefinition"]);
-const ASSET_COMMAND_INSTRUCTION = new Set(["AssetCommandInstruction"]);
-const ASSET_COMMAND_CONTROL = new Set(["AssetCommandControl"]);
+const FUNCTION_DECL_NAME = nodeNameSet(["LuauFunctionDeclarationName"]);
+const FUNCTION_DEFINITION = nodeNameSet(["LuauFunctionDefinition"]);
+const VARIABLE_DECL_SITE = nodeNameSet(["LuauVariableAssignment_begin"]);
+const VARIABLE_DEFINITION = nodeNameSet(["LuauVariableDefinition"]);
+const ASSET_COMMAND_INSTRUCTION = nodeNameSet(["AssetCommandInstruction"]);
+const ASSET_COMMAND_CONTROL = nodeNameSet(["AssetCommandControl"]);
 // The whole `[[…]]` / `((…))` command. A clause value (NameValue) is a SIBLING
 // of AssetCommandInstruction (both under the command), so reading the control
 // from a clause value walks up to the command, not the instruction.
-const ASSET_COMMAND = new Set(["ImageCommand", "AudioCommand"]);
+const ASSET_COMMAND = nodeNameSet(["ImageCommand", "AudioCommand"]);
 
 // The OOP define property line (`store trust = 0`, `name = "RAFFLES"`). Its LHS
 // name LuauVariableName must be claimed as a `property` declaration by the
 // LuauPropertyDefinition branch, NOT emitted as a generic variable read.
-const PROPERTY_DEFINITION = new Set(["LuauPropertyDefinition"]);
+const PROPERTY_DEFINITION = nodeNameSet(["LuauPropertyDefinition"]);
 
 // A Sparkle `@event=handler` binding and its parts. When the handler is a bare
 // function ref (`@click=go_back`) or a direct call (`@click=use_item(item)`),
 // the target must be a runtime-callable function/knot; an inline closure
 // (`@e={ … }`) or a member/method target (`@click=hero:jump()`) carries no bare
 // function name to resolve.
-const EVENT_ATTR_CONTENT = new Set(["LuauEventAttribute_content"]);
-const EVENT_HANDLER_CLOSURE = new Set(["LuauSparkleHandlerClosure"]);
+const EVENT_ATTR_CONTENT = nodeNameSet(["LuauEventAttribute_content"]);
+const EVENT_HANDLER_CLOSURE = nodeNameSet(["LuauSparkleHandlerClosure"]);
 // A bare-ref handler (`@e=go_back`) is its own grammar node (highlighted like a
 // divert path); a direct call (`@e=use_item(a)`) keeps the callee as a
 // `LuauFunctionName`. Either is the resolvable handler target.
-const EVENT_HANDLER_NAME = new Set([
+const EVENT_HANDLER_NAME = nodeNameSet([
   "LuauSparkleEventHandlerName",
   "LuauFunctionName",
   "LuauVariableName",
@@ -96,13 +98,13 @@ const EVENT_HANDLER_NAME = new Set([
 // `LuauStructBodyLine` is the per-physical-line wrapper of a structural
 // (style/screen/component/animation/theme) body; the indent is the column of
 // the body content relative to that line's start.
-const STRUCT_BODY_LINE = new Set(["LuauStructBodyLine"]);
+const STRUCT_BODY_LINE = nodeNameSet(["LuauStructBodyLine"]);
 
 // The identifier tokens that carry a struct property/header KEY in the Luau-port
 // grammar (LuauStructScalarProperty / LuauStructObjectHeader capture-2). The old
 // per-flavor `*DeclarationScalarPropertyName` / `*ObjectPropertyName` nodes are
 // gone; these are the generic replacements.
-const STRUCT_KEY_TOKENS = new Set([
+const STRUCT_KEY_TOKENS = nodeNameSet([
   "BuiltinComponentName",
   "StylingDeclarationScalarPropertyName",
   "DeclarationScalarPropertyKey",
@@ -115,7 +117,7 @@ const STRUCT_KEY_TOKENS = new Set([
 // Top-level structural-define keyword nodes → the engine type they declare.
 // Their `name` (LuauDefineName) is an INSTANCE under that type, and a trailing
 // `as PARENT` is `$extends` (a sibling of the SAME type), not the type itself.
-const STRUCTURAL_TYPE_BY_NODE: Record<string, string> = {
+const STRUCTURAL_TYPE_BY_NODE: Partial<Record<SparkdownNodeName, string>> = {
   LuauStyle: "style",
   LuauLayout: "layout",
   LuauScreen: "screen",
@@ -130,9 +132,30 @@ const STRUCTURAL_TYPE_BY_NODE: Record<string, string> = {
 const LAYOUT_CONTROL_KEYWORDS: string[] =
   GRAMMAR_DEFINITION.variables.LAYOUT_CONTROL_KEYWORDS || [];
 
+// `[[load <name>…]]` — every name is a scene (a divert target) or a world, so
+// it links to the scene or the `world` define and warns only when neither
+// exists.
+const LOAD_CONTROL_KEYWORDS: string[] =
+  GRAMMAR_DEFINITION.variables.LOAD_CONTROL_KEYWORDS || [];
+
 export class ReferenceAnnotator extends SparkdownAnnotator<
   SparkdownAnnotation<Reference>
 > {
+  /** A name a `load` directive or arrow names: the scene it diverts to (a
+   *  divert-style reference, so it links and warns like `-> name`) or a
+   *  `world` define. */
+  protected loadTargetReference(
+    name: string,
+    nodeRef: { from: number; to: number },
+  ) {
+    return SparkdownAnnotation.mark<Reference>({
+      usage: "divert",
+      symbolIds: ["." + name, name, `world.${name}`],
+      firstMatchOnly: true,
+      kind: "read",
+    }).range(nodeRef.from, nodeRef.to);
+  }
+
   // The engine type of the define currently being walked. For an OOP `define
   // <name> as <parent>` this is the PARENT (the inverted model: parent = type);
   // for a root `define <name> with …` it is the name itself; for a structural
@@ -632,6 +655,10 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
           );
           return annotations;
         }
+        if (LOAD_CONTROL_KEYWORDS.includes(control)) {
+          annotations.push(this.loadTargetReference(name, nodeRef));
+          return annotations;
+        }
         const types: string[] = ["layer"];
         const displayType = `layer`;
         annotations.push(
@@ -705,8 +732,24 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
       const context = getContextNames(nodeRef.node);
       // Record image file name reference
       if (context.includes("ImageCommand")) {
-        const types = ["filtered_image", "layered_image", "image", "graphic"];
         const name = this.read(nodeRef.from, nodeRef.to);
+        // `[[load A B]]`: every further name is a scene or world too, never
+        // an image.
+        const instruction = ancestorMatching(
+          nodeRef.node,
+          ASSET_COMMAND_INSTRUCTION,
+        );
+        const controlNode = instruction
+          ? firstDescendant(instruction, ASSET_COMMAND_CONTROL)
+          : null;
+        const control = controlNode
+          ? this.read(controlNode.from, controlNode.to).trim()
+          : "";
+        if (LOAD_CONTROL_KEYWORDS.includes(control)) {
+          annotations.push(this.loadTargetReference(name, nodeRef));
+          return annotations;
+        }
+        const types = ["filtered_image", "layered_image", "image", "graphic"];
         const displayType = "image";
         annotations.push(
           SparkdownAnnotation.mark<Reference>({

@@ -46,14 +46,14 @@ import { ListDefinitionsOrigin } from "./ListDefinitionsOrigin";
 import { ListDefinition } from "./ListDefinition";
 import { Stopwatch } from "./StopWatch";
 import { Pointer } from "./Pointer";
-import { InkList, InkListItem, KeyValuePair } from "./InkList";
+import { InkList, InkListItem, type KeyValuePair } from "./InkList";
 import { asOrNull, asOrThrows } from "./TypeAssertion";
 import { DebugMetadata } from "./DebugMetadata";
 import { throwNullException } from "./NullException";
 import { SimpleJson } from "./SimpleJson";
-import { ErrorHandler, ErrorType } from "./Error";
+import { type ErrorHandler, ErrorType } from "./Error";
 import { StructDefinition } from "./StructDefinition";
-import { Simulator, SimulatorSnapshot } from "./Simulator";
+import type { Simulator,SimulatorSnapshot } from "./Simulator";
 
 export { InkList } from "./InkList";
 
@@ -317,7 +317,7 @@ function tryInvokeStdLibMarkerValue(
     "__stdlib_fn",
   );
   if (!(tag instanceof StringValue)) return null;
-  const entry = lookupAnyStdLib(tag.value);
+  const entry = lookupAnyStdLib(tag.value!);
   if (!entry) return null;
   if (
     entry.arity >= 0 &&
@@ -330,7 +330,7 @@ function tryInvokeStdLibMarkerValue(
     entry,
     entry.arity >= 0 ? args.slice(0, entry.arity) : [...args],
     story,
-    tag.value,
+    tag.value!,
   );
   const result = entry.fn(story, callArgs);
   if (result === undefined) return [];
@@ -660,7 +660,7 @@ function newindexThroughMetatable(
       if (patch !== null) {
         patch.RecordPropertyMutation(base.value, keyStr, undefined);
       }
-      base.value.set(keyStr, newVal);
+      base.value!.set(keyStr, newVal);
       return true;
     }
     return false;
@@ -1119,6 +1119,88 @@ export class Story extends InkObject {
     this.ContinueInternal(millisecsLimitAsync);
   }
 
+  /** Close an in-progress `ContinueAsync` WITHOUT advancing the story, for a
+   *  caller that is about to replace the story state outright.
+   *
+   *  `ResetState`, `ChoosePathString` and the rest refuse to run while a line
+   *  is still part-way through (`IfAsyncWeCant`), and until now the only way
+   *  past that was a plain `Continue()` — which finishes the line by running
+   *  it. That work is wasted whenever the caller is about to discard the state
+   *  anyway, and worse, it cannot be declined: a story sitting in a loop that
+   *  never completes a line runs forever, with no error raised and nothing to
+   *  stop it (#386).
+   *
+   *  So this ends the continue instead of finishing it. Everything below is
+   *  the wrap-up `ContinueInternal` performs when a line is over, minus the
+   *  advancing: the look-ahead snapshot is rolled back rather than left
+   *  dangling — it lives on the story, not the state, so a caller replacing
+   *  the state would not clear it, and the next continue could restore a story
+   *  state that had already been thrown away — and the open batch of variable
+   *  observations is closed out.
+   *
+   *  Closing that batch ANNOUNCES what it recorded: `CompleteVariableObservation`
+   *  raises `variableChangedEvent` for every variable the abandoned run touched
+   *  before it was stopped. An observer registered through `ObserveVariable`
+   *  therefore sees a PART-WAY-THROUGH view — the writes the line had reached,
+   *  not the ones it would have finished with — followed by whatever the
+   *  caller's replacement re-declares. The `Continue()` this replaces announced
+   *  a different thing, the values as of the completed line, so this is a real
+   *  difference and not a parity claim. It is stated rather than papered over
+   *  because both are announcements of a run that is about to be discarded, and
+   *  choosing what an observer should see across an abandoned line is a
+   *  decision about observer semantics rather than part of ending the continue.
+   *  Nothing in this repository subscribes today. What is skipped either way is
+   *  only the map the wrap-up feeds to `NotifyObservers`, which carries
+   *  patch-derived changes that matter during a background save.
+   *
+   *  One deliberate divergence from that wrap-up: it completes the observation
+   *  batch only at `_recursiveContinueCount == 1`, and this does it
+   *  unconditionally, because a cancel runs from outside any `ContinueInternal`
+   *  frame — where that count is zero and the guard would never let the batch
+   *  close. The guard below enforces that this is the only way it is used. */
+  public CancelAsyncContinue() {
+    // Cancelling from inside a live continue would be the original bug wearing
+    // a new hat: clearing the flag while `ContinueInternal`'s loop is still on
+    // the stack disables the break that ends its slice, so the loop would run
+    // the line to its end — and a line that never ends never would. Refuse,
+    // the same way the runtime refuses every other operation that is unsafe
+    // mid-continue.
+    if (this._recursiveContinueCount > 0) {
+      throw new Error(
+        "Can't CancelAsyncContinue from inside a Continue. Only a caller that " +
+          "is about to replace the story state may cancel, and it must do so " +
+          "between continues.",
+      );
+    }
+
+    if (!this._asyncContinueActive) {
+      return;
+    }
+
+    // Reading ahead past a newline records TWO things, and both live on the
+    // story rather than on the story state, so replacing the state clears
+    // neither. The second is the route simulator's position in the decisions
+    // it is feeding the story, and it is dropped rather than put back: the
+    // simulator that happens to be attached now need not be the one this run
+    // was reading from — `Game.simulateRoute` attaches the NEXT route's
+    // simulator before the caller gets here — and restoring one route's
+    // consumed position into another route's simulator makes it skip the
+    // decisions it was supposed to force. Dropping it is what "this run is
+    // being discarded" means; the caller replaces the state on the next line
+    // regardless, so there is nothing for a rolled-back simulator to serve.
+    this._simulatorSnapshotAtLastNewline = null;
+
+    if (this._stateSnapshotAtLastNewline !== null) {
+      this.RestoreStateSnapshot();
+    }
+
+    this._state.didSafeExit = false;
+    this._sawLookaheadUnsafeFunctionAfterNewline = false;
+    this._state.variablesState.CompleteVariableObservation();
+
+    this._asyncContinueActive = false;
+  }
+
   public ContinueInternal(millisecsLimitAsync = 0) {
     if (this._profiler != null) this._profiler.PreContinue();
 
@@ -1261,8 +1343,8 @@ export class Story extends InkObject {
         );
         sb.Append(
           this.state.hasError
-            ? this.state.currentErrors![0]
-            : this.state.currentWarnings![0],
+            ? this.state.currentErrors![0]!
+            : this.state.currentWarnings![0]!,
         );
 
         throw new StoryException(sb.toString());
@@ -1862,7 +1944,6 @@ export class Story extends InkObject {
     }
 
     let choice = new Choice();
-    choice.point = choicePoint;
     choice.targetPath = choicePoint.pathOnChoice;
     choice.sourcePath = choicePoint.path.toString();
     choice.isInvisibleDefault = choicePoint.isInvisibleDefault;
@@ -1975,7 +2056,7 @@ export class Story extends InkObject {
             );
             if (stdlibTag instanceof StringValue) {
               const stdlibName = stdlibTag.value;
-              const entry = lookupAnyStdLib(stdlibName);
+              const entry = lookupAnyStdLib(stdlibName!);
               if (entry && entry.arity >= 0) {
                 const args: any[] = [];
                 for (let i = 0; i < entry.arity; i++) {
@@ -1996,7 +2077,7 @@ export class Story extends InkObject {
                 }
                 const result = entry.fn(
                   this,
-                  unwrapArgsForPureStdLibFn(entry, args, this, stdlibName),
+                  unwrapArgsForPureStdLibFn(entry, args, this, stdlibName!),
                 );
                 if (result !== undefined) {
                   if (Array.isArray(result)) {
@@ -2194,7 +2275,7 @@ export class Story extends InkObject {
           break;
 
         case ControlCommand.CommandType.Duplicate:
-          this.state.PushEvaluationStack(this.state.PeekEvaluationStack());
+          this.state.PushEvaluationStack(this.state.PeekEvaluationStack()!);
           break;
 
         case ControlCommand.CommandType.PopEvaluatedValue:
@@ -2224,7 +2305,7 @@ export class Story extends InkObject {
           if (this.state.TryExitFunctionEvaluationFromGame()) {
             break;
           } else if (
-            this.state.callStack.currentElement.type != popType ||
+            this.state.callStack.currentElement!.type != popType ||
             !this.state.callStack.canPop
           ) {
             let names: Map<PushPopType, string> = new Map();
@@ -2234,7 +2315,7 @@ export class Story extends InkObject {
             );
             names.set(PushPopType.Tunnel, "tunnel onwards statement (->->)");
 
-            let expected = names.get(this.state.callStack.currentElement.type);
+            let expected = names.get(this.state.callStack.currentElement!.type);
             if (!this.state.callStack.canPop) {
               expected = "end of flow (-> END or choice)";
             }
@@ -2526,7 +2607,7 @@ export class Story extends InkObject {
             // Reactive dep tracking: this binding read into a table — record the
             // table's identity so an in-place mutation of it re-runs the binding.
             if (this.state.variablesState.reactiveDepsEnabled) {
-              this.state.variablesState.recordReactiveTableRead(indexBase.value);
+              this.state.variablesState.recordReactiveTableRead(indexBase.value!);
             }
             const direct = indexBase.value?.get(keyStr) ?? null;
             if (direct != null) {
@@ -2814,7 +2895,7 @@ export class Story extends InkObject {
             );
             if (stdlibTag instanceof StringValue) {
               const stdlibName = stdlibTag.value;
-              const entry = lookupAnyStdLib(stdlibName);
+              const entry = lookupAnyStdLib(stdlibName!);
               const callSiteArgCount =
                 evalCommand._callValueArgCount ?? -1;
               const popCount =
@@ -2840,7 +2921,7 @@ export class Story extends InkObject {
                 }
                 const result = entry.fn(
                   this,
-                  unwrapArgsForPureStdLibFn(entry, args, this, stdlibName),
+                  unwrapArgsForPureStdLibFn(entry, args, this, stdlibName!),
                 );
                 if (result !== undefined) {
                   if (Array.isArray(result)) {
@@ -3008,7 +3089,7 @@ export class Story extends InkObject {
           // an inner `local x` shadows an outer `x` for the rest of
           // the inner block, then the outer is visible again after
           // the matching `EndScope`.
-          this.state.callStack.currentElement.PushScope();
+          this.state.callStack.currentElement!.PushScope();
           break;
 
         case ControlCommand.CommandType.EndScope:
@@ -3016,7 +3097,7 @@ export class Story extends InkObject {
           // pop the outermost (function-level) frame, which would
           // leave the call-stack element with no scope frames at
           // all and break subsequent temp-var lookups.
-          this.state.callStack.currentElement.PopScope();
+          this.state.callStack.currentElement!.PopScope();
           break;
 
         case ControlCommand.CommandType.TurnsSince:
@@ -3078,7 +3159,7 @@ export class Story extends InkObject {
 
         case ControlCommand.CommandType.SequenceShuffleIndex:
           let shuffleIndex = this.NextSequenceShuffleIndex();
-          this.state.PushEvaluationStack(new IntValue(shuffleIndex));
+          this.state.PushEvaluationStack(new IntValue(shuffleIndex!));
           break;
 
         case ControlCommand.CommandType.StartThread:
@@ -3627,7 +3708,7 @@ export class Story extends InkObject {
                 // Reactive dep tracking: this dotted read walked through `cur` —
                 // record its identity so an in-place mutation re-runs the binding.
                 if (this.state.variablesState.reactiveDepsEnabled) {
-                  this.state.variablesState.recordReactiveTableRead(cur.value);
+                  this.state.variablesState.recordReactiveTableRead(cur.value!);
                 }
                 const direct = cur.value?.get(seg);
                 if (direct != null) {
@@ -3666,7 +3747,7 @@ export class Story extends InkObject {
               }
             }
             if (cur != null) {
-              foundValue = cur as Value;
+              foundValue = cur as Value<any>;
             } else if (dottedIndexError == null) {
               dottedResolvedToNil = true;
             }
@@ -3854,10 +3935,10 @@ export class Story extends InkObject {
     if (resetCallstack) {
       this.ResetCallstack();
     } else {
-      if (this.state.callStack.currentElement.type == PushPopType.Function) {
+      if (this.state.callStack.currentElement!.type == PushPopType.Function) {
         let funcDetail = "";
         let container =
-          this.state.callStack.currentElement.currentPointer.container;
+          this.state.callStack.currentElement!.currentPointer.container;
         if (container != null) {
           funcDetail = "(" + container.path.toString() + ") ";
         }
@@ -4654,7 +4735,7 @@ export class Story extends InkObject {
     observers: Story.VariableObserver[],
   ) {
     for (let i = 0, l = variableNames.length; i < l; i++) {
-      this.ObserveVariable(variableNames[i], observers[i]);
+      this.ObserveVariable(variableNames[i]!, observers[i]!);
     }
   }
 
@@ -4760,7 +4841,7 @@ export class Story extends InkObject {
       );
     };
     while (true) {
-      let firstContent: InkObject = flowContainer.content[0];
+      let firstContent: InkObject = flowContainer.content[0]!;
       if (firstContent instanceof Container) {
         if (
           isTagWrapper(firstContent) &&
@@ -4943,9 +5024,9 @@ export class Story extends InkObject {
 
     if (!successfulIncrement) pointer = Pointer.Null;
 
-    this.state.callStack.currentElement.previousPointer =
-      this.state.callStack.currentElement.currentPointer.copy();
-    this.state.callStack.currentElement.currentPointer = pointer.copy();
+    this.state.callStack.currentElement!.previousPointer =
+      this.state.callStack.currentElement!.currentPointer.copy();
+    this.state.callStack.currentElement!.currentPointer = pointer.copy();
 
     return successfulIncrement;
   }
@@ -4963,21 +5044,21 @@ export class Story extends InkObject {
 
     let choice = invisibleChoices[0];
 
-    if (choice.targetPath === null) {
+    if (choice!.targetPath === null) {
       return throwNullException("choice.targetPath");
     }
 
-    if (choice.threadAtGeneration === null) {
+    if (choice!.threadAtGeneration === null) {
       return throwNullException("choice.threadAtGeneration");
     }
 
-    this.state.callStack.currentThread = choice.threadAtGeneration;
+    this.state.callStack.currentThread = choice!.threadAtGeneration;
 
     if (this._stateSnapshotAtLastNewline !== null) {
       this.state.callStack.currentThread = this.state.callStack.ForkThread();
     }
 
-    this.ChoosePath(choice.targetPath, false);
+    this.ChoosePath(choice!.targetPath, false);
 
     return true;
   }
@@ -5111,7 +5192,7 @@ export class Story extends InkObject {
     }
 
     for (let i = this.state.callStack.elements.length - 1; i >= 0; --i) {
-      pointer = this.state.callStack.elements[i].currentPointer;
+      pointer = this.state.callStack.elements[i]!.currentPointer;
       if (!pointer.isNull && pointer.Resolve() !== null) {
         dm = pointer.Resolve()!.debugMetadata;
         if (dm !== null) {
@@ -5122,7 +5203,7 @@ export class Story extends InkObject {
 
     for (let i = this.state.outputStream.length - 1; i >= 0; --i) {
       let outputObj = this.state.outputStream[i];
-      dm = outputObj.debugMetadata;
+      dm = outputObj!.debugMetadata;
       if (dm !== null) {
         return dm;
       }

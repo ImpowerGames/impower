@@ -1,7 +1,7 @@
 export class StoryException extends Error {
   public useEndLineNumber: boolean;
-  public message: string;
-  public name: string;
+  public override message: string;
+  public override name: string;
 
   constructor(message: string) {
     super(message);

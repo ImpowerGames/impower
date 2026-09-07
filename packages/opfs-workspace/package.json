@@ -21,7 +21,8 @@
     "build": "node ./esbuild.js",
     "watch": "node ./esbuild.js --watch",
     "package": "node ./esbuild.js --production",
-    "test": "vitest run"
+    "test": "vitest run",
+    "typecheck": "node ../../scripts/typecheck.mjs packages/opfs-workspace/"
   },
   "devDependencies": {
     "chokidar": "^4.0.3",

@@ -4,8 +4,8 @@
 
 import { NodeID } from "../../core";
 
-import { GrammarDefinition, RuleDefinition } from "../types/GrammarDefinition";
-import { Rule } from "../types/Rule";
+import type { GrammarDefinition,RuleDefinition } from "../types/GrammarDefinition";
+import type { Rule } from "../types/Rule";
 import { GrammarNode } from "./GrammarNode";
 import { GrammarRepository } from "./GrammarRepository";
 import { GrammarState } from "./GrammarState";

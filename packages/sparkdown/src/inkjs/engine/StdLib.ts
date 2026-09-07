@@ -17,7 +17,6 @@ import {
   luaPatternToJs,
   executeLuaPattern,
   LuaPatternError,
-  type CompiledLuaPattern,
   type PatternMatchResult,
 } from "./LuaPatterns";
 
@@ -1883,28 +1882,6 @@ function utf8PosRelat(pos: number, len: number): number {
   return len + pos + 1;
 }
 
-/**
- * Walk `s` and produce the byte offset (0-based, into the UTF-8
- * encoding) of each code-point boundary, plus a trailing entry for
- * the end of the string. Used by `utf8.len` and `utf8.offset` to
- * answer "what byte position is the n-th character at?" without
- * eagerly building the full byte array. The second tuple element is
- * the total UTF-8 byte length of `s`.
- */
-function utf8CodepointOffsets(s: string): [number[], number] {
-  const offsets: number[] = [];
-  let bo = 0;
-  for (const cp of s) {
-    offsets.push(bo);
-    const code = cp.codePointAt(0)!;
-    if (code < 0x80) bo += 1;
-    else if (code < 0x800) bo += 2;
-    else if (code < 0x10000) bo += 3;
-    else bo += 4;
-  }
-  offsets.push(bo);
-  return [offsets, bo];
-}
 
 // Re-export the method-dispatch surface so external callers
 // (compiler, runtime engine) see one entry point. The actual table
@@ -2395,7 +2372,8 @@ function defineChain(start: ObjectValue): ObjectValue[] {
   let guard = 0;
   while (cur instanceof ObjectValue && guard++ < 64) {
     chain.push(cur);
-    const idx = metatableMap(cur)?.get("__index") ?? null;
+    const idx: AbstractValue | null =
+      metatableMap(cur)?.get("__index") ?? null;
     cur = idx instanceof ObjectValue ? idx : null;
   }
   return chain;
@@ -2436,7 +2414,7 @@ export const STDLIB: Record<string, StdLibEntry> = {
     arity: -1,
     pure: true,
     fn: (_, args: number[]) =>
-      args.length >= 2 ? Math.atan2(args[0], args[1]) : Math.atan(args[0]),
+      args.length >= 2 ? Math.atan2(args[0]!, args[1]!) : Math.atan(args[0]!),
   },
   "math.atan2": {
     arity: 2,
@@ -2506,7 +2484,7 @@ export const STDLIB: Record<string, StdLibEntry> = {
     arity: -1,
     pure: true,
     fn: (_, args: number[]) =>
-      args.length >= 2 ? Math.log(args[0]) / Math.log(args[1]) : Math.log(args[0]),
+      args.length >= 2 ? Math.log(args[0]!) / Math.log(args[1]!) : Math.log(args[0]!),
   },
   "math.log10": { arity: 1, pure: true, fn: (_, [v]) => Math.log10(v) },
   // `math.max(a, b, ...)` / `math.min(a, b, ...)` — Luau variadic.
@@ -5265,7 +5243,8 @@ export const STDLIB: Record<string, StdLibEntry> = {
           }
           flat.set(k, v);
         }
-        const idx = metatableMap(cur)?.get("__index") ?? null;
+        const idx: AbstractValue | null =
+      metatableMap(cur)?.get("__index") ?? null;
         cur = idx instanceof ObjectValue ? idx : null;
       }
       // Iterate the flattened snapshot with the ordinary pairs step.

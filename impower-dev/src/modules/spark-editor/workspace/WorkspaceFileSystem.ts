@@ -1,3 +1,4 @@
+import type * as LSP from "@impower/spark-editor-protocol/src/types";
 import { sendProtocolMessage } from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
 import { MessageProtocolRequestType } from "@impower/spark-editor-protocol/src/protocols/MessageProtocolRequestType";
 import {
@@ -69,7 +70,6 @@ export default class WorkspaceFileSystem {
   protected _initialFilesRef = new SingletonPromise(
     this.loadInitialFiles.bind(this),
   );
-
 
   protected _scheme = "file://";
   get scheme() {
@@ -516,7 +516,9 @@ export default class WorkspaceFileSystem {
    */
   getRelativePath(projectId: string, uri: string): string {
     const prefix = `${this.getDirectoryUri(projectId)}/`;
-    return uri.startsWith(prefix) ? uri.slice(prefix.length) : this.getFilename(uri);
+    return uri.startsWith(prefix)
+      ? uri.slice(prefix.length)
+      : this.getFilename(uri);
   }
 
   async zipFiles(params: { files: { uri: string; path?: string }[] }) {
@@ -600,8 +602,7 @@ export default class WorkspaceFileSystem {
     const newName = this.getDisplayName(this.getFileUri(projectId, toPath));
     const edit = await Workspace.ls.getFileRenameEdits(oldUri, newName);
     const textEdits = (edit?.documentChanges ?? []).filter(
-      (c): c is { textDocument: { uri: string }; edits: unknown[] } =>
-        "edits" in c,
+      (c): c is LSP.TextDocumentEdit => "edits" in c,
     );
     if (!edit || textEdits.length === 0) {
       // No references to update — a plain move is enough.
@@ -613,10 +614,7 @@ export default class WorkspaceFileSystem {
       `Rename ${this.getDisplayName(oldUri)} → ${newName}`,
       { isRefactoring: true },
     );
-    const referencesUpdated = textEdits.reduce(
-      (n, c) => n + c.edits.length,
-      0,
-    );
+    const referencesUpdated = textEdits.reduce((n, c) => n + c.edits.length, 0);
     return { referencesUpdated, scriptsAffected: textEdits.length };
   }
 

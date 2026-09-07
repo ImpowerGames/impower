@@ -51,7 +51,7 @@ export class ObjectExpression extends Expression {
     this.AddContent(entry.value);
   };
 
-  get typeName(): string {
+  override get typeName(): string {
     return "Object";
   }
 
@@ -89,14 +89,14 @@ export class ObjectExpression extends Expression {
     container.AddContent(RuntimeControlCommand.EndObject());
   };
 
-  public readonly toString = (): string => {
+  public override readonly toString = (): string => {
     if (this._entries.length === 0) return "{}";
     return `{${this._entries
       .map((e) => `${e.key.toString()} = ${e.value.toString()}`)
       .join(", ")}}`;
   };
 
-  public Equals(obj: ParsedObject): boolean {
+  public override Equals(obj: ParsedObject): boolean {
     if (!(obj instanceof ObjectExpression)) return false;
     if (obj._entries.length !== this._entries.length) return false;
     for (let i = 0; i < this._entries.length; i++) {

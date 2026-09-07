@@ -1,3 +1,4 @@
+import { nodeNameSet } from "../../utils/nodeNameSet";
 import { Range } from "@codemirror/state";
 import { getContextNames } from "@impower/textmate-grammar-tree/src/tree/utils/getContextNames";
 import GRAMMAR_DEFINITION from "../../../../language/sparkdown.language-grammar.json";
@@ -6,8 +7,8 @@ import {
   CUSTOM_PROPERTY_ALIASES,
   isAliasedAttributeProp,
 } from "../../constants/dataAttributeProps";
-import { SparkdownNodeName } from "../../types/SparkdownNodeName";
-import { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
+import type { SparkdownNodeName } from "../../types/SparkdownNodeName";
+import type { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
 import { formatList } from "../../utils/formatList";
 import { SparkdownAnnotation } from "../SparkdownAnnotation";
 import { SparkdownAnnotator } from "../SparkdownAnnotator";
@@ -18,19 +19,23 @@ const AUDIO_CONTROL_KEYWORDS =
   GRAMMAR_DEFINITION.variables.AUDIO_CONTROL_KEYWORDS || [];
 const LAYOUT_CONTROL_KEYWORDS =
   GRAMMAR_DEFINITION.variables.LAYOUT_CONTROL_KEYWORDS || [];
-// `[[...]]` brackets carry both visual (show/hide/animate) and screen-lifecycle
-// (open/close/navigate) verbs — see LAYOUT_CONTROL_KEYWORDS in the grammar.
+const LOAD_CONTROL_KEYWORDS =
+  GRAMMAR_DEFINITION.variables.LOAD_CONTROL_KEYWORDS || [];
+// `[[...]]` brackets carry visual (show/hide/animate), screen-lifecycle
+// (open/close/navigate), and preload (load) verbs — see the *_CONTROL_KEYWORDS
+// variables in the grammar.
 const BRACKET_CONTROL_KEYWORDS = [
   ...IMAGE_CONTROL_KEYWORDS,
   ...LAYOUT_CONTROL_KEYWORDS,
+  ...LOAD_CONTROL_KEYWORDS,
 ];
 
 // The whole `[[…]]` / `((…))` command + its control token. A clause keyword/
 // value is a SIBLING of AssetCommandInstruction (both under the command), so
 // reading the control from a clause node walks up to the command, not the
 // instruction.
-const ASSET_COMMAND = new Set(["ImageCommand", "AudioCommand"]);
-const ASSET_COMMAND_CONTROL = new Set(["AssetCommandControl"]);
+const ASSET_COMMAND = nodeNameSet(["ImageCommand", "AudioCommand"]);
+const ASSET_COMMAND_CONTROL = nodeNameSet(["AssetCommandControl"]);
 
 // The closed set of `@event` names a Sparkle element line can bind. Source of
 // truth: the runtime's `EventMap` (packages/spark-engine/src/game/core/types/
@@ -62,7 +67,7 @@ const VALID_STYLE_PROPS = new Set<string>(VALID_STYLE_PROPS_DATA.props);
 // also emitted for STYLE SELECTORS (`@hovered:`, `@theme(dark)`), whose
 // vocabulary is unrelated — so the EventMap check must find this wrapper above
 // it before it says anything.
-const SPARKLE_EVENT_HANDLER = new Set(["LuauEventAttribute"]);
+const SPARKLE_EVENT_HANDLER = nodeNameSet(["LuauEventAttribute"]);
 
 // Normalize a prop name to the vocabulary's kebab-case form the way the renderer
 // does (`getCSSPropertyName`): camelCase → kebab, `_` → `-`, lowercased. So

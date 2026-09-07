@@ -44,9 +44,19 @@ describe("reactive mount (Phase 3 I1)", () => {
     const reactiveH = createHarness(SCREEN);
     await Promise.all([staticH.ready, reactiveH.ready]);
     // Whole connect-time stream (styles + screen tree + theme + transient
-    // clears) must be byte-identical between the two render paths.
-    expect(reactiveH.snapshotFiltered("ui/")).toEqual(
-      staticH.snapshotFiltered("ui/"),
+    // clears) must be byte-identical between the two render paths, with one
+    // exception: the built-in `loading` layout scales its bar through an
+    // element prop binding (`loading_fill #transform="scaleX({game.loading.progress})"`),
+    // and element props exist only in the AST. The static fallback cannot
+    // render one, so that element's inline style is left out of the comparison.
+    const withoutFillStyle = (ops: any[]) =>
+      ops.map((op) =>
+        op?.method === "ui/create" && op?.params?.name === "loading_fill"
+          ? { ...op, params: { ...op.params, style: undefined } }
+          : op,
+      );
+    expect(withoutFillStyle(reactiveH.snapshotFiltered("ui/"))).toEqual(
+      withoutFillStyle(staticH.snapshotFiltered("ui/")),
     );
   });
 

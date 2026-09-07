@@ -115,7 +115,7 @@ function deepMerge(base: AnyVal, override: AnyVal): AnyVal {
 
 /** Mirror Game.getRuntimeValue's InkList handling so list values convert
  *  identically wherever they appear. */
-function convertInkList(valueObj: AnyVal, story: Story): unknown {
+function convertInkList(valueObj: AnyVal, _story: Story): unknown {
   const list = valueObj.value as InkList;
   // GetVariableWithName has no name here; the def lookup keys off the list's
   // own origin, so try the first item's origin name.

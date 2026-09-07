@@ -12,6 +12,7 @@ Read in order:
 6. **[Screens & Navigation](./Screens.md)** — `open` / `close` / `navigate`.
 7. **[Styling](./StyleProps.md)** — `style` blocks, selectors, breakpoints, and the full style-prop reference.
 8. **[Animation & Theme](./AnimationTheme.md)** — movement and shared design values.
+9. **[Loading & Preloading](./Loading.md)** — what loads ahead of need, the `load` arrow, and the loading screen.
 
 > Syntax at a glance: element lines are `element [ classes ] [ "content" ] [ #prop=value ] [ @event=handler ] [:]`; classes are **space-separated**; inline props take a **`#`**; blocks are `keyword name with … end`; control flow uses `then` / `do` / `end`.
 

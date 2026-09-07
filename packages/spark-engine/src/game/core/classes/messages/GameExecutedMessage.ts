@@ -1,6 +1,9 @@
 import { MessageProtocolNotificationType } from "@impower/jsonrpc/src/common/classes/MessageProtocolNotificationType";
-import { NotificationMessage } from "@impower/jsonrpc/src/common/types/NotificationMessage";
-import { DocumentLocation } from "../../types/DocumentLocation";
+import type { NotificationMessage } from "@impower/jsonrpc/src/common/types/NotificationMessage";
+import type { SimulationFailure } from "@impower/sparkdown/src/compiler/types/SimulationFailure";
+import type { DocumentLocation } from "../../types/DocumentLocation";
+
+export type { SimulationFailure };
 
 export type GameExecutedMethod = typeof GameExecutedMessage.method;
 
@@ -14,6 +17,8 @@ export interface GameExecutedParams {
   state: "initial" | "running" | "previewing" | "paused";
   restarted?: boolean;
   simulation?: "none" | "simulating" | "success" | "fail";
+  /** Only meaningful alongside `simulation: "fail"`, and always sent with it. */
+  simulationFailure?: SimulationFailure;
 }
 
 export class GameExecutedMessage {

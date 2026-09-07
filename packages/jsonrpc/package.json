@@ -4,7 +4,8 @@
   "description": "A light-weight library used to create json-rpc 2.0 messages.",
   "version": "0.0.1",
   "scripts": {
-    "test": "vitest run"
+    "test": "vitest run",
+    "typecheck": "node ../../scripts/typecheck.mjs packages/jsonrpc/"
   },
   "devDependencies": {
     "vitest": "^2.1.9"

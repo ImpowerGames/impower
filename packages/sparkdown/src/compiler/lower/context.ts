@@ -1,5 +1,5 @@
 import { ParsedObject } from "../../inkjs/compiler/Parser/ParsedHierarchy/Object";
-import { CompilationConfig } from "../classes/annotators/CompilationAnnotator";
+import type { CompilationConfig } from "../classes/annotators/CompilationAnnotator";
 
 export interface LowerContext {
   read: (from: number, to: number) => string;

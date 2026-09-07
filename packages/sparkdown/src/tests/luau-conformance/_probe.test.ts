@@ -20,11 +20,6 @@ const UPSTREAM_ROOT = join(__dirname, "upstream", "conformance");
 
 const PROBE_FILE = "strconv.luau";
 
-function probe(label: string, src: string) {
-  const r = runConformanceSource(src);
-  // eslint-disable-next-line no-console
-  console.log(`[${label}] errors=${JSON.stringify(r.errorMessages)} output=${JSON.stringify(r.output)} returnedOK=${r.returnedOK}`);
-}
 
 test(`survey: first blocker per failing fixture`, () => {
   // Run each currently-failing upstream conformance fixture through
@@ -94,19 +89,6 @@ test(`bisect-basic`, () => {
     } catch (e) {
       // eslint-disable-next-line no-console
       console.log(`[lines 1-${endLine}] THREW: ${(e as Error).message}`);
-    }
-  };
-  const tryProbe = (label: string, src: string) => {
-    try {
-      const r = runConformanceSource(src);
-      const compileErr = r.errorMessages.find((e) => !e.startsWith("RUNTIME"));
-      const runtimeErr = r.errorMessages.find((e) => e.startsWith("RUNTIME"));
-      const status = compileErr ? `compile=${JSON.stringify(compileErr.slice(0, 300))}` : runtimeErr ? `runtime=...${JSON.stringify(runtimeErr.slice(-200))}` : "ok";
-      // eslint-disable-next-line no-console
-      console.log(`[${label}] ${status} output=${JSON.stringify(r.output.slice(0, 200))}`);
-    } catch (e) {
-      // eslint-disable-next-line no-console
-      console.log(`[${label}] THREW: ${(e as Error).message}`);
     }
   };
   tryRange(1, lines.length);

@@ -1,6 +1,6 @@
-import {
-  ScopedRuleDefinition,
-  SwitchRuleDefinition,
+import type {
+ScopedRuleDefinition,
+SwitchRuleDefinition,
 } from "../types/GrammarDefinition";
 
 export const isSwitchRuleDefinition = (

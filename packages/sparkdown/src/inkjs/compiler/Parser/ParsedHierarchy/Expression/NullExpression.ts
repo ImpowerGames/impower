@@ -11,7 +11,7 @@ import { ParsedObject } from "../Object";
 // the lowerer needs to synthesize a nil sentinel (e.g. the
 // iterator-end check in generic-for loops).
 export class NullExpression extends Expression {
-  get typeName(): string {
+  override get typeName(): string {
     return "Null";
   }
 
@@ -21,9 +21,9 @@ export class NullExpression extends Expression {
     container.AddContent(new NullValue());
   };
 
-  public readonly toString = (): string => "nil";
+  public override readonly toString = (): string => "nil";
 
-  public Equals(obj: ParsedObject): boolean {
+  public override Equals(obj: ParsedObject): boolean {
     return obj instanceof NullExpression;
   }
 }

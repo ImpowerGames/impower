@@ -2,14 +2,14 @@ import { ChoicePoint } from "../../../engine/ChoicePoint";
 import { Container as RuntimeContainer } from "../../../engine/Container";
 import { ControlCommand as RuntimeControlCommand } from "../../../engine/ControlCommand";
 import { Divert as RuntimeDivert } from "../../../engine/Divert";
-import { INamedContent } from "../../../engine/INamedContent";
+import type { INamedContent } from "../../../engine/INamedContent";
 import { InkObject as RuntimeObject } from "../../../engine/Object";
 import { Path as RuntimePath } from "../../../engine/Path";
 import { DivertTargetValue } from "../../../engine/Value";
 import { VariableAssignment as RuntimeVariableAssignment } from "../../../engine/VariableAssignment";
 import { ContentList } from "./ContentList";
 import { Expression } from "./Expression/Expression";
-import { IWeavePoint } from "./IWeavePoint";
+import type { IWeavePoint } from "./IWeavePoint";
 import { ParsedObject } from "./Object";
 import { Story } from "./Story";
 import { SymbolType } from "./SymbolType";
@@ -69,14 +69,14 @@ export class Choice extends ParsedObject implements IWeavePoint, INamedContent {
     return this._innerContentContainer;
   }
 
-  get containerForCounting() {
+  override get containerForCounting() {
     return this._innerContentContainer;
   }
 
   // Override runtimePath to point to the Choice's target content (after it's chosen),
   // as opposed to the default implementation which would point to the choice itself
   // (or it's outer container), which is what runtimeObject is.
-  get runtimePath(): RuntimePath {
+  override get runtimePath(): RuntimePath {
     if (!this.innerContentContainer || !this.innerContentContainer.path) {
       throw new Error();
     }
@@ -111,7 +111,7 @@ export class Choice extends ParsedObject implements IWeavePoint, INamedContent {
     this.onceOnly = true; // default
   }
 
-  get typeName(): string {
+  override get typeName(): string {
     return "Choice";
   }
 
@@ -336,7 +336,7 @@ export class Choice extends ParsedObject implements IWeavePoint, INamedContent {
     }
   }
 
-  public readonly toString = () => {
+  public override readonly toString = () => {
     if (this.choiceOnlyContent !== null) {
       return `* ${this.startContent}[${this.choiceOnlyContent}]...`;
     }

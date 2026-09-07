@@ -25,7 +25,7 @@ export class TunnelOnwards extends ParsedObject {
     }
   }
 
-  get typeName(): string {
+  override get typeName(): string {
     return "TunnelOnwards";
   }
 
@@ -70,8 +70,8 @@ export class TunnelOnwards extends ParsedObject {
 
           for (let ii = evalStart + 1; ii < evalEnd; ii += 1) {
             const obj = returnRuntimeContainer.content[ii];
-            obj.parent = null; // prevent error of being moved between owners
-            container.AddContent(returnRuntimeContainer.content[ii]);
+            obj!.parent = null; // prevent error of being moved between owners
+            container.AddContent(returnRuntimeContainer.content[ii]!);
           }
         }
       }
@@ -112,7 +112,7 @@ export class TunnelOnwards extends ParsedObject {
     }
   }
 
-  public toString = (): string => {
+  public override toString = (): string => {
     return ` -> ${this._divertAfter}`;
   };
 }

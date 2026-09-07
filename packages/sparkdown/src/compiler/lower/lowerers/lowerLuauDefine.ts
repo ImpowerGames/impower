@@ -1,3 +1,4 @@
+import { nodeNameSet } from "../../utils/nodeNameSet";
 import { type SyntaxNode } from "@lezer/common";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 import { Argument } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Argument";
@@ -17,9 +18,9 @@ import { StructDefinition } from "../../../inkjs/compiler/Parser/ParsedHierarchy
 import { StructPropertyDefinition } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Struct/StructPropertyDefinition";
 import { Text } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Text";
 import { VariableAssignment } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Variable/VariableAssignment";
-import { CompiledBlock } from "../../classes/annotators/CompilationAnnotator";
-import { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
-import { LowerContext, SiblingSubFlowInfo } from "../context";
+import type { CompiledBlock } from "../../classes/annotators/CompilationAnnotator";
+import type { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
+import type { LowerContext,SiblingSubFlowInfo } from "../context";
 import {
   buildClosureExpression,
   lowerExpressionFromContainer,
@@ -278,7 +279,7 @@ export function contextValueToExpression(value: unknown): Expression {
   return new ObjectExpression([]);
 }
 
-const METHOD_BODY_SKIP: ReadonlySet<string> = new Set([
+const METHOD_BODY_SKIP: ReadonlySet<string> = nodeNameSet([
   "LuauFunctionDeclarationName",
   "LuauFunctionName",
   "LuauFunctionParameters",
@@ -536,7 +537,7 @@ export function lowerLuauDefine(
 // (`function Class:method(...)`) — same upval capture, same
 // `__closure_user_arity` contract (counts `self`).
 function lowerDefineMethod(
-  methodName: string,
+  _methodName: string,
   node: SyntaxNode,
   ctx: LowerContext,
 ): Expression | null {
@@ -598,7 +599,7 @@ function lowerDefineMethod(
 // marker (`= `) followed by the value node(s); descend into the generated
 // `_content` wrapper if present and return the first child past the operator
 // and any leading whitespace.
-const ASSIGNMENT_RHS_SKIP: ReadonlySet<string> = new Set([
+const ASSIGNMENT_RHS_SKIP: ReadonlySet<string> = nodeNameSet([
   "LuauAssignmentOperator",
   "ExtraWhitespace",
   "Whitespace",
@@ -678,7 +679,7 @@ function readPropertyDefinition(
   // significant child following the `LuauAssignmentOperator` marker. Read
   // from that node's start to the operation's end (covers multi-node
   // expressions) instead of re-deriving the RHS by string-scanning for `=`.
-  const valueNode = findAssignmentValueNode(opNode);
+  const valueNode = findAssignmentValueNode(opNode ?? null);
   const rawValue = valueNode ? ctx.read(valueNode.from, opNode!.to) : "";
 
   // Anchor the property's value expression to its source range. Diagnostics

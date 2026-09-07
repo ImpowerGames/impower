@@ -95,7 +95,7 @@ export class Flow {
         choice.originalThreadIndex,
       );
       if (foundActiveThread !== null) {
-        choice.threadAtGeneration = foundActiveThread.Copy();
+        choice.threadAtGeneration = foundActiveThread!.Copy();
       } else {
         let jSavedChoiceThread =
           jChoiceThreads[`${choice.originalThreadIndex}`];

@@ -331,7 +331,7 @@ export default class ScreenplayPrinter {
       );
       diagonal -= 4;
       const font_size = ((1.667 * diagonal) / len) * PDF_POINTS_PER_INCH;
-      this._doc.fillColor(this.profile.settings?.watermark?.color ?? "#eeeeee");
+      this._doc.fillColor(this.profile.settings?.["meta:watermark"]?.color ?? "#eeeeee");
       this._doc.fontSize(font_size);
       this._doc.rotate(angle, options);
       this._doc.text(

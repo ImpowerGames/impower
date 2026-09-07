@@ -16,7 +16,7 @@ export class Tag extends InkObject {
     this.text = tagText.toString() || "";
   }
 
-  public toString(): string {
+  public override toString(): string {
     return "# " + this.text;
   }
 }

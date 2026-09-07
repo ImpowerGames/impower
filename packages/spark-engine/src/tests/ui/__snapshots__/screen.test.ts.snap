@@ -447,43 +447,6 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
               "xs": 400,
             },
             "content": {
-              "fonts": {
-                "$default": {
-                  "$name": "$default",
-                  "$type": "font",
-                  "font_display": "block",
-                  "font_family": "",
-                  "font_stretch": "normal",
-                  "font_style": "normal",
-                  "font_weight": "normal",
-                  "src": "",
-                  "unicode_range": "U+0-10FFFF",
-                },
-              },
-            },
-            "element": "e-4",
-            "name": "style-fonts",
-            "parent": "e-2",
-            "style": {
-              "display": "none",
-            },
-            "type": "style",
-          },
-        },
-        {
-          "id": "req-5",
-          "kind": "request",
-          "method": "ui/create",
-          "params": {
-            "attributes": undefined,
-            "breakpoints": {
-              "lg": 1024,
-              "md": 768,
-              "sm": 640,
-              "xl": 1280,
-              "xs": 400,
-            },
-            "content": {
               "animations": {
                 "align_center": {
                   "$name": "align_center",
@@ -1342,7 +1305,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
                 },
               },
             },
-            "element": "e-5",
+            "element": "e-4",
             "name": "style-animations",
             "parent": "e-2",
             "style": {
@@ -1352,7 +1315,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
           },
         },
         {
-          "id": "req-6",
+          "id": "req-5",
           "kind": "request",
           "method": "ui/create",
           "params": {
@@ -2376,21 +2339,48 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
                   "margin-bottom": "1rem",
                   "padding-left": "0",
                 },
+                "loading": {
+                  "$name": "loading",
+                  "$type": "style",
+                  "align_items": "center",
+                  "justify_content": "center",
+                  "pointer_events": "auto",
+                  "z_index": "1000",
+                },
+                "loading_backdrop": {
+                  "$name": "loading_backdrop",
+                  "$type": "style",
+                  "background_color": "black",
+                  "inset": "0",
+                  "position": "absolute",
+                },
                 "loading_bar": {
                   "$name": "loading_bar",
                   "$type": "style",
+                  "background_color": "rgb(255 255 255 / 20%)",
                   "height": "4px",
+                  "overflow": "hidden",
                   "position": "relative",
                   "width": "100%",
-                  "z_index": "1000",
+                },
+                "loading_content": {
+                  "$name": "loading_content",
+                  "$type": "style",
+                  "align_items": "center",
+                  "display": "flex",
+                  "flex_direction": "column",
+                  "gap": "1rem",
+                  "position": "relative",
+                  "width": "min(60%, 320px)",
                 },
                 "loading_fill": {
                   "$name": "loading_fill",
                   "$type": "style",
-                  "background_color": "cyan50",
+                  "background_color": "cyan_60",
                   "height": "100%",
-                  "transform": "scaleX(var(--loading_progress))",
+                  "transform": "scaleX(0)",
                   "transform_origin": "left",
+                  "transition": "transform 0.15s linear",
                   "width": "100%",
                 },
                 "main": {
@@ -3086,13 +3076,39 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
                 },
               },
             },
-            "element": "e-6",
+            "element": "e-5",
             "name": "style-styles",
             "parent": "e-2",
             "style": {
               "display": "none",
             },
             "type": "style",
+          },
+        },
+        {
+          "id": "req-6",
+          "kind": "request",
+          "method": "ui/create",
+          "params": {
+            "attributes": undefined,
+            "breakpoints": {
+              "lg": 1024,
+              "md": 768,
+              "sm": 640,
+              "xl": 1280,
+              "xs": 400,
+            },
+            "content": undefined,
+            "element": "e-6",
+            "name": "layouts",
+            "parent": "e-1",
+            "style": {
+              "font_size": "1em",
+              "inset": "0",
+              "opacity": "0",
+              "position": "absolute",
+            },
+            "type": "div",
           },
         },
         {
@@ -3110,12 +3126,12 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
             },
             "content": undefined,
             "element": "e-7",
-            "name": "layouts",
-            "parent": "e-1",
+            "name": "loading",
+            "parent": "e-6",
             "style": {
-              "font_size": "1em",
+              "display": "flex",
+              "flex_direction": "column",
               "inset": "0",
-              "opacity": "0",
               "position": "absolute",
             },
             "type": "div",
@@ -3136,14 +3152,9 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
             },
             "content": undefined,
             "element": "e-8",
-            "name": "loading",
+            "name": "loading_backdrop",
             "parent": "e-7",
-            "style": {
-              "display": "flex",
-              "flex_direction": "column",
-              "inset": "0",
-              "position": "absolute",
-            },
+            "style": undefined,
             "type": "div",
           },
         },
@@ -3162,8 +3173,8 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
             },
             "content": undefined,
             "element": "e-9",
-            "name": "loading_bar",
-            "parent": "e-8",
+            "name": "loading_content",
+            "parent": "e-7",
             "style": undefined,
             "type": "div",
           },
@@ -3183,7 +3194,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
             },
             "content": undefined,
             "element": "e-10",
-            "name": "loading_fill",
+            "name": "loading_bar",
             "parent": "e-9",
             "style": undefined,
             "type": "div",
@@ -3204,13 +3215,10 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
             },
             "content": undefined,
             "element": "e-11",
-            "name": "main",
-            "parent": "e-7",
+            "name": "loading_fill",
+            "parent": "e-10",
             "style": {
-              "display": "flex",
-              "flex_direction": "column",
-              "inset": "0",
-              "position": "absolute",
+              "transform": "scaleX(0)",
             },
             "type": "div",
           },
@@ -3230,9 +3238,14 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
             },
             "content": undefined,
             "element": "e-12",
-            "name": "stage",
-            "parent": "e-11",
-            "style": undefined,
+            "name": "main",
+            "parent": "e-6",
+            "style": {
+              "display": "flex",
+              "flex_direction": "column",
+              "inset": "0",
+              "position": "absolute",
+            },
             "type": "div",
           },
         },
@@ -3251,7 +3264,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
             },
             "content": undefined,
             "element": "e-13",
-            "name": "backdrop",
+            "name": "stage",
             "parent": "e-12",
             "style": undefined,
             "type": "div",
@@ -3272,7 +3285,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
             },
             "content": undefined,
             "element": "e-14",
-            "name": "image",
+            "name": "backdrop",
             "parent": "e-13",
             "style": undefined,
             "type": "div",
@@ -3293,12 +3306,10 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
             },
             "content": undefined,
             "element": "e-15",
-            "name": "instance",
+            "name": "image",
             "parent": "e-14",
-            "style": {
-              "background_image": "",
-            },
-            "type": "span",
+            "style": undefined,
+            "type": "div",
           },
         },
         {
@@ -3316,10 +3327,12 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
             },
             "content": undefined,
             "element": "e-16",
-            "name": "portrait",
-            "parent": "e-12",
-            "style": undefined,
-            "type": "div",
+            "name": "instance",
+            "parent": "e-15",
+            "style": {
+              "background_image": "",
+            },
+            "type": "span",
           },
         },
         {
@@ -3337,8 +3350,8 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
             },
             "content": undefined,
             "element": "e-17",
-            "name": "mask shadow_1",
-            "parent": "e-16",
+            "name": "portrait",
+            "parent": "e-13",
             "style": undefined,
             "type": "div",
           },
@@ -3358,12 +3371,10 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
             },
             "content": undefined,
             "element": "e-18",
-            "name": "instance",
+            "name": "mask shadow_1",
             "parent": "e-17",
-            "style": {
-              "mask_image": "",
-            },
-            "type": "span",
+            "style": undefined,
+            "type": "div",
           },
         },
         {
@@ -3381,10 +3392,12 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
             },
             "content": undefined,
             "element": "e-19",
-            "name": "image",
-            "parent": "e-16",
-            "style": undefined,
-            "type": "div",
+            "name": "instance",
+            "parent": "e-18",
+            "style": {
+              "mask_image": "",
+            },
+            "type": "span",
           },
         },
         {
@@ -3402,12 +3415,10 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
             },
             "content": undefined,
             "element": "e-20",
-            "name": "instance",
-            "parent": "e-19",
-            "style": {
-              "background_image": "",
-            },
-            "type": "span",
+            "name": "image",
+            "parent": "e-17",
+            "style": undefined,
+            "type": "div",
           },
         },
         {
@@ -3425,10 +3436,12 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
             },
             "content": undefined,
             "element": "e-21",
-            "name": "textbox",
-            "parent": "e-11",
-            "style": undefined,
-            "type": "div",
+            "name": "instance",
+            "parent": "e-20",
+            "style": {
+              "background_image": "",
+            },
+            "type": "span",
           },
         },
         {
@@ -3446,8 +3459,8 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
             },
             "content": undefined,
             "element": "e-22",
-            "name": "character_info",
-            "parent": "e-21",
+            "name": "textbox",
+            "parent": "e-12",
             "style": undefined,
             "type": "div",
           },
@@ -3467,7 +3480,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
             },
             "content": undefined,
             "element": "e-23",
-            "name": "character_name",
+            "name": "character_info",
             "parent": "e-22",
             "style": undefined,
             "type": "div",
@@ -3488,7 +3501,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
             },
             "content": undefined,
             "element": "e-24",
-            "name": "text",
+            "name": "character_name",
             "parent": "e-23",
             "style": undefined,
             "type": "div",
@@ -3509,8 +3522,8 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
             },
             "content": undefined,
             "element": "e-25",
-            "name": "character_parenthetical",
-            "parent": "e-22",
+            "name": "text",
+            "parent": "e-24",
             "style": undefined,
             "type": "div",
           },
@@ -3530,8 +3543,8 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
             },
             "content": undefined,
             "element": "e-26",
-            "name": "text",
-            "parent": "e-25",
+            "name": "character_parenthetical",
+            "parent": "e-23",
             "style": undefined,
             "type": "div",
           },
@@ -3551,8 +3564,8 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
             },
             "content": undefined,
             "element": "e-27",
-            "name": "dialogue",
-            "parent": "e-21",
+            "name": "text",
+            "parent": "e-26",
             "style": undefined,
             "type": "div",
           },
@@ -3572,8 +3585,8 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
             },
             "content": undefined,
             "element": "e-28",
-            "name": "stroke",
-            "parent": "e-27",
+            "name": "dialogue",
+            "parent": "e-22",
             "style": undefined,
             "type": "div",
           },
@@ -3593,8 +3606,8 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
             },
             "content": undefined,
             "element": "e-29",
-            "name": "text",
-            "parent": "e-27",
+            "name": "stroke",
+            "parent": "e-28",
             "style": undefined,
             "type": "div",
           },
@@ -3614,14 +3627,35 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
             },
             "content": undefined,
             "element": "e-30",
-            "name": "continue_indicator",
-            "parent": "e-21",
+            "name": "text",
+            "parent": "e-28",
             "style": undefined,
             "type": "div",
           },
         },
         {
           "id": "req-31",
+          "kind": "request",
+          "method": "ui/create",
+          "params": {
+            "attributes": undefined,
+            "breakpoints": {
+              "lg": 1024,
+              "md": 768,
+              "sm": 640,
+              "xl": 1280,
+              "xs": 400,
+            },
+            "content": undefined,
+            "element": "e-31",
+            "name": "continue_indicator",
+            "parent": "e-22",
+            "style": undefined,
+            "type": "div",
+          },
+        },
+        {
+          "id": "req-32",
           "kind": "request",
           "method": "ui/theme",
           "params": {
@@ -3636,7 +3670,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
           },
         },
         {
-          "id": "req-32",
+          "id": "req-33",
           "kind": "request",
           "method": "ui/update",
           "params": {
@@ -3651,7 +3685,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
               "xs": 400,
             },
             "content": undefined,
-            "element": "e-13",
+            "element": "e-14",
             "style": {
               "display": "none",
             },
@@ -3661,7 +3695,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
     },
   },
   {
-    "id": "req-33",
+    "id": "req-34",
     "kind": "request",
     "method": "ui/write-text",
     "params": {
@@ -3676,7 +3710,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
     "params": {
       "messages": [
         {
-          "id": "req-34",
+          "id": "req-35",
           "kind": "request",
           "method": "ui/update",
           "params": {
@@ -3691,7 +3725,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
               "xs": 400,
             },
             "content": undefined,
-            "element": "e-16",
+            "element": "e-17",
             "style": {
               "display": "none",
             },
@@ -3701,7 +3735,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
     },
   },
   {
-    "id": "req-35",
+    "id": "req-36",
     "kind": "request",
     "method": "ui/write-text",
     "params": {
@@ -3716,7 +3750,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
     "params": {
       "messages": [
         {
-          "id": "req-36",
+          "id": "req-37",
           "kind": "request",
           "method": "ui/update",
           "params": {
@@ -3731,7 +3765,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
               "xs": 400,
             },
             "content": undefined,
-            "element": "e-23",
+            "element": "e-24",
             "style": {
               "display": "none",
             },
@@ -3741,7 +3775,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
     },
   },
   {
-    "id": "req-37",
+    "id": "req-38",
     "kind": "request",
     "method": "ui/write-text",
     "params": {
@@ -3756,7 +3790,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
     "params": {
       "messages": [
         {
-          "id": "req-38",
+          "id": "req-39",
           "kind": "request",
           "method": "ui/update",
           "params": {
@@ -3771,7 +3805,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
               "xs": 400,
             },
             "content": undefined,
-            "element": "e-25",
+            "element": "e-26",
             "style": {
               "display": "none",
             },
@@ -3781,7 +3815,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
     },
   },
   {
-    "id": "req-39",
+    "id": "req-40",
     "kind": "request",
     "method": "ui/write-text",
     "params": {
@@ -3796,7 +3830,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
     "params": {
       "messages": [
         {
-          "id": "req-40",
+          "id": "req-41",
           "kind": "request",
           "method": "ui/update",
           "params": {
@@ -3811,7 +3845,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
               "xs": 400,
             },
             "content": undefined,
-            "element": "e-27",
+            "element": "e-28",
             "style": {
               "display": "none",
             },
@@ -3821,7 +3855,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
     },
   },
   {
-    "id": "req-41",
+    "id": "req-42",
     "kind": "request",
     "method": "ui/write-text",
     "params": {
@@ -3836,7 +3870,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
     "params": {
       "messages": [
         {
-          "id": "req-42",
+          "id": "req-43",
           "kind": "request",
           "method": "ui/update",
           "params": {
@@ -3849,7 +3883,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
               "xs": 400,
             },
             "content": undefined,
-            "element": "e-13",
+            "element": "e-14",
             "style": {
               "display": "none",
             },
@@ -3859,7 +3893,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
     },
   },
   {
-    "id": "req-43",
+    "id": "req-44",
     "kind": "request",
     "method": "ui/write-image",
     "params": {
@@ -3874,7 +3908,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
     "params": {
       "messages": [
         {
-          "id": "req-44",
+          "id": "req-45",
           "kind": "request",
           "method": "ui/update",
           "params": {
@@ -3887,7 +3921,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
               "xs": 400,
             },
             "content": undefined,
-            "element": "e-16",
+            "element": "e-17",
             "style": {
               "display": "none",
             },
@@ -3897,7 +3931,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
     },
   },
   {
-    "id": "req-45",
+    "id": "req-46",
     "kind": "request",
     "method": "ui/write-image",
     "params": {
@@ -3912,7 +3946,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
     "params": {
       "messages": [
         {
-          "id": "req-46",
+          "id": "req-47",
           "kind": "request",
           "method": "ui/update",
           "params": {
@@ -3925,7 +3959,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
               "xs": 400,
             },
             "content": undefined,
-            "element": "e-23",
+            "element": "e-24",
             "style": {
               "display": "none",
             },
@@ -3935,7 +3969,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
     },
   },
   {
-    "id": "req-47",
+    "id": "req-48",
     "kind": "request",
     "method": "ui/write-image",
     "params": {
@@ -3950,7 +3984,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
     "params": {
       "messages": [
         {
-          "id": "req-48",
+          "id": "req-49",
           "kind": "request",
           "method": "ui/update",
           "params": {
@@ -3963,7 +3997,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
               "xs": 400,
             },
             "content": undefined,
-            "element": "e-25",
+            "element": "e-26",
             "style": {
               "display": "none",
             },
@@ -3973,7 +4007,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
     },
   },
   {
-    "id": "req-49",
+    "id": "req-50",
     "kind": "request",
     "method": "ui/write-image",
     "params": {
@@ -3988,7 +4022,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
     "params": {
       "messages": [
         {
-          "id": "req-50",
+          "id": "req-51",
           "kind": "request",
           "method": "ui/update",
           "params": {
@@ -4001,7 +4035,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
               "xs": 400,
             },
             "content": undefined,
-            "element": "e-27",
+            "element": "e-28",
             "style": {
               "display": "none",
             },
@@ -4011,7 +4045,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
     },
   },
   {
-    "id": "req-51",
+    "id": "req-52",
     "kind": "request",
     "method": "ui/write-image",
     "params": {

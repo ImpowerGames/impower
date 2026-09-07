@@ -206,7 +206,7 @@ export function rangeInScalar(
   scalar: YAMLScalar,
   valueOffset: number,
   length: number,
-): Rule.ReportDescriptor["loc"] {
+): ESTreeAST.SourceLocation {
   const startIndex = valueOffsetToSourceIndex(scalar, valueOffset);
   const endIndex = valueOffsetToSourceIndex(scalar, valueOffset + length);
   if (startIndex == null || endIndex == null) return scalar.loc;

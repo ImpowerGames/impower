@@ -1,7 +1,7 @@
 import { MessageProtocolRequestType } from "@impower/jsonrpc/src/common/classes/MessageProtocolRequestType";
-import { RequestMessage } from "@impower/jsonrpc/src/common/types/RequestMessage";
-import { ResponseMessage } from "@impower/jsonrpc/src/common/types/ResponseMessage";
-import { Breakpoint } from "../../types/Breakpoint";
+import type { RequestMessage } from "@impower/jsonrpc/src/common/types/RequestMessage";
+import type { ResponseMessage } from "@impower/jsonrpc/src/common/types/ResponseMessage";
+import type { Breakpoint } from "../../types/Breakpoint";
 
 export type SetGameFunctionBreakpointsMethod =
   typeof SetGameFunctionBreakpointsMessage.method;

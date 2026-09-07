@@ -1,5 +1,5 @@
 import { Range } from "@codemirror/state";
-import { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
+import type { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
 import { SparkdownAnnotation } from "../SparkdownAnnotation";
 import { SparkdownAnnotator } from "../SparkdownAnnotator";
 

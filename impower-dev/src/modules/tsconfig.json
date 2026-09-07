@@ -1,8 +1,9 @@
 {
   "compilerOptions": {
     "module": "esnext",
+    "moduleResolution": "bundler",
     "target": "es2020",
-    "lib": ["esnext", "dom"],
+    "lib": ["esnext", "dom", "dom.iterable", "dom.asynciterable"],
     "jsx": "react-jsx",
     "jsxImportSource": "preact",
     "declaration": true,
@@ -25,5 +26,9 @@
     "forceConsistentCasingInFileNames": true,
     "isolatedModules": true,
     "allowJs": true
-  }
+  },
+  // The browser env declaration sits a level up because both projects read
+  // `import.meta.env`, and the default include only reaches this directory.
+  "include": ["**/*", "../vite-env.d.ts"],
+  "exclude": ["node_modules", "dist", "out"]
 }

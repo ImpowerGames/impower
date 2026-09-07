@@ -113,6 +113,6 @@ export function getPluralCategory(
   const n = Math.abs(count);
   // Strip subtag: `"en-US"` → `"en"`, `"pt_BR"` → `"pt"`.
   const primary = language.toLowerCase().replace(/[_-].*$/, "");
-  const rule = PLURAL_RULES[primary] ?? PLURAL_RULES.en!;
+  const rule = PLURAL_RULES[primary] ?? PLURAL_RULES["en"]!;
   return rule(n);
 }

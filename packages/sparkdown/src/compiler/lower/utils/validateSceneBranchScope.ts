@@ -1,7 +1,7 @@
 import { type SyntaxNode } from "@lezer/common";
-import { ErrorType, SourceMetadata } from "../../../inkjs/engine/Error";
-import { InkDiagnostic } from "../../classes/annotators/CompilationAnnotator";
-import { LowerContext } from "../context";
+import { ErrorType, type SourceMetadata } from "../../../inkjs/engine/Error";
+import type { InkDiagnostic } from "../../classes/annotators/CompilationAnnotator";
+import type { LowerContext } from "../context";
 
 // Scope-rule validation for `Scene` and `Branch` declarations. Scenes
 // and branches are boundary-only Scoped rules in the grammar (see

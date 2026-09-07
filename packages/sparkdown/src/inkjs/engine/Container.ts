@@ -1,7 +1,7 @@
 import { StringValue } from "./Value";
 import { throwNullException } from "./NullException";
 import { StringBuilder } from "./StringBuilder";
-import { INamedContent } from "./INamedContent";
+import type { INamedContent } from "./INamedContent";
 import { InkObject } from "./Object";
 import { SearchResult } from "./SearchResult";
 import { Path } from "./Path";
@@ -266,8 +266,8 @@ export class Container extends InkObject implements INamedContent {
     sb: StringBuilder,
     indentation: number,
     pointedObj: InkObject | null,
-  ): string;
-  public BuildStringOfHierarchy() {
+  ): void;
+  public BuildStringOfHierarchy(): string | void {
     let sb: StringBuilder;
     if (arguments.length == 0) {
       sb = new StringBuilder();
@@ -315,7 +315,7 @@ export class Container extends InkObject implements INamedContent {
           sb.Append(obj.toString().replace("\n", "\\n"));
           sb.Append('"');
         } else {
-          sb.Append(obj.toString());
+          sb.Append(obj!.toString());
         }
       }
 

@@ -1,3 +1,4 @@
+import { nodeNameSet } from "../../utils/nodeNameSet";
 import { type SyntaxNode } from "@lezer/common";
 import { Conditional } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Conditional/Conditional";
 import { ConditionalSingleBranch } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Conditional/ConditionalSingleBranch";
@@ -6,9 +7,9 @@ import { Expression } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expre
 import { Gather } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Gather/Gather";
 import { Identifier } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Identifier";
 import { UnaryExpression } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expression/UnaryExpression";
-import { CompiledBlock } from "../../classes/annotators/CompilationAnnotator";
-import { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
-import { LowerContext } from "../context";
+import type { CompiledBlock } from "../../classes/annotators/CompilationAnnotator";
+import type { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
+import type { LowerContext } from "../context";
 import { lowerExpressionFromContainer } from "../expression/lowerExpression";
 import { lowerStatements } from "../lower";
 import { findChildByName } from "../utils/alternatorArms";
@@ -54,7 +55,7 @@ import { wrapInScope } from "../utils/wrapInScope";
 // condition; the `LuauUntilStatement` dispatch case is a no-op so
 // it isn't lowered twice.
 
-const REPEAT_BODY_SKIP: ReadonlySet<string> = new Set([
+const REPEAT_BODY_SKIP: ReadonlySet<string> = nodeNameSet([
   "LuauRepeatKeyword",
   "LuauComment",
 ]);

@@ -1,4 +1,4 @@
-import { ScriptLocation } from "../types/ScriptLocation";
+import type { ScriptLocation } from "../types/ScriptLocation";
 import { findClosestPathLocation } from "./findClosestPathLocation";
 
 export const findClosestPath = (

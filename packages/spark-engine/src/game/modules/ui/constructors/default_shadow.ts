@@ -1,5 +1,5 @@
-import { Create } from "../../../core/types/Create";
-import { Shadow } from "../types/Shadow";
+import type { Create } from "../../../core/types/Create";
+import type { Shadow } from "../types/Shadow";
 
 export const default_shadow: Create<Shadow> = (obj) => ({
   $type: "shadow",

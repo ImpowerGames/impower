@@ -1,4 +1,4 @@
-import { Reference } from "./Reference";
+import type { Reference } from "./Reference";
 
 export interface Filter extends Reference<"filter"> {
   includes: string[];

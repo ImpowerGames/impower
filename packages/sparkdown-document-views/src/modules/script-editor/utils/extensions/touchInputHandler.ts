@@ -469,7 +469,7 @@ const touchEventsPlugin = ViewPlugin.fromClass(
       );
     }
 
-    onVisualViewportUpdate = (e?: Event) => {
+    onVisualViewportUpdate = () => {
       const config = this.view.state.facet(touchInputHandlerConfig);
 
       if (!config.isTouchEnvironment()) {
@@ -785,11 +785,11 @@ export function touchInputHandler(options: TouchInputHandlerOptions = {}) {
       touchmove: () => true,
       touchend: () => true,
       touchcancel: () => true,
-      focus: (e, view) => {
-        view.plugin(touchEventsPlugin)?.onVisualViewportUpdate(e);
+      focus: (_e, view) => {
+        view.plugin(touchEventsPlugin)?.onVisualViewportUpdate();
       },
-      blur: (e, view) => {
-        view.plugin(touchEventsPlugin)?.onVisualViewportUpdate(e);
+      blur: (_e, view) => {
+        view.plugin(touchEventsPlugin)?.onVisualViewportUpdate();
       },
     }),
   ];

@@ -18,7 +18,7 @@ export class ReturnType extends ParsedObject {
     }
   }
 
-  get typeName(): string {
+  override get typeName(): string {
     return "ReturnType";
   }
 

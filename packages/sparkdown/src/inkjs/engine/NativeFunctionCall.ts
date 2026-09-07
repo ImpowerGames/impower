@@ -1,5 +1,4 @@
 import {
-  AbstractValue,
   Value,
   ValueType,
   IntValue,
@@ -18,8 +17,6 @@ import { InkObject } from "./Object";
 import {
   getPureStdLibEntries,
   VARIADIC_ARITY,
-  NumericBinary,
-  NumericUnary,
   METHOD_DISPATCH,
   METHOD_PREFIX,
   callBuiltinMethod,
@@ -328,7 +325,7 @@ export class NativeFunctionCall extends InkObject {
       const aTruthy = isLuauTruthy(a);
       const pickA =
         this.name === NativeFunctionCall.And ? !aTruthy : aTruthy;
-      return pickA ? a : b;
+      return pickA ? a! : b!;
     }
 
     // Luau `not` — always returns a genuine boolean, with Lua
@@ -451,7 +448,7 @@ export class NativeFunctionCall extends InkObject {
     }
 
     let coercedParams = this.CoerceValuesToSingleType(parameters);
-    let coercedType = coercedParams[0].valueType;
+    let coercedType = coercedParams[0]!.valueType;
 
     if (coercedType == ValueType.Int) {
       return this.CallType<number>(coercedParams);
@@ -1073,7 +1070,7 @@ export class NativeFunctionCall extends InkObject {
     this.AddOpToNativeFunc(name, 1, ValueType.Object, op);
   }
 
-  public toString() {
+  public override toString() {
     return 'Native "' + this.name + '"';
   }
 

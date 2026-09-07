@@ -24,7 +24,7 @@ const FIXTURE =
   `BUNNY:\n` +
   `  [[animate stage with shake]]\n` +
   `  ((m_todo_sfx_emotional_yelling+temp_sfx_smack))\n` +
-  `  I can do crime!!\n` +
+  `  I can do crime!\n` +
   `\n` +
   `RAFFLES [<]:\n` +
   `  B--\n` +
@@ -35,7 +35,7 @@ const FIXTURE =
   `  Would'ya QUIT Bunny-ing me??\n` +
   `  [[animate stage with shake]]\n` +
   `  ((m_todo_sfx_emotional_yelling+temp_sfx_smack))\n` +
-  `  I REFUSE TO BE 'BUNNY'-ED!!!\n` +
+  `  I REFUSE TO BE 'BUNNY'-ED!\n` +
   `\n` +
   `RAFFLES:\n` +
   `  Bunny, I asked if you wanted to movie hop once and you nearly had a panic attack.\n`;
@@ -94,7 +94,7 @@ describe("dual dialogue incremental construction", () => {
       `BUNNY:\n` +
       `  [[animate stage with shake]]\n` +
       `  ((m_todo_sfx_emotional_yelling+temp_sfx_smack))\n` +
-      `  I can do crime!!\n` +
+      `  I can do crime!\n` +
       `\n` +
       `RAFFLES:\n` +
       `  Bunny, I asked if you wanted to movie hop once and you nearly had a panic attack.\n`;
@@ -108,7 +108,7 @@ describe("dual dialogue incremental construction", () => {
       `  Would'ya QUIT Bunny-ing me??\n` +
       `  [[animate stage with shake]]\n` +
       `  ((m_todo_sfx_emotional_yelling+temp_sfx_smack))\n` +
-      `  I REFUSE TO BE 'BUNNY'-ED!!!\n` +
+      `  I REFUSE TO BE 'BUNNY'-ED!\n` +
       `\n`;
     const insertPos = before.indexOf("RAFFLES:");
     const after = before.slice(0, insertPos) + insertion + before.slice(insertPos);

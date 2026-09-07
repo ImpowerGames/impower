@@ -23,7 +23,7 @@ export class VariableAssignment extends InkObject {
     this.isVarargsSlot = isVarargsSlot;
   }
 
-  public toString(): string {
+  public override toString(): string {
     return "VarAssign to " + this.variableName;
   }
 }

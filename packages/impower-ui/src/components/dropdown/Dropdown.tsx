@@ -115,8 +115,7 @@ export function DropdownTrigger({
     // No Radix root on mobile — wire the (asChild) trigger straight to setOpen,
     // preserving the child's own onClick (e.g. a row's stopPropagation).
     const child = (Array.isArray(children) ? children[0] : children) as
-      | VNode<{ onClick?: (e: MouseEvent) => void }>
-      | undefined;
+      VNode<{ onClick?: (e: MouseEvent) => void }> | undefined;
     if (child && typeof child === "object" && "props" in child) {
       return cloneElement(child, {
         onClick: (e: MouseEvent) => {
@@ -231,6 +230,11 @@ export function DropdownContent({
   class?: string;
   sideOffset?: number;
   align?: "start" | "center" | "end";
+  /** Which edge of the trigger the menu opens from. */
+  side?: "top" | "right" | "bottom" | "left";
+  /** Runs as the menu closes, before Radix moves focus back to the
+   *  trigger; call `preventDefault()` to keep focus where it is. */
+  onCloseAutoFocus?: (event: Event) => void;
   children?: ComponentChildren;
 } & Omit<JSX.HTMLAttributes<HTMLDivElement>, "class" | "align">) {
   const ctx = useMenuCtx();

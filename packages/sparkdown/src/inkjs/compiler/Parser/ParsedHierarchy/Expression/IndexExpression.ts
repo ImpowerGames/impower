@@ -17,7 +17,7 @@ export class IndexExpression extends Expression {
     this.keyExpression = this.AddContent(key) as Expression;
   }
 
-  get typeName(): string {
+  override get typeName(): string {
     return "IndexExpression";
   }
 
@@ -29,10 +29,10 @@ export class IndexExpression extends Expression {
     container.AddContent(RuntimeControlCommand.IndexValue());
   };
 
-  public readonly toString = (): string =>
+  public override readonly toString = (): string =>
     `${this.baseExpression}[${this.keyExpression}]`;
 
-  public Equals(obj: ParsedObject): boolean {
+  public override Equals(obj: ParsedObject): boolean {
     if (!(obj instanceof IndexExpression)) return false;
     return (
       this.baseExpression.Equals(obj.baseExpression) &&

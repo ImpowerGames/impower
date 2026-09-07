@@ -1,7 +1,7 @@
 import { MessageProtocolRequestType } from "@impower/jsonrpc/src/common/classes/MessageProtocolRequestType";
-import { RequestMessage } from "@impower/jsonrpc/src/common/types/RequestMessage";
-import { ResponseMessage } from "@impower/jsonrpc/src/common/types/ResponseMessage";
-import { SparkdownCompilerConfig } from "../../types/SparkdownCompilerConfig";
+import type { RequestMessage } from "@impower/jsonrpc/src/common/types/RequestMessage";
+import type { ResponseMessage } from "@impower/jsonrpc/src/common/types/ResponseMessage";
+import type { SparkdownCompilerConfig } from "../../types/SparkdownCompilerConfig";
 
 export type ConfigureCompilerMethod = typeof ConfigureCompilerMessage.method;
 

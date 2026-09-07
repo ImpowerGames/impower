@@ -545,9 +545,10 @@ const viteStaticallyRenderedPagesPlugin = (): Plugin => ({
             // `?thumb=<maxWidthPx>` — the asset browser's downscaled preview,
             // normally produced by the service worker (decode + resize + tiny
             // webp, sw.ts). Same contract here via `sharp`: raster images
-            // only, width clamped to the shared [16, 512] range, webp at the
-            // same 0.75 quality, and ANY failure (sharp missing, undecodable
-            // bytes) falls through to the original — the SW's fallback too.
+            // only, fitted inside a square box of the shared clamped [16, 512]
+            // width, webp at the same 0.75 quality, and ANY failure (sharp
+            // missing, undecodable bytes) falls through to the original — the
+            // SW's fallback too.
             const params = new URLSearchParams(query ?? "");
             const thumbParam = params.get("thumb");
             const isRaster =
@@ -562,7 +563,11 @@ const viteStaticallyRenderedPagesPlugin = (): Plugin => ({
                   let thumb = thumbnailMirrorCache.get(cacheKey);
                   if (!thumb) {
                     thumb = (await sharp(fs.readFileSync(abs))
-                      .resize({ width })
+                      // Fit inside a square box rather than by width alone, so
+                      // a tall source cannot produce an enormous thumbnail —
+                      // the same bound `composeThumbnailBlob` applies, so dev
+                      // and production agree about what an asset looks like.
+                      .resize({ width, height: width, fit: "inside" })
                       .webp({ quality: 75 })
                       .toBuffer()) as Buffer;
                     thumbnailMirrorCache.set(cacheKey, thumb);

@@ -1,3 +1,6 @@
+/// <reference path="../declaration.d.ts" />
+// The asset declarations above travel with this file, so a project that
+// type-checks it through an import loads them too.
 import previewDark from "../../../sparkle/src/styles/dark/dark.css";
 import previewLight from "../../../sparkle/src/styles/light/light.css";
 import previewTheme from "../../../sparkle/src/styles/theme/theme.css";

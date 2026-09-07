@@ -1,4 +1,4 @@
-import { ImageInstruction } from "../../../core/types/Instruction";
+import type { ImageInstruction } from "../../../core/types/Instruction";
 
 export type ImageState = Omit<
   ImageInstruction,

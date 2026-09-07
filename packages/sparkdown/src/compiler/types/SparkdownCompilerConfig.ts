@@ -1,5 +1,5 @@
-import { File } from "./File";
-import { SparkdownCompilerDefinitions } from "./SparkdownCompilerDefinitions";
+import type { File } from "./File";
+import type { SparkdownCompilerDefinitions } from "./SparkdownCompilerDefinitions";
 
 export interface SparkdownCompilerConfig {
   definitions?: SparkdownCompilerDefinitions;

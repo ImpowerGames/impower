@@ -1,16 +1,23 @@
 import { SparkdownAnnotations } from "@impower/sparkdown/src/compiler/classes/SparkdownCombinedAnnotator";
+import { type DeclarationType } from "@impower/sparkdown/src/compiler/classes/annotators/DeclarationAnnotator";
+
+/**
+ * Declared names grouped by scope path (`""` for global, `scene` or
+ * `scene.branch` otherwise) and then by declaration kind.
+ */
+export type DeclarationScopes = {
+  [path: string]: Partial<Record<DeclarationType, string[]>>;
+};
 
 export const getDeclarationScopes = (
   read: (from: number, to: number) => string,
   scriptAnnotations: Map<string, SparkdownAnnotations>,
-) => {
+): DeclarationScopes => {
   let scopePathParts: {
-    kind: "" | "function" | "scene" | "branch";
+    kind: "scene" | "branch";
     name: string;
   }[] = [];
-  const scopes: {
-    [path: string]: Record<string, string[]>;
-  } = {};
+  const scopes: DeclarationScopes = {};
   for (const [, annotations] of scriptAnnotations) {
     const cur = annotations.declarations?.iter();
     if (cur) {

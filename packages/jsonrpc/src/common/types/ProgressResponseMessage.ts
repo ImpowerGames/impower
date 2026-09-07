@@ -1,5 +1,5 @@
-import { IMessage } from "./IMessage";
-import { ProgressValue } from "./ProgressValue";
+import type { IMessage } from "./IMessage";
+import type { ProgressValue } from "./ProgressValue";
 
 export interface ProgressResponseMessage<
   M extends string,

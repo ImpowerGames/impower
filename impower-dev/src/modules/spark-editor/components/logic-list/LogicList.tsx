@@ -14,6 +14,7 @@ import FileList from "../file-list/FileList";
 import FileListBorder from "../file-list/FileListBorder";
 import LogicScriptEditor from "../logic-script-editor/LogicScriptEditor";
 import LogicScriptsEditor from "../logic-scripts-editor/LogicScriptsEditor";
+import type { PanelType } from "@impower/spark-editor-protocol/src/types";
 
 export const propDefaults = {};
 export type LogicListProps = Partial<typeof propDefaults>;
@@ -61,7 +62,7 @@ export default function LogicList(_props: LogicListProps) {
   const onPanelChange = (next: string) => {
     startTransition(() => {
       void import("../../workspace/Workspace").then(({ Workspace }) => {
-        Workspace.window.openPanel("logic", next);
+        Workspace.window.openPanel("logic", next as PanelType);
       });
     });
   };

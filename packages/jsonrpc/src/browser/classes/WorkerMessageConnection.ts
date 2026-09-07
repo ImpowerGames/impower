@@ -1,6 +1,6 @@
 import {
   MessageConnection,
-  MessageConnectionEvents,
+  type MessageConnectionEvents,
 } from "./MessageConnection";
 
 export class WorkerMessageConnection extends MessageConnection {

@@ -152,7 +152,7 @@ export default function SplitPane({
     const el = e.currentTarget as HTMLElement;
     el.setPointerCapture(e.pointerId);
     draggingRef.current = true;
-    el.dataset.separator = "active";
+    el.dataset["separator"] = "active";
   };
 
   const onPointerMove = (e: PointerEvent) => {
@@ -178,7 +178,7 @@ export default function SplitPane({
     } catch {
       /* capture may already be released */
     }
-    el.dataset.separator = "";
+    el.dataset["separator"] = "";
   };
 
   const onKeyDown = (e: KeyboardEvent) => {

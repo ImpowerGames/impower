@@ -1,5 +1,5 @@
 import { MessageProtocolNotificationType } from "@impower/jsonrpc/src/common/classes/MessageProtocolNotificationType";
-import { Event } from "../../types/Event";
+import type { Event } from "../../types/Event";
 
 export type EventMethod = typeof EventMessage.method;
 

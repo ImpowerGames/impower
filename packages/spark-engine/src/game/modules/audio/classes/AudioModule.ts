@@ -1,22 +1,22 @@
 import { Module } from "../../../core/classes/Module";
-import { AudioInstruction } from "../../../core/types/Instruction";
+import type { AudioInstruction } from "../../../core/types/Instruction";
 import {
-  AudioBuiltins,
+  type AudioBuiltins,
   audioBuiltinDefinitions,
 } from "../audioBuiltinDefinitions";
-import { AudioPlayerUpdate } from "../types/AudioPlayerUpdate";
-import { ChannelState } from "../types/ChannelState";
-import { LoadAudioPlayerParams } from "../types/LoadAudioPlayerParams";
-import { Synth } from "../types/Synth";
+import type { AudioPlayerUpdate } from "../types/AudioPlayerUpdate";
+import type { ChannelState } from "../types/ChannelState";
+import type { LoadAudioPlayerParams } from "../types/LoadAudioPlayerParams";
+import type { Synth } from "../types/Synth";
 import { parseTones } from "../utils/parseTones";
 import { ConfigureAudioMixerMessage } from "./messages/ConfigureAudioMixerMessage";
 import {
   LoadAudioPlayerMessage,
-  LoadAudioPlayerMessageMap,
+  type LoadAudioPlayerMessageMap,
 } from "./messages/LoadAudioPlayerMessage";
 import {
   UpdateAudioPlayersMessage,
-  UpdateAudioPlayersMessageMap,
+  type UpdateAudioPlayersMessageMap,
 } from "./messages/UpdateAudioPlayersMessage";
 
 /**
@@ -223,7 +223,7 @@ export class AudioModule extends Module<
         if ("loop_end" in resolvedAsset) {
           d.loopEnd = resolvedAsset.loop_end;
         }
-        if (isSynth(resolvedAsset, d.type)) {
+        if (isSynth(resolvedAsset, d.type ?? "")) {
           // This used to gate on `"shape" in resolvedAsset` ALONE, which
           // silently dropped every partially-authored synth: `d.synth` was
           // never set, so the tone events played nothing at all (#268).
@@ -308,6 +308,13 @@ export class AudioModule extends Module<
     keys: string[],
   ): LoadAudioPlayerParams[] {
     return keys.flatMap((n) => this.getAudioData(channel, n));
+  }
+
+  /** The load parameters `schedule` would build for these names, without
+   *  scheduling anything: what the asset module hands the page to preload.
+   *  The page caches by `key`, which does not depend on the channel. */
+  resolveLoadParams(channel: string, names: string[]): LoadAudioPlayerParams[] {
+    return this.getAllAudioData(channel, names);
   }
 
   protected parseTones(key: string) {

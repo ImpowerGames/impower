@@ -1,4 +1,4 @@
-import { Node, parse, stringify, traverse } from "../../txml/txml";
+import { type Node, parse, stringify, traverse } from "../../txml/txml";
 import { filterMatchesName } from "./filterMatchesName";
 
 export const filterSVG = (

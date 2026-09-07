@@ -1,4 +1,4 @@
-import { MessageCallback } from "@impower/jsonrpc/src/common/types/MessageCallback";
+import type { MessageCallback } from "@impower/jsonrpc/src/common/types/MessageCallback";
 
 export class Socket {
   protected _listeners: Record<string, MessageCallback[]> = {};

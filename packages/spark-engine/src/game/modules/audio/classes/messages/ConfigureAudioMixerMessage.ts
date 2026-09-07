@@ -1,5 +1,5 @@
 import { MessageProtocolRequestType } from "@impower/jsonrpc/src/common/classes/MessageProtocolRequestType";
-import { ConfigureAudioMixerParams } from "../../types/ConfigureAudioMixerParams";
+import type { ConfigureAudioMixerParams } from "../../types/ConfigureAudioMixerParams";
 
 export type ConfigureAudioMixerMethod =
   typeof ConfigureAudioMixerMessage.method;

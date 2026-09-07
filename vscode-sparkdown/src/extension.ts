@@ -37,8 +37,6 @@ export function activate(context: vscode.ExtensionContext) {
   activatePreviewGamePanel(context);
   activateExecutionLineDecorator(context);
   activateCompilationView(context);
-  // TODO:
-  // activateStatisticsPanel(context);
   activateFileWatcher(context);
   activateLanguageClient(context);
   activateNewlineHelper(context);

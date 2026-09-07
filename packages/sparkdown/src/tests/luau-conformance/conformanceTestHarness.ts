@@ -173,13 +173,13 @@ export function runConformanceSource(
   const pathLocations = program.pathLocations ?? {};
   const lookupUserLineFromPointer = (): number | null => {
     const ptr = story.state.currentPointer;
-    const candidates: import("../../inkjs/engine/InkObject").InkObject[] = [];
+    const candidates: import("../../inkjs/engine/Object").InkObject[] = [];
     if (ptr && !ptr.isNull) {
       const resolved = ptr.Resolve();
       if (resolved) candidates.push(resolved);
     }
     for (let i = story.state.callStack.elements.length - 1; i >= 0; i--) {
-      const elPtr = story.state.callStack.elements[i].currentPointer;
+      const elPtr = story.state.callStack.elements[i]!.currentPointer;
       if (elPtr && !elPtr.isNull) {
         const resolved = elPtr.Resolve();
         if (resolved) candidates.push(resolved);

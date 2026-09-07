@@ -1,7 +1,7 @@
 import { MessageProtocolRequestType } from "@impower/jsonrpc/src/common/classes/MessageProtocolRequestType";
-import { RequestMessage } from "@impower/jsonrpc/src/common/types/RequestMessage";
-import { ResponseMessage } from "@impower/jsonrpc/src/common/types/ResponseMessage";
-import { DidChangeTextDocumentParams } from "../../types/DidChangeTextDocumentParams";
+import type { RequestMessage } from "@impower/jsonrpc/src/common/types/RequestMessage";
+import type { ResponseMessage } from "@impower/jsonrpc/src/common/types/ResponseMessage";
+import type { DidChangeTextDocumentParams } from "../../types/DidChangeTextDocumentParams";
 
 export type UpdateCompilerDocumentMethod =
   typeof UpdateCompilerDocumentMessage.method;

@@ -58,7 +58,7 @@ function compile(source: string) {
 
 /** Read a top-level scalar entry out of an emitted instruction table. */
 function field(obj: ObjectValue, key: string): unknown {
-  return obj.value?.get(key)?.value;
+  return (obj.value?.get(key) as { value?: unknown } | undefined)?.value;
 }
 
 describe("SPIKE: display() Luau-call transport", () => {

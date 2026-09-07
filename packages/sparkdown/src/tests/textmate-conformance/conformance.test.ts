@@ -18,7 +18,7 @@ const SUITES: { suite: string; files: string[] }[] = [
 
 function runAll(): CaseResult[] {
   const results: CaseResult[] = [];
-  const trace = process.env.CONFORMANCE_TRACE;
+  const trace = process.env["CONFORMANCE_TRACE"];
   for (const { suite, files } of SUITES) {
     const dir = suiteDirFor(import.meta.url, suite);
     for (const file of files) {

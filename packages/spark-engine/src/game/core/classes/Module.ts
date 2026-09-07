@@ -1,9 +1,9 @@
-import { IMessage } from "@impower/jsonrpc/src/common/types/IMessage";
-import { NotificationMessage } from "@impower/jsonrpc/src/common/types/NotificationMessage";
-import { RequestMessage } from "@impower/jsonrpc/src/common/types/RequestMessage";
-import { ResponseError } from "@impower/jsonrpc/src/common/types/ResponseError";
-import { GameContext } from "../types/GameContext";
-import { RecursiveReadonly } from "../types/RecursiveReadonly";
+import type { IMessage } from "@impower/jsonrpc/src/common/types/IMessage";
+import type { NotificationMessage } from "@impower/jsonrpc/src/common/types/NotificationMessage";
+import type { RequestMessage } from "@impower/jsonrpc/src/common/types/RequestMessage";
+import type { ResponseError } from "@impower/jsonrpc/src/common/types/ResponseError";
+import type { GameContext } from "../types/GameContext";
+import type { RecursiveReadonly } from "../types/RecursiveReadonly";
 import { Clock } from "./Clock";
 import type { Game } from "./Game";
 
@@ -85,6 +85,12 @@ export abstract class Module<
 
   /** Executed when game is previewed at a specific checkpoint location */
   onPreview() {}
+
+  /** Executed when the story enters a different scene (a top-level flow that
+   *  is not a function): on a path change while running, at connect, at
+   *  start, and at preview. Never during a route simulation. `stack` names the
+   *  flows the story will return to (the callers of open tunnels and threads). */
+  onEnterScene(_scene: string, _previous: string | null, _stack: string[]) {}
 
   /** Executed when a relevant notification is received */
   onReceiveNotification(_msg: NotificationMessage): void {}

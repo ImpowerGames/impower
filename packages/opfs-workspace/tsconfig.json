@@ -1,7 +1,7 @@
 {
   "compilerOptions": {
-    "module": "commonjs",
-    "moduleResolution": "node",
+    "module": "esnext",
+    "moduleResolution": "bundler",
     "target": "esnext",
     "lib": ["esnext", "WebWorker"],
     "skipLibCheck": true,

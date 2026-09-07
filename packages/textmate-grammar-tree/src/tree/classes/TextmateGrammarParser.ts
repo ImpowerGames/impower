@@ -1,9 +1,9 @@
-import { Input, NodeSet, NodeType, Parser, TreeFragment } from "@lezer/common";
+import { type Input, NodeSet, NodeType, Parser, TreeFragment } from "@lezer/common";
 import { NodeID } from "../../core/enums/NodeID";
 import { Grammar } from "../../grammar/classes/Grammar";
-import {
-  GrammarDefinition,
-  RuleDefinition,
+import type {
+GrammarDefinition,
+RuleDefinition,
 } from "../../grammar/types/GrammarDefinition";
 import { defineNodeType } from "../utils/defineNodeType";
 import { TextmateGrammarParse } from "./TextmateGrammarParse";

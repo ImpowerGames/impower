@@ -63,7 +63,6 @@ interface OurToken {
   scopes: string[];
 }
 
-const TOP_ID = 1;
 const UNRECOGNIZED_ID = 2;
 const INCOMPLETE_ID = 3;
 

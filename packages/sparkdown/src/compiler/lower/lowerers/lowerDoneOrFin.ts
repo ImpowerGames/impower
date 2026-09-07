@@ -1,10 +1,11 @@
+import { nodeNameSet } from "../../utils/nodeNameSet";
 import { type SyntaxNode } from "@lezer/common";
 import { ErrorType } from "../../../inkjs/compiler/Parser/ErrorType";
 import { Divert } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Divert/Divert";
 import { Identifier } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Identifier";
-import { CompiledBlock, InkDiagnostic } from "../../classes/annotators/CompilationAnnotator";
-import { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
-import { LowerContext } from "../context";
+import type { CompiledBlock,InkDiagnostic } from "../../classes/annotators/CompilationAnnotator";
+import type { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
+import type { LowerContext } from "../context";
 import { wrapInWeave } from "../utils/wrapInWeave";
 
 // `done` / `fin` — bare-keyword aliases for the terminator diverts.
@@ -19,7 +20,7 @@ import { wrapInWeave } from "../utils/wrapInWeave";
 
 const UNNECESSARY_TAG = 1; // LSP DiagnosticTag.Unnecessary
 
-const IGNORABLE_SIBLINGS: ReadonlySet<string> = new Set([
+const IGNORABLE_SIBLINGS: ReadonlySet<string> = nodeNameSet([
   "Newline",
   "Whitespace",
   "ExtraWhitespace",

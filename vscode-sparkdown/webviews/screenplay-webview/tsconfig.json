@@ -1,8 +1,11 @@
 {
   "compilerOptions": {
-    "module": "commonjs",
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "jsx": "react-jsx",
+    "jsxImportSource": "preact",
     "target": "es2020",
-    "lib": ["es2020", "WebWorker", "DOM"],
+    "lib": ["esnext", "WebWorker", "DOM"],
     "skipLibCheck": true,
     "sourceMap": true,
     "strict": true,
@@ -20,5 +23,10 @@
     "resolveJsonModule": true,
     "forceConsistentCasingInFileNames": true,
     "isolatedModules": true
-  }
+  },
+  "exclude": [
+    "node_modules",
+    "dist",
+    "out"
+  ]
 }

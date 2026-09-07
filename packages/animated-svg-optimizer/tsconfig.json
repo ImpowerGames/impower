@@ -24,5 +24,10 @@
     "rewriteRelativeImportExtensions": true,
     "erasableSyntaxOnly": true,
     "verbatimModuleSyntax": true
-  }
+  },
+  "exclude": [
+    "node_modules",
+    "dist",
+    "out"
+  ]
 }

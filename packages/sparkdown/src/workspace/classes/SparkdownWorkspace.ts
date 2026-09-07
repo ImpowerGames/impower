@@ -1,6 +1,6 @@
 import { Port1MessageConnection } from "@impower/jsonrpc/src/browser/classes/Port1MessageConnection";
 import { WorkerMessageConnection } from "@impower/jsonrpc/src/browser/classes/WorkerMessageConnection";
-import { File, Range } from "../../compiler";
+import type { File,Range } from "../../compiler";
 import { AddCompilerFileMessage } from "../../compiler/classes/messages/AddCompilerFileMessage";
 import {
   CompiledProgramMessage,
@@ -9,7 +9,7 @@ import {
 } from "../../compiler/classes/messages/CompiledProgramMessage";
 import {
   CompileProgramMessage,
-  CompileProgramResult,
+  type CompileProgramResult,
 } from "../../compiler/classes/messages/CompileProgramMessage";
 import { CompilerInitializeMessage } from "../../compiler/classes/messages/CompilerInitializeMessage";
 import { ConfigureCompilerMessage } from "../../compiler/classes/messages/ConfigureCompilerMessage";
@@ -18,7 +18,7 @@ import { SelectCompilerDocumentMessage } from "../../compiler/classes/messages/S
 import { SelectedCompilerDocumentMessage } from "../../compiler/classes/messages/SelectedCompilerDocumentMessage";
 import { UpdateCompilerDocumentMessage } from "../../compiler/classes/messages/UpdateCompilerDocumentMessage";
 import { UpdateCompilerFileMessage } from "../../compiler/classes/messages/UpdateCompilerFileMessage";
-import { SparkdownDocumentContentChangeEvent } from "../../compiler/classes/SparkdownDocumentRegistry";
+import type { SparkdownDocumentContentChangeEvent } from "../../compiler/classes/SparkdownDocumentRegistry";
 import { type SparkdownCompilerConfig } from "../../compiler/types/SparkdownCompilerConfig";
 import { type SparkProgram } from "../../compiler/types/SparkProgram";
 import { profile } from "../utils/logging/profile";
@@ -342,7 +342,8 @@ export abstract class SparkdownWorkspace {
       const workspace =
         compilerConfig.workspace ??
         params.workspaceFolders?.[0]?.uri ??
-        params.rootUri;
+        params.rootUri ??
+        undefined;
       // Configure the compiler and run the first compile OFF the initialize
       // response path. Nothing the client renders first needs them: compiler
       // requests wait on `whenCompilerConfigured`, results arrive through
@@ -1090,7 +1091,7 @@ export abstract class SparkdownWorkspace {
     return deletedFile;
   }
 
-  onOpenTextDocument(params: {
+  onOpenTextDocument(_params: {
     textDocument: {
       uri: string;
       languageId: string;
@@ -1099,13 +1100,13 @@ export abstract class SparkdownWorkspace {
     };
   }) {}
 
-  onCloseTextDocument(params: {
+  onCloseTextDocument(_params: {
     textDocument: {
       uri: string;
     };
   }) {}
 
-  onChangeTextDocument(params: {
+  onChangeTextDocument(_params: {
     textDocument: {
       uri: string;
       version: number;
@@ -1113,23 +1114,23 @@ export abstract class SparkdownWorkspace {
     contentChanges: SparkdownDocumentContentChangeEvent[];
   }) {}
 
-  onSelectTextDocument(params: {
+  onSelectTextDocument(_params: {
     textDocument: { uri: string };
     selectedRange: Range;
     docChanged: boolean;
     userEvent?: boolean;
   }) {}
 
-  onCompiledTextDocument(params: {
+  onCompiledTextDocument(_params: {
     textDocument: { uri: string };
     program: SparkProgram;
   }) {}
 
-  onDeletedFile(file: File) {}
+  onDeletedFile(_file: File) {}
 
-  onChangedFile(file: File) {}
+  onChangedFile(_file: File) {}
 
-  onCreatedFile(file: File) {}
+  onCreatedFile(_file: File) {}
 
   abstract sendRequest<P, M extends string, R>(
     method: M,

@@ -1,18 +1,18 @@
-import { ColorSource, Container } from "pixi.js";
-import { NotificationMessage } from "../../../jsonrpc/src/common/types/NotificationMessage";
-import { RequestMessage } from "../../../jsonrpc/src/common/types/RequestMessage";
-import { ResponseError } from "../../../jsonrpc/src/common/types/ResponseError";
+import { type ColorSource, Container } from "pixi.js";
+import type { NotificationMessage } from "../../../jsonrpc/src/common/types/NotificationMessage";
+import type { RequestMessage } from "../../../jsonrpc/src/common/types/RequestMessage";
+import type { ResponseError } from "../../../jsonrpc/src/common/types/ResponseError";
 import { Clock } from "../../../spark-engine/src/game/core/classes/Clock";
 
 import {
   attachInputEvents,
   createInputState,
-  InputState,
+  type InputState,
 } from "./helpers/inputEvents";
-import { IApplication } from "./IApplication";
+import type { IApplication } from "./IApplication";
 import {
   generateAnimatedSVGTextures,
-  GenerateAnimatedSVGTexturesOptions,
+  type GenerateAnimatedSVGTexturesOptions,
 } from "./plugins/svg/utils/generateAnimatedSVGTextures";
 import { parseSVG } from "./plugins/svg/utils/parseSVG";
 import { generateSolidTexture } from "./plugins/texture/utils/generateSolidTexture";
@@ -229,15 +229,15 @@ export class World {
 
   /**
    * Called on every animation frame while the world is active.
-   * @param time The game clock object.
+   * @param _time The game clock object.
    */
-  onUpdate(time: Clock): void {}
+  onUpdate(_time: Clock): void {}
 
   /**
    * Called when the world is skipped ahead.
-   * @param seconds Number of seconds to skip.
+   * @param _seconds Number of seconds to skip.
    */
-  onSkip(seconds: number): void {}
+  onSkip(_seconds: number): void {}
 
   /**
    * Called when the world is paused.
@@ -255,75 +255,75 @@ export class World {
    * @param height New height
    * @param resolution Device pixel ratio
    */
-  onResize(width: number, height: number, resolution: number): void {}
+  onResize(): void {}
 
   /**
    * Triggered when pointer goes down.
-   * @param event PointerEvent from browser
+   * @param _event PointerEvent from browser
    */
-  protected onPointerDown(event: PointerEvent): void {}
+  protected onPointerDown(_event: PointerEvent): void {}
 
   /**
    * Triggered when pointer moves.
-   * @param event PointerEvent from browser
+   * @param _event PointerEvent from browser
    */
-  protected onPointerMove(event: PointerEvent): void {}
+  protected onPointerMove(_event: PointerEvent): void {}
 
   /**
    * Triggered when pointer is released.
-   * @param event PointerEvent from browser
+   * @param _event PointerEvent from browser
    */
-  protected onPointerUp(event: PointerEvent): void {}
+  protected onPointerUp(_event: PointerEvent): void {}
 
   /**
    * Triggered on tap (click without drag).
-   * @param event PointerEvent from browser
+   * @param _event PointerEvent from browser
    */
-  protected onTap(event: PointerEvent): void {}
+  protected onTap(_event: PointerEvent): void {}
 
   /**
    * Triggered on start of a drag gesture.
-   * @param event PointerEvent
-   * @param dragThreshold Drag threshold used
-   * @param distanceX Horizontal drag distance
-   * @param distanceY Vertical drag distance
+   * @param _event PointerEvent
+   * @param _dragThreshold Drag threshold used
+   * @param _distanceX Horizontal drag distance
+   * @param _distanceY Vertical drag distance
    */
   protected onDragStart(
-    event: PointerEvent,
-    dragThreshold: number,
-    distanceX: number,
-    distanceY: number,
+    _event: PointerEvent,
+    _dragThreshold: number,
+    _distanceX: number,
+    _distanceY: number,
   ): void {}
 
   /**
    * Triggered on drag update.
-   * @param event PointerEvent from browser
+   * @param _event PointerEvent from browser
    */
-  protected onDrag(event: PointerEvent): void {}
+  protected onDrag(_event: PointerEvent): void {}
 
   /**
    * Triggered when a drag ends.
-   * @param event PointerEvent from browser
+   * @param _event PointerEvent from browser
    */
-  protected onDragEnd(event: PointerEvent): void {}
+  protected onDragEnd(_event: PointerEvent): void {}
 
   /**
    * Triggered when a key is pressed down.
-   * @param event KeyboardEvent from browser
+   * @param _event KeyboardEvent from browser
    */
-  protected onKeyDown(event: KeyboardEvent): void {}
+  protected onKeyDown(_event: KeyboardEvent): void {}
 
   /**
    * Triggered when a key is released.
-   * @param event KeyboardEvent from browser
+   * @param _event KeyboardEvent from browser
    */
-  protected onKeyUp(event: KeyboardEvent): void {}
+  protected onKeyUp(_event: KeyboardEvent): void {}
 
   /**
    * Triggered when a key is pressed down and then released.
-   * @param event KeyboardEvent from browser
+   * @param _event KeyboardEvent from browser
    */
-  protected onKeyPress(event: KeyboardEvent): void {}
+  protected onKeyPress(_event: KeyboardEvent): void {}
 
   /**
    * Handle a notification from the engine.
@@ -335,9 +335,9 @@ export class World {
 
   /**
    * Triggered when a notification message is received.
-   * @param msg The notification message
+   * @param _msg The notification message
    */
-  protected onReceiveNotification(msg: NotificationMessage): void {}
+  protected onReceiveNotification(_msg: NotificationMessage): void {}
 
   /**
    * Handle a request from the engine.
@@ -356,11 +356,11 @@ export class World {
 
   /**
    * Triggered when a request message is received.
-   * @param msg The request message
+   * @param _msg The request message
    * @returns Optionally a response with result or error
    */
   protected async onReceiveRequest(
-    msg: RequestMessage,
+    _msg: RequestMessage,
   ): Promise<
     | { error: ResponseError; transfer?: ArrayBuffer[] }
     | { result: unknown; transfer?: ArrayBuffer[] }

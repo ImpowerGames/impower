@@ -1,5 +1,5 @@
-import { Create } from "../../../core/types/Create";
-import { Character } from "../types/Character";
+import type { Create } from "../../../core/types/Create";
+import type { Character } from "../types/Character";
 
 export const default_character: Create<Character> = (obj) => ({
   $type: "character",

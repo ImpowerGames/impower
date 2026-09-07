@@ -22,8 +22,8 @@ export class InkListItem implements IInkListItem {
       let fullName = arguments[0] as string;
 
       let nameParts = fullName.toString().split(".");
-      this.originName = nameParts[0];
-      this.itemName = nameParts[1];
+      this.originName = nameParts[0]!;
+      this.itemName = nameParts[1]!;
     }
   }
   public static get Null() {
@@ -257,7 +257,7 @@ export class InkList extends Map<SerializedInkListItem, number> {
         } else {
           let newItem = InkList.FromString(itemName, storyObject)
             .orderedItems[0];
-          this.Add(newItem.Key, newItem.Value);
+          this.Add(newItem!.Key, newItem!.Value);
         }
       } else {
         let item = new InkListItem(foundListDef.name, itemName);
@@ -539,14 +539,14 @@ export class InkList extends Map<SerializedInkListItem, number> {
     return null;
   }
 
-  public toString() {
+  public override toString() {
     let ordered = this.orderedItems;
 
     let sb = new StringBuilder();
     for (let i = 0; i < ordered.length; i++) {
       if (i > 0) sb.Append(", ");
 
-      let item = ordered[i].Key;
+      let item = ordered[i]!.Key;
       if (item.itemName === null) return throwNullException("item.itemName");
       sb.Append(item.itemName);
     }
@@ -556,7 +556,7 @@ export class InkList extends Map<SerializedInkListItem, number> {
   // casting a InkList to a Number, for somereason, actually gives a number.
   // This messes up the type detection when creating a Value from a InkList.
   // Returning NaN here prevents that.
-  public valueOf() {
+  public override valueOf() {
     return NaN;
   }
 }

@@ -85,6 +85,6 @@ export default class SparkdownScreenPreview extends Component(spec) {
 
 declare global {
   interface HTMLElementTagNameMap {
-    "spark-web-player": SparkdownScreenPreview;
+    "sparkle-screen-preview": SparkdownScreenPreview;
   }
 }

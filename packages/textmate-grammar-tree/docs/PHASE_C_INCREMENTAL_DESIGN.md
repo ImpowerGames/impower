@@ -346,7 +346,7 @@ Naively C1 re-assembles all D every keystroke (cheap coefficient, ~9 ms/10 KB â€
 
 ### 3.7 Ordered implementation checklist (net after each step)
 
-Run vitest one suite at a time, single fork, capped heap (`--pool=forks --poolOptions.forks.singleFork=true`, `NODE_OPTIONS=--max-old-space-size=2048`). "exit 0 + Worker exited unexpectedly" = OOM, not pass. `tsc` is not a gate.
+Run vitest one suite at a time, single fork, capped heap (`--pool=forks --poolOptions.forks.singleFork=true`, `NODE_OPTIONS=--max-old-space-size=2048`). "exit 0 + Worker exited unexpectedly" = OOM, not pass. `npm run typecheck` runs in CI on any pull request that touches code, so a type error blocks the merge as surely as a failing test.
 
 | Step | Change | Net (must stay/return green) |
 |---|---|---|

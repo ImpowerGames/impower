@@ -146,10 +146,10 @@ export function getBestPresentationMatch(
   // try to at least match the base function (hsl/rgb/hex)
   const baseFunc = inputFingerprint.split("-")[0];
   const looseMatch = presentations.find((p) =>
-    getColorPresentationType(p.label).startsWith(baseFunc),
+    getColorPresentationType(p.label).startsWith(baseFunc!),
   );
 
-  return looseMatch ?? presentations[0];
+  return looseMatch ?? presentations[0] ?? null;
 }
 
 export default class ColorPickerWidget extends WidgetType {
@@ -274,7 +274,7 @@ export default class ColorPickerWidget extends WidgetType {
           changes: {
             from: this.info.from,
             to: this.info.to,
-            insert: bestMatch.label,
+            insert: bestMatch!.label,
           },
         });
       }
@@ -310,7 +310,7 @@ export function convertFromServerColors(
 }
 
 export function setDocumentColors(
-  state: EditorState,
+  _state: EditorState,
   colors: DocumentColor[],
 ): TransactionSpec {
   const effects: StateEffect<unknown>[] = [];

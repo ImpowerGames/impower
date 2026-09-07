@@ -11,6 +11,11 @@ export class Argument {
     // expression reads this local. Set on the synthetic Argument
     // emitted by `lowerArguments` when it sees a `LuauVariadicParameter`.
     public isVararg: boolean = false,
+    // A closure's captured variable, prepended to its parameters by
+    // `buildAnonymousFunction`. The call binds it to a pointer at the
+    // variable the enclosing scope resolved the name to, so a write through
+    // it lands on that outer binding rather than on a local of the closure.
+    public isUpvalue: boolean = false,
   ) {}
 
   get typeName(): string {

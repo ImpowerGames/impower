@@ -55,11 +55,8 @@ export default class ScreenplayParser {
         if (nodeRef.node.parent?.name === "sparkdown") {
           if (
             name !== "FrontMatter" &&
-            name !== "Function" &&
             name !== "Scene" &&
             name !== "Branch" &&
-            name !== "Knot" &&
-            name !== "Stitch" &&
             name !== "BlockTitle" &&
             name !== "InlineTitle" &&
             name !== "BlockHeading" &&
@@ -107,15 +104,6 @@ export default class ScreenplayParser {
           frontMatterValue += text;
         }
 
-        // Function
-        if (name === "Function") {
-          tokens.push({ tag: "page_break" });
-        }
-        if (name === "FunctionDeclarationName") {
-          const text = read(from, to);
-          tokens.push({ tag: "function", text });
-        }
-
         // Scene
         if (name === "Scene") {
           tokens.push({ tag: "page_break" });
@@ -129,21 +117,6 @@ export default class ScreenplayParser {
         if (name === "BranchDeclarationName") {
           const text = read(from, to);
           tokens.push({ tag: "branch", text });
-        }
-
-        // Knot
-        if (name === "Knot") {
-          tokens.push({ tag: "page_break" });
-        }
-        if (name === "KnotDeclarationName") {
-          const text = read(from, to);
-          tokens.push({ tag: "knot", text });
-        }
-
-        // Stitch
-        if (name === "StitchDeclarationName") {
-          const text = read(from, to);
-          tokens.push({ tag: "stitch", text });
         }
 
         // Title

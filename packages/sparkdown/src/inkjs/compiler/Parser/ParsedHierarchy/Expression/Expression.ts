@@ -34,15 +34,15 @@ export abstract class Expression extends ParsedObject {
   // `NativeFunctionCall` implements no `Copy()`. Constants are now
   // initialized once as ordinary globals, so nothing needs copying.)
 
-  get typeName(): string {
+  override get typeName(): string {
     return "Expression";
   }
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  public Equals(obj: ParsedObject): boolean {
+  public Equals(_obj: ParsedObject): boolean {
     return false;
   }
 
-  public readonly toString = () => "No string value in JavaScript.";
+  public override readonly toString = () => "No string value in JavaScript.";
 
 }

@@ -109,7 +109,7 @@ describe("AudioModule synth resolution (#268)", () => {
 
     it("leaves an already-complete builtin unchanged", () => {
       const m = createModule({});
-      const builtin = audioBuiltinDefinitions().synth.character;
+      const builtin = audioBuiltinDefinitions().synth["character"];
       expect(m.resolve(ref("character"))!.synth).toEqual(builtin);
     });
   });

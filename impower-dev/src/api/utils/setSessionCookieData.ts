@@ -1,5 +1,6 @@
 import { FastifyRequest } from "fastify/types/request";
 import { SessionCookieData } from "../types/SessionCookieData";
+import getAppSession from "./getAppSession";
 
 const setSessionCookieData = (
   request: FastifyRequest,
@@ -10,7 +11,7 @@ const setSessionCookieData = (
   request.session.options({
     expires,
   });
-  request.session.set("data", data);
+  getAppSession(request).set("data", data);
   return expires.getTime();
 };
 

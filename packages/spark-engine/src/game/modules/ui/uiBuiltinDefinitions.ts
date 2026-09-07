@@ -463,20 +463,44 @@ export const uiBuiltinDefinitions = () => ({
         will_change: "transform",
       },
     }),
+    loading: default_style({
+      $name: "loading",
+      z_index: "1000",
+      pointer_events: "auto",
+      align_items: "center",
+      justify_content: "center",
+    }),
+    loading_backdrop: default_style({
+      $name: "loading_backdrop",
+      position: "absolute",
+      inset: "0",
+      background_color: "black",
+    }),
+    loading_content: default_style({
+      $name: "loading_content",
+      position: "relative",
+      display: "flex",
+      flex_direction: "column",
+      align_items: "center",
+      gap: "1rem",
+      width: "min(60%, 320px)",
+    }),
     loading_bar: default_style({
       $name: "loading_bar",
-      z_index: "1000",
       position: "relative",
       width: "100%",
       height: "4px",
+      overflow: "hidden",
+      background_color: "rgb(255 255 255 / 20%)",
     }),
     loading_fill: default_style({
       $name: "loading_fill",
       width: "100%",
       height: "100%",
-      background_color: "cyan50",
-      transform: "scaleX(var(--loading_progress))",
+      background_color: "cyan_60",
+      transform: "scaleX(0)",
       transform_origin: "left",
+      transition: "transform 0.15s linear",
     }),
     screen: default_style({
       $name: "screen",
@@ -683,8 +707,11 @@ export const uiBuiltinDefinitions = () => ({
     $default: default_layout(),
     loading: default_layout({
       $name: "loading",
-      loading_bar: {
-        loading_fill: {},
+      loading_backdrop: {},
+      loading_content: {
+        loading_bar: {
+          loading_fill: {},
+        },
       },
     }),
     main: default_layout({

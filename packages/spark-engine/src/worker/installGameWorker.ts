@@ -1,7 +1,7 @@
 import { hasCompiledProgram } from "@impower/sparkdown/src/binary/programBinary";
 import { MessageConnection } from "@impower/jsonrpc/src/browser/classes/MessageConnection";
-import { Message } from "@impower/jsonrpc/src/common/types/Message";
-import { ResponseError } from "@impower/jsonrpc/src/common/types/ResponseError";
+import type { Message } from "@impower/jsonrpc/src/common/types/Message";
+import type { ResponseError } from "@impower/jsonrpc/src/common/types/ResponseError";
 import { isNotification } from "@impower/jsonrpc/src/common/utils/isNotification";
 import { isRequest } from "@impower/jsonrpc/src/common/utils/isRequest";
 import { isResponse } from "@impower/jsonrpc/src/common/utils/isResponse";
@@ -32,7 +32,7 @@ import { StepGameClockMessage } from "../game/core/classes/messages/StepGameCloc
 import { StepGameMessage } from "../game/core/classes/messages/StepGameMessage";
 import { UnpauseGameMessage } from "../game/core/classes/messages/UnpauseGameMessage";
 import { UpdateGameMessage } from "../game/core/classes/messages/UpdateGameMessage";
-import { SystemConfiguration } from "../game/core/types/SystemConfiguration";
+import type { SystemConfiguration } from "../game/core/types/SystemConfiguration";
 
 export class NoGameError extends Error implements ResponseError {
   override message = "no game loaded";

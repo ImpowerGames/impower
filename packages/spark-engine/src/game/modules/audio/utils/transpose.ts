@@ -1,5 +1,5 @@
-import { Hertz } from "../types/Hertz";
-import { Note } from "../types/Note";
+import type { Hertz } from "../types/Hertz";
+import type { Note } from "../types/Note";
 import { convertPitchNoteToHertz } from "./convertPitchNoteToHertz";
 import { convertSemitonesToFrequencyFactor } from "./convertSemitonesToFrequencyFactor";
 

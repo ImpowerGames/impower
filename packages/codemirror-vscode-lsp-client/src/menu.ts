@@ -173,7 +173,7 @@ const contextMenuState = StateField.define<Tooltip | null>({
       value = {
         ...value,
         pos: tr.changes.mapPos(value.pos),
-        end: tr.changes.mapPos(value.end),
+        end: tr.changes.mapPos(value.end!),
       };
     }
     return value;
@@ -260,7 +260,7 @@ function createContextMenuTooltip(spec: ContextMenuSpec): Tooltip {
           itemEl.className = "cm-menu-item cm-menu-option";
 
           const labelSpan = document.createElement("span");
-          labelSpan.textContent = view.state.phrase(item.label);
+          labelSpan.textContent = view.state.phrase(item.label!);
           itemEl.appendChild(labelSpan);
 
           // Add shortcut label on desktop

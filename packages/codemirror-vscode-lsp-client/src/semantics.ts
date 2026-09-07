@@ -66,7 +66,11 @@ export function convertFromServerSemanticTokens(
   }
 
   const legend =
-    plugin.client.serverCapabilities.semanticTokensProvider?.legend;
+    plugin.client.serverCapabilities?.semanticTokensProvider?.legend;
+
+  if (!legend) {
+    return [];
+  }
 
   const { tokenTypes, tokenModifiers } = legend;
 
@@ -193,7 +197,7 @@ export async function updateDocumentSemanticHighlighting(
     view.dispatch(
       setDocumentSemanticHighlighting(
         view.state,
-        convertFromServerSemanticTokens(plugin, result),
+        convertFromServerSemanticTokens(plugin, result!),
       ),
     );
   });

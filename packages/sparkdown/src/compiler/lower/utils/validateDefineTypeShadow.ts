@@ -1,8 +1,8 @@
 import { type SyntaxNode } from "@lezer/common";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
-import { ErrorType, SourceMetadata } from "../../../inkjs/engine/Error";
+import { ErrorType, type SourceMetadata } from "../../../inkjs/engine/Error";
 import { getBuiltinTypeNames } from "../../utils/builtinTypeNames";
-import { LowerContext } from "../context";
+import type { LowerContext } from "../context";
 
 // A global (`store` / `const`) variable whose name collides with a define
 // TYPE name — an `as`-parent or a `new X()` target, i.e. a name that KEEPS

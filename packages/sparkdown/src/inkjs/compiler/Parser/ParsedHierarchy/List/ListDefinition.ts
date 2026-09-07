@@ -11,7 +11,7 @@ import { VariableAssignment } from "../Variable/VariableAssignment";
 export class ListDefinition extends ParsedObject {
   public variableAssignment: VariableAssignment | null = null;
 
-  get typeName() {
+  override get typeName() {
     return "List";
   }
 

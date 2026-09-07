@@ -86,7 +86,7 @@ export class Divert extends InkObject {
     }
   }
 
-  public Equals(obj: Divert | null) {
+  public override Equals(obj: Divert | null) {
     let otherDivert = obj;
     if (otherDivert instanceof Divert) {
       if (this.hasVariableTarget == otherDivert.hasVariableTarget) {
@@ -102,7 +102,7 @@ export class Divert extends InkObject {
     return false;
   }
 
-  public toString() {
+  public override toString() {
     if (this.hasVariableTarget) {
       return "Divert(variable: " + this.variableDivertName + ")";
     } else if (this.targetPath == null) {

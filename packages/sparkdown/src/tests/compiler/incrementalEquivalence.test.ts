@@ -298,7 +298,7 @@ describe("compiler incremental equivalence", () => {
             replace:
               "  Action describing room 6 in some detail here.\n& local f6 = function(x) return x + 2 end",
           },
-          { find: "Not yet in scene 12.", replace: "Not yet in scene 12!!" },
+          { find: "Not yet in scene 12.", replace: "Not yet in scene 12!" },
         ],
       },
     ];

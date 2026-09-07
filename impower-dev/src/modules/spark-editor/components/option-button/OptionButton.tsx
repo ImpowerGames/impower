@@ -1,5 +1,6 @@
 import { Button } from "@impower/impower-ui/components";
-import type { ComponentChildren, JSX } from "preact";
+import type { ButtonProps } from "@impower/impower-ui/components";
+import type { ComponentChildren } from "preact";
 
 const sizeClasses = {
   default: "h-14 px-8 text-base",
@@ -9,8 +10,8 @@ const sizeClasses = {
 export type OptionButtonSize = keyof typeof sizeClasses;
 
 export type OptionButtonProps = Omit<
-  JSX.HTMLAttributes<HTMLButtonElement>,
-  "size" | "type"
+  ButtonProps,
+  "size" | "type" | "variant" | "asChild"
 > & {
   size?: OptionButtonSize;
   /** Tailwind classes appended after the base layout. */

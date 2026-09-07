@@ -6,5 +6,8 @@
   "type": "module",
   "peerDependencies": {
     "@lezer/common": "^1.2.3"
+  },
+  "scripts": {
+    "typecheck": "node ../../scripts/typecheck.mjs packages/textmate-grammar-tree/"
   }
 }

@@ -4,12 +4,12 @@
 
 import { NodeID } from "../../../core/enums/NodeID";
 import { Wrapping } from "../../enums/Wrapping";
-import {
-  MatchRuleDefinition,
-  ScopedRuleDefinition,
-  SwitchRuleDefinition,
+import type {
+MatchRuleDefinition,
+ScopedRuleDefinition,
+SwitchRuleDefinition,
 } from "../../types/GrammarDefinition";
-import { Rule } from "../../types/Rule";
+import type { Rule } from "../../types/Rule";
 import { createID } from "../../utils/createID";
 import { GrammarNode } from "../GrammarNode";
 import type { GrammarRepository } from "../GrammarRepository";

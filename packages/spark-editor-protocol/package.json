@@ -5,5 +5,8 @@
   "version": "0.0.1",
   "dependencies": {
     "vscode-languageserver-protocol": "^3.17.5"
+  },
+  "scripts": {
+    "typecheck": "node ../../scripts/typecheck.mjs packages/spark-editor-protocol/"
   }
 }

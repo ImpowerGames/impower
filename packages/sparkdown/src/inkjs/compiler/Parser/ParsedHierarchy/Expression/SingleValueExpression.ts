@@ -18,7 +18,7 @@ export class SingleValueExpression extends Expression {
     this.innerExpression = this.AddContent(inner) as Expression;
   }
 
-  get typeName(): string {
+  override get typeName(): string {
     return "SingleValue";
   }
 
@@ -29,5 +29,5 @@ export class SingleValueExpression extends Expression {
     container.AddContent(ControlCommand.UnpackTuple(1));
   };
 
-  public readonly toString = (): string => `(${this.innerExpression})`;
+  public override readonly toString = (): string => `(${this.innerExpression})`;
 }

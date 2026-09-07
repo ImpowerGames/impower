@@ -25,7 +25,7 @@ export class NumberExpression extends Expression {
     }
   }
 
-  get typeName(): string {
+  override get typeName(): string {
     return "Number";
   }
 
@@ -47,9 +47,9 @@ export class NumberExpression extends Expression {
     }
   };
 
-  public readonly toString = (): string => String(this.value);
+  public override readonly toString = (): string => String(this.value);
 
-  public Equals(obj: ParsedObject): boolean {
+  public override Equals(obj: ParsedObject): boolean {
     const numberExpression = asOrNull(obj, NumberExpression);
     if (!numberExpression) return false;
 

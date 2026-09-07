@@ -1,6 +1,7 @@
 {
   "compilerOptions": {
-    "module": "commonjs",
+    "module": "esnext",
+    "moduleResolution": "bundler",
     "target": "es2020",
     "lib": ["esnext", "dom", "dom.iterable"],
     "skipLibCheck": true,
@@ -21,5 +22,10 @@
     "forceConsistentCasingInFileNames": true,
     "isolatedModules": true,
     "allowJs": true
-  }
+  },
+  "exclude": [
+    "node_modules",
+    "dist",
+    "out"
+  ]
 }

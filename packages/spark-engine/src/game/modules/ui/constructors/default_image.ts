@@ -1,5 +1,5 @@
-import { Create } from "../../../core/types/Create";
-import { Image } from "../types/Image";
+import type { Create } from "../../../core/types/Create";
+import type { Image } from "../types/Image";
 
 export const default_image: Create<Image> = (obj) => ({
   $type: "image",

@@ -68,7 +68,7 @@ export const inheritDefaults = <T>(value: T, defaults: unknown): T => {
  * Mutates `context` in place, since it is the freshly-built context object.
  */
 export const applyBuiltinDefaults = (context: Record<string, any>): void => {
-  for (const [type, structs] of Object.entries(context)) {
+  for (const [, structs] of Object.entries(context)) {
     if (!isPlainObject(structs)) {
       continue;
     }

@@ -1,11 +1,11 @@
-import { IElementEvent } from "./IElementEvent";
-import { IFocusEvent } from "./IFocusEvent";
-import { IInputEvent } from "./IInputEvent";
-import { IKeyboardEvent } from "./IKeyboardEvent";
-import { IMouseEvent } from "./IMouseEvent";
-import { IPointerEvent } from "./IPointerEvent";
-import { ITouchEvent } from "./ITouchEvent";
-import { IWheelEvent } from "./IWheelEvent";
+import type { IElementEvent } from "./IElementEvent";
+import type { IFocusEvent } from "./IFocusEvent";
+import type { IInputEvent } from "./IInputEvent";
+import type { IKeyboardEvent } from "./IKeyboardEvent";
+import type { IMouseEvent } from "./IMouseEvent";
+import type { IPointerEvent } from "./IPointerEvent";
+import type { ITouchEvent } from "./ITouchEvent";
+import type { IWheelEvent } from "./IWheelEvent";
 
 export interface EventMap {
   click: IMouseEvent<"click">;

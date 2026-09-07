@@ -1,18 +1,18 @@
-import {
-  Range,
-  TextDocumentContentChangeEvent,
+import type {
+Range,
+TextDocumentContentChangeEvent,
 } from "vscode-languageserver-textdocument";
 
 import GRAMMAR_DEFINITION from "../../../language/sparkdown.language-grammar.json";
 
-import { ChangeSpec, Text } from "@codemirror/state";
+import { type ChangeSpec, Text } from "@codemirror/state";
 import { TextmateGrammarParser } from "@impower/textmate-grammar-tree/src/tree/classes/TextmateGrammarParser";
 import { printTree } from "@impower/textmate-grammar-tree/src/tree/utils/printTree";
-import { ChangedRange, Tree, TreeFragment } from "@lezer/common";
+import { type ChangedRange, Tree, TreeFragment } from "@lezer/common";
 import { profile } from "../utils/profile";
 import {
-  SparkdownAnnotatorConfigs,
-  SparkdownAnnotators,
+  type SparkdownAnnotatorConfigs,
+  type SparkdownAnnotators,
   SparkdownCombinedAnnotator,
 } from "./SparkdownCombinedAnnotator";
 import { SparkdownDocument } from "./SparkdownDocument";

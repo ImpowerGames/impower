@@ -180,7 +180,9 @@ function valuesEqual(
   }
   if (a.valueType !== b.valueType) return false;
   // Both sides are the same value type — primitive .value comparison.
-  return (a as Value<unknown>).value === (b as Value<unknown>).value;
+  return (
+    (a as unknown as Value<any>).value === (b as unknown as Value<any>).value
+  );
 }
 
 // `Value<T>` import would be heavy — re-declare the minimal shape we

@@ -4,7 +4,7 @@ import { InkObject as RuntimeObject } from "../../../engine/Object";
 import { Path as RuntimePath } from "../../../engine/Path";
 import { asOrNull } from "../../../engine/TypeAssertion";
 import { currentCompileEpoch } from "./CompileEpoch";
-import { FindQueryFunc } from "./FindQueryFunc";
+import type { FindQueryFunc } from "./FindQueryFunc";
 import { Identifier } from "./Identifier";
 import { Story } from "./Story";
 
@@ -273,7 +273,7 @@ export abstract class ParsedObject {
     let found = false;
     for (let i = 0; i < types.length; i += 1) {
       if (this instanceof (types[i] as any)) {
-        buckets[i].push(this);
+        buckets[i]!.push(this);
         found = true;
       }
     }

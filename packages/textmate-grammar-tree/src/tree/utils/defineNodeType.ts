@@ -1,6 +1,6 @@
-import { NodePropSource, NodeType } from "@lezer/common";
+import { type NodePropSource, NodeType } from "@lezer/common";
 import { NodeID } from "../../core/enums/NodeID";
-import { RuleDefinition } from "../../grammar/types/GrammarDefinition";
+import type { RuleDefinition } from "../../grammar/types/GrammarDefinition";
 
 /**
  * Node emitted when a character doesn't match anything in the grammar,
@@ -23,7 +23,7 @@ export const defineNodeType = (
   topNode: NodeType,
   typeIndex: number,
   typeId: string,
-  def?: RuleDefinition,
+  _def?: RuleDefinition,
   props?: NodePropSource[],
 ): NodeType => {
   if (typeIndex === NodeID.none) {
