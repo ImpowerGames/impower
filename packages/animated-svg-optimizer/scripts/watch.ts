@@ -1,22 +1,22 @@
+import { spawnSync } from "child_process";
 import fs from "fs";
 import path from "path";
-import { spawnSync } from "child_process";
 
 /**
- * Watches each character's `Exported` folder under the SVG Renders root and
- * regenerates the optimized SVG into the sibling `Optimized` folder whenever an
- * exported SVG changes (or is missing from `Optimized`).
+ * Watches the `exported` folder and regenerates the optimized SVG into
+ * the sibling `optimized` folder whenever an exported SVG changes
+ * (or is missing from `optimized`).
  *
  * Usage:
  *   node scripts/watch.ts [rootDir] [pollMs]
  *
  * Defaults:
- *   rootDir = "G:\\My Drive\\Raffles & Bunny\\Art\\Characters\\SVG Renders"
+ *   rootDir = "G:\\My Drive\\Raffles & Bunny\\Art\\Characters\\svgs"
  *   pollMs  = 3000
  *
  * Layout it expects:
- *   <root>/<character>/Exported/*.svg   -> input
- *   <root>/<character>/Optimized/*.svg  -> output (same basename)
+ *   <root>/exported/*.svg   -> input
+ *   <root>/optimized/*.svg  -> output (same basename)
  *
  * Polling (not fs.watch) is used on purpose: the renders live on a Google Drive
  * virtual filesystem where native change events are unreliable. A file is only
@@ -25,8 +25,9 @@ import { spawnSync } from "child_process";
  */
 
 const ROOT =
-  process.argv[2] ||
-  "G:\\My Drive\\Raffles & Bunny\\Art\\Characters\\SVG Renders";
+  process.argv[2] || "G:\\My Drive\\Raffles & Bunny\\Art\\Characters\\svgs";
+const EXPORTED_DIR = path.join(ROOT, "exported");
+const OPTIMIZED_DIR = path.join(ROOT, "optimized");
 const POLL_MS = Number(process.argv[3] || 3000);
 
 // Optional: after each successful optimize, also copy the result (flat, same
@@ -97,35 +98,31 @@ function optimize(input: string, output: string): void {
 }
 
 function tick(): void {
-  for (const character of listDirs(ROOT)) {
-    const exportedDir = path.join(ROOT, character, "Exported");
-    if (!fs.existsSync(exportedDir)) continue;
+  if (!fs.existsSync(EXPORTED_DIR)) return;
 
-    const optimizedDir = path.join(ROOT, character, "Optimized");
-    fs.mkdirSync(optimizedDir, { recursive: true });
+  fs.mkdirSync(OPTIMIZED_DIR, { recursive: true });
 
-    for (const name of listSvgs(exportedDir)) {
-      const src = path.join(exportedDir, name);
-      const out = path.join(optimizedDir, name);
+  for (const name of listSvgs(EXPORTED_DIR)) {
+    const src = path.join(EXPORTED_DIR, name);
+    const out = path.join(OPTIMIZED_DIR, name);
 
-      const srcMtime = mtimeMs(src);
-      if (srcMtime == null) continue;
+    const srcMtime = mtimeMs(src);
+    if (srcMtime == null) continue;
 
-      const prevMtime = lastSeenMtime.get(src);
-      lastSeenMtime.set(src, srcMtime);
+    const prevMtime = lastSeenMtime.get(src);
+    lastSeenMtime.set(src, srcMtime);
 
-      // Wait until the file has settled (same mtime two polls in a row) before
-      // touching it — avoids reading a partially-synced write from Drive.
-      if (prevMtime !== srcMtime) continue;
+    // Wait until the file has settled (same mtime two polls in a row) before
+    // touching it — avoids reading a partially-synced write from Drive.
+    if (prevMtime !== srcMtime) continue;
 
-      const outMtime = mtimeMs(out);
-      if (outMtime != null && outMtime >= srcMtime) continue; // already current
+    const outMtime = mtimeMs(out);
+    if (outMtime != null && outMtime >= srcMtime) continue; // already current
 
-      optimize(src, out);
-    }
+    optimize(src, out);
   }
 }
 
-log(`Watching "${ROOT}" (every ${POLL_MS}ms). Ctrl+C to stop.`);
+log(`Watching "${EXPORTED_DIR}" (every ${POLL_MS}ms). Ctrl+C to stop.`);
 tick();
 setInterval(tick, POLL_MS);
