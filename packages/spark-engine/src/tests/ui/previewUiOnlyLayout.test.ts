@@ -18,7 +18,7 @@ describe("preview a UI-only reactive layout emits no ink flow error", () => {
     const h = createHarness(src);
     (h.game.story as any).onError = (m: string) => errs.push(m);
     await h.ready;
-    h.preview(0);
+    await h.preview(0);
     expect(errs, `${label} produced ink errors`).toEqual([]);
   };
 

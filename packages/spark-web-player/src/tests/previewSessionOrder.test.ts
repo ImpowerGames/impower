@@ -201,6 +201,33 @@ describe("preview session ordering", () => {
     expect(calls).toContain("connectGame");
   });
 
+  test("the elements the last preview left are not swept until the preview has settled", async () => {
+    // The preview waits for the beat's pictures before it writes the beat;
+    // a sweep before that would take the previous preview's elements away
+    // and then the beat's writes with them (#429).
+    const calls: string[] = [];
+    let settlePreview = (_path: string | null) => {};
+    const game = recordingGame(calls);
+    game.preview = () => {
+      calls.push("preview");
+      return new Promise<string | null>((resolve) => {
+        settlePreview = resolve;
+      });
+    };
+    const controller = controllerWith(game, stubApp(calls));
+    const updating = controller.updatePreview(PROGRAM, PROGRAM.uri, 4, "SAVE");
+    for (let i = 0; i < 10; i++) {
+      await Promise.resolve();
+    }
+    expect(calls).toContain("preview");
+    expect(calls).not.toContain("sweepReconcile");
+    settlePreview("0.0");
+    await updating;
+    expect(calls.indexOf("preview")).toBeLessThan(
+      calls.indexOf("sweepReconcile"),
+    );
+  });
+
   test("the preview is not written until the connect has settled", async () => {
     // The connect holds the restore gate: the pictures the checkpoint shows
     // and the beat under the cursor is about to show. `preview()` writes

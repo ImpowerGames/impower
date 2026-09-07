@@ -79,7 +79,7 @@ describe("pico showcase example", () => {
   test("renders visibly, with its Pico builtins realized in the DOM", async () => {
     const h = createDOMHarness(SHOWCASE, 0, { autoOpenAll: true });
     await h.ready;
-    h.preview(0);
+    await h.preview(0);
     await flushMicrotasks(20);
 
     // The layouts LAYER must be revealed — a UI-only project has no narrative
@@ -291,7 +291,7 @@ describe("pico showcase example", () => {
   test("@click buttons are made clickable and registered as handlers", async () => {
     const h = createDOMHarness(SHOWCASE, 0, { autoOpenAll: true });
     await h.ready;
-    h.preview(0);
+    await h.preview(0);
     await flushMicrotasks(20);
 
     const byLabel = (label: string) =>

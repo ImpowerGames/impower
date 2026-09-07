@@ -96,12 +96,12 @@ describe("previewing does not resume the scene's audio", () => {
     const h = createHarness(SOURCE);
     await h.ready;
     const game: any = h.game;
-    const path = game.preview("inmemory:///main.sd", 0);
+    const path = await game.preview("inmemory:///main.sd", 0);
     expect(path).toBeTruthy();
     game.markPreviewing(path);
     game._previewedPath = undefined; // as a recompile leaves it
     h.reset();
-    expect(game.preview("inmemory:///main.sd", 0)).toBe(path);
+    expect(await game.preview("inmemory:///main.sd", 0)).toBe(path);
     expect(h.messages.length).toBeGreaterThan(0);
   });
 });

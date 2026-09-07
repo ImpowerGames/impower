@@ -33,7 +33,7 @@ end
 `;
     const h = createDOMHarness(src, 0, { autoOpenAll: true });
     await h.ready;
-    h.preview(0);
+    await h.preview(0);
     await flushMicrotasks(10);
 
     const layer = h.overlay.querySelector(".layouts");

@@ -151,12 +151,15 @@ export function installGameWorker(connection: MessageConnection) {
     }
     if (PreviewGameMessage.type.isRequest(message)) {
       const { previewFrom } = message.params;
-      connection.sendResponse(message, () => {
+      connection.sendResponse(message, async () => {
         if (!state.game) {
           throw new NoGameError();
         }
         return {
-          previewPath: state.game.preview(previewFrom.file, previewFrom.line),
+          previewPath: await state.game.preview(
+            previewFrom.file,
+            previewFrom.line,
+          ),
         };
       });
       return;

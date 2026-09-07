@@ -65,23 +65,6 @@ export type GameModules = InstanceMap<DefaultModuleConstructors>;
 
 export type M = { [name: string]: Module };
 
-/** A preview's beat that ran ahead of its display
- *  ({@link Game.peekPreviewInstructions}). */
-interface PreviewRun {
-  /** The path the run was for. */
-  path: string;
-  /** What the run flushed; null when it flushed nothing to display. */
-  instructions: Instructions | null;
-  /** The save to put back when the run is dropped: taken before a run that
-   *  continued from a loaded checkpoint, since the other branches reset the
-   *  story before they run. */
-  snapshot: string | null;
-  /** What the run told the page, in order, to be told when it displays. */
-  notices: NotificationMessage[];
-  /** What the run executed, reported when it displays. */
-  executed: GameExecutedParams;
-}
-
 export class Game<T extends M = {}> {
   protected _clock?: Clock;
   get clock() {
@@ -124,27 +107,16 @@ export class Game<T extends M = {}> {
 
   protected _coordinator: Coordinator<typeof this> | null = null;
 
-  /** While a preview's beat runs ahead of its display
-   *  ({@link peekPreviewInstructions}): the flush that would build a
-   *  coordinator is kept instead, and so is everything the run tells the
-   *  page ({@link notify}). */
-  protected _peeking = false;
+  /** While a preview's beat runs with its flush held back ({@link preview}):
+   *  the flush that would build a coordinator is kept instead. */
+  protected _holdingFlush = false;
 
-  /** The flush the run ahead reached, if it reached one. */
-  protected _peeked: { instructions: Instructions | null } | null = null;
+  /** The flush a held run reached, if it reached one. */
+  protected _held: { instructions: Instructions | null } | null = null;
 
-  protected _peekNotices: NotificationMessage[] = [];
-
-  /** The preview point the page marked since the last preview, if any: the
-   *  point whose beat the next connect runs ahead ({@link markPreviewing}). */
-  protected _previewMark: string | null = null;
-
-  /** A preview's beat that has run and not yet displayed: what it flushed,
-   *  the path it ran for, what it told the page along the way and what it
-   *  executed, and, when it continued from a loaded checkpoint, the save to
-   *  put back should the preview turn out to be for another path (the other
-   *  branches reset the story before they run). */
-  protected _peek: PreviewRun | null = null;
+  /** Counts previews, so one that starts while another waits for its
+   *  pictures takes over. */
+  protected _previewGeneration = 0;
 
   /**
    * How many times one uninterrupted stretch of execution may advance the
@@ -496,7 +468,6 @@ export class Game<T extends M = {}> {
   }
 
   updateProgram(program: SparkProgram, story?: Story) {
-    this.discardPeek();
     this._program = program;
     // Resolved ONCE: with the binary path (#314) this materializes the buffer,
     // so testing it repeatedly would re-walk the whole program.
@@ -1184,11 +1155,6 @@ export class Game<T extends M = {}> {
   }
 
   start(save: string = ""): void {
-    // A run kept for a preview is put back, not merely dropped: the branch
-    // below that continues from a successful route continues from where the
-    // story stands, and the run left it a beat past the preview point.
-    this.rewindPeek();
-    this._previewMark = null;
     this._state = "running";
     if (this._simulation === "simulating") {
       this._simulation = "fail";
@@ -1295,8 +1261,6 @@ export class Game<T extends M = {}> {
   }
 
   destroy(): void {
-    this.discardPeek();
-    this._previewMark = null;
     this._destroyed = true;
     for (const k of this._moduleNames) {
       this._modules[k]?.onDestroy();
@@ -1356,7 +1320,6 @@ export class Game<T extends M = {}> {
   }
 
   load(saveJSON: string) {
-    this.discardPeek();
     try {
       const saveData: SaveData =
         typeof saveJSON === "string" ? JSON.parse(saveJSON) : saveJSON;
@@ -1471,7 +1434,6 @@ export class Game<T extends M = {}> {
   }
 
   reset() {
-    this.discardPeek();
     this.rewindStory();
     this._sceneTracker.reset();
     // Reset modules to their initial state
@@ -1497,9 +1459,9 @@ export class Game<T extends M = {}> {
       done = this.stepWithinBudget();
     } while (!done);
 
-    // A beat running ahead of its display reports its execution when it
-    // displays (`displayPeek`), after what it displays, as this does.
-    if (this._simulation !== "simulating" && !this._peeking) {
+    // A preview whose flush is held reports its execution once the beat
+    // displays (`preview`), after what it displays, as this does.
+    if (this._simulation !== "simulating" && !this._holdingFlush) {
       this.notifyExecuted();
     }
 
@@ -1581,10 +1543,10 @@ export class Game<T extends M = {}> {
 
       if (this.module.interpreter.shouldFlush() || !this._story.canContinue) {
         const instructions = this.module.interpreter.flush();
-        if (this._peeking) {
-          // The preview displays this beat once the game is connected; see
-          // `displayPeek` for the rest of what a flush does.
-          this._peeked = { instructions: instructions ?? null };
+        if (this._holdingFlush) {
+          // The preview displays this beat once its pictures are resident;
+          // see `displayHeld` for the rest of what a flush does.
+          this._held = { instructions: instructions ?? null };
           return true;
         }
         if (instructions) {
@@ -1779,21 +1741,8 @@ export class Game<T extends M = {}> {
     this._story.ChoosePathString(path);
   }
 
-  /** Tell the page something, unless a preview's beat is running ahead of
-   *  its display: what that run tells the page (an error it raises, a
-   *  breakpoint it stops at) is kept with the run and told when the run
-   *  displays, in the order it happened, so the page hears about the beat
-   *  once, when it is shown, and hears nothing of a run that is dropped. */
-  protected notify(message: NotificationMessage) {
-    if (this._peeking) {
-      this._peekNotices.push(message);
-      return;
-    }
-    this.connection.emit(message);
-  }
-
   protected notifyHitBreakpoint() {
-    this.notify(
+    this.connection.emit(
       GameHitBreakpointMessage.type.notification({
         location: this.getDocumentLocation(this._executingLocation),
       }),
@@ -1801,7 +1750,7 @@ export class Game<T extends M = {}> {
   }
 
   protected notifyAwaitingInteraction() {
-    this.notify(
+    this.connection.emit(
       GameAwaitingInteractionMessage.type.notification({
         location: this.getDocumentLocation(this._executingLocation),
       }),
@@ -1809,7 +1758,7 @@ export class Game<T extends M = {}> {
   }
 
   protected notifyAutoAdvancedToContinue() {
-    this.notify(
+    this.connection.emit(
       GameAutoAdvancedToContinueMessage.type.notification({
         location: this.getDocumentLocation(this._executingLocation),
       }),
@@ -1817,7 +1766,7 @@ export class Game<T extends M = {}> {
   }
 
   protected notifyClickedToContinue() {
-    this.notify(
+    this.connection.emit(
       GameClickedToContinueMessage.type.notification({
         location: this.getDocumentLocation(this._executingLocation),
       }),
@@ -1825,7 +1774,7 @@ export class Game<T extends M = {}> {
   }
 
   protected notifyChosePathToContinue() {
-    this.notify(
+    this.connection.emit(
       GameChosePathToContinueMessage.type.notification({
         location: this.getDocumentLocation(this._executingLocation),
       }),
@@ -1833,21 +1782,21 @@ export class Game<T extends M = {}> {
   }
 
   protected notifyStarted() {
-    this.notify(GameStartedMessage.type.notification({}));
+    this.connection.emit(GameStartedMessage.type.notification({}));
   }
 
   protected notifyFinished() {
-    this.notify(GameFinishedMessage.type.notification({}));
+    this.connection.emit(GameFinishedMessage.type.notification({}));
   }
 
   protected notifyStartedThread(threadIndex: number) {
-    this.notify(
+    this.connection.emit(
       GameStartedThreadMessage.type.notification({ threadId: threadIndex }),
     );
   }
 
   protected notifyExitedThread(threadIndex: number) {
-    this.notify(
+    this.connection.emit(
       GameExitedThreadMessage.type.notification({ threadId: threadIndex }),
     );
   }
@@ -1856,7 +1805,7 @@ export class Game<T extends M = {}> {
     const location = this.getDocumentLocation(
       this._program.pathLocations?.[path],
     );
-    this.notify(
+    this.connection.emit(
       GamePreviewedMessage.type.notification({
         location,
         path,
@@ -1896,11 +1845,11 @@ export class Game<T extends M = {}> {
   }
 
   protected notifyExecuted(params: GameExecutedParams = this.executedParams()) {
-    this.notify(GameExecutedMessage.type.notification(params));
+    this.connection.emit(GameExecutedMessage.type.notification(params));
   }
 
   protected notifyStepped() {
-    this.notify(
+    this.connection.emit(
       GameSteppedMessage.type.notification({
         location: this.getDocumentLocation(this._executingLocation),
       }),
@@ -2251,7 +2200,7 @@ export class Game<T extends M = {}> {
   }
 
   protected Error(message: string, type: ErrorType) {
-    this.notify(
+    this.connection.emit(
       GameEncounteredRuntimeErrorMessage.type.notification({
         message,
         type,
@@ -2286,20 +2235,14 @@ export class Game<T extends M = {}> {
    *
    *  Pass the path the cursor resolved to whenever there is one: the asset
    *  module reads it as the preview's anchor, to centre its prediction
-   *  window, and the next connect runs that path's beat ahead of its display
-   *  ({@link peekPreviewInstructions}), so its pictures can be gated with the
-   *  checkpoint's; without a path the flag is simply `true` and neither
-   *  happens. Only a mark arms the run: a preview leaves the flag set to the
-   *  path it settled on (`previewedPath`), and a host that connects the same
-   *  game again without marking gets a connect that runs nothing. */
+   *  window; without a path the flag is simply `true` and it does not. The
+   *  path a preview settled on afterwards is `previewedPath`. */
   markPreviewing(previewPath?: string): void {
     this._context.system.previewing = previewPath || true;
-    this._previewMark = previewPath ?? null;
   }
 
-  /** Run the story to the preview point's beat, the way `preview()` does:
-   *  from the loaded checkpoint when the route to it succeeded, else from
-   *  the start of the flow. */
+  /** Run the story to the preview point's beat: from the loaded checkpoint
+   *  when the route to it succeeded, else from the start of the flow. */
   protected runPreview(previewPath: string) {
     if (this._simulation === "success") {
       this.continue(true);
@@ -2312,7 +2255,6 @@ export class Game<T extends M = {}> {
       // the start-branch residue audit; idempotent between previews, where
       // the queue is already drained).
       this.module.interpreter.clearQueuedBeats();
-      this.clearChoices();
       this._startPath = previewPath;
       this.jumpToPath(previewPath);
       this.restoreReactiveTracking();
@@ -2321,7 +2263,6 @@ export class Game<T extends M = {}> {
       // No verdict on a route: the same jump, and the same discarding of
       // any beats an abandoned run left queued.
       this.module.interpreter.clearQueuedBeats();
-      this.clearChoices();
       this._startPath = previewPath;
       this.jumpToPath(previewPath);
       this.restoreReactiveTracking();
@@ -2329,178 +2270,112 @@ export class Game<T extends M = {}> {
     }
   }
 
-  /** Whether the preview's beat is running ahead of its display. */
-  get peeking(): boolean {
-    return this._peeking;
+  /** Whether a preview's beat is running with its flush held back, to be
+   *  displayed once the pictures it shows are resident. */
+  get holdingFlush(): boolean {
+    return this._holdingFlush;
   }
 
   /**
-   * Run the preview's beat now and keep what it flushes for the preview to
-   * display, so the assets it shows can be waited for before anything is
-   * written: the beat is stepped exactly as `preview()` steps it, with the
-   * coordinator that would display it held back, and `preview()` then
-   * displays the kept instructions instead of running the beat again. The
-   * beat runs once, so whatever it does (a variable it changes, an error it
-   * raises, a scene it enters) happens once. What displays together is the
-   * story's decision as it runs (a conditional, a divert, a `[[hide]]`, a
-   * line of dialogue, a beat that spills into the next scene), so nothing
-   * read off the source can say it; the beat itself can.
+   * Preview the beat at a point in the script: run the story to the beat's
+   * flush the way play does, hold back the coordinator that would display
+   * it, wait until the pictures the beat shows are resident, then display
+   * it, so its line and its portrait land together. What displays together
+   * is the story's decision as it runs (a conditional, a divert, a
+   * `[[hide]]`, a line of dialogue, a beat that spills into the next scene),
+   * so nothing read off the source can say it; the beat itself can. A beat
+   * with no picture to wait for displays at once, and so does one whose
+   * pictures are already resident; the wait is bounded by the restore
+   * timeout, after which the beat displays anyway. The layouts' bindings
+   * refresh when the beat displays, as they do in play, so nothing the beat
+   * changed shows before its line does.
    *
-   * What the run tells the page (an error it raises) is kept with it and
-   * told when it displays, so the page hears about the beat when it is
-   * shown, as it would of a beat the preview ran itself.
-   *
-   * The beat runs only for a point the page marked since the last preview
-   * ({@link markPreviewing}); a connect with no fresh mark runs nothing, and
-   * a run kept by an earlier connect stays kept for the preview. Nothing
-   * runs for a path the program does not know (a remembered preview point
-   * the last edit removed) or a path inside a function, which a preview
-   * cannot start in. Nothing is kept of a run that throws or stops short of
-   * its flush (at a breakpoint inside the beat, or as a runaway): the
-   * preview runs the beat itself and meets the same stop, or throws the
-   * same error, after the game is connected. A stopped run leaves the story
-   * part-way through a line, which nothing may evaluate, so its game is put
-   * back first: from the save taken before a run that continued from a
-   * loaded checkpoint (the same save puts it back should the preview turn
-   * out to be for another path), else by rewinding the story, which the
-   * preview's own jump does anyway. Returns the instructions, or null when
-   * the run displayed nothing.
+   * A run that stops short of its flush (at a breakpoint inside the beat,
+   * or as a runaway) displays nothing, as it does in play. A preview that
+   * starts while another is waiting takes over: the earlier one displays
+   * nothing when its wait ends. Resolves to the path previewed, or null
+   * when the point resolves to none.
    */
-  peekPreviewInstructions(): Instructions | null {
-    const previewPath = this._previewMark;
-    this._previewMark = null;
+  async preview(file: string, line: number): Promise<string | null> {
+    if (this._state === "running") {
+      // Don't preview while running
+      return null;
+    }
+    const previewPath = findClosestPath(
+      { file, line },
+      this._pathLocationEntries,
+      this._scripts,
+    );
     if (!previewPath) {
+      // A pure UI-only project (e.g. a `layout` with only reactive `{bindings}`)
+      // has no narrative path to preview: every path-located flow is a synthetic
+      // `__binding_*` evaluator, and those are excluded from preview candidates.
+      // Its layouts were still mounted at connect, but nothing reveals the
+      // layouts LAYER in this case — no content beat runs, so neither the
+      // per-beat Coordinator reveal nor the UI-only `continue()` fallback fires,
+      // and the layer stays at its mounted `opacity:0` (invisible). Reveal it
+      // here so previewing a UI-only screen actually shows it. Idempotent.
+      this.module.ui.reveal();
       return null;
     }
-    // A run kept by an earlier connect that nothing displayed: put its game
-    // back before running again, so this run starts where that one did, not
-    // where it stopped.
-    this.rewindPeek();
-    if (
-      this._state === "running" ||
-      !this._program.pathLocations?.[previewPath]
-    ) {
-      return null;
+    if (this._previewedPath === previewPath) {
+      return previewPath;
     }
-    const flow = SceneTracker.sceneOf(previewPath);
-    if (
-      flow &&
-      (this._program.sceneAssets?.[flow]?.kind === "function" ||
-        this._program.functionLocations?.[flow])
-    ) {
-      return null;
-    }
+    this._previewFrom = { file, line };
+    this._previewPath = previewPath;
+    this._executingPath = "";
+    this._executingLocation = [-1, -1, -1, -1, -1];
     if (this._simulation === "simulating") {
       this._simulation = "fail";
     }
-    let snapshot: string | null = null;
-    if (this._simulation === "success") {
-      snapshot = this.save();
-      if (!snapshot.includes('"story":"{')) {
-        // The story could not be saved: with nothing to put back, the
-        // preview runs the beat itself.
-        return null;
-      }
-    }
-    const lastHitBreakpoint = this._lastHitBreakpointLocation;
-    this._peeking = true;
-    this._peekNotices = [];
-    let flushed: { instructions: Instructions | null } | null = null;
-    let executed: GameExecutedParams | null = null;
+    this._context.system.previewing = previewPath;
+    this._previewedPath = previewPath;
+    this._context.system.simulating = undefined;
+    const generation = ++this._previewGeneration;
+    this._holdingFlush = true;
+    let held: { instructions: Instructions | null } | null = null;
     try {
-      this._executingPath = "";
-      this._executingLocation = [-1, -1, -1, -1, -1];
-      this._context.system.simulating = undefined;
       this.observeScene(previewPath);
       this.runPreview(previewPath);
-      executed = this.executedParams();
-    } catch (e) {
-      this.log(e, "error");
     } finally {
-      this._peeking = false;
-      flushed = this._peeked;
-      this._peeked = null;
+      this._holdingFlush = false;
+      held = this._held;
+      this._held = null;
       this._coordinator = null;
     }
-    const notices = this._peekNotices;
-    this._peekNotices = [];
-    if (!flushed || !executed) {
-      // The put-back can refuse: an error thrown out of a story step leaves
-      // the runtime counting that step as still open, and it will not cancel
-      // a line from inside one. The connect must complete either way; the
-      // preview then runs the beat itself and meets the same error.
-      try {
-        if (snapshot) {
-          this.load(snapshot);
-          this.discardRuntimeSnapshot();
-        } else {
-          this.rewindStory();
+    if (held) {
+      const gate = this.module.assets.gatePreviewBeat(held.instructions);
+      if (gate) {
+        await gate.settled;
+        if (generation !== this._previewGeneration) {
+          gate.release();
+          return null;
         }
-      } catch (e) {
-        this.log(e, "error");
       }
-      // The preview's own run stops at the breakpoint this one stopped at.
-      this._lastHitBreakpointLocation = lastHitBreakpoint;
-      return null;
+      // The choices of the last preview leave with the beat that replaces
+      // them, not while its pictures load; a beat that continues from a
+      // loaded checkpoint keeps what the checkpoint shows.
+      if (this._simulation !== "success") {
+        this.clearChoices();
+      }
+      this.displayHeld(held.instructions);
+      gate?.release();
     }
-    this._peek = {
-      path: previewPath,
-      instructions: flushed.instructions,
-      snapshot,
-      notices,
-      executed,
-    };
-    return flushed.instructions;
+    // What the run executed, reported after what it displays, as `continue`
+    // reports it in play.
+    this.notifyExecuted();
+    for (const k of this._moduleNames) {
+      this._modules[k]?.onPreview();
+    }
+    this._coordinator = null;
+    this.notifyPreviewed(previewPath);
+    return previewPath;
   }
 
-  /** The beat run ahead for `path`, if there is one; a run for any other
-   *  path is dropped, and its game put back where the run found it. */
-  protected takePeek(path: string) {
-    const peek = this._peek;
-    if (peek && peek.path === path) {
-      this._peek = null;
-      return peek;
-    }
-    this.rewindPeek();
-    return null;
-  }
-
-  /** Drop a beat run ahead that nothing will display and put its game
-   *  back: from its save when it continued from a checkpoint, else by
-   *  resetting the story, as the branches that run without a save reset it
-   *  before they run, so the story is not left a beat past a point nothing
-   *  displayed. */
-  protected rewindPeek() {
-    const peek = this._peek;
-    this._peek = null;
-    if (!peek) {
-      return;
-    }
-    if (peek.snapshot) {
-      this.load(peek.snapshot);
-      this.discardRuntimeSnapshot();
-    } else {
-      this.rewindStory();
-    }
-  }
-
-  /** Drop a beat run ahead that nothing will display: the game is being
-   *  reset, reloaded, given another program, or destroyed, each of which
-   *  replaces or ends the state the run left. */
-  protected discardPeek() {
-    this._peek = null;
-  }
-
-  /** Display a beat that ran ahead, telling the page what the run told it
-   *  and then doing what the run's flush would have done in
-   *  `stepWithinBudget`: the coordinator, the interaction notice, the
-   *  checkpoint, the reveal of a run that displayed nothing, and, last as
-   *  in `continue`, the report of what the run executed. */
-  protected displayPeek(peek: PreviewRun) {
-    for (const notice of peek.notices) {
-      this.connection.emit(notice);
-    }
-    const instructions = peek.instructions;
+  /** Display a beat whose flush was held, doing what the flush would have
+   *  done in `stepWithinBudget`: the coordinator, the interaction notice,
+   *  the checkpoint, and the reveal of a run that displayed nothing. */
+  protected displayHeld(instructions: Instructions | null) {
     this._coordinator = null;
     if (instructions) {
       this._coordinator = new Coordinator(this, instructions);
@@ -2515,72 +2390,6 @@ export class Game<T extends M = {}> {
     if (!this._coordinator) {
       this.module.ui.reveal();
     }
-    this.notifyExecuted(peek.executed);
-  }
-
-  preview(file: string, line: number): string | null {
-    if (this._state === "running") {
-      // Don't preview while running
-      return null;
-    }
-    const previewPath = findClosestPath(
-      { file, line },
-      this._pathLocationEntries,
-      this._scripts,
-    );
-    // The preview is happening: a mark no connect consumed is spent.
-    this._previewMark = null;
-    if (!previewPath) {
-      // A pure UI-only project (e.g. a `layout` with only reactive `{bindings}`)
-      // has no narrative path to preview: every path-located flow is a synthetic
-      // `__binding_*` evaluator, and those are excluded from preview candidates.
-      // Its layouts were still mounted at connect, but nothing reveals the
-      // layouts LAYER in this case — no content beat runs, so neither the
-      // per-beat Coordinator reveal nor the UI-only `continue()` fallback fires,
-      // and the layer stays at its mounted `opacity:0` (invisible). Reveal it
-      // here so previewing a UI-only screen actually shows it. Idempotent.
-      // A beat that ran ahead for a point this preview cannot resolve (the
-      // point's script was renamed or its line deleted since the mark) is
-      // dropped and its game put back, as for any other path.
-      this.rewindPeek();
-      this.module.ui.reveal();
-      return null;
-    }
-    // The beat may have run ahead at connect (`peekPreviewInstructions`), in
-    // which case its run already did what the lines below do, scene
-    // observation included, and the instructions it flushed are displayed
-    // instead of running it again. A kept run is taken before the memo
-    // below, so it is displayed or dropped, never stranded.
-    const peek = this.takePeek(previewPath);
-    if (!peek && this._previewedPath === previewPath) {
-      return previewPath;
-    }
-    this._previewFrom = { file, line };
-    this._previewPath = previewPath;
-    if (!peek) {
-      this._executingPath = "";
-      this._executingLocation = [-1, -1, -1, -1, -1];
-    }
-    if (this._simulation === "simulating") {
-      this._simulation = "fail";
-    }
-    this._context.system.previewing = previewPath;
-    this._previewedPath = previewPath;
-    this._context.system.simulating = undefined;
-    if (peek) {
-      this.displayPeek(peek);
-    } else {
-      this.observeScene(previewPath);
-      this.runPreview(previewPath);
-    }
-    for (const k of this._moduleNames) {
-      this._modules[k]?.onPreview();
-    }
-    this._coordinator = null;
-    if (previewPath) {
-      this.notifyPreviewed(previewPath);
-    }
-    return previewPath;
   }
 
   getLastExecutedDocumentLocation() {

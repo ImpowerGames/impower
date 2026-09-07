@@ -1678,12 +1678,15 @@ export class GamePlayerController {
     }
 
     if (validPreviewFrom) {
-      this._game.preview(validPreviewFrom.file, validPreviewFrom.line);
+      // The preview waits for the beat's pictures before it writes the
+      // beat, so the sweep below waits for the preview: a write that landed
+      // after the sweep would be swept with the elements that disappeared.
+      await this._game.preview(validPreviewFrom.file, validPreviewFrom.line);
     }
 
-    // DOM reconcile tail: the full create/write stream for this preview point has
-    // now been dispatched (synchronously through here), so sweep whatever wasn't
-    // re-emitted — elements that disappeared since the last edit.
+    // DOM reconcile tail: the full create/write stream for this preview point
+    // has now been dispatched, so sweep whatever wasn't re-emitted — elements
+    // that disappeared since the last edit.
     this._app?.ui.sweepReconcile();
   };
 }

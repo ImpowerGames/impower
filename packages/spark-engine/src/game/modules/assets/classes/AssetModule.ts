@@ -69,6 +69,9 @@ export class AssetModule extends Module<
   /** Whether the restore gate's pin is held. */
   protected _restorePending = false;
 
+  /** Counts the preview gates issued, to give each its own pin. */
+  protected _previewGates = 0;
+
   /** Font names per layout, resolved once per program: the walk over a
    *  layout's tree and styles is repeated for every predicted beat otherwise. */
   protected _fontNamesByLayout = new Map<string, string[]>();
@@ -510,9 +513,10 @@ export class AssetModule extends Module<
    * parses them, before the line's gate runs.
    */
   notice(kind: "image" | "audio", names: string[]): void {
-    // A beat running ahead of its display is about to be gated on exactly
-    // these; a prefetch now would start them in a background slot first.
-    if (this.silent || this._game.peeking || names.length === 0) {
+    // A preview's beat running with its flush held is about to be gated on
+    // exactly these; a prefetch now would start them in a background slot
+    // first.
+    if (this.silent || this._game.holdingFlush || names.length === 0) {
       return;
     }
     if (kind === "image") {
@@ -867,39 +871,13 @@ export class AssetModule extends Module<
         (item) => this.timed || item.kind !== "video",
       );
     this._restorePending = true;
-    const waits: Promise<unknown>[] = [];
-    // The checkpoint's own pictures first, so their loads are under way
-    // while the beat runs.
-    waits.push(
-      this.ensureResident(
-        gate(names),
-        0,
-        "restore",
-        this.config.restore_timeout,
-        "restore",
-      ),
+    await this.ensureResident(
+      gate(names),
+      0,
+      "restore",
+      this.config.restore_timeout,
+      "restore",
     );
-    // A preview writes the beat at the cursor the moment it is connected,
-    // with no clock to wait on, so that beat's images are part of the same
-    // gate: the line and its portrait land together, and behind a burst of
-    // background loads the portrait still takes the express lane. The beat
-    // runs now to learn them, and the preview displays that run: what it
-    // writes is the story's decision, not the source's.
-    if (typeof this.context.system.previewing === "string") {
-      const beat = this._game.peekPreviewInstructions();
-      if (beat) {
-        waits.push(
-          this.ensureResident(
-            gate(this.imageNamesOf(beat)),
-            0,
-            "restore",
-            this.config.restore_timeout,
-            "restore",
-          ),
-        );
-      }
-    }
-    await Promise.all(waits);
   }
 
   override async onRestore(): Promise<void> {
@@ -907,6 +885,51 @@ export class AssetModule extends Module<
       this._restorePending = false;
       this.release(["restore"], false);
     }
+  }
+
+  /**
+   * The preview's gate: the pictures the beat under the cursor shows, once
+   * the preview has run it and holds what it flushed. A preview has no clock
+   * to wait on, so the preview awaits this before it writes the beat, and
+   * the line and its portrait land together; behind a burst of background
+   * loads the portrait still takes the express lane. Returns null when
+   * there is nothing to wait for, so a beat with no picture displays at
+   * once; otherwise a gate whose `settled` is bounded by `restore_timeout`,
+   * after which the beat displays anyway, and whose `release` lets the
+   * pictures go once the beat is written. Each gate holds a pin of its own
+   * (`preview:<n>`), so a preview that another takes over while it waits
+   * releases only what it asked for.
+   */
+  gatePreviewBeat(
+    instructions: Instructions | null,
+  ): { settled: Promise<unknown>; release: () => void } | null {
+    if (this.silent || !instructions) {
+      return null;
+    }
+    const items = this.resolveImageItems(this.imageNamesOf(instructions)).filter(
+      (item) => this.timed || item.kind !== "video",
+    );
+    if (items.length === 0) {
+      return null;
+    }
+    this._previewGates += 1;
+    const pin = `preview:${this._previewGates}`;
+    let released = false;
+    return {
+      settled: this.ensureResident(
+        items,
+        0,
+        pin,
+        this.config.restore_timeout,
+        "preview",
+      ),
+      release: () => {
+        if (!released) {
+          released = true;
+          this.release([pin], false);
+        }
+      },
+    };
   }
 
   override onEnterScene(

@@ -50,8 +50,11 @@ export interface UIHarness {
   ready: Promise<void>;
   /** Clear the captured-message buffer (e.g. after preview screen setup). */
   reset(): void;
-  /** Build the screen tree + reveal at a path (the real instant preview). */
-  preview(line?: number): void;
+  /** Build the screen tree + reveal at a path (the real preview). A beat
+   *  with pictures displays once the page answers the preview's gate, so
+   *  await the result before reading what such a beat wrote; a beat with
+   *  none displays before this returns. */
+  preview(line?: number): Promise<string | null>;
   /** Reset the story to a path so subsequent `nextBeat()` calls start there.
    *  (The screen tree is already built by `connect()`'s onConnected.) */
   jumpTo(path: string): void;
@@ -313,7 +316,7 @@ export function createHarness(
       messages.length = 0;
     },
     preview(line = startLine) {
-      game.preview(MAIN_URI, line);
+      return game.preview(MAIN_URI, line);
     },
     jumpTo(path: string) {
       (game as any).jumpToPath(path);
