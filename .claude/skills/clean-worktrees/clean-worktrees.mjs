@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 // Removes the worktrees whose work is already on origin/main and keeps every
 // other one, printing the reason for each. Run from the main checkout; a dry
-// run is the default:
+// run is the default, and --apply names the checkout it is to act on:
 //
-//   node .claude/skills/clean-worktrees/clean-worktrees.mjs           # classify, remove nothing
-//   node .claude/skills/clean-worktrees/clean-worktrees.mjs --apply   # remove the removable ones
+//   node .claude/skills/clean-worktrees/clean-worktrees.mjs                        # classify, remove nothing
+//   node .claude/skills/clean-worktrees/clean-worktrees.mjs --apply --root <main>  # remove the removable ones
 //
 // Git never removes a worktree on its own: merging a pull request and deleting
 // its branch on GitHub deletes the remote copy only, and the directory under
@@ -19,20 +19,30 @@
 // git no longer sees as a worktree or whose directory is gone, a detached or
 // unborn head, uncommitted changes, commits on neither origin/main nor the
 // branch's remote, commits on the remote that are not on origin/main, a
-// branch that has not moved since it was created (a fresh worktree a session
-// may be working in; the branch's reflog says whether commits were made in
-// it), dev servers that the worktree's own driver reports up or launching,
-// a running process whose command line names the directory, and a worktree
-// git cannot answer for. Directories under the worktrees root that are not
-// worktrees are listed too, so a tree an interrupted removal left behind is
-// never out of sight.
+// branch with no commit made on it (a fresh worktree a session may be working
+// in: its tip sits on origin/main's first-parent line, where a merged
+// branch's tip never does, or its reflog shows it created at its tip with no
+// commit since), dev servers that the worktree's own driver reports up or
+// launching, a running process whose command line names the directory, and a
+// worktree git cannot answer for. Directories under the worktrees root that
+// are not worktrees are listed too, so a tree an interrupted removal left
+// behind is never out of sight.
 //
-// Removal is `git worktree remove`, which on Windows deletes what it can and
-// then fails when a process holds a directory inside the tree; so before it
-// runs, the tree is re-verified (still clean, still no commits of its own)
-// and the directory is renamed and renamed back, which the system refuses
-// while any process has its current directory inside. When git still stops
-// part-way, the row says what is left and where. The branch goes with -D
+// --apply must be given --root with the main checkout's path, and refuses
+// when that is not the checkout the current directory belongs to, so the
+// repository acted on always comes from the command line. Every row of an
+// --apply run is appended to .git/clean-worktrees.log in the main checkout as
+// it is decided, so a run that is killed leaves its record, and a later run
+// reads that record to say which branch a failed removal left behind.
+//
+// Removal is `git worktree remove`, which deletes a tree's entries in
+// directory order, stops at the first it cannot delete, and drops its own
+// record whatever it managed; so before it runs, the tree is re-verified
+// (still clean, still on its branch, still no commits of its own) and the
+// directory is renamed and renamed back, which Windows refuses while any
+// process has a file open or its current directory inside it. When git still
+// stops part-way, the directory is no longer a worktree, the rest of it goes
+// directly, and a row says what is left and where. The branch goes with -D
 // after that re-verification, and an empty type directory goes with it.
 //
 // Everything that touches the system goes through `deps` (git, the drivers
@@ -114,9 +124,12 @@ function listProcesses(exec) {
   return { ok: true, list };
 }
 
+export const LOG_NAME = "clean-worktrees.log";
+
 export const liveDeps = {
   cwd: () => process.cwd(),
   pid: () => process.pid,
+  now: () => new Date().toISOString(),
   // `exec` runs git, the worktree drivers and the process listing; `out` and
   // `err` are trimmed, and a command that could not start reports its error as
   // `err` with a null status.
@@ -150,7 +163,26 @@ export const liveDeps = {
     }
   },
   pidAlive,
-  log: (...a) => console.log(...a),
+  // The record of every --apply run, one JSON object per line, in the main
+  // checkout's .git so it is never committed.
+  readLog: (p) => {
+    try {
+      return fs.readFileSync(p, "utf8");
+    } catch {
+      return "";
+    }
+  },
+  appendLog: (p, line) => fs.appendFileSync(p, `${line}\n`),
+  // Rows print through a synchronous write so each is on the screen before
+  // the next removal starts, whatever stdout is connected to.
+  log: (...a) => {
+    const line = `${a.join(" ")}\n`;
+    try {
+      fs.writeSync(1, line);
+    } catch {
+      process.stdout.write(line);
+    }
+  },
 };
 
 class Refusal extends Error {}
@@ -226,18 +258,19 @@ export function classify(entry, facts) {
   if (facts.unborn) keep.push("unborn branch with no commits; left for a person");
   const remote = `origin/${entry.branch}`;
   if (entry.branch && !facts.isMain && !entry.prunable && !facts.missing && !facts.unborn) {
+    const remoteState = facts.remoteExists ? `${remote} exists` : `no ${remote}`;
     if (facts.dirty > 0) keep.push(`uncommitted changes (${n(facts.dirty, "file")})`);
     if (facts.unpushed > 0) keep.push(facts.remoteExists ? `${n(facts.unpushed, "commit")} on neither origin/main nor ${remote}` : `${n(facts.unpushed, "commit")} not on origin/main, and no ${remote} holds them`);
     else if (facts.ownCommits > 0) keep.push(`${n(facts.ownCommits, "commit")} not on origin/main (all on ${remote}; a pull request may be open)`);
     else if (facts.remoteAhead > 0) keep.push(`${remote} has ${n(facts.remoteAhead, "commit")} not on origin/main and this branch is behind it; a pull request may be open`);
-    else if (facts.moved === null) keep.push("the branch has no reflog, so whether commits were made in it cannot be told; left for a person");
-    else if (!facts.moved) keep.push(`the branch has not moved since it was created (${facts.remoteExists ? `${remote} exists` : `no ${remote}`}); a fresh worktree a session may be working in, so remove it by hand when it is done`);
+    else if (!facts.committed && facts.onFirstParent) keep.push(`no commit was made on the branch: its tip is on origin/main's first-parent line and its reflog records none (${remoteState}); a fresh worktree a session may be working in, so remove it by hand when it is done`);
+    else if (!facts.committed && facts.createdAtTip) keep.push(`no commit was made on the branch: its reflog shows it created at its tip and nothing since (${remoteState}); a fresh worktree a session may be working in, so remove it by hand when it is done`);
     const s = facts.servers;
     if (s.state === "up") keep.push(`dev servers up at ${s.url} (pid ${s.pid})`);
     else if (s.state === "launching") keep.push(`dev servers launching (pid ${s.pid} alive, ${s.url} not answering); the worktree's driver \`down\` settles it`);
     else if (s.state === "unknown") keep.push(`its driver could not report its servers (${s.detail})`);
     if (facts.users === null) keep.push("the processes on this machine could not be listed, so whether one is using it is unknown");
-    else if (facts.users.length) keep.push(`in use by ${listSome(facts.users.map((p) => `pid ${p.pid} (${p.name})`), 2)}`);
+    else if (facts.users.length) keep.push(`its path is on the command line of ${listSome(facts.users.map((p) => `pid ${p.pid} (${p.name})`), 2)}`);
   }
   if (keep.length) return { remove: false, reasons: keep };
   const ignored = facts.ignored.length ? `; takes ${n(facts.ignored.length, "ignored path")} with it (${listSome(facts.ignored, 3)})` : "";
@@ -270,6 +303,23 @@ function statusOf(worktree, deps) {
   return { dirty: lines.filter((l) => !l.startsWith("!!")).length, ignored: lines.filter((l) => l.startsWith("!!")).map((l) => l.slice(3)) };
 }
 
+// The branch's reflog as git keeps it (newest first, entries expire after
+// ninety days by default), read for what was done on the branch: a `commit`
+// or `cherry-pick` entry is a commit made here, and a `branch: Created from`
+// entry still at the tip is a branch nothing has moved since it was made.
+// A fast-forward, a rebase onto origin/main with nothing to replay, a pull
+// or a reset moves the tip without either.
+export function readReflog(text, head) {
+  const entries = text.split(/\r?\n/).filter(Boolean).map((l) => {
+    const tab = l.indexOf("\t");
+    return { sha: tab < 0 ? l : l.slice(0, tab), msg: tab < 0 ? "" : l.slice(tab + 1) };
+  });
+  return {
+    committed: entries.some((e) => /^(commit|cherry-pick)\b/.test(e.msg)),
+    createdAtTip: entries.some((e) => e.sha === head && /^branch: Created from/.test(e.msg)),
+  };
+}
+
 function gatherFacts(entry, ctx, deps) {
   const abs = path.resolve(entry.path);
   const facts = {
@@ -284,7 +334,9 @@ function gatherFacts(entry, ctx, deps) {
     unpushed: 0,
     remoteExists: false,
     remoteAhead: 0,
-    moved: false,
+    onFirstParent: false,
+    committed: false,
+    createdAtTip: false,
     servers: { state: "none" },
     users: [],
   };
@@ -298,11 +350,9 @@ function gatherFacts(entry, ctx, deps) {
     ? Number(gitOrDie(deps, ["rev-list", "--count", ref, "^refs/remotes/origin/main", `^${remoteRef}`], ctx.mainRoot))
     : facts.ownCommits;
   facts.remoteAhead = facts.remoteExists ? Number(gitOrDie(deps, ["rev-list", "--count", remoteRef, "^refs/remotes/origin/main"], ctx.mainRoot)) : 0;
-  // The branch's reflog: every entry still at the tip means nothing has been
-  // committed, reset or pulled on it since it was created.
-  const reflog = deps.exec("git", ["reflog", "show", "--format=%H", ref], ctx.mainRoot);
-  const entries = reflog.status === 0 ? reflog.out.split(/\s+/).filter(Boolean) : [];
-  facts.moved = entries.length === 0 ? null : entries.some((h) => h !== entry.head);
+  facts.onFirstParent = ctx.firstParent.has(entry.head);
+  const reflog = deps.exec("git", ["reflog", "show", "--format=%H%x09%gs", ref], ctx.mainRoot);
+  Object.assign(facts, readReflog(reflog.status === 0 ? reflog.out : "", entry.head));
   facts.servers = probeServers(abs, deps);
   facts.users = ctx.processes.ok ? usersOf(abs, ctx.processes.list, deps.pid()) : null;
   return facts;
@@ -331,6 +381,40 @@ export function strayDirs(entries, root, listDirs) {
   return strays;
 }
 
+const PROBE_SUFFIX = ".removing";
+
+// Why a stray directory is there, from its name and from the log of earlier
+// --apply runs: the probe's leftover names the worktree it was renamed from,
+// and a failed removal names the branch it left behind.
+export function strayReason(p, entries, log, deps, ctx) {
+  const rel = (q) => path.relative(path.dirname(ctx.mainRoot), q);
+  const base = p.endsWith(PROBE_SUFFIX) ? p.slice(0, -PROBE_SUFFIX.length) : null;
+  if (base && entries.some((e) => samePath(e.path, base))) {
+    return deps.exists(base)
+      ? `not a registered worktree, named like the probe of ${rel(base)}, which is registered and present; check it before deleting it by hand`
+      : `the worktree ${rel(base)}, renamed by an interrupted run's probe and not renamed back; rename it back by hand`;
+  }
+  const record = readLogRows(log).findLast((r) => r.decision === "failed" && r.path && [p, base].some((q) => q && samePath(r.path, q)));
+  if (record) {
+    const branchStays = record.branch && deps.exec("git", ["rev-parse", "--verify", "-q", `refs/heads/${record.branch}`], ctx.mainRoot).status === 0;
+    return `not a registered worktree; the --apply run at ${record.at} failed to remove it (${record.why})${branchStays ? `; its branch ${record.branch} is still local` : ""}`;
+  }
+  return "not a registered worktree, which is what an interrupted removal or add leaves behind; delete it by hand after checking it";
+}
+
+export function readLogRows(text) {
+  const rows = [];
+  for (const line of text.split(/\r?\n/)) {
+    if (!line.trim()) continue;
+    try {
+      rows.push(JSON.parse(line));
+    } catch {
+      /* a line the log did not write whole */
+    }
+  }
+  return rows;
+}
+
 export function formatBytes(bytes) {
   if (bytes == null) return "";
   const units = ["B", "KB", "MB", "GB", "TB"];
@@ -347,16 +431,19 @@ export function formatBytes(bytes) {
 
 // Removes one worktree and reports what happened: `removed`, `kept` when a
 // re-check refused before anything was touched, or `failed` with the
-// directory's state in the note. The rename probe is the check git lacks: the
-// system refuses to rename a directory any process has its current directory
-// in, and refuses without touching a file, where `git worktree remove` deletes
-// the tracked files and the .git link before it finds the held directory. The
-// branch is deleted with -D only after the same commit count that justified
-// the removal is read again, so -D never deletes work committed since the
+// directory's state in the note. The rename probe is the check git lacks on
+// Windows: the system refuses to rename a directory while any process has a
+// file open or its current directory inside it, and refuses without touching
+// a file, where `git worktree remove` deletes what sorts before the held
+// entry and drops its record before it reports the failure. The branch is
+// deleted with -D only after the same commit count that justified the
+// removal is read again, so -D never deletes work committed since the
 // classification. The direct directory removal is the one destructive call
 // here that git does not guard, so it is made only under the root and only
 // on a directory git has already stopped treating as a worktree.
-async function removeWorktree(entry, facts, ctx, deps) {
+const isRegistered = (abs, ctx, deps) => parseWorktreeList(deps.exec("git", ["worktree", "list", "--porcelain"], ctx.mainRoot).out).some((e) => samePath(e.path, abs));
+
+async function removeWorktree(entry, ctx, deps) {
   const abs = path.resolve(entry.path);
   const kept = (note) => ({ outcome: "kept", note, remaining: null });
   const failed = (note, remaining) => ({ outcome: "failed", note, remaining });
@@ -366,13 +453,16 @@ async function removeWorktree(entry, facts, ctx, deps) {
   const dirty = st.out.split(/\r?\n/).filter(Boolean).length;
   if (dirty > 0) return kept(`changed since it was classified: uncommitted changes (${n(dirty, "file")}); the tree is untouched`);
   const ref = `refs/heads/${entry.branch}`;
+  const head = deps.exec("git", ["symbolic-ref", "-q", "HEAD"], abs);
+  if (head.status !== 0 || head.out !== ref) return kept(`changed since it was classified: ${head.status === 0 && head.out ? `now on ${head.out.replace(/^refs\/heads\//, "")}` : "detached head"}; the tree is untouched`);
   const own = deps.exec("git", ["rev-list", "--count", ref, "^refs/remotes/origin/main"], ctx.mainRoot);
   if (own.status !== 0 || Number(own.out) > 0) return kept(`changed since it was classified: ${own.status === 0 ? `${n(Number(own.out), "commit")} not on origin/main` : own.err || own.out}; the tree is untouched`);
-  const probe = `${abs}.removing`;
+  const probe = `${abs}${PROBE_SUFFIX}`;
+  if (deps.exists(probe)) return kept(`${probe} already exists, which is what an interrupted run leaves beside a worktree; check it and rename it back or delete it by hand, then run again`);
   try {
     deps.rename(abs, probe);
   } catch (err) {
-    return kept(`a process holds the directory (rename refused: ${err.code ?? err.message}); stop it and run again`);
+    return kept(`the directory could not be renamed (${err.code ?? err.message}), which on Windows happens while a process has a file open or its current directory inside it; no process names the path, so find what has a file open in it (an editor, an indexer, a shell) and run again`);
   }
   try {
     deps.rename(probe, abs);
@@ -384,13 +474,15 @@ async function removeWorktree(entry, facts, ctx, deps) {
   if (rm.status !== 0) {
     const gitErr = rm.err || rm.out;
     if (!deps.exists(abs)) notes.push(`git worktree remove reported an error but the directory is gone (${gitErr})`);
-    else if (deps.exists(path.join(abs, ".git"))) {
-      const after = deps.exec("git", ["status", "--porcelain"], abs);
-      if (after.status === 0 && after.out === "") return kept(`git worktree remove refused and touched nothing (${gitErr})`);
-      return failed(`git worktree remove stopped part-way (${gitErr}); the tree is still a worktree with ${n(after.out.split(/\r?\n/).filter(Boolean).length, "path")} deleted or changed, and \`git checkout -- .\` in it restores the tracked files; stop what holds it and run again`, await deps.dirSize(abs));
+    else if (isRegistered(abs, ctx, deps)) {
+      // Git checks the lock, the submodules and the tree's changes before it
+      // deletes anything and drops its record whatever the deletion managed,
+      // so a record still there means a refusal that touched nothing.
+      return kept(`git worktree remove refused (${gitErr}); the tree is untouched`);
     } else {
-      // Git deleted the tracked files and the .git link, then stopped: the
-      // directory is no longer a worktree, so the rest goes directly.
+      // Git deleted the directory's entries in order until one it could not
+      // delete, then dropped its record: the directory is no longer a
+      // worktree, whatever is left in it, so the rest goes directly.
       try {
         deps.removeDir(abs);
       } catch {
@@ -398,13 +490,13 @@ async function removeWorktree(entry, facts, ctx, deps) {
       }
       if (deps.exists(abs)) {
         const remaining = await deps.dirSize(abs);
-        return failed(`git worktree remove deleted the tracked files and the .git link, then stopped (${gitErr}); ${formatBytes(remaining)} remain at ${abs}, which is no longer a worktree, so delete the directory by hand once nothing holds it; the branch ${entry.branch} stays until then`, remaining);
+        return failed(`git worktree remove stopped part-way (${gitErr}) and dropped its record, so ${abs} is no longer a worktree; ${formatBytes(remaining)} remain there; delete the directory by hand once nothing holds it, then \`git branch -D ${entry.branch}\`; the branch stays until then`, remaining);
       }
-      notes.push(`git worktree remove stopped part-way (${gitErr}); the rest of the directory was removed directly`);
+      notes.push(`git worktree remove stopped part-way (${gitErr}) and dropped its record; the rest of the directory was removed directly`);
     }
-    // Git drops the record itself when it deletes the .git link; when the
+    // Git drops the record itself when it fails past its checks; when the
     // record is still there, removing the now-missing path drops it.
-    if (parseWorktreeList(deps.exec("git", ["worktree", "list", "--porcelain"], ctx.mainRoot).out).some((e) => samePath(e.path, abs))) {
+    if (isRegistered(abs, ctx, deps)) {
       const again = deps.exec("git", ["worktree", "remove", abs], ctx.mainRoot);
       if (again.status !== 0) notes.push(`its record could not be dropped (${again.err || again.out}); \`git worktree prune\` drops it`);
     }
@@ -439,12 +531,24 @@ function rowPrinter(rows, ctx, log) {
   return (r) => log([r.decision, rel(r.entry.path), branchCell(r), formatBytes(r.size)].map((v, i) => v.padEnd(widths[i])).concat(r.why).join("  ").trimEnd());
 }
 
+export function parseArgs(argv) {
+  const opts = { apply: false, root: null };
+  for (let i = 0; i < argv.length; i++) {
+    const a = argv[i];
+    if (a === "--apply") opts.apply = true;
+    else if (a === "--root" || a.startsWith("--root=")) {
+      opts.root = a === "--root" ? argv[++i] : a.slice("--root=".length);
+      if (!opts.root) die("--root needs the path of the main checkout after it");
+    } else die(`unknown option ${a}; the options are --apply and --root <path>`);
+  }
+  if (opts.apply && !opts.root) die("--apply needs --root <path>, the main checkout it is to act on, so the repository comes from the command line and never from the current directory alone; the dry run needs no --root");
+  return opts;
+}
+
 // Runs the command and returns its exit code: 1 when a removal failed, and a
 // refusal to run at all is thrown before anything is touched.
 export async function main(argv, deps = liveDeps) {
-  const apply = argv.includes("--apply");
-  const unknown = argv.find((a) => a !== "--apply");
-  if (unknown) die(`unknown option ${unknown}; the only option is --apply`);
+  const { apply, root: namedRoot } = parseArgs(argv);
   const log = deps.log;
 
   const cwd = deps.cwd();
@@ -456,15 +560,29 @@ export async function main(argv, deps = liveDeps) {
   if (mainEntry.bare) die("the first worktree is bare; run from the main checkout");
   if (!samePath(top.out, mainEntry.path)) die(`run from the main checkout, ${mainEntry.path}; this is the worktree ${top.out}`);
   const mainRoot = path.resolve(mainEntry.path);
+  if (namedRoot && !samePath(namedRoot, mainRoot)) die(`--root ${namedRoot} is not the main checkout the current directory belongs to, ${mainRoot}; nothing was touched`);
   const ctx = {
     mainRoot,
     root: path.join(path.dirname(mainRoot), `${path.basename(mainRoot)}.worktrees`),
+    firstParent: new Set(),
     processes: { ok: false, err: "not listed" },
+  };
+  const logPath = path.join(mainRoot, ".git", LOG_NAME);
+  const record = (obj) => {
+    if (!apply) return;
+    try {
+      deps.appendLog(logPath, JSON.stringify({ at: deps.now(), ...obj }));
+    } catch (err) {
+      if (!ctx.logFailed) log(`the run is not being recorded in ${logPath} (${err.code ?? err.message})`);
+      ctx.logFailed = true;
+    }
   };
 
   log("fetching origin with --prune ...");
   gitOrDie(deps, ["fetch", "--prune", "origin"], mainRoot);
+  ctx.firstParent = new Set(gitOrDie(deps, ["rev-list", "--first-parent", "refs/remotes/origin/main"], mainRoot).split(/\s+/).filter(Boolean));
   ctx.processes = deps.processes();
+  record({ run: argv.join(" "), main: mainRoot });
 
   // A worktree git cannot answer for is kept and said so, rather than
   // stopping the run for every other one.
@@ -479,23 +597,30 @@ export async function main(argv, deps = liveDeps) {
       if (!(err instanceof Refusal)) throw err;
       verdict = { remove: false, reasons: [`git could not judge it (${err.message}); left for a person`] };
     }
-    rows.push({ entry, facts, verdict, stray: false, sized: verdict.remove || Boolean(entry.prunable && facts && !facts.missing), size: null, decision: verdict.remove ? "remove" : "keep", why: verdict.reasons.join("; ") });
+    rows.push({ entry, verdict, stray: false, sized: verdict.remove || Boolean(entry.prunable && facts && !facts.missing), size: null, decision: verdict.remove ? "remove" : "keep", why: verdict.reasons.join("; ") });
   }
+  const earlier = deps.readLog(logPath);
   for (const p of strayDirs(entries, ctx.root, deps.listDirs)) {
-    rows.push({ entry: { path: p, branch: null, detached: false }, facts: null, verdict: { remove: false }, stray: true, sized: true, size: null, decision: "keep", why: "not a registered worktree, which is what an interrupted removal or add leaves behind; delete it by hand after checking it" });
+    rows.push({ entry: { path: p, branch: null, detached: false }, verdict: { remove: false }, stray: true, sized: true, size: null, decision: "keep", why: strayReason(p, entries, earlier, deps, ctx) });
   }
 
   const print = rowPrinter(rows, ctx, log);
   let freed = 0;
   let failed = 0;
-  // What went wrong with a row that threw, with the directory's state, so a
-  // throw part-way through the run costs one row and not the table.
-  const rowError = (row) => (err) => ({ outcome: row.verdict.remove && apply ? "failed" : row.decision, note: `${err.message}; the directory is ${deps.exists(path.resolve(row.entry.path)) ? "still there" : "gone"}`, remaining: null });
+  // A row whose sizing fails is not removed; a row whose removal throws is
+  // `failed` with the directory's state, so a throw part-way through the run
+  // costs one row and not the table.
+  const sizeError = (row) => (err) => {
+    row.sizeNote = `could not be sized (${err.message})`;
+    return null;
+  };
+  const rowError = (row) => (err) => ({ outcome: apply ? "failed" : row.decision, note: `${err.message}; the directory is ${deps.exists(path.resolve(row.entry.path)) ? "still there" : "gone"}`, remaining: null });
   const settle = async (row) => {
-    if (row.sized) row.size = await deps.dirSize(path.resolve(row.entry.path));
-    if (!apply) return null;
-    if (!row.verdict.remove) return { outcome: "kept", note: "" };
-    return removeWorktree(row.entry, row.facts, ctx, deps);
+    if (row.sized) row.size = await deps.dirSize(path.resolve(row.entry.path)).catch(sizeError(row));
+    if (!apply) return row.sizeNote ? { outcome: row.decision, note: row.sizeNote, remaining: null } : null;
+    if (!row.verdict.remove) return { outcome: "kept", note: row.sizeNote ?? "", remaining: null };
+    if (row.sizeNote) return { outcome: "kept", note: `${row.sizeNote}; the tree is untouched`, remaining: null };
+    return removeWorktree(row.entry, ctx, deps);
   };
   for (const row of rows) {
     const r = await settle(row).catch(rowError(row));
@@ -506,22 +631,28 @@ export async function main(argv, deps = liveDeps) {
       if (r.note) row.why = r.outcome === "removed" ? `${row.why}; ${r.note}` : `${r.note}; ${row.why}`;
     }
     print(row);
+    record({ decision: row.decision, path: path.resolve(row.entry.path), branch: row.entry.branch, why: row.why });
   }
 
   const worktrees = rows.filter((r) => !r.stray && r.entry !== mainEntry);
   const removable = worktrees.filter((r) => r.verdict.remove);
   const strays = rows.filter((r) => r.stray);
   const kept = worktrees.length - removable.length;
-  const strayNote = strays.length ? `; ${n(strays.length, "directory", "directories")} under the worktrees root ${strays.length === 1 ? "is" : "are"} not a worktree (${formatBytes(strays.reduce((s, r) => s + (r.size ?? 0), 0))})` : "";
+  const strayNote = strays.length ? `; ${n(strays.length, "directory", "directories")} under the worktrees root ${strays.length === 1 ? "is not a worktree" : "are not worktrees"} (${formatBytes(strays.reduce((s, r) => s + (r.size ?? 0), 0))})` : "";
+  const scanNote = ctx.processes.ok ? "" : `; the processes on this machine could not be listed (${ctx.processes.err}), which kept every worktree`;
   log("");
+  let summary;
   if (!apply) {
     const toFree = removable.reduce((sum, r) => sum + (r.size ?? 0), 0);
-    log(`${n(worktrees.length, "worktree")} besides the main checkout: ${removable.length} to remove (${formatBytes(toFree)}), ${kept} kept${strayNote}.`);
-    log(`Dry run; nothing was removed. Run again with --apply to remove the ${removable.length}.`);
+    summary = `${n(worktrees.length, "worktree")} besides the main checkout: ${removable.length} to remove (${formatBytes(toFree)}), ${kept} kept${strayNote}${scanNote}.`;
+    log(summary);
+    log(`Dry run; nothing was removed. Run again with --apply --root ${mainRoot} to remove the ${removable.length}.`);
   } else {
     const removed = removable.filter((r) => r.decision === "removed").length;
     const free = deps.freeSpace(mainRoot);
-    log(`Removed ${n(removed, "worktree")} and ${removed === 1 ? "its branch" : "their branches"}, freeing ${formatBytes(freed)}; ${n(removable.length - removed - failed + kept, "worktree")} kept${failed ? `; ${failed} failed (see the rows above for what is left)` : ""}${strayNote}.${free != null ? ` Free space now ${formatBytes(free)}.` : ""}`);
+    summary = `Removed ${n(removed, "worktree")} and ${removed === 1 ? "its branch" : "their branches"}, freeing ${formatBytes(freed)}; ${n(removable.length - removed - failed + kept, "worktree")} kept${failed ? `; ${failed} failed (see the rows above for what is left)` : ""}${strayNote}${scanNote}.${free != null ? ` Free space now ${formatBytes(free)}.` : ""}`;
+    log(summary);
+    record({ summary });
   }
   return failed ? 1 : 0;
 }
