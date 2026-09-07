@@ -15,19 +15,22 @@
 // removes. The dry run must remove nothing; `--apply` must be given the main
 // checkout as --root, must remove the merged clean ones only, delete their
 // branches and any type directory left empty, keep the held and the changed
-// ones untouched, report a gutted tree and a failed branch deletion as
-// `failed` with the directory's state, record every row in the log, and on
-// the next run list the leftover directory with the branch it stranded.
+// ones untouched, keep a tree holding a link that leads outside it, report a
+// gutted tree, a probe that could not be renamed back and a failed branch
+// deletion as `failed` with the directory's state, record every row in the
+// log, and on the next run list the leftover directory with the branch it
+// stranded and read a stranded branch's commits again before advising -D.
 // Controls run those same checks against copies of the script with one rule
 // cut out, and require them to fail naming the worktree that rule protects.
 // The real commands are pinned on a scratch repository with a held worktree,
 // one in use, a fresh one, one stacked on a merged tip, one fast-forwarded,
 // one fast-forwarded onto a branch merged later, one merged by fast-forward,
 // one merged with its reflog expired, one whose remote is ahead, one whose
-// removal git cannot finish, one removable, one dirty and one holding the
-// default branch, by running the script as a command. The held tree and the
-// part-way failure depend on Windows refusing a rename and a long path, so
-// those two are skipped elsewhere. Node's built-in assert only.
+// removal git cannot finish, one holding a junction to a directory outside
+// it, one removable, one dirty and one holding the default branch, by
+// running the script as a command. The held tree and the part-way failure
+// depend on Windows refusing a rename and a long path, so those two are
+// skipped elsewhere. Node's built-in assert only.
 
 import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
@@ -38,7 +41,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const SCRIPT = path.join(here, "clean-worktrees.mjs");
-const { classify, readReflog, parseArgs, serversFrom, usersOf, strayDirs, strayReason, unfinishedRemovals, readLogRows, parseWorktreeList, formatBytes, main, LOG_NAME } = await import(pathToFileURL(SCRIPT));
+const { classify, readReflog, parseArgs, serversFrom, usersOf, strayDirs, strayReason, unfinishedRemovals, strandedBranches, readLogRows, parseWorktreeList, formatBytes, scanTree, linkReason, main, LOG_NAME } = await import(pathToFileURL(SCRIPT));
 const WIN = process.platform === "win32";
 
 let failures = 0;
@@ -295,6 +298,64 @@ await check("strayReason names the probe's leftover and the branch a failed or i
   assert.equal(strayReason(at("fix"), entries, log, deps, ctx), `not a registered worktree; it holds ${rel(at("fix", "3-z"))}, which the --apply run at t1 failed to remove (git worktree remove stopped part-way (boom) and dropped its record); its branch fix/3-z is still local; and ${rel(at("fix", "4-w"))}, which the --apply run at t2 failed to remove (the directory was renamed)`);
 });
 
+await check("strandedBranches keys the log by branch, so a worktree recreated at a stranded branch's path does not hide it, and a row with no branch names none", () => {
+  const root = path.resolve("/repo/impower.worktrees");
+  const at = (...p) => path.join(root, ...p);
+  const log = [
+    JSON.stringify({ at: "t1", decision: "removing", path: at("fix", "3-z"), branch: "fix/3-z", why: "merged" }),
+    JSON.stringify({ at: "t1", decision: "failed", path: at("fix", "3-z"), branch: "fix/3-z", why: "stopped part-way" }),
+    JSON.stringify({ at: "t2", decision: "kept", path: at("fix", "3-z"), branch: "fix/3-z-again", why: "uncommitted changes (1 file)" }),
+    JSON.stringify({ at: "t3", decision: "removing", path: at("fix", "5-v"), branch: "fix/5-v", why: "merged" }),
+    JSON.stringify({ at: "t3", decision: "removed", path: at("fix", "5-v"), branch: "fix/5-v", why: "merged" }),
+    JSON.stringify({ at: "t4", decision: "removing", path: at("detached-6"), branch: null, why: "merged" }),
+    JSON.stringify({ at: "t5", decision: "removing", path: at("fix", "7-t"), branch: "fix/7-t", why: "merged" }),
+  ].join("\n");
+  assert.deepEqual(unfinishedRemovals(log).map((r) => `${r.decision} ${r.branch} ${r.at}`), ["removing null t4", "removing fix/7-t t5"]);
+  assert.deepEqual(strandedBranches(log).map((r) => `${r.decision} ${r.branch} ${r.at}`), ["failed fix/3-z t1", "removing fix/7-t t5"]);
+  assert.deepEqual(strandedBranches(""), []);
+});
+
+const LINK_ADVICE = "git worktree remove follows a junction and deletes what it points at, so remove the link itself by hand and run again";
+await check("linkReason names a link leading outside the tree, or a directory it could not read, and nothing for a tree whose links stay inside it", () => {
+  const dir = path.resolve("/repo/impower.worktrees/fix/1-x");
+  const at = (...p) => path.join(dir, ...p);
+  const scan = (links, unreadable = []) => ({ bytes: 0, links, unreadable });
+  assert.equal(linkReason(scan([{ link: at("node_modules", "impower-dev"), target: at("impower-dev") }, { link: at("self"), target: dir }]), dir), null);
+  assert.equal(linkReason(scan([]), dir), null);
+  const nm = path.resolve("/mnt/d/nm");
+  assert.equal(linkReason(scan([{ link: at("node_modules"), target: nm }]), dir), `1 link inside it points outside it (node_modules -> ${nm}); ${LINK_ADVICE}`);
+  for (const target of [path.dirname(dir), `${dir}-other`, path.resolve("/repo/impower")]) assert.ok(linkReason(scan([{ link: at("l"), target }]), dir), `a link to ${target} was read as inside ${dir}`);
+  const four = ["a", "b", "c", "d"].map((x) => ({ link: at("node_modules", x), target: path.resolve("/elsewhere", x) }));
+  assert.equal(linkReason(scan(four), dir), `4 links inside it point outside it (${four.slice(0, 3).map((l) => `${path.join("node_modules", path.basename(l.link))} -> ${l.target}`).join(", ")} and 1 more); ${LINK_ADVICE}`);
+  assert.equal(linkReason(scan([], [`${at("node_modules", "x")}: EPERM`]), dir), `1 directory or link inside it could not be read (${path.join("node_modules", "x")}: EPERM), so whether a link inside it points outside it cannot be told; left for a person`);
+  assert.equal(linkReason(scan([{ link: at("node_modules"), target: nm }], [`${at("y")}: EPERM`]), dir), `1 link inside it points outside it (node_modules -> ${nm}); ${LINK_ADVICE}`);
+});
+
+await check("scanTree reads the bytes under a directory, every link with its target, follows no link, and reports a directory it cannot read", async () => {
+  const d = fs.mkdtempSync(path.join(os.tmpdir(), "clean-worktrees-scan-"));
+  const tree = path.join(d, "tree");
+  try {
+    fs.mkdirSync(path.join(tree, "sub"), { recursive: true });
+    fs.mkdirSync(path.join(d, "outside"));
+    fs.writeFileSync(path.join(tree, "a.txt"), "12345");
+    fs.writeFileSync(path.join(tree, "sub", "b.txt"), "123");
+    fs.writeFileSync(path.join(d, "outside", "big.txt"), "x".repeat(1000));
+    fs.symlinkSync(path.join(d, "outside"), path.join(tree, "out-link"), WIN ? "junction" : "dir");
+    fs.symlinkSync(path.join(tree, "sub"), path.join(tree, "in-link"), WIN ? "junction" : "dir");
+    const s = await scanTree(tree);
+    assert.equal(s.bytes, 8, "a link's target was walked");
+    assert.deepEqual(s.links.map((l) => [path.relative(tree, l.link), l.target]).sort(), [["in-link", path.join(tree, "sub")], ["out-link", path.join(d, "outside")]]);
+    assert.deepEqual(s.unreadable, []);
+    assert.equal(linkReason(s, tree), `1 link inside it points outside it (out-link -> ${path.join(d, "outside")}); ${LINK_ADVICE}`);
+    const missing = await scanTree(path.join(d, "nowhere"));
+    assert.equal(missing.bytes, 0);
+    assert.equal(missing.unreadable.length, 1, "a directory that cannot be read was not reported");
+    assert.match(missing.unreadable[0], /nowhere: ENOENT/);
+  } finally {
+    fs.rmSync(d, { recursive: true, force: true });
+  }
+});
+
 await check("formatBytes picks the unit", () => {
   assert.equal(formatBytes(0), "0 B");
   assert.equal(formatBytes(1536), "1.5 KB");
@@ -319,8 +380,13 @@ await check("formatBytes picks the unit", () => {
 // `refusesLate` tree is one git refuses before deleting anything, keeping
 // its record; a `listFails` tree is one git refuses the same way while the
 // `git worktree list` that follows fails once, so whether the record
-// survived cannot be read. origin/main's first-parent line is m1, m2, m3;
-// every cN head is a merged branch's tip off that line.
+// survived cannot be read; a `renameBackFails` tree is one whose probe
+// rename succeeds and whose rename back does not; a tree's `links` are what
+// the sizing walk finds in it, as [path inside the tree, absolute target],
+// and its `unreadable` the directories that walk cannot read. origin/HEAD
+// names trunk, so main and trunk are both default branches. origin/main's
+// first-parent line is m1, m2, m3; every cN head is a merged branch's tip
+// off that line.
 
 const R = (...p) => path.resolve("/repo", ...p);
 const MAIN = R("impower");
@@ -384,6 +450,11 @@ function makeWorld() {
       { path: R("impower.worktrees/ci/40-grabbed-alone"), head: "c40", branch: "ci/40-grabbed-alone", size: 2 * GB, grabbed: true, remaining: 1.5 * GB },
       { path: R("impower.worktrees/fix/41-probe-left"), head: "c41", branch: "fix/41-probe-left", prunable: "gitdir file points to non-existent location", missing: true },
       { path: R("impower.worktrees/fix/42-list-fails"), head: "c42", branch: "fix/42-list-fails", size: 1 * GB, listFails: 1 },
+      { path: R("impower.worktrees/fix/43-rename-back-fails"), head: "c43", branch: "fix/43-rename-back-fails", size: 1 * GB, renameBackFails: true },
+      { path: R("impower.worktrees/fix/44-link-out"), head: "c44", branch: "fix/44-link-out", size: 1 * GB, ignored: ["node_modules/"], links: [["node_modules/pkg", R("elsewhere/pkg")]] },
+      { path: R("impower.worktrees/fix/45-link-in"), head: "c45", branch: "fix/45-link-in", size: 1 * GB, ignored: ["node_modules/"], links: [["node_modules/impower-dev", R("impower.worktrees/fix/45-link-in/impower-dev")]] },
+      { path: R("impower.worktrees/fix/46-unreadable"), head: "c46", branch: "fix/46-unreadable", size: 1 * GB, unreadable: [["node_modules/locked", "EPERM"]] },
+      { path: R("impower.worktrees/trunk-copy"), head: "m3", branch: "trunk", size: 1 * GB },
     ],
     strays: [R("impower.worktrees/fix/husk-old"), R("impower.worktrees/leftover"), R("impower.worktrees/fix/32-probe-taken.removing"), R("impower.worktrees/fix/41-probe-left.removing")],
     processes: [
@@ -392,6 +463,9 @@ function makeWorld() {
       { pid: 778, name: "node.exe", cmd: `node ${R("impower.worktrees/fix/16-in-use-2")}\\a.js` },
     ],
     branches: new Set(["main"]),
+    // Commits not on origin/main for a branch no tree holds, by branch.
+    loose: {},
+    gone: [],
     removed: [],
     branchesDeleted: [],
     emptyDirsRemoved: [],
@@ -408,9 +482,10 @@ function makeWorld() {
   for (const s of w.strays) w.disk.set(s.toLowerCase(), { size: 0.2 * GB, tree: null });
   const onDisk = (p) => w.disk.get(path.resolve(p).toLowerCase());
   const tree = (p) => w.trees.find((t) => same(t.path, p));
-  const byBranch = (b) => w.trees.find((t) => t.branch === b);
+  // A branch's tree, registered or not: its commit count outlives its record.
+  const byBranch = (b) => w.trees.find((t) => t.branch === b) ?? w.gone.find((t) => t.branch === b);
   const unregister = (t) => {
-    if (w.trees.includes(t)) w.trees.splice(w.trees.indexOf(t), 1);
+    if (w.trees.includes(t)) w.gone.push(...w.trees.splice(w.trees.indexOf(t), 1));
   };
   const ok = (out = "") => ({ status: 0, out, err: "" });
   const fail = (err, status = 1) => ({ status, out: "", err });
@@ -451,7 +526,7 @@ function makeWorld() {
         }
         return ok(porcelain());
       }
-      if (a === "symbolic-ref -q refs/remotes/origin/HEAD") return ok("refs/remotes/origin/main");
+      if (a === "symbolic-ref -q refs/remotes/origin/HEAD") return w.noOriginHead ? fail("") : ok("refs/remotes/origin/trunk");
       if (a === "fetch --prune origin") return w.fetched++, ok();
       if (a === "rev-list --first-parent refs/remotes/origin/main") return ok("m3\nm2\nm1");
       if (a === "status --porcelain --ignored=matching") return gitStatus(cwd, true);
@@ -466,6 +541,7 @@ function makeWorld() {
       if ((m = /^rev-list --count refs\/remotes\/origin\/(.+?) \^refs\/remotes\/origin\/main$/.exec(a))) return ok(String(byBranch(m[1])?.remoteAhead ?? 0));
       if ((m = /^rev-list --count refs\/heads\/(.+?) \^refs\/remotes\/origin\/main( \^refs\/remotes\/origin\/(.+))?$/.exec(a))) {
         const t = byBranch(m[1]);
+        if (!t && w.loose[m[1]] != null) return ok(String(w.loose[m[1]]));
         if (!t) return fail(`fatal: ambiguous argument 'refs/heads/${m[1]}': unknown revision`, 128);
         if (m[2]) return ok(String(t.unpushed ?? 0));
         // A tree that gains a commit during the first --apply, after it was
@@ -523,10 +599,11 @@ function makeWorld() {
     listDirs: (p) => [...new Set([...w.disk.keys()].filter((d) => under(d, p)).map((d) => path.relative(path.resolve(p).toLowerCase(), d).split(path.sep)[0]))],
     isEmptyDir: (p) => ![...w.disk.keys()].some((d) => under(d, p)),
     // Windows refuses a rename while a process has a file open inside the
-    // directory, and a rename onto a name that exists, with the same code.
+    // directory, and a rename onto a name that exists, with the same code;
+    // a `renameBackFails` tree is refused on the way back only.
     rename: (from, to) => {
       const t = tree(from);
-      if (t?.held || onDisk(to)) {
+      if (t?.held || onDisk(to) || (from.endsWith(".removing") && tree(to)?.renameBackFails)) {
         const err = new Error("EPERM: operation not permitted, rename");
         err.code = "EPERM";
         throw err;
@@ -559,14 +636,20 @@ function makeWorld() {
       w.emptyDirsRemoved.push(path.relative(ROOT, p));
     },
     // A directory's size is its own plus everything under it, as the real
-    // walk would find, so a type directory listed as a stray is sized.
-    dirSize: async (p) => {
+    // walk would find, so a type directory listed as a stray is sized; the
+    // links and unreadable directories are the tree's own.
+    scan: async (p) => {
       const t = onDisk(p)?.tree;
       if (t?.sizeThrows) {
         t.sizeThrows--;
         throw new Error("the sizing walk failed");
       }
-      return [...w.disk.entries()].filter(([d]) => same(d, p) || under(d, p)).reduce((s, [, d]) => s + d.size, 0);
+      const abs = path.resolve(p);
+      return {
+        bytes: [...w.disk.entries()].filter(([d]) => same(d, p) || under(d, p)).reduce((s, [, d]) => s + d.size, 0),
+        links: (t?.links ?? []).map(([l, target]) => ({ link: path.join(abs, l), target })),
+        unreadable: (t?.unreadable ?? []).map(([u, code]) => `${path.join(abs, u)}: ${code}`),
+      };
     },
     freeSpace: () => 26 * GB,
     pidAlive: (pid) => pid === LIVE_PID,
@@ -628,7 +711,9 @@ async function worldChecks(mainFn, report) {
     }
   };
   const all = [...w.trees];
-  const keptRows = ["fix/3-dirty", "fix/4-unpushed", "fix/5-open", "fix/6-fresh", "fix/7-servers-up", "fix/8-servers-launching", "fix/12-locked", "fix/13-outside", "(detached)", "fix/16-in-use", "fix/17-remote-ahead", "fix/18-unborn", "fix/19-broken", "fix/20-missing", "fix/21-no-reflog", "fix/26-old-driver-up", "fix/27-git-fails", "fix/28-fast-forwarded", "fix/29-stacked-fresh", "fix/34-no-reflog-fresh", "fix/37-stacked-ff", "fix/38-partial-reflog", "fix/41-probe-left", "main", rel(R("impower.worktrees/main-copy"))];
+  const keptRows = ["fix/3-dirty", "fix/4-unpushed", "fix/5-open", "fix/6-fresh", "fix/7-servers-up", "fix/8-servers-launching", "fix/12-locked", "fix/13-outside", "(detached)", "fix/16-in-use", "fix/17-remote-ahead", "fix/18-unborn", "fix/19-broken", "fix/20-missing", "fix/21-no-reflog", "fix/26-old-driver-up", "fix/27-git-fails", "fix/28-fast-forwarded", "fix/29-stacked-fresh", "fix/34-no-reflog-fresh", "fix/37-stacked-ff", "fix/38-partial-reflog", "fix/41-probe-left", "main", rel(R("impower.worktrees/main-copy")), rel(R("impower.worktrees/trunk-copy"))];
+  const linkOutRow = `1 link inside it points outside it (${path.join("node_modules", "pkg")} -> ${R("elsewhere/pkg")}); ${LINK_ADVICE}`;
+  const unreadableRow = `1 directory or link inside it could not be read (${path.join("node_modules", "locked")}: EPERM), so whether a link inside it points outside it cannot be told; left for a person`;
   const untouched = () => {
     assert.equal(w.fetched, 0, "it fetched before refusing");
     assert.deepEqual(w.removed, [], "it removed worktrees");
@@ -687,6 +772,15 @@ async function worldChecks(mainFn, report) {
     untouched();
   });
 
+  await step("--apply without a recorded origin/HEAD is refused before anything is fetched", async () => {
+    w.noOriginHead = true;
+    const r = await run(mainFn, w, MAIN, "--apply", "--root", MAIN);
+    w.noOriginHead = false;
+    assert.equal(r.status, 1, r.out);
+    assert.match(r.out, /ERROR: origin\/HEAD is not recorded in .*impower, so which branch is the default cannot be told beyond main; `git remote set-head origin --auto` records it; nothing was touched/);
+    untouched();
+  });
+
   await step("the dry run classifies every worktree and removes nothing", async () => {
     const r = await run(mainFn, w, MAIN);
     assert.deepEqual(w.removed, [], "the dry run removed worktrees");
@@ -726,6 +820,11 @@ async function worldChecks(mainFn, report) {
       ["ci/40-grabbed-alone", "remove", "2.0 GB", "merged into origin/main"],
       ["fix/41-probe-left", "keep", `its directory is gone and ${R("impower.worktrees/fix/41-probe-left")}.removing is beside it, which is what an interrupted run's probe leaves; rename it back by hand, and do not run \`git worktree prune\`, which would drop the record the renamed tree points at`],
       ["fix/42-list-fails", "remove", "merged into origin/main"],
+      ["fix/43-rename-back-fails", "remove", "merged into origin/main"],
+      ["fix/44-link-out", "keep", "1.0 GB", linkOutRow],
+      ["fix/45-link-in", "remove", "1.0 GB", "merged into origin/main; no origin/fix/45-link-in; takes 1 ignored path with it (node_modules/)"],
+      ["fix/46-unreadable", "keep", "1.0 GB", unreadableRow],
+      [rel(R("impower.worktrees/trunk-copy")), "keep", "  trunk  ", "the default branch trunk, which is never removed wherever it is checked out"],
       ["fix/3-dirty", "keep", "uncommitted changes (1 file)"],
       ["fix/4-unpushed", "keep", "1 commit not on origin/main, and no origin/fix/4-unpushed holds them"],
       ["fix/5-open", "keep", "1 commit not on origin/main (all on origin/fix/5-open; a pull request may be open)"],
@@ -746,8 +845,9 @@ async function worldChecks(mainFn, report) {
       [rel(R("impower.worktrees/fix/41-probe-left.removing")), "keep", "(not a worktree)", `the worktree ${rel(R("impower.worktrees/fix/41-probe-left"))}, renamed by an interrupted run's probe and not renamed back; rename it back by hand, and do not run \`git worktree prune\`, which would drop the record it points at`],
     ]);
     assert.ok(!r.out.includes("fix/16-in-use-2"), "a process of a directory whose name extends another's was claimed");
-    assert.match(r.out, /42 worktrees besides the main checkout: 18 to remove \(20\.0 GB\), 24 kept; 4 directories under the worktrees root are not worktrees \(819\.2 MB\)\./);
-    assert.match(r.out, new RegExp(`Dry run; nothing was removed\\. Run again with --apply --root .*impower to remove the 18\\.`));
+    assert.ok(!rowFor(r.out, "  fix/44-link-out  ").row.includes("merged into origin/main"), "the row for a tree kept for its link still reads as merged");
+    assert.match(r.out, /47 worktrees besides the main checkout: 20 to remove \(22\.0 GB\), 27 kept; 4 directories under the worktrees root are not worktrees \(819\.2 MB\)\./);
+    assert.match(r.out, new RegExp(`Dry run; nothing was removed\\. Run again with --apply --root .*impower to remove the 20\\.`));
   });
 
   await step("--apply removes the merged clean ones, keeps a held or changed tree untouched, and reports a gutted tree and a failed branch deletion with what is left", async () => {
@@ -772,20 +872,25 @@ async function worldChecks(mainFn, report) {
       ["fix/36-remove-throws", "failed", "git could not be started; the directory is still there"],
       ["ci/40-grabbed-alone", "failed", "1.5 GB remain there"],
       ["fix/42-list-fails", "failed", `git worktree remove failed (fatal: '${R("impower.worktrees/fix/42-list-fails")}' contains modified or untracked files, use --force to delete it) and whether git still holds its record could not be read (git worktree list failed: spawn git EAGAIN); nothing more was touched; check the directory and \`git worktree list\` by hand; the branch stays until then`],
+      ["fix/43-rename-back-fails", "failed", `the directory was renamed to ${R("impower.worktrees/fix/43-rename-back-fails")}.removing to test whether a process holds it and could not be renamed back (EPERM); rename it back by hand`],
+      ["fix/44-link-out", "kept", linkOutRow],
+      ["fix/45-link-in", "removed"],
+      ["fix/46-unreadable", "kept", unreadableRow],
       ...keptRows.map((b) => [b, "kept"]),
       [rel(R("impower.worktrees/fix/husk-old")), "kept", "(not a worktree)"],
     ]);
     assert.equal(r.status, 1, `exit code ${r.status} though a removal failed:\n${r.out}`);
-    assert.match(r.out, /Removed 6 worktrees and their branches, freeing 8\.0 GB; 31 worktrees kept; 5 failed \(see the rows above for what is left\); 4 directories under the worktrees root are not worktrees \(819\.2 MB\)\. Free space now 26\.0 GB\./);
-    assert.deepEqual(w.removed.sort(), ["docs/10-merged-gone", "fix/1-merged-gone", "fix/15-branch-fails", "fix/2-merged-kept-remote", "fix/30-ff-merged", "fix/31-blocked-first", "perf/23-rmdir-busy"]);
-    assert.deepEqual(w.branchesDeleted.sort(), ["docs/10-merged-gone", "fix/1-merged-gone", "fix/2-merged-kept-remote", "fix/30-ff-merged", "fix/31-blocked-first", "perf/23-rmdir-busy"]);
-    for (const b of ["ci/40-grabbed-alone", "fix/14-grabbed", "fix/15-branch-fails", "fix/21-no-reflog", "fix/22-commits-late", "fix/25-dirty-late", "fix/32-probe-taken", "fix/33-switched-late", "fix/35-refuses-late", "fix/36-remove-throws", "fix/37-stacked-ff", "fix/38-partial-reflog", "fix/42-list-fails", "fix/9-held", "main"]) assert.ok(w.branches.has(b), `the branch ${b} was deleted`);
-    for (const b of ["fix/21-no-reflog", "fix/25-dirty-late", "fix/32-probe-taken", "fix/33-switched-late", "fix/35-refuses-late", "fix/36-remove-throws", "fix/37-stacked-ff", "fix/38-partial-reflog", "fix/42-list-fails", "fix/9-held", "main-copy"]) assert.ok(w.trees.some((t) => same(t.path, R("impower.worktrees", b))) && w.disk.has(R("impower.worktrees", b).toLowerCase()), `the tree ${b} was removed or lost its record`);
+    assert.match(r.out, /Removed 7 worktrees and their branches, freeing 9\.0 GB; 34 worktrees kept; 6 failed \(see the rows above for what is left\); 4 directories under the worktrees root are not worktrees \(819\.2 MB\)\. Free space now 26\.0 GB\./);
+    assert.deepEqual(w.removed.sort(), ["docs/10-merged-gone", "fix/1-merged-gone", "fix/15-branch-fails", "fix/2-merged-kept-remote", "fix/30-ff-merged", "fix/31-blocked-first", "fix/45-link-in", "perf/23-rmdir-busy"]);
+    assert.deepEqual(w.branchesDeleted.sort(), ["docs/10-merged-gone", "fix/1-merged-gone", "fix/2-merged-kept-remote", "fix/30-ff-merged", "fix/31-blocked-first", "fix/45-link-in", "perf/23-rmdir-busy"]);
+    for (const b of ["ci/40-grabbed-alone", "fix/14-grabbed", "fix/15-branch-fails", "fix/21-no-reflog", "fix/22-commits-late", "fix/25-dirty-late", "fix/32-probe-taken", "fix/33-switched-late", "fix/35-refuses-late", "fix/36-remove-throws", "fix/37-stacked-ff", "fix/38-partial-reflog", "fix/42-list-fails", "fix/43-rename-back-fails", "fix/44-link-out", "fix/46-unreadable", "fix/9-held", "main", "trunk"]) assert.ok(w.branches.has(b), `the branch ${b} was deleted`);
+    for (const b of ["fix/21-no-reflog", "fix/25-dirty-late", "fix/32-probe-taken", "fix/33-switched-late", "fix/35-refuses-late", "fix/36-remove-throws", "fix/37-stacked-ff", "fix/38-partial-reflog", "fix/42-list-fails", "fix/44-link-out", "fix/46-unreadable", "fix/9-held", "main-copy", "trunk-copy"]) assert.ok(w.trees.some((t) => same(t.path, R("impower.worktrees", b))) && w.disk.has(R("impower.worktrees", b).toLowerCase()), `the tree ${b} was removed or lost its record`);
     assert.ok(w.disk.get(R("impower.worktrees/fix/14-grabbed").toLowerCase())?.gutted, "the gutted tree's husk is gone");
+    assert.ok(w.disk.has(`${R("impower.worktrees/fix/43-rename-back-fails")}.removing`.toLowerCase()), "the probe that could not be renamed back is gone");
     assert.deepEqual(w.emptyDirsRemoved, ["docs"]);
-    const probed = ["fix/1-merged-gone", "fix/2-merged-kept-remote", "docs/10-merged-gone", "fix/14-grabbed", "fix/15-branch-fails", "perf/23-rmdir-busy", "fix/30-ff-merged", "fix/31-blocked-first", "fix/35-refuses-late", "fix/36-remove-throws", "ci/40-grabbed-alone", "fix/42-list-fails"].map((b) => R("impower.worktrees", b));
+    const probed = ["fix/1-merged-gone", "fix/2-merged-kept-remote", "docs/10-merged-gone", "fix/14-grabbed", "fix/15-branch-fails", "perf/23-rmdir-busy", "fix/30-ff-merged", "fix/31-blocked-first", "fix/35-refuses-late", "fix/36-remove-throws", "ci/40-grabbed-alone", "fix/42-list-fails", "fix/43-rename-back-fails", "fix/45-link-in"].map((b) => R("impower.worktrees", b));
     assert.deepEqual(w.renames.filter(([f]) => !f.endsWith(".removing")).map(([f]) => f), probed, "every removal probed the directory by rename");
-    assert.deepEqual(w.renames.filter(([f]) => f.endsWith(".removing")).map(([, t]) => t), probed, "every probe renamed the directory back");
+    assert.deepEqual(w.renames.filter(([f]) => f.endsWith(".removing")).map(([, t]) => t), probed.filter((p) => !p.endsWith("43-rename-back-fails")), "every probe but the refused one renamed the directory back");
     const logged = readLogRows(w.log.join("\n"));
     assert.equal(logged[0].run, `--apply --root ${MAIN}`, "the log does not start with the run");
     const grabbed = logged.find((row) => row.branch === "fix/14-grabbed" && row.decision !== "removing");
@@ -800,10 +905,11 @@ async function worldChecks(mainFn, report) {
       const outcome = logged.findIndex((row, j) => j > i && row.decision && row.decision !== "removing" && same(row.path, p));
       assert.ok(outcome > i, `no outcome row after the removing row for ${path.relative(ROOT, p)}`);
     }
-    assert.equal(logged.filter((row) => row.decision === "removing").length, 17, "the removing rows are not one per removable tree that was sized");
+    assert.equal(logged.filter((row) => row.decision === "removing").length, 19, "the removing rows are not one per removable tree that was sized and holds no link leading out");
+    assert.ok(!logged.some((row) => row.decision === "removing" && same(row.path, R("impower.worktrees/fix/44-link-out"))), "a tree kept for its link was recorded as removing");
     assert.equal(logged.filter((row) => row.decision && row.decision !== "removing").length, rows(r.out) - 4, "the log does not hold every worktree row, or holds a stray one");
     assert.ok(!logged.some((row) => row.path && same(row.path, R("impower.worktrees/fix/husk-old"))), "a stray directory was recorded as a decision");
-    assert.match(logged.at(-1).summary, /^Removed 6 worktrees/);
+    assert.match(logged.at(-1).summary, /^Removed 7 worktrees/);
   });
 
   await step("a second --apply lists the gutted tree's husk and the type directory holding another with the branches they stranded, lists the branch a failed deletion left with no directory, keeps the held tree again, and removes what it can now", async () => {
@@ -812,7 +918,11 @@ async function worldChecks(mainFn, report) {
     expectRows(r.out, [
       [rel(R("impower.worktrees/fix/14-grabbed")), "kept", "(not a worktree)", "1.5 GB", `not a registered worktree; the --apply run at ${NOW} failed to remove it (git worktree remove stopped part-way (error: failed to delete '${R("impower.worktrees/fix/14-grabbed")}': Permission denied) and dropped its record`, "; its branch fix/14-grabbed is still local"],
       [rel(R("impower.worktrees/ci")), "kept", "(not a worktree)", "1.5 GB", `not a registered worktree; it holds ${rel(R("impower.worktrees/ci/40-grabbed-alone"))}, which the --apply run at ${NOW} failed to remove (git worktree remove stopped part-way (error: failed to delete '${R("impower.worktrees/ci/40-grabbed-alone")}': Permission denied) and dropped its record`, "; its branch ci/40-grabbed-alone is still local"],
-      [rel(R("impower.worktrees/fix/15-branch-fails")), "kept", "  fix/15-branch-fails  ", `its directory is gone and git does not list it, but its branch fix/15-branch-fails is still local: the --apply run at ${NOW} failed to remove it (the directory is gone; git branch -D fix/15-branch-fails failed (error: could not delete 'fix/15-branch-fails'), so delete the branch by hand; merged into origin/main; no origin/fix/15-branch-fails); \`git branch -D fix/15-branch-fails\` finishes that removal once its commits are checked`],
+      [rel(R("impower.worktrees/fix/15-branch-fails")), "kept", "  fix/15-branch-fails  ", `its branch fix/15-branch-fails is still local and no worktree holds it: the --apply run at ${NOW} failed to remove it (the directory is gone; git branch -D fix/15-branch-fails failed (error: could not delete 'fix/15-branch-fails'), so delete the branch by hand; merged into origin/main; no origin/fix/15-branch-fails); every commit on it is on origin/main, so \`git branch -D fix/15-branch-fails\` finishes that removal`],
+      ["fix/43-rename-back-fails", "kept", `its directory is gone and ${R("impower.worktrees/fix/43-rename-back-fails")}.removing is beside it, which is what an interrupted run's probe leaves; rename it back by hand`],
+      [rel(R("impower.worktrees/fix/43-rename-back-fails.removing")), "kept", "(not a worktree)", "1.0 GB", `the worktree ${rel(R("impower.worktrees/fix/43-rename-back-fails"))}, renamed by an interrupted run's probe and not renamed back; rename it back by hand`],
+      ["fix/44-link-out", "kept", linkOutRow],
+      ["fix/46-unreadable", "kept", unreadableRow],
       ["fix/9-held", "kept", "the directory could not be renamed (EPERM)"],
       ["fix/22-commits-late", "kept", "1 commit not on origin/main, and no origin/fix/22-commits-late holds them"],
       ["fix/25-dirty-late", "kept", "changed since it was classified: uncommitted changes (1 file)"],
@@ -821,7 +931,8 @@ async function worldChecks(mainFn, report) {
       ["fix/42-list-fails", "removed"],
     ]);
     assert.ok(!rowFor(r.out, `${rel(R("impower.worktrees/fix/15-branch-fails"))}  `).row.includes("(not a worktree)"), "the stranded branch row reads as a directory");
-    assert.match(r.out, /Removed 3 worktrees and their branches, freeing 3\.0 GB; 30 worktrees kept; 6 directories under the worktrees root are not worktrees \(3\.8 GB\); 1 branch whose worktree is gone is still local \(fix\/15-branch-fails\)\./);
+    assert.equal(r.out.split(/\r?\n/).filter((l) => l.includes("  fix/43-rename-back-fails  ")).length, 1, "the branch of the probe that could not be renamed back was listed as stranded too");
+    assert.match(r.out, /Removed 3 worktrees and their branches, freeing 3\.0 GB; 34 worktrees kept; 7 directories under the worktrees root are not worktrees \(4\.8 GB\); 1 branch whose worktree is gone is still local \(fix\/15-branch-fails\)\./);
     assert.ok(w.branches.has("fix/15-branch-fails"), "the stranded branch was deleted by the listing");
   });
 
@@ -834,9 +945,44 @@ async function worldChecks(mainFn, report) {
       ["fix/9-held", "keep", "the processes on this machine could not be listed, so whether one is using it is unknown"],
       [rel(R("impower.worktrees/fix/14-grabbed")), "keep", "(not a worktree)", "; its branch fix/14-grabbed is still local"],
       [rel(R("impower.worktrees/ci")), "keep", "(not a worktree)", "; its branch ci/40-grabbed-alone is still local"],
-      [rel(R("impower.worktrees/fix/15-branch-fails")), "keep", "  fix/15-branch-fails  ", "its directory is gone and git does not list it, but its branch fix/15-branch-fails is still local"],
+      [rel(R("impower.worktrees/fix/15-branch-fails")), "keep", "  fix/15-branch-fails  ", "its branch fix/15-branch-fails is still local and no worktree holds it"],
     ]);
-    assert.match(r.out, /0 to remove \(0 B\), 30 kept; 6 directories under the worktrees root are not worktrees \(3\.8 GB\); 1 branch whose worktree is gone is still local \(fix\/15-branch-fails\); the processes on this machine could not be listed \(powershell\.exe not found\), which kept every worktree\./);
+    assert.match(r.out, /0 to remove \(0 B\), 34 kept; 7 directories under the worktrees root are not worktrees \(4\.8 GB\); 1 branch whose worktree is gone is still local \(fix\/15-branch-fails\); the processes on this machine could not be listed \(powershell\.exe not found\), which kept every worktree\./);
+  });
+
+  await step("a stranded branch's commits are read again before -D is advised, a branch a registered worktree holds is not listed as stranded, and a branch stranded at a path a later worktree reused is still listed", async () => {
+    for (const b of ["task/8-loose", "old/stranded", "task/11-uncounted"]) w.branches.add(b);
+    w.loose = { "task/8-loose": 1, "old/stranded": 0 };
+    const seed = (obj) => w.log.push(JSON.stringify({ at: "t9", ...obj }));
+    seed({ decision: "failed", path: R("impower.worktrees/task/8-loose"), branch: "task/8-loose", why: "merged into origin/main; no origin/task/8-loose" });
+    seed({ decision: "removing", path: R("impower.worktrees/fix/3-dirty"), branch: "old/stranded", why: "merged into origin/main; no origin/old/stranded" });
+    seed({ decision: "kept", path: R("impower.worktrees/fix/3-dirty"), branch: "fix/3-dirty", why: "uncommitted changes (1 file)" });
+    seed({ decision: "failed", path: R("impower.worktrees/task/9-live-old"), branch: "fix/3-dirty", why: "merged into origin/main; no origin/fix/3-dirty" });
+    seed({ decision: "removing", path: R("impower.worktrees/task/11-uncounted"), branch: "task/11-uncounted", why: "merged into origin/main; no origin/task/11-uncounted" });
+    const r = await run(mainFn, w, MAIN);
+    assert.equal(r.status, 0, r.out);
+    expectRows(r.out, [
+      ["task/8-loose", "keep", "its branch task/8-loose is still local and no worktree holds it: the --apply run at t9 failed to remove it (merged into origin/main; no origin/task/8-loose); it holds 1 commit not on origin/main; left for a person"],
+      ["old/stranded", "keep", "its branch old/stranded is still local and no worktree holds it: the --apply run at t9 was removing it when that run stopped (merged into origin/main; no origin/old/stranded); every commit on it is on origin/main, so `git branch -D old/stranded` finishes that removal"],
+      ["task/11-uncounted", "keep", "its branch task/11-uncounted is still local and no worktree holds it: the --apply run at t9 was removing it when that run stopped (merged into origin/main; no origin/task/11-uncounted); whether its commits are on origin/main could not be read (fatal: ambiguous argument 'refs/heads/task/11-uncounted': unknown revision); left for a person"],
+      ["fix/15-branch-fails", "keep", "every commit on it is on origin/main, so `git branch -D fix/15-branch-fails` finishes that removal"],
+    ]);
+    for (const b of ["task/8-loose", "task/11-uncounted"]) assert.ok(!rowFor(r.out, `  ${b}  `).row.includes("branch -D"), `${b}, whose commits are not known to be on origin/main, is advised -D`);
+    assert.equal(r.out.split(/\r?\n/).filter((l) => l.includes("  fix/3-dirty  ")).length, 1, "a branch a registered worktree holds, fix/3-dirty, was listed as stranded too");
+    assert.ok(!r.out.includes("9-live-old"), "the old path of a branch a registered worktree holds was listed");
+    assert.match(r.out, /4 branches whose worktree is gone are still local \(fix\/15-branch-fails, task\/8-loose, old\/stranded, task\/11-uncounted\)/);
+  });
+
+  await step("a dry run without a recorded origin/HEAD says so and goes on", async () => {
+    w.noOriginHead = true;
+    const r = await run(mainFn, w, MAIN);
+    w.noOriginHead = false;
+    assert.equal(r.status, 0, r.out);
+    assert.match(r.out, /^origin\/HEAD is not recorded in .*impower, so main alone counts as the default branch; `git remote set-head origin --auto` records it$/m);
+    expectRows(r.out, [
+      [rel(R("impower.worktrees/main-copy")), "keep", "  main  ", "the default branch main"],
+      ["fix/3-dirty", "keep", "uncommitted changes (1 file)"],
+    ]);
   });
 }
 const rows = (out) => out.split(/\r?\n/).filter((l) => /^(keep|remove|kept|removed|failed)\s/.test(l)).length;
@@ -899,7 +1045,7 @@ try {
   await control("a registration that could not be read is read as dropped", [["if (!reg.known) return failed(", "if (false) return failed("]], ["fix/42-list-fails: expected failed, got removed"]);
   await control("a removal is not recorded before it starts", [['    record({ decision: "removing", path: path.resolve(row.entry.path), branch: row.entry.branch, why: row.why });', ""]], [`no removing row for ${path.join("fix", "1-merged-gone")} in the log`]);
   await control("a stray type directory is not matched to the removal it holds", [["const held = unfinishedRemovals(log).filter((r) => isUnder(r.path, p));", "const held = [];"]], [`row for ${rel(R("impower.worktrees/ci"))} does not say`]);
-  await control("a branch stranded with no directory is not listed", [["for (const r of unfinishedRemovals(earlier)) {", "for (const r of []) {"]], [`no row for ${rel(R("impower.worktrees/fix/15-branch-fails"))}`]);
+  await control("a branch stranded with no directory is not listed", [["for (const r of strandedBranches(earlier)) {", "for (const r of []) {"]], [`no row for ${rel(R("impower.worktrees/fix/15-branch-fails"))}`]);
   await control("a failed branch deletion is reported as removed", [["if (del.status !== 0) return failed(", "if (false) return failed("]], ["fix/15-branch-fails: expected failed, got removed"]);
   await control("a type directory that refuses to go stops the run", [[`    try {\n      deps.removeEmptyDir(parent);\n      notes.push(\`removed the empty \${rel}\`);\n    } catch (err) {\n      notes.push(\`the empty \${rel} could not be removed (\${err.code ?? err.message})\`);\n    }`, "    deps.removeEmptyDir(parent);\n    notes.push(`removed the empty ${rel}`);"]], ["perf/23-rmdir-busy: expected removed, got failed"]);
   await control("a row whose sizing fails is removed or loses its row", [[".catch(sizeError(row))", ""]], ["row for fix/24-size-throws does not say"]);
@@ -912,6 +1058,14 @@ try {
   await control("the older driver location is not looked at", [['".claude/skills/resolve-issue/driver.mjs"', '".claude/skills/resolve-issue/driver-elsewhere.mjs"']], ["fix/26-old-driver-up: expected keep, got remove"]);
   await control("a worktree git cannot answer for stops the run", [["      verdict = { remove: false, reasons: [`git could not judge it (${err.message}); left for a person`] };", "      throw err;"]], ["the dry run classifies every worktree and removes nothing"]);
   await control("a worktree git no longer sees, or whose directory is gone, is asked for its status", [["if (facts.isMain || facts.isDefault || entry.detached || entry.prunable || facts.missing || facts.unborn) return facts;", "if (facts.isMain || facts.isDefault || entry.detached || facts.unborn) return facts;"]], ["row for fix/19-broken does not say", "row for fix/20-missing does not say"]);
+  await control("a link leading outside the tree is not refused", [["if (out.length) return `", "if (false) return `"]], ["fix/44-link-out: expected keep, got remove"]);
+  await control("a directory the walk cannot read is not refused", [["if (scan.unreadable.length) return `", "if (false) return `"]], ["fix/46-unreadable: expected keep, got remove"]);
+  await control("a probe that could not be renamed back is reported as kept", [["return failed(`the directory was renamed to ${probe} to test whether a process holds it and could not be renamed back", "return kept(`the directory was renamed to ${probe} to test whether a process holds it and could not be renamed back"]], ["fix/43-rename-back-fails: expected failed, got kept"]);
+  await control("the branch origin/HEAD names is not refused", [["ctx.defaultBranches.add(originHead.out.slice(", "void (originHead.out.slice("]], [`${rel(R("impower.worktrees/trunk-copy"))}: expected keep, got remove`]);
+  await control("--apply runs without a recorded origin/HEAD", [["else if (apply) die(`origin/HEAD is not recorded", "else if (false) die(`origin/HEAD is not recorded"]], ["--apply without a recorded origin/HEAD is refused before anything is fetched"]);
+  await control("a stranded branch's commits are not read before -D is advised", [["Number(own.out) > 0 ? `it holds", "false ? `it holds"]], ["row for task/8-loose does not say"]);
+  await control("a branch a registered worktree holds is listed as stranded", [["if (entries.some((e) => e.branch === r.branch) || strayPaths.some(", "if (strayPaths.some("]], ["a branch a registered worktree holds, fix/3-dirty, was listed as stranded too"]);
+  await control("the stranded branches are read by path, so a worktree recreated at the path hides one", [['export const strandedBranches = (log) => unfinished(log, "branch");', 'export const strandedBranches = (log) => unfinished(log, "path");']], ["no row for old/stranded"]);
 } finally {
   fs.rmSync(controls, { recursive: true, force: true });
 }
@@ -926,10 +1080,11 @@ try {
 // an ignored path too long for git to delete, fast-forwarded to origin/main
 // with no commit made, merged with its reflog expired, merged into main by
 // fast-forward, fast-forwarded with no commit made onto a branch merged
-// later, and, last, one holding main while the main checkout is parked on
-// another branch. The script runs as a command, so this also pins its exit
-// codes, its refusals, the log it writes, and the process listing and rename
-// probe on the real system.
+// later, merged and holding a junction (a symlink elsewhere) to a directory
+// outside the worktrees root, and, last, one holding main while the main
+// checkout is parked on another branch. The script runs as a command, so
+// this also pins its exit codes, its refusals, the log it writes, and the
+// process listing, the rename probe and the link scan on the real system.
 
 const scratch = fs.mkdtempSync(path.join(os.tmpdir(), "clean-worktrees-"));
 const mainRoot = path.join(scratch, "impower");
@@ -992,7 +1147,7 @@ try {
   git(scratch, "init", "-q", "impower");
   git(mainRoot, "remote", "add", "origin", path.join(scratch, "origin.git"));
   fs.writeFileSync(path.join(mainRoot, "README.md"), "scratch\n");
-  fs.writeFileSync(path.join(mainRoot, ".gitignore"), ".env.local\n.deep/\n");
+  fs.writeFileSync(path.join(mainRoot, ".gitignore"), ".env.local\n.deep/\nnode_modules\n");
   git(mainRoot, "add", "-A");
   git(mainRoot, "commit", "-q", "-m", "initial");
   git(mainRoot, "push", "-q", "-u", "origin", "main");
@@ -1038,13 +1193,32 @@ try {
   git(mainRoot, "merge", "--no-ff", "-q", "-m", "Merge fix/14-base", "fix/14-base");
   git(mainRoot, "push", "-q", "origin", "main");
   git(mainRoot, "push", "-q", "origin", "--delete", "fix/14-base");
+  // fix/15-junction is merged and clean, and its ignored node_modules is a
+  // junction to a directory outside the worktrees root holding a file.
+  mergedWorktree("fix/15-junction", true);
+  const outside = path.join(scratch, "outside", "nm");
+  fs.mkdirSync(outside, { recursive: true });
+  fs.writeFileSync(path.join(outside, "precious.txt"), "do not delete\n");
+  fs.symlinkSync(outside, path.join(wt("fix/15-junction"), "node_modules"), WIN ? "junction" : "dir");
   await sleep(800);
-  const made = ["fix/1-merged-gone", "fix/11-no-reflog", "fix/12-ff-merged", "fix/13-stacked-ff", "fix/14-base", "fix/3-dirty", "fix/4-fresh", "fix/5-stacked", "fix/6-in-use", "fix/7-held", "fix/8-remote-ahead", ...(WIN ? ["fix/9-deep"] : []), "main", "task/10-fast-forwarded"].sort();
+  const made = ["fix/1-merged-gone", "fix/11-no-reflog", "fix/12-ff-merged", "fix/13-stacked-ff", "fix/14-base", "fix/15-junction", "fix/3-dirty", "fix/4-fresh", "fix/5-stacked", "fix/6-in-use", "fix/7-held", "fix/8-remote-ahead", ...(WIN ? ["fix/9-deep"] : []), "main", "task/10-fast-forwarded"].sort();
   assert.deepEqual(branches(), made);
   const before = made.length;
   assert.equal(worktreePaths(), before);
   assert.equal(git(mainRoot, "reflog", "show", "--format=%H", "refs/heads/fix/11-no-reflog"), "", "the reflog of fix/11-no-reflog did not expire");
   assert.equal(git(mainRoot, "rev-list", "--count", "refs/heads/fix/13-stacked-ff", "^refs/remotes/origin/main"), "0", "fix/13-stacked-ff is not merged");
+  assert.equal(git(wt("fix/15-junction"), "status", "--porcelain", "--ignored=matching"), "!! node_modules/", "the junction is not an ignored directory to git");
+
+  await check("as a command, --apply on a repository that never recorded origin/HEAD exits 1 and touches nothing, until `git remote set-head` records it", () => {
+    const r = cli(mainRoot, "--apply", "--root", mainRoot);
+    assert.equal(r.status, 1, r.out);
+    assert.match(r.out, /ERROR: origin\/HEAD is not recorded in .*, so which branch is the default cannot be told beyond main; `git remote set-head origin --auto` records it; nothing was touched/);
+    assert.equal(worktreePaths(), before);
+    assert.deepEqual(branches(), made);
+    assert.ok(!fs.existsSync(path.join(mainRoot, ".git", LOG_NAME)), "a refused run wrote the log");
+    git(mainRoot, "remote", "set-head", "origin", "--auto");
+    assert.equal(git(mainRoot, "symbolic-ref", "-q", "refs/remotes/origin/HEAD"), "refs/remotes/origin/main");
+  });
 
   await check("as a command, run from a worktree it exits 1 naming the main checkout", () => {
     const r = cli(wt("fix/1-merged-gone"), "--apply", "--root", mainRoot);
@@ -1086,6 +1260,7 @@ try {
       ["fix/12-ff-merged", "remove", "merged into origin/main; no origin/fix/12-ff-merged"],
       ["fix/13-stacked-ff", "keep", "no commit was made on the branch: its reflog holds its creation and no commit since (no origin/fix/13-stacked-ff); a fresh worktree a session may be working in"],
       ["fix/14-base", "remove", "merged into origin/main; no origin/fix/14-base"],
+      ["fix/15-junction", "keep", `1 link inside it points outside it (node_modules -> ${outside}); ${LINK_ADVICE}`],
     ]);
     assert.match(r.out, new RegExp(`Run again with --apply --root .* to remove the ${WIN ? 5 : 4}\\.`));
     assert.ok(fs.existsSync(wt("fix/1-merged-gone")), "the dry run removed a directory");
@@ -1105,11 +1280,14 @@ try {
       ["fix/12-ff-merged", "removed"],
       ["fix/13-stacked-ff", "kept"],
       ["fix/14-base", "removed"],
+      ["fix/15-junction", "kept", "1 link inside it points outside it (node_modules -> "],
       ["task/10-fast-forwarded", "kept"],
     ]);
     assert.equal(fs.existsSync(wt("fix/1-merged-gone")), false, "fix/1-merged-gone is still on disk");
     assert.equal(fs.existsSync(wt("fix/12-ff-merged")), false, "fix/12-ff-merged is still on disk");
     assert.equal(fs.existsSync(wt("fix/14-base")), false, "fix/14-base is still on disk");
+    assert.ok(fs.existsSync(path.join(outside, "precious.txt")), "the file the junction points at, outside the worktrees root, is gone");
+    assert.ok(fs.existsSync(path.join(wt("fix/15-junction"), ".git")), "the tree holding the junction lost its .git link");
     assert.ok(fs.existsSync(path.join(wt("fix/3-dirty"), "scratch.sd")), "the dirty tree lost its file");
     assert.ok(fs.existsSync(wt("task/10-fast-forwarded")), "the fast-forwarded fresh tree is gone");
     assert.ok(fs.existsSync(wt("fix/13-stacked-ff")), "the fresh tree fast-forwarded onto a merged branch is gone");
@@ -1131,7 +1309,7 @@ try {
     assert.ok(fs.existsSync(path.join(wt("fix/7-held"), ".git")), "the held tree lost its .git link");
     assert.ok(fs.existsSync(path.join(wt("fix/7-held"), "fix-7-held.txt")), "the held tree lost a tracked file");
     assert.equal(git(wt("fix/7-held"), "status", "--porcelain"), "", "the held tree is no longer clean");
-    assert.deepEqual(branches(), ["fix/11-no-reflog", "fix/13-stacked-ff", "fix/3-dirty", "fix/4-fresh", "fix/5-stacked", "fix/6-in-use", "fix/7-held", "fix/8-remote-ahead", "main", "task/10-fast-forwarded"]);
+    assert.deepEqual(branches(), ["fix/11-no-reflog", "fix/13-stacked-ff", "fix/15-junction", "fix/3-dirty", "fix/4-fresh", "fix/5-stacked", "fix/6-in-use", "fix/7-held", "fix/8-remote-ahead", "main", "task/10-fast-forwarded"]);
     assert.equal(worktreePaths(), before - 4);
   });
 
@@ -1142,10 +1320,25 @@ try {
     assert.equal(r.status, 0, r.out);
     expectRows(r.out, [["fix/7-held", "removed"]]);
     assert.equal(fs.existsSync(wt("fix/7-held")), false, "fix/7-held is still on disk");
-    assert.deepEqual(branches(), ["fix/11-no-reflog", "fix/13-stacked-ff", "fix/3-dirty", "fix/4-fresh", "fix/5-stacked", "fix/6-in-use", "fix/8-remote-ahead", "main", "task/10-fast-forwarded"]);
+    assert.deepEqual(branches(), ["fix/11-no-reflog", "fix/13-stacked-ff", "fix/15-junction", "fix/3-dirty", "fix/4-fresh", "fix/5-stacked", "fix/6-in-use", "fix/8-remote-ahead", "main", "task/10-fast-forwarded"]);
     assert.equal(worktreePaths(), before - 5);
     const runs = readLogRows(fs.readFileSync(path.join(mainRoot, ".git", LOG_NAME), "utf8")).filter((row) => row.run);
     assert.equal(runs.length, 2, "the log does not hold both runs");
+  });
+
+  await check("as a command, a stranded branch's commits are read again before -D is advised, and a branch a worktree holds is not listed as stranded", () => {
+    git(mainRoot, "branch", "loose/1", "origin/fix/8-remote-ahead");
+    assert.equal(git(mainRoot, "rev-list", "--count", "refs/heads/loose/1", "^refs/remotes/origin/main"), "1");
+    const seed = (obj) => `${JSON.stringify({ at: "t9", ...obj })}\n`;
+    fs.appendFileSync(path.join(mainRoot, ".git", LOG_NAME), seed({ decision: "failed", path: wt("loose/1"), branch: "loose/1", why: "merged" }) + seed({ decision: "failed", path: wt("fix/4-fresh-old"), branch: "fix/4-fresh", why: "merged" }));
+    const r = cli(mainRoot);
+    assert.equal(r.status, 0, r.out);
+    expectRows(r.out, [["loose/1", "keep", "its branch loose/1 is still local and no worktree holds it: the --apply run at t9 failed to remove it (merged); it holds 1 commit not on origin/main; left for a person"]]);
+    assert.ok(!rowFor(r.out, "  loose/1  ").row.includes("branch -D"), "a branch holding a commit not on origin/main is advised -D");
+    assert.equal(r.out.split(/\r?\n/).filter((l) => l.includes("  fix/4-fresh  ")).length, 1, "fix/4-fresh, checked out in a worktree, was listed as stranded too");
+    assert.ok(!r.out.includes("4-fresh-old"), "the old path of a branch a worktree holds was listed");
+    assert.match(r.out, /1 branch whose worktree is gone is still local \(loose\/1\)\./);
+    assert.ok(branches().includes("loose/1"), "the dry run deleted the stranded branch");
   });
 
   await check("as a command, a worktree holding main while the main checkout is parked elsewhere is kept as the default branch", () => {

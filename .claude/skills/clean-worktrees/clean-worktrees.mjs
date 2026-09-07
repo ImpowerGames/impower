@@ -26,11 +26,12 @@
 // commit since), a branch whose reflog has expired while its tip is off that
 // line (whether a commit was made on it cannot be told, so it is left for a
 // person), dev servers that the worktree's own driver reports up or
-// launching, a running process whose command line names the directory, and a
-// worktree git cannot answer for. Directories under the worktrees root that
-// are not worktrees are listed too, so a tree an interrupted removal left
-// behind is never out of sight, and so is a branch whose worktree an earlier
-// run removed without managing to delete it.
+// launching, a running process whose command line names the directory, a
+// worktree git cannot answer for, and one holding a symlink or junction that
+// points outside it, or a directory that cannot be read. Directories under
+// the worktrees root that are not worktrees are listed too, so a tree an
+// interrupted removal left behind is never out of sight, and so is a branch
+// whose worktree an earlier run removed without managing to delete it.
 //
 // --apply must be given --root with the main checkout's absolute path, and
 // refuses when that is not the checkout the current directory belongs to, so
@@ -41,14 +42,17 @@
 // say which branch a failed or interrupted removal left behind.
 //
 // Removal is `git worktree remove`, which deletes a tree's entries in
-// directory order, stops at the first it cannot delete, and drops its own
-// record whatever it managed; so before it runs, the tree is re-verified
-// (still clean, still on its branch, still no commits of its own) and the
-// directory is renamed and renamed back, which Windows refuses while any
-// process has a file open or its current directory inside it. When git still
-// stops part-way, the directory is no longer a worktree, the rest of it goes
-// directly, and a row says what is left and where. The branch goes with -D
-// after that re-verification, and an empty type directory goes with it.
+// directory order, stops at the first it cannot delete, drops its own record
+// whatever it managed, and on Windows follows a junction and deletes what it
+// points at, wherever that is; so before it runs, the walk that sizes the
+// tree reads every link in it and keeps the tree when one leads outside it,
+// the tree is re-verified (still clean, still on its branch, still no commits
+// of its own) and the directory is renamed and renamed back, which Windows
+// refuses while any process has a file open or its current directory inside
+// it. When git still stops part-way, the directory is no longer a worktree,
+// the rest of it goes directly, and a row says what is left and where. The
+// branch goes with -D after that re-verification, and an empty type directory
+// goes with it.
 //
 // Everything that touches the system goes through `deps` (git, the drivers
 // and the process listing through `exec` and `processes`, the file system
@@ -85,31 +89,62 @@ export function pidAlive(pid, kill = process.kill) {
   }
 }
 
-// Bytes under a directory, symlinks not followed; an entry that cannot be read
-// counts as nothing. A worktree's node_modules is some fifty thousand files,
-// and one stat at a time takes six seconds of it on Windows, so the reads run
-// in batches through the thread pool, which takes it to about two.
+// What is under a directory: the bytes in it, symlinks not followed and a
+// file that cannot be read counting as nothing; every symlink or junction in
+// it with the absolute path it points at (a junction's target comes back with
+// a `\\?\` prefix on some systems, which is dropped); and every directory or
+// link that could not be read, since a link inside one is then unknown. A
+// worktree's node_modules is some fifty thousand files, and one stat at a
+// time takes six seconds of it on Windows, so the reads run in batches
+// through the thread pool, which takes it to about two.
 const BATCH = 32;
-export async function dirSize(dir) {
+export async function scanTree(dir) {
   const dirs = [dir];
   const files = [];
+  const linkPaths = [];
+  const unreadable = [];
   while (dirs.length) {
     const batch = dirs.splice(0, BATCH);
-    const lists = await Promise.all(batch.map((d) => fs.promises.readdir(d, { withFileTypes: true }).catch(() => [])));
+    const lists = await Promise.all(batch.map((d) => fs.promises.readdir(d, { withFileTypes: true }).catch((err) => err)));
     lists.forEach((items, i) => {
+      if (!Array.isArray(items)) {
+        unreadable.push(`${batch[i]}: ${items.code ?? items.message}`);
+        return;
+      }
       for (const it of items) {
         const p = path.join(batch[i], it.name);
-        if (it.isDirectory()) dirs.push(p);
+        if (it.isSymbolicLink()) linkPaths.push(p);
+        else if (it.isDirectory()) dirs.push(p);
         else if (it.isFile()) files.push(p);
       }
     });
   }
-  let total = 0;
+  let bytes = 0;
   for (let i = 0; i < files.length; i += BATCH) {
     const stats = await Promise.all(files.slice(i, i + BATCH).map((f) => fs.promises.lstat(f).catch(() => null)));
-    for (const s of stats) if (s) total += s.size;
+    for (const s of stats) if (s) bytes += s.size;
   }
-  return total;
+  const links = [];
+  for (let i = 0; i < linkPaths.length; i += BATCH) {
+    const targets = await Promise.all(linkPaths.slice(i, i + BATCH).map((l) => fs.promises.readlink(l).catch((err) => err)));
+    targets.forEach((t, j) => {
+      const link = linkPaths[i + j];
+      if (typeof t !== "string") unreadable.push(`${link}: ${t.code ?? t.message}`);
+      else links.push({ link, target: path.resolve(path.dirname(link), t.replace(/^\\\\\?\\UNC\\/, "\\\\").replace(/^\\\\\?\\/, "")) });
+    });
+  }
+  return { bytes, links, unreadable };
+}
+
+// Why a tree the walk read cannot be removed: a link in it leading outside
+// it, which `git worktree remove` would follow on Windows, or a directory it
+// could not read, which may hold one. Null when the tree can go.
+export function linkReason(scan, dir) {
+  const rel = (p) => path.relative(dir, p);
+  const out = scan.links.filter((l) => !samePath(l.target, dir) && !isUnder(l.target, dir));
+  if (out.length) return `${n(out.length, "link")} inside it ${out.length === 1 ? "points" : "point"} outside it (${listSome(out.map((l) => `${rel(l.link)} -> ${l.target}`), 3)}); git worktree remove follows a junction and deletes what it points at, so remove the link itself by hand and run again`;
+  if (scan.unreadable.length) return `${n(scan.unreadable.length, "directory or link", "directories or links")} inside it could not be read (${listSome(scan.unreadable.map((u) => u.replace(`${dir}${path.sep}`, "")), 3)}), so whether a link inside it points outside it cannot be told; left for a person`;
+  return null;
 }
 
 // Every process on the machine with its command line, one tab-separated line
@@ -158,7 +193,7 @@ export const liveDeps = {
   rename: (from, to) => fs.renameSync(from, to),
   removeDir: (p) => fs.rmSync(p, { recursive: true, force: true, maxRetries: 10, retryDelay: 250 }),
   removeEmptyDir: (p) => fs.rmdirSync(p),
-  dirSize,
+  scan: scanTree,
   freeSpace(dir) {
     try {
       const s = fs.statfsSync(dir);
@@ -399,12 +434,17 @@ const PROBE_SUFFIX = ".removing";
 
 // The removals the log says did not finish: for each path the log's last row
 // about it, kept when that row is `failed` or a `removing` that no outcome
-// row followed, which is a run killed while git was removing it.
-export function unfinishedRemovals(log) {
+// row followed, which is a run killed while git was removing it. The same by
+// branch, for the branch such a removal left local: keyed by the branch, so
+// that a worktree recreated at the old path does not stand as the last word
+// on the branch the earlier removal stranded there.
+const unfinished = (log, key) => {
   const last = new Map();
-  for (const r of readLogRows(log)) if (r.decision && r.path) last.set(norm(r.path), r);
+  for (const r of readLogRows(log)) if (r.decision && r.path && (key === "path" || r.branch)) last.set(key === "path" ? norm(r.path) : r.branch, r);
   return [...last.values()].filter((r) => r.decision === "failed" || r.decision === "removing");
-}
+};
+export const unfinishedRemovals = (log) => unfinished(log, "path");
+export const strandedBranches = (log) => unfinished(log, "branch");
 
 const unfinishedWhat = (r, object = " it") => `the --apply run at ${r.at} ${r.decision === "removing" ? `was removing${object} when that run stopped (${r.why})` : `failed to remove${object} (${r.why})`}`;
 const unfinishedNote = (r, deps, ctx, object) => {
@@ -468,10 +508,15 @@ export function formatBytes(bytes) {
 // entry and drops its record before it reports the failure. The branch is
 // deleted with -D only after the same commit count that justified the
 // removal is read again, so -D never deletes work committed since the
-// classification. The direct directory removal is the one destructive call
-// here that git does not guard, so it is made only under the root and only
-// on a directory git has already stopped treating as a worktree, which a
-// listing that failed cannot establish: an unknown answer keeps the tree.
+// classification. Git follows a junction inside the tree, so the walk that
+// sized the tree moments before this runs has read every link in it and kept
+// the tree if one leads outside it. The direct directory removal is the one
+// destructive call here that git does not guard, so it is made only under
+// the root and only on a directory git has already stopped treating as a
+// worktree, which a listing that failed cannot establish: an unknown answer
+// keeps the tree.
+const bytesUnder = async (dir, deps) => (await deps.scan(dir)).bytes;
+
 function registration(abs, ctx, deps) {
   const r = deps.exec("git", ["worktree", "list", "--porcelain"], ctx.mainRoot);
   if (r.status !== 0) return { known: false, err: r.err || r.out || `exit ${r.status}` };
@@ -503,7 +548,7 @@ async function removeWorktree(entry, ctx, deps) {
   try {
     deps.rename(probe, abs);
   } catch (err) {
-    return failed(`the directory was renamed to ${probe} to test whether a process holds it and could not be renamed back (${err.code ?? err.message}); rename it back by hand`, await deps.dirSize(probe));
+    return failed(`the directory was renamed to ${probe} to test whether a process holds it and could not be renamed back (${err.code ?? err.message}); rename it back by hand`, await bytesUnder(probe, deps));
   }
   const notes = [];
   const rm = deps.exec("git", ["worktree", "remove", abs], ctx.mainRoot);
@@ -512,7 +557,7 @@ async function removeWorktree(entry, ctx, deps) {
     if (!deps.exists(abs)) notes.push(`git worktree remove reported an error but the directory is gone (${gitErr})`);
     else {
       const reg = registration(abs, ctx, deps);
-      if (!reg.known) return failed(`git worktree remove failed (${gitErr}) and whether git still holds its record could not be read (git worktree list failed: ${reg.err}); nothing more was touched; check the directory and \`git worktree list\` by hand; the branch stays until then`, await deps.dirSize(abs));
+      if (!reg.known) return failed(`git worktree remove failed (${gitErr}) and whether git still holds its record could not be read (git worktree list failed: ${reg.err}); nothing more was touched; check the directory and \`git worktree list\` by hand; the branch stays until then`, await bytesUnder(abs, deps));
       if (reg.registered) {
         // Git checks the lock, the submodules and the tree's changes before
         // it deletes anything and drops its record after deleting, so a
@@ -528,7 +573,7 @@ async function removeWorktree(entry, ctx, deps) {
         /* reported below from what is left */
       }
       if (deps.exists(abs)) {
-        const remaining = await deps.dirSize(abs);
+        const remaining = await bytesUnder(abs, deps);
         return failed(`git worktree remove stopped part-way (${gitErr}) and dropped its record, so ${abs} is no longer a worktree; ${formatBytes(remaining)} remain there; delete the directory by hand once nothing holds it, then \`git branch -D ${entry.branch}\`; the branch stays until then`, remaining);
       }
       notes.push(`git worktree remove stopped part-way (${gitErr}) and dropped its record; the rest of the directory was removed directly`);
@@ -609,9 +654,13 @@ export async function main(argv, deps = liveDeps) {
     processes: { ok: false, err: "not listed" },
   };
   // The default branch is never removed wherever it is checked out: main,
-  // and whatever origin/HEAD names where the clone recorded it.
+  // and whatever origin/HEAD names. A clone records origin/HEAD; a repository
+  // built with `git init` and `git remote add` has none, and what its default
+  // branch is cannot be told, so --apply waits for it to be recorded.
   const originHead = deps.exec("git", ["symbolic-ref", "-q", "refs/remotes/origin/HEAD"], mainRoot);
   if (originHead.status === 0 && originHead.out.startsWith("refs/remotes/origin/")) ctx.defaultBranches.add(originHead.out.slice("refs/remotes/origin/".length));
+  else if (apply) die(`origin/HEAD is not recorded in ${mainRoot}, so which branch is the default cannot be told beyond main; \`git remote set-head origin --auto\` records it; nothing was touched`);
+  else log(`origin/HEAD is not recorded in ${mainRoot}, so main alone counts as the default branch; \`git remote set-head origin --auto\` records it`);
   const logPath = path.join(mainRoot, ".git", LOG_NAME);
   const record = (obj) => {
     if (!apply) return;
@@ -649,12 +698,17 @@ export async function main(argv, deps = liveDeps) {
   for (const p of strayPaths) {
     rows.push({ entry: { path: p, branch: null, detached: false }, verdict: { remove: false }, stray: true, sized: true, size: null, decision: "keep", why: strayReason(p, entries, earlier, deps, ctx) });
   }
-  // A branch an earlier run's removal left local with no directory and no
-  // record is listed by the log alone, since nothing else on disk names it.
-  for (const r of unfinishedRemovals(earlier)) {
-    if (!r.branch || entries.some((e) => samePath(e.path, r.path)) || deps.exists(r.path) || strayPaths.some((p) => samePath(p, r.path) || isUnder(r.path, p))) continue;
+  // A branch an earlier run's removal left local with no worktree is listed
+  // by the log alone, since nothing else on disk names it: not one a
+  // registered worktree holds, which has its own row, nor one a stray row
+  // names. Its commits are read again before -D is advised, since the log's
+  // reason is from an earlier run.
+  for (const r of strandedBranches(earlier)) {
+    if (entries.some((e) => e.branch === r.branch) || strayPaths.some((p) => samePath(p, r.path) || isUnder(r.path, p))) continue;
     if (deps.exec("git", ["rev-parse", "--verify", "-q", `refs/heads/${r.branch}`], mainRoot).status !== 0) continue;
-    rows.push({ entry: { path: r.path, branch: r.branch, detached: false }, verdict: { remove: false }, stray: true, stranded: true, sized: false, size: null, decision: "keep", why: `its directory is gone and git does not list it, but its branch ${r.branch} is still local: ${unfinishedWhat(r)}; \`git branch -D ${r.branch}\` finishes that removal once its commits are checked` });
+    const own = deps.exec("git", ["rev-list", "--count", `refs/heads/${r.branch}`, "^refs/remotes/origin/main"], mainRoot);
+    const finish = own.status !== 0 ? `whether its commits are on origin/main could not be read (${own.err || own.out}); left for a person` : Number(own.out) > 0 ? `it holds ${n(Number(own.out), "commit")} not on origin/main; left for a person` : `every commit on it is on origin/main, so \`git branch -D ${r.branch}\` finishes that removal`;
+    rows.push({ entry: { path: r.path, branch: r.branch, detached: false }, verdict: { remove: false }, stray: true, stranded: true, sized: false, size: null, decision: "keep", why: `its branch ${r.branch} is still local and no worktree holds it: ${unfinishedWhat(r)}; ${finish}` });
   }
 
   const print = rowPrinter(rows, ctx, log);
@@ -662,14 +716,22 @@ export async function main(argv, deps = liveDeps) {
   let failed = 0;
   // A row whose sizing fails is not removed; a row whose removal throws is
   // `failed` with the directory's state, so a throw part-way through the run
-  // costs one row and not the table.
+  // costs one row and not the table. The walk that sizes a removable tree
+  // also reads every link in it, and a link leading outside the tree turns
+  // the row into a keep before anything is recorded or touched.
   const sizeError = (row) => (err) => {
     row.sizeNote = `could not be sized (${err.message})`;
     return null;
   };
   const rowError = (row) => (err) => ({ outcome: apply ? "failed" : row.decision, note: `${err.message}; the directory is ${deps.exists(path.resolve(row.entry.path)) ? "still there" : "gone"}`, remaining: null });
   const settle = async (row) => {
-    if (row.sized) row.size = await deps.dirSize(path.resolve(row.entry.path)).catch(sizeError(row));
+    if (row.sized) {
+      const abs = path.resolve(row.entry.path);
+      const scan = await deps.scan(abs).catch(sizeError(row));
+      row.size = scan?.bytes ?? null;
+      const reason = scan && row.verdict.remove ? linkReason(scan, abs) : null;
+      if (reason) Object.assign(row, { verdict: { remove: false, reasons: [reason] }, decision: "keep", why: reason });
+    }
     if (!apply) return row.sizeNote ? { outcome: row.decision, note: row.sizeNote, remaining: null } : null;
     if (!row.verdict.remove) return { outcome: "kept", note: row.sizeNote ?? "", remaining: null };
     if (row.sizeNote) return { outcome: "kept", note: `${row.sizeNote}; the tree is untouched`, remaining: null };
