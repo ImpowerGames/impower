@@ -55,7 +55,8 @@
 # and an agents directory as arguments, the file runs the assertions on those
 # alone, exits with their status, and closes with a line that says the controls
 # did not run; the last two controls re-execute it that way to pin the exit
-# status and both closing lines.
+# status and both closing lines, and the count of controls the full run's
+# closing line reports is held to a floor.
 #
 # Needs bash 4.4 or newer: the lowercasing uses ${var,,}, and an empty array
 # is expanded under set -u wherever a row names nothing, which older versions
@@ -226,32 +227,38 @@ definition_model() {
 # Every value of KEY named inside one cell, in VALUES, one element each, so an
 # empty value is still a visible element rather than nothing. Each occurrence
 # of the key is read in turn, quoted or not, so a value cannot hide unquoted
-# beside a quoted one. A quoted value ends at its closing quote, which keeps
-# trailing prose in the same cell out of the value; an unquoted one runs to the
-# next comma or cell boundary, so a value containing a space is still captured
-# whole and its trailing prose, if any, is part of what gets judged.
+# beside a quoted one. Any whitespace between the key and its value is skipped,
+# so a value that opens with a quote always reads as quoted. A quoted value
+# ends at its closing quote, which keeps trailing prose in the same cell out of
+# the value; an unquoted one runs to the next comma or cell boundary, so a
+# value containing a space is still captured whole and its trailing prose, if
+# any, is part of what gets judged.
 cell_values() {
   local key="$1" rest="${2//\`/ }" prefix raw
-  prefix="$dq?$key$dq? *: *"
+  prefix="$dq?$key$dq?[[:space:]]*:[[:space:]]*"
   VALUES=()
   while [[ "$rest" =~ $prefix ]]; do
     rest="${rest#*"${BASH_REMATCH[0]}"}"
     case "$rest" in
       "$dq"*"$dq"*) raw="${rest#"$dq"}"; raw="${raw%%"$dq"*}"; rest="${rest#"$dq"*"$dq"}"; VALUES+=("$raw") ;;
       "$sq"*"$sq"*) raw="${rest#"$sq"}"; raw="${raw%%"$sq"*}"; rest="${rest#"$sq"*"$sq"}"; VALUES+=("$raw") ;;
-      *) raw="${rest%%[,|]*}"; rest="${rest:${#raw}}"; trim "$raw"; unquote "$REPLY"; VALUES+=("$REPLY") ;;
+      *) raw="${rest%%[,|]*}"; rest="${rest:${#raw}}"; trim "$raw"; VALUES+=("$REPLY") ;;
     esac
   done
 }
 
-# Whether a pinned id names the same model the current row's writer runs.
-# Reads the row's writer, families and versioned flag from the caller.
+# Whether a candidate id names the same model the current row's writer runs.
+# Reads the row's writer, families and versioned flag from the caller. A
+# candidate that carries a version is compared exactly when the row is
+# versioned; one that names only a family, a bare alias or an id with no
+# version, is compared by family whatever the row says, because it cannot
+# promise a version different from the writer's.
 is_writers_own() {
-  local pinned_norm="$1" family alias
-  if [[ -n "$versioned" ]]; then
-    [[ "$pinned_norm" == "$writer" || "$pinned_norm" == "$writer"-* ]]
+  local candidate="$1" family alias
+  if [[ -n "$versioned" && "$candidate" == *-* ]]; then
+    [[ "$candidate" == "$writer" || "$candidate" == "$writer"-* ]]
   else
-    family="${pinned_norm%%-*}"
+    family="${candidate%%-*}"
     for alias in $families; do
       [[ "$family" == "$alias" ]] && return 0
     done
@@ -283,10 +290,15 @@ check() {
 
   # --- assertions 1, 2 and 3, over the writer-to-reviewer table---------------
   #
-  # A row is a writer row when its first cell names one of the aliases, matched
-  # case-insensitively anywhere inside the cell, so relabelling or emphasising it
-  # does not quietly drop the row out of the check. Leading whitespace is
-  # dropped first, because markdown renders an indented row as a row.
+  # A row is a writer row when its first cell names one of the aliases as a
+  # whole word, matched case-insensitively anywhere inside the cell, so
+  # relabelling or emphasising it does not quietly drop the row out of the
+  # check and a label that merely contains an alias ("Octopus") does not pull
+  # one in. Leading whitespace is dropped first: table-shaped text is judged
+  # wherever it sits, indented or inside a code block, because an example that
+  # routes a writer to its own model is still an instruction a reader can
+  # copy. The cells after the first are the reviewer; a row with only one cell
+  # names none.
 
   while IFS= read -r line; do
     trim "$line"
@@ -297,7 +309,7 @@ check() {
     trim "$first_cell"
     first_cell="$REPLY"
     rest="${line#|}"
-    if [[ "$rest" == *"|"* ]]; then rest="${rest#*|}"; else rest="$line"; fi
+    if [[ "$rest" == *"|"* ]]; then rest="${rest#*|}"; else rest=""; fi
 
     # Every family the first cell names, not just the first: a row like
     # "Fable, Sonnet, Haiku" speaks for three writers, and each of them can
@@ -379,19 +391,19 @@ check() {
     echo "PASS: all $rows_seen writer-to-reviewer rows spawn a reviewer that is not the writer's own model."
   fi
 
-  # --- assertion 3, swept over the rest of the document ---------------------
+  # --- assertion 3, swept over the whole document ----------------------------
   #
-  # Catches a rejected alias named outside a reviewer cell: in prose, or in a
-  # row's writer column, which the table loop does not read for values. Only
-  # quoted values are swept: unquoted prose has no reliable end, and guessing
-  # one would turn ordinary sentences into false failures.
+  # Every quoted model value on every line, wherever it sits: in prose, in a
+  # row's writer column, in a row the table loop skipped because its first cell
+  # names no writer. A rejected value inside a reviewer cell is reported here
+  # as well as by its row; the duplicate is the price of a sweep with no
+  # partition to get wrong. Only quoted values are swept: unquoted prose has no
+  # reliable end, and guessing one would turn ordinary sentences into false
+  # failures.
 
-  re="$dq?model$dq? *: *($dq[^$dq]*$dq|$sq[^$sq]*$sq)"
-  prefix="^$dq?model$dq? *: *"
-  while IFS= read -r line; do
-    trim "$line"
-    rest="$REPLY"
-    if [[ "$rest" == "|"* ]]; then rest="${rest#|}"; rest="${rest%%|*}"; fi
+  re="$dq?model$dq?[[:space:]]*:[[:space:]]*($dq[^$dq]*$dq|$sq[^$sq]*$sq)"
+  prefix="^$dq?model$dq?[[:space:]]*:[[:space:]]*"
+  while IFS= read -r rest; do
     while [[ "$rest" =~ $re ]]; do
       raw="${BASH_REMATCH[0]}"
       rest="${rest#*"$raw"}"
@@ -400,13 +412,13 @@ check() {
       unquote "$REPLY"
       value="$REPLY"
       if ! is_allowed "$value"; then
-        note_fail "\"model: $value\" is named outside a reviewer cell, and the Agent tool rejects it."
+        note_fail "\"model: $value\" is named in the document, and the Agent tool rejects it."
         stray=1
       fi
     done
   done <<< "$body"
 
-  [[ "$stray" -eq 0 ]] && echo "PASS: no rejected model value is named outside a reviewer cell."
+  [[ "$stray" -eq 0 ]] && echo "PASS: no rejected model value is named anywhere in the document."
 
   # --- assertion 4, the runtime half ----------------------------------------
 
@@ -489,19 +501,6 @@ report_and_exit() {
   exit 0
 }
 
-# One check call and one assignment serve both runs, so the re-executed run
-# pins the same line the full run's exit status comes from.
-if [[ "$#" -gt 0 ]]; then
-  skill="$1"
-  agents="${2:-$agents}"
-fi
-check "$skill" "$agents"
-overall=$?
-if [[ "$#" -gt 0 ]]; then
-  report_and_exit " on $skill, controls not run"
-fi
-controls_run=0
-
 # --- controls -------------------------------------------------------------
 #
 # A check that cannot go red pins nothing. These run the check function above
@@ -510,56 +509,11 @@ controls_run=0
 # helper function can print something. The last two run the file itself as a
 # process, on one broken fixture and one correct one, so the step from that
 # return to the exit status and the closing line is covered too, and they exit
-# on their own rather than through the function they pin.
+# on their own rather than through the function they pin. The count of
+# controls is held to a floor, so a control that stops running, or stops being
+# counted, fails the run rather than shrinking a number nobody compares.
 
-tmp="$(mktemp -d)"
-trap 'rm -rf "$tmp"' EXIT
-
-mkdir -p "$tmp/agents"
-# Every fixture definition carries the abort line, so a control can only go
-# red for the reason it is testing rather than for assertion 5.
-abort_line='If you are the writer model, reply ABORT: pin failed'
-printf -- '---\nname: pinned-old\nmodel: claude-opus-4-6\n---\n' > "$tmp/agents/pinned-old.md"
-printf -- '---\nname: pinned-new\nmodel: claude-opus-5\n---\n' > "$tmp/agents/pinned-new.md"
-printf -- '---\nname: pinned-fable\nmodel: claude-fable-5-1\n---\n' > "$tmp/agents/pinned-fable.md"
-printf -- '---\nname: pinned-sonnet\nmodel: claude-sonnet-5\n---\n' > "$tmp/agents/pinned-sonnet.md"
-printf -- '---\nname: unpinned\nmodel: opus\n---\n' > "$tmp/agents/unpinned.md"
-printf -- '---\nname: quoted-alias\nmodel: "opus"\n---\n' > "$tmp/agents/quoted-alias.md"
-printf -- '---\nname: inheriting\nmodel: inherit\n---\n' > "$tmp/agents/inheriting.md"
-printf -- '---\nname: dated\nmodel: claude-opus-5-20260501\n---\n' > "$tmp/agents/dated.md"
-printf -- '---\nname: suffixed\nmodel: claude-opus-5[1m]\n---\n' > "$tmp/agents/suffixed.md"
-printf -- '---\nname: modelless\n---\n' > "$tmp/agents/modelless.md"
-printf -- '---\nname: body-only\n---\nmodel: claude-opus-4-6\n' > "$tmp/agents/body-only.md"
-# Filename and declared name deliberately disagree, so the resolver is shown
-# to match on the frontmatter name rather than on the path.
-printf -- '---\nname: declared-name\nmodel: claude-opus-4-6\n---\n' > "$tmp/agents/some-other-file.md"
-# A trailing YAML comment is not part of the value a parser would read. The
-# second definition can only be found at all if the comment on its name is
-# dropped, which is what shows the comment being dropped rather than folded
-# into the value.
-printf -- '---\nname: commented\nmodel: claude-opus-5 # pinned deliberately\n---\n' > "$tmp/agents/commented.md"
-printf -- '---\nname: annotated # resolved by this name\nmodel: claude-opus-4-6 # the older version\n---\n' > "$tmp/agents/annotated.md"
-# Two files claiming one name, pinning different models, neither of them the
-# model of the row that spawns the name, so the row can only fail on the
-# duplicate.
-printf -- '---\nname: dupe\nmodel: claude-sonnet-5\n---\n' > "$tmp/agents/aaa-dupe.md"
-printf -- '---\nname: dupe\nmodel: claude-opus-5\n---\n' > "$tmp/agents/zzz-dupe.md"
-# No definitions at all, for the control on an empty directory.
-mkdir -p "$tmp/noagents"
-
-for fixture in "$tmp"/agents/*.md; do
-  printf '%s\n' "$abort_line" >> "$fixture"
-done
-
-# The prose assertions 4 and 5 read, so a control fixture is only missing what
-# the control is about.
-# Shaped like the real document: the reviewer-facing rules live inside the
-# verbatim prompt blockquote, the writer-facing ones in ordinary prose.
-clause='> open your report with the model name and id you yourself are running as
-> if I gave you no model, reply ABORT: writer model not supplied
-> if you are my model, reply ABORT: pin failed
-Fill in WRITER = your own model id before sending this.
-An abort is a result, not an error.'
+controls_floor=63
 
 # Runs the check on FIXTURE_SKILL and FIXTURE_AGENTS with its output captured,
 # and returns its status; the output is read back only when a control fails.
@@ -570,6 +524,7 @@ run_fixture() {
   check "$1" "$2" > "$tmp/out" 2>&1
 }
 
+# A document made of BODY followed by the prose clause, which must be rejected.
 control() {
   local desc="$1" body="$2"
   printf '%s\n%s\n' "$body" "$clause" > "$tmp/fixture.md"
@@ -581,6 +536,7 @@ control() {
   fi
 }
 
+# The same document shape, which must be accepted.
 accepts() {
   local desc="$1" body="$2"
   printf '%s\n%s\n' "$body" "$clause" > "$tmp/fixture.md"
@@ -592,182 +548,243 @@ accepts() {
   fi
 }
 
-control 'a reviewer name with no definition behind it' '| Opus 5 | `subagent_type: "no-such-reviewer"` |'
-control 'a definition that pins nothing'               '| Opus 5 | `subagent_type: "modelless"` |'
-control 'a definition holding a bare alias'            '| Opus 5 | `subagent_type: "unpinned"` |'
-control 'a definition holding a quoted alias'          '| Opus 5 | `subagent_type: "quoted-alias"` |'
-control 'a definition holding model: inherit'          '| Opus 5 | `subagent_type: "inheriting"` |'
-control 'a model line in the body, not the frontmatter' '| Opus 5 | `subagent_type: "body-only"` |'
-control 'a pinned reviewer on the writer own model'    '| Opus 5 | `subagent_type: "pinned-new"` |'
-control 'the same, for the older version'              '| Opus 4.6 | `subagent_type: "pinned-old"` |'
-control 'a dated snapshot of the writer own model'     '| Opus 5 | `subagent_type: "dated"` |'
-control 'a long-context suffix on the writer own model' '| Opus 5 | `subagent_type: "suffixed"` |'
-control 'a version-less writer routed to its family'   '| Opus | `subagent_type: "pinned-new"` |'
-control 'a multi-family row routed to one of them'     '| Fable, Sonnet, Haiku | `subagent_type: "pinned-sonnet"` |'
-control 'a multi-family row on the alias path'         '| Fable, Sonnet, Haiku | `model: "fable"` |'
-control 'two definitions claiming one name'            '| Opus 4.6 | `subagent_type: "dupe"` |'
-control 'the writer own model behind a YAML comment'   '| Opus 5 | `subagent_type: "commented"` |'
-control 'a spaced version, "opus 4.6"'                 '| Opus | `model: "opus 4.6"` |'
-control 'a full model id passed to the parameter'      '| Opus | `model: "claude-opus-5"` |'
-control 'a same-family alias route, Opus to opus'      '| Opus | `model: "opus"` |'
-control 'a same-family alias route, Fable to fable'    '| Fable | `model: "fable"` |'
-control 'two adjacent aliases, "opus haiku"'           '| Opus | `model: "opus haiku"` |'
-control 'an empty model value'                         '| Opus | `model: ""` |'
-control 'a single-quoted rejected value'               "| Opus | \`model: 'opus 4.6'\` |"
-# Beside a valid reviewer name, so the row cannot fail for naming nothing.
-control 'an unquoted rejected value'                   '| Fable | `subagent_type: "pinned-old"`, `model: opus 4.6` |'
-control 'a same-family fallback clause'                '| Opus | `model: "fable"`, or `model: "opus"` if rejected |'
-control 'an unquoted same-family value beside a quoted one' '| Opus | `model: "fable"`, or `model: opus` |'
-control 'a second row that is same-family'             '| Opus | `model: "fable"` |
-| Opus | `model: "opus"` |'
-control 'an indented second row that is same-family'   '| Opus | `model: "fable"` |
-  | Opus | `model: "opus"` |'
-control 'an emphasised label, **Opus**, routed to opus' '| **Opus** | `model: "opus"` |'
-control 'a row naming neither a reviewer nor a model'  '| Opus | see below |'
-control 'a rejected value named in prose'              'The fallback is `model: "opus 4.6"` when the definition is missing.
-| Opus 5 | `subagent_type: "pinned-old"` |'
-control 'a rejected value in the writer column'        '| Opus 5 (`model: "opus 4.6"`) | `subagent_type: "pinned-old"` |'
-control 'a document with no table row at all'          ''
-control 'a routing table that is commented out'        '<!--
-| Opus 5 | `subagent_type: "pinned-old"` |
--->'
-
-accepts 'a correct pinned table' '| Opus 5 | `subagent_type: "pinned-old"` |
-| Opus 4.6 | `subagent_type: "pinned-new"` |
-| Fable, Sonnet, Haiku | `subagent_type: "pinned-new"` |'
-accepts 'a correct alias-fallback table' '| Opus | `model: "fable"` |
-| Fable, Sonnet, Haiku | `model: "opus"` |'
-accepts 'an unquoted accepted value' '| Fable | `model: opus` |'
-accepts 'a stale row and a rejected value left inside a comment beside a live table' '| Opus 5 | `subagent_type: "pinned-old"` |
-<!--
-| Opus 5 | `subagent_type: "pinned-new"` |
-The fallback was `model: "opus 4.6"`.
--->'
-accepts 'a definition resolved by its declared name, not its filename' '| Opus 5 | `subagent_type: "declared-name"` |'
-accepts 'a definition found through a YAML comment on its name line' '| Opus 5 | `subagent_type: "annotated"` |'
-
-# The floor comparison, on both sides of 4.4 and at the version this file was
-# written against.
-if bash_clears_floor 4 4 && bash_clears_floor 5 2 && ! bash_clears_floor 4 3 && ! bash_clears_floor 3 2; then
-  echo "PASS (control): the bash floor comparison admits 4.4 and 5.2 and refuses 4.3 and 3.2."
-else
-  echo "FAIL (control): the bash floor comparison misjudges a version around 4.4."
-  overall=1
-fi
-controls_run=$((controls_run + 1))
-
-# A row that spawns nothing by name, against a directory with no definitions:
-# only the count of definitions can fail this one.
-printf '%s\n%s\n' '| Opus | `model: "fable"` |' "$clause" > "$tmp/fixture.md"
-if run_fixture "$tmp/fixture.md" "$tmp/noagents"; then
-  echo "FAIL (control): accepted an empty agents directory -- output: $(<"$tmp/out")"
-  overall=1
-else
-  echo "PASS (control): rejects an empty agents directory."
-fi
+# A whole document given as CONTENT, the clause placed by the control itself,
+# judged against AGENTS (the fixture definitions unless given), which must be
+# rejected.
+document_control() {
+  local desc="$1" content="$2" agents_dir="${3:-$tmp/agents}"
+  printf '%s\n' "$content" > "$tmp/fixture.md"
+  if run_fixture "$tmp/fixture.md" "$agents_dir"; then
+    echo "FAIL (control): accepted $desc -- output: $(<"$tmp/out")"
+    overall=1
+  else
+    echo "PASS (control): rejects $desc."
+  fi
+}
 
 # Each prose assertion, run against a document missing exactly that one line.
 # Dropping a sentence is how these guards die, so each has to be shown red on
 # its own rather than as a group.
 prose_control() {
-  local desc="$1" missing="$2"
-  {
-    printf '%s\n' '| Opus 5 | `subagent_type: "pinned-old"` |'
-    printf '%s\n' "$clause" | grep -vF "$missing"
-  } > "$tmp/prose.md"
-  if run_fixture "$tmp/prose.md" "$tmp/agents"; then
-    echo "FAIL (control): accepted a document with $desc -- output: $(<"$tmp/out")"
-    overall=1
+  local desc="$1" missing="$2" content
+  content="$(printf '%s\n' "$clause" | grep -vF "$missing")"
+  document_control "a document with $desc" '| Opus 5 | `subagent_type: "pinned-old"` |'$'\n'"$content"
+}
+
+# The file as a process, on a document made of BODY and the clause: everything
+# else reads the check function's return, and this is what shows that return
+# reaching the exit status and the closing line, which must be WANT_LAST. Run
+# by the bash running this file, so the child clears the same floor the parent
+# did. On red it prints the closing line and exits on its own, since the
+# function it pins is the one it cannot trust.
+reexec_control() {
+  local desc="$1" body="$2" want="$3" want_last="$4" status last="" line
+  printf '%s\n%s\n' "$body" "$clause" > "$tmp/fixture.md"
+  "${BASH:-bash}" "$self" "$tmp/fixture.md" "$tmp/agents" > "$tmp/out" 2>&1
+  status=$?
+  while IFS= read -r line; do last="$line"; done < "$tmp/out"
+  controls_run=$((controls_run + 1))
+  if { [[ "$want" == zero && "$status" -eq 0 ]] || [[ "$want" == non-zero && "$status" -ne 0 ]]; } && [[ "$last" == "$want_last" ]]; then
+    echo "PASS (control): the file exits $want on $desc."
   else
-    echo "PASS (control): rejects a document with $desc."
+    echo "FAIL (control): the file exited $status on $desc, closing with '$last' -- output: $(<"$tmp/out")"
+    echo "One or more reviewer-model assertions failed, $controls_run controls included."
+    exit 1
   fi
 }
 
-prose_control 'no self-report instruction' 'the model name and id you yourself are running as'
-prose_control 'no abort contract'          'ABORT: pin failed'
-prose_control 'no abort for an unsupplied writer model' 'ABORT: writer model not supplied'
-prose_control 'no writer model to compare against' 'WRITER = your own model id'
-prose_control 'no recovery path for an abort' 'An abort is a result, not an error'
+run_controls() {
+  tmp="$(mktemp -d)"
+  trap 'rm -rf "$tmp"' EXIT
 
-# A reviewer-facing rule that has drifted out of the blockquote is still in the
-# document, so only an assertion that reads the prompt alone can miss it.
-printf '%s\n%s\n' '| Opus 5 | `subagent_type: "pinned-old"` |' "${clause/> if you are my model/if you are my model}" > "$tmp/fixture.md"
-if run_fixture "$tmp/fixture.md" "$tmp/agents"; then
-  echo "FAIL (control): accepted a document whose abort contract sits outside the prompt blockquote -- output: $(<"$tmp/out")"
-  overall=1
-else
-  echo "PASS (control): rejects a document whose abort contract sits outside the prompt blockquote."
+  mkdir -p "$tmp/agents"
+  # Every fixture definition carries the abort line, so a control can only go
+  # red for the reason it is testing rather than for assertion 5.
+  abort_line='If you are the writer model, reply ABORT: pin failed'
+  printf -- '---\nname: pinned-old\nmodel: claude-opus-4-6\n---\n' > "$tmp/agents/pinned-old.md"
+  printf -- '---\nname: pinned-new\nmodel: claude-opus-5\n---\n' > "$tmp/agents/pinned-new.md"
+  printf -- '---\nname: pinned-fable\nmodel: claude-fable-5-1\n---\n' > "$tmp/agents/pinned-fable.md"
+  printf -- '---\nname: pinned-sonnet\nmodel: claude-sonnet-5\n---\n' > "$tmp/agents/pinned-sonnet.md"
+  printf -- '---\nname: unpinned\nmodel: opus\n---\n' > "$tmp/agents/unpinned.md"
+  printf -- '---\nname: quoted-alias\nmodel: "opus"\n---\n' > "$tmp/agents/quoted-alias.md"
+  printf -- '---\nname: inheriting\nmodel: inherit\n---\n' > "$tmp/agents/inheriting.md"
+  printf -- '---\nname: dated\nmodel: claude-opus-5-20260501\n---\n' > "$tmp/agents/dated.md"
+  printf -- '---\nname: suffixed\nmodel: claude-opus-5[1m]\n---\n' > "$tmp/agents/suffixed.md"
+  printf -- '---\nname: modelless\n---\n' > "$tmp/agents/modelless.md"
+  printf -- '---\nname: body-only\n---\nmodel: claude-opus-4-6\n' > "$tmp/agents/body-only.md"
+  # Filename and declared name deliberately disagree, so the resolver is shown
+  # to match on the frontmatter name rather than on the path.
+  printf -- '---\nname: declared-name\nmodel: claude-opus-4-6\n---\n' > "$tmp/agents/some-other-file.md"
+  # A trailing YAML comment is not part of the value a parser would read. The
+  # second definition can only be found at all if the comment on its name is
+  # dropped, which is what shows the comment being dropped rather than folded
+  # into the value.
+  printf -- '---\nname: commented\nmodel: claude-opus-5 # pinned deliberately\n---\n' > "$tmp/agents/commented.md"
+  printf -- '---\nname: annotated # resolved by this name\nmodel: claude-opus-4-6 # the older version\n---\n' > "$tmp/agents/annotated.md"
+  # Two files claiming one name, pinning different models, neither of them the
+  # model of the row that spawns the name, so the row can only fail on the
+  # duplicate.
+  printf -- '---\nname: dupe\nmodel: claude-sonnet-5\n---\n' > "$tmp/agents/aaa-dupe.md"
+  printf -- '---\nname: dupe\nmodel: claude-opus-5\n---\n' > "$tmp/agents/zzz-dupe.md"
+  # No definitions at all, for the control on an empty directory.
+  mkdir -p "$tmp/noagents"
+
+  for fixture in "$tmp"/agents/*.md; do
+    printf '%s\n' "$abort_line" >> "$fixture"
+  done
+
+  # The prose assertions 4 and 5 read, so a control fixture is only missing what
+  # the control is about.
+  # Shaped like the real document: the reviewer-facing rules live inside the
+  # verbatim prompt blockquote, the writer-facing ones in ordinary prose.
+  clause='> open your report with the model name and id you yourself are running as
+> if I gave you no model, reply ABORT: writer model not supplied
+> if you are my model, reply ABORT: pin failed
+Fill in WRITER = your own model id before sending this.
+An abort is a result, not an error.'
+
+  control 'a reviewer name with no definition behind it' '| Opus 5 | `subagent_type: "no-such-reviewer"` |'
+  control 'a definition that pins nothing'               '| Opus 5 | `subagent_type: "modelless"` |'
+  control 'a definition holding a bare alias'            '| Opus 5 | `subagent_type: "unpinned"` |'
+  control 'a definition holding a quoted alias'          '| Opus 5 | `subagent_type: "quoted-alias"` |'
+  control 'a definition holding model: inherit'          '| Opus 5 | `subagent_type: "inheriting"` |'
+  control 'a model line in the body, not the frontmatter' '| Opus 5 | `subagent_type: "body-only"` |'
+  control 'a pinned reviewer on the writer own model'    '| Opus 5 | `subagent_type: "pinned-new"` |'
+  control 'the same, for the older version'              '| Opus 4.6 | `subagent_type: "pinned-old"` |'
+  control 'a dated snapshot of the writer own model'     '| Opus 5 | `subagent_type: "dated"` |'
+  control 'a long-context suffix on the writer own model' '| Opus 5 | `subagent_type: "suffixed"` |'
+  control 'a version-less writer routed to its family'   '| Opus | `subagent_type: "pinned-new"` |'
+  control 'a multi-family row routed to one of them'     '| Fable, Sonnet, Haiku | `subagent_type: "pinned-sonnet"` |'
+  control 'a multi-family row on the alias path'         '| Fable, Sonnet, Haiku | `model: "fable"` |'
+  control 'two definitions claiming one name'            '| Opus 4.6 | `subagent_type: "dupe"` |'
+  control 'the writer own model behind a YAML comment'   '| Opus 5 | `subagent_type: "commented"` |'
+  control 'a spaced version, "opus 4.6"'                 '| Opus | `model: "opus 4.6"` |'
+  control 'a full model id passed to the parameter'      '| Opus | `model: "claude-opus-5"` |'
+  control 'a same-family alias route, Opus to opus'      '| Opus | `model: "opus"` |'
+  control 'a same-family alias route, Fable to fable'    '| Fable | `model: "fable"` |'
+  # An alias names no version, so it cannot promise one that differs from the
+  # writer's.
+  control 'a versioned writer routed to its own family alias' '| Opus 5 | `model: "opus"` |'
+  control 'two adjacent aliases, "opus haiku"'           '| Opus | `model: "opus haiku"` |'
+  control 'an empty model value'                         '| Opus | `model: ""` |'
+  control 'a single-quoted rejected value'               "| Opus | \`model: 'opus 4.6'\` |"
+  # Beside a valid reviewer name, so the row cannot fail for naming nothing.
+  control 'an unquoted rejected value'                   '| Fable | `subagent_type: "pinned-old"`, `model: opus 4.6` |'
+  control 'an unquoted empty model value'                '| Opus | `subagent_type: "pinned-fable"`, `model:` |'
+  control 'a same-family fallback clause'                '| Opus | `model: "fable"`, or `model: "opus"` if rejected |'
+  control 'an unquoted same-family value beside a quoted one' '| Opus | `model: "fable"`, or `model: opus` |'
+  control 'a second row that is same-family'             '| Opus | `model: "fable"` |
+| Opus | `model: "opus"` |'
+  control 'an indented second row that is same-family'   '| Opus | `model: "fable"` |
+  | Opus | `model: "opus"` |'
+  control 'an emphasised label, **Opus**, routed to opus' '| **Opus** | `model: "opus"` |'
+  control 'a row naming neither a reviewer nor a model'  '| Opus | see below |'
+  control 'a row with only one cell'                     '| Opus 5 `subagent_type: "pinned-old"`'
+  control 'a rejected value named in prose'              'The fallback is `model: "opus 4.6"` when the definition is missing.
+| Opus 5 | `subagent_type: "pinned-old"` |'
+  control 'a rejected value in the writer column'        '| Opus 5 (`model: "opus 4.6"`) | `subagent_type: "pinned-old"` |'
+  # Rows the table loop skips, flush and indented, holding a value in a cell
+  # the loop never reads.
+  control 'a rejected value in a row whose first cell names no writer' '| Opus 5 | `subagent_type: "pinned-old"` |
+| Minimal | 1, undirected only | use `model: "opus 4.6"` here |'
+  control 'a rejected value in an indented row whose first cell names no writer' '| Opus 5 | `subagent_type: "pinned-old"` |
+  | Any other model | `model: "opus 4.6"` |'
+  control 'a document with no table row at all'          ''
+  control 'a routing table that is commented out'        '<!--
+| Opus 5 | `subagent_type: "pinned-old"` |
+-->'
+
+  accepts 'a correct pinned table' '| Opus 5 | `subagent_type: "pinned-old"` |
+| Opus 4.6 | `subagent_type: "pinned-new"` |
+| Fable, Sonnet, Haiku | `subagent_type: "pinned-new"` |'
+  accepts 'a correct alias-fallback table' '| Opus | `model: "fable"` |
+| Fable, Sonnet, Haiku | `model: "opus"` |'
+  accepts 'a versioned writer routed to another family alias' '| Opus 5 | `model: "fable"` |'
+  accepts 'an unquoted accepted value' '| Fable | `model: opus` |'
+  accepts 'a single-quoted accepted value' "| Opus | \`model: 'fable'\` |"
+  accepts 'prose after a quoted value in the same cell' '| Opus | `model: "fable"` when the pinned one is gone |'
+  accepts 'a tab between the key and its value' $'| Opus | `model:\t"fable"` |'
+  # One label runs into the alias from the front, the other out of its back.
+  accepts 'a label that only contains an alias as a substring' '| Opus 5 | `subagent_type: "pinned-old"` |
+| Octopus, Opuscule | see below |'
+  accepts 'a stale row and a rejected value left inside a comment beside a live table' '| Opus 5 | `subagent_type: "pinned-old"` |
+<!--
+| Opus 5 | `subagent_type: "pinned-new"` |
+The fallback was `model: "opus 4.6"`.
+-->'
+  accepts 'a definition resolved by its declared name, not its filename' '| Opus 5 | `subagent_type: "declared-name"` |'
+  accepts 'a definition found through a YAML comment on its name line' '| Opus 5 | `subagent_type: "annotated"` |'
+
+  # The floor comparison, on both sides of 4.4 and at the version this file was
+  # written against.
+  if bash_clears_floor 4 4 && bash_clears_floor 5 2 && ! bash_clears_floor 4 3 && ! bash_clears_floor 3 2; then
+    echo "PASS (control): the bash floor comparison admits 4.4 and 5.2 and refuses 4.3 and 3.2."
+  else
+    echo "FAIL (control): the bash floor comparison misjudges a version around 4.4."
+    overall=1
+  fi
+  controls_run=$((controls_run + 1))
+
+  # A row that spawns nothing by name, against a directory with no definitions:
+  # only the count of definitions can fail this one.
+  document_control 'an empty agents directory' '| Opus | `model: "fable"` |'$'\n'"$clause" "$tmp/noagents"
+
+  prose_control 'no self-report instruction' 'the model name and id you yourself are running as'
+  prose_control 'no abort contract'          'ABORT: pin failed'
+  prose_control 'no abort for an unsupplied writer model' 'ABORT: writer model not supplied'
+  prose_control 'no writer model to compare against' 'WRITER = your own model id'
+  prose_control 'no recovery path for an abort' 'An abort is a result, not an error'
+
+  # A reviewer-facing rule that has drifted out of the blockquote is still in the
+  # document, so only an assertion that reads the prompt alone can miss it.
+  document_control 'a document whose abort contract sits outside the prompt blockquote' '| Opus 5 | `subagent_type: "pinned-old"` |'$'\n'"${clause/> if you are my model/if you are my model}"
+
+  # A rule that was deleted and left commented above is not a rule. Every
+  # sentinel present, every one of them inert.
+  document_control 'a document whose abort contract is commented out' '| Opus 5 | `subagent_type: "pinned-old"` |'$'\n''<!-- removed, kept for reference:'$'\n'"$clause"$'\n''-->'
+
+  # The same, for the prompt alone: the abort line commented out inside the
+  # blockquote while every body sentinel stays live, so only an assertion that
+  # reads the prompt with its comments removed can miss it.
+  nl=$'\n'
+  document_control 'a prompt whose abort line is commented out beside a live body' '| Opus 5 | `subagent_type: "pinned-old"` |'"$nl${clause/> if you are my model, reply ABORT: pin failed/<!--$nl> if you are my model, reply ABORT: pin failed$nl-->}"
+
+  # The same, one level down: a definition keeping the abort line only inside a
+  # comment requires nothing of its reviewer.
+  mkdir -p "$tmp/commentedagent"
+  printf -- '---\nname: pinned-old\nmodel: claude-opus-4-6\n---\n<!-- ABORT: pin failed -->\n' > "$tmp/commentedagent/pinned-old.md"
+  document_control 'a definition whose abort rule is commented out' '| Opus 5 | `subagent_type: "pinned-old"` |'$'\n'"$clause" "$tmp/commentedagent"
+
+  # A definition that does not require the abort check. The whole point of the
+  # check is that a retired pin is otherwise silent, so a definition without it
+  # is as bad as a definition pinning the writer's own model.
+  mkdir -p "$tmp/noabort"
+  printf -- '---\nname: pinned-old\nmodel: claude-opus-4-6\n---\n' > "$tmp/noabort/pinned-old.md"
+  document_control 'a definition that does not require the abort check' '| Opus 5 | `subagent_type: "pinned-old"` |'$'\n'"$clause" "$tmp/noabort"
+
+  reexec_control 'a broken fixture' '| Opus 5 | `subagent_type: "pinned-new"` |' non-zero "One or more reviewer-model assertions failed on $tmp/fixture.md, controls not run."
+  reexec_control 'a correct fixture' '| Opus 5 | `subagent_type: "pinned-old"` |' zero "All reviewer-model assertions passed on $tmp/fixture.md, controls not run."
+
+  if [[ "$controls_run" -lt "$controls_floor" ]]; then
+    echo "FAIL: only $controls_run controls ran, and at least $controls_floor are expected."
+    overall=1
+  fi
+}
+
+# One check call, one assignment and one report serve both runs, so the
+# re-executed run pins the same lines the full run's exit status and closing
+# line come from; only the controls between them are the full run's own.
+if [[ "$#" -gt 0 ]]; then
+  skill="$1"
+  agents="${2:-$agents}"
 fi
-
-# A rule that was deleted and left commented above is not a rule. Every
-# sentinel present, every one of them inert.
-{
-  printf '%s\n' '| Opus 5 | `subagent_type: "pinned-old"` |'
-  printf '%s\n' '<!-- removed, kept for reference:'
-  printf '%s\n' "$clause"
-  printf '%s\n' '-->'
-} > "$tmp/commented.md"
-if run_fixture "$tmp/commented.md" "$tmp/agents"; then
-  echo "FAIL (control): accepted a document whose abort contract is commented out."
-  overall=1
+check "$skill" "$agents"
+overall=$?
+controls_run=0
+if [[ "$#" -eq 0 ]]; then
+  run_controls
+  what=", $controls_run controls included"
 else
-  echo "PASS (control): rejects a document whose abort contract is commented out."
+  what=" on $skill, controls not run"
 fi
-
-# The same, one level down: a definition keeping the abort line only inside a
-# comment requires nothing of its reviewer.
-mkdir -p "$tmp/commentedagent"
-printf -- '---\nname: pinned-old\nmodel: claude-opus-4-6\n---\n<!-- ABORT: pin failed -->\n' > "$tmp/commentedagent/pinned-old.md"
-printf '%s\n%s\n' '| Opus 5 | `subagent_type: "pinned-old"` |' "$clause" > "$tmp/fixture.md"
-if run_fixture "$tmp/fixture.md" "$tmp/commentedagent"; then
-  echo "FAIL (control): accepted a definition whose abort rule is commented out."
-  overall=1
-else
-  echo "PASS (control): rejects a definition whose abort rule is commented out."
-fi
-
-# A definition that does not require the abort check. The whole point of the
-# check is that a retired pin is otherwise silent, so a definition without it
-# is as bad as a definition pinning the writer's own model.
-mkdir -p "$tmp/noabort"
-printf -- '---\nname: pinned-old\nmodel: claude-opus-4-6\n---\n' > "$tmp/noabort/pinned-old.md"
-printf '%s\n%s\n' '| Opus 5 | `subagent_type: "pinned-old"` |' "$clause" > "$tmp/fixture.md"
-if run_fixture "$tmp/fixture.md" "$tmp/noabort"; then
-  echo "FAIL (control): accepted a definition that does not require the abort check."
-  overall=1
-else
-  echo "PASS (control): rejects a definition that does not require the abort check."
-fi
-
-# The file as a process, on a broken fixture and then a correct one: everything
-# above reads the check function's return, and this is what shows that return
-# reaching the exit status and the closing line. Run by the bash running this
-# file, so the child clears the same floor the parent did. On red these exit
-# on their own, since the function they pin is the one they cannot trust.
-printf '%s\n%s\n' '| Opus 5 | `subagent_type: "pinned-new"` |' "$clause" > "$tmp/fixture.md"
-"${BASH:-bash}" "$self" "$tmp/fixture.md" "$tmp/agents" > "$tmp/out" 2>&1
-status=$?
-last=""
-while IFS= read -r line; do last="$line"; done < "$tmp/out"
-controls_run=$((controls_run + 1))
-if [[ "$status" -ne 0 && "$last" == "One or more reviewer-model assertions failed on $tmp/fixture.md, controls not run." ]]; then
-  echo "PASS (control): the file exits non-zero on a broken fixture."
-else
-  echo "FAIL (control): the file exited $status on a broken fixture, closing with '$last' -- output: $(<"$tmp/out")"
-  exit 1
-fi
-
-printf '%s\n%s\n' '| Opus 5 | `subagent_type: "pinned-old"` |' "$clause" > "$tmp/fixture.md"
-"${BASH:-bash}" "$self" "$tmp/fixture.md" "$tmp/agents" > "$tmp/out" 2>&1
-status=$?
-last=""
-while IFS= read -r line; do last="$line"; done < "$tmp/out"
-controls_run=$((controls_run + 1))
-if [[ "$status" -eq 0 && "$last" == "All reviewer-model assertions passed on $tmp/fixture.md, controls not run." ]]; then
-  echo "PASS (control): the file exits zero on a correct fixture."
-else
-  echo "FAIL (control): the file exited $status on a correct fixture, closing with '$last' -- output: $(<"$tmp/out")"
-  exit 1
-fi
-
-report_and_exit ", $controls_run controls included"
+report_and_exit "$what"
