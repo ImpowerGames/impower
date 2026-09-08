@@ -381,24 +381,30 @@ const addStructTypeNameCompletions = (
 };
 
 /**
- * What a `~filter` candidate previews against: the asset name at the head of
- * the enclosing asset command, and the filters already written in it.
+ * What the asset command under the cursor names: the asset at its head, and
+ * the filters already written in it. Both answers feed a `~filter` completion
+ * — the applied filters are the ones to leave out of the suggestion list, and
+ * the asset is what the remaining candidates preview against.
  *
- * The token under the cursor is skipped — it is the partial name being
- * completed, not a filter that is already applied. Returns `undefined` when
- * the directive names no asset yet (`[[~look_]]`), which is the case where
- * there is nothing to preview.
+ * The token under the cursor is skipped, because it is the partial name being
+ * completed rather than a filter that is already applied; leaving it in would
+ * hide the very name the author is part-way through typing.
+ *
+ * `asset` is empty when the directive names none yet (`[[~look_]]`). That
+ * directive has nothing to preview but can still carry filters worth leaving
+ * out, so the two answers are reported separately rather than as one
+ * all-or-nothing result.
  */
-const getFilterChainTarget = (
+const readAssetCommandFilters = (
   leftStack: GrammarSyntaxNode<SparkdownNodeName>[],
   read: (from: number, to: number) => string,
-): { image: string; filters: string[] } | undefined => {
+): { asset: string; applied: string[] } => {
   // The enclosing `AssetCommandName`, not `AssetCommandContent`: a `+`-joined
   // command holds one `AssetCommandName` per asset, and a filter belongs to
   // the asset it is attached to.
   const nameNode = leftStack.find((n) => n.name === "AssetCommandName");
   if (!nameNode) {
-    return undefined;
+    return { asset: "", applied: [] };
   }
   const cursorNode = leftStack[0];
   let image = "";
@@ -437,10 +443,7 @@ const getFilterChainTarget = (
       depth -= 1;
     }
   }
-  if (!image) {
-    return undefined;
-  }
-  return { image, filters };
+  return { asset: image, applied: filters };
 };
 
 const addStructReferenceCompletions = (
@@ -1473,31 +1476,23 @@ export const getCompletions = (
       leftStack[0]?.name === "AssetCommandFilterName"
     ) {
       if (isCursorAfterNodeText(leftStack[0])) {
-        const exclude = getOtherMatchesInsideParent(
-          "AssetCommandFilterName",
-          "AssetCommandContent",
-          leftStack,
-          tree,
-          read,
-        );
-        // Each candidate previews as the directive's image with the whole
-        // chain applied, so the popup shows what picking it would look like
-        // rather than the bare filter name (#474). Only the image directive
-        // gets this — an audio asset has no picture to composite.
-        const chain = getFilterChainTarget(leftStack, read);
+        // `applied` does double duty: the filters already in the directive are
+        // left out of the list (#478), and each remaining candidate previews
+        // as the directive's image with the whole chain applied, so the popup
+        // shows what picking it would look like rather than the bare filter
+        // name (#474). Only the image directive gets the preview — an audio
+        // asset has no picture to composite.
+        const { asset, applied } = readAssetCommandFilters(leftStack, read);
         addStructReferenceCompletions(
           completions,
           program,
           ["filter"],
-          exclude,
-          chain
+          applied,
+          asset
             ? (type, name) => ({
                 type,
                 name,
-                filtered: {
-                  image: chain.image,
-                  filters: [...chain.filters, name],
-                },
+                filtered: { image: asset, filters: [...applied, name] },
               })
             : undefined,
         );
@@ -1637,18 +1632,14 @@ export const getCompletions = (
       leftStack[0]?.name === "AssetCommandFilterName"
     ) {
       if (isCursorAfterNodeText(leftStack[0])) {
-        const exclude = getOtherMatchesInsideParent(
-          "AssetCommandFilterName",
-          "AssetCommandContent",
-          leftStack,
-          tree,
-          read,
-        );
+        // The filters already in the directive are left out of the list
+        // (#478). No preview here: an audio asset has no picture.
+        const { applied } = readAssetCommandFilters(leftStack, read);
         addStructReferenceCompletions(
           completions,
           program,
           ["filter"],
-          exclude,
+          applied,
         );
       }
       return buildCompletions();
