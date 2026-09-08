@@ -176,7 +176,7 @@ describe("provider · filter completion preview (#474)", () => {
     const program = buildProgram();
     // What `populateImplicitDefs` declares once the reference is typed: the
     // name is the asset plus its filters, sorted.
-    const declared = {
+    const declared: any = {
       $type: "filtered_image",
       $name: "bunny_bruh~look_down~phone",
       image: { $name: "bunny_bruh" },
@@ -199,6 +199,16 @@ describe("provider · filter completion preview (#474)", () => {
     expect(src).toContain("look-down");
     expect(src).toContain("phone");
     expect(src).not.toContain("look-up");
+    // What actually tells the two branches apart. Building the preview writes
+    // `filtered_src` onto whichever struct it was handed, so the declared one
+    // carries it only if that struct is the one that was used; a rebuilt
+    // struct is a different object and leaves this undefined. Asserting on
+    // `program.context` instead would pass either way, since neither branch
+    // writes to it.
+    expect(
+      declared.filtered_src,
+      "the already-declared struct is the one previewed, and keeps its computed source",
+    ).toBeTruthy();
     expect(
       Object.keys(program.context["filtered_image"]),
       "no second struct is declared for a combination that already exists",
