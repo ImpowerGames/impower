@@ -337,7 +337,7 @@ async function status() {
   const file = stateFile();
   process.exitCode = 1;
   if (stateUnreadable()) {
-    log(`down (state file unreadable: ${file}; \`down\` removes it)`);
+    log(`unknown (state file unreadable: ${file}; \`down\` removes it)`);
     return;
   }
   const s = readState();
@@ -2107,6 +2107,8 @@ export {
   hereOrPrevious,
   pidAlive,
   recordStands,
+  processStartedMs,
+  resolveChromiumExecutablePath,
   liveProbe,
   READY_WAIT_MS,
   LAUNCH_SLACK_MS,
