@@ -200,6 +200,93 @@ describe("getOrCreateFilteredSvg", () => {
     expect(Array.from(cache.store.keys())[0]).toContain("sig=222-");
   });
 
+  it("serves correctly filtered art when cache lookup rejects", async () => {
+    const cache = makeCache();
+    cache.match = async () => {
+      throw new DOMException("Cache storage unavailable", "InvalidStateError");
+    };
+    const response = await getOrCreateFilteredSvg(
+      cache,
+      "local/assets/lookup-failure.svg",
+      svgFile(111),
+      PARAM,
+    );
+    expect(response).toBeDefined();
+    const text = await response!.text();
+    expect(text).toContain("id='body'");
+    expect(text).not.toContain("id='hat'");
+    expect(cache.store.size).toBe(1);
+  });
+
+  it("shares the filtered art when cache writes reject without retrying the file read", async () => {
+    const cache = makeCache();
+    cache.put = async () => {
+      throw new DOMException("Entry already exists", "InvalidAccessError");
+    };
+    let reads = 0;
+    const file = Object.assign(svgFile(111), {
+      text: async () => {
+        reads++;
+        await Promise.resolve();
+        return SVG;
+      },
+    }) as FilteredSvgFile;
+    const responses = await Promise.all(
+      Array.from({ length: 3 }, () =>
+        getOrCreateFilteredSvg(
+          cache,
+          "local/assets/write-failure.svg",
+          file,
+          PARAM,
+        ),
+      ),
+    );
+    expect(responses.every(Boolean)).toBe(true);
+    expect(reads).toBe(1);
+    expect(new Set(responses).size).toBe(3);
+    for (const response of responses) {
+      expect(response!.headers.get("Content-Type")).toBe("image/svg+xml");
+      const text = await response!.text();
+      expect(text).toContain("id='body'");
+      expect(text).not.toContain("id='hat'");
+    }
+    expect(cache.store.size).toBe(0);
+    // The failed persistence must not strand the finished in-flight entry.
+    expect(
+      await getOrCreateFilteredSvg(
+        cache,
+        "local/assets/write-failure.svg",
+        file,
+        PARAM,
+      ),
+    ).toBeDefined();
+    expect(reads).toBe(2);
+  });
+
+  it("does not prune the prior cached signature when storing its replacement fails", async () => {
+    const cache = makeCache();
+    await getOrCreateFilteredSvg(
+      cache,
+      "local/assets/prune-write-failure.svg",
+      svgFile(111),
+      PARAM,
+    );
+    cache.put = async () => {
+      throw new DOMException("Entry already exists", "InvalidAccessError");
+    };
+    const response = await getOrCreateFilteredSvg(
+      cache,
+      "local/assets/prune-write-failure.svg",
+      svgFile(222),
+      PARAM,
+    );
+    expect(response).toBeDefined();
+    expect(await response!.text()).not.toContain("id='hat'");
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(cache.store.size).toBe(1);
+    expect([...cache.store.keys()][0]).toContain("sig=111-");
+  });
+
   it("falls back for garbage params but generates the empty selection's resting layers", async () => {
     const cache = makeCache();
     expect(

@@ -45,6 +45,14 @@ end
     expect(diagnostic).toBeDefined();
     expect(diagnostic?.range.start.line).toBe(0);
   });
+  it("resolves dotted attribute names without hiding missing image warnings", () => {
+    const program = compile("[[mia:look.far-left]]\n[[missing:look.far-left]]");
+    const missing = program.diagnostics?.[URI]?.map((diagnostic) =>
+      typeof diagnostic.message === "string" ? diagnostic.message : diagnostic.message.value,
+    ).filter((message) => message.startsWith("Cannot find image")) ?? [];
+    expect(missing.some((message) => message.includes("mia~look.far-left"))).toBe(false);
+    expect(missing.some((message) => message.includes("`missing`"))).toBe(true);
+  });
   it("recomputes a look after its ordered attributes change", () => {
     const program = compile("[[mia:happy]]");
     const look = program.context?.["filtered_image"]?.["mia~happy"];

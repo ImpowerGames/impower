@@ -128,9 +128,10 @@ export const filteredSvgResponse = (body: string) =>
 
 /**
  * Cached-or-freshly-filtered SVG response for one file, or `undefined` if the
- * param is garbage (caller serves the unfiltered original).
+ * param is garbage or the source cannot be read/filtered (caller serves the
+ * unfiltered original). Cache lookup/write failures do not discard valid art.
  *
- * On a fresh generation, entries for the SAME path+filters at an OLDER file
+ * On a fresh generation, entries for the SAME path+attributes at an OLDER file
  * signature are pruned — variants accumulate per edit otherwise and nothing
  * else ever deletes them (the activate sweep deliberately keeps this bucket).
  *
@@ -138,7 +139,7 @@ export const filteredSvgResponse = (body: string) =>
  * its own `Response` over the shared source. Sharing is best-effort, never
  * load-bearing: a caller that arrives just outside the window, or whose shared
  * generation FAILED, falls back to generating for itself — so one transient
- * read/quota error can't turn into every concurrent caller serving unfiltered
+ * source-read error can't turn into every concurrent caller serving unfiltered
  * art.
  */
 export const getOrCreateFilteredSvg = async (
@@ -152,8 +153,8 @@ export const getOrCreateFilteredSvg = async (
   if (!filter) {
     return undefined;
   }
-  // Re-canonicalize so every URL spelling of the same filter shares one cache
-  // entry (and a no-op filter falls through to the unfiltered original).
+  // Re-canonicalize so every URL spelling of the same selection shares one
+  // cache entry, including the empty selection that applies resting defaults.
   const canonical = serializeImageFilterParam(filter);
   if (!canonical) {
     return undefined;
@@ -188,7 +189,13 @@ export const getOrCreateFilteredSvg = async (
         return shared;
       }
     }
-    const cached = await cache.match(key);
+    let cached: Response | undefined;
+    try {
+      cached = await cache.match(key);
+    } catch {
+      // Cache Storage is an optimization. An unavailable cache is a miss,
+      // never a reason to serve the original SVG with every layer visible.
+    }
     if (cached) {
       return cached;
     }
@@ -201,7 +208,14 @@ export const getOrCreateFilteredSvg = async (
     }
     const generation = (async () => {
       const filtered = filterSVG(await file.text(), filter);
-      await cache.put(key, filteredSvgResponse(filtered));
+      try {
+        await cache.put(key, filteredSvgResponse(filtered));
+      } catch {
+        // Quota, storage, and concurrent-write failures must not discard the
+        // successfully filtered art shared by all waiting callers. Keep old
+        // signatures until a replacement has actually been stored.
+        return filtered;
+      }
       // Prune superseded signatures of this exact variant AFTER responding.
       // `cache.keys()` enumerates the whole bucket, so on the critical path it
       // makes every generation cost O(entries) — and warming a project's whole

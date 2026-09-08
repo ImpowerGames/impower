@@ -3,13 +3,16 @@ import { describe, expect, it } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import type { File } from "../../compiler/types/File";
 import { resolveImageLayers } from "../../compiler/utils/resolveImageLayers";
+import { SparkdownWorkspace } from "../../workspace/classes/SparkdownWorkspace";
 
 const uri = "file://proj/main.sd";
 const asset = (path: string): File => ({
   uri: `file://proj/assets/${path}`,
   type: "image",
   name: path.split("/").at(-1)!.split(".")[0]!,
-  ext: "png",
+  // Exercise the host's filename reader; dotted layer conditions must not be
+  // mistaken for the extension before the compiler sees this file.
+  ext: SparkdownWorkspace.prototype.getFileExtension(`file://proj/assets/${path}`),
   src: `/file:/local/assets/${path}?v=1`,
 });
 const compile = (text = "") => {

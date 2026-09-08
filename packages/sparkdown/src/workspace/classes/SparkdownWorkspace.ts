@@ -500,7 +500,9 @@ export abstract class SparkdownWorkspace {
   }
 
   getFileExtension(uri: string): string {
-    return uri.split("/").slice(-1).join("").split(".")[1]!;
+    const filename = this.getFilenameWithExtension(uri);
+    const dot = filename.lastIndexOf(".");
+    return dot < 0 ? "" : filename.slice(dot + 1);
   }
 
   /**

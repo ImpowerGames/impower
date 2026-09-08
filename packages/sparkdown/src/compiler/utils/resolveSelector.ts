@@ -17,6 +17,12 @@ export const resolveSelector = <T>(
       if (selector.name) {
         const selectorName = selector.name;
         const selectorPath = `${selectorType}.${selectorName}`;
+        // Asset names can contain qualified attributes (mia~look.left). Keep
+        // the complete name intact before trying nested selector paths.
+        const exact = program.context?.[selectorType]?.[selectorName];
+        if (exact !== undefined) {
+          return [exact as T, selectorPath];
+        }
         const [obj, foundPath] = selectProperty(
           program.context,
           selectorPath,
