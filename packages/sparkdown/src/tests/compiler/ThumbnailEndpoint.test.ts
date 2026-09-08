@@ -185,4 +185,26 @@ describe("thumbnail endpoint", () => {
       getOrCreateThumbnail(cache, "/a/x.png", makeFile(), "144"),
     ).resolves.toBeUndefined();
   });
+
+  it("serves the generated thumbnail when the cache refuses to store it (#477)", async () => {
+    // Same shape as the filtered-SVG generator (#477): the thumbnail is
+    // already composed when the memoising write throws, and discarding it
+    // sends the caller back to the full-resolution original — the decode this
+    // endpoint exists to keep off the virtualized scroll.
+    stubRasterizer();
+    const cache: ThumbnailCache = {
+      async match() {
+        return undefined;
+      },
+      async put() {
+        throw new Error(
+          "Failed to execute 'put' on 'Cache': Entry already exists.",
+        );
+      },
+    };
+    const res = await getOrCreateThumbnail(cache, "/a/x.png", makeFile(), "144");
+    expect(res?.status).toBe(200);
+    expect(res?.headers.get("Content-Type")).toBe("image/webp");
+    expect(await res!.blob()).toBeInstanceOf(Blob);
+  });
 });
