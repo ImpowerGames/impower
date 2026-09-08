@@ -45,17 +45,6 @@ function log(msg: string): void {
   console.log(`[${t}] ${msg}`);
 }
 
-function listDirs(dir: string): string[] {
-  try {
-    return fs
-      .readdirSync(dir, { withFileTypes: true })
-      .filter((e) => e.isDirectory())
-      .map((e) => e.name);
-  } catch {
-    return [];
-  }
-}
-
 function listSvgs(dir: string): string[] {
   try {
     return fs
