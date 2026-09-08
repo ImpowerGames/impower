@@ -1620,24 +1620,21 @@ export class GamePlayerController {
     // Application or its pixi canvas (the old `buildApp`-every-edit was the
     // game-view blink + per-edit object churn).
     // This update's place among the preview updates. One that another
-    // overtakes while it waits (for the game to build, the app to build,
-    // the game to connect, or the preview to settle) neither previews nor
-    // sweeps: from its reconcile pass on, the newer update owns the screen,
-    // and a sweep by the older one would take the newer beat's content off
-    // it. A game the play path replaced or stopped meanwhile is left to
-    // that path too. From here to the connect, which takes over a waiting
-    // preview as its first act, an update with a game and an app runs
-    // without yielding, so an older update cannot interleave inside that
-    // stretch; only one suspended in a build, the connect, or the preview
-    // can be overtaken.
+    // overtakes while it waits (for the app to build, the game to connect,
+    // or the preview to settle) neither previews nor sweeps: from its
+    // reconcile pass on, the newer update owns the screen, and a sweep by
+    // the older one would take the newer beat's content off it. A game the
+    // play path replaced or stopped meanwhile is left to that path too. The
+    // game's build publishes the game before it yields, so no update can be
+    // overtaken during it; and from here to the connect, which takes over a
+    // waiting preview as its first act, an update with a game and an app
+    // runs without yielding, so an older update cannot interleave inside
+    // that stretch.
     const update = ++this._previewUpdates;
 
     if (!this._game) {
       this._game = await this.buildGame(program);
       this.listen(this._game);
-      if (update !== this._previewUpdates) {
-        return;
-      }
     } else if (programChanged) {
       this._game.updateProgram(program);
     }

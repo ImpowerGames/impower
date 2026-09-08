@@ -352,31 +352,4 @@ describe("preview session ordering", () => {
     expect(calls.filter((c) => c === "preview")).toHaveLength(1);
     expect(calls.filter((c) => c === "sweepReconcile")).toHaveLength(1);
   });
-
-  test("an update overtaken while it waits for the game to build stops there", async () => {
-    // Two updates arriving before any game exists both build one; the
-    // older, resumed after the newer has taken the screen, must not go on
-    // to load, connect, and preview with the newer update's game.
-    const calls: string[] = [];
-    const builds: Array<() => void> = [];
-    const controller = controllerWith(undefined, stubApp(calls));
-    (controller as any).buildGame = () =>
-      new Promise((resolve) => {
-        builds.push(() => resolve(recordingGame(calls)));
-      });
-    (controller as any).listen = () => {};
-    const first = controller.updatePreview(PROGRAM, PROGRAM.uri, 4, "SAVE");
-    const second = controller.updatePreview(PROGRAM, PROGRAM.uri, 6, "SAVE");
-    for (let i = 0; i < 10; i++) {
-      await Promise.resolve();
-    }
-    expect(builds).toHaveLength(2);
-    builds[1]!();
-    await second;
-    builds[0]!();
-    await first;
-    expect(calls.filter((c) => c === "markPreviewing")).toHaveLength(1);
-    expect(calls.filter((c) => c === "preview")).toHaveLength(1);
-    expect(calls.filter((c) => c === "sweepReconcile")).toHaveLength(1);
-  });
 });

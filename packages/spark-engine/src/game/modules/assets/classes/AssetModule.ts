@@ -77,10 +77,12 @@ export class AssetModule extends Module<
   protected _previewPins = new Set<string>();
 
   /** Pins of the preview gates a take-over abandoned, let go with the next
-   *  gate's request, with their own load's settle, or on destroy, whichever
-   *  is first. A release before the next gate's request would let the
-   *  page's background queue, which pauses while a gate is pending, start
-   *  loads beside the picture the next beat waits on. */
+   *  beat's gate (right after its request, or at once when the beat has
+   *  nothing to wait for), with their own load's settle, or on destroy,
+   *  whichever is first. A release before the next beat's request would let
+   *  the page's background queue, which pauses while a gate is pending,
+   *  start loads beside the picture that beat waits on; the connect's own
+   *  gates settle before that request, so they do not release. */
   protected _abandonedPins = new Set<string>();
 
   /** Font names per layout, resolved once per program: the walk over a
@@ -351,19 +353,15 @@ export class AssetModule extends Module<
     if (items.length === 0 || this._destroyed) {
       return Promise.resolve(EMPTY_RESULT);
     }
-    const result = this.emit(
-      LoadAssetsMessage.type.request({ items, priority, pin }),
-    );
-    if (priority === 0) {
-      // This gate is pinned on the page now, so the pins abandoned since
-      // the last one can go without un-pausing the background queue.
-      this.releaseAbandoned();
-    }
-    return result;
+    return this.emit(LoadAssetsMessage.type.request({ items, priority, pin }));
   }
 
   /** Release the abandoned preview pins, or those of the given pins that
-   *  are abandoned, in one message. */
+   *  are abandoned, in one message. The beat gates call this right after
+   *  their request, when the new gate is pinned on the page and the
+   *  background queue stays paused, or at once when the beat has nothing
+   *  to wait for; the connect's gates (fonts, the restore) do not, since
+   *  they settle before the beat's request goes out. */
   protected releaseAbandoned(pins?: string[]): void {
     const going = (pins ?? [...this._abandonedPins]).filter((pin) =>
       this._abandonedPins.delete(pin),
@@ -491,6 +489,9 @@ export class AssetModule extends Module<
     const names = this.imageNamesOf(instructions);
     const items = this.resolveImageItems(names);
     if (items.length === 0) {
+      // Nothing to wait for, so nothing for an abandoned preview pin to
+      // protect (play may have begun over a waiting preview).
+      this.releaseAbandoned();
       return null;
     }
     const id = this.nextTriggerId();
@@ -508,6 +509,9 @@ export class AssetModule extends Module<
     ).then(() => {
       this.enableTrigger(id);
     });
+    // This gate is pinned on the page now; a preview's abandoned pin, if
+    // play began over a waiting preview, goes with it.
+    this.releaseAbandoned();
     return id;
   }
 
@@ -929,8 +933,10 @@ export class AssetModule extends Module<
    * to wait on, so the preview awaits this before it writes the beat, and
    * the line and its portrait land together; behind a burst of background
    * loads the portrait still takes the express lane. Returns null when
-   * there is nothing to wait for, so a beat with no picture displays at
-   * once; otherwise a gate whose `settled` is bounded by `restore_timeout`,
+   * there is nothing to wait for (a beat with no picture, or a run that
+   * reached no flush), so that beat displays at once, and lets any
+   * abandoned pin go then; otherwise a gate, requested and then followed
+   * by the abandoned pins' release, whose `settled` is bounded by `restore_timeout`,
    * after which the beat displays anyway, whose `release` lets the
    * pictures go once the beat is written, and whose `abandon` (a take-over)
    * keeps the pin until the next gate's request, the load's own settle, or
@@ -943,13 +949,17 @@ export class AssetModule extends Module<
     release: () => void;
     abandon: () => void;
   } | null {
-    if (this.silent || !instructions) {
+    if (this.silent) {
       return null;
     }
-    const items = this.resolveImageItems(this.imageNamesOf(instructions)).filter(
-      (item) => this.timed || item.kind !== "video",
-    );
+    const items = instructions
+      ? this.resolveImageItems(this.imageNamesOf(instructions)).filter(
+          (item) => this.timed || item.kind !== "video",
+        )
+      : [];
     if (items.length === 0) {
+      // Nothing to wait for, so nothing for an abandoned pin to protect.
+      this.releaseAbandoned();
       return null;
     }
     this._previewGates += 1;
@@ -963,6 +973,9 @@ export class AssetModule extends Module<
       "preview",
       () => this._previewPins.has(pin),
     );
+    // This gate is pinned on the page now; the pins abandoned since the
+    // last beat's can go without un-pausing the background queue.
+    this.releaseAbandoned();
     return {
       settled,
       release: () => {
