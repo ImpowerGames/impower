@@ -41,7 +41,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const SCRIPT = path.join(here, "clean-worktrees.mjs");
-const { classify, readReflog, parseArgs, serversFrom, serverRows, probeServers, usersOf, strayDirs, strayReason, unfinishedRemovals, strandedBranches, readLogRows, parseWorktreeList, formatBytes, scanTree, linkReason, main, LOG_NAME } = await import(pathToFileURL(SCRIPT));
+const { classify, readReflog, parseArgs, serversFrom, serverRows, probeServers, recordedServer, usersOf, strayDirs, strayReason, unfinishedRemovals, strandedBranches, readLogRows, parseWorktreeList, formatBytes, scanTree, linkReason, main, LOG_NAME } = await import(pathToFileURL(SCRIPT));
 const WIN = process.platform === "win32";
 
 let failures = 0;
@@ -189,31 +189,55 @@ await check("a worktree with dev servers up or launching, or a driver that canno
   assert.equal(classify(entry(), facts({ servers: [{ state: "down" }] })).remove, true);
 });
 
-await check("every live server is its own row, and a driver that cannot answer is a row only when no driver answered", () => {
+await check("every driver's answer but a down is its own row, whatever the other drivers said", () => {
   const web = { state: "up", url: "http://localhost:1", pid: 1, driver: "drive-web-editor" };
   const vsc = { state: "launching", url: "http://localhost:2", pid: 2, driver: "drive-vscode-web" };
-  const crashed = { state: "unknown", detail: "file:///x/driver.mjs:33", driver: "drive-vscode-web" };
+  const crashed = { state: "unknown", detail: "Error [ERR_MODULE_NOT_FOUND]: Cannot find module", driver: "drive-vscode-web" };
+  const recorded = { state: "recorded", url: "http://localhost:3", pid: 3, detail: "no output", driver: "drive-vscode-web" };
   assert.deepEqual(serverRows([web, vsc]), [web, vsc]);
   assert.deepEqual(serverRows([{ state: "down", driver: "drive-web-editor" }, vsc]), [vsc]);
-  assert.deepEqual(serverRows([{ state: "down", driver: "drive-web-editor" }, crashed]), [], "a driver that cannot load has no server; the other driver's down stands");
+  assert.deepEqual(serverRows([{ state: "down", driver: "drive-web-editor" }, crashed]), [crashed], "one driver's down says nothing about another driver's servers");
+  assert.deepEqual(serverRows([{ state: "down", driver: "drive-web-editor" }, recorded]), [recorded]);
   assert.deepEqual(serverRows([crashed]), [crashed]);
   assert.deepEqual(serverRows([crashed, { state: "unknown", detail: "no output", driver: "drive-web-editor" }]), [crashed, { state: "unknown", detail: "no output", driver: "drive-web-editor" }]);
-  assert.deepEqual(serverRows([web, crashed]), [web]);
+  assert.deepEqual(serverRows([web, crashed]), [web, crashed], "a live server does not hide a driver that could not answer");
+  assert.deepEqual(serverRows([{ state: "down", url: "u", pid: 9, driver: "drive-vscode-web" }]), [], "a stale record read from the state file is a down");
   assert.deepEqual(serverRows([]), []);
   const v = kept(entry(), facts({ servers: [web, vsc] }), "dev servers up at http://localhost:1 (pid 1) through drive-web-editor", "dev servers launching (pid 2 alive, http://localhost:2 not answering) through drive-vscode-web");
   assert.equal(v.reasons.length, 2);
-  assert.equal(classify(entry(), facts({ servers: [{ state: "down", driver: "drive-web-editor" }, crashed] })).remove, true);
+  kept(entry(), facts({ servers: [{ state: "down", driver: "drive-web-editor" }, crashed] }), "its driver through drive-vscode-web could not report its servers (Error [ERR_MODULE_NOT_FOUND]: Cannot find module)");
+  kept(entry(), facts({ servers: [{ state: "down", driver: "drive-web-editor" }, recorded] }), "its driver through drive-vscode-web could not report its servers (no output), and its state file records pid 3 alive at http://localhost:3; the worktree's driver `down` settles it once the driver runs, or stop the pid by hand");
+  assert.equal(classify(entry(), facts({ servers: [{ state: "down", driver: "drive-web-editor" }, { state: "down", driver: "drive-vscode-web" }] })).remove, true);
 });
 
-await check("probeServers asks every driver the worktree has, in order, and names each answer by its driver", () => {
+await check("recordedServer judges a driver that could not answer by its own state file: none is down, a live pid is a recorded server, a dead pid is stale, unreadable or empty stays unknown", () => {
+  const file = path.join("C:", "wt", ".claude", "skills", "drive-vscode-web", ".state.json");
+  const deps = (content) => ({ exists: (p) => content != null && p === file, readFile: (p) => (p === file ? content : (() => { throw new Error("ENOENT"); })()), pidAlive: (pid) => pid === 5 });
+  assert.deepEqual(recordedServer(file, deps(null), "why"), { state: "down", detail: "why" });
+  assert.deepEqual(recordedServer(file, deps('{"url":"http://localhost:9","pid":5}'), "why"), { state: "recorded", url: "http://localhost:9", pid: 5, detail: "why" });
+  assert.deepEqual(recordedServer(file, deps('{"url":"http://localhost:9","pid":6}'), "why"), { state: "down", detail: "why", url: "http://localhost:9", pid: 6 });
+  const unreadable = recordedServer(file, deps("{not json"), "why");
+  assert.equal(unreadable.state, "unknown");
+  assert.match(unreadable.detail, /^why; its state file could not be read \(.+JSON.*\)$/, "the parse error is named, whatever this Node phrases it as");
+  assert.deepEqual(recordedServer(file, deps('{"port":9}'), "why"), { state: "unknown", detail: "why; its state file names no server" });
+  assert.deepEqual(recordedServer(file, deps("null"), "why"), { state: "unknown", detail: "why; its state file names no server" });
+});
+
+await check("probeServers asks every driver the worktree has, in order, names each answer by its driver, and reads the state file of one that could not answer", () => {
   const wt = path.join("C:", "wt");
   const outputs = {
     [path.join(wt, ".claude", "skills", "drive-web-editor", "driver.mjs")]: "DOWN  url=http://localhost:1  pid=7  mode=same-origin",
     [path.join(wt, ".claude", "skills", "drive-vscode-web", "driver.mjs")]: "UP  url=http://localhost:2  pid=8  project=p  log=l",
   };
+  const files = {};
   const ran = [];
+  const read = [];
   const deps = {
-    exists: (p) => Object.hasOwn(outputs, p),
+    exists: (p) => Object.hasOwn(outputs, p) || Object.hasOwn(files, p),
+    readFile: (p) => {
+      read.push(p);
+      return files[p];
+    },
     exec: (cmd, args, cwd) => {
       ran.push([args[0], args[1], cwd]);
       return { status: 0, out: outputs[args[0]], err: "" };
@@ -225,7 +249,14 @@ await check("probeServers asks every driver the worktree has, in order, and name
     { state: "up", url: "http://localhost:2", pid: 8, driver: "drive-vscode-web" },
   ]);
   assert.deepEqual(ran.map((r) => [r[1], r[2]]), [["status", wt], ["status", wt]]);
+  assert.deepEqual(read, [], "a driver that answered is not second-guessed by its state file");
   assert.deepEqual(probeServers(path.join("C:", "elsewhere"), deps), [], "a worktree with no driver has no answers");
+  const stateFile = path.join(wt, ".claude", "skills", "drive-vscode-web", ".state.json");
+  outputs[path.join(wt, ".claude", "skills", "drive-vscode-web", "driver.mjs")] = "file:///x/driver.mjs:33\nError [ERR_MODULE_NOT_FOUND]: Cannot find module";
+  assert.deepEqual(probeServers(wt, deps)[1], { state: "down", detail: "Error [ERR_MODULE_NOT_FOUND]: Cannot find module", driver: "drive-vscode-web" }, "a crashed driver with no state file started nothing");
+  files[stateFile] = '{"url":"http://localhost:2","pid":7}';
+  assert.deepEqual(probeServers(wt, deps)[1], { state: "recorded", url: "http://localhost:2", pid: 7, detail: "Error [ERR_MODULE_NOT_FOUND]: Cannot find module", driver: "drive-vscode-web" });
+  assert.deepEqual(read, [stateFile]);
 });
 
 await check("a worktree whose path a running process names is kept, and one whose processes could not be listed", () => {
@@ -278,7 +309,8 @@ await check("serversFrom reads the driver's status line whatever it exits", () =
   assert.deepEqual(serversFrom("DOWN  url=http://localhost:38200  pid=31268  mode=same-origin", () => false), { state: "down", url: "http://localhost:38200", pid: 31268 });
   assert.deepEqual(serversFrom("down (no state file)\n"), { state: "down" });
   assert.deepEqual(serversFrom("down (state file unreadable: x; `down` removes it)"), { state: "down" });
-  assert.deepEqual(serversFrom("file:///x/driver.mjs:1\nSyntaxError: bad\n"), { state: "unknown", detail: "file:///x/driver.mjs:1" });
+  assert.deepEqual(serversFrom("file:///x/driver.mjs:1\nSyntaxError: bad\n"), { state: "unknown", detail: "SyntaxError: bad" }, "the error, not the Node frame before it");
+  assert.deepEqual(serversFrom("something odd\n"), { state: "unknown", detail: "something odd" });
   assert.deepEqual(serversFrom(""), { state: "unknown", detail: "no output" });
 });
 
@@ -495,6 +527,8 @@ function makeWorld() {
       { path: R("impower.worktrees/fix/46-unreadable"), head: "c46", branch: "fix/46-unreadable", size: 1 * GB, unreadable: [["node_modules/locked", "EPERM"]] },
       { path: R("impower.worktrees/fix/47-two-servers"), head: "c47", branch: "fix/47-two-servers", driver: "UP  url=http://localhost:5  pid=1  mode=same-origin  state=s", vscodeDriver: "UP  url=http://localhost:6  pid=1  project=p  log=l" },
       { path: R("impower.worktrees/fix/48-crashed-driver"), head: "c48", branch: "fix/48-crashed-driver", size: 1 * GB, driver: "down (no state file)", vscodeDriver: "file:///x/driver.mjs:33\nError [ERR_MODULE_NOT_FOUND]: Cannot find module" },
+      { path: R("impower.worktrees/fix/49-recorded-server"), head: "c49", branch: "fix/49-recorded-server", driver: "down (no state file)", vscodeDriver: "file:///x/driver.mjs:33\nError [ERR_MODULE_NOT_FOUND]: Cannot find module", vscodeState: { url: "http://localhost:9", pid: LIVE_PID } },
+      { path: R("impower.worktrees/fix/50-unknown-state"), head: "c50", branch: "fix/50-unknown-state", driver: "down (no state file)", vscodeDriver: "file:///x/driver.mjs:33\nError [ERR_MODULE_NOT_FOUND]: Cannot find module", vscodeState: "{not json" },
       { path: R("impower.worktrees/trunk-copy"), head: "m3", branch: "trunk", size: 1 * GB },
     ],
     strays: [R("impower.worktrees/fix/husk-old"), R("impower.worktrees/leftover"), R("impower.worktrees/fix/32-probe-taken.removing"), R("impower.worktrees/fix/41-probe-left.removing")],
@@ -547,6 +581,7 @@ function makeWorld() {
   };
   const OLD_DRIVER = path.join(".claude", "skills", "resolve-issue", "driver.mjs");
   const VSCODE_DRIVER = path.join(".claude", "skills", "drive-vscode-web", "driver.mjs");
+  const VSCODE_STATE = path.join(".claude", "skills", "drive-vscode-web", ".state.json");
   w.deps = {
     cwd: () => w.cwd,
     pid: () => SELF_PID,
@@ -638,7 +673,14 @@ function makeWorld() {
     exists: (p) => {
       if (same(p, MAIN)) return true;
       if (onDisk(p)) return true;
-      return w.trees.some((t) => (t.driver && same(path.join(t.path, t.oldDriver ? OLD_DRIVER : DRIVER), p)) || (t.vscodeDriver && same(path.join(t.path, VSCODE_DRIVER), p)));
+      return w.trees.some((t) => (t.driver && same(path.join(t.path, t.oldDriver ? OLD_DRIVER : DRIVER), p)) || (t.vscodeDriver && same(path.join(t.path, VSCODE_DRIVER), p)) || (t.vscodeState != null && same(path.join(t.path, VSCODE_STATE), p)));
+    },
+    // The VS Code driver's state file, for a tree that has one: an object is
+    // written as JSON, a string as it is (an unreadable file).
+    readFile: (p) => {
+      const t = w.trees.find((t) => t.vscodeState != null && same(path.join(t.path, VSCODE_STATE), p));
+      if (!t) throw new Error(`ENOENT: no such file, open '${p}'`);
+      return typeof t.vscodeState === "string" ? t.vscodeState : JSON.stringify(t.vscodeState);
     },
     listDirs: (p) => [...new Set([...w.disk.keys()].filter((d) => under(d, p)).map((d) => path.relative(path.resolve(p).toLowerCase(), d).split(path.sep)[0]))],
     isEmptyDir: (p) => ![...w.disk.keys()].some((d) => under(d, p)),
@@ -755,7 +797,7 @@ async function worldChecks(mainFn, report) {
     }
   };
   const all = [...w.trees];
-  const keptRows = ["fix/3-dirty", "fix/4-unpushed", "fix/5-open", "fix/6-fresh", "fix/7-servers-up", "fix/8-servers-launching", "fix/12-locked", "fix/13-outside", "(detached)", "fix/16-in-use", "fix/17-remote-ahead", "fix/18-unborn", "fix/19-broken", "fix/20-missing", "fix/21-no-reflog", "fix/26-old-driver-up", "fix/27-git-fails", "fix/28-fast-forwarded", "fix/29-stacked-fresh", "fix/34-no-reflog-fresh", "fix/37-stacked-ff", "fix/38-partial-reflog", "fix/41-probe-left", "fix/47-two-servers", "main", rel(R("impower.worktrees/main-copy")), rel(R("impower.worktrees/trunk-copy"))];
+  const keptRows = ["fix/3-dirty", "fix/4-unpushed", "fix/5-open", "fix/6-fresh", "fix/7-servers-up", "fix/8-servers-launching", "fix/12-locked", "fix/13-outside", "(detached)", "fix/16-in-use", "fix/17-remote-ahead", "fix/18-unborn", "fix/19-broken", "fix/20-missing", "fix/21-no-reflog", "fix/26-old-driver-up", "fix/27-git-fails", "fix/28-fast-forwarded", "fix/29-stacked-fresh", "fix/34-no-reflog-fresh", "fix/37-stacked-ff", "fix/38-partial-reflog", "fix/41-probe-left", "fix/47-two-servers", "fix/49-recorded-server", "fix/50-unknown-state", "main", rel(R("impower.worktrees/main-copy")), rel(R("impower.worktrees/trunk-copy"))];
   const linkOutRow = `1 link inside it points outside it (${path.join("node_modules", "pkg")} -> ${R("elsewhere/pkg")}); ${LINK_ADVICE}`;
   const unreadableRow = `1 directory or link inside it could not be read (${path.join("node_modules", "locked")}: EPERM), so whether a link inside it points outside it cannot be told; left for a person`;
   const untouched = () => {
@@ -870,6 +912,8 @@ async function worldChecks(mainFn, report) {
       ["fix/46-unreadable", "keep", "1.0 GB", unreadableRow],
       ["fix/47-two-servers", "keep", "dev servers up at http://localhost:5 (pid 1) through drive-web-editor", "dev servers up at http://localhost:6 (pid 1) through drive-vscode-web"],
       ["fix/48-crashed-driver", "remove", "merged into origin/main"],
+      ["fix/49-recorded-server", "keep", `its driver through drive-vscode-web could not report its servers (Error [ERR_MODULE_NOT_FOUND]: Cannot find module), and its state file records pid ${LIVE_PID} alive at http://localhost:9; the worktree's driver \`down\` settles it once the driver runs, or stop the pid by hand`],
+      ["fix/50-unknown-state", "keep", "its driver through drive-vscode-web could not report its servers (Error [ERR_MODULE_NOT_FOUND]: Cannot find module; its state file could not be read ("],
       [rel(R("impower.worktrees/trunk-copy")), "keep", "  trunk  ", "the default branch trunk, which is never removed wherever it is checked out"],
       ["fix/3-dirty", "keep", "uncommitted changes (1 file)"],
       ["fix/4-unpushed", "keep", "1 commit not on origin/main, and no origin/fix/4-unpushed holds them"],
@@ -892,7 +936,7 @@ async function worldChecks(mainFn, report) {
     ]);
     assert.ok(!r.out.includes("fix/16-in-use-2"), "a process of a directory whose name extends another's was claimed");
     assert.ok(!rowFor(r.out, "  fix/44-link-out  ").row.includes("merged into origin/main"), "the row for a tree kept for its link still reads as merged");
-    assert.match(r.out, /49 worktrees besides the main checkout: 21 to remove \(23\.0 GB\), 28 kept; 4 directories under the worktrees root are not worktrees \(819\.2 MB\)\./);
+    assert.match(r.out, /51 worktrees besides the main checkout: 21 to remove \(23\.0 GB\), 30 kept; 4 directories under the worktrees root are not worktrees \(819\.2 MB\)\./);
     assert.match(r.out, new RegExp(`Dry run; nothing was removed\\. Run again with --apply --root .*impower to remove the 21\\.`));
   });
 
@@ -927,7 +971,7 @@ async function worldChecks(mainFn, report) {
       [rel(R("impower.worktrees/fix/husk-old")), "kept", "(not a worktree)"],
     ]);
     assert.equal(r.status, 1, `exit code ${r.status} though a removal failed:\n${r.out}`);
-    assert.match(r.out, /Removed 8 worktrees and their branches, freeing 10\.0 GB; 35 worktrees kept; 6 failed \(see the rows above for what is left\); 4 directories under the worktrees root are not worktrees \(819\.2 MB\)\. Free space now 26\.0 GB\./);
+    assert.match(r.out, /Removed 8 worktrees and their branches, freeing 10\.0 GB; 37 worktrees kept; 6 failed \(see the rows above for what is left\); 4 directories under the worktrees root are not worktrees \(819\.2 MB\)\. Free space now 26\.0 GB\./);
     assert.deepEqual(w.removed.sort(), ["docs/10-merged-gone", "fix/1-merged-gone", "fix/15-branch-fails", "fix/2-merged-kept-remote", "fix/30-ff-merged", "fix/31-blocked-first", "fix/45-link-in", "fix/48-crashed-driver", "perf/23-rmdir-busy"]);
     assert.deepEqual(w.branchesDeleted.sort(), ["docs/10-merged-gone", "fix/1-merged-gone", "fix/2-merged-kept-remote", "fix/30-ff-merged", "fix/31-blocked-first", "fix/45-link-in", "fix/48-crashed-driver", "perf/23-rmdir-busy"]);
     for (const b of ["ci/40-grabbed-alone", "fix/14-grabbed", "fix/15-branch-fails", "fix/21-no-reflog", "fix/22-commits-late", "fix/25-dirty-late", "fix/32-probe-taken", "fix/33-switched-late", "fix/35-refuses-late", "fix/36-remove-throws", "fix/37-stacked-ff", "fix/38-partial-reflog", "fix/42-list-fails", "fix/43-rename-back-fails", "fix/44-link-out", "fix/46-unreadable", "fix/9-held", "main", "trunk"]) assert.ok(w.branches.has(b), `the branch ${b} was deleted`);
@@ -979,7 +1023,7 @@ async function worldChecks(mainFn, report) {
     ]);
     assert.ok(!rowFor(r.out, `${rel(R("impower.worktrees/fix/15-branch-fails"))}  `).row.includes("(not a worktree)"), "the stranded branch row reads as a directory");
     assert.equal(r.out.split(/\r?\n/).filter((l) => l.includes("  fix/43-rename-back-fails  ")).length, 1, "the branch of the probe that could not be renamed back was listed as stranded too");
-    assert.match(r.out, /Removed 3 worktrees and their branches, freeing 3\.0 GB; 35 worktrees kept; 7 directories under the worktrees root are not worktrees \(4\.8 GB\); 1 branch whose worktree is gone is still local \(fix\/15-branch-fails\)\./);
+    assert.match(r.out, /Removed 3 worktrees and their branches, freeing 3\.0 GB; 37 worktrees kept; 7 directories under the worktrees root are not worktrees \(4\.8 GB\); 1 branch whose worktree is gone is still local \(fix\/15-branch-fails\)\./);
     assert.ok(w.branches.has("fix/15-branch-fails"), "the stranded branch was deleted by the listing");
   });
 
@@ -994,7 +1038,7 @@ async function worldChecks(mainFn, report) {
       [rel(R("impower.worktrees/ci")), "keep", "(not a worktree)", "; its branch ci/40-grabbed-alone is still local"],
       [rel(R("impower.worktrees/fix/15-branch-fails")), "keep", "  fix/15-branch-fails  ", "its branch fix/15-branch-fails is still local and no worktree holds it"],
     ]);
-    assert.match(r.out, /0 to remove \(0 B\), 35 kept; 7 directories under the worktrees root are not worktrees \(4\.8 GB\); 1 branch whose worktree is gone is still local \(fix\/15-branch-fails\); the processes on this machine could not be listed \(powershell\.exe not found\), which kept every worktree\./);
+    assert.match(r.out, /0 to remove \(0 B\), 37 kept; 7 directories under the worktrees root are not worktrees \(4\.8 GB\); 1 branch whose worktree is gone is still local \(fix\/15-branch-fails\); the processes on this machine could not be listed \(powershell\.exe not found\), which kept every worktree\./);
   });
 
   await step("a stranded branch's commits are read again before -D is advised, a branch a registered worktree holds is not listed as stranded, and a branch stranded at a path a later worktree reused is still listed", async () => {
@@ -1104,8 +1148,9 @@ try {
   await control("a tree that turned dirty after classification is removed", [["if (dirty > 0) return kept(", "if (false) return kept("]], ["fix/25-dirty-late: expected kept, got removed"]);
   await control("the older driver location is not looked at", [['".claude/skills/resolve-issue/driver.mjs"', '".claude/skills/resolve-issue/driver-elsewhere.mjs"']], ["fix/26-old-driver-up: expected keep, got remove"]);
   await control("the VS Code driver is not asked", [['".claude/skills/drive-vscode-web/driver.mjs", ', ""]], ["row for fix/47-two-servers does not say 'dev servers up at http://localhost:6 (pid 1) through drive-vscode-web'"]);
-  await control("only one live server is reported", [["  if (live.length) return live;", "  if (live.length) return live.slice(0, 1);"]], ["row for fix/47-two-servers does not say 'dev servers up at http://localhost:6 (pid 1) through drive-vscode-web'"]);
-  await control("a driver that cannot answer outranks another driver's down", [['  if (results.some((s) => s.state === "down")) return [];', "  if (false) return [];"]], ["fix/48-crashed-driver: expected remove, got keep"]);
+  await control("only one live server is reported", [['  return results.filter((s) => s.state !== "down");', '  return results.filter((s) => s.state !== "down").slice(0, 1);']], ["row for fix/47-two-servers does not say 'dev servers up at http://localhost:6 (pid 1) through drive-vscode-web'"]);
+  await control("a driver that cannot answer loses its row to another driver's down", [['  return results.filter((s) => s.state !== "down");', '  return results.some((s) => s.state === "down") ? [] : results.filter((s) => s.state !== "down");']], ["fix/49-recorded-server: expected keep, got remove", "fix/50-unknown-state: expected keep, got remove"]);
+  await control("a driver that cannot answer is not judged by its state file", [['    const judged = answer.state === "unknown" ? recordedServer(path.join(worktree, path.dirname(d), ".state.json"), deps, answer.detail) : answer;', "    const judged = answer;"]], ["fix/48-crashed-driver: expected remove, got keep", "row for fix/49-recorded-server does not say"]);
   await control("a worktree git cannot answer for stops the run", [["      verdict = { remove: false, reasons: [`git could not judge it (${err.message}); left for a person`] };", "      throw err;"]], ["the dry run classifies every worktree and removes nothing"]);
   await control("a worktree git no longer sees, or whose directory is gone, is asked for its status", [["if (facts.isMain || facts.isDefault || entry.detached || entry.prunable || facts.missing || facts.unborn) return facts;", "if (facts.isMain || facts.isDefault || entry.detached || facts.unborn) return facts;"]], ["row for fix/19-broken does not say", "row for fix/20-missing does not say"]);
   await control("a link leading outside the tree is not refused", [["if (out.length) return `", "if (false) return `"]], ["fix/44-link-out: expected keep, got remove"]);

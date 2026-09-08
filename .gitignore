@@ -21,12 +21,12 @@
 .claude/skills/*/.state.json
 .claude/skills/*/.state.json.tmp
 .claude/skills/*/.chrome-profile/
-# The repro and the screenshots the drive-* skills tell a session to write
-# into the checkout, so `git add -A` cannot sweep them into a commit.
-/repro.sd
-/after.png
-/before.png
-/hover.png
+# The repros and the screenshots the drive-* skills tell a session to write
+# into the checkout root, whatever they are named, so `git add -A` cannot
+# sweep them into a commit. Nothing tracked lives at the root under either
+# extension.
+/*.sd
+/*.png
 .spark
 **/node_modules/
 **/dist/

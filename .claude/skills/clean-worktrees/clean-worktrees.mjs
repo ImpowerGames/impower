@@ -179,6 +179,7 @@ export const liveDeps = {
   },
   processes: () => listProcesses(liveDeps.exec),
   exists: (p) => fs.existsSync(p),
+  readFile: (p) => fs.readFileSync(p, "utf8"),
   listDirs: (p) => {
     try {
       return fs
@@ -259,11 +260,13 @@ export function parseWorktreeList(text) {
 // What a worktree's driver said about its dev servers. `UP` is up; `DOWN`
 // names a record whose URL does not answer, which is a tree still launching
 // while its pid lives and a stale record otherwise; `down` is no record; any
-// other output is a driver that could not answer, which counts as unknown.
+// other output is a driver that could not answer, which counts as unknown,
+// with the first line that names an error as the detail (a load failure
+// prints a Node frame before the error).
 export function serversFrom(output, alive = pidAlive) {
   const lines = output.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
   const line = lines.find((l) => /^(UP|DOWN|down)\b/.test(l));
-  if (!line) return { state: "unknown", detail: lines[0] ?? "no output" };
+  if (!line) return { state: "unknown", detail: lines.find((l) => /error/i.test(l)) ?? lines[0] ?? "no output" };
   if (line.startsWith("down")) return { state: "down" };
   const url = /url=(\S+)/.exec(line)?.[1];
   const pid = Number(/pid=(\d+)/.exec(line)?.[1]);
@@ -311,6 +314,7 @@ export function classify(entry, facts) {
       const via = s.driver ? ` through ${s.driver}` : "";
       if (s.state === "up") keep.push(`dev servers up at ${s.url} (pid ${s.pid})${via}`);
       else if (s.state === "launching") keep.push(`dev servers launching (pid ${s.pid} alive, ${s.url} not answering)${via}; the worktree's driver \`down\` settles it`);
+      else if (s.state === "recorded") keep.push(`its driver${via} could not report its servers (${s.detail}), and its state file records pid ${s.pid} alive at ${s.url}; the worktree's driver \`down\` settles it once the driver runs, or stop the pid by hand`);
       else if (s.state === "unknown") keep.push(`its driver${via} could not report its servers (${s.detail})`);
     }
     if (facts.users === null) keep.push("the processes on this machine could not be listed, so whether one is using it is unknown");
@@ -335,25 +339,44 @@ const DRIVERS = [".claude/skills/drive-web-editor/driver.mjs", ".claude/skills/d
 
 // Asks every driver the worktree has for its servers and returns each
 // answer, named by the driver, so a row can say which driver's `down`
-// settles it.
+// settles it. A driver that could not answer is judged by its own state
+// file instead.
 export function probeServers(worktree, deps) {
   const drivers = DRIVERS.filter((d) => deps.exists(path.join(worktree, d)));
   return drivers.map((d) => {
     const r = deps.exec(process.execPath, [path.join(worktree, d), "status"], worktree, 60_000);
-    return { ...serversFrom(`${r.out}\n${r.err}`, deps.pidAlive), driver: path.basename(path.dirname(d)) };
+    const answer = serversFrom(`${r.out}\n${r.err}`, deps.pidAlive);
+    const judged = answer.state === "unknown" ? recordedServer(path.join(worktree, path.dirname(d), ".state.json"), deps, answer.detail) : answer;
+    return { ...judged, driver: path.basename(path.dirname(d)) };
   });
 }
 
-// The answers that become rows: every server up or launching, each its own
-// row, so a person stopping one is told about the other. A driver that
-// could not answer (it failed to load, say) is a row only when no driver
-// answered at all; a definite `down` from another driver stands, since a
-// driver that cannot run has no server it could have started.
+// What a driver that could not answer (a load failure, a `status` that hung)
+// would have said, read from the state file it writes at launch and removes
+// when its server is stopped: no file is no server; a file naming a pid
+// still alive is a server that may be up, reported with the URL the file
+// records; a file naming a dead pid is a stale record; a file that cannot be
+// read, or names no server, leaves the driver unknown. `detail` is why the
+// driver could not answer, and goes into the row.
+export function recordedServer(stateFile, deps, detail) {
+  if (!deps.exists(stateFile)) return { state: "down", detail };
+  let record;
+  try {
+    record = JSON.parse(deps.readFile(stateFile));
+  } catch (err) {
+    return { state: "unknown", detail: `${detail}; its state file could not be read (${String(err.message).split("\n")[0]})` };
+  }
+  if (!record?.url || record.pid == null) return { state: "unknown", detail: `${detail}; its state file names no server` };
+  if (!deps.pidAlive(record.pid)) return { state: "down", detail, url: record.url, pid: record.pid };
+  return { state: "recorded", url: record.url, pid: record.pid, detail };
+}
+
+// The answers that become rows: every driver's answer but a definite
+// `down`, each its own row, so a person stopping one server is told about
+// the other. One driver's answer says nothing about another driver's
+// servers, so a driver's `down` never removes another's row.
 export function serverRows(results) {
-  const live = results.filter((s) => s.state === "up" || s.state === "launching");
-  if (live.length) return live;
-  if (results.some((s) => s.state === "down")) return [];
-  return results.filter((s) => s.state === "unknown");
+  return results.filter((s) => s.state !== "down");
 }
 
 // `git status --porcelain --ignored=matching`: the tree's changes, untracked

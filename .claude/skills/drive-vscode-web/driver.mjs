@@ -17,6 +17,13 @@
 // This file must live inside the repo tree: Node resolves `playwright` from
 // the script's directory, not from cwd. State (URL, server pid, served
 // folder) lives in .state.json beside this file, which is gitignored.
+//
+// `up`, `verify` and `checkBuild` take a `deps` object (the file system, the
+// process probes, the server spawn, the browser) so driver.test.mjs runs them
+// in-process against stubs and pins what each one refuses and what it calls;
+// the functions that run inside the page take the page's `document` as a
+// parameter that defaults to the real one, so the check runs them against a
+// scripted document and the page runs the same code.
 
 import { execFileSync, spawn } from "node:child_process";
 import { createHash } from "node:crypto";
@@ -43,7 +50,7 @@ const STATE_REL = path.relative(REPO_ROOT, STATE_FILE);
 // The build stamp lives under out/, which is gitignored and survives a
 // rebuild, so a source file whose content is what the build was made from
 // is not mistaken for a change by its modification time alone.
-const STAMP_FILE = path.join(EXT_DIR, "out", ".drive-vscode-web-build.json");
+export const STAMP_NAME = ".drive-vscode-web-build.json";
 // The server is a devDependency of vscode-sparkdown, so it is resolved from
 // there, wherever npm placed it.
 const SERVER_ENTRY = (() => {
@@ -142,32 +149,16 @@ export function unpackedCommit(buildsDir) {
   return null;
 }
 
-// Entries directly under the data directory's builds/ that no quality owns:
-// a build unpacked there by a driver that handed the server builds/ itself,
-// and any empty directory a refused quality left behind. Each is a path to
-// remove once nothing serves from builds/ directly.
-export function strayBuilds(buildsRoot, io = fs) {
-  if (!io.existsSync(buildsRoot)) return [];
-  const strays = [];
-  for (const entry of io.readdirSync(buildsRoot)) {
-    if (QUALITIES.includes(entry)) continue;
-    const p = path.join(buildsRoot, entry);
-    let empty = false;
-    try {
-      empty = io.statSync(p).isDirectory() && io.readdirSync(p).length === 0;
-    } catch {
-      continue;
-    }
-    if (entry.startsWith("vscode-web-") || empty) strays.push(p);
-  }
-  return strays;
-}
-
 // The records, among other worktrees' state files, of a live server whose
 // build directory is `buildsDir`: the servers a download into that directory
-// would pull the build out from under. `alive` says whether a pid is running.
-export function sharedBuildUsers(records, buildsDir, alive) {
-  return records.filter((r) => r?.pid != null && r.builds && samePath(r.builds, buildsDir) && alive(r.pid));
+// would pull the build out from under. `stands` says whether a record still
+// names its own server (a live pid alone proves nothing after pid reuse).
+export async function sharedBuildUsers(records, buildsDir, stands) {
+  const users = [];
+  for (const r of records) {
+    if (r?.pid != null && r.builds && samePath(r.builds, buildsDir) && (await stands(r))) users.push(r);
+  }
+  return users;
 }
 
 // Everything a launch is made of, from the options: the server's argument
@@ -216,9 +207,10 @@ export const SOURCE_SKIP = ["node_modules", "dist", "out", "__snapshots__", "tes
 
 // The source files under `roots` (a root may be a file), each with its
 // modification time. Directories in SOURCE_SKIP and test files are passed
-// over, and so are links, since a junction points at a directory elsewhere
-// and is not a source, and anything that cannot be read, since a dangling
-// link or a locked directory says nothing about the build.
+// over; so is a link, which a directory listing reports as neither a file
+// nor a directory (a junction points at a directory elsewhere and is not a
+// source), and anything that cannot be read, since a locked directory says
+// nothing about the build.
 export function sourceFiles(roots, io = fs) {
   const files = [];
   const stack = [];
@@ -241,7 +233,6 @@ export function sourceFiles(roots, io = fs) {
     }
     for (const e of entries) {
       const p = path.join(dir, e.name);
-      if (e.isSymbolicLink()) continue;
       if (e.isDirectory()) {
         if (!SOURCE_SKIP.includes(e.name)) stack.push(p);
         continue;
@@ -257,34 +248,46 @@ export function sourceFiles(roots, io = fs) {
   return files;
 }
 
-// The artifacts the served workbench loads, each with the source roots that
-// feed it and the command that rebuilds it. out/extension.js is the
-// extension bundle; out/workers/ holds the language server the diagnostics
-// and hovers come from, which the extension build copies from the package's
-// dist and only the package's own build rewrites; out/webviews/ holds one
-// bundle per webview app; out/data/ holds copies of data/. Every package's
-// src feeds every bundle, because the bundles resolve the workspace packages
-// by source. language/ and package.json are read by the workbench as they
-// are and need no build.
+// The steps that rebuild what the guard watches, run from vscode-sparkdown/
+// in this order: the language server's own build writes its bundle to the
+// package's dist, and the extension's esbuild script copies that dist into
+// out/workers, bundles out/extension.js and copies data/ into out/data.
+export const REBUILD_STEPS = ["npm run build:sparkdown-language-server", "node scripts/esbuild.ts"];
+
+// The command that rebuilds `groups`: their steps, each once, in the order
+// the steps must run.
+export function rebuildCommand(groups) {
+  const wanted = new Set(groups.flatMap((g) => g.steps));
+  return `cd vscode-sparkdown && ${REBUILD_STEPS.filter((s) => wanted.has(s)).join(" && ")}`;
+}
+
+// The artifacts the served workbench loads for an open .sd editor, each with
+// the source roots that feed it and the steps that rebuild it: the extension
+// bundle, the language server worker every diagnostic and hover comes from,
+// and the copies of the files under data/. Every package's src feeds both
+// bundles, because they resolve the workspace packages by source, and so
+// does every package's language/ directory and the extension's own, whose
+// JSON the bundles take in by value (the grammar and the language
+// configuration), so a regenerated grammar makes both stale. The webview
+// bundles and the other workers are not watched: the driver cannot show a
+// webview, a command or an export. A packages directory with no package
+// source is refused rather than guarded by nothing.
 export function buildRule(extDir, packagesDir, io = fs) {
   const out = path.join(extDir, "out");
   const list = (dir) => (io.existsSync(dir) ? io.readdirSync(dir) : []);
-  const pkgSrc = list(packagesDir).map((p) => path.join(packagesDir, p, "src"));
-  const full = "cd vscode-sparkdown && npm run build";
-  const self = "cd vscode-sparkdown && node scripts/esbuild.ts";
+  const present = (p) => io.existsSync(p);
+  const pkgSrc = list(packagesDir).map((p) => path.join(packagesDir, p, "src")).filter(present);
+  if (!pkgSrc.length) throw new Error(`${packagesDir} holds no package with a src directory, so the sources that feed the extension cannot be checked; the driver expects the repository's packages/ beside vscode-sparkdown/`);
+  const pkgLang = list(packagesDir).map((p) => path.join(packagesDir, p, "language")).filter(present);
+  const shared = [...pkgSrc, ...pkgLang];
+  const [lsBuild, self] = REBUILD_STEPS;
   const groups = [
-    { artifact: path.join(out, "extension.js"), sources: [path.join(extDir, "src"), ...pkgSrc], rebuild: self },
-    { artifact: path.join(out, "workers", "sparkdown-language-server.js"), sources: pkgSrc, rebuild: full },
+    { artifact: path.join(out, "extension.js"), sources: [path.join(extDir, "src"), path.join(extDir, "language"), ...shared], steps: [self] },
+    { artifact: path.join(out, "workers", "sparkdown-language-server.js"), sources: shared, steps: [lsBuild, self] },
   ];
-  for (const w of list(path.join(out, "workers"))) {
-    if (w.endsWith(".js") && w !== "sparkdown-language-server.js") groups.push({ artifact: path.join(out, "workers", w), sources: pkgSrc, rebuild: full });
+  for (const f of list(path.join(extDir, "data"))) {
+    if (io.statSync(path.join(extDir, "data", f)).isFile()) groups.push({ artifact: path.join(out, "data", f), sources: [path.join(extDir, "data", f)], steps: [self] });
   }
-  for (const w of list(path.join(extDir, "webviews"))) {
-    if (io.existsSync(path.join(extDir, "webviews", w, "package.json"))) {
-      groups.push({ artifact: path.join(out, "webviews", `${w}.js`), sources: [path.join(extDir, "webviews", w), ...pkgSrc], rebuild: `cd vscode-sparkdown && npm run build:${w}` });
-    }
-  }
-  for (const f of list(path.join(extDir, "data"))) groups.push({ artifact: path.join(out, "data", f), sources: [path.join(extDir, "data", f)], rebuild: self });
   return groups;
 }
 
@@ -294,7 +297,7 @@ export function buildRule(extDir, packagesDir, io = fs) {
 // the artifacts that are missing, the groups with a source newer than the
 // artifact (with the newest such source and every offending file), and the
 // size and time of each artifact present. `filesOf` lists a root's source
-// files and is memoized by the caller, since every bundle shares the
+// files and is memoized by the caller, since both bundles share the
 // package roots.
 export const NEWER_BY_MS = 1;
 export function buildFreshness(groups, filesOf) {
@@ -319,21 +322,34 @@ export function buildFreshness(groups, filesOf) {
   return { missing, stale, artifacts };
 }
 
-// Whether the stamp written when the build was last accepted still describes
-// it: the same artifacts (size and time), and for every source file newer
-// than its artifact the same content as then. That is a file touched but not
-// changed (a `git checkout`, a redgreen restore), which is not a reason to
-// rebuild. `artifacts` and `stamp.artifacts` map a relative path to `{ size,
-// mtimeMs }`; `offenders` carry a relative path and the content's sha1.
-export function stampCovers(stamp, artifacts, offenders) {
-  if (!stamp?.artifacts || !stamp.sources) return false;
+// What the stamp written when the build was last accepted fails to vouch
+// for, or null when it covers the build: `artifacts` when the artifacts are
+// not the stamped set (a rebuild since, or no stamp yet), which is what
+// makes a new stamp; `removed` or `added` when the source set is not the
+// stamped set, since the build then took in sources that are not these;
+// `changed` when a source newer than its artifact does not hold the content
+// stamped. A file touched but not changed (a `git checkout`, a redgreen
+// restore) is none of those. `artifacts` and `stamp.artifacts` map a
+// relative path to `{ size, mtimeMs }`; `sources` lists every current
+// source's relative path; `offenders` carry a relative path and the
+// content's sha1.
+export function stampGap(stamp, artifacts, sources, offenders) {
+  if (!stamp?.artifacts || !stamp.sources) return { kind: "artifacts" };
   const keys = Object.keys(artifacts);
-  if (keys.length !== Object.keys(stamp.artifacts).length) return false;
+  if (keys.length !== Object.keys(stamp.artifacts).length) return { kind: "artifacts" };
   for (const k of keys) {
     const s = stamp.artifacts[k];
-    if (!s || s.size !== artifacts[k].size || s.mtimeMs !== artifacts[k].mtimeMs) return false;
+    if (!s || s.size !== artifacts[k].size || s.mtimeMs !== artifacts[k].mtimeMs) return { kind: "artifacts" };
   }
-  return offenders.every((o) => stamp.sources[o.rel] === o.sha);
+  const stamped = new Set(Object.keys(stamp.sources));
+  const current = new Set(sources);
+  const removed = [...stamped].filter((s) => !current.has(s));
+  if (removed.length) return { kind: "removed", files: removed };
+  const added = [...current].filter((s) => !stamped.has(s));
+  if (added.length) return { kind: "added", files: added };
+  const changed = offenders.filter((o) => stamp.sources[o.rel] !== o.sha).map((o) => o.rel);
+  if (changed.length) return { kind: "changed", files: changed };
+  return null;
 }
 
 // Monaco renders every space in a rendered line as a non-breaking space, so a
@@ -369,7 +385,7 @@ export function locateWord(lines, word, lineText) {
 }
 
 // The word location runs in the page, rebuilt from its source, because a
-// page function cannot close over module scope. `findWord` and
+// page function cannot close over module scope. `wordOnPage` and
 // driver.test.mjs both rebuild it through `rebuildPageFunctions`, itself
 // shipped by source, so a helper the function needs but does not carry fails
 // the check before it fails in the page.
@@ -394,15 +410,17 @@ export function cursorAt(text) {
 // pixels, because a tab-indented line is rendered wider than the model
 // counts it (Monaco expands a tab to the next tab stop), so a rendered
 // column and a model column agree only on a space-indented line. `caretX`
-// is the caret's centre, which Monaco draws on the character boundary; a
-// caret on the boundary before the last character is on the word, one on
-// the boundary after it is not, with half a character of slack for the
-// rounding of either. Returns the reason the caret is not on the word, or
-// null.
+// is the caret's left edge, which Monaco draws on the character boundary
+// whether the caret is a line or a block; a caret on the boundary before
+// the last character is on the word, one on the boundary after it is not,
+// with half a character of slack for the rounding of either. A word whose
+// line has no gutter number cannot be placed, so that is a reason too.
+// Returns the reason the caret is not on the word, or null.
 export function cursorOnWord(hit, cursorText, caretX) {
   const at = cursorAt(cursorText);
   if (!at) return `the status bar reports no cursor position (${JSON.stringify(cursorText)})`;
-  if (hit.line != null && at.line !== hit.line) return `the cursor is on line ${at.line}, not line ${hit.line}`;
+  if (hit.line == null) return "the word's line has no gutter number, so the line the caret is on cannot be checked";
+  if (at.line !== hit.line) return `the cursor is on line ${at.line}, not line ${hit.line}`;
   if (caretX == null) return "no caret is drawn";
   const slack = (hit.charWidth ?? 2) / 2;
   if (caretX < hit.left - slack || caretX >= hit.right - slack) return `the caret is at x=${Math.round(caretX)}, outside the word's ${Math.round(hit.left)}..${Math.round(hit.right)}`;
@@ -426,45 +444,68 @@ export function hoverImageFailure(img) {
   return null;
 }
 
-// Whether a series of readings has stopped changing. The readings are the
-// diagnostics snapshots verify takes once a second after opening the file,
-// each `{ problems, ... }`. A reading taken before the status bar's problems
-// item exists carries `problems: null` and says nothing, so leading ones are
-// dropped. The extension host and the language server boot in workers after
-// the page loads, so the first readings are the workbench's own "no
-// problems" and say nothing about the server either; the series counts as
-// settled once it has changed from its first value and then held for
-// `stableReads`, or, for a file the server finds clean, once `minReads` have
-// been taken and the last `stableReads` agree.
-export function isSettled(readings, { stableReads = 8, minReads = 25 } = {}) {
-  const first = readings.findIndex((r) => r?.problems != null);
-  const series = (first < 0 ? [] : readings.slice(first)).map((r) => JSON.stringify(r));
-  if (series.length < stableReads) return false;
-  const last = series[series.length - 1];
-  if (!series.slice(-stableReads).every((r) => r === last)) return false;
-  return series.some((r) => r !== series[0]) || series.length >= minReads;
+// A diagnostics reading counts only when the status bar's problems counter
+// carried a number: before the item exists the reading is `null`, and while
+// it exists with no text yet it is `""`, and neither says anything about
+// the language server.
+export function usableReading(r) {
+  return /\d/.test(r?.problems ?? "");
 }
 
+// Whether a series of readings has stopped changing, and when not, why. The
+// readings are the diagnostics snapshots verify takes once a second after
+// opening the file, each `{ problems, ... }`; those that carry no count are
+// no readings and are set aside wherever they fall, and the last reading
+// must carry one, so a settled value is always a count. The extension host
+// and the language server boot in workers after the page loads, so the
+// first readings are the workbench's own "no problems" and say nothing
+// about the server either; the series counts as settled once it has changed
+// from its first value and then held for `stableReads`, or, for a file the
+// server finds clean, once `minReads` have been taken and the last
+// `stableReads` agree.
+export const SETTLE = { stableReads: 8, minReads: 25 };
+export function settleState(readings, { stableReads = SETTLE.stableReads, minReads = SETTLE.minReads } = {}) {
+  const last = readings[readings.length - 1];
+  if (!usableReading(last)) return { settled: false, why: `the last reading carried no count (${JSON.stringify(last?.problems ?? null)})` };
+  const series = readings.filter(usableReading).map((r) => JSON.stringify(r));
+  if (series.length < stableReads) return { settled: false, why: `${series.length} reading${series.length === 1 ? "" : "s"} carried a count and ${stableReads} that agree are needed` };
+  const held = series[series.length - 1];
+  if (!series.slice(-stableReads).every((r) => r === held)) return { settled: false, why: `the last ${stableReads} readings did not agree` };
+  if (series.some((r) => r !== series[0])) return { settled: true, why: null };
+  if (series.length >= minReads) return { settled: true, why: null };
+  return { settled: false, why: `the readings never changed from the workbench's own value and ${series.length} of the ${minReads} a clean file needs were taken` };
+}
+export function isSettled(readings, thresholds) {
+  return settleState(readings, thresholds).settled;
+}
+
+// The readings come one a second, so a budget shorter than `minReads`
+// seconds cannot settle a file the server finds clean whatever the server
+// does; such a budget is refused before anything runs.
+export const SETTLE_FLOOR_S = SETTLE.minReads;
+export const DEFAULT_SETTLE_S = 60;
+
 // What the report says about the readings: the last one, whether they
-// settled, and the failure when they did not, so an unsettled run is never
-// a clean exit with numbers that are not a result.
+// settled, and the failure when they did not, naming the rule that was not
+// met, so an unsettled run is never a clean exit with numbers that are not
+// a result.
 export function diagnosticsOutcome(readings, elapsedS, budgetS, thresholds) {
-  const settled = isSettled(readings, thresholds);
+  const { settled, why } = settleState(readings, thresholds);
   return {
     settled,
     settledAfterS: elapsedS,
     diagnostics: readings[readings.length - 1] ?? null,
-    failure: settled ? null : `the diagnostics had not settled after ${elapsedS} s (--settle ${budgetS}); the numbers reported are the last reading, not a result`,
+    failure: settled ? null : `the diagnostics had not settled after ${elapsedS} s (--settle ${budgetS}): ${why}; the numbers reported are the last reading, not a result`,
   };
 }
 
 // Flag parsing shared by `up` and `verify`. `spec` maps a flag to "value",
-// "number" (a count of seconds written as digits, zero or more) or "flag";
-// an unknown flag, a value flag with nothing usable after it (the end of the
-// arguments, an empty string, or another flag from `spec`) and a number that
-// is not one are refused before anything runs, so a misspelt option fails at
-// once. A value that merely begins with dashes, such as a Luau comment given
-// to `--line`, is a value.
+// "number" (a count of seconds written as digits with an optional fraction)
+// or "flag"; an unknown flag, a value flag with nothing usable after it (the
+// end of the arguments, an empty string, or another flag from `spec`) and a
+// number that is not one are refused before anything runs, so a misspelt
+// option fails at once. A value that merely begins with dashes, such as a
+// Luau comment given to `--line`, is a value.
 export function parseFlags(args, spec) {
   const opts = {};
   for (let i = 0; i < args.length; i++) {
@@ -486,6 +527,108 @@ export function parseFlags(args, spec) {
     i++;
   }
   return { opts };
+}
+
+// ---------------------------------------------------------- page functions ---
+//
+// Each of these runs inside the served workbench through `page.evaluate`,
+// which serializes the function by source, so none of them may close over
+// module scope: what they need comes in as the argument. `doc` is the page's
+// `document` there and a scripted one in driver.test.mjs.
+
+// The status bar's problems item (its id carries `status.problems`), which
+// counts the whole workspace, and the squiggle overlays in the open editor,
+// which Monaco renders for the viewport only.
+export function diagnosticsOnPage(_, doc = document) {
+  const item = doc.querySelector('.statusbar-item[id*="status.problems"]');
+  const count = (cls) => doc.querySelectorAll(`.view-overlays .${cls}`).length;
+  return {
+    problems: item ? (item.innerText || "").replace(/\s+/g, " ").trim() : null,
+    problemsLabel: item?.getAttribute("aria-label") ?? item?.querySelector("[aria-label]")?.getAttribute("aria-label") ?? null,
+    squiggles: { error: count("squiggly-error"), warning: count("squiggly-warning"), info: count("squiggly-info") },
+  };
+}
+
+// The word's place on the rendered lines: its line number (from the gutter
+// row at the same offset, null when that row carries no number), its
+// column on the rendered line, the pixel edges of its characters, and a
+// click point inside its first character. `locateWord` is rebuilt from the
+// sources handed in, through the same `rebuildPageFunctions` the check uses,
+// so what the check pins is what the page runs.
+export function wordOnPage({ word, lineText, sources }, doc = document) {
+  const { locateWord } = new Function(`return ${sources.rebuildSrc}`)()(sources);
+  const top = (el) => parseFloat(el?.style.top) || 0;
+  const lines = [...doc.querySelectorAll(".view-line")].sort((a, b) => top(a) - top(b));
+  const hit = locateWord(lines.map((l) => l.textContent), word, lineText);
+  if (!hit) return null;
+  const line = lines[hit.index];
+  const number = [...doc.querySelectorAll(".margin-view-overlays .line-numbers")].find((n) => top(n.parentElement) === top(line));
+  const lineNumber = Number(number?.textContent);
+  const texts = [];
+  const collect = (node) => {
+    for (const c of node.childNodes) {
+      if (c.nodeType === 3) texts.push(c);
+      else collect(c);
+    }
+  };
+  collect(line);
+  const range = doc.createRange();
+  let offset = 0;
+  let started = false;
+  for (const node of texts) {
+    const len = node.nodeValue.length;
+    if (!started && hit.start < offset + len) {
+      range.setStart(node, hit.start - offset);
+      started = true;
+    }
+    if (started && hit.end <= offset + len) {
+      range.setEnd(node, hit.end - offset);
+      break;
+    }
+    offset += len;
+  }
+  if (!started) return null;
+  const r = range.getBoundingClientRect();
+  if (!(r.width > 0 && r.height > 0)) return null;
+  const charWidth = r.width / (hit.end - hit.start);
+  return { line: Number.isInteger(lineNumber) ? lineNumber : null, col: hit.start + 1, left: r.x, right: r.x + r.width, charWidth, x: r.x + charWidth * 0.4, y: r.y + r.height / 2 };
+}
+
+// The status bar's cursor position and the caret's left edge after a click.
+export function caretOnPage(_, doc = document) {
+  const r = doc.querySelector(".monaco-editor .cursors-layer .cursor")?.getBoundingClientRect();
+  return { text: doc.querySelector('.statusbar-item[id*="status.editor.selection"]')?.innerText.trim() ?? null, x: r ? r.x : null };
+}
+
+// A `.monaco-hover` element sits in the DOM hidden and empty between hovers,
+// so presence means one that has size and content. The one read is marked,
+// so `--hover-shot` screenshots the same element the report describes.
+export function hoverOnPage(_, doc = document) {
+  for (const h of doc.querySelectorAll("[data-drive-hover]")) h.removeAttribute("data-drive-hover");
+  const shown = [...doc.querySelectorAll(".monaco-hover")].filter((h) => {
+    const r = h.getBoundingClientRect();
+    return r.width > 1 && r.height > 1;
+  });
+  const hover = shown.find((h) => h.querySelector("img") || h.innerText.trim());
+  if (!hover) return { present: false };
+  hover.setAttribute("data-drive-hover", "");
+  const img = hover.querySelector("img");
+  const r = img?.getBoundingClientRect();
+  return {
+    present: true,
+    text: hover.innerText.replace(/\s+/g, " ").trim().slice(0, 200),
+    img: img
+      ? {
+          hasSrc: img.hasAttribute("src"),
+          srcHead: (img.getAttribute("src") || "").slice(0, 40),
+          rendered: r ? `${Math.round(r.width)} x ${Math.round(r.height)}` : null,
+          natural: `${img.naturalWidth} x ${img.naturalHeight}`,
+          naturalWidth: img.naturalWidth,
+          naturalHeight: img.naturalHeight,
+          complete: img.complete,
+        }
+      : null,
+  };
 }
 
 // ------------------------------------------------------------------ state ---
@@ -521,17 +664,23 @@ function removeState() {
   }
 }
 
-const probe = {
-  pidAlive,
-  startedMs: processStartedMs,
-  recordWrittenMs: () => {
-    try {
-      return fs.statSync(STATE_FILE).mtimeMs;
-    } catch {
-      return null;
-    }
-  },
+const mtimeOf = (file) => {
+  try {
+    return fs.statSync(file).mtimeMs;
+  } catch {
+    return null;
+  }
 };
+
+// Whether a record, this worktree's or another's, still names its own
+// server: the web driver's rule, with the record's own file as the fallback
+// for when it was written.
+const stands = (record) =>
+  recordStands(record, {
+    pidAlive,
+    startedMs: processStartedMs,
+    recordWrittenMs: () => mtimeOf(record.worktree ? path.join(record.worktree, STATE_REL) : STATE_FILE),
+  });
 
 // The state files of this repository's other worktrees, listed through git;
 // a checkout git does not list is not seen, so what this guards is what can
@@ -589,47 +738,6 @@ async function pickPort() {
   die("could not find a free port");
 }
 
-// Every artifact the served workbench loads must be at least as new as every
-// source that feeds it, or carry the stamp that says the newer sources hold
-// the content it was built from; a launch and every `verify` refuse
-// otherwise, so a screenshot is always of a build that includes the change.
-// The stamp is written whenever a build is accepted by time and the
-// artifacts differ from the last stamped set.
-function checkBuild() {
-  const rel = (p) => path.relative(REPO_ROOT, p).replaceAll("\\", "/");
-  const sha1 = (p) => createHash("sha1").update(fs.readFileSync(p)).digest("hex");
-  const cache = new Map();
-  const filesOf = (root) => {
-    if (!cache.has(root)) cache.set(root, sourceFiles([root]));
-    return cache.get(root);
-  };
-  const groups = buildRule(EXT_DIR, PACKAGES_DIR);
-  const { missing, stale, artifacts } = buildFreshness(groups, filesOf);
-  if (missing.length) die(`vscode-sparkdown/${path.relative(EXT_DIR, missing[0]).replaceAll("\\", "/")} is missing; build the extension first: cd vscode-sparkdown && npm run build`);
-  const current = Object.fromEntries(artifacts.map((a) => [rel(a.path), { size: a.size, mtimeMs: a.mtimeMs }]));
-  const stamp = readJson(STAMP_FILE);
-  if (stale.length) {
-    const offenders = new Map();
-    for (const g of stale) for (const f of g.newer) if (!offenders.has(f.path)) offenders.set(f.path, { rel: rel(f.path), sha: sha1(f.path) });
-    if (!stampCovers(stamp, current, [...offenders.values()])) {
-      const g = stale[0];
-      const more = stale.length > 1 ? `, and ${stale.length - 1} more artifact${stale.length > 2 ? "s are" : " is"} older than a source` : "";
-      const how = stale.length > 1 ? "cd vscode-sparkdown && npm run build" : g.rebuild;
-      die(`${rel(g.artifact)} (built ${iso(g.artifactMs)}) is older than ${rel(g.source)} (${iso(g.sourceMs)})${more}; rebuild so the served workbench runs the change: ${how}`);
-    }
-  } else if (!stampCovers(stamp, current, [])) {
-    const sources = {};
-    for (const root of new Set(groups.flatMap((g) => g.sources))) for (const f of filesOf(root)) sources[rel(f.path)] = sha1(f.path);
-    writeJson(STAMP_FILE, { artifacts: current, sources });
-  }
-  const oldest = artifacts.reduce((a, b) => (b.mtimeMs < a.mtimeMs ? b : a));
-  return { artifacts: artifacts.length, oldest: rel(oldest.path), builtAt: iso(oldest.mtimeMs) };
-}
-
-// ----------------------------------------------------------------- server ---
-
-const UP_FLAGS = { "--sd": "value", "--project": "value", "--data": "value", "--quality": "value", "--fresh": "flag" };
-
 const isFile = (p) => {
   try {
     return fs.statSync(p).isFile();
@@ -645,116 +753,6 @@ const isDir = (p) => {
   }
 };
 
-// Serve the extension detached, so the server outlives this command, on a
-// port pinned to the worktree. `--sd` writes a one-file project into the data
-// directory and serves it; `--project` serves an existing folder (one with
-// assets, say). While a server from this driver is up, `--sd` rewrites the
-// file it serves and a page load reads the new content; the folder itself is
-// fixed at launch, so a different `--project` needs `down` first.
-async function up(args) {
-  const { opts, error } = parseFlags(args, UP_FLAGS);
-  if (error) die(`up: ${error}`);
-  if (opts["--sd"] && opts["--project"]) die("up: give --sd or --project, not both");
-  if (opts["--sd"] && !isFile(path.resolve(opts["--sd"]))) die(`up: --sd ${path.resolve(opts["--sd"])} is not a file`);
-  if (opts["--project"] && !isDir(path.resolve(opts["--project"]))) die(`up: --project ${path.resolve(opts["--project"])} is not a directory`);
-  if (opts["--quality"] && !QUALITIES.includes(opts["--quality"])) die(`up: --quality must be ${QUALITIES.join(" or ")}, not "${opts["--quality"]}"`);
-  if (stateUnreadable()) {
-    die(`state file unreadable: ${STATE_FILE}; \`down\` removes it, and any server it recorded keeps running`);
-  }
-  const existing = readState();
-  if (existing?.url && (await recordStands(existing, probe))) {
-    let ready = await isUp(existing.url);
-    if (!ready) {
-      log(`server pid ${existing.pid} is still starting → ${existing.url}`);
-      ready = await waitReady(existing.url, existing.builds, () => pidAlive(existing.pid), { downloading: !existing.commit });
-      if (!ready) log(`server pid ${existing.pid} has exited; launching`);
-    }
-    if (ready) return serveInto(existing, opts);
-  }
-  removeState();
-  await launch(opts);
-}
-
-// The options applied to a server that is already answering: `--sd`
-// rewrites the file it serves; anything that would need a different server
-// is refused.
-function serveInto(existing, opts) {
-  if (opts["--fresh"]) die(`already serving ${existing.project} → ${existing.url}; \`down\` first to download a new build`);
-  if (opts["--quality"] && opts["--quality"] !== existing.quality) {
-    die(`already serving ${existing.quality} → ${existing.url}; \`down\` first to serve ${opts["--quality"]}`);
-  }
-  if (opts["--data"] && !samePath(opts["--data"], existing.data)) {
-    die(`already serving from ${existing.data} → ${existing.url}; \`down\` first to use ${path.resolve(opts["--data"])}`);
-  }
-  if (opts["--project"] && !samePath(opts["--project"], existing.project)) {
-    die(`already serving ${existing.project} → ${existing.url}; \`down\` first to serve another folder`);
-  }
-  if (opts["--sd"]) {
-    if (!existing.ownProject) die(`already serving ${existing.project}, which --sd does not write into; \`down\` first`);
-    const n = writeProjectSd(existing.project, opts["--sd"]);
-    log(`already up → ${existing.url}; wrote ${n} chars to ${path.join(existing.project, "main.sd")}`);
-    return;
-  }
-  log(`already up → ${existing.url} (serving ${existing.project})`);
-}
-
-async function launch(opts) {
-  if (!fs.existsSync(SERVER_ENTRY)) {
-    die(`${SERVER_ENTRY} is missing; run PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 npm install at the repo root`);
-  }
-  checkBuild();
-  const data = path.resolve(opts["--data"] ?? DEFAULT_DATA_DIR);
-  const quality = opts["--quality"] ?? "stable";
-  const port = await pickPort();
-  const url = `http://localhost:${port}`;
-  const base = { data, port, quality, sd: opts["--sd"], project: opts["--project"], extDir: EXT_DIR, entry: SERVER_ENTRY };
-  const first = launchPlan(base);
-  if (first.error) die(`up: ${first.error}`);
-  const others = otherWorktreeRecords();
-  // A launch without a commit pin, which is what `--fresh` asks for, deletes
-  // the quality's builds directory before it downloads, so it is refused
-  // while another worktree's server serves from that directory.
-  if (opts["--fresh"]) {
-    const users = sharedBuildUsers(others, first.builds, pidAlive);
-    if (users.length) die(`up --fresh would delete ${first.builds}, which ${users.map((u) => `${u.worktree} (pid ${u.pid}, ${u.url})`).join(" and ")} serves from; \`down\` there first`);
-  }
-  // A build unpacked directly under builds/ belongs to no quality and is
-  // removed, unless a server of another worktree still serves from builds/
-  // itself, which a driver older than the quality directories does.
-  const buildsRoot = dataLayout(data).builds;
-  const strays = strayBuilds(buildsRoot);
-  if (strays.length) {
-    const users = sharedBuildUsers(others, buildsRoot, pidAlive);
-    if (users.length) log(`leaving ${strays.join(", ")} in place: ${users.map((u) => u.worktree).join(", ")} still serves from ${buildsRoot}`);
-    else {
-      for (const p of strays) {
-        fs.rmSync(p, { recursive: true, force: true });
-        log(`removed ${p}, which no quality directory owns`);
-      }
-    }
-  }
-  const commit = opts["--fresh"] ? null : unpackedCommit(first.builds);
-  const plan = launchPlan({ ...base, commit });
-  if (plan.error) die(`up: ${plan.error}`);
-  if (plan.ownProject) writeProjectSd(plan.project, opts["--sd"]);
-  fs.mkdirSync(plan.builds, { recursive: true });
-  fs.mkdirSync(path.dirname(plan.logPath), { recursive: true });
-
-  // The server's own output goes to a log beside the builds; a detached
-  // child on Windows does not always flush into an inherited handle, so the
-  // readiness signal is the HTTP poll below, never the log.
-  const logFd = fs.openSync(plan.logPath, "a");
-  const child = spawn(process.execPath, plan.args, { cwd: EXT_DIR, stdio: ["ignore", logFd, logFd], windowsHide: true, detached: true });
-  child.unref();
-  fs.closeSync(logFd);
-
-  writeState({ url, pid: child.pid, port, data, builds: plan.builds, project: plan.project, ownProject: plan.ownProject, quality, commit, log: plan.logPath, startedAt: Date.now() });
-  log(`serving ${plan.project} pid ${child.pid} → ${url}${commit ? ` (build ${commit.slice(0, 10)}, already unpacked)` : ""}`);
-  if (!(await waitReady(url, plan.builds, () => pidAlive(child.pid), { downloading: !commit }))) {
-    die(`the server (pid ${child.pid}) exited before ${url} answered; read ${plan.logPath}, then \`down\``);
-  }
-}
-
 // The project folder is recreated if something removed it, so a served
 // folder that vanished under a live server is served again on the next page
 // load rather than left as a greyed entry in the explorer.
@@ -763,6 +761,18 @@ function writeProjectSd(project, sdPath) {
   fs.mkdirSync(project, { recursive: true });
   fs.writeFileSync(path.join(project, "main.sd"), src);
   return src.length;
+}
+
+// The server detached, so it outlives this command, with its own output
+// going to the plan's log: a detached child on Windows does not always
+// flush into an inherited handle, so the readiness signal is the HTTP poll,
+// never the log. Returns the pid.
+function spawnServer(plan) {
+  const logFd = fs.openSync(plan.logPath, "a");
+  const child = spawn(process.execPath, plan.args, { cwd: EXT_DIR, stdio: ["ignore", logFd, logFd], windowsHide: true, detached: true });
+  child.unref();
+  fs.closeSync(logFd);
+  return child.pid;
 }
 
 // Polls until the URL answers, then applies the stylesheet alias, which can
@@ -782,6 +792,205 @@ async function waitReady(url, builds, keep, { downloading = true } = {}) {
     await sleep(2000);
   }
   die(`timed out after ${READY_WAIT_MS / 60_000} min waiting for ${url}; read the server log the state file names, then \`down\``);
+}
+
+async function withWorkbench(url, { headless = true } = {}, fn) {
+  const { chromium } = await import("playwright");
+  const executablePath = resolveChromiumExecutablePath(chromium);
+  const browser = await chromium.launch({ headless, ...(executablePath ? { executablePath } : {}) });
+  const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
+  const consoleLines = [];
+  page.on("console", (m) => consoleLines.push(`[${m.type()}] ${m.text()}`));
+  page.on("pageerror", (e) => consoleLines.push(`[pageerror] ${e.message}`));
+  try {
+    await page.goto(url, { waitUntil: "domcontentloaded", timeout: 120_000 });
+    return await fn({ page, consoleLines });
+  } finally {
+    await browser.close();
+  }
+}
+
+// Everything `up`, `verify` and `checkBuild` reach outside their own logic.
+// driver.test.mjs hands in stubs for each of these.
+export const liveDeps = {
+  log,
+  die,
+  sleep,
+  now: () => Date.now(),
+  repoRoot: REPO_ROOT,
+  extDir: EXT_DIR,
+  packagesDir: PACKAGES_DIR,
+  serverEntry: SERVER_ENTRY,
+  defaultDataDir: DEFAULT_DATA_DIR,
+  stateFile: STATE_FILE,
+  readState,
+  writeState,
+  removeState,
+  stateUnreadable,
+  recordStands: stands,
+  isUp,
+  pidAlive,
+  isFile,
+  isDir,
+  exists: (p) => fs.existsSync(p),
+  readFile: (p) => fs.readFileSync(p, "utf8"),
+  mkdirp: (p) => fs.mkdirSync(p, { recursive: true }),
+  checkBuild: () => checkBuild(liveDeps),
+  pickPort,
+  otherWorktreeRecords,
+  unpackedCommit,
+  writeProjectSd,
+  spawnServer,
+  waitReady,
+  aliasWorkbenchCss,
+  withWorkbench,
+};
+
+// ------------------------------------------------------------------ build ---
+
+// Every artifact the served workbench loads for an open editor must be at
+// least as new as every source that feeds it, or carry the stamp that says
+// the newer sources hold the content it was built from and the source set
+// is the one it was built from; a launch and every `verify` refuse
+// otherwise, so a screenshot is always of a build that includes the change.
+// The stamp is written whenever a build is accepted by time and the
+// artifacts differ from the last stamped set. Returns what the report says
+// about the build: the artifact count, the oldest artifact and its time.
+export function checkBuild(deps = liveDeps) {
+  const { repoRoot, extDir, packagesDir } = deps;
+  const stampFile = path.join(extDir, "out", STAMP_NAME);
+  const rel = (p) => path.relative(repoRoot, p).replaceAll("\\", "/");
+  const sha1 = (p) => createHash("sha1").update(fs.readFileSync(p)).digest("hex");
+  const cache = new Map();
+  const filesOf = (root) => {
+    if (!cache.has(root)) cache.set(root, sourceFiles([root]));
+    return cache.get(root);
+  };
+  let groups;
+  try {
+    groups = buildRule(extDir, packagesDir);
+  } catch (err) {
+    deps.die(firstLine(err));
+  }
+  const { missing, stale, artifacts } = buildFreshness(groups, filesOf);
+  if (missing.length) deps.die(`${rel(missing[0])} is missing; build the extension first: ${rebuildCommand(groups.filter((g) => missing.includes(g.artifact)))}`);
+  const current = Object.fromEntries(artifacts.map((a) => [rel(a.path), { size: a.size, mtimeMs: a.mtimeMs }]));
+  const roots = [...new Set(groups.flatMap((g) => g.sources))];
+  const sources = [...new Set(roots.flatMap((root) => filesOf(root).map((f) => rel(f.path))))];
+  const offenders = new Map();
+  for (const g of stale) for (const f of g.newer) if (!offenders.has(f.path)) offenders.set(f.path, { rel: rel(f.path), sha: sha1(f.path) });
+  const refuseStale = () => {
+    const g = stale[0];
+    const more = stale.length > 1 ? `, and ${stale.length - 1} more artifact${stale.length > 2 ? "s are" : " is"} older than a source` : "";
+    deps.die(`${rel(g.artifact)} (built ${iso(g.artifactMs)}) is older than ${rel(g.source)} (${iso(g.sourceMs)})${more}; rebuild so the served workbench runs the change: ${rebuildCommand(stale)}`);
+  };
+  const gap = stampGap(readJson(stampFile), current, sources, [...offenders.values()]);
+  if (gap?.kind === "artifacts") {
+    if (stale.length) refuseStale();
+    const stamped = {};
+    for (const root of roots) for (const f of filesOf(root)) stamped[rel(f.path)] = sha1(f.path);
+    writeJson(stampFile, { artifacts: current, sources: stamped });
+  } else if (gap?.kind === "removed" || gap?.kind === "added") {
+    const file = gap.files[0];
+    const fed = groups.filter((g) => g.sources.some((root) => inside(root, path.join(repoRoot, file))));
+    const more = gap.files.length > 1 ? ` and ${gap.files.length - 1} more` : "";
+    deps.die(`${file}${more} ${gap.kind === "removed" ? "was removed" : "was added"} after the build was stamped, so the served workbench would run a build made from other sources; rebuild: ${rebuildCommand(fed.length ? fed : groups)}`);
+  } else if (gap) {
+    refuseStale();
+  }
+  const oldest = artifacts.reduce((a, b) => (b.mtimeMs < a.mtimeMs ? b : a));
+  return { artifacts: artifacts.length, oldest: rel(oldest.path), builtAt: iso(oldest.mtimeMs) };
+}
+
+// ----------------------------------------------------------------- server ---
+
+const UP_FLAGS = { "--sd": "value", "--project": "value", "--data": "value", "--quality": "value", "--fresh": "flag" };
+
+// Serve the extension detached, so the server outlives this command, on a
+// port pinned to the worktree. `--sd` writes a one-file project into the data
+// directory and serves it; `--project` serves an existing folder (one with
+// assets, say). While a server from this driver is up, `--sd` rewrites the
+// file it serves and a page load reads the new content; the folder itself is
+// fixed at launch, so a different `--project` needs `down` first.
+export async function up(args, deps = liveDeps) {
+  const { opts, error } = parseFlags(args, UP_FLAGS);
+  if (error) deps.die(`up: ${error}`);
+  if (opts["--sd"] && opts["--project"]) deps.die("up: give --sd or --project, not both");
+  if (opts["--sd"] && !deps.isFile(path.resolve(opts["--sd"]))) deps.die(`up: --sd ${path.resolve(opts["--sd"])} is not a file`);
+  if (opts["--project"] && !deps.isDir(path.resolve(opts["--project"]))) deps.die(`up: --project ${path.resolve(opts["--project"])} is not a directory`);
+  if (opts["--quality"] && !QUALITIES.includes(opts["--quality"])) deps.die(`up: --quality must be ${QUALITIES.join(" or ")}, not "${opts["--quality"]}"`);
+  if (deps.stateUnreadable()) {
+    deps.die(`state file unreadable: ${deps.stateFile}; \`down\` removes it, and any server it recorded keeps running`);
+  }
+  const existing = deps.readState();
+  if (existing?.url && (await deps.recordStands(existing))) {
+    let ready = await deps.isUp(existing.url);
+    if (!ready) {
+      deps.log(`server pid ${existing.pid} is still starting → ${existing.url}`);
+      ready = await deps.waitReady(existing.url, existing.builds, () => deps.pidAlive(existing.pid), { downloading: !existing.commit });
+      if (!ready) deps.log(`server pid ${existing.pid} has exited; launching`);
+    }
+    if (ready) return serveInto(existing, opts, deps);
+  }
+  deps.removeState();
+  await launch(opts, deps);
+}
+
+// The options applied to a server that is already answering: `--sd`
+// rewrites the file it serves; anything that would need a different server
+// is refused, including `--data` against a record that does not say which
+// data directory its server uses.
+function serveInto(existing, opts, deps) {
+  if (opts["--fresh"]) deps.die(`already serving ${existing.project} → ${existing.url}; \`down\` first to download a new build`);
+  if (opts["--quality"] && opts["--quality"] !== existing.quality) {
+    deps.die(`already serving ${existing.quality} → ${existing.url}; \`down\` first to serve ${opts["--quality"]}`);
+  }
+  if (opts["--data"] && !(existing.data && samePath(opts["--data"], existing.data))) {
+    deps.die(`already serving from ${existing.data ?? "a data directory the record does not name"} → ${existing.url}; \`down\` first to use ${path.resolve(opts["--data"])}`);
+  }
+  if (opts["--project"] && !samePath(opts["--project"], existing.project)) {
+    deps.die(`already serving ${existing.project} → ${existing.url}; \`down\` first to serve another folder`);
+  }
+  if (opts["--sd"]) {
+    if (!existing.ownProject) deps.die(`already serving ${existing.project}, which --sd does not write into; \`down\` first`);
+    const n = deps.writeProjectSd(existing.project, opts["--sd"]);
+    deps.log(`already up → ${existing.url}; wrote ${n} chars to ${path.join(existing.project, "main.sd")}`);
+    return;
+  }
+  deps.log(`already up → ${existing.url} (serving ${existing.project})`);
+}
+
+async function launch(opts, deps) {
+  if (!deps.exists(deps.serverEntry)) {
+    deps.die(`${deps.serverEntry} is missing; run PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 npm install at the repo root`);
+  }
+  deps.checkBuild();
+  const data = path.resolve(opts["--data"] ?? deps.defaultDataDir);
+  const quality = opts["--quality"] ?? "stable";
+  const port = await deps.pickPort();
+  const url = `http://localhost:${port}`;
+  const base = { data, port, quality, sd: opts["--sd"], project: opts["--project"], extDir: deps.extDir, entry: deps.serverEntry };
+  const first = launchPlan(base);
+  if (first.error) deps.die(`up: ${first.error}`);
+  // A launch without a commit pin, which is what `--fresh` asks for, deletes
+  // the quality's builds directory before it downloads, so it is refused
+  // while another worktree's server serves from that directory.
+  if (opts["--fresh"]) {
+    const users = await sharedBuildUsers(deps.otherWorktreeRecords(), first.builds, deps.recordStands);
+    if (users.length) deps.die(`up --fresh would delete ${first.builds}, which ${users.map((u) => `${u.worktree} (pid ${u.pid}, ${u.url})`).join(" and ")} serves from; \`down\` there first`);
+  }
+  const commit = opts["--fresh"] ? null : deps.unpackedCommit(first.builds);
+  const plan = launchPlan({ ...base, commit });
+  if (plan.error) deps.die(`up: ${plan.error}`);
+  if (plan.ownProject) deps.writeProjectSd(plan.project, opts["--sd"]);
+  deps.mkdirp(plan.builds);
+  deps.mkdirp(path.dirname(plan.logPath));
+  const pid = deps.spawnServer(plan);
+  deps.writeState({ url, pid, port, data, builds: plan.builds, project: plan.project, ownProject: plan.ownProject, quality, commit, log: plan.logPath, startedAt: deps.now() });
+  deps.log(`serving ${plan.project} pid ${pid} → ${url}${commit ? ` (build ${commit.slice(0, 10)}, already unpacked)` : ""}`);
+  if (!(await deps.waitReady(url, plan.builds, () => deps.pidAlive(pid), { downloading: !commit }))) {
+    deps.die(`the server (pid ${pid}) exited before ${url} answered; read ${plan.logPath}, then \`down\``);
+  }
 }
 
 async function status() {
@@ -811,7 +1020,7 @@ async function down() {
     }
     return;
   }
-  if (!(await recordStands(s, probe))) {
+  if (!(await stands(s))) {
     removeState();
     log(`removed ${STATE_FILE}: pid ${s.pid} is no longer the server it recorded, so nothing was stopped`);
     return;
@@ -840,6 +1049,7 @@ const VERIFY_FLAGS = {
   "--line": "value",
   "--shot": "value",
   "--hover-shot": "value",
+  "--hover-image": "flag",
   "--probe": "value",
   "--settle": "number",
   "--headed": "flag",
@@ -847,28 +1057,32 @@ const VERIFY_FLAGS = {
 
 // Opens the file from the explorer, waits for the language server's
 // diagnostics to stop changing, reads them, optionally asks for the hover on
-// a word, screenshots, and prints a JSON report. Exits 1 when any step in
-// `failed` could not do what it was asked. Whatever throws on the way lands
-// in `failed` too, and the report is printed regardless.
-async function verify(args) {
+// a word, screenshots, prints a JSON report and returns it with the exit
+// code: 1 when any step in `failed` could not do what it was asked. Whatever
+// throws on the way lands in `failed` too, and the report is printed
+// regardless.
+export async function verify(args, deps = liveDeps) {
   const { opts, error } = parseFlags(args, VERIFY_FLAGS);
-  if (error) die(`verify: ${error}`);
-  for (const f of ["--hover-shot", "--line"]) if (opts[f] && !opts["--hover"]) die(`verify: ${f} needs --hover`);
-  const s = readState();
-  if (!s?.url) die("no server URL; run `node .claude/skills/drive-vscode-web/driver.mjs up --sd <file.sd>` first");
-  if (!(await recordStands(s, probe))) die(`${STATE_FILE} records pid ${s.pid}, which is not the server it started; \`down\` then \`up\``);
-  if (!(await isUp(s.url))) die(`${s.url} does not answer; \`down\` then \`up\``);
-  const build = checkBuild();
+  if (error) deps.die(`verify: ${error}`);
+  for (const f of ["--hover-shot", "--hover-image", "--line"]) if (opts[f] && !opts["--hover"]) deps.die(`verify: ${f} needs --hover`);
+  const settleBudgetS = opts["--settle"] ?? DEFAULT_SETTLE_S;
+  if (settleBudgetS < SETTLE_FLOOR_S) {
+    deps.die(`verify: --settle ${settleBudgetS} is below ${SETTLE_FLOOR_S}, the readings (one a second) a file the server finds clean needs before the settle rule can call it settled; the default is ${DEFAULT_SETTLE_S}`);
+  }
+  const s = deps.readState();
+  if (!s?.url) deps.die("no server URL; run `node .claude/skills/drive-vscode-web/driver.mjs up --sd <file.sd>` first");
+  if (!(await deps.recordStands(s))) deps.die(`${deps.stateFile} records pid ${s.pid}, which is not the server it started; \`down\` then \`up\``);
+  if (!(await deps.isUp(s.url))) deps.die(`${s.url} does not answer; \`down\` then \`up\``);
+  const build = deps.checkBuild();
 
   const file = opts["--file"] ?? "main.sd";
-  const settleBudgetS = opts["--settle"] ?? 60;
   const report = { url: s.url, project: s.project, file, build, failed: [] };
   const fail = (msg) => report.failed.push(msg);
 
   try {
-    const { aliased } = aliasWorkbenchCss(s.builds);
-    for (const dir of aliased) log(`stylesheet alias written in ${dir}`);
-    await withWorkbench(s.url, { headless: !opts["--headed"] }, async ({ page, consoleLines }) => {
+    const { aliased } = deps.aliasWorkbenchCss(s.builds);
+    for (const dir of aliased) deps.log(`stylesheet alias written in ${dir}`);
+    await deps.withWorkbench(s.url, { headless: !opts["--headed"] }, async ({ page, consoleLines }) => {
       try {
         await page.waitForSelector(".monaco-workbench", { timeout: 120_000 });
         await openFile(page, file, report, fail);
@@ -877,24 +1091,24 @@ async function verify(args) {
           // The status bar's problem counter and the editor's squiggles are the
           // language server's output; read them once a second until they hold.
           const readings = [];
-          const started = Date.now();
+          const started = deps.now();
           for (;;) {
-            readings.push(await readDiagnostics(page));
-            if (isSettled(readings) || Date.now() - started >= settleBudgetS * 1000) break;
-            await sleep(1000);
+            readings.push(await page.evaluate(diagnosticsOnPage));
+            if (isSettled(readings) || deps.now() - started >= settleBudgetS * 1000) break;
+            await deps.sleep(1000);
           }
-          const outcome = diagnosticsOutcome(readings, Math.round((Date.now() - started) / 1000), settleBudgetS);
+          const outcome = diagnosticsOutcome(readings, Math.round((deps.now() - started) / 1000), settleBudgetS);
           report.settled = outcome.settled;
           report.settledAfterS = outcome.settledAfterS;
           report.diagnostics = outcome.diagnostics;
           if (outcome.failure) fail(outcome.failure);
         }
 
-        if (opts["--hover"] && report.opened) await hoverOn(page, opts, report, fail);
+        if (opts["--hover"] && report.opened) await hoverOn(page, opts, report, fail, deps);
 
         if (opts["--probe"]) {
           try {
-            const body = fs.readFileSync(opts["--probe"], "utf8");
+            const body = deps.readFile(opts["--probe"]);
             report.probe = await page.evaluate(new Function(`return (async () => { ${body} })()`));
           } catch (err) {
             report.probe = { error: firstLine(err) };
@@ -919,8 +1133,8 @@ async function verify(args) {
     fail(`verify threw: ${firstLine(err)}`);
   }
 
-  log(JSON.stringify(report, null, 2));
-  if (report.failed.length) process.exitCode = 1;
+  deps.log(JSON.stringify(report, null, 2));
+  return { report, exitCode: report.failed.length ? 1 : 0 };
 }
 
 // Clicks the explorer row whose label is exactly `file` (a name at the top
@@ -948,20 +1162,18 @@ async function openFile(page, file, report, fail) {
 // movement never opens the widget headlessly, the Show Hover command
 // (Ctrl+K Ctrl+I) does. The caret and the status bar are read back after
 // the click, so the report says where the hover was asked for and fails
-// when that is not inside the word.
-async function hoverOn(page, opts, report, fail) {
+// when that is not inside the word. `--hover-image` makes a hover without
+// an image a failure, for a change whose whole point is the image.
+async function hoverOn(page, opts, report, fail, deps) {
   const word = opts["--hover"];
-  const hit = await findWord(page, word, opts["--line"]);
+  const hit = await page.evaluate(wordOnPage, { word, lineText: opts["--line"], sources: pageSources() });
   if (!hit) {
     fail(`"${word}" is not a whole word on a rendered line${opts["--line"] ? ` containing "${opts["--line"]}"` : ""}; only the lines in the viewport are rendered`);
     return;
   }
   await page.mouse.click(hit.x, hit.y);
-  await sleep(400);
-  const caret = await page.evaluate(() => {
-    const r = document.querySelector(".monaco-editor .cursors-layer .cursor")?.getBoundingClientRect();
-    return { text: document.querySelector('.statusbar-item[id*="status.editor.selection"]')?.innerText.trim() ?? null, x: r ? r.x + r.width / 2 : null };
-  });
+  await deps.sleep(400);
+  const caret = await page.evaluate(caretOnPage);
   report.hover = { word, line: hit.line, col: hit.col, cursor: caret.text };
   const off = cursorOnWord(hit, caret.text, caret.x);
   if (off) {
@@ -972,126 +1184,21 @@ async function hoverOn(page, opts, report, fail) {
   await page.keyboard.press("Control+i");
   let hover = { present: false };
   for (let i = 0; i < 20 && (!hover.present || (hover.img && !hover.img.complete)); i++) {
-    await sleep(500);
-    hover = await readHover(page);
+    await deps.sleep(500);
+    hover = await page.evaluate(hoverOnPage);
   }
   Object.assign(report.hover, hover);
   if (!hover.present) {
     fail(`no hover opened on "${word}" within 10 s of Ctrl+K Ctrl+I`);
     return;
   }
+  if (opts["--hover-image"] && !hover.img) fail(`the hover on "${word}" carries no image (--hover-image)`);
   const broken = hoverImageFailure(hover.img);
   if (broken) fail(broken);
   if (opts["--hover-shot"]) {
     await page.locator("[data-drive-hover]").first().screenshot({ path: opts["--hover-shot"] });
     report.hoverScreenshot = path.resolve(opts["--hover-shot"]);
   }
-}
-
-async function withWorkbench(url, { headless = true } = {}, fn) {
-  const { chromium } = await import("playwright");
-  const executablePath = resolveChromiumExecutablePath(chromium);
-  const browser = await chromium.launch({ headless, ...(executablePath ? { executablePath } : {}) });
-  const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
-  const consoleLines = [];
-  page.on("console", (m) => consoleLines.push(`[${m.type()}] ${m.text()}`));
-  page.on("pageerror", (e) => consoleLines.push(`[pageerror] ${e.message}`));
-  try {
-    await page.goto(url, { waitUntil: "domcontentloaded", timeout: 120_000 });
-    return await fn({ page, consoleLines });
-  } finally {
-    await browser.close();
-  }
-}
-
-// The status bar's problems item (its id carries `status.problems`), which
-// counts the whole workspace, and the squiggle overlays in the open editor,
-// which Monaco renders for the viewport only.
-function readDiagnostics(page) {
-  return page.evaluate(() => {
-    const item = document.querySelector('.statusbar-item[id*="status.problems"]');
-    const count = (cls) => document.querySelectorAll(`.view-overlays .${cls}`).length;
-    return {
-      problems: item ? (item.innerText || "").replace(/\s+/g, " ").trim() : null,
-      problemsLabel: item?.getAttribute("aria-label") ?? item?.querySelector("[aria-label]")?.getAttribute("aria-label") ?? null,
-      squiggles: { error: count("squiggly-error"), warning: count("squiggly-warning"), info: count("squiggly-info") },
-    };
-  });
-}
-
-// The word's place on the rendered lines: its line number (from the gutter
-// row at the same offset), its column on the rendered line, the pixel
-// edges of its characters, and a click point inside its first character.
-// `locateWord` runs in the page rebuilt from its source, through the same
-// `rebuildPageFunctions` the check uses, so what the check pins is what the
-// page runs.
-function findWord(page, word, lineText) {
-  return page.evaluate(
-    ({ word, lineText, sources }) => {
-      const { locateWord } = new Function(`return ${sources.rebuildSrc}`)()(sources);
-      const top = (el) => parseFloat(el?.style.top) || 0;
-      const lines = [...document.querySelectorAll(".view-line")].sort((a, b) => top(a) - top(b));
-      const hit = locateWord(lines.map((l) => l.textContent), word, lineText);
-      if (!hit) return null;
-      const line = lines[hit.index];
-      const number = [...document.querySelectorAll(".margin-view-overlays .line-numbers")].find((n) => top(n.parentElement) === top(line));
-      const walker = document.createTreeWalker(line, NodeFilter.SHOW_TEXT);
-      const range = document.createRange();
-      let offset = 0;
-      let started = false;
-      for (let node = walker.nextNode(); node; node = walker.nextNode()) {
-        const len = node.nodeValue.length;
-        if (!started && hit.start < offset + len) {
-          range.setStart(node, hit.start - offset);
-          started = true;
-        }
-        if (started && hit.end <= offset + len) {
-          range.setEnd(node, hit.end - offset);
-          break;
-        }
-        offset += len;
-      }
-      if (!started) return null;
-      const r = range.getBoundingClientRect();
-      if (!(r.width > 0 && r.height > 0)) return null;
-      const charWidth = r.width / (hit.end - hit.start);
-      return { line: number ? Number(number.textContent) : null, col: hit.start + 1, left: r.x, right: r.x + r.width, charWidth, x: r.x + charWidth * 0.4, y: r.y + r.height / 2 };
-    },
-    { word, lineText, sources: pageSources() },
-  );
-}
-
-// A `.monaco-hover` element sits in the DOM hidden and empty between hovers,
-// so presence means one that has size and content. The one read is marked,
-// so `--hover-shot` screenshots the same element the report describes.
-function readHover(page) {
-  return page.evaluate(() => {
-    for (const h of document.querySelectorAll("[data-drive-hover]")) h.removeAttribute("data-drive-hover");
-    const shown = [...document.querySelectorAll(".monaco-hover")].filter((h) => {
-      const r = h.getBoundingClientRect();
-      return r.width > 1 && r.height > 1;
-    });
-    const hover = shown.find((h) => h.querySelector("img") || h.innerText.trim());
-    if (!hover) return { present: false };
-    hover.setAttribute("data-drive-hover", "");
-    const img = hover.querySelector("img");
-    const r = img?.getBoundingClientRect();
-    return {
-      present: true,
-      text: hover.innerText.replace(/\s+/g, " ").trim().slice(0, 200),
-      img: img
-        ? {
-            hasSrc: img.hasAttribute("src"),
-            srcHead: (img.getAttribute("src") || "").slice(0, 40),
-            rendered: r ? `${Math.round(r.width)} x ${Math.round(r.height)}` : null,
-            natural: `${img.naturalWidth} x ${img.naturalHeight}`,
-            naturalWidth: img.naturalWidth,
-            naturalHeight: img.naturalHeight,
-            complete: img.complete,
-          }
-        : null,
-    };
-  });
 }
 
 // -------------------------------------------------------------------- cli ---
@@ -1110,9 +1217,11 @@ switch (cmd) {
   case "down":
     await down();
     break;
-  case "verify":
-    await verify(rest);
+  case "verify": {
+    const { exitCode } = await verify(rest);
+    process.exitCode = exitCode;
     break;
+  }
   default:
     log(
       [
@@ -1134,10 +1243,11 @@ switch (cmd) {
         "  --file <name>        the file to open from the explorer, a name at the top level of the served folder (default main.sd)",
         "  --hover <word>       put the cursor on this whole word and open the hover with Ctrl+K Ctrl+I",
         "  --line <text>        only look for --hover's word on a line containing this text",
+        "  --hover-image        the hover must carry an image, or the run fails",
         "  --shot <out.png>     screenshot the page",
         "  --hover-shot <png>   screenshot the hover widget alone",
         "  --probe <file.js>    body of an async fn evaluated in the page; result -> JSON",
-        "  --settle <seconds>   how long to wait for diagnostics to stop changing (default 60); not settling is a failure",
+        `  --settle <seconds>   how long to wait for diagnostics to stop changing (default ${DEFAULT_SETTLE_S}, at least ${SETTLE_FLOOR_S}); not settling is a failure`,
         "  --headed             run a visible browser instead of headless",
       ].join("\n"),
     );
