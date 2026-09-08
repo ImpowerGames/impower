@@ -8,14 +8,14 @@
 # that order, that the parenthetical on each names the same step, that each
 # step's SKILL.md exists and declares that name in its frontmatter (the harness
 # resolves a skill by that `name:`, not by its directory), that the completion
-# gate follows every invocation, that the pad names the VS Code driver
-# (drive-vscode-web, invoked only for an extension ticket) with the same
-# parenthetical and that skill exists under that name, and that the file
-# stays short enough to load into every session. A conditional mention
-# elsewhere in the pad (the repro bullets) does not begin a line with that
-# phrase, so it is not counted, and neither is a line that forbids the
-# invocation or a line inside a fenced block, which is an example rather than
-# an instruction. Run:
+# gate follows every invocation, that the VS Code driver (drive-vscode-web,
+# invoked only for an extension ticket) is invoked with the same parenthetical
+# in exactly one sentence of §3 and one of §6 and exists under that name, and
+# that the file stays short enough to load into every session. A conditional
+# mention elsewhere in the pad (the repro bullets) does not begin a line with
+# the step phrase, so it is not counted, and neither is a line that forbids
+# an invocation or a line inside a fenced block, which is an example rather
+# than an instruction. Run:
 #   bash .claude/skills/resolve-issue/landing-pad.test.sh
 #
 # SKILL_MD overrides the file under test and SKILLS_DIR the directory the step
@@ -93,20 +93,44 @@ for step in write-regression-test drive-web-editor review-pr; do
 done
 
 # The VS Code driver is invoked only for an `app: vscode-extension` ticket, so
-# its mention is conditional rather than a line of its own; the pad must still
-# name it with the parenthetical the Skill tool needs, and the skill must exist
-# under that name, or a session on such a ticket is sent nowhere.
-for step in drive-vscode-web; do
-  if ! grep -q "(skill name \`$step\`)" "$skill"; then
-    note_fail "the pad never names (skill name \`$step\`)"
-  elif [[ ! -r "$skills_dir/$step/SKILL.md" ]]; then
-    note_fail "/$step is named but $skills_dir/$step/SKILL.md does not exist"
-  elif ! grep -q "^name: $step\$" "$skills_dir/$step/SKILL.md"; then
-    note_fail "/$step is named but $skills_dir/$step/SKILL.md does not declare name: $step"
+# its invocations are conditional sentences rather than lines of their own:
+# one in the reproduction bullets of §3 and one in §6, each carrying the
+# parenthetical the Skill tool needs. Each section holds exactly one such
+# sentence outside a fence that does not forbid it, and the skill exists under
+# that name, or a session on such a ticket is sent nowhere.
+vsc='invoke `/drive-vscode-web` (skill name `drive-vscode-web`)'
+
+# Line numbers of the lines outside fenced blocks, in the section whose
+# heading begins with $1, that invoke the VS Code driver and do not forbid it.
+vscode_invocations() {
+  awk -v head="$1" -v phrase="$vsc" '
+    /^```/ { fenced = !fenced; next }
+    /^## / { inside = index($0, head) == 1 }
+    !fenced && inside && index(tolower($0), phrase) > 0 && index(tolower($0), "not " phrase) == 0 && index(tolower($0), "never " phrase) == 0 { print NR }
+  ' "$skill"
+}
+
+vscode_ok=1
+vscode_at=()
+for head in "## 3." "## 6."; do
+  found=$(vscode_invocations "$head")
+  count=$(printf '%s\n' "$found" | grep -c .)
+  if (( count != 1 )); then
+    note_fail "/drive-vscode-web is invoked in $count sentence(s) of $head, outside fences and not forbidden; the pad has one"
+    vscode_ok=0
   else
-    echo "PASS  /$step named, $(grep -c "(skill name \`$step\`)" "$skill") mention(s)"
+    vscode_at+=("$found")
   fi
 done
+if (( vscode_ok )); then
+  if [[ ! -r "$skills_dir/drive-vscode-web/SKILL.md" ]]; then
+    note_fail "/drive-vscode-web is invoked but $skills_dir/drive-vscode-web/SKILL.md does not exist"
+  elif ! grep -q '^name: drive-vscode-web$' "$skills_dir/drive-vscode-web/SKILL.md"; then
+    note_fail "/drive-vscode-web is invoked but $skills_dir/drive-vscode-web/SKILL.md does not declare name: drive-vscode-web"
+  else
+    echo "PASS  /drive-vscode-web invoked at lines ${vscode_at[0]} and ${vscode_at[1]}"
+  fi
+fi
 
 gate=$(grep -n '^## The completion gate' "$skill" | cut -d: -f1)
 if [[ -z "$gate" ]]; then
@@ -207,7 +231,28 @@ done
 SKILLS_DIR="$tmp/renamed" expect_fail "a step skill whose frontmatter declares another name" "$skill" "does not declare name:"
 
 sed 's|(skill name `drive-vscode-web`)||g' "$skill" > "$tmp/no-vscode.md"
-expect_fail "drive-vscode-web mention removed" "$tmp/no-vscode.md" "the pad never names (skill name \`drive-vscode-web\`)"
+expect_fail "drive-vscode-web parenthetical removed everywhere" "$tmp/no-vscode.md" "invoked in 0 sentence(s) of ## 3."
+
+awk -v p="$vsc" '/^## /{ in6 = index($0, "## 6.") == 1 } in6 { i = index($0, p); if (i) $0 = substr($0, 1, i - 1) "there is no headless driver" substr($0, i + length(p)) } { print }' "$skill" > "$tmp/no-vscode-s6.md"
+if grep -q "there is no headless driver" "$tmp/no-vscode-s6.md" && grep -qi "$vsc" "$tmp/no-vscode-s6.md"; then
+  expect_fail "the §6 sentence says there is no headless driver, the §3 bullet kept" "$tmp/no-vscode-s6.md" "invoked in 0 sentence(s) of ## 6."
+else
+  note_fail "control 'the §6 sentence says there is no headless driver, the §3 bullet kept': the fixture was not built"
+fi
+
+sed 's|[Ii]nvoke `/drive-vscode-web` (skill name `drive-vscode-web`)|do not invoke `/drive-vscode-web` (skill name `drive-vscode-web`)|g' "$skill" > "$tmp/vscode-forbidden.md"
+if grep -q "do not $vsc" "$tmp/vscode-forbidden.md"; then
+  expect_fail "both drive-vscode-web sentences turned into prohibitions" "$tmp/vscode-forbidden.md" "invoked in 0 sentence(s) of ## 3."
+else
+  note_fail "control 'both drive-vscode-web sentences turned into prohibitions': the fixture was not built"
+fi
+
+awk -v p="$vsc" '/^## /{ in3 = index($0, "## 3.") == 1 } in3 && index(tolower($0), p) { print "```md"; print; print "```"; next } { print }' "$skill" > "$tmp/vscode-fenced.md"
+if grep -qi "$vsc" "$tmp/vscode-fenced.md"; then
+  expect_fail "the §3 drive-vscode-web bullet survives only inside a fenced example" "$tmp/vscode-fenced.md" "invoked in 0 sentence(s) of ## 3."
+else
+  note_fail "control 'the §3 drive-vscode-web bullet survives only inside a fenced example': the fixture was not built"
+fi
 
 mkdir -p "$tmp/renamed/drive-vscode-web"
 printf -- '---\nname: drive-vscode-web-renamed\ndescription: a renamed copy\n---\n' > "$tmp/renamed/drive-vscode-web/SKILL.md"

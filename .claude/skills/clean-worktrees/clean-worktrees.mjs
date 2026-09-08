@@ -308,9 +308,10 @@ export function classify(entry, facts) {
     else if (!facts.committed && facts.created) keep.push(`no commit was made on the branch: its reflog holds its creation and no commit since (${remoteState}); a fresh worktree a session may be working in, so remove it by hand when it is done`);
     else if (!facts.committed) keep.push(`its reflog records neither a commit nor its creation, so whether a commit was made on it cannot be told, and its tip is off origin/main's first-parent line (${remoteState}); left for a person, and \`git worktree remove\` plus \`git branch -D\` by hand once its commits are checked`);
     const s = facts.servers;
-    if (s.state === "up") keep.push(`dev servers up at ${s.url} (pid ${s.pid})`);
-    else if (s.state === "launching") keep.push(`dev servers launching (pid ${s.pid} alive, ${s.url} not answering); the worktree's driver \`down\` settles it`);
-    else if (s.state === "unknown") keep.push(`its driver could not report its servers (${s.detail})`);
+    const via = s.driver ? ` through ${s.driver}` : "";
+    if (s.state === "up") keep.push(`dev servers up at ${s.url} (pid ${s.pid})${via}`);
+    else if (s.state === "launching") keep.push(`dev servers launching (pid ${s.pid} alive, ${s.url} not answering)${via}; the worktree's driver \`down\` settles it`);
+    else if (s.state === "unknown") keep.push(`its driver${via} could not report its servers (${s.detail})`);
     if (facts.users === null) keep.push("the processes on this machine could not be listed, so whether one is using it is unknown");
     else if (facts.users.length) keep.push(`its path is on the command line of ${listSome(facts.users.map((p) => `pid ${p.pid} (${p.name})`), 2)}`);
   }
@@ -327,13 +328,23 @@ const gitOrDie = (deps, args, cwd) => {
   return r.out;
 };
 
-const DRIVERS = [".claude/skills/drive-web-editor/driver.mjs", ".claude/skills/resolve-issue/driver.mjs"];
+// Every driver a worktree may hold, each with its own server and state file;
+// the web editor's sits under `resolve-issue/` in older worktrees.
+const DRIVERS = [".claude/skills/drive-web-editor/driver.mjs", ".claude/skills/drive-vscode-web/driver.mjs", ".claude/skills/resolve-issue/driver.mjs"];
+const SERVER_RANK = { up: 3, launching: 2, unknown: 1, down: 0 };
 
+// Asks every driver the worktree has and reports the one with the most to
+// say, named, so the row says which driver's `down` settles it.
 function probeServers(worktree, deps) {
-  const driver = DRIVERS.map((d) => path.join(worktree, d)).find((p) => deps.exists(p));
-  if (!driver) return { state: "none" };
-  const r = deps.exec(process.execPath, [driver, "status"], worktree, 60_000);
-  return serversFrom(`${r.out}\n${r.err}`, deps.pidAlive);
+  const drivers = DRIVERS.filter((d) => deps.exists(path.join(worktree, d)));
+  if (!drivers.length) return { state: "none" };
+  let best = { state: "down" };
+  for (const d of drivers) {
+    const r = deps.exec(process.execPath, [path.join(worktree, d), "status"], worktree, 60_000);
+    const s = { ...serversFrom(`${r.out}\n${r.err}`, deps.pidAlive), driver: path.basename(path.dirname(d)) };
+    if (SERVER_RANK[s.state] > SERVER_RANK[best.state]) best = s;
+  }
+  return best;
 }
 
 // `git status --porcelain --ignored=matching`: the tree's changes, untracked
