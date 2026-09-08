@@ -70,6 +70,8 @@ scene START
 end
 ```
 
+A clean file, for a run that should settle at `No Problems`, is a scene holding a line of action and no character: a character line names a character the script does not declare, which is itself a warning, so the repro above minus its backdrop line is not clean.
+
 Stop the server when done:
 
 ```bash
