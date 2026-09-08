@@ -17,7 +17,47 @@ export interface CompletionItemResolveData {
   /** Context type + name of the struct to preview. */
   type: string;
   name: string;
+  /**
+   * Preview the directive's image with this candidate inserted at the cursor.
+   * Ordered attributes include those before and after the replaced token.
+   */
+  filtered?: { image: string; attributes: string[] };
 }
+
+/**
+ * Build a candidate in a private context so an unaccepted completion never
+ * becomes a declaration. Preserve order in the same canonical key as the
+ * compiler: a later attribute in one group overrides an earlier attribute.
+ */
+const synthesizeFilteredImage = (
+  context: { [type: string]: { [name: string]: any } } | undefined,
+  filtered: { image: string; attributes: string[] },
+):
+  | { context: { [type: string]: { [name: string]: any } }; struct: any }
+  | undefined => {
+  if (!context || !filtered.image) {
+    return undefined;
+  }
+  const attributes = [...filtered.attributes];
+  const name = [filtered.image, ...attributes].join("~");
+  const existing = context["filtered_image"]?.[name];
+  if (existing) {
+    return { context, struct: existing };
+  }
+  const struct = {
+    $type: "filtered_image",
+    $name: name,
+    image: { $name: filtered.image },
+    attributes,
+  };
+  return {
+    context: {
+      ...context,
+      filtered_image: { ...context["filtered_image"], [name]: struct },
+    },
+    struct,
+  };
+};
 
 /**
  * Fill in the expensive half of a completion item.
@@ -37,12 +77,21 @@ export const resolveCompletion = async (
   if (!data || item.documentation != null) {
     return item;
   }
-  const struct = program?.context?.[data.type]?.[data.name];
+  const synthesized = data.filtered
+    ? synthesizeFilteredImage(program?.context, data.filtered)
+    : undefined;
+  if (data.filtered && !synthesized) {
+    return item;
+  }
+  const context = synthesized ? synthesized.context : program?.context;
+  const struct = synthesized
+    ? synthesized.struct
+    : program?.context?.[data.type]?.[data.name];
   if (!struct) {
     return item;
   }
   const preview = await getImagePreviewMarkupComposited(
-    program?.context,
+    context,
     struct,
     options,
   );

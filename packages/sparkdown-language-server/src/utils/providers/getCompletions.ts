@@ -381,11 +381,78 @@ const addStructTypeNameCompletions = (
   }
 };
 
+/**
+ * What the asset command under the cursor names: the asset at its head, and
+ * the attributes already written in it. Both answers feed an attribute completion
+ * — the applied attributes are the ones to leave out of the suggestion list, and
+ * the asset is what the remaining candidates preview against.
+ *
+ * The token under the cursor is skipped, because it is the partial name being
+ * completed rather than an attribute that is already applied; leaving it in would
+ * hide the very name the author is part-way through typing.
+ *
+ * Keep the two sides of the cursor separate: a candidate replaces the current
+ * token in place, and any attributes after it must retain their later priority.
+ */
+const readAssetCommandAttributes = (
+  leftStack: GrammarSyntaxNode<SparkdownNodeName>[],
+  read: (from: number, to: number) => string,
+  offset: number,
+): { asset: string; before: string[]; after: string[] } => {
+  // The enclosing `AssetCommandName`, not `AssetCommandContent`: a `+`-joined
+  // command holds one `AssetCommandName` per asset, and an attribute belongs to
+  // the asset it is attached to.
+  const nameNode = leftStack.find((n) => n.name === "AssetCommandName");
+  if (!nameNode) {
+    return { asset: "", before: [], after: [] };
+  }
+  const cursorNode = leftStack[0];
+  let image = "";
+  const before: string[] = [];
+  const after: string[] = [];
+  // Depth-first over this node's subtree and nothing beyond it. `next()` walks
+  // the whole document rather than one subtree, so the descent is driven by
+  // firstChild/nextSibling against a depth counter, which never takes a
+  // sibling while standing on `nameNode` itself.
+  const cur = nameNode.node.cursor();
+  let depth = 0;
+  walk: for (;;) {
+    if (!image && cur.name === "AssetCommandFileName") {
+      image = read(cur.from, cur.to).trim();
+    }
+    if (
+      cur.name === "AssetCommandFilterName" &&
+      !(cursorNode && cur.from === cursorNode.from && cur.to === cursorNode.to)
+    ) {
+      const attribute = read(cur.from, cur.to).trim();
+      if (attribute) {
+        (cur.to <= offset ? before : after).push(attribute);
+      }
+    }
+    if (cur.firstChild()) {
+      depth += 1;
+      continue;
+    }
+    for (;;) {
+      if (depth === 0) {
+        break walk;
+      }
+      if (cur.nextSibling()) {
+        break;
+      }
+      cur.parent();
+      depth -= 1;
+    }
+  }
+  return { asset: image, before, after };
+};
+
 const addStructReferenceCompletions = (
   completions: Map<string, CompletionItem>,
   program: SparkProgram | undefined,
   types: string[],
   exclude?: string[] | ((name: string) => boolean),
+  buildData?: (type: string, name: string) => object | undefined,
 ) => {
   if (program) {
     for (const type of types) {
@@ -407,8 +474,11 @@ const addStructReferenceCompletions = (
             // runs to hundreds of items and only the highlighted one is ever
             // shown. `completionItem/resolve` builds it on demand; this just
             // records where to find the struct again.
-            if (IMAGE_TYPES.includes(type)) {
-              completion.data = { type, name };
+            const data =
+              buildData?.(type, name) ??
+              (IMAGE_TYPES.includes(type) ? { type, name } : undefined);
+            if (data) {
+              completion.data = data;
             }
             if (completion.label && !completions.has(completion.label)) {
               completions.set(completion.label, completion);
@@ -1174,9 +1244,10 @@ export const getCompletions = (
     const match = prefix.match(/(?:^|[+])\s*([a-zA-Z_][\w]*)((?:[:~][\w.-]*)+)$/);
     if (match) {
       const name = match[1]!;
-      const parts = match[2]!.split(/[:~]/).slice(1);
-      const current = parts.pop() ?? "";
-      const excluded = new Set(parts);
+      const current = match[2]!.split(/[:~]/).at(-1) ?? "";
+      const { before, after } = readAssetCommandAttributes(leftStack, read, documentCursorOffset);
+      const excluded = new Set([...before, ...after]);
+      const attributeNode = leftStack.find((node) => node.name === "AssetCommandFilterName");
       const image = program.context["filtered_image"]?.[name] ?? program.context["layered_image"]?.[name] ?? program.context["image"]?.[name];
       const vocabulary = resolveImageAttributes(program.context, image).vocabulary;
       for (const [group, info] of Object.entries(vocabulary?.groups ?? {})) {
@@ -1191,7 +1262,9 @@ export const getCompletions = (
               label: attribute,
               kind: CompletionItemKind.EnumMember,
               labelDetails: { description: `${name} attribute` },
-              textEdit: { newText: attribute, range: document.range(documentCursorOffset - current.length, documentCursorOffset) },
+              textEdit: { newText: attribute, range: document.range(attributeNode?.from ?? documentCursorOffset - current.length, attributeNode?.to ?? documentCursorOffset) },
+              data: { type: "filtered_image", name,
+                filtered: { image: name, attributes: [...before, attribute, ...after] } },
             });
           }
         }
