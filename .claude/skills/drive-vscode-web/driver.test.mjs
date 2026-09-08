@@ -11,9 +11,16 @@
 // rebuilds it, the caret and image rules a hover is judged by, the settle
 // rule verify waits on and the failure an unsettled run reports, and the
 // flag parsing that refuses a bad option before anything runs. `up`,
-// `checkBuild` and `verify` themselves run in-process against stubbed
-// dependencies and a scripted document, so what each refuses and what it
-// calls is pinned, not only the helpers it could have called. Run:
+// `checkBuild`, `status` and `verify` themselves run in-process against
+// stubbed dependencies and a scripted document, so what each refuses and
+// what it calls is pinned, not only the helpers it could have called; the
+// document is shaped as the workbench is (a rendered line split into text
+// nodes at every token, the lines out of order in the DOM, the explorer rows
+// with their depth, an inactive tab before the active one), answers only the
+// exact selectors the driver uses, and every page function is rebuilt from
+// its source before it runs, as `page.evaluate` does. `status`'s line is
+// pinned through clean-worktrees' own parser, since that is who reads it.
+// Run:
 //   node .claude/skills/drive-vscode-web/driver.test.mjs
 //
 // aliasWorkbenchCss, unpackedCommit, buildRule, buildFreshness and
@@ -24,15 +31,21 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { serverRows, serversFrom } from "../clean-worktrees/clean-worktrees.mjs";
 import {
   DEFAULT_SETTLE_S,
+  LOOPBACKS,
   PORT_SCAN,
   QUALITIES,
+  READ_ALLOWANCE_S,
+  READY_POLL_MS,
   REBUILD_STEPS,
   SETTLE,
   SETTLE_FLOOR_S,
   SOURCE_SKIP,
   STAMP_NAME,
+  TOP_ROW,
+  VIEWPORT,
   aliasWorkbenchCss,
   buildFreshness,
   buildRule,
@@ -44,25 +57,33 @@ import {
   diagnosticsOnPage,
   diagnosticsOutcome,
   editorOpened,
+  extensionOnPage,
   hoverImageFailure,
   hoverOnPage,
   isSettled,
   launchPlan,
+  liveDeps,
   locateWord,
+  nearestDirMtime,
   normalizeMonacoText,
   pageSources,
   parseFlags,
   portBase,
+  portFree,
   rebuildCommand,
   rebuildPageFunctions,
+  recordFile,
   settleState,
   sharedBuildUsers,
   sourceFiles,
+  spawnServer,
   stampGap,
+  status,
   unpackedCommit,
   up,
   usableReading,
   verify,
+  waitReady,
   wordOnPage,
 } from "./driver.mjs";
 
@@ -274,12 +295,27 @@ await check("a source newer than its artifact makes that artifact stale, and onl
   at(path.join(ext, "webviews", "game-webview", "game-webview.ts"), T0 - 5000);
 });
 
-await check("a missing artifact is reported as missing", () => {
+await check("a missing artifact is reported as missing, through the file system handed in", () => {
   fs.rmSync(path.join(ext, "out", "data", "cheatsheet.css"));
   const { missing, stale } = buildFreshness(ruleOf(), filesOf);
   assert.deepEqual(missing.map((p) => path.basename(p)), ["cheatsheet.css"]);
   assert.deepEqual(stale, []);
   at(path.join(ext, "out", "data", "cheatsheet.css"), T0);
+  const gone = buildFreshness(ruleOf(), filesOf, { statSync: () => { throw new Error("ENOENT"); } });
+  assert.equal(gone.missing.length, 3, "the artifacts were read through the module's own file system, not the one handed in");
+  assert.ok(ruleOf().find((g) => g.artifact.endsWith("cheatsheet.css")).copied, "a copy under out/data is not marked as one");
+  assert.ok(!ruleOf().find((g) => g.artifact.endsWith("extension.js")).copied);
+});
+
+await check("nearestDirMtime is the time of the directory holding the file, or of the nearest one still there, and null when none is up to the top", () => {
+  const dir = path.join(packages, "sparkdown", "src", "deep");
+  fs.mkdirSync(dir, { recursive: true });
+  fs.utimesSync(dir, new Date(T0 - 7000), new Date(T0 - 7000));
+  fs.utimesSync(path.join(packages, "sparkdown", "src"), new Date(T0 - 8000), new Date(T0 - 8000));
+  assert.equal(nearestDirMtime(path.join(dir, "gone.ts"), repo), T0 - 7000);
+  assert.equal(nearestDirMtime(path.join(dir, "gone", "deeper", "gone.ts"), repo), T0 - 7000, "a removed subtree is dated by the directory it went from");
+  assert.equal(nearestDirMtime(path.join(scratch, "nowhere", "a.ts"), path.join(scratch, "nowhere")), null);
+  fs.rmSync(dir, { recursive: true });
 });
 
 await check("every directory in the skip list, test files, links and the unreadable are not sources", () => {
@@ -307,8 +343,15 @@ await check("the stamp covers a build when the artifacts, the source set and the
   assert.deepEqual(stampGap(stamp, artifacts, [...sources, "packages/a/src/new.ts"], [{ rel: "packages/a/src/new.ts", sha: "sha-n" }]), { kind: "added", files: ["packages/a/src/new.ts"] }, "a file the stamp never saw");
   assert.deepEqual(stampGap(stamp, artifacts, [...sources, "packages/a/src/old.ts"], []), { kind: "added", files: ["packages/a/src/old.ts"] }, "a file added with an old modification time");
   assert.deepEqual(stampGap(stamp, artifacts, ["vscode-sparkdown/src/b.ts"], []), { kind: "removed", files: ["packages/a/src/a.ts"] }, "a deleted file leaves nothing newer and is still a gap");
-  assert.deepEqual(stampGap(stamp, { ...artifacts, "out/extension.js": { size: 1, mtimeMs: T0 + 1 } }, sources, []), { kind: "artifacts" }, "a rebuilt artifact");
+  const rebuilt = { ...artifacts, "out/extension.js": { size: 1, mtimeMs: T0 + 1 } };
+  assert.deepEqual(stampGap(stamp, rebuilt, sources, []), { kind: "artifacts" }, "a rebuilt artifact");
   assert.deepEqual(stampGap(stamp, { "out/extension.js": artifacts["out/extension.js"] }, sources, []), { kind: "artifacts" }, "an artifact set of another size");
+  assert.deepEqual(stampGap(stamp, rebuilt, ["vscode-sparkdown/src/b.ts"], []), { kind: "removed", files: ["packages/a/src/a.ts"] }, "the source set is judged before the artifacts, so a rebuild does not hide a deletion");
+  assert.deepEqual(stampGap(stamp, rebuilt, [...sources, "packages/a/src/old.ts"], []), { kind: "added", files: ["packages/a/src/old.ts"] }, "nor an addition");
+  const built = (f) => f === "packages/a/src/a.ts" || f === "packages/a/src/old.ts";
+  assert.deepEqual(stampGap(stamp, rebuilt, ["vscode-sparkdown/src/b.ts"], [], built), { kind: "artifacts" }, "a deletion the artifacts were built after leaves a stamp that is out of date");
+  assert.deepEqual(stampGap(stamp, artifacts, [...sources, "packages/a/src/old.ts"], [], built), { kind: "artifacts" }, "an addition the artifacts were built after, even with the stamped artifacts in place");
+  assert.deepEqual(stampGap(stamp, artifacts, ["vscode-sparkdown/src/b.ts", "packages/a/src/new.ts"], [], built), { kind: "added", files: ["packages/a/src/new.ts"] }, "each file is asked about on its own");
   assert.deepEqual(stampGap(null, artifacts, sources, []), { kind: "artifacts" });
   assert.deepEqual(stampGap({ artifacts }, artifacts, sources, []), { kind: "artifacts" }, "a stamp without sources");
 });
@@ -320,11 +363,16 @@ const stampFile = path.join(ext, "out", STAMP_NAME);
 const refusesBuild = (re) => assert.throws(() => checkBuild(buildDeps), (err) => err instanceof Refusal && re.test(err.message), `no refusal matching ${re}`);
 const relFile = (p) => path.relative(repo, p).replaceAll("\\", "/");
 
-await check("checkBuild accepts a fresh build, writes the stamp, and reports the oldest artifact", () => {
+await check("checkBuild accepts a fresh build, writes the stamp, and dates the build by the older bundle, never by a copy under out/data", () => {
   fs.rmSync(stampFile, { force: true });
   touch(path.join(ext, "out", "extension.js"), T0 - 1000);
+  at(path.join(ext, "data", "cheatsheet.css"), T0 - 50_000);
+  at(path.join(ext, "out", "data", "cheatsheet.css"), T0 - 50_000);
   const build = checkBuild(buildDeps);
-  assert.deepEqual(build, { artifacts: 3, oldest: "vscode-sparkdown/out/extension.js", builtAt: new Date(T0 - 1000).toISOString() });
+  assert.deepEqual(build, { artifacts: 3, oldest: "vscode-sparkdown/out/extension.js", builtAt: new Date(T0 - 1000).toISOString() }, "a data copy carries its source's time, not the build's");
+  at(path.join(ext, "data", "cheatsheet.css"), T0 - 5000);
+  at(path.join(ext, "out", "data", "cheatsheet.css"), T0);
+  assert.deepEqual(checkBuild(buildDeps), build, "the copy's time moved and the build's did not");
   const stamp = JSON.parse(fs.readFileSync(stampFile, "utf8"));
   assert.deepEqual(Object.keys(stamp.artifacts).sort(), ["vscode-sparkdown/out/data/cheatsheet.css", "vscode-sparkdown/out/extension.js", "vscode-sparkdown/out/workers/sparkdown-language-server.js"]);
   assert.deepEqual(Object.keys(stamp.sources).sort(), [
@@ -378,6 +426,65 @@ await check("checkBuild writes a new stamp after a rebuild, refuses a missing ar
   refusesBuild(new RegExp(`^vscode-sparkdown/out/workers/sparkdown-language-server.js is missing; build the extension first: cd vscode-sparkdown && ${LS_BUILD} && ${SELF}$`));
   at(path.join(ext, "out", "workers", "sparkdown-language-server.js"), T0 + 10_000, "rebuilt");
   assert.throws(() => checkBuild({ ...buildDeps, packagesDir: path.join(scratch, "nowhere") }), (err) => err instanceof Refusal && /holds no package with a src directory/.test(err.message));
+});
+
+const stampSources = () => Object.keys(JSON.parse(fs.readFileSync(stampFile, "utf8")).sources);
+const ARTIFACTS = ["out/extension.js", "out/workers/sparkdown-language-server.js", "out/data/cheatsheet.css"];
+
+await check("checkBuild judges the source set before the artifacts: a source deleted after a rebuild is refused with the stamp untouched, and the rebuild the refusal names clears it", () => {
+  // The stamp from before a rebuild: every artifact differs from it.
+  const stamp = JSON.parse(fs.readFileSync(stampFile, "utf8"));
+  for (const k of Object.keys(stamp.artifacts)) stamp.artifacts[k].mtimeMs -= 1;
+  fs.writeFileSync(stampFile, JSON.stringify(stamp));
+  const a = path.join(packages, "sparkdown", "src", "a.ts");
+  fs.rmSync(a); // the directory's time is now, after every artifact
+  refusesBuild(new RegExp(`^packages/sparkdown/src/a.ts was removed after the build was stamped, so the served workbench would run a build made from other sources; rebuild: cd vscode-sparkdown && ${LS_BUILD} && ${SELF}$`));
+  assert.ok(stampSources().includes("packages/sparkdown/src/a.ts"), "the stamp was rewritten over the gap");
+  // The rebuild: every artifact written after the directory changed.
+  const later = Date.now() + 60_000;
+  for (const f of ARTIFACTS) at(path.join(ext, f), later, "rebuilt after the deletion");
+  assert.equal(checkBuild(buildDeps).artifacts, 3, "a build made after the deletion");
+  assert.ok(!stampSources().includes("packages/sparkdown/src/a.ts"), "the new stamp still names the deleted file");
+  // The file comes back with an old time; the directory changed after the
+  // artifacts were written, which is what the system records.
+  at(a, T0 - 5000);
+  fs.utimesSync(path.dirname(a), new Date(later + 5000), new Date(later + 5000));
+  refusesBuild(new RegExp(`^packages/sparkdown/src/a.ts was added after the build was stamped, .*; rebuild: cd vscode-sparkdown && ${LS_BUILD} && ${SELF}$`));
+  assert.ok(!stampSources().includes("packages/sparkdown/src/a.ts"), "the stamp was rewritten over the gap");
+  for (const f of ARTIFACTS) at(path.join(ext, f), later + 10_000, "rebuilt after the addition");
+  assert.equal(checkBuild(buildDeps).artifacts, 3);
+  assert.ok(stampSources().includes("packages/sparkdown/src/a.ts"), "the new stamp does not name the file");
+});
+
+await check("a stamp from a driver that watched fewer sources is brought up to date when the artifacts are newer than the directories it never listed", () => {
+  const stamp = JSON.parse(fs.readFileSync(stampFile, "utf8"));
+  delete stamp.sources["packages/sparkdown/language/sparkdown.language-grammar.json"];
+  fs.writeFileSync(stampFile, JSON.stringify(stamp));
+  fs.utimesSync(path.join(packages, "sparkdown", "language"), new Date(T0 - 9000), new Date(T0 - 9000));
+  assert.equal(checkBuild(buildDeps).artifacts, 3);
+  assert.ok(stampSources().includes("packages/sparkdown/language/sparkdown.language-grammar.json"), "the stamp still lacks the source");
+  // The same stamp, with the directory changed after the build: a source
+  // it cannot vouch for.
+  fs.writeFileSync(stampFile, JSON.stringify(stamp));
+  fs.utimesSync(path.join(packages, "sparkdown", "language"), new Date(Date.now() + 120_000), new Date(Date.now() + 120_000));
+  refusesBuild(/^packages\/sparkdown\/language\/sparkdown.language-grammar.json was added after the build was stamped/);
+});
+
+await check("a source set change that no directory can date is refused, not vouched for", () => {
+  // Every source directory's stat fails, up to the repository root, so no
+  // source is listed (every stamped one reads as removed) and no directory
+  // dates the change.
+  const io = {
+    ...fs,
+    statSync: (p) => {
+      const st = fs.statSync(p);
+      if (st.isDirectory() && path.relative(path.join(ext, "data"), p).startsWith("..")) throw new Error("EPERM: operation not permitted, stat");
+      return st;
+    },
+  };
+  const before = fs.readFileSync(stampFile, "utf8");
+  assert.throws(() => checkBuild({ ...buildDeps, io }), (err) => err instanceof Refusal && /was removed after the build was stamped/.test(err.message));
+  assert.equal(fs.readFileSync(stampFile, "utf8"), before, "the stamp was rewritten over a change nothing could date");
 });
 
 fs.rmSync(scratch, { recursive: true, force: true });
@@ -625,65 +732,115 @@ await check("a record whose pid is not the server it started is removed and a la
 
 const CHAR_W = 8;
 const LINE_H = 20;
-// A document with the parts of the workbench the page functions read: the
-// rendered lines, their gutter numbers, the status bar items, the caret and
-// the hover. `problems` is a function called on every diagnostics read, so a
-// check scripts the series; `hover` appears once Ctrl+K Ctrl+I was pressed.
-function fakeDocument({ lines = [], numbers, problems = () => "0 0", squiggles = {}, cursor = "Ln 1, Col 1", caretX = null, hover = null, tabTitle = "main.sd", explorerRow = true } = {}) {
-  const lineEls = lines.map((text, i) => {
-    const node = { nodeType: 3, nodeValue: text };
-    return { style: { top: `${i * LINE_H}px` }, textContent: text, childNodes: [{ nodeType: 1, childNodes: [node] }], rect: { x: 100, y: 50 + i * LINE_H } };
-  });
+const EXT_ID = "impowergames.sparkdown";
+// Monaco splits a rendered line into text nodes at every change of token
+// (line 5 of the repro is eight nodes), so the runs of non-breaking spaces,
+// of identifier characters and of anything else are that split here.
+const monacoNodes = (text) => (text.match(/ +|[A-Za-z0-9_]+|[^ A-Za-z0-9_]+/g) ?? []).map((t) => ({ nodeType: 3, nodeValue: t }));
+// The served folder's explorer rows in DOM order, each with its depth: a
+// subfolder holding a file of the same name, a file whose name extends the
+// one asked for, and the file itself at the top level.
+const DEFAULT_EXPLORER = [
+  { name: "assets", level: 1 },
+  { name: "main.sd", level: 2 },
+  { name: "main.sd.bak", level: 1 },
+  { name: "main.sd", level: 1 },
+  { name: "other.sd", level: 1 },
+];
+// Runs a page function as `page.evaluate` does: rebuilt from its source, so
+// it has no module scope to reach into, with the argument and the document.
+const inPage = (fn, arg, doc) => new Function(`return ${fn.toString()}`)()(arg, doc);
+
+// A document with the parts of the workbench the page functions read, each
+// under the exact selector the driver uses and nothing else: the rendered
+// lines, kept in the DOM in another order than they are shown (Monaco
+// reuses line nodes) with `style.top` saying where each is, their gutter
+// numbers in yet another order, the status bar items, the extension's own
+// item, the breadcrumbs, the caret and the hover. `problems` and `crumbs`
+// are functions called on every read, so a check scripts the series; the
+// hover appears once Ctrl+K Ctrl+I was pressed, on the `hoverAfterReads`th
+// read after it, as a real one takes time to open. `tabTitle` names the
+// editor that opens when it is not the row clicked.
+function fakeDocument({ lines = [], numbers, problems = () => "0 0", squiggles = {}, cursor = "Ln 1, Col 1", caretX = null, hover = null, hoverAfterReads = 3, tabTitle = null, explorer = DEFAULT_EXPLORER, crumbs = () => ["main.sd", "…"], activated = true, extensionId = EXT_ID } = {}) {
+  const lineEls = lines.map((text, i) => ({ style: { top: `${i * LINE_H}px` }, textContent: text, childNodes: [{ nodeType: 1, childNodes: monacoNodes(text) }], rect: { x: 100, y: 50 + i * LINE_H } }));
+  const domOrder = [...lineEls].reverse();
   const numberEls = (numbers ?? lines.map((_, i) => String(i + 1))).map((n, i) => ({ textContent: n, parentElement: { style: { top: `${i * LINE_H}px` } } }));
+  const numberOrder = [...numberEls.slice(1), ...numberEls.slice(0, 1)];
   const doc = {
-    state: { problems, squiggles, cursor, caretX, hover, hoverShown: false, marked: null, tabTitle, explorerRow },
+    state: { problems, squiggles, cursor, caretX, hover, hoverShown: false, hoverReads: 0, hoverAfterReads, marked: null, tabTitle, explorer, crumbs, activated, extensionId, tabs: [{ title: "Welcome", active: false }] },
     querySelector(sel) {
       return this.querySelectorAll(sel)[0] ?? null;
     },
     querySelectorAll(sel) {
       const s = this.state;
-      if (sel === ".view-line") return lineEls;
-      if (sel === ".margin-view-overlays .line-numbers") return numberEls;
-      if (sel.includes("status.problems")) {
-        const p = s.problems();
-        return p == null ? [] : [{ innerText: p, getAttribute: () => (p === "" ? null : `label ${p}`), querySelector: () => null }];
+      if (sel === `.statusbar-item[id="${s.extensionId}"]`) return s.activated ? [{ id: s.extensionId }] : [];
+      switch (sel) {
+        case ".view-line":
+          return domOrder;
+        case ".margin-view-overlays .line-numbers":
+          return numberOrder;
+        case '.statusbar-item[id*="status.problems"]': {
+          const p = s.problems();
+          return p == null ? [] : [{ innerText: p, getAttribute: () => (p === "" ? null : `label ${p}`), querySelector: () => null }];
+        }
+        case '.statusbar-item[id*="status.editor.selection"]':
+          return [{ innerText: s.cursor }];
+        case ".monaco-breadcrumbs .monaco-breadcrumb-item":
+          return s.crumbs().map((t) => ({ innerText: t }));
+        case ".monaco-editor .cursors-layer .cursor":
+          return s.caretX == null ? [] : [{ getBoundingClientRect: () => ({ x: s.caretX, width: 2 }) }];
+        case ".view-overlays .squiggly-error":
+        case ".view-overlays .squiggly-warning":
+        case ".view-overlays .squiggly-info":
+          return Array(s.squiggles[sel.slice(".view-overlays .squiggly-".length)] ?? 0).fill({});
+        case "[data-drive-hover]":
+          return s.marked ? [s.marked] : [];
+        case ".monaco-hover": {
+          const hidden = { getBoundingClientRect: () => ({ width: 0, height: 0 }), innerText: "", querySelector: () => null };
+          if (!s.hoverShown || !s.hover || ++s.hoverReads < s.hoverAfterReads) return [hidden];
+          const img = s.hover.img && {
+            hasAttribute: () => s.hover.img.hasSrc,
+            getAttribute: () => s.hover.img.src ?? null,
+            getBoundingClientRect: () => ({ width: 319, height: 180 }),
+            naturalWidth: s.hover.img.naturalWidth,
+            naturalHeight: s.hover.img.naturalHeight,
+            complete: s.hover.img.complete,
+          };
+          const el = {
+            getBoundingClientRect: () => ({ width: 200, height: 40 }),
+            innerText: s.hover.text ?? "",
+            querySelector: (q) => (q === "img" ? img || null : null),
+            setAttribute: () => (s.marked = el),
+            removeAttribute: () => (s.marked = null),
+          };
+          return [hidden, el];
+        }
+        default:
+          throw new Error(`the scripted document has no ${sel}`);
       }
-      if (sel.includes("status.editor.selection")) return [{ innerText: s.cursor }];
-      if (sel.endsWith(".cursor")) return s.caretX == null ? [] : [{ getBoundingClientRect: () => ({ x: s.caretX, width: 2 }) }];
-      if (sel.startsWith(".view-overlays .squiggly-")) return Array(s.squiggles[sel.slice(".view-overlays .squiggly-".length)] ?? 0).fill({});
-      if (sel === "[data-drive-hover]") return s.marked ? [s.marked] : [];
-      if (sel === ".monaco-hover") {
-        const hidden = { getBoundingClientRect: () => ({ width: 0, height: 0 }), innerText: "", querySelector: () => null };
-        if (!s.hoverShown || !s.hover) return [hidden];
-        const img = s.hover.img && {
-          hasAttribute: () => s.hover.img.hasSrc,
-          getAttribute: () => s.hover.img.src ?? null,
-          getBoundingClientRect: () => ({ width: 319, height: 180 }),
-          naturalWidth: s.hover.img.naturalWidth,
-          naturalHeight: s.hover.img.naturalHeight,
-          complete: s.hover.img.complete,
-        };
-        const el = {
-          getBoundingClientRect: () => ({ width: 200, height: 40 }),
-          innerText: s.hover.text ?? "",
-          querySelector: (q) => (q === "img" ? img || null : null),
-          setAttribute: () => (s.marked = el),
-          removeAttribute: () => (s.marked = null),
-        };
-        return [hidden, el];
-      }
-      throw new Error(`the scripted document has no ${sel}`);
     },
+    // A range over text nodes, as the DOM's: an offset is into the node it
+    // is set on, and one past the node's length is an error.
     createRange() {
       let a;
       let b;
+      const place = (node, off) => {
+        for (const line of lineEls) {
+          let start = 0;
+          for (const n of line.childNodes[0].childNodes) {
+            if (n === node) {
+              if (off > n.nodeValue.length) throw new Error(`IndexSizeError: The offset ${off} is larger than the node's length (${n.nodeValue.length})`);
+              return { line, col: start + off };
+            }
+            start += n.nodeValue.length;
+          }
+        }
+        throw new Error("the range's node is on no rendered line");
+      };
       return {
-        setStart: (node, off) => (a = [node, off]),
-        setEnd: (node, off) => (b = [node, off]),
-        getBoundingClientRect() {
-          const line = lineEls.find((l) => l.childNodes[0].childNodes[0] === a[0]);
-          return { x: line.rect.x + a[1] * CHAR_W, y: line.rect.y, width: (b[1] - a[1]) * CHAR_W, height: LINE_H };
-        },
+        setStart: (node, off) => (a = place(node, off)),
+        setEnd: (node, off) => (b = place(node, off)),
+        getBoundingClientRect: () => ({ x: a.line.rect.x + a.col * CHAR_W, y: a.line.rect.y, width: (b.col - a.col) * CHAR_W, height: LINE_H }),
       };
     },
   };
@@ -738,33 +895,63 @@ await check("the page rebuilds locateWord from its source the way wordOnPage doe
   assert.deepEqual(rebuildPageFunctions(sources).locateWord(rendered, "workbench"), { index: 7, start: 26, end: 35 });
 });
 
-await check("wordOnPage places the word through the rebuilt locateWord: its gutter line, rendered column, pixel edges and a click point in its first character", () => {
+await check("the scripted line is split into text nodes as Monaco splits it, and the lines and gutter rows sit out of order in the DOM", () => {
   const doc = fakeDocument({ lines: rendered });
-  const hit = wordOnPage({ word: "missing_backdrop", sources: pageSources() }, doc);
+  assert.deepEqual(monacoNodes(rendered[4]).map((n) => n.nodeValue), ["  ", "[[", "show", " ", "backdrop", " ", "missing_backdrop", "]]"], "line 5 is eight nodes in the workbench");
+  assert.notDeepEqual(doc.querySelectorAll(".view-line").map((l) => l.textContent), rendered, "the DOM order is the shown order, so the sort is not exercised");
+  const tops = doc.querySelectorAll(".margin-view-overlays .line-numbers").map((n) => n.parentElement.style.top);
+  assert.notDeepEqual(tops, doc.querySelectorAll(".view-line").map((l) => l.style.top), "the gutter rows line up with the lines by index, so the match by top is not exercised");
+});
+
+await check("wordOnPage places the word through the rebuilt locateWord, across the line's text nodes and the DOM's order: its gutter line, rendered column, pixel edges and a click point in its first character", () => {
+  const doc = fakeDocument({ lines: rendered });
+  const hit = inPage(wordOnPage, { word: "missing_backdrop", sources: pageSources() }, doc);
   assert.deepEqual(hit, { line: 5, col: 19, left: 100 + 18 * CHAR_W, right: 100 + 34 * CHAR_W, charWidth: CHAR_W, x: 100 + 18 * CHAR_W + CHAR_W * 0.4, y: 50 + 4 * LINE_H + LINE_H / 2 });
-  assert.deepEqual(wordOnPage({ word: "START", lineText: "scene START", sources: pageSources() }, doc).col, 7);
-  assert.equal(wordOnPage({ word: "missing", sources: pageSources() }, doc), null, "a word inside an identifier is not found in the page either");
+  assert.deepEqual(inPage(wordOnPage, { word: "START", lineText: "scene START", sources: pageSources() }, doc).col, 7);
+  assert.deepEqual(inPage(wordOnPage, { word: "backdrop", sources: pageSources() }, doc).left, 100 + 9 * CHAR_W, "a word that is a whole node of its own, after other nodes");
+  assert.deepEqual(inPage(wordOnPage, { word: "show backdrop", sources: pageSources() }, doc).right, 100 + 17 * CHAR_W, "a range that ends in a later node than it starts in");
+  assert.equal(inPage(wordOnPage, { word: "missing", sources: pageSources() }, doc), null, "a word inside an identifier is not found in the page either");
   // The location the page reports is the rebuilt function's answer, not a
   // fixed one: a locateWord that names another range moves the hit.
   const elsewhere = { ...pageSources(), locateSrc: "() => ({ index: 0, start: 3, end: 8 })" };
-  assert.deepEqual(wordOnPage({ word: "missing_backdrop", sources: elsewhere }, doc), { line: 1, col: 4, left: 100 + 3 * CHAR_W, right: 100 + 8 * CHAR_W, charWidth: CHAR_W, x: 100 + 3 * CHAR_W + CHAR_W * 0.4, y: 50 + LINE_H / 2 });
-  assert.equal(wordOnPage({ word: "missing_backdrop", sources: pageSources() }, fakeDocument({ lines: rendered, numbers: ["1", "2", "3", "4", "•"] })).line, null, "a gutter row without a number places the word on no line");
+  assert.deepEqual(inPage(wordOnPage, { word: "missing_backdrop", sources: elsewhere }, doc), { line: 1, col: 4, left: 100 + 3 * CHAR_W, right: 100 + 8 * CHAR_W, charWidth: CHAR_W, x: 100 + 3 * CHAR_W + CHAR_W * 0.4, y: 50 + LINE_H / 2 });
+  assert.equal(inPage(wordOnPage, { word: "missing_backdrop", sources: pageSources() }, fakeDocument({ lines: rendered, numbers: ["1", "2", "3", "4", "•"] })).line, null, "a gutter row without a number places the word on no line");
 });
 
-await check("diagnosticsOnPage reads null before the problems item exists, an empty string while it has no text, and the counter and squiggles once it does", () => {
-  assert.deepEqual(diagnosticsOnPage(undefined, fakeDocument({ problems: () => null })), { problems: null, problemsLabel: null, squiggles: { error: 0, warning: 0, info: 0 } });
-  assert.deepEqual(diagnosticsOnPage(undefined, fakeDocument({ problems: () => "" })).problems, "");
-  assert.deepEqual(diagnosticsOnPage(undefined, fakeDocument({ problems: () => " 0  2 ", squiggles: { warning: 2 } })), { problems: "0 2", problemsLabel: "label  0  2 ", squiggles: { error: 0, warning: 2, info: 0 } });
+await check("diagnosticsOnPage reads null before the problems item exists, an empty string while it has no text, and the counter and the squiggles of every severity once it does", () => {
+  assert.deepEqual(inPage(diagnosticsOnPage, undefined, fakeDocument({ problems: () => null })), { problems: null, problemsLabel: null, squiggles: { error: 0, warning: 0, info: 0 } });
+  assert.deepEqual(inPage(diagnosticsOnPage, undefined, fakeDocument({ problems: () => "" })).problems, "");
+  assert.deepEqual(inPage(diagnosticsOnPage, undefined, fakeDocument({ problems: () => " 0  2 ", squiggles: { warning: 2 } })), { problems: "0 2", problemsLabel: "label  0  2 ", squiggles: { error: 0, warning: 2, info: 0 } });
+  assert.deepEqual(inPage(diagnosticsOnPage, undefined, fakeDocument({ problems: () => "3 1", squiggles: { error: 3, warning: 1, info: 2 } })).squiggles, { error: 3, warning: 1, info: 2 });
+});
+
+await check("extensionOnPage reads the extension's own status bar item and a breadcrumb after the file's name, by the extension id and the file it is given", () => {
+  assert.deepEqual(inPage(extensionOnPage, { id: EXT_ID, file: "main.sd" }, fakeDocument()), { activated: true, answered: true });
+  assert.deepEqual(inPage(extensionOnPage, { id: EXT_ID, file: "main.sd" }, fakeDocument({ activated: false })), { activated: false, answered: true });
+  assert.deepEqual(inPage(extensionOnPage, { id: EXT_ID, file: "main.sd" }, fakeDocument({ crumbs: () => ["main.sd"] })), { activated: true, answered: false }, "the file's name alone is the workbench's own breadcrumb");
+  assert.deepEqual(inPage(extensionOnPage, { id: EXT_ID, file: "main.sd" }, fakeDocument({ crumbs: () => [] })).answered, false);
+  assert.deepEqual(inPage(extensionOnPage, { id: EXT_ID, file: "other.sd" }, fakeDocument()).answered, false, "a breadcrumb after another file's name is not this file's");
+  assert.deepEqual(inPage(extensionOnPage, { id: EXT_ID, file: "main.sd" }, fakeDocument({ crumbs: () => ["assets", "main.sd", "START"] })).answered, true);
+  assert.throws(() => inPage(extensionOnPage, { id: "other.extension", file: "main.sd" }, fakeDocument()), /has no \.statusbar-item\[id="other\.extension"\]/, "the item is looked up by the id given");
 });
 
 await check("caretOnPage reports the status bar's cursor and the caret's left edge; hoverOnPage reads only a hover with size and content and marks the one it read", () => {
-  assert.deepEqual(caretOnPage(undefined, fakeDocument({ cursor: "Ln 5, Col 19", caretX: 244 })), { text: "Ln 5, Col 19", x: 244 });
-  assert.deepEqual(caretOnPage(undefined, fakeDocument({ cursor: "Ln 5, Col 19" })), { text: "Ln 5, Col 19", x: null });
-  const doc = fakeDocument({ hover: { text: "Cannot  find image", img: { hasSrc: true, src: "https://x/a.png", naturalWidth: 96, naturalHeight: 180, complete: true } } });
-  assert.deepEqual(hoverOnPage(undefined, doc), { present: false }, "the hidden hover element between hovers is not a hover");
+  assert.deepEqual(inPage(caretOnPage, undefined, fakeDocument({ cursor: "Ln 5, Col 19", caretX: 244 })), { text: "Ln 5, Col 19", x: 244 });
+  assert.deepEqual(inPage(caretOnPage, undefined, fakeDocument({ cursor: "Ln 5, Col 19" })), { text: "Ln 5, Col 19", x: null });
+  const doc = fakeDocument({ hover: { text: "Cannot  find image", img: { hasSrc: true, src: "https://x/a.png", naturalWidth: 96, naturalHeight: 180, complete: true } }, hoverAfterReads: 1 });
+  assert.deepEqual(inPage(hoverOnPage, undefined, doc), { present: false }, "the hidden hover element between hovers is not a hover");
   doc.state.hoverShown = true;
-  assert.deepEqual(hoverOnPage(undefined, doc), { present: true, text: "Cannot find image", img: { hasSrc: true, srcHead: "https://x/a.png", rendered: "319 x 180", natural: "96 x 180", naturalWidth: 96, naturalHeight: 180, complete: true } });
+  assert.deepEqual(inPage(hoverOnPage, undefined, doc), { present: true, text: "Cannot find image", img: { hasSrc: true, srcHead: "https://x/a.png", rendered: "319 x 180", natural: "96 x 180", naturalWidth: 96, naturalHeight: 180, complete: true } });
   assert.ok(doc.state.marked, "the hover read is marked for the screenshot");
+});
+
+await check("a page function that reaches into module scope fails when rebuilt from its source, as it would in the page, and every shipped one runs rebuilt", () => {
+  const leaky = (_, doc) => normalizeMonacoText(doc.querySelector('.statusbar-item[id*="status.problems"]').innerText);
+  assert.equal(leaky(undefined, fakeDocument()), "0 0", "called as module code the helper is in reach");
+  assert.throws(() => inPage(leaky, undefined, fakeDocument()), /normalizeMonacoText is not defined/, "rebuilt from source it is not");
+  const doc = fakeDocument({ lines: rendered, caretX: 244 });
+  for (const fn of [diagnosticsOnPage, caretOnPage, hoverOnPage, extensionOnPage]) inPage(fn, { id: EXT_ID, file: "main.sd" }, doc);
+  inPage(wordOnPage, { word: "Hello", sources: pageSources() }, doc);
 });
 
 await check("cursorAt reads the status bar's selection item", () => {
@@ -809,21 +996,36 @@ await check("a hover image counts as loaded only with a src, complete, and a nat
 const reading = (problems) => ({ problems, squiggles: { error: 0, warning: 0, info: 0 } });
 const same = (n, problems = "0 0") => Array(n).fill(reading(problems));
 
+const ALIVE = { activated: true, answered: true };
+
 await check("a reading counts only when the counter carried a number", () => {
   assert.equal(usableReading(reading("0 0")), true);
   assert.equal(usableReading(reading("Warnings 2")), true);
   assert.equal(usableReading(reading("")), false);
+  assert.equal(usableReading(reading("No problems")), false, "text without a count is not a count");
   assert.equal(usableReading(reading(null)), false);
   assert.equal(usableReading(undefined), false);
   assert.deepEqual(SETTLE, { stableReads: 8, minReads: 25 });
 });
 
-await check("readings that never change settle only after the floor", () => {
-  assert.equal(isSettled(same(7)), false);
-  assert.equal(isSettled(same(8)), false, "eight identical readings are the workbench before the server");
-  assert.equal(isSettled(same(24)), false);
-  assert.equal(isSettled(same(25)), true);
-  assert.match(settleState(same(24)).why, /never changed from the workbench's own value and 24 of the 25 a clean file needs were taken/);
+await check("readings that never change settle only after the floor, and only once the extension activated and the language server answered", () => {
+  assert.equal(isSettled(same(7), undefined, ALIVE), false);
+  assert.equal(isSettled(same(8), undefined, ALIVE), false, "eight identical readings are the workbench before the server");
+  assert.equal(isSettled(same(24), undefined, ALIVE), false);
+  assert.equal(isSettled(same(25), undefined, ALIVE), true);
+  assert.match(settleState(same(24), undefined, ALIVE).why, /never changed from the workbench's own value and 24 of the 25 a clean file needs were taken/);
+  assert.equal(isSettled(same(25)), false, "no signal is no proof the build ran");
+  assert.match(settleState(same(25), undefined, { activated: false, answered: true }).why, /never changed from the workbench's own value and the extension never showed itself \(no status bar item of its own in the page\), which is what a build that never ran looks like/);
+  assert.match(settleState(same(25), undefined, { activated: true, answered: false }).why, /never changed from the workbench's own value and the language server never answered \(no symbol after the file's name in the breadcrumbs\); a file with a scene, a function or a label gives it one to answer with/);
+  assert.equal(isSettled(same(40), undefined, { activated: true, answered: false }), false, "more readings are not the answer");
+  assert.equal(isSettled([...same(3), ...same(8, "0 2")]), true, "a series that changed is the server's own answer and needs no other signal");
+});
+
+await check("a reading is the whole snapshot: squiggles still being painted under a settled counter are a change", () => {
+  const painted = { problems: "0 2", squiggles: { error: 0, warning: 2, info: 0 } };
+  assert.equal(isSettled([...same(3, "0 2"), ...Array(8).fill(painted)]), true, "the squiggles changed under an unchanged counter, then held");
+  assert.equal(isSettled([...same(20, "0 2"), ...Array(5).fill(painted)]), false, "the last eight disagree on the squiggles alone");
+  assert.equal(isSettled(same(25, "0 2"), undefined, ALIVE), true);
 });
 
 await check("readings that change and then hold settle as soon as they have held", () => {
@@ -835,17 +1037,17 @@ await check("readings that change and then hold settle as soon as they have held
 });
 
 await check("a reading with no count is no reading wherever it falls, and never the settled value", () => {
-  assert.equal(isSettled([reading(null), ...same(8)]), false, "null then eight of the workbench's own value is the workbench before the server");
-  assert.equal(isSettled([reading(""), ...same(8)]), false, "an item with no text yet is not the workbench's value either");
-  assert.equal(isSettled([reading(null), reading(null), ...same(8)]), false);
-  assert.equal(isSettled([reading(null), ...same(24)]), false);
-  assert.equal(isSettled([reading(""), ...same(24)]), false);
-  assert.equal(isSettled([reading(null), ...same(25)]), true);
+  assert.equal(isSettled([reading(null), ...same(8)], undefined, ALIVE), false, "null then eight of the workbench's own value is the workbench before the server");
+  assert.equal(isSettled([reading(""), ...same(8)], undefined, ALIVE), false, "an item with no text yet is not the workbench's value either");
+  assert.equal(isSettled([reading(null), reading(null), ...same(8)], undefined, ALIVE), false);
+  assert.equal(isSettled([reading(null), ...same(24)], undefined, ALIVE), false);
+  assert.equal(isSettled([reading(""), ...same(24)], undefined, ALIVE), false);
+  assert.equal(isSettled([reading(null), ...same(25)], undefined, ALIVE), true);
   assert.equal(isSettled([reading(null), ...same(2), ...same(8, "0 2")]), true);
-  assert.equal(isSettled([...same(3), reading(null), ...same(8)]), false, "a counter that vanished for a second is not the change the rule waits for");
-  assert.equal(isSettled([...same(3), reading(""), ...same(8)]), false);
-  assert.equal(isSettled([...same(3), reading(null), ...same(21)]), false, "twenty-four readings with a count are not the floor");
-  assert.equal(isSettled([...same(3), reading(null), ...same(22)]), true, "the readings around a vanished one still count toward the floor");
+  assert.equal(isSettled([...same(3), reading(null), ...same(8)], undefined, ALIVE), false, "a counter that vanished for a second is not the change the rule waits for");
+  assert.equal(isSettled([...same(3), reading(""), ...same(8)], undefined, ALIVE), false);
+  assert.equal(isSettled([...same(3), reading(null), ...same(21)], undefined, ALIVE), false, "twenty-four readings with a count are not the floor");
+  assert.equal(isSettled([...same(3), reading(null), ...same(22)], undefined, ALIVE), true, "the readings around a vanished one still count toward the floor");
   assert.equal(isSettled([reading("0 2"), ...same(8, null)]), false, "a null tail is not a settled value");
   assert.equal(isSettled([...same(3), ...same(8, "0 2"), reading(null)]), false, "a last reading with no count settles nothing");
   assert.match(settleState([...same(8, "0 2"), reading("")]).why, /the last reading carried no count \(""\)/);
@@ -858,7 +1060,7 @@ await check("a change inside the tail is not settled", () => {
 });
 
 await check("the settle thresholds are parameters", () => {
-  assert.equal(isSettled(same(3, "0 1"), { stableReads: 3, minReads: 3 }), true);
+  assert.equal(isSettled(same(3, "0 1"), { stableReads: 3, minReads: 3 }, ALIVE), true);
   assert.equal(isSettled([reading("0 1"), reading("0 2"), reading("0 2")], { stableReads: 2, minReads: 10 }), true);
 });
 
@@ -867,13 +1069,16 @@ await check("an unsettled run reports the last reading and a failure naming the 
   assert.equal(settled.settled, true);
   assert.equal(settled.failure, null);
   assert.deepEqual(settled.diagnostics, reading("0 2"));
-  const cut = diagnosticsOutcome(same(1), 0, 25);
+  const cut = diagnosticsOutcome(same(1), 0, 30);
   assert.equal(cut.settled, false);
-  assert.match(cut.failure, /^the diagnostics had not settled after 0 s \(--settle 25\): 1 reading carried a count and 8 that agree are needed; the numbers reported are the last reading, not a result$/);
+  assert.match(cut.failure, /^the diagnostics had not settled after 0 s \(--settle 30\): 1 reading carried a count and 8 that agree are needed; the numbers reported are the last reading, not a result$/);
   assert.deepEqual(cut.diagnostics, reading("0 0"));
   assert.match(diagnosticsOutcome(same(9, "0 2"), 60, 60).failure, /had not settled after 60 s \(--settle 60\): the readings never changed/, "the floor for a file that never changes is not met");
+  assert.match(diagnosticsOutcome(same(30), 60, 60, undefined, { activated: false, answered: false }).failure, /the extension never showed itself/);
+  assert.equal(diagnosticsOutcome(same(30), 60, 60, undefined, ALIVE).failure, null);
   assert.equal(diagnosticsOutcome([], 0, 0).diagnostics, null);
-  assert.equal(SETTLE_FLOOR_S, 25, "the floor is the readings a clean file needs, one a second");
+  assert.equal(READ_ALLOWANCE_S, 5);
+  assert.equal(SETTLE_FLOOR_S, 30, "the floor is the readings a clean file needs, one a second, plus the allowance for taking them");
   assert.equal(DEFAULT_SETTLE_S, 60);
 });
 
@@ -913,24 +1118,52 @@ await check("a number flag takes digits with an optional fraction and refuses ev
 
 // --- verify, in-process against the scripted document -----------------------
 
-// A page over the scripted document: `evaluate` runs the page function here,
-// with the document as its second argument, and records which function ran
-// with what; the locators, mouse and keyboard record what verify asked for.
-function fakePage(doc, acts) {
-  const locator = (sel) => ({
-    filter: () => locator(sel),
-    first: () => locator(sel),
+// A page over the scripted document: `evaluate` runs the page function as
+// the real one does, rebuilt from its source with the document as its
+// second argument, records which function ran with what, and charges the
+// clock `readCost` for it; the locators answer the exact selectors the
+// driver uses (an explorer row locator filtered on a label, with
+// Playwright's `hasText` rule: a string is a substring, a regular expression
+// is tested), and the mouse and keyboard record what verify asked for.
+function fakePage(doc, acts, readCost = () => {}) {
+  const s = doc.state;
+  const matches = (row, has) => {
+    if (!has) return true;
+    assert.equal(has.sel, ".label-name", `the row filter looks at ${has.sel}`);
+    const t = has.hasText;
+    return t instanceof RegExp ? t.test(row.name) : typeof t === "string" ? row.name.toLowerCase().includes(t.toLowerCase()) : true;
+  };
+  const rows = (sel, has) => {
+    const level = /\[aria-level="(\d+)"\]/.exec(sel)?.[1];
+    return s.explorer.filter((r) => (level == null || String(r.level) === level) && matches(r, has));
+  };
+  const rowLocator = (sel, has) => ({
+    filter: (opts) => rowLocator(sel, opts.has),
+    first: () => rowLocator(sel, has),
     waitFor: async () => {
-      if (!doc.state.explorerRow) throw new Error("Timeout 60000ms exceeded.\n  waiting for locator");
+      if (!rows(sel, has).length) throw new Error("Timeout 60000ms exceeded.\n  waiting for locator");
     },
-    click: async () => acts.push(["open", sel]),
-    textContent: async () => doc.state.tabTitle,
-    screenshot: async ({ path: p }) => acts.push(["shot", sel, p]),
+    click: async () => {
+      const row = rows(sel, has)[0];
+      acts.push(["open", row.name, row.level]);
+      for (const t of s.tabs) t.active = false;
+      s.tabs.push({ title: s.tabTitle ?? row.name, active: true });
+    },
   });
+  const text = (value) => ({ first: () => text(value), textContent: async () => value });
+  const locator = (sel, opts) => {
+    if (sel.startsWith(".explorer-folders-view .monaco-list-row")) return rowLocator(sel, null);
+    if (sel === ".label-name") return { sel, hasText: opts?.hasText };
+    if (sel === ".tabs-container .tab.active .label-name") return text(s.tabs.find((t) => t.active)?.title ?? null);
+    if (sel === ".tabs-container .tab .label-name") return text(s.tabs[0]?.title ?? null);
+    if (sel === "[data-drive-hover]") return { first: () => locator(sel), screenshot: async ({ path: p }) => acts.push(["shot", sel, p]) };
+    throw new Error(`the scripted page has no ${sel}`);
+  };
   return {
     evaluate: (fn, arg) => {
       acts.push(["evaluate", fn.name, arg]);
-      return fn(arg, doc);
+      readCost();
+      return inPage(fn, arg, doc);
     },
     waitForSelector: async (sel) => acts.push(["wait", sel]),
     locator,
@@ -938,7 +1171,7 @@ function fakePage(doc, acts) {
     keyboard: {
       press: async (key) => {
         acts.push(["key", key]);
-        if (key === "Control+i") doc.state.hoverShown = true;
+        if (key === "Control+i") s.hoverShown = true;
       },
     },
     screenshot: async ({ path: p }) => acts.push(["shot", "page", p]),
@@ -953,11 +1186,14 @@ const script = (values) => {
 
 const RECORD = { url: "http://localhost:34123", pid: 1, builds: path.join(DATA, "builds", "stable"), project: path.join(DATA, "projects", "34123") };
 const BUILD = { artifacts: 3, oldest: "vscode-sparkdown/out/extension.js", builtAt: "2026-09-08T00:00:00.000Z" };
-const verifyDeps = (doc, over = {}) => {
+// `readCostMs` is what each page evaluation costs on the stub clock.
+const verifyDeps = (doc, over = {}, readCostMs = 0) => {
   let t = 0;
   const acts = [];
   const logs = [];
-  const page = fakePage(doc, acts);
+  const page = fakePage(doc, acts, () => {
+    t += readCostMs;
+  });
   return {
     acts,
     logs,
@@ -973,6 +1209,7 @@ const verifyDeps = (doc, over = {}) => {
     readState: () => RECORD,
     recordStands: async () => true,
     isUp: async () => true,
+    extensionId: () => doc.state.extensionId,
     checkBuild: () => BUILD,
     aliasWorkbenchCss: (builds) => {
       acts.push(["alias", builds]);
@@ -1005,12 +1242,17 @@ await check("verify opens the file, waits for the counter to change and hold, cl
   assert.equal(report.settledAfterS, 11, "null, an empty item and two of the workbench's own value, then the change held for eight readings a second apart");
   assert.deepEqual(report.diagnostics, { problems: "0 2", problemsLabel: "label 0 2", squiggles: { error: 0, warning: 2, info: 0 } });
   assert.deepEqual(report.hover, { word: "missing_backdrop", line: 5, col: 19, cursor: "Ln 5, Col 19", present: true, text: "Cannot find image named 'missing_backdrop'", img: null });
+  assert.deepEqual(report.extension, { activated: true, answered: true });
   assert.equal(report.screenshot, path.resolve("after.png"));
   assert.equal(report.hoverScreenshot, path.resolve("hover.png"));
   assert.equal(report.probe, 2);
   assert.deepEqual(report.consoleErrors, ["[error] boom", "[pageerror] Not Found"]);
-  assert.deepEqual(deps.acts.slice(0, 4), [["alias", RECORD.builds], ["workbench", RECORD.url, true], ["wait", ".monaco-workbench"], ["open", ".explorer-folders-view .monaco-list-row"]]);
+  assert.deepEqual(deps.acts.slice(0, 4), [["alias", RECORD.builds], ["workbench", RECORD.url, true], ["wait", ".monaco-workbench"], ["open", "main.sd", 1]], "the row clicked is the file's own at the top level, not the subfolder's file of the same name that comes first in the DOM, nor the name that extends it");
+  assert.equal(TOP_ROW, '.explorer-folders-view .monaco-list-row[aria-level="1"]');
   assert.equal(evaluated(deps).filter((n) => n === "diagnosticsOnPage").length, 12);
+  assert.equal(evaluated(deps).filter((n) => n === "extensionOnPage").length, 12, "the extension's marks are read alongside every diagnostics reading");
+  assert.deepEqual(deps.acts.find((a) => a[0] === "evaluate" && a[1] === "extensionOnPage")[2], { id: EXT_ID, file: "main.sd" });
+  assert.equal(evaluated(deps).filter((n) => n === "hoverOnPage").length, 3, "the hover opened on the third read after Ctrl+K Ctrl+I, and the driver kept asking until it did");
   const word = deps.acts.find((a) => a[0] === "evaluate" && a[1] === "wordOnPage");
   assert.deepEqual(word[2], { word: "missing_backdrop", lineText: undefined, sources: pageSources() }, "the page rebuilds the word location from the module's own sources");
   assert.deepEqual(deps.acts.find((a) => a[0] === "click"), ["click", 100 + 18 * CHAR_W + CHAR_W * 0.4, 50 + 4 * LINE_H + LINE_H / 2]);
@@ -1026,8 +1268,9 @@ await check("verify refuses a bad option, a hover flag without --hover, a --sett
     [["--hover-shot", "h.png"], /^verify: --hover-shot needs --hover$/],
     [["--hover-image"], /^verify: --hover-image needs --hover$/],
     [["--settle", "abc"], /^verify: --settle needs a number of seconds, not "abc"$/],
-    [["--settle", "10"], /^verify: --settle 10 is below 25, the readings \(one a second\) a file the server finds clean needs before the settle rule can call it settled; the default is 60$/],
-    [["--settle", "0"], /--settle 0 is below 25/],
+    [["--settle", "10"], /^verify: --settle 10 is below 30, the 25 readings \(one a second\) a file the server finds clean needs before the settle rule can call it settled plus 5 s to take them; the default is 60$/],
+    [["--settle", "25"], /--settle 25 is below 30/],
+    [["--settle", "0"], /--settle 0 is below 30/],
   ]) {
     const deps = verifyDeps(hoverDoc());
     await refuses(verify(args, deps), re);
@@ -1049,16 +1292,51 @@ await check("verify refuses a bad option, a hover flag without --hover, a --sett
 
 await check("verify on a clean file settles at the floor, and a counter that appears empty or vanishes for a second only delays the floor", async () => {
   const clean = verifyDeps(fakeDocument({ lines: rendered, problems: script(["0 0"]) }));
-  let r = await verify(["--settle", "25"], clean);
+  let r = await verify(["--settle", "30"], clean);
   assert.equal(r.exitCode, 0, JSON.stringify(r.report.failed));
   assert.equal(r.report.settledAfterS, 24, "25 readings a second apart");
+  assert.deepEqual(r.report.extension, { activated: true, answered: true });
   const empty = verifyDeps(fakeDocument({ lines: rendered, problems: script(["", "0 0"]) }));
-  r = await verify(["--settle", "25"], empty);
+  r = await verify(["--settle", "30"], empty);
   assert.equal(r.report.settledAfterS, 25, "the empty first reading is not the value the rest changed from");
   const blink = verifyDeps(fakeDocument({ lines: rendered, problems: script(["0 0", "0 0", "0 0", null, "0 0"]) }));
   r = await verify(["--settle", "30"], blink);
   assert.equal(r.report.settledAfterS, 25, "a null in the middle is not a change");
   assert.equal(r.exitCode, 0);
+});
+
+await check("the floor leaves room for the readings themselves: a clean file settles at --settle 30 when every page evaluation costs 80 ms", async () => {
+  const costly = verifyDeps(fakeDocument({ lines: rendered, problems: script(["0 0"]) }), {}, 80);
+  const r = await verify(["--settle", String(SETTLE_FLOOR_S)], costly);
+  assert.equal(r.exitCode, 0, `25 readings at 160 ms each over 24 s of sleeps do not fit the floor: ${JSON.stringify(r.report.failed)}`);
+  assert.equal(r.report.settledAfterS, 28, "24 sleeps and 25 readings of two evaluations at 80 ms");
+});
+
+await check("a clean file settles only once the extension activated and the language server answered; without either the run fails at its budget naming what was missing", async () => {
+  const dead = verifyDeps(fakeDocument({ lines: rendered, problems: script(["0 0"]), activated: false }));
+  let r = await verify(["--settle", "30"], dead);
+  assert.equal(r.exitCode, 1);
+  assert.equal(r.report.settled, false);
+  assert.equal(r.report.settledAfterS, 30);
+  assert.deepEqual(r.report.extension, { activated: false, answered: true });
+  assert.match(r.report.failed[0], /^the diagnostics had not settled after 30 s \(--settle 30\): the readings never changed from the workbench's own value and the extension never showed itself \(no status bar item of its own in the page\), which is what a build that never ran looks like; the numbers reported are the last reading, not a result$/);
+  const mute = verifyDeps(fakeDocument({ lines: rendered, problems: script(["0 0"]), crumbs: () => ["main.sd"] }));
+  r = await verify(["--settle", "30"], mute);
+  assert.equal(r.exitCode, 1);
+  assert.deepEqual(r.report.extension, { activated: true, answered: false });
+  assert.match(r.report.failed[0], /the language server never answered \(no symbol after the file's name in the breadcrumbs\)/);
+  const late = verifyDeps(fakeDocument({ lines: rendered, problems: script(["0 0"]), crumbs: script([...Array(27).fill(["main.sd"]), ["main.sd", "…"]]) }));
+  r = await verify(["--settle", "30"], late);
+  assert.equal(r.exitCode, 0, JSON.stringify(r.report.failed));
+  assert.equal(r.report.settledAfterS, 27, "the readings went on past the floor until the server answered");
+  const found = verifyDeps(fakeDocument({ lines: rendered, problems: script(["0 0", "0 0", "0 2"]), activated: false }));
+  r = await verify([], found);
+  assert.equal(r.exitCode, 0, "a counter that changed is the server's own answer");
+  assert.deepEqual(r.report.extension, { activated: false, answered: true }, "the marks are still reported");
+  const acme = verifyDeps(fakeDocument({ lines: rendered, problems: script(["0 0"]), extensionId: "acme.other", crumbs: () => ["other.sd", "START"] }));
+  r = await verify(["--file", "other.sd", "--settle", "30"], acme);
+  assert.equal(r.exitCode, 0, `the marks are read for the extension served and the file opened: ${JSON.stringify(r.report.failed)}`);
+  assert.deepEqual(acme.acts.find((a) => a[0] === "evaluate" && a[1] === "extensionOnPage")[2], { id: "acme.other", file: "other.sd" });
 });
 
 await check("a run whose readings never settle is a failed entry naming the rule, exit 1, with the last reading as its numbers", async () => {
@@ -1071,7 +1349,7 @@ await check("a run whose readings never settle is a failed entry naming the rule
   assert.equal(r.report.diagnostics.problems, "0 1");
   assert.ok(r.report.hover.present, "the hover is still asked for, so the report says what the workbench shows");
   const vanished = verifyDeps(fakeDocument({ lines: rendered, problems: script(["0 0", "0 0", "0 2", "0 2", "0 2", "0 2", "0 2", "0 2", "0 2", null]) }));
-  r = await verify(["--settle", "25"], vanished);
+  r = await verify(["--settle", "30"], vanished);
   assert.equal(r.exitCode, 1);
   assert.match(r.report.failed[0], /the last reading carried no count \(null\)/);
 });
@@ -1110,8 +1388,8 @@ await check("--hover-image fails a hover without an image; an image that did not
   assert.deepEqual(r.report.failed, ['no hover opened on "missing_backdrop" within 10 s of Ctrl+K Ctrl+I']);
 });
 
-await check("a file that does not open, or opens under another title, is a failure and nothing is read from it", async () => {
-  const noRow = verifyDeps(fakeDocument({ lines: rendered, explorerRow: false }));
+await check("a file that does not open, or opens under another title, is a failure and nothing is read from it; the title read is the active tab's", async () => {
+  const noRow = verifyDeps(fakeDocument({ lines: rendered, explorer: [] }));
   let r = await verify(["--hover", "missing_backdrop", "--shot", "after.png"], noRow);
   assert.equal(r.exitCode, 1);
   assert.equal(r.report.opened, false);
@@ -1119,11 +1397,19 @@ await check("a file that does not open, or opens under another title, is a failu
   assert.equal(r.report.settled, undefined);
   assert.ok(!evaluated(noRow).includes("diagnosticsOnPage"));
   assert.equal(r.report.screenshot, path.resolve("after.png"), "the screenshot still shows the workbench as it was");
-  const other = verifyDeps(fakeDocument({ lines: rendered, tabTitle: "other.sd" }));
+  const nested = verifyDeps(fakeDocument({ lines: rendered, explorer: [{ name: "assets", level: 1 }, { name: "main.sd", level: 2 }] }));
+  r = await verify([], nested);
+  assert.equal(r.report.opened, false, "a file of that name in a subfolder is not the file at the top level");
+  assert.match(r.report.failed[0], /^could not open main\.sd from the explorer/);
+  const other = verifyDeps(fakeDocument({ lines: rendered }));
   r = await verify(["--file", "other.sd"], other);
   assert.equal(r.report.opened, true);
+  assert.deepEqual(other.acts.find((a) => a[0] === "open"), ["open", "other.sd", 1]);
   r = await verify([], verifyDeps(fakeDocument({ lines: rendered, tabTitle: "other.sd" })));
   assert.deepEqual(r.report.failed, ['the editor that opened is titled "other.sd", not main.sd']);
+  const dotted = verifyDeps(fakeDocument({ lines: rendered, explorer: [{ name: "a+b.sd", level: 1 }, { name: "a.b.sd", level: 1 }] }));
+  r = await verify(["--file", "a.b.sd"], dotted);
+  assert.deepEqual(dotted.acts.find((a) => a[0] === "open"), ["open", "a.b.sd", 1], "the name is matched as text, not as a pattern");
 });
 
 await check("whatever throws inside the page lands in failed with the report printed, and --headed opens a visible browser", async () => {
@@ -1137,6 +1423,117 @@ await check("whatever throws inside the page lands in failed with the report pri
   assert.deepEqual(r.report.failed, ["verify threw: the page went away"]);
   assert.deepEqual(deps.acts[1], ["workbench", RECORD.url, false]);
   assert.equal(JSON.parse(deps.logs.at(-1)).failed[0], "verify threw: the page went away");
+});
+
+// --- status, and the pieces liveDeps wires in ------------------------------
+
+await check("status prints the one line clean-worktrees reads, which its parser turns into up, launching, down or unknown, and exits 0 only when the URL answers", async () => {
+  const lines = [];
+  const base = { log: (m) => lines.push(m), stateFile: "S", stateUnreadable: () => false, readState: () => ({ url: "http://localhost:9", pid: 1, project: "p", log: "l" }), isUp: async () => true };
+  assert.equal(await status(base), 0);
+  assert.deepEqual(lines, ["UP  url=http://localhost:9  pid=1  project=p  log=l"]);
+  assert.deepEqual(serversFrom(lines[0]), { state: "up", url: "http://localhost:9", pid: 1 });
+  lines.length = 0;
+  assert.equal(await status({ ...base, isUp: async () => false }), 1);
+  assert.deepEqual(serversFrom(lines[0], () => true), { state: "launching", url: "http://localhost:9", pid: 1 });
+  assert.deepEqual(serversFrom(lines[0], () => false), { state: "down", url: "http://localhost:9", pid: 1 });
+  lines.length = 0;
+  assert.equal(await status({ ...base, readState: () => null }), 1);
+  assert.deepEqual(lines, ["down (no state file)"]);
+  assert.deepEqual(serverRows([serversFrom(lines[0])]), [], "no record is no row");
+  lines.length = 0;
+  assert.equal(await status({ ...base, stateUnreadable: () => true }), 1);
+  assert.deepEqual(lines, ["unknown (state file unreadable: S; `down` removes it)"]);
+  const unknown = serversFrom(lines[0]);
+  assert.equal(unknown.state, "unknown", "a record that cannot be read may name a live server, so it is not a down");
+  assert.deepEqual(serverRows([unknown]), [unknown]);
+});
+
+await check("the server is spawned detached and unreferenced, in the extension directory, with its output on the plan's log", () => {
+  const calls = [];
+  const child = { pid: 77, unref: () => calls.push(["unref"]) };
+  const io = {
+    openSync: (p, flag) => {
+      calls.push(["open", p, flag]);
+      return 5;
+    },
+    closeSync: (fd) => calls.push(["close", fd]),
+    spawn: (cmd, args, opts) => {
+      calls.push(["spawn", cmd, args, opts]);
+      return child;
+    },
+  };
+  const plan = planFor({ sd: "repro.sd" });
+  assert.equal(plan.cwd, path.join("C:", "repo", "vscode-sparkdown"));
+  assert.equal(spawnServer(plan, io), 77);
+  assert.deepEqual(calls, [
+    ["open", plan.logPath, "a"],
+    ["spawn", process.execPath, plan.args, { cwd: plan.cwd, stdio: ["ignore", 5, 5], windowsHide: true, detached: true }],
+    ["unref"],
+    ["close", 5],
+  ]);
+});
+
+await check("waitReady polls until the URL answers, then writes the stylesheet alias under the builds directory; keep ends it early; the deadline refuses", async () => {
+  const wait = (answers, keep) => {
+    const log = [];
+    const aliased = [];
+    let t = 0;
+    let i = 0;
+    const io = {
+      isUp: async () => answers[Math.min(i++, answers.length - 1)],
+      alias: (b) => {
+        aliased.push(b);
+        return { aliased: [path.join(b, "vscode-web-x", "out", "vs", "workbench")] };
+      },
+      now: () => t,
+      sleep: async (ms) => {
+        t += ms;
+      },
+      log: (m) => log.push(m),
+      die: (m) => {
+        throw new Refusal(m);
+      },
+    };
+    return { log, aliased, elapsed: () => t, run: (opts) => waitReady("http://localhost:1", "B", keep, opts, io) };
+  };
+  const ready = wait([false, false, true]);
+  assert.equal(await ready.run({ downloading: false }), true);
+  assert.deepEqual(ready.aliased, ["B"], "the alias is written under the builds directory once the server answers");
+  assert.equal(ready.elapsed(), 2 * READY_POLL_MS);
+  assert.deepEqual(ready.log, ["Waiting for the server...", `stylesheet alias written in ${path.join("B", "vscode-web-x", "out", "vs", "workbench")}`, "READY http://localhost:1"]);
+  const downloading = wait([true]);
+  await downloading.run({});
+  assert.equal(downloading.log[0], "downloading the VS Code build (about 55 MB). Waiting...");
+  const gone = wait([false], async () => false);
+  assert.equal(await gone.run({}), false);
+  assert.deepEqual(gone.aliased, [], "the alias was written for a server that exited");
+  const never = wait([false]);
+  await refuses(never.run({}), /^timed out after 10 min waiting for http:\/\/localhost:1; read the server log the state file names, then `down`$/);
+});
+
+await check("a port is free only when both loopback addresses take a listener and nothing answers HTTP on it", async () => {
+  const asked = [];
+  const probes = (busyOn, up) => ({
+    listens: async (port, host) => {
+      asked.push(host);
+      return host === busyOn ? "busy" : "free";
+    },
+    isUp: async () => up,
+  });
+  assert.equal(await portFree(1, probes(null, false)), true);
+  assert.deepEqual(asked, ["127.0.0.1", "::1"]);
+  assert.deepEqual(LOOPBACKS, ["127.0.0.1", "::1"]);
+  assert.equal(await portFree(1, probes("::1", false)), false, "the IPv6 loopback alone holding the port, which is where the server binds");
+  assert.equal(await portFree(1, probes("127.0.0.1", false)), false);
+  assert.equal(await portFree(1, probes(null, true)), false, "something answers HTTP on it");
+});
+
+await check("the page is 1400 x 900, a record names its own worktree's state file, and the extension id is read from its package.json", () => {
+  assert.deepEqual(VIEWPORT, { width: 1400, height: 900 });
+  assert.equal(recordFile({ worktree: path.join("C:", "w2") }), path.join("C:", "w2", ".claude", "skills", "drive-vscode-web", ".state.json"));
+  assert.equal(path.basename(path.dirname(recordFile({}))), "drive-vscode-web");
+  assert.equal(liveDeps.extensionId(), EXT_ID);
 });
 
 if (failures) {

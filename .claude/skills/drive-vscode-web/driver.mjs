@@ -18,12 +18,16 @@
 // the script's directory, not from cwd. State (URL, server pid, served
 // folder) lives in .state.json beside this file, which is gitignored.
 //
-// `up`, `verify` and `checkBuild` take a `deps` object (the file system, the
-// process probes, the server spawn, the browser) so driver.test.mjs runs them
-// in-process against stubs and pins what each one refuses and what it calls;
-// the functions that run inside the page take the page's `document` as a
-// parameter that defaults to the real one, so the check runs them against a
-// scripted document and the page runs the same code.
+// `up`, `verify`, `status` and `checkBuild` take a `deps` object (the state
+// file, the process probes, the server spawn, the browser; for `checkBuild`
+// the paths, the refusal and the file system as `io`) so driver.test.mjs runs
+// them in-process against stubs and pins what each one refuses and what it
+// calls; the pieces `liveDeps` wires in (the spawn, the readiness wait, the
+// port probe) take their own system calls as a parameter for the same reason.
+// The functions that run inside the page take the page's `document` as a
+// parameter that defaults to the real one, and the check rebuilds each of
+// them from its source before calling it, as `page.evaluate` does, so one
+// that reaches for module scope fails the check before it fails in the page.
 
 import { execFileSync, spawn } from "node:child_process";
 import { createHash } from "node:crypto";
@@ -177,6 +181,7 @@ export function launchPlan({ data, port, quality = "stable", sd, project, commit
   const served = sd ? path.join(layout.projects, String(port)) : path.resolve(project);
   if (inside(layout.builds, served)) return { error: `--project ${served} is inside ${layout.builds}, which the server deletes before a download; serve it from anywhere else` };
   const logPath = path.join(layout.logs, `serve-${port}.log`);
+  const cwd = extDir;
   const args = [
     entry,
     "--browser", "none",
@@ -188,7 +193,7 @@ export function launchPlan({ data, port, quality = "stable", sd, project, commit
     "--extensionDevelopmentPath", extDir,
     served,
   ];
-  return { builds, project: served, ownProject: Boolean(sd), logPath, args };
+  return { builds, project: served, ownProject: Boolean(sd), logPath, cwd, args };
 }
 
 // A stable port from the worktree path, so each worktree serves on its own
@@ -271,7 +276,9 @@ export function rebuildCommand(groups) {
 // configuration), so a regenerated grammar makes both stale. The webview
 // bundles and the other workers are not watched: the driver cannot show a
 // webview, a command or an export. A packages directory with no package
-// source is refused rather than guarded by nothing.
+// source is refused rather than guarded by nothing. The copies under
+// out/data are `copied`: a copy carries its source's time, so it says when
+// the source was written and nothing about when the build ran.
 export function buildRule(extDir, packagesDir, io = fs) {
   const out = path.join(extDir, "out");
   const list = (dir) => (io.existsSync(dir) ? io.readdirSync(dir) : []);
@@ -286,7 +293,7 @@ export function buildRule(extDir, packagesDir, io = fs) {
     { artifact: path.join(out, "workers", "sparkdown-language-server.js"), sources: shared, steps: [lsBuild, self] },
   ];
   for (const f of list(path.join(extDir, "data"))) {
-    if (io.statSync(path.join(extDir, "data", f)).isFile()) groups.push({ artifact: path.join(out, "data", f), sources: [path.join(extDir, "data", f)], steps: [self] });
+    if (io.statSync(path.join(extDir, "data", f)).isFile()) groups.push({ artifact: path.join(out, "data", f), sources: [path.join(extDir, "data", f)], steps: [self], copied: true });
   }
   return groups;
 }
@@ -298,16 +305,16 @@ export function buildRule(extDir, packagesDir, io = fs) {
 // artifact (with the newest such source and every offending file), and the
 // size and time of each artifact present. `filesOf` lists a root's source
 // files and is memoized by the caller, since both bundles share the
-// package roots.
+// package roots; `io` is the file system.
 export const NEWER_BY_MS = 1;
-export function buildFreshness(groups, filesOf) {
+export function buildFreshness(groups, filesOf, io = fs) {
   const missing = [];
   const stale = [];
   const artifacts = [];
   for (const g of groups) {
     let st;
     try {
-      st = fs.statSync(g.artifact);
+      st = io.statSync(g.artifact);
     } catch {
       missing.push(g.artifact);
       continue;
@@ -323,33 +330,57 @@ export function buildFreshness(groups, filesOf) {
 }
 
 // What the stamp written when the build was last accepted fails to vouch
-// for, or null when it covers the build: `artifacts` when the artifacts are
-// not the stamped set (a rebuild since, or no stamp yet), which is what
-// makes a new stamp; `removed` or `added` when the source set is not the
-// stamped set, since the build then took in sources that are not these;
-// `changed` when a source newer than its artifact does not hold the content
-// stamped. A file touched but not changed (a `git checkout`, a redgreen
-// restore) is none of those. `artifacts` and `stamp.artifacts` map a
-// relative path to `{ size, mtimeMs }`; `sources` lists every current
-// source's relative path; `offenders` carry a relative path and the
-// content's sha1.
-export function stampGap(stamp, artifacts, sources, offenders) {
+// for, or null when it covers the build. The source set is compared first,
+// whatever the artifacts are: `removed` or `added` when a source the stamp
+// lists is gone or one it never saw is here, since the build then took in
+// sources that are not these, unless `builtSince` says the artifacts the
+// file feeds were written after the directory entry changed, in which case
+// the build is made from this set and the stamp is out of date. Then
+// `artifacts` when the artifacts are not the stamped set (a rebuild since,
+// no stamp yet, or a set the stamp is out of date on), which is what makes
+// a new stamp; then `changed` when a source newer than its artifact does
+// not hold the content stamped. A file touched but not changed (a `git
+// checkout`, a redgreen restore) is none of those. `artifacts` and
+// `stamp.artifacts` map a relative path to `{ size, mtimeMs }`; `sources`
+// lists every current source's relative path; `offenders` carry a relative
+// path and the content's sha1.
+export function stampGap(stamp, artifacts, sources, offenders, builtSince = () => false) {
   if (!stamp?.artifacts || !stamp.sources) return { kind: "artifacts" };
+  const stamped = new Set(Object.keys(stamp.sources));
+  const current = new Set(sources);
+  const removed = [...stamped].filter((s) => !current.has(s) && !builtSince(s));
+  if (removed.length) return { kind: "removed", files: removed };
+  const added = [...current].filter((s) => !stamped.has(s) && !builtSince(s));
+  if (added.length) return { kind: "added", files: added };
+  const sameSet = stamped.size === current.size && [...stamped].every((s) => current.has(s));
   const keys = Object.keys(artifacts);
-  if (keys.length !== Object.keys(stamp.artifacts).length) return { kind: "artifacts" };
+  if (!sameSet || keys.length !== Object.keys(stamp.artifacts).length) return { kind: "artifacts" };
   for (const k of keys) {
     const s = stamp.artifacts[k];
     if (!s || s.size !== artifacts[k].size || s.mtimeMs !== artifacts[k].mtimeMs) return { kind: "artifacts" };
   }
-  const stamped = new Set(Object.keys(stamp.sources));
-  const current = new Set(sources);
-  const removed = [...stamped].filter((s) => !current.has(s));
-  if (removed.length) return { kind: "removed", files: removed };
-  const added = [...current].filter((s) => !stamped.has(s));
-  if (added.length) return { kind: "added", files: added };
   const changed = offenders.filter((o) => stamp.sources[o.rel] !== o.sha).map((o) => o.rel);
   if (changed.length) return { kind: "changed", files: changed };
   return null;
+}
+
+// When the entries of the directory holding `file` last changed: the system
+// writes a directory's time whenever an entry is added, removed or renamed
+// in it, so this is at or after the moment `file` appeared or went, and
+// when its directory went with it the nearest directory still there carries
+// the time that subtree was removed. Null when nothing up to `top` exists.
+export function nearestDirMtime(file, top, io = fs) {
+  let dir = path.dirname(file);
+  for (;;) {
+    try {
+      return io.statSync(dir).mtimeMs;
+    } catch {
+      /* gone with the file */
+    }
+    const up = path.dirname(dir);
+    if (samePath(dir, top) || up === dir) return null;
+    dir = up;
+  }
 }
 
 // Monaco renders every space in a rendered line as a non-breaking space, so a
@@ -454,17 +485,20 @@ export function usableReading(r) {
 
 // Whether a series of readings has stopped changing, and when not, why. The
 // readings are the diagnostics snapshots verify takes once a second after
-// opening the file, each `{ problems, ... }`; those that carry no count are
-// no readings and are set aside wherever they fall, and the last reading
-// must carry one, so a settled value is always a count. The extension host
-// and the language server boot in workers after the page loads, so the
-// first readings are the workbench's own "no problems" and say nothing
-// about the server either; the series counts as settled once it has changed
-// from its first value and then held for `stableReads`, or, for a file the
-// server finds clean, once `minReads` have been taken and the last
-// `stableReads` agree.
+// opening the file, each `{ problems, squiggles, ... }` and compared whole;
+// those that carry no count are no readings and are set aside wherever they
+// fall, and the last reading must carry one, so a settled value is always a
+// count. The extension host and the language server boot in workers after
+// the page loads, so the first readings are the workbench's own "no
+// problems" and say nothing about the server either; the series counts as
+// settled once it has changed from its first value and then held for
+// `stableReads`, or, for a file the server finds clean, once `minReads`
+// have been taken, the last `stableReads` agree, and `signal` shows the
+// extension activated and the language server answered, since a series that
+// never leaves the workbench's own value is also what a build that never ran
+// produces.
 export const SETTLE = { stableReads: 8, minReads: 25 };
-export function settleState(readings, { stableReads = SETTLE.stableReads, minReads = SETTLE.minReads } = {}) {
+export function settleState(readings, { stableReads = SETTLE.stableReads, minReads = SETTLE.minReads } = {}, signal = null) {
   const last = readings[readings.length - 1];
   if (!usableReading(last)) return { settled: false, why: `the last reading carried no count (${JSON.stringify(last?.problems ?? null)})` };
   const series = readings.filter(usableReading).map((r) => JSON.stringify(r));
@@ -472,25 +506,30 @@ export function settleState(readings, { stableReads = SETTLE.stableReads, minRea
   const held = series[series.length - 1];
   if (!series.slice(-stableReads).every((r) => r === held)) return { settled: false, why: `the last ${stableReads} readings did not agree` };
   if (series.some((r) => r !== series[0])) return { settled: true, why: null };
-  if (series.length >= minReads) return { settled: true, why: null };
-  return { settled: false, why: `the readings never changed from the workbench's own value and ${series.length} of the ${minReads} a clean file needs were taken` };
+  const unchanged = "the readings never changed from the workbench's own value";
+  if (series.length < minReads) return { settled: false, why: `${unchanged} and ${series.length} of the ${minReads} a clean file needs were taken` };
+  if (!signal?.activated) return { settled: false, why: `${unchanged} and the extension never showed itself (no status bar item of its own in the page), which is what a build that never ran looks like` };
+  if (!signal?.answered) return { settled: false, why: `${unchanged} and the language server never answered (no symbol after the file's name in the breadcrumbs); a file with a scene, a function or a label gives it one to answer with` };
+  return { settled: true, why: null };
 }
-export function isSettled(readings, thresholds) {
-  return settleState(readings, thresholds).settled;
+export function isSettled(readings, thresholds, signal) {
+  return settleState(readings, thresholds, signal).settled;
 }
 
-// The readings come one a second, so a budget shorter than `minReads`
-// seconds cannot settle a file the server finds clean whatever the server
-// does; such a budget is refused before anything runs.
-export const SETTLE_FLOOR_S = SETTLE.minReads;
+// The readings come one a second and each one costs a page evaluation, tens
+// of milliseconds on a loaded machine, so a budget shorter than `minReads`
+// seconds plus that allowance cannot settle a file the server finds clean
+// whatever the server does; such a budget is refused before anything runs.
+export const READ_ALLOWANCE_S = 5;
+export const SETTLE_FLOOR_S = SETTLE.minReads + READ_ALLOWANCE_S;
 export const DEFAULT_SETTLE_S = 60;
 
 // What the report says about the readings: the last one, whether they
 // settled, and the failure when they did not, naming the rule that was not
 // met, so an unsettled run is never a clean exit with numbers that are not
 // a result.
-export function diagnosticsOutcome(readings, elapsedS, budgetS, thresholds) {
-  const { settled, why } = settleState(readings, thresholds);
+export function diagnosticsOutcome(readings, elapsedS, budgetS, thresholds, signal) {
+  const { settled, why } = settleState(readings, thresholds, signal);
   return {
     settled,
     settledAfterS: elapsedS,
@@ -594,6 +633,18 @@ export function wordOnPage({ word, lineText, sources }, doc = document) {
   return { line: Number.isInteger(lineNumber) ? lineNumber : null, col: hit.start + 1, left: r.x, right: r.x + r.width, charWidth, x: r.x + charWidth * 0.4, y: r.y + r.height / 2 };
 }
 
+// Two things only the built extension puts in the page: the status bar item
+// the extension creates when it activates, whose id is the extension's own
+// (`publisher.name` from its package.json), and a breadcrumb after the
+// file's name, which the workbench adds once the language server has
+// answered a document symbol request (the symbol at the cursor, or `…` when
+// the cursor is outside every symbol; a file with no symbol gets none).
+export function extensionOnPage({ id, file }, doc = document) {
+  const crumbs = [...doc.querySelectorAll(".monaco-breadcrumbs .monaco-breadcrumb-item")].map((c) => (c.innerText || "").trim());
+  const at = crumbs.indexOf(file);
+  return { activated: Boolean(doc.querySelector(`.statusbar-item[id="${id}"]`)), answered: at >= 0 && at < crumbs.length - 1 };
+}
+
 // The status bar's cursor position and the caret's left edge after a click.
 export function caretOnPage(_, doc = document) {
   const r = doc.querySelector(".monaco-editor .cursors-layer .cursor")?.getBoundingClientRect();
@@ -633,19 +684,19 @@ export function hoverOnPage(_, doc = document) {
 
 // ------------------------------------------------------------------ state ---
 
-function readJson(file) {
-  if (!fs.existsSync(file)) return null;
+function readJson(file, io = fs) {
+  if (!io.existsSync(file)) return null;
   try {
-    return JSON.parse(fs.readFileSync(file, "utf8"));
+    return JSON.parse(io.readFileSync(file, "utf8"));
   } catch {
     return null;
   }
 }
 
-function writeJson(file, record) {
+function writeJson(file, record, io = fs) {
   const tmp = file + ".tmp";
-  fs.writeFileSync(tmp, JSON.stringify(record, null, 2));
-  fs.renameSync(tmp, file);
+  io.writeFileSync(tmp, JSON.stringify(record, null, 2));
+  io.renameSync(tmp, file);
 }
 
 const readState = () => readJson(STATE_FILE);
@@ -672,6 +723,12 @@ const mtimeOf = (file) => {
   }
 };
 
+// The file a record was read from: another worktree's own copy of the state
+// file when the record names its worktree, this worktree's otherwise.
+export function recordFile(record) {
+  return record.worktree ? path.join(record.worktree, STATE_REL) : STATE_FILE;
+}
+
 // Whether a record, this worktree's or another's, still names its own
 // server: the web driver's rule, with the record's own file as the fallback
 // for when it was written.
@@ -679,7 +736,7 @@ const stands = (record) =>
   recordStands(record, {
     pidAlive,
     startedMs: processStartedMs,
-    recordWrittenMs: () => mtimeOf(record.worktree ? path.join(record.worktree, STATE_REL) : STATE_FILE),
+    recordWrittenMs: () => mtimeOf(recordFile(record)),
   });
 
 // The state files of this repository's other worktrees, listed through git;
@@ -723,11 +780,12 @@ function listens(port, host) {
   });
 }
 
-async function portFree(port) {
-  for (const host of ["127.0.0.1", "::1"]) {
-    if ((await listens(port, host)) === "busy") return false;
+export const LOOPBACKS = ["127.0.0.1", "::1"];
+export async function portFree(port, probes = { listens, isUp }) {
+  for (const host of LOOPBACKS) {
+    if ((await probes.listens(port, host)) === "busy") return false;
   }
-  return !(await isUp(`http://localhost:${port}`));
+  return !(await probes.isUp(`http://localhost:${port}`));
 }
 
 async function pickPort() {
@@ -763,42 +821,49 @@ function writeProjectSd(project, sdPath) {
   return src.length;
 }
 
-// The server detached, so it outlives this command, with its own output
-// going to the plan's log: a detached child on Windows does not always
-// flush into an inherited handle, so the readiness signal is the HTTP poll,
-// never the log. Returns the pid.
-function spawnServer(plan) {
-  const logFd = fs.openSync(plan.logPath, "a");
-  const child = spawn(process.execPath, plan.args, { cwd: EXT_DIR, stdio: ["ignore", logFd, logFd], windowsHide: true, detached: true });
+// The server detached and unreferenced, so it outlives this command, with
+// its own output going to the plan's log: a detached child on Windows does
+// not always flush into an inherited handle, so the readiness signal is the
+// HTTP poll, never the log. Returns the pid. `io` is the spawn and the log
+// file's open and close.
+export function spawnServer(plan, io = { spawn, openSync: fs.openSync, closeSync: fs.closeSync }) {
+  const logFd = io.openSync(plan.logPath, "a");
+  const child = io.spawn(process.execPath, plan.args, { cwd: plan.cwd, stdio: ["ignore", logFd, logFd], windowsHide: true, detached: true });
   child.unref();
-  fs.closeSync(logFd);
+  io.closeSync(logFd);
   return child.pid;
 }
 
 // Polls until the URL answers, then applies the stylesheet alias, which can
 // only be done once the build is unpacked, and the server unpacks it before
-// it listens. `keep` ends the wait early with false when it says so.
-async function waitReady(url, builds, keep, { downloading = true } = {}) {
-  log(downloading ? "downloading the VS Code build (about 55 MB). Waiting..." : "Waiting for the server...");
-  const deadline = Date.now() + READY_WAIT_MS;
-  while (Date.now() < deadline) {
+// it listens. `keep` ends the wait early with false when it says so. `io`
+// is the probe, the alias, the clock, the sleep, the log and the refusal.
+export const READY_POLL_MS = 2000;
+export async function waitReady(url, builds, keep, { downloading = true } = {}, io = { isUp, alias: aliasWorkbenchCss, now: Date.now, sleep, log, die }) {
+  io.log(downloading ? "downloading the VS Code build (about 55 MB). Waiting..." : "Waiting for the server...");
+  const deadline = io.now() + READY_WAIT_MS;
+  while (io.now() < deadline) {
     if (keep && !(await keep())) return false;
-    if (await isUp(url)) {
-      const { aliased } = aliasWorkbenchCss(builds);
-      for (const dir of aliased) log(`stylesheet alias written in ${dir}`);
-      log(`READY ${url}`);
+    if (await io.isUp(url)) {
+      const { aliased } = io.alias(builds);
+      for (const dir of aliased) io.log(`stylesheet alias written in ${dir}`);
+      io.log(`READY ${url}`);
       return true;
     }
-    await sleep(2000);
+    await io.sleep(READY_POLL_MS);
   }
-  die(`timed out after ${READY_WAIT_MS / 60_000} min waiting for ${url}; read the server log the state file names, then \`down\``);
+  io.die(`timed out after ${READY_WAIT_MS / 60_000} min waiting for ${url}; read the server log the state file names, then \`down\``);
 }
+
+// The page's size: about 45 rendered lines, which is what a repro has to fit
+// in for its word to be on a rendered line.
+export const VIEWPORT = { width: 1400, height: 900 };
 
 async function withWorkbench(url, { headless = true } = {}, fn) {
   const { chromium } = await import("playwright");
   const executablePath = resolveChromiumExecutablePath(chromium);
   const browser = await chromium.launch({ headless, ...(executablePath ? { executablePath } : {}) });
-  const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
+  const page = await browser.newPage({ viewport: VIEWPORT });
   const consoleLines = [];
   page.on("console", (m) => consoleLines.push(`[${m.type()}] ${m.text()}`));
   page.on("pageerror", (e) => consoleLines.push(`[pageerror] ${e.message}`));
@@ -820,6 +885,12 @@ export const liveDeps = {
   repoRoot: REPO_ROOT,
   extDir: EXT_DIR,
   packagesDir: PACKAGES_DIR,
+  io: fs,
+  // The extension's identifier, which names the status bar item it creates.
+  extensionId: () => {
+    const pkg = JSON.parse(fs.readFileSync(path.join(EXT_DIR, "package.json"), "utf8"));
+    return `${pkg.publisher}.${pkg.name}`;
+  },
   serverEntry: SERVER_ENTRY,
   defaultDataDir: DEFAULT_DATA_DIR,
   stateFile: STATE_FILE,
@@ -853,26 +924,32 @@ export const liveDeps = {
 // the newer sources hold the content it was built from and the source set
 // is the one it was built from; a launch and every `verify` refuse
 // otherwise, so a screenshot is always of a build that includes the change.
-// The stamp is written whenever a build is accepted by time and the
-// artifacts differ from the last stamped set. Returns what the report says
-// about the build: the artifact count, the oldest artifact and its time.
+// The source set is judged first, whatever the artifacts: a source the stamp
+// lists that is gone, or one it never saw, refuses unless every artifact it
+// feeds was written after the directory entry changed, and the stamp is
+// never rewritten over such a gap. The stamp is written whenever a build is
+// accepted by time and the artifacts, or the source set, differ from the
+// last stamped. Returns what the report says about the build: the artifact
+// count, and the older of the bundles the rebuild steps write with its time
+// (a copy under out/data carries its source's time, so it dates nothing).
 export function checkBuild(deps = liveDeps) {
   const { repoRoot, extDir, packagesDir } = deps;
+  const io = deps.io ?? fs;
   const stampFile = path.join(extDir, "out", STAMP_NAME);
   const rel = (p) => path.relative(repoRoot, p).replaceAll("\\", "/");
-  const sha1 = (p) => createHash("sha1").update(fs.readFileSync(p)).digest("hex");
+  const sha1 = (p) => createHash("sha1").update(io.readFileSync(p)).digest("hex");
   const cache = new Map();
   const filesOf = (root) => {
-    if (!cache.has(root)) cache.set(root, sourceFiles([root]));
+    if (!cache.has(root)) cache.set(root, sourceFiles([root], io));
     return cache.get(root);
   };
   let groups;
   try {
-    groups = buildRule(extDir, packagesDir);
+    groups = buildRule(extDir, packagesDir, io);
   } catch (err) {
     deps.die(firstLine(err));
   }
-  const { missing, stale, artifacts } = buildFreshness(groups, filesOf);
+  const { missing, stale, artifacts } = buildFreshness(groups, filesOf, io);
   if (missing.length) deps.die(`${rel(missing[0])} is missing; build the extension first: ${rebuildCommand(groups.filter((g) => missing.includes(g.artifact)))}`);
   const current = Object.fromEntries(artifacts.map((a) => [rel(a.path), { size: a.size, mtimeMs: a.mtimeMs }]));
   const roots = [...new Set(groups.flatMap((g) => g.sources))];
@@ -884,21 +961,36 @@ export function checkBuild(deps = liveDeps) {
     const more = stale.length > 1 ? `, and ${stale.length - 1} more artifact${stale.length > 2 ? "s are" : " is"} older than a source` : "";
     deps.die(`${rel(g.artifact)} (built ${iso(g.artifactMs)}) is older than ${rel(g.source)} (${iso(g.sourceMs)})${more}; rebuild so the served workbench runs the change: ${rebuildCommand(stale)}`);
   };
-  const gap = stampGap(readJson(stampFile), current, sources, [...offenders.values()]);
+  // The artifacts a source feeds: those whose roots hold it, or every
+  // artifact for a source the stamp lists under a root this rule no longer
+  // watches.
+  const feeding = (file) => {
+    const fed = groups.filter((g) => g.sources.some((root) => inside(root, path.join(repoRoot, file))));
+    return fed.length ? fed : groups;
+  };
+  // A source added or removed since the stamp is the build's own when every
+  // artifact it feeds is newer than the directory whose entries changed; a
+  // change that cannot be dated is not vouched for.
+  const builtSince = (file) => {
+    const dirMs = nearestDirMtime(path.join(repoRoot, file), repoRoot, io);
+    if (dirMs == null) return false;
+    return feeding(file).every((g) => current[rel(g.artifact)].mtimeMs - dirMs > NEWER_BY_MS);
+  };
+  const gap = stampGap(readJson(stampFile, io), current, sources, [...offenders.values()], builtSince);
   if (gap?.kind === "artifacts") {
     if (stale.length) refuseStale();
     const stamped = {};
     for (const root of roots) for (const f of filesOf(root)) stamped[rel(f.path)] = sha1(f.path);
-    writeJson(stampFile, { artifacts: current, sources: stamped });
+    writeJson(stampFile, { artifacts: current, sources: stamped }, io);
   } else if (gap?.kind === "removed" || gap?.kind === "added") {
     const file = gap.files[0];
-    const fed = groups.filter((g) => g.sources.some((root) => inside(root, path.join(repoRoot, file))));
     const more = gap.files.length > 1 ? ` and ${gap.files.length - 1} more` : "";
-    deps.die(`${file}${more} ${gap.kind === "removed" ? "was removed" : "was added"} after the build was stamped, so the served workbench would run a build made from other sources; rebuild: ${rebuildCommand(fed.length ? fed : groups)}`);
+    deps.die(`${file}${more} ${gap.kind === "removed" ? "was removed" : "was added"} after the build was stamped, so the served workbench would run a build made from other sources; rebuild: ${rebuildCommand(feeding(file))}`);
   } else if (gap) {
     refuseStale();
   }
-  const oldest = artifacts.reduce((a, b) => (b.mtimeMs < a.mtimeMs ? b : a));
+  const copied = new Set(groups.filter((g) => g.copied).map((g) => g.artifact));
+  const oldest = artifacts.filter((a) => !copied.has(a.path)).reduce((a, b) => (b.mtimeMs < a.mtimeMs ? b : a));
   return { artifacts: artifacts.length, oldest: rel(oldest.path), builtAt: iso(oldest.mtimeMs) };
 }
 
@@ -993,17 +1085,24 @@ async function launch(opts, deps) {
   }
 }
 
-async function status() {
-  process.exitCode = 1;
-  if (stateUnreadable()) {
-    log(`down (state file unreadable: ${STATE_FILE}; \`down\` removes it)`);
-    return;
+// One line, which clean-worktrees reads to decide whether this worktree's
+// server is up (`UP`), launching or stale (`DOWN` with the pid), absent
+// (`down`), or unknown, which is what a record that cannot be read leaves:
+// the server it named may be running. Returns the exit code, 0 only when the
+// recorded URL answers.
+export async function status(deps = liveDeps) {
+  if (deps.stateUnreadable()) {
+    deps.log(`unknown (state file unreadable: ${deps.stateFile}; \`down\` removes it)`);
+    return 1;
   }
-  const s = readState();
-  if (!s) return log("down (no state file)");
-  const alive = await isUp(s.url);
-  log(`${alive ? "UP" : "DOWN"}  url=${s.url}  pid=${s.pid}  project=${s.project}  log=${s.log}`);
-  if (alive) process.exitCode = 0;
+  const s = deps.readState();
+  if (!s) {
+    deps.log("down (no state file)");
+    return 1;
+  }
+  const alive = await deps.isUp(s.url);
+  deps.log(`${alive ? "UP" : "DOWN"}  url=${s.url}  pid=${s.pid}  project=${s.project}  log=${s.log}`);
+  return alive ? 0 : 1;
 }
 
 // Only a record that still names its own server is acted on; a stale record
@@ -1067,7 +1166,7 @@ export async function verify(args, deps = liveDeps) {
   for (const f of ["--hover-shot", "--hover-image", "--line"]) if (opts[f] && !opts["--hover"]) deps.die(`verify: ${f} needs --hover`);
   const settleBudgetS = opts["--settle"] ?? DEFAULT_SETTLE_S;
   if (settleBudgetS < SETTLE_FLOOR_S) {
-    deps.die(`verify: --settle ${settleBudgetS} is below ${SETTLE_FLOOR_S}, the readings (one a second) a file the server finds clean needs before the settle rule can call it settled; the default is ${DEFAULT_SETTLE_S}`);
+    deps.die(`verify: --settle ${settleBudgetS} is below ${SETTLE_FLOOR_S}, the ${SETTLE.minReads} readings (one a second) a file the server finds clean needs before the settle rule can call it settled plus ${READ_ALLOWANCE_S} s to take them; the default is ${DEFAULT_SETTLE_S}`);
   }
   const s = deps.readState();
   if (!s?.url) deps.die("no server URL; run `node .claude/skills/drive-vscode-web/driver.mjs up --sd <file.sd>` first");
@@ -1089,18 +1188,25 @@ export async function verify(args, deps = liveDeps) {
 
         if (report.opened) {
           // The status bar's problem counter and the editor's squiggles are the
-          // language server's output; read them once a second until they hold.
+          // language server's output; read them once a second until they hold,
+          // with the extension's own marks in the page read alongside, since a
+          // counter that never leaves the workbench's value settles only once
+          // those show the build ran.
           const readings = [];
+          const signalArg = { id: deps.extensionId(), file };
+          let signal = null;
           const started = deps.now();
           for (;;) {
             readings.push(await page.evaluate(diagnosticsOnPage));
-            if (isSettled(readings) || deps.now() - started >= settleBudgetS * 1000) break;
+            signal = await page.evaluate(extensionOnPage, signalArg);
+            if (isSettled(readings, undefined, signal) || deps.now() - started >= settleBudgetS * 1000) break;
             await deps.sleep(1000);
           }
-          const outcome = diagnosticsOutcome(readings, Math.round((deps.now() - started) / 1000), settleBudgetS);
+          const outcome = diagnosticsOutcome(readings, Math.round((deps.now() - started) / 1000), settleBudgetS, undefined, signal);
           report.settled = outcome.settled;
           report.settledAfterS = outcome.settledAfterS;
           report.diagnostics = outcome.diagnostics;
+          report.extension = signal;
           if (outcome.failure) fail(outcome.failure);
         }
 
@@ -1137,12 +1243,15 @@ export async function verify(args, deps = liveDeps) {
   return { report, exitCode: report.failed.length ? 1 : 0 };
 }
 
-// Clicks the explorer row whose label is exactly `file` (a name at the top
-// level of the served folder) and checks that the editor that opened carries
-// that title, so the report never describes a file it was not asked about.
+// Clicks the explorer row at the top level of the served folder (the rows
+// carry their depth as `aria-level`, and the folder's own entries are level
+// 1) whose label is exactly `file`, and checks that the editor that opened
+// carries that title, so the report never describes a file it was not asked
+// about, and never one of the same name in a subfolder.
+export const TOP_ROW = '.explorer-folders-view .monaco-list-row[aria-level="1"]';
 async function openFile(page, file, report, fail) {
   const exact = new RegExp(`^${file.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`);
-  const row = page.locator(".explorer-folders-view .monaco-list-row").filter({ has: page.locator(".label-name", { hasText: exact }) }).first();
+  const row = page.locator(TOP_ROW).filter({ has: page.locator(".label-name", { hasText: exact }) }).first();
   try {
     await row.waitFor({ timeout: 60_000 });
     await row.click();
@@ -1212,7 +1321,7 @@ switch (cmd) {
     await up(rest);
     break;
   case "status":
-    await status();
+    process.exitCode = await status();
     break;
   case "down":
     await down();
@@ -1247,7 +1356,7 @@ switch (cmd) {
         "  --shot <out.png>     screenshot the page",
         "  --hover-shot <png>   screenshot the hover widget alone",
         "  --probe <file.js>    body of an async fn evaluated in the page; result -> JSON",
-        `  --settle <seconds>   how long to wait for diagnostics to stop changing (default ${DEFAULT_SETTLE_S}, at least ${SETTLE_FLOOR_S}); not settling is a failure`,
+        `  --settle <seconds>   how long to wait for diagnostics to stop changing (default ${DEFAULT_SETTLE_S}, at least ${SETTLE_FLOOR_S}: ${SETTLE.minReads} readings a second apart plus ${READ_ALLOWANCE_S} s to take them); not settling is a failure`,
         "  --headed             run a visible browser instead of headless",
       ].join("\n"),
     );

@@ -259,14 +259,16 @@ export function parseWorktreeList(text) {
 
 // What a worktree's driver said about its dev servers. `UP` is up; `DOWN`
 // names a record whose URL does not answer, which is a tree still launching
-// while its pid lives and a stale record otherwise; `down` is no record; any
-// other output is a driver that could not answer, which counts as unknown,
-// with the first line that names an error as the detail (a load failure
-// prints a Node frame before the error).
+// while its pid lives and a stale record otherwise; `down` is no record; a
+// line saying the state file could not be read, whatever word it starts
+// with, is a driver that could not answer, since the record may name a live
+// server; and so is any other output, with the first line that names an
+// error as the detail (a load failure prints a Node frame before the error).
 export function serversFrom(output, alive = pidAlive) {
   const lines = output.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
   const line = lines.find((l) => /^(UP|DOWN|down)\b/.test(l));
   if (!line) return { state: "unknown", detail: lines.find((l) => /error/i.test(l)) ?? lines[0] ?? "no output" };
+  if (/state file unreadable/.test(line)) return { state: "unknown", detail: line };
   if (line.startsWith("down")) return { state: "down" };
   const url = /url=(\S+)/.exec(line)?.[1];
   const pid = Number(/pid=(\d+)/.exec(line)?.[1]);
@@ -333,21 +335,35 @@ const gitOrDie = (deps, args, cwd) => {
   return r.out;
 };
 
-// Every driver a worktree may hold, each with its own server and state file;
-// the web editor's sits under `resolve-issue/` in older worktrees.
-const DRIVERS = [".claude/skills/drive-web-editor/driver.mjs", ".claude/skills/drive-vscode-web/driver.mjs", ".claude/skills/resolve-issue/driver.mjs"];
+// Every driver a worktree may hold, each with its own server and the places
+// it keeps its state file, in the order it looks: the web editor driver
+// reads the file beside itself and otherwise the one under `resolve-issue/`,
+// where it lived in older worktrees and where a server launched from there
+// is still recorded.
+const DRIVERS = [
+  { driver: ".claude/skills/drive-web-editor/driver.mjs", states: [".claude/skills/drive-web-editor/.state.json", ".claude/skills/resolve-issue/.state.json"] },
+  { driver: ".claude/skills/drive-vscode-web/driver.mjs", states: [".claude/skills/drive-vscode-web/.state.json"] },
+  { driver: ".claude/skills/resolve-issue/driver.mjs", states: [".claude/skills/resolve-issue/.state.json"] },
+];
+
+// The state file a driver would read: the first of its places that exists,
+// or the first of them when none does.
+const stateFileOf = (worktree, d, exists) => {
+  const files = d.states.map((s) => path.join(worktree, s));
+  return files.find(exists) ?? files[0];
+};
 
 // Asks every driver the worktree has for its servers and returns each
 // answer, named by the driver, so a row can say which driver's `down`
 // settles it. A driver that could not answer is judged by its own state
 // file instead.
 export function probeServers(worktree, deps) {
-  const drivers = DRIVERS.filter((d) => deps.exists(path.join(worktree, d)));
+  const drivers = DRIVERS.filter((d) => deps.exists(path.join(worktree, d.driver)));
   return drivers.map((d) => {
-    const r = deps.exec(process.execPath, [path.join(worktree, d), "status"], worktree, 60_000);
+    const r = deps.exec(process.execPath, [path.join(worktree, d.driver), "status"], worktree, 60_000);
     const answer = serversFrom(`${r.out}\n${r.err}`, deps.pidAlive);
-    const judged = answer.state === "unknown" ? recordedServer(path.join(worktree, path.dirname(d), ".state.json"), deps, answer.detail) : answer;
-    return { ...judged, driver: path.basename(path.dirname(d)) };
+    const judged = answer.state === "unknown" ? recordedServer(stateFileOf(worktree, d, deps.exists), deps, answer.detail) : answer;
+    return { ...judged, driver: path.basename(path.dirname(d.driver)) };
   });
 }
 
