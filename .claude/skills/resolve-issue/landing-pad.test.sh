@@ -243,8 +243,23 @@ fi
 sed 's|[Ii]nvoke `/drive-vscode-web` (skill name `drive-vscode-web`)|do not invoke `/drive-vscode-web` (skill name `drive-vscode-web`)|g' "$skill" > "$tmp/vscode-forbidden.md"
 if grep -q "do not $vsc" "$tmp/vscode-forbidden.md"; then
   expect_fail "both drive-vscode-web sentences turned into prohibitions" "$tmp/vscode-forbidden.md" "invoked in 0 sentence(s) of ## 3."
+  expect_fail "both drive-vscode-web sentences turned into prohibitions, the §6 one" "$tmp/vscode-forbidden.md" "invoked in 0 sentence(s) of ## 6."
 else
   note_fail "control 'both drive-vscode-web sentences turned into prohibitions': the fixture was not built"
+fi
+
+sed 's|[Ii]nvoke `/drive-vscode-web` (skill name `drive-vscode-web`)|never invoke `/drive-vscode-web` (skill name `drive-vscode-web`)|g' "$skill" > "$tmp/vscode-never.md"
+if grep -q "never $vsc" "$tmp/vscode-never.md"; then
+  expect_fail "both drive-vscode-web sentences say never to invoke it" "$tmp/vscode-never.md" "invoked in 0 sentence(s) of ## 6."
+else
+  note_fail "control 'both drive-vscode-web sentences say never to invoke it': the fixture was not built"
+fi
+
+awk -v p="$vsc" '/^## /{ in3 = index($0, "## 3.") == 1 } { print } in3 && index(tolower($0), p) { print }' "$skill" > "$tmp/vscode-twice.md"
+if [[ $(grep -ci "$vsc" "$tmp/vscode-twice.md") -eq 3 ]]; then
+  expect_fail "the §3 drive-vscode-web bullet appears twice" "$tmp/vscode-twice.md" "invoked in 2 sentence(s) of ## 3."
+else
+  note_fail "control 'the §3 drive-vscode-web bullet appears twice': the fixture was not built"
 fi
 
 awk -v p="$vsc" '/^## /{ in3 = index($0, "## 3.") == 1 } in3 && index(tolower($0), p) { print "```md"; print; print "```"; next } { print }' "$skill" > "$tmp/vscode-fenced.md"

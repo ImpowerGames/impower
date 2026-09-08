@@ -307,11 +307,12 @@ export function classify(entry, facts) {
     else if (!facts.committed && facts.onFirstParent) keep.push(`no commit was made on the branch: its tip is on origin/main's first-parent line and its reflog records none (${remoteState}); a fresh worktree a session may be working in, so remove it by hand when it is done`);
     else if (!facts.committed && facts.created) keep.push(`no commit was made on the branch: its reflog holds its creation and no commit since (${remoteState}); a fresh worktree a session may be working in, so remove it by hand when it is done`);
     else if (!facts.committed) keep.push(`its reflog records neither a commit nor its creation, so whether a commit was made on it cannot be told, and its tip is off origin/main's first-parent line (${remoteState}); left for a person, and \`git worktree remove\` plus \`git branch -D\` by hand once its commits are checked`);
-    const s = facts.servers;
-    const via = s.driver ? ` through ${s.driver}` : "";
-    if (s.state === "up") keep.push(`dev servers up at ${s.url} (pid ${s.pid})${via}`);
-    else if (s.state === "launching") keep.push(`dev servers launching (pid ${s.pid} alive, ${s.url} not answering)${via}; the worktree's driver \`down\` settles it`);
-    else if (s.state === "unknown") keep.push(`its driver${via} could not report its servers (${s.detail})`);
+    for (const s of serverRows(facts.servers)) {
+      const via = s.driver ? ` through ${s.driver}` : "";
+      if (s.state === "up") keep.push(`dev servers up at ${s.url} (pid ${s.pid})${via}`);
+      else if (s.state === "launching") keep.push(`dev servers launching (pid ${s.pid} alive, ${s.url} not answering)${via}; the worktree's driver \`down\` settles it`);
+      else if (s.state === "unknown") keep.push(`its driver${via} could not report its servers (${s.detail})`);
+    }
     if (facts.users === null) keep.push("the processes on this machine could not be listed, so whether one is using it is unknown");
     else if (facts.users.length) keep.push(`its path is on the command line of ${listSome(facts.users.map((p) => `pid ${p.pid} (${p.name})`), 2)}`);
   }
@@ -331,20 +332,28 @@ const gitOrDie = (deps, args, cwd) => {
 // Every driver a worktree may hold, each with its own server and state file;
 // the web editor's sits under `resolve-issue/` in older worktrees.
 const DRIVERS = [".claude/skills/drive-web-editor/driver.mjs", ".claude/skills/drive-vscode-web/driver.mjs", ".claude/skills/resolve-issue/driver.mjs"];
-const SERVER_RANK = { up: 3, launching: 2, unknown: 1, down: 0 };
 
-// Asks every driver the worktree has and reports the one with the most to
-// say, named, so the row says which driver's `down` settles it.
-function probeServers(worktree, deps) {
+// Asks every driver the worktree has for its servers and returns each
+// answer, named by the driver, so a row can say which driver's `down`
+// settles it.
+export function probeServers(worktree, deps) {
   const drivers = DRIVERS.filter((d) => deps.exists(path.join(worktree, d)));
-  if (!drivers.length) return { state: "none" };
-  let best = { state: "down" };
-  for (const d of drivers) {
+  return drivers.map((d) => {
     const r = deps.exec(process.execPath, [path.join(worktree, d), "status"], worktree, 60_000);
-    const s = { ...serversFrom(`${r.out}\n${r.err}`, deps.pidAlive), driver: path.basename(path.dirname(d)) };
-    if (SERVER_RANK[s.state] > SERVER_RANK[best.state]) best = s;
-  }
-  return best;
+    return { ...serversFrom(`${r.out}\n${r.err}`, deps.pidAlive), driver: path.basename(path.dirname(d)) };
+  });
+}
+
+// The answers that become rows: every server up or launching, each its own
+// row, so a person stopping one is told about the other. A driver that
+// could not answer (it failed to load, say) is a row only when no driver
+// answered at all; a definite `down` from another driver stands, since a
+// driver that cannot run has no server it could have started.
+export function serverRows(results) {
+  const live = results.filter((s) => s.state === "up" || s.state === "launching");
+  if (live.length) return live;
+  if (results.some((s) => s.state === "down")) return [];
+  return results.filter((s) => s.state === "unknown");
 }
 
 // `git status --porcelain --ignored=matching`: the tree's changes, untracked
@@ -395,7 +404,7 @@ function gatherFacts(entry, ctx, deps) {
     onFirstParent: false,
     committed: false,
     created: false,
-    servers: { state: "none" },
+    servers: [],
     users: [],
   };
   facts.isDefault = !facts.isMain && Boolean(entry.branch) && ctx.defaultBranches.has(entry.branch);
