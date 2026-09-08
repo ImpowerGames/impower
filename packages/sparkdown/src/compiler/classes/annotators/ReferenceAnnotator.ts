@@ -693,23 +693,6 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
         return annotations;
       }
     }
-    if (nodeRef.name === "AssetCommandFilterName") {
-      const context = getContextNames(nodeRef.node);
-      // Record image filter reference
-      if (context.includes("ImageCommand")) {
-        const types = ["filter"];
-        const name = this.read(nodeRef.from, nodeRef.to);
-        annotations.push(
-          SparkdownAnnotation.mark<Reference>({
-            selectors: [{ types, name }],
-            symbolIds: types.map((type) => `${type}.${name}`),
-            kind: "read",
-            linkable: true,
-          }).range(nodeRef.from, nodeRef.to),
-        );
-        return annotations;
-      }
-    }
     if (nodeRef.name === "AssetCommandFilteredFileName") {
       const context = getContextNames(nodeRef.node);
       // Record image name (and filter) reference

@@ -6,6 +6,7 @@ import { SparkdownCompilerConfig } from "@impower/sparkdown/src/compiler/types/S
 import { SparkdownNodeName } from "@impower/sparkdown/src/compiler/types/SparkdownNodeName";
 import { type SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
 import { getProperty } from "@impower/sparkdown/src/compiler/utils/getProperty";
+import { resolveImageAttributes } from "@impower/sparkdown/src/compiler/utils/filterImage";
 import { type GrammarSyntaxNode } from "@impower/textmate-grammar-tree/src/tree/types/GrammarSyntaxNode";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 import { getDescendentInsideParent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendentInsideParent";
@@ -1165,6 +1166,40 @@ export const getCompletions = (
     }));
   };
 
+  // Read the current image only. Attribute names belong to its artwork, not
+  // to the global define namespace (and may contain dots and hyphens).
+  if (program?.context && leftStack.some((node) => node.name === "ImageCommand")) {
+    const asset = leftStack.find((node) => node.name === "AssetCommandName");
+    const prefix = asset ? read(asset.from, documentCursorOffset) : "";
+    const match = prefix.match(/(?:^|[+])\s*([a-zA-Z_][\w]*)((?:[:~][\w.-]*)+)$/);
+    if (match) {
+      const name = match[1]!;
+      const parts = match[2]!.split(/[:~]/).slice(1);
+      const current = parts.pop() ?? "";
+      const excluded = new Set(parts);
+      const image = program.context["filtered_image"]?.[name] ?? program.context["layered_image"]?.[name] ?? program.context["image"]?.[name];
+      const vocabulary = resolveImageAttributes(program.context, image).vocabulary;
+      for (const [group, info] of Object.entries(vocabulary?.groups ?? {})) {
+        const names = info.switch ? [group] : [];
+        for (const option of info.options) {
+          names.push(`${group}.${option}`);
+          if (!info.switch) names.push(option);
+        }
+        for (const attribute of names) {
+          if (!excluded.has(attribute)) {
+            completions.set(attribute, {
+              label: attribute,
+              kind: CompletionItemKind.EnumMember,
+              labelDetails: { description: `${name} attribute` },
+              textEdit: { newText: attribute, range: document.range(documentCursorOffset - current.length, documentCursorOffset) },
+            });
+          }
+        }
+      }
+      return buildCompletions();
+    }
+  }
+
   const side = -1;
   const prevCursor = tree.cursorAt(leftStack[0].from - 1, side);
   const nextCursor = tree.cursorAt(leftStack[0].to + 1, side);
@@ -1405,21 +1440,6 @@ export const getCompletions = (
       leftStack[0]?.name === "AssetCommandFilterOperator" ||
       leftStack[0]?.name === "AssetCommandFilterName"
     ) {
-      if (isCursorAfterNodeText(leftStack[0])) {
-        const exclude = getOtherMatchesInsideParent(
-          "AssetCommandFilterName",
-          "AssetCommandContent",
-          leftStack,
-          tree,
-          read,
-        );
-        addStructReferenceCompletions(
-          completions,
-          program,
-          ["filter"],
-          exclude,
-        );
-      }
       return buildCompletions();
     }
     if (
@@ -1554,21 +1574,6 @@ export const getCompletions = (
       leftStack[0]?.name === "AssetCommandFilterOperator" ||
       leftStack[0]?.name === "AssetCommandFilterName"
     ) {
-      if (isCursorAfterNodeText(leftStack[0])) {
-        const exclude = getOtherMatchesInsideParent(
-          "AssetCommandFilterName",
-          "AssetCommandContent",
-          leftStack,
-          tree,
-          read,
-        );
-        addStructReferenceCompletions(
-          completions,
-          program,
-          ["filter"],
-          exclude,
-        );
-      }
       return buildCompletions();
     }
     if (

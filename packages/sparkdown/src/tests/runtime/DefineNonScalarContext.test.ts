@@ -126,16 +126,15 @@ end
     // object, matching `schema_filtered_image` / `default_filtered_image`.
     const result = compile(`define bunny_angry as filtered_image with
   image = bunny_realization
-  filters = {
-    face_angry,
+  attributes = {
+    "angry",
   }
 end
 `);
     const fi = result.program.context?.["filtered_image"]?.["bunny_angry"];
     expect(fi).toBeDefined();
     expect(fi!["image"]).toEqual({ $type: "", $name: "bunny_realization" });
-    // Non-scalar table refs still compile to references too.
-    expect(fi!["filters"]).toEqual([{ $type: "", $name: "face_angry" }]);
+    expect(fi!["attributes"]).toEqual(["angry"]);
   });
 
   test("a quoted string scalar stays a string (reference fix must not capture it)", () => {

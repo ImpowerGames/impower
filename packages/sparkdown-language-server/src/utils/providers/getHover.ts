@@ -65,7 +65,7 @@ export const getHover = async (
             for (const selector of reference.selectors) {
               if (
                 selector.name &&
-                (type === "filtered_image" || selector.name.includes("~")) &&
+                (type === "filtered_image" || /[:~]/.test(selector.name)) &&
                 program.context
               ) {
                 filterImage(

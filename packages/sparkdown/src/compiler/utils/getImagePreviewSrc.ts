@@ -32,12 +32,16 @@ export const getImagePreviewSrc = (
   const type = struct["$type"];
 
   if (type === "image") {
+    if (context && struct.attribute_vocabulary) {
+      filterImage(context, struct);
+      if (struct.filtered_src) return struct.filtered_src;
+    }
     return struct["src"] || struct["data"] || struct["uri"] || undefined;
   }
 
   if (type === "filtered_image") {
     // Computes `filtered_src` when the root is an SVG (the only case that can
-    // be filtered into a standalone source). No-op if already computed.
+    // be filtered into a standalone source), refreshing changed attributes.
     if (context) {
       filterImage(context, struct);
     }
@@ -45,7 +49,7 @@ export const getImagePreviewSrc = (
       return struct["filtered_src"];
     }
     const filteredLayers = struct["filtered_layers"];
-    if (filteredLayers?.length) {
+    if (filteredLayers) {
       // A layered root filters down to the layers that survived. Previewing
       // the root instead would show a layer the filter removes -- which is
       // what happens whenever exactly one layer survives, since the compositor
@@ -71,7 +75,8 @@ export const getImagePreviewSrc = (
   }
 
   if (type === "layered_image") {
-    const assets = struct["assets"];
+    if (context) filterImage(context, struct);
+    const assets = struct["filtered_layers"] ?? struct["assets"];
     const layers = Array.isArray(assets)
       ? assets
       : assets && typeof assets === "object"
@@ -155,4 +160,3 @@ export const getImagePreviewMarkup = (
   const name = struct?.["$name"] ?? "";
   return buildImagePreviewMarkup(src, name);
 };
-

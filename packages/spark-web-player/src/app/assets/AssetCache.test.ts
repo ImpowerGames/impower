@@ -204,25 +204,25 @@ describe("AssetCache", () => {
   it("forgets every entry of a file when it changes, and ignores a stale load that finishes late", async () => {
     const { cache, created, finish } = makeCache();
     void cache.request(
-      [image("/file:/a.svg?v=1"), image("/file:/a.svg?v=1&filters=x")],
+      [image("/file:/a.svg?v=1"), image("/file:/a.svg?v=1&attributes=x")],
       0,
       "beat:1",
     );
     await finish("/file:/a.svg?v=1");
-    cache.prefetch([image("/file:/a.svg?v=1&filters=y")], 3);
+    cache.prefetch([image("/file:/a.svg?v=1&attributes=y")], 3);
     expect(cache.has("/file:/a.svg?v=1")).toBe(true);
-    expect(cache.has("/file:/a.svg?v=1&filters=y")).toBe(true);
+    expect(cache.has("/file:/a.svg?v=1&attributes=y")).toBe(true);
     cache.evictFile("/file:/a.svg?v=2");
     expect(cache.has("/file:/a.svg?v=1")).toBe(false);
-    expect(cache.has("/file:/a.svg?v=1&filters=x")).toBe(false);
-    expect(cache.has("/file:/a.svg?v=1&filters=y")).toBe(false);
+    expect(cache.has("/file:/a.svg?v=1&attributes=x")).toBe(false);
+    expect(cache.has("/file:/a.svg?v=1&attributes=y")).toBe(false);
     // The variants that were mid-load finish now; nobody is home.
-    for (const src of ["/file:/a.svg?v=1&filters=x", "/file:/a.svg?v=1&filters=y"]) {
+    for (const src of ["/file:/a.svg?v=1&attributes=x", "/file:/a.svg?v=1&attributes=y"]) {
       created.find((i) => i.src === src && !i.done)!.finishLoad();
     }
     await settle();
-    expect(cache.has("/file:/a.svg?v=1&filters=x")).toBe(false);
-    expect(cache.has("/file:/a.svg?v=1&filters=y")).toBe(false);
+    expect(cache.has("/file:/a.svg?v=1&attributes=x")).toBe(false);
+    expect(cache.has("/file:/a.svg?v=1&attributes=y")).toBe(false);
     expect(cache.inFlightCount).toBe(0);
   });
 

@@ -1,4 +1,5 @@
 import type { File } from "../types/File";
+import { buildSVGAttributeVocabulary } from "../../attributes";
 import { buildSVGSource } from "../utils/buildSVGSource";
 
 export class SparkdownFileRegistry {
@@ -23,9 +24,13 @@ export class SparkdownFileRegistry {
   processText(file: File) {
     if (file.text != null) {
       if (file.type === "image" && file.ext === "svg") {
+        file.attribute_vocabulary ??= buildSVGAttributeVocabulary(file.text);
         file.data = buildSVGSource(file.text);
         delete file.text;
       }
+    }
+    if (file.type === "image" && file.ext === "svg" && file.data) {
+      file.attribute_vocabulary ??= buildSVGAttributeVocabulary(file.data);
     }
   }
 
@@ -38,9 +43,9 @@ export class SparkdownFileRegistry {
 
   update(params: { file: File }) {
     const file = params.file;
+    this.processText(file);
     let syncedFile = this._syncedFiles.get(file.uri);
     if (syncedFile) {
-      this.processText(file);
       this._syncedFiles.set(file.uri, file);
       return true;
     }

@@ -68,7 +68,7 @@ const imageSrcOf = (context: Context, ref: unknown): string | undefined => {
  * to change a pixel, so it resolves in its own scratch space and the engine
  * keeps computing its own answer.
  *
- * A filtered image renders through `<root>?v=<sig>&filters=<canonical>`, a URL
+ * A filtered image renders through `<root>?v=<sig>&attributes=<canonical>`, a URL
  * nothing else ever fetches, so warming the root asset instead leaves the
  * variant cold and the element paints blank for the length of the fetch (#344).
  * Hosts that keep the SVG source inlined resolve variants to a `data:` URI:

@@ -141,7 +141,7 @@ const fileOf = (item: AssetItem): string => {
 
 const isSvg = (item: AssetItem): boolean =>
   item.kind === "image" &&
-  (/\.svg(\?|$)/i.test(item.src) || item.src.includes("filters="));
+  (/\.svg(\?|$)/i.test(item.src) || item.src.includes("attributes="));
 
 /**
  * What the page keeps resident and how much of it (docs/engine/asset-preloading-spec.md).

@@ -1,10 +1,11 @@
-// #299: filtered images resolve to on-demand `?filters=` URLs (service-worker
+// #299/#479: filtered images resolve to on-demand `?attributes=` URLs (service-worker
 // generated, signature-cached) instead of the program embedding every SVG's
 // source. These tests pin the three seams: the compiler strip (opt-in,
 // per-host), filterImage's URL fallback when a root carries no data, and the
 // shared cached generator both service workers delegate to.
 
 import { describe, expect, it } from "vitest";
+import { buildSVGAttributeVocabulary, decodeSVGSource } from "../../attributes";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { File } from "../../compiler/types/File";
 import { filterImage } from "../../compiler/utils/filterImage";
@@ -16,7 +17,8 @@ import {
 
 const MAIN_URI = "file://proj/main.sd";
 
-const SVG = `<svg xmlns="http://www.w3.org/2000/svg"><g id='filter hat'><path/></g><g id='filter default body'><path/></g></svg>`;
+const SVG = `<svg xmlns="http://www.w3.org/2000/svg"><g id='hat' data-name='hat.on'><path/></g><g id='gloves' data-name='gloves.on'><path/></g><g id='body'><path/></g></svg>`;
+const VOCABULARY = buildSVGAttributeVocabulary(SVG);
 
 const svgAsset = (name: string): File => ({
   uri: `file://proj/assets/${name}.svg`,
@@ -69,16 +71,22 @@ describe("stripImageData", () => {
 
 describe("filterImage URL fallback", () => {
   const makeContext = (image: Record<string, unknown>) => ({
-    image: { portrait: { $type: "image", $name: "portrait", ...image } },
+    image: {
+      portrait: {
+        $type: "image",
+        $name: "portrait",
+        attribute_vocabulary: VOCABULARY,
+        ...image,
+      },
+    },
     filtered_image: {
       p: {
         $type: "filtered_image",
         $name: "p",
         image: { $type: "image", $name: "portrait" },
-        filters: [{ $type: "filter", $name: "f" }],
+        attributes: ["hat.off"],
       } as any,
     },
-    filter: { f: { includes: [""], excludes: ["hat"] } },
   });
 
   it("builds an on-demand URL when the root has no data (stripped host)", () => {
@@ -88,7 +96,7 @@ describe("filterImage URL fallback", () => {
     });
     filterImage(context, context.filtered_image.p);
     expect(context.filtered_image.p.filtered_src).toMatch(
-      /^\/file:\/local\/assets\/portrait\.svg\?v=1&filters=/,
+      /^\/file:\/local\/assets\/portrait\.svg\?v=1&attributes=/,
     );
   });
 
@@ -102,18 +110,23 @@ describe("filterImage URL fallback", () => {
     expect(context.filtered_image.p.filtered_src).toMatch(
       /^data:image\/svg\+xml,/,
     );
-    expect(context.filtered_image.p.filtered_src).not.toContain("hat");
+    expect(
+      decodeSVGSource(context.filtered_image.p.filtered_src),
+    ).not.toContain("hat");
+    expect(decodeSVGSource(context.filtered_image.p.filtered_src)).toContain(
+      "id='body'",
+    );
   });
 
-  it("falls back to the plain root src for a no-op filter", () => {
+  it("requests the resting variant when the attribute list is empty", () => {
     const context = makeContext({
       ext: "svg",
       src: "/file:/local/assets/portrait.svg?v=1",
     });
-    (context.filter.f as any) = { includes: [""], excludes: [] };
+    context.filtered_image.p.attributes = [];
     filterImage(context, context.filtered_image.p);
     expect(context.filtered_image.p.filtered_src).toBe(
-      "/file:/local/assets/portrait.svg?v=1",
+      "/file:/local/assets/portrait.svg?v=1&attributes=%7B%7D",
     );
   });
 });
@@ -137,7 +150,7 @@ describe("getOrCreateFilteredSvg", () => {
       lastModified,
     }) as FilteredSvgFile;
 
-  const PARAM = serializeImageFilterParam({ includes: [""], excludes: ["hat"] })!;
+  const PARAM = serializeImageFilterParam({ hat: "off" })!;
 
   it("filters, serves image/svg+xml, and caches by signature", async () => {
     const cache = makeCache();
@@ -150,8 +163,8 @@ describe("getOrCreateFilteredSvg", () => {
     expect(first).toBeDefined();
     expect(first!.headers.get("Content-Type")).toBe("image/svg+xml");
     const text = await first!.text();
-    expect(text).not.toContain("filter hat");
-    expect(text).toContain("filter default body");
+    expect(text).not.toContain("id='hat'");
+    expect(text).toContain("id='body'");
     expect(cache.store.size).toBe(1);
 
     const second = await getOrCreateFilteredSvg(
@@ -187,7 +200,7 @@ describe("getOrCreateFilteredSvg", () => {
     expect(Array.from(cache.store.keys())[0]).toContain("sig=222-");
   });
 
-  it("serves the unfiltered original for garbage or no-op params", async () => {
+  it("falls back for garbage params but generates the empty selection's resting layers", async () => {
     const cache = makeCache();
     expect(
       await getOrCreateFilteredSvg(
@@ -197,8 +210,6 @@ describe("getOrCreateFilteredSvg", () => {
         "not json",
       ),
     ).toBeUndefined();
-    const noop = serializeImageFilterParam({ includes: [""], excludes: [] });
-    expect(noop).toBeUndefined();
     expect(
       await getOrCreateFilteredSvg(
         cache,
@@ -208,6 +219,17 @@ describe("getOrCreateFilteredSvg", () => {
       ),
     ).toBeUndefined();
     expect(cache.store.size).toBe(0);
+    const resting = await getOrCreateFilteredSvg(
+      cache,
+      "local/assets/portrait.svg",
+      svgFile(111),
+      serializeImageFilterParam({})!,
+    );
+    expect(resting).toBeDefined();
+    const text = await resting!.text();
+    expect(text).toContain("id='body'");
+    expect(text).not.toContain("id='hat'");
+    expect(cache.store.size).toBe(1);
   });
 
   it("runs ONE generation for concurrent requests of the same variant", async () => {
@@ -229,9 +251,24 @@ describe("getOrCreateFilteredSvg", () => {
       }) as FilteredSvgFile;
     };
     const responses = await Promise.all([
-      getOrCreateFilteredSvg(cache, "local/assets/portrait.svg", counted(111), PARAM),
-      getOrCreateFilteredSvg(cache, "local/assets/portrait.svg", counted(111), PARAM),
-      getOrCreateFilteredSvg(cache, "local/assets/portrait.svg", counted(111), PARAM),
+      getOrCreateFilteredSvg(
+        cache,
+        "local/assets/portrait.svg",
+        counted(111),
+        PARAM,
+      ),
+      getOrCreateFilteredSvg(
+        cache,
+        "local/assets/portrait.svg",
+        counted(111),
+        PARAM,
+      ),
+      getOrCreateFilteredSvg(
+        cache,
+        "local/assets/portrait.svg",
+        counted(111),
+        PARAM,
+      ),
     ]);
     expect(reads).toBe(1);
     expect(cache.store.size).toBe(1);
@@ -242,12 +279,12 @@ describe("getOrCreateFilteredSvg", () => {
     expect(new Set(responses).size).toBe(3);
     const texts = await Promise.all(responses.map((r) => r!.text()));
     for (const text of texts) {
-      expect(text).toContain("filter default body");
-      expect(text).not.toContain("filter hat");
+      expect(text).toContain("id='body'");
+      expect(text).not.toContain("id='hat'");
     }
     // ...and the stored entry is still independently readable afterwards.
     const stored = Array.from(cache.store.values())[0]!;
-    expect(await stored.clone().text()).toContain("filter default body");
+    expect(await stored.clone().text()).toContain("id='body'");
   });
 
   it("lets a caller regenerate when the generation it shared failed", async () => {
@@ -268,14 +305,24 @@ describe("getOrCreateFilteredSvg", () => {
         },
       }) as FilteredSvgFile;
     const [first, second] = await Promise.all([
-      getOrCreateFilteredSvg(cache, "local/assets/portrait.svg", flaky(), PARAM),
-      getOrCreateFilteredSvg(cache, "local/assets/portrait.svg", flaky(), PARAM),
+      getOrCreateFilteredSvg(
+        cache,
+        "local/assets/portrait.svg",
+        flaky(),
+        PARAM,
+      ),
+      getOrCreateFilteredSvg(
+        cache,
+        "local/assets/portrait.svg",
+        flaky(),
+        PARAM,
+      ),
     ]);
     // One of the two owned the failing generation; the other must not have
     // inherited it.
     const survivors = [first, second].filter(Boolean);
     expect(survivors).toHaveLength(1);
-    expect(await survivors[0]!.text()).toContain("filter default body");
+    expect(await survivors[0]!.text()).toContain("id='body'");
     expect(cache.store.size).toBe(1);
   });
 
@@ -302,7 +349,7 @@ describe("getOrCreateFilteredSvg", () => {
       PARAM,
     );
     expect(recovered).toBeDefined();
-    expect(await recovered!.text()).toContain("filter default body");
+    expect(await recovered!.text()).toContain("id='body'");
   });
 
   it("shares one cache entry across non-canonical spellings of the same filter", async () => {
@@ -311,13 +358,13 @@ describe("getOrCreateFilteredSvg", () => {
       cache,
       "local/assets/portrait.svg",
       svgFile(111),
-      JSON.stringify({ i: "off", e: ["hat", "hat"] }),
+      JSON.stringify({ hat: "off", gloves: "off" }),
     );
     await getOrCreateFilteredSvg(
       cache,
       "local/assets/portrait.svg",
       svgFile(111),
-      JSON.stringify({ i: "off", e: ["hat"] }),
+      JSON.stringify({ gloves: "off", hat: "off" }, null, 2),
     );
     expect(cache.store.size).toBe(1);
   });

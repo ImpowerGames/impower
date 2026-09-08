@@ -7,6 +7,9 @@
 // implicitly via the (now-removed) `inkjs/compiler/Compiler` import; keep it
 // explicit so consumers of SparkdownCompiler don't hit a TDZ crash.
 import "../../inkjs/engine/Container";
+import { resolveImageAttributes } from "../utils/filterImage";
+import { createRasterImageDefinitions, isRasterLayerFile } from "../../attributes/rasterSource";
+import { diagnoseRareAttributeOptions, type AttributeVocabulary } from "../../attributes";
 import GRAMMAR_DEFINITION from "../../../language/sparkdown.language-grammar.json";
 // The builtins prelude is the raw `builtins.sd` text, imported directly via
 // `?raw` (Vite/vitest native; the repo's esbuild bundles add a `?raw` plugin).
@@ -1621,6 +1624,7 @@ export class SparkdownCompiler {
     if (!this._config.skipValidation) {
       this.validateSyntax(program);
       this.validateReferences(program);
+      this.validateImageAttributes(program);
     }
     if (this._config.workspace !== undefined) {
       program.workspace = this._config.workspace;
@@ -3991,7 +3995,7 @@ export class SparkdownCompiler {
       program.styles = structuredClone(style);
     }
     // File-derived + implicit-def asset types (not defines).
-    const ASSET_TYPES = ["image", "audio", "font", "video", "filtered_image"];
+    const ASSET_TYPES = ["image", "audio", "font", "video", "layered_image", "filtered_image"];
     for (const type of ASSET_TYPES) {
       const structs = program.context?.[type];
       if (structs) {
@@ -4316,12 +4320,17 @@ export class SparkdownCompiler {
       // Track the first file to claim each (type, name) so we can flag basename
       // collisions among non-script assets. Asset names are a FLAT namespace —
       // scripts reference an asset by its bare name (`[[show image forest]]` ->
-      // context.image.forest) — so two assets sharing a (type, name) in
+      // context["image"].forest) — so two assets sharing a (type, name) in
       // different folders are ambiguous and one would silently win. Scripts are
       // exempt: they're keyed/bundled by full path, not by a flat basename.
       const claimedBy = new Map<string, string>();
       const flaggedCollision = new Set<string>();
       for (const file of files) {
+        const rasterFile = isRasterLayerFile(file);
+        const rasterPath = rasterFile ? decodeURIComponent(new URL(file.uri).pathname) : "";
+        const rasterFolder = rasterPath.split("/").at(-2) ?? "";
+        const explicitRaster = rasterFile && state.story?.structDefinitions?.["layered_image"]?.[rasterFolder] !== undefined;
+        if (rasterFile && !explicitRaster) continue;
         const type = file.type;
         const name = file.name;
         if (name && type !== "script") {
@@ -4415,6 +4424,51 @@ export class SparkdownCompiler {
           // COPY is stripped — the file registry keeps the source.
           delete program.context[type][name].data;
         }
+        if (explicitRaster) {
+          // The convention uses private references, but an authored override
+          // may name the original file or its complete, dotted filename stem.
+          const filename = rasterPath.split("/").at(-1)!;
+          const stem = filename.slice(0, -(file.ext.length + 1));
+          if (stem !== name) {
+            const key = `${type}/${stem}`;
+            const firstUri = claimedBy.get(key);
+            if (firstUri && firstUri !== file.uri) {
+              this.pushAssetCollisionDiagnostic(program, file.uri, firstUri, type, stem);
+              if (!flaggedCollision.has(key)) {
+                this.pushAssetCollisionDiagnostic(program, firstUri, file.uri, type, stem);
+                flaggedCollision.add(key);
+              }
+            } else {
+              claimedBy.set(key, file.uri);
+            }
+            program.context[type][stem] = { ...program.context[type][name], $name: stem, name: stem };
+          }
+        }
+      }
+    }
+    const raster = createRasterImageDefinitions([...this.files.all()]);
+    Object.assign(program.context["image"] ??= {}, raster.images);
+    for (const [name, image] of Object.entries(raster.layeredImages)) {
+      if (!program.context["image"]?.[name] && !program.context["layered_image"]?.[name]) {
+        (program.context["layered_image"] ??= {})[name] = image;
+      }
+    }
+    const characters = new Map<string, any[]>();
+    for (const image of Object.values({ ...program.context["image"], ...program.context["layered_image"] })) {
+      if (!image.attribute_vocabulary) continue;
+      const character = image.$name.split("_")[0];
+      const images = characters.get(character) ?? [];
+      images.push(image);
+      characters.set(character, images);
+    }
+    for (const images of characters.values()) {
+      const rare = diagnoseRareAttributeOptions(images.map((image) => image.attribute_vocabulary));
+      for (const image of images) {
+        const vocabulary = image.attribute_vocabulary as AttributeVocabulary;
+        image.attribute_vocabulary = { ...vocabulary, diagnostics: [
+          ...vocabulary.diagnostics.filter((diagnostic) => diagnostic.code !== "rare-attribute-option"),
+          ...rare.filter((diagnostic) => vocabulary.layers.some((layer) => layer.name === diagnostic.layer)),
+        ] };
       }
     }
     profile("end", this._profilerId, "populateAssets", uri);
@@ -4458,10 +4512,10 @@ export class SparkdownCompiler {
   populateImplicitDefs(_state: SparkdownCompilerState, program: SparkProgram) {
     const uri = program.uri;
     profile("start", this._profilerId, "populateImplicitDefs", uri);
-    const images = program.context?.["image"];
+    const images = { ...program.context?.["image"], ...program.context?.["layered_image"] };
     if (images) {
       for (const image of Object.values(images)) {
-        if (image["ext"] === "svg" || image["data"]) {
+        if (image["ext"] === "svg" || image["data"] || image.attribute_vocabulary) {
           const type = image["$type"];
           const name = image["$name"];
           // Declare implicit filtered_image
@@ -4474,7 +4528,7 @@ export class SparkdownCompiler {
               $type: implicitType,
               $name: name,
               image: { $type: type, $name: name },
-              filters: [],
+              attributes: [],
             };
           }
         }
@@ -4487,22 +4541,15 @@ export class SparkdownCompiler {
         const annotations = this.documents.annotations(uri);
         const cur = annotations.implicits.iter();
         while (cur.value) {
-          // Trim the read text AND each `~`-separated part: when an asset
-          // command is followed by a clause (e.g. `[[hero~a~b with flip]]`),
-          // the `AssetCommandName` node greedily includes the trailing space
-          // before the clause, so the last filter would otherwise be `"b "`.
-          // That produced a filtered_image keyed `hero~a~b ` (with a space),
-          // which never matched the reference's clean `sortFilteredName` key —
-          // so the image "could not be found" whenever a `with`/`over`/etc.
-          // clause was present.
+          // Clause parsing can leave trailing whitespace in AssetCommandName.
+          // Normalize separators and trim each part without changing its order.
           const text = doc.read(cur.from, cur.to).trim();
           if (!resolvedImplicits.has(text)) {
             resolvedImplicits.add(text);
             const type = cur.value.type;
-            const parts = text.split("~").map((part) => part.trim());
-            const [fileName, ...filterNames] = parts;
-            const sortedFilterNames = filterNames.sort();
-            const name = [fileName, ...sortedFilterNames].join("~");
+            const parts = text.split(/[:~]/).map((part) => part.trim());
+            const [fileName, ...attributes] = parts;
+            const name = parts.join("~");
             program.context ??= {};
             program.context[type] ??= {};
             if (!program.context[type][name]) {
@@ -4510,10 +4557,7 @@ export class SparkdownCompiler {
                 $type: type,
                 $name: name,
                 image: { $name: fileName },
-                filters: sortedFilterNames.map((filterName) => ({
-                  $type: "filter",
-                  $name: filterName,
-                })),
+                attributes,
               };
             }
           }
@@ -4737,6 +4781,61 @@ export class SparkdownCompiler {
       }
     }
     profile("end", this._profilerId, "validateSyntax", uri);
+  }
+
+  /** Artwork and selection diagnostics share the script locations in both editors. */
+  validateImageAttributes(program: SparkProgram) {
+    if (!program.context) return;
+    for (const uri of Object.keys(program.scripts)) {
+      const doc = this.documents.get(uri);
+      if (!doc) continue;
+      const annotations = this.documents.annotations(uri);
+      const emitted = new Set<string>();
+      const emit = (struct: any, from: number, to: number) => {
+        const resolved = resolveImageAttributes(program.context!, struct);
+        for (const diagnostic of resolved.diagnostics) {
+          const key = `${from}:${diagnostic.code}:${diagnostic.message}`;
+          if (emitted.has(key)) continue;
+          emitted.add(key);
+          (program.diagnostics ??= {})[uri] ??= [];
+          program.diagnostics[uri]!.push({
+            range: doc.range(from, to),
+            severity: diagnostic.severity === "error" ? DiagnosticSeverity.Error : DiagnosticSeverity.Warning,
+            message: { kind: "markdown", value: diagnostic.message },
+            source: LANGUAGE_NAME,
+          });
+        }
+      };
+      const references = annotations.references.iter();
+      const images: { struct: any; from: number; to: number }[] = [];
+      while (references.value) {
+        for (const selector of references.value.type.selectors ?? []) {
+          if (selector.name && selector.types?.some((type) => ["image", "filtered_image", "layered_image"].includes(type))) {
+            const struct = program.context["filtered_image"]?.[selector.name] ?? program.context["layered_image"]?.[selector.name] ?? program.context["image"]?.[selector.name];
+            if (struct) {
+              images.push({ struct, from: references.from, to: references.to });
+            }
+          }
+        }
+        references.next();
+      }
+      let coveredTo = -1;
+      for (const image of images.sort((a, b) => a.from - b.from || b.to - a.to)) {
+        if (image.from >= coveredTo) {
+          emit(image.struct, image.from, image.to);
+          coveredTo = image.to;
+        }
+      }
+      const declarations = annotations.declarations.iter();
+      while (declarations.value) {
+        if (declarations.value.type === "define") {
+          const name = doc.read(declarations.from, declarations.to);
+          const struct = program.context["filtered_image"]?.[name] ?? program.context["layered_image"]?.[name] ?? program.context["image"]?.[name];
+          if (struct) emit(struct, declarations.from, declarations.to);
+        }
+        declarations.next();
+      }
+    }
   }
 
   validateReferences(program: SparkProgram) {

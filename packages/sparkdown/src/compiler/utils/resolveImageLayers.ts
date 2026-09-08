@@ -42,7 +42,8 @@ export const resolveImageLayers = (
   const type = struct["$type"];
 
   if (type === "image") {
-    const src = struct["src"] || struct["data"] || struct["uri"];
+    if (context) filterImage(context, struct);
+    const src = struct["filtered_src"] || struct["src"] || struct["data"] || struct["uri"];
     return src ? [{ src, uri: struct["uri"] }] : [];
   }
 
@@ -76,7 +77,8 @@ export const resolveImageLayers = (
   }
 
   if (type === "layered_image") {
-    const assets = struct["assets"];
+    if (context) filterImage(context, struct);
+    const assets = struct["filtered_layers"] ?? struct["assets"];
     const layers = Array.isArray(assets)
       ? assets
       : assets && typeof assets === "object"

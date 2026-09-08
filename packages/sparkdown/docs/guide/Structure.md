@@ -76,6 +76,8 @@ Common built-in elements:
 | `button`, `link`                                    | Clickable controls                                            |
 | `field` / `input`, `slider`, `checkbox`, `dropdown` | Interactive widgets (see [Interactive Widgets](./Widgets.md)) |
 
+Story image directives such as `[[mia]]` can also select a layered portrait's expression, clothes, or props: `[[mia:happy:hat]]`. See [Character Portraits](./Portraits.md) for naming SVG layers, using image-file folders, and defining reusable looks. These directives belong to the story; an `image` element belongs to a UI layout.
+
 > **Layout classes, not elements.** `row`, `column`, `stack`, and `overlay` aren't
 > elements — they're built-in **classes** that set how an element arranges its children
 > (`row` / `column` lay them out in a line; `stack` / `overlay` layer them). Writing

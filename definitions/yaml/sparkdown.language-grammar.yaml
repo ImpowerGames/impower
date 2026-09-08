@@ -2446,7 +2446,7 @@ repository:
   AssetCommandFilteredFileName:
     tag: constant(variableName)
     name: variable.other.constant.asset.file.sd
-    match: ({{IDENTIFIER}})((?:[~][^~\s]+)+)
+    match: ({{IDENTIFIER}})((?:[:~][^:~\s]+)+)
     captures:
       1:
         patterns:
@@ -2466,7 +2466,7 @@ repository:
     match: ({{WS}}*[+]{{WS}}*)
 
   AssetCommandFilter:
-    match: ([~])($|[^~\s]+)?
+    match: ([:~])($|[^:~\s]+)?
     captures:
       1:
         patterns:
@@ -2478,12 +2478,12 @@ repository:
   AssetCommandFilterOperator:
     tag: propertyName
     name: variable.other.property.filter.sd
-    match: ([~])
+    match: ([:~])
 
   AssetCommandFilterName:
     tag: constant(variableName)
     name: variable.other.constant.asset.filter.sd
-    match: ([^~\s]+)
+    match: ([a-zA-Z_][a-zA-Z0-9_-]*(?:[.][a-zA-Z_][a-zA-Z0-9_-]*)*)
 
   WhitespaceAssetCommandClause:
     tag: content

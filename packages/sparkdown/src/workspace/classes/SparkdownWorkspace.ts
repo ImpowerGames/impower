@@ -1,3 +1,4 @@
+import { ImageVocabularyCache, imageFileForCompiler } from "../utils/prepareImageFile";
 import { Port1MessageConnection } from "@impower/jsonrpc/src/browser/classes/Port1MessageConnection";
 import { WorkerMessageConnection } from "@impower/jsonrpc/src/browser/classes/WorkerMessageConnection";
 import type { File,Range } from "../../compiler";
@@ -124,6 +125,8 @@ export abstract class SparkdownWorkspace {
   protected _lastCompiledUri?: string;
 
   protected _watchedFiles = new Map<string, File>();
+
+  protected _imageVocabularyCache = new ImageVocabularyCache();
 
   protected _programStates = new Map<string, ProgramState>();
 
@@ -323,7 +326,7 @@ export abstract class SparkdownWorkspace {
                   ? file.languageId
                   : this.getFileLanguageId(file.uri),
               ]);
-              const watchedFile = {
+              const watchedFile = this._imageVocabularyCache.prepare({
                 uri,
                 name,
                 ext,
@@ -332,10 +335,10 @@ export abstract class SparkdownWorkspace {
                 text,
                 version,
                 languageId,
-              };
+              });
               this._watchedFiles.set(watchedFile.uri, watchedFile);
               this.onCreatedFile(watchedFile);
-              return watchedFile;
+              return imageFileForCompiler(watchedFile, compilerConfig.stripImageData);
             }),
           )
         : undefined;
@@ -450,7 +453,7 @@ export abstract class SparkdownWorkspace {
       this.getFileLanguageId(file.uri),
     ]);
 
-    return {
+    return this._imageVocabularyCache.prepare({
       uri: file.uri,
       version,
       name,
@@ -459,7 +462,7 @@ export abstract class SparkdownWorkspace {
       src,
       text,
       languageId,
-    };
+    });
   }
 
   getDirectoryUri(uri: string): string {
@@ -1029,7 +1032,7 @@ export abstract class SparkdownWorkspace {
     await this.compilerReady();
     await this._compilerChannelConnection.sendRequest(
       AddCompilerFileMessage.type,
-      { file },
+      { file: imageFileForCompiler(file, this._compilerConfig?.stripImageData) },
     );
     if (
       this._lastCompiledUri &&
@@ -1046,12 +1049,12 @@ export abstract class SparkdownWorkspace {
       // Changed file is an asset or an unopened script
       const file = await this.loadFile({ uri });
       this._watchedFiles.set(uri, file);
-      this._documentVersions.set(uri, file.version);
+      this._documentVersions.set(uri, file.version ?? 0);
       this.onChangedFile(file);
       await this.compilerReady();
       await this._compilerChannelConnection.sendRequest(
         UpdateCompilerFileMessage.type,
-        { file },
+        { file: imageFileForCompiler(file, this._compilerConfig?.stripImageData) },
       );
       if (
         this._lastCompiledUri &&
@@ -1066,6 +1069,7 @@ export abstract class SparkdownWorkspace {
 
   async deleteFile(uri: string) {
     const deletedFile = this._watchedFiles.get(uri);
+    this._imageVocabularyCache.delete(uri);
     this._watchedFiles.delete(uri);
     this._programStates.delete(uri);
     this._documentVersions.delete(uri);

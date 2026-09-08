@@ -1,4 +1,5 @@
 import { ErrorCodes } from "@impower/spark-editor-protocol/src/enums/ErrorCodes";
+import { normalizeSVGAttributeNames } from "@impower/sparkdown/src/attributes";
 import { FileChangeType } from "@impower/spark-editor-protocol/src/enums/FileChangeType";
 import { ApplyWorkspaceEditMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/ApplyWorkspaceEditMessage";
 import { ConfigurationMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/ConfigurationMessage";
@@ -805,6 +806,11 @@ const enqueueWrite = async (
   version: number,
   buffer: DataView | Uint8Array,
 ) => {
+  if (/\.svg$/i.test(fileUri)) {
+    const source = new TextDecoder().decode(buffer);
+    const normalized = normalizeSVGAttributeNames(source);
+    if (normalized !== source) buffer = new TextEncoder().encode(normalized);
+  }
   return new Promise<{ file: FileData; created: boolean }>((resolve) => {
     if (!State.writeQueue.get(fileUri)) {
       State.writeQueue.set(fileUri, {

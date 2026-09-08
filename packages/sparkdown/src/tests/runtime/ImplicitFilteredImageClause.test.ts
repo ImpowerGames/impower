@@ -19,25 +19,26 @@ const compile = (text: string) => {
   return compiler.compile({ textDocument: { uri: "inmemory:///main.sd" } });
 };
 
-const SORTED = "bunny_suspicious~look_left~phone";
+const CANONICAL = "bunny_suspicious~phone~look.left";
 
 describe("implicit filtered_image is created regardless of a trailing clause", () => {
   test("a filtered asset with NO clause creates the implicit filtered_image", () => {
     const result = compile(`-> main
 
 scene main
-  [[bunny_suspicious~phone~look_left]]
+  [[bunny_suspicious:phone:look.left]]
   done
 end
 `);
     const images = result.program.context?.["filtered_image"] ?? {};
-    expect(Object.keys(images)).toContain(SORTED);
+    expect(Object.keys(images)).toContain(CANONICAL);
+    expect(images[CANONICAL].attributes).toEqual(["phone", "look.left"]);
   });
 
   test("a filtered asset WITH a `with` clause still creates the SAME clean key", () => {
     // Regression: the `AssetCommandName` node greedily includes the trailing
-    // space before the clause, so the last filter used to become "look_left ",
-    // producing a mismatched `bunny_suspicious~look_left ~phone` key (note the
+    // space before the clause, so the last attribute used to gain a space,
+    // producing a mismatched `bunny_suspicious~phone~look.left ` key (note the
     // space) that never matched the reference's `sortFilteredName` key — the
     // image "could not be found" whenever a clause like `with flip` followed.
     const result = compile(`-> main
@@ -49,7 +50,7 @@ define flip as animation with
 end
 
 scene main
-  [[bunny_suspicious~phone~look_left with flip]]
+  [[bunny_suspicious~phone~look.left with flip]]
   done
 end
 `);
@@ -58,7 +59,7 @@ end
       k.startsWith("bunny_suspicious"),
     );
     // Exactly the clean, space-free key — and no spaced variant.
-    expect(bunnyKeys).toEqual([SORTED]);
+    expect(bunnyKeys).toEqual([CANONICAL]);
     expect(bunnyKeys.some((k) => k.includes(" "))).toBe(false);
   });
 });

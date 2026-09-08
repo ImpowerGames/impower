@@ -158,7 +158,7 @@ const dynamicBaseOf = (fragment: string, hasVerb: boolean): string | null => {
   if (CLAUSE_KEYWORDS.has(last)) {
     return null;
   }
-  const base = last.split("~")[0] ?? "";
+  const base = last.split(/[:~]/)[0] ?? "";
   return base && base !== "none" ? base : null;
 };
 

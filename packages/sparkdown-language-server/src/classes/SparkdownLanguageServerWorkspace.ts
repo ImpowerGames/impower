@@ -299,8 +299,8 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
         configurable: true,
         enumerable: true,
         get: () => {
-          const text = this._watchedFiles.get(image.uri)?.text;
-          const value = text ? buildSVGSource(text) : undefined;
+          const file = this._watchedFiles.get(image.uri);
+          const value = file?.data ?? (file?.text ? buildSVGSource(file.text) : undefined);
           Object.defineProperty(image, "data", {
             configurable: true,
             enumerable: true,

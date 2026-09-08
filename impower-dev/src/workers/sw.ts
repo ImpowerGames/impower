@@ -85,12 +85,12 @@ async function handleLocalAssetRequest(url: URL) {
     }
   }
 
-  // `filtered_image` variants resolve as `?filters=<canonical>` on the root
+  // `filtered_image` variants resolve as `?attributes=<canonical>` on the root
   // SVG's url (#299): apply filterSVG here (SVG-only) and cache the result by
   // file signature + filter combo, so the program never has to embed SVG
   // source just to make filtering possible. Garbage or no-op params fall
   // through to the unfiltered original.
-  const filtersParam = url.searchParams.get("filters");
+  const filtersParam = url.searchParams.get("attributes");
   if (filtersParam && contentType === "image/svg+xml") {
     const filtered = await getOrCreateFilteredSvg(path, file, filtersParam);
     if (filtered) {
