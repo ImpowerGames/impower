@@ -7,7 +7,7 @@ description: Resolve a GitHub issue in this repo end-to-end — read the ticket,
 
 Takes an issue number and drives it to an open pull request. All paths below are relative to the repo root (the directory containing `package.json` with `"name": "impower-monorepo"`).
 
-The work happens in a dedicated worktree, and the steps run in the order below. Three of them are their own skills, and this file says where to invoke each one, on a line that begins ``Invoke `/<skill>` now``; a session that skips an invocation line skips the step, so `landing-pad.test.sh` beside this file pins those lines. The completion gate is at the end.
+The work happens in a dedicated worktree, and the steps run in the order below. Four of them are their own skills, and this file says where to invoke each one: three on a line that begins ``Invoke `/<skill>` now``, and the VS Code driver in the reproduction bullet and the §6 sentence that apply to an extension ticket; a session that skips an invocation skips the step, so `landing-pad.test.sh` beside this file pins those lines. The completion gate is at the end.
 
 ---
 
@@ -89,7 +89,7 @@ Do not start editing off the ticket's say-so. Establish the failure first, and k
 
 - Compiler, parser or engine issue (`system: sparkdown`): write the failing test now. Invoke `/write-regression-test` (the Skill tool, skill name `write-regression-test`) for where it lives and how to run just that file. Written first, the test is your repro and becomes the regression test in §5 unchanged.
 - Editor, preview or visual issue (`app: web-editor`, `system: sparkle-ui`): write a `.sd` repro and drive it through the editor. Invoke `/drive-web-editor` (skill name `drive-web-editor`) and screenshot the broken state now.
-- VS Code extension issue (`app: vscode-extension`): there is no headless driver (#463). Reproduce it where §6 says you will see the fix, in a development host if you have one, otherwise in the shared package underneath it, through the web editor or a failing test, and record which.
+- VS Code extension issue (`app: vscode-extension`): write a `.sd` repro and serve the built extension headlessly. Invoke `/drive-vscode-web` (skill name `drive-vscode-web`) and screenshot the broken state in the served workbench now.
 - A change with nothing to boot (hooks, skills, workflows, docs; nothing under `impower-dev/`, `packages/` or `vscode-sparkdown/`): the reproduction is the check that exercises it, run against the pre-change file and shown failing. A check written for this change runs against a copy from `git show origin/main:./<path>` (the `./` keeps Git Bash on Windows from reading the colon as a path list); a check that did not exist before the change is no evidence that it tells the change apart.
 
 ---
@@ -110,7 +110,7 @@ Invoke `/write-regression-test` now (skill name `write-regression-test`). It cov
 
 A change is not done until you have seen it running where it runs; passing tests are necessary, never sufficient.
 
-Invoke `/drive-web-editor` now (skill name `drive-web-editor`) for anything under `impower-dev/` or `packages/`: it boots the servers, drives the preview or the editor's own panels, and writes the `after.png` you then open and look at, or, for a change with no visual signature, replaces the screenshot with a measured before/after. For anything under `vscode-sparkdown/` there is no headless driver (#463): see the change in a development host if you have one, otherwise see the shared package underneath it through the web editor, and say in the pull request which you did. A change that touches nothing under those three directories has nothing to boot; the pull request says so, and the gate is the checks that exercise it, run at their new state and passing.
+Invoke `/drive-web-editor` now (skill name `drive-web-editor`) for anything under `impower-dev/` or `packages/`: it boots the servers, drives the preview or the editor's own panels, and writes the `after.png` you then open and look at, or, for a change with no visual signature, replaces the screenshot with a measured before/after. For anything under `vscode-sparkdown/`, and also for the language server (`packages/sparkdown-language-server/`, which both clients run, so a change there is seen through both drivers), invoke `/drive-vscode-web` (skill name `drive-vscode-web`): it serves the built extension through `vscode-test-web` and shows what an open `.sd` editor shows, the text, its diagnostics and a hover, in the screenshot you then open and look at. A change under `vscode-sparkdown/` that driver cannot reach (a preview panel, a command, a tree view, the debug adapter) is seen in a desktop development host when the session has one and is otherwise not seen at all; the pull request's Testing and verification section says which, and names the change as unverified when it was not seen. A change that touches nothing under `impower-dev/`, `packages/` or `vscode-sparkdown/` has nothing to boot; the pull request says so, and the gate is the checks that exercise it, run at their new state and passing.
 
 ---
 
@@ -145,7 +145,7 @@ Invoke `/review-pr` now (skill name `review-pr`). It sizes the review, spawns re
 The ticket is resolved when all of these hold, and not before:
 
 - A test pins the behaviour, red before the change and green after: `redgreen` on the regression test (§5), or, for a change with nothing to boot, the check that exercises it (§3).
-- You have seen the change where it runs: the `after.png` you opened, the measurement that replaces it, or, for a change with nothing to boot, the checks that exercise it (§6).
+- You have seen the change where it runs: the `after.png` you opened, the measurement that replaces it, or, for a change with nothing to boot, the checks that exercise it; a change the VS Code driver cannot reach was seen in a desktop host, or the pull request says it was not seen (§6).
 - The pull request is open with `Closes #N` in its body and the evidence in its Testing and verification section (§7).
 - `/review-pr` has marked it ready, or the PR says plainly what is still outstanding (§8).
 
@@ -165,6 +165,6 @@ The driver's own failures (a black or white preview, a scrub that did not land) 
 
 ## Improving this skill
 
-If any step above failed, needed a flag or path it does not give, did not apply to your ticket without saying so, or cost you time on something the step skills' Gotchas and Troubleshooting do not cover, report it under a "Skill feedback" heading in your final message with the edit you propose, as `CLAUDE.md` describes. Put the edit in the file that owns the step: the checklist here, the driver in drive-web-editor, tests and runs in write-regression-test, the review in review-pr. When you are certain of the fix, make it in its own commit on the PR branch and mention it under the PR's Notes for reviewers. An edit to this file is pinned by `landing-pad.test.sh` beside it, which requires exactly one line beginning ``Invoke `/<skill>` now`` per step skill, in workflow order, before the completion gate; run `bash .claude/skills/resolve-issue/landing-pad.test.sh` after editing here.
+If any step above failed, needed a flag or path it does not give, did not apply to your ticket without saying so, or cost you time on something the step skills' Gotchas and Troubleshooting do not cover, report it under a "Skill feedback" heading in your final message with the edit you propose, as `CLAUDE.md` describes. Put the edit in the file that owns the step: the checklist here, the web editor driver in drive-web-editor, the VS Code extension driver in drive-vscode-web, tests and runs in write-regression-test, the review in review-pr. When you are certain of the fix, make it in its own commit on the PR branch and mention it under the PR's Notes for reviewers. An edit to this file is pinned by `landing-pad.test.sh` beside it, which requires exactly one line beginning ``Invoke `/<skill>` now`` per step skill, in workflow order, before the completion gate, and one sentence invoking `/drive-vscode-web` in §3 and one in §6; run `bash .claude/skills/resolve-issue/landing-pad.test.sh` after editing here.
 
 Prefer a mechanism to a warning. When the problem is a step a session can forget or get wrong (a copy that goes stale, a value that has to be re-derived, a check that only works if someone remembers it) propose the driver command or the check that makes the mistake impossible, not a sentence telling the next session to be careful; the sentence is what just failed. A warning is the right proposal only for something a tool cannot absorb: a judgement call, a fact about the machine, a trap in a library the driver does not wrap.

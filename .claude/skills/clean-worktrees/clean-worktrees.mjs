@@ -179,6 +179,7 @@ export const liveDeps = {
   },
   processes: () => listProcesses(liveDeps.exec),
   exists: (p) => fs.existsSync(p),
+  readFile: (p) => fs.readFileSync(p, "utf8"),
   listDirs: (p) => {
     try {
       return fs
@@ -258,12 +259,16 @@ export function parseWorktreeList(text) {
 
 // What a worktree's driver said about its dev servers. `UP` is up; `DOWN`
 // names a record whose URL does not answer, which is a tree still launching
-// while its pid lives and a stale record otherwise; `down` is no record; any
-// other output is a driver that could not answer, which counts as unknown.
+// while its pid lives and a stale record otherwise; `down` is no record; a
+// line saying the state file could not be read, whatever word it starts
+// with, is a driver that could not answer, since the record may name a live
+// server; and so is any other output, with the first line that names an
+// error as the detail (a load failure prints a Node frame before the error).
 export function serversFrom(output, alive = pidAlive) {
   const lines = output.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
   const line = lines.find((l) => /^(UP|DOWN|down)\b/.test(l));
-  if (!line) return { state: "unknown", detail: lines[0] ?? "no output" };
+  if (!line) return { state: "unknown", detail: lines.find((l) => /error/i.test(l)) ?? lines[0] ?? "no output" };
+  if (/state file unreadable/.test(line)) return { state: "unknown", detail: line };
   if (line.startsWith("down")) return { state: "down" };
   const url = /url=(\S+)/.exec(line)?.[1];
   const pid = Number(/pid=(\d+)/.exec(line)?.[1]);
@@ -307,10 +312,13 @@ export function classify(entry, facts) {
     else if (!facts.committed && facts.onFirstParent) keep.push(`no commit was made on the branch: its tip is on origin/main's first-parent line and its reflog records none (${remoteState}); a fresh worktree a session may be working in, so remove it by hand when it is done`);
     else if (!facts.committed && facts.created) keep.push(`no commit was made on the branch: its reflog holds its creation and no commit since (${remoteState}); a fresh worktree a session may be working in, so remove it by hand when it is done`);
     else if (!facts.committed) keep.push(`its reflog records neither a commit nor its creation, so whether a commit was made on it cannot be told, and its tip is off origin/main's first-parent line (${remoteState}); left for a person, and \`git worktree remove\` plus \`git branch -D\` by hand once its commits are checked`);
-    const s = facts.servers;
-    if (s.state === "up") keep.push(`dev servers up at ${s.url} (pid ${s.pid})`);
-    else if (s.state === "launching") keep.push(`dev servers launching (pid ${s.pid} alive, ${s.url} not answering); the worktree's driver \`down\` settles it`);
-    else if (s.state === "unknown") keep.push(`its driver could not report its servers (${s.detail})`);
+    for (const s of serverRows(facts.servers)) {
+      const via = s.driver ? ` through ${s.driver}` : "";
+      if (s.state === "up") keep.push(`dev servers up at ${s.url} (pid ${s.pid})${via}`);
+      else if (s.state === "launching") keep.push(`dev servers launching (pid ${s.pid} alive, ${s.url} not answering)${via}; the worktree's driver \`down\` settles it`);
+      else if (s.state === "recorded") keep.push(`its driver${via} could not report its servers (${s.detail}), and its state file records pid ${s.pid} alive at ${s.url}; the worktree's driver \`down\` settles it once the driver runs, or stop the pid by hand`);
+      else if (s.state === "unknown") keep.push(`its driver${via} could not report its servers (${s.detail})`);
+    }
     if (facts.users === null) keep.push("the processes on this machine could not be listed, so whether one is using it is unknown");
     else if (facts.users.length) keep.push(`its path is on the command line of ${listSome(facts.users.map((p) => `pid ${p.pid} (${p.name})`), 2)}`);
   }
@@ -327,13 +335,64 @@ const gitOrDie = (deps, args, cwd) => {
   return r.out;
 };
 
-const DRIVERS = [".claude/skills/drive-web-editor/driver.mjs", ".claude/skills/resolve-issue/driver.mjs"];
+// Every driver a worktree may hold, each with its own server and the places
+// it keeps its state file, in the order it looks: the web editor driver
+// reads the file beside itself and otherwise the one under `resolve-issue/`,
+// where it lived in older worktrees and where a server launched from there
+// is still recorded.
+const DRIVERS = [
+  { driver: ".claude/skills/drive-web-editor/driver.mjs", states: [".claude/skills/drive-web-editor/.state.json", ".claude/skills/resolve-issue/.state.json"] },
+  { driver: ".claude/skills/drive-vscode-web/driver.mjs", states: [".claude/skills/drive-vscode-web/.state.json"] },
+  { driver: ".claude/skills/resolve-issue/driver.mjs", states: [".claude/skills/resolve-issue/.state.json"] },
+];
 
-function probeServers(worktree, deps) {
-  const driver = DRIVERS.map((d) => path.join(worktree, d)).find((p) => deps.exists(p));
-  if (!driver) return { state: "none" };
-  const r = deps.exec(process.execPath, [driver, "status"], worktree, 60_000);
-  return serversFrom(`${r.out}\n${r.err}`, deps.pidAlive);
+// The state file a driver would read: the first of its places that exists,
+// or the first of them when none does.
+const stateFileOf = (worktree, d, exists) => {
+  const files = d.states.map((s) => path.join(worktree, s));
+  return files.find(exists) ?? files[0];
+};
+
+// Asks every driver the worktree has for its servers and returns each
+// answer, named by the driver, so a row can say which driver's `down`
+// settles it. A driver that could not answer is judged by its own state
+// file instead.
+export function probeServers(worktree, deps) {
+  const drivers = DRIVERS.filter((d) => deps.exists(path.join(worktree, d.driver)));
+  return drivers.map((d) => {
+    const r = deps.exec(process.execPath, [path.join(worktree, d.driver), "status"], worktree, 60_000);
+    const answer = serversFrom(`${r.out}\n${r.err}`, deps.pidAlive);
+    const judged = answer.state === "unknown" ? recordedServer(stateFileOf(worktree, d, deps.exists), deps, answer.detail) : answer;
+    return { ...judged, driver: path.basename(path.dirname(d.driver)) };
+  });
+}
+
+// What a driver that could not answer (a load failure, a `status` that hung)
+// would have said, read from the state file it writes at launch and removes
+// when its server is stopped: no file is no server; a file naming a pid
+// still alive is a server that may be up, reported with the URL the file
+// records; a file naming a dead pid is a stale record; a file that cannot be
+// read, or names no server, leaves the driver unknown. `detail` is why the
+// driver could not answer, and goes into the row.
+export function recordedServer(stateFile, deps, detail) {
+  if (!deps.exists(stateFile)) return { state: "down", detail };
+  let record;
+  try {
+    record = JSON.parse(deps.readFile(stateFile));
+  } catch (err) {
+    return { state: "unknown", detail: `${detail}; its state file could not be read (${String(err.message).split("\n")[0]})` };
+  }
+  if (!record?.url || record.pid == null) return { state: "unknown", detail: `${detail}; its state file names no server` };
+  if (!deps.pidAlive(record.pid)) return { state: "down", detail, url: record.url, pid: record.pid };
+  return { state: "recorded", url: record.url, pid: record.pid, detail };
+}
+
+// The answers that become rows: every driver's answer but a definite
+// `down`, each its own row, so a person stopping one server is told about
+// the other. One driver's answer says nothing about another driver's
+// servers, so a driver's `down` never removes another's row.
+export function serverRows(results) {
+  return results.filter((s) => s.state !== "down");
 }
 
 // `git status --porcelain --ignored=matching`: the tree's changes, untracked
@@ -384,7 +443,7 @@ function gatherFacts(entry, ctx, deps) {
     onFirstParent: false,
     committed: false,
     created: false,
-    servers: { state: "none" },
+    servers: [],
     users: [],
   };
   facts.isDefault = !facts.isMain && Boolean(entry.branch) && ctx.defaultBranches.has(entry.branch);
