@@ -2107,6 +2107,8 @@ export {
   hereOrPrevious,
   pidAlive,
   recordStands,
+  processStartedMs,
+  resolveChromiumExecutablePath,
   liveProbe,
   READY_WAIT_MS,
   LAUNCH_SLACK_MS,

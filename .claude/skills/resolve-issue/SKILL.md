@@ -89,7 +89,7 @@ Do not start editing off the ticket's say-so. Establish the failure first, and k
 
 - Compiler, parser or engine issue (`system: sparkdown`): write the failing test now. Invoke `/write-regression-test` (the Skill tool, skill name `write-regression-test`) for where it lives and how to run just that file. Written first, the test is your repro and becomes the regression test in §5 unchanged.
 - Editor, preview or visual issue (`app: web-editor`, `system: sparkle-ui`): write a `.sd` repro and drive it through the editor. Invoke `/drive-web-editor` (skill name `drive-web-editor`) and screenshot the broken state now.
-- VS Code extension issue (`app: vscode-extension`): there is no headless driver (#463). Reproduce it where §6 says you will see the fix, in a development host if you have one, otherwise in the shared package underneath it, through the web editor or a failing test, and record which.
+- VS Code extension issue (`app: vscode-extension`): write a `.sd` repro and serve the built extension headlessly. Invoke `/drive-vscode-web` (skill name `drive-vscode-web`) and screenshot the broken state in the served workbench now.
 - A change with nothing to boot (hooks, skills, workflows, docs; nothing under `impower-dev/`, `packages/` or `vscode-sparkdown/`): the reproduction is the check that exercises it, run against the pre-change file and shown failing. A check written for this change runs against a copy from `git show origin/main:./<path>` (the `./` keeps Git Bash on Windows from reading the colon as a path list); a check that did not exist before the change is no evidence that it tells the change apart.
 
 ---
@@ -110,7 +110,7 @@ Invoke `/write-regression-test` now (skill name `write-regression-test`). It cov
 
 A change is not done until you have seen it running where it runs; passing tests are necessary, never sufficient.
 
-Invoke `/drive-web-editor` now (skill name `drive-web-editor`) for anything under `impower-dev/` or `packages/`: it boots the servers, drives the preview or the editor's own panels, and writes the `after.png` you then open and look at, or, for a change with no visual signature, replaces the screenshot with a measured before/after. For anything under `vscode-sparkdown/` there is no headless driver (#463): see the change in a development host if you have one, otherwise see the shared package underneath it through the web editor, and say in the pull request which you did. A change that touches nothing under those three directories has nothing to boot; the pull request says so, and the gate is the checks that exercise it, run at their new state and passing.
+Invoke `/drive-web-editor` now (skill name `drive-web-editor`) for anything under `impower-dev/` or `packages/`: it boots the servers, drives the preview or the editor's own panels, and writes the `after.png` you then open and look at, or, for a change with no visual signature, replaces the screenshot with a measured before/after. For anything under `vscode-sparkdown/`, invoke `/drive-vscode-web` (skill name `drive-vscode-web`): it serves the built extension through `vscode-test-web`, opens the `.sd` in the served workbench, reads its diagnostics and a hover, and writes the screenshot you then open and look at. A change that touches nothing under those three directories has nothing to boot; the pull request says so, and the gate is the checks that exercise it, run at their new state and passing.
 
 ---
 

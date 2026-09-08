@@ -8,11 +8,14 @@
 # that order, that the parenthetical on each names the same step, that each
 # step's SKILL.md exists and declares that name in its frontmatter (the harness
 # resolves a skill by that `name:`, not by its directory), that the completion
-# gate follows every invocation, and that the file stays short enough to load
-# into every session. A conditional mention elsewhere in the pad (the repro
-# bullets) does not begin a line with that phrase, so it is not counted, and
-# neither is a line that forbids the invocation or a line inside a fenced
-# block, which is an example rather than an instruction. Run:
+# gate follows every invocation, that the pad names the VS Code driver
+# (drive-vscode-web, invoked only for an extension ticket) with the same
+# parenthetical and that skill exists under that name, and that the file
+# stays short enough to load into every session. A conditional mention
+# elsewhere in the pad (the repro bullets) does not begin a line with that
+# phrase, so it is not counted, and neither is a line that forbids the
+# invocation or a line inside a fenced block, which is an example rather than
+# an instruction. Run:
 #   bash .claude/skills/resolve-issue/landing-pad.test.sh
 #
 # SKILL_MD overrides the file under test and SKILLS_DIR the directory the step
@@ -87,6 +90,22 @@ for step in write-regression-test drive-web-editor review-pr; do
     continue
   fi
   echo "PASS  /$step invoked at line $at"
+done
+
+# The VS Code driver is invoked only for an `app: vscode-extension` ticket, so
+# its mention is conditional rather than a line of its own; the pad must still
+# name it with the parenthetical the Skill tool needs, and the skill must exist
+# under that name, or a session on such a ticket is sent nowhere.
+for step in drive-vscode-web; do
+  if ! grep -q "(skill name \`$step\`)" "$skill"; then
+    note_fail "the pad never names (skill name \`$step\`)"
+  elif [[ ! -r "$skills_dir/$step/SKILL.md" ]]; then
+    note_fail "/$step is named but $skills_dir/$step/SKILL.md does not exist"
+  elif ! grep -q "^name: $step\$" "$skills_dir/$step/SKILL.md"; then
+    note_fail "/$step is named but $skills_dir/$step/SKILL.md does not declare name: $step"
+  else
+    echo "PASS  /$step named, $(grep -c "(skill name \`$step\`)" "$skill") mention(s)"
+  fi
 done
 
 gate=$(grep -n '^## The completion gate' "$skill" | cut -d: -f1)
@@ -186,6 +205,13 @@ for step in write-regression-test drive-web-editor review-pr; do
   printf -- '---\nname: %s-renamed\ndescription: a renamed copy\n---\n' "$step" > "$tmp/renamed/$step/SKILL.md"
 done
 SKILLS_DIR="$tmp/renamed" expect_fail "a step skill whose frontmatter declares another name" "$skill" "does not declare name:"
+
+sed 's|(skill name `drive-vscode-web`)||g' "$skill" > "$tmp/no-vscode.md"
+expect_fail "drive-vscode-web mention removed" "$tmp/no-vscode.md" "the pad never names (skill name \`drive-vscode-web\`)"
+
+mkdir -p "$tmp/renamed/drive-vscode-web"
+printf -- '---\nname: drive-vscode-web-renamed\ndescription: a renamed copy\n---\n' > "$tmp/renamed/drive-vscode-web/SKILL.md"
+SKILLS_DIR="$tmp/renamed" expect_fail "the VS Code driver skill declares another name" "$skill" "does not declare name: drive-vscode-web"
 
 grep -v '^## The completion gate' "$skill" > "$tmp/no-gate.md"
 expect_fail "completion gate removed" "$tmp/no-gate.md" "no '## The completion gate' heading"
