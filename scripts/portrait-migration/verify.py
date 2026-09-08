@@ -92,11 +92,16 @@ def verify_project(source, project, config, extra_exceptions=None):
             # including files no script directive happens to reference.
             converted = copy.deepcopy(tree)
             legacy.convert_tree(converted,path.stem.split('_')[0])
-            expected_names = {n.id:legacy.format_new(n.new) for n in migrate.nodes(converted) if n.new}
+            converted_layers = migrate.layer_input(converted)
+            expected_names = {n['key']:n['name'] for n in converted_layers if n['legacyId']}
+            names_by_id = {n['legacyId']:n['name'] for n in converted_layers if n['legacyId']}
             actual_xml = ET.fromstring(checked_file(project,relative).read_bytes())
-            actual_names = {n.get('id'):n.get('data-name') for n in actual_xml.iter() if n.get('id') in expected_names}
+            actual_names = {key:n.get('data-name') for key,n in migrate.xml_layers(actual_xml).items() if key in expected_names}
             if actual_names != expected_names:
                 raise ValueError(f'Actual SVG layer names differ from source-derived conversion: {relative}')
+            expected_svg = migrate.rewrite_svg(path.read_text(encoding='utf-8-sig'),names_by_id)
+            if checked_file(project,relative).read_text(encoding='utf-8-sig') != expected_svg:
+                raise ValueError(f'Actual SVG changed beyond layer names and unreferenced legacy IDs: {relative}')
         svgs[path.stem] = checked_file(project,relative).read_text(encoding='utf-8-sig')
     if len(rewritten) != audit['portraitFiles']:
         raise ValueError('Rewritten portrait count differs from report')

@@ -12,8 +12,11 @@ def sample(root):
     for folder in [source,project]:
         (folder/'assets').mkdir(parents=True)
         (folder/'scripts').mkdir()
-    before = '<svg><g id="filter-face-neutral-default"/><g id="filter-face-happy"/></svg>'
-    after = '<svg><g id="filter-face-neutral-default" data-name="face.neutral:default"/><g id="filter-face-happy" data-name="face.happy"/></svg>'
+    # XML declaration, comments, text, resources and anonymous scopes exercise
+    # element-path mapping without relying on IDs in the migrated artwork.
+    prefix = '<?xml version="1.0"?><svg><defs><path id="shape" d="M0 0"/></defs><!-- artist note --><g>text'
+    before = prefix+'<g id="filter-face-neutral-default"/><g id="filter-face-happy"/></g></svg>'
+    after = prefix+'<g data-name="face.neutral:default"/><g data-name="face.happy"/></g></svg>'
     source_files = {
         'assets/mia.svg':before, 'assets/mia_unused.svg':before,
         'main.sd':'[[mia~face_happy]]\n[[party]]\n',
@@ -80,6 +83,26 @@ class VerifyTests(unittest.TestCase):
             report['outputHashes']['main.sd'] = hashlib.sha256(path.read_bytes()).hexdigest()
             (project/'portrait-migration-report.json').write_text(json.dumps(report))
             with self.assertRaisesRegex(ValueError,'directive multiset'):
+                verify.verify_project(source,project,config)
+
+    def test_drawing_edit_is_rejected_even_with_updated_output_hash(self):
+        with tempfile.TemporaryDirectory() as directory:
+            source,project,config,report = sample(Path(directory))
+            path = project/'assets/mia.svg'
+            path.write_text(path.read_text().replace('d="M0 0"','d="M1 1"'))
+            report['outputHashes']['assets/mia.svg'] = hashlib.sha256(path.read_bytes()).hexdigest()
+            (project/'portrait-migration-report.json').write_text(json.dumps(report))
+            with self.assertRaisesRegex(ValueError,'beyond layer names'):
+                verify.verify_project(source,project,config)
+
+    def test_obsolete_id_is_rejected_even_with_updated_output_hash(self):
+        with tempfile.TemporaryDirectory() as directory:
+            source,project,config,report = sample(Path(directory))
+            path = project/'assets/mia.svg'
+            path.write_text(path.read_text().replace('data-name="face.happy"','id="filter-face-happy" data-name="face.happy"'))
+            report['outputHashes']['assets/mia.svg'] = hashlib.sha256(path.read_bytes()).hexdigest()
+            (project/'portrait-migration-report.json').write_text(json.dumps(report))
+            with self.assertRaisesRegex(ValueError,'beyond layer names'):
                 verify.verify_project(source,project,config)
 
 

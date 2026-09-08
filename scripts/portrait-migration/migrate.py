@@ -16,15 +16,40 @@ HERE = Path(__file__).resolve().parent
 REPO = HERE.parent.parent
 TAG = re.compile(r'<!--[\s\S]*?-->|<!\[CDATA\[[\s\S]*?\]\]>|<[^>]+>')
 ID = re.compile(r'(?<![\w:-])id\s*=\s*([\"\'])(.*?)\1')
+ID_ATTRIBUTE = re.compile(r'\s+id\s*=\s*([\"\'])(.*?)\1')
 DATA_NAME = re.compile(r'\s+data-name\s*=\s*([\"\'])(.*?)\1')
 DIRECTIVE = re.compile(r'\[\[([^\]]*)\]\]')
 
+def removable_layer_ids(root, names):
+    """Keep referenced IDs conservatively, including CSS, links and animation refs.
+
+    References may occur in arbitrary attributes or embedded CSS/script text.
+    A substring match deliberately retains uncertain references rather than
+    risking broken artwork; export labels themselves are not references.
+    """
+    labels = {'id', 'data-name', '{http://www.serif.com/}id',
+              '{http://www.inkscape.org/namespaces/inkscape}label'}
+    reference_text = '\n'.join(value for node in root.iter()
+                               for key,value in node.attrib.items() if key not in labels)
+    reference_text += '\n'+'\n'.join(node.text or '' for node in root.iter()
+                                     if node.tag.rsplit('}',1)[-1] in ('style','script'))
+    return {name for name in names if name != root.get('id') and name not in reference_text}
+
+def xml_layers(root):
+    """Element-only paths match legacy.load_svg; text/comments are not siblings."""
+    def walk(node,key):
+        yield key,node
+        for index,child in enumerate(node):
+            yield from walk(child,f'{key}/{index}')
+    return dict(walk(root,'root'))
+
 def rewrite_svg(source, names):
-    """Change only data-name, preserving paths, IDs, namespaces and palette metadata."""
+    """Change layer data-name and remove unreferenced legacy layer IDs only."""
     root = ET.fromstring(source)
     ids = [n.get('id') for n in root.iter() if n.get('id')]
     if len(set(ids)) != len(ids):
         raise ValueError('duplicate SVG ids')
+    removable = removable_layer_ids(root,names)
     seen = set()
     def replace(match):
         tag = match[0]
@@ -37,8 +62,10 @@ def rewrite_svg(source, names):
         seen.add(id_)
         attr = ' data-name="' + html.escape(names[id_], quote=True) + '"'
         if DATA_NAME.search(tag):
-            return DATA_NAME.sub(lambda _: attr, tag, count=1)
-        return tag[:id_match.end()] + attr + tag[id_match.end():]
+            tag = DATA_NAME.sub(lambda _: attr, tag, count=1)
+        else:
+            tag = tag[:id_match.end()] + attr + tag[id_match.end():]
+        return ID_ATTRIBUTE.sub('',tag,count=1) if id_ in removable else tag
     result = TAG.sub(replace, source)
     if seen != set(names):
         raise ValueError(f'Could not locate source layer IDs: {sorted(set(names)-seen)}')
@@ -46,8 +73,10 @@ def rewrite_svg(source, names):
         expected = dict(before.attrib)
         if before.get('id') in names:
             expected['data-name'] = names[before.get('id')]
+        if before.get('id') in removable:
+            del expected['id']
         if after.attrib != expected or after.tag != before.tag or after.text != before.text:
-            raise ValueError(f'SVG changed beyond data-name: {before.get("id")}')
+            raise ValueError(f'SVG changed beyond layer data-name/obsolete ID: {before.get("id")}')
     return result
 
 def nodes(tree):
@@ -131,7 +160,7 @@ def unresolved_attributes(filters, config):
             result.append(prefix[:-1]+'.'+name[len(prefix):].replace('_','-') if prefix else name.replace('_','-'))
     return compact(result)
 
-def migrate(source, output, config, extra_exceptions=None):
+def migrate(source, output, config, extra_exceptions=None, heap_mb=256):
     source, output = Path(source).resolve(), Path(output).resolve()
     if source == output or source in output.parents or output in source.parents:
         raise ValueError('Input and output must be separate, non-nested project directories')
@@ -147,12 +176,19 @@ def migrate(source, output, config, extra_exceptions=None):
     if not svg_files:
         raise ValueError('No portrait SVGs under assets/')
     trees, inputs, indexes, outputs, hashes, notes = {}, {}, {}, {}, {}, []
+    id_cleanup = {'removedLayerIds':0,'preservedOtherIds':0,'preservedLayerIds':[]}
     for name, path in svg_files.items():
         tree = legacy.load_svg(path)
         legacy.convert_tree(tree, name.split('_')[0])
         trees[name], inputs[name], indexes[name] = tree, layer_input(tree), legacy.group_index(tree)
         names = {n.id:legacy.format_new(n.new) for n in nodes(tree) if n.new}
         relative, original = path.relative_to(source).as_posix(), path.read_bytes()
+        if names:
+            xml = ET.fromstring(original)
+            removable = removable_layer_ids(xml,names)
+            id_cleanup['removedLayerIds'] += len(removable)
+            id_cleanup['preservedOtherIds'] += sum(bool(n.get('id')) and n.get('id') not in names for n in xml.iter())
+            id_cleanup['preservedLayerIds'].extend({'file':relative,'id':id_} for id_ in sorted(set(names)-removable))
         outputs[relative] = rewrite_svg(original.decode('utf-8-sig'), names).encode('utf-8')
         hashes[relative] = sha(original)
         for n in nodes(tree):
@@ -214,7 +250,7 @@ def migrate(source, output, config, extra_exceptions=None):
         start = len(requests)
         requests.extend({'tree':root,'attributes':flatten(c)} for c in combos)
         ranges[token] = (start,len(requests))
-    evaluated = evaluate(inputs,requests)
+    evaluated = evaluate(inputs,requests,heap_mb=heap_mb)
     chosen, failures = {}, []
     for token,(root,base,count,combos) in candidates.items():
         start,end = ranges[token]
@@ -250,7 +286,7 @@ def migrate(source, output, config, extra_exceptions=None):
                        (chosen[e['base']]['baseAttributes'] if e['base'] in legacy.COMPOSITES else [])+e['attributes']}
                        for e in chosen.values()]
     actual = evaluate(inputs,actual_requests,{name:outputs[path.relative_to(source).as_posix()].decode('utf-8')
-                                              for name,path in svg_files.items()})
+                                              for name,path in svg_files.items()},heap_mb=heap_mb)
     for (token,entry),result in zip(chosen.items(),actual['results']):
         if set(result['visible']) != set(entry['new']):
             failures.append({'directive':token,'reason':'serialized named look changes candidate result',
@@ -265,6 +301,7 @@ def migrate(source, output, config, extra_exceptions=None):
               'portraitFiles':sum(any(name.startswith(p) for p in config['portrait_prefixes']) for name in trees),
               'auditImageFiles':len(trees),
               'convertedLayers':sum(n.new is not None for t in trees.values() for n in nodes(t)),
+              'svgIdCleanup':id_cleanup,
               'differences':{k:v['difference'] for k,v in chosen.items() if any(v['difference'].values())},
               'missingHistoricalDirectives':sorted(set(config['historical_exceptions'])-set(main_usage)),
               'missingImageDirectives':unresolved,

@@ -12,7 +12,21 @@ class MigrationTests(unittest.TestCase):
         source = '<svg xmlns="http://www.w3.org/2000/svg"><g id="filter-hat"><path fill="#abc" d="M0 0"/></g><g id="body"/></svg>'
         result = migrate.rewrite_svg(source, {'filter-hat': 'hat.on'})
         self.assertIn('id="body"', result)  # Positive control on old behavior.
-        self.assertEqual(result, source.replace('id="filter-hat"', 'id="filter-hat" data-name="hat.on"'))
+        self.assertEqual(result, source.replace('id="filter-hat"', 'data-name="hat.on"'))
+
+    def test_referenced_layer_ids_and_render_resources_are_preserved(self):
+        source = '<svg id="art"><defs><clipPath id="clip"><path d="M0 0"/></clipPath><linearGradient id="paint"/></defs><g id="filter-hat" clip-path="url(#clip)" fill="url(#paint)"/><g id="filter-coat"/><use href="#filter-hat"/><use xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="#filter-coat"/><g id="filter-glasses"/></svg>'
+        result = migrate.rewrite_svg(source, {'filter-hat':'hat.on','filter-coat':'coat.on','filter-glasses':'glasses.on'})
+        self.assertIn('id="filter-hat"',result)
+        self.assertIn('id="filter-coat"',result)
+        self.assertNotIn('id="filter-glasses"',result)
+        self.assertIn('clip-path="url(#clip)" fill="url(#paint)"',result)
+        self.assertIn('<svg id="art"><defs><clipPath id="clip">',result)
+
+    def test_drawing_bytes_change_only_at_layer_id_and_name_attributes(self):
+        source = '<svg id="art" xmlns:serif="http://www.serif.com/"><g  id = \'filter-hat\' data-name="old" serif:id="artist label" style="fill:#00ffaa"><path id="shape" d="M 0,0 L 4,5"/></g></svg>'
+        result = migrate.rewrite_svg(source,{'filter-hat':'hat.on'})
+        self.assertEqual(result,source.replace("  id = 'filter-hat'",'').replace('data-name="old"','data-name="hat.on"'))
 
     def test_existing_data_name_is_replaced_once(self):
         source = '<svg><g data-name="old" id="filter-eyes"/></svg>'
