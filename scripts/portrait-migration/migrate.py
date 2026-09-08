@@ -68,7 +68,7 @@ def layer_input(tree):
     walk(tree, 'root')
     return layers
 
-def evaluate(trees, requests, svgs=None):
+def evaluate(trees, requests, svgs=None, heap_mb=1024):
     """All new selections/visibility come from the production TypeScript core."""
     cli = REPO/'node_modules/tsx/dist/cli.mjs'
     if not cli.is_file():
@@ -76,7 +76,7 @@ def evaluate(trees, requests, svgs=None):
     run = subprocess.run(['node', str(cli), str(HERE/'evaluate.ts')],
                          input=json.dumps({'trees': trees, 'requests': requests, 'svgs': svgs}),
                          text=True, encoding='utf-8', capture_output=True, cwd=REPO,
-                         env=dict(os.environ, NODE_OPTIONS='--max-old-space-size=1024'))
+                         env=dict(os.environ, NODE_OPTIONS=f'--max-old-space-size={heap_mb}'))
     if run.returncode:
         raise RuntimeError(f'Production evaluator failed:\n{run.stderr}\n{run.stdout[:2000]}')
     return json.loads(run.stdout)

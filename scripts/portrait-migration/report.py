@@ -3,6 +3,28 @@ import argparse
 import json
 from pathlib import Path
 
+def directive_diagnostics(report):
+    entries = []
+    for original,entry in report['directives'].items():
+        unique = {}
+        for diagnostic in entry.get('diagnostics',[]):
+            key = tuple(diagnostic.get(field,'') for field in ['code','severity','folder','attribute','group','layer','message'])
+            unique.setdefault(key,diagnostic)
+        if unique: entries.append((original,entry,list(unique.values())))
+    count = sum(len(diagnostics) for _,_,diagnostics in entries)
+    uses = sum(entry['uses'] for _,entry,_ in entries)
+    lines = ['## Directive diagnostics','',
+             f'{count} diagnostics across {len(entries)} directives and {uses} uses. Equivalent layer sets can still carry warnings: an attribute may be ignored, or one folder may lack the selected option.','']
+    for original,entry,diagnostics in entries:
+        use_label = 'use' if entry['uses'] == 1 else 'uses'
+        lines += [f'### `[[{entry["converted"]}]]` — {entry["uses"]} {use_label}','',f'Original: `{original}`.','']
+        for diagnostic in diagnostics:
+            details = [f'{field}: `{diagnostic[field]}`' for field in ['attribute','folder','group','layer'] if diagnostic.get(field)]
+            scope = ' ('+'; '.join(details)+')' if details else ''
+            lines.append(f'- `{diagnostic["code"]}`{scope}: {diagnostic["message"]}')
+        lines.append('')
+    return '\n'.join(lines)
+
 def render(report):
     lines = ['# Portrait migration report', '',
              f'Source commit: `{report["sourceCommit"]}`. Source/output hashes and complete layer sets are in `portrait-migration-report.json`.', '',
@@ -20,7 +42,7 @@ def render(report):
         for name in change['removed']: lines.append(f'- Old shows; new hides: `{name}`.')
         for name in change['added']: lines.append(f'- New shows; old hides: `{name}`.')
         lines.append('')
-    lines += ['## Artist notes', '']
+    lines += [directive_diagnostics(report),'## Artist notes', '']
     for note in report['artNotes']:
         lines.append(f'- `{note["file"]}` / `{note["layer"]}`: {note["note"]}.' + (f' New name: `{note["name"]}`.' if 'name' in note else ''))
     lines += ['', '## Conflicting defaults', '']

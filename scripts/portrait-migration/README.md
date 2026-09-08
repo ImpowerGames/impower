@@ -28,13 +28,25 @@ The current script also has 38 references to eight missing images or looks: `bun
 
 ## Regression checks
 
+Verify the actual migrated project against the untouched source before publishing. This is the release gate; the metadata fixture below is a regression check and does not replace it:
+
+```powershell
+python scripts/portrait-migration/verify.py PATH/TO/LEGACY/project PATH/TO/REVIEW/project --exceptions scripts/portrait-migration/raffles-and-bunny-8d734bb-exceptions.json --corruption-controls
+```
+
+The verifier reads the supplied source, migration report, actual scripts, and serialized SVGs. It checks source/output hashes, the rewritten directive multiset and counts, every named look's actual attributes, source-derived old visible-layer expectations with the reviewed exceptions, and every rewritten SVG's names. All 57 portraits are covered, including `bunny_annoyed`, `mackenzie_arrest`, and `mackenzie_yell`, which no current directive uses; those three actual resting looks are evaluated separately. The `--corruption-controls` option edits scratch copies only and requires a corrupted SVG name, deleted directive, and edited named-look attribute each to fail verification. The original and migrated project stay untouched.
+
+Measured against the current project migration: 80 output-file hashes, all 57 rewritten portraits, and 478 distinct directives passed; the production evaluator checked 481 selections including the three unused resting looks. All three scratch corruption controls were rejected. This verifier uses one Node process capped at a 256 MB heap. The readable artist report now includes 37 deduplicated production diagnostics across 23 directives and 39 uses, with converted spellings and affected attributes/folders.
+
 ```powershell
 python -m unittest discover -s scripts/portrait-migration -p test_migrate.py
+python -m unittest discover -s scripts/portrait-migration -p test_verify.py
+python -m unittest discover -s scripts/portrait-migration -p test_report.py
 $env:NODE_OPTIONS='--max-old-space-size=1024'
 node node_modules/tsx/dist/cli.mjs --test scripts/portrait-migration/equivalence.test.ts
 ```
 
-The Python suite checks byte-preserving SVG renaming, comments and namespaces, duplicate-ID rejection, the old exclude/parent rules, later-wins ordering, a complete production-core project migration, repeatability, and protection of unrelated output edits. The first three tests failed with assertions on the pre-migration identity function, then passed after implementation. The metadata fixture runs 479 Node tests: one source/count check and one complete visible-layer assertion per directive. It contains names and hierarchy only, with no drawing geometry.
+The Python suites check byte-preserving SVG renaming, comments and namespaces, duplicate-ID rejection, the old exclude/parent rules, later-wins ordering, a complete production-core project migration, repeatability, protection of unrelated output edits, actual-project verification and corruption detection, and readable directive diagnostics. Verifier controls also update the output hash after editing a named look, deleting a directive, or corrupting an unused portrait, proving that the semantic, multiset, and name checks operate independently of the hash gate. The initial migration and review-fix tests failed with assertions before their implementations, then passed after implementation. The metadata fixture runs 479 Node tests: one source/count check and one complete visible-layer assertion per directive. It contains names and hierarchy only, with no drawing geometry.
 
 To regenerate the metadata fixture from a successful, reviewed migration:
 
