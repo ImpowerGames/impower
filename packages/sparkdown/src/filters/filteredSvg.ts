@@ -126,6 +126,28 @@ export const filteredSvgResponse = (body: string) =>
     }),
   });
 
+let warnedFilteredSvgCacheWrite = false;
+
+/**
+ * Announce a refused cache write once per worker.
+ *
+ * A cache that cannot be written still serves correct art, but re-filters on
+ * every single fetch, which is a large silent cost on a project with many
+ * variants. Logging it per request would bury it under the images themselves,
+ * so this says it once and stays quiet.
+ */
+const warnFilteredSvgCacheWriteFailed = (error: unknown) => {
+  if (warnedFilteredSvgCacheWrite) {
+    return;
+  }
+  warnedFilteredSvgCacheWrite = true;
+  console.warn(
+    "[sparkdown] Could not cache a filtered SVG variant. Art is still correct, " +
+      "but every filtered image will be regenerated on each request.",
+    error,
+  );
+};
+
 /**
  * Cached-or-freshly-filtered SVG response for one file, or `undefined` if the
  * param is garbage or the source cannot be read/filtered (caller serves the
@@ -208,13 +230,19 @@ export const getOrCreateFilteredSvg = async (
     }
     const generation = (async () => {
       const filtered = filterSVG(await file.text(), filter);
+      // Memoisation is an optimisation, so failing it costs the cache hit and
+      // nothing else. Letting the write reject here would reject the whole
+      // generation, and `undefined` is this function's "could not filter"
+      // signal — the service worker answers it by serving the UNFILTERED
+      // original, i.e. correct-looking art with every filterable node drawn at
+      // once, at 200, with nothing logged (#477). The markup is already in
+      // hand at this point; it must survive a storage failure.
+      let stored = false;
       try {
         await cache.put(key, filteredSvgResponse(filtered));
-      } catch {
-        // Quota, storage, and concurrent-write failures must not discard the
-        // successfully filtered art shared by all waiting callers. Keep old
-        // signatures until a replacement has actually been stored.
-        return filtered;
+        stored = true;
+      } catch (error) {
+        warnFilteredSvgCacheWriteFailed(error);
       }
       // Prune superseded signatures of this exact variant AFTER responding.
       // `cache.keys()` enumerates the whole bucket, so on the critical path it
@@ -222,19 +250,23 @@ export const getOrCreateFilteredSvg = async (
       // variant set turns that into O(n^2) on the very thread that has to serve
       // the image the user is waiting for. Housekeeping, so best-effort: if the
       // service worker is torn down first, the next generation prunes instead.
-      void (async () => {
-        try {
-          const existing = await cache.keys();
-          await Promise.all(
-            existing
-              .filter(
-                (req) =>
-                  req.url.includes(variantPrefix) && !req.url.endsWith(key),
-              )
-              .map((req) => cache.delete(req.url)),
-          );
-        } catch {}
-      })();
+      // Only when this generation actually stored something: with no new entry
+      // to supersede them, the older signatures are the only copies there are.
+      if (stored) {
+        void (async () => {
+          try {
+            const existing = await cache.keys();
+            await Promise.all(
+              existing
+                .filter(
+                  (req) =>
+                    req.url.includes(variantPrefix) && !req.url.endsWith(key),
+                )
+                .map((req) => cache.delete(req.url)),
+            );
+          } catch {}
+        })();
+      }
       return filtered;
     })();
     inFlightGenerations.set(key, generation);

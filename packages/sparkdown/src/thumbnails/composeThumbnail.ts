@@ -192,6 +192,25 @@ export interface ThumbnailFile extends Blob {
   lastModified: number;
 }
 
+let warnedThumbnailCacheWrite = false;
+
+/**
+ * Announce a refused cache write once per worker. A cache that cannot be
+ * written still serves correct thumbnails, but recomposes each one on every
+ * fetch; per-request logging would bury that under the images themselves.
+ */
+const warnThumbnailCacheWriteFailed = (error: unknown) => {
+  if (warnedThumbnailCacheWrite) {
+    return;
+  }
+  warnedThumbnailCacheWrite = true;
+  console.warn(
+    "[sparkdown] Could not cache a generated thumbnail. Thumbnails are still " +
+      "correct, but will be regenerated on each request.",
+    error,
+  );
+};
+
 /**
  * Cached-or-freshly-generated thumbnail response for one file, or `undefined`
  * if it can't be generated (caller serves the original).
@@ -229,15 +248,28 @@ export const getOrCreateThumbnail = async (
     if (!blob) {
       return undefined;
     }
-    const response = new Response(blob, {
-      status: 200,
-      headers: new Headers({
-        "Content-Type": MIME,
-        "Content-Length": String(blob.size),
-        "Cache-Control": "max-age=31536000, immutable",
-      }),
-    });
-    await cache.put(key, response.clone());
+    // One response per consumer over the same immutable blob, rather than a
+    // `clone()`: cloning tees the body, so if the cache write below fails the
+    // returned response is left carrying an unread branch that can stall it.
+    const respond = () =>
+      new Response(blob, {
+        status: 200,
+        headers: new Headers({
+          "Content-Type": MIME,
+          "Content-Length": String(blob.size),
+          "Cache-Control": "max-age=31536000, immutable",
+        }),
+      });
+    const response = respond();
+    // Best-effort memo, for the same reason as the filtered-SVG generator
+    // (#477): the thumbnail is already composed here, and `undefined` sends
+    // the caller back to the full-resolution original — the very decode this
+    // endpoint exists to keep off a virtualized scroll.
+    try {
+      await cache.put(key, respond());
+    } catch (error) {
+      warnThumbnailCacheWriteFailed(error);
+    }
     return response;
   } catch {
     return undefined;
