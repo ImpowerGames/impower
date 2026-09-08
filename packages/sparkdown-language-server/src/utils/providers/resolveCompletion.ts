@@ -38,9 +38,13 @@ export interface CompletionItemResolveData {
  * never accept from being declared in the program — `populateImplicitDefs`
  * declares the real struct once the reference is actually typed.
  *
- * Filter names are sorted, as `populateImplicitDefs` sorts them, so a
- * combination already written elsewhere in the project resolves to that struct
- * and reuses its computed `filtered_src` rather than recomputing it.
+ * Filter names are sorted and not otherwise touched, which is exactly what
+ * `populateImplicitDefs` does to build its key, so a combination already
+ * written elsewhere in the project resolves to that struct and reuses its
+ * computed `filtered_src` rather than recomputing it. De-duplicating here
+ * would break that for a directive naming the same filter twice: the key
+ * would no longer match, and the picture is the same either way because a
+ * repeated filter contributes the same `includes` entries.
  */
 const synthesizeFilteredImage = (
   context: { [type: string]: { [name: string]: any } } | undefined,
@@ -51,7 +55,7 @@ const synthesizeFilteredImage = (
   if (!context || !filtered.image) {
     return undefined;
   }
-  const filters = [...new Set(filtered.filters)].sort();
+  const filters = [...filtered.filters].sort();
   const name = [filtered.image, ...filters].join("~");
   const existing = context["filtered_image"]?.[name];
   if (existing) {

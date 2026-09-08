@@ -403,29 +403,38 @@ const getFilterChainTarget = (
   const cursorNode = leftStack[0];
   let image = "";
   const filters: string[] = [];
+  // Depth-first over this node's subtree and nothing beyond it. `next()` walks
+  // the whole document rather than one subtree, so the descent is driven by
+  // firstChild/nextSibling against a depth counter, which never takes a
+  // sibling while standing on `nameNode` itself.
   const cur = nameNode.node.cursor();
-  while (cur.from <= nameNode.to) {
-    const insideName = cur.from >= nameNode.from && cur.to <= nameNode.to;
-    if (insideName) {
-      if (!image && cur.name === "AssetCommandFileName") {
-        image = read(cur.from, cur.to).trim();
-      }
-      if (
-        cur.name === "AssetCommandFilterName" &&
-        !(
-          cursorNode &&
-          cur.from === cursorNode.from &&
-          cur.to === cursorNode.to
-        )
-      ) {
-        const filterName = read(cur.from, cur.to).trim();
-        if (filterName) {
-          filters.push(filterName);
-        }
+  let depth = 0;
+  walk: for (;;) {
+    if (!image && cur.name === "AssetCommandFileName") {
+      image = read(cur.from, cur.to).trim();
+    }
+    if (
+      cur.name === "AssetCommandFilterName" &&
+      !(cursorNode && cur.from === cursorNode.from && cur.to === cursorNode.to)
+    ) {
+      const filterName = read(cur.from, cur.to).trim();
+      if (filterName) {
+        filters.push(filterName);
       }
     }
-    if (!cur.next()) {
-      break;
+    if (cur.firstChild()) {
+      depth += 1;
+      continue;
+    }
+    for (;;) {
+      if (depth === 0) {
+        break walk;
+      }
+      if (cur.nextSibling()) {
+        break;
+      }
+      cur.parent();
+      depth -= 1;
     }
   }
   if (!image) {

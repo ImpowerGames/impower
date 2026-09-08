@@ -154,10 +154,64 @@ describe("provider · filter completion preview (#474)", () => {
     expect(src).not.toContain("look-up");
   });
 
+  test("the token under the cursor is not counted as a filter already applied", async () => {
+    // The cursor sits on a fully-typed, defined filter the author is
+    // replacing. Counting it as a sibling would apply `look_up` as well as the
+    // candidate, and its node would survive in the preview.
+    const program = buildProgram();
+    const items = completionsAt(`[[bunny_bruh~look_up|]]\n`, program);
+    const item = itemNamed(items, "look_down");
+    expect(item?.data).toBeTruthy();
+
+    const resolved = await resolveCompletion(item, program);
+    const src = previewSrc(resolved);
+    expect(src).toBeTruthy();
+    expect(src).toContain("look-down");
+    expect(src, "the filter being replaced must not be applied").not.toContain(
+      "look-up",
+    );
+  });
+
+  test("a combination already declared in the program is reused, not rebuilt", async () => {
+    const program = buildProgram();
+    // What `populateImplicitDefs` declares once the reference is typed: the
+    // name is the asset plus its filters, sorted.
+    const declared = {
+      $type: "filtered_image",
+      $name: "bunny_bruh~look_down~phone",
+      image: { $name: "bunny_bruh" },
+      filters: [
+        { $type: "filter", $name: "look_down" },
+        { $type: "filter", $name: "phone" },
+      ],
+    };
+    program.context["filtered_image"] = {
+      "bunny_bruh~look_down~phone": declared,
+    };
+
+    const items = completionsAt(`[[bunny_bruh~phone~look_d|]]\n`, program);
+    const item = itemNamed(items, "look_down");
+    expect(item?.data).toBeTruthy();
+
+    const resolved = await resolveCompletion(item, program);
+    const src = previewSrc(resolved);
+    expect(src).toBeTruthy();
+    expect(src).toContain("look-down");
+    expect(src).toContain("phone");
+    expect(src).not.toContain("look-up");
+    expect(
+      Object.keys(program.context["filtered_image"]),
+      "no second struct is declared for a combination that already exists",
+    ).toEqual(["bunny_bruh~look_down~phone"]);
+  });
+
   test("resolving a candidate does not leak a synthetic struct into the program", async () => {
     const program = buildProgram();
     const items = completionsAt(`[[bunny_bruh~phone~look_d|]]\n`, program);
     const item = itemNamed(items, "look_down");
+    // Without this the assertion below is vacuous: an item carrying no payload
+    // is never resolved, so nothing could have leaked.
+    expect(item?.data).toBeTruthy();
     await resolveCompletion(item, program);
     expect(
       program.context["filtered_image"],
@@ -170,6 +224,9 @@ describe("provider · filter completion preview (#474)", () => {
     const items = completionsAt(`[[~look_d|]]\n`, program);
     const item = itemNamed(items, "look_down");
     expect(item, "filters are still offered").toBeTruthy();
+    // Asserted on the payload, not only on the outcome: with no asset to
+    // preview, no resolve request should be provoked in the first place.
+    expect(item.data).toBeUndefined();
     const resolved = await resolveCompletion(item, program);
     expect(resolved.documentation).toBeUndefined();
   });
@@ -179,6 +236,11 @@ describe("provider · filter completion preview (#474)", () => {
     const items = completionsAt(`((bark~look_d|))\n`, program);
     const item = itemNamed(items, "look_down");
     expect(item, "filters are still offered on an audio directive").toBeTruthy();
+    // An audio asset has no picture to composite, so the payload is not
+    // attached at all. Asserting only on `documentation` would also pass if
+    // the image directive's logic were copied here and did the work for
+    // nothing.
+    expect(item.data).toBeUndefined();
     const resolved = await resolveCompletion(item, program);
     expect(resolved.documentation).toBeUndefined();
   });
