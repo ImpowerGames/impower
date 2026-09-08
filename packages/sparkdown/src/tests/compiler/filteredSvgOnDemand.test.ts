@@ -305,6 +305,90 @@ describe("getOrCreateFilteredSvg", () => {
     expect(await recovered!.text()).toContain("filter default body");
   });
 
+  it("serves the filtered art when the cache refuses to store it (#477)", async () => {
+    // A rejected `cache.put` is a STORAGE failure, not a filtering failure:
+    // the markup is already in hand. Discarding it makes `sw.ts` fall through
+    // to the unfiltered original, which draws every filter-tagged node at once
+    // (both eye directions, both arms) with a 200 and nothing logged. Failing
+    // to memoise must cost a cache hit, not the picture.
+    const cache = makeCache();
+    const refusing = {
+      ...cache,
+      put: async () => {
+        throw new Error(
+          "Failed to execute 'put' on 'Cache': Entry already exists.",
+        );
+      },
+    };
+    const first = await getOrCreateFilteredSvg(
+      refusing,
+      "local/assets/portrait.svg",
+      svgFile(111),
+      PARAM,
+    );
+    expect(first).toBeDefined();
+    expect(first!.headers.get("Content-Type")).toBe("image/svg+xml");
+    const text = await first!.text();
+    expect(text).not.toContain("filter hat");
+    expect(text).toContain("filter default body");
+    expect(cache.store.size).toBe(0);
+    // Nothing was memoised, so the next request must generate again rather
+    // than find a stranded in-flight key and give up.
+    const second = await getOrCreateFilteredSvg(
+      refusing,
+      "local/assets/portrait.svg",
+      svgFile(111),
+      PARAM,
+    );
+    expect(second).toBeDefined();
+    expect(await second!.text()).not.toContain("filter hat");
+  });
+
+  it("hands every concurrent caller filtered art when the cache refuses (#477)", async () => {
+    // The waiters read the shared generation's result, so a rejection inside
+    // it turns one storage failure into unfiltered art for all of them at once.
+    const cache = makeCache();
+    const refusing = {
+      ...cache,
+      put: async () => {
+        throw new Error("QuotaExceededError");
+      },
+    };
+    const counted = (): FilteredSvgFile =>
+      Object.assign(svgFile(111), {
+        text: async () => {
+          await Promise.resolve();
+          return SVG;
+        },
+      }) as FilteredSvgFile;
+    const responses = await Promise.all([
+      getOrCreateFilteredSvg(
+        refusing,
+        "local/assets/portrait.svg",
+        counted(),
+        PARAM,
+      ),
+      getOrCreateFilteredSvg(
+        refusing,
+        "local/assets/portrait.svg",
+        counted(),
+        PARAM,
+      ),
+      getOrCreateFilteredSvg(
+        refusing,
+        "local/assets/portrait.svg",
+        counted(),
+        PARAM,
+      ),
+    ]);
+    for (const response of responses) {
+      expect(response).toBeDefined();
+      const text = await response!.text();
+      expect(text).toContain("filter default body");
+      expect(text).not.toContain("filter hat");
+    }
+  });
+
   it("shares one cache entry across non-canonical spellings of the same filter", async () => {
     const cache = makeCache();
     await getOrCreateFilteredSvg(
