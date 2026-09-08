@@ -380,11 +380,66 @@ const addStructTypeNameCompletions = (
   }
 };
 
+/**
+ * What a `~filter` candidate previews against: the asset name at the head of
+ * the enclosing asset command, and the filters already written in it.
+ *
+ * The token under the cursor is skipped — it is the partial name being
+ * completed, not a filter that is already applied. Returns `undefined` when
+ * the directive names no asset yet (`[[~look_]]`), which is the case where
+ * there is nothing to preview.
+ */
+const getFilterChainTarget = (
+  leftStack: GrammarSyntaxNode<SparkdownNodeName>[],
+  read: (from: number, to: number) => string,
+): { image: string; filters: string[] } | undefined => {
+  // The enclosing `AssetCommandName`, not `AssetCommandContent`: a `+`-joined
+  // command holds one `AssetCommandName` per asset, and a filter belongs to
+  // the asset it is attached to.
+  const nameNode = leftStack.find((n) => n.name === "AssetCommandName");
+  if (!nameNode) {
+    return undefined;
+  }
+  const cursorNode = leftStack[0];
+  let image = "";
+  const filters: string[] = [];
+  const cur = nameNode.node.cursor();
+  while (cur.from <= nameNode.to) {
+    const insideName = cur.from >= nameNode.from && cur.to <= nameNode.to;
+    if (insideName) {
+      if (!image && cur.name === "AssetCommandFileName") {
+        image = read(cur.from, cur.to).trim();
+      }
+      if (
+        cur.name === "AssetCommandFilterName" &&
+        !(
+          cursorNode &&
+          cur.from === cursorNode.from &&
+          cur.to === cursorNode.to
+        )
+      ) {
+        const filterName = read(cur.from, cur.to).trim();
+        if (filterName) {
+          filters.push(filterName);
+        }
+      }
+    }
+    if (!cur.next()) {
+      break;
+    }
+  }
+  if (!image) {
+    return undefined;
+  }
+  return { image, filters };
+};
+
 const addStructReferenceCompletions = (
   completions: Map<string, CompletionItem>,
   program: SparkProgram | undefined,
   types: string[],
   exclude?: string[] | ((name: string) => boolean),
+  buildData?: (type: string, name: string) => object | undefined,
 ) => {
   if (program) {
     for (const type of types) {
@@ -406,8 +461,11 @@ const addStructReferenceCompletions = (
             // runs to hundreds of items and only the highlighted one is ever
             // shown. `completionItem/resolve` builds it on demand; this just
             // records where to find the struct again.
-            if (IMAGE_TYPES.includes(type)) {
-              completion.data = { type, name };
+            const data =
+              buildData?.(type, name) ??
+              (IMAGE_TYPES.includes(type) ? { type, name } : undefined);
+            if (data) {
+              completion.data = data;
             }
             if (completion.label && !completions.has(completion.label)) {
               completions.set(completion.label, completion);
@@ -1413,11 +1471,26 @@ export const getCompletions = (
           tree,
           read,
         );
+        // Each candidate previews as the directive's image with the whole
+        // chain applied, so the popup shows what picking it would look like
+        // rather than the bare filter name (#474). Only the image directive
+        // gets this — an audio asset has no picture to composite.
+        const chain = getFilterChainTarget(leftStack, read);
         addStructReferenceCompletions(
           completions,
           program,
           ["filter"],
           exclude,
+          chain
+            ? (type, name) => ({
+                type,
+                name,
+                filtered: {
+                  image: chain.image,
+                  filters: [...chain.filters, name],
+                },
+              })
+            : undefined,
         );
       }
       return buildCompletions();

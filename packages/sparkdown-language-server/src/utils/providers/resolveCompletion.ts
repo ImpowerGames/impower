@@ -17,7 +17,63 @@ export interface CompletionItemResolveData {
   /** Context type + name of the struct to preview. */
   type: string;
   name: string;
+  /**
+   * Set on a `~filter` candidate, whose preview is not the filter struct
+   * itself but the asset command's image with a whole chain applied: the
+   * filters already written in the directive plus this candidate. The chain is
+   * carried here because nothing in the compiled program describes a candidate
+   * the author has not typed yet.
+   */
+  filtered?: { image: string; filters: string[] };
 }
+
+/**
+ * Build the `filtered_image` a `~filter` candidate previews as, in a context
+ * the compiled program never sees.
+ *
+ * The struct has to be registered under its own `$name`: `filterImage` reads a
+ * filtered_image's filter list back out of the context by name, so an
+ * unregistered struct filters to nothing and the preview shows the unfiltered
+ * asset. Registering it in a shallow copy keeps a candidate the author may
+ * never accept from being declared in the program — `populateImplicitDefs`
+ * declares the real struct once the reference is actually typed.
+ *
+ * Filter names are sorted, as `populateImplicitDefs` sorts them, so a
+ * combination already written elsewhere in the project resolves to that struct
+ * and reuses its computed `filtered_src` rather than recomputing it.
+ */
+const synthesizeFilteredImage = (
+  context: { [type: string]: { [name: string]: any } } | undefined,
+  filtered: { image: string; filters: string[] },
+):
+  | { context: { [type: string]: { [name: string]: any } }; struct: any }
+  | undefined => {
+  if (!context || !filtered.image) {
+    return undefined;
+  }
+  const filters = [...new Set(filtered.filters)].sort();
+  const name = [filtered.image, ...filters].join("~");
+  const existing = context["filtered_image"]?.[name];
+  if (existing) {
+    return { context, struct: existing };
+  }
+  const struct = {
+    $type: "filtered_image",
+    $name: name,
+    image: { $name: filtered.image },
+    filters: filters.map((filterName) => ({
+      $type: "filter",
+      $name: filterName,
+    })),
+  };
+  return {
+    context: {
+      ...context,
+      filtered_image: { ...context["filtered_image"], [name]: struct },
+    },
+    struct,
+  };
+};
 
 /**
  * Fill in the expensive half of a completion item.
@@ -37,12 +93,21 @@ export const resolveCompletion = async (
   if (!data || item.documentation != null) {
     return item;
   }
-  const struct = program?.context?.[data.type]?.[data.name];
+  const synthesized = data.filtered
+    ? synthesizeFilteredImage(program?.context, data.filtered)
+    : undefined;
+  if (data.filtered && !synthesized) {
+    return item;
+  }
+  const context = synthesized ? synthesized.context : program?.context;
+  const struct = synthesized
+    ? synthesized.struct
+    : program?.context?.[data.type]?.[data.name];
   if (!struct) {
     return item;
   }
   const preview = await getImagePreviewMarkupComposited(
-    program?.context,
+    context,
     struct,
     options,
   );
