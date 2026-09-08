@@ -31,8 +31,9 @@ const check = (name, fn) => {
 
 check("well-formed steps parse in order", () => {
   assert.deepEqual(
-    parseUiSteps(["--sd", "r.sd", "--screen", "assets", "--open", "find", "--type", "search=Hello", "--press", "Control+Shift+g", "--click", "replaceAll", "--toggle", "case", "--shot", "a.png", "--shot-of", "find", "b.png", "--close", "find", "--probe", "p.js", "--headed"]),
+    parseUiSteps(["--project", "game.zip", "--sd", "r.sd", "--screen", "assets", "--open", "find", "--type", "search=Hello", "--press", "Control+Shift+g", "--click", "replaceAll", "--toggle", "case", "--shot", "a.png", "--shot-of", "find", "b.png", "--close", "find", "--probe", "p.js", "--headed"]),
     [
+      { project: "game.zip" },
       { sd: "r.sd" },
       { screen: "assets" },
       { open: "find" },
@@ -56,6 +57,7 @@ check("a literal backslash-n in --type text becomes a line break, and an = insid
 
 check("a flag with a missing or empty value is refused, not dropped", () => {
   assert.throws(() => parseUiSteps(["--sd"]), /--sd needs a value/);
+  assert.throws(() => parseUiSteps(["--project", "--shot", "x.png"]), /--project needs a value/);
   assert.throws(() => parseUiSteps(["--screen", ""]), /--screen needs a value/);
   assert.throws(() => parseUiSteps(["--open", "--shot", "x.png"]), /--open needs a value/);
   assert.throws(() => parseUiSteps(["--shot-of", "find"]), /--shot-of needs a value/);
