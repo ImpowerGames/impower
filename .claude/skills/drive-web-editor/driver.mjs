@@ -474,8 +474,11 @@ async function withEditor(fn, { headless = true } = {}) {
   const consoleLines = [];
   page.on("console", (m) => consoleLines.push(`[${m.type()}] ${m.text()}`));
   page.on("pageerror", (e) => consoleLines.push(`[pageerror] ${e.message}`));
+  // `mode` is how `up` launched the servers, from the state file that gave
+  // the URL; it says whether the game preview can be observed at all.
+  const mode = readState()?.mode ?? "same-origin";
   try {
-    return await fn({ page, ctx, url, consoleLines });
+    return await fn({ page, ctx, url, consoleLines, mode });
   } finally {
     await ctx.close();
   }
@@ -540,7 +543,7 @@ const SEED_BATCH_BYTES = 8 * 1024 * 1024;
 // its batch ships, and one file's base64 has to fit Node's string limit
 // (512 MiB of characters, 384 MiB of content). A project over these is not
 // one the editor is built for, and the reason names the bound that stopped it.
-const SEED_LIMITS = { files: 20_000, bytes: 1024 * 1024 * 1024, fileBytes: 256 * 1024 * 1024 };
+const SEED_LIMITS = { files: 20_000, dirs: 20_000, bytes: 1024 * 1024 * 1024, fileBytes: 256 * 1024 * 1024 };
 
 // Directory names a project never holds. Meeting one means `--project` points
 // at a package or a build output, and reading it in full would hold a
@@ -548,8 +551,9 @@ const SEED_LIMITS = { files: 20_000, bytes: 1024 * 1024 * 1024, fileBytes: 256 *
 const REFUSED_DIRS = ["node_modules", "dist"];
 
 // The marker file a seed leaves in the project until its prune is done. A dot
-// entry, so the editor's listings ignore it and the prune keeps it until the
-// end.
+// entry: the workspace's file store lists it like any file, the Files panel's
+// include globs leave it off the screen, and the prune keeps dot entries
+// until the end.
 const SEED_MARKER = ".seeding";
 
 // The key the editor keeps the id of the project it opens under
@@ -569,7 +573,9 @@ function refusedDirError(rel) {
 // directory the walk is inside or to one above it, a socket) lands in
 // `failed` with its reason. Dot entries are skipped and counted in
 // `skipped`. The bounds in `limits` stop the walk with a reason before it
-// holds more than they allow.
+// holds more than they allow; the bound on directories entered is what stops
+// a tree whose links reach the same directories under many names, which
+// the walk otherwise enters once per name.
 function walkProjectDir(dir, limits = SEED_LIMITS) {
   const files = [];
   const failed = [];
@@ -578,6 +584,7 @@ function walkProjectDir(dir, limits = SEED_LIMITS) {
   const inside = [];
   let skipped = 0;
   let bytes = 0;
+  let entered = 0;
   const realpath = (abs) => {
     try {
       return fs.realpathSync(abs);
@@ -590,6 +597,8 @@ function walkProjectDir(dir, limits = SEED_LIMITS) {
     return inside.some((p) => p === real || p.startsWith(prefix));
   };
   const visit = (abs, rel) => {
+    entered += 1;
+    if (entered > limits.dirs) throw new Error(`the project has more than ${limits.dirs} directories, the bound on a seed (reached at ${rel})`);
     inside.push(realpath(abs));
     try {
       for (const entry of fs.readdirSync(abs, { withFileTypes: true })) {
@@ -632,38 +641,48 @@ function walkProjectDir(dir, limits = SEED_LIMITS) {
   return { files, skipped, failed };
 }
 
+// What one zip entry name is to the seed: the `/`-joined project path of a
+// file, or null for an entry the seed never writes (a directory entry, a
+// name of `.` and empty segments only, or a dot-named entry, which is
+// `skipped`). `.` and empty segments are dropped (`./main.sd` is `main.sd`).
+// A path that is absolute or climbs out with `..` throws, because the seed
+// would write outside the project; an entry under a directory a project
+// never holds throws as the walk refuses it. The bounds filter and
+// `zipProjectEntries` both go through this, so the bounds count the entries
+// the seed would write and a refusal is raised before the entry is inflated.
+function zipEntryPath(name) {
+  const normalized = name.replace(/\\/g, "/");
+  if (normalized.endsWith("/")) return { path: null };
+  if (normalized.startsWith("/") || /^[A-Za-z]:/.test(normalized)) {
+    throw new Error(`zip entry "${name}" is not a relative path`);
+  }
+  const segments = normalized.split("/").filter((s) => s !== "" && s !== ".");
+  if (segments.length === 0) return { path: null };
+  if (segments.some((s) => s === "..")) throw new Error(`zip entry "${name}" climbs out of the project`);
+  if (segments.some((s) => s.startsWith("."))) return { path: null, skipped: true };
+  const refused = segments.slice(0, -1).find((s) => REFUSED_DIRS.includes(s));
+  if (refused) throw refusedDirError(segments.slice(0, segments.indexOf(refused) + 1).join("/"));
+  return { path: segments.join("/") };
+}
+
 // The project files in an unpacked archive (`{ [name]: Uint8Array }`, the
-// shape fflate's unzipSync returns). Directory entries are dropped, `.` and
-// empty path segments are dropped (`./main.sd` is `main.sd`), and dot-named
-// entries are dropped and counted in `skipped`. An archive whose every entry
-// sits under one top-level folder (a zip made by hand from the project
-// directory, which is how a desktop's compress command lays one out) is
-// unwrapped and the folder named in `unwrapped`; the editor's own export has
-// no such folder. A path that is absolute or climbs out with `..` is refused,
-// because the seed would write outside the project; an archive holding both
-// a file and a directory of one name is refused, because no filesystem can
-// hold both; an entry under a directory a project never holds is refused as
-// the walk refuses it.
+// shape fflate's unzipSync returns), each entry read as `zipEntryPath` reads
+// it. An archive whose every entry sits under one top-level folder that
+// holds `main.sd` (a zip made by hand from the project directory, which is
+// how a desktop's compress command lays one out) is unwrapped and the folder
+// named in `unwrapped`; the editor's own export has no such folder, and a
+// folder without `main.sd` is part of the project's own layout, so it stays.
+// An archive holding both a file and a directory of one name is refused,
+// because no filesystem can hold both.
 export function zipProjectEntries(archive) {
   let entries = [];
   let skipped = 0;
   let unwrapped;
   for (const [name, bytes] of Object.entries(archive)) {
-    const normalized = name.replace(/\\/g, "/");
-    if (normalized.endsWith("/")) continue;
-    if (normalized.startsWith("/") || /^[A-Za-z]:/.test(normalized)) {
-      throw new Error(`zip entry "${name}" is not a relative path`);
-    }
-    const segments = normalized.split("/").filter((s) => s !== "" && s !== ".");
-    if (segments.length === 0) continue;
-    if (segments.some((s) => s === "..")) throw new Error(`zip entry "${name}" climbs out of the project`);
-    if (segments.some((s) => s.startsWith("."))) {
-      skipped += 1;
-      continue;
-    }
-    const refused = segments.slice(0, -1).find((s) => REFUSED_DIRS.includes(s));
-    if (refused) throw refusedDirError(segments.slice(0, segments.indexOf(refused) + 1).join("/"));
-    entries.push({ path: segments.join("/"), bytes });
+    const read = zipEntryPath(name);
+    if (read.skipped) skipped += 1;
+    if (read.path == null) continue;
+    entries.push({ path: read.path, bytes });
   }
   const dirs = new Set();
   for (const e of entries) {
@@ -674,7 +693,7 @@ export function zipProjectEntries(archive) {
   if (clash) throw new Error(`the zip holds both a file and a directory named "${clash.path}"`);
   if (entries.length > 0) {
     const first = entries[0].path.split("/")[0];
-    if (entries.every((e) => e.path.startsWith(`${first}/`))) {
+    if (entries.every((e) => e.path.startsWith(`${first}/`)) && entries.some((e) => e.path === `${first}/main.sd`)) {
       unwrapped = first;
       entries = entries.map((e) => ({ path: e.path.slice(first.length + 1), bytes: e.bytes }));
     }
@@ -686,10 +705,11 @@ export function zipProjectEntries(archive) {
 // The project at `source`: a directory, walked, or a `.zip`, unpacked with
 // fflate, the library the editor's own import uses, so an archive the editor
 // accepts is one the driver accepts. The bounds in `limits` are checked on
-// the archive's central directory, entry by entry, before any entry is
-// inflated, so an archive that would inflate past them is refused without
-// the memory being spent. Throws with the reason when the source cannot be
-// read as a project or is over the bounds.
+// the archive's central directory, entry by entry, before the entry they
+// name is inflated, so the memory spent before a refusal stays within the
+// bound that tripped; the entries before it have been inflated by then.
+// Throws with the reason when the source cannot be read as a project or is
+// over the bounds.
 async function collectProject(source, limits = SEED_LIMITS) {
   const abs = path.resolve(source);
   if (!fs.existsSync(abs)) throw new Error(`--project ${source} does not exist (resolved to ${abs})`);
@@ -705,24 +725,33 @@ async function collectProject(source, limits = SEED_LIMITS) {
   }
   let bytes = 0;
   let count = 0;
-  const overBound = (message) => Object.assign(new Error(message), { seedBound: true });
+  let skipped = 0;
+  const refused = (err) => Object.assign(err, { seedRefused: true });
   const filter = (entry) => {
-    if (entry.name.endsWith("/")) return false;
-    if (entry.originalSize > limits.fileBytes) throw overBound(`${entry.name} is ${entry.originalSize} bytes, over the ${limits.fileBytes}-byte bound on one file`);
+    let read;
+    try {
+      read = zipEntryPath(entry.name);
+    } catch (err) {
+      throw refused(err);
+    }
+    if (read.skipped) skipped += 1;
+    if (read.path == null) return false;
+    if (entry.originalSize > limits.fileBytes) throw refused(new Error(`${read.path} is ${entry.originalSize} bytes, over the ${limits.fileBytes}-byte bound on one file`));
     bytes += entry.originalSize;
-    if (bytes > limits.bytes) throw overBound(`the project is over the ${limits.bytes}-byte bound on a seed (reached at ${entry.name})`);
+    if (bytes > limits.bytes) throw refused(new Error(`the project is over the ${limits.bytes}-byte bound on a seed (reached at ${read.path})`));
     count += 1;
-    if (count > limits.files) throw overBound(`the project has more than ${limits.files} files, the bound on a seed (reached at ${entry.name})`);
+    if (count > limits.files) throw refused(new Error(`the project has more than ${limits.files} files, the bound on a seed (reached at ${read.path})`));
     return true;
   };
   let archive;
   try {
     archive = unzipSync(new Uint8Array(fs.readFileSync(abs)), { filter });
   } catch (err) {
-    if (err?.seedBound) throw err;
+    if (err?.seedRefused) throw err;
     throw new Error(`--project ${source} could not be unpacked as a zip (${String(err?.message ?? err).split("\n")[0]})`);
   }
-  return { kind: "zip", ...zipProjectEntries(archive) };
+  const entries = zipProjectEntries(archive);
+  return { kind: "zip", ...entries, skipped: skipped + entries.skipped };
 }
 
 // Files grouped into batches whose content stays under `maxBytes`, in the
@@ -751,12 +780,19 @@ async function rememberedProject({ key }) {
   return localStorage.getItem(key);
 }
 
-// Runs in the page. Creates the project directory if it is missing and puts
-// the seed marker in it; `interrupted` says whether the marker was already
-// there, which means an earlier seed did not finish.
-async function beginSeed({ project, marker }) {
+// Runs in the page. Puts the seed marker in the project directory, creating
+// the directory when `create` holds and answering `missing` when it does not
+// and the directory is not there; `interrupted` says whether the marker was
+// already there, which means an earlier seed did not finish.
+async function beginSeed({ project, marker, create = true }) {
   const root = await navigator.storage.getDirectory();
-  const dir = await root.getDirectoryHandle(project, { create: true });
+  let dir;
+  try {
+    dir = await root.getDirectoryHandle(project, { create });
+  } catch (err) {
+    if (!create && err?.name === "NotFoundError") return { interrupted: false, missing: true };
+    throw err;
+  }
   let interrupted = false;
   try {
     await dir.getFileHandle(marker, { create: false });
@@ -966,18 +1002,38 @@ function describeError(err) {
   return err?.name && err.name !== "Error" && !message.startsWith(err.name) ? `${err.name}: ${message}` : message;
 }
 
+// The reason a page whose editor remembers a project other than `project`
+// refuses a seed or a clear, or null when it remembers `project` or nothing:
+// the editor would open the remembered one, so the storage under `project`
+// is not what a run on that page would see.
+async function otherProjectRemembered(page, project) {
+  const remembered = await page.evaluate(rememberedProject, { key: PROJECT_ID_KEY });
+  if (remembered == null || remembered === project) return null;
+  return `the editor remembers project "${remembered}" (localStorage "${PROJECT_ID_KEY}"), not "${project}", so it would open a project`;
+}
+
 // Empty the project in the page's storage: every non-dot entry goes, and the
 // marker with it once everything went; a project that is not there is
-// nothing to clear. The marker stands first, so a clear that stops part-way
-// leaves the project marked as a plain run must not drive it. The way out of
-// storage a seed cannot replace: a marked project with nothing to seed over
-// it, an entry whose kind clashes with the source, or a quota the previous
-// project and the seed cannot share.
+// nothing to clear and answers `missing`, and a page whose editor remembers
+// another project is refused with nothing removed. The marker stands first,
+// so a clear that stops part-way leaves the project marked as a plain run
+// must not drive it. The way out of storage a seed cannot replace: a marked
+// project with nothing to seed over it, an entry whose kind clashes with the
+// source, or a quota the previous project and the seed cannot share.
 async function clearProject(page, { project = LOCAL_PROJECT_ID } = {}) {
   const report = { project, removed: [], failed: [] };
   try {
+    const other = await otherProjectRemembered(page, project);
+    if (other) {
+      report.reason = `${other} the clear does not touch; nothing was removed`;
+      return report;
+    }
     if (await page.evaluate(seedInterrupted, { project, marker: SEED_MARKER })) report.interruptedBefore = true;
-    await page.evaluate(beginSeed, { project, marker: SEED_MARKER });
+    const begun = await page.evaluate(beginSeed, { project, marker: SEED_MARKER, create: false });
+    if (begun.missing) {
+      report.missing = true;
+      return report;
+    }
     const out = await page.evaluate(pruneProject, { project, keep: [], marker: SEED_MARKER });
     report.removed = out.removed;
     report.failed = out.failed;
@@ -1005,10 +1061,13 @@ async function clearProject(page, { project = LOCAL_PROJECT_ID } = {}) {
 // is refused before anything is written, as is a page whose editor
 // remembers a project other than `project`, and a previous project holding
 // an entry whose kind clashes with the source (`clashes` names them), since
-// writing over it would mean removing it first. `collect`, `batchBytes` and
-// `limits` are parameters so the check can drive this with a fixture, small
-// batches and small bounds.
-async function seedProject(page, source, { project = LOCAL_PROJECT_ID, batchBytes = SEED_BATCH_BYTES, collect = collectProject, expectMainSd = true, limits = SEED_LIMITS } = {}) {
+// writing over it would mean removing it first. With `clear`, the previous
+// project is emptied (`clearProject`, reported under `clear`) once the
+// source has passed every check that needs no storage, so a refused source
+// leaves it standing; a clear that stops part-way is the reason, with the
+// project marked. `collect`, `batchBytes` and `limits` are parameters so the
+// check can drive this with a fixture, small batches and small bounds.
+async function seedProject(page, source, { project = LOCAL_PROJECT_ID, batchBytes = SEED_BATCH_BYTES, collect = collectProject, expectMainSd = true, limits = SEED_LIMITS, clear = false } = {}) {
   const started = Date.now();
   const report = { source: path.resolve(source), project, storage: "untouched", files: 0, bytes: 0, batches: 0, skipped: 0, removed: [], failed: [], mainSd: false, pruned: false };
   const done = (reason) => {
@@ -1017,7 +1076,7 @@ async function seedProject(page, source, { project = LOCAL_PROJECT_ID, batchByte
     return report;
   };
   const firstLine = describeError;
-  const mixed = () => `the previous project's entries are still in storage under the ${report.files} file${report.files === 1 ? "" : "s"} that landed, and ${project}/${SEED_MARKER} marks the seed as unfinished; re-run --project`;
+  const mixed = () => `the previous project's entries stand under the ${report.files} file${report.files === 1 ? "" : "s"} that landed (a file whose write failed holds what that write left), and ${project}/${SEED_MARKER} marks the seed as unfinished; re-run --project`;
   let collected;
   try {
     collected = await collect(source, limits);
@@ -1041,9 +1100,14 @@ async function seedProject(page, source, { project = LOCAL_PROJECT_ID, batchByte
     return done(`${source} has no main.sd at its root (its top-level entries: ${top}), so the editor could not open it as a project; nothing was written`);
   }
   try {
-    const remembered = await page.evaluate(rememberedProject, { key: PROJECT_ID_KEY });
-    if (remembered != null && remembered !== project) {
-      return done(`the editor remembers project "${remembered}" (localStorage "${PROJECT_ID_KEY}"), not "${project}", so it would open a project the seed does not write to; nothing was written`);
+    const other = await otherProjectRemembered(page, project);
+    if (other) return done(`${other} the seed does not write to; nothing was written`);
+    if (clear) {
+      report.clear = await clearProject(page, { project });
+      if (report.clear.reason) {
+        if (await page.evaluate(seedInterrupted, { project, marker: SEED_MARKER })) report.storage = "mixed";
+        return done(report.clear.reason);
+      }
     }
     const paths = collected.files.map((f) => f.path);
     const dirs = new Set();
@@ -1103,7 +1167,8 @@ async function seedProject(page, source, { project = LOCAL_PROJECT_ID, batchByte
 // `seed`: load a project into the editor's storage, reload so the editor
 // re-reads it, and print the report. Exits 1 when the seed left storage
 // holding anything but the whole project. `--clear` empties the project
-// first, or on its own, and the report says what went under `clear`.
+// first, once the source has been read and accepted, or on its own, and the
+// report says what went under `clear`.
 async function seed(args, deps = liveDeps) {
   const source = flag(args, "--project");
   const clear = args.includes("--clear");
@@ -1122,7 +1187,7 @@ async function seed(args, deps = liveDeps) {
         process.exitCode = 1;
         return result;
       }
-      if (clear) {
+      if (clear && !source) {
         result.clear = await deps.clearProject(page);
         if (result.clear.reason) {
           result.error = result.clear.reason;
@@ -1131,7 +1196,10 @@ async function seed(args, deps = liveDeps) {
           return result;
         }
       }
-      if (source) result.seed = await deps.seedProject(page, source);
+      if (source) {
+        result.seed = await deps.seedProject(page, source, { clear });
+        if (result.seed.clear) result.clear = result.seed.clear;
+      }
       if (result.seed?.reason) {
         result.error = result.seed.reason;
         process.exitCode = 1;
@@ -1266,31 +1334,39 @@ async function clickLine(page, line) {
 // Whether `#game` is in the player iframe within `timeout`, polled once a
 // second; the mount signal `waitForGame` retries on.
 const GAME_MOUNT_BUDGET_MS = 45_000;
-async function gameMountedWithin(page, timeout = GAME_MOUNT_BUDGET_MS) {
+// Whether the game mounts within `timeout`, polled once a second through
+// `window.__preview`. `now` is the clock, a parameter so seed-project.test.mjs
+// can run the wait in-process against a page whose `waitForTimeout` moves a
+// fake clock and count the polls the budget allows.
+async function gameMountedWithin(page, timeout = GAME_MOUNT_BUDGET_MS, { now = Date.now } = {}) {
   const mounted = async () =>
     page.evaluate(() => {
       const s = window.__preview?.summary();
       return !!s && s.sameOrigin && s.gameChildren != null;
     });
-  const deadline = Date.now() + timeout;
-  while (Date.now() < deadline) {
+  const deadline = now() + timeout;
+  while (now() < deadline) {
     if (await mounted()) return true;
     await page.waitForTimeout(1000);
   }
   return false;
 }
 
-async function waitForGame(page, { timeout = GAME_MOUNT_BUDGET_MS } = {}) {
-  if (await gameMountedWithin(page, timeout)) return { mounted: true, reloaded: false };
+// The game mount wait `verify` and a `ui --sd` step use: the budget once,
+// then a recovery reload, the editor brought back (`switched` says whether
+// that changed the screen or tab), and the budget again. `now` and `ensure`
+// are parameters for the in-process check.
+async function waitForGame(page, { timeout = GAME_MOUNT_BUDGET_MS, now = Date.now, ensure = ensureScriptEditor } = {}) {
+  if (await gameMountedWithin(page, timeout, { now })) return { mounted: true, reloaded: false };
 
   try {
     await page.reload({ waitUntil: "domcontentloaded", timeout: 120_000 });
   } catch (err) {
     return { mounted: false, reloaded: true, error: `the recovery reload did not complete (${String(err.message || err).split("\n")[0]})` };
   }
-  const back = await ensureScriptEditor(page);
+  const back = await ensure(page);
   if (!back.present) return { mounted: false, reloaded: true, error: back.reason, switched: back.switched };
-  if (await gameMountedWithin(page, timeout)) return { mounted: true, reloaded: true, switched: back.switched };
+  if (await gameMountedWithin(page, timeout, { now })) return { mounted: true, reloaded: true, switched: back.switched };
   return { mounted: false, reloaded: true, switched: back.switched };
 }
 
@@ -1540,8 +1616,13 @@ async function verify(args, deps = liveDeps) {
   if (projectPath && !fs.existsSync(path.resolve(projectPath))) die(`--project ${projectPath} does not exist`);
 
   return deps.withEditor(
-    async ({ page, url, consoleLines }) => {
+    async ({ page, url, consoleLines, mode }) => {
       const result = { url };
+      // The game preview is observable only in same-origin mode
+      // (window.__preview); in cross-origin mode the page cannot see it, so
+      // the mount and the program are not waited for, and the run fails,
+      // because what verify captures is the preview.
+      const crossOrigin = mode === "cross-origin";
 
       // A navigation that never completes is a report, not a stack trace.
       try {
@@ -1644,20 +1725,25 @@ async function verify(args, deps = liveDeps) {
         else delete result.editorWarning;
       }
 
-      await page
-        .waitForFunction(() => window.__preview?.summary().sameOrigin === true, null, {
-          timeout: 60_000,
-        })
-        .catch(() => {
-          result.previewWarning =
-            "window.__preview never reported sameOrigin — is this a cross-origin run?";
-        });
+      if (!crossOrigin) {
+        await page
+          .waitForFunction(() => window.__preview?.summary().sameOrigin === true, null, {
+            timeout: 60_000,
+          })
+          .catch(() => {
+            result.previewWarning =
+              "window.__preview never reported sameOrigin within 60s: the preview pane is showing the screenplay, or the game preview never mounted";
+          });
+      }
 
-      const mount = await deps.waitForGame(page);
+      const mount = crossOrigin ? { mounted: null } : await deps.waitForGame(page);
       result.gameMounted = mount.mounted;
       if (mount.reloaded) result.neededReload = true;
       if (mount.switched) result.switchedToLogic = true;
-      if (!mount.mounted) {
+      if (crossOrigin) {
+        result.error = "the game preview is not observable in cross-origin mode (window.__preview is never installed), so nothing seen on it is evidence; `down`, then `up` without --cross-origin";
+        process.exitCode = 1;
+      } else if (!mount.mounted) {
         // A game that never mounted is a failed run: the screenshot is not
         // evidence and the shell must not stay green. The retry's own reason
         // (the editor was on another screen after the reload) is added to the
@@ -1676,7 +1762,7 @@ async function verify(args, deps = liveDeps) {
       // the page cannot see (cross-origin mode) has no mount to report.
       result.program = mount.mounted
         ? await deps.waitForProgram(page)
-        : { loaded: null, reason: result.previewWarning ? "the preview is not observable (cross-origin mode)" : "the game never mounted" };
+        : { loaded: null, reason: crossOrigin ? "the preview is not observable (cross-origin mode)" : "the game never mounted" };
       if (result.program.loaded === false) result.programWarning = programWarning(result.program);
       let settle = await deps.waitForPreviewSettle(page);
 
@@ -2595,7 +2681,27 @@ export function parseUiSteps(args) {
         bad(`unknown argument ${a}`);
     }
   }
+  // A `--project` seed replaces the project, main.sd included, so a script an
+  // earlier `--sd` step wrote would be removed or written over by it; the
+  // order that keeps the script is refused the other way round.
+  const firstSd = steps.findIndex((s) => s.sd);
+  const lastProject = steps.map((s) => Boolean(s.project)).lastIndexOf(true);
+  if (firstSd >= 0 && lastProject > firstSd) {
+    bad(`--sd (step ${firstSd + 1}) comes before --project (step ${lastProject + 1}), whose seed would remove or replace the main.sd it wrote; put every --sd after the last --project`);
+  }
   return steps;
+}
+
+// The report of a step that was refused before it ran, in the shape the
+// step reports when it runs, so a reader checking `matches` or `screenshot`
+// on a refused step finds the field. Every gate goes through this.
+function gatedStep(step, reason) {
+  const gated = { gated: true, reason };
+  if (step.open) return { surface: step.open, open: false, ...gated };
+  if (step.type) return { field: step.type, typed: false, text: step.text, readBack: null, matches: false, ...gated };
+  if (step.press) return { press: step.press, sent: null, ...gated };
+  if (step.shotOf) return { of: step.shotOf, screenshot: null, ...gated };
+  return { ...step, ...gated };
 }
 
 /**
@@ -2633,10 +2739,12 @@ async function ui(args, deps = liveDeps) {
       // nothing seen on it is evidence. Only a `--project` step can put it
       // right, so every step but a `--project` and a `--probe` (which
       // captures nothing and is how the page is diagnosed) is refused while
-      // the marker stands, and the run stops at the first refused step; the
-      // marker is read again after every `--project` step, so a seed that
-      // fails stops the run as well.
-      let marked = await deps.interruptedSeed(page);
+      // the marker stands, and the run stops at the first refused step. A
+      // `--project` step that fails closes the gate as well, whether its seed
+      // stopped part-way (the marker stands) or was refused before it wrote
+      // (storage holds the previous project, which this run did not ask
+      // for), so no step captures a project the run does not describe.
+      let gate = (await deps.interruptedSeed(page)) ? interruptedSeedError() : null;
       // The start only records what it finds. A step that needs a settled
       // editor (a screenshot, a key press, a panel) checks for one itself at
       // the moment it runs, so the failure lands on the step that would
@@ -2659,27 +2767,33 @@ async function ui(args, deps = liveDeps) {
 
       for (const [index, step] of steps.entries()) {
         const stepNo = index + 1;
-        if (marked && !step.project && !step.probe) {
+        if (gate && !step.project && !step.probe) {
           const rest = steps.length - stepNo;
-          result.steps.push({ ...step, gated: true, reason: `${interruptedSeedError()}${rest > 0 ? ` The ${rest} step${rest === 1 ? "" : "s"} after this one did not run.` : ""}` });
+          result.steps.push(gatedStep(step, `${gate}${rest > 0 ? ` The ${rest} step${rest === 1 ? "" : "s"} after this one did not run.` : ""}`));
           break;
         }
         try {
           if (step.sd || step.project) {
             let out;
             if (step.project) {
-              // As verify does: a `--sd` step supplies main.sd, so the
-              // project needs none of its own.
-              const seeded = await deps.seedProject(page, step.project, { expectMainSd: !steps.some((s) => s.sd) });
-              marked = await deps.interruptedSeed(page);
+              // As verify does: a `--sd` step after this one supplies
+              // main.sd, so the project needs none of its own. parseUiSteps
+              // refuses a `--sd` before a `--project`, whose main.sd the
+              // seed would take away.
+              const seeded = await deps.seedProject(page, step.project, { expectMainSd: !steps.slice(index + 1).some((s) => s.sd) });
               out = { project: step.project, seed: seeded };
               if (seeded.reason) {
                 // Storage holding anything but the whole project is not the
-                // project; the step fails and the page is not reloaded onto it.
+                // project; the step fails, the page is not reloaded onto it,
+                // and the steps after it do not run.
                 out.reason = seeded.reason;
+                gate = (await deps.interruptedSeed(page))
+                  ? interruptedSeedError()
+                  : `the --project seed in step ${stepNo} was refused (${seeded.reason}), so storage holds the project that was there before, which this run did not ask for.`;
                 result.steps.push(out);
                 continue;
               }
+              gate = null;
             } else {
               const src = fs.readFileSync(path.resolve(step.sd), "utf8");
               out = { sd: step.sd, wroteChars: await deps.writeMainSd(page, src) };
@@ -2722,6 +2836,10 @@ async function ui(args, deps = liveDeps) {
                   out.editorSettled = await deps.settleEditor(page, SETTLE_BUDGET_MS);
                   if (out.editorSettled) requireEditor.noteSettled();
                 }
+                // The recovery brings the editor back by clicking the logic
+                // screen tab and the main tab when they are not on display;
+                // a run whose steps are the navigation has to know.
+                if (mount.switched) out.switchedToLogic = true;
                 if (mount.mounted) {
                   const program = await deps.waitForProgram(page);
                   out.programLoaded = program.loaded;
@@ -2762,7 +2880,7 @@ async function ui(args, deps = liveDeps) {
           } else if (step.open) {
             const ready = await requireEditor(page, "panel", stepNo);
             if (ready.ok === false) {
-              result.steps.push({ surface: step.open, open: false, gated: true, reason: ready.reason });
+              result.steps.push(gatedStep(step, ready.reason));
               continue;
             }
             result.steps.push(await openSurface(page, step.open, { settled: ready.ok === true }));
@@ -2771,14 +2889,14 @@ async function ui(args, deps = liveDeps) {
           } else if (step.type) {
             const ready = await requireEditor(page, "field", stepNo);
             if (ready.ok === false) {
-              result.steps.push({ field: step.type, typed: false, text: step.text, readBack: null, matches: false, gated: true, reason: ready.reason });
+              result.steps.push(gatedStep(step, ready.reason));
               continue;
             }
             result.steps.push(await typeInto(page, step.type, step.text, { settled: ready.ok === true }));
           } else if (step.press) {
             const ready = await requireEditor(page, "key press", stepNo);
             if (ready.ok === false) {
-              result.steps.push({ press: step.press, sent: null, gated: true, reason: ready.reason });
+              result.steps.push(gatedStep(step, ready.reason));
               continue;
             }
             const n = await pressKey(page, step.press);
@@ -2791,7 +2909,7 @@ async function ui(args, deps = liveDeps) {
           } else if (step.shotOf) {
             const ready = await requireEditor(page, "screenshot", stepNo);
             if (ready.ok === false) {
-              result.steps.push({ of: step.shotOf, screenshot: null, gated: true, reason: ready.reason });
+              result.steps.push(gatedStep(step, ready.reason));
               continue;
             }
             result.steps.push(await shotOf(page, step.shotOf, step.out));
@@ -2901,6 +3019,8 @@ export {
   waitForProgram,
   programWarning,
   gameMountedWithin,
+  waitForGame,
+  gatedStep,
   waitForEditor,
   waitForApp,
   ensureScriptEditor,
