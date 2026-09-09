@@ -33,6 +33,13 @@ export interface SelectedCompilerDocumentParams {
    * reasoning is spelled out.
    */
   simulatedProgramId?: string;
+  /**
+   * A script the compiled program was built from has been edited since that
+   * compile, so its path locations describe where this document's lines used
+   * to be and this selection cannot be resolved against it. The compile the
+   * edit scheduled starts from this selection and answers it when it lands.
+   */
+  programOutdated?: boolean;
 }
 
 export class SelectedCompilerDocumentMessage {

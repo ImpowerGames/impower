@@ -714,6 +714,7 @@ export class GamePlayerController {
       simulatedPath,
       simulatedProgramId,
       userEvent,
+      programOutdated,
     } = message.params;
     if (userEvent) {
       const startFrom = {
@@ -727,7 +728,12 @@ export class GamePlayerController {
       this._simulatedPath = simulatedPath;
       this._simulatedProgramId = simulatedProgramId;
       if (this._program && this._game?.state !== "running") {
-        if (startFrom.file in this._program.scripts) {
+        if (!(startFrom.file in this._program.scripts)) {
+          if (workspace) {
+            // Ensure the workspace re-compiles document so preview can be updated
+            await workspace.compileTextDocument({ textDocument });
+          }
+        } else if (!programOutdated) {
           await this.updatePreview(
             this._program,
             startFrom.file,
@@ -735,10 +741,15 @@ export class GamePlayerController {
             checkpoint,
             simulationFailure,
           );
-        } else if (workspace) {
-          // Ensure the workspace re-compiles document so preview can be updated
-          await workspace.compileTextDocument({ textDocument });
         }
+        // A selection is answered by looking its line up in the program's path
+        // locations, and `programOutdated` says a script that program was built
+        // from has been edited since. Those locations then describe where the
+        // script's lines used to be, so this line would preview a different
+        // beat — the one that stood at this line number before the edit
+        // (#489). Nothing happens here in that case: the selection is recorded
+        // above, and the compile the edit scheduled starts from it, so
+        // `loadProgram` previews it as soon as that program arrives.
       }
     }
   };

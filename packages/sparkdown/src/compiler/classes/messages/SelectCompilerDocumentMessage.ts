@@ -17,6 +17,12 @@ export interface SelectCompilerDocumentParams {
   checkpoint?: string;
   /** Why no checkpoint could be simulated, when there is none. */
   simulationFailure?: SimulationFailure;
+  /** Filled in by the compiler before the request is handled: a script the
+   *  compiled program was built from has been edited since that compile, so
+   *  the program's path locations describe where this document's lines used to
+   *  be. Everything that would answer this selection from that program waits
+   *  for the compile the edit scheduled instead. */
+  programOutdated?: boolean;
 }
 
 export type SelectCompilerDocumentResult = {
@@ -27,6 +33,8 @@ export type SelectCompilerDocumentResult = {
   checkpoint?: string;
   /** Why no checkpoint could be simulated, when there is none. */
   simulationFailure?: SimulationFailure;
+  /** Mirrors the field of the same name on {@link SelectCompilerDocumentParams}. */
+  programOutdated?: boolean;
 };
 
 export class SelectCompilerDocumentMessage {
