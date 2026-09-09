@@ -18,7 +18,7 @@ import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { classifyRedFailure, parseRedGreenArgs, runRedGreen, sha256 } from "./redgreen.mjs";
+import { classifyRedFailure, parseRedGreenArgs, parseVitestSummary, runRedGreen, sha256 } from "./redgreen.mjs";
 
 let failures = 0;
 const check = (name, fn) => {
@@ -82,6 +82,46 @@ check("an honest test fails on the base and passes on the fix, and the restore m
   assert.equal(r.files[0].snapshotSha, sha256(Buffer.from(NEW)));
   assert.match(r.baseCommit, /^[0-9a-f]{40}$/);
   assert.equal(libText(dir), NEW);
+});
+
+// A vitest run reporting several failures prints the "Test Files" / "Tests"
+// summary lines well before the end of its output, followed by trailing
+// per-test detail; `tail` (the last 40 lines) then ends on that detail, not
+// the summary, which is why the PR quotes `summary` instead of `tail` (#495).
+const MULTI_FAILURE_CHECK =
+  [
+    'import { value } from "./lib.mjs";',
+    'if (value !== "new") {',
+    '  console.error("Test Files  1 failed (1)");',
+    '  console.error("     Tests  2 failed | 3 passed (5)");',
+    '  for (let i = 0; i < 45; i++) console.error("AssertionError: trailing detail line " + i);',
+    "  process.exit(1);",
+    "} else {",
+    '  console.log("Test Files  1 passed (1)");',
+    '  console.log("     Tests  5 passed (5)");',
+    '  for (let i = 0; i < 45; i++) console.log("ok detail line " + i);',
+    "}",
+  ].join("\n") + "\n";
+
+check("red.summary and green.summary carry the Test Files / Tests lines even when they are not in tail", () => {
+  const dir = makeRepo();
+  applyFix(dir);
+  fs.writeFileSync(path.join(dir, "check.mjs"), MULTI_FAILURE_CHECK);
+  const r = run(dir);
+  assert.equal(r.ok, true, JSON.stringify(r.problems));
+  assert.equal(r.red.summary, "Test Files  1 failed (1) / Tests  2 failed | 3 passed (5)");
+  assert.ok(
+    !r.red.tail.some((l) => l.includes("Test Files")),
+    "the tail should end on the trailing detail lines, not the summary -- proving summary is not just a re-read of tail",
+  );
+  assert.equal(r.green.summary, "Test Files  1 passed (1) / Tests  5 passed (5)");
+});
+
+check("parseVitestSummary reads either line alone and returns null when neither is present", () => {
+  assert.equal(parseVitestSummary(" Test Files  1 passed (1)\n"), "Test Files  1 passed (1)");
+  assert.equal(parseVitestSummary("      Tests  8 passed (8)\n"), "Tests  8 passed (8)");
+  assert.equal(parseVitestSummary("AssertionError: expected new, got old\n"), null);
+  assert.equal(parseVitestSummary(""), null);
 });
 
 check("a test that passes on the base is reported as pinning nothing", () => {

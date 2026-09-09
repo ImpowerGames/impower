@@ -216,6 +216,24 @@ export function classifyRedFailure(output, { removed = [] } = {}) {
 }
 
 /**
+ * The `Test Files` and `Tests` summary lines vitest prints at the end of a
+ * run, joined into one string. `tail` is the last 40 output lines, which on a
+ * multi-failure run ends on the last stack trace rather than the count, so
+ * this is what a report quotes instead. Returns null when the output carries
+ * neither line (a crash, a shell failure, a runner other than vitest).
+ */
+export function parseVitestSummary(output) {
+  const lines = String(output || "").split(/\r?\n/);
+  const testFiles = lines.find((l) => /^\s*Test Files\s/.test(l));
+  const tests = lines.find((l) => /^\s*Tests\s/.test(l));
+  if (!testFiles && !tests) return null;
+  return [testFiles, tests]
+    .filter(Boolean)
+    .map((l) => l.trim())
+    .join(" / ");
+}
+
+/**
  * Snapshot → revert to base → run (must fail) → restore → hash-check → run
  * (must pass). Returns the report; `report.ok` is the verdict, and it is false
  * whenever `problems` is non-empty. Throws only for a malformed request or a
@@ -392,6 +410,7 @@ export function runRedGreen({ repoRoot, test, files, base = "HEAD", snapshotDir,
         outcome: red.exit === 0 ? "passed" : "failed",
         reason: redReason,
         tail: red.tail,
+        summary: parseVitestSummary(red.output),
       };
       if (red.exit === 0) {
         report.problems.push(
@@ -449,6 +468,7 @@ export function runRedGreen({ repoRoot, test, files, base = "HEAD", snapshotDir,
         exit: green.exit,
         outcome: green.exit === 0 ? "passed" : "failed",
         tail: green.tail,
+        summary: parseVitestSummary(green.output),
       };
       if (green.exit !== 0) {
         report.problems.push("The test failed against the fix. The restore is verified by hash, so this is the fix itself, not a stale copy.");

@@ -61,13 +61,13 @@ It snapshots the files, reverts them to the base revision, runs the test and req
   "test": "cd packages/sparkdown && …",
   "snapshotDir": "C:\\...\\Temp\\redgreen-abc123",
   "files": [{ "path": "packages/sparkdown/src/compiler/utils/filterImage.ts", "snapshotPath": "C:\\...\\redgreen-abc123\\01-filterImage.ts", "snapshotSha": "…", "baseSha": "…", "changedDuringRed": false, "restored": true, "matches": true, "restoreError": null }],
-  "red": { "exit": 1, "outcome": "failed", "reason": "assertion", "tail": ["…"] },
-  "green": { "exit": 0, "outcome": "passed", "tail": ["…"] },
+  "red": { "exit": 1, "outcome": "failed", "reason": "assertion", "tail": ["…"], "summary": "Test Files  1 failed (1) / Tests  2 failed | 3 passed (5)" },
+  "green": { "exit": 0, "outcome": "passed", "tail": ["…"], "summary": "Test Files  1 passed (1) / Tests  5 passed (5)" },
   "problems": []
 }
 ```
 
-`ok: true` means exactly this: every named file differs from the base, the test exited non-zero on the base with output that reads as a test failure, every file came back byte-for-byte, and the test exited zero on the fix. It is an exit-code proof. Which test failed is in `red.tail`, and reading it is your job: a red where the ticket's new case passed and an unrelated case in the same file failed looks identical to the command. Quote the assertion from `red.tail` and the `green` count in the PR body. `ok: false` exits non-zero, and `problems` is never empty when it does:
+`ok: true` means exactly this: every named file differs from the base, the test exited non-zero on the base with output that reads as a test failure, every file came back byte-for-byte, and the test exited zero on the fix. It is an exit-code proof. Which test failed is in `red.tail`, and reading it is your job: a red where the ticket's new case passed and an unrelated case in the same file failed looks identical to the command; on a run with more than one failing test, `red.tail` (the last 40 output lines) is the last stack trace, not the count. Quote `red.summary` and `green.summary` in the PR body. `ok: false` exits non-zero, and `problems` is never empty when it does:
 
 - The test passed against the base: it pins nothing. Either it does not assert the ticket's behaviour, or `--files` does not name where the fix lives.
 - A file is identical to the base. Nothing to revert in it: either the fix is committed (pass `--base origin/main`) or the file is not where the fix lives.
@@ -85,7 +85,11 @@ The snapshot and the restore happen inside one process, so there is no copy to g
 
 `--base` is where the pre-fix content comes from and defaults to `HEAD`. That is right only before you commit. After the commit, `HEAD` is your fix, and a baseline taken from it silently contains the very change it is supposed to lack; the run then "reproduces nothing", which reads as "the bug was never real", and `redgreen` reports the file as identical to the base and the test as pinning nothing. Once you have committed, pass `--base origin/main`. A base that does not resolve (a typo, or a remote branch never fetched in this worktree) is refused before any file is touched, as is a run from anywhere but the repository root.
 
-Where a whole-file revert would break the test's imports (the fix adds an export the test uses), simulate the old behaviour in place instead: disable the one branch that matters, or restore the old function body under the new name, run the test by hand for the red, then put the fix back. Keep a positive control in the file, an assertion that passes both before and after, so a red run proves the defect, not a broken harness. `redgreen` sends you here itself when the red run fails on an import.
+Where a whole-file revert would break the test's imports (the fix adds an export the test uses), simulate the old behaviour in place instead: disable the one branch that matters, or restore the old function body under the new name, run the test by hand for the red, then put the fix back. Keep a positive control in the file, an assertion that passes both before and after, so a red run proves the defect, not a broken harness. `redgreen` sends you here itself when the red run fails on an import. After restoring a file from its copy, read it again before editing it; the editor tool refuses a file it has not read since the restore.
+
+A test added for a line the base commit already has cannot go red by swapping sources, since the base already contains that line; check it by mutation instead: weaken that line alone with a script that patches and restores the file, byte-compared, run the one test, and report it as checked by mutation.
+
+Keep each half of a red/green run under the command tool's own timeout: the swap, the red run and the restore in one script, and the green runs in another, so a timeout partway through cannot leave the sources swapped.
 
 Record both outcomes for the PR body.
 
@@ -127,7 +131,7 @@ for t in $(git ls-files '.claude/**/*.test.mjs'); do echo "--- $t"; node "$t" ||
 
 The checks need no `node_modules`: the driver imports `playwright` only inside the commands that launch a browser, so a worktree that skipped `npm install` still runs every one of them.
 
-The two loops take two to three minutes here (the shell loop about 25 s; the Node loop about 115 s, 47 s of it the clean-worktrees check, which builds a scratch repository) and longer on a loaded machine, because they spawn many small processes; give them a ten-minute timeout and read the result rather than concluding a hang.
+The two loops take two to three minutes here (the shell loop about 25 s; the Node loop about 115 s, 47 s of it the clean-worktrees check, which builds a scratch repository) and longer on a loaded machine, because they spawn many small processes. Run them in the background and read the log when notified; a run here has exceeded ten minutes with no failure in it, and a run that ran past that cap is read from its log, never re-run on the assumption it hung.
 
 ---
 

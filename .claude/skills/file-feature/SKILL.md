@@ -68,7 +68,7 @@ Format each round like this:
 ➡️ ...
 ```
 
-Recommend on every question. The user came with an idea, not a spec, and a recommendation they can accept or reject in a word moves faster than an open question. Ground the recommendation in what you found in steps 1 and 2: "the `load` arrow already does X, and Ren'Py and Godot both treat it as Y, so I recommend Y".
+Recommend on every question. The user came with an idea, not a spec, and a recommendation they can accept or reject in a word moves faster than an open question. Ground the recommendation in what you found in steps 1 and 2: "the `load` arrow already does X, and Ren'Py and Godot both treat it as Y, so I recommend Y". When a question is about how a design behaves on real data, a throwaway prototype run against that data answers it better than a recommendation; put the run's results into Alternatives considered.
 
 Each answered round reshapes the tree. Recompute the frontier and ask the next round. The interview is done when the frontier is empty: every branch visited, nothing left silently assumed. Do not file until the user confirms the understanding is shared. If the user says "just decide" on a branch, take your recommendation and mark the decision "decided by default" in the ticket so a later reader knows it was not chosen deliberately.
 
@@ -87,7 +87,7 @@ Not every feature has all eight, and some have branches this list does not. The 
 
 ## 4. Size it
 
-If the agreed plan is more than one pull request's worth, split it into vertical slices: each slice cuts a complete path through every layer it touches and is verifiable on its own, rather than one layer at a time. File the feature ticket as the parent with the slice list in its plan, and each slice as a Task issue (template `.github/ISSUE_TEMPLATE/task.md`, type `Task`) that says "Split from #N" and which slices block it. A wide mechanical change (a rename across the codebase) is the exception: sequence it as expand, migrate in batches, contract.
+If the agreed plan is more than one pull request's worth, split it into vertical slices: each slice cuts a complete path through every layer it touches and is verifiable on its own, rather than one layer at a time. File the feature ticket as the parent with the slice list in its plan, and each slice as a Task issue (template `.github/ISSUE_TEMPLATE/task.md`, type `Task`) that says "Split from #N" and which slices block it. File the parent first, then each slice in dependency order with the numbers it is blocked by, then edit the parent to list the slice numbers under Implementation plan. A wide mechanical change (a rename across the codebase) is the exception: sequence it as expand, migrate in batches, contract.
 
 ## 5. Write the ticket
 
@@ -102,7 +102,7 @@ What goes where:
 - Scope: what is in, what is out, and what existing code, branch, or ticket is reused, with `file:line` references at a specific commit where that helps.
 - Implementation plan: steps in pipeline order (parser, compiler, engine, player, editor, extension), one bullet per step naming the package. Decisions, not code; a snippet only where it captures a decision more precisely than prose (a type shape, a state machine).
 - Acceptance criteria: checkboxes a reviewer can tick: the tests that exist and what they prove, what the running editor shows, what a measurement reads.
-- Additional context: the prior tickets, the docs chapter to update, the slices if it was split.
+- Additional context: the prior tickets, the docs chapter to update, the slices if it was split. If the interview produced a draft document, embed it here under a `<details>` block and name it the design of record; a slice then moves it into the repo.
 
 Strip the template's HTML comments. Write "Open" under a heading that is still undecided rather than deleting it.
 
