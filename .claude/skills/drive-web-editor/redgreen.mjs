@@ -225,23 +225,73 @@ export function classifyRedFailure(output, { removed = [] } = {}) {
  * vitest colours these labels through `tinyrainbow`, which this machine
  * enables unconditionally on Windows regardless of TTY, so the raw line
  * starts with an ANSI escape (`\x1b[2m Test Files \x1b[22m …`); ANSI is
- * stripped before matching. Each line also has to carry the count itself
- * (`\d+ (?:passed|failed|skipped|todo)`), not just the label, so a test's own
+ * stripped before matching. A `Test Files` line always carries a count
+ * (`\d+ (?:passed|failed|skipped|todo)`); a `Tests` line usually does too,
+ * but when the run collected zero tests (every test file failed to import,
+ * for instance) vitest prints `Tests  no tests` instead, with no digit in
+ * it — that shape counts as the summary as well, so a red run that
+ * collected nothing still reports as much rather than silently losing its
+ * `Tests` line. Neither line is matched on the label alone, so a test's own
  * diagnostic output that happens to start with "Tests" (`Tests are slow
- * today`) is not mistaken for the summary. On a `--test` command that invokes
- * vitest more than once, several such lines can appear; the last matching
- * pair is the one that reflects the run's own final state, so that is what
- * this returns rather than the first.
+ * today`) is not mistaken for the summary.
+ *
+ * On a `--test` command that invokes vitest more than once, each invocation
+ * prints its own adjacent `Test Files` / `Tests` pair. The two lines are
+ * paired by invocation — the last `Test Files` line, and the first `Tests`
+ * line after it — never by taking the last of each independently, which can
+ * stitch together two different invocations: an early one that ran real
+ * tests and a later one that only reached `Test Files` before its own
+ * `Tests` line (or never printed one at all).
  */
 const ANSI_ESCAPE_RE = /\x1b\[[0-9;]*m/g;
 const VITEST_COUNT_RE = /\d+\s+(?:passed|failed|skipped|todo)/;
+const VITEST_NO_TESTS_RE = /\bno tests\b/;
+const isTestFilesLine = (l) => /^\s*Test Files\s/.test(l) && VITEST_COUNT_RE.test(l);
+const isTestsLine = (l) => /^\s*Tests\s/.test(l) && (VITEST_COUNT_RE.test(l) || VITEST_NO_TESTS_RE.test(l));
+
+// vitest opens every run with its own banner (`RUN  v2.1.9 <root>`), which a
+// command that reaches vitest without naming it in the `--test` string (an
+// `npm test` that runs `vitest run` under the hood) still prints. Reading it
+// off the actual output, rather than guessing from the command text alone,
+// catches that case; it still only fires red.summary === null on a run that
+// looks like vitest one way or the other, never on a plain runner that has
+// no summary to begin with.
+const VITEST_BANNER_RE = /\bRUN\b\s+v\d+\.\d+\.\d+/;
+const looksLikeVitestRun = (test, output) =>
+  /\bvitest\b/i.test(test) || VITEST_BANNER_RE.test(String(output || "").replace(ANSI_ESCAPE_RE, ""));
 
 export function parseVitestSummary(output) {
   const lines = String(output || "").replace(ANSI_ESCAPE_RE, "").split(/\r?\n/);
-  const testFilesLines = lines.filter((l) => /^\s*Test Files\s/.test(l) && VITEST_COUNT_RE.test(l));
-  const testsLines = lines.filter((l) => /^\s*Tests\s/.test(l) && VITEST_COUNT_RE.test(l));
-  const testFiles = testFilesLines[testFilesLines.length - 1];
-  const tests = testsLines[testsLines.length - 1];
+
+  let testFilesIdx = -1;
+  for (let i = lines.length - 1; i >= 0; i--) {
+    if (isTestFilesLine(lines[i])) {
+      testFilesIdx = i;
+      break;
+    }
+  }
+
+  let testFiles;
+  let tests;
+  if (testFilesIdx !== -1) {
+    testFiles = lines[testFilesIdx];
+    for (let i = testFilesIdx + 1; i < lines.length; i++) {
+      if (isTestsLine(lines[i])) {
+        tests = lines[i];
+        break;
+      }
+      if (isTestFilesLine(lines[i])) break; // the next invocation started with no Tests line of its own
+    }
+  } else {
+    // No Test Files line anywhere: fall back to the last Tests line, if any.
+    for (let i = lines.length - 1; i >= 0; i--) {
+      if (isTestsLine(lines[i])) {
+        tests = lines[i];
+        break;
+      }
+    }
+  }
+
   if (!testFiles && !tests) return null;
   return [testFiles, tests]
     .filter(Boolean)
@@ -454,12 +504,17 @@ export function runRedGreen({ repoRoot, test, files, base = "HEAD", snapshotDir,
             ? `The test exited ${red.exit} on the base with no output at all, so there is nothing to show the failure was the ticket's. Use a test invocation that prints its assertion.`
             : `The test exited ${red.exit} on the base, but the output does not look like a test assertion (no AssertionError, expected/to, expect(), FAIL, "not ok", or failing count). Read red.tail yourself: if it is the ticket's assertion in a form the classifier does not know, say so in the PR; if it is a config error or a truncated run, it proves nothing.`,
         );
-      } else if (redReason === "assertion" && report.red.summary == null && /\bvitest\b/i.test(test)) {
-        // Only when the command names vitest: a plain Node or other test
-        // runner has no Test Files / Tests summary to begin with, and that is
-        // expected, not a parsing failure.
+      } else if (redReason === "assertion" && report.red.summary == null && looksLikeVitestRun(test, red.output)) {
+        // Only when the command names vitest or the output carries vitest's
+        // own run banner: a plain Node or other test runner has no Test
+        // Files / Tests summary to begin with, and that is expected, not a
+        // parsing failure. This still cannot tell a real vitest run that
+        // printed neither shape (a reporter or version this parser does not
+        // know) from a command that merely mentions "vitest" in a path or a
+        // comment without running it; either way the missing summary is
+        // worth a look.
         report.problems.push(
-          `The test command names vitest and failed on the base with what reads as a real assertion, but no \`Test Files\`/\`Tests\` summary line could be parsed from the output. Read red.tail for the failure and quote it directly in the PR.`,
+          `The test command names vitest, or the output shows vitest's own run banner, and it failed on the base with what reads as a real assertion, but no \`Test Files\`/\`Tests\` summary line could be parsed from the output. Read red.tail for the failure and quote it directly in the PR.`,
         );
       }
     }

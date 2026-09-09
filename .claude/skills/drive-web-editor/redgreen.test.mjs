@@ -100,6 +100,22 @@ const RED_TESTS = "\x1b[2m      Tests \x1b[22m \x1b[1m\x1b[31m2 failed\x1b[39m\x
 const GREEN_TEST_FILES = "\x1b[2m Test Files \x1b[22m \x1b[1m\x1b[32m1 passed\x1b[39m\x1b[22m\x1b[90m (1)\x1b[39m";
 const GREEN_TESTS = "\x1b[2m      Tests \x1b[22m \x1b[1m\x1b[32m5 passed\x1b[39m\x1b[22m\x1b[90m (5)\x1b[39m";
 
+// A test file that fails to collect (a broken import, for instance) leaves
+// vitest with nothing to count: it still prints a "Test Files" line naming
+// the collection failure, but the "Tests" line reads "no tests" instead of a
+// count. Bytes below captured from a real `node vitest.mjs run` on this
+// machine against a file whose import does not resolve (round 2 of #503's
+// review, both reviewers independently).
+const COLLECT_FAIL_TEST_FILES = "\x1b[2m Test Files \x1b[22m \x1b[1m\x1b[31m1 failed\x1b[39m\x1b[22m\x1b[90m (1)\x1b[39m";
+const NO_TESTS_LINE = "\x1b[2m      Tests \x1b[22m \x1b[2mno tests\x1b[22m";
+
+// vitest's own banner, printed at the start of every run whatever `--test`
+// says; bytes also captured from a real run. Used to prove a red run gets
+// flagged for a missing summary even when the command text never says
+// "vitest" (an `npm test` that runs `vitest run` under the hood, for one).
+const VITEST_RUN_BANNER =
+  "\x1b[1m\x1b[7m\x1b[36m RUN \x1b[39m\x1b[27m\x1b[22m \x1b[36mv2.1.9 \x1b[39m\x1b[90mC:/scratch/vt\x1b[39m";
+
 const MULTI_FAILURE_CHECK =
   [
     'import { value } from "./lib.mjs";',
@@ -157,6 +173,46 @@ check("parseVitestSummary takes the last matching pair, not the first, on a --te
   assert.equal(parseVitestSummary(twoRuns), "Test Files  1 failed (1) / Tests  2 failed | 3 passed (5)");
 });
 
+check("parseVitestSummary reads vitest's \"no tests\" Tests line -- the shape a collection failure prints when zero tests ran", () => {
+  const output = [` ${COLLECT_FAIL_TEST_FILES}`, `${NO_TESTS_LINE}`].join("\n");
+  assert.equal(parseVitestSummary(output), "Test Files  1 failed (1) / Tests  no tests");
+});
+
+check("parseVitestSummary recognises a second invocation's \"no tests\" Tests line rather than dropping it, in a two-invocation run", () => {
+  // Invocation 1 ran real tests and passed; invocation 2 failed to collect
+  // (an import broken by the revert, say) and reports "no tests". Both
+  // labels belong to invocation 2, so pairing and independent-last agree
+  // here -- this pins that the "no tests" shape is not silently lost from a
+  // multi-invocation run, on top of the single-invocation case above.
+  const twoRuns = [
+    ` ${GREEN_TEST_FILES}`,
+    ` ${GREEN_TESTS}`,
+    "--- second invocation ---",
+    ` ${COLLECT_FAIL_TEST_FILES}`,
+    `${NO_TESTS_LINE}`,
+  ].join("\n");
+  assert.equal(parseVitestSummary(twoRuns), "Test Files  1 failed (1) / Tests  no tests");
+});
+
+check("parseVitestSummary pairs Test Files / Tests by invocation, not by taking the last of each independently, when the second invocation's Tests line is a shape this parser does not recognise", () => {
+  // Invocation 1 passed, with a real count on both lines. Invocation 2
+  // failed, and its own Tests line ("cancelled") is neither the count shape
+  // nor "no tests" -- some reporter or vitest version this parser does not
+  // know. Taking the last Test Files line and the last Tests line
+  // independently reaches back into invocation 1 for the Tests half and
+  // reports invocation 2's failure paired with invocation 1's passing
+  // count, a combination no single vitest run ever prints. Pairing by
+  // invocation instead reports only the half it actually has.
+  const twoRuns = [
+    ` ${GREEN_TEST_FILES}`,
+    ` ${GREEN_TESTS}`,
+    "--- second invocation ---",
+    ` ${RED_TEST_FILES}`,
+    "      Tests  cancelled",
+  ].join("\n");
+  assert.equal(parseVitestSummary(twoRuns), "Test Files  1 failed (1)");
+});
+
 check("a red run naming vitest that fails on assertion with no parseable summary is a problem, not a silent null", () => {
   const dir = makeRepo();
   applyFix(dir);
@@ -171,7 +227,26 @@ check("a red run naming vitest that fails on assertion with no parseable summary
   assert.equal(r.ok, false);
   assert.equal(r.red.reason, "assertion");
   assert.equal(r.red.summary, null);
-  assert.match(r.problems.join("\n"), /command names vitest.*no `Test Files`\/`Tests` summary line could be parsed/);
+  assert.match(r.problems.join("\n"), /command names vitest, or the output shows vitest's own run banner.*no `Test Files`\/`Tests` summary line could be parsed/);
+});
+
+check("a red run whose output carries vitest's own run banner is flagged for a missing summary even when the command text never says vitest", () => {
+  const dir = makeRepo();
+  applyFix(dir);
+  fs.writeFileSync(
+    path.join(dir, "check.mjs"),
+    [
+      'import { value } from "./lib.mjs";',
+      `console.error(${JSON.stringify(VITEST_RUN_BANNER)});`,
+      'if (value !== "new") { console.error("AssertionError: expected new, got " + value); process.exit(1); }',
+      'console.log("ok");',
+    ].join("\n") + "\n",
+  );
+  const r = run(dir, { test: `${NODE} check.mjs` }); // the command text never mentions vitest
+  assert.equal(r.ok, false);
+  assert.equal(r.red.reason, "assertion");
+  assert.equal(r.red.summary, null);
+  assert.match(r.problems.join("\n"), /output shows vitest's own run banner/);
 });
 
 check("a red run that does not name vitest and has no summary is not flagged for a missing summary (plain runners have none to begin with)", () => {

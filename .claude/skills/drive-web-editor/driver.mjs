@@ -1848,8 +1848,10 @@ async function verify(args, deps = liveDeps) {
           }
           result.scrubWarning =
             (result.scrubCheck.outcome === "elsewhere"
-              ? `the scrub did not land: ${result.scrubCheck.reason}. The screenshot ` +
-                `is not evidence about line ${target}.`
+              ? `usually a genuinely failed scrub: ${result.scrubCheck.reason}. Open ` +
+                `the screenshot before concluding it did not land — the same near-` +
+                `duplicate-text confusion that produces \`inconclusive\` can produce ` +
+                `this outcome too, on a line that is genuinely on screen.`
               : `Could not confirm the scrub landed: ${result.scrubCheck.reason}. ` +
                 `This is not the same as a failure — read \`visible\` and judge it ` +
                 `yourself.`) +
