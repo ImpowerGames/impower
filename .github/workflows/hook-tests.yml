@@ -1,29 +1,47 @@
 name: Hook Tests
 
-# Runs the checks for the Claude Code hooks under .claude/hooks on every pull
-# request that touches them or the settings file that wires them, and on
-# main. The hooks guard what agents can do in this repo (the typed-issue hook
-# refuses untyped issue creation), and nothing else runs their tests.
+# Runs every check `git ls-files '.claude/**/*.test.*'` lists on a pull
+# request that touches `.claude/**`: the two checks under `.claude/hooks/`
+# that guard what agents can do in this repo, and the checks under
+# `.claude/skills/` that pin a driver, a cleanup script, or a skill's own
+# prose. Bare `node` and `bash`, no `npm install` — the checks are written
+# to run that way; `write-regression-test/SKILL.md` documents the same loop
+# for a session running it by hand.
+#
+# Two cases need Windows semantics this runner does not have: the cleaner's
+# rename probe in clean-worktrees.test.mjs (it depends on the system
+# refusing a rename or a long path) and, depending on what `ps` reports here,
+# state-path.test.mjs's live-process cases. A check that cannot run on
+# ubuntu-latest prints a `SKIP:` line instead of failing; the job summary
+# lists every one so a reviewer can see what this runner did not exercise.
 
 on:
   pull_request:
     paths:
-      - ".claude/hooks/**"
-      - ".claude/settings.json"
+      - ".claude/**"
       - ".github/workflows/hook-tests.yml"
   push:
     branches: [main]
     paths:
-      - ".claude/hooks/**"
-      - ".claude/settings.json"
+      - ".claude/**"
       - ".github/workflows/hook-tests.yml"
+
+# A superseded PR run is of no interest; keep only the newest per branch.
+concurrency:
+  group: hook-tests-${{ github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
 
 jobs:
-  hooks:
+  standalone-checks:
     runs-on: ubuntu-latest
+    # The loop takes two to three minutes on the machine this was measured
+    # on (the clean-worktrees check, which builds scratch git repositories,
+    # is about half of that); this bounds a hang instead of relying on
+    # nothing timing out at all.
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
         with:
@@ -31,7 +49,52 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 24
-      - name: Typed-issue hook
-        run: node .claude/hooks/typed-issue-hook.test.mjs
-      - name: Grammar-edit hook
-        run: bash .claude/hooks/grammar-edit-hook.test.sh
+      - name: Run the standalone .claude checks
+        shell: bash
+        run: |
+          set +e
+          log="checks.log"
+          : > "$log"
+
+          for t in $(git ls-files '.claude/**/*.test.sh'); do
+            echo "--- $t" | tee -a "$log"
+            bash "$t" 2>&1 | tee -a "$log"
+            if [ "${PIPESTATUS[0]}" -ne 0 ]; then echo "FAILED: $t" | tee -a "$log"; fi
+          done
+
+          for t in $(git ls-files '.claude/**/*.test.mjs'); do
+            echo "--- $t" | tee -a "$log"
+            node "$t" 2>&1 | tee -a "$log"
+            if [ "${PIPESTATUS[0]}" -ne 0 ]; then echo "FAILED: $t" | tee -a "$log"; fi
+          done
+
+          expected=$(git ls-files '.claude/**/*.test.*' | wc -l)
+          ran=$(grep -c '^--- ' "$log")
+          failed=$(grep -c '^FAILED:' "$log")
+          skipped=$(grep '^SKIP' "$log")
+
+          {
+            echo "## Standalone \`.claude\` checks"
+            echo
+            echo "Ran $ran of $expected checks listed by \`git ls-files '.claude/**/*.test.*'\`."
+            echo
+            if [ -n "$skipped" ]; then
+              echo "### Skipped on ubuntu-latest"
+              echo
+              echo "$skipped" | sed 's/^/- /'
+            else
+              echo "No cases skipped on this runner."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          status=0
+          if [ "$failed" -ne 0 ]; then
+            echo "$failed check(s) reported FAILED:"
+            grep '^FAILED:' "$log"
+            status=1
+          fi
+          if [ "$ran" -lt "$expected" ]; then
+            echo "Only $ran/$expected checks ran; the loop skipped a check outright."
+            status=1
+          fi
+          exit $status
