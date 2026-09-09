@@ -2,8 +2,8 @@ import { SparkdownDocumentRegistry } from "@impower/sparkdown/src/compiler/class
 import { describe, expect, test } from "vitest";
 import { getCompletions } from "../../utils/providers/getCompletions";
 
-// A `~filter` candidate list leaves out the filters the directive has already
-// applied (#478). The filters of an asset command are not siblings of one
+// A attribute candidate list leaves out the attributes the directive has already
+// applied (#478). The attributes of an asset command are not siblings of one
 // another in the tree — each sits inside its own `AssetCommandFilter` — so a
 // sibling walk finds none of them and excludes nothing.
 
@@ -36,26 +36,18 @@ const positionAt = (source: string, marker = "|") => {
   return { text, position: { line, character } };
 };
 
-const program = {
-  context: {
-    image: {
-      bunny_bruh: { $type: "image", $name: "bunny_bruh" },
-      raffles: { $type: "image", $name: "raffles" },
-    },
-    audio: { bark: { $type: "audio", $name: "bark" } },
-    filter: {
-      phone: { $type: "filter", $name: "phone", includes: ["phone"] },
-      look_down: {
-        $type: "filter",
-        $name: "look_down",
-        includes: ["look-down"],
-      },
-      look_up: { $type: "filter", $name: "look_up", includes: ["look-up"] },
-      coat: { $type: "filter", $name: "coat", includes: ["coat"] },
-    },
+const vocabulary = { version: 1, layers: [], folders: {}, diagnostics: [], groups: {
+  phone: { options: ["on", "off"], switch: true },
+  look: { options: ["down", "up"], switch: false },
+  coat: { options: ["on", "off"], switch: true },
+} };
+const program = { context: {
+  image: {
+    bunny_bruh: { $type: "image", $name: "bunny_bruh", attribute_vocabulary: vocabulary },
+    raffles: { $type: "image", $name: "raffles", attribute_vocabulary: vocabulary },
   },
-} as any;
-
+  audio: { bark: { $type: "audio", $name: "bark" } },
+} } as any;
 const labelsAt = (source: string) => {
   const { text, position } = positionAt(source);
   const { documents, scriptAnnotations } = setup(text);
@@ -71,38 +63,38 @@ const labelsAt = (source: string) => {
   return (items ?? []).map((i) => String(i.label));
 };
 
-describe("provider · filter completion exclusion (#478)", () => {
-  test("a filter already in the directive is not offered again", () => {
+describe("provider · attribute completion exclusion (#478)", () => {
+  test("an attribute already in the directive is not offered again", () => {
     const labels = labelsAt(`[[bunny_bruh~phone~|]]\n`);
     expect(labels, "the list is not empty").not.toHaveLength(0);
     expect(labels, "phone is already applied on this line").not.toContain(
       "phone",
     );
-    expect(labels, "the others are still offered").toContain("look_down");
+    expect(labels, "the others are still offered").toContain("look.down");
     expect(labels).toContain("coat");
   });
 
-  test("every filter already in a longer chain is left out", () => {
-    const labels = labelsAt(`[[bunny_bruh~phone~look_down~|]]\n`);
+  test("every attribute already in a longer chain is left out", () => {
+    const labels = labelsAt(`[[bunny_bruh~phone~look.down~|]]\n`);
     expect(labels).not.toContain("phone");
-    expect(labels).not.toContain("look_down");
-    expect(labels).toContain("look_up");
+    expect(labels).not.toContain("look.down");
+    expect(labels).toContain("look.up");
     expect(labels).toContain("coat");
   });
 
   test("the partial name under the cursor is still offered", () => {
-    // The author is part-way through typing `look_down`; treating that token
-    // as an applied filter would hide the very name being completed.
-    const labels = labelsAt(`[[bunny_bruh~phone~look_d|]]\n`);
+    // The author is part-way through typing `look.down`; treating that token
+    // as an applied attribute would hide the very name being completed.
+    const labels = labelsAt(`[[bunny_bruh~phone~look.d|]]\n`);
     expect(labels, "the name being typed must stay in the list").toContain(
-      "look_down",
+      "look.down",
     );
     expect(labels).not.toContain("phone");
   });
 
-  test("a fully-typed filter being replaced is still offered", () => {
-    const labels = labelsAt(`[[bunny_bruh~phone~look_up|]]\n`);
-    expect(labels).toContain("look_up");
+  test("a fully-typed attribute being replaced is still offered", () => {
+    const labels = labelsAt(`[[bunny_bruh~phone~look.up|]]\n`);
+    expect(labels).toContain("look.up");
     expect(labels).not.toContain("phone");
   });
 
@@ -116,16 +108,14 @@ describe("provider · filter completion exclusion (#478)", () => {
     );
   });
 
-  test("an audio directive excludes its own applied filters too", () => {
+  test("an audio directive has no image attributes", () => {
     const labels = labelsAt(`((bark~phone~|))\n`);
-    expect(labels).not.toHaveLength(0);
+    expect(labels).toHaveLength(0);
     expect(labels).not.toContain("phone");
-    expect(labels).toContain("look_down");
   });
 
-  test("a directive with no asset name yet still excludes", () => {
+  test("a directive with no asset name has no image vocabulary", () => {
     const labels = labelsAt(`[[~phone~|]]\n`);
-    expect(labels).not.toContain("phone");
-    expect(labels).toContain("look_down");
+    expect(labels).toEqual([]);
   });
 });

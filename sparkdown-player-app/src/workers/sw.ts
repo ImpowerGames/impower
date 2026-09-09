@@ -1,5 +1,6 @@
 import { MessageProtocolRequestType } from "@impower/jsonrpc/src/common/classes/MessageProtocolRequestType";
 import { FetchGameAssetMessage } from "../../../packages/spark-engine/src/game/core/classes/messages/FetchGameAssetMessage";
+import { normalizeSVGAttributeNames } from "../../../packages/sparkdown/src/attributes/normalizeSVGAttributeNames";
 import { filterSVG } from "../../../packages/sparkdown/src/compiler/utils/filterSVG";
 import {
   filteredSvgResponse,
@@ -18,8 +19,8 @@ const RESOURCE_PROTOCOL: string = "/file:/";
 // entry can never be served for changed content. (This SW can't use the
 // editor SW's file-signature keying — it never sees file metadata, only the
 // bytes relayed back from the editor page.) Superseded signatures of the same
-// path+filters variant are pruned on write.
-const SW_FILTERED_CACHE_NAME: string = "filtered-svgs";
+// path+attributes variant are pruned on write.
+const SW_FILTERED_CACHE_NAME: string = "filtered-svgs-attributes-v3";
 
 const _listeners: Set<(message: any) => void> = new Set();
 
@@ -62,7 +63,7 @@ async function generateFilteredSvg(
   path: string,
   clientId: string,
   filter: ImageFilter,
-  filtersParam: string,
+  attributesParam: string,
 ): Promise<string> {
   const client = await self.clients.get(clientId);
   if (!client) {
@@ -71,12 +72,14 @@ async function generateFilteredSvg(
   const { transfer } = await sendRequest(client, FetchGameAssetMessage.type, {
     path,
   });
-  const filtered = filterSVG(new TextDecoder().decode(transfer[0]), filter);
+  const buffer = transfer[0];
+  if (!buffer) throw new Error("Asset relay returned no bytes");
+  const filtered = filterSVG(normalizeSVGAttributeNames(new TextDecoder().decode(buffer)), filter);
   try {
     const cache = await caches.open(SW_FILTERED_CACHE_NAME);
     await cache.put(url.href, filteredSvgResponse(filtered));
     // Prune superseded signatures of this exact variant AFTER responding: same
-    // path + same filters at a DIFFERENT url means the file's `?v=` signature
+    // path + same attributes at a DIFFERENT url means the file's `?v=` signature
     // moved (an edit), so the old entry can never be requested again. Kept off
     // the critical path because `cache.keys()` enumerates the whole bucket, and
     // warming a project's whole variant set would make that O(n^2) on the
@@ -90,7 +93,7 @@ async function generateFilteredSvg(
               const cachedUrl = new URL(req.url);
               return (
                 cachedUrl.pathname === url.pathname &&
-                cachedUrl.searchParams.get("filters") === filtersParam &&
+                cachedUrl.searchParams.get("attributes") === attributesParam &&
                 req.url !== url.href
               );
             })
@@ -108,12 +111,12 @@ async function handleLocalAssetRequest(url: URL, clientId: string) {
   const contentType = guessType(filename || "");
 
   // On-demand filtered SVG variants (#299): the round-trip only relays the
-  // PATH to the editor, so the filters param must be honored here or
+  // PATH to the editor, so the attributes param must be honored here or
   // filtered_src URLs silently render unfiltered.
-  const filtersParam = url.searchParams.get("filters");
+  const attributesParam = url.searchParams.get("attributes");
   const filter =
-    filtersParam && contentType === "image/svg+xml"
-      ? parseImageFilterParam(filtersParam)
+    attributesParam && contentType === "image/svg+xml"
+      ? parseImageFilterParam(attributesParam)
       : undefined;
 
   // Serve a previously generated variant WITHOUT paying the SW -> page ->
@@ -148,7 +151,7 @@ async function handleLocalAssetRequest(url: URL, clientId: string) {
         path,
         clientId,
         filter,
-        filtersParam!,
+        attributesParam!,
       );
       inFlightFilteredSvgs.set(url.href, generation);
       try {
@@ -171,6 +174,7 @@ async function handleLocalAssetRequest(url: URL, clientId: string) {
         },
       );
       const buffer = transfer[0];
+      if (!buffer) throw new Error("Asset relay returned no bytes");
 
       const contentLength = buffer.byteLength;
       const headers = new Headers({

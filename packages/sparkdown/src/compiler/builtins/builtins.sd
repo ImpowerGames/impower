@@ -35,11 +35,6 @@ define metadata with
   br = ""
 end
 
-define filter with
-  includes = { "" }
-  excludes = { "" }
-end
-
 define world with
   src = ""
 end
@@ -128,7 +123,7 @@ end
 
 define filtered_image with
   image = image.none
-  filters = { filter.none }
+  attributes = {}
 end
 
 define color with

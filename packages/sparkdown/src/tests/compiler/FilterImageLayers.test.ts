@@ -3,13 +3,8 @@
 // one and `filtered_layers` ended up holding at most one layer — or none at
 // all, when the final layer didn't decide it.
 //
-// `filtered_layers` is the set of layers to DRAW (`UIModule.getImageAssets`
-// renders it), and `filterMatchesName` selects what gets filtered OUT — the
-// same predicate `filterSVG` uses to delete nodes. So a layer survives when the
-// predicate says false. Verified through both tables:
-//   excludes ["hat"]        -> "filter hat" true,       "filter default body" false
-//   includes ["look_left"]  -> "filter look_right" true, "filter look_left"   false
-// i.e. true marks the layer the author is filtering away, in both directions.
+// `filtered_layers` is the set of layers to DRAW. Each conditional layer
+// survives when every group condition is satisfied by the selected attributes.
 //
 // These compile real `.sd` source rather than hand-building a context, so the
 // selection runs against the reference shapes the compiler actually emits
@@ -54,16 +49,11 @@ const compile = (text: string, assets: string[]) => {
   return compiler.compile({ textDocument: { uri: MAIN_URI } }).program;
 };
 
-/** `.sd` source for a filtered layered image, with `excludes` as authored. */
+/** `.sd` source for a layered image, explicitly turning named switches off. */
 const source = (
   layers: Record<string, string>,
   excludes: string[],
-) => `define hat_filter as filter with
-  includes = { "" },
-  excludes = { ${excludes.map((e) => `"${e}"`).join(", ")} }
-end
-
-define portrait as layered_image with
+) => `define portrait as layered_image with
   assets = {
 ${Object.entries(layers)
   .map(([key, asset]) => `    ["${key}"] = ${asset},`)
@@ -73,7 +63,7 @@ end
 
 define p as filtered_image with
   image = portrait,
-  filters = { hat_filter }
+  attributes = { ${excludes.map((e) => `"${e}.off"`).join(", ")} }
 end
 `;
 
@@ -90,10 +80,10 @@ describe("filterImage over a layered_image root", () => {
     const program = compile(
       source(
         {
-          "filter hat": "portrait__hat",
-          "filter default body": "portrait__body",
-          "filter scarf": "portrait__scarf",
-          "filter default shoes": "portrait__shoes",
+          "hat.on": "portrait__hat",
+          "body": "portrait__body",
+          "scarf.on": "portrait__scarf",
+          "shoes": "portrait__shoes",
         },
         ["hat", "scarf"],
       ),
@@ -116,8 +106,8 @@ describe("filterImage over a layered_image root", () => {
     const program = compile(
       source(
         {
-          "filter hat": "portrait__hat",
-          "filter default body": "portrait__body",
+          "hat.on": "portrait__hat",
+          "body": "portrait__body",
         },
         ["hat"],
       ),
@@ -131,8 +121,8 @@ describe("filterImage over a layered_image root", () => {
     const program = compile(
       `define portrait as layered_image with
   assets = {
-    ["filter hat"] = portrait__hat,
-    ["filter default body"] = portrait__body,
+    ["hat.on"] = portrait__hat,
+    ["body"] = portrait__body,
   }
 end
 
@@ -151,8 +141,8 @@ end
     const program = compile(
       source(
         {
-          "filter hat": "portrait__hat",
-          "filter default body": "portrait__body",
+          "hat.on": "portrait__hat",
+          "body": "portrait__body",
         },
         ["hat"],
       ),
@@ -173,8 +163,8 @@ end
     const program = compile(
       source(
         {
-          "filter hat": "portrait__hat",
-          "filter default body": "portrait__body",
+          "hat.on": "portrait__hat",
+          "body": "portrait__body",
         },
         ["hat"],
       ),
@@ -185,6 +175,11 @@ end
     expect(getImagePreviewSrc(program.context, filteredImage)).toBe(
       "/file:/local/assets/portrait__body.png?v=1",
     );
+  });
+
+  it("previews default attributes when passed a layered image directly", () => {
+    const program = compile(source({ "hat.on": "portrait__hat", body: "portrait__body" }, []), ["portrait__hat", "portrait__body"]);
+    expect(getImagePreviewSrc(program.context, program.context?.["layered_image"]?.["portrait"])).toBe("/file:/local/assets/portrait__body.png?v=1");
   });
 
   it("survives a layered_image that has no assets yet", () => {
@@ -223,7 +218,7 @@ end
           $type: "filtered_image",
           $name: "p",
           image: { $type: "layered_image", $name: "portrait" },
-          filters: [],
+          attributes: [],
         },
       },
     };
@@ -238,8 +233,8 @@ end
     const program = compile(
       source(
         {
-          "filter hat": "portrait__hat",
-          "filter default body": "portrait__body",
+          "hat.on": "portrait__hat",
+          "body": "portrait__body",
         },
         ["hat"],
       ),

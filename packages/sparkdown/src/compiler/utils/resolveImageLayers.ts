@@ -15,6 +15,8 @@ export interface ImageLayer {
    * fetch) read the bytes through this instead.
    */
   uri?: string;
+  /** Host supplied revision; undefined means the bytes must be checked. */
+  version?: number;
 }
 
 /**
@@ -42,8 +44,13 @@ export const resolveImageLayers = (
   const type = struct["$type"];
 
   if (type === "image") {
-    const src = struct["src"] || struct["data"] || struct["uri"];
-    return src ? [{ src, uri: struct["uri"] }] : [];
+    if (context) filterImage(context, struct);
+    const src = struct["filtered_src"] || struct["src"] || struct["data"] || struct["uri"];
+    // A pointer revision describes the .url file, not the remote image bytes.
+    const version = /\.url(?:[?#]|$)/i.test(struct["uri"] ?? "")
+      ? undefined
+      : struct["version"];
+    return src ? [{ src, uri: struct["uri"], ...(typeof version === "number" && Number.isFinite(version) && version >= 0 ? { version } : {}) }] : [];
   }
 
   if (type === "filtered_image") {
@@ -76,7 +83,8 @@ export const resolveImageLayers = (
   }
 
   if (type === "layered_image") {
-    const assets = struct["assets"];
+    if (context) filterImage(context, struct);
+    const assets = struct["filtered_layers"] ?? struct["assets"];
     const layers = Array.isArray(assets)
       ? assets
       : assets && typeof assets === "object"

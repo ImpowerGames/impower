@@ -17376,28 +17376,11 @@
           ]
         }
       },
-      "filter": {
-        "$default": {
-          "$name": "$default",
-          "$type": "filter",
-          "excludes": [
-            ""
-          ],
-          "includes": [
-            ""
-          ]
-        }
-      },
       "filtered_image": {
         "$default": {
           "$name": "$default",
           "$type": "filtered_image",
-          "filters": [
-            {
-              "$name": "none",
-              "$type": "filter"
-            }
-          ],
+          "attributes": {},
           "image": {
             "$name": "none",
             "$type": "image"
@@ -89585,28 +89568,11 @@
           ]
         }
       },
-      "filter": {
-        "$default": {
-          "$name": "$default",
-          "$type": "filter",
-          "excludes": [
-            ""
-          ],
-          "includes": [
-            ""
-          ]
-        }
-      },
       "filtered_image": {
         "$default": {
           "$name": "$default",
           "$type": "filtered_image",
-          "filters": [
-            {
-              "$name": "none",
-              "$type": "filter"
-            }
-          ],
+          "attributes": {},
           "image": {
             "$name": "none",
             "$type": "image"

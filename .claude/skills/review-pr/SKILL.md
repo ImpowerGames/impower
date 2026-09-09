@@ -29,6 +29,8 @@ When a diff sits between tiers, round up; a missed defect costs more than a revi
 
 A model reviewing code written by the same model shares the writer's priors: it finds the same things plausible and overlooks the same things. So the reviewer has to be a different model from you, and you have to choose it deliberately rather than letting it default to yours.
 
+When running in Codex with ChatGPT reviewers, use the collaboration tool's explicit model override rather than Claude-specific definitions or aliases. Choose a supported model distinct from the configured writer (for example, a `gpt-6-astra` writer can request a `gpt-5.6-sol` reviewer), and use a context-fork option that permits the override. Read the active tool schema for supported values. Each reviewer must state its configured route and distinguish that from independently verified runtime identity; do not claim runtime introspection when the harness provides none. If the reviewer knows its served model matches the writer, abort and choose another supported route. The Claude routing instructions below apply to the Claude harness.
+
 Spawn a pinned definition by name and the review runs on that version whatever your own is: `subagent_type: "reviewer-opus-4-6"` was confirmed running `claude-opus-4-6`, and `reviewer-opus-5` running `claude-opus-5`, from a session that had them.
 
 | You (the writer)     | Spawn                                |

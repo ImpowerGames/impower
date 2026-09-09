@@ -313,7 +313,7 @@ const viteStaticallyRenderedPagesPlugin = (): Plugin => ({
     // middleware then answers the very same `/file:/...` URLs from the mirror,
     // so nothing downstream changes. Version tags mirror the `?v=` scheme
     // (`<mtime>-<size>`), letting the page skip re-uploading unchanged files.
-    // The `?thumb=` / `?filters=` transforms run here too, so mirrored art
+    // The `?thumb=` / `?attributes=` transforms run here too, so mirrored art
     // matches what the worker would have served.
     //
     // Storage is bucketed PER CLIENT (`<mirror>/<clientId>/<opfs path>`): one
@@ -585,7 +585,7 @@ const viteStaticallyRenderedPagesPlugin = (): Plugin => ({
                 }
               }
             }
-            // `filtered_image` variants arrive as `?filters=<param>` on the
+            // `filtered_image` variants arrive as `?attributes=<param>` on the
             // root SVG's url — a service-worker feature (sw.ts runs
             // `filterSVG` lazily per fetch). Run the SAME shared filter here
             // so mirrored art keeps its variants: garbage or no-op params
@@ -595,7 +595,7 @@ const viteStaticallyRenderedPagesPlugin = (): Plugin => ({
             // hidden <img>, #344), so a fresh filter per request would double
             // the parse cost of every portrait beat.
             if (ext === "svg") {
-              const filtersParam = params.get("filters");
+              const filtersParam = params.get("attributes");
               const filter = filtersParam
                 ? parseImageFilterParam(filtersParam)
                 : undefined;
@@ -604,7 +604,7 @@ const viteStaticallyRenderedPagesPlugin = (): Plugin => ({
                 : undefined;
               if (filter && canonical) {
                 const stat = fs.statSync(abs);
-                const cacheKey = `${rel}?filters=${canonical}&sig=${stat.mtimeMs}-${stat.size}`;
+                const cacheKey = `${rel}?attributes=${canonical}&sig=${stat.mtimeMs}-${stat.size}`;
                 let filtered = filteredSvgMirrorCache.get(cacheKey);
                 if (filtered === undefined) {
                   filtered = filterSVG(fs.readFileSync(abs, "utf-8"), filter);
