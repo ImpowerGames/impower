@@ -53,10 +53,10 @@ def parse_looks(text):
             raise ValueError(f'{name}: expected generated named-look format')
         if name in result:
             raise ValueError(f'Invalid or duplicate actual named look: {name}')
-        strings = re.findall(r'"(?:[^"\\]|\\.)*"',fields[1])
-        residue = re.sub(r'"(?:[^"\\]|\\.)*"','',fields[1])
-        if residue.strip(' \t\r\n,'):
-            raise ValueError(f'{name}: attributes must be quoted strings')
+        quoted = r'"(?:[^"\\]|\\.)*"'
+        if not re.fullmatch(rf'\s*(?:{quoted}(?:\s*,\s*{quoted})*\s*,?)?\s*',fields[1]):
+            raise ValueError(f'{name}: attributes must be a comma-separated list of quoted strings')
+        strings = re.findall(quoted,fields[1])
         result[name] = {'image':image[1],'attributes':[json.loads(s) for s in strings]}
     return result
 

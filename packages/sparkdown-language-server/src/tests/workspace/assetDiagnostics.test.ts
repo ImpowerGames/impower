@@ -28,6 +28,25 @@ function setup(entry = main) {
 
 afterEach(() => vi.restoreAllMocks());
 describe("asset diagnostic delivery", () => {
+  it("clears asset publications when their standalone root is deleted", async () => {
+    const { workspace, handlers, publishes } = setup(story);
+    workspace.listen();
+    workspace.onCompiledTextDocument({ program: { uri: story, diagnostics: { [asset]: [warning] } } });
+    workspace.onDeletedFile({ uri: story, name: "story", ext: "sd", type: "script" });
+    workspace.onCompiledTextDocument({ program: { uri: "file:///other/story.sd", diagnostics: {} } });
+    expect(await handlers.get("sparkdown/fileDiagnostics")!({ uri: asset })).toEqual([]);
+    expect(await handlers.get("textDocument/diagnostic")!({ textDocument: { uri: asset } })).toEqual({ kind: "full", items: [] });
+    expect(publishes().filter(p => p.uri === asset).map(p => p.diagnostics)).toEqual([[warning], []]);
+    expect((workspace as any)._lastPublishedDiagnostics.has(asset)).toBe(false);
+  });
+  it("retains asset publications when an included script is deleted but its root remains", async () => {
+    const { workspace, handlers, publishes } = setup();
+    workspace.listen();
+    workspace.onCompiledTextDocument({ textDocument: { uri: story }, program: { uri: main, diagnostics: { [asset]: [warning] } } });
+    workspace.onDeletedFile({ uri: story, name: "story", ext: "sd", type: "script" });
+    expect(await handlers.get("sparkdown/fileDiagnostics")!({ uri: asset })).toEqual([warning]);
+    expect(publishes().filter(p => p.uri === asset)).toHaveLength(1);
+  });
   it("publishes an unused asset warning and clears it after repair, without repeated notifications", () => {
     const { workspace, publishes } = setup();
     workspace.onCompiledTextDocument({ textDocument: { uri: main }, program: { diagnostics: { [asset]: [warning] } } });

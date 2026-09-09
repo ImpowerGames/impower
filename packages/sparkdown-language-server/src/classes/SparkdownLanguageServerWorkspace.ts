@@ -443,12 +443,13 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
   }) {
     this._documents.remove({ textDocument: { uri: file.uri } });
     this._lastFormattedText.delete(file.uri);
-    if (this._lastPublishedDiagnostics.has(file.uri)) {
+    for (const [uri, published] of this._lastPublishedDiagnostics) {
+      if (uri !== file.uri && published.owner !== file.uri) continue;
       this.sendNotification(PublishDiagnosticsNotification.method, {
-        uri: file.uri,
+        uri,
         diagnostics: [],
       });
-      this._lastPublishedDiagnostics.delete(file.uri);
+      this._lastPublishedDiagnostics.delete(uri);
     }
   }
 

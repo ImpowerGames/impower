@@ -45,6 +45,27 @@ def sample(root):
 
 
 class VerifyTests(unittest.TestCase):
+    def test_named_look_attribute_strings_require_separators(self):
+        def look(attributes):
+            return 'define party as filtered_image with\n image = image.mia\n attributes = { '+attributes+' }\nend\n'
+        for attributes,expected in (('',[]), ('"happy"',['happy']), ('"happy", "hat"',['happy','hat']), ('"happy",',['happy'])):
+            with self.subTest(attributes=attributes):
+                self.assertEqual(verify.parse_looks(look(attributes))['party']['attributes'],expected)
+        for attributes in ('"happy" "hat"', '"happy"\n "hat"', '"happy""hat"'):
+            with self.subTest(attributes=attributes), self.assertRaisesRegex(ValueError,'comma-separated'):
+                verify.parse_looks(look(attributes))
+
+    def test_missing_attribute_separator_rejected_with_updated_output_hash(self):
+        with tempfile.TemporaryDirectory(prefix='r4-missing-separator-') as directory:
+            source,project,config,report = sample(Path(directory))
+            path = project/'scripts/portraits.sd'
+            path.write_text(path.read_text().replace('"happy"','"happy" "happy"'))
+            report['outputHashes']['scripts/portraits.sd'] = hashlib.sha256(path.read_bytes()).hexdigest()
+            (project/'portrait-migration-report.json').write_text(json.dumps(report))
+            with patch('migrate.evaluate', side_effect=AssertionError('must reject before evaluator')):
+                with self.assertRaisesRegex(ValueError,'comma-separated'):
+                    verify.verify_project(source,project,config)
+
     def test_output_only_script_is_rejected_even_if_added_to_hashes(self):
         for add_hash in (False, True):
             with self.subTest(add_hash=add_hash), tempfile.TemporaryDirectory() as directory:
