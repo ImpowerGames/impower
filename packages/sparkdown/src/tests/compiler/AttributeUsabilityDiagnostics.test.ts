@@ -6,7 +6,7 @@ import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 it("explains a missing resting choice only in visible scopes, without changing visibility", () => {
  const v=buildAttributeVocabulary([{key:"shown",name:"details"},{key:"a",parent:"shown",name:"face.happy"},{key:"hidden",name:"hat.on"},{key:"b",parent:"hidden",name:"face.sad"}]);
  const result=evaluateAttributeVisibility(v,{});
- expect(result.visible.a).toBe(false);
+ expect(result.visible["a"]).toBe(false);
  expect(result.diagnostics.filter(d=>d.code==="missing-folder-default")).toEqual([expect.objectContaining({folder:"details",path:"shown",group:"face"})]);
  expect(evaluateAttributeVisibility(v,{face:"happy"}).diagnostics.some(d=>d.code==="missing-folder-default")).toBe(false);
  const inherited=buildAttributeVocabulary([{key:"a",name:"face.happy:default"},{key:"folder",name:"details"},{key:"b",parent:"folder",name:"face.happy"}]);
