@@ -43,6 +43,10 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const SCRIPT = path.join(here, "clean-worktrees.mjs");
 const { classify, readReflog, parseArgs, serversFrom, serverRows, probeServers, recordedServer, usersOf, strayDirs, strayReason, unfinishedRemovals, strandedBranches, readLogRows, parseWorktreeList, formatBytes, scanTree, linkReason, main, LOG_NAME } = await import(pathToFileURL(SCRIPT));
 const WIN = process.platform === "win32";
+// A case that can only hold where Windows itself supplies the behavior it
+// asserts. It names its own reason, because the reasons differ: a refused
+// rename, a path too long, a junction, a backslash-and-case command line.
+const skip = (name, reason) => console.log(`SKIP: ${name} (Windows only: ${reason})`);
 
 let failures = 0;
 const check = async (name, fn) => {
@@ -330,6 +334,7 @@ await check("serversFrom reads the driver's status line whatever it exits", () =
 });
 
 await check("usersOf matches a command line naming the directory or a path under it, either slash and case, at a path boundary, never itself", () => {
+  if (!WIN) return skip("usersOf across slash direction and letter case", "the case-insensitive, backslash-or-forward comparison it asserts is what Windows paths mean, and POSIX paths mean the opposite");
   const dir = "C:\\repo\\impower.worktrees\\fix\\1-x";
   const procs = [
     { pid: 1, name: "node.exe", cmd: '"node" "C:\\repo\\impower.worktrees\\fix\\1-x\\node_modules\\vite\\bin\\vite.js"' },
@@ -1263,7 +1268,6 @@ const stopHolder = async (child) => {
   for (let i = 0; i < 40 && child.exitCode === null && child.signalCode === null; i++) await sleep(100);
   await sleep(200);
 };
-const skip = (name) => console.log(`SKIP: ${name} (Windows only: it depends on the system refusing a rename or a long path)`);
 
 try {
   git(scratch, "init", "-q", "--bare", "origin.git");
@@ -1330,7 +1334,8 @@ try {
   assert.equal(worktreePaths(), before);
   assert.equal(git(mainRoot, "reflog", "show", "--format=%H", "refs/heads/fix/11-no-reflog"), "", "the reflog of fix/11-no-reflog did not expire");
   assert.equal(git(mainRoot, "rev-list", "--count", "refs/heads/fix/13-stacked-ff", "^refs/remotes/origin/main"), "0", "fix/13-stacked-ff is not merged");
-  assert.equal(git(wt("fix/15-junction"), "status", "--porcelain", "--ignored=matching"), "!! node_modules/", "the junction is not an ignored directory to git");
+  if (WIN) assert.equal(git(wt("fix/15-junction"), "status", "--porcelain", "--ignored=matching"), "!! node_modules/", "the junction is not an ignored directory to git");
+  else skip("the junction is an ignored directory to git", "git reads a junction as a directory and reports the trailing slash, where the plain symlink Node falls back to here is a file-type entry");
 
   await check("as a command, --apply on a repository that never recorded origin/HEAD exits 1 and touches nothing, until `git remote set-head` records it", () => {
     const r = cli(mainRoot, "--apply", "--root", mainRoot);
@@ -1422,7 +1427,7 @@ try {
     assert.deepEqual(logged.filter((row) => row.decision === "removing").map((row) => row.branch).sort(), [...removed, ...(WIN ? ["fix/7-held"] : [])].sort(), "a removing row is missing or extra");
     for (const b of removed) assert.ok(logged.findIndex((row) => row.decision === "removing" && row.branch === b) < logged.findIndex((row) => row.decision === "removed" && row.branch === b), `the removing row for ${b} is not before its outcome`);
     assert.match(logged.at(-1).summary, /^Removed \d worktrees/);
-    if (!WIN) return skip("the held tree and the part-way failure under --apply");
+    if (!WIN) return skip("the held tree and the part-way failure under --apply", "it depends on the system refusing a rename or a long path");
     expectRows(r.out, [
       ["fix/7-held", "kept", "the directory could not be renamed (EPERM), which on Windows happens while a process has a file open or its current directory inside it; no process names the path"],
       ["fix/9-deep", "removed", "git worktree remove stopped part-way (error: failed to delete '", "': Filename too long) and dropped its record; the rest of the directory was removed directly"],
@@ -1437,7 +1442,7 @@ try {
   });
 
   await check("as a command, once the holder is gone the next --apply removes the tree it kept", async () => {
-    if (!WIN) return skip("the held tree's second run");
+    if (!WIN) return skip("the held tree's second run", "it depends on the system refusing a rename or a long path");
     await stopHolder(held);
     const r = cli(mainRoot, "--apply", "--root", mainRoot);
     assert.equal(r.status, 0, r.out);

@@ -25,12 +25,15 @@ name: Hook Tests
 # root provides` — a consequence of that choice, not of the runner's OS. The
 # job summary lists every `SKIP:` line this runner prints.
 #
-# Four checks are red on ubuntu-latest today, for reasons unrelated to this
-# workflow, each tracked with its own CI evidence:
-# clean-worktrees.test.mjs (#505), drive-vscode-web/driver.test.mjs (#506),
+# Cases across four checks assert behavior Windows itself supplies — a
+# junction, a drive-letter path, cmd.exe's wording, a taskkill /T tree stop —
+# and print `SKIP:` on this runner rather than failing it. Each is tracked
+# as work to make the case run on Linux: clean-worktrees.test.mjs (#505),
+# drive-vscode-web/driver.test.mjs (#506),
 # drive-web-editor/redgreen.test.mjs (#507), and
-# drive-web-editor/state-path.test.mjs (#508). This job is red on
-# ubuntu-latest until those land.
+# drive-web-editor/state-path.test.mjs (#508). Two of those, #507's shell
+# classifier and #508's tree stop, are defects in the driver the skipped
+# case was pinning, so the skip hides a live gap on POSIX until they land.
 
 on:
   pull_request:

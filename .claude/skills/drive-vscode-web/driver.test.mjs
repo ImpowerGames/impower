@@ -87,6 +87,13 @@ import {
   wordOnPage,
 } from "./driver.mjs";
 
+const WIN = process.platform === "win32";
+// A case whose fixture paths are drive-letter paths. `path.join("C:", …)`
+// builds an absolute path on Windows and a relative one everywhere else, so
+// off Windows the code under test resolves it against the working directory
+// and the expectation never matches. Each names its own reason.
+const skip = (name, reason) => console.log(`SKIP: ${name} (Windows only: ${reason})`);
+
 let failures = 0;
 const check = async (name, fn) => {
   try {
@@ -534,6 +541,7 @@ await check("the served project and the log are outside the builds directory", (
 });
 
 await check("a folder given with --project is served as is, and one inside the builds directory is refused", () => {
+  if (!WIN) return skip("a folder given with --project is served as is", "it asserts the --project path comes back unchanged, and C:/work/game is a relative path here, so the plan roots it at the working directory first");
   const plan = planFor({ project: path.join("C:", "work", "game") });
   assert.equal(plan.project, path.join("C:", "work", "game"));
   assert.equal(plan.ownProject, false);
@@ -634,6 +642,7 @@ const names = (deps) => deps.calls.map((c) => c[0]);
 const spawned = (deps) => deps.calls.filter((c) => c[0] === "spawn").map((c) => c[1]);
 
 await check("up checks the build, then spawns exactly the launch plan for the unpacked commit, writes the project file and the record, and waits on the pid", async () => {
+  if (!WIN) return skip("up spawns exactly the launch plan for the unpacked commit", "the launch plan it compares against is built from the C:/repo and C:/data fixtures, which are relative paths here, so every path in it is rooted at the working directory first");
   const deps = upDeps();
   await up(["--sd", "repro.sd"], deps);
   const expected = launchPlan({ data: DATA, port: 34123, quality: "stable", sd: "repro.sd", extDir: EXT, entry: ENTRY, commit: "c".repeat(40) });

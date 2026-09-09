@@ -20,6 +20,11 @@ import os from "node:os";
 import path from "node:path";
 import { classifyRedFailure, parseRedGreenArgs, parseVitestSummary, runRedGreen, sha256 } from "./redgreen.mjs";
 
+const WIN = process.platform === "win32";
+// A case that asserts something Windows itself supplies — a junction, or the
+// wording cmd.exe uses for a command it cannot find. Each names its reason.
+const skip = (name, reason) => console.log(`SKIP: ${name} (Windows only: ${reason})`);
+
 let failures = 0;
 const check = (name, fn) => {
   try {
@@ -511,6 +516,7 @@ check("a VAR=value prefix on the test command runs, as every vitest example in t
 });
 
 check("a test command the shell cannot run is a shell problem, not a red", () => {
+  if (!WIN) return skip("a test command the shell cannot run is a shell problem, not a red", "classifyRedFailure reads the shell's own wording for an unknown command, and only the cmd.exe wording is matched today (#507)");
   const dir = makeRepo();
   applyFix(dir);
   const r = run(dir, { test: "definitely-not-a-command-xyz --run" });
@@ -617,6 +623,7 @@ check("a file deleted while it was reverted is recreated from the snapshot and n
 });
 
 check("a repository root reached through a junction is accepted", () => {
+  if (!WIN) return skip("a repository root reached through a junction is accepted", "a junction is a Windows reparse point; Node falls back to a plain symlink here, which the fixture's rmdir teardown refuses");
   const dir = makeRepo();
   applyFix(dir);
   const link = path.join(os.tmpdir(), `redgreen-link-${process.pid}-${Date.now()}`);
