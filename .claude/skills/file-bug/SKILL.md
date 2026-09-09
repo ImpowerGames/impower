@@ -69,6 +69,8 @@ If the user, told that, still wants a ticket now, file it with the Reproduction 
 
 With a red loop in hand, spend a bounded effort (an hour of work, not a day) on where the bug comes from. Read the code the loop exercises; form two or three hypotheses that make different predictions; probe the one the loop can distinguish fastest. The repo's tickets routinely carry this, naming the line and quoting it, and it is what makes resolve-issue's fast path possible.
 
+When the symptom is wrong output, read the compiled artifact before attributing the cause to a stage. A probe that shows correct output clears only what runs before the probe, not the rest of that stage and not the stage after it, so a fault in a later step of the same component looks like a fault downstream. `JSON.stringify(ctx.compiledJson)` prints what the compiler emitted, where `ctx` is what `makeRuntimeStoryFromSource` or `makeRuntimeStoryFromFile` in `packages/sparkdown/src/tests/runtime/runtimeTestHarness.ts` returns; a repro that runs through a driver gets the same artifact from a runtime test on the same source.
+
 Report it honestly. "Confirmed" means the loop turned green when you changed that line and red when you changed it back, or the value you predicted appeared where you predicted it. Anything less is "suspected", and the ticket says which. Reference code as `file:line` at a specific commit, with a permalink, because code moves and tickets go stale.
 
 Do not fix it. If the fix is obvious, put it under Analysis as a suggested fix; a ticket with a one-line fix still needs the regression test, the suite run, and the live verification that resolve-issue provides, and doing half of that here leaves a worse trail than doing none.
@@ -116,7 +118,8 @@ Remove the scratch test and repro script from the worktree (`git status --short`
 - Heredocs are lossy through some shell paths on this machine (a `//` comment came out as `/`). Write the ticket body, test file, and repro script with the editor tool, not by piping a heredoc.
 - Do not edit `packages/sparkdown/language/*.json` while probing; they are generated from `definitions/yaml/` and a hook refuses the edit anyway.
 - Do not use `git stash` to compare before and after; the stash stack is shared across the worktrees other sessions are using. Copy the file aside and back.
-- A repro that only reproduces on a loaded machine is a timing artifact until proven otherwise. Note it, and check whether a vitest suite from another worktree was running.
+- The colour of a loop can lie in either direction. A repro that only reproduces on a loaded machine is a timing artifact until proven otherwise; note it, and check whether a vitest suite from another worktree was running. An expectation inside a test file that already fails wholesale pins nothing: before treating it as coverage, run the whole file unmodified on `origin/main` with the capped single-file command, since several suites here are red for unrelated reasons; a file whose only failures there are the reported symptom is the repro you were looking for.
+- A language-server surface that shows nothing is not yet a missing feature. A hover exists only on a reference to an image asset, so ask for it on a use of the image name rather than its definition; the drive-vscode-web driver's `--hover` lands on the first rendered line holding the word, and its `--line <text>` option picks a later one. Neither driver opens a completion list, and in VS Code the completion details pane is collapsed by default, so check a completion preview by hand in a desktop VS Code, expanding the pane with Ctrl+Space while the list is open, before concluding that the preview is missing.
 
 ## Improving this skill
 
