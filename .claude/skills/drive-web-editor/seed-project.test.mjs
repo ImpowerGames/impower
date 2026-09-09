@@ -32,12 +32,21 @@
 // files that landed, with the marker set, and the next seed clears it; a
 // refused removal, or a throw after one, is a `reason` whose `removed` lists
 // what really went; the zip rules, and the zip bound refusing on the central
-// directory before inflating; `seed --clear`; and that `verify`, `ui` and
-// `seed` each seed, stop on `reason` without reloading, put the project in
-// before `--sd`, skip the program wait on an unmounted game, and reload
-// after a seed that landed whole. The zip round trip needs fflate, which the
-// workspace install puts under the root node_modules; in a worktree without
-// it those cases report SKIP.
+// directory before inflating, with a refused entry named from the filter
+// itself; a zip's single top-level folder without `main.sd` kept and named
+// with a note; the bound on directories counting each one entered, against
+// a link fan-out; `seed --clear`, and its reason naming the emptied project
+// when a write then fails; a flag with no value refused before the browser
+// on `seed` and `verify`; `withEditor` handing over the launch mode from the
+// state record and same-origin without one; the mount wait's default clock,
+// and the commands passing their own `ensureScriptEditor` into it; the shape
+// of every gated step; and that `verify`, `ui` and `seed` each seed, stop on
+// `reason` without reloading, put the project in before `--sd`, skip the
+// program wait on an unmounted game, reload after a seed that landed whole,
+// keep a thrown `--sd` or `--project` step's report and stop the run on it,
+// and in cross-origin mode stop before loading the page or writing anything.
+// The zip round trip needs fflate, which the workspace install puts under
+// the root node_modules; in a worktree without it those cases report SKIP.
 //
 // Node's built-in assert only.
 
@@ -62,6 +71,7 @@ import {
   ui,
   verify,
   walkProjectDir,
+  withEditor,
   writeMainSd,
   writeProjectBatch,
   zipProjectEntries,
@@ -176,10 +186,12 @@ function stubGlobals(storage, { remembered = null } = {}) {
 // A page whose `evaluate` rebuilds the function from source in a context
 // holding only the page's globals, as the browser does, and clones the
 // argument and the result, as the wire does. Navigation and screenshots are
-// counted, waits resolve at once.
+// counted, waits resolve at once, and event listeners are accepted and
+// never called.
 function stubPage(globals) {
   const context = vm.createContext({ ...globals });
   const page = {
+    gotos: 0,
     reloads: 0,
     screenshots: [],
     evaluate: async (f, arg) => {
@@ -187,7 +199,10 @@ function stubPage(globals) {
       const out = await rebuilt(arg === undefined ? undefined : structuredClone(arg));
       return out === undefined ? undefined : structuredClone(out);
     },
-    goto: async () => {},
+    on: () => {},
+    goto: async () => {
+      page.gotos += 1;
+    },
     reload: async () => {
       page.reloads += 1;
     },
@@ -315,6 +330,25 @@ const linkDir = (target, link) => fs.symlinkSync(target, link, process.platform 
         assert.equal((await readBack(page, "portraits/art/bunny.webp")).toString(), "art");
         assert.equal((await readBack(page, "backdrops/art/bunny.webp")).toString(), "art");
       });
+    });
+    await check("the bound on directories counts each one entered, so a link fan-out that reaches six real directories under 180 names is refused by it", () => {
+      // main.sd and five sibling directories a..e; each of a..d holds three
+      // links to the next. None leads back into the walk, so every name is
+      // entered: the root, a, b once from the root and three times from a,
+      // c thirteen times, d forty, e a hundred and twenty-one. A count of
+      // distinct directories would say six and never reach a bound.
+      const fanout = writeTree(path.join(scratch, "fanout"), { "main.sd": "x" });
+      const names = ["a", "b", "c", "d", "e"];
+      for (const name of names) fs.mkdirSync(path.join(fanout, name));
+      for (let i = 0; i + 1 < names.length; i++) {
+        for (let k = 0; k < 3; k++) linkDir(path.join(fanout, names[i + 1]), path.join(fanout, names[i], `to${k}`));
+      }
+      const loose = { files: 100, dirs: 200, bytes: 1_000_000, fileBytes: 1_000_000 };
+      assert.throws(() => walkProjectDir(fanout, { ...loose, dirs: 20 }), /^Error: the project has more than 20 directories, the bound on a seed \(reached at [a-e](\/to[0-2])+\)$/);
+      assert.throws(() => walkProjectDir(fanout, { ...loose, dirs: 179 }), /more than 179 directories/);
+      const walked = walkProjectDir(fanout, { ...loose, dirs: 180 });
+      assert.deepEqual(walked.files.map((f) => f.path), ["main.sd"]);
+      assert.deepEqual(walked.failed, []);
     });
   }
 }
@@ -685,17 +719,28 @@ await check("zip entries: directory, dot and ./ segments dropped, a single wrapp
   // A single top-level folder without main.sd is the project's own layout
   // (an asset bundle, a scripts folder), so it is kept: unwrapping it would
   // move every path the script references.
+  // A single top-level folder without main.sd is kept and named, since it
+  // cannot be told from the project's own layout: unwrapping it would move
+  // every path the script references.
   const noMain = zipProjectEntries({ "mygame/assets/a.png": b("a"), "mygame/scripts/c.sd": b("c") });
   assert.deepEqual(noMain.files.map((e) => e.path), ["mygame/assets/a.png", "mygame/scripts/c.sd"]);
   assert.equal(noMain.unwrapped, undefined);
+  assert.equal(noMain.kept, "mygame");
+  assert.equal(plain.kept, undefined);
+  assert.equal(wrapped.kept, undefined);
   const assetsOnly = zipProjectEntries({ "assets/portraits/alice.webp": b("a"), "assets/backdrops/room.webp": b("r") });
   assert.deepEqual(assetsOnly.files.map((e) => e.path), ["assets/backdrops/room.webp", "assets/portraits/alice.webp"]);
   assert.equal(assetsOnly.unwrapped, undefined);
+  assert.equal(assetsOnly.kept, "assets");
   // main.sd two folders down is not a wrapper either: one level is unwrapped
   // at most, and only when main.sd is right under it.
-  assert.deepEqual(zipProjectEntries({ "a/b/main.sd": b("m"), "a/b/x/y.png": b("y") }).files.map((e) => e.path), ["a/b/main.sd", "a/b/x/y.png"]);
+  const deep = zipProjectEntries({ "a/b/main.sd": b("m"), "a/b/x/y.png": b("y") });
+  assert.deepEqual(deep.files.map((e) => e.path), ["a/b/main.sd", "a/b/x/y.png"]);
+  assert.equal(deep.kept, "a");
   // Two top-level folders, neither the project root: left as they are.
-  assert.deepEqual(zipProjectEntries({ "a/main.sd": b("m"), "b/x.sd": b("s") }).files.map((e) => e.path), ["a/main.sd", "b/x.sd"]);
+  const two = zipProjectEntries({ "a/main.sd": b("m"), "b/x.sd": b("s") });
+  assert.deepEqual(two.files.map((e) => e.path), ["a/main.sd", "b/x.sd"]);
+  assert.equal(two.kept, undefined);
   assert.deepEqual(zipProjectEntries({ "assets\\a.png": b("a") }).files.map((e) => e.path), ["assets/a.png"]);
   assert.throws(() => zipProjectEntries({ "../escape.sd": b("e") }), /climbs out/);
   assert.throws(() => zipProjectEntries({ "a/../escape.sd": b("e") }), /climbs out/);
@@ -740,12 +785,40 @@ if (fflate) {
     const wrapper = path.join(scratch, "wrapped-no-main.zip");
     fs.writeFileSync(wrapper, fflate.zipSync({ "mygame/assets/portraits/alice.webp": new Uint8Array(allBytes), "mygame/scripts/chars.sd": new Uint8Array(Buffer.from("c")) }, { level: 0 }));
     await withStub({}, async ({ page }) => {
+      // The folder the seed kept is named, with a note, since a zip made by
+      // hand from an asset-only project looks the same as one whose layout
+      // starts with that folder, and the script's paths depend on which.
       const report = await seedProject(page, wrapper, { expectMainSd: false });
       assert.equal(report.reason, undefined, report.reason);
       assert.equal(report.unwrapped, undefined);
+      assert.equal(report.kept, "mygame");
+      assert.equal(report.note, "every entry of the zip sits under mygame/, which holds no main.sd, so the folder was kept as part of the project's layout and a script's paths start with mygame/; if the folder is one the compress command added, make the zip from inside it");
       assert.equal(Buffer.compare(await readBack(page, "mygame/assets/portraits/alice.webp"), allBytes), 0);
       assert.equal(await readBack(page, "assets/portraits/alice.webp"), null);
     });
+    await withStub({}, async ({ page }) => {
+      // An export-layout zip has no kept folder.
+      const report = await seedProject(page, zipPath);
+      assert.equal(report.kept, undefined);
+      assert.equal(report.note, undefined);
+    });
+  });
+  await check("a zip entry that climbs out, is absolute, or sits under a package directory is refused from the zip's own filter with the entry's reason, before anything is inflated", async () => {
+    for (const [name, pattern] of [
+      ["../escape.sd", /^zip entry "\.\.\/escape\.sd" climbs out of the project$/],
+      ["/abs.sd", /^zip entry "\/abs\.sd" is not a relative path$/],
+      ["node_modules/x/index.js", /^the project holds node_modules\/, which a project never does; point --project at the project directory itself$/],
+    ]) {
+      const evil = path.join(scratch, `evil-${name.replace(/[^a-z]/g, "")}.zip`);
+      fs.writeFileSync(evil, fflate.zipSync({ "main.sd": new Uint8Array(Buffer.from("m")), [name]: new Uint8Array(Buffer.from("e")) }, { level: 0 }));
+      await withStub({}, async ({ page, tree }) => {
+        const report = await seedProject(page, evil);
+        assert.match(report.reason, pattern);
+        assert.doesNotMatch(report.reason, /could not be unpacked as a zip/);
+        assert.equal(report.storage, "untouched");
+        assert.equal(tree.children.size, 0);
+      });
+    }
   });
   await check("the zip bounds count the entries the seed writes: dot entries and __MACOSX companions are skipped before they are counted", async () => {
     const mac = path.join(scratch, "mac.zip");
@@ -828,8 +901,9 @@ await check("gameMountedWithin answers true from its first poll with no timeout 
 
 // A page for the mount wait: the mount predicate runs in the page context
 // against `window.__preview`, `waitForTimeout` moves a fake clock, and a
-// reload is counted and may install the preview.
-function mountPage({ mountedAtStart = false, mountedAfterReload = false } = {}) {
+// reload is counted and installs the preview when it is the
+// `mountedOnReload`th one.
+function mountPage({ mountedAtStart = false, mountedOnReload = null } = {}) {
   const storage = stubStorage({});
   const globals = stubGlobals(storage);
   const preview = { summary: () => ({ sameOrigin: true, gameChildren: 3 }) };
@@ -847,7 +921,7 @@ function mountPage({ mountedAtStart = false, mountedAfterReload = false } = {}) 
   };
   page.reload = async () => {
     page.reloads += 1;
-    if (mountedAfterReload) globals.window.__preview = preview;
+    if (page.reloads === mountedOnReload) globals.window.__preview = preview;
   };
   return { page, now: () => t, polls: () => polls };
 }
@@ -862,7 +936,7 @@ await check("waitForGame polls the game once a second for its 45s budget, reload
     assert.equal(now(), 90_000);
   }
   {
-    const { page, now, polls } = mountPage({ mountedAfterReload: true });
+    const { page, now, polls } = mountPage({ mountedOnReload: 1 });
     const ensure = async () => ({ present: true, switched: false, settled: true });
     assert.deepEqual(await waitForGame(page, { now, ensure }), { mounted: true, reloaded: true, switched: false });
     assert.equal(polls(), 46, "the budget, then the first poll after the reload");
@@ -890,6 +964,17 @@ await check("waitForGame polls the game once a second for its 45s budget, reload
     assert.deepEqual(await waitForGame(page, { now }), { mounted: false, reloaded: true, error: "the recovery reload did not complete (net::ERR_CONNECTION_REFUSED at http://stub.test)" });
   }
   {
+    // The default clock is the real one: a budget of nothing polls nothing,
+    // on a page that would answer yes.
+    const { page, polls } = mountPage({ mountedAtStart: true });
+    assert.equal(await gameMountedWithin(page, 0), false);
+    assert.equal(polls(), 0);
+    const ensure = async () => ({ present: true, switched: false, settled: true });
+    assert.deepEqual(await waitForGame(page, { timeout: 0, ensure }), { mounted: false, reloaded: true, switched: false });
+    assert.equal(polls(), 0);
+    assert.equal(page.reloads, 1);
+  }
+  {
     // The predicate reads the preview's own summary: a preview that is not
     // same-origin, or has no game children yet, is not a mount.
     const { page, now, polls } = mountPage();
@@ -907,16 +992,24 @@ await check("waitForGame polls the game once a second for its 45s budget, reload
 
 // The commands, in-process: the browser-side waits answer at once, the
 // seed, the clear, the interrupted-seed check and the script write are the
-// driver's own, and the page is the stub whose storage they write to.
+// driver's own, and the page is the stub whose storage they write to. The
+// editor is handed over as `withEditor` hands it over on a same-origin
+// launch, and a refusal before the browser (`die`) is a throw here.
 function commandDeps(page, overrides = {}) {
   const logs = [];
-  const calls = { waitForProgram: 0 };
+  const calls = { waitForProgram: 0, withEditor: 0 };
   return {
     logs,
     calls,
     deps: {
-      withEditor: async (fn) => fn({ page, ctx: null, url: "http://stub.test", consoleLines: [] }),
+      withEditor: async (fn) => {
+        calls.withEditor += 1;
+        return fn({ page, ctx: null, url: "http://stub.test", consoleLines: [], mode: "same-origin" });
+      },
       log: (line) => logs.push(line),
+      die: (msg) => {
+        throw new Error(`died: ${msg}`);
+      },
       seedProject,
       clearProject,
       interruptedSeed,
@@ -950,6 +1043,67 @@ fs.writeFileSync(repro, reproText);
 const shot = path.join(scratch, "shots", "out.png");
 const probe = path.join(scratch, "probe.js");
 fs.writeFileSync(probe, "return 42;");
+
+await check("withEditor hands the callback the URL and the mode from how the servers were launched, same-origin when the record has no mode, and closes the browser after the callback", async () => {
+  const launches = [];
+  const closes = [];
+  const page = stubPage(stubGlobals(stubStorage({})));
+  const launch = async (opts) => {
+    launches.push(opts);
+    return { pages: () => [page], newPage: async () => assert.fail("a page was opened beside the profile's own"), close: async () => closes.push(1) };
+  };
+  const seen = await withEditor(async (editor) => editor, { launch, state: () => ({ url: "http://stub.test:40072", mode: "cross-origin", pid: 1 }) });
+  assert.equal(seen.page, page);
+  assert.equal(seen.url, "http://stub.test:40072");
+  assert.equal(seen.mode, "cross-origin");
+  assert.deepEqual(seen.consoleLines, []);
+  assert.deepEqual(launches, [{ headless: true }]);
+  assert.equal(closes.length, 1);
+  const plain = await withEditor(async ({ mode }) => mode, { launch, state: () => ({ url: "http://stub.test:40072" }) });
+  assert.equal(plain, "same-origin", "a record without a mode is a same-origin launch");
+  const same = await withEditor(async ({ mode }) => mode, { launch, state: () => ({ url: "http://stub.test:40072", mode: "same-origin" }), headless: false });
+  assert.equal(same, "same-origin");
+  assert.deepEqual(launches.at(-1), { headless: false });
+  await assert.rejects(withEditor(async () => { throw new Error("the callback broke"); }, { launch, state: () => ({ url: "http://stub.test" }) }), /the callback broke/);
+  assert.equal(closes.length, 4, "the browser was left open after a callback threw");
+});
+
+await check("verify and a ui --sd step run the real mount wait with the run's own ensureScriptEditor, so switchedToLogic comes from the recovery reload's click", async () => {
+  // The game mounts on the second reload: the first is the command's own
+  // after --sd, the second the recovery. The wait is the real function on a
+  // fake clock; the editor's return is the command's dep, which reports the
+  // click that changed the screen.
+  const fresh = () => {
+    const mounted = mountPage({ mountedOnReload: 2 });
+    return {
+      ...mounted,
+      ...commandDeps(mounted.page, {
+        waitForGame: (page, opts) => waitForGame(page, { ...opts, now: mounted.now }),
+        ensureScriptEditor: async () => ({ present: true, switched: true, settled: true }),
+      }),
+    };
+  };
+  {
+    const { page, deps } = fresh();
+    const result = await verify(["--sd", repro, "--shot", shot], deps);
+    assert.equal(result.error, undefined, result.error);
+    assert.equal(result.gameMounted, true);
+    assert.equal(result.neededReload, true);
+    assert.equal(result.switchedToLogic, true);
+    assert.equal(page.reloads, 2);
+    assert.deepEqual(page.screenshots, [shot]);
+    assert.equal(process.exitCode, 0);
+  }
+  {
+    const { page, deps } = fresh();
+    const result = await ui(["--sd", repro], deps);
+    assert.deepEqual(result.failed, []);
+    assert.equal(result.steps[0].neededReload, true);
+    assert.equal(result.steps[0].switchedToLogic, true);
+    assert.equal(result.steps[0].programLoaded, true);
+    assert.equal(page.reloads, 2);
+  }
+});
 const assetsOnly2 = writeTree(path.join(scratch, "assets-only-2"), { "assets/a.png": "a" });
 
 await check("verify --project seeds, reloads once, screenshots and exits 0; on a seed reason it stops with that error, no gameMounted, no reload, no screenshot, exit 1", async () => {
@@ -1037,28 +1191,40 @@ await check("verify on a game that never mounted skips the program wait and says
     assert.match(result.error, /the game never mounted .*Try `down` then `up`/);
   });
   await withStub({}, async ({ page }) => {
+    // The refusal comes before the page is loaded, the project seeded or
+    // the script written: a run that can capture nothing replaces nothing.
+    await previousProject(page, { "main.sd": "previous", "assets/old.webp": "old" });
     let mountWaits = 0;
     let sameOriginWaits = 0;
     page.waitForFunction = async (fn) => {
       if (String(fn).includes("sameOrigin")) sameOriginWaits += 1;
       return {};
     };
-    const { deps, calls } = commandDeps(page, {
+    const { deps, calls, logs } = commandDeps(page, {
       withEditor: async (fn) => fn({ page, ctx: null, url: "http://stub.test", consoleLines: [], mode: "cross-origin" }),
       waitForGame: async () => {
         mountWaits += 1;
         return { mounted: false, reloaded: true };
       },
     });
-    const result = await verify(["--sd", repro, "--shot", shot], deps);
+    const result = await verify(["--project", fixture, "--sd", repro, "--line", "2", "--shot", shot], deps);
     assert.equal(mountWaits, 0, "the mount was waited for in cross-origin mode");
     assert.equal(sameOriginWaits, 0, "sameOrigin was waited for in cross-origin mode");
     assert.equal(calls.waitForProgram, 0);
-    assert.equal(result.gameMounted, null);
-    assert.equal(result.previewWarning, undefined);
-    assert.match(result.error, /^the game preview is not observable in cross-origin mode .*`up` without --cross-origin$/);
-    assert.deepEqual(result.program, { loaded: null, reason: "the preview is not observable (cross-origin mode)" });
+    assert.deepEqual(result, {
+      url: "http://stub.test",
+      gameMounted: null,
+      program: { loaded: null, reason: "the preview is not observable (cross-origin mode)" },
+      error: "the game preview is not observable in cross-origin mode (window.__preview is never installed), so nothing seen on it is evidence; `down`, then `up` without --cross-origin",
+    });
+    assert.equal(logs.length, 1);
     assert.equal(process.exitCode, 1);
+    assert.equal(page.gotos, 0, "the page was loaded for a run that captures nothing");
+    assert.equal(page.reloads, 0);
+    assert.deepEqual(page.screenshots, [], "a screenshot was taken of a preview the page cannot see");
+    assert.equal((await readBack(page, "main.sd")).toString(), "previous", "the script was written in a run that captures nothing");
+    assert.equal((await readBack(page, "assets/old.webp")).toString(), "old", "the project was seeded in a run that captures nothing");
+    assert.equal(await marked(page), false);
   });
   await withStub({}, async ({ page }) => {
     const { deps } = commandDeps(page, { waitForProgram: async () => ({ loaded: false, ms: 90_000, errors: 0 }) });
@@ -1097,15 +1263,29 @@ await check("ui on a marked project refuses every step but --probe until a --pro
     assert.deepEqual(page.screenshots, []);
     assert.equal(process.exitCode, 1);
     process.exitCode = 0;
-    // A refused step reports in the shape it reports when it runs, so a
-    // reader finds `matches` on a --type and `screenshot` on a --shot.
-    const typed = await ui(["--type", "search=Hello"], deps);
-    assert.deepEqual(typed.steps, [{ field: "search", typed: false, text: "Hello", readBack: null, matches: false, gated: true, reason: typed.steps[0].reason }]);
-    assert.match(typed.steps[0].reason, /did not finish/);
-    process.exitCode = 0;
-    const shotStep = await ui(["--shot", shot], deps);
-    assert.deepEqual(shotStep.steps, [{ of: "page", screenshot: null, gated: true, reason: shotStep.steps[0].reason }]);
-    process.exitCode = 0;
+    // A refused step reports in the shape it reports when it runs, with the
+    // outcome field saying nothing happened, so a reader finds `matches` on
+    // a --type, `screenshot` on a --shot, `clicked` on a --click.
+    for (const [args, shape] of [
+      [["--type", "search=Hello"], { field: "search", typed: false, text: "Hello", readBack: null, matches: false }],
+      [["--shot", shot], { of: "page", screenshot: null }],
+      [["--shot-of", "find", shot], { of: "find", screenshot: null }],
+      [["--sd", repro], { sd: repro, wroteChars: null }],
+      [["--screen", "assets"], { screen: "assets", active: false }],
+      [["--open", "find"], { surface: "find", open: false }],
+      [["--close", "find"], { surface: "find", open: null, closed: false }],
+      [["--press", "Control+f"], { press: "Control+f", sent: null }],
+      [["--click", "next"], { button: "next", clicked: false }],
+      [["--toggle", "case"], { toggle: "case", toggled: false }],
+    ]) {
+      const refused = await ui(args, deps);
+      assert.deepEqual(refused.steps, [{ ...shape, gated: true, reason: refused.steps[0].reason }], JSON.stringify(args));
+      assert.match(refused.steps[0].reason, /did not finish/);
+      assert.equal(process.exitCode, 1);
+      process.exitCode = 0;
+    }
+    assert.equal(page.reloads, 0);
+    assert.deepEqual(page.screenshots, []);
     // A --project step later in the run does not let the steps before it
     // drive the mix.
     const later = await ui(["--shot", shot, "--project", fixture], deps);
@@ -1156,6 +1336,64 @@ await check("ui on a marked project refuses every step but --probe until a --pro
     assert.equal(page.reloads, 0);
     assert.equal((await readBack(page, "main.sd")).toString(), "A DIFFERENT PROJECT");
     assert.equal(process.exitCode, 1);
+  });
+});
+
+await check("a ui --project or --sd step that throws keeps what it reported, fails, and closes the gate, so no later step captures a page that was not reloaded onto what storage holds", async () => {
+  await withStub({}, async ({ page }) => {
+    // The reload after a seed that landed whole times out: the seed report
+    // stays on the step, and the screenshot after it is refused.
+    await previousProject(page, { "main.sd": "A DIFFERENT PROJECT" });
+    page.reload = async () => {
+      throw new Error("page.reload: Timeout 120000ms exceeded.\n  more");
+    };
+    const { deps } = commandDeps(page);
+    const result = await ui(["--project", fixture, "--shot", shot, "--probe", probe], deps);
+    assert.equal(result.steps.length, 2);
+    assert.equal(result.steps[0].project, fixture);
+    assert.equal(result.steps[0].seed.files, 4);
+    assert.equal(result.steps[0].seed.storage, "replaced");
+    assert.equal(result.steps[0].reason, "step threw: page.reload: Timeout 120000ms exceeded.");
+    assert.deepEqual(result.steps[1], { of: "page", screenshot: null, gated: true, reason: "the --project step 1 threw (page.reload: Timeout 120000ms exceeded.), so the page is not known to show what storage holds. The 1 step after this one did not run." });
+    assert.deepEqual(page.screenshots, []);
+    assert.equal(result.failed.length, 2);
+    assert.equal(process.exitCode, 1);
+    assert.equal((await readBack(page, "main.sd")).toString(), files["main.sd"].toString());
+  });
+  await withStub({}, async ({ page }) => {
+    // The same for --sd: the characters written stay on the step.
+    page.reload = async () => {
+      throw new Error("net::ERR_ABORTED");
+    };
+    const { deps } = commandDeps(page);
+    const result = await ui(["--sd", repro, "--shot", shot], deps);
+    assert.deepEqual(result.steps[0], { sd: repro, wroteChars: reproText.length, reason: "step threw: net::ERR_ABORTED" });
+    assert.deepEqual(result.steps[1], { of: "page", screenshot: null, gated: true, reason: "the --sd step 1 threw (net::ERR_ABORTED), so the page is not known to show what storage holds." });
+    assert.deepEqual(page.screenshots, []);
+    assert.equal(process.exitCode, 1);
+  });
+  await withStub({}, async ({ page }) => {
+    // A write that throws before it landed: the step says nothing was
+    // written, and the gate closes all the same.
+    const { deps } = commandDeps(page, {
+      writeMainSd: async () => {
+        throw new Error("Execution context was destroyed");
+      },
+    });
+    const result = await ui(["--sd", repro, "--screen", "assets"], deps);
+    assert.deepEqual(result.steps[0], { sd: repro, wroteChars: null, reason: "step threw: Execution context was destroyed" });
+    assert.deepEqual(result.steps[1], { screen: "assets", active: false, gated: true, reason: "the --sd step 1 threw (Execution context was destroyed), so the page is not known to show what storage holds." });
+    assert.equal(process.exitCode, 1);
+  });
+  await withStub({}, async ({ page }) => {
+    // A step of another kind that throws fails alone; the run goes on.
+    const { deps } = commandDeps(page, {
+      readSurfaces: async () => ({}),
+    });
+    const bad = path.join(scratch, "bad-probe.js");
+    fs.writeFileSync(bad, "throw new Error('probe broke');");
+    const result = await ui(["--probe", bad, "--probe", probe], deps);
+    assert.deepEqual(result.steps, [{ probe: bad, reason: "step threw: probe broke" }, { probe, result: 42 }]);
   });
 });
 
@@ -1345,6 +1583,55 @@ await check("seed --clear empties the project and reloads; with --project it cle
     assert.equal(page.reloads, 0);
     assert.equal(process.exitCode, 1);
   });
+  await withStub({ refuse: ["chars.sd"] }, async ({ page, tree }) => {
+    // A write refused after the clear: the reason says the previous project
+    // went before the seed, since nothing of it is there to re-run over.
+    await previousProject(page, { "main.sd": "previous", "stale.sd": "old", ".name": "My Game" });
+    const { deps } = commandDeps(page);
+    const result = await seed(["--clear", "--project", fixture], deps);
+    assert.match(result.error, /^1 of 4 project files could not be written \(first: scripts\/chars\.sd: NoModificationAllowedError: "chars\.sd" is locked\); the project was emptied before the seed, so storage holds the 3 files that landed and nothing of the previous project \(a file whose write failed holds what that write left\), and local\/\.seeding marks the seed as unfinished; re-run --project$/);
+    assert.deepEqual(result.clear.removed, ["main.sd", "stale.sd"]);
+    assert.equal(result.seed.storage, "mixed");
+    assert.equal(await readBack(page, "stale.sd"), null);
+    assert.equal((await readBack(page, "main.sd")).toString(), files["main.sd"].toString());
+    assert.deepEqual(entryNames(tree, "local"), [".name", ".seeding", "assets", "main.sd", "scripts"]);
+    assert.equal(page.reloads, 0);
+    assert.equal(process.exitCode, 1);
+  });
+});
+
+await check("seed and verify refuse a flag given with no value, an empty one, or another flag in its place, before the browser launches, so an unset shell variable cannot turn a seed into a bare clear or a verify into a run on whatever is in storage", async () => {
+  await withStub({}, async ({ page }) => {
+    await previousProject(page, { "main.sd": "previous", "assets/a.png": "a" });
+    const { deps, calls } = commandDeps(page);
+    for (const [command, args, flagName] of [
+      [seed, ["--clear", "--project"], "--project"],
+      [seed, ["--clear", "--project", ""], "--project"],
+      [seed, ["--project", "--clear"], "--project"],
+      [seed, ["--project", ""], "--project"],
+      [verify, ["--project", "", "--sd", repro], "--project"],
+      [verify, ["--line", "3", "--project"], "--project"],
+      [verify, ["--project", "--sd", repro], "--project"],
+      [verify, ["--sd"], "--sd"],
+      [verify, ["--sd", "", "--shot", shot], "--sd"],
+      [verify, ["--project", fixture, "--shot"], "--shot"],
+      [verify, ["--project", fixture, "--line", "--shot", shot], "--line"],
+      [verify, ["--probe", ""], "--probe"],
+    ]) {
+      await assert.rejects(command(args, deps), new RegExp(`^Error: died: ${flagName} needs a value$`), `${command.name} ${JSON.stringify(args)}`);
+    }
+    await assert.rejects(ui(["--project"], deps), /^Error: died: ui: --project needs a value$/);
+    await assert.rejects(seed(["--headed"], deps), /^Error: died: seed needs --project <dir-or-zip>, --clear, or both$/);
+    await assert.rejects(seed(["--project", path.join(scratch, "nope")], deps), /^Error: died: --project .*nope does not exist$/);
+    await assert.rejects(verify(["--project", path.join(scratch, "nope")], deps), /^Error: died: --project .*nope does not exist$/);
+    await assert.rejects(ui(["--project", path.join(scratch, "nope")], deps), /^Error: died: ui: --project .*nope does not exist$/);
+    assert.equal(calls.withEditor, 0, "a refused command launched the browser");
+    assert.equal((await readBack(page, "main.sd")).toString(), "previous");
+    assert.equal((await readBack(page, "assets/a.png")).toString(), "a");
+    assert.equal(await marked(page), false);
+    assert.equal(page.reloads, 0);
+    assert.deepEqual(page.screenshots, []);
+  });
 });
 
 if (fflate) {
@@ -1362,6 +1649,27 @@ if (fflate) {
       assert.equal(await readBack(page, "portraits/alice.webp"), null, "the assets folder was unwrapped");
       assert.equal((await readBack(page, "main.sd")).toString(), reproText);
       assert.deepEqual(page.screenshots, [shot]);
+      assert.equal(result.seed.kept, "assets");
+    });
+  });
+  await check("a hand-made zip of an asset-only project under verify --project --sd keeps its wrapping folder and says so in the report, since the seed cannot tell it from the project's layout", async () => {
+    const wrapper = path.join(scratch, "wrapped-no-main-verify.zip");
+    fs.writeFileSync(wrapper, fflate.zipSync({ "mygame/assets/portraits/alice.webp": new Uint8Array(allBytes), "mygame/scripts/chars.sd": new Uint8Array(Buffer.from("c")) }, { level: 0 }));
+    await withStub({}, async ({ page }) => {
+      await previousProject(page, { "main.sd": "previous", "assets/portraits/alice.webp": "old portrait" });
+      const { deps, logs } = commandDeps(page);
+      const result = await verify(["--project", wrapper, "--sd", repro, "--shot", shot], deps);
+      assert.equal(result.error, undefined, result.error);
+      assert.equal(result.seed.kept, "mygame");
+      assert.equal(result.seed.note, "every entry of the zip sits under mygame/, which holds no main.sd, so the folder was kept as part of the project's layout and a script's paths start with mygame/; if the folder is one the compress command added, make the zip from inside it");
+      assert.ok(logs[0].includes('"kept": "mygame"'), "the kept folder is not in the printed report");
+      // The previous main.sd goes with the seed and --sd writes the repro
+      // over the project; the previous assets/ goes and nothing replaces it.
+      assert.deepEqual(result.seed.removed, ["assets", "main.sd"]);
+      assert.equal((await readBack(page, "main.sd")).toString(), reproText);
+      assert.equal(await readBack(page, "assets/portraits/alice.webp"), null);
+      assert.equal(Buffer.compare(await readBack(page, "mygame/assets/portraits/alice.webp"), allBytes), 0);
+      assert.equal(process.exitCode, 0);
     });
   });
 }

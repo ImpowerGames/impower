@@ -167,14 +167,6 @@ function removeState() {
   }
 }
 
-function requireUrl() {
-  const s = readState();
-  if (!s?.url) {
-    die("no editor URL — run `node .claude/skills/drive-web-editor/driver.mjs up` first");
-  }
-  return s.url;
-}
-
 // The sandbox pre-installs a Chromium build under PLAYWRIGHT_BROWSERS_PATH
 // independently of whatever `playwright` version this repo's package.json
 // pins. When those two drift apart, `chromium.executablePath()` points at a
@@ -460,23 +452,35 @@ function cmdOk(cmd, args) {
 
 // ---------------------------------------------------------------- browser ---
 
-async function withEditor(fn, { headless = true } = {}) {
-  const url = requireUrl();
+// The browser `withEditor` drives: the persistent profile, so the editor
+// keeps its storage and its last screen across runs.
+async function launchEditorBrowser({ headless }) {
   const { chromium } = await import("playwright");
   const executablePath = resolveChromiumExecutablePath(chromium);
-  const ctx = await chromium.launchPersistentContext(PROFILE_DIR, {
+  return chromium.launchPersistentContext(PROFILE_DIR, {
     headless,
     viewport: { width: 1600, height: 1000 },
     args: ["--autoplay-policy=no-user-gesture-required"],
     ...(executablePath ? { executablePath } : {}),
   });
+}
+
+// Runs `fn` against a page on the editor. `url` and `mode` come from the
+// state file `up` wrote: `mode` is how it launched the servers, and says
+// whether the game preview can be observed at all; a record without one is
+// a same-origin launch. `launch` and `state` are parameters so
+// seed-project.test.mjs can run this without a browser and pin what `fn`
+// is handed.
+async function withEditor(fn, { headless = true, launch = launchEditorBrowser, state = readState } = {}) {
+  const record = state();
+  if (!record?.url) die("no editor URL — run `node .claude/skills/drive-web-editor/driver.mjs up` first");
+  const { url } = record;
+  const mode = record.mode ?? "same-origin";
+  const ctx = await launch({ headless });
   const page = ctx.pages()[0] ?? (await ctx.newPage());
   const consoleLines = [];
   page.on("console", (m) => consoleLines.push(`[${m.type()}] ${m.text()}`));
   page.on("pageerror", (e) => consoleLines.push(`[pageerror] ${e.message}`));
-  // `mode` is how `up` launched the servers, from the state file that gave
-  // the URL; it says whether the game preview can be observed at all.
-  const mode = readState()?.mode ?? "same-origin";
   try {
     return await fn({ page, ctx, url, consoleLines, mode });
   } finally {
@@ -670,14 +674,16 @@ function zipEntryPath(name) {
 // it. An archive whose every entry sits under one top-level folder that
 // holds `main.sd` (a zip made by hand from the project directory, which is
 // how a desktop's compress command lays one out) is unwrapped and the folder
-// named in `unwrapped`; the editor's own export has no such folder, and a
-// folder without `main.sd` is part of the project's own layout, so it stays.
-// An archive holding both a file and a directory of one name is refused,
-// because no filesystem can hold both.
+// named in `unwrapped`; the editor's own export has no such folder. A single
+// folder without `main.sd` cannot be told from the project's own layout (an
+// asset bundle under `assets/`), so it stays and is named in `kept`, for the
+// seed to say which reading it took. An archive holding both a file and a
+// directory of one name is refused, because no filesystem can hold both.
 export function zipProjectEntries(archive) {
   let entries = [];
   let skipped = 0;
   let unwrapped;
+  let kept;
   for (const [name, bytes] of Object.entries(archive)) {
     const read = zipEntryPath(name);
     if (read.skipped) skipped += 1;
@@ -693,13 +699,17 @@ export function zipProjectEntries(archive) {
   if (clash) throw new Error(`the zip holds both a file and a directory named "${clash.path}"`);
   if (entries.length > 0) {
     const first = entries[0].path.split("/")[0];
-    if (entries.every((e) => e.path.startsWith(`${first}/`)) && entries.some((e) => e.path === `${first}/main.sd`)) {
-      unwrapped = first;
-      entries = entries.map((e) => ({ path: e.path.slice(first.length + 1), bytes: e.bytes }));
+    if (entries.every((e) => e.path.startsWith(`${first}/`))) {
+      if (entries.some((e) => e.path === `${first}/main.sd`)) {
+        unwrapped = first;
+        entries = entries.map((e) => ({ path: e.path.slice(first.length + 1), bytes: e.bytes }));
+      } else {
+        kept = first;
+      }
     }
   }
   entries.sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0));
-  return { files: entries, skipped, failed: [], ...(unwrapped ? { unwrapped } : {}) };
+  return { files: entries, skipped, failed: [], ...(unwrapped ? { unwrapped } : {}), ...(kept ? { kept } : {}) };
 }
 
 // The project at `source`: a directory, walked, or a `.zip`, unpacked with
@@ -1053,10 +1063,12 @@ async function clearProject(page, { project = LOCAL_PROJECT_ID } = {}) {
 // what was sent; `failed` names every entry that was not read or written;
 // `removed` names the previous project's entries that went; `mainSd` says
 // whether a root `main.sd` landed; `unwrapped` names a zip's wrapping
-// folder; `storage` says what storage holds now (`untouched`, `mixed`: the
-// previous project with the files that landed over it and the marker set,
-// or `replaced`); and `reason` is set whenever storage does not hold the
-// whole project and nothing else, so a caller can fail on it. A source with
+// folder, and `kept` a zip's single top-level folder that held no `main.sd`
+// and so was seeded as it is, with a `note` saying so; `storage` says what
+// storage holds now (`untouched`, `mixed`: the files that landed over
+// whatever was there, with the marker set, or `replaced`); and `reason` is
+// set whenever storage does not hold the whole project and nothing else, so
+// a caller can fail on it. A source with
 // no files, or none at its root named `main.sd` while `expectMainSd` holds,
 // is refused before anything is written, as is a page whose editor
 // remembers a project other than `project`, and a previous project holding
@@ -1076,7 +1088,15 @@ async function seedProject(page, source, { project = LOCAL_PROJECT_ID, batchByte
     return report;
   };
   const firstLine = describeError;
-  const mixed = () => `the previous project's entries stand under the ${report.files} file${report.files === 1 ? "" : "s"} that landed (a file whose write failed holds what that write left), and ${project}/${SEED_MARKER} marks the seed as unfinished; re-run --project`;
+  // What storage holds after a seed that stopped part-way. With `clear` the
+  // previous project went before the first write, so nothing of it stands.
+  const mixed = () => {
+    const landed = `${report.files} file${report.files === 1 ? "" : "s"} that landed`;
+    const held = `(a file whose write failed holds what that write left)`;
+    const marked = `${project}/${SEED_MARKER} marks the seed as unfinished; re-run --project`;
+    if (report.clear) return `the project was emptied before the seed, so storage holds the ${landed} and nothing of the previous project ${held}, and ${marked}`;
+    return `the previous project's entries stand under the ${landed} ${held}, and ${marked}`;
+  };
   let collected;
   try {
     collected = await collect(source, limits);
@@ -1086,6 +1106,10 @@ async function seedProject(page, source, { project = LOCAL_PROJECT_ID, batchByte
   report.kind = collected.kind;
   report.skipped = collected.skipped;
   if (collected.unwrapped) report.unwrapped = collected.unwrapped;
+  if (collected.kept) {
+    report.kept = collected.kept;
+    report.note = `every entry of the zip sits under ${collected.kept}/, which holds no main.sd, so the folder was kept as part of the project's layout and a script's paths start with ${collected.kept}/; if the folder is one the compress command added, make the zip from inside it`;
+  }
   report.failed.push(...collected.failed);
   const total = collected.files.length;
   if (report.failed.length > 0) {
@@ -1170,10 +1194,15 @@ async function seedProject(page, source, { project = LOCAL_PROJECT_ID, batchByte
 // first, once the source has been read and accepted, or on its own, and the
 // report says what went under `clear`.
 async function seed(args, deps = liveDeps) {
-  const source = flag(args, "--project");
+  let source;
+  try {
+    source = flag(args, "--project");
+  } catch (err) {
+    deps.die(err.message);
+  }
   const clear = args.includes("--clear");
-  if (!source && !clear) die("seed needs --project <dir-or-zip>, --clear, or both");
-  if (source && !fs.existsSync(path.resolve(source))) die(`--project ${source} does not exist`);
+  if (!source && !clear) deps.die("seed needs --project <dir-or-zip>, --clear, or both");
+  if (source && !fs.existsSync(path.resolve(source))) deps.die(`--project ${source} does not exist`);
   const headless = !args.includes("--headed");
   return deps.withEditor(
     async ({ page, url }) => {
@@ -1354,8 +1383,10 @@ async function gameMountedWithin(page, timeout = GAME_MOUNT_BUDGET_MS, { now = D
 
 // The game mount wait `verify` and a `ui --sd` step use: the budget once,
 // then a recovery reload, the editor brought back (`switched` says whether
-// that changed the screen or tab), and the budget again. `now` and `ensure`
-// are parameters for the in-process check.
+// that changed the screen or tab), and the budget again. `now` is the clock,
+// a parameter for the in-process check; `ensure` is what brings the editor
+// back, and the commands pass their own `ensureScriptEditor` dep so the
+// recovery goes through the same function as the rest of the run.
 async function waitForGame(page, { timeout = GAME_MOUNT_BUDGET_MS, now = Date.now, ensure = ensureScriptEditor } = {}) {
   if (await gameMountedWithin(page, timeout, { now })) return { mounted: true, reloaded: false };
 
@@ -1607,22 +1638,39 @@ async function waitForPreviewSettle(page, { timeout = 30_000, quiet = 2500 } = {
 }
 
 async function verify(args, deps = liveDeps) {
-  const sdPath = flag(args, "--sd");
-  const projectPath = flag(args, "--project");
-  const shot = flag(args, "--shot");
-  const line = flag(args, "--line");
-  const probePath = flag(args, "--probe");
+  let sdPath;
+  let projectPath;
+  let shot;
+  let line;
+  let probePath;
+  try {
+    sdPath = flag(args, "--sd");
+    projectPath = flag(args, "--project");
+    shot = flag(args, "--shot");
+    line = flag(args, "--line");
+    probePath = flag(args, "--probe");
+  } catch (err) {
+    deps.die(err.message);
+  }
   const headless = !args.includes("--headed");
-  if (projectPath && !fs.existsSync(path.resolve(projectPath))) die(`--project ${projectPath} does not exist`);
+  if (projectPath && !fs.existsSync(path.resolve(projectPath))) deps.die(`--project ${projectPath} does not exist`);
 
   return deps.withEditor(
     async ({ page, url, consoleLines, mode }) => {
       const result = { url };
-      // The game preview is observable only in same-origin mode
-      // (window.__preview); in cross-origin mode the page cannot see it, so
-      // the mount and the program are not waited for, and the run fails,
-      // because what verify captures is the preview.
-      const crossOrigin = mode === "cross-origin";
+      // What verify captures is the game preview, which the page can observe
+      // only in same-origin mode (window.__preview). In cross-origin mode
+      // the run stops here, before the page is loaded and before a seed or
+      // a script write replaces what storage holds for a picture that could
+      // never be evidence.
+      if (mode === "cross-origin") {
+        result.gameMounted = null;
+        result.program = { loaded: null, reason: "the preview is not observable (cross-origin mode)" };
+        result.error = "the game preview is not observable in cross-origin mode (window.__preview is never installed), so nothing seen on it is evidence; `down`, then `up` without --cross-origin";
+        deps.log(JSON.stringify(result, null, 2));
+        process.exitCode = 1;
+        return result;
+      }
 
       // A navigation that never completes is a report, not a stack trace.
       try {
@@ -1725,25 +1773,22 @@ async function verify(args, deps = liveDeps) {
         else delete result.editorWarning;
       }
 
-      if (!crossOrigin) {
-        await page
-          .waitForFunction(() => window.__preview?.summary().sameOrigin === true, null, {
-            timeout: 60_000,
-          })
-          .catch(() => {
-            result.previewWarning =
-              "window.__preview never reported sameOrigin within 60s: the preview pane is showing the screenplay, or the game preview never mounted";
-          });
-      }
+      await page
+        .waitForFunction(() => window.__preview?.summary().sameOrigin === true, null, {
+          timeout: 60_000,
+        })
+        .catch(() => {
+          result.previewWarning =
+            "window.__preview never reported sameOrigin within 60s: the preview pane is showing the screenplay, or the game preview never mounted";
+        });
 
-      const mount = crossOrigin ? { mounted: null } : await deps.waitForGame(page);
+      // The recovery reload brings the editor back through the same dep the
+      // rest of the run uses, so `switchedToLogic` means one thing.
+      const mount = await deps.waitForGame(page, { ensure: deps.ensureScriptEditor });
       result.gameMounted = mount.mounted;
       if (mount.reloaded) result.neededReload = true;
       if (mount.switched) result.switchedToLogic = true;
-      if (crossOrigin) {
-        result.error = "the game preview is not observable in cross-origin mode (window.__preview is never installed), so nothing seen on it is evidence; `down`, then `up` without --cross-origin";
-        process.exitCode = 1;
-      } else if (!mount.mounted) {
+      if (!mount.mounted) {
         // A game that never mounted is a failed run: the screenshot is not
         // evidence and the shell must not stay green. The retry's own reason
         // (the editor was on another screen after the reload) is added to the
@@ -1758,11 +1803,8 @@ async function verify(args, deps = liveDeps) {
       // Let the FIRST compile finish before touching the cursor. On a cold
       // origin the player worker is not listening for `didSelect` yet, so an
       // early scrub is silently dropped and the preview stays on beat 1-2.
-      // A game that never mounted has no program to wait for, and a preview
-      // the page cannot see (cross-origin mode) has no mount to report.
-      result.program = mount.mounted
-        ? await deps.waitForProgram(page)
-        : { loaded: null, reason: crossOrigin ? "the preview is not observable (cross-origin mode)" : "the game never mounted" };
+      // A game that never mounted has no program to wait for.
+      result.program = mount.mounted ? await deps.waitForProgram(page) : { loaded: null, reason: "the game never mounted" };
       if (result.program.loaded === false) result.programWarning = programWarning(result.program);
       let settle = await deps.waitForPreviewSettle(page);
 
@@ -2693,13 +2735,21 @@ export function parseUiSteps(args) {
 }
 
 // The report of a step that was refused before it ran, in the shape the
-// step reports when it runs, so a reader checking `matches` or `screenshot`
-// on a refused step finds the field. Every gate goes through this.
+// step reports when it runs with its outcome field saying nothing happened
+// (`clicked`, `active`, `matches`, `screenshot`), so a reader checking that
+// field on a refused step finds it. Every gate goes through this; `--project`
+// and `--probe` are never gated, and a step kind added later reports its
+// parsed fields until it is given a shape here.
 function gatedStep(step, reason) {
   const gated = { gated: true, reason };
+  if (step.sd) return { sd: step.sd, wroteChars: null, ...gated };
+  if (step.screen) return { screen: step.screen, active: false, ...gated };
   if (step.open) return { surface: step.open, open: false, ...gated };
+  if (step.close) return { surface: step.close, open: null, closed: false, ...gated };
   if (step.type) return { field: step.type, typed: false, text: step.text, readBack: null, matches: false, ...gated };
   if (step.press) return { press: step.press, sent: null, ...gated };
+  if (step.click) return { button: step.click, clicked: false, ...gated };
+  if (step.toggle) return { toggle: step.toggle, toggled: false, ...gated };
   if (step.shotOf) return { of: step.shotOf, screenshot: null, ...gated };
   return { ...step, ...gated };
 }
@@ -2715,10 +2765,10 @@ async function ui(args, deps = liveDeps) {
   try {
     steps = parseUiSteps(args);
   } catch (e) {
-    die(e.message);
+    deps.die(e.message);
   }
   for (const step of steps) {
-    if (step.project && !fs.existsSync(path.resolve(step.project))) die(`ui: --project ${step.project} does not exist`);
+    if (step.project && !fs.existsSync(path.resolve(step.project))) deps.die(`ui: --project ${step.project} does not exist`);
   }
 
   return deps.withEditor(
@@ -2772,6 +2822,9 @@ async function ui(args, deps = liveDeps) {
           result.steps.push(gatedStep(step, `${gate}${rest > 0 ? ` The ${rest} step${rest === 1 ? "" : "s"} after this one did not run.` : ""}`));
           break;
         }
+        // What a `--sd` or `--project` step has reported so far, kept
+        // outside the try so a throw after the write does not lose it.
+        let written = null;
         try {
           if (step.sd || step.project) {
             let out;
@@ -2782,6 +2835,7 @@ async function ui(args, deps = liveDeps) {
               // seed would take away.
               const seeded = await deps.seedProject(page, step.project, { expectMainSd: !steps.slice(index + 1).some((s) => s.sd) });
               out = { project: step.project, seed: seeded };
+              written = out;
               if (seeded.reason) {
                 // Storage holding anything but the whole project is not the
                 // project; the step fails, the page is not reloaded onto it,
@@ -2796,7 +2850,9 @@ async function ui(args, deps = liveDeps) {
               gate = null;
             } else {
               const src = fs.readFileSync(path.resolve(step.sd), "utf8");
-              out = { sd: step.sd, wroteChars: await deps.writeMainSd(page, src) };
+              out = { sd: step.sd, wroteChars: null };
+              written = out;
+              out.wroteChars = await deps.writeMainSd(page, src);
             }
             const wrote = step.project ? "--project seeded the project, whose main.sd" : "--sd wrote main.sd, which";
             // The reload throws the settled view away.
@@ -2829,7 +2885,7 @@ async function ui(args, deps = liveDeps) {
                 // The mount wait verify uses, reload retry included; a game
                 // that never mounted has no program to wait for, and the
                 // blank pane fails the step, as it fails verify.
-                const mount = await deps.waitForGame(page);
+                const mount = await deps.waitForGame(page, { ensure: deps.ensureScriptEditor });
                 if (mount.reloaded) {
                   out.neededReload = true;
                   requireEditor.reset();
@@ -2927,7 +2983,15 @@ async function ui(args, deps = liveDeps) {
             });
           }
         } catch (err) {
-          result.steps.push({ ...step, reason: `step threw: ${String(err.message || err).split("\n")[0]}` });
+          const message = String(err.message || err).split("\n")[0];
+          result.steps.push({ ...(written ?? step), reason: `step threw: ${message}` });
+          // A `--sd` or `--project` step that threw may have written to
+          // storage without the page being reloaded onto it (a reload that
+          // timed out), so the page is not known to show what storage
+          // holds, and the steps after it do not run.
+          if (step.sd || step.project) {
+            gate = `the ${step.project ? "--project" : "--sd"} step ${stepNo} threw (${message}), so the page is not known to show what storage holds.`;
+          }
         }
       }
 
@@ -3056,9 +3120,16 @@ export {
 
 // ------------------------------------------------------------------ utils ---
 
+// The value after `name`, or undefined when the flag is not given. A flag
+// that is given with no value, an empty one, or another flag in its place
+// throws, as parseUiSteps refuses the same: `--project "$RB"` with `RB`
+// unset must not become a run without a project.
 function flag(args, name) {
   const i = args.indexOf(name);
-  return i >= 0 ? args[i + 1] : undefined;
+  if (i < 0) return undefined;
+  const v = args[i + 1];
+  if (v == null || v === "" || v.startsWith("--")) throw new Error(`${name} needs a value`);
+  return v;
 }
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -3069,6 +3140,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const liveDeps = {
   withEditor,
   log: console.log,
+  die,
   seedProject,
   clearProject,
   interruptedSeed,
