@@ -221,11 +221,27 @@ export function classifyRedFailure(output, { removed = [] } = {}) {
  * multi-failure run ends on the last stack trace rather than the count, so
  * this is what a report quotes instead. Returns null when the output carries
  * neither line (a crash, a shell failure, a runner other than vitest).
+ *
+ * vitest colours these labels through `tinyrainbow`, which this machine
+ * enables unconditionally on Windows regardless of TTY, so the raw line
+ * starts with an ANSI escape (`\x1b[2m Test Files \x1b[22m …`); ANSI is
+ * stripped before matching. Each line also has to carry the count itself
+ * (`\d+ (?:passed|failed|skipped|todo)`), not just the label, so a test's own
+ * diagnostic output that happens to start with "Tests" (`Tests are slow
+ * today`) is not mistaken for the summary. On a `--test` command that invokes
+ * vitest more than once, several such lines can appear; the last matching
+ * pair is the one that reflects the run's own final state, so that is what
+ * this returns rather than the first.
  */
+const ANSI_ESCAPE_RE = /\x1b\[[0-9;]*m/g;
+const VITEST_COUNT_RE = /\d+\s+(?:passed|failed|skipped|todo)/;
+
 export function parseVitestSummary(output) {
-  const lines = String(output || "").split(/\r?\n/);
-  const testFiles = lines.find((l) => /^\s*Test Files\s/.test(l));
-  const tests = lines.find((l) => /^\s*Tests\s/.test(l));
+  const lines = String(output || "").replace(ANSI_ESCAPE_RE, "").split(/\r?\n/);
+  const testFilesLines = lines.filter((l) => /^\s*Test Files\s/.test(l) && VITEST_COUNT_RE.test(l));
+  const testsLines = lines.filter((l) => /^\s*Tests\s/.test(l) && VITEST_COUNT_RE.test(l));
+  const testFiles = testFilesLines[testFilesLines.length - 1];
+  const tests = testsLines[testsLines.length - 1];
   if (!testFiles && !tests) return null;
   return [testFiles, tests]
     .filter(Boolean)
@@ -437,6 +453,13 @@ export function runRedGreen({ repoRoot, test, files, base = "HEAD", snapshotDir,
           red.output.trim() === ""
             ? `The test exited ${red.exit} on the base with no output at all, so there is nothing to show the failure was the ticket's. Use a test invocation that prints its assertion.`
             : `The test exited ${red.exit} on the base, but the output does not look like a test assertion (no AssertionError, expected/to, expect(), FAIL, "not ok", or failing count). Read red.tail yourself: if it is the ticket's assertion in a form the classifier does not know, say so in the PR; if it is a config error or a truncated run, it proves nothing.`,
+        );
+      } else if (redReason === "assertion" && report.red.summary == null && /\bvitest\b/i.test(test)) {
+        // Only when the command names vitest: a plain Node or other test
+        // runner has no Test Files / Tests summary to begin with, and that is
+        // expected, not a parsing failure.
+        report.problems.push(
+          `The test command names vitest and failed on the base with what reads as a real assertion, but no \`Test Files\`/\`Tests\` summary line could be parsed from the output. Read red.tail for the failure and quote it directly in the PR.`,
         );
       }
     }

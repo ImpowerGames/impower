@@ -88,22 +88,34 @@ check("an honest test fails on the base and passes on the fix, and the restore m
 // summary lines well before the end of its output, followed by trailing
 // per-test detail; `tail` (the last 40 lines) then ends on that detail, not
 // the summary, which is why the PR quotes `summary` instead of `tail` (#495).
+//
+// The summary lines below carry the exact escape bytes vitest 2.1.9 prints on
+// this machine (captured from a real `node vitest.mjs run` on Windows,
+// PR #503's redgreen-realvitest-* demonstration): tinyrainbow enables colour
+// unconditionally on `platform === "win32"`, with no TTY check, so `\x1b[2m
+// Test Files \x1b[22m …` is what every run here actually produces, never the
+// plain-ASCII line a hand-written fixture would default to.
+const RED_TEST_FILES = "\x1b[2m Test Files \x1b[22m \x1b[1m\x1b[31m1 failed\x1b[39m\x1b[22m\x1b[90m (1)\x1b[39m";
+const RED_TESTS = "\x1b[2m      Tests \x1b[22m \x1b[1m\x1b[31m2 failed\x1b[39m\x1b[22m\x1b[2m | \x1b[22m\x1b[1m\x1b[32m3 passed\x1b[39m\x1b[22m\x1b[90m (5)\x1b[39m";
+const GREEN_TEST_FILES = "\x1b[2m Test Files \x1b[22m \x1b[1m\x1b[32m1 passed\x1b[39m\x1b[22m\x1b[90m (1)\x1b[39m";
+const GREEN_TESTS = "\x1b[2m      Tests \x1b[22m \x1b[1m\x1b[32m5 passed\x1b[39m\x1b[22m\x1b[90m (5)\x1b[39m";
+
 const MULTI_FAILURE_CHECK =
   [
     'import { value } from "./lib.mjs";',
     'if (value !== "new") {',
-    '  console.error("Test Files  1 failed (1)");',
-    '  console.error("     Tests  2 failed | 3 passed (5)");',
+    `  console.error(${JSON.stringify(RED_TEST_FILES)});`,
+    `  console.error(${JSON.stringify(RED_TESTS)});`,
     '  for (let i = 0; i < 45; i++) console.error("AssertionError: trailing detail line " + i);',
     "  process.exit(1);",
     "} else {",
-    '  console.log("Test Files  1 passed (1)");',
-    '  console.log("     Tests  5 passed (5)");',
+    `  console.log(${JSON.stringify(GREEN_TEST_FILES)});`,
+    `  console.log(${JSON.stringify(GREEN_TESTS)});`,
     '  for (let i = 0; i < 45; i++) console.log("ok detail line " + i);',
     "}",
   ].join("\n") + "\n";
 
-check("red.summary and green.summary carry the Test Files / Tests lines even when they are not in tail", () => {
+check("red.summary and green.summary carry the Test Files / Tests lines, ANSI-coloured as vitest really prints them, even when they are not in tail", () => {
   const dir = makeRepo();
   applyFix(dir);
   fs.writeFileSync(path.join(dir, "check.mjs"), MULTI_FAILURE_CHECK);
@@ -117,11 +129,58 @@ check("red.summary and green.summary carry the Test Files / Tests lines even whe
   assert.equal(r.green.summary, "Test Files  1 passed (1) / Tests  5 passed (5)");
 });
 
-check("parseVitestSummary reads either line alone and returns null when neither is present", () => {
+check("parseVitestSummary reads either line alone (ANSI-coloured or plain) and returns null when neither is present", () => {
+  assert.equal(parseVitestSummary(` ${RED_TEST_FILES}\n`), "Test Files  1 failed (1)");
+  assert.equal(parseVitestSummary(`${RED_TESTS}\n`), "Tests  2 failed | 3 passed (5)");
   assert.equal(parseVitestSummary(" Test Files  1 passed (1)\n"), "Test Files  1 passed (1)");
   assert.equal(parseVitestSummary("      Tests  8 passed (8)\n"), "Tests  8 passed (8)");
   assert.equal(parseVitestSummary("AssertionError: expected new, got old\n"), null);
   assert.equal(parseVitestSummary(""), null);
+});
+
+check("parseVitestSummary ignores a line that starts with the label but carries no count, per its own docstring", () => {
+  // A test's own diagnostic output, or a runner other than vitest, can start
+  // a line with "Tests" or "Test Files" without meaning the summary.
+  assert.equal(parseVitestSummary("Test Files  1 passed (1)\nTests are slow today\n"), "Test Files  1 passed (1)");
+  assert.equal(parseVitestSummary("Test Files were deleted by the fix\n"), null);
+  assert.equal(parseVitestSummary("Tests are slow today\nTest Files were deleted by the fix\n"), null);
+});
+
+check("parseVitestSummary takes the last matching pair, not the first, on a --test that runs vitest more than once", () => {
+  const twoRuns = [
+    " Test Files  1 passed (1)",
+    "      Tests  5 passed (5)",
+    "--- second invocation ---",
+    ` ${RED_TEST_FILES}`,
+    ` ${RED_TESTS}`,
+  ].join("\n");
+  assert.equal(parseVitestSummary(twoRuns), "Test Files  1 failed (1) / Tests  2 failed | 3 passed (5)");
+});
+
+check("a red run naming vitest that fails on assertion with no parseable summary is a problem, not a silent null", () => {
+  const dir = makeRepo();
+  applyFix(dir);
+  // A real assertion failure (the classifier reads it as "assertion") from a
+  // command that names vitest but prints no Test Files / Tests summary (a
+  // reporter or version this parser does not expect).
+  fs.writeFileSync(
+    path.join(dir, "check.mjs"),
+    'import { value } from "./lib.mjs";\nif (value !== "new") { console.error("AssertionError: expected new, got " + value); process.exit(1); }\nconsole.log("ok");\n',
+  );
+  const r = run(dir, { test: `${NODE} check.mjs # npx vitest run` });
+  assert.equal(r.ok, false);
+  assert.equal(r.red.reason, "assertion");
+  assert.equal(r.red.summary, null);
+  assert.match(r.problems.join("\n"), /command names vitest.*no `Test Files`\/`Tests` summary line could be parsed/);
+});
+
+check("a red run that does not name vitest and has no summary is not flagged for a missing summary (plain runners have none to begin with)", () => {
+  const dir = makeRepo();
+  applyFix(dir);
+  const r = run(dir); // the default check.mjs command, a plain node invocation
+  assert.equal(r.ok, true, JSON.stringify(r.problems));
+  assert.equal(r.red.reason, "assertion");
+  assert.equal(r.red.summary, null);
 });
 
 check("a test that passes on the base is reported as pinning nothing", () => {

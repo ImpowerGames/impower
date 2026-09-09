@@ -67,7 +67,7 @@ It snapshots the files, reverts them to the base revision, runs the test and req
 }
 ```
 
-`ok: true` means exactly this: every named file differs from the base, the test exited non-zero on the base with output that reads as a test failure, every file came back byte-for-byte, and the test exited zero on the fix. It is an exit-code proof. Which test failed is in `red.tail`, and reading it is your job: a red where the ticket's new case passed and an unrelated case in the same file failed looks identical to the command; on a run with more than one failing test, `red.tail` (the last 40 output lines) is the last stack trace, not the count. Quote `red.summary` and `green.summary` in the PR body. `ok: false` exits non-zero, and `problems` is never empty when it does:
+`ok: true` means exactly this: every named file differs from the base, the test exited non-zero on the base with output that reads as a test failure, every file came back byte-for-byte, and the test exited zero on the fix. It is an exit-code proof. Which test failed is in `red.tail`, and reading it is your job: a red where the ticket's new case passed and an unrelated case in the same file failed looks identical to the command; on a run with more than one failing test, `red.tail` (the last 40 output lines) is the last stack trace, not the count. Quote the assertion from `red.tail`, and `red.summary` and `green.summary`, in the PR body. `ok: false` exits non-zero, and `problems` is never empty when it does:
 
 - The test passed against the base: it pins nothing. Either it does not assert the ticket's behaviour, or `--files` does not name where the fix lives.
 - A file is identical to the base. Nothing to revert in it: either the fix is committed (pass `--base origin/main`) or the file is not where the fix lives.
@@ -89,7 +89,7 @@ Where a whole-file revert would break the test's imports (the fix adds an export
 
 A test added for a line the base commit already has cannot go red by swapping sources, since the base already contains that line; check it by mutation instead: weaken that line alone with a script that patches and restores the file, byte-compared, run the one test, and report it as checked by mutation.
 
-Keep each half of a red/green run under the command tool's own timeout: the swap, the red run and the restore in one script, and the green runs in another, so a timeout partway through cannot leave the sources swapped.
+Keep each half of a red/green run under the command tool's own timeout: the swap, the red run and the restore in one script, and the green runs in another. That shrinks the window in which a hard kill can land mid-swap; it does not remove it, since a timeout during that first script can still leave the sources reverted. If it does, the snapshot directory `redgreen` logs before the first revert holds the pre-swap copy: compare its content hash against the working file to tell whether the tree already restored itself, and copy the snapshot back by hand if it did not.
 
 Record both outcomes for the PR body.
 
