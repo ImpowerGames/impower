@@ -60,11 +60,17 @@ def child_layer_names(root, names, retained=None):
                       'existing data-name' if node.get('data-name') is not None else None)
             if reason: retained.append({'id':ident,'reason':reason})
         if not resource and nearest and ident and ident not in names and ident in removable and node.get('data-name') is None:
-            prefix = nearest.removeprefix('filter-').removesuffix('-default')+'-'
-            label = ident[len(prefix):] if ident.startswith(prefix) else ident
-            # Plain label grammar; do not introduce selection syntax accidentally.
-            if re.fullmatch(r'[A-Za-z0-9]+(?:-[A-Za-z0-9]+)*',label): result[ident] = label
-            elif retained is not None: retained.append({'id':ident,'reason':'not a plain label; requires artist rename'})
+            author = next((node.attrib[key] for key in ('{http://www.serif.com/}id',
+                           '{http://www.inkscape.org/namespaces/inkscape}label') if key in node.attrib), None)
+            if author is not None:
+                # Match normalization: explicit author labels are not inferred from IDs.
+                result[ident] = author
+            else:
+                prefix = nearest.removeprefix('filter-').removesuffix('-default')+'-'
+                label = ident[len(prefix):] if ident.startswith(prefix) else ident
+                # ID fallback stays plain; never invent conditions from an identifier.
+                if re.fullmatch(r'[A-Za-z0-9]+(?:-[A-Za-z0-9]+)*',label): result[ident] = label
+                elif retained is not None: retained.append({'id':ident,'reason':'not a plain label; requires artist rename'})
         if ident in names: nearest = ident
         for child in node: walk(child,nearest,resource)
     walk(root)
