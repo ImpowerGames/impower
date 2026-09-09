@@ -45,7 +45,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          sparse-checkout: .claude
+          # Cone mode only takes whole directories, and driver.test.mjs
+          # reads the real vscode-sparkdown/package.json to compute the
+          # extension id (drive-vscode-web/driver.mjs's EXT_DIR), so pattern
+          # mode names that one file alongside the .claude directory.
+          sparse-checkout: |
+            .claude
+            vscode-sparkdown/package.json
+          sparse-checkout-cone-mode: false
       - uses: actions/setup-node@v4
         with:
           node-version: 24
