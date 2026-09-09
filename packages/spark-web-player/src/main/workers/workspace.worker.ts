@@ -165,6 +165,15 @@ compilerState.compiler.addEventListener("compiler/didSelect", (params) => {
       line: params.selectedRange.start.line,
     };
     compilerState.compiler.config.startFrom = newStartFrom;
+    if (params.programOutdated) {
+      // This game holds the program compiled from the document as it was
+      // before the edit, so a route planned to this line would replay to
+      // whatever used to sit there — and would cache that route's favored
+      // conditions and choices for the next compile to start from. The
+      // selection is recorded above as the point the next compile starts from,
+      // and that compile plans its route against the program it produces.
+      return;
+    }
     if (
       newStartFrom.file !== gameState.game.startFrom?.file ||
       newStartFrom.line !== gameState.game.startFrom?.line

@@ -920,7 +920,37 @@ export class SparkdownCompiler {
     throw new Error(`Cannot find file '${relativePath}'.`);
   }
 
+  /**
+   * Has a script the last compiled program was built from been edited since
+   * that compile?
+   *
+   * The program's `pathLocations` are what turns a source line into a story
+   * path, and they describe the scripts as they were when the program was
+   * compiled. Once one of those scripts is edited, the same line number names
+   * a different piece of the script, so anything resolved from a line against
+   * that program is an answer about a line the author is no longer looking at.
+   *
+   * `false` when there is nothing to compare against — no compile has
+   * completed, or the last one threw and left no record — because a consumer
+   * that has no fresher answer coming is better served by the program it
+   * holds than by nothing.
+   */
+  isProgramOutdated(): boolean {
+    const cached = this._lastCompileResult;
+    if (!cached) {
+      return false;
+    }
+    return !Object.entries(cached.scripts).every(
+      ([scriptUri, version]) => this.documents.get(scriptUri)?.version === version,
+    );
+  }
+
   selectDocument(params: SelectCompilerDocumentParams) {
+    // Stamped before the listeners run, so everything that answers a selection
+    // — the route search in the player's workspace worker, and the preview in
+    // the player itself — sees whether the program it would answer from still
+    // describes the document that was selected in.
+    params.programOutdated = this.isProgramOutdated();
     this._events[SelectedCompilerDocumentMessage.method].forEach((l) => {
       l?.(params);
     });
