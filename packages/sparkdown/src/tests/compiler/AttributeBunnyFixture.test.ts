@@ -36,7 +36,7 @@ const vocabulary = buildSVGAttributeVocabulary(svg);
 describe("bunny_realization.svg vocabulary fixture", () => {
   it("indexes the real named groups and switches", () => {
     expect(fixture.sourceCommit).toBe(
-      "8d734bb03e6a011096c2ec6c533909ac0c201926",
+      "46e336a577ac42e55eb39b917ad2ad5abad84b94",
     );
     for (const name of [
       "face",

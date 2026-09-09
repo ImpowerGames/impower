@@ -59,7 +59,7 @@ end
     filterImage(program.context!, look);
     look.attributes = ["sad"];
     filterImage(program.context!, look);
-    expect(look.filtered_src).toMatch(/id=['"]sad['"]/);
-    expect(look.filtered_src).not.toMatch(/id=['"]happy['"]/);
+    expect(decodeURIComponent(look.filtered_src!)).toMatch(/id=['"]sad['"]/);
+    expect(decodeURIComponent(look.filtered_src!)).not.toMatch(/id=['"]happy['"]/);
   });
 });
