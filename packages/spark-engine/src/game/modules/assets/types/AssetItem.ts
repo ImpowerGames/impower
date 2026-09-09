@@ -2,9 +2,10 @@ import { type LoadAudioPlayerParams } from "../../audio/types/LoadAudioPlayerPar
 
 /**
  * Request priorities, best first. 0 is the express lane (a line's gate, the
- * restore gate, a layout mount); 1 an explicit load's set; 2 the prediction
- * window and the preview cursor-scene prefetch; 3 the window's spill into
- * loaded and successor scenes.
+ * restore gate, a layout mount, and the page's hint for the beats under the
+ * editor's cursor); 1 an explicit load's set; 2 the prediction window, in
+ * play and in preview; 3 the window's spill into loaded and successor
+ * scenes and, in preview, the rest of the current scene.
  */
 export type AssetPriority = 0 | 1 | 2 | 3;
 

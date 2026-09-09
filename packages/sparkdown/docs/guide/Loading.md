@@ -6,7 +6,7 @@ The engine loads a scene's images, fonts, sounds, and video before the story nee
 
 While the story runs, the engine keeps the assets of the next few beats loading in the background, through every branch, and follows the scene's diverts into the scenes it can reach next. Every line still waits for its own images and audio before it displays, so a slow connection delays a line rather than showing it without its portrait.
 
-In the editor's preview, entering a scene loads that scene's visuals, because the cursor can land anywhere inside it.
+In the editor's preview, the line under the cursor waits for its own images before it shows, the beats around the cursor load first, and the rest of the scene loads behind them, because the cursor can land anywhere inside it.
 
 Fonts load per layout. A font is loaded when a layout whose styles use it mounts, and released when that layout closes. The fonts `main` uses load at connect.
 
@@ -26,7 +26,7 @@ end
 
 | Key | Meaning |
 | --- | --- |
-| `predict_distance` | Beats ahead of the current one whose assets keep loading. `0` means the rest of the current scene. |
+| `predict_distance` | Beats ahead of the current one whose assets keep loading; in the editor's preview, beats on either side of the cursor. `0` means the rest of the current scene. |
 | `predict_cache_size` | Megabytes prediction may keep loaded. What is on screen, playing, mounted, or brought in by `load` does not count; beyond it the least recently used prediction assets are dropped. `0` means never drop any. |
 | `load_distance` | Beats of a scene a `load` waits for. `0` means the whole scene. |
 | `load_cache_size` | Megabytes `load` may keep pinned across the loaded scenes still on the callstack. A scene beyond it keeps what fits, in flow order, and streams the rest as it is reached. `0` means no cap: a `load` keeps its whole scene. |

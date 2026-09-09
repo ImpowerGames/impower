@@ -33,7 +33,10 @@ export interface DOMHarness {
   ui: UIManager;
   overlay: HTMLElement;
   ready: Promise<void>;
-  preview(line?: number): void;
+  /** Preview at a line. A beat with pictures displays once the page
+   *  answers the preview's gate, so await the result before reading what
+   *  such a beat wrote. */
+  preview(line?: number): Promise<string | null>;
   /** Re-render a (possibly edited) source into the same overlay via the same
    *  reconciling UIManager — models a live-preview edit. */
   rerender(newSource: string, line?: number): Promise<void>;
@@ -310,7 +313,7 @@ export function createDOMHarness(
     overlay,
     ready,
     preview(line = startLine) {
-      game.preview(MAIN_URI, line);
+      return game.preview(MAIN_URI, line);
     },
     /**
      * Model a live-preview EDIT: compile `newSource`, build a fresh game, and
@@ -334,7 +337,7 @@ export function createDOMHarness(
       await ui.onInit();
       await game.connect(sendToConsumer);
       await flushMicrotasks(10);
-      game.preview(MAIN_URI, line);
+      await game.preview(MAIN_URI, line);
       await flushMicrotasks(10);
       ui.sweepReconcile();
     },

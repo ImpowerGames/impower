@@ -8,6 +8,7 @@ import { ReleaseAssetsMessage } from "../../../../spark-engine/src/game/modules/
 import { type AssetsProgressParams } from "../../../../spark-engine/src/game/modules/assets/types/AssetsProgressParams";
 import { resolveImageSrcs } from "../../main/utils/resolveImageSrcs";
 import { AssetCache } from "../assets/AssetCache";
+import { createDomAssetCacheDeps } from "../assets/domAssetCacheDeps";
 import { Manager } from "../Manager";
 
 /**
@@ -44,8 +45,7 @@ export default class AssetManager extends Manager {
   get cache(): AssetCache {
     if (!this._cache) {
       this._cache =
-        this.app.assetCache ??
-        new AssetCache({ createImage: () => new Image() });
+        this.app.assetCache ?? new AssetCache(createDomAssetCacheDeps());
     }
     return this._cache;
   }

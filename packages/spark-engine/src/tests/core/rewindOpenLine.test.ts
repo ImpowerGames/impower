@@ -315,7 +315,7 @@ describe("letting go of a line the story cannot finish", () => {
     expectDiscardedForFree(p);
   }, 300_000);
 
-  test("the preview's own recovery path no longer re-enters the loop", () => {
+  test("the preview's own recovery path no longer re-enters the loop", async () => {
     // The combination the ticket calls out, driven end to end through the real
     // entry point rather than by calling the rewind directly.
     //
@@ -328,13 +328,13 @@ describe("letting go of a line the story cannot finish", () => {
     const p = probe(newGame(compileSrc(UNFINISHABLE_LINE), 5_000));
 
     (p.game as any)._simulation = "fail";
-    expect(p.game.preview(URI, 3)).toBeTruthy();
+    expect(await p.game.preview(URI, 3)).toBeTruthy();
     expect(p.errors.join("\n")).toContain("possible infinite loop");
     expect(p.midLine()).toBe(true);
 
     (p.game as any)._simulation = "fail";
     p.capAdvances(200_000);
-    expect(p.game.preview(URI, 2)).toBeTruthy();
+    expect(await p.game.preview(URI, 2)).toBeTruthy();
 
     // The replay this preview performs still costs what it costs. What must
     // not happen is any advance inside the discard in front of it — which is

@@ -4,6 +4,7 @@ import {
   type SceneBeat,
 } from "@impower/sparkdown/src/compiler/types/SceneAssets";
 import { Module } from "../../../core/classes/Module";
+import { SceneTracker } from "../../../core/classes/SceneTracker";
 import { type LoadInstruction } from "../../../core/types/Instruction";
 import { type Instructions } from "../../../core/types/Instructions";
 import { getTimeValue } from "../../../core/utils/getTimeValue";
@@ -14,6 +15,7 @@ import {
 } from "../assetsBuiltinDefinitions";
 import { assetItemKey, type AssetItem } from "../types/AssetItem";
 import { type LoadAssetsResult } from "../types/LoadAssetsResult";
+import { beatIndexIn, previewWindow } from "../utils/previewWindow";
 import { AssetsProgressMessage } from "./messages/AssetsProgressMessage";
 import { ConfigureAssetsMessage } from "./messages/ConfigureAssetsMessage";
 import {
@@ -67,9 +69,30 @@ export class AssetModule extends Module<
   /** Whether the restore gate's pin is held. */
   protected _restorePending = false;
 
+  /** Counts the preview gates issued, to give each its own pin. */
+  protected _previewGates = 0;
+
+  /** Pins of the preview gates not yet released, so destroy can let them
+   *  go with the rest. */
+  protected _previewPins = new Set<string>();
+
+  /** Pins of the preview gates a take-over abandoned, let go with the next
+   *  beat's gate (right after its request, or at once when the beat has
+   *  nothing to wait for), with their own load's settle, or on destroy,
+   *  whichever is first. A release before the next beat's request would let
+   *  the page's background queue, which pauses while a gate is pending,
+   *  start loads beside the picture that beat waits on; the connect's own
+   *  gates settle before that request, so they do not release. */
+  protected _abandonedPins = new Set<string>();
+
   /** Font names per layout, resolved once per program: the walk over a
    *  layout's tree and styles is repeated for every predicted beat otherwise. */
   protected _fontNamesByLayout = new Map<string, string[]>();
+
+  /** The window a preview last sent: its flow and the beat it was centred
+   *  on, so the beats one preview writes do not each send it again, and a
+   *  cursor that stays inside half of it does not either. */
+  protected _previewWindow: { flow: string; index: number } | null = null;
 
   /** Latest progress per pin, as the page reports it. */
   protected _progress = new Map<
@@ -158,6 +181,23 @@ export class AssetModule extends Module<
    *  play them, which a preview never does. */
   protected get timed(): boolean {
     return !this.previewing;
+  }
+
+  /** Where a preview stands: the path the cursor resolved to, which the
+   *  story may not have executed yet. In play, the executing path. */
+  protected get anchorPath(): string | null | undefined {
+    const previewing = this.context.system.previewing;
+    return typeof previewing === "string"
+      ? previewing
+      : this._game.executingPath;
+  }
+
+  /** The cursor's path as the window's anchor inside `scene`, or nothing
+   *  when the cursor is in another scene (a preview whose line diverts on
+   *  into the next scene enters it from its first beat). */
+  protected previewAnchorIn(scene: string): string | undefined {
+    const anchor = this.anchorPath;
+    return anchor && SceneTracker.sceneOf(anchor) === scene ? anchor : undefined;
   }
 
   // ---------------------------------------------------------------------------
@@ -316,6 +356,29 @@ export class AssetModule extends Module<
     return this.emit(LoadAssetsMessage.type.request({ items, priority, pin }));
   }
 
+  /** Release the abandoned preview pins, or those of the given pins that
+   *  are abandoned, in one message. The beat gates call this right after
+   *  their request, when the new gate is pinned on the page and the
+   *  background queue stays paused, or at once when the beat has nothing
+   *  to wait for; the connect's gates (fonts, the restore) do not, since
+   *  they settle before the beat's request goes out. */
+  protected releaseAbandoned(pins?: string[]): void {
+    const going = (pins ?? [...this._abandonedPins]).filter((pin) =>
+      this._abandonedPins.delete(pin),
+    );
+    if (going.length > 0) {
+      this.release(going, false);
+    }
+  }
+
+  /** Let the abandoned preview pins go now: for a take-over that issues no
+   *  gate at all (a preview of a point that resolves to none, a debug step
+   *  that reaches no beat), where nothing waits and a held pin would only
+   *  keep the page's prefetching paused. */
+  releaseAbandonedGates(): void {
+    this.releaseAbandoned();
+  }
+
   protected prefetch(items: AssetItem[], priority: 2 | 3): void {
     if (items.length === 0 || this._destroyed) {
       return;
@@ -352,6 +415,9 @@ export class AssetModule extends Module<
     pin: string,
     timeoutSeconds: number,
     what: string,
+    // Whether anyone still waits on the gate when its timeout fires: an
+    // abandoned gate settles silently.
+    wanted: () => boolean = () => true,
   ): Promise<{ timedOut: boolean; result: LoadAssetsResult | null }> {
     if (items.length === 0 || this._destroyed) {
       return Promise.resolve({ timedOut: false, result: EMPTY_RESULT });
@@ -386,7 +452,7 @@ export class AssetModule extends Module<
             return;
           }
           settled = true;
-          if (!this._destroyed) {
+          if (!this._destroyed && wanted()) {
             console.warn(
               `spark-engine: ${what} timed out after ${timeoutSeconds}s waiting for ${items
                 .map(assetItemKey)
@@ -404,6 +470,21 @@ export class AssetModule extends Module<
   // ---------------------------------------------------------------------------
 
   /**
+   * The names of every image a beat's instructions show.
+   */
+  protected imageNamesOf(instructions: Instructions): string[] {
+    const names: string[] = [];
+    for (const events of Object.values(instructions.image ?? {})) {
+      for (const event of events) {
+        if (event.control !== "hide" && event.assets?.length) {
+          names.push(...event.assets);
+        }
+      }
+    }
+    return names;
+  }
+
+  /**
    * Start loading everything a beat shows and return a trigger the
    * Coordinator waits on before displaying it, or null when nothing needs
    * loading. The pin is released once the trigger fires: by then the images
@@ -413,16 +494,12 @@ export class AssetModule extends Module<
     if (this.silent) {
       return null;
     }
-    const names: string[] = [];
-    for (const events of Object.values(instructions.image ?? {})) {
-      for (const event of events) {
-        if (event.control !== "hide" && event.assets?.length) {
-          names.push(...event.assets);
-        }
-      }
-    }
+    const names = this.imageNamesOf(instructions);
     const items = this.resolveImageItems(names);
     if (items.length === 0) {
+      // Nothing to wait for, so nothing for an abandoned preview pin to
+      // protect (play may have begun over a waiting preview).
+      this.releaseAbandoned();
       return null;
     }
     const id = this.nextTriggerId();
@@ -440,6 +517,9 @@ export class AssetModule extends Module<
     ).then(() => {
       this.enableTrigger(id);
     });
+    // This gate is pinned on the page now; a preview's abandoned pin, if
+    // play began over a waiting preview, goes with it.
+    this.releaseAbandoned();
     return id;
   }
 
@@ -482,6 +562,12 @@ export class AssetModule extends Module<
       return;
     }
     if (kind === "image") {
+      // A preview's beat running with its flush held is about to be gated
+      // on exactly these pictures; a prefetch now would start them in a
+      // background slot first.
+      if (this._game.holdingFlush) {
+        return;
+      }
       const items = this.resolveImageItems(names).filter(
         (item) => this.timed || item.kind !== "video",
       );
@@ -516,26 +602,7 @@ export class AssetModule extends Module<
     }
     // Not a beat path: the last beat at or before the current position in
     // the source, which is what "the beats after this one" means.
-    const locations = program.pathLocations;
-    const here = locations?.[path];
-    if (!here) {
-      return -1;
-    }
-    let index = -1;
-    for (let i = 0; i < beats.length; i++) {
-      const at = locations?.[beats[i]!.path];
-      if (!at) {
-        continue;
-      }
-      const before =
-        at[0] < here[0] ||
-        (at[0] === here[0] &&
-          (at[1] < here[1] || (at[1] === here[1] && at[2] <= here[2])));
-      if (before) {
-        index = i;
-      }
-    }
-    return index;
+    return beatIndexIn(beats, program.pathLocations, path);
   }
 
   /**
@@ -561,39 +628,47 @@ export class AssetModule extends Module<
       primary.push(entry.beats[i]!);
       remaining--;
     }
-    const spill: SceneBeat[] = [];
-    if (remaining > 0 && distance !== 0) {
-      const visited = new Set<string>([flow]);
-      const queue = [...entry.loads, ...entry.successors];
-      let flowsVisited = 0;
-      while (
-        queue.length > 0 &&
-        remaining > 0 &&
-        flowsVisited < MAX_PREDICTED_FLOWS
-      ) {
-        const next = queue.shift()!;
-        if (visited.has(next)) {
-          continue;
-        }
-        visited.add(next);
-        flowsVisited++;
-        const nextEntry: SceneAssets | undefined = sceneAssets[next];
-        if (!nextEntry) {
-          continue;
-        }
-        for (
-          let i = 0;
-          i < nextEntry.beats.length && remaining > 0;
-          i++
-        ) {
-          spill.push(nextEntry.beats[i]!);
-          remaining--;
-        }
-        queue.push(...nextEntry.loads, ...nextEntry.successors);
-      }
-    }
+    const spill =
+      remaining > 0 && distance !== 0 ? this.spillBeats(flow, remaining) : [];
     this.prefetchBeats(primary, 2);
     this.prefetchBeats(spill, 3);
+  }
+
+  /** The first `remaining` beats of the flows `flow` loads and diverts to,
+   *  breadth first, each from its first beat: where the window goes once it
+   *  has run past the end of the flow. */
+  protected spillBeats(flow: string, remaining: number): SceneBeat[] {
+    const sceneAssets = this._game.program.sceneAssets;
+    const entry = sceneAssets?.[flow];
+    const spill: SceneBeat[] = [];
+    if (!sceneAssets || !entry) {
+      return spill;
+    }
+    const visited = new Set<string>([flow]);
+    const queue = [...entry.loads, ...entry.successors];
+    let flowsVisited = 0;
+    while (
+      queue.length > 0 &&
+      remaining > 0 &&
+      flowsVisited < MAX_PREDICTED_FLOWS
+    ) {
+      const next = queue.shift()!;
+      if (visited.has(next)) {
+        continue;
+      }
+      visited.add(next);
+      flowsVisited++;
+      const nextEntry: SceneAssets | undefined = sceneAssets[next];
+      if (!nextEntry) {
+        continue;
+      }
+      for (let i = 0; i < nextEntry.beats.length && remaining > 0; i++) {
+        spill.push(nextEntry.beats[i]!);
+        remaining--;
+      }
+      queue.push(...nextEntry.loads, ...nextEntry.successors);
+    }
+    return spill;
   }
 
   protected prefetchBeats(beats: SceneBeat[], priority: 2 | 3): void {
@@ -612,30 +687,74 @@ export class AssetModule extends Module<
     this.prefetch(items, priority);
   }
 
-  /** Preview: the cursor moves anywhere inside a scene, so warm all of it. */
-  protected prefetchScene(flow: string): void {
+  /**
+   * Preview: the cursor can land anywhere in a scene, so all of it warms,
+   * but the beats around the cursor first, at the window's priority, and
+   * the rest of the scene behind them; then the window's spill into the
+   * scenes that follow, so the first click into the next scene is not cold.
+   * The rest of the scene and the spill are sent once, on entering the
+   * scene (`wholeScene`); the window around the cursor is sent when the
+   * cursor moves more than half the window's reach from where the last one
+   * was centred, and not for the beats one preview writes with the cursor
+   * where it was. Nothing here can delay what the author clicked: that
+   * beat's images go through the gate at priority 0 ({@link onConnected}).
+   */
+  protected predictAround(
+    flow: string,
+    path: string | null | undefined,
+    wholeScene: boolean,
+  ): void {
     const entry = this._game.program.sceneAssets?.[flow];
     if (!entry) {
       return;
     }
-    this.prefetchBeats(entry.beats, 2);
+    const distance = this.config.predict_distance;
+    const index = Math.max(0, this.beatIndexFor(flow, path));
+    const last = this._previewWindow;
+    // The last window still covers a cursor that moved less than half its
+    // reach, so it is not sent again for that.
+    if (
+      !wholeScene &&
+      last &&
+      last.flow === flow &&
+      Math.abs(last.index - index) <= Math.floor(distance / 2)
+    ) {
+      return;
+    }
+    this._previewWindow = { flow, index };
+    const { near, rest } = previewWindow(entry, index, distance);
+    this.prefetchBeats(near, 2);
+    if (!wholeScene) {
+      return;
+    }
+    this.prefetchBeats(rest, 3);
+    if (distance > 0) {
+      this.prefetchBeats(this.spillBeats(flow, distance), 3);
+    }
   }
 
-  /** Advance the prediction window past the beat that just displayed. */
+  /** Advance the prediction window past the beat that just displayed; in
+   *  preview, send the window around the cursor if it moved since the last
+   *  one (each scrub declares its cursor before it connects, and a scrub
+   *  inside a scene enters no scene). */
   onBeatDisplayed(): void {
     if (this._pendingBeatPins.size > 0) {
       const pins = [...this._pendingBeatPins];
       this._pendingBeatPins.clear();
       this.release(pins, false);
     }
-    if (this.silent || this.previewing) {
+    if (this.silent) {
       return;
     }
     const flow = this._game.sceneTracker.current;
     if (!flow) {
       return;
     }
-    this.predictFrom(flow, this._game.executingPath, false);
+    if (this.previewing) {
+      this.predictAround(flow, this.previewAnchorIn(flow), false);
+    } else {
+      this.predictFrom(flow, this._game.executingPath, false);
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -775,11 +894,19 @@ export class AssetModule extends Module<
     );
     // The restore gate: what the checkpoint displays must be resident before
     // `restore()` writes it, or a preview shows its backdrop late. Fonts are
-    // gated by the layouts as they mount.
+    // gated by the layouts as they mount. A target the connect clears (a
+    // portrait, which shows only with the beat that writes it) is not
+    // restored, so its picture is not waited for: the beat's own gate asks
+    // for the portrait the beat shows.
     const names: string[] = [];
-    const imageState = this._game.module.ui.state.image;
+    const ui = this._game.module.ui;
+    const imageState = ui.state.image;
     if (imageState) {
-      for (const events of Object.values(imageState)) {
+      const cleared = new Set(ui.getTransientTargets());
+      for (const [target, events] of Object.entries(imageState)) {
+        if (cleared.has(target)) {
+          continue;
+        }
         for (const event of events ?? []) {
           if (event.control === "show" && event.assets?.length) {
             names.push(...event.assets);
@@ -787,12 +914,13 @@ export class AssetModule extends Module<
         }
       }
     }
-    const items = this.resolveImageItems(names).filter(
-      (item) => this.timed || item.kind !== "video",
-    );
+    const gate = (list: string[]) =>
+      this.resolveImageItems(list).filter(
+        (item) => this.timed || item.kind !== "video",
+      );
     this._restorePending = true;
     await this.ensureResident(
-      items,
+      gate(names),
       0,
       "restore",
       this.config.restore_timeout,
@@ -805,6 +933,71 @@ export class AssetModule extends Module<
       this._restorePending = false;
       this.release(["restore"], false);
     }
+  }
+
+  /**
+   * The preview's gate: the pictures the beat under the cursor shows, once
+   * the preview has run it and holds what it flushed. A preview has no clock
+   * to wait on, so the preview awaits this before it writes the beat, and
+   * the line and its portrait land together; behind a burst of background
+   * loads the portrait still takes the express lane. Returns null when
+   * there is nothing to wait for (a beat with no picture, or a run that
+   * reached no flush), so that beat displays at once, and lets any
+   * abandoned pin go then; otherwise a gate, requested and then followed
+   * by the abandoned pins' release, whose `settled` is bounded by `restore_timeout`,
+   * after which the beat displays anyway, whose `release` lets the
+   * pictures go once the beat is written, and whose `abandon` (a take-over)
+   * keeps the pin until the next gate's request, the load's own settle, or
+   * destroy, whichever is first, and silences the gate's timeout. Each gate
+   * holds a pin of its own (`preview:<n>`), so a preview that another takes
+   * over while it waits lets go only what it asked for.
+   */
+  gatePreviewBeat(instructions: Instructions | null): {
+    settled: Promise<unknown>;
+    release: () => void;
+    abandon: () => void;
+  } | null {
+    if (this.silent) {
+      return null;
+    }
+    const items = instructions
+      ? this.resolveImageItems(this.imageNamesOf(instructions)).filter(
+          (item) => this.timed || item.kind !== "video",
+        )
+      : [];
+    if (items.length === 0) {
+      // Nothing to wait for, so nothing for an abandoned pin to protect.
+      this.releaseAbandoned();
+      return null;
+    }
+    this._previewGates += 1;
+    const pin = `preview:${this._previewGates}`;
+    this._previewPins.add(pin);
+    const settled = this.ensureResident(
+      items,
+      0,
+      pin,
+      this.config.restore_timeout,
+      "preview",
+      () => this._previewPins.has(pin),
+    );
+    // This gate is pinned on the page now; the pins abandoned since the
+    // last beat's can go without un-pausing the background queue.
+    this.releaseAbandoned();
+    return {
+      settled,
+      release: () => {
+        if (this._previewPins.delete(pin)) {
+          this.release([pin], false);
+        }
+      },
+      abandon: () => {
+        if (this._previewPins.delete(pin)) {
+          this._abandonedPins.add(pin);
+          void settled.then(() => this.releaseAbandoned([pin]));
+        }
+      },
+    };
   }
 
   override onEnterScene(
@@ -827,7 +1020,7 @@ export class AssetModule extends Module<
       );
     }
     if (this.previewing) {
-      this.prefetchScene(scene);
+      this.predictAround(scene, this.previewAnchorIn(scene), true);
     } else {
       this.predictFrom(scene, this._game.executingPath, true);
     }
@@ -836,6 +1029,7 @@ export class AssetModule extends Module<
   override onProgramUpdate(): void {
     this._beatIndex = undefined;
     this._fontNamesByLayout.clear();
+    this._previewWindow = null;
   }
 
   override onReceiveNotification(msg: NotificationMessage): void {
@@ -870,6 +1064,8 @@ export class AssetModule extends Module<
     const pins = [
       ...(this._restorePending ? ["restore"] : []),
       ...this._pendingBeatPins,
+      ...this._previewPins,
+      ...this._abandonedPins,
       ...[...this._loadPins].map((flow) => `load:${flow}`),
       ...[...this._layoutPins].map((name) => `layout:${name}`),
     ];
@@ -880,9 +1076,12 @@ export class AssetModule extends Module<
     }
     this._restorePending = false;
     this._pendingBeatPins.clear();
+    this._previewPins.clear();
+    this._abandonedPins.clear();
     this._loadPins.clear();
     this._layoutPins.clear();
     this._fontNamesByLayout.clear();
+    this._previewWindow = null;
     this._progress.clear();
     this._warned.clear();
     this._activeLoadPins = null;

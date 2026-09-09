@@ -70,7 +70,7 @@ describe("reactive dependency tracking survives story-state replacement", () => 
     // sweep blanks the preview (found live in the final #308 review).
     const h = createHarness(SOURCE);
     await h.ready;
-    h.preview();
+    await h.preview();
     expect((h.game as any).previewedPath).toBeTruthy();
     const { program } = compileUI(SOURCE);
     (h.game as any).updateProgram(program);
