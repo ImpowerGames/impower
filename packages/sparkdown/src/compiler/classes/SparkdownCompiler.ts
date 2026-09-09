@@ -920,7 +920,37 @@ export class SparkdownCompiler {
     throw new Error(`Cannot find file '${relativePath}'.`);
   }
 
+  /**
+   * Has a script the last compiled program was built from been edited since
+   * that compile?
+   *
+   * The program's `pathLocations` are what turns a source line into a story
+   * path, and they describe the scripts as they were when the program was
+   * compiled. Once one of those scripts is edited, the same line number names
+   * a different piece of the script, so anything resolved from a line against
+   * that program is an answer about a line the author is no longer looking at.
+   *
+   * `false` when there is nothing to compare against — no compile has
+   * completed, or the last one threw and left no record — because a consumer
+   * that has no fresher answer coming is better served by the program it
+   * holds than by nothing.
+   */
+  isProgramOutdated(): boolean {
+    const cached = this._lastCompileResult;
+    if (!cached) {
+      return false;
+    }
+    return !Object.entries(cached.scripts).every(
+      ([scriptUri, version]) => this.documents.get(scriptUri)?.version === version,
+    );
+  }
+
   selectDocument(params: SelectCompilerDocumentParams) {
+    // Stamped before the listeners run, so everything that answers a selection
+    // — the route search in the player's workspace worker, and the preview in
+    // the player itself — sees whether the program it would answer from still
+    // describes the document that was selected in.
+    params.programOutdated = this.isProgramOutdated();
     this._events[SelectedCompilerDocumentMessage.method].forEach((l) => {
       l?.(params);
     });
@@ -3025,18 +3055,29 @@ export class SparkdownCompiler {
             endLine = existingEndLine;
             endColumn = existingEndColumn;
           }
-          if (endColumn === 0) {
+          if (endColumn <= 0 && endLine > startLine) {
             // If range stretches to only the start of a line,
             // limit the range to the end of the previous line,
             // (So that the document blinking cursor doesn't confusingly appear
-            // at the start of the next unrelated line when doing a stack trace)
+            // at the start of the next unrelated line when doing a stack trace,
+            // and so that a line-keyed lookup — a breakpoint, a preview point —
+            // resolves that line to its own path rather than to the statement
+            // that merely stops at its first column.)
+            // A range reaching only the start of `endLine` records an end
+            // column of either 0 or -1, and which one depends on the stamping
+            // convention behind the metadata: the 1-based character numbers
+            // this pipeline assumes give 0, while `buildDebugMetadata`'s
+            // default 0-based stamps give -1. Both say the range stops at or
+            // before `endLine`'s first column, so both are pulled back. The
+            // `endLine > startLine` guard keeps a single-line range from being
+            // pulled back before its own start.
             if (uri) {
               const document = this.documents.get(uri);
               if (document) {
                 const endPositionWithoutLastNewline = document.positionAt(
                   document.offsetAt({
                     line: endLine,
-                    character: endColumn,
+                    character: Math.max(endColumn, 0),
                   }) - 1,
                 );
                 endLine = endPositionWithoutLastNewline.line;
