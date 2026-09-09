@@ -127,6 +127,9 @@ export class GamePlayerController {
   _app?: Application;
   _debugging = false;
   _program?: SparkProgram;
+  /** Counts the preview updates, so one that another overtakes while it
+   *  waits can tell (`updatePreview`). */
+  _previewUpdates = 0;
   _checkpoint?: string;
   // The story path the compiler worker planned and replayed a route TO when it
   // produced `_checkpoint`. Set whether or not that search succeeded, so PLAY
@@ -1228,6 +1231,11 @@ export class GamePlayerController {
     }, 1000);
   }
 
+  /** Build the game and publish it as `this._game` before yielding. No
+   *  await belongs in this body: `updatePreview` relies on the game being
+   *  published in the same task that asked for it, so that an update
+   *  awaiting the build cannot be overtaken during it; an await here would
+   *  reopen that window with nothing to catch it. */
   async buildGame(program: SparkProgram, restarted?: boolean) {
     const options = this._options;
     const startFrom = options?.startFrom;
@@ -1573,9 +1581,25 @@ export class GamePlayerController {
     // gets its preview call and can reveal the UI (Game.preview's no-path branch).
     const validPreviewFrom =
       (previewPath ? previewFrom : this._game?.previewFrom) ?? previewFrom;
-    const validPreviewPath = previewPath
+    // The path `game.preview()` below will resolve for that point against
+    // THIS program: the cursor's own, or the remembered point's, which is the
+    // game's own path for it while the program stands and is resolved again
+    // after a recompile, which can move it. The mark below names this path,
+    // so the asset module centres its prediction window on the beat the
+    // preview displays, and a point that no longer resolves (its script
+    // renamed, its line deleted) marks nothing.
+    const resolvedPreviewPath = previewPath
       ? previewPath
-      : this._game?.previewPath;
+      : programChanged
+        ? findClosestPath(
+            validPreviewFrom,
+            Object.entries(program.pathLocations ?? {}),
+            Object.keys(program.scripts),
+          )
+        : this._game?.previewPath;
+    // A point that no longer resolves keeps its old path for the skip below,
+    // which needs it to tell a repeat from a first preview.
+    const validPreviewPath = resolvedPreviewPath ?? this._game?.previewPath;
 
     // Skip only a repeat of a preview that actually ran. A UI-only project
     // resolves no path at all, so both sides of the comparison are undefined
@@ -1600,6 +1624,21 @@ export class GamePlayerController {
     // (bound to that object) stays valid and we never destroy/recreate the
     // Application or its pixi canvas (the old `buildApp`-every-edit was the
     // game-view blink + per-edit object churn).
+    // This update's place among the preview updates. One that another
+    // overtakes while it waits (for the app to build, the game to connect,
+    // or the preview to settle) neither previews nor sweeps: from its
+    // reconcile pass on, the newer update owns the screen, and a sweep by
+    // the older one would take the newer beat's content off it. A game the
+    // play path replaced or stopped meanwhile is left to that path too. The
+    // game's build performs no await, so `this._game` is published before
+    // the await on it yields and that yield is one microtask, which no other
+    // update's task can enter: an update cannot be overtaken during the
+    // build, and `buildGame` must stay free of awaits for that to hold. From
+    // here to the connect, which takes over a waiting preview as its first
+    // act, an update with a game and an app runs without yielding, so an
+    // older update cannot interleave inside that stretch either.
+    const update = ++this._previewUpdates;
+
     if (!this._game) {
       this._game = await this.buildGame(program);
       this.listen(this._game);
@@ -1611,6 +1650,9 @@ export class GamePlayerController {
       console.error("No game to preview");
       return;
     }
+    const game = this._game;
+    const overtaken = () =>
+      update !== this._previewUpdates || this._game !== game;
 
     // Everything below — the checkpoint load, and the connect that restores
     // every module — happens before `game.preview()` picks the preview point,
@@ -1624,7 +1666,7 @@ export class GamePlayerController {
     // run — and `Application.init` skips the renderer for anything flagged as
     // previewing, which would leave that run with nothing to draw on.
     if (this._game.state === "previewing") {
-      this._game.markPreviewing(validPreviewPath);
+      this._game.markPreviewing(resolvedPreviewPath ?? undefined);
       // Drop what the LAST preview left displayed. The restore below re-applies
       // whatever the new point genuinely has, and the replay writes the rest;
       // carrying the old record forward is what put the previous preview's
@@ -1660,14 +1702,23 @@ export class GamePlayerController {
       this._app.ui.beginReconcilePass();
       await this._app.connectGame();
     }
-
-    if (validPreviewFrom) {
-      this._game.preview(validPreviewFrom.file, validPreviewFrom.line);
+    if (overtaken()) {
+      return;
     }
 
-    // DOM reconcile tail: the full create/write stream for this preview point has
-    // now been dispatched (synchronously through here), so sweep whatever wasn't
-    // re-emitted — elements that disappeared since the last edit.
+    if (validPreviewFrom) {
+      // The preview waits for the beat's pictures before it writes the
+      // beat, so the sweep below waits for the preview: a write that landed
+      // after the sweep would be swept with the elements that disappeared.
+      await game.preview(validPreviewFrom.file, validPreviewFrom.line);
+      if (overtaken()) {
+        return;
+      }
+    }
+
+    // DOM reconcile tail: the full create/write stream for this preview point
+    // has now been dispatched, so sweep whatever wasn't re-emitted — elements
+    // that disappeared since the last edit.
     this._app?.ui.sweepReconcile();
   };
 }

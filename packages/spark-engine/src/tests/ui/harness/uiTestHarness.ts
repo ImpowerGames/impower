@@ -50,8 +50,16 @@ export interface UIHarness {
   ready: Promise<void>;
   /** Clear the captured-message buffer (e.g. after preview screen setup). */
   reset(): void;
-  /** Build the screen tree + reveal at a path (the real instant preview). */
-  preview(line?: number): void;
+  /** Build the screen tree + reveal at a path (the real preview). A beat
+   *  with pictures displays once the page answers the preview's gate, so
+   *  await the result before reading what such a beat wrote; a beat with
+   *  none displays before this returns. */
+  preview(line?: number): Promise<string | null>;
+  /** Connect the game again over the same transport, as the page does
+   *  before every preview: the modules' `onConnected` and the restore run
+   *  again, and a preview waiting from before is taken over. Resolves once
+   *  the connect's own gates have been answered. */
+  reconnect(): Promise<void>;
   /** Reset the story to a path so subsequent `nextBeat()` calls start there.
    *  (The screen tree is already built by `connect()`'s onConnected.) */
   jumpTo(path: string): void;
@@ -84,8 +92,9 @@ export interface UIHarness {
   timerDelays(): number[];
   flushTimers(): void;
   /** With `holdAssets`, answer every `assets/load` request held so far, as
-   *  the page would once the items are resident. Returns how many. */
-  releaseAssets(): number;
+   *  the page would once the items are resident, or only the requests under
+   *  the given pin, leaving the rest held. Returns how many. */
+  releaseAssets(pin?: string): number;
   /** How many `assets/load` requests are being held (with `holdAssets`). */
   heldAssetLoadCount(): number;
 }
@@ -313,7 +322,10 @@ export function createHarness(
       messages.length = 0;
     },
     preview(line = startLine) {
-      game.preview(MAIN_URI, line);
+      return game.preview(MAIN_URI, line);
+    },
+    reconnect() {
+      return game.connect(respond);
     },
     jumpTo(path: string) {
       (game as any).jumpToPath(path);
@@ -448,8 +460,14 @@ export function createHarness(
         fn(...args);
       }
     },
-    releaseAssets() {
-      const held = heldAssetLoads.splice(0, heldAssetLoads.length);
+    releaseAssets(pin?: string) {
+      // Every held request, or only those under the given pin.
+      const held = heldAssetLoads.filter(
+        (msg) => pin === undefined || msg.params?.pin === pin,
+      );
+      for (const msg of held) {
+        heldAssetLoads.splice(heldAssetLoads.indexOf(msg), 1);
+      }
       for (const msg of held) {
         reply(msg);
       }

@@ -1,4 +1,5 @@
 import { AssetCache } from "../../app/assets/AssetCache";
+import { createDomAssetCacheDeps } from "../../app/assets/domAssetCacheDeps";
 
 let shared: AssetCache | undefined;
 
@@ -13,7 +14,7 @@ let shared: AssetCache | undefined;
 export const getSharedAssetCache = (): AssetCache => {
   if (!shared) {
     shared = new AssetCache({
-      createImage: () => new Image(),
+      ...createDomAssetCacheDeps(),
       fetchBytes: async (src) => {
         const response = await fetch(src);
         if (!response.ok) {

@@ -31,8 +31,9 @@ const check = (name, fn) => {
 
 check("well-formed steps parse in order", () => {
   assert.deepEqual(
-    parseUiSteps(["--sd", "r.sd", "--screen", "assets", "--open", "find", "--type", "search=Hello", "--press", "Control+Shift+g", "--click", "replaceAll", "--toggle", "case", "--shot", "a.png", "--shot-of", "find", "b.png", "--close", "find", "--probe", "p.js", "--headed"]),
+    parseUiSteps(["--project", "game.zip", "--sd", "r.sd", "--screen", "assets", "--open", "find", "--type", "search=Hello", "--press", "Control+Shift+g", "--click", "replaceAll", "--toggle", "case", "--shot", "a.png", "--shot-of", "find", "b.png", "--close", "find", "--probe", "p.js", "--headed"]),
     [
+      { project: "game.zip" },
       { sd: "r.sd" },
       { screen: "assets" },
       { open: "find" },
@@ -56,6 +57,7 @@ check("a literal backslash-n in --type text becomes a line break, and an = insid
 
 check("a flag with a missing or empty value is refused, not dropped", () => {
   assert.throws(() => parseUiSteps(["--sd"]), /--sd needs a value/);
+  assert.throws(() => parseUiSteps(["--project", "--shot", "x.png"]), /--project needs a value/);
   assert.throws(() => parseUiSteps(["--screen", ""]), /--screen needs a value/);
   assert.throws(() => parseUiSteps(["--open", "--shot", "x.png"]), /--open needs a value/);
   assert.throws(() => parseUiSteps(["--shot-of", "find"]), /--shot-of needs a value/);
@@ -71,6 +73,14 @@ check("an unknown panel, field, button, toggle or shot target is refused by name
   assert.throws(() => parseUiSteps(["--toggle", "regex"]), /unknown toggle "regex"/);
   assert.throws(() => parseUiSteps(["--shot-of", "bogus", "x.png"]), /unknown --shot-of target "bogus"/);
   assert.throws(() => parseUiSteps(["--bogus"]), /unknown argument --bogus/);
+});
+
+check("a --sd before a --project is refused, since the seed would remove or replace the main.sd it wrote; after the last --project it parses", () => {
+  assert.throws(() => parseUiSteps(["--sd", "r.sd", "--project", "assets-only"]), /^Error: ui: --sd \(step 1\) comes before --project \(step 2\), whose seed would remove or replace the main\.sd it wrote; put every --sd after the last --project$/);
+  assert.throws(() => parseUiSteps(["--sd", "r.sd", "--project", "game.zip", "--sd", "s.sd"]), /--sd \(step 1\) comes before --project \(step 2\)/);
+  assert.throws(() => parseUiSteps(["--project", "a", "--sd", "r.sd", "--shot", "x.png", "--project", "b"]), /--sd \(step 2\) comes before --project \(step 4\)/);
+  assert.deepEqual(parseUiSteps(["--project", "a", "--project", "b", "--sd", "r.sd", "--sd", "s.sd"]), [{ project: "a" }, { project: "b" }, { sd: "r.sd" }, { sd: "s.sd" }]);
+  assert.deepEqual(parseUiSteps(["--sd", "r.sd", "--shot", "x.png"]), [{ sd: "r.sd" }, { shotOf: "page", out: "x.png" }]);
 });
 
 check("a --press combo that names no key is refused at parse time", () => {

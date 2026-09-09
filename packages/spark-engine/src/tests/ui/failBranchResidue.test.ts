@@ -29,7 +29,7 @@ describe("fail-branch replay discards the abandoned run's queued beats", () => {
 
     (h.game as any)._simulation = "fail";
     h.reset(); // capture only what the replay emits
-    h.preview(2); // the "Fresh line." beat — drives the preview fail arm
+    await h.preview(2); // the "Fresh line." beat — drives the preview fail arm
     await flushMicrotasks(10);
 
     // The replay re-queued from the preview path; its display must carry
