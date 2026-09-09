@@ -65,7 +65,15 @@ describe("portrait content freshness", () => {
 
 it("revalidates remote image bytes behind unchanged local URL pointer versions", async () => {
   let bytes = "old";
-  vi.stubGlobal("fetch", async () => new Response(bytes));
+  const httpCache = new Map<string, string>();
+  vi.stubGlobal("fetch", async (url: string, init?: RequestInit) => {
+    // A fresh HTTP response can satisfy default-mode fetch without contacting
+    // the origin. Model that boundary, not merely a changing fetch stub.
+    if (!httpCache.has(url) || ["no-cache", "reload", "no-store"].includes(init?.cache ?? "")) {
+      httpCache.set(url, bytes);
+    }
+    return new Response(httpCache.get(url), {headers: {"cache-control": "max-age=31536000, immutable"}});
+  });
   vi.stubGlobal("createImageBitmap", async (blob: Blob) => ({width: 10, height: 10, text: await blob.text(), close() {}}));
   vi.stubGlobal("OffscreenCanvas", class {
     drawn: string[] = [];

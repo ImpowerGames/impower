@@ -53,4 +53,12 @@ it.each(["data-name", "serif:id"])("serves %s attribute variants through the sta
     respondWith: (response: Promise<Response>) => { void response.then(resolve); },
   }));
   expect(missing.status).toBe(404);
+  const missingSvg = await fetchVariant("/file:/assets/missing.svg?v=1", {hat: "on"});
+  expect(missingSvg.response.status).toBe(404);
+  expect(missingSvg.response.headers.get("cache-control")).toBe("no-store");
+  expect(entries.has(missingSvg.url)).toBe(false);
+  emptyTransfer = false;
+  const recovered = await fetchVariant("/file:/assets/missing.svg?v=1", {hat: "on"});
+  expect(recovered.response.status).toBe(200);
+  expect(await recovered.response.text()).toMatch(/id=['"]on['"]/);
 });

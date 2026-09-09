@@ -39,14 +39,22 @@ def parse_looks(text):
     result = {}
     for match in re.finditer(r'\bdefine\s+(\w+)\s+as\s+filtered_image\s+with\s*\n(.*?)\nend\b',text,re.S):
         name,body = match.groups()
+        # This verifier accepts the migration's generated format, not arbitrary
+        # Sparkdown. Never choose the first assignment when runtime can use a
+        # later one, including a later field with an invalid value.
+        for field in ('image','attributes'):
+            if len(re.findall(rf'^[ \t]*{field}\b',body,re.M)) != 1:
+                raise ValueError(f'{name}: expected exactly one {field} field')
         image = re.search(r'^\s*image\s*=\s*image\.(\w+)[ \t\r]*$',body,re.M)
         if not image:
             raise ValueError(f'{name}: expected a complete typed image reference (image.name)')
-        attributes = re.search(r'\battributes\s*=\s*\{(.*?)\}',body,re.S)
-        if name in result or not image or not attributes:
+        fields = re.fullmatch(r'\s*image[ \t]*=[ \t]*image\.\w+[ \t\r]*\n\s*attributes[ \t]*=[ \t]*\{((?:"(?:[^"\\]|\\.)*"|[^"{}])*)\}\s*',body,re.S)
+        if not fields:
+            raise ValueError(f'{name}: expected generated named-look format')
+        if name in result:
             raise ValueError(f'Invalid or duplicate actual named look: {name}')
-        strings = re.findall(r'"(?:[^"\\]|\\.)*"',attributes[1])
-        residue = re.sub(r'"(?:[^"\\]|\\.)*"','',attributes[1])
+        strings = re.findall(r'"(?:[^"\\]|\\.)*"',fields[1])
+        residue = re.sub(r'"(?:[^"\\]|\\.)*"','',fields[1])
         if residue.strip(' \t\r\n,'):
             raise ValueError(f'{name}: attributes must be quoted strings')
         result[name] = {'image':image[1],'attributes':[json.loads(s) for s in strings]}

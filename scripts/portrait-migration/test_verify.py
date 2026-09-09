@@ -75,6 +75,38 @@ class VerifyTests(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError,'script.*hash'):
                     verify.verify_project(source,project,config)
 
+    def test_named_looks_reject_duplicate_semantic_fields(self):
+        valid = 'define party as filtered_image with\n image = image.mia\n attributes = { "happy" }\nend\n'
+        self.assertEqual(verify.parse_looks(valid), {'party':{'image':'mia','attributes':['happy']}})
+        for field,assignment in (
+            ('image','image = image.bob'),
+            ('image','image = image.bob.extra'),
+            ('image','image ='),
+            ('attributes','attributes = { "neutral" }'),
+            ('attributes','attributes = {'),
+            ('attributes','attributes ='),
+        ):
+            with self.subTest(assignment=assignment), self.assertRaisesRegex(ValueError, f'exactly one {field}'):
+                verify.parse_looks(valid.replace('\nend',f'\n {assignment}\nend'))
+
+    def test_named_looks_reject_unconsumed_body_content(self):
+        for extra in (' image = image.bob', ' attributes = { "neutral" }', ' + 1'):
+            text = 'define party as filtered_image with\n image = image.mia\n attributes = { "happy" }'+extra+'\nend\n'
+            with self.subTest(extra=extra), self.assertRaisesRegex(ValueError, 'generated named-look format'):
+                verify.parse_looks(text)
+
+    def test_duplicate_named_look_fields_rejected_with_updated_output_hash(self):
+        for assignment in ('image = image.bob', 'attributes = { "neutral" }'):
+            with self.subTest(assignment=assignment), tempfile.TemporaryDirectory(prefix='r3-fix-migration-') as directory:
+                source,project,config,report = sample(Path(directory))
+                path = project/'scripts/portraits.sd'
+                path.write_text(path.read_text().replace('\nend',f'\n {assignment}\nend'))
+                report['outputHashes']['scripts/portraits.sd'] = hashlib.sha256(path.read_bytes()).hexdigest()
+                (project/'portrait-migration-report.json').write_text(json.dumps(report))
+                with patch('migrate.evaluate', side_effect=AssertionError('must reject before evaluator')):
+                    with self.assertRaisesRegex(ValueError, 'exactly one'):
+                        verify.verify_project(source,project,config)
+
     def test_pinned_unchanged_script_detects_matching_source_and_output_tamper(self):
         with tempfile.TemporaryDirectory() as directory:
             source,project,config,audit = sample(Path(directory))

@@ -346,6 +346,11 @@ export default function AssetInspectorPanel({
           }`}
         />
         <span class="min-w-0 flex-1 truncate">Details</span>
+        {!!diagnostics?.length && (
+          <span class="text-xs font-normal" aria-live="polite">
+            {diagnostics.length} {diagnostics.length === 1 ? "problem" : "problems"}
+          </span>
+        )}
       </Button>
 
       {!collapsed && (

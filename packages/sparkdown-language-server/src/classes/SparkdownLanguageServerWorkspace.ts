@@ -265,7 +265,12 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
   // version must still go out or the client keeps stale squiggles forever.
   protected _lastPublishedDiagnostics = new Map<
     string,
-    { fingerprint: string; version: number | undefined }
+    {
+      fingerprint: string;
+      version: number | undefined;
+      diagnostics: ReturnType<SparkdownWorkspace["getDiagnostics"]>;
+      owner: string | undefined;
+    }
   >();
 
   /**
@@ -318,6 +323,7 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
     program: any;
   }): void {
     this.attachLazyImageData(params.program);
+    const owner = params.program.uri ?? params.textDocument?.uri;
     // Assets need diagnostics even when they have never been opened as text.
     // Include prior publications so warnings removed by repair are cleared.
     const uris = new Set([
@@ -326,14 +332,24 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
       ...this._lastPublishedDiagnostics.keys(),
     ]);
     for (const uri of uris) {
+      const last = this._lastPublishedDiagnostics.get(uri);
+      // An unrelated entry point must not clear another program's assets.
+      // An explicit asset result transfers ownership even if it is unchanged.
+      if (
+        !this.isScriptDocument(uri) &&
+        last &&
+        last.owner !== owner &&
+        !Object.prototype.hasOwnProperty.call(params.program.diagnostics ?? {}, uri)
+      ) {
+        continue;
+      }
       const version = this._documentVersions.get(uri);
       const diagnostics = this.getDiagnostics(params.program, uri);
       const fingerprint = JSON.stringify(diagnostics);
-      const last = this._lastPublishedDiagnostics.get(uri);
+      this._lastPublishedDiagnostics.set(uri, { fingerprint, version, diagnostics, owner });
       if (last && last.fingerprint === fingerprint && last.version === version) {
         continue;
       }
-      this._lastPublishedDiagnostics.set(uri, { fingerprint, version });
       this.sendNotification(PublishDiagnosticsNotification.method, {
         uri,
         diagnostics,
@@ -441,6 +457,17 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
       this._documents.get(uri)?.languageId === "sparkdown";
   }
 
+  private getFileDiagnostics(uri: string) {
+    if (!this.isScriptDocument(uri)) {
+      // Assets may belong to a standalone script with no main.sd. Use the
+      // latest publication, including repairs, rather than guessing an entry.
+      return this._lastPublishedDiagnostics.get(uri)?.diagnostics ?? [];
+    }
+    const mainUri = this.getMainScriptUri(uri);
+    const program = this.program(mainUri ?? uri);
+    return program ? this.getDiagnostics(program, uri) : [];
+  }
+
   override async compile(uri: string, force: boolean): Promise<SparkProgram | undefined> {
     // Diagnostics, semantic-token pulls and explicit program requests can all
     // arrive for assets. An asset is not a compiler entry point: compiling it
@@ -460,9 +487,7 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
     // an SVG as a text document or send the full diagnostic map to the client.
     disposables.push(
       this._connection.onRequest("sparkdown/fileDiagnostics", (params: { uri: string }) => {
-        const mainUri = this.getMainScriptUri(params.uri);
-        const program = this.program(mainUri ?? params.uri);
-        return program ? this.getDiagnostics(program, params.uri) : [];
+        return this.getFileDiagnostics(params.uri);
       }),
     );
     disposables.push(
@@ -478,11 +503,9 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
           // compiler entry points. Always return a full report for assets so a
           // repair clears an earlier warning without relying on script versions.
           if (!document || !this.isScriptDocument(uri)) {
-            const mainUri = this.getMainScriptUri(uri);
-            const program = this.program(mainUri ?? uri);
             return {
               kind: "full",
-              items: program ? this.getDiagnostics(program, uri) : [],
+              items: this.getFileDiagnostics(uri),
             } as DocumentDiagnosticReport;
           }
           const program = await this.compile(uri, false);

@@ -72,7 +72,9 @@ async function generateFilteredSvg(
   const { transfer } = await sendRequest(client, FetchGameAssetMessage.type, {
     path,
   });
-  const filtered = filterSVG(normalizeSVGAttributeNames(new TextDecoder().decode(transfer[0])), filter);
+  const buffer = transfer[0];
+  if (!buffer) throw new Error("Asset relay returned no bytes");
+  const filtered = filterSVG(normalizeSVGAttributeNames(new TextDecoder().decode(buffer)), filter);
   try {
     const cache = await caches.open(SW_FILTERED_CACHE_NAME);
     await cache.put(url.href, filteredSvgResponse(filtered));

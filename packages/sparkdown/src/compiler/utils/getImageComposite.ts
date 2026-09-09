@@ -141,7 +141,11 @@ const loadLayer = async (
     return JSON.stringify([path, digest]);
   };
   try {
-    const response = await fetch(layer.src);
+    // A local URL-pointer revision says nothing about the remote bytes.
+    // Revalidate even a fresh HTTP-cache entry before hashing those bytes.
+    const response = await fetch(layer.src, /\.url(?:[?#]|$)/i.test(layer.uri ?? "")
+      ? {cache: "no-cache"}
+      : undefined);
     if (response.ok) {
       const blob = await response.blob();
       const lastModified = Date.parse(

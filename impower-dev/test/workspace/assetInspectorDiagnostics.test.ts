@@ -15,9 +15,9 @@ import WorkspaceLanguageServer from "../../src/modules/spark-editor/workspace/Wo
 import AssetInspectorPanel from "../../src/modules/spark-editor/components/asset-inspector/AssetInspectorPanel";
 const warning = { severity: 2, message: "Malformed condition face..bad" };
 let host: HTMLDivElement;
-async function show(path = "assets/unused.svg") {
+async function show(path = "assets/unused.svg", defaultCollapsed = false) {
   if (!host) { host = document.createElement("div"); document.body.append(host); }
-  await act(async () => { render(h(AssetInspectorPanel, { path, name: "unused.svg", kind: "image" }), host); });
+  await act(async () => { render(h(AssetInspectorPanel, { path, name: "unused.svg", kind: "image", defaultCollapsed }), host); });
   await act(async () => { await new Promise(resolve => setTimeout(resolve, 0)); });
 }
 async function compiled() {
@@ -25,6 +25,20 @@ async function compiled() {
 }
 afterEach(() => { if (host) { act(() => render(null, host)); host.remove(); host = undefined as any; } mocks.diagnostics.mockReset(); });
 describe("asset inspector problems", () => {
+  it("shows and refreshes a problem count while mobile Details stays collapsed", async () => {
+    mocks.diagnostics.mockResolvedValue([warning]);
+    await show("assets/unused.svg", true);
+    const header = host.querySelector('[aria-expanded="false"]')!;
+    expect(header.textContent).toContain("1 problem");
+    expect(host.textContent).not.toContain(warning.message);
+    mocks.diagnostics.mockResolvedValue([warning, warning]);
+    await compiled();
+    expect(header.textContent).toContain("2 problems");
+    mocks.diagnostics.mockResolvedValue([]);
+    await compiled();
+    expect(header.textContent).not.toContain("problem");
+    expect(header.getAttribute("aria-expanded")).toBe("false");
+  });
   it("retains asset metadata when no diagnostics are present", async () => {
     mocks.diagnostics.mockResolvedValue([]);
     await show();
