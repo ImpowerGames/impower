@@ -72,8 +72,9 @@ def old_filter_for(directive_name):
 # SVG trees
 # ----------------------------------------------------------------------------
 class Node:
-    def __init__(self, id_, children):
+    def __init__(self, id_, children, author_name=None):
         self.id = id_
+        self.author_name = id_ if author_name is None else author_name
         self.children = children
         self.new = None      # converted: dict(label, conds, default, plain)
     def filterable(self):
@@ -81,7 +82,9 @@ class Node:
 
 def build(el):
     kids = [build(c) for c in el]
-    return Node(el.get('id'), kids)
+    label = next((el.attrib[key] for key in ('data-name', '{http://www.serif.com/}id',
+                    '{http://www.inkscape.org/namespaces/inkscape}label') if key in el.attrib), None)
+    return Node(el.get('id'), kids, label)
 
 def load_svg(path):
     return build(ET.parse(path).getroot())
@@ -256,7 +259,9 @@ def assign_defaults(siblings, idx, file_singles):
 def convert_tree(tree, character):
     def walk(n, enclosing_face):
         if n.filterable():
-            n.new = convert_layer(n.id, character, enclosing_face)
+            if not IS_FILTERABLE.search(n.author_name or ''):
+                raise ValueError(f'{n.id}: expected a legacy filter label in explicit author metadata')
+            n.new = convert_layer(n.author_name, character, enclosing_face)
             face = n.new['conds'].get('face')
             if face and len(face) == 1:
                 enclosing_face = next(iter(face))
@@ -268,7 +273,7 @@ def convert_tree(tree, character):
     idx = group_index(tree)
     def dead(n):
         if n.new and not n.new['default'] and not n.new['conds'] and n.id not in DEAD_LAYER_TABLE:
-            words = n.id.split('-')
+            words = n.author_name.split('-')
             hit = None
             for w in reversed(words):
                 for g, opts in idx.items():

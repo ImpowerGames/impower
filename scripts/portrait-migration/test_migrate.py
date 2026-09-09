@@ -9,6 +9,35 @@ import snapshot
 
 
 class MigrationTests(unittest.TestCase):
+    def test_conversion_prefers_author_labels_while_legacy_oracle_keeps_ids(self):
+        config = json.loads((Path(__file__).parent/'raffles-and-bunny.json').read_text())
+        config.update(clothes_filters={},phone_filters={},historical_exceptions={})
+        legacy.configure(config,'')
+        cases = [
+            ('data-name="filter-eyes-open-default" serif:id="filter-eyes-closed-default"','eyes.open:default'),
+            ('serif:id="filter-eyes-open-default"','eyes.open:default'),
+            ('inkscape:label="filter-eyes-open-default"','eyes.open:default'),
+            ('','default1:eyes.closed:default'),
+        ]
+        ident = 'filter-eyes-closed-default1'
+        for metadata,expected in cases:
+            with self.subTest(metadata=metadata):
+                tree = legacy.build(migrate.ET.fromstring('<svg xmlns:serif="http://www.serif.com/" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"><g id="'+ident+'" '+metadata+'/></svg>'))
+                legacy.convert_tree(tree,'mia')
+                self.assertEqual(legacy.format_new(tree.children[0].new),expected)
+                self.assertEqual(tree.children[0].id,ident)
+                self.assertEqual(legacy.old_visible(tree,{'includes':[ident],'excludes':[]}),{ident})
+
+    def test_explicit_nonlegacy_author_label_is_not_replaced_with_id_semantics(self):
+        config = json.loads((Path(__file__).parent/'raffles-and-bunny.json').read_text())
+        config.update(clothes_filters={},phone_filters={},historical_exceptions={})
+        legacy.configure(config,'')
+        for label in ('','eyes.open'):
+            with self.subTest(label=label):
+                tree = legacy.build(migrate.ET.fromstring('<svg><g id="filter-eyes-closed-default" data-name="'+label+'"/></svg>'))
+                with self.assertRaisesRegex(ValueError,'legacy filter label'):
+                    legacy.convert_tree(tree,'mia')
+
     def test_writes_typed_names_without_changing_artist_xml(self):
         source = '<svg xmlns="http://www.w3.org/2000/svg"><g id="filter-hat"><path fill="#abc" d="M0 0"/></g><g id="body"/></svg>'
         result = migrate.rewrite_svg(source, {'filter-hat': 'hat.on'})
