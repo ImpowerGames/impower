@@ -19,17 +19,28 @@ import {
 
 const URI = "file://proj/main.sd";
 
+/** Where each line of the fixture script resolves to, as the real game's
+ *  `findClosestPath` would resolve it. */
+const PATH_AT_LINE: Record<number, string> = {
+  2: "main.2",
+  6: "main.6",
+  8: "main.8",
+};
+
 /** A game that records what was asked of it, standing where the worker's real
- *  one stands: on the last compiled program. */
-function recordingGame(startPath: string | null) {
+ *  one stands: on the last compiled program. Its start path follows its start
+ *  point, as the real game's does, so a route search that read the path before
+ *  the point was moved would read the previous line's. */
+function recordingGame() {
   const calls: string[] = [];
-  const game: RoutableGame & { calls: string[] } = {
+  const game = {
     calls,
-    startFrom: { file: URI, line: 2 },
-    startPath,
-    setStartFrom(startFrom) {
+    startFrom: { file: URI, line: 2 } as { file: string; line: number },
+    startPath: PATH_AT_LINE[2] as string | null,
+    setStartFrom(startFrom: { file: string; line: number }) {
       calls.push(`setStartFrom:${startFrom.line}`);
       game.startFrom = startFrom;
+      game.startPath = PATH_AT_LINE[startFrom.line] ?? null;
     },
   };
   return game;
@@ -71,7 +82,7 @@ function selection(line: number, programOutdated?: boolean) {
 
 describe("planning a route for a selection (#489)", () => {
   test("plans none against a program the document has outrun", () => {
-    const game = recordingGame("main.2");
+    const game = recordingGame();
     const { searched, ctx } = context(game);
 
     planRouteForSelection(selection(8, true), ctx);
@@ -87,7 +98,7 @@ describe("planning a route for a selection (#489)", () => {
     // The checkpoint is a story state the player loads wholesale. One replayed
     // in the pre-edit program puts the preview at the wrong beat even after the
     // fresh program has arrived.
-    const { ctx } = context(recordingGame("main.2"));
+    const { ctx } = context(recordingGame());
     const params = selection(2, true);
 
     planRouteForSelection(params, ctx);
@@ -100,7 +111,7 @@ describe("planning a route for a selection (#489)", () => {
     // Without this the held selection would be lost: the compile the edit
     // scheduled would start from wherever it started before, and the line the
     // author actually clicked would never be previewed.
-    const { remembered, ctx } = context(recordingGame("main.2"));
+    const { remembered, ctx } = context(recordingGame());
 
     planRouteForSelection(selection(8, true), ctx);
 
@@ -108,7 +119,7 @@ describe("planning a route for a selection (#489)", () => {
   });
 
   test("plans one when the program still describes the document", () => {
-    const game = recordingGame("main.8");
+    const game = recordingGame();
     const { searched, ctx } = context(game);
 
     planRouteForSelection(selection(8, false), ctx);
@@ -118,7 +129,7 @@ describe("planning a route for a selection (#489)", () => {
   });
 
   test("plans one when the compiler said nothing either way", () => {
-    const game = recordingGame("main.8");
+    const game = recordingGame();
     const { searched, ctx } = context(game);
 
     planRouteForSelection(selection(8, undefined), ctx);
@@ -130,7 +141,7 @@ describe("planning a route for a selection (#489)", () => {
     // The editor re-selects on every cursor move, including one that only
     // changes the column, and the search already run for that path still
     // describes it.
-    const game = recordingGame("main.2");
+    const game = recordingGame();
     const { searched, ctx } = context(game);
     const params = selection(2, false);
 
