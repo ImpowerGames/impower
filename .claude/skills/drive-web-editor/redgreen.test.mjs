@@ -178,20 +178,21 @@ check("parseVitestSummary reads vitest's \"no tests\" Tests line -- the shape a 
   assert.equal(parseVitestSummary(output), "Test Files  1 failed (1) / Tests  no tests");
 });
 
-check("parseVitestSummary recognises a second invocation's \"no tests\" Tests line rather than dropping it, in a two-invocation run", () => {
-  // Invocation 1 ran real tests and passed; invocation 2 failed to collect
-  // (an import broken by the revert, say) and reports "no tests". Both
-  // labels belong to invocation 2, so pairing and independent-last agree
-  // here -- this pins that the "no tests" shape is not silently lost from a
-  // multi-invocation run, on top of the single-invocation case above.
-  const twoRuns = [
-    ` ${GREEN_TEST_FILES}`,
-    ` ${GREEN_TESTS}`,
-    "--- second invocation ---",
-    ` ${COLLECT_FAIL_TEST_FILES}`,
-    `${NO_TESTS_LINE}`,
-  ].join("\n");
-  assert.equal(parseVitestSummary(twoRuns), "Test Files  1 failed (1) / Tests  no tests");
+check("parseVitestSummary pairs the last Test Files line with the FIRST Tests line after it, and falls back to the LAST Tests line when no Test Files line anchors the pair", () => {
+  // Two Tests lines follow the last Test Files line: the invocation's own
+  // ("no tests", what a collection failure prints) and a later one. The rule
+  // is first-after, so the pair is the invocation's own. No vitest 2.1.9
+  // output prints this shape -- every real one puts the two lines adjacent,
+  // which is why independent-last agrees with pairing on real output -- so
+  // this case is what holds the stated rule against an edit that would read
+  // the last Tests line instead, and it pins the "no tests" shape inside a
+  // multi-invocation run at the same time.
+  const trailing = [` ${COLLECT_FAIL_TEST_FILES}`, `${NO_TESTS_LINE}`, "--- later output ---", ` ${GREEN_TESTS}`].join("\n");
+  assert.equal(parseVitestSummary(trailing), "Test Files  1 failed (1) / Tests  no tests");
+  // With no Test Files line to anchor on, the direction reverses: the
+  // fallback scans backwards and takes the last Tests line in the output.
+  const noAnchor = ["      Tests  1 passed (1)", "--- second invocation ---", ` ${GREEN_TESTS}`].join("\n");
+  assert.equal(parseVitestSummary(noAnchor), "Tests  5 passed (5)");
 });
 
 check("parseVitestSummary pairs Test Files / Tests by invocation, not by taking the last of each independently, when the second invocation's Tests line is a shape this parser does not recognise", () => {
@@ -247,6 +248,65 @@ check("a red run whose output carries vitest's own run banner is flagged for a m
   assert.equal(r.red.reason, "assertion");
   assert.equal(r.red.summary, null);
   assert.match(r.problems.join("\n"), /output shows vitest's own run banner/);
+});
+
+check("a red run whose output merely carries the words RUN, Tests and node in other positions is not read as a vitest run", () => {
+  const dir = makeRepo();
+  applyFix(dir);
+  // The banner test is `RUN` followed by a version. A plain runner's output
+  // can hold every word of it in other positions -- a Node stack frame names
+  // `node:internal` in effectively every real failure -- and loosening the
+  // regex would turn this honest red/green cycle into a missing-summary
+  // problem and flip ok to false.
+  fs.writeFileSync(
+    path.join(dir, "check.mjs"),
+    [
+      'import { value } from "./lib.mjs";',
+      'if (value !== "new") {',
+      '  console.error("RUN failed while preparing the fixture");',
+      '  console.error("Tests are slow today");',
+      '  console.error("    at loadESM (node:internal/modules/esm/loader:42:7)");',
+      '  console.error("AssertionError: expected new, got " + value);',
+      "  process.exit(1);",
+      "}",
+      'console.log("ok");',
+    ].join("\n") + "\n",
+  );
+  const r = run(dir); // a plain node command; the command text never says vitest either
+  assert.equal(r.ok, true, JSON.stringify(r.problems));
+  assert.equal(r.red.reason, "assertion");
+  assert.equal(r.red.summary, null);
+  assert.deepEqual(r.problems, []);
+});
+
+check("a red run whose summary says no test ran is a problem, not a proof", () => {
+  const dir = makeRepo();
+  applyFix(dir);
+  // What a collection failure prints: the test file threw at module scope,
+  // so vitest counts a failed file and no tests at all. The FAIL token reads
+  // as an assertion and the exit code is non-zero, so the summary is the only
+  // thing that says nothing was asserted.
+  fs.writeFileSync(
+    path.join(dir, "check.mjs"),
+    [
+      'import { value } from "./lib.mjs";',
+      'if (value !== "new") {',
+      '  console.error(" FAIL  pins-the-ticket.test.mjs [ pins-the-ticket.test.mjs ]");',
+      '  console.error("Error: fixture setup failed: value is " + value);',
+      `  console.error(${JSON.stringify(COLLECT_FAIL_TEST_FILES)});`,
+      `  console.error(${JSON.stringify(NO_TESTS_LINE)});`,
+      "  process.exit(1);",
+      "}",
+      `console.log(${JSON.stringify(GREEN_TEST_FILES)});`,
+      `console.log(${JSON.stringify(GREEN_TESTS)});`,
+    ].join("\n") + "\n",
+  );
+  const r = run(dir, { test: `${NODE} check.mjs # npx vitest run` });
+  assert.equal(r.red.reason, "assertion");
+  assert.equal(r.red.summary, "Test Files  1 failed (1) / Tests  no tests");
+  assert.equal(r.green.summary, "Test Files  1 passed (1) / Tests  5 passed (5)");
+  assert.equal(r.ok, false, "a red that collected nothing was certified as a proof");
+  assert.match(r.problems.join("\n"), /reports that no test ran/);
 });
 
 check("a red run that does not name vitest and has no summary is not flagged for a missing summary (plain runners have none to begin with)", () => {

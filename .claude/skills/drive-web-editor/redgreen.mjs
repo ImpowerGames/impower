@@ -236,12 +236,14 @@ export function classifyRedFailure(output, { removed = [] } = {}) {
  * today`) is not mistaken for the summary.
  *
  * On a `--test` command that invokes vitest more than once, each invocation
- * prints its own adjacent `Test Files` / `Tests` pair. The two lines are
- * paired by invocation — the last `Test Files` line, and the first `Tests`
- * line after it — never by taking the last of each independently, which can
- * stitch together two different invocations: an early one that ran real
- * tests and a later one that only reached `Test Files` before its own
- * `Tests` line (or never printed one at all).
+ * prints its own `Test Files` / `Tests` pair. The pair is read as the last
+ * `Test Files` line and the first `Tests` line after it. Every output vitest
+ * 2.1.9 prints puts the two lines adjacent, so taking the last of each
+ * independently reads the same pair on real output; the rule matters only
+ * where an invocation's `Tests` line is absent or in a shape this parser
+ * does not recognise, and it then reports the half it has rather than
+ * reaching back into an earlier invocation for the other. With no `Test
+ * Files` line anywhere, the fallback is the last `Tests` line in the output.
  */
 const ANSI_ESCAPE_RE = /\x1b\[[0-9;]*m/g;
 const VITEST_COUNT_RE = /\d+\s+(?:passed|failed|skipped|todo)/;
@@ -280,7 +282,6 @@ export function parseVitestSummary(output) {
         tests = lines[i];
         break;
       }
-      if (isTestFilesLine(lines[i])) break; // the next invocation started with no Tests line of its own
     }
   } else {
     // No Test Files line anywhere: fall back to the last Tests line, if any.
@@ -515,6 +516,13 @@ export function runRedGreen({ repoRoot, test, files, base = "HEAD", snapshotDir,
         // worth a look.
         report.problems.push(
           `The test command names vitest, or the output shows vitest's own run banner, and it failed on the base with what reads as a real assertion, but no \`Test Files\`/\`Tests\` summary line could be parsed from the output. Read red.tail for the failure and quote it directly in the PR.`,
+        );
+      } else if (redReason === "assertion" && report.red.summary != null && VITEST_NO_TESTS_RE.test(report.red.summary)) {
+        // A red that collected nothing asserted nothing. The exit code and
+        // the FAIL token still read as an assertion, so only the summary
+        // says the run proves nothing about the defect.
+        report.problems.push(
+          `The red run's summary reports that no test ran (${report.red.summary}): every test file failed to collect on the base, so nothing was asserted and the red proves nothing about the defect. A revert that breaks an import the test file needs is the usual cause; simulate the old behaviour in place instead (see the write-regression-test skill).`,
         );
       }
     }
