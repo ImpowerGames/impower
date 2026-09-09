@@ -106,7 +106,6 @@ export const getSymbol = (
         // Narrative references
         n.name === "DialogueCharacterName" ||
         n.name === "AssetCommandFileName" ||
-        n.name === "AssetCommandFilterName" ||
         n.name === "AssetCommandTarget" ||
         n.name === "NameValue" ||
         n.name === "IncludeContent",

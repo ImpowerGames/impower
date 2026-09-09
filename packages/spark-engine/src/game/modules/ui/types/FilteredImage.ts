@@ -7,7 +7,7 @@ export interface FilteredImage extends Reference<"filtered_image"> {
     | Reference<"filtered_image">
     | Reference<"layered_image">
     | null;
-  filters: Reference<"filter">[];
+  attributes: string[];
   filtered_src?: string;
   filtered_layers?: Image[];
 }

@@ -216,28 +216,28 @@ describe("AssetCache", () => {
   it("forgets every entry of a file when it changes, and ignores a stale load that finishes late", async () => {
     const { cache, created, finish } = makeCache();
     void cache.request(
-      [image("/file:/a.svg?v=1"), image("/file:/a.svg?v=1&filters=x")],
+      [image("/file:/a.svg?v=1"), image("/file:/a.svg?v=1&attributes=x")],
       0,
       "beat:1",
     );
     await finish("/file:/a.svg?v=1");
-    cache.prefetch([image("/file:/a.svg?v=1&filters=y")], 3);
+    cache.prefetch([image("/file:/a.svg?v=1&attributes=y")], 3);
     expect(cache.has("/file:/a.svg?v=1")).toBe(true);
-    expect(cache.has("/file:/a.svg?v=1&filters=y")).toBe(true);
+    expect(cache.has("/file:/a.svg?v=1&attributes=y")).toBe(true);
     // The prefetch waits behind the gate still in flight, so it is queued,
     // not loading, when the file changes.
-    expect(created.some((i) => i.src === "/file:/a.svg?v=1&filters=y")).toBe(false);
+    expect(created.some((i) => i.src === "/file:/a.svg?v=1&attributes=y")).toBe(false);
     cache.evictFile("/file:/a.svg?v=2");
     expect(cache.has("/file:/a.svg?v=1")).toBe(false);
-    expect(cache.has("/file:/a.svg?v=1&filters=x")).toBe(false);
-    expect(cache.has("/file:/a.svg?v=1&filters=y")).toBe(false);
+    expect(cache.has("/file:/a.svg?v=1&attributes=x")).toBe(false);
+    expect(cache.has("/file:/a.svg?v=1&attributes=y")).toBe(false);
     // The variant that was mid-load finishes now; nobody is home. The queued
     // one left the queue and never starts.
-    created.find((i) => i.src === "/file:/a.svg?v=1&filters=x" && !i.done)!.finishLoad();
+    created.find((i) => i.src === "/file:/a.svg?v=1&attributes=x" && !i.done)!.finishLoad();
     await settle();
-    expect(cache.has("/file:/a.svg?v=1&filters=x")).toBe(false);
-    expect(cache.has("/file:/a.svg?v=1&filters=y")).toBe(false);
-    expect(created.some((i) => i.src === "/file:/a.svg?v=1&filters=y")).toBe(false);
+    expect(cache.has("/file:/a.svg?v=1&attributes=x")).toBe(false);
+    expect(cache.has("/file:/a.svg?v=1&attributes=y")).toBe(false);
+    expect(created.some((i) => i.src === "/file:/a.svg?v=1&attributes=y")).toBe(false);
     expect(cache.inFlightCount).toBe(0);
   });
 

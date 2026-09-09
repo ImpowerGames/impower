@@ -1,3 +1,5 @@
+import type { AttributeVocabulary } from "../../attributes/types";
+
 export interface File {
   uri: string;
   type: string;
@@ -6,6 +8,7 @@ export interface File {
   src?: string;
   text?: string;
   data?: string;
+  attribute_vocabulary?: AttributeVocabulary;
   version?: number | null;
   languageId?: string | null;
 }

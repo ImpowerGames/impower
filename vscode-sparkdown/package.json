@@ -471,6 +471,11 @@
     },
     "commands": [
       {
+        "command": "sparkdown.normalizePortraitLayerNames",
+        "title": "Normalize Portrait Layer Names",
+        "category": "Sparkdown"
+      },
+      {
         "command": "sparkdown.outline.reveal",
         "when": "editorLangId == sparkdown",
         "title": "Reveal cursor position",

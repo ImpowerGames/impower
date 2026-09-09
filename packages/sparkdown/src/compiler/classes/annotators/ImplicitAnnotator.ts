@@ -16,7 +16,7 @@ export class ImplicitAnnotator extends SparkdownAnnotator<
       // Define implicit filtered_image
       if (context.includes("ImageCommand")) {
         const text = this.read(nodeRef.from, nodeRef.to);
-        if (text.includes("~")) {
+        if (/[:~]/.test(text)) {
           annotations.push(
             SparkdownAnnotation.mark("filtered_image").range(
               nodeRef.from,

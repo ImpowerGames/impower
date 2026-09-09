@@ -14,6 +14,10 @@ const scan = (text: string) => {
 };
 
 describe("scanAssetDirectives", () => {
+  it("finds the base image before a dynamic colon attribute", () => {
+    const { capture } = scan("[[show portrait bunny:");
+    expect(capture.dynamicBases).toEqual(["bunny"]);
+  });
   it("reads image names after the verb and layer, splitting on +", () => {
     const { beat } = scan("[[show portrait bunny~hat+hat with fade over 1s]]");
     expect(beat?.image).toEqual(["bunny~hat", "hat"]);

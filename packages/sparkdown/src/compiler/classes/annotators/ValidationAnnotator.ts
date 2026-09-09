@@ -156,14 +156,6 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     annotations: Range<SparkdownAnnotation<Diagnostic>>[],
     nodeRef: SparkdownSyntaxNodeRef,
   ): Range<SparkdownAnnotation<Diagnostic>>[] {
-    if (nodeRef.name === "AssetCommandFilterName") {
-      const context = getContextNames(nodeRef.node);
-      // Record audio filter reference
-      if (context.includes("AudioCommand")) {
-        // TODO: Validate synth tone format
-      }
-      return annotations;
-    }
     if (nodeRef.name === "AssetCommandControl") {
       const context = getContextNames(nodeRef.node);
       // Report invalid image/screen control

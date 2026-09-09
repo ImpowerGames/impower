@@ -28,7 +28,7 @@ export * from "./types/StructureItem";
 export * from "./utils/buildSVGSource";
 export * from "./utils/calculateIndent";
 export * from "./utils/calculateSpeechDuration";
-export * from "./utils/filterMatchesName";
+export * from "../attributes";
 export * from "./utils/filterSVG";
 export * from "./utils/formatList";
 export * from "./utils/getAccessPath";

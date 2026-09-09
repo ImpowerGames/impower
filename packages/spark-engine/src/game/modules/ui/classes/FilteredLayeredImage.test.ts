@@ -39,9 +39,6 @@ const image = (name: string) => ({
 const ref = (name: string) => ({ $type: "", $name: name });
 
 const context = {
-  filter: {
-    hat_filter: { $type: "filter", $name: "hat_filter", includes: [""], excludes: ["hat"] },
-  },
   image: {
     portrait__hat: image("portrait__hat"),
     portrait__body: image("portrait__body"),
@@ -51,8 +48,8 @@ const context = {
       $type: "layered_image",
       $name: "portrait",
       assets: {
-        "filter hat": ref("portrait__hat"),
-        "filter default body": ref("portrait__body"),
+        "hat.on": ref("portrait__hat"),
+        "body": ref("portrait__body"),
       },
     },
   },
@@ -61,12 +58,29 @@ const context = {
       $type: "filtered_image",
       $name: "p",
       image: ref("portrait"),
-      filters: [ref("hat_filter")],
+      attributes: [] as string[],
     },
   },
 };
 
 describe("filtered image over a layered root", () => {
+  it("refreshes the layer set after an attribute changes", () => {
+    const ctx = structuredClone(context);
+    const ui = new ProbeUIModule(ctx);
+    expect(ui.getImageSrcsByName("p")).toHaveLength(1);
+    ctx.filtered_image.p.attributes = ["hat"];
+    expect(ui.getImageSrcsByName("p")).toHaveLength(2);
+    ctx.filtered_image.p.attributes = ["hat", "hat.off"];
+    expect(ui.getImageSrcsByName("p")).toHaveLength(1);
+  });
+
+  it("does not preload the unfiltered root as well as its selected variant", () => {
+    const ctx = structuredClone(context) as any;
+    ctx.filtered_image.portrait = { $type: "filtered_image", $name: "portrait", image: { $type: "layered_image", $name: "portrait" }, attributes: [] };
+    expect(new ProbeUIModule(ctx).getImageAssets("", "portrait").map(a => a.src)).toEqual([
+      "/file:/local/assets/portrait__body.png?v=1",
+    ]);
+  });
   it("resolves to the surviving layers instead of nothing", () => {
     const ui = new ProbeUIModule(structuredClone(context));
     expect(ui.getImageSrcsByName("p")).toEqual([
@@ -74,10 +88,9 @@ describe("filtered image over a layered root", () => {
     ]);
   });
 
-  it("still resolves a plain layered image unfiltered", () => {
+  it("applies defaults to a plain layered image", () => {
     const ui = new ProbeUIModule(structuredClone(context));
     expect(ui.getImageSrcsByName("portrait")).toEqual([
-      "/file:/local/assets/portrait__hat.png?v=1",
       "/file:/local/assets/portrait__body.png?v=1",
     ]);
   });
@@ -104,7 +117,7 @@ describe("filtered image over a layered root", () => {
       $name: "eyes",
       assets: { 0: ref("eyes__open"), 1: ref("eyes__brow") },
     };
-    nested.layered_image.portrait.assets["filter default eyes"] = ref("eyes");
+    nested.layered_image.portrait.assets["eyes"] = ref("eyes");
 
     expect(nested.filtered_image.p).toBeDefined();
     expect(new ProbeUIModule(nested).getImageSrcsByName("p")).toEqual([

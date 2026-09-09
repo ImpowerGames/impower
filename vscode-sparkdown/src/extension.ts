@@ -20,6 +20,7 @@ import { activatePreviewGamePanel } from "./utils/activatePreviewGamePanel";
 import { activatePreviewScreenplayPanel } from "./utils/activatePreviewScreenplayPanel";
 import { activateScreenPreview } from "./utils/activateScreenPreview";
 import { activateVirtualDeclarations } from "./utils/activateVirtualDeclarations";
+import { activatePortraitNormalization } from "./utils/activatePortraitNormalization";
 
 // Called when extension is activated
 export function activate(context: vscode.ExtensionContext) {
@@ -43,6 +44,7 @@ export function activate(context: vscode.ExtensionContext) {
   activateDebugger(context);
   activateVirtualDeclarations(context);
   activateInspector(context);
+  activatePortraitNormalization(context);
 }
 
 // Called when extension is deactivated

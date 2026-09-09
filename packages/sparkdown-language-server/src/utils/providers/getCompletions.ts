@@ -1,4 +1,5 @@
 import GRAMMAR_DEFINITION from "@impower/sparkdown/language/sparkdown.language-grammar.json";
+import { resolveAttributes, type AttributeVocabulary } from "@impower/sparkdown/src/attributes";
 import { SparkdownAnnotations } from "@impower/sparkdown/src/compiler/classes/SparkdownCombinedAnnotator";
 import { type DeclarationType } from "@impower/sparkdown/src/compiler/classes/annotators/DeclarationAnnotator";
 import { SparkdownDocument } from "@impower/sparkdown/src/compiler/classes/SparkdownDocument";
@@ -6,6 +7,7 @@ import { SparkdownCompilerConfig } from "@impower/sparkdown/src/compiler/types/S
 import { SparkdownNodeName } from "@impower/sparkdown/src/compiler/types/SparkdownNodeName";
 import { type SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
 import { getProperty } from "@impower/sparkdown/src/compiler/utils/getProperty";
+import { resolveImageAttributes } from "@impower/sparkdown/src/compiler/utils/filterImage";
 import { type GrammarSyntaxNode } from "@impower/textmate-grammar-tree/src/tree/types/GrammarSyntaxNode";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 import { getDescendentInsideParent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendentInsideParent";
@@ -126,6 +128,20 @@ const isWhitespaceNode = (name?: SparkdownNodeName) =>
   name === "OptionalWhitespace" ||
   name === "ExtraWhitespace" ||
   name === "Whitespace";
+
+const attributeCompletionNames = (vocabulary: AttributeVocabulary): string[] => {
+  const names = new Set<string>();
+  for (const [group, info] of Object.entries(vocabulary.groups)) {
+    if (info.switch) names.add(group);
+    for (const option of info.options) {
+      names.add(`${group}.${option}`);
+      if (!info.switch && !resolveAttributes(vocabulary, [option]).diagnostics.some(
+        (diagnostic) => diagnostic.code === "ambiguous-attribute",
+      )) names.add(option);
+    }
+  }
+  return [...names];
+};
 
 const traverse = <T>(
   obj: T,
@@ -382,33 +398,33 @@ const addStructTypeNameCompletions = (
 
 /**
  * What the asset command under the cursor names: the asset at its head, and
- * the filters already written in it. Both answers feed a `~filter` completion
- * — the applied filters are the ones to leave out of the suggestion list, and
+ * the attributes already written in it. Both answers feed an attribute completion
+ * — the applied attributes are the ones to leave out of the suggestion list, and
  * the asset is what the remaining candidates preview against.
  *
  * The token under the cursor is skipped, because it is the partial name being
- * completed rather than a filter that is already applied; leaving it in would
+ * completed rather than an attribute that is already applied; leaving it in would
  * hide the very name the author is part-way through typing.
  *
- * `asset` is empty when the directive names none yet (`[[~look_]]`). That
- * directive has nothing to preview but can still carry filters worth leaving
- * out, so the two answers are reported separately rather than as one
- * all-or-nothing result.
+ * Keep the two sides of the cursor separate: a candidate replaces the current
+ * token in place, and any attributes after it must retain their later priority.
  */
-const readAssetCommandFilters = (
+const readAssetCommandAttributes = (
   leftStack: GrammarSyntaxNode<SparkdownNodeName>[],
   read: (from: number, to: number) => string,
-): { asset: string; applied: string[] } => {
+  offset: number,
+): { asset: string; before: string[]; after: string[] } => {
   // The enclosing `AssetCommandName`, not `AssetCommandContent`: a `+`-joined
-  // command holds one `AssetCommandName` per asset, and a filter belongs to
+  // command holds one `AssetCommandName` per asset, and an attribute belongs to
   // the asset it is attached to.
   const nameNode = leftStack.find((n) => n.name === "AssetCommandName");
   if (!nameNode) {
-    return { asset: "", applied: [] };
+    return { asset: "", before: [], after: [] };
   }
   const cursorNode = leftStack[0];
   let image = "";
-  const filters: string[] = [];
+  const before: string[] = [];
+  const after: string[] = [];
   // Depth-first over this node's subtree and nothing beyond it. `next()` walks
   // the whole document rather than one subtree, so the descent is driven by
   // firstChild/nextSibling against a depth counter, which never takes a
@@ -423,9 +439,9 @@ const readAssetCommandFilters = (
       cur.name === "AssetCommandFilterName" &&
       !(cursorNode && cur.from === cursorNode.from && cur.to === cursorNode.to)
     ) {
-      const filterName = read(cur.from, cur.to).trim();
-      if (filterName) {
-        filters.push(filterName);
+      const attribute = read(cur.from, cur.to).trim();
+      if (attribute) {
+        (cur.to <= offset ? before : after).push(attribute);
       }
     }
     if (cur.firstChild()) {
@@ -443,7 +459,7 @@ const readAssetCommandFilters = (
       depth -= 1;
     }
   }
-  return { asset: image, applied: filters };
+  return { asset: image, before, after };
 };
 
 const addStructReferenceCompletions = (
@@ -1235,6 +1251,87 @@ export const getCompletions = (
     }));
   };
 
+  // Read the current image only. Attribute names belong to its artwork, not
+  // to the global define namespace (and may contain dots and hyphens).
+  if (program?.context && leftStack.some((node) => node.name === "ImageCommand")) {
+    const asset = leftStack.find((node) => node.name === "AssetCommandName");
+    const prefix = asset ? read(asset.from, documentCursorOffset) : "";
+    const match = prefix.match(/(?:^|[+])\s*([a-zA-Z_][\w]*)((?:[:~][\w.-]*)+)$/);
+    if (match) {
+      const name = match[1]!;
+      const current = match[2]!.split(/[:~]/).at(-1) ?? "";
+      const { before, after } = readAssetCommandAttributes(leftStack, read, documentCursorOffset);
+      const excluded = new Set([...before, ...after]);
+      const attributeNode = leftStack.find((node) => node.name === "AssetCommandFilterName");
+      const image = program.context["filtered_image"]?.[name] ?? program.context["layered_image"]?.[name] ?? program.context["image"]?.[name];
+      const vocabulary = resolveImageAttributes(program.context, image).vocabulary;
+      if (vocabulary) {
+        for (const attribute of attributeCompletionNames(vocabulary)) {
+          if (!excluded.has(attribute)) {
+            completions.set(attribute, {
+              label: attribute,
+              kind: CompletionItemKind.EnumMember,
+              labelDetails: { description: `${name} attribute` },
+              textEdit: { newText: attribute, range: document.range(attributeNode?.from ?? documentCursorOffset - current.length, attributeNode?.to ?? documentCursorOffset) },
+              data: { type: "filtered_image", name,
+                filtered: { image: name, attributes: [...before, attribute, ...after] } },
+            });
+          }
+        }
+      }
+      return buildCompletions();
+    }
+  }
+
+  // Only literal list entries in a filtered_image's attributes assignment
+  // receive artwork choices. The parsed table/property/define ancestry keeps
+  // ordinary strings, nested tables, and executable Luau out of this path.
+  const quotedAttribute = leftStack.find((node) =>
+    node.name === "LuauDoubleQuotedString" || node.name === "LuauSingleQuotedString",
+  );
+  const attributeTable = leftStack.find((node) => node.name === "LuauTable");
+  const attributeProperty = leftStack.find((node) => node.name === "LuauPropertyDefinition");
+  const attributeDefine = getDefineContext(leftStack, read);
+  if (program?.context && quotedAttribute && attributeTable && attributeProperty &&
+      attributeDefine?.type === "filtered_image" &&
+      leftStack.filter((node) => node.name === "LuauTable").length === 1 &&
+      getNodeText(getDescendent("LuauVariableName", attributeProperty)) === "attributes" &&
+      getDescendent("LuauTable", attributeProperty)?.from === attributeTable.from) {
+    const content = attributeTable.getChild("LuauTable_content");
+    const entries: SyntaxNode[] = [];
+    let literalList = !!content;
+    for (let node = content?.firstChild; node; node = node.nextSibling) {
+      if (node.name === "LuauDoubleQuotedString" || node.name === "LuauSingleQuotedString") entries.push(node);
+      else if (!["ExtraWhitespace", "Newline", "LuauCommaSeparator", "LuauSemicolonSeparator"].includes(node.name)) literalList = false;
+    }
+    const open = getDescendent(["PunctuationStringDoubleQuoteOpen", "PunctuationStringSingleQuoteOpen"], quotedAttribute);
+    const close = getDescendent(["PunctuationStringDoubleQuoteClose", "PunctuationStringSingleQuoteClose"], quotedAttribute);
+    const image = program.context["filtered_image"]?.[attributeDefine.name];
+    const vocabulary = resolveImageAttributes(program.context, image).vocabulary;
+    if (literalList && vocabulary && open && close && documentCursorOffset >= open.to && documentCursorOffset <= close.from) {
+      const before: string[] = [];
+      const after: string[] = [];
+      for (const entry of entries) {
+        if (entry.from === quotedAttribute.from) continue;
+        const value = getNodeText(entry).trim().slice(1, -1);
+        (entry.to <= quotedAttribute.from ? before : after).push(value);
+      }
+      const excluded = new Set([...before, ...after]);
+      for (const attribute of attributeCompletionNames(vocabulary)) {
+        if (excluded.has(attribute)) continue;
+        completions.set(attribute, {
+          label: attribute,
+          kind: CompletionItemKind.EnumMember,
+          labelDetails: { description: `${attributeDefine.name} attribute` },
+          textEdit: { newText: attribute, range: document.range(open.to, close.from) },
+          data: { type: "filtered_image", name: attributeDefine.name,
+            filtered: { image: image.image?.$name, attributes: [...before, attribute, ...after] } },
+        });
+      }
+      return buildCompletions();
+    }
+  }
+
   const side = -1;
   const prevCursor = tree.cursorAt(leftStack[0].from - 1, side);
   const nextCursor = tree.cursorAt(leftStack[0].to + 1, side);
@@ -1475,28 +1572,6 @@ export const getCompletions = (
       leftStack[0]?.name === "AssetCommandFilterOperator" ||
       leftStack[0]?.name === "AssetCommandFilterName"
     ) {
-      if (isCursorAfterNodeText(leftStack[0])) {
-        // `applied` does double duty: the filters already in the directive are
-        // left out of the list (#478), and each remaining candidate previews
-        // as the directive's image with the whole chain applied, so the popup
-        // shows what picking it would look like rather than the bare filter
-        // name (#474). Only the image directive gets the preview — an audio
-        // asset has no picture to composite.
-        const { asset, applied } = readAssetCommandFilters(leftStack, read);
-        addStructReferenceCompletions(
-          completions,
-          program,
-          ["filter"],
-          applied,
-          asset
-            ? (type, name) => ({
-                type,
-                name,
-                filtered: { image: asset, filters: [...applied, name] },
-              })
-            : undefined,
-        );
-      }
       return buildCompletions();
     }
     if (
@@ -1631,17 +1706,6 @@ export const getCompletions = (
       leftStack[0]?.name === "AssetCommandFilterOperator" ||
       leftStack[0]?.name === "AssetCommandFilterName"
     ) {
-      if (isCursorAfterNodeText(leftStack[0])) {
-        // The filters already in the directive are left out of the list
-        // (#478). No preview here: an audio asset has no picture.
-        const { applied } = readAssetCommandFilters(leftStack, read);
-        addStructReferenceCompletions(
-          completions,
-          program,
-          ["filter"],
-          applied,
-        );
-      }
       return buildCompletions();
     }
     if (

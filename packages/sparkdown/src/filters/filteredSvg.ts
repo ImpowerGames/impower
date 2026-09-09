@@ -1,127 +1,33 @@
-/**
- * Shared on-demand SVG filtering for `filtered_image` (#299).
- *
- * Instead of embedding every SVG's source in `program.context` (7.5MB of the
- * 8.9MB program payload on a large project) just so `filterImage` can compute
- * `filtered_src` data-URIs, hosts that serve `/file:/` through a service
- * worker resolve a filtered image to a URL: the engine builds
- * `<root src>&filters=<canonical>` synchronously, and the service worker runs
- * `filterSVG` lazily on first fetch, cached per (file signature x filter
- * combo) — the same discipline as `?thumb=` (see thumbnails/composeThumbnail).
- *
- * Hosts with no service worker (VS Code's webviews, LS-side previews) keep
- * the inlined-data path; `filterImage` only falls back to URL building when a
- * root image carries no `data`.
- *
- * ⚠ The canonical serialization below is written against
- * `filterMatchesName`'s ACTUAL semantics, which defeat set intuition:
- *  - `excludes` entries are OR'd and falsy entries are no-ops — safe to drop,
- *    dedupe and sort.
- *  - `includes` uses `every((tag) => tag && !nameContainsTag(...))`:
- *    - ANY falsy entry short-circuits the clause to false — i.e. a falsy
- *      include DISABLES include-based removal entirely (`default_filter`
- *      deliberately injects `[""]` for exactly this).
- *    - An EMPTY includes array is vacuously true — i.e. remove EVERY
- *      filterable non-default node.
- *    A canonicalizer that "drops falsy entries" would turn the first case
- *    into the second and render wrong art under the canonical cache key.
- */
-
+/** On-demand SVG variants keyed by a canonical attribute selection and file signature. */
+import { normalizeSVGAttributeNames, type AttributeSelection } from "../attributes";
 import { filterSVG } from "../compiler/utils/filterSVG";
 
-/**
- * Bump to invalidate every previously cached filtered SVG when the filtering
- * logic changes. Folded into the cache key like THUMB_VERSION; never part of
- * the URL.
- */
-export const FILTER_VERSION = 1;
+/** Increment whenever visibility semantics change. */
+export const FILTER_VERSION = 3;
+export type ImageFilter = AttributeSelection;
 
-export interface ImageFilter {
-  includes: unknown[];
-  excludes: unknown[];
-}
+const ATTRIBUTE_WORD = /^[a-zA-Z0-9]+(?:-[a-zA-Z0-9]+)*$/;
 
-/** Marker for "include-based removal disabled" (a falsy include present). */
-const INCLUDES_DISABLED = "off";
-
-const normalizeEntry = (entry: unknown): unknown => {
-  if (
-    entry &&
-    typeof entry === "object" &&
-    "all" in entry &&
-    Array.isArray((entry as { all: unknown[] }).all)
-  ) {
-    // Conjunctive group: order and duplicates within `all` don't affect the
-    // lookahead regex's outcome.
-    const all = dedupeAndSort((entry as { all: unknown[] }).all);
-    return { all };
-  }
-  return entry;
-};
-
-const entryKey = (entry: unknown) => JSON.stringify(entry) ?? "undefined";
-
-const dedupeAndSort = (entries: unknown[]): unknown[] => {
-  const byKey = new Map<string, unknown>();
-  for (const entry of entries) {
-    const key = entryKey(entry);
-    if (!byKey.has(key)) {
-      byKey.set(key, entry);
-    }
-  }
-  return Array.from(byKey.entries())
-    .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
-    .map(([, entry]) => entry);
-};
-
-/**
- * Canonical, order/duplicate-insensitive serialization of an image filter, or
- * `undefined` when the filter is a NO-OP (include-removal disabled and no
- * excludes — `filterMatchesName` can never return true, so the unfiltered
- * source is already correct and no variant should exist).
- */
+/** Preserve choices exactly; only the order of group keys is irrelevant. */
 export const serializeImageFilterParam = (
-  filter: ImageFilter,
+  selection: AttributeSelection,
 ): string | undefined => {
-  const excludes = dedupeAndSort(
-    (filter.excludes ?? []).filter(Boolean).map(normalizeEntry),
-  );
-  const rawIncludes = filter.includes ?? [];
-  const includesDisabled = rawIncludes.some((entry) => !entry);
-  const includes = includesDisabled
-    ? INCLUDES_DISABLED
-    : dedupeAndSort(rawIncludes.map(normalizeEntry));
-  if (includesDisabled && excludes.length === 0) {
+  if (!selection || typeof selection !== "object" || Array.isArray(selection)) {
     return undefined;
   }
-  return JSON.stringify({ i: includes, e: excludes });
+  const entries = Object.entries(selection);
+  if (entries.some(([group, option]) => !ATTRIBUTE_WORD.test(group) ||
+      typeof option !== "string" || !ATTRIBUTE_WORD.test(option))) {
+    return undefined;
+  }
+  return JSON.stringify(Object.fromEntries(entries.sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0)));
 };
 
-/**
- * Inverse of `serializeImageFilterParam`: a filter object that reproduces the
- * original's `filterMatchesName` behavior. Returns `undefined` for garbage
- * (callers serve the unfiltered original).
- */
-export const parseImageFilterParam = (
-  param: string,
-): ImageFilter | undefined => {
+export const parseImageFilterParam = (param: string): AttributeSelection | undefined => {
   try {
-    const parsed = JSON.parse(param);
-    if (!parsed || typeof parsed !== "object") {
-      return undefined;
-    }
-    const { i, e } = parsed as { i: unknown; e: unknown };
-    if (!Array.isArray(e)) {
-      return undefined;
-    }
-    if (i === INCLUDES_DISABLED) {
-      // A falsy include is how "disabled" is expressed natively.
-      return { includes: [""], excludes: e };
-    }
-    if (!Array.isArray(i)) {
-      return undefined;
-    }
-    return { includes: i, excludes: e };
+    const selection: unknown = JSON.parse(param);
+    const canonical = serializeImageFilterParam(selection as AttributeSelection);
+    return canonical === undefined ? undefined : JSON.parse(canonical);
   } catch {
     return undefined;
   }
@@ -133,8 +39,8 @@ const RESOURCE_PROTOCOL = "/file:/";
  * Resolve a filtered image to a fetchable src WITHOUT the root's SVG source.
  *
  * Returns the on-demand filtered URL when the root is a service-worker-served
- * SVG and the filter actually does something; otherwise falls back to the
- * PLAIN root src (a no-op filter must still render the image, and a remote or
+ * SVG; otherwise falls back to the
+ * PLAIN root src (a remote or
  * raster root is unfilterable — degrading to the unfiltered image beats
  * rendering nothing). Returns `undefined` only when the root has no src at
  * all.
@@ -147,36 +53,37 @@ export const buildFilteredSrc = (
   if (!src || typeof src !== "string") {
     return undefined;
   }
-  const path = src.split("?")[0] ?? "";
-  const isSvg = rootImage?.ext === "svg" || path.toLowerCase().endsWith(".svg");
-  if (!isSvg || !src.startsWith(RESOURCE_PROTOCOL)) {
+  if (!src.startsWith(RESOURCE_PROTOCOL)) return src;
+  const url = new URL(src, "https://sparkdown.invalid");
+  const isSvg = rootImage?.ext === "svg" || url.pathname.toLowerCase().endsWith(".svg");
+  if (!isSvg) {
     return src;
   }
   const param = serializeImageFilterParam(filter);
-  if (!param) {
+  if (param === undefined) {
     return src;
   }
-  // Srcs are routinely stamped with `?v=<ts>` — a naive `?filters=` append
-  // would hide the param from URLSearchParams entirely (silently unfiltered).
-  const join = src.includes("?") ? "&" : "?";
-  return `${src}${join}filters=${encodeURIComponent(param)}`;
+  // An empty selection still hides inactive layers and applies folder defaults.
+  url.searchParams.delete("filters");
+  url.searchParams.set("attributes", param);
+  return url.pathname + url.search + url.hash;
 };
 
 /**
  * Cache key for a filtered SVG. Keyed by the file's STABLE signature
- * (path + lastModified + size), never the `?v=`-stamped request URL, plus the
- * RE-CANONICALIZED filter param and FILTER_VERSION — mirroring
- * `thumbnailCacheKey`'s discipline.
+ * (path + lastModified + size + normalized content digest), never the request
+ * URL's cache-buster, plus the canonical selection and visibility version.
  */
 export const filteredSvgCacheKey = (
   _path: string,
   lastModified: number,
   size: number,
   canonicalParam: string,
+  contentDigest = "",
 ) =>
-  `filters=${encodeURIComponent(
+  `attributes=${encodeURIComponent(
     canonicalParam,
-  )}&sig=${lastModified}-${size}&fv=${FILTER_VERSION}`;
+  )}&sig=${lastModified}-${size}&content=${contentDigest}&fv=${FILTER_VERSION}`;
 
 /** The subset of Cache Storage this needs, so callers can pass a fake. */
 export interface FilteredSvgCache {
@@ -202,6 +109,30 @@ export interface FilteredSvgFile extends Blob {
  * costs the work two or three times over (#344).
  */
 const inFlightGenerations = new Map<string, Promise<string>>();
+
+// Blob bytes are immutable. Reuse their read/hash only by object identity; two
+// files with identical timestamps and lengths may still contain different art.
+const sourceReads = new WeakMap<Blob, Promise<{ text: string; digest: string }>>();
+const readSource = async (file: FilteredSvgFile): Promise<{ text: string; digest: string }> => {
+  const pending = sourceReads.get(file);
+  if (pending) {
+    try { return await pending; } catch {
+      if (sourceReads.get(file) === pending) sourceReads.delete(file);
+      return readSource(file);
+    }
+  }
+  const read = (async () => {
+    const text = normalizeSVGAttributeNames(await file.text());
+    const hash = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
+    const digest = Array.from(new Uint8Array(hash), byte => byte.toString(16).padStart(2, "0")).join("");
+    return { text, digest };
+  })();
+  sourceReads.set(file, read);
+  try { return await read; } catch (error) {
+    if (sourceReads.get(file) === read) sourceReads.delete(file);
+    throw error;
+  }
+};
 
 /**
  * A fresh response per caller, over the shared filtered SOURCE.
@@ -243,9 +174,10 @@ const warnFilteredSvgCacheWriteFailed = (error: unknown) => {
 
 /**
  * Cached-or-freshly-filtered SVG response for one file, or `undefined` if the
- * param is garbage or a no-op (caller serves the unfiltered original).
+ * param is garbage or the source cannot be read/filtered (caller serves the
+ * unfiltered original). Cache lookup/write failures do not discard valid art.
  *
- * On a fresh generation, entries for the SAME path+filters at an OLDER file
+ * On a fresh generation, entries for the SAME path+attributes at an OLDER file
  * signature are pruned — variants accumulate per edit otherwise and nothing
  * else ever deletes them (the activate sweep deliberately keeps this bucket).
  *
@@ -253,7 +185,7 @@ const warnFilteredSvgCacheWriteFailed = (error: unknown) => {
  * its own `Response` over the shared source. Sharing is best-effort, never
  * load-bearing: a caller that arrives just outside the window, or whose shared
  * generation FAILED, falls back to generating for itself — so one transient
- * read/quota error can't turn into every concurrent caller serving unfiltered
+ * source-read error can't turn into every concurrent caller serving unfiltered
  * art.
  */
 export const getOrCreateFilteredSvg = async (
@@ -267,13 +199,15 @@ export const getOrCreateFilteredSvg = async (
   if (!filter) {
     return undefined;
   }
-  // Re-canonicalize so every URL spelling of the same filter shares one cache
-  // entry (and a no-op filter falls through to the unfiltered original).
+  // Re-canonicalize so every URL spelling of the same selection shares one
+  // cache entry, including the empty selection that applies resting defaults.
   const canonical = serializeImageFilterParam(filter);
   if (!canonical) {
     return undefined;
   }
-  const variantPrefix = `${keyPrefix}${path}?filters=${encodeURIComponent(
+  let source: { text: string; digest: string };
+  try { source = await readSource(file); } catch { return undefined; }
+  const variantPrefix = `${keyPrefix}${path}?attributes=${encodeURIComponent(
     canonical,
   )}&sig=`;
   const key = `${keyPrefix}${path}?${filteredSvgCacheKey(
@@ -281,6 +215,7 @@ export const getOrCreateFilteredSvg = async (
     file.lastModified,
     file.size,
     canonical,
+    source.digest,
   )}`;
   // Checked BEFORE the cache, and again after: `cache.match` is a yield point,
   // so a caller that started before the winner's `cache.put` can resume after
@@ -303,7 +238,13 @@ export const getOrCreateFilteredSvg = async (
         return shared;
       }
     }
-    const cached = await cache.match(key);
+    let cached: Response | undefined;
+    try {
+      cached = await cache.match(key);
+    } catch {
+      // Cache Storage is an optimization. An unavailable cache is a miss,
+      // never a reason to serve the original SVG with every layer visible.
+    }
     if (cached) {
       return cached;
     }
@@ -315,7 +256,7 @@ export const getOrCreateFilteredSvg = async (
       }
     }
     const generation = (async () => {
-      const filtered = filterSVG(await file.text(), filter);
+      const filtered = filterSVG(source.text, filter);
       // Memoisation is an optimisation, so failing it costs the cache hit and
       // nothing else. Letting the write reject here would reject the whole
       // generation, and `undefined` is this function's "could not filter"

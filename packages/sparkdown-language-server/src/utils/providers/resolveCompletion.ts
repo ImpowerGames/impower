@@ -18,45 +18,28 @@ export interface CompletionItemResolveData {
   type: string;
   name: string;
   /**
-   * Set on a `~filter` candidate, whose preview is not the filter struct
-   * itself but the asset command's image with a whole chain applied: the
-   * filters already written in the directive plus this candidate. The chain is
-   * carried here because nothing in the compiled program describes a candidate
-   * the author has not typed yet.
+   * Preview the directive's image with this candidate inserted at the cursor.
+   * Ordered attributes include those before and after the replaced token.
    */
-  filtered?: { image: string; filters: string[] };
+  filtered?: { image: string; attributes: string[] };
 }
 
 /**
- * Build the `filtered_image` a `~filter` candidate previews as, in a context
- * the compiled program never sees.
- *
- * The struct has to be registered under its own `$name`: `filterImage` reads a
- * filtered_image's filter list back out of the context by name, so an
- * unregistered struct filters to nothing and the preview shows the unfiltered
- * asset. Registering it in a shallow copy keeps a candidate the author may
- * never accept from being declared in the program — `populateImplicitDefs`
- * declares the real struct once the reference is actually typed.
- *
- * Filter names are sorted and not otherwise touched, which is exactly what
- * `populateImplicitDefs` does to build its key, so a combination already
- * written elsewhere in the project resolves to that struct and reuses its
- * computed `filtered_src` rather than recomputing it. De-duplicating here
- * would break that for a directive naming the same filter twice: the key
- * would no longer match, and the picture is the same either way because a
- * repeated filter contributes the same `includes` entries.
+ * Build a candidate in a private context so an unaccepted completion never
+ * becomes a declaration. Preserve order in the same canonical key as the
+ * compiler: a later attribute in one group overrides an earlier attribute.
  */
 const synthesizeFilteredImage = (
   context: { [type: string]: { [name: string]: any } } | undefined,
-  filtered: { image: string; filters: string[] },
+  filtered: { image: string; attributes: string[] },
 ):
   | { context: { [type: string]: { [name: string]: any } }; struct: any }
   | undefined => {
   if (!context || !filtered.image) {
     return undefined;
   }
-  const filters = [...filtered.filters].sort();
-  const name = [filtered.image, ...filters].join("~");
+  const attributes = [...filtered.attributes];
+  const name = [filtered.image, ...attributes].join("~");
   const existing = context["filtered_image"]?.[name];
   if (existing) {
     return { context, struct: existing };
@@ -65,10 +48,7 @@ const synthesizeFilteredImage = (
     $type: "filtered_image",
     $name: name,
     image: { $name: filtered.image },
-    filters: filters.map((filterName) => ({
-      $type: "filter",
-      $name: filterName,
-    })),
+    attributes,
   };
   return {
     context: {
