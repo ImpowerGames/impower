@@ -1379,7 +1379,9 @@ try {
       ["fix/3-dirty", "keep", "uncommitted changes (1 file)"],
       ["fix/4-fresh", "keep", "no commit was made on the branch: its tip is on origin/main's first-parent line and its reflog records none (no origin/fix/4-fresh); a fresh worktree a session may be working in"],
       ["fix/5-stacked", "keep", "no commit was made on the branch: its reflog holds its creation and no commit since (no origin/fix/5-stacked); a fresh worktree a session may be working in"],
-      ["fix/6-in-use", "keep", `its path is on the command line of pid ${inUse.pid} (node`],
+      // Up to the open paren: what follows is the process name the system
+      // reports, which is node.exe on Windows and MainThread on Linux.
+      ["fix/6-in-use", "keep", `its path is on the command line of pid ${inUse.pid} (`],
       ["fix/7-held", "remove", "merged into origin/main; no origin/fix/7-held"],
       ["fix/8-remote-ahead", "keep", "origin/fix/8-remote-ahead has 1 commit not on origin/main and this branch is behind it; a pull request may be open"],
       ...(WIN ? [["fix/9-deep", "remove", "merged into origin/main; no origin/fix/9-deep; takes 1 ignored path with it (.deep/)"]] : []),
@@ -1422,7 +1424,10 @@ try {
     assert.ok(fs.existsSync(wt("fix/11-no-reflog")), "the tree whose reflog expired is gone");
     const logged = readLogRows(fs.readFileSync(path.join(mainRoot, ".git", LOG_NAME), "utf8"));
     assert.equal(logged[0].run, `--apply --root ${mainRoot}`);
-    const removed = ["fix/1-merged-gone", "fix/12-ff-merged", "fix/14-base", ...(WIN ? ["fix/9-deep"] : [])].sort();
+    // The dry run classifies fix/7-held as remove on both platforms, and only
+    // Windows then refuses the rename while the holder has the directory open,
+    // so it survives --apply there and is removed here.
+    const removed = ["fix/1-merged-gone", "fix/12-ff-merged", "fix/14-base", ...(WIN ? ["fix/9-deep"] : ["fix/7-held"])].sort();
     assert.deepEqual(logged.filter((row) => row.decision === "removed").map((row) => row.branch).sort(), removed);
     assert.deepEqual(logged.filter((row) => row.decision === "removing").map((row) => row.branch).sort(), [...removed, ...(WIN ? ["fix/7-held"] : [])].sort(), "a removing row is missing or extra");
     for (const b of removed) assert.ok(logged.findIndex((row) => row.decision === "removing" && row.branch === b) < logged.findIndex((row) => row.decision === "removed" && row.branch === b), `the removing row for ${b} is not before its outcome`);

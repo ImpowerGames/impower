@@ -423,3 +423,9 @@ if (failures) {
   process.exit(1);
 }
 console.log("all passing");
+// Exit on the status this check computed, the way the failing branch above
+// does. The last scenario's `up` launches a real dev-server tree, and off
+// Windows `stop` cannot reach a process group `up` never led (#508), so a
+// handle on that tree outlives every assertion and would hold this process
+// open with nothing left to report.
+process.exit(0);

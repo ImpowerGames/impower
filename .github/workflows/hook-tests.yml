@@ -65,13 +65,13 @@ permissions:
 jobs:
   standalone-checks:
     runs-on: ubuntu-latest
-    # This job's own run on ubuntu-latest (run 34368038757, 2026-09-09) took
-    # 50s wall, with clean-worktrees.test.mjs dying 8s in on an unrelated
-    # assertion (#505) before it reaches its expensive scratch-git-repository
-    # world. That cost, and the true post-#505/#508 runner cost generally,
-    # has not yet run here. Revisit this bound once #505 and #508 land and
-    # that world runs on every PR; five minutes leaves headroom for a hang
-    # instead of relying on nothing timing out at all.
+    # clean-worktrees.test.mjs is the expensive one: it builds a scratch git
+    # repository with fifteen worktrees, 9s of a run here and 51s on a Windows
+    # laptop. Every other check is seconds or less, so the whole loop is well
+    # under a minute of work on this runner. Five minutes leaves headroom for
+    # a hang rather than relying on nothing timing out at all, and a check
+    # killed by it has its partial output in the log already, because run_one
+    # streams as the check prints.
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
