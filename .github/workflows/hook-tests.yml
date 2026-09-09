@@ -11,9 +11,14 @@ name: Hook Tests
 # ran from what the wider `git ls-files ':(glob).claude/**/*.test.*'` finds,
 # lists the difference, and fails the job on any entry of it that is not a
 # `.json`, `.snap`, `.md` or `.txt` data file — so a check with another
-# extension, or one directory level too shallow for the loops' `**`, is
-# named rather than passing unnoticed. A name without `.test.` in it is
-# invisible to all three pathspecs, so a check has to carry it.
+# extension is named rather than passing unnoticed. A name without `.test.`
+# in it is invisible to all three pathspecs, so a check has to carry it.
+#
+# All three pathspecs read the index, so a check git does not track is
+# invisible to every one of them. `.gitignore` excludes `.claude/*` and
+# re-includes named subdirectories, so a check under a new one — or directly
+# under `.claude/` — needs its own `!` line there before `git add` will stage
+# it and before this job can see it at all.
 #
 # This runner has no npm install, so seed-project.test.mjs's zip cases print
 # `SKIP: the zip cases need fflate, which the workspace install at the repo
@@ -86,12 +91,15 @@ jobs:
 
           # The number of runnable checks — the files the two pathspecs below
           # match — in the tree today. Raise it when a check is added, so the
-          # floor keeps failing a pathspec that stops matching rather than
-          # reporting a clean run that found nothing. `git ls-files` reads the
-          # index, which a broken sparse checkout does not change (an excluded
-          # entry stays in the index with skip-worktree set, so this floor does
-          # not catch that; a missing file surfaces instead as every check
-          # reporting FAILED: because bash/node can't find it on disk).
+          # floors keep failing a pathspec that stops matching rather than
+          # reporting a clean run that found nothing. Every listing below is
+          # held to it, the wider one included: that one lists each runnable
+          # check plus any fixture sitting beside it, so it can never be the
+          # smaller of the two. `git ls-files` reads the index, which a broken
+          # sparse checkout does not change (an excluded entry stays in the
+          # index with skip-worktree set, so these floors do not catch that; a
+          # missing file surfaces instead as every check reporting FAILED:
+          # because bash/node can't find it on disk).
           min_checks=13
 
           sh_checks=()
@@ -153,9 +161,9 @@ jobs:
           for t in "${sh_checks[@]}"; do run_one "$t" bash; done
           for t in "${mjs_checks[@]}"; do run_one "$t" node; done
 
-          # Anything the wider listing found that neither loop above ran —
-          # another extension, or one directory level too shallow for their
-          # pathspecs — is named instead of vanishing: `expected` no longer
+          # Anything the wider listing found that neither loop above ran — an
+          # extension the loops do not match, or a path their pathspecs miss —
+          # is named instead of vanishing: `expected` no longer
           # being trivially equal to `ran` by construction is the whole point
           # of deriving it independently. A file the job could never execute
           # anyway, a fixture or a snapshot beside its check, is listed and
@@ -216,6 +224,16 @@ jobs:
           fi
           if [ "${#ran_paths[@]}" -lt "$min_checks" ]; then
             echo "Only ${#ran_paths[@]} runnable checks were found (git ls-files '.claude/**/*.test.sh' and '.claude/**/*.test.mjs'), fewer than the $min_checks expected; the pathspec or the checkout step is broken."
+            status=1
+          fi
+          # The wider listing needs its own floor. It feeds only the display
+          # count and the unrunnable/data split, and every one of those reports
+          # nothing at all when it comes back empty, so without this a pathspec
+          # that stops matching — a typo, the `:(glob)` magic dropped while
+          # editing, GIT_LITERAL_PATHSPECS=1 in the environment — turns the
+          # policing this job exists for off and still exits green.
+          if [ "${#all_checks[@]}" -lt "$min_checks" ]; then
+            echo "Only ${#all_checks[@]} file(s) were found by git ls-files ':(glob).claude/**/*.test.*', fewer than the $min_checks expected; that pathspec or the checkout step is broken, and with it every guard that reads it."
             status=1
           fi
           if [ "${#unrunnable[@]}" -ne 0 ]; then
