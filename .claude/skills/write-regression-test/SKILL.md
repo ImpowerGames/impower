@@ -170,8 +170,10 @@ cd packages/sparkdown && NODE_OPTIONS="--max-old-space-size=4096" npx vitest run
 Exit code 0 does not mean green. Two OOM shapes both exit 0: `Error: Worker exited unexpectedly` with no pass count; or the log simply stops with no `Test Files` / `Tests` summary at all. Confirm the summary lines exist and the file count matches what you expected; a run can exit 0 having completed 13 of 156 files and look perfectly clean. To count:
 
 ```bash
-grep -c "✓ src/" testrun.log
+sed 's/\x1b\[[0-9;]*m//g' testrun.log | grep -aoE "src/tests/[A-Za-z0-9/._-]+\.test\.ts \(" | sort -u | wc -l
 ```
+
+Count by the path, not by the tick. Matching the `✓` glyph returns 0 in Git Bash here whatever the log holds, because the log is UTF-8 and the shell's locale is not; the run then reads as "completed no files at all", which is the same shape as the OOM this count exists to catch. Counting distinct file paths also survives a file reported more than once.
 
 Report the real numbers in the PR body. If a pre-existing failure is unrelated to your change, say so explicitly rather than quietly ignoring it; confirm it also fails on `origin/main`.
 
