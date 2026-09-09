@@ -12,6 +12,8 @@
 // Reads the body from the PR_BODY environment variable. Exit 0 when the body
 // passes, 1 when it does not; the reason is printed either way.
 
+import { pathToFileURL } from "node:url";
+
 const CLOSING =
   /\b(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?)\s*:?\s+(?:https:\/\/github\.com\/[\w.-]+\/[\w.-]+\/issues\/\d+|[\w.-]+\/[\w.-]+#\d+|#\d+)\b/i;
 const NO_ISSUE = /\bno linked issue\b/i;
@@ -34,7 +36,7 @@ export function checkLinkedIssue(body) {
   };
 }
 
-if (process.argv[1] && import.meta.url === `file://${process.argv[1]}`) {
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const result = checkLinkedIssue(process.env.PR_BODY);
   console.log(`${result.ok ? "PASS" : "FAIL"}: ${result.reason}`);
   process.exit(result.ok ? 0 : 1);

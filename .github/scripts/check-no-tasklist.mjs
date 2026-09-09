@@ -10,6 +10,8 @@
 // Reads the body from the PR_BODY environment variable. Exit 0 when the body
 // carries no task-list syntax, 1 when it does; the reason is printed either way.
 
+import { pathToFileURL } from "node:url";
+
 const TASKLIST = /^[ \t]*(?:[-+*]|\d+[.)])\s+\[[ xX]\]/m;
 
 export function findTaskList(body) {
@@ -20,7 +22,7 @@ export function findTaskList(body) {
   return match ? match[0] : null;
 }
 
-if (process.argv[1] && import.meta.url === `file://${process.argv[1]}`) {
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const found = findTaskList(process.env.PR_BODY);
   if (found) {
     console.log(
