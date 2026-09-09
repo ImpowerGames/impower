@@ -5,6 +5,7 @@ from pathlib import Path
 import tempfile
 import unittest
 import verify
+from unittest.mock import patch
 
 
 def sample(root):
@@ -44,6 +45,26 @@ def sample(root):
 
 
 class VerifyTests(unittest.TestCase):
+    def test_unhashed_participating_script_is_rejected_even_if_both_copies_match(self):
+        with tempfile.TemporaryDirectory() as directory:
+            source,project,config,audit = sample(Path(directory))
+            for root in (source,project): (root/'scripts/extra.sd').write_text('tampered prose')
+            with patch('migrate.evaluate', side_effect=AssertionError('must reject before evaluator')):
+                with self.assertRaisesRegex(ValueError,'script.*hash'):
+                    verify.verify_project(source,project,config)
+
+    def test_pinned_unchanged_script_detects_matching_source_and_output_tamper(self):
+        with tempfile.TemporaryDirectory() as directory:
+            source,project,config,audit = sample(Path(directory))
+            original = b'original prose'
+            for hashes in ('sourceHashes','outputHashes'):
+                audit[hashes]['scripts/extra.sd'] = hashlib.sha256(original).hexdigest()
+            (project/'portrait-migration-report.json').write_text(json.dumps(audit))
+            for root in (source,project): (root/'scripts/extra.sd').write_text('same tampered prose')
+            with patch('migrate.evaluate', side_effect=AssertionError('must reject before evaluator')):
+                with self.assertRaisesRegex(ValueError,'source hash mismatch: scripts/extra.sd'):
+                    verify.verify_project(source,project,config)
+
     def test_checks_actual_files_and_all_unused_portraits(self):
         with tempfile.TemporaryDirectory() as directory:
             source,project,config,audit = sample(Path(directory))

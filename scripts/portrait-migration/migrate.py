@@ -43,12 +43,46 @@ def xml_layers(root):
             yield from walk(child,f'{key}/{index}')
     return dict(walk(root,'root'))
 
+def child_layer_names(root, names, retained=None):
+    """Plain labels only: strip an exact nearest conditional ancestor prefix.
+
+    Referenced IDs and resource subtrees are untouched. Do not reinterpret
+    mismatched copied names, numeric suffixes, or punctuation as conditions.
+    """
+    resources = {'defs','clipPath','mask','pattern','symbol','linearGradient','radialGradient','filter','style','script','metadata'}
+    removable = removable_layer_ids(root,{n.get('id') for n in root.iter() if n.get('id')})
+    result = {}
+    def walk(node, nearest=None, resource=False):
+        resource = resource or node.tag.rsplit('}',1)[-1] in resources
+        ident = node.get('id')
+        if nearest and ident and ident not in names and retained is not None:
+            reason = ('resource subtree' if resource else 'referenced ID' if ident not in removable else
+                      'existing data-name' if node.get('data-name') is not None else None)
+            if reason: retained.append({'id':ident,'reason':reason})
+        if not resource and nearest and ident and ident not in names and ident in removable and node.get('data-name') is None:
+            prefix = nearest.removeprefix('filter-').removesuffix('-default')+'-'
+            label = ident[len(prefix):] if ident.startswith(prefix) else ident
+            # Plain label grammar; do not introduce selection syntax accidentally.
+            if re.fullmatch(r'[A-Za-z0-9]+(?:-[A-Za-z0-9]+)*',label): result[ident] = label
+            elif retained is not None: retained.append({'id':ident,'reason':'not a plain label; requires artist rename'})
+        if ident in names: nearest = ident
+        for child in node: walk(child,nearest,resource)
+    walk(root)
+    return result
+
+
+def participating_scripts(source):
+    return [p for p in sorted(source.rglob('*.sd'))
+            if not any(part.startswith('.') for part in p.relative_to(source).parts)]
+
+
 def rewrite_svg(source, names):
     """Change layer data-name and remove unreferenced legacy layer IDs only."""
     root = ET.fromstring(source)
     ids = [n.get('id') for n in root.iter() if n.get('id')]
     if len(set(ids)) != len(ids):
         raise ValueError('duplicate SVG ids')
+    names = {**names, **child_layer_names(root,names)}
     removable = removable_layer_ids(root,names)
     seen = set()
     def replace(match):
@@ -176,7 +210,7 @@ def migrate(source, output, config, extra_exceptions=None, heap_mb=256):
     if not svg_files:
         raise ValueError('No portrait SVGs under assets/')
     trees, inputs, indexes, outputs, hashes, notes = {}, {}, {}, {}, {}, []
-    id_cleanup = {'removedLayerIds':0,'preservedOtherIds':0,'preservedLayerIds':[]}
+    id_cleanup = {'removedLayerIds':0,'removedChildIds':0,'childLabels':[],'retainedChildIds':[],'preservedOtherIds':0,'preservedLayerIds':[]}
     for name, path in svg_files.items():
         tree = legacy.load_svg(path)
         legacy.convert_tree(tree, name.split('_')[0])
@@ -185,9 +219,14 @@ def migrate(source, output, config, extra_exceptions=None, heap_mb=256):
         relative, original = path.relative_to(source).as_posix(), path.read_bytes()
         if names:
             xml = ET.fromstring(original)
+            retained = []
+            children = child_layer_names(xml,names,retained)
+            id_cleanup['retainedChildIds'].extend({'file':relative,**entry} for entry in retained)
+            id_cleanup['removedChildIds'] += len(children)
+            id_cleanup['childLabels'].extend({'file':relative,'id':ident,'name':label} for ident,label in children.items())
             removable = removable_layer_ids(xml,names)
             id_cleanup['removedLayerIds'] += len(removable)
-            id_cleanup['preservedOtherIds'] += sum(bool(n.get('id')) and n.get('id') not in names for n in xml.iter())
+            id_cleanup['preservedOtherIds'] += sum(bool(n.get('id')) and n.get('id') not in names and n.get('id') not in children for n in xml.iter())
             id_cleanup['preservedLayerIds'].extend({'file':relative,'id':id_} for id_ in sorted(set(names)-removable))
         outputs[relative] = rewrite_svg(original.decode('utf-8-sig'), names).encode('utf-8')
         hashes[relative] = sha(original)
@@ -210,7 +249,7 @@ def migrate(source, output, config, extra_exceptions=None, heap_mb=256):
             if any(base.startswith(p) for p in config['portrait_prefixes']) and chain(base)[0] not in trees:
                 return token
         return None
-    for path in sorted(source.rglob('*.sd')):
+    for path in participating_scripts(source):
         relative = path.relative_to(source).as_posix()
         if path == portrait_path or any(p.startswith('.') for p in path.relative_to(source).parts):
             continue
@@ -278,9 +317,8 @@ def migrate(source, output, config, extra_exceptions=None, heap_mb=256):
             missing = missing_token(match[1])
             return '[['+match[1].replace(missing,unresolved[missing]['converted'],1)+']]' if missing else match[0]
         converted = DIRECTIVE.sub(replace,text)
-        if converted != text:
-            outputs[relative] = converted.encode('utf-8')
-            hashes[relative] = sha((source/relative).read_bytes())
+        outputs[relative] = converted.encode('utf-8') if converted != text else (source/relative).read_bytes()
+        hashes[relative] = sha((source/relative).read_bytes())
     # Assert the attributes actually written to named-look definitions compose correctly.
     actual_requests = [{'tree':e['root'],'attributes':
                        (chosen[e['base']]['baseAttributes'] if e['base'] in legacy.COMPOSITES else [])+e['attributes']}

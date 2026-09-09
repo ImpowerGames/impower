@@ -5,6 +5,7 @@ from pathlib import Path
 import tempfile
 import migrate
 import legacy
+import snapshot
 
 
 class MigrationTests(unittest.TestCase):
@@ -26,7 +27,41 @@ class MigrationTests(unittest.TestCase):
     def test_drawing_bytes_change_only_at_layer_id_and_name_attributes(self):
         source = '<svg id="art" xmlns:serif="http://www.serif.com/"><g  id = \'filter-hat\' data-name="old" serif:id="artist label" style="fill:#00ffaa"><path id="shape" d="M 0,0 L 4,5"/></g></svg>'
         result = migrate.rewrite_svg(source,{'filter-hat':'hat.on'})
-        self.assertEqual(result,source.replace("  id = 'filter-hat'",'').replace('data-name="old"','data-name="hat.on"'))
+        self.assertEqual(result,source.replace("  id = 'filter-hat'",'').replace('data-name="old"','data-name="hat.on"').replace('id="shape"','data-name="shape"'))
+
+    def test_plain_child_labels_drop_only_exact_nearest_prefix(self):
+        source = '<svg><g id="filter-masked-realization-eyes-open"><path id="masked-realization-eyes-open-darkness" d="M0 0"/><path id="other-face-outline"/></g></svg>'
+        result = migrate.rewrite_svg(source, {'filter-masked-realization-eyes-open':'mask.on:face.realization:eyes.open'})
+        self.assertIn('<path data-name="darkness" d="M0 0"/>',result)
+        self.assertIn('<path data-name="other-face-outline"/>',result)
+        self.assertNotIn(' id=',result)
+
+    def test_plain_child_resources_and_references_stay_untouched(self):
+        source = '<svg><g id="filter-face-happy-default"><defs><path id="face-happy-resource"/></defs><path id="face-happy-used"/><use href="#face-happy-used"/><path id="face-happy-outline"/></g></svg>'
+        result = migrate.rewrite_svg(source, {'filter-face-happy-default':'face.happy:default'})
+        self.assertIn('<path id="face-happy-resource"/>',result)
+        self.assertIn('<path id="face-happy-used"/>',result)
+        self.assertIn('<path data-name="outline"/>',result)
+
+    def test_plain_child_labels_do_not_enter_conditional_snapshot(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source,output = root/'source',root/'output'
+            for folder in (source,output): (folder/'assets').mkdir(parents=True)
+            (source/'assets/mia.svg').write_text('<svg><g id="filter-face-happy"><path id="face-happy-outline"/></g></svg>')
+            (output/'assets/mia.svg').write_text('<svg><g data-name="face.happy"><path data-name="outline"/></g></svg>')
+            report = {'sourceCommit':None,'sourceHashes':{},'directives':{'mia':{'root':'mia','base':'mia','baseAttributes':[],'attributes':[],'old':[]}}}
+            result = snapshot.snapshot(output,report,source)
+            self.assertEqual([layer.get('id') for layer in result['trees']['mia']],[None,'filter-face-happy'])
+
+    def test_child_label_grammar_cannot_invent_conditions_or_invalid_names(self):
+        source = '<svg><g id="filter-face-happy"><path id="face-happy-outline-2"/><path id="face-happy-2"/><path id="face-happy-outline--2"/><path id="face-happy-outline-"/><path id="face-happy-eyes.closed"/></g></svg>'
+        result = migrate.rewrite_svg(source,{'filter-face-happy':'face.happy'})
+        self.assertIn('data-name="outline-2"',result)
+        self.assertIn('data-name="2"',result)
+        for name in ('face-happy-outline--2','face-happy-outline-','face-happy-eyes.closed'):
+            self.assertIn(f'id="{name}"',result)
+            self.assertNotIn(f'data-name="{name}"',result)
 
     def test_existing_data_name_is_replaced_once(self):
         source = '<svg><g data-name="old" id="filter-eyes"/></svg>'
@@ -69,12 +104,15 @@ class MigrationTests(unittest.TestCase):
             (source/'scripts').mkdir()
             main = '[[mia~face_happy]]\n[[mia_party]]\n[[mia_missing~face_happy]]\n'
             (source/'main.sd').write_text(main)
+            (source/'scripts/unchanged.sd').write_bytes(b'unchanged prose\r\n')
             (source/'assets/mia.svg').write_text('<svg><g id="filter-face-neutral-default"/><g id="filter-face-happy"/></svg>')
             (source/'scripts/portraits.sd').write_text('define face_happy as filter with\n includes = { "face-happy" }\n excludes = { "face-(?!happy)" }\nend\ndefine mia_party as filtered_image with\n image = mia\n filters = { face_happy }\nend\n')
             config = json.loads((Path(__file__).parent/'raffles-and-bunny.json').read_text())
             config.update(clothes_filters={},phone_filters={},historical_exceptions={},portrait_prefixes=['mia_'])
             report = migrate.migrate(source,output,config)
             self.assertEqual(report['failures'],[])
+            self.assertEqual(report['sourceHashes']['scripts/unchanged.sd'],migrate.sha(b'unchanged prose\r\n'))
+            self.assertEqual(report['outputHashes']['scripts/unchanged.sd'],report['sourceHashes']['scripts/unchanged.sd'])
             self.assertEqual((source/'main.sd').read_text(),main)
             self.assertEqual((output/'main.sd').read_text(),'[[mia:happy]]\n[[mia_party]]\n[[mia_missing:face.happy]]\n')
             self.assertEqual(report['missingImageDirectives']['mia_missing~face_happy']['uses'],1)

@@ -1,5 +1,6 @@
 """Capture reproducible attribute metadata and old layer sets, never drawing data."""
 import argparse
+import legacy
 import json
 from pathlib import Path
 import xml.etree.ElementTree as ET
@@ -14,11 +15,11 @@ def snapshot(project, report, source):
             children = list(node)
             # Only scopes leading to a conditional group are needed; paint
             # geometry and unrelated SVG metadata never enter the fixture.
-            tagged = node.get('data-name') is not None
-            descendants = any(n.get('data-name') is not None for n in node.iter())
+            tagged = bool(legacy.IS_FILTERABLE.search(before.get('id','')))
+            descendants = any(legacy.IS_FILTERABLE.search(n.get('id','')) for n in before.iter())
             if not descendants:
                 return
-            layers.append({'key':key,'name':node.get('data-name',''),
+            layers.append({'key':key,'name':node.get('data-name','') if tagged else '',
                            **({'parent':parent} if parent else {}),
                            **({'id':before.get('id')} if tagged else {})})
             for index,child in enumerate(children):

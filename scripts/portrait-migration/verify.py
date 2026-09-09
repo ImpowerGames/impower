@@ -67,6 +67,10 @@ def verify_project(source, project, config, extra_exceptions=None):
     source,project = Path(source).resolve(),Path(project).resolve()
     audit = json.loads(checked_file(project,'portrait-migration-report.json').read_text())
     if audit.get('failures'): raise ValueError('Migration report contains unresolved failures')
+    scripts = {p.relative_to(source).as_posix() for p in migrate.participating_scripts(source)}
+    for label in ('sourceHashes','outputHashes'):
+        missing = scripts-set(audit[label])
+        if missing: raise ValueError(f'Participating script omitted from {label} hash coverage: {sorted(missing)}')
     check_hashes(source,audit['sourceHashes'],'source')
     check_hashes(project,audit['outputHashes'],'output')
     if audit.get('sourceCommit'):

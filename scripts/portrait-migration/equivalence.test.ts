@@ -15,7 +15,8 @@ const exceptions = { ...historical, ...json("./raffles-and-bunny-8d734bb-excepti
 const vocabularies = Object.fromEntries(Object.entries(fixture.trees).map(([name, layers]) => [name, buildAttributeVocabulary(layers)]));
 
 test("real project corpus is pinned to its source revision", () => {
-  assert.equal(fixture.sourceCommit, "8d734bb03e6a011096c2ec6c533909ac0c201926");
+  // Coverage-prompt changes advanced HEAD; all measured project hashes match 8d734bb.
+  assert.equal(fixture.sourceCommit, "46e336a577ac42e55eb39b917ad2ad5abad84b94");
   assert.equal(fixture.cases.length, 478);
   assert.equal(Object.keys(historical).length, 27);
   assert.equal(fixture.cases.filter((entry) => exceptions[entry.directive]).length, 29);

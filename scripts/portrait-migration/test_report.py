@@ -2,6 +2,17 @@ import unittest
 import report
 
 class ReportTests(unittest.TestCase):
+    def test_same_named_folders_at_distinct_paths_are_reported_separately(self):
+        warning = {'code':'missing-folder-default','message':'Choose eyes or mark a default.',
+                   'folder':'eyes','group':'eyes','path':'/0/2'}
+        text = report.directive_diagnostics({'directives':{
+            'bunny':{'converted':'bunny','uses':1,'diagnostics':[
+                warning,dict(warning),dict(warning,path='/0/3')]},
+        }})
+        self.assertIn('2 diagnostics across 1 directives and 1 uses',text)
+        self.assertIn('path: `/0/2`',text)
+        self.assertIn('path: `/0/3`',text)
+
     def test_directive_diagnostics_include_converted_spelling_count_and_scope_once(self):
         warning = {'code':'missing-folder-option','message':'No down pupils here.','folder':'face.pout','attribute':'look.down'}
         text = report.directive_diagnostics({'directives':{
