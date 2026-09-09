@@ -28,7 +28,7 @@ Type:
 
 ## Testing and verification
 
-<!-- How you know it works. List tests added or changed with their paths, and the commands run with their results. For a bug fix, confirm the new test fails without the fix. For anything visible, attach before and after screenshots of the running editor, extension, or player. For performance, give before and after numbers and how they were measured. For tooling or configuration, say what you ran to prove the change does what it claims. -->
+<!-- How you know it works. List tests added or changed with their paths, and the commands run with their results. For a bug fix, confirm the new test fails without the fix. For anything visible, attach before and after screenshots of the running editor, extension, or player; the command line cannot attach an image here, so describe what each frame shows and attach the files through the web form if a person wants them. For performance, give before and after numbers and how they were measured. For tooling or configuration, say what you ran to prove the change does what it claims. -->
 
 ## Checklist
 

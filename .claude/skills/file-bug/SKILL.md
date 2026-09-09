@@ -33,7 +33,7 @@ Rename this session as soon as you know what the report is about. The session li
 FILE bug: preview goes black after the first scrub
 ```
 
-Write the summary yourself, five to ten plain words for the behaviour you are about to reproduce. Section 6 renames it again once the ticket has a number.
+Write the summary yourself, five to ten plain words for the behaviour you are about to reproduce. Section 6 renames it again once the ticket has a number. When you are filing from another skill's session, leave that session's title alone and put the new number in your report instead.
 
 The app swaps a title it generated itself without asking. If the user named the session, it asks them first, and it declines outright in an unattended session where nobody can answer. A decline costs nothing — carry on.
 

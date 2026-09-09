@@ -1233,6 +1233,36 @@ await check("verify on a game that never mounted skips the program wait and says
   });
 });
 
+await check("the elsewhere scrubWarning opens on the target line and sends the reader to the screenshot; the inconclusive one still reads as neither success nor failure", async () => {
+  // The one string in a verify report a reader acts on directly. SKILL.md
+  // says to open the PNG before concluding an `elsewhere` scrub failed, so
+  // wording that states the failure without that hedge, or that never names
+  // the line asked for, contradicts the doc it is read beside.
+  const script = ["ALICE:", "  Line one of the scrub repro.", "", "BOB:", "  Line two of the scrub repro."];
+  const renderedText = (name, body) => `${name}\n${name}\n${body}\n${body}\n▼`;
+  const scrubDeps = (page, text) =>
+    commandDeps(page, {
+      clickLine: async () => ({ clicked: true, cursorLine: 5 }),
+      documentLines: async () => script,
+      waitForPreviewSettle: async () => ({ settled: true, text }),
+    }).deps;
+  await withStub({}, async ({ page }) => {
+    // Line 2's text is on screen, line 5's is not.
+    const result = await verify(["--sd", repro, "--line", "5"], scrubDeps(page, renderedText("ALICE", "Line one of the scrub repro.")));
+    assert.equal(result.scrubCheck.outcome, "elsewhere");
+    assert.match(result.scrubWarning, /^The scrub to line 5 is not confirmed by the rendered text: the game is showing line 2, not line 5\./);
+    assert.match(result.scrubWarning, /Usually a genuinely failed scrub, but open the screenshot first/);
+    assert.match(result.scrubWarning, /The click put the cursor on line 5\./);
+  });
+  await withStub({}, async ({ page }) => {
+    // Nothing on screen is attributable to any line of the script.
+    const result = await verify(["--sd", repro, "--line", "5"], scrubDeps(page, renderedText("NARRATOR", "Something else entirely.")));
+    assert.equal(result.scrubCheck.outcome, "inconclusive");
+    assert.match(result.scrubWarning, /^Could not confirm the scrub landed:/);
+    assert.match(result.scrubWarning, /read `visible` and judge it yourself/);
+  });
+});
+
 await check("a plain verify on a marked project stops with the reason and exit 1; a --project run seeds it again", async () => {
   await withStub({}, async ({ page }) => {
     await previousProject(page, { "main.sd": "half" });
