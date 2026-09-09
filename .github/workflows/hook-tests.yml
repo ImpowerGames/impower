@@ -6,12 +6,15 @@ name: Hook Tests
 # under `.claude/skills/` that pin a driver, a cleanup script, or a skill's
 # own prose. Bare `node` and `bash`, no `npm install` — the checks are
 # written to run that way; `write-regression-test/SKILL.md` documents the
-# same loop for a session running it by hand. A check file those two
-# pathspecs cannot see (another extension, or one directory level too
-# shallow for their `**`) is not silently skipped: the step also lists every
-# check the wider `git ls-files ':(glob).claude/**/*.test.*'` finds and
-# fails the job, naming the file, if that wider list has an entry the two
-# loops did not run.
+# same loop for a session running it by hand. The job runs a file when its
+# name carries `.test.` and ends in `.sh` or `.mjs`; the step subtracts what
+# the loops ran from what the wider `git ls-files
+# ':(glob).claude/**/*.test.*'` finds, lists the difference, and fails the
+# job on any entry of it that is not a `.json`, `.snap`, `.md` or `.txt`
+# data file — so a check with another extension, or one directory level too
+# shallow for the loops' `**`, is named rather than passing unnoticed. A
+# name without `.test.` in it is invisible to all three pathspecs, so a
+# check has to carry it.
 #
 # This runner has no npm install, so seed-project.test.mjs's zip cases print
 # `SKIP: the zip cases need fflate, which the workspace install at the repo
@@ -81,16 +84,14 @@ jobs:
         shell: bash
         run: |
           set +e
-          log="checks.log"
-          : > "$log"
 
-          # The number of checks .claude/**/*.test.* lists today. Raise this
-          # when a check is added, so the floor keeps failing an accidental
-          # zero-match (a renamed pathspec) rather than reporting a clean run
-          # that found nothing. `git ls-files` reads the index, which a
-          # broken sparse checkout does not change (an excluded entry stays
-          # in the index with skip-worktree set, so this floor does not
-          # catch that; a missing file surfaces instead as every check
+          # The number of runnable checks — the files the two pathspecs below
+          # match — in the tree today. Raise it when a check is added, so the
+          # floor keeps failing a pathspec that stops matching rather than
+          # reporting a clean run that found nothing. `git ls-files` reads the
+          # index, which a broken sparse checkout does not change (an excluded
+          # entry stays in the index with skip-worktree set, so this floor does
+          # not catch that; a missing file surfaces instead as every check
           # reporting FAILED: because bash/node can't find it on disk).
           min_checks=13
 
@@ -102,44 +103,48 @@ jobs:
           while IFS= read -r -d '' t; do mjs_checks+=("$t"); done \
             < <(git ls-files -z '.claude/**/*.test.mjs')
 
-          # An independent, wider listing of every check-shaped file under
-          # .claude/, used only to police the two loops above — never to run
-          # anything itself. Plain `.claude/**/*.test.sh` needs a literal `/`
-          # after the `**` segment, so it can't see a check placed directly
-          # under `.claude/`; the `:(glob)` pathspec magic below matches that
-          # depth too, and matches any extension, not just .sh/.mjs.
+          # An independent, wider listing of every file under .claude/ whose
+          # name carries `.test.`, used only to police the two loops above —
+          # never to run anything itself. Plain `.claude/**/*.test.sh` needs a
+          # literal `/` after the `**` segment, so it can't see a file placed
+          # directly under `.claude/`; the `:(glob)` pathspec magic below
+          # matches that depth too, and matches any extension, not just
+          # .sh/.mjs.
           all_checks=()
           while IFS= read -r -d '' t; do all_checks+=("$t"); done \
             < <(git ls-files -z ':(glob).claude/**/*.test.*')
 
           expected=${#all_checks[@]}
           ran=0
-          failed=0
           failed_checks=()
           skipped_lines=()
+          # A temporary file rather than a name in the checkout, so the job
+          # leaves the working tree as it found it.
+          out="$(mktemp)"
 
           run_one() {
-            local t="$1" runner="$2" out="check.out"
-            echo "--- $t" | tee -a "$log"
-            "$runner" "$t" > "$out" 2>&1
-            local rc=$?
-            cat "$out" | tee -a "$log"
-            # A check's last write with no trailing newline would otherwise
-            # glue onto whatever the loop appends to the shared log next,
-            # hiding a SKIP: line the grep below is looking for. Guarantee a
-            # newline boundary between every check's output, unconditionally.
-            printf '\n' >> "$log"
+            local t="$1" runner="$2" line
+            echo "--- $t"
+            # Stream and capture in one go: every line reaches the Actions log
+            # as the check prints it, so a check killed by the job's timeout
+            # still shows how far it got, and "$out" holds the same output for
+            # the SKIP: scan below — per check, so one check's content can't
+            # corrupt another's skip lines.
+            "$runner" "$t" 2>&1 | tee "$out"
+            local rc=${PIPESTATUS[0]}
+            # A check whose last write has no trailing newline would otherwise
+            # glue the next check's `--- <path>` header onto its own last line.
+            # Close every check's output with a newline of the job's own.
+            printf '\n'
             ran=$((ran + 1))
             if [ "$rc" -ne 0 ]; then
-              failed=$((failed + 1))
               failed_checks+=("$t")
             fi
             # SKIP: is data a check chooses to print, not something derivable
-            # from its exit status, so this still has to read the check's own
-            # output — but from "$out" alone, per check, never from the
-            # shared, multi-check log, so one check's content can't corrupt
-            # another's skip lines.
-            while IFS= read -r line; do
+            # from its exit status, so this reads the check's own output. The
+            # `|| [ -n "$line" ]` keeps a last line with no trailing newline,
+            # which `read` reports as end of input.
+            while IFS= read -r line || [ -n "$line" ]; do
               case "$line" in
                 'SKIP: '*) skipped_lines+=("$line") ;;
               esac
@@ -149,13 +154,17 @@ jobs:
           for t in "${sh_checks[@]}"; do run_one "$t" bash; done
           for t in "${mjs_checks[@]}"; do run_one "$t" node; done
 
-          # Anything the wider listing found that neither loop above actually
-          # ran — another extension, or one directory level too shallow for
-          # their pathspecs — fails the job by name instead of vanishing:
-          # `expected` no longer being trivially equal to `ran` by
-          # construction is the whole point of deriving it independently.
+          # Anything the wider listing found that neither loop above ran —
+          # another extension, or one directory level too shallow for their
+          # pathspecs — is named instead of vanishing: `expected` no longer
+          # being trivially equal to `ran` by construction is the whole point
+          # of deriving it independently. A file the job could never execute
+          # anyway, a fixture or a snapshot beside its check, is listed and
+          # left alone; anything else could be a check nobody runs, so it
+          # fails the job.
           ran_paths=("${sh_checks[@]}" "${mjs_checks[@]}")
-          uncovered=()
+          unrunnable=()
+          data_files=()
           for t in "${all_checks[@]}"; do
             covered=0
             for r in "${ran_paths[@]}"; do
@@ -164,13 +173,18 @@ jobs:
                 break
               fi
             done
-            [ "$covered" -eq 0 ] && uncovered+=("$t")
+            [ "$covered" -eq 1 ] && continue
+            case "$t" in
+              *.json|*.snap|*.md|*.txt) data_files+=("$t") ;;
+              *) unrunnable+=("$t") ;;
+            esac
           done
+          not_run=("${unrunnable[@]}" "${data_files[@]}")
 
           {
             echo "## Standalone \`.claude\` checks"
             echo
-            echo "Ran $ran of $expected checks (\`git ls-files ':(glob).claude/**/*.test.*'\`)."
+            echo "Ran $ran of the $expected files \`git ls-files ':(glob).claude/**/*.test.*'\` lists."
             echo
             if [ "${#skipped_lines[@]}" -gt 0 ]; then
               echo "### Skipped on this runner"
@@ -185,11 +199,13 @@ jobs:
               echo
               printf -- '- FAILED: %s\n' "${failed_checks[@]}"
             fi
-            if [ "${#uncovered[@]}" -gt 0 ]; then
+            if [ "${#not_run[@]}" -gt 0 ]; then
               echo
               echo "### Not run"
               echo
-              printf -- '- %s (matched by the wider `.claude/**/*.test.*` listing, but not by `.claude/**/*.test.sh` or `.claude/**/*.test.mjs`)\n' "${uncovered[@]}"
+              printf -- '- %s\n' "${not_run[@]}"
+              echo
+              echo "This job runs a file whose name carries \`.test.\` when it ends in \`.sh\` or \`.mjs\` and sits at least one directory below \`.claude/\`. A \`.json\`, \`.snap\`, \`.md\` or \`.txt\` file is listed here and nothing more; any other entry fails the job, because it could be a check nobody runs — rename it so a loop above matches it."
             fi
           } >> "$GITHUB_STEP_SUMMARY"
 
@@ -199,13 +215,14 @@ jobs:
             printf '%s\n' "${failed_checks[@]}"
             status=1
           fi
-          if [ "$expected" -lt "$min_checks" ]; then
-            echo "Only $expected checks were found (git ls-files ':(glob).claude/**/*.test.*'), fewer than the $min_checks expected; the pathspec or checkout step is broken."
+          if [ "${#ran_paths[@]}" -lt "$min_checks" ]; then
+            echo "Only ${#ran_paths[@]} runnable checks were found (git ls-files '.claude/**/*.test.sh' and '.claude/**/*.test.mjs'), fewer than the $min_checks expected; the pathspec or the checkout step is broken."
             status=1
           fi
-          if [ "${#uncovered[@]}" -ne 0 ]; then
-            echo "${#uncovered[@]} check(s) matched by the wider listing never ran:"
-            printf '%s\n' "${uncovered[@]}"
+          if [ "${#unrunnable[@]}" -ne 0 ]; then
+            echo "${#unrunnable[@]} file(s) whose name carries .test. this job cannot run:"
+            printf '%s\n' "${unrunnable[@]}"
+            echo "A check runs when its name ends in .sh or .mjs and it sits at least one directory below .claude/. Rename it so one of the two loops matches it."
             status=1
           fi
           exit $status
