@@ -1,9 +1,9 @@
 /** On-demand SVG variants keyed by a canonical attribute selection and file signature. */
-import type { AttributeSelection } from "../attributes";
+import { normalizeSVGAttributeNames, type AttributeSelection } from "../attributes";
 import { filterSVG } from "../compiler/utils/filterSVG";
 
 /** Increment whenever visibility semantics change. */
-export const FILTER_VERSION = 2;
+export const FILTER_VERSION = 3;
 export type ImageFilter = AttributeSelection;
 
 const ATTRIBUTE_WORD = /^[a-zA-Z0-9]+(?:-[a-zA-Z0-9]+)*$/;
@@ -71,19 +71,19 @@ export const buildFilteredSrc = (
 
 /**
  * Cache key for a filtered SVG. Keyed by the file's STABLE signature
- * (path + lastModified + size), never the `?v=`-stamped request URL, plus the
- * RE-CANONICALIZED filter param and FILTER_VERSION — mirroring
- * `thumbnailCacheKey`'s discipline.
+ * (path + lastModified + size + normalized content digest), never the request
+ * URL's cache-buster, plus the canonical selection and visibility version.
  */
 export const filteredSvgCacheKey = (
   _path: string,
   lastModified: number,
   size: number,
   canonicalParam: string,
+  contentDigest = "",
 ) =>
   `attributes=${encodeURIComponent(
     canonicalParam,
-  )}&sig=${lastModified}-${size}&fv=${FILTER_VERSION}`;
+  )}&sig=${lastModified}-${size}&content=${contentDigest}&fv=${FILTER_VERSION}`;
 
 /** The subset of Cache Storage this needs, so callers can pass a fake. */
 export interface FilteredSvgCache {
@@ -109,6 +109,30 @@ export interface FilteredSvgFile extends Blob {
  * costs the work two or three times over (#344).
  */
 const inFlightGenerations = new Map<string, Promise<string>>();
+
+// Blob bytes are immutable. Reuse their read/hash only by object identity; two
+// files with identical timestamps and lengths may still contain different art.
+const sourceReads = new WeakMap<Blob, Promise<{ text: string; digest: string }>>();
+const readSource = async (file: FilteredSvgFile): Promise<{ text: string; digest: string }> => {
+  const pending = sourceReads.get(file);
+  if (pending) {
+    try { return await pending; } catch {
+      if (sourceReads.get(file) === pending) sourceReads.delete(file);
+      return readSource(file);
+    }
+  }
+  const read = (async () => {
+    const text = normalizeSVGAttributeNames(await file.text());
+    const hash = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
+    const digest = Array.from(new Uint8Array(hash), byte => byte.toString(16).padStart(2, "0")).join("");
+    return { text, digest };
+  })();
+  sourceReads.set(file, read);
+  try { return await read; } catch (error) {
+    if (sourceReads.get(file) === read) sourceReads.delete(file);
+    throw error;
+  }
+};
 
 /**
  * A fresh response per caller, over the shared filtered SOURCE.
@@ -181,6 +205,8 @@ export const getOrCreateFilteredSvg = async (
   if (!canonical) {
     return undefined;
   }
+  let source: { text: string; digest: string };
+  try { source = await readSource(file); } catch { return undefined; }
   const variantPrefix = `${keyPrefix}${path}?attributes=${encodeURIComponent(
     canonical,
   )}&sig=`;
@@ -189,6 +215,7 @@ export const getOrCreateFilteredSvg = async (
     file.lastModified,
     file.size,
     canonical,
+    source.digest,
   )}`;
   // Checked BEFORE the cache, and again after: `cache.match` is a yield point,
   // so a caller that started before the winner's `cache.put` can resume after
@@ -229,7 +256,7 @@ export const getOrCreateFilteredSvg = async (
       }
     }
     const generation = (async () => {
-      const filtered = filterSVG(await file.text(), filter);
+      const filtered = filterSVG(source.text, filter);
       // Memoisation is an optimisation, so failing it costs the cache hit and
       // nothing else. Letting the write reject here would reject the whole
       // generation, and `undefined` is this function's "could not filter"

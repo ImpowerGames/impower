@@ -1,3 +1,4 @@
+import { normalizeSVGAttributeNames } from "../../sparkdown/src/attributes/normalizeSVGAttributeNames.ts";
 import fs from "fs";
 import path from "path";
 import {
@@ -21,10 +22,10 @@ const inputPaths = path.extname(outputPath)
   : fs.readdirSync(inputPath).map((file) => path.join(inputPath, file));
 
 for (const inputFilepath of inputPaths) {
-  if (inputFilepath.endsWith(".svg")) {
+  if (inputFilepath.toLowerCase().endsWith(".svg")) {
     const inputSVG = fs.readFileSync(inputFilepath, { encoding: "utf-8" });
     const strippedInputSVG = stripClipPathsFromSVG(
-      stripInvisibleRectsFromSVG(inputSVG),
+      stripInvisibleRectsFromSVG(normalizeSVGAttributeNames(inputSVG)),
     );
     const outputSVG = optimizeSVG(strippedInputSVG, {
       plugins: [

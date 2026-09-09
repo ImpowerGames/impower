@@ -12,7 +12,7 @@ export class ImageVocabularyCache {
   private entries = new Map<string, { signature: string; vocabulary: AttributeVocabulary }>();
 
   prepare(file: File): File {
-    if (file.type !== "image" || file.ext !== "svg" || file.text == null) return file;
+    if (file.type !== "image" || file.ext.toLowerCase() !== "svg" || file.text == null) return file;
     const text = normalizeSVGAttributeNames(file.text);
     // Hosts normally supply mtime as version. The content hash also protects
     // callers without one and edits whose filesystem timestamp is unchanged.
@@ -25,6 +25,11 @@ export class ImageVocabularyCache {
       this.entries.set(file.uri, entry);
     }
     const prepared: File = { ...file, data: buildSVGSource(text), attribute_vocabulary: entry.vocabulary };
+    if (prepared.src?.startsWith("/file:/")) {
+      const url = new URL(prepared.src, "https://sparkdown.invalid");
+      url.searchParams.set("content", String(hash >>> 0));
+      prepared.src = url.pathname + url.search + url.hash;
+    }
     delete prepared.text;
     return prepared;
   }

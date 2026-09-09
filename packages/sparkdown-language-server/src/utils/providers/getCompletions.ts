@@ -1,4 +1,5 @@
 import GRAMMAR_DEFINITION from "@impower/sparkdown/language/sparkdown.language-grammar.json";
+import { resolveAttributes, type AttributeVocabulary } from "@impower/sparkdown/src/attributes";
 import { SparkdownAnnotations } from "@impower/sparkdown/src/compiler/classes/SparkdownCombinedAnnotator";
 import { type DeclarationType } from "@impower/sparkdown/src/compiler/classes/annotators/DeclarationAnnotator";
 import { SparkdownDocument } from "@impower/sparkdown/src/compiler/classes/SparkdownDocument";
@@ -127,6 +128,20 @@ const isWhitespaceNode = (name?: SparkdownNodeName) =>
   name === "OptionalWhitespace" ||
   name === "ExtraWhitespace" ||
   name === "Whitespace";
+
+const attributeCompletionNames = (vocabulary: AttributeVocabulary): string[] => {
+  const names = new Set<string>();
+  for (const [group, info] of Object.entries(vocabulary.groups)) {
+    if (info.switch) names.add(group);
+    for (const option of info.options) {
+      names.add(`${group}.${option}`);
+      if (!info.switch && !resolveAttributes(vocabulary, [option]).diagnostics.some(
+        (diagnostic) => diagnostic.code === "ambiguous-attribute",
+      )) names.add(option);
+    }
+  }
+  return [...names];
+};
 
 const traverse = <T>(
   obj: T,
@@ -1250,13 +1265,8 @@ export const getCompletions = (
       const attributeNode = leftStack.find((node) => node.name === "AssetCommandFilterName");
       const image = program.context["filtered_image"]?.[name] ?? program.context["layered_image"]?.[name] ?? program.context["image"]?.[name];
       const vocabulary = resolveImageAttributes(program.context, image).vocabulary;
-      for (const [group, info] of Object.entries(vocabulary?.groups ?? {})) {
-        const names = info.switch ? [group] : [];
-        for (const option of info.options) {
-          names.push(`${group}.${option}`);
-          if (!info.switch) names.push(option);
-        }
-        for (const attribute of names) {
+      if (vocabulary) {
+        for (const attribute of attributeCompletionNames(vocabulary)) {
           if (!excluded.has(attribute)) {
             completions.set(attribute, {
               label: attribute,
@@ -1268,6 +1278,55 @@ export const getCompletions = (
             });
           }
         }
+      }
+      return buildCompletions();
+    }
+  }
+
+  // Only literal list entries in a filtered_image's attributes assignment
+  // receive artwork choices. The parsed table/property/define ancestry keeps
+  // ordinary strings, nested tables, and executable Luau out of this path.
+  const quotedAttribute = leftStack.find((node) =>
+    node.name === "LuauDoubleQuotedString" || node.name === "LuauSingleQuotedString",
+  );
+  const attributeTable = leftStack.find((node) => node.name === "LuauTable");
+  const attributeProperty = leftStack.find((node) => node.name === "LuauPropertyDefinition");
+  const attributeDefine = getDefineContext(leftStack, read);
+  if (program?.context && quotedAttribute && attributeTable && attributeProperty &&
+      attributeDefine?.type === "filtered_image" &&
+      leftStack.filter((node) => node.name === "LuauTable").length === 1 &&
+      getNodeText(getDescendent("LuauVariableName", attributeProperty)) === "attributes" &&
+      getDescendent("LuauTable", attributeProperty)?.from === attributeTable.from) {
+    const content = attributeTable.getChild("LuauTable_content");
+    const entries: SyntaxNode[] = [];
+    let literalList = !!content;
+    for (let node = content?.firstChild; node; node = node.nextSibling) {
+      if (node.name === "LuauDoubleQuotedString" || node.name === "LuauSingleQuotedString") entries.push(node);
+      else if (!["ExtraWhitespace", "Newline", "LuauCommaSeparator", "LuauSemicolonSeparator"].includes(node.name)) literalList = false;
+    }
+    const open = getDescendent(["PunctuationStringDoubleQuoteOpen", "PunctuationStringSingleQuoteOpen"], quotedAttribute);
+    const close = getDescendent(["PunctuationStringDoubleQuoteClose", "PunctuationStringSingleQuoteClose"], quotedAttribute);
+    const image = program.context["filtered_image"]?.[attributeDefine.name];
+    const vocabulary = resolveImageAttributes(program.context, image).vocabulary;
+    if (literalList && vocabulary && open && close && documentCursorOffset >= open.to && documentCursorOffset <= close.from) {
+      const before: string[] = [];
+      const after: string[] = [];
+      for (const entry of entries) {
+        if (entry.from === quotedAttribute.from) continue;
+        const value = getNodeText(entry).trim().slice(1, -1);
+        (entry.to <= quotedAttribute.from ? before : after).push(value);
+      }
+      const excluded = new Set([...before, ...after]);
+      for (const attribute of attributeCompletionNames(vocabulary)) {
+        if (excluded.has(attribute)) continue;
+        completions.set(attribute, {
+          label: attribute,
+          kind: CompletionItemKind.EnumMember,
+          labelDetails: { description: `${attributeDefine.name} attribute` },
+          textEdit: { newText: attribute, range: document.range(open.to, close.from) },
+          data: { type: "filtered_image", name: attributeDefine.name,
+            filtered: { image: image.image?.$name, attributes: [...before, attribute, ...after] } },
+        });
       }
       return buildCompletions();
     }

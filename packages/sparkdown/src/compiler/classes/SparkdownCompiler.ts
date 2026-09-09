@@ -4315,7 +4315,12 @@ export class SparkdownCompiler {
     const uri = program.uri;
     profile("start", this._profilerId, "populateAssets", uri);
     program.context ??= {};
-    const files = this.files.all();
+    const files = [...this.files.all()];
+    const rasterAliases = new Map<string, number>();
+    for (const file of files) {
+      if (isRasterLayerFile(file))
+        rasterAliases.set(file.name, (rasterAliases.get(file.name) ?? 0) + 1);
+    }
     if (files) {
       // Track the first file to claim each (type, name) so we can flag basename
       // collisions among non-script assets. Asset names are a FLAT namespace —
@@ -4330,7 +4335,10 @@ export class SparkdownCompiler {
         const rasterPath = rasterFile ? decodeURIComponent(new URL(file.uri).pathname) : "";
         const rasterFolder = rasterPath.split("/").at(-2) ?? "";
         const explicitRaster = rasterFile && state.story?.structDefinitions?.["layered_image"]?.[rasterFolder] !== undefined;
-        if (rasterFile && !explicitRaster) continue;
+        // Preserve existing numbered image names when unambiguous. Repeated
+        // layer names across portraits stay private to their folder instead
+        // of flooding the project with irrelevant flat-name collisions.
+        if (rasterFile && !explicitRaster && rasterAliases.get(file.name)! > 1) continue;
         const type = file.type;
         const name = file.name;
         if (name && type !== "script") {
@@ -4448,7 +4456,27 @@ export class SparkdownCompiler {
     }
     const raster = createRasterImageDefinitions([...this.files.all()]);
     Object.assign(program.context["image"] ??= {}, raster.images);
+    for (const diagnostic of raster.diagnostics) {
+      if (state.story?.structDefinitions?.["layered_image"]?.[diagnostic.folder]) continue;
+      const range = { start: { line: 0, character: 0 }, end: { line: 0, character: 0 } };
+      ((program.diagnostics ??= {})[diagnostic.uri] ??= []).push({
+        range, severity: DiagnosticSeverity.Warning,
+        message: { kind: "markdown", value: diagnostic.message }, source: LANGUAGE_NAME,
+      });
+    }
+    for (const { name, firstUri, otherUri } of raster.collisions) {
+      if (state.story?.structDefinitions?.["layered_image"]?.[name]) continue;
+      this.pushAssetCollisionDiagnostic(program, firstUri, otherUri, "layered_image", name);
+      this.pushAssetCollisionDiagnostic(program, otherUri, firstUri, "layered_image", name);
+    }
     for (const [name, image] of Object.entries(raster.layeredImages)) {
+      const ordinary = program.context["image"]?.[name];
+      if (ordinary && !state.story?.structDefinitions?.["layered_image"]?.[name]) {
+        const firstUri = raster.origins[name]!;
+        const otherUri = ordinary.uri ?? program.uri;
+        this.pushAssetCollisionDiagnostic(program, firstUri, otherUri, "image", name);
+        this.pushAssetCollisionDiagnostic(program, otherUri, firstUri, "image", name);
+      }
       if (!program.context["image"]?.[name] && !program.context["layered_image"]?.[name]) {
         (program.context["layered_image"] ??= {})[name] = image;
       }
@@ -4467,7 +4495,7 @@ export class SparkdownCompiler {
         const vocabulary = image.attribute_vocabulary as AttributeVocabulary;
         image.attribute_vocabulary = { ...vocabulary, diagnostics: [
           ...vocabulary.diagnostics.filter((diagnostic) => diagnostic.code !== "rare-attribute-option"),
-          ...rare.filter((diagnostic) => vocabulary.layers.some((layer) => layer.name === diagnostic.layer)),
+          ...rare.filter((diagnostic) => vocabulary.layers.some((layer) => layer.name === diagnostic.layer && layer.key === diagnostic.path)),
         ] };
       }
     }
@@ -4515,7 +4543,7 @@ export class SparkdownCompiler {
     const images = { ...program.context?.["image"], ...program.context?.["layered_image"] };
     if (images) {
       for (const image of Object.values(images)) {
-        if (image["ext"] === "svg" || image["data"] || image.attribute_vocabulary) {
+        if (image["ext"]?.toLowerCase() === "svg" || image["data"] || image.attribute_vocabulary) {
           const type = image["$type"];
           const name = image["$name"];
           // Declare implicit filtered_image
@@ -4783,9 +4811,35 @@ export class SparkdownCompiler {
     profile("end", this._profilerId, "validateSyntax", uri);
   }
 
-  /** Artwork and selection diagnostics share the script locations in both editors. */
+  /** Static artwork warnings belong to assets; selection warnings belong to scripts. */
   validateImageAttributes(program: SparkProgram) {
     if (!program.context) return;
+    const artworkUri = (image: any, path?: string): string | undefined => {
+      if (image?.$type === "layered_image") {
+        const reference: any = image.assets?.[path ?? "0"] ?? Object.values(image.assets ?? {})[0];
+        const source = reference?.$name ? program.context?.["image"]?.[reference.$name] : undefined;
+        if (source?.uri) return source.uri;
+      }
+      return image?.uri;
+    };
+    const artworkEmitted = new Set<string>();
+    const assetRange = { start: { line: 0, character: 0 }, end: { line: 0, character: 0 } };
+    for (const image of Object.values({ ...program.context["image"], ...program.context["layered_image"] })) {
+      const resolved = resolveImageAttributes(program.context, image);
+      for (const diagnostic of resolved.vocabulary?.diagnostics ?? []) {
+        const targetUri = artworkUri(resolved.image, diagnostic.path);
+        if (!targetUri) continue;
+        const key = JSON.stringify([targetUri, diagnostic.code, diagnostic.path, diagnostic.message]);
+        if (artworkEmitted.has(key)) continue;
+        artworkEmitted.add(key);
+        ((program.diagnostics ??= {})[targetUri] ??= []).push({
+          range: assetRange,
+          severity: diagnostic.severity === "error" ? DiagnosticSeverity.Error : DiagnosticSeverity.Warning,
+          message: { kind: "markdown", value: diagnostic.message + (diagnostic.path ? ' (Layer hierarchy: ' + diagnostic.path + '.)' : '') },
+          source: LANGUAGE_NAME,
+        });
+      }
+    }
     for (const uri of Object.keys(program.scripts)) {
       const doc = this.documents.get(uri);
       if (!doc) continue;
@@ -4794,7 +4848,8 @@ export class SparkdownCompiler {
       const emit = (struct: any, from: number, to: number) => {
         const resolved = resolveImageAttributes(program.context!, struct);
         for (const diagnostic of resolved.diagnostics) {
-          const key = `${from}:${diagnostic.code}:${diagnostic.message}`;
+          if (resolved.vocabulary?.diagnostics.includes(diagnostic)) continue;
+          const key = JSON.stringify([from, diagnostic.code, diagnostic.path, diagnostic.message]);
           if (emitted.has(key)) continue;
           emitted.add(key);
           (program.diagnostics ??= {})[uri] ??= [];
@@ -4802,6 +4857,10 @@ export class SparkdownCompiler {
             range: doc.range(from, to),
             severity: diagnostic.severity === "error" ? DiagnosticSeverity.Error : DiagnosticSeverity.Warning,
             message: { kind: "markdown", value: diagnostic.message },
+            relatedInformation: artworkUri(resolved.image, diagnostic.path) ? [{
+              location: { uri: artworkUri(resolved.image, diagnostic.path)!, range: assetRange },
+              message: diagnostic.path ? 'Artwork layer hierarchy: ' + diagnostic.path : 'Source artwork for this selection',
+            }] : undefined,
             source: LANGUAGE_NAME,
           });
         }

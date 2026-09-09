@@ -31,6 +31,7 @@ const makeContext = (salt: string, layerNames: string[]) => {
     image[name] = {
       $type: "image",
       $name: name,
+      version: 1,
       src: `/file:/local/${salt}/${name}.png?v=1`,
       uri: `file://proj/${salt}/${name}.png`,
     };

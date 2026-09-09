@@ -4,6 +4,8 @@ export interface AttributeDiagnostic {
   code: string;
   message: string;
   severity: "warning" | "error";
+  /** Stable source hierarchy key; not an XML text range. */
+  path?: string;
   layer?: string;
   folder?: string;
   attribute?: string;

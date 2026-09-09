@@ -133,9 +133,13 @@ const loadLayer = async (
   layer: ImageLayer,
   readFileBytes?: ReadFileBytes,
 ): Promise<ThumbnailSource | undefined> => {
-  // Strip the `?v=` cache-buster from the key: it is re-stamped on load, so
-  // leaving it in would miss the cache every time.
-  const path = layer.src.split("?")[0] || layer.src;
+  // Keep attribute query parameters and check actual bytes for identity.
+  const path = layer.src;
+  const identify = async (blob: Blob): Promise<string> => {
+    const hash = await crypto.subtle.digest("SHA-256", await blob.arrayBuffer());
+    const digest = Array.from(new Uint8Array(hash), byte => byte.toString(16).padStart(2, "0")).join("");
+    return JSON.stringify([path, digest]);
+  };
   try {
     const response = await fetch(layer.src);
     if (response.ok) {
@@ -144,7 +148,7 @@ const loadLayer = async (
         response.headers.get("last-modified") || "",
       );
       return {
-        path,
+        path: await identify(blob),
         blob,
         lastModified: Number.isFinite(lastModified) ? lastModified : 0,
         size: blob.size,
@@ -159,7 +163,7 @@ const loadLayer = async (
       const base64 = await readFileBytes(layer.uri);
       if (base64) {
         const blob = base64ToBlob(base64);
-        return { path, blob, lastModified: 0, size: blob.size };
+        return { path: await identify(blob), blob, lastModified: 0, size: blob.size };
       }
     } catch {
       return undefined;
@@ -192,11 +196,11 @@ export const getImageCompositeSrc = async (
     // returns the right thing.
     return undefined;
   }
-  // Provisional key from the srcs, to avoid re-fetching layers on every
-  // keystroke's worth of resolves. Replaced below by the stable signature key
-  // once the responses tell us each layer's real identity.
-  const provisionalKey = layers.map((l) => l.src).join("|");
-  const provisional = cacheGet(provisionalKey);
+  // Skip reads only with an explicit host revision or immutable inline source.
+  const provisionalKey = layers.every(layer => layer.version !== undefined || layer.src.startsWith("data:"))
+    ? JSON.stringify(layers.map(layer => [layer.src, layer.uri, layer.version]))
+    : undefined;
+  const provisional = provisionalKey === undefined ? undefined : cacheGet(provisionalKey);
   if (provisional !== undefined) {
     return provisional || undefined;
   }
@@ -207,7 +211,7 @@ export const getImageCompositeSrc = async (
   if (sources.some((s) => !s)) {
     // Cache the failure: retrying a fetch that can't work in this host on
     // every resolve would be worse than one stale miss.
-    cacheSet(provisionalKey, "");
+    if (provisionalKey !== undefined) cacheSet(provisionalKey, "");
     return undefined;
   }
   const loaded = sources as ThumbnailSource[];
@@ -215,20 +219,20 @@ export const getImageCompositeSrc = async (
   const key = thumbnailCacheKey(loaded, PREVIEW_WIDTH);
   const cached = cacheGet(key);
   if (cached !== undefined) {
-    cacheSet(provisionalKey, cached);
+    if (provisionalKey !== undefined) cacheSet(provisionalKey, cached);
     return cached || undefined;
   }
 
   const blob = await composeThumbnailBlob(loaded, PREVIEW_WIDTH);
   if (!blob) {
     cacheSet(key, "");
-    cacheSet(provisionalKey, "");
+    if (provisionalKey !== undefined) cacheSet(provisionalKey, "");
     return undefined;
   }
   const uri = toDataUri(new Uint8Array(await blob.arrayBuffer()), blob.type);
   const value = uri.length > MAX_BYTES ? "" : uri;
   cacheSet(key, value);
-  cacheSet(provisionalKey, value);
+  if (provisionalKey !== undefined) cacheSet(provisionalKey, value);
   return value || undefined;
 };
 

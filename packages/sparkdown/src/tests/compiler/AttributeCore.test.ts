@@ -414,24 +414,18 @@ describe("portrait attributes", () => {
     ).toContainEqual(expect.objectContaining({ code: "unknown-attribute" }));
   });
 
-  it("counts rare options across the supplied character files, once per layer", () => {
+  it("corroborates rare spellings across character files, once per layer", () => {
     const first = buildAttributeVocabulary([
-      { key: "1", name: "eyes.open:eyes.open:default" },
+      { key: "1", name: "eyebrows.angry:eyebrows.angry" },
       { key: "2", name: "eybrows.angry" },
     ]);
     const second = buildAttributeVocabulary([
-      { key: "1", name: "eyes.open:default" },
+      { key: "1", name: "eyebrows.angry" },
     ]);
     expect(diagnoseRareAttributeOptions([first, second])).toEqual([
-      expect.objectContaining({
-        code: "rare-attribute-option",
-        group: "eybrows",
-        layer: "eybrows.angry",
-      }),
+      expect.objectContaining({ code: "rare-attribute-option", group: "eybrows", layer: "eybrows.angry" }),
     ]);
-    expect(
-      diagnoseRareAttributeOptions([first]).filter((d) => d.group === "eyes"),
-    ).toHaveLength(1);
+    expect(diagnoseRareAttributeOptions([first])).toEqual([]);
   });
 
   it("invalidates the cache signature on path, timestamp, or size changes", () => {

@@ -15,6 +15,8 @@ export interface ImageLayer {
    * fetch) read the bytes through this instead.
    */
   uri?: string;
+  /** Host supplied revision; undefined means the bytes must be checked. */
+  version?: number;
 }
 
 /**
@@ -44,7 +46,8 @@ export const resolveImageLayers = (
   if (type === "image") {
     if (context) filterImage(context, struct);
     const src = struct["filtered_src"] || struct["src"] || struct["data"] || struct["uri"];
-    return src ? [{ src, uri: struct["uri"] }] : [];
+    const version = struct["version"];
+    return src ? [{ src, uri: struct["uri"], ...(typeof version === "number" && Number.isFinite(version) && version >= 0 ? { version } : {}) }] : [];
   }
 
   if (type === "filtered_image") {

@@ -59,6 +59,16 @@ export const evaluateAttributeVisibility = (
   for (const layer of vocabulary.layers) visit(layer);
   for (const [key, scope] of Object.entries(vocabulary.folders)) {
     if (key !== ATTRIBUTE_ROOT && !visible[key]) continue;
+    for (const [group, options] of Object.entries(scope.options)) {
+      if (options.length && !vocabulary.groups[group]?.switch && !choices(group, key).length) {
+        diagnostics.push({
+          code: "missing-folder-default", severity: "warning", group,
+          folder: scope.name,
+          path: key,
+          message: 'Folder "' + scope.name + '" has no resting choice for ' + group + '; its layers are hidden. Mark one ' + group + ' layer :default or select ' + group + '.' + options[0] + ' in the script.',
+        });
+      }
+    }
     for (const [group, option] of Object.entries(selection)) {
       const options = Object.hasOwn(scope.options, group)
         ? scope.options[group]
@@ -75,6 +85,7 @@ export const evaluateAttributeVisibility = (
           severity: "warning",
           group,
           folder: scope.name,
+          path: key,
           attribute: `${group}.${option}`,
           message: `Folder "${scope.name}" has no ${group}.${option}; layers for ${group} in this folder are hidden.`,
         });
@@ -91,6 +102,7 @@ export const evaluateAttributeVisibility = (
         severity: "warning",
         group: "look",
         folder: scope.name,
+        path: key,
         attribute: `look.${selection["look"]}`,
         message: `Folder "${scope.name}" has closed eyes, so look.${selection["look"]} is not visible. Select eyes.open to show the pupils.`,
       });

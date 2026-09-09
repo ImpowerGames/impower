@@ -220,7 +220,9 @@ describe("getOrCreateFilteredSvg", () => {
 
   it("shares the filtered art when cache writes reject without retrying the file read", async () => {
     const cache = makeCache();
+    let writes = 0;
     cache.put = async () => {
+      writes++;
       throw new DOMException("Entry already exists", "InvalidAccessError");
     };
     let reads = 0;
@@ -260,7 +262,9 @@ describe("getOrCreateFilteredSvg", () => {
         PARAM,
       ),
     ).toBeDefined();
-    expect(reads).toBe(2);
+    // The immutable Blob can reuse its successful read, but storage is retried.
+    expect(reads).toBe(1);
+    expect(writes).toBe(2);
   });
 
   it("does not prune the prior cached signature when storing its replacement fails", async () => {
@@ -337,23 +341,24 @@ describe("getOrCreateFilteredSvg", () => {
         },
       }) as FilteredSvgFile;
     };
+    const immutableFile = counted(111);
     const responses = await Promise.all([
       getOrCreateFilteredSvg(
         cache,
         "local/assets/portrait.svg",
-        counted(111),
+        immutableFile,
         PARAM,
       ),
       getOrCreateFilteredSvg(
         cache,
         "local/assets/portrait.svg",
-        counted(111),
+        immutableFile,
         PARAM,
       ),
       getOrCreateFilteredSvg(
         cache,
         "local/assets/portrait.svg",
-        counted(111),
+        immutableFile,
         PARAM,
       ),
     ]);
@@ -391,17 +396,18 @@ describe("getOrCreateFilteredSvg", () => {
           return SVG;
         },
       }) as FilteredSvgFile;
+    const immutableFile = flaky();
     const [first, second] = await Promise.all([
       getOrCreateFilteredSvg(
         cache,
         "local/assets/portrait.svg",
-        flaky(),
+        immutableFile,
         PARAM,
       ),
       getOrCreateFilteredSvg(
         cache,
         "local/assets/portrait.svg",
-        flaky(),
+        immutableFile,
         PARAM,
       ),
     ]);

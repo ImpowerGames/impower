@@ -99,7 +99,7 @@ export const resolveImageSrcs = (
     if (!raw || raw === "none") {
       continue;
     }
-    const name = raw.includes("~") ? sortFilteredName(raw) : raw;
+    const name = sortFilteredName(raw);
     const filtered = context["filtered_image"]?.[name];
     if (filtered) {
       if (rootHasInlinedData(context, filtered)) {

@@ -193,11 +193,13 @@ So for a phone held in the left hand, the question is "what are the arms doing?"
 
 ## Drawing programs
 
-Some drawing programs rewrite layer names on SVG export to make them legal ids: characters it cannot use become hyphens or hex codes, and a duplicate name gets a digit appended. Sparkdown first reads a `data-name` attribute, which holds the name exactly as you typed it, and falls back to the id only when there is no `data-name`.
+Sparkdown reads portrait layer names only from `data-name`. SVG `id` values identify resources and references; they never select portrait attributes and do not need to match layer names.
 
-- Illustrator writes `data-name` itself when the id had to differ from the layer name. Nothing to do.
-- Affinity Designer keeps the typed name in a `serif:id` attribute, and Inkscape keeps it in `inkscape:label`. When you add such a file to a project, Sparkdown copies that attribute into `data-name` for you. Inkscape users should save as "Inkscape SVG", not "Plain SVG", because the plain format strips the labels.
-- For a program not listed here, whose export gives Sparkdown nothing but a mangled id, wrap each name in underscores in the drawing program, `_face.happy_`: Sparkdown then reads only what is between the first underscore and the next one, so an appended digit or suffix cannot reach the tag.
+- Affinity Designer preserves the typed name in `serif:id`. Importing or loading the SVG copies that label into `data-name` in the prepared asset. The engine then reads the normalized name. Existing `data-name` values take precedence.
+- The portrait optimizer also performs this normalization before optimization. The screenplay project's `npm run portraits:watch` wrapper invokes that optimizer through its sibling Impower checkout, so newly optimized exports copied into `project/assets` already contain `data-name`. Update that checkout to this feature version to use the new step. The watcher processes changed exports; it does not rewrite already-current output files automatically.
+- Inkscape's `inkscape:label` is normalized the same way. Save as "Inkscape SVG" to retain labels. An exporter that supplies only IDs needs an explicit `data-name` preparation step; IDs are never guessed into labels.
+
+Normalization preserves IDs, SVG references, geometry, and existing names. It does not rename obsolete layer syntax in native source files; those names must be migrated separately. Loading prepares the asset without rewriting the original disk file; the optimizer writes normalized output files.
 
 ## Writing it in the script
 
@@ -288,21 +290,44 @@ A folder has no "layers inside layers", so a file cannot inherit a condition fro
 
 An explicit `layered_image` definition with the same name overrides the folder convention.
 
+Portrait names are global: two folders named `mia`, or a folder named `mia` beside `mia.png`, produce a name-collision warning. Rename one to make each image addressable. Numbered files also retain their ordinary image name when that name is unique, so an existing `[[01_intro]]` still works. Repeated filenames such as `90_body.png` in different portrait folders are private layers; refer to their portrait instead.
+
 Export naming differs between programs and export commands. The numbered names above are the input convention. Check the exported files and rename them to this pattern when necessary. Measured export compatibility for Photoshop, Krita, and Clip Studio Paint is tracked in [the export compatibility follow-up](https://github.com/ImpowerGames/impower/issues/486).
 
 ## When something looks wrong
+
+Malformed layer names produce a warning and their own conditions are ignored; their parent conditions still apply. Fix the name before relying on that layer's visibility. A typo does not automatically hide artwork.
 
 The editor checks the portrait files and the script and reports these in the problems panel:
 
 - A layer name that does not follow the rules, or a name that mixes `:` and `~`.
 - Two different options marked `default` in the same group in the same folder. Only one can be the default.
-- An option that appears in only one layer across all of a character's portraits. It is usually a typo of an option or group name used everywhere else, such as `eybrows.angry`.
+- A one-off option or group spelling close to a repeatedly used name, such as `eybrows.angry` beside `eyebrows.angry`. A unique expression alone is not treated as a typo.
+- A visible folder with named options but no selected or inherited default. Those layers stay hidden until you mark a resting option or select one in the script.
+- An image file missing its stacking-number prefix inside an otherwise numbered raster portrait folder.
 - A script line that asks for an option the portrait does not have anywhere, such as `[[mia:gloves]]` when no layer in Mia's file mentions `gloves`. The option is ignored and the rest of the line still works.
 - A script line that asks for an option one part of the portrait lacks, such as `[[mia:happy:look.left]]` when the happy face has no left-looking pupils. That part shows nothing for the group, the same as if the layer were missing, and the warning names the folder so the artist can add it.
 - A direction selected while the face's eyes rest closed. Add `eyes.open` when you intend to open them, for example `[[mia:eyes.open:look.left]]`.
 - A bare option that exists in two groups where setting both is unlikely to be intended.
 
 If a portrait shows nothing for a part you expected, the usual reason is a group of named options with no `default` marked in that folder: nothing from that group shows until the script picks one.
+
+Artwork warnings appear on the asset file, including art the script has not used yet. A hierarchy identifier distinguishes repeated layer names. Warnings about a script's selection stay on the script and link back to the artwork.
+
+## Upgrading an existing filter project
+
+The old include/exclude `filter` definitions have been replaced by attributes. Accepting `~` preserves the separator spelling only: an old filter name does not become an attribute automatically. Migrate the art, named looks, and script calls together in a separate copy of the project.
+
+| Old construct | New construct |
+| --- | --- |
+| A `filter` definition matching expression tags | Conditions such as `face.happy` on the artwork, with a resting `:default` where needed |
+| `filtered_image.filters = { happy }` | `filtered_image.attributes = { "happy" }`, using the options the image actually contains |
+| A script suffix naming an include/exclude filter | An option, switch, or qualified attribute, for example `:happy`, `:hat`, or `:look.left` |
+| Selection tags in SVG IDs | Layer names in `data-name`; IDs remain SVG reference targets |
+
+Start with one portrait: compare its resting look, each option, and combinations such as outfit plus held prop. Then migrate named looks and check that appended attributes override the intended group. Regex include/exclude rules may need several explicit conditions; there is no general one-to-one rename.
+
+The [Raffles and Bunny migration tooling](../../../../scripts/portrait-migration/README.md) handles that project's known legacy rules and verifies its expected visual differences. It is not a general converter for arbitrary projects. Migrate the native artwork's layer names before re-exporting: export normalization copies names into `data-name` without translating the old filter grammar.
 
 ## Quick reference
 

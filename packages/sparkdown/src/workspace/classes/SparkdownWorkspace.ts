@@ -316,7 +316,7 @@ export abstract class SparkdownWorkspace {
               }
               const [src, text, version, languageId] = await Promise.all([
                 file.src ?? this.getFileSrc(file.uri),
-                type === "script" || type === "text" || ext === "svg"
+                type === "script" || type === "text" || ext.toLowerCase() === "svg"
                   ? (file.text ?? this.getFileText(file.uri))
                   : undefined,
                 file.version !== undefined
@@ -446,7 +446,7 @@ export abstract class SparkdownWorkspace {
     const ext = this.getFileExtension(file.uri);
     const [src, text, version, languageId] = await Promise.all([
       this.getFileSrc(file.uri),
-      type === "script" || type === "text" || ext === "svg"
+      type === "script" || type === "text" || ext.toLowerCase() === "svg"
         ? this.getFileText(file.uri)
         : undefined,
       this.getFileVersion(file.uri),
