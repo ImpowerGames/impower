@@ -6,15 +6,14 @@ name: Hook Tests
 # under `.claude/skills/` that pin a driver, a cleanup script, or a skill's
 # own prose. Bare `node` and `bash`, no `npm install` — the checks are
 # written to run that way; `write-regression-test/SKILL.md` documents the
-# same loop for a session running it by hand. The job runs a file when its
-# name carries `.test.` and ends in `.sh` or `.mjs`; the step subtracts what
-# the loops ran from what the wider `git ls-files
-# ':(glob).claude/**/*.test.*'` finds, lists the difference, and fails the
-# job on any entry of it that is not a `.json`, `.snap`, `.md` or `.txt`
-# data file — so a check with another extension, or one directory level too
-# shallow for the loops' `**`, is named rather than passing unnoticed. A
-# name without `.test.` in it is invisible to all three pathspecs, so a
-# check has to carry it.
+# same loop for a session running it by hand. The job runs a file whose
+# name ends in `.test.sh` or `.test.mjs`; the step subtracts what the loops
+# ran from what the wider `git ls-files ':(glob).claude/**/*.test.*'` finds,
+# lists the difference, and fails the job on any entry of it that is not a
+# `.json`, `.snap`, `.md` or `.txt` data file — so a check with another
+# extension, or one directory level too shallow for the loops' `**`, is
+# named rather than passing unnoticed. A name without `.test.` in it is
+# invisible to all three pathspecs, so a check has to carry it.
 #
 # This runner has no npm install, so seed-project.test.mjs's zip cases print
 # `SKIP: the zip cases need fflate, which the workspace install at the repo
@@ -205,7 +204,7 @@ jobs:
               echo
               printf -- '- %s\n' "${not_run[@]}"
               echo
-              echo "This job runs a file whose name carries \`.test.\` when it ends in \`.sh\` or \`.mjs\` and sits at least one directory below \`.claude/\`. A \`.json\`, \`.snap\`, \`.md\` or \`.txt\` file is listed here and nothing more; any other entry fails the job, because it could be a check nobody runs — rename it so a loop above matches it."
+              echo "This job runs a file whose name ends in \`.test.sh\` or \`.test.mjs\` and sits at least one directory below \`.claude/\`. A \`.json\`, \`.snap\`, \`.md\` or \`.txt\` file is listed here and nothing more; any other entry fails the job, because it could be a check nobody runs — rename it so a loop above matches it."
             fi
           } >> "$GITHUB_STEP_SUMMARY"
 
@@ -222,7 +221,7 @@ jobs:
           if [ "${#unrunnable[@]}" -ne 0 ]; then
             echo "${#unrunnable[@]} file(s) whose name carries .test. this job cannot run:"
             printf '%s\n' "${unrunnable[@]}"
-            echo "A check runs when its name ends in .sh or .mjs and it sits at least one directory below .claude/. Rename it so one of the two loops matches it."
+            echo "A check runs when its name ends in .test.sh or .test.mjs and it sits at least one directory below .claude/. Rename it so one of the two loops matches it."
             status=1
           fi
           exit $status
