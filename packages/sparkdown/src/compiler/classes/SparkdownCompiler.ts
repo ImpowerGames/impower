@@ -3031,14 +3031,16 @@ export class SparkdownCompiler {
             // (So that the document blinking cursor doesn't confusingly appear
             // at the start of the next unrelated line when doing a stack trace,
             // and so that a line-keyed lookup — a breakpoint, a preview point —
-            // resolves that line to its OWN path rather than to the statement
+            // resolves that line to its own path rather than to the statement
             // that merely stops at its first column.)
-            // `endColumn` is an INCLUSIVE 0-based column, so a range reaching
-            // only the start of `endLine` records either 0 (the line's first
-            // character) or -1 (`endCharacterNumber` 0: nothing on the line at
-            // all). Both mean the same thing here. The `endLine > startLine`
-            // guard keeps a single-line range from being pulled back before its
-            // own start.
+            // A range reaching only the start of `endLine` records an end
+            // column of either 0 or -1, and which one depends on the stamping
+            // convention behind the metadata: the 1-based character numbers
+            // this pipeline assumes give 0, while `buildDebugMetadata`'s
+            // default 0-based stamps give -1. Both say the range stops at or
+            // before `endLine`'s first column, so both are pulled back. The
+            // `endLine > startLine` guard keeps a single-line range from being
+            // pulled back before its own start.
             if (uri) {
               const document = this.documents.get(uri);
               if (document) {
