@@ -105,17 +105,22 @@ describe("a click made before the edit it follows has been compiled (#489)", () 
     } as any);
     const controller = controllerWithProgram();
 
-    await controller.handleSelectedCompilerDocument({
-      ...selection(2, true),
-      params: {
-        ...selection(2, true).params,
-        textDocument: { uri: "file://proj/other.sd" },
-      },
-    });
+    // The workspace is a module singleton, so a failed assertion that skipped
+    // the reset would leave this stub standing for every test after it.
+    try {
+      await controller.handleSelectedCompilerDocument({
+        ...selection(2, true),
+        params: {
+          ...selection(2, true).params,
+          textDocument: { uri: "file://proj/other.sd" },
+        },
+      });
 
-    expect(compiled).toEqual(["file://proj/other.sd"]);
-    expect(controller.previews).toEqual([]);
-    setWorkspace(undefined as any);
+      expect(compiled).toEqual(["file://proj/other.sd"]);
+      expect(controller.previews).toEqual([]);
+    } finally {
+      setWorkspace(undefined as any);
+    }
   });
 
   test("is previewed at once when the compiler said nothing either way", async () => {

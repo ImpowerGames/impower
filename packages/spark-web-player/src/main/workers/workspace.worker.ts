@@ -4,6 +4,7 @@ import { installGameWorker } from "@impower/spark-engine/src/worker/installGameW
 import { installSparkdownWorker } from "@impower/sparkdown/src/worker/installSparkdownWorker";
 import { profile } from "../../utils/profile";
 import { programIdentity } from "../../utils/programIdentity";
+import { planRouteForSelection } from "./planRouteForSelection";
 import { RouteSearchLog } from "./RouteSearchLog";
 
 const connection = new Port2MessageConnection((message: any, transfer) =>
@@ -157,53 +158,16 @@ compilerState.compiler.addEventListener("compiler/didRemove", (params) => {
   }
 });
 
-compilerState.compiler.addEventListener("compiler/didSelect", (params) => {
-  // Plan and simulate route
-  if (gameState.game) {
-    const newStartFrom = {
-      file: params.textDocument.uri,
-      line: params.selectedRange.start.line,
-    };
-    compilerState.compiler.config.startFrom = newStartFrom;
-    if (params.programOutdated) {
-      // This game holds the program compiled from the document as it was
-      // before the edit, so a route planned to this line would replay to
-      // whatever used to sit there — and would cache that route's favored
-      // conditions and choices for the next compile to start from. The
-      // selection is recorded above as the point the next compile starts from,
-      // and that compile plans its route against the program it produces.
-      return;
-    }
-    if (
-      newStartFrom.file !== gameState.game.startFrom?.file ||
-      newStartFrom.line !== gameState.game.startFrom?.line
-    ) {
-      profile(
-        "start",
-        compilerState.compiler.profilerId + " " + "game/setStartFrom",
-      );
-      gameState.game.setStartFrom(newStartFrom);
-      profile(
-        "end",
-        compilerState.compiler.profilerId + " " + "game/setStartFrom",
-      );
-      const toPath = gameState.game.startPath;
-      if (toPath) {
-        searchRouteTo(gameState.game, toPath);
-        // Augment with the simulated checkpoint, and with what the search
-        // established about this start point.
-        routeSearches.report(params, toPath);
-      }
-    } else {
-      // The start point did not move (the editor re-selects on every cursor
-      // change, including one that only moves the column), so the search
-      // already run for it still describes this selection — but only if it was
-      // run for THIS path. Nothing else here may be reused: the newest
-      // checkpoint in the store belongs to the last route that was replayed,
-      // which is a different line whenever the search since then found no route.
-      routeSearches.report(params, gameState.game.startPath);
-    }
-  }
-});
+compilerState.compiler.addEventListener("compiler/didSelect", (params) =>
+  planRouteForSelection(params, {
+    game: gameState.game,
+    rememberStartFrom: (startFrom) => {
+      compilerState.compiler.config.startFrom = startFrom;
+    },
+    searchRouteTo,
+    routeSearches,
+    profilerId: compilerState.compiler.profilerId,
+  }),
+);
 
 export default "";
