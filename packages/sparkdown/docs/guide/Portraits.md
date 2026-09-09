@@ -229,12 +229,12 @@ When you use the same combination often, give it a name:
 
 ```
 define mia_party as filtered_image with
-  image = mia
+  image = image.mia
   attributes = { "happy", "hat", "look.left" }
 end
 ```
 
-The attributes are written in quotes because a bare `look.left` would be read as a table lookup inside a define. Then `[[mia_party]]` is the same as `[[mia:happy:hat:look.left]]`, and you can still adjust it: `[[mia_party:sad]]` keeps the hat and the look and changes the face, because the later choice in the `face` group wins.
+`image.mia` refers to the image asset named `mia`. The attributes are written in quotes because a bare `look.left` would be read as a table lookup inside a define. Then `[[mia_party]]` is the same as `[[mia:happy:hat:look.left]]`, and you can still adjust it: `[[mia_party:sad]]` keeps the hat and the look and changes the face, because the later choice in the `face` group wins.
 
 ## Backgrounds and props
 

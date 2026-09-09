@@ -62,3 +62,25 @@ describe("portrait content freshness", () => {
     expect(atob(second!.split(",")[1]!)).toBe("new,new");
   });
 });
+
+it("revalidates remote image bytes behind unchanged local URL pointer versions", async () => {
+  let bytes = "old";
+  vi.stubGlobal("fetch", async () => new Response(bytes));
+  vi.stubGlobal("createImageBitmap", async (blob: Blob) => ({width: 10, height: 10, text: await blob.text(), close() {}}));
+  vi.stubGlobal("OffscreenCanvas", class {
+    drawn: string[] = [];
+    getContext() { return {drawImage: (bitmap: any) => this.drawn.push(bitmap.text)}; }
+    async convertToBlob() { return new Blob([this.drawn.join(",")], {type: "image/webp"}); }
+  });
+  const image = Object.fromEntries(["body", "hat"].map(name => [name, {
+    $type: "image", $name: name, version: 1,
+    uri: "file:///remote-pointer/" + name + ".url",
+    src: "https://cdn.example/remote-pointer/" + name + ".png",
+  }]));
+  const portrait = {$type: "layered_image", assets: Object.keys(image).map($name => ({$type: "image", $name}))};
+  const first = await getImageCompositeSrc({image}, portrait);
+  expect(atob(first!.split(",")[1]!)).toBe("old,old");
+  bytes = "new";
+  const second = await getImageCompositeSrc({image}, portrait);
+  expect(atob(second!.split(",")[1]!)).toBe("new,new");
+});

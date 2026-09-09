@@ -117,6 +117,7 @@ class MigrationTests(unittest.TestCase):
             self.assertEqual((output/'main.sd').read_text(),'[[mia:happy]]\n[[mia_party]]\n[[mia_missing:face.happy]]\n')
             self.assertEqual(report['missingImageDirectives']['mia_missing~face_happy']['uses'],1)
             self.assertIn('attributes = { "happy" }',(output/'scripts/portraits.sd').read_text())
+            self.assertIn('image = image.mia',(output/'scripts/portraits.sd').read_text())
             self.assertNotIn(' as filter with',(output/'scripts/portraits.sd').read_text())
             # Identical reruns are allowed; unrelated edits are never overwritten.
             migrate.migrate(source,output,config)

@@ -1,3 +1,6 @@
+import type { SparkDiagnostic } from "@impower/sparkdown/src/compiler/types/SparkDiagnostic";
+import { onProtocolMessage } from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
+import { CompiledProgramMessage } from "@impower/sparkdown/src/compiler/classes/messages/CompiledProgramMessage";
 import {
   Button,
   Check,
@@ -161,6 +164,8 @@ export default function AssetInspectorPanel({
 }: AssetInspectorPanelProps) {
   const [collapsed, setCollapsed] = useState(defaultCollapsed);
   const [dims, setDims] = useState<string | null>(null);
+  const [diagnostics, setDiagnostics] = useState<SparkDiagnostic[] | null>(null);
+  const [diagnosticsError, setDiagnosticsError] = useState(false);
   const [usages, setUsages] = useState<UsageLocation[] | null>(null);
 
   // Source-URL editor (`.url` assets): `null` = not editing; a string = the
@@ -202,6 +207,35 @@ export default function AssetInspectorPanel({
       alive = false;
     };
   }, [src, kind]);
+
+  // Fetch only this asset's messages, then refresh from the existing compile
+  // event bus. Sequence guards prevent a slow old request resurrecting warnings.
+  useEffect(() => {
+    let alive = true;
+    let request = 0;
+    setDiagnostics(null);
+    setDiagnosticsError(false);
+    const refresh = async () => {
+      const current = ++request;
+      try {
+        const { Workspace } = await import("../../workspace/Workspace");
+        const store = (await import("../../workspace/WorkspaceStore")).default;
+        const pid = store.signals.projectId.value;
+        const items = pid ? await Workspace.ls.getFileDiagnostics(
+          Workspace.fs.getFileUri(pid, path),
+        ) : [];
+        if (alive && current === request) {
+          setDiagnostics(items);
+          setDiagnosticsError(false);
+        }
+      } catch {
+        if (alive && current === request) setDiagnosticsError(true);
+      }
+    };
+    const dispose = onProtocolMessage(CompiledProgramMessage.type, () => { void refresh(); });
+    void refresh();
+    return () => { alive = false; dispose(); };
+  }, [path]);
 
   // Where-used: ask the language server which script locations reference this
   // asset by name (same plumbing as the 3-dots "Find usages"). `null` = loading.
@@ -318,6 +352,25 @@ export default function AssetInspectorPanel({
         <div
           class={`${fill ? "min-h-0 flex-1 overflow-y-auto" : ""} px-4 pb-4`}
         >
+          <section aria-label="Asset problems" class="border-b border-foreground/10 py-2 mb-2">
+            <h3 class="text-xs uppercase tracking-wide text-foreground/60">Problems{diagnostics?.length ? ` (${diagnostics.length})` : ""}</h3>
+            {diagnosticsError ? (
+              <p class="py-1 text-sm text-foreground/60">Unable to load problems.</p>
+            ) : diagnostics === null ? (
+              <p class="py-1 text-sm text-foreground/60">Checking problems…</p>
+            ) : diagnostics.length === 0 ? (
+              <p class="py-1 text-sm text-foreground/60">No problems</p>
+            ) : (
+              <ul class="space-y-2 py-2">
+                {diagnostics.map((diagnostic, index) => (
+                  <li key={index} class="select-text break-words text-sm text-foreground/80">
+                    <span class="font-semibold">{diagnostic.severity === 1 ? "Error" : diagnostic.severity === 2 ? "Warning" : "Info"}: </span>
+                    {typeof diagnostic.message === "string" ? diagnostic.message : diagnostic.message.value}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
           {/* Metadata. */}
           <div class="pb-2">
             <MetaRow label="Type" value={kind} />

@@ -26,7 +26,7 @@ def sample(root):
     output_files = {
         'assets/mia.svg':after, 'assets/mia_unused.svg':after,
         'main.sd':'[[mia:happy]]\n[[party]]\n',
-        'scripts/portraits.sd':'define party as filtered_image with\n image = mia\n attributes = { "happy" }\nend\n',
+        'scripts/portraits.sd':'define party as filtered_image with\n image = image.mia\n attributes = { "happy" }\nend\n',
     }
     for path,text in source_files.items(): (source/path).write_bytes(text.encode())
     for path,text in output_files.items(): (project/path).write_bytes(text.encode())
@@ -45,6 +45,28 @@ def sample(root):
 
 
 class VerifyTests(unittest.TestCase):
+    def test_output_only_script_is_rejected_even_if_added_to_hashes(self):
+        for add_hash in (False, True):
+            with self.subTest(add_hash=add_hash), tempfile.TemporaryDirectory() as directory:
+                source,project,config,audit = sample(Path(directory))
+                extra = project/'scripts/output_only.sd'
+                extra.write_text('[[mia:face.unknown]]\n')
+                if add_hash:
+                    audit['outputHashes']['scripts/output_only.sd'] = hashlib.sha256(extra.read_bytes()).hexdigest()
+                    (project/'portrait-migration-report.json').write_text(json.dumps(audit))
+                # Isolate script inventory from the separate typed-reference migration.
+                with patch('verify.parse_looks', return_value={'party':{'image':'mia','attributes':['happy']}}):
+                    with self.assertRaisesRegex(ValueError, 'Output script set differs.*output_only.sd'):
+                        verify.verify_project(source,project,config)
+
+    def test_named_looks_require_complete_typed_image_references(self):
+        def look(reference):
+            return f'define party as filtered_image with\n image = {reference}\n attributes = {{ "happy" }}\nend\n'
+        self.assertEqual(verify.parse_looks(look("image.mia"))["party"]["image"], "mia")
+        for reference in ("mia", "image.mia.extra", "image.mia + 1"):
+            with self.subTest(reference=reference), self.assertRaisesRegex(ValueError, "typed image reference"):
+                verify.parse_looks(look(reference))
+
     def test_unhashed_participating_script_is_rejected_even_if_both_copies_match(self):
         with tempfile.TemporaryDirectory() as directory:
             source,project,config,audit = sample(Path(directory))

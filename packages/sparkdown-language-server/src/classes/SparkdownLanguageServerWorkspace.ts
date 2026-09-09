@@ -318,7 +318,13 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
     program: any;
   }): void {
     this.attachLazyImageData(params.program);
-    const uris = Array.from(this._documentVersions.keys());
+    // Assets need diagnostics even when they have never been opened as text.
+    // Include prior publications so warnings removed by repair are cleared.
+    const uris = new Set([
+      ...this._documentVersions.keys(),
+      ...Object.keys(params.program.diagnostics ?? {}),
+      ...this._lastPublishedDiagnostics.keys(),
+    ]);
     for (const uri of uris) {
       const version = this._documentVersions.get(uri);
       const diagnostics = this.getDiagnostics(params.program, uri);
@@ -421,13 +427,28 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
   }) {
     this._documents.remove({ textDocument: { uri: file.uri } });
     this._lastFormattedText.delete(file.uri);
-    this._lastPublishedDiagnostics.delete(file.uri);
+    if (this._lastPublishedDiagnostics.has(file.uri)) {
+      this.sendNotification(PublishDiagnosticsNotification.method, {
+        uri: file.uri,
+        diagnostics: [],
+      });
+      this._lastPublishedDiagnostics.delete(file.uri);
+    }
   }
 
   public listen(): Disposable {
     (this._connection as any).__textDocumentSync =
       TextDocumentSyncKind.Incremental;
     const disposables: Disposable[] = [];
+    // Asset inspectors pull just their selected file's messages. Never compile
+    // an SVG as a text document or send the full diagnostic map to the client.
+    disposables.push(
+      this._connection.onRequest("sparkdown/fileDiagnostics", (params: { uri: string }) => {
+        const mainUri = this.getMainScriptUri(params.uri);
+        const program = this.program(mainUri ?? params.uri);
+        return program ? this.getDiagnostics(program, params.uri) : [];
+      }),
+    );
     disposables.push(
       this._connection.onRequest(
         DocumentDiagnosticRequest.method,

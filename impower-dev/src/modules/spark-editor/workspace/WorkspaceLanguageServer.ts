@@ -1,3 +1,4 @@
+import type { SparkDiagnostic } from "@impower/sparkdown/src/compiler/types/SparkDiagnostic";
 import { DiagnosticTag } from "@impower/spark-editor-protocol/src/enums/DiagnosticTag";
 import {
   InitializeMessage,
@@ -358,10 +359,15 @@ export default class WorkspaceLanguageServer {
     return this._program;
   }
 
-  /**
-   * Script locations that reference the asset at `uri` (find-usages). Custom
-   * file-driven request — see the language server's `sparkdown/fileReferences`.
-   */
+  /** Read messages for the selected asset without requesting a full program. */
+  async getFileDiagnostics(uri: string): Promise<SparkDiagnostic[]> {
+    await this.initialization();
+    return (await this._connection.sendRequest<SparkDiagnostic[]>(
+      "sparkdown/fileDiagnostics", { uri },
+    )) ?? [];
+  }
+
+  /** Script locations that reference the asset at uri (find-usages). */
   async getFileReferences(uri: string): Promise<FileReferenceLocation[]> {
     await this.initialization();
     return (

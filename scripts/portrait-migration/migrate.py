@@ -307,7 +307,7 @@ def migrate(source, output, config, extra_exceptions=None, heap_mb=256):
     for name in legacy.COMPOSITES:
         entry = chosen[name]
         attrs = ', '.join(json.dumps(a) for a in entry['baseAttributes'])
-        looks.append(f'define {name} as filtered_image with\n  image = {entry["root"]}\n  attributes = {{ {attrs} }}\nend\n')
+        looks.append(f'define {name} as filtered_image with\n  image = image.{entry["root"]}\n  attributes = {{ {attrs} }}\nend\n')
     outputs['scripts/portraits.sd'] = ('\n'.join(looks).rstrip()+'\n').encode('utf-8')
     hashes['scripts/portraits.sd'] = sha(portrait_path.read_bytes())
     for relative,text in script_text.items():

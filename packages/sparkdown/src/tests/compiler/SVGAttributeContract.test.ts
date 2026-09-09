@@ -1,3 +1,4 @@
+import { decodeSVGSource } from "../../attributes/svg";
 import { describe, expect, it } from "vitest";
 import { buildAttributeVocabulary, buildSVGAttributeVocabulary, filterSVGAttributes, normalizeSVGAttributeNames, ATTRIBUTE_VOCABULARY_VERSION } from "../../attributes";
 import { SparkdownFileRegistry } from "../../compiler/classes/SparkdownFileRegistry";
@@ -49,4 +50,12 @@ describe("SVG attribute ingestion contract", () => {
     const vocabulary = buildAttributeVocabulary([{key: "a", name: "arms.phone"}, {key: "b", name: "arms.phone-left", parent: "a"}, {key: "c", name: "arms.down"}]);
     expect(vocabulary.diagnostics).toEqual([]);
   });
+});
+
+it.each(["100%20", "%23art", "%E2%82%AC", "100%"])("preserves literal %s through preparation and registry normalization", (literal) => {
+  const file = new ImageVocabularyCache().prepare({uri: "file:///percent.svg", name: "percent", ext: "svg", type: "image", text: '<svg><text>' + literal + '</text><g serif:id="hat.on"/></svg>'});
+  const registry = new SparkdownFileRegistry();
+  registry.add({file});
+  expect(decodeSVGSource(registry.get(file.uri)!.data!)).toContain('<text>' + literal + '</text>');
+  expect(registry.get(file.uri)?.attribute_vocabulary?.groups["hat"]).toBeDefined();
 });

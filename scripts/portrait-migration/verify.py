@@ -39,7 +39,9 @@ def parse_looks(text):
     result = {}
     for match in re.finditer(r'\bdefine\s+(\w+)\s+as\s+filtered_image\s+with\s*\n(.*?)\nend\b',text,re.S):
         name,body = match.groups()
-        image = re.search(r'\bimage\s*=\s*(\w+)',body)
+        image = re.search(r'^\s*image\s*=\s*image\.(\w+)[ \t\r]*$',body,re.M)
+        if not image:
+            raise ValueError(f'{name}: expected a complete typed image reference (image.name)')
         attributes = re.search(r'\battributes\s*=\s*\{(.*?)\}',body,re.S)
         if name in result or not image or not attributes:
             raise ValueError(f'Invalid or duplicate actual named look: {name}')
@@ -68,6 +70,9 @@ def verify_project(source, project, config, extra_exceptions=None):
     audit = json.loads(checked_file(project,'portrait-migration-report.json').read_text())
     if audit.get('failures'): raise ValueError('Migration report contains unresolved failures')
     scripts = {p.relative_to(source).as_posix() for p in migrate.participating_scripts(source)}
+    output_scripts = {p.relative_to(project).as_posix() for p in migrate.participating_scripts(project)}
+    if output_scripts != scripts:
+        raise ValueError(f'Output script set differs from source: added={sorted(output_scripts-scripts)}, missing={sorted(scripts-output_scripts)}')
     for label in ('sourceHashes','outputHashes'):
         missing = scripts-set(audit[label])
         if missing: raise ValueError(f'Participating script omitted from {label} hash coverage: {sorted(missing)}')

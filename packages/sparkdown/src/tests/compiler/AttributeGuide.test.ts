@@ -1,3 +1,6 @@
+import "./compileSnapshot";
+import { readFileSync } from "node:fs";
+import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { describe, expect, it } from "vitest";
 import {
   buildAttributeVocabulary,
@@ -19,6 +22,31 @@ const shown = (vocabulary: AttributeVocabulary, attributes: string[]) => {
 };
 
 describe("Character portraits guide examples", () => {
+  it("compiles the documented named look without an unresolved variable warning", () => {
+    const guide = readFileSync(
+      new URL("../../../docs/guide/Portraits.md", import.meta.url),
+      "utf8",
+    );
+    const example = guide.match(
+      /define mia_party as filtered_image with[\s\S]*?\nend/,
+    )?.[0];
+    expect(example).toBeDefined();
+    const uri = "file:///project/main.sd";
+    const compiler = new SparkdownCompiler();
+    compiler.configure({
+      files: [
+        { uri, type: "script", name: "main", ext: "sd", version: 1,
+          languageId: "sparkdown", text: example! },
+        { uri: "file:///project/assets/mia.svg", type: "image", name: "mia",
+          ext: "svg", data: '<svg><g data-name="face.happy:default"/><g data-name="hat.on"/><g data-name="pupils:look.left:default"/></svg>' },
+      ],
+    });
+    const program = compiler.compile({ textDocument: { uri } }).program;
+    const messages = (program.diagnostics?.[uri] ?? []).map((d) =>
+      typeof d.message === "string" ? d.message : d.message.value,
+    );
+    expect(messages).toEqual([]);
+  });
   it("adjusts Mia's party look while preserving its hat and eye direction", () => {
     const vocabulary = vocabularyFor([
       "face.neutral:default",
