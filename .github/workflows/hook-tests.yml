@@ -1,23 +1,29 @@
 name: Hook Tests
 
-# Runs every check `git ls-files '.claude/**/*.test.*'` lists on a pull
-# request that touches `.claude/**`: the two checks under `.claude/hooks/`
-# that guard what agents can do in this repo, and the checks under
-# `.claude/skills/` that pin a driver, a cleanup script, or a skill's own
-# prose. Bare `node` and `bash`, no `npm install` — the checks are written
-# to run that way; `write-regression-test/SKILL.md` documents the same loop
-# for a session running it by hand.
+# Runs every check `.claude/**/*.test.sh` and `.claude/**/*.test.mjs` match on
+# a pull request that touches `.claude/**`: the two checks under
+# `.claude/hooks/` that guard what agents can do in this repo, and the checks
+# under `.claude/skills/` that pin a driver, a cleanup script, or a skill's
+# own prose. Bare `node` and `bash`, no `npm install` — the checks are
+# written to run that way; `write-regression-test/SKILL.md` documents the
+# same loop for a session running it by hand. A check file those two
+# pathspecs cannot see (another extension, or one directory level too
+# shallow for their `**`) is not silently skipped: the step also lists every
+# check the wider `git ls-files ':(glob).claude/**/*.test.*'` finds and
+# fails the job, naming the file, if that wider list has an entry the two
+# loops did not run.
 #
 # This runner has no npm install, so seed-project.test.mjs's zip cases print
 # `SKIP: the zip cases need fflate, which the workspace install at the repo
 # root provides` — a consequence of that choice, not of the runner's OS. The
 # job summary lists every `SKIP:` line this runner prints.
 #
-# Two checks carry Windows-only assumptions today. clean-worktrees.test.mjs
-# gates its rename-probe assertions behind a `skip()` helper on non-Windows,
-# though on Linux it currently fails first on an unrelated assertion that
-# #505 tracks. state-path.test.mjs has no such gate at all and fails on
-# Linux until #508 lands.
+# Four checks are red on ubuntu-latest today, for reasons unrelated to this
+# workflow, each tracked with its own CI evidence:
+# clean-worktrees.test.mjs (#505), drive-vscode-web/driver.test.mjs (#506),
+# drive-web-editor/redgreen.test.mjs (#507), and
+# drive-web-editor/state-path.test.mjs (#508). This job is red on
+# ubuntu-latest until those land.
 
 on:
   pull_request:
@@ -32,11 +38,15 @@ on:
       - "vscode-sparkdown/package.json"
       - ".github/workflows/hook-tests.yml"
 
-# A superseded PR run is of no interest; keep only the newest per branch. Do
-# not apply this to push runs on main — cancelling one merge's run because
-# another landed close behind it would lose that commit's result.
+# A superseded PR run is of no interest; keep only the newest per branch. On
+# push, key by commit rather than by ref: `cancel-in-progress` only stops an
+# already-*running* job, but two pushes to main landing close together still
+# queue into the same ref-keyed group, and GitHub cancels the earlier
+# *pending* run when a third arrives — losing that middle commit's result.
+# Keying by SHA gives every push its own group, so push runs never queue
+# against each other and cannot cancel one another.
 concurrency:
-  group: hook-tests-${{ github.ref }}
+  group: hook-tests-${{ github.event_name == 'pull_request' && github.ref || github.sha }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
@@ -45,12 +55,13 @@ permissions:
 jobs:
   standalone-checks:
     runs-on: ubuntu-latest
-    # This loop's own PR run took 45s wall on ubuntu-latest (run 34365519578,
-    # 2026-09-09), with clean-worktrees.test.mjs failing before it reaches
-    # its expensive scratch-git-repository world, so that cost has not yet
-    # run here. Revisit this bound once #505 and #508 land and that world
-    # runs on every PR; five minutes leaves headroom for a hang instead of
-    # relying on nothing timing out at all.
+    # This job's own run on ubuntu-latest (run 34368038757, 2026-09-09) took
+    # 50s wall, with clean-worktrees.test.mjs dying 8s in on an unrelated
+    # assertion (#505) before it reaches its expensive scratch-git-repository
+    # world. That cost, and the true post-#505/#508 runner cost generally,
+    # has not yet run here. Revisit this bound once #505 and #508 land and
+    # that world runs on every PR; five minutes leaves headroom for a hang
+    # instead of relying on nothing timing out at all.
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
@@ -73,10 +84,14 @@ jobs:
           log="checks.log"
           : > "$log"
 
-          # The number of checks this repo has under .claude/. Raise this
+          # The number of checks .claude/**/*.test.* lists today. Raise this
           # when a check is added, so the floor keeps failing an accidental
-          # zero-match (a renamed pathspec, a broken sparse checkout) rather
-          # than reporting a clean run that found nothing.
+          # zero-match (a renamed pathspec) rather than reporting a clean run
+          # that found nothing. `git ls-files` reads the index, which a
+          # broken sparse checkout does not change (an excluded entry stays
+          # in the index with skip-worktree set, so this floor does not
+          # catch that; a missing file surfaces instead as every check
+          # reporting FAILED: because bash/node can't find it on disk).
           min_checks=13
 
           sh_checks=()
@@ -87,66 +102,110 @@ jobs:
           while IFS= read -r -d '' t; do mjs_checks+=("$t"); done \
             < <(git ls-files -z '.claude/**/*.test.mjs')
 
-          expected=$(( ${#sh_checks[@]} + ${#mjs_checks[@]} ))
+          # An independent, wider listing of every check-shaped file under
+          # .claude/, used only to police the two loops above — never to run
+          # anything itself. Plain `.claude/**/*.test.sh` needs a literal `/`
+          # after the `**` segment, so it can't see a check placed directly
+          # under `.claude/`; the `:(glob)` pathspec magic below matches that
+          # depth too, and matches any extension, not just .sh/.mjs.
+          all_checks=()
+          while IFS= read -r -d '' t; do all_checks+=("$t"); done \
+            < <(git ls-files -z ':(glob).claude/**/*.test.*')
+
+          expected=${#all_checks[@]}
           ran=0
           failed=0
+          failed_checks=()
+          skipped_lines=()
 
-          for t in "${sh_checks[@]}"; do
+          run_one() {
+            local t="$1" runner="$2" out="check.out"
             echo "--- $t" | tee -a "$log"
-            bash "$t" 2>&1 | tee -a "$log"
-            rc=${PIPESTATUS[0]}
+            "$runner" "$t" > "$out" 2>&1
+            local rc=$?
+            cat "$out" | tee -a "$log"
+            # A check's last write with no trailing newline would otherwise
+            # glue onto whatever the loop appends to the shared log next,
+            # hiding a SKIP: line the grep below is looking for. Guarantee a
+            # newline boundary between every check's output, unconditionally.
+            printf '\n' >> "$log"
             ran=$((ran + 1))
             if [ "$rc" -ne 0 ]; then
-              echo "FAILED: $t" | tee -a "$log"
               failed=$((failed + 1))
+              failed_checks+=("$t")
             fi
-          done
+            # SKIP: is data a check chooses to print, not something derivable
+            # from its exit status, so this still has to read the check's own
+            # output — but from "$out" alone, per check, never from the
+            # shared, multi-check log, so one check's content can't corrupt
+            # another's skip lines.
+            while IFS= read -r line; do
+              case "$line" in
+                'SKIP: '*) skipped_lines+=("$line") ;;
+              esac
+            done < "$out"
+          }
 
-          for t in "${mjs_checks[@]}"; do
-            echo "--- $t" | tee -a "$log"
-            node "$t" 2>&1 | tee -a "$log"
-            rc=${PIPESTATUS[0]}
-            ran=$((ran + 1))
-            if [ "$rc" -ne 0 ]; then
-              echo "FAILED: $t" | tee -a "$log"
-              failed=$((failed + 1))
-            fi
-          done
+          for t in "${sh_checks[@]}"; do run_one "$t" bash; done
+          for t in "${mjs_checks[@]}"; do run_one "$t" node; done
 
-          skipped=$(grep '^SKIP: ' "$log")
+          # Anything the wider listing found that neither loop above actually
+          # ran — another extension, or one directory level too shallow for
+          # their pathspecs — fails the job by name instead of vanishing:
+          # `expected` no longer being trivially equal to `ran` by
+          # construction is the whole point of deriving it independently.
+          ran_paths=("${sh_checks[@]}" "${mjs_checks[@]}")
+          uncovered=()
+          for t in "${all_checks[@]}"; do
+            covered=0
+            for r in "${ran_paths[@]}"; do
+              if [ "$t" = "$r" ]; then
+                covered=1
+                break
+              fi
+            done
+            [ "$covered" -eq 0 ] && uncovered+=("$t")
+          done
 
           {
             echo "## Standalone \`.claude\` checks"
             echo
-            echo "Ran $ran of $expected checks (\`.claude/**/*.test.sh\` + \`.claude/**/*.test.mjs\`)."
+            echo "Ran $ran of $expected checks (\`git ls-files ':(glob).claude/**/*.test.*'\`)."
             echo
-            if [ -n "$skipped" ]; then
+            if [ "${#skipped_lines[@]}" -gt 0 ]; then
               echo "### Skipped on this runner"
               echo
-              echo "$skipped" | sed 's/^/- /'
+              printf -- '- %s\n' "${skipped_lines[@]}"
             else
               echo "No cases skipped on this runner."
             fi
-            if [ "$failed" -ne 0 ]; then
+            if [ "${#failed_checks[@]}" -gt 0 ]; then
               echo
               echo "### Failed"
               echo
-              grep '^FAILED:' "$log" | sed 's/^/- /'
+              printf -- '- FAILED: %s\n' "${failed_checks[@]}"
+            fi
+            if [ "${#uncovered[@]}" -gt 0 ]; then
+              echo
+              echo "### Not run"
+              echo
+              printf -- '- %s (matched by the wider `.claude/**/*.test.*` listing, but not by `.claude/**/*.test.sh` or `.claude/**/*.test.mjs`)\n' "${uncovered[@]}"
             fi
           } >> "$GITHUB_STEP_SUMMARY"
 
           status=0
-          if [ "$failed" -ne 0 ]; then
-            echo "$failed check(s) reported FAILED:"
-            grep '^FAILED:' "$log"
+          if [ "${#failed_checks[@]}" -ne 0 ]; then
+            echo "${#failed_checks[@]} check(s) reported FAILED:"
+            printf '%s\n' "${failed_checks[@]}"
             status=1
           fi
           if [ "$expected" -lt "$min_checks" ]; then
-            echo "Only $expected checks were found (git ls-files), fewer than the $min_checks expected; the pathspec, sparse checkout, or checkout step is broken."
+            echo "Only $expected checks were found (git ls-files ':(glob).claude/**/*.test.*'), fewer than the $min_checks expected; the pathspec or checkout step is broken."
             status=1
           fi
-          if [ "$ran" -lt "$expected" ]; then
-            echo "Only $ran/$expected checks ran; the loop skipped a check outright."
+          if [ "${#uncovered[@]}" -ne 0 ]; then
+            echo "${#uncovered[@]} check(s) matched by the wider listing never ran:"
+            printf '%s\n' "${uncovered[@]}"
             status=1
           fi
           exit $status
