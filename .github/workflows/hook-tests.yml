@@ -8,28 +8,36 @@ name: Hook Tests
 # to run that way; `write-regression-test/SKILL.md` documents the same loop
 # for a session running it by hand.
 #
-# Two cases need Windows semantics this runner does not have: the cleaner's
-# rename probe in clean-worktrees.test.mjs (it depends on the system
-# refusing a rename or a long path) and, depending on what `ps` reports here,
-# state-path.test.mjs's live-process cases. A check that cannot run on
-# ubuntu-latest prints a `SKIP:` line instead of failing; the job summary
-# lists every one so a reviewer can see what this runner did not exercise.
+# This runner has no npm install, so seed-project.test.mjs's zip cases print
+# `SKIP: the zip cases need fflate, which the workspace install at the repo
+# root provides` — a consequence of that choice, not of the runner's OS. The
+# job summary lists every `SKIP:` line this runner prints.
+#
+# Two checks carry Windows-only assumptions today. clean-worktrees.test.mjs
+# gates its rename-probe assertions behind a `skip()` helper on non-Windows,
+# though on Linux it currently fails first on an unrelated assertion that
+# #505 tracks. state-path.test.mjs has no such gate at all and fails on
+# Linux until #508 lands.
 
 on:
   pull_request:
     paths:
       - ".claude/**"
+      - "vscode-sparkdown/package.json"
       - ".github/workflows/hook-tests.yml"
   push:
     branches: [main]
     paths:
       - ".claude/**"
+      - "vscode-sparkdown/package.json"
       - ".github/workflows/hook-tests.yml"
 
-# A superseded PR run is of no interest; keep only the newest per branch.
+# A superseded PR run is of no interest; keep only the newest per branch. Do
+# not apply this to push runs on main — cancelling one merge's run because
+# another landed close behind it would lose that commit's result.
 concurrency:
   group: hook-tests-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read
@@ -37,10 +45,12 @@ permissions:
 jobs:
   standalone-checks:
     runs-on: ubuntu-latest
-    # The loop takes two to three minutes on the machine this was measured
-    # on (the clean-worktrees check, which builds scratch git repositories,
-    # is about half of that); this bounds a hang instead of relying on
-    # nothing timing out at all.
+    # This loop's own PR run took 45s wall on ubuntu-latest (run 34365519578,
+    # 2026-09-09), with clean-worktrees.test.mjs failing before it reaches
+    # its expensive scratch-git-repository world, so that cost has not yet
+    # run here. Revisit this bound once #505 and #508 land and that world
+    # runs on every PR; five minutes leaves headroom for a hang instead of
+    # relying on nothing timing out at all.
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
@@ -63,34 +73,65 @@ jobs:
           log="checks.log"
           : > "$log"
 
-          for t in $(git ls-files '.claude/**/*.test.sh'); do
+          # The number of checks this repo has under .claude/. Raise this
+          # when a check is added, so the floor keeps failing an accidental
+          # zero-match (a renamed pathspec, a broken sparse checkout) rather
+          # than reporting a clean run that found nothing.
+          min_checks=13
+
+          sh_checks=()
+          while IFS= read -r -d '' t; do sh_checks+=("$t"); done \
+            < <(git ls-files -z '.claude/**/*.test.sh')
+
+          mjs_checks=()
+          while IFS= read -r -d '' t; do mjs_checks+=("$t"); done \
+            < <(git ls-files -z '.claude/**/*.test.mjs')
+
+          expected=$(( ${#sh_checks[@]} + ${#mjs_checks[@]} ))
+          ran=0
+          failed=0
+
+          for t in "${sh_checks[@]}"; do
             echo "--- $t" | tee -a "$log"
             bash "$t" 2>&1 | tee -a "$log"
-            if [ "${PIPESTATUS[0]}" -ne 0 ]; then echo "FAILED: $t" | tee -a "$log"; fi
+            rc=${PIPESTATUS[0]}
+            ran=$((ran + 1))
+            if [ "$rc" -ne 0 ]; then
+              echo "FAILED: $t" | tee -a "$log"
+              failed=$((failed + 1))
+            fi
           done
 
-          for t in $(git ls-files '.claude/**/*.test.mjs'); do
+          for t in "${mjs_checks[@]}"; do
             echo "--- $t" | tee -a "$log"
             node "$t" 2>&1 | tee -a "$log"
-            if [ "${PIPESTATUS[0]}" -ne 0 ]; then echo "FAILED: $t" | tee -a "$log"; fi
+            rc=${PIPESTATUS[0]}
+            ran=$((ran + 1))
+            if [ "$rc" -ne 0 ]; then
+              echo "FAILED: $t" | tee -a "$log"
+              failed=$((failed + 1))
+            fi
           done
 
-          expected=$(git ls-files '.claude/**/*.test.*' | wc -l)
-          ran=$(grep -c '^--- ' "$log")
-          failed=$(grep -c '^FAILED:' "$log")
-          skipped=$(grep '^SKIP' "$log")
+          skipped=$(grep '^SKIP: ' "$log")
 
           {
             echo "## Standalone \`.claude\` checks"
             echo
-            echo "Ran $ran of $expected checks listed by \`git ls-files '.claude/**/*.test.*'\`."
+            echo "Ran $ran of $expected checks (\`.claude/**/*.test.sh\` + \`.claude/**/*.test.mjs\`)."
             echo
             if [ -n "$skipped" ]; then
-              echo "### Skipped on ubuntu-latest"
+              echo "### Skipped on this runner"
               echo
               echo "$skipped" | sed 's/^/- /'
             else
               echo "No cases skipped on this runner."
+            fi
+            if [ "$failed" -ne 0 ]; then
+              echo
+              echo "### Failed"
+              echo
+              grep '^FAILED:' "$log" | sed 's/^/- /'
             fi
           } >> "$GITHUB_STEP_SUMMARY"
 
@@ -98,6 +139,10 @@ jobs:
           if [ "$failed" -ne 0 ]; then
             echo "$failed check(s) reported FAILED:"
             grep '^FAILED:' "$log"
+            status=1
+          fi
+          if [ "$expected" -lt "$min_checks" ]; then
+            echo "Only $expected checks were found (git ls-files), fewer than the $min_checks expected; the pathspec, sparse checkout, or checkout step is broken."
             status=1
           fi
           if [ "$ran" -lt "$expected" ]; then
