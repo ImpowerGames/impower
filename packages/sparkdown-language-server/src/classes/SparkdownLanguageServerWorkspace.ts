@@ -436,6 +436,22 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
     }
   }
 
+  private isScriptDocument(uri: string): boolean {
+    return this.getFileType(uri) === "script" ||
+      this._documents.get(uri)?.languageId === "sparkdown";
+  }
+
+  override async compile(uri: string, force: boolean): Promise<SparkProgram | undefined> {
+    // Diagnostics, semantic-token pulls and explicit program requests can all
+    // arrive for assets. An asset is not a compiler entry point: compiling it
+    // would also replace the last script URI used by subsequent file updates.
+    if (!this.isScriptDocument(uri)) {
+      const mainUri = this.getMainScriptUri(uri);
+      return mainUri ? this.program(mainUri) : undefined;
+    }
+    return super.compile(uri, force);
+  }
+
   public listen(): Disposable {
     (this._connection as any).__textDocumentSync =
       TextDocumentSyncKind.Incremental;
@@ -457,6 +473,18 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
         ): Promise<DocumentDiagnosticReport> => {
           const uri = params.textDocument.uri;
           const document = this._documents.get(uri);
+          // Clients may pull diagnostics for an asset after its first publish,
+          // including when it is open in an XML editor. Only scripts are valid
+          // compiler entry points. Always return a full report for assets so a
+          // repair clears an earlier warning without relying on script versions.
+          if (!document || !this.isScriptDocument(uri)) {
+            const mainUri = this.getMainScriptUri(uri);
+            const program = this.program(mainUri ?? uri);
+            return {
+              kind: "full",
+              items: program ? this.getDiagnostics(program, uri) : [],
+            } as DocumentDiagnosticReport;
+          }
           const program = await this.compile(uri, false);
           const resultId = `${document?.version ?? -1}`;
           if (document && program) {

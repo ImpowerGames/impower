@@ -1,5 +1,6 @@
 import { SparkdownDocumentRegistry } from "@impower/sparkdown/src/compiler/classes/SparkdownDocumentRegistry";
-import { describe, expect, it, vi } from "vitest";
+import { SparkdownWorkspace } from "@impower/sparkdown/src/workspace/classes/SparkdownWorkspace";
+import { afterEach, describe, expect, it, vi } from "vitest";
 vi.mock("@impower/sparkdown/src/worker/sparkdown.worker", () => ({ default: "" }));
 import { SparkdownLanguageServerWorkspace } from "../../classes/SparkdownLanguageServerWorkspace";
 
@@ -11,6 +12,8 @@ function setup() {
   const workspace = Object.create(SparkdownLanguageServerWorkspace.prototype) as SparkdownLanguageServerWorkspace;
   Object.assign(workspace, {
     _documents: new SparkdownDocumentRegistry([]),
+    _scriptFilePattern: /\.sd$/,
+    _imageFilePattern: /\.svg$/,
     _documentVersions: new Map([[main, 1]]),
     _lastPublishedDiagnostics: new Map(),
     _lastFormattedText: new Map(),
@@ -22,6 +25,7 @@ function setup() {
   return { workspace, handlers, publishes: () => vi.mocked(workspace.sendNotification).mock.calls.filter(([method]) => method === "textDocument/publishDiagnostics").map(([, params]) => params as any) };
 }
 
+afterEach(() => vi.restoreAllMocks());
 describe("asset diagnostic delivery", () => {
   it("publishes an unused asset warning and clears it after repair, without repeated notifications", () => {
     const { workspace, publishes } = setup();
@@ -58,4 +62,53 @@ describe("asset diagnostic delivery", () => {
     expect(await handler!({ uri: asset })).toEqual([]);
     expect(compile).not.toHaveBeenCalled();
   });
+  it.each([false, true])("standard diagnostic pulls serve asset warnings and repairs without compiling SVG (opened: %s)", async (opened) => {
+    const { workspace, handlers } = setup();
+    const compile = vi.spyOn(workspace, "compile").mockResolvedValue(undefined);
+    if (opened) (workspace as any)._documents.add({ textDocument: { uri: asset, languageId: "xml", version: 1, text: "<svg/>" } });
+    (workspace as any)._programStates.set(main, { program: { diagnostics: { [asset]: [warning] } } });
+    workspace.listen();
+    const handler = handlers.get("textDocument/diagnostic")!;
+    expect(await handler({ textDocument: { uri: asset } })).toEqual({ kind: "full", items: [warning] });
+    (workspace as any)._programStates.set(main, { program: { diagnostics: {} } });
+    expect(await handler({ textDocument: { uri: asset }, previousResultId: "old" })).toEqual({ kind: "full", items: [] });
+    expect(compile).not.toHaveBeenCalled();
+  });
+  it("standard script diagnostic pulls still compile the script and publish its version", async () => {
+    const { workspace, handlers } = setup();
+    (workspace as any)._documents.add({ textDocument: { uri: main, languageId: "sparkdown", version: 3, text: "Hello" } });
+    const compile = vi.spyOn(workspace, "compile").mockResolvedValue({ diagnostics: { [main]: [warning] } } as any);
+    workspace.listen();
+    expect(await handlers.get("textDocument/diagnostic")!({ textDocument: { uri: main } })).toEqual({ kind: "full", resultId: "3", items: [warning] });
+    expect(compile).toHaveBeenCalledWith(main, false);
+  });
+
+  it("guards all compilation entry points against assets, including semantic-token pulls", async () => {
+    const { workspace } = setup();
+    const program = { diagnostics: { [asset]: [warning] } } as any;
+    const workerCompile = vi.spyOn(SparkdownWorkspace.prototype, "compile").mockImplementation(async function (this: SparkdownWorkspace, uri) {
+      (this as any)._lastCompiledUri = uri;
+      return program;
+    });
+    (workspace as any)._programStates.set(main, { program });
+    (workspace as any)._lastCompiledUri = main;
+    expect(await workspace.compile(asset, false)).toBe(program);
+    expect((workspace as any)._lastCompiledUri).toBe(main);
+    expect(workerCompile).not.toHaveBeenCalled();
+    (workspace as any)._programStates.clear();
+    expect(await workspace.compile(asset, true)).toBeUndefined();
+    expect(workerCompile).not.toHaveBeenCalled();
+  });
+  it.each([main, "untitled:Untitled-1"])("preserves compilation and standard diagnostic pulls for Sparkdown scripts: %s", async (uri) => {
+    const { workspace, handlers } = setup();
+    const program = { diagnostics: { [uri]: [warning] } } as any;
+    const workerCompile = vi.spyOn(SparkdownWorkspace.prototype, "compile").mockResolvedValue(program);
+    (workspace as any)._documents.add({ textDocument: { uri, languageId: "sparkdown", version: 4, text: "Hello" } });
+    expect(await workspace.compile(uri, false)).toBe(program);
+    expect(workerCompile).toHaveBeenCalledWith(uri, false);
+    workspace.listen();
+    expect(await handlers.get("textDocument/diagnostic")!({ textDocument: { uri } })).toEqual({ kind: "full", resultId: "4", items: [warning] });
+    expect(workerCompile).toHaveBeenCalledTimes(2);
+  });
+
 });

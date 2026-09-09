@@ -172,6 +172,7 @@ async function handleLocalAssetRequest(url: URL, clientId: string) {
         },
       );
       const buffer = transfer[0];
+      if (!buffer) throw new Error("Asset relay returned no bytes");
 
       const contentLength = buffer.byteLength;
       const headers = new Headers({

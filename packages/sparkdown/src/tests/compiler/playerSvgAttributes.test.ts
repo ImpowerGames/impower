@@ -8,6 +8,7 @@ it.each(["data-name", "serif:id"])("serves %s attribute variants through the sta
   const listeners: Record<string, (event: any) => void> = {};
   const entries = new Map<string, Response>();
   let relays = 0;
+  let emptyTransfer = false;
   const raw = '<svg><g id="on" LABEL="hat.on"><path/></g><g id="off" LABEL="hat.off:default"><path/></g><g id="body"/></svg>'.replaceAll('LABEL', label);
   vi.stubGlobal("caches", {open: async () => ({
     match: async (key: string) => entries.get(key)?.clone(),
@@ -19,7 +20,7 @@ it.each(["data-name", "serif:id"])("serves %s attribute variants through the sta
     addEventListener: (name: string, listener: (event: any) => void) => {listeners[name] = listener;},
     clients: {get: async () => ({postMessage: (request: any) => {
       relays++;
-      queueMicrotask(() => listeners["message"]!({data: {...request, result: {transfer: [new TextEncoder().encode(raw).buffer]}}}));
+      queueMicrotask(() => listeners["message"]!({data: {...request, result: {transfer: emptyTransfer ? [] : [new TextEncoder().encode(raw).buffer]}}}));
     }})},
   });
   await import("../../../../../sparkdown-player-app/src/workers/sw");
@@ -46,4 +47,10 @@ it.each(["data-name", "serif:id"])("serves %s attribute variants through the sta
   await vi.waitFor(() => expect(entries.has(selected.url)).toBe(false));
   expect(entries.has(updated.url)).toBe(true);
   expect(entries.has(resting.url)).toBe(true);
+  emptyTransfer = true;
+  const missing = await new Promise<Response>(resolve => listeners["fetch"]!({
+    request: new Request("https://player.example/file:/assets/missing.png"), clientId: "editor",
+    respondWith: (response: Promise<Response>) => { void response.then(resolve); },
+  }));
+  expect(missing.status).toBe(404);
 });
