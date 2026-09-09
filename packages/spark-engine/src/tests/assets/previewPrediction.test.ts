@@ -650,6 +650,23 @@ scene B
 end
 `;
 
+  // The same choices, each branch falling through: a route from A's start
+  // to a branch's first line (5) replays a choice to reach it.
+  const ROUTED_CHOICES = `scene A
+  [[show backdrop room]]
+  Pick a fruit:
+  choose
+    + (a) Apple
+      You chose apple.
+    + (b) Banana
+      You chose banana.
+  end
+  [[show portrait bunny]]
+  Line two.
+  done
+end
+`;
+
   /** The messages' methods, each with the pin it names, for order checks. */
   const pinnedMethods = (messages: any[]) =>
     messages.map(
@@ -663,6 +680,9 @@ end
     // jumped away from them. They go after the beat's own request, so that
     // request is the first thing out; they are exactly the two choices
     // shown, and nothing else reaches the screen before the page answers.
+    // The host here previews again without a connect between, which is
+    // what leaves the last preview's choices on the page; the editor's
+    // page connects first, and that connect takes them off.
     const h = connected(CHOICES, 2);
     await h.ready;
     h.releaseAssets();
@@ -696,8 +716,9 @@ end
   it("clears the choices the last preview showed on the checkpoint route too", async () => {
     // The ordinary route: the compile worker's checkpoint is loaded and the
     // preview continues from it. The checkpoint's own state holds no
-    // choices, yet the ones the last preview showed are still on the page,
-    // so the game remembers them and clears exactly those.
+    // choices, yet the ones the last preview showed are still on the page
+    // of a host that previews without a connect between, so the game
+    // remembers them and clears exactly those.
     const h = connected(CROSS_CHOICES, 2);
     await h.ready;
     h.releaseAssets();
@@ -752,6 +773,8 @@ end
   });
 
   it("clears the choices the last preview showed even when the beat that replaces them stops at a breakpoint", async () => {
+    // A host that previews without a connect between: the run stops at a
+    // breakpoint before its flush, and the choices go all the same.
     const h = connected(CHOICES, 2);
     await h.ready;
     h.releaseAssets();
@@ -776,6 +799,38 @@ end
     expect(screenMessages(h.messages)).toEqual([]);
     h.releaseAssets();
     await previewing;
+  });
+
+  it("keeps its record of the choices shown through a route replay, which presents none, and clears them after it", async () => {
+    // A replay runs on the connected game with the page's paints
+    // suppressed, so the page still shows what the last displayed beat
+    // presented, and the record must still say so: the preview after the
+    // replay clears exactly those choices. The replay's own flush, the
+    // beat before the choices, carries none, since the simulator resolves
+    // a choice point before the interpreter sees it, and a record taken
+    // from it would empty the two the page shows.
+    const h = connected(ROUTED_CHOICES, 2);
+    await h.ready;
+    h.releaseAssets();
+    await h.preview(2);
+    expect(byMethod(h.messages, "game/awaitingInteraction")).toHaveLength(1);
+    h.game.setStartFrom({ file: MAIN_URI, line: 5 });
+    h.game.simulate();
+    expect(h.game.simulation).toBe("success");
+    // The replay's own layout updates go out in a batch of their own.
+    await flushMicrotasks(20);
+    h.reset();
+    expect(await h.preview(5)).toBe(pathAt(h.game, 5));
+    // The beat's own display clears every choice slot's text and picture;
+    // the record's clear is the one that unobserves the clicks.
+    expect(
+      byMethod(screenOps(h.messages), "ui/unobserve").map(
+        (m) => m.params.event,
+      ),
+    ).toEqual(["click", "click"]);
+    expect(JSON.stringify(screenMessages(h.messages))).toContain(
+      "You chose apple.",
+    );
   });
 
   it("stops at a breakpoint inside the beat as play does: nothing written, nothing gated, the stop reported", async () => {
@@ -1063,27 +1118,27 @@ end
     h.reset();
     const first = h.preview(3);
     await flushMicrotasks(20);
-    const late: any[] = [];
-    void h.game.connect((message) => late.push(message));
-    expect(await first).toBeNull();
-    h.releaseAssets();
+    void h.reconnect();
     await flushMicrotasks(20);
+    expect(await first).toBeNull();
+    const released = () =>
+      byMethod(h.messages, "assets/release").flatMap((m) => m.params.pins);
+    // The connect's own gates do not release the abandoned pin, and this
+    // connect has nothing of its own to wait for (no fonts, nothing to
+    // restore): the pin goes when the page answers the preview's load.
+    expect(released()).not.toContain("preview:1");
+    expect(h.releaseAssets("preview:1")).toBe(1);
+    await flushMicrotasks(20);
+    expect(released()).toContain("preview:1");
     // The connect's own traffic clears the transient targets (empty
     // writes); the abandoned beat's line and picture never land.
     expect(
-      late.filter(
-        (m) =>
-          (m.method?.startsWith("ui/write") &&
-            (m.params?.instructions?.length ?? 0) > 0) ||
-          m.method === "game/previewed",
+      screenOps(h.messages).filter(
+        (m) => (m.params?.instructions?.length ?? 0) > 0,
       ),
     ).toEqual([]);
-    expect(JSON.stringify(late)).not.toContain("Line two.");
-    // The connect asked for no gate of its own (nothing to restore), so the
-    // abandoned pin goes when its own load settles.
-    expect(
-      byMethod(late, "assets/release").map((m) => m.params.pins),
-    ).toEqual([["preview:1"]]);
+    expect(JSON.stringify(h.messages)).not.toContain("Line two.");
+    expect(byMethod(h.messages, "game/previewed")).toHaveLength(0);
   });
 
   it("displays nothing for a preview a reset interrupts", async () => {
@@ -1252,19 +1307,24 @@ end
     expect(byMethod(h.messages, "game/previewed")).toHaveLength(1);
   });
 
-  it("displays nothing for a preview a debug step interrupts", async () => {
+  it("displays nothing for a preview a debug step interrupts, and lets its pin go with the first step", async () => {
     // A step advances the story one element from where the held beat left
-    // it; stepping on to the next beat displays that beat, and the held
-    // beat's line never lands.
+    // it; stepping on to the next beat displays that beat at once, and the
+    // held beat's line never lands. A step gates nothing, so nothing waits:
+    // the abandoned pin goes with the first step, which reaches no beat.
     const h = connected(STORY, 3);
     await h.ready;
     h.reset();
     const first = h.preview(3);
     await flushMicrotasks(20);
+    expect(h.game.step()).toBe(false);
+    expect(
+      byMethod(h.messages, "assets/release").map((m) => m.params.pins),
+    ).toEqual([["preview:1"]]);
+    expect(await first).toBeNull();
     for (let steps = 0; steps < 100 && !h.game.step(); steps++) {
       // The step that reaches the next beat's flush returns true.
     }
-    expect(await first).toBeNull();
     h.releaseAssets();
     await flushMicrotasks(20);
     const screen = JSON.stringify(screenMessages(h.messages));
@@ -1273,16 +1333,22 @@ end
     expect(byMethod(h.messages, "game/previewed")).toHaveLength(0);
   });
 
-  it("displays nothing for a preview a call for an unknown point interrupts", async () => {
+  it("displays nothing for a preview a call for an unknown point interrupts, and lets its pin go at once", async () => {
+    // The call takes the waiting preview over and gates no beat, so
+    // nothing waits and the page's prefetching must not stay paused.
     const h = connected(STORY, 3);
     await h.ready;
     h.reset();
     const first = h.preview(3);
     await flushMicrotasks(20);
     expect(await h.game.preview("file://proj/deleted.sd", 3)).toBeNull();
+    const released = () =>
+      byMethod(h.messages, "assets/release").map((m) => m.params.pins);
+    expect(released()).toEqual([["preview:1"]]);
     expect(await first).toBeNull();
     h.releaseAssets();
     await flushMicrotasks(20);
+    expect(released()).toEqual([["preview:1"]]);
     expect(JSON.stringify(screenMessages(h.messages))).not.toContain(
       "Line two.",
     );
@@ -1365,20 +1431,21 @@ end
     expect(screenOps(g.messages)).toEqual([]);
   });
 
-  it("sets the beat's changes aside for the wait, so a handler repaints only what it changed itself", async () => {
+  it("repaints the layouts from the story's state for a handler that runs while the beat waits, as play does while a beat's gate waits", async () => {
+    // The beat has already changed the state when its wait begins, in
+    // preview as in play, and a handler's repaint reads that state: the
+    // binding that reads the beat's variable paints the beat's value
+    // beside the one that reads the handler's, before the beat's line, in
+    // both.
     const story = `store hp = 100
 store pings = 0
 function ping()
   pings = pings + 1
 end
-function heal()
-  hp = hp + 5
-end
 layout hud with
   text "HP {hp}"
   text "P {pings}"
   button "Ping" @click=ping
-  button "Heal" @click=heal
 end
 
 scene A
@@ -1387,55 +1454,81 @@ scene A
   [[show portrait bunny]]
   & hp = 50
   Line two.
-  Line three.
   done
 end
 `;
-    // Line 18 is the portrait's line; its beat sets `hp` to 50.
-    const h = connected(story, 18);
-    await h.ready;
-    const [ping, heal] = h.observedElementIds();
-    expect(ping && heal).toBeTruthy();
-    h.reset();
-    const previewing = h.preview(18);
+    // Line 14 is the portrait's line; its beat sets `hp` to 50.
+    const preview = connected(story, 14);
+    await preview.ready;
+    const previewButton = preview.observedElementIds()[0];
+    expect(previewButton).toBeTruthy();
+    preview.reset();
+    const previewing = preview.preview(14);
     await flushMicrotasks(20);
-    expect(byMethod(h.messages, "assets/load")).toHaveLength(1);
-    // A handler that changes something else repaints that alone: the
-    // beat's `hp` stays at what the screen shows until the beat lands.
-    h.emitEvent("click", ping!);
+    expect(byMethod(preview.messages, "assets/load")).toHaveLength(1);
+    preview.emitEvent("click", previewButton!);
     await flushMicrotasks(20);
-    const during = JSON.stringify(screenOps(h.messages));
-    expect(during).toContain("P 1");
-    expect(during).not.toContain("HP 50");
-    expect(during).not.toContain("Line two.");
-    // A handler that changes what the beat changed repaints it with the
-    // beat's value, since that is the state.
-    h.emitEvent("click", heal!);
-    await flushMicrotasks(20);
-    expect(JSON.stringify(screenOps(h.messages))).toContain("HP 55");
-    expect(JSON.stringify(screenOps(h.messages))).not.toContain("Line two.");
-    h.releaseAssets();
+    const previewDuring = JSON.stringify(screenOps(preview.messages));
+    expect(previewDuring).toContain("HP 50");
+    expect(previewDuring).toContain("P 1");
+    expect(previewDuring).not.toContain("Line two.");
+    preview.releaseAssets();
     await previewing;
-    const after = JSON.stringify(screenOps(h.messages));
-    expect(after).toContain("Line two.");
-    // A preview taken over instead hands its changes back to the story's
-    // change set, so the next display paints the state as it is. A debug
-    // step keeps the state and displays the next beat: `hp` is still 50
-    // and that beat's display shows it (without the hand-back the screen
-    // would keep the stale 100).
-    const g = connected(story, 18);
-    await g.ready;
-    g.reset();
-    const first = g.preview(18);
+    expect(JSON.stringify(screenOps(preview.messages))).toContain("Line two.");
+
+    // Play from the same beat: its own gate waits for the same picture,
+    // and the same click paints the same text before the line.
+    const play = connected(story, 14);
+    await play.ready;
+    const playButton = play.observedElementIds()[0];
+    expect(playButton).toBeTruthy();
+    play.reset();
+    play.game.start();
     await flushMicrotasks(20);
-    for (let steps = 0; steps < 100 && !g.game.step(); steps++) {
-      // The step that reaches the next beat's flush returns true.
-    }
+    expect(byMethod(play.messages, "assets/load")).toHaveLength(1);
+    play.emitEvent("click", playButton!);
+    await flushMicrotasks(20);
+    const playDuring = JSON.stringify(screenOps(play.messages));
+    expect(playDuring).toContain("HP 50");
+    expect(playDuring).toContain("P 1");
+    expect(playDuring).not.toContain("Line two.");
+  });
+
+  it("lets the abandoned pin go at once when the beat that takes over stops short of its flush", async () => {
+    const h = connected(STORY, 3);
+    await h.ready;
+    h.reset();
+    const first = h.preview(3);
+    await flushMicrotasks(20);
+    // Line 6 is `Line three.`, inside the beat that shows `hat`.
+    h.game.setBreakpoints([{ file: MAIN_URI, line: 6 }]);
+    expect(await h.preview(5)).toBe(pathAt(h.game, 5));
     expect(await first).toBeNull();
-    const taken = JSON.stringify(screenOps(g.messages));
-    expect(taken).toContain("Line three.");
-    expect(taken).toContain("HP 50");
-    expect(taken).not.toContain("Line two.");
+    expect(byMethod(h.messages, "game/hitBreakpoint")).toHaveLength(1);
+    expect(byMethod(h.messages, "assets/load").map((m) => m.params.pin)).toEqual(
+      ["preview:1"],
+    );
+    expect(
+      byMethod(h.messages, "assets/release").map((m) => m.params.pins),
+    ).toEqual([["preview:1"]]);
+  });
+
+  it("lets the abandoned pin go at once when play begins with a beat that needs no picture", async () => {
+    const h = connected(STORY, 3);
+    await h.ready;
+    h.reset();
+    const first = h.preview(3);
+    await flushMicrotasks(20);
+    // Line 2 is `Line one.` alone: play's first beat has no gate.
+    h.game.setStartFrom({ file: MAIN_URI, line: 2 });
+    h.game.start();
+    expect(await first).toBeNull();
+    expect(byMethod(h.messages, "assets/load").map((m) => m.params.pin)).toEqual(
+      ["preview:1"],
+    );
+    expect(
+      byMethod(h.messages, "assets/release").map((m) => m.params.pins),
+    ).toEqual([["preview:1"]]);
   });
 
   it("gates nothing for a cursor inside a function, whose body a preview cannot run to a picture", async () => {

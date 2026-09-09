@@ -65,11 +65,6 @@ export type GameModules = InstanceMap<DefaultModuleConstructors>;
 
 export type M = { [name: string]: Module };
 
-/** The changes to the story's state the layouts' bindings react to. */
-type ReactiveChanges = ReturnType<
-  Story["variablesState"]["takeReactiveChanges"]
->;
-
 export class Game<T extends M = {}> {
   protected _clock?: Clock;
   get clock() {
@@ -126,17 +121,14 @@ export class Game<T extends M = {}> {
   protected _previewGeneration = 0;
 
   /** The preview waiting for its beat's pictures, if one is: what a repeat
-   *  of its point settles with, the gate a take-over abandons, the signal
-   *  that ends its wait then, and the beat's changes to the story's state,
-   *  set aside for the wait so a handler that runs meanwhile repaints only
-   *  what it changed itself. */
+   *  of its point settles with, the gate a take-over abandons, and the
+   *  signal that ends its wait then. */
   protected _pendingPreview: {
     path: string;
     generation: number;
     promise: Promise<string | null>;
     abandon: () => void;
     cancel: () => void;
-    changes: ReactiveChanges;
   } | null = null;
 
   /** The targets of the choices the last displayed beat presented, which
@@ -1527,7 +1519,12 @@ export class Game<T extends M = {}> {
     // would display over the step's.
     this.cancelPreview();
     this.resetExecutionBudget();
-    return this.stepWithinBudget(traversal);
+    const done = this.stepWithinBudget(traversal);
+    // A step gates nothing: a beat it reaches displays at once, since the
+    // game is previewing, and one it does not reach issues no gate. Nothing
+    // waits, so an abandoned pin goes now.
+    this.module.assets.releaseAbandonedGates();
+    return done;
   }
 
   protected stepWithinBudget(
@@ -2355,30 +2352,31 @@ export class Game<T extends M = {}> {
    * resolves, and so does a load, a recompile, a reset, a start, a connect,
    * a debug step, or the game's destruction: the earlier preview's wait
    * ends at once and it displays nothing, its point previews again when
-   * asked, and its pin goes with the next beat's gate: right after that
-   * gate's request, or at once when the next beat needs none, or when its
-   * own load settles, or with the game, whichever is first, so a picture
-   * still queued for the beat the cursor has left leaves the express lane
-   * once the beat it is on has asked for its own (a load already in flight
-   * finishes there), and the page's background queue is never un-paused
-   * between the two. A repeat of the point whose preview is waiting
-   * settles with it. The choices the last displayed beat presented leave
-   * before the wait, after the beat's pictures have been asked for, so
-   * none of them can be clicked while it waits and a run that stops short
-   * takes them away too (the page's connect clears every transient target,
-   * the choice slots among them, and forgets them for the game, so a
-   * preview after a connect sends nothing for them; a route replay presents
-   * none). The beat's
-   * changes to the story's state are set aside for the wait: a handler
-   * that runs meanwhile repaints the layouts with what it changed itself,
-   * and the beat's changes come back with its line (a handler that changes
-   * what the beat changed repaints it with the beat's value, since that is
-   * the state). The execution report is what the run executed, taken when
-   * it stopped, so nothing a handler runs during the wait is in it. With
-   * `restore_timeout` at 0 the wait is unbounded: the beat displays when
-   * the page answers or the next update takes the preview over. Resolves
-   * to the path previewed; to null when the point resolves to none, or
-   * when the preview was taken over while it waited.
+   * asked, and its pin goes with the next beat's gate, right after that
+   * gate's request, so a picture still queued for the beat the cursor has
+   * left leaves the express lane once the beat it is on has asked for its
+   * own (a load already in flight finishes there) and the page's
+   * background queue stays paused between the two; when nothing waits (the
+   * next beat needs no gate, the take-over's point resolves to none, a
+   * debug step, whose beat displays at once) the pin goes at once and the
+   * queue resumes, and it goes when its own load settles or with the game
+   * in any case. A
+   * repeat of the point whose preview is waiting settles with it. The
+   * choices the last displayed beat presented leave before the wait, after
+   * the beat's pictures have been asked for, so none of them can be clicked
+   * while it waits and a run that stops short takes them away too; the
+   * page's connect clears every transient target, the choice slots among
+   * them, and forgets them for the game, so on the page's path the connect
+   * takes them and this clear is for a host that previews without a connect
+   * between (a route replay presents none). A handler that runs while the
+   * beat waits repaints the layouts from the story's state, which the beat
+   * has already changed, as it does in play when a handler runs while a
+   * beat's own gate waits. The execution report is what the run executed,
+   * taken when it stopped, so nothing a handler runs during the wait is in
+   * it. With `restore_timeout` at 0 the wait is unbounded: the beat
+   * displays when the page answers or the next update takes the preview
+   * over. Resolves to the path previewed; to null when the point resolves
+   * to none, or when the preview was taken over while it waited.
    */
   async preview(file: string, line: number): Promise<string | null> {
     if (this._state === "running") {
@@ -2392,8 +2390,10 @@ export class Game<T extends M = {}> {
     );
     if (!previewPath) {
       // A preview call takes over a waiting preview whether or not its
-      // point resolves.
+      // point resolves; with no beat to gate, nothing waits, so an
+      // abandoned pin goes now.
       this.cancelPreview();
+      this.module.assets.releaseAbandonedGates();
       // A pure UI-only project (e.g. a `layout` with only reactive `{bindings}`)
       // has no narrative path to preview: every path-located flow is a synthetic
       // `__binding_*` evaluator, and those are excluded from preview candidates.
@@ -2453,10 +2453,6 @@ export class Game<T extends M = {}> {
       this.finishPreview(previewPath, executed);
       return previewPath;
     }
-    // The beat's changes to the story's state, set aside for the wait: a
-    // handler that runs meanwhile repaints the layouts with what it changed
-    // itself, and these come back with the beat's line.
-    const changes = this._story.variablesState.takeReactiveChanges();
     let cancel = () => {};
     const cancelled = new Promise<void>((resolve) => {
       cancel = resolve;
@@ -2466,7 +2462,6 @@ export class Game<T extends M = {}> {
       generation,
       held.instructions,
       executed,
-      changes,
       gate,
       cancelled,
     );
@@ -2476,21 +2471,18 @@ export class Game<T extends M = {}> {
       promise: waiting,
       abandon: gate.abandon,
       cancel,
-      changes,
     };
     return waiting;
   }
 
   /** Display a held beat once its pictures are resident, unless something
-   *  took the preview over while it waited, which ends the wait at once
-   *  (the take-over put the beat's changes back); the pending record and
-   *  the gate go however the wait ends. */
+   *  took the preview over while it waited, which ends the wait at once;
+   *  the pending record and the gate go however the wait ends. */
   protected async displayWhenResident(
     previewPath: string,
     generation: number,
     instructions: Instructions | null,
     executed: GameExecutedParams,
-    changes: ReactiveChanges,
     gate: { settled: Promise<unknown>; release: () => void },
     cancelled: Promise<void>,
   ): Promise<string | null> {
@@ -2499,7 +2491,6 @@ export class Game<T extends M = {}> {
       if (generation !== this._previewGeneration || this._destroyed) {
         return null;
       }
-      this._story.variablesState.restoreReactiveChanges(changes);
       this.displayHeld(instructions);
     } finally {
       this.forgetPendingPreview(generation);
@@ -2533,22 +2524,19 @@ export class Game<T extends M = {}> {
   }
 
   /** Take over from a preview. A waiting one ends its wait now and displays
-   *  nothing, its gate is abandoned (the asset module lets the pin go with
-   *  the next beat's gate, the load's own settle, or the game, whichever is
-   *  first, since a release before the next gate's request would let the
-   *  page's background queue start loads beside the picture the next beat
-   *  waits on), and the beat's changes go back to the story's change set,
-   *  so whatever refreshes the layouts next sees them (a false positive
-   *  costs one equality-gated re-evaluation). The point last previewed is
-   *  forgotten either way, since what the caller is about to do replaces
-   *  the state that preview showed. */
+   *  nothing, and its gate is abandoned: the asset module lets the pin go
+   *  with the next beat's gate, at once when the caller issues none, when
+   *  the load settles, or with the game, whichever is first, since a
+   *  release before the next gate's request would let the page's
+   *  background queue start loads beside the picture the next beat waits
+   *  on. The point last previewed is forgotten either way, since what the
+   *  caller is about to do replaces the state that preview showed. */
   protected cancelPreview(): void {
     this._previewGeneration += 1;
     this._previewedPath = undefined;
     const pending = this._pendingPreview;
     if (pending) {
       this._pendingPreview = null;
-      this._story.variablesState.restoreReactiveChanges(pending.changes);
       pending.abandon();
       pending.cancel();
     }

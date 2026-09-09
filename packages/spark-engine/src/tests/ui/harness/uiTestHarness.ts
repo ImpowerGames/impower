@@ -92,7 +92,8 @@ export interface UIHarness {
   timerDelays(): number[];
   flushTimers(): void;
   /** With `holdAssets`, answer every `assets/load` request held so far, as
-   *  the page would once the items are resident. Returns how many. */
+   *  the page would once the items are resident, or only the requests under
+   *  the given pin, leaving the rest held. Returns how many. */
   releaseAssets(pin?: string): number;
   /** How many `assets/load` requests are being held (with `holdAssets`). */
   heldAssetLoadCount(): number;

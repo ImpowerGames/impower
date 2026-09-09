@@ -371,6 +371,14 @@ export class AssetModule extends Module<
     }
   }
 
+  /** Let the abandoned preview pins go now: for a take-over that issues no
+   *  gate at all (a preview of a point that resolves to none, a debug step
+   *  that reaches no beat), where nothing waits and a held pin would only
+   *  keep the page's prefetching paused. */
+  releaseAbandonedGates(): void {
+    this.releaseAbandoned();
+  }
+
   protected prefetch(items: AssetItem[], priority: 2 | 3): void {
     if (items.length === 0 || this._destroyed) {
       return;

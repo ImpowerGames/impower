@@ -1231,6 +1231,11 @@ export class GamePlayerController {
     }, 1000);
   }
 
+  /** Build the game and publish it as `this._game` before yielding. No
+   *  await belongs in this body: `updatePreview` relies on the game being
+   *  published in the same task that asked for it, so that an update
+   *  awaiting the build cannot be overtaken during it; an await here would
+   *  reopen that window with nothing to catch it. */
   async buildGame(program: SparkProgram, restarted?: boolean) {
     const options = this._options;
     const startFrom = options?.startFrom;
@@ -1625,11 +1630,13 @@ export class GamePlayerController {
     // reconcile pass on, the newer update owns the screen, and a sweep by
     // the older one would take the newer beat's content off it. A game the
     // play path replaced or stopped meanwhile is left to that path too. The
-    // game's build publishes the game before it yields, so no update can be
-    // overtaken during it; and from here to the connect, which takes over a
-    // waiting preview as its first act, an update with a game and an app
-    // runs without yielding, so an older update cannot interleave inside
-    // that stretch.
+    // game's build performs no await, so `this._game` is published before
+    // the await on it yields and that yield is one microtask, which no other
+    // update's task can enter: an update cannot be overtaken during the
+    // build, and `buildGame` must stay free of awaits for that to hold. From
+    // here to the connect, which takes over a waiting preview as its first
+    // act, an update with a game and an app runs without yielding, so an
+    // older update cannot interleave inside that stretch either.
     const update = ++this._previewUpdates;
 
     if (!this._game) {

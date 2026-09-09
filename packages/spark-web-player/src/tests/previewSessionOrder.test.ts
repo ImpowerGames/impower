@@ -10,6 +10,7 @@
 // attaches listeners), so it can be driven directly with a recording stand-in
 // for the game.
 
+import { compileUI } from "@impower/spark-engine/src/tests/ui/harness/uiTestHarness";
 import { describe, expect, test } from "vitest";
 import { GamePlayerController } from "../GamePlayerController";
 
@@ -351,5 +352,21 @@ describe("preview session ordering", () => {
     await first;
     expect(calls.filter((c) => c === "preview")).toHaveLength(1);
     expect(calls.filter((c) => c === "sweepReconcile")).toHaveLength(1);
+  });
+
+  test("the build publishes the game before its await yields", async () => {
+    // `updatePreview` counts on this: an update awaiting the build cannot
+    // be overtaken during it, because the game is published in the task
+    // that asked for it and the await on the build is one microtask.
+    const { program } = compileUI("scene A\n  Line one.\n  done\nend\n");
+    const controller = new GamePlayerController(
+      document.createElement("div"),
+      {} as any,
+    );
+    const building = controller.buildGame(program as any);
+    const published = (controller as any)._game;
+    expect(published).toBeDefined();
+    expect(await building).toBe(published);
+    published.destroy();
   });
 });
