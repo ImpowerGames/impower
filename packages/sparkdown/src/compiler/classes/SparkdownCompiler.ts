@@ -3025,18 +3025,27 @@ export class SparkdownCompiler {
             endLine = existingEndLine;
             endColumn = existingEndColumn;
           }
-          if (endColumn === 0) {
+          if (endColumn <= 0 && endLine > startLine) {
             // If range stretches to only the start of a line,
             // limit the range to the end of the previous line,
             // (So that the document blinking cursor doesn't confusingly appear
-            // at the start of the next unrelated line when doing a stack trace)
+            // at the start of the next unrelated line when doing a stack trace,
+            // and so that a line-keyed lookup — a breakpoint, a preview point —
+            // resolves that line to its OWN path rather than to the statement
+            // that merely stops at its first column.)
+            // `endColumn` is an INCLUSIVE 0-based column, so a range reaching
+            // only the start of `endLine` records either 0 (the line's first
+            // character) or -1 (`endCharacterNumber` 0: nothing on the line at
+            // all). Both mean the same thing here. The `endLine > startLine`
+            // guard keeps a single-line range from being pulled back before its
+            // own start.
             if (uri) {
               const document = this.documents.get(uri);
               if (document) {
                 const endPositionWithoutLastNewline = document.positionAt(
                   document.offsetAt({
                     line: endLine,
-                    character: endColumn,
+                    character: Math.max(endColumn, 0),
                   }) - 1,
                 );
                 endLine = endPositionWithoutLastNewline.line;
