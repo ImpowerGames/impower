@@ -7,6 +7,7 @@ import { Game } from "@impower/spark-engine/src/game/core/classes/Game";
 import { findClosestPath } from "@impower/spark-engine/src/game/core/utils/findClosestPath";
 import { type AssetItem } from "@impower/spark-engine/src/game/modules/assets/types/AssetItem";
 import { beatIndexIn } from "@impower/spark-engine/src/game/modules/assets/utils/previewWindow";
+import { buildAttributeVocabulary } from "@impower/sparkdown/src/attributes";
 import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
 import { type File } from "@impower/sparkdown/src/compiler/types/File";
 import { type SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
@@ -57,13 +58,14 @@ end
 `;
 
 // An SVG served through the service worker, its source not inlined: a
-// filtered use of it resolves to a `?filters=` variant of this url.
+// filtered use of it resolves to a `?attributes=` variant of this url.
 const svg = (name: string): File => ({
   uri: `file://proj/${name}.svg`,
   type: "image",
   name,
   ext: "svg",
   src: `/file:/proj/${name}.svg?v=1`,
+  attribute_vocabulary: buildAttributeVocabulary([{ key: "glow", name: "glow.on" }]),
 });
 
 function compile(source: string, version = 1, extra: File[] = []): SparkProgram {
@@ -182,29 +184,31 @@ describe("planPreviewHint", () => {
     }
   });
 
-  it("asks for the filtered variant the engine resolves, query string and all", () => {
+  it.each([":", "~"])("asks for the filtered variant the engine resolves with %s, query string and all", (separator) => {
     // The url a filtered SVG renders through carries the filter in its query
     // string, and nothing else ever fetches it; the hint is useless unless
     // it names that exact url.
-    const story = `define dim as filter with
-  includes = { "glow" }
+    const story = `define dim as filtered_image with
+  image = hall
+  attributes = { "glow" }
 end
 
 scene A
-  [[show backdrop hall~dim]]
+  [[show backdrop hall${separator}glow]]
   Line one.
   done
 end
 `;
     const filtered = compile(story, 1, [svg("hall")]);
     const game = new Game({ program: filtered } as any);
-    const theirs = game.module.ui.getImageSrcsByName("hall~dim");
+    const theirs = game.module.ui.getImageSrcsByName(`hall${separator}glow`);
     expect(theirs).toHaveLength(1);
-    expect(theirs![0]).toMatch(/^\/file:\/proj\/hall\.svg\?v=1&filters=/);
+    expect(theirs![0]).toMatch(/^\/file:\/proj\/hall\.svg\?v=1&attributes=/);
+    expect(JSON.parse(new URL(theirs![0]!, "https://example.invalid").searchParams.get("attributes")!)).toEqual({ glow: "on" });
     const hint = planPreviewHint(
       filtered,
       URI,
-      5,
+      6,
       entriesOf(filtered),
       undefined,
     )!;
