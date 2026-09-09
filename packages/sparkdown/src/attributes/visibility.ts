@@ -69,28 +69,6 @@ export const evaluateAttributeVisibility = (
         });
       }
     }
-    for (const [group, option] of Object.entries(selection)) {
-      const options = Object.hasOwn(scope.options, group)
-        ? scope.options[group]
-        : undefined;
-      // Opposite-only switch layers are intentional dependencies (hair in a
-      // hat.off folder hides under hat.on). Warn about missing named choices,
-      // not these ordinary switch-off/on branches of the same artwork.
-      if (!options?.length || vocabulary.groups[group]?.switch) continue;
-      if (
-        !options.some((candidate) => matchesAttributeOption(option, candidate))
-      ) {
-        diagnostics.push({
-          code: "missing-folder-option",
-          severity: "warning",
-          group,
-          folder: scope.name,
-          path: key,
-          attribute: `${group}.${option}`,
-          message: `Folder "${scope.name}" has no ${group}.${option}; layers for ${group} in this folder are hidden.`,
-        });
-      }
-    }
     if (
       Object.hasOwn(selection, "look") &&
       Object.hasOwn(scope.options, "look") &&

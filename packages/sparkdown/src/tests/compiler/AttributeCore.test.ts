@@ -200,23 +200,41 @@ describe("portrait attributes", () => {
     ).toHaveLength(2);
   });
 
-  it("hides a locally absent option and warns with its active folder", () => {
+  it("hides unmatched alternatives without requiring every folder to implement an option", () => {
     const vocabulary = buildSVGAttributeVocabulary(portrait);
     const resolved = resolveAttributes(vocabulary, ["happy", "look.left"]);
     const result = evaluateAttributeVisibility(vocabulary, resolved.selection);
     expect(ids(filterSVG(portrait, resolved.selection))).not.toContain(
       "happy-up",
     );
-    expect(result.diagnostics).toContainEqual(
-      expect.objectContaining({
-        code: "missing-folder-option",
-        folder: "face.happy",
-        group: "look",
-      }),
+    expect(result.diagnostics).toEqual([]);
+  });
+
+
+  it("accepts a phone-left pose outside the sleeve folder and hides phone-only cheek detail", () => {
+    const vocabulary = buildAttributeVocabulary([
+      { key: "sleeve", name: "sweater-left-sleeve" },
+      { key: "down-sleeve", parent: "sleeve", name: "sleeve:arms.down.phone-right:default" },
+      { key: "phone-arm", name: "arm:arms.phone-left" },
+      { key: "script-arm", name: "arm:arms.script" },
+      { key: "head", name: "head" },
+      { key: "face", parent: "head", name: "face" },
+      { key: "cheek", parent: "head", name: "cheek:arms.phone" },
+    ]);
+    for (const option of ["phone-left", "script"]) {
+      const resolved = resolveAttributes(vocabulary, ["arms." + option]);
+      expect(resolved.diagnostics).toEqual([]);
+      const result = evaluateAttributeVisibility(vocabulary, resolved.selection);
+      expect(result.diagnostics).toEqual([]);
+      expect(result.visible["down-sleeve"]).toBe(false);
+      expect(result.visible["phone-arm"]).toBe(option === "phone-left");
+      expect(result.visible["script-arm"]).toBe(option === "script");
+      expect(result.visible["cheek"]).toBe(option === "phone-left");
+      expect(result.visible["face"]).toBe(true);
+    }
+    expect(resolveAttributes(vocabulary, ["arms.missing"]).diagnostics).toContainEqual(
+      expect.objectContaining({ code: "unknown-attribute" }),
     );
-    expect(
-      result.diagnostics.some((d) => d.folder === "face.neutral:default"),
-    ).toBe(false);
   });
 
   it("diagnoses unrelated bare-option ambiguity but accepts face and eyebrows", () => {
