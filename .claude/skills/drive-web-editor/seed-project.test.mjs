@@ -1040,6 +1040,26 @@ function commandDeps(page, overrides = {}) {
   };
 }
 const repro = path.join(scratch, "repro.sd");
+await check("verify and ui run fresh worker verification and stop on an unverifiable worker", async () => {
+  for (const command of [verify, ui]) {
+    for (const failed of [false, true]) {
+      await withStub({}, async ({ page }) => {
+        let calls = 0;
+        const serviceWorker = { refreshed: !failed, controlled: !failed, sha256: failed ? null : "installed-hash", ...(failed ? { reason: "worker could not be verified" } : {}) };
+        const { deps } = commandDeps(page, {
+          reportFreshWorker: async () => { calls++; return { report: serviceWorker, close: async () => {} }; },
+        });
+        const result = await command(["--fresh-sw"], deps);
+        assert.equal(calls, 1, "the fresh worker flag must not be ignored");
+        assert.deepEqual(command === verify ? result.serviceWorker : result.steps[0].serviceWorker, serviceWorker);
+        assert.equal(process.exitCode, failed ? 1 : 0);
+        if (failed && command === verify) assert.equal(result.gameMounted, undefined, "no game verification after failed worker proof");
+        process.exitCode = 0;
+      });
+    }
+  }
+});
+
 const reproText = "ALICE:\n  Hi.\n";
 fs.writeFileSync(repro, reproText);
 const shot = path.join(scratch, "shots", "out.png");

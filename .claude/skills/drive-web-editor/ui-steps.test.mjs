@@ -15,7 +15,12 @@
 // Pure function, no browser. Node's built-in assert only.
 
 import assert from "node:assert/strict";
-import { followedByMain, parseUiSteps } from "./driver.mjs";
+import crypto from "node:crypto";
+import { EventEmitter } from "node:events";
+import vm from "node:vm";
+import { MessageChannel } from "node:worker_threads";
+import { followedByMain, parseUiSteps, unionRect, languageSurface, liveDeps } from "./driver.mjs";
+import { reportFreshWorker, workerSession } from "./worker-report.mjs";
 
 let failures = 0;
 const check = (name, fn) => {
@@ -109,6 +114,142 @@ check("a --screen logic is 'followed by main' only when the very next step is --
   assert.equal(followedByMain(parseUiSteps(["--screen", "logic", "--shot", "b.png", "--screen", "main"]), 0), false);
   assert.equal(followedByMain(parseUiSteps(["--screen", "logic"]), 0), false);
   assert.equal(followedByMain(parseUiSteps(["--screen", "assets", "--screen", "logic", "--screen", "main"]), 1), true);
+});
+
+check("completion, hover and fresh worker steps retain their order and crop targets", () => {
+  assert.deepEqual(parseUiSteps(["--fresh-sw", "--complete", "7:3=~fil=x", "--shot-of", "completion", "c.png", "--hover", "5:19", "--shot-of", "hover", "h.png"]), [
+    { freshSw: true },
+    { complete: { line: 7, col: 3 }, text: "~fil=x" },
+    { shotOf: "completion", out: "c.png" },
+    { hover: { line: 5, col: 19 } },
+    { shotOf: "hover", out: "h.png" },
+  ]);
+});
+
+check("language surface positions require positive safe integers and completion text", () => {
+  for (const spec of ["0:1", "1:0", "-1:2", "1.5:2", "1:2:3", "9007199254740992:1"]) {
+    assert.throws(() => parseUiSteps(["--hover", spec]), /position/);
+    assert.throws(() => parseUiSteps(["--complete", `${spec}=x`]), /position/);
+  }
+  assert.throws(() => parseUiSteps(["--complete", "1:2="]), /text/);
+  assert.throws(() => parseUiSteps(["--complete", "1:2"]), /text/);
+});
+
+check("completion crop includes a separate info panel and clips to the viewport", () => {
+  assert.deepEqual(unionRect([{ x: 100, y: 80, width: 200, height: 100 }, { x: 300, y: 60, width: 180, height: 150 }], { width: 450, height: 200 }), { x: 100, y: 60, width: 350, height: 140 });
+  assert.equal(unionRect([null, { x: 500, y: 1, width: 20, height: 30 }], { width: 400, height: 200 }), null);
+});
+
+const asyncCheck = async (name, fn) => {
+  try { await fn(); console.log(`PASS: ${name}`); }
+  catch (err) { failures++; console.log(`FAIL: ${name}\n  ${err.stack}`); }
+};
+
+await asyncCheck("hover uses pointer movement, completion types text, and missing surfaces are unknown server responses", async () => {
+  const calls = [];
+  let lines = ["[[portrait]]"];
+  const view = { state: { doc: { lines: 1, line: () => ({ from: 0, text: lines[0] }) } }, coordsAtPos: () => ({ left: 100, top: 40, bottom: 60 }) };
+  const context = vm.createContext({ document: { querySelector: () => ({ cmTile: { view } }), elementFromPoint: () => ({ closest: () => true }) } });
+  const page = {
+    keyboard: { press: async (key) => calls.push(["press", key]), type: async (text) => { calls.push(["type", text]); lines = ["[[portrait" + text + "]]"]; } },
+    mouse: { move: async (...args) => calls.push(["move", ...args]) },
+    evaluate: async (fn, arg) => vm.runInContext(`(${fn})`, context)(arg),
+    locator: () => ({ first: () => ({ waitFor: async () => { throw new Error("no widget"); } }) }),
+  };
+  const deps = { place: async () => ({ placed: true }), read: async (_, kind) => kind === "hover" ? { present: false } : { popupPresent: false } };
+  const hover = await languageSurface(page, "hover", { line: 1, col: 4 }, undefined, deps);
+  assert.deepEqual(calls.at(-1), ["move", 101, 50, { steps: 5 }]);
+  assert.equal(hover.serverResponse, "unobserved");
+  assert.match(hover.reason, /cannot distinguish an empty server answer/);
+  const completion = await languageSurface(page, "completion", { line: 1, col: 11 }, "~ha", deps);
+  assert.equal(completion.textMatches, true);
+  assert.deepEqual(calls.at(-1), ["type", "~ha"]);
+  assert.equal(completion.serverResponse, "unobserved");
+  calls.length = 0;
+  const refused = await languageSurface(page, "completion", { line: 5, col: 1 }, "x", { ...deps, place: async () => ({ placed: false, reason: "outside" }) });
+  assert.equal(refused.reason, "outside");
+  assert.equal(calls.some(([call]) => call === "type"), false);
+});
+
+function workerHarness({ unregister = true, source = "installed worker A", reloadFails = false } = {}) {
+  const calls = [];
+  const listeners = new Set();
+  const cdp = new EventEmitter();
+  const targetId = "worker-target";
+  const controller = { state: "activated", scriptURL: "http://editor.test/sw.js", postMessage: (data, ports) => { for (const fn of listeners) fn({ data, ports }); } };
+  const registration = { active: controller, scope: "http://editor.test/", unregister: async () => { calls.push("unregister"); return unregister; } };
+  const navigator = { serviceWorker: { controller, getRegistrations: async () => [registration], getRegistration: async () => registration } };
+  const self = { addEventListener: (_, fn) => listeners.add(fn), removeEventListener: (_, fn) => listeners.delete(fn) };
+  const context = vm.createContext({ navigator, self, MessageChannel, setTimeout, clearTimeout });
+  const event = (message) => cdp.emit("Target.receivedMessageFromTarget", { sessionId: "nested", message: JSON.stringify(message) });
+  cdp.detach = async () => calls.push("detach");
+  cdp.send = async (method, params) => {
+    calls.push(method);
+    if (method === "Target.attachToTarget") { assert.equal(params.targetId, targetId); return { sessionId: "nested" }; }
+    if (method === "Target.sendMessageToTarget") {
+      const message = JSON.parse(params.message);
+      let result = {};
+      if (message.method === "Debugger.enable") event({ method: "Debugger.scriptParsed", params: { scriptId: "script", url: controller.scriptURL } });
+      if (message.method === "Debugger.getScriptSource") result = { scriptSource: source };
+      if (message.method === "Runtime.evaluate") result = vm.runInContext(message.params.expression, context);
+      event({ id: message.id, result });
+    }
+    return {};
+  };
+  const page = {
+    evaluate: async (fn, arg) => vm.runInContext(`(${fn})`, context)(arg),
+    waitForFunction: async (fn) => { const result = vm.runInContext(`(${fn})`, context)(); assert.equal(typeof result, "boolean", "wait predicate must be synchronous"); assert.equal(result, true); },
+    waitForTimeout: async () => {},
+  };
+  const ctx = { newCDPSession: async () => cdp };
+  const reload = async () => {
+    calls.push("reload");
+    if (reloadFails) throw new Error("reload refused");
+    cdp.emit("ServiceWorker.workerVersionUpdated", { versions: [{ versionId: "v", scriptURL: controller.scriptURL, status: "activated", runningStatus: "running", targetId }] });
+  };
+  return { page, ctx, reload, calls, listeners, cdp, event };
+}
+
+await asyncCheck("fresh worker unregisters before reload, hashes the installed source and captures worker cache warnings", async () => {
+  const h = workerHarness();
+  const { report, close } = await liveDeps.reportFreshWorker(h.page, h.ctx, h.reload);
+  assert.equal(report.reason, undefined);
+  assert.equal(report.controlled, true);
+  assert.equal(report.refreshed, true);
+  assert.equal(report.sha256, crypto.createHash("sha256").update("installed worker A").digest("hex"));
+  assert.ok(h.calls.indexOf("unregister") < h.calls.indexOf("reload"));
+  assert.equal(h.listeners.size, 0, "controller probe listener removed");
+  h.event({ method: "Runtime.consoleAPICalled", params: { type: "warning", args: [{ value: "Cache.put failed: quota" }] } });
+  assert.deepEqual(report.warnings, ["Cache.put failed: quota"]);
+  await close();
+  assert.ok(h.calls.includes("Target.detachFromTarget"));
+  assert.equal(h.cdp.listenerCount("Target.receivedMessageFromTarget"), 0);
+  const second = workerHarness({ source: "installed worker B" });
+  const changed = await reportFreshWorker(second.page, second.ctx, second.reload);
+  assert.notEqual(changed.report.sha256, report.sha256);
+  await changed.close();
+});
+
+await asyncCheck("failed worker unregister or reload reports failure, skips script proof and closes CDP", async () => {
+  for (const options of [{ unregister: false }, { reloadFails: true }]) {
+    const h = workerHarness(options);
+    const { report } = await reportFreshWorker(h.page, h.ctx, h.reload);
+    assert.equal(report.refreshed, false);
+    assert.equal(report.sha256, null);
+    assert.match(report.reason, /fresh service worker verification failed/);
+    assert.equal(h.calls.includes("Target.attachToTarget"), false);
+    assert.ok(h.calls.includes("detach"));
+    if (options.unregister === false) assert.equal(h.calls.includes("reload"), false);
+  }
+});
+
+await asyncCheck("worker CDP timeout rejects and leaves no response listener after close", async () => {
+  const cdp = new EventEmitter();
+  cdp.send = async () => ({ sessionId: "silent" });
+  const session = await workerSession(cdp, "target", 10);
+  await assert.rejects(session.send("Debugger.enable"), /timed out/);
+  await session.close();
+  assert.equal(cdp.listenerCount("Target.receivedMessageFromTarget"), 0);
 });
 
 if (failures > 0) {
