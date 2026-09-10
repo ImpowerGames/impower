@@ -7,12 +7,12 @@ import {
   type AttributeLayerInput,
 } from "../../attributes";
 
-// The migration fixture preserves the real SVG's names, original IDs and
+// The historical portrait fixture preserves the real SVG's names, original IDs and
 // folder tree at this source revision, omitting only drawing geometry.
 const fixture = JSON.parse(
   readFileSync(
     new URL(
-      "../../../../../scripts/portrait-migration/fixtures/raffles-and-bunny-8d734bb.json",
+      "./fixtures/raffles-and-bunny-8d734bb.json",
       import.meta.url,
     ),
     "utf8",
@@ -64,8 +64,8 @@ describe("bunny_realization.svg vocabulary fixture", () => {
     expect(vocabulary.folders[realization.parent]?.defaults["face"]).toContain(
       "realization",
     );
-    // The current art also marks supportive in this folder. Do not silently
-    // discard the artist's second default while migrating its visible stack.
+    // The pinned art also marks supportive in this folder. Do not silently
+    // discard the artist's second default when evaluating its visible stack.
     expect(vocabulary.diagnostics).toContainEqual(
       expect.objectContaining({ code: "conflicting-defaults", group: "face" }),
     );
