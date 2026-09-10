@@ -121,4 +121,4 @@ This list holds only what no mechanism catches. A trap a command can catch belon
 
 ## Improving this skill
 
-If a step here failed, needed something it does not give, did not fit your bug without saying so, or cost you time on a trap Gotchas does not list, report it under a "Skill feedback" heading in your final message with the edit you propose, as `CLAUDE.md` describes. The fresh-worktree install line above exists because the first agent to follow this skill lost time to it and said so. If the session has a branch and pull request and you are certain of the fix, make it in this file in its own commit and mention it in the pull request; otherwise the report is enough.
+If a step here failed, needed something it does not give, did not fit your bug without saying so, or cost you time on a trap Gotchas does not list, report it under a "Skill feedback" heading in your final message with the edit you propose, as `CLAUDE.md` describes. If the session has a branch and pull request and you are certain of the fix, make it in this file in its own commit and mention it in the pull request; otherwise record the proposal in the inbox as `CLAUDE.md` describes.
