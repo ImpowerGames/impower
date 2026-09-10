@@ -123,7 +123,7 @@ check("partitionConsole caps what it returns without capping what it counts", ()
   const many = Array.from({ length: 40 }, (_, i) => `[error] distinct failure ${i}`);
   const { errors } = partitionConsole(many.concat(Array(5).fill("[error] Unhandled method workspace/diagnostic/refresh")));
   assert.equal(errors.length, 25);
-  assert.equal(partitionConsole(many, 3).errors.length, 3);
+  assert.equal(partitionConsole(many, KNOWN_CONSOLE_NOISE, 3).errors.length, 3);
 });
 
 // ---------------------------------------------------------------- script ---

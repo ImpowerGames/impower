@@ -1069,14 +1069,14 @@ const KNOWN_CONSOLE_NOISE = [
 ];
 
 /** Splits the captured console into the lines worth reading and the known noise, by count. */
-function partitionConsole(lines, limit = 25) {
+function partitionConsole(lines, known = KNOWN_CONSOLE_NOISE, limit = 25) {
   const errors = [];
   const noise = {};
-  for (const name of KNOWN_CONSOLE_NOISE.map((n) => n.name)) noise[name] = 0;
+  for (const name of known.map((n) => n.name)) noise[name] = 0;
   for (const line of lines) {
     if (!line.startsWith("[error]") && !line.startsWith("[pageerror]")) continue;
-    const known = KNOWN_CONSOLE_NOISE.find((n) => n.match.test(line));
-    if (known) noise[known.name] += 1;
+    const known_ = known.find((n) => n.match.test(line));
+    if (known_) noise[known_.name] += 1;
     else errors.push(line);
   }
   return { errors: errors.slice(0, limit), noise };

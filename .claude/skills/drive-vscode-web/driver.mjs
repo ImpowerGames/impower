@@ -38,6 +38,7 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
+  partitionConsole,
   pidAlive,
   processStartedMs,
   recordStands,
@@ -127,10 +128,80 @@ export function dataLayout(root) {
     builds: path.join(root, "builds"),
     projects: path.join(root, "projects"),
     logs: path.join(root, "logs"),
+    locks: path.join(root, "locks"),
   };
 }
 
+/** Where the lock for a quality's download sits: beside `builds`, which a download deletes whole. */
+export function downloadLockPath(layout, quality) {
+  return path.join(layout.locks, `download-${quality}.lock`);
+}
+
+/**
+ * Takes the lock that stops two worktrees downloading into one quality's
+ * builds directory at the same time. The directory is deleted before the
+ * download, so the launch that loses the race ends up serving a directory
+ * the other emptied; nothing but the order of two commands decided it.
+ *
+ * The lock is created with the exclusive flag, so the winner is decided by
+ * the filesystem rather than by a read followed by a write. A lock whose
+ * record no longer stands (the launch that took it has exited) is dropped
+ * and the lock retaken once; `held: false` carries the record still holding
+ * it, for the refusal to name.
+ */
+// The four filesystem calls the lock is made of, apart so the check can run
+// the same code without a disk. `writeNew` fails with EEXIST rather than
+// overwriting, which is what decides the winner.
+const lockIo = {
+  mkdirp: (dir) => fs.mkdirSync(dir, { recursive: true }),
+  writeNew: (file, text) => fs.writeFileSync(file, text, { flag: "wx" }),
+  readLock: (file) => {
+    try {
+      return JSON.parse(fs.readFileSync(file, "utf8"));
+    } catch {
+      return null;
+    }
+  },
+  removeLock: (file) => {
+    try {
+      fs.rmSync(file, { force: true });
+    } catch {
+      // A lock another launch removed between the read and the remove is
+      // the outcome this wanted anyway.
+    }
+  },
+};
+
+export async function takeDownloadLock(lockPath, record, io, stands) {
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      io.mkdirp(path.dirname(lockPath));
+      io.writeNew(lockPath, JSON.stringify(record, null, 2));
+      return { held: true };
+    } catch (err) {
+      if (err?.code !== "EEXIST") throw err;
+    }
+    const other = io.readLock(lockPath);
+    if (other && (await stands(other))) return { held: false, other };
+    io.removeLock(lockPath);
+  }
+  return { held: false, other: io.readLock(lockPath) };
+}
+
 export const QUALITIES = ["stable", "insiders"];
+
+// Console lines the served workbench produces on every run, whatever the
+// change under test is: two resources the build does not ship, the file
+// watcher the web workbench has no API for, and the page error that follows
+// them. They are partitioned out of `consoleErrors` and counted under
+// `consoleNoise`, so what is left in the list is worth reading and a line
+// that stopped appearing reads as a count of zero.
+export const WORKBENCH_CONSOLE_NOISE = [
+  { name: "package.nls.json 404", match: /package\.nls\.json/ },
+  { name: "spark.d.ts 404", match: /spark\.d\.ts/ },
+  { name: "file watcher", match: /FileSystemObserver|File Watcher/ },
+  { name: "Not Found page error", match: /^\[pageerror\] Not Found/ },
+];
 
 const inside = (dir, p) => {
   const rel = path.relative(dir, p);
@@ -450,7 +521,8 @@ export function cursorAt(text) {
 export function cursorOnWord(hit, cursorText, caretX) {
   const at = cursorAt(cursorText);
   if (!at) return `the status bar reports no cursor position (${JSON.stringify(cursorText)})`;
-  if (hit.line == null) return "the word's line has no gutter number, so the line the caret is on cannot be checked";
+  if (hit.line == null)
+    return "the word's line has no gutter number, so the line the caret is on cannot be checked; line numbers are off or relative in the served folder's .vscode/settings.json, so serve a folder without that setting";
   if (at.line !== hit.line) return `the cursor is on line ${at.line}, not line ${hit.line}`;
   if (caretX == null) return "no caret is drawn";
   const slack = (hit.charWidth ?? 2) / 2;
@@ -471,7 +543,8 @@ export function hoverImageFailure(img) {
   if (!img) return null;
   if (!img.hasSrc) return "the hover's image has no src";
   if (!img.complete) return "the hover's image had not finished loading within 10 s";
-  if (!(img.naturalWidth > 0 && img.naturalHeight > 0)) return `the hover's image failed to load: natural size ${img.naturalWidth} x ${img.naturalHeight}`;
+  if (!(img.naturalWidth > 0 && img.naturalHeight > 0))
+    return `the hover's image failed to load: natural size ${img.naturalWidth} x ${img.naturalHeight}; the src the web workbench could not fetch is in the report's img.srcHead, and this is the extension's bug rather than the driver's`;
   return null;
 }
 
@@ -500,15 +573,19 @@ export function usableReading(r) {
 export const SETTLE = { stableReads: 8, minReads: 25 };
 export function settleState(readings, { stableReads = SETTLE.stableReads, minReads = SETTLE.minReads } = {}, signal = null) {
   const last = readings[readings.length - 1];
-  if (!usableReading(last)) return { settled: false, why: `the last reading carried no count (${JSON.stringify(last?.problems ?? null)})` };
+  if (!usableReading(last))
+    return { settled: false, why: `the last reading carried no count (${JSON.stringify(last?.problems ?? null)}): the status bar's problems item was gone or empty at the end, so read the report's consoleErrors` };
   const series = readings.filter(usableReading).map((r) => JSON.stringify(r));
   if (series.length < stableReads) return { settled: false, why: `${series.length} reading${series.length === 1 ? "" : "s"} carried a count and ${stableReads} that agree are needed` };
   const held = series[series.length - 1];
-  if (!series.slice(-stableReads).every((r) => r === held)) return { settled: false, why: `the last ${stableReads} readings did not agree` };
+  if (!series.slice(-stableReads).every((r) => r === held))
+    return { settled: false, why: `the last ${stableReads} readings did not agree, so the diagnostics were still changing; raise --settle, and check whether a vitest run is saturating the machine` };
   if (series.some((r) => r !== series[0])) return { settled: true, why: null };
   const unchanged = "the readings never changed from the workbench's own value";
-  if (series.length < minReads) return { settled: false, why: `${unchanged} and ${series.length} of the ${minReads} a clean file needs were taken` };
-  if (!signal?.activated) return { settled: false, why: `${unchanged} and the extension never showed itself (no status bar item of its own in the page), which is what a build that never ran looks like` };
+  if (series.length < minReads)
+    return { settled: false, why: `${unchanged} and ${series.length} of the ${minReads} a clean file needs were taken; raise --settle so the ${minReads} readings fit` };
+  if (!signal?.activated)
+    return { settled: false, why: `${unchanged} and the extension never showed itself (no status bar item of its own in the page), which is what a build that never ran looks like; read consoleErrors past the pre-existing noise and the server log \`status\` names, and confirm --file and the served folder` };
   if (!signal?.answered) return { settled: false, why: `${unchanged} and the language server never answered (no symbol after the file's name in the breadcrumbs); a file with a scene, a function or a label gives it one to answer with` };
   return { settled: true, why: null };
 }
@@ -910,6 +987,8 @@ export const liveDeps = {
   pickPort,
   otherWorktreeRecords,
   unpackedCommit,
+  takeDownloadLock: (lockPath, record) => takeDownloadLock(lockPath, record, lockIo, stands),
+  releaseDownloadLock: (lockPath) => lockIo.removeLock(lockPath),
   writeProjectSd,
   spawnServer,
   waitReady,
@@ -1069,19 +1148,42 @@ async function launch(opts, deps) {
   // while another worktree's server serves from that directory.
   if (opts["--fresh"]) {
     const users = await sharedBuildUsers(deps.otherWorktreeRecords(), first.builds, deps.recordStands);
-    if (users.length) deps.die(`up --fresh would delete ${first.builds}, which ${users.map((u) => `${u.worktree} (pid ${u.pid}, ${u.url})`).join(" and ")} serves from; \`down\` there first`);
+    if (users.length) deps.die(`up --fresh would delete ${first.builds}, which ${users.map((u) => `${u.worktree} (pid ${u.pid}, ${u.url})`).join(" and ")} serves from; \`down\` there first, or run \`up\` without --fresh to serve the build already unpacked`);
   }
   const commit = opts["--fresh"] ? null : deps.unpackedCommit(first.builds);
   const plan = launchPlan({ ...base, commit });
   if (plan.error) deps.die(`up: ${plan.error}`);
+  // Only a launch with no commit to pin downloads, and only a download can
+  // be raced. The data directory is shared by every worktree, so the lock is
+  // what makes the order of two first launches stop mattering.
+  const lockPath = downloadLockPath(dataLayout(data), quality);
+  let holdsLock = false;
+  if (!commit) {
+    const lock = await deps.takeDownloadLock(lockPath, { worktree: deps.repoRoot, pid: process.pid, url, quality, startedAt: deps.now() });
+    if (!lock.held) {
+      const other = lock.other;
+      deps.die(
+        `${other?.worktree ?? "another worktree"} (pid ${other?.pid ?? "unknown"}) is downloading the VS Code build into ${plan.builds}; ` +
+          "two downloads at once delete each other's build, since the server empties that directory before it unpacks. " +
+          "Wait for that `up` to print READY, then run this again",
+      );
+    }
+    holdsLock = true;
+  }
   if (plan.ownProject) deps.writeProjectSd(plan.project, opts["--sd"]);
   deps.mkdirp(plan.builds);
   deps.mkdirp(path.dirname(plan.logPath));
   const pid = deps.spawnServer(plan);
   deps.writeState({ url, pid, port, data, builds: plan.builds, project: plan.project, ownProject: plan.ownProject, quality, commit, log: plan.logPath, startedAt: deps.now() });
   deps.log(`serving ${plan.project} pid ${pid} → ${url}${commit ? ` (build ${commit.slice(0, 10)}, already unpacked)` : ""}`);
-  if (!(await deps.waitReady(url, plan.builds, () => deps.pidAlive(pid), { downloading: !commit }))) {
-    deps.die(`the server (pid ${pid}) exited before ${url} answered; read ${plan.logPath}, then \`down\``);
+  try {
+    if (!(await deps.waitReady(url, plan.builds, () => deps.pidAlive(pid), { downloading: !commit }))) {
+      deps.die(`the server (pid ${pid}) exited before ${url} answered; read ${plan.logPath}, then \`down\` and \`up\` again`);
+    }
+  } finally {
+    // The build is unpacked by the time the server answers, and a launch
+    // that died holds nothing worth guarding either.
+    if (holdsLock) deps.releaseDownloadLock(lockPath);
   }
 }
 
@@ -1233,7 +1335,9 @@ export async function verify(args, deps = liveDeps) {
           fail(`screenshot failed: ${firstLine(err)}`);
         }
       }
-      report.consoleErrors = consoleLines.filter((l) => l.startsWith("[error]") || l.startsWith("[pageerror]")).slice(0, 20);
+      const captured = partitionConsole(consoleLines, WORKBENCH_CONSOLE_NOISE, 20);
+      report.consoleErrors = captured.errors;
+      report.consoleNoise = captured.noise;
     });
   } catch (err) {
     fail(`verify threw: ${firstLine(err)}`);
@@ -1258,7 +1362,7 @@ async function openFile(page, file, report, fail) {
     await page.waitForSelector(".view-lines", { timeout: 60_000 });
   } catch (err) {
     report.opened = false;
-    fail(`could not open ${file} from the explorer: ${firstLine(err)}`);
+    fail(`could not open ${file} from the explorer: ${firstLine(err)}; \`status\` names the served folder, so check it exists and holds ${file} at its top level, since a file of that name in a subfolder is never clicked, then \`down\` and \`up\` again`);
     return;
   }
   const title = (await page.locator(".tabs-container .tab.active .label-name").first().textContent({ timeout: 10_000 }).catch(() => null))?.trim() ?? null;
@@ -1277,7 +1381,7 @@ async function hoverOn(page, opts, report, fail, deps) {
   const word = opts["--hover"];
   const hit = await page.evaluate(wordOnPage, { word, lineText: opts["--line"], sources: pageSources() });
   if (!hit) {
-    fail(`"${word}" is not a whole word on a rendered line${opts["--line"] ? ` containing "${opts["--line"]}"` : ""}; only the lines in the viewport are rendered`);
+    fail(`"${word}" is not a whole word on a rendered line${opts["--line"] ? ` containing "${opts["--line"]}"` : ""}; give the whole identifier when the word sits inside a longer one, and keep the line near the top of the file, since only the lines in the viewport are rendered`);
     return;
   }
   await page.mouse.click(hit.x, hit.y);
@@ -1298,7 +1402,7 @@ async function hoverOn(page, opts, report, fail, deps) {
   }
   Object.assign(report.hover, hover);
   if (!hover.present) {
-    fail(`no hover opened on "${word}" within 10 s of Ctrl+K Ctrl+I`);
+    fail(`no hover opened on "${word}" within 10 s of Ctrl+K Ctrl+I: the extension answers a hover only on an image reference or a word under a diagnostic, so read the report's diagnostics and pick such a word`);
     return;
   }
   if (opts["--hover-image"] && !hover.img) fail(`the hover on "${word}" carries no image (--hover-image)`);

@@ -54,6 +54,8 @@ import {
   cursorAt,
   cursorOnWord,
   dataLayout,
+  downloadLockPath,
+  takeDownloadLock,
   diagnosticsOnPage,
   diagnosticsOutcome,
   editorOpened,
@@ -618,6 +620,11 @@ const upDeps = (over = {}) => {
     pickPort: async () => 34123,
     otherWorktreeRecords: () => [],
     unpackedCommit: () => "c".repeat(40),
+    takeDownloadLock: async (lockPath, record) => {
+      calls.push(["takeDownloadLock", lockPath, record]);
+      return { held: true };
+    },
+    releaseDownloadLock: (lockPath) => calls.push(["releaseDownloadLock", lockPath]),
     writeProjectSd: (project, sd) => {
       calls.push(["writeProjectSd", project, sd]);
       return 5;
@@ -687,7 +694,7 @@ await check("up --fresh is refused while another worktree's standing record serv
   const builds = path.join(DATA, "builds", "stable");
   const other = { worktree: path.join("C:", "w2"), pid: 1, builds, url: "http://localhost:7" };
   const deps = upDeps({ otherWorktreeRecords: () => [other] });
-  await refuses(up(["--sd", "repro.sd", "--fresh"], deps), /^up --fresh would delete .*builds.stable, which C:.w2 \(pid 1, http:\/\/localhost:7\) serves from; `down` there first$/);
+  await refuses(up(["--sd", "repro.sd", "--fresh"], deps), /^up --fresh would delete .*builds.stable, which C:.w2 \(pid 1, http:\/\/localhost:7\) serves from; `down` there first, or run `up` without --fresh to serve the build already unpacked$/);
   assert.ok(!names(deps).includes("spawn"));
   const gone = upDeps({ otherWorktreeRecords: () => [{ ...other, pid: 2 }] });
   await up(["--sd", "repro.sd", "--fresh"], gone);
@@ -696,6 +703,87 @@ await check("up --fresh is refused while another worktree's standing record serv
   const insiders = upDeps({ otherWorktreeRecords: () => [other] });
   await up(["--sd", "repro.sd", "--fresh", "--quality", "insiders"], insiders);
   assert.equal(argOf(spawned(insiders)[0].args, "--quality"), "insiders", "a record on the other quality's directory does not block");
+});
+
+// The download lock. The data directory is shared by every worktree, and a
+// download deletes the quality's builds directory before it unpacks, so two
+// first launches at once leave the loser serving a directory the winner
+// emptied. Nothing but the order of two commands used to decide it.
+await check("the download lock sits beside the builds a download deletes, and only one launch holds it", async () => {
+  const layout = dataLayout(DATA);
+  const lock = downloadLockPath(layout, "stable");
+  assert.equal(path.dirname(lock), layout.locks);
+  assert.ok(!lock.startsWith(layout.builds + path.sep), "a lock inside builds would be deleted by the download it guards");
+  assert.notEqual(downloadLockPath(layout, "insiders"), lock, "each quality has its own build directory and its own lock");
+
+  // A filesystem in memory, where writeNew refuses to overwrite exactly as
+  // the exclusive flag does.
+  const files = new Map();
+  const io = {
+    mkdirp: () => {},
+    writeNew: (file, text) => {
+      if (files.has(file)) {
+        const err = new Error("EEXIST");
+        err.code = "EEXIST";
+        throw err;
+      }
+      files.set(file, text);
+    },
+    readLock: (file) => (files.has(file) ? JSON.parse(files.get(file)) : null),
+    removeLock: (file) => files.delete(file),
+  };
+  const stands = async (r) => r.pid === 1;
+  const mine = { worktree: path.join("C:", "w1"), pid: 1, url: "http://localhost:7", quality: "stable", startedAt: 1 };
+
+  const first = await takeDownloadLock(lock, mine, io, stands);
+  assert.deepEqual(first, { held: true });
+  assert.deepEqual(io.readLock(lock), mine);
+
+  const second = await takeDownloadLock(lock, { ...mine, worktree: path.join("C:", "w2"), pid: 2 }, io, stands);
+  assert.equal(second.held, false, "a launch cannot download into a directory another launch is downloading into");
+  assert.deepEqual(second.other, mine, "the refusal knows whose launch to wait for");
+  assert.deepEqual(io.readLock(lock), mine, "the standing lock is not overwritten");
+
+  // A launch that died holding the lock must not wedge the machine.
+  files.set(lock, JSON.stringify({ ...mine, pid: 404 }));
+  const afterCrash = await takeDownloadLock(lock, mine, io, stands);
+  assert.deepEqual(afterCrash, { held: true }, "a lock whose launch has exited is dropped and retaken");
+  assert.deepEqual(io.readLock(lock), mine);
+
+  io.removeLock(lock);
+  assert.deepEqual(await takeDownloadLock(lock, mine, io, stands), { held: true }, "a released lock is free again");
+});
+
+await check("up takes the download lock only when it will download, releases it once the server answers, and is refused while another worktree holds it", async () => {
+  const lock = downloadLockPath(dataLayout(DATA), "stable");
+  // A launch with a commit to pin serves what is unpacked and downloads
+  // nothing, so it neither takes nor waits on the lock.
+  const pinned = upDeps();
+  await up(["--sd", "repro.sd"], pinned);
+  assert.ok(!names(pinned).includes("takeDownloadLock"), "a pinned launch does not download, so it does not queue behind one");
+
+  // A first launch of a quality has nothing unpacked and does download.
+  const firstEver = upDeps({ unpackedCommit: () => null });
+  await up(["--sd", "repro.sd"], firstEver);
+  const order = names(firstEver);
+  assert.ok(order.indexOf("takeDownloadLock") < order.indexOf("spawn"), "the lock is taken before the server that deletes the directory starts");
+  assert.ok(order.indexOf("releaseDownloadLock") > order.indexOf("waitReady"), "the lock is held until the build is unpacked and the server answers");
+  const taken = firstEver.calls.find((c) => c[0] === "takeDownloadLock");
+  assert.equal(taken[1], lock);
+  assert.equal(taken[2].worktree, firstEver.repoRoot, "the lock names the worktree whose launch holds it, for the refusal to point at");
+
+  const busy = upDeps({
+    unpackedCommit: () => null,
+    takeDownloadLock: async () => ({ held: false, other: { worktree: path.join("C:", "w2"), pid: 7, url: "http://localhost:9" } }),
+  });
+  await refuses(up(["--sd", "repro.sd"], busy), /^C:.w2 \(pid 7\) is downloading the VS Code build into .*builds.stable; two downloads at once delete each other's build, since the server empties that directory before it unpacks\. Wait for that `up` to print READY, then run this again$/);
+  assert.ok(!names(busy).includes("spawn"), "nothing is launched into a directory that is being replaced");
+
+  // A launch that dies waiting still gives the lock back, or the next one
+  // waits on a download that is not happening.
+  const died = upDeps({ unpackedCommit: () => null, waitReady: async () => false });
+  await refuses(up(["--sd", "repro.sd"], died), /exited before .* answered; read .*, then `down` and `up` again$/);
+  assert.ok(names(died).includes("releaseDownloadLock"), "a failed launch releases the lock rather than wedging every other worktree");
 });
 
 const serving = (extra = {}) => ({ url: "http://localhost:34123", pid: 1, port: 34123, data: DATA, builds: path.join(DATA, "builds", "stable"), project: path.join(DATA, "projects", "34123"), ownProject: true, quality: "stable", commit: "c".repeat(40), log: "l", startedAt: 1, ...extra });
@@ -982,7 +1070,7 @@ await check("the caret is on the word when it is on the word's line and between 
   assert.match(cursorOnWord(hit, "Ln 8, Col 5", 451), /line 8, not line 7/);
   assert.match(cursorOnWord(hit, null, 451), /no cursor position/);
   assert.match(cursorOnWord(hit, "Ln 7, Col 5", null), /no caret/);
-  assert.match(cursorOnWord({ ...hit, line: null }, "Ln 3, Col 5", 451), /has no gutter number/, "a word whose line cannot be placed is not vouched for by the pixels alone");
+  assert.match(cursorOnWord({ ...hit, line: null }, "Ln 3, Col 5", 451), /has no gutter number, so the line the caret is on cannot be checked; line numbers are off or relative in the served folder's \.vscode\/settings\.json, so serve a folder without that setting$/, "a word whose line cannot be placed is not vouched for by the pixels alone");
 });
 
 await check("opened is true only for the editor titled exactly as the file", () => {
@@ -995,7 +1083,7 @@ await check("opened is true only for the editor titled exactly as the file", () 
 await check("a hover image counts as loaded only with a src, complete, and a natural size", () => {
   assert.equal(hoverImageFailure(null), null, "a hover without an image is judged by --hover-image, not here");
   assert.equal(hoverImageFailure({ hasSrc: true, complete: true, naturalWidth: 96, naturalHeight: 180 }), null);
-  assert.match(hoverImageFailure({ hasSrc: true, complete: true, naturalWidth: 0, naturalHeight: 0 }), /failed to load: natural size 0 x 0/);
+  assert.match(hoverImageFailure({ hasSrc: true, complete: true, naturalWidth: 0, naturalHeight: 0 }), /failed to load: natural size 0 x 0; the src the web workbench could not fetch is in the report's img\.srcHead, and this is the extension's bug rather than the driver's$/);
   assert.match(hoverImageFailure({ hasSrc: true, complete: false, naturalWidth: 0, naturalHeight: 0 }), /not finished loading/);
   assert.match(hoverImageFailure({ hasSrc: false, complete: true, naturalWidth: 0, naturalHeight: 0 }), /no src/);
 });
@@ -1024,7 +1112,7 @@ await check("readings that never change settle only after the floor, and only on
   assert.equal(isSettled(same(25), undefined, ALIVE), true);
   assert.match(settleState(same(24), undefined, ALIVE).why, /never changed from the workbench's own value and 24 of the 25 a clean file needs were taken/);
   assert.equal(isSettled(same(25)), false, "no signal is no proof the build ran");
-  assert.match(settleState(same(25), undefined, { activated: false, answered: true }).why, /never changed from the workbench's own value and the extension never showed itself \(no status bar item of its own in the page\), which is what a build that never ran looks like/);
+  assert.match(settleState(same(25), undefined, { activated: false, answered: true }).why, /never changed from the workbench's own value and the extension never showed itself \(no status bar item of its own in the page\), which is what a build that never ran looks like; read consoleErrors past the pre-existing noise and the server log `status` names, and confirm --file and the served folder/);
   assert.match(settleState(same(25), undefined, { activated: true, answered: false }).why, /never changed from the workbench's own value and the language server never answered \(no symbol after the file's name in the breadcrumbs\); a file with a scene, a function or a label gives it one to answer with/);
   assert.equal(isSettled(same(40), undefined, { activated: true, answered: false }), false, "more readings are not the answer");
   assert.equal(isSettled([...same(3), ...same(8, "0 2")]), true, "a series that changed is the server's own answer and needs no other signal");
@@ -1041,7 +1129,7 @@ await check("readings that change and then hold settle as soon as they have held
   const series = [...same(3), ...same(8, "0 2")];
   assert.equal(isSettled(series), true);
   assert.equal(isSettled(series.slice(0, -1)), false, "seven held readings are not eight");
-  assert.match(settleState(series.slice(0, -1)).why, /the last 8 readings did not agree/);
+  assert.match(settleState(series.slice(0, -1)).why, /the last 8 readings did not agree, so the diagnostics were still changing; raise --settle, and check whether a vitest run is saturating the machine$/);
   assert.match(settleState(same(3)).why, /3 readings carried a count and 8 that agree are needed/);
 });
 
@@ -1255,7 +1343,11 @@ await check("verify opens the file, waits for the counter to change and hold, cl
   assert.equal(report.screenshot, path.resolve("after.png"));
   assert.equal(report.hoverScreenshot, path.resolve("hover.png"));
   assert.equal(report.probe, 2);
-  assert.deepEqual(report.consoleErrors, ["[error] boom", "[pageerror] Not Found"]);
+  // `[pageerror] Not Found` is one of the lines every run produces, so it is
+  // counted rather than listed; what is left in consoleErrors is worth reading.
+  assert.deepEqual(report.consoleErrors, ["[error] boom"]);
+  assert.equal(report.consoleNoise["Not Found page error"], 1);
+  assert.equal(report.consoleNoise["package.nls.json 404"], 0);
   assert.deepEqual(deps.acts.slice(0, 4), [["alias", RECORD.builds], ["workbench", RECORD.url, true], ["wait", ".monaco-workbench"], ["open", "main.sd", 1]], "the row clicked is the file's own at the top level, not the subfolder's file of the same name that comes first in the DOM, nor the name that extends it");
   assert.equal(TOP_ROW, '.explorer-folders-view .monaco-list-row[aria-level="1"]');
   assert.equal(evaluated(deps).filter((n) => n === "diagnosticsOnPage").length, 12);
@@ -1328,7 +1420,7 @@ await check("a clean file settles only once the extension activated and the lang
   assert.equal(r.report.settled, false);
   assert.equal(r.report.settledAfterS, 30);
   assert.deepEqual(r.report.extension, { activated: false, answered: true });
-  assert.match(r.report.failed[0], /^the diagnostics had not settled after 30 s \(--settle 30\): the readings never changed from the workbench's own value and the extension never showed itself \(no status bar item of its own in the page\), which is what a build that never ran looks like; the numbers reported are the last reading, not a result$/);
+  assert.match(r.report.failed[0], /^the diagnostics had not settled after 30 s \(--settle 30\): the readings never changed from the workbench's own value and the extension never showed itself \(no status bar item of its own in the page\), which is what a build that never ran looks like; read consoleErrors past the pre-existing noise and the server log `status` names, and confirm --file and the served folder; the numbers reported are the last reading, not a result$/);
   const mute = verifyDeps(fakeDocument({ lines: rendered, problems: script(["0 0"]), crumbs: () => ["main.sd"] }));
   r = await verify(["--settle", "30"], mute);
   assert.equal(r.exitCode, 1);
@@ -1354,7 +1446,7 @@ await check("a run whose readings never settle is a failed entry naming the rule
   assert.equal(r.exitCode, 1);
   assert.equal(r.report.settled, false);
   assert.equal(r.report.settledAfterS, 30);
-  assert.deepEqual(r.report.failed, ["the diagnostics had not settled after 30 s (--settle 30): the last 8 readings did not agree; the numbers reported are the last reading, not a result"]);
+  assert.deepEqual(r.report.failed, ["the diagnostics had not settled after 30 s (--settle 30): the last 8 readings did not agree, so the diagnostics were still changing; raise --settle, and check whether a vitest run is saturating the machine; the numbers reported are the last reading, not a result"]);
   assert.equal(r.report.diagnostics.problems, "0 1");
   assert.ok(r.report.hover.present, "the hover is still asked for, so the report says what the workbench shows");
   const vanished = verifyDeps(fakeDocument({ lines: rendered, problems: script(["0 0", "0 0", "0 2", "0 2", "0 2", "0 2", "0 2", "0 2", "0 2", null]) }));
@@ -1371,11 +1463,11 @@ await check("a hover is judged by the caret: off the word, or on a line with no 
   assert.deepEqual(keys(off), []);
   const unnumbered = verifyDeps(hoverDoc({ numbers: ["1", "2", "3", "4", "•"] }));
   r = await verify(["--hover", "missing_backdrop"], unnumbered);
-  assert.match(r.report.failed[0], /the word's line has no gutter number/);
+  assert.match(r.report.failed[0], /the word's line has no gutter number, so the line the caret is on cannot be checked; line numbers are off or relative in the served folder's \.vscode\/settings\.json, so serve a folder without that setting$/);
   assert.equal(r.report.hover.line, null);
   const absent = verifyDeps(hoverDoc());
   r = await verify(["--hover", "nowhere"], absent);
-  assert.deepEqual(r.report.failed, ['"nowhere" is not a whole word on a rendered line; only the lines in the viewport are rendered']);
+  assert.deepEqual(r.report.failed, ['"nowhere" is not a whole word on a rendered line; give the whole identifier when the word sits inside a longer one, and keep the line near the top of the file, since only the lines in the viewport are rendered']);
   const wrongLine = verifyDeps(hoverDoc({ cursor: "Ln 6, Col 19" }));
   r = await verify(["--hover", "missing_backdrop"], wrongLine);
   assert.match(r.report.failed[0], /the cursor is on line 6, not line 5/);
@@ -1387,14 +1479,14 @@ await check("--hover-image fails a hover without an image; an image that did not
   assert.deepEqual(r.report.failed, ['the hover on "missing_backdrop" carries no image (--hover-image)']);
   const broken = verifyDeps(hoverDoc({ hover: { text: "", img: { hasSrc: true, src: "https://x/a.png", naturalWidth: 0, naturalHeight: 0, complete: true } } }));
   r = await verify(["--hover", "missing_backdrop"], broken);
-  assert.deepEqual(r.report.failed, ["the hover's image failed to load: natural size 0 x 0"]);
+  assert.deepEqual(r.report.failed, ["the hover's image failed to load: natural size 0 x 0; the src the web workbench could not fetch is in the report's img.srcHead, and this is the extension's bug rather than the driver's"]);
   const loaded = verifyDeps(hoverDoc({ hover: { text: "", img: { hasSrc: true, src: "https://x/a.png", naturalWidth: 96, naturalHeight: 180, complete: true } } }));
   r = await verify(["--hover", "missing_backdrop", "--hover-image"], loaded);
   assert.deepEqual(r.report.failed, []);
   assert.equal(r.report.hover.img.natural, "96 x 180");
   const never = verifyDeps(hoverDoc({ hover: null }));
   r = await verify(["--hover", "missing_backdrop"], never);
-  assert.deepEqual(r.report.failed, ['no hover opened on "missing_backdrop" within 10 s of Ctrl+K Ctrl+I']);
+  assert.deepEqual(r.report.failed, ['no hover opened on "missing_backdrop" within 10 s of Ctrl+K Ctrl+I: the extension answers a hover only on an image reference or a word under a diagnostic, so read the report\'s diagnostics and pick such a word']);
 });
 
 await check("a file that does not open, or opens under another title, is a failure and nothing is read from it; the title read is the active tab's", async () => {
@@ -1402,7 +1494,7 @@ await check("a file that does not open, or opens under another title, is a failu
   let r = await verify(["--hover", "missing_backdrop", "--shot", "after.png"], noRow);
   assert.equal(r.exitCode, 1);
   assert.equal(r.report.opened, false);
-  assert.match(r.report.failed[0], /^could not open main\.sd from the explorer: Timeout 60000ms exceeded\.$/);
+  assert.match(r.report.failed[0], /^could not open main\.sd from the explorer: Timeout 60000ms exceeded\.; `status` names the served folder, so check it exists and holds main\.sd at its top level, since a file of that name in a subfolder is never clicked, then `down` and `up` again$/);
   assert.equal(r.report.settled, undefined);
   assert.ok(!evaluated(noRow).includes("diagnosticsOnPage"));
   assert.equal(r.report.screenshot, path.resolve("after.png"), "the screenshot still shows the workbench as it was");
