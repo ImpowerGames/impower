@@ -755,7 +755,10 @@ await check("the download lock sits beside the builds a download deletes, and on
 });
 
 await check("up takes the download lock only when it will download, releases it once the server answers, and is refused while another worktree holds it", async () => {
-  const lock = downloadLockPath(dataLayout(DATA), "stable");
+  // `launch` resolves --data before it lays the directory out, so the lock it
+  // takes is absolute; on a platform where the C:/data fixture is a relative
+  // path, joining it without resolving first gives a different string.
+  const lock = downloadLockPath(dataLayout(path.resolve(DATA)), "stable");
   // A launch with a commit to pin serves what is unpacked and downloads
   // nothing, so it neither takes nor waits on the lock.
   const pinned = upDeps();
