@@ -229,7 +229,7 @@ A performance cost the fix knowingly carries is a headline, not a footnote: put 
 
 ## Gotchas
 
-What is left here after #497 is what no driver refusal, report field or check can absorb: a behaviour of the app the driver does not wrap, a fact about this machine, or a feature that has its own ticket. Everything else became a mechanism, and the driver's own messages carry the fix.
+This list holds only what no driver refusal, report field or check can absorb: a behaviour of the app the driver does not wrap, a fact about this machine, or a trap whose mechanism is a feature with its own ticket. Anything a mechanism can take belongs in the driver, whose own messages carry the fix for the failure they name.
 
 - Scrubbing only works while the preview is stopped; after PLAY the engine is time-driven, ignores the cursor, and the scrub silently does nothing. The driver never presses PLAY, so this bites only a script of your own.
 - The preview keeps the position the last run left it on, because the profile and the origin are both pinned and the editor restores the previous cursor, so a run that scrubs to a line the previous run already reached looks the same whether or not this run's scrub did anything. When you are testing the scrub itself rather than using it, aim at a line the previous run did not visit.

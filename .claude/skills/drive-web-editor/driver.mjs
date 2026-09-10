@@ -412,7 +412,36 @@ async function preflight() {
   say(await cmdOk("gh", ["auth", "status"]), "gh auth", "needed to read the issue and open the PR");
   say(await cmdOk("git", ["rev-parse", "--git-dir"]), "git repo", REPO_ROOT);
 
+  const install = await installHealth();
+  say(install.ok, "node_modules", install.detail);
+
   process.exitCode = ok ? 0 : 1;
+}
+
+/**
+ * Whether this worktree's dependencies are usable. A full disk leaves an
+ * install that looks complete and is not: truncated binaries, empty package
+ * directories, a missing `dist/*.mjs`. The damage surfaces much later as a
+ * baffling build error, so the binaries are executed here rather than
+ * measured, and a failure names the repair. An absent `node_modules` is not
+ * a failure: a hooks-only, skills-only or docs-only change needs none.
+ */
+async function installHealth(root = REPO_ROOT, run = cmdOk) {
+  if (!fs.existsSync(path.join(root, "node_modules"))) {
+    return {
+      ok: true,
+      detail: "not installed — fine for a change with nothing to boot; otherwise `PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 npm install` at this worktree's root (a bare npm install fails on a Chromium download this network blocks)",
+    };
+  }
+  const broken = [];
+  for (const tool of ["esbuild", "vitest"]) {
+    if (!(await run("npx", [tool, "--version"]))) broken.push(tool);
+  }
+  if (broken.length === 0) return { ok: true, detail: "esbuild and vitest both run" };
+  return {
+    ok: false,
+    detail: `${broken.join(" and ")} cannot run, so node_modules is corrupt — a full disk truncates binaries and empties package directories without npm saying so. Repair it in one pass rather than piecemeal: \`npm cache clean --force\`, delete every node_modules (the root's and every workspace's), then \`PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 npm install\` once`,
+  };
 }
 
 function freeBytesOnRepoDrive() {
@@ -3170,6 +3199,7 @@ export {
   EDITOR_NAVIGATION,
   writeMainSd,
   loadedScript,
+  installHealth,
   KNOWN_CONSOLE_NOISE,
   partitionConsole,
   verify,

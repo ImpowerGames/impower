@@ -14,12 +14,14 @@
 
 import assert from "node:assert/strict";
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   EDITOR_NAVIGATION,
   KNOWN_CONSOLE_NOISE,
   classifyScrub,
+  installHealth,
   interruptedSeedError,
   loadedScript,
   openEditorPage,
@@ -175,6 +177,38 @@ checkAsync("loadedScript names the script the run is about to drive, and whether
   const other = await loadedScript(stubPage({ "local/main.sd": "BOB:\n  A different repro.\n" }), false);
   assert.notEqual(other.sha, wrote.sha);
   assert.equal(other.firstLine, "BOB:");
+});
+
+checkAsync("preflight tells a corrupt install from an absent one, and names the repair for the corrupt one", async () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "preflight-"));
+  try {
+    // No install at all is not a failure: a hooks-only or skills-only change
+    // needs none, and the line says how to get one when the change does.
+    const absent = await installHealth(root, async () => assert.fail("nothing should be run without node_modules"));
+    assert.equal(absent.ok, true);
+    assert.match(absent.detail, /not installed/);
+    assert.match(absent.detail, /PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 npm install/);
+
+    fs.mkdirSync(path.join(root, "node_modules"));
+    const healthy = await installHealth(root, async () => true);
+    assert.deepEqual(healthy, { ok: true, detail: "esbuild and vitest both run" });
+
+    // The trap: a full disk leaves an install that looks complete, and the
+    // damage surfaces much later as a build error nobody connects to it.
+    const asked = [];
+    const corrupt = await installHealth(root, async (cmd, args) => {
+      asked.push(`${cmd} ${args.join(" ")}`);
+      return args[0] !== "vitest";
+    });
+    assert.deepEqual(asked, ["npx esbuild --version", "npx vitest --version"], "the binaries are executed, not measured");
+    assert.equal(corrupt.ok, false);
+    assert.match(corrupt.detail, /vitest cannot run/);
+    assert.match(corrupt.detail, /npm cache clean --force/);
+    assert.match(corrupt.detail, /delete every node_modules/);
+    assert.match(corrupt.detail, /rather than piecemeal/);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
 });
 
 checkAsync("loadedScript says so rather than throwing when there is no script or the read fails", async () => {

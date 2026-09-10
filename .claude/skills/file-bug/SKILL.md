@@ -114,11 +114,10 @@ Remove the scratch test and repro script from the worktree (`git status --short`
 
 ## Gotchas
 
-- A fresh worktree has no `node_modules`. Install once at its root with `PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 npm install`; a bare `npm install` fails here because a workspace dependency tries to download its own Chromium from a blocked host. Then check `npx vitest --version` exits 0 before trusting the install.
-- Heredocs are lossy through some shell paths on this machine (a `//` comment came out as `/`). Write the ticket body, test file, and repro script with the editor tool, not by piping a heredoc.
-- Do not edit `packages/sparkdown/language/*.json` while probing; they are generated from `definitions/yaml/` and a hook refuses the edit anyway.
+This list holds only what no mechanism catches. A trap a command can catch belongs in the command: the preflight executes this worktree's `esbuild` and `vitest` rather than trusting the install, and a hook refuses an edit to a generated `language/*.json`. A rule that holds for the whole repository, such as the heredoc one, belongs in `CLAUDE.md`.
+
 - The colour of a loop can lie in either direction. A repro that only reproduces on a loaded machine is a timing artifact until proven otherwise; note it, and check whether a vitest suite from another worktree was running. An expectation inside a test file that already fails wholesale pins nothing: before treating it as coverage, run the whole file unmodified on `origin/main` with the capped single-file command, since several suites here are red for unrelated reasons; a file whose only failures there are the reported symptom is the repro you were looking for.
-- A language-server surface that shows nothing is not yet a missing feature. A hover exists only on a reference to an image asset, so ask for it on a use of the image name rather than its definition; the drive-vscode-web driver's `--hover` lands on the first rendered line holding the word, and its `--line <text>` option picks a later one. Neither driver opens a completion list, and in VS Code the completion details pane is collapsed by default, so check a completion preview by hand in a desktop VS Code, expanding the pane with Ctrl+Space while the list is open, before concluding that the preview is missing.
+- A language-server surface that shows nothing is not yet a missing feature. A hover exists only on a reference to an image asset, so ask for it on a use of the image name rather than its definition; the drive-vscode-web driver's `--hover` lands on the first rendered line holding the word, and its `--line <text>` option picks a later one. Neither driver opens a completion list yet (#501 adds the step), and in VS Code the completion details pane is collapsed by default, so until it lands, check a completion preview by hand in a desktop VS Code, expanding the pane with Ctrl+Space while the list is open, before concluding that the preview is missing.
 
 ## Improving this skill
 
