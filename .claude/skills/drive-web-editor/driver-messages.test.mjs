@@ -21,6 +21,7 @@ import {
   EDITOR_NAVIGATION,
   KNOWN_CONSOLE_NOISE,
   classifyScrub,
+  consoleLine,
   installHealth,
   interruptedSeedError,
   loadedScript,
@@ -33,9 +34,138 @@ import {
 const SKILL_DIR = path.dirname(fileURLToPath(import.meta.url));
 const DRIVER = path.join(SKILL_DIR, "driver.mjs");
 const source = fs.readFileSync(DRIVER, "utf8");
-// Newlines and their indentation collapse to one space, so a message written
-// across several concatenated lines reads as the one sentence it prints as.
-const flat = source.replace(/\s*\n\s*/g, " ");
+
+// What the driver prints, read out of its source: every string and template
+// literal, with a run of them joined by `+` read as the one message they
+// concatenate to. Comments and code are not message text and are left out,
+// which is what makes the search below answer the question it asks — a
+// session hitting the error reads the message, never the source around it,
+// so advice sitting in a comment beside the message is advice that is gone.
+//
+// The scan tracks the three literal kinds, comments, and regular expression
+// literals, which it has to know about because one can hold a quote (`/["']/`)
+// that would otherwise open a string and swallow the rest of the file.
+function scanSource(src) {
+  const literals = [];
+  // The source with every comment blanked to spaces (newlines kept, so line
+  // numbers and the shape of the code survive), for the checks that read code
+  // rather than message text.
+  const bare = src.split("");
+  const blank = (from, to) => {
+    for (let k = from; k < to; k++) if (bare[k] !== "\n") bare[k] = " ";
+  };
+  // A `/` opens a regular expression where a value cannot stand: after an
+  // operator, a comma, an opening bracket, or a keyword. After a value (a
+  // name, a literal, a closing bracket) it is division.
+  const opensRegex = (upto) => {
+    const before = upto.replace(/\s+$/, "");
+    if (before === "") return true;
+    const last = before[before.length - 1];
+    if ("=(,:[!&|?{};+-*%~^<>".includes(last)) return true;
+    return /\b(return|typeof|instanceof|in|of|new|delete|void|case|do|else|yield|await)$/.test(before);
+  };
+  const skipString = (i) => {
+    const quote = src[i];
+    i++;
+    while (i < src.length) {
+      if (src[i] === "\\") { i += 2; continue; }
+      if (src[i] === quote) return i + 1;
+      if (src[i] === "\n") return i; // an unterminated string; give up on it
+      i++;
+    }
+    return i;
+  };
+  const skipTemplate = (i) => {
+    i++; // the opening backtick
+    while (i < src.length) {
+      if (src[i] === "\\") { i += 2; continue; }
+      if (src[i] === "`") return i + 1;
+      if (src[i] === "$" && src[i + 1] === "{") {
+        i += 2;
+        let depth = 1;
+        while (i < src.length && depth > 0) {
+          const ch = src[i];
+          if (ch === "\\") { i += 2; continue; }
+          if (ch === '"' || ch === "'") { i = skipString(i); continue; }
+          if (ch === "`") { i = skipTemplate(i); continue; }
+          if (ch === "{") depth++;
+          if (ch === "}") depth--;
+          i++;
+        }
+        continue;
+      }
+      i++;
+    }
+    return i;
+  };
+  let i = 0;
+  while (i < src.length) {
+    const c = src[i];
+    if (c === "/" && src[i + 1] === "/") {
+      const start = i;
+      while (i < src.length && src[i] !== "\n") i++;
+      blank(start, i);
+      continue;
+    }
+    if (c === "/" && src[i + 1] === "*") {
+      const start = i;
+      i += 2;
+      while (i < src.length && !(src[i] === "*" && src[i + 1] === "/")) i++;
+      i = Math.min(i + 2, src.length);
+      blank(start, i);
+      continue;
+    }
+    if (c === '"' || c === "'") {
+      const start = i;
+      i = skipString(i);
+      literals.push({ start, end: i, text: src.slice(start + 1, i - 1) });
+      continue;
+    }
+    if (c === "`") {
+      const start = i;
+      i = skipTemplate(i);
+      literals.push({ start, end: i, text: src.slice(start + 1, i - 1) });
+      continue;
+    }
+    if (c === "/" && opensRegex(src.slice(Math.max(0, i - 200), i))) {
+      i++;
+      let inClass = false;
+      while (i < src.length) {
+        if (src[i] === "\\") { i += 2; continue; }
+        if (src[i] === "[") inClass = true;
+        else if (src[i] === "]") inClass = false;
+        else if (src[i] === "/" && !inClass) { i++; break; }
+        else if (src[i] === "\n") break;
+        i++;
+      }
+      continue;
+    }
+    i++;
+  }
+  const code = bare.join("");
+  // Literals joined by nothing but `+` are one message; anything else between
+  // them (a name, a call, a comma) ends the run, because what follows is a
+  // different string than the one this message prints.
+  const messages = [];
+  let current = null;
+  for (const lit of literals) {
+    const gap = current ? code.slice(current.end, lit.start).trim() : null;
+    if (current && gap === "+") {
+      current.text += lit.text;
+      current.end = lit.end;
+      continue;
+    }
+    if (current) messages.push(current.text);
+    current = { text: lit.text, end: lit.end };
+  }
+  if (current) messages.push(current.text);
+  // Newlines and their indentation collapse to one space, so a message
+  // written across several concatenated lines reads as the one sentence it
+  // prints as.
+  return { code, messages: messages.map((m) => m.replace(/\s*\n\s*/g, " ")) };
+}
+
+const { code: sourceCode, messages } = scanSource(source);
 
 let failures = 0;
 function check(label, fn) {
@@ -49,16 +179,54 @@ function check(label, fn) {
   }
 }
 
-/** The symptom and the advice it must carry, within one message's reach of each other. */
-function carriesAdvice(symptom, advice, window = 600) {
-  const at = flat.indexOf(symptom);
-  assert.notEqual(at, -1, `the message is gone from driver.mjs: ${symptom}`);
-  const near = flat.slice(at, at + window);
+/** The symptom and the advice it must carry, inside one printed message. */
+function carriesAdvice(symptom, advice, window = 600, texts = messages) {
+  const holding = texts.filter((m) => m.includes(symptom));
+  assert.notEqual(holding.length, 0, `the message is gone from driver.mjs: ${symptom}`);
+  const windows = holding.map((m) => m.slice(m.indexOf(symptom), m.indexOf(symptom) + window));
   assert.ok(
-    near.includes(advice),
-    `the message no longer names what to do: expected ${JSON.stringify(advice)} within ${window} characters of ${JSON.stringify(symptom)}, got ${JSON.stringify(near.slice(0, 300))}`,
+    windows.some((near) => near.includes(advice)),
+    `the message no longer names what to do: expected ${JSON.stringify(advice)} within ${window} characters of ${JSON.stringify(symptom)} in the same message, got ${JSON.stringify(windows[0].slice(0, 300))}`,
   );
 }
+
+// ---------------------------------------------------------------- reader ---
+
+check("the message reader reads what the driver prints, and not the source around it", () => {
+  const fixture = [
+    'const a = () => die(`the panel did not open within 10s; --close it`);',
+    '// --close it, or run --screen logic first',
+    'const b = () => die(`the panel did not open within 10s`);',
+    'const c = () => die("the wait ran out" + " and the log names why");',
+    'const d = () => die("the port was taken"), advice = "pick another port";',
+    'const e = /["\'`]/.test(x) ? die(`the name is quoted; strip the quotes`) : null;',
+  ].join("\n");
+  const read = scanSource(fixture);
+  // A comment is not a message: the advice in one is advice the session that
+  // hits the error never sees, which is the hole this reader closes.
+  assert.ok(!read.messages.some((m) => m.includes("--screen logic")), "a comment was read as message text");
+  assert.deepEqual(
+    read.messages.filter((m) => m.startsWith("the panel")),
+    ["the panel did not open within 10s; --close it", "the panel did not open within 10s"],
+    "each message stands on its own",
+  );
+  // Literals joined by `+` are the one message they print as; two literals
+  // with anything else between them are two.
+  assert.ok(read.messages.includes("the wait ran out and the log names why"), "a message split across a `+` was not joined");
+  assert.ok(read.messages.includes("the port was taken"), "a message ending at a `,` was joined to what followed");
+  assert.ok(!read.messages.some((m) => m.includes("the port was taken") && m.includes("pick another port")), "two separate literals were read as one message");
+  // A regular expression holding a quote or a backtick must not open a string
+  // and swallow the rest of the file.
+  assert.ok(read.messages.includes("the name is quoted; strip the quotes"), "a regex literal derailed the scan");
+
+  const inComment = fixture.replace("within 10s; --close it", "within 10s");
+  assert.throws(
+    () => carriesAdvice("the panel did not open within 10s", "--close", 600, scanSource(inComment).messages),
+    /no longer names what to do/,
+    "advice moved out of the message and into the comment beside it has to fail this check",
+  );
+  carriesAdvice("the panel did not open within 10s", "--close", 600, read.messages);
+});
 
 // ------------------------------------------------------------ navigation ---
 
@@ -73,8 +241,7 @@ check("openEditorPage and reloadEditorPage are the only navigators in the driver
   // longer, so an inline `page.goto` dies against a healthy server. The two
   // helpers are exported for a script of its own; a navigation written
   // anywhere else in the file is the trap coming back.
-  const code = source.split("\n").filter((line) => !line.trim().startsWith("//")).join("\n");
-  const navigations = [...code.matchAll(/page\.(goto|reload)\(/g)];
+  const navigations = [...sourceCode.matchAll(/page\.(goto|reload)\(/g)];
   assert.equal(navigations.length, 2, `expected exactly two navigation calls (the two helpers), found ${navigations.length}`);
   assert.match(source, /async function openEditorPage\(page, url\) \{\s*return page\.goto\(url, EDITOR_NAVIGATION\);/);
   assert.match(source, /async function reloadEditorPage\(page\) \{\s*return page\.reload\(EDITOR_NAVIGATION\);/);
@@ -92,24 +259,49 @@ check("partitionConsole keeps the lines worth reading and counts the known noise
     "[error] Unhandled method workspace/semanticTokens/refresh",
     "[error] Unhandled method workspace/diagnostic/refresh",
     "[error] Unhandled method workspace/foldingRange/refresh",
-    "[error] Failed to load resource: the server responded with a status of 404 (Not Found)",
+    "[error] Failed to load resource: the server responded with a status of 404 (Not Found) (http://localhost:38276/api/auth/account)",
     "[error] Unhandled method workspace/semanticTokens/refresh",
     "[log] a log line is not an error",
     "[warning] neither is a warning",
     "[error] TypeError: cannot read properties of undefined",
     "[pageerror] ReferenceError: game is not defined",
+    // A 404 the change under test introduced: a wrong asset path, a route
+    // that is not served. The noise entry names the one resource that is
+    // always missing, so this one is left where it can be read.
+    "[error] Failed to load resource: the server responded with a status of 404 (Not Found) (http://localhost:38276/local/assets/missing.png)",
+    // A resource the app is refused rather than one that is absent.
+    "[error] Failed to load resource: the server responded with a status of 403 (Forbidden) (http://localhost:38276/api/auth/account)",
   ];
   const { errors, noise } = partitionConsole(lines);
   assert.deepEqual(errors, [
     "[error] TypeError: cannot read properties of undefined",
     "[pageerror] ReferenceError: game is not defined",
+    "[error] Failed to load resource: the server responded with a status of 404 (Not Found) (http://localhost:38276/local/assets/missing.png)",
+    "[error] Failed to load resource: the server responded with a status of 403 (Forbidden) (http://localhost:38276/api/auth/account)",
   ]);
   assert.deepEqual(noise, {
     "semanticTokens/refresh": 2,
     "diagnostic/refresh": 1,
     "foldingRange/refresh": 1,
-    "resource 404": 1,
+    "/api/auth/account 404": 1,
   });
+});
+
+check("a captured console line carries the resource a failed request names nowhere else", () => {
+  // Chrome's text says the status and not the URL, which sits in the
+  // message's location; without it every 404 reads the same and the noise
+  // list cannot tell the one that is always there from a new one.
+  const message = (type, text, url) => ({ type: () => type, text: () => text, location: () => ({ url }) });
+  const failed = "Failed to load resource: the server responded with a status of 404 (Not Found)";
+  assert.equal(
+    consoleLine(message("error", failed, "http://localhost:1/api/auth/account")),
+    `[error] ${failed} (http://localhost:1/api/auth/account)`,
+  );
+  // A message that already names its own location is not made to say it twice.
+  assert.equal(consoleLine(message("error", "boom at http://localhost:1/x.js", "http://localhost:1/x.js")), "[error] boom at http://localhost:1/x.js");
+  // Only errors carry a location worth reading; a log keeps the text it has.
+  assert.equal(consoleLine(message("log", "a log line", "http://localhost:1/x.js")), "[log] a log line");
+  assert.equal(consoleLine({ type: () => "error", text: () => "no location here" }), "[error] no location here");
 });
 
 check("every known-noise entry reports a count even when it did not appear", () => {
@@ -253,7 +445,8 @@ check("a ui step whose game never mounted says what to do, as verify's twin does
 });
 
 check("a seed reason reported by verify adds the one thing the reason cannot know", () => {
-  carriesAdvice("result.error = `${result.seed.reason}", "restarting the servers changes nothing");
+  carriesAdvice("${result.seed.reason}", "restarting the servers changes nothing");
+  assert.match(sourceCode, /result\.error = `\$\{result\.seed\.reason\}/, "the sentence is appended to the seed's own reason, not printed on its own");
 });
 
 check("the marked-project error names both ways out", () => {

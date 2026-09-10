@@ -32,12 +32,16 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { serverRows, serversFrom } from "../clean-worktrees/clean-worktrees.mjs";
+// The partition itself belongs to the web editor's driver, which this one
+// calls with its own list of what the served workbench always says.
+import { partitionConsole } from "../drive-web-editor/driver.mjs";
 import {
   DEFAULT_SETTLE_S,
   LOOPBACKS,
   PORT_SCAN,
   QUALITIES,
   READ_ALLOWANCE_S,
+  WORKBENCH_CONSOLE_NOISE,
   READY_POLL_MS,
   REBUILD_STEPS,
   SETTLE,
@@ -758,6 +762,27 @@ await check("the download lock sits beside the builds a download deletes, and on
 
   io.removeLock(lock);
   assert.deepEqual(await takeDownloadLock(lock, mine, io, stands), { held: true }, "a released lock is free again");
+});
+
+await check("the workbench noise list names the resources it absorbs, so a 404 the change under test caused is still read", () => {
+  const missing = (url) => `[error] Failed to load resource: the server responded with a status of 404 (Not Found) (${url})`;
+  const { errors, noise } = partitionConsole(
+    [
+      missing("http://localhost:1/static/extensions/sparkdown/package.nls.json"),
+      missing("http://localhost:1/static/extensions/sparkdown/out/data/spark.d.ts"),
+      // A resource the change under test moved or misnamed: it belongs in
+      // the list a session reads, not in a count it has to know by heart.
+      missing("http://localhost:1/static/extensions/sparkdown/out/data/cheatsheet.css"),
+      "[error] Error: FileSystemObserver is not available",
+      "[pageerror] Not Found",
+      "[error] TypeError: cannot read properties of undefined",
+      "[log] a log line is not an error",
+    ],
+    WORKBENCH_CONSOLE_NOISE,
+    20,
+  );
+  assert.deepEqual(errors, [missing("http://localhost:1/static/extensions/sparkdown/out/data/cheatsheet.css"), "[error] TypeError: cannot read properties of undefined"]);
+  assert.deepEqual(noise, { "package.nls.json 404": 1, "spark.d.ts 404": 1, "file watcher": 1, "Not Found page error": 1 });
 });
 
 await check("up takes the download lock only when it will download, releases it once the server answers, and is refused while another worktree holds it", async () => {

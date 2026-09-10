@@ -548,7 +548,7 @@ async function withEditor(fn, { headless = true, launch = launchEditorBrowser, s
   const ctx = await launch({ headless });
   const page = ctx.pages()[0] ?? (await ctx.newPage());
   const consoleLines = [];
-  page.on("console", (m) => consoleLines.push(`[${m.type()}] ${m.text()}`));
+  page.on("console", (m) => consoleLines.push(consoleLine(m)));
   page.on("pageerror", (e) => consoleLines.push(`[pageerror] ${e.message}`));
   try {
     return await fn({ page, ctx, url, consoleLines, mode });
@@ -1087,17 +1087,32 @@ async function loadedScript(page, wroteThisRun, project = LOCAL_PROJECT_ID, file
   };
 }
 
+// One captured console line. A failed request reads as "Failed to load
+// resource: the server responded with a status of 404 (Not Found)", which
+// names the status and not the resource: the browser puts the URL in the
+// message's location instead. The line carries it, so the report says which
+// resource is missing and the noise list below can name the one that is
+// always missing rather than absorbing every 404 there is.
+function consoleLine(m) {
+  const text = m.text();
+  const url = m.type() === "error" ? (m.location?.()?.url ?? "") : "";
+  return `[${m.type()}] ${text}${url && !text.includes(url) ? ` (${url})` : ""}`;
+}
+
 // Console lines every run on this app produces, whatever the change under
 // test is. They are partitioned out of `consoleErrors` so a reader spends
 // no time on them, and counted under `consoleNoise` so the partition stays
 // honest: a line that stopped appearing reads as a count of zero rather
 // than disappearing, and a line the list does not know still lands in
-// `consoleErrors` where it can be read.
+// `consoleErrors` where it can be read. Each pattern names the one resource
+// or method it absorbs: the editor asks a dev server that serves no API for
+// the signed-in account, and the language server answers three requests the
+// client makes that it does not implement.
 const KNOWN_CONSOLE_NOISE = [
   { name: "semanticTokens/refresh", match: /Unhandled method workspace\/semanticTokens\/refresh/ },
   { name: "diagnostic/refresh", match: /Unhandled method workspace\/diagnostic\/refresh/ },
   { name: "foldingRange/refresh", match: /Unhandled method workspace\/foldingRange\/refresh/ },
-  { name: "resource 404", match: /Failed to load resource[^\n]*40[34]/ },
+  { name: "/api/auth/account 404", match: /Failed to load resource[^\n]*404[^\n]*\/api\/auth\/account/ },
 ];
 
 /** Splits the captured console into the lines worth reading and the known noise, by count. */
@@ -3203,6 +3218,7 @@ export {
   writeMainSd,
   loadedScript,
   installHealth,
+  consoleLine,
   KNOWN_CONSOLE_NOISE,
   partitionConsole,
   verify,
