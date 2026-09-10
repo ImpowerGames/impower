@@ -400,7 +400,7 @@ async function preflight() {
   );
 
   try {
-    const { chromium } = await import("playwright");
+    const { chromium } = await importPlaywright();
     const executablePath = resolveChromiumExecutablePath(chromium);
     const b = await chromium.launch({ headless: true, ...(executablePath ? { executablePath } : {}) });
     await b.close();
@@ -484,16 +484,15 @@ function cmdOk(cmd, args) {
 
 // The browser `withEditor` drives: the persistent profile, so the editor
 // keeps its storage and its last screen across runs.
-async function launchEditorBrowser({ headless }) {
-  let chromium;
+// Node resolves a bare specifier from the importing script's own directory,
+// not from the working directory, so a copy of this driver outside the repo
+// tree cannot find playwright however it is invoked, and a worktree that
+// skipped its install cannot either. Saying which is the difference between
+// a fix and a bare ERR_MODULE_NOT_FOUND.
+async function importPlaywright() {
   try {
-    ({ chromium } = await import("playwright"));
+    return await import("playwright");
   } catch (err) {
-    // Node resolves a bare specifier from the importing script's own
-    // directory, not from the working directory, so a copy of this driver
-    // outside the repo tree cannot find playwright however it is invoked.
-    // Saying that here is the difference between a fix and a bare
-    // ERR_MODULE_NOT_FOUND.
     throw new Error(
       `playwright could not be resolved from ${SKILL_DIR}: ` +
         "run the driver at its committed path inside the repo tree (Node resolves playwright from the script's own " +
@@ -501,6 +500,10 @@ async function launchEditorBrowser({ headless }) {
         `PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 npm install at its root. (${String(err.message || err).split("\n")[0]})`,
     );
   }
+}
+
+async function launchEditorBrowser({ headless }) {
+  const { chromium } = await importPlaywright();
   const executablePath = resolveChromiumExecutablePath(chromium);
   return chromium.launchPersistentContext(PROFILE_DIR, {
     headless,
