@@ -23,6 +23,7 @@
 // which is gitignored — every command after `up` reads the URL from there.
 
 import { spawn } from "node:child_process";
+import crypto from "node:crypto";
 import fs from "node:fs";
 import net from "node:net";
 import path from "node:path";
@@ -310,7 +311,7 @@ async function waitReady(url, mode, keep) {
     }
     await sleep(3000);
   }
-  die(`timed out after ${READY_WAIT_MS / 60_000} min waiting for ${url}; \`down\` stops the tree the state file records, or removes the record if its launcher is gone`);
+  die(`timed out after ${READY_WAIT_MS / 60_000} min waiting for ${url}; run \`npm run web:dev\` in this worktree to read the build error, which the detached launcher's own log file never records, and \`down\` stops the tree the state file records, or removes the record if its launcher is gone`);
 }
 
 async function isUp(url) {
@@ -455,7 +456,22 @@ function cmdOk(cmd, args) {
 // The browser `withEditor` drives: the persistent profile, so the editor
 // keeps its storage and its last screen across runs.
 async function launchEditorBrowser({ headless }) {
-  const { chromium } = await import("playwright");
+  let chromium;
+  try {
+    ({ chromium } = await import("playwright"));
+  } catch (err) {
+    // Node resolves a bare specifier from the importing script's own
+    // directory, not from the working directory, so a copy of this driver
+    // outside the repo tree cannot find playwright however it is invoked.
+    // Saying that here is the difference between a fix and a bare
+    // ERR_MODULE_NOT_FOUND.
+    throw new Error(
+      `playwright could not be resolved from ${SKILL_DIR}: ` +
+        "run the driver at its committed path inside the repo tree (Node resolves playwright from the script's own " +
+        "directory, so a copy in a temp directory always fails here), and install the worktree's dependencies with " +
+        `PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 npm install at its root. (${String(err.message || err).split("\n")[0]})`,
+    );
+  }
   const executablePath = resolveChromiumExecutablePath(chromium);
   return chromium.launchPersistentContext(PROFILE_DIR, {
     headless,
@@ -463,6 +479,21 @@ async function launchEditorBrowser({ headless }) {
     args: ["--autoplay-policy=no-user-gesture-required"],
     ...(executablePath ? { executablePath } : {}),
   });
+}
+
+// Every navigation onto the editor goes through these two. A cold editor
+// load here takes longer than Playwright's 30 s default, so a bare
+// `page.goto(url)` dies with `Timeout 30000ms exceeded` against a server
+// that is perfectly healthy; keeping the options in one place means a
+// script built on the exported helpers navigates the way the driver does
+// rather than rediscovering that. driver-messages.test.mjs pins that these
+// are the only navigators in the file.
+const EDITOR_NAVIGATION = { waitUntil: "domcontentloaded", timeout: 120_000 };
+async function openEditorPage(page, url) {
+  return page.goto(url, EDITOR_NAVIGATION);
+}
+async function reloadEditorPage(page) {
+  return page.reload(EDITOR_NAVIGATION);
 }
 
 // Runs `fn` against a page on the editor. `url` and `mode` come from the
@@ -473,7 +504,13 @@ async function launchEditorBrowser({ headless }) {
 // is handed.
 async function withEditor(fn, { headless = true, launch = launchEditorBrowser, state = readState } = {}) {
   const record = state();
-  if (!record?.url) die("no editor URL — run `node .claude/skills/drive-web-editor/driver.mjs up` first");
+  if (!record?.url)
+    die(
+      "no editor URL — run `node .claude/skills/drive-web-editor/driver.mjs up` first. Servers launched by hand, or by " +
+        "`npm run web:dev` in another shell, are not driven from here, and a hand-launched pair is where a fully black " +
+        "Game Preview beside a healthy-looking editor pane comes from: the editor and the player agree over a handshake " +
+        "whose values are baked into each bundle at build time, so a reload cannot fix a mismatched one.",
+    );
   const { url } = record;
   const mode = record.mode ?? "same-origin";
   const ctx = await launch({ headless });
@@ -993,6 +1030,58 @@ async function readProjectFile({ project, path: filePath }) {
   }
 }
 
+// Which script the run is actually about to drive. `--sd` is needed only
+// when the script changes, because the pinned port keeps OPFS across
+// `down`/`up`, so a run without it re-uses whatever the last run left in
+// storage. Naming that script in every report is what stops the re-use
+// being silent: `wroteThisRun: false` with a `firstLine` from another repro
+// is the mismatch, visible without remembering to look for it.
+async function loadedScript(page, wroteThisRun, project = LOCAL_PROJECT_ID, file = "main.sd") {
+  let encoded = null;
+  try {
+    encoded = await page.evaluate(readProjectFile, { project, path: file });
+  } catch (err) {
+    return { file, wroteThisRun, read: false, reason: String(err.message || err).split("\n")[0] };
+  }
+  if (encoded === null) return { file, wroteThisRun, present: false };
+  const text = Buffer.from(encoded, "base64").toString("utf8");
+  return {
+    file,
+    wroteThisRun,
+    present: true,
+    chars: text.length,
+    sha: crypto.createHash("sha256").update(text).digest("hex").slice(0, 12),
+    firstLine: text.split(/\r?\n/).find((line) => line.trim()) ?? "",
+  };
+}
+
+// Console lines every run on this app produces, whatever the change under
+// test is. They are partitioned out of `consoleErrors` so a reader spends
+// no time on them, and counted under `consoleNoise` so the partition stays
+// honest: a line that stopped appearing reads as a count of zero rather
+// than disappearing, and a line the list does not know still lands in
+// `consoleErrors` where it can be read.
+const KNOWN_CONSOLE_NOISE = [
+  { name: "semanticTokens/refresh", match: /Unhandled method workspace\/semanticTokens\/refresh/ },
+  { name: "diagnostic/refresh", match: /Unhandled method workspace\/diagnostic\/refresh/ },
+  { name: "foldingRange/refresh", match: /Unhandled method workspace\/foldingRange\/refresh/ },
+  { name: "resource 404", match: /Failed to load resource[^\n]*40[34]/ },
+];
+
+/** Splits the captured console into the lines worth reading and the known noise, by count. */
+function partitionConsole(lines, limit = 25) {
+  const errors = [];
+  const noise = {};
+  for (const name of KNOWN_CONSOLE_NOISE.map((n) => n.name)) noise[name] = 0;
+  for (const line of lines) {
+    if (!line.startsWith("[error]") && !line.startsWith("[pageerror]")) continue;
+    const known = KNOWN_CONSOLE_NOISE.find((n) => n.match.test(line));
+    if (known) noise[known.name] += 1;
+    else errors.push(line);
+  }
+  return { errors: errors.slice(0, limit), noise };
+}
+
 // Whether the project in the page's storage carries the seed marker, which
 // means an earlier `--project` seed did not finish and the project is a mix.
 async function interruptedSeed(page, project = LOCAL_PROJECT_ID) {
@@ -1125,7 +1214,7 @@ async function seedProject(page, source, { project = LOCAL_PROJECT_ID, batchByte
   }
   try {
     const other = await otherProjectRemembered(page, project);
-    if (other) return done(`${other} the seed does not write to; nothing was written`);
+    if (other) return done(`${other} the seed does not write to; nothing was written. Forget it with a \`--probe\` file holding localStorage.removeItem("project"), then re-run`);
     if (clear) {
       report.clear = await clearProject(page, { project });
       if (report.clear.reason) {
@@ -1208,7 +1297,7 @@ async function seed(args, deps = liveDeps) {
     async ({ page, url }) => {
       const result = { url };
       try {
-        await page.goto(url, { waitUntil: "domcontentloaded", timeout: 120_000 });
+        await openEditorPage(page, url);
         await deps.waitForApp(page);
       } catch (err) {
         result.error = `the editor page did not load (${String(err.message || err).split("\n")[0]}). Check \`status\`; the machine may be saturated.`;
@@ -1234,7 +1323,7 @@ async function seed(args, deps = liveDeps) {
         process.exitCode = 1;
       } else {
         try {
-          await page.reload({ waitUntil: "domcontentloaded", timeout: 120_000 });
+          await reloadEditorPage(page);
           await deps.waitForApp(page);
         } catch (err) {
           result.error = `the editor page did not reload after ${source ? "seeding" : "clearing"} (${String(err.message || err).split("\n")[0]})`;
@@ -1391,7 +1480,7 @@ async function waitForGame(page, { timeout = GAME_MOUNT_BUDGET_MS, now = Date.no
   if (await gameMountedWithin(page, timeout, { now })) return { mounted: true, reloaded: false };
 
   try {
-    await page.reload({ waitUntil: "domcontentloaded", timeout: 120_000 });
+    await reloadEditorPage(page);
   } catch (err) {
     return { mounted: false, reloaded: true, error: `the recovery reload did not complete (${String(err.message || err).split("\n")[0]})` };
   }
@@ -1526,7 +1615,9 @@ export function classifyScrub(lines, target, visible) {
       showing,
       reason:
         `the game is showing line${showing.length > 1 ? "s" : ""} ` +
-        `${showing.join(", ")}, not line ${target}`,
+        `${showing.join(", ")}, not line ${target}; if the scrub really did fail, aim at an ` +
+        `indented dialogue or action line, since a NAME: line, a heading and a blank line ` +
+        `are not playable beats`,
     };
   }
 
@@ -1674,7 +1765,7 @@ async function verify(args, deps = liveDeps) {
 
       // A navigation that never completes is a report, not a stack trace.
       try {
-        await page.goto(url, { waitUntil: "domcontentloaded", timeout: 120_000 });
+        await openEditorPage(page, url);
       } catch (err) {
         result.gameMounted = false;
         result.error = `the editor page did not load (${String(err.message || err).split("\n")[0]}). Check \`status\`; the machine may be saturated.`;
@@ -1727,7 +1818,7 @@ async function verify(args, deps = liveDeps) {
       if (projectPath) {
         result.seed = await deps.seedProject(page, projectPath, { expectMainSd: !sdPath });
         if (result.seed.reason) {
-          result.error = result.seed.reason;
+          result.error = `${result.seed.reason}. The game was never asked about, so restarting the servers changes nothing.`;
           deps.log(JSON.stringify(result, null, 2));
           process.exitCode = 1;
           return result;
@@ -1746,7 +1837,7 @@ async function verify(args, deps = liveDeps) {
         // Reload so loadInitialFiles re-reads OPFS, then let the LSP + player
         // finish their first compile.
         try {
-          await page.reload({ waitUntil: "domcontentloaded", timeout: 120_000 });
+          await reloadEditorPage(page);
         } catch (err) {
           result.gameMounted = false;
           result.error = `the editor page did not reload after writing the ${projectPath ? "project" : "script"} (${String(err.message || err).split("\n")[0]}). Check \`status\`; the machine may be saturated.`;
@@ -1772,6 +1863,10 @@ async function verify(args, deps = liveDeps) {
         if (result.editorView === "scripts-view") result.editorWarning = scriptsViewWarning({ projectPath, sdPath });
         else delete result.editorWarning;
       }
+
+      // Which script the scrub below is about to drive, whether or not this
+      // run wrote it.
+      result.script = await deps.loadedScript(page, Boolean(sdPath));
 
       await page
         .waitForFunction(() => window.__preview?.summary().sameOrigin === true, null, {
@@ -1891,9 +1986,9 @@ async function verify(args, deps = liveDeps) {
         result.screenshot = out;
       }
 
-      result.consoleErrors = consoleLines
-        .filter((l) => l.startsWith("[error]") || l.startsWith("[pageerror]"))
-        .slice(0, 25);
+      const captured = partitionConsole(consoleLines);
+      result.consoleErrors = captured.errors;
+      result.consoleNoise = captured.noise;
 
       deps.log(JSON.stringify(result, null, 2));
       return result;
@@ -2345,7 +2440,7 @@ async function openSurface(page, name, { settled = false } = {}) {
       surface: name,
       open: false,
       pressed: key.combo,
-      reason: `${s.selector} did not appear within 10s of pressing ${key.combo} with the editor focused`,
+      reason: `${s.selector} did not appear within 10s of pressing ${key.combo} with the editor focused; another panel may hold the focus (\`--close\` it), or the run may be off the logic screen's main tab (put \`--screen logic --screen main\` first) — if the editor is up and it still fails, the binding itself changed: check customSearch.ts's keymap`,
     };
   }
   return { surface: name, open: true, pressed: key.combo };
@@ -2779,7 +2874,7 @@ async function ui(args, deps = liveDeps) {
       const result = { url, steps: [] };
       const requireEditor = editorGate();
       try {
-        await page.goto(url, { waitUntil: "domcontentloaded", timeout: 120_000 });
+        await openEditorPage(page, url);
         await deps.waitForApp(page);
       } catch (err) {
         result.failed = [`the editor page did not load (${String(err.message || err).split("\n")[0]}). Check \`status\`; the machine may be saturated.`];
@@ -2860,7 +2955,7 @@ async function ui(args, deps = liveDeps) {
             const wrote = step.project ? "--project seeded the project, whose main.sd" : "--sd wrote main.sd, which";
             // The reload throws the settled view away.
             requireEditor.reset();
-            await page.reload({ waitUntil: "domcontentloaded", timeout: 120_000 });
+            await reloadEditorPage(page);
             await deps.waitForApp(page);
             // No editor can appear on the `scripts` tab or another screen;
             // say so at once instead of waiting a minute for it.
@@ -2907,7 +3002,7 @@ async function ui(args, deps = liveDeps) {
                 } else {
                   out.programLoaded = null;
                   out.previewSettled = null;
-                  out.reason = `the game never mounted (#game absent) within ${seconds(GAME_MOUNT_BUDGET_MS)} of the reload and again after a recovery reload, so the Game Preview is blank and nothing captured after this step is evidence of it${mount.error ? ` (on the reload retry: ${mount.error})` : ""}`;
+                  out.reason = `the game never mounted (#game absent) within ${seconds(GAME_MOUNT_BUDGET_MS)} of the reload and again after a recovery reload, so the Game Preview is blank and nothing captured after this step is evidence of it; \`down\`, then \`up\`, then re-run${mount.error ? ` (on the reload retry: ${mount.error})` : ""}`;
                 }
               } else {
                 out.previewSettled = null;
@@ -2998,6 +3093,11 @@ async function ui(args, deps = liveDeps) {
         }
       }
 
+      // Which script the run drove, whether or not one of its steps wrote it.
+      result.script = await deps
+        .loadedScript(page, steps.some((s) => s.sd))
+        .catch((err) => ({ file: "main.sd", read: false, reason: String(err.message || err).split("\n")[0] }));
+
       try {
         result.ui = await deps.readSurfaces(page);
       } catch (err) {
@@ -3006,7 +3106,9 @@ async function ui(args, deps = liveDeps) {
       }
       result.failed = result.steps.filter((s) => s.reason).map((s) => s.reason);
       if (result.readError) result.failed.push(`read-back failed: ${result.readError}`);
-      result.consoleErrors = consoleLines.filter((l) => l.startsWith("[error]") || l.startsWith("[pageerror]")).slice(0, 25);
+      const captured = partitionConsole(consoleLines);
+      result.consoleErrors = captured.errors;
+      result.consoleNoise = captured.noise;
       deps.log(JSON.stringify(result, null, 2));
       // A step that could not do what it was asked is a failed run, whatever
       // else succeeded: `ui --sd x.sd --shot out.png && open out.png` must not
@@ -3063,7 +3165,13 @@ async function redgreenCli(args) {
 //   import { withEditor, writeMainSd, waitForEditor } from "../../.claude/skills/drive-web-editor/driver.mjs";
 export {
   withEditor,
+  openEditorPage,
+  reloadEditorPage,
+  EDITOR_NAVIGATION,
   writeMainSd,
+  loadedScript,
+  KNOWN_CONSOLE_NOISE,
+  partitionConsole,
   verify,
   ui,
   seed,
@@ -3148,6 +3256,7 @@ const liveDeps = {
   clearProject,
   interruptedSeed,
   writeMainSd,
+  loadedScript,
   waitForApp,
   ensureScriptEditor,
   waitForGame,
