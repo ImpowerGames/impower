@@ -1115,22 +1115,15 @@ function programBefore(seg, flagIndex) {
 }
 
 /**
- * Returns a deny reason for the command, or null to allow it. `shell` is
- * "powershell" or "bash"; when omitted the command is read both ways and
- * refused if either reading refuses it. Substitutions and -c strings are
- * analysed to a depth of three; a create nested deeper is not seen.
+ * Reads `command` the way `shell` writes it and returns its segments, each
+ * with the token indices where a program name may stand, together with the
+ * text of every substitution found inside double quotes. One reading of a
+ * command line serves every hook that has to find an invocation in it, so a
+ * quoting rule learned here holds for all of them.
  */
-export function decide(command, shell, depth = 0) {
-  if (typeof command !== "string" || command.length === 0 || depth > 3) return null;
-  if (shell !== "powershell" && shell !== "bash") return decide(command, "bash", depth) ?? decide(command, "powershell", depth);
-  currentShell = shell;
+export function readCommand(command, shell) {
+  currentShell = shell === "powershell" ? "powershell" : "bash";
   const tokens = tokenize(command);
-  const outerShell = currentShell;
-  for (const sub of tokens.subs) {
-    const inner = decide(sub, outerShell, depth + 1);
-    currentShell = outerShell;
-    if (inner) return inner;
-  }
   const segments = [];
   let current = [];
   for (const t of tokens) {
@@ -1140,10 +1133,35 @@ export function decide(command, shell, depth = 0) {
     } else current.push(t);
   }
   if (current.length) segments.push(current);
+  return {
+    segments: segments.map((seg) => {
+      splitPsAssignments(seg);
+      return { tokens: seg, positions: commandPositions(seg) };
+    }),
+    subs: tokens.subs,
+  };
+}
 
-  for (const seg of segments) {
-    splitPsAssignments(seg);
-    const positions = commandPositions(seg);
+export { baseName, isShellCommandString, programBefore };
+
+/**
+ * Returns a deny reason for the command, or null to allow it. `shell` is
+ * "powershell" or "bash"; when omitted the command is read both ways and
+ * refused if either reading refuses it. Substitutions and -c strings are
+ * analysed to a depth of three; a create nested deeper is not seen.
+ */
+export function decide(command, shell, depth = 0) {
+  if (typeof command !== "string" || command.length === 0 || depth > 3) return null;
+  if (shell !== "powershell" && shell !== "bash") return decide(command, "bash", depth) ?? decide(command, "powershell", depth);
+  const { segments, subs } = readCommand(command, shell);
+  const outerShell = shell;
+  for (const sub of subs) {
+    const inner = decide(sub, outerShell, depth + 1);
+    currentShell = outerShell;
+    if (inner) return inner;
+  }
+
+  for (const { tokens: seg, positions } of segments) {
     for (let i = 0; i < seg.length; i++) {
       const tok = seg[i];
       if (tok.quoted && isShellCommandString(seg, i, positions)) {

@@ -41,7 +41,7 @@ Written before the fix, the test is also the reproduction: it gives the "fails b
 
 A regression test that passes against the old code pins nothing.
 
-Never use `git stash` for this. The stash stack is per repository, not per worktree, and this checkout has many live worktrees with other sessions running concurrently. A `git stash pop` takes whatever is at `stash@{0}` at that moment, which may be another session's WIP pushed between your push and your pop. That lands their work in your tree and leaves your fix on the stack.
+`shared-stash-hook.mjs` under `.claude/hooks/` refuses a `git stash` that would move the stack, because the stack belongs to the repository rather than to the worktree and a pop returns whatever another session pushed last; its refusal names what to do instead. A harness that does not run this repository's hooks is not covered by it, so `redgreen` below is the way to set files aside in any harness.
 
 Run the whole cycle through the driver, from the repo root, naming the test invocation (under the caps in Running vitest safely) and every changed source file the test exercises:
 
