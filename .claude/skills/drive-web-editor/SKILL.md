@@ -100,7 +100,7 @@ How to read it, before trusting the PNG:
 - `settled: false`: the DOM never stopped mutating. Re-run.
 - `editorPaintWarning`: the script editor was settled but had not painted its lines and gutter within 5 s of the screenshot. The game half of the PNG is still evidence; the editor half may be blank, so do not present that PNG as a picture of the editor. Re-run for one that is.
 - `script`: which script the scrub drove, and `wroteThisRun` whether this run wrote it (above).
-- `consoleNoise`: the console lines this app produces on every run, by count, partitioned out of `consoleErrors` so that list holds only what is worth reading. A name whose count is zero did not appear this run; a line the list does not know stays in `consoleErrors`.
+- `consoleNoise`: known console and page errors, counted by name and partitioned out of `consoleErrors`. A zero means no matching error was captured; an error the list does not know stays in `consoleErrors`.
 
 `--sd` is only needed when the script changes: the pinned port keeps the same origin, so OPFS survives `down`/`up` and a plain `verify --line N --shot x.png` re-uses the script already loaded. Which script that is, the report says: `script` carries the file's size, a short digest of its content, its first non-empty line, and `wroteThisRun`, false on a run that re-used what was in storage. A digest or a first line from another repro is the mismatch, and `ui` reports the same field.
 
