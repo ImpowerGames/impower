@@ -772,7 +772,7 @@ await check("the workbench captures Chrome's resource location before classifyin
   const browser = { newPage: async () => page, close: async () => { closed = true; } };
   await withWorkbench("http://localhost:1", { launch: async () => browser }, async ({ consoleLines }) => {
     const missing = "Failed to load resource: the server responded with a status of 404 (Not Found)";
-    for (const resource of ["package.nls.json", "spark.d.ts", "cheatsheet.css"]) {
+    for (const resource of ["static/devextensions/package.nls.json", "static/devextensions/out/data/spark.d.ts", "cheatsheet.css"]) {
       handlers.get("console")({ type: () => "error", text: () => missing, location: () => ({ url: "http://localhost:1/" + resource }) });
     }
     handlers.get("pageerror")(new Error("unexpected page failure"));
@@ -788,12 +788,12 @@ await check("the workbench noise list names the resources it absorbs, so a 404 t
   const missing = (url) => `[error] Failed to load resource: the server responded with a status of 404 (Not Found) (${url})`;
   const { errors, noise } = partitionConsole(
     [
-      missing("http://localhost:1/static/extensions/sparkdown/package.nls.json"),
-      missing("http://localhost:1/static/extensions/sparkdown/out/data/spark.d.ts"),
+      missing("http://localhost:1/static/devextensions/package.nls.json"),
+      missing("http://localhost:1/static/devextensions/out/data/spark.d.ts"),
       // A resource the change under test moved or misnamed: it belongs in
       // the list a session reads, not in a count it has to know by heart.
       missing("http://localhost:1/static/extensions/sparkdown/out/data/cheatsheet.css"),
-      "[error] Error: FileSystemObserver is not available",
+      String.raw`[error] %c  ERR color: #f33 [File Watcher ('FileSystemObserver')] Error: Unavailable (FileSystemError): Error: No file system handle registered (\) (file:///) (http://localhost:1/static/build/out/vs/workbench/workbench.web.main.internal.js)`,
       "[pageerror] Not Found",
       "[error] TypeError: cannot read properties of undefined",
       "[log] a log line is not an error",
@@ -803,6 +803,23 @@ await check("the workbench noise list names the resources it absorbs, so a 404 t
   );
   assert.deepEqual(errors, [missing("http://localhost:1/static/extensions/sparkdown/out/data/cheatsheet.css"), "[error] TypeError: cannot read properties of undefined"]);
   assert.deepEqual(noise, { "package.nls.json 404": 1, "spark.d.ts 404": 1, "file watcher": 1, "Not Found page error": 1 });
+});
+
+await check("known workbench noise cannot hide other statuses, paths or failure messages", () => {
+  const errors = [
+    "[error] Uncaught SyntaxError: Unexpected token in spark.d.ts",
+    "[error] Failed to load resource: the server responded with a status of 500 (Internal Server Error) (http://localhost:1/static/devextensions/out/data/spark.d.ts)",
+    "[error] Failed to load resource: the server responded with a status of 404 (Not Found) (http://localhost:1/assets/package.nls.json)",
+    "[error] Failed to load resource: the server responded with a status of 404 (Not Found) (http://localhost:1/static/devextensions/out/data/spark.d.ts.map)",
+    "[error] Failed to load resource: the server responded with a status of 404 (Not Found) (http://localhost:1/static/devextensions/package.nls.json/child)",
+    "[error] Extension activation failed: cannot parse package.nls.json",
+    "[error] TypeError: FileSystemObserver is not a constructor",
+    "[error] the language client crashed while watching files (File Watcher)",
+    "[pageerror] Not Found: the extension host bundle is missing",
+  ];
+  const captured = partitionConsole(errors, WORKBENCH_CONSOLE_NOISE, 20);
+  assert.deepEqual(captured.errors, errors);
+  assert.deepEqual(Object.values(captured.noise), [0, 0, 0, 0]);
 });
 
 await check("up takes the download lock only when it will download, releases it once the server answers, and is refused while another worktree holds it", async () => {

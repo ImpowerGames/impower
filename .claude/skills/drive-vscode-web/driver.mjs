@@ -198,10 +198,10 @@ export const QUALITIES = ["stable", "insiders"];
 // `consoleNoise`, so what is left in the list is worth reading and a line
 // that stopped appearing reads as a count of zero.
 export const WORKBENCH_CONSOLE_NOISE = [
-  { name: "package.nls.json 404", match: /package\.nls\.json/ },
-  { name: "spark.d.ts 404", match: /spark\.d\.ts/ },
-  { name: "file watcher", match: /FileSystemObserver|File Watcher/ },
-  { name: "Not Found page error", match: /^\[pageerror\] Not Found/ },
+  { name: "package.nls.json 404", match: /^\[error\] Failed to load resource: the server responded with a status of 404 \(Not Found\) \(https?:\/\/[^/\s)]+\/static\/devextensions\/package\.nls\.json(?:[?#][^\s)]*)?\)$/ },
+  { name: "spark.d.ts 404", match: /^\[error\] Failed to load resource: the server responded with a status of 404 \(Not Found\) \(https?:\/\/[^/\s)]+\/static\/devextensions\/out\/data\/spark\.d\.ts(?:[?#][^\s)]*)?\)$/ },
+  { name: "file watcher", match: /^\[error\] .*?\[File Watcher \('FileSystemObserver'\)\] Error: Unavailable \(FileSystemError\): Error: No file system handle registered \(\\\) \(file:\/\/\/\)(?: \(https?:\/\/[^/\s)]+\/static\/build\/out\/vs\/workbench\/workbench\.web\.main\.internal\.js\))?$/ },
+  { name: "Not Found page error", match: /^\[pageerror\] Not Found$/ },
 ];
 
 const inside = (dir, p) => {
