@@ -1,0 +1,2 @@
+# Preserve the historical screenplay's intentional trailing dialogue spacing.
+large-screenplay.sd whitespace=-blank-at-eol
