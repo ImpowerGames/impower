@@ -86,7 +86,7 @@ node .claude/skills/drive-vscode-web/driver.mjs down
 node .claude/skills/drive-vscode-web/driver.mjs verify --hover missing_backdrop --shot after.png --hover-shot hover.png
 ```
 
-`verify` loads a fresh page, opens the file by clicking its explorer row, waits for the language server's diagnostics to settle, reads them, asks for the hover, screenshots, and prints the report. Verified output shape (`consoleErrors`, `url`, `project` and `build` omitted here; the repro above, with a hover on the image reference `missing_backdrop`):
+`verify` loads a fresh page, opens the file by clicking its explorer row, waits for the language server's diagnostics to settle, reads them, asks for the hover, screenshots, and prints the report. Verified output shape (`consoleErrors`, `consoleNoise`, `url`, `project` and `build` omitted here; the repro above, with a hover on the image reference `missing_backdrop`):
 
 ```json
 {

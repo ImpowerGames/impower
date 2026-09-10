@@ -143,7 +143,7 @@ node .claude/skills/drive-web-editor/driver.mjs down
 node .claude/skills/drive-web-editor/driver.mjs ui --sd repro.sd --open find --type "search=Hello" --type "replace=Goodbye" --shot-of find panel.png --shot page.png
 ```
 
-Verified output shape (steps first, then the read-back; `url`, `startedOn`, `ui.tabs` and `consoleErrors` are also present and omitted here, as is the run's top-level `editorSettled`, which is set only when an editor was expected where the run started):
+Verified output shape (steps first, then the read-back; `url`, `startedOn`, `ui.tabs`, `script`, `consoleErrors` and `consoleNoise` are also present and omitted here, as is the run's top-level `editorSettled`, which is set only when an editor was expected where the run started):
 
 ```json
 {
@@ -176,7 +176,7 @@ The steps, each usable any number of times and in any order. Every name is check
 | `--open <panel>`         | `find` (Ctrl+F) or `goto` (Ctrl+G); waits for the panel to be on screen; needs the script editor, so the logic screen's `main` tab                     |
 | `--close <panel>`        | Escape from inside it                                                                                                                                 |
 | `--type <field>=<text>`  | real keystrokes into `search`, `replace`, or `line`; opens the panel if needed; a literal `\n` becomes Ctrl+Enter, the field's own line break           |
-| `--press <combo>`        | one key combo, e.g. `Control+Shift+G`; a shifted lowercase letter is uppercased first (see Gotchas); the `+` key is written `Control++`                |
+| `--press <combo>`        | one key combo, e.g. `Control+Shift+G`; a shifted lowercase letter is uppercased first; the `+` key is written `Control++`                |
 | `--click <button>`       | a panel button by name: `next`, `prev`, `select`, `replace`, `replaceAll`, `close`, `submit`; goes to whichever owning panel is open                    |
 | `--toggle <option>`      | flip a find-panel checkbox: `case`, `re`, `word`; reports the state it ended in                                                                        |
 | `--shot <out.png>`       | the whole page                                                                                                                                        |
