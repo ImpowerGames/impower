@@ -143,7 +143,7 @@ node .claude/skills/drive-web-editor/driver.mjs down
 node .claude/skills/drive-web-editor/driver.mjs ui --sd repro.sd --open find --type "search=Hello" --type "replace=Goodbye" --shot-of find panel.png --shot page.png
 ```
 
-Verified output shape (steps first, then the read-back; `url`, `startedOn`, `ui.tabs`, `script`, `consoleErrors` and `consoleNoise` are also present and omitted here, as is the run's top-level `editorSettled`, which is set only when an editor was expected where the run started):
+Verified output shape (steps first, then the read-back; `url`, `startedOn`, `ui.screens`, `ui.tabs`, `ui.editorView`, `script`, `consoleErrors` and `consoleNoise` are also present and omitted here, as is the run's top-level `editorSettled`, which is set only when an editor was expected where the run started):
 
 ```json
 {
