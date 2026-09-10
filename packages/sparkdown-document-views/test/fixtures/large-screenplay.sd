@@ -1,0 +1,7160 @@
+---
+title:
+  **_RAFFLES & BUNNY_**
+  ~
+  Episode 01-A
+  "The Ides of March"
+  (1st Innings)
+credit: Written by
+author:
+  Lovelle Cardoso
+  & Colin Broderick
+source:
+  Based on the novel by
+  E. W. Hornung
+notes:
+  *Inspired by*
+  *the life & works of*
+  *Oscar Wilde &*
+  *George Cecil Ives*
+date: May 30th, 2026
+contact:
+  Impower Games Co.
+  1401 21st Street Suite R
+  Sacramento, CA 95811
+---
+
+include characters
+include music
+include temp_sound_effects
+include voices
+include portraits
+include ui
+include backgrounds
+
+-> TEASER
+
+scene TEASER
+
+  # Teaser
+
+  ^: _TEASER_
+
+  ## OpeningImage
+  [[show backdrop colorscript_001]]
+
+  ((play music sfx_ambient_casino_bustle to 0.1))
+
+  $: CLOSEUP - AN ACE OF SPADES PLAYING CARD ON PATTERNED CARPET
+
+  [[show backdrop colorscript_002]] [[show backdrop colorscript_003 after 1]]
+  We hear the chime of slot machines.
+
+  The rattle of plastic chips.   The bustle of patrons.
+
+  A muffled cry.   Heels dragging carpet.   Farther.   Farther --
+
+  A GUN.   In the hands of an amateur.   Their white gloves tremble around the grip.
+
+  They shout toward the struggle in the distance --
+
+  THE GLOVED FIGURE:
+    LET HER GO!
+
+  A GIRL BESIDE:
+    What are you doing!!?
+
+  Her hands fly in from the side.   Clamp the gun.   Pry.   Twist.   Wrench.
+
+  ((stop music mus_i_group)) ((stop music temp_sfx_gallery)) ((sfx_guns_firing))
+  **BA-BANG.**
+
+  Overhead,  a CHAIN snaps.
+
+  She screams in pain.   Before it can carry,  it's drowned by a ((sfx_chandelier)) DEAFENING CRASH.
+
+  ((m_todo_crowd_stampede)) Panic.   Pandemonium.   _A stampede_.
+
+  Through the haze -- one glimpse of her\:  Down on one knee.
+  Red runs between her fingers.
+
+  [[show backdrop colorscript_004]]
+  A bead of red taps the card.
+
+  Then another.
+
+  It spreads.
+
+  [[show backdrop colorscript_005]]
+  %: MATCH CUT TO:
+
+  $: THE ACE OF SPADES PLAYING CARD - HOURS LATER
+
+  ((sfx_camera_flash)) ((play music mus_a_group mute)) ((play music mus_a_bass+mus_a_bongos+mus_a_claves+mus_a_congas+mus_a_cowbell+mus_a_glock+mus_a_guiro+mus_a_guitar+mus_a_hihat+mus_a_maracas+mus_a_piano+mus_a_ride+mus_a_tamb+mus_a_tenor_sax+mus_a_trumpet+mus_a_vibraphone+mus_a_violin_legato+mus_a_violin_legato_2+mus_a_violin_trem+mus_a_violin_trem_2+mus_a_wood_block unmute))
+
+  The card lies beside a yellow number placard.
+
+  The room's empty.   Quiet.
+
+  [[show backdrop colorscript_006]]
+  A gloved hand cuts through the darkness and lifts the card.
+
+  Forensics.
+
+  [[show backdrop colorscript_008]]
+  We follow them up,  ((play ambient sfx_ambient_walking_echoey)) and through...
+
+  [[show backdrop colorscript_009]]
+  $: INT. DARK CASINO - NIGHT
+
+  Cops mill around the wreckage,  their boots crunching glass.
+
+  The floor is a disaster.   Spilled drinks.   Sprung cards.   Slumped chairs.
+
+  [[show backdrop colorscript_010]]
+  _A massive chandelier lies shattered on the carpet_.
+
+  [[show backdrop colorscript_011]] [[show backdrop colorscript_012 after 1]]
+  The card travels.   Hand to hand to a cop in a high-collared trench coat.
+
+  [[show backdrop colorscript_013]]
+  They flip it.   Blood has eaten most of the message.
+
+  Two words make it through\:
+
+  \    **The Phantom**((fade music mus_a_group to 0 over 5))
+
+  %: SMASH BACK TO:
+
+  // new colorscript frames needed -- casino mid-stampede, low angle: white gloves shoving through the crowd, then the service door banging open
+  $: INT. THE CASINO IN CHAOS - MOMENTS AFTER THE SHOT
+
+  ((m_todo_crowd_stampede)) WHITE GLOVES,  shoving against the stampede.
+
+  In a sea of bodies surging toward the exit,  the figure is the one shape that cuts the other way.
+
+  Hands hit a service door.   It BANGS ((m_todo_sfx_door_bang)) OPEN--
+
+  [[show backdrop colorscript_014]]
+
+  $: EXT. BACK ALLEY
+
+  [[show backdrop colorscript_015]]
+  ((sfx_thunder)) ((play ambient sfx_amb_rain_outdoors)) ((play music mus_i_group mute)) ((play music mus_i_bongos+mus_i_boomy_drums+mus_i_drums_cymbals+mus_i_drums_hihat+mus_i_drums_kick+mus_i_drums_snare+mus_i_drums_toms+mus_i_heartbeat_kick+mus_i_shaker unmute)) RAIN.   THUNDER.
+  ((m_todo_sfx_running_rain)) BLACK SHOES RUNNING.
+
+  [[show backdrop colorscript_016]]
+  Into an alley.   [[show backdrop colorscript_017]] ((sfx_jumping_fence)) Over a fence.   [[show backdrop colorscript_018]] ((m_todo_sfx_running_through_bushes)) Through a [[show backdrop colorscript_019]] yard.
+
+  A rope.   Dangling down a brick wall.
+
+  [[show backdrop colorscript_020]]
+  White gloves ((sfx_bang_hands_slap_wall)) SLAM the brick,  grab the rope,  and climb.
+
+  [[show backdrop colorscript_021]]
+  ((sfx_climbing_rope)) Higher.   Higher.   Higher.
+
+  Until --
+
+  [[show backdrop colorscript_022]]
+  $: EXT. DORM ROOFTOP
+
+  [[show backdrop colorscript_023]]
+  The figure hauls themself up in front of a tall dormer window.
+
+  [[show backdrop colorscript_024]]
+  They reach for the rope.   Start to untie it.   Then --
+
+  They stop.
+
+  [[show backdrop colorscript_025]]
+
+  Gloved palms turn,  slow,  to face the sky.
+
+  BLOOD.   Not theirs.
+
+  [[show backdrop colorscript_026]]
+  The gloves come off.   Check their palms.
+
+  CLEAN.
+
+  The hands tremble.
+
+  *Shake.*
+
+  Ball into fists.
+
+  They SLAM the roof with a loud ((m_todo_sfx_bang_slam_fist+temp_sfx_bang)) ((stop music mus_i_group)) ((play ambient sfx_amb_rain_indoors)) _BANG_.
+
+  %: CUT TO:
+
+  ((play ambient sfx_amb_rain_indoors)) ((sfx_pencil_breaks)) [[show backdrop colorscript_027]]
+
+  $: CLOSEUP - PENCIL TIP BREAKING ON PAPER
+
+  [[show backdrop colorscript_028]]
+  A young man (age 18) looks up from a small leather notebook --
+
+  $: INT. DORM BEDROOM
+
+  [[show backdrop colorscript_029]]
+  He scans the room.   It's dark and quiet.
+
+  [[show backdrop colorscript_030]]
+  The rainstorm outside batters against his window.
+
+  [[show backdrop colorscript_029]] He sighs and reaches for an eraser,  when --
+
+  ((m_todo_sfx_shingle_clattering)) A CLATTER.
+
+  He freezes.
+
+  His eyes flick to the curtains -- shut tight.
+
+  [[show backdrop colorscript_031]]
+  On his desk,  a clock reads\:
+
+  \   **3:00AM**
+
+  [[show backdrop colorscript_030]]
+  ((m_todo_sfx_shingle_clattering_breaks)) MORE CLATTERING.   Back at the window.
+
+  [[show backdrop colorscript_031]]
+  He leans in.   Reaches for the curtains...
+
+  [[show backdrop colorscript_032]] [[show backdrop colorscript_033 after 1]]
+  He ((sfx_curtain_swish)) draws them open to reveal --
+
+  [[show backdrop colorscript_034]] ((sfx_thunder)) ((play music mus_i_group))
+  _A FIGURE STANDING JUST OUTSIDE_.
+
+  [[show backdrop colorscript_035 after 1]]
+  The young man REELS.
+
+  [[show backdrop colorscript_036]]
+  The figure stands silhouetted in the moonlight -- facing the night sky.
+
+  They start to take a step _toward the edge_.
+
+  [[show backdrop colorscript_037]]
+  The young man ((m_todo_sfx_bang_scramble)) SCRAMBLES across his desk.   ((sfx_window_throw_open)) ((play ambient sfx_amb_rain_outdoors)) [[show backdrop colorscript_038 after 1]] [[show backdrop colorscript_039 after 1]] THROWS OPEN the window.   REACHES through the wind and rain.
+
+  [[show backdrop colorscript_040]]
+  He ((sfx_hand_grabbing_sleeve)) CATCHES the arm of the figure.
+
+  [[show backdrop colorscript_041]] [[show backdrop colorscript_042 after 1]]
+  The figure tries to turn.   But ((sfx_shoes_squeaking)) they lose their footing instead -- they SLIP and start ((m_todo_rooftile_slide)) sliding down the slanted roof.
+
+  [[show backdrop colorscript_044]]
+  The young man ((sfx_hand_tightening_grip)) TIGHTENS HIS GRIP.   [[show backdrop colorscript_045 after 1]] His knees ((m_todo_scrape_wood_against_floor)) SCRAPE PAINFULLY across the desk as he's WRENCHED forward.
+
+  [[show backdrop colorscript_046]]
+  ((sfx_bang_crash)) BANG.  His stomach meets the windowsill.
+  He GASPS and winces but his grip STAYS FIRM.
+
+  [[show backdrop colorscript_047]]
+  He hangs halfway out the window -- a torrent of rain thundering around him,  drenching him to the waist.
+
+  [[show backdrop colorscript_048]]
+  He shakes the hair from his eyes.   Looks down.
+
+  [[show backdrop colorscript_049]]
+  The figure desperately clutches his arm -- eyes wide behind a MASQUERADE MASK -- expression a strange mix of gratitude and uncertainty.
+
+  [[show backdrop colorscript_050]]
+  The young man stares at the boy dangling in his grasp -- several stories above certain death.
+
+  [[show backdrop colorscript_051]]
+  And his face fills with confusion --
+
+  BUNNY:
+    ((stop music music_i_group)) ((temp_sfx_realization))
+    Raffles?!?
+
+  [[show backdrop colorscript_052]]
+  We pan up into the night sky.
+
+  [[hide backdrop]]
+
+  ^: _END TEASER_
+
+  ^:
+    OPENING CREDITS SEQUENCE:
+    _THE ADVENTURES OF A.J. RAFFLES (& BUNNY)_
+
+  -> ACT_ONE
+end
+
+scene ACT_ONE
+
+  # ActOne
+
+  ^: _ACT ONE_
+
+  ## Setup
+
+  ^: ***5 YEARS LATER...***
+
+  [[show backdrop closeup_printer_sketch]]
+
+  ((play music mus_l_group))
+  ((play ambient sfx_amb_rain_indoors))
+
+  $: CLOSEUP - PAPER STUTTERING FORWARD
+
+  ((play environmental sfx_printer_whirring loop))
+
+  LOUD WHIRRING.   A printer arm sweeps back and forth.   Incredibly slowly.
+
+  BUNNY:
+    C'mon.      
+    <p:2>::C'moooon...::
+
+  The printer falters to a stop with a loud [[animate stage with shake]]::CRUNCH::.((sfx_printer_jam)) ((stop environmental sfx_printer_whirring))
+
+  BUNNY:
+    Nonono--  Not now!
+
+  Camera pulls back to reveal...
+
+  [[show backdrop bg_print_shop]]
+
+  $: INT. PRINT SHOP - LATE AFTERNOON
+
+  A young man wrenches at the jammed paper.
+
+  This is "BUNNY" -- our dorm-room occupant from earlier (now age 23).
+
+  Strong-willed.   And a bit neurotic.
+
+  He's got that Jersey snap and a prickly disposition that doesn't seem to match the nickname --
+
+  Far more bristle than fluff.
+
+  // todo replace bunny_angry with bunny_realization with the bunny_angry face
+  BUNNY:
+    (straining)
+    ((sfx_bang_smack))
+    [[animate stage with shake]]
+    ...would'ya let go already...
+
+  The paper doesn't budge.
+
+  Behind the counter,  a bored ATTENDANT lifts one side of his headphones --
+
+  // todo animate letters falling into place on UI for sarcasm/annoyance
+  ATTENDANT:
+    Sir,  please step away from the printer.
+
+  Bunny tugs the paper one last time,  ((sfx_paper_tear))::RIPPING:: it in half.
+
+  He waves the torn page at the attendant --
+
+  BUNNY:
+    Look,  I really,  <p:3>::really::   <p:1>gotta print this thing...
+
+  ATTENDANT:
+    Nah...   Looks busted.
+
+  BUNNY:
+    Well's there any way you could--
+
+  ((play environmental sfx_phone_ringtone loop))
+  A RINGTONE cuts him off.   He glances at the caller ID\:
+
+  \    **Maria Manders**
+
+  Bunny holds up a finger and pivots away.
+
+  The attendant returns his attention to a magazine and loudly chews a stick of gum.
+
+  ((sfx_phone_beep1))
+  ((stop environmental sfx_phone_ringtone))
+  BEEP.
+
+  Bunny places his phone on a nearby table --
+
+  BUNNY:
+    (futzing in the printer)
+    Hey now's not a great ti--
+
+  MRS. MANDERS:
+    (on speakerphone)
+    Hi stranger!!   It's been a while! >
+    How's the city?   
+    You know I heard... >
+    (loudly sings)
+    ~~<p:4>If  <p:3>you  <p:2>can~   <p:9>MAKE IT  <p:5>THERE~!~~   
+    ~~<p:4>You'll  <p:2>make it~   <p:8>ANYWH--~~
+
+  ((sfx_bang_smack)) Bunny snatches the phone and ((sfx_phone_beep2)) switches it off speaker.
+
+  The attendant snorts.
+
+  // todo bunny_resigned~phone
+  BUNNY:
+    (under his breath)
+    Mom, please...
+
+  MRS. MANDERS (49, bubbly, affectionate) carries on,  chipper\:
+
+  MRS. MANDERS:
+    So your Tita called the ~~other day~ ~~ >
+    Jason passed the NCLEX -- First try! >
+    Did you see?   
+    I sent it on your socials.
+
+  // todo bunny_avoidant
+  BUNNY:
+    (with a strained smile)
+    Nope...   must'a missed that...
+
+  MRS. MANDERS:
+    (sing-song)
+    ~~*Alam mo yun~*~~   
+    Even if medical school didn't work out,  there's always ~~nursing~... ~~
+
+  Bunny sighs and pulls the phone from his ear --
+
+  // todo Face Variant - guilty/embarrassed smile
+  BUNNY:
+    (to the attendant)
+    So uh... since this thing jammed,  could you--
+
+  Without looking up,  the attendant ((sfx_gum_pop))::pops:: his gum and points to the sign above his head\:
+
+  \    **"_NO REFUNDS_"**
+
+  // todo bunny_resigned
+  BUNNY:
+    Right.   
+    ...Of course.
+
+  Bunny stuffs the ripped pages in his bag and returns the phone to his ear.
+
+  MRS. MANDERS:
+    ...not as <p:1>*exciting* <p:0>as making movies...
+
+  He trudges to the shop entrance.
+
+  MRS. MANDERS:
+    ...*pero* good benefits,  
+    job security...
+
+  Opens the door.
+
+  MRS. MANDERS:
+    ...and just <p:1>a few months <p:0>of...
+
+  ((sfx_thunder))
+  ((fade music mus_l_piano+mus_l_tenor_sax to 0 over 0.5))
+  ((play ambient sfx_amb_rain_outdoors))
+  [[animate stage with shake]]
+  _It's POURING rain_.
+
+  From outside\: Bunny,  framed in the doorway as Mrs. Manders continues -- incomprehensible over the downpour.
+
+  Back inside -- Bunny sucks in a shaky breath,  through gritted teeth.
+
+  He glances down at an umbrella stand next to the door.
+
+  Inside is A SINGLE UMBRELLA -- bearing a familiar UGLY LOGO.
+
+  The same logo on the attendant's headphones.
+
+  Bunny eyes the rude attendant,  still flipping through the magazine.
+
+  Bunny turns back to the stand.
+
+  ((m_todo_sfx_emotional_crime_motif_1))
+  CLOSE ON the umbrella...  HOLD.
+
+  %: HARD CUT TO:
+
+  ((sfx_thunder))
+  ((fade music mus_l_piano+mus_l_tenor_sax to 1 over 0.5))
+  [[show backdrop bg_bunnys_ext_neighbourhood_rainy]]
+
+  $: EXT. RAINY SIDEWALK
+
+  Bunny hustles through the downpour,  shielding his head with his JACKET.
+
+  He has his phone tucked precariously between his shoulder and cheek --
+
+  MRS. MANDERS:
+    ...and giving up so soon,  after all those loans--
+
+  His other hand flips through a familiar LEATHER POCKET NOTEBOOK\:
+
+  \    **_March 15th_**   \
+  \    **[X] Final edits**  \
+  \    **[X] Print pitch packet**   \
+  \    **[ ] Get changed**  \
+  \    **[ ] _PITCH MEETING:_ 7PM**   \
+
+  \    **_To-Do:_**   \
+  \    **[ ] Call mom**   \
+  \    **[ ] Research**   \
+  \    **[ ] PAY RENT**
+
+  Struggling to keep the jacket in place,  he fishes out a pen and ((sfx_helmet_click)) uncaps it with his teeth --
+
+  BUNNY:
+    (mumbled around the cap)
+    Ma, I'll take care of it,  
+    trust me.
+
+  He ((sfx_pencil_scribble_checkmark)) crosses off **"Call mom"**.
+
+  BUNNY:
+    I just need to--
+
+  Bunny ((sfx_shoes_stopping)) stops mid-stride.
+
+  CLOSEUP - **[ ] PAY RENT**
+
+  [[show backdrop bg_bunnys_ext_apartment_note]]
+
+  He looks up at his apartment.
+
+  The cap falls from his mouth.
+
+  // closeup
+  ((sfx_emotional_problem_rev_0)) There's a PADLOCK and a NOTE on his door --
+
+  // todo make face more exasperated
+  BUNNY:
+    <p:6>No <p:6>No <p:6>No.
+
+  He pockets the notebook.   Runs up.   [[show backdrop bg_bunnys_ext_apartment_no_note]] ((sfx_paper_crinkle)) Rips off the EVICTION NOTICE.
+
+  He reads the message scrawled across the top\:
+
+  \    **"No money.   No entry.   No more second chances."**
+
+  // todo eyes should face downward and be more angry
+  BUNNY:
+    (at the note)
+    [[animate stage with shake]]
+    ((m_todo_sfx_emotional_yelling+temp_sfx_smack))
+    Seriously???
+
+  MRS. MANDERS:
+    ...*ano yun*...?   ...bad connection...
+
+  BUNNY:
+    Sorry,  it's just...
+
+  He repositions the phone and ((sfx_lock_jostle)) YANKS on the padlock --
+
+  // todo eye's should be pointing down, ideally hand forward interacting with the door
+  BUNNY:
+    (straining)
+    I'm a little busy right now--
+
+  MRS. MANDERS:
+    Busy?   With work?
+
+  He bolts to the window.
+
+  BUNNY:
+    (jostling the window)
+    ((sfx_window_jostle)) Somethin' like that! >
+    I got this big meeting soon and--
+
+  MRS. MANDERS:
+    (surprised)
+    Meeting?  You got the job already?
+
+  [[show backdrop bg_bunnys_int_apartment]]
+
+  He peers inside --
+
+  BUNNY:
+    I mean, I'm meeting producers to--
+
+  MRS. MANDERS:
+    (delighted)
+    *Ay*, thank the Lord~! >
+    What did I say,  *ha*?   
+    And you were so worried!
+
+  Bunny spots his one and only suit hanging from the shower curtain that separates his bathroom/toilet from his kitchen/bedroom.
+
+  [[show backdrop bg_bunnys_ext_apartment_no_note]]
+
+  BUNNY:
+    Yeah... >
+    ((colin_todo_sfx_emotional_sigh)) Really livin' the dream...
+
+  MRS. MANDERS:
+    (excited)
+    Well I won't keep you!   
+    Get there early!   
+    And wear that suit I bought you.
+
+  He starts pacing --
+
+  MRS. MANDERS:
+    And a nice tie.  Nothing too bright. >
+    *Ano kasi*...   you don't want them thinking you're--
+
+  Bunny [[animate stage with shake]] ((sfx_bang_kick)) kicks the wall under his window.
+
+  He hisses and kneels,  clutching his foot.
+
+  MRS. MANDERS:
+    *Anak*?
+
+  BUNNY:
+    (straightening painfully)
+    [[animate stage with shake]] ((m_todo_sfx_emotional_yelling+temp_sfx_smack)) <p:2>YES!!   [[animate stage with shake]] ((m_todo_sfx_emotional_yelling+temp_sfx_smack)) Okay!!   [[animate stage with shake]] ((m_todo_sfx_emotional_yelling+temp_sfx_smack)) Got it!   [[animate stage with shake]] ((m_todo_sfx_emotional_yelling+temp_sfx_smack)) Thanks!<p:1>
+
+  MRS. MANDERS:
+    (proudly)
+    *Ooo~ ang anak ko ay magiging* ~~movie star~!~~
+
+  // todo fix crosseyed bunny
+  BUNNY:
+    ...writer...   movie writer...
+
+  Bunny looks at the ground.
+
+  He's knocked something loose.
+
+  ((colin_todo_sfx_emotional_questioning+temp_sfx_realization))
+  ((fade music mus_l_piano+mus_l_tenor_sax to 0 over 0.5))
+  A BRICK.
+
+  He picks it up.
+
+  WIDE ON Bunny.   Rising.   Brick in hand.
+
+  ((m_todo_sfx_emotional_crime_motif_2)) He turns toward the locked window.   HOLD...
+
+  HOLD...
+
+  HOLD. . .
+
+  %: HARD CUT TO:
+
+  $: BRICK BACK IN WALL - RIGHT WHERE HE FOUND IT
+
+  ((sfx_puddle_splash))
+  ((fade music mus_l_piano+mus_l_tenor_sax to 1 over 0.5))
+  A crummy bicycle wheel rolls past the bricks.
+
+  [[show backdrop bg_bunnys_ext_neighbourhood_rainy]]
+
+  ((play environmental sfx_amb_biking))
+  Bunny wraps his jacket over his helmet and tucks the sleeves into the straps.
+
+  It doesn't shield him from the rain as much as he hoped.
+
+  Bunny hops on his bike.
+
+  BUNNY:
+    Look,  I gotta go.
+
+  MRS. MANDERS:
+    *Sige, sige*...   
+    One more thing!
+
+  Bunny starts to pedal --
+
+  BUNNY [<]:
+    Ma, I really--
+
+  MRS. MANDERS [>]:
+    Are you coming home for Easter?
+
+  Bunny ((sfx_bike_skid)) ((stop environmental sfx_amb_biking)) jerks to a halt.   His jacket flops over his face.
+
+  MRS. MANDERS [<]:
+    (hopefully)
+    *Kasi* your birthday's that weekend so I was thinking--
+
+  BUNNY [>]:
+    (too loud)
+    [[animate stage with shake]]
+    ((m_todo_sfx_emotional_yelling+temp_sfx_smack))
+    --I'm busy!
+
+  Bunny wrenches the jacket away.
+
+  He winces --
+
+  BUNNY:
+    (lying)
+    I mean,  I'll ::be:: busy...
+
+  He shifts.
+
+  BUNNY:
+    (lying badly)
+    ((colin_todo_sfx_emotional_guilty+temp_sfx_realization))
+    ((fade music mus_l_piano+mus_l_tenor_sax+mus_l_bass+mus_l_bongos to 0 over 0.5))
+    Probably...
+
+  Rain fills the silence.
+
+  BUNNY:
+    Mom?
+
+  MRS. MANDERS:
+    (trying to stay cheerful)
+    *Oo naman syempre*!  I understand.
+
+  A beat.
+
+  Bunny looks down.
+
+  MRS. MANDERS:
+    (hesitant)
+    *Anak*...
+
+  Her voice sounds far away...
+
+  MRS. MANDERS:
+    You know I'm always here... >
+    <!>(beat)
+    ...if you ever need me.
+
+  Bunny adjusts his grip on the bike handles --
+
+  BUNNY:
+    I-I know...
+
+  Silence.
+
+  He dons his jacket --
+
+  BUNNY:
+    Bye Ma.
+
+  Mounts his bike.
+
+  And after a moment,  adds --
+
+  BUNNY:
+    (with difficulty)
+    Love you.
+
+  A beat.
+
+  MRS. MANDERS:
+    (quickly)
+    And remember for your outfit,  
+    nothing too--!
+
+  He hangs up with a ((sfx_phone_beep3)) ((stop music mus_l_group)) CLICK.
+
+  %: CUT TO:
+  ((play music mus_c_group))
+  ## Catalyst
+
+  $: EXT. L TRAIN STATION - 6:40PM
+
+  FROM A DISTANCE -- Bunny dismounts.   Dumps his shitty-bike at the rack.   Doesn't chain it.   Doesn't care.
+
+  He ((sfx_helmet_click)) unsnaps his helmet and descends into the station.
+
+  ((play ambient sfx_amb_subway))
+  [[show backdrop bg_subway_interior]]
+
+  $: INT. SUBWAY ENTRANCE
+
+  A train rumbles below.   The wet air pushes up through the grates -- steel,  urine,  pretzel grease.
+
+  Bunny taps his card ((sfx_electronic_error)) and dashes through the turnstile --
+
+  [[animate stage with shake]]
+  ((sfx_bang_crash))
+  _The bar DOESN'T GIVE_.
+
+  He clutches his bruised stomach and backs away.
+
+  Turnstile reads\:
+
+  \    **Insufficient Funds:**  \
+  \    **Please reload card.**
+
+  ((play sound sfx_running))
+
+  A TEEN BOY swooshes past.
+
+  He ((play sound sfx_jumping_turnstile)) VAULTS the bar and lands easy on the other side.
+
+  He waves someone over --
+
+  TEEN BOY:
+    (shouting)
+    Come on!
+
+  ((sfx_running)) A TEEN GIRL skids to a stop at the bar.
+
+  She glances toward a SECURITY CAMERA pointed in their direction.
+
+  TEEN GIRL:
+    What about--?
+
+  The boy laughs.  Shakes his head.
+
+  TEEN BOY:
+    Camera's been busted for months!
+
+  He grabs her hand and ((sfx_jumping_turnstile)) pulls her over.   Their laughter fades as they take off down the hall.
+
+  ((m_todo_sfx_emotional_crime_motif_3))
+  WIDE ON Bunny -- alone at the barrier.
+
+  His eyes flick to the busted camera.
+
+  To his right,  a clock on the wall\:
+
+  \    **6:44 PM**
+
+  HOLD on the turnstile...
+
+  He wavers.
+
+  Breathes in.
+
+  Takes a hesitant step forward...
+
+  [[animate stage with shake]]
+  ((sfx_bang_crash_2))
+  _And SOMEONE BOWLS INTO HIM FROM BEHIND_.
+
+  The contents of Bunny's bag SPILL across the floor.
+
+  PAPERS burst from the STRANGER's hands and flutter through the air.
+
+  BUNNY:
+    S-Sorry!
+
+  The stranger blinks,  getting his bearings.
+
+  He stands and starts to ((sfx_paper_shuffling)) gather his papers --
+
+  STRANGER:
+    My fault.   
+    Didn't see you there.
+
+  He tucks the stack under one arm,  and offers Bunny a hand --
+
+  BUNNY:
+    Thanks...
+
+  The stranger helps Bunny up.   They look at each other.
+
+  ((sfx_subway_announcement_1))
+  BONG.   **THIS IS A MANHATTAN-BOUND L TRAIN.   PLEASE STAND CLEAR OF THE CLOSING DOORS** --
+
+  Bunny glances at the clock and curses under his breath.
+
+  He gathers ((sfx_paper_shuffling)) his things off the floor and stuffs them in his bag.
+
+  The stranger nods and heads back to the turnstile.
+
+  Then --
+
+  Bunny stops.
+
+  _Looks up_.
+
+  The stranger is rounding the corner past the turnstile.   He's got a stack of papers tucked under his arm --
+
+  A stack with the top page conspicuously ((sfx_emotional_problem)) _RIPPED IN HALF_.
+
+  ## Debate
+
+  BUNNY:
+    [[animate stage with shake]]
+    ((m_todo_sfx_emotional_yelling+temp_sfx_smack))
+    No No No!
+
+  Bunny RUNS UP to the turnstile,  leaning over it as far as he can --
+
+  BUNNY [<]:
+    [[animate stage with shake]] ((m_todo_sfx_emotional_yelling+temp_sfx_smack)) Hey wait!!  [[animate stage with shake]] ((m_todo_sfx_emotional_yelling+temp_sfx_smack)) That's my--!
+
+  ANNOUNCEMENT [>]:
+    (BONG)
+    ((sfx_subway_announcement_2 wait))
+    ((stop music mus_c_group))
+    **Remember to keep track of all belongings while riding the...**
+
+  BUNNY:
+    [[animate stage with shake]]
+    ((m_todo_sfx_emotional_yelling+temp_sfx_smack))
+    Gah!
+
+  ((m_todo_sfx_emotional_crime_motif_4))
+  Bunny backs up and squares with the barrier.
+
+  His eyes lock on the bar.
+
+  Then finally...
+
+  BUNNY:
+    [[animate stage with shake]]
+    ((m_todo_emotional_yelling+temp_sfx_smack))
+    DAMMIT!
+
+  ## ChoosingActTwo
+
+  _Bunny JUMPS THE TURNSTILE_.
+
+  ### RhythmMinigame1
+
+  ^: <!>=== RHYTHM MINIGAME 1 BEGINS ===
+
+  ^: <!>[GAMEPLAY\: Swipe left to move left,  Swipe right to move right]
+
+  $: INT. SUBWAY HALLWAY - (MINIGAME 1A)
+
+  ((play music mg1))
+  MUSIC IS IN FULL SWING as Bunny sprints through the subway station -- WEAVING IN AND OUT of the crowd of commuters.
+
+  He barrels toward the platform,   SCANNING through the crowd and subway car windows.
+
+  THE STRANGER.   He's seated inside the middle car.
+
+  ((sfx_subway_door_closing))
+  A HISS of car doors closing.
+
+  Bunny DUCKS INSIDE the nearest door.
+
+  $: INT. SUBWAY CAR
+
+  He PUSHES through the crowded car.   [[animate stage with shake]] ((sfx_bang_collide_nopaper)) BUMPS into someone.   They drop their PHONE --
+
+  TEEN GIRL:
+    Watch it!
+
+  It's the teens from earlier.
+
+  Bunny sputters apologies and fumbles for it.
+
+  The car ROCKS.   He loses his balance.   ((sfx_phone_crunch)) STEPS ON IT instead.
+
+  GLASS CRUNCHES as he lifts his foot.
+
+  He sheepishly picks up the now shattered phone --
+
+  BUNNY:
+    (handing it over)
+    ((colin_todo_emotional_embarrassed+temp_sfx_whoops))
+    I am...  so sorry.
+
+  TEEN GIRL:
+    [[animate stage with shake]]
+    ((m_todo_emotional_anger+temp_sfx_smack))
+    What the hell?!
+
+  Bunny raises his hands and backs away.   Glances behind him.
+
+  Can't see the stranger anymore.
+
+  BUNNY:
+    Look I'm sorry but--
+
+  TEEN BOY:
+    [[animate stage with shake]]
+    ((m_todo_emotional_anger+temp_sfx_smack))
+    Yo, asshole!
+
+  The teen boy behind her straightens and steps UP CLOSE.
+
+  TEEN BOY:
+    Gonna need more than an apology.
+
+  BUNNY:
+    Uh...
+
+  Bunny _BOOKS IT through the crowd_.
+
+  $: INT. SUBWAY CAR 2 - (MINIGAME 1B)
+
+  Bunny dashes to the back car and looks around.
+
+  ((sfx_subway_braking)) The train slows.   People start exiting.
+
+  No sign of the stranger anywhere.
+
+  Bunny looks out the window.   SPOTS HIM.
+
+  He's making his way up the platform stairs and OUT OF THE STATION.
+
+  The car doors start to close.
+
+  TEEN BOY:
+    [[animate stage with shake]]
+    ((m_todo_emotional_anger+temp_sfx_smack))
+    Hey!
+
+  Bunny FORCES his shoulder through the closing door and RUNS OUT.
+
+  $: EXT. MANHATTAN SIDEWALK
+
+  Bunny EXITS the station and frantically scans the street.
+
+  ((play ambient sfx_amb_rain_outdoors))
+  It's still POURING RAIN.
+
+  THE STRANGER hails a YELLOW CAB and steps inside.
+
+  Someone is stepping onto an ELECTRIC CITY SCOOTER.
+
+  Bunny [[animate stage with shake]] ((sfx_bang_collide_nopaper)) SHOVES THEM OFF with an abrupt apology and HOPS ON.
+
+  $: EXT. MANHATTAN STREET - (MINIGAME 1C)
+
+  More DODGING pedestrians.   WEAVING through traffic.   RUNNING RED LIGHTS.
+
+  All the while the scooter angrily BEEPS.
+
+  Finally,  the cab comes to a halt.
+
+  CLICK.   The scooter ((sfx_scooter_braking)) SHUTS OFF\:
+
+  \    "RIDE CANCELED."
+
+  choose
+    + [Success!]
+      _If player did well:_ Bunny manages to dismount somewhat impressively.
+
+    + [Fail...]
+      _If player did poorly:_ Bunny flies off the scooter and [[animate stage with shake]] ((sfx_bang_wipeout)) lands in a heap of garbage bags.
+  then
+
+    ((stop music mg1))
+    ((sfx_amb_rain_outdoors))
+
+    ^: <!>=== RHYTHM MINIGAME 1 ENDS ===
+
+    [[show backdrop bg_raffles_ext_apartment_rainy]]
+
+    From the sidewalk,  we pan up to...
+
+    $: EXT. THE ALBANY LUXURY RESIDENCES
+
+    Six stories of brownstone and bay windows on a block that used to live-and-die by bohemia.
+
+    The artists got priced out years ago.   Nowadays it's mostly absentee LLCs.
+
+    Bunny looks up.   The stranger is starting up the steps --
+
+    BUNNY:
+      (staggering after him)
+      h-hey...!
+
+    The stranger climbs the last step.
+
+    Bunny ((sfx_bang_snatch)) CATCHES HIS ARM.
+
+    [[animate screen with whitepulse]]
+    ((sfx_flashback_transition wait))
+    ((queue sound m_todo_sfx_flashback_motif))
+    _INSERT - 5 YEARS AGO:_  A hand reaching out a window.   Shoes slipping on roof tiles.
+
+    [[animate screen with whitepulse]]
+    ((sfx_flashback_transition))
+    _BACK TO SCENE_.
+
+    IN SLOW MOTION  .  .  .  the stranger turns  .  .  .  and his eyes lock on--
+
+    STRANGER?:
+      ((colin_todo_sfx_emotional_realization+temp_sfx_realization))
+      Bunny--?
+
+    Polished shoes ((sfx_shoes_squeaking)) slip on wet concrete.
+
+    [[animate stage with shake]]
+    ((sfx_bang_thunk))
+    CRACK.   His head hits the banister.
+
+    Bunny lurches forward and ((sfx_bang_body_on_couch_slow)) CATCHES HIM in his arms.
+
+    His heartbeat thunders loudly in his ears.
+
+    Bunny quickly lowers him to the ground.
+
+    He lies motionless -- out cold -- dark curls spilling across his eyes.
+
+    Shaky hands brush the locks aside.
+
+    Bunny takes in the stranger's face --
+
+    [[animate stage with shake]]
+    ((sfx_emotional_problem))
+    _RAFFLES' face_.
+
+    A face that's now [[animate stage with shake]] ((sfx_emotional_problem_2)) _bleeding_.
+
+    ^: _END ACT ONE_
+
+    -> ACT_TWO
+  end
+end
+
+scene ACT_TWO
+
+  # ActTwo
+
+  ^: _ACT TWO_
+
+  ## BStory
+
+  [[hide backdrop]]
+
+  $: BLACKNESS.
+
+  ((m_todo_sfx_distorted_echoes)) Distorted echoes.   Like through a fog.
+
+  A voice,  five years younger...
+
+  BUNNY (O.S.):
+    ...what happened?
+    Are you alright?
+
+  There's no response.
+
+  BUNNY (O.S.):
+    Raffles,  talk to me!
+
+  Raffles pushes Bunny away --
+
+  %: MATCH CUT TO:
+
+  ((play music mus_e_group))
+
+  [[show backdrop bg_raffles_int_apartment_evening_dim with pan_right]]
+  [[animate stage with shake]]
+  ((sfx_door_slam_open_rev_1))
+  A SHOULDER SLAMS THROUGH THE ALBANY DOOR.
+
+  $: INT. RAFFLES' APARTMENT - EVENING
+
+  Bunny maneuvers backwards.   Panicked.   Arms dragging 180 pounds of dead weight -- Raffles.
+
+  BUNNY:
+    [[bunny_panicking~look_down]]
+    (teeth clenched around a ring of keys)
+    ...don't-die-don't-die-don't...
+
+  Bunny HAULS him across the room,  ((sfx_bang_body_on_couch_slow)) HEAVES him onto a sofa.
+
+  He ((sfx_key_jingle)) pockets the keys and jumps up and down,  shaking out his hands --
+
+  BUNNY:
+    [[bunny_stressed]]
+    Okay.   Okay.   Come on...
+
+  He bends over Raffles.
+
+  // do a varient where bunny's eye's look more nervous
+  BUNNY:
+    // [[todo_bunny_pep_talk]] self-hyping reassurance — author note: 'eyes more nervous'
+    (psyching himself up)
+    You can do this.   
+    You went to med school!   
+    You can do this!!
+
+  He lifts the hair off Raffles' forehead.
+
+  [[animate stage with shake]]
+  ((sfx_emotional_problem))
+  BLOOD.   A LOT OF IT.
+
+  Bunny pivots.   Clamps a hand over his mouth.   His shoulders heave once,  but somehow,  he manages to keep it in.
+
+  BUNNY:
+    // [[todo_bunny_nauseous]] gagging / keeping it in at the blood
+    ((sfx_emotional_nauseous_synth to 4))
+    ::...failed med school...::
+
+  He stands and paces --
+
+  BUNNY:
+    [[bunny_serious]]
+    Okay.  Unconscious.  
+    Still breathing. >
+    [[bunny_what~eyes_closed]]
+    (eyes shut tight)
+    First step is...
+
+  His eyes shoot open.
+
+  BUNNY:
+    [[bunny_realization]]
+    [[animate stage with shake]]
+    ((sfx_emotional_problem_2))
+    Stop the bleeding.
+
+  // todo add pan across the apartment as Bunny runs back and forth
+  For the first time,  we get a wide shot of Raffles' apartment as Bunny ((sfx_running)) tears through it -- desperately searching for anything resembling a first aid kit.
+
+  ((sfx_rustle_cabinet))
+  He tosses bits and bobs out of cabinets -- vintage books,  porcelain figures,  novelty lamps,  a grappling hook?
+
+  It's like someone took an uptown penthouse and furnished it with the contents of a downtown thrift store.
+
+  Bunny -- neck-deep in a bathroom cabinet.   Nothing.
+
+  He shuts the door.
+
+  BUNNY:
+    [[bunny_serious]]
+    (breathes)
+    Right.   Okay.   Plan B.
+
+  Bunny ((sfx_running)) cuts past a wall smothered in oil paintings and cuckoo clocks -- leaving a trail of muddy footprints in his wake.
+
+  He returns with an armful of BEDSHEETS and a single BOTTLE OF WHISKEY precariously perched on top.
+
+  ((m_todo_sfx_objects_clattering))
+  He dumps the supplies in front of the sofa.
+
+  He freezes.
+
+  [[animate stage with shake]]
+  ((sfx_emotional_problem_2))
+  _The bleeding is getting worse_.
+
+  He drops to his knees beside Raffles.
+
+  BUNNY:
+    [[bunny_panicking]]
+    No  no  no.
+
+  Hands shaking,  Bunny pulls out his phone\:
+
+  \    **1% BATTERY LEFT**
+
+  He punches ((play sound sfx_phone_beep3)) ((play sound sfx_phone_beep2 after 0.3)) ((play sound sfx_phone_beep2 after 0.6)) 911.
+
+  BUNNY:
+    [[bunny_upset]]
+    Raffles!   You can't die on me, okay?? >
+    [[bunny_upset]]
+    That's not allowed--
+
+  ((sfx_phone_outgoing_call))
+  RING RING.   Bunny grabs the BOTTLE.   ((sfx_bottle_open)) POPS it open with his teeth --
+
+  BUNNY:
+    [[bunny_panicattack]]
+    'Cause what'll I tell the police?!
+
+  ((sfx_phone_outgoing_call))
+  RING RING.   He TIPS it.   ((sfx_bottle_pour)) POURS the whiskey over his hands --
+
+  BUNNY:
+    [[bunny_crazy]]
+    "Officers!   I can explain!"
+
+  ((sfx_phone_outgoing_call))
+  RING RING.   He takes the BEDSHEET.   ((sfx_cloth_rip)) RIPS off a strip --
+
+  BUNNY:
+    [[bunny_crazy]]
+    "See,  this was an accident." >
+    [[bunny_crazy]]
+    <!>(beat)
+    ((colin_todo_sfx_emotional_manic)) "One 'a those typical,  every-day accidents where you ((colin_todo_sfx_emotional_extra_manic)) _stalk and assault your ex-boyfriend_!"
+
+  ((sfx_phone_outgoing_call))
+  RING RING.   Bunny ((sfx_bottle_pour)) DOUSES the strip with alcohol --
+
+  BUNNY:
+    [[bunny_stressed]]
+    A-And you know I can't lie--  
+    What would I say...? >
+    [[bunny_crazy]]
+    *"I found you like this?"* >
+    [[bunny_crazy]]
+    *"You fell down the stairs???"* >
+    [[bunny_stressed_panicking]]
+    They're gonna take me to court  and make me confess and   >
+    [[bunny_stressed_panicking]]
+    ((colin_todo_sfx_emotional_manic+temp_sfx_smack))
+    _______what'll my mom think_______???
+
+  ((sfx_phone_outgoing_call))
+  RING RING.   Bunny lifts Raffles' hair --
+
+  BUNNY:
+    [[bunny_panicattack]]
+    I can't come out to her _in prison_, Raffles! >
+    [[bunny_panicattack]]
+    She's got a heart thing!! >
+    [[bunny_stressed_panicking]]
+    That would [[animate stage with shake]] ((m_todo_sfx_emotional_yelling+temp_sfx_smack)) _::LITERALLY::  ::KILL::  ::HER::_.
+
+  ((sfx_phone_outgoing_call))
+  RING RING.   Seeing the blood again,  Bunny clamps his eyes shut and turns away.
+
+  ((sfx_phone_outgoing_call))
+  RING RING.   After taking a deep breath,  he turns back and presses the strip over the wound.
+
+  He pauses to look down at the damage he's done.
+
+  BUNNY:
+    [[bunny_upset]]
+    Oh god... >
+    [[bunny_upset]]
+    (on the verge of tears)
+    ...Imma double murderer...
+
+  // Eventually fade out everything but drums, do this for now
+
+  ((sfx_bang_light_bat))
+  CLICK.   Bunny's head snaps up --
+
+  OPERATOR:
+    **911.   What's your emergency?**
+
+  One hand still pressing cloth,  Bunny snatches his phone with the other.
+
+  BUNNY:
+    [[bunny_realization]]
+    Yes?  YES!! >
+    [[bunny_panicattack]]
+    I need help!!  M-my friend's hurt! >
+    [[bunny_panicattack]]
+    He's got a head wound -- And there's -- there's a lotta blood -- >
+    [[bunny_panicking]]
+    (looking around)
+    I'm at-- at-- >
+    [[bunny_panicking]]
+    ...I-I don't know exactly but--
+
+  ((colin_todo_emotional_realization+temp_sfx_realization))
+  ((play music mus_e_alto_sax+mus_e_bari_sax+mus_e_bass_clarinet+mus_e_bass_flute+mus_e_tenor_sax+mus_e_trombone+mus_e_trumpet+mus_e_trumpet_2 mute))
+  A hand GRABS Bunny's wrist.
+
+  RAFFLES:
+    // [[todo_raffles_weak]] barely conscious, raspy — head-wound woozy (lib has none)
+    (raspy)
+    No police.
+
+  Bunny freezes.
+
+  Stares at him.
+
+  Raffles coughs and attempts to sit up.
+
+  Bunny snaps out of it and gently presses the cloth to the wound.
+
+  BUNNY:
+    [[bunny_panicking]]
+    no no no-- You need to--
+
+  ((sfx_bang_light_bat))
+  CLICK.   The line goes DEAD.
+
+  BUNNY:
+    [[bunny_panicking]]
+    Hello?? >
+    [[bunny_panicattack]]
+    HELLO??!!
+
+  RAFFLES:
+    // [[todo_raffles_groggy]] dazed, just came to
+    (groggily)
+    What time is it?
+
+  BUNNY:
+    [[bunny_what]]
+    What time--? >
+    [[bunny_angry]]
+    [[animate stage with shake]]
+    ((m_todo_sfx_emotional_yelling+temp_sfx_whack))
+    ::_RAFFLES_!::  
+    *We gotta get you to a hospital!!*
+
+  Raffles eases Bunny's hand off the cloth --
+
+  RAFFLES:
+    // [[todo_raffles_weak]] depleted, still woozy — easing hand off
+    ...hate hospitals.
+
+  He casually checks his watch --
+
+  RAFFLES:
+    [[raffles_serious]]
+    (under his breath)
+    ...7:15...  if they take the usual route...
+
+  BUNNY:
+    [[bunny_what]]
+    What are you--?
+
+  Raffles stands and sways,  steadying himself on Bunny's shoulder.
+
+  He glances around his apartment and takes in the mess Bunny's made.
+
+  RAFFLES:
+    [[raffles_incredulous]]
+    ((colin_todo_sfx_emotional_unimpressed+temp_sfx_whoops))
+    Right.
+
+  Raffles shakes his head --
+
+  RAFFLES:
+    [[raffles_confident]]
+    It appears I'm *dreadfully* unprepared for guests,  so...
+
+  He SPINS on his heel --
+
+  ((fade music mus_e_bass_percussion+mus_e_bongos+mus_e_drums_cymbals+mus_e_drums_hihat+mus_e_drums_kick+mus_e_drums_snare+mus_e_drums_toms+mus_e_guiro+mus_e_maraca+mus_e_marimba+mus_e_piano+mus_e_xylophone to 0 over 2))
+
+  RAFFLES:
+    // [[todo_raffles_strained_cheer]] forced brightness masking injury
+    ((colin_todo_sfx_emotional_strained_cheerful+temp_sfx_happyping))
+    Better tidy this place up~!
+
+  ((fade music mus_e_group to 0 over 2))
+
+  [[hide backdrop]]
+
+  %: TIME CUT TO:
+  ((stop music mus_e_group))
+
+  ((play music mus_f_group))
+
+  $: MUDDY BOOTS & SHOES LEFT NEAR THE ENTRANCEWAY
+
+  A set of PLUSH SLIPPERS saunters into frame,  trailed by an anxious pair of DAMP BLUE SOCKS.
+
+  BUNNY (O.S.):
+    And you're sure you don't need to go to a hospital?
+
+  We pan up to see Bunny -- in his rain-damp socks -- cradling a HEAVY CARDBOARD BOX.
+
+  [[show backdrop bg_raffles_int_apartment_evening_bright with pan_right]]
+
+  RAFFLES:
+    (laughs)
+    Yes yes,  I'm fine~
+
+  This is A.J. RAFFLES (23) -- our masked figure from long ago.
+
+  All bandage and bravado.   Raffles flits about the room,  humming to himself and basking in the glow of Bunny's undivided attention.
+
+  He reaches for a small marble statue on the floor.
+
+  Bunny crouches in front of him,  scanning his face.
+
+  BUNNY:
+    No dizziness?   
+    Nausea?   
+    Headache?
+
+  Raffles smirks and shakes his head --
+
+  RAFFLES:
+    Nope.   Negative.   None of the above. >
+    [[animate stage with shake]] ((sfx_bang_light_bat))
+
+  Raffles bats Bunny's hand away.
+
+  RAFFLES:
+    Bunny, stop that! >
+    Honestly.
+
+  Raffles stands and arranges the statue above his fireplace --
+
+  RAFFLES:
+    It's just a scratch.   
+    There's no need to fuss.
+
+  BUNNY:
+    (adjusting his grip on the box)
+    B-but...  Well... >
+    (mutters)
+    ...in class,  they told us sometimes you can hit your head and feel fine... >
+    (loudly)
+    ((colin_todo_sfx_emotional_worried+temp_sfx_stab2))
+    [[animate textbox with shake]]
+    Then an artery bursts!! >
+    And ya pass [[animate textbox with shake]] ((colin_todo_sfx_emotional_manic+temp_sfx_smack)) out--  
+    And ya brain [[animate textbox with shake]] ((colin_todo_sfx_emotional_manic+temp_sfx_smack)) swells--  
+    AND  YOU  [[animate textbox with shake]] ((colin_todo_sfx_emotional_extra_manic+temp_sfx_smack)) DIE!((stop music mus_f_group over 0.5))
+
+  RAFFLES:
+    (blinks)
+    ... >
+    (straightens)
+    ...Right.
+
+  ((play music mus_f_group over 1)) Raffles grabs the box from Bunny.
+
+  RAFFLES:
+    Might want to work on your bedside manner.
+
+  He kneels,  gathering shreds of bloody bedsheet and ((m_todo_sfx_tossing_cloth)) tossing them in the box.
+
+  BUNNY:
+    Oh I'm not-- >
+    Not anymore-- >
+    (mumbles)
+    ((colin_todo_sfx_emotional_embarrassed_mutter+temp_sfx_bvvt))
+    ...I'dropped out...
+
+  // ((TODO_DEFLATING))
+
+  Raffles pauses and looks up at him.
+
+  RAFFLES:
+    Oh. >
+    Sorry?
+
+  BUNNY:
+    (shrugs)
+    'S fine.   I mean-- >
+    Ha,  you know me and blood...
+
+  Raffles eyes him --
+
+  RAFFLES:
+    Yes... >
+
+  Raffles stands,  hefting the box.
+
+  RAFFLES:
+    You know I seem to recall a ((colin_todo_sfx_emotional_teasing)) certain collision on the track field--
+
+  BUNNY:
+    ((colin_todo_sfx_emotional_embarrassed_mutter))
+    No, no.  Not this again--
+
+  Raffles crams the box into an overstuffed hall closet.
+
+  RAFFLES:
+    --that involved ((colin_todo_sfx_emotional_teasing)) quite a lot of tears.
+
+  BUNNY:
+    (fingers in his ears)
+    [[animate textbox with shake]]
+    ((colin_todo_sfx_emotional_groan+temp_sfx_whack))
+    I'm not listening--!
+
+  Raffles struggles to shut the door.
+
+  RAFFLES:
+    --which was odd,  because after checking you all over--
+
+  BUNNY:
+    ::La  la  la--::
+
+  The door shuts.   Raffles spins around --
+
+  RAFFLES:
+    <!>(with a curious expression)
+    I notice it's ((colin_todo_sfx_emotional_shiteating_grin)) *_my_* arm that's facing the wrong way.
+
+  Bunny throws a ((m_todo_sfx_bang_bonk)) CUSHION in Raffles' face.
+
+  BUNNY:
+    <!>(glares)
+    ((colin_todo_sfx_emotional_unimpressed+temp_sfx_bvvt))
+    You done?
+
+  Raffles lifts the gaudy cushion.
+
+  It's stained with blood on one side.
+
+  RAFFLES:
+    (tsks)
+    Oh Bunny... >
+    My favorite cushions? >
+    I really liked these.
+
+  Raffles sighs and ((m_todo_sfx_tossing_cloth)) chucks it in the kitchen sink.
+
+  RAFFLES:
+    Alright.   
+    No more med school:   \
+    Noted.
+
+  Raffles clears a space on the coffee table and sits,  crossing his legs --
+
+  RAFFLES:
+    So what do you do now?
+
+  BUNNY:
+    ((colin_todo_sfx_emotional_embarrassed_mutter+temp_sfx_bvvt))
+    ::Uugh...::
+
+  Bunny sits on the arm of the sofa --
+
+  BUNNY:
+    Writing?
+
+  He picks up an unbloodied cushion --
+
+  BUNNY:
+    Screenwriting.
+
+  RAFFLES:
+    <!>(surprised)
+    Really?
+
+  Bunny hugs the cushion --
+
+  BUNNY:
+    (shrugs)
+    In theory... >
+    (mumbled into cushion)
+    ...haven't _quite_ made a career of it yet...
+
+  RAFFLES:
+    So... >
+    <!>(pondering this)
+    A writer trying to make it in New York City...
+
+  Bunny slumps back on the sofa,  covering his face with the cushion.
+
+  BUNNY:
+    ((colin_todo_sfx_emotional_groan+temp_sfx_bvvt))
+    ...Imma walkin' cliché.
+
+  RAFFLES:
+    (chuckles)
+    Well I don't know about that... >
+    There's a sort of romance to it, no? >
+    Defying the odds...   
+    Chasing your dreams...
+
+  BUNNY:
+    (muffled)
+    Destroying my life. >
+    Lying to my mom.
+
+  Raffles lifts the cushion off Bunny's face.
+
+  RAFFLES:
+    Well the last one isn't new.
+
+  BUNNY:
+    <!>(eyeing him)
+    ((temp_sfx_bvvt))
+    Harsh.
+
+  RAFFLES:
+    <!>(raising an eyebrow)
+    ((colin_todo_sfx_emotional_pointed+temp_sfx_realization))
+    ((fade music mus_f_bass+mus_f_bass_clarinet+mus_f_cello+mus_f_flute+mus_f_glock+mus_f_mellotron+mus_f_piano_melody+mus_f_rhodes_1+mus_f_rhodes_2+mus_f_viola+mus_f_piano to 0 over 0.5))
+    Is it?
+
+  A beat.
+
+  Bunny turns face-down on the sofa.
+
+  Raffles sits and places the cushion in his lap.
+
+  He waits.
+
+  And waits.
+
+  And waits.
+
+  He fiddles with the cushion tassels.
+
+  RAFFLES [<]:
+    So--
+
+  BUNNY [>]:
+    (stands)
+    ((colin_todo_sfx_emotional_unimpressed+temp_sfx_bvvt))
+    ((stop music mus_f_group))
+    I gotta go.
+
+  Bunny ((m_todo_sfx_phone_click+temp_sfx_bip3)) unplugs his phone from a charger.
+
+  RAFFLES:
+    What? >
+    (stands)
+    ((play music mus_e_group mute))
+    ((play music mus_e_bass+mus_e_marimba+mus_e_xylophone unmute))
+    Go?
+
+  Bunny heads for the exit.
+
+  Raffles trails after him --
+
+  RAFFLES:
+    But you just got here.
+
+  Bunny turns to face him.
+
+  BUNNY:
+    Are you dying?
+
+  RAFFLES:
+    N-no.
+
+  BUNNY:
+    (tucks phone away)
+    Good.
+
+  Bunny reaches for his boots.
+
+  RAFFLES:
+    But--
+
+  // ((fade music mus_f_bass to 1 over 1))
+
+  Raffles ((sfx_bang_snatch)) snatches the boots.
+
+  RAFFLES:
+    If you go,  how will I help?
+
+  // ((fade music mus_f_bass+mus_f_bass_clarinet+mus_f_cello+mus_f_flute+mus_f_glock+mus_f_mellotron+mus_f_piano_melody+mus_f_rhodes_1+mus_f_rhodes_2+mus_f_viola+mus_f_piano to 1 over 10))
+
+  BUNNY:
+    (sighs)
+    Didn't ask for your help.
+
+  RAFFLES:
+    (wary)
+    Then why are you here...?
+
+  Bunny throws up his hands.
+
+  BUNNY:
+    [[animate textbox with shake]]
+    ((m_todo_sfx_emotional_yelling_angry+temp_sfx_smack))
+    I don't know!   'Cause my life's some sorta cruel, cosmic joke??
+
+  He grabs Raffles --
+
+  // TODO_r_inquisitive needs better eyebrows
+
+  RAFFLES:
+    (drops boots)
+    Woah--!!
+
+  BUNNY:
+    --'Cause here I am:
+    (brusquely patting Raffles down)
+    Broke.  Unemployed.  Homeless--
+
+  // TODO_r_concerned/inquisitive
+
+  RAFFLES:
+    Homeless?
+
+  // TODO_b_angry/inquisitive
+
+  BUNNY:
+    (sifting through his coat)
+    --Standing in [[animate textbox with shake]] ((m_todo_sfx_emotional_yelling_angry+temp_sfx_smack)) _my ex's_ apartment--
+
+  // TODO_r_concerned/confused
+
+  RAFFLES:
+    <!>(concerned)
+    Hold on.   ((colin_todo_sfx_emotional_concerned)) How long have you been homeless?
+
+  BUNNY:
+    (rummaging through his pockets)
+    --After he bumps into me--
+
+  Bunny ((sfx_paper_crinkle)) pulls his SCRIPT out of Raffles' coat and holds it up --
+
+  BUNNY:
+    --and _steals away_ my one shot at happiness!
+
+  He ((sfx_paper_crunch_rev_0)) shoves the script against Raffles' chest.
+
+  // TODO_b_angry/realization
+
+  BUNNY:
+    (laughs)
+    --Like some sorta *bullshit*,  
+    _BACKWARDS_  meet-cute!!
+
+  // TODO_r_suprised/frustrated_eyes_closed
+
+  RAFFLES:
+    <!>(confused)
+    Bunny, I--
+
+  Raffles searches his face --
+
+  RAFFLES:
+    (sincerely)
+    ((colin_todo_sfx_emotional_concerned))
+    ...If you need a place to stay--
+
+  BUNNY:
+    (steps back)
+    No no no. >
+    (shrugging off his bag)
+    I know what you're gonna say.   
+    But no. >
+    (kneeling and sifting through bag)
+    I'm not explaining to my mom why I'm living with you. >
+    (gestures vaguely)
+    I mean,  look at this place... >
+    (gestures at Raffles)
+    ...look at you. >
+    (packing script away)
+    You're not exactly what I'd call 'discreet'...  
+    No offense.
+
+  // ((fade music mus_f_bass+mus_f_piano_melody+mus_f_bass_clarinet+mus_f_cello+mus_f_flute+mus_f_glock+mus_f_mellotron+mus_f_piano+mus_f_rhodes_1+mus_f_rhodes_2+mus_f_viola to 0 over 0.5))
+
+  RAFFLES:
+    Um. >
+    ((colin_todo_sfx_emotional_offended))
+    ...
+    Some offense?
+
+  BZZ BZZ.((sfx_intercom_buzz)) ((stop music mus_e_group))
+
+  Raffles dusts himself off --
+
+  // TODO half closed eyes version of sigh
+
+  RAFFLES:
+    We are having this conversation later.
+
+  Raffles steps past Bunny toward a small panel.
+
+  BUNNY:
+    (groans)
+    Seriously? >
+    (continues packing)
+    Who could that be...?
+
+  // ((fade music mus_f_drums to 0 over 0.5))
+
+  RAFFLES:
+    (checking the display)
+    The police.
+
+  BUNNY:
+    (looks up)
+    ((sfx_emotional_problem+temp_sfx_bvvt))
+    ((play music mus_g_group mute))
+    ((play music mus_g_heel_floor+mus_g_snap_single+mus_g_heel_stage_single+mus_g_belly_1+mus_g_thigh_front unmute))
+    What.
+
+  Raffles WHIRLS toward a LARGE CHEST across the room.
+
+  He DROPS to his knees and ((m_todo_sfx_door_open+sfx_door_close)) THROWS open the lid.
+
+  BUNNY:
+    (scrambling to his feet)
+    H-Hold on--
+
+  ((m_todo_sfx_tossing_cloth)) HATS,  SCARVES,  and ACCESSORIES fly through the air as Raffles tosses them over his shoulder.
+
+  BUNNY:
+    (whispering)
+    *Why are the police here??*
+
+  Bunny ((sfx_whoosh_rev_1)) dodges a feather boa.
+
+  Raffles springs up wearing a BAGGY WOOL CAP and checks it in a mirror.
+
+  RAFFLES:
+    (adjusting cap over bandage)
+    That's an odd question. >
+    (at Bunny's reflection)
+    You're the one who called them.
+
+  BUNNY:
+    *I called for an ambulance!!*
+
+  Raffles turns to face him --
+
+  RAFFLES:
+    Well it's the same number isn't it?
+
+  He reaches past Bunny toward the wall behind him --
+
+  RAFFLES:
+    (leaning in close)
+    ((colin_sfx_emotional_haughty))
+    Terrible system when you think about it. >
+    (into intercom)
+    Just a minute!
+
+  Raffles grabs Bunny,  spins him around,  and starts pushing him toward a door under the stairs --
+
+  RAFFLES:
+    So here's what's happening -- >
+    (opens the door)
+    You're not leaving to go 'rough it on the streets'. >
+    (pushes Bunny inside)
+    You're going to stay here,  in my spare room,  and not make a sound--
+
+  BUNNY:
+    (looking around)
+    ((sfx_emotional_punchline_waveform))
+    --This is a closet.
+
+  RAFFLES:
+    (spins him around)
+    Focus. >
+    (points)
+    _You_ stay _here_-- >
+    (gestures around living room)
+    _I_ handle things _out there_. >
+    <!>(beat)
+    Got it?
+
+  Raffles starts to pull the door closed.
+
+  A palm ((sfx_bang_wood_thump)) SLAMS the door,  stopping it short --
+
+  BUNNY:
+    Wait wait wait.   I mean-- >
+    We cleaned up the blood and you're -- relatively -- fine... >
+    I'm sure if we're honest,  
+    And just calmly explain the situation,  
+    They'll understand.
+
+  A beat.
+
+  RAFFLES:
+    You've never interacted with the police before,  have you?
+
+  KNOCK KNOCK.((sfx_door_knock)) ((stop music mus_g_group))
+
+  RAFFLES:
+    (shouting behind him)
+    Coming!
+
+  // ((fade music mus_g_belly_1+mus_g_belly_2+mus_g_chest_hand+mus_g_heel_stage_multi+mus_g_snap_single+mus_g_stomp_floor+mus_g_thigh_front+mus_g_thigh_side+mus_g_snap_multi to 0 over 1))
+
+  Raffles ((sfx_door_close)) SHUTS the door in Bunny's face.
+
+  Muffled through the wood -- Bunny hears ((m_todo_sfx_door_open+temp_sfx_dooropens)) the sound of the front door opening --
+
+  RAFFLES:
+    Hello officers!!
+
+  A VOICE:
+    ((play music mus_h_group mute))
+    ((play music mus_h_bass+mus_h_drums unmute))
+    Raffles.
+
+  RAFFLES:
+    Mackenzie!
+
+  // ((fade music mus_g_belly_1+mus_g_belly_2+mus_g_chest_hand+mus_g_heel_stage_multi+mus_g_snap_single+mus_g_stomp_floor+mus_g_thigh_front+mus_g_thigh_side+mus_g_snap_multi to 1 over 1))
+
+  Bunny ((sfx_door_hinge_squeak)) cracks open the closet door to see a stoic, female officer step into the room.
+
+  The officer strides past Raffles without giving him so much as a passing glance.
+
+  This is DETECTIVE MACKENZIE (mid 40s).
+  Quiet.   Precise.   Completely impenetrable.
+
+  RAFFLES:
+    And this must be the new partner~ >
+    (offering a hand)
+    Officer...?
+
+  // ((fade music mus_g_belly_1+mus_g_belly_2+mus_g_chest_hand+mus_g_heel_stage_multi+mus_g_snap_single+mus_g_stomp_floor+mus_g_thigh_front+mus_g_thigh_side+mus_g_snap_multi to 1 over 1))
+
+  A taller uniformed policeman steps forward.
+  He hesitantly takes Raffles' hand.
+
+  OFFICER CRAWSHAY:
+    Um...  Crawshay.   
+    T-Thomas Crawshay.
+
+  OFFICER CRAWSHAY (28, timid, sincere) glances between Raffles and the detective --
+
+  OFFICER CRAWSHAY:
+    Sorry,  do you two know each other?
+
+  RAFFLES:
+    (waves off)
+    Oh Mackenzie and I are old pals. >
+    (to Mackenzie)
+    Isn't that right?
+
+  The detective doesn't answer.
+
+  She's silently inspecting the statue on top of Raffles' mantelpiece.
+
+  RAFFLES:
+    Right... >
+    (to Crawshay)
+    So to what do I owe the pleasure?
+
+  // ((fade music mus_g_belly_1+mus_g_belly_2+mus_g_chest_hand+mus_g_heel_stage_multi+mus_g_snap_single+mus_g_stomp_floor+mus_g_thigh_front+mus_g_thigh_side+mus_g_snap_multi to 1 over 1))
+
+  OFFICER CRAWSHAY:
+    (glancing toward Mackenzie for guidance)
+    Oh,  um... >
+    (receives none)
+    Okay-- >
+    (soldiering on)
+    We got a 911 hangup outta this building.   Trace couldn't pin the apartment.  >
+    So we've just been knockin' on doors,  makin' sure everyone's all right.   Standard procedure.
+
+  RAFFLES:
+    Standard procedure? >
+    (glancing at Mackenzie)
+    I don't believe the precinct is normally in the habit of sending detectives for house calls, no?
+
+  // ((fade music mus_g_belly_1+mus_g_belly_2+mus_g_chest_hand+mus_g_heel_stage_multi+mus_g_snap_single+mus_g_stomp_floor+mus_g_thigh_front+mus_g_thigh_side+mus_g_snap_multi to 0 over 1))
+
+  DETECTIVE MACKENZIE:
+    (straightens)
+    Not normally.   No.
+
+  A beat.
+
+  RAFFLES:
+    Okay... >
+    (back to Crawshay)
+    Well,  would you and your partner like anything?   Tea?   Coffee?
+
+  // ((fade music mus_g_belly_1+mus_g_belly_2+mus_g_chest_hand+mus_g_heel_stage_multi+mus_g_snap_single+mus_g_stomp_floor+mus_g_thigh_front+mus_g_thigh_side+mus_g_snap_multi to 1 over 1))
+
+  OFFICER CRAWSHAY [<]:
+    Oh!  Yeah I'd--
+
+  DETECTIVE MACKENZIE [>]:
+    Caller sounded distressed.
+
+  // ((fade music mus_g_belly_1+mus_g_belly_2+mus_g_chest_hand+mus_g_heel_stage_multi+mus_g_snap_single+mus_g_stomp_floor+mus_g_thigh_front+mus_g_thigh_side+mus_g_snap_multi to 0 over 1))
+
+  The detective glances at Raffles' hat.
+
+  DETECTIVE MACKENZIE:
+    ...Something about "a head wound".
+
+  She looks him dead in the eyes.
+
+  DETECTIVE MACKENZIE:
+    Something about "a lot of blood".
+
+  A beat.
+
+  Raffles puffs out a delayed laugh.
+
+  RAFFLES:
+    A head wound! >
+    (tuts)
+    That does sound serious.
+
+  Mackenzie stares...
+
+  And glances past him toward...
+
+  A PAIR OF MUDDY BOOTS.
+
+  A RAIN-SOAKED LEATHER BAG.
+
+  Her gaze returns -- clinically inscrutable.
+
+  DETECTIVE MACKENZIE:
+    Anyone else home?
+
+  Bunny backs away.
+
+  RAFFLES:
+    No,  I'm afraid it's just me.
+
+  A LOUD ((sfx_muffled_thump)) ((stop music mus_h_group)) THUMP.
+
+  RAFFLES:
+    (too loud)
+    A-And my rabbit!!
+
+  Bunny sits,  clutching his ankle.
+
+  He winces at the SPARE MATTRESS lying on the closet floor.
+
+  OFFICER CRAWSHAY:
+    A rabbit?
+
+  DETECTIVE MACKENZIE:
+    <!>(deadpan)
+    Sounds big for a rabbit.
+
+  RAFFLES:
+    (chuckles)
+    Yes,  he's certainly a handful! >
+    Just picked him up today, in fact. >
+    <!>(shrugs)
+    He's a rescue.
+
+  [[hide backdrop]]
+
+  A small RATTLE.   Bunny looks up with horror...
+
+  The assortment of items Raffles has squirrelled away TEETERS on the shelf above.
+
+  ### RhythmMinigame2
+
+  ^: <!>=== RHYTHM MINIGAME 2 BEGINS ===
+
+  $: INTERCUT IN/OUT OF CLOSET - (MINIGAME 2)
+
+  ^: <!>[GAMEPLAY\:  Don't make a sound.  Tap-and-hold to catch falling items.]
+
+  [[show backdrop bg_raffles_int_apartment_evening_bright with pan_right]]
+
+  The detective makes her way past Raffles.
+
+  RAFFLES:
+    (turning)
+    I wouldn't--!
+
+  Bunny catches the objects as they fall.
+
+  RAFFLES:
+    (trailing after her)
+    He's terribly fussy!
+
+  Mackenzie approaches the closet door...
+
+  RAFFLES:
+    Gave me a nasty gash--
+
+  Bunny -- arms laden with items -- inches toward the back of the closet.
+
+  Mackenzie raises her flashlight.   Points it toward the gap.   Leans in...
+
+  // this might work better if Raffles is in the kitchen
+
+  RAFFLES:
+    In fact I was just in the process of stitching myself back together when you two--!
+
+  ((play music mus_h_group))
+  ((sfx_door_close))
+  _Crawshay SHUTS THE DOOR_.
+
+  ^: <!>=== RHYTHM MINIGAME 2 ENDS ===
+
+  Raffles and Mackenzie blink at him.
+
+  Mackenzie looks at the door.
+
+  She could make him open it.
+
+  She doesn't.
+
+  OFFICER CRAWSHAY:
+    You really shouldn't leave that open.   
+    This place doesn't look bunny-proofed at all. >
+    (pointing)
+    Exposed power cords.   
+    Toxic plants. >
+    (looks at Raffles)
+    And have you neutered him yet?
+
+  RAFFLES:
+    Uh...
+
+  OFFICER CRAWSHAY:
+    (sighs)
+    That would explain the aggression.
+
+  The officer pulls out a SMALL YELLOW NOTEPAD --
+
+  OFFICER CRAWSHAY:
+    (writing in it)
+    Look. >
+    This is _really_ not my unit anymore. >
+    But I would suggest putting some serious thought into whether you're ready for this. >
+    Rabbits require a lotta commitment y'know... They're not just for Easter.
+
+  He tears off the sheet and holds it out.
+
+  Raffles hesitates.
+
+  OFFICER CRAWSHAY:
+    Not writin' you up.   
+    Just passin' along some resources.
+
+  RAFFLES:
+    (blinks)
+    R-right.
+
+  He takes it.
+
+  RAFFLES:
+    ...Thanks?
+
+  The officer claps him on the back --
+
+  OFFICER CRAWSHAY:
+    Happy to help! >
+    (pocketing his notepad and returning to the entrance)
+    Well this was our last stop.  
+    So we'll get outta your hair.
+
+  Crawshay opens the front door --
+
+  OFFICER CRAWSHAY:
+    You and your little buddy have a safe night now.
+
+  He holds the door for Mackenzie.
+
+  She doesn't move.
+
+  OFFICER CRAWSHAY:
+    Uh...  Boss?
+
+  She's still facing Raffles.
+
+  For one breath,  Mackenzie's composure isn't there.
+
+  Underneath isn't suspicion.
+
+  It's worry.
+
+  She folds it away.
+
+  DETECTIVE MACKENZIE:
+    Stay out of trouble.
+
+  Raffles blinks.
+
+  RAFFLES:
+    Of course. >
+    (tipping his cap)
+    Detective.
+
+  Mackenzie gives him one last look...
+
+  And steps through the doorway.((sfx_door_close)) ((stop music mus_h_group))
+
+  The second the door shuts behind them,  Raffles ((sfx_whoosh_rev_1)) ((play music mus_g_group)) WHIPS OFF HIS CAP and grabs an OVERCOAT from a nearby rack.
+
+  RAFFLES:
+    (throwing on overcoat)
+    Come on, Bunny!   We're leaving!
+
+  Raffles kicks off his house slippers and steps into his oxfords.
+
+  The closet door ((sfx_door_hinge_squeak)) CREAKS OPEN.
+
+  Raffles tosses BUNNY'S BAG toward it --
+
+  choose
+    + [Success!]
+      _If player did well:_ Bunny manages to ((sfx_bang_catch_heavy)) catch the bag atop the pile of knick-knacks.
+
+    + [Fail...]
+      _If player did poorly:_ ((sfx_bang_wipeout)) The knick-knacks clatter to the floor as the bag knocks the wind out of him.
+  then
+
+    BUNNY:
+      (wincing as he steps out of the closet)
+      What was that about...?
+
+    RAFFLES:
+      (rummaging through a drawer)
+      Hm?
+
+    BUNNY:
+      That detective...
+
+    Raffles tucks something into his coat.
+
+    BUNNY:
+      You said you were "old pals"?
+
+    Raffles glances up.
+    He smirks and ((sfx_door_close)) BUMPS the drawer shut with his hip.
+
+    RAFFLES:
+      "Pals" might have been a bit of an exaggeration...
+
+    Raffles grabs Bunny's jacket off the coat rack.
+
+    RAFFLES:
+      She's more like... >
+      <!>(beat)
+      A fan!
+
+    He holds out the jacket for Bunny to wear.
+
+    RAFFLES:
+      Of my work.
+
+    A beat.
+
+    Bunny sullenly crosses his arms.
+
+    Raffles chuckles with an indulgent shake of the head.
+
+    RAFFLES:
+      (sliding behind Bunny and "helping" him put on his jacket)
+      In fact...  
+      She's been following my career...
+
+    Raffles slips BUNNY'S PHONE out of his back pocket --
+
+    RAFFLES:
+      ...ever since I first started out.
+
+    Bunny ((sfx_bang_light_bat)) SNATCHES Raffles' wrist.   Lifts it UP AND AWAY.
+
+    BUNNY:
+      What "career"?
+
+    Raffles TURNS the phone -- Bunny's THUMB lands on the fingerprint sensor --
+
+    BUNNY:
+      H-hey!
+
+    Bunny lunges for it but Raffles lifts it up out of reach as he types.
+
+    He ((sfx_phone_text_received)) finishes and tosses it back --
+
+    RAFFLES:
+      <!>(with a cheeky grin)
+      I'll explain on the way.
+
+    He DASHES OFF.
+
+    Bunny glances down at the phone.
+
+    ON SCREEN -  A TEXT MESSAGE sent to Raffles\:
+
+    **    ` /)_/)`**\
+    **    `( • t•) 's number <3`**
+
+    Bunny rolls his eyes and tucks the phone away --
+
+    BUNNY:
+      (following after)
+      The way where?
+
+    Bunny finds Raffles kneeling on the kitchen floor,  halfway inside a cabinet.
+
+    RAFFLES (O.S.):
+      (over the sound of items clattering)
+      So many questions!!   
+      Here's one for you...
+
+    He ((sfx_door_close)) shuts the cabinet and stands with a small band-aid on his forehead.
+
+    RAFFLES:
+      (dusting off his knees)
+      "What day is it?"
+
+    BUNNY:
+      Huh?
+
+    RAFFLES:
+      (smoothing his hair over the band-aid)
+      _What day is it_, Bunny?
+
+    BUNNY:
+      (blinks)
+      Um... >
+      (stepping back)
+      We-Wednesday?
+
+    RAFFLES:
+      (approaching him)
+      No no no.
+
+    BUNNY:
+      (backed into a table)
+      The-- The 15th?   March 15th?
+
+    RAFFLES:
+      (too close)
+      The Ides of March!!
+
+    Raffles slips an arm under Bunny's and steers him back toward the entranceway.
+
+    RAFFLES:
+      And what does one _do_ on the Ides of March~?
+
+    BUNNY:
+      (struggling to keep up)
+      S-stab someone?   
+      Get stabbed?
+
+    Raffles ((m_todo_door_open)) THROWS OPEN the front door --
+
+    RAFFLES:
+      Settle debts!!
+
+    He WHIRLS Bunny around --
+
+    RAFFLES:
+      Both yours...
+
+    He scoops Bunny's boots off the floor and thrusts them forward --
+
+    RAFFLES:
+      And mine.
+
+    A beat.
+
+    Bunny looks at the boots.
+
+    Glances at the door.
+
+    He doesn't budge.
+
+    RAFFLES:
+      Come on Bunny...
+
+    Raffles gives him a sincere smile --
+
+    RAFFLES:
+      Just trust me?
+
+    ((sfx_flashback_transition))
+    [[animate screen with whitepulse]]
+    ((stop music mus_g_group))
+
+    _INSERT - 5 YEARS AGO_\:  ((sfx_glass_swept_from_desk_rev_2)) Pens SCATTER.   Pages fly.   A worn notebook drops to the floor.
+
+    BUNNY:
+      Why don't you trust me??!
+
+    ((sfx_flashback_transition))
+    [[animate screen with whitepulse]]
+    _BACK TO SCENE_.
+
+    Bunny looks at him.
+
+    Wavers...
+
+    Sighs.
+
+    BUNNY:
+      Alright.
+
+    Bunny takes the boots.
+
+    Raffles BUBBLES with delight.
+    He races out the door before Bunny can change his mind.
+
+    Bunny shakes his head and starts doing up his laces.
+
+    RAFFLES (O.S.):
+      (a little ways down the hall)
+      ...Oh and Bunny...!
+
+    Bunny glances up.
+
+    RAFFLES:
+      (peeking his head back inside)
+      We'll need another copy of your script.
+
+    [[hide backdrop]]
+
+    %: CUT TO:
+
+    ((play music mus_m_group))
+    ((play ambient sfx_ambient_city_streets_night_rev_1))
+    [[show backdrop bg_danbys_neighborhood]]
+
+    $: EXT. RESIDENTIAL SIDEWALK - EVENING
+
+    The city again.   Trash bags.   Steam grates.
+
+    Bunny trudges after Raffles down the wet sidewalk.
+
+    The downpour's stopped but a thick fog hangs in the air.
+
+    He wraps his arms around himself against the cold.
+
+    Raffles peruses a FRESHLY-PRINTED STACK OF PAPERS while munching his way through a tin of CINNAMON ALTOIDS.
+
+    RAFFLES:
+      Huh. >
+      (flips page)
+      This is actually quite good!
+
+    Bunny looks up.
+
+    BUNNY:
+      Okay... >
+      Not sure if I should be glad for the compliment or insulted you sound so surprised...
+
+    Raffles takes another mint out of the tin and pops it in his mouth.
+
+    RAFFLES:
+      Well, I mean... >
+      (crunching and thinking)
+      I've read a lot of scripts,  
+      And trust me... >
+      They're not all winners.
+
+    He offers Bunny the tin.
+
+    BUNNY:
+      (taking the tin)
+      You've read a lot of scripts?  
+      Really? >
+      Wasn't enough to scribble all over mine?
+
+    RAFFLES:
+      <!>(smugly)
+      Well clearly my notes worked.
+
+    BUNNY:
+      (laughs)
+      Yeah,  and I'm sure the five years of practice had nothin' to do with it. >
+      (shoving him)
+      You massive dick.
+
+    Raffles chokes on a mint as he stifles a giggle.
+
+    BUNNY:
+      What?
+
+    Raffles recovers his composure and walks on.
+
+    RAFFLES:
+      <!>(slyly)
+      I am refraining from making an 'indiscreet' comment.
+
+    Bunny ((m_todo_sfx_bang_bonk)) throws the tin at him --
+
+    RAFFLES:
+      Ow! >
+      <!>(pouts)
+      Wasn't one head injury enough?
+
+    BUNNY:
+      (ignoring him)
+      So why've you been reading scripts...? >
+      (with a "casual" shrug)
+      You find a new writer to torment?
+
+    RAFFLES:
+      (picking up the tin)
+      Hardly. >
+      (pocketing it)
+      You see,  not unlike yourself,  
+      I decided to take our little exercise at school and make a whole career out of it. >
+      <!>(grins)
+      I read scripts professionally now.
+
+    BUNNY:
+      A producer?
+
+    RAFFLES:
+      (blecch)
+      No.
+
+    Raffles SPINS on a nearby lamppost and ends with a grand FLOURISH ~
+
+    RAFFLES:
+      *An **actór**~*
+
+    A beat.
+
+    BUNNY:
+      <!>(makes a face)
+      Nah...
+
+    Raffles' grin falters.
+
+    BUNNY:
+      Nah.   
+      You'd be a shit actor.
+
+    RAFFLES:
+      W-wh-- >
+      Excuse me!
+
+    Raffles ((sfx_jumping_turnstile)) jumps off the post.
+
+    RAFFLES:
+      I am *not* a "shit" actor. >
+      I'm a successful one, actually! >
+      Quite successful!
+
+    BUNNY:
+      <!>(unconvinced)
+      Really?
+
+    RAFFLES:
+      Yes!
+
+    BUNNY:
+      What're you in?
+
+    RAFFLES:
+      W-Well... >
+      Okay... >
+      Okay!   Here.
+
+    Raffles reaches into his coat pocket and pulls out A RED BALL.
+
+    He steps forward -- then pauses -- taking a deep breath.
+
+    ((m_todo_sfx_dumb_theme_song))
+    ((play music mus_m_group mute))
+    HE STRIKES A POSE.
+
+    // TODO BILLOWING UNION JACK DRAMATICALLY COVERS THE BACKGROUND BEHIND RAFFLES FOR ONE LINE OF DIALOGUE
+
+    RAFFLES:
+      (in an extremely posh British accent)
+      *You've had a good innings so far...*  
+      *But I'm afraid your runs are up!*
+
+    Silence.
+
+    Bunny stares blankly.
+
+    The street lamp flickers.
+
+    RAFFLES:
+      ((sfx_emotional_modest_embarrassed_rev_0))
+      ((play music mus_m_group unmute over 5))
+      Really...?   
+      ...Nothing?? >
+      <!>(beat)
+      ... >
+      (gestures with ball)
+      ..."A Sticky Wicket"?
+
+    BUNNY:
+      <!>(realizing)
+      Oh! >
+      That weird baseball show.
+
+    RAFFLES:
+      Cricket, Bunny!  Cricket!! >
+      Jesus...
+
+    BUNNY:
+      It's that BBC America thing, yeah?
+      Like,  who even watches that crap -- geriatrics?
+
+    RAFFLES:
+      (scoffs)
+      Don't be ridiculous. >
+      (pocketing the ball)
+      Our target demographic is 12 to 18.
+
+    BUNNY:
+      So teens and tweens.
+
+    RAFFLES:
+      ...young adults.
+
+    BUNNY:
+      Children.
+
+    RAFFLES:
+      Wow.   Very supportive. >
+      (crosses arms)
+      And after I said so many nice things about your script.
+
+    With an indignant pivot,  Raffles glides briskly ahead.
+
+    BUNNY:
+      Okay, okay! >
+      (laughs)
+      Sorry!
+
+    Bunny catches up to him --
+
+    BUNNY:
+      <!>(apologetic)
+      Please don't start the silent treatment. >
+      You still haven't said where we're going...
+
+    RAFFLES:
+      Well,  we _were_ going to use my professional connections--
+
+    Bunny snorts but catches himself.
+
+    RAFFLES:
+      (side-eye)
+      ...my _professional connections_... to sort out your little unemployment problem. >
+      But if you're not interested-- >
+      (turns on heel)
+      --I suppose we can go back. >
+      (strides off)
+      I'm sure with your *uncompromising standards*,  you'll have no problem arranging a meeting with Danby all on your own--
+
+    ((sfx_shoes_stopping)) Bunny stops short.
+
+    BUNNY:
+      Danby?
+
+    RAFFLES:
+      (swoons)
+      Who was *I* -- >
+      -- a lowly thespian -- >
+      -- to presume I had anything to offer *you*:
+      _A true *auteur*_~!
+
+    BUNNY:
+      Danby as in **Danby & Danby Pictures**? >
+      That Danby???
+
+    Raffles faces Bunny with a smug grin.
+
+    RAFFLES:
+      The very same!
+
+    BUNNY:
+      I don't-- >
+      <!>(squints)
+      How?
+
+    RAFFLES:
+      (saunters on)
+      Ohhh~  let's just say good old Danby and I were close back in the day.
+
+    BUNNY:
+      (catching up to him)
+      Close?
+
+    RAFFLES:
+      <!>(grins)
+      *Thick as thieves!* >
+      See for yourself.
+
+    Raffles reaches inside his coat and produces a ((sfx_paper_unfurl)) STACK OF SCRIPTS.
+
+    The first is titled **"IT TAKES A THIEF"**
+
+    On the front page -- A note.   Written in neat, red ink\:
+
+    \    **"Quick shoot. Pay is good."**
+
+    Bunny ((sfx_paper_crinkle)) flips through the stack -- all scripts -- similar notes -- every single one from the same studio\:
+
+    \    **DDP**
+
+    BUNNY:
+      Heist movies...?
+
+    RAFFLES:
+      (waves off)
+      Danby's always hounding me to join their latest little project. >
+      <!>(smirks)
+      Great eye for talent. >
+      Not so great with rejection.
+
+    Bunny shakes his head and looks at him --
+
+    BUNNY:
+      I don't get it... >
+      (handing scripts back)
+      So we just walk to DDP and what -- >
+      -- Drop off a letter 'a rec?
+
+    RAFFLES:
+      (tucking scripts away)
+      Oh Bunny,  we're not going to DDP... >
+      I said Danby and I were close,  didn't I? >
+      We'll just pop by for a visit!
+
+    He ((sfx_shoes_stopping)) stops and gestures to...
+
+    [[hide backdrop]]
+
+    [[show backdrop bg_danbys_ext_townhouse_wide_night]]
+
+    $: EXT. DANBY'S RESIDENCE
+
+    Raffles and Bunny stand before a NARROW BEAUX-ARTS TOWNHOUSE stubbornly wedged between two boxy pre-war apartment buildings.
+
+    BUNNY:
+      Wait-- Here??!!
+
+    RAFFLES (O.S.):
+      Come along!
+
+    [[show backdrop bg_danbys_ext_townhouse_close_night]] Bunny grabs Raffles' sleeve.
+
+    BUNNY:
+      Wait wait wait-- >
+      It's like... *real* late.   
+      Shouldn't we call ahead first?
+
+    RAFFLES:
+      Please...  Danby's used to me dropping by at all hours. >
+      (spinning his key ring)
+      ((sfx_key_jingle))
+      ((fade music mus_m_piano+mus_m_bass+mus_m_guitar to 0))
+      I even have a key.
+
+    Bunny lets go of his sleeve.
+
+    RAFFLES:
+      <!>(raising an eyebrow)
+      Problem?
+
+    BUNNY:
+      N-No...  No problem! >
+      Just-- >
+      By 'close' I didn't think you meant--
+
+    RAFFLES:
+      [[animate stage with shake]]
+      ((m_todo_emotional_anger+temp_sfx_smack))
+      ((stop music mus_m_group))
+      --Crap!
+
+    Raffles DRAGS Bunny into an alleyway --
+
+    [[show backdrop bg_danbys_alleyway]]
+
+    BUNNY:
+      Wha--
+
+    Raffles shushes and presses him against the wall.
+
+    ((sfx_flashback_transition))
+    [[animate screen with whitepulse]]
+    _INSERT - 5 YEARS AGO:_  Raffles a mess.   In tears.   Pushing Bunny against a wall.
+
+    ((sfx_flashback_transition))
+    [[animate screen with whitepulse]]
+    _BACK TO SCENE_.
+
+    Raffles keeps a tight grip on Bunny's arm as the ((sfx_shoes_walking_rev_2)) silhouette moves past the alley's mouth.
+
+    Once their footfalls disappear down the street,  Raffles sighs and releases him.
+
+    RAFFLES:
+      Sorry about that. >
+      Thought it was Danby.
+
+    // ((play music mus_i_alto_sax+mus_i_bari_sax+mus_i_tenor_sax+mus_i_trombone+mus_i_trumpet mute))
+
+    BUNNY:
+      (clutching his sore arm)
+      *Then why are we hiding???*
+
+    RAFFLES:
+      Well... >
+      (with a nervous chuckle)
+      ...we may not have parted on the _best_ of terms...
+
+    A beat.
+
+    // todo bunny eyes should be angrier here
+
+    BUNNY:
+      [[animate stage with shake]]
+      ((m_todo_emotional_anger+temp_sfx_smack))
+      ((play music mus_i_group mute))
+      ((play music mus_i_bongos+mus_i_boomy_drums+mus_i_drums_cymbals+mus_i_drums_hihat+mus_i_drums_kick+mus_i_drums_snare+mus_i_drums_toms+mus_i_heartbeat_kick+mus_i_shaker unmute))
+      What.
+
+    RAFFLES:
+      Quick!  Now's our chance!
+
+    Raffles DASHES around the corner.
+
+    BUNNY:
+      Wait--!
+
+    [[hide backdrop]]
+    [[show backdrop bg_danbys_ext_townhouse_close_night]]
+
+    By the time Bunny catches up,  Raffles is already at the top of the stoop,  ((sfx_key_jingle)) trying his key on the door.
+
+    RAFFLES:
+      Damn! >
+      Changed the lock... >
+      Typical.
+
+    BUNNY:
+      (hissing)
+      *What are you doing???*
+
+    Raffles SPINS around and grabs him by the shoulders.
+
+    RAFFLES:
+      Okay so-- >
+      Danby's head of DDP, right?
+
+    BUNNY:
+      What does that--
+
+    RAFFLES:
+      And head of DDP gets final say on script options, right?
+
+    BUNNY:
+      I don't understand how--
+
+    RAFFLES:
+      (holding up Bunny's script)
+      And _you_ have a script you want optioned, right?
+
+    BUNNY:
+      *Raffles!!*
+
+    Bunny shrugs him off.
+
+    BUNNY:
+      I need you to start making sense right now-- >
+      ***'Cause you're _freakin' me the fuck out_!!***
+
+    Raffles takes a deep breath.
+
+    RAFFLES:
+      (barreling ahead)
+      Alright.  
+      You missed your pitch. >
+      *C'est la vie~*   What to do? >
+      Well.  Thanks to my intimate knowledge of Danby's habits,  I know that in that office upstairs there's a tray of scripts. >
+      Those scripts are the best of the best -- *la crème de la crème* -- all forwarded for approval. >
+      Danby's out of town for the weekend. >
+      So we have til morning to pull this off. >
+      All _we_ have to do... >
+      (gestures between them)
+      ...is _add your script to the pile_!!
+
+    A beat.
+
+    BUNNY:
+      What. >
+      [[animate stage with shake]]
+      ((m_todo_emotional_anger+temp_sfx_smack))
+      WHAT??
+
+    RAFFLES:
+      Come on, Bunny!
+
+    BUNNY [<]:
+      Th-That's--
+
+    RAFFLES [>]:
+      In and out!   
+      And none the wiser!
+
+    BUNNY:
+      [[animate stage with shake]]
+      ((m_todo_emotional_anger+temp_sfx_smack))
+      RAFFLES THAT'S FRICKIN' INSANE!!!
+
+    RAFFLES:
+      (eye-roll)
+      Oh I see... _*That's* too crazy_. >
+      But dropping out of school just to rot on the streets as some _no-name starving artist_-- >
+      (in the same breath)
+      --No no...  Sorry... >
+      ...that's not fair...
+
+    Bunny drops his gaze.
+
+    ((sfx_thunder_distant))
+    Thunder rumbles in the distance.
+
+    RAFFLES:
+      <!>(sympathetic)
+      Look...  
+      I understand this all seems very wrong.  But Bunny... >
+      The game is rigged.   >
+      So _why play fair_? >
+      Don't think of it as 'breaking the rules'... >
+      (searching for the words)
+      Think of it as...
+
+    He ((sfx_bang_snapping_single)) snaps his fingers.
+
+    RAFFLES:
+      "Restoring the balance"!
+
+    He ((sfx_paper_crinkle)) pushes the script against Bunny's chest.
+
+    RAFFLES:
+      _On your own terms_.
+
+    Bunny lifts his head.
+
+    ((sfx_thunder_distant))
+    A RUMBLE of thunder.
+
+    BUNNY:
+      Raffles... >
+      (taking the script)
+      I--
+
+    A FLASH of lightning.
+
+    Bunny stumbles back with the script.
+
+    BUNNY:
+      I-I can't. >
+      (barely audible)
+      I just...
+
+    He trails off.
+
+    ((sfx_thunder_distant))
+    ((stop music mus_i_group))
+    Another RUMBLE.
+
+    A BRIGHT FLASH.
+
+    A long silence.........
+
+    ...And Raffles sighs.
+
+    RAFFLES:
+      Of course... >
+      Yes of course,  you're right.
+
+    He steps back.
+
+    RAFFLES:
+      I shouldn't have assumed you'd be okay with all this.
+
+    [[hide backdrop]]
+
+    _RAFFLES GRABS A BRICK and [[show backdrop bg_danbys_ext_townhouse_close_night_smashed]] ((play simultaneous sfx_thunder)) ((sfx_window_smash)) ((play music mus_i_group)) SMASHES IT THROUGH THE WINDOW IN TIME TO THE CRASH OF THUNDER_.
+
+    BUNNY:
+      WH--!
+
+    Raffles ((sfx_paper_crinkle)) SNATCHES the script out of Bunny's hands --
+
+    RAFFLES:
+      (shoving it in his blazer)
+      Take the side roads back to mine. >
+      (slipping on a pair of gloves)
+      No busses.   No subways. >
+      (shrugging off his overcoat)
+      Nothing with CCTV.
+
+    He ((sfx_whoosh_rev_1)) tosses his overcoat over the jagged glass.
+
+    BUNNY [<]:
+      W-wait--
+
+    RAFFLES [>]:
+      (snapping)
+      [[animate stage with shake]] ((m_todo_emotional_anger+temp_sfx_smack)) JUST LISTEN!
+
+    Raffles pulls out A FLIP-PHONE and ((sfx_phone_text_received)) presses a button.
+
+    RAFFLES:
+      I've sent the directions. >
+      (tucking phone away)
+      _Do not deviate_.
+
+    As Raffles climbs through the window,  he hesitates.
+
+    He looks back over his shoulder --
+
+    RAFFLES:
+      If I'm not home by morning -- >
+      Don't come looking for me.   
+      Understand?
+
+    Bunny doesn't answer.
+
+    He's watching Raffles.
+
+    RAFFLES:
+      Bunny.
+
+    Raffles turns to face him.
+
+    RAFFLES:
+      (searching his face)
+      _Do you understand_?
+
+    A ((sfx_thunder)) ((stop music mus_i_group)) CRASH of thunder.
+
+    A ((m_todo_car_alarm)) CAR ALARM in the distance.
+
+    Raffles' eyes shoot toward it.
+
+    A FLASH.
+
+    [[animate screen with whitepulse]]
+    ((sfx_flashback_transition wait))
+    ((queue sound m_todo_sfx_flashback_motif))
+    _INSERT - 5 YEARS AGO:_  Raffles looking toward the horizon.   He turns back from the dorm window and laughs -- reaching out a hand.
+
+    RAFFLES:
+      <!>(eyes bright)
+      Come on!   Let's go!
+
+    With a CRASH OF THUNDER we [[animate screen with whitepulse]] ((sfx_thunder wait)) ((queue sound m_todo_sfx_flashback_motif)) _CUT BACK TO SCENE_ as Raffles turns to find...
+
+    BUNNY -- both hands locked around Raffles' arm.
+
+    A beat.
+
+    Bunny nods.
+
+    He doesn't let go.
+
+    Raffles blinks.
+
+    Smiles.
+
+    And on one last ((sfx_thunder)) PEAL OF THUNDER...
+
+    _**He pulls Bunny inside**_.
+
+    [[hide backdrop]]
+
+    ^: _END ACT TWO_
+
+    -> ACT_THREE
+  end
+end
+
+scene ACT_THREE
+
+  # ActThree
+
+  ^: _ACT THREE_
+
+  ## FunAndGames
+
+  ((play music mus_h_group))
+
+  [[show backdrop bg_danbys_int_foyer]]
+
+  $: INT. DANBY'S GROUND FLOOR - NIGHT
+
+  The house is eerily silent.   Aside from a small TIP TAP TIP TAP in the distance.
+
+  ((sfx_glass_crunch)) Bunny gropes his way through the darkness,  ((sfx_glass_crunch)) inching toward the sound of Raffles' footfalls --
+
+  BUNNY:
+    (whispering)
+    *Raffles...*
+    *Raffles, are you sure that--*
+
+  Bunny ((sfx_bang_collide_nopaper)) THUDS face-first into Raffles' back.
+
+  RAFFLES:
+    (at a normal volume)
+    ((colin_todo_emotional_questioning_2))
+    Why do you keep calling me that?
+
+  BUNNY:
+    (wincing)
+    What?
+
+  RAFFLES:
+    (turns toward him)
+    My last name. >
+    You didn't used to.
+
+  BUNNY:
+    (blinks)
+    I-- >
+    (shuffling back)
+    N-no,  I did-- >
+    I used to.
+
+  RAFFLES:
+    (squints)
+    Yes... >
+    But not after we--
+
+  Raffles makes a rude hand gesture.
+
+  Bunny ((sfx_bang_clap)) CLAPS Raffles' hands together to stop the motion --
+
+  BUNNY:
+    (hisses)
+    *Seriously??  _Now_?* >
+    (gestures around)
+    ((colin_emotional_agitated))
+    *You wanna talk about this _NOW_???*
+
+  RAFFLES:
+    (shrugs)
+    Well--
+
+  BUNNY:
+    (hands up)
+    Okay--!!   Fine! >
+    (mutters)
+    ...I guess we're doin' this... >
+    (crosses his arms)
+    Why do _you_ keep calling me "Bunny"?
+
+  RAFFLES:
+    (blinks)
+    I've always called you Bunny.
+
+  BUNNY:
+    (splutters)
+    Y-Yeah,  but... >
+    <!>(frustrated)
+    Don't you think that's a little *weird*? >
+    All things considered?
+
+  RAFFLES:
+    Which things?
+
+  BUNNY:
+    Which th--?  
+    ((temp_sfx_smack))
+    *Do ya need an itemized list???*
+
+  RAFFLES:
+    I mean... >
+    (genuinely)
+    It would certainly be helpful.
+
+  Bunny searches his face,  at a loss.
+  Then groans and walks away.
+
+  Raffles ((sfx_bang_snatch)) catches his arm --
+
+  RAFFLES:
+    Look...
+
+  BUNNY:
+    (sighs)
+    ...I just want to get this over with and--
+
+  RAFFLES:
+    No,  I mean-- >
+    ((colin_todo_emotional_realization+temp_sfx_realization))
+    ((fade music mus_h_bari_sax+mus_h_bass+mus_h_electric_piano+mus_h_horns to 0 over 0.5))
+    Look.
+
+  Raffles points up toward a red light in the corner of the room.
+
+  There's a SECURITY CAMERA.
+
+  Bunny backpedals against a wall --
+
+  BUNNY:
+    ((temp_sfx_smack))
+    ((play music mus_h_bari_sax+mus_h_bass+mus_h_electric_piano+mus_h_horns unmute))
+    (in a sharp whisper)
+    *Did it see us?*
+
+  RAFFLES:
+    Hm... >
+    If memory serves,  no. >
+    The cameras only cover certain sections at specific times.
+
+  Bunny eyes him.
+
+  RAFFLES:
+    Let's just say I spent many nights sneaking around here in my youth.
+
+  Bunny just eyes him.
+
+  RAFFLES:
+    Oh don't look at me like that! >
+    (waves off)
+    It was before your time.
+
+  BUNNY:
+    <!>(suspiciously)
+    How far before?
+
+  RAFFLES:
+    Years! >
+    When we were kids.
+
+  BUNNY [<]:
+    You were--??
+
+  RAFFLES [>]:
+    Childhood friends--!
+
+  RAFFLES:
+    _Just friends_. >
+    Alright?
+
+  A beat.
+
+  Bunny sighs --
+
+  BUNNY:
+    I just...
+
+  He runs a hand through his hair --
+
+  BUNNY:
+    I don't get how I'm only finding all this out now.   I know you don't like talking about your family -- but...  your friends...
+
+  RAFFLES:
+    As I said,  Danby and I weren't exactly "friends" when we parted. >
+    (strides off)
+    Now come along.   
+    Security room is this way.
+
+  Bunny doesn't follow.
+
+  BUNNY:
+    You sure you know what you're doing?
+
+  RAFFLES:
+    (scoffs)
+    Do I look like some sort of amateur? >
+    I live by my wits.
+
+  BUNNY:
+    And you've never been caught?
+
+  RAFFLES:
+    In and out,  without a trace~
+
+  [[show backdrop bg_danbys_int_foyer_no_brick]]
+  Bunny lifts THE BRICK from the floor --
+
+  BUNNY:
+    (gestures to broken window)
+    ((colin_todo_sfx_emotional_unimpressed))
+    So whaddya call this?
+
+  A beat.
+
+  RAFFLES:
+    Oh.
+
+  BUNNY:
+    <!>(pointedly)
+    Yeah.
+
+  RAFFLES:
+    Right...
+
+  Silence.
+
+  More silence.
+
+  BUNNY:
+    ...That's it??
+
+  RAFFLES [<]:
+    Well-- I mean-- I don't know!
+
+  BUNNY [>]:
+    [[animate stage with shake]]
+    ((m_todo_sfx_emotional_yelling+temp_sfx_smack))
+    Seriously???
+
+  RAFFLES [<]:
+    Danby always opened a window for me!
+
+  BUNNY [>]:
+    "...without a trace",  he says...
+
+  RAFFLES [<]:
+    I didn't think--
+
+  BUNNY [>]:
+    "...by my wits",  he says...
+
+  BUNNY:
+    [[animate stage with shake]]
+    ((m_todo_emotional_anger+temp_sfx_smack))
+    Are there kids in this neighborhood?
+
+  RAFFLES:
+    What?
+
+  BUNNY:
+    <!>(snapping)
+    YA GOT KIDS IN THIS NEIGHBORHOOD OR WHAT??
+
+  RAFFLES:
+    <!>(startled)
+    Wh- Y-yes?   I believe so--?
+
+  BUNNY:
+    Good.
+
+  Bunny ((sfx_rustle_bag_stow_rev_1)) shoves the brick in his bag and holds out a hand.
+
+  BUNNY:
+    Gimme your baseball.
+
+  RAFFLES:
+    ...cricket ball.
+
+  BUNNY:
+    Whatever -- Give it.
+
+  Raffles hands it over.
+
+  [[show backdrop bg_danbys_int_foyer_ball]]
+  Bunny pulls down his sleeve,  ((sfx_wiping_rev_2)) rubs the ball,  and drops it amongst the shards.
+
+  He TURNS and points at him --
+
+  BUNNY:
+    You better hope to god Danby doesn't know what cricket is. >
+    Now come on!
+
+  Bunny STOMPS OFF toward the security room.
+
+  Raffles looks at the ball with a curious expression.
+
+  BUNNY:
+    Raffles!
+
+  Raffles follows after him.
+
+  ((stop music mus_h_group))
+
+  [[hide backdrop]]
+
+  $: INT. DANBY'S SECURITY ROOM - NIGHT
+
+  [[show backdrop bg_danbys_security_room]]
+
+  ((play music mus_a_group))
+
+  The security room is dark save for a towering stack of monitors drowning the walls in blue.
+
+  Raffles and Bunny step inside.
+
+  RAFFLES:
+    So here's the plan--
+
+  BUNNY:
+    Oh _now_ he's got a plan... >
+    (approaching the monitors)
+    What's with all the security anyway?
+
+  RAFFLES:
+    Ah,  that would be the work of Danby Senior. >
+    _The big "D"_ of D.D.P. >
+
+  BUNNY:
+    And Danby Senior is...
+
+  RAFFLES:
+    No longer with us,  I'm afraid. >
+    (shrugs)
+    The company nearly went under when he passed.
+    Until Junior stepped in to save it. >
+    (squinting at a screen)
+    I suppose Little D's not one to let things go. >
+    Keeping the family business--
+
+  He ((sfx_glass_tap_rev_1)) knocks on the monitor.
+
+  RAFFLES:
+    --And keeping me out.
+
+  Raffles points to a feed displaying a door at the end of a hallway.
+
+  RAFFLES:
+    Behind that door is our target. >
+    Danby's office,  
+    And the tray of scripts.
+
+  BUNNY:
+    Okay... >
+    So "all we gotta do"... >
+    (in one breath)
+    Is make it through the foyer,  up the stairs,  down the hallway,  and _past all these cameras_ without being seen?
+
+  RAFFLES:
+    (claps)
+    Precisely!
+
+  Bunny gives him a long look.
+
+  Raffles beams.
+
+  A beat.
+
+  BUNNY:
+    (sighs)
+    Alright.
+
+  Bunny ((sfx_rustle_bag_remove)) takes out his pocket notebook.
+
+  He leans in to inspect the monitors.
+
+  BUNNY:
+    Looks like the recordings rotate through different rooms every second or so.
+
+  RAFFLES:
+    Correct!
+
+  Bunny ((sfx_pencil_draw)) draws out a simplified map,  marking line-of-sight for each camera.
+
+  BUNNY:
+    (pointing at map)
+    There's a few blind spots:  
+    The stairs,  The bedrooms...
+
+  RAFFLES:
+    Well spotted!
+
+  Bunny ((m_todo_pencil_draw)) draws a path through the map and numbers several safe zones.
+
+  BUNNY:
+    It'll be tight,  but if we coordinate our moves...
+
+  RAFFLES:
+    (stepping closer)
+    You know...
+
+  Raffles leans in,  inspecting the notes over Bunny's shoulder --
+
+  RAFFLES:
+    It's deeply satisfying,  seeing you in action. >
+    (leaning closer)
+    ((colin_todo_sfx_emotional_flirt))
+    In fact,  I have half a mind to simply lie back and watch you handle yourself~--
+
+  ((sfx_bang_slam_book_closed)) Bunny snaps the notebook closed and DRAGS him in by the collar,  beet-red --
+
+  BUNNY:
+    Stop. >
+    (points to his own eyes)
+    Look at me. >
+    <!>(firmly)
+    ((sfx_bang_snapping_multiple))
+    I need you to focus.
+
+  // TODO_b_realization/irritated
+
+  RAFFLES:
+    Why Bunny... >
+    <!>(wickedly)
+    You have me at full attention~
+
+  A beat.
+
+  Bunny stands firm.
+
+  RAFFLES:
+    ((m_todo_sfx_emotional_modest_embarrassed))
+    Alright, alright...
+
+  Bunny releases him.
+
+  Raffles straightens his coat.
+
+  RAFFLES:
+    You're no fun. >
+    Remember when you were fun?
+
+  Bunny shoves the notebook at him.
+
+  BUNNY:
+    Follow the path.   
+    Move when I tell you.
+
+  Raffles takes the notebook --
+
+  BUNNY:
+    (thinking)
+    We'll need some sort of signal.
+
+  RAFFLES:
+    Ah yes! >
+    How's this?
+
+  Raffles grabs a BROOMSTICK from the corner of the room.
+
+  He taps ((sfx_bang_broomstick_against_wall_once)) the opposite wall with the broomstick --
+
+  RAFFLES:
+    (tapping twice)
+    ((sfx_bang_broomstick_against_wall_twice))
+    _Twice_ for stop... >
+    (tapping once)
+    ((sfx_bang_broomstick_against_wall_once))
+    _Once_ for go.
+
+  He holds the broomstick out for Bunny --
+
+  RAFFLES:
+    Nothing to it!
+
+  Bunny hesitantly takes the broomstick.
+
+  BUNNY:
+    You sure you'll be okay out there?
+
+  Raffles ((m_todo_sfx_door_open)) swings the door open --
+
+  RAFFLES:
+    (tuts)
+    Oh Bunny... >
+    (waving the notebook)
+    With the full support of my trusty rabbit...
+
+  He steps backwards through the doorway --
+
+  RAFFLES:
+    (winks)
+    ...What could possibly go wrong?
+
+  He ((sfx_door_close)) ((stop music mus_a_group)) [[hide backdrop]] SHUTS the door.
+
+  _SPLITSCREEN_ between Bunny and Raffles.
+
+  _On the left_,  the camera pushes in over Bunny's shoulder until the monitors fill the frame.
+
+  _On the right_,  Raffles steps into position,  finding his mark.
+
+  3.   2.   1.
+
+  _THE BEAT DROPS_.
+
+  ### RhythmMinigame3
+
+  ^: <!>=== RHYTHM MINIGAME 3 BEGINS ===
+
+  ^: <!>[GAMEPLAY\: Help Raffles avoid the cameras.  Tap twice for stop,  Tap once for go]
+
+  $: INT. DANBY'S GROUND FLOOR - (MINIGAME 3A)
+
+  Bunny signals Raffles as he makes his way through the ground floor to the stairs.
+
+  $: INT. DANBY'S STAIRWAY
+
+  Raffles reaches the stairs and climbs up to the second floor.
+
+  $: INT. DANBY'S TOP FLOOR - (MINIGAME 3B)
+
+  Bunny signals Raffles with taps on the ceiling as he progresses through the hallway to the office door.
+
+  Once Raffles reaches it,  he tries the door,  pauses,  and steps off into one of the nearby bedrooms.
+
+  Bunny ((sfx_phone_text_received)) receives a TEXT\:
+
+  RAFFLES (TEXT):
+    slight problem
+
+  RAFFLES (TEXT):
+    doors locked
+
+  BUNNY (TEXT):
+    Anything you can do about it?
+
+  RAFFLES (TEXT):
+    maybe
+
+  RAFFLES (TEXT):
+    could try picking it
+
+  BUNNY (TEXT):
+    You know how to pick locks??
+
+  RAFFLES (TEXT):
+    im a man of many talents
+
+  RAFFLES (TEXT):
+    i also lose my keys
+
+  RAFFLES (TEXT):
+    frequently
+
+  BUNNY (TEXT):
+    Anything I could do to help?
+
+  RAFFLES (TEXT):
+    could give you a copy
+
+  BUNNY (TEXT):
+    You know what I meant.
+
+  RAFFLES (TEXT):
+    tap once: pick lock
+    tap twice: hide
+
+  BUNNY (TEXT):
+    Got it.
+
+  $: INT. OUTSIDE DANBY'S OFFICE - (MINIGAME 3C)
+
+  Bunny signals Raffles when it's safe to pick the lock and when he should duck out of sight.
+
+  _END SPLITSCREEN_
+
+  On Bunny's last "go" signal,  Raffles twists the pick...
+
+  There's an ugly SNAP inside the lock.
+
+  . . .
+
+  Raffles abandons the door and bolts to a window at the end of the hall.
+
+  ^: <!>=== RHYTHM MINIGAME 3 ENDS ===
+
+  Bunny blinks in confusion.
+
+  PING.  Another text\:
+
+  choose
+    + [Success!]
+
+      RAFFLES (TEXT):
+        first things first
+
+      RAFFLES (TEXT):
+        whoever was on signals tonight
+
+      RAFFLES (TEXT):
+        was an artist
+
+      RAFFLES (TEXT):
+        his hands are wasted on a broom
+
+      BUNNY (TEXT):
+        Did we get in or not???
+
+      RAFFLES (TEXT):
+        well about that
+
+      BUNNY (TEXT):
+        Sounds like not.
+
+      RAFFLES (TEXT):
+        what a rabbit he is for assumptions
+
+      RAFFLES (TEXT):
+        i have a plan b
+
+      RAFFLES (TEXT):
+        meet me outside
+
+    + [Fail...]
+
+      RAFFLES (TEXT):
+        we need to talk about your tempo
+
+      BUNNY (TEXT):
+        YOU invented the tempo!!
+
+      RAFFLES (TEXT):
+        i invented once for go
+
+      RAFFLES (TEXT):
+        not a drum solo
+
+      BUNNY (TEXT):
+        Whatever. Why are you at the window??
+
+      RAFFLES (TEXT):
+        the door and i had some
+
+      RAFFLES (TEXT):
+        creative differences
+
+      BUNNY (TEXT):
+        ???
+
+      RAFFLES (TEXT):
+        i have a plan b
+
+      RAFFLES (TEXT):
+        meet me outside
+  then
+
+    %: CUT TO:
+
+    $: EXT. ALLEYWAY - NIGHT
+
+    ((play music mus_h_group))
+    [[show backdrop bg_danbys_alleyway]]
+
+    // new art needed - CLOSEUP - Bunny's phone (composing text + incoming messages)
+    CLOSEUP - Bunny composing a text\: "What's plan b?"
+
+    He's just about to hit send when another message covers the screen\:
+
+    \    **(Maria Manders)\:**
+    \    **remember its ok if the pay is a little low...**
+    \    **you just have to get your foot in the door! :-)**
+    \    **                  [Reply?]                     **
+
+    Bunny flinches.  He stares at the message.
+
+    His finger moves to the reply button...
+
+    Hovers......
+
+    Then swipes the message away.
+
+    ((m_todo_sfx_phone_ping)) PING.
+
+    RAFFLES (TEXT):
+      up here!
+
+    Bunny blinks and looks up.
+
+    [[show backdrop bg_danbys_alleyway]]
+
+    Raffles -- loafing on a second-floor windowsill -- flutters his fingers at him.
+
+    Barely bothering to sit up,  he tips off the ledge.
+
+    Bunny lurches into a run -- scrambling to get under him --
+
+    ...but Raffles has already ((sfx_lightpole_slide)) caught a lamppost,  riding it round in one dramatic twirl to the pavement.
+
+    Bunny's run dies mid-stride.
+
+    Raffles lands and straightens,  dusting himself off --
+
+    RAFFLES:
+      What? >
+      (shrugs)
+      I do my own stunts.
+
+    BUNNY:
+      <!>(thrown)
+      Right. >
+      (pocketing his phone)
+      Y'weren't kiddin' 'bout those "many talents".
+
+    RAFFLES:
+      Well I *may* have exaggerated one in particular...
+
+    Raffles takes out his BROKEN LOCKPICK.
+
+    BUNNY:
+      That's...
+
+    RAFFLES:
+      Not good.   No.
+
+    BUNNY:
+      And I'm guessing...?
+
+    RAFFLES:
+      Nope.   No spares. >
+      Not that it'd matter.  
+      ((sfx_emotional_modest_embarrassed_rev_0))
+      Never had much patience for lockpicking. >
+      (nods)
+      Drilling's much quicker.
+
+    ((stop music mus_h_group))
+    BUNNY:
+      Right...
+
+    // todo raffles face needs to look like he is suddenly remembering something
+
+    ((play music mus_e_group mute))
+
+    BUNNY [<]:
+      (eyeing him)
+      Wait hold on--
+
+    RAFFLES [>]:
+      [[animate stage with shake]]
+      ((m_todo_sfx_emotional_yelling+temp_sfx_smack))
+      ((play music mus_e_bass+mus_e_marimba+mus_e_xylophone unmute))
+      --DAMN!
+
+    RAFFLES:
+      (tapping his pockets)
+      Left the drill in my other coat.
+
+    BUNNY:
+      (blinks)
+      Um wh--
+
+    RAFFLES:
+      (mussing up his hair)
+      [[animate stage with shake]]
+      ((m_todo_sfx_emotional_yelling+temp_sfx_smack))
+      Gah! >
+      (shutting his eyes)
+      So stupid...
+
+    BUNNY:
+      Raffles...
+
+    RAFFLES:
+      [[animate stage with shake]]
+      ((m_todo_sfx_emotional_yelling+temp_sfx_smack))
+      Shush, Bunny!   I can figure this out,  I just need--
+
+    BUNNY:
+      Raffles.
+
+    RAFFLES:
+      ((colin_todo_sfx_emotional_grrr))
+      God, it's the one thing I--
+
+    BUNNY:
+      (grabbing his shoulders)
+      [[animate stage with shake]]
+      ((m_todo_sfx_emotional_yelling+temp_sfx_smack))
+      A.J.!
+
+    Raffles looks up.
+
+    BUNNY:
+      <!>(gentle)
+      It's okay.   It's _okay_...  
+      Alright...? >
+      <!>(beat)
+      Look. >
+      <!>(sincere)
+      I appreciate the effort,  and the -- *frankly* -- >
+      (affectionate laugh)
+      ((colin_todo_sfx_emotional_laugh_snort))
+      _WILD_ amount'a preparation. >
+      But there's no use beating yourself up about it. >
+      Let's just call it a night,  
+      go home,  and... >
+      <!>(beat)
+      Are... >
+      Are you listening?
+
+    Raffles is not listening.
+
+    His eyes are moving between several points in the distance.
+
+    Bunny follows his gaze to the windows on the neighboring building.
+
+    RAFFLES:
+      (under his breath)
+      ...with the angle of those two...  shouldn't be a problem...  but the third is...
+
+    BUNNY:
+      What are you--
+
+    Raffles ((sfx_whoosh_rev_1)) DROPS to one knee and reaches into his overcoat.
+
+    He pulls out ((sfx_bang_collide_nopaper)) a POUCH and opens it flat on the ground.
+
+    Inside are several tools.
+
+    RAFFLES:
+      Hold this.
+
+    ((m_todo_sfx_rustle_toolbag))
+    Raffles hands Bunny a FLASHLIGHT.
+
+    RAFFLES:
+      Don't turn it on until I give the signal.
+
+    BUNNY:
+      Wha--
+
+    RAFFLES:
+      And this...
+
+    ((m_todo_sfx_rustle_toolbag))
+    Raffles hands Bunny a ROPE.
+
+    RAFFLES:
+      ...Tie it around your waist.
+
+    BUNNY:
+      Um.
+
+    RAFFLES:
+      And this...
+
+    ((m_todo_sfx_rustle_toolbag))
+    Raffles hands Bunny a CROWBAR.
+
+    RAFFLES:
+      ...Put it in--
+
+    Bunny raises a hand --
+
+    BUNNY:
+      Woah woah woah.   Wait.   Stop.
+
+    Bunny holds out the equipment for Raffles to take back --
+
+    BUNNY:
+      What the hell is happening?
+
+    Raffles dons a MASQUERADE MASK --
+
+    RAFFLES:
+      (tying off the mask)
+      Really, Bunny...?   
+      I thought that'd be quite obvious by now.
+
+    A beat.
+
+    BUNNY:
+      Raffles...
+
+    Bunny looks at the mask.   At the rope in his own hands.   At the crowbar.
+
+    BUNNY:
+      ...you're a burglar.
+
+    RAFFLES:
+      ((colin_todo_emotional_snooty))
+      Pfft.   
+      Such a vulgar word.
+
+    He holds out a matching mask for Bunny.
+
+    RAFFLES:
+      I prefer the term "covert retrieval expert".
+
+    Bunny ((m_todo_sfx_objects_clattering)) drops everything.
+
+    BUNNY:
+      ***YOU'RE A FRICKIN' _BURGLAR_!!!***
+
+    Raffles sighs.
+
+    RAFFLES:
+      Rather you didn't announce it to the neighborhood... >
+      But yes.
+
+    He stands.
+
+    RAFFLES:
+      If you insist on calling me such,  
+      I am -- in fact -- >
+      (distasteful air-quotes)
+      "a burglar".
+
+    BUNNY:
+      (questioning everything)
+      But that means we're--! >
+      I-I'm--
+
+    RAFFLES:
+      You? >
+      (chuckles)
+      Oh Bunny...   
+      I wouldn't call _you_ a burglar... >
+      (tuts)
+      One desperate,  late-night affair,  does not a burglar make! >
+      <!>(beat)
+      Besides...   If one is being *"burgled"* by a burglar... >
+      One would think the burglar would _burgle things away_ -- 
+      Not burgle them *up the*--
+
+    BUNNY:
+      (shaking him)
+      ***_COULD'YA QUIT SAYIN' BURGLE_??!!*** >
+      IT'S MAKIN' ME INCREDIBLY UNCOMFORTABLE!!
+
+    RAFFLES:
+      (laughs)
+      Alright, alright... >
+      <!>(beat)
+      Still you must admit. >
+      <!>(smirks)
+      You've been remarkably slow on the uptake... >
+      Considering the extent of our activities...?
+
+    Bunny backs away --
+
+    BUNNY:
+      B-But-- >
+      <!>(baffled)
+      But you're rich!
+
+    RAFFLES:
+      (blinks)
+      I am?
+
+    BUNNY [<]:
+      I-I've seen your place,  it's--!
+
+    RAFFLES [>]:
+      Owned by my family.
+
+    BUNNY [<]:
+      Then your family's--
+
+    RAFFLES [>]:
+      Cut me off.   >
+      Indefinitely,  I'm afraid.
+
+    BUNNY [<]:
+      And your job's...?
+
+    RAFFLES [>]:
+      Not as financially or intellectually fulfilling as one might think.
+
+    Raffles starts ((m_todo_sfx_rustle_toolbag)) gathering his equipment off the ground --
+
+    RAFFLES:
+      (sighs)
+      Look Bunny...   
+      I can stand here making excuses all night.   But the truth of it is...
+
+    He straightens.
+
+    RAFFLES:
+      ((temp_sfx_realization))
+      ((play music mus_e_group mute))
+      This is what I am.
+
+    He holds the equipment out once again --
+
+    RAFFLES:
+      You can either accept it...  or not.
+
+    A beat.
+
+    BUNNY:
+      I...
+
+    ((play music mus_e_group mute))
+    ((temp_sfx_supershock))
+    ((play music mus_e_bass+mus_e_marimba+mus_e_xylophone unmute))
+    [[show backdrop bg_danbys_alleyway_turntable]]
+    A VINYL RECORD PLAYER ((m_todo_sfx_bang_record_player_crash)) crashes to the ground at their feet.
+
+    RAFFLES:
+      (looking up)
+      What the--
+
+    Bunny stares at THE WRECKAGE,  stunned.
+
+    The record ((play ambient sfx_amb_record_player_skips_rev_0)) SKIPS over and over.
+
+    _He recognizes the UGLY LOGO_.
+
+    Raffles ((sfx_bang_snatch)) GRABS Bunny's arm and PULLS him under the shelter of the fire escape.
+
+    A FAMILIAR VOICE rings out from above\:
+
+    ATTENDANT (O.S.):
+      [[animate stage with shake]]
+      ((m_todo_sfx_emotional_yelling+temp_sfx_smack))
+      THE HELL IS WRONG WITH YOU??
+      THAT WAS EXPENSIVE!!
+
+    A WOMAN'S VOICE (O.S.):
+      [[animate stage with shake]]
+      ((m_todo_sfx_emotional_yelling+temp_sfx_smack))
+      OH NOW he hears me!   NOW his ears work!!!
+      MAYBE NOW you'll listen to me for once!!!
+
+    Bunny peeks out from under the fire escape to see a couple arguing in the apartment above.
+
+    It's the PRINT SHOP ATTENDANT and what is -- presumably -- his GIRLFRIEND.
+
+    Raffles peeks up as well --
+
+    RAFFLES:
+      Huh.   
+      Well this complicates things.
+
+    ((stop music mus_e_group))
+
+    ^: _END ACT THREE_
+
+    -> ACT_FOUR
+  end
+end
+
+scene ACT_FOUR
+
+  # ActFour
+
+  ^: _ACT FOUR_
+
+  ## Midpoint
+
+  [[show backdrop bg_danbys_alleyway_closeup]]
+  ((play music mus_f_group))
+
+  $: EXT. UNDER THE FIRE ESCAPE - LATER THAT NIGHT
+
+  ((play environmental sfx_amb_record_player_skips))
+  Bunny is seated on the ground -- hugging his knees.
+
+  Raffles is lying a few feet away -- still wearing his mask -- stretched out on a makeshift bed of cardboard boxes and garbage bags.
+
+  The record continues skipping endlessly as the couple argues above.
+
+  ATTENDANT (O.S.):
+    [[animate stage with shake]]
+    ((m_todo_sfx_emotional_yelling+temp_sfx_smack))
+    *You are actin' like a CRAZY PERSON!*
+
+  GIRLFRIEND (O.S.):
+    [[animate stage with shake]]
+    ((m_todo_sfx_emotional_yelling+temp_sfx_smack))
+    *Oh _I'm_ crazy??* >
+    (crazily)
+    ((colin_todo_sfx_emotional_crazy))
+    ::*_I'M_ CrAzY!!??*::
+
+  RAFFLES:
+    <!>(bored)
+    Doesn't seem like they're winding down any time soon,  does it?
+
+  BUNNY:
+    Nope.
+
+  The argument continues in the background as Bunny sits up.
+
+  BUNNY:
+    Okay... >
+    (turning to him)
+    So I thought about it.
+
+  RAFFLES:
+    About the chances of their fight ending in murder-suicide? >
+    Because I'd say 50/50.   
+    Higher,  if he mentions the affair again.
+
+  BUNNY:
+    (blinks)
+    What?   No,  about the... >
+    (mumbles discreetly)
+    ..._burglary thing_.
+
+  RAFFLES:
+    Oh.
+
+  Raffles gives him an uneasy glance.
+
+  Bunny fidgets with a loose thread.
+
+  BUNNY:
+    I thought about it and I decided...
+
+  He straightens and nods --
+
+  BUNNY:
+    I decided,  it's fine.
+
+  Raffles blinks.
+
+  Faces him.
+
+  RAFFLES:
+    ...Fine?
+
+  BUNNY:
+    Yes. >
+    (shaking his head)
+    Yeah,  it's fine. >
+    (looks away with a shrug)
+    I mean-- I'm fine with it.
+
+  Raffles gives him a strange look --
+
+  RAFFLES:
+    Really?
+
+  BUNNY:
+    (looking at him)
+    Yes.
+
+  A beat.
+
+  Raffles sits up.
+
+  RAFFLES:
+    Oh. >
+    (huh.)
+    Only--
+
+  He takes off his mask.
+
+  RAFFLES:
+    Well,  I hadn't expected this.
+
+  He starts ((sfx_rustle_bag_stow)) digging through his pockets --
+
+  RAFFLES:
+    I had this whole speech prepared to--
+
+  BUNNY:
+    (laughs)
+    Hey come on,  stop that! >
+    (grabbing his arm)
+    ((sfx_bang_light_bat)) Stop!   Look at me!   It's fine!
+
+  Raffles looks at him.
+
+  BUNNY:
+    Look.  I know you,  alright...? >
+    <!>(sincerely)
+    A.J.,  if you're doing this--  
+    If *this* is what you decided you gotta do...   
+    Then I'm sure you got your reasons.
+
+  RAFFLES:
+    And you...  
+    You just _trust_ my reasons are good?
+
+  BUNNY:
+    (with a frustrated laugh)
+    ((colin_todo_sfx_emotional_laugh_snort)) Yes!
+
+  Raffles holds his gaze.
+
+  RAFFLES:
+    ...Why?
+
+  BUNNY:
+    (losing it)
+    [[animate stage with shake]]
+    ((m_todo_sfx_emotional_yelling+temp_sfx_smack))
+    GAH!! >
+    [[animate stage with shake]]
+    ((m_todo_sfx_emotional_yelling+temp_sfx_smack))
+    'Cause you're my friend, okay?!!
+
+  Bunny gestures between them --
+
+  BUNNY:
+    [[animate stage with shake]]
+    ((m_todo_sfx_emotional_yelling+temp_sfx_smack))
+    That's what friends do!   >
+    [[animate stage with shake]]
+    ((m_todo_sfx_emotional_yelling+temp_sfx_smack))
+    _They trust each other_!!
+
+  A beat.
+
+  RAFFLES:
+    Bunny...
+
+  Raffles searches his face --
+
+  // ((Mus_F_Bittersweet stop))
+
+  RAFFLES:
+    ((stop music mus_f_group))
+    We're still friends...?
+
+  Bunny looks at him -- confused by the question.
+
+  He starts to answer --
+
+  ((sfx_bang_drum_kit))
+  ((play music mus_g_group mute))
+  ((play music mus_g_heel_floor+mus_g_snap_single+mus_g_heel_stage_single+mus_g_belly_1+mus_g_thigh_front unmute))
+  _A DRUM KIT CRASHES TO THE GROUND_.
+
+  ATTENDANT (O.S.):
+    [[animate stage with shake]]
+    ((m_todo_sfx_emotional_yelling+temp_sfx_smack))
+    *Jesus Christ!!!* >
+    (yelling)
+    [[animate stage with shake]]
+    ((m_todo_sfx_emotional_yelling+temp_sfx_smack))
+    *WOULD YOU PLEASE CALM DOWN??*
+
+  Bunny sighs and stands.
+
+  He offers Raffles a hand.
+
+  BUNNY:
+    Come on.
+
+  Raffles doesn't notice.
+
+  He's turning his mask over in his hands -- his thoughts a million miles away.
+
+  BUNNY:
+    ...Raffles?
+
+  Raffles blinks.   He finally focuses on Bunny's hand...
+
+  . . .
+
+  He takes it.
+
+  Bunny pulls him to his feet.
+
+  BUNNY:
+    So what's the plan?
+
+  RAFFLES:
+    The plan...?
+
+  BUNNY:
+    You _do_ got a plan right?   
+    Or were all those fancy gadgets just for show?
+
+  // TODO_r_inquisitive/incredulous
+  RAFFLES:
+    I'd hardly call a crowbar a gadget.
+
+  BUNNY:
+    (eye-roll)
+    Okay "tools".   Whatever.   
+    What do you need me to do?
+
+  RAFFLES:
+    Need _you_ to do?
+
+  BUNNY:
+    Raffles... >
+    <!>(shutting his eyes tight)
+    We've been sitting here listening to _that goddamn record_ repeating for half an hour. >
+    Don't you start or I swear to god--
+
+  RAFFLES:
+    (taken aback)
+    Bunny... >
+    Are you saying... _you_...  
+    Want to do _crime_...  
+    With _me_?
+
+  BUNNY:
+    H-Hold on--  
+    "Want"'s a strong word.
+
+  RAFFLES:
+    But you'd be willing...  
+    You'd be my--
+
+  BUNNY:
+    <!>(dismissively)
+    Yeah yeah-- 
+    "accomplice", "partner",  
+    "partner-in-crime",
+    Whatever, >
+    The label doesn't matter. >
+    <!>(determined)
+    Just tell me what you need,  
+    and I'll do it.
+
+  Raffles tilts his head,  recalibrating.
+
+  RAFFLES:
+    Well.
+
+  He looks away,  biting a thumbnail --
+
+  RAFFLES:
+    (under his breath)
+    ...it's certainly a tantalizing offer...
+
+  He turns back and eyes Bunny closely...
+
+  RAFFLES:
+    ((colin_todo_sfx_emotional_concerned+temp_sfx_realization))
+    ...but you can't do crime.
+
+  BUNNY:
+    (blinks)
+    Wha-- >
+    [[animate stage with shake]]
+    ((m_todo_sfx_emotional_yelling+temp_sfx_smack))
+    ((play music mus_g_belly_2+mus_g_chest_hand+mus_g_clap+mus_g_hand_sweep_1+mus_g_hand_sweep_2+mus_g_heel_stage_multi+mus_g_single_hand_clap+mus_g_snap_multi+mus_g_stomp_floor+mus_g_thigh_side unmute))
+    Yes I can!!!
+
+  RAFFLES:
+    (sighs)
+    Bunny...
+
+  BUNNY:
+    [[animate stage with shake]]
+    ((m_todo_sfx_emotional_yelling+temp_sfx_smack))
+    I can do this!
+
+  RAFFLES:
+    <!>(rubbing his temple)
+    Bunny...
+
+  BUNNY:
+    [[animate stage with shake]]
+    ((m_todo_sfx_emotional_yelling+temp_sfx_smack))
+    I can do crime!!
+
+  RAFFLES [<]:
+    B--
+
+  BUNNY [>]:
+    [[animate stage with shake]]
+    ((m_todo_sfx_emotional_yelling+temp_sfx_smack))
+    Would'ya QUIT Bunny-ing me??  
+    [[animate stage with shake]]
+    ((m_todo_sfx_emotional_yelling+temp_sfx_smack))
+    I REFUSE TO BE 'BUNNY'-ED!!!
+
+  RAFFLES:
+    Bunny,  I asked if you wanted to movie hop once and you nearly had a panic attack.
+
+  Bunny gasps.
+
+  BUNNY:
+    [[animate stage with shake]]
+    ((m_todo_sfx_emotional_yelling+temp_sfx_smack))
+    Only nearly!!
+
+  RAFFLES:
+    You cried.
+
+  BUNNY:
+    [[animate stage with shake]] ((m_todo_sfx_emotional_yelling+temp_sfx_smack)) WOW!!!  [[animate stage with shake]] ((m_todo_sfx_emotional_yelling+temp_sfx_smack)) Okay!!   
+    [[animate stage with shake]] ((m_todo_sfx_emotional_yelling+temp_sfx_smack)) That is *not relevant!*   
+    [[animate stage with shake]] ((m_todo_sfx_emotional_yelling+temp_sfx_smack)) It was a _sad movie_! >
+    (under his breath)
+    ...the dog died...
+
+  Raffles looks into his eyes intently.
+
+  A beat.
+
+  Bunny shifts.
+
+  RAFFLES [<]:
+    (sighs)
+    I don't know...
+
+  BUNNY [>]:
+    <!>(exasperated)
+    [[animate stage with shake]]
+    ((m_todo_sfx_emotional_yelling+temp_sfx_smack))
+    Fine--!
+
+  BUNNY:
+    (pacing and thinking)
+    Alright...  
+    Okay I...  I... >
+    (got it!)
+    [[animate stage with shake]]
+    ((colin_sfx_emotional_realization+temp_sfx_smack))
+    I did a crime this morning!
+
+  RAFFLES:
+    <!>(curious)
+    Really?
+
+  BUNNY:
+    Yes!   In the subway -- I--I--  
+    I jumped the turnstile!
+
+  RAFFLES:
+    That's... >
+    <!>(disappointed)
+    That's not really a _crime_,  is it?
+
+  BUNNY:
+    [[animate stage with shake]] ((m_todo_sfx_emotional_yelling+temp_sfx_smack)) Yes -- [[animate stage with shake]] ((m_todo_sfx_emotional_yelling+temp_sfx_smack)) Yes it is!!
+
+  RAFFLES:
+    Was it broken?
+
+  BUNNY:
+    What?   [[animate stage with shake]] ((m_todo_sfx_emotional_yelling+temp_sfx_smack)) No it wasn't broken!! >
+    Also-- also... >
+    [[animate stage with shake]]
+    ((m_todo_sfx_emotional_yelling+temp_sfx_smack))
+    I stole a scooter!
+
+  RAFFLES:
+    <!>(alarmed)
+    You stole a child's scooter??
+
+  BUNNY:
+    Not a child's--  
+    [[animate stage with shake]]
+    ((m_todo_sfx_emotional_yelling+temp_sfx_smack))
+    One'a those green ones!!   
+    The ones the tourists keep crashin' into people.
+
+  RAFFLES:
+    (confused)
+    Bunny, you know you're meant to take those, right?
+
+  BUNNY:
+    No that's n--   >
+    [[animate stage with shake]]
+    ((m_todo_sfx_emotional_yelling+temp_sfx_smack))
+    Okay fine!  
+    Uhh I...   I...
+
+  Bunny paces back and forth,  racking his brain.
+
+  He stops and ((sfx_bang_snapping_single)) snaps his fingers.
+
+  BUNNY:
+    [[animate stage with shake]]
+    ((m_todo_sfx_emotional_yelling+temp_sfx_smack))
+    I ran a red light! >
+    _Several_ -- red lights.
+
+  RAFFLES:
+    Bunny, that's--!
+
+  Raffles steps forward and grabs Bunny's shoulder --
+
+  RAFFLES:
+    ...incredibly dangerous... >
+    You could have hurt yourself...
+
+  BUNNY:
+    [[animate stage with shake]]
+    ((m_todo_sfx_emotional_yelling+temp_sfx_smack))
+    Ugh! >
+    (shrugging him off)
+    Why do you--  
+    You always treat me like...  like... >
+    ((temp_sfx_smack))
+    [[animate stage with shake]] ((m_todo_sfx_emotional_yelling+temp_sfx_smack)) GAH!!   
+    [[animate stage with shake]] ((m_todo_sfx_emotional_yelling+temp_sfx_smack)) *I AIN'T YA _PET_!*   
+    [[animate stage with shake]] ((m_todo_sfx_emotional_yelling+temp_sfx_smack)) *I AIN'T YA _SIDEKICK_!!* >
+    [[animate stage with shake]] ((m_todo_sfx_emotional_yelling+temp_sfx_smack)) You don't getta tell me what I can and can't handle, A.J.!!! >
+    [[animate stage with shake]] ((m_todo_sfx_emotional_yelling+temp_sfx_smack)) ((stop music mus_g_group)) IT'S _MY DECISION_!!  [[animate stage with shake]] ((m_todo_sfx_emotional_yelling+temp_sfx_smack)) _NOT YOURS_!!!
+
+  Raffles steps back.
+
+  Bunny stops.   Blinks.   Remembers himself --
+
+  BUNNY:
+    Sorry,  I'm sorry... >
+    (shutting his eyes)
+    I didn't mean-- >
+    (shaking his head)
+    I just--
+
+  Silence.
+
+  Bunny looks down.   Raffles looks away.
+
+  BUNNY [<]:
+    A.J.,  I--
+
+  RAFFLES [>]:
+    ((temp_sfx_realization))
+    (quietly)
+    --You're right.
+
+  Bunny looks at him.
+
+  RAFFLES:
+    You're right.   It's your decision. >
+    It's not my place to say if you're ready or not.
+
+  // todo_r_sincere
+
+  Raffles holds out Bunny's MASQUERADE MASK.
+
+  // todo_r_sad
+  RAFFLES:
+    It never was.
+
+  A beat.
+
+  Bunny hesitantly takes the mask.
+
+  BUNNY:
+    I mean... >
+    (trying to lighten the mood)
+    ((play music mus_f_group))
+    Aren't these a bit much?
+
+  RAFFLES:
+    <!>(raising an eyebrow)
+    I have a ski mask if you prefer.
+
+  BUNNY:
+    (nervous chuckle)
+    Well,  that'd be more practical. >
+    (turns over the mask)
+    These barely cover anything.
+
+  Raffles shrugs and hands over the SKI MASK --
+
+  // todo raffles swoon
+
+  RAFFLES:
+    Personal preference. >
+    (putting on his own mask)
+    Most people's memories for faces are terrible either way. >
+    <!>(swooning dramatically)
+    And who am _I_ to deprive the world of such beauty?
+
+  BUNNY:
+    You really are full of yourself,  aren't you?
+
+  RAFFLES:
+    (sing-song)
+    ((colin_todo_sfx_emotional_teasing))
+    ~~Wasn't talking about *me*~~~
+
+  Bunny rolls his eyes and bites back a smirk.
+
+  He ((sfx_rustle_bag_stow)) stuffs the ski mask in his bag and dons the MASQUERADE MASK instead.
+
+  Shaking out his arms,  he starts bouncing on his feet like a boxer preparing for a fight --
+
+  BUNNY:
+    Okay-- >
+    I'm doin' this!   We're doin' this!!
+
+  RAFFLES:
+    Yes.
+
+  BUNNY:
+    (still bouncing)
+    Not gonna regret it later?
+
+  RAFFLES:
+    (laughs)
+    I won't,  if you won't.
+
+  BUNNY:
+    (quick)
+    Right!   Well I promise I--
+
+  RAFFLES:
+    --On _one_ condition!
+
+  BUNNY:
+    Yeah,  sure,  anything! >
+    (boxing the air)
+    Lay it on me.
+
+  RAFFLES:
+    ((colin_todo_emotional_realization+temp_sfx_realization))
+    ((fade music mus_f_group to 0 over 0.5))
+    We need a safe word.
+
+  Bunny freezes.
+
+  BUNNY:
+    ((m_todo_sfx_emotional_punchline)) a what.
+
+  ((stop music mus_f_group))
+  [[hide backdrop]]
+  %: TIME CUT TO:
+
+  ((play music mus_h_group))
+  ((sfx_rustle_harness))
+  [[show backdrop bg_danbys_alleyway_turntable]]
+  $: A HARNESS BEING TIGHTENED AROUND A WAIST
+
+  Raffles is kneeling in front of Bunny,  threading rope through the climbing harness around Bunny's hips.
+
+  RAFFLES:
+    (looping the end through)
+    "Pineapple"?
+
+  BUNNY:
+    Nah, too silly.
+
+  RAFFLES:
+    (making a complex knot)
+    "Stop"?
+
+  BUNNY:
+    Too literal.
+
+  RAFFLES:
+    (tying it off)
+    How about colors?
+
+  BUNNY:
+    Too confusing.   
+    Does yellow mean pause or slow down?
+
+  RAFFLES:
+    Ugh...  Can't we just use our old one?
+
+  Bunny blinks.
+
+  BUNNY:
+    <!>(blushes)
+    [[animate stage with shake]]
+    ((m_todo_sfx_emotional_yelling+temp_sfx_smack))
+    Definitely not!!!
+
+  RAFFLES:
+    (stands)
+    Well!  
+    I'm out of ideas then.
+
+  BUNNY:
+    <!>(huffy)
+    I don't understand why we need one anyway...
+
+  RAFFLES:
+    Because -- Bunny -- _you_ always worry five steps ahead and feel the need to voice your every concern aloud. >
+    It makes it very difficult to sort the rational qualms from the irrational ones.
+
+  BUNNY:
+    And my "*qualms*" about heights don't qualify as rational?
+
+  RAFFLES:
+    No. >
+    Now take off your boots.   
+    I need Bunny,  not Thumper.
+
+  Bunny lets out an indignant puff of air and kneels to untie his laces.
+
+  Raffles ((sfx_bang_light_bat)) sets down a pair of light-weight climbing shoes and straightens.
+
+  He starts securing Bunny's rope to the one tied around his own waist.
+
+  BUNNY:
+    I really don't see what tying yourself to me accomplishes.
+
+  RAFFLES:
+    (ties off rope)
+    This way if you fall,  
+    I can catch you.
+
+  BUNNY:
+    (pulls off boot)
+    Or I'll just drag you down with me.
+
+  Raffles sighs and looks at him --
+
+  RAFFLES:
+    Why is it always worst-case-scenario with you?
+
+  BUNNY:
+    (pulls off other boot)
+    [[animate stage with shake]]
+    ((m_todo_sfx_emotional_yelling+temp_sfx_smack))
+    Because you refuse to even consider it!
+
+  RAFFLES:
+    (shrugs)
+    If I fall,  I fall.   
+    Why worry about it now?
+
+  BUNNY:
+    (stands)
+    [[animate stage with shake]] ((m_todo_sfx_emotional_yelling+temp_sfx_smack)) Aha!   [[animate stage with shake]] ((m_todo_sfx_emotional_yelling+temp_sfx_smack)) See! >
+    (tucks boots under arm)
+    That's exactly what I mean.
+
+  RAFFLES:
+    (laughs)
+    And _this_ is precisely what I mean by worrying five steps ahead!   Bunny--!
+
+  Raffles ((sfx_bang_snatch)) grabs Bunny's arms and gives him an imploring shake --
+
+  RAFFLES:
+    ((stop music mus_h_group)) I've got you,  alright?   
+    You'll be fine.
+
+  [[animate screen with whitepulse]]
+  ((sfx_flashback_transition wait))
+  ((queue sound m_todo_sfx_flashback_motif))
+  _INSERT - 5 YEARS AGO:_  Bunny shushing comfortingly.
+
+  BUNNY:
+    Hey.   Hey, look at me.   
+    I got you,  yeah?
+
+  [[animate screen with whitepulse]]
+  ((sfx_flashback_transition wait))
+  ((queue sound m_todo_sfx_flashback_motif))
+  _BACK TO SCENE_.
+
+  Raffles releases him.
+
+  Bunny looks away.
+
+  He ((sfx_rustle_bag_stow)) stuffs the boots in his bag and slips into the climbing shoes.
+
+  Raffles ((sfx_rope_straining)) tugs the rope --
+
+  RAFFLES:
+    Seems secure enough. >
+    You've got the rest of the supplies?
+
+  BUNNY:
+    (sighs)
+    Yeah...  They're in my bag.
+
+  RAFFLES:
+    <!>(smiles)
+    Good.   Then let's review.
+
+  Raffles ((sfx_paper_unfurl)) ((play music mus_h_group)) unfurls a large MAP.
+
+  RAFFLES:
+    Our disaster couple is here. >
+    (pointing)
+    And Danby's over there. >
+    Luckily for us,  Danby's office has a skylight. >
+    Unluckily for us,  there's no way to scale the building from the outside. >
+    However,  just above our heads is the best pathway a thief could ask for:  _Fire escapes_.
+
+  BUNNY:
+    So we just climb the fire escapes and jump across? >
+    That doesn't sound so bad.
+
+  RAFFLES:
+    Well...  It wouldn't be,  except--
+
+  ((m_todo_sfx_bang_record_player_crash))
+  [[hide backdrop]]
+  [[show backdrop bg_danbys_alleyway_boombox_turntable]]
+  A BOOMBOX crashes to the ground at their feet.
+
+  A beat.
+
+  BUNNY:
+    Right.
+
+  RAFFLES:
+    (rolling up the map)
+    Unfortunately,  the building on the right is too high to make the jump. >
+    So this route is our only option.
+
+  He hands the map to Bunny.
+
+  RAFFLES:
+    Let's just hope we make it up there before they kill each other. >
+    <!>(beat)
+    We've had enough run-ins with law enforcement for one night.
+
+  [[hide backdrop]]
+  ((stop music mus_h_group))
+
+  %: CUT TO:
+
+  ### RhythmMinigame4
+
+  ^: <!>=== RHYTHM MINIGAME 4 BEGINS ===
+
+  ^: <!>[GAMEPLAY\: Follow Raffles' lead.  Repeat the pattern.]
+
+  $: EXT. NEIGHBORS' FIRE ESCAPE LEVEL 1 - (MINIGAME 4A)
+
+  Bunny follows Raffles up the fire escape as the couple argues in various rooms around the apartment.
+
+  The girlfriend continues to throw music equipment into the alley.
+
+  The attendant retaliates.
+
+  An EXERCISE BIKE crashes to the ground.
+
+  GIRLFRIEND:
+    HEY!  
+    THAT WAS A GIFT, YOU ANIMAL!!!
+
+  ATTENDANT:
+    I KNOW. >
+    _**I BOUGHT IT**_.
+
+  GIRLFRIEND:
+    W-well--!   
+    Who BUYS a girl an _exercise bike_?! >
+    You tryna say somethin'???
+
+  ATTENDANT:
+    EXCUSE ME??
+    You said -- *AND I QUOTE* -- "I THINK I NEED ONE"!
+
+  $: EXT. NEIGHBORS' FIRE ESCAPE LEVEL 2 - (MINIGAME 4B)
+
+  The boys proceed while dodging a barrage of sporting equipment.
+
+  Raffles PULLS BUNNY out of the way of a falling BARBELL.
+
+  RAFFLES:
+    We were never this bad,  were we?
+
+  BUNNY:
+    No!
+
+  He thinks about it.
+
+  BUNNY:
+    Sometimes! >
+    <!>(beat)
+    But we gay dated in Catholic School. >
+    We had **real** problems!
+
+  $: EXT. NEIGHBORS' FIRE ESCAPE LEVEL 3 - (MINIGAME 4C)
+
+  Both sides begin throwing various items out into the alley at the same time.
+
+  Raffles lingers to pocket some of it.   Bunny forcibly drags him away.
+
+  They make their way to the top of the roof.
+
+  %: CUT TO:
+
+  $: EXT. APARTMENT ROOFTOP - NIGHT
+
+  [[show backdrop bg_apartment_rooftop]]
+
+  Raffles pulls himself up and rolls onto the rooftop,  breathing heavily.
+
+  Bunny follows soon after.  He leans and wheezes against the roof access wall.
+
+  ((sfx_door_slam_open_rev_0))
+  ((play music mus_g_group))
+  The door SLAMS OPEN.
+
+  choose
+    + [Success!]
+      _If player did well:_  Bunny dodges out of the way.
+
+    + [Fail...]
+      _If player did poorly:_  Bunny gets ((sfx_bang_smack)) smacked in the face.
+  then
+
+    ^: <!>=== RHYTHM MINIGAME 4 ENDS ===
+
+    The girlfriend BURSTS through the door and runs ahead.
+
+    Raffles and Bunny crouch in the darkness.
+
+    ATTENDANT (O.S.):
+      WOAH WOAH WOAH!!   
+      Can we take it down a notch?!
+
+    She WHIPS AROUND to face him.
+
+    GIRLFRIEND (O.S.):
+      [[animate stage with shake]]
+      ((m_todo_sfx_emotional_yelling+temp_sfx_smack))
+      DON'T YOU COME ANY CLOSER!!
+
+    She takes a step back toward the edge.
+
+    RAFFLES:
+      (whispering to himself)
+      Damn.   No murder.   Only 50% right.
+
+    BUNNY:
+      (smacks his arm)
+      ((sfx_bang_smack)) *Psychopath*.
+
+    RAFFLES:
+      (ow)
+      [[animate stage with shake]]
+      ((m_todo_sfx_emotional_yelling+temp_sfx_smack))
+      *Abuse!*
+
+    The couple keeps screaming.
+
+    Raffles eyes them like he's timing a traffic light.   He edges toward the gap...
+
+    AN ARM SHOOTS OUT to block his path.
+
+    // todo wrong face
+
+    BUNNY:
+      Raffles.
+
+    GIRLFRIEND (O.S.):
+      [[animate stage with shake]] ((m_todo_sfx_emotional_yelling+temp_sfx_smack)) *YOU NEVER TAKE ME SERIOUS!*
+      [[animate stage with shake]] ((m_todo_sfx_emotional_yelling+temp_sfx_smack)) *YOU ALWAYS ACT LIKE I'M MAKIN' A BIG DEAL OUTTA NOTHIN'!*
+
+    Bunny crosses his arms.
+
+    ATTENDANT (O.S.):
+      [[animate stage with shake]] ((m_todo_sfx_emotional_yelling+temp_sfx_smack)) *'CAUSE IT'S TRUE!*
+      [[animate stage with shake]] ((m_todo_sfx_emotional_yelling+temp_sfx_smack)) *YA DOIN' IT RIGHT NOW!*
+
+    Raffles frowns.
+
+    // todo wrong face
+
+    BUNNY:
+      We can't just leave.
+
+    // todo wrong face
+
+    RAFFLES:
+      I really don't see how it's our responsibility.
+
+    BUNNY:
+      [[animate stage with shake]]
+      ((m_todo_sfx_emotional_yelling+temp_sfx_smack))
+      What if she jumps?!
+
+    Raffles shrugs.
+
+    RAFFLES:
+      Well... >
+      (stepping past him)
+      ...it'd be one less person to sneak around.
+
+    // todo wrong face
+
+    BUNNY:
+      [[animate stage with shake]]
+      ((m_todo_sfx_emotional_yelling+temp_sfx_smack))
+      _***RAFFLES!!***_
+
+    Raffles JERKS TO A HALT.
+
+    He glances down to the rope tied around his waist.
+
+    Bunny ((sfx_rope_straining)) _TIGHTENS HIS GRIP ON THE ROPE_ --
+
+    BUNNY:
+      Cinnamon.
+
+    Raffles looks back and raises an eyebrow.
+
+    Bunny holds his ground.
+
+    BUNNY:
+      <!>(serious)
+      ::**Cinnamon...**::
+
+    A beat.
+
+    A look.
+
+    A hard stare...
+
+    ...And......
+
+    RAFFLES:
+      (eye-roll)
+      Ugh,  *_Fine_.*
+
+    ((fade music mus_g_belly_2+mus_g_chest_hand+mus_g_clap+mus_g_hand_sweep_1+mus_g_hand_sweep_2+mus_g_heel_stage_multi+mus_g_single_hand_clap+mus_g_snap_multi+mus_g_stomp_floor+mus_g_thigh_side to 0 over 1))
+    Bunny releases him.
+
+    Raffles GLARES and STOMPS backward toward the arguing couple --
+
+    RAFFLES:
+      (unhitching rope, ripping off mask, throwing on cap)
+      You and your big *bleeding h*-- >
+      (in the same breath)
+      ((play music mus_credits_loop_group mute))
+      ((play music mus_credits_loop_bass+mus_credits_loop_hihat+mus_credits_loop_kick+mus_credits_loop_piano_chords+mus_credits_loop_snare1+mus_credits_loop_snare2+mus_credits_loop_trombone unmute))
+      ((fade music mus_credits_trombone to 3))
+      Howdy,  neighbors~!   
+      Sorry to interrupt...
+
+    Raffles leans against the door frame,  casual,  as if he'd only just ambled through it moments ago.
+
+    The couple blinks at the newcomer.
+
+    From the shadows,  Bunny slumps back against the wall.
+
+    RAFFLES:
+      (in a smooth southern drawl)
+      See, I was just loungin' on my terrace this fine evenin'--
+
+    It's 3AM.
+
+    RAFFLES:
+      --when this here fell right into my lap.
+
+    Raffles produces a small black box.
+
+    RAFFLES:
+      Figured y'all might want it back.
+
+    The attendant shifts nervously.
+
+    The girlfriend steps away from the ledge.
+
+    GIRLFRIEND:
+      Um.
+
+    She moves forward,  hesitant --
+
+    GIRLFRIEND:
+      ...Is... Is that...?
+
+    Raffles hands her the box.
+
+    She opens it to confirm.
+
+    Inside is an ENGAGEMENT RING.
+
+    ATTENDANT:
+      ...I been tryna find the right time to ask... But...
+
+    GIRLFRIEND:
+      ...Yes?
+
+    A beat.
+
+    ATTENDANT:
+      Wait, really?
+
+    GIRLFRIEND:
+      (surprising herself)
+      [[animate stage with shake]]
+      ((m_todo_sfx_emotional_yelling+temp_sfx_smack))
+      Yes...?
+      (convincing herself)
+      [[animate stage with shake]]
+      ((m_todo_sfx_emotional_yelling+temp_sfx_smack))
+      Yes.   Yes!  
+      'A COURSE,  YES!!
+
+    Her steps become a run.
+
+    Bunny mouths something that looks like "...what?"
+
+    They MEET and EMBRACE.
+
+    Raffles tips his head.   Bewildered.   Kind of fascinated.
+
+    They start MAKING OUT.
+
+    Raffles stares -- completely forgetting himself. 
+
+    Bunny scruffs him by the collar and hauls him toward the next roof --
+
+    BUNNY:
+      (hissing)
+      [[animate stage with shake]]
+      ((m_todo_sfx_emotional_yelling+temp_sfx_smack))
+      *You stole their engagement ring??*
+
+    RAFFLES:
+      [[animate stage with shake]]
+      ((m_todo_sfx_emotional_yelling+temp_sfx_smack))
+      Well they didn't seem like they'd need it,  did they?!
+
+    Together,  the two boys ((sfx_jumping_turnstile)) ((stop music mus_credits_loop_group)) [[hide backdrop]] jump over the gap and duck out of sight...
+
+    $: EXT. DANBY'S ROOFTOP - NIGHT
+
+    [[show backdrop bg_danbys_rooftop]]
+
+    ((play music mus_a_group))
+    Bunny bends over,  clutching his knees and struggling to catch his breath.
+
+    Raffles looks back toward the other rooftop.
+
+    RAFFLES:
+      Wow. >
+      <!>(almost impressed)
+      They are _still_ going at it, huh?
+
+    BUNNY:
+      Can we focus up, please?
+
+    RAFFLES:
+      (clears throat)
+      ...Right. >
+      ((sfx_door_hinge_squeak))
+      [[show backdrop bg_danbys_rooftop_window_open]]
+      (opening the skylight)
+      Well the rest should be fairly straightforward. >
+      <!>(grinning)
+      I'll just lower you in on a rope.
+
+    BUNNY:
+      So...  
+      Like Tom Cruise.
+
+    Raffles looks at him blankly.
+
+    BUNNY:
+      ...Like they do in the movie?
+
+    RAFFLES:
+      What movie?
+
+    BUNNY:
+      Seriously??
+
+    RAFFLES:
+      (sighs)
+      ((colin_todo_emotional_snooty))
+      Bunny,  you know I don't watch movies.
+
+    BUNNY:
+      (exasperated laugh)
+      [[animate stage with shake]]
+      ((m_todo_sfx_emotional_yelling+temp_sfx_smack))
+      You're an _actor_!!
+
+    RAFFLES:
+      Yes.   A _TV_ actor.
+
+    BUNNY:
+      [[animate stage with shake]]
+      ((m_todo_sfx_emotional_yelling+temp_sfx_smack))
+      And we went to the movies!
+
+    RAFFLES:
+      Once! >
+      (quieter)
+      And you had a traumatic experience...
+
+    BUNNY:
+      Okay,  "traumatic"'s a stretch.
+
+    RAFFLES:
+      (groans)
+      ((colin_todo_sfx_emotional_groan))
+      Can we *please* not get into this again?
+
+    BUNNY:
+      (waves off)
+      Fine...   Fine!
+
+    Bunny ((sfx_bang_light_bat)) hands his rope to Raffles --
+
+    BUNNY:
+      Let's just do the thing,  
+      So we can get outta here.
+
+    Bunny sits on the edge of the skylight.
+
+    Raffles gets into position.
+
+    BUNNY:
+      (one last thing)
+      And we are watching Mission Impossible after this.
+
+    Bunny jumps in.
+
+    [[hide backdrop]]
+
+    %: CUT TO:
+
+    ## BadGuysCloseIn
+
+    $: INT. DANBY'S OFFICE - NIGHT
+
+    [[show backdrop bg_danbys_office_night]]
+
+    Bunny is slowly lowered into a stately but sparse home office,  directly above a large mahogany desk.
+
+    Behind him -- a gilt-framed Saint Sebastian,  ecstatic and full of arrows.
+
+    RAFFLES (O.S.):
+      (from above)
+      Can you reach the tray?
+
+    Bunny spots it.
+
+    BUNNY:
+      (calling up)
+      Yeah!   Just barely!
+
+    RAFFLES (O.S.):
+      Alright,  drop off the script and I'll pull you back up!
+
+    Bunny reaches into his bag and ((sfx_rustle_bag_remove)) takes out his script.
+
+    He reaches toward the tray,  but just before dropping it inside,  he spots something.
+
+    ((colin_todo_sfx_emotional_questioning))
+    A FRAMED PHOTO -- sitting on the desk.
+
+    RAFFLES (O.S.):
+      Quickly please!   
+      You're heavier than I remember!
+
+    Bunny doesn't respond.   The script falls from his fingers into the tray -- forgotten.
+
+    The rope starts to ((sfx_rope_straining)) FRAY.
+
+    RAFFLES (O.S.):
+      Bunny?
+
+    Bunny reaches for the photo.
+
+    It's a picture of three young kids\:
+
+    Two girls and a boy who looks suspiciously like...
+
+    BUNNY:
+      (thinking aloud)
+      ((colin_todo_emotional_realization))
+      Raffles?
+
+    _The rope ((sfx_rope_snaps_rev_1)) SNAPS_.
+
+    [[show backdrop bg_danbys_office_night_bunny_falls_1]]
+    Bunny ((sfx_bang_crash)) tumbles to the ground.
+
+    The frame ((sfx_picture_frame_shattering)) hits the floor and cracks open.
+
+    A small CARD -- long hidden behind the photo -- slips free.
+
+    It vanishes under the desk.
+
+    Bunny's arm collides with a display pedestal under a LARGE VASE.
+
+    It wobbles.  Tips...
+
+    And falls to the ground with a ((sfx_urn_shattering)) [[show backdrop bg_danbys_office_night_bunny_falls_2]] ((stop music mus_a_group)) CRASH.
+
+    ((temp_sfx_saveblip))
+    ((play music mus_e_group))
+    AN ALARM SOUNDS.
+
+    BUNNY:
+      Shit.
+
+    Raffles looks down through the open skylight --
+
+    RAFFLES:
+      (yelling over the alarm)
+      [[animate stage with shake]] ((m_todo_sfx_emotional_yelling+temp_sfx_smack)) Bunny!!   [[animate stage with shake]] ((m_todo_sfx_emotional_yelling+temp_sfx_smack)) Are you all right?!
+
+    BUNNY:
+      (up to Raffles)
+      [[animate stage with shake]] ((m_todo_sfx_emotional_yelling+temp_sfx_smack)) I'm fine!   [[animate stage with shake]] ((m_todo_sfx_emotional_yelling+temp_sfx_smack)) But what now???
+
+    RAFFLES:
+      [[animate stage with shake]] ((m_todo_sfx_emotional_yelling+temp_sfx_smack)) Do you see the balcony doors on the far wall??
+
+    Bunny frantically scans the room.
+
+    Spots it.
+
+    BUNNY:
+      [[animate stage with shake]]
+      ((m_todo_sfx_emotional_yelling+temp_sfx_smack))
+      Yes!
+
+    RAFFLES:
+      [[animate stage with shake]]
+      ((m_todo_sfx_emotional_yelling+temp_sfx_smack))
+      Open them!
+
+    Bunny scrambles toward the doors.
+
+    He ((sfx_door_unlock)) unlocks and ((m_todo_sfx_door_open)) [[hide backdrop]] THROWS them open.
+
+    [[show backdrop bg_danbys_balcony_night_no_rope]]
+
+    $: EXT. DANBY'S OFFICE BALCONY - NIGHT
+
+    Raffles ((sfx_whoosh_rev_1)) [[show backdrop bg_danbys_balcony_night_drop_rope_no_rain]] SWINGS DOWN from the roof on a rope.
+
+    As soon as he lands on the balcony,  Raffles takes the end of the rope and ((sfx_whoosh_rev_1)) throws  it over the railing so it reaches all the way to ground level.
+
+    He hands the rope to Bunny --
+
+    RAFFLES:
+      (yelling over the alarm)
+      [[animate stage with shake]]
+      ((m_todo_sfx_emotional_yelling+temp_sfx_smack))
+      You'll need to climb down!
+
+    Bunny looks over the edge.
+
+    It's A LONG WAY DOWN.
+
+    BUNNY:
+      [[animate stage with shake]]
+      ((m_todo_sfx_emotional_yelling+temp_sfx_smack))
+      Seriously?!
+
+    RAFFLES:
+      [[animate stage with shake]]
+      ((m_todo_sfx_emotional_yelling+temp_sfx_smack))
+      It'll be fine!
+
+    BUNNY:
+      [[animate stage with shake]]
+      ((m_todo_sfx_emotional_yelling+temp_sfx_smack))
+      Didn't this rope just break???
+
+    RAFFLES:
+      Different rope! >
+      ...I think.
+
+    BUNNY:
+      [[animate stage with shake]]
+      ((m_todo_sfx_emotional_yelling+temp_sfx_smack))
+      YOU'RE NOT SURE??!!
+
+    RAFFLES:
+      [[animate stage with shake]]
+      ((m_todo_sfx_emotional_yelling+temp_sfx_smack))
+      *We don't have many other options!!!*
+
+    Bunny squeezes his eyes tight and tries to get his breathing under control.
+
+    In,  out.   In,  out.
+
+    Raffles grabs his arms.
+
+    RAFFLES:
+      (pressing his forehead against Bunny's)
+      I've got you,  remember?
+
+    A drop of rain.
+
+    Bunny opens his eyes.
+
+    He searches Raffles' face.
+
+    A beat.
+
+    He nods.
+
+    Bunny makes his way to the railing and starts to climb over.
+
+    ((play ambient sfx_amb_rain_outdoors))
+    [[show backdrop bg_danbys_balcony_night_drop_rope]]
+    The rain picks up.
+
+    Raffles quietly steps back through the balcony doors.
+
+    More rain.
+
+    ((sfx_door_close))
+    Bunny hears the doors SWING CLOSED.
+
+    He looks up.
+
+    He sees Raffles ((sfx_door_lock)) LOCK THEM.
+
+    _A DOWNPOUR_.
+
+    Bunny drops the rope.   Rushes over.   And ((sfx_window_jostle)) WRENCHES at the doors --
+
+    BUNNY:
+      (muffled through the glass)
+      [[animate stage with shake]]
+      ((m_todo_sfx_emotional_yelling+temp_sfx_smack))
+      What are you--???!
+
+    RAFFLES (O.S.):
+      (through the glass)
+      I'm sorry I got you into this,  Bunny.   
+      This is my debt to settle,  not yours.
+
+    BUNNY:
+      [[animate stage with shake]]
+      ((m_todo_sfx_emotional_yelling+temp_sfx_smack))
+      Christ,  for once in your goddamn life,  could'ya cut the cryptic bullshit!
+
+    His palms press flat to the glass.
+
+    BUNNY:
+      [[animate stage with shake]]
+      ((m_todo_sfx_emotional_yelling+temp_sfx_smack))
+      Just let me in!!
+
+    Raffles turns away,  and steps back into the darkness.
+
+    BUNNY:
+      [[animate stage with shake]]
+      ((m_todo_sfx_emotional_yelling+temp_sfx_smack))
+      Raffles!! >
+      (rattles the door)
+      [[animate stage with shake]]
+      ((m_todo_sfx_emotional_yelling+temp_sfx_smack))
+      RAFFLES!!! >
+      (bangs on the glass)
+      [[animate stage with shake]]
+      ((sfx_bang_kick))
+      _A.J.,  PLEASE!!_
+
+    Behind the doors,  a large BOOKSHELF is ((m_todo_scrape_wood_against_floor)) [[show backdrop bg_danbys_balcony_night_bookcase]] shoved  over,  blocking the entrance entirely.
+
+    ## AllIsLost
+
+    Bunny ((sfx_bang_kick)) KICKS the door in frustration --
+
+    BUNNY:
+      DAMMIT!
+
+    Bunny whirls around and darts to the balcony edge.
+    He squints through the rain at the street below.
+
+    No other option.
+
+    Bunny scrambles over the wet railing,  grabs the rope,  and gets his footing on the wall.
+
+    His head SNAPS toward the horizon.
+
+    ((m_todo_sfx_police_sirens))
+    _SIRENS in the distance_.
+
+    It's almost dawn,  and the police are coming.
+
+    Bunny looks to the balcony doors.   Still shut tight.
+
+    He looks at the rope.
+
+    ((stop music mus_e_group))
+    [[hide backdrop]]
+    He closes his eyes.
+
+    ## DarkNightOfTheSoul
+
+    [[animate screen with whitepulse]]
+    ((sfx_flashback_transition wait))
+    ((queue sound m_todo_sfx_flashback_motif))
+    ((stop ambient))
+    _FLASHBACK - 5 YEARS AGO_\:  Blackness.
+
+    ((play music mus_j_group_prehook_loop))
+
+    ((sfx_bang_light_bat)) TINK.
+
+    RAFFLES (O.S.):
+      Hey.
+
+    ((sfx_bang_light_bat)) TINK.
+
+    RAFFLES (O.S.):
+      Hey.   Wake up.
+
+    We see a young Bunny fast asleep,  slumped over the small leather notebook on his desk.
+
+    ((sfx_bang_light_bat)) TINK.   Another Altoid hits him in the face.
+
+    BUNNY:
+      (eyes still closed)
+      [[animate stage with shake]]
+      ((m_todo_sfx_emotional_yelling+temp_sfx_smack))
+      Ow!
+
+    Bunny sits up,  rubbing his forehead.
+
+    ((queue music mus_j_group_prehook_end))
+    ((queue music mus_j_group_hook))
+    ((queue music mus_j_group_main))
+    The camera pulls back to reveal...
+
+    [[show backdrop bg_bunnys_dorm_room]]
+
+    $: INT. SAINT SEBASTIAN ACADEMY, BUNNY'S DORM ROOM - DAWN
+
+    Latin Mass and limestone.   Dawn light through stained glass.
+
+    Bunny blearily blinks awake.
+
+    On his desk perches a particularly puckish young chap --
+
+    RAFFLES:
+      (eye-roll)
+      Ugh...  Finally! >
+      (popping a mint in his mouth)
+      You were asleep for ages!
+
+    BUNNY:
+      (groans)
+      ((colin_todo_sfx_emotional_groan)) What time is it?
+
+    RAFFLES:
+      Half past five.
+
+    Bunny buries his face in his arms with a muffled moan --
+
+    BUNNY:
+      ((colin_todo_sfx_emotional_groan))...whyyyyyy...
+
+    Raffles shrugs.
+
+    RAFFLES:
+      (munching)
+      Woke up early.   Got bored.
+
+    BUNNY:
+      (muffled)
+      ...so I gotta suffer too...
+
+    RAFFLES:
+      "...A dreamer's punishment is that he sees the dawn before the rest of the world."
+
+    Bunny stares at him.
+
+    // todo bunny suspicious
+
+    BUNNY:
+      <!>(deadpan)
+      Was that...  _poetry_?
+
+    RAFFLES:
+      <!>(smug)
+      ((colin_todo_emotional_snooty)) One of my many hidden depths.
+
+    BUNNY:
+      ((colin_todo_sfx_emotional_unimpressed))
+      Uh-huh. >
+      (sitting up)
+      So what's so important it couldn't wait til first period?
+
+    RAFFLES:
+      I... >
+      I-I already said.   
+      I was bored.
+
+    BUNNY:
+      Nope!   That's a lie. >
+      (laughs)
+      ((colin_todo_sfx_emotional_laugh_snort))
+      That's _definitely_ a lie.
+
+    Raffles huffs and faces the horizon.
+
+    A beat.
+
+    Bunny pushes back from his desk with a ((m_todo_scrape_wood_against_floor)) SCRAPE.
+
+    BUNNY:
+      (stands)
+      Okay.
+
+    He plods over to his bed.
+
+    BUNNY:
+      (lying down)
+      Sit there and sulk.
+
+    He pulls up his covers and faces the wall.
+
+    BUNNY (O.S.):
+      I'm goin' to sleep.
+
+    The room settles.
+
+    It doesn't last.
+
+    // todo raffles sincere
+
+    RAFFLES:
+      You know... >
+      (looking out the window)
+      ...I'm thinking of attending the reconciliation service.
+
+    Bunny opens an eye.
+
+    // todo bunny suspicious
+
+    BUNNY:
+      Seriously?
+
+    RAFFLES:
+      (looking at him)
+      Hm. >
+      <!>(raising an eyebrow)
+      Is it really that surprising?
+
+    Bunny turns over to face him.
+
+    Bunny gives him a pointed look.
+
+    // todo raffles swoon
+
+    RAFFLES:
+      *Tch*...   You wound me. >
+      <!>(theatrically)
+      Do I not have a right to *"wash my scarlet sins and make them white as snow"*?
+
+    Bunny sighs and sits up.
+
+    BUNNY:
+      Generally the point'a "clean slates" is to try and keep 'em clean.
+
+    RAFFLES:
+      Well where's the fun in that?
+
+    // todo suspicious
+
+    BUNNY:
+      I don't think _fun_'s all that high on the Catholic agenda.
+
+    RAFFLES:
+      (rising)
+      I completely disagree.
+
+    He saunters languidly across the sill --
+
+    RAFFLES:
+      I take great pleasure in attending Mass.   >
+      It satisfies my vanity.
+
+    BUNNY:
+      Your vanity.
+
+    RAFFLES:
+      <!>(grins)
+      Of course!
+
+    Raffles jumps down onto the desk.
+
+    // todo smiling and looking at nails
+
+    RAFFLES:
+      Nothing makes a person so vain as being called a sinner. >
+      (with a courtly bow)
+      It gives religion all the charm of flirtation and romance.
+
+    Bunny gives him a flat look.
+
+    BUNNY:
+      You know,  most people would find your views highly offensive.
+
+    RAFFLES:
+      (straightens)
+      "Most people" have too many virtues and too little imagination.
+
+    BUNNY:
+      Not you though.
+
+    RAFFLES:
+      (plops down on the windowsill)
+      Nope. >
+      (crossing his legs)
+      I have the opposite problem.
+
+    BUNNY:
+      Too little virtue?
+
+    RAFFLES:
+      Too much imagination.
+
+    BUNNY:
+      Right... >
+      (sighs)
+      So why *now* all of a sudden?  
+      D'you do something you regret?
+
+    RAFFLES:
+      Perhaps...
+
+    Raffles turns away.
+
+    RAFFLES:
+      ...Perhaps I simply woke with something in my soul I felt I should confess...
+
+    Bunny waits.
+
+    And waits...
+
+    And waits...
+
+    When Raffles turns,  the easy smile is back in place.
+
+    RAFFLES:
+      (stands)
+      --But!   I've changed my mind.
+
+    Raffles dusts himself off.
+
+    BUNNY:
+      great.
+
+    Bunny pulls the covers over his head --
+
+    BUNNY:
+      (mumbles)
+      Glad we had this chat.
+
+    RAFFLES:
+      See you in class.
+
+    He ((sfx_door_hinge_squeak)) opens the window and ((sfx_bang_collide_nopaper)) jumps onto the rooftop.
+
+    RAFFLES:
+      (peeking his head in)
+      And get some sleep.    >
+      You look like crap.
+
+    BUNNY:
+      (muffled)
+      thanks.
+
+    Bunny hears the ((sfx_door_hinge_squeak)) squeak of the window closing,  but it isn't followed by the usual final click.
+
+    RAFFLES:
+      (through the window)
+      Hey, Bunny...
+
+    An anxious pause.
+
+    RAFFLES:
+      ((colin_todo_sfx_emotional_questioning+temp_sfx_realization))
+      ((fade music mus_j_main_extra_hands+mus_j_main_melody to 0 over 0.5))
+      (more to himself)
+      ...you and me against the world,  yeah?
+
+    A beat.
+
+    Bunny shifts and pokes his head from the covers.
+
+    He looks at him.
+
+    BUNNY:
+      Yeah. >
+      <!>(beat)
+      [[hide backdrop]]
+      ((stop music mus_j_group_main))
+      You and me against the world.
+
+    _BACK TO SCENE_.
+
+    ((play ambient sfx_amb_rain_outdoors))
+    ((play environmental sfx_ambient_alarm_muffled))
+    [[show backdrop bg_danbys_balcony_night_bookcase]]
+
+    ## ChoosingActFive
+
+    // TODO_sfx_police_siren
+    The ((m_todo_sfx_police_sirens)) sirens are getting closer.
+
+    POLICE LIGHTS in the distance.
+
+    Bunny takes one last look at the street below...
+
+    ((colin_todo_emotional_realization))
+    ((play music mus_d_bass_amp+mus_d_bass_di to 7))
+    **_...and starts climbing UP_.**
+
+    ^: _END ACT FOUR_
+
+    -> ACT_FIVE
+  end
+end
+
+scene ACT_FIVE
+  ((play ambient sfx_amb_rain_outdoors))
+  ((play environmental sfx_ambient_alarm_muffled))
+  ((play music mus_d_bass_amp+mus_d_bass_di to 7))
+  # ActFive
+
+  ^: _ACT FIVE_
+
+  ## Finale
+
+  $: CLOSEUP - A HAND CLUTCHING THE ROOFTOP EDGE
+
+  Bunny pulls himself onto the roof.
+
+  $: EXT. DANBY'S ROOFTOP - NIGHT
+
+  // todo rain variant
+
+  [[show backdrop bg_danbys_rooftop_dawn]]
+
+  He quickly heads for the skylight.
+
+  It's LOCKED.
+
+  The pouring rain blurs the view below.   He ((sfx_wiping)) wipes away some grime -- and makes out Raffles in the middle of the room.
+
+  ((m_todo_sfx_door_open+temp_sfx_dooropens))
+  ((play ambient sfx_amb_rain_indoors))
+  ((play environmental sfx_ambient_alarm))
+  ((stop music mus_d_bass_amp+mus_d_bass_di))
+  [[hide backdrop]]
+  The office door swings open.
+
+  $: INT./EXT. INTERCUT
+
+  [[show backdrop bg_danbys_office_dawn]]
+
+  ((stop environmental))
+  The alarm STOPS.
+
+  RAFFLES:
+    Ah!   Good old Danby!   
+    What a surprise.   
+    It's been a while,  hasn't it?
+
+  A sharply-dressed figure steps into the room.
+
+  ((sfx_door_close))
+  ((play music mus_k_group))
+  The door shuts.
+
+  A _woman_.
+
+  This is DANBY (26).  She's only three years older than Raffles.  But she wears it like decades.
+
+  DANBY:
+    I hate it when you call me that.
+
+  RAFFLES:
+    <!>(smiling)
+    I know.
+
+  DANBY:
+    What are you doing here, Arthur?
+
+  RAFFLES:
+    Oof. >
+    What kind of greeting is that for an old friend?
+
+  DANBY:
+    The kind he deserves.
+
+  [[hide backdrop]]
+  [[show backdrop bg_danbys_rooftop_dawn]]
+  ((play ambient sfx_amb_rain_outdoors))
+  ((sfx_tires_screech_rev_1))
+  A SCREECH of tires.
+
+  Bunny looks up to see two officers ((sfx_car_doors_open_close_distant)) exit a police car and approach the building.
+
+  Danby and Raffles' voices emanate through the skylight from the room below -- too muffled to make out through the rain.
+
+  Bunny ducks lower on the roof.
+
+  [[hide backdrop]]
+  [[show backdrop bg_danbys_office_dawn]]
+  ((play ambient sfx_amb_rain_indoors))
+
+  RAFFLES:
+    (glancing toward the window)
+    ((colin_todo_sfx_emotional_sigh)) Well I really wish I could stay and enjoy more of your lovely hospitality >
+    But it seems you'll be entertaining other guests soon. >
+    I'll just say my piece and be on my way.
+
+  Raffles ((sfx_paper_unfurl)) pulls out the STACK OF SCRIPTS from his coat and ((sfx_paper_crunch_rev_0)) tosses them on the desk --
+
+  RAFFLES:
+    ((temp_sfx_thud3))
+    ((fade music mus_k_bass_clarinet+mus_k_clarinet+mus_k_tenor_sax+mus_k_viola+mus_k_violin_1+mus_k_violin_1+mus_k_violin_2_3+mus_k_violin_2_1+mus_k_violin_2_2 to 0 over 0.5))
+    Stop sending me these.   
+    I'm not interested in joining your crew.
+
+  Danby raises an eyebrow.
+
+  She picks up the scripts and flips through them.
+
+  DANBY:
+    A shame.
+
+  RAFFLES:
+    I know,  I know.
+
+  DANBY:
+    These were some of my best.
+
+  RAFFLES:
+    All marvels of ingenuity,  I'm sure.
+
+  DANBY:
+    ((colin_todo_emotional_realization+temp_sfx_realization))
+    ((fade music mus_k_bass_clarinet+mus_k_clarinet+mus_k_tenor_sax+mus_k_viola+mus_k_violin_1+mus_k_violin_1+mus_k_violin_2_3+mus_k_violin_2_1+mus_k_violin_2_2 to 1 over 5))
+    But I didn't send them.
+
+  Silence.
+
+  RAFFLES:
+    What?
+
+  DANBY:
+    Always so full of yourself,  aren't you?
+
+  She ((sfx_bang_light_bat)) tosses them in a WASTE BIN.
+
+  // todo danby eyes closed
+
+  DANBY:
+    I don't want you on the team, Arthur. >
+    Considering that little _stunt_ you pulled five years ago.
+
+  [[animate screen with whitepulse]]
+  ((sfx_flashback_transition wait))
+  ((queue sound m_todo_sfx_flashback_motif))
+  _INSERT - 5 YEARS AGO:_  A young Danby,  struggling,  being dragged father and farther away.   "LET HER GO!"    Hands tremble around a gun.   *His* hands.   An ace of spades.   _A stampede_.
+
+  [[animate screen with whitepulse]]
+  ((sfx_flashback_transition))
+  _BACK TO SCENE_.
+
+  Raffles goes very still.
+
+  RAFFLES:
+    I-I don't-- >
+    If you didn't send them,  then who...
+
+  DANBY:
+    Take a wild guess.
+
+  [[animate screen with whitepulse]]
+  ((sfx_flashback_transition wait))
+  ((queue sound m_todo_sfx_flashback_motif))
+  _INSERT - 5 YEARS AGO:_  *A girl's* hands,  wrenching the gun from his.   "What are you doing?!"   ((sfx_guns_firing)) **BA-BANG** -- A scream.   *Blood* drips down the side of her face.
+
+  [[animate screen with whitepulse]]
+  ((sfx_flashback_transition))
+  _BACK TO SCENE_.
+
+  RAFFLES:
+    <!>(thrown)
+    But--
+
+  Danby picks the FRAMED PHOTO off the floor.
+
+  DANBY:
+    I always did underestimate the effect you have on her.
+
+  In the photo\:  three young kids -- Raffles,  Danby,  and *the girl* between them,  an arm slung around each.
+
+  She ((sfx_bang_light_bat)) stands the photo back on her desk.
+
+  DANBY:
+    But that's love.   Makes fools of us all.
+
+  Raffles steps back.
+
+  %: CUT TO:
+
+  $: INTERIOR STAIRCASE - TWO FIGURES THUNDER UP THE STEPS.
+
+  A gloved fist ((sfx_bang_wood_thump)) pounds the office door.
+
+  ((sfx_bang_wood_thump wait)) THUD. ((sfx_bang_wood_thump after 0.25)) THUD.
+
+  FROM THE OTHER SIDE of the door --
+
+  DETECTIVE MACKENZIE (O.S.):
+    (muffled)
+    Police!   Open up!
+
+  Raffles flinches.   The room comes back to him.   Too late.
+
+  Raffles WHIPS toward the balcony.
+
+  _It's still blocked off_.
+
+  ((sfx_door_slam_open_rev_0))
+  ((stop music mus_k_group))
+  BANG!   The door SLAMS open.
+
+  Two officers enter,  one pointing a gun at Raffles' back.
+
+  OFFICER CRAWSHAY:
+    H-hands in the air!
+
+  A beat.
+
+  For a second,  no one moves...
+
+  Then Raffles slowly puts his hands up.
+
+  DETECTIVE MACKENZIE:
+    On the ground, please.
+
+  A beat.
+
+  Raffles slowly kneels.
+
+  Crawshay inches forward --
+
+  OFFICER CRAWSHAY:
+    N-No sudden movements!
+
+  Raffles slowly puts his hands behind his head and bows forward.
+
+  Crawshay takes one hand off the gun to fumble with something on his belt -- HANDCUFFS.
+
+  He takes one more step forward and...
+
+  ((sfx_window_smash))
+  ((play music mus_d_group to 5))
+  [[show backdrop bg_danbys_office_dawn_broken_glass]]
+  CRASH.  _A BRICK FALLS AMIDST A SHIMMERING SHOWER OF GLASS_.   It knocks away THE GUN.
+
+  BUNNY PLUNGES THROUGH THE NOW SHATTERED SKYLIGHT,  shielding himself from the shards with his jacket and ((sfx_whoosh_rev_1)) tossing it over the head of the disoriented police officer.
+
+  ((sfx_bang_collide_nopaper)) Bunny lands,  ((sfx_bang_body_on_couch_slow after 0.25)) rolls,  and ((sfx_bang_light_bat after 0.75)) swipes the gun off the floor.
+
+  The officer struggles to pull the wet jacket off.
+
+  Bunny POINTS THE GUN --
+
+  BUNNY:
+    [[animate stage with shake]]
+    ((m_todo_sfx_emotional_yelling+temp_sfx_smack))
+    NOBODY FUCKIN' MOVE!
+
+  Mackenzie stands still.   Danby sits up.   Crawshay wrenches the jacket away and holds up both hands.
+
+  Bunny ((sfx_glass_crunch)) steps back.   He's wearing a SKI MASK.
+
+  Raffles starts to turn toward him,  but Bunny ((sfx_bang_kick)) kicks his foot --
+
+  // todo bunny gun, eye looking to the side
+
+  BUNNY:
+    You too!
+
+  Raffles snaps back forward.
+
+  With one hand still aiming the gun,  Bunny uses his other to ((sfx_bang_snatch)) peel his jacket off the floor and ((sfx_rustle_bag_stow)) stuff it in his bag.   He returns both hands to the gun.
+
+  He steps back toward the bookshelf blocking the balcony door.
+
+  Once he's in view of Raffles,  he makes eye contact,  and nods toward the bookshelf.
+
+  Raffles stands slowly.
+
+  Detective Mackenzie steps forward,  but Bunny trains the gun on her --
+
+  BUNNY:
+    I SAID DON'T MOVE!
+
+  She freezes.
+
+  Without turning,  Raffles approaches the heavy bookshelf,  grabs the edge,  and ((m_todo_scrape_wood_against_floor)) drags it out of the way.[[show backdrop bg_danbys_office_dawn_bookcase_returned]]
+
+  He unlocks the balcony doors and ((m_todo_sfx_door_open)) swings them open.
+
+  BUNNY:
+    (to Raffles, still facing the officers)
+    Go on.
+
+  Raffles hesitates.
+
+  BUNNY:
+    (over his shoulder, under his breath)
+    I'll be all right.
+
+  A beat.
+
+  Raffles steps through the doors.
+
+  Bunny positions himself between Raffles and the officers.
+
+  BUNNY:
+    Don't follow us.
+
+  ((temp_sfx_realization))
+  ((fade music mus_d_soprano_sax+mus_d_tenor_sax+mus_d_trombone+mus_d_trumpet_1+mus_d_trumpet_2+mus_d_trumpet_3+mus_d_alto_sax+mus_d_bari_sax+mus_d_violas_leg+mus_d_violas_run+mus_d_violins_1_leg+mus_d_violins_1_run+mus_d_violins_2_leg to 0 over 0.5))
+  Danby laughs,  once.
+
+  Bunny's gun swings to her -- trembling.
+
+  DANBY:
+    Look at you. >
+    You have _no idea_ what you're doing,  do you?
+
+  BUNNY:
+    Wh--
+
+  She keeps her eyes on Bunny and nods her head toward the officers --
+
+  DANBY:
+    ((temp_sfx_lightbulb))
+    ((fade music mus_d_digital_piano+mus_d_e_piano+mus_d_guitar+mus_d_guitar_wah+mus_d_harp_run+mus_d_organ to 0 over 0.5))
+    You really think they wouldn't have called for backup by now?
+
+  Bunny's gun jerks back to the officers.
+
+  A ((sfx_tires_screech)) SCREECH of tires.   Blue-and-whites pull up across the street.
+
+  DANBY:
+    ((temp_sfx_realization))
+    ((fade music mus_d_bongos+mus_d_congas+mus_d_cymbal+mus_d_drums to 0 over 0.5))
+    Better run,  little rabbit.
+
+  Raffles PULLS Bunny through the door,  ((sfx_door_close)) SLAMS IT,  and ((sfx_sliding_metal_against_metal)) slides his CROWBAR through the handles to bar it closed.
+
+  [[hide backdrop]]
+
+  $: EXT. DANBY'S OFFICE BALCONY
+
+  [[show backdrop bg_danbys_balcony_dawn_crowbar]]
+
+  Raffles grabs the rope hanging from the roof and ((sfx_rustle_harness)) clips a RAPPELLING DEVICE onto it.
+
+  Quickly,  HE ((sfx_bang_body_on_couch_slow)) LIFTS BUNNY and THROWS HIM OVER HIS SHOULDER INTO A FIREMAN'S CARRY.
+
+  He jumps the railing,  grabs the device,  and -- with Bunny on his shoulder -- ((sfx_rappelling)) SLIDES ALL THE WAY DOWN TO THE ALLEY BELOW.
+
+  [[hide backdrop]]
+  ((stop music mus_d_group))
+
+  $: EXT. RAINY ALLEYWAY
+
+  [[show backdrop bg_danbys_alleyway_mirrored]]
+
+  ((play music mus_a_group mute))
+  ((play music mus_a_claves+mus_a_wood_block unmute))
+
+  Once they ((sfx_bang_body_on_couch_slow)) touch solid ground,  Raffles lowers Bunny for just a moment.   Then scoops him back up in a great whirling hug --
+
+  RAFFLES:
+    [[animate stage with shake]] ((m_todo_sfx_emotional_yelling+temp_sfx_smack)) BUNNY!  THAT WAS *BRILLIANT!*   
+    [[animate stage with shake]] ((m_todo_sfx_emotional_yelling+temp_sfx_smack)) You were incredible~!!
+
+  Raffles sets him down again.
+
+  Bunny turns away.
+
+  RAFFLES:
+    Bunny?
+
+  Bunny vomits in a trashcan.
+
+  RAFFLES:
+    ((colin_todo_sfx_emotional_queasy)) Oof.   
+    We'll work on the dismount next time.
+
+  BUNNY:
+    (stands, shaky - pulling off his ski mask)
+    [[animate stage with shake]] ((m_todo_sfx_emotional_yelling+temp_sfx_smack)) N-No!   [[animate stage with shake]] ((m_todo_sfx_emotional_yelling+temp_sfx_smack)) No next time! >
+    ((temp_sfx_smack))
+    (clutching his hair)
+    [[animate stage with shake]] ((m_todo_sfx_emotional_yelling+temp_sfx_smack)) JESUS CHRIST!  [[animate stage with shake]] ((m_todo_sfx_emotional_yelling+temp_sfx_smack)) _I JUST ASSAULTED A GODDAMN POLICE OFFICER!!_
+
+  The ((sfx_running_multiple_down_stairs_rev_1 to 2)) sound of FOOTFALLS.   Getting closer.
+
+  RAFFLES:
+    (looking toward the sound)
+    Yes...  maybe not the best place for a confession. >
+    (grabbing Bunny's hand)
+    Come on!
+
+  ((stop music mus_a_group))
+
+  [[hide backdrop]]
+
+  [[show backdrop bg_danbys_nieghborhood_side_street]]
+
+  ((play music mus_a_group))
+  Raffles drags Bunny around the corner and down a narrow side street.
+
+  He ((sfx_leaves_rustle_rev_1)) dives into a nearby hedge and yanks Bunny down with him.
+
+  Several officers ((sfx_running)) run by with flashlights.
+
+  Bunny tugs on Raffles' sleeve --
+
+  BUNNY:
+    (whispering)
+    *What now??*
+
+  Raffles' eyes dart around the block\:
+
+  A LOW BUILDING across the street.
+
+  A STACK OF WOODEN PALLETS against a wall.
+
+  A FLICKERING LAMP POST nearby.
+
+  He looks at the LAMP POST DIRECTLY ABOVE and follows the post down to its base in the dirt.
+
+  He ((sfx_bang_body_on_couch_slow)) rolls toward it,  ((m_todo_sfx_rustle_toolbag)) pulls out a SMALL MULTI-TOOL from his pocket,  ((sfx_bang_light_bat)) flips out a screwdriver,  and starts unscrewing a panel on the base.
+
+  RAFFLES:
+    (nods towards the pallets)
+    That's our escape route.   
+    I'll need your help to reach it. >
+    (opens the panel)
+    Remember the signal from the security room?
+
+  BUNNY:
+    *Yeah?  Why?*
+
+  Raffles reaches inside the panel and ((sfx_bang_light_bat)) flicks off the circuit breaker.   The lamp goes DARK.
+
+  RAFFLES:
+    Same principle.   
+    But we won't be using sound this time.
+
+  He ((sfx_bang_light_bat)) flicks it back on.   The lamp LIGHTS UP.
+
+  RAFFLES:
+    (taking off his gloves)
+    Twice for stop.  Once for go.   
+    Got it?
+
+  He holds out his GLOVES --
+
+  RAFFLES:
+    Insulated,  should keep you safe.
+
+  // todo bunny gloves
+
+  BUNNY:
+    (whispers, putting on the gloves)
+    *Really hope your glove guy's different than your rope guy*.
+
+  RAFFLES:
+    Ready? >
+    3.   2.   1.
+
+  [[hide backdrop]]
+  ((stop music mus_a_group))
+
+  _THE BEAT DROPS_.
+
+  ### RhythmMinigame5
+
+  ^: <!>=== RHYTHM FINALE REMIX BEGINS ===
+
+  ^: <!>[GAMEPLAY\: Tap twice for stop,  Tap once for go]
+
+  $: EXT. BUSHES / RAINY STREET - (MINIGAME 5A)
+
+  _SPLITSCREEN_ between Bunny and Raffles.
+
+  _On the left_,  Bunny signals when an officer is nearby.
+
+  _On the right_,  Raffles ducks behind cars and dumpsters as he makes his way across the street.
+
+  Raffles reaches the pallets and grabs one off the top of the stack.
+
+  _END SPLITSCREEN_
+
+  He flips the pallet vertically and sets it down against the wall with a loud THUNK --
+
+  RAFFLES:
+    (shouts to Bunny)
+    [[animate stage with shake]]
+    ((m_todo_sfx_emotional_yelling+temp_sfx_smack))
+    Now!
+
+  An officer shines a light on Raffles --
+
+  POLICE OFFICER:
+    [[animate stage with shake]]
+    ((m_todo_sfx_emotional_yelling+temp_sfx_smack))
+    Hey!
+
+  Bunny bolts across the street.   He shoves the officer as he passes,  knocking him to the ground --
+
+  // todo bunny gloves
+
+  BUNNY:
+    Sorry!
+
+  Raffles climbs up the pallet onto the roof.
+
+  Bunny clambers after.
+
+  Raffles grabs his hand and pulls him up.
+
+  RAFFLES:
+    Follow my lead!
+
+  $: EXT. ROOFTOPS - (MINIGAME 5B)
+
+  ^: <!>[GAMEPLAY\: Swipe left to move left,  Swipe right to move right]
+
+  Raffles runs across the rooftops -- Ducks.   Dives.   Railings,  banisters,  vents -- with Bunny trailing close behind.
+
+  Finally they see it...
+
+  $: EXT. THE ALBANY ROOFTOP - (MINIGAME 5C)
+
+  Raffles makes it to The Albany roof,  but just as Bunny jumps across the last gap,  his foot SLIPS.
+
+  He careens backwards  .  .  .  falling until  .  .  .
+
+  Raffles catches his hand and wraps an arm around his waist.
+
+  He pulls him close.
+
+  Face to face.
+
+  A door BANGS OPEN below.
+
+  Looking over the ledge,  they see an old lady step out onto her balcony.
+
+  She hums and waters the plants along her railing,  then steps back inside.
+
+  Raffles releases Bunny.
+
+  RAFFLES:
+    Hold that thought for later.
+
+  Raffles swings down to the balcony below and motions for Bunny to do the same.
+
+  ^: <!>[GAMEPLAY\: Tap-and-hold to stop,  Release to go]
+
+  The boys climb down The Albany,  jumping from each balcony to the one below,  and ducking to the left and right of the doors whenever someone inside looks out.
+
+  They finally make it to Raffles' balcony.
+
+  Raffles wobbles on the railing,  but Bunny catches his arm and pulls him back.
+
+  With their combined weight,  they ((sfx_door_slam_open_rev_0)) BURST backward through the balcony doors.
+
+  ^: <!>=== RHYTHM FINALE REMIX ENDS ===
+
+  $: INT. RAFFLES' KITCHEN - DAWN
+
+  [[show backdrop bg_raffles_int_apartment_dawn with pan_left]]
+
+  The boys ((sfx_bang_collide_nopaper)) land in a heap on the floor.
+
+  Bunny ((sfx_bang_body_on_couch_slow)) rolls off.   They lie shell-shocked,  side-by-side,  staring up at the ceiling and struggling to catch their breath.
+
+  choose
+    + [Success!]
+      _If the player did well:_  A laugh explodes out of Bunny's lungs -- one ragged,  filthy bark.
+
+    + [Fail...]
+      _If the player did poorly:_  Bunny exhales shakily.   An illicit thrill bubbling under the surface.
+  then
+
+    BUNNY:
+      (removing his mask)
+      Holy shit. >
+      (turns his head to face Raffles)
+      I can't believe we just did that.
+
+    ((temp_sfx_smack))
+    ((play music mus_e_group mute))
+    ((play music mus_e_bass+mus_e_marimba+mus_e_xylophone unmute))
+    Bunny BOLTS UPRIGHT --
+
+    BUNNY:
+      [[animate stage with shake]]
+      ((m_todo_sfx_emotional_yelling+temp_sfx_smack))
+      What about the script??
+
+    RAFFLES:
+      The script?
+
+    BUNNY:
+      (turning to him)
+      [[animate stage with shake]] ((m_todo_sfx_emotional_yelling+temp_sfx_smack)) The script!   [[animate stage with shake]] ((m_todo_sfx_emotional_yelling+temp_sfx_smack)) _MY_ script!!   
+      [[animate stage with shake]] ((m_todo_sfx_emotional_yelling+temp_sfx_smack)) It's got my name on it!
+
+    RAFFLES:
+      (sitting up)
+      Yes...?   Same as every writer who submitted one.
+
+    Bunny LEAPS UP --
+
+    BUNNY:
+      [[animate stage with shake]]
+      ((m_todo_sfx_emotional_yelling+temp_sfx_smack))
+      But what if they suspect me??
+
+    Raffles rises to his feet.
+
+    RAFFLES:
+      (untying his own mask)
+      What if they suspect a screenwriter broke into someone's home,  trashed their office,  and assaulted an officer of the law -- >
+      -- just so they could get a job at the victim's studio...?
+
+    Raffles dangles the mask from one finger,  weighing nothing.
+
+    RAFFLES:
+      Well I'd certainly applaud their imagination.
+
+    BUNNY:
+      (pacing, manic)
+      [[animate stage with shake]]
+      ((m_todo_sfx_emotional_yelling+temp_sfx_smack))
+      But they saw me!
+
+    RAFFLES:
+      They saw someone in a ski mask.
+
+    BUNNY:
+      [[animate stage with shake]]
+      ((m_todo_sfx_emotional_yelling+temp_sfx_smack))
+      They saw _you_!
+
+    RAFFLES:
+      (eyes following him)
+      My back. >
+      I don't believe it's particularly memorable. >
+      <!>(smirks)
+      ((colin_todo_emotional_flirty))
+      Though I'm flattered you disagree.
+
+    [[hide backdrop]]
+    [[show backdrop bg_raffles_int_apartment_dawn with pan_right]]
+
+    Bunny starts in on him--
+
+    Then blinks.
+
+    BUNNY:
+      (hold on a fucking second)
+      You locked me out!!
+
+    RAFFLES:
+      To keep you safe.
+
+    BUNNY:
+      _Me_ safe???
+      [[animate stage with shake]]
+      ((m_todo_sfx_emotional_yelling+temp_sfx_smack))
+      YOU COULDA DIED,  DIPSHIT!!!!!
+
+    He could have died.
+
+    Something in Bunny short-circuits --
+
+    BUNNY:
+      ((fade music mus_e_bass+mus_e_marimba+mus_e_xylophone to 0 over 0.5))
+      Kiss me.
+
+    RAFFLES:
+      What?
+
+    [[animate stage with shake]]
+    ((m_todo_sfx_emotional_yelling+temp_sfx_smack))
+    ((fade music mus_e_bass+mus_e_marimba+mus_e_xylophone to 1 over 0.5))
+    Bunny KISSES HIM.   Raffles steps back,  ((sfx_bang_wood_thump)) bumping against the coffee table.
+
+    RAFFLES:
+      Do you want to talk about this?
+
+    BUNNY:
+      No.
+
+    Bunny ((sfx_bang_body_on_couch_slow)) pushes him down on the coffee table.
+
+    RAFFLES:
+      (muffled against Bunny's mouth)
+      I really think we should--
+
+    Bunny deepens the kiss.
+
+    Raffles makes a noise.   Bunny pulls away.
+
+    BUNNY:
+      [[animate stage with shake]]
+      ((m_todo_sfx_emotional_yelling+temp_sfx_smack))
+      What??!
+
+    RAFFLES:
+      It's just-- >
+      You're still a bit-- >
+      ((colin_todo_sfx_emotional_queasy))
+      ...vomity?
+
+    A beat.
+
+    ((temp_sfx_stab))
+    Bunny DARTS into the bathroom and returns FRANTICALLY BRUSHING his teeth --
+
+    BUNNY:
+      (mumbling around the brush)
+      What if they find the trashcan?
+
+    RAFFLES:
+      --Is that my toothbrush?
+
+    BUNNY:
+      (pacing, still brushing)
+      [[animate stage with shake]]
+      ((m_todo_sfx_emotional_yelling+temp_sfx_smack))
+      I threw up in a trashcan!!  
+      [[animate stage with shake]]
+      ((m_todo_sfx_emotional_yelling+temp_sfx_smack))
+      What if they find it?!?!?
+
+    [[hide backdrop]]
+    [[show backdrop bg_raffles_int_apartment_dawn with pan_left]]
+
+    Bunny DASHES to the kitchen.
+
+    RAFFLES:
+      (hesitantly approaching the kitchen)
+      Wouldn't have DNA. ...I don't think?
+
+    Bunny ((sfx_spitting_sink)) SPITS OUT in the sink.
+
+    He TURNS to Raffles,  but Raffles stops him --
+
+    RAFFLES:
+      Woah woah woah.   
+      I don't wanna kiss you while you're freaking out.
+
+    BUNNY:
+      Really?
+
+    RAFFLES:
+      ... >
+      <p:1>No I still do. >
+      <p:1>But for god's sake, Bunny. >
+      <p:2>Pull yourself together.
+
+    Raffles KISSES HIM and backs him into the counter.
+
+    ((colin_todo_emotional_realization+temp_sfx_realization))
+    Bunny gasps.
+
+    RAFFLES:
+      Is that a...?
+
+    BUNNY:
+      Don't you say it.   
+      _Don't you fuckin' dare_...
+
+    Bunny pulls THE GUN out of his pocket and ((sfx_bang_set_on_counter)) SLAMS it on the countertop.
+
+    He doesn't let go.
+
+    He starts hyperventilating.
+
+    RAFFLES:
+      <!>(confused)
+      Um. >
+      What... >
+      ...What's happening?
+
+    BUNNY:
+      <!>(eyes shut tight)
+      P-panic attack.
+
+    RAFFLES:
+      <!>(alarmed)
+      Oh--! >
+      (approaching)
+      W-what should I...?
+
+    BUNNY:
+      [[animate stage with shake]]
+      ((m_todo_sfx_emotional_yelling+temp_sfx_smack))
+      Nothing!! >
+      (between wheezes)
+      Stay -- over there.
+
+    Bunny flaps a hand at him -- the one with the loaded weapon.
+
+    Raffles blinks.  Carefully,  he plucks the gun out of Bunny's grasp.
+
+    His eyes never leave Bunny.   \
+    Below,  his hands work on muscle memory\:
+
+    The mag clicks free.   The slide snaps back.   The loaded round drops into his palm.
+
+    All of it disappears into his own back pocket.
+
+    He waits.
+
+    Hovering.
+
+    Anxious...
+
+    BUNNY:
+      [[animate stage with shake]]
+      ((m_todo_sfx_emotional_yelling+temp_sfx_smack))
+      Fine!! >
+      (wheezing)
+      Just-- Just talk to me.
+
+    RAFFLES:
+      About?
+
+    BUNNY:
+      (shaking his head)
+      [[animate stage with shake]]
+      ((m_todo_sfx_emotional_yelling+temp_sfx_smack))
+      Anything!!
+
+    RAFFLES:
+      O-okay!  I-- Well I--I-- I can't think of anything in particular...
+
+    BUNNY:
+      [[animate stage with shake]]
+      ((m_todo_sfx_emotional_yelling+temp_sfx_smack))
+      _NOW_ you don't feel like talking??
+
+    RAFFLES:
+      [[animate stage with shake]]
+      ((m_todo_sfx_emotional_yelling+temp_sfx_smack))
+      You're putting me on the spot!!! >
+      (quickly)
+      Okay so one time I was stealing this--
+
+    BUNNY:
+      [[animate stage with shake]]
+      ((m_todo_sfx_emotional_yelling+temp_sfx_smack))
+      --NOT ABOUT CRIME!!!
+
+    RAFFLES:
+      [[animate stage with shake]]
+      ((m_todo_sfx_emotional_yelling+temp_sfx_smack))
+      WELL THAT SERIOUSLY LIMITS MY ANECDOTES!!!
+
+    Bunny crouches down,  clutching his chest.
+
+    RAFFLES:
+      (kneeling next to him)
+      Okay...  okay... >
+      Remember when we were at school?
+
+    Bunny groans and leans his head against the counter --
+
+    BUNNY:
+      I got anxiety... not amnesia--
+
+    RAFFLES:
+      [[animate stage with shake]]
+      ((m_todo_sfx_emotional_yelling+temp_sfx_smack))
+      Let me finish! >
+      Remember when we were at school -- in the dining hall -- >
+      And-And I stole your flan -- And you threatened to report me to campus police -- And *I* said... >
+      "What're they gonna do?   
+      *Take me into _custardy_?*"
+
+    A beat.
+
+    RAFFLES:
+      [[raffles_shy]]
+      (apprehensive chuckle)
+      ((colin_todo_emotional_embarrassed+temp_sfx_whoops))
+      ((stop music mus_e_group))
+      Y-You know,  "custard-y"? >
+      [[raffles_unsure]]
+      (pause)
+      ...Ha!
+
+    Silence.
+
+    BUNNY:
+      ((colin_todo_sfx_emotional_sigh+temp_sfx_whoops))
+      (through a wheeze)
+      You're awful at this.
+
+    // Once we have more drum stems, just play drums from panic
+    ((play music mus_f_group mute))
+    ((play music mus_f_drums unmute to 3))
+
+    Bunny stands shakily,  steadying himself on the counter.   His breathing starts to calm down.
+
+    Raffles ((sfx_bang_body_on_couch_slow)) slumps to the floor,  leaning his head against the counter and looking up at Bunny --
+
+    RAFFLES:
+      Please never do that again. >
+      I don't think my heart can take it.
+
+    BUNNY:
+      Yeah...  I'll go ahead and forward that request to my brain.
+
+    A beat.
+
+    RAFFLES:
+      So...
+
+    BUNNY:
+      Yes?
+
+    RAFFLES:
+      Are we going to discuss the fact that we...
+
+    BUNNY:
+      Nope nononono no.   Naaaahhh...   
+      Let's not.
+
+    RAFFLES:
+      Right.
+
+    Silence.
+
+    Raffles stands.
+
+    RAFFLES:
+      Well.   As I mentioned before,  
+      I do have a spare room.
+
+    He makes his way across the kitchen --
+
+    RAFFLES [<]:
+      My offer still stands.   Though I understand if you'd rather--
+
+    BUNNY [>]:
+      ((temp_sfx_lightbulb))
+      ((fade music mus_f_drums to 0 over 0.5))
+      --Can I sleep with you?
+
+    <!>Raffles freezes.
+
+    BUNNY:
+      ((fade music mus_f_drums to 1 over 0.5))
+      --Just sleep! >
+      In your room.   I just--  
+      ((m_todo_sfx_emotional_modest_embarrassed)) I-I really don't wanna be alone right now. >
+      [[animate stage with shake]]
+      ((m_todo_sfx_emotional_yelling+temp_sfx_smack))
+      And I'm very quiet!  
+      I don't even snore anymore--
+
+    RAFFLES:
+      Bunny, I...
+
+    BUNNY:
+      --Alright,  that's a lie. >
+      [[animate stage with shake]]
+      ((m_todo_sfx_emotional_yelling+temp_sfx_smack))
+      But not super loudly! >
+      I promise you won't even notice I'm there--
+
+    RAFFLES:
+      I don't think that's...
+
+    BUNNY:
+      --I could sleep on the floor, if you wa--
+
+    RAFFLES:
+      [[animate stage with shake]]
+      ((m_todo_sfx_emotional_yelling+temp_sfx_smack))
+      NO!
+
+    Raffles pinches the bridge of his nose --
+
+    RAFFLES:
+      Don't be ridiculous.
+
+    Bunny lowers his head.
+
+    RAFFLES:
+      _I'll_ sleep on the floor.
+
+    Bunny looks up.
+
+    RAFFLES:
+      (eyeing him)
+      You're lucky I kept my earplugs.
+
+    [[hide backdrop]]
+
+    %: CUT TO:
+
+    $: INT. RAFFLES' BEDROOM - A BIT LATER
+
+    [[show backdrop bg_raffles_loft_lamp]]
+    ((play music mus_f_group to 2))
+
+    Bunny -- wearing pajamas that are a size too long -- lies in the center of Raffles' massive bed,  staring up at the ceiling.
+
+    On the floor next to him,  Raffles lies quietly on an impractically thin spare mattress.
+
+    Raffles sits up and reaches toward the lamp on his nightstand.   But before he can switch it off--
+
+    BUNNY:
+      A.J.?
+
+    He lets go of the lamp cord.
+
+    RAFFLES:
+      Yes?
+
+    BUNNY:
+      What...  
+      What do I tell my mom...?
+
+    A beat.
+
+    Raffles lies back down.
+
+    RAFFLES:
+      The truth,  I suppose.
+
+    Bunny turns toward Raffles.
+
+    BUNNY:
+      The truth would--
+
+    RAFFLES:
+      (facing him)
+      --kill her? >
+      Yes,  yes.  
+      You've said many times.   
+      Trust me... >
+      (pointed look)
+      I know.
+
+    BUNNY:
+      (groans)
+      But you don't understand--  
+      You've never met my family.
+
+    RAFFLES:
+      No...   
+      You did make sure of that,  
+      didn't you?
+
+    Silence.
+
+    BUNNY:
+      I--
+
+    RAFFLES:
+      --Look.
+
+    Raffles sighs and faces the ceiling.
+
+    RAFFLES:
+      You don't have to tell her _everything_.   
+      Not all at once. >
+      But maybe start with the truth about your career? >
+      She may not change her mind completely,  but--
+
+    BUNNY:
+      --She won't.   Trust me,  she-- >
+      (sighs)
+      _People don't change_.   
+      They just don't.
+
+    RAFFLES:
+      No,  people don't change...
+
+    Raffles faces him.
+
+    RAFFLES:
+      ((temp_sfx_lightbulb))
+      But they _do_ develop...
+
+    A beat.
+
+    Bunny considers this...
+
+    He looks at his phone charging beneath the nightstand lamp.
+
+    1 New Message\:
+
+    \    **(Maria Manders)\:**
+    \    **Did you get the job?**
+
+    He considers.
+
+    He faces the ceiling again.
+
+    BUNNY:
+      (closing his eyes)
+      I'll think about it.
+
+    Raffles ((sfx_bang_light_bat)) shuts off the lamp.[[show backdrop bg_raffles_loft_dim]]
+
+    RAFFLES:
+      Good night, Bunny.
+
+    And while the two of them settle into this fragile darkness...
+
+    ...Bunny opens his eyes and continues to stare at the ceiling.
+
+    ...Raffles' gaze drifts back to a glint under the nightstand.
+
+    _The gun_.
+
+    [[hide backdrop]]
+
+    We pan out further and further,  out the Albany window,  up into the early morning sky,  and down to...
+
+    ((stop ambient))
+    ((stop music mus_f_group))
+
+    ## FinalImage
+
+    $: EXT. DANBY'S RESIDENCE - MORNING
+
+    [[show backdrop bg_danbys_ext_townhouse_wide_morning]]
+
+    ((play ambient sfx_ambient_city_streets_night))
+    ((play music mus_h_group mute))
+    ((play music mus_h_bass+mus_h_drums+mus_h_snap unmute))
+
+    Several police cars are parked out front.
+    Lights flashing.
+
+    An officer blocks off the entrance with caution tape,
+    as another ((sfx_bang_light_bat)) takes a photo of the smashed window.
+
+    Someone's being interviewed on the doorstep.
+
+    It's Danby -- leaning against the doorframe -- casually giving a statement to the police.
+
+    The officer nods politely,  flips their notepad closed,  and makes their way inside.
+
+    As they pass,  we catch a brief glimpse of Danby holding a RED CRICKET BALL behind her back.
+
+    She ((sfx_rustle_bag_stow)) hides it in her pocket.
+
+    [[hide backdrop]]
+
+    [[show backdrop bg_danbys_int_foyer_morning]]
+
+    The officer approaches a detective in a high-collared trench coat.
+
+    The two of them make their way through the residence --
+
+    OFFICER CRAWSHAY:
+      The victim says she didn't get a good look at the thieves.   She's got no theories as to who they might be. >
+      We got a few officers examinin' the points of entry,  but whoever these guys were,  they were thorough. >
+      Aside from a few tools,  there's no trace of 'em.
+
+    [[hide backdrop]]
+
+    [[show backdrop bg_danbys_office_morning]]
+
+    The two investigators enter the office and stop.
+
+    We don't see the detective's face,  but they don't appear to be listening.
+
+    OFFICER CRAWSHAY:
+      Boss?
+
+    She moves through the room.  Slow.  Searching...
+
+    She eyes the shattered vase.  Toes the shards.
+
+    She works her way to the desk.  Lifts the cracked photo frame.  Turns it over.
+
+    Nothing.
+
+    She kneels.  Checks under the desk.
+
+    Something in the dark.
+
+    A small CARD.
+
+    OFFICER CRAWSHAY:
+      (trying to get a closer look)
+      What's that?
+
+    She doesn't answer.
+
+    She just looks at it.
+
+    She hoped she wouldn't find it.
+
+    Then,  she stands.
+
+    DETECTIVE MACKENZIE:
+      (walking and talking)
+      I want tape from this neighborhood -- 8 to 6. >
+      If there's been any recent thefts or break-ins in the city,  I want to know -- don't care how small. >
+      Everything comes to me.
+
+    OFFICER CRAWSHAY:
+      (trailing after)
+      Sorry but...  what's goin' on?
+
+    Mackenzie keeps walking.
+
+    ((stop music)) We don't follow her.
+
+    $: CLOSEUP - AN ACE OF SPADES PLAYING CARD
+
+    Old ink.   Schoolboy handwriting.   A theatrical "*T*".
+
+    Three words scrawled across it.   Clear,  at last\:
+
+    \    **The Phantom Thieves**
+
+    [[hide backdrop]]
+
+    -> ENDING_CREDITS
+  end
+end
+
+scene ENDING_CREDITS
+  ((play music mus_credits_group))
+  ^:
+    ENDING CREDITS SEQUENCE:
+    _THE ADVENTURES OF A.J. RAFFLES (& BUNNY)_
+    ~
+  [An animated walking sequence of a black cat strutting confidently while a white bunny nervously hops after it.   A boppy,  electro-swing beat plays in time to their stride.]
+
+  The music ends on an ominous note as we see a photograph of a BROKEN LOCKPICK,  entered into evidence\:
+
+  \    **People's Exhibit No. 1**
+
+  CUT TO BLACK.
+
+  %: **To be continued...**
+end
