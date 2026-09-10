@@ -63,6 +63,7 @@ import {
   waitForGame,
   interruptedSeed,
   planBatches,
+  loadedScript,
   programWarning,
   pruneProject,
   readProjectFile,
@@ -593,7 +594,7 @@ await check("a source with no main.sd at its root is a reason unless the caller 
 await check("a page whose editor remembers another project is a reason, and nothing is written", async () => {
   await withStub({ remembered: "drive-abc123" }, async ({ page, tree }) => {
     const report = await seedProject(page, fixture);
-    assert.match(report.reason, /^the editor remembers project "drive-abc123" \(localStorage "project"\), not "local", so it would open a project the seed does not write to; nothing was written$/);
+    assert.match(report.reason, /^the editor remembers project "drive-abc123" \(localStorage "project"\), not "local", so it would open a project the seed does not write to; nothing was written\. Forget it with a `--probe` file holding localStorage\.removeItem\("project"\), then re-run$/);
     assert.equal(report.storage, "untouched");
     assert.equal(tree.children.size, 0);
   });
@@ -1014,6 +1015,7 @@ function commandDeps(page, overrides = {}) {
       clearProject,
       interruptedSeed,
       writeMainSd,
+      loadedScript,
       waitForApp: async () => {},
       ensureScriptEditor: async () => ({ present: true, settled: true }),
       waitForGame: async () => ({ mounted: true }),
@@ -1125,7 +1127,9 @@ await check("verify --project seeds, reloads once, screenshots and exits 0; on a
     const { deps } = commandDeps(page);
     const result = await verify(["--project", fixture, "--shot", shot], deps);
     assert.match(result.error, /1 of 4 project files could not be written/);
-    assert.equal(result.error, result.seed.reason);
+    // verify's error is the seed's reason and the one thing the reason cannot
+    // know: that the game was never asked about, so a restart changes nothing.
+    assert.equal(result.error, result.seed.reason + ". The game was never asked about, so restarting the servers changes nothing.");
     assert.equal("gameMounted" in result, false, "a seed failure was reported as the game not mounting");
     assert.equal(page.reloads, 0);
     assert.deepEqual(page.screenshots, []);
@@ -1250,7 +1254,7 @@ await check("the elsewhere scrubWarning opens on the target line and sends the r
     // Line 2's text is on screen, line 5's is not.
     const result = await verify(["--sd", repro, "--line", "5"], scrubDeps(page, renderedText("ALICE", "Line one of the scrub repro.")));
     assert.equal(result.scrubCheck.outcome, "elsewhere");
-    assert.match(result.scrubWarning, /^The scrub to line 5 is not confirmed by the rendered text: the game is showing line 2, not line 5\./);
+    assert.match(result.scrubWarning, /^The scrub to line 5 is not confirmed by the rendered text: the game is showing line 2, not line 5; if the scrub really did fail, aim at an indented dialogue or action line, since a NAME: line, a heading and a blank line are not playable beats\./);
     assert.match(result.scrubWarning, /Usually a genuinely failed scrub, but open the screenshot first/);
     assert.match(result.scrubWarning, /The click put the cursor on line 5\./);
   });
@@ -1587,7 +1591,7 @@ await check("seed --clear empties the project and reloads; with --project it cle
     await previousProject(page, { "main.sd": "previous" });
     const { deps } = commandDeps(page);
     const result = await seed(["--clear", "--project", fixture], deps);
-    assert.match(result.error, /remembers project "drive-abc".*nothing was written$/);
+    assert.match(result.error, /remembers project "drive-abc".*nothing was written\. Forget it with a `--probe` file holding localStorage\.removeItem\("project"\), then re-run$/);
     assert.equal(result.clear, undefined);
     assert.equal((await readBack(page, "main.sd")).toString(), "previous");
     assert.equal(page.reloads, 0);

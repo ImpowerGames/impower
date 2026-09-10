@@ -19,13 +19,14 @@ Run this first, every time. Each check here fails late and expensively if you sk
 node .claude/skills/drive-web-editor/driver.mjs preflight
 ```
 
-Expected, all four PASS (`launches (fallback build: ...)` on the Playwright line is still a pass):
+Expected, all five PASS (`launches (fallback build: ...)` on the Playwright line is still a pass, and so is `not installed` on the last one before the install below):
 
 ```
 PASS  disk headroom  — 61.5 GB free (need ~6 GB for a fresh worktree install)
 PASS  playwright chromium  — launches
 PASS  gh auth  — needed to read the issue and open the PR
 PASS  git repo  — C:\...\impower.worktrees\impower\issue-214-fix-455354
+PASS  node_modules  — esbuild and vitest both run
 ```
 
 If disk headroom fails, free space before creating the worktree: the clean-worktrees skill (`node .claude/skills/clean-worktrees/clean-worktrees.mjs`, from the main checkout, dry run first) removes the worktrees whose work is already on `main`.
@@ -77,7 +78,7 @@ PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 npm install
 
 A bare `npm install` fails outright here: a workspace pulls in `@playwright/browser-chromium`, whose install script fetches a Chromium build from `cdn.playwright.dev`, a host outside this network's allowlist, and npm aborts the whole install on that 403. Skipping the download is safe; the driver runs against the Chromium build the sandbox pre-installs under `PLAYWRIGHT_BROWSERS_PATH`.
 
-The install takes several minutes and roughly 2–3 GB. Verify it before trusting it: a full disk leaves a silently corrupted `node_modules` (truncated binaries, empty package dirs, missing `dist/*.mjs`) that surfaces much later as a baffling build error. Execute the binaries rather than checking file sizes; `npx esbuild --version` and `npx vitest --version` must each print a version and exit 0. A spawn error, `EFTYPE`, or "not found" means a corrupted install (see Troubleshooting).
+The install takes several minutes and roughly 2–3 GB. Run the preflight again afterwards: its `node_modules` line executes `esbuild` and `vitest` rather than measuring them, because a full disk leaves an install that looks complete and is not (truncated binaries, empty package directories, a missing `dist/*.mjs`) and surfaces much later as a baffling build error. A `FAIL` there names the one-pass repair; the line also passes, with a note, in a worktree that deliberately has no install.
 
 Everything from here runs inside the new worktree.
 
@@ -153,13 +154,11 @@ The ticket is resolved when all of these hold, and not before:
 
 ## Troubleshooting
 
-| Symptom                                                                                                    | Cause → fix                                                                                                                                                                                                                                                                                 |
-| ---------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `npm install` dies `ENOSPC`; or `npx esbuild --version` / `npx vitest --version` fails to spawn (`EFTYPE`) | Disk was full; `node_modules` is silently corrupt (truncated binaries, empty dirs). `npm cache clean --force`, prune `%LOCALAPPDATA%\Temp`, delete all `node_modules` (root and every workspace; nested ones die with the parent), reinstall once. Piecemeal repair is whack-a-mole.       |
-| `npm install` dies with `request blocked: no rule or allowlist entry allows host "cdn.playwright.dev"` (or any `@playwright/browser-chromium` download failure) | A workspace depends on `@playwright/browser-chromium`, whose install script tries to fetch its own Chromium build from a blocked host. Re-run as `PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 npm install` (§2). |
-| `git worktree remove` → `Directory not empty`                                                              | Windows cannot delete `node_modules` that way. `Remove-Item -Recurse -Force <path>`, then `git worktree prune`.                                                                                                                                                                             |
+| Symptom                                       | Cause → fix                                                                                                                    |
+| --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| `git worktree remove` → `Directory not empty` | Windows cannot delete `node_modules` that way. `Remove-Item -Recurse -Force <path>`, then `git worktree prune`.                 |
 
-The driver's own failures (a black or white preview, a scrub that did not land) are in the drive-web-editor skill; vitest and `redgreen` failures are in write-regression-test.
+That is the only row: every other failure this checklist could name is something a command says for itself. The preflight's `node_modules` line names the repair for a corrupted install and §2 gives the install that a blocked Chromium download refuses; the driver's own failures (a black or white preview, a scrub that did not land) are named by the driver, and `redgreen`'s by its report.
 
 ---
 
@@ -167,4 +166,4 @@ The driver's own failures (a black or white preview, a scrub that did not land) 
 
 If any step above failed, needed a flag or path it does not give, did not apply to your ticket without saying so, or cost you time on something the step skills' Gotchas and Troubleshooting do not cover, report it under a "Skill feedback" heading in your final message with the edit you propose, as `CLAUDE.md` describes. Put the edit in the file that owns the step: the checklist here, the web editor driver in drive-web-editor, the VS Code extension driver in drive-vscode-web, tests and runs in write-regression-test, the review in review-pr. When you are certain of the fix, make it in its own commit on the PR branch and mention it under the PR's Notes for reviewers. An edit to this file is pinned by `landing-pad.test.sh` beside it, which requires exactly one line beginning ``Invoke `/<skill>` now`` per step skill, in workflow order, before the completion gate, and one sentence invoking `/drive-vscode-web` in §3 and one in §6; run `bash .claude/skills/resolve-issue/landing-pad.test.sh` after editing here.
 
-Prefer a mechanism to a warning. When the problem is a step a session can forget or get wrong (a copy that goes stale, a value that has to be re-derived, a check that only works if someone remembers it) propose the driver command or the check that makes the mistake impossible, not a sentence telling the next session to be careful; the sentence is what just failed. A warning is the right proposal only for something a tool cannot absorb: a judgement call, a fact about the machine, a trap in a library the driver does not wrap.
+Prefer a mechanism to a warning. When the problem is a step a session can forget or get wrong (a copy that goes stale, a value that has to be re-derived, a check that only works if someone remembers it) propose the driver command or the check that makes the mistake impossible, not a sentence telling the next session to be careful; the sentence is what just failed. A warning is the right proposal only for something a tool cannot absorb: a judgement call, a fact about the machine, a trap in a library the driver does not wrap. `.claude/skills/mechanism-counts.test.mjs` pins how many such warnings the skills hold, counting the bullets under every Gotchas heading and the rows under every Troubleshooting one, so a new entry fails a check until the number in it moves, and it moves in the same change that adds the mechanism or in one whose pull request says why none is possible.
