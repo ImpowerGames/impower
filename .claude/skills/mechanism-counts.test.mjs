@@ -30,7 +30,7 @@ const SKILLS_DIR = path.dirname(fileURLToPath(import.meta.url));
 // The sizes the lists stand at. Raise one only in the change that adds the
 // mechanism the new entry falls back from, or whose pull request says why the
 // entry can have none.
-const PINNED = { gotchas: 22, troubleshooting: 3 };
+const PINNED = { gotchas: 20, troubleshooting: 3 };
 
 const WHY =
   "A new Gotchas bullet or Troubleshooting row needs a mechanism first: a driver refusal, a report field, a hook, or a check " +
