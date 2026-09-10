@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { readFileSync, writeFileSync, mkdirSync, mkdtempSync } from 'node:fs';
-import { resolve, dirname, relative, isAbsolute } from 'node:path';
+import { resolve, dirname, relative, isAbsolute, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const REPO = 'ImpowerGames/impower';
@@ -211,7 +211,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
     if (!/^(?:[A-Za-z]:[\\/]|\/)/.test(file)) throw new Error('Use an absolute plan path outside the checkout.');
     const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../../..');
     const within = relative(repoRoot, resolve(file));
-    if (!within.startsWith('..') && !isAbsolute(within)) throw new Error('Keep the plan outside the checkout.');
+    if (within !== '..' && !within.startsWith(`..${sep}`) && !isAbsolute(within)) throw new Error('Keep the plan outside the checkout.');
     mkdirSync(dirname(resolve(file)), { recursive: true });
     const scratch = mkdtempSync(resolve(dirname(file), 'triage-bodies-'));
     const api = github(scratch);

@@ -1,4 +1,9 @@
 import assert from 'node:assert/strict';
+import { copyFileSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { resolve } from 'node:path';
+import { spawnSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 import { parseTable, renderTable, parseIntake, keyOf, fold, makePlan, applyPlan } from './triage-skill-feedback.mjs';
 
 const body = 'Intro\n\n## Table\n\n| Skill, section | Friction | Proposed edit | Status |\n| --- | --- | --- | --- |\n| review-pr, section 3 | A \\| B | Keep `C:\\path` | open |\n\nFooter stays.\n';
@@ -120,5 +125,32 @@ await test('closed tickets and merged edits leave table; an open applied PR rema
   closed.plan.groups[0] = { action: 'existing', number: 701, keys: closed.plan.groups[0].keys };
   await applyPlan(closed.plan, closed.api);
   assert.equal(parseTable(closed.state.body).rows.length, 0);
+});
+await test('CLI rejects inside ..prefix paths and accepts outside siblings', () => {
+  const scratch = mkdtempSync(resolve(tmpdir(), 'triage-path-check-'));
+  try {
+    const checkout = resolve(scratch, 'repo');
+    const script = resolve(checkout, '.claude/skills/triage-skill-feedback/triage-skill-feedback.mjs');
+    mkdirSync(resolve(script, '..'), { recursive: true });
+    copyFileSync(fileURLToPath(new URL('./triage-skill-feedback.mjs', import.meta.url)), script);
+    for (const [path, accepted] of [
+      [resolve(checkout, '..scratch/plan.json'), false],
+      [resolve(checkout, '..plan.json'), false],
+      [resolve(checkout, 'ordinary/plan.json'), false],
+      [resolve(scratch, 'outside/plan.json'), true],
+      [resolve(scratch, 'repo-sibling/plan.json'), true],
+      [resolve(scratch, '..sibling/plan.json'), true],
+    ]) {
+      mkdirSync(resolve(path, '..'), { recursive: true });
+      writeFileSync(path, JSON.stringify({ groups: [], rows: [] }));
+      const result = spawnSync(process.execPath, [script, 'preview', path], { encoding: 'utf8' });
+      assert.equal(result.status, accepted ? 0 : 1, path);
+      if (accepted) assert.deepEqual(JSON.parse(result.stdout), []);
+      else assert.match(result.stderr, /Keep the plan outside the checkout/);
+    }
+  } finally {
+    assert.ok(scratch.startsWith(resolve(tmpdir(), 'triage-path-check-')));
+    rmSync(scratch, { recursive: true, force: true });
+  }
 });
 console.log(`All ${passed} triage checks passed.`);
