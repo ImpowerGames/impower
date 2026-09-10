@@ -43,8 +43,8 @@ const WHY =
  * The Gotchas bullets and Troubleshooting rows one SKILL.md holds.
  *
  * A section runs from its heading to the next heading of any level. Inside
- * one, a Gotchas entry is a bullet at the left margin (an indented bullet
- * continues the entry above it), and a Troubleshooting entry is a table row
+ * one, a Gotchas entry is a top-level ordered or unordered list item (a
+ * nested item continues the entry above it), and a Troubleshooting entry is a table row
  * that is neither the header nor the rule under it. Fenced blocks are code,
  * whatever their lines start with.
  */
@@ -54,6 +54,7 @@ export function countEntries(markdown) {
   let section = null;
   let fence = null;
   let tableRun = 0;
+  let listContentIndent = null;
   for (const line of lines) {
     const fenceMark = /^\s*(```+|~~~+)/.exec(line);
     if (fenceMark) {
@@ -67,12 +68,29 @@ export function countEntries(markdown) {
       const name = heading[1].toLowerCase();
       section = name === "gotchas" ? "gotchas" : name === "troubleshooting" ? "troubleshooting" : null;
       tableRun = 0;
+      listContentIndent = null;
       continue;
     }
     if (!section) continue;
-    if (section === "gotchas" && /^[-*+]\s/.test(line)) counts.gotchas += 1;
+    if (section === "gotchas") {
+      if (/^ {0,3}(?:(?:\*[ \t]*){3,}|(?:-[ \t]*){3,}|(?:_[ \t]*){3,})$/.test(line)) {
+        listContentIndent = null;
+        continue;
+      }
+      const item = /^( {0,3})([-*+]|\d{1,9}[.)])([ \t]+|$)/.exec(line);
+      if (item && (listContentIndent === null || item[1].length < listContentIndent)) {
+        counts.gotchas += 1;
+        const markerEnd = item[1].length + item[2].length;
+        let contentColumn = markerEnd;
+        for (const space of item[3]) contentColumn += space === "\t" ? 4 - contentColumn % 4 : 1;
+        const padding = contentColumn - markerEnd;
+        listContentIndent = markerEnd + (padding >= 1 && padding <= 4 ? padding : 1);
+      } else if (!item && line.trim() && listContentIndent !== null && /^ */.exec(line)[0].length < listContentIndent) {
+        listContentIndent = null;
+      }
+    }
     if (section === "troubleshooting") {
-      if (line.startsWith("|")) {
+      if (/^ {0,3}\|/.test(line)) {
         tableRun += 1;
         // The first two lines of a table are its header and the rule under
         // it; every line after them is an entry.
@@ -159,6 +177,17 @@ check("every Markdown unordered-list marker counts as a Gotchas entry", () => {
 });
 
 // -------------------------------------------------------------- the lists ---
+
+check("numbered items and indented tables count, with nested detail and thematic breaks excluded", () => {
+  assert.deepEqual(countEntries("## Gotchas\n\n1. One.\n2) Two.\n"), { gotchas: 2, troubleshooting: 0 });
+  assert.deepEqual(countEntries("## Gotchas\n\n* * *\n- - -\n___\n"), { gotchas: 0, troubleshooting: 0 });
+  const markdown = [
+    "## Gotchas", "", "  1. One.", "     - Nested detail.", "  2) Two.", "", "* * *", "- - -", "___", "",
+    "## Troubleshooting", "", " | Symptom | Fix |", " | --- | --- |", " | A failure | Its remedy |",
+  ].join("\n");
+  assert.deepEqual(countEntries(markdown), { gotchas: 2, troubleshooting: 1 });
+  assert.deepEqual(countEntries("## Gotchas\n\n  + An indented entry.\n"), { gotchas: 1, troubleshooting: 0 });
+});
 
 check("the Gotchas and Troubleshooting lists are the size this check pins", () => {
   const files = skillFiles();

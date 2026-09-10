@@ -1112,7 +1112,7 @@ const KNOWN_CONSOLE_NOISE = [
   { name: "semanticTokens/refresh", match: /Unhandled method workspace\/semanticTokens\/refresh/ },
   { name: "diagnostic/refresh", match: /Unhandled method workspace\/diagnostic\/refresh/ },
   { name: "foldingRange/refresh", match: /Unhandled method workspace\/foldingRange\/refresh/ },
-  { name: "/api/auth/account 404", match: /Failed to load resource[^\n]*404[^\n]*\/api\/auth\/account/ },
+  { name: "/api/auth/account 404", match: /Failed to load resource: the server responded with a status of 404\b[^\n]*\(https?:\/\/[^/\s)]+\/api\/auth\/account(?:[?#][^\s)]*)?\)$/ },
 ];
 
 /** Splits the captured console into the lines worth reading and the known noise, by count. */

@@ -1,15 +1,10 @@
 // Pins this skill's mechanisms for preventing or reporting mistakes (#497).
-// Each check requires the driver to supply the action or report field a
-// session needs at the moment it encounters the problem. Run:
+// Run:
 //   node .claude/skills/drive-web-editor/driver-messages.test.mjs
 //
-// Three kinds of assertion appear below. Where the code is reachable without
-// a browser it is called (partitionConsole, loadedScript, classifyScrub,
-// interruptedSeedError). Where it is not, the driver's source is read and
-// the symptom and its advice are required to sit within one window of each
-// other, which is what fails when someone shortens the message back to the
-// symptom alone; the window is wide enough for a message split across
-// concatenated lines and far narrower than the file.
+// Browser-independent mechanisms are called directly; console checks also
+// invoke the registered event listener. Source checks require a symptom and
+// its advice in the same extracted message, and fixtures exercise the scanner.
 
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -28,6 +23,7 @@ import {
   partitionConsole,
   readProjectFile,
   reloadEditorPage,
+  withEditor,
 } from "./driver.mjs";
 
 const SKILL_DIR = path.dirname(fileURLToPath(import.meta.url));
@@ -70,12 +66,15 @@ function scanSource(src) {
   const opensRegex = (upto) => {
     const before = upto.replace(/\s+$/, "");
     if (before === "") return true;
+    if (/(?:\+\+|--)$/.test(before)) return false;
     const last = before[before.length - 1];
     if ("=(,:[!&|?{};+-*%~^<>".includes(last)) return true;
-    return /\b(return|typeof|instanceof|in|of|new|delete|void|case|do|else|yield|await)$/.test(before);
+    const keyword = /\b(return|typeof|instanceof|in|of|new|delete|void|case|do|else|yield|await)$/.exec(before);
+    return keyword !== null && !/\.\s*$/.test(before.slice(0, keyword.index));
   };
   const regexAt = (i) => opensRegex(bare.slice(Math.max(0, i - 200), i).join(""));
   const skipRegex = (i) => {
+    const opened = i;
     i++;
     let inClass = false;
     while (i < src.length) {
@@ -83,10 +82,10 @@ function scanSource(src) {
       if (src[i] === "[") inClass = true;
       else if (src[i] === "]") inClass = false;
       else if (src[i] === "/" && !inClass) return i + 1;
-      else if (src[i] === "\n") break;
+      else if (src[i] === "\n") return opened + 1;
       i++;
     }
-    return i;
+    return opened + 1;
   };
   const skipString = (i) => {
     const quote = src[i];
@@ -100,6 +99,7 @@ function scanSource(src) {
     return i;
   };
   const skipTemplate = (i) => {
+    const opened = i;
     i++; // the opening backtick
     while (i < src.length) {
       if (src[i] === "\\") { i += 2; continue; }
@@ -122,7 +122,7 @@ function scanSource(src) {
       }
       i++;
     }
-    return i;
+    throw new Error(`Unterminated template literal in message check at offset ${opened}`);
   };
   let i = 0;
   while (i < src.length) {
@@ -237,6 +237,23 @@ check("the message reader reads what the driver prints, and not the source aroun
 
 // ------------------------------------------------------------ navigation ---
 
+check("division inside an interpolation cannot merge a later message with unrelated advice", () => {
+  for (const expression of ["count++ / total", "count-- / total", "object.of / total", "object.in / total", "value /*" + " long comment".repeat(25) + " */ / total"]) {
+    const fixture = [
+      'const label = `read ${' + expression + '} of the log`;',
+      'die("the panel did not open within 10s");',
+      'const advice = "--close it";',
+    ].join("\n");
+    const read = scanSource(fixture);
+    assert.equal(read.messages.length, 3, expression);
+    assert.throws(() => carriesAdvice("the panel did not open within 10s", "--close", 600, read.messages), /no longer names what to do/, expression);
+  }
+});
+
+check("a template whose end the reader cannot find fails the check instead of becoming message text", () => {
+  assert.throws(() => scanSource('const label = `unfinished ${value}'), /Unterminated template literal/);
+});
+
 check("comments inside template interpolations are neither navigation code nor printed advice", () => {
   const fixture = [
     'const a = `the panel did not open ${/* page.goto(url); --close */ true}`;',
@@ -324,6 +341,45 @@ check("a captured console line carries the resource a failed request names nowhe
   // Only errors carry a location worth reading; a log keeps the text it has.
   assert.equal(consoleLine(message("log", "a log line", "http://localhost:1/x.js")), "[log] a log line");
   assert.equal(consoleLine({ type: () => "error", text: () => "no location here" }), "[error] no location here");
+});
+
+{
+  const handlers = new Map();
+  const page = { on: (event, handler) => handlers.set(event, handler) };
+  let closed = false;
+  const ctx = { pages: () => [page], close: async () => { closed = true; } };
+  const captured = await withEditor(({ consoleLines }) => {
+    for (const resource of ["/api/auth/account", "/missing.png"]) {
+      handlers.get("console")({
+        type: () => "error",
+        text: () => "Failed to load resource: the server responded with a status of 404 (Not Found)",
+        location: () => ({ url: "http://localhost:1" + resource }),
+      });
+    }
+    return partitionConsole(consoleLines);
+  }, { state: () => ({ url: "http://localhost:1" }), launch: async () => ctx });
+  check("the editor's console listener preserves resource locations before classifying errors", () => {
+    assert.equal(captured.noise["/api/auth/account 404"], 1);
+    assert.deepEqual(captured.errors, ["[error] Failed to load resource: the server responded with a status of 404 (Not Found) (http://localhost:1/missing.png)"]);
+    assert.equal(closed, true);
+  });
+}
+
+check("only a 404 for the account endpoint is known resource noise", () => {
+  for (const [url, status, known] of [
+    ["http://localhost:1/api/auth/account", 404, true],
+    ["http://localhost:1/api/auth/account?format=json", 404, true],
+    ["http://localhost:1/api/auth/account/settings", 404, false],
+    ["http://localhost:1/api/auth/accountant", 404, false],
+    ["http://localhost:1/local/api/auth/account", 404, false],
+    ["http://localhost:1/other?next=/api/auth/account", 404, false],
+    ["http://localhost:404/api/auth/account", 403, false],
+  ]) {
+    const line = consoleLine({ type: () => "error", text: () => `Failed to load resource: the server responded with a status of ${status} (${status === 404 ? "Not Found" : "Forbidden"})`, location: () => ({ url }) });
+    const result = partitionConsole([line]);
+    assert.equal(result.noise["/api/auth/account 404"], Number(known), url);
+    assert.deepEqual(result.errors, known ? [] : [line], url);
+  }
 });
 
 check("every known-noise entry reports a count even when it did not appear", () => {
