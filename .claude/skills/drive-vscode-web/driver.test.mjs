@@ -90,6 +90,7 @@ import {
   usableReading,
   verify,
   waitReady,
+  withWorkbench,
   wordOnPage,
 } from "./driver.mjs";
 
@@ -718,7 +719,7 @@ await check("up --fresh is refused while another worktree's standing record serv
 // The download lock. The data directory is shared by every worktree, and a
 // download deletes the quality's builds directory before it unpacks, so two
 // first launches at once leave the loser serving a directory the winner
-// emptied. Nothing but the order of two commands used to decide it.
+// emptied. The lock keeps those downloads from running together.
 await check("the download lock sits beside the builds a download deletes, and only one launch holds it", async () => {
   const layout = dataLayout(DATA);
   const lock = downloadLockPath(layout, "stable");
@@ -762,6 +763,25 @@ await check("the download lock sits beside the builds a download deletes, and on
 
   io.removeLock(lock);
   assert.deepEqual(await takeDownloadLock(lock, mine, io, stands), { held: true }, "a released lock is free again");
+});
+
+await check("the workbench captures Chrome's resource location before classifying console errors", async () => {
+  const handlers = new Map();
+  const page = { on: (event, handler) => handlers.set(event, handler), goto: async () => {} };
+  let closed = false;
+  const browser = { newPage: async () => page, close: async () => { closed = true; } };
+  await withWorkbench("http://localhost:1", { launch: async () => browser }, async ({ consoleLines }) => {
+    const missing = "Failed to load resource: the server responded with a status of 404 (Not Found)";
+    for (const resource of ["package.nls.json", "spark.d.ts", "cheatsheet.css"]) {
+      handlers.get("console")({ type: () => "error", text: () => missing, location: () => ({ url: "http://localhost:1/" + resource }) });
+    }
+    handlers.get("pageerror")(new Error("unexpected page failure"));
+    const { errors, noise } = partitionConsole(consoleLines, WORKBENCH_CONSOLE_NOISE);
+    assert.equal(noise["package.nls.json 404"], 1);
+    assert.equal(noise["spark.d.ts 404"], 1);
+    assert.deepEqual(errors, ["[error] " + missing + " (http://localhost:1/cheatsheet.css)", "[pageerror] unexpected page failure"]);
+  });
+  assert.equal(closed, true);
 });
 
 await check("the workbench noise list names the resources it absorbs, so a 404 the change under test caused is still read", () => {

@@ -38,6 +38,7 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
+  consoleLine,
   partitionConsole,
   pidAlive,
   processStartedMs,
@@ -936,13 +937,17 @@ export async function waitReady(url, builds, keep, { downloading = true } = {}, 
 // in for its word to be on a rendered line.
 export const VIEWPORT = { width: 1400, height: 900 };
 
-async function withWorkbench(url, { headless = true } = {}, fn) {
+async function launchWorkbenchBrowser({ headless }) {
   const { chromium } = await import("playwright");
   const executablePath = resolveChromiumExecutablePath(chromium);
-  const browser = await chromium.launch({ headless, ...(executablePath ? { executablePath } : {}) });
+  return chromium.launch({ headless, ...(executablePath ? { executablePath } : {}) });
+}
+
+export async function withWorkbench(url, { headless = true, launch = launchWorkbenchBrowser } = {}, fn) {
+  const browser = await launch({ headless });
   const page = await browser.newPage({ viewport: VIEWPORT });
   const consoleLines = [];
-  page.on("console", (m) => consoleLines.push(`[${m.type()}] ${m.text()}`));
+  page.on("console", (m) => consoleLines.push(consoleLine(m)));
   page.on("pageerror", (e) => consoleLines.push(`[pageerror] ${e.message}`));
   try {
     await page.goto(url, { waitUntil: "domcontentloaded", timeout: 120_000 });
