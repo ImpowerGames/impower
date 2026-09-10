@@ -327,7 +327,7 @@ The old include/exclude `filter` definitions have been replaced by attributes. A
 
 Start with one portrait: compare its resting look, each option, and combinations such as outfit plus held prop. Then migrate named looks and check that appended attributes override the intended group. Regex include/exclude rules may need several explicit conditions; there is no general one-to-one rename.
 
-The [Raffles and Bunny migration tooling](../../../../scripts/portrait-migration/README.md) handles that project's known legacy rules and verifies its expected visual differences. It is not a general converter for arbitrary projects. Migrate the native artwork's layer names before re-exporting: export normalization copies names into `data-name` without translating the old filter grammar.
+Migrate the native artwork's layer names before re-exporting: export normalization copies names into `data-name` without translating the old filter grammar.
 
 ## Quick reference
 
