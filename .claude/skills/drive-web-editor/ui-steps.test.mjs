@@ -22,7 +22,7 @@ import { MessageChannel } from "node:worker_threads";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { followedByMain, parseUiSteps, unionRect, languageSurface, liveDeps, readLanguageSurface, placeCaret, shotOf } from "./driver.mjs";
+import { followedByMain, parseUiSteps, unionRect, languageSurface, waitLanguageSurface, liveDeps, readLanguageSurface, placeCaret, shotOf } from "./driver.mjs";
 import { reportFreshWorker, workerSession } from "./worker-report.mjs";
 
 let failures = 0;
@@ -159,22 +159,32 @@ await asyncCheck("hover uses pointer movement, completion types text, and missin
     evaluate: async (fn, arg) => vm.runInContext(`(${fn})`, context)(arg),
     locator: () => ({ first: () => ({ waitFor: async () => { throw new Error("no widget"); } }) }),
   };
-  const deps = { place: async () => ({ placed: true }), read: async (_, kind) => kind === "hover" ? { present: false } : { popupPresent: false } };
+  const deps = { place: async () => ({ placed: true }), wait: async () => ({}), read: async (_, kind) => kind === "hover" ? { present: false } : { popupPresent: false } };
   const hover = await languageSurface(page, "hover", { line: 2, col: 4 }, undefined, deps);
   assert.deepEqual(calls.at(-1), ["move", 173, 50, { steps: 5 }]);
   assert.equal(hover.serverResponse, "unobserved");
+  assert.deepEqual(hover.caret, { placed: true });
+  assert.deepEqual(JSON.parse(JSON.stringify(hover.pointer)), { x: 173, y: 50 });
   assert.match(hover.reason, /cannot distinguish an empty server answer/);
   const completion = await languageSurface(page, "completion", { line: 2, col: 11 }, "~ha", deps);
   assert.equal(completion.textMatches, true);
   assert.deepEqual(calls.at(-1), ["type", "~ha"]);
   assert.equal(completion.serverResponse, "unobserved");
+  page.keyboard.type = async () => { lines[1] += "wrong"; };
+  const mismatch = await languageSurface(page, "completion", { line: 2, col: 11 }, "x", deps);
+  assert.equal(mismatch.textMatches, false);
+  assert.match(mismatch.reason, /typed text differs/);
+  page.evaluate = async (fn, arg) => String(fn).includes('trigger-main') ? false : vm.runInContext(`(${fn})`, context)(arg);
+  const otherFile = await languageSurface(page, "completion", { line: 2, col: 11 }, "x", deps);
+  assert.equal(otherFile.typed, undefined);
+  assert.match(otherFile.reason, /main.sd/);
   calls.length = 0;
   const refused = await languageSurface(page, "completion", { line: 5, col: 1 }, "x", { ...deps, place: async () => ({ placed: false, reason: "outside" }) });
   assert.equal(refused.reason, "outside");
   assert.equal(calls.some(([call]) => call === "type"), false);
 });
 
-function workerHarness({ unregister = true, source = "installed worker A", reloadFails = false, controllerFails = false, answers = true, rejectInstall = false } = {}) {
+function workerHarness({ unregister = true, source = "installed worker A", reloadFails = false, controllerFails = false, answers = true, rejectInstall = false, rejectTeardown = false } = {}) {
   const calls = [];
   const listeners = new Set();
   const cdp = new EventEmitter();
@@ -191,10 +201,15 @@ function workerHarness({ unregister = true, source = "installed worker A", reloa
     if (method === "Target.attachToTarget") { assert.equal(params.targetId, targetId); return { sessionId: "nested" }; }
     if (method === "Target.sendMessageToTarget") {
       const message = JSON.parse(params.message);
+      calls.push(message.method);
       let result = {};
       if (message.method === "Debugger.enable") event({ method: "Debugger.scriptParsed", params: { scriptId: "script", url: controller.scriptURL } });
       if (message.method === "Debugger.getScriptSource") result = { scriptSource: source };
-      if (message.method === "Runtime.evaluate") result = rejectInstall && message.params.expression.includes("addEventListener") ? { exceptionDetails: { text: "listener installation refused" } } : vm.runInContext(message.params.expression, context);
+      if (message.method === "Runtime.evaluate") {
+        result = rejectInstall && message.params.expression.includes("addEventListener") ? { exceptionDetails: { text: "listener installation refused" } }
+          : rejectTeardown && message.params.expression.startsWith("self.removeEventListener") ? { exceptionDetails: { text: "teardown refused" } }
+          : vm.runInContext(message.params.expression, context);
+      }
       event({ id: message.id, result });
     }
     return {};
@@ -210,15 +225,18 @@ function workerHarness({ unregister = true, source = "installed worker A", reloa
     if (reloadFails) throw new Error("reload refused");
     cdp.emit("ServiceWorker.workerVersionUpdated", { versions: [{ versionId: "v", scriptURL: controller.scriptURL, status: "activated", runningStatus: "running", targetId }] });
   };
-  return { page, ctx, reload, calls, listeners, cdp, event };
+  return { page, ctx, reload, calls, listeners, cdp, event, controller };
 }
 
 await asyncCheck("fresh worker unregisters before reload, hashes the installed source and captures worker cache warnings", async () => {
   const h = workerHarness();
-  const { report, close } = await reportFreshWorker(h.page, h.ctx, h.reload);
+  const { report, close } = await liveDeps.reportFreshWorker(h.page, h.ctx, h.reload);
   assert.equal(report.reason, undefined);
   assert.equal(report.controlled, true);
   assert.equal(report.refreshed, true);
+  assert.equal(report.target, "editor");
+  assert.equal(report.origin, "http://editor.test");
+  assert.ok(h.calls.includes("Debugger.disable"));
   assert.equal(report.sha256, crypto.createHash("sha256").update("installed worker A").digest("hex"));
   assert.ok(h.calls.indexOf("unregister") < h.calls.indexOf("reload"));
   assert.equal(h.listeners.size, 0, "controller probe listener removed");
@@ -241,8 +259,8 @@ await asyncCheck("failed worker unregister or reload reports failure, skips scri
     assert.equal(report.sha256, null);
     assert.match(report.reason, /fresh service worker verification failed/);
     if (options.controllerFails) {
-      assert.match(report.reason, /did not acquire an activated service-worker controller.*inspect consoleErrors/);
-      assert.doesNotMatch(report.reason, /page.waitForFunction|\.\./);
+      assert.match(report.reason, /controller wait failed.*inspect consoleErrors/);
+      assert.match(report.reason, /page.waitForFunction: Timeout/);
     }
     assert.equal(h.calls.includes("Target.attachToTarget"), false);
     assert.ok(h.calls.includes("detach"));
@@ -303,7 +321,7 @@ await asyncCheck("worker warnings and exceptions retain 25 entries and count the
 function surfaceFixture() {
   const rectangle = (x, y, width, height) => ({ x, y, width, height, left: x, top: y, right: x + width, bottom: y + height });
   const image = { currentSrc: "blob:rendered", src: "fallback", naturalWidth: 150, naturalHeight: 150, getBoundingClientRect: () => rectangle(310, 90, 180, 180) };
-  const option = (label, detail) => ({ innerText: `${label}\n${detail}`, querySelector: (selector) => ({ innerText: selector === ".cm-completionLabel" ? label : detail }) });
+  const option = (label, detail) => ({ innerText: `${label}\n${detail}`, querySelector: (selector) => selector === ".cm-completionLabel" ? { innerText: label } : selector === ".cm-completionDetail" ? { innerText: detail } : null });
   const items = [option("hat", "character"), option("hat.on", "layer")];
   const popup = { rect: rectangle(100, 100, 200, 90), getBoundingClientRect() { return this.rect; }, querySelectorAll: (s) => s === '[role="option"]' ? items : [], querySelector: (s) => s === '[aria-selected="true"]' ? items[0] : null };
   const info = { rect: rectangle(300, 80, 200, 200), getBoundingClientRect() { return this.rect; }, querySelector: (s) => s === "img" ? image : null };
@@ -315,7 +333,7 @@ function surfaceFixture() {
   ]);
   const context = vm.createContext({ document: { querySelectorAll: (selector) => nodes.get(selector) ?? [] }, getComputedStyle: (e) => ({ visibility: e.hidden ? "hidden" : "visible" }), innerWidth: 800, innerHeight: 600 });
   const shots = [];
-  const page = { evaluate: async (fn, arg) => JSON.parse(JSON.stringify(await vm.runInContext(`(${fn})`, context)(arg))), viewportSize: () => ({ width: 800, height: 600 }), screenshot: async (args) => shots.push(args) };
+  const page = { evaluate: async (fn, arg) => JSON.parse(JSON.stringify(await vm.runInContext(`(${fn})`, context)(arg))), waitForTimeout: (ms) => new Promise(resolve => setTimeout(resolve, ms)), viewportSize: () => ({ width: 800, height: 600 }), screenshot: async (args) => shots.push(args) };
   return { page, popup, info, hover, nodes, shots, rectangle };
 }
 
@@ -337,10 +355,12 @@ await asyncCheck("real DOM reader distinguishes labels, details, image dimension
   assert.equal((await readLanguageSurface(h.page, "completion")).infoPanelPresent, false);
 });
 
-await asyncCheck("actual screenshot call includes visible information and never waits for an absent panel", async () => {
+await asyncCheck("actual screenshot call includes visible information and permits an absent panel", async () => {
   const h = surfaceFixture();
   const scratch = fs.mkdtempSync(path.join(os.tmpdir(), "impower-501-crop-"));
   try {
+    await shotOf(h.page, "hover", path.join(scratch, "visible-hover.png"));
+    assert.deepEqual(h.shots.at(-1).clip, { x: 300, y: 80, width: 200, height: 200 });
     await shotOf(h.page, "completion", path.join(scratch, "completion.png"));
     assert.deepEqual(h.shots.at(-1).clip, { x: 100, y: 80, width: 400, height: 200 });
     h.info.rect = h.rectangle(300, -10000, 200, 200);
@@ -356,6 +376,49 @@ await asyncCheck("actual screenshot call includes visible information and never 
   } finally { fs.rmdirSync(scratch); }
 });
 
+await asyncCheck("surface waits follow viewport placement and allow missing optional information", async () => {
+  let clock = 0;
+  const pauses = [];
+  const timing = { now: () => clock, pause: async (ms) => { pauses.push(ms); clock += ms; }, timeout: 500, infoTimeout: 200 };
+  const read = async (_, kind) => kind === "hover" ? { present: clock >= 100 } : { popupPresent: clock >= 100, infoPanelPresent: clock >= 250 };
+  assert.equal((await waitLanguageSurface({}, "hover", { ...timing, read })).present, true);
+  assert.equal(clock, 100);
+  clock = 0;
+  assert.equal((await waitLanguageSurface({}, "completion", { ...timing, read })).infoPanelPresent, true);
+  assert.equal(clock, 250);
+  clock = 0;
+  const missing = await waitLanguageSurface({}, "completion", { ...timing, read: async () => ({ popupPresent: true, infoPanelPresent: false }) });
+  assert.equal(missing.popupPresent, true);
+  assert.equal(clock, 200);
+  clock = 0;
+  assert.equal((await waitLanguageSurface({}, "hover", { ...timing, read: async () => ({ present: false }) })).present, false);
+  assert.equal(clock, 500);
+});
+
+await asyncCheck("a windowed completion list is disclosed and all viewport edges reject parked surfaces", async () => {
+  const h = surfaceFixture();
+  assert.equal((await readLanguageSurface(h.page, "completion")).optionsTruncated, false);
+  const query = h.popup.querySelector;
+  h.popup.querySelector = (s) => s === '.cm-completionListIncompleteTop, .cm-completionListIncompleteBottom' ? {} : query(s);
+  assert.equal((await readLanguageSurface(h.page, "completion")).optionsTruncated, true);
+  for (const [x, y] of [[-300, 0], [0, -300], [800, 0], [0, 600]]) {
+    h.hover.rect = h.rectangle(x, y, 180, 180);
+    assert.equal((await readLanguageSurface(h.page, "hover")).present, false);
+    assert.deepEqual(unionRect([{ x: 10, y: 10, width: 20, height: 20 }, { x, y, width: 180, height: 180 }], { width: 800, height: 600 }), { x: 10, y: 10, width: 20, height: 20 });
+  }
+});
+
+await asyncCheck("the final controller ping rejects a different answer even with an activated version", async () => {
+  const h = workerHarness();
+  const monitor = await reportFreshWorker(h.page, h.ctx, h.reload);
+  h.controller.postMessage = (_, ports) => ports[0].postMessage("other worker");
+  await monitor.finish();
+  assert.equal(monitor.report.verifiedAtEnd, false);
+  assert.equal(monitor.report.controlled, false);
+  assert.match(monitor.report.reason, /another worker or no worker/);
+  await monitor.close();
+});
+
 await asyncCheck("go-to converts a one-based column, verifies the caret, and distinguishes an absent editor", async () => {
   const state = { doc: { lines: 2, line: (n) => ({ length: n === 2 ? 12 : 3 }), lineAt: () => ({ number: 2, from: 4 }) }, selection: { main: { head: 4 } } };
   const context = vm.createContext({ document: { querySelector: () => ({ cmTile: { view: { state } } }) } });
@@ -369,6 +432,24 @@ await asyncCheck("go-to converts a one-based column, verifies the caret, and dis
   assert.equal((await placeCaret(page, { line: 2, col: 7 }, { ...actions, present: async () => ({ present: false, reason: "put --screen logic before this step" }) })).reason, "put --screen logic before this step");
   assert.equal(opens, 1);
   assert.equal((await placeCaret(page, { line: 2, col: 8 }, { ...actions, submit: async () => {} })).placed, false);
+});
+
+await asyncCheck("controller cleanup errors preserve the proved identity and the original installation failure", async () => {
+  const h = workerHarness({ rejectTeardown: true });
+  const monitor = await reportFreshWorker(h.page, h.ctx, h.reload);
+  assert.equal(monitor.report.controlled, true);
+  assert.equal(monitor.report.reason, undefined);
+  assert.deepEqual(monitor.report.cleanupErrors, ["teardown refused"]);
+  assert.equal(h.listeners.size, 0, "an answered listener removes itself before replying");
+  await monitor.finish();
+  assert.equal(monitor.report.verifiedAtEnd, true);
+  assert.equal(monitor.report.controlled, true);
+  assert.deepEqual(monitor.report.cleanupErrors, ["teardown refused", "teardown refused"]);
+  await monitor.close();
+  const failed = workerHarness({ rejectInstall: true, rejectTeardown: true });
+  const bad = await reportFreshWorker(failed.page, failed.ctx, failed.reload);
+  assert.match(bad.report.reason, /listener installation refused/);
+  assert.deepEqual(bad.report.cleanupErrors, ["teardown refused"]);
 });
 
 if (failures > 0) {

@@ -2059,7 +2059,7 @@ async function verify(args, deps = liveDeps) {
       if (monitoredWorker) {
         await monitoredWorker.finish();
         if (monitoredWorker.report.reason) {
-          result.error = monitoredWorker.report.reason;
+          result.error = [result.error, monitoredWorker.report.reason].filter(Boolean).join(" ");
           process.exitCode = 1;
         }
       }
@@ -2852,6 +2852,7 @@ export async function readLanguageSurface(page, kind) {
     return {
       popupPresent: Boolean(root),
       options: items.map((item) => item.label),
+      optionsTruncated: Boolean(root?.querySelector(".cm-completionListIncompleteTop, .cm-completionListIncompleteBottom")),
       items,
       selected: label(root?.querySelector('[aria-selected="true"]')),
       surfaceRect: box(root),
@@ -2862,7 +2863,28 @@ export async function readLanguageSurface(page, kind) {
   }, { kind, selectors: LANGUAGE_TARGETS });
 }
 
-export async function languageSurface(page, kind, position, text, { place = placeCaret, read = readLanguageSurface, timeout = 15_000 } = {}) {
+// Wait on the same viewport predicate used in the report: CodeMirror inserts
+// tooltips off-screen before its layout pass positions them.
+export async function waitLanguageSurface(page, kind, { read = readLanguageSurface, timeout = 15_000, infoTimeout = 2000, now = Date.now, pause = (ms) => page.waitForTimeout(ms) } = {}) {
+  const end = now() + timeout;
+  let surface = await read(page, kind);
+  const present = () => kind === "hover" ? surface.present : surface.popupPresent;
+  while (!present() && now() < end) {
+    await pause(Math.min(50, end - now()));
+    surface = await read(page, kind);
+  }
+  if (kind === "completion" && present()) {
+    const infoEnd = now() + infoTimeout;
+    while (!surface.infoPanelPresent && now() < infoEnd) {
+      await pause(Math.min(50, infoEnd - now()));
+      surface = await read(page, kind);
+      if (!present()) break;
+    }
+  }
+  return surface;
+}
+
+export async function languageSurface(page, kind, position, text, { place = placeCaret, read = readLanguageSurface, wait = waitLanguageSurface, timeout = 15_000 } = {}) {
   const empty = kind === "hover" ? { present: false } : { popupPresent: false, options: [], selected: null, infoPanelPresent: false };
   const out = { [kind]: position, ...empty };
   await page.keyboard.press("Escape");
@@ -2871,6 +2893,8 @@ export async function languageSurface(page, kind, position, text, { place = plac
   out.caret = caret;
   if (!caret.placed) return { ...out, reason: caret.reason };
   if (kind === "completion") {
+    out.editorView = await page.evaluate(() => document.querySelector('[role="tab"][id$="-trigger-main"]') ? "main" : "scripts-view");
+    if (out.editorView !== "main") return { ...out, reason: "completion typing requires main.sd on screen; return with the fullscreen scripts view's header button before retrying" };
     const before = await documentLines(page);
     await page.keyboard.type(text);
     const after = await documentLines(page);
@@ -2893,10 +2917,8 @@ export async function languageSurface(page, kind, position, text, { place = plac
     await page.mouse.move(spot.x, spot.y, { steps: 5 });
     out.pointer = spot;
   }
-  const appeared = await page.locator(LANGUAGE_TARGETS[kind]).first().waitFor({ state: "visible", timeout }).then(() => true, () => false);
-  if (appeared) {
-    // Completion documentation and its image may arrive after the list.
-    if (kind === "completion") await page.locator(LANGUAGE_TARGETS.info).first().waitFor({ state: "visible", timeout: 2000 }).catch(() => {});
+  const surface = await wait(page, kind, { read, timeout });
+  if (kind === "hover" ? surface.present : surface.popupPresent) {
     await page.waitForFunction(({ kind, selectors }) => {
       const root = document.querySelector(kind === "completion" ? selectors.info : selectors.hover);
       return [...(root?.querySelectorAll("img") ?? [])].every((img) => img.complete);
@@ -2919,7 +2941,7 @@ async function shotOf(page, what, out) {
   if (SHOT_TARGETS[what] == null) {
     await page.screenshot({ path: target, fullPage: false });
   } else if (what === "hover" || what === "completion") {
-    const surface = await readLanguageSurface(page, what);
+    const surface = await waitLanguageSurface(page, what, { timeout: 2000 });
     const clip = surface.surfaceRect && unionRect([surface.surfaceRect, surface.infoPanelRect], page.viewportSize());
     if (!clip) return { of: what, screenshot: null, reason: `${what} is outside the viewport or not on screen; re-open it on a visible line` };
     await page.screenshot({ path: target, clip });
@@ -3170,7 +3192,7 @@ async function ui(args, deps = liveDeps) {
           if (step.freshSw) {
             const priorFailure = await finishWorker();
             if (priorFailure) {
-              result.steps.push({ freshSw: true, reason: `the preceding worker check failed; this refresh and the ${steps.length - stepNo} remaining steps did not run` });
+              result.steps.push({ freshSw: true, reason: `the preceding worker check failed; this refresh did not run${steps.length > stepNo ? `, nor did the ${steps.length - stepNo} remaining step${steps.length - stepNo === 1 ? "" : "s"}` : ""}` });
               break;
             }
             const worker = await deps.reportFreshWorker(page, ctx, reloadEditorPage);
@@ -3178,12 +3200,11 @@ async function ui(args, deps = liveDeps) {
             const workerStep = { freshSw: true, serviceWorker: worker.report };
             result.steps.push(workerStep);
             if (worker.report.reason) {
-              workerStep.reason = `${worker.report.reason}. The ${steps.length - stepNo} remaining steps did not run.`;
+              workerStep.reason = `${worker.report.reason}${steps.length > stepNo ? `. The ${steps.length - stepNo} remaining step${steps.length - stepNo === 1 ? "" : "s"} did not run.` : ""}`;
               break;
             }
             monitoredWorker = { worker, step: workerStep };
             requireEditor.reset();
-            result.editorSettled = false;
             await deps.waitForApp(page);
           } else if (step.sd || step.project) {
             let out;

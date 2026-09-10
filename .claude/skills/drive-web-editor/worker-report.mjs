@@ -51,7 +51,7 @@ export async function workerSession(cdp, targetId, timeout = 15_000) {
   };
 }
 
-async function pingController(page, worker) {
+async function pingController(page, worker, cleanupErrors) {
   const token = `impower-driver-${crypto.randomUUID()}`;
   const key = JSON.stringify(token);
   const evaluate = async (expression) => {
@@ -59,7 +59,7 @@ async function pingController(page, worker) {
     if (result?.exceptionDetails) throw new Error(result.exceptionDetails.exception?.description ?? result.exceptionDetails.text);
   };
   try {
-    await evaluate(`self[${key}] = e => { if (e.data === ${key}) e.ports[0]?.postMessage(${key}); }; self.addEventListener('message', self[${key}]);`);
+    await evaluate(`self[${key}] = e => { if (e.data === ${key}) { self.removeEventListener('message', self[${key}]); delete self[${key}]; e.ports[0]?.postMessage(${key}); } }; self.addEventListener('message', self[${key}]);`);
     return await page.evaluate((token) => new Promise((resolve) => {
       const channel = new MessageChannel();
       const finish = (ok) => { clearTimeout(timer); channel.port1.close(); channel.port2.close(); resolve(ok); };
@@ -69,12 +69,12 @@ async function pingController(page, worker) {
       else finish(false);
     }), token);
   } finally {
-    await evaluate(`self.removeEventListener('message', self[${key}]); delete self[${key}];`);
+    await evaluate(`self.removeEventListener('message', self[${key}]); delete self[${key}];`).catch((err) => cleanupErrors.push(err.message));
   }
 }
 
 export async function reportFreshWorker(page, ctx, reload, { timeout = 30_000, connect = workerSession } = {}) {
-  const report = { scope: "editor", origin: null, refreshed: false, controlled: false, verifiedAtEnd: false, scriptURL: null, sha256: null, warnings: [], errors: [], warningsDropped: 0, errorsDropped: 0 };
+  const report = { target: "editor", origin: null, refreshed: false, controlled: false, verifiedAtEnd: false, scriptURL: null, sha256: null, warnings: [], errors: [], cleanupErrors: [], warningsDropped: 0, errorsDropped: 0 };
   let cdp, worker, closed = false;
   const close = async () => {
     if (closed) return;
@@ -101,8 +101,8 @@ export async function reportFreshWorker(page, ctx, reload, { timeout = 30_000, c
       return results;
     });
     await reload(page);
-    await page.waitForFunction(() => navigator.serviceWorker.controller?.state === "activated", null, { timeout }).catch(() => {
-      throw new Error(`the editor page did not acquire an activated service-worker controller within ${timeout / 1000}s; inspect consoleErrors for registration failures and fix the worker before retrying`);
+    await page.waitForFunction(() => navigator.serviceWorker.controller?.state === "activated", null, { timeout }).catch((err) => {
+      throw new Error(`the controller wait failed (${err.message}); inspect consoleErrors for registration failures and the page state before retrying`);
     });
     const active = await page.evaluate(async () => {
       const registration = await navigator.serviceWorker.getRegistration();
@@ -144,18 +144,18 @@ export async function reportFreshWorker(page, ctx, reload, { timeout = 30_000, c
     const { scriptSource } = await worker.send("Debugger.getScriptSource", { scriptId: script.scriptId });
     report.sha256 = crypto.createHash("sha256").update(scriptSource).digest("hex");
     await worker.send("Debugger.disable");
-    report.controlled = await pingController(page, worker);
+    report.controlled = await pingController(page, worker, report.cleanupErrors);
     if (!report.controlled) throw new Error("the hashed worker did not answer through the page controller; retry after the worker activates");
     report.refreshed = true;
     const finish = async () => {
       report.verifiedAtEnd = false;
       try {
         if (versions.get(version.versionId)?.status !== "activated") throw new Error("the identified worker version was replaced");
-        if (!(await pingController(page, worker))) throw new Error("another worker or no worker answers through the page controller");
+        if (!(await pingController(page, worker, report.cleanupErrors))) throw new Error("another worker or no worker answers through the page controller");
         report.verifiedAtEnd = true;
       } catch (err) {
         report.controlled = false;
-        report.reason = `could not confirm that the worker identified at --fresh-sw still controls the page (${err.message}); retry with the worker build held stable for the whole run`;
+        report.reason = `could not confirm that the worker identified at --fresh-sw still controls the page (${err.message}); retry with the editor idle and the worker build held stable for the whole run`;
       }
       return report;
     };

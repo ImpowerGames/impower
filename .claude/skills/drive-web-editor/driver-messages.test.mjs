@@ -200,7 +200,7 @@ function carriesAdvice(symptom, advice, window = 600, texts = messages) {
 }
 
 check("worker failure messages retain their recovery advice", () => {
-  carriesAdvice("did not acquire an activated service-worker controller", "inspect consoleErrors");
+  carriesAdvice("the controller wait failed", "inspect consoleErrors");
   carriesAdvice("could not identify one active worker", "close other editor tabs");
   carriesAdvice("the active worker's script was not readable", "retry with the editor idle");
   carriesAdvice("the hashed worker did not answer", "retry after the worker activates");
