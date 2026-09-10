@@ -51,10 +51,34 @@ export async function workerSession(cdp, targetId, timeout = 15_000) {
   };
 }
 
+async function pingController(page, worker) {
+  const token = `impower-driver-${crypto.randomUUID()}`;
+  const key = JSON.stringify(token);
+  const evaluate = async (expression) => {
+    const result = await worker.send("Runtime.evaluate", { expression });
+    if (result?.exceptionDetails) throw new Error(result.exceptionDetails.exception?.description ?? result.exceptionDetails.text);
+  };
+  try {
+    await evaluate(`self[${key}] = e => { if (e.data === ${key}) e.ports[0]?.postMessage(${key}); }; self.addEventListener('message', self[${key}]);`);
+    return await page.evaluate((token) => new Promise((resolve) => {
+      const channel = new MessageChannel();
+      const finish = (ok) => { clearTimeout(timer); channel.port1.close(); channel.port2.close(); resolve(ok); };
+      const timer = setTimeout(() => finish(false), 5000);
+      channel.port1.onmessage = (e) => finish(e.data === token);
+      if (navigator.serviceWorker.controller) navigator.serviceWorker.controller.postMessage(token, [channel.port2]);
+      else finish(false);
+    }), token);
+  } finally {
+    await evaluate(`self.removeEventListener('message', self[${key}]); delete self[${key}];`);
+  }
+}
+
 export async function reportFreshWorker(page, ctx, reload, { timeout = 30_000, connect = workerSession } = {}) {
-  const report = { refreshed: false, controlled: false, scriptURL: null, sha256: null, warnings: [], errors: [] };
-  let cdp, worker;
+  const report = { scope: "editor", origin: null, refreshed: false, controlled: false, verifiedAtEnd: false, scriptURL: null, sha256: null, warnings: [], errors: [], warningsDropped: 0, errorsDropped: 0 };
+  let cdp, worker, closed = false;
   const close = async () => {
+    if (closed) return;
+    closed = true;
     if (worker) await worker.close();
     if (cdp) await cdp.detach().catch(() => {});
   };
@@ -77,13 +101,16 @@ export async function reportFreshWorker(page, ctx, reload, { timeout = 30_000, c
       return results;
     });
     await reload(page);
-    await page.waitForFunction(() => navigator.serviceWorker.controller?.state === "activated", null, { timeout });
+    await page.waitForFunction(() => navigator.serviceWorker.controller?.state === "activated", null, { timeout }).catch(() => {
+      throw new Error(`the editor page did not acquire an activated service-worker controller within ${timeout / 1000}s; inspect consoleErrors for registration failures and fix the worker before retrying`);
+    });
     const active = await page.evaluate(async () => {
       const registration = await navigator.serviceWorker.getRegistration();
       return Boolean(navigator.serviceWorker.controller && registration?.active === navigator.serviceWorker.controller);
     });
     if (!active) throw new Error("the page controller is not the registered active worker; close other editor tabs and retry");
     report.scriptURL = await page.evaluate(() => navigator.serviceWorker.controller.scriptURL);
+    report.origin = new URL(report.scriptURL).origin;
     const end = Date.now() + timeout;
     let version;
     while (Date.now() < end) {
@@ -94,12 +121,20 @@ export async function reportFreshWorker(page, ctx, reload, { timeout = 30_000, c
     if (!version) throw new Error("could not identify one active worker; close other editor tabs and retry");
     worker = await connect(cdp, version.targetId);
     const scripts = [];
+    const capture = (kind, text) => {
+      if (report[kind].length < 25) report[kind].push(text);
+      else report[`${kind}Dropped`]++;
+    };
     worker.events.add((message) => {
       if (message.method === "Debugger.scriptParsed") scripts.push(message.params);
       if (message.method === "Runtime.consoleAPICalled") {
         const entry = message.params;
-        const list = entry.type === "warning" ? report.warnings : entry.type === "error" ? report.errors : null;
-        if (list && list.length < 25) list.push(entry.args.map((a) => a.value ?? a.description ?? a.type).join(" "));
+        const kind = entry.type === "warning" ? "warnings" : entry.type === "error" ? "errors" : null;
+        if (kind) capture(kind, entry.args.map((a) => a.value ?? a.description ?? a.type).join(" "));
+      }
+      if (message.method === "Runtime.exceptionThrown") {
+        const details = message.params.exceptionDetails;
+        capture("errors", details.exception?.description ?? details.text);
       }
     });
     await worker.send("Runtime.enable");
@@ -108,28 +143,26 @@ export async function reportFreshWorker(page, ctx, reload, { timeout = 30_000, c
     if (!script) throw new Error("the active worker's script was not readable; retry with the editor idle");
     const { scriptSource } = await worker.send("Debugger.getScriptSource", { scriptId: script.scriptId });
     report.sha256 = crypto.createHash("sha256").update(scriptSource).digest("hex");
-    // A one-shot message proves that the worker whose script was hashed is
-    // the page's controller. The listener is removed even if the ping fails.
-    const token = `impower-driver-${crypto.randomUUID()}`;
-    const key = JSON.stringify(token);
-    await worker.send("Runtime.evaluate", { expression: `self[${key}] = e => { if (e.data === ${key}) e.ports[0]?.postMessage(${key}); }; self.addEventListener('message', self[${key}]);` });
-    try {
-      report.controlled = await page.evaluate((token) => new Promise((resolve) => {
-        const channel = new MessageChannel();
-        const finish = (ok) => { clearTimeout(timer); channel.port1.close(); channel.port2.close(); resolve(ok); };
-        const timer = setTimeout(() => finish(false), 5000);
-        channel.port1.onmessage = (e) => finish(e.data === token);
-        navigator.serviceWorker.controller.postMessage(token, [channel.port2]);
-      }), token);
-    } finally {
-      await worker.send("Runtime.evaluate", { expression: `self.removeEventListener('message', self[${key}]); delete self[${key}];` });
-    }
+    await worker.send("Debugger.disable");
+    report.controlled = await pingController(page, worker);
     if (!report.controlled) throw new Error("the hashed worker did not answer through the page controller; retry after the worker activates");
     report.refreshed = true;
-    return { report, close };
+    const finish = async () => {
+      report.verifiedAtEnd = false;
+      try {
+        if (versions.get(version.versionId)?.status !== "activated") throw new Error("the identified worker version was replaced");
+        if (!(await pingController(page, worker))) throw new Error("another worker or no worker answers through the page controller");
+        report.verifiedAtEnd = true;
+      } catch (err) {
+        report.controlled = false;
+        report.reason = `could not confirm that the worker identified at --fresh-sw still controls the page (${err.message}); retry with the worker build held stable for the whole run`;
+      }
+      return report;
+    };
+    return { report, close, finish };
   } catch (err) {
-    report.reason = `fresh service worker verification failed: ${err.message}. Run status and retry before using this run as evidence`;
+    report.reason = `fresh service worker verification failed: ${err.message.replace(/[.\s]+$/, "")}. Inspect the worker and page errors before using this run as evidence`;
     await close();
-    return { report, close: async () => {} };
+    return { report, close: async () => {}, finish: async () => report };
   }
 }

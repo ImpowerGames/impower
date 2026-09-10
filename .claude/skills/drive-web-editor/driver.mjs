@@ -1803,6 +1803,7 @@ async function verify(args, deps = liveDeps) {
   return deps.withEditor(
     async ({ page, ctx, url, consoleLines, mode, cleanups = [] }) => {
       const result = { url };
+      let monitoredWorker;
       // What verify captures is the game preview, which the page can observe
       // only in same-origin mode (window.__preview). In cross-origin mode
       // the run stops here, before the page is loaded and before a seed or
@@ -1829,10 +1830,14 @@ async function verify(args, deps = liveDeps) {
       }
       if (args.includes("--fresh-sw")) {
         const worker = await deps.reportFreshWorker(page, ctx, reloadEditorPage);
+        monitoredWorker = worker;
         cleanups.push(worker.close);
         result.serviceWorker = worker.report;
         if (worker.report.reason) {
           result.error = worker.report.reason;
+          const captured = partitionConsole(consoleLines);
+          result.consoleErrors = captured.errors;
+          result.consoleNoise = captured.noise;
           deps.log(JSON.stringify(result, null, 2));
           process.exitCode = 1;
           return result;
@@ -2051,6 +2056,13 @@ async function verify(args, deps = liveDeps) {
         result.screenshot = out;
       }
 
+      if (monitoredWorker) {
+        await monitoredWorker.finish();
+        if (monitoredWorker.report.reason) {
+          result.error = monitoredWorker.report.reason;
+          process.exitCode = 1;
+        }
+      }
       const captured = partitionConsole(consoleLines);
       result.consoleErrors = captured.errors;
       result.consoleNoise = captured.noise;
@@ -2767,7 +2779,6 @@ async function readSurfaces(page) {
   return out;
 }
 
-/** Screenshot one surface: a panel, the script editor, or the whole page. */
 export function parsePosition(spec) {
   const match = /^(\d+):(\d+)$/.exec(spec);
   const [line, col] = match ? match.slice(1).map(Number) : [];
@@ -2778,7 +2789,7 @@ export function parsePosition(spec) {
 }
 
 export function unionRect(rects, viewport) {
-  const visible = rects.filter((r) => r && r.width > 0 && r.height > 0);
+  const visible = rects.filter((r) => r && r.width > 0 && r.height > 0 && r.x < viewport.width && r.y < viewport.height && r.x + r.width > 0 && r.y + r.height > 0);
   if (!visible.length) return null;
   const x = Math.max(0, Math.floor(Math.min(...visible.map((r) => r.x))));
   const y = Math.max(0, Math.floor(Math.min(...visible.map((r) => r.y))));
@@ -2790,16 +2801,19 @@ export function unionRect(rects, viewport) {
 // The go-to panel accepts a one-based line and zero-based column. Read the selection
 // back before typing or aiming the pointer; an out-of-range column must not
 // silently become a check of the end of the line.
-export async function placeCaret(page, position) {
+export async function placeCaret(page, position, { present = scriptEditorPresent, open = openSurface, type = typeInto, submit = clickSurfaceButton } = {}) {
+  const editor = await present(page);
+  if (!editor.present) return { placed: false, reason: editor.reason };
   const valid = await page.evaluate(({ line, col }) => {
     const view = document.querySelector(".sparkdown-script-editor-root .cm-content")?.cmTile?.view;
     return Boolean(view && line <= view.state.doc.lines && col <= view.state.doc.line(line).length + 1);
   }, position);
   if (!valid) return { placed: false, reason: "position is outside the open document; choose a line and column within its text" };
-  await openSurface(page, "goto", { settled: true });
-  const typed = await typeInto(page, "line", `${position.line}:${position.col - 1}`, { settled: true });
+  const opened = await open(page, "goto", { settled: true });
+  if (!opened.open) return { placed: false, reason: opened.reason };
+  const typed = await type(page, "line", `${position.line}:${position.col - 1}`, { settled: true });
   if (!typed.matches) return { placed: false, reason: typed.reason };
-  await clickSurfaceButton(page, "submit");
+  await submit(page, "submit");
   const cursor = await page.evaluate(() => {
     const view = document.querySelector(".sparkdown-script-editor-root .cm-content")?.cmTile?.view;
     if (!view) return null;
@@ -2815,10 +2829,15 @@ export async function readLanguageSurface(page, kind) {
   return page.evaluate(({ kind, selectors }) => {
     const visible = (selector) => [...document.querySelectorAll(selector)].find((e) => {
       const r = e.getBoundingClientRect();
-      return r.width > 0 && r.height > 0 && getComputedStyle(e).visibility !== "hidden";
+      return r.width > 0 && r.height > 0 && r.left < innerWidth && r.top < innerHeight && r.right > 0 && r.bottom > 0 && getComputedStyle(e).visibility !== "hidden";
     });
     const root = visible(selectors[kind]);
     const info = kind === "completion" ? visible(selectors.info) : root;
+    const box = (element) => {
+      if (!element) return null;
+      const r = element.getBoundingClientRect();
+      return { x: r.x, y: r.y, width: r.width, height: r.height };
+    };
     const img = info?.querySelector("img");
     const rect = img?.getBoundingClientRect();
     const image = {
@@ -2827,12 +2846,17 @@ export async function readLanguageSurface(page, kind) {
       naturalWidth: img?.naturalWidth ?? null,
       naturalHeight: img?.naturalHeight ?? null,
     };
-    if (kind === "hover") return { present: Boolean(root), text: root?.innerText ?? "", ...image };
+    if (kind === "hover") return { present: Boolean(root), text: root?.innerText ?? "", surfaceRect: box(root), ...image };
+    const label = (option) => option?.querySelector(".cm-completionLabel")?.innerText ?? null;
+    const items = [...(root?.querySelectorAll('[role="option"]') ?? [])].map((o) => ({ label: label(o), detail: o.querySelector(".cm-completionDetail")?.innerText ?? null }));
     return {
       popupPresent: Boolean(root),
-      options: [...(root?.querySelectorAll('[role="option"]') ?? [])].map((o) => o.innerText),
-      selected: root?.querySelector('[aria-selected="true"]')?.innerText ?? null,
+      options: items.map((item) => item.label),
+      items,
+      selected: label(root?.querySelector('[aria-selected="true"]')),
+      surfaceRect: box(root),
       infoPanelPresent: Boolean(info),
+      infoPanelRect: box(info),
       ...image,
     };
   }, { kind, selectors: LANGUAGE_TARGETS });
@@ -2886,6 +2910,7 @@ export async function languageSurface(page, kind, position, text, { place = plac
   return out;
 }
 
+/** Screenshot one visible surface, or the whole page. */
 async function shotOf(page, what, out) {
   if (!(what in SHOT_TARGETS)) throw new Error(`unknown --shot-of target "${what}" (know: ${Object.keys(SHOT_TARGETS).join(", ")})`);
   if (!out) throw new Error(`--shot-of ${what} needs an output path`);
@@ -2893,19 +2918,17 @@ async function shotOf(page, what, out) {
   fs.mkdirSync(path.dirname(target), { recursive: true });
   if (SHOT_TARGETS[what] == null) {
     await page.screenshot({ path: target, fullPage: false });
+  } else if (what === "hover" || what === "completion") {
+    const surface = await readLanguageSurface(page, what);
+    const clip = surface.surfaceRect && unionRect([surface.surfaceRect, surface.infoPanelRect], page.viewportSize());
+    if (!clip) return { of: what, screenshot: null, reason: `${what} is outside the viewport or not on screen; re-open it on a visible line` };
+    await page.screenshot({ path: target, clip });
   } else {
     const loc = page.locator(SHOT_TARGETS[what]).first();
     if (!(await loc.isVisible().catch(() => false))) {
       return { of: what, screenshot: null, reason: `${SHOT_TARGETS[what]} is not on screen` };
     }
-    if (what === "completion") {
-      const rects = [await loc.boundingBox(), await page.locator(LANGUAGE_TARGETS.info).first().boundingBox()];
-      const clip = unionRect(rects, page.viewportSize());
-      if (!clip) return { of: what, screenshot: null, reason: "completion is outside the viewport; re-open it on a visible line" };
-      await page.screenshot({ path: target, clip });
-    } else {
-      await loc.screenshot({ path: target });
-    }
+    await loc.screenshot({ path: target });
   }
   return { of: what, screenshot: target };
 }
@@ -3082,6 +3105,16 @@ async function ui(args, deps = liveDeps) {
   return deps.withEditor(
     async ({ page, ctx, url, consoleLines, cleanups = [] }) => {
       const result = { url, steps: [] };
+      let monitoredWorker;
+      const finishWorker = async () => {
+        if (!monitoredWorker) return;
+        const { worker, step } = monitoredWorker;
+        await worker.finish();
+        if (worker.report.reason) step.reason = worker.report.reason;
+        await worker.close();
+        monitoredWorker = null;
+        return step.reason;
+      };
       const requireEditor = editorGate();
       try {
         await openEditorPage(page, url);
@@ -3135,11 +3168,23 @@ async function ui(args, deps = liveDeps) {
         let written = null;
         try {
           if (step.freshSw) {
+            const priorFailure = await finishWorker();
+            if (priorFailure) {
+              result.steps.push({ freshSw: true, reason: `the preceding worker check failed; this refresh and the ${steps.length - stepNo} remaining steps did not run` });
+              break;
+            }
             const worker = await deps.reportFreshWorker(page, ctx, reloadEditorPage);
             cleanups.push(worker.close);
-            result.steps.push({ freshSw: true, serviceWorker: worker.report, ...(worker.report.reason ? { reason: worker.report.reason } : {}) });
-            if (worker.report.reason) break;
+            const workerStep = { freshSw: true, serviceWorker: worker.report };
+            result.steps.push(workerStep);
+            if (worker.report.reason) {
+              workerStep.reason = `${worker.report.reason}. The ${steps.length - stepNo} remaining steps did not run.`;
+              break;
+            }
+            monitoredWorker = { worker, step: workerStep };
             requireEditor.reset();
+            result.editorSettled = false;
+            await deps.waitForApp(page);
           } else if (step.sd || step.project) {
             let out;
             if (step.project) {
@@ -3327,6 +3372,7 @@ async function ui(args, deps = liveDeps) {
         result.ui = null;
         result.readError = String(err.message || err).split("\n")[0];
       }
+      await finishWorker();
       result.failed = result.steps.filter((s) => s.reason).map((s) => s.reason);
       if (result.readError) result.failed.push(`read-back failed: ${result.readError}`);
       const captured = partitionConsole(consoleLines);

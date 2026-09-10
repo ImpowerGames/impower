@@ -19,7 +19,10 @@ import crypto from "node:crypto";
 import { EventEmitter } from "node:events";
 import vm from "node:vm";
 import { MessageChannel } from "node:worker_threads";
-import { followedByMain, parseUiSteps, unionRect, languageSurface, liveDeps } from "./driver.mjs";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { followedByMain, parseUiSteps, unionRect, languageSurface, liveDeps, readLanguageSurface, placeCaret, shotOf } from "./driver.mjs";
 import { reportFreshWorker, workerSession } from "./worker-report.mjs";
 
 let failures = 0;
@@ -147,21 +150,21 @@ const asyncCheck = async (name, fn) => {
 
 await asyncCheck("hover uses pointer movement, completion types text, and missing surfaces are unknown server responses", async () => {
   const calls = [];
-  let lines = ["[[portrait]]"];
-  const view = { state: { doc: { lines: 1, line: () => ({ from: 0, text: lines[0] }) } }, coordsAtPos: () => ({ left: 100, top: 40, bottom: 60 }) };
+  let lines = ["intro", "[[portrait]]"];
+  const view = { state: { doc: { lines: 2, line: (n) => ({ from: n === 1 ? 0 : 6, text: lines[n - 1] }) } }, coordsAtPos: (pos) => ({ left: 100 + pos * 8, top: 40, bottom: 60 }) };
   const context = vm.createContext({ document: { querySelector: () => ({ cmTile: { view } }), elementFromPoint: () => ({ closest: () => true }) } });
   const page = {
-    keyboard: { press: async (key) => calls.push(["press", key]), type: async (text) => { calls.push(["type", text]); lines = ["[[portrait" + text + "]]"]; } },
+    keyboard: { press: async (key) => calls.push(["press", key]), type: async (text) => { calls.push(["type", text]); lines[1] = "[[portrait" + text + "]]"; } },
     mouse: { move: async (...args) => calls.push(["move", ...args]) },
     evaluate: async (fn, arg) => vm.runInContext(`(${fn})`, context)(arg),
     locator: () => ({ first: () => ({ waitFor: async () => { throw new Error("no widget"); } }) }),
   };
   const deps = { place: async () => ({ placed: true }), read: async (_, kind) => kind === "hover" ? { present: false } : { popupPresent: false } };
-  const hover = await languageSurface(page, "hover", { line: 1, col: 4 }, undefined, deps);
-  assert.deepEqual(calls.at(-1), ["move", 101, 50, { steps: 5 }]);
+  const hover = await languageSurface(page, "hover", { line: 2, col: 4 }, undefined, deps);
+  assert.deepEqual(calls.at(-1), ["move", 173, 50, { steps: 5 }]);
   assert.equal(hover.serverResponse, "unobserved");
   assert.match(hover.reason, /cannot distinguish an empty server answer/);
-  const completion = await languageSurface(page, "completion", { line: 1, col: 11 }, "~ha", deps);
+  const completion = await languageSurface(page, "completion", { line: 2, col: 11 }, "~ha", deps);
   assert.equal(completion.textMatches, true);
   assert.deepEqual(calls.at(-1), ["type", "~ha"]);
   assert.equal(completion.serverResponse, "unobserved");
@@ -171,12 +174,12 @@ await asyncCheck("hover uses pointer movement, completion types text, and missin
   assert.equal(calls.some(([call]) => call === "type"), false);
 });
 
-function workerHarness({ unregister = true, source = "installed worker A", reloadFails = false } = {}) {
+function workerHarness({ unregister = true, source = "installed worker A", reloadFails = false, controllerFails = false, answers = true, rejectInstall = false } = {}) {
   const calls = [];
   const listeners = new Set();
   const cdp = new EventEmitter();
   const targetId = "worker-target";
-  const controller = { state: "activated", scriptURL: "http://editor.test/sw.js", postMessage: (data, ports) => { for (const fn of listeners) fn({ data, ports }); } };
+  const controller = { state: "activated", scriptURL: "http://editor.test/sw.js", postMessage: (data, ports) => { if (answers) for (const fn of listeners) fn({ data, ports }); else ports[0].postMessage("wrong worker"); } };
   const registration = { active: controller, scope: "http://editor.test/", unregister: async () => { calls.push("unregister"); return unregister; } };
   const navigator = { serviceWorker: { controller, getRegistrations: async () => [registration], getRegistration: async () => registration } };
   const self = { addEventListener: (_, fn) => listeners.add(fn), removeEventListener: (_, fn) => listeners.delete(fn) };
@@ -191,14 +194,14 @@ function workerHarness({ unregister = true, source = "installed worker A", reloa
       let result = {};
       if (message.method === "Debugger.enable") event({ method: "Debugger.scriptParsed", params: { scriptId: "script", url: controller.scriptURL } });
       if (message.method === "Debugger.getScriptSource") result = { scriptSource: source };
-      if (message.method === "Runtime.evaluate") result = vm.runInContext(message.params.expression, context);
+      if (message.method === "Runtime.evaluate") result = rejectInstall && message.params.expression.includes("addEventListener") ? { exceptionDetails: { text: "listener installation refused" } } : vm.runInContext(message.params.expression, context);
       event({ id: message.id, result });
     }
     return {};
   };
   const page = {
     evaluate: async (fn, arg) => vm.runInContext(`(${fn})`, context)(arg),
-    waitForFunction: async (fn) => { const result = vm.runInContext(`(${fn})`, context)(); assert.equal(typeof result, "boolean", "wait predicate must be synchronous"); assert.equal(result, true); },
+    waitForFunction: async (fn) => { if (controllerFails) throw new Error("page.waitForFunction: Timeout"); const result = vm.runInContext(`(${fn})`, context)(); assert.equal(typeof result, "boolean", "wait predicate must be synchronous"); assert.equal(result, true); },
     waitForTimeout: async () => {},
   };
   const ctx = { newCDPSession: async () => cdp };
@@ -212,7 +215,7 @@ function workerHarness({ unregister = true, source = "installed worker A", reloa
 
 await asyncCheck("fresh worker unregisters before reload, hashes the installed source and captures worker cache warnings", async () => {
   const h = workerHarness();
-  const { report, close } = await liveDeps.reportFreshWorker(h.page, h.ctx, h.reload);
+  const { report, close } = await reportFreshWorker(h.page, h.ctx, h.reload);
   assert.equal(report.reason, undefined);
   assert.equal(report.controlled, true);
   assert.equal(report.refreshed, true);
@@ -231,12 +234,16 @@ await asyncCheck("fresh worker unregisters before reload, hashes the installed s
 });
 
 await asyncCheck("failed worker unregister or reload reports failure, skips script proof and closes CDP", async () => {
-  for (const options of [{ unregister: false }, { reloadFails: true }]) {
+  for (const options of [{ unregister: false }, { reloadFails: true }, { controllerFails: true }]) {
     const h = workerHarness(options);
     const { report } = await reportFreshWorker(h.page, h.ctx, h.reload);
     assert.equal(report.refreshed, false);
     assert.equal(report.sha256, null);
     assert.match(report.reason, /fresh service worker verification failed/);
+    if (options.controllerFails) {
+      assert.match(report.reason, /did not acquire an activated service-worker controller.*inspect consoleErrors/);
+      assert.doesNotMatch(report.reason, /page.waitForFunction|\.\./);
+    }
     assert.equal(h.calls.includes("Target.attachToTarget"), false);
     assert.ok(h.calls.includes("detach"));
     if (options.unregister === false) assert.equal(h.calls.includes("reload"), false);
@@ -250,6 +257,118 @@ await asyncCheck("worker CDP timeout rejects and leaves no response listener aft
   await assert.rejects(session.send("Debugger.enable"), /timed out/);
   await session.close();
   assert.equal(cdp.listenerCount("Target.receivedMessageFromTarget"), 0);
+});
+
+await asyncCheck("worker identity is checked again at the end and rejects a replaced version", async () => {
+  const h = workerHarness();
+  const monitor = await reportFreshWorker(h.page, h.ctx, h.reload);
+  assert.equal(monitor.report.verifiedAtEnd, false);
+  await monitor.finish();
+  assert.equal(monitor.report.verifiedAtEnd, true);
+  assert.equal(monitor.report.controlled, true);
+  h.cdp.emit("ServiceWorker.workerVersionUpdated", { versions: [{ versionId: "v", status: "redundant" }] });
+  await monitor.finish();
+  assert.equal(monitor.report.controlled, false);
+  assert.match(monitor.report.reason, /worker version was replaced/);
+  await monitor.close();
+  await monitor.close();
+  assert.equal(h.calls.filter((call) => call === "detach").length, 1);
+});
+
+await asyncCheck("an unanswered controller ping or rejected listener installation cannot establish identity", async () => {
+  for (const options of [{ answers: false }, { rejectInstall: true }]) {
+    const h = workerHarness(options);
+    const monitor = await reportFreshWorker(h.page, h.ctx, h.reload);
+    assert.equal(monitor.report.refreshed, false);
+    assert.match(monitor.report.reason, options.answers === false ? /did not answer/ : /listener installation refused/);
+    assert.equal(h.listeners.size, 0);
+    assert.ok(h.calls.includes("detach"));
+  }
+});
+
+await asyncCheck("worker warnings and exceptions retain 25 entries and count the dropped messages", async () => {
+  const h = workerHarness();
+  const monitor = await reportFreshWorker(h.page, h.ctx, h.reload);
+  for (let i = 0; i < 27; i++) {
+    h.event({ method: "Runtime.consoleAPICalled", params: { type: "warning", args: [{ value: `warning ${i}` }] } });
+    h.event({ method: "Runtime.exceptionThrown", params: { exceptionDetails: { exception: { description: `failure ${i}` } } } });
+  }
+  assert.deepEqual(monitor.report.warnings, Array.from({ length: 25 }, (_, i) => `warning ${i}`));
+  assert.deepEqual(monitor.report.errors, Array.from({ length: 25 }, (_, i) => `failure ${i}`));
+  assert.equal(monitor.report.warningsDropped, 2);
+  assert.equal(monitor.report.errorsDropped, 2);
+  await monitor.close();
+});
+
+function surfaceFixture() {
+  const rectangle = (x, y, width, height) => ({ x, y, width, height, left: x, top: y, right: x + width, bottom: y + height });
+  const image = { currentSrc: "blob:rendered", src: "fallback", naturalWidth: 150, naturalHeight: 150, getBoundingClientRect: () => rectangle(310, 90, 180, 180) };
+  const option = (label, detail) => ({ innerText: `${label}\n${detail}`, querySelector: (selector) => ({ innerText: selector === ".cm-completionLabel" ? label : detail }) });
+  const items = [option("hat", "character"), option("hat.on", "layer")];
+  const popup = { rect: rectangle(100, 100, 200, 90), getBoundingClientRect() { return this.rect; }, querySelectorAll: (s) => s === '[role="option"]' ? items : [], querySelector: (s) => s === '[aria-selected="true"]' ? items[0] : null };
+  const info = { rect: rectangle(300, 80, 200, 200), getBoundingClientRect() { return this.rect; }, querySelector: (s) => s === "img" ? image : null };
+  const hover = { ...info, innerText: "portrait" };
+  const nodes = new Map([
+    [".sparkdown-script-editor-root .cm-tooltip-hover", [hover]],
+    [".sparkdown-script-editor-root .cm-tooltip-autocomplete", [popup]],
+    [".sparkdown-script-editor-root .cm-completionInfo", [info]],
+  ]);
+  const context = vm.createContext({ document: { querySelectorAll: (selector) => nodes.get(selector) ?? [] }, getComputedStyle: (e) => ({ visibility: e.hidden ? "hidden" : "visible" }), innerWidth: 800, innerHeight: 600 });
+  const shots = [];
+  const page = { evaluate: async (fn, arg) => JSON.parse(JSON.stringify(await vm.runInContext(`(${fn})`, context)(arg))), viewportSize: () => ({ width: 800, height: 600 }), screenshot: async (args) => shots.push(args) };
+  return { page, popup, info, hover, nodes, shots, rectangle };
+}
+
+await asyncCheck("real DOM reader distinguishes labels, details, image dimensions and parked surfaces", async () => {
+  const h = surfaceFixture();
+  const completion = await readLanguageSurface(h.page, "completion");
+  assert.deepEqual(completion.options, ["hat", "hat.on"]);
+  assert.deepEqual(completion.items, [{ label: "hat", detail: "character" }, { label: "hat.on", detail: "layer" }]);
+  assert.equal(completion.selected, "hat");
+  assert.equal(completion.infoPanelPresent, true);
+  assert.equal(completion.imgSrc, "blob:rendered");
+  assert.deepEqual(completion.imgRect, { x: 310, y: 90, width: 180, height: 180 });
+  assert.equal(completion.naturalWidth, 150);
+  assert.equal(completion.naturalHeight, 150);
+  assert.equal((await readLanguageSurface(h.page, "hover")).text, "portrait");
+  h.hover.rect = h.rectangle(0, -10000, 180, 180);
+  assert.equal((await readLanguageSurface(h.page, "hover")).present, false);
+  h.info.hidden = true;
+  assert.equal((await readLanguageSurface(h.page, "completion")).infoPanelPresent, false);
+});
+
+await asyncCheck("actual screenshot call includes visible information and never waits for an absent panel", async () => {
+  const h = surfaceFixture();
+  const scratch = fs.mkdtempSync(path.join(os.tmpdir(), "impower-501-crop-"));
+  try {
+    await shotOf(h.page, "completion", path.join(scratch, "completion.png"));
+    assert.deepEqual(h.shots.at(-1).clip, { x: 100, y: 80, width: 400, height: 200 });
+    h.info.rect = h.rectangle(300, -10000, 200, 200);
+    await shotOf(h.page, "completion", path.join(scratch, "parked.png"));
+    assert.deepEqual(h.shots.at(-1).clip, { x: 100, y: 100, width: 200, height: 90 });
+    h.nodes.delete(".sparkdown-script-editor-root .cm-completionInfo");
+    await shotOf(h.page, "completion", path.join(scratch, "missing.png"));
+    assert.deepEqual(h.shots.at(-1).clip, { x: 100, y: 100, width: 200, height: 90 });
+    h.hover.rect = h.rectangle(0, -10000, 180, 180);
+    const before = h.shots.length;
+    assert.equal((await shotOf(h.page, "hover", path.join(scratch, "hover.png"))).screenshot, null);
+    assert.equal(h.shots.length, before);
+  } finally { fs.rmdirSync(scratch); }
+});
+
+await asyncCheck("go-to converts a one-based column, verifies the caret, and distinguishes an absent editor", async () => {
+  const state = { doc: { lines: 2, line: (n) => ({ length: n === 2 ? 12 : 3 }), lineAt: () => ({ number: 2, from: 4 }) }, selection: { main: { head: 4 } } };
+  const context = vm.createContext({ document: { querySelector: () => ({ cmTile: { view: { state } } }) } });
+  const page = { evaluate: async (fn, arg) => vm.runInContext(`(${fn})`, context)(arg) };
+  let typed, opens = 0;
+  const actions = { present: async () => ({ present: true }), open: async () => { opens++; return { open: true }; }, type: async (_, field, text) => { assert.equal(field, "line"); typed = text; return { matches: true }; }, submit: async () => { state.selection.main.head = 4 + Number(typed.split(":")[1]); } };
+  assert.equal((await placeCaret(page, { line: 2, col: 7 }, actions)).placed, true);
+  assert.equal(typed, "2:6");
+  assert.equal((await placeCaret(page, { line: 2, col: 14 }, actions)).placed, false);
+  assert.equal(opens, 1);
+  assert.equal((await placeCaret(page, { line: 2, col: 7 }, { ...actions, present: async () => ({ present: false, reason: "put --screen logic before this step" }) })).reason, "put --screen logic before this step");
+  assert.equal(opens, 1);
+  assert.equal((await placeCaret(page, { line: 2, col: 8 }, { ...actions, submit: async () => {} })).placed, false);
 });
 
 if (failures > 0) {

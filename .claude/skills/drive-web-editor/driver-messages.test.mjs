@@ -172,7 +172,9 @@ function scanSource(src) {
   return { code, messages: messages.map((m) => m.replace(/\s*\n\s*/g, " ")) };
 }
 
-const { code: sourceCode, messages } = scanSource(source);
+const { code: sourceCode, messages: driverMessages } = scanSource(source);
+const workerSource = fs.readFileSync(path.join(SKILL_DIR, "worker-report.mjs"), "utf8");
+const messages = [...driverMessages, ...scanSource(workerSource).messages];
 
 let failures = 0;
 function check(label, fn) {
@@ -189,13 +191,22 @@ function check(label, fn) {
 /** The symptom and the advice it must carry, inside one printed message. */
 function carriesAdvice(symptom, advice, window = 600, texts = messages) {
   const holding = texts.filter((m) => m.includes(symptom));
-  assert.notEqual(holding.length, 0, `the message is gone from driver.mjs: ${symptom}`);
+  assert.notEqual(holding.length, 0, `the message is gone from the driver modules: ${symptom}`);
   const windows = holding.map((m) => m.slice(m.indexOf(symptom), m.indexOf(symptom) + window));
   assert.ok(
     windows.some((near) => near.includes(advice)),
     `the message no longer names what to do: expected ${JSON.stringify(advice)} within ${window} characters of ${JSON.stringify(symptom)} in the same message, got ${JSON.stringify(windows[0].slice(0, 300))}`,
   );
 }
+
+check("worker failure messages retain their recovery advice", () => {
+  carriesAdvice("did not acquire an activated service-worker controller", "inspect consoleErrors");
+  carriesAdvice("could not identify one active worker", "close other editor tabs");
+  carriesAdvice("the active worker's script was not readable", "retry with the editor idle");
+  carriesAdvice("the hashed worker did not answer", "retry after the worker activates");
+  carriesAdvice("could not confirm that the worker identified", "held stable");
+  carriesAdvice("fresh service worker verification failed", "Inspect the worker and page errors");
+});
 
 // ---------------------------------------------------------------- reader ---
 
