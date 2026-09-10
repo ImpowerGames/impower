@@ -150,9 +150,9 @@ const asyncCheck = async (name, fn) => {
 
 await asyncCheck("hover uses pointer movement, completion types text, and missing surfaces are unknown server responses", async () => {
   const calls = [];
-  let lines = ["intro", "[[portrait]]"];
+  let lines = ["intro", "[[portrait]]"], mainVisible = true;
   const view = { state: { doc: { lines: 2, line: (n) => ({ from: n === 1 ? 0 : 6, text: lines[n - 1] }) } }, coordsAtPos: (pos) => ({ left: 100 + pos * 8, top: 40, bottom: 60 }) };
-  const context = vm.createContext({ document: { querySelector: () => ({ cmTile: { view } }), elementFromPoint: () => ({ closest: () => true }) } });
+  const context = vm.createContext({ document: { querySelector: (selector) => selector === '[role="tab"][id$="-trigger-main"]' ? (mainVisible ? {} : null) : selector === ".sparkdown-script-editor-root .cm-content" ? { cmTile: { view } } : null, elementFromPoint: () => ({ closest: () => true }) } });
   const page = {
     keyboard: { press: async (key) => calls.push(["press", key]), type: async (text) => { calls.push(["type", text]); lines[1] = "[[portrait" + text + "]]"; } },
     mouse: { move: async (...args) => calls.push(["move", ...args]) },
@@ -168,15 +168,17 @@ await asyncCheck("hover uses pointer movement, completion types text, and missin
   assert.match(hover.reason, /cannot distinguish an empty server answer/);
   const completion = await languageSurface(page, "completion", { line: 2, col: 11 }, "~ha", deps);
   assert.equal(completion.textMatches, true);
+  assert.equal(completion.editorView, "main");
   assert.deepEqual(calls.at(-1), ["type", "~ha"]);
   assert.equal(completion.serverResponse, "unobserved");
   page.keyboard.type = async () => { lines[1] += "wrong"; };
   const mismatch = await languageSurface(page, "completion", { line: 2, col: 11 }, "x", deps);
   assert.equal(mismatch.textMatches, false);
   assert.match(mismatch.reason, /typed text differs/);
-  page.evaluate = async (fn, arg) => String(fn).includes('trigger-main') ? false : vm.runInContext(`(${fn})`, context)(arg);
+  mainVisible = false;
   const otherFile = await languageSurface(page, "completion", { line: 2, col: 11 }, "x", deps);
   assert.equal(otherFile.typed, undefined);
+  assert.equal(otherFile.editorView, "scripts-view");
   assert.match(otherFile.reason, /main.sd/);
   calls.length = 0;
   const refused = await languageSurface(page, "completion", { line: 5, col: 1 }, "x", { ...deps, place: async () => ({ placed: false, reason: "outside" }) });
@@ -184,7 +186,7 @@ await asyncCheck("hover uses pointer movement, completion types text, and missin
   assert.equal(calls.some(([call]) => call === "type"), false);
 });
 
-function workerHarness({ unregister = true, source = "installed worker A", reloadFails = false, controllerFails = false, answers = true, rejectInstall = false, rejectTeardown = false } = {}) {
+function workerHarness({ unregister = true, source = "installed worker A", reloadFails = false, controllerFails = false, controllerMessage = "page.waitForFunction: Timeout", answers = true, rejectInstall = false, rejectTeardown = false } = {}) {
   const calls = [];
   const listeners = new Set();
   const cdp = new EventEmitter();
@@ -216,7 +218,7 @@ function workerHarness({ unregister = true, source = "installed worker A", reloa
   };
   const page = {
     evaluate: async (fn, arg) => vm.runInContext(`(${fn})`, context)(arg),
-    waitForFunction: async (fn) => { if (controllerFails) throw new Error("page.waitForFunction: Timeout"); const result = vm.runInContext(`(${fn})`, context)(); assert.equal(typeof result, "boolean", "wait predicate must be synchronous"); assert.equal(result, true); },
+    waitForFunction: async (fn) => { if (controllerFails) throw new Error(controllerMessage); const result = vm.runInContext(`(${fn})`, context)(); assert.equal(typeof result, "boolean", "wait predicate must be synchronous"); assert.equal(result, true); },
     waitForTimeout: async () => {},
   };
   const ctx = { newCDPSession: async () => cdp };
@@ -450,6 +452,58 @@ await asyncCheck("controller cleanup errors preserve the proved identity and the
   const bad = await reportFreshWorker(failed.page, failed.ctx, failed.reload);
   assert.match(bad.report.reason, /listener installation refused/);
   assert.deepEqual(bad.report.cleanupErrors, ["teardown refused"]);
+});
+
+await asyncCheck("language steps wait for placement through the production wait", async () => {
+  for (const kind of ["hover", "completion"]) {
+    let placed = false, line = "portrait", pauses = 0;
+    const view = { state: { doc: { lines: 1, line: () => ({ from: 0, text: line }) } }, coordsAtPos: () => ({ left: 10, top: 10, bottom: 30 }) };
+    const context = vm.createContext({ document: {
+      querySelector: (selector) => selector === '[role="tab"][id$="-trigger-main"]' ? {} : selector === '.sparkdown-script-editor-root .cm-content' ? { cmTile: { view } } : null,
+      elementFromPoint: () => ({ closest: () => true }),
+    } });
+    const page = {
+      keyboard: { press: async () => {}, type: async (text) => { line += text; } },
+      mouse: { move: async () => {} },
+      waitForTimeout: async () => { pauses++; placed = true; },
+      waitForFunction: async () => {},
+      evaluate: async (fn, arg) => vm.runInContext(`(${fn})`, context)(arg),
+    };
+    const read = async () => kind === "hover"
+      ? { present: placed }
+      : { popupPresent: placed, infoPanelPresent: placed };
+    const out = await languageSurface(page, kind, { line: 1, col: 9 }, "x", { place: async () => ({ placed: true }), read });
+    assert.ok(pauses > 0, `${kind} must wait for placement`);
+    assert.equal(kind === "hover" ? out.present : out.popupPresent, true);
+    assert.equal(out.serverResponse, undefined);
+  }
+});
+
+await asyncCheck("surface crops wait for placement through the production reader", async () => {
+  const scratch = fs.mkdtempSync(path.join(os.tmpdir(), "impower-501-delayed-crop-"));
+  try {
+    for (const kind of ["hover", "completion"]) {
+      const h = surfaceFixture();
+      const surface = kind === "hover" ? h.hover : h.popup;
+      const placed = surface.rect;
+      surface.rect = h.rectangle(0, -10000, 200, 200);
+      let pauses = 0;
+      h.page.waitForTimeout = async () => { pauses++; surface.rect = placed; };
+      const out = await shotOf(h.page, kind, path.join(scratch, `${kind}.png`));
+      assert.ok(pauses > 0, `${kind} crop must wait for placement`);
+      assert.equal(out.screenshot, path.join(scratch, `${kind}.png`));
+      assert.equal(h.shots.length, 1);
+      assert.ok(h.shots[0].clip.y >= 0);
+    }
+  } finally { fs.rmdirSync(scratch); }
+});
+
+await asyncCheck("controller recovery advice precedes the complete failure cause", async () => {
+  const cause = "page.waitForFunction: Timeout\n" + "call log detail\n".repeat(100) + "end of call log";
+  const h = workerHarness({ controllerFails: true, controllerMessage: cause });
+  const { report } = await reportFreshWorker(h.page, h.ctx, h.reload);
+  assert.ok(report.reason.includes(cause), "the cause must remain complete");
+  assert.ok(report.reason.indexOf("inspect consoleErrors") < report.reason.indexOf(cause), "advice must precede a long cause");
 });
 
 if (failures > 0) {

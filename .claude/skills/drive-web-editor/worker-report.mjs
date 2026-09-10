@@ -102,7 +102,7 @@ export async function reportFreshWorker(page, ctx, reload, { timeout = 30_000, c
     });
     await reload(page);
     await page.waitForFunction(() => navigator.serviceWorker.controller?.state === "activated", null, { timeout }).catch((err) => {
-      throw new Error(`the controller wait failed (${err.message}); inspect consoleErrors for registration failures and the page state before retrying`);
+      throw new Error(`the controller wait failed; inspect consoleErrors for registration failures and the page state before retrying. Cause: ${err.message}`);
     });
     const active = await page.evaluate(async () => {
       const registration = await navigator.serviceWorker.getRegistration();

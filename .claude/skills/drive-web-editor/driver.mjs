@@ -2059,7 +2059,7 @@ async function verify(args, deps = liveDeps) {
       if (monitoredWorker) {
         await monitoredWorker.finish();
         if (monitoredWorker.report.reason) {
-          result.error = [result.error, monitoredWorker.report.reason].filter(Boolean).join(" ");
+          result.error = [result.error, monitoredWorker.report.reason].filter(Boolean).join(" Also: ");
           process.exitCode = 1;
         }
       }
