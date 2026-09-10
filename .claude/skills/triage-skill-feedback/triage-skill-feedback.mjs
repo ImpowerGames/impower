@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
-import { readFileSync, writeFileSync, mkdirSync, mkdtempSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync, mkdtempSync, existsSync } from 'node:fs';
 import { resolve, dirname, relative, isAbsolute, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -8,14 +8,34 @@ const REPO = 'ImpowerGames/impower';
 const INBOX = 510;
 const hash = value => createHash('sha256').update(value).digest('hex').slice(0, 20);
 const clean = value => value.replace(/\r\n/g, '\n').trim();
-const decode = value => value.replace(/<br\s*\/?>/gi, '\n').replace(/&#124;/g, '|');
-const encode = value => value.replace(/\|/g, '&#124;').replace(/\r?\n/g, '<br>');
+const CELL = '<!-- skill-feedback-cell:v2 -->';
+const decode = value => value.startsWith(CELL)
+  ? value.slice(CELL.length).replace(/<br>/g, '\n').replace(/&(?:amp|lt|gt|#\d+);/g, entity => ({ '&amp;': '&', '&lt;': '<', '&gt;': '>' })[entity] ?? String.fromCodePoint(Number(entity.slice(2, -1))))
+  : value.replace(/<br\s*\/?>/gi, '\n').replace(/&#124;/g, '|');
+const encode = value => CELL + value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/[\\`*_\[\]~|]/g, char => `&#${char.codePointAt(0)};`).replace(/\r?\n/g, '<br>');
 const statusPattern = /^(open|ticketed #\d+|applied in PR #\d+)$/;
+const canonicalRows = rows => rows.map(({ skill, friction, edit, status }) => ({ skill, friction, edit, status }));
+const groupMarker = rows => `Feedback group: ${hash(JSON.stringify(canonicalRows(rows)))}`;
+
+function stripSummaryBlocks(body) {
+  const fenced = offset => {
+    let fence;
+    for (const line of body.slice(0, offset).split('\n')) {
+      const match = line.match(/^ {0,3}(`{3,}|~{3,})(.*)$/);
+      if (!match) continue;
+      if (!fence) fence = match[1];
+      else if (match[1][0] === fence[0] && match[1].length >= fence.length && !match[2].trim()) fence = undefined;
+    }
+    return Boolean(fence);
+  };
+  return body.replace(/^<!-- skill-feedback-triage:[a-f0-9]{20} -->\nFolded (?:(?!\n<!-- skill-feedback-triage:)[\s\S])*?\n<!-- skill-feedback-state:[a-f0-9]{20} -->\n?/gm,
+    (block, offset) => fenced(offset) ? block : '');
+}
 
 export function keyOf(skill) {
   const value = clean(skill).toLowerCase().replace(/[`*]/g, '').replace(/\s+/g, ' ');
-  const numbered = value.match(/^([^,]+),\s*(section \d+)\b/);
-  return numbered ? `${numbered[1]}, ${numbered[2]}` : value.replace(/\s*\([^)]*\)\.?$/, '').replace(/\.$/, '');
+  const numbered = value.match(/^([a-z0-9_-]+)(?:,\s*|\s+)(?:in\s+)?section\s+(\d+(?:\.\d+)*)(?:\s+\([^()]*\))?\.?$/);
+  return numbered ? `${numbered[1]}, section ${numbered[2]}` : value.replace(/\.$/, '');
 }
 
 function cells(line) {
@@ -46,7 +66,7 @@ export function renderTable(body, rows) {
 export function parseIntake(comment) {
   const text = clean(comment.body);
   if (text.startsWith('<!-- skill-feedback-triage:')) return null;
-  const fields = [...text.matchAll(/^(?:\*\*)?(Skill and section|What happened|Proposed edit):(?:\*\*)?\s*/gm)];
+  const fields = [...text.matchAll(/^(?:\*\*)?(Skill and section|What happened|Proposed edit)(?:\*\*)?:(?:\*\*)?\s*/gm)];
   if (fields.length !== 3 || fields.map(f => f[1]).join('|') !== 'Skill and section|What happened|Proposed edit') throw new Error(`Comment ${comment.id} does not match the inbox intake contract; leave it intact and inspect it.`);
   const values = fields.map((field, i) => text.slice(field.index + field[0].length, fields[i + 1]?.index ?? text.length).trim());
   if (values.some(v => !v)) throw new Error(`Comment ${comment.id} has an empty intake field.`);
@@ -56,57 +76,99 @@ export function parseIntake(comment) {
 export function fold(body, comments) {
   const rows = [];
   const byKey = new Map();
-  function add(row, repeat) {
+  function add(row, repeat, id) {
     const key = keyOf(row.skill);
     const previous = byKey.get(key);
     if (!previous) { const copy = { ...row }; rows.push(copy); byKey.set(key, copy); return; }
     if (previous.status !== row.status && row.status !== 'open') throw new Error(`Conflicting statuses for ${row.skill}; resolve the table first.`);
-    const newWork = ['friction', 'edit'].some(field => !previous[field].includes(row[field]));
-    if (newWork && previous.status !== 'open' && row.status === 'open') {
-      previous.edit += `\nEarlier item: ${previous.status}; new feedback requires triage.`;
+    if (id && previous.status !== 'open') {
+      previous.previousStatus = previous.status;
+      for (const field of ['friction', 'edit']) previous[field] = `Earlier feedback (${previous.status}; context only):\n${previous[field]}`;
       previous.status = 'open';
     }
-    for (const field of ['friction', 'edit']) if (!previous[field].includes(row[field])) previous[field] += `\n${row[field]}`;
-    if (repeat && !previous.friction.includes('Seen again')) previous.friction += '\nSeen again.';
+    if (id) {
+      (previous.observations ||= []).push({ id, friction: row.friction, edit: row.edit });
+      for (const field of ['friction', 'edit']) previous[field] += `\n\nSeen again (intake #${id}):\n${row[field]}`;
+    } else {
+      for (const field of ['friction', 'edit']) if (previous[field] !== row[field]) previous[field] += `\n${row[field]}`;
+      if (repeat) previous.friction += '\nSeen again.';
+    }
   }
   for (const row of parseTable(body).rows) add(row, true);
   const folded = [];
+  const ignored = [];
   for (const comment of comments) {
-    const row = parseIntake(comment);
-    if (row) { add(row, true); folded.push(comment); }
+    try {
+      const row = parseIntake(comment);
+      if (row) { add(row, true, comment.id); folded.push(comment); }
+    } catch (error) { ignored.push({ id: comment.id, body: comment.body, reason: error.message }); }
   }
-  return { rows, folded };
+  return { rows, folded, ignored };
 }
 
-export function makePlan(body, comments) {
-  const { rows, folded } = fold(body, comments);
+export function makePlan(body, comments, references = { prs: {}, issues: {} }) {
+  const { rows, folded, ignored } = fold(body, comments);
+  for (const row of rows) {
+    if (!row.status.startsWith('applied in PR #')) continue;
+    const number = row.status.match(/#(\d+)/)[1];
+    const pr = references.prs[number];
+    if (pr?.state === 'closed' && !pr.merged_at) {
+      row.previousStatus = row.status;
+      row.edit += `\nEarlier item: ${row.status}; the pull request closed without merging.`;
+      row.status = 'open';
+    }
+  }
   const groups = new Map();
   for (const row of rows.filter(row => row.status === 'open')) {
     const skill = row.skill.split(',')[0];
-    if (!groups.has(skill)) groups.set(skill, { action: 'ticket', title: `Address ${skill} feedback from the skills inbox`, keys: [] });
-    groups.get(skill).keys.push(keyOf(row.skill));
+    const previousTicket = row.previousStatus?.match(/^ticketed #(\d+)$/)?.[1];
+    const existing = previousTicket && references.issues[previousTicket]?.state === 'open';
+    const key = existing ? `existing:${previousTicket}` : `ticket:${skill}`;
+    if (!groups.has(key)) groups.set(key, existing
+      ? { action: 'existing', number: Number(previousTicket), keys: [], context: `Follow-up to #${previousTicket}; verify this Task remains the right scope before applying.` }
+      : { action: 'ticket', title: `Address ${skill} feedback from the skills inbox`, keys: [], context: '' });
+    const group = groups.get(key);
+    group.keys.push(keyOf(row.skill));
+    if (row.previousStatus && !existing) group.context += `${group.context ? '\n' : ''}Related earlier work: ${row.previousStatus}.`;
   }
-  return { version: 1, repo: REPO, inbox: INBOX, body, comments: folded, rows, groups: [...groups.values()] };
+  return { version: 1, repo: REPO, inbox: INBOX, body, comments: folded, ignored, references, rows, groups: [...groups.values()] };
+}
+
+export async function readPlan(api) {
+  const body = (await api.inbox()).body;
+  const comments = await api.comments();
+  const references = { prs: {}, issues: {} };
+  for (const row of fold(body, comments).rows) for (const status of [row.status, row.previousStatus]) {
+    const match = status?.match(/^(ticketed|applied in PR) #(\d+)$/);
+    if (!match) continue;
+    const [, kind, number] = match;
+    const bucket = kind === 'ticketed' ? references.issues : references.prs;
+    if (bucket[number]) continue;
+    const item = await (kind === 'ticketed' ? api.issue(Number(number)) : api.pr(Number(number)));
+    bucket[number] = kind === 'ticketed' ? { state: item.state } : { state: item.state, merged_at: item.merged_at };
+  }
+  return makePlan(body, comments, references);
 }
 
 function ticketBody(rows, marker, context = '') {
-  return `## Description\n\n${rows.map(r => `### ${r.skill}\n\n${r.friction}\n\nProposed change: ${r.edit}`).join('\n\n')}\n\n## Motivation\n\nThese items were observed while following the repository skills and collected in #510.\n\n## Scope\n\nAddress the items above. Prefer a checked mechanism for preventable mistakes; confirm prose proposals against current code and instructions before applying them.\n\n## Acceptance criteria\n\n- [ ] Each item above is fixed or explicitly adjudicated.\n- [ ] Any mechanism has a failing-then-passing check and the standalone checks pass.\n- [ ] Skill text describes current behavior and the pull request lists applied feedback.\n\n## Additional context\n\nFiled by the hand-invoked triage-skill-feedback run for #510.${context ? `\n\n${context}` : ''}\n\n${marker}\n`;
+  const description = rows.map(row => `### ${row.skill}\n\n` + (row.previousStatus && row.observations?.length
+    ? row.observations.map(item => `Intake #${item.id}:\n\n${item.friction}\n\nProposed change: ${item.edit}`).join('\n\n')
+    : `${row.friction}\n\nProposed change: ${row.edit}`)).join('\n\n');
+  return `## Description\n\n${description}\n\n## Motivation\n\nThese items were observed while following the repository skills and collected in #510.\n\n## Scope\n\nAddress the items above. Prefer a checked mechanism for preventable mistakes; confirm prose proposals against current code and instructions before applying them.\n\n## Acceptance criteria\n\n- [ ] Each item above is fixed or explicitly adjudicated.\n- [ ] Any mechanism has a failing-then-passing check and the standalone checks pass.\n- [ ] Skill text describes current behavior and the pull request lists applied feedback.\n\n## Additional context\n\nFiled by the hand-invoked triage-skill-feedback run for #510.${context ? `\n\n${context}` : ''}\n\n${marker}\n`;
 }
 
 export function preview(plan) {
   return plan.groups.map(group => {
     const rows = plan.rows.filter(row => group.keys.includes(keyOf(row.skill)));
-    return { ...group, body: group.action === 'ticket' ? ticketBody(rows, `Feedback group: ${hash(JSON.stringify(rows))}`, group.context) : undefined };
+    return { ...group, body: ['ticket', 'existing'].includes(group.action) ? ticketBody(rows, groupMarker(rows), group.context) : undefined };
   });
 }
 
 // The adapter makes persistence ordering testable without touching GitHub.
 export async function applyPlan(plan, api) {
   if (plan.version !== 1 || plan.repo !== REPO || plan.inbox !== INBOX) throw new Error('Wrong plan version or inbox.');
-  const expected = fold(plan.body, plan.comments).rows;
-  if (JSON.stringify(plan.rows) !== JSON.stringify(expected)) throw new Error('Edit group decisions, not the captured rows; make a fresh plan for new intake.');
   const keys = plan.groups.flatMap(group => group.keys);
-  const open = expected.filter(row => row.status === 'open').map(row => keyOf(row.skill));
+  const open = plan.rows.filter(row => row.status === 'open').map(row => keyOf(row.skill));
   if (keys.length !== new Set(keys).size || JSON.stringify([...keys].sort()) !== JSON.stringify([...open].sort())) throw new Error('Every open row must occur in exactly one group.');
   for (const group of plan.groups) {
     if (!['ticket', 'applied', 'existing'].includes(group.action) || (group.action === 'ticket' ? !group.title?.trim() : !Number.isSafeInteger(group.number) || group.number < 1)) throw new Error('Each group needs a ticket title, an existing issue number, or an applied PR number.');
@@ -121,6 +183,10 @@ export async function applyPlan(plan, api) {
     if (!integrity || hash(current.body.slice(0, integrity.index)) !== integrity[1]) throw new Error('Persisted inbox changed after folding; inspect it before deleting intake.');
   }
   if (!resumed && current.body !== plan.body) throw new Error('Inbox body changed since planning; create a fresh plan before writing.');
+  if (!resumed) for (const [kind, refs] of Object.entries(plan.references || {})) for (const [number, saved] of Object.entries(refs)) {
+    const item = await (kind === 'prs' ? api.pr(Number(number)) : api.issue(Number(number)));
+    if (item.state !== saved.state || (kind === 'prs' && item.merged_at !== saved.merged_at)) throw new Error(`Referenced ${kind} #${number} changed since planning; read a fresh plan.`);
+  }
   const currentComments = await api.comments();
   for (const comment of plan.comments) {
     const live = currentComments.find(c => c.id === comment.id);
@@ -128,6 +194,8 @@ export async function applyPlan(plan, api) {
   }
   let summary;
   if (!resumed) {
+    const expected = makePlan(plan.body, plan.comments, plan.references).rows;
+    if (JSON.stringify(plan.rows) !== JSON.stringify(expected)) throw new Error('Plan rows differ from the current parser; keep the original plan for recovery and inspect any earlier tickets before creating a fresh plan with existing decisions.');
     const rows = expected.map(row => ({ ...row }));
     const filed = [], applied = [], removed = [];
     const allIssues = await api.issues();
@@ -135,21 +203,30 @@ export async function applyPlan(plan, api) {
       const grouped = rows.filter(row => group.keys.includes(keyOf(row.skill)));
       let number = group.number;
       if (group.action === 'ticket') {
-        const ticketMarker = `Feedback group: ${hash(JSON.stringify(grouped))}`;
+        const ticketMarker = groupMarker(grouped);
         const expectedBody = ticketBody(grouped, ticketMarker, group.context);
         const matches = allIssues.filter(issue => !issue.pull_request && issue.body?.includes(ticketMarker));
         if (matches.length > 1) throw new Error('Multiple tickets carry a group recovery marker; inspect them before retrying.');
         const ticket = matches[0] || await api.createTicket(group.title, expectedBody);
         number = ticket.number;
         const readback = await api.issue(number);
-        if (readback.type?.name !== 'Task' || !readback.labels.some(label => label.name === 'workflow: skills') || readback.body !== expectedBody || readback.title !== group.title) throw new Error(`Ticket #${number} failed read-back verification; keep the intake.`);
+        if (readback.type?.name !== 'Task' || !readback.labels.some(label => label.name === 'workflow: skills') || readback.body !== expectedBody || readback.title !== group.title) throw new Error(`Recovered ticket #${number} differs from this plan. Keep the intake; retry the same unedited plan and inspect that ticket. For deliberate changes, make a fresh plan with an existing decision for #${number}.`);
         filed.push(`#${number}`);
       } else if (group.action === 'existing') {
         const ticket = await api.issue(number);
         if (ticket.pull_request || ticket.type?.name !== 'Task' || !ticket.labels.some(label => label.name === 'workflow: skills')) throw new Error(`#${number} is not a workflow: skills Task.`);
+        if (ticket.state !== 'open') throw new Error(`Task #${number} is closed; choose an open Task or file new work.`);
+        const evidenceMarker = groupMarker(grouped);
+        const evidenceBody = ticketBody(grouped, evidenceMarker, group.context);
+        const earlier = (await api.issueComments(number)).filter(comment => comment.body.includes(evidenceMarker));
+        if (earlier.length > 1) throw new Error('Multiple existing-ticket evidence comments carry this marker.');
+        const evidence = earlier[0] || await api.postIssueComment(number, evidenceBody);
+        const confirmed = (await api.issueComments(number)).find(comment => comment.id === evidence.id);
+        if (confirmed?.body !== evidenceBody) throw new Error('Existing-ticket evidence failed read-back; preserve intake.');
         filed.push(`#${number} (existing)`);
       } else {
-        await api.pr(number);
+        const target = await api.pr(number);
+        if (target.state === 'closed' && !target.merged_at) throw new Error(`PR #${number} is closed and unmerged; select work that still carries the edit.`);
         applied.push(`#${number}`);
       }
       for (const row of grouped) row.status = group.action === 'applied' ? `applied in PR #${number}` : `ticketed #${number}`;
@@ -160,8 +237,8 @@ export async function applyPlan(plan, api) {
       const done = row.status.startsWith('ticketed') ? (await api.issue(number)).state === 'closed' : row.status.startsWith('applied') ? Boolean((await api.pr(number)).merged_at) : false;
       if (done) removed.push(row.skill); else remaining.push(row);
     }
-    summary = `${marker}\nFolded ${plan.comments.length} intake comments (${plan.comments.map(c => c.id).join(', ') || 'none'}); filed or linked ${filed.join(', ') || 'none'}; applied ${applied.join(', ') || 'none'}; removed ${removed.join('; ') || 'none'}.`;
-    const prior = plan.body.replace(/\n<!-- skill-feedback-triage:[\s\S]*$/, '').trimEnd();
+    summary = `${marker}\nFolded ${plan.comments.length} intake comments (${plan.comments.map(c => c.id).join(', ') || 'none'}); filed or linked ${filed.join(', ') || 'none'}; applied ${applied.join(', ') || 'none'}; removed ${removed.join('; ') || 'none'}; left unparsed comments ${(plan.ignored || []).map(c => c.id).join(', ') || 'none'} intact (reasons in the plan).`;
+    const prior = stripSummaryBlocks(plan.body).trimEnd();
     const content = `${renderTable(prior, remaining).trimEnd()}\n\n${summary}`;
     const updated = `${content}\n<!-- skill-feedback-state:${hash(content)} -->\n`;
     current = await api.inbox();
@@ -169,7 +246,7 @@ export async function applyPlan(plan, api) {
     await api.updateBody(updated);
     if ((await api.inbox()).body !== updated) throw new Error('Inbox body read-back differs; no intake deleted.');
   } else {
-    summary = current.body.slice(current.body.indexOf(marker)).split('\n').slice(0, 2).join('\n');
+    summary = current.body.slice(current.body.indexOf(marker), current.body.lastIndexOf('\n<!-- skill-feedback-state:'));
   }
   // Never delete a comment until its complete content and status are persisted.
   for (const comment of plan.comments) {
@@ -190,13 +267,19 @@ export async function applyPlan(plan, api) {
 
 function github(scratch) {
   let sequence = 0;
+  let directory;
   const gh = args => JSON.parse(execFileSync('gh', args, { encoding: 'utf8', maxBuffer: 20 * 1024 * 1024 }));
   const api = path => gh(['api', `repos/${REPO}/${path}`]);
   const pages = path => gh(['api', `repos/${REPO}/${path}`, '--paginate', '--slurp']).flat();
-  function bodyFile(body) { const file = resolve(scratch, `body-${++sequence}.md`); writeFileSync(file, body); return file; }
+  function bodyFile(body) {
+    if (!directory) { mkdirSync(scratch, { recursive: true }); directory = mkdtempSync(resolve(scratch, 'triage-bodies-')); }
+    const file = resolve(directory, `body-${++sequence}.md`); writeFileSync(file, body); return file;
+  }
   return {
     inbox: () => api(`issues/${INBOX}`), comments: () => pages(`issues/${INBOX}/comments?per_page=100`),
     issues: () => pages('issues?state=all&per_page=100'), issue: number => api(`issues/${number}`), pr: number => api(`pulls/${number}`),
+    issueComments: number => pages(`issues/${number}/comments?per_page=100`),
+    postIssueComment: (number, body) => gh(['api', '-X', 'POST', `repos/${REPO}/issues/${number}/comments`, '-F', `body=@${bodyFile(body)}`]),
     createTicket: (title, body) => gh(['api', '-X', 'POST', `repos/${REPO}/issues`, '-f', `title=${title}`, '-F', `body=@${bodyFile(body)}`, '-f', 'type=Task', '-f', 'labels[]=workflow: skills']),
     updateBody: body => execFileSync('gh', ['issue', 'edit', String(INBOX), '--repo', REPO, '--body-file', bodyFile(body)], { encoding: 'utf8' }),
     deleteComment: id => execFileSync('gh', ['api', '-X', 'DELETE', `repos/${REPO}/issues/comments/${id}`], { encoding: 'utf8' }),
@@ -212,13 +295,16 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
     const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../../..');
     const within = relative(repoRoot, resolve(file));
     if (within !== '..' && !within.startsWith(`..${sep}`) && !isAbsolute(within)) throw new Error('Keep the plan outside the checkout.');
-    mkdirSync(dirname(resolve(file)), { recursive: true });
-    const scratch = mkdtempSync(resolve(dirname(file), 'triage-bodies-'));
-    const api = github(scratch);
+    for (let directory = dirname(resolve(file));; directory = dirname(directory)) {
+      if (existsSync(resolve(directory, '.git'))) throw new Error('Keep the plan outside every Git checkout, including other worktrees.');
+      if (dirname(directory) === directory) break;
+    }
+    const api = github(dirname(resolve(file)));
     if (command === 'plan') {
-      const plan = makePlan((await api.inbox()).body, await api.comments());
+      const plan = await readPlan(api);
+      mkdirSync(dirname(resolve(file)), { recursive: true });
       writeFileSync(file, JSON.stringify(plan, null, 2) + '\n', { flag: 'wx' });
-      console.log(`Plan written to ${file}: ${plan.rows.length} rows, ${plan.comments.length} intake comments. Read and edit groups before apply.`);
+      console.log(`Plan written to ${file}: ${plan.rows.length} rows, ${plan.comments.length} intake comments, ${plan.ignored.length} unparsed comments left intact. Read ignored IDs/reasons and edit groups before apply.`);
     } else {
       const plan = JSON.parse(readFileSync(file, 'utf8'));
       console.log(JSON.stringify(command === 'preview' ? preview(plan) : await applyPlan(plan, api), null, 2));
