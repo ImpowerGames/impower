@@ -1,7 +1,6 @@
-// Pins the mechanisms that replaced this skill's Gotchas bullets and
-// Troubleshooting rows (#497). Each one exists because a sentence telling
-// the next session to be careful is what had been failing, so each is
-// checked here rather than described there. Run:
+// Pins this skill's mechanisms for preventing or reporting mistakes (#497).
+// Each check requires the driver to supply the action or report field a
+// session needs at the moment it encounters the problem. Run:
 //   node .claude/skills/drive-web-editor/driver-messages.test.mjs
 //
 // Three kinds of assertion appear below. Where the code is reachable without
@@ -54,6 +53,17 @@ function scanSource(src) {
   const blank = (from, to) => {
     for (let k = from; k < to; k++) if (bare[k] !== "\n") bare[k] = " ";
   };
+  const skipComment = (start) => {
+    let end = start + 2;
+    if (src[start + 1] === "/") {
+      while (end < src.length && src[end] !== "\n") end++;
+    } else {
+      while (end < src.length && !(src[end] === "*" && src[end + 1] === "/")) end++;
+      end = Math.min(end + 2, src.length);
+    }
+    blank(start, end);
+    return end;
+  };
   // A `/` opens a regular expression where a value cannot stand: after an
   // operator, a comma, an opening bracket, or a keyword. After a value (a
   // name, a literal, a closing bracket) it is division.
@@ -63,6 +73,20 @@ function scanSource(src) {
     const last = before[before.length - 1];
     if ("=(,:[!&|?{};+-*%~^<>".includes(last)) return true;
     return /\b(return|typeof|instanceof|in|of|new|delete|void|case|do|else|yield|await)$/.test(before);
+  };
+  const regexAt = (i) => opensRegex(bare.slice(Math.max(0, i - 200), i).join(""));
+  const skipRegex = (i) => {
+    i++;
+    let inClass = false;
+    while (i < src.length) {
+      if (src[i] === "\\") { i += 2; continue; }
+      if (src[i] === "[") inClass = true;
+      else if (src[i] === "]") inClass = false;
+      else if (src[i] === "/" && !inClass) return i + 1;
+      else if (src[i] === "\n") break;
+      i++;
+    }
+    return i;
   };
   const skipString = (i) => {
     const quote = src[i];
@@ -85,6 +109,8 @@ function scanSource(src) {
         let depth = 1;
         while (i < src.length && depth > 0) {
           const ch = src[i];
+          if (ch === "/" && (src[i + 1] === "/" || src[i + 1] === "*")) { i = skipComment(i); continue; }
+          if (ch === "/" && regexAt(i)) { i = skipRegex(i); continue; }
           if (ch === "\\") { i += 2; continue; }
           if (ch === '"' || ch === "'") { i = skipString(i); continue; }
           if (ch === "`") { i = skipTemplate(i); continue; }
@@ -101,18 +127,8 @@ function scanSource(src) {
   let i = 0;
   while (i < src.length) {
     const c = src[i];
-    if (c === "/" && src[i + 1] === "/") {
-      const start = i;
-      while (i < src.length && src[i] !== "\n") i++;
-      blank(start, i);
-      continue;
-    }
-    if (c === "/" && src[i + 1] === "*") {
-      const start = i;
-      i += 2;
-      while (i < src.length && !(src[i] === "*" && src[i + 1] === "/")) i++;
-      i = Math.min(i + 2, src.length);
-      blank(start, i);
+    if (c === "/" && (src[i + 1] === "/" || src[i + 1] === "*")) {
+      i = skipComment(i);
       continue;
     }
     if (c === '"' || c === "'") {
@@ -124,20 +140,11 @@ function scanSource(src) {
     if (c === "`") {
       const start = i;
       i = skipTemplate(i);
-      literals.push({ start, end: i, text: src.slice(start + 1, i - 1) });
+      literals.push({ start, end: i, text: bare.slice(start + 1, i - 1).join("") });
       continue;
     }
-    if (c === "/" && opensRegex(src.slice(Math.max(0, i - 200), i))) {
-      i++;
-      let inClass = false;
-      while (i < src.length) {
-        if (src[i] === "\\") { i += 2; continue; }
-        if (src[i] === "[") inClass = true;
-        else if (src[i] === "]") inClass = false;
-        else if (src[i] === "/" && !inClass) { i++; break; }
-        else if (src[i] === "\n") break;
-        i++;
-      }
+    if (c === "/" && regexAt(i)) {
+      i = skipRegex(i);
       continue;
     }
     i++;
@@ -229,6 +236,21 @@ check("the message reader reads what the driver prints, and not the source aroun
 });
 
 // ------------------------------------------------------------ navigation ---
+
+check("comments inside template interpolations are neither navigation code nor printed advice", () => {
+  const fixture = [
+    'const a = `the panel did not open ${/* page.goto(url); --close */ true}`;',
+    'const b = `another message ${// page.reload(); --screen logic',
+    'true}`;',
+    'const c = `a regular expression ${/[/*}]/.test(value)} keeps its remedy`;',
+    'const d = `a slash expression ${/* a comment */ /[//}]/.test(value)} keeps its remedy`;',
+  ].join("\n");
+  const read = scanSource(fixture);
+  assert.doesNotMatch(read.code, /page\.(goto|reload)\(/, "an interpolation comment was read as navigation code");
+  assert.ok(!read.messages.some((m) => /--close|--screen logic/.test(m)), "an interpolation comment was read as printed advice");
+  assert.ok(read.messages.some((m) => m.startsWith("a regular expression") && m.endsWith("keeps its remedy")), "a regex character class was read as a comment or interpolation boundary");
+  assert.ok(read.messages.some((m) => m.startsWith("a slash expression") && m.endsWith("keeps its remedy")), "a regex after a comment was not kept intact");
+});
 
 check("the editor's navigation options are the long ones a cold load needs", () => {
   assert.deepEqual(EDITOR_NAVIGATION, { waitUntil: "domcontentloaded", timeout: 120_000 });

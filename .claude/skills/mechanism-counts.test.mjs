@@ -8,7 +8,7 @@
 // session meets it at the moment it matters instead of reading a warning
 // beforehand and forgetting it. The leading sentence on each list says so,
 // and a sentence is exactly what does not stop the next session from adding
-// one more bullet, which is how these lists grew the last time.
+// one more bullet.
 //
 // So the sizes are written here. Adding an entry fails this check until the
 // number below moves, and moving the number is a line in a diff a reviewer
@@ -70,7 +70,7 @@ export function countEntries(markdown) {
       continue;
     }
     if (!section) continue;
-    if (section === "gotchas" && /^[-*]\s/.test(line)) counts.gotchas += 1;
+    if (section === "gotchas" && /^[-*+]\s/.test(line)) counts.gotchas += 1;
     if (section === "troubleshooting") {
       if (line.startsWith("|")) {
         tableRun += 1;
@@ -152,6 +152,10 @@ check("a troubleshooting entry is a table row, and neither the header nor the ru
 
 check("a file with neither section counts nothing", () => {
   assert.deepEqual(countEntries("# A skill\n\n- a step\n\n## Steps\n\n| a | b |\n| - | - |\n| c | d |\n"), { gotchas: 0, troubleshooting: 0 });
+});
+
+check("every Markdown unordered-list marker counts as a Gotchas entry", () => {
+  assert.deepEqual(countEntries("## Gotchas\n\n- One.\n* Two.\n+ Three.\n"), { gotchas: 3, troubleshooting: 0 });
 });
 
 // -------------------------------------------------------------- the lists ---
