@@ -149,7 +149,7 @@ End the session with a "Skill feedback" section, one entry per problem naming th
 
 Before adding a Gotchas entry or caveat, decide whether code can prevent or detect the trap. A simple mechanism ships in the same pull request with a check. A complex mechanism gets a `workflow: skills` Task, named in the feedback; ask before filing unless the session already authorizes it. An entry still needed while that mechanism is pending points to its ticket. Explain why no mechanism is possible when the rule requires human judgment.
 
-When a small edit is certain and the session has a branch and pull request, make it in its own commit on that branch. List what you applied in both Skill feedback and the pull request's Notes for reviewers so the editorial review checks it. Otherwise record the proposal in the inbox for the maintainer's hand-invoked `triage-skill-feedback` skill. Preserve the purpose of a rule when improving its wording.
+When a small edit is certain and the session has a branch and pull request, make it in its own commit on that branch. List what you applied in both Skill feedback and the pull request's Notes for reviewers so the editorial review checks it. Otherwise record the proposal in the inbox for the maintainer's hand-invoked `triage-skill-feedback` skill. Do not remove a rule merely because it is inconvenient; preserve its purpose when editing it.
 
 ## Strict rule — LOOK. Never guess.
 

@@ -137,4 +137,4 @@ Judgement calls, which are the only thing this list holds: no mechanism can make
 
 ## Improving this skill
 
-If a step here failed, a branch in the checklist made no sense for your feature, the interview format got in the way, or you hit a trap Gotchas does not list, report it under a "Skill feedback" heading in your final message with the edit you propose, as `CLAUDE.md` describes. If the session has a branch and pull request and you are certain of the fix, make it in this file in its own commit and mention it in the pull request; otherwise the report is enough.
+If a step here failed, a branch in the checklist made no sense for your feature, the interview format got in the way, or you hit a trap Gotchas does not list, report it under a "Skill feedback" heading in your final message with the edit you propose, as `CLAUDE.md` describes. If the session has a branch and pull request and you are certain of the fix, make it in this file in its own commit and mention it in the pull request; otherwise record the proposal in the inbox as `CLAUDE.md` describes.
