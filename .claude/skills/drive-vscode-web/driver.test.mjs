@@ -584,7 +584,11 @@ const upDeps = (over = {}) => {
     calls,
     state: null,
     log: (m) => calls.push(["log", m]),
+    // Recorded as well as thrown, because in a real run `die` exits the
+    // process: what has to be true is that the lock was given back before
+    // the call, not that a `finally` an exit never reaches would have.
     die: (m) => {
+      calls.push(["die", m]);
       throw new Refusal(m);
     },
     sleep: async () => {},
@@ -684,10 +688,12 @@ await check("a stale build, or a missing server entry, ends up before anything i
     },
   });
   await refuses(up(["--sd", "repro.sd"], stale), /is older than packages\/sparkdown\/src\/a\.ts/);
+  // checkBuild refuses by throwing rather than through `die`, so no `die`
+  // entry stands here; the missing-entry refusal below goes through `die`.
   assert.deepEqual(names(stale), ["removeState"], "something was written or spawned after the build refused");
   const noEntry = upDeps({ exists: () => false });
   await refuses(up(["--sd", "repro.sd"], noEntry), /index\.js is missing; run PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 npm install/);
-  assert.deepEqual(names(noEntry), ["removeState"]);
+  assert.deepEqual(names(noEntry), ["removeState", "die"]);
 });
 
 await check("up --fresh is refused while another worktree's standing record serves from the quality's directory, and otherwise launches without a commit pin", async () => {
@@ -782,11 +788,36 @@ await check("up takes the download lock only when it will download, releases it 
   await refuses(up(["--sd", "repro.sd"], busy), /^C:.w2 \(pid 7\) is downloading the VS Code build into .*builds.stable; two downloads at once delete each other's build, since the server empties that directory before it unpacks\. Wait for that `up` to print READY, then run this again$/);
   assert.ok(!names(busy).includes("spawn"), "nothing is launched into a directory that is being replaced");
 
+  // A lock that stood for both attempts but whose record could not be read
+  // back names nobody, so the refusal says the state could not be read
+  // instead of telling the session to wait for a launch it cannot name.
+  const unreadable = upDeps({
+    unpackedCommit: () => null,
+    takeDownloadLock: async () => ({ held: false, other: null }),
+  });
+  await refuses(up(["--sd", "repro.sd"], unreadable), /^the download lock .*download-stable\.lock was taken both times this launch tried for it and its record could not be read back, so who is downloading the VS Code build into .*builds.stable cannot be said; .*Run this again: a lock that was only changing hands is free by then, and one that is still there names its holder$/);
+  assert.ok(!names(unreadable).includes("spawn"), "nothing is launched into a directory that may be being replaced");
+
   // A launch that dies waiting still gives the lock back, or the next one
-  // waits on a download that is not happening.
+  // waits on a download that is not happening. `die` exits the process in a
+  // real run, so the release has to have happened before it is called.
   const died = upDeps({ unpackedCommit: () => null, waitReady: async () => false });
   await refuses(up(["--sd", "repro.sd"], died), /exited before .* answered; read .*, then `down` and `up` again$/);
-  assert.ok(names(died).includes("releaseDownloadLock"), "a failed launch releases the lock rather than wedging every other worktree");
+  const diedOrder = names(died);
+  assert.ok(diedOrder.includes("releaseDownloadLock"), "a failed launch releases the lock rather than wedging every other worktree");
+  assert.ok(diedOrder.indexOf("releaseDownloadLock") < diedOrder.indexOf("die"), "the lock is released before the refusal, which in a real run exits the process without running a finally");
+  assert.equal(diedOrder.filter((n) => n === "releaseDownloadLock").length, 1, "the lock is released once, so a release cannot remove a lock another launch has since taken");
+
+  // A throw on the way to the server (a project file that cannot be written)
+  // is the path the `finally` is for.
+  const threw = upDeps({
+    unpackedCommit: () => null,
+    writeProjectSd: () => {
+      throw new Error("EACCES");
+    },
+  });
+  await assert.rejects(up(["--sd", "repro.sd"], threw), /EACCES/);
+  assert.ok(names(threw).includes("releaseDownloadLock"), "a throw between taking the lock and the server answering gives the lock back");
 });
 
 const serving = (extra = {}) => ({ url: "http://localhost:34123", pid: 1, port: 34123, data: DATA, builds: path.join(DATA, "builds", "stable"), project: path.join(DATA, "projects", "34123"), ownProject: true, quality: "stable", commit: "c".repeat(40), log: "l", startedAt: 1, ...extra });
@@ -804,7 +835,7 @@ await check("while its server is up, up --sd rewrites the served file and nothin
   ]) {
     const d = upDeps({ state: serving() });
     await refuses(up(args, d), re);
-    assert.deepEqual(names(d), [], `${args.join(" ")} did something before refusing`);
+    assert.deepEqual(names(d), ["die"], `${args.join(" ")} did something before refusing`);
   }
   const same = upDeps({ state: serving() });
   await up(["--data", DATA.toLowerCase()], same);

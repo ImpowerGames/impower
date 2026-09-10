@@ -1162,28 +1162,48 @@ async function launch(opts, deps) {
     const lock = await deps.takeDownloadLock(lockPath, { worktree: deps.repoRoot, pid: process.pid, url, quality, startedAt: deps.now() });
     if (!lock.held) {
       const other = lock.other;
+      // `other` is null when the lock stood for both attempts but its record
+      // could not be read back: a file another launch removed between the
+      // failed write and the read, or one whose JSON is broken. Nobody is
+      // named in that case, so the refusal says the state could not be read
+      // rather than inventing a holder to wait for.
       deps.die(
-        `${other?.worktree ?? "another worktree"} (pid ${other?.pid ?? "unknown"}) is downloading the VS Code build into ${plan.builds}; ` +
-          "two downloads at once delete each other's build, since the server empties that directory before it unpacks. " +
-          "Wait for that `up` to print READY, then run this again",
+        other
+          ? `${other.worktree ?? "another worktree"} (pid ${other.pid ?? "unknown"}) is downloading the VS Code build into ${plan.builds}; ` +
+              "two downloads at once delete each other's build, since the server empties that directory before it unpacks. " +
+              "Wait for that `up` to print READY, then run this again"
+          : `the download lock ${lockPath} was taken both times this launch tried for it and its record could not be read back, so who is downloading the VS Code build into ${plan.builds} cannot be said; ` +
+              "two downloads at once delete each other's build, since the server empties that directory before it unpacks. " +
+              "Run this again: a lock that was only changing hands is free by then, and one that is still there names its holder",
       );
     }
     holdsLock = true;
   }
-  if (plan.ownProject) deps.writeProjectSd(plan.project, opts["--sd"]);
-  deps.mkdirp(plan.builds);
-  deps.mkdirp(path.dirname(plan.logPath));
-  const pid = deps.spawnServer(plan);
-  deps.writeState({ url, pid, port, data, builds: plan.builds, project: plan.project, ownProject: plan.ownProject, quality, commit, log: plan.logPath, startedAt: deps.now() });
-  deps.log(`serving ${plan.project} pid ${pid} → ${url}${commit ? ` (build ${commit.slice(0, 10)}, already unpacked)` : ""}`);
+  // The lock is given back on every path out of the launch that this process
+  // survives: `release` in the `finally` for a return or a throw, and
+  // `release` before the refusal below, because `die` exits the process and
+  // an exit runs no `finally`. A launch killed outright leaves the file
+  // behind, and `takeDownloadLock` drops it on the next launch, once the pid
+  // in its record is gone.
+  const release = () => {
+    if (holdsLock) deps.releaseDownloadLock(lockPath);
+    holdsLock = false;
+  };
   try {
+    if (plan.ownProject) deps.writeProjectSd(plan.project, opts["--sd"]);
+    deps.mkdirp(plan.builds);
+    deps.mkdirp(path.dirname(plan.logPath));
+    const pid = deps.spawnServer(plan);
+    deps.writeState({ url, pid, port, data, builds: plan.builds, project: plan.project, ownProject: plan.ownProject, quality, commit, log: plan.logPath, startedAt: deps.now() });
+    deps.log(`serving ${plan.project} pid ${pid} → ${url}${commit ? ` (build ${commit.slice(0, 10)}, already unpacked)` : ""}`);
     if (!(await deps.waitReady(url, plan.builds, () => deps.pidAlive(pid), { downloading: !commit }))) {
+      release();
       deps.die(`the server (pid ${pid}) exited before ${url} answered; read ${plan.logPath}, then \`down\` and \`up\` again`);
     }
   } finally {
     // The build is unpacked by the time the server answers, and a launch
     // that died holds nothing worth guarding either.
-    if (holdsLock) deps.releaseDownloadLock(lockPath);
+    release();
   }
 }
 
