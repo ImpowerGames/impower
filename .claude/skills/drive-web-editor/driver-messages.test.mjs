@@ -72,7 +72,7 @@ function scanSource(src) {
     const keyword = /\b(return|typeof|instanceof|in|of|new|delete|void|case|do|else|yield|await)$/.exec(before);
     return keyword !== null && !/\.\s*$/.test(before.slice(0, keyword.index));
   };
-  const regexAt = (i) => opensRegex(bare.slice(Math.max(0, i - 200), i).join(""));
+  const regexAt = (i) => opensRegex(bare.slice(0, i).join(""));
   const skipRegex = (i) => {
     const opened = i;
     i++;
@@ -240,7 +240,7 @@ check("the message reader reads what the driver prints, and not the source aroun
 check("division inside an interpolation cannot merge a later message with unrelated advice", () => {
   for (const expression of ["count++ / total", "count-- / total", "object.of / total", "object.in / total", "value /*" + " long comment".repeat(25) + " */ / total"]) {
     const fixture = [
-      'const label = `read ${' + expression + '} of the log`;',
+      'const label = `read ${' + expression + '} of the log`; const quotient = numerator / denominator;',
       'die("the panel did not open within 10s");',
       'const advice = "--close it";',
     ].join("\n");
@@ -344,25 +344,31 @@ check("a captured console line carries the resource a failed request names nowhe
 });
 
 {
+  const label = "the editor's console listener preserves resource locations before classifying errors";
   const handlers = new Map();
   const page = { on: (event, handler) => handlers.set(event, handler) };
   let closed = false;
-  const ctx = { pages: () => [page], close: async () => { closed = true; } };
-  const captured = await withEditor(({ consoleLines }) => {
-    for (const resource of ["/api/auth/account", "/missing.png"]) {
-      handlers.get("console")({
-        type: () => "error",
-        text: () => "Failed to load resource: the server responded with a status of 404 (Not Found)",
-        location: () => ({ url: "http://localhost:1" + resource }),
-      });
-    }
-    return partitionConsole(consoleLines);
-  }, { state: () => ({ url: "http://localhost:1" }), launch: async () => ctx });
-  check("the editor's console listener preserves resource locations before classifying errors", () => {
-    assert.equal(captured.noise["/api/auth/account 404"], 1);
-    assert.deepEqual(captured.errors, ["[error] Failed to load resource: the server responded with a status of 404 (Not Found) (http://localhost:1/missing.png)"]);
-    assert.equal(closed, true);
-  });
+  const ctx = { pages: () => [page], newPage: async () => page, close: async () => { closed = true; } };
+  try {
+    const captured = await withEditor(({ consoleLines }) => {
+      for (const resource of ["/api/auth/account", "/missing.png"]) {
+        handlers.get("console")({
+          type: () => "error",
+          text: () => "Failed to load resource: the server responded with a status of 404 (Not Found)",
+          location: () => ({ url: "http://localhost:1" + resource }),
+        });
+      }
+      handlers.get("pageerror")(new Error("unexpected page failure"));
+      return partitionConsole(consoleLines);
+    }, { state: () => ({ url: "http://localhost:1" }), launch: async () => ctx });
+    check(label, () => {
+      assert.equal(captured.noise["/api/auth/account 404"], 1);
+      assert.deepEqual(captured.errors, ["[error] Failed to load resource: the server responded with a status of 404 (Not Found) (http://localhost:1/missing.png)", "[pageerror] unexpected page failure"]);
+      assert.equal(closed, true);
+    });
+  } catch (err) {
+    check(label, () => { throw err; });
+  }
 }
 
 check("only a 404 for the account endpoint is known resource noise", () => {
@@ -380,6 +386,8 @@ check("only a 404 for the account endpoint is known resource noise", () => {
     assert.equal(result.noise["/api/auth/account 404"], Number(known), url);
     assert.deepEqual(result.errors, known ? [] : [line], url);
   }
+  const embedded = "[error] Failed to load resource: the server responded with a status of 404 (Not Found) (http://localhost:1/api/auth/account) is the example; this failure is elsewhere";
+  assert.deepEqual(partitionConsole([embedded]).errors, [embedded]);
 });
 
 check("every known-noise entry reports a count even when it did not appear", () => {

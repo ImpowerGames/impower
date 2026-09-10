@@ -55,7 +55,10 @@ export function countEntries(markdown) {
   let fence = null;
   let tableRun = 0;
   let listContentIndent = null;
+  let previousBlank = true;
   for (const line of lines) {
+    const followsBlank = previousBlank;
+    previousBlank = line.trim() === "";
     const fenceMark = /^\s*(```+|~~~+)/.exec(line);
     if (fenceMark) {
       if (fence && line.trim().startsWith(fence)) fence = null;
@@ -74,7 +77,7 @@ export function countEntries(markdown) {
     if (!section) continue;
     if (section === "gotchas") {
       if (/^ {0,3}(?:(?:\*[ \t]*){3,}|(?:-[ \t]*){3,}|(?:_[ \t]*){3,})$/.test(line)) {
-        listContentIndent = null;
+        if (listContentIndent !== null && /^ */.exec(line)[0].length < listContentIndent) listContentIndent = null;
         continue;
       }
       const item = /^( {0,3})([-*+]|\d{1,9}[.)])([ \t]+|$)/.exec(line);
@@ -85,7 +88,7 @@ export function countEntries(markdown) {
         for (const space of item[3]) contentColumn += space === "\t" ? 4 - contentColumn % 4 : 1;
         const padding = contentColumn - markerEnd;
         listContentIndent = markerEnd + (padding >= 1 && padding <= 4 ? padding : 1);
-      } else if (!item && line.trim() && listContentIndent !== null && /^ */.exec(line)[0].length < listContentIndent) {
+      } else if (!item && line.trim() && listContentIndent !== null && /^ */.exec(line)[0].length < listContentIndent && (followsBlank || /^ {0,3}(?:>|<)/.test(line))) {
         listContentIndent = null;
       }
     }
@@ -187,6 +190,24 @@ check("numbered items and indented tables count, with nested detail and thematic
   ].join("\n");
   assert.deepEqual(countEntries(markdown), { gotchas: 2, troubleshooting: 1 });
   assert.deepEqual(countEntries("## Gotchas\n\n  + An indented entry.\n"), { gotchas: 1, troubleshooting: 0 });
+});
+
+check("nested thematic breaks preserve their containing entry", () => {
+  for (const gap of ["", "\n"]) {
+    for (const rule of ["* * *", "- - -", "___"]) {
+      const nested = "## Gotchas\n\n- One entry.\n" + gap + "  " + rule + "\n" + gap + "  - Nested detail.\n";
+      assert.deepEqual(countEntries(nested), { gotchas: 1, troubleshooting: 0 });
+      const separate = "## Gotchas\n\n- One entry.\n\n" + rule + "\n\n  - Another entry.\n";
+      assert.deepEqual(countEntries(separate), { gotchas: 2, troubleshooting: 0 });
+    }
+  }
+});
+
+check("a lazy continuation stays in its list while a separate paragraph or block quote ends it", () => {
+  assert.deepEqual(countEntries("## Gotchas\n\n- One.\nlazy line.\n  - Nested detail.\n- Two.\n"), { gotchas: 2, troubleshooting: 0 });
+  for (const separator of ["\nA paragraph.\n", "> A quote.\n"]) {
+    assert.deepEqual(countEntries("## Gotchas\n\n- One.\n" + separator + "  - Another entry.\n"), { gotchas: 2, troubleshooting: 0 });
+  }
 });
 
 check("the Gotchas and Troubleshooting lists are the size this check pins", () => {
