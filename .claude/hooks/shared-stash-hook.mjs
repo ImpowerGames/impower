@@ -62,8 +62,12 @@ function stashSubcommand(args) {
   if (args[i]?.text.toLowerCase() !== "stash") return null;
   // The word after `stash` is the subcommand. An option before it is a push
   // with options (`git stash -u`), and a bare `git stash` is a push too.
+  // `--` ends the options and makes every remaining token a pathspec, so
+  // `git stash -- list` pushes a file named `list` rather than reading the
+  // stack, and the search stops there.
   for (let k = i + 1; k < args.length; k++) {
     const t = args[k].text;
+    if (t === "--") return "push";
     if (t.startsWith("-")) continue;
     return t.toLowerCase();
   }

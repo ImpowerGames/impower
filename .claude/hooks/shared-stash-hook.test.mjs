@@ -35,6 +35,12 @@ const denies = [
   ["a stash branch", "git stash branch wip"],
   ["a stash with only options", "git stash -u"],
   ["a stash whose message stands where a subcommand would", "git stash -m wip"],
+  // After `--` every token is a pathspec, so these push a file whose name
+  // happens to read like a subcommand that only reads the stack.
+  ["a stash of a file named list", "git stash -- list"],
+  ["a stash of a file named show", "git stash -- show"],
+  ["a stash of a file named create", "git stash -- create"],
+  ["a stash of a file named list after -u", "git stash -u -- list"],
   ["a stash in another worktree by -C", "git -C ../impower.worktrees/fix/1-x stash pop"],
   ["a stash after a -c setting", "git -c core.autocrlf=false stash pop"],
   ["a stash after a glued --git-dir", "git --git-dir=../other/.git stash pop"],
@@ -60,6 +66,9 @@ const allows = [
   ["a stash list with options", "git stash list --oneline -n 5"],
   ["a stash show", "git stash show -p stash@{0}"],
   ["a stash create", "git stash create"],
+  // The subcommand stands before the `--`, so it is the subcommand and what
+  // follows only limits what it reads.
+  ["a stash list limited to a path", "git stash list -- packages"],
   ["a commit", "git commit -F msg.txt"],
   ["a status", "git status --short"],
   ["the phrase inside a quoted string", "echo 'git stash pop is refused here'"],
