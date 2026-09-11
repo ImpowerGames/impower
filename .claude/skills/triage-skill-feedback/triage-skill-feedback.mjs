@@ -4,6 +4,7 @@ import { readFileSync, writeFileSync, mkdirSync, mkdtempSync, existsSync } from 
 import { resolve, dirname, relative, isAbsolute, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { readReports, writeReports } from './feedback-reports.mjs';
+import { hydrateReports, persistReports, prepareReports } from './feedback-archive.mjs';
 
 const REPO = 'ImpowerGames/impower';
 const INBOX = 510;
@@ -15,10 +16,11 @@ const decode = value => value.startsWith(CELL)
   : value.replace(/<br\s*\/?>/gi, '\n').replace(/&#124;/g, '|');
 const literalDisplay = value => value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/[\\`*_\[\]~|]/g, char => `&#${char.codePointAt(0)};`).replace(/\r?\n/g, '<br>');
 const encode = value => CELL + literalDisplay(value);
-const statusPattern = /^(open|ticketed #\d+|applied in PR #\d+)$/;
+const statusPattern = /^(open|ticketed #[1-9]\d*|applied in PR #[1-9]\d*)$/;
 const canonicalRows = rows => rows.map(({ skill, friction, edit, status, problemId, sessions, historyIncomplete }) => ({ skill, friction, edit, status, ...(problemId ? { problemId, sessions, historyIncomplete } : {}) }));
 const rowKey = row => row.problemId || keyOf(row.skill);
 const reportCount = row => row.problemId ? `${row.sessions.length} recorded${row.historyIncomplete ? '; history incomplete' : ''}` : 'unknown';
+const reportExcerpt = text => text.length > 300 ? text.slice(0, 300) + '\n[Full history in Reports archive.]' : text;
 const groupMarker = rows => `Feedback group: ${hash(JSON.stringify(canonicalRows(rows)))}`;
 
 function fencedAt(body, offset = body.length) {
@@ -63,7 +65,7 @@ function cells(line) {
   return line.trim().slice(1, -1).split(/(?<!\\)\|/).map(s => decode(s.trim().replace(/\\\|/g, '|')));
 }
 
-export function parseTable(body) {
+export function parseTable(body, savedLedger) {
   const normalized = body.replace(/\r\n/g, '\n');
   const lines = normalized.split('\n');
   const candidates = [];
@@ -76,48 +78,55 @@ export function parseTable(body) {
   const start = candidates[0] ?? -1;
   const columns = start >= 0 ? cells(lines[start]).length : 0;
   if (start < 0 || !new RegExp(`^\\|(?:\\s*:?-+:?\\s*\\|){${columns}}\\s*$`).test(lines[start + 1] || '')) throw new Error('Inbox table contract not recognized; read #510 before updating the parser.');
-  const ledger = readReports(body, fencedAt);
+  const ledger = savedLedger ?? readReports(body, fencedAt);
   const rows = [];
   let end = start + 2;
   while (lines[end]?.trim().startsWith('|')) {
     const row = cells(lines[end]);
-    if (row.length !== columns || row.some(v => !v) || !statusPattern.test(row[3])) throw new Error(`Invalid inbox row at line ${end + 1}; nothing will be folded.`);
+    if (row.length !== columns || row.some(v => !v.trim()) || !statusPattern.test(row[3])) throw new Error(`Invalid inbox row at line ${end + 1}; nothing will be folded.`);
     const entry = { skill: row[0], friction: row[1], edit: row[2], status: row[3] };
     if (columns === 6 && row[4] !== 'unclassified') {
-      const saved = ledger[row[4]];
+      const saved = /^F-[1-9]\d*$/.test(row[4]) && Object.hasOwn(ledger, row[4]) ? ledger[row[4]] : null;
       if (!saved) throw new Error(`Unknown problem ${row[4]} in the table; preserve its report ledger.`);
+      if (keyOf(entry.skill) !== keyOf(saved.skill)) throw new Error(`Skill for ${row[4]} does not match its saved problem; reconcile the identity before planning.`);
+      for (const field of ['friction', 'edit']) {
+        if (entry[field] !== saved[field] && entry[field] !== reportExcerpt(saved[field])) throw new Error(`Text for ${row[4]} differs from its saved history; reconcile the archive before planning.`);
+        entry[field] = saved[field];
+      }
       if (rows.some(previous => previous.problemId === row[4])) throw new Error(`Duplicate problem ${row[4]} in the table; resolve it before triage.`);
       Object.assign(entry, { problemId: row[4], sessions: [...saved.sessions], historyIncomplete: saved.historyIncomplete });
     }
-    if (columns === 6 && row[5] !== reportCount(entry)) throw new Error(`Reports for ${row[4]} do not match the saved session references.`);
+    if (columns === 6 && row[5] !== reportCount(entry)) throw new Error(`Reports for ${entry.problemId || entry.skill} do not match the saved session references.`);
     rows.push(entry);
     end++;
   }
   return { lines, start, end, rows };
 }
 
-export function renderTable(body, rows, historyRows = rows) {
-  const table = parseTable(body);
-  const ledger = readReports(body, fencedAt);
+export function renderTable(body, rows, historyRows = rows, savedLedger, archive = false) {
+  const table = parseTable(body, savedLedger);
+  const ledger = structuredClone(savedLedger ?? readReports(body, fencedAt));
   for (const row of canonicalRows(historyRows)) if (row.problemId) ledger[row.problemId] = row;
   table.lines[table.start] = '| Skill, section | Friction | Proposed edit | Status | Problem | Reports |';
   table.lines[table.start + 1] = '| --- | --- | --- | --- | --- | --- |';
-  table.lines.splice(table.start + 2, table.end - table.start - 2, ...rows.map(row => `| ${[row.skill, row.friction, row.edit, row.status, row.problemId || 'unclassified', reportCount(row)].map(encode).join(' | ')} |`));
+  table.lines.splice(table.start + 2, table.end - table.start - 2, ...rows.map(row => `| ${[row.skill, archive && row.problemId ? reportExcerpt(row.friction) : row.friction, archive && row.problemId ? reportExcerpt(row.edit) : row.edit, row.status, row.problemId || 'unclassified', reportCount(row)].map(encode).join(' | ')} |`));
+  if (archive) return table.lines.join('\n');
   return writeReports(table.lines.join('\n'), ledger, fencedAt);
 }
 
 export function parseIntake(comment) {
   const text = clean(comment.body);
-  if (text.startsWith('<!-- skill-feedback-triage:')) return null;
-  if (/^(?:\*\*)?(?:Problem|Session)(?:\*\*)?:/m.test(text)) {
-    const labels = [...text.matchAll(/^(?:\*\*)?(Problem|Session|Skill and section|What happened|Proposed edit)(?:\*\*)?:(?:\*\*)?\s*/gm)];
+  if (/^<!-- skill-feedback-(?:triage|archive|archive-index):/.test(text)) return null;
+  const labelsOutsideFences = [...text.matchAll(/^(?:\*\*)?(Problem|Session|Skill and section|What happened|Proposed edit)(?:\*\*)?:(?:\*\*)?\s*/gm)].filter(field => !fencedAt(text, field.index));
+  if (['Problem', 'Session'].includes(labelsOutsideFences[0]?.[1])) {
+    const labels = labelsOutsideFences;
     if (labels.map(field => field[1]).join('|') !== 'Problem|Session|Skill and section|What happened|Proposed edit') throw new Error(`Comment ${comment.id} needs Problem, Session, Skill and section, What happened, Proposed edit in that order.`);
     const values = labels.map((field, i) => text.slice(field.index + field[0].length, labels[i + 1]?.index ?? text.length).trim());
     const [problem, session, skill, friction, edit] = values;
     if (values.some(value => !value) || /[\r\n\u0085\u2028\u2029]/u.test(session) || session.length > 200 || !/^(new|F-[1-9]\d*)$/.test(problem) || !Number.isSafeInteger(comment.id) || comment.id < 1) throw new Error(`Comment ${comment.id} has an invalid problem or session reference, or empty field.`);
     return { skill, friction, edit, status: 'open', problemId: problem === 'new' ? `F-${comment.id}` : problem, session, newProblem: problem === 'new' };
   }
-  const fields = [...text.matchAll(/^(?:\*\*)?(Skill and section|What happened|Proposed edit)(?:\*\*)?:(?:\*\*)?\s*/gm)];
+  const fields = labelsOutsideFences.filter(field => !['Problem', 'Session'].includes(field[1]));
   if (fields.length !== 3 || fields.map(f => f[1]).join('|') !== 'Skill and section|What happened|Proposed edit') {
     const names = fields.map(field => field[1]);
     const distinct = [...new Set(names)];
@@ -129,8 +138,8 @@ export function parseIntake(comment) {
   return { skill: values[0], friction: values[1], edit: values[2], status: 'open' };
 }
 
-export function fold(body, comments, references = { prs: {}, issues: {} }) {
-  const ledger = readReports(body, fencedAt);
+export function fold(body, comments, references = { prs: {}, issues: {} }, savedLedger) {
+  const ledger = savedLedger ?? readReports(body, fencedAt);
   const rows = [];
   const byKey = new Map();
   function add(row, repeat, id) {
@@ -155,7 +164,7 @@ export function fold(body, comments, references = { prs: {}, issues: {} }) {
       if (repeat) previous.friction += '\nSeen again.';
     }
   }
-  for (const row of parseTable(body).rows) add(row, true);
+  for (const row of parseTable(body, ledger).rows) add(row, true);
   const folded = [];
   const ignored = [];
   const skipped = [];
@@ -171,16 +180,19 @@ export function fold(body, comments, references = { prs: {}, issues: {} }) {
         row.historyIncomplete = rows.some(previous => !previous.problemId && keyOf(previous.skill) === keyOf(row.skill));
       }
       if (row) { add(row, true, comment.id); folded.push(comment); }
-      else skipped.push({ id: comment.id, body: comment.body, reason: 'Marker-prefixed comment; inspect whether it is a triage summary or discussion. Left intact.' });
+      else if (!/^<!-- skill-feedback-archive(?:-index)?:/.test(clean(comment.body))) skipped.push({ id: comment.id, body: comment.body, reason: 'Marker-prefixed comment; inspect whether it is a triage summary or discussion. Left intact.' });
     } catch (error) { ignored.push({ id: comment.id, body: comment.body, reason: error.message }); }
   }
+  const historical = new Set(rows.filter(row => !row.problemId).map(row => keyOf(row.skill)));
+  for (const row of rows) if (row.problemId && historical.has(keyOf(row.skill))) row.historyIncomplete = true;
   return { rows, folded, ignored, skipped };
 }
 
-export function makePlan(body, comments, references = { prs: {}, issues: {} }) {
+export function makePlan(body, comments, references = { prs: {}, issues: {} }, savedLedger) {
   requireClosedFences(body);
   refusePendingFoldedIntake(body, comments);
-  const { rows, folded, ignored, skipped } = fold(body, comments, references);
+  const ledger = savedLedger ?? readReports(body, fencedAt);
+  const { rows, folded, ignored, skipped } = fold(body, comments, references, ledger);
   for (const row of rows) {
     const previous = row.previousStatus || row.status;
     const previousTicket = row.previousStatus?.match(/^ticketed #(\d+)$/)?.[1];
@@ -206,17 +218,20 @@ export function makePlan(body, comments, references = { prs: {}, issues: {} }) {
     const group = groups.get(key);
     group.keys.push(rowKey(row));
   }
-  const priorities = rows.filter(row => row.status === 'open').map(row => ({ key: rowKey(row), skill: row.skill, reports: row.sessions?.length ?? null, historyIncomplete: row.historyIncomplete ?? true })).sort((a, b) => (b.reports ?? -1) - (a.reports ?? -1));
-  return { version: 2, repo: REPO, inbox: INBOX, body, comments: folded, ignored, skipped, references, rows, priorities, reportHistory: readReports(body, fencedAt), groups: [...groups.values()] };
+  const priorities = rows.filter(row => row.status === 'open' && row.problemId).map(row => ({ key: rowKey(row), skill: row.skill, reports: row.sessions.length, historyIncomplete: row.historyIncomplete })).sort((a, b) => b.reports - a.reports);
+  const unknownPriorities = rows.filter(row => row.status === 'open' && !row.problemId).map(row => ({ key: rowKey(row), skill: row.skill, reports: null }));
+  const possibleDuplicates = rows.flatMap((row, index) => rows.slice(index + 1).filter(other => keyOf(row.skill) === keyOf(other.skill)).map(other => ({ keys: [rowKey(row), rowKey(other)], reason: 'Same skill target; inspect the observations before grouping work. Counts remain separate unless reports explicitly name the same problem.' })));
+  return { version: 3, repo: REPO, inbox: INBOX, body, comments: folded, ignored, skipped, references, rows, priorities, unknownPriorities, possibleDuplicates, reportHistory: ledger, groups: [...groups.values()] };
 }
 
 export async function readPlan(api) {
   const body = (await api.inbox()).body;
   requireClosedFences(body);
   const comments = await api.comments();
+  const ledger = hydrateReports(body, comments, fencedAt);
   refusePendingFoldedIntake(body, comments);
   const references = { prs: {}, issues: {} };
-  for (const row of fold(body, comments).rows) for (const status of [row.status, row.previousStatus]) {
+  for (const row of fold(body, comments, undefined, ledger).rows) for (const status of [row.status, row.previousStatus]) {
     const match = status?.match(/^(ticketed|applied in PR) #(\d+)$/);
     if (!match) continue;
     const [, kind, number] = match;
@@ -225,7 +240,7 @@ export async function readPlan(api) {
     const item = await (kind === 'ticketed' ? api.issue(Number(number)) : api.pr(Number(number)));
     bucket[number] = kind === 'ticketed' ? { state: item.state } : { state: item.state, merged_at: item.merged_at };
   }
-  return makePlan(body, comments, references);
+  return makePlan(body, comments, references, ledger);
 }
 
 function description(rows) {
@@ -258,7 +273,7 @@ export function preview(plan) {
 
 // The adapter makes persistence ordering testable without touching GitHub.
 export async function applyPlan(plan, api) {
-  if (plan.version !== 2 || plan.repo !== REPO || plan.inbox !== INBOX) throw new Error('Wrong plan version or inbox; retain the original script for interrupted plans.');
+  if (plan.version !== 3 || plan.repo !== REPO || plan.inbox !== INBOX) throw new Error('Wrong plan version or inbox; retain the original script for interrupted plans.');
   if (plan.groups.some(group => !Array.isArray(group.keys) || group.keys.length === 0)) throw new Error('Every group needs at least one row key; remove empty split groups before applying.');
   const keys = plan.groups.flatMap(group => group.keys);
   const open = plan.rows.filter(row => row.status === 'open').map(rowKey);
@@ -282,6 +297,8 @@ export async function applyPlan(plan, api) {
     if (item.state !== saved.state || (kind === 'prs' && item.merged_at !== saved.merged_at)) throw new Error(`Referenced ${kind} #${number} changed since planning; read a fresh plan.`);
   }
   const currentComments = await api.comments();
+  const liveLedger = hydrateReports(current.body, currentComments, fencedAt);
+  if (!resumed && JSON.stringify(liveLedger) !== JSON.stringify(plan.reportHistory)) throw new Error('Reports history changed since planning; preserve the plan and inspect the archive.');
   if (!resumed) refusePendingFoldedIntake(current.body, currentComments);
   for (const comment of plan.comments) {
     const live = currentComments.find(c => c.id === comment.id);
@@ -289,14 +306,24 @@ export async function applyPlan(plan, api) {
   }
   let summary;
   if (!resumed) {
-    const expected = makePlan(plan.body, plan.comments, plan.references).rows;
+    const expected = makePlan(plan.body, plan.comments, plan.references, liveLedger).rows;
     if (JSON.stringify(plan.rows) !== JSON.stringify(expected)) throw new Error('Plan rows differ from the current parser; keep the original plan for recovery and inspect any earlier tickets before creating a fresh plan with existing decisions.');
     const rows = expected.map(row => ({ ...row }));
+    const projected = { ...liveLedger, ...Object.fromEntries(canonicalRows(rows).filter(row => row.problemId).map(row => [row.problemId, row])) };
+    prepareReports(projected);
+    const projectedBody = renderTable(stripSummaryBlocks(plan.body), rows, rows, liveLedger, true);
+    if (projectedBody.length + 5000 > 50000) throw new Error('Inbox table needs consolidation before applying; its projected body exceeds the supported 50,000-character budget. No tickets or intake were changed.');
     const filed = [], applied = [], removed = [];
     const allIssues = await api.issues();
     for (const group of plan.groups) {
       const grouped = rows.filter(row => group.keys.includes(rowKey(row)));
-      if (group.action === 'defer') continue;
+      if (group.action === 'defer') {
+        for (const row of grouped) {
+          const prior = referenceContext([row], '');
+          if (prior && !row.friction.includes(prior)) row.friction += `\n\n${prior}`;
+        }
+        continue;
+      }
       let number = group.number;
       if (group.action === 'ticket') {
         const ticketMarker = groupMarker(grouped);
@@ -332,16 +359,23 @@ export async function applyPlan(plan, api) {
     for (const row of rows) {
       const number = Number(row.status.match(/#(\d+)/)?.[1]);
       const done = row.status.startsWith('ticketed') ? (await api.issue(number)).state === 'closed' : row.status.startsWith('applied') ? Boolean((await api.pr(number)).merged_at) : false;
-      if (done) removed.push(row.skill); else remaining.push(row);
+      if (done) {
+        if (parseTable(plan.body, liveLedger).rows.some(previous => rowKey(previous) === rowKey(row)) || plan.groups.some(group => group.action !== 'defer' && group.keys.includes(rowKey(row)))) removed.push(row.problemId ? `${row.problemId} (${row.skill})` : row.skill);
+      } else remaining.push(row);
     }
     summary = `${marker}\nFolded ${plan.comments.length} intake comments (${plan.comments.map(c => c.id).join(', ') || 'none'}); filed or linked ${filed.join(', ') || 'none'}; applied ${applied.join(', ') || 'none'}; removed ${removed.map(literalDisplay).join('; ') || 'none'}; left unparsed comments ${(plan.ignored || []).map(c => c.id).join(', ') || 'none'} intact (reasons in the plan); left marker-prefixed comments ${(plan.skipped || []).map(c => c.id).join(', ') || 'none'} intact (inspect skipped IDs and bodies in the plan).${rows.some(row => row.status === 'open') ? ` Deferred: ${rows.filter(row => row.status === 'open').map(row => `${literalDisplay(rowKey(row))} (${reportCount(row)})`).join('; ')}.` : ''}`;
     const prior = stripSummaryBlocks(plan.body).trimEnd();
-    const content = `${renderTable(prior, remaining, rows).trimEnd()}\n\n${summary}`;
+    const ledger = { ...liveLedger, ...Object.fromEntries(canonicalRows(rows).filter(row => row.problemId).map(row => [row.problemId, row])) };
+    const rendered = renderTable(prior, remaining, rows, liveLedger, true);
+    const archived = await persistReports(rendered, ledger, { comments: api.comments, postComment: api.postSummary }, fencedAt);
+    const content = `${archived.trimEnd()}\n\n${summary}`;
     const updated = `${content}\n<!-- skill-feedback-state:${hash(content)} -->\n`;
+    if (updated.length > 50000) throw new Error('Inbox body exceeds the supported budget; preserve this plan and recover any created evidence before consolidating the table. No intake deleted.');
     current = await api.inbox();
     if (current.body !== plan.body) throw new Error('Inbox changed during triage; tickets are recoverable by marker. Re-plan before overwriting it.');
     await api.updateBody(updated);
     if ((await api.inbox()).body !== updated) throw new Error('Inbox body read-back differs; no intake deleted.');
+    hydrateReports(updated, await api.comments(), fencedAt);
   } else {
     summary = current.body.slice(latestSummary.index, current.body.lastIndexOf('\n<!-- skill-feedback-state:'));
   }
@@ -387,6 +421,13 @@ function github(scratch) {
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   try {
     const [command, file, ...extra] = process.argv.slice(2);
+    if (command === 'reports' && !file) {
+      const api = github(dirname(fileURLToPath(import.meta.url)));
+      const inbox = await api.inbox();
+      const comments = await api.comments();
+      const ledger = hydrateReports(inbox.body, comments, fencedAt);
+      console.log(JSON.stringify({ reports: Object.values(ledger), pending: comments.filter(comment => { try { return Boolean(parseIntake(comment)); } catch { return false; } }) }, null, 2));
+    } else {
     if (!['plan', 'preview', 'apply'].includes(command) || !file || extra.length) throw new Error('Usage: node triage-skill-feedback.mjs plan|preview|apply <absolute-plan.json>');
     if (!/^(?:[A-Za-z]:[\\/]|\/)/.test(file)) throw new Error('Use an absolute plan path outside the checkout.');
     const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../../..');
@@ -405,6 +446,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
     } else {
       const plan = JSON.parse(readFileSync(file, 'utf8'));
       console.log(JSON.stringify(command === 'preview' ? preview(plan) : await applyPlan(plan, api), null, 2));
+    }
     }
   } catch (error) { console.error(error.message); process.exitCode = 1; }
 }

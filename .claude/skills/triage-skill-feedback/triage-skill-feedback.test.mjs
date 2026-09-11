@@ -1,3 +1,4 @@
+import { hydrateReports } from './feedback-archive.mjs';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { copyFileSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
@@ -76,7 +77,7 @@ await test('successful run persists verified rows before deleting intake and pos
   const { state, api, plan } = fixture();
   const result = await applyPlan(plan, api);
   assert.deepEqual(state.events, ['created', 'persisted', 'delete', 'summary']);
-  assert.equal(parseTable(state.body).rows[0].status, 'ticketed #600');
+  assert.equal(parseTable(state.body, hydrateReports(state.body, state.comments)).rows[0].status, 'ticketed #600');
   assert.match(state.issues[0].body, /## Acceptance criteria/);
   assert.match(state.issues[0].body, /Feedback group: [a-f0-9]{20}/);
   assert.ok(!state.issues[0].body.includes('<!--'));
@@ -123,7 +124,7 @@ await test('closed tickets and merged edits leave table; an open applied PR rema
   const { state, api, plan } = fixture([]);
   plan.groups[0] = { action: 'applied', number: 503, keys: plan.groups[0].keys };
   await applyPlan(plan, api);
-  assert.equal(parseTable(state.body).rows.length, 0);
+  assert.equal(parseTable(state.body, hydrateReports(state.body, state.comments)).rows.length, 0);
   assert.match(state.comments[0].body, /removed review-pr/);
   const other = fixture([]);
   other.plan.groups[0] = { action: 'applied', number: 700, keys: other.plan.groups[0].keys };
@@ -185,7 +186,7 @@ await test('existing ticket evidence is exact, durable, and recovered before int
   assert.equal(state.discussion.get(701).length, 1);
   assert.equal(state.discussion.get(701)[0].body, expected);
   assert.ok(state.events.indexOf('evidence') < state.events.indexOf('delete'));
-  assert.equal(parseTable(state.body).rows.length, 1);
+  assert.equal(parseTable(state.body, hydrateReports(state.body, state.comments)).rows.length, 1);
   assert.match(state.discussion.get(701)[0].body, /New friction/);
 });
 await test('existing evidence read-back mismatch keeps intake intact', async () => {
@@ -250,7 +251,7 @@ await test('acted-on recurrence stays actionable even when both fields are subst
   const evidence = state.discussion.get(601)[0].body;
   assert.match(evidence, /Intake #55:\n\nfriction\n\nProposed change: edit/);
   assert.ok(!evidence.includes('Old friction')); assert.ok(!evidence.includes('A longer edit proposal'));
-  assert.match(parseTable(state.body).rows[0].friction, /context only/);
+  assert.match(parseTable(state.body, hydrateReports(state.body, state.comments)).rows[0].friction, /context only/);
 });
 await test('already-applied text is context rather than a new Task instruction', () => {
   const plan = makePlan(body.replace('| open |', '| applied in PR #503 |'), [intake(1)]);
@@ -361,6 +362,7 @@ await test('CLI rejects inside ..prefix paths and accepts outside siblings', () 
     mkdirSync(resolve(script, '..'), { recursive: true });
     copyFileSync(fileURLToPath(new URL('./triage-skill-feedback.mjs', import.meta.url)), script);
     copyFileSync(fileURLToPath(new URL('./feedback-reports.mjs', import.meta.url)), resolve(script, '../feedback-reports.mjs'));
+    copyFileSync(fileURLToPath(new URL('./feedback-archive.mjs', import.meta.url)), resolve(script, '../feedback-archive.mjs'));
     const otherRepo = resolve(scratch, 'other-repo');
     mkdirSync(resolve(otherRepo, '.git'), { recursive: true });
     const otherWorktree = resolve(scratch, 'other-worktree');
@@ -530,7 +532,7 @@ await test('PR reference drift refuses writes and a fresh readPlan retires the m
   assert.deepEqual(state.events, []);
   const fresh = await readPlan(api);
   await applyPlan(fresh, api);
-  assert.equal(parseTable(state.body).rows.length, 0);
+  assert.equal(parseTable(state.body, hydrateReports(state.body, state.comments)).rows.length, 0);
   assert.equal(state.bodyWrites.length, 1);
 });
 
@@ -817,13 +819,13 @@ await test('reapplied work retains unmerged provenance in durable summary histor
   const plan = await readPlan(api);
   plan.groups = [{ action: 'applied', number: 700, keys: [keyOf(plan.rows[0].skill)] }];
   await applyPlan(plan, api);
-  const row = parseTable(state.body).rows[0];
+  const row = parseTable(state.body, hydrateReports(state.body, state.comments)).rows[0];
   assert.equal(row.status, 'applied in PR #700');
   assert.equal(row.edit, 'Keep `C:\\path`');
   assert.match(state.comments[0].body, /applied #700.*applied in PR #503.*closed without merging/);
   merged = true;
   await applyPlan(await readPlan(api), api);
-  assert.equal(parseTable(state.body).rows.length, 0);
+  assert.equal(parseTable(state.body, hydrateReports(state.body, state.comments)).rows.length, 0);
   assert.ok(state.comments.some(comment => /applied #700.*applied in PR #503/.test(comment.body)));
 });
 await test('retargeted existing evidence preserves the prior Task automatically', async () => {
@@ -910,7 +912,7 @@ await test('counted problems in one skill section stay separate and default to d
   await applyPlan(plan, api);
   assert.equal(state.issues.length, 0);
   assert.equal(state.comments.filter(comment => [20, 21].includes(comment.id)).length, 0);
-  assert.deepEqual(parseTable(state.body).rows.map(row => row.sessions), [['codex:alpha'], ['claude:beta']]);
+  assert.deepEqual(parseTable(state.body, hydrateReports(state.body, state.comments)).rows.map(row => row.sessions), [['codex:alpha'], ['claude:beta']]);
   assert.ok(state.body.includes('| Problem | Reports |'));
 });
 await test('repeat reports count unique sessions across folds and preserve additional observations', async () => {
@@ -921,7 +923,7 @@ await test('repeat reports count unique sessions across folds and preserve addit
   await applyPlan(original, api);
   state.comments.push(reported(21, 'codex:alpha', 'F-20', 'Same session additional detail'), reported(22, 'claude:beta', 'F-20'));
   await applyPlan(await readPlan(api), api);
-  const [row] = parseTable(state.body).rows;
+  const [row] = parseTable(state.body, hydrateReports(state.body, state.comments)).rows;
   assert.deepEqual(row.sessions, ['codex:alpha', 'claude:beta']);
   assert.match(row.friction, /Same session additional detail/);
   assert.match(state.body, /2 recorded/);
@@ -933,16 +935,16 @@ await test('retired problems retain report identities and repeats can reopen wit
   const plan = await readPlan(api);
   plan.groups = [{ action: 'applied', number: 503, keys: ['F-20'] }];
   await applyPlan(plan, api);
-  assert.equal(parseTable(state.body).rows.length, 0);
+  assert.equal(parseTable(state.body, hydrateReports(state.body, state.comments)).rows.length, 0);
   state.comments.push(reported(21, 'codex:alpha', 'F-20'));
   await applyPlan(await readPlan(api), api);
-  assert.equal(parseTable(state.body).rows.length, 0);
+  assert.equal(parseTable(state.body, hydrateReports(state.body, state.comments)).rows.length, 0);
   state.comments.push(reported(22, 'claude:beta', 'F-20'));
   const next = await readPlan(api);
   assert.equal(next.rows[0].previousStatus, 'applied in PR #503');
   assert.deepEqual(next.rows[0].sessions, ['codex:alpha', 'claude:beta']);
   await applyPlan(next, api);
-  assert.equal(parseTable(state.body).rows[0].status, 'open');
+  assert.equal(parseTable(state.body, hydrateReports(state.body, state.comments)).rows[0].status, 'open');
 });
 await test('unknown problem references remain intact and historical rows have no guessed count', async () => {
   const { state, api } = fixture([reported(20, 'codex:alpha', 'F-999'), reported(21, 'claude:beta')]);
@@ -977,8 +979,8 @@ for (const stage of ['persisted', 'delete']) await test(`counted reports recover
   state.fail = stage;
   await assert.rejects(applyPlan(plan, api), /interrupted/);
   await applyPlan(plan, api);
-  assert.deepEqual(parseTable(state.body).rows[0].sessions, ['codex:alpha']);
-  assert.equal(state.comments.length, 1);
+  assert.deepEqual(parseTable(state.body, hydrateReports(state.body, state.comments)).rows[0].sessions, ['codex:alpha']);
+  assert.equal(state.comments.filter(comment => comment.body.startsWith('<!-- skill-feedback-triage:')).length, 1);
 });
 await test('priorities expose report frequency and ticket evidence names the counted problem', async () => {
   const { state, api } = fixture([reported(20, 'codex:alpha'), reported(21, 'claude:beta', 'new', 'Different issue'), reported(22, 'codex:gamma', 'F-21')]);
@@ -990,7 +992,7 @@ await test('priorities expose report frequency and ticket evidence names the cou
   await applyPlan(plan, api);
   assert.equal(state.issues.length, 1);
   assert.match(state.issues[0].body, /F-21; 2 recorded/);
-  assert.match(state.comments[0].body, /Deferred: F-20 \(1 recorded\)/);
+  assert.match(state.comments.find(comment => comment.body.startsWith('<!-- skill-feedback-triage:')).body, /Deferred: F-20 \(1 recorded\)/);
 });
 await test('tampered visible counts and duplicate problem rows refuse planning', async () => {
   const { state, api } = fixture([reported(20, 'codex:alpha')]);
@@ -1013,6 +1015,141 @@ await test('missing problem labels and multiline session identities stay unparse
     await applyPlan(plan, api);
     assert.equal(state.comments[0].body, invalid);
   }
+});
+
+await test('historical uncertainty is independent of intake order and remains after retirement', () => {
+  const empty = renderTable(body, []);
+  const counted = reported(20, 'codex:alpha');
+  const legacy = intake(21);
+  for (const comments of [[counted, legacy], [legacy, counted]]) assert.equal(fold(empty, comments).rows.find(row => row.problemId).historyIncomplete, true);
+  const first = renderTable(empty, fold(empty, [counted]).rows);
+  const second = fold(first, [legacy]);
+  assert.equal(second.rows.find(row => row.problemId).historyIncomplete, true);
+  const retired = renderTable(first, second.rows.filter(row => row.problemId));
+  assert.equal(fold(retired, []).rows[0].historyIncomplete, true);
+});
+await test('legacy prose labels and fenced template examples remain intact in both intake formats', () => {
+  for (const label of ['Problem', 'Session']) {
+    const text = `Observation\n${label}: a log line`;
+    assert.equal(parseIntake(intake(20, 'review-pr, section 3', text)).friction, text);
+    const quote = `Observation\n\n\`\`\`text\n${label}: a quoted label\n\`\`\``;
+    assert.equal(parseIntake(reported(20, 'codex:alpha', 'new', quote)).friction, quote);
+    assert.equal(parseIntake(intake(20, 'review-pr, section 3', quote)).friction, quote);
+  }
+});
+await test('missing ledgers, inherited problem names and renamed targets refuse before mutation', async () => {
+  const { state, api } = fixture([reported(20, 'codex:alpha')]);
+  state.body = renderTable(body, []);
+  await applyPlan(await readPlan(api), api);
+  const saved = state.body;
+  for (const changed of [saved.replace(/<!-- skill-feedback-reports:v3 .*? -->/, ''), ...['__proto__', 'constructor', 'toString', 'F-999'].map(id => saved.replace('F-20', id))]) {
+    state.body = changed;
+    await assert.rejects(readPlan(api), /Unknown problem/);
+  }
+  state.body = saved.replace('review-pr, section 3', 'resolve-issue, section 2');
+  await assert.rejects(readPlan(api), /Skill.*does not match/);
+});
+await test('table width and invalid status or whitespace cells refuse planning', () => {
+  const six = renderTable(body, []);
+  const populated = renderTable(body, parseTable(body).rows);
+  assert.throws(() => parseTable(populated.replace('| Status | Problem | Reports |', '| Status |').replace('| --- | --- | --- | --- | --- | --- |', '| --- | --- | --- | --- |')), /Invalid inbox row/);
+  for (const status of ['ticketed #0', 'ticketed #01', 'applied in PR #0']) assert.throws(() => makePlan(body.replace('| open |', `| ${status} |`), []), /Invalid inbox row/);
+  assert.throws(() => parseTable(populated.replace('A &#124; B', '   ')), /Invalid inbox row/);
+  assert.equal(parseTable(six).rows.length, 0);
+});
+await test('production readers ignore fenced ledger examples while retaining live counted rows', () => {
+  const empty = renderTable(body, []);
+  const fenced = '```text\n<!-- skill-feedback-reports:v9 broken -->\n```\n';
+  const initial = renderTable(empty, fold(empty, [reported(20, 'codex:alpha')]).rows);
+  const plan = makePlan(fenced + initial, [reported(21, 'claude:beta', 'F-20')]);
+  assert.deepEqual(plan.rows[0].sessions, ['codex:alpha', 'claude:beta']);
+  const rendered = renderTable(fenced + initial, plan.rows);
+  assert.ok(rendered.startsWith(fenced));
+  assert.deepEqual(parseTable(rendered).rows[0].sessions, ['codex:alpha', 'claude:beta']);
+});
+await test('overlong session and unsafe comment identity refuse intake before any write', () => {
+  for (const comment of [reported(20, 'x'.repeat(201)), reported(Number.MAX_SAFE_INTEGER + 1, 'codex:a'), reported(0, 'codex:a')]) {
+    assert.throws(() => parseIntake(comment), /invalid problem or session/);
+    assert.equal(makePlan(renderTable(body, []), [comment]).comments.length, 0);
+  }
+  assert.equal(parseIntake(reported(20, 'x'.repeat(200))).session.length, 200);
+});
+await test('old plan versions refuse before even reading live state', async () => {
+  const { api, plan } = fixture();
+  api.inbox = () => { throw new Error('must not read'); };
+  await assert.rejects(applyPlan({ ...plan, version: 1 }, api), /Wrong plan version/);
+});
+await test('deferring reopened work preserves its prior reference through the next plan', async () => {
+  const { state, api } = fixture([reported(20, 'codex:alpha')]);
+  state.body = renderTable(body, []);
+  const rows = fold(state.body, state.comments).rows;
+  rows[0].status = 'applied in PR #777';
+  state.body = renderTable(state.body, rows);
+  state.comments = [];
+  api.pr = async () => ({ state: 'closed', merged_at: null });
+  const plan = await readPlan(api);
+  assert.equal(plan.groups[0].action, 'defer');
+  await applyPlan(plan, api);
+  const next = await readPlan(api);
+  assert.match(next.rows[0].friction, /applied in PR #777.*closed without merging/);
+});
+await test('retirement identifies the problem and a retired repeat does not claim a second removal', async () => {
+  const { state, api } = fixture([reported(20, 'codex:alpha')]);
+  state.body = renderTable(body, []);
+  const plan = await readPlan(api);
+  plan.groups = [{ action: 'applied', number: 503, keys: ['F-20'] }];
+  assert.match((await applyPlan(plan, api)).summary, /removed F-20 \(review-pr, section 3\)/);
+  state.comments.push(reported(21, 'codex:alpha', 'F-20', 'Additional detail'));
+  assert.match((await applyPlan(await readPlan(api), api)).summary, /removed none;/);
+});
+await test('unknown counts stay outside frequency ranking and possible duplicates are disclosed', () => {
+  const plan = makePlan(body, [reported(20, 'codex:alpha'), reported(21, 'claude:beta')]);
+  assert.deepEqual(plan.priorities.map(row => row.reports), [1, 1]);
+  assert.equal(plan.unknownPriorities[0].reports, null);
+  assert.ok(plan.possibleDuplicates.some(pair => pair.keys.includes('F-20') && pair.keys.includes('F-21')));
+  assert.ok(plan.possibleDuplicates.some(pair => pair.keys.includes('review-pr, section 3')));
+});
+
+await test('archives keep large active and retired observations readable with a bounded inbox body', async () => {
+  const detail = 'Observation with a long reproduction. '.repeat(2200);
+  const { state, api } = fixture([reported(20, 'codex:alpha', 'new', detail)]);
+  state.body = renderTable(body, []);
+  await applyPlan(await readPlan(api), api);
+  assert.ok(state.body.length < 5000);
+  assert.match(state.body, /Full history in Reports archive/);
+  assert.equal(hydrateReports(state.body, state.comments)['F-20'].friction, detail.trim());
+  assert.ok(state.comments.some(comment => comment.body.includes('Observation with a long reproduction.')));
+  const next = await readPlan(api);
+  assert.equal(next.ignored.length, 0);
+  next.groups = [{ action: 'applied', number: 503, keys: ['F-20'] }];
+  await applyPlan(next, api);
+  assert.equal(parseTable(state.body, hydrateReports(state.body, state.comments)).rows.length, 0);
+  assert.equal((await readPlan(api)).reportHistory['F-20'].friction, detail.trim());
+});
+await test('a changed archive refuses before Task creation and interrupted archive writes reuse comments', async () => {
+  const { state, api } = fixture([reported(20, 'codex:alpha')]);
+  state.body = renderTable(body, []);
+  const plan = await readPlan(api);
+  state.fail = 'summary';
+  await assert.rejects(applyPlan(plan, api), /interrupted summary/);
+  const firstArchive = state.comments.find(comment => comment.body.startsWith('<!-- skill-feedback-archive:'));
+  await applyPlan(plan, api);
+  assert.equal(state.comments.filter(comment => comment.body === firstArchive.body).length, 1);
+  state.comments.push(reported(21, 'claude:beta', 'F-20'));
+  const next = await readPlan(api);
+  next.groups = [{ action: 'ticket', title: 'Fix it', keys: ['F-20'] }];
+  firstArchive.body += ' modified';
+  await assert.rejects(applyPlan(next, api), /hash or exact body/);
+  assert.equal(state.issues.length, 0);
+  assert.ok(state.comments.some(comment => comment.id === 21));
+});
+await test('oversized inbox refuses before filing and old count-plan versions remain unsupported', async () => {
+  const { state, api } = fixture();
+  state.body = 'Large surrounding prose. '.repeat(2200) + body;
+  await assert.rejects(applyPlan(await readPlan(api), api), /projected body exceeds/);
+  assert.deepEqual(state.events, []);
+  const plan = makePlan(body, []);
+  await assert.rejects(applyPlan({ ...plan, version: 2 }, api), /Wrong plan version/);
 });
 
 console.log(`All ${passed} triage checks passed.`);

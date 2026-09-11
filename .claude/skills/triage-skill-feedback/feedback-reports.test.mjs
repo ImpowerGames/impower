@@ -34,9 +34,10 @@ test('malformed, unsupported and duplicate markers refuse read and write', () =>
   }
 });
 test('noncanonical base64, invalid UTF-8, malformed JSON and duplicate JSON keys refuse', () => {
-  const valid = marker({});
+  const valid = marker({ 'F-123': { ...row, edit: 'a' } });
   const noPadding = valid.replace(/=+(?= -->)/, '');
-  if (valid !== noPadding) assert.throws(() => readReports(noPadding), /base64/);
+  assert.notEqual(valid, noPadding, 'fixture must exercise base64 padding');
+  assert.throws(() => readReports(noPadding), /base64/);
   for (const json of ['{', '{ "version":1,"problems":{}}', '{"version":1,"version":1,"problems":{}}', '{"version":2,"problems":{}}']) assert.throws(() => readReports(payload(json)), /JSON|envelope/);
   assert.throws(() => readReports('<!-- skill-feedback-reports:v1 /w== -->'), /UTF-8/);
 });
@@ -47,6 +48,7 @@ test('invalid identities, omitted fields, extra fields and invalid scalar values
   const missing = { ...row }; delete missing.sessions;
   assert.throws(() => readReports(marker({ 'F-123': missing })), /fields/);
   assert.throws(() => writeReports('', []), /object/);
+  assert.throws(() => writeReports('', Object.create({ inherited: true })), /object/);
 });
 test('session references have bounded exact identity and reject duplicates', () => {
   for (const sessions of [['same', 'same'], [''], [' padded'], ['x\ny'], ['x\ry'], ['x\u2028y'], ['x'.repeat(201)], [4], 'not-array']) assert.throws(() => writeReports('', { 'F-123': { ...row, sessions } }), /session/i);
