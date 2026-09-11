@@ -34,13 +34,13 @@ export async function runHandoff(configFile) {
   fs.mkdirSync(path.dirname(journal), { recursive: true });
   const lock = execFileSync("git", ["rev-parse", "--path-format=absolute", "--git-path", "agent-handoff.lock"], { cwd, encoding: "utf8" }).trim();
   const owner = fs.openSync(lock, "wx");
-  fs.writeFileSync(owner, JSON.stringify({ pid: process.pid, startedAt: new Date().toISOString(), journal }));
-  fs.closeSync(owner);
-  const fd = fs.openSync(journal, "wx");
+  let fd;
   const append = (row) => { fs.writeSync(fd, JSON.stringify({ time: new Date().toISOString(), ...row }) + "\n"); fs.fsyncSync(fd); };
   let current = config.first;
   let correctiveRounds = 0;
   try {
+    fs.writeFileSync(owner, JSON.stringify({ pid: process.pid, startedAt: new Date().toISOString(), journal }));
+    fd = fs.openSync(journal, "wx");
     for (let index = 0; current; index++) {
       if (index >= config.maxSteps) throw new Error("Handoff step budget reached; human review required");
       const step = config.steps[current];
@@ -79,9 +79,12 @@ export async function runHandoff(configFile) {
     }
     append({ event: "finished" });
   } catch (error) {
-    append({ event: "blocked", reason: error.message });
+    if (fd !== undefined) append({ event: "blocked", reason: error.message });
     throw error;
-  } finally { fs.closeSync(fd); fs.unlinkSync(lock); }
+  } finally {
+    try { if (fd !== undefined) fs.closeSync(fd); }
+    finally { try { fs.closeSync(owner); } finally { fs.unlinkSync(lock); } }
+  }
 }
 
 if (process.argv[1] && fs.realpathSync(process.argv[1]) === fileURLToPath(import.meta.url)) {

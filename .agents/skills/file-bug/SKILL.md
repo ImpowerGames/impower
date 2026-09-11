@@ -123,4 +123,4 @@ This list holds only what no mechanism catches. A trap a command can catch belon
 
 ## Improving this skill
 
-If a step here failed, needed something it does not give, did not fit your bug without saying so, or cost you time on a trap Gotchas does not list, report it under a "Skill feedback" heading in your final message with the edit you propose, as the repository's agent instructions describes. If the session has a branch and pull request and you are certain of the fix, make it in this file in its own commit and mention it in the pull request; otherwise record the proposal in the inbox as the repository's agent instructions describes.
+If a step here failed, needed something it does not give, did not fit your bug without saying so, or cost you time on a trap Gotchas does not list, report it under a "Skill feedback" heading in your final message with the edit you propose, as the repository's agent instructions describe. If the session has a branch and pull request and you are certain of the fix, make it in this file in its own commit and mention it in the pull request; otherwise record the proposal in the inbox as the repository's agent instructions describe.

@@ -50,9 +50,11 @@ const SKILL_DIR = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(SKILL_DIR, "..", "..", "..");
 const EXT_DIR = path.join(REPO_ROOT, "vscode-sparkdown");
 const PACKAGES_DIR = path.join(REPO_ROOT, "packages");
-const STATE_FILE = path.join(SKILL_DIR, ".state.json");
+const CANONICAL_STATE_FILE = path.join(SKILL_DIR, ".state.json");
+const LEGACY_STATE_FILE = path.join(REPO_ROOT, ".claude", "skills", "drive-vscode-web", ".state.json");
+const STATE_FILE = !fs.existsSync(CANONICAL_STATE_FILE) && fs.existsSync(LEGACY_STATE_FILE) ? LEGACY_STATE_FILE : CANONICAL_STATE_FILE;
 // The same file in another worktree of this repository.
-const STATE_REL = path.relative(REPO_ROOT, STATE_FILE);
+const STATE_REL = path.relative(REPO_ROOT, CANONICAL_STATE_FILE);
 // The build stamp lives under out/, which is gitignored and survives a
 // rebuild, so a source file whose content is what the build was made from
 // is not mistaken for a change by its modification time alone.
@@ -783,7 +785,7 @@ function stateUnreadable() {
   return readState() === null && fs.existsSync(STATE_FILE);
 }
 
-const writeState = (record) => writeJson(STATE_FILE, record);
+const writeState = (record) => writeJson(CANONICAL_STATE_FILE, record);
 
 function removeState() {
   try {

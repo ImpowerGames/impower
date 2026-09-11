@@ -26,6 +26,7 @@ for (const rule of contracts) assert.deepEqual(contractErrors(prompt.replaceAll(
 assert.ok(!/\$\d/.test(prompt), "skill positional substitution must not corrupt reviewer prompts");
 const quotedPrompt = prompt.split("\n").filter((line) => line.startsWith(">")).join("\n");
 assert.equal((quotedPrompt.match(/\bWRITER\b/g) ?? []).length, 1, "writer substitution must occur only at its value, not inside the missing-value guard");
+assert.equal((quotedPrompt.match(/\bREVIEWER\b/g) ?? []).length, 1, "reviewer substitution must occur only at its value");
 const generation = spawnSync(process.execPath, ["scripts/generate-reviewer-agents.mjs", "--check"], { cwd: root, encoding: "utf8" });
 assert.equal(generation.status, 0, generation.stdout + generation.stderr);
 const instructions = fs.readFileSync(path.join(root, "AGENTS.md"), "utf8");

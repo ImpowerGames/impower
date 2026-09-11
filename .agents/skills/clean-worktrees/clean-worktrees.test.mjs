@@ -1226,7 +1226,7 @@ try {
 // this also pins its exit codes, its refusals, the log it writes, and the
 // process listing, the rename probe and the link scan on the real system.
 
-const scratch = fs.mkdtempSync(path.join(os.tmpdir(), "clean-worktrees-"));
+const scratch = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), "clean-worktrees-")));
 console.log(`Scratch repository: ${scratch}`);
 const mainRoot = path.join(scratch, "impower");
 const root = path.join(scratch, "impower.worktrees");

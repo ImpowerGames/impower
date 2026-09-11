@@ -37,3 +37,19 @@ calls.length = 0;
 probeServers(legacy, deps);
 assert.deepEqual(calls, [oldDriver], "existing worktrees must retain driver discovery");
 console.log("PASS: actual linked CLI dispatch and identical state paths; canonical deduplication and legacy discovery");
+for (const driver of ["drive-web-editor", "drive-vscode-web"]) {
+  const canonicalDriver = path.join(legacy, ".agents", "skills", driver);
+  fs.cpSync(path.join(shared, driver), canonicalDriver, { recursive: true });
+  fs.unlinkSync(path.join(canonicalDriver, ".state.json"));
+  const state = path.join(legacy, ".claude", "skills", driver, ".state.json");
+  fs.mkdirSync(path.dirname(state), { recursive: true });
+  fs.writeFileSync(state, "{");
+}
+fs.mkdirSync(path.join(legacy, "vscode-sparkdown"));
+fs.writeFileSync(path.join(legacy, "vscode-sparkdown", "package.json"), '{"publisher":"test","name":"test"}');
+for (const driver of ["drive-web-editor", "drive-vscode-web"]) {
+  const run = spawnSync(process.execPath, [path.join(legacy, ".agents", "skills", driver, "driver.mjs"), "status"], { cwd: legacy, encoding: "utf8", windowsHide: true });
+  assert.match(run.stdout + run.stderr, /state file unreadable/i, driver + " must read existing-checkout state");
+  assert.ok((run.stdout + run.stderr).includes(path.join(legacy, ".claude", "skills", driver, ".state.json")));
+}
+console.log("PASS: canonical commands retain both drivers' state during an existing-checkout migration");

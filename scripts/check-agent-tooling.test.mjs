@@ -14,11 +14,20 @@ for (const file of ["scripts/check-agent-tooling.mjs", ".agents/skills/drive-web
   fs.copyFileSync(path.join(root, file), path.join(scratch, file));
 }
 const put = (name, content) => { fs.mkdirSync(path.dirname(path.join(scratch, name)), { recursive: true }); fs.writeFileSync(path.join(scratch, name), content); };
-const run = () => spawnSync(process.execPath, ["scripts/check-agent-tooling.mjs"], { cwd: scratch, encoding: "utf8", windowsHide: true });
+const summaryPath = path.join(scratch, "summary.md");
+const run = () => spawnSync(process.execPath, ["scripts/check-agent-tooling.mjs"], { cwd: scratch, encoding: "utf8", windowsHide: true, env: { ...process.env, GITHUB_STEP_SUMMARY: summaryPath } });
 assert.notEqual(run().status, 0, "empty discovery must fail");
 for (const file of [".agents/skills/a test.test.mjs", ".claude/hooks/hook.test.mjs", "scripts/link-agent-skills.test.mjs"]) put(file, 'console.log("fixture passed");');
+for (let i = 0; i < 21; i++) put(`.agents/skills/coverage-${i}.test.mjs`, 'console.log("fixture passed");');
 spawnSync("git", ["add", "."], { cwd: scratch, windowsHide: true });
 assert.equal(run().status, 0, "tracked checks including spaces must run");
+put(".agents/skills/coverage-0.test.mjs", 'console.log("SKIP: unavailable fixture");');
+assert.equal(run().status, 0);
+assert.match(fs.readFileSync(summaryPath, "utf8"), /SKIP: unavailable fixture/);
+assert.match(fs.readFileSync(summaryPath, "utf8"), /#506.*#507.*#508/);
+assert.equal(spawnSync("git", ["rm", "--cached", ".agents/skills/coverage-1.test.mjs"], { cwd: scratch, windowsHide: true }).status, 0);
+assert.notEqual(run().status, 0, "losing a tracked check must fail the coverage floor");
+spawnSync("git", ["add", ".agents/skills/coverage-1.test.mjs"], { cwd: scratch, windowsHide: true });
 put(".agents/skills/unknown.test.py", "print('must not be silently skipped')");
 spawnSync("git", ["add", "."], { cwd: scratch, windowsHide: true });
 assert.notEqual(run().status, 0, "unsupported check extension must fail");

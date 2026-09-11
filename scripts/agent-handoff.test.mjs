@@ -38,6 +38,13 @@ const lock = git("rev-parse", "--path-format=absolute", "--git-path", "agent-han
 fs.writeFileSync(lock, "active coordinator");
 write(); await assert.rejects(runHandoff(file), /EEXIST/);
 fs.unlinkSync(lock);
+config.journal = path.join(scratch, "invalid\0journal.jsonl");
+write(); await assert.rejects(runHandoff(file));
+assert.equal(fs.existsSync(lock), false, "journal initialization failure must release the acquired lock");
+config.journal = path.join(scratch, "recovered.jsonl");
+config.steps.first.next = ["second"];
+write(); await runHandoff(file);
+config.journal = path.join(scratch, "review.jsonl");
 config.steps.first.role = "review";
 config.steps.first.model = "reviewer-test";
 config.steps.first.args = [child, "first", "--model", "reviewer-test"];

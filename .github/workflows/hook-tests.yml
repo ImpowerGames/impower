@@ -26,14 +26,14 @@ jobs:
       - uses: actions/checkout@v4
         with:
           sparse-checkout: |
-            .agents
-            .claude
-            scripts
-            AGENTS.md
-            CLAUDE.md
-            .gitignore
-            package.json
-            vscode-sparkdown/package.json
+            /.agents/
+            /.claude/
+            /scripts/
+            /AGENTS.md
+            /CLAUDE.md
+            /.gitignore
+            /package.json
+            /vscode-sparkdown/package.json
           sparse-checkout-cone-mode: false
       - uses: actions/setup-node@v4
         with:

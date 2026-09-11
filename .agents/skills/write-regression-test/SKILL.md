@@ -129,6 +129,8 @@ The runner discovers tracked checks under the shared skills, harness hooks and s
 
 Run with the machine otherwise idle. The runner chooses Git for Windows bash explicitly on Windows; generic bash may resolve to an unavailable subsystem. A missing required interpreter is a failed check, not a skip. Keep logs until their closing counts and failures have been read.
 
+The runner's MIN_CHECKS floor is the derived tracked runnable count, excluding the grammar scanner check that runs in the typecheck workflow. Update the floor when adding a check. The CI summary lists skipped cases; #506, #507 and #508 track the remaining platform-specific driver coverage, and zip fixtures need the workspace dependency install.
+
 ---
 
 ## Running vitest safely
@@ -151,21 +153,7 @@ cd packages/sparkdown && NODE_OPTIONS="--max-old-space-size=1024" npx vitest run
       Tests  8 passed (8)
 ```
 
-A directory, with the same cap:
-
-```bash
-cd packages/sparkdown && NODE_OPTIONS="--max-old-space-size=1024" npx vitest run src/tests/compiler --pool=forks --poolOptions.forks.minForks=1 --poolOptions.forks.maxForks=1
-```
-
-`packages/sparkdown`'s full suite is ~156 files / ~1800 tests / ~28 min and is at the edge of this machine even at `--max-old-space-size=1024`. Never run it in one go; run it in halves, sequentially, waiting for each to fully exit:
-
-```bash
-cd packages/sparkdown && NODE_OPTIONS="--max-old-space-size=1024" npx vitest run src/tests/compiler src/tests/runtime --pool=forks --poolOptions.forks.minForks=1 --poolOptions.forks.maxForks=1
-```
-
-```bash
-cd packages/sparkdown && NODE_OPTIONS="--max-old-space-size=1024" npx vitest run src/tests/luau-conformance --pool=forks --poolOptions.forks.minForks=1 --poolOptions.forks.maxForks=1
-```
+For a directory or package, enumerate its tracked test files and run them one file at a time using the single-file command above. Keep the 1024 MB heap and one fork for every run. Wait for each process to exit and verify its test-file and test summaries before starting the next. Do not report the directory or package complete until every enumerated file has a verified result. This strategy bounds each invocation to the same scope as the single-file command; no larger-suite timing or memory claim is inferred from it.
 
 Exit code 0 does not mean green. Two OOM shapes both exit 0: `Error: Worker exited unexpectedly` with no pass count; or the log simply stops with no `Test Files` / `Tests` summary at all. Confirm the summary lines exist and the file count matches what you expected; a run can exit 0 having completed 13 of 156 files and look perfectly clean. To count:
 
@@ -200,4 +188,4 @@ Every `redgreen` failure names its own fix in the `problems` entry it reports, s
 
 ## Improving this skill
 
-If a step here failed, needed a flag or path it does not give, did not apply to your change without saying so, or cost you time on something Troubleshooting does not cover, report it under a "Skill feedback" heading in your final message with the edit you propose, as the repository's agent instructions describes. Prefer a mechanism to a warning: when the problem is a step a session can forget or get wrong, propose the driver command or the check that makes the mistake impossible rather than a sentence telling the next session to be careful; `redgreen` is the shape to copy. When you are certain of the fix and the session has a branch and pull request, make it in this file in its own commit and mention it under the pull request's Notes for reviewers.
+If a step here failed, needed a flag or path it does not give, did not apply to your change without saying so, or cost you time on something Troubleshooting does not cover, report it under a "Skill feedback" heading in your final message with the edit you propose, as the repository's agent instructions describe. Prefer a mechanism to a warning: when the problem is a step a session can forget or get wrong, propose the driver command or the check that makes the mistake impossible rather than a sentence telling the next session to be careful; `redgreen` is the shape to copy. When you are certain of the fix and the session has a branch and pull request, make it in this file in its own commit and mention it under the pull request's Notes for reviewers.

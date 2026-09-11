@@ -29,7 +29,17 @@ For Codex CLI, a separate serial review session can be launched with `codex exec
 
 On Windows, prefer an executable over an npm shell wrapper; an installed package entry point can be launched with Node. Supply prompts on stdin where supported or as one argument through a process API; never interpolate them into shell code. Launch background processes with hidden windows.
 
-## Shell and paths
+## Migration and recovery
+
+Fresh checkouts install links through postinstall. An existing checkout can retain ignored driver state, browser profiles or personal skills in a real harness skills directory after Git moves the tracked files. The installer intentionally refuses that populated directory, including during npm install, so it cannot discard local work. An agent handling this refusal must reconcile the contents before retrying; silently treating a refused install as success would leave discovery incomplete.
+
+Use canonical driver status commands to inspect both drivers; each reads its existing-checkout state fallback. Stop the recorded servers through those drivers before moving any state or profile. If ownership or shutdown cannot be established, preserve the data and report the blocked migration rather than guessing.
+
+Preserve the populated directory in a private backup outside the checkout before removing its entry from the harness directory. Verify the resolved source and backup paths and use one filesystem API to move it; never recursively remove it. Reconcile any personal skill files with the canonical source without overwriting existing files. Preserve browser profiles and OPFS projects; restore each profile to the corresponding canonical skill directory only when that destination is absent. Keep the backup until its contents have been verified. Do not restore stopped server state as if it described a running server. Then rerun the installer and verify all links and both harness catalogs. This reconciliation needs judgment about personal files, so the installer does not automate it.
+
+For links that are broken or point at another checkout after a move or copy, run `node scripts/link-agent-skills.mjs --repair-links`. That explicit option replaces link entries only, without following them or modifying their targets. It still refuses every populated real directory and every linked tool parent. The default installer refuses foreign or broken links until this recovery is selected.
+
+## Shell selection
 
 The installed Windows Claude file glob did not traverse a skills junction in the discovery acceptance probe, while its native catalog discovered all nine skills. Use the native catalog or canonical paths for explicit enumeration; do not treat an empty glob over an ignored link as an empty skill set.
 
