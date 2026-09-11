@@ -73,7 +73,7 @@ function historicalTargets(body, rows) {
     const bytes = Buffer.from(matches[0][1], 'base64');
     const json = bytes.toString('utf8');
     try { saved = JSON.parse(json); } catch { throw new Error('Invalid historical-target history; preserve the body and reconcile it.'); }
-    if (bytes.toString('base64') !== matches[0][1] || !Buffer.from(json).equals(bytes) || JSON.stringify(saved) !== json || !Array.isArray(saved) || saved.some(value => typeof value !== 'string' || !value || keyOf(value) !== value) || new Set(saved).size !== saved.length) throw new Error('Invalid historical-target history; preserve the body and reconcile it.');
+    if (bytes.toString('base64') !== matches[0][1] || !Buffer.from(json).equals(bytes) || JSON.stringify(saved) !== json || !Array.isArray(saved) || saved.some(value => typeof value !== 'string') || new Set(saved).size !== saved.length) throw new Error('Invalid historical-target history; preserve the body and reconcile it.');
   }
   return new Set([...saved, ...rows.filter(row => !row.problemId).map(row => keyOf(row.skill))]);
 }
@@ -140,7 +140,7 @@ export function parseIntake(comment) {
   const explicitProblem = labelsOutsideFences.some(field => field[1] === 'Problem' && /^(?:new|F-[1-9]\d*)\s*(?:\n|$)/.test(text.slice(field.index + field[0].length)));
   if (paired || explicitProblem || ['Problem', 'Session'].includes(labelsOutsideFences[0]?.[1])) {
     const labels = labelsOutsideFences;
-    if (labels.map(field => field[1]).join('|') !== 'Problem|Session|Skill and section|What happened|Proposed edit') throw new Error(`Comment ${comment.id} needs Problem, Session, Skill and section, What happened, Proposed edit in that order.`);
+    if (labels.map(field => field[1]).join('|') !== 'Problem|Session|Skill and section|What happened|Proposed edit') throw new Error(`Comment ${comment.id} needs Problem, Session, Skill and section, What happened, Proposed edit in that order; put quoted field-label examples inside a closed code fence or an indented quote.`);
     const values = labels.map((field, i) => text.slice(field.index + field[0].length, labels[i + 1]?.index ?? text.length).trim());
     const [problem, session, skill, friction, edit] = values;
     if (values.some(value => !value) || /[\r\n\u0085\u2028\u2029]/u.test(session) || session.length > 200 || !/^(new|F-[1-9]\d*)$/.test(problem) || !Number.isSafeInteger(comment.id) || comment.id < 1) throw new Error(`Comment ${comment.id} has an invalid problem or session reference, or empty field.`);
@@ -272,8 +272,9 @@ export async function lookupReports(api, problemId) {
   const pending = comments.flatMap(comment => {
     let reason;
     try { if (!parseIntake(comment)) return []; } catch (error) { reason = error.message; }
-    if (problemId && !comment.body.includes(problemId)) return [];
-    return [{ id: comment.id, html_url: comment.html_url, body: problemId ? comment.body : Array.from(comment.body).slice(0, 1200).join(''), ...(comment.body.length > 1200 && !problemId ? { truncated: true } : {}), ...(reason ? { reason } : {}) }];
+    if (problemId && !new RegExp(`\\b${problemId}\\b`).test(comment.body)) return [];
+    const points = Array.from(comment.body);
+    return [{ id: comment.id, html_url: comment.html_url, body: problemId ? comment.body : points.slice(0, 1200).join(''), ...(points.length > 1200 && !problemId ? { truncated: true } : {}), ...(reason ? { reason } : {}) }];
   });
   const reports = problemId ? [archive.problems[problemId]] : Object.values(archive.problems).map(row => ({ problemId: row.problemId, skill: row.skill, status: row.status, reports: row.sessions.length, historyIncomplete: row.historyIncomplete, friction: reportExcerpt(row.friction), edit: reportExcerpt(row.edit) }));
   return { reports, pending, archive: { index: archive.index, chunks: archive.chunks, superseded: archive.superseded } };

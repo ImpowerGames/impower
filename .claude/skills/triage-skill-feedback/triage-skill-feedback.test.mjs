@@ -1278,4 +1278,52 @@ await test('unclosed intake fences give a fence-specific refusal', () => {
   assert.throws(() => parseIntake({ id: 20, body: '```text\n' + reported(20, 'codex:alpha').body }), /unclosed code fence/);
 });
 
+await test('saved historical keys stay opaque across non-idempotent and empty normalization outputs', async () => {
+  for (const skill of ['file-bug, the reproduce step...', 'file-bug, example .', 'file-bug, example `', '.']) {
+    const { state, api } = fixture([intake(20, skill)]);
+    state.body = renderTable(body, []);
+    const plan = await readPlan(api);
+    plan.groups = [{ action: 'defer', keys: [keyOf(skill)] }];
+    await applyPlan(plan, api);
+    const next = await readPlan(api);
+    assert.equal(next.rows[0].skill, skill);
+    await applyPlan(next, api);
+    assert.equal((await readPlan(api)).rows[0].skill, skill);
+  }
+});
+await test('applied observation summaries survive later runs and are verified when first posted', async () => {
+  const { state, api, plan } = fixture([intake(55, 'write-regression-test, section 3', 'UNIQUE-RETAINED-OBSERVATION')]);
+  plan.groups = plan.groups.map(group => ({ action: 'applied', number: 503, keys: group.keys }));
+  const first = await applyPlan(plan, api);
+  const summary = state.comments.find(comment => comment.body === first.summary);
+  assert.ok(summary);
+  await applyPlan(await readPlan(api), api);
+  assert.equal(state.comments.find(comment => comment.id === summary.id).body, first.summary);
+  assert.match(first.summary, /UNIQUE-RETAINED-OBSERVATION/);
+});
+await test('lookup matches whole problem IDs and reports code-point truncation truthfully', async () => {
+  const { lookupReports } = await import('./triage-skill-feedback.mjs');
+  const { state, api } = fixture([reported(20, 'codex:a'), reported(201, 'codex:b')]);
+  state.body = renderTable(body, []);
+  await applyPlan(await readPlan(api), api);
+  state.comments.push(reported(300, 'claude:c', 'F-201'), { id: 301, body: '😀'.repeat(1100) });
+  assert.equal((await lookupReports(api, 'F-20')).pending.length, 0);
+  assert.deepEqual((await lookupReports(api, 'F-201')).pending.map(comment => comment.id), [300]);
+  const pending = (await lookupReports(api)).pending.find(comment => comment.id === 301);
+  assert.equal(pending.body, '😀'.repeat(1100));
+  assert.equal(pending.truncated, undefined);
+});
+await test('leading whitespace archive copies remain visible for inspection', async () => {
+  const { state, api } = fixture([reported(20, 'codex:a')]);
+  state.body = renderTable(body, []);
+  await applyPlan(await readPlan(api), api);
+  const archive = state.comments.find(comment => comment.body.startsWith('<!-- skill-feedback-archive:'));
+  state.comments.push({ id: 900, body: '\n' + archive.body });
+  const plan = await readPlan(api);
+  assert.ok(plan.archive.superseded.includes(900));
+});
+await test('counted-format diagnostics explain how to quote a reserved label in legacy prose', () => {
+  assert.throws(() => parseIntake(intake(20, 'file-bug, section 2', 'It said\n\nProblem: new\n\nbut the template differed.')), /closed code fence or an indented quote/);
+});
+
 console.log(`All ${passed} triage checks passed.`);

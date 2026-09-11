@@ -61,7 +61,7 @@ export function inspectReportsArchive(body, comments, isFenced = () => false) {
   }
   const chunks = prior?.manifest?.chunks || [];
   const current = new Set([prior?.pointer?.id, ...chunks.map(chunk => chunk.id)]);
-  const metadata = { index: prior?.pointer?.id ?? null, chunks: chunks.map(chunk => chunk.id), superseded: comments.filter(comment => typeof comment.body === 'string' && /^(?:<!-- skill-feedback-archive:v1 |<!-- skill-feedback-archive-index:v1 )/.test(comment.body) && !current.has(comment.id)).map(comment => comment.id) };
+  const metadata = { index: prior?.pointer?.id ?? null, chunks: chunks.map(chunk => chunk.id), superseded: comments.filter(comment => typeof comment.body === 'string' && /^(?:<!-- skill-feedback-archive:v1 |<!-- skill-feedback-archive-index:v1 )/.test(comment.body.trimStart()) && !current.has(comment.id)).map(comment => comment.id) };
   if (!prior?.manifest) return { ...metadata, problems: prior?.legacy || {} };
   const text = chunks.map((chunk, part) => {
     const matches = comments.filter(comment => comment.id === chunk.id);
