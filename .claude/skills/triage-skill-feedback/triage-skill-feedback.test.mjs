@@ -808,4 +808,95 @@ await test('manually split closed-ticket recurrence keeps its durable prior refe
   assert.equal(state.references.get(601).body, 'The earlier proposal remains in this Task.');
 });
 
+await test('reapplied work retains unmerged provenance in durable summary history', async () => {
+  const { state, api } = fixture([]);
+  state.body = body.replace('| open |', '| applied in PR #503 |');
+  let merged = false;
+  api.pr = async number => ({ number, state: number === 503 || merged ? 'closed' : 'open', merged_at: number === 700 && merged ? '2026-09-10' : null });
+  const plan = await readPlan(api);
+  plan.groups = [{ action: 'applied', number: 700, keys: [keyOf(plan.rows[0].skill)] }];
+  await applyPlan(plan, api);
+  const row = parseTable(state.body).rows[0];
+  assert.equal(row.status, 'applied in PR #700');
+  assert.equal(row.edit, 'Keep `C:\\path`');
+  assert.match(state.comments[0].body, /applied #700.*applied in PR #503.*closed without merging/);
+  merged = true;
+  await applyPlan(await readPlan(api), api);
+  assert.equal(parseTable(state.body).rows.length, 0);
+  assert.ok(state.comments.some(comment => /applied #700.*applied in PR #503/.test(comment.body)));
+});
+await test('retargeted existing evidence preserves the prior Task automatically', async () => {
+  const { state, api } = fixture();
+  state.body = body.replace('| open |', '| ticketed #601 |');
+  for (const number of [601, 702]) state.references.set(number, { number, state: 'open', type: { name: 'Task' }, labels: [{ name: 'workflow: skills' }] });
+  const plan = await readPlan(api);
+  plan.groups = [{ action: 'existing', number: 702, keys: [keyOf(plan.rows[0].skill)] }];
+  const proposed = preview(plan)[0].body;
+  assert.match(proposed, /Previous reference for review-pr, section 3: ticketed #601/);
+  await applyPlan(plan, api);
+  assert.deepEqual([...state.discussion.keys()], [702]);
+  assert.equal(state.discussion.get(702)[0].body, proposed);
+});
+await test('live folded intake absent from plan comments still blocks a new apply', async () => {
+  const { state, api } = fixture();
+  const original = await readPlan(api);
+  state.fail = 'persisted';
+  await assert.rejects(applyPlan(original, api), /interrupted persisted/);
+  state.body += '\nNote after interrupted cleanup.\n';
+  const emptyIntakePlan = makePlan(state.body, [], { prs: {}, issues: { 600: { state: 'open' } } });
+  assert.deepEqual(emptyIntakePlan.comments, []);
+  const before = state.body;
+  const events = [...state.events];
+  await assert.rejects(applyPlan(emptyIntakePlan, api), /Intake 1 is already recorded as folded/);
+  assert.equal(state.body, before);
+  assert.deepEqual(state.events, events);
+  assert.equal(state.bodyWrites.length, 1);
+  assert.equal(state.comments[0].id, 1);
+});
+
+await test('a fenced old summary cannot resume a stale plan after a later run', async () => {
+  const { state, api, plan } = fixture();
+  const first = await applyPlan(plan, api);
+  const quoted = '```text\n' + first.summary + '\n<!-- skill-feedback-state:00000000000000000000 -->\n```\n';
+  state.body = state.body.replace('## Table', quoted + '\n## Table');
+  state.comments = state.comments.filter(comment => comment.body !== first.summary);
+  state.comments.push(intake(9, 'write-regression-test, section 4'));
+  await applyPlan(await readPlan(api), api);
+  assert.ok(state.body.includes(quoted));
+  const before = structuredClone({ body: state.body, comments: state.comments, events: state.events });
+  await assert.rejects(applyPlan(plan, api), /Inbox body changed since planning/);
+  assert.deepEqual({ body: state.body, comments: state.comments, events: state.events }, before);
+});
+
+await test('resume extracts the current summary when its marker also appears in a fenced example', async () => {
+  const { state, api, plan } = fixture();
+  state.fail = 'persisted';
+  await assert.rejects(applyPlan(plan, api), /interrupted persisted/);
+  const summary = state.body.match(/<!-- skill-feedback-triage:[\s\S]*?(?=\n<!-- skill-feedback-state:)/)[0];
+  // Construct a valid saved-body fixture with the same marker in an example.
+  // The production code never recomputes integrity after an external edit.
+  const content = state.body.slice(0, state.body.lastIndexOf('\n<!-- skill-feedback-state:')).replace('## Table', '```text\n' + summary + '\n```\n\n## Table');
+  state.body = content + '\n<!-- skill-feedback-state:' + createHash('sha256').update(content).digest('hex').slice(0, 20) + ' -->\n';
+  const result = await applyPlan(plan, api);
+  assert.equal(result.summary, summary);
+  assert.equal(state.comments.length, 1);
+  assert.equal(state.comments[0].body, summary);
+});
+
+await test('a fresh run replaces a CRLF summary and preserves fenced summary examples', async () => {
+  const { state, api, plan } = fixture();
+  const first = await applyPlan(plan, api);
+  const example = '```text\n' + first.summary + '\n<!-- skill-feedback-state:00000000000000000000 -->\n```';
+  state.body = state.body.replace('## Table', example + '\n\n## Table').replace(/\n/g, '\r\n');
+  state.comments.push(intake(9, 'write-regression-test, section 4'));
+  const result = await applyPlan(await readPlan(api), api);
+  assert.ok(state.body.includes(example));
+  const outsideExample = state.body.replace(example, '');
+  assert.equal((outsideExample.match(/<!-- skill-feedback-triage:/g) || []).length, 1);
+  assert.equal((outsideExample.match(/<!-- skill-feedback-state:/g) || []).length, 1);
+  assert.ok(outsideExample.includes(result.summary));
+  assert.ok(!outsideExample.includes(first.summary));
+  await readPlan(api);
+});
+
 console.log(`All ${passed} triage checks passed.`);

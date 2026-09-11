@@ -45,6 +45,7 @@ function refusePendingFoldedIntake(body, comments) {
 }
 
 function stripSummaryBlocks(body) {
+  body = body.replace(/\r\n/g, '\n');
   return body.replace(/^<!-- skill-feedback-triage:[a-f0-9]{20} -->\nFolded (?:(?!\n<!-- skill-feedback-triage:)[\s\S])*?\n<!-- skill-feedback-state:[a-f0-9]{20} -->\n?/gm,
     (block, offset) => fencedAt(body, offset) ? block : '');
 }
@@ -232,7 +233,8 @@ export async function applyPlan(plan, api) {
   const marker = `<!-- skill-feedback-triage:${run} -->`;
   let current = await api.inbox();
   // A completed body's marker allows retries to finish cleanup after interruption.
-  const resumed = current.body.includes(marker);
+  const latestSummary = [...current.body.matchAll(/^<!-- skill-feedback-triage:[a-f0-9]{20} -->\r?\nFolded /gm)].findLast(match => !fencedAt(current.body, match.index));
+  const resumed = Boolean(latestSummary?.[0].startsWith(marker));
   if (resumed) {
     const integrity = current.body.match(/\n<!-- skill-feedback-state:([a-f0-9]{20}) -->\n?$/);
     if (!integrity || hash(current.body.slice(0, integrity.index)) !== integrity[1]) throw new Error('Persisted inbox changed after folding; inspect it before deleting intake.');
@@ -283,7 +285,8 @@ export async function applyPlan(plan, api) {
       } else {
         const target = await api.pr(number);
         if (target.state === 'closed' && !target.merged_at) throw new Error(`PR #${number} is closed and unmerged; select work that still carries the edit.`);
-        applied.push(`#${number}`);
+        const prior = referenceContext(grouped, '');
+        applied.push(`#${number}${prior ? ` (${literalDisplay(prior)})` : ''}`);
       }
       for (const row of grouped) row.status = group.action === 'applied' ? `applied in PR #${number}` : `ticketed #${number}`;
     }
@@ -302,7 +305,7 @@ export async function applyPlan(plan, api) {
     await api.updateBody(updated);
     if ((await api.inbox()).body !== updated) throw new Error('Inbox body read-back differs; no intake deleted.');
   } else {
-    summary = current.body.slice(current.body.indexOf(marker), current.body.lastIndexOf('\n<!-- skill-feedback-state:'));
+    summary = current.body.slice(latestSummary.index, current.body.lastIndexOf('\n<!-- skill-feedback-state:'));
   }
   // Never delete a comment until its complete content and status are persisted.
   for (const comment of plan.comments) {
