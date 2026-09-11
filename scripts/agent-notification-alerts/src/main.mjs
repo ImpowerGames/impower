@@ -8,7 +8,11 @@ const positional = args.filter(arg => arg !== '--dry-run');
 const notify = input => dryRun ? deliver(input, { dryRun }) : withDeviceLease(() => deliver(input));
 if (positional[0] === 'notify') {
   try {
-    const result = await notify({ message: positional.slice(1).join(' ') });
+    const categoryFlag = positional.indexOf('--category');
+    const category = categoryFlag === -1 ? 'done' : positional[categoryFlag + 1];
+    if (categoryFlag !== -1 && !category) throw new Error('--category requires done, input_needed or blocked');
+    const messageParts = positional.slice(1).filter((_, index) => categoryFlag === -1 || (index + 1 !== categoryFlag && index + 1 !== categoryFlag + 1));
+    const result = await notify({ message: messageParts.join(' '), category });
     console.log(JSON.stringify(result, null, 2));
     if (Object.values(result.channels || {}).some(channel => channel.status === 'error')) process.exitCode = 1;
   } catch (e) { console.error(e.message); process.exitCode = 1; }
@@ -28,6 +32,6 @@ if (positional[0] === 'notify') {
   });
   await server.connect(new StdioServerTransport());
 } else {
-  console.error('Usage: node src/main.mjs [mcp | notify MESSAGE] [--dry-run]');
+  console.error('Usage: node src/main.mjs [mcp | notify MESSAGE [--category done|input_needed|blocked]] [--dry-run]');
   process.exitCode = 1;
 }

@@ -5,5 +5,10 @@
   "zone": "function-keys",
   "volume": 70,
   "rate": 0,
-  "color": [255, 170, 0]
+  "colors": {
+    "done": [0, 255, 80],
+    "input_needed": [255, 140, 0],
+    "blocked": [255, 0, 0]
+  },
+  "keys": { "codex": [58], "claude": [59] }
 }

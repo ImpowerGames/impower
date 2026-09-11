@@ -6,6 +6,7 @@ import { z } from 'zod';
 
 export const alertShape = {
   message: z.string().trim().min(1).max(280).describe('One or two short, natural sentences to say aloud: what you finished and, if needed, what the user should do next. Any topic. Use plain speech, without markdown, code, or secrets.'),
+  category: z.enum(['done', 'input_needed', 'blocked']).default('done').describe('done: finished with no user action required; input_needed: a normal question, decision or review; blocked: a problem requires user help before work can continue.'),
 };
 export const alertSchema = z.object(alertShape).strict();
 const configSchema = z.object({
@@ -14,20 +15,32 @@ const configSchema = z.object({
   zone: z.enum(['function-keys', 'all']),
   volume: z.number().int().min(0).max(100),
   rate: z.number().int().min(-10).max(10),
-  color: z.tuple([z.number().int().min(0).max(255), z.number().int().min(0).max(255), z.number().int().min(0).max(255)]),
+  colors: z.object({
+    done: z.tuple([z.number().int().min(0).max(255), z.number().int().min(0).max(255), z.number().int().min(0).max(255)]),
+    input_needed: z.tuple([z.number().int().min(0).max(255), z.number().int().min(0).max(255), z.number().int().min(0).max(255)]),
+    blocked: z.tuple([z.number().int().min(0).max(255), z.number().int().min(0).max(255), z.number().int().min(0).max(255)]),
+  }),
+  keys: z.object({
+    codex: z.array(z.number().int().min(4).max(231)).min(1),
+    claude: z.array(z.number().int().min(4).max(231)).min(1),
+  }),
 }).strict();
 export async function readConfig() {
   const defaults = JSON.parse(await readFile(new URL('../config.example.json', import.meta.url), 'utf8'));
   let local = {};
   try { local = JSON.parse(await readFile(process.env.AGENT_ALERT_CONFIG || new URL('../config.local.json', import.meta.url), 'utf8')); }
   catch (e) { if (e.code !== 'ENOENT') throw e; }
-  return configSchema.parse({ ...defaults, ...local });
+  // A previous message-only prototype used one color for every alert.
+  const { color: legacyColor, ...overrides } = local;
+  const colors = legacyColor ? { done: legacyColor, input_needed: legacyColor, blocked: legacyColor } : defaults.colors;
+  return configSchema.parse({ ...defaults, ...overrides, colors: { ...colors, ...local.colors }, keys: { ...defaults.keys, ...local.keys } });
 }
 const game = 'AGENT_NOTIFICATION_ALERTS';
-export function binding(config) {
-  const [red, green, blue] = config.color;
+export function binding(config, category = 'done', app = process.env.AGENT_ALERT_APP) {
+  const [red, green, blue] = config.colors[category];
+  const keys = app === 'codex' || app === 'claude' ? config.keys[app] : null;
   return { game, event: 'ATTENTION', min_value: 0, max_value: 1, handlers: [{
-    'device-type': 'rgb-per-key-zones', zone: config.zone, mode: 'color',
+    'device-type': 'rgb-per-key-zones', ...(keys ? { 'custom-zone-keys': keys } : { zone: config.zone }), mode: 'color',
     color: { red, green, blue }, rate: { frequency: 1 },
   }] };
 }
@@ -48,7 +61,7 @@ async function lighting(alert, config) {
   };
   await post('game_metadata', { game, game_display_name: 'Agent Notification Alerts', developer: 'Local agent tools' });
   try {
-    await post('bind_game_event', binding(config));
+    await post('bind_game_event', binding(config, alert.category));
     const end = Date.now() + config.durationMs;
     while (Date.now() < end) {
       await post('game_event', { game, event: 'ATTENTION', data: { value: 1 } });
@@ -81,7 +94,7 @@ function speak(alert, config) {
 export async function deliver(input, { dryRun = false, config, light = lighting, speech = speak } = {}) {
   const alert = alertSchema.parse(input);
   config ??= await readConfig();
-  if (dryRun) return { dryRun: true, alert, lighting: binding(config), speech: config.speech };
+  if (dryRun) return { dryRun: true, alert, lighting: binding(config, alert.category), speech: config.speech };
   const channels = [['keyboard', config.keyboard, light], ['speech', config.speech, speech]];
   const results = await Promise.all(channels.map(async ([name, enabled, fn]) => {
     if (!enabled) return [name, { status: 'disabled' }];

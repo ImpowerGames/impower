@@ -13,7 +13,7 @@ From this directory:
 ```powershell
 npm ci
 npm run demo
-node src/main.mjs notify "Hey, I finished the settings page. Can you take a look?"
+node src/main.mjs notify "Hey, I finished the settings page. Can you take a look?" --category input_needed
 node src/main.mjs notify "Your photos are organized. Everything is ready."
 node src/main.mjs notify "I compared the flights. Can you choose a departure time?" --dry-run
 npm test
@@ -30,15 +30,18 @@ notification event. The agent deliberately calls it with structured input:
 
 ```json
 {
-  "message": "Hey, I finished the settings page. Can you take a look?"
+  "message": "Hey, I finished the settings page. Can you take a look?",
+  "category": "input_needed"
 }
 ```
 
-`message` is the only argument. Any topic is welcome; there are no event
-categories or task-specific fields. The exact message is spoken without an
+`message` is required; `category` defaults to `done`. Any topic is welcome.
+The exact message is spoken without an
 automatic "Agent" prefix. Messages are limited to 280 characters, with one or
-two short, natural sentences recommended. All alerts use the locally configured
-color (amber by default). The tool delivers a message; it does not verify claims
+two short, natural sentences recommended. Categories are `done` (green, no action
+needed), `input_needed` (orange, normal question/decision/review), and `blocked`
+(red, a problem requires user help). If work is done but needs review, use
+`input_needed`. The tool delivers a message; it does not verify claims
 or perform the action described in the message.
 
 ### End-of-turn behavior
@@ -52,10 +55,16 @@ If audio/lighting fails, deliver the handoff in chat rather than assuming it was
 heard. These are agent instructions, not an automatic interception of final
 responses: the agent must call the tool. No idle detector or Stop hook is installed.
 
+The shared [notify-user skill](../../.agents/skills/notify-user/SKILL.md) is
+invoked at user handoffs by `resolve-issue`, `file-bug`, and `file-feature`.
+It retains each workflow's completion gates and falls back to chat when the
+MCP tool is unavailable. Skills become available in checkouts containing this
+change; a running session may need to restart to discover them.
+
 For Claude Code, register an absolute path to this program (replace the example):
 
 ```powershell
-claude mcp add --transport stdio --scope user agent-alerts -- node "C:/path/to/impower/scripts/agent-notification-alerts/src/main.mjs" mcp
+claude mcp add --transport stdio --scope user agent-alerts --env AGENT_ALERT_APP=claude -- node "C:/path/to/impower/scripts/agent-notification-alerts/src/main.mjs" mcp
 claude mcp get agent-alerts
 ```
 
@@ -72,6 +81,21 @@ Other MCP clients can launch the same program over stdio with command `node`
 and arguments `["/absolute/path/to/src/main.mjs", "mcp"]`. Configure their tool
 timeout to allow queued notifications if you run many agents.
 
+For Codex (CLI and desktop share its MCP config):
+
+```powershell
+codex mcp add agent-alerts --env AGENT_ALERT_APP=codex -- node "C:/path/to/impower/scripts/agent-notification-alerts/src/main.mjs" mcp
+codex mcp get agent-alerts
+```
+
+`AGENT_ALERT_APP=codex` selects F1; `AGENT_ALERT_APP=claude` selects F2. Without
+that variable, manual calls use the configured zone. The app identity is set by
+the local registration, not supplied by the model. Restart the client after
+registration and permit the notification tool if prompted. Claude Code's local
+Desktop Code sessions share its CLI registration; ordinary Claude Chat has a
+separate desktop configuration. See the [Codex MCP docs](https://learn.chatgpt.com/docs/extend/mcp)
+and [Claude Desktop shared configuration](https://code.claude.com/docs/en/desktop#shared-configuration).
+
 ## Machine settings
 
 Copy `config.example.json` to ignored `config.local.json`, or set
@@ -80,15 +104,17 @@ are supported. A private launcher can set that
 environment variable and invoke the shared entry point.
 
 - `keyboard` / `speech`: enable each channel independently.
-- `zone`: `function-keys` or `all`.
+- `zone`: `function-keys` or `all`, for manual calls without an app identity.
 - `durationMs`: 1000–30000; default 6000. Lighting flashes once per second.
 - `volume`: Windows speech volume, 0–100; default 70.
 - `rate`: Windows speech rate, -10–10.
-- `color`: one RGB array, default `[255, 170, 0]`.
+- `colors`: RGB arrays keyed by `done`, `input_needed`, and `blocked`.
+- `keys`: HID key arrays keyed by `codex` (default `[58]`, F1) and `claude`
+  (default `[59]`, F2). These are per-computer preferences.
 
-Earlier prototype settings used `colors` and calls used `reason`/`source`.
-Replace `colors` with `color` in any private config, remove `reason`/`source`
-from MCP calls, and drop the reason argument from CLI commands.
+The message-only prototype's singular `color` override still works by setting
+all three categories to that color; remove it to use category colors. The older
+PR-specific `reason`/`source` arguments are not supported.
 
 Speech uses the default Windows audio output (headphones if selected). Lighting
 discovers Engine's loopback address from ProgramData and releases its GameSense
@@ -103,6 +129,16 @@ different application using that port will also cause a busy error. Alerts are
 brief, not persistent indicators, and there is no background PR polling or
 automatic startup service. Remote/cloud agents require a separate secure bridge
 to this computer; a remote process cannot directly control local devices.
+
+## Opening the notifying session
+
+F1/F2 are lighting targets only; this version does not register keyboard shortcuts.
+A future Ctrl+Alt+F1/F2 helper could open the latest notifying session for each
+app if notifications carry a verified session link. Multiple sessions per app
+would need a last-alert or cycling policy. Exact-session desktop link formats
+have not been verified for both apps, so no guessed links are constructed.
+Claude's documented `claude-cli://open` launches a new CLI session, not the
+existing Desktop session. No global shortcuts or session routing are installed.
 
 ## Existing projects considered
 
@@ -135,3 +171,8 @@ exclusion including release after an error. On the initial MSI GS75 Windows
 machine, a live demo returned successful Engine and speech results; the user
 confirmed seeing the amber keys and hearing the message. Other machines and
 keyboard models have not been tested. There is no visual UI to render.
+
+The later category/key test was also confirmed by the user on that machine:
+only F1 green, then only F2 orange, then only F1 red, each with successful
+speech and Engine responses. The automated suite additionally checks category
+validation, message-only compatibility, per-app key routing, and CLI parsing.
