@@ -5,12 +5,5 @@
   "zone": "function-keys",
   "volume": 70,
   "rate": 0,
-  "colors": {
-    "input_needed": [255, 170, 0],
-    "permission_needed": [255, 85, 0],
-    "review_ready": [170, 0, 255],
-    "merge_ready": [0, 255, 80],
-    "completed": [0, 170, 255],
-    "error": [255, 0, 0]
-  }
+  "color": [255, 170, 0]
 }

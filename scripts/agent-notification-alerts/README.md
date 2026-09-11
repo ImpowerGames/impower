@@ -13,9 +13,9 @@ From this directory:
 ```powershell
 npm ci
 npm run demo
-node src/main.mjs notify review_ready "The notification PR is ready for your review."
-node src/main.mjs notify merge_ready "PR 123 has passed review and is ready for your merge."
-node src/main.mjs notify input_needed "Please choose the next task." --dry-run
+node src/main.mjs notify "Hey, I finished the settings page. Can you take a look?"
+node src/main.mjs notify "Your photos are organized. Everything is ready."
+node src/main.mjs notify "I compared the flights. Can you choose a departure time?" --dry-run
 npm test
 ```
 
@@ -30,25 +30,27 @@ notification event. The agent deliberately calls it with structured input:
 
 ```json
 {
-  "source": "Claude — notification task",
-  "reason": "review_ready",
-  "message": "The pull request is ready for your review."
+  "message": "Hey, I finished the settings page. Can you take a look?"
 }
 ```
 
-| Reason | Default color |
-| --- | --- |
-| `input_needed` | Amber |
-| `permission_needed` | Orange |
-| `review_ready` | Purple |
-| `merge_ready` | Green |
-| `completed` | Blue |
-| `error` | Red |
+`message` is the only argument. Any topic is welcome; there are no event
+categories or task-specific fields. The exact message is spoken without an
+automatic "Agent" prefix. Messages are limited to 280 characters, with one or
+two short, natural sentences recommended. All alerts use the locally configured
+color (amber by default). The tool delivers a message; it does not verify claims
+or perform the action described in the message.
 
-Messages are limited to 600 characters. Prefer one short sentence identifying
-the task and what the user needs to do. The tool does not inspect GitHub or
-verify readiness: the calling workflow must establish that before reporting it.
-It never grants permission, approves a review, or merges a PR.
+### End-of-turn behavior
+
+The tool description instructs agents to send one brief handoff when work is
+finished or needs the user's attention. For example: "Hey, I finished organizing
+the photos. Can you pick a cover?" If nothing is needed, simply say what is ready.
+Replace the long recap with that short handoff, and keep the final chat reply
+short too. Necessary links, files and unresolved blockers still belong in chat.
+If audio/lighting fails, deliver the handoff in chat rather than assuming it was
+heard. These are agent instructions, not an automatic interception of final
+responses: the agent must call the tool. No idle detector or Stop hook is installed.
 
 For Claude Code, register an absolute path to this program (replace the example):
 
@@ -57,9 +59,11 @@ claude mcp add --transport stdio --scope user agent-alerts -- node "C:/path/to/i
 claude mcp get agent-alerts
 ```
 
-Restart Claude Code and check `/mcp`. Ask: "Use notify_user when you need my
-input, or when a PR is ready for my review or merge. Identify the task in the
-message." An agent/subagent can call this only if its MCP tool permissions
+Restart Claude Code and check `/mcp`. Ask: "When you finish work or need my
+attention, call notify_user with a short, natural handoff saying what you finished
+and what you need from me, if anything. Use that in place of a long recap. Keep
+your final chat response short, with any necessary links or blockers."
+An agent/subagent can call this only if its MCP tool permissions
 allow it. Otherwise have the main agent send the alert. Explicit tool calls do
 not automatically cover every idle/permission event. Lifecycle hook wiring is
 not installed by this version.
@@ -72,7 +76,7 @@ timeout to allow queued notifications if you run many agents.
 
 Copy `config.example.json` to ignored `config.local.json`, or set
 `AGENT_ALERT_CONFIG` to an absolute JSON file outside the repo. Partial overrides
-are supported, including individual colors. A private launcher can set that
+are supported. A private launcher can set that
 environment variable and invoke the shared entry point.
 
 - `keyboard` / `speech`: enable each channel independently.
@@ -80,7 +84,11 @@ environment variable and invoke the shared entry point.
 - `durationMs`: 1000–30000; default 6000. Lighting flashes once per second.
 - `volume`: Windows speech volume, 0–100; default 70.
 - `rate`: Windows speech rate, -10–10.
-- `colors`: RGB arrays for the reasons above.
+- `color`: one RGB array, default `[255, 170, 0]`.
+
+Earlier prototype settings used `colors` and calls used `reason`/`source`.
+Replace `colors` with `color` in any private config, remove `reason`/`source`
+from MCP calls, and drop the reason argument from CLI commands.
 
 Speech uses the default Windows audio output (headphones if selected). Lighting
 discovers Engine's loopback address from ProgramData and releases its GameSense
@@ -116,8 +124,8 @@ Research date: 2026-09-11. Reviewed documentation, not full security audits.
 
 This small adapter reuses the official MCP SDK, Windows speech, and the
 [SteelSeries GameSense API](https://github.com/SteelSeries/gamesense-sdk). Adding
-an existing notifier would currently still require the hardware adapter and
-agent-selected readiness reasons, so no third-party notifier is installed.
+an existing notifier would currently still require the hardware adapter, so no
+third-party notifier is installed.
 
 ## Verification
 

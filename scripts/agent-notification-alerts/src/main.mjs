@@ -8,7 +8,7 @@ const positional = args.filter(arg => arg !== '--dry-run');
 const notify = input => dryRun ? deliver(input, { dryRun }) : withDeviceLease(() => deliver(input));
 if (positional[0] === 'notify') {
   try {
-    const result = await notify({ reason: positional[1], message: positional.slice(2).join(' ') });
+    const result = await notify({ message: positional.slice(1).join(' ') });
     console.log(JSON.stringify(result, null, 2));
     if (Object.values(result.channels || {}).some(channel => channel.status === 'error')) process.exitCode = 1;
   } catch (e) { console.error(e.message); process.exitCode = 1; }
@@ -16,7 +16,7 @@ if (positional[0] === 'notify') {
   const server = new McpServer({ name: 'agent-notification-alerts', version: '0.1.0' });
   let queue = Promise.resolve();
   server.registerTool('notify_user', {
-    description: 'Notify the user through local keyboard lighting and spoken audio. Call when user input, permission, PR review or merge is needed. Use a concise message identifying the task and next action. This only notifies; it does not approve or merge anything.',
+    description: 'Speak a short, human handoff and flash the user\'s keyboard. Call once when you finish work or need the user\'s attention, on any topic. Say what you finished and what you need next, if anything: "Hey, I finished the settings page. Can you take a look?" Use this brief handoff in place of a long end-of-turn recap. Keep the final chat reply equally short; include necessary links, deliverables or unresolved blockers there. If notification fails, give the handoff in chat. This tool only delivers a message; it does not complete work or grant approval.',
     inputSchema: alertShape,
   }, async input => {
     const job = queue.then(() => notify(input));
@@ -28,6 +28,6 @@ if (positional[0] === 'notify') {
   });
   await server.connect(new StdioServerTransport());
 } else {
-  console.error('Usage: node src/main.mjs [mcp | notify REASON MESSAGE] [--dry-run]');
+  console.error('Usage: node src/main.mjs [mcp | notify MESSAGE] [--dry-run]');
   process.exitCode = 1;
 }

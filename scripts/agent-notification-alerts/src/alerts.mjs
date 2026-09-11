@@ -4,11 +4,8 @@ import { fileURLToPath } from 'node:url';
 import { createServer } from 'node:net';
 import { z } from 'zod';
 
-export const reasons = ['input_needed', 'permission_needed', 'review_ready', 'merge_ready', 'completed', 'error'];
 export const alertShape = {
-  message: z.string().trim().min(1).max(600).describe('Brief message to read aloud. Do not include secrets.'),
-  reason: z.enum(reasons).default('input_needed'),
-  source: z.string().trim().min(1).max(80).default('Agent').describe('Agent or task name'),
+  message: z.string().trim().min(1).max(280).describe('One or two short, natural sentences to say aloud: what you finished and, if needed, what the user should do next. Any topic. Use plain speech, without markdown, code, or secrets.'),
 };
 export const alertSchema = z.object(alertShape).strict();
 const configSchema = z.object({
@@ -17,18 +14,18 @@ const configSchema = z.object({
   zone: z.enum(['function-keys', 'all']),
   volume: z.number().int().min(0).max(100),
   rate: z.number().int().min(-10).max(10),
-  colors: z.record(z.tuple([z.number().int().min(0).max(255), z.number().int().min(0).max(255), z.number().int().min(0).max(255)])),
+  color: z.tuple([z.number().int().min(0).max(255), z.number().int().min(0).max(255), z.number().int().min(0).max(255)]),
 }).strict();
 export async function readConfig() {
   const defaults = JSON.parse(await readFile(new URL('../config.example.json', import.meta.url), 'utf8'));
   let local = {};
   try { local = JSON.parse(await readFile(process.env.AGENT_ALERT_CONFIG || new URL('../config.local.json', import.meta.url), 'utf8')); }
   catch (e) { if (e.code !== 'ENOENT') throw e; }
-  return configSchema.parse({ ...defaults, ...local, colors: { ...defaults.colors, ...local.colors } });
+  return configSchema.parse({ ...defaults, ...local });
 }
 const game = 'AGENT_NOTIFICATION_ALERTS';
-export function binding(reason, config) {
-  const [red, green, blue] = config.colors[reason];
+export function binding(config) {
+  const [red, green, blue] = config.color;
   return { game, event: 'ATTENTION', min_value: 0, max_value: 1, handlers: [{
     'device-type': 'rgb-per-key-zones', zone: config.zone, mode: 'color',
     color: { red, green, blue }, rate: { frequency: 1 },
@@ -51,7 +48,7 @@ async function lighting(alert, config) {
   };
   await post('game_metadata', { game, game_display_name: 'Agent Notification Alerts', developer: 'Local agent tools' });
   try {
-    await post('bind_game_event', binding(alert.reason, config));
+    await post('bind_game_event', binding(config));
     const end = Date.now() + config.durationMs;
     while (Date.now() < end) {
       await post('game_event', { game, event: 'ATTENTION', data: { value: 1 } });
@@ -78,13 +75,13 @@ function speak(alert, config) {
       if (code === 0) resolve('Windows speech playback completed on default audio output.');
       else reject(new Error(errors || `Speech exited with code ${code}`));
     });
-    child.stdin.end(JSON.stringify({ text: `${alert.source}. ${alert.message}`, volume: config.volume, rate: config.rate }));
+    child.stdin.end(JSON.stringify({ text: alert.message, volume: config.volume, rate: config.rate }));
   });
 }
 export async function deliver(input, { dryRun = false, config, light = lighting, speech = speak } = {}) {
   const alert = alertSchema.parse(input);
   config ??= await readConfig();
-  if (dryRun) return { dryRun: true, alert, lighting: binding(alert.reason, config), speech: config.speech };
+  if (dryRun) return { dryRun: true, alert, lighting: binding(config), speech: config.speech };
   const channels = [['keyboard', config.keyboard, light], ['speech', config.speech, speech]];
   const results = await Promise.all(channels.map(async ([name, enabled, fn]) => {
     if (!enabled) return [name, { status: 'disabled' }];
