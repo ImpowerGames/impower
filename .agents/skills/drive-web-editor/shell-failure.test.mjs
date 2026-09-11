@@ -14,7 +14,7 @@ try {
   for (const output of ["/bin/sh: 1: absent: not found", "/bin/bash: line 1: absent: command not found", "/bin/sh: 1: ./script: Permission denied"]) {
     assert.equal(classifyRedFailure(output), "shell");
   }
-  const shells = WIN ? [testShell(), process.env.ComSpec || "cmd.exe"] : ["/bin/sh", "bash"];
+  const shells = WIN ? [testShell(), process.env.ComSpec || "cmd.exe", true] : ["/bin/sh", "bash", true];
   if (WIN) console.log("SKIP: execute-permission probes (POSIX only: executable mode bits)");
   for (const shell of shells) {
     for (const command of ["impower_command_that_does_not_exist_507", "./absent-command-507"]) {
@@ -32,15 +32,25 @@ try {
     assert.equal(childReport.exit, 1, childReport.output);
     assert.equal(classifyRedFailure(childReport.output, childReport), "unknown", childReport.output);
     // Exercise the competing provenance, not just synthetic diagnostic text.
-    const separator = typeof shell === "string" && /cmd(?:\.exe)?$/i.test(shell) ? "&" : ";";
+    const isCmd = WIN && (shell === true || /cmd(?:\.exe)?$/i.test(String(shell)));
+    const separator = isCmd ? "&" : ";";
     const chain = runTest(`${node} assertion.mjs ${separator} impower_command_that_does_not_exist_507`, dir, shell);
-    assert.equal(classifyRedFailure(chain.output, chain), chain.exit === 127 ? "shell" : "unknown", chain.output);
+    assert.equal(classifyRedFailure(chain.output, chain), "unknown");
+    assert.equal(chain.posixShell, !isCmd);
+    fs.writeFileSync(path.join(dir, "partial.mjs"), 'process.stdout.write("FAIL src/a.test.ts");');
+    const partial = runTest(`${node} partial.mjs ${separator} impower_command_that_does_not_exist_507`, dir, shell);
+    assert.equal(classifyRedFailure(partial.output, partial), "unknown");
+    assert.match(partial.output, /FAIL src\/a\.test\.ts\n/);
+    fs.writeFileSync(path.join(dir, "count.mjs"), 'console.error("127 failing"); process.exit(127);');
+    const count = runTest(`${node} count.mjs`, dir, shell);
+    assert.equal(count.exit, 127);
+    assert.equal(classifyRedFailure(count.output, count), isCmd ? "assertion" : "unknown");
     console.log(`PASS: ${shell} refuses automatic proof for mixed shell/assertion output (child and command chain)`);
     if (!WIN) {
       fs.writeFileSync(path.join(dir, "not-executable"), "#!/bin/sh\nexit 0\n", { mode: 0o600 });
       const denied = runTest("./not-executable", dir, shell);
       assert.equal(denied.exit, 126, denied.output);
-      assert.equal(classifyRedFailure(denied.output), "shell", denied.output);
+      assert.equal(classifyRedFailure(denied.output, denied), "shell", denied.output);
       console.log(`PASS: ${shell} refuses a file without execute permission`);
     }
   }
@@ -52,13 +62,16 @@ try {
     assert.equal(classifyRedFailure(`${message}\nAssertionError: expected a handled diagnostic`, { exit: 1 }), message.startsWith("/bin/sh") ? "unknown" : "assertion");
   }
   const mixed = "AssertionError: expected a handled diagnostic\n/bin/sh: 1: absent: not found";
-  assert.equal(classifyRedFailure(mixed, { exit: 127 }), "shell", "an outer shell execution failure is not hidden by earlier assertions");
+  assert.equal(classifyRedFailure(mixed, { exit: 127, posixShell: true }), "unknown", "a reserved status does not establish diagnostic provenance");
+  assert.equal(classifyRedFailure("", { launchError: "EPERM", exit: -1 }), "unknown");
+  assert.equal(classifyRedFailure("unrecognized failure", { exit: 127, posixShell: false }), "unknown");
+  assert.equal(classifyRedFailure("  'npx' is not recognized as an internal or external command,", { exit: 1 }), "shell");
   for (const output of [
     "'absent' is not recognized as an internal or external command,\noperable program or batch file.",
     'npm error Missing script: "test"',
     "/bin/sh: 1: absent: not found",
   ]) {
-    for (const assertion of ["AssertionError: expected 1 to be 0", "\x1b[31mAssertionError\x1b[39m: mismatch", "Tests  1 failed"]) {
+    for (const assertion of ["AssertionError: expected 1 to be 0", "\x1b[31mAssertionError\x1b[39m: mismatch", "Tests  1 failed", "expect(received).toBe(expected)", "127 failing", "FAIL src/a.test.ts", "× should work"]) {
       for (const combined of [`${output}\n${assertion}`, `${assertion}\n${output}`]) {
         assert.equal(classifyRedFailure(combined, { exit: 1 }), "unknown", combined);
         assert.equal(classifyRedFailure(combined, { exit: -1 }), "crash", combined);
@@ -68,8 +81,8 @@ try {
   assert.equal(classifyRedFailure("\x1b[31mAssertionError\x1b[39m: mismatch", { exit: 1 }), "assertion");
   for (const output of ["bash : ligne 1 : absent : commande introuvable", "bash: Zeile 1: absent: Kommando nicht gefunden."]) {
     for (const exit of [126, 127]) {
-      assert.equal(classifyRedFailure(output, { exit }), "shell");
-      assert.equal(classifyRedFailure(`AssertionError: mismatch\n${output}`, { exit }), "shell");
+      assert.equal(classifyRedFailure(output, { exit, posixShell: true }), "shell");
+      assert.equal(classifyRedFailure(`AssertionError: mismatch\n${output}`, { exit, posixShell: true }), "unknown");
     }
   }
   const locale = { LANG: process.env.LANG, LC_ALL: process.env.LC_ALL };

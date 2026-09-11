@@ -136,13 +136,16 @@ export function runTest(cmd, cwd, shell = testShell()) {
     maxBuffer: 64 * 1024 * 1024,
     env: process.env,
   });
-  const output = `${r.stdout || ""}${r.stderr || ""}`;
+  // The streams have no shared ordering. Keep their boundary a line boundary
+  // even when the last stdout write did not include a newline.
+  const output = [r.stdout, r.stderr].filter(Boolean).join("\n");
   const lines = output.split(/\r?\n/).filter((l) => l.trim() !== "");
   return {
     exit: r.status == null ? -1 : r.status,
     tail: lines.slice(-40),
     output,
     launchError: r.error?.code ?? null,
+    posixShell: shell === true ? process.platform !== "win32" : /(?:^|[\\/])(?:ba|da)?sh(?:\.exe)?$/i.test(shell),
   };
 }
 
@@ -159,12 +162,16 @@ export function runTest(cmd, cwd, shell = testShell()) {
  * assertion merely quotes an ENOENT is not mistaken for one. The assertion
  * patterns are word-bounded: `/toBe/i` on its own matches "October".
  */
-export function classifyRedFailure(output, { removed = [], launchError = null, exit = null } = {}) {
+export function classifyRedFailure(output, { removed = [], launchError = null, exit = null, posixShell = false } = {}) {
   output = output.replace(ANSI_ESCAPE_RE, "");
   if (["ENOENT", "EACCES", "ENOEXEC"].includes(launchError)) return "shell";
-  // POSIX execution-failure statuses do not depend on translated diagnostics.
-  if (exit === 126 || exit === 127) return "shell";
-  if (exit === -1 || launchError) return "crash";
+  if (launchError) return "unknown";
+  if (exit === -1) return "crash";
+  const testedDiagnostic = /\bAssertionError\b|\bexpected\b.*\bto\b|\.to(?:Be|Equal|StrictEqual|Match|Contain|Throw|HaveLength|HaveProperty)\w*\(|\bexpect\(|✗|×|\bFAIL\b|Tests\s+\d+ failed|\d+ failing\b|\bnot ok \d|assert\.\w+\(|Assertion failed/i.test(output);
+  // POSIX shells reserve these for execution failure, but also forward a
+  // program's chosen status. Assertion evidence therefore makes them ambiguous.
+  // cmd does not use this convention; do not infer it from the host platform.
+  if (posixShell && (exit === 126 || exit === 127)) return testedDiagnostic ? "unknown" : "shell";
   // Node could not find the script it was handed: every "Cannot find module"
   // block carries an empty requireStack, no block names an ESM import ("…
   // imported from …" carries no requireStack at all), and the missing path is
@@ -190,11 +197,10 @@ export function classifyRedFailure(output, { removed = [], launchError = null, e
   // ordering nor assertion text proves provenance: require human adjudication
   // for mixed diagnostics instead of accepting a false red or calling an
   // honest regression a broken invocation.
-  const testedDiagnostic = /\bAssertionError\b|^\s*not ok \d|^\s*Tests\s+\d+ failed/im.test(output);
   const shellDiagnostic =
     /^(?:(?:\/[\w.-]+)*\/)?(?:bash|dash|sh)(?:: (?:line )?\d+)?: [^\r\n]+: (?:command not found|not found|No such file or directory|Permission denied|cannot execute[^\r\n]*)\s*$/im.test(output) ||
-    /^'[^'\r\n]+' is not recognized as an internal or external command/im.test(output) ||
-    /^npm (?:ERR!|error) Missing script:/im.test(output);
+    /^\s*'[^'\r\n]+' is not recognized as an internal or external command/im.test(output) ||
+    /^\s*npm (?:ERR!|error) Missing script:/im.test(output);
   if (missingEntryScript) return "shell";
   if (shellDiagnostic) return testedDiagnostic ? "unknown" : "shell";
   if (/No test files found|No test suite found|no tests found/i.test(output)) {
@@ -215,13 +221,7 @@ export function classifyRedFailure(output, { removed = [], launchError = null, e
   if (/^\s*(?:Error: )?Worker exited unexpectedly|^\s*FATAL ERROR: |^\s*Segmentation fault|^\s*Killed\s*$/im.test(output)) {
     return "crash";
   }
-  if (
-    /\bAssertionError\b|\bexpected\b.*\bto\b|\.to(?:Be|Equal|StrictEqual|Match|Contain|Throw|HaveLength|HaveProperty)\w*\(|\bexpect\(|✗|×|\bFAIL\b|Tests\s+\d+ failed|\d+ failing\b|\bnot ok \d|assert\.\w+\(|Assertion failed/i.test(
-      output,
-    )
-  ) {
-    return "assertion";
-  }
+  if (testedDiagnostic) return "assertion";
   return "unknown";
 }
 
@@ -481,7 +481,7 @@ export function runRedGreen({ repoRoot, test, files, base = "HEAD", snapshotDir,
       log(`red     ${test}`);
       const red = runTest(test, repoRoot);
       const removed = entries.filter((e) => e.baseBytes == null).map((e) => e.path);
-      const redReason = red.exit === 0 ? null : classifyRedFailure(red.output, { removed, launchError: red.launchError, exit: red.exit });
+      const redReason = red.exit === 0 ? null : classifyRedFailure(red.output, { removed, launchError: red.launchError, exit: red.exit, posixShell: red.posixShell });
       report.red = {
         exit: red.exit,
         outcome: red.exit === 0 ? "passed" : "failed",
