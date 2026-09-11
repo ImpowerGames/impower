@@ -20,7 +20,7 @@ if (positional[0] === 'notify') {
   const server = new McpServer({ name: 'agent-notification-alerts', version: '0.1.0' });
   let queue = Promise.resolve();
   server.registerTool('notify_user', {
-    description: 'Speak a short, human handoff and flash the user\'s keyboard. Call once when you finish work or need the user\'s attention, on any topic. Say what you finished and what you need next, if anything: "Hey, I finished the settings page. Can you take a look?" Use this brief handoff in place of a long end-of-turn recap. Keep the final chat reply equally short; include necessary links, deliverables or unresolved blockers there. If notification fails, give the handoff in chat. This tool only delivers a message; it does not complete work or grant approval.',
+    description: 'Send an optional notification alongside the normal chat handoff when work finishes or needs user input or help, on any topic. Use one short, natural message describing the task and next action. Always provide the usual summary, links, questions and limitations in chat, whether delivery succeeds or fails. Respect the user\'s notification preferences. This local adapter uses keyboard lighting and speech; other implementations can route the same message and category to personal automations. A notification does not complete work or grant approval.',
     inputSchema: alertShape,
   }, async input => {
     const job = queue.then(() => notify(input));

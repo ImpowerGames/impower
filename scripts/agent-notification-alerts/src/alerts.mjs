@@ -5,7 +5,7 @@ import { createServer } from 'node:net';
 import { z } from 'zod';
 
 export const alertShape = {
-  message: z.string().trim().min(1).max(280).describe('One or two short, natural sentences to say aloud: what you finished and, if needed, what the user should do next. Any topic. Use plain speech, without markdown, code, or secrets.'),
+  message: z.string().trim().min(1).max(280).describe('A short notification accompanying the normal chat handoff: what you finished and, if needed, what the user should do next. Any topic. Use plain text without markdown, code, or secrets; the receiver chooses how to deliver it.'),
   category: z.enum(['done', 'input_needed', 'blocked']).default('done').describe('done: finished with no user action required; input_needed: a normal question, decision or review; blocked: a problem requires user help before work can continue.'),
 };
 export const alertSchema = z.object(alertShape).strict();

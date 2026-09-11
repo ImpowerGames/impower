@@ -46,19 +46,20 @@ or perform the action described in the message.
 
 ### End-of-turn behavior
 
-The tool description instructs agents to send one brief handoff when work is
-finished or needs the user's attention. For example: "Hey, I finished organizing
-the photos. Can you pick a cover?" If nothing is needed, simply say what is ready.
-Replace the long recap with that short handoff, and keep the final chat reply
-short too. Necessary links, files and unresolved blockers still belong in chat.
-If audio/lighting fails, deliver the handoff in chat rather than assuming it was
-heard. These are agent instructions, not an automatic interception of final
-responses: the agent must call the tool. No idle detector or Stop hook is installed.
+Chat is always the default handoff: preserve the usual summary, questions,
+links, evidence and limitations. For users with a connected notifier, agents
+also send one short companion message, such as "Hey, I finished organizing the
+photos. Can you pick a cover?" Its brevity does not constrain the chat response.
+Respect explicit notification opt-outs. If no notifier is connected, skip the
+event silently without setup prompts or warnings. Delivery failures do not
+suppress chat or start a troubleshooting detour unless the user requested one.
+These are agent instructions, not an automatic interception of final responses:
+the agent must call the tool. No idle detector or Stop hook is installed.
 
 The shared [notify-user skill](../../.agents/skills/notify-user/SKILL.md) is
 invoked at user handoffs by `resolve-issue`, `file-bug`, and `file-feature`.
-It retains each workflow's completion gates and falls back to chat when the
-MCP tool is unavailable. Skills become available in checkouts containing this
+It retains each workflow's completion gates and always uses chat, whether or
+not the optional tool is available. Skills become available in checkouts containing this
 change; a running session may need to restart to discover them.
 
 For Claude Code, register an absolute path to this program (replace the example):
@@ -69,9 +70,8 @@ claude mcp get agent-alerts
 ```
 
 Restart Claude Code and check `/mcp`. Ask: "When you finish work or need my
-attention, call notify_user with a short, natural handoff saying what you finished
-and what you need from me, if anything. Use that in place of a long recap. Keep
-your final chat response short, with any necessary links or blockers."
+attention, also call notify_user with a short, natural message saying what you
+finished and what you need from me, if anything. Keep your normal handoff in chat."
 An agent/subagent can call this only if its MCP tool permissions
 allow it. Otherwise have the main agent send the alert. Explicit tool calls do
 not automatically cover every idle/permission event. Lifecycle hook wiring is
@@ -95,6 +95,21 @@ registration and permit the notification tool if prompted. Claude Code's local
 Desktop Code sessions share its CLI registration; ordinary Claude Chat has a
 separate desktop configuration. See the [Codex MCP docs](https://learn.chatgpt.com/docs/extend/mcp)
 and [Claude Desktop shared configuration](https://code.claude.com/docs/en/desktop#shared-configuration).
+
+### Bring your own automation
+
+Developers do not need to install this Windows adapter. They can connect their
+own MCP server as `agent-alerts` with a `notify_user` tool accepting the same
+input contract: required nonempty `message` (up to 280 characters) and optional
+`category` (`done`, `input_needed`, `blocked`; default `done`). Return a standard
+MCP tool result and mark delivery failures with `isError: true`. The server can
+route that call to any automation the developer configures. Those destinations
+and credentials stay in the developer's personal setup, not shared agent rules.
+
+The message/category contract is independent of RGB colors, keys, speech and OS.
+This repository provides one implementation; it does not broadcast MCP events
+to disconnected listeners. With no connected receiver there is no tool call,
+no queued event, and nothing to configure for developers who only want chat.
 
 ## Machine settings
 
