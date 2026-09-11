@@ -43,6 +43,9 @@ import {
   pidAlive,
   processStartedMs,
   recordStands,
+  removeState as removeStateFile,
+  removeStoppedState,
+  stopExitHandler,
   resolveChromiumExecutablePath,
 } from "../drive-web-editor/driver.mjs";
 
@@ -788,11 +791,7 @@ function stateUnreadable() {
 const writeState = (record) => writeJson(CANONICAL_STATE_FILE, record);
 
 export function removeState(file = STATE_FILE, io = fs) {
-  try {
-    io.unlinkSync(file);
-  } catch (error) {
-    if (error.code !== "ENOENT") throw new Error(`Cannot remove state file ${file}: ${error.message}. Preserve the record and resolve its ownership or filesystem error before starting another server.`);
-  }
+  removeStateFile(file, io);
 }
 
 const mtimeOf = (file) => {
@@ -1249,7 +1248,7 @@ async function down() {
   const s = readState();
   if (s?.pid == null) {
     if (fs.existsSync(STATE_FILE)) {
-      removeState();
+      if (!removeStoppedState(STATE_FILE, { remove: removeState, log, context: "No pid could be identified; no process was stopped" })) return;
       log(`removed ${STATE_FILE}, which recorded no pid to stop`);
     } else {
       log("nothing to stop");
@@ -1257,7 +1256,7 @@ async function down() {
     return;
   }
   if (!(await stands(s))) {
-    removeState();
+    if (!removeStoppedState(STATE_FILE, { remove: removeState, log, context: "The record no longer identifies its original server; no process was stopped" })) return;
     log(`removed ${STATE_FILE}: pid ${s.pid} is no longer the server it recorded, so nothing was stopped`);
     return;
   }
@@ -1270,11 +1269,7 @@ async function down() {
     process.exitCode = 1;
   };
   killer.on("error", (err) => failed(err.message));
-  killer.on("exit", (code) => {
-    if (code !== 0) return failed(`exit ${code}`);
-    removeState();
-    log("stopped");
-  });
+  killer.on("exit", stopExitHandler(STATE_FILE, s.pid, { remove: removeState, log }));
 }
 
 // ----------------------------------------------------------------- verify ---

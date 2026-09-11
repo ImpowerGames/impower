@@ -41,6 +41,6 @@ console.log(summary);
 console.log(`Skipped cases: ${skipped.length}`);
 for (const line of skipped) console.log(line);
 if (process.env.GITHUB_STEP_SUMMARY) {
-  fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, `## Agent tooling checks\n\n${summary}. Discovered ${checks.length} tracked files.\n\n### Skipped cases\n\n${skipped.length ? skipped.map((line) => "- " + line).join("\n") : "None."}\n\nRemaining platform coverage: #506 (extension fixtures), #507 (shell classification and junction fixture), #508 (process-tree stop). Zip fixtures require fflate from a workspace install. Windows-only held-tree and long-path cases are exercised by the Windows matrix leg. Skips do not establish compatibility.\n`);
+  fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, `## Agent tooling checks\n\n${summary}. Discovered ${checks.length} tracked files.\n\n### Skipped cases\n\n${skipped.length ? skipped.map((line) => "- " + line).join("\n") : "None."}\n\nSelected platform follow-ups: #506 (extension fixtures), #507 (shell classification and junction fixture), #508 (process-tree stop). Zip fixtures require fflate from a workspace install; directory-link capability skips report their filesystem error. Windows-only held-tree and long-path cases are exercised by the Windows matrix leg. Skips do not establish compatibility.\n`);
 }
 process.exitCode = failed ? 1 : 0;

@@ -160,12 +160,26 @@ function writeState(record) {
   fs.renameSync(tmp, STATE_FILE);
 }
 
-function removeState() {
+export function removeState(file = stateFile(), io = fs) {
   try {
-    fs.unlinkSync(stateFile());
-  } catch {
-    /* already gone */
+    io.unlinkSync(file);
+  } catch (error) {
+    if (error.code !== "ENOENT") throw new Error(`Cannot remove state file ${file}: ${error.message}. Preserve the record and resolve its ownership or filesystem error before starting another server.`);
   }
+}
+
+// `down` can encounter cleanup failures both directly and after a stop command.
+// Report them without throwing from an EventEmitter listener or claiming removal.
+export function removeStoppedState(file, { remove = () => removeState(file), log: report = log, fail = (code) => { process.exitCode = code; }, context = "No process was stopped" } = {}) {
+  try { remove(); return true; }
+  catch (error) { report(`${context}; state cleanup failed: ${error.message} The record is kept. Check ownership, resolve the filesystem error and retry down.`); fail(1); return false; }
+}
+
+export function stopExitHandler(file, pid, { remove = () => removeState(file), log: report = log, fail = (code) => { process.exitCode = code; } } = {}) {
+  return (code) => {
+    if (code !== 0) { report(`could not stop pid ${pid} (exit ${code}); the record is kept`); fail(1); return; }
+    if (removeStoppedState(file, { remove, log: report, fail, context: `Stop command for pid ${pid} succeeded; server exit has not been independently verified` })) report("stopped");
+  };
 }
 
 // The sandbox pre-installs a Chromium build under PLAYWRIGHT_BROWSERS_PATH
@@ -244,7 +258,7 @@ async function pickPorts() {
 // detached child on Windows does not flush its stdio into an inherited file
 // handle, so the log stays 0 bytes forever while the servers run perfectly.
 // Since the port is pinned, readiness is just an HTTP poll.
-async function up(args) {
+export async function up(args) {
   if (stateUnreadable()) {
     die(`state file unreadable: ${stateFile()}; \`down\` removes it, and any servers it recorded keep running`);
   }
@@ -351,7 +365,7 @@ async function down() {
   const s = readState();
   if (s?.pid == null) {
     if (fs.existsSync(file)) {
-      removeState();
+      if (!removeStoppedState(file, { remove: removeState, context: "No pid could be identified; no process was stopped" })) return;
       log(`removed ${file}, which recorded no pid to stop; servers it belonged to keep running`);
     } else {
       log("nothing to stop");
@@ -359,7 +373,7 @@ async function down() {
     return;
   }
   if (!(await recordStands(s))) {
-    removeState();
+    if (!removeStoppedState(file, { remove: removeState, context: "The record no longer identifies its original server; no process was stopped" })) return;
     log(`removed ${file}: pid ${s.pid} is no longer the launcher it recorded (that process exited, and the system may have reused its pid), so nothing was stopped`);
     return;
   }
@@ -374,11 +388,7 @@ async function down() {
     process.exitCode = 1;
   };
   killer.on("error", (err) => failed(err.message));
-  killer.on("exit", (code) => {
-    if (code !== 0) return failed(`exit ${code}`);
-    removeState();
-    log("stopped");
-  });
+  killer.on("exit", stopExitHandler(file, s.pid, { remove: removeState, log }));
 }
 
 // Check the things that fail LATE and expensively if they are wrong:

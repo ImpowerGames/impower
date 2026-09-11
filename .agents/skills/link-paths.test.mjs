@@ -3,10 +3,12 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
+import { EventEmitter } from "node:events";
 import { linkAgentSkills } from "../../scripts/link-agent-skills.mjs";
 import { probeServers, serverRows } from "./clean-worktrees/clean-worktrees.mjs";
 import { removeState, up } from "./drive-vscode-web/driver.mjs";
+import { stopExitHandler } from "./drive-web-editor/driver.mjs";
 
 const skills = path.dirname(fileURLToPath(import.meta.url));
 const scratch = fs.mkdtempSync(path.join(os.tmpdir(), "impower-linked-drivers-"));
@@ -75,3 +77,31 @@ assert.equal(launched, false, "a failed legacy removal must block the new server
 assert.equal(fs.readFileSync(protectedState, "utf8"), record);
 assert.doesNotThrow(() => removeState(protectedState, { unlinkSync: () => { throw Object.assign(new Error("gone"), { code: "ENOENT" }); } }));
 console.log("PASS: unanswered and unreadable legacy records retain worktrees; failed state removal preserves evidence and reports failure");
+const webState = path.join(legacy, ".claude", "skills", "drive-web-editor", ".state.json");
+fs.writeFileSync(webState, JSON.stringify({ pid: 99999999, url: "http://127.0.0.1:1" }));
+const web = await import(pathToFileURL(path.join(legacy, ".agents", "skills", "drive-web-editor", "driver.mjs")).href);
+const unlink = fs.unlinkSync;
+try {
+  fs.unlinkSync = (file) => { if (file === webState) throw Object.assign(new Error("injected sharing violation"), { code: "EPERM" }); return unlink(file); };
+  await assert.rejects(web.up([]), /Cannot remove state file/, "actual web up must stop before launching over an unremovable legacy record");
+} finally { fs.unlinkSync = unlink; }
+assert.ok(fs.existsSync(webState));
+assert.ok(!fs.existsSync(path.join(legacy, ".agents", "skills", "drive-web-editor", ".state.json")));
+for (const driver of ["drive-web-editor", "drive-vscode-web"]) {
+  const state = path.join(legacy, ".claude", "skills", driver, ".state.json");
+  fs.unlinkSync(state);
+  fs.mkdirSync(state); // Native unlink failure, confined to the printed scratch checkout.
+  const run = spawnSync(process.execPath, [path.join(legacy, ".agents", "skills", driver, "driver.mjs"), "down"], { cwd: legacy, encoding: "utf8", windowsHide: true });
+  assert.equal(run.status, 1, driver);
+  assert.match(run.stdout + run.stderr, /state cleanup failed/);
+  assert.ok(!/\n\s+at |^removed /m.test(run.stdout + run.stderr), "controlled failure must not print a stack or false removal success");
+  assert.ok(fs.statSync(state).isDirectory());
+}
+const messages = [], codes = [];
+const child = new EventEmitter();
+child.on("exit", stopExitHandler(protectedState, 1234, { remove: blockedRemoval, log: (message) => messages.push(message), fail: (code) => codes.push(code) }));
+assert.doesNotThrow(() => child.emit("exit", 0), "cleanup failure in the child exit callback must not escape");
+assert.deepEqual(codes, [1]);
+assert.ok(messages.some((message) => message.includes("Stop command for pid 1234 succeeded") && message.includes("state cleanup failed")));
+assert.ok(!messages.includes("stopped"));
+console.log("PASS: web launch refusal and both native down failures retain records; child-exit cleanup failure is controlled and nonzero");

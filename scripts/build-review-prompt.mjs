@@ -17,6 +17,7 @@ export function buildReviewPrompt(context, markdown = fs.readFileSync(skill, "ut
   const normalize = (value) => value.replace(/\[[^\]]+\]$/, "");
   if (normalize(context.writer) === normalize(context.reviewer)) throw new Error("Writer and reviewer routes must differ");
   if (typeof context.invocation !== "string" || !context.invocation.trim() || /^(?:(?:INVOCATION|METHOD)$|(?:TBD|UNKNOWN)\b|<.*>)/i.test(context.invocation.trim())) throw new Error("Missing or nonconcrete invocation method");
+  if (/^(?:(?:method|invocation)\s*:\s*(?:TBD|UNKNOWN|<(?:method|invocation)>)|see\s+<(?:method|invocation)>)\s*[.!]?$/i.test(context.invocation.trim())) throw new Error("Missing or nonconcrete invocation method");
   for (const key of ["issue", "pr", "round"]) if (!Number.isSafeInteger(context[key]) || context[key] < 1) throw new Error(`Invalid ${key}`);
   if (!/^[a-f0-9]{40}$/.test(context.head ?? "")) throw new Error("Supply the full reviewed head SHA");
   for (const key of ["worktree", "diff", "reviewDir"]) if (typeof context[key] !== "string" || !path.isAbsolute(context[key])) throw new Error(`Supply an absolute ${key}`);
