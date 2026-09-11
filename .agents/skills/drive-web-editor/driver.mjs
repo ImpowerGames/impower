@@ -381,19 +381,19 @@ export async function stopLinuxTree(pid, { read = linuxProcesses, signal = proce
   const leader = initial.find((row) => row.pid === pid && runningProcess(row));
   if (!leader || leader.group !== pid || leader.session !== pid || leader.uid !== uid || !leader.start) throw new Error("launcher does not own an identifiable process group and session");
   const anchors = initial.filter((row) => row.group === pid && runningProcess(row));
+  const observed = new Map(anchors.map((row) => [row.pid, row]));
   const members = () => {
     const rows = read();
     const group = rows.filter((row) => row.group === pid && runningProcess(row));
-    if (!group.length) return group;
-    if (group.some((row) => row.session !== pid || row.uid !== uid) || !group.some((row) => anchors.some((anchor) => sameProcess(anchor, row)))) throw new Error("process group identity changed; refusing to signal it");
+    if (group.length && (group.some((row) => row.session !== pid || row.uid !== uid) || !group.some((row) => anchors.some((anchor) => sameProcess(anchor, row))))) throw new Error("process group identity changed; refusing to signal it");
     const currentLeader = rows.find((row) => row.pid === pid && runningProcess(row));
     if (currentLeader && !sameProcess(leader, currentLeader)) throw new Error("launcher identity changed; refusing to signal it");
     // A descendant that leaves the group needs separate ownership handling.
-    const descendants = new Set([pid]);
+    const descendants = new Set(rows.filter((row) => sameProcess(observed.get(row.pid), row)).map((row) => row.pid));
     let changed;
     do {
       changed = false;
-      for (const row of rows) if (descendants.has(row.parent) && !descendants.has(row.pid)) { descendants.add(row.pid); changed = true; }
+      for (const row of rows) if (descendants.has(row.parent) && !descendants.has(row.pid)) { descendants.add(row.pid); observed.set(row.pid, row); changed = true; }
     } while (changed);
     if (rows.some((row) => descendants.has(row.pid) && runningProcess(row) && row.group !== pid)) throw new Error("a launcher descendant left its group; the record is kept for recovery");
     return group;

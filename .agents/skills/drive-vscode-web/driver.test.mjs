@@ -698,7 +698,7 @@ await check("up --fresh is refused while another worktree's standing record serv
   const builds = path.join(DATA, "builds", "stable");
   const other = { worktree: path.join(FIXTURE_ROOT, "w2"), pid: 1, builds, url: "http://localhost:7" };
   const deps = upDeps({ otherWorktreeRecords: () => [other] });
-  await refuses(up(["--sd", "repro.sd", "--fresh"], deps), /^up --fresh would delete .*builds.stable, which .*w2 \(pid 1, http:\/\/localhost:7\) serves from; `down` there first, or run `up` without --fresh to serve the build already unpacked$/);
+  await refuses(up(["--sd", "repro.sd", "--fresh"], deps), /^up --fresh would delete .*builds.stable, which (?:[A-Za-z]:)?[\\/]w2 \(pid 1, http:\/\/localhost:7\) serves from; `down` there first, or run `up` without --fresh to serve the build already unpacked$/);
   assert.ok(!names(deps).includes("spawn"));
   const gone = upDeps({ otherWorktreeRecords: () => [{ ...other, pid: 2 }] });
   await up(["--sd", "repro.sd", "--fresh"], gone);
@@ -837,7 +837,7 @@ await check("up takes the download lock only when it will download, releases it 
     unpackedCommit: () => null,
     takeDownloadLock: async () => ({ held: false, other: { worktree: path.join(FIXTURE_ROOT, "w2"), pid: 7, url: "http://localhost:9" } }),
   });
-  await refuses(up(["--sd", "repro.sd"], busy), /^.*w2 \(pid 7\) is downloading the VS Code build into .*builds.stable; two downloads at once delete each other's build, since the server empties that directory before it unpacks\. Wait for that `up` to print READY, then run this again$/);
+  await refuses(up(["--sd", "repro.sd"], busy), /^(?:[A-Za-z]:)?[\\/]w2 \(pid 7\) is downloading the VS Code build into .*builds.stable; two downloads at once delete each other's build, since the server empties that directory before it unpacks\. Wait for that `up` to print READY, then run this again$/);
   assert.ok(!names(busy).includes("spawn"), "nothing is launched into a directory that is being replaced");
 
   // A lock that stood for both attempts but whose record could not be read

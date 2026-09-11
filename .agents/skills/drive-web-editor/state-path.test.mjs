@@ -169,6 +169,8 @@ await check("Linux shutdown verifies group exit, escalates resistant children, a
   await assert.rejects(stopLinuxTree(300, { read: () => rows, uid: 10, self: 20, signal: () => { rows = [{ ...leader, start: "reused" }]; } }), /identity changed/);
   rows = [leader, { ...child, group: 301 }];
   await assert.rejects(stopLinuxTree(300, { read: () => rows, uid: 10, self: 20, signal: () => assert.fail("escaped group was signalled") }), /descendant left/);
+  rows = [leader, child];
+  await assert.rejects(stopLinuxTree(300, { read: () => rows, uid: 10, self: 20, signal: () => { rows = [{ ...child, parent: 1, group: 301, session: 301 }]; } }), /descendant left/);
 });
 const record = { url: "http://localhost:38200", pid: 31268, mode: "same-origin", startedAt: AT };
 
@@ -337,6 +339,15 @@ try {
   for (const dated of [true, false]) await check(`down stops three resistant generations and releases their listeners (${dated ? "startedAt" : "file date"})`, async () => {
     const { child, rows } = await startTree();
     try {
+      if (process.platform === "linux") {
+        const member = rows.find((row) => row.pid !== child.pid);
+        writeRecord({ url: "http://localhost:1", pid: member.pid, ...(dated ? { startedAt: Date.now() } : {}) });
+        const refused = await runWhileServing("down");
+        assert.equal(refused.status, 1, refused.out);
+        assert.match(refused.out, /does not own an identifiable process group/);
+        assert.ok(fs.existsSync(stateFile), "refused shutdown removed its recovery record");
+        assert.ok(rows.every((row) => pidAlive(row.pid)), "a nonleader record killed part of the tree");
+      }
       writeRecord({ url: "http://localhost:1", pid: child.pid, mode: "same-origin", ...(dated ? { startedAt: Date.now() } : {}) });
       const result = await runWhileServing("down");
       assert.equal(result.status, 0, result.out);
@@ -450,6 +461,9 @@ try {
   });
 
   await check("up waits on a standing record while its launcher lives, and launches once it exits", async () => {
+    const launchedRowsFile = path.join(scratch, "npm-tree.jsonl");
+    fs.writeFileSync(path.join(scratch, "repo", "package.json"), JSON.stringify({ scripts: { "web:dev": `node "${fixture.replaceAll("\\", "/")}" "${launchedRowsFile.replaceAll("\\", "/")}" root` } }));
+    let launchedRows = [];
     const child = idle();
     writeRecord({ url: "http://localhost:1", pid: child.pid, mode: "same-origin", startedAt: Date.now() });
     const up = spawn(process.execPath, [copy, "up"], { stdio: ["ignore", "pipe", "pipe"], windowsHide: true, detached: true });
@@ -475,6 +489,12 @@ try {
       assert.notEqual(written.pid, child.pid, "the new record still names the exited launcher");
       assert.ok(Number.isInteger(written.startedAt), "the new record carries no startedAt");
       assert.equal(fs.existsSync(stateFile + ".tmp"), false, "the rename left its .tmp behind");
+      for (let i = 0; i < 100; i++) {
+        if (fs.existsSync(launchedRowsFile)) launchedRows = fs.readFileSync(launchedRowsFile, "utf8").trim().split("\n").filter(Boolean).map(JSON.parse);
+        if (launchedRows.length === 3) break;
+        await sleep(100);
+      }
+      assert.equal(launchedRows.length, 3, "the actual npm launcher must reach all fixture descendants");
     } finally {
       stop(child);
       stop(up);
@@ -485,17 +505,16 @@ try {
         assert.equal(d.status, 0, d.out);
       }
       assert.ok(await untilGone(launched.pid), "up left its npm launcher behind");
+      assert.ok(await treeGone(launchedRows), "up left a descendant behind");
     }
   });
 } finally {
-  // The npm the last scenario's `up` spawned has its cwd in the scratch
-  // repository and can outlive the `up` that was stopped by a moment, so the
-  // removal retries, and a directory it still cannot remove is reported
-  // rather than counted as a failed assertion.
+  console.log(`Remove scratch repository: ${scratch}`);
   try {
     fs.rmSync(scratch, { recursive: true, force: true, maxRetries: 20, retryDelay: 250 });
   } catch (err) {
-    console.log(`note: could not remove ${scratch} (${err.code ?? err.message}); remove it by hand`);
+    failures++;
+    console.log(`FAIL: could not remove ${scratch} (${err.code ?? err.message}); preserve it for recovery`);
   }
 }
 

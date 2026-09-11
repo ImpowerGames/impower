@@ -18,7 +18,7 @@ import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { classifyRedFailure, parseRedGreenArgs, parseVitestSummary, runRedGreen, runTest, testShell, sha256 } from "./redgreen.mjs";
+import { classifyRedFailure, parseRedGreenArgs, parseVitestSummary, runRedGreen, sha256 } from "./redgreen.mjs";
 
 const WIN = process.platform === "win32";
 
