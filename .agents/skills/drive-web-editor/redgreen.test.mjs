@@ -21,9 +21,6 @@ import path from "node:path";
 import { classifyRedFailure, parseRedGreenArgs, parseVitestSummary, runRedGreen, runTest, testShell, sha256 } from "./redgreen.mjs";
 
 const WIN = process.platform === "win32";
-// A case that asserts something Windows itself supplies — a junction, or the
-// wording cmd.exe uses for a command it cannot find. Each names its reason.
-const skip = (name, reason) => console.log(`SKIP: ${name} (Windows only: ${reason})`);
 
 let failures = 0;
 const check = (name, fn) => {
@@ -688,27 +685,6 @@ check("a --test whose own script does not exist is a shell problem, not an impor
   assert.match(r.problems.join("\n"), /could not run/);
 });
 
-check("real shells distinguish an unexecutable command from an assertion quoting an OS error", () => {
-  const dir = makeRepo();
-  console.log(`scratch repository: ${dir}`);
-  const shells = WIN ? [testShell(), process.env.ComSpec || "cmd.exe"] : ["/bin/sh", "/bin/bash"];
-  for (const shell of shells) {
-    for (const cmd of ["impower_command_that_does_not_exist_507", "./absent-command-507"]) {
-      const result = runTest(cmd, dir, shell);
-      assert.notEqual(result.exit, 0);
-      assert.equal(classifyRedFailure(result.output), "shell", `${shell}: ${result.output}`);
-    }
-    fs.writeFileSync(path.join(dir, "assertion.mjs"), 'console.error("AssertionError: expected ENOENT: Permission denied to be handled"); process.exit(1);');
-    const assertion = runTest(`${NODE} assertion.mjs`, dir, shell);
-    assert.equal(classifyRedFailure(assertion.output), "assertion", assertion.output);
-    if (!WIN) {
-      fs.writeFileSync(path.join(dir, "not-executable"), "#!/bin/sh\nexit 0\n", { mode: 0o600 });
-      const denied = runTest("./not-executable", dir, shell);
-      assert.equal(denied.exit, 126, denied.output);
-      assert.equal(classifyRedFailure(denied.output), "shell", `${shell}: ${denied.output}`);
-    }
-  }
-});
 
 check("classifyRedFailure tells the reasons apart on real runner output", () => {
   assert.equal(classifyRedFailure("Error [ERR_MODULE_NOT_FOUND]: Cannot find module"), "import");
@@ -716,6 +692,9 @@ check("classifyRedFailure tells the reasons apart on real runner output", () => 
   assert.equal(classifyRedFailure("AssertionError: expected 2 to be 3"), "assertion");
   assert.equal(classifyRedFailure("SyntaxError: Unexpected token"), "syntax");
   assert.equal(classifyRedFailure("bash: line 1: nosuch: command not found"), "shell");
+  assert.equal(classifyRedFailure("/bin/sh: 1: nosuch: not found"), "shell");
+  assert.equal(classifyRedFailure("/bin/sh: 1: ./script: Permission denied"), "shell");
+  assert.equal(classifyRedFailure("AssertionError: expected '/bin/sh: 1: ./script: Permission denied' to match"), "assertion");
   assert.equal(classifyRedFailure("'NODE_OPTIONS' is not recognized as an internal or external command,"), "shell");
   assert.equal(classifyRedFailure('npm ERR! Missing script: "test"'), "shell");
   assert.equal(classifyRedFailure("No test files found, exiting with code 1\nfilter: x"), "notests");

@@ -134,7 +134,7 @@ export function runTest(cmd, cwd, shell = testShell()) {
     windowsHide: true,
     encoding: "utf8",
     maxBuffer: 64 * 1024 * 1024,
-    env: process.env,
+    env: { ...process.env, LC_ALL: "C", LANG: "C" },
   });
   const output = `${r.stdout || ""}${r.stderr || ""}`;
   const lines = output.split(/\r?\n/).filter((l) => l.trim() !== "");
@@ -142,6 +142,7 @@ export function runTest(cmd, cwd, shell = testShell()) {
     exit: r.status == null ? -1 : r.status,
     tail: lines.slice(-40),
     output,
+    launchError: r.error?.code ?? null,
   };
 }
 
@@ -158,7 +159,8 @@ export function runTest(cmd, cwd, shell = testShell()) {
  * assertion merely quotes an ENOENT is not mistaken for one. The assertion
  * patterns are word-bounded: `/toBe/i` on its own matches "October".
  */
-export function classifyRedFailure(output, { removed = [] } = {}) {
+export function classifyRedFailure(output, { removed = [], launchError = null } = {}) {
+  if (["ENOENT", "EACCES", "ENOEXEC"].includes(launchError)) return "shell";
   // Node could not find the script it was handed: every "Cannot find module"
   // block carries an empty requireStack, no block names an ESM import ("…
   // imported from …" carries no requireStack at all), and the missing path is
@@ -180,7 +182,7 @@ export function classifyRedFailure(output, { removed = [] } = {}) {
   const missingEntryScript =
     moduleBlocks.length > 0 && !esmImportBreak && moduleBlocks.every((m) => m[2].trim() === "" && !namesRemovedFile(m[1]));
   if (
-    /^(?:bash|sh|zsh|\/bin\/sh|\/usr\/bin\/bash)(?:: line \d+)?: .*: (?:command not found|No such file or directory)/im.test(output) ||
+    /^(?:(?:\/[\w.-]+)*\/)?(?:bash|dash|sh|zsh)(?:: (?:line )?\d+)?: [^\r\n]+: (?:command not found|not found|No such file or directory|Permission denied|cannot execute[^\r\n]*)\s*$/im.test(output) ||
     /is not recognized as an internal or external command/i.test(output) ||
     /npm ERR! Missing script:|npm error Missing script:/i.test(output) ||
     missingEntryScript
@@ -471,7 +473,7 @@ export function runRedGreen({ repoRoot, test, files, base = "HEAD", snapshotDir,
       log(`red     ${test}`);
       const red = runTest(test, repoRoot);
       const removed = entries.filter((e) => e.baseBytes == null).map((e) => e.path);
-      const redReason = red.exit === 0 ? null : classifyRedFailure(red.output, { removed });
+      const redReason = red.exit === 0 ? null : classifyRedFailure(red.output, { removed, launchError: red.launchError });
       report.red = {
         exit: red.exit,
         outcome: red.exit === 0 ? "passed" : "failed",

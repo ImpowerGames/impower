@@ -37,15 +37,13 @@ import {
   START_GRAIN_MS,
   hereOrPrevious,
   liveProbe,
+  linuxProcesses,
   pidAlive,
   recordStands,
+  stopLinuxTree,
 } from "./driver.mjs";
 
 const WIN = process.platform === "win32";
-// A case that asserts the whole spawned tree is gone. `down` stops a tree with
-// taskkill /T, which has no counterpart on the POSIX path yet (#508), so the
-// launcher outlives the call there. Each case names its own reason.
-const skip = (name, reason) => console.log(`SKIP: ${name} (Windows only: ${reason})`);
 
 let failures = 0;
 const check = async (name, fn) => {
@@ -145,6 +143,33 @@ const probe = ({ alive, started, written = null }) => {
   };
 };
 const AT = 1_700_000_000_000;
+await check("Linux group shutdown refuses foreign, reused and nonleader identities without signalling", async () => {
+  const leader = { pid: 300, parent: 20, group: 300, session: 300, uid: 10, start: "123", state: "S" };
+  for (const row of [null, { ...leader, group: 20 }, { ...leader, session: 20 }, { ...leader, uid: 11 }, { ...leader, start: undefined }]) {
+    const signals = [];
+    await assert.rejects(stopLinuxTree(300, { read: () => row ? [row] : [], uid: 10, self: 20, signal: (...args) => signals.push(args) }));
+    assert.deepEqual(signals, []);
+  }
+  for (const changed of [{ ...leader, start: "456" }, { ...leader, uid: 11 }, { ...leader, session: 400 }]) {
+    let reads = 0;
+    const signals = [];
+    await assert.rejects(stopLinuxTree(300, { read: () => [reads++ ? changed : leader], uid: 10, self: 20, signal: (...args) => signals.push(args) }));
+    assert.deepEqual(signals, []);
+  }
+});
+
+await check("Linux shutdown verifies group exit, escalates resistant children, and refuses reused groups", async () => {
+  const leader = { pid: 300, parent: 20, group: 300, session: 300, uid: 10, start: "123", state: "S" };
+  const child = { ...leader, pid: 301, parent: 300, start: "124" };
+  let rows = [leader, child], time = 0;
+  const signals = [];
+  await stopLinuxTree(300, { read: () => rows, uid: 10, self: 20, now: () => time, sleep: async (ms) => { time += ms; }, signal: (pid, kind) => { signals.push([pid, kind]); rows = kind === "SIGTERM" ? [child] : [{ ...child, state: "Z" }]; } });
+  assert.deepEqual(signals, [[-300, "SIGTERM"], [-300, "SIGKILL"]]);
+  rows = [leader];
+  await assert.rejects(stopLinuxTree(300, { read: () => rows, uid: 10, self: 20, signal: () => { rows = [{ ...leader, start: "reused" }]; } }), /identity changed/);
+  rows = [leader, { ...child, group: 301 }];
+  await assert.rejects(stopLinuxTree(300, { read: () => rows, uid: 10, self: 20, signal: () => assert.fail("escaped group was signalled") }), /descendant left/);
+});
 const record = { url: "http://localhost:38200", pid: 31268, mode: "same-origin", startedAt: AT };
 
 await check("a record with no url does not stand", async () => {
@@ -252,6 +277,38 @@ fs.mkdirSync(path.join(scratch, "repo", ".agents", "skills", "resolve-issue"), {
 for (const name of ["driver.mjs", "redgreen.mjs"]) fs.copyFileSync(path.join(here, name), path.join(copyDir, name));
 const copy = path.join(copyDir, "driver.mjs");
 const stateFile = path.join(copyDir, ".state.json");
+const fixture = path.join(scratch, "tree.mjs");
+fs.writeFileSync(fixture, [
+  'import fs from "node:fs";',
+  'import net from "node:net";',
+  'import { spawn } from "node:child_process";',
+  'const [file, role] = process.argv.slice(2);',
+  'process.on("SIGTERM", () => {});',
+  'if (role !== "leaf") spawn(process.execPath, [process.argv[1], file, role === "root" ? "child" : "leaf"], { stdio: "ignore", windowsHide: true });',
+  'const server = net.createServer();',
+  'server.listen(0, "127.0.0.1", () => fs.appendFileSync(file, JSON.stringify({ pid: process.pid, port: server.address().port }) + "\\n"));',
+].join("\n"));
+const startTree = async () => {
+  const file = path.join(scratch, `tree-${Date.now()}.jsonl`);
+  const child = spawn(process.execPath, [fixture, file, "root"], { stdio: "ignore", detached: true, windowsHide: true });
+  let rows = [];
+  try {
+    for (let i = 0; i < 100; i++) {
+      if (fs.existsSync(file)) rows = fs.readFileSync(file, "utf8").trim().split("\n").filter(Boolean).map(JSON.parse);
+      if (rows.length === 3) return { child, rows };
+      await sleep(50);
+    }
+    throw new Error("tree did not report all three listeners");
+  } catch (error) { stop(child); await untilGone(child.pid); throw error; }
+};
+const treeGone = async (rows) => {
+  for (let i = 0; i < 100; i++) {
+    const living = process.platform === "linux" ? linuxProcesses().filter((row) => row.state !== "Z" && row.state !== "X").map((row) => row.pid) : rows.filter((row) => pidAlive(row.pid)).map((row) => row.pid);
+    if (!rows.some((row) => living.includes(row.pid))) return true;
+    await sleep(50);
+  }
+  return false;
+};
 const writeRecord = (record) => fs.writeFileSync(stateFile, typeof record === "string" ? record : JSON.stringify(record));
 const run = (cmd) => {
   const r = spawnSync(process.execPath, [copy, cmd], { encoding: "utf8", windowsHide: true, timeout: 60_000 });
@@ -277,6 +334,25 @@ const listen = () =>
 const closed = (server) => new Promise((resolve) => server.close(resolve));
 
 try {
+  for (const dated of [true, false]) await check(`down stops three resistant generations and releases their listeners (${dated ? "startedAt" : "file date"})`, async () => {
+    const { child, rows } = await startTree();
+    try {
+      writeRecord({ url: "http://localhost:1", pid: child.pid, mode: "same-origin", ...(dated ? { startedAt: Date.now() } : {}) });
+      const result = await runWhileServing("down");
+      assert.equal(result.status, 0, result.out);
+      assert.match(result.out, /^stopped$/m);
+      assert.ok(await treeGone(rows), "down left a launcher, child or grandchild running");
+      for (const row of rows) {
+        const server = http.createServer();
+        await new Promise((resolve, reject) => { server.once("error", reject); server.listen(row.port, "127.0.0.1", resolve); });
+        await closed(server);
+      }
+      assert.equal(fs.existsSync(stateFile), false);
+    } finally {
+      stop(child);
+      assert.ok(await treeGone(rows), "fixture cleanup left child processes behind");
+    }
+  });
   await check("status: no state file reads down and exits 1", () => {
     const r = run("status");
     assert.match(r.out, /down \(no state file\)/);
@@ -402,7 +478,13 @@ try {
     } finally {
       stop(child);
       stop(up);
-      await untilGone(up.pid);
+      assert.ok(await untilGone(up.pid), "up coordinator did not exit");
+      const launched = JSON.parse(fs.readFileSync(stateFile, "utf8"));
+      if (pidAlive(launched.pid)) {
+        const d = run("down");
+        assert.equal(d.status, 0, d.out);
+      }
+      assert.ok(await untilGone(launched.pid), "up left its npm launcher behind");
     }
   });
 } finally {
@@ -422,9 +504,3 @@ if (failures) {
   process.exit(1);
 }
 console.log("all passing");
-// Exit on the status this check computed, the way the failing branch above
-// does. The last scenario's `up` launches a real dev-server tree, and off
-// Windows `stop` cannot reach a process group `up` never led (#508), so a
-// handle on that tree outlives every assertion and would hold this process
-// open with nothing left to report.
-process.exit(0);
