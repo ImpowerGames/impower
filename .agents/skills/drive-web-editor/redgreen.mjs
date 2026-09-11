@@ -127,13 +127,13 @@ export function testShell() {
   return bash ?? true;
 }
 
-export function runTest(cmd, cwd, shell = testShell()) {
+export function runTest(cmd, cwd, shell = testShell(), { maxBuffer = 64 * 1024 * 1024 } = {}) {
   const r = spawnSync(cmd, {
     cwd,
     shell,
     windowsHide: true,
     encoding: "utf8",
-    maxBuffer: 64 * 1024 * 1024,
+    maxBuffer,
     env: process.env,
   });
   // The streams have no shared ordering. Keep their boundary a line boundary
@@ -145,6 +145,9 @@ export function runTest(cmd, cwd, shell = testShell()) {
     tail: lines.slice(-40),
     output,
     launchError: r.error?.code ?? null,
+    signal: r.signal ?? null,
+    // Supported defaults plus explicitly named sh/bash/dash. Other custom
+    // interpreters are unverified; a basename is not shell-family attestation.
     posixShell: shell === true ? process.platform !== "win32" : /(?:^|[\\/])(?:ba|da)?sh(?:\.exe)?$/i.test(shell),
   };
 }
@@ -165,6 +168,7 @@ export function runTest(cmd, cwd, shell = testShell()) {
 export function classifyRedFailure(output, { removed = [], launchError = null, exit = null, posixShell = false } = {}) {
   output = output.replace(ANSI_ESCAPE_RE, "");
   if (["ENOENT", "EACCES", "ENOEXEC"].includes(launchError)) return "shell";
+  if (["ENOBUFS", "ETIMEDOUT"].includes(launchError)) return "crash";
   if (launchError) return "unknown";
   if (exit === -1) return "crash";
   const testedDiagnostic = /\bAssertionError\b|\bexpected\b.*\bto\b|\.to(?:Be|Equal|StrictEqual|Match|Contain|Throw|HaveLength|HaveProperty)\w*\(|\bexpect\(|✗|×|\bFAIL\b|Tests\s+\d+ failed|\d+ failing\b|\bnot ok \d|assert\.\w+\(|Assertion failed/i.test(output);
@@ -197,10 +201,12 @@ export function classifyRedFailure(output, { removed = [], launchError = null, e
   // ordering nor assertion text proves provenance: require human adjudication
   // for mixed diagnostics instead of accepting a false red or calling an
   // honest regression a broken invocation.
+  // Redirected stderr can follow partial stdout on the same line. Match the
+  // diagnostic suffix, while trailing assertion prose/quotes stay outside it.
   const shellDiagnostic =
-    /^(?:(?:\/[\w.-]+)*\/)?(?:bash|dash|sh)(?:: (?:line )?\d+)?: [^\r\n]+: (?:command not found|not found|No such file or directory|Permission denied|cannot execute[^\r\n]*)\s*$/im.test(output) ||
-    /^\s*'[^'\r\n]+' is not recognized as an internal or external command/im.test(output) ||
-    /^\s*npm (?:ERR!|error) Missing script:/im.test(output);
+    /(?:(?:\/[\w.-]+)*\/)?(?:bash|dash|sh)(?:: (?:line )?\d+)?: [^\r\n]+: (?:command not found|not found|No such file or directory|Permission denied|cannot execute[^\r\n]*)\s*$/im.test(output) ||
+    /'[^'\r\n]+' is not recognized as an internal or external command,?\s*$/im.test(output) ||
+    /npm (?:ERR!|error) Missing script:\s*(?:"[^"\r\n]*"|'[^'\r\n]*'|[^\s"'\r\n]+)\s*$/im.test(output);
   if (missingEntryScript) return "shell";
   if (shellDiagnostic) return testedDiagnostic ? "unknown" : "shell";
   if (/No test files found|No test suite found|no tests found/i.test(output)) {
@@ -484,6 +490,9 @@ export function runRedGreen({ repoRoot, test, files, base = "HEAD", snapshotDir,
       const redReason = red.exit === 0 ? null : classifyRedFailure(red.output, { removed, launchError: red.launchError, exit: red.exit, posixShell: red.posixShell });
       report.red = {
         exit: red.exit,
+        launchError: red.launchError,
+        signal: red.signal,
+        posixShell: red.posixShell,
         outcome: red.exit === 0 ? "passed" : "failed",
         reason: redReason,
         tail: red.tail,
@@ -507,11 +516,17 @@ export function runRedGreen({ repoRoot, test, files, base = "HEAD", snapshotDir,
         );
       } else if (redReason === "crash") {
         report.problems.push(
-          `The runner crashed on the base (a killed worker, an out-of-memory, a fatal error), which proves nothing about the defect. Lower the caps or split the run, then run again.`,
+          red.launchError === "ENOBUFS"
+            ? `The test exceeded the 64 MiB output buffer and was terminated. Partial output proves nothing about the defect. Reduce output or split the run, then run again.`
+            : `The runner crashed on the base (a killed worker, an out-of-memory, a fatal error), which proves nothing about the defect. Lower the caps or split the run, then run again.`,
         );
       } else if (redReason === "unknown") {
         report.problems.push(
-          red.output.trim() === ""
+          red.launchError
+            ? `The test could not complete (execution error ${red.launchError}). Inspect the invocation and environment; this is not regression proof.`
+            : red.posixShell && (red.exit === 126 || red.exit === 127)
+            ? `The test exited ${red.exit} through a recognized POSIX shell. That status is reserved for execution failure, but a test program can choose it too. Assertion output alone cannot establish its origin: inspect the full invocation and explain the actual failure in the PR. The same status under cmd does not have this shell meaning.`
+            : red.output.trim() === ""
             ? `The test exited ${red.exit} on the base with no output at all, so there is nothing to show the failure was the ticket's. Use a test invocation that prints its assertion.`
             : `The test exited ${red.exit} on the base, but its output is unrecognized or mixes assertion and shell diagnostics whose origin cannot be inferred. Read the full run yourself: if it is the ticket's assertion, explain the evidence in the PR; a broken command chain, config error or truncated run proves nothing.`,
         );

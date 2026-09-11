@@ -8,13 +8,21 @@ const WIN = process.platform === "win32";
 const dir = fs.mkdtempSync(path.join(os.tmpdir(), "shell-failure-"));
 console.log(`Scratch shell fixtures: ${dir}`);
 const node = `"${process.execPath}"`;
+const originalComSpec = process.env.ComSpec;
+const cmdShell = WIN && process.env.SystemRoot ? path.join(process.env.SystemRoot, "System32", "cmd.exe") : "cmd.exe";
 try {
+  // These fixtures exercise cmd, including Node's shell:true route. A custom
+  // ComSpec is not evidence about cmd; pin this child process's fixture only.
+  if (WIN) {
+    process.env.ComSpec = cmdShell;
+    console.log(`Fixture ComSpec: ${cmdShell} (restored after checks)`);
+  }
   // These diagnostic controls run on both platforms; the live probes below
   // establish what the installed shells actually emit.
   for (const output of ["/bin/sh: 1: absent: not found", "/bin/bash: line 1: absent: command not found", "/bin/sh: 1: ./script: Permission denied"]) {
     assert.equal(classifyRedFailure(output), "shell");
   }
-  const shells = WIN ? [testShell(), process.env.ComSpec || "cmd.exe", true] : ["/bin/sh", "bash", true];
+  const shells = WIN ? [testShell(), cmdShell, true] : ["/bin/sh", "bash", true];
   if (WIN) console.log("SKIP: execute-permission probes (POSIX only: executable mode bits)");
   for (const shell of shells) {
     for (const command of ["impower_command_that_does_not_exist_507", "./absent-command-507"]) {
@@ -41,6 +49,9 @@ try {
     const partial = runTest(`${node} partial.mjs ${separator} impower_command_that_does_not_exist_507`, dir, shell);
     assert.equal(classifyRedFailure(partial.output, partial), "unknown");
     assert.match(partial.output, /FAIL src\/a\.test\.ts\n/);
+    const redirected = runTest(`${node} partial.mjs ${separator} impower_command_that_does_not_exist_507 2>&1 ${separator} exit ${isCmd ? "/b " : ""}1`, dir, shell);
+    assert.equal(redirected.exit, 1);
+    assert.equal(classifyRedFailure(redirected.output, redirected), "unknown");
     fs.writeFileSync(path.join(dir, "count.mjs"), 'console.error("127 failing"); process.exit(127);');
     const count = runTest(`${node} count.mjs`, dir, shell);
     assert.equal(count.exit, 127);
@@ -57,6 +68,11 @@ try {
   const missing = runTest("echo hello", dir, path.join(dir, "missing-shell"));
   assert.equal(missing.launchError, "ENOENT");
   assert.equal(classifyRedFailure(missing.output, missing), "shell");
+  fs.writeFileSync(path.join(dir, "overflow.mjs"), 'import fs from "node:fs"; fs.writeSync(1, "x".repeat(65536));');
+  const overflow = runTest(`${node} overflow.mjs`, dir, WIN ? cmdShell : "/bin/sh", { maxBuffer: 1024 });
+  assert.equal(overflow.launchError, "ENOBUFS");
+  assert.equal(classifyRedFailure(overflow.output, overflow), "crash");
+  console.log("PASS: a real output-buffer overflow is a crash, not regression evidence");
   for (const message of ["ENOENT", "Permission denied", "/bin/sh: 1: absent: not found"]) {
     assert.equal(classifyRedFailure(`AssertionError: expected '${message}' to be handled`), "assertion");
     assert.equal(classifyRedFailure(`${message}\nAssertionError: expected a handled diagnostic`, { exit: 1 }), message.startsWith("/bin/sh") ? "unknown" : "assertion");
@@ -66,6 +82,10 @@ try {
   assert.equal(classifyRedFailure("", { launchError: "EPERM", exit: -1 }), "unknown");
   assert.equal(classifyRedFailure("unrecognized failure", { exit: 127, posixShell: false }), "unknown");
   assert.equal(classifyRedFailure("  'npx' is not recognized as an internal or external command,", { exit: 1 }), "shell");
+  for (const quoted of ["'npx' is not recognized as an internal or external command,", 'npm error Missing script: "test"']) {
+    assert.equal(classifyRedFailure(`AssertionError: expected '${quoted}' to be handled`), "assertion");
+    assert.equal(classifyRedFailure(`FAIL src/a.test.ts${quoted}`, { exit: 1 }), "unknown");
+  }
   for (const output of [
     "'absent' is not recognized as an internal or external command,\noperable program or batch file.",
     'npm error Missing script: "test"',
@@ -99,6 +119,10 @@ try {
   }
   console.log("PASS: shell launch errors and legitimate assertion failures remain distinct");
 } finally {
+  if (WIN) {
+    if (originalComSpec === undefined) delete process.env.ComSpec;
+    else process.env.ComSpec = originalComSpec;
+  }
   console.log(`Remove scratch shell fixtures: ${dir}`);
   fs.rmSync(dir, { recursive: true, force: true });
 }

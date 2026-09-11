@@ -447,6 +447,27 @@ check("a shell failure on the red alone still fails the verdict when the green p
   assert.match(r.problems.join("\n"), /could not run/);
 });
 
+check("a failure-count status reports its shell-dependent ambiguity and execution metadata", () => {
+  const dir = makeRepo();
+  applyFix(dir);
+  fs.writeFileSync(path.join(dir, "count.mjs"), 'import { value } from "./lib.mjs"; if (value !== "new") { console.error("AssertionError: expected new"); console.error("127 failing"); process.exit(127); }');
+  const r = run(dir, { test: `${NODE} count.mjs` });
+  assert.equal(r.red.exit, 127);
+  assert.equal(r.green.outcome, "passed");
+  if (r.red.reason === "unknown") {
+    assert.match(r.problems.join("\n"), /status is reserved for execution failure/);
+    assert.doesNotMatch(r.problems.join("\n"), /mixes assertion and shell diagnostics/);
+    assert.equal(r.red.posixShell, true);
+    assert.equal(r.ok, false);
+  } else {
+    assert.equal(r.red.reason, "assertion");
+    assert.equal(r.red.posixShell, false);
+    assert.equal(r.ok, true);
+  }
+  assert.equal(r.red.launchError, null);
+  assert.equal(r.red.signal, null);
+});
+
 check("after the fix is committed, HEAD is the fix and --base must point at the pre-fix revision", () => {
   const dir = makeRepo();
   applyFix(dir);
