@@ -6,7 +6,9 @@ import { testShell } from "../.agents/skills/drive-web-editor/redgreen.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const files = execFileSync("git", ["ls-files", "-z"], { cwd: root, encoding: "utf8" }).split("\0").filter(Boolean);
-const checks = files.filter((f) => /^(?:\.agents\/|\.claude\/hooks\/|scripts\/)/.test(f) && /\.test\./.test(f));
+// The grammar scanner's check needs the full source tree and already runs in
+// typecheck.yml. Every other script check belongs to this sparse tooling job.
+const checks = files.filter((f) => /^(?:\.agents\/|\.claude\/hooks\/|scripts\/)/.test(f) && /\.test\./.test(f) && f !== "scripts/check-node-names.test.mjs");
 if (!checks.length || !checks.some((f) => f.startsWith(".agents/")) || !checks.some((f) => f.startsWith(".claude/hooks/")) || !checks.includes("scripts/link-agent-skills.test.mjs")) throw new Error("Incomplete tooling check discovery; stage new checks and verify the checkout");
 const bash = process.platform === "win32" ? testShell() : "bash";
 if (bash === true) throw new Error("Git for Windows bash is required for shell checks");

@@ -567,8 +567,8 @@ function makeWorld() {
     strays: [R("impower.worktrees/fix/husk-old"), R("impower.worktrees/leftover"), R("impower.worktrees/fix/32-probe-taken.removing"), R("impower.worktrees/fix/41-probe-left.removing")],
     processes: [
       { pid: SELF_PID, name: "node.exe", cmd: `node ${R("impower.worktrees/fix/1-merged-gone")}/.agents/skills/clean-worktrees/clean-worktrees.mjs` },
-      { pid: 777, name: "node.exe", cmd: `"node" "${R("impower.worktrees/fix/16-in-use")}\\node_modules\\vite\\bin\\vite.js"` },
-      { pid: 778, name: "node.exe", cmd: `node ${R("impower.worktrees/fix/16-in-use-2")}\\a.js` },
+      { pid: 777, name: "node.exe", cmd: `"node" "${path.join(R("impower.worktrees/fix/16-in-use"), "node_modules", "vite", "bin", "vite.js")}"` },
+      { pid: 778, name: "node.exe", cmd: `node ${path.join(R("impower.worktrees/fix/16-in-use-2"), "a.js")}` },
     ],
     branches: new Set(["main"]),
     // Commits not on origin/main for a branch no tree holds, by branch.
