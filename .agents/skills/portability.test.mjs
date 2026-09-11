@@ -22,6 +22,7 @@ assert.equal(files.filter((f) => f.startsWith(".claude/skills/")).length, 0);
 const prompt = fs.readFileSync(path.join(root, ".agents/skills/review-pr/SKILL.md"), "utf8");
 const contracts = ["ABORT: writer model not supplied.", "ABORT: reviewer invocation not supplied.", "ABORT: pin failed, I am <your model id>, same as the writer.", "ABORT: reviewer route mismatch.", "Runtime identity unavailable; configured route only.", "separate fresh serial session", "Wait for each process to exit", "Missing comments alone", "one undirected reviewer", "Already covered:"];
 const contractErrors = (text) => contracts.filter((rule) => !text.includes(rule));
+contracts.push("unavailable runtime introspection alone is not an abort condition");
 assert.deepEqual(contractErrors(prompt), []);
 for (const rule of contracts) assert.deepEqual(contractErrors(prompt.replaceAll(rule, "")), [rule], "mutation: " + rule);
 for (const rule of ["run one narrow round 4", "do not automatically launch another review", "Keep the PR draft when another independent review", "mark the PR ready for human review", "does not silently reset the count"]) assert.ok(prompt.includes(rule), rule);
