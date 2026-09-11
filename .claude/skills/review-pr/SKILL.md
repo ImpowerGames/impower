@@ -13,7 +13,7 @@ Two reviewer definitions under `.claude/agents/` belong to this skill: `reviewer
 
 ## 1. Size the review
 
-Reviewers cost real tokens. Scale the count to the blast radius of the diff under review instead of running a fixed ritual; four reviewers on a two-line fix burn tokens to find nothing.
+Reviewers cost real tokens. Scale the count to user impact and the risk of losing work. Internal `workflow: skills` tooling defaults to one undirected reviewer, with a second focused reviewer when deletion or data preservation warrants it; diff size alone does not increase that count. Use the tiers below for application changes. Risk selection requires the maintainer's and writer's judgment; the feedback inbox captures problems found through later skill use.
 
 | Tier        | Reviewers                                   | Applies when                                                                                                                                                         |
 | ----------- | ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
