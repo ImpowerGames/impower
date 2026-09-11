@@ -24,6 +24,12 @@ const contracts = ["ABORT: writer model not supplied.", "ABORT: reviewer invocat
 const contractErrors = (text) => contracts.filter((rule) => !text.includes(rule));
 assert.deepEqual(contractErrors(prompt), []);
 for (const rule of contracts) assert.deepEqual(contractErrors(prompt.replaceAll(rule, "")), [rule], "mutation: " + rule);
+for (const rule of ["run one narrow round 4", "do not automatically launch another review", "Keep the PR draft when another independent review", "mark the PR ready for human review", "does not silently reset the count"]) assert.ok(prompt.includes(rule), rule);
+// Concrete event mappings belong in the runner adapter, never policy logic.
+for (const file of ["policy.mjs", "typed-issue-hook.mjs", "shared-stash-hook.mjs"]) {
+  const source = fs.readFileSync(path.join(root, ".agents/hooks", file), "utf8");
+  assert.doesNotMatch(source, /\b(?:claude|codex|opus|sonnet|haiku)\b|gpt-\d/i, file);
+}
 assert.ok(!/\$\d/.test(prompt), "skill positional substitution must not corrupt reviewer prompts");
 const quotedPrompt = reviewTemplate(prompt);
 assert.equal((quotedPrompt.match(/\bWRITER\b/g) ?? []).length, 1, "writer substitution must occur only at its value, not inside the missing-value guard");

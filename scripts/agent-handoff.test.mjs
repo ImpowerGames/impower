@@ -3,7 +3,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
-import { runHandoff } from "./agent-handoff.mjs";
+import { runHandoff, checkReviewRound } from "./agent-handoff.mjs";
 
 const scratch = fs.mkdtempSync(path.join(os.tmpdir(), "impower-handoff-"));
 console.log(`Scratch repository: ${scratch}`);
@@ -16,7 +16,7 @@ const child = path.join(scratch, "child.mjs");
 fs.writeFileSync(child, `import fs from "node:fs"; let p=""; for await (const chunk of process.stdin) p+=chunk; const file=/Write (.*?) with the editor tool/.exec(p)[1]; const head=/reviewed head=([a-f0-9]+)/.exec(p)[1]; fs.writeFileSync(file, JSON.stringify({head,next:process.argv[2]==="first"?"second":null,commentIds:[],summary:"complete"}));`);
 const prompt = path.join(scratch, "prompt.txt");
 fs.writeFileSync(prompt, "test fixture");
-const config = { worktree, writer: "writer-test", reviewer: "reviewer-test", maxSteps: 2, first: "first", journal: path.join(scratch, "journal.jsonl"), steps: {
+const config = { worktree, completedReviewRound: 0, writer: "writer-test", reviewer: "reviewer-test", maxSteps: 2, first: "first", journal: path.join(scratch, "journal.jsonl"), steps: {
   first: { role: "implement", model: "writer-test", executable: process.execPath, args: [child, "first", "--model", "writer-test"], prompt, next: ["second"] },
   second: { role: "implement", model: "writer-test", executable: process.execPath, args: [child, "second", "--model", "writer-test"], prompt, next: [null] },
 }};
@@ -46,8 +46,19 @@ config.steps.first.next = ["second"];
 write(); await runHandoff(file);
 config.journal = path.join(scratch, "review.jsonl");
 config.steps.first.role = "review";
+config.steps.first.round = 1;
 config.steps.first.model = "reviewer-test";
 config.steps.first.args = [child, "first", "--model", "reviewer-test"];
 config.steps.first.next = ["second"];
 write(); await assert.rejects(runHandoff(file), /posted comment IDs/);
+assert.doesNotThrow(() => checkReviewRound(4, 3, false), "round 3 corrections get a narrow round 4");
+assert.doesNotThrow(() => checkReviewRound(4, 4, false), "serial lenses share a round");
+assert.throws(() => checkReviewRound(5, 4, false), /1..4/);
+assert.throws(() => checkReviewRound(4, 4, true), /risk assessment/);
+assert.throws(() => checkReviewRound(1, 3, false), /preserve/);
+config.journal = path.join(scratch, "round-four.jsonl");
+config.completedReviewRound = 4;
+config.steps.first.round = 4;
+write(); await assert.rejects(runHandoff(file), /risk assessment/);
+assert.ok(!fs.readFileSync(config.journal, "utf8").includes('"event":"launching"'), "recovery after round 4 must stop before spawning");
 console.log("PASS: sequential completion, replay refusal, distinct routes, declared transitions, coordinator lock and missing-review refusal");

@@ -17,7 +17,7 @@ const put = (name, content) => { fs.mkdirSync(path.dirname(path.join(scratch, na
 const summaryPath = path.join(scratch, "summary.md");
 const run = () => spawnSync(process.execPath, ["scripts/check-agent-tooling.mjs"], { cwd: scratch, encoding: "utf8", windowsHide: true, env: { ...process.env, GITHUB_STEP_SUMMARY: summaryPath } });
 assert.notEqual(run().status, 0, "empty discovery must fail");
-for (const file of [".agents/skills/a test.test.mjs", ".claude/hooks/hook.test.mjs", "scripts/link-agent-skills.test.mjs"]) put(file, 'console.log("fixture passed");');
+for (const file of [".agents/skills/a test.test.mjs", ".agents/hooks/policy.test.mjs", ".claude/hooks/hook.test.mjs", "scripts/link-agent-skills.test.mjs"]) put(file, 'console.log("fixture passed");');
 for (let i = 0; i < 21; i++) put(`.agents/skills/coverage-${i}.test.mjs`, 'console.log("fixture passed");');
 spawnSync("git", ["add", "."], { cwd: scratch, windowsHide: true });
 assert.equal(run().status, 0, "tracked checks including spaces must run");

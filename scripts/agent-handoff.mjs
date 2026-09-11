@@ -7,6 +7,11 @@ const read = (file) => JSON.parse(fs.readFileSync(file, "utf8"));
 const gitHead = (cwd) => execFileSync("git", ["rev-parse", "HEAD"], { cwd, encoding: "utf8" }).trim();
 const gitStatus = (cwd) => execFileSync("git", ["status", "--porcelain"], { cwd, encoding: "utf8" });
 
+export function checkReviewRound(round, completedRound, finalCorrections) {
+  if (!Number.isInteger(round) || round < 1 || round > 4 || round < completedRound) throw new Error("Review round must be 1..4 and preserve the completed round count");
+  if (finalCorrections) throw new Error("Final corrections after round 4 require coordinator risk assessment; no automatic review");
+}
+
 // Configuration is a local, caller-authored artifact. Comments and child output
 // can select a declared transition but can never supply executable commands.
 export async function runHandoff(configFile) {
@@ -17,6 +22,7 @@ export async function runHandoff(configFile) {
   if (!relative.startsWith(".." + path.sep) && !path.isAbsolute(relative)) throw new Error("Journal must be outside the worktree");
   if (!config.writer || !config.reviewer || config.writer === config.reviewer) throw new Error("Supply distinct writer and reviewer model routes");
   if (!Number.isInteger(config.maxSteps) || config.maxSteps < 1 || config.maxSteps > 12) throw new Error("maxSteps must be 1..12");
+  if (!Number.isInteger(config.completedReviewRound) || config.completedReviewRound < 0 || config.completedReviewRound > 4) throw new Error("Supply completedReviewRound from 0 through 4, including on recovery");
   if (fs.existsSync(journal)) throw new Error("Journal exists; inspect recorded process and completion before authoring a recovery plan");
   for (const step of Object.values(config.steps)) {
     if (!["implement", "review", "adjudicate"].includes(step.role) || !path.isAbsolute(step.executable) || !Array.isArray(step.args) || !step.args.every((a) => typeof a === "string") || !path.isAbsolute(step.prompt)) throw new Error("Each role needs an absolute executable, argument array and prompt file");
@@ -37,7 +43,8 @@ export async function runHandoff(configFile) {
   let fd;
   const append = (row) => { fs.writeSync(fd, JSON.stringify({ time: new Date().toISOString(), ...row }) + "\n"); fs.fsyncSync(fd); };
   let current = config.first;
-  let correctiveRounds = 0;
+  let completedRound = config.completedReviewRound;
+  let finalCorrections = completedRound === 4;
   try {
     fs.writeFileSync(owner, JSON.stringify({ pid: process.pid, startedAt: new Date().toISOString(), journal }));
     fd = fs.openSync(journal, "wx");
@@ -45,14 +52,14 @@ export async function runHandoff(configFile) {
       if (index >= config.maxSteps) throw new Error("Handoff step budget reached; human review required");
       const step = config.steps[current];
       if (!step) throw new Error(`Unknown step: ${current}`);
-      if (step.role === "implement" && correctiveRounds >= 3) throw new Error("Three corrective code rounds reached; maintainer direction required");
+      if (step.role === "review") checkReviewRound(step.round, completedRound, finalCorrections);
       const head = gitHead(cwd), status = gitStatus(cwd);
       if (status) throw new Error("Handoff requires a clean committed worktree");
       const artifacts = fs.mkdtempSync(path.join(path.dirname(journal), `handoff-${index}-${step.role}-`));
       const completion = path.join(artifacts, "completion.json");
       const output = path.join(artifacts, "process.log");
       const prompt = fs.readFileSync(step.prompt, "utf8") + `\n\nHandoff contract: role=${step.role}, configured model=${step.model}, reviewed head=${head}. Write ${completion} with the editor tool as JSON: {"head":"<actual HEAD>","next":"<declared transition or null>","commentIds":[<numeric GitHub comment IDs>],"summary":"<result>"}. Allowed next steps: ${JSON.stringify(step.next)}. Review and adjudication must post their complete report/dispositions before completion; include those IDs. Do not mark ready or merge. Do not modify repository files during review.\n`;
-      append({ event: "launching", index, step: current, role: step.role, model: step.model, head, output, completion });
+      append({ event: "launching", index, step: current, role: step.role, model: step.model, round: step.round, completedRound, head, output, completion });
       const log = fs.openSync(output, "wx");
       const child = spawn(step.executable, step.args, { cwd, shell: false, windowsHide: true, stdio: ["pipe", log, log] });
       append({ event: "running", index, step: current, pid: child.pid, startedAt: new Date().toISOString(), head, output, completion });
@@ -73,8 +80,9 @@ export async function runHandoff(configFile) {
         if (comment.issue_url !== `https://api.github.com/repos/ImpowerGames/impower/issues/${config.pr}` || !comment.body.includes(done.head)) throw new Error("Comment does not verify this PR and head");
       }
       if (gitStatus(cwd)) throw new Error("Role left uncommitted work");
-      if (step.role === "implement" && index > 0 && done.head !== head) correctiveRounds++;
-      append({ event: "completed", index, step: current, ...done });
+      if (step.role === "review") completedRound = step.round;
+      if (step.role !== "review" && completedRound === 4 && done.head !== head) finalCorrections = true;
+      append({ event: "completed", index, step: current, completedRound, finalCorrections, ...done });
       current = done.next;
     }
     append({ event: "finished" });

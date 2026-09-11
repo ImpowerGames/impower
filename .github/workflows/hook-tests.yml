@@ -2,10 +2,10 @@ name: Hook Tests
 
 on:
   pull_request:
-    paths: [".agents/**", ".claude/**", "scripts/**", "AGENTS.md", "CLAUDE.md", ".gitignore", "package.json", "vscode-sparkdown/package.json", ".github/workflows/hook-tests.yml"]
+    paths: [".agents/**", ".claude/**", ".codex/**", "scripts/**", "AGENTS.md", "CLAUDE.md", ".gitignore", "package.json", "vscode-sparkdown/package.json", ".github/workflows/hook-tests.yml"]
   push:
     branches: [main]
-    paths: [".agents/**", ".claude/**", "scripts/**", "AGENTS.md", "CLAUDE.md", ".gitignore", "package.json", "vscode-sparkdown/package.json", ".github/workflows/hook-tests.yml"]
+    paths: [".agents/**", ".claude/**", ".codex/**", "scripts/**", "AGENTS.md", "CLAUDE.md", ".gitignore", "package.json", "vscode-sparkdown/package.json", ".github/workflows/hook-tests.yml"]
 
 concurrency:
   group: hook-tests-${{ github.event_name == 'pull_request' && github.ref || github.sha }}
@@ -28,6 +28,7 @@ jobs:
           sparse-checkout: |
             /.agents/
             /.claude/
+            /.codex/
             /scripts/
             /AGENTS.md
             /CLAUDE.md

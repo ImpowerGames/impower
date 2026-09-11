@@ -4,16 +4,13 @@
 # never drift from what actually ships. Run:
 #   bash .claude/hooks/grammar-edit-hook.test.sh
 #
-# Node is only used here, by the test harness, to read settings.json and to
-# build JSON payloads. The hook command itself has no interpreter dependency
-# (no jq, no node) -- that is the point of the fix this test pins: the old
-# command piped stdin through jq, which is not installed on every checkout,
-# so on a machine without jq the hook silently matched nothing and let the
-# edit through instead of denying it.
+# The shared hook uses Node, the repository runtime. A missing runtime must
+# produce a blocking exit rather than silently allowing the edit.
 set -u
 
 dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 settings="$dir/.claude/settings.json"
+export CLAUDE_PROJECT_DIR="$dir"
 
 CMD=$(node -e '
 const d = require("fs").readFileSync(process.argv[1], "utf8");
@@ -23,7 +20,7 @@ process.stdout.write(JSON.parse(d).hooks.PreToolUse[0].hooks[0].command);
 fail=0
 
 make_payload() {
-  node -e 'process.stdout.write(JSON.stringify({tool_input:{file_path: process.argv[1]}}))' "$1"
+  node -e 'process.stdout.write(JSON.stringify({tool_name:"Write",tool_input:{file_path: process.argv[1]}}))' "$1"
 }
 
 # Both assertions check exit status and stderr too, not just stdout -- a
