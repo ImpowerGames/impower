@@ -39,8 +39,13 @@ test('real MCP client discovers and invokes tool without hardware effects', asyn
   try {
     await client.connect(transport);
     const { tools } = await client.listTools();
-    assert.equal(tools[0].name, 'notify_user');
-    assert.deepEqual(Object.keys(tools[0].inputSchema.properties), ['message', 'category']);
+    const notifyTool = tools.find(tool => tool.name === 'notify_user');
+    assert.deepEqual(Object.keys(notifyTool.inputSchema.properties), ['session', 'message', 'category']);
+    assert.ok(tools.some(tool => tool.name === 'acknowledge_notification'));
+    const ack = await client.callTool({ name: 'acknowledge_notification', arguments: { notificationId: '11111111-1111-4111-8111-111111111111' } });
+    assert.equal(JSON.parse(ack.content[0].text).dryRun, true);
+    const badAck = await client.callTool({ name: 'acknowledge_notification', arguments: { notificationId: 'guessed' } });
+    assert.equal(badAck.isError, true);
     const message = 'Hey, I finished organizing the photos. Can you pick a cover?';
     const result = await client.callTool({ name: 'notify_user', arguments: { message } });
     assert.equal(result.isError, false);

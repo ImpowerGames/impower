@@ -5,6 +5,9 @@ description: Resolve a GitHub issue in this repo end-to-end — read the ticket,
 
 # Resolve a GitHub issue
 
+When the user replies to an earlier notification, first follow the acknowledgement
+step in [notify-user](../notify-user/SKILL.md) to clear that alert, then continue.
+
 Read [runner notes](../RUNNERS.md) and the repository's agent instructions before proceeding. Load a named skill's full SKILL.md when the runner has no skill invocation capability.
 
 Takes an issue number and drives it to an open pull request. All paths below are relative to the repo root (the directory containing `package.json` with `"name": "impower-monorepo"`).

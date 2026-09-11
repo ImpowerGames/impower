@@ -5,6 +5,9 @@ description: Turn a feature idea into an agreed plan and a Feature ticket by int
 
 # File a feature ticket
 
+When the user replies to an earlier notification, first follow the acknowledgement
+step in [notify-user](../notify-user/SKILL.md) to clear that alert, then continue.
+
 Read [runner notes](../RUNNERS.md) and the repository's agent instructions before proceeding. Load a named skill's full SKILL.md when the runner has no skill invocation capability.
 
 Takes a feature idea from the user, drives it to a shared understanding through an interview, and files one Feature issue on GitHub carrying the plan. Implementation does not happen here; it happens on the ticket, through the resolve-issue skill, once the plan is agreed.

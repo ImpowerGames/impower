@@ -1,6 +1,6 @@
 # Agent notification alerts
 
-A local MCP tool and command that briefly flashes a SteelSeries keyboard and
+A local MCP tool and command that flashes a SteelSeries keyboard until acknowledged and
 reads an agent's message aloud using Windows speech. No speech API or API key.
 Notification text is passed to the speech process as JSON over stdin, never as
 executable PowerShell. Device failures are reported independently.
@@ -25,7 +25,7 @@ not an interactive terminal app. For a manual notification, use `notify` or `dem
 ## Agent interface
 
 MCP is the standard protocol an agent uses to discover and call tools. This
-program exposes a custom tool, `notify_user`; it is not a new standard MCP
+program exposes custom tools, `notify_user` and `acknowledge_notification`; these are not standard MCP
 notification event. The agent deliberately calls it with structured input:
 
 ```json
@@ -111,6 +111,38 @@ This repository provides one implementation; it does not broadcast MCP events
 to disconnected listeners. With no connected receiver there is no tool call,
 no queued event, and nothing to configure for developers who only want chat.
 
+### Acknowledgement contract
+
+`notify_user` returns `notificationId`, `status: "queued"`, and
+`persistent: true`. Retain that ID in the task context. At the start of the next
+user turn, acknowledge the alert their reply addresses:
+
+```json
+{ "notificationId": "the UUID returned by notify_user" }
+```
+
+Pass this to `acknowledge_notification`. Repeated acknowledgements are harmless.
+An old ID cannot clear a newer alert or an alert from the other app. Acknowledging
+receipt does not grant approval or establish that the underlying task is resolved.
+The agent can issue a new alert at its next handoff if more input is needed.
+
+Lighting persists; speech plays once. For several pending tasks in one app, the
+latest determines the key's color and shortcut target. Clearing it reveals the
+next pending task. This requires an agent tool call after the reply: no automatic
+user-message hook is installed. Abandoned sessions can be cleared manually:
+
+```powershell
+node src/main.mjs status
+# Use the same AGENT_ALERT_APP value as the original notification:
+node src/main.mjs acknowledge NOTIFICATION_UUID
+node src/main.mjs stop
+```
+
+`stop` releases lighting and shortcuts but retains pending alerts for restart.
+Queued delivery is not proof that hardware or speech succeeded; `status` reports
+channel state. Custom receivers should return an ID and expose the same
+acknowledgement tool. They choose what acknowledgement does in their automations.
+
 ## Machine settings
 
 Copy `config.example.json` to ignored `config.local.json`, or set
@@ -120,7 +152,7 @@ environment variable and invoke the shared entry point.
 
 - `keyboard` / `speech`: enable each channel independently.
 - `zone`: `function-keys` or `all`, for manual calls without an app identity.
-- `durationMs`: 1000–30000; default 6000. Lighting flashes once per second.
+- `durationMs`: retained for the legacy timed delivery helper; MCP/CLI alerts now persist until acknowledged. Lighting flashes once per second.
 - `volume`: Windows speech volume, 0–100; default 70.
 - `rate`: Windows speech rate, -10–10.
 - `colors`: RGB arrays keyed by `done`, `input_needed`, and `blocked`.
@@ -136,24 +168,30 @@ discovers Engine's loopback address from ProgramData and releases its GameSense
 effect when the alert ends. Engine's normal event timeout provides a fallback
 if a process dies. Another active GameSense app can affect lighting priority.
 
-Separate local invocations serialize through a loopback port lease (39761),
-so speeches and keyboard effects do not overlap. The listener accepts no
-commands and closes incoming sockets. The OS releases it when the process ends.
-After two minutes waiting for the lease, the tool reports a busy error. A
-different application using that port will also cause a busy error. Alerts are
-brief, not persistent indicators, and there is no background PR polling or
-automatic startup service. Remote/cloud agents require a separate secure bridge
-to this computer; a remote process cannot directly control local devices.
+Local invocations share an automatically launched background process over a
+Windows named pipe. Speech is serialized; F1 and F2 can flash simultaneously.
+Pending alerts are saved under `AGENT_ALERT_STATE_DIR` (default:
+`~/.agent-notification-alerts`). State contains notification messages and optional
+session IDs, not transcripts. Restarting the process restores lights without
+replaying speech. There is no automatic login service or PR polling.
+Remote/cloud agents require a separate secure bridge to this computer.
 
 ## Opening the notifying session
 
-F1/F2 are lighting targets only; this version does not register keyboard shortcuts.
-A future Ctrl+Alt+F1/F2 helper could open the latest notifying session for each
-app if notifications carry a verified session link. Multiple sessions per app
-would need a last-alert or cycling policy. Exact-session desktop link formats
-have not been verified for both apps, so no guessed links are constructed.
-Claude's documented `claude-cli://open` launches a new CLI session, not the
-existing Desktop session. No global shortcuts or session routing are installed.
+Set `AGENT_ALERT_PYTHON` to a Windows Python executable to enable Ctrl+Alt+F1
+(Codex) and Ctrl+Alt+F2 (Claude). No Python packages are required. The helper runs
+hidden and registers shortcuts while the background process runs. Conflicts are
+reported by `status`. It does not read window contents or detect focus.
+
+Include optional `session: { "id": "..." }` in `notify_user`, or
+`--session ID` on the CLI, using verified desktop metadata. Codex accepts a
+thread UUID; Claude accepts a Desktop `local_`, `session_`, or `cse_` ID.
+Do not guess IDs or use a CLI session ID. Without desktop metadata the alert still
+works, but its shortcut has no target. Opening a task does not clear its alert.
+
+Link routes were checked against the installed Windows app code on 2026-09-11.
+They are app internals and may change; actual navigation still needs a live
+check with the installed app. No focus-detection dependency is required.
 
 ## Existing projects considered
 
@@ -180,7 +218,10 @@ third-party notifier is installed.
 
 ## Verification
 
-`npm test` exercises an actual MCP client/server exchange in dry-run mode,
+`npm test` exercises notification and acknowledgement through an actual MCP
+client/server exchange in dry-run mode, persistent state across process restarts,
+app isolation, idempotent acknowledgement, and retention of unrelated alerts.
+It also covers
 invalid input rejection, independent device failure handling, and mutual
 exclusion including release after an error. On the initial MSI GS75 Windows
 machine, a live demo returned successful Engine and speech results; the user

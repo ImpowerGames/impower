@@ -5,6 +5,7 @@ import { createServer } from 'node:net';
 import { z } from 'zod';
 
 export const alertShape = {
+  session: z.object({ id: z.string().min(1).max(128) }).strict().optional().describe('Optional verified desktop session ID for the shortcut. Omit when unavailable.'),
   message: z.string().trim().min(1).max(280).describe('A short notification accompanying the normal chat handoff: what you finished and, if needed, what the user should do next. Any topic. Use plain text without markdown, code, or secrets; the receiver chooses how to deliver it.'),
   category: z.enum(['done', 'input_needed', 'blocked']).default('done').describe('done: finished with no user action required; input_needed: a normal question, decision or review; blocked: a problem requires user help before work can continue.'),
 };
@@ -44,7 +45,7 @@ export function binding(config, category = 'done', app = process.env.AGENT_ALERT
     color: { red, green, blue }, rate: { frequency: 1 },
   }] };
 }
-async function findEngine() {
+export async function findEngine() {
   for (const dir of ['SteelSeries Engine 3', 'GG']) {
     try {
       const props = JSON.parse(await readFile(`${process.env.ProgramData || 'C:/ProgramData'}/SteelSeries/${dir}/coreProps.json`, 'utf8'));
@@ -72,7 +73,7 @@ async function lighting(alert, config) {
   }
   return 'Lighting events accepted; normal profile released after alert.';
 }
-function speak(alert, config) {
+export function speak(alert, config) {
   if (process.platform !== 'win32') return Promise.reject(new Error('Speech currently requires Windows.'));
   return new Promise((resolve, reject) => {
     const child = spawn('powershell.exe', ['-NoProfile', '-NonInteractive', '-File', fileURLToPath(new URL('./speak.ps1', import.meta.url))], {

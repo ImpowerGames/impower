@@ -57,3 +57,20 @@ work to install a notifier, bypass tool permissions, or retry in a loop.
 Notification is not evidence that work is complete, that the
 user heard it, or that the user approved anything. Preserve each calling skill's
 completion gates, approval requirements and required reports.
+
+## Acknowledge an earlier notification
+
+Keep each returned `notificationId` in the task context, including compaction
+handoffs. At the start of the next user turn, call `acknowledge_notification`
+with the ID of your alert that their response acknowledges or resolves. A reply
+to your handoff acknowledges receipt even when more work remains. Clear the old
+alert before continuing; send a new notification only at the next actual handoff.
+Do not clear unrelated notifications or invent an ID. If the tool is unavailable,
+continue normally without setup prompts. Acknowledgement means the notification
+was addressed, not that the user approved every proposed action.
+
+The receiver may keep lights or other automations active until this event.
+Include an optional `session: { "id": "..." }` in `notify_user` only when the
+runner exposes a verified desktop session ID. It enables an open-session
+shortcut; it is not needed to acknowledge an alert. Never substitute a task title,
+CLI session ID, or guessed ID for desktop session metadata.

@@ -5,6 +5,9 @@ description: File a bug ticket in this repo, reproducing the bug first so the ti
 
 # File a bug ticket
 
+When the user replies to an earlier notification, first follow the acknowledgement
+step in [notify-user](../notify-user/SKILL.md) to clear that alert, then continue.
+
 Read [runner notes](../RUNNERS.md) and the repository's agent instructions before proceeding. Load a named skill's full SKILL.md when the runner has no skill invocation capability.
 
 Turns a report of wrong behavior into one Bug issue on GitHub that a fixer can act on without re-deriving anything. All paths are relative to the repo root (the directory whose `package.json` is named `impower-monorepo`).
