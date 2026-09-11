@@ -18,7 +18,7 @@ import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { classifyRedFailure, parseRedGreenArgs, parseVitestSummary, runRedGreen, sha256 } from "./redgreen.mjs";
+import { classifyRedFailure, parseRedGreenArgs, parseVitestSummary, runRedGreen, runTest, testShell, sha256 } from "./redgreen.mjs";
 
 const WIN = process.platform === "win32";
 // A case that asserts something Windows itself supplies — a junction, or the
@@ -516,7 +516,6 @@ check("a VAR=value prefix on the test command runs, as every vitest example in t
 });
 
 check("a test command the shell cannot run is a shell problem, not a red", () => {
-  if (!WIN) return skip("a test command the shell cannot run is a shell problem, not a red", "classifyRedFailure reads the shell's own wording for an unknown command, and only the cmd.exe wording is matched today (#507)");
   const dir = makeRepo();
   applyFix(dir);
   const r = run(dir, { test: "definitely-not-a-command-xyz --run" });
@@ -622,17 +621,20 @@ check("a file deleted while it was reverted is recreated from the snapshot and n
   assert.equal(libText(dir), NEW);
 });
 
-check("a repository root reached through a junction is accepted", () => {
-  if (!WIN) return skip("a repository root reached through a junction is accepted", "a junction is a Windows reparse point; Node falls back to a plain symlink here, which the fixture's rmdir teardown refuses");
+check("a repository root reached through a directory link is accepted and its target preserved", () => {
   const dir = makeRepo();
   applyFix(dir);
   const link = path.join(os.tmpdir(), `redgreen-link-${process.pid}-${Date.now()}`);
-  fs.symlinkSync(dir, link, "junction");
+  console.log(`scratch repository: ${dir}; directory link: ${link}`);
+  fs.symlinkSync(dir, link, WIN ? "junction" : "dir");
   try {
     const r = runRedGreen({ repoRoot: link, test: `${NODE} check.mjs`, files: ["lib.mjs"], snapshotDir: snapshotDir() });
     assert.equal(r.ok, true, JSON.stringify(r.problems));
   } finally {
-    fs.rmdirSync(link);
+    if (WIN) fs.rmdirSync(link);
+    else fs.unlinkSync(link);
+    assert.equal(libText(dir), NEW, "link cleanup changed the target");
+    assert.ok(fs.existsSync(path.join(dir, ".git")), "link cleanup removed the repository");
   }
 });
 
@@ -684,6 +686,28 @@ check("a --test whose own script does not exist is a shell problem, not an impor
   assert.equal(r.ok, false);
   assert.equal(r.red.reason, "shell");
   assert.match(r.problems.join("\n"), /could not run/);
+});
+
+check("real shells distinguish an unexecutable command from an assertion quoting an OS error", () => {
+  const dir = makeRepo();
+  console.log(`scratch repository: ${dir}`);
+  const shells = WIN ? [testShell(), process.env.ComSpec || "cmd.exe"] : ["/bin/sh", "/bin/bash"];
+  for (const shell of shells) {
+    for (const cmd of ["impower_command_that_does_not_exist_507", "./absent-command-507"]) {
+      const result = runTest(cmd, dir, shell);
+      assert.notEqual(result.exit, 0);
+      assert.equal(classifyRedFailure(result.output), "shell", `${shell}: ${result.output}`);
+    }
+    fs.writeFileSync(path.join(dir, "assertion.mjs"), 'console.error("AssertionError: expected ENOENT: Permission denied to be handled"); process.exit(1);');
+    const assertion = runTest(`${NODE} assertion.mjs`, dir, shell);
+    assert.equal(classifyRedFailure(assertion.output), "assertion", assertion.output);
+    if (!WIN) {
+      fs.writeFileSync(path.join(dir, "not-executable"), "#!/bin/sh\nexit 0\n", { mode: 0o600 });
+      const denied = runTest("./not-executable", dir, shell);
+      assert.equal(denied.exit, 126, denied.output);
+      assert.equal(classifyRedFailure(denied.output), "shell", `${shell}: ${denied.output}`);
+    }
+  }
 });
 
 check("classifyRedFailure tells the reasons apart on real runner output", () => {

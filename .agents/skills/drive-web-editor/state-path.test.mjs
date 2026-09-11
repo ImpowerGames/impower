@@ -245,6 +245,7 @@ await check("the live probe reports no start for a process that has exited or a 
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const scratch = fs.mkdtempSync(path.join(os.tmpdir(), "state-path-"));
+console.log(`scratch repository: ${path.join(scratch, "repo")}`);
 const copyDir = path.join(scratch, "repo", ".agents", "skills", "drive-web-editor");
 fs.mkdirSync(copyDir, { recursive: true });
 fs.mkdirSync(path.join(scratch, "repo", ".agents", "skills", "resolve-issue"), { recursive: true });
@@ -346,7 +347,6 @@ try {
   });
 
   await check("down on a standing record stops its tree and removes the record", async () => {
-    if (!WIN) return skip("down on a standing record stops its tree", "down stops a process tree with taskkill /T, and the POSIX path does not reach the launcher's children yet (#508)");
     const child = idle();
     try {
       writeRecord({ url: "http://localhost:1", pid: child.pid, mode: "same-origin", startedAt: Date.now() });
@@ -361,7 +361,6 @@ try {
   });
 
   await check("down on a record with no startedAt dates it by the file and stops its tree", async () => {
-    if (!WIN) return skip("down on a record with no startedAt stops its tree", "down stops a process tree with taskkill /T, and the POSIX path does not reach the launcher's children yet (#508)");
     const child = idle();
     try {
       writeRecord({ url: "http://localhost:1", pid: child.pid, mode: "same-origin" });
@@ -377,7 +376,7 @@ try {
   await check("up waits on a standing record while its launcher lives, and launches once it exits", async () => {
     const child = idle();
     writeRecord({ url: "http://localhost:1", pid: child.pid, mode: "same-origin", startedAt: Date.now() });
-    const up = spawn(process.execPath, [copy, "up"], { stdio: ["ignore", "pipe", "pipe"], windowsHide: true });
+    const up = spawn(process.execPath, [copy, "up"], { stdio: ["ignore", "pipe", "pipe"], windowsHide: true, detached: true });
     let out = "";
     up.stdout.on("data", (d) => (out += d));
     up.stderr.on("data", (d) => (out += d));
