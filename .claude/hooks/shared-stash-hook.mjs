@@ -40,7 +40,7 @@ const REASON =
   "git stash moves a stack that belongs to the whole repository rather than to this worktree, and this checkout has " +
   "several worktrees with sessions running in them at once: a pop or an apply takes whatever sits at stash@{0} when it " +
   "runs, which may be another session's work pushed since. To set a file aside, copy it aside and copy it back; to prove " +
-  "a test red on the pre-change source, run `node .claude/skills/drive-web-editor/driver.mjs redgreen`, which snapshots " +
+  "a test red on the pre-change source, run `node .agents/skills/drive-web-editor/driver.mjs redgreen`, which snapshots " +
   "the files, reverts them, runs the test and restores them by content hash inside one process. `git stash list`, " +
   "`git stash show` and `git stash create` are not refused.";
 
