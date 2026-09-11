@@ -7,6 +7,7 @@ const encode = value => Buffer.from(JSON.stringify(value), 'utf8').toString('bas
 const inline = ledger => `<!-- skill-feedback-reports:v1 ${encode({ version: 1, problems: ledger })} -->`;
 const validHash = value => typeof value === 'string' && /^[a-f0-9]{64}$/.test(value);
 const validId = value => Number.isSafeInteger(value) && value > 0;
+const normalize = body => body.replace(/\r\n/g, '\n');
 
 function locate(body, isFenced) {
   const offsets = [...body.matchAll(/<!-- skill-feedback-reports/g)].map(match => match.index).filter(offset => !isFenced(body, offset));
@@ -40,31 +41,40 @@ function chunkBody(payload, part) {
 
 function chunkPayload(comment, hash, part) {
   if (typeof comment.body !== 'string') throw new Error(`Reports archive comment #${comment.id} has no body.`);
-  const match = comment.body.match(/\n(`{3,})json\n([\s\S]*)\n\1$/);
+  const body = normalize(comment.body);
+  const match = body.match(/\n(`{3,})json\n([\s\S]*)\n\1$/);
   const payload = match?.[2];
-  if (payload === undefined || digest(`${part}\n${payload}`) !== hash || chunkBody(payload, part) !== comment.body) throw new Error(`Reports archive comment #${comment.id} failed its hash or exact body check; preserve the inbox and inspect that comment.`);
+  if (payload === undefined || digest(`${part}\n${payload}`) !== hash || chunkBody(payload, part) !== body) throw new Error(`Reports archive comment #${comment.id} failed its hash or exact body check; preserve the inbox and inspect that comment.`);
   return payload;
 }
 
 // comments must be the complete paginated list from this same inbox.
-export function hydrateReports(body, comments, isFenced = () => false) {
+export function inspectReportsArchive(body, comments, isFenced = () => false) {
   const prior = locate(body, isFenced);
   if (prior?.pointer) {
     const matches = comments.filter(comment => comment.id === prior.pointer.id);
     if (matches.length !== 1) throw new Error(`Reports index comment #${prior.pointer.id} is missing or ambiguous in this inbox.`);
-    const match = matches[0].body.match(/^<!-- skill-feedback-archive-index:v1 [a-f0-9]{64} -->\n\nReports archive index\. Referenced comments hold full problem records\.\n\n```json\n([\s\S]*)\n```$/);
-    if (!match || digest(match[1]) !== prior.pointer.hash || indexBody(match[1]) !== matches[0].body) throw new Error(`Reports index comment #${prior.pointer.id} failed its hash or exact body check.`);
+    const indexText = typeof matches[0].body === 'string' ? normalize(matches[0].body) : '';
+    const match = indexText.match(/^<!-- skill-feedback-archive-index:v1 [a-f0-9]{64} -->\n\nReports archive index\. Referenced comments hold full problem records\.\n\n```json\n([\s\S]*)\n```$/);
+    if (!match || digest(match[1]) !== prior.pointer.hash || indexBody(match[1]) !== indexText) throw new Error(`Reports index comment #${prior.pointer.id} failed its hash or exact body check.`);
     prior.manifest = locate(`<!-- skill-feedback-reports:v2 ${Buffer.from(match[1], 'utf8').toString('base64')} -->`, () => false).manifest;
   }
-  if (!prior?.manifest) return prior?.legacy || {};
-  const text = prior.manifest.chunks.map((chunk, part) => {
+  const chunks = prior?.manifest?.chunks || [];
+  const current = new Set([prior?.pointer?.id, ...chunks.map(chunk => chunk.id)]);
+  const metadata = { index: prior?.pointer?.id ?? null, chunks: chunks.map(chunk => chunk.id), superseded: comments.filter(comment => typeof comment.body === 'string' && /^(?:<!-- skill-feedback-archive:v1 |<!-- skill-feedback-archive-index:v1 )/.test(comment.body) && !current.has(comment.id)).map(comment => comment.id) };
+  if (!prior?.manifest) return { ...metadata, problems: prior?.legacy || {} };
+  const text = chunks.map((chunk, part) => {
     const matches = comments.filter(comment => comment.id === chunk.id);
     if (matches.length !== 1) throw new Error(`Reports archive comment #${chunk.id} is missing or ambiguous in this inbox.`);
     return chunkPayload(matches[0], chunk.hash, part);
   }).join('');
   if (digest(text) !== prior.manifest.hash) throw new Error('Reports archive complete-ledger hash mismatch.');
   // Reuse the inline format validator, including duplicate JSON key checks.
-  return readReports(`<!-- skill-feedback-reports:v1 ${Buffer.from(text, 'utf8').toString('base64')} -->`);
+  return { ...metadata, problems: readReports(`<!-- skill-feedback-reports:v1 ${Buffer.from(text, 'utf8').toString('base64')} -->`) };
+}
+
+export function hydrateReports(body, comments, isFenced = () => false) {
+  return inspectReportsArchive(body, comments, isFenced).problems;
 }
 
 function replace(body, prior, marker) {
@@ -101,29 +111,29 @@ export async function persistReports(body, ledger, api, isFenced = () => false) 
   const references = [];
   for (const chunk of chunks) {
     const marker = `${ARCHIVE}${chunk.hash} -->`;
-    let matches = comments.filter(comment => typeof comment.body === 'string' && comment.body.includes(marker));
+    let matches = comments.filter(comment => typeof comment.body === 'string' && comment.body.startsWith(marker));
     if (matches.length > 1) throw new Error(`Multiple reports archive comments carry ${chunk.hash}: ${matches.map(comment => '#' + comment.id).join(', ')}. Inspect them before retrying.`);
     let comment = matches[0];
-    if (comment && comment.body !== chunk.body) throw new Error(`Reports archive marker collision at comment #${comment.id}; inspect it and retry the original unedited plan.`);
+    if (comment && normalize(comment.body) !== chunk.body) throw new Error(`Reports archive marker collision at comment #${comment.id}; inspect it and retry the original unedited plan.`);
     if (!comment) {
       comment = await api.postComment(chunk.body);
       if (!validId(comment?.id)) throw new Error('Archive comment creation did not return a valid ID.');
     }
     comments = await api.comments();
-    matches = comments.filter(item => typeof item.body === 'string' && item.body.includes(marker));
-    if (matches.length !== 1 || matches[0].id !== comment.id || matches[0].body !== chunk.body) throw new Error(`Reports archive comment #${comment.id} did not read back exactly and uniquely; preserve the inbox and retry the original plan.`);
+    matches = comments.filter(item => typeof item.body === 'string' && item.body.startsWith(marker));
+    if (matches.length !== 1 || matches[0].id !== comment.id || normalize(matches[0].body) !== chunk.body) throw new Error(`Reports archive comment #${comment.id} did not read back exactly and uniquely; preserve the inbox and retry the original plan.`);
     references.push({ id: comment.id, hash: chunk.hash });
   }
   const json = JSON.stringify({ version: 2, hash: digest(text), chunks: references });
   const indexText = indexBody(json);
   const indexMarker = `<!-- skill-feedback-archive-index:v1 ${digest(json)} -->`;
-  let indices = comments.filter(comment => typeof comment.body === 'string' && comment.body.includes(indexMarker));
-  if (indices.length > 1 || (indices[0] && indices[0].body !== indexText)) throw new Error(`Reports archive index collision: ${indices.map(comment => '#' + comment.id).join(', ')}; inspect and retry the original plan.`);
+  let indices = comments.filter(comment => typeof comment.body === 'string' && comment.body.startsWith(indexMarker));
+  if (indices.length > 1 || (indices[0] && normalize(indices[0].body) !== indexText)) throw new Error(`Reports archive index collision: ${indices.map(comment => '#' + comment.id).join(', ')}; inspect and retry the original plan.`);
   const indexComment = indices[0] || await api.postComment(indexText);
   if (!validId(indexComment?.id)) throw new Error('Reports index creation did not return a valid ID.');
   comments = await api.comments();
-  indices = comments.filter(comment => typeof comment.body === 'string' && comment.body.includes(indexMarker));
-  if (indices.length !== 1 || indices[0].id !== indexComment.id || indices[0].body !== indexText) throw new Error(`Reports index comment #${indexComment.id} did not read back exactly and uniquely.`);
+  indices = comments.filter(comment => typeof comment.body === 'string' && comment.body.startsWith(indexMarker));
+  if (indices.length !== 1 || indices[0].id !== indexComment.id || normalize(indices[0].body) !== indexText) throw new Error(`Reports index comment #${indexComment.id} did not read back exactly and uniquely.`);
   const marker = `<!-- skill-feedback-reports:v3 ${encode({ version: 3, id: indexComment.id, hash: digest(json) })} -->`;
   const result = replace(body, prior, marker);
   hydrateReports(result, comments, isFenced);

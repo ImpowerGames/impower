@@ -3,8 +3,9 @@ import { execFileSync } from 'node:child_process';
 import { readFileSync, writeFileSync, mkdirSync, mkdtempSync, existsSync } from 'node:fs';
 import { resolve, dirname, relative, isAbsolute, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { tmpdir } from 'node:os';
 import { readReports, writeReports } from './feedback-reports.mjs';
-import { hydrateReports, persistReports, prepareReports } from './feedback-archive.mjs';
+import { hydrateReports, persistReports, prepareReports, inspectReportsArchive } from './feedback-archive.mjs';
 
 const REPO = 'ImpowerGames/impower';
 const INBOX = 510;
@@ -14,13 +15,13 @@ const CELL = '<!-- skill-feedback-cell:v2 -->';
 const decode = value => value.startsWith(CELL)
   ? value.slice(CELL.length).replace(/<br>/g, '\n').replace(/&(?:amp|lt|gt|#\d+);/g, entity => ({ '&amp;': '&', '&lt;': '<', '&gt;': '>' })[entity] ?? String.fromCodePoint(Number(entity.slice(2, -1))))
   : value.replace(/<br\s*\/?>/gi, '\n').replace(/&#124;/g, '|');
-const literalDisplay = value => value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/[\\`*_\[\]~|]/g, char => `&#${char.codePointAt(0)};`).replace(/\r?\n/g, '<br>');
+const literalDisplay = value => value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/[\r\\`*_\[\]~|]/g, char => `&#${char.codePointAt(0)};`).replace(/\n/g, '<br>');
 const encode = value => CELL + literalDisplay(value);
 const statusPattern = /^(open|ticketed #[1-9]\d*|applied in PR #[1-9]\d*)$/;
 const canonicalRows = rows => rows.map(({ skill, friction, edit, status, problemId, sessions, historyIncomplete }) => ({ skill, friction, edit, status, ...(problemId ? { problemId, sessions, historyIncomplete } : {}) }));
 const rowKey = row => row.problemId || keyOf(row.skill);
 const reportCount = row => row.problemId ? `${row.sessions.length} recorded${row.historyIncomplete ? '; history incomplete' : ''}` : 'unknown';
-const reportExcerpt = text => text.length > 300 ? text.slice(0, 300) + '\n[Full history in Reports archive.]' : text;
+const reportExcerpt = text => { const points = Array.from(text); return points.length > 300 ? points.slice(0, 300).join('') + '\n[Full history in Reports archive.]' : text; };
 const groupMarker = rows => `Feedback group: ${hash(JSON.stringify(canonicalRows(rows)))}`;
 
 function fencedAt(body, offset = body.length) {
@@ -59,6 +60,22 @@ export function keyOf(skill) {
   const value = clean(skill).toLowerCase().replace(/[`*]/g, '').replace(/\s+/g, ' ');
   const numbered = value.match(/^([a-z0-9_-]+(?:\.[a-z0-9_-]+)*)(?:,\s*|\s+)(?:in\s+)?section\s+(\d+(?:\.\d+)*)(?:\s+\([^()]*\))?\.?$/);
   return numbered ? `${numbered[1]}, section ${numbered[2]}` : value.replace(/\.$/, '');
+}
+
+function historicalTargets(body, rows) {
+  body = body.replace(/\r\n/g, '\n');
+  const matches = [...body.matchAll(/^<!-- skill-feedback-history:v1 ([A-Za-z0-9+/=]+) -->$/gm)].filter(match => !fencedAt(body, match.index));
+  const markers = [...body.matchAll(/<!-- skill-feedback-history/g)].filter(match => !fencedAt(body, match.index));
+  if (markers.length !== matches.length) throw new Error('Malformed historical-target marker; preserve the saved history before triage.');
+  if (matches.length > 1) throw new Error('Multiple historical-target markers; reconcile the saved history before triage.');
+  let saved = [];
+  if (matches.length) {
+    const bytes = Buffer.from(matches[0][1], 'base64');
+    const json = bytes.toString('utf8');
+    try { saved = JSON.parse(json); } catch { throw new Error('Invalid historical-target history; preserve the body and reconcile it.'); }
+    if (bytes.toString('base64') !== matches[0][1] || !Buffer.from(json).equals(bytes) || JSON.stringify(saved) !== json || !Array.isArray(saved) || saved.some(value => typeof value !== 'string' || !value || keyOf(value) !== value) || new Set(saved).size !== saved.length) throw new Error('Invalid historical-target history; preserve the body and reconcile it.');
+  }
+  return new Set([...saved, ...rows.filter(row => !row.problemId).map(row => keyOf(row.skill))]);
 }
 
 function cells(line) {
@@ -117,8 +134,11 @@ export function renderTable(body, rows, historyRows = rows, savedLedger, archive
 export function parseIntake(comment) {
   const text = clean(comment.body);
   if (/^<!-- skill-feedback-(?:triage|archive|archive-index):/.test(text)) return null;
+  if (fencedAt(text)) throw new Error(`Comment ${comment.id} has an unclosed code fence; close it before triage. Intake remains intact.`);
   const labelsOutsideFences = [...text.matchAll(/^(?:\*\*)?(Problem|Session|Skill and section|What happened|Proposed edit)(?:\*\*)?:(?:\*\*)?\s*/gm)].filter(field => !fencedAt(text, field.index));
-  if (['Problem', 'Session'].includes(labelsOutsideFences[0]?.[1])) {
+  const paired = ['Problem', 'Session'].every(name => labelsOutsideFences.some(field => field[1] === name));
+  const explicitProblem = labelsOutsideFences.some(field => field[1] === 'Problem' && /^(?:new|F-[1-9]\d*)\s*(?:\n|$)/.test(text.slice(field.index + field[0].length)));
+  if (paired || explicitProblem || ['Problem', 'Session'].includes(labelsOutsideFences[0]?.[1])) {
     const labels = labelsOutsideFences;
     if (labels.map(field => field[1]).join('|') !== 'Problem|Session|Skill and section|What happened|Proposed edit') throw new Error(`Comment ${comment.id} needs Problem, Session, Skill and section, What happened, Proposed edit in that order.`);
     const values = labels.map((field, i) => text.slice(field.index + field[0].length, labels[i + 1]?.index ?? text.length).trim());
@@ -183,7 +203,7 @@ export function fold(body, comments, references = { prs: {}, issues: {} }, saved
       else if (!/^<!-- skill-feedback-archive(?:-index)?:/.test(clean(comment.body))) skipped.push({ id: comment.id, body: comment.body, reason: 'Marker-prefixed comment; inspect whether it is a triage summary or discussion. Left intact.' });
     } catch (error) { ignored.push({ id: comment.id, body: comment.body, reason: error.message }); }
   }
-  const historical = new Set(rows.filter(row => !row.problemId).map(row => keyOf(row.skill)));
+  const historical = historicalTargets(body, rows);
   for (const row of rows) if (row.problemId && historical.has(keyOf(row.skill))) row.historyIncomplete = true;
   return { rows, folded, ignored, skipped };
 }
@@ -228,7 +248,8 @@ export async function readPlan(api) {
   const body = (await api.inbox()).body;
   requireClosedFences(body);
   const comments = await api.comments();
-  const ledger = hydrateReports(body, comments, fencedAt);
+  const archive = inspectReportsArchive(body, comments, fencedAt);
+  const ledger = archive.problems;
   refusePendingFoldedIntake(body, comments);
   const references = { prs: {}, issues: {} };
   for (const row of fold(body, comments, undefined, ledger).rows) for (const status of [row.status, row.previousStatus]) {
@@ -240,7 +261,22 @@ export async function readPlan(api) {
     const item = await (kind === 'ticketed' ? api.issue(Number(number)) : api.pr(Number(number)));
     bucket[number] = kind === 'ticketed' ? { state: item.state } : { state: item.state, merged_at: item.merged_at };
   }
-  return makePlan(body, comments, references, ledger);
+  return { ...makePlan(body, comments, references, ledger), archive: { index: archive.index, chunks: archive.chunks, superseded: archive.superseded } };
+}
+
+export async function lookupReports(api, problemId) {
+  const body = (await api.inbox()).body;
+  const comments = await api.comments();
+  const archive = inspectReportsArchive(body, comments, fencedAt);
+  if (problemId && !Object.hasOwn(archive.problems, problemId)) throw new Error(`Unknown archived problem ${problemId}; inspect pending intake or run reports without an ID.`);
+  const pending = comments.flatMap(comment => {
+    let reason;
+    try { if (!parseIntake(comment)) return []; } catch (error) { reason = error.message; }
+    if (problemId && !comment.body.includes(problemId)) return [];
+    return [{ id: comment.id, html_url: comment.html_url, body: problemId ? comment.body : Array.from(comment.body).slice(0, 1200).join(''), ...(comment.body.length > 1200 && !problemId ? { truncated: true } : {}), ...(reason ? { reason } : {}) }];
+  });
+  const reports = problemId ? [archive.problems[problemId]] : Object.values(archive.problems).map(row => ({ problemId: row.problemId, skill: row.skill, status: row.status, reports: row.sessions.length, historyIncomplete: row.historyIncomplete, friction: reportExcerpt(row.friction), edit: reportExcerpt(row.edit) }));
+  return { reports, pending, archive: { index: archive.index, chunks: archive.chunks, superseded: archive.superseded } };
 }
 
 function description(rows) {
@@ -269,6 +305,11 @@ export function preview(plan) {
     const rows = plan.rows.filter(row => group.keys.includes(rowKey(row)));
     return { ...group, body: ['ticket', 'existing'].includes(group.action) ? (group.action === 'existing' ? evidenceBody : ticketBody)(rows, groupMarker(rows), group.context) : undefined };
   });
+}
+
+function summaryText(plan, marker, rows, filed, applied, removed, observations = '') {
+  const history = [...historicalTargets(plan.body, rows)];
+  return `${marker}\nFolded ${plan.comments.length} intake comments (${plan.comments.map(c => c.id).join(', ') || 'none'}); filed or linked ${filed.join(', ') || 'none'}; applied ${applied.join(', ') || 'none'}; removed ${removed.map(literalDisplay).join('; ') || 'none'}; left unparsed comments ${(plan.ignored || []).map(c => c.id).join(', ') || 'none'} intact (reasons in the plan); left marker-prefixed comments ${(plan.skipped || []).map(c => c.id).join(', ') || 'none'} intact (inspect skipped IDs and bodies in the plan).${rows.some(row => row.status === 'open') ? ` Deferred: ${rows.filter(row => row.status === 'open').map(row => `${literalDisplay(rowKey(row))} (${reportCount(row)})`).join('; ')}.` : ''}${observations ? `\n\nApplied unclassified observations: ${literalDisplay(observations)}` : ''}${history.length ? `\n<!-- skill-feedback-history:v1 ${Buffer.from(JSON.stringify(history)).toString('base64')} -->` : ''}`;
 }
 
 // The adapter makes persistence ordering testable without touching GitHub.
@@ -309,10 +350,32 @@ export async function applyPlan(plan, api) {
     const expected = makePlan(plan.body, plan.comments, plan.references, liveLedger).rows;
     if (JSON.stringify(plan.rows) !== JSON.stringify(expected)) throw new Error('Plan rows differ from the current parser; keep the original plan for recovery and inspect any earlier tickets before creating a fresh plan with existing decisions.');
     const rows = expected.map(row => ({ ...row }));
-    const projected = { ...liveLedger, ...Object.fromEntries(canonicalRows(rows).filter(row => row.problemId).map(row => [row.problemId, row])) };
+    const projectedRows = structuredClone(rows);
+    const projectedFiled = [], projectedApplied = [];
+    const appliedLegacy = [];
+    for (const group of plan.groups) {
+      const grouped = projectedRows.filter(row => group.keys.includes(rowKey(row)));
+      if (group.action === 'defer') {
+        for (const row of grouped) { const prior = referenceContext([row], ''); if (prior && !row.friction.includes(prior)) row.friction += `\n\n${prior}`; }
+      } else {
+        const number = group.action === 'ticket' ? Number.MAX_SAFE_INTEGER : group.number;
+        if (group.action === 'applied') {
+          const prior = referenceContext(grouped, '');
+          projectedApplied.push(`#${number}${prior ? ` (${literalDisplay(prior)})` : ''}`);
+          appliedLegacy.push(...grouped.filter(row => !row.problemId));
+        } else projectedFiled.push(`#${number}${group.action === 'existing' ? ' (existing)' : ''}`);
+        for (const row of grouped) row.status = group.action === 'applied' ? `applied in PR #${number}` : `ticketed #${number}`;
+      }
+    }
+    const projected = { ...liveLedger, ...Object.fromEntries(canonicalRows(projectedRows).filter(row => row.problemId).map(row => [row.problemId, row])) };
     prepareReports(projected);
-    const projectedBody = renderTable(stripSummaryBlocks(plan.body), rows, rows, liveLedger, true);
-    if (projectedBody.length + 5000 > 50000) throw new Error('Inbox table needs consolidation before applying; its projected body exceeds the supported 50,000-character budget. No tickets or intake were changed.');
+    const projectedVisible = projectedRows.filter(row => { const number = row.status.match(/#(\d+)/)?.[1]; return !(row.status.startsWith('ticketed') && plan.references?.issues[number]?.state === 'closed') && !(row.status.startsWith('applied') && plan.references?.prs[number]?.merged_at); });
+    const projectedBody = renderTable(stripSummaryBlocks(plan.body), projectedVisible, projectedRows, liveLedger, true);
+    parseTable(Buffer.from(projectedBody, 'utf8').toString('utf8'), projected);
+    const projectedSummary = summaryText(plan, marker, projectedRows, projectedFiled, projectedApplied, projectedRows.map(row => row.problemId ? `${row.problemId} (${row.skill})` : row.skill), description(appliedLegacy));
+    // Count every possible removal as an upper bound; actual Task numbers are no longer than MAX_SAFE_INTEGER.
+    // 512 covers the compact archive pointer and integrity marker, independently of report/comment counts.
+    if (projectedBody.length + projectedSummary.length + 512 > 50000) throw new Error('Inbox table needs consolidation before applying; its projected body exceeds the supported 50,000-character budget. No tickets or intake were changed.');
     const filed = [], applied = [], removed = [];
     const allIssues = await api.issues();
     for (const group of plan.groups) {
@@ -363,7 +426,7 @@ export async function applyPlan(plan, api) {
         if (parseTable(plan.body, liveLedger).rows.some(previous => rowKey(previous) === rowKey(row)) || plan.groups.some(group => group.action !== 'defer' && group.keys.includes(rowKey(row)))) removed.push(row.problemId ? `${row.problemId} (${row.skill})` : row.skill);
       } else remaining.push(row);
     }
-    summary = `${marker}\nFolded ${plan.comments.length} intake comments (${plan.comments.map(c => c.id).join(', ') || 'none'}); filed or linked ${filed.join(', ') || 'none'}; applied ${applied.join(', ') || 'none'}; removed ${removed.map(literalDisplay).join('; ') || 'none'}; left unparsed comments ${(plan.ignored || []).map(c => c.id).join(', ') || 'none'} intact (reasons in the plan); left marker-prefixed comments ${(plan.skipped || []).map(c => c.id).join(', ') || 'none'} intact (inspect skipped IDs and bodies in the plan).${rows.some(row => row.status === 'open') ? ` Deferred: ${rows.filter(row => row.status === 'open').map(row => `${literalDisplay(rowKey(row))} (${reportCount(row)})`).join('; ')}.` : ''}`;
+    summary = summaryText(plan, marker, rows, filed, applied, removed, description(appliedLegacy));
     const prior = stripSummaryBlocks(plan.body).trimEnd();
     const ledger = { ...liveLedger, ...Object.fromEntries(canonicalRows(rows).filter(row => row.problemId).map(row => [row.problemId, row])) };
     const rendered = renderTable(prior, remaining, rows, liveLedger, true);
@@ -421,14 +484,12 @@ function github(scratch) {
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   try {
     const [command, file, ...extra] = process.argv.slice(2);
-    if (command === 'reports' && !file) {
-      const api = github(dirname(fileURLToPath(import.meta.url)));
-      const inbox = await api.inbox();
-      const comments = await api.comments();
-      const ledger = hydrateReports(inbox.body, comments, fencedAt);
-      console.log(JSON.stringify({ reports: Object.values(ledger), pending: comments.filter(comment => { try { return Boolean(parseIntake(comment)); } catch { return false; } }) }, null, 2));
+    const usage = 'Usage: node triage-skill-feedback.mjs reports [F-id] | plan|preview|apply <absolute-plan.json>';
+    if (command === 'reports') {
+      if (extra.length || (file && !/^F-[1-9]\d*$/.test(file))) throw new Error(usage);
+      console.log(JSON.stringify(await lookupReports(github(tmpdir()), file), null, 2));
     } else {
-    if (!['plan', 'preview', 'apply'].includes(command) || !file || extra.length) throw new Error('Usage: node triage-skill-feedback.mjs plan|preview|apply <absolute-plan.json>');
+    if (!['plan', 'preview', 'apply'].includes(command) || !file || extra.length) throw new Error(usage);
     if (!/^(?:[A-Za-z]:[\\/]|\/)/.test(file)) throw new Error('Use an absolute plan path outside the checkout.');
     const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../../..');
     const within = relative(repoRoot, resolve(file));

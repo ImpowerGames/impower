@@ -1152,4 +1152,130 @@ await test('oversized inbox refuses before filing and old count-plan versions re
   await assert.rejects(applyPlan({ ...plan, version: 2 }, api), /Wrong plan version/);
 });
 
+await test('counted Unicode excerpts survive UTF-8 body persistence and the next plan', async () => {
+  const detail = 'a'.repeat(299) + '😀' + 'b'.repeat(400);
+  const { state, api } = fixture([reported(20, 'codex:alpha', 'new', detail)]);
+  state.body = renderTable(body, []);
+  const update = api.updateBody;
+  api.updateBody = text => update(Buffer.from(text, 'utf8').toString('utf8'));
+  await applyPlan(await readPlan(api), api);
+  const next = await readPlan(api);
+  assert.equal(next.rows[0].friction, detail);
+  assert.ok(state.body.includes('😀'));
+  assert.ok(!state.body.includes('\uFFFD'));
+  assert.ok(!state.comments.some(comment => comment.id === 20));
+});
+
+await test('misordered paired report labels remain ignored and intact without changing the counted problem', async () => {
+  const { state, api } = fixture([reported(20, 'codex:alpha')]);
+  state.body = renderTable(body, []);
+  await applyPlan(await readPlan(api), api);
+  const malformed = { id: 21, body: 'Skill and section: review-pr, section 3\n\nWhat happened: Repeat friction\n\nProposed edit: Preserve it.\n\nProblem: F-20\n\nSession: claude:beta' };
+  state.comments.push(malformed);
+  const next = await readPlan(api);
+  assert.deepEqual(next.ignored.map(comment => comment.id), [21]);
+  assert.match(next.ignored[0].reason, /order|contract|labels/i);
+  assert.equal(next.comments.length, 0);
+  assert.equal(next.rows.length, 1);
+  await applyPlan(next, api);
+  assert.deepEqual(state.comments.find(comment => comment.id === 21), malformed);
+  assert.deepEqual((await readPlan(api)).rows[0].sessions, ['codex:alpha']);
+  assert.equal(state.issues.length, 0);
+});
+
+await test('read-only reports lookup exposes invalid pending bodies and reasons without reference reads or writes', async () => {
+  const { lookupReports } = await import('./triage-skill-feedback.mjs');
+  assert.equal(typeof lookupReports, 'function', 'new read-only lookup interface');
+  const valid = reported(20, 'codex:alpha');
+  const invalid = { id: 21, body: reported(21, 'codex:alpha').body.replace('Proposed edit:', 'Proposed change:') };
+  const discussion = { id: 22, body: 'Question about this inbox.' };
+  const storage = { id: 23, body: '<!-- skill-feedback-archive:v1 fixture -->' };
+  const summary = { id: 24, body: '<!-- skill-feedback-triage:fixture -->' };
+  const calls = [];
+  const result = await lookupReports({ inbox: async () => { calls.push('inbox'); return { body: renderTable(body, []) }; }, comments: async () => { calls.push('comments'); return [valid, invalid, discussion, storage, summary]; } });
+  assert.deepEqual(calls.sort(), ['comments', 'inbox']);
+  assert.deepEqual(result.pending.map(comment => comment.id), [20, 21, 22]);
+  assert.equal(result.pending.find(comment => comment.id === 21).body, invalid.body);
+  assert.match(result.pending.find(comment => comment.id === 21).reason, /order|contract|labels/i);
+  assert.equal(result.pending.find(comment => comment.id === 22).body, discussion.body);
+  assert.deepEqual(result.reports, []);
+});
+
+await test('CR CR LF field text round-trips through counted table cells without losing archive identity', async () => {
+  const { state, api } = fixture([reported(20, 'codex:alpha', 'new', 'first line\r\r\nsecond line')]);
+  state.body = renderTable(body, []);
+  const plan = await readPlan(api);
+  assert.equal(plan.rows[0].friction, 'first line\r\nsecond line');
+  await applyPlan(plan, api);
+  assert.equal((await readPlan(api)).rows[0].friction, plan.rows[0].friction);
+});
+await test('summary size is included before any Task or archive write', async () => {
+  const { state, api } = fixture([reported(20, 'codex:alpha')]);
+  state.body = 'x'.repeat(42500) + renderTable(body, []);
+  for (let id = 1000000000; id < 1000000700; id++) state.comments.push({ id, body: 'Ordinary discussion.' });
+  const plan = await readPlan(api);
+  plan.groups = [{ action: 'ticket', title: 'Fix it', keys: ['F-20'] }];
+  await assert.rejects(applyPlan(plan, api), /projected body exceeds/);
+  assert.deepEqual(state.events, []);
+  assert.equal(state.issues.length, 0);
+});
+await test('retired historical targets retain uncertainty for the first later counted report', async () => {
+  const { state, api, plan } = fixture();
+  await applyPlan(plan, api);
+  state.issues[0].state = 'closed';
+  await applyPlan(await readPlan(api), api);
+  assert.equal(parseTable(state.body).rows.length, 0);
+  state.comments.push(reported(20, 'codex:alpha'));
+  assert.equal((await readPlan(api)).rows[0].historyIncomplete, true);
+  state.body = state.body.replace('skill-feedback-history:v1', 'skill-feedback-history:v9');
+  await assert.rejects(readPlan(api), /Malformed historical-target/);
+});
+await test('applied unclassified observations remain in the durable summary after retirement', async () => {
+  const { state, api, plan } = fixture([intake(55, 'write-regression-test, section 3', 'Unique retained observation')]);
+  plan.groups = plan.groups.map(group => ({ action: 'applied', number: 503, keys: group.keys }));
+  const result = await applyPlan(plan, api);
+  assert.match(result.summary, /Unique retained observation/);
+  assert.ok(state.body.includes('Unique retained observation'));
+  assert.ok(!state.comments.some(comment => comment.id === 55));
+});
+await test('history drift and archive corruption during body write preserve intake', async () => {
+  for (const mode of ['plan', 'write']) {
+    const { state, api } = fixture([reported(20, 'codex:alpha')]);
+    state.body = renderTable(body, []);
+    await applyPlan(await readPlan(api), api);
+    state.comments.push(reported(21, 'claude:beta', 'F-20'));
+    const plan = await readPlan(api);
+    if (mode === 'plan') plan.reportHistory['F-20'].sessions.push('invented:session');
+    else {
+      const update = api.updateBody;
+      api.updateBody = async text => { await update(text); state.comments.findLast(comment => comment.body.startsWith('<!-- skill-feedback-archive:')).body += ' corrupt'; };
+    }
+    await assert.rejects(applyPlan(plan, api), mode === 'plan' ? /history changed/ : /hash or exact body/);
+    assert.ok(state.comments.some(comment => comment.id === 21));
+  }
+});
+await test('lookup excerpts can expand one ID and disclose current and superseded archives', async () => {
+  const { lookupReports } = await import('./triage-skill-feedback.mjs');
+  const detail = 'z'.repeat(1500);
+  const { state, api } = fixture([reported(20, 'codex:alpha', 'new', detail)]);
+  state.body = renderTable(body, []);
+  await applyPlan(await readPlan(api), api);
+  state.comments.push(reported(21, 'claude:beta', 'F-20'));
+  await applyPlan(await readPlan(api), api);
+  const list = await lookupReports(api);
+  assert.ok(list.reports[0].friction.length < 400);
+  assert.equal(list.reports[0].reports, 2);
+  const full = await lookupReports(api, 'F-20');
+  assert.ok(full.reports[0].friction.startsWith(detail));
+  assert.deepEqual(full.reports[0].sessions, ['codex:alpha', 'claude:beta']);
+  assert.ok(full.archive.index);
+  assert.ok(full.archive.chunks.length);
+  assert.ok(full.archive.superseded.length);
+  const plan = await readPlan(api);
+  assert.ok(!plan.skipped.some(comment => /^<!-- skill-feedback-archive/.test(comment.body)));
+});
+await test('unclosed intake fences give a fence-specific refusal', () => {
+  assert.throws(() => parseIntake({ id: 20, body: '```text\n' + reported(20, 'codex:alpha').body }), /unclosed code fence/);
+});
+
 console.log(`All ${passed} triage checks passed.`);

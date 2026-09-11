@@ -100,5 +100,65 @@ test('tampered index and index-post interruption refuse or recover', async () =>
   assert.throws(() => hydrateReports(body, f.state.comments), /index.*hash or exact/);
   await assert.rejects(persistReports('inbox', ledger(), f.api), /index collision/);
 });
+for (const position of [0, 1]) test(`quoted ${position === 0 ? 'chunk' : 'index'} marker remains intact and does not collide with recovery`, async () => {
+  const f = fixture(); const body = await persistReports('inbox', ledger(), f.api);
+  const quotes = [{ id: 800, body: `Please inspect this quoted marker:\n\n${f.state.comments[position].body.split('\n')[0]}` }];
+  f.state.comments.push(...quotes);
+  assert.equal(await persistReports(body, ledger(), f.api), body);
+  assert.deepEqual(f.state.comments.slice(-1), quotes);
+  assert.equal(f.state.posted, 2);
+});
+test('actual duplicate chunk and index starts still refuse', async () => {
+  for (const position of [0, 1]) {
+    const f = fixture(); const body = await persistReports('inbox', ledger(), f.api);
+    f.state.comments.push({ ...f.state.comments[position], id: 900 });
+    await assert.rejects(persistReports(body, ledger(), f.api), /Multiple reports archive|index collision/);
+    assert.equal(f.state.posted, 2);
+  }
+});
+test('index header hash tampering with unchanged valid JSON fails exact-body verification', async () => {
+  const f = fixture(); const body = await persistReports('inbox', ledger(), f.api);
+  const original = f.state.comments[1].body;
+  f.state.comments[1].body = original.replace(/(?<=archive-index:v1 )[a-f0-9]{64}/, '0'.repeat(64));
+  assert.notEqual(f.state.comments[1].body, original);
+  assert.equal(f.state.comments[1].body.slice(f.state.comments[1].body.indexOf('\n')), original.slice(original.indexOf('\n')));
+  assert.throws(() => hydrateReports(body, f.state.comments), /index.*hash or exact/);
+});
+test('archive inspection distinguishes current references and retained superseded versions', async () => {
+  const { inspectReportsArchive } = await import('./feedback-archive.mjs');
+  assert.equal(typeof inspectReportsArchive, 'function', 'new archive metadata interface');
+  const f = fixture(); const original = await persistReports('inbox', ledger(), f.api);
+  const changed = ledger(); changed['F-123'].sessions.push('new-session');
+  const updated = await persistReports(original, changed, f.api);
+  f.state.comments.push({ id: 800, body: 'Quoted marker:\n' + f.state.comments[0].body });
+  assert.deepEqual(inspectReportsArchive(updated, f.state.comments), { index: 103, chunks: [102], superseded: [100, 101], problems: changed });
+  assert.deepEqual(hydrateReports(original, f.state.comments), ledger());
+  assert.deepEqual(inspectReportsArchive('legacy body', []), { index: null, chunks: [], superseded: [], problems: {} });
+  const inline = writeReports('legacy body', ledger());
+  assert.deepEqual(inspectReportsArchive(inline, []), { index: null, chunks: [], superseded: [], problems: ledger() });
+  const json = f.state.comments[3].body.match(/```json\n([\s\S]*)\n```$/)[1];
+  const v2 = `<!-- skill-feedback-reports:v2 ${Buffer.from(json).toString('base64')} -->`;
+  assert.deepEqual(inspectReportsArchive(v2, f.state.comments), { index: null, chunks: [102], superseded: [100, 101, 103], problems: changed });
+});
+test('chunk and index CRLF API readback verifies and retries reuse both comments', async () => {
+  const f = fixture(); const post = f.api.postComment;
+  f.api.postComment = text => post(text.replace(/\n/g, '\r\n'));
+  const data = ledger(); data['F-123'].friction = 'Literal first\r\nsecond\nthird';
+  const body = await persistReports('inbox', data, f.api);
+  assert.ok(f.state.comments.every(comment => comment.body.includes('\r\n')));
+  assert.deepEqual(hydrateReports(body, f.state.comments), data);
+  assert.equal(await persistReports(body, data, f.api), body);
+  assert.equal(f.state.posted, 2);
+});
+test('human CRLF formatting preserves hydration while changed payload still refuses', async () => {
+  const f = fixture(); const body = await persistReports('inbox', ledger(), f.api);
+  for (const comment of f.state.comments) comment.body = comment.body.replace(/\n/g, '\r\n');
+  assert.deepEqual(hydrateReports(body, f.state.comments), ledger());
+  assert.equal(await persistReports(body, ledger(), f.api), body);
+  f.state.comments[0].body = f.state.comments[0].body.replace('Observed trap', 'Changed trap');
+  assert.throws(() => hydrateReports(body, f.state.comments), /hash or exact/);
+  await assert.rejects(persistReports(body, ledger(), f.api), /hash or exact/);
+  assert.equal(f.state.posted, 2);
+});
 for (const [name, fn] of cases) { await fn(); console.log(`PASS ${name}`); }
 console.log(`${cases.length} archive checks passed.`);
