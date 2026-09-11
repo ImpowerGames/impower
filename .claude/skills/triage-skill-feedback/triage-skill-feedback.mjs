@@ -12,7 +12,8 @@ const CELL = '<!-- skill-feedback-cell:v2 -->';
 const decode = value => value.startsWith(CELL)
   ? value.slice(CELL.length).replace(/<br>/g, '\n').replace(/&(?:amp|lt|gt|#\d+);/g, entity => ({ '&amp;': '&', '&lt;': '<', '&gt;': '>' })[entity] ?? String.fromCodePoint(Number(entity.slice(2, -1))))
   : value.replace(/<br\s*\/?>/gi, '\n').replace(/&#124;/g, '|');
-const encode = value => CELL + value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/[\\`*_\[\]~|]/g, char => `&#${char.codePointAt(0)};`).replace(/\r?\n/g, '<br>');
+const literalDisplay = value => value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/[\\`*_\[\]~|]/g, char => `&#${char.codePointAt(0)};`).replace(/\r?\n/g, '<br>');
+const encode = value => CELL + literalDisplay(value);
 const statusPattern = /^(open|ticketed #\d+|applied in PR #\d+)$/;
 const canonicalRows = rows => rows.map(({ skill, friction, edit, status }) => ({ skill, friction, edit, status }));
 const groupMarker = rows => `Feedback group: ${hash(JSON.stringify(canonicalRows(rows)))}`;
@@ -27,6 +28,20 @@ function fencedAt(body, offset = body.length) {
     } else if (match[1][0] === fence[0] && match[1].length >= fence.length && !match[2].trim()) fence = undefined;
   }
   return Boolean(fence);
+}
+
+function requireClosedFences(body) {
+  if (fencedAt(body)) throw new Error('Triage requires closed code fences in the inbox body; close the unfinished fence before planning. Its contents remain untouched.');
+}
+
+function refusePendingFoldedIntake(body, comments) {
+  const normalized = body.replace(/\r\n/g, '\n');
+  const pending = new Set(comments.map(comment => String(comment.id)));
+  for (const match of normalized.matchAll(/^<!-- skill-feedback-triage:[a-f0-9]{20} -->\nFolded \d+ intake comments \(([^)]*)\);/gm)) {
+    if (fencedAt(normalized, match.index)) continue;
+    const folded = match[1].split(',').map(id => id.trim()).filter(id => /^\d+$/.test(id) && pending.has(id));
+    if (folded.length) throw new Error(`Intake ${folded.join(', ')} is already recorded as folded but remains live. Preserve the original plan and saved body artifacts; reconcile the interrupted cleanup before making a fresh plan. No intake was folded or deleted.`);
+  }
 }
 
 function stripSummaryBlocks(body) {
@@ -77,7 +92,12 @@ export function parseIntake(comment) {
   const text = clean(comment.body);
   if (text.startsWith('<!-- skill-feedback-triage:')) return null;
   const fields = [...text.matchAll(/^(?:\*\*)?(Skill and section|What happened|Proposed edit)(?:\*\*)?:(?:\*\*)?\s*/gm)];
-  if (fields.length !== 3 || fields.map(f => f[1]).join('|') !== 'Skill and section|What happened|Proposed edit') throw new Error(`Comment ${comment.id} does not match the inbox intake contract: found ${new Set(fields.map(f => f[1])).size} of 3 recognized labels (${fields.map(f => f[1]).join(', ') || 'none'}), in that order. Leave it intact; inspect incomplete or misordered intake and distinguish ordinary discussion.`);
+  if (fields.length !== 3 || fields.map(f => f[1]).join('|') !== 'Skill and section|What happened|Proposed edit') {
+    const names = fields.map(field => field[1]);
+    const distinct = [...new Set(names)];
+    const repeated = distinct.filter(name => names.filter(value => value === name).length > 1);
+    throw new Error(`Comment ${comment.id} does not match the inbox intake contract: found ${distinct.length} of 3 distinct required labels across ${names.length} occurrences (${names.join(', ') || 'none'}), listed in the order found; repeated labels: ${repeated.join(', ') || 'none'}. Leave it intact; inspect incomplete, repeated or misordered intake and distinguish ordinary discussion.`);
+  }
   const values = fields.map((field, i) => text.slice(field.index + field[0].length, fields[i + 1]?.index ?? text.length).trim());
   if (values.some(v => !v)) throw new Error(`Comment ${comment.id} has an empty intake field.`);
   return { skill: values[0], friction: values[1], edit: values[2], status: 'open' };
@@ -90,7 +110,7 @@ export function fold(body, comments, references = { prs: {}, issues: {} }) {
     const key = keyOf(row.skill);
     const previous = byKey.get(key);
     if (!previous) { const copy = { ...row }; rows.push(copy); byKey.set(key, copy); return; }
-    if (previous.status !== row.status && (!id || row.status !== 'open')) throw new Error(`Conflicting statuses for ${row.skill}; resolve the table first.`);
+    if (previous.status !== row.status && (!id || row.status !== 'open')) throw new Error(`Conflicting statuses for ${JSON.stringify(previous.skill)} and ${JSON.stringify(row.skill)} at normalized key ${JSON.stringify(key)}; resolve the table first.`);
     if (id && previous.status !== 'open') {
       previous.previousStatus = previous.status;
       const prefix = `Earlier feedback (${previous.status}; context only):\n`;
@@ -121,17 +141,19 @@ export function fold(body, comments, references = { prs: {}, issues: {} }) {
 }
 
 export function makePlan(body, comments, references = { prs: {}, issues: {} }) {
-  if (fencedAt(body)) throw new Error('Triage requires closed code fences in the inbox body; close the unfinished fence before planning. Its contents remain untouched.');
+  requireClosedFences(body);
+  refusePendingFoldedIntake(body, comments);
   const { rows, folded, ignored, skipped } = fold(body, comments, references);
   for (const row of rows) {
     const previous = row.previousStatus || row.status;
+    const previousTicket = row.previousStatus?.match(/^ticketed #(\d+)$/)?.[1];
+    if (previousTicket && references.issues[previousTicket]?.state === 'closed') row.previousTicketClosed = true;
     if (!previous.startsWith('applied in PR #')) continue;
     const number = previous.match(/#(\d+)/)[1];
     const pr = references.prs[number];
     if (pr?.state === 'closed' && !pr.merged_at) {
       row.previousStatus = previous;
       row.previousUnmerged = true;
-      row.edit += `\nEarlier item: ${previous}; the pull request closed without merging; its proposal remains actionable.`;
       row.status = 'open';
     }
   }
@@ -142,18 +164,19 @@ export function makePlan(body, comments, references = { prs: {}, issues: {} }) {
     const existing = previousTicket && references.issues[previousTicket]?.state === 'open';
     const key = existing ? `existing:${previousTicket}` : `ticket:${skill}`;
     if (!groups.has(key)) groups.set(key, existing
-      ? { action: 'existing', number: Number(previousTicket), keys: [], context: `New feedback on #${previousTicket}.` }
+      ? { action: 'existing', number: Number(previousTicket), keys: [], context: '' }
       : { action: 'ticket', title: `Address ${skill} feedback from the skills inbox`, keys: [], context: '' });
     const group = groups.get(key);
     group.keys.push(keyOf(row.skill));
-    if (row.previousStatus && !existing) group.context += `${group.context ? '\n' : ''}Previous reference: ${row.previousStatus}${previousTicket && references.issues[previousTicket]?.state === 'closed' ? ' (closed; closure does not establish that the proposal shipped)' : row.previousUnmerged ? ' (closed without merging)' : ''}.`;
   }
   return { version: 1, repo: REPO, inbox: INBOX, body, comments: folded, ignored, skipped, references, rows, groups: [...groups.values()] };
 }
 
 export async function readPlan(api) {
   const body = (await api.inbox()).body;
+  requireClosedFences(body);
   const comments = await api.comments();
+  refusePendingFoldedIntake(body, comments);
   const references = { prs: {}, issues: {} };
   for (const row of fold(body, comments).rows) for (const status of [row.status, row.previousStatus]) {
     const match = status?.match(/^(ticketed|applied in PR) #(\d+)$/);
@@ -173,11 +196,18 @@ function description(rows) {
     : `${row.friction}\n\nProposed change: ${row.edit}`)).join('\n\n');
 }
 
+function referenceContext(rows, context) {
+  const references = rows.filter(row => row.previousStatus).map(row => `Previous reference for ${row.skill}: ${row.previousStatus}${row.previousUnmerged ? '; the pull request closed without merging; its proposal remains actionable' : row.previousTicketClosed ? ' (closed; closure does not establish that the proposal shipped)' : ''}.`);
+  return [...references, context].filter(Boolean).join('\n\n');
+}
+
 function evidenceBody(rows, marker, context = '') {
+  context = referenceContext(rows, context);
   return `## Feedback from #510\n\n${description(rows)}${context ? `\n\n## Additional context\n\n${context}` : ''}\n\n${marker}\n`;
 }
 
 function ticketBody(rows, marker, context = '') {
+  context = referenceContext(rows, context);
   return `## Description\n\n${description(rows)}\n\n## Motivation\n\nThese items were observed while following the repository skills and collected in #510.\n\n## Scope\n\nAddress the items above. Prefer a checked mechanism for preventable mistakes; confirm prose proposals against current code and instructions before applying them.\n\n## Acceptance criteria\n\n- [ ] Each item above is fixed or explicitly adjudicated.\n- [ ] Any mechanism has a failing-then-passing check and the standalone checks pass.\n- [ ] Skill text describes current behavior and the pull request lists applied feedback.\n\n## Additional context\n\nFiled by the hand-invoked triage-skill-feedback run for #510.${context ? `\n\n${context}` : ''}\n\n${marker}\n`;
 }
 
@@ -191,6 +221,7 @@ export function preview(plan) {
 // The adapter makes persistence ordering testable without touching GitHub.
 export async function applyPlan(plan, api) {
   if (plan.version !== 1 || plan.repo !== REPO || plan.inbox !== INBOX) throw new Error('Wrong plan version or inbox.');
+  if (plan.groups.some(group => !Array.isArray(group.keys) || group.keys.length === 0)) throw new Error('Every group needs at least one row key; remove empty split groups before applying.');
   const keys = plan.groups.flatMap(group => group.keys);
   const open = plan.rows.filter(row => row.status === 'open').map(row => keyOf(row.skill));
   if (keys.length !== new Set(keys).size || JSON.stringify([...keys].sort()) !== JSON.stringify([...open].sort())) throw new Error('Every open row must occur in exactly one group.');
@@ -212,6 +243,7 @@ export async function applyPlan(plan, api) {
     if (item.state !== saved.state || (kind === 'prs' && item.merged_at !== saved.merged_at)) throw new Error(`Referenced ${kind} #${number} changed since planning; read a fresh plan.`);
   }
   const currentComments = await api.comments();
+  if (!resumed) refusePendingFoldedIntake(current.body, currentComments);
   for (const comment of plan.comments) {
     const live = currentComments.find(c => c.id === comment.id);
     if ((!live && !resumed) || (live && live.body !== comment.body)) throw new Error(`Intake ${comment.id} changed since planning; nothing can be deleted from this plan.`);
@@ -261,7 +293,7 @@ export async function applyPlan(plan, api) {
       const done = row.status.startsWith('ticketed') ? (await api.issue(number)).state === 'closed' : row.status.startsWith('applied') ? Boolean((await api.pr(number)).merged_at) : false;
       if (done) removed.push(row.skill); else remaining.push(row);
     }
-    summary = `${marker}\nFolded ${plan.comments.length} intake comments (${plan.comments.map(c => c.id).join(', ') || 'none'}); filed or linked ${filed.join(', ') || 'none'}; applied ${applied.join(', ') || 'none'}; removed ${removed.join('; ') || 'none'}; left unparsed comments ${(plan.ignored || []).map(c => c.id).join(', ') || 'none'} intact (reasons in the plan); left marker-prefixed comments ${(plan.skipped || []).map(c => c.id).join(', ') || 'none'} intact (inspect skipped IDs and bodies in the plan).`;
+    summary = `${marker}\nFolded ${plan.comments.length} intake comments (${plan.comments.map(c => c.id).join(', ') || 'none'}); filed or linked ${filed.join(', ') || 'none'}; applied ${applied.join(', ') || 'none'}; removed ${removed.map(literalDisplay).join('; ') || 'none'}; left unparsed comments ${(plan.ignored || []).map(c => c.id).join(', ') || 'none'} intact (reasons in the plan); left marker-prefixed comments ${(plan.skipped || []).map(c => c.id).join(', ') || 'none'} intact (inspect skipped IDs and bodies in the plan).`;
     const prior = stripSummaryBlocks(plan.body).trimEnd();
     const content = `${renderTable(prior, remaining).trimEnd()}\n\n${summary}`;
     const updated = `${content}\n<!-- skill-feedback-state:${hash(content)} -->\n`;

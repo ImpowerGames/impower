@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { copyFileSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
@@ -52,7 +53,7 @@ await test('new feedback reopens an applied section instead of disappearing with
 });
 
 function fixture(comments = [intake(1)]) {
-  const state = { body, comments: structuredClone(comments), issues: [], references: new Map(), discussion: new Map(), bodyWrites: [], events: [], fail: null };
+  const state = { body, comments: structuredClone(comments), issues: [], references: new Map(), discussion: new Map(), bodyWrites: [], events: [], fail: null, nextSummaryId: 999 };
   const checkpoint = name => { state.events.push(name); if (state.fail === name) { state.fail = null; throw new Error(`interrupted ${name}`); } };
   const api = {
     inbox: async () => ({ body: state.body }), comments: async () => structuredClone(state.comments), issues: async () => structuredClone(state.issues),
@@ -67,7 +68,7 @@ function fixture(comments = [intake(1)]) {
     createTicket: async (title, text) => { const issue = { number: state.issues.length + 600, title, body: text, state: 'open', type: { name: 'Task' }, labels: [{ name: 'workflow: skills' }] }; state.issues.push(issue); checkpoint('created'); return issue; },
     updateBody: async text => { state.bodyWrites.push(text); state.body = text; checkpoint('persisted'); },
     deleteComment: async id => { checkpoint('delete'); state.comments = state.comments.filter(c => c.id !== id); },
-    postSummary: async text => { const comment = { id: 999 + state.comments.length, body: text, html_url: 'https://example.test/summary' }; state.comments.push(comment); checkpoint('summary'); return comment; },
+    postSummary: async text => { while (state.comments.some(comment => comment.id === state.nextSummaryId)) state.nextSummaryId++; const comment = { id: state.nextSummaryId++, body: text, html_url: 'https://example.test/summary' }; state.comments.push(comment); checkpoint('summary'); return comment; },
   };
   return { state, api, plan: makePlan(body, comments) };
 }
@@ -141,7 +142,11 @@ await test('multiline summary survives retry after a posted response is lost', a
   plan.groups[0] = { action: 'applied', number: 503, keys: plan.groups[0].keys };
   state.fail = 'summary';
   await assert.rejects(applyPlan(plan, api), /interrupted/);
-  const expected = state.comments[0].body;
+  const generated = state.comments[0].body;
+  const expected = generated.replace('removed review-pr,<br>section 3', 'removed review-pr,\nsection 3');
+  state.comments[0].body = expected;
+  const legacyContent = state.body.slice(0, state.body.lastIndexOf('\n<!-- skill-feedback-state:')).replace(generated, expected);
+  state.body = legacyContent + '\n<!-- skill-feedback-state:' + createHash('sha256').update(legacyContent).digest('hex').slice(0, 20) + ' -->\n';
   assert.match(expected, /removed review-pr,\nsection 3/);
   await applyPlan(plan, api);
   assert.equal(state.comments.length, 1);
@@ -202,7 +207,7 @@ await test('closed unmerged applied targets reject, and already parked rows reop
   const reopened = await readPlan(api);
   assert.equal(reopened.rows[0].status, 'open');
   assert.equal(reopened.rows[0].previousStatus, 'applied in PR #777');
-  assert.match(reopened.groups[0].context, /applied in PR #777/);
+  assert.match(preview(reopened)[0].body, /applied in PR #777/);
   await applyPlan(reopened, api);
   assert.equal(state.issues.length, 1);
   assert.match(state.issues[0].body, /pull request closed without merging/);
@@ -420,8 +425,8 @@ await test('ignored diagnostics disclose recognized labels without changing comm
   const comments = [{ id: 1, body: 'Thank you.\r\n' }, { id: 2, body: 'Skill and section: x\nWhat happened: y' }];
   const result = fold(body, comments);
   assert.deepEqual(result.ignored.map(comment => comment.body), comments.map(comment => comment.body));
-  assert.match(result.ignored[0].reason, /0 of 3 recognized labels \(none\)/);
-  assert.match(result.ignored[1].reason, /2 of 3 recognized labels \(Skill and section, What happened\)/);
+  assert.match(result.ignored[0].reason, /0 of 3 distinct required labels across 0 occurrences \(none\)/);
+  assert.match(result.ignored[1].reason, /2 of 3 distinct required labels across 2 occurrences \(Skill and section, What happened\)/);
   const wrongOrder = fold(body, [{ id: 3, body: 'Proposed edit: x\nWhat happened: y\nSkill and section: z' }]);
   assert.match(wrongOrder.ignored[0].reason, /Proposed edit, What happened, Skill and section/);
 });
@@ -604,10 +609,203 @@ await test('marker-prefixed human comments and summaries have explicit skipped-I
   const plan = await readPlan(api);
   assert.deepEqual(plan.skipped.map(comment => comment.id), [51, 52]);
   assert.deepEqual(plan.skipped.map(comment => comment.body), [human.body, summary.body]);
-  assert.ok(plan.skipped.every(comment => comment.reason.includes('inspect')));
+  assert.ok(plan.skipped.every(comment => /inspect whether it is a triage summary or discussion.*Left intact/.test(comment.reason)));
   await applyPlan(plan, api);
   assert.deepEqual(state.comments.slice(0, 2), [human, summary]);
   assert.match(state.comments[2].body, /left marker-prefixed comments 51, 52 intact/);
+});
+
+await test('duplicate intake labels disclose distinct counts, occurrence counts and repeated names', () => {
+  const cases = [
+    ['Skill and section: x\nWhat happened: y\nProposed edit: quoted\nProposed edit: actual', 3, 4, 'Proposed edit'],
+    ['Skill and section: x\nWhat happened: y\nProposed edit: z\nSkill and section: a\nWhat happened: b\nProposed edit: c', 3, 6, 'Skill and section, What happened, Proposed edit'],
+    ['Skill and section: x\nWhat happened: y\nSkill and section: a\nWhat happened: b', 2, 4, 'Skill and section, What happened'],
+  ];
+  for (const [text, distinct, occurrences, repeated] of cases) {
+    const { ignored } = fold(body, [{ id: 81, body: text }]);
+    assert.equal(ignored[0].body, text);
+    assert.ok(ignored[0].reason.includes(`${distinct} of 3 distinct required labels across ${occurrences} occurrences`));
+    assert.ok(ignored[0].reason.includes(`repeated labels: ${repeated}.`));
+  }
+});
+await test('unfinished fences above the canonical table give the same actionable planning refusal', async () => {
+  for (const opener of ['```text', '~~~text']) {
+    const { state, api } = fixture();
+    state.body = opener + '\nUnfinished example\n' + body;
+    const before = state.body;
+    await assert.rejects(readPlan(api), /requires closed code fences.*close the unfinished fence/);
+    assert.equal(state.body, before);
+    assert.equal(state.comments[0].id, 1);
+  }
+});
+await test('changed-group fresh plans preserve new recurrence as separate evidence for operator inspection', async () => {
+  const { state, api } = fixture();
+  state.body = body.replace('| open |', '| ticketed #601 |');
+  state.references.set(601, { number: 601, state: 'open', type: { name: 'Task' }, labels: [{ name: 'workflow: skills' }] });
+  const original = await readPlan(api);
+  state.fail = 'evidence';
+  await assert.rejects(applyPlan(original, api), /interrupted evidence/);
+  const first = state.discussion.get(601)[0].body;
+  state.body += '\nNew maintainer note.\n';
+  state.comments.push(intake(9, 'review-pr, section 3', 'Later recurrence'));
+  const fresh = await readPlan(api);
+  assert.notDeepEqual(fresh.rows, original.rows);
+  assert.notEqual(preview(fresh)[0].body, first);
+  await applyPlan(fresh, api);
+  const evidence = state.discussion.get(601);
+  assert.equal(evidence.length, 2);
+  assert.equal(evidence[0].body, first);
+  assert.match(evidence[1].body, /Later recurrence/);
+  assert.match(evidence[1].body, /Intake #1:/);
+  assert.match(evidence[1].body, /Intake #9:/);
+});
+
+await test('folded-but-live intake refuses fresh planning after body drift including a first new row', async () => {
+  for (const empty of [false, true]) for (const crlf of [false, true]) {
+    const { state, api } = fixture();
+    if (empty) state.body = renderTable(body, []);
+    const original = await readPlan(api);
+    state.fail = 'persisted';
+    await assert.rejects(applyPlan(original, api), /interrupted persisted/);
+    state.body += '\nMaintainer note after the persisted write.\n';
+    if (crlf) state.body = state.body.replace(/\r?\n/g, '\r\n');
+    const savedBody = state.body;
+    const savedEvents = [...state.events];
+    await assert.rejects(applyPlan(original, api), /Persisted inbox changed/);
+    await assert.rejects(readPlan(api), /Intake 1 is already recorded as folded.*original plan and saved body artifacts/);
+    const forgedFresh = structuredClone(original);
+    forgedFresh.body = state.body;
+    await assert.rejects(applyPlan(forgedFresh, api), /already recorded as folded/);
+    assert.equal(state.body, savedBody);
+    assert.deepEqual(state.events, savedEvents);
+    assert.equal(state.bodyWrites.length, 1);
+    assert.equal(state.issues.length, 1);
+    assert.equal(state.discussion.size, 0);
+    assert.equal(state.comments[0].id, 1);
+  }
+});
+await test('original valid-body retry completes cleanup and completed edited bodies allow fresh plans', async () => {
+  const { state, api } = fixture();
+  const original = await readPlan(api);
+  state.fail = 'persisted';
+  await assert.rejects(applyPlan(original, api), /interrupted persisted/);
+  await applyPlan(original, api);
+  state.body += '\nOrdinary note after cleanup completed.\n';
+  await applyPlan(await readPlan(api), api);
+  assert.equal(state.issues.length, 1);
+  assert.equal(state.comments.some(comment => comment.id === 1), false);
+  assert.ok(state.body.includes('Ordinary note after cleanup completed.'));
+});
+await test('duplicate evidence markers identify both comments and refuse cleanup', async () => {
+  const { state, api } = fixture();
+  state.body = body.replace('| open |', '| ticketed #601 |');
+  state.references.set(601, { number: 601, state: 'open', type: { name: 'Task' }, labels: [{ name: 'workflow: skills' }] });
+  const plan = await readPlan(api);
+  state.fail = 'evidence';
+  await assert.rejects(applyPlan(plan, api), /interrupted evidence/);
+  const discussion = state.discussion.get(601);
+  discussion.push({ ...discussion[0], id: 801 });
+  await assert.rejects(applyPlan(plan, api), /Multiple existing-ticket evidence.*Task #601: #800, #801/);
+  assert.deepEqual(state.bodyWrites, []);
+  assert.equal(state.comments[0].id, 1);
+  assert.equal(discussion.length, 2);
+});
+await test('two summary cycles with pending intake receive distinct monotonically increasing IDs', async () => {
+  const { state, api } = fixture();
+  const first = await readPlan(api);
+  state.comments.push(intake(9, 'other, section 1', 'Arrived after planning'));
+  await applyPlan(first, api);
+  const firstSummary = state.comments.find(comment => comment.body.startsWith('<!-- skill-feedback-triage:'));
+  await applyPlan(await readPlan(api), api);
+  const summaries = state.comments.filter(comment => comment.body.startsWith('<!-- skill-feedback-triage:'));
+  assert.equal(summaries.length, 2);
+  assert.equal(new Set(summaries.map(comment => comment.id)).size, 2);
+  assert.ok(summaries[1].id > firstSummary.id);
+});
+
+await test('split groups retain prior references outside contributor proposal text', async () => {
+  const { state, api } = fixture([intake(9)]);
+  state.body = renderTable(body, [{ skill: 'review-pr, section 3', friction: 'Original observation', edit: 'Original proposal', status: 'applied in PR #503' }]);
+  api.pr = async number => ({ number, state: 'closed', merged_at: null });
+  const plan = await readPlan(api);
+  assert.equal(plan.rows[0].edit, 'Original proposal\n\nSeen again (intake #9):\nPreserve \\slashes and | pipes.');
+  plan.groups = [{ action: 'ticket', title: 'Split reviewed work', keys: [keyOf(plan.rows[0].skill)] }];
+  const proposed = preview(plan)[0].body;
+  const [description, additional] = proposed.split('## Additional context');
+  assert.match(description, /Original proposal/);
+  assert.match(description, /Seen again \(intake #9\)/);
+  assert.ok(!description.includes('Previous reference'));
+  assert.match(additional, /Previous reference for review-pr, section 3: applied in PR #503; the pull request closed without merging; its proposal remains actionable/);
+  await applyPlan(plan, api);
+  assert.equal(state.issues[0].body, proposed);
+});
+await test('fenced folded-ID examples do not block real pending intake', async () => {
+  const { state, api } = fixture();
+  const example = '\n```text\n<!-- skill-feedback-triage:00000000000000000000 -->\nFolded 1 intake comments (1); example only\n```\n';
+  state.body += example;
+  await applyPlan(await readPlan(api), api);
+  assert.ok(state.body.includes(example));
+  assert.equal(state.comments.some(comment => comment.id === 1), false);
+});
+
+await test('removed names render literally without injecting summary fences or state markers', async () => {
+  const { state, api } = fixture([]);
+  const skill = 'review-pr, section 3\n```sh\nnode check.mjs\n```\n<!-- skill-feedback-state:00000000000000000000 -->';
+  state.body = renderTable(body, [{ skill, friction: 'f', edit: 'e', status: 'open' }]);
+  const plan = await readPlan(api);
+  plan.groups = [{ action: 'applied', number: 503, keys: [keyOf(skill)] }];
+  await applyPlan(plan, api);
+  const summary = state.comments[0].body;
+  assert.ok(!summary.includes('```'));
+  assert.ok(!summary.includes('<!-- skill-feedback-state:'));
+  assert.match(summary, /removed review-pr, section 3<br>&#96;&#96;&#96;sh<br>node check\.mjs/);
+  const removed = summary.split('; removed ')[1].split('; left unparsed comments')[0];
+  const decoded = removed.replace(/<br>/g, '\n').replace(/&(?:amp|lt|gt|#\d+);/g, entity => ({ '&amp;': '&', '&lt;': '<', '&gt;': '>' })[entity] ?? String.fromCodePoint(Number(entity.slice(2, -1))));
+  assert.equal(decoded, skill);
+  await applyPlan(await readPlan(api), api);
+  assert.equal((state.body.match(/<!-- skill-feedback-state:/g) || []).length, 1);
+});
+await test('empty split groups refuse before filing an empty Task', async () => {
+  const { state, api, plan } = fixture();
+  plan.groups.unshift({ action: 'ticket', title: 'Empty split', keys: [] });
+  await assert.rejects(applyPlan(plan, api), /at least one row key.*remove empty split groups/);
+  assert.equal(state.issues.length, 0);
+  assert.deepEqual(state.bodyWrites, []);
+  assert.deepEqual(state.events, []);
+});
+await test('normalization conflicts name both display names and the shared key', () => {
+  const first = { skill: 'CLAUDE.md, section 3', friction: 'f', edit: 'e', status: 'ticketed #601' };
+  const second = { ...first, skill: 'CLAUDE.md, section 3 (filing issues)', status: 'open' };
+  assert.throws(() => makePlan(renderTable(body, [first, second]), []), error => {
+    assert.ok(error.message.includes(JSON.stringify(first.skill)));
+    assert.ok(error.message.includes(JSON.stringify(second.skill)));
+    assert.ok(error.message.includes('normalized key "claude.md, section 3"'));
+    return true;
+  });
+});
+await test('fence closers reject trailing info and four-space indentation', async () => {
+  for (const closer of ['``` not a closer', '    ```']) {
+    const { state, api } = fixture();
+    const example = '\n```text\ncontent\n' + closer + '\nstill code\n```\n';
+    state.body += example;
+    await applyPlan(await readPlan(api), api);
+    assert.ok(state.body.includes(example));
+    await readPlan(api);
+  }
+});
+
+await test('manually split closed-ticket recurrence keeps its durable prior reference', async () => {
+  const { state, api } = fixture();
+  state.body = body.replace('| open |', '| ticketed #601 |');
+  state.references.set(601, { number: 601, state: 'closed', body: 'The earlier proposal remains in this Task.' });
+  const plan = await readPlan(api);
+  plan.groups = [{ action: 'ticket', title: 'Reviewed follow-up', keys: [keyOf(plan.rows[0].skill)] }];
+  const proposed = preview(plan)[0].body;
+  assert.match(proposed, /Previous reference for review-pr, section 3: ticketed #601 \(closed; closure does not establish/);
+  assert.match(proposed, /New friction/);
+  await applyPlan(plan, api);
+  assert.equal(state.issues[0].body, proposed);
+  assert.equal(state.references.get(601).body, 'The earlier proposal remains in this Task.');
 });
 
 console.log(`All ${passed} triage checks passed.`);
