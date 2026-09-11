@@ -14,7 +14,7 @@ fs.mkdirSync(source, { recursive: true });
 fs.writeFileSync(path.join(source, "sentinel"), "preserve");
 const first = linkAgentSkills(scratch);
 const before = first.map(({ destination }) => fs.lstatSync(destination).mtimeMs);
-assert.deepEqual(linkAgentSkills(scratch), first);
+assert.deepEqual(linkAgentSkills(scratch).map(({ action, ...rest }) => rest), first.map(({ action, ...rest }) => rest));
 assert.deepEqual(first.map(({ destination }) => fs.lstatSync(destination).mtimeMs), before);
 for (const { destination } of first) {
   assert.ok(fs.lstatSync(destination).isSymbolicLink());
@@ -40,7 +40,9 @@ fs.writeFileSync(path.join(foreign, "precious"), "keep");
 fs.symlinkSync(foreign, path.join(scratch, ".claude", "skills"), process.platform === "win32" ? "junction" : "dir");
 assert.throws(() => linkAgentSkills(scratch), /Refusing foreign/);
 assert.equal(fs.readFileSync(path.join(foreign, "precious"), "utf8"), "keep");
-linkAgentSkills(scratch, { repairLinks: true });
+const repaired = linkAgentSkills(scratch, { repairLinks: true });
+assert.equal(repaired[0].action, "repair");
+assert.ok(repaired[0].previousTarget.includes("impower-foreign-"));
 assert.equal(fs.readFileSync(path.join(foreign, "precious"), "utf8"), "keep", "repair unlinks entries, not their targets");
 // Exercise the actual postinstall entry point in a dependency-free fresh clone shape.
 fs.mkdirSync(path.join(scratch, "scripts"));
@@ -55,8 +57,31 @@ const moved = scratch + "-moved";
 assert.equal(path.dirname(path.resolve(moved)), path.dirname(path.resolve(scratch)));
 console.log(`Scratch relocation: ${scratch} -> ${moved}`);
 fs.renameSync(scratch, moved);
-linkAgentSkills(moved, { repairLinks: true });
+const relocation = linkAgentSkills(moved, { repairLinks: true });
+assert.ok(relocation.every((row) => row.action === (process.platform === "win32" ? "repair" : "exists")));
 assert.equal(fs.readFileSync(path.join(moved, ".claude", "skills", "sentinel"), "utf8"), "preserve");
 assert.equal(fs.readFileSync(path.join(foreign, "precious"), "utf8"), "keep");
-console.log("PASS: explicit link repair after scratch relocation preserves source and foreign target contents");
+console.log("PASS: Windows relocation repairs junctions; POSIX relative links survive relocation; targets are preserved");
+const dangling = path.join(moved, ".claude", "skills");
+fs.unlinkSync(dangling);
+fs.symlinkSync(path.join(moved, "missing-target"), dangling, process.platform === "win32" ? "junction" : "dir");
+assert.equal(linkAgentSkills(moved, { repairLinks: true })[0].action, "repair", "explicit dangling links must be repaired on both platforms");
+const realpath = fs.realpathSync;
+try {
+  fs.realpathSync = (file, ...args) => { if (file === dangling) throw Object.assign(new Error("unavailable"), { code: "EACCES" }); return realpath(file, ...args); };
+  assert.throws(() => linkAgentSkills(moved, { repairLinks: true }), /Cannot resolve link/);
+} finally { fs.realpathSync = realpath; }
+assert.equal(fs.readFileSync(path.join(dangling, "sentinel"), "utf8"), "preserve");
+console.log(`Scratch repair failure: ${moved}; foreign target: ${foreign}`);
+for (const tool of toolDirectories) { const leaf = path.join(moved, tool, "skills"); fs.unlinkSync(leaf); fs.symlinkSync(foreign, leaf, process.platform === "win32" ? "junction" : "dir"); }
+const symlink = fs.symlinkSync;
+let recovery;
+try {
+  fs.symlinkSync = (target, leaf, ...args) => { if (leaf === path.join(moved, ".codex", "skills")) throw new Error("injected creation failure"); return symlink(target, leaf, ...args); };
+  assert.throws(() => linkAgentSkills(moved, { repairLinks: true, reportPlan: (plans) => { recovery = plans; assert.equal(realpath(dangling), realpath(foreign), "recovery report must precede the first unlink"); } }), /injected creation failure/);
+} finally { fs.symlinkSync = symlink; }
+assert.equal(recovery.length, 3);
+assert.ok(recovery.every((row) => row.action === "repair" && row.previousTarget.includes("impower-foreign-")));
+assert.equal(fs.readFileSync(path.join(foreign, "precious"), "utf8"), "keep");
+console.log("PASS: dangling-link repair, unexpected-resolution refusal and pre-mutation recovery records survive partial creation failure");
 // Leave printed scratch evidence available; never recursively remove junction trees.

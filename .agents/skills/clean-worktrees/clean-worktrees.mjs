@@ -344,15 +344,15 @@ const gitOrDie = (deps, args, cwd) => {
 // where it lived in older worktrees and where a server launched from there
 // is still recorded.
 const DRIVERS = [
-  { driver: ".agents/skills/drive-web-editor/driver.mjs", states: [".agents/skills/drive-web-editor/.state.json", ".agents/skills/resolve-issue/.state.json"] },
-  { driver: ".agents/skills/drive-vscode-web/driver.mjs", states: [".agents/skills/drive-vscode-web/.state.json"] },
+  { driver: ".agents/skills/drive-web-editor/driver.mjs", states: [".agents/skills/drive-web-editor/.state.json", ".agents/skills/resolve-issue/.state.json", ".claude/skills/drive-web-editor/.state.json", ".claude/skills/resolve-issue/.state.json"] },
+  { driver: ".agents/skills/drive-vscode-web/driver.mjs", states: [".agents/skills/drive-vscode-web/.state.json", ".claude/skills/drive-vscode-web/.state.json"] },
   { driver: ".agents/skills/resolve-issue/driver.mjs", states: [".agents/skills/resolve-issue/.state.json"] },
 ];
 
 // Migration discovery includes worktrees that still run the other layout.
 const LEGACY_DRIVERS = DRIVERS.map((d) => ({
   driver: d.driver.replace(".agents", ".claude"),
-  states: d.states.map((s) => s.replace(".agents", ".claude")),
+  states: [...new Set(d.states.map((s) => s.replace(".agents", ".claude")))],
 }));
 
 // The state file a driver would read: the first of its places that exists,

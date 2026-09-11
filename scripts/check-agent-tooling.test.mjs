@@ -25,6 +25,11 @@ put(".agents/skills/coverage-0.test.mjs", 'console.log("SKIP: unavailable fixtur
 assert.equal(run().status, 0);
 assert.match(fs.readFileSync(summaryPath, "utf8"), /SKIP: unavailable fixture/);
 assert.match(fs.readFileSync(summaryPath, "utf8"), /#506.*#507.*#508/);
+put(".agents/skills/extra.test.mjs", 'console.log("extra");');
+spawnSync("git", ["add", ".agents/skills/extra.test.mjs"], { cwd: scratch, windowsHide: true });
+assert.notEqual(run().status, 0, "adding checks must require an inventory-count update");
+assert.equal(spawnSync("git", ["rm", "--cached", ".agents/skills/extra.test.mjs"], { cwd: scratch, windowsHide: true }).status, 0);
+fs.unlinkSync(path.join(scratch, ".agents/skills/extra.test.mjs"));
 assert.equal(spawnSync("git", ["rm", "--cached", ".agents/skills/coverage-1.test.mjs"], { cwd: scratch, windowsHide: true }).status, 0);
 assert.notEqual(run().status, 0, "losing a tracked check must fail the coverage floor");
 spawnSync("git", ["add", ".agents/skills/coverage-1.test.mjs"], { cwd: scratch, windowsHide: true });

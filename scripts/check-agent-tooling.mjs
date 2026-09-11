@@ -6,13 +6,13 @@ import { testShell } from "../.agents/skills/drive-web-editor/redgreen.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const files = execFileSync("git", ["ls-files", "-z"], { cwd: root, encoding: "utf8" }).split("\0").filter(Boolean);
-// Derived from the tracked runnable set. Update this floor when adding checks;
+// Derived from the tracked runnable set. Update this count when adding checks;
 // deleting or renaming a check must not silently reduce the expected coverage.
-const MIN_CHECKS = 24;
+const EXPECTED_CHECKS = 24;
 // The grammar scanner needs the full tree and runs in typecheck.yml.
 const checks = files.filter((f) => /^(?:\.agents\/|\.claude\/hooks\/|scripts\/)/.test(f) && /\.test\./.test(f) && f !== "scripts/check-node-names.test.mjs");
 const runnable = checks.filter((f) => /\.test\.(?:mjs|sh)$/.test(f));
-if (runnable.length < MIN_CHECKS || !checks.some((f) => f.startsWith(".agents/")) || !checks.some((f) => f.startsWith(".claude/hooks/")) || !checks.includes("scripts/link-agent-skills.test.mjs")) throw new Error(`Incomplete tooling check discovery: ${runnable.length} runnable, at least ${MIN_CHECKS} expected; stage checks and verify the checkout`);
+if (runnable.length !== EXPECTED_CHECKS || !checks.some((f) => f.startsWith(".agents/")) || !checks.some((f) => f.startsWith(".claude/hooks/")) || !checks.includes("scripts/link-agent-skills.test.mjs")) throw new Error(`Incomplete tooling check discovery: ${runnable.length} runnable, exactly ${EXPECTED_CHECKS} expected; stage checks and verify the checkout`);
 const bash = process.platform === "win32" ? testShell() : "bash";
 if (bash === true) throw new Error("Git for Windows bash is required for shell checks");
 let failed = 0, ran = 0;
@@ -41,6 +41,6 @@ console.log(summary);
 console.log(`Skipped cases: ${skipped.length}`);
 for (const line of skipped) console.log(line);
 if (process.env.GITHUB_STEP_SUMMARY) {
-  fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, `## Agent tooling checks\n\n${summary}. Discovered ${checks.length} tracked files.\n\n### Skipped cases\n\n${skipped.length ? skipped.map((line) => "- " + line).join("\n") : "None."}\n\nRemaining platform coverage: #506 (extension fixtures), #507 (shell classification), #508 (process-tree stop). Zip fixtures require fflate from a workspace install. Skips do not establish compatibility.\n`);
+  fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, `## Agent tooling checks\n\n${summary}. Discovered ${checks.length} tracked files.\n\n### Skipped cases\n\n${skipped.length ? skipped.map((line) => "- " + line).join("\n") : "None."}\n\nRemaining platform coverage: #506 (extension fixtures), #507 (shell classification and junction fixture), #508 (process-tree stop). Zip fixtures require fflate from a workspace install. Windows-only held-tree and long-path cases are exercised by the Windows matrix leg. Skips do not establish compatibility.\n`);
 }
 process.exitCode = failed ? 1 : 0;

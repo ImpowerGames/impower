@@ -129,7 +129,7 @@ The runner discovers tracked checks under the shared skills, harness hooks and s
 
 Run with the machine otherwise idle. The runner chooses Git for Windows bash explicitly on Windows; generic bash may resolve to an unavailable subsystem. A missing required interpreter is a failed check, not a skip. Keep logs until their closing counts and failures have been read.
 
-The runner's MIN_CHECKS floor is the derived tracked runnable count, excluding the grammar scanner check that runs in the typecheck workflow. Update the floor when adding a check. The CI summary lists skipped cases; #506, #507 and #508 track the remaining platform-specific driver coverage, and zip fixtures need the workspace dependency install.
+The runner's EXPECTED_CHECKS value pins the derived tracked runnable count in both directions, excluding the grammar scanner check that runs in the typecheck workflow. Update it when adding or removing a check, and review any lost coverage. The CI summary lists every skipped case. #506 tracks extension fixtures, #507 shell classification and the junction-root fixture, and #508 process-tree stopping. Windows-only held-tree and long-path cases run in the Windows matrix leg; zip fixtures need the workspace dependency install.
 
 ---
 
@@ -153,9 +153,9 @@ cd packages/sparkdown && NODE_OPTIONS="--max-old-space-size=1024" npx vitest run
       Tests  8 passed (8)
 ```
 
-For a directory or package, enumerate its tracked test files and run them one file at a time using the single-file command above. Keep the 1024 MB heap and one fork for every run. Wait for each process to exit and verify its test-file and test summaries before starting the next. Do not report the directory or package complete until every enumerated file has a verified result. This strategy bounds each invocation to the same scope as the single-file command; no larger-suite timing or memory claim is inferred from it.
+For a directory or package, enumerate its tracked test files and run them one file at a time using the single-file command above. Keep the 1024 MB heap and one fork for every run. Wait for each process to exit and verify its test-file and test summaries before starting the next. Do not report the directory or package complete until every enumerated file has a verified result. This strategy bounds each invocation to the same scope as the single-file command; no larger-suite timing or memory claim is inferred from it. From the package directory, `git ls-files -- 'src/tests/**/*.test.ts'` enumerates Sparkdown's tracked tests; adapt the pattern to the package's configured test directories. Keep that manifest and a separate log/result for every file. Concatenate those verified per-file logs into `testrun.log` for the aggregate count below. Likewise, `base-run.log` and `branch-run.log` below mean concatenations for the same manifest, not single multi-file invocations.
 
-Exit code 0 does not mean green. Two OOM shapes both exit 0: `Error: Worker exited unexpectedly` with no pass count; or the log simply stops with no `Test Files` / `Tests` summary at all. Confirm the summary lines exist and the file count matches what you expected; a run can exit 0 having completed 13 of 156 files and look perfectly clean. To count:
+Exit code 0 does not mean green. Two OOM shapes can exit 0: `Error: Worker exited unexpectedly` with no pass count, or a log that stops with no `Test Files` / `Tests` summary. Verify both summary lines and one completed test file in every individual invocation. Then compare the completed-file inventory across the concatenated logs with the original manifest; a partially completed sequence must not be reported as a complete package. For Sparkdown's log paths, the aggregate count is:
 
 ```bash
 sed 's/\x1b\[[0-9;]*m//g' testrun.log | grep -aoE "src/tests/[A-Za-z0-9/._-]+\.test\.ts \(" | sort -u | wc -l
@@ -165,7 +165,7 @@ Count by the path, not by the tick. Matching the `✓` glyph returns 0 in Git Ba
 
 Report the real numbers in the PR body. If a pre-existing failure is unrelated to your change, say so explicitly rather than quietly ignoring it; confirm it also fails on `origin/main`.
 
-Capture the failing-test names, not just the count. With a large pre-existing failure set (one session met 103) equal counts do not mean equal failures: a run that fixes one test and breaks another shows the same number. Save the `FAIL` lines from the baseline run and from your branch, strip the colour codes, and diff the two lists; that is what isolates the test your change actually affected:
+Capture the failing-test names, not just the count. With a large pre-existing failure set (one session met 103) equal counts do not mean equal failures: a run that fixes one test and breaks another shows the same number. From the concatenated logs for the same file manifest, save the `FAIL` lines from the baseline run and from your branch, strip the colour codes, and diff the two lists; that is what isolates the test your change actually affected:
 
 ```bash
 grep -a "FAIL " base-run.log | sed 's/\x1b\[[0-9;]*m//g' | sort -u > fail-base.txt

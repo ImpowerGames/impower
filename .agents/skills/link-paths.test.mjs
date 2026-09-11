@@ -5,7 +5,8 @@ import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { linkAgentSkills } from "../../scripts/link-agent-skills.mjs";
-import { probeServers } from "./clean-worktrees/clean-worktrees.mjs";
+import { probeServers, serverRows } from "./clean-worktrees/clean-worktrees.mjs";
+import { removeState, up } from "./drive-vscode-web/driver.mjs";
 
 const skills = path.dirname(fileURLToPath(import.meta.url));
 const scratch = fs.mkdtempSync(path.join(os.tmpdir(), "impower-linked-drivers-"));
@@ -53,3 +54,24 @@ for (const driver of ["drive-web-editor", "drive-vscode-web"]) {
   assert.ok((run.stdout + run.stderr).includes(path.join(legacy, ".claude", "skills", driver, ".state.json")));
 }
 console.log("PASS: canonical commands retain both drivers' state during an existing-checkout migration");
+// Git has removed the old executable but ignored state still lives there.
+fs.unlinkSync(oldDriver);
+for (const driver of ["drive-web-editor", "drive-vscode-web"]) {
+  const state = path.join(legacy, ".claude", "skills", driver, ".state.json");
+  for (const content of ["{", JSON.stringify({ pid: 1234, url: "http://localhost:59999" })]) {
+    fs.writeFileSync(state, content);
+    const fallback = probeServers(legacy, { exists: fs.existsSync, readFile: (file) => fs.readFileSync(file, "utf8"), pidAlive: () => true, exec: () => ({ out: "unknown (state file unreadable)", err: "status timed out" }) }).find((row) => row.driver === driver);
+    assert.equal(fallback.state, content === "{" ? "unknown" : "recorded");
+    assert.ok(serverRows([fallback]).length > 0, "unanswered legacy state must retain a cleanup keep row");
+  }
+}
+const protectedState = path.join(legacy, ".claude", "skills", "drive-vscode-web", ".state.json");
+const record = fs.readFileSync(protectedState, "utf8");
+const blockedRemoval = () => removeState(protectedState, { unlinkSync: () => { throw Object.assign(new Error("permission denied"), { code: "EACCES" }); } });
+assert.throws(blockedRemoval, /Cannot remove state file/);
+let launched = false;
+await assert.rejects(up([], { stateUnreadable: () => false, readState: () => null, removeState: blockedRemoval, checkBuild: () => { launched = true; } }), /Cannot remove state file/);
+assert.equal(launched, false, "a failed legacy removal must block the new server launch");
+assert.equal(fs.readFileSync(protectedState, "utf8"), record);
+assert.doesNotThrow(() => removeState(protectedState, { unlinkSync: () => { throw Object.assign(new Error("gone"), { code: "ENOENT" }); } }));
+console.log("PASS: unanswered and unreadable legacy records retain worktrees; failed state removal preserves evidence and reports failure");

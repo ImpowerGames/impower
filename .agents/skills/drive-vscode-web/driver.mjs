@@ -787,11 +787,11 @@ function stateUnreadable() {
 
 const writeState = (record) => writeJson(CANONICAL_STATE_FILE, record);
 
-function removeState() {
+export function removeState(file = STATE_FILE, io = fs) {
   try {
-    fs.unlinkSync(STATE_FILE);
-  } catch {
-    /* already gone */
+    io.unlinkSync(file);
+  } catch (error) {
+    if (error.code !== "ENOENT") throw new Error(`Cannot remove state file ${file}: ${error.message}. Preserve the record and resolve its ownership or filesystem error before starting another server.`);
   }
 }
 
