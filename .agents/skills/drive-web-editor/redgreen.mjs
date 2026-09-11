@@ -160,7 +160,11 @@ export function runTest(cmd, cwd, shell = testShell()) {
  * patterns are word-bounded: `/toBe/i` on its own matches "October".
  */
 export function classifyRedFailure(output, { removed = [], launchError = null, exit = null } = {}) {
+  output = output.replace(ANSI_ESCAPE_RE, "");
   if (["ENOENT", "EACCES", "ENOEXEC"].includes(launchError)) return "shell";
+  // POSIX execution-failure statuses do not depend on translated diagnostics.
+  if (exit === 126 || exit === 127) return "shell";
+  if (exit === -1 || launchError) return "crash";
   // Node could not find the script it was handed: every "Cannot find module"
   // block carries an empty requireStack, no block names an ESM import ("…
   // imported from …" carries no requireStack at all), and the missing path is
@@ -181,19 +185,18 @@ export function classifyRedFailure(output, { removed = [], launchError = null, e
   };
   const missingEntryScript =
     moduleBlocks.length > 0 && !esmImportBreak && moduleBlocks.every((m) => m[2].trim() === "" && !namesRemovedFile(m[1]));
-  // A test may print a child's shell diagnostics before its own assertion.
-  // The shell's execution-failure status distinguishes a broken invocation
-  // from that tested diagnostic; standalone assertion output remains a red.
-  const testedDiagnostic = /\bAssertionError\b|^\s*not ok \d|^\s*Tests\s+\d+ failed/im.test(output) && exit !== 126 && exit !== 127;
-  if (
-    (!testedDiagnostic && (
+  // A failed command chain and a test printing a child's diagnostic can have
+  // identical output and exit status (including cmd/npm's status 1). Neither
+  // ordering nor assertion text proves provenance: require human adjudication
+  // for mixed diagnostics instead of accepting a false red or calling an
+  // honest regression a broken invocation.
+  const testedDiagnostic = /\bAssertionError\b|^\s*not ok \d|^\s*Tests\s+\d+ failed/im.test(output);
+  const shellDiagnostic =
     /^(?:(?:\/[\w.-]+)*\/)?(?:bash|dash|sh)(?:: (?:line )?\d+)?: [^\r\n]+: (?:command not found|not found|No such file or directory|Permission denied|cannot execute[^\r\n]*)\s*$/im.test(output) ||
-    /is not recognized as an internal or external command/i.test(output) ||
-    /npm ERR! Missing script:|npm error Missing script:/i.test(output))) ||
-    missingEntryScript
-  ) {
-    return "shell";
-  }
+    /^'[^'\r\n]+' is not recognized as an internal or external command/im.test(output) ||
+    /^npm (?:ERR!|error) Missing script:/im.test(output);
+  if (missingEntryScript) return "shell";
+  if (shellDiagnostic) return testedDiagnostic ? "unknown" : "shell";
   if (/No test files found|No test suite found|no tests found/i.test(output)) {
     return "notests";
   }
@@ -510,7 +513,7 @@ export function runRedGreen({ repoRoot, test, files, base = "HEAD", snapshotDir,
         report.problems.push(
           red.output.trim() === ""
             ? `The test exited ${red.exit} on the base with no output at all, so there is nothing to show the failure was the ticket's. Use a test invocation that prints its assertion.`
-            : `The test exited ${red.exit} on the base, but the output does not look like a test assertion (no AssertionError, expected/to, expect(), FAIL, "not ok", or failing count). Read red.tail yourself: if it is the ticket's assertion in a form the classifier does not know, say so in the PR; if it is a config error or a truncated run, it proves nothing.`,
+            : `The test exited ${red.exit} on the base, but its output is unrecognized or mixes assertion and shell diagnostics whose origin cannot be inferred. Read the full run yourself: if it is the ticket's assertion, explain the evidence in the PR; a broken command chain, config error or truncated run proves nothing.`,
         );
       } else if (redReason === "assertion" && report.red.summary == null && looksLikeVitestRun(test, red.output)) {
         // Only when the command names vitest or the output carries vitest's

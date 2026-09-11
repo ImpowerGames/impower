@@ -21,7 +21,7 @@ try {
       const result = runTest(command, dir, shell);
       assert.equal(result.launchError, null, `Required interpreter ${shell} could not start: ${result.launchError}`);
       assert.notEqual(result.exit, 0);
-      assert.equal(classifyRedFailure(result.output), "shell", result.output);
+      assert.equal(classifyRedFailure(result.output, result), "shell", result.output);
       console.log(`PASS: ${shell} refuses ${command} (exit ${result.exit})`);
     }
     fs.writeFileSync(path.join(dir, "assertion.mjs"), 'console.error("AssertionError: expected ENOENT: Permission denied to be handled"); process.exit(1);');
@@ -30,8 +30,12 @@ try {
     fs.writeFileSync(path.join(dir, "child-report.mjs"), 'import { spawnSync } from "node:child_process"; import assert from "node:assert/strict"; const r = spawnSync("impower_missing_child_507", { shell: true, encoding: "utf8" }); process.stderr.write(r.stderr || ""); assert.equal(r.status, 0);');
     const childReport = runTest(`${node} child-report.mjs`, dir, shell);
     assert.equal(childReport.exit, 1, childReport.output);
-    assert.equal(classifyRedFailure(childReport.output, childReport), "assertion", childReport.output);
-    console.log(`PASS: ${shell} preserves a real assertion after a child's shell diagnostic`);
+    assert.equal(classifyRedFailure(childReport.output, childReport), "unknown", childReport.output);
+    // Exercise the competing provenance, not just synthetic diagnostic text.
+    const separator = typeof shell === "string" && /cmd(?:\.exe)?$/i.test(shell) ? "&" : ";";
+    const chain = runTest(`${node} assertion.mjs ${separator} impower_command_that_does_not_exist_507`, dir, shell);
+    assert.equal(classifyRedFailure(chain.output, chain), chain.exit === 127 ? "shell" : "unknown", chain.output);
+    console.log(`PASS: ${shell} refuses automatic proof for mixed shell/assertion output (child and command chain)`);
     if (!WIN) {
       fs.writeFileSync(path.join(dir, "not-executable"), "#!/bin/sh\nexit 0\n", { mode: 0o600 });
       const denied = runTest("./not-executable", dir, shell);
@@ -45,10 +49,29 @@ try {
   assert.equal(classifyRedFailure(missing.output, missing), "shell");
   for (const message of ["ENOENT", "Permission denied", "/bin/sh: 1: absent: not found"]) {
     assert.equal(classifyRedFailure(`AssertionError: expected '${message}' to be handled`), "assertion");
-    assert.equal(classifyRedFailure(`${message}\nAssertionError: expected a handled diagnostic`, { exit: 1 }), "assertion");
+    assert.equal(classifyRedFailure(`${message}\nAssertionError: expected a handled diagnostic`, { exit: 1 }), message.startsWith("/bin/sh") ? "unknown" : "assertion");
   }
   const mixed = "AssertionError: expected a handled diagnostic\n/bin/sh: 1: absent: not found";
   assert.equal(classifyRedFailure(mixed, { exit: 127 }), "shell", "an outer shell execution failure is not hidden by earlier assertions");
+  for (const output of [
+    "'absent' is not recognized as an internal or external command,\noperable program or batch file.",
+    'npm error Missing script: "test"',
+    "/bin/sh: 1: absent: not found",
+  ]) {
+    for (const assertion of ["AssertionError: expected 1 to be 0", "\x1b[31mAssertionError\x1b[39m: mismatch", "Tests  1 failed"]) {
+      for (const combined of [`${output}\n${assertion}`, `${assertion}\n${output}`]) {
+        assert.equal(classifyRedFailure(combined, { exit: 1 }), "unknown", combined);
+        assert.equal(classifyRedFailure(combined, { exit: -1 }), "crash", combined);
+      }
+    }
+  }
+  assert.equal(classifyRedFailure("\x1b[31mAssertionError\x1b[39m: mismatch", { exit: 1 }), "assertion");
+  for (const output of ["bash : ligne 1 : absent : commande introuvable", "bash: Zeile 1: absent: Kommando nicht gefunden."]) {
+    for (const exit of [126, 127]) {
+      assert.equal(classifyRedFailure(output, { exit }), "shell");
+      assert.equal(classifyRedFailure(`AssertionError: mismatch\n${output}`, { exit }), "shell");
+    }
+  }
   const locale = { LANG: process.env.LANG, LC_ALL: process.env.LC_ALL };
   try {
     process.env.LANG = "impower-locale-probe";
