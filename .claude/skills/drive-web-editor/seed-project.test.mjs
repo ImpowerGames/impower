@@ -1040,6 +1040,122 @@ function commandDeps(page, overrides = {}) {
   };
 }
 const repro = path.join(scratch, "repro.sd");
+await check("verify and ui run fresh worker verification and stop on an unverifiable worker", async () => {
+  for (const command of [verify, ui]) {
+    for (const failed of [false, true]) {
+      await withStub({}, async ({ page }) => {
+        let calls = 0, finishes = 0, appWaits = 0;
+        const serviceWorker = { refreshed: !failed, controlled: !failed, sha256: failed ? null : "installed-hash", ...(failed ? { reason: "worker could not be verified" } : {}) };
+        const { deps } = commandDeps(page, {
+          waitForApp: async () => { appWaits++; },
+          reportFreshWorker: async () => { calls++; return { report: serviceWorker, close: async () => {}, finish: async () => { finishes++; } }; },
+        });
+        const next = path.join(scratch, "after-worker.js");
+        fs.writeFileSync(next, "return 42;");
+        const result = await command(command === ui ? ["--fresh-sw", "--probe", next] : ["--fresh-sw"], deps);
+        assert.equal(calls, 1, "the fresh worker flag must not be ignored");
+        assert.deepEqual(command === verify ? result.serviceWorker : result.steps[0].serviceWorker, serviceWorker);
+        assert.equal(process.exitCode, failed ? 1 : 0);
+        if (failed && command === verify) assert.equal(result.gameMounted, undefined, "no game verification after failed worker proof");
+        assert.equal(finishes, failed ? 0 : 1);
+        if (command === ui) {
+          assert.equal(appWaits, failed ? 1 : 2, "wait for the app again after a successful refresh");
+          if (!failed) assert.equal(result.editorSettled, true, "the run-level field records the initial settle");
+          assert.equal(result.steps.length, failed ? 1 : 2, "failed refresh must stop before the probe");
+          if (failed) assert.match(result.steps[0].reason, /1 remaining step did not run/);
+        }
+        process.exitCode = 0;
+      });
+    }
+  }
+});
+
+await check("verify keeps the page's registration error when a fresh worker cannot install", async () => {
+  await withStub({}, async ({ page }) => {
+    const { deps } = commandDeps(page, {
+      withEditor: async (fn) => fn({ page, ctx: null, url: "http://stub.test", consoleLines: ["[error] Service worker registration failed: script evaluation failed"], mode: "same-origin" }),
+      reportFreshWorker: async () => ({ report: { reason: "no activated controller" }, close: async () => {} }),
+    });
+    const result = await verify(["--fresh-sw"], deps);
+    assert.ok(result.consoleErrors.some((line) => line.includes("script evaluation failed")));
+    assert.equal(process.exitCode, 1);
+    process.exitCode = 0;
+  });
+});
+
+await check("a worker replaced during verify or ui fails the final report", async () => {
+  for (const command of [verify, ui]) {
+    await withStub({}, async ({ page }) => {
+      const report = { controlled: true, refreshed: true };
+      const { deps } = commandDeps(page, { reportFreshWorker: async () => ({ report, close: async () => {}, finish: async () => { report.controlled = false; report.reason = "worker changed during the run"; } }) });
+      const result = await command(["--fresh-sw"], deps);
+      assert.equal(process.exitCode, 1);
+      assert.match(command === verify ? result.error : result.failed[0], /worker changed during the run/);
+      process.exitCode = 0;
+    });
+  }
+});
+
+await check("a final worker failure retains the preview failure and its evidence warning", async () => {
+  await withStub({}, async ({ page }) => {
+    const report = { controlled: true, refreshed: true };
+    const { deps } = commandDeps(page, {
+      waitForGame: async () => ({ mounted: false }),
+      reportFreshWorker: async () => ({ report, close: async () => {}, finish: async () => { report.reason = "worker changed during the run"; } }),
+    });
+    const result = await verify(["--fresh-sw"], deps);
+    assert.match(result.error, /Game Preview is blank/);
+    assert.match(result.error, /NOT valid evidence/);
+    assert.match(result.error, /worker changed during the run/);
+    assert.equal(process.exitCode, 1);
+    process.exitCode = 0;
+  });
+});
+
+await check("repeated ui refreshes finish and close the preceding worker before replacing it", async () => {
+  await withStub({}, async ({ page }) => {
+    const calls = [];
+    let id = 0;
+    const { deps } = commandDeps(page, { reportFreshWorker: async () => {
+      const current = ++id;
+      calls.push(`refresh ${current}`);
+      return { report: { controlled: true, refreshed: true }, finish: async () => calls.push(`finish ${current}`), close: async () => calls.push(`close ${current}`) };
+    } });
+    const result = await ui(["--fresh-sw", "--fresh-sw"], deps);
+    assert.deepEqual(result.failed, []);
+    assert.deepEqual(calls, ["refresh 1", "finish 1", "close 1", "refresh 2", "finish 2", "close 2"]);
+  });
+});
+
+await check("a failed preceding worker stops the next refresh and all later steps", async () => {
+  for (const trailing of [[], ["--shot", path.join(scratch, "must-not-run.png")]]) {
+    await withStub({}, async ({ page }) => {
+      const report = { controlled: true, refreshed: true };
+      let refreshes = 0;
+      const { deps } = commandDeps(page, { reportFreshWorker: async () => {
+        refreshes++;
+        return { report, close: async () => {}, finish: async () => { report.reason = "worker replaced"; } };
+      } });
+      const result = await ui(["--fresh-sw", "--fresh-sw", ...trailing], deps);
+      assert.equal(refreshes, 1);
+      assert.equal(result.steps.length, 2);
+      assert.match(result.steps[1].reason, /preceding worker check failed; this refresh did not run/);
+      assert.doesNotMatch(result.steps[1].reason, /0 remaining|1 remaining steps/);
+      assert.equal(process.exitCode, 1);
+      process.exitCode = 0;
+    });
+  }
+});
+
+await check("an initial worker failure on the last step does not invent remaining steps", async () => {
+  await withStub({}, async ({ page }) => {
+    const { deps } = commandDeps(page, { reportFreshWorker: async () => ({ report: { reason: "worker failed" }, close: async () => {} }) });
+    const result = await ui(["--fresh-sw"], deps);
+    assert.equal(result.steps[0].reason, "worker failed");
+    process.exitCode = 0;
+  });
+});
+
 const reproText = "ALICE:\n  Hi.\n";
 fs.writeFileSync(repro, reproText);
 const shot = path.join(scratch, "shots", "out.png");

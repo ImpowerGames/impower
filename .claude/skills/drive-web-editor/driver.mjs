@@ -528,6 +528,11 @@ async function reloadEditorPage(page) {
   return page.reload(EDITOR_NAVIGATION);
 }
 
+async function reportFreshWorker(...args) {
+  const worker = await import("./worker-report.mjs");
+  return worker.reportFreshWorker(...args);
+}
+
 // Runs `fn` against a page on the editor. `url` and `mode` come from the
 // state file `up` wrote: `mode` is how it launched the servers, and says
 // whether the game preview can be observed at all; a record without one is
@@ -548,11 +553,13 @@ async function withEditor(fn, { headless = true, launch = launchEditorBrowser, s
   const ctx = await launch({ headless });
   const page = ctx.pages()[0] ?? (await ctx.newPage());
   const consoleLines = [];
+  const cleanups = [];
   page.on("console", (m) => consoleLines.push(consoleLine(m)));
   page.on("pageerror", (e) => consoleLines.push(`[pageerror] ${e.message}`));
   try {
-    return await fn({ page, ctx, url, consoleLines, mode });
+    return await fn({ page, ctx, url, consoleLines, mode, cleanups });
   } finally {
+    for (const cleanup of cleanups.reverse()) await cleanup().catch(() => {});
     await ctx.close();
   }
 }
@@ -1794,8 +1801,9 @@ async function verify(args, deps = liveDeps) {
   if (projectPath && !fs.existsSync(path.resolve(projectPath))) deps.die(`--project ${projectPath} does not exist`);
 
   return deps.withEditor(
-    async ({ page, url, consoleLines, mode }) => {
+    async ({ page, ctx, url, consoleLines, mode, cleanups = [] }) => {
       const result = { url };
+      let monitoredWorker;
       // What verify captures is the game preview, which the page can observe
       // only in same-origin mode (window.__preview). In cross-origin mode
       // the run stops here, before the page is loaded and before a seed or
@@ -1819,6 +1827,21 @@ async function verify(args, deps = liveDeps) {
         deps.log(JSON.stringify(result, null, 2));
         process.exitCode = 1;
         return result;
+      }
+      if (args.includes("--fresh-sw")) {
+        const worker = await deps.reportFreshWorker(page, ctx, reloadEditorPage);
+        monitoredWorker = worker;
+        cleanups.push(worker.close);
+        result.serviceWorker = worker.report;
+        if (worker.report.reason) {
+          result.error = worker.report.reason;
+          const captured = partitionConsole(consoleLines);
+          result.consoleErrors = captured.errors;
+          result.consoleNoise = captured.noise;
+          deps.log(JSON.stringify(result, null, 2));
+          process.exitCode = 1;
+          return result;
+        }
       }
       const shell = await deps.ensureScriptEditor(page);
       if (shell.switched) result.switchedToLogic = true;
@@ -2033,6 +2056,13 @@ async function verify(args, deps = liveDeps) {
         result.screenshot = out;
       }
 
+      if (monitoredWorker) {
+        await monitoredWorker.finish();
+        if (monitoredWorker.report.reason) {
+          result.error = [result.error, monitoredWorker.report.reason].filter(Boolean).join(" Also: ");
+          process.exitCode = 1;
+        }
+      }
       const captured = partitionConsole(consoleLines);
       result.consoleErrors = captured.errors;
       result.consoleNoise = captured.noise;
@@ -2099,7 +2129,12 @@ const SCREENS = {
   share: '[role="tab"][id$="-trigger-game"]',
 };
 const tabSelector = (value) => `[role="tab"][id$="-trigger-${value}"]`;
-const SHOT_TARGETS = { find: SURFACES.find.selector, goto: SURFACES.goto.selector, editor: ".sparkdown-script-editor-root .cm-editor", page: null };
+const LANGUAGE_TARGETS = {
+  hover: ".sparkdown-script-editor-root .cm-tooltip-hover",
+  completion: ".sparkdown-script-editor-root .cm-tooltip-autocomplete",
+  info: ".sparkdown-script-editor-root .cm-completionInfo",
+};
+const SHOT_TARGETS = { find: SURFACES.find.selector, goto: SURFACES.goto.selector, editor: ".sparkdown-script-editor-root .cm-editor", hover: LANGUAGE_TARGETS.hover, completion: LANGUAGE_TARGETS.completion, page: null };
 
 /**
  * Playwright's key strings are case-sensitive for a single character: `Shift+g`
@@ -2744,7 +2779,160 @@ async function readSurfaces(page) {
   return out;
 }
 
-/** Screenshot one surface: a panel, the script editor, or the whole page. */
+export function parsePosition(spec) {
+  const match = /^(\d+):(\d+)$/.exec(spec);
+  const [line, col] = match ? match.slice(1).map(Number) : [];
+  if (!Number.isSafeInteger(line) || !Number.isSafeInteger(col) || line < 1 || col < 1) {
+    throw new Error(`position must be positive line:col integers, got "${spec}"`);
+  }
+  return { line, col };
+}
+
+export function unionRect(rects, viewport) {
+  const visible = rects.filter((r) => r && r.width > 0 && r.height > 0 && r.x < viewport.width && r.y < viewport.height && r.x + r.width > 0 && r.y + r.height > 0);
+  if (!visible.length) return null;
+  const x = Math.max(0, Math.floor(Math.min(...visible.map((r) => r.x))));
+  const y = Math.max(0, Math.floor(Math.min(...visible.map((r) => r.y))));
+  const right = Math.min(viewport.width, Math.ceil(Math.max(...visible.map((r) => r.x + r.width))));
+  const bottom = Math.min(viewport.height, Math.ceil(Math.max(...visible.map((r) => r.y + r.height))));
+  return right > x && bottom > y ? { x, y, width: right - x, height: bottom - y } : null;
+}
+
+// The go-to panel accepts a one-based line and zero-based column. Read the selection
+// back before typing or aiming the pointer; an out-of-range column must not
+// silently become a check of the end of the line.
+export async function placeCaret(page, position, { present = scriptEditorPresent, open = openSurface, type = typeInto, submit = clickSurfaceButton } = {}) {
+  const editor = await present(page);
+  if (!editor.present) return { placed: false, reason: editor.reason };
+  const valid = await page.evaluate(({ line, col }) => {
+    const view = document.querySelector(".sparkdown-script-editor-root .cm-content")?.cmTile?.view;
+    return Boolean(view && line <= view.state.doc.lines && col <= view.state.doc.line(line).length + 1);
+  }, position);
+  if (!valid) return { placed: false, reason: "position is outside the open document; choose a line and column within its text" };
+  const opened = await open(page, "goto", { settled: true });
+  if (!opened.open) return { placed: false, reason: opened.reason };
+  const typed = await type(page, "line", `${position.line}:${position.col - 1}`, { settled: true });
+  if (!typed.matches) return { placed: false, reason: typed.reason };
+  await submit(page, "submit");
+  const cursor = await page.evaluate(() => {
+    const view = document.querySelector(".sparkdown-script-editor-root .cm-content")?.cmTile?.view;
+    if (!view) return null;
+    const head = view.state.selection.main.head;
+    const line = view.state.doc.lineAt(head);
+    return { line: line.number, col: head - line.from + 1 };
+  });
+  const placed = cursor?.line === position.line && cursor?.col === position.col;
+  return { placed, cursor, ...(placed ? {} : { reason: "go-to did not place the caret at the requested position; inspect the open document and retry" }) };
+}
+
+export async function readLanguageSurface(page, kind) {
+  return page.evaluate(({ kind, selectors }) => {
+    const visible = (selector) => [...document.querySelectorAll(selector)].find((e) => {
+      const r = e.getBoundingClientRect();
+      return r.width > 0 && r.height > 0 && r.left < innerWidth && r.top < innerHeight && r.right > 0 && r.bottom > 0 && getComputedStyle(e).visibility !== "hidden";
+    });
+    const root = visible(selectors[kind]);
+    const info = kind === "completion" ? visible(selectors.info) : root;
+    const box = (element) => {
+      if (!element) return null;
+      const r = element.getBoundingClientRect();
+      return { x: r.x, y: r.y, width: r.width, height: r.height };
+    };
+    const img = info?.querySelector("img");
+    const rect = img?.getBoundingClientRect();
+    const image = {
+      imgSrc: img?.currentSrc || img?.src || null,
+      imgRect: rect ? { x: rect.x, y: rect.y, width: rect.width, height: rect.height } : null,
+      naturalWidth: img?.naturalWidth ?? null,
+      naturalHeight: img?.naturalHeight ?? null,
+    };
+    if (kind === "hover") return { present: Boolean(root), text: root?.innerText ?? "", surfaceRect: box(root), ...image };
+    const label = (option) => option?.querySelector(".cm-completionLabel")?.innerText ?? null;
+    const items = [...(root?.querySelectorAll('[role="option"]') ?? [])].map((o) => ({ label: label(o), detail: o.querySelector(".cm-completionDetail")?.innerText ?? null }));
+    return {
+      popupPresent: Boolean(root),
+      options: items.map((item) => item.label),
+      optionsTruncated: Boolean(root?.querySelector(".cm-completionListIncompleteTop, .cm-completionListIncompleteBottom")),
+      items,
+      selected: label(root?.querySelector('[aria-selected="true"]')),
+      surfaceRect: box(root),
+      infoPanelPresent: Boolean(info),
+      infoPanelRect: box(info),
+      ...image,
+    };
+  }, { kind, selectors: LANGUAGE_TARGETS });
+}
+
+// Wait on the same viewport predicate used in the report: CodeMirror inserts
+// tooltips off-screen before its layout pass positions them.
+export async function waitLanguageSurface(page, kind, { read = readLanguageSurface, timeout = 15_000, infoTimeout = 2000, now = Date.now, pause = (ms) => page.waitForTimeout(ms) } = {}) {
+  const end = now() + timeout;
+  let surface = await read(page, kind);
+  const present = () => kind === "hover" ? surface.present : surface.popupPresent;
+  while (!present() && now() < end) {
+    await pause(Math.min(50, end - now()));
+    surface = await read(page, kind);
+  }
+  if (kind === "completion" && present()) {
+    const infoEnd = now() + infoTimeout;
+    while (!surface.infoPanelPresent && now() < infoEnd) {
+      await pause(Math.min(50, infoEnd - now()));
+      surface = await read(page, kind);
+      if (!present()) break;
+    }
+  }
+  return surface;
+}
+
+export async function languageSurface(page, kind, position, text, { place = placeCaret, read = readLanguageSurface, wait = waitLanguageSurface, timeout = 15_000 } = {}) {
+  const empty = kind === "hover" ? { present: false } : { popupPresent: false, options: [], selected: null, infoPanelPresent: false };
+  const out = { [kind]: position, ...empty };
+  await page.keyboard.press("Escape");
+  await page.mouse.move(0, 0);
+  const caret = await place(page, position);
+  out.caret = caret;
+  if (!caret.placed) return { ...out, reason: caret.reason };
+  if (kind === "completion") {
+    out.editorView = await page.evaluate(() => document.querySelector('[role="tab"][id$="-trigger-main"]') ? "main" : "scripts-view");
+    if (out.editorView !== "main") return { ...out, reason: "completion typing requires main.sd on screen; return with the fullscreen scripts view's header button before retrying" };
+    const before = await documentLines(page);
+    await page.keyboard.type(text);
+    const after = await documentLines(page);
+    const expected = [...before];
+    expected[position.line - 1] = before[position.line - 1].slice(0, position.col - 1) + text + before[position.line - 1].slice(position.col - 1);
+    out.typed = text;
+    out.textMatches = after.join("\n") === expected.join("\n");
+    if (!out.textMatches) return { ...out, reason: "typed text differs from the document read-back; inspect auto-closing characters and the screenshot before retrying" };
+  } else {
+    const spot = await page.evaluate(({ line, col }) => {
+      const view = document.querySelector(".sparkdown-script-editor-root .cm-content")?.cmTile?.view;
+      if (!view || line > view.state.doc.lines) return null;
+      const pos = view.state.doc.line(line).from + col - 1;
+      const rect = view.coordsAtPos(pos);
+      if (!rect) return null;
+      const x = rect.left + 1, y = (rect.top + rect.bottom) / 2;
+      return document.elementFromPoint(x, y)?.closest(".sparkdown-script-editor-root .cm-content") ? { x, y } : null;
+    }, position);
+    if (!spot) return { ...out, reason: "hover position is covered or not painted; bring the script into view and retry" };
+    await page.mouse.move(spot.x, spot.y, { steps: 5 });
+    out.pointer = spot;
+  }
+  const surface = await wait(page, kind, { read, timeout });
+  if (kind === "hover" ? surface.present : surface.popupPresent) {
+    await page.waitForFunction(({ kind, selectors }) => {
+      const root = document.querySelector(kind === "completion" ? selectors.info : selectors.hover);
+      return [...(root?.querySelectorAll("img") ?? [])].every((img) => img.complete);
+    }, { kind, selectors: LANGUAGE_TARGETS }, { timeout: 10_000 }).catch(() => {});
+  }
+  Object.assign(out, await read(page, kind));
+  if (!(kind === "hover" ? out.present : out.popupPresent)) {
+    out.serverResponse = "unobserved";
+    out.reason = `${kind} did not appear; the UI alone cannot distinguish an empty server answer from a failed request. Check diagnostics and the requested position before retrying`;
+  }
+  return out;
+}
+
+/** Screenshot one visible surface, or the whole page. */
 async function shotOf(page, what, out) {
   if (!(what in SHOT_TARGETS)) throw new Error(`unknown --shot-of target "${what}" (know: ${Object.keys(SHOT_TARGETS).join(", ")})`);
   if (!out) throw new Error(`--shot-of ${what} needs an output path`);
@@ -2752,6 +2940,11 @@ async function shotOf(page, what, out) {
   fs.mkdirSync(path.dirname(target), { recursive: true });
   if (SHOT_TARGETS[what] == null) {
     await page.screenshot({ path: target, fullPage: false });
+  } else if (what === "hover" || what === "completion") {
+    const surface = await waitLanguageSurface(page, what, { timeout: 2000 });
+    const clip = surface.surfaceRect && unionRect([surface.surfaceRect, surface.infoPanelRect], page.viewportSize());
+    if (!clip) return { of: what, screenshot: null, reason: `${what} is outside the viewport or not on screen; re-open it on a visible line` };
+    await page.screenshot({ path: target, clip });
   } else {
     const loc = page.locator(SHOT_TARGETS[what]).first();
     if (!(await loc.isVisible().catch(() => false))) {
@@ -2799,6 +2992,19 @@ export function parseUiSteps(args) {
       return v;
     };
     switch (a) {
+      case "--fresh-sw":
+        steps.push({ freshSw: true });
+        break;
+      case "--hover":
+        steps.push({ hover: parsePosition(value()) });
+        break;
+      case "--complete": {
+        const spec = value();
+        const eq = spec.indexOf("=");
+        if (eq < 0 || !spec.slice(eq + 1)) bad("--complete needs position=text with non-empty text");
+        steps.push({ complete: parsePosition(spec.slice(0, eq)), text: spec.slice(eq + 1) });
+        break;
+      }
       case "--sd":
         steps.push({ sd: value() });
         break;
@@ -2896,6 +3102,8 @@ function gatedStep(step, reason) {
   if (step.click) return { button: step.click, clicked: false, ...gated };
   if (step.toggle) return { toggle: step.toggle, toggled: false, ...gated };
   if (step.shotOf) return { of: step.shotOf, screenshot: null, ...gated };
+  if (step.hover) return { hover: step.hover, present: false, ...gated };
+  if (step.complete) return { completion: step.complete, popupPresent: false, ...gated };
   return { ...step, ...gated };
 }
 
@@ -2917,8 +3125,18 @@ async function ui(args, deps = liveDeps) {
   }
 
   return deps.withEditor(
-    async ({ page, url, consoleLines }) => {
+    async ({ page, ctx, url, consoleLines, cleanups = [] }) => {
       const result = { url, steps: [] };
+      let monitoredWorker;
+      const finishWorker = async () => {
+        if (!monitoredWorker) return;
+        const { worker, step } = monitoredWorker;
+        await worker.finish();
+        if (worker.report.reason) step.reason = worker.report.reason;
+        await worker.close();
+        monitoredWorker = null;
+        return step.reason;
+      };
       const requireEditor = editorGate();
       try {
         await openEditorPage(page, url);
@@ -2971,7 +3189,24 @@ async function ui(args, deps = liveDeps) {
         // outside the try so a throw after the write does not lose it.
         let written = null;
         try {
-          if (step.sd || step.project) {
+          if (step.freshSw) {
+            const priorFailure = await finishWorker();
+            if (priorFailure) {
+              result.steps.push({ freshSw: true, reason: `the preceding worker check failed; this refresh did not run${steps.length > stepNo ? `, nor did the ${steps.length - stepNo} remaining step${steps.length - stepNo === 1 ? "" : "s"}` : ""}` });
+              break;
+            }
+            const worker = await deps.reportFreshWorker(page, ctx, reloadEditorPage);
+            cleanups.push(worker.close);
+            const workerStep = { freshSw: true, serviceWorker: worker.report };
+            result.steps.push(workerStep);
+            if (worker.report.reason) {
+              workerStep.reason = `${worker.report.reason}${steps.length > stepNo ? `. The ${steps.length - stepNo} remaining step${steps.length - stepNo === 1 ? "" : "s"} did not run.` : ""}`;
+              break;
+            }
+            monitoredWorker = { worker, step: workerStep };
+            requireEditor.reset();
+            await deps.waitForApp(page);
+          } else if (step.sd || step.project) {
             let out;
             if (step.project) {
               // As verify does: a `--sd` step after this one supplies
@@ -3078,6 +3313,13 @@ async function ui(args, deps = liveDeps) {
             const switched = await switchScreen(page, step.screen, { followedByMain: followedByMain(steps, index) });
             if (switched.editorSettled) requireEditor.noteSettled();
             result.steps.push(switched);
+          } else if (step.hover || step.complete) {
+            const ready = await requireEditor(page, "language surface", stepNo);
+            if (ready.ok === false) {
+              result.steps.push(gatedStep(step, ready.reason));
+              continue;
+            }
+            result.steps.push(await deps.languageSurface(page, step.hover ? "hover" : "completion", step.hover ?? step.complete, step.text));
           } else if (step.open) {
             const ready = await requireEditor(page, "panel", stepNo);
             if (ready.ok === false) {
@@ -3151,6 +3393,7 @@ async function ui(args, deps = liveDeps) {
         result.ui = null;
         result.readError = String(err.message || err).split("\n")[0];
       }
+      await finishWorker();
       result.failed = result.steps.filter((s) => s.reason).map((s) => s.reason);
       if (result.readError) result.failed.push(`read-back failed: ${result.readError}`);
       const captured = partitionConsole(consoleLines);
@@ -3298,6 +3541,8 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 // in-process against a stub page and storage and pin that each one seeds,
 // stops on `seed.reason`, and reloads only after a seed that landed whole.
 const liveDeps = {
+  reportFreshWorker,
+  languageSurface,
   withEditor,
   log: console.log,
   die,
@@ -3374,6 +3619,7 @@ switch (cmd) {
         "  redgreen [options]    prove a regression test fails on the base and passes on the fix",
         "",
         "verify options:",
+        "  --fresh-sw       unregister and reload; report the controlling worker's script hash and console",
         "  --project <dir-or-zip> replace OPFS /local with this project's files (before --sd), then reload",
         "  --sd <file.sd>   load this script into OPFS /local/main.sd, then reload",
         "  --line <N>       scrub the preview to source line N (STOPPED state only)",
@@ -3382,6 +3628,9 @@ switch (cmd) {
         "  --headed         run a visible browser instead of headless",
         "",
         "ui steps (run in the order given, then every surface is read back):",
+        "  --fresh-sw             unregister and reload; report the controlling worker's script hash and console",
+        "  --hover <line>:<col>    open a hover with real pointer movement (positions count from one)",
+        "  --complete <line>:<col>=<text>  type real keystrokes and read completion plus its info panel",
         "  --project <dir-or-zip>  replace OPFS /local with this project's files, then reload",
         "  --sd <file.sd>          load this script into OPFS /local/main.sd, then reload",
         "  --screen <name>         click a tab: logic | assets | share, or one inside a pane: main | scripts | files | urls | game | screenplay",
@@ -3392,7 +3641,7 @@ switch (cmd) {
         "  --click <button>        a panel button: next prev select replace replaceAll close submit",
         "  --toggle <option>       flip a find-panel checkbox: case | re | word",
         "  --shot <out.png>        screenshot the page",
-        "  --shot-of <what> <png>  screenshot one surface: find | goto | editor | page",
+        "  --shot-of <what> <png>  screenshot one surface: find | goto | editor | hover | completion | page",
         "  --probe <file.js>       body of an async fn evaluated in the page; result -> JSON",
         "  --headed                run a visible browser instead of headless",
         "",
