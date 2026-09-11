@@ -134,7 +134,7 @@ export function runTest(cmd, cwd, shell = testShell()) {
     windowsHide: true,
     encoding: "utf8",
     maxBuffer: 64 * 1024 * 1024,
-    env: { ...process.env, LC_ALL: "C", LANG: "C" },
+    env: process.env,
   });
   const output = `${r.stdout || ""}${r.stderr || ""}`;
   const lines = output.split(/\r?\n/).filter((l) => l.trim() !== "");
@@ -159,7 +159,7 @@ export function runTest(cmd, cwd, shell = testShell()) {
  * assertion merely quotes an ENOENT is not mistaken for one. The assertion
  * patterns are word-bounded: `/toBe/i` on its own matches "October".
  */
-export function classifyRedFailure(output, { removed = [], launchError = null } = {}) {
+export function classifyRedFailure(output, { removed = [], launchError = null, exit = null } = {}) {
   if (["ENOENT", "EACCES", "ENOEXEC"].includes(launchError)) return "shell";
   // Node could not find the script it was handed: every "Cannot find module"
   // block carries an empty requireStack, no block names an ESM import ("…
@@ -181,10 +181,15 @@ export function classifyRedFailure(output, { removed = [], launchError = null } 
   };
   const missingEntryScript =
     moduleBlocks.length > 0 && !esmImportBreak && moduleBlocks.every((m) => m[2].trim() === "" && !namesRemovedFile(m[1]));
+  // A test may print a child's shell diagnostics before its own assertion.
+  // The shell's execution-failure status distinguishes a broken invocation
+  // from that tested diagnostic; standalone assertion output remains a red.
+  const testedDiagnostic = /\bAssertionError\b|^\s*not ok \d|^\s*Tests\s+\d+ failed/im.test(output) && exit !== 126 && exit !== 127;
   if (
-    /^(?:(?:\/[\w.-]+)*\/)?(?:bash|dash|sh|zsh)(?:: (?:line )?\d+)?: [^\r\n]+: (?:command not found|not found|No such file or directory|Permission denied|cannot execute[^\r\n]*)\s*$/im.test(output) ||
+    (!testedDiagnostic && (
+    /^(?:(?:\/[\w.-]+)*\/)?(?:bash|dash|sh)(?:: (?:line )?\d+)?: [^\r\n]+: (?:command not found|not found|No such file or directory|Permission denied|cannot execute[^\r\n]*)\s*$/im.test(output) ||
     /is not recognized as an internal or external command/i.test(output) ||
-    /npm ERR! Missing script:|npm error Missing script:/i.test(output) ||
+    /npm ERR! Missing script:|npm error Missing script:/i.test(output))) ||
     missingEntryScript
   ) {
     return "shell";
@@ -473,7 +478,7 @@ export function runRedGreen({ repoRoot, test, files, base = "HEAD", snapshotDir,
       log(`red     ${test}`);
       const red = runTest(test, repoRoot);
       const removed = entries.filter((e) => e.baseBytes == null).map((e) => e.path);
-      const redReason = red.exit === 0 ? null : classifyRedFailure(red.output, { removed, launchError: red.launchError });
+      const redReason = red.exit === 0 ? null : classifyRedFailure(red.output, { removed, launchError: red.launchError, exit: red.exit });
       report.red = {
         exit: red.exit,
         outcome: red.exit === 0 ? "passed" : "failed",

@@ -355,14 +355,23 @@ async function status() {
 }
 
 // Read kernel identities rather than command text or rounded wall-clock dates.
-export function linuxProcesses() {
+export function linuxProcesses({ io = fs, uid = process.getuid?.() } = {}) {
   const rows = [];
-  for (const name of fs.readdirSync("/proc")) {
+  for (const name of io.readdirSync("/proc")) {
     if (!/^\d+$/.test(name)) continue;
     try {
-      const stat = fs.readFileSync(`/proc/${name}/stat`, "utf8");
+      const owner = io.statSync(`/proc/${name}`).uid;
+      let stat;
+      try { stat = io.readFileSync(`/proc/${name}/stat`, "utf8"); }
+      catch (error) {
+        if ((error.code === "EACCES" || error.code === "EPERM") && owner !== uid) {
+          rows.push({ pid: Number(name), uid: owner, unreadable: true });
+          continue;
+        }
+        throw error;
+      }
       const fields = stat.slice(stat.lastIndexOf(")") + 2).trim().split(/\s+/);
-      rows.push({ pid: Number(name), parent: Number(fields[1]), group: Number(fields[2]), session: Number(fields[3]), state: fields[0], start: fields[19], uid: fs.statSync(`/proc/${name}`).uid });
+      rows.push({ pid: Number(name), parent: Number(fields[1]), group: Number(fields[2]), session: Number(fields[3]), state: fields[0], start: fields[19], uid: owner });
     } catch (error) {
       if (error.code !== "ENOENT" && error.code !== "ESRCH") throw error;
     }
@@ -378,16 +387,25 @@ const sameProcess = (a, b) => a?.pid === b?.pid && a?.start === b?.start && a?.u
 export async function stopLinuxTree(pid, { read = linuxProcesses, signal = process.kill, uid = process.getuid?.(), self = process.pid, sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms)), now = Date.now } = {}) {
   if (!Number.isInteger(pid) || pid <= 1 || pid === self) throw new Error("invalid launcher pid");
   const initial = read();
+  if (initial.some((row) => row.pid === self && row.group === pid)) throw new Error("caller belongs to the launcher group; refusing to signal itself");
   const leader = initial.find((row) => row.pid === pid && runningProcess(row));
   if (!leader || leader.group !== pid || leader.session !== pid || leader.uid !== uid || !leader.start) throw new Error("launcher does not own an identifiable process group and session");
   const anchors = initial.filter((row) => row.group === pid && runningProcess(row));
   const observed = new Map(anchors.map((row) => [row.pid, row]));
   const members = () => {
     const rows = read();
+    if (rows.some((row) => row.pid === self && row.group === pid)) throw new Error("caller belongs to the launcher group; refusing to signal itself");
+    if (rows.some((row) => row.unreadable && observed.has(row.pid))) throw new Error("a tracked process became unreadable; the record is kept");
     const group = rows.filter((row) => row.group === pid && runningProcess(row));
     if (group.length && (group.some((row) => row.session !== pid || row.uid !== uid) || !group.some((row) => anchors.some((anchor) => sameProcess(anchor, row))))) throw new Error("process group identity changed; refusing to signal it");
     const currentLeader = rows.find((row) => row.pid === pid && runningProcess(row));
     if (currentLeader && !sameProcess(leader, currentLeader)) throw new Error("launcher identity changed; refusing to signal it");
+    // Retain members first observed while a known identity still vouches for
+    // this group, so later children can survive the original launcher's exit.
+    for (const row of group) {
+      if (!anchors.some((anchor) => sameProcess(anchor, row))) anchors.push(row);
+      observed.set(row.pid, row);
+    }
     // A descendant that leaves the group needs separate ownership handling.
     const descendants = new Set(rows.filter((row) => sameProcess(observed.get(row.pid), row)).map((row) => row.pid));
     let changed;
