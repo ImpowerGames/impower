@@ -30,6 +30,7 @@ await test('parser preserves escaped pipes and backslashes and rejects malformed
 await test('both intake label styles work; summaries are skipped and malformed intake is retained', () => {
   const plain = intake(1);
   assert.deepEqual(parseIntake(plain), parseIntake({ ...plain, body: plain.body.replace(/^(Skill and section|What happened|Proposed edit):/gm, '**$1:**') }));
+  assert.deepEqual(parseIntake(plain), parseIntake({ ...plain, body: plain.body.replace(/^(Skill and section|What happened|Proposed edit):/gm, '**$1**:') }));
   assert.equal(parseIntake({ body: '<!-- skill-feedback-triage:abc -->\nFolded 2.' }), null);
   assert.throws(() => parseIntake({ id: 9, body: 'Unknown comment' }), /Comment 9/);
 });
@@ -51,7 +52,7 @@ await test('new feedback reopens an applied section instead of disappearing with
 });
 
 function fixture(comments = [intake(1)]) {
-  const state = { body, comments: structuredClone(comments), issues: [], references: new Map(), discussion: [], events: [], fail: null };
+  const state = { body, comments: structuredClone(comments), issues: [], references: new Map(), discussion: new Map(), bodyWrites: [], events: [], fail: null };
   const checkpoint = name => { state.events.push(name); if (state.fail === name) { state.fail = null; throw new Error(`interrupted ${name}`); } };
   const api = {
     inbox: async () => ({ body: state.body }), comments: async () => structuredClone(state.comments), issues: async () => structuredClone(state.issues),
@@ -61,10 +62,10 @@ function fixture(comments = [intake(1)]) {
       return structuredClone(issue);
     },
     pr: async number => ({ number, state: number === 503 ? 'closed' : 'open', merged_at: number === 503 ? '2026-01-01' : null }),
-    issueComments: async () => structuredClone(state.discussion),
-    postIssueComment: async (number, text) => { const comment = { id: 800 + state.discussion.length, body: text }; state.discussion.push(comment); checkpoint('evidence'); return comment; },
+    issueComments: async number => structuredClone(state.discussion.get(number) || []),
+    postIssueComment: async (number, text) => { const discussion = state.discussion.get(number) || []; const comment = { id: 800 + discussion.length, body: text }; discussion.push(comment); state.discussion.set(number, discussion); checkpoint('evidence'); return comment; },
     createTicket: async (title, text) => { const issue = { number: state.issues.length + 600, title, body: text, state: 'open', type: { name: 'Task' }, labels: [{ name: 'workflow: skills' }] }; state.issues.push(issue); checkpoint('created'); return issue; },
-    updateBody: async text => { state.body = text; checkpoint('persisted'); },
+    updateBody: async text => { state.bodyWrites.push(text); state.body = text; checkpoint('persisted'); },
     deleteComment: async id => { checkpoint('delete'); state.comments = state.comments.filter(c => c.id !== id); },
     postSummary: async text => { const comment = { id: 999 + state.comments.length, body: text, html_url: 'https://example.test/summary' }; state.comments.push(comment); checkpoint('summary'); return comment; },
   };
@@ -165,9 +166,6 @@ await test('unparsed comments have explicit reasons and remain byte-for-byte whi
   await applyPlan(plan, api);
   assert.deepEqual(state.comments.slice(0, 2), [ordinary, malformed]);
   assert.match(state.comments[2].body, /left unparsed comments 2, 3 intact/);
-  const outsideColon = intake(4);
-  outsideColon.body = outsideColon.body.replace(/^(Skill and section|What happened|Proposed edit):/gm, '**$1**:');
-  assert.deepEqual(parseIntake(outsideColon), parseIntake(intake(4)));
 });
 await test('existing ticket evidence is exact, durable, and recovered before intake deletion', async () => {
   const { state, api, plan } = fixture();
@@ -178,17 +176,18 @@ await test('existing ticket evidence is exact, durable, and recovered before int
   await assert.rejects(applyPlan(plan, api), /interrupted evidence/);
   assert.equal(state.comments[0].id, 1);
   await applyPlan(plan, api);
-  assert.equal(state.discussion.length, 1);
-  assert.equal(state.discussion[0].body, expected);
+  assert.deepEqual([...state.discussion.keys()], [701]);
+  assert.equal(state.discussion.get(701).length, 1);
+  assert.equal(state.discussion.get(701)[0].body, expected);
   assert.ok(state.events.indexOf('evidence') < state.events.indexOf('delete'));
   assert.equal(parseTable(state.body).rows.length, 1);
-  assert.match(state.discussion[0].body, /New friction/);
+  assert.match(state.discussion.get(701)[0].body, /New friction/);
 });
 await test('existing evidence read-back mismatch keeps intake intact', async () => {
   const { state, api, plan } = fixture();
   state.references.set(701, { number: 701, state: 'open', type: { name: 'Task' }, labels: [{ name: 'workflow: skills' }] });
   plan.groups[0] = { action: 'existing', number: 701, keys: plan.groups[0].keys };
-  api.postIssueComment = async () => { const item = { id: 800, body: 'Wrong text' }; state.discussion.push(item); return item; };
+  api.postIssueComment = async number => { const item = { id: 800, body: 'Wrong text' }; state.discussion.set(number, [item]); return item; };
   await assert.rejects(applyPlan(plan, api), /evidence failed read-back/);
   assert.equal(state.comments[0].id, 1);
   assert.ok(!state.events.includes('delete'));
@@ -219,7 +218,7 @@ await test('new feedback suggests the existing open ticket and reference changes
   await assert.rejects(applyPlan(plan, api), /changed since planning/);
   assert.deepEqual(state.events, []);
   ticket.state = 'open'; await applyPlan(plan, api);
-  assert.equal(state.issues.length, 1); assert.equal(state.discussion.length, 1);
+  assert.equal(state.issues.length, 1); assert.equal(state.discussion.get(601).length, 1);
 });
 await test('closed existing targets are refused before any persistence', async () => {
   const { state, api, plan } = fixture();
@@ -243,7 +242,7 @@ await test('acted-on recurrence stays actionable even when both fields are subst
   const plan = await readPlan(api);
   assert.equal(plan.rows[0].status, 'open'); assert.equal(plan.groups[0].action, 'existing');
   await applyPlan(plan, api);
-  const evidence = state.discussion[0].body;
+  const evidence = state.discussion.get(601)[0].body;
   assert.match(evidence, /Intake #55:\n\nfriction\n\nProposed change: edit/);
   assert.ok(!evidence.includes('Old friction')); assert.ok(!evidence.includes('A longer edit proposal'));
   assert.match(parseTable(state.body).rows[0].friction, /context only/);
@@ -255,7 +254,7 @@ await test('already-applied text is context rather than a new Task instruction',
   assert.ok(!ticket.includes('Old friction')); assert.ok(!ticket.includes('Keep `C:'));
   assert.match(plan.rows[0].edit, /context only/);
 });
-await test('table encoding is lossless and prevents code spans from swallowing entities or breaks', () => {
+await test('normalized table values round-trip without code spans swallowing entities or breaks', () => {
   const rows = [{ skill: 's, section 1', friction: 'Run `git ls-files | wc -l` then plain |. C:\\path\\\\pair', edit: '```sh\nnode t.mjs\n```\nLiteral &#124; <br> **stars** \\*', status: 'open' }];
   const encoded = renderTable(body, rows);
   assert.deepEqual(parseTable(encoded).rows, rows);
@@ -281,7 +280,7 @@ await test('changed recovered ticket refuses with precise recovery advice and pr
   assert.equal(state.issues.length, 1); assert.equal(state.comments[0].id, 1);
   const next = makePlan(state.body, state.comments);
   next.groups[0] = { action: 'existing', number: 600, keys: next.groups[0].keys };
-  await applyPlan(next, api); assert.equal(state.issues.length, 1); assert.equal(state.discussion.length, 1);
+  await applyPlan(next, api); assert.equal(state.issues.length, 1); assert.equal(state.discussion.get(600).length, 1);
 });
 await test('created Task read-back rejects wrong type, label, body or title', async () => {
   for (const change of [{ type: { name: 'Bug' } }, { labels: [] }, { body: 'Wrong body' }, { title: 'Wrong title' }]) {
@@ -289,7 +288,7 @@ await test('created Task read-back rejects wrong type, label, body or title', as
     const read = api.issue;
     api.issue = async number => ({ ...await read(number), ...change });
     await assert.rejects(applyPlan(plan, api), /differs from this plan/);
-    assert.equal(state.comments[0].id, 1); assert.ok(!state.events.includes('body'));
+    assert.equal(state.comments[0].id, 1); assert.deepEqual(state.bodyWrites, []);
   }
 });
 await test('existing target validation rejects a PR, wrong type, or missing label', async () => {
@@ -318,8 +317,10 @@ await test('tampered observation metadata cannot change preview while apply post
     const { state, api } = fixture();
     state.body = body.replace('| open |', '| applied in PR #503 |');
     const plan = makePlan(state.body, state.comments);
+    const originalPreview = preview(plan)[0].body;
     if (field === 'observations') plan.rows[0].observations[0].edit = 'Altered preview proposal';
     else delete plan.rows[0].previousStatus;
+    assert.notEqual(preview(plan)[0].body, originalPreview);
     await assert.rejects(applyPlan(plan, api), /Plan rows differ/);
     assert.deepEqual(state.events, []);
   }
@@ -328,7 +329,7 @@ await test('body edited after initial validation is not overwritten', async () =
   const { state, api, plan } = fixture(); let reads = 0;
   api.inbox = async () => { if (++reads === 2) state.body += '\nConcurrent update'; return { body: state.body }; };
   await assert.rejects(applyPlan(plan, api), /Inbox changed during triage/);
-  assert.ok(state.body.endsWith('Concurrent update')); assert.ok(!state.events.includes('body')); assert.equal(state.comments[0].id, 1);
+  assert.ok(state.body.endsWith('Concurrent update')); assert.deepEqual(state.bodyWrites, []); assert.equal(state.comments[0].id, 1);
 });
 await test('an intake deletion that did not persist is reported before summary', async () => {
   const { state, api, plan } = fixture(); api.deleteComment = async () => {};
@@ -382,4 +383,231 @@ await test('CLI rejects inside ..prefix paths and accepts outside siblings', () 
     rmSync(scratch, { recursive: true, force: true });
   }
 });
+await test('unmerged applied PR recurrence persists both proposals before deleting intake', async () => {
+  const { state, api } = fixture();
+  state.body = body.replace('| open |', '| applied in PR #503 |');
+  api.pr = async number => ({ number, state: 'closed', merged_at: null });
+  const plan = JSON.parse(JSON.stringify(await readPlan(api)));
+  const proposed = preview(plan)[0].body;
+  assert.match(proposed, /Keep `C:/);
+  assert.match(proposed, /Preserve.*slashes/);
+  assert.match(proposed, /closed without merging/);
+  assert.ok(!plan.rows[0].edit.includes('context only'));
+  await applyPlan(plan, api);
+  assert.equal(state.issues[0].body, proposed);
+  assert.equal(state.comments.some(comment => comment.id === 1), false);
+});
+await test('closed-ticket recurrence names closure without reactivating prior proposals', async () => {
+  for (const state_reason of ['completed', 'not_planned']) {
+    const { state, api } = fixture();
+    state.body = body.replace('| open |', '| ticketed #601 |');
+    state.references.set(601, { state: 'closed', state_reason });
+    const plan = await readPlan(api);
+    const proposed = preview(plan)[0].body;
+    assert.match(proposed, /ticketed #601 \(closed; closure does not establish/);
+    assert.ok(!proposed.includes('Keep `C:'));
+    assert.match(proposed, /Preserve.*slashes/);
+    assert.equal(plan.groups[0].action, 'ticket');
+  }
+});
+await test('dotted numbered targets normalize while named parentheses and multi-target keys stay distinct', () => {
+  assert.equal(keyOf('CLAUDE.md, section 3 (filing)'), keyOf('CLAUDE.md, section 3'));
+  assert.notEqual(keyOf('review-pr, adjudication (out-of-order reviews)'), keyOf('review-pr, adjudication'));
+  assert.notEqual(keyOf('CLAUDE.md, section 3.1'), keyOf('CLAUDE.md, section 3'));
+  assert.notEqual(keyOf('CLAUDE.md, section 3 and review-pr, section 4'), keyOf('CLAUDE.md, section 3'));
+});
+await test('ignored diagnostics disclose recognized labels without changing comment bytes', () => {
+  const comments = [{ id: 1, body: 'Thank you.\r\n' }, { id: 2, body: 'Skill and section: x\nWhat happened: y' }];
+  const result = fold(body, comments);
+  assert.deepEqual(result.ignored.map(comment => comment.body), comments.map(comment => comment.body));
+  assert.match(result.ignored[0].reason, /0 of 3 recognized labels \(none\)/);
+  assert.match(result.ignored[1].reason, /2 of 3 recognized labels \(Skill and section, What happened\)/);
+  const wrongOrder = fold(body, [{ id: 3, body: 'Proposed edit: x\nWhat happened: y\nSkill and section: z' }]);
+  assert.match(wrongOrder.ignored[0].reason, /Proposed edit, What happened, Skill and section/);
+});
+await test('same-ticket recurrences avoid new prefixes while preserving pre-existing literal prefixes', () => {
+  const prefix = 'Earlier feedback (ticketed #601; context only):\n';
+  for (const existingPrefixes of [0, 3]) {
+  let current = renderTable(body, [{ skill: 'review-pr, section 3', friction: prefix.repeat(existingPrefixes) + 'Original friction', edit: prefix.repeat(existingPrefixes) + 'Original proposal', status: 'ticketed #601' }]);
+  for (let id = 21; id <= 23; id++) {
+    const plan = makePlan(current, [intake(id)], { prs: {}, issues: { 601: { state: 'open' } } });
+    current = renderTable(body, plan.rows.map(row => ({ ...row, status: 'ticketed #601' })));
+  }
+  const row = parseTable(current).rows[0];
+  for (const field of ['friction', 'edit']) {
+    assert.equal(row[field].split(prefix).length - 1, existingPrefixes || 1);
+    assert.ok(row[field].includes('Original'));
+    for (let id = 21; id <= 23; id++) assert.ok(row[field].includes(`intake #${id}`));
+  }
+  }
+});
+
+await test('unmerged recurrence preserves literal context prefixes already in source feedback', () => {
+  const prefix = 'Earlier feedback (applied in PR #503; context only):\n';
+  const original = { skill: 'review-pr, section 3', friction: prefix.repeat(2) + 'Original friction', edit: prefix.repeat(2) + 'Original proposal', status: 'applied in PR #503' };
+  const plan = makePlan(renderTable(body, [original]), [intake(1)], { prs: { 503: { state: 'closed', merged_at: null } }, issues: {} });
+  assert.ok(plan.rows[0].friction.startsWith(original.friction));
+  assert.ok(plan.rows[0].edit.startsWith(original.edit));
+  assert.equal(plan.rows[0].edit.split(prefix).length - 1, 2);
+  assert.match(preview(plan)[0].body, /Original proposal/);
+  assert.match(preview(plan)[0].body, /proposal remains actionable/);
+});
+
+await test('mixed-status duplicate table rows refuse both orders without writes or deletions', async () => {
+  for (const status of ['ticketed #601', 'applied in PR #503']) for (const reverse of [false, true]) {
+    const { state, api } = fixture([]);
+    const old = { skill: 'review-pr, section 3', friction: 'Earlier', edit: 'Earlier proposal', status };
+    const fresh = { ...old, friction: 'New work', edit: 'New proposal', status: 'open' };
+    state.body = renderTable(body, reverse ? [fresh, old] : [old, fresh]);
+    const before = state.body;
+    await assert.rejects(readPlan(api), /Conflicting statuses.*resolve the table first/);
+    assert.equal(state.body, before);
+    assert.deepEqual(state.events, []);
+  }
+});
+await test('existing evidence mismatch names the artifact and original-plan recovery', async () => {
+  const { state, api } = fixture();
+  state.body = body.replace('| open |', '| ticketed #601 |');
+  state.references.set(601, { number: 601, state: 'open', type: { name: 'Task' }, labels: [{ name: 'workflow: skills' }] });
+  const plan = await readPlan(api);
+  state.fail = 'evidence';
+  await assert.rejects(applyPlan(plan, api), /interrupted evidence/);
+  const changed = structuredClone(plan);
+  changed.groups[0].context += ' Edited context.';
+  await assert.rejects(applyPlan(changed, api), /Task #601, comment #800.*original unedited plan/);
+  assert.equal(state.comments[0].id, 1);
+  assert.equal(state.discussion.get(601).length, 1);
+  await applyPlan(plan, api);
+  assert.equal(state.discussion.get(601).length, 1);
+  assert.equal(state.comments.some(comment => comment.id === 1), false);
+});
+
+await test('existing evidence preview preserves all feedback and context without a new Task template', async () => {
+  const { state, api } = fixture([intake(1), intake(2, 'review-pr, section 3', 'Second observation')]);
+  state.body = body.replace('| open |', '| ticketed #601 |');
+  state.references.set(601, { number: 601, state: 'open', type: { name: 'Task' }, labels: [{ name: 'workflow: skills' }] });
+  const plan = await readPlan(api);
+  assert.ok(!plan.groups[0].context.includes('verify'));
+  plan.groups[0].context += '\nKeep this operator-supplied context.';
+  const proposed = preview(plan)[0].body;
+  assert.match(proposed, /Feedback from #510/);
+  assert.match(proposed, /New friction/);
+  assert.match(proposed, /Second observation/);
+  assert.match(proposed, /Proposed change: Preserve/);
+  assert.match(proposed, /operator-supplied context/);
+  assert.match(proposed, /Feedback group: [a-f0-9]{20}/);
+  assert.ok(!/## Motivation|## Scope|## Acceptance criteria|Filed by/.test(proposed));
+  await applyPlan(plan, api);
+  assert.deepEqual([...state.discussion.keys()], [601]);
+  assert.equal(state.discussion.get(601)[0].body, proposed);
+});
+
+await test('longer outer fences preserve nested examples while replacing real summaries', async () => {
+  const { state, api } = fixture();
+  const example = '\n## Example\n\n````markdown\n```sh\n<!-- skill-feedback-triage:00000000000000000000 -->\nFolded 0.\n<!-- skill-feedback-state:11111111111111111111 -->\n```\n````\n';
+  state.body += example;
+  for (let run = 0; run < 3; run++) {
+    await applyPlan(await readPlan(api), api);
+    assert.ok(state.body.includes(example));
+    assert.equal((state.body.match(/<!-- skill-feedback-triage:/g) || []).length, 2);
+  }
+});
+await test('PR reference drift refuses writes and a fresh readPlan retires the merged row', async () => {
+  const { state, api } = fixture([]);
+  state.body = body.replace('| open |', '| applied in PR #700 |');
+  let pr = { number: 700, state: 'open', merged_at: null };
+  api.pr = async () => structuredClone(pr);
+  const plan = await readPlan(api);
+  pr = { number: 700, state: 'closed', merged_at: '2026-09-10' };
+  await assert.rejects(applyPlan(plan, api), /Referenced prs #700 changed since planning/);
+  assert.deepEqual(state.bodyWrites, []);
+  assert.deepEqual(state.events, []);
+  const fresh = await readPlan(api);
+  await applyPlan(fresh, api);
+  assert.equal(parseTable(state.body).rows.length, 0);
+  assert.equal(state.bodyWrites.length, 1);
+});
+
+await test('unclosed fences refuse planning and applying before writes without deleting examples', async () => {
+  for (const opener of ['```sh', '~~~text']) {
+    const { state, api, plan } = fixture();
+    state.body += '\n## Notes\n\n' + opener + '\n<!-- skill-feedback-triage:00000000000000000000 -->\nFolded example.\n';
+    const before = state.body;
+    await assert.rejects(readPlan(api), /requires closed code fences/);
+    plan.body = before;
+    await assert.rejects(applyPlan(plan, api), /requires closed code fences/);
+    assert.equal(state.body, before);
+    assert.equal(state.comments[0].id, 1);
+    assert.deepEqual(state.bodyWrites, []);
+    assert.deepEqual(state.events, []);
+  }
+});
+await test('backticks in an apparent opener info string remain ordinary prose', async () => {
+  const { state, api } = fixture();
+  const prose = '\n```text with `inline` backticks is not a fence opener.\n';
+  state.body += prose;
+  for (let run = 0; run < 2; run++) {
+    await applyPlan(await readPlan(api), api);
+    assert.ok(state.body.includes(prose));
+    assert.equal((state.body.match(/<!-- skill-feedback-triage:/g) || []).length, 1);
+  }
+});
+
+await test('body drift after existing evidence recovers with a fresh plan preserving original context', async () => {
+  const { state, api } = fixture();
+  state.body = body.replace('| open |', '| ticketed #601 |');
+  state.references.set(601, { number: 601, state: 'open', type: { name: 'Task' }, labels: [{ name: 'workflow: skills' }] });
+  const original = await readPlan(api);
+  original.groups[0].context += '\nScope: preserve this exact operator context.';
+  state.fail = 'evidence';
+  await assert.rejects(applyPlan(original, api), /interrupted evidence/);
+  state.body += '\nMaintainer note added after interruption.\n';
+  await assert.rejects(applyPlan(original, api), /Inbox body changed since planning/);
+  const fresh = await readPlan(api);
+  await assert.rejects(applyPlan(fresh, api), /Task #601, comment #800.*fresh plan.*original group's context exactly/);
+  assert.deepEqual(state.bodyWrites, []);
+  assert.equal(state.comments[0].id, 1);
+  fresh.groups[0].context = original.groups[0].context;
+  await applyPlan(fresh, api);
+  assert.equal(state.discussion.get(601).length, 1);
+  assert.ok(state.body.includes('Maintainer note added after interruption.'));
+  assert.equal(state.comments.some(comment => comment.id === 1), false);
+});
+await test('fenced canonical-table examples stay untouched and only the real table is triaged', async () => {
+  for (const fence of ['```text', '~~~text']) {
+    const { state, api } = fixture();
+    const example = fence + '\n| Skill, section | Friction | Proposed edit | Status |\n| --- | --- | --- | --- |\n| <skill> | <observation> | <proposal> | open |\n' + fence.slice(0, 3) + '\n\n';
+    state.body = example + state.body;
+    const plan = await readPlan(api);
+    assert.equal(plan.rows.length, 1);
+    assert.equal(plan.rows[0].skill, 'review-pr, section 3');
+    await applyPlan(plan, api);
+    assert.ok(state.body.startsWith(example));
+    assert.equal(state.issues.length, 1);
+    assert.ok(!state.issues[0].body.includes('<proposal>'));
+  }
+});
+await test('multiple real canonical tables refuse before writes rather than choosing one', async () => {
+  const { state, api } = fixture();
+  state.body += '\nSecond real table:\n\n' + body;
+  const before = state.body;
+  await assert.rejects(readPlan(api), /Multiple canonical inbox tables outside code fences/);
+  assert.equal(state.body, before);
+  assert.deepEqual(state.bodyWrites, []);
+  assert.deepEqual(state.events, []);
+  assert.equal(state.comments[0].id, 1);
+});
+await test('marker-prefixed human comments and summaries have explicit skipped-ID dispositions', async () => {
+  const human = { id: 51, body: '<!-- skill-feedback-triage:old -->\nPlease explain this summary.\n' };
+  const summary = { id: 52, body: '<!-- skill-feedback-triage:00000000000000000000 -->\nFolded 0.' };
+  const { state, api } = fixture([intake(1), human, summary]);
+  const plan = await readPlan(api);
+  assert.deepEqual(plan.skipped.map(comment => comment.id), [51, 52]);
+  assert.deepEqual(plan.skipped.map(comment => comment.body), [human.body, summary.body]);
+  assert.ok(plan.skipped.every(comment => comment.reason.includes('inspect')));
+  await applyPlan(plan, api);
+  assert.deepEqual(state.comments.slice(0, 2), [human, summary]);
+  assert.match(state.comments[2].body, /left marker-prefixed comments 51, 52 intact/);
+});
+
 console.log(`All ${passed} triage checks passed.`);

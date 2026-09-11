@@ -17,24 +17,26 @@ const statusPattern = /^(open|ticketed #\d+|applied in PR #\d+)$/;
 const canonicalRows = rows => rows.map(({ skill, friction, edit, status }) => ({ skill, friction, edit, status }));
 const groupMarker = rows => `Feedback group: ${hash(JSON.stringify(canonicalRows(rows)))}`;
 
+function fencedAt(body, offset = body.length) {
+  let fence;
+  for (const line of body.slice(0, offset).split('\n')) {
+    const match = line.match(/^ {0,3}(`{3,}|~{3,})(.*)$/);
+    if (!match) continue;
+    if (!fence) {
+      if (match[1][0] !== '`' || !match[2].includes('`')) fence = match[1];
+    } else if (match[1][0] === fence[0] && match[1].length >= fence.length && !match[2].trim()) fence = undefined;
+  }
+  return Boolean(fence);
+}
+
 function stripSummaryBlocks(body) {
-  const fenced = offset => {
-    let fence;
-    for (const line of body.slice(0, offset).split('\n')) {
-      const match = line.match(/^ {0,3}(`{3,}|~{3,})(.*)$/);
-      if (!match) continue;
-      if (!fence) fence = match[1];
-      else if (match[1][0] === fence[0] && match[1].length >= fence.length && !match[2].trim()) fence = undefined;
-    }
-    return Boolean(fence);
-  };
   return body.replace(/^<!-- skill-feedback-triage:[a-f0-9]{20} -->\nFolded (?:(?!\n<!-- skill-feedback-triage:)[\s\S])*?\n<!-- skill-feedback-state:[a-f0-9]{20} -->\n?/gm,
-    (block, offset) => fenced(offset) ? block : '');
+    (block, offset) => fencedAt(body, offset) ? block : '');
 }
 
 export function keyOf(skill) {
   const value = clean(skill).toLowerCase().replace(/[`*]/g, '').replace(/\s+/g, ' ');
-  const numbered = value.match(/^([a-z0-9_-]+)(?:,\s*|\s+)(?:in\s+)?section\s+(\d+(?:\.\d+)*)(?:\s+\([^()]*\))?\.?$/);
+  const numbered = value.match(/^([a-z0-9_-]+(?:\.[a-z0-9_-]+)*)(?:,\s*|\s+)(?:in\s+)?section\s+(\d+(?:\.\d+)*)(?:\s+\([^()]*\))?\.?$/);
   return numbered ? `${numbered[1]}, section ${numbered[2]}` : value.replace(/\.$/, '');
 }
 
@@ -43,8 +45,16 @@ function cells(line) {
 }
 
 export function parseTable(body) {
-  const lines = body.replace(/\r\n/g, '\n').split('\n');
-  const start = lines.findIndex(line => /^\|\s*Skill, section\s*\|\s*Friction\s*\|\s*Proposed edit\s*\|\s*Status\s*\|\s*$/.test(line));
+  const normalized = body.replace(/\r\n/g, '\n');
+  const lines = normalized.split('\n');
+  const candidates = [];
+  let offset = 0;
+  for (const [index, line] of lines.entries()) {
+    if (/^\|\s*Skill, section\s*\|\s*Friction\s*\|\s*Proposed edit\s*\|\s*Status\s*\|\s*$/.test(line) && !fencedAt(normalized, offset)) candidates.push(index);
+    offset += line.length + 1;
+  }
+  if (candidates.length > 1) throw new Error('Multiple canonical inbox tables outside code fences; identify one real table before triage.');
+  const start = candidates[0] ?? -1;
   if (start < 0 || !/^\|(?:\s*:?-+:?\s*\|){4}\s*$/.test(lines[start + 1] || '')) throw new Error('Inbox table contract not recognized; read #510 before updating the parser.');
   const rows = [];
   let end = start + 2;
@@ -67,23 +77,25 @@ export function parseIntake(comment) {
   const text = clean(comment.body);
   if (text.startsWith('<!-- skill-feedback-triage:')) return null;
   const fields = [...text.matchAll(/^(?:\*\*)?(Skill and section|What happened|Proposed edit)(?:\*\*)?:(?:\*\*)?\s*/gm)];
-  if (fields.length !== 3 || fields.map(f => f[1]).join('|') !== 'Skill and section|What happened|Proposed edit') throw new Error(`Comment ${comment.id} does not match the inbox intake contract; leave it intact and inspect it.`);
+  if (fields.length !== 3 || fields.map(f => f[1]).join('|') !== 'Skill and section|What happened|Proposed edit') throw new Error(`Comment ${comment.id} does not match the inbox intake contract: found ${new Set(fields.map(f => f[1])).size} of 3 recognized labels (${fields.map(f => f[1]).join(', ') || 'none'}), in that order. Leave it intact; inspect incomplete or misordered intake and distinguish ordinary discussion.`);
   const values = fields.map((field, i) => text.slice(field.index + field[0].length, fields[i + 1]?.index ?? text.length).trim());
   if (values.some(v => !v)) throw new Error(`Comment ${comment.id} has an empty intake field.`);
   return { skill: values[0], friction: values[1], edit: values[2], status: 'open' };
 }
 
-export function fold(body, comments) {
+export function fold(body, comments, references = { prs: {}, issues: {} }) {
   const rows = [];
   const byKey = new Map();
   function add(row, repeat, id) {
     const key = keyOf(row.skill);
     const previous = byKey.get(key);
     if (!previous) { const copy = { ...row }; rows.push(copy); byKey.set(key, copy); return; }
-    if (previous.status !== row.status && row.status !== 'open') throw new Error(`Conflicting statuses for ${row.skill}; resolve the table first.`);
+    if (previous.status !== row.status && (!id || row.status !== 'open')) throw new Error(`Conflicting statuses for ${row.skill}; resolve the table first.`);
     if (id && previous.status !== 'open') {
       previous.previousStatus = previous.status;
-      for (const field of ['friction', 'edit']) previous[field] = `Earlier feedback (${previous.status}; context only):\n${previous[field]}`;
+      const prefix = `Earlier feedback (${previous.status}; context only):\n`;
+      const pr = references.prs[previous.status.match(/^applied in PR #(\d+)$/)?.[1]];
+      if (!(pr?.state === 'closed' && !pr.merged_at)) for (const field of ['friction', 'edit']) if (!previous[field].startsWith(prefix)) previous[field] = prefix + previous[field];
       previous.status = 'open';
     }
     if (id) {
@@ -97,24 +109,29 @@ export function fold(body, comments) {
   for (const row of parseTable(body).rows) add(row, true);
   const folded = [];
   const ignored = [];
+  const skipped = [];
   for (const comment of comments) {
     try {
       const row = parseIntake(comment);
       if (row) { add(row, true, comment.id); folded.push(comment); }
+      else skipped.push({ id: comment.id, body: comment.body, reason: 'Marker-prefixed comment; inspect whether it is a triage summary or discussion. Left intact.' });
     } catch (error) { ignored.push({ id: comment.id, body: comment.body, reason: error.message }); }
   }
-  return { rows, folded, ignored };
+  return { rows, folded, ignored, skipped };
 }
 
 export function makePlan(body, comments, references = { prs: {}, issues: {} }) {
-  const { rows, folded, ignored } = fold(body, comments);
+  if (fencedAt(body)) throw new Error('Triage requires closed code fences in the inbox body; close the unfinished fence before planning. Its contents remain untouched.');
+  const { rows, folded, ignored, skipped } = fold(body, comments, references);
   for (const row of rows) {
-    if (!row.status.startsWith('applied in PR #')) continue;
-    const number = row.status.match(/#(\d+)/)[1];
+    const previous = row.previousStatus || row.status;
+    if (!previous.startsWith('applied in PR #')) continue;
+    const number = previous.match(/#(\d+)/)[1];
     const pr = references.prs[number];
     if (pr?.state === 'closed' && !pr.merged_at) {
-      row.previousStatus = row.status;
-      row.edit += `\nEarlier item: ${row.status}; the pull request closed without merging.`;
+      row.previousStatus = previous;
+      row.previousUnmerged = true;
+      row.edit += `\nEarlier item: ${previous}; the pull request closed without merging; its proposal remains actionable.`;
       row.status = 'open';
     }
   }
@@ -125,13 +142,13 @@ export function makePlan(body, comments, references = { prs: {}, issues: {} }) {
     const existing = previousTicket && references.issues[previousTicket]?.state === 'open';
     const key = existing ? `existing:${previousTicket}` : `ticket:${skill}`;
     if (!groups.has(key)) groups.set(key, existing
-      ? { action: 'existing', number: Number(previousTicket), keys: [], context: `Follow-up to #${previousTicket}; verify this Task remains the right scope before applying.` }
+      ? { action: 'existing', number: Number(previousTicket), keys: [], context: `New feedback on #${previousTicket}.` }
       : { action: 'ticket', title: `Address ${skill} feedback from the skills inbox`, keys: [], context: '' });
     const group = groups.get(key);
     group.keys.push(keyOf(row.skill));
-    if (row.previousStatus && !existing) group.context += `${group.context ? '\n' : ''}Related earlier work: ${row.previousStatus}.`;
+    if (row.previousStatus && !existing) group.context += `${group.context ? '\n' : ''}Previous reference: ${row.previousStatus}${previousTicket && references.issues[previousTicket]?.state === 'closed' ? ' (closed; closure does not establish that the proposal shipped)' : row.previousUnmerged ? ' (closed without merging)' : ''}.`;
   }
-  return { version: 1, repo: REPO, inbox: INBOX, body, comments: folded, ignored, references, rows, groups: [...groups.values()] };
+  return { version: 1, repo: REPO, inbox: INBOX, body, comments: folded, ignored, skipped, references, rows, groups: [...groups.values()] };
 }
 
 export async function readPlan(api) {
@@ -150,17 +167,24 @@ export async function readPlan(api) {
   return makePlan(body, comments, references);
 }
 
-function ticketBody(rows, marker, context = '') {
-  const description = rows.map(row => `### ${row.skill}\n\n` + (row.previousStatus && row.observations?.length
+function description(rows) {
+  return rows.map(row => `### ${row.skill}\n\n` + (row.previousStatus && !row.previousUnmerged && row.observations?.length
     ? row.observations.map(item => `Intake #${item.id}:\n\n${item.friction}\n\nProposed change: ${item.edit}`).join('\n\n')
     : `${row.friction}\n\nProposed change: ${row.edit}`)).join('\n\n');
-  return `## Description\n\n${description}\n\n## Motivation\n\nThese items were observed while following the repository skills and collected in #510.\n\n## Scope\n\nAddress the items above. Prefer a checked mechanism for preventable mistakes; confirm prose proposals against current code and instructions before applying them.\n\n## Acceptance criteria\n\n- [ ] Each item above is fixed or explicitly adjudicated.\n- [ ] Any mechanism has a failing-then-passing check and the standalone checks pass.\n- [ ] Skill text describes current behavior and the pull request lists applied feedback.\n\n## Additional context\n\nFiled by the hand-invoked triage-skill-feedback run for #510.${context ? `\n\n${context}` : ''}\n\n${marker}\n`;
+}
+
+function evidenceBody(rows, marker, context = '') {
+  return `## Feedback from #510\n\n${description(rows)}${context ? `\n\n## Additional context\n\n${context}` : ''}\n\n${marker}\n`;
+}
+
+function ticketBody(rows, marker, context = '') {
+  return `## Description\n\n${description(rows)}\n\n## Motivation\n\nThese items were observed while following the repository skills and collected in #510.\n\n## Scope\n\nAddress the items above. Prefer a checked mechanism for preventable mistakes; confirm prose proposals against current code and instructions before applying them.\n\n## Acceptance criteria\n\n- [ ] Each item above is fixed or explicitly adjudicated.\n- [ ] Any mechanism has a failing-then-passing check and the standalone checks pass.\n- [ ] Skill text describes current behavior and the pull request lists applied feedback.\n\n## Additional context\n\nFiled by the hand-invoked triage-skill-feedback run for #510.${context ? `\n\n${context}` : ''}\n\n${marker}\n`;
 }
 
 export function preview(plan) {
   return plan.groups.map(group => {
     const rows = plan.rows.filter(row => group.keys.includes(keyOf(row.skill)));
-    return { ...group, body: ['ticket', 'existing'].includes(group.action) ? ticketBody(rows, groupMarker(rows), group.context) : undefined };
+    return { ...group, body: ['ticket', 'existing'].includes(group.action) ? (group.action === 'existing' ? evidenceBody : ticketBody)(rows, groupMarker(rows), group.context) : undefined };
   });
 }
 
@@ -217,12 +241,12 @@ export async function applyPlan(plan, api) {
         if (ticket.pull_request || ticket.type?.name !== 'Task' || !ticket.labels.some(label => label.name === 'workflow: skills')) throw new Error(`#${number} is not a workflow: skills Task.`);
         if (ticket.state !== 'open') throw new Error(`Task #${number} is closed; choose an open Task or file new work.`);
         const evidenceMarker = groupMarker(grouped);
-        const evidenceBody = ticketBody(grouped, evidenceMarker, group.context);
+        const expectedEvidence = evidenceBody(grouped, evidenceMarker, group.context);
         const earlier = (await api.issueComments(number)).filter(comment => comment.body.includes(evidenceMarker));
-        if (earlier.length > 1) throw new Error('Multiple existing-ticket evidence comments carry this marker.');
-        const evidence = earlier[0] || await api.postIssueComment(number, evidenceBody);
+        if (earlier.length > 1) throw new Error(`Multiple existing-ticket evidence comments carry this marker on Task #${number}: ${earlier.map(comment => '#' + comment.id).join(', ')}. Inspect them and preserve intake.`);
+        const evidence = earlier[0] || await api.postIssueComment(number, expectedEvidence);
         const confirmed = (await api.issueComments(number)).find(comment => comment.id === evidence.id);
-        if (confirmed?.body !== evidenceBody) throw new Error('Existing-ticket evidence failed read-back; preserve intake.');
+        if (confirmed?.body !== expectedEvidence) throw new Error(`Existing-ticket evidence failed read-back for Task #${number}, comment #${evidence.id}; preserve intake. Inspect that evidence and retry the original unedited plan with its original script version. If inbox edits require a fresh plan, copy the original group's context exactly and retain this existing target when its scope still fits; changed rows or formatting require inspection before recovery.`);
         filed.push(`#${number} (existing)`);
       } else {
         const target = await api.pr(number);
@@ -237,7 +261,7 @@ export async function applyPlan(plan, api) {
       const done = row.status.startsWith('ticketed') ? (await api.issue(number)).state === 'closed' : row.status.startsWith('applied') ? Boolean((await api.pr(number)).merged_at) : false;
       if (done) removed.push(row.skill); else remaining.push(row);
     }
-    summary = `${marker}\nFolded ${plan.comments.length} intake comments (${plan.comments.map(c => c.id).join(', ') || 'none'}); filed or linked ${filed.join(', ') || 'none'}; applied ${applied.join(', ') || 'none'}; removed ${removed.join('; ') || 'none'}; left unparsed comments ${(plan.ignored || []).map(c => c.id).join(', ') || 'none'} intact (reasons in the plan).`;
+    summary = `${marker}\nFolded ${plan.comments.length} intake comments (${plan.comments.map(c => c.id).join(', ') || 'none'}); filed or linked ${filed.join(', ') || 'none'}; applied ${applied.join(', ') || 'none'}; removed ${removed.join('; ') || 'none'}; left unparsed comments ${(plan.ignored || []).map(c => c.id).join(', ') || 'none'} intact (reasons in the plan); left marker-prefixed comments ${(plan.skipped || []).map(c => c.id).join(', ') || 'none'} intact (inspect skipped IDs and bodies in the plan).`;
     const prior = stripSummaryBlocks(plan.body).trimEnd();
     const content = `${renderTable(prior, remaining).trimEnd()}\n\n${summary}`;
     const updated = `${content}\n<!-- skill-feedback-state:${hash(content)} -->\n`;
@@ -304,7 +328,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
       const plan = await readPlan(api);
       mkdirSync(dirname(resolve(file)), { recursive: true });
       writeFileSync(file, JSON.stringify(plan, null, 2) + '\n', { flag: 'wx' });
-      console.log(`Plan written to ${file}: ${plan.rows.length} rows, ${plan.comments.length} intake comments, ${plan.ignored.length} unparsed comments left intact. Read ignored IDs/reasons and edit groups before apply.`);
+      console.log(`Plan written to ${file}: ${plan.rows.length} rows, ${plan.comments.length} intake comments, ${plan.ignored.length} unparsed and ${plan.skipped.length} marker-prefixed comments left intact. Inspect ignored/skipped IDs, bodies and reasons, then edit groups before apply.`);
     } else {
       const plan = JSON.parse(readFileSync(file, 'utf8'));
       console.log(JSON.stringify(command === 'preview' ? preview(plan) : await applyPlan(plan, api), null, 2));
