@@ -3,6 +3,7 @@ import { execFileSync } from 'node:child_process';
 import { readFileSync, writeFileSync, mkdirSync, mkdtempSync, existsSync } from 'node:fs';
 import { resolve, dirname, relative, isAbsolute, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { readReports, writeReports } from './feedback-reports.mjs';
 
 const REPO = 'ImpowerGames/impower';
 const INBOX = 510;
@@ -15,7 +16,9 @@ const decode = value => value.startsWith(CELL)
 const literalDisplay = value => value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/[\\`*_\[\]~|]/g, char => `&#${char.codePointAt(0)};`).replace(/\r?\n/g, '<br>');
 const encode = value => CELL + literalDisplay(value);
 const statusPattern = /^(open|ticketed #\d+|applied in PR #\d+)$/;
-const canonicalRows = rows => rows.map(({ skill, friction, edit, status }) => ({ skill, friction, edit, status }));
+const canonicalRows = rows => rows.map(({ skill, friction, edit, status, problemId, sessions, historyIncomplete }) => ({ skill, friction, edit, status, ...(problemId ? { problemId, sessions, historyIncomplete } : {}) }));
+const rowKey = row => row.problemId || keyOf(row.skill);
+const reportCount = row => row.problemId ? `${row.sessions.length} recorded${row.historyIncomplete ? '; history incomplete' : ''}` : 'unknown';
 const groupMarker = rows => `Feedback group: ${hash(JSON.stringify(canonicalRows(rows)))}`;
 
 function fencedAt(body, offset = body.length) {
@@ -66,32 +69,54 @@ export function parseTable(body) {
   const candidates = [];
   let offset = 0;
   for (const [index, line] of lines.entries()) {
-    if (/^\|\s*Skill, section\s*\|\s*Friction\s*\|\s*Proposed edit\s*\|\s*Status\s*\|\s*$/.test(line) && !fencedAt(normalized, offset)) candidates.push(index);
+    if (/^\|\s*Skill, section\s*\|\s*Friction\s*\|\s*Proposed edit\s*\|\s*Status\s*\|(?:\s*Problem\s*\|\s*Reports\s*\|)?\s*$/.test(line) && !fencedAt(normalized, offset)) candidates.push(index);
     offset += line.length + 1;
   }
   if (candidates.length > 1) throw new Error('Multiple canonical inbox tables outside code fences; identify one real table before triage.');
   const start = candidates[0] ?? -1;
-  if (start < 0 || !/^\|(?:\s*:?-+:?\s*\|){4}\s*$/.test(lines[start + 1] || '')) throw new Error('Inbox table contract not recognized; read #510 before updating the parser.');
+  const columns = start >= 0 ? cells(lines[start]).length : 0;
+  if (start < 0 || !new RegExp(`^\\|(?:\\s*:?-+:?\\s*\\|){${columns}}\\s*$`).test(lines[start + 1] || '')) throw new Error('Inbox table contract not recognized; read #510 before updating the parser.');
+  const ledger = readReports(body, fencedAt);
   const rows = [];
   let end = start + 2;
   while (lines[end]?.trim().startsWith('|')) {
     const row = cells(lines[end]);
-    if (row.length !== 4 || row.some(v => !v) || !statusPattern.test(row[3])) throw new Error(`Invalid inbox row at line ${end + 1}; nothing will be folded.`);
-    rows.push({ skill: row[0], friction: row[1], edit: row[2], status: row[3] });
+    if (row.length !== columns || row.some(v => !v) || !statusPattern.test(row[3])) throw new Error(`Invalid inbox row at line ${end + 1}; nothing will be folded.`);
+    const entry = { skill: row[0], friction: row[1], edit: row[2], status: row[3] };
+    if (columns === 6 && row[4] !== 'unclassified') {
+      const saved = ledger[row[4]];
+      if (!saved) throw new Error(`Unknown problem ${row[4]} in the table; preserve its report ledger.`);
+      if (rows.some(previous => previous.problemId === row[4])) throw new Error(`Duplicate problem ${row[4]} in the table; resolve it before triage.`);
+      Object.assign(entry, { problemId: row[4], sessions: [...saved.sessions], historyIncomplete: saved.historyIncomplete });
+    }
+    if (columns === 6 && row[5] !== reportCount(entry)) throw new Error(`Reports for ${row[4]} do not match the saved session references.`);
+    rows.push(entry);
     end++;
   }
   return { lines, start, end, rows };
 }
 
-export function renderTable(body, rows) {
+export function renderTable(body, rows, historyRows = rows) {
   const table = parseTable(body);
-  table.lines.splice(table.start + 2, table.end - table.start - 2, ...rows.map(row => `| ${[row.skill, row.friction, row.edit, row.status].map(encode).join(' | ')} |`));
-  return table.lines.join('\n');
+  const ledger = readReports(body, fencedAt);
+  for (const row of canonicalRows(historyRows)) if (row.problemId) ledger[row.problemId] = row;
+  table.lines[table.start] = '| Skill, section | Friction | Proposed edit | Status | Problem | Reports |';
+  table.lines[table.start + 1] = '| --- | --- | --- | --- | --- | --- |';
+  table.lines.splice(table.start + 2, table.end - table.start - 2, ...rows.map(row => `| ${[row.skill, row.friction, row.edit, row.status, row.problemId || 'unclassified', reportCount(row)].map(encode).join(' | ')} |`));
+  return writeReports(table.lines.join('\n'), ledger, fencedAt);
 }
 
 export function parseIntake(comment) {
   const text = clean(comment.body);
   if (text.startsWith('<!-- skill-feedback-triage:')) return null;
+  if (/^(?:\*\*)?(?:Problem|Session)(?:\*\*)?:/m.test(text)) {
+    const labels = [...text.matchAll(/^(?:\*\*)?(Problem|Session|Skill and section|What happened|Proposed edit)(?:\*\*)?:(?:\*\*)?\s*/gm)];
+    if (labels.map(field => field[1]).join('|') !== 'Problem|Session|Skill and section|What happened|Proposed edit') throw new Error(`Comment ${comment.id} needs Problem, Session, Skill and section, What happened, Proposed edit in that order.`);
+    const values = labels.map((field, i) => text.slice(field.index + field[0].length, labels[i + 1]?.index ?? text.length).trim());
+    const [problem, session, skill, friction, edit] = values;
+    if (values.some(value => !value) || /[\r\n\u0085\u2028\u2029]/u.test(session) || session.length > 200 || !/^(new|F-[1-9]\d*)$/.test(problem) || !Number.isSafeInteger(comment.id) || comment.id < 1) throw new Error(`Comment ${comment.id} has an invalid problem or session reference, or empty field.`);
+    return { skill, friction, edit, status: 'open', problemId: problem === 'new' ? `F-${comment.id}` : problem, session, newProblem: problem === 'new' };
+  }
   const fields = [...text.matchAll(/^(?:\*\*)?(Skill and section|What happened|Proposed edit)(?:\*\*)?:(?:\*\*)?\s*/gm)];
   if (fields.length !== 3 || fields.map(f => f[1]).join('|') !== 'Skill and section|What happened|Proposed edit') {
     const names = fields.map(field => field[1]);
@@ -105,14 +130,16 @@ export function parseIntake(comment) {
 }
 
 export function fold(body, comments, references = { prs: {}, issues: {} }) {
+  const ledger = readReports(body, fencedAt);
   const rows = [];
   const byKey = new Map();
   function add(row, repeat, id) {
-    const key = keyOf(row.skill);
+    const key = rowKey(row);
     const previous = byKey.get(key);
-    if (!previous) { const copy = { ...row }; rows.push(copy); byKey.set(key, copy); return; }
+    if (!previous) { const { session, newProblem, ...copy } = row; rows.push(copy); byKey.set(key, copy); return; }
+    const repeatedSession = row.session && previous.sessions.includes(row.session);
     if (previous.status !== row.status && (!id || row.status !== 'open')) throw new Error(`Conflicting statuses for ${JSON.stringify(previous.skill)} and ${JSON.stringify(row.skill)} at normalized key ${JSON.stringify(key)}; resolve the table first.`);
-    if (id && previous.status !== 'open') {
+    if (id && previous.status !== 'open' && !repeatedSession) {
       previous.previousStatus = previous.status;
       const prefix = `Earlier feedback (${previous.status}; context only):\n`;
       const pr = references.prs[previous.status.match(/^applied in PR #(\d+)$/)?.[1]];
@@ -122,6 +149,7 @@ export function fold(body, comments, references = { prs: {}, issues: {} }) {
     if (id) {
       (previous.observations ||= []).push({ id, friction: row.friction, edit: row.edit });
       for (const field of ['friction', 'edit']) previous[field] += `\n\nSeen again (intake #${id}):\n${row[field]}`;
+      if (row.session && !repeatedSession) previous.sessions.push(row.session);
     } else {
       for (const field of ['friction', 'edit']) if (previous[field] !== row[field]) previous[field] += `\n${row[field]}`;
       if (repeat) previous.friction += '\nSeen again.';
@@ -134,6 +162,14 @@ export function fold(body, comments, references = { prs: {}, issues: {} }) {
   for (const comment of comments) {
     try {
       const row = parseIntake(comment);
+      if (row?.problemId) {
+        const existing = byKey.get(row.problemId) || ledger[row.problemId];
+        if (!existing && !row.newProblem) throw new Error(`Unknown problem ${row.problemId}; reference a counted problem or report a distinct new one.`);
+        if (existing && keyOf(existing.skill) !== keyOf(row.skill)) throw new Error(`Skill for ${row.problemId} does not match its saved problem.`);
+        if (existing && !byKey.has(row.problemId)) add({ ...existing, sessions: [...existing.sessions] }, false);
+        row.sessions = [row.session];
+        row.historyIncomplete = rows.some(previous => !previous.problemId && keyOf(previous.skill) === keyOf(row.skill));
+      }
       if (row) { add(row, true, comment.id); folded.push(comment); }
       else skipped.push({ id: comment.id, body: comment.body, reason: 'Marker-prefixed comment; inspect whether it is a triage summary or discussion. Left intact.' });
     } catch (error) { ignored.push({ id: comment.id, body: comment.body, reason: error.message }); }
@@ -163,14 +199,15 @@ export function makePlan(body, comments, references = { prs: {}, issues: {} }) {
     const skill = row.skill.split(',')[0];
     const previousTicket = row.previousStatus?.match(/^ticketed #(\d+)$/)?.[1];
     const existing = previousTicket && references.issues[previousTicket]?.state === 'open';
-    const key = existing ? `existing:${previousTicket}` : `ticket:${skill}`;
+    const key = existing ? `existing:${previousTicket}` : row.problemId ? `defer:${row.problemId}` : `ticket:${skill}`;
     if (!groups.has(key)) groups.set(key, existing
       ? { action: 'existing', number: Number(previousTicket), keys: [], context: '' }
-      : { action: 'ticket', title: `Address ${skill} feedback from the skills inbox`, keys: [], context: '' });
+      : row.problemId ? { action: 'defer', keys: [], context: '' } : { action: 'ticket', title: `Address ${skill} feedback from the skills inbox`, keys: [], context: '' });
     const group = groups.get(key);
-    group.keys.push(keyOf(row.skill));
+    group.keys.push(rowKey(row));
   }
-  return { version: 1, repo: REPO, inbox: INBOX, body, comments: folded, ignored, skipped, references, rows, groups: [...groups.values()] };
+  const priorities = rows.filter(row => row.status === 'open').map(row => ({ key: rowKey(row), skill: row.skill, reports: row.sessions?.length ?? null, historyIncomplete: row.historyIncomplete ?? true })).sort((a, b) => (b.reports ?? -1) - (a.reports ?? -1));
+  return { version: 2, repo: REPO, inbox: INBOX, body, comments: folded, ignored, skipped, references, rows, priorities, reportHistory: readReports(body, fencedAt), groups: [...groups.values()] };
 }
 
 export async function readPlan(api) {
@@ -192,7 +229,7 @@ export async function readPlan(api) {
 }
 
 function description(rows) {
-  return rows.map(row => `### ${row.skill}\n\n` + (row.previousStatus && !row.previousUnmerged && row.observations?.length
+  return rows.map(row => `### ${row.skill}${row.problemId ? ` (${row.problemId}; ${reportCount(row)})` : ''}\n\n` + (row.previousStatus && !row.previousUnmerged && row.observations?.length
     ? row.observations.map(item => `Intake #${item.id}:\n\n${item.friction}\n\nProposed change: ${item.edit}`).join('\n\n')
     : `${row.friction}\n\nProposed change: ${row.edit}`)).join('\n\n');
 }
@@ -214,20 +251,20 @@ function ticketBody(rows, marker, context = '') {
 
 export function preview(plan) {
   return plan.groups.map(group => {
-    const rows = plan.rows.filter(row => group.keys.includes(keyOf(row.skill)));
+    const rows = plan.rows.filter(row => group.keys.includes(rowKey(row)));
     return { ...group, body: ['ticket', 'existing'].includes(group.action) ? (group.action === 'existing' ? evidenceBody : ticketBody)(rows, groupMarker(rows), group.context) : undefined };
   });
 }
 
 // The adapter makes persistence ordering testable without touching GitHub.
 export async function applyPlan(plan, api) {
-  if (plan.version !== 1 || plan.repo !== REPO || plan.inbox !== INBOX) throw new Error('Wrong plan version or inbox.');
+  if (plan.version !== 2 || plan.repo !== REPO || plan.inbox !== INBOX) throw new Error('Wrong plan version or inbox; retain the original script for interrupted plans.');
   if (plan.groups.some(group => !Array.isArray(group.keys) || group.keys.length === 0)) throw new Error('Every group needs at least one row key; remove empty split groups before applying.');
   const keys = plan.groups.flatMap(group => group.keys);
-  const open = plan.rows.filter(row => row.status === 'open').map(row => keyOf(row.skill));
+  const open = plan.rows.filter(row => row.status === 'open').map(rowKey);
   if (keys.length !== new Set(keys).size || JSON.stringify([...keys].sort()) !== JSON.stringify([...open].sort())) throw new Error('Every open row must occur in exactly one group.');
   for (const group of plan.groups) {
-    if (!['ticket', 'applied', 'existing'].includes(group.action) || (group.action === 'ticket' ? !group.title?.trim() : !Number.isSafeInteger(group.number) || group.number < 1)) throw new Error('Each group needs a ticket title, an existing issue number, or an applied PR number.');
+    if (!['ticket', 'applied', 'existing', 'defer'].includes(group.action) || (group.action === 'ticket' ? !group.title?.trim() : group.action !== 'defer' && (!Number.isSafeInteger(group.number) || group.number < 1))) throw new Error('Each group needs a ticket title, an existing issue number, an applied PR number, or defer.');
   }
   const run = hash(JSON.stringify({ body: plan.body, comments: plan.comments, groups: plan.groups }));
   const marker = `<!-- skill-feedback-triage:${run} -->`;
@@ -258,7 +295,8 @@ export async function applyPlan(plan, api) {
     const filed = [], applied = [], removed = [];
     const allIssues = await api.issues();
     for (const group of plan.groups) {
-      const grouped = rows.filter(row => group.keys.includes(keyOf(row.skill)));
+      const grouped = rows.filter(row => group.keys.includes(rowKey(row)));
+      if (group.action === 'defer') continue;
       let number = group.number;
       if (group.action === 'ticket') {
         const ticketMarker = groupMarker(grouped);
@@ -296,9 +334,9 @@ export async function applyPlan(plan, api) {
       const done = row.status.startsWith('ticketed') ? (await api.issue(number)).state === 'closed' : row.status.startsWith('applied') ? Boolean((await api.pr(number)).merged_at) : false;
       if (done) removed.push(row.skill); else remaining.push(row);
     }
-    summary = `${marker}\nFolded ${plan.comments.length} intake comments (${plan.comments.map(c => c.id).join(', ') || 'none'}); filed or linked ${filed.join(', ') || 'none'}; applied ${applied.join(', ') || 'none'}; removed ${removed.map(literalDisplay).join('; ') || 'none'}; left unparsed comments ${(plan.ignored || []).map(c => c.id).join(', ') || 'none'} intact (reasons in the plan); left marker-prefixed comments ${(plan.skipped || []).map(c => c.id).join(', ') || 'none'} intact (inspect skipped IDs and bodies in the plan).`;
+    summary = `${marker}\nFolded ${plan.comments.length} intake comments (${plan.comments.map(c => c.id).join(', ') || 'none'}); filed or linked ${filed.join(', ') || 'none'}; applied ${applied.join(', ') || 'none'}; removed ${removed.map(literalDisplay).join('; ') || 'none'}; left unparsed comments ${(plan.ignored || []).map(c => c.id).join(', ') || 'none'} intact (reasons in the plan); left marker-prefixed comments ${(plan.skipped || []).map(c => c.id).join(', ') || 'none'} intact (inspect skipped IDs and bodies in the plan).${rows.some(row => row.status === 'open') ? ` Deferred: ${rows.filter(row => row.status === 'open').map(row => `${literalDisplay(rowKey(row))} (${reportCount(row)})`).join('; ')}.` : ''}`;
     const prior = stripSummaryBlocks(plan.body).trimEnd();
-    const content = `${renderTable(prior, remaining).trimEnd()}\n\n${summary}`;
+    const content = `${renderTable(prior, remaining, rows).trimEnd()}\n\n${summary}`;
     const updated = `${content}\n<!-- skill-feedback-state:${hash(content)} -->\n`;
     current = await api.inbox();
     if (current.body !== plan.body) throw new Error('Inbox changed during triage; tickets are recoverable by marker. Re-plan before overwriting it.');

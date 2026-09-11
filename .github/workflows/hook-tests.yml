@@ -105,7 +105,7 @@ jobs:
           # index with skip-worktree set, so these floors do not catch that; a
           # missing file surfaces instead as every check reporting FAILED:
           # because bash/node can't find it on disk).
-          min_checks=17
+          min_checks=18
 
           sh_checks=()
           while IFS= read -r -d '' t; do sh_checks+=("$t"); done \

@@ -360,6 +360,7 @@ await test('CLI rejects inside ..prefix paths and accepts outside siblings', () 
     const script = resolve(checkout, '.claude/skills/triage-skill-feedback/triage-skill-feedback.mjs');
     mkdirSync(resolve(script, '..'), { recursive: true });
     copyFileSync(fileURLToPath(new URL('./triage-skill-feedback.mjs', import.meta.url)), script);
+    copyFileSync(fileURLToPath(new URL('./feedback-reports.mjs', import.meta.url)), resolve(script, '../feedback-reports.mjs'));
     const otherRepo = resolve(scratch, 'other-repo');
     mkdirSync(resolve(otherRepo, '.git'), { recursive: true });
     const otherWorktree = resolve(scratch, 'other-worktree');
@@ -897,6 +898,121 @@ await test('a fresh run replaces a CRLF summary and preserves fenced summary exa
   assert.ok(outsideExample.includes(result.summary));
   assert.ok(!outsideExample.includes(first.summary));
   await readPlan(api);
+});
+
+const reported = (id, session, problem = 'new', friction = 'Completion lost') => ({ id, body: `Problem: ${problem}\n\nSession: ${session}\n\nSkill and section: review-pr, section 3\n\nWhat happened: ${friction}\n\nProposed edit: Preserve the result.`, html_url: `https://example.test/${id}` });
+await test('counted problems in one skill section stay separate and default to deferred triage', async () => {
+  const { state, api } = fixture([reported(20, 'codex:alpha'), reported(21, 'claude:beta', 'new', 'Scratch collision')]);
+  state.body = renderTable(body, []);
+  const plan = await readPlan(api);
+  assert.deepEqual(plan.rows.map(row => row.problemId), ['F-20', 'F-21']);
+  assert.deepEqual(plan.groups.map(group => group.action), ['defer', 'defer']);
+  await applyPlan(plan, api);
+  assert.equal(state.issues.length, 0);
+  assert.equal(state.comments.filter(comment => [20, 21].includes(comment.id)).length, 0);
+  assert.deepEqual(parseTable(state.body).rows.map(row => row.sessions), [['codex:alpha'], ['claude:beta']]);
+  assert.ok(state.body.includes('| Problem | Reports |'));
+});
+await test('repeat reports count unique sessions across folds and preserve additional observations', async () => {
+  const { state, api } = fixture([reported(20, 'codex:alpha')]);
+  state.body = renderTable(body, []);
+  const original = await readPlan(api);
+  await applyPlan(original, api);
+  await applyPlan(original, api);
+  state.comments.push(reported(21, 'codex:alpha', 'F-20', 'Same session additional detail'), reported(22, 'claude:beta', 'F-20'));
+  await applyPlan(await readPlan(api), api);
+  const [row] = parseTable(state.body).rows;
+  assert.deepEqual(row.sessions, ['codex:alpha', 'claude:beta']);
+  assert.match(row.friction, /Same session additional detail/);
+  assert.match(state.body, /2 recorded/);
+  assert.equal(state.comments.some(comment => [20, 21, 22].includes(comment.id)), false);
+});
+await test('retired problems retain report identities and repeats can reopen with their prior reference', async () => {
+  const { state, api } = fixture([reported(20, 'codex:alpha')]);
+  state.body = renderTable(body, []);
+  const plan = await readPlan(api);
+  plan.groups = [{ action: 'applied', number: 503, keys: ['F-20'] }];
+  await applyPlan(plan, api);
+  assert.equal(parseTable(state.body).rows.length, 0);
+  state.comments.push(reported(21, 'codex:alpha', 'F-20'));
+  await applyPlan(await readPlan(api), api);
+  assert.equal(parseTable(state.body).rows.length, 0);
+  state.comments.push(reported(22, 'claude:beta', 'F-20'));
+  const next = await readPlan(api);
+  assert.equal(next.rows[0].previousStatus, 'applied in PR #503');
+  assert.deepEqual(next.rows[0].sessions, ['codex:alpha', 'claude:beta']);
+  await applyPlan(next, api);
+  assert.equal(parseTable(state.body).rows[0].status, 'open');
+});
+await test('unknown problem references remain intact and historical rows have no guessed count', async () => {
+  const { state, api } = fixture([reported(20, 'codex:alpha', 'F-999'), reported(21, 'claude:beta')]);
+  const plan = await readPlan(api);
+  assert.equal(plan.ignored[0].id, 20);
+  assert.match(plan.ignored[0].reason, /Unknown problem/);
+  assert.equal(plan.rows[0].sessions, undefined);
+  assert.equal(plan.rows.find(row => row.problemId === 'F-21').historyIncomplete, true);
+  plan.groups = plan.groups.map(group => ({ action: 'defer', keys: group.keys }));
+  await applyPlan(plan, api);
+  assert.ok(state.comments.some(comment => comment.id === 20));
+  assert.match(state.body, /unclassified.*unknown/);
+  assert.match(state.body, /1 recorded; history incomplete/);
+});
+await test('a repeat cannot silently change the referenced problem skill', async () => {
+  const { state, api } = fixture([reported(20, 'codex:alpha')]);
+  state.body = renderTable(body, []);
+  await applyPlan(await readPlan(api), api);
+  const mismatch = reported(21, 'claude:beta', 'F-20');
+  mismatch.body = mismatch.body.replace('review-pr, section 3', 'resolve-issue, section 2');
+  state.comments.push(mismatch);
+  const plan = await readPlan(api);
+  assert.equal(plan.ignored[0].id, 21);
+  assert.match(plan.ignored[0].reason, /does not match/);
+  assert.deepEqual(plan.rows[0].sessions, ['codex:alpha']);
+});
+
+for (const stage of ['persisted', 'delete']) await test(`counted reports recover after ${stage} without inflating sessions`, async () => {
+  const { state, api } = fixture([reported(20, 'codex:alpha')]);
+  state.body = renderTable(body, []);
+  const plan = await readPlan(api);
+  state.fail = stage;
+  await assert.rejects(applyPlan(plan, api), /interrupted/);
+  await applyPlan(plan, api);
+  assert.deepEqual(parseTable(state.body).rows[0].sessions, ['codex:alpha']);
+  assert.equal(state.comments.length, 1);
+});
+await test('priorities expose report frequency and ticket evidence names the counted problem', async () => {
+  const { state, api } = fixture([reported(20, 'codex:alpha'), reported(21, 'claude:beta', 'new', 'Different issue'), reported(22, 'codex:gamma', 'F-21')]);
+  state.body = renderTable(body, []);
+  const plan = await readPlan(api);
+  assert.deepEqual(plan.priorities.map(item => [item.key, item.reports]), [['F-21', 2], ['F-20', 1]]);
+  plan.groups.find(group => group.keys.includes('F-21')).action = 'ticket';
+  plan.groups.find(group => group.keys.includes('F-21')).title = 'Fix the repeatedly reported problem';
+  await applyPlan(plan, api);
+  assert.equal(state.issues.length, 1);
+  assert.match(state.issues[0].body, /F-21; 2 recorded/);
+  assert.match(state.comments[0].body, /Deferred: F-20 \(1 recorded\)/);
+});
+await test('tampered visible counts and duplicate problem rows refuse planning', async () => {
+  const { state, api } = fixture([reported(20, 'codex:alpha')]);
+  state.body = renderTable(body, []);
+  await applyPlan(await readPlan(api), api);
+  const saved = state.body;
+  state.body = saved.replace('1 recorded', '9 recorded');
+  await assert.rejects(readPlan(api), /do not match the saved session/);
+  const line = saved.split('\n').find(line => line.startsWith('|') && line.includes('F-20'));
+  state.body = saved.replace(line, line + '\n' + line);
+  await assert.rejects(readPlan(api), /Duplicate problem/);
+});
+await test('missing problem labels and multiline session identities stay unparsed', async () => {
+  for (const invalid of [reported(20, 'codex:alpha').body.replace('Problem: new\n\n', ''), reported(20, 'codex:alpha\u2028other').body]) {
+    const { state, api } = fixture([{ id: 20, body: invalid }]);
+    state.body = renderTable(body, []);
+    const plan = await readPlan(api);
+    assert.equal(plan.comments.length, 0);
+    assert.equal(plan.ignored[0].id, 20);
+    await applyPlan(plan, api);
+    assert.equal(state.comments[0].body, invalid);
+  }
 });
 
 console.log(`All ${passed} triage checks passed.`);
