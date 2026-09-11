@@ -48,4 +48,12 @@ assert.match(portable.stdout, /permissionDecision.*deny/);
 const settings = JSON.parse(fs.readFileSync(path.join(root, ".claude/settings.json"), "utf8"));
 const missingNode = spawnSync(bash, ["-c", "node() { return 127; }; " + settings.hooks.PreToolUse[0].hooks[0].command], { cwd: root, input: JSON.stringify(checks[5][0]), env: { ...process.env, CLAUDE_PROJECT_DIR: root }, encoding: "utf8" });
 assert.equal(missingNode.status, 2, "missing runtime must block generated-file edits");
+assert.match(missingNode.stderr, /node|runtime/i, "a blocking runtime failure needs an actionable reason");
+if (process.platform === "win32") {
+  const missingCommand = hook.commandWindows.replace("& node ", "& impower_node_missing_probe ");
+  assert.notEqual(missingCommand, hook.commandWindows);
+  const result = spawnSync(shell, ["-NoProfile", "-NonInteractive", "-Command", missingCommand], { cwd: root, input: JSON.stringify(checks[0][0]), encoding: "utf8", windowsHide: true });
+  assert.equal(result.status, 2, "a missing Windows runtime must block, not report a non-blocking hook failure");
+  assert.match(result.stderr, /Repository hook|node|runtime/i);
+}
 console.log("PASS: shared policy, complete multi-file patches, native hook configuration, nested cwd and blocking failures");

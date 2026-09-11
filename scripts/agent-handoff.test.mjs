@@ -56,9 +56,32 @@ assert.doesNotThrow(() => checkReviewRound(4, 4, false), "serial lenses share a 
 assert.throws(() => checkReviewRound(5, 4, false), /1..4/);
 assert.throws(() => checkReviewRound(4, 4, true), /risk assessment/);
 assert.throws(() => checkReviewRound(1, 3, false), /preserve/);
+assert.throws(() => checkReviewRound(4, 1, false), /skip/);
 config.journal = path.join(scratch, "round-four.jsonl");
 config.completedReviewRound = 4;
+config.finalCorrections = true;
 config.steps.first.round = 4;
 write(); await assert.rejects(runHandoff(file), /risk assessment/);
 assert.ok(!fs.readFileSync(config.journal, "utf8").includes('"event":"launching"'), "recovery after round 4 must stop before spawning");
+config.journal = path.join(scratch, "pending-fourth-lens.jsonl");
+config.finalCorrections = false;
+write(); await assert.rejects(runHandoff(file), /posted comment IDs/, "a pending fourth-round lens must launch before its fixture's empty report is rejected");
+assert.ok(fs.readFileSync(config.journal, "utf8").includes('"event":"launching"'));
+config.journal = path.join(scratch, "missing-recovery-state.jsonl");
+delete config.finalCorrections;
+write(); await assert.rejects(runHandoff(file), /finalCorrections/);
+assert.equal(fs.existsSync(config.journal), false);
+config.completedReviewRound = 0;
+config.steps.first.role = "implement";
+config.steps.first.model = "writer-test";
+config.steps.first.args = [child, "first", "--model", "writer-test"];
+config.steps.second.role = "review";
+config.steps.second.model = "reviewer-test";
+config.steps.second.args = [child, "second", "--model", "reviewer-test"];
+for (const badRound of [undefined, "4", 5]) {
+  config.journal = path.join(scratch, `invalid-round-${badRound}.jsonl`);
+  config.steps.second.round = badRound;
+  write(); await assert.rejects(runHandoff(file), /round must be 1..4/);
+  assert.equal(fs.existsSync(config.journal), false, "invalid future review must fail before an implementation launch");
+}
 console.log("PASS: sequential completion, replay refusal, distinct routes, declared transitions, coordinator lock and missing-review refusal");

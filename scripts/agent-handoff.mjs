@@ -9,6 +9,7 @@ const gitStatus = (cwd) => execFileSync("git", ["status", "--porcelain"], { cwd,
 
 export function checkReviewRound(round, completedRound, finalCorrections) {
   if (!Number.isInteger(round) || round < 1 || round > 4 || round < completedRound) throw new Error("Review round must be 1..4 and preserve the completed round count");
+  if (round > completedRound + 1) throw new Error("Review round cannot skip ahead of the recorded count");
   if (finalCorrections) throw new Error("Final corrections after round 4 require coordinator risk assessment; no automatic review");
 }
 
@@ -23,8 +24,10 @@ export async function runHandoff(configFile) {
   if (!config.writer || !config.reviewer || config.writer === config.reviewer) throw new Error("Supply distinct writer and reviewer model routes");
   if (!Number.isInteger(config.maxSteps) || config.maxSteps < 1 || config.maxSteps > 12) throw new Error("maxSteps must be 1..12");
   if (!Number.isInteger(config.completedReviewRound) || config.completedReviewRound < 0 || config.completedReviewRound > 4) throw new Error("Supply completedReviewRound from 0 through 4, including on recovery");
+  if ((config.completedReviewRound === 4 && typeof config.finalCorrections !== "boolean") || (config.finalCorrections !== undefined && typeof config.finalCorrections !== "boolean") || (config.finalCorrections && config.completedReviewRound !== 4)) throw new Error("Supply finalCorrections from the journal for round-4 recovery; true requires completedReviewRound 4");
   if (fs.existsSync(journal)) throw new Error("Journal exists; inspect recorded process and completion before authoring a recovery plan");
   for (const step of Object.values(config.steps)) {
+    if (step.role === "review" && (!Number.isInteger(step.round) || step.round < 1 || step.round > 4)) throw new Error("Review round must be 1..4 on every review step before launch");
     if (!["implement", "review", "adjudicate"].includes(step.role) || !path.isAbsolute(step.executable) || !Array.isArray(step.args) || !step.args.every((a) => typeof a === "string") || !path.isAbsolute(step.prompt)) throw new Error("Each role needs an absolute executable, argument array and prompt file");
     if (!step.model || step.model !== (step.role === "review" ? config.reviewer : config.writer)) throw new Error("Step model must match its caller-supplied role route");
     const explicit = step.args.findIndex((a) => a === "--model" || a === "-m");
@@ -44,7 +47,7 @@ export async function runHandoff(configFile) {
   const append = (row) => { fs.writeSync(fd, JSON.stringify({ time: new Date().toISOString(), ...row }) + "\n"); fs.fsyncSync(fd); };
   let current = config.first;
   let completedRound = config.completedReviewRound;
-  let finalCorrections = completedRound === 4;
+  let finalCorrections = config.finalCorrections ?? false;
   try {
     fs.writeFileSync(owner, JSON.stringify({ pid: process.pid, startedAt: new Date().toISOString(), journal }));
     fd = fs.openSync(journal, "wx");
@@ -82,7 +85,7 @@ export async function runHandoff(configFile) {
       if (gitStatus(cwd)) throw new Error("Role left uncommitted work");
       if (step.role === "review") completedRound = step.round;
       if (step.role !== "review" && completedRound === 4 && done.head !== head) finalCorrections = true;
-      append({ event: "completed", index, step: current, completedRound, finalCorrections, ...done });
+      append({ event: "completed", index, step: current, ...done, completedRound, finalCorrections });
       current = done.next;
     }
     append({ event: "finished" });

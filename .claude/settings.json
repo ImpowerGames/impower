@@ -7,7 +7,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "f=\"${CLAUDE_PROJECT_DIR:-.}/.claude/hooks/generated-file-hook.mjs\"; node \"$f\" || exit 2"
+            "command": "[ -n \"$CLAUDE_PROJECT_DIR\" ] || { printf \"%s\\n\" \"Generated-file hook: CLAUDE_PROJECT_DIR is missing; start the session in the intended checkout.\" >&2; exit 2; }; f=\"$CLAUDE_PROJECT_DIR/.claude/hooks/generated-file-hook.mjs\"; [ -f \"$f\" ] || { printf \"%s\\n\" \"Generated-file hook: $f not found; set CLAUDE_PROJECT_DIR to the checkout root.\" >&2; exit 2; }; command -v node >/dev/null 2>&1 || { printf \"%s\\n\" \"Generated-file hook: Node is missing from PATH; install the repository runtime.\" >&2; exit 2; }; node \"$f\" || { printf \"%s\\n\" \"Generated-file hook: Node policy check failed; repair the runtime or shared hooks before retrying.\" >&2; exit 2; }"
           }
         ]
       },

@@ -87,6 +87,18 @@ try {
 } finally { fs.unlinkSync = unlink; }
 assert.ok(fs.existsSync(webState));
 assert.ok(!fs.existsSync(path.join(legacy, ".agents", "skills", "drive-web-editor", ".state.json")));
+const preload = path.join(legacy, "blocked-unlink.mjs");
+fs.writeFileSync(preload, `import fs from "node:fs"; const unlink = fs.unlinkSync; fs.unlinkSync = (file) => { if (String(file).endsWith(".state.json")) throw Object.assign(new Error("injected sharing violation"), { code: "EPERM" }); return unlink(file); };`);
+for (const driver of ["drive-web-editor", "drive-vscode-web"]) {
+  const state = path.join(legacy, ".claude", "skills", driver, ".state.json");
+  const saved = JSON.stringify({ pid: 99999999, url: "http://127.0.0.1:1" });
+  fs.writeFileSync(state, saved);
+  const run = spawnSync(process.execPath, ["--import", pathToFileURL(preload).href, path.join(legacy, ".agents", "skills", driver, "driver.mjs"), "up"], { cwd: legacy, encoding: "utf8", windowsHide: true });
+  assert.equal(run.status, 1, driver);
+  assert.match(run.stdout + run.stderr, /ERROR: Cannot remove state file/);
+  assert.doesNotMatch(run.stdout + run.stderr, /\n\s+at |Node\.js v/, "up CLI must report a controlled error without a stack");
+  assert.equal(fs.readFileSync(state, "utf8"), saved, "up failure must retain the valid record");
+}
 for (const driver of ["drive-web-editor", "drive-vscode-web"]) {
   const state = path.join(legacy, ".claude", "skills", driver, ".state.json");
   fs.unlinkSync(state);

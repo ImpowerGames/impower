@@ -3593,7 +3593,7 @@ switch (cmd) {
     await preflight();
     break;
   case "up":
-    await up(rest);
+    await up(rest).catch((error) => die(error.message));
     break;
   case "down":
     await down();

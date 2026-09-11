@@ -1452,7 +1452,7 @@ switch (cmd) {
   case "__imported__":
     break;
   case "up":
-    await up(rest);
+    await up(rest).catch((error) => die(error.message));
     break;
   case "status":
     process.exitCode = await status();

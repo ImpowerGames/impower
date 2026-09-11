@@ -6,8 +6,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "root=$(git rev-parse --show-toplevel) || exit 2; node \"$root/.agents/hooks/pre-tool-use.mjs\" codex || exit 2",
-            "commandWindows": "$hookRoot = git rev-parse --show-toplevel; if ($LASTEXITCODE -ne 0) { exit 2 }; & node \"$hookRoot/.agents/hooks/pre-tool-use.mjs\" codex; if ($LASTEXITCODE -ne 0) { exit 2 }",
+            "command": "root=$(git rev-parse --show-toplevel 2>/dev/null) || { printf \"%s\\n\" \"Repository hook: start the session in the trusted checkout containing .agents/hooks.\" >&2; exit 2; }; f=\"$root/.agents/hooks/pre-tool-use.mjs\"; [ -f \"$f\" ] || { printf \"%s\\n\" \"Repository hook: shared entry point is missing at $f; repair this checkout before retrying.\" >&2; exit 2; }; command -v node >/dev/null 2>&1 || { printf \"%s\\n\" \"Repository hook: Node is missing from PATH; install the repository runtime.\" >&2; exit 2; }; node \"$f\" codex || { printf \"%s\\n\" \"Repository hook: Node policy check failed; repair the runtime or shared hooks before retrying.\" >&2; exit 2; }",
+            "commandWindows": "$ErrorActionPreference = \"Stop\"; try { $hookRoot = git rev-parse --show-toplevel 2>$null; if ($LASTEXITCODE -ne 0) { throw \"Start the session in the trusted checkout containing .agents/hooks.\" }; $hookFile = \"$hookRoot/.agents/hooks/pre-tool-use.mjs\"; if (-not (Test-Path -LiteralPath $hookFile -PathType Leaf)) { throw \"Shared entry point is missing at $hookFile; repair this checkout before retrying.\" }; & node \"$hookFile\" codex; if ($LASTEXITCODE -ne 0) { throw \"Node policy check failed; repair the runtime or shared hooks before retrying.\" } } catch { [Console]::Error.WriteLine(\"Repository hook: \" + $_.Exception.Message); exit 2 }",
             "timeout": 10
           }
         ]
