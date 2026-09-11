@@ -10,5 +10,6 @@
     "input_needed": [255, 140, 0],
     "blocked": [255, 0, 0]
   },
-  "keys": { "codex": [58], "claude": [59] }
+  "keys": { "codex": [58], "claude": [59] },
+  "shortcuts": { "codex": 1, "claude": 2 }
 }

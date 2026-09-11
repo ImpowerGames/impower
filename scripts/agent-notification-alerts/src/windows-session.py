@@ -1,4 +1,4 @@
-"""Ctrl+Alt+F1/F2 bridge. No focus monitoring or third-party dependencies."""
+"""Configurable Ctrl+Alt+function-key bridge. No focus monitoring."""
 import ctypes
 from ctypes import wintypes
 import json
@@ -44,14 +44,21 @@ def open_session(command):
     emit({'type': 'opened', 'app': app, 'id': session})
 
 def main():
+    shortcuts = json.loads(sys.argv[1]) if len(sys.argv) > 1 else {'codex': 1, 'claude': 2}
+    if set(shortcuts) != {'codex', 'claude'} or any(type(value) is not int or not 1 <= value <= 12 for value in shortcuts.values()) or shortcuts['codex'] == shortcuts['claude']:
+        raise ValueError('Shortcuts must be different function keys from F1 to F12')
     registered = []
+    labels = []
     try:
-        for number, key in [(1, 0x70), (2, 0x71)]:
+        for number, app in [(1, 'codex'), (2, 'claude')]:
+            key = 0x6F + shortcuts[app]
+            label = 'Ctrl+Alt+F' + str(shortcuts[app])
             if user32.RegisterHotKey(None, number, 0x4003, key):
                 registered.append(number)
+                labels.append(label)
             else:
-                emit({'type': 'error', 'message': 'Ctrl+Alt+F' + str(number) + ' is unavailable.'})
-        emit({'type': 'ready', 'hotkeys': registered})
+                labels.append(label + ' unavailable')
+        emit({'type': 'ready', 'hotkeys': labels})
         threading.Thread(target=read_commands, daemon=True).start()
         message = wintypes.MSG()
         while True:

@@ -25,6 +25,10 @@ const configSchema = z.object({
     codex: z.array(z.number().int().min(4).max(231)).min(1),
     claude: z.array(z.number().int().min(4).max(231)).min(1),
   }),
+  shortcuts: z.object({
+    codex: z.number().int().min(1).max(12),
+    claude: z.number().int().min(1).max(12),
+  }).strict().refine(value => value.codex !== value.claude, 'Choose different shortcut keys for each app.'),
 }).strict();
 export async function readConfig() {
   const defaults = JSON.parse(await readFile(new URL('../config.example.json', import.meta.url), 'utf8'));
@@ -34,7 +38,7 @@ export async function readConfig() {
   // A previous message-only prototype used one color for every alert.
   const { color: legacyColor, ...overrides } = local;
   const colors = legacyColor ? { done: legacyColor, input_needed: legacyColor, blocked: legacyColor } : defaults.colors;
-  return configSchema.parse({ ...defaults, ...overrides, colors: { ...colors, ...local.colors }, keys: { ...defaults.keys, ...local.keys } });
+  return configSchema.parse({ ...defaults, ...overrides, colors: { ...colors, ...local.colors }, keys: { ...defaults.keys, ...local.keys }, shortcuts: { ...defaults.shortcuts, ...local.shortcuts } });
 }
 const game = 'AGENT_NOTIFICATION_ALERTS';
 export function binding(config, category = 'done', app = process.env.AGENT_ALERT_APP) {

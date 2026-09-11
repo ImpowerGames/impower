@@ -158,6 +158,11 @@ environment variable and invoke the shared entry point.
 - `colors`: RGB arrays keyed by `done`, `input_needed`, and `blocked`.
 - `keys`: HID key arrays keyed by `codex` (default `[58]`, F1) and `claude`
   (default `[59]`, F2). These are per-computer preferences.
+- `shortcuts`: function-key numbers for Ctrl+Alt shortcuts (1–12, different for
+  each app). Defaults: `{ "codex": 1, "claude": 2 }`. For F8/F9 use
+  `{ "codex": 8, "claude": 9 }` and lighting `keys` of
+  `{ "codex": [65], "claude": [66] }`. Stop the helper after changing settings;
+  the next notification starts it with the new configuration.
 
 The message-only prototype's singular `color` override still works by setting
 all three categories to that color; remove it to use category colors. The older

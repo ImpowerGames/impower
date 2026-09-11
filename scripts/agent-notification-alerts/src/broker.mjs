@@ -147,7 +147,7 @@ export async function runBroker() {
   catch (error) { if (error.code !== 'ENOENT') { server.close(); throw error; } }
   if (process.platform === 'win32' && process.env.AGENT_ALERT_PYTHON) {
     status.shortcuts = 'starting';
-    bridge = spawn(process.env.AGENT_ALERT_PYTHON, [fileURLToPath(new URL('./windows-session.py', import.meta.url))], { windowsHide: true, stdio: ['pipe', 'pipe', 'ignore'] });
+    bridge = spawn(process.env.AGENT_ALERT_PYTHON, [fileURLToPath(new URL('./windows-session.py', import.meta.url)), JSON.stringify(config.shortcuts)], { windowsHide: true, stdio: ['pipe', 'pipe', 'ignore'] });
     bridge.stdin.on('error', () => {});
     bridge.on('error', error => { status.shortcuts = error.message; });
     bridge.on('exit', () => { status.shortcuts = 'stopped'; });
