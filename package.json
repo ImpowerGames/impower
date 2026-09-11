@@ -3,6 +3,7 @@
   "type": "module",
   "private": true,
   "scripts": {
+    "postinstall": "node scripts/link-agent-skills.mjs",
     "web:dev": "node scripts/dev-preview.mjs --mode same-origin",
     "web:dev:same-origin": "node scripts/dev-preview.mjs --mode same-origin",
     "web:dev:cross-origin": "node scripts/dev-preview.mjs --mode cross-origin",

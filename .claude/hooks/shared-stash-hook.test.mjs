@@ -4,6 +4,7 @@
 // is installed, under dash as a plain POSIX shell. Run:
 //   node .claude/hooks/shared-stash-hook.test.mjs
 
+import { testShell } from "../../.agents/skills/drive-web-editor/redgreen.mjs";
 import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
@@ -118,7 +119,7 @@ for (const [label, command] of allows) {
   const hook = entry?.hooks.find((h) => h.command.includes("shared-stash-hook.mjs"));
   check(Boolean(hook), "settings.json wires shared-stash-hook.mjs for Bash|PowerShell");
   if (hook) {
-    const shells = ["bash"];
+    const shells = [process.platform === "win32" ? testShell() : "bash"];
     if (spawnSync("dash", ["-c", "true"]).status === 0) shells.push("dash");
     else console.log("NOTE: dash is not installed; the POSIX-shell pass is skipped");
     for (const shell of shells) {

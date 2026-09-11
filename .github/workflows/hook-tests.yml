@@ -1,60 +1,12 @@
 name: Hook Tests
 
-# Runs every check `.claude/**/*.test.sh` and `.claude/**/*.test.mjs` match on
-# a pull request that touches `.claude/**`: the two checks under
-# `.claude/hooks/` that guard what agents can do in this repo, and the checks
-# under `.claude/skills/` that pin a driver, a cleanup script, or a skill's
-# own prose. Bare `node` and `bash`, no `npm install` — the checks are
-# written to run that way; `write-regression-test/SKILL.md` documents the
-# same loop for a session running it by hand. The job runs a file whose
-# name ends in `.test.sh` or `.test.mjs`; the step subtracts what the loops
-# ran from what the wider `git ls-files ':(glob).claude/**/*.test.*'` finds,
-# lists the difference, and fails the job on any entry of it that is not a
-# `.json`, `.snap`, `.md` or `.txt` data file — so a check with another
-# extension is named rather than passing unnoticed. A name without `.test.`
-# in it is invisible to all three pathspecs, so a check has to carry it.
-#
-# All three pathspecs read the index, so a check git does not track is
-# invisible to every one of them. `.gitignore` excludes `.claude/*` and
-# re-includes named subdirectories, so a check under a new one — or directly
-# under `.claude/` — needs its own `!` line there before `git add` will stage
-# it and before this job can see it at all.
-#
-# This runner has no npm install, so seed-project.test.mjs's zip cases print
-# `SKIP: the zip cases need fflate, which the workspace install at the repo
-# root provides` — a consequence of that choice, not of the runner's OS. The
-# job summary lists every `SKIP:` line this runner prints.
-#
-# Cases across four checks assert behavior Windows itself supplies — a
-# junction, a drive-letter path, cmd.exe's wording, a taskkill /T tree stop —
-# and print `SKIP:` on this runner rather than failing it. Each is tracked
-# as work to make the case run on Linux: clean-worktrees.test.mjs (#505),
-# drive-vscode-web/driver.test.mjs (#506),
-# drive-web-editor/redgreen.test.mjs (#507), and
-# drive-web-editor/state-path.test.mjs (#508). Two of those, #507's shell
-# classifier and #508's tree stop, are defects in the driver the skipped
-# case was pinning, so the skip hides a live gap on POSIX until they land.
-
 on:
   pull_request:
-    paths:
-      - ".claude/**"
-      - "vscode-sparkdown/package.json"
-      - ".github/workflows/hook-tests.yml"
+    paths: [".agents/**", ".claude/**", ".codex/**", "scripts/**", "AGENTS.md", "CLAUDE.md", ".gitignore", "package.json", "vscode-sparkdown/package.json", ".github/workflows/hook-tests.yml"]
   push:
     branches: [main]
-    paths:
-      - ".claude/**"
-      - "vscode-sparkdown/package.json"
-      - ".github/workflows/hook-tests.yml"
+    paths: [".agents/**", ".claude/**", ".codex/**", "scripts/**", "AGENTS.md", "CLAUDE.md", ".gitignore", "package.json", "vscode-sparkdown/package.json", ".github/workflows/hook-tests.yml"]
 
-# A superseded PR run is of no interest; keep only the newest per branch. On
-# push, key by commit rather than by ref: `cancel-in-progress` only stops an
-# already-*running* job, but two pushes to main landing close together still
-# queue into the same ref-keyed group, and GitHub cancels the earlier
-# *pending* run when a third arrives — losing that middle commit's result.
-# Keying by SHA gives every push its own group, so push runs never queue
-# against each other and cannot cancel one another.
 concurrency:
   group: hook-tests-${{ github.event_name == 'pull_request' && github.ref || github.sha }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
@@ -64,187 +16,32 @@ permissions:
 
 jobs:
   standalone-checks:
-    runs-on: ubuntu-latest
-    # clean-worktrees.test.mjs is the expensive one: it builds a scratch git
-    # repository with fifteen worktrees, 9s of a run here and 51s on a Windows
-    # laptop. Every other check is seconds or less, so the whole loop is well
-    # under a minute of work on this runner. Five minutes leaves headroom for
-    # a hang rather than relying on nothing timing out at all, and a check
-    # killed by it has its partial output in the log already, because run_one
-    # streams as the check prints.
-    timeout-minutes: 5
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
         with:
-          # Cone mode only takes whole directories, and driver.test.mjs
-          # reads the real vscode-sparkdown/package.json to compute the
-          # extension id (drive-vscode-web/driver.mjs's EXT_DIR), so pattern
-          # mode names that one file alongside the .claude directory.
           sparse-checkout: |
-            .claude
-            vscode-sparkdown/package.json
+            /.agents/
+            /.claude/
+            /.codex/
+            /scripts/
+            /AGENTS.md
+            /CLAUDE.md
+            /.gitignore
+            /package.json
+            /vscode-sparkdown/package.json
           sparse-checkout-cone-mode: false
       - uses: actions/setup-node@v4
         with:
           node-version: 24
-      - name: Run the standalone .claude checks
-        shell: bash
-        run: |
-          set +e
-
-          # The number of runnable checks — the files the two pathspecs below
-          # match — in the tree today, which is what
-          # `git ls-files ':(glob).claude/**/*.test.*' | wc -l` prints. Raise
-          # it to that number when a check is added, so the
-          # floors keep failing a pathspec that stops matching rather than
-          # reporting a clean run that found nothing. Every listing below is
-          # held to it, the wider one included: that one lists each runnable
-          # check plus any fixture sitting beside it, so it can never be the
-          # smaller of the two. `git ls-files` reads the index, which a broken
-          # sparse checkout does not change (an excluded entry stays in the
-          # index with skip-worktree set, so these floors do not catch that; a
-          # missing file surfaces instead as every check reporting FAILED:
-          # because bash/node can't find it on disk).
-          min_checks=19
-
-          sh_checks=()
-          while IFS= read -r -d '' t; do sh_checks+=("$t"); done \
-            < <(git ls-files -z '.claude/**/*.test.sh')
-
-          mjs_checks=()
-          while IFS= read -r -d '' t; do mjs_checks+=("$t"); done \
-            < <(git ls-files -z '.claude/**/*.test.mjs')
-
-          # An independent, wider listing of every file under .claude/ whose
-          # name carries `.test.`, used only to police the two loops above —
-          # never to run anything itself. Plain `.claude/**/*.test.sh` needs a
-          # literal `/` after the `**` segment, so it can't see a file placed
-          # directly under `.claude/`; the `:(glob)` pathspec magic below
-          # matches that depth too, and matches any extension, not just
-          # .sh/.mjs.
-          all_checks=()
-          while IFS= read -r -d '' t; do all_checks+=("$t"); done \
-            < <(git ls-files -z ':(glob).claude/**/*.test.*')
-
-          expected=${#all_checks[@]}
-          ran=0
-          failed_checks=()
-          skipped_lines=()
-          # A temporary file rather than a name in the checkout, so the job
-          # leaves the working tree as it found it.
-          out="$(mktemp)"
-
-          run_one() {
-            local t="$1" runner="$2" line
-            echo "--- $t"
-            # Stream and capture in one go: every line reaches the Actions log
-            # as the check prints it, so a check killed by the job's timeout
-            # still shows how far it got, and "$out" holds the same output for
-            # the SKIP: scan below — per check, so one check's content can't
-            # corrupt another's skip lines.
-            "$runner" "$t" 2>&1 | tee "$out"
-            local rc=${PIPESTATUS[0]}
-            # A check whose last write has no trailing newline would otherwise
-            # glue the next check's `--- <path>` header onto its own last line.
-            # Close every check's output with a newline of the job's own.
-            printf '\n'
-            ran=$((ran + 1))
-            if [ "$rc" -ne 0 ]; then
-              failed_checks+=("$t")
-            fi
-            # SKIP: is data a check chooses to print, not something derivable
-            # from its exit status, so this reads the check's own output. The
-            # `|| [ -n "$line" ]` keeps a last line with no trailing newline,
-            # which `read` reports as end of input.
-            while IFS= read -r line || [ -n "$line" ]; do
-              case "$line" in
-                'SKIP: '*) skipped_lines+=("$line") ;;
-              esac
-            done < "$out"
-          }
-
-          for t in "${sh_checks[@]}"; do run_one "$t" bash; done
-          for t in "${mjs_checks[@]}"; do run_one "$t" node; done
-
-          # Anything the wider listing found that neither loop above ran — an
-          # extension the loops do not match, or a path their pathspecs miss —
-          # is named instead of vanishing: `expected` no longer
-          # being trivially equal to `ran` by construction is the whole point
-          # of deriving it independently. A file the job could never execute
-          # anyway, a fixture or a snapshot beside its check, is listed and
-          # left alone; anything else could be a check nobody runs, so it
-          # fails the job.
-          ran_paths=("${sh_checks[@]}" "${mjs_checks[@]}")
-          unrunnable=()
-          data_files=()
-          for t in "${all_checks[@]}"; do
-            covered=0
-            for r in "${ran_paths[@]}"; do
-              if [ "$t" = "$r" ]; then
-                covered=1
-                break
-              fi
-            done
-            [ "$covered" -eq 1 ] && continue
-            case "$t" in
-              *.json|*.snap|*.md|*.txt) data_files+=("$t") ;;
-              *) unrunnable+=("$t") ;;
-            esac
-          done
-          not_run=("${unrunnable[@]}" "${data_files[@]}")
-
-          {
-            echo "## Standalone \`.claude\` checks"
-            echo
-            echo "Ran $ran of the $expected files \`git ls-files ':(glob).claude/**/*.test.*'\` lists."
-            echo
-            if [ "${#skipped_lines[@]}" -gt 0 ]; then
-              echo "### Skipped on this runner"
-              echo
-              printf -- '- %s\n' "${skipped_lines[@]}"
-            else
-              echo "No cases skipped on this runner."
-            fi
-            if [ "${#failed_checks[@]}" -gt 0 ]; then
-              echo
-              echo "### Failed"
-              echo
-              printf -- '- FAILED: %s\n' "${failed_checks[@]}"
-            fi
-            if [ "${#not_run[@]}" -gt 0 ]; then
-              echo
-              echo "### Not run"
-              echo
-              printf -- '- %s\n' "${not_run[@]}"
-              echo
-              echo "This job runs a file whose name ends in \`.test.sh\` or \`.test.mjs\` and sits at least one directory below \`.claude/\`. A \`.json\`, \`.snap\`, \`.md\` or \`.txt\` file is listed here and nothing more; any other entry fails the job, because it could be a check nobody runs — rename it so a loop above matches it."
-            fi
-          } >> "$GITHUB_STEP_SUMMARY"
-
-          status=0
-          if [ "${#failed_checks[@]}" -ne 0 ]; then
-            echo "${#failed_checks[@]} check(s) reported FAILED:"
-            printf '%s\n' "${failed_checks[@]}"
-            status=1
-          fi
-          if [ "${#ran_paths[@]}" -lt "$min_checks" ]; then
-            echo "Only ${#ran_paths[@]} runnable checks were found (git ls-files '.claude/**/*.test.sh' and '.claude/**/*.test.mjs'), fewer than the $min_checks expected; the pathspec or the checkout step is broken."
-            status=1
-          fi
-          # The wider listing needs its own floor. It feeds only the display
-          # count and the unrunnable/data split, and every one of those reports
-          # nothing at all when it comes back empty, so without this a pathspec
-          # that stops matching — a typo, the `:(glob)` magic dropped while
-          # editing, GIT_LITERAL_PATHSPECS=1 in the environment — turns the
-          # policing this job exists for off and still exits green.
-          if [ "${#all_checks[@]}" -lt "$min_checks" ]; then
-            echo "Only ${#all_checks[@]} file(s) were found by git ls-files ':(glob).claude/**/*.test.*', fewer than the $min_checks expected; that pathspec or the checkout step is broken, and with it every guard that reads it."
-            status=1
-          fi
-          if [ "${#unrunnable[@]}" -ne 0 ]; then
-            echo "${#unrunnable[@]} file(s) whose name carries .test. this job cannot run:"
-            printf '%s\n' "${unrunnable[@]}"
-            echo "A check runs when its name ends in .test.sh or .test.mjs and it sits at least one directory below .claude/. Rename it so one of the two loops matches it."
-            status=1
-          fi
-          exit $status
+      - name: Install skills links
+        run: node scripts/link-agent-skills.mjs
+      - name: Check generated reviewer definitions
+        run: node scripts/generate-reviewer-agents.mjs --check
+      - name: Run standalone agent tooling checks
+        run: node scripts/check-agent-tooling.mjs
