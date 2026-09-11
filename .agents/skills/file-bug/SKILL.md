@@ -9,6 +9,8 @@ Read [runner notes](../RUNNERS.md) and the repository's agent instructions befor
 
 Turns a report of wrong behavior into one Bug issue on GitHub that a fixer can act on without re-deriving anything. All paths are relative to the repo root (the directory whose `package.json` is named `impower-monorepo`).
 
+At the final handoff, or when yielding for missing information or help, invoke [notify-user](../notify-user/SKILL.md). Send one brief alert identifying the bug and next action: `done` after filing when no action is needed, `input_needed` for a normal question, or `blocked` when a problem prevents progress and requires help. Preserve the reproduction rules and include the issue link or missing information in chat. If the notifier is unavailable, follow its chat fallback.
+
 The one rule: no reproduction, no ticket. A ticket here is treated as evidence, not instructions, by whoever fixes it (see the resolve-issue skill, section 1). A ticket filed from a description alone sends the fixer chasing a description, and when they cannot reproduce it the ticket is closed as not reproducible and the bug survives, to be reported again later by someone who measures it instead of describing it. That has happened here.
 
 Reproducing is also where the ticket gets its value. With a loop that goes red on the bug in hand, the cause is often a few minutes away, and a ticket with a repro, numbers, and a cause is what lets resolve-issue skip its investigation phase.

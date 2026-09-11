@@ -9,6 +9,8 @@ Read [runner notes](../RUNNERS.md) and the repository's agent instructions befor
 
 Takes an issue number and drives it to an open pull request. All paths below are relative to the repo root (the directory containing `package.json` with `"name": "impower-monorepo"`).
 
+At completion, or when yielding for the user's input or help, invoke [notify-user](../notify-user/SKILL.md) for a brief handoff. Use `input_needed` when asking the user to review or merge, `done` when no action is needed, and `blocked` when a problem requires their help. Notify only after the relevant completion gates are satisfied, or describe what remains blocked; a notification never replaces those gates or the required evidence and links in chat. If the notifier is unavailable, follow its chat fallback.
+
 The work happens in a dedicated worktree, and the steps run in the order below. Four of them are their own skills, and this file says where to invoke each one: three on a line that begins ``Invoke `/<skill>` now``, and the VS Code driver in the reproduction bullet and the §6 sentence that apply to an extension ticket; a session that skips an invocation skips the step, so `landing-pad.test.sh` beside this file pins those lines. The completion gate is at the end.
 
 ---
