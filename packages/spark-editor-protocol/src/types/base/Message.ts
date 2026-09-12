@@ -1,4 +1,1 @@
-export interface Message<M extends string = string> {
-  jsonrpc: string;
-  method: M;
-}
+export type { IMessage as Message } from "@impower/jsonrpc/src/common/types/IMessage";

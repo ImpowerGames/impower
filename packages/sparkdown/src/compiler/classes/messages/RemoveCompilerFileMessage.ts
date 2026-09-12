@@ -25,8 +25,8 @@ export namespace RemoveCompilerFileMessage {
     RemoveCompilerFileParams,
     RemoveCompilerFileResult
   > {}
-  export interface Response extends ResponseMessage<
+  export type Response = ResponseMessage<
     RemoveCompilerFileMethod,
     RemoveCompilerFileResult
-  > {}
+  >;
 }

@@ -26,8 +26,8 @@ export namespace SearchEditorMessage {
     SearchEditorParams,
     SearchEditorResult
   > {}
-  export interface Response extends ResponseMessage<
+  export type Response = ResponseMessage<
     SearchEditorMethod,
     SearchEditorResult
-  > {}
+  >;
 }

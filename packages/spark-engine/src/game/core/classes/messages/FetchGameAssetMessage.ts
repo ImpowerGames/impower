@@ -27,8 +27,8 @@ export namespace FetchGameAssetMessage {
     FetchGameAssetParams,
     FetchGameAssetResult
   > {}
-  export interface Response extends ResponseMessage<
+  export type Response = ResponseMessage<
     FetchGameAssetMethod,
     FetchGameAssetResult
-  > {}
+  >;
 }

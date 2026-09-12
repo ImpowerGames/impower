@@ -27,8 +27,5 @@ export namespace UpdateGameMessage {
     UpdateGameParams,
     UpdateGameResult
   > {}
-  export interface Response extends ResponseMessage<
-    UpdateGameMethod,
-    UpdateGameResult
-  > {}
+  export type Response = ResponseMessage<UpdateGameMethod, UpdateGameResult>;
 }

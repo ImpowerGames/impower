@@ -25,8 +25,8 @@ export namespace GetGameScriptsMessage {
     GetGameScriptsParams,
     GetGameScriptsResult
   > {}
-  export interface Response extends ResponseMessage<
+  export type Response = ResponseMessage<
     GetGameScriptsMethod,
     GetGameScriptsResult
-  > {}
+  >;
 }

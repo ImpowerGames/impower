@@ -1,7 +1,1 @@
-export interface ProgressValue {
-  kind: string;
-  title: string;
-  cancellable: boolean;
-  message?: string;
-  percentage?: number;
-}
+export type { ProgressValue } from "@impower/jsonrpc/src/common/types/ProgressValue";

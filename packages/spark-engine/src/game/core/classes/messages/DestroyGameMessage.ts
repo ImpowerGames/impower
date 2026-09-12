@@ -23,8 +23,5 @@ export namespace DestroyGameMessage {
     DestroyGameParams,
     DestroyGameResult
   > {}
-  export interface Response extends ResponseMessage<
-    DestroyGameMethod,
-    DestroyGameResult
-  > {}
+  export type Response = ResponseMessage<DestroyGameMethod, DestroyGameResult>;
 }

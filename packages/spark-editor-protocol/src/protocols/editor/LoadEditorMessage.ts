@@ -36,8 +36,5 @@ export namespace LoadEditorMessage {
     LoadEditorParams,
     LoadEditorResult
   > {}
-  export interface Response extends ResponseMessage<
-    LoadEditorMethod,
-    LoadEditorResult
-  > {}
+  export type Response = ResponseMessage<LoadEditorMethod, LoadEditorResult>;
 }

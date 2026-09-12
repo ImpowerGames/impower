@@ -27,8 +27,8 @@ export namespace ContinueGameMessage {
     ContinueGameParams,
     ContinueGameResult
   > {}
-  export interface Response extends ResponseMessage<
+  export type Response = ResponseMessage<
     ContinueGameMethod,
     ContinueGameResult
-  > {}
+  >;
 }

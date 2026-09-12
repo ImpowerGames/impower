@@ -24,8 +24,8 @@ export namespace ShowDocumentMessage {
     ShowDocumentParams,
     ShowDocumentResult
   > {}
-  export interface Response extends ResponseMessage<
+  export type Response = ResponseMessage<
     ShowDocumentMethod,
     ShowDocumentResult
-  > {}
+  >;
 }

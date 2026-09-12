@@ -26,8 +26,8 @@ export namespace UpdateCompilerFileMessage {
     UpdateCompilerFileParams,
     UpdateCompilerFileResult
   > {}
-  export interface Response extends ResponseMessage<
+  export type Response = ResponseMessage<
     UpdateCompilerFileMethod,
     UpdateCompilerFileResult
-  > {}
+  >;
 }

@@ -34,8 +34,8 @@ export namespace GetGameVariablesMessage {
     GetGameVariablesParams,
     GetGameVariablesResult
   > {}
-  export interface Response extends ResponseMessage<
+  export type Response = ResponseMessage<
     GetGameVariablesMethod,
     GetGameVariablesResult
-  > {}
+  >;
 }

@@ -27,8 +27,8 @@ export namespace RevealPreviewRangeMessage {
     RevealPreviewRangeParams,
     RevealPreviewRangeResult
   > {}
-  export interface Response extends ResponseMessage<
+  export type Response = ResponseMessage<
     RevealPreviewRangeMethod,
     RevealPreviewRangeResult
-  > {}
+  >;
 }

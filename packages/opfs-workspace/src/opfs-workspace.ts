@@ -120,7 +120,7 @@ const channel = new BroadcastChannel("opfs-workspace");
 channel.onmessage = (event) => {
   postMessage(event.data);
 };
-const broadcast = (message: NotificationMessage) => {
+const broadcast = (message: NotificationMessage<string, object>) => {
   postMessage(message);
   const remoteMessage = structuredClone(message);
   remoteMessage.params.remote = true;

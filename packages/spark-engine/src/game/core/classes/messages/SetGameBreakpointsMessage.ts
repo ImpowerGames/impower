@@ -28,8 +28,8 @@ export namespace SetGameBreakpointsMessage {
     SetGameBreakpointsParams,
     SetGameBreakpointsResult
   > {}
-  export interface Response extends ResponseMessage<
+  export type Response = ResponseMessage<
     SetGameBreakpointsMethod,
     SetGameBreakpointsResult
-  > {}
+  >;
 }

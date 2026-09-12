@@ -24,8 +24,8 @@ export namespace EnterGameFullscreenModeMessage {
     EnterGameFullscreenModeParams,
     EnterGameFullscreenModeResult
   > {}
-  export interface Response extends ResponseMessage<
+  export type Response = ResponseMessage<
     EnterGameFullscreenModeMethod,
     EnterGameFullscreenModeResult
-  > {}
+  >;
 }

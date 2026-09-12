@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { MessageConnection } from "../src/browser/classes/MessageConnection";
 import { RequestError } from "../src/common/classes/RequestError";
 import { RequestMessage } from "../src/common/types/RequestMessage";
+import { MessageProtocolRequestType } from "../src/common/classes/MessageProtocolRequestType";
 
 // A pair of in-memory connections. `MessageConnection` is abstract over the
 // transport, so this needs no worker, port or DOM — and it lets the tests
@@ -84,6 +85,31 @@ const settlesWithin = async (promise: Promise<unknown>, ms = 500) => {
 };
 
 describe("MessageConnection response handling", () => {
+  it("delivers factory progress without settling, then removes the final listener", async () => {
+    const { a } = pair();
+    const type = new MessageProtocolRequestType<
+      "test/factory-progress",
+      {},
+      string
+    >("test/factory-progress");
+    const request = type.request({});
+    const values: unknown[] = [];
+    const pending = a.request(request, undefined, (value) =>
+      values.push(value),
+    );
+    const progress = type.progress(request.id, {
+      kind: "report",
+      title: "Work",
+      cancellable: false,
+    });
+    a.receive(progress);
+    a.receive({ ...progress, method: request.method });
+    expect(values).toEqual([progress.value, progress.value]);
+    expect(a.listenerCount).toBe(1);
+    a.receive(type.response(request.id, "done"));
+    expect(await pending).toBe("done");
+    expect(a.listenerCount).toBe(0);
+  });
   it("settles when the handler returns a value", async () => {
     const { a, b } = pair();
     serve(b, () => ({ ok: true }));
@@ -119,7 +145,9 @@ describe("MessageConnection response handling", () => {
     serve(b, () => {
       throw { code: 1, message: "boom" };
     });
-    const outcome = await settlesWithin(a.request(requestMessage("test/throw")));
+    const outcome = await settlesWithin(
+      a.request(requestMessage("test/throw")),
+    );
     expect((outcome as any).status).toBe("rejected");
     expect((outcome as any).error).toBeInstanceOf(RequestError);
     expect((outcome as any).error.code).toBe(1);

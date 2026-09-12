@@ -29,8 +29,8 @@ export namespace SetGameFunctionBreakpointsMessage {
     SetGameFunctionBreakpointsParams,
     SetGameFunctionBreakpointsResult
   > {}
-  export interface Response extends ResponseMessage<
+  export type Response = ResponseMessage<
     SetGameFunctionBreakpointsMethod,
     SetGameFunctionBreakpointsResult
-  > {}
+  >;
 }

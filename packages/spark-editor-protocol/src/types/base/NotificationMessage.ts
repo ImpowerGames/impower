@@ -1,16 +1,11 @@
-import type { Message } from "./Message";
+import type { NotificationMessage as CoreNotificationMessage } from "@impower/jsonrpc/src/common/types/NotificationMessage";
 
-export interface NotificationMessage<
+/** Editor event-bus relay metadata; not part of the generic RPC contract. */
+export type EditorNotificationParams<P> = P extends object
+  ? P & { remote?: boolean }
+  : P;
+
+export type NotificationMessage<
   M extends string = string,
-  P = any,
-> extends Message<M> {
-  /**
-   * The method to be invoked.
-   */
-  method: M;
-
-  /**
-   * The notification's params.
-   */
-  params: P & { remote?: boolean };
-}
+  P = unknown,
+> = CoreNotificationMessage<M, EditorNotificationParams<P>>;
