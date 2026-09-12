@@ -15,12 +15,12 @@ Use this map only when a runner capability is unclear. Repository instruction an
 
 ## Review execution
 
-Before launching a local CLI reviewer, read [reviewer mappings](../references/runner-review.md) and [handoff execution](review-pr/HANDOFF.md). Supply caller-selected routes and use the shared reservation launcher. Native or remote tasks do not satisfy its enforced capacity contract.
+Before launching a local CLI reviewer, read [reviewer mappings](references/runner-review.md) and [handoff execution](review-pr/HANDOFF.md). Supply caller-selected routes and use the shared reservation launcher. Native or remote tasks do not satisfy its enforced capacity contract.
 
 ## Migration and recovery
 
-If installation refuses populated directories, foreign links or broken links, read [installation recovery](../references/runner-recovery.md) before retrying. Preserve local skills, driver state and browser profiles.
+If installation refuses populated directories, foreign links or broken links, read [installation recovery](references/runner-recovery.md) before retrying. Preserve local skills, driver state and browser profiles.
 
 ## Maintenance
 
-When debugging discovery, shell selection or hooks, read [runner maintenance](../references/runner-maintenance.md). Hook trust is separate from skill installation; never claim enforcement merely because links exist.
+When debugging discovery, shell selection or hooks, read [runner maintenance](references/runner-maintenance.md). Hook trust is separate from skill installation; never claim enforcement merely because links exist.

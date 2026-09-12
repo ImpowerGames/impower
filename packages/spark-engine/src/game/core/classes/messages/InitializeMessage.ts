@@ -23,8 +23,5 @@ export namespace InitializeMessage {
     InitializeParams,
     InitializeResult
   > {}
-  export interface Response extends ResponseMessage<
-    InitializeMethod,
-    InitializeResult
-  > {}
+  export type Response = ResponseMessage<InitializeMethod, InitializeResult>;
 }

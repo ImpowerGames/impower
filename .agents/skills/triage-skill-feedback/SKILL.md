@@ -27,7 +27,7 @@ Before editing groups, read [group actions](references/groups.md). Edit only gro
 node .agents/skills/triage-skill-feedback/triage-skill-feedback.mjs preview <absolute-private-plan.json>
 ```
 
-Read the exact proposed artifacts. Before any publication, read [shared publishing rules](../../references/publishing.md). New Tasks carry the Task type, template and workflow label.
+Read the exact proposed artifacts. Before any publication, read [shared publishing rules](../references/publishing.md). New Tasks carry the Task type, template and workflow label.
 
 ## 3. Apply and verify preservation
 

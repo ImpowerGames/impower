@@ -29,8 +29,8 @@ export namespace GetGameThreadsMessage {
     GetGameThreadsParams,
     GetGameThreadsResult
   > {}
-  export interface Response extends ResponseMessage<
+  export type Response = ResponseMessage<
     GetGameThreadsMethod,
     GetGameThreadsResult
-  > {}
+  >;
 }

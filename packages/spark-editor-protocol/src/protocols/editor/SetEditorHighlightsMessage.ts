@@ -27,8 +27,8 @@ export namespace SetEditorHighlightsMessage {
     SetEditorHighlightsParams,
     SetEditorHighlightsResult
   > {}
-  export interface Response extends ResponseMessage<
+  export type Response = ResponseMessage<
     SetEditorHighlightsMethod,
     SetEditorHighlightsResult
-  > {}
+  >;
 }

@@ -39,8 +39,5 @@ export namespace CreateGameMessage {
     CreateGameParams,
     CreateGameResult
   > {}
-  export interface Response extends ResponseMessage<
-    CreateGameMethod,
-    CreateGameResult
-  > {}
+  export type Response = ResponseMessage<CreateGameMethod, CreateGameResult>;
 }

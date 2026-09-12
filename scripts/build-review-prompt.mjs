@@ -18,7 +18,7 @@ export function buildReviewPrompt(context, markdown = fs.readFileSync(skill, "ut
   if (normalize(context.writer) === normalize(context.reviewer)) throw new Error("Writer and reviewer routes must differ");
   if (typeof context.invocation !== "string" || !context.invocation.trim() || /^(?:(?:INVOCATION|METHOD)$|(?:TBD|UNKNOWN)\b|<.*>)/i.test(context.invocation.trim())) throw new Error("Missing or nonconcrete invocation method");
   if (/^(?:(?:method|invocation)\s*:\s*(?:TBD|UNKNOWN|<(?:method|invocation)>)|see\s+<(?:method|invocation)>)\s*[.!]?$/i.test(context.invocation.trim())) throw new Error("Missing or nonconcrete invocation method");
-  for (const key of ["issue", "pr", "round"]) if (!Number.isSafeInteger(context[key]) || context[key] < 1) throw new Error(`Invalid ${key}`);
+  for (const key of ["issue", "pr", "round"]) if (!(key === "issue" && context[key] === null) && (!Number.isSafeInteger(context[key]) || context[key] < 1)) throw new Error(`Invalid ${key}`);
   if (!/^[a-f0-9]{40}$/.test(context.head ?? "")) throw new Error("Supply the full reviewed head SHA");
   for (const key of ["worktree", "diff", "reviewDir"]) if (typeof context[key] !== "string" || !path.isAbsolute(context[key])) throw new Error(`Supply an absolute ${key}`);
   if (!context.lens || !context.previous) throw new Error("Supply lens and previous-round context");
@@ -28,6 +28,10 @@ export function buildReviewPrompt(context, markdown = fs.readFileSync(skill, "ut
   const tokens = [...prompt.matchAll(tokenPattern)].map(([value]) => tokenName(value));
   const counts = { WRITER: 1, REVIEWER: 1, ROUND: 2, HEAD: 3, WORKTREE: 1, DIFF: 1, REVDIR: 2, PREVIOUS: 1, P: 4, N: 1, LENS: 2 };
   for (const [token, count] of Object.entries(counts)) if (tokens.filter((value) => value === token).length !== count) throw new Error(`Unsafe ${token} substitution template`);
+  if (context.issue === null) {
+    if (!prompt.includes("a fix for issue #N")) throw new Error("Unsafe issue-free review template");
+    prompt = prompt.replace("a fix for issue #N", "a change with no linked issue");
+  }
   const values = { WRITER: context.writer, REVIEWER: context.reviewer, ROUND: String(context.round), HEAD: context.head, WORKTREE: context.worktree, DIFF: context.diff, REVDIR: context.reviewDir, PREVIOUS: context.previous, P: String(context.pr), N: String(context.issue), LENS: context.lens };
   // Match only the original template: inserted paths, quoted tokens and dollar
   // sequences are literal data and must never be scanned for substitutions.

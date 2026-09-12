@@ -23,8 +23,10 @@ Do not file until the user confirms shared understanding. Delegated decisions ar
 
 If the plan needs multiple PRs, read [vertical slicing](references/slicing.md) before filing the parent and dependent Task slices.
 
-Before drafting or publishing, read [Feature body requirements](references/publishing.md) and [shared publishing rules](../../references/publishing.md). Use the template in order, preserve alternatives and decision reasons, specify verifiable acceptance criteria, and create the issue with type Feature and current area labels in one call. Read back its body and type. Rename with the issue number when supported.
+Before drafting or publishing, read [Feature body requirements](references/publishing.md) and [shared publishing rules](../references/publishing.md). Use the template in order, preserve alternatives and decision reasons, specify verifiable acceptance criteria, and create the issue with type Feature and current area labels in one call. Read back its body and type. Rename with the issue number when supported.
 
 ## 4. Hand off
 
 Give the user the issue number and a short plan. Implementation uses resolve-issue on that ticket in a fresh session; do not begin it here. Retain the design in the ticket, including any draft document as the design of record and the slice dependencies.
+
+At completion, or when yielding for input or help, provide the normal chat handoff and invoke [notify-user](../notify-user/SKILL.md) for an optional companion alert identifying the work and next action. Use `done` when no action is needed, `user_input_needed` for a question or review/merge request, or `blocked` when progress requires help. Preserve this workflow's gates and include evidence, links and missing information in chat. If the notifier is unavailable, skip it silently.

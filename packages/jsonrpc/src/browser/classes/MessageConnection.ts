@@ -86,13 +86,38 @@ export abstract class MessageConnection {
     return new Promise<R>((resolve, reject) => {
       const onResponse = (e: MessageEvent) => {
         const message = e.data;
-        if (typeof message === "object") {
+        if (typeof message === "object" && message !== null) {
           if (message.id === request.id) {
             if (isResponse<string, R>(message, request.method)) {
               if (message.error !== undefined) {
                 console.error(message.error);
                 profile("end", this._profilerId, "request " + request.method);
-                reject(new RequestError(message.error));
+                const error: unknown = message.error;
+                const peerCode =
+                  typeof error === "object" && error !== null && "code" in error
+                    ? error.code
+                    : undefined;
+                const validError =
+                  typeof error === "object" &&
+                  error !== null &&
+                  "code" in error &&
+                  typeof error.code === "number" &&
+                  "message" in error &&
+                  typeof error.message === "string";
+                reject(
+                  new RequestError(
+                    validError
+                      ? message.error
+                      : {
+                          ...toResponseError(error),
+                          // A peer's numeric code remains meaningful without text.
+                          ...(typeof peerCode === "number"
+                            ? { code: peerCode }
+                            : {}),
+                          data: message,
+                        },
+                  ),
+                );
                 this.removeEventListener("message", onResponse);
               } else if (message.result !== undefined) {
                 profile("end", this._profilerId, "request " + request.method);
@@ -104,30 +129,21 @@ export abstract class MessageConnection {
             } else if (
               message.method === request.method &&
               message.params === undefined &&
-              message.value === undefined
+              (message.value === undefined ||
+                message.result !== undefined ||
+                message.error !== undefined)
             ) {
-              // Addressed to this request, but carries neither `result` nor
-              // `error`, so `isResponse` rejected it. Settle rather than wait
-              // forever — a silent hang is far harder to diagnose than a
-              // rejection.
-              //
-              // The two exclusions are load-bearing, because `id` alone does
-              // not identify a response: `isRequest` is also true for a
-              // message with neither field, and requests always carry `params`
-              // (this connection's ids are short `Math.random()` strings, not
-              // uuids, so id uniqueness cannot be relied on either). Progress
-              // messages carry `value` and are meant to be ignored here —
-              // `MessageProtocolRequestType.progress()` emits them under the
-              // bare method name, which `isProgressResponse` does not match,
-              // so without the `value` guard they would land in this branch
-              // and kill a healthy in-flight request.
+              // An addressed reply failed envelope validation. Settle rather
+              // than hang, but exclude echoed requests and progress traffic.
+              console.error(message);
               profile("end", this._profilerId, "request " + request.method);
               reject(
                 new RequestError({
                   code: INTERNAL_ERROR,
                   message:
                     `Malformed response to "${request.method}": ` +
-                    `carries neither "result" nor "error"`,
+                    `expected exactly one valid "result" or "error"`,
+                  data: message,
                 }),
               );
               this.removeEventListener("message", onResponse);
@@ -174,21 +190,15 @@ export abstract class MessageConnection {
       responseError = toResponseError(e);
     }
     profile("start", this._profilerId, "send response " + method);
-    const response: ResponseMessage<M, R> = {
-      jsonrpc: "2.0",
-      method,
-      id,
-    };
     // Every response MUST carry exactly one of `result` / `error`. JSON-RPC 2.0
     // requires it, and more concretely `isResponse` keys on their presence: a
     // response with neither is not recognized as a response at all, so the
     // requester never resolves, never rejects, and never removes its listener.
     // A handler that returns nothing therefore has to send an explicit `null`.
-    if (responseError !== undefined) {
-      response.error = responseError;
-    } else {
-      response.result = (responseResult ?? null) as R;
-    }
+    const response: ResponseMessage<M, R | null> =
+      responseError !== undefined
+        ? { jsonrpc: "2.0", method, id, error: responseError }
+        : { jsonrpc: "2.0", method, id, result: responseResult ?? null };
     try {
       this.postMessage(response, transfer);
     } catch (e) {

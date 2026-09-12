@@ -25,8 +25,8 @@ export namespace StepGameClockMessage {
     StepGameClockParams,
     StepGameClockResult
   > {}
-  export interface Response extends ResponseMessage<
+  export type Response = ResponseMessage<
     StepGameClockMethod,
     StepGameClockResult
-  > {}
+  >;
 }

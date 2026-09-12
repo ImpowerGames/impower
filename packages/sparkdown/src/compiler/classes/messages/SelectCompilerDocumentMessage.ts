@@ -52,8 +52,8 @@ export namespace SelectCompilerDocumentMessage {
     SelectCompilerDocumentParams,
     SelectCompilerDocumentResult
   > {}
-  export interface Response extends ResponseMessage<
+  export type Response = ResponseMessage<
     SelectCompilerDocumentMethod,
     SelectCompilerDocumentResult
-  > {}
+  >;
 }

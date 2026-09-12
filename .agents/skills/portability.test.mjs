@@ -13,9 +13,9 @@ export const violations = (text) => [...text.matchAll(forbidden)].map((m) => m[0
 assert.ok(skills.length >= 9, "shared skill discovery is incomplete");
 const runnerDocs = new Set([
   ".agents/skills/RUNNERS.md",
-  ".agents/references/runner-review.md",
-  ".agents/references/runner-maintenance.md",
-  ".agents/references/runner-recovery.md",
+  ".agents/skills/references/runner-review.md",
+  ".agents/skills/references/runner-maintenance.md",
+  ".agents/skills/references/runner-recovery.md",
 ]);
 for (const file of files.filter((f) => f.startsWith(".agents/") && f.endsWith(".md") && !runnerDocs.has(f))) {
   const text = fs.readFileSync(path.join(root, file), "utf8");

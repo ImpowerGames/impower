@@ -26,8 +26,8 @@ export namespace AddCompilerFileMessage {
     AddCompilerFileParams,
     AddCompilerFileResult
   > {}
-  export interface Response extends ResponseMessage<
+  export type Response = ResponseMessage<
     AddCompilerFileMethod,
     AddCompilerFileResult
-  > {}
+  >;
 }

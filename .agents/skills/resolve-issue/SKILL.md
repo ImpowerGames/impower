@@ -56,6 +56,8 @@ Invoke `/review-pr` now (skill name `review-pr`). It owns review, adjudication, 
 
 A behavior test is red on the base and green on the fix (or the relevant tooling check proves the change); live or measured evidence is inspected and limitations disclosed; the PR contains `Closes #N` and verification; review marks it ready or the draft states exactly what remains.
 
+At completion, or when yielding for input or help, provide the normal chat handoff and invoke [notify-user](../notify-user/SKILL.md) for an optional companion alert identifying the work and next action. Use `done` when no action is needed, `user_input_needed` for a question or review/merge request, or `blocked` when progress requires help. Preserve this workflow's gates and include evidence, links and missing information in chat. If the notifier is unavailable, skip it silently.
+
 ## Troubleshooting
 
 | Symptom | Action |

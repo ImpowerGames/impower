@@ -1,12 +1,16 @@
-import type { Message } from "../types/Message";
+import type { IMessage } from "../types/IMessage";
 
-export const isMessage = <M extends string, P>(
-  obj: any,
-  method: M = obj.method,
-): obj is Message<M, P> & { jsonrpc: string; method: M } => {
+/** Checks the internal envelope, not application payload schemas. */
+export const isMessage = <M extends string = string>(
+  obj: unknown,
+  method?: M,
+): obj is IMessage<M> => {
   return (
     typeof obj === "object" &&
+    obj !== null &&
+    "jsonrpc" in obj &&
     typeof obj.jsonrpc === "string" &&
+    "method" in obj &&
     typeof obj.method === "string" &&
     (method === undefined || obj.method === method)
   );

@@ -15,7 +15,7 @@ Each template's leading comment gives the title convention and the label list; i
 gh api -X POST repos/ImpowerGames/impower/issues -f title="<title>" -F body=@ticket.md -f type=Bug -f "labels[]=system: sparkdown"   # type is Bug, Feature, or Task; repeat labels[] per label
 ```
 
-The shared typed-issue guard in `.agents/hooks/typed-issue-hook.mjs` refuses untyped issue creation through direct CLI and REST calls and refuses GraphQL createIssue mutations. Harness hook definitions invoke the same policy; see `../skills/RUNNERS.md` for activation and coverage. The guard reads command text statically: an endpoint or method built from a shell variable, an alias or a wrapper script is outside its coverage. The typed-creation rule applies even when hooks are unavailable or not trusted.
+The shared typed-issue guard in `.agents/hooks/typed-issue-hook.mjs` refuses untyped issue creation through direct CLI and REST calls and refuses GraphQL createIssue mutations. Harness hook definitions invoke the same policy; see `../RUNNERS.md` for activation and coverage. The guard reads command text statically: an endpoint or method built from a shell variable, an alias or a wrapper script is outside its coverage. The typed-creation rule applies even when hooks are unavailable or not trusted.
 
 Keep every heading, write "None", "Unknown", or "Not applicable" with a short reason under one you cannot fill, tick only the issue template's checkbox items you actually did, fill in the pull request template's Type of change and Checklist lines as plain text rather than checkboxes, and strip the HTML comments before filing. After filing, read the artifact back (`gh issue view N --json body`, `gh pr view N --json body`).
 

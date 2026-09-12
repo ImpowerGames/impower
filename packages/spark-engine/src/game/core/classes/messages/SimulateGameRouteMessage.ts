@@ -28,8 +28,8 @@ export namespace SimulateGameRouteMessage {
     SimulateGameRouteParams,
     SimulateGameRouteResult
   > {}
-  export interface Response extends ResponseMessage<
+  export type Response = ResponseMessage<
     SimulateGameRouteMethod,
     SimulateGameRouteResult
-  > {}
+  >;
 }

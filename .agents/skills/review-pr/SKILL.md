@@ -21,7 +21,9 @@ Record configured route separately from runtime identity. An unavailable runtime
 
 Before preparing a round, read [launch procedure](references/launch.md). Build the complete [reviewer prompt](references/reviewer-prompt.md) with `node scripts/build-review-prompt.mjs <absolute-context.json> <absolute-prompt.txt>`.
 
-Freeze head, base and files; record SHAs and a single diff artifact. Give each lens/round/attempt a unique private directory. Read [handoff execution](HANDOFF.md) before launching any local CLI reviewer; it reserves machine-wide slots and runs serial lenses. Native/remote tasks do not satisfy this enforced workflow. Before selecting executable arguments, read [runner mappings](../../references/runner-review.md).
+For a PR with no linked issue, set the prompt builder's `issue` field to `null`; never invent an issue number.
+
+Freeze head, base and files; record SHAs and a single diff artifact. Give each lens/round/attempt a unique private directory. Read [handoff execution](HANDOFF.md) before launching any local CLI reviewer; it reserves machine-wide slots and runs serial lenses. Native/remote tasks do not satisfy this enforced workflow. Before selecting executable arguments, read [runner mappings](../references/runner-review.md).
 
 Post round state with identities, SHAs, scope, lenses, launch method and artifact paths. Record process IDs, OS start identities and output paths. Wait for each process to exit, then verify its report landed before advancing. Missing comments alone never justify relaunch. Preserve uncertain launches and recover through the journal and reservation status.
 

@@ -26,8 +26,8 @@ export namespace GetGameEvaluationContextMessage {
     GetGameEvaluationContextParams,
     GetGameEvaluationContextResult
   > {}
-  export interface Response extends ResponseMessage<
+  export type Response = ResponseMessage<
     GetGameEvaluationContextMethod,
     GetGameEvaluationContextResult
-  > {}
+  >;
 }

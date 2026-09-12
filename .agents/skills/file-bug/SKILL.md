@@ -27,8 +27,10 @@ Tell the user what was tried, where, and what happened instead; ask for the miss
 
 ## 4. Publish
 
-Before writing the ticket, read [Bug body requirements](references/publishing.md) and [shared publishing rules](../../references/publishing.md). Use the Bug template in order, confirmed evidence, expected/actual behavior, environment, and bounded analysis with commit-specific source references. Create with type Bug and current area labels in one call; read the body and type back.
+Before writing the ticket, read [Bug body requirements](references/publishing.md) and [shared publishing rules](../references/publishing.md). Use the Bug template in order, confirmed evidence, expected/actual behavior, environment, and bounded analysis with commit-specific source references. Create with type Bug and current area labels in one call; read the body and type back.
 
 ## 5. Hand off
 
 Put the issue number in the session title when appropriate. Remove only your scratch test/repro artifacts and stop servers you started; preserve unrelated pre-existing changes. Tell the user the issue and finding. If fixing is requested, hand the number to resolve-issue rather than performing a partial fix in this workflow.
+
+At completion, or when yielding for input or help, provide the normal chat handoff and invoke [notify-user](../notify-user/SKILL.md) for an optional companion alert identifying the work and next action. Use `done` when no action is needed, `user_input_needed` for a question or review/merge request, or `blocked` when progress requires help. Preserve this workflow's gates and include evidence, links and missing information in chat. If the notifier is unavailable, skip it silently.

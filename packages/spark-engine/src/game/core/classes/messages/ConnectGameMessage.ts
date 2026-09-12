@@ -24,8 +24,5 @@ export namespace ConnectGameMessage {
     ConnectGameParams,
     ConnectGameResult
   > {}
-  export interface Response extends ResponseMessage<
-    ConnectGameMethod,
-    ConnectGameResult
-  > {}
+  export type Response = ResponseMessage<ConnectGameMethod, ConnectGameResult>;
 }

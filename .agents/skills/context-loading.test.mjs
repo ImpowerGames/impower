@@ -69,6 +69,27 @@ function readDocs(dir, prefix = "") {
 }
 const docs = new Map([["AGENTS.md", fs.readFileSync(path.join(root, "AGENTS.md"), "utf8")]]);
 for (const pair of readDocs(path.join(root, ".agents"), ".agents/")) docs.set(...pair);
+function linkedReferenceErrors(files) {
+  const errors = [];
+  for (const harness of [".claude", ".codex", ".github"]) {
+    const linkedRoot = path.join(root, harness, "skills");
+    assert.equal(fs.realpathSync(linkedRoot), fs.realpathSync(path.join(root, ".agents/skills")), "install the canonical skill links before checking discovery");
+    for (const [file, text] of files) {
+      if (!file.startsWith(".agents/skills/")) continue;
+      const alias = file.replace(".agents/", harness + "/");
+      for (const match of withoutFences(text).matchAll(/\[[^\]\n]*\]\(([^)\s]+)\)/g)) {
+        const target = match[1].split("#")[0];
+        if (!target || /^[a-z]+:/i.test(target)) continue;
+        if (!fs.existsSync(path.resolve(root, path.dirname(alias), target))) errors.push(alias + " -> " + target);
+      }
+    }
+  }
+  return errors;
+}
+assert.deepEqual(linkedReferenceErrors(docs), [], "references must resolve through installed discovery links");
+const escaped = new Map(docs);
+escaped.set(".agents/skills/file-bug/SKILL.md", docs.get(".agents/skills/file-bug/SKILL.md").replace("(../references/publishing.md)", "(../../references/publishing.md)"));
+assert.equal(linkedReferenceErrors(escaped).length, 3, "each discovery alias must reject a shared reference outside its linked tree");
 assert.deepEqual(inspect(docs), [], "context loading contract");
 const broken = new Map(docs);
 broken.set("AGENTS.md", docs.get("AGENTS.md") + "\nRead [missing](.agents/references/absent.md).");

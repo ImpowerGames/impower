@@ -23,8 +23,5 @@ export namespace UnpauseGameMessage {
     UnpauseGameParams,
     UnpauseGameResult
   > {}
-  export interface Response extends ResponseMessage<
-    UnpauseGameMethod,
-    UnpauseGameResult
-  > {}
+  export type Response = ResponseMessage<UnpauseGameMethod, UnpauseGameResult>;
 }

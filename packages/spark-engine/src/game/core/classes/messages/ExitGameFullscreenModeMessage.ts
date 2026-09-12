@@ -24,8 +24,8 @@ export namespace ExitGameFullscreenModeMessage {
     ExitGameFullscreenModeParams,
     ExitGameFullscreenModeResult
   > {}
-  export interface Response extends ResponseMessage<
+  export type Response = ResponseMessage<
     ExitGameFullscreenModeMethod,
     ExitGameFullscreenModeResult
-  > {}
+  >;
 }

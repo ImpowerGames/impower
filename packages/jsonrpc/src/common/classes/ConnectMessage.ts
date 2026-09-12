@@ -23,8 +23,5 @@ export namespace ConnectMessage {
     ConnectParams,
     ConnectResult
   > {}
-  export interface Response extends ResponseMessage<
-    ConnectMethod,
-    ConnectResult
-  > {}
+  export type Response = ResponseMessage<ConnectMethod, ConnectResult>;
 }

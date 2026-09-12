@@ -24,8 +24,8 @@ export namespace HideEditorStatusBarMessage {
     HideEditorStatusBarParams,
     HideEditorStatusBarResult
   > {}
-  export interface Response extends ResponseMessage<
+  export type Response = ResponseMessage<
     HideEditorStatusBarMethod,
     HideEditorStatusBarResult
-  > {}
+  >;
 }

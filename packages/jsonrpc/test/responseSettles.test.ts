@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { MessageConnection } from "../src/browser/classes/MessageConnection";
 import { RequestError } from "../src/common/classes/RequestError";
 import { RequestMessage } from "../src/common/types/RequestMessage";
+import { MessageProtocolRequestType } from "../src/common/classes/MessageProtocolRequestType";
 
 // A pair of in-memory connections. `MessageConnection` is abstract over the
 // transport, so this needs no worker, port or DOM — and it lets the tests
@@ -84,6 +85,76 @@ const settlesWithin = async (promise: Promise<unknown>, ms = 500) => {
 };
 
 describe("MessageConnection response handling", () => {
+  it("settles a final result even when it carries an incidental value field", async () => {
+    const { a } = pair();
+    const request = requestMessage("test/value");
+    const pending = a.request(request);
+    a.receive({
+      jsonrpc: "2.0",
+      method: request.method,
+      id: request.id,
+      result: 42,
+      value: {},
+    });
+    expect(await settlesWithin(pending)).toEqual({
+      status: "resolved",
+      value: 42,
+    });
+    expect(a.listenerCount).toBe(0);
+  });
+
+  it.each([
+    { error: { code: "500", message: "failed" }, code: -32603, text: "failed" },
+    { error: { code: 42 }, code: 42, text: "[object Object]" },
+    { error: "boom", code: -32603, text: "boom" },
+    { error: null, code: -32603, text: "null" },
+  ])(
+    "preserves malformed peer errors in diagnostic data: %j",
+    async ({ error, code, text }) => {
+      const { a } = pair();
+      const request = requestMessage("test/malformed-error");
+      const pending = a.request(request);
+      const message = {
+        jsonrpc: "2.0",
+        method: request.method,
+        id: request.id,
+        error,
+        value: {},
+      };
+      a.receive(message);
+      const outcome = await settlesWithin(pending);
+      expect((outcome as any).status).toBe("rejected");
+      expect((outcome as any).error.code).toBe(code);
+      expect((outcome as any).error.message).toBe(text);
+      expect((outcome as any).error.data).toBe(message);
+      expect(a.listenerCount).toBe(0);
+    },
+  );
+  it("delivers factory progress without settling, then removes the final listener", async () => {
+    const { a } = pair();
+    const type = new MessageProtocolRequestType<
+      "test/factory-progress",
+      {},
+      string
+    >("test/factory-progress");
+    const request = type.request({});
+    const values: unknown[] = [];
+    const pending = a.request(request, undefined, (value) =>
+      values.push(value),
+    );
+    const progress = type.progress(request.id, {
+      kind: "report",
+      title: "Work",
+      cancellable: false,
+    });
+    a.receive(progress);
+    a.receive({ ...progress, method: request.method });
+    expect(values).toEqual([progress.value, progress.value]);
+    expect(a.listenerCount).toBe(1);
+    a.receive(type.response(request.id, "done"));
+    expect(await pending).toBe("done");
+    expect(a.listenerCount).toBe(0);
+  });
   it("settles when the handler returns a value", async () => {
     const { a, b } = pair();
     serve(b, () => ({ ok: true }));
@@ -119,7 +190,9 @@ describe("MessageConnection response handling", () => {
     serve(b, () => {
       throw { code: 1, message: "boom" };
     });
-    const outcome = await settlesWithin(a.request(requestMessage("test/throw")));
+    const outcome = await settlesWithin(
+      a.request(requestMessage("test/throw")),
+    );
     expect((outcome as any).status).toBe("rejected");
     expect((outcome as any).error).toBeInstanceOf(RequestError);
     expect((outcome as any).error.code).toBe(1);
@@ -143,9 +216,8 @@ describe("MessageConnection response handling", () => {
   });
 
   it("does not settle on a progress message for the same request", async () => {
-    // `MessageProtocolRequestType.progress()` emits the bare method name, which
-    // `isProgressResponse` does not match — so without an explicit guard these
-    // land in the malformed-response branch and kill a healthy request.
+    // Bare-method progress is an accepted internal compatibility form.
+    // It retains the listener until a final reply arrives.
     const { a, b } = pair();
     const request = requestMessage("test/progress");
     const pending = a.request(request);
@@ -169,6 +241,52 @@ describe("MessageConnection response handling", () => {
     });
   });
 
+  it("ignores progress-shaped traffic missing the protocol marker until the final reply", async () => {
+    const { a } = pair();
+    const request = requestMessage("test/unmarked-progress");
+    const values: unknown[] = [];
+    const pending = a.request(request, undefined, (value) => values.push(value));
+    a.receive({
+      method: request.method,
+      id: request.id,
+      value: { percentage: 50 },
+    });
+    expect(await settlesWithin(pending, 20)).toBe(TIMED_OUT);
+    expect(a.listenerCount).toBe(1);
+    expect(values).toEqual([]);
+    a.receive({
+      jsonrpc: "2.0",
+      method: request.method,
+      id: request.id,
+      result: 42,
+    });
+    expect(await settlesWithin(pending)).toEqual({
+      status: "resolved",
+      value: 42,
+    });
+    expect(a.listenerCount).toBe(0);
+  });
+
+  it("rejects an ambiguous final reply even when it also carries a value", async () => {
+    const { a } = pair();
+    const request = requestMessage("test/ambiguous");
+    const pending = a.request(request);
+    const message = {
+      jsonrpc: "2.0",
+      method: request.method,
+      id: request.id,
+      result: 42,
+      error: { code: -1, message: "failed" },
+      value: {},
+    };
+    a.receive(message);
+    const outcome = await settlesWithin(pending);
+    expect((outcome as any).status).toBe("rejected");
+    expect((outcome as any).error.message).toContain("Malformed response");
+    expect((outcome as any).error.data).toBe(message);
+    expect(a.listenerCount).toBe(0);
+  });
+
   it("does not settle on an echo of the request itself", async () => {
     // The editor relays messages between window and iframe without filtering
     // by origin, so a request can come back to its own sender with a matching
@@ -182,8 +300,8 @@ describe("MessageConnection response handling", () => {
     expect(a.listenerCount).toBe(1);
   });
 
-  // Defence in depth: even if some other producer emits a response with
-  // neither field, the requester must not wait forever.
+  // Defence in depth for an empty final envelope, excluding request echoes
+  // and value-only traffic (which still requires a valid final reply).
   it("rejects a hand-crafted response carrying neither result nor error", async () => {
     const { a } = pair();
     const request = requestMessage("test/malformed");

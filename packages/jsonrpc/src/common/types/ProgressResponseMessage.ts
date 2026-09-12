@@ -2,8 +2,8 @@ import type { IMessage } from "./IMessage";
 import type { ProgressValue } from "./ProgressValue";
 
 export interface ProgressResponseMessage<
-  M extends string,
-> extends IMessage<`${M}/progress`> {
+  M extends string = string,
+> extends IMessage<M | `${M}/progress`> {
   /**
    * The request id.
    */
