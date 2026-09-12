@@ -103,9 +103,14 @@ describe("MessageConnection response handling", () => {
     expect(a.listenerCount).toBe(0);
   });
 
-  it.each([{ code: "500", message: "failed" }, { code: -32603 }, "boom"])(
+  it.each([
+    { error: { code: "500", message: "failed" }, code: -32603, text: "failed" },
+    { error: { code: 42 }, code: 42, text: "[object Object]" },
+    { error: "boom", code: -32603, text: "boom" },
+    { error: null, code: -32603, text: "null" },
+  ])(
     "preserves malformed peer errors in diagnostic data: %j",
-    async (error) => {
+    async ({ error, code, text }) => {
       const { a } = pair();
       const request = requestMessage("test/malformed-error");
       const pending = a.request(request);
@@ -119,7 +124,8 @@ describe("MessageConnection response handling", () => {
       a.receive(message);
       const outcome = await settlesWithin(pending);
       expect((outcome as any).status).toBe("rejected");
-      expect((outcome as any).error.code).toBe(-32603);
+      expect((outcome as any).error.code).toBe(code);
+      expect((outcome as any).error.message).toBe(text);
       expect((outcome as any).error.data).toBe(message);
       expect(a.listenerCount).toBe(0);
     },
@@ -210,7 +216,7 @@ describe("MessageConnection response handling", () => {
   });
 
   it("does not settle on a progress message for the same request", async () => {
-    // Bare-method progress remains accepted for existing structured-clone peers.
+    // Bare-method progress is an accepted internal compatibility form.
     // It retains the listener until a final reply arrives.
     const { a, b } = pair();
     const request = requestMessage("test/progress");
@@ -233,6 +239,50 @@ describe("MessageConnection response handling", () => {
       status: "resolved",
       value: { ok: true },
     });
+  });
+
+  it("ignores progress-shaped traffic missing the protocol marker until the final reply", async () => {
+    const { a } = pair();
+    const request = requestMessage("test/unmarked-progress");
+    const pending = a.request(request);
+    a.receive({
+      method: request.method,
+      id: request.id,
+      value: { percentage: 50 },
+    });
+    expect(await settlesWithin(pending, 20)).toBe(TIMED_OUT);
+    expect(a.listenerCount).toBe(1);
+    a.receive({
+      jsonrpc: "2.0",
+      method: request.method,
+      id: request.id,
+      result: 42,
+    });
+    expect(await settlesWithin(pending)).toEqual({
+      status: "resolved",
+      value: 42,
+    });
+    expect(a.listenerCount).toBe(0);
+  });
+
+  it("rejects an ambiguous final reply even when it also carries a value", async () => {
+    const { a } = pair();
+    const request = requestMessage("test/ambiguous");
+    const pending = a.request(request);
+    const message = {
+      jsonrpc: "2.0",
+      method: request.method,
+      id: request.id,
+      result: 42,
+      error: { code: -1, message: "failed" },
+      value: {},
+    };
+    a.receive(message);
+    const outcome = await settlesWithin(pending);
+    expect((outcome as any).status).toBe("rejected");
+    expect((outcome as any).error.message).toContain("Malformed response");
+    expect((outcome as any).error.data).toBe(message);
+    expect(a.listenerCount).toBe(0);
   });
 
   it("does not settle on an echo of the request itself", async () => {

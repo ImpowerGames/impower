@@ -93,6 +93,10 @@ export abstract class MessageConnection {
                 console.error(message.error);
                 profile("end", this._profilerId, "request " + request.method);
                 const error: unknown = message.error;
+                const peerCode =
+                  typeof error === "object" && error !== null && "code" in error
+                    ? error.code
+                    : undefined;
                 const validError =
                   typeof error === "object" &&
                   error !== null &&
@@ -104,7 +108,14 @@ export abstract class MessageConnection {
                   new RequestError(
                     validError
                       ? message.error
-                      : { ...toResponseError(error), data: message },
+                      : {
+                          ...toResponseError(error),
+                          // A peer's numeric code remains meaningful without text.
+                          ...(typeof peerCode === "number"
+                            ? { code: peerCode }
+                            : {}),
+                          data: message,
+                        },
                   ),
                 );
                 this.removeEventListener("message", onResponse);
@@ -117,7 +128,10 @@ export abstract class MessageConnection {
               onProgress?.(message.value);
             } else if (
               message.method === request.method &&
-              message.params === undefined
+              message.params === undefined &&
+              (message.value === undefined ||
+                message.result !== undefined ||
+                message.error !== undefined)
             ) {
               // An addressed reply failed envelope validation. Settle rather
               // than hang, but exclude echoed requests and progress traffic.

@@ -28,11 +28,14 @@ undefined handler results send explicit `null`.
 Internal guards require string `jsonrpc` and `method` fields and string or finite
 numeric request/response IDs. External JSON-RPC parse errors with a null ID need
 adapter handling. Explicitly undefined optional properties count as absent across
-structured clone. Ambiguous result/error combinations are invalid. Error payloads,
+structured clone. Null is a defined payload: result:null is success, while a
+simultaneous error:null is not an absent error slot. Ambiguous result/error
+combinations are invalid. Error payloads,
 like result payloads, are not schema-validated by the envelope guard, so relays
 still deliver peer failures. MessageConnection normalizes malformed errors and
 preserves the original reply in diagnostic data. It also rejects addressed
-malformed envelopes. Other relays retain their
+malformed final envelopes matching both request ID and method, excluding echoes
+and progress-shaped traffic. Other relays retain their
 existing rejection policy; this is not a universal settlement policy.
 
 Progress uses `method/progress`; matchers also accept the legacy bare method with
@@ -52,5 +55,7 @@ PreviewGamePanelManager and the player service worker retain their transport and
 correlation implementations. In particular, Application's handler-response spread
 and handling of undefined results predate this refactor and remain separate from
 the normalized engine Connection path.
+Engine Connection's existing inbound routing still keys on the presence of id
+and params; it has not migrated to the shared classification guards.
 
 No bundle-size or runtime-performance improvement is claimed.
