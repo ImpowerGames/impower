@@ -107,7 +107,8 @@ export async function runHandoff(configFile, { slotRoot, identifyProcess = proce
           const timer=setTimeout(()=>resolve(null),ms);
           exited.then(value=>{clearTimeout(timer);resolve(value);});
         });
-        const terminate=(signal)=>{try{if(!child.kill(signal))error.message += "; owned-child termination request was not delivered";}catch(killError){error.message += `; owned-child termination failed: ${killError.message}`;}};
+        let undelivered=false;
+        const terminate=(signal)=>{try{if(!child.kill(signal))undelivered=true;}catch(killError){error.message += `; owned-child termination failed: ${killError.message}`;}};
         terminate();
         let stopped=await waitForClose(5000);
         if(!stopped){terminate("SIGKILL");stopped=await waitForClose(5000);}
@@ -116,13 +117,18 @@ export async function runHandoff(configFile, { slotRoot, identifyProcess = proce
           if(slot){try{releaseReviewerSlot(slot);}catch(releaseError){error.message += `; reservation retained at ${slot.file}: ${releaseError.message}`;}}
         } else {
           child.unref();
+          if(undelivered)error.message += "; owned-child termination request was not delivered";
           error.message += `; child exit unconfirmed (PID ${child.pid}): preserve the worktree lock${slot ? " and reviewer reservation at " + slot.file + "; inspect any recorded OS identity in that slot" : ""}`;
         }
         if(childError)error.message += `; child process error: ${childError}`;
         throw error;
       } finally { fs.closeSync(log); }
       try { append({ event: "exited", index, step: current, ...result }); }
-      catch(error){throw new Error(`Child exit confirmed (code ${result.code}); exit journal write failed: ${error.message}${slot ? "; reservation retained at " + slot.file : ""}`);}
+      catch(error){
+        error.message=`Child exit confirmed (code ${result.code}); exit journal write failed: ${error.message}; completion and report validation has not run`;
+        if(slot){try{releaseReviewerSlot(slot);}catch(releaseError){error.message += `; reservation retained at ${slot.file}: ${releaseError.message}`;}}
+        throw error;
+      }
       if(slot){try{releaseReviewerSlot(slot);}catch(error){throw new Error(`Child exit confirmed (code ${result.code}); reservation retained at ${slot.file}: ${error.message}; completion and report validation has not run`);}}
       if (result.code !== 0) throw new Error(`Role ${current} failed; inspect ${output}`);
       if (step.role === "review" && (gitHead(cwd) !== head || gitStatus(cwd) !== status)) throw new Error("Review changed the frozen head or worktree");

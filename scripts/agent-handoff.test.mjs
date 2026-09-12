@@ -296,3 +296,32 @@ assert.ok(finishedRows.findIndex(row=>row.event==="exited")<finishedRows.findInd
 assert.equal(finishedRows.some(row=>row.event==="completed"),false,"a bookkeeping failure cannot claim unvalidated completion");
 assert.ok(fs.existsSync(path.join(finishedPool,"slot-0.jsonl")));
 console.log("PASS: absent recovery creates no marker; successful child exit remains journalled when slot release blocks completion");
+
+for(const mode of ["already-exited","uncertain-exit-journal"]){
+  const pool=path.join(scratch,mode+"-slots");
+  config.journal=path.join(scratch,mode+".jsonl");
+  config.steps.first.args=["-e","process.exit(0)","--","--model","reviewer-test"];write();
+  let exitedPid;
+  try{
+    fs.writeSync=(fd,data,...args)=>{
+      if(typeof data==="string"&&data.includes(mode==="already-exited"?'"event":"running"':'"event":"exited"'))throw new Error("injected final journal failure");
+      return writeSync(fd,data,...args);
+    };
+    await assert.rejects(handoff(file,{slotRoot:pool,identifyProcess:(pid)=>{
+      exitedPid=pid;
+      const end=Date.now()+10000;
+      while(processIdentity(pid)!==null){if(Date.now()>end)throw new Error("fixture child did not exit");Atomics.wait(new Int32Array(new SharedArrayBuffer(4)),0,0,10);}
+      if(mode==="uncertain-exit-journal")throw new Error("injected identity uncertainty");
+      return null;
+    }}),error=>{
+      assert.match(error.message,/injected final journal failure/);
+      assert.doesNotMatch(error.message,/termination request was not delivered|child exit unconfirmed/);
+      if(mode==="uncertain-exit-journal")assert.match(error.message,/Child exit confirmed.*validation has not run/);
+      return true;
+    });
+  }finally{fs.writeSync=writeSync;}
+  assert.equal(processIdentity(exitedPid),null);
+  assert.equal(fs.readdirSync(pool).length,0,"confirmed close releases capacity even when identity and exit journal writes failed");
+  assert.equal(fs.existsSync(lock),false);
+}
+console.log("PASS: real already-exited children have no false termination warning; uncertain registration plus exit-journal failure releases capacity");
