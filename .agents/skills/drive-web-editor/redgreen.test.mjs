@@ -814,6 +814,23 @@ check("decorative and trailing failure markers do not establish assertion eviden
   assert.match(fs.readFileSync(r.red.logPath, "utf8"), /progress/);
 });
 
+check("leading decorative banners cannot crowd the real assertion out of excerpts", () => {
+  const dir = makeRepo();
+  applyFix(dir);
+  fs.writeFileSync(path.join(dir, "banners.mjs"), [
+    'import { value } from "./lib.mjs";',
+    'for (let i = 0; i < 45; i++) console.log("✖✖✖ decorative banner row " + i);',
+    'if (value === "old") console.log("AssertionError: expected new, got old");',
+    'process.exitCode = value === "old" ? 1 : 0;',
+  ].join("\n"));
+  const r = run(dir, { test: `${NODE} banners.mjs` });
+  assert.equal(r.ok, true, JSON.stringify(r.problems));
+  assert.deepEqual(r.red.failures, ["AssertionError: expected new, got old"]);
+  assert.equal(r.red.failuresOmitted, 0);
+  assert.deepEqual(r.green.failures, []);
+  assert.match(fs.readFileSync(r.red.logPath, "utf8"), /decorative banner row 44/);
+});
+
 check("missing-summary guidance does not direct readers to a failed log", () => {
   const dir = makeRepo();
   applyFix(dir);

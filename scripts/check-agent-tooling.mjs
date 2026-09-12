@@ -29,16 +29,18 @@ const timeoutMs = Number(process.env.AGENT_TOOLING_TIMEOUT_MS || 300000);
 if (!Number.isSafeInteger(timeoutMs) || timeoutMs < 100 || timeoutMs > 3600000) throw new Error("AGENT_TOOLING_TIMEOUT_MS must be an integer from 100 to 3600000");
 let failed = 0, ran = 0, timedOut = 0, exitUnconfirmed = 0;
 const skipped = [];
+const missingFixtures = [];
 const attemptedFiles = new Set();
 console.log(`Discovered ${candidates.length} tracked check files and ${fixtures.length} data fixtures`);
 console.log(`Verified Bash: ${bash}; per-check timeout: ${timeoutMs} ms`);
 for (const file of fixtures) {
-  if (!fs.existsSync(path.join(root, file))) { console.error(`FAILED: missing data fixture ${file}`); failed++; }
+  if (!fs.existsSync(path.join(root, file))) { console.error(`FAILED: missing data fixture ${file}`); missingFixtures.push(file); failed++; }
   else console.log(`FIXTURE: ${file}: non-executable data, excluded from check coverage`);
 }
 for (const file of candidates) {
   if (!/\.test\.(?:mjs|sh)$/.test(file) || !fs.existsSync(path.join(root, file))) {
-    console.error(`FAILED: unsupported or missing check ${file}`); failed++; continue;
+    const hint = /\.(?:json|snap|md|txt)$/i.test(file) ? "; data fixture extensions must be lowercase (.json, .snap, .md, .txt)" : "";
+    console.error(`FAILED: unsupported or missing check ${file}${hint}`); failed++; continue;
   }
   console.log(`CHECK: ${file}`);
   const started = Date.now();
@@ -91,6 +93,6 @@ console.log(summary);
 console.log(`Skipped cases: ${skipped.length}`);
 for (const line of skipped) console.log(line);
 if (process.env.GITHUB_STEP_SUMMARY) {
-  fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, `## Agent tooling checks\n\n${summary}. Discovered ${candidates.length} tracked check files and ${fixtures.length} data fixtures.\n\n### Skipped cases\n\n${skipped.length ? skipped.map((line) => "- " + line).join("\n") : "None."}\n\nPortable extension fixtures, shell classification, directory-link access and launcher-tree shutdown run in both matrix legs. Zip fixtures require fflate from a workspace install; directory-link capability skips report their filesystem error. Windows-only held-tree and long-path cases are exercised by the Windows matrix leg. Skips do not establish compatibility.\n`);
+  fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, `## Agent tooling checks\n\n${summary}. Discovered ${candidates.length} tracked check files and ${fixtures.length} data fixtures.\n\n### Missing data fixtures\n\n${missingFixtures.length ? missingFixtures.map((file) => "- " + file).join("\n") : "None."}\n\n### Skipped cases\n\n${skipped.length ? skipped.map((line) => "- " + line).join("\n") : "None."}\n\nPortable extension fixtures, shell classification, directory-link access and launcher-tree shutdown run in both matrix legs. Zip fixtures require fflate from a workspace install; directory-link capability skips report their filesystem error. Windows-only held-tree and long-path cases are exercised by the Windows matrix leg. Skips do not establish compatibility.\n`);
 }
 process.exitCode = failed ? 1 : 0;

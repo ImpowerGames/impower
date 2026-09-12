@@ -36,6 +36,7 @@ fs.unlinkSync(path.join(scratch, ".agents/skills/data.test.json"));
 const missingData = run();
 assert.notEqual(missingData.status, 0, "missing tracked data fixture must fail");
 assert.match(missingData.stderr, /FAILED: missing data fixture .agents\/skills\/data.test.json/);
+assert.match(fs.readFileSync(summaryPath, "utf8"), /### Missing data fixtures\n\n- .agents\/skills\/data.test.json/);
 assert.doesNotMatch(missingData.stdout, /FIXTURE: .agents\/skills\/data.test.json/);
 put(".agents/skills/data.test.json", '{"fixture":true}');
 put(".agents/skills/uppercase.test.JSON", '{"fixture":true}');
@@ -43,6 +44,7 @@ spawnSync("git", ["add", ".agents/skills/uppercase.test.JSON"], { cwd: scratch, 
 const uppercase = run();
 assert.notEqual(uppercase.status, 0, "only lowercase fixture extensions are recognized");
 assert.match(uppercase.stderr, /FAILED: unsupported or missing check .agents\/skills\/uppercase.test.JSON/);
+assert.match(uppercase.stderr, /data fixture extensions must be lowercase \(.json, .snap, .md, .txt\)/);
 spawnSync("git", ["rm", "--cached", ".agents/skills/uppercase.test.JSON"], { cwd: scratch, windowsHide: true });
 fs.unlinkSync(path.join(scratch, ".agents/skills/uppercase.test.JSON"));
 assert.notEqual(run({ AGENT_TOOLING_BASH: path.join(scratch, "missing-bash") }).status, 0, "invalid explicit Bash must fail before running checks");

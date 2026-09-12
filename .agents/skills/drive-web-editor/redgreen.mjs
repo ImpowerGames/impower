@@ -171,7 +171,7 @@ export function classifyRedFailure(output, { removed = [], launchError = null, e
   if (["ENOBUFS", "ETIMEDOUT"].includes(launchError)) return "crash";
   if (launchError) return "unknown";
   if (exit === -1) return "crash";
-  const testedDiagnostic = /\bAssertionError\b|\bexpected\b.*\bto\b|\.to(?:Be|Equal|StrictEqual|Match|Contain|Throw|HaveLength|HaveProperty)\w*\(|\bexpect\(|^\s*[✕✗×✖]\s|\bFAIL\b|Tests\s+\d+ failed|\d+ failing\b|\bnot ok \d|assert\.\w+\(|Assertion failed/im.test(output);
+  const testedDiagnostic = FAILURE_GLYPH_RE.test(output) || /\bAssertionError\b|\bexpected\b.*\bto\b|\.to(?:Be|Equal|StrictEqual|Match|Contain|Throw|HaveLength|HaveProperty)\w*\(|\bexpect\(|\bFAIL\b|Tests\s+\d+ failed|\d+ failing\b|\bnot ok \d|assert\.\w+\(|Assertion failed/i.test(output);
   // POSIX shells reserve these for execution failure, but also forward a
   // program's chosen status. Assertion evidence therefore makes them ambiguous.
   // cmd does not use this convention; do not infer it from the host platform.
@@ -262,12 +262,13 @@ export function classifyRedFailure(output, { removed = [], launchError = null, e
  * Files` line anywhere, the fallback is the last `Tests` line in the output.
  */
 const ANSI_ESCAPE_RE = /\x1b\[[0-9;]*m/g;
+const FAILURE_GLYPH_RE = /^\s*[✕✗×✖]\s/m;
 function failureEvidence(output, logPath) {
   let logError = null;
   try { fs.writeFileSync(logPath, output); }
   catch (error) { logError = `${String(error.message || error)}. Any output at ${logPath} is unverified and may be partial or stale.`; }
   const matches = output.replace(ANSI_ESCAPE_RE, "").split(/\r?\n/).filter((line) =>
-    !/^\s*(?:PASS\b|ok\b|[✓✔])/.test(line) && /^(?:\s*(?:FAIL\b|not ok\b|[✕✗×✖]))|\bAssertionError\b/.test(line));
+    !/^\s*(?:PASS\b|ok\b|[✓✔])/.test(line) && (FAILURE_GLYPH_RE.test(line) || /^(?:\s*(?:FAIL\b|not ok\b))|\bAssertionError\b/.test(line)));
   const excerpt = matches.slice(0, 40);
   return { logPath: logError ? null : logPath, unverifiedLogPath: logError ? logPath : null, logError, failures: excerpt.map((line) => line.slice(0, 2000)), failuresOmitted: Math.max(0, matches.length - 40), failureLinesTruncated: excerpt.filter((line) => line.length > 2000).length };
 }
