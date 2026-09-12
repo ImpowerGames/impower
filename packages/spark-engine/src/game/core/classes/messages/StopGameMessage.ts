@@ -36,8 +36,5 @@ export namespace StopGameMessage {
     StopGameParams,
     StopGameResult
   > {}
-  export interface Response extends ResponseMessage<
-    StopGameMethod,
-    StopGameResult
-  > {}
+  export type Response = ResponseMessage<StopGameMethod, StopGameResult>;
 }

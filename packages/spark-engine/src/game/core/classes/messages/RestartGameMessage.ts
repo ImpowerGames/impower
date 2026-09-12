@@ -26,8 +26,5 @@ export namespace RestartGameMessage {
     RestartGameParams,
     RestartGameResult
   > {}
-  export interface Response extends ResponseMessage<
-    RestartGameMethod,
-    RestartGameResult
-  > {}
+  export type Response = ResponseMessage<RestartGameMethod, RestartGameResult>;
 }

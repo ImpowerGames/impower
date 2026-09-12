@@ -24,8 +24,8 @@ export namespace ShowEditorStatusBarMessage {
     ShowEditorStatusBarParams,
     ShowEditorStatusBarResult
   > {}
-  export interface Response extends ResponseMessage<
+  export type Response = ResponseMessage<
     ShowEditorStatusBarMethod,
     ShowEditorStatusBarResult
-  > {}
+  >;
 }

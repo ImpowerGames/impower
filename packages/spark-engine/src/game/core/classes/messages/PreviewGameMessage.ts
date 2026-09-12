@@ -27,8 +27,5 @@ export namespace PreviewGameMessage {
     PreviewGameParams,
     PreviewGameResult
   > {}
-  export interface Response extends ResponseMessage<
-    PreviewGameMethod,
-    PreviewGameResult
-  > {}
+  export type Response = ResponseMessage<PreviewGameMethod, PreviewGameResult>;
 }

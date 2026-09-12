@@ -24,8 +24,8 @@ export namespace ConfigureCompilerMessage {
     ConfigureCompilerParams,
     ConfigureCompilerResult
   > {}
-  export interface Response extends ResponseMessage<
+  export type Response = ResponseMessage<
     ConfigureCompilerMethod,
     ConfigureCompilerResult
-  > {}
+  >;
 }

@@ -81,13 +81,19 @@ export class Connection {
           this._receive?.(message).then((response) => {
             if (response) {
               const transfer = response.transfer;
-              delete response.transfer;
+              const payload =
+                "error" in response && response.error !== undefined
+                  ? { error: response.error }
+                  : {
+                      result:
+                        "result" in response ? (response.result ?? null) : null,
+                    };
               this.send(
                 {
                   jsonrpc: "2.0",
                   method: message.method,
                   id: message.id,
-                  ...response,
+                  ...payload,
                 },
                 transfer,
               );

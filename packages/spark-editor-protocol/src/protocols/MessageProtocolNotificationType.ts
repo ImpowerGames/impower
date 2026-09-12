@@ -1,24 +1,8 @@
-import { ProtocolNotificationType } from "vscode-languageserver-protocol";
-import type { NotificationMessage } from "../types/base/NotificationMessage";
+import { MessageProtocolNotificationType as CoreNotificationType } from "@impower/jsonrpc/src/common/classes/MessageProtocolNotificationType";
+import type { EditorNotificationParams } from "../types/base/NotificationMessage";
 
+/** Compatibility facade carrying the editor's relay hint. */
 export class MessageProtocolNotificationType<
   M extends string,
   P = undefined,
-> extends ProtocolNotificationType<P, void> {
-  constructor(method: M) {
-    super(method);
-  }
-  is(obj: any): obj is NotificationMessage<M, P> {
-    return obj.method === this.method;
-  }
-  isNotification(obj: any): obj is NotificationMessage<M, P> {
-    return obj.method === this.method;
-  }
-  notification(params: P): NotificationMessage<M, P> {
-    return {
-      jsonrpc: "2.0",
-      method: this.method,
-      params,
-    } as NotificationMessage<M, P>;
-  }
-}
+> extends CoreNotificationType<M, EditorNotificationParams<P>> {}

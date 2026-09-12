@@ -25,8 +25,8 @@ export namespace UpdateCompilerDocumentMessage {
     UpdateCompilerDocumentParams,
     UpdateCompilerDocumentResult
   > {}
-  export interface Response extends ResponseMessage<
+  export type Response = ResponseMessage<
     UpdateCompilerDocumentMethod,
     UpdateCompilerDocumentResult
-  > {}
+  >;
 }

@@ -25,8 +25,5 @@ export namespace ResizeGameMessage {
     ResizeGameParams,
     ResizeGameResult
   > {}
-  export interface Response extends ResponseMessage<
-    ResizeGameMethod,
-    ResizeGameResult
-  > {}
+  export type Response = ResponseMessage<ResizeGameMethod, ResizeGameResult>;
 }

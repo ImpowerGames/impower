@@ -23,8 +23,8 @@ export namespace DisableGameDebugMessage {
     DisableGameDebugParams,
     DisableGameDebugResult
   > {}
-  export interface Response extends ResponseMessage<
+  export type Response = ResponseMessage<
     DisableGameDebugMethod,
     DisableGameDebugResult
-  > {}
+  >;
 }

@@ -26,8 +26,8 @@ export namespace SetEditorPinpointsMessage {
     SetEditorPinpointsParams,
     SetEditorPinpointsResult
   > {}
-  export interface Response extends ResponseMessage<
+  export type Response = ResponseMessage<
     SetEditorPinpointsMethod,
     SetEditorPinpointsResult
-  > {}
+  >;
 }

@@ -78,8 +78,8 @@ export namespace CompileProgramMessage {
     CompileProgramParams,
     CompileProgramResult
   > {}
-  export interface Response extends ResponseMessage<
+  export type Response = ResponseMessage<
     CompileProgramMethod,
     CompileProgramResult
-  > {}
+  >;
 }

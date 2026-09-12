@@ -48,8 +48,8 @@ export namespace GetGameStackTraceMessage {
     GetGameStackTraceParams,
     GetGameStackTraceResult
   > {}
-  export interface Response extends ResponseMessage<
+  export type Response = ResponseMessage<
     GetGameStackTraceMethod,
     GetGameStackTraceResult
-  > {}
+  >;
 }

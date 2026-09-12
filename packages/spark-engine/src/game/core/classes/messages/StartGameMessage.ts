@@ -28,8 +28,5 @@ export namespace StartGameMessage {
     StartGameParams,
     StartGameResult
   > {}
-  export interface Response extends ResponseMessage<
-    StartGameMethod,
-    StartGameResult
-  > {}
+  export type Response = ResponseMessage<StartGameMethod, StartGameResult>;
 }

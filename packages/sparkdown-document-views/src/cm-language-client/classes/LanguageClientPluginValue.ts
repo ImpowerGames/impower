@@ -10,6 +10,10 @@ import {
 import { Language } from "@codemirror/language";
 import { setDiagnostics } from "@codemirror/lint";
 import { EditorView, PluginValue, ViewUpdate } from "@codemirror/view";
+import {
+  asLspRequest,
+  asLspNotification,
+} from "@impower/spark-editor-protocol/src/integrations/lsp";
 import { CompletionMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/CompletionMessage";
 import { DocumentColorMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/DocumentColorMessage";
 import { DocumentDiagnosticMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/DocumentDiagnosticMessage";
@@ -121,7 +125,7 @@ export default class LanguageClientPluginValue implements PluginValue {
   bind() {
     this._disposables.push(
       this._serverConnection.onNotification(
-        PublishDiagnosticsMessage.type,
+        asLspNotification(PublishDiagnosticsMessage.type),
         (params) => {
           if (params.uri !== this._textDocument.uri) {
             return;
@@ -161,7 +165,7 @@ export default class LanguageClientPluginValue implements PluginValue {
     }
     const versionBefore = getDocumentVersion(clientContext.state);
     const result = await this._serverConnection.sendRequest(
-      CompletionMessage.type,
+      asLspRequest(CompletionMessage.type),
       {
         textDocument: this._textDocument,
         position,
@@ -295,10 +299,13 @@ export default class LanguageClientPluginValue implements PluginValue {
       clientContext.view.state.doc,
       clientContext.pos,
     );
-    const result = await this._serverConnection.sendRequest(HoverMessage.type, {
-      textDocument: this._textDocument,
-      position,
-    });
+    const result = await this._serverConnection.sendRequest(
+      asLspRequest(HoverMessage.type),
+      {
+        textDocument: this._textDocument,
+        position,
+      },
+    );
     if (!result) {
       return null;
     }
@@ -328,7 +335,7 @@ export default class LanguageClientPluginValue implements PluginValue {
 
   pullSemanticTokens = async (): Promise<SemanticTokens | null> => {
     const result = await this._serverConnection.sendRequest(
-      SemanticTokensFullMessage.type,
+      asLspRequest(SemanticTokensFullMessage.type),
       { textDocument: this._textDocument },
     );
     return result;
@@ -336,7 +343,7 @@ export default class LanguageClientPluginValue implements PluginValue {
 
   async setInitialDiagnostics(view: EditorView) {
     const result = await this._serverConnection.sendRequest(
-      DocumentDiagnosticMessage.type,
+      asLspRequest(DocumentDiagnosticMessage.type),
       {
         textDocument: this._textDocument,
       },
@@ -362,16 +369,19 @@ export default class LanguageClientPluginValue implements PluginValue {
 
   async updateFoldingRanges(view: EditorView) {
     const result =
-      (await this._serverConnection.sendRequest(FoldingRangeMessage.type, {
-        textDocument: this._textDocument,
-      })) || [];
+      (await this._serverConnection.sendRequest(
+        asLspRequest(FoldingRangeMessage.type),
+        {
+          textDocument: this._textDocument,
+        },
+      )) || [];
     const transaction = this._supports.folding.transaction(view.state, result);
     view.dispatch(transaction);
   }
 
   async updateDocumentColors(view: EditorView) {
     const result = await this._serverConnection.sendRequest(
-      DocumentColorMessage.type,
+      asLspRequest(DocumentColorMessage.type),
       { textDocument: this._textDocument },
     );
     const transaction = this._supports.color.transaction(view.state, result);

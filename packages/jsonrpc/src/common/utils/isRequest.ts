@@ -1,16 +1,14 @@
 import type { RequestMessage } from "../types/RequestMessage";
+import { isMessage } from "./isMessage";
 
-export const isRequest = <M extends string, R>(
-  obj: any,
-  method: M = obj.method,
-): obj is RequestMessage<M, R> => {
-  return (
-    typeof obj === "object" &&
-    typeof obj.jsonrpc === "string" &&
-    typeof obj.method === "string" &&
-    (method === undefined || obj.method === method) &&
-    obj.id !== undefined &&
-    obj.result === undefined &&
-    obj.error === undefined
-  );
-};
+export const isRequest = <M extends string = string, P = unknown, R = unknown>(
+  obj: unknown,
+  method?: M,
+): obj is RequestMessage<M, P, R> =>
+  isMessage(obj, method) &&
+  "id" in obj &&
+  (typeof obj.id === "string" ||
+    (typeof obj.id === "number" && Number.isFinite(obj.id))) &&
+  (!("result" in obj) || obj.result === undefined) &&
+  (!("error" in obj) || obj.error === undefined) &&
+  (!("value" in obj) || obj.value === undefined);

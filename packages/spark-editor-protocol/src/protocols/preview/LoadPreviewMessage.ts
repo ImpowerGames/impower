@@ -31,8 +31,5 @@ export namespace LoadPreviewMessage {
     LoadPreviewParams,
     LoadPreviewResult
   > {}
-  export interface Response extends ResponseMessage<
-    LoadPreviewMethod,
-    LoadPreviewResult
-  > {}
+  export type Response = ResponseMessage<LoadPreviewMethod, LoadPreviewResult>;
 }

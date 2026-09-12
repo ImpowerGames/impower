@@ -28,8 +28,5 @@ export namespace StepGameMessage {
     StepGameParams,
     StepGameResult
   > {}
-  export interface Response extends ResponseMessage<
-    StepGameMethod,
-    StepGameResult
-  > {}
+  export type Response = ResponseMessage<StepGameMethod, StepGameResult>;
 }

@@ -27,8 +27,8 @@ export namespace SetGameStartFromMessage {
     SetGameStartFromParams,
     SetGameStartFromResult
   > {}
-  export interface Response extends ResponseMessage<
+  export type Response = ResponseMessage<
     SetGameStartFromMethod,
     SetGameStartFromResult
-  > {}
+  >;
 }
