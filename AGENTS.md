@@ -119,18 +119,18 @@ with the editor tool rather than piping a heredoc.
 ## Generated files — edit the YAML source, never the JSON (silent-revert footgun)
 
 These JSON files are **build artifacts**, generated from YAML sources at the
-repo root. Editing them directly *works* — tests pass, the change ships — and
+repo root. Editing them directly _works_ — tests pass, the change ships — and
 then the next `definitions` build silently regenerates them and your change
 vanishes:
 
-| Generated (do NOT edit)                                             | Source of truth                                      |
-| -------------------------------------------------------------------- | ------------------------------------------------------ |
-| `packages/sparkdown/language/sparkdown.language-grammar.json`        | `definitions/yaml/sparkdown.language-grammar.yaml`      |
-| `packages/sparkdown/language/sparkdown.language-config.json`         | `definitions/yaml/sparkdown.language-config.yaml`       |
-| `packages/sparkdown/language/sparkdown.language-snippets.json`       | `definitions/yaml/sparkdown.language-snippets.yaml`     |
-| `vscode-sparkdown/language/sparkdown.language-grammar.json`          | `definitions/yaml/sparkdown.language-grammar.yaml`      |
-| `vscode-sparkdown/language/sparkdown.language-config.json`           | `definitions/yaml/sparkdown.language-config.yaml`       |
-| `vscode-sparkdown/language/sparkdown.language-snippets.json`         | `definitions/yaml/sparkdown.language-snippets.yaml`     |
+| Generated (do NOT edit)                                        | Source of truth                                     |
+| -------------------------------------------------------------- | --------------------------------------------------- |
+| `packages/sparkdown/language/sparkdown.language-grammar.json`  | `definitions/yaml/sparkdown.language-grammar.yaml`  |
+| `packages/sparkdown/language/sparkdown.language-config.json`   | `definitions/yaml/sparkdown.language-config.yaml`   |
+| `packages/sparkdown/language/sparkdown.language-snippets.json` | `definitions/yaml/sparkdown.language-snippets.yaml` |
+| `vscode-sparkdown/language/sparkdown.language-grammar.json`    | `definitions/yaml/sparkdown.language-grammar.yaml`  |
+| `vscode-sparkdown/language/sparkdown.language-config.json`     | `definitions/yaml/sparkdown.language-config.yaml`   |
+| `vscode-sparkdown/language/sparkdown.language-snippets.json`   | `definitions/yaml/sparkdown.language-snippets.yaml` |
 
 (Each YAML source propagates to both `packages/sparkdown/language/` and
 `vscode-sparkdown/language/`; `definitions/yaml/sparkdown.language-completions.yaml`
@@ -160,13 +160,13 @@ contains a change with no matching YAML diff, the change is doomed.
 
 ## Skills improve through use — report the friction
 
-The skills under `.agents/skills/` are maintained from what happens when they are followed. Report a command that fails or needs an undocumented flag, a stale path or name, a step whose applicability or reason is unclear, or an ambiguity you had to resolve by guessing.
+The skills under `.agents/skills/` are improved based on what happens when they are used. If a command fails, a path is outdated, a step is unclear, or you run into any other issues which you feel like could have been resolved if the skill was better, please report as a comment in issue #510.
 
-End the session with a "Skill feedback" section, one entry per problem naming the skill and section, what happened, and the sentence or mechanism you propose. Read the standing inbox body with `gh issue view 510 --json body`, its paginated intake comments and the read-only `node .agents/skills/triage-skill-feedback/triage-skill-feedback.mjs reports` lookup for archived problems. Report each problem your session encounters using that body's intake format and `gh issue comment 510 --body-file <file>`, then read it back. For the same problem, reference its problem ID and reuse your stable runner session or thread reference; each session counts once even if it supplies more observations. Separate problems in the same skill section get separate IDs. Check for your own pending report before posting again. Refer to the problem or its ticket in the final message.
+When filing a report, read the standing inbox body with `gh issue view 510 --json body`, its paginated intake comments and the read-only `node .agents/skills/triage-skill-feedback/triage-skill-feedback.mjs reports` lookup for archived problems. Report each problem with the skill that your session encountered using that body's intake format and `gh issue comment 510 --body-file <file>`, then read it back. For the same problem, reference its problem ID and reuse your stable runner session or thread reference; each session counts once even if it supplies more observations. Separate problems in the same skill section get separate IDs. Check for your own pending report before posting again. Refer to the problem or its ticket in your final message.
 
-Before adding a Gotchas entry or caveat, decide whether code can prevent or detect the trap. A simple mechanism ships in the same pull request with a check. A complex mechanism gets a `workflow: skills` Task, named in the feedback; ask before filing unless the session already authorizes it. An entry still needed while that mechanism is pending points to its ticket. Explain why no mechanism is possible when the rule requires human judgment.
+Before adding a Gotchas entry or caveat, decide whether code can prevent or detect the trap.
 
-When a small edit is certain and the session has a branch and pull request, make it in its own commit on that branch. List what you applied in both Skill feedback and the pull request's Notes for reviewers so the editorial review checks it. Otherwise record the proposal in the inbox for the maintainer's hand-invoked `triage-skill-feedback` skill. Do not remove a rule merely because it is inconvenient; preserve its purpose when editing it.
+A simple mechanism can ship in the same pull request you are working on. List what you applied in both your message to the user and the pull request's Notes for reviewers so the editorial review checks it. Otherwise, if the problem requires a more complex mechanism to address it, record the proposal in the #510 skill feedback inbox for the maintainer's hand-invoked `triage-skill-feedback` skill, and a `workflow: skills` task will be filed after your feedback has been triaged.
 
 ## Strict rule — LOOK. Never guess.
 
