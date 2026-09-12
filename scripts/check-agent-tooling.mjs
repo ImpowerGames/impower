@@ -8,7 +8,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const files = execFileSync("git", ["ls-files", "-z"], { cwd: root, encoding: "utf8" }).split("\0").filter(Boolean);
 // Derived from the tracked runnable set. Update this count when adding checks;
 // deleting or renaming a check must not silently reduce the expected coverage.
-const EXPECTED_CHECKS = 25;
+const EXPECTED_CHECKS = 26;
 // The grammar scanner needs the full tree and runs in typecheck.yml.
 const checks = files.filter((f) => /^(?:\.agents\/|\.claude\/hooks\/|scripts\/)/.test(f) && /\.test\./.test(f) && f !== "scripts/check-node-names.test.mjs");
 const runnable = checks.filter((f) => /\.test\.(?:mjs|sh)$/.test(f));
@@ -41,6 +41,6 @@ console.log(summary);
 console.log(`Skipped cases: ${skipped.length}`);
 for (const line of skipped) console.log(line);
 if (process.env.GITHUB_STEP_SUMMARY) {
-  fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, `## Agent tooling checks\n\n${summary}. Discovered ${checks.length} tracked files.\n\n### Skipped cases\n\n${skipped.length ? skipped.map((line) => "- " + line).join("\n") : "None."}\n\nSelected platform follow-ups: #506 (extension fixtures), #507 (shell classification and junction fixture), #508 (process-tree stop). Zip fixtures require fflate from a workspace install; directory-link capability skips report their filesystem error. Windows-only held-tree and long-path cases are exercised by the Windows matrix leg. Skips do not establish compatibility.\n`);
+  fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, `## Agent tooling checks\n\n${summary}. Discovered ${checks.length} tracked files.\n\n### Skipped cases\n\n${skipped.length ? skipped.map((line) => "- " + line).join("\n") : "None."}\n\nPortable extension fixtures, shell classification, directory-link access and launcher-tree shutdown run in both matrix legs. Zip fixtures require fflate from a workspace install; directory-link capability skips report their filesystem error. Windows-only held-tree and long-path cases are exercised by the Windows matrix leg. Skips do not establish compatibility.\n`);
 }
 process.exitCode = failed ? 1 : 0;

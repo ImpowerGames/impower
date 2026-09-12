@@ -21,9 +21,6 @@ import path from "node:path";
 import { classifyRedFailure, parseRedGreenArgs, parseVitestSummary, runRedGreen, sha256 } from "./redgreen.mjs";
 
 const WIN = process.platform === "win32";
-// A case that asserts something Windows itself supplies — a junction, or the
-// wording cmd.exe uses for a command it cannot find. Each names its reason.
-const skip = (name, reason) => console.log(`SKIP: ${name} (Windows only: ${reason})`);
 
 let failures = 0;
 const check = (name, fn) => {
@@ -450,6 +447,27 @@ check("a shell failure on the red alone still fails the verdict when the green p
   assert.match(r.problems.join("\n"), /could not run/);
 });
 
+check("a failure-count status reports its shell-dependent ambiguity and execution metadata", () => {
+  const dir = makeRepo();
+  applyFix(dir);
+  fs.writeFileSync(path.join(dir, "count.mjs"), 'import { value } from "./lib.mjs"; if (value !== "new") { console.error("AssertionError: expected new"); console.error("127 failing"); process.exit(127); }');
+  const r = run(dir, { test: `${NODE} count.mjs` });
+  assert.equal(r.red.exit, 127);
+  assert.equal(r.green.outcome, "passed");
+  if (r.red.reason === "unknown") {
+    assert.match(r.problems.join("\n"), /status is reserved for execution failure/);
+    assert.doesNotMatch(r.problems.join("\n"), /mixes assertion and shell diagnostics/);
+    assert.equal(r.red.posixShell, true);
+    assert.equal(r.ok, false);
+  } else {
+    assert.equal(r.red.reason, "assertion");
+    assert.equal(r.red.posixShell, false);
+    assert.equal(r.ok, true);
+  }
+  assert.equal(r.red.launchError, null);
+  assert.equal(r.red.signal, null);
+});
+
 check("after the fix is committed, HEAD is the fix and --base must point at the pre-fix revision", () => {
   const dir = makeRepo();
   applyFix(dir);
@@ -516,7 +534,6 @@ check("a VAR=value prefix on the test command runs, as every vitest example in t
 });
 
 check("a test command the shell cannot run is a shell problem, not a red", () => {
-  if (!WIN) return skip("a test command the shell cannot run is a shell problem, not a red", "classifyRedFailure reads the shell's own wording for an unknown command, and only the cmd.exe wording is matched today (#507)");
   const dir = makeRepo();
   applyFix(dir);
   const r = run(dir, { test: "definitely-not-a-command-xyz --run" });
@@ -622,17 +639,20 @@ check("a file deleted while it was reverted is recreated from the snapshot and n
   assert.equal(libText(dir), NEW);
 });
 
-check("a repository root reached through a junction is accepted", () => {
-  if (!WIN) return skip("a repository root reached through a junction is accepted", "a junction is a Windows reparse point; Node falls back to a plain symlink here, which the fixture's rmdir teardown refuses");
+check("a repository root reached through a directory link is accepted and its target preserved", () => {
   const dir = makeRepo();
   applyFix(dir);
   const link = path.join(os.tmpdir(), `redgreen-link-${process.pid}-${Date.now()}`);
-  fs.symlinkSync(dir, link, "junction");
+  console.log(`scratch repository: ${dir}; directory link: ${link}`);
+  fs.symlinkSync(dir, link, WIN ? "junction" : "dir");
   try {
     const r = runRedGreen({ repoRoot: link, test: `${NODE} check.mjs`, files: ["lib.mjs"], snapshotDir: snapshotDir() });
     assert.equal(r.ok, true, JSON.stringify(r.problems));
   } finally {
-    fs.rmdirSync(link);
+    if (WIN) fs.rmdirSync(link);
+    else fs.unlinkSync(link);
+    assert.equal(libText(dir), NEW, "link cleanup changed the target");
+    assert.ok(fs.existsSync(path.join(dir, ".git")), "link cleanup removed the repository");
   }
 });
 
@@ -686,12 +706,16 @@ check("a --test whose own script does not exist is a shell problem, not an impor
   assert.match(r.problems.join("\n"), /could not run/);
 });
 
+
 check("classifyRedFailure tells the reasons apart on real runner output", () => {
   assert.equal(classifyRedFailure("Error [ERR_MODULE_NOT_FOUND]: Cannot find module"), "import");
   assert.equal(classifyRedFailure('Error: Failed to resolve import "./x" from "y.ts"'), "import");
   assert.equal(classifyRedFailure("AssertionError: expected 2 to be 3"), "assertion");
   assert.equal(classifyRedFailure("SyntaxError: Unexpected token"), "syntax");
   assert.equal(classifyRedFailure("bash: line 1: nosuch: command not found"), "shell");
+  assert.equal(classifyRedFailure("/bin/sh: 1: nosuch: not found"), "shell");
+  assert.equal(classifyRedFailure("/bin/sh: 1: ./script: Permission denied"), "shell");
+  assert.equal(classifyRedFailure("AssertionError: expected '/bin/sh: 1: ./script: Permission denied' to match"), "assertion");
   assert.equal(classifyRedFailure("'NODE_OPTIONS' is not recognized as an internal or external command,"), "shell");
   assert.equal(classifyRedFailure('npm ERR! Missing script: "test"'), "shell");
   assert.equal(classifyRedFailure("No test files found, exiting with code 1\nfilter: x"), "notests");

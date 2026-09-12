@@ -127,21 +127,28 @@ export function testShell() {
   return bash ?? true;
 }
 
-export function runTest(cmd, cwd, shell = testShell()) {
+export function runTest(cmd, cwd, shell = testShell(), { maxBuffer = 64 * 1024 * 1024 } = {}) {
   const r = spawnSync(cmd, {
     cwd,
     shell,
     windowsHide: true,
     encoding: "utf8",
-    maxBuffer: 64 * 1024 * 1024,
+    maxBuffer,
     env: process.env,
   });
-  const output = `${r.stdout || ""}${r.stderr || ""}`;
+  // The streams have no shared ordering. Keep their boundary a line boundary
+  // even when the last stdout write did not include a newline.
+  const output = [r.stdout, r.stderr].filter(Boolean).join("\n");
   const lines = output.split(/\r?\n/).filter((l) => l.trim() !== "");
   return {
     exit: r.status == null ? -1 : r.status,
     tail: lines.slice(-40),
     output,
+    launchError: r.error?.code ?? null,
+    signal: r.signal ?? null,
+    // Supported defaults plus explicitly named sh/bash/dash. Other custom
+    // interpreters are unverified; a basename is not shell-family attestation.
+    posixShell: shell === true ? process.platform !== "win32" : /(?:^|[\\/])(?:ba|da)?sh(?:\.exe)?$/i.test(shell),
   };
 }
 
@@ -158,7 +165,17 @@ export function runTest(cmd, cwd, shell = testShell()) {
  * assertion merely quotes an ENOENT is not mistaken for one. The assertion
  * patterns are word-bounded: `/toBe/i` on its own matches "October".
  */
-export function classifyRedFailure(output, { removed = [] } = {}) {
+export function classifyRedFailure(output, { removed = [], launchError = null, exit = null, posixShell = false } = {}) {
+  output = output.replace(ANSI_ESCAPE_RE, "");
+  if (["ENOENT", "EACCES", "ENOEXEC"].includes(launchError)) return "shell";
+  if (["ENOBUFS", "ETIMEDOUT"].includes(launchError)) return "crash";
+  if (launchError) return "unknown";
+  if (exit === -1) return "crash";
+  const testedDiagnostic = /\bAssertionError\b|\bexpected\b.*\bto\b|\.to(?:Be|Equal|StrictEqual|Match|Contain|Throw|HaveLength|HaveProperty)\w*\(|\bexpect\(|✗|×|\bFAIL\b|Tests\s+\d+ failed|\d+ failing\b|\bnot ok \d|assert\.\w+\(|Assertion failed/i.test(output);
+  // POSIX shells reserve these for execution failure, but also forward a
+  // program's chosen status. Assertion evidence therefore makes them ambiguous.
+  // cmd does not use this convention; do not infer it from the host platform.
+  if (posixShell && (exit === 126 || exit === 127)) return testedDiagnostic ? "unknown" : "shell";
   // Node could not find the script it was handed: every "Cannot find module"
   // block carries an empty requireStack, no block names an ESM import ("…
   // imported from …" carries no requireStack at all), and the missing path is
@@ -179,14 +196,19 @@ export function classifyRedFailure(output, { removed = [] } = {}) {
   };
   const missingEntryScript =
     moduleBlocks.length > 0 && !esmImportBreak && moduleBlocks.every((m) => m[2].trim() === "" && !namesRemovedFile(m[1]));
-  if (
-    /^(?:bash|sh|zsh|\/bin\/sh|\/usr\/bin\/bash)(?:: line \d+)?: .*: (?:command not found|No such file or directory)/im.test(output) ||
-    /is not recognized as an internal or external command/i.test(output) ||
-    /npm ERR! Missing script:|npm error Missing script:/i.test(output) ||
-    missingEntryScript
-  ) {
-    return "shell";
-  }
+  // A failed command chain and a test printing a child's diagnostic can have
+  // identical output and exit status (including cmd/npm's status 1). Neither
+  // ordering nor assertion text proves provenance: require human adjudication
+  // for mixed diagnostics instead of accepting a false red or calling an
+  // honest regression a broken invocation.
+  // Redirected stderr can follow partial stdout on the same line. Match the
+  // diagnostic suffix, while trailing assertion prose/quotes stay outside it.
+  const shellDiagnostic =
+    /(?:(?:\/[\w.-]+)*\/)?(?:bash|dash|sh)(?:: (?:line )?\d+)?: [^\r\n]+: (?:command not found|not found|No such file or directory|Permission denied|cannot execute[^\r\n]*)\s*$/im.test(output) ||
+    /'[^'\r\n]+' is not recognized as an internal or external command,?\s*$/im.test(output) ||
+    /npm (?:ERR!|error) Missing script:\s*(?:"[^"\r\n]*"|'[^'\r\n]*'|[^\s"'\r\n]+)\s*$/im.test(output);
+  if (missingEntryScript) return "shell";
+  if (shellDiagnostic) return testedDiagnostic ? "unknown" : "shell";
   if (/No test files found|No test suite found|no tests found/i.test(output)) {
     return "notests";
   }
@@ -205,13 +227,7 @@ export function classifyRedFailure(output, { removed = [] } = {}) {
   if (/^\s*(?:Error: )?Worker exited unexpectedly|^\s*FATAL ERROR: |^\s*Segmentation fault|^\s*Killed\s*$/im.test(output)) {
     return "crash";
   }
-  if (
-    /\bAssertionError\b|\bexpected\b.*\bto\b|\.to(?:Be|Equal|StrictEqual|Match|Contain|Throw|HaveLength|HaveProperty)\w*\(|\bexpect\(|✗|×|\bFAIL\b|Tests\s+\d+ failed|\d+ failing\b|\bnot ok \d|assert\.\w+\(|Assertion failed/i.test(
-      output,
-    )
-  ) {
-    return "assertion";
-  }
+  if (testedDiagnostic) return "assertion";
   return "unknown";
 }
 
@@ -471,9 +487,12 @@ export function runRedGreen({ repoRoot, test, files, base = "HEAD", snapshotDir,
       log(`red     ${test}`);
       const red = runTest(test, repoRoot);
       const removed = entries.filter((e) => e.baseBytes == null).map((e) => e.path);
-      const redReason = red.exit === 0 ? null : classifyRedFailure(red.output, { removed });
+      const redReason = red.exit === 0 ? null : classifyRedFailure(red.output, { removed, launchError: red.launchError, exit: red.exit, posixShell: red.posixShell });
       report.red = {
         exit: red.exit,
+        launchError: red.launchError,
+        signal: red.signal,
+        posixShell: red.posixShell,
         outcome: red.exit === 0 ? "passed" : "failed",
         reason: redReason,
         tail: red.tail,
@@ -497,13 +516,19 @@ export function runRedGreen({ repoRoot, test, files, base = "HEAD", snapshotDir,
         );
       } else if (redReason === "crash") {
         report.problems.push(
-          `The runner crashed on the base (a killed worker, an out-of-memory, a fatal error), which proves nothing about the defect. Lower the caps or split the run, then run again.`,
+          red.launchError === "ENOBUFS"
+            ? `The test exceeded the 64 MiB output buffer and was terminated. Partial output proves nothing about the defect. Reduce output or split the run, then run again.`
+            : `The runner crashed on the base (a killed worker, an out-of-memory, a fatal error), which proves nothing about the defect. Lower the caps or split the run, then run again.`,
         );
       } else if (redReason === "unknown") {
         report.problems.push(
-          red.output.trim() === ""
+          red.launchError
+            ? `The test could not complete (execution error ${red.launchError}). Inspect the invocation and environment; this is not regression proof.`
+            : red.posixShell && (red.exit === 126 || red.exit === 127)
+            ? `The test exited ${red.exit} through a recognized POSIX shell. That status is reserved for execution failure, but a test program can choose it too. Assertion output alone cannot establish its origin: inspect the full invocation and explain the actual failure in the PR. The same status under cmd does not have this shell meaning.`
+            : red.output.trim() === ""
             ? `The test exited ${red.exit} on the base with no output at all, so there is nothing to show the failure was the ticket's. Use a test invocation that prints its assertion.`
-            : `The test exited ${red.exit} on the base, but the output does not look like a test assertion (no AssertionError, expected/to, expect(), FAIL, "not ok", or failing count). Read red.tail yourself: if it is the ticket's assertion in a form the classifier does not know, say so in the PR; if it is a config error or a truncated run, it proves nothing.`,
+            : `The test exited ${red.exit} on the base, but its output is unrecognized or mixes assertion and shell diagnostics whose origin cannot be inferred. Read the full run yourself: if it is the ticket's assertion, explain the evidence in the PR; a broken command chain, config error or truncated run proves nothing.`,
         );
       } else if (redReason === "assertion" && report.red.summary == null && looksLikeVitestRun(test, red.output)) {
         // Only when the command names vitest or the output carries vitest's

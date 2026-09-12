@@ -354,6 +354,83 @@ async function status() {
   if (alive) process.exitCode = 0;
 }
 
+// Read kernel identities rather than command text or rounded wall-clock dates.
+export function linuxProcesses({ io = fs, uid = process.getuid?.() } = {}) {
+  const rows = [];
+  for (const name of io.readdirSync("/proc")) {
+    if (!/^\d+$/.test(name)) continue;
+    try {
+      const owner = io.statSync(`/proc/${name}`).uid;
+      let stat;
+      try { stat = io.readFileSync(`/proc/${name}/stat`, "utf8"); }
+      catch (error) {
+        if ((error.code === "EACCES" || error.code === "EPERM") && owner !== uid) {
+          rows.push({ pid: Number(name), uid: owner, unreadable: true });
+          continue;
+        }
+        throw error;
+      }
+      const fields = stat.slice(stat.lastIndexOf(")") + 2).trim().split(/\s+/);
+      rows.push({ pid: Number(name), parent: Number(fields[1]), group: Number(fields[2]), session: Number(fields[3]), state: fields[0], start: fields[19], uid: owner });
+    } catch (error) {
+      if (error.code !== "ENOENT" && error.code !== "ESRCH") throw error;
+    }
+  }
+  return rows;
+}
+
+const runningProcess = (row) => row.state !== "Z" && row.state !== "X";
+const sameProcess = (a, b) => a?.pid === b?.pid && a?.start === b?.start && a?.uid === b?.uid;
+
+// A detached launcher owns its session and group. A record for a member of
+// somebody else's group cannot authorize signalling that group.
+export async function stopLinuxTree(pid, { read = linuxProcesses, signal = process.kill, uid = process.getuid?.(), self = process.pid, sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms)), now = Date.now } = {}) {
+  if (!Number.isInteger(pid) || pid <= 1 || pid === self) throw new Error("invalid launcher pid");
+  const initial = read();
+  if (initial.some((row) => row.pid === self && row.group === pid)) throw new Error("caller belongs to the launcher group; refusing to signal itself");
+  const leader = initial.find((row) => row.pid === pid && runningProcess(row));
+  if (!leader || leader.group !== pid || leader.session !== pid || leader.uid !== uid || !leader.start) throw new Error("launcher does not own an identifiable process group and session");
+  const anchors = initial.filter((row) => row.group === pid && runningProcess(row));
+  const observed = new Map(anchors.map((row) => [row.pid, row]));
+  const members = () => {
+    const rows = read();
+    if (rows.some((row) => row.pid === self && row.group === pid)) throw new Error("caller belongs to the launcher group; refusing to signal itself");
+    if (rows.some((row) => row.unreadable && observed.has(row.pid))) throw new Error("a tracked process became unreadable; the record is kept");
+    const group = rows.filter((row) => row.group === pid && runningProcess(row));
+    if (group.length && (group.some((row) => row.session !== pid || row.uid !== uid) || !group.some((row) => anchors.some((anchor) => sameProcess(anchor, row))))) throw new Error("process group identity changed; refusing to signal it");
+    const currentLeader = rows.find((row) => row.pid === pid && runningProcess(row));
+    if (currentLeader && !sameProcess(leader, currentLeader)) throw new Error("launcher identity changed; refusing to signal it");
+    // Retain members first observed while a known identity still vouches for
+    // this group, so later children can survive the original launcher's exit.
+    for (const row of group) {
+      if (!anchors.some((anchor) => sameProcess(anchor, row))) anchors.push(row);
+      observed.set(row.pid, row);
+    }
+    // A descendant that leaves the group needs separate ownership handling.
+    const descendants = new Set(rows.filter((row) => sameProcess(observed.get(row.pid), row)).map((row) => row.pid));
+    let changed;
+    do {
+      changed = false;
+      for (const row of rows) if (descendants.has(row.parent) && !descendants.has(row.pid)) { descendants.add(row.pid); observed.set(row.pid, row); changed = true; }
+    } while (changed);
+    if (rows.some((row) => descendants.has(row.pid) && runningProcess(row) && row.group !== pid)) throw new Error("a launcher descendant left its group; the record is kept for recovery");
+    return group;
+  };
+  const send = (kind) => {
+    if (!members().length) return;
+    try { signal(-pid, kind); }
+    catch (error) { if (error.code !== "ESRCH") throw error; }
+  };
+  send("SIGTERM");
+  const started = now();
+  let forced = false;
+  while (members().length) {
+    if (!forced && now() - started >= 1000) { send("SIGKILL"); forced = true; }
+    if (now() - started >= 5000) throw new Error("launcher group still has running processes after shutdown");
+    await sleep(50);
+  }
+}
+
 // The launcher spawns npm -> node grandchildren. Killing the launcher pid alone
 // orphans the two vite servers and they keep holding their ports. taskkill /T
 // tears down the whole tree. Only a record that stands names a tree to kill: a
@@ -375,6 +452,16 @@ async function down() {
   if (!(await recordStands(s))) {
     if (!removeStoppedState(file, { remove: removeState, context: "The record no longer identifies its original server; no process was stopped" })) return;
     log(`removed ${file}: pid ${s.pid} is no longer the launcher it recorded (that process exited, and the system may have reused its pid), so nothing was stopped`);
+    return;
+  }
+  if (process.platform === "linux") {
+    try {
+      await stopLinuxTree(s.pid);
+      if (removeStoppedState(file, { context: "Launcher group exited" })) log("stopped");
+    } catch (error) {
+      log(`could not stop pid ${s.pid} (${error.message}); the record is kept`);
+      process.exitCode = 1;
+    }
     return;
   }
   const killer =
