@@ -14,12 +14,14 @@ assert.ok(skills.length >= 9, "shared skill discovery is incomplete");
 for (const file of files.filter((f) => f.startsWith(".agents/skills/") && f.endsWith(".md") && f !== ".agents/skills/RUNNERS.md")) {
   const text = fs.readFileSync(path.join(root, file), "utf8");
   assert.deepEqual(violations(text), [], file);
-  if (file.endsWith("/SKILL.md")) assert.match(text, /RUNNERS\.md/, file + " must link runner notes");
+  // Runner-specific material is reached conditionally through AGENTS.md.
 }
 for (const token of ["opus", "sonnet", "haiku", "fable", "claude-x", "gpt-6-test", "Skill tool", "Agent tool", "subagent_type", "Write/Edit", "set_session_title", "scratchpad", "CLAUDE.md"]) assert.ok(violations("instruction " + token).length, token);
 assert.deepEqual(violations("Read the repository's agent instructions; use an editor capability and a private directory."), []);
 assert.equal(files.filter((f) => f.startsWith(".claude/skills/")).length, 0);
-const prompt = fs.readFileSync(path.join(root, ".agents/skills/review-pr/SKILL.md"), "utf8");
+const reviewFiles = ["SKILL.md", "references/launch.md", "references/reviewer-prompt.md", "references/adjudication.md", "references/later-rounds.md"];
+const prompt = reviewFiles.map((file) => fs.readFileSync(path.join(root, ".agents/skills/review-pr", file), "utf8")).join("\n");
+const template = fs.readFileSync(path.join(root, ".agents/skills/review-pr/references/reviewer-prompt.md"), "utf8");
 const contracts = ["ABORT: writer model not supplied.", "ABORT: reviewer invocation not supplied.", "ABORT: pin failed, I am <your model id>, same as the writer.", "ABORT: reviewer route mismatch.", "Runtime identity unavailable; configured route only.", "separate fresh serial session", "Wait for each process to exit", "Missing comments alone", "one undirected reviewer", "Already covered:"];
 const contractErrors = (text) => contracts.filter((rule) => !text.includes(rule));
 contracts.push("unavailable runtime introspection alone is not an abort condition");
@@ -32,7 +34,7 @@ for (const file of ["policy.mjs", "typed-issue-hook.mjs", "shared-stash-hook.mjs
   assert.doesNotMatch(source, /\b(?:claude|codex|opus|sonnet|haiku)\b|gpt-\d/i, file);
 }
 assert.ok(!/\$\d/.test(prompt), "skill positional substitution must not corrupt reviewer prompts");
-const quotedPrompt = reviewTemplate(prompt);
+const quotedPrompt = reviewTemplate(template);
 assert.equal((quotedPrompt.match(/\bWRITER\b/g) ?? []).length, 1, "writer substitution must occur only at its value, not inside the missing-value guard");
 assert.equal((quotedPrompt.match(/\bREVIEWER\b/g) ?? []).length, 1, "reviewer substitution must occur only at its value");
 const generation = spawnSync(process.execPath, ["scripts/generate-reviewer-agents.mjs", "--check"], { cwd: root, encoding: "utf8" });

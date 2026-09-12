@@ -107,13 +107,13 @@ export function countEntries(markdown) {
   return counts;
 }
 
-function skillFiles() {
-  return fs
-    .readdirSync(SKILLS_DIR, { withFileTypes: true })
-    .filter((e) => e.isDirectory())
-    .map((e) => path.join(SKILLS_DIR, e.name, "SKILL.md"))
-    .filter((f) => fs.existsSync(f))
-    .sort();
+function skillFiles(directory = path.resolve(SKILLS_DIR, "..")) {
+  // Read canonical instructions and references, never linked browser state.
+  return fs.readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
+    const file = path.join(directory, entry.name);
+    if (entry.isDirectory() && !entry.name.startsWith(".")) return skillFiles(file);
+    return entry.isFile() && entry.name.endsWith(".md") ? [file] : [];
+  }).sort();
 }
 
 let failures = 0;
@@ -212,14 +212,14 @@ check("a lazy continuation stays in its list while a separate paragraph or block
 
 check("the Gotchas and Troubleshooting lists are the size this check pins", () => {
   const files = skillFiles();
-  assert.ok(files.length >= 5, `only ${files.length} SKILL.md files were found under ${SKILLS_DIR}; the check is reading the wrong directory`);
+  assert.ok(files.length >= 9, `only ${files.length} instruction documents were found under ${SKILLS_DIR}; the check is reading the wrong directory`);
   const total = { gotchas: 0, troubleshooting: 0 };
   const rows = [];
   for (const file of files) {
     const counts = countEntries(fs.readFileSync(file, "utf8"));
     total.gotchas += counts.gotchas;
     total.troubleshooting += counts.troubleshooting;
-    if (counts.gotchas || counts.troubleshooting) rows.push(`  ${path.basename(path.dirname(file))}: ${counts.gotchas} gotchas, ${counts.troubleshooting} troubleshooting`);
+    if (counts.gotchas || counts.troubleshooting) rows.push(`  ${path.relative(path.resolve(SKILLS_DIR, ".."), file)}: ${counts.gotchas} gotchas, ${counts.troubleshooting} troubleshooting`);
   }
   for (const row of rows) console.log(row);
   // A heading renamed or a list moved reads as zero here, which would make
@@ -229,7 +229,7 @@ check("the Gotchas and Troubleshooting lists are the size this check pins", () =
   for (const kind of ["gotchas", "troubleshooting"]) {
     assert.ok(
       total[kind] <= PINNED[kind],
-      `the ${kind} entries across .agents/skills/*/SKILL.md number ${total[kind]}, above the ${PINNED[kind]} this check pins. ${WHY}`,
+      `the ${kind} entries across canonical .agents Markdown number ${total[kind]}, above the ${PINNED[kind]} this check pins. ${WHY}`,
     );
   }
   if (total.gotchas < PINNED.gotchas || total.troubleshooting < PINNED.troubleshooting) {

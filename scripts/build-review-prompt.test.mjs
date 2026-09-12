@@ -13,7 +13,7 @@ for (const key of ["writer", "reviewer", "invocation"]) {
   for (const value of [undefined, "", key.toUpperCase(), "<model>"]) assert.throws(() => buildReviewPrompt({ ...context, [key]: value }), undefined, key + ":" + value);
 }
 assert.throws(() => buildReviewPrompt({ ...context, reviewer: "writer-1[1m]" }), /must differ/);
-const template = fs.readFileSync(new URL("../.agents/skills/review-pr/SKILL.md", import.meta.url), "utf8");
+const template = fs.readFileSync(new URL("../.agents/skills/review-pr/references/reviewer-prompt.md", import.meta.url), "utf8");
 for (const token of ["WRITER", "REVIEWER", "ROUND", "HEAD", "WORKTREE", "DIFF", "REVDIR", "PREVIOUS", "P", "N", "LENS"]) {
   const boundary = template.indexOf("<!-- review-prompt:start -->");
   const prefix = template.slice(0, boundary), body = template.slice(boundary);

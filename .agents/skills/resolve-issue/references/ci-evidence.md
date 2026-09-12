@@ -1,0 +1,5 @@
+# Investigate incomplete CI
+
+All commands run from the worktree root unless stated otherwise.
+
+Read CI results for the current head before declaring completion. For a job reported as `cancelled` or `timed_out`, retain its run and attempt IDs and inspect jobs, steps, logs and check annotations. `gh api repos/ImpowerGames/impower/actions/runs/<run-id>/attempts/<attempt>/jobs --paginate` supplies job timestamps and conclusions. Read the workflow at that run's `head_sha`, including job and step `timeout-minutes`, and compare the affected interval with its configured bound. Also inspect concurrency settings and newer runs on the branch. An explicit timeout annotation or log establishes a timeout; elapsed time near a bound is only supporting evidence. A cancelled conclusion or absence of a newer run does not establish the cause: manual cancellation and other interruptions remain possible. If evidence is incomplete, report the cancellation as unexplained and retain the failed verification gate. Diagnose the cause before changing a timeout or rerunning; a later green run does not explain the earlier cancellation.
