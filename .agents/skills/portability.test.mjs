@@ -11,7 +11,13 @@ const skills = files.filter((f) => /^\.agents\/skills\/[^/]+\/SKILL.md$/.test(f)
 const forbidden = /\b(?:opus|sonnet|haiku|fable)\b|claude-|gpt-\d|Skill tool|Agent tool|subagent_type|Write\/Edit|set_session_title|scratchpad|CLAUDE\.md/ig;
 export const violations = (text) => [...text.matchAll(forbidden)].map((m) => m[0]);
 assert.ok(skills.length >= 9, "shared skill discovery is incomplete");
-for (const file of files.filter((f) => f.startsWith(".agents/skills/") && f.endsWith(".md") && f !== ".agents/skills/RUNNERS.md")) {
+const runnerDocs = new Set([
+  ".agents/skills/RUNNERS.md",
+  ".agents/references/runner-review.md",
+  ".agents/references/runner-maintenance.md",
+  ".agents/references/runner-recovery.md",
+]);
+for (const file of files.filter((f) => f.startsWith(".agents/") && f.endsWith(".md") && !runnerDocs.has(f))) {
   const text = fs.readFileSync(path.join(root, file), "utf8");
   assert.deepEqual(violations(text), [], file);
   // Runner-specific material is reached conditionally through AGENTS.md.
