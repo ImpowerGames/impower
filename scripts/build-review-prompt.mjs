@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-const skill = fileURLToPath(new URL("../.agents/skills/review-pr/SKILL.md", import.meta.url));
+const skill = fileURLToPath(new URL("../.agents/skills/review-pr/references/reviewer-prompt.md", import.meta.url));
 export function reviewTemplate(markdown) {
   const start = "<!-- review-prompt:start -->", end = "<!-- review-prompt:end -->";
   if (markdown.split(start).length !== 2 || markdown.split(end).length !== 2 || markdown.indexOf(end) < markdown.indexOf(start)) throw new Error("Invalid review prompt boundaries");

@@ -5,7 +5,6 @@ description: Supplement the normal chat handoff with a generic notification for 
 
 # Notify the user
 
-Read [runner notes](../RUNNERS.md) and the repository's agent instructions. Load this full SKILL.md when the runner has no skill invocation capability.
 
 Always provide the normal handoff in chat. Notifications are an optional additional output, not a replacement for chat.
 
