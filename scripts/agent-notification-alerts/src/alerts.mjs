@@ -12,6 +12,8 @@ export const alertShape = {
 export const alertSchema = z.object(alertShape).strict();
 const configSchema = z.object({
   keyboard: z.boolean(), speech: z.boolean(),
+  shortcutModifiers: z.enum(['ctrl-alt', 'ctrl-shift']).default('ctrl-alt'),
+  logitech: z.boolean().default(false),
   durationMs: z.number().int().min(1000).max(30000),
   zone: z.enum(['function-keys', 'all']),
   volume: z.number().int().min(0).max(100),

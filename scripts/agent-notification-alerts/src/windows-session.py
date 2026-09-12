@@ -48,12 +48,17 @@ def main():
     if set(shortcuts) != {'codex', 'claude'} or any(type(value) is not int or not 1 <= value <= 12 for value in shortcuts.values()) or shortcuts['codex'] == shortcuts['claude']:
         raise ValueError('Shortcuts must be different function keys from F1 to F12')
     registered = []
+    modifier = sys.argv[2] if len(sys.argv) > 2 else 'ctrl-alt'
+    if modifier not in ('ctrl-alt', 'ctrl-shift'):
+        raise ValueError('Unsupported shortcut modifiers')
+    modifier_bits = 0x4006 if modifier == 'ctrl-shift' else 0x4003
+    modifier_label = 'Ctrl+Shift+' if modifier == 'ctrl-shift' else 'Ctrl+Alt+'
     labels = []
     try:
         for number, app in [(1, 'codex'), (2, 'claude')]:
             key = 0x6F + shortcuts[app]
-            label = 'Ctrl+Alt+F' + str(shortcuts[app])
-            if user32.RegisterHotKey(None, number, 0x4003, key):
+            label = modifier_label + 'F' + str(shortcuts[app])
+            if user32.RegisterHotKey(None, number, modifier_bits, key):
                 registered.append(number)
                 labels.append(label)
             else:

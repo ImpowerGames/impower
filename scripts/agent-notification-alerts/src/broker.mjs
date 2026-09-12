@@ -70,7 +70,20 @@ export async function runBroker() {
   await mkdir(stateDir, { recursive: true });
   let pending = new PendingAlerts();
   const status = { keyboard: config.keyboard ? 'starting' : 'disabled', speech: config.speech ? 'idle' : 'disabled', shortcuts: 'disabled' };
-  let bridge, timer, address, signature = '', queue = Promise.resolve(), speechQueue = Promise.resolve();
+  let bridge, logitechBridge, timer, address, signature = '', logitechSignature = '', queue = Promise.resolve(), speechQueue = Promise.resolve();
+  status.logitech = config.logitech ? 'starting' : 'disabled';
+  const refreshLogitech = () => {
+    if (!config.logitech || !logitechBridge || logitechBridge.exitCode !== null) return;
+    const keys = ['codex', 'claude'].flatMap(app => {
+      const entry = pending.latest(app);
+      return entry ? config.keys[app].map(hid => ({ hid, color: config.colors[entry.alert.category] })) : [];
+    });
+    const next = JSON.stringify(keys);
+    if (next !== logitechSignature) {
+      logitechBridge.stdin.write(next + '\n');
+      logitechSignature = next;
+    }
+  };
   const persist = async () => {
     await writeFile(stateFile + '.tmp', JSON.stringify(pending.entries), { mode: 0o600 });
     await rename(stateFile + '.tmp', stateFile);
@@ -105,6 +118,7 @@ export async function runBroker() {
     if (request.type === 'stop') {
       clearInterval(timer);
       bridge?.stdin.end();
+      logitechBridge?.stdin.end();
       if (config.keyboard) await post('stop_game', { game: 'AGENT_NOTIFICATION_ALERTS' }).catch(() => {});
       setTimeout(() => process.exit(0), 100);
       return { stopped: true, pendingRetained: true };
@@ -114,6 +128,7 @@ export async function runBroker() {
     if (request.type === 'notify') entry = pending.add(request.alert, request.app);
     else acknowledged = pending.acknowledge(request.notificationId, request.app);
     try { await persist(); } catch (error) { pending.entries = previous; throw error; }
+    refreshLogitech();
     // Delivery is asynchronous: acknowledging must never wait for speech to finish.
     if (entry && config.speech) {
       speechQueue = speechQueue.then(async () => {
@@ -147,7 +162,7 @@ export async function runBroker() {
   catch (error) { if (error.code !== 'ENOENT') { server.close(); throw error; } }
   if (process.platform === 'win32' && process.env.AGENT_ALERT_PYTHON) {
     status.shortcuts = 'starting';
-    bridge = spawn(process.env.AGENT_ALERT_PYTHON, [fileURLToPath(new URL('./windows-session.py', import.meta.url)), JSON.stringify(config.shortcuts)], { windowsHide: true, stdio: ['pipe', 'pipe', 'ignore'] });
+    bridge = spawn(process.env.AGENT_ALERT_PYTHON, [fileURLToPath(new URL('./windows-session.py', import.meta.url)), JSON.stringify(config.shortcuts), config.shortcutModifiers], { windowsHide: true, stdio: ['pipe', 'pipe', 'ignore'] });
     bridge.stdin.on('error', () => {});
     bridge.on('error', error => { status.shortcuts = error.message; });
     bridge.on('exit', () => { status.shortcuts = 'stopped'; });
@@ -164,6 +179,19 @@ export async function runBroker() {
     });
   }
   markReady();
+  if (config.logitech && process.platform === 'win32' && process.env.AGENT_ALERT_PYTHON) {
+    logitechBridge = spawn(process.env.AGENT_ALERT_PYTHON, [fileURLToPath(new URL('./logitech-led.py', import.meta.url))], { windowsHide: true, stdio: ['pipe', 'pipe', 'pipe'] });
+    logitechBridge.stdin.on('error', error => { status.logitech = error.message; });
+    logitechBridge.on('error', error => { status.logitech = error.message; });
+    logitechBridge.on('exit', code => { if (code === 0) status.logitech = 'stopped'; });
+    logitechBridge.stderr.on('data', chunk => { status.logitech = String(chunk).slice(0, 500); });
+    createInterface({ input: logitechBridge.stdout }).on('line', line => {
+      try { status.logitech = JSON.parse(line).status; } catch {}
+    });
+    refreshLogitech();
+  } else if (config.logitech) {
+    status.logitech = 'Requires Windows and AGENT_ALERT_PYTHON';
+  }
   // Do not accumulate heartbeat jobs while a device is offline.
   const tick = () => { timer = setTimeout(() => enqueue(refresh).finally(tick), 1000); };
   tick();
