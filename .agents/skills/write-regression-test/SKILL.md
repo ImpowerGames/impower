@@ -145,7 +145,9 @@ Run with the machine otherwise idle. The runner probes Bash before launching che
 
 The runner's EXPECTED_CHECKS value pins the derived tracked runnable count in both directions, excluding the grammar scanner check that runs in the typecheck workflow. Update it when adding or removing a check, and review any lost coverage. The CI summary lists every skipped case. Portable extension fixtures, real shell classification, directory-link access and launcher-tree shutdown run on both Windows and Linux. POSIX execute-permission and Linux group-ownership probes report their platform skips on Windows. Windows-only held-tree and long-path cases run in the Windows matrix leg; zip fixtures need the workspace dependency install. Directory-link fixtures can also report an environment capability skip with the filesystem error; retain that explanation and do not count the skipped fixture as verified.
 
-On Windows, if the launched parent has already exited while descendants retain its pipes, the runner cannot safely identify that tree through the parent's PID. It refuses the kill, aborts the remaining checks and lists each as not run. Inspect the recorded timeout and processes before retrying; an unconfirmed tree shutdown is not successful cleanup.
+If the launched parent has already exited while descendants retain its pipes, the runner cannot safely identify that tree through the parent's process identifier. It refuses the kill, aborts the remaining checks and lists each as not run. Inspect the recorded timeout and processes before retrying; an unconfirmed tree shutdown is not successful cleanup.
+
+Every timeout aborts the aggregate after attempting to stop the active Windows tree or POSIX process group. A detached descendant can escape a POSIX group, and the parent's exit alone cannot prove every descendant stopped. Inspect processes before retrying; the remaining not-run results are incomplete coverage, never passes.
 
 ---
 

@@ -47,10 +47,10 @@ for (const file of checks) {
     const progress = setInterval(() => console.log(`RUNNING: ${file}: ${Date.now() - started} ms; awaiting exit`), 30000);
     const timer = setTimeout(() => {
       timedOut = true;
-      console.error(`TIMEOUT: ${file}; stopping launched process tree ${child.pid}`);
+      console.error(`TIMEOUT: ${file}; stopping launched ${process.platform === "win32" ? "process tree" : "process group"} ${child.pid}`);
       try {
+        if (child.exitCode !== null || child.signalCode !== null) throw new Error("launched parent already exited; refusing an unowned process identifier, inspect remaining descendants");
         if (process.platform === "win32") {
-          if (child.exitCode !== null || child.signalCode !== null) throw new Error("launched parent already exited; refusing an unowned PID, inspect remaining descendants");
           execFileSync("taskkill", ["/PID", String(child.pid), "/T", "/F"], { windowsHide: true, timeout: 10000, stdio: "pipe" });
         }
         else process.kill(-child.pid, "SIGKILL");
@@ -71,6 +71,10 @@ for (const file of checks) {
   for (const line of output.split(/\r?\n/)) if (line.startsWith("SKIP:")) skipped.push(`${file}: ${line}`);
   if (result.cleanupError || result.cleanupUnconfirmed) {
     console.error(`ABORT: cleanup was not confirmed: ${result.cleanupError || result.error}; remaining checks were not run`);
+    break;
+  }
+  if (result.timedOut) {
+    console.error("ABORT: timed-out check requires inspection before later checks; detached descendants are not proven stopped by the parent's exit");
     break;
   }
 }

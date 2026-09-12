@@ -41,13 +41,14 @@ put(".agents/skills/coverage-4.test.mjs", 'import fs from "node:fs"; import { sp
 const hung = run({ AGENT_TOOLING_TIMEOUT_MS: "1000" });
 assert.equal(hung.status, 1, hung.stderr);
 assert.match(hung.stdout, /coverage-4.test.mjs: timed out/);
-assert.match(hung.stdout, /DONE: scripts\/link-agent-skills.test.mjs: passed/);
+assert.match(hung.stdout, /NOT RUN: scripts\/link-agent-skills.test.mjs/);
+assert.match(hung.stderr, /ABORT: timed-out check requires inspection/);
 const descendant = Number(fs.readFileSync(path.join(scratch, "child.pid"), "utf8"));
-const exited = () => {
+const exited = (pid = descendant) => {
   try {
-    process.kill(descendant, 0);
+    process.kill(pid, 0);
     // Linux can retain an exited orphan as a zombie until its new parent reaps it.
-    return process.platform === "linux" && /\) Z /.test(fs.readFileSync(`/proc/${descendant}/stat`, "utf8"));
+    return process.platform === "linux" && /\) Z /.test(fs.readFileSync(`/proc/${pid}/stat`, "utf8"));
   } catch (error) {
     if (["ESRCH", "ENOENT"].includes(error.code)) return true;
     throw error;
@@ -56,6 +57,18 @@ const exited = () => {
 const deadline = Date.now() + 5000;
 while (!exited() && Date.now() < deadline) Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 20);
 assert.ok(exited(), "timed-out child must actually exit");
+put(".agents/skills/coverage-4.test.mjs", 'import fs from "node:fs"; import { spawn } from "node:child_process"; const child = spawn(process.execPath, ["-e", "setTimeout(() => {}, 2200)"], { stdio: "inherit" }); fs.writeFileSync("early-child.pid", String(child.pid)); process.exit(0);');
+const earlyExit = run({ AGENT_TOOLING_TIMEOUT_MS: "1000" });
+if (process.platform === "win32") {
+  // Windows closes these inherited pipe handles with the parent. This is not
+  // proof of descendant cleanup; the fixture independently expires below.
+  assert.equal(earlyExit.status, 0, earlyExit.stderr);
+} else {
+  assert.equal(earlyExit.status, 1, earlyExit.stderr);
+  assert.match(earlyExit.stderr, /ABORT: cleanup was not confirmed/);
+  assert.match(earlyExit.stdout, /NOT RUN: scripts\/link-agent-skills.test.mjs/);
+}
+assert.ok(exited(Number(fs.readFileSync(path.join(scratch, "early-child.pid"), "utf8"))), "self-terminating orphan fixture has exited");
 put(".agents/skills/coverage-4.test.mjs", 'console.log("fixture passed");');
 put(".agents/skills/coverage-0.test.mjs", 'console.log("SKIP: unavailable fixture");');
 assert.equal(run().status, 0);
