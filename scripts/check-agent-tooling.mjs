@@ -25,9 +25,9 @@ if (path.isAbsolute(bash)) {
 }
 const timeoutMs = Number(process.env.AGENT_TOOLING_TIMEOUT_MS || 300000);
 if (!Number.isSafeInteger(timeoutMs) || timeoutMs < 100 || timeoutMs > 3600000) throw new Error("AGENT_TOOLING_TIMEOUT_MS must be an integer from 100 to 3600000");
-let failed = 0, ran = 0;
+let failed = 0, ran = 0, timedOut = 0, exitUnconfirmed = 0;
 const skipped = [];
-const completed = new Set();
+const attemptedFiles = new Set();
 console.log(`Discovered ${checks.length} tracked check files`);
 console.log(`Verified Bash: ${bash}; per-check timeout: ${timeoutMs} ms`);
 for (const file of checks) {
@@ -64,7 +64,9 @@ for (const file of checks) {
     child.once("close", (status, signal) => finish({ status, signal }));
   });
   ran++;
-  completed.add(file);
+  attemptedFiles.add(file);
+  if (result.timedOut) timedOut++;
+  if (result.cleanupUnconfirmed) exitUnconfirmed++;
   const passed = result.status === 0 && !result.timedOut;
   console.log(`DONE: ${file}: ${passed ? "passed" : result.timedOut ? "timed out" : "failed"}; exit=${result.status ?? "unconfirmed"}; signal=${result.signal ?? "none"}; ${Date.now() - started} ms`);
   if (!passed) { console.error(`FAILED: ${file}: ${result.error ?? result.status}`); failed++; }
@@ -78,8 +80,8 @@ for (const file of checks) {
     break;
   }
 }
-for (const file of runnable) if (!completed.has(file)) console.log(`NOT RUN: ${file}: no completed invocation`);
-const summary = `Tooling checks: ${ran} run, ${failed} failed, ${runnable.length - ran} not run`;
+for (const file of runnable) if (!attemptedFiles.has(file)) console.log(`NOT RUN: ${file}: no invocation attempted`);
+const summary = `Tooling checks: ${ran} run, ${failed} failed, ${runnable.length - ran} not run; ${timedOut} timed out, ${exitUnconfirmed} exit unconfirmed`;
 console.log(summary);
 console.log(`Skipped cases: ${skipped.length}`);
 for (const line of skipped) console.log(line);

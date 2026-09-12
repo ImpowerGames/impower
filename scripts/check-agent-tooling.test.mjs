@@ -29,6 +29,7 @@ assert.notEqual(run({ AGENT_TOOLING_BASH: path.join(scratch, "missing-bash") }).
 put(".agents/skills/coverage-2.test.mjs", 'import { execFileSync } from "node:child_process"; import assert from "node:assert/strict"; assert.equal(execFileSync("bash", ["-c", "printf nested-bash"], { encoding: "utf8" }), "nested-bash");');
 assert.equal(run().status, 0, "nested Node checks inherit working Bash");
 spawnSync("git", ["rm", "--cached", ".agents/skills/coverage-3.test.mjs"], { cwd: scratch, windowsHide: true });
+fs.unlinkSync(path.join(scratch, ".agents/skills/coverage-3.test.mjs"));
 put(".github/scripts/fixture.test.mjs", 'console.log("github coverage");');
 spawnSync("git", ["add", ".github/scripts/fixture.test.mjs"], { cwd: scratch, windowsHide: true });
 const github = run();
@@ -37,10 +38,12 @@ assert.match(github.stdout, /DONE: .github\/scripts\/fixture.test.mjs: passed/);
 put(".github/scripts/fixture.test.mjs", 'process.exitCode = 1;');
 assert.notEqual(run().status, 0, "GitHub script failure reaches the aggregate");
 put(".github/scripts/fixture.test.mjs", 'console.log("github coverage");');
-put(".agents/skills/coverage-4.test.mjs", 'import fs from "node:fs"; import { spawn } from "node:child_process"; const child = spawn(process.execPath, ["-e", "setInterval(() => {}, 1000)"], { stdio: "inherit" }); fs.writeFileSync("child.pid", String(child.pid)); setInterval(() => {}, 1000);');
-const hung = run({ AGENT_TOOLING_TIMEOUT_MS: "1000" });
+const hungFile = ".agents/hooks/policy.test.mjs";
+put(hungFile, 'import fs from "node:fs"; import { spawn } from "node:child_process"; const child = spawn(process.execPath, ["-e", "setInterval(() => {}, 1000)"], { stdio: "inherit" }); fs.writeFileSync("child.pid", String(child.pid)); setInterval(() => {}, 1000);');
+const hung = run({ AGENT_TOOLING_TIMEOUT_MS: "5000" });
 assert.equal(hung.status, 1, hung.stderr);
-assert.match(hung.stdout, /coverage-4.test.mjs: timed out/);
+assert.match(hung.stdout, /DONE: .agents\/hooks\/policy.test.mjs: timed out/);
+assert.match(hung.stdout, /1 timed out, 0 exit unconfirmed/);
 assert.match(hung.stdout, /NOT RUN: scripts\/link-agent-skills.test.mjs/);
 assert.match(hung.stderr, /ABORT: timed-out check requires inspection/);
 const descendant = Number(fs.readFileSync(path.join(scratch, "child.pid"), "utf8"));
@@ -57,8 +60,8 @@ const exited = (pid = descendant) => {
 const deadline = Date.now() + 5000;
 while (!exited() && Date.now() < deadline) Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 20);
 assert.ok(exited(), "timed-out child must actually exit");
-put(".agents/skills/coverage-4.test.mjs", 'import fs from "node:fs"; import { spawn } from "node:child_process"; const child = spawn(process.execPath, ["-e", "setTimeout(() => {}, 2200)"], { stdio: "inherit" }); fs.writeFileSync("early-child.pid", String(child.pid)); process.exit(0);');
-const earlyExit = run({ AGENT_TOOLING_TIMEOUT_MS: "1000" });
+put(hungFile, 'import fs from "node:fs"; import { spawn } from "node:child_process"; const child = spawn(process.execPath, ["-e", "setTimeout(() => {}, 6500)"], { stdio: "inherit" }); fs.writeFileSync("early-child.pid", String(child.pid)); process.exit(0);');
+const earlyExit = run({ AGENT_TOOLING_TIMEOUT_MS: "5000" });
 if (process.platform === "win32") {
   // Windows closes these inherited pipe handles with the parent. This is not
   // proof of descendant cleanup; the fixture independently expires below.
@@ -68,8 +71,11 @@ if (process.platform === "win32") {
   assert.match(earlyExit.stderr, /ABORT: cleanup was not confirmed/);
   assert.match(earlyExit.stdout, /NOT RUN: scripts\/link-agent-skills.test.mjs/);
 }
-assert.ok(exited(Number(fs.readFileSync(path.join(scratch, "early-child.pid"), "utf8"))), "self-terminating orphan fixture has exited");
-put(".agents/skills/coverage-4.test.mjs", 'console.log("fixture passed");');
+const earlyPid = Number(fs.readFileSync(path.join(scratch, "early-child.pid"), "utf8"));
+const earlyDeadline = Date.now() + 8000;
+while (!exited(earlyPid) && Date.now() < earlyDeadline) Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 20);
+assert.ok(exited(earlyPid), "self-terminating orphan fixture has exited");
+put(hungFile, 'console.log("fixture passed");');
 put(".agents/skills/coverage-0.test.mjs", 'console.log("SKIP: unavailable fixture");');
 assert.equal(run().status, 0);
 assert.match(fs.readFileSync(summaryPath, "utf8"), /SKIP: unavailable fixture/);
@@ -84,10 +90,16 @@ assert.notEqual(run().status, 0, "losing a tracked check must fail the coverage 
 spawnSync("git", ["add", ".agents/skills/coverage-1.test.mjs"], { cwd: scratch, windowsHide: true });
 put(".agents/skills/unknown.test.py", "print('must not be silently skipped')");
 spawnSync("git", ["add", "."], { cwd: scratch, windowsHide: true });
-assert.notEqual(run().status, 0, "unsupported check extension must fail");
+const unsupported = run();
+assert.notEqual(unsupported.status, 0, "unsupported check extension must fail");
+assert.match(unsupported.stderr, /FAILED: unsupported or missing check .agents\/skills\/unknown.test.py/);
 spawnSync("git", ["rm", "--cached", ".agents/skills/unknown.test.py"], { cwd: scratch, windowsHide: true });
 put(".agents/skills/a test.test.mjs", "process.exitCode = 1;");
-assert.notEqual(run().status, 0, "failed check must fail the aggregate");
+const failed = run();
+assert.notEqual(failed.status, 0, "failed check must fail the aggregate");
+assert.match(failed.stdout, /DONE: .agents\/skills\/a test.test.mjs: failed; exit=1/);
 fs.unlinkSync(path.join(scratch, ".agents/skills/a test.test.mjs"));
-assert.notEqual(run().status, 0, "missing sparse-checkout entry must fail");
+const missing = run();
+assert.notEqual(missing.status, 0, "missing sparse-checkout entry must fail");
+assert.match(missing.stderr, /FAILED: unsupported or missing check .agents\/skills\/a test.test.mjs/);
 console.log("PASS: empty, unsupported, failing and missing checks fail; tracked paths with spaces execute");

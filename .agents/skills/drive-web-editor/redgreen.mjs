@@ -263,11 +263,13 @@ export function classifyRedFailure(output, { removed = [], launchError = null, e
  */
 const ANSI_ESCAPE_RE = /\x1b\[[0-9;]*m/g;
 function failureEvidence(output, logPath) {
-  fs.writeFileSync(logPath, output);
+  let logError = null;
+  try { fs.writeFileSync(logPath, output); }
+  catch (error) { logError = String(error.message || error); }
   const matches = output.replace(ANSI_ESCAPE_RE, "").split(/\r?\n/).filter((line) =>
-    !/^\s*(?:PASS\b|ok\b|[✓✔])/.test(line) && /^(?:\s*(?:FAIL\b|not ok\b|[✕✗×]))|\bAssertionError\b/.test(line));
+    !/^\s*(?:PASS\b|ok\b|[✓✔])/.test(line) && /^(?:\s*(?:FAIL\b|not ok\b|[✕✗×✖]))|\bAssertionError\b/.test(line));
   const excerpt = matches.slice(0, 40);
-  return { logPath, failures: excerpt.map((line) => line.slice(0, 2000)), failuresOmitted: Math.max(0, matches.length - 40), failureLinesTruncated: excerpt.filter((line) => line.length > 2000).length };
+  return { logPath: logError ? null : logPath, logError, failures: excerpt.map((line) => line.slice(0, 2000)), failuresOmitted: Math.max(0, matches.length - 40), failureLinesTruncated: excerpt.filter((line) => line.length > 2000).length };
 }
 const VITEST_COUNT_RE = /\d+\s+(?:passed|failed|skipped|todo)/;
 const VITEST_NO_TESTS_RE = /\bno tests\b/;
@@ -506,6 +508,7 @@ export function runRedGreen({ repoRoot, test, files, base = "HEAD", snapshotDir,
         ...failureEvidence(red.output, path.join(dir, "red.log")),
         summary: parseVitestSummary(red.output),
       };
+      if (report.red.logError) report.problems.push(`The red output could not be saved: ${report.red.logError}. The exit status and excerpts remain in this report.`);
       if (red.exit === 0) {
         report.problems.push(
           `The test passed against ${base}. It pins nothing: either it does not assert the ticket's behaviour, or the files listed are not where the fix lives.`,
@@ -548,7 +551,7 @@ export function runRedGreen({ repoRoot, test, files, base = "HEAD", snapshotDir,
         // comment without running it; either way the missing summary is
         // worth a look.
         report.problems.push(
-          `The test command names vitest, or the output shows vitest's own run banner, and it failed on the base with what reads as a real assertion, but no \`Test Files\`/\`Tests\` summary line could be parsed from the output. Read red.tail for the failure and quote it directly in the PR.`,
+          `The test command names vitest, or the output shows vitest's own run banner, and it failed on the base with what reads as a real assertion, but no \`Test Files\`/\`Tests\` summary line could be parsed from the output. Read red.failures and the log at red.logPath for the failure and quote it directly in the PR.`,
         );
       } else if (redReason === "assertion" && report.red.summary != null && VITEST_NO_TESTS_RE.test(report.red.summary)) {
         // A red that collected nothing asserted nothing. The exit code and
@@ -590,6 +593,7 @@ export function runRedGreen({ repoRoot, test, files, base = "HEAD", snapshotDir,
         ...failureEvidence(green.output, path.join(dir, "green.log")),
         summary: parseVitestSummary(green.output),
       };
+      if (report.green.logError) report.problems.push(`The green output could not be saved: ${report.green.logError}. The exit status and excerpts remain in this report.`);
       if (green.exit !== 0) {
         report.problems.push("The test failed against the fix. The restore is verified by hash, so this is the fix itself, not a stale copy.");
       }

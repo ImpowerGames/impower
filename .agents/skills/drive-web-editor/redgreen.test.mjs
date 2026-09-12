@@ -747,6 +747,43 @@ check("failure excerpts report omitted lines and clipped text with the full log 
   assert.ok(fs.readFileSync(r.red.logPath, "utf8").includes("x".repeat(3000)));
 });
 
+check("real Node spec failures retain their distinct names", () => {
+  const dir = makeRepo();
+  applyFix(dir);
+  fs.writeFileSync(path.join(dir, "spec.mjs"), [
+    'import test from "node:test"; import assert from "node:assert/strict"; import { value } from "./lib.mjs";',
+    'test("the ticket case", () => assert.equal(value, "new"));',
+    'test("the other error case", () => { if (value === "old") throw new Error("another failure"); });',
+    'test("passes mentioning AssertionError and FAIL", () => assert.ok(true));',
+  ].join("\n"));
+  const r = run(dir, { test: `${NODE} --test --test-reporter=spec spec.mjs` });
+  assert.equal(r.ok, true, JSON.stringify(r.problems));
+  assert.ok(r.red.failures.some((line) => line.includes("the ticket case")));
+  assert.ok(r.red.failures.some((line) => line.includes("the other error case")));
+  assert.ok(!r.red.failures.some((line) => line.includes("passes mentioning")));
+});
+
+check("log-write failures preserve both run results and verified snapshots", () => {
+  const dir = makeRepo();
+  applyFix(dir);
+  const snapshots = snapshotDir();
+  fs.mkdirSync(path.join(snapshots, "red.log"));
+  fs.mkdirSync(path.join(snapshots, "green.log"));
+  const r = run(dir, { snapshotDir: snapshots });
+  assert.equal(r.ok, false);
+  assert.equal(r.red.exit, 1);
+  assert.equal(r.red.reason, "assertion");
+  assert.ok(r.red.failures.length > 0);
+  assert.equal(r.red.logPath, null);
+  assert.ok(r.red.logError);
+  assert.equal(r.green.exit, 0);
+  assert.equal(r.green.outcome, "passed");
+  assert.equal(r.green.logPath, null);
+  assert.ok(r.green.logError);
+  assert.equal(r.problems.filter((problem) => problem.includes("output could not be saved")).length, 2);
+  assert.ok(r.files.every((file) => file.matches && fs.existsSync(file.snapshotPath)));
+});
+
 check("classifyRedFailure tells the reasons apart on real runner output", () => {
   assert.equal(classifyRedFailure("Error [ERR_MODULE_NOT_FOUND]: Cannot find module"), "import");
   assert.equal(classifyRedFailure('Error: Failed to resolve import "./x" from "y.ts"'), "import");
