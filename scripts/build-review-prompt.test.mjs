@@ -5,6 +5,11 @@ import { buildReviewPrompt } from "./build-review-prompt.mjs";
 
 const context = { writer: "writer-1", reviewer: "reviewer-2", invocation: "fresh CLI process with explicit model arguments", issue: 496, pr: 521, round: 1, head: "a".repeat(40), worktree: process.cwd(), diff: path.resolve("diff.patch"), reviewDir: path.resolve("private"), lens: "undirected", previous: "First round." };
 const prompt = buildReviewPrompt(context);
+const unlinked = buildReviewPrompt({ ...context, issue: null });
+assert.match(unlinked, /reviewing a change with no linked issue/);
+assert.ok(!unlinked.includes("issue #"));
+assert.match(unlinked, /gh pr comment 521 --body-file/);
+for (const issue of [undefined, 0, -1, "none"]) assert.throws(() => buildReviewPrompt({ ...context, issue }), /Invalid issue/);
 assert.match(prompt, /I am running `writer-1`/);
 assert.match(prompt, /reviewer route is `reviewer-2`/);
 assert.match(prompt, /gh pr comment 521 --body-file/);
