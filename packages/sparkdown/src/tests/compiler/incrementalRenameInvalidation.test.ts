@@ -4,6 +4,24 @@ import { SparkdownDocumentRegistry } from "../../compiler/classes/SparkdownDocum
 
 const URI = "inmemory:///rename.sd";
 const sets = ["declarations", "references", "semantics"] as const;
+type ExpectedToken = { tokenType: string; tokenModifiers: string[] };
+const variableToken: ExpectedToken = { tokenType: "variable", tokenModifiers: [] };
+
+function expectReference(
+  registry: SparkdownDocumentRegistry,
+  text: string,
+  name: string,
+  expected: ExpectedToken | undefined,
+  from = text.lastIndexOf(name),
+) {
+  expect(from, `fixture must contain ${name}`).toBeGreaterThanOrEqual(0);
+  expect(text.slice(from, from + name.length)).toBe(name);
+  const actual: unknown[] = [];
+  registry.annotations(URI)!.semantics!.between(from, from + name.length, (start, end, value) => {
+    if (start === from && end === from + name.length) actual.push(value.type);
+  });
+  expect(actual, `${name} at ${from}`).toEqual(expected ? [expected] : []);
+}
 function open(text: string) {
   const registry = new SparkdownDocumentRegistry([...sets]);
   registry.add({ textDocument: { uri: URI, text, version: 1, languageId: "sparkdown" } });
@@ -46,10 +64,11 @@ describe("incremental declaration invalidation", () => {
     it(`updates distant references after a ${local ? "local" : "global"} rename and undo`, () => {
       let text = fixture(local);
       const registry = open(text);
+      expectReference(registry, text, "trust", variableToken);
       let version = 2;
       const at = text.indexOf("trust") + 3;
       let narrow = 0;
-      for (const insert of ["q", "q", "q", "", "", ""]) {
+      for (const [step, insert] of ["q", "q", "q", "", "", ""].entries()) {
         const deleting = insert === "";
         const start = position(text, at);
         const end = position(text, at + (deleting ? 1 : 0));
@@ -57,6 +76,7 @@ describe("incremental declaration invalidation", () => {
         text = text.slice(0, at) + insert + text.slice(at + (deleting ? 1 : 0));
         const span = registry.tree(URI)!.prop(cachedCompilerProp);
         if (span?.reparsedTo != null && span.reparsedTo < text.lastIndexOf("trust")) narrow++;
+        expectReference(registry, text, "trust", step === 5 ? variableToken : undefined);
         expectParity(registry, text, `edit ${version - 2}, window ends ${span?.reparsedTo}`);
       }
       expect(narrow, "the parser must leave distant references outside its window").toBeGreaterThan(0);
@@ -76,6 +96,12 @@ describe("incremental declaration invalidation", () => {
     it(label!, () => {
       let text = initial!;
       const registry = open(text);
+      const name = label === "restore stdlib after shadow rename" ? "print" : "trust";
+      expectReference(registry, text, name, {
+        tokenType: label === "rename named function" ? "function" : "variable",
+        tokenModifiers: [],
+      });
+      if (text.includes("{future}")) expectReference(registry, text, "future", undefined);
       // Establish parser reuse without changing a binding first.
       const warm = text.indexOf("\n");
       registry.update({ textDocument: { uri: URI, version: 2 }, contentChanges: [{ range: { start: position(text, warm), end: position(text, warm) }, text: " " }] });
@@ -86,6 +112,31 @@ describe("incremental declaration invalidation", () => {
       expect(at).toBeGreaterThanOrEqual(0);
       registry.update({ textDocument: { uri: URI, version: 3 }, contentChanges: [{ range: { start: position(text, at), end: position(text, at + needle.length) }, text: after! }] });
       text = text.slice(0, at) + after + text.slice(at + needle.length);
+      const affectedName = label === "introduce previously unresolved name" ? "future" : name;
+      const affectedAt = text.lastIndexOf(affectedName);
+      const span = registry.tree(URI)!.prop(cachedCompilerProp);
+      expect(span?.reparsedTo, `${label}: a finite reparse window is required`).toBeTypeOf("number");
+      expect(span!.reparsedTo!, `${label}: affected reference must be outside the window`).toBeLessThan(affectedAt);
+      let expected: ExpectedToken | undefined;
+      switch (label) {
+        case "introduce previously unresolved name":
+          expected = variableToken;
+          expectReference(registry, text, "trust", undefined);
+          break;
+        case "change readonly modifiers":
+          expected = { tokenType: "variable", tokenModifiers: ["readonly", "static"] };
+          break;
+        case "change callable kind":
+          expected = { tokenType: "function", tokenModifiers: [] };
+          break;
+        case "restore stdlib after shadow rename":
+          expected = { tokenType: "function", tokenModifiers: ["defaultLibrary"] };
+          break;
+        case "preserve nested shadow":
+          expectReference(registry, text, "trust", variableToken, text.indexOf("return trust") + "return ".length);
+          break;
+      }
+      expectReference(registry, text, affectedName, expected, affectedAt);
       expectParity(registry, text, label!);
     });
   }
