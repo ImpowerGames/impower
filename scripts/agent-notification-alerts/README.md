@@ -151,7 +151,6 @@ are supported. A private launcher can set that
 environment variable and invoke the shared entry point.
 
 - `keyboard` / `speech`: enable each channel independently.
-- `logitech`: enable the additional Logitech G HUB lighting adapter (default false).
 - `shortcutModifiers`: `ctrl-alt` (default) or `ctrl-shift`; applies to both apps.
 - `zone`: `function-keys` or `all`, for manual calls without an app identity.
 - `durationMs`: retained for the legacy timed delivery helper; MCP/CLI alerts now persist until acknowledged. Lighting flashes once per second.
@@ -199,28 +198,6 @@ works, but its shortcut has no target. Opening a task does not clear its alert.
 Link routes were checked against the installed Windows app code on 2026-09-11.
 They are app internals and may change; actual navigation still needs a live
 check with the installed app. No focus-detection dependency is required.
-
-## Logitech keyboards
-
-The optional Logitech adapter uses the official [LED Illumination SDK](https://www.logitechg.com/en-us/programs/partner-developer-lab)
-through Windows Python and G HUB. Install G HUB and download the SDK from that
-page. Set `AGENT_ALERT_LOGITECH_DLL` to the absolute path of its
-`LED/Lib/LogitechLedEnginesWrapper/x64/LogitechLedEnginesWrapper.dll` for 64-bit
-Python, and set `logitech: true` in personal configuration. SDK binaries remain
-outside the shared repository. `AGENT_ALERT_PYTHON` is also required.
-
-The adapter uses the configured HID `keys` and category colors. This version
-supports F1–F12 for Logitech alerts, independently on the Codex and Claude keys.
-G HUB must allow application lighting control; onboard-memory mode or connection
-limitations can prevent effects. SDK acceptance is not evidence the physical
-keyboard changed: confirm on the device. G915 TKL Bluetooth behavior needs a live
-check; try LIGHTSPEED or USB if per-key lighting is unavailable.
-
-Lighting on MSI/SteelSeries and Logitech runs independently, with separate status
-reporting. The SDK targets Logitech per-key RGB devices, so it can affect more
-than one connected Logitech keyboard. Acknowledgement restores the affected
-key's saved lighting; clearing the last alert releases the SDK. Shortcuts are
-Windows-wide and work from either keyboard without Logitech-specific remapping.
 
 ## Existing projects considered
 
