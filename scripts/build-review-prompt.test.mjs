@@ -33,7 +33,7 @@ for (const invocation of ["method: TBD", "see <method>", "Invocation: UNKNOWN."]
 assert.doesNotThrow(() => buildReviewPrompt({ ...context, invocation: "Fresh CLI process; the prior report quoted 'method: TBD' as invalid." }));
 const literal = "Quoted #P #N P /P/ HEAD <LENS> \\<LENS\\> $& $$ $` $'";
 const literalPrompt = buildReviewPrompt({ ...context, previous: literal, lens: literal, diff: path.resolve("folder P", "HEAD.patch") });
-assert.ok(literalPrompt.includes(literal + " Your job"), "previous evidence must remain literal");
+assert.ok(literalPrompt.includes(literal + " Record your complete independent first pass"), "previous evidence must remain literal");
 assert.ok(literalPrompt.includes("Your lens is " + literal + ";"), "lens dollar patterns and tokens must remain literal");
 assert.ok(literalPrompt.includes(path.resolve("folder P", "HEAD.patch")), "paths must remain literal");
 assert.doesNotThrow(() => buildReviewPrompt({ ...context, writer: "o3", reviewer: "provider/model-2" }), "route validation must not assume one naming family");

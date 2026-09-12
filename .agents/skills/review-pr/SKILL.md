@@ -9,7 +9,7 @@ Keep the PR draft until review, corrections and current-head CI are complete. Ne
 
 ## 1. Size the review
 
-Internal skills/tooling work defaults to one undirected reviewer; add a focused second only for deletion or data-preservation risk. Application changes use one for minimal docs/config or a small proven fix, two or three for a typical package change, and four or five for compiler/runtime semantics, incrementality, serialization, generated grammar or broad changes. Always include the undirected lens; when application risk lies between tiers, round up.
+Use one undirected reviewer for minimal low-risk changes, two for standard production changes, and three for high-impact changes with concrete compiler/runtime, incremental-state, serialization, security, or cross-package risks. Internal prose defaults to one undirected reviewer; executable workflow, permissions, recovery, or data-preservation changes use two. Select by risk, including callers, rather than line count. Always keep the undirected reviewer; combine specialist lenses within the remaining reviewers. Test honesty and repository rules apply to every reviewer. Counts exclude the writer and do not change the machine-wide four-process capacity.
 
 ## 2. Require independence
 
@@ -37,8 +37,8 @@ Any code correction reopens regression and live/tooling verification. Commit by 
 
 ## 5. Readiness gate
 
-Before `gh pr ready`, require every reviewer process to exit; every full report to be published; every finding to be adjudicated; all accepted fixes committed, pushed and reverified; no retried lens outstanding; current-head CI green; and final correction review/disclosure under the next section. Read back `number,isDraft,reviewDecision`. If incomplete, leave a draft and state what remains on the PR and to the user.
+Before `gh pr ready`, require every reviewer process to exit; all required coverage and full reports for the frozen head; every finding and verification gap adjudicated; all accepted fixes committed, pushed and reverified; current-head CI green; and independent review of behavior-changing corrections. Only verified, disclosed non-behavioral corrections qualify for the next section's exception. Read back `number,isDraft,reviewDecision`. Missing coverage, blockers, or material verification gaps keep the PR draft; report what remains.
 
 ## 6. Later changes
 
-Before editing a ready PR, return it to draft and explain why. Read [later-round rules](references/later-rounds.md) before deciding whether to launch another round. Size rounds by the new diff, preserve round history and review through round 3; if code changes afterward, run one narrow round 4. After round 4, do not automatically launch another review. Verify final corrections and record unreviewed commits and remaining risk. Keep the PR draft when another independent review would materially reduce unresolved risk; otherwise mark the PR ready for human review only when all gates pass. New scope does not silently reset the count; further review requires explicit user direction.
+Before editing a ready PR, return it to draft and explain why. Read [later-round rules](references/later-rounds.md) before deciding whether to launch another round. Size follow-up rounds by correction risk with full-PR context. Stop after any complete round when readiness gates pass, with a cap of three autonomous rounds. Retries and pending reviewers stay in their original round on the same frozen head. Behavior-changing corrections after round three keep the PR draft pending independent review. New scope, a resumed session, or a new journal never resets the count; further review requires explicit user direction.

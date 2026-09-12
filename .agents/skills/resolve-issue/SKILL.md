@@ -50,11 +50,13 @@ Read [commit and publishing](references/publishing.md) before publishing. Stage 
 
 Check CI for the current head. For cancelled/timed-out runs, read [CI evidence](references/ci-evidence.md) and diagnose before rerunning or changing bounds; an unexplained cancellation is not a verified gate.
 
-Invoke `/review-pr` now (skill name `review-pr`). It owns review, adjudication, correction rounds and readiness. Do not mark ready before its gates pass.
+Invoke `/review-pr` now (skill name `review-pr`). It owns reviewer counts, risk selection, correction rounds, recovery, and readiness. Do not mark ready before its gates pass; invoking it again does not reset the cycle count.
 
 ## The completion gate
 
-A behavior test is red on the base and green on the fix (or the relevant tooling check proves the change); live or measured evidence is inspected and limitations disclosed; the PR contains `Closes #N` and verification; review marks it ready or the draft states exactly what remains.
+Implementation is complete and ready for human review only when a behavior test is red on the base and green on the fix (or the relevant tooling check proves the change); live or measured evidence is inspected and limitations disclosed; the PR contains `Closes #N` and verification; and review has satisfied its gates and marked it ready. The maintainer merges; GitHub closes the linked ticket on merge.
+
+Report the last independently reviewed commit, rounds used, outstanding findings or verification gaps (or None), and changes after that commit. If a gate remains unfinished, keep the PR draft and describe an incomplete draft handoff with the remaining work and next action. Disclosure of blockers does not make the implementation complete or the ticket resolved.
 
 At completion, or when yielding for input or help, provide the normal chat handoff and invoke [notify-user](../notify-user/SKILL.md) for an optional companion alert identifying the work and next action. Use `done` when no action is needed, `user_input_needed` for a question or review/merge request, or `blocked` when progress requires help. Preserve this workflow's gates and include evidence, links and missing information in chat. If the notifier is unavailable, skip it silently.
 

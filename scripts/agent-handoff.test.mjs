@@ -3,6 +3,8 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { execFileSync, spawn } from "node:child_process";
+import childProcess from "node:child_process";
+import { syncBuiltinESMExports } from "node:module";
 import { pathToFileURL } from "node:url";
 import { runHandoff as handoff, checkReviewRound } from "./agent-handoff.mjs";
 import { reserveReviewerSlot, releaseReviewerSlot, recoverReviewerSlot, processIdentity, reviewerSlotStatus } from "./reviewer-slots.mjs";
@@ -54,37 +56,82 @@ config.steps.first.model = "reviewer-test";
 config.steps.first.args = [child, "first", "--model", "reviewer-test"];
 config.steps.first.next = ["second"];
 write(); await assert.rejects(runHandoff(file), /posted comment IDs/);
-assert.doesNotThrow(() => checkReviewRound(4, 3, false), "round 3 corrections get a narrow round 4");
-assert.doesNotThrow(() => checkReviewRound(4, 4, false), "serial lenses share a round");
-assert.throws(() => checkReviewRound(5, 4, false), /1..4/);
-assert.throws(() => checkReviewRound(4, 4, true), /risk assessment/);
+assert.doesNotThrow(() => checkReviewRound(3, 2, false), "round 3 remains available");
+assert.doesNotThrow(() => checkReviewRound(3, 3, false), "serial lenses share a round");
+assert.throws(() => checkReviewRound(4, 3, false), /1..3/, "round 4 must not launch automatically");
+assert.throws(() => checkReviewRound(3, 3, true), /no automatic review/);
 assert.throws(() => checkReviewRound(1, 3, false), /preserve/);
-assert.throws(() => checkReviewRound(4, 1, false), /skip/);
-config.journal = path.join(scratch, "round-four.jsonl");
-config.completedReviewRound = 4;
+assert.throws(() => checkReviewRound(3, 1, false), /skip/);
+config.journal = path.join(scratch, "final-corrections.jsonl");
+config.completedReviewRound = 3;
+config.reviewedHead = git("rev-parse", "HEAD").trim();
 config.finalCorrections = true;
-config.steps.first.round = 4;
-write(); await assert.rejects(runHandoff(file), /risk assessment/);
-assert.ok(!fs.readFileSync(config.journal, "utf8").includes('"event":"launching"'), "recovery after round 4 must stop before spawning");
-config.journal = path.join(scratch, "pending-fourth-lens.jsonl");
+config.steps.first.round = 3;
+write(); await assert.rejects(runHandoff(file), /no automatic review/);
+assert.ok(!fs.readFileSync(config.journal, "utf8").includes('"event":"launching"'), "recovery after final corrections must stop before spawning");
+config.journal = path.join(scratch, "pending-third-lens.jsonl");
 config.finalCorrections = false;
-write(); await assert.rejects(runHandoff(file), /posted comment IDs/, "a pending fourth-round lens must launch before its fixture's empty report is rejected");
+write(); await assert.rejects(runHandoff(file), /posted comment IDs/, "a pending third-round lens must launch before its fixture's empty report is rejected");
 assert.ok(fs.readFileSync(config.journal, "utf8").includes('"event":"launching"'));
+config.journal = path.join(scratch, "changed-third-round-head.jsonl");
+git("commit", "--allow-empty", "-m", "correction after review");
+write(); await assert.rejects(runHandoff(file), /same round requires the recorded reviewed head/);
+assert.ok(!fs.readFileSync(config.journal, "utf8").includes('"event":"launching"'));
 config.journal = path.join(scratch, "missing-recovery-state.jsonl");
 delete config.finalCorrections;
 write(); await assert.rejects(runHandoff(file), /finalCorrections/);
 assert.equal(fs.existsSync(config.journal), false);
+config.finalCorrections = false;
+config.journal = path.join(scratch, "missing-reviewed-head.jsonl");
+delete config.reviewedHead;
+write(); await assert.rejects(runHandoff(file), /Supply reviewedHead/);
+assert.equal(fs.existsSync(config.journal), false);
+
+// Finish a real third-round lens, recover its recorded state, then make a
+// correction. Only the GitHub read is stubbed; children, commits and journals
+// use the scratch repository and the real launcher.
+const lifecycleChild = path.join(scratch, "round-lifecycle.mjs");
+fs.writeFileSync(lifecycleChild, `import fs from "node:fs"; import {execFileSync} from "node:child_process"; let p=""; for await (const c of process.stdin) p+=c; const role=/role=(\\w+)/.exec(p)[1]; if(role==="implement")execFileSync("git",["-c","user.name=test","-c","user.email=test@example.invalid","commit","--allow-empty","-m","verified correction"]); const head=execFileSync("git",["rev-parse","HEAD"],{encoding:"utf8"}).trim(); fs.writeFileSync(/Write (.*?) with the editor tool/.exec(p)[1],JSON.stringify({head,next:role==="implement"?"review":null,commentIds:role==="review"?[123]:[],summary:"fixture completed"}));`);
+const lifecycle = { ...config, pr:531, first:"review", maxSteps:2, reviewedHead:git("rev-parse","HEAD").trim(), journal:path.join(scratch,"completed-third.jsonl"), steps:{
+  review:{role:"review",round:3,model:"reviewer-test",executable:process.execPath,args:[lifecycleChild,"--model","reviewer-test"],prompt,next:[null]},
+  implement:{role:"implement",model:"writer-test",executable:process.execPath,args:[lifecycleChild,"--model","writer-test"],prompt,next:["review"]},
+}};
+const originalExec = childProcess.execFileSync;
+try {
+  childProcess.execFileSync = (exe, args, options) => exe === "gh"
+    ? JSON.stringify({issue_url:"https://api.github.com/repos/ImpowerGames/impower/issues/531",body:git("rev-parse","HEAD").trim()})
+    : originalExec(exe,args,options);
+  syncBuiltinESMExports();
+  fs.writeFileSync(file,JSON.stringify(lifecycle)); await runHandoff(file);
+  const completed=fs.readFileSync(lifecycle.journal,"utf8").trim().split("\n").map(JSON.parse).find(row=>row.event==="completed");
+  assert.equal(completed.completedRound,3);
+  assert.equal(completed.reviewedHead,lifecycle.reviewedHead);
+  assert.equal(completed.finalCorrections,false);
+  lifecycle.journal=path.join(scratch,"recovered-third.jsonl");
+  lifecycle.completedReviewRound=completed.completedRound;
+  lifecycle.reviewedHead=completed.reviewedHead;
+  lifecycle.finalCorrections=completed.finalCorrections;
+  fs.writeFileSync(file,JSON.stringify(lifecycle)); await runHandoff(file);
+  lifecycle.journal=path.join(scratch,"corrected-third.jsonl"); lifecycle.first="implement";
+  fs.writeFileSync(file,JSON.stringify(lifecycle));
+  await assert.rejects(runHandoff(file),/no automatic review/);
+  const corrected=fs.readFileSync(lifecycle.journal,"utf8").trim().split("\n").map(JSON.parse);
+  assert.equal(corrected.find(row=>row.event==="completed").finalCorrections,true);
+  assert.equal(corrected.filter(row=>row.event==="launching").length,1,"correction cannot trigger another third-round review");
+} finally { childProcess.execFileSync=originalExec; syncBuiltinESMExports(); }
 config.completedReviewRound = 0;
+delete config.finalCorrections;
+delete config.reviewedHead;
 config.steps.first.role = "implement";
 config.steps.first.model = "writer-test";
 config.steps.first.args = [child, "first", "--model", "writer-test"];
 config.steps.second.role = "review";
 config.steps.second.model = "reviewer-test";
 config.steps.second.args = [child, "second", "--model", "reviewer-test"];
-for (const badRound of [undefined, "4", 5]) {
+for (const badRound of [undefined, "3", 4]) {
   config.journal = path.join(scratch, `invalid-round-${badRound}.jsonl`);
   config.steps.second.round = badRound;
-  write(); await assert.rejects(runHandoff(file), /round must be 1..4/);
+  write(); await assert.rejects(runHandoff(file), /round must be 1..3/);
   assert.equal(fs.existsSync(config.journal), false, "invalid future review must fail before an implementation launch");
 }
 console.log("PASS: sequential completion, replay refusal, distinct routes, declared transitions, coordinator lock and missing-review refusal");

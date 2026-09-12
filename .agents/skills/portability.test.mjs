@@ -33,7 +33,9 @@ const contractErrors = (text) => contracts.filter((rule) => !text.includes(rule)
 contracts.push("unavailable runtime introspection alone is not an abort condition");
 assert.deepEqual(contractErrors(prompt), []);
 for (const rule of contracts) assert.deepEqual(contractErrors(prompt.replaceAll(rule, "")), [rule], "mutation: " + rule);
-for (const rule of ["run one narrow round 4", "do not automatically launch another review", "Keep the PR draft when another independent review", "mark the PR ready for human review", "does not silently reset the count"]) assert.ok(prompt.includes(rule), rule);
+// Numerical transitions and recovery behavior are exercised by agent-handoff.test.mjs.
+// Keep these policy-only invariants visible in the prompt consumed by reviewers.
+for (const rule of ["Record your complete independent first pass", "Separately label unverified concerns and coverage gaps", "Behavior-changing fix commits have themselves been independently reviewed", "Exhausting the cap never grants readiness"]) assert.ok(prompt.includes(rule), rule);
 // Concrete event mappings belong in the runner adapter, never policy logic.
 for (const file of ["policy.mjs", "typed-issue-hook.mjs", "shared-stash-hook.mjs"]) {
   const source = fs.readFileSync(path.join(root, ".agents/hooks", file), "utf8");
