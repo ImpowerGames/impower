@@ -2,11 +2,14 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { execFileSync } from "node:child_process";
-import { runHandoff, checkReviewRound } from "./agent-handoff.mjs";
+import { execFileSync, spawn } from "node:child_process";
+import { pathToFileURL } from "node:url";
+import { runHandoff as handoff, checkReviewRound } from "./agent-handoff.mjs";
+import { reserveReviewerSlot, releaseReviewerSlot, recoverReviewerSlot, processIdentity } from "./reviewer-slots.mjs";
 
 const scratch = fs.mkdtempSync(path.join(os.tmpdir(), "impower-handoff-"));
 console.log(`Scratch repository: ${scratch}`);
+const runHandoff = (file) => handoff(file, {slotRoot:path.join(scratch,"serial-slots")});
 const worktree = path.join(scratch, "repo");
 fs.mkdirSync(worktree);
 const git = (...args) => execFileSync("git", args, { cwd: worktree, encoding: "utf8", env: { ...process.env, GIT_AUTHOR_NAME: "test", GIT_AUTHOR_EMAIL: "test@example.invalid", GIT_COMMITTER_NAME: "test", GIT_COMMITTER_EMAIL: "test@example.invalid" } });
@@ -85,3 +88,85 @@ for (const badRound of [undefined, "4", 5]) {
   assert.equal(fs.existsSync(config.journal), false, "invalid future review must fail before an implementation launch");
 }
 console.log("PASS: sequential completion, replay refusal, distinct routes, declared transitions, coordinator lock and missing-review refusal");
+
+// Independent coordinators in distinct repositories race for one machine pool.
+const pool = path.join(scratch, "machine-slots");
+const release = path.join(scratch, "release-reviewers");
+const reviewer = path.join(scratch, "holding-reviewer.mjs");
+fs.writeFileSync(reviewer, `import fs from 'node:fs'; fs.writeFileSync(process.argv[2], 'review posted'); const timer=setInterval(()=>{if(fs.existsSync(process.argv[3])){clearInterval(timer);process.exit(0)}},25);`);
+const coordinator = path.join(scratch, "coordinator.mjs");
+fs.writeFileSync(coordinator, `import {runHandoff} from ${JSON.stringify(pathToFileURL(path.resolve("scripts/agent-handoff.mjs")).href)}; runHandoff(process.argv[2], {slotRoot:process.argv[3],identifyProcess:process.argv[4]==='uncertain'?()=>{throw new Error('fixture registration failure')}:undefined}).catch(e=>{console.error(e.message);process.exitCode=1});`);
+const launched = [];
+const launch = (i) => {
+  const repo = path.join(scratch, `concurrent-repo-${i}`);
+  execFileSync("git", ["clone", "--quiet", worktree, repo]);
+  const plan = path.join(scratch, `concurrent-${i}.json`);
+  const posted = path.join(scratch, `posted-${i}`);
+  fs.writeFileSync(plan, JSON.stringify({worktree:repo, writer:"writer-test", reviewer:"reviewer-test", completedReviewRound:0, maxSteps:1, first:"review", journal:path.join(scratch,`concurrent-${i}.jsonl`), steps:{review:{role:"review",round:1,model:"reviewer-test",executable:process.execPath,args:[reviewer,posted,release,"--model","reviewer-test"],prompt,next:[null]}}}));
+  const proc = spawn(process.execPath, [coordinator, plan, pool, i===0?"uncertain":"recorded"], {windowsHide:true,stdio:["ignore","pipe","pipe"]});
+  let output=""; proc.stdout.on("data",c=>output+=c); proc.stderr.on("data",c=>output+=c);
+  const done = new Promise(resolve=>proc.once("close",code=>resolve({code,output})));
+  const item={proc,done,posted}; launched.push(item); return item;
+};
+const until = async (predicate) => { const end=Date.now()+30000; while(!predicate()){ if(Date.now()>end)throw new Error("Timed out waiting for fixture"); await new Promise(r=>setTimeout(r,25)); } };
+try {
+  for(let i=0;i<4;i++)launch(i);
+  await until(()=>launched.every(p=>fs.existsSync(p.posted)));
+  const fifth=launch(4);
+  await until(()=>fs.existsSync(fifth.posted)||fifth.proc.exitCode!==null);
+  assert.equal(fs.existsSync(fifth.posted),false,"a fifth reviewer must not launch while four posted reviewers are still running");
+  assert.match((await fifth.done).output,/reviewer slots.*occupied/i);
+  assert.match(fs.readFileSync(path.join(scratch,"concurrent-0.jsonl"),"utf8"),/identity-uncertain/,"a real post-spawn registration failure must retain capacity while its child runs");
+} finally {
+  fs.writeFileSync(release,"exit");
+  await Promise.all(launched.map(p=>p.done));
+}
+console.log("PASS: real concurrent coordinators reject a fifth reviewer after four reports appear and before process exit");
+assert.equal(fs.readdirSync(pool).length,0,"confirmed exits release every reservation");
+
+const slotWorker=path.join(scratch,"slot-worker.mjs");
+fs.writeFileSync(slotWorker,`import fs from 'node:fs'; import {spawn} from 'node:child_process'; import {reserveReviewerSlot,releaseReviewerSlot,processIdentity} from ${JSON.stringify(pathToFileURL(path.resolve("scripts/reviewer-slots.mjs")).href)}; const slot=reserveReviewerSlot(process.argv[2]);slot.append({phase:'launching'}); const child=spawn(process.execPath,[${JSON.stringify(reviewer)},process.argv[3]+'.posted',process.argv[3]+'.release'],{stdio:'ignore',windowsHide:true,detached:true});child.once('close',()=>releaseReviewerSlot(slot)); const identity=processIdentity(child.pid);if(process.argv[4]!=='uncertain')slot.append({phase:'running',child:identity});fs.writeFileSync(process.argv[3],JSON.stringify({file:slot.file,child:identity}));`);
+for(const mode of ["recorded","uncertain"]){
+  const ready=path.join(scratch,`interrupted-${mode}`);
+  const worker=spawn(process.execPath,[slotWorker,path.join(scratch,`pool-${mode}`),ready,mode],{stdio:"ignore",windowsHide:true});
+  const done=new Promise(resolve=>worker.once("close",resolve));
+  await until(()=>fs.existsSync(ready));
+  const state=JSON.parse(fs.readFileSync(ready,"utf8"));
+  await until(()=>fs.existsSync(ready+".posted"));
+  assert.deepEqual(processIdentity(state.child.pid),state.child);
+  assert.throws(()=>recoverReviewerSlot(state.file),/Coordinator still running/);
+  worker.kill(); await done;
+  assert.throws(()=>recoverReviewerSlot(state.file),mode==="recorded"?/Reviewer still running/:/Uncertain reviewer launch/);
+  fs.writeFileSync(ready+".release","exit");
+  await until(()=>processIdentity(state.child.pid)===null);
+  if(mode==="recorded")assert.equal(recoverReviewerSlot(state.file).recovered,state.file);
+  else assert.throws(()=>recoverReviewerSlot(state.file),/Uncertain reviewer launch/,"an interrupted spawn-registration gap remains occupied even after a probe says its child exited");
+}
+const isolated=path.join(scratch,"ownership-slots");
+const owned=reserveReviewerSlot(isolated);
+const original=fs.readFileSync(owned.file,"utf8");
+fs.writeFileSync(owned.file,original.replace(owned.token,"different-generation"));
+assert.throws(()=>releaseReviewerSlot(owned),/ownership changed/);
+assert.ok(fs.existsSync(owned.file),"release cannot delete a replacement generation");
+fs.writeFileSync(owned.file,original);
+releaseReviewerSlot(owned);
+const reused=reserveReviewerSlot(isolated);
+const reusedRecord=JSON.parse(fs.readFileSync(reused.file,"utf8"));
+reused.close();
+reusedRecord.owner.start+="-older-process";
+fs.writeFileSync(reused.file,JSON.stringify(reusedRecord)+"\n"+JSON.stringify({token:reused.token,phase:"running",child:{...reusedRecord.owner}})+"\n");
+const recoveryWorker=path.join(scratch,"recover-slot.mjs");
+fs.writeFileSync(recoveryWorker,`import {recoverReviewerSlot} from ${JSON.stringify(pathToFileURL(path.resolve("scripts/reviewer-slots.mjs")).href)}; try{recoverReviewerSlot(process.argv[2])}catch(e){console.error(e.message);process.exitCode=1}`);
+const recoveries=[0,1].map(()=>new Promise(resolve=>{
+  const child=spawn(process.execPath,[recoveryWorker,reused.file],{stdio:"ignore",windowsHide:true});
+  child.once("close",resolve);
+}));
+assert.deepEqual((await Promise.all(recoveries)).sort(),[0,1],"racing recoveries remove one dead generation exactly once, using OS start identity to distinguish PID reuse");
+const replacement=reserveReviewerSlot(isolated);
+assert.throws(()=>recoverReviewerSlot(replacement.file),/Coordinator still running/);
+releaseReviewerSlot(replacement);
+const ambiguous=reserveReviewerSlot(isolated); ambiguous.close();
+fs.appendFileSync(ambiguous.file,'{"partial":');
+assert.throws(()=>recoverReviewerSlot(ambiguous.file));
+assert.ok(fs.existsSync(ambiguous.file),"partial records are retained");
+console.log("PASS: interrupted coordinator retains live children, uncertain registration fails closed, PID reuse and generation-safe release");

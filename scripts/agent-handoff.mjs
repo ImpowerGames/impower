@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { spawn, execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import { reserveReviewerSlot, releaseReviewerSlot, processIdentity } from "./reviewer-slots.mjs";
 
 const read = (file) => JSON.parse(fs.readFileSync(file, "utf8"));
 const gitHead = (cwd) => execFileSync("git", ["rev-parse", "HEAD"], { cwd, encoding: "utf8" }).trim();
@@ -15,7 +16,7 @@ export function checkReviewRound(round, completedRound, finalCorrections) {
 
 // Configuration is a local, caller-authored artifact. Comments and child output
 // can select a declared transition but can never supply executable commands.
-export async function runHandoff(configFile) {
+export async function runHandoff(configFile, { slotRoot, identifyProcess = processIdentity } = {}) {
   const config = read(configFile);
   const cwd = fs.realpathSync(config.worktree);
   const journal = path.resolve(config.journal);
@@ -48,6 +49,7 @@ export async function runHandoff(configFile) {
   let current = config.first;
   let completedRound = config.completedReviewRound;
   let finalCorrections = config.finalCorrections ?? false;
+  let activeChild;
   try {
     fs.writeFileSync(owner, JSON.stringify({ pid: process.pid, startedAt: new Date().toISOString(), journal }));
     fd = fs.openSync(journal, "wx");
@@ -64,13 +66,27 @@ export async function runHandoff(configFile) {
       const prompt = fs.readFileSync(step.prompt, "utf8") + `\n\nHandoff contract: role=${step.role}, configured model=${step.model}, reviewed head=${head}. Write ${completion} with the editor tool as JSON: {"head":"<actual HEAD>","next":"<declared transition or null>","commentIds":[<numeric GitHub comment IDs>],"summary":"<result>"}. Allowed next steps: ${JSON.stringify(step.next)}. Review and adjudication must post their complete report/dispositions before completion; include those IDs. Do not mark ready or merge. Do not modify repository files during review.\n`;
       append({ event: "launching", index, step: current, role: step.role, model: step.model, round: step.round, completedRound, head, output, completion });
       const log = fs.openSync(output, "wx");
+      let slot;
+      try { slot = step.role === "review" ? reserveReviewerSlot(slotRoot) : null; }
+      catch (error) { fs.closeSync(log); throw error; }
+      if (slot) {
+        slot.append({phase:"launching",head,output,completion,journal});
+        append({event:"reserved",index,slot:slot.file,token:slot.token,owner:slot.owner});
+      }
       const child = spawn(step.executable, step.args, { cwd, shell: false, windowsHide: true, stdio: ["pipe", log, log] });
+      activeChild = child;
+      const exited = new Promise((resolve) => { let error; child.once("error", (e) => {error=e.message;}); child.once("close", (code, signal) => resolve({ code, signal, error })); });
       append({ event: "running", index, step: current, pid: child.pid, startedAt: new Date().toISOString(), head, output, completion });
-      const exited = new Promise((resolve, reject) => { child.once("error", reject); child.once("close", (code, signal) => resolve({ code, signal })); });
+      if (slot && child.pid) {
+        try { slot.append({phase:"running",child:identifyProcess(child.pid),head,output,completion,journal}); }
+        catch (error) { append({event:"identity-uncertain",index,reason:error.message}); }
+      }
       child.stdin.on("error", () => {});
       child.stdin.end(prompt);
       let result;
       try { result = await exited; } finally { fs.closeSync(log); }
+      activeChild = null;
+      if (slot) releaseReviewerSlot(slot);
       append({ event: "exited", index, step: current, ...result });
       if (result.code !== 0) throw new Error(`Role ${current} failed; inspect ${output}`);
       if (step.role === "review" && (gitHead(cwd) !== head || gitStatus(cwd) !== status)) throw new Error("Review changed the frozen head or worktree");
@@ -94,7 +110,7 @@ export async function runHandoff(configFile) {
     throw error;
   } finally {
     try { if (fd !== undefined) fs.closeSync(fd); }
-    finally { try { fs.closeSync(owner); } finally { fs.unlinkSync(lock); } }
+    finally { try { fs.closeSync(owner); } finally { if (!activeChild) fs.unlinkSync(lock); } }
   }
 }
 
