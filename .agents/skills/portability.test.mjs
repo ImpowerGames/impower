@@ -4,6 +4,7 @@ import path from "node:path";
 import { execFileSync, spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { reviewTemplate } from "../../scripts/build-review-prompt.mjs";
+import { checkReviewRound } from "../../scripts/agent-handoff.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const files = execFileSync("git", ["ls-files", "-z"], { cwd: root, encoding: "utf8" }).split("\0").filter(Boolean);
@@ -33,8 +34,24 @@ const contractErrors = (text) => contracts.filter((rule) => !text.includes(rule)
 contracts.push("unavailable runtime introspection alone is not an abort condition");
 assert.deepEqual(contractErrors(prompt), []);
 for (const rule of contracts) assert.deepEqual(contractErrors(prompt.replaceAll(rule, "")), [rule], "mutation: " + rule);
-// Numerical transitions and recovery behavior are exercised by agent-handoff.test.mjs.
-// Keep these policy-only invariants visible in the prompt consumed by reviewers.
+// Exercise transitions in agent-handoff.test.mjs and keep the documented cap
+// tied to the launcher's accepted range so prose drift fails before a launch.
+let enforcedCap = 0;
+for (let round = 1; round <= 12; round++) {
+  try { checkReviewRound(round, round - 1, false); enforcedCap = round; }
+  catch { break; }
+}
+assert.ok(enforcedCap > 0 && enforcedCap < 12, "launcher must have a bounded review range");
+const noReset = "New scope, a resumed session, a new journal, or a changed head does not reset the count.";
+const policyErrors = (text) => [
+  ...(Number(/The autonomous cap is (\d+) rounds/.exec(text)?.[1]) === enforcedCap ? [] : ["round cap"]),
+  ...(text.includes(noReset) ? [] : ["count preservation"]),
+];
+assert.deepEqual(policyErrors(prompt), []);
+assert.deepEqual(policyErrors(prompt.replace(`The autonomous cap is ${enforcedCap} rounds`, `The autonomous cap is ${enforcedCap + 1} rounds`)), ["round cap"]);
+assert.deepEqual(policyErrors(prompt.replace(noReset, "")), ["count preservation"]);
+assert.deepEqual(policyErrors(prompt.replace(noReset, noReset.replace("does not reset", "resets"))), ["count preservation"]);
+// These policy-only invariants must reach the prompt consumed by reviewers.
 for (const rule of ["Record your complete independent first pass", "Separately label unverified concerns and coverage gaps", "Behavior-changing fix commits have themselves been independently reviewed", "Exhausting the cap never grants readiness"]) assert.ok(prompt.includes(rule), rule);
 // Concrete event mappings belong in the runner adapter, never policy logic.
 for (const file of ["policy.mjs", "typed-issue-hook.mjs", "shared-stash-hook.mjs"]) {
