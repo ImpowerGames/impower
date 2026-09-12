@@ -244,7 +244,8 @@ describe("MessageConnection response handling", () => {
   it("ignores progress-shaped traffic missing the protocol marker until the final reply", async () => {
     const { a } = pair();
     const request = requestMessage("test/unmarked-progress");
-    const pending = a.request(request);
+    const values: unknown[] = [];
+    const pending = a.request(request, undefined, (value) => values.push(value));
     a.receive({
       method: request.method,
       id: request.id,
@@ -252,6 +253,7 @@ describe("MessageConnection response handling", () => {
     });
     expect(await settlesWithin(pending, 20)).toBe(TIMED_OUT);
     expect(a.listenerCount).toBe(1);
+    expect(values).toEqual([]);
     a.receive({
       jsonrpc: "2.0",
       method: request.method,
@@ -298,8 +300,8 @@ describe("MessageConnection response handling", () => {
     expect(a.listenerCount).toBe(1);
   });
 
-  // Defence in depth: even if some other producer emits a response with
-  // neither field, the requester must not wait forever.
+  // Defence in depth for an empty final envelope, excluding request echoes
+  // and value-only traffic (which still requires a valid final reply).
   it("rejects a hand-crafted response carrying neither result nor error", async () => {
     const { a } = pair();
     const request = requestMessage("test/malformed");

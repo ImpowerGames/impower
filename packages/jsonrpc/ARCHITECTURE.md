@@ -35,7 +35,11 @@ like result payloads, are not schema-validated by the envelope guard, so relays
 still deliver peer failures. MessageConnection normalizes malformed errors and
 preserves the original reply in diagnostic data. It also rejects addressed
 malformed final envelopes matching both request ID and method, excluding echoes
-and progress-shaped traffic. Other relays retain their
+and progress-shaped traffic. Invalid value-only envelopes are ignored, not
+delivered to progress callbacks: without a valid final reply the request remains
+pending, as it did before this refactor. Numeric peer error codes are preserved
+without range or finiteness validation; external error-schema validation remains
+adapter work. Other relays retain their
 existing rejection policy; this is not a universal settlement policy.
 
 Progress uses `method/progress`; matchers also accept the legacy bare method with
