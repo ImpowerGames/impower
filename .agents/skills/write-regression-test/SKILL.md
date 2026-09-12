@@ -69,7 +69,7 @@ It snapshots the files, reverts them to the base revision, runs the test and req
 }
 ```
 
-`ok: true` means exactly this: every named file differs from the base, the test exited non-zero on the base with output that reads as a test failure, every file came back byte-for-byte, the test exited zero on the fix, and, on a run that names vitest or whose output carries vitest's own run banner, a `Test Files`/`Tests` summary could be parsed from the red output and it reports tests having run: a summary that reads `Tests  no tests` is a problem rather than a proof, because every test file failed to collect and nothing was asserted. It is an exit-code proof. Which test failed is in `red.tail`, and reading it is your job: a red where the ticket's new case passed and an unrelated case in the same file failed looks identical to the command; on a run with more than one failing test, `red.tail` (the last 40 output lines) is the last stack trace, not the count. Quote the assertion from `red.tail`, and `red.summary` and `green.summary`, in the PR body. `ok: false` exits non-zero, and `problems` is never empty when it does:
+`ok: true` means exactly this: every named file differs from the base, the test exited non-zero on the base with output that reads as a test failure, every file came back byte-for-byte, the test exited zero on the fix, and, on a run that names vitest or whose output carries vitest's own run banner, a `Test Files`/`Tests` summary could be parsed from the red output and it reports tests having run: a summary that reads `Tests  no tests` is a problem rather than a proof, because every test file failed to collect and nothing was asserted. It is an exit-code proof. Read `red.failures` to identify the ticket's failing case: an unrelated failure looks identical to the command. This excerpt keeps the first 40 recognized failure lines, strips color codes, caps each line at 2000 characters, and reports additional matches in `failuresOmitted`. `red.tail` keeps the last 40 nonempty lines, which passing output can displace. Each half saves its captured output at `logPath` in the snapshot directory; read that log for unmatched formats, truncated excerpts and assertion context. Output terminated at the 64 MiB capture limit remains partial and proves nothing. Quote the actual assertion and the red/green summaries in the PR body. `ok: false` exits non-zero, and `problems` is never empty when it does:
 
 - The test passed against the base: it pins nothing. Either it does not assert the ticket's behaviour, or `--files` does not name where the fix lives.
 - A file is identical to the base. Nothing to revert in it: either the fix is committed (pass `--base origin/main`) or the file is not where the fix lives.
@@ -96,6 +96,20 @@ Keep each half of that cycle under the command tool's own timeout: the swap, the
 A test added for a line the base commit already has cannot go red by swapping sources, since the base already contains that line; check it by mutation instead: weaken that line alone with a script that patches and restores the file, byte-compared, run the one test, and report it as checked by mutation.
 
 Record both outcomes for the PR body.
+
+`failureLinesTruncated` counts excerpt lines clipped to the character limit. Recognized failure labels are evidence to inspect, not an exhaustive test inventory; the saved raw logs retain the details that the excerpt omits.
+
+To exercise the cycle in a throwaway repository, import `runRedGreen` directly and pass the scratch repository's root. The driver CLI deliberately accepts only its own worktree. Author a private `.mjs` file with the editor capability, using `pathToFileURL` for the module's absolute native path on Windows and POSIX:
+
+```javascript
+import { pathToFileURL } from "node:url";
+const { runRedGreen } = await import(pathToFileURL(process.argv[2]).href);
+const report = runRedGreen({ repoRoot: process.argv[3], test: "node check.mjs", files: ["lib.mjs"], log: console.log });
+console.log(JSON.stringify(report, null, 2));
+process.exitCode = report.ok ? 0 : 1;
+```
+
+Invoke that file with the absolute `.agents/skills/drive-web-editor/redgreen.mjs` path and the scratch repository path as separate quoted arguments. Initialize and commit the scratch baseline, then apply its fix before invoking it; print the scratch repository path in the same command as any destructive experiment. A bare Windows drive path is not an ESM URL. Keep the report, snapshot and logs outside the worktree.
 
 ---
 
@@ -125,11 +139,13 @@ Then run the standalone checks from the repository root:
 node scripts/check-agent-tooling.mjs
 ```
 
-The runner discovers tracked checks under the shared skills, harness hooks and scripts with Git, prints the derived count and one result per file, rejects empty discovery and unsupported executable test extensions, and exits nonzero on any failure. Stage new checks before running it. The CI workflow runs this same command on Windows and Linux; it also checks the sparse checkout and installation. No dependency install is needed for bare Node checks. A skipped case is listed and is not evidence for that capability.
+The runner discovers tracked checks under the shared skills, harness hooks, `scripts/` and `.github/scripts/` with Git, prints the derived count and a start and completion result per file, rejects empty discovery and unsupported executable test extensions, and exits nonzero on any failure. Stage new checks before running it. The CI workflow runs this same command on Windows and Linux; it also checks the sparse checkout and installation. No dependency install is needed for bare Node checks. A skipped case is listed and is not evidence for that capability. Confirm every added check is discovered and that its inputs are present in the workflow's sparse checkout and path triggers.
 
-Run with the machine otherwise idle. The runner chooses Git for Windows bash explicitly on Windows; generic bash may resolve to an unavailable subsystem. A missing required interpreter is a failed check, not a skip. Keep logs until their closing counts and failures have been read.
+Run with the machine otherwise idle. The runner probes Bash before launching checks and prepends its directory to the inherited PATH so nested Node processes can find it. It chooses Git for Windows Bash on Windows; `AGENT_TOOLING_BASH` can select an explicit executable. A missing required interpreter fails the run. Each check has a five-minute bound, configurable with `AGENT_TOOLING_TIMEOUT_MS` from 100 to 3600000 milliseconds, and prints progress every 30 seconds while awaiting exit. A timeout stops the launched process tree and counts as failure; unconfirmed cleanup aborts subsequent checks and reports them as not run. A start or progress line alone proves no completion. Keep logs until the closing counts, failures and every completion result have been read.
 
 The runner's EXPECTED_CHECKS value pins the derived tracked runnable count in both directions, excluding the grammar scanner check that runs in the typecheck workflow. Update it when adding or removing a check, and review any lost coverage. The CI summary lists every skipped case. Portable extension fixtures, real shell classification, directory-link access and launcher-tree shutdown run on both Windows and Linux. POSIX execute-permission and Linux group-ownership probes report their platform skips on Windows. Windows-only held-tree and long-path cases run in the Windows matrix leg; zip fixtures need the workspace dependency install. Directory-link fixtures can also report an environment capability skip with the filesystem error; retain that explanation and do not count the skipped fixture as verified.
+
+On Windows, if the launched parent has already exited while descendants retain its pipes, the runner cannot safely identify that tree through the parent's PID. It refuses the kill, aborts the remaining checks and lists each as not run. Inspect the recorded timeout and processes before retrying; an unconfirmed tree shutdown is not successful cleanup.
 
 ---
 
