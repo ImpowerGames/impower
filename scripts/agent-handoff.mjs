@@ -43,7 +43,12 @@ export async function runHandoff(configFile, { slotRoot, identifyProcess = proce
   }
   fs.mkdirSync(path.dirname(journal), { recursive: true });
   const lock = execFileSync("git", ["rev-parse", "--path-format=absolute", "--git-path", "agent-handoff.lock"], { cwd, encoding: "utf8" }).trim();
-  const owner = fs.openSync(lock, "wx");
+  let owner;
+  try { owner = fs.openSync(lock, "wx"); }
+  catch(error) {
+    if(error.code==="EEXIST")throw new Error(`EEXIST: a coordinator already owns this worktree; inspect ${lock} and await confirmed exit`);
+    throw error;
+  }
   let fd;
   const append = (row) => { fs.writeSync(fd, JSON.stringify({ time: new Date().toISOString(), ...row }) + "\n"); fs.fsyncSync(fd); };
   let current = config.first;
@@ -76,20 +81,36 @@ export async function runHandoff(configFile, { slotRoot, identifyProcess = proce
       const child = spawn(step.executable, step.args, { cwd, shell: false, windowsHide: true, stdio: ["pipe", log, log] });
       activeChild = child;
       const exited = new Promise((resolve) => { let error; child.once("error", (e) => {error=e.message;}); child.once("close", (code, signal) => resolve({ code, signal, error })); });
-      append({ event: "running", index, step: current, pid: child.pid, startedAt: new Date().toISOString(), head, output, completion });
-      if (slot && child.pid) {
-        try {
-          const childIdentity = identifyProcess(child.pid);
-          slot.append({phase:"running",child:childIdentity,head,output,completion,journal});
-          append({event:"identified",index,step:current,childIdentity,slot:slot.file,token:slot.token});
-        }
-        catch (error) { append({event:"identity-uncertain",index,reason:error.message}); }
-      }
-      child.stdin.on("error", () => {});
-      child.stdin.end(prompt);
       let result;
-      try { result = await exited; } finally { fs.closeSync(log); }
-      activeChild = null;
+      try {
+        child.stdin.on("error", () => {});
+        append({ event: "running", index, step: current, pid: child.pid, startedAt: new Date().toISOString(), head, output, completion });
+        if (slot && child.pid) {
+          try {
+            const childIdentity = identifyProcess(child.pid);
+            slot.append({phase:childIdentity ? "running" : "exited",child:childIdentity,head,output,completion,journal});
+            append({event:childIdentity ? "identified" : "confirmed-absent",index,step:current,childIdentity,slot:slot.file,token:slot.token});
+          }
+          catch (error) { append({event:"identity-uncertain",index,reason:error.message}); }
+        }
+        child.stdin.end(prompt);
+        result = await exited;
+        activeChild = null;
+      } catch(error) {
+        // The handle belongs to the child just spawned here. Close its input
+        // and terminate that child, retaining ownership until close is observed.
+        child.stdin.destroy();
+        const waitForClose = (ms) => new Promise(resolve=>{
+          const timer=setTimeout(()=>resolve(null),ms);
+          exited.then(value=>{clearTimeout(timer);resolve(value);});
+        });
+        child.kill();
+        let stopped=await waitForClose(5000);
+        if(!stopped){child.kill("SIGKILL");stopped=await waitForClose(5000);}
+        if(stopped){activeChild=null;if(slot)releaseReviewerSlot(slot);}
+        else error.message += "; child exit unconfirmed: preserve the worktree lock and reviewer reservation";
+        throw error;
+      } finally { fs.closeSync(log); }
       if (slot) releaseReviewerSlot(slot);
       append({ event: "exited", index, step: current, ...result });
       if (result.code !== 0) throw new Error(`Role ${current} failed; inspect ${output}`);
@@ -110,7 +131,10 @@ export async function runHandoff(configFile, { slotRoot, identifyProcess = proce
     }
     append({ event: "finished" });
   } catch (error) {
-    if (fd !== undefined) append({ event: "blocked", reason: error.message });
+    if (fd !== undefined) {
+      try { append({ event: "blocked", reason: error.message }); }
+      catch(journalError){error.message += `; blocked journal write failed: ${journalError.message}`;}
+    }
     throw error;
   } finally {
     try { if (fd !== undefined) fs.closeSync(fd); }

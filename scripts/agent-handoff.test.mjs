@@ -5,7 +5,7 @@ import path from "node:path";
 import { execFileSync, spawn } from "node:child_process";
 import { pathToFileURL } from "node:url";
 import { runHandoff as handoff, checkReviewRound } from "./agent-handoff.mjs";
-import { reserveReviewerSlot, releaseReviewerSlot, recoverReviewerSlot, processIdentity } from "./reviewer-slots.mjs";
+import { reserveReviewerSlot, releaseReviewerSlot, recoverReviewerSlot, processIdentity, reviewerSlotStatus } from "./reviewer-slots.mjs";
 
 const scratch = fs.mkdtempSync(path.join(os.tmpdir(), "impower-handoff-"));
 console.log(`Scratch repository: ${scratch}`);
@@ -93,7 +93,7 @@ console.log("PASS: sequential completion, replay refusal, distinct routes, decla
 const pool = path.join(scratch, "machine-slots");
 const release = path.join(scratch, "release-reviewers");
 const reviewer = path.join(scratch, "holding-reviewer.mjs");
-fs.writeFileSync(reviewer, `import fs from 'node:fs'; fs.writeFileSync(process.argv[2], 'review posted'); const timer=setInterval(()=>{if(fs.existsSync(process.argv[3])){clearInterval(timer);process.exit(0)}},25);`);
+fs.writeFileSync(reviewer, `import fs from 'node:fs'; fs.writeFileSync(process.argv[2], 'review posted'); setTimeout(()=>process.exit(2),60000).unref(); const timer=setInterval(()=>{if(fs.existsSync(process.argv[3])){clearInterval(timer);process.exit(0)}},25);`);
 const coordinator = path.join(scratch, "coordinator.mjs");
 fs.writeFileSync(coordinator, `import {runHandoff} from ${JSON.stringify(pathToFileURL(path.resolve("scripts/agent-handoff.mjs")).href)}; runHandoff(process.argv[2], {slotRoot:process.argv[3],identifyProcess:process.argv[4]==='uncertain'?()=>{throw new Error('fixture registration failure')}:undefined}).catch(e=>{console.error(e.message);process.exitCode=1});`);
 const launched = [];
@@ -108,23 +108,38 @@ const launch = (i) => {
   const done = new Promise(resolve=>proc.once("close",code=>resolve({code,output})));
   const item={proc,done,posted}; launched.push(item); return item;
 };
-const until = async (predicate) => { const end=Date.now()+30000; while(!predicate()){ if(Date.now()>end)throw new Error("Timed out waiting for fixture"); await new Promise(r=>setTimeout(r,25)); } };
+const bounded = (promise) => new Promise((resolve,reject)=>{const timer=setTimeout(()=>reject(new Error("Fixture process did not exit within 60 seconds")),60000);promise.then(value=>{clearTimeout(timer);resolve(value);},error=>{clearTimeout(timer);reject(error);});});
+const until = async (predicate) => { const end=Date.now()+60000; while(!predicate()){ if(Date.now()>end)throw new Error("Timed out waiting for fixture"); await new Promise(r=>setTimeout(r,25)); } };
 try {
   for(let i=0;i<4;i++)launch(i);
   await until(()=>launched.every(p=>fs.existsSync(p.posted)));
   const fifth=launch(4);
   await until(()=>fs.existsSync(fifth.posted)||fifth.proc.exitCode!==null);
   assert.equal(fs.existsSync(fifth.posted),false,"a fifth reviewer must not launch while four posted reviewers are still running");
-  assert.match((await fifth.done).output,/reviewer slots.*occupied/i);
+  assert.match((await bounded(fifth.done)).output,/reviewer slots.*unavailable/i);
   assert.match(fs.readFileSync(path.join(scratch,"concurrent-0.jsonl"),"utf8"),/identity-uncertain/,"a real post-spawn registration failure must retain capacity while its child runs");
   const identified=fs.readFileSync(path.join(scratch,"concurrent-1.jsonl"),"utf8").trim().split("\n").map(JSON.parse).find(row=>row.event==="identified");
   assert.ok(identified.childIdentity.start,"actual OS start identity remains in the journal after slot release");
 } finally {
   fs.writeFileSync(release,"exit");
-  await Promise.all(launched.map(p=>p.done));
+  try { await bounded(Promise.all(launched.map(p=>p.done))); }
+  catch(error) { for(const item of launched)if(item.proc.exitCode===null)item.proc.kill("SIGKILL"); await bounded(Promise.all(launched.map(p=>p.done)));throw error; }
 }
 console.log("PASS: real concurrent coordinators reject a fifth reviewer after four reports appear and before process exit");
 assert.equal(fs.readdirSync(pool).length,0,"confirmed exits release every reservation");
+fs.unlinkSync(release);
+const contenders=[];
+try {
+  for(let i=10;i<18;i++)contenders.push(launch(i));
+  await until(()=>contenders.every(item=>fs.existsSync(item.posted)||item.proc.exitCode!==null));
+  assert.equal(contenders.filter(item=>fs.existsSync(item.posted)).length,4,"eight racing coordinators acquire exactly four slots");
+} finally {
+  fs.writeFileSync(release,"exit");
+  try { await bounded(Promise.all(contenders.map(item=>item.done))); }
+  catch(error) {for(const item of contenders)if(item.proc.exitCode===null)item.proc.kill("SIGKILL");await bounded(Promise.all(contenders.map(item=>item.done)));throw error;}
+}
+assert.equal(fs.readdirSync(pool).length,0);
+console.log("PASS: eight simultaneous coordinators reserve exactly four slots and release them on exit");
 
 const slotWorker=path.join(scratch,"slot-worker.mjs");
 fs.writeFileSync(slotWorker,`import fs from 'node:fs'; import {spawn} from 'node:child_process'; import {reserveReviewerSlot,releaseReviewerSlot,processIdentity} from ${JSON.stringify(pathToFileURL(path.resolve("scripts/reviewer-slots.mjs")).href)}; const slot=reserveReviewerSlot(process.argv[2]);slot.append({phase:'launching'}); const child=spawn(process.execPath,[${JSON.stringify(reviewer)},process.argv[3]+'.posted',process.argv[3]+'.release'],{stdio:'ignore',windowsHide:true,detached:true});child.once('close',()=>releaseReviewerSlot(slot)); const identity=processIdentity(child.pid);if(process.argv[4]!=='uncertain')slot.append({phase:'running',child:identity});fs.writeFileSync(process.argv[3],JSON.stringify({file:slot.file,child:identity}));`);
@@ -132,15 +147,21 @@ for(const mode of ["recorded","uncertain"]){
   const ready=path.join(scratch,`interrupted-${mode}`);
   const worker=spawn(process.execPath,[slotWorker,path.join(scratch,`pool-${mode}`),ready,mode],{stdio:"ignore",windowsHide:true});
   const done=new Promise(resolve=>worker.once("close",resolve));
-  await until(()=>fs.existsSync(ready));
-  const state=JSON.parse(fs.readFileSync(ready,"utf8"));
-  await until(()=>fs.existsSync(ready+".posted"));
-  assert.deepEqual(processIdentity(state.child.pid),state.child);
-  assert.throws(()=>recoverReviewerSlot(state.file),/Coordinator still running/);
-  worker.kill(); await done;
-  assert.throws(()=>recoverReviewerSlot(state.file),mode==="recorded"?/Reviewer still running/:/Uncertain reviewer launch/);
-  fs.writeFileSync(ready+".release","exit");
-  await until(()=>processIdentity(state.child.pid)===null);
+  let state;
+  try {
+    await until(()=>fs.existsSync(ready));
+    state=JSON.parse(fs.readFileSync(ready,"utf8"));
+    await until(()=>fs.existsSync(ready+".posted"));
+    assert.deepEqual(processIdentity(state.child.pid),state.child);
+    assert.throws(()=>recoverReviewerSlot(state.file),/Coordinator still running/);
+    worker.kill(); await bounded(done);
+    assert.throws(()=>recoverReviewerSlot(state.file),mode==="recorded"?/Reviewer still running/:/Uncertain reviewer launch/);
+  } finally {
+    fs.writeFileSync(ready+".release","exit");
+    if(worker.exitCode===null)worker.kill();
+    await bounded(done);
+    if(state)await until(()=>processIdentity(state.child.pid)===null);
+  }
   if(mode==="recorded")assert.equal(recoverReviewerSlot(state.file).recovered,state.file);
   else assert.throws(()=>recoverReviewerSlot(state.file),/Uncertain reviewer launch/,"an interrupted spawn-registration gap remains occupied even after a probe says its child exited");
 }
@@ -163,7 +184,7 @@ const recoveries=[0,1].map(()=>new Promise(resolve=>{
   const child=spawn(process.execPath,[recoveryWorker,reused.file],{stdio:"ignore",windowsHide:true});
   child.once("close",resolve);
 }));
-assert.deepEqual((await Promise.all(recoveries)).sort(),[0,1],"racing recoveries remove one dead generation exactly once, using OS start identity to distinguish PID reuse");
+assert.deepEqual((await bounded(Promise.all(recoveries))).sort(),[0,1],"racing recoveries remove one dead generation exactly once, using OS start identity to distinguish PID reuse");
 const replacement=reserveReviewerSlot(isolated);
 assert.throws(()=>recoverReviewerSlot(replacement.file),/Coordinator still running/);
 releaseReviewerSlot(replacement);
@@ -171,4 +192,33 @@ const ambiguous=reserveReviewerSlot(isolated); ambiguous.close();
 fs.appendFileSync(ambiguous.file,'{"partial":');
 assert.throws(()=>recoverReviewerSlot(ambiguous.file));
 assert.ok(fs.existsSync(ambiguous.file),"partial records are retained");
+assert.throws(()=>recoverReviewerSlot(ambiguous.file),/Uncertain slot record/);
+const empty=path.join(isolated,"slot-2.jsonl");fs.writeFileSync(empty,"");
+assert.throws(()=>recoverReviewerSlot(empty),/Uncertain slot record.*preserve/);
+const marker=path.join(isolated,"slot-3.jsonl.recovery");
+fs.writeFileSync(marker,JSON.stringify({owner:processIdentity(process.pid),token:"fixture-marker"}));
+assert.throws(()=>recoverReviewerSlot(marker.slice(0,-9)),/Recovery marker already exists/);
+assert.equal(reviewerSlotStatus(isolated)[3].recovery.records[0].token,"fixture-marker");
 console.log("PASS: interrupted coordinator retains live children, uncertain registration fails closed, PID reuse and generation-safe release");
+
+config.steps.second.role="implement";config.steps.second.model="writer-test";config.steps.second.args=[child,"second","--model","writer-test"];
+config.steps.first.role="review";config.steps.first.round=1;config.steps.first.model="reviewer-test";config.steps.first.next=[null];
+config.steps.first.args=["-e","process.exit(0)","--","--model","reviewer-test"];
+config.journal=path.join(scratch,"fast-exit.jsonl");write();
+await assert.rejects(handoff(file,{slotRoot:path.join(scratch,"fast-slots"),identifyProcess:(pid)=>{
+  const end=Date.now()+10000;while(processIdentity(pid)!==null){if(Date.now()>end)throw new Error("fast child did not exit");Atomics.wait(new Int32Array(new SharedArrayBuffer(4)),0,0,10);}return null;
+}}),/ENOENT/);
+assert.match(fs.readFileSync(config.journal,"utf8"),/confirmed-absent/);
+assert.equal(fs.readdirSync(path.join(scratch,"fast-slots")).length,0);
+config.steps.first.args=["-e","setTimeout(()=>process.exit(2),60000).unref();process.stdin.resume()","--","--model","reviewer-test"];
+config.journal=path.join(scratch,"journal-failure.jsonl");write();
+let ownedPid;
+const writeSync=fs.writeSync;
+try {
+  fs.writeSync=(fd,data,...args)=>{if(typeof data==="string" && data.includes('"event":"running"')){ownedPid=JSON.parse(data).pid;throw new Error("injected post-spawn journal failure");}return writeSync(fd,data,...args);};
+  await assert.rejects(handoff(file,{slotRoot:path.join(scratch,"failure-slots")}),/injected post-spawn journal failure/);
+} finally {fs.writeSync=writeSync;}
+assert.equal(processIdentity(ownedPid),null,"a journal failure cannot leave a child awaiting its prompt");
+assert.equal(fs.readdirSync(path.join(scratch,"failure-slots")).length,0,"confirmed termination releases its reservation");
+assert.equal(fs.existsSync(lock),false,"confirmed child close releases the worktree lock");
+console.log("PASS: confirmed-absent children, marker diagnostics, and actual post-spawn journal failure cleanup");

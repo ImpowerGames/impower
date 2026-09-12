@@ -34,7 +34,9 @@ export function processIdentity(pid) {
 const same = (a,b) => a && b && a.pid === b.pid && a.start === b.start;
 const validIdentity = (value) => value && Number.isSafeInteger(value.pid) && value.pid>0 && typeof value.start==="string" && value.start.length>0;
 const snapshot = (file) => {
-  const rows = fs.readFileSync(file,"utf8").trim().split("\n").map(JSON.parse);
+  let rows;
+  try { rows = fs.readFileSync(file,"utf8").trim().split("\n").map(JSON.parse); }
+  catch(error) { throw new Error(`Uncertain slot record at ${file}; preserve it: ${error.message}`); }
   if (!rows.length || !rows[0].token || !validIdentity(rows[0].owner) || rows.some(row=>row.token!==rows[0].token)) throw new Error("Uncertain slot record; preserve it");
   return {initial:rows[0], last:rows.at(-1)};
 };
@@ -55,7 +57,7 @@ export function reserveReviewerSlot(root = machineSlotRoot) {
     catch(e){fs.closeSync(fd);throw e;}
     return {file,token,owner,append,close:()=>fs.closeSync(fd)};
   }
-  throw new Error(`All four machine-wide reviewer slots are occupied; await confirmed exit or inspect recovery records in ${root}`);
+  throw new Error(`All four machine-wide reviewer slots are unavailable (occupied or recovery-blocked); await confirmed exit or inspect status in ${root}`);
 }
 
 export function releaseReviewerSlot(slot) {
@@ -69,8 +71,15 @@ export function releaseReviewerSlot(slot) {
 
 export function recoverReviewerSlot(file) {
   const recovery=file+".recovery";
-  const lock=fs.openSync(recovery,"wx");
+  let lock;
+  try { lock=fs.openSync(recovery,"wx"); }
+  catch(error) {
+    if(error.code==="EEXIST")throw new Error(`Recovery marker already exists at ${recovery}; inspect its owner and preserve uncertain ownership`);
+    throw error;
+  }
   try{
+    fs.writeSync(lock,JSON.stringify({token:randomUUID(),owner:processIdentity(process.pid),startedAt:new Date().toISOString(),slot:file})+"\n");
+    fs.fsyncSync(lock);
     const record=snapshot(file);
     if(same(record.initial.owner,processIdentity(record.initial.owner.pid)))throw new Error("Coordinator still running; await it");
     if(record.last.phase!=="exited") {
@@ -83,9 +92,23 @@ export function recoverReviewerSlot(file) {
   }finally{fs.closeSync(lock);fs.unlinkSync(recovery);}
 }
 
+export function reviewerSlotStatus(root = machineSlotRoot) {
+  return Array.from({length:4},(_,index)=>{
+    const file=path.join(root,`slot-${index}.jsonl`);
+    const inspect=(target)=>{
+      try { return {records:fs.readFileSync(target,"utf8").trim().split("\n").map(JSON.parse)}; }
+      catch(error) { return error.code==="ENOENT" ? null : {error:error.message}; }
+    };
+    return {index,file,reservation:inspect(file),recovery:inspect(file+".recovery")};
+  });
+}
+
 if(process.argv[1] && fs.realpathSync(process.argv[1])===fileURLToPath(import.meta.url)) {
   try{
-    if(process.argv[2]!=="recover" || !/^[0-3]$/.test(process.argv[3]??""))throw new Error("Usage: node scripts/reviewer-slots.mjs recover <slot 0..3>");
-    console.log(JSON.stringify(recoverReviewerSlot(path.join(machineSlotRoot,`slot-${process.argv[3]}.jsonl`))));
+    if(process.argv[2]==="status")console.log(JSON.stringify(reviewerSlotStatus(),null,2));
+    else {
+      if(process.argv[2]!=="recover" || !/^[0-3]$/.test(process.argv[3]??""))throw new Error("Usage: node scripts/reviewer-slots.mjs status | recover <slot 0..3>");
+      console.log(JSON.stringify(recoverReviewerSlot(path.join(machineSlotRoot,`slot-${process.argv[3]}.jsonl`))));
+    }
   }catch(e){console.error(e.message);process.exitCode=1;}
 }
