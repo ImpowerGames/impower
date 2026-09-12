@@ -5,14 +5,11 @@ description: File a bug ticket in this repo, reproducing the bug first so the ti
 
 # File a bug ticket
 
-When the user replies to an earlier notification, first follow the acknowledgement
-step in [notify-user](../notify-user/SKILL.md) to clear that alert, then continue.
-
 Read [runner notes](../RUNNERS.md) and the repository's agent instructions before proceeding. Load a named skill's full SKILL.md when the runner has no skill invocation capability.
 
 Turns a report of wrong behavior into one Bug issue on GitHub that a fixer can act on without re-deriving anything. All paths are relative to the repo root (the directory whose `package.json` is named `impower-monorepo`).
 
-At the final handoff, or when yielding for missing information or help, provide the normal chat handoff and invoke [notify-user](../notify-user/SKILL.md) for an optional companion event. Send one brief alert identifying the bug and next action: `done` after filing when no action is needed, `input_needed` for a normal question, or `blocked` when a problem prevents progress and requires help. Preserve the reproduction rules and include the issue link or missing information in chat. If the notifier is unavailable, skip the event silently.
+At the final handoff, or when yielding for missing information or help, provide the normal chat handoff and invoke [notify-user](../notify-user/SKILL.md) for an optional companion event. Send one brief alert identifying the bug and next action: `done` after filing when no action is needed, `user_input_needed` for a normal question, or `blocked` when a problem prevents progress and requires help. Preserve the reproduction rules and include the issue link or missing information in chat. If the notifier is unavailable, skip the event silently.
 
 The one rule: no reproduction, no ticket. A ticket here is treated as evidence, not instructions, by whoever fixes it (see the resolve-issue skill, section 1). A ticket filed from a description alone sends the fixer chasing a description, and when they cannot reproduce it the ticket is closed as not reproducible and the bug survives, to be reported again later by someone who measures it instead of describing it. That has happened here.
 

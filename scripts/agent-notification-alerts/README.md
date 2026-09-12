@@ -13,7 +13,7 @@ From this directory:
 ```powershell
 npm ci
 npm run demo
-node src/main.mjs notify "Hey, I finished the settings page. Can you take a look?" --category input_needed
+node src/main.mjs notify "Hey, I finished the settings page. Can you take a look?" --category user_input_needed
 node src/main.mjs notify "Your photos are organized. Everything is ready."
 node src/main.mjs notify "I compared the flights. Can you choose a departure time?" --dry-run
 npm test
@@ -31,7 +31,7 @@ notification event. The agent deliberately calls it with structured input:
 ```json
 {
   "message": "Hey, I finished the settings page. Can you take a look?",
-  "category": "input_needed"
+  "category": "user_input_needed"
 }
 ```
 
@@ -39,9 +39,9 @@ notification event. The agent deliberately calls it with structured input:
 The exact message is spoken without an
 automatic "Agent" prefix. Messages are limited to 280 characters, with one or
 two short, natural sentences recommended. Categories are `done` (green, no action
-needed), `input_needed` (orange, normal question/decision/review), and `blocked`
+needed), `user_input_needed` (orange, normal question/decision/review), and `blocked`
 (red, a problem requires user help). If work is done but needs review, use
-`input_needed`. The tool delivers a message; it does not verify claims
+`user_input_needed`. The tool delivers a message; it does not verify claims
 or perform the action described in the message.
 
 ### End-of-turn behavior
@@ -101,7 +101,7 @@ and [Claude Desktop shared configuration](https://code.claude.com/docs/en/deskto
 Developers do not need to install this Windows adapter. They can connect their
 own MCP server as `agent-alerts` with a `notify_user` tool accepting the same
 input contract: required nonempty `message` (up to 280 characters) and optional
-`category` (`done`, `input_needed`, `blocked`; default `done`). Return a standard
+`category` (`done`, `user_input_needed`, `blocked`; default `done`). Return a standard
 MCP tool result and mark delivery failures with `isError: true`. The server can
 route that call to any automation the developer configures. Those destinations
 and credentials stay in the developer's personal setup, not shared agent rules.
@@ -156,7 +156,7 @@ environment variable and invoke the shared entry point.
 - `durationMs`: retained for the legacy timed delivery helper; MCP/CLI alerts now persist until acknowledged. Lighting flashes once per second.
 - `volume`: Windows speech volume, 0–100; default 70.
 - `rate`: Windows speech rate, -10–10.
-- `colors`: RGB arrays keyed by `done`, `input_needed`, and `blocked`.
+- `colors`: RGB arrays keyed by `done`, `user_input_needed`, and `blocked`.
 - `keys`: HID key arrays keyed by `codex` (default `[58]`, F1) and `claude`
   (default `[59]`, F2). These are per-computer preferences.
 - `shortcuts`: function-key numbers for Ctrl+Alt shortcuts (1–12, different for
