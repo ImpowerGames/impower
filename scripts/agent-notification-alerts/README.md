@@ -7,7 +7,7 @@ executable PowerShell. Device failures are reported independently.
 
 ## Run
 
-Requires Node.js 20+, Windows for speech, and SteelSeries GG / Engine for lighting.
+Requires Node.js 20.8+, Windows for speech, and SteelSeries GG / Engine for lighting.
 From this directory:
 
 ```powershell

@@ -1,0 +1,32 @@
+name: Agent Notification Tests
+
+on:
+  pull_request:
+    paths: ["scripts/agent-notification-alerts/**", ".github/workflows/agent-notification-tests.yml"]
+  push:
+    branches: [main]
+    paths: ["scripts/agent-notification-alerts/**", ".github/workflows/agent-notification-tests.yml"]
+
+permissions:
+  contents: read
+
+jobs:
+  notifier-tests:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 5
+    defaults:
+      run:
+        working-directory: scripts/agent-notification-alerts
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: scripts/agent-notification-alerts/package-lock.json
+      - run: npm ci --ignore-scripts
+      - run: npm test

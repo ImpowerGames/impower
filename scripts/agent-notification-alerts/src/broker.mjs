@@ -12,7 +12,10 @@ import { PendingAlerts } from './pending.mjs';
 
 const stateDir = process.env.AGENT_ALERT_STATE_DIR || join(homedir(), '.agent-notification-alerts');
 const hash = createHash('sha256').update(stateDir).digest('hex').slice(0, 20);
-const endpoint = process.platform === 'win32' ? '\\\\.\\pipe\\agent-alerts-' + hash : join(tmpdir(), 'agent-alerts-' + hash + '.sock');
+// Linux abstract sockets disappear even after a crash; no stale path to unlink.
+const endpoint = process.platform === 'win32' ? '\\\\.\\pipe\\agent-alerts-' + hash
+  : process.platform === 'linux' ? '\0agent-alerts-' + hash
+  : join(tmpdir(), 'agent-alerts-' + hash + '.sock');
 const stateFile = join(stateDir, 'pending.json');
 const appSchema = z.enum(['codex', 'claude', 'other']);
 const entrySchema = z.object({ notificationId: z.string().uuid(), app: appSchema, alert: alertSchema }).strict();
@@ -106,7 +109,9 @@ export async function runBroker() {
       clearInterval(timer);
       bridge?.stdin.end();
       if (config.keyboard) await post('stop_game', { game: 'AGENT_NOTIFICATION_ALERTS' }).catch(() => {});
-      setTimeout(() => process.exit(0), 100);
+      // Closing unlinks filesystem sockets on platforms that use them. Respond
+      // before waiting for connected clients to disconnect.
+      server.close(() => process.exit(0));
       return { stopped: true, pendingRetained: true };
     }
     const previous = [...pending.entries];
@@ -164,6 +169,7 @@ export async function runBroker() {
     });
   }
   markReady();
+  process.send?.({ type: 'ready' });
   // Do not accumulate heartbeat jobs while a device is offline.
   const tick = () => { timer = setTimeout(() => enqueue(refresh).finally(tick), 1000); };
   tick();

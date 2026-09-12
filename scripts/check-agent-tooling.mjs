@@ -10,7 +10,8 @@ const files = execFileSync("git", ["ls-files", "-z"], { cwd: root, encoding: "ut
 // deleting or renaming a check must not silently reduce the expected coverage.
 const EXPECTED_CHECKS = 25;
 // The grammar scanner needs the full tree and runs in typecheck.yml.
-const checks = files.filter((f) => /^(?:\.agents\/|\.claude\/hooks\/|scripts\/)/.test(f) && /\.test\./.test(f) && f !== "scripts/check-node-names.test.mjs");
+// The notifier has npm dependencies and its own Windows/Linux workflow.
+const checks = files.filter((f) => /^(?:\.agents\/|\.claude\/hooks\/|scripts\/)/.test(f) && /\.test\./.test(f) && f !== "scripts/check-node-names.test.mjs" && !f.startsWith("scripts/agent-notification-alerts/"));
 const runnable = checks.filter((f) => /\.test\.(?:mjs|sh)$/.test(f));
 if (runnable.length !== EXPECTED_CHECKS || !checks.some((f) => f.startsWith(".agents/")) || !checks.some((f) => f.startsWith(".claude/hooks/")) || !checks.includes("scripts/link-agent-skills.test.mjs")) throw new Error(`Incomplete tooling check discovery: ${runnable.length} runnable, exactly ${EXPECTED_CHECKS} expected; stage checks and verify the checkout`);
 const bash = process.platform === "win32" ? testShell() : "bash";

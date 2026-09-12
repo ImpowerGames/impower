@@ -4,6 +4,9 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 import { PendingAlerts, sessionUrl } from "../src/pending.mjs";
+import { fork } from "node:child_process";
+import { once } from "node:events";
+import { fileURLToPath } from "node:url";
 
 test("acknowledgement is scoped, idempotent, and cannot clear a newer alert", () => {
   const pending = new PendingAlerts();
@@ -22,6 +25,33 @@ test("acknowledgement is scoped, idempotent, and cannot clear a newer alert", ()
   assert.equal(pending.latest("codex"), second);
   assert.equal(pending.latest("claude"), claude);
   assert.equal(pending.entries.length, 2);
+});
+
+test("a crashed broker releases its endpoint and restores pending alerts", async () => {
+  const folder = await mkdtemp(join(tmpdir(), "agent-alerts-crash-"));
+  const config = join(folder, "config.json");
+  await writeFile(config, JSON.stringify({ keyboard: false, speech: false }));
+  process.env.AGENT_ALERT_STATE_DIR = folder;
+  process.env.AGENT_ALERT_CONFIG = config;
+  delete process.env.AGENT_ALERT_PYTHON;
+  const { requestBroker } = await import("../src/broker.mjs?crash-test");
+  const child = fork(fileURLToPath(new URL("../src/broker.mjs", import.meta.url)), [], {
+    env: process.env, windowsHide: true, stdio: ["ignore", "ignore", "pipe", "ipc"],
+  });
+  const exited = once(child, "exit");
+  try {
+    await once(child, "message", { signal: AbortSignal.timeout(10000) });
+    const alert = await requestBroker({ type: "notify", app: "codex", alert: { message: "Recover me" } });
+    child.kill("SIGKILL");
+    await exited;
+    const restored = await requestBroker({ type: "status" });
+    assert.deepEqual(restored.pending.map(entry => entry.notificationId), [alert.notificationId]);
+    await requestBroker({ type: "acknowledge", app: "codex", notificationId: alert.notificationId });
+  } finally {
+    if (child.exitCode === null && child.signalCode === null) child.kill("SIGKILL");
+    await exited;
+    await requestBroker({ type: "stop" });
+  }
 });
 test("session links only accept recognized IDs", () => {
   assert.equal(

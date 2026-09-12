@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "engines": { "node": ">=20" },
+  "engines": { "node": ">=20.8" },
   "scripts": {
     "start": "node src/main.mjs",
     "demo": "node src/main.mjs notify Hey, I finished setting up your alerts. Can you give them a try?",
