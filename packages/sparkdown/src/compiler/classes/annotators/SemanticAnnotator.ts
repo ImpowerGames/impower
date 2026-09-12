@@ -5,6 +5,11 @@ import GRAMMAR_DEFINITION from "../../../../language/sparkdown.language-grammar.
 import type { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
 import { SparkdownAnnotation } from "../SparkdownAnnotation";
 import { SparkdownAnnotator } from "../SparkdownAnnotator";
+import {
+  SemanticDependencies,
+  type Binding,
+  type BindingKind,
+} from "./SemanticDependencies";
 
 export type SemanticTokenTypes =
   | "namespace"
@@ -62,7 +67,6 @@ export interface SemanticInfo {
 // emission site. A user-declared `local print = …` then simply
 // overwrites the entry in the innermost scope frame, and the
 // reference path picks up the local kind automatically.
-type BindingKind = "function" | "variable" | "const-variable" | "namespace";
 type ScopeFrame = Map<string, { kind: BindingKind; fromStdlib: boolean }>;
 
 // Read the stdlib identifier lists straight from the grammar
@@ -89,6 +93,22 @@ function makeGlobalScope(): ScopeFrame {
   for (const n of STDLIB_NAMESPACES)
     frame.set(n, { kind: "namespace", fromStdlib: true });
   return frame;
+}
+
+function semanticInfo(binding: Binding, declaration: boolean): SemanticInfo {
+  const modifiers: SemanticTokenModifiers[] = [];
+  if (binding.fromStdlib) modifiers.push("defaultLibrary");
+  if (binding.kind === "const-variable") modifiers.push("readonly", "static");
+  if (declaration) modifiers.push("declaration");
+  return {
+    tokenType:
+      binding.kind === "function"
+        ? "function"
+        : binding.kind === "namespace"
+          ? "namespace"
+          : "variable",
+    tokenModifiers: modifiers,
+  };
 }
 
 // Walks up from an identifier-name node and returns true if it's
@@ -132,6 +152,8 @@ function topLevelStart(tree: Tree, pos: number): number {
 export class SemanticAnnotator extends SparkdownAnnotator<
   SparkdownAnnotation<SemanticInfo>
 > {
+  private dependencies = new SemanticDependencies();
+  private bindingNode: SyntaxNode | null = null;
   // Lexical-scope stack with per-name binding kinds. Outermost frame
   // (index 0) is pre-populated with stdlib names so a reference to
   // an unshadowed `print` lands on the stdlib `function` entry while
@@ -176,14 +198,6 @@ export class SemanticAnnotator extends SparkdownAnnotator<
     kind: BindingKind;
   }[] = [];
 
-  // Globals seen by the current real pass, in document order. Spliced into
-  // `globalDecls` in `end()`, replacing whatever the window used to hold.
-  protected observedGlobals: {
-    from: number;
-    name: string;
-    kind: BindingKind;
-  }[] = [];
-
   protected windowFrom = 0;
   protected windowTo = 0;
 
@@ -211,9 +225,12 @@ export class SemanticAnnotator extends SparkdownAnnotator<
   } | null = null;
 
   override begin(iterateFrom: number, iterateTo: number): void {
+    if (iterateFrom === 0 && iterateTo === this.tree?.length) {
+      this.dependencies = new SemanticDependencies();
+    }
+    this.dependencies.begin();
     this.scopeStack = [makeGlobalScope()];
     this.pendingDeclKind = null;
-    this.observedGlobals = [];
     this.windowFrom = iterateFrom;
     this.windowTo = iterateTo;
     if (iterateFrom > 0 && this.tree) {
@@ -222,22 +239,40 @@ export class SemanticAnnotator extends SparkdownAnnotator<
   }
 
   /**
-   * Fold the globals this pass observed back into the cached table.
-   *
-   * The pass is authoritative for `[windowFrom, windowTo]` and nothing else:
-   * text outside the window did not change, so the entries there still hold.
-   * Replace that span and keep the rest, which preserves document order
-   * because the pass walks in document order.
+   * Reconcile binding sites, then update only the distant reference tokens
+   * whose names changed. The same index supplies globals for scope priming.
    */
   override end(): void {
     // Deliberately the bounds `begin` recorded, not this method's arguments:
     // `end` is handed the parser's `reparsedFrom`/`reparsedTo`, which can be
     // wider than the window that was actually iterated. Splicing on the wrong
     // span would drop declarations the pass never looked at.
-    const before = this.globalDecls.filter((d) => d.from < this.windowFrom);
-    const after = this.globalDecls.filter((d) => d.from > this.windowTo);
-    this.globalDecls = [...before, ...this.observedGlobals, ...after];
-    this.observedGlobals = [];
+    const replaced = new Set<string>();
+    const add: Range<SparkdownAnnotation<SemanticInfo>>[] = [];
+    this.globalDecls = this.dependencies.finish(
+      this.windowFrom,
+      this.windowTo,
+      makeGlobalScope(),
+      (site, binding) => {
+        replaced.add(`${site.from}:${site.to}`);
+        if (binding) {
+          add.push(
+            SparkdownAnnotation.mark(semanticInfo(binding, site.declaration))
+              .range(site.from, site.to),
+          );
+        }
+      },
+    );
+    if (replaced.size) {
+      this.current = this.current.update({
+        filter: (from, to, value) =>
+          !replaced.has(`${from}:${to}`) ||
+          !!value.type?.possibleDivertPath ||
+          value.type?.tokenType === "class",
+        add,
+        sort: true,
+      });
+    }
   }
 
   /**
@@ -249,6 +284,7 @@ export class SemanticAnnotator extends SparkdownAnnotator<
    * the edit re-observes it.
    */
   override mapState(changes: ChangeDesc): void {
+    this.dependencies.map(changes);
     // Drop the primed snapshot if this edit reached back in front of it; the
     // prefix it was derived from is no longer the prefix that is there.
     if (this.primed) {
@@ -421,16 +457,13 @@ export class SemanticAnnotator extends SparkdownAnnotator<
   // last-definition-wins) and detaches it from the stdlib entry —
   // a user-declared `local print` is NEVER `defaultLibrary`, even
   // though the global scope's entry was.
-  bindInCurrentScope(name: string, kind: BindingKind, from?: number): void {
+  bindInCurrentScope(name: string, kind: BindingKind): void {
     if (!name) return;
     const frame = this.scopeStack[this.scopeStack.length - 1];
     if (!frame) return;
     frame.set(name, { kind, fromStdlib: false });
-    // A binding that reached the outermost frame is a global. Record it so the
-    // next prime can restore it without re-walking the document. Only the real
-    // pass observes: a prime is replaying bindings this table already produced.
-    if (!this.priming && from != null && this.scopeStack.length === 1) {
-      this.observedGlobals.push({ from, name, kind });
+    if (!this.priming && this.bindingNode) {
+      this.dependencies.bind(this.bindingNode, name, kind);
     }
   }
 
@@ -438,6 +471,7 @@ export class SemanticAnnotator extends SparkdownAnnotator<
     annotations: Range<SparkdownAnnotation<SemanticInfo>>[],
     nodeRef: SparkdownSyntaxNodeRef,
   ): Range<SparkdownAnnotation<SemanticInfo>>[] {
+    this.bindingNode = nodeRef.node;
     // ----- Luau lexical-scope tracking + identifier-kind emission -----
     //
     // Scope frame management: a Luau function-definition opens a new
@@ -458,14 +492,14 @@ export class SemanticAnnotator extends SparkdownAnnotator<
         const nameNode = getDescendent("LuauFunctionName", declName);
         if (nameNode) {
           const name = this.read(nameNode.from, nameNode.to).trim();
-          if (name) this.bindInCurrentScope(name, "function", nodeRef.from);
+          if (name) this.bindInCurrentScope(name, "function");
         }
       }
       this.scopeStack.push(new Map());
     }
     if (nodeRef.name === "LuauFunctionParameter") {
       const name = this.read(nodeRef.from, nodeRef.to).trim();
-      if (name) this.bindInCurrentScope(name, "variable", nodeRef.from);
+      if (name) this.bindInCurrentScope(name, "variable");
     }
     // Variable definitions: read the scope modifier on enter
     // (`local` / `store` / `const`) so the inner
@@ -505,7 +539,7 @@ export class SemanticAnnotator extends SparkdownAnnotator<
             nodeRef.node,
           );
           if (fnLiteral) kind = "function";
-          this.bindInCurrentScope(name, kind, nodeRef.from);
+          this.bindInCurrentScope(name, kind);
         }
       }
     }
@@ -537,52 +571,22 @@ export class SemanticAnnotator extends SparkdownAnnotator<
     ) {
       const name = this.read(nodeRef.from, nodeRef.to).trim();
       const binding = this.lookupBinding(name);
+      const declaration =
+        (nodeRef.name === "LuauVariableName" ||
+          nodeRef.name === "LuauFunctionName") &&
+        isAtDeclarationSite(nodeRef.node);
+      this.dependencies.reference(nodeRef.node, name, declaration);
       // For LuauStdLibFunctions / LuauStdLibConstants we ALWAYS emit
       // an LSP token (either the stdlib default OR the shadowed
       // local). For LuauVariableName, only emit if we have a binding
       // — otherwise let the grammar's TextMate scope handle it (the
       // identifier may not be resolvable to a known kind).
       if (binding) {
-        const modifiers: SemanticTokenModifiers[] = [];
-        if (binding.fromStdlib) modifiers.push("defaultLibrary");
-        if (binding.kind === "const-variable") {
-          // Two modifiers in tandem: `readonly` is the canonical LSP
-          // signal that the identifier can't be reassigned; `static`
-          // is added so themes that style the two combinations
-          // distinctly (TypeScript's convention for module-level
-          // constants) can render `const` references with a visibly
-          // different treatment than plain `local` / `store`
-          // variables. Themes that ignore `static` still get the
-          // `readonly` differentiation; themes that ignore both fall
-          // back to plain `variable` styling.
-          modifiers.push("readonly", "static");
-        }
-        // Declaration-site marker: tag identifiers at their binding
-        // location with `declaration` so editors can render the
-        // introducing position differently from references (e.g.
-        // underline declarations on F2-rename). Detection walks the
-        // parent chain looking for `LuauVariableAssignment_begin` or
-        // `LuauFunctionDeclarationName`; reference-site identifiers
-        // short-circuit on `LuauAccessPart` (value reads) or
-        // `LuauFunctionCall_begin` (call sites).
-        if (
-          (nodeRef.name === "LuauVariableName" ||
-            nodeRef.name === "LuauFunctionName") &&
-          isAtDeclarationSite(nodeRef.node)
-        ) {
-          modifiers.push("declaration");
-        }
-        const tokenType: SemanticTokenTypes =
-          binding.kind === "function"
-            ? "function"
-            : binding.kind === "namespace"
-              ? "namespace"
-              : "variable";
         annotations.push(
-          SparkdownAnnotation.mark<SemanticInfo>({
-            tokenType,
-            tokenModifiers: modifiers,
-          }).range(nodeRef.from, nodeRef.to),
+          SparkdownAnnotation.mark(semanticInfo(binding, declaration)).range(
+            nodeRef.from,
+            nodeRef.to,
+          ),
         );
       }
     }

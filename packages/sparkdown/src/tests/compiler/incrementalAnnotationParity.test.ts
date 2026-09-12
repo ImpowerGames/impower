@@ -20,8 +20,8 @@
 //    oracle. Every edit here keeps the document syntactically valid.
 //  - Renaming a DECLARATION leaves stale tokens on its downstream references,
 //    which sit outside the window and are never re-examined. That is a real
-//    defect, still open, and it needs symbol-level dependency tracking rather
-//    than anything this window can do — so these edits do not rename.
+//    defect covered separately by incrementalRenameInvalidation.test.ts and
+//    its symbol-level dependency tracking — so these edits do not rename.
 //
 // `treesMatch` is asserted first: if the incremental and cold parse trees ever
 // differ, an annotation difference is downstream of the parser and this file is
