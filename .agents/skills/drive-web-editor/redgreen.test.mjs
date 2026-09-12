@@ -707,6 +707,175 @@ check("a --test whose own script does not exist is a shell problem, not an impor
 });
 
 
+check("verbose passing output preserves the named failure and complete log", () => {
+  const dir = makeRepo();
+  applyFix(dir);
+  fs.writeFileSync(path.join(dir, "verbose.mjs"), [
+    'import { value } from "./lib.mjs";',
+    'if (value === "old") console.log("\\x1b[31mFAIL: preserves the first failure\\x1b[0m\\n  AssertionError: expected new");',
+    'for (let i = 0; i < 100; i++) console.log("PASS: later case " + i);',
+    'console.log("PASS: reports AssertionError and FAIL and not ok correctly");',
+    'process.exitCode = value === "old" ? 1 : 0;',
+  ].join("\n"));
+  const r = run(dir, { test: `${NODE} verbose.mjs` });
+  assert.equal(r.ok, true);
+  assert.ok(!r.red.tail.some((line) => line.includes("FAIL:")));
+  assert.ok(r.red.failures.includes("FAIL: preserves the first failure"));
+  assert.ok(r.red.failures.some((line) => line.includes("AssertionError: expected new")));
+  assert.match(fs.readFileSync(r.red.logPath, "utf8"), /PASS: later case 99/);
+  assert.match(fs.readFileSync(r.red.logPath, "utf8"), /FAIL: preserves the first failure/);
+  assert.equal(r.red.failuresOmitted, 0);
+  assert.equal(r.red.failureLinesTruncated, 0);
+  assert.equal(r.red.failures.length, 2, "passing assertion names are not failed cases");
+});
+
+check("failure excerpts report omitted lines and clipped text with the full log retained", () => {
+  const dir = makeRepo();
+  applyFix(dir);
+  fs.writeFileSync(path.join(dir, "many.mjs"), [
+    'import { value } from "./lib.mjs";',
+    'if (value === "old") for (let i = 0; i < 45; i++) console.log("not ok " + i + " - " + (i === 0 ? "x".repeat(3000) : "case"));',
+    'process.exitCode = value === "old" ? 1 : 0;',
+  ].join("\n"));
+  const r = run(dir, { test: `${NODE} many.mjs` });
+  assert.equal(r.ok, true);
+  assert.equal(r.red.failures.length, 40);
+  assert.equal(r.red.failuresOmitted, 5);
+  assert.equal(r.red.failureLinesTruncated, 1);
+  assert.equal(r.red.failures[0].length, 2000);
+  assert.match(fs.readFileSync(r.red.logPath, "utf8"), /not ok 44 - case/);
+  assert.ok(fs.readFileSync(r.red.logPath, "utf8").includes("x".repeat(3000)));
+});
+
+check("real Node spec failures retain their distinct names", () => {
+  const dir = makeRepo();
+  applyFix(dir);
+  fs.writeFileSync(path.join(dir, "spec.mjs"), [
+    'import test from "node:test"; import assert from "node:assert/strict"; import { value } from "./lib.mjs";',
+    'test("the ticket case", () => assert.equal(value, "new"));',
+    'test("the other error case", () => { if (value === "old") throw new Error("another failure"); });',
+    'test("passes mentioning AssertionError and FAIL", () => assert.ok(true));',
+  ].join("\n"));
+  const r = run(dir, { test: `${NODE} --test --test-reporter=spec spec.mjs` });
+  assert.equal(r.ok, true, JSON.stringify(r.problems));
+  assert.ok(r.red.failures.some((line) => line.includes("the ticket case")));
+  assert.ok(r.red.failures.some((line) => line.includes("the other error case")));
+  assert.ok(!r.red.failures.some((line) => line.includes("passes mentioning")));
+});
+
+check("log-write failures preserve both run results and verified snapshots", () => {
+  const dir = makeRepo();
+  applyFix(dir);
+  const snapshots = snapshotDir();
+  fs.mkdirSync(path.join(snapshots, "red.log"));
+  fs.mkdirSync(path.join(snapshots, "green.log"));
+  const r = run(dir, { snapshotDir: snapshots });
+  assert.equal(r.ok, false);
+  assert.equal(r.red.exit, 1);
+  assert.equal(r.red.reason, "assertion");
+  assert.ok(r.red.failures.length > 0);
+  assert.equal(r.red.logPath, null);
+  assert.ok(r.red.logError);
+  assert.equal(r.green.exit, 0);
+  assert.equal(r.green.outcome, "passed");
+  assert.equal(r.green.logPath, null);
+  assert.ok(r.green.logError);
+  assert.equal(r.problems.filter((problem) => problem.includes("output could not be saved")).length, 2);
+  assert.ok(r.files.every((file) => file.matches && fs.existsSync(file.snapshotPath)));
+});
+
+check("symbol-only failures classify consistently without accepting ambiguous shell evidence", () => {
+  for (const glyph of ["✕", "✖"]) {
+    assert.equal(classifyRedFailure(`${glyph} ticket case`, { exit: 1, posixShell: true }), "assertion");
+    for (const exit of [126, 127]) assert.equal(classifyRedFailure(`${glyph} ticket case`, { exit, posixShell: true }), "unknown");
+    assert.equal(classifyRedFailure(`${glyph} ticket case\nbash: line 1: missing: command not found`, { exit: 1, posixShell: true }), "unknown");
+  }
+  const dir = makeRepo();
+  applyFix(dir);
+  fs.writeFileSync(path.join(dir, "symbol.mjs"), 'import { value } from "./lib.mjs"; console.log(value === "old" ? "✖ ticket case" : "✔ ticket case"); process.exitCode = value === "old" ? 1 : 0;');
+  const r = run(dir, { test: `${NODE} symbol.mjs` });
+  assert.equal(r.ok, true, JSON.stringify(r.problems));
+  assert.equal(r.red.reason, "assertion");
+  assert.ok(r.red.failures.includes("✖ ticket case"));
+});
+
+check("decorative and trailing failure markers do not establish assertion evidence", () => {
+  for (const output of ["benchmark: header rebuild is 2 × slower than budget\nrun aborted", "progress ✖✖✖ markers in a banner", "ticket case: header rebuild ✖"]) {
+    assert.equal(classifyRedFailure(output, { exit: 1 }), "unknown", output);
+  }
+  for (const glyph of ["✕", "✗", "×", "✖"]) assert.equal(classifyRedFailure(`\u001b[31m  ${glyph} ticket case\u001b[0m`, { exit: 1 }), "assertion");
+  const dir = makeRepo();
+  applyFix(dir);
+  fs.writeFileSync(path.join(dir, "decorative.mjs"), 'import { value } from "./lib.mjs"; console.log("progress ✖✖✖ markers in a banner"); process.exitCode = value === "old" ? 1 : 0;');
+  const r = run(dir, { test: `${NODE} decorative.mjs` });
+  assert.equal(r.ok, false);
+  assert.equal(r.red.reason, "unknown");
+  assert.deepEqual(r.red.failures, []);
+  assert.match(fs.readFileSync(r.red.logPath, "utf8"), /progress/);
+});
+
+check("leading decorative banners cannot crowd the real assertion out of excerpts", () => {
+  const dir = makeRepo();
+  applyFix(dir);
+  fs.writeFileSync(path.join(dir, "banners.mjs"), [
+    'import { value } from "./lib.mjs";',
+    'for (let i = 0; i < 45; i++) console.log("✖✖✖ decorative banner row " + i);',
+    'if (value === "old") console.log("AssertionError: expected new, got old");',
+    'process.exitCode = value === "old" ? 1 : 0;',
+  ].join("\n"));
+  const r = run(dir, { test: `${NODE} banners.mjs` });
+  assert.equal(r.ok, true, JSON.stringify(r.problems));
+  assert.deepEqual(r.red.failures, ["AssertionError: expected new, got old"]);
+  assert.equal(r.red.failuresOmitted, 0);
+  assert.deepEqual(r.green.failures, []);
+  assert.match(fs.readFileSync(r.red.logPath, "utf8"), /decorative banner row 44/);
+});
+
+check("missing-summary guidance does not direct readers to a failed log", () => {
+  const dir = makeRepo();
+  applyFix(dir);
+  const snapshots = snapshotDir();
+  fs.mkdirSync(path.join(snapshots, "red.log"));
+  fs.writeFileSync(path.join(dir, "banner.mjs"), 'import { value } from "./lib.mjs"; console.log(" RUN v2.1.9 /fixture"); if (value === "old") console.log("AssertionError: expected new"); process.exitCode = value === "old" ? 1 : 0;');
+  const r = run(dir, { snapshotDir: snapshots, test: `${NODE} banner.mjs` });
+  assert.equal(r.ok, false);
+  assert.equal(r.red.logPath, null);
+  assert.equal(r.red.reason, "assertion");
+  assert.ok(r.problems.some((problem) => problem.includes("raw log could not be saved")));
+  assert.ok(!r.problems.some((problem) => problem.includes("log at red.logPath")));
+  assert.equal(r.green.exit, 0);
+  assert.ok(r.files.every((file) => file.matches));
+});
+
+check("partial log writes are retained and explicitly disowned as evidence", () => {
+  const dir = makeRepo();
+  applyFix(dir);
+  const snapshots = snapshotDir();
+  const target = path.join(snapshots, "red.log");
+  const originalWrite = fs.writeFileSync;
+  let r;
+  try {
+    fs.writeFileSync = function (file, data, ...args) {
+      if (file === target) {
+        originalWrite.call(fs, file, data.slice(0, 12), ...args);
+        throw new Error("ENOSPC: simulated full disk");
+      }
+      return originalWrite.call(fs, file, data, ...args);
+    };
+    r = run(dir, { snapshotDir: snapshots });
+  } finally {
+    fs.writeFileSync = originalWrite;
+  }
+  assert.equal(r.ok, false);
+  assert.equal(r.red.logPath, null);
+  assert.equal(r.red.unverifiedLogPath, target);
+  assert.match(r.red.logError, /unverified.*partial or stale/);
+  assert.equal(fs.readFileSync(target, "utf8").length, 12);
+  assert.equal(r.red.reason, "assertion");
+  assert.equal(r.green.outcome, "passed");
+  assert.ok(r.files.every((file) => file.matches && fs.existsSync(file.snapshotPath)));
+});
+
 check("classifyRedFailure tells the reasons apart on real runner output", () => {
   assert.equal(classifyRedFailure("Error [ERR_MODULE_NOT_FOUND]: Cannot find module"), "import");
   assert.equal(classifyRedFailure('Error: Failed to resolve import "./x" from "y.ts"'), "import");

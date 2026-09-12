@@ -17,7 +17,7 @@
 // base revision resolves, the test exited non-zero on the base for a reason the
 // classifier recognises as a test failure, every file came back byte-for-byte,
 // and the test exited zero on the fix. It is an exit-code proof. Which test in
-// the file failed is in `red.tail`, and reading it is the session's job.
+// the file failed is in `red.failures` and the saved log; reading it is the session's job.
 //
 // Once the snapshot is taken this function does not throw: every later error
 // becomes a `problems` entry, so the report — the snapshot directory and the
@@ -171,7 +171,7 @@ export function classifyRedFailure(output, { removed = [], launchError = null, e
   if (["ENOBUFS", "ETIMEDOUT"].includes(launchError)) return "crash";
   if (launchError) return "unknown";
   if (exit === -1) return "crash";
-  const testedDiagnostic = /\bAssertionError\b|\bexpected\b.*\bto\b|\.to(?:Be|Equal|StrictEqual|Match|Contain|Throw|HaveLength|HaveProperty)\w*\(|\bexpect\(|✗|×|\bFAIL\b|Tests\s+\d+ failed|\d+ failing\b|\bnot ok \d|assert\.\w+\(|Assertion failed/i.test(output);
+  const testedDiagnostic = FAILURE_GLYPH_RE.test(output) || /\bAssertionError\b|\bexpected\b.*\bto\b|\.to(?:Be|Equal|StrictEqual|Match|Contain|Throw|HaveLength|HaveProperty)\w*\(|\bexpect\(|\bFAIL\b|Tests\s+\d+ failed|\d+ failing\b|\bnot ok \d|assert\.\w+\(|Assertion failed/i.test(output);
   // POSIX shells reserve these for execution failure, but also forward a
   // program's chosen status. Assertion evidence therefore makes them ambiguous.
   // cmd does not use this convention; do not infer it from the host platform.
@@ -262,6 +262,16 @@ export function classifyRedFailure(output, { removed = [], launchError = null, e
  * Files` line anywhere, the fallback is the last `Tests` line in the output.
  */
 const ANSI_ESCAPE_RE = /\x1b\[[0-9;]*m/g;
+const FAILURE_GLYPH_RE = /^\s*[✕✗×✖]\s/m;
+function failureEvidence(output, logPath) {
+  let logError = null;
+  try { fs.writeFileSync(logPath, output); }
+  catch (error) { logError = `${String(error.message || error)}. Any output at ${logPath} is unverified and may be partial or stale.`; }
+  const matches = output.replace(ANSI_ESCAPE_RE, "").split(/\r?\n/).filter((line) =>
+    !/^\s*(?:PASS\b|ok\b|[✓✔])/.test(line) && (FAILURE_GLYPH_RE.test(line) || /^(?:\s*(?:FAIL\b|not ok\b))|\bAssertionError\b/.test(line)));
+  const excerpt = matches.slice(0, 40);
+  return { logPath: logError ? null : logPath, unverifiedLogPath: logError ? logPath : null, logError, failures: excerpt.map((line) => line.slice(0, 2000)), failuresOmitted: Math.max(0, matches.length - 40), failureLinesTruncated: excerpt.filter((line) => line.length > 2000).length };
+}
 const VITEST_COUNT_RE = /\d+\s+(?:passed|failed|skipped|todo)/;
 const VITEST_NO_TESTS_RE = /\bno tests\b/;
 const isTestFilesLine = (l) => /^\s*Test Files\s/.test(l) && VITEST_COUNT_RE.test(l);
@@ -496,8 +506,10 @@ export function runRedGreen({ repoRoot, test, files, base = "HEAD", snapshotDir,
         outcome: red.exit === 0 ? "passed" : "failed",
         reason: redReason,
         tail: red.tail,
+        ...failureEvidence(red.output, path.join(dir, "red.log")),
         summary: parseVitestSummary(red.output),
       };
+      if (report.red.logError) report.problems.push(`The red output could not be saved: ${report.red.logError}. The exit status and excerpts remain in this report.`);
       if (red.exit === 0) {
         report.problems.push(
           `The test passed against ${base}. It pins nothing: either it does not assert the ticket's behaviour, or the files listed are not where the fix lives.`,
@@ -540,7 +552,7 @@ export function runRedGreen({ repoRoot, test, files, base = "HEAD", snapshotDir,
         // comment without running it; either way the missing summary is
         // worth a look.
         report.problems.push(
-          `The test command names vitest, or the output shows vitest's own run banner, and it failed on the base with what reads as a real assertion, but no \`Test Files\`/\`Tests\` summary line could be parsed from the output. Read red.tail for the failure and quote it directly in the PR.`,
+          `The test command names vitest, or the output shows vitest's own run banner, and it failed on the base with what reads as a real assertion, but no \`Test Files\`/\`Tests\` summary line could be parsed from the output. Read red.failures${report.red.logPath ? " and the log at red.logPath" : " (the raw log could not be saved)"} for the failure and quote it directly in the PR.`,
         );
       } else if (redReason === "assertion" && report.red.summary != null && VITEST_NO_TESTS_RE.test(report.red.summary)) {
         // A red that collected nothing asserted nothing. The exit code and
@@ -579,8 +591,10 @@ export function runRedGreen({ repoRoot, test, files, base = "HEAD", snapshotDir,
         exit: green.exit,
         outcome: green.exit === 0 ? "passed" : "failed",
         tail: green.tail,
+        ...failureEvidence(green.output, path.join(dir, "green.log")),
         summary: parseVitestSummary(green.output),
       };
+      if (report.green.logError) report.problems.push(`The green output could not be saved: ${report.green.logError}. The exit status and excerpts remain in this report.`);
       if (green.exit !== 0) {
         report.problems.push("The test failed against the fix. The restore is verified by hash, so this is the fix itself, not a stale copy.");
       }

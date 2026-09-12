@@ -101,6 +101,8 @@ Do not start editing off the ticket's say-so. Establish the failure first, and k
 
 Make the change in the worktree. The repository's agent instructions carry the repo-wide traps that apply while you edit: generated `language/*.json` files are rebuilt from `definitions/yaml/` (edit the YAML and regenerate both output locations), heredocs mangle escapes (write files with the editor tool), and multi-line `gh`/`git` bodies go through `--body-file`/`-F`.
 
+For each added standalone check, verify it appears in `node scripts/check-agent-tooling.mjs` discovery after staging. Review the expected count, CI path triggers and sparse-checkout inputs together; a neighboring test file is only coverage when the local gate and CI execute it.
+
 ---
 
 ## 5. Regression test
@@ -138,6 +140,8 @@ Where the material from the steps above goes: Summary carries the one-paragraph 
 ---
 
 ## 8. Adversarial review
+
+Read CI results for the current head before declaring completion. For a job reported as `cancelled` or `timed_out`, retain its run and attempt IDs and inspect jobs, steps, logs and check annotations. `gh api repos/ImpowerGames/impower/actions/runs/<run-id>/attempts/<attempt>/jobs --paginate` supplies job timestamps and conclusions. Read the workflow at that run's `head_sha`, including job and step `timeout-minutes`, and compare the affected interval with its configured bound. Also inspect concurrency settings and newer runs on the branch. An explicit timeout annotation or log establishes a timeout; elapsed time near a bound is only supporting evidence. A cancelled conclusion or absence of a newer run does not establish the cause: manual cancellation and other interruptions remain possible. If evidence is incomplete, report the cancellation as unexplained and retain the failed verification gate. Diagnose the cause before changing a timeout or rerunning; a later green run does not explain the earlier cancellation.
 
 Invoke `/review-pr` now (skill name `review-pr`). It sizes the review, spawns reviewers on a model that is not yours, has them post their findings on the PR, adjudicates every finding there, re-verifies any fix, and marks the PR ready only when its own list is complete. A later change to the code sends the PR back to draft and through that skill again.
 
