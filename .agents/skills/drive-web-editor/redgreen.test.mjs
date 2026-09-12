@@ -784,6 +784,66 @@ check("log-write failures preserve both run results and verified snapshots", () 
   assert.ok(r.files.every((file) => file.matches && fs.existsSync(file.snapshotPath)));
 });
 
+check("symbol-only failures classify consistently without accepting ambiguous shell evidence", () => {
+  for (const glyph of ["✕", "✖"]) {
+    assert.equal(classifyRedFailure(`${glyph} ticket case`, { exit: 1, posixShell: true }), "assertion");
+    for (const exit of [126, 127]) assert.equal(classifyRedFailure(`${glyph} ticket case`, { exit, posixShell: true }), "unknown");
+    assert.equal(classifyRedFailure(`${glyph} ticket case\nbash: line 1: missing: command not found`, { exit: 1, posixShell: true }), "unknown");
+  }
+  const dir = makeRepo();
+  applyFix(dir);
+  fs.writeFileSync(path.join(dir, "symbol.mjs"), 'import { value } from "./lib.mjs"; console.log(value === "old" ? "✖ ticket case" : "✔ ticket case"); process.exitCode = value === "old" ? 1 : 0;');
+  const r = run(dir, { test: `${NODE} symbol.mjs` });
+  assert.equal(r.ok, true, JSON.stringify(r.problems));
+  assert.equal(r.red.reason, "assertion");
+  assert.ok(r.red.failures.includes("✖ ticket case"));
+});
+
+check("missing-summary guidance does not direct readers to a failed log", () => {
+  const dir = makeRepo();
+  applyFix(dir);
+  const snapshots = snapshotDir();
+  fs.mkdirSync(path.join(snapshots, "red.log"));
+  fs.writeFileSync(path.join(dir, "banner.mjs"), 'import { value } from "./lib.mjs"; console.log(" RUN v2.1.9 /fixture"); if (value === "old") console.log("AssertionError: expected new"); process.exitCode = value === "old" ? 1 : 0;');
+  const r = run(dir, { snapshotDir: snapshots, test: `${NODE} banner.mjs` });
+  assert.equal(r.ok, false);
+  assert.equal(r.red.logPath, null);
+  assert.equal(r.red.reason, "assertion");
+  assert.ok(r.problems.some((problem) => problem.includes("raw log could not be saved")));
+  assert.ok(!r.problems.some((problem) => problem.includes("log at red.logPath")));
+  assert.equal(r.green.exit, 0);
+  assert.ok(r.files.every((file) => file.matches));
+});
+
+check("partial log writes are retained and explicitly disowned as evidence", () => {
+  const dir = makeRepo();
+  applyFix(dir);
+  const snapshots = snapshotDir();
+  const target = path.join(snapshots, "red.log");
+  const originalWrite = fs.writeFileSync;
+  let r;
+  try {
+    fs.writeFileSync = function (file, data, ...args) {
+      if (file === target) {
+        originalWrite.call(fs, file, data.slice(0, 12), ...args);
+        throw new Error("ENOSPC: simulated full disk");
+      }
+      return originalWrite.call(fs, file, data, ...args);
+    };
+    r = run(dir, { snapshotDir: snapshots });
+  } finally {
+    fs.writeFileSync = originalWrite;
+  }
+  assert.equal(r.ok, false);
+  assert.equal(r.red.logPath, null);
+  assert.equal(r.red.unverifiedLogPath, target);
+  assert.match(r.red.logError, /unverified.*partial or stale/);
+  assert.equal(fs.readFileSync(target, "utf8").length, 12);
+  assert.equal(r.red.reason, "assertion");
+  assert.equal(r.green.outcome, "passed");
+  assert.ok(r.files.every((file) => file.matches && fs.existsSync(file.snapshotPath)));
+});
+
 check("classifyRedFailure tells the reasons apart on real runner output", () => {
   assert.equal(classifyRedFailure("Error [ERR_MODULE_NOT_FOUND]: Cannot find module"), "import");
   assert.equal(classifyRedFailure('Error: Failed to resolve import "./x" from "y.ts"'), "import");

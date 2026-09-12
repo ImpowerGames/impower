@@ -12,6 +12,8 @@ const EXPECTED_CHECKS = 29;
 // The grammar scanner needs the full tree and runs in typecheck.yml.
 const checks = files.filter((f) => /^(?:\.agents\/|\.claude\/hooks\/|\.github\/scripts\/|scripts\/)/.test(f) && /\.test\./.test(f) && f !== "scripts/check-node-names.test.mjs");
 const runnable = checks.filter((f) => /\.test\.(?:mjs|sh)$/.test(f));
+const fixtures = checks.filter((f) => /\.(?:json|snap|md|txt)$/.test(f));
+const candidates = checks.filter((f) => !fixtures.includes(f));
 if (runnable.length !== EXPECTED_CHECKS || !checks.some((f) => f.startsWith(".agents/")) || !checks.some((f) => f.startsWith(".claude/hooks/")) || !checks.includes("scripts/link-agent-skills.test.mjs")) throw new Error(`Incomplete tooling check discovery: ${runnable.length} runnable, exactly ${EXPECTED_CHECKS} expected; stage checks and verify the checkout`);
 const bash = process.env.AGENT_TOOLING_BASH || (process.platform === "win32" ? testShell() : "bash");
 if (bash === true) throw new Error("Git for Windows bash is required for shell checks");
@@ -28,10 +30,10 @@ if (!Number.isSafeInteger(timeoutMs) || timeoutMs < 100 || timeoutMs > 3600000) 
 let failed = 0, ran = 0, timedOut = 0, exitUnconfirmed = 0;
 const skipped = [];
 const attemptedFiles = new Set();
-console.log(`Discovered ${checks.length} tracked check files`);
+console.log(`Discovered ${candidates.length} tracked check files and ${fixtures.length} data fixtures`);
 console.log(`Verified Bash: ${bash}; per-check timeout: ${timeoutMs} ms`);
-for (const file of checks) {
-  if (/\.(?:json|snap|md|txt)$/.test(file)) continue;
+for (const file of fixtures) console.log(`FIXTURE: ${file}: non-executable data, excluded from check coverage`);
+for (const file of candidates) {
   if (!/\.test\.(?:mjs|sh)$/.test(file) || !fs.existsSync(path.join(root, file))) {
     console.error(`FAILED: unsupported or missing check ${file}`); failed++; continue;
   }
@@ -80,8 +82,8 @@ for (const file of checks) {
     break;
   }
 }
-for (const file of runnable) if (!attemptedFiles.has(file)) console.log(`NOT RUN: ${file}: no invocation attempted`);
-const summary = `Tooling checks: ${ran} run, ${failed} failed, ${runnable.length - ran} not run; ${timedOut} timed out, ${exitUnconfirmed} exit unconfirmed`;
+for (const file of candidates) if (!attemptedFiles.has(file)) console.log(`NOT RUN: ${file}: no invocation attempted`);
+const summary = `Tooling checks: ${ran} run, ${failed} failed, ${candidates.length - ran} not run; ${timedOut} timed out, ${exitUnconfirmed} exit unconfirmed; ${fixtures.length} data fixtures`;
 console.log(summary);
 console.log(`Skipped cases: ${skipped.length}`);
 for (const line of skipped) console.log(line);
