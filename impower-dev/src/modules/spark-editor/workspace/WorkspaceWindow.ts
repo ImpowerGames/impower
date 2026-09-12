@@ -46,7 +46,7 @@ import { StepGameClockMessage } from "@impower/spark-engine/src/game/core/classe
 import { StopGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/StopGameMessage";
 import { UnpauseGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/UnpauseGameMessage";
 import { CompiledProgramMessage } from "@impower/sparkdown/src/compiler/classes/messages/CompiledProgramMessage";
-import { ShowDocumentResult } from "vscode-languageserver-protocol";
+import { type ShowDocumentResult } from "vscode-languageserver-protocol";
 import { debounce } from "../utils/debounce";
 import SingletonPromise from "./SingletonPromise";
 import { Workspace } from "./Workspace";

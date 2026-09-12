@@ -1,5 +1,5 @@
-import { MarkupContent } from "vscode-languageserver-protocol";
-import { Range } from "./Range";
+import { type MarkupContent } from "vscode-languageserver-protocol";
+import { type Range } from "./Range";
 
 /**
  * Represents a location inside a resource, such as a line

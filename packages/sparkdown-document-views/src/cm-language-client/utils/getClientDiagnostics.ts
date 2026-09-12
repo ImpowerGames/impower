@@ -5,9 +5,9 @@ import {
   MarkupKind,
   Diagnostic as ServerDiagnostic,
 } from "@impower/spark-editor-protocol/src/types";
-import type { MarkupContent } from "vscode-languageserver-protocol";
 import { NodeType } from "@lezer/common";
 import { Tag } from "@lezer/highlight";
+import { type MarkupContent } from "vscode-languageserver-protocol";
 import { FileSystemReader } from "../types/FileSystemReader";
 import { getClientDiagnosticActions } from "./getClientDiagnosticActions";
 import { getClientDiagnosticSeverity } from "./getClientDiagnosticSeverity";
@@ -38,10 +38,7 @@ export const getClientDiagnostics = (
             typeof d.message === "string"
               ? { value: d.message, kind: "markdown" as MarkupKind }
               : d.message;
-          const { value, kind } = getClientMarkupContent(
-            raw,
-            fileSystemReader,
-          );
+          const { value, kind } = getClientMarkupContent(raw, fileSystemReader);
           const content: MarkupContent = { value, kind };
           const dom = getClientMarkupDom({
             content,

@@ -1,7 +1,7 @@
-import * as vscode from "vscode";
-import { LSPAny } from "vscode-languageserver-protocol";
-import { SparkdownPreviewGamePanelManager } from "../managers/SparkdownPreviewGamePanelManager";
 import { bytesToBase64 } from "@impower/sparkdown/src/thumbnails/composeThumbnail";
+import * as vscode from "vscode";
+import { type LSPAny } from "vscode-languageserver-protocol";
+import { SparkdownPreviewGamePanelManager } from "../managers/SparkdownPreviewGamePanelManager";
 import { getEditor } from "./getEditor";
 import { getOpenTextDocument } from "./getOpenTextDocument";
 

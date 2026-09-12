@@ -1,6 +1,6 @@
 import { ChangeSet, EditorSelection, Text } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
-import * as lsp from "vscode-languageserver-protocol";
+import type * as lsp from "vscode-languageserver-protocol";
 import { LSPClient } from "./client";
 import { LSPPlugin } from "./plugin";
 import { getDocumentVersion } from "./version";

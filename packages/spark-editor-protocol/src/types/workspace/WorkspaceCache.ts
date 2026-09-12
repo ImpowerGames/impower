@@ -1,4 +1,4 @@
-import type { Range } from "vscode-languageserver-protocol";
+import { type Range } from "vscode-languageserver-protocol";
 
 export type PanelType =
   | "main"
