@@ -5,13 +5,13 @@ import { fileURLToPath } from "node:url";
 import { testShell } from "../.agents/skills/drive-web-editor/redgreen.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const files = execFileSync("git", ["ls-files", "-z"], { cwd: root, encoding: "utf8" }).split("\0").filter(Boolean);
+// The notifier installs npm dependencies in its own Windows/Linux test workflow.
+const files = execFileSync("git", ["ls-files", "-z"], { cwd: root, encoding: "utf8" }).split("\0").filter(Boolean).filter((f) => !f.startsWith("scripts/agent-notification-alerts/"));
 // Derived from the tracked runnable set. Update this count when adding checks;
 // deleting or renaming a check must not silently reduce the expected coverage.
 const EXPECTED_CHECKS = 25;
 // The grammar scanner needs the full tree and runs in typecheck.yml.
-// The notifier has npm dependencies and its own Windows/Linux workflow.
-const checks = files.filter((f) => /^(?:\.agents\/|\.claude\/hooks\/|scripts\/)/.test(f) && /\.test\./.test(f) && f !== "scripts/check-node-names.test.mjs" && !f.startsWith("scripts/agent-notification-alerts/"));
+const checks = files.filter((f) => /^(?:\.agents\/|\.claude\/hooks\/|scripts\/)/.test(f) && /\.test\./.test(f) && f !== "scripts/check-node-names.test.mjs");
 const runnable = checks.filter((f) => /\.test\.(?:mjs|sh)$/.test(f));
 if (runnable.length !== EXPECTED_CHECKS || !checks.some((f) => f.startsWith(".agents/")) || !checks.some((f) => f.startsWith(".claude/hooks/")) || !checks.includes("scripts/link-agent-skills.test.mjs")) throw new Error(`Incomplete tooling check discovery: ${runnable.length} runnable, exactly ${EXPECTED_CHECKS} expected; stage checks and verify the checkout`);
 const bash = process.platform === "win32" ? testShell() : "bash";
