@@ -74,7 +74,7 @@ assert.deepEqual(policyErrors(prompt.replace(noReset, "")), ["count preservation
 assert.deepEqual(policyErrors(prompt.replace(noReset, noReset.replace("does not reset", "resets"))), ["count preservation"]);
 // Updating only the canonical sentence cannot hide stale plan instructions.
 const partialCapUpdate = prompt.replace("The autonomous cap is " + enforcedCap + " rounds", "The autonomous cap is " + (enforcedCap + 1) + " rounds");
-assert.ok(policyErrors(partialCapUpdate, enforcedCap + 1).includes("plan round range"));
+assert.deepEqual(policyErrors(partialCapUpdate, enforcedCap + 1), capRules.filter(([label]) => label !== "later-round cap").map(([label]) => label));
 // Coordinator readiness invariants belong in the workflow documents;
 // build-review-prompt.test.mjs checks the instructions actually sent to reviewers.
 for (const rule of ["Behavior-changing fix commits have themselves been independently reviewed", "Exhausting the cap never grants readiness"]) assert.ok(prompt.includes(rule), rule);
