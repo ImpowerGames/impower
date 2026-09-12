@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { spawn, execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import { reserveReviewerSlot, releaseReviewerSlot, processIdentity } from "./reviewer-slots.mjs";
 
 const read = (file) => JSON.parse(fs.readFileSync(file, "utf8"));
 const gitHead = (cwd) => execFileSync("git", ["rev-parse", "HEAD"], { cwd, encoding: "utf8" }).trim();
@@ -15,7 +16,7 @@ export function checkReviewRound(round, completedRound, finalCorrections) {
 
 // Configuration is a local, caller-authored artifact. Comments and child output
 // can select a declared transition but can never supply executable commands.
-export async function runHandoff(configFile) {
+export async function runHandoff(configFile, { slotRoot, identifyProcess = processIdentity } = {}) {
   const config = read(configFile);
   const cwd = fs.realpathSync(config.worktree);
   const journal = path.resolve(config.journal);
@@ -42,14 +43,20 @@ export async function runHandoff(configFile) {
   }
   fs.mkdirSync(path.dirname(journal), { recursive: true });
   const lock = execFileSync("git", ["rev-parse", "--path-format=absolute", "--git-path", "agent-handoff.lock"], { cwd, encoding: "utf8" }).trim();
-  const owner = fs.openSync(lock, "wx");
+  let owner;
+  try { owner = fs.openSync(lock, "wx"); }
+  catch(error) {
+    if(error.code==="EEXIST")throw new Error(`EEXIST: a coordinator already owns this worktree; inspect ${lock} and await confirmed exit`);
+    throw error;
+  }
   let fd;
   const append = (row) => { fs.writeSync(fd, JSON.stringify({ time: new Date().toISOString(), ...row }) + "\n"); fs.fsyncSync(fd); };
   let current = config.first;
   let completedRound = config.completedReviewRound;
   let finalCorrections = config.finalCorrections ?? false;
+  let activeChild;
   try {
-    fs.writeFileSync(owner, JSON.stringify({ pid: process.pid, startedAt: new Date().toISOString(), journal }));
+    fs.writeFileSync(owner, JSON.stringify({ pid: process.pid, processIdentity: processIdentity(process.pid), startedAt: new Date().toISOString(), journal }));
     fd = fs.openSync(journal, "wx");
     for (let index = 0; current; index++) {
       if (index >= config.maxSteps) throw new Error("Handoff step budget reached; human review required");
@@ -64,14 +71,65 @@ export async function runHandoff(configFile) {
       const prompt = fs.readFileSync(step.prompt, "utf8") + `\n\nHandoff contract: role=${step.role}, configured model=${step.model}, reviewed head=${head}. Write ${completion} with the editor tool as JSON: {"head":"<actual HEAD>","next":"<declared transition or null>","commentIds":[<numeric GitHub comment IDs>],"summary":"<result>"}. Allowed next steps: ${JSON.stringify(step.next)}. Review and adjudication must post their complete report/dispositions before completion; include those IDs. Do not mark ready or merge. Do not modify repository files during review.\n`;
       append({ event: "launching", index, step: current, role: step.role, model: step.model, round: step.round, completedRound, head, output, completion });
       const log = fs.openSync(output, "wx");
+      let slot;
+      try { slot = step.role === "review" ? reserveReviewerSlot(slotRoot) : null; }
+      catch (error) { fs.closeSync(log); throw error; }
+      if (slot) {
+        slot.append({phase:"launching",head,output,completion,journal});
+        append({event:"reserved",index,slot:slot.file,token:slot.token,owner:slot.owner});
+      }
       const child = spawn(step.executable, step.args, { cwd, shell: false, windowsHide: true, stdio: ["pipe", log, log] });
-      append({ event: "running", index, step: current, pid: child.pid, startedAt: new Date().toISOString(), head, output, completion });
-      const exited = new Promise((resolve, reject) => { child.once("error", reject); child.once("close", (code, signal) => resolve({ code, signal })); });
-      child.stdin.on("error", () => {});
-      child.stdin.end(prompt);
+      activeChild = child;
+      let childError;
+      const exited = new Promise((resolve) => { child.on("error", (e) => {childError=e.message;}); child.once("close", (code, signal) => resolve({ code, signal, error:childError })); });
       let result;
-      try { result = await exited; } finally { fs.closeSync(log); }
-      append({ event: "exited", index, step: current, ...result });
+      try {
+        child.stdin.on("error", () => {});
+        let identityRow;
+        if (slot && child.pid) {
+          try {
+            const childIdentity = identifyProcess(child.pid);
+            slot.append({phase:childIdentity ? "running" : "exited",child:childIdentity,head,output,completion,journal});
+            identityRow={event:childIdentity ? "identified" : "confirmed-absent",index,step:current,childIdentity,slot:slot.file,token:slot.token};
+          }
+          catch (error) { identityRow={event:"identity-uncertain",index,reason:error.message}; }
+        }
+        append({ event: "running", index, step: current, pid: child.pid, startedAt: new Date().toISOString(), head, output, completion });
+        if(identityRow)append(identityRow);
+        child.stdin.end(prompt);
+        result = await exited;
+        activeChild = null;
+      } catch(error) {
+        // The handle belongs to the child just spawned here. Close its input
+        // and terminate that child, retaining ownership until close is observed.
+        child.stdin.destroy();
+        const waitForClose = (ms) => new Promise(resolve=>{
+          const timer=setTimeout(()=>resolve(null),ms);
+          exited.then(value=>{clearTimeout(timer);resolve(value);});
+        });
+        let undelivered=false;
+        const terminate=(signal)=>{try{if(!child.kill(signal))undelivered=true;}catch(killError){error.message += `; owned-child termination failed: ${killError.message}`;}};
+        terminate();
+        let stopped=await waitForClose(5000);
+        if(!stopped){terminate("SIGKILL");stopped=await waitForClose(5000);}
+        if(stopped){
+          activeChild=null;
+          if(slot){try{releaseReviewerSlot(slot);}catch(releaseError){error.message += `; reservation retained at ${slot.file}: ${releaseError.message}`;}}
+        } else {
+          child.unref();
+          if(undelivered)error.message += "; owned-child termination request was not delivered";
+          error.message += `; child exit unconfirmed (PID ${child.pid}): preserve the worktree lock${slot ? " and reviewer reservation at " + slot.file + "; inspect any recorded OS identity in that slot" : ""}`;
+        }
+        if(childError)error.message += `; child process error: ${childError}`;
+        throw error;
+      } finally { fs.closeSync(log); }
+      try { append({ event: "exited", index, step: current, ...result }); }
+      catch(error){
+        error.message=`Child exit confirmed (code ${result.code}); exit journal write failed: ${error.message}; completion and report validation has not run`;
+        if(slot){try{releaseReviewerSlot(slot);}catch(releaseError){error.message += `; reservation retained at ${slot.file}: ${releaseError.message}`;}}
+        throw error;
+      }
+      if(slot){try{releaseReviewerSlot(slot);}catch(error){throw new Error(`Child exit confirmed (code ${result.code}); reservation retained at ${slot.file}: ${error.message}; completion and report validation has not run`);}}
       if (result.code !== 0) throw new Error(`Role ${current} failed; inspect ${output}`);
       if (step.role === "review" && (gitHead(cwd) !== head || gitStatus(cwd) !== status)) throw new Error("Review changed the frozen head or worktree");
       const done = read(completion);
@@ -90,11 +148,14 @@ export async function runHandoff(configFile) {
     }
     append({ event: "finished" });
   } catch (error) {
-    if (fd !== undefined) append({ event: "blocked", reason: error.message });
+    if (fd !== undefined) {
+      try { append({ event: "blocked", reason: error.message }); }
+      catch(journalError){error.message += `; blocked journal write failed: ${journalError.message}`;}
+    }
     throw error;
   } finally {
     try { if (fd !== undefined) fs.closeSync(fd); }
-    finally { try { fs.closeSync(owner); } finally { fs.unlinkSync(lock); } }
+    finally { try { fs.closeSync(owner); } finally { if (!activeChild) fs.unlinkSync(lock); } }
   }
 }
 

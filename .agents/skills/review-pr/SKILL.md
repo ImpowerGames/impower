@@ -57,7 +57,7 @@ Write it to your private scratch directory, never into the checkout. A patch fil
 
 Give each reviewer a subdirectory of your private scratch directory that is its own: never the writer's private scratch directory directly, and never a directory that already holds files. Two reviewers sharing a directory pick up and repoint each other's probe files; one did, found the other's findings in its own file, and had to re-verify everything under fresh names. The prompt below gives each reviewer that path as REVDIR (`<private scratch directory>\review-<round>-<lens>-<attempt>\`, `<attempt>` starting at 1); relaunching a lens that died is the same round and the same lens, so the relaunch increments `<attempt>` rather than reusing the dead reviewer's directory.
 
-Spawn at most four reviewers at once. A High-impact round of five runs its fifth lens as a second batch, spawned once the first batch's comments are on the pull request; when the user says the machine is shared, a batch is at most two and the round runs as many batches as its lenses need. Batching is how the cap is obeyed without dropping a lens, so say in the round's state comment which lenses each batch covered. The failure the cap answers was machine-wide: seven reviewers at once, across two sessions running in parallel, hit the session rate limit and killed a whole round, while four or fewer did not. A session cannot see what another has in flight, which is why the number here is a batch size rather than a budget to divide, and why the user saying the machine is shared halves it.
+Start every local CLI reviewer through the [handoff launcher](HANDOFF.md); its atomic shared reservation enforces a machine-wide limit of four participating reviewer processes until confirmed process exit. The launcher runs one lens at a time per worktree under its coordinator lock. A High-impact round runs all five lenses serially; the shared ceiling coordinates reviewers in other worktrees, not parallel lenses within this worktree. Record the serial lens order in the round state. A posted comment or completion file does not release a slot. Native or remote agent tasks are unsupported for this enforced workflow because the launcher cannot reserve and verify their process lifetime. An unaccountable native or remote review launch blocks the machine-wide capacity guarantee; do not substitute manual counts or claim it is covered by the reservation. Do not launch a local CLI reviewer directly to bypass an occupied or inaccessible slot store.
 
 Run reviewers using the caller-supplied method. Without subagents, run each lens as a separate fresh serial session with the same frozen diff and the complete prompt below. Wait for each process to exit, then verify its report landed before starting the next lens. A single session changing lenses is not independent review. Never edit while a reviewer is running.
 
@@ -124,6 +124,10 @@ Then dispose of every finding where it lives, on the PR. Adjudicate every commen
 - Rejected: the concrete reason and evidence, including a claim not confirmed at its cited location.
 - Already covered: the earlier finding, adjudication ID and fix that cover it.
 
+Adjudicate late or out-of-order reports against current HEAD. For each finding, state whether it remains live, is already fixed (name the commit and verification), or is no longer applicable (explain the current code). Name the commits between that report's reviewed head and current HEAD that the reviewer did not see. Preserve the report and its original round; arrival order does not change coverage or reset the stopping rule. A live finding that needs a code change follows section 6 before editing.
+
+The adjudicating writer and every reviewer read comments through the paginated API. List all IDs and headings with `gh api repos/ImpowerGames/impower/issues/P/comments --paginate --jq '.[] | [.id, (.body | split("\n")[0])] | @tsv'`, then fetch each relevant full body with `gh api repos/ImpowerGames/impower/issues/comments/<id> --jq .body`. Persist long bodies to private files and read them in bounded sections so tool output limits cannot hide later findings. Read back every published review and adjudication body, not only its heading. Do not use `gh pr view P --comments` for adjudication or prompt preparation.
+
 When a finding's fix depends on a defect older than the branch, fix the older defect on the branch too and say so under Notes for reviewers; ticket it separately only when the fix can stand without it.
 
 Do not silently drop findings; an unanswered review comment on the PR reads as an open defect.
@@ -144,6 +148,7 @@ Marking the PR ready means this diff is finished and ready to be reviewed by a h
 - Every fix you made in response is committed, pushed, and re-verified as above, and the last push is on the PR.
 - No re-spawned lens is still outstanding from an aborted or retried attempt (section 2). If a lens ended up with no independent reviewer at all, say so on the PR before marking ready, so the human knows which angle nobody covered.
 - The fix commits have themselves been reviewed under section 6's rule, or the adjudication says which final fix was not.
+- No external draft blocker remains. Under Notes for reviewers, name any prerequisite outside review (such as another PR holding required files), what must happen first, and the remaining work in the order a follow-up session should perform it. Keep the PR draft until that prerequisite and the remaining gates are satisfied.
 
 Only then:
 
@@ -174,6 +179,14 @@ Say why in a PR comment, so the state change is not a mystery to anyone watching
 Then judge what the change costs. Editing prose in the PR body, or a doc-only tweak, does not need a second review; mark it ready again once it is in. A code change makes the reviewed version outdated. Assess the new diff under the stopping rule below before launching another round.
 
 Size every round by the diff it reviews. Fill in the prompt's ROUND placeholder (section 3) with the new round number and PREVIOUS with what round R-1 found and how this commit answers it, and size the tier by the diff of what changed since the previous round rather than by the size of the whole PR; a one-line follow-up fix earns the Minimal tier even on a PR whose first round ran five reviewers. Summarise the earlier findings in PREVIOUS rather than sending reviewers to `gh pr view P --comments`: after a few long reviews that output runs past the tool's 400-line cut and the later rounds are the ones that fall off. A reviewer that must read an earlier comment can list them with `gh api repos/ImpowerGames/impower/issues/P/comments --paginate --jq '.[] | [.id, (.body | split("\n")[0])] | @tsv'` and fetch one by id with `gh api repos/ImpowerGames/impower/issues/comments/<id> --jq .body`.
+
+Capture the later round's patch from the previous round's recorded reviewed head, with explicit paths this change owns:
+
+```bash
+git diff <previous-reviewed-head>..HEAD -- <owned-paths> > "$SCRATCH/review-<round>-fixes.patch"
+```
+
+A lens judging corrections receives this fix diff. A lens assessing the whole change, such as prose consistency or blast radius, receives `git diff origin/main...HEAD` captured under section 3. Record the selected range, paths and purpose for each lens in the round state. The path filter excludes unrelated base integration from the correction diff; explicitly include any newly authorized scope and disclose any owned-path base changes still present. Round 4 remains narrow under the stopping rule below. Before capture, confirm the prior reviewed head against the journal and review comment rather than inferring it from the last commit or the last report to arrive.
 
 The loop has a stopping rule. Continue reviewing code corrections through round 3. If code changes after round 3, run one narrow round 4 covering only the changes since round 3's reviewed head and the callers needed to assess them. Use one reviewer for internal skills work unless a specific deletion or data-preservation risk warrants a second. Documentation, comments and test-only corrections can finish after verification with an explicit note that the final correction was not independently re-reviewed.
 
