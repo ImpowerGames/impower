@@ -8,35 +8,74 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const files = execFileSync("git", ["ls-files", "-z"], { cwd: root, encoding: "utf8" }).split("\0").filter(Boolean);
 // Derived from the tracked runnable set. Update this count when adding checks;
 // deleting or renaming a check must not silently reduce the expected coverage.
-const EXPECTED_CHECKS = 26;
+const EXPECTED_CHECKS = 29;
 // The grammar scanner needs the full tree and runs in typecheck.yml.
-const checks = files.filter((f) => /^(?:\.agents\/|\.claude\/hooks\/|scripts\/)/.test(f) && /\.test\./.test(f) && f !== "scripts/check-node-names.test.mjs");
+const checks = files.filter((f) => /^(?:\.agents\/|\.claude\/hooks\/|\.github\/scripts\/|scripts\/)/.test(f) && /\.test\./.test(f) && f !== "scripts/check-node-names.test.mjs");
 const runnable = checks.filter((f) => /\.test\.(?:mjs|sh)$/.test(f));
 if (runnable.length !== EXPECTED_CHECKS || !checks.some((f) => f.startsWith(".agents/")) || !checks.some((f) => f.startsWith(".claude/hooks/")) || !checks.includes("scripts/link-agent-skills.test.mjs")) throw new Error(`Incomplete tooling check discovery: ${runnable.length} runnable, exactly ${EXPECTED_CHECKS} expected; stage checks and verify the checkout`);
-const bash = process.platform === "win32" ? testShell() : "bash";
+const bash = process.env.AGENT_TOOLING_BASH || (process.platform === "win32" ? testShell() : "bash");
 if (bash === true) throw new Error("Git for Windows bash is required for shell checks");
+const probe = execFileSync(bash, ["-c", 'test -n "$BASH_VERSION" && printf agent-tooling-bash'], { encoding: "utf8", timeout: 10000, windowsHide: true });
+if (probe !== "agent-tooling-bash") throw new Error("Required Bash probe failed");
+const env = { ...process.env, NODE_OPTIONS: "--max-old-space-size=1024", AGENT_TOOLING_BASH: bash };
+// Node inherits the first case-insensitive PATH key on Windows.
+const pathKey = Object.keys(env).find((key) => key.toLowerCase() === "path") || "PATH";
+if (path.isAbsolute(bash)) {
+  env[pathKey] = [path.dirname(bash), path.resolve(path.dirname(bash), "../usr/bin"), env[pathKey] || ""].join(path.delimiter);
+}
+const timeoutMs = Number(process.env.AGENT_TOOLING_TIMEOUT_MS || 300000);
+if (!Number.isSafeInteger(timeoutMs) || timeoutMs < 100 || timeoutMs > 3600000) throw new Error("AGENT_TOOLING_TIMEOUT_MS must be an integer from 100 to 3600000");
 let failed = 0, ran = 0;
 const skipped = [];
+const completed = new Set();
 console.log(`Discovered ${checks.length} tracked check files`);
+console.log(`Verified Bash: ${bash}; per-check timeout: ${timeoutMs} ms`);
 for (const file of checks) {
   if (/\.(?:json|snap|md|txt)$/.test(file)) continue;
   if (!/\.test\.(?:mjs|sh)$/.test(file) || !fs.existsSync(path.join(root, file))) {
     console.error(`FAILED: unsupported or missing check ${file}`); failed++; continue;
   }
   console.log(`CHECK: ${file}`);
+  const started = Date.now();
   let output = "";
-  const child = spawn(file.endsWith(".sh") ? bash : process.execPath, [file], { cwd: root, stdio: ["ignore", "pipe", "pipe"], windowsHide: true, env: { ...process.env, NODE_OPTIONS: "--max-old-space-size=1024" } });
+  const child = spawn(file.endsWith(".sh") ? bash : process.execPath, [file], { cwd: root, stdio: ["ignore", "pipe", "pipe"], windowsHide: true, detached: process.platform !== "win32", env });
   child.stdout.on("data", (chunk) => { output += chunk; process.stdout.write(chunk); });
   child.stderr.on("data", (chunk) => { output += chunk; process.stderr.write(chunk); });
   const result = await new Promise((resolve) => {
-    child.once("error", (error) => resolve({ error: error.message }));
-    child.once("close", (status) => resolve({ status }));
+    let timedOut = false, cleanupError = null, cleanupTimer;
+    const finish = (result) => { clearTimeout(timer); clearTimeout(cleanupTimer); clearInterval(progress); resolve({ ...result, timedOut, cleanupError }); };
+    const progress = setInterval(() => console.log(`RUNNING: ${file}: ${Date.now() - started} ms; awaiting exit`), 30000);
+    const timer = setTimeout(() => {
+      timedOut = true;
+      console.error(`TIMEOUT: ${file}; stopping launched process tree ${child.pid}`);
+      try {
+        if (process.platform === "win32") {
+          if (child.exitCode !== null || child.signalCode !== null) throw new Error("launched parent already exited; refusing an unowned PID, inspect remaining descendants");
+          execFileSync("taskkill", ["/PID", String(child.pid), "/T", "/F"], { windowsHide: true, timeout: 10000, stdio: "pipe" });
+        }
+        else process.kill(-child.pid, "SIGKILL");
+      } catch (error) { cleanupError = error.message; }
+      cleanupTimer = setTimeout(() => {
+        child.stdout.destroy(); child.stderr.destroy(); child.unref();
+        finish({ error: "process exit could not be confirmed", cleanupUnconfirmed: true });
+      }, 10000);
+    }, timeoutMs);
+    child.once("error", (error) => finish({ error: error.message }));
+    child.once("close", (status, signal) => finish({ status, signal }));
   });
   ran++;
-  if (result.status !== 0) { console.error(`FAILED: ${file}: ${result.error ?? result.status}`); failed++; }
+  completed.add(file);
+  const passed = result.status === 0 && !result.timedOut;
+  console.log(`DONE: ${file}: ${passed ? "passed" : result.timedOut ? "timed out" : "failed"}; exit=${result.status ?? "unconfirmed"}; signal=${result.signal ?? "none"}; ${Date.now() - started} ms`);
+  if (!passed) { console.error(`FAILED: ${file}: ${result.error ?? result.status}`); failed++; }
   for (const line of output.split(/\r?\n/)) if (line.startsWith("SKIP:")) skipped.push(`${file}: ${line}`);
+  if (result.cleanupError || result.cleanupUnconfirmed) {
+    console.error(`ABORT: cleanup was not confirmed: ${result.cleanupError || result.error}; remaining checks were not run`);
+    break;
+  }
 }
-const summary = `Tooling checks: ${ran} run, ${failed} failed`;
+for (const file of runnable) if (!completed.has(file)) console.log(`NOT RUN: ${file}: no completed invocation`);
+const summary = `Tooling checks: ${ran} run, ${failed} failed, ${runnable.length - ran} not run`;
 console.log(summary);
 console.log(`Skipped cases: ${skipped.length}`);
 for (const line of skipped) console.log(line);

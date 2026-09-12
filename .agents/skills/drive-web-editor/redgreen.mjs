@@ -17,7 +17,7 @@
 // base revision resolves, the test exited non-zero on the base for a reason the
 // classifier recognises as a test failure, every file came back byte-for-byte,
 // and the test exited zero on the fix. It is an exit-code proof. Which test in
-// the file failed is in `red.tail`, and reading it is the session's job.
+// the file failed is in `red.failures` and the saved log; reading it is the session's job.
 //
 // Once the snapshot is taken this function does not throw: every later error
 // becomes a `problems` entry, so the report — the snapshot directory and the
@@ -262,6 +262,13 @@ export function classifyRedFailure(output, { removed = [], launchError = null, e
  * Files` line anywhere, the fallback is the last `Tests` line in the output.
  */
 const ANSI_ESCAPE_RE = /\x1b\[[0-9;]*m/g;
+function failureEvidence(output, logPath) {
+  fs.writeFileSync(logPath, output);
+  const matches = output.replace(ANSI_ESCAPE_RE, "").split(/\r?\n/).filter((line) =>
+    !/^\s*(?:PASS\b|ok\b|[✓✔])/.test(line) && /^(?:\s*(?:FAIL\b|not ok\b|[✕✗×]))|\bAssertionError\b/.test(line));
+  const excerpt = matches.slice(0, 40);
+  return { logPath, failures: excerpt.map((line) => line.slice(0, 2000)), failuresOmitted: Math.max(0, matches.length - 40), failureLinesTruncated: excerpt.filter((line) => line.length > 2000).length };
+}
 const VITEST_COUNT_RE = /\d+\s+(?:passed|failed|skipped|todo)/;
 const VITEST_NO_TESTS_RE = /\bno tests\b/;
 const isTestFilesLine = (l) => /^\s*Test Files\s/.test(l) && VITEST_COUNT_RE.test(l);
@@ -496,6 +503,7 @@ export function runRedGreen({ repoRoot, test, files, base = "HEAD", snapshotDir,
         outcome: red.exit === 0 ? "passed" : "failed",
         reason: redReason,
         tail: red.tail,
+        ...failureEvidence(red.output, path.join(dir, "red.log")),
         summary: parseVitestSummary(red.output),
       };
       if (red.exit === 0) {
@@ -579,6 +587,7 @@ export function runRedGreen({ repoRoot, test, files, base = "HEAD", snapshotDir,
         exit: green.exit,
         outcome: green.exit === 0 ? "passed" : "failed",
         tail: green.tail,
+        ...failureEvidence(green.output, path.join(dir, "green.log")),
         summary: parseVitestSummary(green.output),
       };
       if (green.exit !== 0) {
