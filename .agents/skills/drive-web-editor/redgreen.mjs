@@ -171,7 +171,7 @@ export function classifyRedFailure(output, { removed = [], launchError = null, e
   if (["ENOBUFS", "ETIMEDOUT"].includes(launchError)) return "crash";
   if (launchError) return "unknown";
   if (exit === -1) return "crash";
-  const testedDiagnostic = /\bAssertionError\b|\bexpected\b.*\bto\b|\.to(?:Be|Equal|StrictEqual|Match|Contain|Throw|HaveLength|HaveProperty)\w*\(|\bexpect\(|[✕✗×✖]|\bFAIL\b|Tests\s+\d+ failed|\d+ failing\b|\bnot ok \d|assert\.\w+\(|Assertion failed/i.test(output);
+  const testedDiagnostic = /\bAssertionError\b|\bexpected\b.*\bto\b|\.to(?:Be|Equal|StrictEqual|Match|Contain|Throw|HaveLength|HaveProperty)\w*\(|\bexpect\(|^\s*[✕✗×✖]\s|\bFAIL\b|Tests\s+\d+ failed|\d+ failing\b|\bnot ok \d|assert\.\w+\(|Assertion failed/im.test(output);
   // POSIX shells reserve these for execution failure, but also forward a
   // program's chosen status. Assertion evidence therefore makes them ambiguous.
   // cmd does not use this convention; do not infer it from the host platform.

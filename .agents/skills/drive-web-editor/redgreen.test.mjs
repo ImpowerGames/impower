@@ -799,6 +799,21 @@ check("symbol-only failures classify consistently without accepting ambiguous sh
   assert.ok(r.red.failures.includes("✖ ticket case"));
 });
 
+check("decorative and trailing failure markers do not establish assertion evidence", () => {
+  for (const output of ["benchmark: header rebuild is 2 × slower than budget\nrun aborted", "progress ✖✖✖ markers in a banner", "ticket case: header rebuild ✖"]) {
+    assert.equal(classifyRedFailure(output, { exit: 1 }), "unknown", output);
+  }
+  for (const glyph of ["✕", "✗", "×", "✖"]) assert.equal(classifyRedFailure(`\u001b[31m  ${glyph} ticket case\u001b[0m`, { exit: 1 }), "assertion");
+  const dir = makeRepo();
+  applyFix(dir);
+  fs.writeFileSync(path.join(dir, "decorative.mjs"), 'import { value } from "./lib.mjs"; console.log("progress ✖✖✖ markers in a banner"); process.exitCode = value === "old" ? 1 : 0;');
+  const r = run(dir, { test: `${NODE} decorative.mjs` });
+  assert.equal(r.ok, false);
+  assert.equal(r.red.reason, "unknown");
+  assert.deepEqual(r.red.failures, []);
+  assert.match(fs.readFileSync(r.red.logPath, "utf8"), /progress/);
+});
+
 check("missing-summary guidance does not direct readers to a failed log", () => {
   const dir = makeRepo();
   applyFix(dir);
