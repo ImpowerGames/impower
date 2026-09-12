@@ -94,12 +94,7 @@ import {
   wordOnPage,
 } from "./driver.mjs";
 
-const WIN = process.platform === "win32";
-// A case whose fixture paths are drive-letter paths. `path.join("C:", …)`
-// builds an absolute path on Windows and a relative one everywhere else, so
-// off Windows the code under test resolves it against the working directory
-// and the expectation never matches. Each names its own reason.
-const skip = (name, reason) => console.log(`SKIP: ${name} (Windows only: ${reason})`);
+const FIXTURE_ROOT = path.parse(process.cwd()).root;
 
 let failures = 0;
 const check = async (name, fn) => {
@@ -504,56 +499,55 @@ await check("a source set change that no directory can date is refused, not vouc
 fs.rmSync(scratch, { recursive: true, force: true });
 
 await check("projects and logs sit beside the builds directory, never inside it", () => {
-  const { builds, projects, logs } = dataLayout(path.join("C:", "data"));
+  const { builds, projects, logs } = dataLayout(path.join(FIXTURE_ROOT, "data"));
   const inside = (p) => path.relative(builds, p).startsWith("..") === false;
-  assert.equal(path.dirname(builds), path.join("C:", "data"));
+  assert.equal(path.dirname(builds), path.join(FIXTURE_ROOT, "data"));
   assert.ok(!inside(projects), `${projects} is inside ${builds}, which the server clears on a new download`);
   assert.ok(!inside(logs), `${logs} is inside ${builds}, which the server clears on a new download`);
 });
 
 const planFor = (extra) =>
-  launchPlan({ data: path.join("C:", "data"), port: 34123, extDir: path.join("C:", "repo", "vscode-sparkdown"), entry: path.join("C:", "repo", "index.js"), ...extra });
+  launchPlan({ data: path.join(FIXTURE_ROOT, "data"), port: 34123, extDir: path.join(FIXTURE_ROOT, "repo", "vscode-sparkdown"), entry: path.join(FIXTURE_ROOT, "repo", "index.js"), ...extra });
 const argOf = (args, flag) => args[args.indexOf(flag) + 1];
 
 await check("the launch plan is the server's whole argument list: no browser, the quality, esm, the port, only the quality's builds directory, the commit when there is one, the extension, the project last", () => {
   const plan = planFor({ sd: "repro.sd", quality: "insiders", commit: "c".repeat(40) });
   assert.equal(plan.error, undefined);
-  assert.equal(plan.builds, path.join("C:", "data", "builds", "insiders"));
+  assert.equal(plan.builds, path.join(FIXTURE_ROOT, "data", "builds", "insiders"));
   assert.deepEqual(plan.args, [
-    path.join("C:", "repo", "index.js"),
+    path.join(FIXTURE_ROOT, "repo", "index.js"),
     "--browser", "none",
     "--quality", "insiders",
     "--esm",
     "--port", "34123",
     "--testRunnerDataDir", plan.builds,
     "--commit", "c".repeat(40),
-    "--extensionDevelopmentPath", path.join("C:", "repo", "vscode-sparkdown"),
+    "--extensionDevelopmentPath", path.join(FIXTURE_ROOT, "repo", "vscode-sparkdown"),
     plan.project,
   ]);
   const stable = planFor({ sd: "repro.sd" });
   assert.equal(argOf(stable.args, "--quality"), "stable");
-  assert.equal(stable.builds, path.join("C:", "data", "builds", "stable"));
+  assert.equal(stable.builds, path.join(FIXTURE_ROOT, "data", "builds", "stable"));
   assert.ok(!stable.args.includes("--commit"), "no commit is passed when none is unpacked");
 });
 
 await check("the served project and the log are outside the builds directory", () => {
   const plan = planFor({ sd: "repro.sd" });
-  const { builds } = dataLayout(path.join("C:", "data"));
+  const { builds } = dataLayout(path.join(FIXTURE_ROOT, "data"));
   const inside = (p) => !path.relative(builds, p).startsWith("..");
-  assert.equal(plan.project, path.join("C:", "data", "projects", "34123"));
+  assert.equal(plan.project, path.join(FIXTURE_ROOT, "data", "projects", "34123"));
   assert.equal(plan.ownProject, true);
   assert.ok(!inside(plan.project), `${plan.project} is inside ${builds}`);
-  assert.equal(plan.logPath, path.join("C:", "data", "logs", "serve-34123.log"));
+  assert.equal(plan.logPath, path.join(FIXTURE_ROOT, "data", "logs", "serve-34123.log"));
   assert.ok(!inside(plan.logPath), `${plan.logPath} is inside ${builds}`);
 });
 
 await check("a folder given with --project is served as is, and one inside the builds directory is refused", () => {
-  if (!WIN) return skip("a folder given with --project is served as is", "it asserts the --project path comes back unchanged, and C:/work/game is a relative path here, so the plan roots it at the working directory first");
-  const plan = planFor({ project: path.join("C:", "work", "game") });
-  assert.equal(plan.project, path.join("C:", "work", "game"));
+  const plan = planFor({ project: path.join(FIXTURE_ROOT, "work", "game") });
+  assert.equal(plan.project, path.join(FIXTURE_ROOT, "work", "game"));
   assert.equal(plan.ownProject, false);
-  assert.match(planFor({ project: path.join("C:", "data", "builds", "stable", "game") }).error, /inside .*builds/);
-  assert.match(planFor({ project: path.join("C:", "data", "builds") }).error, /inside .*builds/);
+  assert.match(planFor({ project: path.join(FIXTURE_ROOT, "data", "builds", "stable", "game") }).error, /inside .*builds/);
+  assert.match(planFor({ project: path.join(FIXTURE_ROOT, "data", "builds") }).error, /inside .*builds/);
 });
 
 await check("a quality other than stable or insiders is refused before it names a directory", () => {
@@ -580,9 +574,9 @@ await check("the port is a fixed number for a path, differs between paths, and i
 
 // --- up, in-process against stubs -----------------------------------------
 
-const ENTRY = path.join("C:", "repo", "node_modules", "@vscode", "test-web", "out", "server", "index.js");
-const EXT = path.join("C:", "repo", "vscode-sparkdown");
-const DATA = path.join("C:", "data");
+const ENTRY = path.join(FIXTURE_ROOT, "repo", "node_modules", "@vscode", "test-web", "out", "server", "index.js");
+const EXT = path.join(FIXTURE_ROOT, "repo", "vscode-sparkdown");
+const DATA = path.join(FIXTURE_ROOT, "data");
 const upDeps = (over = {}) => {
   const calls = [];
   const deps = {
@@ -598,12 +592,12 @@ const upDeps = (over = {}) => {
     },
     sleep: async () => {},
     now: () => 1000,
-    repoRoot: path.join("C:", "repo"),
+    repoRoot: path.join(FIXTURE_ROOT, "repo"),
     extDir: EXT,
-    packagesDir: path.join("C:", "repo", "packages"),
+    packagesDir: path.join(FIXTURE_ROOT, "repo", "packages"),
     serverEntry: ENTRY,
     defaultDataDir: DATA,
-    stateFile: path.join("C:", "repo", ".agents", "skills", "drive-vscode-web", ".state.json"),
+    stateFile: path.join(FIXTURE_ROOT, "repo", ".agents", "skills", "drive-vscode-web", ".state.json"),
     readState: () => deps.state,
     writeState: (r) => {
       deps.state = r;
@@ -658,7 +652,6 @@ const names = (deps) => deps.calls.map((c) => c[0]);
 const spawned = (deps) => deps.calls.filter((c) => c[0] === "spawn").map((c) => c[1]);
 
 await check("up checks the build, then spawns exactly the launch plan for the unpacked commit, writes the project file and the record, and waits on the pid", async () => {
-  if (!WIN) return skip("up spawns exactly the launch plan for the unpacked commit", "the launch plan it compares against is built from the C:/repo and C:/data fixtures, which are relative paths here, so every path in it is rooted at the working directory first");
   const deps = upDeps();
   await up(["--sd", "repro.sd"], deps);
   const expected = launchPlan({ data: DATA, port: 34123, quality: "stable", sd: "repro.sd", extDir: EXT, entry: ENTRY, commit: "c".repeat(40) });
@@ -703,9 +696,9 @@ await check("a stale build, or a missing server entry, ends up before anything i
 
 await check("up --fresh is refused while another worktree's standing record serves from the quality's directory, and otherwise launches without a commit pin", async () => {
   const builds = path.join(DATA, "builds", "stable");
-  const other = { worktree: path.join("C:", "w2"), pid: 1, builds, url: "http://localhost:7" };
+  const other = { worktree: path.join(FIXTURE_ROOT, "w2"), pid: 1, builds, url: "http://localhost:7" };
   const deps = upDeps({ otherWorktreeRecords: () => [other] });
-  await refuses(up(["--sd", "repro.sd", "--fresh"], deps), /^up --fresh would delete .*builds.stable, which C:.w2 \(pid 1, http:\/\/localhost:7\) serves from; `down` there first, or run `up` without --fresh to serve the build already unpacked$/);
+  await refuses(up(["--sd", "repro.sd", "--fresh"], deps), /^up --fresh would delete .*builds.stable, which (?:[A-Za-z]:)?[\\/]w2 \(pid 1, http:\/\/localhost:7\) serves from; `down` there first, or run `up` without --fresh to serve the build already unpacked$/);
   assert.ok(!names(deps).includes("spawn"));
   const gone = upDeps({ otherWorktreeRecords: () => [{ ...other, pid: 2 }] });
   await up(["--sd", "repro.sd", "--fresh"], gone);
@@ -744,13 +737,13 @@ await check("the download lock sits beside the builds a download deletes, and on
     removeLock: (file) => files.delete(file),
   };
   const stands = async (r) => r.pid === 1;
-  const mine = { worktree: path.join("C:", "w1"), pid: 1, url: "http://localhost:7", quality: "stable", startedAt: 1 };
+  const mine = { worktree: path.join(FIXTURE_ROOT, "w1"), pid: 1, url: "http://localhost:7", quality: "stable", startedAt: 1 };
 
   const first = await takeDownloadLock(lock, mine, io, stands);
   assert.deepEqual(first, { held: true });
   assert.deepEqual(io.readLock(lock), mine);
 
-  const second = await takeDownloadLock(lock, { ...mine, worktree: path.join("C:", "w2"), pid: 2 }, io, stands);
+  const second = await takeDownloadLock(lock, { ...mine, worktree: path.join(FIXTURE_ROOT, "w2"), pid: 2 }, io, stands);
   assert.equal(second.held, false, "a launch cannot download into a directory another launch is downloading into");
   assert.deepEqual(second.other, mine, "the refusal knows whose launch to wait for");
   assert.deepEqual(io.readLock(lock), mine, "the standing lock is not overwritten");
@@ -823,9 +816,6 @@ await check("known workbench noise cannot hide other statuses, paths or failure 
 });
 
 await check("up takes the download lock only when it will download, releases it once the server answers, and is refused while another worktree holds it", async () => {
-  // `launch` resolves --data before it lays the directory out, so the lock it
-  // takes is absolute; on a platform where the C:/data fixture is a relative
-  // path, joining it without resolving first gives a different string.
   const lock = downloadLockPath(dataLayout(path.resolve(DATA)), "stable");
   // A launch with a commit to pin serves what is unpacked and downloads
   // nothing, so it neither takes nor waits on the lock.
@@ -845,9 +835,9 @@ await check("up takes the download lock only when it will download, releases it 
 
   const busy = upDeps({
     unpackedCommit: () => null,
-    takeDownloadLock: async () => ({ held: false, other: { worktree: path.join("C:", "w2"), pid: 7, url: "http://localhost:9" } }),
+    takeDownloadLock: async () => ({ held: false, other: { worktree: path.join(FIXTURE_ROOT, "w2"), pid: 7, url: "http://localhost:9" } }),
   });
-  await refuses(up(["--sd", "repro.sd"], busy), /^C:.w2 \(pid 7\) is downloading the VS Code build into .*builds.stable; two downloads at once delete each other's build, since the server empties that directory before it unpacks\. Wait for that `up` to print READY, then run this again$/);
+  await refuses(up(["--sd", "repro.sd"], busy), /^(?:[A-Za-z]:)?[\\/]w2 \(pid 7\) is downloading the VS Code build into .*builds.stable; two downloads at once delete each other's build, since the server empties that directory before it unpacks\. Wait for that `up` to print READY, then run this again$/);
   assert.ok(!names(busy).includes("spawn"), "nothing is launched into a directory that is being replaced");
 
   // A lock that stood for both attempts but whose record could not be read
@@ -892,8 +882,8 @@ await check("while its server is up, up --sd rewrites the served file and nothin
   for (const [args, re] of [
     [["--fresh"], /already serving .*; `down` first to download a new build/],
     [["--quality", "insiders"], /already serving stable .*; `down` first to serve insiders/],
-    [["--data", path.join("C:", "elsewhere")], /already serving from .*data .*; `down` first to use .*elsewhere/],
-    [["--project", path.join("C:", "otherfolder")], /already serving .*; `down` first to serve another folder/],
+    [["--data", path.join(FIXTURE_ROOT, "elsewhere")], /already serving from .*data .*; `down` first to use .*elsewhere/],
+    [["--project", path.join(FIXTURE_ROOT, "otherfolder")], /already serving .*; `down` first to serve another folder/],
   ]) {
     const d = upDeps({ state: serving() });
     await refuses(up(args, d), re);
@@ -902,7 +892,7 @@ await check("while its server is up, up --sd rewrites the served file and nothin
   const same = upDeps({ state: serving() });
   await up(["--data", DATA.toLowerCase()], same);
   assert.deepEqual(names(same), ["log"], "the recorded data directory, in another case, is the same server");
-  const folder = upDeps({ state: serving({ ownProject: false, project: path.join("C:", "folder") }) });
+  const folder = upDeps({ state: serving({ ownProject: false, project: path.join(FIXTURE_ROOT, "folder") }) });
   await refuses(up(["--sd", "a.sd"], folder), /which --sd does not write into; `down` first/);
 });
 
@@ -1398,7 +1388,7 @@ const verifyDeps = (doc, over = {}, readCostMs = 0) => {
     sleep: async (ms) => {
       t += ms;
     },
-    stateFile: path.join("C:", "repo", ".agents", "skills", "drive-vscode-web", ".state.json"),
+    stateFile: path.join(FIXTURE_ROOT, "repo", ".agents", "skills", "drive-vscode-web", ".state.json"),
     readState: () => RECORD,
     recordStands: async () => true,
     isUp: async () => true,
@@ -1661,7 +1651,7 @@ await check("the server is spawned detached and unreferenced, in the extension d
     },
   };
   const plan = planFor({ sd: "repro.sd" });
-  assert.equal(plan.cwd, path.join("C:", "repo", "vscode-sparkdown"));
+  assert.equal(plan.cwd, path.join(FIXTURE_ROOT, "repo", "vscode-sparkdown"));
   assert.equal(spawnServer(plan, io), 77);
   assert.deepEqual(calls, [
     ["open", plan.logPath, "a"],
@@ -1728,7 +1718,7 @@ await check("a port is free only when both loopback addresses take a listener an
 
 await check("the page is 1400 x 900, a record names its own worktree's state file, and the extension id is read from its package.json", () => {
   assert.deepEqual(VIEWPORT, { width: 1400, height: 900 });
-  assert.equal(recordFile({ worktree: path.join("C:", "w2") }), path.join("C:", "w2", ".agents", "skills", "drive-vscode-web", ".state.json"));
+  assert.equal(recordFile({ worktree: path.join(FIXTURE_ROOT, "w2") }), path.join(FIXTURE_ROOT, "w2", ".agents", "skills", "drive-vscode-web", ".state.json"));
   assert.equal(path.basename(path.dirname(recordFile({}))), "drive-vscode-web");
   assert.equal(liveDeps.extensionId(), EXT_ID);
 });

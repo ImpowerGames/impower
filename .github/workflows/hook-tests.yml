@@ -45,3 +45,26 @@ jobs:
         run: node scripts/generate-reviewer-agents.mjs --check
       - name: Run standalone agent tooling checks
         run: node scripts/check-agent-tooling.mjs
+      - name: Verify Linux fixture regression control
+        if: matrix.os == 'ubuntu-latest'
+        shell: node {0}
+        run: |
+          const fs = require("node:fs");
+          const assert = require("node:assert/strict");
+          const { spawnSync } = require("node:child_process");
+          const file = ".agents/skills/drive-vscode-web/fixture-regression-control.mjs";
+          const source = fs.readFileSync(".agents/skills/drive-vscode-web/driver.test.mjs", "utf8");
+          const needle = "const FIXTURE_ROOT = path.parse(process.cwd()).root;";
+          assert.ok(source.includes(needle), "fixture control must replace the actual root");
+          try {
+            fs.writeFileSync(file, source.replace(needle, 'const FIXTURE_ROOT = "C:";'));
+            const result = spawnSync(process.execPath, [file], { encoding: "utf8", timeout: 60000 });
+            process.stdout.write(result.stdout || "");
+            process.stderr.write(result.stderr || "");
+            assert.equal(result.status, 1, "drive-letter fixture control must fail on Linux");
+            assert.match(result.stdout, /FAIL: a folder given with --project/);
+            assert.match(result.stdout, /FAIL: up checks the build, then spawns exactly the launch plan/);
+            console.log("PASS: restoring drive-letter fixtures reproduces both path failures on Linux");
+          } finally {
+            if (fs.existsSync(file)) fs.unlinkSync(file);
+          }

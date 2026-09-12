@@ -19,10 +19,9 @@
 // predicate, pidAlive its `kill`, recordStands its `probe`), so the tables are
 // pinned without a process or a file. The live probe is pinned against a child
 // this check spawns. The commands are pinned by copying the driver into a
-// scratch repository with no package.json, so a launch it attempts fails at
-// spawn, and running the copy as a command over records this check writes; the
-// only processes it signals are children it spawned. Node's built-in assert
-// only.
+// scratch repository, running the copy over records this check writes. The
+// npm launch uses a fixture script that starts three process generations;
+// every process signalled belongs to the fixture. Node's built-in assert only.
 
 import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
@@ -37,15 +36,12 @@ import {
   START_GRAIN_MS,
   hereOrPrevious,
   liveProbe,
+  linuxProcesses,
   pidAlive,
   recordStands,
+  stopLinuxTree,
 } from "./driver.mjs";
 
-const WIN = process.platform === "win32";
-// A case that asserts the whole spawned tree is gone. `down` stops a tree with
-// taskkill /T, which has no counterpart on the POSIX path yet (#508), so the
-// launcher outlives the call there. Each case names its own reason.
-const skip = (name, reason) => console.log(`SKIP: ${name} (Windows only: ${reason})`);
 
 let failures = 0;
 const check = async (name, fn) => {
@@ -145,6 +141,59 @@ const probe = ({ alive, started, written = null }) => {
   };
 };
 const AT = 1_700_000_000_000;
+await check("Linux process reads tolerate protected strangers and refuse unreadable owned entries", () => {
+  const fields = Array(20).fill("0");
+  Object.assign(fields, { 0: "S", 1: "20", 2: "300", 3: "300", 19: "123" });
+  const denied = () => { throw Object.assign(new Error("protected"), { code: "EACCES" }); };
+  const io = {
+    readdirSync: () => ["300", "933", "sys"],
+    statSync: (file) => ({ uid: file.endsWith("933") ? 20 : 10 }),
+    readFileSync: (file) => file.includes("/933/") ? denied() : `300 (node worker) ${fields.join(" ")}`,
+  };
+  const rows = linuxProcesses({ io, uid: 10 });
+  assert.equal(rows[0].start, "123");
+  assert.deepEqual(rows[1], { pid: 933, uid: 20, unreadable: true });
+  assert.throws(() => linuxProcesses({ io: { ...io, statSync: () => ({ uid: 10 }) }, uid: 10 }), /protected/);
+  assert.throws(() => linuxProcesses({ io: { ...io, statSync: denied }, uid: 10 }), /protected/);
+});
+
+await check("Linux group shutdown refuses foreign, reused and nonleader identities without signalling", async () => {
+  const leader = { pid: 300, parent: 20, group: 300, session: 300, uid: 10, start: "123", state: "S" };
+  await assert.rejects(stopLinuxTree(300, { read: () => [leader, { ...leader, pid: 20 }], uid: 10, self: 20, signal: () => assert.fail("signalled the caller's group") }), /caller belongs/);
+  for (const row of [null, { ...leader, group: 20 }, { ...leader, session: 20 }, { ...leader, uid: 11 }, { ...leader, start: undefined }]) {
+    const signals = [];
+    await assert.rejects(stopLinuxTree(300, { read: () => row ? [row] : [], uid: 10, self: 20, signal: (...args) => signals.push(args) }));
+    assert.deepEqual(signals, []);
+  }
+  for (const changed of [{ ...leader, start: "456" }, { ...leader, uid: 11 }, { ...leader, session: 400 }]) {
+    let reads = 0;
+    const signals = [];
+    await assert.rejects(stopLinuxTree(300, { read: () => [reads++ ? changed : leader], uid: 10, self: 20, signal: (...args) => signals.push(args) }));
+    assert.deepEqual(signals, []);
+  }
+});
+
+await check("Linux shutdown verifies group exit, escalates resistant children, and refuses reused groups", async () => {
+  const leader = { pid: 300, parent: 20, group: 300, session: 300, uid: 10, start: "123", state: "S" };
+  const child = { ...leader, pid: 301, parent: 300, start: "124" };
+  let rows = [leader, child], time = 0;
+  const signals = [];
+  await stopLinuxTree(300, { read: () => rows, uid: 10, self: 20, now: () => time, sleep: async (ms) => { time += ms; }, signal: (pid, kind) => { signals.push([pid, kind]); rows = kind === "SIGTERM" ? [child] : [{ ...child, state: "Z" }]; } });
+  assert.deepEqual(signals, [[-300, "SIGTERM"], [-300, "SIGKILL"]]);
+  rows = [leader];
+  await assert.rejects(stopLinuxTree(300, { read: () => rows, uid: 10, self: 20, signal: () => { rows = [{ ...leader, start: "reused" }]; } }), /identity changed/);
+  rows = [leader, { ...child, group: 301 }];
+  await assert.rejects(stopLinuxTree(300, { read: () => rows, uid: 10, self: 20, signal: () => assert.fail("escaped group was signalled") }), /descendant left/);
+  rows = [leader, child];
+  await assert.rejects(stopLinuxTree(300, { read: () => rows, uid: 10, self: 20, signal: () => { rows = [{ ...child, parent: 1, group: 301, session: 301 }]; } }), /descendant left/);
+  rows = [leader, child];
+  await assert.rejects(stopLinuxTree(300, { read: () => rows, uid: 10, self: 20, signal: () => { rows = [{ pid: child.pid, uid: 11, unreadable: true }]; } }), /tracked process became unreadable/);
+  const late = { ...child, pid: 302, parent: 301, start: "125" };
+  let reads = 0;
+  rows = [leader, child, late]; time = 0; signals.length = 0;
+  await stopLinuxTree(300, { read: () => reads++ === 0 ? [leader, child] : rows, uid: 10, self: 20, now: () => time, sleep: async (ms) => { time += ms; }, signal: (pid, kind) => { signals.push([pid, kind]); rows = kind === "SIGTERM" ? [late] : []; } });
+  assert.deepEqual(signals, [[-300, "SIGTERM"], [-300, "SIGKILL"]], "a later member verified while the group is owned can outlive every original member");
+});
 const record = { url: "http://localhost:38200", pid: 31268, mode: "same-origin", startedAt: AT };
 
 await check("a record with no url does not stand", async () => {
@@ -238,19 +287,51 @@ await check("the live probe reports no start for a process that has exited or a 
 // ------------------------------------------------------------ the commands ---
 //
 // A copy of the driver laid out as `.agents/skills/drive-web-editor/` under a
-// scratch repository root that holds no package.json, beside an empty
-// `resolve-issue/`. REPO_ROOT resolves three directories up from the copy, so
-// the one `up` that reaches a launch below runs `npm run web:dev` there, fails
-// at once, and starts no server.
+// scratch repository root beside an empty `resolve-issue/`. REPO_ROOT resolves
+// three directories up from the copy. The final case supplies package.json
+// and exercises the real npm launch path with fixture-only TCP listeners.
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const scratch = fs.mkdtempSync(path.join(os.tmpdir(), "state-path-"));
+console.log(`scratch repository: ${path.join(scratch, "repo")}`);
 const copyDir = path.join(scratch, "repo", ".agents", "skills", "drive-web-editor");
 fs.mkdirSync(copyDir, { recursive: true });
 fs.mkdirSync(path.join(scratch, "repo", ".agents", "skills", "resolve-issue"), { recursive: true });
 for (const name of ["driver.mjs", "redgreen.mjs"]) fs.copyFileSync(path.join(here, name), path.join(copyDir, name));
 const copy = path.join(copyDir, "driver.mjs");
 const stateFile = path.join(copyDir, ".state.json");
+const fixture = path.join(scratch, "tree.mjs");
+fs.writeFileSync(fixture, [
+  'import fs from "node:fs";',
+  'import net from "node:net";',
+  'import { spawn } from "node:child_process";',
+  'const [file, role] = process.argv.slice(2);',
+  'process.on("SIGTERM", () => {});',
+  'if (role !== "leaf") spawn(process.execPath, [process.argv[1], file, role === "root" ? "child" : "leaf"], { stdio: "ignore", windowsHide: true });',
+  'const server = net.createServer();',
+  'server.listen(0, "127.0.0.1", () => fs.appendFileSync(file, JSON.stringify({ pid: process.pid, port: server.address().port }) + "\\n"));',
+].join("\n"));
+const startTree = async () => {
+  const file = path.join(scratch, `tree-${Date.now()}.jsonl`);
+  const child = spawn(process.execPath, [fixture, file, "root"], { stdio: "ignore", detached: true, windowsHide: true });
+  let rows = [];
+  try {
+    for (let i = 0; i < 100; i++) {
+      if (fs.existsSync(file)) rows = fs.readFileSync(file, "utf8").trim().split("\n").filter(Boolean).map(JSON.parse);
+      if (rows.length === 3) return { child, rows };
+      await sleep(50);
+    }
+    throw new Error("tree did not report all three listeners");
+  } catch (error) { stop(child); await untilGone(child.pid); throw error; }
+};
+const treeGone = async (rows) => {
+  for (let i = 0; i < 100; i++) {
+    const living = process.platform === "linux" ? linuxProcesses().filter((row) => row.state !== "Z" && row.state !== "X").map((row) => row.pid) : rows.filter((row) => pidAlive(row.pid)).map((row) => row.pid);
+    if (!rows.some((row) => living.includes(row.pid))) return true;
+    await sleep(50);
+  }
+  return false;
+};
 const writeRecord = (record) => fs.writeFileSync(stateFile, typeof record === "string" ? record : JSON.stringify(record));
 const run = (cmd) => {
   const r = spawnSync(process.execPath, [copy, cmd], { encoding: "utf8", windowsHide: true, timeout: 60_000 });
@@ -276,6 +357,36 @@ const listen = () =>
 const closed = (server) => new Promise((resolve) => server.close(resolve));
 
 try {
+  for (const dated of [true, false]) await check(`down stops three resistant generations and releases their listeners (${dated ? "startedAt" : "file date"})`, async () => {
+    const { child, rows } = await startTree();
+    try {
+      if (process.platform === "linux") {
+        const member = rows.find((row) => row.pid !== child.pid);
+        writeRecord({ url: "http://localhost:1", pid: member.pid, ...(dated ? { startedAt: Date.now() } : {}) });
+        const refused = await runWhileServing("down");
+        assert.equal(refused.status, 1, refused.out);
+        assert.match(refused.out, /does not own an identifiable process group/);
+        assert.ok(fs.existsSync(stateFile), "refused shutdown removed its recovery record");
+        assert.ok(rows.every((row) => pidAlive(row.pid)), "a nonleader record killed part of the tree");
+      } else {
+        console.log(`SKIP: nonleader shutdown refusal (${dated ? "startedAt" : "file date"}; Linux only: process-group ownership)`);
+      }
+      writeRecord({ url: "http://localhost:1", pid: child.pid, mode: "same-origin", ...(dated ? { startedAt: Date.now() } : {}) });
+      const result = await runWhileServing("down");
+      assert.equal(result.status, 0, result.out);
+      assert.match(result.out, /^stopped$/m);
+      assert.ok(await treeGone(rows), "down left a launcher, child or grandchild running");
+      for (const row of rows) {
+        const server = http.createServer();
+        await new Promise((resolve, reject) => { server.once("error", reject); server.listen(row.port, "127.0.0.1", resolve); });
+        await closed(server);
+      }
+      assert.equal(fs.existsSync(stateFile), false);
+    } finally {
+      stop(child);
+      assert.ok(await treeGone(rows), "fixture cleanup left child processes behind");
+    }
+  });
   await check("status: no state file reads down and exits 1", () => {
     const r = run("status");
     assert.match(r.out, /down \(no state file\)/);
@@ -346,7 +457,6 @@ try {
   });
 
   await check("down on a standing record stops its tree and removes the record", async () => {
-    if (!WIN) return skip("down on a standing record stops its tree", "down stops a process tree with taskkill /T, and the POSIX path does not reach the launcher's children yet (#508)");
     const child = idle();
     try {
       writeRecord({ url: "http://localhost:1", pid: child.pid, mode: "same-origin", startedAt: Date.now() });
@@ -361,7 +471,6 @@ try {
   });
 
   await check("down on a record with no startedAt dates it by the file and stops its tree", async () => {
-    if (!WIN) return skip("down on a record with no startedAt stops its tree", "down stops a process tree with taskkill /T, and the POSIX path does not reach the launcher's children yet (#508)");
     const child = idle();
     try {
       writeRecord({ url: "http://localhost:1", pid: child.pid, mode: "same-origin" });
@@ -375,9 +484,12 @@ try {
   });
 
   await check("up waits on a standing record while its launcher lives, and launches once it exits", async () => {
+    const launchedRowsFile = path.join(scratch, "npm-tree.jsonl");
+    fs.writeFileSync(path.join(scratch, "repo", "package.json"), JSON.stringify({ scripts: { "web:dev": `node "${fixture.replaceAll("\\", "/")}" "${launchedRowsFile.replaceAll("\\", "/")}" root` } }));
+    let launchedRows = [];
     const child = idle();
     writeRecord({ url: "http://localhost:1", pid: child.pid, mode: "same-origin", startedAt: Date.now() });
-    const up = spawn(process.execPath, [copy, "up"], { stdio: ["ignore", "pipe", "pipe"], windowsHide: true });
+    const up = spawn(process.execPath, [copy, "up"], { stdio: ["ignore", "pipe", "pipe"], windowsHide: true, detached: true });
     let out = "";
     up.stdout.on("data", (d) => (out += d));
     up.stderr.on("data", (d) => (out += d));
@@ -400,21 +512,32 @@ try {
       assert.notEqual(written.pid, child.pid, "the new record still names the exited launcher");
       assert.ok(Number.isInteger(written.startedAt), "the new record carries no startedAt");
       assert.equal(fs.existsSync(stateFile + ".tmp"), false, "the rename left its .tmp behind");
+      for (let i = 0; i < 100; i++) {
+        if (fs.existsSync(launchedRowsFile)) launchedRows = fs.readFileSync(launchedRowsFile, "utf8").trim().split("\n").filter(Boolean).map(JSON.parse);
+        if (launchedRows.length === 3) break;
+        await sleep(100);
+      }
+      assert.equal(launchedRows.length, 3, "the actual npm launcher must reach all fixture descendants");
     } finally {
       stop(child);
       stop(up);
-      await untilGone(up.pid);
+      assert.ok(await untilGone(up.pid), "up coordinator did not exit");
+      const launched = JSON.parse(fs.readFileSync(stateFile, "utf8"));
+      if (pidAlive(launched.pid)) {
+        const d = run("down");
+        assert.equal(d.status, 0, d.out);
+      }
+      assert.ok(await untilGone(launched.pid), "up left its npm launcher behind");
+      assert.ok(await treeGone(launchedRows), "up left a descendant behind");
     }
   });
 } finally {
-  // The npm the last scenario's `up` spawned has its cwd in the scratch
-  // repository and can outlive the `up` that was stopped by a moment, so the
-  // removal retries, and a directory it still cannot remove is reported
-  // rather than counted as a failed assertion.
+  console.log(`Remove scratch repository: ${scratch}`);
   try {
     fs.rmSync(scratch, { recursive: true, force: true, maxRetries: 20, retryDelay: 250 });
   } catch (err) {
-    console.log(`note: could not remove ${scratch} (${err.code ?? err.message}); remove it by hand`);
+    failures++;
+    console.log(`FAIL: could not remove ${scratch} (${err.code ?? err.message}); preserve it for recovery`);
   }
 }
 
@@ -423,9 +546,3 @@ if (failures) {
   process.exit(1);
 }
 console.log("all passing");
-// Exit on the status this check computed, the way the failing branch above
-// does. The last scenario's `up` launches a real dev-server tree, and off
-// Windows `stop` cannot reach a process group `up` never led (#508), so a
-// handle on that tree outlives every assertion and would hold this process
-// open with nothing left to report.
-process.exit(0);
