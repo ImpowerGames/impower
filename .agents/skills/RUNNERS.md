@@ -29,6 +29,8 @@ For Codex CLI, a separate serial review session can be launched with `codex exec
 
 On Windows, prefer an executable over an npm shell wrapper; an installed package entry point can be launched with Node. Supply prompts on stdin where supported or as one argument through a process API; never interpolate them into shell code. Launch background processes with hidden windows.
 
+Pass these reviewer executable arguments through `node scripts/agent-handoff.mjs <absolute-plan.json>` as described in [handoff execution](review-pr/HANDOFF.md), including for one serial reviewer. Its shared slot reservation covers local participating CLI processes across worktrees until child exit. Native collaboration tasks and remote reviewers are unsupported for the enforced capacity guarantee because the launcher cannot reserve and verify their lifetime. Manual counts do not establish that guarantee; use the supported launcher or report the blocked review path.
+
 ## Migration and recovery
 
 Fresh checkouts install links through postinstall. An existing checkout can retain ignored driver state, browser profiles or personal skills in a real harness skills directory after Git moves the tracked files. The installer intentionally refuses that populated directory, including during npm install, so it cannot discard local work. An agent handling this refusal must reconcile the contents before retrying; silently treating a refused install as success would leave discovery incomplete.
