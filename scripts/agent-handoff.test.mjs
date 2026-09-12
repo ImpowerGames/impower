@@ -188,6 +188,11 @@ const recoveryResults=await bounded(Promise.all(recoveries));
 assert.equal(recoveryResults.filter(code=>code===0).length,1,"racing recoveries remove one dead generation exactly once, using OS start identity to distinguish PID reuse");
 assert.ok(recoveryResults.every(code=>[0,1,2].includes(code)));
 assert.equal(recoverReviewerSlot(reused.file).alreadyAbsent,reused.file,"an already-released reservation is absence, not corruption");
+const openSync=fs.openSync;
+try{
+  fs.openSync=(target,...args)=>{if(target===reused.file+".recovery")throw new Error("an absent slot must not create a recovery marker");return openSync(target,...args);};
+  assert.equal(recoverReviewerSlot(reused.file).alreadyAbsent,reused.file);
+}finally{fs.openSync=openSync;}
 const neverCreated=path.join(scratch,"never-created-store","slot-0.jsonl");
 assert.equal(recoverReviewerSlot(neverCreated).alreadyAbsent,neverCreated);
 const replacement=reserveReviewerSlot(isolated);
@@ -254,6 +259,9 @@ for(const mode of ["combined","retained"]){
       assert.equal(recoverReviewerSlot(slotFile).recovered,slotFile);
     }else{
       assert.match(output,/child exit unconfirmed/);
+      assert.match(output,/fixture signal-delivery failure/);
+      assert.ok(output.includes(slotFile),"retained-child diagnostics point directly to durable identity");
+      assert.match(fs.readFileSync(path.join(scratch,`failure-${mode}.jsonl`),"utf8"),/fixture signal-delivery failure/);
       assert.ok(Date.now()-started<25000,"the coordinator returns after bounded cleanup while the controlled child remains alive");
       assert.deepEqual(processIdentity(record.child.pid),record.child);
       assert.ok(fs.existsSync(path.join(repo,".git","agent-handoff.lock")));
@@ -267,3 +275,24 @@ for(const mode of ["combined","retained"]){
   if(mode==="retained")assert.equal(recoverReviewerSlot(path.join(taskPool,"slot-0.jsonl")).recovered,path.join(taskPool,"slot-0.jsonl"));
 }
 console.log("PASS: combined storage failure preserves primary diagnosis and recoverable identity; unconfirmed child detaches while ownership stays reserved");
+
+const finishedRelease=path.join(scratch,"finished-release");
+const finishedPool=path.join(scratch,"finished-slots");
+config.journal=path.join(scratch,"finished-release-failure.jsonl");
+config.steps.first.args=[reviewer,path.join(scratch,"finished.posted"),finishedRelease,"--model","reviewer-test"];write();
+let finishedPid;
+try{
+  fs.writeSync=(fd,data,...args)=>{
+    if(typeof data==="string"&&data.includes('"event":"running"')){finishedPid=JSON.parse(data).pid;fs.writeFileSync(finishedRelease,"exit");}
+    if(typeof data==="string"&&data.includes('"phase":"exited"'))throw new Error("injected slot release failure");
+    return writeSync(fd,data,...args);
+  };
+  await assert.rejects(handoff(file,{slotRoot:finishedPool}),/Child exit confirmed \(code 0\).*reservation retained at .*injected slot release failure.*validation has not run/);
+}finally{fs.writeSync=writeSync;fs.writeFileSync(finishedRelease,"exit");}
+assert.equal(processIdentity(finishedPid),null);
+const finishedRows=fs.readFileSync(config.journal,"utf8").trim().split("\n").map(JSON.parse);
+assert.ok(finishedRows.findIndex(row=>row.event==="exited")>=0);
+assert.ok(finishedRows.findIndex(row=>row.event==="exited")<finishedRows.findIndex(row=>row.event==="blocked"));
+assert.equal(finishedRows.some(row=>row.event==="completed"),false,"a bookkeeping failure cannot claim unvalidated completion");
+assert.ok(fs.existsSync(path.join(finishedPool,"slot-0.jsonl")));
+console.log("PASS: absent recovery creates no marker; successful child exit remains journalled when slot release blocks completion");

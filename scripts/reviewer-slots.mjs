@@ -72,6 +72,11 @@ export function releaseReviewerSlot(slot) {
 
 export function recoverReviewerSlot(file) {
   const recovery=file+".recovery";
+  if(snapshot(file)===null){
+    try{fs.lstatSync(recovery);}
+    catch(error){if(error.code==="ENOENT")return {alreadyAbsent:file};throw error;}
+    throw new Error(`Recovery marker already exists at ${recovery}; inspect its owner and preserve uncertain ownership`);
+  }
   let lock;
   try { lock=fs.openSync(recovery,"wx"); }
   catch(error) {
@@ -89,7 +94,9 @@ export function recoverReviewerSlot(file) {
       if(record.last.phase!=="running" || !validIdentity(record.last.child))throw new Error("Uncertain reviewer launch; preserve the occupied slot");
       if(same(record.last.child,processIdentity(record.last.child.pid)))throw new Error("Reviewer still running; await confirmed exit");
     }
-    if(snapshot(file)?.initial.token!==record.initial.token)throw new Error("Slot generation changed; preserve it");
+    const latest=snapshot(file);
+    if(!latest)return {alreadyAbsent:file};
+    if(latest.initial.token!==record.initial.token)throw new Error("Slot generation changed; preserve it");
     fs.unlinkSync(file);
     return {recovered:file,token:record.initial.token};
   }finally{fs.closeSync(lock);fs.unlinkSync(recovery);}

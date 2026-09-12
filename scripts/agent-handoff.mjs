@@ -80,7 +80,8 @@ export async function runHandoff(configFile, { slotRoot, identifyProcess = proce
       }
       const child = spawn(step.executable, step.args, { cwd, shell: false, windowsHide: true, stdio: ["pipe", log, log] });
       activeChild = child;
-      const exited = new Promise((resolve) => { let error; child.on("error", (e) => {error=e.message;}); child.once("close", (code, signal) => resolve({ code, signal, error })); });
+      let childError;
+      const exited = new Promise((resolve) => { child.on("error", (e) => {childError=e.message;}); child.once("close", (code, signal) => resolve({ code, signal, error:childError })); });
       let result;
       try {
         child.stdin.on("error", () => {});
@@ -106,7 +107,7 @@ export async function runHandoff(configFile, { slotRoot, identifyProcess = proce
           const timer=setTimeout(()=>resolve(null),ms);
           exited.then(value=>{clearTimeout(timer);resolve(value);});
         });
-        const terminate=(signal)=>{try{child.kill(signal);}catch(killError){error.message += `; owned-child termination failed: ${killError.message}`;}};
+        const terminate=(signal)=>{try{if(!child.kill(signal))error.message += "; owned-child termination request was not delivered";}catch(killError){error.message += `; owned-child termination failed: ${killError.message}`;}};
         terminate();
         let stopped=await waitForClose(5000);
         if(!stopped){terminate("SIGKILL");stopped=await waitForClose(5000);}
@@ -115,12 +116,14 @@ export async function runHandoff(configFile, { slotRoot, identifyProcess = proce
           if(slot){try{releaseReviewerSlot(slot);}catch(releaseError){error.message += `; reservation retained at ${slot.file}: ${releaseError.message}`;}}
         } else {
           child.unref();
-          error.message += "; child exit unconfirmed: preserve the worktree lock and reviewer reservation";
+          error.message += `; child exit unconfirmed (PID ${child.pid}): preserve the worktree lock${slot ? " and reviewer reservation at " + slot.file + "; inspect any recorded OS identity in that slot" : ""}`;
         }
+        if(childError)error.message += `; child process error: ${childError}`;
         throw error;
       } finally { fs.closeSync(log); }
-      if (slot) releaseReviewerSlot(slot);
-      append({ event: "exited", index, step: current, ...result });
+      try { append({ event: "exited", index, step: current, ...result }); }
+      catch(error){throw new Error(`Child exit confirmed (code ${result.code}); exit journal write failed: ${error.message}${slot ? "; reservation retained at " + slot.file : ""}`);}
+      if(slot){try{releaseReviewerSlot(slot);}catch(error){throw new Error(`Child exit confirmed (code ${result.code}); reservation retained at ${slot.file}: ${error.message}; completion and report validation has not run`);}}
       if (result.code !== 0) throw new Error(`Role ${current} failed; inspect ${output}`);
       if (step.role === "review" && (gitHead(cwd) !== head || gitStatus(cwd) !== status)) throw new Error("Review changed the frozen head or worktree");
       const done = read(completion);
