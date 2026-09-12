@@ -1,6 +1,6 @@
 ---
 name: drive-vscode-web
-description: Verify the built extension in a served VS Code workbench: open a script, inspect diagnostics and hover, and view screenshots. Use for extension and shared language-server changes.
+description: "Verify the built extension in a served VS Code workbench: open a script, inspect diagnostics and hover, and view screenshots. Use for extension and shared language-server changes."
 ---
 
 # Drive the extension in the web workbench
