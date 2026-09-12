@@ -85,6 +85,45 @@ const settlesWithin = async (promise: Promise<unknown>, ms = 500) => {
 };
 
 describe("MessageConnection response handling", () => {
+  it("settles a final result even when it carries an incidental value field", async () => {
+    const { a } = pair();
+    const request = requestMessage("test/value");
+    const pending = a.request(request);
+    a.receive({
+      jsonrpc: "2.0",
+      method: request.method,
+      id: request.id,
+      result: 42,
+      value: {},
+    });
+    expect(await settlesWithin(pending)).toEqual({
+      status: "resolved",
+      value: 42,
+    });
+    expect(a.listenerCount).toBe(0);
+  });
+
+  it.each([{ code: "500", message: "failed" }, { code: -32603 }, "boom"])(
+    "preserves malformed peer errors in diagnostic data: %j",
+    async (error) => {
+      const { a } = pair();
+      const request = requestMessage("test/malformed-error");
+      const pending = a.request(request);
+      const message = {
+        jsonrpc: "2.0",
+        method: request.method,
+        id: request.id,
+        error,
+        value: {},
+      };
+      a.receive(message);
+      const outcome = await settlesWithin(pending);
+      expect((outcome as any).status).toBe("rejected");
+      expect((outcome as any).error.code).toBe(-32603);
+      expect((outcome as any).error.data).toBe(message);
+      expect(a.listenerCount).toBe(0);
+    },
+  );
   it("delivers factory progress without settling, then removes the final listener", async () => {
     const { a } = pair();
     const type = new MessageProtocolRequestType<
@@ -171,9 +210,8 @@ describe("MessageConnection response handling", () => {
   });
 
   it("does not settle on a progress message for the same request", async () => {
-    // `MessageProtocolRequestType.progress()` emits the bare method name, which
-    // `isProgressResponse` does not match — so without an explicit guard these
-    // land in the malformed-response branch and kill a healthy request.
+    // Bare-method progress remains accepted for existing structured-clone peers.
+    // It retains the listener until a final reply arrives.
     const { a, b } = pair();
     const request = requestMessage("test/progress");
     const pending = a.request(request);

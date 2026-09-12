@@ -92,7 +92,21 @@ export abstract class MessageConnection {
               if (message.error !== undefined) {
                 console.error(message.error);
                 profile("end", this._profilerId, "request " + request.method);
-                reject(new RequestError(message.error));
+                const error: unknown = message.error;
+                const validError =
+                  typeof error === "object" &&
+                  error !== null &&
+                  "code" in error &&
+                  typeof error.code === "number" &&
+                  "message" in error &&
+                  typeof error.message === "string";
+                reject(
+                  new RequestError(
+                    validError
+                      ? message.error
+                      : { ...toResponseError(error), data: message },
+                  ),
+                );
                 this.removeEventListener("message", onResponse);
               } else if (message.result !== undefined) {
                 profile("end", this._profilerId, "request " + request.method);
@@ -103,11 +117,11 @@ export abstract class MessageConnection {
               onProgress?.(message.value);
             } else if (
               message.method === request.method &&
-              message.params === undefined &&
-              message.value === undefined
+              message.params === undefined
             ) {
               // An addressed reply failed envelope validation. Settle rather
               // than hang, but exclude echoed requests and progress traffic.
+              console.error(message);
               profile("end", this._profilerId, "request " + request.method);
               reject(
                 new RequestError({
@@ -115,6 +129,7 @@ export abstract class MessageConnection {
                   message:
                     `Malformed response to "${request.method}": ` +
                     `expected exactly one valid "result" or "error"`,
+                  data: message,
                 }),
               );
               this.removeEventListener("message", onResponse);

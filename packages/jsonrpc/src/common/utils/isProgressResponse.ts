@@ -1,7 +1,7 @@
 import type { ProgressResponseMessage } from "../types/ProgressResponseMessage";
 import { isMessage } from "./isMessage";
 
-/** Accept the old bare method as well as the canonical /progress method. */
+/** Accept canonical /progress and compatible bare-method progress envelopes. */
 export const isProgressResponse = <M extends string = string>(
   obj: unknown,
   method?: M,
@@ -17,6 +17,6 @@ export const isProgressResponse = <M extends string = string>(
   (id === undefined || obj.id === id) &&
   "value" in obj &&
   obj.value !== undefined &&
-  !("result" in obj) &&
-  !("error" in obj) &&
-  !("params" in obj);
+  (!("result" in obj) || obj.result === undefined) &&
+  (!("error" in obj) || obj.error === undefined) &&
+  (!("params" in obj) || obj.params === undefined);

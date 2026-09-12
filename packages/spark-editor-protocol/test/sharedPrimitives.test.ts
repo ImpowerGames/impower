@@ -1,14 +1,70 @@
 import { describe, expect, it } from "vitest";
-import { MessageProtocolRequestType as CoreRequest } from "../src/common/classes/MessageProtocolRequestType";
-import { MessageProtocolNotificationType as CoreNotification } from "../src/common/classes/MessageProtocolNotificationType";
-import { MessageProtocolRequestType as EditorRequest } from "../../spark-editor-protocol/src/protocols/MessageProtocolRequestType";
-import { MessageProtocolNotificationType as EditorNotification } from "../../spark-editor-protocol/src/protocols/MessageProtocolNotificationType";
+import { MessageProtocolRequestType as CoreRequest } from "@impower/jsonrpc/src";
+import { MessageProtocolNotificationType as CoreNotification } from "@impower/jsonrpc/src";
+import { MessageProtocolRequestType as EditorRequest } from "../src";
+import { MessageProtocolNotificationType as EditorNotification } from "../src";
 
 for (const [name, Request, Notification] of [
   ["core", CoreRequest, CoreNotification],
   ["editor", EditorRequest, EditorNotification],
 ] as const) {
   describe(name, () => {
+    it("treats explicitly undefined optional fields as absent after structured clone", () => {
+      const envelope = { jsonrpc: "2.0", method: "test/shared" };
+      const type = new Request<"test/shared", {}, number>("test/shared");
+      const note = new Notification<"test/shared", {}>("test/shared");
+      expect(
+        type.isResponse(
+          structuredClone({ ...envelope, id: 0, result: 42, error: undefined }),
+        ),
+      ).toBe(true);
+      expect(
+        type.isResponse(
+          structuredClone({
+            ...envelope,
+            id: 0,
+            result: undefined,
+            error: { code: -1, message: "failed" },
+          }),
+        ),
+      ).toBe(true);
+      expect(
+        type.isRequest(
+          structuredClone({
+            ...envelope,
+            id: 0,
+            params: {},
+            result: undefined,
+            error: undefined,
+            value: undefined,
+          }),
+        ),
+      ).toBe(true);
+      expect(
+        note.is(
+          structuredClone({
+            ...envelope,
+            params: {},
+            id: undefined,
+            result: undefined,
+            error: undefined,
+            value: undefined,
+          }),
+        ),
+      ).toBe(true);
+      expect(
+        type.isProgressResponse(
+          structuredClone({
+            ...envelope,
+            id: 0,
+            value: { percentage: 50 },
+            result: undefined,
+            error: undefined,
+            params: undefined,
+          }),
+        ),
+      ).toBe(true);
+    });
     const request = new Request<"test/shared", { text: string }, string | null>(
       "test/shared",
     );
@@ -31,6 +87,7 @@ for (const [name, Request, Notification] of [
       "matches response ID %s exactly",
       (id) => {
         const response = request.response(id, null);
+        expect(request.isResponse(response)).toBe(true);
         expect(request.isResponse(response, id)).toBe(true);
         expect(request.isResponse(response, "unrelated")).toBe(false);
         expect(
@@ -64,6 +121,9 @@ for (const [name, Request, Notification] of [
       "message",
       {},
       { method: "other", id: 0 },
+      { method: "test/shared", id: 0, result: null },
+      { jsonrpc: "2.0", method: "test/shared", id: null, result: null },
+      { jsonrpc: "2.0", method: "test/shared", id: NaN, result: null },
       { jsonrpc: "2.0", method: "test/shared", id: false, result: null },
       {
         jsonrpc: "2.0",

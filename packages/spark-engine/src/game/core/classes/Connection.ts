@@ -82,7 +82,7 @@ export class Connection {
             if (response) {
               const transfer = response.transfer;
               const payload =
-                "error" in response
+                "error" in response && response.error !== undefined
                   ? { error: response.error }
                   : {
                       result:

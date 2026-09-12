@@ -9,6 +9,6 @@ export const isRequest = <M extends string = string, P = unknown, R = unknown>(
   "id" in obj &&
   (typeof obj.id === "string" ||
     (typeof obj.id === "number" && Number.isFinite(obj.id))) &&
-  !("result" in obj) &&
-  !("error" in obj) &&
-  !("value" in obj);
+  (!("result" in obj) || obj.result === undefined) &&
+  (!("error" in obj) || obj.error === undefined) &&
+  (!("value" in obj) || obj.value === undefined);

@@ -237,6 +237,18 @@ describe("Connection", () => {
   });
 
   describe("receiving", () => {
+    it("preserves a successful result beside an undefined error field", async () => {
+      const { connection, sent } = createConnection(async () => ({
+        result: 42,
+        error: undefined,
+      }));
+      connection.receive(request("r1", "ask"));
+      await Promise.resolve();
+      await Promise.resolve();
+      expect(sent).toEqual([
+        { jsonrpc: "2.0", method: "ask", id: "r1", result: 42 },
+      ]);
+    });
     it("normalizes a transfer-only handler reply to an explicit null result", async () => {
       const buffer = new ArrayBuffer(8);
       const { connection, sent, transfers } = createConnection(async () => ({

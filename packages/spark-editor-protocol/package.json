@@ -5,9 +5,14 @@
   "version": "0.0.1",
   "dependencies": {
     "@impower/jsonrpc": "0.0.1",
-    "vscode-languageserver-protocol": "^3.17.5"
+    "vscode-jsonrpc": "^9.0.0",
+    "vscode-languageserver-protocol": "^3.18.0"
   },
   "scripts": {
-    "typecheck": "node ../../scripts/typecheck.mjs packages/spark-editor-protocol/"
+    "typecheck": "node ../../scripts/typecheck.mjs packages/spark-editor-protocol/",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "vitest": "^2.1.9"
   }
 }

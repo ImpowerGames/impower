@@ -6,14 +6,16 @@ import {
   StreamMessageReader,
   StreamMessageWriter,
 } from "vscode-jsonrpc/node";
-import * as core from "../src";
-import * as editor from "../../spark-editor-protocol/src";
+import * as core from "@impower/jsonrpc/src";
+import * as editor from "../src";
 import {
-  asLspRequest,
-  asLspNotification,
-} from "../../spark-editor-protocol/src/integrations/lsp";
-import { HoverMessage } from "../../spark-editor-protocol/src/protocols/textDocument/HoverMessage";
-import { DidOpenTextDocumentMessage } from "../../spark-editor-protocol/src/protocols/textDocument/DidOpenTextDocumentMessage";
+  HoverRequest,
+  DidOpenTextDocumentNotification,
+} from "vscode-languageserver-protocol";
+import { onProtocolRequest } from "../src/protocols/MessageProtocol";
+import { asLspRequest, asLspNotification } from "../src/integrations/lsp";
+import { HoverMessage } from "../src/protocols/textDocument/HoverMessage";
+import { DidOpenTextDocumentMessage } from "../src/protocols/textDocument/DidOpenTextDocumentMessage";
 
 describe("shared entry points and integrations", () => {
   it("exports the same core request implementation and guards", () => {
@@ -24,9 +26,33 @@ describe("shared entry points and integrations", () => {
     expect(editor.isResponse).toBe(core.isResponse);
     expect(editor.isNotification).toBe(core.isNotification);
     expect(editor.isProgressResponse).toBe(core.isProgressResponse);
+    const progress = {
+      jsonrpc: "2.0",
+      method: "work",
+      id: 0,
+      value: { percentage: 50 },
+    };
+    expect(core.isProgressResponse(progress)).toBe(true);
+    expect(core.isProgressResponse(progress, "other")).toBe(false);
+    // Envelope classification must not cause relays to drop malformed peer errors.
+    for (const error of [
+      new Error("failed"),
+      { message: "failed" },
+      { code: -1 },
+      "failed",
+    ]) {
+      expect(
+        core.isResponse({ jsonrpc: "2.0", method: "work", id: 0, error }),
+      ).toBe(true);
+    }
   });
 
   it("preserves literal methods, parameters, results and exclusive responses", () => {
+    const register = () =>
+      onProtocolRequest(HoverMessage.type, (message) =>
+        HoverMessage.type.error(message.id, { code: -1, message: "failed" }),
+      );
+    expectTypeOf(register).returns.toEqualTypeOf<() => void>();
     const descriptor = new editor.MessageProtocolRequestType<
       "typed",
       { text: string },
@@ -66,6 +92,10 @@ describe("shared entry points and integrations", () => {
 
   it("uses genuine LSP descriptors through a real vscode-jsonrpc connection", async () => {
     const outgoing = new PassThrough();
+    let wire = "";
+    outgoing.on("data", (chunk) => {
+      wire += chunk.toString();
+    });
     const incoming = new PassThrough();
     const client = createMessageConnection(
       new StreamMessageReader(incoming),
@@ -81,15 +111,12 @@ describe("shared entry points and integrations", () => {
     };
     const result = { contents: "hover result" };
     let received: unknown;
-    server.onRequest(asLspRequest(HoverMessage.type), (value) => {
+    server.onRequest(HoverRequest.type, (value) => {
       received = value;
       return result;
     });
     const opened = new Promise<unknown>((resolve) => {
-      server.onNotification(
-        asLspNotification(DidOpenTextDocumentMessage.type),
-        resolve,
-      );
+      server.onNotification(DidOpenTextDocumentNotification.type, resolve);
     });
     client.listen();
     server.listen();
@@ -98,6 +125,10 @@ describe("shared entry points and integrations", () => {
         await client.sendRequest(asLspRequest(HoverMessage.type), params),
       ).toEqual(result);
       expect(received).toEqual(params);
+      expect(
+        JSON.parse(wire.slice(wire.indexOf("\r\n\r\n") + 4)).params,
+      ).toEqual(params);
+      wire = "";
       const notification = {
         textDocument: {
           uri: "file:///main.sd",
@@ -111,6 +142,9 @@ describe("shared entry points and integrations", () => {
         notification,
       );
       expect(await opened).toEqual(notification);
+      expect(
+        JSON.parse(wire.slice(wire.indexOf("\r\n\r\n") + 4)).params,
+      ).toEqual(notification);
     } finally {
       client.dispose();
       server.dispose();

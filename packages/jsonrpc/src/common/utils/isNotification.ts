@@ -6,7 +6,7 @@ export const isNotification = <M extends string = string, P = unknown>(
   method?: M,
 ): obj is NotificationMessage<M, P> =>
   isMessage(obj, method) &&
-  !("id" in obj) &&
-  !("result" in obj) &&
-  !("error" in obj) &&
-  !("value" in obj);
+  (!("id" in obj) || obj.id === undefined) &&
+  (!("result" in obj) || obj.result === undefined) &&
+  (!("error" in obj) || obj.error === undefined) &&
+  (!("value" in obj) || obj.value === undefined);

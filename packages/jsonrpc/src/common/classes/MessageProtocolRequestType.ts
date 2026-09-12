@@ -4,7 +4,6 @@ import type { RequestMessage } from "../types/RequestMessage";
 import type { ResponseError } from "../types/ResponseError";
 import type {
   ResponseMessage,
-  ValidResponseMessage,
   InvalidResponseMessage,
 } from "../types/ResponseMessage";
 import { isProgressResponse } from "../utils/isProgressResponse";
@@ -49,7 +48,7 @@ export class MessageProtocolRequestType<M extends string, P, R> {
     return { jsonrpc: "2.0", method: `${this.method}/progress`, id, value };
   }
 
-  response(id: number | string, result: R): ValidResponseMessage<M, R> {
+  response(id: number | string, result: R): ResponseMessage<M, R> {
     return { jsonrpc: "2.0", method: this.method, id, result };
   }
 
