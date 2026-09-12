@@ -51,7 +51,7 @@ export async function runHandoff(configFile, { slotRoot, identifyProcess = proce
   let finalCorrections = config.finalCorrections ?? false;
   let activeChild;
   try {
-    fs.writeFileSync(owner, JSON.stringify({ pid: process.pid, startedAt: new Date().toISOString(), journal }));
+    fs.writeFileSync(owner, JSON.stringify({ pid: process.pid, processIdentity: processIdentity(process.pid), startedAt: new Date().toISOString(), journal }));
     fd = fs.openSync(journal, "wx");
     for (let index = 0; current; index++) {
       if (index >= config.maxSteps) throw new Error("Handoff step budget reached; human review required");
@@ -78,7 +78,11 @@ export async function runHandoff(configFile, { slotRoot, identifyProcess = proce
       const exited = new Promise((resolve) => { let error; child.once("error", (e) => {error=e.message;}); child.once("close", (code, signal) => resolve({ code, signal, error })); });
       append({ event: "running", index, step: current, pid: child.pid, startedAt: new Date().toISOString(), head, output, completion });
       if (slot && child.pid) {
-        try { slot.append({phase:"running",child:identifyProcess(child.pid),head,output,completion,journal}); }
+        try {
+          const childIdentity = identifyProcess(child.pid);
+          slot.append({phase:"running",child:childIdentity,head,output,completion,journal});
+          append({event:"identified",index,step:current,childIdentity,slot:slot.file,token:slot.token});
+        }
         catch (error) { append({event:"identity-uncertain",index,reason:error.message}); }
       }
       child.stdin.on("error", () => {});

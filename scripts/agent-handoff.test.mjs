@@ -117,6 +117,8 @@ try {
   assert.equal(fs.existsSync(fifth.posted),false,"a fifth reviewer must not launch while four posted reviewers are still running");
   assert.match((await fifth.done).output,/reviewer slots.*occupied/i);
   assert.match(fs.readFileSync(path.join(scratch,"concurrent-0.jsonl"),"utf8"),/identity-uncertain/,"a real post-spawn registration failure must retain capacity while its child runs");
+  const identified=fs.readFileSync(path.join(scratch,"concurrent-1.jsonl"),"utf8").trim().split("\n").map(JSON.parse).find(row=>row.event==="identified");
+  assert.ok(identified.childIdentity.start,"actual OS start identity remains in the journal after slot release");
 } finally {
   fs.writeFileSync(release,"exit");
   await Promise.all(launched.map(p=>p.done));
