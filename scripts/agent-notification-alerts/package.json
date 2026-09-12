@@ -1,0 +1,13 @@
+{
+  "name": "agent-notification-alerts",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=20.8" },
+  "scripts": {
+    "start": "node src/main.mjs",
+    "demo": "node src/main.mjs notify Hey, I finished setting up your alerts. Can you give them a try?",
+    "test": "node --test"
+  },
+  "dependencies": { "@modelcontextprotocol/sdk": "^1.0.0", "zod": "^3.25.0" }
+}

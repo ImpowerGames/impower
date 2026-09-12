@@ -5,7 +5,8 @@ import { fileURLToPath } from "node:url";
 import { testShell } from "../.agents/skills/drive-web-editor/redgreen.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const files = execFileSync("git", ["ls-files", "-z"], { cwd: root, encoding: "utf8" }).split("\0").filter(Boolean);
+// The notifier installs npm dependencies in its own Windows/Linux test workflow.
+const files = execFileSync("git", ["ls-files", "-z"], { cwd: root, encoding: "utf8" }).split("\0").filter(Boolean).filter((f) => !f.startsWith("scripts/agent-notification-alerts/"));
 // Derived from the tracked runnable set. Update this count when adding checks;
 // deleting or renaming a check must not silently reduce the expected coverage.
 const EXPECTED_CHECKS = 29;

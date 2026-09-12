@@ -9,6 +9,8 @@ Read [runner notes](../RUNNERS.md) and the repository's agent instructions befor
 
 Takes a feature idea from the user, drives it to a shared understanding through an interview, and files one Feature issue on GitHub carrying the plan. Implementation does not happen here; it happens on the ticket, through the resolve-issue skill, once the plan is agreed.
 
+When an interview round is ready and you yield for the user's answers, provide the normal questions in chat and invoke [notify-user](../notify-user/SKILL.md) once with `user_input_needed` for an optional companion event. Invoke it again alongside the normal final chat handoff (`done` if no user action is needed, otherwise `user_input_needed`), or with `blocked` if a problem requires their help. Preserve the interview and filing gates; do not notify repeatedly while waiting for the same answer. If the notifier is unavailable, skip the event silently.
+
 Why the interview comes first: a feature in this repo usually cuts through the whole pipeline, parser to compiler to engine to player to editor to extension, and the author-facing decision (what the syntax is, what the directive does at each point in preview and play) sits at the top of that chain. A wrong assumption there is paid for at every layer below it, and a feature whose scope is discovered mid-flight ends up split into follow-up tickets after the fact instead of planned as slices before.
 
 ## 1. Find the facts before asking anything

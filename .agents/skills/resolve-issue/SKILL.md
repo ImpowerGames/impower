@@ -9,6 +9,8 @@ Read [runner notes](../RUNNERS.md) and the repository's agent instructions befor
 
 Takes an issue number and drives it to an open pull request. All paths below are relative to the repo root (the directory containing `package.json` with `"name": "impower-monorepo"`).
 
+At completion, or when yielding for the user's input or help, provide the normal chat handoff and invoke [notify-user](../notify-user/SKILL.md) for an optional companion event. Use `user_input_needed` when asking the user to review or merge, `done` when no action is needed, and `blocked` when a problem requires their help. Notify only after the relevant completion gates are satisfied, or describe what remains blocked; a notification never replaces those gates or the required evidence and links in chat. If the notifier is unavailable, skip the event silently.
+
 The work happens in a dedicated worktree, and the steps run in the order below. Four of them are their own skills, and this file says where to invoke each one: three on a line that begins ``Invoke `/<skill>` now``, and the VS Code driver in the reproduction bullet and the §6 sentence that apply to an extension ticket; a session that skips an invocation skips the step, so `landing-pad.test.sh` beside this file pins those lines. The completion gate is at the end.
 
 ---
@@ -160,9 +162,9 @@ The ticket is resolved when all of these hold, and not before:
 
 ## Troubleshooting
 
-| Symptom                                       | Cause → fix                                                                                                                    |
-| --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| `git worktree remove` → `Directory not empty` | Run the clean-worktrees dry run and inspect its recovery record. Preserve unmerged work and external link targets; never recursively delete the directory to bypass a refusal.                 |
+| Symptom                                       | Cause → fix                                                                                                                                                                    |
+| --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `git worktree remove` → `Directory not empty` | Run the clean-worktrees dry run and inspect its recovery record. Preserve unmerged work and external link targets; never recursively delete the directory to bypass a refusal. |
 
 That is the only row: every other failure this checklist could name is something a command says for itself. The preflight's `node_modules` line names the repair for a corrupted install and §2 gives the install that a blocked Chromium download refuses; the driver's own failures (a black or white preview, a scrub that did not land) are named by the driver, and `redgreen`'s by its report.
 

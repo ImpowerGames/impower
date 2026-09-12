@@ -37,6 +37,9 @@ An abort is not a clean review. Preserve its output and retry only the affected 
 
 ## 3. Fan out; each reviewer comments on the PR
 
+For a PR with no linked issue, set the prompt builder's `issue` field to `null`.
+It produces issue-free wording; never invent an issue number to satisfy the builder.
+
 Fetch the current base and record its SHA before capturing the diff. If the branch must incorporate base changes, finish that integration before review, within the caller's Git constraints; never merge or rebase merely because the review skill was invoked. Freeze the reviewed head, base and working files for the entire round. A changed head invalidates the round.
 
 Capture the diff once, so every reviewer sees the same artifact:
