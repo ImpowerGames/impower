@@ -23,7 +23,7 @@ Before preparing a round, read [launch procedure](references/launch.md). Build t
 
 For a PR with no linked issue, set the prompt builder's `issue` field to `null`; never invent an issue number.
 
-Freeze head, base and files; record SHAs and a single diff artifact. Give each lens/round/attempt a unique private directory. Read [handoff execution](HANDOFF.md) before launching any local CLI reviewer; it reserves machine-wide slots and runs serial lenses. Native/remote tasks do not satisfy this enforced workflow. Before selecting executable arguments, read [runner mappings](../references/runner-review.md).
+Freeze head, base and files; record SHAs and a single diff artifact. Give each reviewer/round/attempt a unique private directory. Read [handoff execution](HANDOFF.md) before launching any local CLI reviewer; it reserves machine-wide slots and runs serial reviewers. Native/remote tasks do not satisfy this enforced workflow. Before selecting executable arguments, read [runner mappings](../references/runner-review.md).
 
 Post round state with identities, SHAs, scope, lenses, launch method and artifact paths. Record process IDs, OS start identities and output paths. Wait for each process to exit, then verify its report landed before advancing. Missing comments alone never justify relaunch. Preserve uncertain launches and recover through the journal and reservation status.
 
@@ -41,4 +41,4 @@ Before `gh pr ready`, require every reviewer process to exit; all required cover
 
 ## 6. Later changes
 
-Before editing a ready PR, return it to draft and explain why. Read [later-round rules](references/later-rounds.md) before deciding whether to launch another round. Size follow-up rounds by correction risk with full-PR context. Stop after any complete round when readiness gates pass, with a cap of three autonomous rounds. Retries and pending reviewers stay in their original round on the same frozen head. Behavior-changing corrections after round three keep the PR draft pending independent review. New scope, a resumed session, or a new journal never resets the count; further review requires explicit user direction.
+Before editing a ready PR, return it to draft and explain why. Read [later-round rules](references/later-rounds.md) before deciding whether to launch another round. Size follow-up rounds by correction risk with full-PR context. Stop after any complete round when readiness gates pass, with a cap of 3 autonomous rounds. Retries and pending reviewers stay in their original round on the same frozen head. Behavior-changing corrections after round 3 keep the PR draft pending independent review. New scope, a resumed session, or a new journal never resets the count; further review requires explicit user direction.

@@ -91,7 +91,7 @@ assert.equal(fs.existsSync(config.journal), false);
 // correction. Only the GitHub read is stubbed; children, commits and journals
 // use the scratch repository and the real launcher.
 const lifecycleChild = path.join(scratch, "round-lifecycle.mjs");
-fs.writeFileSync(lifecycleChild, `import fs from "node:fs"; import {execFileSync} from "node:child_process"; let p=""; for await (const c of process.stdin) p+=c; const role=/role=(\\w+)/.exec(p)[1]; if(role==="implement")execFileSync("git",["-c","user.name=test","-c","user.email=test@example.invalid","commit","--allow-empty","-m","verified correction"]); const head=execFileSync("git",["rev-parse","HEAD"],{encoding:"utf8"}).trim(); fs.writeFileSync(/Write (.*?) with the editor tool/.exec(p)[1],JSON.stringify({head,next:role==="implement"?"review":null,commentIds:role==="review"?[123]:[],summary:"fixture completed"}));`);
+fs.writeFileSync(lifecycleChild, `import fs from "node:fs"; import {execFileSync} from "node:child_process"; let p=""; for await (const c of process.stdin) p+=c; const role=/role=(\\w+)/.exec(p)[1]; if(role==="implement" && process.argv[2]!=="noop")execFileSync("git",["-c","user.name=test","-c","user.email=test@example.invalid","commit","--allow-empty","-m","verified correction"]); const head=execFileSync("git",["rev-parse","HEAD"],{encoding:"utf8"}).trim(); fs.writeFileSync(/Write (.*?) with the editor tool/.exec(p)[1],JSON.stringify({head,next:role==="implement"?"review":process.argv[2]==="first-review"?"next-review":null,commentIds:role==="review"?[123]:[],summary:"fixture completed"}));`);
 const lifecycle = { ...config, pr:531, first:"review", maxSteps:2, reviewedHead:git("rev-parse","HEAD").trim(), journal:path.join(scratch,"completed-third.jsonl"), steps:{
   review:{role:"review",round:3,model:"reviewer-test",executable:process.execPath,args:[lifecycleChild,"--model","reviewer-test"],prompt,next:[null]},
   implement:{role:"implement",model:"writer-test",executable:process.execPath,args:[lifecycleChild,"--model","writer-test"],prompt,next:["review"]},
@@ -102,6 +102,15 @@ try {
     ? JSON.stringify({issue_url:"https://api.github.com/repos/ImpowerGames/impower/issues/531",body:git("rev-parse","HEAD").trim()})
     : originalExec(exe,args,options);
   syncBuiltinESMExports();
+  const freshCycle={...lifecycle,completedReviewRound:0,reviewedHead:null,finalCorrections:false,journal:path.join(scratch,"fresh-two-reviewers.jsonl"),steps:{
+    review:{...lifecycle.steps.review,round:1,args:[lifecycleChild,"first-review","--model","reviewer-test"],next:["next-review"]},
+    "next-review":{...lifecycle.steps.review,round:1},
+  }};
+  fs.writeFileSync(file,JSON.stringify(freshCycle)); await runHandoff(file);
+  const freshRows=fs.readFileSync(freshCycle.journal,"utf8").trim().split("\n").map(JSON.parse);
+  const freshCompleted=freshRows.filter(row=>row.event==="completed");
+  assert.equal(freshCompleted.length,2,"a fresh cycle completes both same-round reviewers");
+  assert.ok(freshCompleted.every(row=>row.completedRound===1 && row.reviewedHead===lifecycle.reviewedHead),"the first review records the head needed by the second");
   fs.writeFileSync(file,JSON.stringify(lifecycle)); await runHandoff(file);
   const completed=fs.readFileSync(lifecycle.journal,"utf8").trim().split("\n").map(JSON.parse).find(row=>row.event==="completed");
   assert.equal(completed.completedRound,3);
@@ -118,6 +127,15 @@ try {
   const corrected=fs.readFileSync(lifecycle.journal,"utf8").trim().split("\n").map(JSON.parse);
   assert.equal(corrected.find(row=>row.event==="completed").finalCorrections,true);
   assert.equal(corrected.filter(row=>row.event==="launching").length,1,"correction cannot trigger another third-round review");
+  lifecycle.journal=path.join(scratch,"preexisting-head-drift.jsonl");
+  lifecycle.steps.implement.args=[lifecycleChild,"noop","--model","writer-test"];
+  fs.writeFileSync(file,JSON.stringify(lifecycle));
+  await assert.rejects(runHandoff(file),/no automatic review/);
+  const drifted=fs.readFileSync(lifecycle.journal,"utf8").trim().split("\n").map(JSON.parse);
+  const driftCompletion=drifted.find(row=>row.event==="completed");
+  assert.equal(driftCompletion.head,drifted.find(row=>row.event==="launching").head,"no-op implementation leaves its launch head unchanged");
+  assert.equal(driftCompletion.finalCorrections,true,"drift before the implementation step still invalidates final-round coverage");
+
 } finally { childProcess.execFileSync=originalExec; syncBuiltinESMExports(); }
 config.completedReviewRound = 0;
 delete config.finalCorrections;
