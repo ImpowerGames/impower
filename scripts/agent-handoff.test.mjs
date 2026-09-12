@@ -179,12 +179,17 @@ reused.close();
 reusedRecord.owner.start+="-older-process";
 fs.writeFileSync(reused.file,JSON.stringify(reusedRecord)+"\n"+JSON.stringify({token:reused.token,phase:"running",child:{...reusedRecord.owner}})+"\n");
 const recoveryWorker=path.join(scratch,"recover-slot.mjs");
-fs.writeFileSync(recoveryWorker,`import {recoverReviewerSlot} from ${JSON.stringify(pathToFileURL(path.resolve("scripts/reviewer-slots.mjs")).href)}; try{recoverReviewerSlot(process.argv[2])}catch(e){console.error(e.message);process.exitCode=1}`);
+fs.writeFileSync(recoveryWorker,`import {recoverReviewerSlot} from ${JSON.stringify(pathToFileURL(path.resolve("scripts/reviewer-slots.mjs")).href)}; try{if(recoverReviewerSlot(process.argv[2]).alreadyAbsent)process.exitCode=2;}catch(e){console.error(e.message);process.exitCode=1}`);
 const recoveries=[0,1].map(()=>new Promise(resolve=>{
   const child=spawn(process.execPath,[recoveryWorker,reused.file],{stdio:"ignore",windowsHide:true});
   child.once("close",resolve);
 }));
-assert.deepEqual((await bounded(Promise.all(recoveries))).sort(),[0,1],"racing recoveries remove one dead generation exactly once, using OS start identity to distinguish PID reuse");
+const recoveryResults=await bounded(Promise.all(recoveries));
+assert.equal(recoveryResults.filter(code=>code===0).length,1,"racing recoveries remove one dead generation exactly once, using OS start identity to distinguish PID reuse");
+assert.ok(recoveryResults.every(code=>[0,1,2].includes(code)));
+assert.equal(recoverReviewerSlot(reused.file).alreadyAbsent,reused.file,"an already-released reservation is absence, not corruption");
+const neverCreated=path.join(scratch,"never-created-store","slot-0.jsonl");
+assert.equal(recoverReviewerSlot(neverCreated).alreadyAbsent,neverCreated);
 const replacement=reserveReviewerSlot(isolated);
 assert.throws(()=>recoverReviewerSlot(replacement.file),/Coordinator still running/);
 releaseReviewerSlot(replacement);
@@ -222,3 +227,43 @@ assert.equal(processIdentity(ownedPid),null,"a journal failure cannot leave a ch
 assert.equal(fs.readdirSync(path.join(scratch,"failure-slots")).length,0,"confirmed termination releases its reservation");
 assert.equal(fs.existsSync(lock),false,"confirmed child close releases the worktree lock");
 console.log("PASS: confirmed-absent children, marker diagnostics, and actual post-spawn journal failure cleanup");
+
+const failureWorker=path.join(scratch,"failure-worker.mjs");
+fs.writeFileSync(failureWorker,`import fs from 'node:fs';import cp,{ChildProcess} from 'node:child_process';import {syncBuiltinESMExports} from 'node:module';import {runHandoff} from ${JSON.stringify(pathToFileURL(path.resolve("scripts/agent-handoff.mjs")).href)}; const realWrite=fs.writeSync;let failing=false;fs.writeSync=(fd,data,...args)=>{if(typeof data==='string'&&data.includes('"event":"running"')){failing=true;throw new Error('primary journal failure')}if(failing&&process.argv[4]==='combined')throw new Error('secondary storage failure');return realWrite(fd,data,...args)};if(process.argv[4]==='retained'){const spawn=cp.spawn;cp.spawn=(exe,args,options)=>spawn(exe,args,{...options,detached:true});syncBuiltinESMExports();ChildProcess.prototype.kill=function(){this.emit('error',new Error('fixture signal-delivery failure'));return false;};}runHandoff(process.argv[2],{slotRoot:process.argv[3]}).catch(error=>{console.error(error.message);process.exitCode=1});`);
+for(const mode of ["combined","retained"]){
+  const repo=path.join(scratch,`failure-repo-${mode}`);execFileSync("git",["clone","--quiet",worktree,repo]);
+  const taskRelease=path.join(scratch,`failure-${mode}.release`);
+  const taskPlan=path.join(scratch,`failure-${mode}.json`);
+  const taskPool=path.join(scratch,`failure-${mode}-slots`);
+  fs.writeFileSync(taskPlan,JSON.stringify({...config,worktree:repo,journal:path.join(scratch,`failure-${mode}.jsonl`),steps:{review:{...config.steps.first,args:[reviewer,path.join(scratch,`failure-${mode}.posted`),taskRelease,"--model","reviewer-test"]}},first:"review"}));
+  const started=Date.now();
+  const proc=spawn(process.execPath,[failureWorker,taskPlan,taskPool,mode],{windowsHide:true,stdio:["ignore","pipe","pipe"]});
+  let output="";proc.stdout.on("data",chunk=>output+=chunk);proc.stderr.on("data",chunk=>output+=chunk);
+  const done=new Promise(resolve=>proc.once("close",resolve));
+  let record;
+  try {
+    assert.equal(await bounded(done),1);
+    assert.match(output,/primary journal failure/);
+    const slotFile=path.join(taskPool,"slot-0.jsonl");
+    const rows=fs.readFileSync(slotFile,"utf8").trim().split("\n").map(JSON.parse);
+    record=rows.find(row=>row.phase==="running");
+    assert.ok(record.child.start,"identity must survive a failure of every later durable write");
+    if(mode==="combined"){
+      assert.match(output,/reservation retained at .*secondary storage failure/);
+      assert.equal(processIdentity(record.child.pid),null);
+      assert.equal(recoverReviewerSlot(slotFile).recovered,slotFile);
+    }else{
+      assert.match(output,/child exit unconfirmed/);
+      assert.ok(Date.now()-started<25000,"the coordinator returns after bounded cleanup while the controlled child remains alive");
+      assert.deepEqual(processIdentity(record.child.pid),record.child);
+      assert.ok(fs.existsSync(path.join(repo,".git","agent-handoff.lock")));
+      assert.throws(()=>recoverReviewerSlot(slotFile),/Reviewer still running/);
+    }
+  } finally {
+    fs.writeFileSync(taskRelease,"exit");
+    await bounded(done);
+    if(record)await until(()=>processIdentity(record.child.pid)===null);
+  }
+  if(mode==="retained")assert.equal(recoverReviewerSlot(path.join(taskPool,"slot-0.jsonl")).recovered,path.join(taskPool,"slot-0.jsonl"));
+}
+console.log("PASS: combined storage failure preserves primary diagnosis and recoverable identity; unconfirmed child detaches while ownership stays reserved");

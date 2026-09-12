@@ -36,7 +36,7 @@ const validIdentity = (value) => value && Number.isSafeInteger(value.pid) && val
 const snapshot = (file) => {
   let rows;
   try { rows = fs.readFileSync(file,"utf8").trim().split("\n").map(JSON.parse); }
-  catch(error) { throw new Error(`Uncertain slot record at ${file}; preserve it: ${error.message}`); }
+  catch(error) { if(error.code==="ENOENT")return null;throw new Error(`Uncertain slot record at ${file}; preserve it: ${error.message}`); }
   if (!rows.length || !rows[0].token || !validIdentity(rows[0].owner) || rows.some(row=>row.token!==rows[0].token)) throw new Error("Uncertain slot record; preserve it");
   return {initial:rows[0], last:rows.at(-1)};
 };
@@ -63,6 +63,7 @@ export function reserveReviewerSlot(root = machineSlotRoot) {
 export function releaseReviewerSlot(slot) {
   // Only the process holding the child exit event can call this path.
   const record=snapshot(slot.file);
+  if(!record)throw new Error(`Owned slot record is missing at ${slot.file}; ownership cannot be verified`);
   if(record.initial.token!==slot.token || !same(record.initial.owner,processIdentity(process.pid)))throw new Error("Slot ownership changed; preserve the reservation");
   slot.append({phase:"exited"});
   slot.close();
@@ -75,18 +76,20 @@ export function recoverReviewerSlot(file) {
   try { lock=fs.openSync(recovery,"wx"); }
   catch(error) {
     if(error.code==="EEXIST")throw new Error(`Recovery marker already exists at ${recovery}; inspect its owner and preserve uncertain ownership`);
+    if(error.code==="ENOENT" && snapshot(file)===null)return {alreadyAbsent:file};
     throw error;
   }
   try{
     fs.writeSync(lock,JSON.stringify({token:randomUUID(),owner:processIdentity(process.pid),startedAt:new Date().toISOString(),slot:file})+"\n");
     fs.fsyncSync(lock);
     const record=snapshot(file);
+    if(!record)return {alreadyAbsent:file};
     if(same(record.initial.owner,processIdentity(record.initial.owner.pid)))throw new Error("Coordinator still running; await it");
     if(record.last.phase!=="exited") {
       if(record.last.phase!=="running" || !validIdentity(record.last.child))throw new Error("Uncertain reviewer launch; preserve the occupied slot");
       if(same(record.last.child,processIdentity(record.last.child.pid)))throw new Error("Reviewer still running; await confirmed exit");
     }
-    if(snapshot(file).initial.token!==record.initial.token)throw new Error("Slot generation changed; preserve it");
+    if(snapshot(file)?.initial.token!==record.initial.token)throw new Error("Slot generation changed; preserve it");
     fs.unlinkSync(file);
     return {recovered:file,token:record.initial.token};
   }finally{fs.closeSync(lock);fs.unlinkSync(recovery);}

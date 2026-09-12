@@ -80,19 +80,21 @@ export async function runHandoff(configFile, { slotRoot, identifyProcess = proce
       }
       const child = spawn(step.executable, step.args, { cwd, shell: false, windowsHide: true, stdio: ["pipe", log, log] });
       activeChild = child;
-      const exited = new Promise((resolve) => { let error; child.once("error", (e) => {error=e.message;}); child.once("close", (code, signal) => resolve({ code, signal, error })); });
+      const exited = new Promise((resolve) => { let error; child.on("error", (e) => {error=e.message;}); child.once("close", (code, signal) => resolve({ code, signal, error })); });
       let result;
       try {
         child.stdin.on("error", () => {});
-        append({ event: "running", index, step: current, pid: child.pid, startedAt: new Date().toISOString(), head, output, completion });
+        let identityRow;
         if (slot && child.pid) {
           try {
             const childIdentity = identifyProcess(child.pid);
             slot.append({phase:childIdentity ? "running" : "exited",child:childIdentity,head,output,completion,journal});
-            append({event:childIdentity ? "identified" : "confirmed-absent",index,step:current,childIdentity,slot:slot.file,token:slot.token});
+            identityRow={event:childIdentity ? "identified" : "confirmed-absent",index,step:current,childIdentity,slot:slot.file,token:slot.token};
           }
-          catch (error) { append({event:"identity-uncertain",index,reason:error.message}); }
+          catch (error) { identityRow={event:"identity-uncertain",index,reason:error.message}; }
         }
+        append({ event: "running", index, step: current, pid: child.pid, startedAt: new Date().toISOString(), head, output, completion });
+        if(identityRow)append(identityRow);
         child.stdin.end(prompt);
         result = await exited;
         activeChild = null;
@@ -104,11 +106,17 @@ export async function runHandoff(configFile, { slotRoot, identifyProcess = proce
           const timer=setTimeout(()=>resolve(null),ms);
           exited.then(value=>{clearTimeout(timer);resolve(value);});
         });
-        child.kill();
+        const terminate=(signal)=>{try{child.kill(signal);}catch(killError){error.message += `; owned-child termination failed: ${killError.message}`;}};
+        terminate();
         let stopped=await waitForClose(5000);
-        if(!stopped){child.kill("SIGKILL");stopped=await waitForClose(5000);}
-        if(stopped){activeChild=null;if(slot)releaseReviewerSlot(slot);}
-        else error.message += "; child exit unconfirmed: preserve the worktree lock and reviewer reservation";
+        if(!stopped){terminate("SIGKILL");stopped=await waitForClose(5000);}
+        if(stopped){
+          activeChild=null;
+          if(slot){try{releaseReviewerSlot(slot);}catch(releaseError){error.message += `; reservation retained at ${slot.file}: ${releaseError.message}`;}}
+        } else {
+          child.unref();
+          error.message += "; child exit unconfirmed: preserve the worktree lock and reviewer reservation";
+        }
         throw error;
       } finally { fs.closeSync(log); }
       if (slot) releaseReviewerSlot(slot);
