@@ -108,6 +108,11 @@ test("open, settle, hover, and read through both editor protocol transports", { 
       const missing = await socketRequest(socket, "missing-file", "workspace/readFile", { file: { uri: "file://local/does-not-exist.txt" } });
       assert.ok(missing.error?.message);
       assert.doesNotMatch(missing.error.message, /\[object Object\]/, "the real worker's failure reason must reach the socket client");
+      const pageError = await page.evaluate(async () => {
+        try { await window.__editorProtocol.send({ jsonrpc: "2.0", id: "page-missing", method: "workspace/readFile", params: { file: { uri: "file://local/does-not-exist.txt" } } }); }
+        catch (error) { return { code: error.code, message: error.message, data: error.data }; }
+      });
+      assert.deepEqual(missing.error, JSON.parse(JSON.stringify(pageError)), "socket and page callers must receive the same structured worker error");
       const observer = new WebSocket(`${url.replace("http:", "ws:")}/__editor_protocol?role=client`);
       const echoed = [];
       const receive = bytes => { const message = JSON.parse(bytes.toString()); if (message.method === "test/noEffect") echoed.push(message); };

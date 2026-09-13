@@ -109,7 +109,12 @@ export function installProtocolBridge() {
         }
       } catch (error) {
         if (message && "id" in message && connection.readyState === WebSocket.OPEN) {
-          connection.send(stringifyProtocolJSON({ jsonrpc: "2.0", id: message.id, error: { code: -32603, message: String(error) } }));
+          const detail = error as { code?: unknown; message?: unknown; data?: unknown } | null;
+          connection.send(stringifyProtocolJSON({ jsonrpc: "2.0", id: message.id, error: {
+            code: typeof detail?.code === "number" && Number.isFinite(detail.code) ? detail.code : -32603,
+            message: typeof detail?.message === "string" ? detail.message : String(error),
+            data: detail?.data,
+          } }));
         }
       }
     };

@@ -349,6 +349,33 @@ await check("the seed wire carries one content payload rather than duplicate fil
   });
 });
 
+await check("large seed archives cross the browser boundary in bounded chunks and release their buffer", async () => {
+  await withStub({}, async ({ page }) => {
+    const bytes = Buffer.alloc(4 * 1024 * 1024, 65);
+    bytes[bytes.length - 1] = 90;
+    const evaluate = page.evaluate;
+    const chunks = [];
+    let disposed = false;
+    page.evaluateHandle = async (fn, arg) => {
+      const value = fn(arg);
+      return { value, evaluate: async (fill, part) => { chunks.push(part.chunk.length); return fill(value, part); }, dispose: async () => { disposed = true; } };
+    };
+    page.evaluate = async (fn, arg) => {
+      if (fn === writeProjectBatch) {
+        assert.equal(typeof arg.archive, "object", "large payload must use a browser buffer handle");
+        arg = { ...arg, archive: arg.archive.value };
+      }
+      return evaluate(fn, arg);
+    };
+    const report = await seedProject(page, "fixture", { collect: async () => ({ files: [{ path: "main.sd", bytes }], skipped: 0, failed: [] }) });
+    assert.equal(report.storage, "replaced", report.reason);
+    assert.ok(chunks.length > 1);
+    assert.ok(chunks.every(length => length <= 4 * 1024 * 1024));
+    assert.equal(disposed, true);
+    assert.deepEqual(await readBack(page, "main.sd"), bytes);
+  });
+});
+
 await check("independent seed files overlap with bounded concurrency and keep report order", async () => {
   const storage = stubStorage();
   const globals = stubGlobals(storage);
@@ -606,7 +633,7 @@ await check("a write that reads back short is a reason, counts only the bytes th
   await withStub({ shortWrite: { "chars.sd": 3 } }, async ({ page }) => {
     const report = await seedProject(page, fixture);
     assert.deepEqual(report.failed, [{ path: "scripts/chars.sd", reason: "wrote 23 bytes but the file reads back as 3" }]);
-    assert.equal(await readBack(page, "scripts/chars.sd"), null, "a new file failing readback must be removed");
+    assert.equal((await readBack(page, "scripts/chars.sd")).length, 3, "a failed verification must not delete bytes whose ownership is unknown");
     assert.equal(report.files, 3);
     assert.equal(report.bytes, totalBytes - files["scripts/chars.sd"].length);
     assert.match(report.reason, /1 of 4 project files could not be written/);
@@ -627,6 +654,27 @@ await check("a write that reads back short is a reason, counts only the bytes th
     assert.equal((await readBack(page, "stale.sd")).toString(), "old");
     assert.equal(report.storage, "mixed");
     assert.equal(await marked(page), true);
+  });
+});
+
+await check("failed seed verification preserves a concurrent replacement and keeps the interrupted marker", async () => {
+  await withStub({}, async ({ page }) => {
+    await page.evaluate(() => {
+      const send = window.__editorProtocol.send.bind(window.__editorProtocol);
+      let replaced = false;
+      window.__editorProtocol.send = async (message) => {
+        if (!replaced && message.method === "workspace/readFile" && message.params.file.uri.endsWith("/scripts/chars.sd")) {
+          replaced = true;
+          await send({ method: "workspace/willCreateFiles", params: { files: [{ uri: message.params.file.uri, data: new TextEncoder().encode("concurrent replacement").buffer }] } });
+        }
+        return send(message);
+      };
+    });
+    const report = await seedProject(page, fixture);
+    assert.equal(report.storage, "mixed");
+    assert.equal(report.pruned, false);
+    assert.equal(await marked(page), true);
+    assert.equal((await readBack(page, "scripts/chars.sd"))?.toString(), "concurrent replacement");
   });
 });
 

@@ -5,6 +5,29 @@ import { LoadedProjectIdMessage } from "@impower/spark-editor-protocol/src/proto
 
 afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); });
 describe("editor protocol transport", () => {
+  it("preserves structured errors across the installed socket boundary", async () => {
+    const sockets: any[] = [];
+    class Socket {
+      static OPEN = 1;
+      readyState = 1;
+      onmessage: any;
+      send = vi.fn();
+      close() { this.readyState = 3; }
+      constructor() { sockets.push(this); }
+    }
+    vi.stubGlobal("WebSocket", Socket);
+    const dispose = installProtocolBridge();
+    const error = { code: -32042, message: "storage is locked", data: { uri: "file://local/main.sd", retryable: false } };
+    const handle = (event: Event) => {
+      const message = (event as CustomEvent).detail;
+      if (message.method === "failing") sendProtocolMessage({ jsonrpc: "2.0", id: message.id, error });
+    };
+    window.addEventListener("jsonrpc", handle);
+    try {
+      await sockets[0].onmessage({ data: JSON.stringify({ jsonrpc: "2.0", id: "failure", method: "failing", params: {} }) });
+      expect(JSON.parse(sockets[0].send.mock.calls[0][0])).toEqual({ jsonrpc: "2.0", id: "failure", error });
+    } finally { window.removeEventListener("jsonrpc", handle); dispose(); }
+  });
   it("does not reflect socket notifications but forwards synchronous editor events they cause", async () => {
     const sockets: any[] = [];
     class Socket {

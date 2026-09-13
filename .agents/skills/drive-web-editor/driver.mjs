@@ -1038,21 +1038,22 @@ async function kindClashes({ project, files, dirs }) {
 // rather than what was sent; a file that could not be written, or that reads
 // back a different size, lands in `failed` with the reason and the rest of
 // the batch still goes in. Nothing that is there is removed: an entry of the
-// other kind in the way is a failed write with the storage's reason. Getting
-// a handle creates an empty file before the write can fail, so a file this
-// batch created and could not write is removed again, through the parent
-// that holds it and only when the descent to that parent succeeded; a file
-// that was there before keeps whatever it holds.
+// other kind in the way is a failed write with the storage's reason. The
+// worker handles definite write failures. Failed post-write verification
+// retains the current bytes: another client may already own that path.
 async function writeProjectBatch({ project, entries, archive }) {
   const bridge = window.__editorProtocol;
   if (!bridge) throw new Error("Editor protocol bridge is not ready");
   const send = (method, params) => bridge.send({ jsonrpc: "2.0", id: crypto.randomUUID(), method, params });
   const loaded = await send("window/loadedProjectId", {});
   if (loaded.id !== project) throw new Error("Refusing to seed a project that is not loaded");
-  const binary = atob(archive);
-  const bytes = new Uint8Array(binary.length);
-  for (let index = 0; index < binary.length; index++) bytes[index] = binary.charCodeAt(index);
-  const data = bytes.buffer;
+  let data = archive;
+  if (typeof archive === "string") {
+    const binary = atob(archive);
+    const bytes = new Uint8Array(binary.length);
+    for (let index = 0; index < binary.length; index++) bytes[index] = binary.charCodeAt(index);
+    data = bytes.buffer;
+  }
   const files = await send("workspace/unzipFiles", { data });
   const written = [], failed = [];
   const expectedFiles = new Set(entries.map(entry => entry.path));
@@ -1060,27 +1061,11 @@ async function writeProjectBatch({ project, entries, archive }) {
   for (const file of files) {
     if (!expectedFiles.has(file.filename)) throw new Error("Archive returned an unexpected file: " + file.filename);
   }
-  const existedBefore = async (filename) => {
-    try {
-      let directory = await navigator.storage.getDirectory();
-      const parts = [project, ...filename.split("/")];
-      const name = parts.pop();
-      for (const part of parts) directory = await directory.getDirectoryHandle(part, { create: false });
-      await directory.getFileHandle(name, { create: false });
-      return true;
-    } catch (error) {
-      if (error.name === "NotFoundError") return false;
-      throw error;
-    }
-  };
   const importFile = async ({ filename, data }, index) => {
     const uri = "file://" + project + "/" + filename;
-    let existed = true, acknowledged = false;
     try {
-      existed = await existedBefore(filename);
       const originalSize = data.byteLength;
       const created = await send("workspace/willCreateFiles", { files: [{ uri, data }] });
-      acknowledged = true;
       // Imports can normalize SVG labels. Verify the acknowledged stored size,
       // while retaining the input size for hosts that omit optional metadata.
       const size = created.find(file => file.uri === uri)?.size ?? originalSize;
@@ -1088,12 +1073,8 @@ async function writeProjectBatch({ project, entries, archive }) {
       if (readBack.byteLength !== size) throw new Error(`wrote ${size} bytes but the file reads back as ${readBack.byteLength}`);
       written[index] = { path: filename, bytes: readBack.byteLength };
     } catch (error) {
-      // Only roll back a confirmed new write. A timed-out mutation may still
-      // be in flight; the worker owns cleanup of definite write failures.
-      if (!existed && acknowledged) {
-        try { await send("workspace/willDeleteFiles", { files: [{ uri }], mode: "permanent" }); }
-        catch (cleanupError) { error = new Error(`${String(error)}; cleanup failed: ${String(cleanupError)}`); }
-      }
+      // Never delete by a stale existence check after acknowledgement: a
+      // concurrent writer may have replaced this path. Keep the seed marked.
       failed[index] = { path: filename, reason: error.name && error.name !== "Error" ? `${error.name}: ${error.message}` : String(error.message || error) };
     }
   };
@@ -1353,6 +1334,25 @@ async function packProjectBatch(batch) {
   return Buffer.from(zipSync(Object.fromEntries(batch.map((file) => [file.path, file.bytes])), { level: 0 })).toString("base64");
 }
 
+// Keep each DevTools message below its pipe limit. Decode chunks into one
+// browser-owned buffer, then pass its handle rather than serializing it again.
+async function sendProjectBatch(page, { project, entries, archive }) {
+  const chunkChars = 4 * 1024 * 1024; // multiple of four for independent base64 decoding
+  if (archive.length <= chunkChars) return page.evaluate(writeProjectBatch, { project, entries, archive });
+  const length = archive.length / 4 * 3 - (archive.endsWith("==") ? 2 : archive.endsWith("=") ? 1 : 0);
+  const handle = await page.evaluateHandle((length) => new ArrayBuffer(length), length);
+  try {
+    for (let start = 0; start < archive.length; start += chunkChars) {
+      await handle.evaluate((buffer, { chunk, offset }) => {
+        const decoded = atob(chunk);
+        const bytes = new Uint8Array(buffer, offset, decoded.length);
+        for (let index = 0; index < decoded.length; index++) bytes[index] = decoded.charCodeAt(index);
+      }, { chunk: archive.slice(start, start + chunkChars), offset: start / 4 * 3 });
+    }
+    return await page.evaluate(writeProjectBatch, { project, entries, archive: handle });
+  } finally { await handle.dispose(); }
+}
+
 async function seedProject(page, source, { project = LOCAL_PROJECT_ID, batchBytes = SEED_BATCH_BYTES, collect = collectProject, expectMainSd = true, limits = SEED_LIMITS, clear = false, pack = packProjectBatch } = {}) {
   const started = Date.now();
   const report = { source: path.resolve(source), project, storage: "untouched", files: 0, bytes: 0, batches: 0, skipped: 0, removed: [], failed: [], mainSd: false, pruned: false };
@@ -1432,7 +1432,7 @@ async function seedProject(page, source, { project = LOCAL_PROJECT_ID, batchByte
       const entries = batch.map((f) => ({ path: f.path }));
       const archive = await pack(batch);
       await waitForProtocol(page);
-      const out = await page.evaluate(writeProjectBatch, { project, entries, archive });
+      const out = await sendProjectBatch(page, { project, entries, archive });
       for (const w of out.written) {
         report.files += 1;
         report.bytes += w.bytes;
