@@ -59,6 +59,7 @@ write(); await assert.rejects(runHandoff(file), /posted comment IDs/);
 assert.doesNotThrow(() => checkReviewRound(3, 2, false), "round 3 remains available");
 assert.doesNotThrow(() => checkReviewRound(3, 3, false), "serial lenses share a round");
 assert.throws(() => checkReviewRound(4, 3, false), /1..3/, "round 4 must not launch automatically");
+assert.doesNotThrow(() => checkReviewRound(4, 3, false, 4), "an explicitly authorized fourth round is available");
 assert.throws(() => checkReviewRound(3, 3, true), /no automatic review/);
 assert.throws(() => checkReviewRound(1, 3, false), /preserve/);
 assert.throws(() => checkReviewRound(3, 1, false), /skip/);
@@ -69,6 +70,18 @@ config.finalCorrections = true;
 config.steps.first.round = 3;
 write(); await assert.rejects(runHandoff(file), /no automatic review/);
 assert.ok(!fs.readFileSync(config.journal, "utf8").includes('"event":"launching"'), "recovery after final corrections must stop before spawning");
+config.journal = path.join(scratch, "missing-extended-authorization.jsonl");
+config.reviewRoundLimit = 4;
+config.steps.first.round = 4;
+write(); await assert.rejects(runHandoff(file), /extendedReviewAuthorization/);
+assert.equal(fs.existsSync(config.journal), false, "an extension without explicit authorization must fail before launch");
+config.journal = path.join(scratch, "authorized-fourth-round.jsonl");
+config.extendedReviewAuthorization = "User explicitly requested a fourth review round.";
+write(); await assert.rejects(runHandoff(file), /posted comment IDs/, "an authorized fourth-round lens launches before its empty fixture report is rejected");
+assert.ok(fs.readFileSync(config.journal, "utf8").includes('"event":"launching"'));
+delete config.reviewRoundLimit;
+delete config.extendedReviewAuthorization;
+config.steps.first.round = 3;
 config.journal = path.join(scratch, "pending-third-lens.jsonl");
 config.finalCorrections = false;
 write(); await assert.rejects(runHandoff(file), /posted comment IDs/, "a pending third-round lens must launch before its fixture's empty report is rejected");
@@ -135,6 +148,28 @@ try {
   const driftCompletion=drifted.find(row=>row.event==="completed");
   assert.equal(driftCompletion.head,drifted.find(row=>row.event==="launching").head,"no-op implementation leaves its launch head unchanged");
   assert.equal(driftCompletion.finalCorrections,true,"drift before the implementation step still invalidates final-round coverage");
+
+  const extendedLifecycle={...lifecycle,first:"review",reviewRoundLimit:4,extendedReviewAuthorization:"User explicitly requested a fourth review round.",completedReviewRound:3,reviewedHead:git("rev-parse","HEAD").trim(),finalCorrections:false,journal:path.join(scratch,"completed-fourth.jsonl"),steps:{
+    review:{...lifecycle.steps.review,round:4},
+    implement:{...lifecycle.steps.implement,args:[lifecycleChild,"--model","writer-test"]},
+  }};
+  fs.writeFileSync(file,JSON.stringify(extendedLifecycle)); await runHandoff(file);
+  const extendedCompleted=fs.readFileSync(extendedLifecycle.journal,"utf8").trim().split("\n").map(JSON.parse).find(row=>row.event==="completed");
+  assert.equal(extendedCompleted.completedRound,4,"an authorized fourth round records its configured limit");
+  assert.equal(extendedCompleted.reviewedHead,extendedLifecycle.reviewedHead);
+  assert.equal(extendedCompleted.finalCorrections,false);
+  extendedLifecycle.journal=path.join(scratch,"recovered-fourth.jsonl");
+  extendedLifecycle.completedReviewRound=extendedCompleted.completedRound;
+  extendedLifecycle.reviewedHead=extendedCompleted.reviewedHead;
+  extendedLifecycle.finalCorrections=extendedCompleted.finalCorrections;
+  fs.writeFileSync(file,JSON.stringify(extendedLifecycle)); await runHandoff(file);
+  extendedLifecycle.first="implement";
+  extendedLifecycle.journal=path.join(scratch,"corrected-fourth.jsonl");
+  fs.writeFileSync(file,JSON.stringify(extendedLifecycle));
+  await assert.rejects(runHandoff(file),/no automatic review/);
+  const extendedCorrected=fs.readFileSync(extendedLifecycle.journal,"utf8").trim().split("\n").map(JSON.parse);
+  assert.equal(extendedCorrected.find(row=>row.event==="completed").finalCorrections,true,"a correction after the configured limit invalidates its review coverage");
+  assert.equal(extendedCorrected.filter(row=>row.event==="launching").length,1,"a correction after an authorized fourth round cannot launch another review automatically");
 
 } finally { childProcess.execFileSync=originalExec; syncBuiltinESMExports(); }
 config.completedReviewRound = 0;

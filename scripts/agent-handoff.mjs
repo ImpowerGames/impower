@@ -8,10 +8,10 @@ const read = (file) => JSON.parse(fs.readFileSync(file, "utf8"));
 const gitHead = (cwd) => execFileSync("git", ["rev-parse", "HEAD"], { cwd, encoding: "utf8" }).trim();
 const gitStatus = (cwd) => execFileSync("git", ["status", "--porcelain"], { cwd, encoding: "utf8" });
 
-export function checkReviewRound(round, completedRound, finalCorrections) {
-  if (!Number.isInteger(round) || round < 1 || round > 3 || round < completedRound) throw new Error("Review round must be 1..3 and preserve the completed round count");
+export function checkReviewRound(round, completedRound, finalCorrections, reviewRoundLimit = 3) {
+  if (!Number.isInteger(round) || round < 1 || round > reviewRoundLimit || round < completedRound) throw new Error(`Review round must be 1..${reviewRoundLimit} and preserve the completed round count`);
   if (round > completedRound + 1) throw new Error("Review round cannot skip ahead of the recorded count");
-  if (finalCorrections) throw new Error("Final corrections after round 3 require explicit user direction for further review; no automatic review");
+  if (finalCorrections && completedRound >= reviewRoundLimit) throw new Error(`Final corrections after round ${reviewRoundLimit} require explicit user direction for further review; no automatic review`);
 }
 
 // Configuration is a local, caller-authored artifact. Comments and child output
@@ -23,13 +23,17 @@ export async function runHandoff(configFile, { slotRoot, identifyProcess = proce
   const relative = path.relative(cwd, journal);
   if (!relative.startsWith(".." + path.sep) && !path.isAbsolute(relative)) throw new Error("Journal must be outside the worktree");
   if (!config.writer || !config.reviewer || config.writer === config.reviewer) throw new Error("Supply distinct writer and reviewer model routes");
-  if (!Number.isInteger(config.maxSteps) || config.maxSteps < 1 || config.maxSteps > 12) throw new Error("maxSteps must be 1..12");
-  if (!Number.isInteger(config.completedReviewRound) || config.completedReviewRound < 0 || config.completedReviewRound > 3) throw new Error("Supply completedReviewRound from 0 through 3, including on recovery");
-  if ((config.completedReviewRound === 3 && typeof config.finalCorrections !== "boolean") || (config.finalCorrections !== undefined && typeof config.finalCorrections !== "boolean") || (config.finalCorrections && config.completedReviewRound !== 3)) throw new Error("Supply finalCorrections from the journal for round-3 recovery; true requires completedReviewRound 3");
+  const reviewRoundLimit = config.reviewRoundLimit ?? 3;
+  if (!Number.isInteger(reviewRoundLimit) || reviewRoundLimit < 1 || reviewRoundLimit > 10) throw new Error("reviewRoundLimit must be an integer from 1 through 10");
+  if (reviewRoundLimit > 3 && (typeof config.extendedReviewAuthorization !== "string" || !config.extendedReviewAuthorization.trim())) throw new Error("Rounds beyond 3 require explicit user authorization in extendedReviewAuthorization");
+  if (reviewRoundLimit <= 3 && config.extendedReviewAuthorization !== undefined) throw new Error("extendedReviewAuthorization is only valid when reviewRoundLimit exceeds 3");
+  if (!Number.isInteger(config.maxSteps) || config.maxSteps < 1 || config.maxSteps > 30) throw new Error("maxSteps must be 1..30");
+  if (!Number.isInteger(config.completedReviewRound) || config.completedReviewRound < 0 || config.completedReviewRound > reviewRoundLimit) throw new Error(`Supply completedReviewRound from 0 through ${reviewRoundLimit}, including on recovery`);
+  if ((config.completedReviewRound === reviewRoundLimit && typeof config.finalCorrections !== "boolean") || (config.finalCorrections !== undefined && typeof config.finalCorrections !== "boolean") || (config.finalCorrections && config.completedReviewRound < 3)) throw new Error(`Supply finalCorrections from the journal for recovery at round 3 or later; round-${reviewRoundLimit} recovery requires it`);
   if (config.completedReviewRound > 0 && !/^[a-f0-9]{40}$/.test(config.reviewedHead ?? "")) throw new Error("Supply reviewedHead from the journal when recovering a review round");
   if (fs.existsSync(journal)) throw new Error("Journal exists; inspect recorded process and completion before authoring a recovery plan");
   for (const step of Object.values(config.steps)) {
-    if (step.role === "review" && (!Number.isInteger(step.round) || step.round < 1 || step.round > 3)) throw new Error("Review round must be 1..3 on every review step before launch");
+    if (step.role === "review" && (!Number.isInteger(step.round) || step.round < 1 || step.round > reviewRoundLimit)) throw new Error(`Review round must be 1..${reviewRoundLimit} on every review step before launch`);
     if (!["implement", "review", "adjudicate"].includes(step.role) || !path.isAbsolute(step.executable) || !Array.isArray(step.args) || !step.args.every((a) => typeof a === "string") || !path.isAbsolute(step.prompt)) throw new Error("Each role needs an absolute executable, argument array and prompt file");
     if (!step.model || step.model !== (step.role === "review" ? config.reviewer : config.writer)) throw new Error("Step model must match its caller-supplied role route");
     const explicit = step.args.findIndex((a) => a === "--model" || a === "-m");
@@ -64,7 +68,7 @@ export async function runHandoff(configFile, { slotRoot, identifyProcess = proce
       if (index >= config.maxSteps) throw new Error("Handoff step budget reached; human review required");
       const step = config.steps[current];
       if (!step) throw new Error(`Unknown step: ${current}`);
-      if (step.role === "review") checkReviewRound(step.round, completedRound, finalCorrections);
+      if (step.role === "review") checkReviewRound(step.round, completedRound, finalCorrections, reviewRoundLimit);
       const head = gitHead(cwd), status = gitStatus(cwd);
       if (status) throw new Error("Handoff requires a clean committed worktree");
       if (step.role === "review" && step.round === completedRound && head !== reviewedHead) throw new Error("A pending lens in the same round requires the recorded reviewed head; corrections need a new round");
@@ -145,7 +149,7 @@ export async function runHandoff(configFile, { slotRoot, identifyProcess = proce
       }
       if (gitStatus(cwd)) throw new Error("Role left uncommitted work");
       if (step.role === "review") { completedRound = step.round; reviewedHead = head; }
-      if (step.role !== "review" && completedRound === 3 && done.head !== reviewedHead) finalCorrections = true;
+      if (step.role !== "review" && completedRound === reviewRoundLimit && done.head !== reviewedHead) finalCorrections = true;
       append({ event: "completed", index, step: current, ...done, completedRound, reviewedHead, finalCorrections });
       current = done.next;
     }

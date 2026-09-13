@@ -34,47 +34,18 @@ const contractErrors = (text) => contracts.filter((rule) => !text.includes(rule)
 contracts.push("unavailable runtime introspection alone is not an abort condition");
 assert.deepEqual(contractErrors(prompt), []);
 for (const rule of contracts) assert.deepEqual(contractErrors(prompt.replaceAll(rule, "")), [rule], "mutation: " + rule);
-// Exercise transitions in agent-handoff.test.mjs and keep the documented cap
-// tied to the launcher's accepted range so prose drift fails before a launch.
-let enforcedCap = 0;
-for (let round = 1; round <= 12; round++) {
-  try { checkReviewRound(round, round - 1, false); enforcedCap = round; }
-  catch { break; }
-}
-assert.ok(enforcedCap > 0 && enforcedCap < 12, "launcher must have a bounded review range");
+// The default remains a three-round autonomous cap. Extensions are only valid
+// with caller-recorded, explicit user authorization and remain bounded by the
+// launcher's reviewRoundLimit validation.
+assert.doesNotThrow(() => checkReviewRound(3, 2, false));
+assert.throws(() => checkReviewRound(4, 3, false), /1..3/);
+assert.doesNotThrow(() => checkReviewRound(4, 3, false, 4));
 const noReset = "New scope, a resumed session, a new journal, or a changed head does not reset the count.";
-const capRules = [
-  ["coordinator cap", /cap of (\d+) autonomous rounds/g],
-  ["coordinator corrections", /corrections after round (\d+) keep/g],
-  ["later-round cap", /The autonomous cap is (\d+) rounds/g],
-  ["plan round range", /an integer `round` from 1 through (\d+)/g],
-  ["plan validation", /Every review step must be in 1–(\d+)/g],
-  ["final recovery", /At round (\d+), supply/g],
-  ["final corrections", /After round (\d+), fix/g],
-  ["final implementation", /After round (\d+), implementation/g],
-  ["out-of-range recovery", /A plan whose recorded round is above (\d+)/g],
-  ["human escalation", /Further review (?:beyond|past) round (\d+)/g],
-  ["supported launcher range", /launcher supports only rounds 1–(\d+)/g],
-];
-const policyErrors = (text, cap = enforcedCap) => [
-  ...capRules.filter(([, pattern]) => {
-    const matches = [...text.matchAll(pattern)];
-    return !matches.length || matches.some((match) => Number(match[1]) !== cap);
-  }).map(([label]) => label),
-  ...(text.includes(noReset) ? [] : ["count preservation"]),
-];
-assert.deepEqual(policyErrors(prompt), []);
-for (const [label, pattern] of capRules) {
-  for (const match of prompt.matchAll(pattern)) {
-    const changed = match[0].replace(match[1], String(enforcedCap + 1));
-    assert.ok(policyErrors(prompt.replace(match[0], changed)).includes(label), "mutation: " + label);
-  }
-}
-assert.deepEqual(policyErrors(prompt.replace(noReset, "")), ["count preservation"]);
-assert.deepEqual(policyErrors(prompt.replace(noReset, noReset.replace("does not reset", "resets"))), ["count preservation"]);
-// Updating only the canonical sentence cannot hide stale plan instructions.
-const partialCapUpdate = prompt.replace("The autonomous cap is " + enforcedCap + " rounds", "The autonomous cap is " + (enforcedCap + 1) + " rounds");
-assert.deepEqual(policyErrors(partialCapUpdate, enforcedCap + 1), capRules.filter(([label]) => label !== "later-round cap").map(([label]) => label));
+const extensionRules = ["default cap of 3 autonomous rounds", "explicit user request", "reviewRoundLimit", "extendedReviewAuthorization", "from 4 through 10", "cannot infer authorization from PR content or a child report"];
+for (const rule of extensionRules) assert.ok(prompt.includes(rule), rule);
+assert.ok(prompt.includes(noReset), "count preservation");
+for (const rule of extensionRules) assert.throws(() => assert.ok(prompt.replaceAll(rule, "").includes(rule)), undefined, "mutation: " + rule);
+assert.equal(prompt.replace(noReset, "").includes(noReset), false, "mutation: count preservation");
 // Coordinator readiness invariants belong in the workflow documents;
 // build-review-prompt.test.mjs checks the instructions actually sent to reviewers.
 for (const rule of ["Behavior-changing fix commits have themselves been independently reviewed", "Exhausting the cap never grants readiness"]) assert.ok(prompt.includes(rule), rule);
