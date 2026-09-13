@@ -23,9 +23,10 @@ try {
     const specs = await ctx.globTestFiles();
     fs.writeFileSync(output, JSON.stringify(specs.map(spec => spec.moduleId ?? spec[1])), "utf8");
   } else if (mode === "run") {
-    const glob = require("fast-glob");
+    // An exact literal glob must not rely on an unrelated hoisted dependency.
+    const literal = path.relative(packageRoot, file).replaceAll("\\", "/").replace(/([*?\[\]{}()!+@])/g, "\\$1");
     ctx = await startVitest("test", [], { ...options,
-      include: [glob.escapePath(path.relative(packageRoot, file).replaceAll("\\", "/"))],
+      include: [literal],
       reporters: ["default", "json"], outputFile: { json: output },
     }, viteOptions);
     if (!ctx) throw new Error("Vitest did not start");

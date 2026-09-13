@@ -14,7 +14,16 @@ export function atomic(file, value) {
   const fd = fs.openSync(temp, "wx");
   try { fs.writeFileSync(fd, JSON.stringify(value, null, 2) + "\n", "utf8"); fs.fsyncSync(fd); }
   finally { fs.closeSync(fd); }
-  fs.renameSync(temp, file);
+  // Windows can briefly deny replacement while a status reader or scanner has
+  // the destination open. Retry the atomic rename; never unlink valid evidence.
+  const deadline = Date.now() + 1000;
+  for (;;) {
+    try { fs.renameSync(temp, file); break; }
+    catch (error) {
+      if (process.platform !== "win32" || !["EPERM", "EACCES", "EBUSY"].includes(error.code) || Date.now() >= deadline) throw error;
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 20);
+    }
+  }
 }
 export const read = (file) => JSON.parse(fs.readFileSync(file, "utf8"));
 

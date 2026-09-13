@@ -17,6 +17,11 @@ export function canonicalPath(file) {
   }
 }
 
+export function isWithinDirectory(parent, child, paths = path) {
+  const relative = paths.relative(parent, child);
+  return !!relative && !paths.isAbsolute(relative) && relative !== ".." && !relative.startsWith(".." + paths.sep);
+}
+
 export function childEnvironment(source = process.env) {
   const env = {};
   for (const [key, value] of Object.entries(source)) {
@@ -40,7 +45,26 @@ export function fingerprinter(progress = () => {}) {
       environment: Object.entries(childEnvironment()).sort(([a], [b]) => a.localeCompare(b)) });
     const trackedFiles = tracked(root).sort();
     add({ tracked: trackedFiles });
-    const sources = [...new Set([...trackedFiles, ...git(root, ["ls-files", "--others", "--exclude-standard", "-z"]).split("\0").filter(Boolean)])].sort();
+    // Git ignores do not stop Vite loading local configuration or its imported
+    // code. Include ignored code/configuration too; dependency trees retain the
+    // separate metadata strategy, and generated config bundles are not inputs.
+    const ignoredInputs = [], ignoredDirectories = new Set();
+    function collectIgnored(relative) {
+      const file = path.join(root, relative), name = path.basename(file);
+      if (["node_modules", ".git", ".vite", ".cache"].includes(name.toLowerCase())) return;
+      const stat = fs.statSync(file);
+      if (stat.isDirectory()) {
+        const real = fs.realpathSync.native(file);
+        if (ignoredDirectories.has(real)) return;
+        ignoredDirectories.add(real);
+        for (const child of fs.readdirSync(file).sort()) collectIgnored(path.join(relative, child));
+      } else if (/\.(?:[cm]?[jt]sx?|jsonc?|ya?ml)$/.test(name) || name.startsWith(".env")) {
+        if (!/\.timestamp-.*\.mjs$/.test(name)) ignoredInputs.push(relative);
+      }
+    }
+    // Ask for ignored directories without descending into installed packages.
+    for (const ignored of git(root, ["ls-files", "--others", "--ignored", "--exclude-standard", "--directory", "--no-empty-directory", "-z"]).split("\0").filter(Boolean)) collectIgnored(ignored);
+    const sources = [...new Set([...trackedFiles, ...git(root, ["ls-files", "--others", "--exclude-standard", "-z"]).split("\0").filter(Boolean), ...ignoredInputs])].sort();
     const visited = new Set();
     let inspected = 0;
     function visit(file, dependency = false) {
@@ -51,9 +75,9 @@ export function fingerprinter(progress = () => {}) {
       catch (error) { if (error.code === "ENOENT") { add("missing"); return; } throw error; }
       if (stat.isSymbolicLink()) {
         add(fs.readlinkSync(file));
-        visit(fs.realpathSync(file), dependency);
+        visit(fs.realpathSync.native(file), dependency);
       } else if (stat.isDirectory()) {
-        const real = fs.realpathSync(file);
+        const real = fs.realpathSync.native(file);
         if (visited.has(real)) return;
         visited.add(real);
         for (const name of fs.readdirSync(file).sort()) {

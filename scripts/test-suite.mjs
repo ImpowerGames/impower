@@ -4,7 +4,7 @@ import { spawn } from "node:child_process";
 import { randomUUID, createHash } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { acquire, atomic, read, processIdentity, reservationState, vitestProcesses, same } from "./test-suite-process.mjs";
-import { git, tracked, fingerprinter, canonicalPath, childEnvironment } from "./test-suite-identity.mjs";
+import { git, tracked, fingerprinter, canonicalPath, childEnvironment, isWithinDirectory } from "./test-suite-identity.mjs";
 
 const engine = path.join(path.dirname(fileURLToPath(import.meta.url)), "suite-engine.mjs");
 const now = () => new Date().toISOString();
@@ -174,12 +174,12 @@ export async function execute({ directory, packageRoot, retry = [], ...dependenc
       run.active = true;
       save();
     } else {
-      fs.mkdirSync(directory, { recursive: true });
       packageRoot = canonicalPath(packageRoot);
       const root = canonicalPath(git(packageRoot, ["rev-parse", "--show-toplevel"]).trim());
       // Journals must live outside the source inventory, even with custom paths.
       const gitDir = canonicalPath(path.resolve(packageRoot, git(packageRoot, ["rev-parse", "--git-dir"]).trim()));
-      if (!path.relative(gitDir, directory) || path.relative(gitDir, directory).startsWith("..")) throw new Error("Place run directories below this worktree's Git directory");
+      if (!isWithinDirectory(gitDir, directory)) throw new Error("Place run directories below this worktree's Git directory");
+      fs.mkdirSync(directory, { recursive: true });
       run = { version: 1, directory, root, packageRoot, owner: reservation.record.owner, token: reservation.record.token, active: true, createdAt: now(), files: [], attempts: [] };
       save();
       const beforeDiscovery = fingerprint(root, []);
@@ -211,8 +211,10 @@ export async function execute({ directory, packageRoot, retry = [], ...dependenc
     atomic(path.join(directory, "summary.json"), summary);
     return summary;
   } finally {
-    reservation.release();
+    // Persist while still owning the reservation: a successor may acquire it
+    // immediately after release and must never be overwritten by this owner.
     if (run?.token === reservation.record.token) { run.active = false; save(); }
+    reservation.release();
   }
 }
 

@@ -43,9 +43,13 @@ assert.notEqual(aggregate({ files: [file, "unfinished.test.ts"], attempts: [
 ] }).status, "passed");
 console.log("PASS: durable runner rejects incomplete suite and exit-zero partial evidence");
 
-const { acquire, reservationState, processIdentity, read, windowsVitestProcesses } = await import("./test-suite-process.mjs");
+const { acquire, reservationState, processIdentity, read, atomic, windowsVitestProcesses } = await import("./test-suite-process.mjs");
 const { execute, status } = await import("./test-suite.mjs");
-const { fingerprinter, canonicalPath, childEnvironment } = await import("./test-suite-identity.mjs");
+const { fingerprinter, canonicalPath, childEnvironment, isWithinDirectory } = await import("./test-suite-identity.mjs");
+assert.equal(isWithinDirectory("C:\\repo\\.git","D:\\journal",path.win32),false,"cross-volume journals are outside the Git directory");
+assert.equal(isWithinDirectory("C:\\repo\\.git","C:\\repo\\.git",path.win32),false);
+assert.equal(isWithinDirectory("C:\\repo\\.git","C:\\repo\\outside",path.win32),false);
+assert.equal(isWithinDirectory("C:\\repo\\.git","C:\\repo\\.git\\..named-run",path.win32),true);
 assert.deepEqual(childEnvironment({Path:"native spelling",NODE_OPTIONS:"--max-old-space-size=8192",FORCE_COLOR:"1"}),
   {Path:"native spelling",NODE_OPTIONS:"--max-old-space-size=1024",NO_COLOR:"1"});
 assert.deepEqual(windowsVitestProcesses('{"ProcessId":123,"CommandLine":"node scripts/test-suite.mjs"}',123),[]);
@@ -67,6 +71,22 @@ const git = (...args) => {
   assert.equal(result.status, 0, result.stderr);
 };
 git("init");
+if(process.platform==="win32") {
+  const target=path.join(scratch,".git","atomic.json");
+  atomic(target,{value:"old"});
+  const rename=fs.renameSync;
+  let denied=0;
+  fs.renameSync=function(...args) {
+    if(args[1]===target && denied++<2) { const error=new Error("reader holds file"); error.code="EPERM"; throw error; }
+    return rename.apply(this,args);
+  };
+  try { atomic(target,{value:"new"}); } finally { fs.renameSync=rename; }
+  assert.deepEqual(read(target),{value:"new"});
+  fs.renameSync=()=>{ const error=new Error("persistent denial"); error.code="EPERM"; throw error; };
+  try { assert.throws(()=>atomic(target,{value:"lost"}),/persistent denial/); }
+  finally { fs.renameSync=rename; }
+  assert.deepEqual(read(target),{value:"new"},"persistent denial preserves previous evidence");
+}
 fs.writeFileSync(path.join(scratch, "package.json"), "{}");
 fs.writeFileSync(path.join(scratch, ".gitignore"), "node_modules/\n");
 for (const name of ["a.test.ts", "b.spec.tsx"]) fs.writeFileSync(path.join(scratch, name), "source");
@@ -105,6 +125,9 @@ else {
 }`);
 const lockRoot = path.join(scratch, ".git", "machine");
 const options = { packageRoot: scratch, enginePath, root: lockRoot, census: () => [], fingerprint: () => "unchanged" };
+const outsideDirectory=path.join(scratch,"outside-journal");
+await assert.rejects(execute({...options,directory:outsideDirectory}),/below this worktree's Git directory/);
+assert.equal(fs.existsSync(outsideDirectory),false,"reject journal destinations before creating them");
 const directory = path.join(scratch, ".git", "run");
 fs.writeFileSync(path.join(scratch, ".git", "fail"), "");
 const failed = await execute({ ...options, directory });
@@ -119,6 +142,44 @@ assert.equal((await execute({ ...options, directory, retry: [path.join(scratch, 
 assert.equal(read(path.join(directory, "run.json")).attempts.length, initial.attempts.length + 1);
 assert.equal(status(directory, { fingerprint: () => "changed" }).status, "stale");
 await assert.rejects(execute({ ...options, directory, fingerprint: () => "changed" }), /identity changed/);
+
+// Let a separate coordinator finish a retry at the precise ownership handoff.
+// A finishing predecessor must never overwrite that successor's durable result.
+const raceDirectory=path.join(scratch,".git","release-run");
+const raceHelper=path.join(scratch,".git","retry.mjs");
+fs.writeFileSync(raceHelper, `import {execute} from ${JSON.stringify(new URL("./test-suite.mjs",import.meta.url).href)};
+const result=await execute({...${JSON.stringify({...options,directory:raceDirectory,retry:[path.join(scratch,"b.spec.tsx")]})},census:()=>[],fingerprint:()=>"unchanged"});
+if(result.status!=="passed")throw Error(JSON.stringify(result));`);
+fs.writeFileSync(path.join(scratch,".git","fail"),"");
+const originalUnlink=fs.unlinkSync;
+let releasedGuards=0;
+fs.unlinkSync=function(target,...args) {
+  const result=originalUnlink.call(this,target,...args);
+  if(path.resolve(target)===path.join(lockRoot,"guard.json") && ++releasedGuards===2) {
+    originalUnlink(path.join(scratch,".git","fail"));
+    const helper=spawnSync(process.execPath,[raceHelper],{encoding:"utf8",windowsHide:true,timeout:30000});
+    assert.equal(helper.status,0,helper.stdout+helper.stderr);
+  }
+  return result;
+};
+try { assert.equal((await execute({...options,directory:raceDirectory})).status,"failed"); }
+finally { fs.unlinkSync=originalUnlink; }
+const durableRetry=status(raceDirectory,{fingerprint:()=>"unchanged"});
+assert.equal(durableRetry.status,"passed","successor retry evidence survives predecessor release");
+assert.equal(durableRetry.attempts.length,4,"retain discovery, original files and successful retry");
+
+fs.appendFileSync(path.join(scratch,".gitignore"),"vitest.config.ts\nlocal-options.ts\n");
+fs.writeFileSync(path.join(scratch,"vitest.config.ts"),'import options from "./local-options"; export default options;');
+fs.writeFileSync(path.join(scratch,"local-options.ts"),'export default {test:{include:["*.test.ts"]}};');
+const ignoredDirectory=path.join(scratch,".git","ignored-config-run");
+assert.equal((await execute({...options,directory:ignoredDirectory,fingerprint:fingerprinter()})).status,"passed");
+fs.appendFileSync(path.join(scratch,"vitest.config.ts"),"\n// changed configuration\n");
+assert.equal(status(ignoredDirectory).status,"stale","ignored configuration changes invalidate evidence");
+await assert.rejects(execute({...options,directory:ignoredDirectory,fingerprint:fingerprinter()}),/identity changed/);
+const ignoredHelperBefore=fingerprinter()(scratch,[]);
+fs.appendFileSync(path.join(scratch,"local-options.ts"),"\n// changed imported configuration\n");
+assert.notEqual(fingerprinter()(scratch,[]),ignoredHelperBefore,"ignored configuration helpers are inputs too");
+console.log("PASS: release-boundary retries retain evidence and ignored configuration invalidates reuse");
 
 const reservation = acquire("first", { root: lockRoot, census: () => [] });
 assert.throws(() => acquire("second", { root: lockRoot, census: () => [] }), /running/);
@@ -136,8 +197,11 @@ const coordinator = path.join(scratch, ".git", "coordinator.mjs");
 fs.writeFileSync(coordinator, `import { execute } from ${JSON.stringify(new URL("./test-suite.mjs", import.meta.url).href)};
 await execute({...${JSON.stringify({ ...options, directory: path.join(scratch, ".git", "interrupted") })}, census:()=>[], fingerprint:()=>"unchanged"});`);
 fs.writeFileSync(path.join(scratch, ".git", "slow"), "");
-const launched = spawn(process.execPath, [coordinator], { stdio: "ignore", windowsHide: true });
-const exited = new Promise(resolve => launched.once("exit", resolve));
+const coordinatorLog=path.join(scratch,".git","coordinator.log");
+const coordinatorOutput=fs.openSync(coordinatorLog,"wx");
+const launched = spawn(process.execPath, [coordinator], { stdio: ["ignore",coordinatorOutput,coordinatorOutput], windowsHide: true });
+fs.closeSync(coordinatorOutput);
+const exited = new Promise(resolve => launched.once("close", resolve));
 const interrupted = path.join(scratch, ".git", "interrupted");
 const until = async (check, message) => {
   const end = Date.now() + 30000;
@@ -146,6 +210,7 @@ const until = async (check, message) => {
 };
 let active;
 await until(() => {
+  assert.equal(launched.exitCode,null,fs.readFileSync(coordinatorLog,"utf8"));
   try { active = read(path.join(interrupted, "run.json")).attempts.at(-1); return active.file?.endsWith("b.spec.tsx") && active.status === "running"; }
   catch { return false; }
 }, "second file running");
@@ -239,13 +304,25 @@ else {
   const expectedHeapLimit=Number(execFileSync(process.execPath,["--max-old-space-size=1024","-e","process.stdout.write(String(require('node:v8').getHeapStatistics().heap_size_limit))"],{encoding:"utf8",windowsHide:true,env:childEnvironment()}));
   assert.ok(Number.isSafeInteger(expectedHeapLimit) && expectedHeapLimit>0);
   const testSource=`import {it,expect} from "vitest"; import v8 from "node:v8"; it("bounded",()=>{expect(v8.getHeapStatistics().heap_size_limit).toBe(${expectedHeapLimit});expect(process.execArgv.join(" ")).toContain("max-old-space-size=1024");}); it.skip("platform skip",()=>{}); it.todo("future");`;
-  for(const file of ["one.test.ts","two.spec.tsx","bracket[1].test.ts","excluded/ignored.spec.tsx"]) fs.writeFileSync(path.join(real,"src",file),testSource);
+  for(const file of ["one.test.ts","two.spec.tsx","bracket[1]{brace}(group)+@!.test.ts","excluded/ignored.spec.tsx"]) fs.writeFileSync(path.join(real,"src",file),testSource);
   realGit(["add","."]);
   fs.writeFileSync(path.join(real,"src","untracked.test.ts"),testSource);
   const realDirectory=path.join(real,".git","run");
   // Real children use the production machine reservation. Only the expensive
   // full-install identity scan is replaced; dirty/dependency identity is tested above.
-  const realOptions={directory:realDirectory,packageRoot:real,fingerprint:()=>"fixed fixture inputs"};
+  // Model a package that provides Vitest but no unrelated hoisted glob library.
+  // Vitest's own declared dependencies remain available through their importers.
+  const isolatedEngine=path.join(real,".git","isolated-engine.mjs");
+  fs.writeFileSync(isolatedEngine, `import Module from "node:module"; import path from "node:path";
+const resolve=Module._resolveFilename;
+Module._resolveFilename=function(request,parent,...rest) {
+  if(parent?.filename===path.join(process.argv[3],"package.json") && request!=="vitest/node") {
+    const error=new Error("Undeclared package dependency: "+request); error.code="MODULE_NOT_FOUND"; throw error;
+  }
+  return resolve.call(this,request,parent,...rest);
+};
+await import(${JSON.stringify(new URL("./suite-engine.mjs",import.meta.url).href)});`);
+  const realOptions={directory:realDirectory,packageRoot:real,enginePath:isolatedEngine,fingerprint:()=>"fixed fixture inputs"};
   const result=await execute(realOptions);
   assert.equal(result.status,"passed",JSON.stringify(result));
   assert.equal(result.expected,3);
