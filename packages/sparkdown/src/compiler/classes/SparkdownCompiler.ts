@@ -5182,6 +5182,18 @@ export class SparkdownCompiler {
               }
             } else if (namesLayoutElement(selector)) {
               // Valid layer: an element declared in the UI tree
+            } else if (
+              reference.declaration === "define_type_name" &&
+              selector?.types?.some((type) =>
+                Object.values(program.context ?? {}).some((structs) =>
+                  Object.prototype.hasOwnProperty.call(structs, type),
+                ),
+              )
+            ) {
+              // A typed `define` may be used as a parent even though its own
+              // namespace has no `$default` entry. Its parent reference uses
+              // `$default` for navigation when available, while this lookup
+              // recognizes the matching declared instance as a valid type.
             } else {
               // Report missing error
               const validDescription =
