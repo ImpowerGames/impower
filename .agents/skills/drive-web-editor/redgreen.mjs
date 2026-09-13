@@ -171,7 +171,9 @@ export function classifyRedFailure(output, { removed = [], launchError = null, e
   if (["ENOBUFS", "ETIMEDOUT"].includes(launchError)) return "crash";
   if (launchError) return "unknown";
   if (exit === -1) return "crash";
-  const testedDiagnostic = FAILURE_GLYPH_RE.test(output) || /\bAssertionError\b|\bexpected\b.*\bto\b|\.to(?:Be|Equal|StrictEqual|Match|Contain|Throw|HaveLength|HaveProperty)\w*\(|\bexpect\(|\bFAIL\b|Tests\s+\d+ failed|\d+ failing\b|\bnot ok \d|assert\.\w+\(|Assertion failed/i.test(output);
+  const hasTestedDiagnostic = (text) =>
+    FAILURE_GLYPH_RE.test(text) || /\bAssertionError\b|\bexpected\b.*\bto\b|\.to(?:Be|Equal|StrictEqual|Match|Contain|Throw|HaveLength|HaveProperty)\w*\(|\bexpect\(|\bFAIL\b|Tests\s+\d+ failed|\d+ failing\b|\bnot ok \d|assert\.\w+\(|Assertion failed/i.test(text);
+  const testedDiagnostic = hasTestedDiagnostic(output);
   // POSIX shells reserve these for execution failure, but also forward a
   // program's chosen status. Assertion evidence therefore makes them ambiguous.
   // cmd does not use this convention; do not infer it from the host platform.
@@ -212,15 +214,25 @@ export function classifyRedFailure(output, { removed = [], launchError = null, e
   // Empty-suite diagnostics occupy their own runner line. Do not scan arbitrary
   // prose: passing test names can deliberately describe "no tests found" while
   // a different test supplies the genuine assertion failure.
-  if (/^\s*No test(?:s| files| suite) found\b[^\r\n]*$/im.test(output)) {
-    const summary = parseVitestSummary(output);
-    if (summary && VITEST_NO_TESTS_RE.test(summary)) return "notests";
-    // Test stdout can itself be the exact diagnostic phrase. A positive Tests
-    // count proves that vitest collected tests; without it, mixed assertion and
-    // no-test text has ambiguous provenance and cannot be accepted as a red.
-    if (testedDiagnostic) {
-      return summary && /(?:^|\/ )Tests\s+\d+\s+(?:passed|failed|skipped|todo)\b/.test(summary) ? "assertion" : "unknown";
+  const noTestDiagnostic = /^\s*No test(?:s| files| suite) found\b[^\r\n]*$/im.exec(output);
+  if (noTestDiagnostic) {
+    // A test can print the exact phrase itself. Accept the coexisting assertion
+    // only when the phrase, assertion, and paired positive summary belong to
+    // one Vitest invocation; later invocations and summary-like stdout cannot
+    // lend it provenance.
+    const banners = [...output.matchAll(new RegExp(VITEST_BANNER_RE.source, "gi"))];
+    const start = banners.filter((m) => m.index <= noTestDiagnostic.index).at(-1)?.index;
+    if (start !== undefined) {
+      const end = banners.find((m) => m.index > noTestDiagnostic.index)?.index ?? output.length;
+      const segment = output.slice(start, end);
+      const outside = output.slice(0, start) + output.slice(end);
+      const summary = parseVitestSummary(segment);
+      const pairedPositiveSummary = /^Test Files\s+\d+\s+(?:passed|failed|skipped|todo)\b.* \/ Tests\s+\d+\s+(?:passed|failed|skipped|todo)\b/.test(summary ?? "");
+      if (hasTestedDiagnostic(outside)) return "unknown";
+      if (summary && VITEST_NO_TESTS_RE.test(summary)) return "notests";
+      if (hasTestedDiagnostic(segment) && pairedPositiveSummary) return "assertion";
     }
+    if (testedDiagnostic) return "unknown";
     return "notests";
   }
   if (

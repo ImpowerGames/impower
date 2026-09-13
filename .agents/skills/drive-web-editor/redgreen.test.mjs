@@ -899,13 +899,25 @@ check("classifyRedFailure tells the reasons apart on real runner output", () => 
   }
   for (const loggedPhrase of ["no tests found", "No test files found", "No test suite found"]) {
     const assertion = `${loggedPhrase}\nFAIL regression preserves output\nAssertionError: expected 2 to be 3`;
-    assert.equal(classifyRedFailure(`${assertion}\nTest Files  1 failed (1)\nTests  1 failed | 1 passed (2)`), "assertion", loggedPhrase);
+    assert.equal(classifyRedFailure(`RUN  v2.1.9 C:/repo\n${assertion}\nTest Files  1 failed (1)\nTests  1 failed | 1 passed (2)`), "assertion", loggedPhrase);
     assert.equal(classifyRedFailure(assertion), "unknown", `${loggedPhrase} without a positive runner summary`);
   }
   assert.equal(
-    classifyRedFailure("No test files found\nFAIL collection\nTest Files  1 failed (1)\nTests  no tests"),
+    classifyRedFailure("RUN  v2.1.9 C:/repo\nNo test files found\nFAIL collection\nTest Files  1 failed (1)\nTests  no tests"),
     "notests",
     "an explicit zero-test runner summary remains authoritative",
+  );
+  assert.equal(
+    classifyRedFailure("No test files found\nTests  1 failed (1)\nFAIL wrapper\nAssertionError: expected 2 to be 3"),
+    "unknown",
+    "summary-like stdout without a Vitest invocation cannot establish provenance",
+  );
+  assert.equal(
+    classifyRedFailure(
+      "RUN  v2.1.9 C:/repo\nNo test files found, exiting with code 1\nTest Files  1 failed (1)\nTests  no tests\nRUN  v2.1.9 C:/repo\nAssertionError: synthetic text from a passing test\nTest Files  1 passed (1)\nTests  1 passed (1)",
+    ),
+    "unknown",
+    "a later invocation's positive summary cannot validate an earlier no-test diagnostic",
   );
   // An assertion that quotes an ENOENT is still an assertion.
   assert.equal(
