@@ -29,9 +29,9 @@ assert.equal(files.filter((f) => f.startsWith(".claude/skills/")).length, 0);
 const reviewFiles = ["SKILL.md", "references/launch.md", "references/reviewer-prompt.md", "references/adjudication.md", "references/later-rounds.md", "HANDOFF.md"];
 const prompt = reviewFiles.map((file) => fs.readFileSync(path.join(root, ".agents/skills/review-pr", file), "utf8")).join("\n");
 const template = fs.readFileSync(path.join(root, ".agents/skills/review-pr/references/reviewer-prompt.md"), "utf8");
-const contracts = ["ABORT: writer model not supplied.", "ABORT: reviewer invocation not supplied.", "ABORT: pin failed, I am <your model id>, same as the writer.", "ABORT: reviewer route mismatch.", "Runtime identity unavailable; configured route only.", "separate fresh serial session", "Wait for each process to exit", "Missing comments alone", "one undirected reviewer", "Already covered:"];
+const contracts = ["Use the configured writer and reviewer models to check independence", "The launch arguments must select the configured reviewer model", "separate fresh serial session", "Wait for each process to exit", "Missing comments alone", "one undirected reviewer", "Already covered:"];
 const contractErrors = (text) => contracts.filter((rule) => !text.includes(rule));
-contracts.push("unavailable runtime introspection alone is not an abort condition");
+assert.doesNotMatch(prompt, /runtime identity|runtime introspection|self-report|reviewer route mismatch|identity check validates/i);
 assert.deepEqual(contractErrors(prompt), []);
 for (const rule of contracts) assert.deepEqual(contractErrors(prompt.replaceAll(rule, "")), [rule], "mutation: " + rule);
 // The default remains a three-round autonomous cap. Extensions are only valid
