@@ -899,7 +899,7 @@ check("classifyRedFailure tells the reasons apart on real runner output", () => 
   }
   for (const loggedPhrase of ["no tests found", "No test files found", "No test suite found"]) {
     const assertion = `${loggedPhrase}\nFAIL regression preserves output\nAssertionError: expected 2 to be 3`;
-    assert.equal(classifyRedFailure(`RUN  v2.1.9 C:/repo\n${assertion}\nTest Files  1 failed (1)\nTests  1 failed | 1 passed (2)`), "assertion", loggedPhrase);
+    assert.equal(classifyRedFailure(`RUN  v2.1.9 C:/repo\n${assertion}\nTest Files  1 failed (1)\nTests  1 failed | 1 passed (2)`), "unknown", loggedPhrase);
     assert.equal(classifyRedFailure(assertion), "unknown", `${loggedPhrase} without a positive runner summary`);
   }
   assert.equal(
@@ -911,6 +911,11 @@ check("classifyRedFailure tells the reasons apart on real runner output", () => 
     classifyRedFailure("No test files found\nTests  1 failed (1)\nFAIL wrapper\nAssertionError: expected 2 to be 3"),
     "unknown",
     "summary-like stdout without a Vitest invocation cannot establish provenance",
+  );
+  assert.equal(
+    classifyRedFailure("RUN  v2.1.9 C:/spoofed\nNo test files found\nAssertionError: expected 2 to be 3\nTest Files  1 failed (1)\nTests  1 failed (1)"),
+    "unknown",
+    "fully fabricated Vitest-looking stdout cannot prove that a test ran",
   );
   assert.equal(
     classifyRedFailure(
