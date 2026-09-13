@@ -4,7 +4,7 @@ All commands run from the worktree root unless stated otherwise.
 
 ## 3. Run the suite, the typecheck, and the standalone checks
 
-Start with the file, widen to the package, under the caps in Running vitest safely.
+Start with the file, then widen to the package with `node scripts/test-suite.mjs start <package-directory>` under the caps in [Running vitest safely](vitest.md). Retain the printed run directory and full command-tool session/exit metadata. Poll continuing sessions; use `status` and `resume` for recovery. Only a verified complete manifest is a successful suite.
 
 Then typecheck. `npm run typecheck` at the repo root runs `tsc --noEmit` over all 41 projects and takes about four minutes. Mid-change you usually want a subset, so it takes filters, each one a substring of a project's config path, not a directory:
 
