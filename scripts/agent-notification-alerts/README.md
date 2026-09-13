@@ -60,7 +60,7 @@ These are agent instructions, not an automatic interception of final responses:
 the agent must call the tool. No idle detector or Stop hook is installed.
 
 The shared [notify-user skill](../../.agents/skills/notify-user/SKILL.md) is
-invoked at user handoffs by `resolve-issue`, `file-bug`, and `file-feature`.
+invoked at user handoffs by `resolve-issue`, `file-bug`, `file-feature`, and `file-task`.
 It retains each workflow's completion gates and always uses chat, whether or
 not the optional tool is available. Skills become available in checkouts containing this
 change; a running session may need to restart to discover them.

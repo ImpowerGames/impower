@@ -22,7 +22,7 @@ These rules apply whether hooks enforce them or not:
 
 ## Route the work
 
-- File a defect with [file-bug](.agents/skills/file-bug/SKILL.md); plan new functionality with [file-feature](.agents/skills/file-feature/SKILL.md). Implement a specified ticket with [resolve-issue](.agents/skills/resolve-issue/SKILL.md).
+- File a defect with [file-bug](.agents/skills/file-bug/SKILL.md); plan new functionality with [file-feature](.agents/skills/file-feature/SKILL.md); file bounded maintenance or follow-up work with [file-task](.agents/skills/file-task/SKILL.md). Implement a specified ticket with [resolve-issue](.agents/skills/resolve-issue/SKILL.md).
 - Before creating or editing a GitHub issue or PR, read [publishing rules](.agents/skills/references/publishing.md) and the relevant template under `.github/`. Keep its headings in order. Resolving PRs require `Closes #N`; otherwise use `No linked issue.`.
 - For tests, use [write-regression-test](.agents/skills/write-regression-test/SKILL.md); for the editor/player use [drive-web-editor](.agents/skills/drive-web-editor/SKILL.md), and for extension verification use [drive-vscode-web](.agents/skills/drive-vscode-web/SKILL.md). Launch editor and player together through the supported driver or `npm run web:dev`.
 - For independent PR review, use [review-pr](.agents/skills/review-pr/SKILL.md). The caller supplies writer identity, reviewer model and launch method; missing required inputs block review, never imply a model default.
