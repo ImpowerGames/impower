@@ -1,9 +1,6 @@
 # Reviewer execution mappings
 
-For the experimental originating-task capability investigation, see
-[continuation conformance](runner-continuation.md). It records a live
-Codex desktop and Claude CLI probes and unresolved host contracts; the guarded review workflow
-continues to use the awaited mode below.
+For the experimental originating-task capability investigation, see [continuation conformance](runner-continuation.md). It records live Codex desktop and Claude CLI probes and unresolved host contracts; the guarded review workflow continues to use the awaited mode below.
 
 ## Headless serial sessions
 
