@@ -19,11 +19,13 @@ Before the first round, read [interview format and decision checklist](reference
 
 Do not file until the user confirms shared understanding. Delegated decisions are marked “decided by default.” If the session is unattended and decisions remain open, post the questions and stop. For uncertainty about facts or incomplete semantic coverage, consult [interview judgment](references/judgment.md).
 
-## 3. Size and publish
+## 3. Size, estimate and publish
 
 If the plan needs multiple PRs, read [vertical slicing](references/slicing.md) before filing the parent and dependent Task slices.
 
-Before drafting or publishing, read [Feature body requirements](references/publishing.md) and [shared publishing rules](../references/publishing.md). Use the template in order, preserve alternatives and decision reasons, specify verifiable acceptance criteria, and create the issue with type Feature and current area labels in one call. Read back its body and type. Rename with the issue number when supported.
+Before drafting or publishing, read [Feature body requirements](references/publishing.md), [shared publishing rules](../references/publishing.md), and [Effort and issue-field publishing](../references/issue-fields.md). Estimate the complete work, including implementation, regression coverage and platform verification (and reproduction where applicable); retain a concise rationale and any uncertainty. For a sliced feature, estimate every created ticket independently and apply the rest of this publication gate to every slice as well as the parent.
+
+Use the template in order, preserve alternatives and decision reasons, specify verifiable acceptance criteria, and create the issue with type Feature and current area labels in one call. Then assign and read back Effort on the created issue using the shared procedure. Read the body and type back too. A ticket is fully filed only when all three persisted values are verified. If Effort assignment fails after creation, preserve the issue URL and pending estimate, report the incomplete metadata step, and repair the same issue after access recovers; do not create a duplicate. Rename with the issue number when supported.
 
 ## 4. Hand off
 
