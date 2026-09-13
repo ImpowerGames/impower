@@ -5,6 +5,32 @@ import { LoadedProjectIdMessage } from "@impower/spark-editor-protocol/src/proto
 
 afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); });
 describe("editor protocol transport", () => {
+  it("does not reflect socket notifications but forwards synchronous editor events they cause", async () => {
+    const sockets: any[] = [];
+    class Socket {
+      static OPEN = 1;
+      readyState = 1;
+      onmessage: any;
+      send = vi.fn();
+      close() { this.readyState = 3; }
+      constructor() { sockets.push(this); }
+    }
+    vi.stubGlobal("WebSocket", Socket);
+    const dispose = installProtocolBridge();
+    const handle = (event: Event) => {
+      if ((event as CustomEvent).detail.method === "doChange") {
+        sendProtocolMessage({ jsonrpc: "2.0", method: "changed", params: { actual: true } });
+      }
+    };
+    window.addEventListener("jsonrpc", handle);
+    try {
+      await sockets[0].onmessage({ data: JSON.stringify({ jsonrpc: "2.0", method: "preview/didChangeGameState", params: { mounted: true } }) });
+      await sockets[0].onmessage({ data: JSON.stringify({ jsonrpc: "2.0", method: "doChange", params: {} }) });
+      expect(sockets[0].send.mock.calls.map(([data]: [string]) => JSON.parse(data))).toEqual([
+        { jsonrpc: "2.0", method: "changed", params: { actual: true } },
+      ]);
+    } finally { window.removeEventListener("jsonrpc", handle); dispose(); }
+  });
   it("reconnects after losing ownership without replaying requests or leaking replies into the new socket", async () => {
     vi.useFakeTimers();
     const sockets: any[] = [];
@@ -28,7 +54,7 @@ describe("editor protocol transport", () => {
       sendProtocolMessage({ jsonrpc: "2.0", id: "pending", result: "late" }, window);
       await pending;
       expect(sockets[1].send).not.toHaveBeenCalled();
-      await window.__editorProtocol!.send({ jsonrpc: "2.0", method: "changed", params: {} });
+      sendProtocolMessage({ jsonrpc: "2.0", method: "changed", params: {} });
       expect(sockets[1].send).toHaveBeenCalledTimes(1);
       sockets[1].close();
       dispose();
@@ -80,10 +106,10 @@ describe("editor protocol transport", () => {
     const bridge = createProtocolBridge(target);
     const listener = vi.fn();
     const unsubscribe = bridge.subscribe(listener);
-    await bridge.send({ jsonrpc: "2.0", method: "changed", params: {} });
+    sendProtocolMessage({ jsonrpc: "2.0", method: "changed", params: {} }, target);
     expect(listener).toHaveBeenCalledTimes(1);
     unsubscribe();
-    await bridge.send({ jsonrpc: "2.0", method: "changed", params: {} });
+    sendProtocolMessage({ jsonrpc: "2.0", method: "changed", params: {} }, target);
     expect(listener).toHaveBeenCalledTimes(1);
     const pending = bridge.send({ jsonrpc: "2.0", id: 1, method: "missing", params: {} });
     bridge.dispose();

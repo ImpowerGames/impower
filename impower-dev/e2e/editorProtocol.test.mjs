@@ -37,27 +37,32 @@ test("open, settle, hover, and read through both editor protocol transports", { 
       return canvas.toDataURL("image/png").split(",")[1];
     });
     fs.mkdirSync(path.join(fixture, "assets"));
+    fs.writeFileSync(path.join(fixture, "assets", "portrait.svg"), '<svg xmlns="http://www.w3.org/2000/svg" width="80" height="120"><rect width="80" height="120" fill="red"/></svg>');
     fs.writeFileSync(path.join(fixture, "main.sd"), "ALICE:\n  Initial fixture.\n");
-    fs.writeFileSync(path.join(fixture, "assets", "pixel.png"), Buffer.from(png, "base64"));
+    fs.writeFileSync(path.join(fixture, "zz.png"), Buffer.from(png, "base64"));
+    fs.mkdirSync(path.join(fixture, "bulk"));
+    for (let index = 0; index < 32; index++) fs.writeFileSync(path.join(fixture, "bulk", `${index}.txt`), "Small import fixture.");
     fs.writeFileSync(path.join(fixture, "assets", "exported.svg"), '<svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"><rect inkscape:label="Body" width="8" height="8"/></svg>');
     const seeded = await seedProject(page, fixture);
     assert.equal(seeded.storage, "replaced", seeded.reason);
-    assert.equal(seeded.files, 3);
+    assert.equal(seeded.files, 36);
+    // Match the driver: reload immediately, before waiting for any cache work.
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await page.waitForFunction(() => window.__editorProtocol != null);
+    assert.ok(await page.evaluate(async () => {
+      const cache = await caches.open("asset-thumbnails");
+      return (await cache.keys()).some(key => key.url.includes("/local/zz.png?thumb="));
+    }), "the last imported raster's thumbnail must survive immediate reload");
     assert.ok(await page.evaluate(async () => {
       const data = await window.__editorProtocol.send({ jsonrpc: "2.0", id: "normalized-svg", method: "workspace/readFile", params: { file: { uri: "file://local/assets/exported.svg" } } });
       return new TextDecoder().decode(data).includes('data-name="Body"');
     }), "the import's SVG label normalization must survive seed verification");
-    await page.waitForFunction(async () => {
-      const cache = await caches.open("asset-thumbnails");
-      return (await cache.keys()).some((key) => key.url.includes("/local/assets/pixel.png?thumb="));
-    }, null, { timeout: 30_000 });
     const result = await page.evaluate(async () => {
       const bridge = window.__editorProtocol;
       const send = (method, params = {}) => bridge.send({ jsonrpc: "2.0", id: crypto.randomUUID(), method, params });
       const project = await send("window/loadedProjectId");
       const uri = `file://${project.id}/scripts/protocol-test.sd`;
       await send("workspace/willCreateFiles", { files: [
-        { uri: `file://${project.id}/assets/portrait.svg`, data: new TextEncoder().encode('<svg xmlns="http://www.w3.org/2000/svg" width="80" height="120"><rect width="80" height="120" fill="red"/></svg>').buffer },
         { uri, data: new TextEncoder().encode("[[portrait]]\nALICE:\n  Hello from the protocol test.\n").buffer },
       ] });
       const notifications = [];
@@ -87,15 +92,30 @@ test("open, settle, hover, and read through both editor protocol transports", { 
     assert.ok(result.diagnostics.version >= result.version);
     assert.equal(result.notifications.length, 1);
     assert.equal(result.notifications[0].uri, result.uri);
-    assert.ok(result.hover?.contents, "hover must carry actual language-server contents");
+    assert.ok(result.hover?.contents, `hover must carry actual language-server contents: ${JSON.stringify(result)}`);
     assert.equal(result.hover.images[0].naturalWidth, 80);
     assert.equal(result.hover.images[0].naturalHeight, 120);
     const socket = new WebSocket(`${url.replace("http:", "ws:")}/__editor_protocol?role=client`);
     try {
       await once(socket, "open");
       assert.deepEqual((await socketRequest(socket, "socket-project", "window/loadedProjectId")).result, result.project);
-      const fileResponse = await socketRequest(socket, "socket-file", "workspace/readFile", { file: { uri: "file://local/assets/pixel.png" } });
+      assert.equal((await socketRequest(socket, "socket-editor", "editor/read")).result?.textDocument?.uri, result.uri, "the socket must be owned by this test's editor");
+      // Reload migrates root-level images into the project's assets directory.
+      const fileResponse = await socketRequest(socket, "socket-file", "workspace/readFile", { file: { uri: "file://local/assets/zz.png" } });
+      assert.ok(fileResponse.result, JSON.stringify(fileResponse));
       assert.deepEqual(Buffer.from(fileResponse.result.$sparkBuffer, "base64"), Buffer.from(png, "base64"));
+      const observer = new WebSocket(`${url.replace("http:", "ws:")}/__editor_protocol?role=client`);
+      const echoed = [];
+      const receive = bytes => { const message = JSON.parse(bytes.toString()); if (message.method === "test/noEffect") echoed.push(message); };
+      socket.on("message", receive);
+      observer.on("message", receive);
+      try {
+        await once(observer, "open");
+        socket.send(JSON.stringify({ jsonrpc: "2.0", method: "test/noEffect", params: {} }));
+        await socketRequest(socket, "sender-barrier", "window/loadedProjectId");
+        await socketRequest(observer, "observer-barrier", "window/loadedProjectId");
+        assert.deepEqual(echoed, [], "an injected notification must not return as an editor event");
+      } finally { socket.off("message", receive); observer.close(); }
     } finally { socket.close(); }
     const hover = await languageSurface(page, "hover", { line: 1, col: 5 });
     assert.equal(hover.present, true, hover.reason);

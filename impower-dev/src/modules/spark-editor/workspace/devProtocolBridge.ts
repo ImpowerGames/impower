@@ -11,6 +11,7 @@ export interface ProtocolBridge {
 export function createProtocolBridge(target: EventTarget): ProtocolBridge & { dispose(): void } {
   const pending = new Map<string | number, { resolve(value: unknown): void; reject(error: Error): void; timer: ReturnType<typeof setTimeout> }>();
   const subscribers = new Set<(message: Message) => void>();
+  const injectedNotifications = new WeakSet<object>();
   let disposed = false;
   const receive = (event: Event) => {
     const message = (event as CustomEvent).detail;
@@ -24,6 +25,9 @@ export function createProtocolBridge(target: EventTarget): ProtocolBridge & { di
       if (message.error) request.reject(Object.assign(new Error(message.error.message), message.error));
       else request.resolve(message.result);
     } else if (typeof message.method === "string" && !("id" in message)) {
+      // Suppress only our injected object, never a derived editor event that
+      // a handler publishes synchronously while processing that notification.
+      if (injectedNotifications.has(message)) return;
       for (const subscriber of subscribers) subscriber(message);
     }
   };
@@ -35,7 +39,9 @@ export function createProtocolBridge(target: EventTarget): ProtocolBridge & { di
         return Promise.reject(new Error("Expected a JSON-RPC request or notification"));
       }
       if (!("id" in message)) {
-        sendProtocolMessage(structuredClone(message), target);
+        const outgoing = structuredClone(message);
+        injectedNotifications.add(outgoing);
+        sendProtocolMessage(outgoing, target);
         return Promise.resolve(undefined);
       }
       const id = message.id;

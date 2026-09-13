@@ -16,6 +16,8 @@ Player state changes emit `preview/didChangeGameState`. The position identifies 
 
 The same bus handles workspace read/import/create/delete requests. The driver uses these handlers for content writes and imports; rendered screenshots, panel controls and completion presentation still use Playwright.
 
+Subscriptions deliver editor notifications, including events caused by a command, but do not echo the exact notification injected by `send`. Imports send one archive payload and at most eight per-file create/read operations concurrently. Explicit creates bypass the editing debounce and await thumbnail attempts before completion; permanent deletes acknowledge only after storage removal succeeds. A seed can then reload immediately without abandoning a pending thumbnail. Existing-file overwrites are not transactional: failure leaves mixed storage as described in the seed report.
+
 Local socket clients connect to `ws://localhost:<editor-port>/__editor_protocol?role=client`. The editor connects as `role=editor`; one editor owns each server connection. The endpoint accepts loopback hosts only and rejects foreign browser origins. Request IDs are isolated per client. Disconnects fail outstanding requests without retrying mutations. Binary fields use the shared `stringifyProtocolJSON` / `parseProtocolJSON` codec: an ArrayBuffer is encoded as `{"$sparkBuffer":"<base64>"}`. That exact single-key shape is reserved by the codec.
 
 The page handle and socket endpoint are development-only. Production still has the ordinary editor protocol handlers, but neither automation transport is installed.

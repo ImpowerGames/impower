@@ -7,7 +7,7 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-async function worker({ existing = true, fail = "", acquire = async () => {} } = {}) {
+async function worker({ existing = true, fail = "", acquire = async () => {}, remove = async () => {}, thumbnail: thumbnailGate = undefined as Promise<void> | undefined } = {}) {
   vi.resetModules();
   vi.useFakeTimers();
   const messages: any[] = [];
@@ -15,7 +15,16 @@ async function worker({ existing = true, fail = "", acquire = async () => {} } =
   let exists = existing;
   let locked = false;
   const close = vi.fn(() => { locked = false; });
-  const removeEntry = vi.fn(async () => { exists = false; });
+  const removeEntry = vi.fn(async () => { await remove(); exists = false; });
+  const thumbnails: string[] = [];
+  if (thumbnailGate) {
+    vi.stubGlobal("createImageBitmap", async () => { await thumbnailGate; return { width: 2, height: 2, close() {} }; });
+    vi.stubGlobal("OffscreenCanvas", class {
+      getContext() { return { drawImage() {} }; }
+      async convertToBlob() { return new Blob(["thumbnail"], { type: "image/webp" }); }
+    });
+    vi.stubGlobal("caches", { open: async () => ({ put: async (key: string) => { thumbnails.push(key); } }) });
+  }
   const file = {
     createSyncAccessHandle: vi.fn(async () => {
       await acquire();
@@ -54,12 +63,13 @@ async function worker({ existing = true, fail = "", acquire = async () => {} } =
   vi.stubGlobal("self", globalThis);
   vi.spyOn(console, "error").mockImplementation(() => {});
   await import("../src/opfs-workspace");
-  const send = async (id: string, data = [1, 2, 3]) => {
-    void (globalThis as any).onmessage({ data: { jsonrpc: "2.0", id, method: "workspace/willCreateFiles", params: { files: [{ uri: "file://local/main.sd", data: new Uint8Array(data).buffer }] } } });
-    await vi.advanceTimersByTimeAsync(101);
+  const request = async (id: string, method: string, params: any, elapsed = 101) => {
+    void (globalThis as any).onmessage({ data: { jsonrpc: "2.0", id, method, params } });
+    await vi.advanceTimersByTimeAsync(elapsed);
     return messages.find(message => message.id === id && ("result" in message || "error" in message));
   };
-  return { send, messages, close, removeEntry, exists: () => exists, locked: () => locked, bytes: () => bytes };
+  const send = (id: string, data = [1, 2, 3], uri = "file://local/main.sd", elapsed = 101) => request(id, "workspace/willCreateFiles", { files: [{ uri, data: new Uint8Array(data).buffer }] }, elapsed);
+  return { send, request, messages, close, removeEntry, thumbnails, exists: () => exists, locked: () => locked, bytes: () => bytes };
 }
 
 it("answers successful imports on the real worker message handler", async () => {
@@ -67,6 +77,50 @@ it("answers successful imports on the real worker message handler", async () => 
   expect(await h.send("ok")).toMatchObject({ result: [{ uri: "file://local/main.sd" }] });
   expect(h.bytes()).toEqual(new Uint8Array([1, 2, 3]));
   expect(h.close).toHaveBeenCalledTimes(1);
+});
+
+it("acknowledges explicit creates without the editing debounce", async () => {
+  const h = await worker();
+  expect(await h.send("immediate", [1], "file://local/main.sd", 0)).toEqual(expect.objectContaining({ result: expect.any(Array) }));
+});
+
+it("retains the debounce for ordinary file edits", async () => {
+  const h = await worker();
+  expect(await h.request("edit", "workspace/willWriteFiles", { files: [{ uri: "file://local/main.sd", version: 1, data: new Uint8Array([4]).buffer }] }, 0)).toBeUndefined();
+  await vi.advanceTimersByTimeAsync(101);
+  expect(h.messages.find(message => message.id === "edit")).toHaveProperty("result");
+});
+
+it("keeps a raster import pending until its thumbnail is cached", async () => {
+  let finish!: () => void;
+  const h = await worker({ thumbnail: new Promise<void>(resolve => { finish = resolve; }) });
+  expect(await h.send("image", [1], "file://local/zz.png")).toBeUndefined();
+  expect(h.thumbnails).toHaveLength(0);
+  finish();
+  await vi.advanceTimersByTimeAsync(0);
+  expect(h.thumbnails).toEqual([expect.stringContaining("local/zz.png?thumb=144")]);
+  expect(h.messages.find(message => message.id === "image")).toHaveProperty("result");
+});
+
+it("does not acknowledge deletion while storage is still removing the file", async () => {
+  let finish!: () => void;
+  const h = await worker({ remove: () => new Promise<void>(resolve => { finish = resolve; }) });
+  await h.send("create");
+  expect(await h.request("delete", "workspace/willDeleteFiles", { files: [{ uri: "file://local/main.sd" }] })).toBeUndefined();
+  expect(h.exists()).toBe(true);
+  expect(h.messages.some(message => message.method === "workspace/didDeleteFiles")).toBe(false);
+  finish();
+  await vi.advanceTimersByTimeAsync(0);
+  expect(h.exists()).toBe(false);
+  expect(h.messages.find(message => message.id === "delete")).toHaveProperty("result");
+});
+
+it("returns an asynchronous deletion failure without broadcasting success", async () => {
+  const h = await worker({ remove: async () => { throw new DOMException("locked", "NoModificationAllowedError"); } });
+  await h.send("create");
+  expect(await h.request("delete", "workspace/willDeleteFiles", { files: [{ uri: "file://local/main.sd" }] })).toMatchObject({ error: { message: "locked" } });
+  expect(h.exists()).toBe(true);
+  expect(h.messages.some(message => message.method === "workspace/didDeleteFiles")).toBe(false);
 });
 
 it("returns a failed import instead of leaving the request pending, and releases its lock", async () => {

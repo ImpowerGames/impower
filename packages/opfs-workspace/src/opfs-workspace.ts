@@ -806,6 +806,7 @@ const enqueueWrite = async (
   fileUri: string,
   version: number,
   buffer: DataView | Uint8Array,
+  immediate = false,
 ) => {
   if (/\.svg$/i.test(fileUri)) {
     const source = new TextDecoder().decode(buffer);
@@ -825,21 +826,23 @@ const enqueueWrite = async (
     entry!.buffer = buffer;
     entry!.version = version;
     entry!.listeners.push({ resolve, reject });
-    entry!.handler(fileUri);
+    if (immediate) void write(fileUri);
+    else entry!.handler(fileUri);
   });
 };
 
 // Generation runs one image at a time so a bulk import (hundreds of files at
 // once) doesn't fire hundreds of concurrent decodes.
-let thumbnailChain: Promise<unknown> = Promise.resolve();
+let thumbnailChain: Promise<void> = Promise.resolve();
 
-const enqueueThumbnail = (fileUri: string): void => {
+const enqueueThumbnail = (fileUri: string): Promise<void> => {
   if (!THUMBNAILS_SUPPORTED || !RASTER_IMAGE_REGEX.test(fileUri)) {
-    return;
+    return Promise.resolve();
   }
   thumbnailChain = thumbnailChain
     .then(() => generateThumbnail(fileUri))
     .catch(() => undefined);
+  return thumbnailChain;
 };
 
 const generateThumbnail = async (fileUri: string): Promise<void> => {
@@ -952,12 +955,11 @@ const write = async (fileUri: string) => {
     // (the URLs panel/preview) get the right media kind on first notification.
     await enrichUrlAssetType(fileUri);
     const notifyFile = State.files.get(fileUri) ?? file;
+    // Import completion must survive an immediate page/worker reload.
+    await enqueueThumbnail(fileUri);
     listeners.forEach((l) => {
       l.resolve({ file: notifyFile, created });
     });
-    // Warm this image's thumbnail in the background (fire-and-forget) so the
-    // file list never decodes art at scroll time.
-    enqueueThumbnail(fileUri);
   } catch (err: any) {
     let failure = err;
     try {
@@ -978,7 +980,8 @@ const createFiles = async (files: (FileCreate & { data?: ArrayBuffer })[]) => {
   const result = await Promise.all(
     files.map(async (file) => {
       const buffer = new DataView(file.data ?? new ArrayBuffer());
-      return enqueueWrite(file.uri, 0, buffer);
+      // Explicit file creation/import is not a stream of incremental edits.
+      return enqueueWrite(file.uri, 0, buffer, true);
     }),
   );
   return result;
@@ -1195,7 +1198,7 @@ const deleteFiles = async (files: { uri: string }[]) => {
         root,
         directoryPath,
       );
-      directoryHandle.removeEntry(getFileName(relativePath));
+      await directoryHandle.removeEntry(getFileName(relativePath));
       const existingFile = State.files.get(file.uri);
       if (existingFile) {
         URL.revokeObjectURL(existingFile.src);

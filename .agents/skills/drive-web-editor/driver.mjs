@@ -1046,9 +1046,17 @@ async function writeProjectBatch({ project, entries, archive }) {
   const send = (method, params) => bridge.send({ jsonrpc: "2.0", id: crypto.randomUUID(), method, params });
   const loaded = await send("window/loadedProjectId", {});
   if (loaded.id !== project) throw new Error("Refusing to seed a project that is not loaded");
-  const data = Uint8Array.from(atob(archive), (char) => char.charCodeAt(0)).buffer;
+  const binary = atob(archive);
+  const bytes = new Uint8Array(binary.length);
+  for (let index = 0; index < binary.length; index++) bytes[index] = binary.charCodeAt(index);
+  const data = bytes.buffer;
   const files = await send("workspace/unzipFiles", { data });
   const written = [], failed = [];
+  const expectedFiles = new Set(entries.map(entry => entry.path));
+  const returnedFiles = new Set(files.map(file => file.filename));
+  for (const file of files) {
+    if (!expectedFiles.has(file.filename)) throw new Error("Archive returned an unexpected file: " + file.filename);
+  }
   const existedBefore = async (filename) => {
     try {
       let directory = await navigator.storage.getDirectory();
@@ -1062,9 +1070,7 @@ async function writeProjectBatch({ project, entries, archive }) {
       throw error;
     }
   };
-  for (const { filename, data } of files) {
-    const expected = entries.find((entry) => entry.path === filename);
-    if (!expected) throw new Error("Archive returned an unexpected file: " + filename);
+  const importFile = async ({ filename, data }, index) => {
     const uri = "file://" + project + "/" + filename;
     let existed = true, acknowledged = false;
     try {
@@ -1077,7 +1083,7 @@ async function writeProjectBatch({ project, entries, archive }) {
       const size = created.find(file => file.uri === uri)?.size ?? originalSize;
       const readBack = await send("workspace/readFile", { file: { uri } });
       if (readBack.byteLength !== size) throw new Error(`wrote ${size} bytes but the file reads back as ${readBack.byteLength}`);
-      written.push({ path: filename, bytes: readBack.byteLength });
+      written[index] = { path: filename, bytes: readBack.byteLength };
     } catch (error) {
       // Only roll back a confirmed new write. A timed-out mutation may still
       // be in flight; the worker owns cleanup of definite write failures.
@@ -1085,13 +1091,22 @@ async function writeProjectBatch({ project, entries, archive }) {
         try { await send("workspace/willDeleteFiles", { files: [{ uri }], mode: "permanent" }); }
         catch (cleanupError) { error = new Error(`${String(error)}; cleanup failed: ${String(cleanupError)}`); }
       }
-      failed.push({ path: filename, reason: error.name && error.name !== "Error" ? `${error.name}: ${error.message}` : String(error.message || error) });
+      failed[index] = { path: filename, reason: error.name && error.name !== "Error" ? `${error.name}: ${error.message}` : String(error.message || error) };
     }
-  }
+  };
+  // Bound active requests while independent files overlap. Indexed results
+  // retain archive order even when writes and failures finish out of order.
+  let next = 0;
+  await Promise.all(Array.from({ length: Math.min(8, files.length) }, async () => {
+    while (next < files.length) {
+      const index = next++;
+      await importFile(files[index], index);
+    }
+  }));
   for (const entry of entries) {
-    if (!files.some((file) => file.filename === entry.path)) failed.push({ path: entry.path, reason: "Archive did not return the expected file" });
+    if (!returnedFiles.has(entry.path)) failed.push({ path: entry.path, reason: "Archive did not return the expected file" });
   }
-  return { written, failed };
+  return { written: written.filter(Boolean), failed: failed.filter(Boolean) };
 }
 
 // Runs in the page. Removes every entry under the project that `keep` (the
@@ -1411,7 +1426,7 @@ async function seedProject(page, source, { project = LOCAL_PROJECT_ID, batchByte
   try {
     for (const batch of planBatches(collected.files, batchBytes)) {
       report.batches += 1;
-      const entries = batch.map((f) => ({ path: f.path, base64: Buffer.from(f.bytes).toString("base64") }));
+      const entries = batch.map((f) => ({ path: f.path }));
       const archive = await pack(batch);
       await waitForProtocol(page);
       const out = await page.evaluate(writeProjectBatch, { project, entries, archive });

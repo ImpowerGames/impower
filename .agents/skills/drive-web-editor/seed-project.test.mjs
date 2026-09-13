@@ -332,6 +332,42 @@ await check("walking a directory yields every non-dot file with /-separated rela
   assert.deepEqual(walked.failed, []);
 });
 
+await check("the seed wire carries one content payload rather than duplicate file encodings", async () => {
+  await withStub({}, async ({ page }) => {
+    const bytes = Buffer.alloc(64 * 1024, 65);
+    const evaluate = page.evaluate;
+    let wireBytes = 0;
+    page.evaluate = async (fn, arg) => {
+      if (fn === writeProjectBatch) wireBytes = Buffer.byteLength(JSON.stringify(arg));
+      return evaluate(fn, arg);
+    };
+    const report = await seedProject(page, "fixture", { collect: async () => ({ files: [{ path: "main.sd", bytes }], skipped: 0, failed: [] }) });
+    assert.equal(report.storage, "replaced", report.reason);
+    // The test's dependency-free archive stand-in uses nested base64 (16/9).
+    // A duplicate raw-file encoding pushes the actual argument above this bound.
+    assert.ok(wireBytes < bytes.length * 2, `wire copied the content twice: ${wireBytes} bytes`);
+  });
+});
+
+await check("independent seed files overlap with bounded concurrency and keep report order", async () => {
+  const storage = stubStorage();
+  const globals = stubGlobals(storage);
+  const send = globals.window.__editorProtocol.send;
+  let active = 0, peak = 0;
+  globals.window.__editorProtocol.send = async (message) => {
+    if (message.method !== "workspace/willCreateFiles") return send(message);
+    active++; peak = Math.max(peak, active);
+    try { await new Promise(resolve => setTimeout(resolve, 5)); return await send(message); }
+    finally { active--; }
+  };
+  const page = stubPage(globals);
+  const entries = Array.from({ length: 20 }, (_, index) => ({ path: `file-${index}.txt`, base64: "QQ==" }));
+  const result = await page.evaluate(writeProjectBatch, { project: "local", entries });
+  assert.deepEqual(result.failed, []);
+  assert.deepEqual(result.written.map(file => file.path), entries.map(file => file.path));
+  assert.ok(peak > 1 && peak <= 8, `expected bounded parallel imports, observed ${peak}`);
+});
+
 // A directory link is a junction on Windows, which needs no privilege, and a
 // symlink elsewhere; a machine that refuses both reports the case as skipped.
 const linkDir = (target, link) => fs.symlinkSync(target, link, process.platform === "win32" ? "junction" : "dir");
