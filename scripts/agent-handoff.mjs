@@ -9,9 +9,9 @@ const gitHead = (cwd) => execFileSync("git", ["rev-parse", "HEAD"], { cwd, encod
 const gitStatus = (cwd) => execFileSync("git", ["status", "--porcelain"], { cwd, encoding: "utf8" });
 
 export function checkReviewRound(round, completedRound, finalCorrections) {
-  if (!Number.isInteger(round) || round < 1 || round > 4 || round < completedRound) throw new Error("Review round must be 1..4 and preserve the completed round count");
+  if (!Number.isInteger(round) || round < 1 || round > 3 || round < completedRound) throw new Error("Review round must be 1..3 and preserve the completed round count");
   if (round > completedRound + 1) throw new Error("Review round cannot skip ahead of the recorded count");
-  if (finalCorrections) throw new Error("Final corrections after round 4 require coordinator risk assessment; no automatic review");
+  if (finalCorrections) throw new Error("Final corrections after round 3 require explicit user direction for further review; no automatic review");
 }
 
 // Configuration is a local, caller-authored artifact. Comments and child output
@@ -24,11 +24,12 @@ export async function runHandoff(configFile, { slotRoot, identifyProcess = proce
   if (!relative.startsWith(".." + path.sep) && !path.isAbsolute(relative)) throw new Error("Journal must be outside the worktree");
   if (!config.writer || !config.reviewer || config.writer === config.reviewer) throw new Error("Supply distinct writer and reviewer model routes");
   if (!Number.isInteger(config.maxSteps) || config.maxSteps < 1 || config.maxSteps > 12) throw new Error("maxSteps must be 1..12");
-  if (!Number.isInteger(config.completedReviewRound) || config.completedReviewRound < 0 || config.completedReviewRound > 4) throw new Error("Supply completedReviewRound from 0 through 4, including on recovery");
-  if ((config.completedReviewRound === 4 && typeof config.finalCorrections !== "boolean") || (config.finalCorrections !== undefined && typeof config.finalCorrections !== "boolean") || (config.finalCorrections && config.completedReviewRound !== 4)) throw new Error("Supply finalCorrections from the journal for round-4 recovery; true requires completedReviewRound 4");
+  if (!Number.isInteger(config.completedReviewRound) || config.completedReviewRound < 0 || config.completedReviewRound > 3) throw new Error("Supply completedReviewRound from 0 through 3, including on recovery");
+  if ((config.completedReviewRound === 3 && typeof config.finalCorrections !== "boolean") || (config.finalCorrections !== undefined && typeof config.finalCorrections !== "boolean") || (config.finalCorrections && config.completedReviewRound !== 3)) throw new Error("Supply finalCorrections from the journal for round-3 recovery; true requires completedReviewRound 3");
+  if (config.completedReviewRound > 0 && !/^[a-f0-9]{40}$/.test(config.reviewedHead ?? "")) throw new Error("Supply reviewedHead from the journal when recovering a review round");
   if (fs.existsSync(journal)) throw new Error("Journal exists; inspect recorded process and completion before authoring a recovery plan");
   for (const step of Object.values(config.steps)) {
-    if (step.role === "review" && (!Number.isInteger(step.round) || step.round < 1 || step.round > 4)) throw new Error("Review round must be 1..4 on every review step before launch");
+    if (step.role === "review" && (!Number.isInteger(step.round) || step.round < 1 || step.round > 3)) throw new Error("Review round must be 1..3 on every review step before launch");
     if (!["implement", "review", "adjudicate"].includes(step.role) || !path.isAbsolute(step.executable) || !Array.isArray(step.args) || !step.args.every((a) => typeof a === "string") || !path.isAbsolute(step.prompt)) throw new Error("Each role needs an absolute executable, argument array and prompt file");
     if (!step.model || step.model !== (step.role === "review" ? config.reviewer : config.writer)) throw new Error("Step model must match its caller-supplied role route");
     const explicit = step.args.findIndex((a) => a === "--model" || a === "-m");
@@ -53,6 +54,7 @@ export async function runHandoff(configFile, { slotRoot, identifyProcess = proce
   const append = (row) => { fs.writeSync(fd, JSON.stringify({ time: new Date().toISOString(), ...row }) + "\n"); fs.fsyncSync(fd); };
   let current = config.first;
   let completedRound = config.completedReviewRound;
+  let reviewedHead = config.reviewedHead ?? null;
   let finalCorrections = config.finalCorrections ?? false;
   let activeChild;
   try {
@@ -65,11 +67,12 @@ export async function runHandoff(configFile, { slotRoot, identifyProcess = proce
       if (step.role === "review") checkReviewRound(step.round, completedRound, finalCorrections);
       const head = gitHead(cwd), status = gitStatus(cwd);
       if (status) throw new Error("Handoff requires a clean committed worktree");
+      if (step.role === "review" && step.round === completedRound && head !== reviewedHead) throw new Error("A pending lens in the same round requires the recorded reviewed head; corrections need a new round");
       const artifacts = fs.mkdtempSync(path.join(path.dirname(journal), `handoff-${index}-${step.role}-`));
       const completion = path.join(artifacts, "completion.json");
       const output = path.join(artifacts, "process.log");
       const prompt = fs.readFileSync(step.prompt, "utf8") + `\n\nHandoff contract: role=${step.role}, configured model=${step.model}, reviewed head=${head}. Write ${completion} with the editor tool as JSON: {"head":"<actual HEAD>","next":"<declared transition or null>","commentIds":[<numeric GitHub comment IDs>],"summary":"<result>"}. Allowed next steps: ${JSON.stringify(step.next)}. Review and adjudication must post their complete report/dispositions before completion; include those IDs. Do not mark ready or merge. Do not modify repository files during review.\n`;
-      append({ event: "launching", index, step: current, role: step.role, model: step.model, round: step.round, completedRound, head, output, completion });
+      append({ event: "launching", index, step: current, role: step.role, model: step.model, round: step.round, completedRound, reviewedHead, finalCorrections, head, output, completion });
       const log = fs.openSync(output, "wx");
       let slot;
       try { slot = step.role === "review" ? reserveReviewerSlot(slotRoot) : null; }
@@ -141,9 +144,9 @@ export async function runHandoff(configFile, { slotRoot, identifyProcess = proce
         if (comment.issue_url !== `https://api.github.com/repos/ImpowerGames/impower/issues/${config.pr}` || !comment.body.includes(done.head)) throw new Error("Comment does not verify this PR and head");
       }
       if (gitStatus(cwd)) throw new Error("Role left uncommitted work");
-      if (step.role === "review") completedRound = step.round;
-      if (step.role !== "review" && completedRound === 4 && done.head !== head) finalCorrections = true;
-      append({ event: "completed", index, step: current, ...done, completedRound, finalCorrections });
+      if (step.role === "review") { completedRound = step.round; reviewedHead = head; }
+      if (step.role !== "review" && completedRound === 3 && done.head !== reviewedHead) finalCorrections = true;
+      append({ event: "completed", index, step: current, ...done, completedRound, reviewedHead, finalCorrections });
       current = done.next;
     }
     append({ event: "finished" });

@@ -19,6 +19,18 @@ for (const key of ["writer", "reviewer", "invocation"]) {
 }
 assert.throws(() => buildReviewPrompt({ ...context, reviewer: "writer-1[1m]" }), /must differ/);
 const template = fs.readFileSync(new URL("../.agents/skills/review-pr/references/reviewer-prompt.md", import.meta.url), "utf8");
+const reviewerRules = [
+  "Record your complete independent first pass",
+  "Separately label unverified concerns and coverage gaps",
+  "Every reviewer, including an undirected reviewer, must check test honesty and repository rules",
+];
+const missingReviewerRules = (text) => reviewerRules.filter((rule) => !text.includes(rule));
+assert.deepEqual(missingReviewerRules(prompt), []);
+for (const rule of reviewerRules) {
+  const movedToCoordinator = template.replace(rule, "") + "\nCoordinator-only note: " + rule;
+  assert.deepEqual(missingReviewerRules(buildReviewPrompt(context, movedToCoordinator)), [rule], "moving a reviewer instruction outside the template must lose coverage: " + rule);
+}
+
 for (const token of ["WRITER", "REVIEWER", "ROUND", "HEAD", "WORKTREE", "DIFF", "REVDIR", "PREVIOUS", "P", "N", "LENS"]) {
   const boundary = template.indexOf("<!-- review-prompt:start -->");
   const prefix = template.slice(0, boundary), body = template.slice(boundary);
@@ -33,7 +45,7 @@ for (const invocation of ["method: TBD", "see <method>", "Invocation: UNKNOWN."]
 assert.doesNotThrow(() => buildReviewPrompt({ ...context, invocation: "Fresh CLI process; the prior report quoted 'method: TBD' as invalid." }));
 const literal = "Quoted #P #N P /P/ HEAD <LENS> \\<LENS\\> $& $$ $` $'";
 const literalPrompt = buildReviewPrompt({ ...context, previous: literal, lens: literal, diff: path.resolve("folder P", "HEAD.patch") });
-assert.ok(literalPrompt.includes(literal + " Your job"), "previous evidence must remain literal");
+assert.ok(literalPrompt.includes(literal + " Record your complete independent first pass"), "previous evidence must remain literal");
 assert.ok(literalPrompt.includes("Your lens is " + literal + ";"), "lens dollar patterns and tokens must remain literal");
 assert.ok(literalPrompt.includes(path.resolve("folder P", "HEAD.patch")), "paths must remain literal");
 assert.doesNotThrow(() => buildReviewPrompt({ ...context, writer: "o3", reviewer: "provider/model-2" }), "route validation must not assume one naming family");

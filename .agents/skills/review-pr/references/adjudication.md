@@ -8,6 +8,8 @@ Reviewer output is a hypothesis, not a verdict; reviewer sessions confidently re
 
 For every finding, confirm it yourself in the code before acting. A claimed `file:line` that does not say what the reviewer claims is a dead finding, full stop. When two reviewers disagree about the same lines, break the tie by experiment rather than by the more convincing prose: for a claim that a test does not cover a branch, disable that branch and re-run; a suite that stays green proves the claim. Record the mutation and its result in the adjudication.
 
+Give every unverified concern and coverage gap an explicit disposition too: establish a defect, resolve it with evidence, or retain it as an outstanding verification gap with its risk and next action. Do not change code merely to satisfy speculation. A material correctness or safety gap keeps the PR draft; a nonblocking limitation must be disclosed with the reason it does not prevent readiness. Reviewer agreement is not proof.
+
 Then dispose of every finding where it lives, on the PR. Adjudicate every comment a reviewer posted, the latest correction winning: a reviewer that posts twice, or corrects itself in a later comment, is answered on its final position, and the earlier comment is named as superseded rather than left looking open. Post one adjudication comment per review via `--body-file`, naming the review comment ID, round, reviewed head and every finding's disposition:
 
 - Accepted: fixed, with the commit SHA and verification.
@@ -32,12 +34,13 @@ When the check imports a name the base revision does not export, `redgreen`'s re
 
 Marking the PR ready means this diff is finished and ready to be reviewed by a human. Make that claim only when every one of these is true:
 
-- Every reviewer you spawned has come back.
+- Every reviewer you spawned has exited, and every required reviewer has supplied a usable report for the recorded frozen head.
 - Every report is on the PR, including the ones you posted on a reviewer's behalf (see [launch procedure](launch.md)).
 - Every finding is adjudicated in your adjudication comment, accepted, rejected, or already covered, with nothing left unanswered.
 - Every fix you made in response is committed, pushed, and re-verified as above, and the last push is on the PR.
-- No re-spawned lens is still outstanding from an aborted or retried attempt (see [independence](../SKILL.md)). If a lens ended up with no independent reviewer at all, say so on the PR before marking ready, so the human knows which angle nobody covered.
-- The fix commits have themselves been reviewed under [later-round rules](later-rounds.md)'s rule, or the adjudication says which final fix was not.
+- No required lens is missing or outstanding from an aborted or retried attempt (see [independence](../SKILL.md)).
+- Behavior-changing fix commits have themselves been independently reviewed under [later-round rules](later-rounds.md). Only verified non-behavioral corrections qualify for its disclosed exception.
+- Required checks pass for the current head, and no blocking finding or material verification gap remains.
 - No external draft blocker remains. Under Notes for reviewers, name any prerequisite outside review (such as another PR holding required files), what must happen first, and the remaining work in the order a follow-up session should perform it. Keep the PR draft until that prerequisite and the remaining gates are satisfied.
 
 Only then:
