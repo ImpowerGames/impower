@@ -1,9 +1,10 @@
 import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
+import type { File } from "../../compiler/types/File";
 
-const URI = "inmemory:///main.sd";
+const URI = "file:///project/main.sd";
 
-function diagnosticsFor(source: string): string[] {
+function compilerFor(source: string, extraFiles: File[] = []) {
   const compiler = new SparkdownCompiler();
   compiler.configure({
     useBuiltinsPrelude: true,
@@ -18,8 +19,13 @@ function diagnosticsFor(source: string): string[] {
         version: 1,
         languageId: "sparkdown",
       },
+      ...extraFiles,
     ],
   });
+  return compiler;
+}
+
+function diagnosticsFrom(compiler: SparkdownCompiler): string[] {
   const { program } = compiler.compile({ textDocument: { uri: URI } });
   return Object.values(program.diagnostics ?? {}).flatMap((diagnostics) =>
     diagnostics.map((diagnostic: any) =>
@@ -28,6 +34,10 @@ function diagnosticsFor(source: string): string[] {
         : diagnostic.message?.value,
     ),
   );
+}
+
+function diagnosticsFor(source: string, extraFiles: File[] = []): string[] {
+  return diagnosticsFrom(compilerFor(source, extraFiles));
 }
 
 const missingType = (diagnostics: string[], type: string) =>
@@ -71,5 +81,68 @@ end
 `);
 
     expect(missingType(diagnostics, "nosuchtype")).toBe(true);
+  });
+
+  test("does not accept an asset name as an undeclared parent", () => {
+    const diagnostics = diagnosticsFor(
+      'define O as portrait with\n  name = "Orion"\nend\n',
+      [{
+        uri: "file:///project/portrait.png",
+        type: "image",
+        name: "portrait",
+        ext: "png",
+        src: "/portrait.png",
+      }],
+    );
+    expect(missingType(diagnostics, "portrait")).toBe(true);
+  });
+
+  test.each(["red", "linear", "loading"])(
+    "does not accept the builtin instance %s as an undeclared parent",
+    (parent) => {
+      const diagnostics = diagnosticsFor(
+        `define O as ${parent} with\n  name = "Orion"\nend\n`,
+      );
+      expect(missingType(diagnostics, parent)).toBe(true);
+    },
+  );
+
+  test.each([true, false])("only accepts a parent from a participating script (included: %s)", (included) => {
+    const diagnostics = diagnosticsFor(
+      `${included ? "include parents.sd\n" : ""}define O as companion with\n  name = "Orion"\nend\n`,
+      [{
+        uri: "file:///project/parents.sd",
+        type: "script",
+        name: "parents",
+        ext: "sd",
+        text: "define companion as character with\n  store trust = 0\nend\n",
+        version: 1,
+        languageId: "sparkdown",
+      }],
+    );
+    expect(missingType(diagnostics, "companion")).toBe(!included);
+  });
+
+  test("refreshes parent validity after a declaration is renamed and restored", () => {
+    const compiler = compilerFor(
+      'define companion as character with\n  store trust = 0\nend\ndefine O as companion with\n  name = "Orion"\nend\n',
+    );
+    expect(missingType(diagnosticsFrom(compiler), "companion")).toBe(false);
+    compiler.updateDocument({
+      textDocument: { uri: URI, version: 2 },
+      contentChanges: [{
+        range: { start: { line: 0, character: 7 }, end: { line: 0, character: 16 } },
+        text: "friend",
+      }],
+    });
+    expect(missingType(diagnosticsFrom(compiler), "companion")).toBe(true);
+    compiler.updateDocument({
+      textDocument: { uri: URI, version: 3 },
+      contentChanges: [{
+        range: { start: { line: 0, character: 7 }, end: { line: 0, character: 13 } },
+        text: "companion",
+      }],
+    });
+    expect(missingType(diagnosticsFrom(compiler), "companion")).toBe(false);
   });
 });

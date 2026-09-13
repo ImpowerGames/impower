@@ -4941,6 +4941,23 @@ export class SparkdownCompiler {
   validateReferences(program: SparkProgram) {
     const uri = program.uri;
     profile("start", this._profilerId, "validateReferences", uri);
+    // A typed define can itself be a parent without having a $default entry.
+    // Collect declarations across the participating scripts, not context keys:
+    // context also contains file-derived assets and unrelated builtin values.
+    // Rebuild per compile so included-file edits cannot leave stale names.
+    const declaredParentTypes = new Set<string>();
+    for (const scriptUri of Object.keys(program.scripts)) {
+      const doc = this.documents.get(scriptUri);
+      if (!doc) continue;
+      const declarations = this.documents
+        .annotations(scriptUri).declarations.iter();
+      while (declarations.value) {
+        if (declarations.value.type === "define") {
+          declaredParentTypes.add(doc.read(declarations.from, declarations.to));
+        }
+        declarations.next();
+      }
+    }
     // Whole-program set of top-level callables a Sparkle `@event` handler ref
     // can target — mirrors the runtime's story.HasFunction (top-level functions
     // + knots + scenes). Built across ALL scripts so a handler defined in an
@@ -5184,16 +5201,9 @@ export class SparkdownCompiler {
               // Valid layer: an element declared in the UI tree
             } else if (
               reference.declaration === "define_type_name" &&
-              selector?.types?.some((type) =>
-                Object.values(program.context ?? {}).some((structs) =>
-                  Object.prototype.hasOwnProperty.call(structs, type),
-                ),
-              )
+              selector?.types?.some((type) => declaredParentTypes.has(type))
             ) {
-              // A typed `define` may be used as a parent even though its own
-              // namespace has no `$default` entry. Its parent reference uses
-              // `$default` for navigation when available, while this lookup
-              // recognizes the matching declared instance as a valid type.
+              // Valid declared parent; navigation still uses $default when present.
             } else {
               // Report missing error
               const validDescription =
