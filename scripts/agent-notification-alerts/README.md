@@ -5,6 +5,9 @@ reads an agent's message aloud using Windows speech. No speech API or API key.
 Notification text is passed to the speech process as JSON over stdin, never as
 executable PowerShell. Device failures are reported independently.
 
+For optional offline Kokoro voices and a Windows desktop/tray app with voice,
+keyboard-light and pause-all controls, see [Local voice and desktop controls](LOCAL-VOICE.md).
+
 ## Run
 
 Requires Node.js 20.8+, Windows for speech, and SteelSeries GG / Engine for lighting.

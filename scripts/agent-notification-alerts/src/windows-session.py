@@ -53,17 +53,24 @@ def main():
         raise ValueError('Unsupported shortcut modifiers')
     modifier_bits = 0x4006 if modifier == 'ctrl-shift' else 0x4003
     modifier_label = 'Ctrl+Shift+' if modifier == 'ctrl-shift' else 'Ctrl+Alt+'
-    labels = []
-    try:
+    def register(bindings):
+        if set(bindings) != {'codex', 'claude'} or any(type(value) is not int or not 1 <= value <= 12 for value in bindings.values()) or bindings['codex'] == bindings['claude']:
+            raise ValueError('Shortcuts must be different function keys from F1 to F12')
+        for number in registered:
+            user32.UnregisterHotKey(None, number)
+        registered.clear()
+        labels = []
         for number, app in [(1, 'codex'), (2, 'claude')]:
-            key = 0x6F + shortcuts[app]
-            label = modifier_label + 'F' + str(shortcuts[app])
+            key = 0x6F + bindings[app]
+            label = modifier_label + 'F' + str(bindings[app])
             if user32.RegisterHotKey(None, number, modifier_bits, key):
                 registered.append(number)
                 labels.append(label)
             else:
                 labels.append(label + ' unavailable')
         emit({'type': 'ready', 'hotkeys': labels})
+    try:
+        register(shortcuts)
         threading.Thread(target=read_commands, daemon=True).start()
         message = wintypes.MSG()
         while True:
@@ -77,6 +84,11 @@ def main():
                 if command.get('type') == 'open':
                     try:
                         open_session(command)
+                    except Exception as error:
+                        emit({'type': 'error', 'message': str(error)})
+                if command.get('type') == 'rebind':
+                    try:
+                        register(command['shortcuts'])
                     except Exception as error:
                         emit({'type': 'error', 'message': str(error)})
             time.sleep(0.05)

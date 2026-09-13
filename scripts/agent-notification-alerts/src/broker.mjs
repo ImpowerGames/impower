@@ -9,6 +9,7 @@ import { createInterface } from 'node:readline';
 import { z } from 'zod';
 import { alertSchema, readConfig, binding, findEngine, speak } from './alerts.mjs';
 import { PendingAlerts } from './pending.mjs';
+import { voiceMuted, lightsMuted } from './voice-control.mjs';
 
 const stateDir = process.env.AGENT_ALERT_STATE_DIR || join(homedir(), '.agent-notification-alerts');
 const hash = createHash('sha256').update(stateDir).digest('hex').slice(0, 20);
@@ -84,7 +85,28 @@ export async function runBroker() {
     if (!response.ok) throw new Error('SteelSeries ' + route + ': ' + response.status);
   };
   const refresh = async () => {
+    try {
+      const selected = z.object({ codex: z.number().int().min(1).max(12), claude: z.number().int().min(1).max(12) }).strict().refine(value => value.codex !== value.claude).parse(JSON.parse(await readFile(join(stateDir, 'key-bindings.json'), 'utf8')));
+      if (JSON.stringify(selected) !== JSON.stringify(config.shortcuts)) {
+        config.shortcuts = selected;
+        config.keys = { codex: [57 + selected.codex], claude: [57 + selected.claude] };
+        signature = '';
+        bridge?.stdin.write(JSON.stringify({ type: 'rebind', shortcuts: selected }) + '\n');
+      }
+    } catch (error) {
+      if (error.code !== 'ENOENT') status.shortcuts = 'Invalid saved key bindings: ' + error.message;
+    }
     if (!config.keyboard) return;
+    if (lightsMuted()) {
+      if (status.keyboard !== 'muted') {
+        try {
+          await post('stop_game', { game: 'AGENT_NOTIFICATION_ALERTS' });
+          signature = '';
+          status.keyboard = 'muted';
+        } catch (error) { address = undefined; status.keyboard = error.message; }
+      }
+      return;
+    }
     const entries = ['codex', 'claude', 'other'].map(app => pending.latest(app)).filter(Boolean);
     const next = JSON.stringify(entries.map(entry => [entry.app, entry.alert.category]));
     try {
@@ -104,7 +126,7 @@ export async function runBroker() {
   };
   const enqueue = fn => { const job = queue.then(fn); queue = job.catch(() => {}); return job; };
   const handle = async request => {
-    if (request.type === 'status') return { pending: pending.entries, channels: { ...status } };
+    if (request.type === 'status') return { pending: pending.entries, channels: { ...status, ...(voiceMuted() ? { speech: 'muted' } : {}) } };
     if (request.type === 'stop') {
       clearInterval(timer);
       bridge?.stdin.end();
@@ -120,7 +142,7 @@ export async function runBroker() {
     else acknowledged = pending.acknowledge(request.notificationId, request.app);
     try { await persist(); } catch (error) { pending.entries = previous; throw error; }
     // Delivery is asynchronous: acknowledging must never wait for speech to finish.
-    if (entry && config.speech) {
+    if (entry && config.speech && !voiceMuted()) {
       speechQueue = speechQueue.then(async () => {
         status.speech = 'speaking';
         try { await speak(entry.alert, config); status.speech = 'idle'; }

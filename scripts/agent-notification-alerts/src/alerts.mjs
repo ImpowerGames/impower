@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 import { createServer } from "node:net";
 import { fileURLToPath } from "node:url";
 import { z } from "zod";
+import { voiceMuted } from "./voice-control.mjs";
 
 export const alertShape = {
   session: z
@@ -184,12 +185,14 @@ async function lighting(alert, config) {
   return "Lighting events accepted; normal profile released after alert.";
 }
 export function speak(alert, config) {
+  if (voiceMuted()) return Promise.resolve("Voice muted.");
   if (process.platform !== "win32")
     return Promise.reject(new Error("Speech currently requires Windows."));
   return new Promise((resolve, reject) => {
+    const localVoice = Boolean(process.env.AGENT_ALERT_KOKORO_DIR);
     const child = spawn(
-      "powershell.exe",
-      [
+      localVoice ? (process.env.AGENT_ALERT_PYTHON || "python") : "powershell.exe",
+      localVoice ? [fileURLToPath(new URL("./speak-kokoro.py", import.meta.url))] : [
         "-NoProfile",
         "-NonInteractive",
         "-File",
@@ -206,14 +209,21 @@ export function speak(alert, config) {
     });
     child.stdin.on("error", () => {});
     const timeout = setTimeout(() => child.kill(), 90000);
+    let muted = false;
+    const muteWatch = setInterval(() => {
+      if (voiceMuted()) { muted = true; child.kill(); }
+    }, 100);
     child.on("error", (error) => {
       clearTimeout(timeout);
+      clearInterval(muteWatch);
       reject(error);
     });
     child.on("close", (code) => {
       clearTimeout(timeout);
-      if (code === 0)
-        resolve("Windows speech playback completed on default audio output.");
+      clearInterval(muteWatch);
+      if (muted) resolve("Voice muted.");
+      else if (code === 0)
+        resolve(`${localVoice ? "Local Kokoro" : "Windows"} speech playback completed on default audio output.`);
       else reject(new Error(errors || `Speech exited with code ${code}`));
     });
     child.stdin.end(
