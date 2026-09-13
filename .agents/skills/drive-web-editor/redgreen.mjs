@@ -209,7 +209,10 @@ export function classifyRedFailure(output, { removed = [], launchError = null, e
     /npm (?:ERR!|error) Missing script:\s*(?:"[^"\r\n]*"|'[^'\r\n]*'|[^\s"'\r\n]+)\s*$/im.test(output);
   if (missingEntryScript) return "shell";
   if (shellDiagnostic) return testedDiagnostic ? "unknown" : "shell";
-  if (/No test files found|No test suite found|no tests found/i.test(output)) {
+  // Empty-suite diagnostics occupy their own runner line. Do not scan arbitrary
+  // prose: passing test names can deliberately describe "no tests found" while
+  // a different test supplies the genuine assertion failure.
+  if (/^\s*No test(?:s| files| suite) found\b[^\r\n]*$/im.test(output)) {
     return "notests";
   }
   if (

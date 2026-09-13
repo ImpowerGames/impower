@@ -887,7 +887,16 @@ check("classifyRedFailure tells the reasons apart on real runner output", () => 
   assert.equal(classifyRedFailure("AssertionError: expected '/bin/sh: 1: ./script: Permission denied' to match"), "assertion");
   assert.equal(classifyRedFailure("'NODE_OPTIONS' is not recognized as an internal or external command,"), "shell");
   assert.equal(classifyRedFailure('npm ERR! Missing script: "test"'), "shell");
-  assert.equal(classifyRedFailure("No test files found, exiting with code 1\nfilter: x"), "notests");
+  for (const diagnostic of ["No test files found, exiting with code 1\nfilter: x", "No test suite found", "no tests found"]) {
+    assert.equal(classifyRedFailure(diagnostic), "notests", diagnostic);
+  }
+  for (const passingName of ["PASS handles no tests found", "PASS handles No test files found", "PASS handles No test suite found"]) {
+    assert.equal(
+      classifyRedFailure(`${passingName}\nFAIL regression preserves output\nAssertionError: expected 2 to be 3\nTests  1 failed | 1 passed`),
+      "assertion",
+      passingName,
+    );
+  }
   // An assertion that quotes an ENOENT is still an assertion.
   assert.equal(
     classifyRedFailure(
