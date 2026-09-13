@@ -16,7 +16,9 @@ let ctx;
 try {
   if (mode === "discover") {
     ctx = await createVitest("test", options, viteOptions);
-    if (ctx.projects.length !== 1 || ctx.config.browser?.enabled || ctx.config.typecheck?.enabled || ctx.config.poolMatchGlobs?.length || path.resolve(ctx.config.root) !== packageRoot)
+    // Vitest 2 records automatically discovered workspace files on the context;
+    // explicit workspace/projects configuration is also rejected, even with one project.
+    if (ctx.config.workspace || ctx.config.projects || ctx._workspaceConfigPath || ctx.projects.length !== 1 || ctx.config.browser?.enabled || ctx.config.typecheck?.enabled || ctx.config.poolMatchGlobs?.length || path.resolve(ctx.config.root) !== packageRoot)
       throw new Error("Use a single Node test package with its own root (workspace/browser/typecheck/pool-routing configurations are unsupported)");
     const specs = await ctx.globTestFiles();
     fs.writeFileSync(output, JSON.stringify(specs.map(spec => spec.moduleId ?? spec[1])), "utf8");

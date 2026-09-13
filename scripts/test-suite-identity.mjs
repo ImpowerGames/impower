@@ -6,6 +6,26 @@ import { createHash } from "node:crypto";
 export const git = (root, args) => execFileSync("git", args, { cwd: root, encoding: "utf8", windowsHide: true, maxBuffer: 64 * 1024 * 1024 });
 export const tracked = root => git(root, ["ls-files", "-z"]).split("\0").filter(Boolean);
 
+// The native Windows resolver expands 8.3 names as well as junctions. Resolve
+// the existing ancestor for new journal paths, whose final directory is absent.
+export function canonicalPath(file) {
+  const absolute = path.resolve(file);
+  try { return fs.realpathSync.native(absolute); }
+  catch (error) {
+    if (error.code !== "ENOENT" || path.dirname(absolute) === absolute) throw error;
+    return path.join(canonicalPath(path.dirname(absolute)), path.basename(absolute));
+  }
+}
+
+export function childEnvironment(source = process.env) {
+  const env = {};
+  for (const [key, value] of Object.entries(source)) {
+    if (["NODE_OPTIONS", "FORCE_COLOR", "NO_COLOR"].includes(key.toUpperCase())) continue;
+    env[key] = value;
+  }
+  return { ...env, NODE_OPTIONS: "--max-old-space-size=1024", NO_COLOR: "1" };
+}
+
 // Source identity uses bytes. Installed dependency identity uses path, link
 // target, inode, size, mode, modification and change times: package installs and
 // edits invalidate evidence without reading gigabytes of binaries per status.
@@ -14,8 +34,13 @@ export function fingerprinter(progress = () => {}) {
   return function fingerprint(root, files) {
     const hash = createHash("sha256");
     const add = value => hash.update(JSON.stringify(value) + "\n");
-    add({ node: process.version, platform: process.platform, arch: process.arch, files });
-    const sources = [...new Set([...tracked(root), ...git(root, ["ls-files", "--others", "--exclude-standard", "-z"]).split("\0").filter(Boolean)])].sort();
+    // Environment values enter only the digest, never a journal or log. Hash
+    // exactly the environment forwarded to children, including enforced caps.
+    add({ node: process.version, platform: process.platform, arch: process.arch, files,
+      environment: Object.entries(childEnvironment()).sort(([a], [b]) => a.localeCompare(b)) });
+    const trackedFiles = tracked(root).sort();
+    add({ tracked: trackedFiles });
+    const sources = [...new Set([...trackedFiles, ...git(root, ["ls-files", "--others", "--exclude-standard", "-z"]).split("\0").filter(Boolean)])].sort();
     const visited = new Set();
     let inspected = 0;
     function visit(file, dependency = false) {

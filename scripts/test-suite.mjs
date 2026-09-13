@@ -4,7 +4,7 @@ import { spawn } from "node:child_process";
 import { randomUUID, createHash } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { acquire, atomic, read, processIdentity, reservationState, vitestProcesses, same } from "./test-suite-process.mjs";
-import { git, tracked, fingerprinter } from "./test-suite-identity.mjs";
+import { git, tracked, fingerprinter, canonicalPath, childEnvironment } from "./test-suite-identity.mjs";
 
 const engine = path.join(path.dirname(fileURLToPath(import.meta.url)), "suite-engine.mjs");
 const now = () => new Date().toISOString();
@@ -18,10 +18,11 @@ export function verifyResult(file, exit, signal, report, output) {
   const fileSummary = log.match(/^\s*Test Files\s+(.+)\((\d+)\)\s*$/m);
   const testSummary = log.match(/^\s*Tests\s+(.+)\((\d+)\)\s*$/m);
   if (!fileSummary || Number(fileSummary[2]) !== 1 || !testSummary) problems.push("Missing complete single-file summaries");
+  if (!/^1\s+passed$/.test(fileSummary?.[1]?.trim() || "")) problems.push("Text file summary must report exactly one passed file");
   if (/Worker exited unexpectedly|heap out of memory|Unhandled (?:Error|Rejection)|Some tests are still running/i.test(log)) problems.push("Worker, unhandled error or partial-result diagnostic");
   const result = report?.testResults?.[0];
   const assertions = result?.assertionResults;
-  if (!Array.isArray(report?.testResults) || report.testResults.length !== 1 || !result?.name || path.resolve(result.name) !== path.resolve(file) || !Array.isArray(assertions)) {
+  if (!Array.isArray(report?.testResults) || report.testResults.length !== 1 || typeof result?.name !== "string" || path.resolve(result.name) !== path.resolve(file) || !Array.isArray(assertions)) {
     return { status: "failed", tests: 0, failures, skips, problems: [...problems, "Missing or mismatched structured result"] };
   }
   const counts = { passed: 0, failed: 0, pending: 0, skipped: 0, todo: 0 };
@@ -106,9 +107,7 @@ async function childRun(run, mode, file, reservation, save, { enginePath = engin
   save();
   const logFile = path.join(directory, "output.log"), jsonFile = path.join(directory, "vitest.json");
   const fd = fs.openSync(logFile, "wx");
-  const env = Object.fromEntries(Object.entries(process.env).filter(([key]) => !["NODE_OPTIONS", "FORCE_COLOR"].includes(key.toUpperCase())));
-  env.NODE_OPTIONS = "--max-old-space-size=1024";
-  env.NO_COLOR = "1";
+  const env = childEnvironment();
   let child;
   try { child = spawn(process.execPath, ["--max-old-space-size=1024", enginePath, mode, run.packageRoot, jsonFile, ...(file ? [file] : [])],
     { cwd: run.packageRoot, env, stdio: ["ignore", fd, fd], windowsHide: true, detached: true }); }
@@ -146,7 +145,8 @@ async function childRun(run, mode, file, reservation, save, { enginePath = engin
 }
 
 export async function execute({ directory, packageRoot, retry = [], ...dependencies }) {
-  directory = path.resolve(directory);
+  directory = canonicalPath(directory);
+  retry = retry.map(canonicalPath);
   const reservation = acquire(directory, dependencies);
   let run;
   let lastProgress = 0;
@@ -175,18 +175,18 @@ export async function execute({ directory, packageRoot, retry = [], ...dependenc
       save();
     } else {
       fs.mkdirSync(directory, { recursive: true });
-      packageRoot = fs.realpathSync(path.resolve(packageRoot));
-      const root = git(packageRoot, ["rev-parse", "--show-toplevel"]).trim();
+      packageRoot = canonicalPath(packageRoot);
+      const root = canonicalPath(git(packageRoot, ["rev-parse", "--show-toplevel"]).trim());
       // Journals must live outside the source inventory, even with custom paths.
-      const gitDir = path.resolve(packageRoot, git(packageRoot, ["rev-parse", "--git-dir"]).trim());
+      const gitDir = canonicalPath(path.resolve(packageRoot, git(packageRoot, ["rev-parse", "--git-dir"]).trim()));
       if (!path.relative(gitDir, directory) || path.relative(gitDir, directory).startsWith("..")) throw new Error("Place run directories below this worktree's Git directory");
       run = { version: 1, directory, root, packageRoot, owner: reservation.record.owner, token: reservation.record.token, active: true, createdAt: now(), files: [], attempts: [] };
       save();
       const beforeDiscovery = fingerprint(root, []);
       const { attempt, report } = await childRun(run, "discover", null, reservation, save, dependencies);
       if (attempt.status !== "passed") throw new Error(`Discovery failed; inspect ${attempt.directory}`);
-      const trackedFiles = new Set(tracked(root).map(f => path.resolve(root, f)));
-      run.files = [...new Set(report.map(f => path.resolve(f)).filter(f => trackedFiles.has(f)))].sort();
+      const trackedFiles = new Set(tracked(root).map(f => canonicalPath(path.resolve(root, f))));
+      run.files = [...new Set(report.map(canonicalPath).filter(f => trackedFiles.has(f)))].sort();
       if (!run.files.length) throw new Error("Empty tracked test manifest; stage test files first");
       if (run.files.some(f => !/\.(test|spec)\.(ts|tsx)$/.test(f))) throw new Error("This runner supports tracked test/spec TS and TSX files");
       save();
@@ -217,7 +217,7 @@ export async function execute({ directory, packageRoot, retry = [], ...dependenc
 }
 
 export function status(directory, { identify = processIdentity, fingerprint = fingerprinter() } = {}) {
-  directory = path.resolve(directory);
+  directory = canonicalPath(directory);
   const run = read(path.join(directory, "run.json"));
   validateRun(run, directory);
   loadEvidence(run);
@@ -227,7 +227,7 @@ export function status(directory, { identify = processIdentity, fingerprint = fi
       catch { attempt.status = "unknown"; }
     }
   }
-  let live = run.attempts.some(attempt => attempt.status === "running"), unknown = false;
+  let live = run.attempts.some(attempt => attempt.status === "running"), unknown = run.attempts.some(attempt => attempt.status === "unknown");
   try {
     live ||= !!(run.active && run.owner && same(run.owner, identify(run.owner.pid)));
   } catch { unknown = true; }
@@ -241,13 +241,13 @@ export function status(directory, { identify = processIdentity, fingerprint = fi
   return { run: run.directory, ...summary, identityChecked: !live && !unknown && !!run.identity, attempts: run.attempts };
 }
 
-if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+if (process.argv[1] && canonicalPath(process.argv[1]) === canonicalPath(fileURLToPath(import.meta.url))) {
   try {
     const [command, target, ...args] = process.argv.slice(2);
     let result;
     if (command === "start" && target && !args.length) {
-      const packageRoot = fs.realpathSync(path.resolve(target));
-      const gitDir = path.resolve(packageRoot, git(packageRoot, ["rev-parse", "--git-dir"]).trim());
+      const packageRoot = canonicalPath(target);
+      const gitDir = canonicalPath(path.resolve(packageRoot, git(packageRoot, ["rev-parse", "--git-dir"]).trim()));
       const directory = path.join(gitDir, "test-suites", randomUUID());
       console.log(JSON.stringify({ run: directory, status: "starting", coordinator: processIdentity(process.pid) }));
       result = await execute({ directory, packageRoot });

@@ -18,12 +18,19 @@ export function atomic(file, value) {
 }
 export const read = (file) => JSON.parse(fs.readFileSync(file, "utf8"));
 
+export function windowsVitestProcesses(raw, ownPid = process.pid) {
+  const parsed = JSON.parse(raw.trim() || "[]");
+  const rows = Array.isArray(parsed) ? parsed : parsed === null ? [] : [parsed];
+  if (rows.some(p => !p || !Number.isSafeInteger(p.ProcessId) || p.ProcessId < 1 || (p.CommandLine !== null && typeof p.CommandLine !== "string"))) throw new Error("Malformed Windows process census");
+  return rows.filter(p => p.ProcessId !== ownPid && (!p.CommandLine || /vitest|tinypool/i.test(p.CommandLine))).map(p => p.ProcessId);
+}
+
 // An unreadable process table is a refusal, never an empty inventory.
 export function vitestProcesses() {
   if (process.platform === "win32") {
     const script = "$ErrorActionPreference='Stop'; @(Get-CimInstance Win32_Process -Filter \"Name='node.exe'\" | Select-Object ProcessId,CommandLine) | ConvertTo-Json -Compress";
     const raw = execFileSync("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", script], { encoding: "utf8", windowsHide: true });
-    return JSON.parse(raw || "[]").filter(p => p.ProcessId !== process.pid && (!p.CommandLine || /vitest|tinypool/i.test(p.CommandLine))).map(p => p.ProcessId);
+    return windowsVitestProcesses(raw);
   }
   if (process.platform !== "linux") throw new Error("Test suites require Windows or Linux");
   const pids = [];

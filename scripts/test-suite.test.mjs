@@ -3,7 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import os from "node:os";
-import { spawn, spawnSync } from "node:child_process";
+import { spawn, spawnSync, execFileSync } from "node:child_process";
 import { createRequire } from "node:module";
 
 const root = path.dirname(fileURLToPath(import.meta.url));
@@ -29,6 +29,9 @@ assert.notEqual(verifyResult(file, 0, null, empty, log).status, "passed");
 const partial = report(); partial.numTotalTests = 2;
 assert.notEqual(verifyResult(file, 0, null, partial, log).status, "passed");
 assert.notEqual(verifyResult(file, 0, null, report(), log.replace("Tests  1 passed", "Tests  1 failed")).status, "passed");
+assert.notEqual(verifyResult(file, 0, null, report(), log.replace("Test Files  1 passed", "Test Files  1 failed")).status, "passed");
+const badName=report(); badName.testResults[0].name=123;
+assert.equal(verifyResult(file,0,null,badName,log).status,"failed");
 const skipped = report();
 skipped.numTotalTests = 3; skipped.numPendingTests = 1; skipped.numTodoTests = 1;
 skipped.testResults[0].assertionResults.push({fullName:"suite platform skip",status:"skipped",failureMessages:[]}, {fullName:"suite future",status:"todo",failureMessages:[]});
@@ -40,9 +43,17 @@ assert.notEqual(aggregate({ files: [file, "unfinished.test.ts"], attempts: [
 ] }).status, "passed");
 console.log("PASS: durable runner rejects incomplete suite and exit-zero partial evidence");
 
-const { acquire, reservationState, processIdentity, read } = await import("./test-suite-process.mjs");
+const { acquire, reservationState, processIdentity, read, windowsVitestProcesses } = await import("./test-suite-process.mjs");
 const { execute, status } = await import("./test-suite.mjs");
-const { fingerprinter } = await import("./test-suite-identity.mjs");
+const { fingerprinter, canonicalPath, childEnvironment } = await import("./test-suite-identity.mjs");
+assert.deepEqual(childEnvironment({Path:"native spelling",NODE_OPTIONS:"--max-old-space-size=8192",FORCE_COLOR:"1"}),
+  {Path:"native spelling",NODE_OPTIONS:"--max-old-space-size=1024",NO_COLOR:"1"});
+assert.deepEqual(windowsVitestProcesses('{"ProcessId":123,"CommandLine":"node scripts/test-suite.mjs"}',123),[]);
+assert.deepEqual(windowsVitestProcesses('{"ProcessId":123,"CommandLine":"node vitest.mjs"}',124),[123]);
+assert.deepEqual(windowsVitestProcesses('[]'),[]);
+assert.deepEqual(windowsVitestProcesses(''),[]);
+assert.deepEqual(windowsVitestProcesses('[{"ProcessId":123,"CommandLine":null}]',124),[123]);
+assert.throws(()=>windowsVitestProcesses('{"ProcessId":123}'),/Malformed/);
 const owner = { pid: 42, start: "first" }, child = { pid: 43, start: "second" };
 assert.equal(reservationState({ owner, phase: "running", child }, pid => pid === 43 ? child : null), "running");
 assert.equal(reservationState({ owner, phase: "launching" }, () => null), "unknown");
@@ -76,7 +87,7 @@ fs.writeFileSync(path.join(scratch, ".git", "config-extra"), "ignored journal");
 const enginePath = path.join(scratch, ".git", "engine.mjs");
 fs.writeFileSync(enginePath, `import fs from "node:fs"; import path from "node:path";
 const [mode, root, output, file] = process.argv.slice(2);
-if (mode === "discover") fs.writeFileSync(output, JSON.stringify([path.join(root,"a.test.ts"),path.join(root,"b.spec.tsx")]));
+if (mode === "discover") fs.writeFileSync(output, JSON.stringify(fs.readdirSync(root).filter(f=>/\\.(test|spec)\\.(ts|tsx)$/.test(f)).map(f=>path.join(root,f))));
 else {
   if (!process.execArgv.includes("--max-old-space-size=1024") || process.env.NODE_OPTIONS !== "--max-old-space-size=1024") throw Error("uncapped");
   console.log("started café");
@@ -155,6 +166,55 @@ assert.equal(resumed.attempts.filter(a => a.file?.endsWith("b.spec.tsx")).length
 assert.ok(fs.readFileSync(path.join(resumed.attempts.at(-1).directory, "output.log"), "utf8").includes("café"));
 console.log("PASS: resource caps, dirty/dependency identity, failure inventories, explicit retry, yielding, concurrency, orphan reconciliation and serial resume");
 
+const unknownDirectory=path.join(scratch,".git","unknown");
+fs.mkdirSync(unknownDirectory);
+const unknownRun={...resumed,directory:canonicalPath(unknownDirectory),active:true,owner,
+  attempts:[{...active,owner,child:null,status:"unknown",directory:path.join(canonicalPath(unknownDirectory),active.id)}]};
+fs.writeFileSync(path.join(unknownDirectory,"run.json"),JSON.stringify(unknownRun));
+const unknownStatus=status(unknownDirectory,{identify:()=>null,fingerprint:()=>{throw Error("unknown ownership must not verify identity");}});
+assert.equal(unknownStatus.status,"unknown");
+assert.equal(unknownStatus.identityChecked,false);
+
+// Same bytes, different index membership must invalidate reusable coverage.
+fs.writeFileSync(path.join(scratch,"c.test.ts"),"untracked test");
+const identityOptions={...options,fingerprint:undefined,directory:path.join(scratch,".git","membership")};
+assert.equal((await execute(identityOptions)).expected,2);
+const membershipBefore=fingerprinter()(scratch,[]);
+git("add","c.test.ts");
+assert.notEqual(fingerprinter()(scratch,[]),membershipBefore,"tracked membership contributes to identity");
+assert.equal(status(identityOptions.directory).status,"stale");
+await assert.rejects(execute(identityOptions),/identity changed/);
+
+const environmentDirectory=path.join(scratch,".git","environment");
+const flag="IMPOWER_TEST_SUITE_ENV_FIXTURE";
+const originalFlag=process.env[flag];
+try {
+  process.env[flag]="off";
+  const environmentBefore=fingerprinter()(scratch,[]);
+  assert.equal((await execute({...identityOptions,directory:environmentDirectory})).status,"passed");
+  process.env[flag]="on";
+  assert.notEqual(fingerprinter()(scratch,[]),environmentBefore,"forwarded environment contributes to identity");
+  assert.equal(status(environmentDirectory).status,"stale");
+  await assert.rejects(execute({...identityOptions,directory:environmentDirectory}),/identity changed/);
+} finally { if(originalFlag===undefined)delete process.env[flag]; else process.env[flag]=originalFlag; }
+
+// Exercise alias paths through the production API, including a not-yet-created
+// journal directory and resume. Windows additionally uses the real 8.3 spelling.
+const alias=path.join(path.dirname(scratch),path.basename(scratch)+"-alias");
+fs.symlinkSync(scratch,alias,process.platform==="win32"?"junction":"dir");
+assert.equal(canonicalPath(alias),canonicalPath(scratch));
+const aliasOptions={...options,packageRoot:alias,directory:path.join(alias,".git","alias-run")};
+assert.equal((await execute(aliasOptions)).status,"passed");
+assert.equal((await execute(aliasOptions)).status,"passed");
+if(process.platform==="win32") {
+  const short=execFileSync("powershell.exe",["-NoProfile","-NonInteractive","-Command","$f=New-Object -ComObject Scripting.FileSystemObject; $f.GetFolder($env:IMPOWER_ALIAS_FIXTURE).ShortPath"],{encoding:"utf8",windowsHide:true,env:{...process.env,IMPOWER_ALIAS_FIXTURE:scratch}}).trim();
+  assert.equal(canonicalPath(short),canonicalPath(scratch));
+  assert.equal((await execute({...options,packageRoot:short,directory:path.join(short,".git","short-run")})).status,"passed");
+  const single=execFileSync("powershell.exe",["-NoProfile","-NonInteractive","-Command","@([pscustomobject]@{ProcessId=123;CommandLine='node scripts/test-suite.mjs'}) | ConvertTo-Json -Compress"],{encoding:"utf8",windowsHide:true});
+  assert.deepEqual(windowsVitestProcesses(single,123),[]);
+}
+console.log("PASS: unknown aggregate status, contradictory file summaries, index-only changes, environment reuse refusal, path aliases and singleton Windows census");
+
 // The sparse tooling CI has no npm installation. The protocol/process fixtures
 // above always run; a full checkout additionally exercises the installed engine.
 let installed = false;
@@ -192,5 +252,12 @@ else {
   assert.ok(verified.attempts.filter(a=>a.mode==="run").every(a=>a.exit===0 && a.tests===3));
   assert.equal((await execute(realOptions)).status,"passed");
   assert.equal(status(realDirectory,{fingerprint:realOptions.fingerprint}).attempts.length,verified.attempts.length);
+  fs.writeFileSync(path.join(real,"vitest.workspace.ts"),'export default [{test:{name:"only-project",include:["src/**/*.{test,spec}.{ts,tsx}"],exclude:["**/excluded/**"]}}];');
+  realGit(["add","vitest.workspace.ts"]);
+  const workspaceDirectory=path.join(real,".git","workspace-run");
+  await assert.rejects(execute({...realOptions,directory:workspaceDirectory}),/Discovery failed/);
+  const workspaceAttempt=read(path.join(workspaceDirectory,"run.json")).attempts.at(-1);
+  assert.match(fs.readFileSync(path.join(workspaceAttempt.directory,"output.log"),"utf8"),/workspace\/browser\/typecheck\/pool-routing configurations are unsupported/);
   console.log("PASS: installed Vitest glob semantics, tracked-only TS/TSX test/spec, literal brackets, exact single-file execution, worker heap, skip inventory and resume");
+  console.log("PASS: an automatically discovered single-project workspace is refused");
 }
