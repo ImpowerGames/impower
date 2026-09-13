@@ -10,8 +10,9 @@ assert.match(unlinked, /reviewing a change with no linked issue/);
 assert.ok(!unlinked.includes("issue #"));
 assert.match(unlinked, /gh pr comment 521 --body-file/);
 for (const issue of [undefined, 0, -1, "none"]) assert.throws(() => buildReviewPrompt({ ...context, issue }), /Invalid issue/);
-assert.match(prompt, /I am running `writer-1`/);
-assert.match(prompt, /reviewer route is `reviewer-2`/);
+assert.match(prompt, /writer model is `writer-1`/);
+assert.match(prompt, /reviewer model is `reviewer-2`/);
+assert.doesNotMatch(prompt, /runtime identity|self-report|route mismatch|check the pin/i);
 assert.match(prompt, /gh pr comment 521 --body-file/);
 assert.ok(!/\b(?:WRITER|REVIEWER|REVDIR)\b/.test(prompt));
 for (const key of ["writer", "reviewer", "invocation"]) {

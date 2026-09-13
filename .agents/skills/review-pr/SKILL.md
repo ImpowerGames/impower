@@ -15,7 +15,7 @@ Use one undirected reviewer for minimal low-risk changes, two for standard produ
 
 The caller supplies concrete writer identity, distinct reviewer model route and supported launch method, plus any authorized fallback. Missing values block review; never select a default or invent an identity.
 
-Record configured route separately from runtime identity. An unavailable runtime identity alone does not abort; disclose configured-route evidence. A known match with the writer aborts before review. A runtime/requested-route mismatch stops the attempt for caller adjudication. Strip only context-window suffixes when comparing identities, not model versions. An abort is not a clean review.
+Use the configured writer and reviewer models to check independence. The launch arguments must select the configured reviewer model.
 
 ## 3. Launch and await
 
