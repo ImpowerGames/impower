@@ -120,12 +120,26 @@ await test("invalid plans and journals in either checkout fail before host use",
   assert.throws(() => validatePlan({ ...plan, continuationId: "bad marker" }, env), /marker/);
   const destination = path.join(scratch, "destination"); fs.mkdirSync(destination);
   for (const directory of [destination, worktree]) assert.throws(() => validatePlan({ ...plan, destinationCwd: destination, journal: path.join(directory, "journal.jsonl") }, env), /both worktrees/);
+  const ceiling = process.env.GIT_CEILING_DIRECTORIES;
+  process.env.GIT_CEILING_DIRECTORIES = scratch;
+  try { assert.throws(() => validatePlan({ ...plan, destinationCwd: destination }, env), error => /Cannot validate Git repository/.test(error.message) && error.message.includes(destination)); }
+  finally { if (ceiling === undefined) delete process.env.GIT_CEILING_DIRECTORIES; else process.env.GIT_CEILING_DIRECTORIES = ceiling; }
   const linked = path.join(scratch, "linked"); git("worktree", "add", "--detach", "--quiet", linked, "HEAD");
   const linkedPlan = { ...plan, worktree: linked, destinationCwd: linked };
   validatePlan(linkedPlan, env);
+  assert.throws(() => validatePlan({ ...plan, journal: path.join(linked, "journal.jsonl") }, env), /both worktrees/);
+  const nested = path.join(worktree, "nested"); fs.mkdirSync(nested);
+  assert.throws(() => validatePlan({ ...plan, worktree: nested, destinationCwd: nested, journal: path.join(worktree, "journal.jsonl") }, env), /both worktrees/);
   for (const directory of [worktree, path.join(worktree, ".git"), path.join(worktree, ".git", "worktrees", "linked")]) {
     assert.throws(() => validatePlan({ ...linkedPlan, journal: path.join(directory, "journal.jsonl") }, env), /both worktrees/);
   }
+  const separateMain = path.join(scratch, "separate-main"), separateStore = path.join(scratch, "separate-storage"), separateLinked = path.join(scratch, "separate-linked");
+  git("init", "--separate-git-dir", separateStore, separateMain);
+  git("-C", separateMain, "-c", "user.name=fixture", "-c", "user.email=fixture@example.invalid", "commit", "--allow-empty", "-m", "fixture");
+  git("-C", separateMain, "worktree", "add", "--detach", "--quiet", separateLinked, "HEAD");
+  assert.throws(() => validatePlan({ ...plan, worktree: separateLinked, destinationCwd: separateLinked, journal: path.join(separateMain, "journal.jsonl") }, env), /Cannot verify owning checkout|Journal must be outside both worktrees/);
+  const separateDeep = path.join(separateMain, "deep"); fs.mkdirSync(separateDeep);
+  assert.throws(() => validatePlan({ ...plan, worktree: separateDeep, destinationCwd: separateDeep, journal: path.join(separateMain, "journal.jsonl") }, env), /Cannot verify owning checkout|Journal must be outside both worktrees/);
 });
 await test("the wait bound blocks without submission and intent is flushed before send", async () => {
   let time = 0;
@@ -171,6 +185,14 @@ await test("reconciliation follows read cursors and never submits or rewrites ac
   await assert.rejects(reconcileProbe({ ...p, continuationId: "other-marker" }, host), /Journal/);
   const missing = { inspect: async () => ({ ...idle(), page: { order: "newest_first", hasMore: false } }) };
   await assert.rejects(reconcileProbe(p, missing), /uncertain/);
+  for (const atOrigin of [true, false]) {
+    let reads = 0;
+    await assert.rejects(reconcileProbe(p, { inspect: async () => {
+      assert.equal(++reads, 1, "read past the reconciliation boundary");
+      return { ...idle(), turns: [{ id: atOrigin ? plan.turnId : "unrelated-turn", status: "completed", items: [] }], page: { order: "newest_first", hasMore: atOrigin, nextCursor: "must-not-read" } };
+    } }), /uncertain/);
+    assert.equal(reads, 1);
+  }
   let pages = 0;
   await assert.rejects(reconcileProbe(p, { inspect: async () => ({ ...accepted(), turns: [], page: { order: "newest_first", hasMore: true, nextCursor: String(++pages) } }) }), /bounded read/);
   assert.equal(pages, 10);

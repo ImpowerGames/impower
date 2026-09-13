@@ -170,10 +170,18 @@ export function validatePlan(plan, env = process.env) {
   };
   for (const directory of directories) refuseContained(directory);
   for (const directory of [plan.worktree, plan.destinationCwd]) {
-    const git = args => execFileSync("git", args, { cwd: directory, encoding: "utf8", windowsHide: true });
-    directories.add(git(["rev-parse", "--path-format=absolute", "--git-common-dir"]).trim());
+    const git = args => {
+      try { return execFileSync("git", args, { cwd: directory, encoding: "utf8", windowsHide: true, stdio: ["ignore", "pipe", "pipe"] }); }
+      catch (error) { throw new Error(`Cannot validate Git repository for ${directory}: ${error.stderr?.trim() || error.message}`); }
+    };
+    const common = fs.realpathSync(git(["rev-parse", "--path-format=absolute", "--git-common-dir"]).trim());
+    directories.add(common);
     for (const field of git(["worktree", "list", "--porcelain", "-z"]).split("\0")) {
-      if (field.startsWith("worktree ") && fs.existsSync(field.slice(9))) directories.add(field.slice(9));
+      if (field.startsWith("worktree ") && fs.existsSync(field.slice(9))) {
+        const checkout = fs.realpathSync(field.slice(9));
+        if (checkout === common) throw new Error(`Cannot verify owning checkout for ${directory}: Git reports its storage as a worktree; this layout is unsupported`);
+        directories.add(checkout);
+      }
     }
   }
   for (const directory of directories) refuseContained(directory);
