@@ -50,7 +50,7 @@ Read [commit and publishing](references/publishing.md) before publishing. Stage 
 
 Check CI for the current head. For cancelled/timed-out runs, read [CI evidence](references/ci-evidence.md) and diagnose before rerunning or changing bounds; an unexplained cancellation is not a verified gate.
 
-Invoke `/review-pr` now (skill name `review-pr`). It owns reviewer counts, risk selection, correction rounds, recovery, and readiness. Do not mark ready before its gates pass; invoking it again does not reset the cycle count.
+Invoke `/review-pr` now (skill name `review-pr`). It owns reviewer counts, risk selection, correction rounds, recovery, and readiness. Do not mark ready before its gates pass; invoking it again does not reset the cycle count. The default autonomous review cap is three rounds; only an explicit user request may authorize the launcher to use a higher bounded limit.
 
 ## The completion gate
 
