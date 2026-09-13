@@ -6,17 +6,19 @@ import test from "node:test";
 const root = path.resolve(import.meta.dirname, "../..");
 const read = (relativePath) => fs.readFileSync(path.join(root, relativePath), "utf8");
 
-test("bug and feature filing publish and verify Effort through the shared procedure", () => {
+test("bug, feature and task filing publish and verify Effort through the shared procedure", () => {
   const sharedReference = ".agents/skills/references/issue-fields.md";
   const effort = read(sharedReference);
 
   for (const skillPath of [
     ".agents/skills/file-bug/SKILL.md",
     ".agents/skills/file-feature/SKILL.md",
+    ".agents/skills/file-task/SKILL.md",
   ]) {
     const skill = read(skillPath);
     assert.match(skill, /\.\.\/references\/issue-fields\.md/);
-    assert.match(skill, /assign(?:ing)? and (?:read(?:ing)?|verify(?:ing)?) back Effort/i);
+    assert.match(skill, /assign[\s\S]*Effort/i);
+    assert.match(skill, /read back[\s\S]*Effort/i);
     assert.match(skill, /same issue/i);
     assert.match(skill, /do not (?:create|file) a duplicate/i);
   }
