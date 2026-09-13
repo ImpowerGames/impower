@@ -16,7 +16,9 @@ Read each ticket's scope, evidence, dependencies and verification work. Use curr
 | Effort | Medium | Several interacting changes or a focused investigation need broader verification. |
 | Effort | High | New infrastructure, substantial uncertainty or coordination across multiple systems makes the work sizeable. |
 
-Effort includes reproduction, implementation, regression and platform verification; it is an estimate, not a time commitment. Recurrence informs Priority but does not determine it alone. Record a brief reason for each estimate, especially uncertainty or a changed existing value. Keep decisions in a separate private artifact, without adding unsupported properties to the triage plan. When filing needs approval, present the estimates with the proposed tickets and continue authorized inbox maintenance using `defer` groups.
+Effort includes reproduction, implementation, regression and platform verification; it is an estimate, not a time commitment. Record a concise rationale for the estimate and note meaningful uncertainty.
+
+When triaging the feedback inbox, recurrence informs Priority but does not determine it alone. Record a brief reason for each Priority estimate, especially a changed existing value. Keep triage decisions in a separate private artifact without adding unsupported properties to the triage plan. When filing needs approval, present the estimates with the proposed tickets and continue authorized inbox maintenance using `defer` groups.
 
 ## Publish and verify
 
@@ -26,7 +28,7 @@ Discover current IDs and options using:
 gh api -H "X-GitHub-Api-Version: 2026-03-10" orgs/ImpowerGames/issue-fields
 ```
 
-Resolve the exact `Priority` and `Effort` definitions and validate both are `single_select`. Read each target's current values and open state before editing. Populate missing fields on open `workflow: skills` work tickets and assign both on newly filed Tasks. Skip #510 and closed work; retain other existing values unless reassessment is authorized by the skill.
+Resolve the exact field definition needed by the calling workflow and validate that it is `single_select`. Read the target's current values and open state before editing.
 
 Write a JSON request with an editor. Its `issue_field_values` array contains only changed fields, each with the discovered integer `field_id` and the selected option name as `value`. If no changes are needed, skip the write. Use POST to preserve unrelated fields; an empty array clears all fields, and PUT replaces them.
 
@@ -35,7 +37,11 @@ gh api -X POST -H "X-GitHub-Api-Version: 2026-03-10" repos/ImpowerGames/impower/
 gh api -H "X-GitHub-Api-Version: 2026-03-10" repos/ImpowerGames/impower/issues/<number>/issue-field-values --paginate
 ```
 
-Verify `single_select_option.name` for each field. On uncertain publication, read before retrying and update the same issue. Retain pending values if access fails; do not rerun ticket creation to repair metadata. See GitHub's [issue field value API](https://docs.github.com/en/rest/issues/issue-field-values).
+Verify `single_select_option.name` for every assigned field before reporting publication complete. A body mention is not field assignment. If publication is uncertain or fails after issue creation, preserve the issue URL and pending value, report the incomplete step, and read before retrying. Repair the same issue; do not create a duplicate. Retain existing unrelated field values.
+
+For feedback triage only, populate missing Priority and Effort on open `workflow: skills` work tickets and assign both on newly filed Tasks. Skip #510 and closed work; retain other existing values unless reassessment is authorized by the triage skill.
+
+See GitHub's [issue field value API](https://docs.github.com/en/rest/issues/issue-field-values).
 
 ## Access setup, only when needed
 
