@@ -213,6 +213,14 @@ export function classifyRedFailure(output, { removed = [], launchError = null, e
   // prose: passing test names can deliberately describe "no tests found" while
   // a different test supplies the genuine assertion failure.
   if (/^\s*No test(?:s| files| suite) found\b[^\r\n]*$/im.test(output)) {
+    const summary = parseVitestSummary(output);
+    if (summary && VITEST_NO_TESTS_RE.test(summary)) return "notests";
+    // Test stdout can itself be the exact diagnostic phrase. A positive Tests
+    // count proves that vitest collected tests; without it, mixed assertion and
+    // no-test text has ambiguous provenance and cannot be accepted as a red.
+    if (testedDiagnostic) {
+      return summary && /(?:^|\/ )Tests\s+\d+\s+(?:passed|failed|skipped|todo)\b/.test(summary) ? "assertion" : "unknown";
+    }
     return "notests";
   }
   if (
