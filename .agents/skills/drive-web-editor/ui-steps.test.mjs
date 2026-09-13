@@ -553,6 +553,8 @@ await asyncCheck("scrubbing refuses playback modes and waits for the selected so
   game.launchState = "preview";
   const result = await liveDeps.clickLine(page, 2);
   assert.equal(result.cursorLine, 2);
+  assert.equal(result.x, 173);
+  assert.equal(result.y, 50);
   assert.equal(result.previousPosition.line, 0);
   assert.equal(result.position.line, 1);
   assert.equal(subscribers.size, 0);

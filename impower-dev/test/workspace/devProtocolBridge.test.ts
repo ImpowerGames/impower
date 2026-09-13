@@ -1,10 +1,42 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { sendProtocolMessage } from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
-import { createProtocolBridge } from "../../src/modules/spark-editor/workspace/devProtocolBridge";
+import { createProtocolBridge, installProtocolBridge } from "../../src/modules/spark-editor/workspace/devProtocolBridge";
 import { LoadedProjectIdMessage } from "@impower/spark-editor-protocol/src/protocols/window/LoadedProjectIdMessage";
 
-afterEach(() => vi.useRealTimers());
+afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); });
 describe("editor protocol transport", () => {
+  it("reconnects after losing ownership without replaying requests or leaking replies into the new socket", async () => {
+    vi.useFakeTimers();
+    const sockets: any[] = [];
+    class Socket {
+      static OPEN = 1;
+      readyState = 1;
+      onmessage: any;
+      onclose: any;
+      send = vi.fn();
+      close() { this.readyState = 3; this.onclose?.(); }
+      constructor() { sockets.push(this); }
+    }
+    vi.stubGlobal("WebSocket", Socket);
+    const dispose = installProtocolBridge();
+    try {
+      const first = sockets[0];
+      const pending = first.onmessage({ data: JSON.stringify({ jsonrpc: "2.0", id: "pending", method: "missing", params: {} }) });
+      first.close();
+      await vi.advanceTimersByTimeAsync(250);
+      expect(sockets).toHaveLength(2);
+      sendProtocolMessage({ jsonrpc: "2.0", id: "pending", result: "late" }, window);
+      await pending;
+      expect(sockets[1].send).not.toHaveBeenCalled();
+      await window.__editorProtocol!.send({ jsonrpc: "2.0", method: "changed", params: {} });
+      expect(sockets[1].send).toHaveBeenCalledTimes(1);
+      sockets[1].close();
+      dispose();
+      await vi.advanceTimersByTimeAsync(10_000);
+      expect(sockets).toHaveLength(2);
+      expect(window.__editorProtocol).toBeUndefined();
+    } finally { dispose(); }
+  });
   it("does not detach the caller's buffers when a worker takes ownership", async () => {
     const target = new EventTarget();
     target.addEventListener("jsonrpc", (event) => {

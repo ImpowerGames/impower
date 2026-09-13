@@ -6,6 +6,7 @@ export interface GameState {
   programLoaded: boolean;
   programVersion: number | null;
   launchState: "pause" | "play" | "preview" | null;
+  /** Source target of the last completed preview update; null while a selection is pending. */
   position: { uri: string; line: number } | null;
 }
 export class GameStateMessage {

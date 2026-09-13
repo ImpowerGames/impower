@@ -76,25 +76,42 @@ declare global {
 export function installProtocolBridge() {
   const bridge = createProtocolBridge(window);
   window.__editorProtocol = bridge;
-  const socket = new WebSocket(`${location.protocol === "https:" ? "wss:" : "ws:"}//${location.host}/__editor_protocol?role=editor`);
+  let socket: WebSocket;
+  let disposed = false;
+  let retry: ReturnType<typeof setTimeout> | undefined;
+  let delay = 250;
   const unsubscribe = bridge.subscribe((message) => {
     if (socket.readyState === WebSocket.OPEN) socket.send(stringifyProtocolJSON(message));
   });
-  socket.onmessage = async (event) => {
-    let message: any;
-    try {
-      message = parseProtocolJSON(event.data);
-      const result = await bridge.send(message);
-      if ("id" in message && socket.readyState === WebSocket.OPEN) {
-        socket.send(stringifyProtocolJSON({ jsonrpc: "2.0", id: message.id, result: result ?? null }));
+  const connect = () => {
+    if (disposed) return;
+    const connection = new WebSocket(`${location.protocol === "https:" ? "wss:" : "ws:"}//${location.host}/__editor_protocol?role=editor`);
+    socket = connection;
+    connection.onclose = () => {
+      if (disposed) return;
+      retry = setTimeout(connect, delay);
+      delay = Math.min(delay * 2, 5000);
+    };
+    connection.onmessage = async (event) => {
+      delay = 250;
+      let message: any;
+      try {
+        message = parseProtocolJSON(event.data);
+        const result = await bridge.send(message);
+        if ("id" in message && connection.readyState === WebSocket.OPEN) {
+          connection.send(stringifyProtocolJSON({ jsonrpc: "2.0", id: message.id, result: result ?? null }));
+        }
+      } catch (error) {
+        if (message && "id" in message && connection.readyState === WebSocket.OPEN) {
+          connection.send(stringifyProtocolJSON({ jsonrpc: "2.0", id: message.id, error: { code: -32603, message: String(error) } }));
+        }
       }
-    } catch (error) {
-      if (message && "id" in message && socket.readyState === WebSocket.OPEN) {
-        socket.send(stringifyProtocolJSON({ jsonrpc: "2.0", id: message.id, error: { code: -32603, message: String(error) } }));
-      }
-    }
+    };
   };
+  connect();
   return () => {
+    disposed = true;
+    clearTimeout(retry);
     unsubscribe();
     socket.close();
     bridge.dispose();

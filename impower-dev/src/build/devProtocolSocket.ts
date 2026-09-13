@@ -4,7 +4,8 @@ import { WebSocket, WebSocketServer } from "ws";
 
 /** One dev-server port names one editor session. No editor means no mutation. */
 export function attachDevProtocolSocket(server: Server) {
-  const sockets = new WebSocketServer({ noServer: true, maxPayload: 32 * 1024 * 1024 });
+  // A supported 256 MiB asset occupies about 342 MiB after base64 framing.
+  const sockets = new WebSocketServer({ noServer: true, maxPayload: 384 * 1024 * 1024 });
   let editor: WebSocket | undefined;
   const clients = new Set<WebSocket>();
   const pending = new Map<string, { client: WebSocket; id: string | number; timer: ReturnType<typeof setTimeout> }>();
@@ -33,11 +34,11 @@ export function attachDevProtocolSocket(server: Server) {
       socket.end("HTTP/1.1 403 Forbidden\r\nConnection: close\r\n\r\n");
       return;
     }
-    if (role === "editor" && editor?.readyState === WebSocket.OPEN) {
-      socket.end("HTTP/1.1 409 Conflict\r\nConnection: close\r\n\r\n");
-      return;
-    }
     sockets.handleUpgrade(request, socket, head, (ws) => {
+      if (role === "editor" && editor?.readyState === WebSocket.OPEN) {
+        ws.close(1013, "Another editor owns this session");
+        return;
+      }
       if (role === "editor") editor = ws;
       else clients.add(ws);
       ws.on("error", () => ws.close());

@@ -5,6 +5,7 @@ import {
   sendProtocolMessage,
 } from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
 import { ConnectedPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/ConnectedPreviewMessage";
+import { DidSelectTextDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/DidSelectTextDocumentMessage";
 import { GameStateMessage, DidChangeGameStateMessage, type GameState } from "@impower/spark-editor-protocol/src/protocols/preview/GameStateMessage";
 import { Game } from "@impower/spark-engine/src/game/core/classes/Game";
 import { ContinueGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/ContinueGameMessage";
@@ -129,6 +130,8 @@ export class GamePlayerController {
   _debugging = false;
   _program?: SparkProgram;
   private _mounted = false;
+  private _previewPosition: GameState["position"] = null;
+  private _selectionVersion = 0;
   private _launchState: GameState["launchState"] = null;
   /** Counts the preview updates, so one that another overtakes while it
    *  waits can tell (`updatePreview`). */
@@ -241,6 +244,8 @@ export class GamePlayerController {
 
   dispose(): void {
     this._mounted = false;
+    this._previewPosition = null;
+    this._selectionVersion++;
     this._launchState = null;
     this.publishGameState();
     this._protocols.dispose();
@@ -331,7 +336,7 @@ export class GamePlayerController {
       programLoaded: this._mounted && this._program != null && this._launchState != null,
       programVersion: this._program?.version ?? null,
       launchState: this._launchState,
-      position: this._options?.startFrom ? { uri: this._options.startFrom.file, line: this._options.startFrom.line } : null,
+      position: this._previewPosition,
     };
   }
 
@@ -712,6 +717,13 @@ export class GamePlayerController {
       this.host,
     );
     p.onRequest(GameStateMessage.type, (m) => GameStateMessage.type.response(m.id, this.getGameState()), this.host);
+    p.onNotification(DidSelectTextDocumentMessage.type, (m) => {
+      if (m.params.userEvent) {
+        this._selectionVersion++;
+        this._previewPosition = null;
+        this.publishGameState();
+      }
+    });
   }
 
   protected handleEnterGameFullscreenMode = async (
@@ -748,6 +760,7 @@ export class GamePlayerController {
       };
       this._options ??= {};
       this._options.startFrom = startFrom;
+      this._previewPosition = null;
       this.publishGameState();
       this._checkpoint = checkpoint;
       this._simulationFailure = simulationFailure;
@@ -787,6 +800,11 @@ export class GamePlayerController {
     this._options ??= {};
     if (this._options.startFrom?.file === textDocument.uri) {
       this._options.startFrom = undefined;
+    }
+    if (this._previewPosition?.uri === textDocument.uri || !this._options.startFrom) {
+      this._previewPosition = null;
+      this._selectionVersion++;
+      this.publishGameState();
     }
   };
 
@@ -1597,6 +1615,12 @@ export class GamePlayerController {
     }
 
     const previewFrom = { file, line };
+    const selectionVersion = this._selectionVersion;
+    const publishAppliedPosition = () => {
+      if (selectionVersion !== this._selectionVersion) return;
+      this._previewPosition = { uri: file, line };
+      this.publishGameState();
+    };
     const previewPath = findClosestPath(
       previewFrom,
       Object.entries(program.pathLocations ?? {}),
@@ -1649,6 +1673,12 @@ export class GamePlayerController {
       this._game.previewedPath === validPreviewPath &&
       !programChanged
     ) {
+      // The engine records previewedPath before its image gate settles.
+      // Repeating that path returns the same pending promise; await it too.
+      const game = this._game;
+      const update = this._previewUpdates;
+      await game.preview(validPreviewFrom.file, validPreviewFrom.line);
+      if (game === this._game && update === this._previewUpdates) publishAppliedPosition();
       return;
     }
 
@@ -1757,5 +1787,6 @@ export class GamePlayerController {
     // has now been dispatched, so sweep whatever wasn't re-emitted — elements
     // that disappeared since the last edit.
     this._app?.ui.sweepReconcile();
+    publishAppliedPosition();
   };
 }

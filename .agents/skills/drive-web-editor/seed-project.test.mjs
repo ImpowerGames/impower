@@ -192,6 +192,13 @@ function stubGlobals(storage, { remembered = null } = {}) {
       if (method === "window/loadedProjectId") return { id: remembered || "local" };
       if (method === "workspace/unzipFiles") return JSON.parse(Buffer.from(params.data).toString()).map(([filename, encoded]) => ({ filename, data: Uint8Array.from(Buffer.from(encoded, "base64")).buffer }));
       if (method === "workspace/readFile") return (await (await fileHandle(params.file.uri, false)).file.getFile()).arrayBuffer();
+      if (method === "workspace/willDeleteFiles") {
+        for (const item of params.files) {
+          const { dir, name } = await fileHandle(item.uri, false);
+          await dir.removeEntry(name);
+        }
+        return [];
+      }
       if (method === "workspace/willCreateFiles") {
         for (const item of params.files) {
           let existed = false;
@@ -563,6 +570,7 @@ await check("a write that reads back short is a reason, counts only the bytes th
   await withStub({ shortWrite: { "chars.sd": 3 } }, async ({ page }) => {
     const report = await seedProject(page, fixture);
     assert.deepEqual(report.failed, [{ path: "scripts/chars.sd", reason: "wrote 23 bytes but the file reads back as 3" }]);
+    assert.equal(await readBack(page, "scripts/chars.sd"), null, "a new file failing readback must be removed");
     assert.equal(report.files, 3);
     assert.equal(report.bytes, totalBytes - files["scripts/chars.sd"].length);
     assert.match(report.reason, /1 of 4 project files could not be written/);

@@ -1049,17 +1049,42 @@ async function writeProjectBatch({ project, entries, archive }) {
   const data = Uint8Array.from(atob(archive), (char) => char.charCodeAt(0)).buffer;
   const files = await send("workspace/unzipFiles", { data });
   const written = [], failed = [];
+  const existedBefore = async (filename) => {
+    try {
+      let directory = await navigator.storage.getDirectory();
+      const parts = [project, ...filename.split("/")];
+      const name = parts.pop();
+      for (const part of parts) directory = await directory.getDirectoryHandle(part, { create: false });
+      await directory.getFileHandle(name, { create: false });
+      return true;
+    } catch (error) {
+      if (error.name === "NotFoundError") return false;
+      throw error;
+    }
+  };
   for (const { filename, data } of files) {
     const expected = entries.find((entry) => entry.path === filename);
     if (!expected) throw new Error("Archive returned an unexpected file: " + filename);
     const uri = "file://" + project + "/" + filename;
+    let existed = true, acknowledged = false;
     try {
-      const size = data.byteLength;
-      await send("workspace/willCreateFiles", { files: [{ uri, data }] });
+      existed = await existedBefore(filename);
+      const originalSize = data.byteLength;
+      const created = await send("workspace/willCreateFiles", { files: [{ uri, data }] });
+      acknowledged = true;
+      // Imports can normalize SVG labels. Verify the acknowledged stored size,
+      // while retaining the input size for hosts that omit optional metadata.
+      const size = created.find(file => file.uri === uri)?.size ?? originalSize;
       const readBack = await send("workspace/readFile", { file: { uri } });
       if (readBack.byteLength !== size) throw new Error(`wrote ${size} bytes but the file reads back as ${readBack.byteLength}`);
       written.push({ path: filename, bytes: readBack.byteLength });
     } catch (error) {
+      // Only roll back a confirmed new write. A timed-out mutation may still
+      // be in flight; the worker owns cleanup of definite write failures.
+      if (!existed && acknowledged) {
+        try { await send("workspace/willDeleteFiles", { files: [{ uri }], mode: "permanent" }); }
+        catch (cleanupError) { error = new Error(`${String(error)}; cleanup failed: ${String(cleanupError)}`); }
+      }
       failed.push({ path: filename, reason: error.name && error.name !== "Error" ? `${error.name}: ${error.message}` : String(error.message || error) });
     }
   }
@@ -1548,8 +1573,9 @@ async function clickLine(page, line) {
   await protocolNotify(page, "editor/select", { textDocument: { uri: editor.textDocument.uri }, range, takeFocus: true, scrollIntoView: "center" });
   await protocolNotify(page, "textDocument/didSelect", { textDocument: { uri: editor.textDocument.uri }, selectedRange: range, docChanged: false, userEvent: true, hasFocus: true });
   const selected = await waitForProtocolState(page, "preview/gameState", "preview/didChangeGameState", "position", 30_000, { uri: editor.textDocument.uri, line: clamped - 1 });
-  const after = await protocolRequest(page, "editor/read");
-  return { clicked: true, line: clamped, totalLines: lines.length, cursorLine: after.selection.start.line + 1, previousPosition: state.position, position: selected.position };
+  const after = await protocolRequest(page, "editor/read", { textDocument: { uri: editor.textDocument.uri }, position: range.start });
+  const coordinates = after.coordinates;
+  return { clicked: true, line: clamped, totalLines: lines.length, cursorLine: after.selection.start.line + 1, x: coordinates ? coordinates.left + 1 : null, y: coordinates ? (coordinates.top + coordinates.bottom) / 2 : null, previousPosition: state.position, position: selected.position };
 }
 
 // Subscribe before reading state so a mount between the two cannot be lost.

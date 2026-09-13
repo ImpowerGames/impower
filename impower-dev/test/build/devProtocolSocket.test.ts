@@ -25,6 +25,28 @@ async function host() {
   return { origin, connect };
 }
 const read = (socket: WebSocket) => once(socket, "message").then(([data]) => JSON.parse(data.toString()));
+it("forwards binary responses larger than the former 32 MiB frame limit", async () => {
+  const { connect } = await host();
+  const editor = await connect("editor"), client = await connect("client");
+  const request = read(editor);
+  client.send(JSON.stringify({ jsonrpc: "2.0", id: "large", method: "workspace/readFile", params: {} }));
+  const forwarded = await request;
+  const response = read(client);
+  const encoded = Buffer.alloc(25 * 1024 * 1024, 42).toString("base64");
+  editor.send(JSON.stringify({ jsonrpc: "2.0", id: forwarded.id, result: { $sparkBuffer: encoded } }));
+  expect((await response).result.$sparkBuffer).toBe(encoded);
+  expect(editor.readyState).toBe(WebSocket.OPEN);
+});
+
+it("keeps the owning editor when a second tab connects", async () => {
+  const { connect } = await host();
+  const editor = await connect("editor"), second = await connect("editor");
+  const [code] = await once(second, "close");
+  expect(code).toBe(1013);
+  const client = await connect("client"), request = read(editor);
+  client.send(JSON.stringify({ jsonrpc: "2.0", id: 1, method: "read", params: {} }));
+  expect((await request).method).toBe("read");
+});
 it("returns a useful error when no editor is connected", async () => {
   const { connect } = await host();
   const client = await connect("client");
