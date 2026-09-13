@@ -234,7 +234,11 @@ else {
   fs.writeFileSync(path.join(real,".gitignore"),"node_modules/\n");
   fs.writeFileSync(path.join(real,"vitest.config.ts"),'import {defineConfig} from "vitest/config"; export default defineConfig({test:{include:["src/**/*.{test,spec}.{ts,tsx}"],exclude:["**/excluded/**"]}});');
   fs.mkdirSync(path.join(real,"src","excluded"),{recursive:true});
-  const testSource='import {it,expect} from "vitest"; import v8 from "node:v8"; it("bounded",()=>{expect(v8.getHeapStatistics().heap_size_limit).toBeLessThan(1100*1024*1024);expect(process.execArgv.join(" ")).toContain("max-old-space-size=1024");}); it.skip("platform skip",()=>{}); it.todo("future");';
+  // Total V8 heap includes a runtime/platform-dependent young generation. Pin
+  // the worker to a fresh process using the same repository old-space cap.
+  const expectedHeapLimit=Number(execFileSync(process.execPath,["--max-old-space-size=1024","-e","process.stdout.write(String(require('node:v8').getHeapStatistics().heap_size_limit))"],{encoding:"utf8",windowsHide:true,env:childEnvironment()}));
+  assert.ok(Number.isSafeInteger(expectedHeapLimit) && expectedHeapLimit>0);
+  const testSource=`import {it,expect} from "vitest"; import v8 from "node:v8"; it("bounded",()=>{expect(v8.getHeapStatistics().heap_size_limit).toBe(${expectedHeapLimit});expect(process.execArgv.join(" ")).toContain("max-old-space-size=1024");}); it.skip("platform skip",()=>{}); it.todo("future");`;
   for(const file of ["one.test.ts","two.spec.tsx","bracket[1].test.ts","excluded/ignored.spec.tsx"]) fs.writeFileSync(path.join(real,"src",file),testSource);
   realGit(["add","."]);
   fs.writeFileSync(path.join(real,"src","untracked.test.ts"),testSource);
