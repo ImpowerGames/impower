@@ -31,7 +31,9 @@
 // Node's built-in assert only.
 
 import assert from "node:assert/strict";
-import { editorAbsentReason, editorGate, switchScreen } from "./driver.mjs";
+import vm from "node:vm";
+import crypto from "node:crypto";
+import { editorAbsentReason, editorGate, switchScreen, waitForEditor, focusEditor } from "./driver.mjs";
 
 let failures = 0;
 const check = async (name, fn) => {
@@ -46,6 +48,53 @@ const check = async (name, fn) => {
 };
 
 const page = {};
+await check("editor readiness survives loading after the first request without DOM access", async () => {
+  let listener, ready = false, reads = 0;
+  const context = vm.createContext({ crypto, setTimeout, clearTimeout, Date, window: { __editorProtocol: {
+    subscribe(fn) { listener = fn; return () => { listener = null; }; },
+    send: async () => {
+      reads++;
+      if (!ready) throw new Error("No editor yet");
+      return { textDocument: { uri: "file:///main.sd", version: 1, text: "hello" } };
+    },
+  } } });
+  const pending = waitForEditor({
+    waitForFunction: async () => {},
+    evaluate: async (fn, arg) => vm.runInContext(`(${fn})`, context)(arg),
+  }, 1000);
+  pending.catch(() => {});
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  ready = true;
+  listener?.({ method: "editor/didLoad" });
+  await pending;
+  assert.equal(reads, 2);
+  assert.equal(listener, null);
+});
+await check("readiness times out and removes its subscription when no editor answers", async () => {
+  let listener;
+  const context = vm.createContext({ crypto, setTimeout, clearTimeout, Date, window: { __editorProtocol: {
+    subscribe(fn) { listener = fn; return () => { listener = null; }; },
+    send: () => new Promise(() => {}),
+  } } });
+  await assert.rejects(waitForEditor({
+    waitForFunction: async () => {},
+    evaluate: async (fn, arg) => vm.runInContext(`(${fn})`, context)(arg),
+  }, 20), /readiness deadline/);
+  assert.equal(listener, null);
+});
+await check("focusing preserves the protocol selection without accessing CodeMirror", async () => {
+  const selection = { start: { line: 1, character: 2 }, end: { line: 2, character: 3 } };
+  const messages = [];
+  const context = vm.createContext({ crypto, window: { __editorProtocol: {
+    send: async (message) => {
+      messages.push(message);
+      return { textDocument: { uri: "file://local/main.sd" }, selection };
+    },
+  } } });
+  await focusEditor({ waitForFunction: async () => {}, evaluate: async (fn, arg) => vm.runInContext(`(${fn})`, context)(arg) });
+  assert.equal(messages[1].method, "editor/select");
+  assert.deepEqual(JSON.parse(JSON.stringify(messages[1].params)), { textDocument: { uri: "file://local/main.sd" }, range: selection, takeFocus: true });
+});
 const MAIN_TAB = { screen: "logic", panelTab: "main" };
 const SCRIPTS_TAB = { screen: "logic", panelTab: "scripts" };
 const ASSETS = { screen: "assets", panelTab: "files" };
@@ -207,8 +256,7 @@ await check("a page that never mounts a pane is told to re-run, not to switch sc
 
 // A page on the logic screen with the main tab selected and no script editor
 // mounted, answering by the source of the function it is handed. The
-// editor-presence wait (the only waitForFunction that reads cmTile) rejects,
-// as Playwright's does on timeout; everything else answers at once.
+// protocol readiness wait rejects; everything else answers at once.
 const editorlessLogicPage = () => ({
   // The budgets the editor-presence wait was given, so a case can pin that
   // the switch waited the number its message names.
@@ -216,14 +264,14 @@ const editorlessLogicPage = () => ({
   locator: () => ({ first: () => ({ waitFor: async () => {}, click: async () => {} }) }),
   async waitForFunction(fn, _arg, opts) {
     const src = String(fn);
-    if (src.includes("cmTile")) {
-      this.waited.push(opts?.timeout);
-      throw new Error(`Timeout ${opts?.timeout}ms exceeded`);
-    }
     return true;
   },
-  evaluate: async (fn) => {
+  async evaluate(fn, arg) {
     const src = String(fn);
+    if (src.includes('method: "editor/read"')) {
+      this.waited.push(arg.timeout);
+      throw new Error("Editor readiness deadline exceeded");
+    }
     if (src.includes("MutationObserver")) return true; // waitForDomQuiet
     if (src.includes("Object.entries(screens)")) return ["logic"]; // mountedScreens
     if (src.includes('["logic", "assets", "share"]')) return "main"; // the selected inner tab
@@ -244,7 +292,8 @@ await check("a --screen logic whose editor never mounts is a note only when --sc
   assert.equal(paired.reason, undefined);
   assert.match(paired.note, /the logic tab is up but no script editor mounted within 20s; the --screen main that follows waits for it$/);
   // The switch waited the budget its note names.
-  assert.deepEqual(page.waited, [20_000]);
+  assert.equal(page.waited.length, 1);
+  assert.ok(page.waited[0] > 19_000 && page.waited[0] <= 20_000);
   const alone = await switchScreen(editorlessLogicPage(), "logic", { followedByMain: false });
   assert.equal(alone.note, undefined);
   assert.match(alone.reason, /the logic tab is up but no script editor mounted within 20s\. Re-run; if it persists the machine is saturated$/);

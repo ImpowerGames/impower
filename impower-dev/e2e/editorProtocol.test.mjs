@@ -6,7 +6,7 @@ import { once } from "node:events";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { withEditor, openEditorPage, resolveChromiumExecutablePath, seedProject, languageSurface, shotOf } from "../../.agents/skills/drive-web-editor/driver.mjs";
+import { withEditor, openEditorPage, resolveChromiumExecutablePath, seedProject, languageSurface, shotOf, waitForEditor, focusEditor } from "../../.agents/skills/drive-web-editor/driver.mjs";
 
 function socketRequest(socket, id, method, params = {}) {
   return new Promise((resolve, reject) => {
@@ -28,7 +28,8 @@ function socketRequest(socket, id, method, params = {}) {
 test("open, settle, hover, and read through both editor protocol transports", { timeout: 180_000 }, async () => {
   await withEditor(async ({ page, url }) => {
     await openEditorPage(page, url);
-    await page.waitForFunction(() => window.__editorProtocol != null, null, { timeout: 90_000 });
+    assert.ok((await waitForEditor(page)).textDocument.uri);
+    await focusEditor(page);
     const fixture = fs.mkdtempSync(path.join(os.tmpdir(), "impower-protocol-project-"));
     const png = await page.evaluate(() => {
       const canvas = document.createElement("canvas");
@@ -48,7 +49,7 @@ test("open, settle, hover, and read through both editor protocol transports", { 
     assert.equal(seeded.files, 36);
     // Match the driver: reload immediately, before waiting for any cache work.
     await page.reload({ waitUntil: "domcontentloaded" });
-    await page.waitForFunction(() => window.__editorProtocol != null);
+    assert.ok((await waitForEditor(page)).textDocument.uri);
     assert.ok(await page.evaluate(async () => {
       const cache = await caches.open("asset-thumbnails");
       return (await cache.keys()).some(key => key.url.includes("/local/zz.png?thumb="));

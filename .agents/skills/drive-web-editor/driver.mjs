@@ -1571,12 +1571,29 @@ async function waitForProtocolState(page, method, notification, field, timeout, 
 }
 
 async function waitForEditor(page, timeout = 90_000) {
-  await page.waitForSelector(".sparkdown-script-editor-root .cm-content", { timeout });
-  await page.waitForFunction(
-    () => document.querySelector(".sparkdown-script-editor-root .cm-content")?.cmTile?.view != null,
-    null,
-    { timeout },
-  );
+  const deadline = Date.now() + timeout;
+  await waitForProtocol(page, timeout);
+  return page.evaluate(({ timeout }) => new Promise((resolve, reject) => {
+    const bridge = window.__editorProtocol;
+    const deadline = Date.now() + timeout;
+    let done = false;
+    const finish = (value, error) => {
+      if (done) return;
+      done = true;
+      clearTimeout(timer);
+      unsubscribe();
+      if (error) reject(error); else resolve(value);
+    };
+    const read = () => {
+      if (done) return;
+      bridge.send({ jsonrpc: "2.0", id: crypto.randomUUID(), method: "editor/read", params: {} }, Math.max(1, deadline - Date.now()))
+        .then((editor) => { if (editor?.textDocument?.uri) finish(editor); }, () => {});
+    };
+    // Subscribe before reading so a mount between those operations is not lost.
+    const unsubscribe = bridge.subscribe((message) => { if (message.method === "editor/didLoad") read(); });
+    const timer = setTimeout(() => finish(null, new Error("Editor did not answer editor/read before the readiness deadline")), timeout);
+    read();
+  }), { timeout: Math.max(1, deadline - Date.now()) });
 }
 
 // Scrub through the same selection notifications the editor sends to the player.
@@ -2228,7 +2245,8 @@ async function pressKey(page, combo) {
 
 /** Focus the CodeMirror view so editor-scoped keymap bindings receive keys. */
 async function focusEditor(page) {
-  await page.evaluate(() => document.querySelector(".sparkdown-script-editor-root .cm-content")?.cmTile?.view?.focus());
+  const editor = await protocolRequest(page, "editor/read");
+  await protocolNotify(page, "editor/select", { textDocument: { uri: editor.textDocument.uri }, range: editor.selection, takeFocus: true });
 }
 
 /** Resolve while the DOM has been still for `quiet` ms, or give up at `timeout`. */
@@ -2287,7 +2305,7 @@ async function scriptEditorPresent(page, timeout = 10_000) {
   const screenNow = await activeScreen(page);
   const budget = screenNow != null && screenNow !== "logic" ? 500 : timeout;
   try {
-    await page.waitForFunction(() => document.querySelector(".sparkdown-script-editor-root .cm-content")?.cmTile?.view != null, null, { timeout: budget });
+    await waitForEditor(page, budget);
     return { present: true };
   } catch {
     const screen = await activeScreen(page);
@@ -2683,9 +2701,7 @@ async function switchScreen(page, name, { followedByMain = false } = {}) {
     const known = await page.evaluate(() => [...document.querySelectorAll('[role="tab"]')].map((t) => t.id.replace(/^.*-trigger-/, "")));
     // The logic pane's fullscreen scripts view has no tab row at all; the
     // way back is its own header button, which `ui` has no step for.
-    const inScriptsView = await page.evaluate(
-      () => document.querySelector(".sparkdown-script-editor-root .cm-content") != null && document.querySelector('[role="tab"][id$="-trigger-main"]') == null,
-    );
+    const inScriptsView = !known.includes("main") && await protocolRequest(page, "editor/read", {}, 500).then(() => true, () => false);
     if (inScriptsView && (name === "main" || name === "scripts")) {
       return { screen: name, active: false, reason: `the logic pane is in its fullscreen scripts view (another file is open), which has no tab row; close that file with the view's own header button, then re-run` };
     }
@@ -2731,7 +2747,7 @@ async function switchScreen(page, name, { followedByMain = false } = {}) {
   const mountBudget = MOUNT_BUDGET_MS;
   const editorHere = landsOnEditor
     ? (await scriptEditorPresent(page, mountBudget)).present
-    : await page.evaluate(() => document.querySelector(".sparkdown-script-editor-root .cm-content") != null);
+    : await protocolRequest(page, "editor/read", {}, 500).then(() => true, () => false);
   if (landsOnEditor && !editorHere) {
     // The tab is up but the editor it should carry never mounted: a switch
     // that reads as a success here would let a later screenshot lie. In the
@@ -2772,10 +2788,8 @@ async function readSurfaces(page) {
   // Which script editor is on screen: the `main` tab's, or the logic pane's
   // fullscreen scripts view (another file open, no tab row). --sd writes
   // main.sd, which in the second case is not the file being shown.
-  out.editorView = await page.evaluate(() => {
-    if (!document.querySelector(".sparkdown-script-editor-root .cm-content")) return null;
-    return document.querySelector('[role="tab"][id$="-trigger-main"]') ? "main" : "scripts-view";
-  });
+  const editor = await protocolRequest(page, "editor/read", {}, 500).catch(() => null);
+  out.editorView = editor ? await page.evaluate(() => document.querySelector('[role="tab"][id$="-trigger-main"]') ? "main" : "scripts-view") : null;
 
   if (await surfaceOpen(page, "find")) {
     out.find = {
@@ -2791,7 +2805,7 @@ async function readSurfaces(page) {
   if (await surfaceOpen(page, "goto")) {
     out.goto = { open: true, line: await readField(page, "line") };
   }
-  out.cursorLine = out.editorView ? await protocolRequest(page, "editor/read").then((r) => r.selection.start.line + 1, () => null) : null;
+  out.cursorLine = editor ? editor.selection.start.line + 1 : null;
   return out;
 }
 
