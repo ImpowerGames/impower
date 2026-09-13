@@ -1,12 +1,12 @@
 // @vitest-environment node
 import { createServer } from "node:http";
 import { once } from "node:events";
-import { afterEach, expect, it } from "vitest";
-import { WebSocket } from "ws";
+import { afterEach, expect, it, vi } from "vitest";
+import { WebSocket, WebSocketServer } from "ws";
 import { attachDevProtocolSocket } from "../../src/build/devProtocolSocket";
 
 const cleanup: (() => void)[] = [];
-afterEach(() => { for (const fn of cleanup.splice(0).reverse()) fn(); });
+afterEach(() => { for (const fn of cleanup.splice(0).reverse()) fn(); vi.restoreAllMocks(); });
 async function host() {
   const server = createServer();
   const dispose = attachDevProtocolSocket(server);
@@ -25,6 +25,31 @@ async function host() {
   return { origin, connect };
 }
 const read = (socket: WebSocket) => once(socket, "message").then(([data]) => JSON.parse(data.toString()));
+it("retains a closing owner until its pending requests have been failed", async () => {
+  const accepted: WebSocket[] = [];
+  const upgrade = WebSocketServer.prototype.handleUpgrade;
+  vi.spyOn(WebSocketServer.prototype, "handleUpgrade").mockImplementation(function(request, socket, head, callback) {
+    upgrade.call(this, request, socket, head, (ws, request) => { accepted.push(ws); callback(ws, request); });
+  });
+  const { connect } = await host();
+  const editor = await connect("editor"), client = await connect("client");
+  const request = read(editor), response = read(client);
+  client.send(JSON.stringify({ jsonrpc: "2.0", id: "closing", method: "write", params: {} }));
+  await request;
+  // Hold the server-side handshake before its close event, without a timer race.
+  (accepted[0] as any)._readyState = WebSocket.CLOSING;
+  const replacement = await connect("editor");
+  const code = await Promise.race([
+    once(replacement, "close").then(([code]) => code),
+    new Promise(resolve => setTimeout(() => resolve(null), 100)),
+  ]);
+  expect(code).toBe(1013);
+  accepted[0].terminate();
+  expect((await response).error.message).toContain("outcome may be unknown");
+  const next = await connect("editor");
+  expect(next.readyState).toBe(WebSocket.OPEN);
+});
+
 it("forwards binary responses larger than the former 32 MiB frame limit", async () => {
   const { connect } = await host();
   const editor = await connect("editor"), client = await connect("client");

@@ -35,7 +35,8 @@ export function attachDevProtocolSocket(server: Server) {
       return;
     }
     sockets.handleUpgrade(request, socket, head, (ws) => {
-      if (role === "editor" && editor?.readyState === WebSocket.OPEN) {
+      // Keep ownership through CLOSING until the close handler settles its work.
+      if (role === "editor" && editor) {
         ws.close(1013, "Another editor owns this session");
         return;
       }

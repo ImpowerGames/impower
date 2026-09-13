@@ -7,7 +7,7 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-async function worker({ existing = true, fail = "", acquire = async () => {}, remove = async () => {}, thumbnail: thumbnailGate = undefined as Promise<void> | undefined } = {}) {
+async function worker({ existing = true, fail = "", acquire = async () => {}, remove = async (_name: string) => {}, thumbnail: thumbnailGate = undefined as Promise<void> | undefined } = {}) {
   vi.resetModules();
   vi.useFakeTimers();
   const messages: any[] = [];
@@ -15,7 +15,7 @@ async function worker({ existing = true, fail = "", acquire = async () => {}, re
   let exists = existing;
   let locked = false;
   const close = vi.fn(() => { locked = false; });
-  const removeEntry = vi.fn(async () => { await remove(); exists = false; });
+  const removeEntry = vi.fn(async (name: string) => { await remove(name); exists = false; });
   const thumbnails: string[] = [];
   if (thumbnailGate) {
     vi.stubGlobal("createImageBitmap", async () => { await thumbnailGate; return { width: 2, height: 2, close() {} }; });
@@ -121,6 +121,17 @@ it("returns an asynchronous deletion failure without broadcasting success", asyn
   expect(await h.request("delete", "workspace/willDeleteFiles", { files: [{ uri: "file://local/main.sd" }] })).toMatchObject({ error: { message: "locked" } });
   expect(h.exists()).toBe(true);
   expect(h.messages.some(message => message.method === "workspace/didDeleteFiles")).toBe(false);
+});
+
+it("notifies successful deletions when another file in the batch fails", async () => {
+  const h = await worker({ remove: async name => { if (name === "b.sd") throw new DOMException("b is locked", "NoModificationAllowedError"); } });
+  await h.send("a", [1], "file://local/a.sd");
+  await h.send("b", [2], "file://local/b.sd");
+  const before = h.messages.length;
+  expect(await h.request("mixed", "workspace/willDeleteFiles", { files: [{ uri: "file://local/a.sd" }, { uri: "file://local/b.sd" }] })).toMatchObject({ error: { message: "b is locked" } });
+  const notifications = h.messages.slice(before).filter(message => !message.id);
+  expect(notifications).toContainEqual(expect.objectContaining({ method: "workspace/didDeleteFiles", params: { files: [{ uri: "file://local/a.sd" }] } }));
+  expect(notifications).toContainEqual(expect.objectContaining({ method: "workspace/didChangeWatchedFiles", params: { changes: [{ uri: "file://local/a.sd", type: 3 }] } }));
 });
 
 it("returns a failed import instead of leaving the request pending, and releases its lock", async () => {

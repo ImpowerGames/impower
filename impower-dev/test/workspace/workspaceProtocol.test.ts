@@ -35,6 +35,13 @@ it("answers fresh diagnostics and hover on the shared bus and forwards imports t
     }
     workspace.fs.createFiles.mockRejectedValueOnce(new Error("quota"));
     await expect(send("workspace/willCreateFiles", { files: [] })).rejects.toThrow("quota");
+    for (const [method, handler] of [
+      ["workspace/willCreateFiles", workspace.fs.createFiles],
+      ["workspace/willDeleteFiles", workspace.fs.deleteFiles],
+    ] as const) {
+      handler.mockRejectedValueOnce({ code: -32603, message: "storage is locked", data: { uri: "file://local/main.sd" } });
+      await expect(send(method, { files: [] })).rejects.toMatchObject({ message: "storage is locked", code: -32603, data: { uri: "file://local/main.sd" } });
+    }
   } finally {
     bridge.dispose();
     dispose();

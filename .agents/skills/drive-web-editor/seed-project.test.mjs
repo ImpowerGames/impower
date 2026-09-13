@@ -795,6 +795,13 @@ await check("reading a large file back returns every byte", async () => {
   });
 });
 
+await check("ZIP entries with colliding normalized paths are refused", () => {
+  const b = (s) => new Uint8Array(Buffer.from(s));
+  for (const alias of ["./main.sd", ".\\main.sd", "././main.sd"]) {
+    assert.throws(() => zipProjectEntries({ "main.sd": b("A"), [alias]: b("B") }), /duplicate.*main\.sd/i);
+  }
+});
+
 await check("zip entries: directory, dot and ./ segments dropped, a single wrapping folder unwrapped and named only when it holds main.sd, an escaping path, a package directory and a file-directory clash refused", () => {
   const b = (s) => new Uint8Array(Buffer.from(s));
   const plain = zipProjectEntries({ "main.sd": b("m"), "assets/": new Uint8Array(0), "assets/a.png": b("a"), ".name": b("x"), "__MACOSX/._main.sd": b("y") });
@@ -848,6 +855,18 @@ try {
   /* not installed here */
 }
 if (fflate) {
+  await check("a ZIP path collision leaves existing storage untouched", async () => {
+    const zipPath = path.join(scratch, "duplicate-paths.zip");
+    fs.writeFileSync(zipPath, fflate.zipSync({ "main.sd": new Uint8Array([65]), "./main.sd": new Uint8Array([66]) }));
+    await withStub({}, async ({ page, tree }) => {
+      await previousProject(page, { "main.sd": "previous" });
+      const report = await seedProject(page, zipPath);
+      assert.match(report.reason, /duplicate.*main\.sd/i);
+      assert.equal(report.storage, "untouched");
+      assert.equal((await readBack(page, "main.sd")).toString(), "previous");
+      assert.deepEqual(entryNames(tree, "local"), ["main.sd"]);
+    });
+  });
   await check("an exported zip seeds the same files as the directory it was made from, a zip's on-disk size is checked before it is read, and a zip without main.sd keeps its single top-level folder under --sd", async () => {
     const archive = {};
     for (const f of walkProjectDir(fixture).files) archive[f.path] = new Uint8Array(f.bytes);

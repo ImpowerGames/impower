@@ -104,6 +104,9 @@ test("open, settle, hover, and read through both editor protocol transports", { 
       const fileResponse = await socketRequest(socket, "socket-file", "workspace/readFile", { file: { uri: "file://local/assets/zz.png" } });
       assert.ok(fileResponse.result, JSON.stringify(fileResponse));
       assert.deepEqual(Buffer.from(fileResponse.result.$sparkBuffer, "base64"), Buffer.from(png, "base64"));
+      const missing = await socketRequest(socket, "missing-file", "workspace/readFile", { file: { uri: "file://local/does-not-exist.txt" } });
+      assert.ok(missing.error?.message);
+      assert.doesNotMatch(missing.error.message, /\[object Object\]/, "the real worker's failure reason must reach the socket client");
       const observer = new WebSocket(`${url.replace("http:", "ws:")}/__editor_protocol?role=client`);
       const echoed = [];
       const receive = bytes => { const message = JSON.parse(bytes.toString()); if (message.method === "test/noEffect") echoed.push(message); };
@@ -138,7 +141,7 @@ test("open, settle, hover, and read through both editor protocol transports", { 
       do {
         response = await socketRequest(takeover, "takeover", "window/loadedProjectId");
         if (response.result) break;
-        assert.equal(response.error.message, "No editor connected");
+        assert.ok(["No editor connected", "Editor disconnected; request outcome may be unknown"].includes(response.error.message), response.error.message);
         await new Promise(resolve => setTimeout(resolve, 100));
       } while (Date.now() < deadline);
       assert.deepEqual(response.result, result.project);

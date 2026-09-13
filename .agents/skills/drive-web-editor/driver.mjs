@@ -855,6 +855,7 @@ function zipEntryPath(name) {
 // directory of one name is refused, because no filesystem can hold both.
 export function zipProjectEntries(archive) {
   let entries = [];
+  const paths = new Set();
   let skipped = 0;
   let unwrapped;
   let kept;
@@ -862,6 +863,8 @@ export function zipProjectEntries(archive) {
     const read = zipEntryPath(name);
     if (read.skipped) skipped += 1;
     if (read.path == null) continue;
+    if (paths.has(read.path)) throw new Error(`the zip holds duplicate normalized path "${read.path}"`);
+    paths.add(read.path);
     entries.push({ path: read.path, bytes });
   }
   const dirs = new Set();

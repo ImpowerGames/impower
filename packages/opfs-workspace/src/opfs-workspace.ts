@@ -299,28 +299,27 @@ onmessage = async (e) => {
       // hard-removing them; everything else (bundle/sync diff-deletes, the
       // default) permanently removes. Either way the broadcasts below describe
       // only the originals leaving their project location.
-      const deletedFiles =
-        mode === "trash"
-          ? await moveFilesToTrash(files)
-          : await deleteFiles(files);
-      const response = WillDeleteFilesMessage.type.response(
-        message.id,
-        deletedFiles.filter((d): d is FileData => d != null),
-      );
-      respond(response);
-      broadcast(
-        DidDeleteFilesMessage.type.notification({
-          files,
-        }),
-      );
-      broadcast(
-        DidChangeWatchedFilesMessage.type.notification({
-          changes: files.map((file) => ({
-            uri: file.uri,
-            type: FileChangeType.Deleted,
-          })),
-        }),
-      );
+      let removed = files;
+      let deletedFiles;
+      let failure: PromiseRejectedResult | undefined;
+      if (mode === "trash") {
+        deletedFiles = await moveFilesToTrash(files);
+      } else {
+        // Each removal is independent: publish every actual deletion even if
+        // another path fails, and wait for all outcomes before answering.
+        const outcomes = await Promise.allSettled(files.map(file => deleteFiles([file])));
+        removed = files.filter((_file, index) => outcomes[index]?.status === "fulfilled");
+        deletedFiles = outcomes.flatMap(outcome => outcome.status === "fulfilled" ? outcome.value : []);
+        failure = outcomes.find((outcome): outcome is PromiseRejectedResult => outcome.status === "rejected");
+      }
+      if (removed.length) {
+        broadcast(DidDeleteFilesMessage.type.notification({ files: removed }));
+        broadcast(DidChangeWatchedFilesMessage.type.notification({
+          changes: removed.map(file => ({ uri: file.uri, type: FileChangeType.Deleted })),
+        }));
+      }
+      if (failure) throw failure.reason;
+      respond(WillDeleteFilesMessage.type.response(message.id, deletedFiles.filter((d): d is FileData => d != null)));
     } catch (err: any) {
       console.error(err, err.stack);
       const response = WillDeleteFilesMessage.type.error(message.id, {
