@@ -1,6 +1,6 @@
 ---
 name: notify-user
-description: Supplement the normal chat handoff with a generic notification for users who connected an optional notifier. Used by resolve-issue, file-bug and file-feature when work finishes or needs user input or help.
+description: Supplement the normal chat handoff with a generic notification for users who connected an optional notifier. Used by resolve-issue, file-bug, file-feature and file-task when work finishes or needs user input or help.
 ---
 
 # Notify the user
