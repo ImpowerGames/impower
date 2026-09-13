@@ -504,6 +504,8 @@ const serve = async () => {
   });
 
   const PORT = Number(process.env["PORT"] || 8080);
+  const { attachDevProtocolSocket } = await import("./src/build/devProtocolSocket");
+  attachDevProtocolSocket(app.server);
   await app.listen({ port: PORT, host: process.env["HOST"] || "localhost" });
   console.log(FINISHED_COLOR, `Server ready at http://localhost:${PORT}`);
 };

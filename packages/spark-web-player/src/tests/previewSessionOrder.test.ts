@@ -69,6 +69,63 @@ function controllerWith(game: any, app: any) {
 }
 
 describe("preview session ordering", () => {
+  test("publishes the selected position only after a delayed preview settles", async () => {
+    const calls: string[] = [];
+    const game = recordingGame(calls);
+    let finish!: () => void;
+    game.preview = () => new Promise<void>((resolve) => { finish = resolve; });
+    const controller: any = controllerWith(game, stubApp(calls));
+    const states: any[] = [];
+    controller.host.addEventListener("jsonrpc", (event: CustomEvent) => {
+      if (event.detail.method === "preview/didChangeGameState") states.push(event.detail.params);
+    });
+    const updating = controller.handleSelectedCompilerDocument({ params: {
+      textDocument: { uri: PROGRAM.uri }, selectedRange: { start: { line: 4 } },
+      userEvent: true, checkpoint: "SAVE",
+    } });
+    await Promise.resolve();
+    expect(finish).toBeTypeOf("function");
+    expect(controller.getGameState().position).toBeNull();
+    expect(states.every(state => state.position === null)).toBe(true);
+    finish();
+    await updating;
+    expect(states.at(-1).position).toEqual({ uri: PROGRAM.uri, line: 4 });
+    expect(calls.at(-1)).toBe("sweepReconcile");
+    await controller.handleRemovedCompilerFile({ params: { textDocument: { uri: PROGRAM.uri } } });
+    expect(states.at(-1).position).toBeNull();
+    expect(controller.getGameState().position).toBeNull();
+  });
+
+  test("a repeated selection invalidates its old completed position before the compiler replies", async () => {
+    const controller: any = controllerWith(recordingGame([]), stubApp([]));
+    controller.registerProtocolHandlers();
+    try {
+      await controller.updatePreview(PROGRAM, PROGRAM.uri, 4, "SAVE");
+      expect(controller.getGameState().position).toEqual({ uri: PROGRAM.uri, line: 4 });
+      window.dispatchEvent(new CustomEvent("jsonrpc", { detail: {
+        jsonrpc: "2.0", method: "textDocument/didSelect", params: {
+          textDocument: { uri: PROGRAM.uri }, selectedRange: { start: { line: 4 }, end: { line: 4 } }, userEvent: true, docChanged: false,
+        },
+      } }));
+      expect(controller.getGameState().position).toBeNull();
+    } finally { controller._protocols.dispose(); }
+  });
+
+  test("a repeated path still waits for the engine's pending image gate", async () => {
+    const game = recordingGame([]);
+    game.program = PROGRAM;
+    game.previewedPath = "0.0";
+    let finish!: () => void;
+    game.preview = () => new Promise<void>(resolve => { finish = resolve; });
+    const controller = controllerWith(game, stubApp([]));
+    const updating = controller.updatePreview(PROGRAM, PROGRAM.uri, 4, "SAVE");
+    expect(finish).toBeTypeOf("function");
+    expect(controller.getGameState().position).toBeNull();
+    finish();
+    await updating;
+    expect(controller.getGameState().position).toEqual({ uri: PROGRAM.uri, line: 4 });
+  });
+
   test("marks the path the remembered point resolves to now, not the one it resolved to before", async () => {
     // The cursor sits in a file the program does not know, so the controller
     // keeps the game's remembered point (main.sd line 4). The program has

@@ -27,6 +27,8 @@ import { SetEditorPinpointsMessage } from "@impower/spark-editor-protocol/src/pr
 import { DidCollapsePreviewPaneMessage } from "@impower/spark-editor-protocol/src/protocols/window/DidCollapsePreviewPaneMessage";
 import { DidExpandPreviewPaneMessage } from "@impower/spark-editor-protocol/src/protocols/window/DidExpandPreviewPaneMessage";
 import { ShowDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/window/ShowDocumentMessage";
+import { LoadedProjectIdMessage } from "@impower/spark-editor-protocol/src/protocols/window/LoadedProjectIdMessage";
+import { DidOpenFileEditorMessage } from "@impower/spark-editor-protocol/src/protocols/window/DidOpenFileEditorMessage";
 import { ApplyWorkspaceEditMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/ApplyWorkspaceEditMessage";
 import {
   EditorState,
@@ -103,6 +105,12 @@ export default class WorkspaceWindow {
   // Response — a forgotten `return` is a compile error — and the reply is sent
   // automatically), `onProtocolMessage` for notifications.
   protected registerProtocolHandlers() {
+    onProtocolRequest(LoadedProjectIdMessage.type, (m) =>
+      LoadedProjectIdMessage.type.response(m.id, { id: Workspace.fs.getLoadedProjectId() }),
+    );
+    onProtocolMessage(DidOpenFileEditorMessage.type, (m) =>
+      this.openFileEditor(m.params.filename),
+    );
     onProtocolRequest(ShowDocumentMessage.type, (m) =>
       this.handleShowDocument(m),
     );

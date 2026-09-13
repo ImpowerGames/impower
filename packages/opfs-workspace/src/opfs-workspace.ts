@@ -109,7 +109,8 @@ abstract class State {
       handler: (uri: string) => void;
       version: number;
       buffer: DataView | Uint8Array;
-      listeners: ((result: { file: FileData; created: boolean }) => void)[];
+      writing?: boolean;
+      listeners: { resolve(result: { file: FileData; created: boolean }): void; reject(error: unknown): void }[];
     }
   >();
   static files = new Map<string, FileData>();
@@ -298,28 +299,27 @@ onmessage = async (e) => {
       // hard-removing them; everything else (bundle/sync diff-deletes, the
       // default) permanently removes. Either way the broadcasts below describe
       // only the originals leaving their project location.
-      const deletedFiles =
-        mode === "trash"
-          ? await moveFilesToTrash(files)
-          : await deleteFiles(files);
-      const response = WillDeleteFilesMessage.type.response(
-        message.id,
-        deletedFiles.filter((d): d is FileData => d != null),
-      );
-      respond(response);
-      broadcast(
-        DidDeleteFilesMessage.type.notification({
-          files,
-        }),
-      );
-      broadcast(
-        DidChangeWatchedFilesMessage.type.notification({
-          changes: files.map((file) => ({
-            uri: file.uri,
-            type: FileChangeType.Deleted,
-          })),
-        }),
-      );
+      let removed = files;
+      let deletedFiles;
+      let failure: PromiseRejectedResult | undefined;
+      if (mode === "trash") {
+        deletedFiles = await moveFilesToTrash(files);
+      } else {
+        // Each removal is independent: publish every actual deletion even if
+        // another path fails, and wait for all outcomes before answering.
+        const outcomes = await Promise.allSettled(files.map(file => deleteFiles([file])));
+        removed = files.filter((_file, index) => outcomes[index]?.status === "fulfilled");
+        deletedFiles = outcomes.flatMap(outcome => outcome.status === "fulfilled" ? outcome.value : []);
+        failure = outcomes.find((outcome): outcome is PromiseRejectedResult => outcome.status === "rejected");
+      }
+      if (removed.length) {
+        broadcast(DidDeleteFilesMessage.type.notification({ files: removed }));
+        broadcast(DidChangeWatchedFilesMessage.type.notification({
+          changes: removed.map(file => ({ uri: file.uri, type: FileChangeType.Deleted })),
+        }));
+      }
+      if (failure) throw failure.reason;
+      respond(WillDeleteFilesMessage.type.response(message.id, deletedFiles.filter((d): d is FileData => d != null)));
     } catch (err: any) {
       console.error(err, err.stack);
       const response = WillDeleteFilesMessage.type.error(message.id, {
@@ -805,13 +805,14 @@ const enqueueWrite = async (
   fileUri: string,
   version: number,
   buffer: DataView | Uint8Array,
+  immediate = false,
 ) => {
   if (/\.svg$/i.test(fileUri)) {
     const source = new TextDecoder().decode(buffer);
     const normalized = normalizeSVGAttributeNames(source);
     if (normalized !== source) buffer = new TextEncoder().encode(normalized);
   }
-  return new Promise<{ file: FileData; created: boolean }>((resolve) => {
+  return new Promise<{ file: FileData; created: boolean }>((resolve, reject) => {
     if (!State.writeQueue.get(fileUri)) {
       State.writeQueue.set(fileUri, {
         buffer,
@@ -823,22 +824,24 @@ const enqueueWrite = async (
     const entry = State.writeQueue.get(fileUri);
     entry!.buffer = buffer;
     entry!.version = version;
-    entry!.listeners.push(resolve);
-    entry!.handler(fileUri);
+    entry!.listeners.push({ resolve, reject });
+    if (immediate) void write(fileUri);
+    else entry!.handler(fileUri);
   });
 };
 
 // Generation runs one image at a time so a bulk import (hundreds of files at
 // once) doesn't fire hundreds of concurrent decodes.
-let thumbnailChain: Promise<unknown> = Promise.resolve();
+let thumbnailChain: Promise<void> = Promise.resolve();
 
-const enqueueThumbnail = (fileUri: string): void => {
+const enqueueThumbnail = (fileUri: string): Promise<void> => {
   if (!THUMBNAILS_SUPPORTED || !RASTER_IMAGE_REGEX.test(fileUri)) {
-    return;
+    return Promise.resolve();
   }
   thumbnailChain = thumbnailChain
     .then(() => generateThumbnail(fileUri))
     .catch(() => undefined);
+  return thumbnailChain;
 };
 
 const generateThumbnail = async (fileUri: string): Promise<void> => {
@@ -912,30 +915,38 @@ const writeFiles = async (
 const write = async (fileUri: string) => {
   console.log(MAGENTA, "WRITE", fileUri);
   const queued = State.writeQueue.get(fileUri)!;
+  if (queued.writing || !queued.listeners.length) return;
+  queued.writing = true;
   const buffer = queued.buffer;
   const version = queued.version;
-  const listeners = queued.listeners;
-  const root = await navigator.storage.getDirectory();
+  const listeners = queued.listeners.splice(0);
   const relativePath = getPathFromUri(fileUri);
   const directoryPath = getParentPath(relativePath);
   const filename = getFileName(relativePath);
-  const directoryHandle = await getDirectoryHandleFromPath(root, directoryPath);
+  let directoryHandle: FileSystemDirectoryHandle | undefined;
+  let syncAccessHandle: FileSystemSyncAccessHandle | undefined;
   let created = false;
   try {
-    await directoryHandle.getFileHandle(filename, { create: false });
-  } catch (err) {
-    // File does not exist yet
-    created = true;
-  }
-  try {
+    const root = await navigator.storage.getDirectory();
+    directoryHandle = await getDirectoryHandleFromPath(root, directoryPath);
+    let missing = false;
+    try {
+      await directoryHandle.getFileHandle(filename, { create: false });
+    } catch (err) {
+      if ((err as DOMException).name !== "NotFoundError") throw err;
+      missing = true;
+    }
     const fileHandle = await directoryHandle.getFileHandle(filename, {
       create: true,
     });
-    const syncAccessHandle = await fileHandle.createSyncAccessHandle();
+    created = missing;
+    syncAccessHandle = await fileHandle.createSyncAccessHandle();
     syncAccessHandle.truncate(0);
-    syncAccessHandle.write(buffer, { at: 0 });
+    const written = syncAccessHandle.write(buffer, { at: 0 });
+    if (written !== buffer.byteLength) throw new Error(`Wrote ${written} of ${buffer.byteLength} bytes`);
     syncAccessHandle.flush();
     syncAccessHandle.close();
+    syncAccessHandle = undefined;
     const arrayBuffer = buffer.buffer as ArrayBuffer;
     // A fresh write happened now — stamp the modified time accordingly.
     const file = updateFileCache(fileUri, arrayBuffer, true, version, Date.now());
@@ -943,15 +954,24 @@ const write = async (fileUri: string) => {
     // (the URLs panel/preview) get the right media kind on first notification.
     await enrichUrlAssetType(fileUri);
     const notifyFile = State.files.get(fileUri) ?? file;
+    // Import completion must survive an immediate page/worker reload.
+    await enqueueThumbnail(fileUri);
     listeners.forEach((l) => {
-      l({ file: notifyFile, created });
+      l.resolve({ file: notifyFile, created });
     });
-    queued.listeners = [];
-    // Warm this image's thumbnail in the background (fire-and-forget) so the
-    // file list never decodes art at scroll time.
-    enqueueThumbnail(fileUri);
   } catch (err: any) {
-    console.error(err, filename, fileUri, err.stack);
+    let failure = err;
+    try {
+      syncAccessHandle?.close();
+      if (created) await directoryHandle?.removeEntry(filename);
+    } catch (cleanupError) {
+      failure = new Error(`${String(err)}; cleanup failed: ${String(cleanupError)}`);
+    }
+    listeners.forEach((listener) => listener.reject(failure));
+  } finally {
+    queued.writing = false;
+    // Writes queued during an awaited operation own a separate completion.
+    if (queued.listeners.length) queued.handler(fileUri);
   }
 };
 
@@ -959,7 +979,8 @@ const createFiles = async (files: (FileCreate & { data?: ArrayBuffer })[]) => {
   const result = await Promise.all(
     files.map(async (file) => {
       const buffer = new DataView(file.data ?? new ArrayBuffer());
-      return enqueueWrite(file.uri, 0, buffer);
+      // Explicit file creation/import is not a stream of incremental edits.
+      return enqueueWrite(file.uri, 0, buffer, true);
     }),
   );
   return result;
@@ -1176,7 +1197,7 @@ const deleteFiles = async (files: { uri: string }[]) => {
         root,
         directoryPath,
       );
-      directoryHandle.removeEntry(getFileName(relativePath));
+      await directoryHandle.removeEntry(getFileName(relativePath));
       const existingFile = State.files.get(file.uri);
       if (existingFile) {
         URL.revokeObjectURL(existingFile.src);

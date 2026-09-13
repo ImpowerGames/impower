@@ -356,7 +356,7 @@ export default class WorkspaceFileSystem {
     return this._files;
   }
 
-  protected async readDirectoryFiles(
+  async readDirectoryFiles(
     params: ReadDirectoryFilesParams,
   ): Promise<FileData[]> {
     return this.sendRequest(ReadDirectoryFilesMessage.type, params);

@@ -15,6 +15,8 @@ import { ChangedEditorHighlightsMessage } from "@impower/spark-editor-protocol/s
 import { ChangedEditorPinpointsMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ChangedEditorPinpointsMessage";
 import { ConnectedEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ConnectedEditorMessage";
 import { FocusedEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/FocusedEditorMessage";
+import { ReadEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ReadEditorMessage";
+import { DidLoadEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/DidLoadEditorMessage";
 import {
   HideEditorStatusBarMessage,
   HideEditorStatusBarMethod,
@@ -284,6 +286,26 @@ export class ScriptEditorController {
     });
 
     // Requests (handler must return the message's Response; replied on host).
+    p.onRequest(ReadEditorMessage.type, async (message) => {
+      const view = this._view;
+      const uri = this._textDocument?.uri;
+      if (!view || !uri || (message.params.textDocument && message.params.textDocument.uri !== uri)) return;
+      const position = message.params.position;
+      let coordinates = null;
+      if (position) {
+        if (!Number.isInteger(position.line) || !Number.isInteger(position.character) || position.line < 0 || position.line >= view.state.doc.lines || position.character < 0 || position.character > view.state.doc.line(position.line + 1).length) {
+          return ReadEditorMessage.type.error(message.id, { code: -32602, message: "Position outside document" });
+        }
+        const offset = view.state.doc.line(position.line + 1).from + position.character;
+        coordinates = await new Promise<ReturnType<EditorView["coordsAtPos"]>>((resolve) => view.requestMeasure({ read: () => view.coordsAtPos(offset), write: resolve }));
+      }
+      if (this._view !== view) return ReadEditorMessage.type.error(message.id, { code: -32000, message: "Editor replaced during read" });
+      return ReadEditorMessage.type.response(message.id, {
+        textDocument: { uri, version: getDocumentVersion(view.state), text: view.state.doc.toString() },
+        selection: { start: convertToPosition(view.state.doc, view.state.selection.main.from), end: convertToPosition(view.state.doc, view.state.selection.main.to) },
+        coordinates,
+      });
+    }, this.host);
     p.onRequest(
       LoadEditorMessage.type,
       (m) => this.handleLoadEditor(m),
@@ -336,6 +358,7 @@ export class ScriptEditorController {
     if (this._loadingRequest.id === message.id) {
       const params = message.params;
       this.loadTextDocument(params);
+      sendProtocolMessage(DidLoadEditorMessage.type.notification({ textDocument: { uri: params.textDocument.uri, version: params.textDocument.version } }), this.host);
     }
     return LoadEditorMessage.type.response(message.id, {});
   };
