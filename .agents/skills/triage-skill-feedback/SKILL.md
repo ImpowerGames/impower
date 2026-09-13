@@ -23,7 +23,7 @@ Before interpreting counted, historical, recurring or archived records, read [re
 
 Before editing groups, read [group actions](references/groups.md). Edit only groups using an editor. Assign every open key once; weigh severity and recurrence without treating a count as a filing threshold. Verify existing targets and duplicate candidates. Applied means a committed, pushed edit on the named PR, not a proposed fix.
 
-Before estimating tickets, read [Priority, Effort and issue-field access](references/issue-fields.md). Assess every proposed Task and missing fields on open `workflow: skills` work tickets; keep the values and rationale beside the private plan. Include estimates when presenting ticket proposals. Assigning these fields is part of authorized triage and needs no separate confirmation.
+Before estimating tickets, read [Priority, Effort and issue-field access](../references/issue-fields.md). Assess every proposed Task and missing fields on open `workflow: skills` work tickets; keep the values and rationale beside the private plan. Include estimates when presenting ticket proposals. Assigning these fields is part of authorized triage and needs no separate confirmation.
 
 ```sh
 node .agents/skills/triage-skill-feedback/triage-skill-feedback.mjs preview <absolute-private-plan.json>
