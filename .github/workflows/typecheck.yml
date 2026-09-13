@@ -65,6 +65,11 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # The sparse tooling matrix exercises process/evidence fixtures without
+      # npm. This existing full-install job also exercises the installed engine.
+      - name: Verify installed test-suite runner
+        run: node scripts/test-suite.test.mjs
+
       # Grammar node names written as string literals where the type system
       # cannot see them: lookups on untyped lezer nodes, `.getChild("...")`,
       # and comparisons on values typed as plain strings. See the script's

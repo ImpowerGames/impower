@@ -4,7 +4,7 @@ For the experimental originating-task capability investigation, see [continuatio
 
 ## Headless serial sessions
 
-The caller supplies exact models, executable paths and argument arrays. Inspect the installed CLI help before launch; available options and served models can differ by installation. A configured model is routing evidence, not independent runtime introspection. Preserve the runtime self-report and disclose when the harness cannot attest it.
+The caller supplies exact models, executable paths and argument arrays. Inspect the installed CLI help before launch; available options and served models can differ by installation.
 
 ### Claude review agents
 

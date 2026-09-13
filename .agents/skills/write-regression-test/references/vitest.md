@@ -1,56 +1,40 @@
 # Run Vitest safely
 
-All commands run from the worktree root unless stated otherwise.
+Commands run from the worktree root unless stated otherwise.
 
-## Running vitest safely
+## Package verification
 
-This monorepo has OOM'd and hard-crashed this machine, so every run is capped, and the machine's capacity is shared with the other sessions running in their own worktrees. The resource rule: at most one vitest run at a time, a 1 GB heap and one fork. Check for existing runs and wait for exit before starting any run. Never run uncapped. On Windows, inspect processes through PowerShell:
+Use the repository-owned runner:
 
-```powershell
-Get-CimInstance Win32_Process -Filter "Name='node.exe'" | Where-Object { $_.CommandLine -like '*vitest*' } | Select-Object ProcessId
+```text
+node scripts/test-suite.mjs start packages/sparkdown
+node scripts/test-suite.mjs status <printed-run-directory>
+node scripts/test-suite.mjs resume <printed-run-directory>
+node scripts/test-suite.mjs resume <printed-run-directory> --retry src/tests/example.test.ts
 ```
 
-Single file:
+`start` prints its run directory and coordinator identity before discovery. It asks the installed Vitest to discover configured includes/excludes using Vitest's own glob semantics, intersects those paths with Git's tracked inventory, rejects an empty manifest, and executes each file separately. Stage new tests first. Supported inputs are single Node test packages containing test/spec TS and TSX files, including files outside `src/tests`. Workspace, browser, typecheck and per-file pool-routing configurations are refused; use the individual package configuration. Configured test semantics remain in force.
+
+Every child runs with a heap capped at 1024 MB, one fork and no file parallelism. A machine-wide reservation coordinates participating worktrees; the runner also checks for other Vitest/tinypool processes before launching. Direct invocations do not acquire that reservation and must never be launched alongside a suite. Process-table access failures and ambiguous reservations block execution. Recovery never kills processes.
+
+Keep the complete command-tool result, including session ID and exit status. If the tool yields a session ID, poll that same session until its exit is confirmed; do not forward only its output text. A yield or missing output is neither a timeout nor a pass. Use `status` from another command to read durable progress. Identity checks can take time on a large installation; execution prints progress while scanning.
+
+Each run lives under the worktree's Git directory, outside source discovery. `run.json` saves the manifest and attempts. Each attempt has an independent UTF-8 `output.log`, `vitest.json` and atomically updated `attempt.json`, with PID, OS start identity, actual exit status and signal when observed. Test caches also live there. `summary.json` compares the latest attempts with every manifest file and retains exact failed-test names/messages, skipped/todo names and incomplete files. Prior attempts remain available, including after an explicit failed-file retry. Do not concatenate logs through shell encoding conversions.
+
+Only complete, matching text and structured results with a successful observed child exit can pass. Missing summaries, worker crashes, zero executed tests, malformed/partial reports, failed assertions and missing files fail verification even when an exit code is zero. A suite with unfinished files is incomplete. Read the summary and the relevant attempt logs before reporting counts.
+
+`resume` keeps verified completed results, retries unfinished attempts after process reconciliation, and retries failed files only when explicitly listed after `--retry`. An alive coordinator or child prevents duplicate execution. An absent child whose coordinator never observed exit is interrupted, not passed, even if it left a JSON report. Unknown ownership blocks recovery. Inspect the named reservation and journal; preserve ambiguous records for manual investigation rather than deleting locks or signalling unrelated processes. The shared reservation is under `%ProgramData%/Impower/test-suite` on Windows and `/var/tmp/impower-test-suite` on Linux; both platforms are supported. A transaction interrupted while creating/recovering ownership leaves a guard that also requires inspection.
+
+Reusable evidence is tied to tracked and untracked working-tree file contents, including ignored assets and configuration, Git tracked-file membership, the saved manifest, the forwarded child environment, Node version/platform, and installed dependency metadata (paths, link targets, sizes, modification/change times, modes and file identities). Ignored files are included because tests or configuration can read them; edits to generated code, local configuration or output artifacts can conservatively invalidate a run too. Environment values enter only the digest and are never saved in logs or journals; changing the environment requires a fresh run rather than mixing results from different configurations. This supports dirty worktrees and conservatively invalidates the whole run when inputs change. Source hashes are cached only within a coordinator by filesystem change metadata. Dependency metadata avoids re-reading large installed binaries on every status check, including installations beside ignored package manifests. Git state directories, generated caches and Vite's timestamped config bundles are excluded. A changed identity requires `start` to create a fresh run; old evidence is retained. Avoid modifying inputs during verification. Results do not attest to externally changed services or dependencies whose content and all filesystem identity metadata have been deliberately restored.
+
+For baseline comparison, start separate runs on the base and fix, confirm identical file manifests, and compare exact failure inventories. Equal failure totals are insufficient. Include actual file/test totals, failure names, skips and incomplete attempts in the PR.
+
+## Single-file red/green reproduction
+
+The snapshot/restoration driver still accepts a direct single-file command. Check existing Vitest processes and the suite reservation first, then keep the heap and fork caps:
 
 ```bash
-cd packages/sparkdown && NODE_OPTIONS="--max-old-space-size=1024" npx vitest run src/tests/compiler/constDeclarationValidity.test.ts --pool=forks --poolOptions.forks.minForks=1 --poolOptions.forks.maxForks=1
+cd packages/sparkdown && NODE_OPTIONS=--max-old-space-size=1024 npx vitest run src/tests/compiler/constDeclarationValidity.test.ts --pool=forks --poolOptions.forks.minForks=1 --poolOptions.forks.maxForks=1
 ```
 
-```
- ✓ src/tests/compiler/constDeclarationValidity.test.ts (8 tests) 885ms
- Test Files  1 passed (1)
-      Tests  8 passed (8)
-```
-
-For a directory or package, enumerate its tracked test files and run them one file at a time using the single-file command above. Keep the 1024 MB heap and one fork for every run. Wait for each process to exit and verify its test-file and test summaries before starting the next. Do not report the directory or package complete until every enumerated file has a verified result. This strategy bounds each invocation to the same scope as the single-file command; no larger-suite timing or memory claim is inferred from it. Enumerate tracked paths with Git, then apply the package's configured test include and exclude patterns using their glob semantics. Sparkdown currently includes test and spec files with ts and tsx extensions anywhere under src, excluding node_modules, dist and out; a manifest restricted to src/tests or test.ts is incomplete. Do not pass Vitest's brace patterns directly to Git, whose pathspec engine does not implement those brace alternatives. Keep that manifest and a separate log/result for every file. Concatenate those verified per-file logs into `testrun.log` for the aggregate count below. Likewise, `base-run.log` and `branch-run.log` below mean concatenations for the same manifest, not single multi-file invocations.
-
-Exit code 0 does not mean green. Two OOM shapes can exit 0: `Error: Worker exited unexpectedly` with no pass count, or a log that stops with no `Test Files` / `Tests` summary. Verify both summary lines and one completed test file in every individual invocation. Then compare the completed-file inventory across the concatenated logs with the original manifest; a partially completed sequence must not be reported as a complete package. For Sparkdown's log paths, the aggregate count is:
-
-```bash
-sed 's/\x1b\[[0-9;]*m//g' testrun.log | grep -aoE "src/tests/[A-Za-z0-9/._-]+\.test\.ts \(" | sort -u | wc -l
-```
-
-Count by the path, not by the tick. Matching the `✓` glyph returns 0 in Git Bash here whatever the log holds, because the log is UTF-8 and the shell's locale is not; the run then reads as "completed no files at all", which is the same shape as the OOM this count exists to catch. Counting distinct file paths also survives a file reported more than once.
-
-Report the real numbers in the PR body. If a pre-existing failure is unrelated to your change, say so explicitly rather than quietly ignoring it; confirm it also fails on `origin/main`.
-
-Capture the failing-test names, not just the count. With a large pre-existing failure set (one session met 103) equal counts do not mean equal failures: a run that fixes one test and breaks another shows the same number. From the concatenated logs for the same file manifest, save the `FAIL` lines from the baseline run and from your branch, strip the colour codes, and diff the two lists; that is what isolates the test your change actually affected:
-
-```bash
-grep -a "FAIL " base-run.log | sed 's/\x1b\[[0-9;]*m//g' | sort -u > fail-base.txt
-grep -a "FAIL " branch-run.log | sed 's/\x1b\[[0-9;]*m//g' | sort -u > fail-branch.txt
-diff fail-base.txt fail-branch.txt
-```
-
----
-
-## Troubleshooting
-
-Every `redgreen` failure names its own fix in the `problems` entry it reports, so what is left here is the two failures no command in this repository produces:
-
-| Symptom                                                                                | Cause → fix                                                                                                                      |
-| -------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| `minThreads and maxThreads must not conflict`                                          | vitest's own error: you passed `maxForks` without `minForks`. Always pass both.                                                    |
-| `git show origin/main:some/path` → `fatal: ambiguous argument 'origin\main;some\path'` | Git Bash rewrote the `rev:path` argument as a Windows path. Prefix the command with `MSYS_NO_PATHCONV=1`, and quote the argument. `redgreen` sidesteps this by spawning git without a shell; it bites a `git show` you run yourself. |
-
----
+On Windows, inspect Node command lines with `Get-CimInstance Win32_Process` and the reservation JSON above. Wait for active runs to exit. Require both `Test Files` and `Tests` summaries and inspect the actual assertion. The redgreen diagnostic classifier's separate no-test issue is tracked by #539; this runner does not repair or substitute for that classifier.

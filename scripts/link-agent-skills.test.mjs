@@ -20,6 +20,17 @@ for (const { destination } of first) {
   assert.ok(fs.lstatSync(destination).isSymbolicLink());
   assert.equal(fs.readFileSync(path.join(destination, "sentinel"), "utf8"), "preserve");
 }
+// A newly added canonical skill must become available through every existing
+// discovery link, without adding per-runner copies or rerunning installation.
+const taskSkill = fs.readFileSync(new URL("../.agents/skills/file-task/SKILL.md", import.meta.url), "utf8");
+fs.mkdirSync(path.join(source, "file-task"));
+fs.writeFileSync(path.join(source, "file-task", "SKILL.md"), taskSkill);
+for (const { destination } of first) {
+  const discovered = path.join(destination, "file-task", "SKILL.md");
+  assert.equal(fs.readFileSync(discovered, "utf8"), taskSkill);
+  assert.equal(fs.realpathSync(discovered), fs.realpathSync(path.join(source, "file-task", "SKILL.md")));
+}
+console.log("PASS: canonical file-task is discoverable through all existing harness links");
 // Unlink only, without a trailing separator or recursive removal.
 for (const { destination } of first) fs.unlinkSync(destination);
 assert.equal(fs.readFileSync(path.join(source, "sentinel"), "utf8"), "preserve");
