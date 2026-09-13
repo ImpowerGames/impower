@@ -8,7 +8,7 @@ import { fileURLToPath } from "node:url";
 import { pipeRequest, checkDestination, probeIdle, validatePlan, codexProbeHost, observedTurn, reconcileProbe } from "./continuation-conformance.mjs";
 const fixture = JSON.parse(fs.readFileSync(new URL("./codex-app-tools.fixture.json", import.meta.url), "utf8"));
 
-const scratch = fs.mkdtempSync(path.join(os.tmpdir(), "impower-continuation-"));
+const scratch = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), "impower-continuation-")));
 console.log(`Scratch repository: ${scratch}`);
 try {
 const worktree = path.join(scratch, "repo"); fs.mkdirSync(worktree);
@@ -62,6 +62,9 @@ await test("stale head and last-moment steering block before submission", async 
     await assert.rejects(probeIdle({ ...plan, head: stale ? "a".repeat(40) : plan.head, journal: path.join(scratch, `stale-${stale}.jsonl`) }, {
       inspect: async () => ++calls === 1 ? idle() : active(), submit: () => assert.fail("must not send"),
     }), stale ? /head changed/ : /became active/);
+    const rows = events(path.join(scratch, `stale-${stale}.jsonl`));
+    assert.equal(rows.at(-1).event, "probe-blocked");
+    assert.ok(!rows.some(row => row.event === "submission-intent"));
   }
 });
 
@@ -89,7 +92,7 @@ await test("native pipe preserves refusal, disconnect and timeout failures", asy
   await withServer(() => {}, endpoint => assert.rejects(pipeRequest(endpoint, "tools/list", {}, 100), /timed out/));
 });
 await test("native pipe accepts string IDs after unrelated frames", async () => {
-  await withServer(socket => socket.end(Buffer.concat([frame({ jsonrpc: "2.0", id: 99, result: {} }), frame({ jsonrpc: "2.0", id: "1", result: "matched" })])), async endpoint => {
+  await withServer(socket => socket.end(Buffer.concat([frame({ jsonrpc: "2.0", id: 99, result: {} }), ...["0x1", " 1", "1e0", "1.0"].map(id => frame({ jsonrpc: "2.0", id, result: "wrong request" })), frame({ jsonrpc: "2.0", id: "1", result: "matched" })])), async endpoint => {
     assert.equal(await pipeRequest(endpoint, "tools/list", {}), "matched");
   });
   await withServer(() => {}, endpoint => assert.rejects(pipeRequest(endpoint, "tools/list", { text: "x".repeat(8 * 1024 * 1024) }), /Request too large/));
@@ -99,6 +102,9 @@ await test("native pipe accepts string IDs after unrelated frames", async () => 
 await test("native acceptance requires a new matching untruncated tool-delivered turn", () => {
   for (const status of [undefined, "queued", "failed", "interrupted"]) { const value = accepted(); value.turns[0].status = status; assert.equal(observedTurn(value, plan), undefined); }
   const errored = accepted(); errored.turns[0].error = { message: "failed" }; assert.equal(observedTurn(errored, plan), undefined);
+  for (const [key, value] of [["type", "other"], ["name", "other"]]) {
+    const state = accepted(); state.turns[0].items[0][key] = value; assert.equal(observedTurn(state, plan), undefined);
+  }
   for (const change of [s => s.turns[0].id = plan.turnId, s => delete s.turns[0].id, s => s.turns[0].items[0].output.text = "unrelated", s => s.turns[0].items[0].output.text = s.turns[0].items[0].output.text.replace("probe-fixture-546", "another-marker"), s => s.turns[0].items[0].output.truncated = true, s => s.turns[0].items[0].namespace = "other", s => s.turns[0].items[0].output.text = s.turns[0].items[0].output.text.replace(">origin<", ">other<"), s => s.turns[0].items = [{ type: "userMessage", content: [{ text: plan.continuationId }] }]]) {
     const value = accepted(); change(value); assert.equal(observedTurn(value, plan), undefined);
   }
@@ -114,6 +120,12 @@ await test("invalid plans and journals in either checkout fail before host use",
   assert.throws(() => validatePlan({ ...plan, continuationId: "bad marker" }, env), /marker/);
   const destination = path.join(scratch, "destination"); fs.mkdirSync(destination);
   for (const directory of [destination, worktree]) assert.throws(() => validatePlan({ ...plan, destinationCwd: destination, journal: path.join(directory, "journal.jsonl") }, env), /both worktrees/);
+  const linked = path.join(scratch, "linked"); git("worktree", "add", "--detach", "--quiet", linked, "HEAD");
+  const linkedPlan = { ...plan, worktree: linked, destinationCwd: linked };
+  validatePlan(linkedPlan, env);
+  for (const directory of [worktree, path.join(worktree, ".git"), path.join(worktree, ".git", "worktrees", "linked")]) {
+    assert.throws(() => validatePlan({ ...linkedPlan, journal: path.join(directory, "journal.jsonl") }, env), /both worktrees/);
+  }
 });
 await test("the wait bound blocks without submission and intent is flushed before send", async () => {
   let time = 0;

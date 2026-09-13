@@ -42,7 +42,7 @@ export function pipeRequest(endpoint, method, params, timeoutMs = 10000) {
           const response = JSON.parse(buffer.subarray(4, length + 4).toString("utf8"));
           buffer = buffer.subarray(length + 4);
           if (response.jsonrpc !== "2.0" || !["string", "number"].includes(typeof response.id)) throw new Error("Invalid host response envelope");
-          if (Number(response.id) !== 1) continue;
+          if (response.id !== 1 && response.id !== "1") continue;
           if (response.error) throw new Error(response.error.message ?? "Host refused request");
           if (!Object.hasOwn(response, "result")) throw new Error("Missing host result");
           return finish(null, response.result);
@@ -162,10 +162,21 @@ export function validatePlan(plan, env = process.env) {
   if (!/^[a-f0-9]{40}$/.test(plan.head)) throw new Error("Expected full worktree head");
   if (!/^[a-zA-Z0-9-]{8,80}$/.test(plan.continuationId)) throw new Error("Invalid continuation marker");
   for (const key of ["destinationCwd", "worktree", "journal"]) if (!path.isAbsolute(plan[key])) throw new Error(`${key} must be absolute`);
-  for (const directory of [plan.worktree, plan.destinationCwd]) {
-    const relative = path.relative(fs.realpathSync(directory), path.join(fs.realpathSync(path.dirname(plan.journal)), path.basename(plan.journal)));
+  const directories = new Set([plan.worktree, plan.destinationCwd]);
+  const journal = path.join(fs.realpathSync(path.dirname(plan.journal)), path.basename(plan.journal));
+  const refuseContained = directory => {
+    const relative = path.relative(fs.realpathSync(directory), journal);
     if (!relative.startsWith(".." + path.sep) && !path.isAbsolute(relative)) throw new Error("Journal must be outside both worktrees");
+  };
+  for (const directory of directories) refuseContained(directory);
+  for (const directory of [plan.worktree, plan.destinationCwd]) {
+    const git = args => execFileSync("git", args, { cwd: directory, encoding: "utf8", windowsHide: true });
+    directories.add(git(["rev-parse", "--path-format=absolute", "--git-common-dir"]).trim());
+    for (const field of git(["worktree", "list", "--porcelain", "-z"]).split("\0")) {
+      if (field.startsWith("worktree ") && fs.existsSync(field.slice(9))) directories.add(field.slice(9));
+    }
   }
+  for (const directory of directories) refuseContained(directory);
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href) {
