@@ -10,7 +10,7 @@ const gitStatus = (cwd) => execFileSync("git", ["status", "--porcelain"], { cwd,
 const configuredRoute = (value) => value.replace(/\[[^\]]+\]$/, "");
 const readReviewComment = (id, cwd) => JSON.parse(execFileSync("gh", ["api", `repos/ImpowerGames/impower/issues/comments/${id}`], { cwd, encoding: "utf8", windowsHide: true }));
 
-export async function verifyReviewComment(id, pr, head, cwd, { readComment = readReviewComment, wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms)), attempts = 3 } = {}) {
+export async function verifyReviewComment(id, pr, head, cwd, { readComment = readReviewComment, wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms)), attempts = 6 } = {}) {
   for (let attempt = 1; attempt <= attempts; attempt++) {
     const comment = readComment(id, cwd);
     if (comment.issue_url === `https://api.github.com/repos/ImpowerGames/impower/issues/${pr}` && comment.body.includes(head)) return;
