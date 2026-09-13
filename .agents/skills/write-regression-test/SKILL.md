@@ -20,7 +20,7 @@ Assert the ticket's behavior rather than patch shape. A file already failing who
 
 ## Resource gate
 
-At most one vitest run at a time across worktrees; check existing processes and wait for exit. Every invocation uses at most a 1024 MB heap and one fork. Before running Vitest, read [safe commands and result verification](references/vitest.md). Missing summaries, worker crashes or partial manifests are not passes, even with exit status zero.
+At most one vitest run at a time across worktrees. Every invocation uses at most a 1024 MB heap and one fork. Use the repository suite runner for package verification; it reserves the machine, saves attempts and reconciles interrupted processes. Before running Vitest, read [safe commands and result verification](references/vitest.md). Missing summaries, worker crashes or partial manifests are not passes, even with exit status zero.
 
 ## 2. Prove red/green
 
