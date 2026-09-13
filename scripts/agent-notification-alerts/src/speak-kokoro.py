@@ -9,6 +9,7 @@ import winsound
 import onnxruntime as ort
 import soundfile as sf
 from kokoro_onnx import Kokoro
+from voice_settings import read_voice, available_voices
 
 
 def main():
@@ -24,6 +25,11 @@ def main():
     engine = Kokoro.from_session(session, str(directory / 'voices-v1.0.bin'))
     voice = os.environ.get('AGENT_ALERT_KOKORO_VOICE', 'bm_lewis')
     language = os.environ.get('AGENT_ALERT_KOKORO_LANG', 'en-gb')
+    state_dir = os.environ.get('AGENT_ALERT_STATE_DIR', str(Path.home() / '.agent-notification-alerts'))
+    selected = read_voice(state_dir, '')
+    if selected in available_voices(directory):
+        voice = selected
+        language = 'en-gb' if voice.startswith('b') else 'en-us'
     speed = max(0.5, min(2.0, 2 ** (float(payload.get('rate', 0)) / 10)))
     samples, sample_rate = engine.create(text, voice=voice, speed=speed, lang=language)
     samples *= max(0, min(100, float(payload.get('volume', 70)))) / 100

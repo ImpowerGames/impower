@@ -14,6 +14,10 @@ Keep model files and machine-specific settings outside this repository. The runt
 
 ## Desktop mute control
 
+The Keyboard lights card lets you select distinct function keys F1–F12 for Codex and Claude, then Apply keys. Each selection controls both the flashing key and that agent's existing Ctrl+Shift or Ctrl+Alt shortcut. Pass `--config` with the receiver's personal config file (or set `AGENT_ALERT_CONFIG`) to display its initial keys and modifier. Choices are saved atomically in `key-bindings.json` in the shared state directory and applied on the next heartbeat. Existing notifications are retained. A shortcut already claimed by another application is reported as unavailable in receiver status; choose another key in that case. Arbitrary non-function keys are not offered by this UI.
+
+Pass `--kokoro-dir` with the installed model directory (or set `AGENT_ALERT_KOKORO_DIR`) to enable the local voice dropdown. It lists the installed American and British English voices with accent and gender labels. Selecting a voice saves `voice.json` in the shared state directory; the next speech worker reads it and uses the matching English pronunciation. No MCP or receiver restart is required. An utterance already being spoken keeps its voice. Without a local model directory, the picker is disabled. The saved selection overrides the launcher's default voice; Lewis remains the default before selecting another voice.
+
 The window and tray menu offer independent voice and light switches, plus Pause all alerts. Pause all uses a separate `all-muted` marker, so Resume restores the individual preferences. `lights-muted` suppresses light output; the receiver releases its SteelSeries effect on the next heartbeat (normally within a second). Pending notifications and shortcuts remain available. Resuming lights shows any alerts still pending, while speech received during a pause is not replayed.
 
 Launch `src/desktop-controls.py` with `pythonw.exe` on Windows. Pass `--state-dir` with the receiver's `AGENT_ALERT_STATE_DIR` when using a custom state directory. A desktop shortcut can contain those arguments so the window opens without a console.

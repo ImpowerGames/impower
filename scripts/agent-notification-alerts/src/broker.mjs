@@ -85,6 +85,17 @@ export async function runBroker() {
     if (!response.ok) throw new Error('SteelSeries ' + route + ': ' + response.status);
   };
   const refresh = async () => {
+    try {
+      const selected = z.object({ codex: z.number().int().min(1).max(12), claude: z.number().int().min(1).max(12) }).strict().refine(value => value.codex !== value.claude).parse(JSON.parse(await readFile(join(stateDir, 'key-bindings.json'), 'utf8')));
+      if (JSON.stringify(selected) !== JSON.stringify(config.shortcuts)) {
+        config.shortcuts = selected;
+        config.keys = { codex: [57 + selected.codex], claude: [57 + selected.claude] };
+        signature = '';
+        bridge?.stdin.write(JSON.stringify({ type: 'rebind', shortcuts: selected }) + '\n');
+      }
+    } catch (error) {
+      if (error.code !== 'ENOENT') status.shortcuts = 'Invalid saved key bindings: ' + error.message;
+    }
     if (!config.keyboard) return;
     if (lightsMuted()) {
       if (status.keyboard !== 'muted') {
