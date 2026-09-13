@@ -107,6 +107,23 @@ end
     },
   );
 
+  test.each(["style", "screen", "component", "animation", "theme"])(
+    "does not accept a structural %s instance as an OOP parent",
+    (keyword) => {
+      const diagnostics = diagnosticsFor(
+        `${keyword} card with\nend\ndefine O as card with\n  name = "Orion"\nend\n`,
+      );
+      expect(missingType(diagnostics, "card")).toBe(true);
+    },
+  );
+
+  test("accepts an actual define even when a structural instance shares its name", () => {
+    const diagnostics = diagnosticsFor(
+      'style card with\nend\ndefine card as character with\n  store trust = 0\nend\ndefine O as card with\n  name = "Orion"\nend\n',
+    );
+    expect(missingType(diagnostics, "card")).toBe(false);
+  });
+
   test.each([true, false])("only accepts a parent from a participating script (included: %s)", (included) => {
     const diagnostics = diagnosticsFor(
       `${included ? "include parents.sd\n" : ""}define O as companion with\n  name = "Orion"\nend\n`,

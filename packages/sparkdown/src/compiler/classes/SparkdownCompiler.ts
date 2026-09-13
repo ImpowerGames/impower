@@ -4948,12 +4948,22 @@ export class SparkdownCompiler {
     const declaredParentTypes = new Set<string>();
     for (const scriptUri of Object.keys(program.scripts)) {
       const doc = this.documents.get(scriptUri);
-      if (!doc) continue;
+      const tree = this.documents.tree(scriptUri);
+      if (!doc || !tree) continue;
       const declarations = this.documents
         .annotations(scriptUri).declarations.iter();
       while (declarations.value) {
         if (declarations.value.type === "define") {
-          declaredParentTypes.add(doc.read(declarations.from, declarations.to));
+          // The declaration channel also labels structural style/screen/etc.
+          // instances as "define". Only an OOP define's own header introduces
+          // a parent type; an enclosing define body is not sufficient.
+          let header = tree.resolveInner(declarations.from, 1).parent;
+          while (header && header.name !== "LuauDefineNameAndInheritance") {
+            header = header.parent;
+          }
+          if (header) {
+            declaredParentTypes.add(doc.read(declarations.from, declarations.to));
+          }
         }
         declarations.next();
       }
