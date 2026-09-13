@@ -45,9 +45,9 @@ export function fingerprinter(progress = () => {}) {
       environment: Object.entries(childEnvironment()).sort(([a], [b]) => a.localeCompare(b)) });
     const trackedFiles = tracked(root).sort();
     add({ tracked: trackedFiles });
-    // Git ignores do not stop Vite loading local configuration or its imported
-    // code. Include ignored code/configuration too; dependency trees retain the
-    // separate metadata strategy, and generated config bundles are not inputs.
+    // Git ignores do not stop tests or configuration reading local files.
+    // Include ignored contents regardless of extension; dependency trees retain
+    // the separate metadata strategy, and generated config bundles are not inputs.
     const ignoredInputs = [], ignoredDirectories = new Set();
     function collectIgnored(relative) {
       const file = path.join(root, relative), name = path.basename(file);
@@ -58,7 +58,7 @@ export function fingerprinter(progress = () => {}) {
         if (ignoredDirectories.has(real)) return;
         ignoredDirectories.add(real);
         for (const child of fs.readdirSync(file).sort()) collectIgnored(path.join(relative, child));
-      } else if (/\.(?:[cm]?[jt]sx?|jsonc?|ya?ml)$/.test(name) || name.startsWith(".env")) {
+      } else {
         if (!/\.timestamp-.*\.mjs$/.test(name)) ignoredInputs.push(relative);
       }
     }
@@ -99,7 +99,7 @@ export function fingerprinter(progress = () => {}) {
     for (const source of sources) visit(path.join(root, source));
     // Workspace-local installations as well as the hoisted dependency tree.
     visit(path.join(root, "node_modules"), true);
-    for (const source of sources.filter(f => f.endsWith("/package.json"))) visit(path.join(root, path.dirname(source), "node_modules"), true);
+    for (const source of sources.filter(f => path.basename(f) === "package.json")) visit(path.join(root, path.dirname(source), "node_modules"), true);
     return hash.digest("hex");
   };
 }

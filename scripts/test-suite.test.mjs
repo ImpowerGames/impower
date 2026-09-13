@@ -179,6 +179,22 @@ await assert.rejects(execute({...options,directory:ignoredDirectory,fingerprint:
 const ignoredHelperBefore=fingerprinter()(scratch,[]);
 fs.appendFileSync(path.join(scratch,"local-options.ts"),"\n// changed imported configuration\n");
 assert.notEqual(fingerprinter()(scratch,[]),ignoredHelperBefore,"ignored configuration helpers are inputs too");
+fs.appendFileSync(path.join(scratch,".gitignore"),"fixture.txt\nlocal/\n");
+fs.writeFileSync(path.join(scratch,"fixture.txt"),"expected");
+const assetDirectory=path.join(scratch,".git","ignored-asset-run");
+assert.equal((await execute({...options,directory:assetDirectory,fingerprint:fingerprinter()})).status,"passed");
+fs.writeFileSync(path.join(scratch,"fixture.txt"),"unexpected");
+assert.equal(status(assetDirectory).status,"stale","ignored assets invalidate reusable evidence regardless of extension");
+await assert.rejects(execute({...options,directory:assetDirectory,fingerprint:fingerprinter()}),/identity changed/);
+fs.mkdirSync(path.join(scratch,"local","node_modules","dep"),{recursive:true});
+fs.writeFileSync(path.join(scratch,"local","package.json"),"{}");
+const nestedDependency=path.join(scratch,"local","node_modules","dep","index.js");
+fs.writeFileSync(nestedDependency,"first");
+const nestedDirectory=path.join(scratch,".git","ignored-nested-dependency-run");
+assert.equal((await execute({...options,directory:nestedDirectory,fingerprint:fingerprinter()})).status,"passed");
+fs.writeFileSync(nestedDependency,"a deliberately longer dependency");
+assert.equal(status(nestedDirectory).status,"stale","ignored nested package dependencies participate with native paths");
+await assert.rejects(execute({...options,directory:nestedDirectory,fingerprint:fingerprinter()}),/identity changed/);
 console.log("PASS: release-boundary retries retain evidence and ignored configuration invalidates reuse");
 
 const reservation = acquire("first", { root: lockRoot, census: () => [] });
