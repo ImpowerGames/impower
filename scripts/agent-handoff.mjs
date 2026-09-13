@@ -7,6 +7,7 @@ import { reserveReviewerSlot, releaseReviewerSlot, processIdentity } from "./rev
 const read = (file) => JSON.parse(fs.readFileSync(file, "utf8"));
 const gitHead = (cwd) => execFileSync("git", ["rev-parse", "HEAD"], { cwd, encoding: "utf8" }).trim();
 const gitStatus = (cwd) => execFileSync("git", ["status", "--porcelain"], { cwd, encoding: "utf8" });
+const configuredRoute = (value) => value.replace(/\[[^\]]+\]$/, "");
 
 export function checkReviewRound(round, completedRound, finalCorrections, reviewRoundLimit = 3) {
   if (!Number.isInteger(round) || round < 1 || round > reviewRoundLimit || round < completedRound) throw new Error(`Review round must be 1..${reviewRoundLimit} and preserve the completed round count`);
@@ -22,7 +23,7 @@ export async function runHandoff(configFile, { slotRoot, identifyProcess = proce
   const journal = path.resolve(config.journal);
   const relative = path.relative(cwd, journal);
   if (!relative.startsWith(".." + path.sep) && !path.isAbsolute(relative)) throw new Error("Journal must be outside the worktree");
-  if (!config.writer || !config.reviewer || config.writer === config.reviewer) throw new Error("Supply distinct writer and reviewer model routes");
+  if (!config.writer || !config.reviewer || configuredRoute(config.writer) === configuredRoute(config.reviewer)) throw new Error("Supply distinct writer and reviewer model routes");
   const reviewRoundLimit = config.reviewRoundLimit ?? 3;
   if (!Number.isInteger(reviewRoundLimit) || reviewRoundLimit < 1 || reviewRoundLimit > 10) throw new Error("reviewRoundLimit must be an integer from 1 through 10");
   if (reviewRoundLimit > 3 && (typeof config.extendedReviewAuthorization !== "string" || !config.extendedReviewAuthorization.trim())) throw new Error("Rounds beyond 3 require explicit user authorization in extendedReviewAuthorization");
