@@ -270,10 +270,12 @@ export default function PreviewGame(_props: PreviewGameProps) {
           // keystroke on a large script.)
           if (
             typeof message.method === "string" &&
+            !("result" in message) && !("error" in message) &&
             (message.method.startsWith("game/") ||
               message.method.startsWith("preview/") ||
-              message.method.startsWith("workspace/") ||
+              (message.method.startsWith("workspace/") && !("id" in message)) ||
               (message.method.startsWith("textDocument/") &&
+                !("id" in message) &&
                 message.method !== "textDocument/didSave"))
           ) {
             if (!initializedRef.current) {

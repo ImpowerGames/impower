@@ -5,6 +5,7 @@ import {
   sendProtocolMessage,
 } from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
 import { ConnectedPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/ConnectedPreviewMessage";
+import { GameStateMessage, DidChangeGameStateMessage, type GameState } from "@impower/spark-editor-protocol/src/protocols/preview/GameStateMessage";
 import { Game } from "@impower/spark-engine/src/game/core/classes/Game";
 import { ContinueGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/ContinueGameMessage";
 import { DisableGameDebugMessage } from "@impower/spark-engine/src/game/core/classes/messages/DisableGameDebugMessage";
@@ -127,6 +128,8 @@ export class GamePlayerController {
   _app?: Application;
   _debugging = false;
   _program?: SparkProgram;
+  private _mounted = false;
+  private _launchState: GameState["launchState"] = null;
   /** Counts the preview updates, so one that another overtakes while it
    *  waits can tell (`updatePreview`). */
   _previewUpdates = 0;
@@ -193,6 +196,8 @@ export class GamePlayerController {
 
   setup(): void {
     this.registerProtocolHandlers();
+    this._mounted = true;
+    this.publishGameState();
     window.addEventListener("contextmenu", this.handleContextMenu, true);
     window.addEventListener("dragstart", this.handleDragStart);
     window.addEventListener("resize", this.handleResize);
@@ -235,6 +240,9 @@ export class GamePlayerController {
   }
 
   dispose(): void {
+    this._mounted = false;
+    this._launchState = null;
+    this.publishGameState();
     this._protocols.dispose();
     window.removeEventListener("contextmenu", this.handleContextMenu);
     window.removeEventListener("dragstart", this.handleDragStart);
@@ -313,6 +321,22 @@ export class GamePlayerController {
         ? "play"
         : "preview";
     this.refs.launchStateIcon?.setAttribute("icon", icon);
+    this._launchState = icon;
+    this.publishGameState();
+  }
+
+  getGameState(): GameState {
+    return {
+      mounted: this._mounted,
+      programLoaded: this._mounted && this._program != null && this._launchState != null,
+      programVersion: this._program?.version ?? null,
+      launchState: this._launchState,
+      position: this._options?.startFrom ? { uri: this._options.startFrom.file, line: this._options.startFrom.line } : null,
+    };
+  }
+
+  private publishGameState() {
+    sendProtocolMessage(DidChangeGameStateMessage.type.notification(this.getGameState()), this.host);
   }
 
   protected updateExecutionLabels(params?: GameExecutedParams) {
@@ -687,6 +711,7 @@ export class GamePlayerController {
       this.handleExitGameFullscreenMode,
       this.host,
     );
+    p.onRequest(GameStateMessage.type, (m) => GameStateMessage.type.response(m.id, this.getGameState()), this.host);
   }
 
   protected handleEnterGameFullscreenMode = async (
@@ -723,6 +748,7 @@ export class GamePlayerController {
       };
       this._options ??= {};
       this._options.startFrom = startFrom;
+      this.publishGameState();
       this._checkpoint = checkpoint;
       this._simulationFailure = simulationFailure;
       this._simulatedPath = simulatedPath;

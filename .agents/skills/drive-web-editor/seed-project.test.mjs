@@ -55,6 +55,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import vm from "node:vm";
+import crypto from "node:crypto";
 import {
   SEED_MARKER,
   beginSeed,
@@ -68,7 +69,7 @@ import {
   pruneProject,
   readProjectFile,
   seed,
-  seedProject,
+  seedProject as realSeedProject,
   ui,
   verify,
   walkProjectDir,
@@ -77,6 +78,11 @@ import {
   writeProjectBatch,
   zipProjectEntries,
 } from "./driver.mjs";
+
+// The standalone suite has no installed dependencies in CI. Archive framing
+// is a transport stand-in here; the Playwright test exercises real zip import.
+const pack = async (batch) => Buffer.from(JSON.stringify(batch.map((file) => [file.path, Buffer.from(file.bytes).toString("base64")]))).toString("base64");
+const seedProject = (page, source, options = {}) => realSeedProject(page, source, { ...options, pack });
 
 let failures = 0;
 const check = async (name, fn) => {
@@ -174,11 +180,40 @@ function stubStorage({ refuse = [], shortWrite = {}, refuseRemove = [], refuseLi
 // nothing of Node's. `remembered` is what localStorage answers for the
 // project id.
 function stubGlobals(storage, { remembered = null } = {}) {
+  const fileHandle = async (uri, create) => {
+    const parts = uri.replace(/^file:\/\//, "").split("/");
+    const name = parts.pop();
+    let dir = storage.root;
+    for (const part of parts) dir = await dir.getDirectoryHandle(part, { create });
+    return { dir, name, file: await dir.getFileHandle(name, { create }) };
+  };
+  const protocol = {
+    async send({ method, params }) {
+      if (method === "window/loadedProjectId") return { id: remembered || "local" };
+      if (method === "workspace/unzipFiles") return JSON.parse(Buffer.from(params.data).toString()).map(([filename, encoded]) => ({ filename, data: Uint8Array.from(Buffer.from(encoded, "base64")).buffer }));
+      if (method === "workspace/readFile") return (await (await fileHandle(params.file.uri, false)).file.getFile()).arrayBuffer();
+      if (method === "workspace/willCreateFiles") {
+        for (const item of params.files) {
+          let existed = false;
+          try { await fileHandle(item.uri, false); existed = true; } catch {}
+          const { dir, name, file } = await fileHandle(item.uri, true);
+          try { const writer = await file.createWritable(); await writer.write(new Uint8Array(item.data)); await writer.close(); }
+          catch (error) { if (!existed) await dir.removeEntry(name); throw error; }
+        }
+        return [];
+      }
+      throw new Error(`Unexpected protocol method: ${method}`);
+    },
+  };
   return {
     navigator: { storage: { getDirectory: async () => storage.root } },
     localStorage: { getItem: (key) => (key === "project" ? remembered : null) },
     document: { querySelector: (selector) => (selector.includes("-trigger-main") ? {} : null) },
-    window: {},
+    window: { __editorProtocol: protocol },
+    crypto,
+    TextEncoder,
+    setTimeout,
+    clearTimeout,
     atob,
     btoa,
   };
@@ -196,6 +231,9 @@ function stubPage(globals) {
     reloads: 0,
     screenshots: [],
     evaluate: async (f, arg) => {
+      if (f === writeProjectBatch && !arg.archive) {
+        arg = { ...arg, archive: await pack(arg.entries.map((entry) => ({ path: entry.path, bytes: Buffer.from(entry.base64, "base64") }))) };
+      }
       const rebuilt = vm.runInContext(`(${f.toString()})`, context);
       const out = await rebuilt(arg === undefined ? undefined : structuredClone(arg));
       return out === undefined ? undefined : structuredClone(out);
@@ -234,12 +272,20 @@ const entryNames = (tree, ...segments) => {
   return [...node.children.keys()].sort();
 };
 
-// Writes files into the stub as a previous project, through the driver's own
-// batch writer, which leaves no marker.
+// Fixture setup is independent of the writer under test and the loaded project.
 async function previousProject(page, files) {
   const entries = Object.entries(files).map(([p, content]) => ({ path: p, base64: Buffer.from(content).toString("base64") }));
-  const out = await page.evaluate(writeProjectBatch, { project: "local", entries });
-  assert.deepEqual(out.failed, [], "the previous project did not land");
+  await page.evaluate(async (entries) => {
+    for (const entry of entries) {
+      let dir = await (await navigator.storage.getDirectory()).getDirectoryHandle("local", { create: true });
+      const parts = entry.path.split("/");
+      const name = parts.pop();
+      for (const part of parts) dir = await dir.getDirectoryHandle(part, { create: true });
+      const writer = await (await dir.getFileHandle(name, { create: true })).createWritable();
+      await writer.write(Uint8Array.from(atob(entry.base64), (char) => char.charCodeAt(0)));
+      await writer.close();
+    }
+  }, entries);
 }
 
 // A fixture project on disk: a script, a nested asset, a binary that covers
@@ -888,106 +934,60 @@ if (fflate) {
 }
 
 await check("the program warning tells the open document not compiling from a harness that was not ready or an error in a file that is not open", () => {
-  assert.match(programWarning({ loaded: false, ms: 90_000, errors: 2 }), /^the script does not compile: the editor's status bar shows 2 errors in the open document/);
+  assert.match(programWarning({ loaded: false, ms: 90_000, errors: 2 }), /^the script does not compile: settled diagnostics report 2 errors in the open document/);
   assert.match(programWarning({ loaded: false, ms: 90_000, errors: 0 }), /^the player had not loaded a program within 90s .* or a file that is not open does not compile/);
   assert.match(programWarning({ loaded: false, ms: 90_000, errors: null }), /^the player had not loaded a program/);
 });
 
-await check("gameMountedWithin answers true from its first poll with no timeout given", async () => {
-  let polls = 0;
-  const page = { evaluate: async () => (polls += 1) > 0, waitForTimeout: async () => {} };
-  assert.equal(await gameMountedWithin(page), true);
-  assert.equal(polls, 1);
-});
-
-// A page for the mount wait: the mount predicate runs in the page context
-// against `window.__preview`, `waitForTimeout` moves a fake clock, and a
-// reload is counted and installs the preview when it is the
-// `mountedOnReload`th one.
-function mountPage({ mountedAtStart = false, mountedOnReload = null } = {}) {
-  const storage = stubStorage({});
-  const globals = stubGlobals(storage);
-  const preview = { summary: () => ({ sameOrigin: true, gameChildren: 3 }) };
-  if (mountedAtStart) globals.window.__preview = preview;
-  const page = stubPage(globals);
-  let t = 0;
-  let polls = 0;
-  const evaluate = page.evaluate;
-  page.evaluate = async (f, arg) => {
-    polls += 1;
-    return evaluate(f, arg);
+await check("mount waits use one state request plus notifications, dispose subscriptions, and recover once", async () => {
+  const makePage = ({ initial = false, onReload = false, notify = false } = {}) => {
+    let mounted = initial, requests = 0;
+    const listeners = new Set();
+    const globals = stubGlobals(stubStorage({}));
+    globals.window.__editorProtocol = {
+      send: async () => {
+        requests++;
+        if (notify) setTimeout(() => { mounted = true; for (const listener of listeners) listener({ method: "preview/didChangeGameState", params: { mounted: true } }); }, 1);
+        return { mounted };
+      },
+      subscribe: (listener) => { listeners.add(listener); return () => listeners.delete(listener); },
+    };
+    const page = stubPage(globals);
+    page.reload = async () => { page.reloads++; mounted = onReload; };
+    return { page, requests: () => requests, listeners };
   };
-  page.waitForTimeout = async (ms) => {
-    t += ms;
-  };
-  page.reload = async () => {
-    page.reloads += 1;
-    if (page.reloads === mountedOnReload) globals.window.__preview = preview;
-  };
-  return { page, now: () => t, polls: () => polls };
-}
-
-await check("waitForGame polls the game once a second for its 45s budget, reloads, brings the editor back, and polls the budget again; a game that mounts is answered as soon as it does", async () => {
   {
-    const { page, now, polls } = mountPage();
-    const ensure = async () => ({ present: true, switched: true, settled: true });
-    assert.deepEqual(await waitForGame(page, { now, ensure }), { mounted: false, reloaded: true, switched: true });
-    assert.equal(polls(), 90, "45 polls before the reload and 45 after");
-    assert.equal(page.reloads, 1);
-    assert.equal(now(), 90_000);
-  }
-  {
-    const { page, now, polls } = mountPage({ mountedOnReload: 1 });
-    const ensure = async () => ({ present: true, switched: false, settled: true });
-    assert.deepEqual(await waitForGame(page, { now, ensure }), { mounted: true, reloaded: true, switched: false });
-    assert.equal(polls(), 46, "the budget, then the first poll after the reload");
-    assert.equal(page.reloads, 1);
-  }
-  {
-    const { page, now, polls } = mountPage({ mountedAtStart: true });
-    assert.deepEqual(await waitForGame(page, { now, ensure: async () => assert.fail("the editor was brought back with no reload") }), { mounted: true, reloaded: false });
-    assert.equal(polls(), 1);
+    const { page, requests, listeners } = makePage({ initial: true });
+    assert.equal(await gameMountedWithin(page), true);
+    assert.equal(requests(), 1);
+    assert.equal(listeners.size, 0);
     assert.equal(page.reloads, 0);
   }
   {
-    // The editor not coming back after the reload is the answer, with its
-    // reason, and the second budget is not spent on a page with no editor.
-    const { page, now, polls } = mountPage();
-    const ensure = async () => ({ present: false, switched: true, reason: "the script editor did not mount" });
-    assert.deepEqual(await waitForGame(page, { now, ensure }), { mounted: false, reloaded: true, error: "the script editor did not mount", switched: true });
-    assert.equal(polls(), 45);
+    const { page, requests, listeners } = makePage({ notify: true });
+    assert.equal(await gameMountedWithin(page, 1000), true);
+    assert.equal(requests(), 1, "notifications must not be replaced by polling");
+    assert.equal(listeners.size, 0);
   }
   {
-    const { page, now } = mountPage();
-    page.reload = async () => {
-      throw new Error("net::ERR_CONNECTION_REFUSED at http://stub.test\n  more");
-    };
-    assert.deepEqual(await waitForGame(page, { now }), { mounted: false, reloaded: true, error: "the recovery reload did not complete (net::ERR_CONNECTION_REFUSED at http://stub.test)" });
-  }
-  {
-    // The default clock is the real one: a budget of nothing polls nothing,
-    // on a page that would answer yes.
-    const { page, polls } = mountPage({ mountedAtStart: true });
-    assert.equal(await gameMountedWithin(page, 0), false);
-    assert.equal(polls(), 0);
-    const ensure = async () => ({ present: true, switched: false, settled: true });
-    assert.deepEqual(await waitForGame(page, { timeout: 0, ensure }), { mounted: false, reloaded: true, switched: false });
-    assert.equal(polls(), 0);
+    const { page, requests, listeners } = makePage({ onReload: true });
+    assert.deepEqual(await waitForGame(page, { timeout: 5, ensure: async () => ({ present: true, switched: true }) }),
+      { mounted: true, reloaded: true, switched: true });
+    assert.equal(requests(), 2);
     assert.equal(page.reloads, 1);
+    assert.equal(listeners.size, 0);
   }
   {
-    // The predicate reads the preview's own summary: a preview that is not
-    // same-origin, or has no game children yet, is not a mount.
-    const { page, now, polls } = mountPage();
-    page.evaluate = async (f) => {
-      polls();
-      return vm.runInContext(`(${f.toString()})`, vm.createContext({ window: { __preview: { summary: () => ({ sameOrigin: false, gameChildren: 3 }) } } }))();
-    };
-    assert.equal(await gameMountedWithin(page, 2_000, { now }), false);
-    page.evaluate = async (f) => vm.runInContext(`(${f.toString()})`, vm.createContext({ window: { __preview: { summary: () => ({ sameOrigin: true, gameChildren: null }) } } }))();
-    assert.equal(await gameMountedWithin(page, 2_000, { now }), false);
-    page.evaluate = async (f) => vm.runInContext(`(${f.toString()})`, vm.createContext({ window: { __preview: { summary: () => ({ sameOrigin: true, gameChildren: 0 }) } } }))();
-    assert.equal(await gameMountedWithin(page, 2_000, { now }), true);
+    const { page, requests, listeners } = makePage();
+    assert.deepEqual(await waitForGame(page, { timeout: 5, ensure: async () => ({ present: false, reason: "editor unavailable" }) }),
+      { mounted: false, reloaded: true, error: "editor unavailable", switched: undefined });
+    assert.equal(requests(), 1);
+    assert.equal(listeners.size, 0);
+  }
+  {
+    const { page, requests } = makePage();
+    assert.equal(await gameMountedWithin(page, 0), false);
+    assert.equal(requests(), 0);
   }
 });
 
@@ -1192,11 +1192,16 @@ await check("verify and a ui --sd step run the real mount wait with the run's ow
   // fake clock; the editor's return is the command's dep, which reports the
   // click that changed the screen.
   const fresh = () => {
-    const mounted = mountPage({ mountedOnReload: 2 });
+    const globals = stubGlobals(stubStorage({}));
+    const page = stubPage(globals);
+    const original = globals.window.__editorProtocol.send;
+    globals.window.__editorProtocol.send = (message) => message.method === "preview/gameState" ? Promise.resolve({ mounted: page.reloads >= 2 }) : original(message);
+    globals.window.__editorProtocol.subscribe = () => () => {};
+    const mounted = { page };
     return {
       ...mounted,
       ...commandDeps(mounted.page, {
-        waitForGame: (page, opts) => waitForGame(page, { ...opts, now: mounted.now }),
+        waitForGame: (page, opts) => waitForGame(page, { ...opts, timeout: 5 }),
         ensureScriptEditor: async () => ({ present: true, switched: true, settled: true }),
       }),
     };

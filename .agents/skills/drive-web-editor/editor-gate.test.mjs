@@ -147,11 +147,11 @@ await check("a view that never settles fails the step with the settle budget nam
   const { gate, calls } = script({ expected: [true, true, true], present: [true, true, true, true], settle: [false, false, true, true] });
   const first = await gate(page, "panel", 1);
   assert.equal(first.ok, false);
-  assert.match(first.reason, /kept being replaced for 15s/);
+  assert.match(first.reason, /did not return settled diagnostics for 15s/);
   noRepeats(first.reason);
   const fast = await gate(page, "field", 2);
   assert.equal(fast.ok, false);
-  assert.match(fast.reason, /still being replaced \(step 1 reported: the view kept being replaced for 15s\); this field was skipped/);
+  assert.match(fast.reason, /still waiting for settled diagnostics \(step 1 reported: the view did not return settled diagnostics for 15s\); this field was skipped/);
   // A third step whose short re-settle succeeds clears the latch and proceeds on the full path.
   const third = await gate(page, "screenshot", 3);
   assert.deepEqual(third, { required: true, ok: true });

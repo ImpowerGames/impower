@@ -148,12 +148,25 @@ const asyncCheck = async (name, fn) => {
   catch (err) { failures++; console.log(`FAIL: ${name}\n  ${err.stack}`); }
 };
 
-await asyncCheck("hover uses pointer movement, completion types text, and missing surfaces are unknown server responses", async () => {
+function protocolGlobals({ text = () => "portrait", coordinates = { left: 172, right: 180, top: 40, bottom: 60 }, hover = () => null } = {}) {
+  const state = { selection: { start: { line: 0, character: 0 }, end: { line: 0, character: 0 } }, messages: [], ignoreSelect: false };
+  const bridge = { send: async (message) => {
+    state.messages.push(message);
+    if (message.method === "editor/select") { if (!state.ignoreSelect) state.selection = message.params.range; return; }
+    if (message.method === "editor/read") return { textDocument: { uri: "file://local/main.sd", version: 1, text: text() }, selection: state.selection, coordinates };
+    if (message.method === "textDocument/hover") return hover();
+    throw new Error("Unexpected method: " + message.method);
+  } };
+  return { crypto, window: { __editorProtocol: bridge }, protocolState: state };
+}
+
+await asyncCheck("hover uses protocol measurements and values while completion types text", async () => {
   const calls = [];
   let lines = ["intro", "[[portrait]]"], mainVisible = true;
   const view = { state: { doc: { lines: 2, line: (n) => ({ from: n === 1 ? 0 : 6, text: lines[n - 1] }) } }, coordsAtPos: (pos) => ({ left: 100 + pos * 8, top: 40, bottom: 60 }) };
-  const context = vm.createContext({ document: { querySelector: (selector) => selector === '[role="tab"][id$="-trigger-main"]' ? (mainVisible ? {} : null) : selector === ".sparkdown-script-editor-root .cm-content" ? { cmTile: { view } } : null, elementFromPoint: () => ({ closest: () => true }) } });
+  const context = vm.createContext({ ...protocolGlobals({ text: () => lines.join("\n") }), document: { querySelector: (selector) => selector === '[role="tab"][id$="-trigger-main"]' ? (mainVisible ? {} : null) : selector === ".sparkdown-script-editor-root .cm-content" ? { cmTile: { view } } : null, elementFromPoint: () => ({ closest: () => true }) } });
   const page = {
+    waitForFunction: async () => {},
     keyboard: { press: async (key) => calls.push(["press", key]), type: async (text) => { calls.push(["type", text]); lines[1] = "[[portrait" + text + "]]"; } },
     mouse: { move: async (...args) => calls.push(["move", ...args]) },
     evaluate: async (fn, arg) => vm.runInContext(`(${fn})`, context)(arg),
@@ -165,7 +178,7 @@ await asyncCheck("hover uses pointer movement, completion types text, and missin
   assert.equal(hover.serverResponse, "unobserved");
   assert.deepEqual(hover.caret, { placed: true });
   assert.deepEqual(JSON.parse(JSON.stringify(hover.pointer)), { x: 173, y: 50 });
-  assert.match(hover.reason, /cannot distinguish an empty server answer/);
+  assert.match(hover.reason, /language server returned no hover/);
   const completion = await languageSurface(page, "completion", { line: 2, col: 11 }, "~ha", deps);
   assert.equal(completion.textMatches, true);
   assert.equal(completion.editorView, "main");
@@ -333,13 +346,18 @@ function surfaceFixture() {
     [".sparkdown-script-editor-root .cm-tooltip-autocomplete", [popup]],
     [".sparkdown-script-editor-root .cm-completionInfo", [info]],
   ]);
-  const context = vm.createContext({ document: { querySelectorAll: (selector) => nodes.get(selector) ?? [] }, getComputedStyle: (e) => ({ visibility: e.hidden ? "hidden" : "visible" }), innerWidth: 800, innerHeight: 600 });
+  const context = vm.createContext({ ...protocolGlobals({ hover: () => ({ contents: { kind: "markdown", value: "portrait" }, images: [{ src: "blob:protocol", naturalWidth: 150, naturalHeight: 150 }] }) }), document: { querySelectorAll: (selector) => nodes.get(selector) ?? [] }, getComputedStyle: (e) => ({ visibility: e.hidden ? "hidden" : "visible" }), innerWidth: 800, innerHeight: 600 });
   const shots = [];
-  const page = { evaluate: async (fn, arg) => JSON.parse(JSON.stringify(await vm.runInContext(`(${fn})`, context)(arg))), waitForTimeout: (ms) => new Promise(resolve => setTimeout(resolve, ms)), viewportSize: () => ({ width: 800, height: 600 }), screenshot: async (args) => shots.push(args) };
+  const page = { waitForFunction: async () => {}, evaluate: async (fn, arg) => JSON.parse(JSON.stringify(await vm.runInContext(`(${fn})`, context)(arg))), waitForTimeout: (ms) => new Promise(resolve => setTimeout(resolve, ms)), viewportSize: () => ({ width: 800, height: 600 }), screenshot: async (args) => shots.push(args) };
+  page.locator = () => ({ first: () => ({ screenshot: async (args) => {
+    if (hover.rect.y < 0) await page.waitForTimeout(50);
+    if (hover.rect.y < 0 || hover.rect.x < 0 || hover.rect.x >= 800 || hover.rect.y >= 600) throw new Error("Not visible");
+    shots.push({ ...args, clip: { x: hover.rect.x, y: hover.rect.y, width: hover.rect.width, height: hover.rect.height } });
+  } }) });
   return { page, popup, info, hover, nodes, shots, rectangle };
 }
 
-await asyncCheck("real DOM reader distinguishes labels, details, image dimensions and parked surfaces", async () => {
+await asyncCheck("completion reads its rendered list and hover reads protocol contents and intrinsic size", async () => {
   const h = surfaceFixture();
   const completion = await readLanguageSurface(h.page, "completion");
   assert.deepEqual(completion.options, ["hat", "hat.on"]);
@@ -352,7 +370,7 @@ await asyncCheck("real DOM reader distinguishes labels, details, image dimension
   assert.equal(completion.naturalHeight, 150);
   assert.equal((await readLanguageSurface(h.page, "hover")).text, "portrait");
   h.hover.rect = h.rectangle(0, -10000, 180, 180);
-  assert.equal((await readLanguageSurface(h.page, "hover")).present, false);
+  assert.equal((await readLanguageSurface(h.page, "hover")).present, true, "server hover remains available when the widget is parked");
   h.info.hidden = true;
   assert.equal((await readLanguageSurface(h.page, "completion")).infoPanelPresent, false);
 });
@@ -383,8 +401,8 @@ await asyncCheck("surface waits follow viewport placement and allow missing opti
   const pauses = [];
   const timing = { now: () => clock, pause: async (ms) => { pauses.push(ms); clock += ms; }, timeout: 500, infoTimeout: 200 };
   const read = async (_, kind) => kind === "hover" ? { present: clock >= 100 } : { popupPresent: clock >= 100, infoPanelPresent: clock >= 250 };
-  assert.equal((await waitLanguageSurface({}, "hover", { ...timing, read })).present, true);
-  assert.equal(clock, 100);
+  assert.equal((await waitLanguageSurface({}, "hover", { ...timing, read })).present, false);
+  assert.equal(clock, 0, "an empty protocol reply must not trigger polling");
   clock = 0;
   assert.equal((await waitLanguageSurface({}, "completion", { ...timing, read })).infoPanelPresent, true);
   assert.equal(clock, 250);
@@ -394,7 +412,7 @@ await asyncCheck("surface waits follow viewport placement and allow missing opti
   assert.equal(clock, 200);
   clock = 0;
   assert.equal((await waitLanguageSurface({}, "hover", { ...timing, read: async () => ({ present: false }) })).present, false);
-  assert.equal(clock, 500);
+  assert.equal(clock, 0);
 });
 
 await asyncCheck("a windowed completion list is disclosed and all viewport edges reject parked surfaces", async () => {
@@ -405,7 +423,7 @@ await asyncCheck("a windowed completion list is disclosed and all viewport edges
   assert.equal((await readLanguageSurface(h.page, "completion")).optionsTruncated, true);
   for (const [x, y] of [[-300, 0], [0, -300], [800, 0], [0, 600]]) {
     h.hover.rect = h.rectangle(x, y, 180, 180);
-    assert.equal((await readLanguageSurface(h.page, "hover")).present, false);
+    assert.equal((await readLanguageSurface(h.page, "hover")).present, true, "server hover remains available when the widget is parked");
     assert.deepEqual(unionRect([{ x: 10, y: 10, width: 20, height: 20 }, { x, y, width: 180, height: 180 }], { width: 800, height: 600 }), { x: 10, y: 10, width: 20, height: 20 });
   }
 });
@@ -421,19 +439,20 @@ await asyncCheck("the final controller ping rejects a different answer even with
   await monitor.close();
 });
 
-await asyncCheck("go-to converts a one-based column, verifies the caret, and distinguishes an absent editor", async () => {
-  const state = { doc: { lines: 2, line: (n) => ({ length: n === 2 ? 12 : 3 }), lineAt: () => ({ number: 2, from: 4 }) }, selection: { main: { head: 4 } } };
-  const context = vm.createContext({ document: { querySelector: () => ({ cmTile: { view: { state } } }) } });
-  const page = { evaluate: async (fn, arg) => vm.runInContext(`(${fn})`, context)(arg) };
-  let typed, opens = 0;
-  const actions = { present: async () => ({ present: true }), open: async () => { opens++; return { open: true }; }, type: async (_, field, text) => { assert.equal(field, "line"); typed = text; return { matches: true }; }, submit: async () => { state.selection.main.head = 4 + Number(typed.split(":")[1]); } };
+await asyncCheck("protocol selection converts columns, verifies the result, and refuses absent editors", async () => {
+  const globals = protocolGlobals({ text: () => "abc\n123456789012" });
+  const context = vm.createContext(globals);
+  const page = { waitForFunction: async () => {}, evaluate: async (fn, arg) => vm.runInContext(`(${fn})`, context)(arg) };
+  const actions = { present: async () => ({ present: true }) };
   assert.equal((await placeCaret(page, { line: 2, col: 7 }, actions)).placed, true);
-  assert.equal(typed, "2:6");
+  const selections = () => globals.protocolState.messages.filter((m) => m.method === "editor/select");
+  assert.deepEqual(JSON.parse(JSON.stringify(selections()[0].params.range.start)), { line: 1, character: 6 });
   assert.equal((await placeCaret(page, { line: 2, col: 14 }, actions)).placed, false);
-  assert.equal(opens, 1);
-  assert.equal((await placeCaret(page, { line: 2, col: 7 }, { ...actions, present: async () => ({ present: false, reason: "put --screen logic before this step" }) })).reason, "put --screen logic before this step");
-  assert.equal(opens, 1);
-  assert.equal((await placeCaret(page, { line: 2, col: 8 }, { ...actions, submit: async () => {} })).placed, false);
+  assert.equal(selections().length, 1);
+  assert.equal((await placeCaret(page, { line: 2, col: 7 }, { present: async () => ({ present: false, reason: "editor absent" }) })).reason, "editor absent");
+  assert.equal(selections().length, 1);
+  globals.protocolState.ignoreSelect = true;
+  assert.equal((await placeCaret(page, { line: 2, col: 8 }, actions)).placed, false);
 });
 
 await asyncCheck("controller cleanup errors preserve the proved identity and the original installation failure", async () => {
@@ -458,7 +477,7 @@ await asyncCheck("language steps wait for placement through the production wait"
   for (const kind of ["hover", "completion"]) {
     let placed = false, line = "portrait", pauses = 0;
     const view = { state: { doc: { lines: 1, line: () => ({ from: 0, text: line }) } }, coordsAtPos: () => ({ left: 10, top: 10, bottom: 30 }) };
-    const context = vm.createContext({ document: {
+    const context = vm.createContext({ ...protocolGlobals({ text: () => line, coordinates: { left: 10, top: 10, bottom: 30 } }), document: {
       querySelector: (selector) => selector === '[role="tab"][id$="-trigger-main"]' ? {} : selector === '.sparkdown-script-editor-root .cm-content' ? { cmTile: { view } } : null,
       elementFromPoint: () => ({ closest: () => true }),
     } });
@@ -470,12 +489,12 @@ await asyncCheck("language steps wait for placement through the production wait"
       evaluate: async (fn, arg) => vm.runInContext(`(${fn})`, context)(arg),
     };
     const read = async () => kind === "hover"
-      ? { present: placed }
+      ? { present: true, serverResponse: "received" }
       : { popupPresent: placed, infoPanelPresent: placed };
     const out = await languageSurface(page, kind, { line: 1, col: 9 }, "x", { place: async () => ({ placed: true }), read });
-    assert.ok(pauses > 0, `${kind} must wait for placement`);
+    assert.equal(pauses > 0, kind === "completion");
     assert.equal(kind === "hover" ? out.present : out.popupPresent, true);
-    assert.equal(out.serverResponse, undefined);
+    assert.equal(out.serverResponse, kind === "hover" ? "received" : undefined);
   }
 });
 
@@ -504,6 +523,39 @@ await asyncCheck("controller recovery advice precedes the complete failure cause
   const { report } = await reportFreshWorker(h.page, h.ctx, h.reload);
   assert.ok(report.reason.includes(cause), "the cause must remain complete");
   assert.ok(report.reason.indexOf("inspect consoleErrors") < report.reason.indexOf(cause), "advice must precede a long cause");
+});
+
+await asyncCheck("scrubbing refuses playback modes and waits for the selected source target", async () => {
+  const globals = protocolGlobals({ text: () => "first\nsecond" });
+  let game = { launchState: "play", position: { uri: "file://local/main.sd", line: 0 } };
+  const subscribers = new Set();
+  const bridge = globals.window.__editorProtocol;
+  const originalSend = bridge.send;
+  bridge.subscribe = (listener) => { subscribers.add(listener); return () => subscribers.delete(listener); };
+  bridge.send = async (message) => {
+    if (message.method === "preview/gameState") return game;
+    if (message.method === "textDocument/didSelect") {
+      setTimeout(() => {
+        game = { ...game, position: { uri: message.params.textDocument.uri, line: message.params.selectedRange.start.line } };
+        for (const listener of subscribers) listener({ method: "preview/didChangeGameState", params: game });
+      }, 15);
+      return;
+    }
+    return originalSend(message);
+  };
+  const context = vm.createContext({ ...globals, setTimeout, clearTimeout });
+  const page = { waitForFunction: async () => {}, evaluate: async (fn, arg) => { context.arg = arg; return vm.runInContext("(" + fn.toString() + ")(arg)", context); } };
+  for (const launchState of ["play", "pause", null]) {
+    game.launchState = launchState;
+    assert.equal((await liveDeps.clickLine(page, 2)).clicked, false);
+  }
+  assert.equal(globals.protocolState.messages.filter(m => m.method === "editor/select").length, 0);
+  game.launchState = "preview";
+  const result = await liveDeps.clickLine(page, 2);
+  assert.equal(result.cursorLine, 2);
+  assert.equal(result.previousPosition.line, 0);
+  assert.equal(result.position.line, 1);
+  assert.equal(subscribers.size, 0);
 });
 
 if (failures > 0) {

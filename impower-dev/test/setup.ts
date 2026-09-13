@@ -1,6 +1,6 @@
 // jsdom lacks matchMedia; WorkspaceWindow's constructor reads it to pick the
 // initial responsive layout. Provide a minimal stub (desktop, no listeners).
-if (!window.matchMedia) {
+if (typeof window !== "undefined" && !window.matchMedia) {
   window.matchMedia = (query: string) =>
     ({
       matches: true,

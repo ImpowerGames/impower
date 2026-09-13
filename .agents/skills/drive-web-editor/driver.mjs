@@ -665,13 +665,14 @@ async function withEditor(fn, { headless = true, launch = launchEditorBrowser, s
 // re-reads it. The default project id is "local" and its entry script is
 // "main.sd" (WorkspaceConstants.LOCAL_PROJECT_ID / WorkspaceStore).
 async function writeMainSd(page, source) {
+  await waitForProtocol(page);
   return page.evaluate(async (src) => {
-    const root = await navigator.storage.getDirectory();
-    const dir = await root.getDirectoryHandle("local", { create: true });
-    const fh = await dir.getFileHandle("main.sd", { create: true });
-    const w = await fh.createWritable();
-    await w.write(src);
-    await w.close();
+    const bridge = window.__editorProtocol;
+    const project = await bridge.send({ jsonrpc: "2.0", id: crypto.randomUUID(), method: "window/loadedProjectId", params: {} });
+    if (project.id !== "local") throw new Error("Refusing to write main.sd into a different loaded project");
+    await bridge.send({ jsonrpc: "2.0", id: crypto.randomUUID(), method: "workspace/willCreateFiles", params: {
+      files: [{ uri: "file://local/main.sd", data: new TextEncoder().encode(src).buffer }],
+    } });
     return src.length;
   }, source);
 }
@@ -1039,46 +1040,31 @@ async function kindClashes({ project, files, dirs }) {
 // batch created and could not write is removed again, through the parent
 // that holds it and only when the descent to that parent succeeded; a file
 // that was there before keeps whatever it holds.
-async function writeProjectBatch({ project, entries }) {
-  const root = await navigator.storage.getDirectory();
-  const written = [];
-  const failed = [];
-  const why = (err) => (err?.name && err.name !== "Error" ? `${err.name}: ${err.message}` : String(err?.message ?? err));
-  for (const { path: filePath, base64 } of entries) {
-    const segments = filePath.split("/");
-    const name = segments.pop();
-    let parent = null;
-    let created = false;
+async function writeProjectBatch({ project, entries, archive }) {
+  const bridge = window.__editorProtocol;
+  if (!bridge) throw new Error("Editor protocol bridge is not ready");
+  const send = (method, params) => bridge.send({ jsonrpc: "2.0", id: crypto.randomUUID(), method, params });
+  const loaded = await send("window/loadedProjectId", {});
+  if (loaded.id !== project) throw new Error("Refusing to seed a project that is not loaded");
+  const data = Uint8Array.from(atob(archive), (char) => char.charCodeAt(0)).buffer;
+  const files = await send("workspace/unzipFiles", { data });
+  const written = [], failed = [];
+  for (const { filename, data } of files) {
+    const expected = entries.find((entry) => entry.path === filename);
+    if (!expected) throw new Error("Archive returned an unexpected file: " + filename);
+    const uri = "file://" + project + "/" + filename;
     try {
-      let dir = await root.getDirectoryHandle(project, { create: true });
-      for (const segment of segments) dir = await dir.getDirectoryHandle(segment, { create: true });
-      parent = dir;
-      try {
-        await parent.getFileHandle(name, { create: false });
-      } catch (err) {
-        if (err?.name !== "NotFoundError") throw err;
-        created = true;
-      }
-      const text = atob(base64);
-      const bytes = new Uint8Array(text.length);
-      for (let i = 0; i < text.length; i++) bytes[i] = text.charCodeAt(i);
-      const handle = await parent.getFileHandle(name, { create: true });
-      const writable = await handle.createWritable();
-      await writable.write(bytes);
-      await writable.close();
-      const size = (await handle.getFile()).size;
-      if (size !== bytes.length) throw new Error(`wrote ${bytes.length} bytes but the file reads back as ${size}`);
-      written.push({ path: filePath, bytes: size });
-    } catch (err) {
-      failed.push({ path: filePath, reason: why(err) });
-      if (parent && created) {
-        try {
-          await parent.removeEntry(name);
-        } catch {
-          /* nothing was created */
-        }
-      }
+      const size = data.byteLength;
+      await send("workspace/willCreateFiles", { files: [{ uri, data }] });
+      const readBack = await send("workspace/readFile", { file: { uri } });
+      if (readBack.byteLength !== size) throw new Error(`wrote ${size} bytes but the file reads back as ${readBack.byteLength}`);
+      written.push({ path: filename, bytes: readBack.byteLength });
+    } catch (error) {
+      failed.push({ path: filename, reason: error.name && error.name !== "Error" ? `${error.name}: ${error.message}` : String(error.message || error) });
     }
+  }
+  for (const entry of entries) {
+    if (!files.some((file) => file.filename === entry.path)) failed.push({ path: entry.path, reason: "Archive did not return the expected file" });
   }
   return { written, failed };
 }
@@ -1319,7 +1305,12 @@ async function clearProject(page, { project = LOCAL_PROJECT_ID } = {}) {
 // leaves it standing; a clear that stops part-way is the reason, with the
 // project marked. `collect`, `batchBytes` and `limits` are parameters so the
 // check can drive this with a fixture, small batches and small bounds.
-async function seedProject(page, source, { project = LOCAL_PROJECT_ID, batchBytes = SEED_BATCH_BYTES, collect = collectProject, expectMainSd = true, limits = SEED_LIMITS, clear = false } = {}) {
+async function packProjectBatch(batch) {
+  const { zipSync } = await import("fflate");
+  return Buffer.from(zipSync(Object.fromEntries(batch.map((file) => [file.path, file.bytes])), { level: 0 })).toString("base64");
+}
+
+async function seedProject(page, source, { project = LOCAL_PROJECT_ID, batchBytes = SEED_BATCH_BYTES, collect = collectProject, expectMainSd = true, limits = SEED_LIMITS, clear = false, pack = packProjectBatch } = {}) {
   const started = Date.now();
   const report = { source: path.resolve(source), project, storage: "untouched", files: 0, bytes: 0, batches: 0, skipped: 0, removed: [], failed: [], mainSd: false, pruned: false };
   const done = (reason) => {
@@ -1396,7 +1387,9 @@ async function seedProject(page, source, { project = LOCAL_PROJECT_ID, batchByte
     for (const batch of planBatches(collected.files, batchBytes)) {
       report.batches += 1;
       const entries = batch.map((f) => ({ path: f.path, base64: Buffer.from(f.bytes).toString("base64") }));
-      const out = await page.evaluate(writeProjectBatch, { project, entries });
+      const archive = await pack(batch);
+      await waitForProtocol(page);
+      const out = await page.evaluate(writeProjectBatch, { project, entries, archive });
       for (const w of out.written) {
         report.files += 1;
         report.bytes += w.bytes;
@@ -1488,9 +1481,52 @@ async function seed(args, deps = liveDeps) {
   );
 }
 
-// The editor is a plain Preact app hydrated into #root — there is no
-// <spark-editor> custom element to wait for. The CodeMirror instance stashes
-// its EditorView on the .cm-content node as `.cmTile.view`.
+// Wait only for installation; subsequent model reads use the editor protocol.
+async function waitForProtocol(page, timeout = 90_000) {
+  await page.waitForFunction(() => window.__editorProtocol != null, null, { timeout });
+}
+
+async function protocolRequest(page, method, params = {}, timeout = 30_000) {
+  await waitForProtocol(page, timeout);
+  return page.evaluate(({ method, params, timeout }) =>
+    window.__editorProtocol.send({ jsonrpc: "2.0", id: crypto.randomUUID(), method, params }, timeout),
+    { method, params, timeout });
+}
+
+async function protocolNotify(page, method, params = {}) {
+  await waitForProtocol(page);
+  return page.evaluate(({ method, params }) => window.__editorProtocol.send({ jsonrpc: "2.0", method, params }), { method, params });
+}
+
+async function settledDiagnostics(page, timeout = 30_000) {
+  const editor = await protocolRequest(page, "editor/read", {}, timeout);
+  return protocolRequest(page, "textDocument/diagnosticsSettled", {
+    textDocument: { uri: editor.textDocument.uri }, version: editor.textDocument.version,
+  }, timeout);
+}
+
+async function waitForProtocolState(page, method, notification, field, timeout, expectedPosition = null) {
+  await waitForProtocol(page, timeout);
+  return page.evaluate(({ method, notification, field, timeout, expectedPosition }) => new Promise((resolve, reject) => {
+    const bridge = window.__editorProtocol;
+    const matches = (state) => state[field] && (!expectedPosition || (state.position?.uri === expectedPosition.uri && state.position?.line === expectedPosition.line));
+    let done = false;
+    const finish = (value, error) => {
+      if (done) return;
+      done = true;
+      clearTimeout(timer);
+      unsubscribe();
+      if (error) reject(error); else resolve(value);
+    };
+    const unsubscribe = bridge.subscribe((message) => {
+      if (message.method === notification && matches(message.params)) finish(message.params);
+    });
+    const timer = setTimeout(() => finish(null, new Error("Protocol state wait timed out: " + field)), timeout);
+    bridge.send({ jsonrpc: "2.0", id: crypto.randomUUID(), method, params: {} }, timeout)
+      .then((state) => { if (matches(state)) finish(state); }, (error) => finish(null, error));
+  }), { method, notification, field, timeout, expectedPosition });
+}
+
 async function waitForEditor(page, timeout = 90_000) {
   await page.waitForSelector(".sparkdown-script-editor-root .cm-content", { timeout });
   await page.waitForFunction(
@@ -1500,125 +1536,27 @@ async function waitForEditor(page, timeout = 90_000) {
   );
 }
 
-// Scrub the game preview to a source line, by clicking that line.
-//
-// The click is a real one, driven through Playwright's mouse. A programmatic
-// `view.dispatch({selection})` moves the caret without a user event behind it,
-// and the editor does not reliably forward that move to the player: the cursor
-// sits on the requested line while the route indicator stays on the old beat,
-// for as long as you care to wait, with nothing raised. Measured across this
-// harness it never moved the preview, so nothing here dispatches a selection.
-//
-// Three details this depends on:
-//   - Scrolling moves `scrollDOM.scrollTop` directly instead of dispatching a
-//     transaction with `scrollIntoView`, so the whole path stays free of the
-//     mechanism above.
-//   - `coordsAtPos` only answers for lines CodeMirror has actually rendered,
-//     and its answer is stale until the scroll has landed and the view has
-//     re-measured — hence the scroll, the wait, and a separate re-read.
-//   - The click lands a few characters INTO the line rather than at its very
-//     start, so it still changes the selection when the caret is already parked
-//     at the start; a selection that does not change produces no event for the
-//     editor to forward.
-//
-// Two things will silently defeat a scrub however it is driven:
-//   1. Scrubbing ONLY works while the preview is STOPPED. Once you press PLAY
-//      the engine is time-driven and ignores the cursor entirely.
-//   2. The editor RESTORES the previous session's cursor position asynchronously
-//      after load, so the caller must let the first compile settle before
-//      scrubbing, or the restore lands afterwards and wins.
+// Scrub through the same selection notifications the editor sends to the player.
+// Keep the historical "clicked" report field for callers; no mouse click is needed.
 async function clickLine(page, line) {
-  const scrolled = await page.evaluate((target) => {
-    const view = document.querySelector(".sparkdown-script-editor-root .cm-content")?.cmTile?.view;
-    if (!view) return { ok: false, reason: "no CodeMirror view" };
-    const total = view.state.doc.lines;
-    const clamped = Math.min(Math.max(1, target), total);
-    const block = view.lineBlockAt(view.state.doc.line(clamped).from);
-    const scroller = view.scrollDOM;
-    // `block.top` is in the document's own coordinate space and `documentTop`
-    // is where that space currently sits on screen, so their sum is the line's
-    // screen position. Centre it in the scroller.
-    const screenY = view.documentTop + block.top;
-    const wantY = scroller.getBoundingClientRect().top + scroller.clientHeight / 2;
-    scroller.scrollTop += screenY - wantY;
-    return { ok: true, line: clamped, totalLines: total };
-  }, line);
-  if (!scrolled.ok) return { clicked: false, reason: scrolled.reason };
-
-  await page.waitForTimeout(600); // let the scroll land and the view re-measure
-
-  const spot = await page.evaluate((target) => {
-    const view = document.querySelector(".sparkdown-script-editor-root .cm-content")?.cmTile?.view;
-    if (!view) return { ok: false, reason: "no CodeMirror view" };
-    const l = view.state.doc.line(target);
-    const pos = l.from + Math.min(6, l.length);
-    // A click that resolves to the position the caret already holds changes no
-    // selection, and so produces no event for the editor to forward. An empty
-    // line always hits this, since there is no character to aim past. Say so
-    // rather than clicking and reporting a success that moved nothing.
-    if (pos === view.state.selection.main.head) {
-      return {
-        ok: false,
-        reason:
-          `a click on line ${target} would land on the position the caret already ` +
-          `holds, so it would change no selection` +
-          (l.length === 0 ? ` (the line is empty)` : ``),
-      };
-    }
-    const co = view.coordsAtPos(pos);
-    if (!co) return { ok: false, reason: `line ${target} is not rendered` };
-    const x = Math.round(co.left + 1);
-    const y = Math.round((co.top + co.bottom) / 2);
-    // Clicking a toolbar or some overlay instead of the text would leave the
-    // preview exactly where it was, so check what is under the point rather
-    // than assuming the coordinates are reachable.
-    const hit = document.elementFromPoint(x, y);
-    if (!hit || !hit.closest(".sparkdown-script-editor-root .cm-content")) {
-      return {
-        ok: false,
-        reason: `point (${x}, ${y}) is covered by ${hit ? hit.tagName.toLowerCase() : "nothing"}`,
-      };
-    }
-    return { ok: true, x, y };
-  }, scrolled.line);
-  if (!spot.ok) return { clicked: false, line: scrolled.line, reason: spot.reason };
-
-  await page.mouse.click(spot.x, spot.y);
-
-  const cursorLine = await page.evaluate(() => {
-    const view = document.querySelector(".sparkdown-script-editor-root .cm-content")?.cmTile?.view;
-    if (!view) return null;
-    return view.state.doc.lineAt(view.state.selection.main.head).number;
-  });
-  return { clicked: true, line: scrolled.line, x: spot.x, y: spot.y, cursorLine };
+  const editor = await protocolRequest(page, "editor/read");
+  const lines = editor.textDocument.text.split("\n");
+  const clamped = Math.min(Math.max(1, line), lines.length);
+  const range = { start: { line: clamped - 1, character: 0 }, end: { line: clamped - 1, character: 0 } };
+  const state = await protocolRequest(page, "preview/gameState");
+  if (state.launchState !== "preview") return { clicked: false, reason: "Stop the running preview before scrubbing" };
+  await protocolNotify(page, "editor/select", { textDocument: { uri: editor.textDocument.uri }, range, takeFocus: true, scrollIntoView: "center" });
+  await protocolNotify(page, "textDocument/didSelect", { textDocument: { uri: editor.textDocument.uri }, selectedRange: range, docChanged: false, userEvent: true, hasFocus: true });
+  const selected = await waitForProtocolState(page, "preview/gameState", "preview/didChangeGameState", "position", 30_000, { uri: editor.textDocument.uri, line: clamped - 1 });
+  const after = await protocolRequest(page, "editor/read");
+  return { clicked: true, line: clamped, totalLines: lines.length, cursorLine: after.selection.start.line + 1, previousPosition: state.position, position: selected.position };
 }
 
-// Wait for the game to actually MOUNT inside the player iframe.
-//
-// `readyState === "complete"` is NOT enough: right after a server restart the
-// iframe loads but the `#game` scaffold never appears, and the Game Preview pane
-// sits BLANK WHITE while every other signal looks healthy. A reload of the
-// editor page reliably kicks it into mounting, so try that once before giving
-// up rather than reporting a confidently-wrong empty screenshot.
-// Whether `#game` is in the player iframe within `timeout`, polled once a
-// second; the mount signal `waitForGame` retries on.
+// Subscribe before reading state so a mount between the two cannot be lost.
 const GAME_MOUNT_BUDGET_MS = 45_000;
-// Whether the game mounts within `timeout`, polled once a second through
-// `window.__preview`. `now` is the clock, a parameter so seed-project.test.mjs
-// can run the wait in-process against a page whose `waitForTimeout` moves a
-// fake clock and count the polls the budget allows.
 async function gameMountedWithin(page, timeout = GAME_MOUNT_BUDGET_MS, { now = Date.now } = {}) {
-  const mounted = async () =>
-    page.evaluate(() => {
-      const s = window.__preview?.summary();
-      return !!s && s.sameOrigin && s.gameChildren != null;
-    });
-  const deadline = now() + timeout;
-  while (now() < deadline) {
-    if (await mounted()) return true;
-    await page.waitForTimeout(1000);
-  }
-  return false;
+  if (timeout <= 0) return false;
+  return waitForProtocolState(page, "preview/gameState", "preview/didChangeGameState", "mounted", timeout).then(() => true, () => false);
 }
 
 // The game mount wait `verify` and a `ui --sd` step use: the budget once,
@@ -1679,15 +1617,8 @@ async function routeLabel(page) {
 
 // Every line of the open document, as source text.
 async function documentLines(page) {
-  return page.evaluate(() => {
-    const view = document.querySelector(".sparkdown-script-editor-root .cm-content")?.cmTile?.view;
-    if (!view) return null;
-    const out = [];
-    for (let i = 1; i <= view.state.doc.lines; i++) {
-      out.push(view.state.doc.line(i).text);
-    }
-    return out;
-  });
+  const editor = await protocolRequest(page, "editor/read");
+  return editor.textDocument.text.split("\n");
 }
 
 // Did the preview land on the line we asked for?
@@ -1798,42 +1729,16 @@ function routeBeat(label) {
   return nums.length ? nums[nums.length - 1] : null;
 }
 
-// Wait for the program to reach the player. The toolbar's launch-state icon
-// gets its `icon` attribute when the player loads a program
-// (GamePlayerController's LoadPreview handler ends in updateLaunchStateIcon),
-// running or not, so the attribute is the one signal that the first compile
-// is over. Until then the game DOM is an empty scaffold whose text is "",
-// which waitForPreviewSettle reads as settled at once; on a project whose
-// first compile outlasts that quiet window (the Raffles & Bunny project takes
-// 5-10 s here) a scrub sent then goes to a player that is not listening and
-// the preview stays black (#435). Answers null when the preview is not
-// observable (cross-origin mode), where nothing can be waited for; the
-// callers answer null themselves when the game never mounted, where the
-// wait could only burn its budget. The compiler emits no program for a
-// script with error diagnostics, so when the wait fails, `errors` carries
-// the count the editor's status bar shows (its `.cm-errorsLabel`, hidden at
-// zero), which is what tells a script that does not compile from a harness
-// that was not ready. That bar counts the open document's diagnostics
-// alone (the language server publishes them per file, and the page holds no
-// count for the whole project), so an error in a file that is not open, an
-// included script in a seeded project, reads as zero.
+// Read player state and await its notifications. An empty game DOM does not
+// imply that a program loaded. On timeout, read errors for the active document;
+// errors in other project documents are outside this diagnostic result.
 const PROGRAM_BUDGET_MS = 90_000;
 async function waitForProgram(page, timeout = PROGRAM_BUDGET_MS) {
   const started = Date.now();
-  if (!(await previewSummary(page)).installed) return { loaded: null, reason: "the preview is not observable" };
-  const loaded = await page
-    .waitForFunction(() => window.__preview?.$("#launch-state-icon")?.hasAttribute("icon") === true, null, { timeout })
-    .then(() => true, () => false);
+  const loaded = await waitForProtocolState(page, "preview/gameState", "preview/didChangeGameState", "programLoaded", timeout).then(() => true, () => false);
   const out = { loaded, ms: Date.now() - started };
   if (!loaded) {
-    out.errors = await page
-      .evaluate(() => {
-        const label = document.querySelector(".sparkdown-script-editor-root .cm-errorsLabel");
-        if (!label || label.hidden) return 0;
-        const m = /(\d+)/.exec(label.textContent || "");
-        return m ? Number(m[1]) : 0;
-      })
-      .catch(() => null);
+    out.errors = await settledDiagnostics(page).then((result) => result.diagnostics.filter((d) => d.severity === 1).length, () => null);
   }
   return out;
 }
@@ -1842,10 +1747,11 @@ async function waitForProgram(page, timeout = PROGRAM_BUDGET_MS) {
 // count is the open document not compiling; none is the harness not being
 // ready, or an error in a file that is not open.
 function programWarning(program, budget = PROGRAM_BUDGET_MS) {
+  if (program.errors == null) return `the player had not loaded a program within ${seconds(budget)}, and settled diagnostics could not be read. Inspect the protocol error and retry before trusting the preview.`;
   if (program.errors > 0) {
-    return `the script does not compile: the editor's status bar shows ${program.errors} error${program.errors === 1 ? "" : "s"} in the open document, so no program reached the player within ${seconds(budget)}. The preview shows the last program the player had, or nothing, and a scrub is dropped; that is the picture of a script that does not compile, which is evidence only when that is the bug.`;
+    return `the script does not compile: settled diagnostics report ${program.errors} error${program.errors === 1 ? "" : "s"} in the open document, so no program reached the player within ${seconds(budget)}. The preview shows the last program the player had, or nothing, and a scrub is dropped; that is the picture of a script that does not compile, which is evidence only when that is the bug.`;
   }
-  return `the player had not loaded a program within ${seconds(budget)} (the toolbar's launch-state icon never appeared) and the editor's status bar shows no errors in the open document: either the harness was not ready (the first compile was still running or never reached the player), or a file that is not open does not compile (an included script, on a --project run; the status bar counts the open document alone). A scrub sent now is dropped and the preview is not evidence; re-run, or open the included scripts in the editor to see their errors.`;
+  return `the player had not loaded a program within ${seconds(budget)} according to preview/gameState, and settled diagnostics report no errors in the open document: either the harness was not ready (the first compile was still running or never reached the player), or a file that is not open does not compile (an included script, on a --project run; this diagnostic read covers the open document alone). A scrub sent now is dropped and the preview is not evidence; re-run, or open the included scripts in the editor to see their errors.`;
 }
 
 // The warning for a run whose logic pane shows its fullscreen scripts view:
@@ -2407,8 +2313,7 @@ const PAINT_BUDGET_MS = 5_000;
 const seconds = (ms) => `${ms / 1000}s`;
 
 /**
- * A settled view is not yet a painted one: the identity and document length
- * can hold still while the editor has drawn nothing. A screenshot needs the
+ * Settled diagnostics do not imply that the editor has painted. A screenshot needs the
  * lines and the gutter on screen; this waits for them.
  */
 async function editorPainted(page, timeout = PAINT_BUDGET_MS) {
@@ -2460,7 +2365,7 @@ function editorGate({ expected = editorExpectedHere, present = scriptEditorPrese
       const quick = await present(page, 2_000);
       if (!quick.present) return { required: true, ok: false, reason: `the script editor is still not up (${at} reported: ${gaveUp.what}); this ${what} was skipped` };
       if (gaveUp.kind === "unsettled" && !(await settle(page, 6_000))) {
-        return { required: true, ok: false, reason: `the script editor is still being replaced (${at} reported: ${gaveUp.what}); this ${what} was skipped` };
+        return { required: true, ok: false, reason: `the script editor is still waiting for settled diagnostics (${at} reported: ${gaveUp.what}); this ${what} was skipped` };
       }
       gaveUp = null;
     }
@@ -2480,8 +2385,8 @@ function editorGate({ expected = editorExpectedHere, present = scriptEditorPrese
     }
     const settleBudget = settledOnce ? WARM_BUDGET_MS : SETTLE_BUDGET_MS;
     if (!(await settle(page, settleBudget))) {
-      gaveUp = { kind: "unsettled", what: `the view kept being replaced for ${seconds(settleBudget)}`, step };
-      return { required: true, ok: false, reason: `this ${what} needs a settled script editor, and the view kept being replaced for ${seconds(settleBudget)}. Re-run; if it persists the machine is saturated` };
+      gaveUp = { kind: "unsettled", what: `the view did not return settled diagnostics for ${seconds(settleBudget)}`, step };
+      return { required: true, ok: false, reason: `this ${what} needs a settled script editor, and the view did not return settled diagnostics for ${seconds(settleBudget)}. Re-run; if it persists the machine is saturated` };
     }
     settledOnce = true;
     // A settled view can still be unpainted; a screenshot of it is a picture
@@ -2517,34 +2422,7 @@ function editorGate({ expected = editorExpectedHere, present = scriptEditorPrese
  * the same document length across three reads 600 ms apart.
  */
 async function settleEditor(page, timeout = 30_000) {
-  // Stability is the view's own identity and document length holding across
-  // three reads 600 ms apart. It does not wait for the whole page's DOM to go
-  // quiet: the game preview animates and the language server churns
-  // attributes, and neither says anything about whether the editor view is
-  // about to be replaced.
-  const deadline = Date.now() + timeout;
-  let last = null;
-  let stableFor = 0;
-  while (Date.now() < deadline) {
-    const id = await page.evaluate(() => {
-      const view = document.querySelector(".sparkdown-script-editor-root .cm-content")?.cmTile?.view;
-      if (!view) return null;
-      // Identity is tracked in a WeakMap on the window, not written onto the
-      // view, so the editor is observed and not touched.
-      const ids = (window.__driverViewIds ??= new WeakMap());
-      if (!ids.has(view)) ids.set(view, Math.random().toString(36).slice(2));
-      return `${ids.get(view)}:${view.state.doc.length}`;
-    });
-    if (id != null && id === last) {
-      stableFor += 1;
-      if (stableFor >= 2) return true;
-    } else {
-      stableFor = 0;
-    }
-    last = id;
-    await sleep(600);
-  }
-  return false;
+  return settledDiagnostics(page, timeout).then(() => true, () => false);
 }
 
 /**
@@ -2608,7 +2486,7 @@ async function openSurface(page, name, { settled = false } = {}) {
   // into the old view opens nothing. `ui` settles through its gate first and
   // says so; a caller outside `ui` gets the settle here.
   if (!settled && !(await settleEditor(page, SETTLE_BUDGET_MS))) {
-    return { surface: name, open: false, reason: `the script editor kept being replaced for ${seconds(SETTLE_BUDGET_MS)} and never settled; the shortcut was not sent. Re-run; if it persists the machine is saturated` };
+    return { surface: name, open: false, reason: `the script editor did not return settled diagnostics for ${seconds(SETTLE_BUDGET_MS)} and never settled; the shortcut was not sent. Re-run; if it persists the machine is saturated` };
   }
   await focusEditor(page);
   const key = await pressKey(page, s.open);
@@ -2827,7 +2705,7 @@ async function switchScreen(page, name, { followedByMain = false } = {}) {
     const editorSettled = await settleEditor(page, settleBudget);
     settled = editorSettled && settled;
     if (!editorSettled) {
-      return { screen: name, active: true, settled, editorHere: true, editorSettled: false, reason: `the ${name} tab is up but its script editor never settled within ${seconds(settleBudget)}; later steps may have hit a view that was being replaced` };
+      return { screen: name, active: true, settled, editorHere: true, editorSettled: false, reason: `the ${name} tab is up but its script editor never settled within ${seconds(settleBudget)}; later steps may have run without settled diagnostics` };
     }
     return { screen: name, active: true, settled, editorHere: true, editorSettled: true };
   }
@@ -2869,10 +2747,7 @@ async function readSurfaces(page) {
   if (await surfaceOpen(page, "goto")) {
     out.goto = { open: true, line: await readField(page, "line") };
   }
-  out.cursorLine = await page.evaluate(() => {
-    const view = document.querySelector(".sparkdown-script-editor-root .cm-content")?.cmTile?.view;
-    return view ? view.state.doc.lineAt(view.state.selection.main.head).number : null;
-  });
+  out.cursorLine = out.editorView ? await protocolRequest(page, "editor/read").then((r) => r.selection.start.line + 1, () => null) : null;
   return out;
 }
 
@@ -2898,31 +2773,33 @@ export function unionRect(rects, viewport) {
 // The go-to panel accepts a one-based line and zero-based column. Read the selection
 // back before typing or aiming the pointer; an out-of-range column must not
 // silently become a check of the end of the line.
-export async function placeCaret(page, position, { present = scriptEditorPresent, open = openSurface, type = typeInto, submit = clickSurfaceButton } = {}) {
+export async function placeCaret(page, position, { present = scriptEditorPresent } = {}) {
   const editor = await present(page);
   if (!editor.present) return { placed: false, reason: editor.reason };
-  const valid = await page.evaluate(({ line, col }) => {
-    const view = document.querySelector(".sparkdown-script-editor-root .cm-content")?.cmTile?.view;
-    return Boolean(view && line <= view.state.doc.lines && col <= view.state.doc.line(line).length + 1);
-  }, position);
-  if (!valid) return { placed: false, reason: "position is outside the open document; choose a line and column within its text" };
-  const opened = await open(page, "goto", { settled: true });
-  if (!opened.open) return { placed: false, reason: opened.reason };
-  const typed = await type(page, "line", `${position.line}:${position.col - 1}`, { settled: true });
-  if (!typed.matches) return { placed: false, reason: typed.reason };
-  await submit(page, "submit");
-  const cursor = await page.evaluate(() => {
-    const view = document.querySelector(".sparkdown-script-editor-root .cm-content")?.cmTile?.view;
-    if (!view) return null;
-    const head = view.state.selection.main.head;
-    const line = view.state.doc.lineAt(head);
-    return { line: line.number, col: head - line.from + 1 };
-  });
-  const placed = cursor?.line === position.line && cursor?.col === position.col;
-  return { placed, cursor, ...(placed ? {} : { reason: "go-to did not place the caret at the requested position; inspect the open document and retry" }) };
+  const snapshot = await protocolRequest(page, "editor/read");
+  const lines = snapshot.textDocument.text.split("\n");
+  if (position.line > lines.length || position.col > lines[position.line - 1].length + 1) {
+    return { placed: false, reason: "position is outside the open document; choose a line and column within its text" };
+  }
+  const point = { line: position.line - 1, character: position.col - 1 };
+  await protocolNotify(page, "editor/select", { textDocument: { uri: snapshot.textDocument.uri }, range: { start: point, end: point }, takeFocus: true, scrollIntoView: "center" });
+  const readBack = await protocolRequest(page, "editor/read");
+  const cursor = { line: readBack.selection.start.line + 1, col: readBack.selection.start.character + 1 };
+  const placed = cursor.line === position.line && cursor.col === position.col;
+  return { placed, cursor, ...(placed ? {} : { reason: "editor did not select the requested position" }) };
 }
 
 export async function readLanguageSurface(page, kind) {
+  if (kind === "hover") {
+    const editor = await protocolRequest(page, "editor/read");
+    const result = await protocolRequest(page, "textDocument/hover", { textDocument: { uri: editor.textDocument.uri }, position: editor.selection.start });
+    const parts = result ? (Array.isArray(result.contents) ? result.contents : [result.contents]) : [];
+    const firstImage = result?.images?.[0];
+    return { present: result != null, text: parts.map((p) => typeof p === "string" ? p : p.value).join("\n"),
+      contents: result?.contents ?? null, serverResponse: result == null ? "empty" : "received",
+      surfaceRect: null, imgRect: null, imgSrc: firstImage?.src ?? null,
+      naturalWidth: firstImage?.naturalWidth ?? null, naturalHeight: firstImage?.naturalHeight ?? null };
+  }
   return page.evaluate(({ kind, selectors }) => {
     const visible = (selector) => [...document.querySelectorAll(selector)].find((e) => {
       const r = e.getBoundingClientRect();
@@ -2943,7 +2820,6 @@ export async function readLanguageSurface(page, kind) {
       naturalWidth: img?.naturalWidth ?? null,
       naturalHeight: img?.naturalHeight ?? null,
     };
-    if (kind === "hover") return { present: Boolean(root), text: root?.innerText ?? "", surfaceRect: box(root), ...image };
     const label = (option) => option?.querySelector(".cm-completionLabel")?.innerText ?? null;
     const items = [...(root?.querySelectorAll('[role="option"]') ?? [])].map((o) => ({ label: label(o), detail: o.querySelector(".cm-completionDetail")?.innerText ?? null }));
     return {
@@ -2963,6 +2839,7 @@ export async function readLanguageSurface(page, kind) {
 // Wait on the same viewport predicate used in the report: CodeMirror inserts
 // tooltips off-screen before its layout pass positions them.
 export async function waitLanguageSurface(page, kind, { read = readLanguageSurface, timeout = 15_000, infoTimeout = 2000, now = Date.now, pause = (ms) => page.waitForTimeout(ms) } = {}) {
+  if (kind === "hover") return read(page, kind);
   const end = now() + timeout;
   let surface = await read(page, kind);
   const present = () => kind === "hover" ? surface.present : surface.popupPresent;
@@ -3001,21 +2878,15 @@ export async function languageSurface(page, kind, position, text, { place = plac
     out.textMatches = after.join("\n") === expected.join("\n");
     if (!out.textMatches) return { ...out, reason: "typed text differs from the document read-back; inspect auto-closing characters and the screenshot before retrying" };
   } else {
-    const spot = await page.evaluate(({ line, col }) => {
-      const view = document.querySelector(".sparkdown-script-editor-root .cm-content")?.cmTile?.view;
-      if (!view || line > view.state.doc.lines) return null;
-      const pos = view.state.doc.line(line).from + col - 1;
-      const rect = view.coordsAtPos(pos);
-      if (!rect) return null;
-      const x = rect.left + 1, y = (rect.top + rect.bottom) / 2;
-      return document.elementFromPoint(x, y)?.closest(".sparkdown-script-editor-root .cm-content") ? { x, y } : null;
-    }, position);
+    const measured = await protocolRequest(page, "editor/read", { position: { line: position.line - 1, character: position.col - 1 } });
+    const rect = measured.coordinates;
+    const spot = rect ? { x: rect.left + 1, y: (rect.top + rect.bottom) / 2 } : null;
     if (!spot) return { ...out, reason: "hover position is covered or not painted; bring the script into view and retry" };
     await page.mouse.move(spot.x, spot.y, { steps: 5 });
     out.pointer = spot;
   }
   const surface = await wait(page, kind, { read, timeout });
-  if (kind === "hover" ? surface.present : surface.popupPresent) {
+  if (kind === "completion" && surface.popupPresent) {
     await page.waitForFunction(({ kind, selectors }) => {
       const root = document.querySelector(kind === "completion" ? selectors.info : selectors.hover);
       return [...(root?.querySelectorAll("img") ?? [])].every((img) => img.complete);
@@ -3023,8 +2894,8 @@ export async function languageSurface(page, kind, position, text, { place = plac
   }
   Object.assign(out, await read(page, kind));
   if (!(kind === "hover" ? out.present : out.popupPresent)) {
-    out.serverResponse = "unobserved";
-    out.reason = `${kind} did not appear; the UI alone cannot distinguish an empty server answer from a failed request. Check diagnostics and the requested position before retrying`;
+    out.serverResponse ??= "unobserved";
+    out.reason = kind === "hover" ? "The language server returned no hover at this position" : "Completion did not appear; inspect the screenshot and requested position";
   }
   return out;
 }
@@ -3037,7 +2908,11 @@ async function shotOf(page, what, out) {
   fs.mkdirSync(path.dirname(target), { recursive: true });
   if (SHOT_TARGETS[what] == null) {
     await page.screenshot({ path: target, fullPage: false });
-  } else if (what === "hover" || what === "completion") {
+  } else if (what === "hover") {
+    const tooltip = page.locator(SHOT_TARGETS.hover).first();
+    try { await tooltip.screenshot({ path: target, timeout: 5000 }); }
+    catch { return { of: what, screenshot: null, reason: "Hover is not visible for its screenshot" }; }
+  } else if (what === "completion") {
     const surface = await waitLanguageSurface(page, what, { timeout: 2000 });
     const clip = surface.surfaceRect && unionRect([surface.surfaceRect, surface.infoPanelRect], page.viewportSize());
     if (!clip) return { of: what, screenshot: null, reason: `${what} is outside the viewport or not on screen; re-open it on a visible line` };
@@ -3388,7 +3263,7 @@ async function ui(args, deps = liveDeps) {
                 out.previewNote = "the game preview is not observable (cross-origin mode, or the preview is showing the screenplay), so the first compile was not waited for";
               }
               if (!out.editorSettled) {
-                const settleReason = `the script editor never settled within ${seconds(SETTLE_BUDGET_MS)} after the reload; later steps may have hit a view that was being replaced`;
+                const settleReason = `the script editor never settled within ${seconds(SETTLE_BUDGET_MS)} after the reload; later steps may have run without settled diagnostics`;
                 out.reason = out.reason ? `${out.reason}; also ${settleReason}` : settleReason;
               }
               // The step wrote main.sd; if the pane is showing another file
