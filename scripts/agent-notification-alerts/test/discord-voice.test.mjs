@@ -88,7 +88,7 @@ async function exists(path) {
 test('a reachable Discord that reports READY waits unauthorized without prompting a consent dialog', async () => {
   await withState(async () => {
     const connect = singlePipeConnect((socket, sent) => {
-      if (sent.cmd === undefined && sent.v === 1) socket.reply({ evt: 'READY', data: {} });
+      if (sent.cmd === undefined && sent.v === 1) socket.reply({ cmd: 'DISPATCH', evt: 'READY', data: {} });
     });
     const watcher = startDiscordVoiceWatcher({ clientId: 'client', clientSecret: 'secret', connect, syncIntervalMs: 15 });
     try {
@@ -104,7 +104,7 @@ test('a reachable Discord that reports READY waits unauthorized without promptin
 test('a Connect Discord request drives authorize, token exchange, authenticate, and the initial channel read', async () => {
   await withState(async () => {
     const connect = singlePipeConnect((socket, sent) => {
-      if (sent.v === 1) return socket.reply({ evt: 'READY', data: {} });
+      if (sent.v === 1) return socket.reply({ cmd: 'DISPATCH', evt: 'READY', data: {} });
       if (sent.cmd === 'AUTHORIZE') return socket.reply({ cmd: 'AUTHORIZE', nonce: sent.nonce, data: { code: 'the-code' } });
       if (sent.cmd === 'AUTHENTICATE') return socket.reply({ cmd: 'AUTHENTICATE', nonce: sent.nonce, data: {} });
       if (sent.cmd === 'GET_SELECTED_VOICE_CHANNEL') return socket.reply({ cmd: 'GET_SELECTED_VOICE_CHANNEL', nonce: sent.nonce, data: null });
@@ -135,7 +135,7 @@ test('selecting a voice channel mutes and leaving it unmutes, without replaying 
     let socketRef;
     const connect = singlePipeConnect((socket, sent) => {
       socketRef = socket;
-      if (sent.v === 1) return socket.reply({ evt: 'READY', data: {} });
+      if (sent.v === 1) return socket.reply({ cmd: 'DISPATCH', evt: 'READY', data: {} });
       if (sent.cmd === 'AUTHENTICATE') return socket.reply({ cmd: 'AUTHENTICATE', nonce: sent.nonce, data: {} });
       if (sent.cmd === 'GET_SELECTED_VOICE_CHANNEL') return socket.reply({ cmd: 'GET_SELECTED_VOICE_CHANNEL', nonce: sent.nonce, data: null });
     });
@@ -143,10 +143,66 @@ test('selecting a voice channel mutes and leaving it unmutes, without replaying 
     const watcher = startDiscordVoiceWatcher({ clientId: 'client', clientSecret: 'secret', connect, syncIntervalMs: 15 });
     try {
       await waitFor(async () => (await readJson(discordStatusPath(), {})).phase === 'ready');
-      socketRef.reply({ evt: 'VOICE_CHANNEL_SELECT', data: { channel_id: '999' } });
+      socketRef.reply({ cmd: 'DISPATCH', evt: 'VOICE_CHANNEL_SELECT', data: { channel_id: '999' } });
       await waitFor(() => exists(discordCallMutePath()));
-      socketRef.reply({ evt: 'VOICE_CHANNEL_SELECT', data: { channel_id: null } });
+      socketRef.reply({ cmd: 'DISPATCH', evt: 'VOICE_CHANNEL_SELECT', data: { channel_id: null } });
       await waitFor(async () => !(await exists(discordCallMutePath())));
+    } finally {
+      await watcher.stop();
+    }
+  });
+});
+
+test('a SUBSCRIBE acknowledgement is never mistaken for a channel-select dispatch', async () => {
+  await withState(async () => {
+    let socketRef;
+    const connect = singlePipeConnect((socket, sent) => {
+      socketRef = socket;
+      if (sent.v === 1) return socket.reply({ cmd: 'DISPATCH', evt: 'READY', data: {} });
+      if (sent.cmd === 'AUTHENTICATE') return socket.reply({ cmd: 'AUTHENTICATE', nonce: sent.nonce, data: {} });
+      if (sent.cmd === 'GET_SELECTED_VOICE_CHANNEL') return socket.reply({ cmd: 'GET_SELECTED_VOICE_CHANNEL', nonce: sent.nonce, data: null });
+    });
+    await writeFile(discordTokenPath(), JSON.stringify({ access_token: 'AT', refresh_token: 'RT', expires_at: Date.now() + 100000 }));
+    const watcher = startDiscordVoiceWatcher({ clientId: 'client', clientSecret: 'secret', connect, syncIntervalMs: 10 });
+    try {
+      await waitFor(async () => (await readJson(discordStatusPath(), {})).phase === 'ready');
+      // A genuine dispatch establishes the call.
+      socketRef.reply({ cmd: 'DISPATCH', evt: 'VOICE_CHANNEL_SELECT', data: { channel_id: '999' } });
+      await waitFor(() => exists(discordCallMutePath()));
+      // Nothing else replies after this: Discord's own SUBSCRIBE acknowledgement
+      // echoes the same evt name with no channel data, so this isolates whether
+      // it alone can wrongly clear an already-active call.
+      socketRef.reply({ cmd: 'SUBSCRIBE', evt: 'VOICE_CHANNEL_SELECT', nonce: 'late-ack', data: {} });
+      await new Promise((resolve) => setTimeout(resolve, 200));
+      assert.equal(await exists(discordCallMutePath()), true, 'a SUBSCRIBE acknowledgement must never clear an active call');
+    } finally {
+      await watcher.stop();
+    }
+  });
+});
+
+test('an expired stored token is refreshed before authenticating, without a new consent prompt', async () => {
+  await withState(async () => {
+    let authorizeSent = false;
+    const connect = singlePipeConnect((socket, sent) => {
+      if (sent.v === 1) return socket.reply({ cmd: 'DISPATCH', evt: 'READY', data: {} });
+      if (sent.cmd === 'AUTHORIZE') { authorizeSent = true; return; }
+      if (sent.cmd === 'AUTHENTICATE') return socket.reply({ cmd: 'AUTHENTICATE', nonce: sent.nonce, data: {} });
+      if (sent.cmd === 'GET_SELECTED_VOICE_CHANNEL') return socket.reply({ cmd: 'GET_SELECTED_VOICE_CHANNEL', nonce: sent.nonce, data: null });
+    });
+    await writeFile(discordTokenPath(), JSON.stringify({ access_token: 'STALE', refresh_token: 'RT', expires_at: Date.now() - 1000 }));
+    let refreshRequestBody;
+    const fetchImpl = async (url, init) => {
+      refreshRequestBody = Object.fromEntries(new URLSearchParams(init.body));
+      return { ok: true, json: async () => ({ access_token: 'FRESH', refresh_token: 'RT2', expires_in: 604800 }) };
+    };
+    const watcher = startDiscordVoiceWatcher({ clientId: 'client', clientSecret: 'secret', connect, fetchImpl, syncIntervalMs: 15 });
+    try {
+      await waitFor(async () => (await readJson(discordStatusPath(), {})).phase === 'ready');
+      assert.equal(refreshRequestBody.grant_type, 'refresh_token');
+      assert.equal(refreshRequestBody.refresh_token, 'RT');
+      assert.equal((await readJson(discordTokenPath())).access_token, 'FRESH');
+      assert.equal(authorizeSent, false, 'a valid refresh must never trigger a new consent prompt');
     } finally {
       await watcher.stop();
     }
@@ -158,7 +214,7 @@ test('disabling the opt-out preference mid-call clears only the Discord-derived 
     let socketRef;
     const connect = singlePipeConnect((socket, sent) => {
       socketRef = socket;
-      if (sent.v === 1) return socket.reply({ evt: 'READY', data: {} });
+      if (sent.v === 1) return socket.reply({ cmd: 'DISPATCH', evt: 'READY', data: {} });
       if (sent.cmd === 'AUTHENTICATE') return socket.reply({ cmd: 'AUTHENTICATE', nonce: sent.nonce, data: {} });
       if (sent.cmd === 'GET_SELECTED_VOICE_CHANNEL') return socket.reply({ cmd: 'GET_SELECTED_VOICE_CHANNEL', nonce: sent.nonce, data: { channel_id: 'already-in-call' } });
     });
@@ -169,7 +225,9 @@ test('disabling the opt-out preference mid-call clears only the Discord-derived 
       const stateDir = discordCallMutePath().replace(/discord-call-muted$/, '');
       await writeFile(join(stateDir, 'discord-mute-disabled'), '');
       await waitFor(async () => !(await exists(discordCallMutePath())));
-      await waitFor(async () => (await readJson(discordStatusPath(), {})).inCall === true, { timeout: 1000 }).catch(() => {});
+      // The underlying call itself must still be tracked as active — only the
+      // marker file the opt-out preference gates should have been cleared.
+      await waitFor(async () => (await readJson(discordStatusPath(), {})).inCall === true);
     } finally {
       await watcher.stop();
     }
@@ -184,6 +242,7 @@ test('a Discord that is not running never reports a call and backs off without t
       await waitFor(async () => (await readJson(discordStatusPath(), {})).phase === 'unavailable');
       assert.equal((await readJson(discordStatusPath(), {})).inCall, false);
       assert.equal(await exists(discordCallMutePath()), false);
+      assert.equal(watcher.getStatus().backoffMs, 2000, 'one full cycle through all refused pipes must back off by exactly one step, not one per pipe');
     } finally {
       await watcher.stop();
     }

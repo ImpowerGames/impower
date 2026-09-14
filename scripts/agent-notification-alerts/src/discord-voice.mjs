@@ -166,7 +166,11 @@ export function startDiscordVoiceWatcher({
 
   async function onFrame(target, payload) {
     if (!payload) return;
-    if (payload.evt === 'READY') return onReady(target);
+    // Only a genuine DISPATCH frame carries an unsolicited event; a SUBSCRIBE
+    // command's own reply also echoes back the same evt name and must not be
+    // mistaken for one (it briefly reported an empty channel on every
+    // reconnect, which momentarily un-muted a live call).
+    if (payload.cmd === 'DISPATCH' && payload.evt === 'READY') return onReady(target);
     if (payload.evt === 'ERROR') {
       // 4009/4006 are Discord's expired/invalid-token codes for this RPC.
       if (payload.data?.code === 4009 || payload.data?.code === 4006) {
@@ -189,12 +193,11 @@ export function startDiscordVoiceWatcher({
     if (payload.cmd === 'AUTHENTICATE') {
       await applyEvent({ type: 'authenticated' });
       send(target, 'SUBSCRIBE', {}, 'VOICE_CHANNEL_SELECT');
-      send(target, 'SUBSCRIBE', {}, 'VOICE_CONNECTION_STATUS');
       send(target, 'GET_SELECTED_VOICE_CHANNEL', {});
       return;
     }
-    if (payload.cmd === 'GET_SELECTED_VOICE_CHANNEL' || payload.evt === 'VOICE_CHANNEL_SELECT') {
-      const channelId = payload.data?.channel_id ?? payload.data?.channel?.id ?? null;
+    if (payload.cmd === 'GET_SELECTED_VOICE_CHANNEL' || (payload.cmd === 'DISPATCH' && payload.evt === 'VOICE_CHANNEL_SELECT')) {
+      const channelId = payload.data?.channel_id ?? payload.data?.channel?.id ?? payload.data?.id ?? null;
       await applyEvent({ type: 'voice-channel', channelId });
     }
   }
@@ -224,6 +227,11 @@ export function startDiscordVoiceWatcher({
       }),
     );
     attempt.on('error', () => {
+      // Already deciding the outcome here: clear the reference first so the
+      // 'close' handler below (which can fire synchronously or later, after
+      // socket has moved on to a different attempt) never schedules a second,
+      // redundant reconnect for the same failure.
+      if (socket === attempt) socket = undefined;
       attempt.destroy();
       if (!handshakeSent) tryPipes(index + 1);
       else scheduleReconnect('Discord disconnected.');
