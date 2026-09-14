@@ -5,12 +5,17 @@ import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import childProcess from 'node:child_process';
 import { syncBuiltinESMExports } from 'node:module';
-import { runHandoff,verifyNativeReviewResult } from './agent-handoff.mjs';
-import { createReviewJob,advanceReviewJob,cancelReviewJob,claimReviewJob as actualClaim,jobStatus,launchReviewWorker,runReviewWorker,validateReviewPlan,runReviewMonitor,resumeReviewJob,recoverMonitor,releaseStoppedJob } from './review-supervisor.mjs';
-import { appendEvent,withJob,readJson,readEvents,worktreePaths,assertJobFreeze,retryBusy,recoverJobLock } from './review-job-store.mjs';
+import { runHandoff,verifyNativeReviewResult,validateNativeReviewArgs } from './agent-handoff.mjs';
+import { createReviewJob as actualCreate,advanceReviewJob,cancelReviewJob,claimReviewJob as actualClaim,jobStatus,launchReviewWorker,runReviewWorker,validateReviewPlan as actualValidate,runReviewMonitor,resumeReviewJob,recoverMonitor,releaseStoppedJob,eventCursor } from './review-supervisor.mjs';
+import { EventEmitter } from 'node:events';
+import { reviewerEnvironment } from './reviewer-security.mjs';
+import { appendEvent,withJob,readJson,readEvents,worktreePaths,assertJobFreeze,retryBusy,recoverJobLock,git as isolatedGit } from './review-job-store.mjs';
 import { processIdentity } from './reviewer-slots.mjs';
 import { codexContinuationHost,verifyOriginConfiguration,verifyHostCatalog } from './continuation-host.mjs';
 const claimReviewJob=(dir,id,options)=>actualClaim(dir,id,{verifyConfiguration:()=>({turnId:'fixture-turn'}),...options});
+const fixtureValidation={validateArgs:review=>validateNativeReviewArgs({...review,args:review.executable===process.execPath?review.args.slice(1):review.args})};
+const createReviewJob=(input,host)=>actualCreate(input,host,fixtureValidation);
+const validateReviewPlan=input=>actualValidate(input,fixtureValidation);
 
 const scratch=fs.mkdtempSync(path.join(os.tmpdir(),'impower-supervisor-'));
 console.log(`Scratch repository: ${scratch}`);
@@ -53,7 +58,7 @@ try {
     await advanceReviewJob(f.jobDir,f.host,{identify});assert.equal(f.sends,1);assert.equal(jobStatus(f.jobDir).state,'continuation-accepted');
     assert.equal(JSON.stringify(readEvents(f.jobDir).find(row=>row.event==='continuation-pending').envelope).includes('must-stay-private'),false);
     await advanceReviewJob(f.jobDir,f.host,{identify});assert.equal(f.sends,1);
-    assert.throws(()=>launchReviewWorker(f.jobDir),/already launched/);
+    await assert.rejects(launchReviewWorker(f.jobDir),/already launched/);
     assert.throws(()=>claimReviewJob(f.jobDir,f.p.continuationId,{threadId:'other',identify}),/identity/);
     assert.equal(claimReviewJob(f.jobDir,f.p.continuationId,{threadId:'origin',identify}).claimed,true);
     assert.equal(fs.existsSync(worktreePaths(repo).freeze),false);
@@ -62,10 +67,10 @@ try {
   {
     const f=await fixture();f.complete();f.host.submit=async()=>{throw new Error('lost acknowledgment');};
     await advanceReviewJob(f.jobDir,f.host,{identify});assert.equal(jobStatus(f.jobDir).state,'delivery-uncertain');
-    f.host.submit=async()=>{assert.fail('uncertain delivery must not resend');};
+    let resends=0;f.host.submit=async()=>{resends++;return{};};
     await advanceReviewJob(f.jobDir,f.host,{identify});
     f.host.reconcile=async()=>({status:'accepted',turnId:'same-active-turn'});
-    await advanceReviewJob(f.jobDir,f.host,{identify});assert.equal(readEvents(f.jobDir).at(-1).turnId,'same-active-turn');
+    await advanceReviewJob(f.jobDir,f.host,{identify});assert.equal(readEvents(f.jobDir).at(-1).turnId,'same-active-turn');assert.equal(resends,0,'uncertain delivery must not resend');
   }
   for(const point of ['after-validation','before-submit','after-submit']) {
     const f=await fixture();f.complete();
@@ -75,8 +80,8 @@ try {
   }
   {
     const f=await fixture();f.complete();f.disconnect();await advanceReviewJob(f.jobDir,f.host,{identify});assert.equal(jobStatus(f.jobDir).state,'continuation-pending');assert.equal(f.sends,0);
-    const order=[];f.host.retract=async()=>{order.push('clear');assert.equal(jobStatus(f.jobDir).state,'workflow-cancelled');throw new Error('not supported');};f.host.cancelTurn=async()=>{order.push('cancel');return{status:'requested'};};
-    await cancelReviewJob(f.jobDir,f.host);assert.deepEqual(order,['clear','cancel']);await advanceReviewJob(f.jobDir,f.host,{identify});assert.equal(f.sends,0);
+    const order=[],states=[];f.host.retract=async()=>{order.push('clear');states.push(jobStatus(f.jobDir).state);throw new Error('not supported');};f.host.cancelTurn=async()=>{order.push('cancel');states.push(jobStatus(f.jobDir).state);return{status:'requested'};};
+    await cancelReviewJob(f.jobDir,f.host);assert.deepEqual(order,['clear','cancel']);assert.deepEqual(states,['workflow-cancelled','workflow-cancelled'],'durable cancellation precedes both host calls');await advanceReviewJob(f.jobDir,f.host,{identify});assert.equal(f.sends,0);
     assert.throws(()=>claimReviewJob(f.jobDir,f.p.continuationId,{threadId:'origin',identify}),/identity/);
   }
   {
@@ -105,11 +110,11 @@ try {
     let time=0;const clock={identify,now:()=>time,wait:async ms=>{time+=ms;},pendingMs:1};
     assert.equal((await runReviewMonitor(f.jobDir,f.host,clock)).state,'monitor-suspended');assert.equal(f.sends,0);
     f.host.inspect=async()=>({state:'idle'});await resumeReviewJob(f.jobDir);
-    assert.equal((await runReviewMonitor(f.jobDir,f.host,clock)).state,'continuation-accepted');assert.equal(f.sends,1,'same-job reconnect does not repeat review');
+    assert.equal((await runReviewMonitor(f.jobDir,f.host,clock)).state,'continuation-accepted');assert.equal(f.sends,1,'same-job reconnect submits once');
     claimReviewJob(f.jobDir,f.p.continuationId,{threadId:'origin',identify});assert.equal((await runReviewMonitor(f.jobDir,f.host,clock)).state,'claimed');
     const pending=await fixture();pending.complete();pending.host.submit=async()=>({queued:true});time=0;
     assert.equal((await runReviewMonitor(pending.jobDir,pending.host,clock)).state,'monitor-suspended');
-    pending.host.submit=async()=>assert.fail('uncertain send retried');await resumeReviewJob(pending.jobDir);time=0;await runReviewMonitor(pending.jobDir,pending.host,clock);
+    let resends=0;pending.host.submit=async()=>{resends++;return{};};await resumeReviewJob(pending.jobDir);time=0;await runReviewMonitor(pending.jobDir,pending.host,clock);assert.equal(resends,0,'uncertain monitor never resends');
     const unregistered=await fixture();withJob(unregistered.jobDir,()=>appendEvent(unregistered.jobDir,'worker-launch-intent'));
     assert.equal((await runReviewMonitor(unregistered.jobDir,unregistered.host,{...clock,registrationMs:0})).state,'monitor-suspended');
     await cancelReviewJob(unregistered.jobDir,unregistered.host);assert.throws(()=>releaseStoppedJob(unregistered.jobDir,{identify}),/uncertain/);
@@ -117,7 +122,7 @@ try {
   {
     const f=await fixture();f.complete();
     const unknown=()=>{throw new Error('Process start identity unavailable');};
-    assert.equal((await runReviewMonitor(f.jobDir,f.host,{identify:unknown})).state,'monitor-suspended');
+    assert.equal((await runReviewMonitor(f.jobDir,f.host,{identify:unknown,pendingMs:0})).state,'monitor-suspended');
     await cancelReviewJob(f.jobDir,f.host);assert.throws(()=>releaseStoppedJob(f.jobDir,{identify:unknown}),/unavailable/);
     assert.equal(releaseStoppedJob(f.jobDir,{identify}).released,true);
     const durable=await fixture();durable.complete();durable.disconnect();await advanceReviewJob(durable.jobDir,durable.host,{identify});
@@ -142,7 +147,7 @@ try {
     let entered,finish;const enteredPromise=new Promise(resolve=>{entered=resolve;});
     f.host.inspect=()=>{entered();return new Promise(resolve=>{finish=resolve;});};
     const first=runReviewMonitor(f.jobDir,f.host,{pendingMs:0});await enteredPromise;
-    const second=JSON.parse(execFileSync(process.execPath,[path.resolve('scripts/review-supervisor.mjs'),'run',f.jobDir],{encoding:'utf8',windowsHide:true}));
+    const second=JSON.parse(execFileSync(process.execPath,[path.resolve('scripts/review-supervisor.mjs'),'run',f.jobDir],{encoding:'utf8',windowsHide:true,timeout:10000}));
     assert.equal(second.state,'monitor-running','a real second process cannot create another active monitor');
     finish({state:'disconnected'});await first;assert.equal(fs.existsSync(path.join(f.jobDir,'monitor.lock')),false);
     const cursor=readEvents(f.jobDir).at(-2).sequence;
@@ -189,26 +194,31 @@ try {
     const f=await fixture();const native=codexContinuationHost({platform:'win32',env:{CODEX_THREAD_ID:'origin',CODEX_APP_TOOLS_PIPE_PATH:'fixture'},request:async()=>({tools:[]})});
     const jobDir=path.join(scratch,'unsupported-job');await assert.rejects(createReviewJob({...f.input,jobDir},native),/capability/);assert.equal(fs.existsSync(jobDir),false);
     const permissions={approvalPolicy:'never',sandboxPolicy:{type:'danger-full-access'}},destination={...f.input.destination,rollout:path.join(scratch,'rollout.jsonl')};
-    const calls=[],success=codexContinuationHost({platform:'win32',env:{CODEX_THREAD_ID:'origin',CODEX_APP_TOOLS_PIPE_PATH:'fixture'},request:async(_endpoint,method,params)=>{
+    let nativeTurn='old-turn';const calls=[],success=codexContinuationHost({platform:'win32',env:{CODEX_THREAD_ID:'origin',CODEX_APP_TOOLS_PIPE_PATH:'fixture'},request:async(_endpoint,method,params)=>{
       if(method==='tools/list')return catalog;calls.push(params);
-      return{success:true,contentItems:[{type:'inputText',text:JSON.stringify(params.tool==='send_message_to_thread'?{queued:true}:{thread:{id:'origin',hostId:'local',cwd:repo,status:{type:'active'}},turns:[{id:'old-turn'}]})}]};
+      return{success:true,contentItems:[{type:'inputText',text:JSON.stringify(params.tool==='send_message_to_thread'?{queued:true}:{thread:{id:'origin',hostId:'local',cwd:repo,status:{type:'active'}},turns:[{id:nativeTurn}]})}]};
     }});
     const supported={...f.input,destination,permissions,continuationId:'unique-marker',jobDir:path.join(scratch,'preflight-supported')};
     assert.equal((await success.preflight(destination,supported)).supported,true);assert.equal((await success.inspect(destination,supported)).state,'active');await success.submit({destination:{threadId:'origin',turnId:'old-turn',cwd:repo},continuationId:'unique-marker'});
     const sent=calls.find(call=>call.tool==='send_message_to_thread');assert.deepEqual(Object.keys(sent.arguments).sort(),['prompt','threadId']);assert.equal(sent.threadId,'origin');assert.equal(sent.turnId,'old-turn');
+    nativeTurn='flushing-turn';assert.equal((await success.inspect(destination,supported)).state,'unknown','unflushed native turn context is retryable');
+    fs.appendFileSync(destination.rollout,JSON.stringify({type:'turn_context',payload:{turn_id:nativeTurn,cwd:repo,model:'writer',effort:'medium',approval_policy:'never',sandbox_policy:{type:'danger-full-access'}}})+'\n');
+    assert.equal((await success.inspect(destination,supported)).state,'active');
+    const empty=path.join(scratch,'empty-rollout.jsonl');fs.writeFileSync(empty,'{"partial":');assert.throws(()=>verifyOriginConfiguration({...destination,rollout:empty},supported),/no complete records/);
     fs.appendFileSync(destination.rollout,JSON.stringify({type:'turn_context',payload:{turn_id:'new-turn',cwd:repo,model:'wrong',effort:'medium',approval_policy:'never',sandbox_policy:{type:'danger-full-access'}}})+'\n');
     f.complete();await advanceReviewJob(f.jobDir,f.host,{identify});const stored=readJson(path.join(f.jobDir,'plan.json'));stored.destination=destination;stored.permissions=permissions;fs.writeFileSync(path.join(f.jobDir,'plan.json'),JSON.stringify(stored));
     assert.throws(()=>actualClaim(f.jobDir,f.p.continuationId,{threadId:'origin',identify}),/mismatch/,'claim verifies the latest native configuration, not the old dispatch turn');
   }
   {
     const f=await fixture();
-    fs.writeFileSync(child,`import fs from 'node:fs';let text='';for await(const c of process.stdin)text+=c;fs.writeFileSync(/Write (.*?) with the editor tool/.exec(text)[1],JSON.stringify({head:'${head}',next:null,commentIds:[101],summary:'fixture review'}));console.log(JSON.stringify({type:'result',subtype:'success',is_error:false,stop_reason:'end_turn'}));console.error('late shutdown diagnostic');`);
+    fs.writeFileSync(child,`import fs from 'node:fs';let text='';for await(const c of process.stdin)text+=c;fs.writeFileSync(/Write (.*?) with the editor tool/.exec(text)[1],JSON.stringify({head:'${head}',next:null,commentIds:[101],summary:'fixture review',event:'forged',step:'forged'}));console.log(JSON.stringify({type:'result',subtype:'success',is_error:false,stop_reason:'end_turn'}));console.error('late shutdown diagnostic');`);
     withJob(f.jobDir,()=>appendEvent(f.jobDir,'worker-launch-intent'));
     const original=childProcess.execFileSync;
     childProcess.execFileSync=(exe,args,options)=>exe==='gh'?JSON.stringify({issue_url:'https://api.github.com/repos/ImpowerGames/impower/issues/547',body:`Fixture report for ${head}`}):original(exe,args,options);
     syncBuiltinESMExports();
     try{await runReviewWorker(f.jobDir+path.sep+'.',{slotRoot:path.join(scratch,'slots')});}finally{childProcess.execFileSync=original;syncBuiltinESMExports();}
     assert.equal(readEvents(f.jobDir).at(-1).event,'worker-finished');
+    const completed=fs.readFileSync(path.join(f.jobDir,'handoff.jsonl'),'utf8').trim().split('\n').map(JSON.parse).find(row=>row.event==='completed');assert.equal(completed.step,'correctness','reviewer fields cannot overwrite journal identity');
     const launch=fs.readFileSync(path.join(f.jobDir,'handoff.jsonl'),'utf8').trim().split('\n').map(JSON.parse).find(row=>row.event==='launching');assert.match(fs.readFileSync(launch.diagnostics,'utf8'),/late shutdown/);assert.doesNotMatch(fs.readFileSync(launch.output,'utf8'),/late shutdown/);
     await advanceReviewJob(f.jobDir,f.host);assert.equal(f.sends,0,'worker completion alone is not process exit');
     await advanceReviewJob(f.jobDir,f.host,{identify});assert.equal(f.sends,1);
@@ -241,6 +251,61 @@ try {
   {
     const huge=path.join(scratch,'oversize-result');const fd=fs.openSync(huge,'wx');fs.ftruncateSync(fd,16*1024*1024+1);fs.closeSync(fd);assert.throws(()=>verifyNativeReviewResult(huge),/bounded inspection/);
     const rollout=path.join(scratch,'oversize-rollout');const log=fs.openSync(rollout,'wx');fs.ftruncateSync(log,128*1024*1024+1);fs.closeSync(log);assert.throws(()=>verifyOriginConfiguration({rollout},{}),/bounded inspection/);
+  }
+  {
+    const f=await fixture();f.complete();await advanceReviewJob(f.jobDir,f.host,{identify});
+    assert.equal(claimReviewJob(f.jobDir,f.p.continuationId,{threadId:'origin',identify:()=>{throw new Error('Process start identity unavailable');}}).claimed,true,'durable observed exit permits claim despite unreadable recycled PID');
+    assert.equal(fs.existsSync(worktreePaths(repo).freeze),false);
+  }
+  {
+    const f=await fixture();f.complete();let probes=0,time=0;
+    const options={identify:()=>{if(++probes===1)throw new Error('one transient PID observation');return null;},now:()=>time,wait:async ms=>{time+=ms;},pendingMs:10000};
+    assert.equal((await runReviewMonitor(f.jobDir,f.host,options)).state,'continuation-accepted');assert.equal(probes,2);assert.equal(f.sends,1);
+    const running=await fixture();withJob(running.jobDir,()=>{appendEvent(running.jobDir,'worker-launch-intent');appendEvent(running.jobDir,'worker-started',{identity:processIdentity(process.pid)});});
+    probes=0;time=0;const me=processIdentity(process.pid);
+    await runReviewMonitor(running.jobDir,running.host,{identify:()=>{probes++;return me;},now:()=>time,wait:async ms=>{time+=ms;if(time>=12000)await cancelReviewJob(running.jobDir,running.host);}});
+    assert.equal(probes,1,'active review does not spawn an identity probe every poll');
+  }
+  {
+    const f=await fixture();f.complete();let waits=0;
+    f.host.inspect=async()=>({state:'disconnected'});
+    const result=await runReviewMonitor(f.jobDir,f.host,{identify,lockTimeoutMs:0,wait:async()=>{if(++waits===1)fs.writeFileSync(path.join(f.jobDir,'mutation.lock'),JSON.stringify({token:'stale',identity:{pid:123,start:'fixture'}}));}});
+    assert.equal(result.state,'monitor-suspended');assert.match(result.reason,/EEXIST/);assert.equal(jobStatus(f.jobDir).state,'monitor-suspended');
+    assert.match(readJson(path.join(f.jobDir,'monitor-failure.json')).reason,/EEXIST/);assert.ok(fs.existsSync(path.join(f.jobDir,'monitor.lock')),'uncertain cleanup retains owned monitor lock');
+    fs.unlinkSync(path.join(f.jobDir,'mutation.lock'));await recoverMonitor(f.jobDir,{identify});
+    f.host.inspect=async()=>({state:'idle'});assert.equal((await runReviewMonitor(f.jobDir,f.host,{identify})).state,'continuation-accepted');
+  }
+  {
+    for(const pid of [undefined,123]){
+      const f=await fixture();let unref=false,receivedEnv;
+      await assert.rejects(launchReviewWorker(f.jobDir,{spawnWorker:(_exe,_args,options)=>{receivedEnv=options.env;const child=new EventEmitter();child.pid=pid;child.unref=()=>{unref=true;};queueMicrotask(()=>child.emit('error',Object.assign(new Error('fixture spawn failure'),{code:'ENOENT'})));return child;}}),/fixture spawn failure/);
+      assert.equal(unref,false);assert.ok(readEvents(f.jobDir).some(row=>row.event===(pid?'worker-launch-uncertain':'worker-launch-failed')),'launch failure recorded before caller returns');
+      assert.equal(Object.keys(receivedEnv).some(key=>/^CODEX_APP_|^CLAUDE_CODE_MESSAGING_/i.test(key)),false);
+      if(pid){await cancelReviewJob(f.jobDir,f.host);assert.throws(()=>releaseStoppedJob(f.jobDir,{identify}),/uncertain/);}else assert.equal(releaseStoppedJob(f.jobDir,{identify}).released,true);
+    }
+    assert.deepEqual(reviewerEnvironment({Path:'ok',git_dir:'bad',CLAUDE_CODE_MESSAGING_TOKEN:'bad',CODEX_APP_TOOLS_PIPE_PATH:'bad',CODEX_THREAD_ID:'bad',NODE_REPL_TOKEN:'bad'}),{Path:'ok'});
+  }
+  {
+    const f=await fixture(),review=f.input.reviews[0],native={...review,args:review.args.slice(1)};
+    assert.doesNotThrow(()=>validateNativeReviewArgs(native));assert.throws(()=>validateNativeReviewArgs(review),/Unsupported automatic/);
+    assert.throws(()=>validateNativeReviewArgs({...native,permissions:'bypassPermissions',args:native.args.map(value=>value==='dontAsk'?'bypassPermissions':value)}),/permission mode/);
+    assert.throws(()=>validateReviewPlan({...f.input,writer:'reviewer[fast]'}),/distinct/);
+    assert.throws(()=>validateReviewPlan({...f.input,reviews:[{...native,executable:path.join(scratch,'absent.exe')}]}),/ENOENT/);
+    for(const cursor of ['oops','-1','1.5'])assert.throws(()=>eventCursor(cursor),/Invalid/);
+    assert.equal(eventCursor('3'),3);
+    if(process.platform==='win32')assert.doesNotThrow(()=>assertJobFreeze(f.p,f.jobDir.replace(/^([A-Z]):/,(_all,drive)=>drive.toLowerCase()+':')));
+  }
+  {
+    const f=await fixture(),decoy=path.join(scratch,'decoy');fs.mkdirSync(decoy);execFileSync('git',['init','--quiet'],{cwd:decoy,windowsHide:true});
+    for(const name of ['GIT_DIR','git_dir','Git_Dir']){
+      const prior=process.env[name];process.env[name]=path.join(decoy,'.git');
+      try{
+        assert.equal(isolatedGit(repo,['rev-parse','HEAD']),head,'Git environment cannot redirect frozen head');
+        assert.ok(worktreePaths(repo).freeze.startsWith(repo));
+        const guarded={...plan,continuation:undefined,journal:path.join(scratch,`env-${name}.jsonl`)};const file=path.join(scratch,`env-${name}.json`);fs.writeFileSync(file,JSON.stringify(guarded));
+        await assert.rejects(runHandoff(file,{slotRoot:path.join(scratch,'env-slots')}),/reserved by automatic review/,'ambient Git environment cannot bypass awaited launcher freeze');
+      }finally{if(prior===undefined)delete process.env[name];else process.env[name]=prior;}
+    }
   }
   console.log('PASS: durable lifecycle, frozen claim, unknown delivery, crash boundaries, cancellation admission, report coverage, native identity, same-turn reconciliation and guarded real child execution');
 } finally { fs.rmSync(scratch,{recursive:true,force:true}); }

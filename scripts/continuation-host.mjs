@@ -7,12 +7,17 @@ export const continuationPrompt=envelope=>`Review continuation ${envelope.contin
 
 export function verifyOriginConfiguration(destination,plan) {
   if(!path.isAbsolute(destination.rollout??''))throw new Error('Exact native originating rollout required for configuration verification');
-  if(fs.statSync(destination.rollout).size>128*1024*1024)throw new Error('Native rollout exceeds bounded inspection');
-  const text=fs.readFileSync(destination.rollout,'utf8');
-  const rows=text.slice(0,text.lastIndexOf('\n')+1).trim().split('\n').map(JSON.parse);
+  let text;
+  try{if(fs.statSync(destination.rollout).size>128*1024*1024)throw new Error('Native rollout exceeds bounded inspection');text=fs.readFileSync(destination.rollout,'utf8');}
+  catch(error){if(error.code)error.observationUnavailable=true;throw error;}
+  const complete=text.slice(0,text.lastIndexOf('\n')+1).trim();
+  if(!complete)throw Object.assign(new Error('Native rollout has no complete records yet'),{observationUnavailable:true});
+  let rows;try{rows=complete.split('\n').map(JSON.parse);}catch{throw new Error('Native rollout contains malformed complete records; use awaited mode');}
   const session=rows.find(row=>row.type==='session_meta')?.payload;
   const context=rows.findLast(row=>row.type==='turn_context'&&(!destination.turnId||row.payload?.turn_id===destination.turnId))?.payload;
-  if(session?.id!==destination.threadId||!context||path.resolve(context.cwd)!==path.resolve(destination.cwd))throw new Error('Native rollout does not identify the originating task and turn');
+  if(session&&session.id!==destination.threadId)throw new Error('Native rollout does not identify the originating task and turn');
+  if(!session||!context)throw Object.assign(new Error('Native rollout has not recorded the originating task and turn yet'),{observationUnavailable:true});
+  if(path.resolve(context.cwd)!==path.resolve(destination.cwd))throw new Error('Native rollout does not identify the originating task and turn');
   if(context.model!==plan.writer||context.effort!==plan.writerEffort||!isDeepStrictEqual({approvalPolicy:context.approval_policy,sandboxPolicy:context.sandbox_policy},plan.permissions))throw new Error('Originating model, effort or permissions mismatch');
   return{model:context.model,effort:context.effort,permissions:plan.permissions,turnId:context.turn_id};
 }
@@ -51,7 +56,7 @@ export function codexContinuationHost({env=process.env,platform=process.platform
       let snapshot;try{snapshot=await native(destination).inspect();}catch(error){return{state:'disconnected',reason:error.message};}
       identity(snapshot,destination);
       if(!snapshot.turns?.[0]?.id)return{state:'unknown'};
-      verifyOriginConfiguration({...destination,turnId:snapshot.turns[0].id},plan);
+      try{verifyOriginConfiguration({...destination,turnId:snapshot.turns[0].id},plan);}catch(error){if(error.observationUnavailable)return{state:'unknown',reason:error.message};throw error;}
       const state=snapshot.thread.status?.type;
       return{state:['active','idle'].includes(state)?state:'unknown'};
     },

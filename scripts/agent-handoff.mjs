@@ -3,12 +3,13 @@ import path from "node:path";
 import { spawn, execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { reserveReviewerSlot, releaseReviewerSlot, processIdentity } from "./reviewer-slots.mjs";
-import { withJob,retryBusy } from './review-job-store.mjs';
+import { withJob,retryBusy,git,failureDetails } from './review-job-store.mjs';
+import { reviewerEnvironment } from './reviewer-security.mjs';
 
 const read = (file) => JSON.parse(fs.readFileSync(file, "utf8"));
-const gitHead = (cwd) => execFileSync("git", ["rev-parse", "HEAD"], { cwd, encoding: "utf8" }).trim();
-const gitStatus = (cwd) => execFileSync("git", ["status", "--porcelain"], { cwd, encoding: "utf8" });
-const configuredRoute = (value) => value.replace(/\[[^\]]+\]$/, "");
+const gitHead = (cwd) => git(cwd,['rev-parse','HEAD']);
+const gitStatus = (cwd) => git(cwd,['status','--porcelain']);
+export const configuredRoute = (value) => value.replace(/\[[^\]]+\]$/, "");
 const readReviewComment = (id, cwd) => JSON.parse(execFileSync("gh", ["api", `repos/ImpowerGames/impower/issues/comments/${id}`], { cwd, encoding: "utf8", windowsHide: true }));
 
 export async function verifyReviewComment(id, pr, head, cwd, { readComment = readReviewComment, wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms)), attempts = 6 } = {}) {
@@ -44,11 +45,11 @@ export function validateReviewRecovery(config) {
 }
 
 export function validateNativeReviewArgs(review) {
+  if(!['default','acceptEdits','plan','dontAsk'].includes(review.permissions))throw new Error('Unsupported native reviewer permission mode');
   const values=new Set(['--model','-m','--effort','--permission-mode','--output-format','--allowedTools','--disallowedTools','--tools']);
   const switches=new Set(['-p','--print','--verbose','--no-session-persistence']);
   for(let i=0;i<review.args.length;i++) {
     const arg=review.args[i];
-    if(i===0&&review.executable===process.execPath&&path.isAbsolute(arg))continue;
     if(switches.has(arg))continue;
     if(values.has(arg)&&typeof review.args[i+1]==='string'&&!review.args[i+1].startsWith('-')){i++;continue;}
     throw new Error(`Unsupported automatic native reviewer argument: ${arg}`);
@@ -60,7 +61,7 @@ export function validateNativeReviewArgs(review) {
 export async function runHandoff(configFile, { slotRoot, identifyProcess = processIdentity, automaticJob } = {}) {
   const config = read(configFile);
   if (config.continuation) throw new Error('Automatic continuation requires review-supervisor capability preflight');
-  const cwd = fs.realpathSync(config.worktree);
+  const cwd = fs.realpathSync.native(config.worktree);
   const journal = path.resolve(config.journal);
   const relative = path.relative(cwd, journal);
   if (!relative.startsWith(".." + path.sep) && !path.isAbsolute(relative)) throw new Error("Journal must be outside the worktree");
@@ -85,7 +86,7 @@ export async function runHandoff(configFile, { slotRoot, identifyProcess = proce
     if (!Array.isArray(step.next) || !step.next.length || !step.next.every((name) => name === null || Object.hasOwn(config.steps, name))) throw new Error("Each step needs declared next transitions");
   }
   fs.mkdirSync(path.dirname(journal), { recursive: true });
-  const lock = execFileSync("git", ["rev-parse", "--path-format=absolute", "--git-path", "agent-handoff.lock"], { cwd, encoding: "utf8" }).trim();
+  const lock = git(cwd,['rev-parse','--path-format=absolute','--git-path','agent-handoff.lock']);
   let owner;
   try { owner = fs.openSync(lock, "wx"); }
   catch(error) {
@@ -100,10 +101,10 @@ export async function runHandoff(configFile, { slotRoot, identifyProcess = proce
   let finalCorrections = config.finalCorrections ?? false;
   let activeChild;
   try {
-    const freeze=execFileSync('git',['rev-parse','--path-format=absolute','--git-path','agent-review-job.json'],{cwd,encoding:'utf8'}).trim();
+    const freeze=git(cwd,['rev-parse','--path-format=absolute','--git-path','agent-review-job.json']);
     if(fs.existsSync(freeze)) {
       const claim=read(freeze);
-      if(claim.jobId!==automaticJob?.jobId||fs.realpathSync(claim.jobDir)!==fs.realpathSync(automaticJob.jobDir))throw new Error('Worktree reserved by automatic review job; claim or cancel that job first');
+      if(claim.jobId!==automaticJob?.jobId||fs.realpathSync.native(claim.jobDir)!==fs.realpathSync.native(automaticJob.jobDir))throw new Error('Worktree reserved by automatic review job; claim or cancel that job first');
     } else if(automaticJob)throw new Error('Automatic review ownership marker missing');
     fs.writeFileSync(owner, JSON.stringify({ pid: process.pid, processIdentity: processIdentity(process.pid), startedAt: new Date().toISOString(), journal }));
     fd = fs.openSync(journal, "wx");
@@ -136,7 +137,7 @@ export async function runHandoff(configFile, { slotRoot, identifyProcess = proce
       let child,childError,exited,launchError;
       try {
         const launch=()=>{
-          child=spawn(step.executable,step.args,{cwd,shell:false,windowsHide:true,stdio:['pipe',log,stderr]});
+          child=spawn(step.executable,step.args,{cwd,env:step.role==='review'?reviewerEnvironment():process.env,shell:false,windowsHide:true,stdio:['pipe',log,stderr]});
           activeChild=child;
           exited=new Promise(resolve=>{child.on('error',error=>{childError=error.message;});child.once('close',(code,signal)=>resolve({code,signal,error:childError}));});
         };
@@ -210,13 +211,13 @@ export async function runHandoff(configFile, { slotRoot, identifyProcess = proce
         completedRound = step.round; reviewedHead = head;
       }
       if (step.role !== "review" && completedRound === reviewRoundLimit && done.head !== reviewedHead) finalCorrections = true;
-      append({ event: "completed", index, step: current, ...done, completedRound, reviewedHead, finalCorrections });
+      append({ head:done.head,next:done.next,commentIds:done.commentIds,summary:done.summary,event: "completed", index, step: current, completedRound, reviewedHead, finalCorrections });
       current = done.next;
     }
     append({ event: "finished" });
   } catch (error) {
     if (fd !== undefined) {
-      try { append({ event: "blocked", reason: error.message }); }
+      try { append({ event: "blocked", ...failureDetails(error) }); }
       catch(journalError){error.message += `; blocked journal write failed: ${journalError.message}`;}
     }
     throw error;

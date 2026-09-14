@@ -3,10 +3,11 @@ import path from 'node:path';
 import { spawn } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
-import { runHandoff,checkReviewRound,verifyNativeReviewResult,validateReviewRecovery,validateNativeReviewArgs } from './agent-handoff.mjs';
+import { runHandoff,checkReviewRound,verifyNativeReviewResult,validateReviewRecovery,validateNativeReviewArgs,configuredRoute } from './agent-handoff.mjs';
+import { reviewerEnvironment } from './reviewer-security.mjs';
 import { verifyClaimConfiguration } from './continuation-host.mjs';
 import { processIdentity } from './reviewer-slots.mjs';
-import { readJson,writeExclusive,git,readEvents,appendEvent,withJob,retryBusy,recoverJobLock,alive,sameIdentity,currentIdentity,assertFrozen,reserveFreeze,assertJobFreeze,worktreePaths } from './review-job-store.mjs';
+import { readJson,writeExclusive,git,readEvents,appendEvent,withJob,retryBusy,recoverJobLock,alive,sameIdentity,currentIdentity,assertFrozen,reserveFreeze,assertJobFreeze,worktreePaths,failureDetails } from './review-job-store.mjs';
 
 const here=fileURLToPath(import.meta.url);
 const last=(rows,event)=>rows.findLast(row=>row.event===event);
@@ -15,15 +16,21 @@ const blocked=rows=>(last(rows,'blocked')?.sequence??0)>(last(rows,'resume-reque
 const suspended=rows=>(last(rows,'monitor-suspended')?.sequence??0)>(last(rows,'monitor-started')?.sequence??0);
 const exitObserved=(rows,worker)=>rows.some(row=>row.event==='worker-exit-observed'&&sameIdentity(row.identity,worker?.identity));
 export function jobStatus(dir,events=readEvents(dir)) {
+  const diagnostic=path.join(dir,'monitor-failure.json');
+  if(fs.existsSync(diagnostic)){
+    const failure=readJson(diagnostic);
+    const lock=path.join(dir,'monitor.lock'),token=fs.existsSync(lock)?readJson(lock).token:last(events,'monitor-started')?.token;
+    if(failure.token===token&&!last(events,'claimed')&&!last(events,'workflow-cancelled'))return{jobId:events[0].jobId,sequence:events.at(-1).sequence,state:'monitor-suspended',failure,events};
+  }
   return {jobId:events[0].jobId,sequence:events.at(-1).sequence,state:last(events,'workflow-cancelled')?'workflow-cancelled':blocked(events)?'blocked':last(events,'claimed')?'claimed':last(events,'continuation-accepted')?'continuation-accepted':suspended(events)?'monitor-suspended':last(events,'worker-finished')?.ok===false||last(events,'worker-launch-failed')?'review-failed':last(events,'submission-intent')?'delivery-uncertain':last(events,'continuation-pending')?'continuation-pending':last(events,'worker-started')?'review-running':last(events,'worker-launch-intent')?'registration-pending':'accepted',events};
 }
-export function validateReviewPlan(input) {
+export function validateReviewPlan(input,{validateArgs=validateNativeReviewArgs}={}) {
   const plan=structuredClone(input);
   if(!path.isAbsolute(plan.worktree)||!path.isAbsolute(plan.jobDir))throw new Error('Absolute worktree and private jobDir required');
-  plan.worktree=fs.realpathSync(plan.worktree);plan.jobDir=path.resolve(plan.jobDir);
+  plan.worktree=fs.realpathSync.native(plan.worktree);plan.jobDir=path.resolve(plan.jobDir);
   plan.commonGit=git(plan.worktree,['rev-parse','--path-format=absolute','--git-common-dir']);
   if(!/^[a-f0-9]{40}$/.test(plan.head??'')||!/^[a-f0-9]{40}$/.test(plan.base??''))throw new Error('Full frozen head and base required');
-  if(!Number.isSafeInteger(plan.pr)||plan.pr<1||!plan.writer||!plan.reviewer||plan.writer===plan.reviewer)throw new Error('PR and distinct explicit model routes required');
+  if(!Number.isSafeInteger(plan.pr)||plan.pr<1||!plan.writer||!plan.reviewer||configuredRoute(plan.writer)===configuredRoute(plan.reviewer))throw new Error('PR and distinct explicit model routes required');
   if(!plan.destination||!plan.destination.threadId||!plan.destination.turnId||!plan.destination.cwd)throw new Error('Originating destination identity required');
   if(!plan.writerEffort||!plan.permissions||!Array.isArray(plan.reviews)||plan.reviews.length<1||plan.reviews.length>4)throw new Error('Exact routing, permissions and bounded coverage required');
   const limit=plan.reviewRoundLimit??3;
@@ -40,15 +47,16 @@ export function validateReviewPlan(input) {
     for(const [flag,value] of [['--effort',review.effort],['--permission-mode',review.permissions]])if(typeof value!=='string'||!value||review.args.filter(a=>a===flag).length!==1||review.args[review.args.indexOf(flag)+1]!==value)throw new Error('Explicit native reviewer effort and permissions required');
     if(review.args.filter(a=>a==='--model'||a==='-m').length!==1)throw new Error('Ambiguous reviewer model arguments');
     if(review.transport!=='native-claude-json'||review.args.filter(a=>a==='--output-format').length!==1||review.args[review.args.indexOf('--output-format')+1]!=='json')throw new Error('Automatic review requires native Claude JSON result transport');
-    validateNativeReviewArgs(review);
+    validateArgs(review);
     if(review.args.some(a=>/^(?:--model|--effort|--permission-mode|--output-format)=|^-m./.test(a)||['--dangerously-skip-permissions','--allow-dangerously-skip-permissions'].includes(a)))throw new Error('Ambiguous native reviewer configuration');
     if(!fs.statSync(review.prompt).isFile())throw new Error('Reviewer prompt missing');
+    if(!fs.statSync(review.executable).isFile())throw new Error('Reviewer executable missing');
   }
   assertFrozen(plan);
   return plan;
 }
-export async function createReviewJob(input,host) {
-  const plan=validateReviewPlan(input);plan.jobId=randomUUID();plan.continuationId=randomUUID();
+export async function createReviewJob(input,host,validation) {
+  const plan=validateReviewPlan(input,validation);plan.jobId=randomUUID();plan.continuationId=randomUUID();
   // The adapter validates private storage containment and exact host identity.
   const capability=await host.preflight(plan.destination,plan);
   if(capability?.supported!==true)throw new Error('Automatic continuation unsupported; use awaited mode');
@@ -60,14 +68,18 @@ export async function createReviewJob(input,host) {
   writeExclusive(path.join(plan.jobDir,'handoff.json'),{worktree:plan.worktree,journal:path.join(plan.jobDir,'handoff.jsonl'),pr:plan.pr,writer:plan.writer,reviewer:plan.reviewer,completedReviewRound:plan.completedReviewRound,reviewedHead:plan.reviewedHead,finalCorrections:plan.finalCorrections,reviewRoundLimit:plan.reviewRoundLimit,extendedReviewAuthorization:plan.extendedReviewAuthorization,maxSteps:plan.reviews.length,first:plan.reviews[0].id,steps});
   return jobStatus(plan.jobDir);
 }
-export function launchReviewWorker(dir) {
+export async function launchReviewWorker(dir,{spawnWorker=spawn}={}) {
   const plan=readJson(path.join(dir,'plan.json'));
   withJob(dir,rows=>{if(last(rows,'worker-launch-intent')||last(rows,'workflow-cancelled')||last(rows,'blocked'))throw new Error('Worker already launched or job stopped; reconcile instead');assertJobFreeze(plan,dir);assertFrozen(plan);appendEvent(dir,'worker-launch-intent');});
   const log=fs.openSync(path.join(dir,'worker.log'),'wx');
   try {
-    const env={...process.env};for(const key of Object.keys(env))if(key.toUpperCase().startsWith('GIT_'))delete env[key];
-    const child=spawn(process.execPath,[here,'worker',dir],{cwd:plan.worktree,env,detached:true,windowsHide:true,stdio:['ignore',log,log]});
-    child.on('error',error=>{transaction(dir,()=>appendEvent(dir,child.pid?'worker-launch-uncertain':'worker-launch-failed',{reason:error.message})).catch(failure=>console.error(`Worker launch/error recording failed: ${failure.message}`));});child.unref();
+    const env=reviewerEnvironment();
+    let child;
+    try {
+      child=spawnWorker(process.execPath,[here,'worker',dir],{cwd:plan.worktree,env,detached:true,windowsHide:true,stdio:['ignore',log,log]});
+      await new Promise((resolve,reject)=>{child.once('spawn',resolve);child.once('error',reject);});
+    }catch(error){await transaction(dir,()=>appendEvent(dir,child?.pid?'worker-launch-uncertain':'worker-launch-failed',failureDetails(error)));throw error;}
+    child.unref();
     // Worker records its own identity before launching any reviewer. No blind
     // retry if either process dies in this registration interval.
     return {pid:child.pid};
@@ -80,13 +92,16 @@ export function launchSupervisor(dir) {
 async function transaction(dir,run) {
   return retryBusy(()=>withJob(dir,run));
 }
+async function observation(dir,reason) {
+  return transaction(dir,rows=>{if(last(rows,'observation-pending')?.reason!==reason)appendEvent(dir,'observation-pending',{reason});});
+}
 export async function runReviewWorker(dir,{slotRoot}={}) {
   const plan=readJson(path.join(dir,'plan.json'));
   await transaction(dir,rows=>{if(!last(rows,'worker-launch-intent')||last(rows,'worker-started')||last(rows,'workflow-cancelled'))throw new Error('Invalid or cancelled worker claim');assertJobFreeze(plan,dir);appendEvent(dir,'worker-started',{identity:processIdentity(process.pid)});});
   try {
     await runHandoff(path.join(dir,'handoff.json'),{slotRoot,automaticJob:{jobId:plan.jobId,jobDir:dir}});
     await transaction(dir,()=>appendEvent(dir,'worker-finished',{ok:true}));
-  } catch(error) {await transaction(dir,()=>appendEvent(dir,'worker-finished',{ok:false,reason:error.message}));throw error;}
+  } catch(error) {await transaction(dir,()=>appendEvent(dir,'worker-finished',{ok:false,...failureDetails(error)}));throw error;}
 }
 function validatedEnvelope(dir,plan,rows,identify) {
   const worker=last(rows,'worker-started'),finished=last(rows,'worker-finished');
@@ -109,16 +124,18 @@ function validatedEnvelope(dir,plan,rows,identify) {
   const destination={threadId:plan.destination.threadId,turnId:plan.destination.turnId,cwd:plan.destination.cwd};
   return {version:1,jobId:plan.jobId,continuationId:plan.continuationId,destination,head:plan.head,base:plan.base,round:plan.round,coverage:plan.reviews.map(r=>r.id),reports,authorizedAction:'adjudicate',jobDir:dir,claimCommand:[process.execPath,here,'claim',dir,plan.continuationId]};
 }
-export async function advanceReviewJob(dir,host,{identify=processIdentity,failpoint=()=>{}}={}) {
+export async function advanceReviewJob(dir,host,{identify=processIdentity,failpoint=()=>{},observeWorker=true}={}) {
   const plan=readJson(path.join(dir,'plan.json'));
   let rows=await transaction(dir,current=>current);
   const terminal=current=>last(current,'workflow-cancelled')||last(current,'claimed')||last(current,'continuation-accepted')||blocked(current);
   if(terminal(rows))return jobStatus(dir);
   const worker=last(rows,'worker-started');
   if(worker&&!exitObserved(rows,worker)) {
+    if(!observeWorker&&!last(rows,'worker-finished'))return jobStatus(dir);
     // Slow OS identity inspection is outside the mutation lock. Only actual
     // absence/reuse is persisted; a completion row never substitutes for exit.
-    if(alive(worker.identity,identify))return jobStatus(dir);
+    let running;try{running=alive(worker.identity,identify);}catch(error){error.observationUnavailable=true;throw error;}
+    if(running)return jobStatus(dir);
     await transaction(dir,current=>{if(!exitObserved(current,worker))appendEvent(dir,'worker-exit-observed',{identity:worker.identity});});
     rows=await transaction(dir,current=>current);
   }
@@ -132,7 +149,7 @@ export async function advanceReviewJob(dir,host,{identify=processIdentity,failpo
   rows=await transaction(dir,current=>current);
   if(!last(rows,'submission-intent')) {
     const state=await host.inspect(plan.destination,plan);
-    if(state.state==='disconnected'||state.state==='unknown')return jobStatus(dir);
+    if(state.state==='disconnected'||state.state==='unknown'){await observation(dir,state.reason??`Originating lifecycle ${state.state}`);return jobStatus(dir);}
     if(!['idle','active'].includes(state.state))throw new Error('Originating destination unavailable');
     await failpoint('before-submit');
     let request,admissionError;
@@ -155,7 +172,7 @@ export async function advanceReviewJob(dir,host,{identify=processIdentity,failpo
   }
   rows=await transaction(dir,current=>current);
   if(last(rows,'submission-intent')&&!last(rows,'continuation-accepted')) {
-    let accepted;try{accepted=await host.reconcile(envelope,plan);}catch{return jobStatus(dir);}
+    let accepted;try{accepted=await host.reconcile(envelope,plan);}catch(error){await observation(dir,error.message);return jobStatus(dir);}
     if(accepted.status==='accepted'&&typeof accepted.turnId==='string'&&accepted.turnId)await transaction(dir,current=>{if(!last(current,'continuation-accepted'))appendEvent(dir,'continuation-accepted',{turnId:accepted.turnId});});
   }
   return jobStatus(dir);
@@ -210,41 +227,67 @@ export async function resumeReviewJob(dir) {
   });
 }
 
-export async function runReviewMonitor(dir,host,{identify=processIdentity,wait=sleep,now=Date.now,pendingMs=600000,registrationMs=60000,emit=()=>{}}={}) {
+export async function runReviewMonitor(dir,host,{identify=processIdentity,wait=sleep,now=Date.now,pendingMs=600000,registrationMs=60000,workerProbeMs=30000,lockTimeoutMs=10000,emit=()=>{}}={}) {
   const file=path.join(dir,'monitor.lock'),owner={token:randomUUID(),identity:currentIdentity()};
-  const existing=await transaction(dir,()=>{
+  const mutate=run=>retryBusy(()=>withJob(dir,run),{timeoutMs:lockTimeoutMs});
+  const persistFailure=error=>{
+    try{const diagnostic=path.join(dir,'monitor-failure.json'),temporary=diagnostic+'.'+owner.token;
+      writeExclusive(temporary,{token:owner.token,identity:owner.identity,resumable:true,...failureDetails(error)});fs.renameSync(temporary,diagnostic);
+    }catch(failure){error.message+=`; independent monitor diagnostic unavailable: ${failure.message}`;}
+  };
+  let existing;
+  try{existing=await mutate(()=>{
     if(fs.existsSync(file))return readJson(file);
     writeExclusive(file,owner);appendEvent(dir,'monitor-started',{identity:owner.identity,token:owner.token});
-  });
+  });}catch(error){if(fs.existsSync(file)&&readJson(file).token===owner.token)persistFailure(error);throw error;}
   if(existing){if(alive(existing.identity,identify))return{state:'monitor-running',identity:existing.identity};throw new Error('Previous monitor exited; use recover before monitoring');}
-  let sequence=0,pendingSince;
+  let sequence=0,pendingSince,nextWorkerProbe=0,primary;
+  const flush=rows=>{for(const row of rows)if(row.sequence>sequence){emit(row);sequence=row.sequence;}};
   try {
     for(;;) {
-      const before=await transaction(dir,rows=>jobStatus(dir,rows));
+      const before=await mutate(rows=>jobStatus(dir,rows));
       if(['claimed','continuation-accepted','workflow-cancelled','blocked','review-failed'].includes(before.state))return{state:before.state};
-      try{await advanceReviewJob(dir,host,{identify});}
+      let unavailable=false;
+      const observeWorker=now()>=nextWorkerProbe;
+      if(observeWorker)nextWorkerProbe=now()+workerProbeMs;
+      try{await advanceReviewJob(dir,host,{identify,observeWorker});}
       catch(error){
-        // A transport/configuration/identity failure stops this monitor but
-        // leaves existing review work resumable; it never launches reviewers.
-        await transaction(dir,()=>appendEvent(dir,'monitor-suspended',{reason:error.message,resumable:true}));
-        return{state:'monitor-suspended',reason:error.message};
+        if(!error.observationUnavailable)throw error;
+        unavailable=true;await observation(dir,error.message);
       }
-      const status=await transaction(dir,rows=>jobStatus(dir,rows));
-      for(const row of status.events)if(row.sequence>sequence){emit(row);sequence=row.sequence;}
+      const status=await mutate(rows=>jobStatus(dir,rows));
+      flush(status.events);
       if(['claimed','continuation-accepted','workflow-cancelled','blocked','review-failed'].includes(status.state))return{state:status.state};
       const registered=last(status.events,'worker-started');
-      if(!registered||['continuation-pending','delivery-uncertain'].includes(status.state))pendingSince??=now();else pendingSince=undefined;
+      if(unavailable||!registered||['continuation-pending','delivery-uncertain'].includes(status.state))pendingSince??=now();else if(observeWorker)pendingSince=undefined;
       const limit=registered?pendingMs:registrationMs;
       if(pendingSince!==undefined&&now()-pendingSince>=limit){
         const reason=registered?'Delivery observation deadline reached; no retry was sent':'Worker registration absent; inspect launch evidence before any action';
-        await transaction(dir,()=>appendEvent(dir,'monitor-suspended',{reason,resumable:true}));
+        await mutate(()=>appendEvent(dir,'monitor-suspended',{reason,resumable:true}));flush(readEvents(dir));
         return{state:'monitor-suspended',reason};
       }
-      await wait(status.state==='delivery-uncertain'?10000:2000);
+      await wait(['delivery-uncertain','continuation-pending'].includes(status.state)?10000:2000);
     }
+  }catch(error){
+    primary=error;
+    // Independent token-owned diagnostics remain writable when a stale shared
+    // mutation lock prevents safely appending to the canonical journal.
+    persistFailure(error);
+    try{await mutate(()=>appendEvent(dir,'monitor-suspended',{...failureDetails(error),resumable:true}));flush(readEvents(dir));}catch(recordError){if(recordError!==error)error.message+=`; journal suspension unavailable: ${recordError.message}`;}
+    return{state:'monitor-suspended',...failureDetails(error)};
   }finally{
-    await transaction(dir,()=>{if(readJson(file).token!==owner.token)throw new Error('Monitor ownership changed');appendEvent(dir,'monitor-stopped',{token:owner.token});fs.unlinkSync(file);});
+    try{await mutate(()=>{
+      if(!fs.existsSync(file))return;
+      if(readJson(file).token!==owner.token)throw new Error('Monitor ownership changed');
+      appendEvent(dir,'monitor-stopped',{token:owner.token});fs.unlinkSync(file);
+    });}catch(error){
+      if(!primary)persistFailure(error);
+      console.error(`Monitor cleanup requires recovery: ${error.message}`);
+    }
   }
+}
+export function eventCursor(value) {
+  const cursor=Number(value??0);if(!Number.isSafeInteger(cursor)||cursor<0)throw new Error('Invalid event cursor');return cursor;
 }
 async function main() {
   const [command,inputTarget,arg]=process.argv.slice(2);
@@ -252,14 +295,14 @@ async function main() {
   const target=path.resolve(inputTarget);
   if(command==='worker')return runReviewWorker(target);
   if(command==='status')return jobStatus(target);
-  if(command==='events')return readEvents(target).filter(row=>row.sequence>Number(arg??0));
-  if(command==='watch'){let cursor=Number(arg??0);if(!Number.isSafeInteger(cursor)||cursor<0)throw new Error('Invalid event cursor');for(;;){for(const row of readEvents(target))if(row.sequence>cursor){process.stdout.write(JSON.stringify(row)+'\n');cursor=row.sequence;}await sleep(500);}}
+  if(command==='events'){const cursor=eventCursor(arg);return readEvents(target).filter(row=>row.sequence>cursor);}
+  if(command==='watch'){let cursor=eventCursor(arg);for(;;){for(const row of readEvents(target))if(row.sequence>cursor){process.stdout.write(JSON.stringify(row)+'\n');cursor=row.sequence;}await sleep(500);}}
   if(command==='claim')return retryBusy(()=>claimReviewJob(target,arg));
   if(command==='release')return releaseStoppedJob(target);
   const {codexContinuationHost}=await import('./continuation-host.mjs');
   const host=codexContinuationHost();
-  if(command==='submit'){const result=await createReviewJob(readJson(target),host);const dir=path.resolve(readJson(target).jobDir);launchReviewWorker(dir);launchSupervisor(dir);return result;}
-  if(command==='start-worker'){launchReviewWorker(target);launchSupervisor(target);return jobStatus(target);}
+  if(command==='submit'){const result=await createReviewJob(readJson(target),host);const dir=path.resolve(readJson(target).jobDir);await launchReviewWorker(dir);launchSupervisor(dir);return result;}
+  if(command==='start-worker'){await launchReviewWorker(target);launchSupervisor(target);return jobStatus(target);}
   if(command==='recover'||command==='resume'){recoverJobLock(target);await recoverMonitor(target);}
   if(command==='resume')await resumeReviewJob(target);
   if(command==='cancel')return cancelReviewJob(target,host);
