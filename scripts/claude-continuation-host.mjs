@@ -6,9 +6,10 @@ import {isDeepStrictEqual} from 'node:util';
 import {processIdentity} from './reviewer-slots.mjs';
 import {sameIdentity,git} from './review-job-store.mjs';
 import {continuationPrompt} from './continuation-host.mjs';
+import {protectPrivatePath} from './reviewer-security.mjs';
 
 export const claudeReceiptMarker=id=>`IMPOWER-CONTINUATION-${id}`;
-const uuid=value=>typeof value==='string'&&/^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(value);
+const uuid=value=>typeof value==='string'&&/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
 const canonical=value=>fs.realpathSync(value);
 const samePath=(a,b)=>canonical(a)===canonical(b);
 const inside=(parent,child)=>{const rel=path.relative(parent,child);return !rel||(!rel.startsWith(`..${path.sep}`)&&rel!=='..'&&!path.isAbsolute(rel));};
@@ -21,7 +22,7 @@ const privatePath=(value,worktree)=>{
 export function readClaudeRows(file,maxBytes=16*1024*1024) {
   if(fs.statSync(file).size>maxBytes)throw new Error('Claude evidence exceeds bounded inspection; delivery remains uncertain');
   const text=fs.readFileSync(file,'utf8'),complete=text.slice(0,text.lastIndexOf('\n')+1);
-  return complete.trim()?complete.trim().split('\n').map(JSON.parse):[];
+  return complete.trim()?complete.trim().split('\n').map((line,index)=>{try{return JSON.parse(line);}catch{throw new Error(`Invalid native JSONL evidence at ${file}, complete row ${index+1}; preserve evidence and retry after repair`);}}):[];
 }
 function registration(destination,plan) {
   const file=privatePath(destination.registration,plan.worktree);
@@ -38,25 +39,35 @@ function credentialsMatch(record,env) {
   return record.socket===env.CLAUDE_CODE_MESSAGING_SOCKET&&a.length===b.length&&timingSafeEqual(a,b);
 }
 export function claudeClaimIdentity(destination,plan,{env=process.env,identify=processIdentity}={}) {
+  protectPrivatePath(destination.registration,{verifyOnly:true});
   const record=registration(destination,plan);
   if(!credentialsMatch(record,env)||!sameIdentity(record.process,identify(record.process.pid)))throw new Error('Claim must run in the registered originating Claude session');
   return record.sessionId;
+}
+
+export function verifyClaudeClaimConfiguration(destination,plan,options={}) {
+  claudeClaimIdentity(destination,plan,options);
+  const record=registration(destination,plan);
+  configuration(record,plan,readClaudeRows(record.receipts));
 }
 
 // This socket has no accepted-turn acknowledgment or verified queued-message
 // retraction. The journal owner decides whether submission is allowed, once.
 export function sendClaudeFrame(record,envelope,{connect=endpoint=>net.createConnection(endpoint),timeoutMs=3000}={}) {
   return new Promise((resolve,reject)=>{
-    let socket,settled=false;
-    const finish=(error)=>{if(settled)return;settled=true;clearTimeout(timer);socket?.destroy();error?reject(new Error('Claude submission is uncertain; reconcile without resending')):resolve({status:'written-awaiting-native-receipt'});};
+    let socket,settled=false,writeInvoked=false;
+    const finish=(error)=>{if(settled)return;settled=true;clearTimeout(timer);socket?.destroy();if(error&&!writeInvoked)resolve({status:'not-sent',reason:'Claude endpoint unavailable before any frame write'});else if(error)reject(new Error('Claude submission is uncertain; reconcile without resending'));else resolve({status:'written-awaiting-native-receipt'});};
     const timer=setTimeout(()=>finish(true),timeoutMs);
     try {
       socket=connect(record.socket.replace(/^uds:/,''));
       socket.once('error',()=>finish(true));socket.once('close',()=>{if(!settled)finish(true);});
       socket.once('connect',()=>{
+        try {
         const marker=claudeReceiptMarker(envelope.continuationId);
         const content=`Display exactly ${marker} on its own line to acknowledge this continuation, then follow the guarded instructions below.\n${continuationPrompt(envelope)}`;
-        socket.write(JSON.stringify({type:'auth',token:record.token})+'\n'+JSON.stringify({type:'user',session_id:record.sessionId,uuid:envelope.continuationId,msg_id:envelope.continuationId,message:{content},priority:'next'})+'\n',error=>finish(error));
+        const frame=JSON.stringify({type:'auth',token:record.token})+'\n'+JSON.stringify({type:'user',session_id:record.sessionId,uuid:envelope.continuationId,msg_id:envelope.continuationId,message:{content},priority:'next'})+'\n';
+        writeInvoked=true;socket.write(frame,error=>finish(error));
+        }catch{finish(true);}
       });
     }catch{finish(true);}
   });
@@ -79,18 +90,21 @@ export function claudeContinuationHost({plan,env=process.env,platform=process.pl
   const evidence=record=>readClaudeRows(record.receipts).filter(row=>row.session_id===record.sessionId);
   return {
     async preflight(destination,currentPlan=plan) {
+      protectPrivatePath(destination.registration,{verifyOnly:true});
       const record=read(destination);
       if(!credentialsMatch(record,env)||!sameIdentity(record.process,identify(record.process.pid)))throw new Error('Automatic review must start inside the live registered Claude task');
       const parent=canonical(path.dirname(currentPlan.jobDir));
       const common=canonical(git(currentPlan.worktree,['rev-parse','--path-format=absolute','--git-common-dir']));
       if(inside(canonical(currentPlan.worktree),parent)||inside(canonical(destination.cwd),parent)||inside(common,parent))throw new Error('Private review job directory must be outside writer/reviewed worktrees and Git administration');
       const rows=evidence(record),stop=configuration(record,currentPlan,rows);
-      const display=rows.findLast(row=>row.hook_event_name==='MessageDisplay');
-      if(display?.turn_id!==destination.turnId||display.prompt_id!==stop.prompt_id||!rows.some(row=>row.hook_event_name==='UserPromptSubmit'&&row.prompt_id===stop.prompt_id)||rows.some(row=>row.hook_event_name==='SessionEnd'))throw new Error('Claude originating turn or session lifecycle unavailable');
+      const display=rows.findLast(row=>row.hook_event_name==='MessageDisplay'&&row.turn_id===destination.turnId);
+      const anchor=rows.findLast(row=>row.hook_event_name==='Stop'&&row.prompt_id===display?.prompt_id);
+      if(display?.turn_id!==destination.turnId||!anchor||!rows.some(row=>row.hook_event_name==='UserPromptSubmit'&&row.prompt_id===anchor.prompt_id)||rows.some(row=>row.hook_event_name==='SessionEnd'))throw new Error('Claude originating turn or session lifecycle unavailable');
       if(!uuid(destination.turnId)||!stop.prompt_id)throw new Error('Native Claude turn configuration required');
       return {supported:true,host:'claude-cli-windows',version:record.cliVersion,route:'authenticated originating inbox',acceptance:'native MessageDisplay and transcript arrival',retract:'unsupported',cancelTurn:'unsupported'};
     },
     async inspect(destination,currentPlan=plan) {
+      try {
       const record=read(destination);
       if(!sameIdentity(record.process,identify(record.process.pid)))return{state:'disconnected'};
       const rows=evidence(record),stop=configuration(record,currentPlan,rows);
@@ -103,10 +117,14 @@ export function claudeContinuationHost({plan,env=process.env,platform=process.pl
       const user=transcript.findLast(row=>row.type==='user');
       if(user&&(!Number.isFinite(Date.parse(user.timestamp))||Date.parse(user.timestamp)>Date.parse(stop.at)))return{state:'unknown'};
       return{state:'idle'};
+      }catch(error){return{state:'unknown',reason:error.message};}
     },
     async submit(envelope) {
-      const destination=plan.destination,record=read(destination);
-      if(envelope.destination.threadId!==record.sessionId||envelope.destination.turnId!==destination.turnId||envelope.destination.cwd!==destination.cwd||!uuid(envelope.continuationId)||!sameIdentity(record.process,identify(record.process.pid)))throw new Error('Claude destination identity changed before dispatch');
+      let record;
+      try {
+        const destination=plan.destination;record=read(destination);
+        if(envelope.destination.threadId!==record.sessionId||envelope.destination.turnId!==destination.turnId||envelope.destination.cwd!==destination.cwd||!uuid(envelope.continuationId)||!sameIdentity(record.process,identify(record.process.pid)))throw new Error('Claude destination identity changed before dispatch');
+      }catch(error){return{status:'not-sent',reason:error.message};}
       return send(record,envelope);
     },
     async reconcile(envelope) {
@@ -116,7 +134,7 @@ export function claudeContinuationHost({plan,env=process.env,platform=process.pl
       const transcript=readClaudeRows(record.transcript,128*1024*1024);
       const arrived=transcript.some(row=>(row.type==='user'&&row.uuid===envelope.continuationId||row.type==='attachment'&&row.attachment?.type==='queued_command')&&JSON.stringify(row).includes(marker));
       if(!arrived)return{status:'uncertain'};
-      const turns=new Set(rows.filter(row=>row.hook_event_name==='MessageDisplay'&&row.final===true&&uuid(row.turn_id)&&typeof row.delta==='string'&&row.delta.split(/\r?\n/).some(line=>line.trim()===marker)).map(row=>row.turn_id));
+      const turns=new Set(rows.filter(row=>row.hook_event_name==='MessageDisplay'&&uuid(row.turn_id)&&uuid(row.message_id)&&typeof row.delta==='string'&&row.delta.split(/\r?\n/).some(line=>line.trim()===marker)&&rows.some(done=>done.hook_event_name==='MessageDisplay'&&done.final===true&&done.turn_id===row.turn_id&&done.message_id===row.message_id)).map(row=>row.turn_id));
       if(turns.size!==1)return{status:'uncertain'};
       return{status:'accepted',turnId:[...turns][0]};
     },

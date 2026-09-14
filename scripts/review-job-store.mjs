@@ -13,6 +13,8 @@ export function writeExclusive(file,value) {
   const fd=fs.openSync(file,'wx');try{fs.writeSync(fd,JSON.stringify(value)+'\n');fs.fsyncSync(fd);}finally{fs.closeSync(fd);}
 }
 export const sameIdentity=(a,b)=>!!a&&!!b&&a.pid===b.pid&&a.start===b.start;
+let ownIdentity;
+export const currentIdentity=()=>ownIdentity??=processIdentity(process.pid);
 export function alive(identity,identify=processIdentity) {
   if(!identity||!Number.isSafeInteger(identity.pid)||typeof identity.start!=='string')throw new Error('Process identity uncertain; preserve ownership');
   return sameIdentity(identity,identify(identity.pid));
@@ -32,15 +34,17 @@ export function appendEvent(dir,event,details={}) {
   const fd=fs.openSync(path.join(dir,'events.jsonl'),'a');try{fs.writeSync(fd,JSON.stringify(row)+'\n');fs.fsyncSync(fd);}finally{fs.closeSync(fd);}
   return row;
 }
-// No host calls inside this synchronous transaction. Recovery never guesses that
+// Never await inside this synchronous transaction. Callers retain any spawned
+// process or invoked request even if lock cleanup fails. Recovery never guesses that
 // an unreadable process/lock record means an absent owner.
 export function withJob(dir,run) {
-  const lock=path.join(dir,'mutation.lock'),owner={token:randomUUID(),identity:processIdentity(process.pid)};
+  const lock=path.join(dir,'mutation.lock'),owner={token:randomUUID(),identity:currentIdentity()};
   writeExclusive(lock,owner);
   try{if(fs.existsSync(path.join(dir,'mutation.recovery')))throw new Error('Job recovery in progress');return run(readEvents(dir));}finally{if(readJson(lock).token!==owner.token)throw new Error('Job lock generation changed');fs.unlinkSync(lock);}
 }
-export async function retryBusy(run) {
-  for(let attempt=0;;attempt++){try{return run();}catch(error){if(error.code!=='EEXIST'||attempt>=100)throw error;await new Promise(resolve=>setTimeout(resolve,100));}}
+export async function retryBusy(run,{timeoutMs=10000,now=Date.now,wait=ms=>new Promise(resolve=>setTimeout(resolve,ms))}={}) {
+  const deadline=now()+timeoutMs;
+  for(;;){try{return run();}catch(error){if(error.code!=='EEXIST'||now()>=deadline)throw error;await wait(Math.min(100,Math.max(0,deadline-now())));}}
 }
 export function recoverJobLock(dir) {
   const marker=path.join(dir,'mutation.recovery');writeExclusive(marker,{identity:processIdentity(process.pid)});

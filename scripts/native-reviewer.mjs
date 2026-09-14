@@ -5,6 +5,7 @@ import {git} from './review-job-store.mjs';
 
 export function verifyReviewerExecutable(review) {
   if(review.transport!=='native-codex-jsonl')return;
+  if(process.platform!=='win32')throw new Error('Automatic native Codex reviewer is verified on Windows only; use awaited mode');
   const version=execFileSync(review.executable,['--version'],{encoding:'utf8',windowsHide:true,timeout:10000}).trim();
   if(version!=='codex-cli 0.154.0-alpha.6.2')throw new Error('Native Codex reviewer version is unverified; use awaited mode');
 }
@@ -42,19 +43,20 @@ export function validateCodexReviewer(review,plan) {
       if(!['multi_agent','multi_agent_v2'].includes(feature)||disabled.has(feature))throw new Error('Unsupported or duplicate Codex feature override');
       disabled.add(feature);continue;
     }
-    if(['--json','--skip-git-repo-check'].includes(flag)) {
+    if(['--json','--skip-git-repo-check','--ignore-user-config','--ignore-rules','--strict-config'].includes(flag)) {
       if(values.has(flag))throw new Error('Duplicate Codex reviewer flag');values.set(flag,true);continue;
     }
     if(!['--model','--cd','--sandbox','--output-last-message','-c'].includes(flag)||index+1>=args.length-1)throw new Error('Unsupported or ambiguous Codex reviewer argument');
     const value=args[++index];
     if(flag==='-c') {
-      const match=/^(model_reasoning_effort|approval_policy|sandbox_workspace_write\.network_access)=(.+)$/.exec(value);
+      const match=/^(model_reasoning_effort|approval_policy|model_provider|sandbox_workspace_write\.(?:network_access|writable_roots|exclude_tmpdir_env_var|exclude_slash_tmp))=(.+)$/.exec(value);
       if(!match||config.has(match[1]))throw new Error('Unsupported or duplicate Codex reviewer configuration');
       let parsed;try{parsed=JSON.parse(match[2]);}catch{throw new Error('Codex reviewer config values must be explicit JSON/TOML literals');}
       config.set(match[1],parsed);
     } else {if(values.has(flag))throw new Error('Duplicate Codex reviewer flag');values.set(flag,value);}
   }
   const permission=review.permissions;
+  if(!values.get('--ignore-user-config')||!values.get('--ignore-rules')||!values.get('--strict-config')||config.get('model_provider')!=='openai'||JSON.stringify(config.get('sandbox_workspace_write.writable_roots'))!=='[]'||config.get('sandbox_workspace_write.exclude_tmpdir_env_var')!==true||config.get('sandbox_workspace_write.exclude_slash_tmp')!==true)throw new Error('Codex reviewer requires isolated effective configuration and explicit writable roots');
   if(disabled.size!==2)throw new Error('Codex reviewer must disable both native multi-agent features');
   if(values.get('--model')!==plan.reviewer||config.get('model_reasoning_effort')!==review.effort||!['low','medium','high','xhigh','max','ultra'].includes(review.effort))throw new Error('Codex reviewer model/effort mismatch');
   if(permission?.sandbox!=='workspace-write'||permission.approvalPolicy!=='never'||permission.networkAccess!==true||permission.artifactWrites!=='handoff-directory'||values.get('--sandbox')!==permission.sandbox||config.get('approval_policy')!==permission.approvalPolicy||config.get('sandbox_workspace_write.network_access')!==permission.networkAccess)throw new Error('Explicit Codex private-artifact and posting permissions required');

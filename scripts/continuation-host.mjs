@@ -2,9 +2,10 @@ import path from 'node:path';
 import fs from 'node:fs';
 import { isDeepStrictEqual } from 'node:util';
 import { codexProbeHost,validatePlan,pipeRequest } from './continuation-conformance.mjs';
-import { claudeContinuationHost,claudeClaimIdentity } from './claude-continuation-host.mjs';
+import { claudeContinuationHost,claudeClaimIdentity,verifyClaudeClaimConfiguration } from './claude-continuation-host.mjs';
 
 export function continuationHost(plan,options={}) {
+  if(!plan?.destination||!plan.destination.threadId||!plan.destination.turnId||!plan.destination.cwd)throw new Error('Originating destination identity required');
   if(plan.destination.host==='claude-cli-windows')return claudeContinuationHost({plan,...options});
   if(plan.destination.host!==undefined&&plan.destination.host!=='codex-app-windows')throw new Error('Unverified automatic host; use awaited mode');
   return codexContinuationHost(options);
@@ -23,11 +24,12 @@ export function verifyOriginConfiguration(destination,plan) {
   const text=fs.readFileSync(destination.rollout,'utf8');
   const rows=text.slice(0,text.lastIndexOf('\n')+1).trim().split('\n').map(JSON.parse);
   const session=rows.find(row=>row.type==='session_meta')?.payload;
-  const context=rows.findLast(row=>row.type==='turn_context'&&row.payload?.turn_id===destination.turnId)?.payload;
+  const context=rows.findLast(row=>row.type==='turn_context'&&(!destination.turnId||row.payload?.turn_id===destination.turnId))?.payload;
   if(session?.id!==destination.threadId||!context||path.resolve(context.cwd)!==path.resolve(destination.cwd))throw new Error('Native rollout does not identify the originating task and turn');
   if(context.model!==plan.writer||context.effort!==plan.writerEffort||!isDeepStrictEqual({approvalPolicy:context.approval_policy,sandboxPolicy:context.sandbox_policy},plan.permissions))throw new Error('Originating model, effort or permissions mismatch');
-  return{model:context.model,effort:context.effort,permissions:plan.permissions};
+  return{model:context.model,effort:context.effort,permissions:plan.permissions,turnId:context.turn_id};
 }
+export const verifyClaimConfiguration=(destination,plan)=>destination.host==='claude-cli-windows'?verifyClaudeClaimConfiguration(destination,plan):verifyOriginConfiguration({...destination,turnId:undefined},plan);
 
 export function verifyHostCatalog(catalog) {
   for(const [name,required,properties] of [['send_message_to_thread',['prompt','threadId'],{threadId:'string',prompt:'string'}],['read_thread',['threadId'],{threadId:'string',cursor:'string',turnLimit:'integer',includeOutputs:'boolean',maxOutputCharsPerItem:'integer'}]]) {
