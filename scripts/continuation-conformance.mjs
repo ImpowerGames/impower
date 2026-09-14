@@ -8,6 +8,13 @@ import { pathToFileURL } from "node:url";
 
 const MAX_FRAME = 8 * 1024 * 1024;
 
+// Bind Git discovery to cwd while retaining discovery ceilings and user config.
+function gitEnvironment() {
+  const env = { ...process.env };
+  for (const key of Object.keys(env)) if (["GIT_DIR", "GIT_WORK_TREE", "GIT_COMMON_DIR"].includes(process.platform === "win32" ? key.toUpperCase() : key)) delete env[key];
+  return env;
+}
+
 // Protocol observed in the installed codex-app-tools 0.1.4 bridge. No daemon
 // launch, replacement session, credentials, or permission overrides are used.
 export function pipeRequest(endpoint, method, params, timeoutMs = 10000) {
@@ -131,7 +138,7 @@ export async function probeIdle(plan, host, { sleep = ms => new Promise(resolve 
       if (now() >= deadline) throw new Error("Destination did not become idle within ten minutes");
       await sleep(2000);
     }
-    const head = execFileSync("git", ["rev-parse", "HEAD"], { cwd: plan.worktree, encoding: "utf8", windowsHide: true }).trim();
+    const head = execFileSync("git", ["rev-parse", "HEAD"], { cwd: plan.worktree, env: gitEnvironment(), encoding: "utf8", windowsHide: true }).trim();
     if (head !== plan.head) throw new Error("Conformance worktree head changed");
     event("originating-turn-completed", { turnId: plan.turnId });
     // Recheck after the local head probe. This is still a non-atomic host API:
@@ -162,6 +169,9 @@ export function validatePlan(plan, env = process.env) {
   if (!/^[a-f0-9]{40}$/.test(plan.head)) throw new Error("Expected full worktree head");
   if (!/^[a-zA-Z0-9-]{8,80}$/.test(plan.continuationId)) throw new Error("Invalid continuation marker");
   for (const key of ["destinationCwd", "worktree", "journal"]) if (!path.isAbsolute(plan[key])) throw new Error(`${key} must be absolute`);
+  for (const key of ["destinationCwd", "worktree"]) {
+    if (!fs.statSync(plan[key]).isDirectory()) throw new Error(`${key} must name a directory: ${plan[key]}`);
+  }
   const directories = new Set([plan.worktree, plan.destinationCwd]);
   const journal = path.join(fs.realpathSync(path.dirname(plan.journal)), path.basename(plan.journal));
   const refuseContained = directory => {
@@ -171,7 +181,7 @@ export function validatePlan(plan, env = process.env) {
   for (const directory of directories) refuseContained(directory);
   for (const directory of [plan.worktree, plan.destinationCwd]) {
     const git = args => {
-      try { return execFileSync("git", args, { cwd: directory, encoding: "utf8", windowsHide: true, stdio: ["ignore", "pipe", "pipe"] }); }
+      try { return execFileSync("git", args, { cwd: directory, env: gitEnvironment(), encoding: "utf8", windowsHide: true, stdio: ["ignore", "pipe", "pipe"] }); }
       catch (error) { throw new Error(`Cannot validate Git repository for ${directory}: ${error.stderr?.trim() || error.message}`); }
     };
     const common = fs.realpathSync(git(["rev-parse", "--path-format=absolute", "--git-common-dir"]).trim());

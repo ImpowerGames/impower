@@ -3,7 +3,7 @@ import fs from "node:fs";
 import net from "node:net";
 import os from "node:os";
 import path from "node:path";
-import { execFileSync, spawnSync } from "node:child_process";
+import { execFileSync, spawnSync, spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { pipeRequest, checkDestination, probeIdle, validatePlan, codexProbeHost, observedTurn, reconcileProbe } from "./continuation-conformance.mjs";
 const fixture = JSON.parse(fs.readFileSync(new URL("./codex-app-tools.fixture.json", import.meta.url), "utf8"));
@@ -137,9 +137,13 @@ await test("invalid plans and journals in either checkout fail before host use",
   git("init", "--separate-git-dir", separateStore, separateMain);
   git("-C", separateMain, "-c", "user.name=fixture", "-c", "user.email=fixture@example.invalid", "commit", "--allow-empty", "-m", "fixture");
   git("-C", separateMain, "worktree", "add", "--detach", "--quiet", separateLinked, "HEAD");
-  assert.throws(() => validatePlan({ ...plan, worktree: separateLinked, destinationCwd: separateLinked, journal: path.join(separateMain, "journal.jsonl") }, env), /Cannot verify owning checkout|Journal must be outside both worktrees/);
+  assert.throws(() => validatePlan({ ...plan, worktree: separateLinked, destinationCwd: separateLinked, journal: path.join(separateMain, "journal.jsonl") }, env), /Cannot verify owning checkout/);
   const separateDeep = path.join(separateMain, "deep"); fs.mkdirSync(separateDeep);
-  assert.throws(() => validatePlan({ ...plan, worktree: separateDeep, destinationCwd: separateDeep, journal: path.join(separateMain, "journal.jsonl") }, env), /Cannot verify owning checkout|Journal must be outside both worktrees/);
+  assert.throws(() => validatePlan({ ...plan, worktree: separateDeep, destinationCwd: separateDeep, journal: path.join(separateMain, "journal.jsonl") }, env), /Cannot verify owning checkout/);
+  const bare = path.join(scratch, "bare.git"), bareLinked = path.join(scratch, "bare-linked");
+  git("clone", "--bare", "--quiet", worktree, bare);
+  git("-C", bare, "worktree", "add", "--detach", "--quiet", bareLinked, "HEAD");
+  assert.throws(() => validatePlan({ ...plan, worktree: bareLinked, destinationCwd: bareLinked }, env), /Cannot verify owning checkout/);
 });
 await test("the wait bound blocks without submission and intent is flushed before send", async () => {
   let time = 0;
@@ -197,6 +201,41 @@ await test("reconciliation follows read cursors and never submits or rewrites ac
   await assert.rejects(reconcileProbe(p, { inspect: async () => ({ ...accepted(), turns: [], page: { order: "newest_first", hasMore: true, nextCursor: String(++pages) } }) }), /bounded read/);
   assert.equal(pages, 10);
 });
+await test("Git routing environment cannot redirect containment or frozen head", async () => {
+  const other = path.join(scratch, "other-repo"); fs.mkdirSync(other);
+  git("-C", other, "init", "--quiet");
+  git("-C", other, "-c", "user.name=fixture", "-c", "user.email=fixture@example.invalid", "commit", "--allow-empty", "-m", "distinct head");
+  assert.notEqual(git("-C", other, "rev-parse", "HEAD").trim(), plan.head);
+  const env = { CODEX_THREAD_ID: "origin", CODEX_APP_TOOLS_PIPE_PATH: "pipe" };
+  for (const variables of [{ GIT_DIR: path.join(other, ".git") }, { GIT_COMMON_DIR: path.join(other, ".git") }, { GIT_DIR: path.join(other, ".git"), GIT_WORK_TREE: other }]) {
+    const prior = Object.fromEntries(Object.keys(variables).map(key => [key, process.env[key]]));
+    try {
+      Object.assign(process.env, variables);
+      assert.throws(() => validatePlan({ ...plan, journal: path.join(scratch, "linked", "journal.jsonl") }, env), /both worktrees/);
+      assert.throws(() => validatePlan({ ...plan, destinationCwd: path.join(scratch, "destination") }, env), /Cannot validate Git repository/);
+      let sent = false;
+      await probeIdle({ ...plan, journal: path.join(scratch, `env-${checks}-${Object.keys(variables).join("-")}.jsonl`) }, { inspect: async () => idle(), submit: async () => { sent = true; return {}; } });
+      assert.equal(sent, true, "HEAD must come from the planned worktree, not inherited Git routing");
+    } finally { for (const [key, value] of Object.entries(prior)) { if (value === undefined) delete process.env[key]; else process.env[key] = value; } }
+  }
+});
+await test("file-valued plan directories get a directory-specific refusal", () => {
+  const file = path.join(scratch, "not-directory"); fs.writeFileSync(file, "fixture");
+  for (const key of ["worktree", "destinationCwd"]) assert.throws(() => validatePlan({ ...plan, [key]: file }, { CODEX_THREAD_ID: "origin", CODEX_APP_TOOLS_PIPE_PATH: "pipe" }), error => error.message.includes(`${key} must name a directory: ${file}`));
+});
+await test("CLI rejects a contained journal before writing or dispatching to host", async () => {
+  let requests = 0;
+  await withServer(socket => { requests++; socket.destroy(); }, async endpoint => {
+    const journal = path.join(scratch, "linked", "cli-journal.jsonl"), input = path.join(scratch, "contained-plan.json");
+    fs.writeFileSync(input, JSON.stringify({ ...plan, journal }));
+    const result = await new Promise((resolve, reject) => {
+      const child = spawn(process.execPath, [fileURLToPath(new URL("./continuation-conformance.mjs", import.meta.url)), "codex-idle", input], { env: { ...process.env, CODEX_THREAD_ID: "origin", CODEX_APP_TOOLS_PIPE_PATH: endpoint }, windowsHide: true });
+      let stderr = ""; child.stderr.on("data", data => { stderr += data; }); child.stdout.resume(); child.on("error", reject); child.on("close", status => resolve({ status, stderr }));
+    });
+    assert.equal(result.status, 1); assert.match(result.stderr, /Journal must be outside both worktrees/);
+    assert.equal(fs.existsSync(journal), false); assert.equal(requests, 0, "uncontained plan reached host");
+  });
+});
 await test("CLI refuses missing commands and malformed plans", () => {
   const module = new URL("./continuation-conformance.mjs", import.meta.url);
   const malformed = path.join(scratch, "invalid.json"); fs.writeFileSync(malformed, "not json");
@@ -205,7 +244,7 @@ await test("CLI refuses missing commands and malformed plans", () => {
     assert.equal(result.status, 1); assert.match(result.stderr, args.length ? /JSON/ : /Usage/);
   }
 });
-assert.equal(checks, 16, "conformance case inventory changed");
+assert.equal(checks, 19, "conformance case inventory changed");
 console.log(`Continuation conformance: ${checks} cases passed. Host fixtures do not establish live host compatibility.`);
 } finally {
   if (fs.realpathSync(scratch) !== path.resolve(scratch) || !path.basename(scratch).startsWith("impower-continuation-")) throw new Error("Refusing cleanup outside original scratch directory");
