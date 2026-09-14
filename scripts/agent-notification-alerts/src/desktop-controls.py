@@ -59,10 +59,15 @@ root.after(100, style_titlebar)
 # A plain fixed-height frame clipped whatever grew past the window's bottom
 # edge (the Discord card's added fields did). Scrolling keeps the window
 # usable at any height instead of guessing a tall-enough fixed size.
+style = ttk.Style(root)
+style.theme_use('clam')
+style.configure('Dark.Vertical.TScrollbar', gripcount=0, background='#30333d', darkcolor='#30333d', lightcolor='#30333d', troughcolor='#111318', bordercolor='#111318', arrowcolor='#a4a7b2', relief='flat')
+style.map('Dark.Vertical.TScrollbar', background=[('active', '#3a3d47'), ('pressed', '#49405e')])
+
 scroll_container = tk.Frame(root, bg='#111318')
 scroll_container.pack(fill='both', expand=True)
 canvas = tk.Canvas(scroll_container, bg='#111318', highlightthickness=0)
-scrollbar = tk.Scrollbar(scroll_container, orient='vertical', command=canvas.yview)
+scrollbar = ttk.Scrollbar(scroll_container, orient='vertical', command=canvas.yview, style='Dark.Vertical.TScrollbar')
 canvas.configure(yscrollcommand=scrollbar.set)
 canvas.pack(side='left', fill='both', expand=True)
 scrollbar.pack(side='right', fill='y')
@@ -164,8 +169,6 @@ try:
 except (OSError, ValueError, ImportError):
     pass
 voice_labels = {voice_label(voice): voice for voice in voice_choices}
-style = ttk.Style(root)
-style.theme_use('clam')
 style.configure('Voice.TCombobox', fieldbackground='#1d2028', background='#30333d', foreground='#f0f0f5', arrowcolor='#b8adff', padding=7)
 style.map('Voice.TCombobox', fieldbackground=[('readonly', '#1d2028')], foreground=[('readonly', '#f0f0f5')], selectbackground=[('readonly', '#1d2028')], selectforeground=[('readonly', '#f0f0f5')])
 root.option_add('*TCombobox*Listbox.background', '#1d2028')
