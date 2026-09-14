@@ -30,8 +30,9 @@ last_muted = None
 
 root = tk.Tk()
 root.title('Agent Alerts')
-root.geometry('480x760')
-root.resizable(False, False)
+root.geometry('480x820')
+root.minsize(480, 360)
+root.resizable(False, True)
 root.configure(bg='#111318')
 
 def style_titlebar():
@@ -54,8 +55,35 @@ def style_titlebar():
         dwm.DwmSetWindowAttribute(window, attribute, ctypes.byref(value), ctypes.sizeof(value))
 
 root.after(100, style_titlebar)
-shell = tk.Frame(root, bg='#111318')
-shell.pack(fill='both', expand=True, padx=28, pady=16)
+
+# A plain fixed-height frame clipped whatever grew past the window's bottom
+# edge (the Discord card's added fields did). Scrolling keeps the window
+# usable at any height instead of guessing a tall-enough fixed size.
+scroll_container = tk.Frame(root, bg='#111318')
+scroll_container.pack(fill='both', expand=True)
+canvas = tk.Canvas(scroll_container, bg='#111318', highlightthickness=0)
+scrollbar = tk.Scrollbar(scroll_container, orient='vertical', command=canvas.yview)
+canvas.configure(yscrollcommand=scrollbar.set)
+canvas.pack(side='left', fill='both', expand=True)
+scrollbar.pack(side='right', fill='y')
+
+shell = tk.Frame(canvas, bg='#111318')
+shell_window = canvas.create_window((28, 16), window=shell, anchor='nw')
+
+def _fit_shell_to_canvas(event=None):
+    canvas.configure(scrollregion=(0, 0, 0, canvas.bbox('all')[3] + 16 if canvas.bbox('all') else 0))
+    canvas.itemconfig(shell_window, width=max(1, canvas.winfo_width() - 56))
+
+shell.bind('<Configure>', _fit_shell_to_canvas)
+canvas.bind('<Configure>', _fit_shell_to_canvas)
+
+def _on_mousewheel(event):
+    canvas.yview_scroll(int(-1 * (event.delta / 120)), 'units')
+
+# Scoped to while the pointer is over this window, so it never fights a
+# combobox dropdown's own scrolling elsewhere.
+canvas.bind('<Enter>', lambda event: canvas.bind_all('<MouseWheel>', _on_mousewheel))
+canvas.bind('<Leave>', lambda event: canvas.unbind_all('<MouseWheel>'))
 tk.Label(shell, text='YOUR WORK, AT YOUR PACE', font=('Segoe UI', 9, 'bold'), fg='#a99ef5', bg='#111318', anchor='w').pack(fill='x')
 tk.Label(shell, text='Agent Alerts', font=('Segoe UI', 25, 'bold'), fg='#f4f4f7', bg='#111318', anchor='w').pack(fill='x', pady=(5, 3))
 tk.Label(shell, text='Choose how your agents get your attention.', font=('Segoe UI', 10), fg='#a4a7b2', bg='#111318', anchor='w').pack(fill='x')
