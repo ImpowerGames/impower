@@ -12,13 +12,13 @@ const gitStatus = (cwd) => git(cwd,['status','--porcelain']);
 export const configuredRoute = (value) => value.replace(/\[[^\]]+\]$/, "");
 const readReviewComment = (id, cwd) => JSON.parse(execFileSync("gh", ["api", `repos/ImpowerGames/impower/issues/comments/${id}`], { cwd, encoding: "utf8", windowsHide: true }));
 
-export async function verifyReviewComment(id, pr, head, cwd, { readComment = readReviewComment, wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms)), attempts = 6 } = {}) {
+export async function verifyReviewComment(id, pr, head, cwd, { readComment = readReviewComment, wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms)), attempts = 6, notBefore } = {}) {
   for (let attempt = 1; attempt <= attempts; attempt++) {
-    const comment = readComment(id, cwd);
-    if (comment.issue_url === `https://api.github.com/repos/ImpowerGames/impower/issues/${pr}` && comment.body.includes(head)) return;
+    let comment;try{comment=readComment(id,cwd);}catch(error){if(attempt===attempts)throw error;}
+    if (comment?.issue_url === `https://api.github.com/repos/ImpowerGames/impower/issues/${pr}` && typeof comment.body==='string'&&comment.body.includes(head) && (notBefore===undefined||Number.isFinite(Date.parse(comment.created_at))&&Date.parse(comment.created_at)>=Math.floor(Date.parse(notBefore)/1000)*1000)) return;
     if (attempt < attempts) await wait(1000);
   }
-  throw new Error("Comment does not verify this PR and head");
+  throw new Error(notBefore===undefined?"Comment does not verify this PR and head":`Comment does not verify this PR/head and current reviewer launch time ${notBefore}`);
 }
 
 export function checkReviewRound(round, completedRound, finalCorrections, reviewRoundLimit = 3) {
@@ -100,6 +100,7 @@ export async function runHandoff(configFile, { slotRoot, identifyProcess = proce
   let reviewedHead = config.reviewedHead ?? null;
   let finalCorrections = config.finalCorrections ?? false;
   let activeChild;
+  const usedReports=new Set();
   try {
     const freeze=git(cwd,['rev-parse','--path-format=absolute','--git-path','agent-review-job.json']);
     if(fs.existsSync(freeze)) {
@@ -122,7 +123,8 @@ export async function runHandoff(configFile, { slotRoot, identifyProcess = proce
       const output = path.join(artifacts, "process.log");
       const prompt = fs.readFileSync(step.prompt, "utf8") + `\n\nHandoff contract: role=${step.role}, configured model=${step.model}, reviewed head=${head}. Write ${completion} with the editor tool as JSON: {"head":"<actual HEAD>","next":"<declared transition or null>","commentIds":[<numeric GitHub comment IDs>],"summary":"<result>"}. Allowed next steps: ${JSON.stringify(step.next)}. Review and adjudication must post their complete report/dispositions before completion; include those IDs. Do not mark ready or merge. Do not modify repository files during review.\n`;
       const diagnostics=step.nativeResult?path.join(artifacts,'stderr.log'):output;
-      append({ event: "launching", index, step: current, role: step.role, model: step.model, round: step.round, completedRound, reviewedHead, finalCorrections, head, output, diagnostics, completion });
+      const reportNotBefore=new Date().toISOString();
+      append({ event: "launching", index, step: current, role: step.role, model: step.model, round: step.round, completedRound, reviewedHead, finalCorrections, head, output, diagnostics, completion,reportNotBefore });
       const log = fs.openSync(output, "wx");
       let stderr;
       try{stderr=diagnostics===output?log:fs.openSync(diagnostics,'wx');}catch(error){fs.closeSync(log);throw error;}
@@ -203,7 +205,9 @@ export async function runHandoff(configFile, { slotRoot, identifyProcess = proce
       if (!(step.next.includes(done.next))) throw new Error("Undeclared transition");
       if (step.role !== "implement" && !done.commentIds.length) throw new Error("Review/adjudication needs posted comment IDs");
       for (const id of done.commentIds) {
-        await verifyReviewComment(id, config.pr, done.head, cwd);
+        if(automaticJob&&usedReports.has(id))throw new Error('Each automatic reviewer requires distinct report IDs');
+        await verifyReviewComment(id, config.pr, done.head, cwd,{notBefore:automaticJob?reportNotBefore:undefined});
+        usedReports.add(id);
       }
       if (gitStatus(cwd)) throw new Error("Role left uncommitted work");
       if (step.role === "review") {
