@@ -33,6 +33,28 @@ export function verifyNativeReviewResult(output) {
   if(result.type!=='result'||result.subtype!=='success'||result.is_error!==false||result.stop_reason!=='end_turn')throw new Error('Native reviewer failed or interrupted');
 }
 
+export function validateReviewRecovery(config) {
+  const limit=config.reviewRoundLimit??3;
+  if(!Number.isInteger(limit)||limit<1||limit>10)throw new Error('reviewRoundLimit must be an integer from 1 through 10');
+  if(limit>3&&(typeof config.extendedReviewAuthorization!=='string'||!config.extendedReviewAuthorization.trim()))throw new Error('Rounds beyond 3 require explicit user authorization in extendedReviewAuthorization');
+  if(limit<=3&&config.extendedReviewAuthorization!==undefined)throw new Error('extendedReviewAuthorization is only valid when reviewRoundLimit exceeds 3');
+  if(!Number.isInteger(config.completedReviewRound)||config.completedReviewRound<0||config.completedReviewRound>limit)throw new Error(`Supply completedReviewRound from 0 through ${limit}, including on recovery`);
+  if((config.completedReviewRound===limit&&typeof config.finalCorrections!=='boolean')||(config.finalCorrections!==undefined&&typeof config.finalCorrections!=='boolean')||(config.finalCorrections&&config.completedReviewRound<3))throw new Error(`Supply finalCorrections from the journal for recovery at round 3 or later; round-${limit} recovery requires it`);
+  if(config.completedReviewRound>0&&!/^[a-f0-9]{40}$/.test(config.reviewedHead??''))throw new Error('Supply reviewedHead from the journal when recovering a review round');
+}
+
+export function validateNativeReviewArgs(review) {
+  const values=new Set(['--model','-m','--effort','--permission-mode','--output-format','--allowedTools','--disallowedTools','--tools']);
+  const switches=new Set(['-p','--print','--verbose','--no-session-persistence']);
+  for(let i=0;i<review.args.length;i++) {
+    const arg=review.args[i];
+    if(i===0&&review.executable===process.execPath&&path.isAbsolute(arg))continue;
+    if(switches.has(arg))continue;
+    if(values.has(arg)&&typeof review.args[i+1]==='string'&&!review.args[i+1].startsWith('-')){i++;continue;}
+    throw new Error(`Unsupported automatic native reviewer argument: ${arg}`);
+  }
+}
+
 // Configuration is a local, caller-authored artifact. Comments and child output
 // can select a declared transition but can never supply executable commands.
 export async function runHandoff(configFile, { slotRoot, identifyProcess = processIdentity, automaticJob } = {}) {
@@ -44,13 +66,8 @@ export async function runHandoff(configFile, { slotRoot, identifyProcess = proce
   if (!relative.startsWith(".." + path.sep) && !path.isAbsolute(relative)) throw new Error("Journal must be outside the worktree");
   if (!config.writer || !config.reviewer || configuredRoute(config.writer) === configuredRoute(config.reviewer)) throw new Error("Supply distinct writer and reviewer model routes");
   const reviewRoundLimit = config.reviewRoundLimit ?? 3;
-  if (!Number.isInteger(reviewRoundLimit) || reviewRoundLimit < 1 || reviewRoundLimit > 10) throw new Error("reviewRoundLimit must be an integer from 1 through 10");
-  if (reviewRoundLimit > 3 && (typeof config.extendedReviewAuthorization !== "string" || !config.extendedReviewAuthorization.trim())) throw new Error("Rounds beyond 3 require explicit user authorization in extendedReviewAuthorization");
-  if (reviewRoundLimit <= 3 && config.extendedReviewAuthorization !== undefined) throw new Error("extendedReviewAuthorization is only valid when reviewRoundLimit exceeds 3");
+  validateReviewRecovery(config);
   if (!Number.isInteger(config.maxSteps) || config.maxSteps < 1 || config.maxSteps > 30) throw new Error("maxSteps must be 1..30");
-  if (!Number.isInteger(config.completedReviewRound) || config.completedReviewRound < 0 || config.completedReviewRound > reviewRoundLimit) throw new Error(`Supply completedReviewRound from 0 through ${reviewRoundLimit}, including on recovery`);
-  if ((config.completedReviewRound === reviewRoundLimit && typeof config.finalCorrections !== "boolean") || (config.finalCorrections !== undefined && typeof config.finalCorrections !== "boolean") || (config.finalCorrections && config.completedReviewRound < 3)) throw new Error(`Supply finalCorrections from the journal for recovery at round 3 or later; round-${reviewRoundLimit} recovery requires it`);
-  if (config.completedReviewRound > 0 && !/^[a-f0-9]{40}$/.test(config.reviewedHead ?? "")) throw new Error("Supply reviewedHead from the journal when recovering a review round");
   if (fs.existsSync(journal)) throw new Error("Journal exists; inspect recorded process and completion before authoring a recovery plan");
   for (const step of Object.values(config.steps)) {
     if(step.nativeResult!==undefined&&step.nativeResult!=='claude-json')throw new Error('Unsupported native reviewer result transport');
@@ -91,7 +108,7 @@ export async function runHandoff(configFile, { slotRoot, identifyProcess = proce
     fs.writeFileSync(owner, JSON.stringify({ pid: process.pid, processIdentity: processIdentity(process.pid), startedAt: new Date().toISOString(), journal }));
     fd = fs.openSync(journal, "wx");
     for (let index = 0; current; index++) {
-      if(automaticJob&&fs.readFileSync(path.join(automaticJob.jobDir,'events.jsonl'),'utf8').trim().split('\n').map(JSON.parse).some(row=>row.event==='workflow-cancelled'))throw new Error('Automatic review workflow cancelled; no further reviewer dispatch');
+      if(automaticJob)await retryBusy(()=>withJob(automaticJob.jobDir,rows=>{if(rows.some(row=>row.event==='workflow-cancelled'))throw new Error('Automatic review workflow cancelled; no further reviewer dispatch');}));
       if (index >= config.maxSteps) throw new Error("Handoff step budget reached; human review required");
       const step = config.steps[current];
       if (!step) throw new Error(`Unknown step: ${current}`);
@@ -103,23 +120,31 @@ export async function runHandoff(configFile, { slotRoot, identifyProcess = proce
       const completion = path.join(artifacts, "completion.json");
       const output = path.join(artifacts, "process.log");
       const prompt = fs.readFileSync(step.prompt, "utf8") + `\n\nHandoff contract: role=${step.role}, configured model=${step.model}, reviewed head=${head}. Write ${completion} with the editor tool as JSON: {"head":"<actual HEAD>","next":"<declared transition or null>","commentIds":[<numeric GitHub comment IDs>],"summary":"<result>"}. Allowed next steps: ${JSON.stringify(step.next)}. Review and adjudication must post their complete report/dispositions before completion; include those IDs. Do not mark ready or merge. Do not modify repository files during review.\n`;
-      append({ event: "launching", index, step: current, role: step.role, model: step.model, round: step.round, completedRound, reviewedHead, finalCorrections, head, output, completion });
+      const diagnostics=step.nativeResult?path.join(artifacts,'stderr.log'):output;
+      append({ event: "launching", index, step: current, role: step.role, model: step.model, round: step.round, completedRound, reviewedHead, finalCorrections, head, output, diagnostics, completion });
       const log = fs.openSync(output, "wx");
+      let stderr;
+      try{stderr=diagnostics===output?log:fs.openSync(diagnostics,'wx');}catch(error){fs.closeSync(log);throw error;}
+      const closeLogs=()=>{try{fs.closeSync(log);}finally{if(stderr!==log)fs.closeSync(stderr);}};
       let slot;
       try { slot = step.role === "review" ? reserveReviewerSlot(slotRoot) : null; }
-      catch (error) { fs.closeSync(log); throw error; }
+      catch (error) { closeLogs(); throw error; }
       if (slot) {
         slot.append({phase:"launching",head,output,completion,journal});
         append({event:"reserved",index,slot:slot.file,token:slot.token,owner:slot.owner});
       }
-      let child;
+      let child,childError,exited,launchError;
       try {
-        const launch=()=>spawn(step.executable, step.args, { cwd, shell: false, windowsHide: true, stdio: ["pipe", log, log] });
-        child=automaticJob?await retryBusy(()=>withJob(automaticJob.jobDir,rows=>{if(rows.some(row=>row.event==='workflow-cancelled'))throw new Error('Automatic review workflow cancelled');return launch();})):launch();
-      } catch(error){fs.closeSync(log);if(slot)releaseReviewerSlot(slot);throw error;}
-      activeChild = child;
-      let childError;
-      const exited = new Promise((resolve) => { child.on("error", (e) => {childError=e.message;}); child.once("close", (code, signal) => resolve({ code, signal, error:childError })); });
+        const launch=()=>{
+          child=spawn(step.executable,step.args,{cwd,shell:false,windowsHide:true,stdio:['pipe',log,stderr]});
+          activeChild=child;
+          exited=new Promise(resolve=>{child.on('error',error=>{childError=error.message;});child.once('close',(code,signal)=>resolve({code,signal,error:childError}));});
+        };
+        if(automaticJob)await retryBusy(()=>{if(child)throw new Error('Spawn completed but admission cleanup failed; preserve owned child');return withJob(automaticJob.jobDir,rows=>{if(rows.some(row=>row.event==='workflow-cancelled'))throw new Error('Automatic review workflow cancelled');launch();});});else launch();
+      } catch(error){
+        if(child)launchError=error;
+        else {closeLogs();if(slot){try{releaseReviewerSlot(slot);}catch(releaseError){error.message+=`; reservation retained at ${slot.file}: ${releaseError.message}`;}}throw error;}
+      }
       let result;
       try {
         child.stdin.on("error", () => {});
@@ -134,6 +159,7 @@ export async function runHandoff(configFile, { slotRoot, identifyProcess = proce
         }
         append({ event: "running", index, step: current, pid: child.pid, startedAt: new Date().toISOString(), head, output, completion });
         if(identityRow)append(identityRow);
+        if(launchError)throw launchError;
         child.stdin.end(prompt);
         result = await exited;
         activeChild = null;
@@ -160,7 +186,7 @@ export async function runHandoff(configFile, { slotRoot, identifyProcess = proce
         }
         if(childError)error.message += `; child process error: ${childError}`;
         throw error;
-      } finally { fs.closeSync(log); }
+      } finally { closeLogs(); }
       try { append({ event: "exited", index, step: current, ...result }); }
       catch(error){
         error.message=`Child exit confirmed (code ${result.code}); exit journal write failed: ${error.message}; completion and report validation has not run`;

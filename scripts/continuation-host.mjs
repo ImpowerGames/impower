@@ -11,11 +11,12 @@ export function verifyOriginConfiguration(destination,plan) {
   const text=fs.readFileSync(destination.rollout,'utf8');
   const rows=text.slice(0,text.lastIndexOf('\n')+1).trim().split('\n').map(JSON.parse);
   const session=rows.find(row=>row.type==='session_meta')?.payload;
-  const context=rows.findLast(row=>row.type==='turn_context'&&row.payload?.turn_id===destination.turnId)?.payload;
+  const context=rows.findLast(row=>row.type==='turn_context'&&(!destination.turnId||row.payload?.turn_id===destination.turnId))?.payload;
   if(session?.id!==destination.threadId||!context||path.resolve(context.cwd)!==path.resolve(destination.cwd))throw new Error('Native rollout does not identify the originating task and turn');
   if(context.model!==plan.writer||context.effort!==plan.writerEffort||!isDeepStrictEqual({approvalPolicy:context.approval_policy,sandboxPolicy:context.sandbox_policy},plan.permissions))throw new Error('Originating model, effort or permissions mismatch');
-  return{model:context.model,effort:context.effort,permissions:plan.permissions};
+  return{model:context.model,effort:context.effort,permissions:plan.permissions,turnId:context.turn_id};
 }
+export const verifyClaimConfiguration=(destination,plan)=>verifyOriginConfiguration({...destination,turnId:undefined},plan);
 
 export function verifyHostCatalog(catalog) {
   for(const [name,required,properties] of [['send_message_to_thread',['prompt','threadId'],{threadId:'string',prompt:'string'}],['read_thread',['threadId'],{threadId:'string',cursor:'string',turnLimit:'integer',includeOutputs:'boolean',maxOutputCharsPerItem:'integer'}]]) {
