@@ -68,10 +68,10 @@ await test("stale head and last-moment steering block before submission", async 
   }
 });
 
-async function withServer(reply, run) {
+async function withServer(reply, run, onConnection = () => {}) {
   const endpoint = process.platform === "win32" ? `\\\\.\\pipe\\impower-546-${process.pid}-${checks}` : path.join(scratch, `socket-${checks}`);
   const sockets = new Set();
-  const server = net.createServer(socket => { sockets.add(socket); socket.on("error", () => {}); socket.once("data", () => reply(socket)); });
+  const server = net.createServer(socket => { sockets.add(socket); onConnection(); socket.on("error", () => {}); socket.once("data", () => reply(socket)); });
   await new Promise((resolve, reject) => { server.once("error", reject); server.listen(endpoint, resolve); });
   try { await run(endpoint); }
   finally { for (const socket of sockets) socket.destroy(); await new Promise(resolve => server.close(resolve)); }
@@ -212,7 +212,10 @@ await test("Git routing environment cannot redirect containment or frozen head",
     try {
       Object.assign(process.env, variables);
       assert.throws(() => validatePlan({ ...plan, journal: path.join(scratch, "linked", "journal.jsonl") }, env), /both worktrees/);
-      assert.throws(() => validatePlan({ ...plan, destinationCwd: path.join(scratch, "destination") }, env), /Cannot validate Git repository/);
+      const ceiling = process.env.GIT_CEILING_DIRECTORIES;
+      process.env.GIT_CEILING_DIRECTORIES = scratch;
+      try { assert.throws(() => validatePlan({ ...plan, destinationCwd: path.join(scratch, "destination") }, env), /Cannot validate Git repository/); }
+      finally { if (ceiling === undefined) delete process.env.GIT_CEILING_DIRECTORIES; else process.env.GIT_CEILING_DIRECTORIES = ceiling; }
       let sent = false;
       await probeIdle({ ...plan, journal: path.join(scratch, `env-${checks}-${Object.keys(variables).join("-")}.jsonl`) }, { inspect: async () => idle(), submit: async () => { sent = true; return {}; } });
       assert.equal(sent, true, "HEAD must come from the planned worktree, not inherited Git routing");
@@ -224,8 +227,8 @@ await test("file-valued plan directories get a directory-specific refusal", () =
   for (const key of ["worktree", "destinationCwd"]) assert.throws(() => validatePlan({ ...plan, [key]: file }, { CODEX_THREAD_ID: "origin", CODEX_APP_TOOLS_PIPE_PATH: "pipe" }), error => error.message.includes(`${key} must name a directory: ${file}`));
 });
 await test("CLI rejects a contained journal before writing or dispatching to host", async () => {
-  let requests = 0;
-  await withServer(socket => { requests++; socket.destroy(); }, async endpoint => {
+  let connections = 0;
+  await withServer(socket => socket.destroy(), async endpoint => {
     const journal = path.join(scratch, "linked", "cli-journal.jsonl"), input = path.join(scratch, "contained-plan.json");
     fs.writeFileSync(input, JSON.stringify({ ...plan, journal }));
     const result = await new Promise((resolve, reject) => {
@@ -233,8 +236,20 @@ await test("CLI rejects a contained journal before writing or dispatching to hos
       let stderr = ""; child.stderr.on("data", data => { stderr += data; }); child.stdout.resume(); child.on("error", reject); child.on("close", status => resolve({ status, stderr }));
     });
     assert.equal(result.status, 1); assert.match(result.stderr, /Journal must be outside both worktrees/);
-    assert.equal(fs.existsSync(journal), false); assert.equal(requests, 0, "uncontained plan reached host");
-  });
+    assert.equal(fs.existsSync(journal), false); assert.equal(connections, 0, "contained journal reached host");
+  }, () => { connections++; });
+});
+await test("Windows native aliases cannot bypass journal containment and UNC is unsupported", () => {
+  if (process.platform !== "win32") { console.log("SKIP: Windows native path alias cases"); return; }
+  const env = { CODEX_THREAD_ID: "origin", CODEX_APP_TOOLS_PIPE_PATH: "pipe" };
+  assert.throws(() => validatePlan({ ...plan, journal: path.join(`\\\\?\\${worktree}`, "journal.jsonl") }, env), /Journal must be outside both worktrees/);
+  assert.throws(() => validatePlan({ ...plan, journal: "\\\\unavailable-host\\share\\journal.jsonl" }, env), /Only local drive-letter paths/);
+  assert.throws(() => validatePlan({ ...plan, journal: "//unavailable-host/share/journal.jsonl" }, env), /Only local drive-letter paths/);
+  const short = execFileSync("cmd.exe", ["/d", "/c", `for %I in ("${worktree}") do @echo %~sI`], { encoding: "utf8", windowsHide: true, windowsVerbatimArguments: true }).trim();
+  assert.equal(fs.realpathSync.native(short), worktree);
+  if (short.toLowerCase() === worktree.toLowerCase()) console.log("SKIP: filesystem did not supply an NTFS short-name alias");
+  else assert.throws(() => validatePlan({ ...plan, journal: path.join(short, "journal.jsonl") }, env), /Journal must be outside both worktrees/);
+  validatePlan(plan, env);
 });
 await test("CLI refuses missing commands and malformed plans", () => {
   const module = new URL("./continuation-conformance.mjs", import.meta.url);
@@ -244,7 +259,7 @@ await test("CLI refuses missing commands and malformed plans", () => {
     assert.equal(result.status, 1); assert.match(result.stderr, args.length ? /JSON/ : /Usage/);
   }
 });
-assert.equal(checks, 19, "conformance case inventory changed");
+assert.equal(checks, 20, "conformance case inventory changed");
 console.log(`Continuation conformance: ${checks} cases passed. Host fixtures do not establish live host compatibility.`);
 } finally {
   if (fs.realpathSync(scratch) !== path.resolve(scratch) || !path.basename(scratch).startsWith("impower-continuation-")) throw new Error("Refusing cleanup outside original scratch directory");

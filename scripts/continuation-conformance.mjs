@@ -15,6 +15,14 @@ function gitEnvironment() {
   return env;
 }
 
+function canonicalDirectory(directory) {
+  const spelling = process.platform === "win32" ? path.normalize(directory) : directory;
+  if (process.platform === "win32" && spelling.startsWith("\\\\") && !/^\\\\\?\\[a-z]:\\/i.test(spelling)) throw new Error(`Only local drive-letter paths are supported: ${directory}`);
+  const canonical = fs.realpathSync.native(directory);
+  if (process.platform === "win32" && !/^[a-z]:\\/i.test(canonical)) throw new Error(`Only local drive-letter paths are supported: ${directory}`);
+  return canonical;
+}
+
 // Protocol observed in the installed codex-app-tools 0.1.4 bridge. No daemon
 // launch, replacement session, credentials, or permission overrides are used.
 export function pipeRequest(endpoint, method, params, timeoutMs = 10000) {
@@ -173,9 +181,9 @@ export function validatePlan(plan, env = process.env) {
     if (!fs.statSync(plan[key]).isDirectory()) throw new Error(`${key} must name a directory: ${plan[key]}`);
   }
   const directories = new Set([plan.worktree, plan.destinationCwd]);
-  const journal = path.join(fs.realpathSync(path.dirname(plan.journal)), path.basename(plan.journal));
+  const journal = path.join(canonicalDirectory(path.dirname(plan.journal)), path.basename(plan.journal));
   const refuseContained = directory => {
-    const relative = path.relative(fs.realpathSync(directory), journal);
+    const relative = path.relative(canonicalDirectory(directory), journal);
     if (!relative.startsWith(".." + path.sep) && !path.isAbsolute(relative)) throw new Error("Journal must be outside both worktrees");
   };
   for (const directory of directories) refuseContained(directory);
@@ -184,11 +192,11 @@ export function validatePlan(plan, env = process.env) {
       try { return execFileSync("git", args, { cwd: directory, env: gitEnvironment(), encoding: "utf8", windowsHide: true, stdio: ["ignore", "pipe", "pipe"] }); }
       catch (error) { throw new Error(`Cannot validate Git repository for ${directory}: ${error.stderr?.trim() || error.message}`); }
     };
-    const common = fs.realpathSync(git(["rev-parse", "--path-format=absolute", "--git-common-dir"]).trim());
+    const common = canonicalDirectory(git(["rev-parse", "--path-format=absolute", "--git-common-dir"]).trim());
     directories.add(common);
     for (const field of git(["worktree", "list", "--porcelain", "-z"]).split("\0")) {
       if (field.startsWith("worktree ") && fs.existsSync(field.slice(9))) {
-        const checkout = fs.realpathSync(field.slice(9));
+        const checkout = canonicalDirectory(field.slice(9));
         if (checkout === common) throw new Error(`Cannot verify owning checkout for ${directory}: Git reports its storage as a worktree; this layout is unsupported`);
         directories.add(checkout);
       }
