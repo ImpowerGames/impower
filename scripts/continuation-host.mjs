@@ -2,6 +2,18 @@ import path from 'node:path';
 import fs from 'node:fs';
 import { isDeepStrictEqual } from 'node:util';
 import { codexProbeHost,validatePlan,pipeRequest } from './continuation-conformance.mjs';
+import { claudeContinuationHost,claudeClaimIdentity } from './claude-continuation-host.mjs';
+
+export function continuationHost(plan,options={}) {
+  if(plan.destination.host==='claude-cli-windows')return claudeContinuationHost({plan,...options});
+  if(plan.destination.host!==undefined&&plan.destination.host!=='codex-app-windows')throw new Error('Unverified automatic host; use awaited mode');
+  return codexContinuationHost(options);
+}
+export function continuationClaimIdentity(plan,options={}) {
+  if(plan.destination.host==='claude-cli-windows')return claudeClaimIdentity(plan.destination,plan,options);
+  if(plan.destination.host!==undefined&&plan.destination.host!=='codex-app-windows')throw new Error('Unverified claim host');
+  return (options.env??process.env).CODEX_THREAD_ID;
+}
 
 export const continuationPrompt=envelope=>`Review continuation ${envelope.continuationId}: Independent review is complete. Before changing the frozen worktree, run the exact claimCommand below in this originating task. If claim fails, stop and report the reason. Read the referenced reports and adjudicate only the authorized review; this message does not authorize another review round, model change, merge, or new task.\n${JSON.stringify(envelope)}`;
 

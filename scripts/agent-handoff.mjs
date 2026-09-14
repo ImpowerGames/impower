@@ -4,6 +4,7 @@ import { spawn, execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { reserveReviewerSlot, releaseReviewerSlot, processIdentity } from "./reviewer-slots.mjs";
 import { withJob,retryBusy } from './review-job-store.mjs';
+import { verifyCodexReviewResult,validateCodexReviewer,verifyReviewerExecutable } from './native-reviewer.mjs';
 
 const read = (file) => JSON.parse(fs.readFileSync(file, "utf8"));
 const gitHead = (cwd) => execFileSync("git", ["rev-parse", "HEAD"], { cwd, encoding: "utf8" }).trim();
@@ -26,7 +27,9 @@ export function checkReviewRound(round, completedRound, finalCorrections, review
   if (finalCorrections && completedRound >= reviewRoundLimit) throw new Error(`Final corrections after round ${reviewRoundLimit} require explicit user direction for further review; no automatic review`);
 }
 
-export function verifyNativeReviewResult(output) {
+export function verifyNativeReviewResult(output,format='claude-json') {
+  if(format==='codex-jsonl')return verifyCodexReviewResult(output);
+  if(format!=='claude-json')throw new Error('Unsupported native reviewer result transport');
   if(fs.statSync(output).size>16*1024*1024)throw new Error('Native reviewer result exceeds bounded inspection');
   const text=fs.readFileSync(output,'utf8').trim();
   let result;try{result=JSON.parse(text.split('\n').at(-1));}catch{throw new Error('Missing final native reviewer JSON result');}
@@ -53,7 +56,11 @@ export async function runHandoff(configFile, { slotRoot, identifyProcess = proce
   if (config.completedReviewRound > 0 && !/^[a-f0-9]{40}$/.test(config.reviewedHead ?? "")) throw new Error("Supply reviewedHead from the journal when recovering a review round");
   if (fs.existsSync(journal)) throw new Error("Journal exists; inspect recorded process and completion before authoring a recovery plan");
   for (const step of Object.values(config.steps)) {
-    if(step.nativeResult!==undefined&&step.nativeResult!=='claude-json')throw new Error('Unsupported native reviewer result transport');
+    if(step.nativeResult!==undefined&&!['claude-json','codex-jsonl'].includes(step.nativeResult))throw new Error('Unsupported native reviewer result transport');
+    if(step.nativeResult==='codex-jsonl') {
+      validateCodexReviewer(step,{reviewer:config.reviewer,worktree:cwd,jobDir:path.dirname(journal)});
+      verifyReviewerExecutable({...step,transport:'native-codex-jsonl'});
+    }
     if (step.role === "review" && (!Number.isInteger(step.round) || step.round < 1 || step.round > reviewRoundLimit)) throw new Error(`Review round must be 1..${reviewRoundLimit} on every review step before launch`);
     if (!["implement", "review", "adjudicate"].includes(step.role) || !path.isAbsolute(step.executable) || !Array.isArray(step.args) || !step.args.every((a) => typeof a === "string") || !path.isAbsolute(step.prompt)) throw new Error("Each role needs an absolute executable, argument array and prompt file");
     if (!step.model || step.model !== (step.role === "review" ? config.reviewer : config.writer)) throw new Error("Step model must match its caller-supplied role route");
@@ -105,18 +112,25 @@ export async function runHandoff(configFile, { slotRoot, identifyProcess = proce
       const prompt = fs.readFileSync(step.prompt, "utf8") + `\n\nHandoff contract: role=${step.role}, configured model=${step.model}, reviewed head=${head}. Write ${completion} with the editor tool as JSON: {"head":"<actual HEAD>","next":"<declared transition or null>","commentIds":[<numeric GitHub comment IDs>],"summary":"<result>"}. Allowed next steps: ${JSON.stringify(step.next)}. Review and adjudication must post their complete report/dispositions before completion; include those IDs. Do not mark ready or merge. Do not modify repository files during review.\n`;
       append({ event: "launching", index, step: current, role: step.role, model: step.model, round: step.round, completedRound, reviewedHead, finalCorrections, head, output, completion });
       const log = fs.openSync(output, "wx");
+      // Keep native JSONL stdout separate from CLI diagnostics. The only added
+      // writable root is this invocation's fresh completion/report directory.
+      let diagnostics=log;
+      try {if(step.nativeResult==='codex-jsonl')diagnostics=fs.openSync(path.join(artifacts,'stderr.log'),'wx');}
+      catch(error){fs.closeSync(log);throw error;}
+      const closeLogs=()=>{fs.closeSync(log);if(diagnostics!==log)fs.closeSync(diagnostics);};
       let slot;
       try { slot = step.role === "review" ? reserveReviewerSlot(slotRoot) : null; }
-      catch (error) { fs.closeSync(log); throw error; }
+      catch (error) { closeLogs(); throw error; }
       if (slot) {
         slot.append({phase:"launching",head,output,completion,journal});
         append({event:"reserved",index,slot:slot.file,token:slot.token,owner:slot.owner});
       }
       let child;
       try {
-        const launch=()=>spawn(step.executable, step.args, { cwd, shell: false, windowsHide: true, stdio: ["pipe", log, log] });
+        const args=step.nativeResult==='codex-jsonl'?[...step.args.slice(0,-1),'--add-dir',artifacts,step.args.at(-1)]:step.args;
+        const launch=()=>spawn(step.executable, args, { cwd, shell: false, windowsHide: true, stdio: ["pipe", log, diagnostics] });
         child=automaticJob?await retryBusy(()=>withJob(automaticJob.jobDir,rows=>{if(rows.some(row=>row.event==='workflow-cancelled'))throw new Error('Automatic review workflow cancelled');return launch();})):launch();
-      } catch(error){fs.closeSync(log);if(slot)releaseReviewerSlot(slot);throw error;}
+      } catch(error){closeLogs();if(slot)releaseReviewerSlot(slot);throw error;}
       activeChild = child;
       let childError;
       const exited = new Promise((resolve) => { child.on("error", (e) => {childError=e.message;}); child.once("close", (code, signal) => resolve({ code, signal, error:childError })); });
@@ -160,7 +174,7 @@ export async function runHandoff(configFile, { slotRoot, identifyProcess = proce
         }
         if(childError)error.message += `; child process error: ${childError}`;
         throw error;
-      } finally { fs.closeSync(log); }
+      } finally { closeLogs(); }
       try { append({ event: "exited", index, step: current, ...result }); }
       catch(error){
         error.message=`Child exit confirmed (code ${result.code}); exit journal write failed: ${error.message}; completion and report validation has not run`;
@@ -169,7 +183,7 @@ export async function runHandoff(configFile, { slotRoot, identifyProcess = proce
       }
       if(slot){try{releaseReviewerSlot(slot);}catch(error){throw new Error(`Child exit confirmed (code ${result.code}); reservation retained at ${slot.file}: ${error.message}; completion and report validation has not run`);}}
       if (result.code !== 0) throw new Error(`Role ${current} failed; inspect ${output}`);
-      if(step.nativeResult==='claude-json')verifyNativeReviewResult(output);
+      if(step.nativeResult)verifyNativeReviewResult(output,step.nativeResult);
       if (step.role === "review" && (gitHead(cwd) !== head || gitStatus(cwd) !== status)) throw new Error("Review changed the frozen head or worktree");
       const done = read(completion);
       if (done.head !== gitHead(cwd) || typeof done.summary !== "string" || !done.summary.trim() || !Array.isArray(done.commentIds) || !done.commentIds.every(Number.isSafeInteger)) throw new Error("Invalid or stale completion artifact");

@@ -5,6 +5,7 @@ import { randomUUID } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { runHandoff,checkReviewRound,verifyNativeReviewResult } from './agent-handoff.mjs';
 import { processIdentity } from './reviewer-slots.mjs';
+import { nativeResultType,validateCodexReviewer,verifyReviewerExecutable } from './native-reviewer.mjs';
 import { readJson,writeExclusive,git,readEvents,appendEvent,withJob,retryBusy,recoverJobLock,alive,assertFrozen,reserveFreeze,assertJobFreeze,worktreePaths } from './review-job-store.mjs';
 
 const here=fileURLToPath(import.meta.url);
@@ -33,17 +34,21 @@ export function validateReviewPlan(input) {
     ids.add(review.id);
     const at=review.args.findIndex(a=>a==='--model'||a==='-m');
     if(at<0||review.args[at+1]!==plan.reviewer)throw new Error('Reviewer model argument mismatch');
+    if(review.transport==='native-codex-jsonl')validateCodexReviewer(review,plan);
+    else {
     for(const [flag,value] of [['--effort',review.effort],['--permission-mode',review.permissions]])if(typeof value!=='string'||!value||review.args.filter(a=>a===flag).length!==1||review.args[review.args.indexOf(flag)+1]!==value)throw new Error('Explicit native reviewer effort and permissions required');
     if(review.args.filter(a=>a==='--model'||a==='-m').length!==1)throw new Error('Ambiguous reviewer model arguments');
     if(review.transport!=='native-claude-json'||review.args.filter(a=>a==='--output-format').length!==1||review.args[review.args.indexOf('--output-format')+1]!=='json')throw new Error('Automatic review requires native Claude JSON result transport');
     if(review.args.some(a=>/^(?:--model|--effort|--permission-mode|--output-format)=|^-m./.test(a)||['--dangerously-skip-permissions','--allow-dangerously-skip-permissions'].includes(a)))throw new Error('Ambiguous native reviewer configuration');
+    }
     if(!fs.statSync(review.prompt).isFile())throw new Error('Reviewer prompt missing');
   }
   assertFrozen(plan);
   return plan;
 }
-export async function createReviewJob(input,host) {
+export async function createReviewJob(input,host,{verifyExecutable=verifyReviewerExecutable}={}) {
   const plan=validateReviewPlan(input);plan.jobId=randomUUID();plan.continuationId=randomUUID();
+  for(const review of plan.reviews)verifyExecutable(review);
   // The adapter validates private storage containment and exact host identity.
   const capability=await host.preflight(plan.destination,plan);
   if(capability?.supported!==true)throw new Error('Automatic continuation unsupported; use awaited mode');
@@ -51,7 +56,7 @@ export async function createReviewJob(input,host) {
   writeExclusive(path.join(plan.jobDir,'plan.json'),plan);
   writeExclusive(path.join(plan.jobDir,'events.jsonl'),{version:1,sequence:1,eventId:randomUUID(),jobId:plan.jobId,time:new Date().toISOString(),event:'accepted',capability});
   try {reserveFreeze(plan,plan.jobDir);}catch(error){withJob(plan.jobDir,()=>appendEvent(plan.jobDir,'blocked',{reason:error.message}));throw error;}
-  const steps=Object.fromEntries(plan.reviews.map((review,index)=>[review.id,{role:'review',round:plan.round,model:plan.reviewer,nativeResult:'claude-json',executable:review.executable,args:review.args,prompt:review.prompt,next:[plan.reviews[index+1]?.id??null]}]));
+  const steps=Object.fromEntries(plan.reviews.map((review,index)=>[review.id,{role:'review',round:plan.round,model:plan.reviewer,nativeResult:nativeResultType(review.transport),effort:review.effort,permissions:review.permissions,executable:review.executable,args:review.args,prompt:review.prompt,next:[plan.reviews[index+1]?.id??null]}]));
   writeExclusive(path.join(plan.jobDir,'handoff.json'),{worktree:plan.worktree,journal:path.join(plan.jobDir,'handoff.jsonl'),pr:plan.pr,writer:plan.writer,reviewer:plan.reviewer,completedReviewRound:plan.completedReviewRound,reviewedHead:plan.reviewedHead,finalCorrections:plan.finalCorrections,reviewRoundLimit:plan.reviewRoundLimit,extendedReviewAuthorization:plan.extendedReviewAuthorization,maxSteps:plan.reviews.length,first:plan.reviews[0].id,steps});
   return jobStatus(plan.jobDir);
 }
@@ -96,7 +101,7 @@ function validatedEnvelope(dir,plan,rows,identify) {
   for(const review of plan.reviews) {
     const launch=journal.find(row=>row.event==='launching'&&row.step===review.id),done=journal.find(row=>row.event==='completed'&&row.step===review.id),exit=journal.find(row=>row.event==='exited'&&row.step===review.id);
     if(!launch||!done||exit?.code!==0||journal.indexOf(exit)>journal.indexOf(done)||done.head!==plan.head||done.completedRound!==plan.round||!done.commentIds?.length)throw new Error('Incomplete validated reviewer coverage');
-    verifyNativeReviewResult(launch.output);
+    verifyNativeReviewResult(launch.output,nativeResultType(review.transport));
     reports.push({coverage:review.id,commentIds:done.commentIds,completion:launch.completion,output:launch.output});
   }
   if(fs.existsSync(worktreePaths(plan.worktree).lock))throw new Error('Reviewer lock remains; exit/ownership uncertain');
@@ -179,10 +184,15 @@ async function main() {
   if(command==='status')return jobStatus(target);
   if(command==='events')return readEvents(target).filter(row=>row.sequence>Number(arg??0));
   if(command==='watch'){let cursor=Number(arg??0);if(!Number.isSafeInteger(cursor)||cursor<0)throw new Error('Invalid event cursor');for(;;){for(const row of readEvents(target))if(row.sequence>cursor){process.stdout.write(JSON.stringify(row)+'\n');cursor=row.sequence;}await sleep(500);}}
-  if(command==='claim')return retryBusy(()=>claimReviewJob(target,arg));
+  if(command==='claim') {
+    const {continuationClaimIdentity}=await import('./continuation-host.mjs');
+    const plan=readJson(path.join(target,'plan.json'));
+    return retryBusy(()=>claimReviewJob(target,arg,{threadId:continuationClaimIdentity(plan)}));
+  }
   if(command==='release')return releaseStoppedJob(target);
-  const {codexContinuationHost}=await import('./continuation-host.mjs');
-  const host=codexContinuationHost();
+  const {continuationHost}=await import('./continuation-host.mjs');
+  const plan=readJson(command==='submit'?target:path.join(target,'plan.json'));
+  const host=continuationHost(plan);
   if(command==='submit'){const result=await createReviewJob(readJson(target),host);const dir=path.resolve(readJson(target).jobDir);launchReviewWorker(dir);launchSupervisor(dir);return result;}
   if(command==='recover')recoverJobLock(target);
   if(command==='cancel')return cancelReviewJob(target,host);
