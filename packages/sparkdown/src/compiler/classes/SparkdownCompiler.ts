@@ -4941,6 +4941,33 @@ export class SparkdownCompiler {
   validateReferences(program: SparkProgram) {
     const uri = program.uri;
     profile("start", this._profilerId, "validateReferences", uri);
+    // A typed define can itself be a parent without having a $default entry.
+    // Collect declarations across the participating scripts, not context keys:
+    // context also contains file-derived assets and unrelated builtin values.
+    // Rebuild per compile so included-file edits cannot leave stale names.
+    const declaredParentTypes = new Set<string>();
+    for (const scriptUri of Object.keys(program.scripts)) {
+      const doc = this.documents.get(scriptUri);
+      const tree = this.documents.tree(scriptUri);
+      if (!doc || !tree) continue;
+      const declarations = this.documents
+        .annotations(scriptUri).declarations.iter();
+      while (declarations.value) {
+        if (declarations.value.type === "define") {
+          // The declaration channel also labels structural style/screen/etc.
+          // instances as "define". Only an OOP define's own header introduces
+          // a parent type; an enclosing define body is not sufficient.
+          let header = tree.resolveInner(declarations.from, 1).parent;
+          while (header && header.name !== "LuauDefineNameAndInheritance") {
+            header = header.parent;
+          }
+          if (header) {
+            declaredParentTypes.add(doc.read(declarations.from, declarations.to));
+          }
+        }
+        declarations.next();
+      }
+    }
     // Whole-program set of top-level callables a Sparkle `@event` handler ref
     // can target — mirrors the runtime's story.HasFunction (top-level functions
     // + knots + scenes). Built across ALL scripts so a handler defined in an
@@ -5182,6 +5209,11 @@ export class SparkdownCompiler {
               }
             } else if (namesLayoutElement(selector)) {
               // Valid layer: an element declared in the UI tree
+            } else if (
+              reference.declaration === "define_type_name" &&
+              selector?.types?.some((type) => declaredParentTypes.has(type))
+            ) {
+              // Valid declared parent; navigation still uses $default when present.
             } else {
               // Report missing error
               const validDescription =

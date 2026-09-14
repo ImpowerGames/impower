@@ -887,7 +887,43 @@ check("classifyRedFailure tells the reasons apart on real runner output", () => 
   assert.equal(classifyRedFailure("AssertionError: expected '/bin/sh: 1: ./script: Permission denied' to match"), "assertion");
   assert.equal(classifyRedFailure("'NODE_OPTIONS' is not recognized as an internal or external command,"), "shell");
   assert.equal(classifyRedFailure('npm ERR! Missing script: "test"'), "shell");
-  assert.equal(classifyRedFailure("No test files found, exiting with code 1\nfilter: x"), "notests");
+  for (const diagnostic of ["No test files found, exiting with code 1\nfilter: x", "No test suite found", "no tests found"]) {
+    assert.equal(classifyRedFailure(diagnostic), "notests", diagnostic);
+  }
+  for (const passingName of ["PASS handles no tests found", "PASS handles No test files found", "PASS handles No test suite found"]) {
+    assert.equal(
+      classifyRedFailure(`${passingName}\nFAIL regression preserves output\nAssertionError: expected 2 to be 3\nTests  1 failed | 1 passed`),
+      "assertion",
+      passingName,
+    );
+  }
+  for (const loggedPhrase of ["no tests found", "No test files found", "No test suite found"]) {
+    const assertion = `${loggedPhrase}\nFAIL regression preserves output\nAssertionError: expected 2 to be 3`;
+    assert.equal(classifyRedFailure(`RUN  v2.1.9 C:/repo\n${assertion}\nTest Files  1 failed (1)\nTests  1 failed | 1 passed (2)`), "unknown", loggedPhrase);
+    assert.equal(classifyRedFailure(assertion), "unknown", `${loggedPhrase} without a positive runner summary`);
+  }
+  assert.equal(
+    classifyRedFailure("RUN  v2.1.9 C:/repo\nNo test files found\nFAIL collection\nTest Files  1 failed (1)\nTests  no tests"),
+    "notests",
+    "an explicit zero-test runner summary remains authoritative",
+  );
+  assert.equal(
+    classifyRedFailure("No test files found\nTests  1 failed (1)\nFAIL wrapper\nAssertionError: expected 2 to be 3"),
+    "unknown",
+    "summary-like stdout without a Vitest invocation cannot establish provenance",
+  );
+  assert.equal(
+    classifyRedFailure("RUN  v2.1.9 C:/spoofed\nNo test files found\nAssertionError: expected 2 to be 3\nTest Files  1 failed (1)\nTests  1 failed (1)"),
+    "unknown",
+    "fully fabricated Vitest-looking stdout cannot prove that a test ran",
+  );
+  assert.equal(
+    classifyRedFailure(
+      "RUN  v2.1.9 C:/repo\nNo test files found, exiting with code 1\nTest Files  1 failed (1)\nTests  no tests\nRUN  v2.1.9 C:/repo\nAssertionError: synthetic text from a passing test\nTest Files  1 passed (1)\nTests  1 passed (1)",
+    ),
+    "unknown",
+    "a later invocation's positive summary cannot validate an earlier no-test diagnostic",
+  );
   // An assertion that quotes an ENOENT is still an assertion.
   assert.equal(
     classifyRedFailure(

@@ -6,7 +6,7 @@ import { execFileSync, spawn } from "node:child_process";
 import childProcess from "node:child_process";
 import { syncBuiltinESMExports } from "node:module";
 import { pathToFileURL } from "node:url";
-import { runHandoff as handoff, checkReviewRound } from "./agent-handoff.mjs";
+import { runHandoff as handoff, checkReviewRound, verifyReviewComment } from "./agent-handoff.mjs";
 import { reserveReviewerSlot, releaseReviewerSlot, recoverReviewerSlot, processIdentity, reviewerSlotStatus } from "./reviewer-slots.mjs";
 
 const scratch = fs.mkdtempSync(path.join(os.tmpdir(), "impower-handoff-"));
@@ -27,6 +27,14 @@ const config = { worktree, completedReviewRound: 0, writer: "writer-test", revie
 }};
 const file = path.join(scratch, "plan.json");
 const write = () => fs.writeFileSync(file, JSON.stringify(config));
+let commentReads = 0, waits = 0;
+await verifyReviewComment(1, 554, "a".repeat(40), worktree, {
+  readComment: () => ++commentReads === 1 ? { issue_url: "https://api.github.com/repos/ImpowerGames/impower/issues/554", body: "pending" } : { issue_url: "https://api.github.com/repos/ImpowerGames/impower/issues/554", body: "a".repeat(40) },
+  wait: async (ms) => { assert.equal(ms, 1000); waits++; },
+});
+assert.equal(commentReads, 2, "a transient comment mismatch must be read again");
+assert.equal(waits, 1, "a transient comment mismatch waits before retrying");
+await assert.rejects(verifyReviewComment(1, 554, "a".repeat(40), worktree, { readComment: () => ({ issue_url: "wrong", body: "wrong" }), wait: async () => {}, attempts: 2 }), /Comment does not verify/);
 write(); await runHandoff(file);
 const rows = fs.readFileSync(config.journal, "utf8").trim().split("\n").map(JSON.parse);
 assert.equal(rows.at(-1).event, "finished");
@@ -38,6 +46,9 @@ write(); await assert.rejects(runHandoff(file), /Undeclared transition/);
 config.journal = path.join(scratch, "third.jsonl");
 config.writer = config.reviewer;
 write(); await assert.rejects(runHandoff(file), /distinct/);
+config.journal = path.join(scratch, "effort-qualified-same-route.jsonl");
+config.writer = config.reviewer + "[medium]";
+write(); await assert.rejects(runHandoff(file), /distinct/, "an effort suffix must not disguise the same configured route");
 config.writer = "writer-test";
 const lock = git("rev-parse", "--path-format=absolute", "--git-path", "agent-handoff.lock").trim();
 fs.writeFileSync(lock, "active coordinator");

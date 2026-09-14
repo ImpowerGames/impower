@@ -7,6 +7,17 @@ import { reserveReviewerSlot, releaseReviewerSlot, processIdentity } from "./rev
 const read = (file) => JSON.parse(fs.readFileSync(file, "utf8"));
 const gitHead = (cwd) => execFileSync("git", ["rev-parse", "HEAD"], { cwd, encoding: "utf8" }).trim();
 const gitStatus = (cwd) => execFileSync("git", ["status", "--porcelain"], { cwd, encoding: "utf8" });
+const configuredRoute = (value) => value.replace(/\[[^\]]+\]$/, "");
+const readReviewComment = (id, cwd) => JSON.parse(execFileSync("gh", ["api", `repos/ImpowerGames/impower/issues/comments/${id}`], { cwd, encoding: "utf8", windowsHide: true }));
+
+export async function verifyReviewComment(id, pr, head, cwd, { readComment = readReviewComment, wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms)), attempts = 6 } = {}) {
+  for (let attempt = 1; attempt <= attempts; attempt++) {
+    const comment = readComment(id, cwd);
+    if (comment.issue_url === `https://api.github.com/repos/ImpowerGames/impower/issues/${pr}` && comment.body.includes(head)) return;
+    if (attempt < attempts) await wait(1000);
+  }
+  throw new Error("Comment does not verify this PR and head");
+}
 
 export function checkReviewRound(round, completedRound, finalCorrections, reviewRoundLimit = 3) {
   if (!Number.isInteger(round) || round < 1 || round > reviewRoundLimit || round < completedRound) throw new Error(`Review round must be 1..${reviewRoundLimit} and preserve the completed round count`);
@@ -22,7 +33,7 @@ export async function runHandoff(configFile, { slotRoot, identifyProcess = proce
   const journal = path.resolve(config.journal);
   const relative = path.relative(cwd, journal);
   if (!relative.startsWith(".." + path.sep) && !path.isAbsolute(relative)) throw new Error("Journal must be outside the worktree");
-  if (!config.writer || !config.reviewer || config.writer === config.reviewer) throw new Error("Supply distinct writer and reviewer model routes");
+  if (!config.writer || !config.reviewer || configuredRoute(config.writer) === configuredRoute(config.reviewer)) throw new Error("Supply distinct writer and reviewer model routes");
   const reviewRoundLimit = config.reviewRoundLimit ?? 3;
   if (!Number.isInteger(reviewRoundLimit) || reviewRoundLimit < 1 || reviewRoundLimit > 10) throw new Error("reviewRoundLimit must be an integer from 1 through 10");
   if (reviewRoundLimit > 3 && (typeof config.extendedReviewAuthorization !== "string" || !config.extendedReviewAuthorization.trim())) throw new Error("Rounds beyond 3 require explicit user authorization in extendedReviewAuthorization");
@@ -144,8 +155,7 @@ export async function runHandoff(configFile, { slotRoot, identifyProcess = proce
       if (!(step.next.includes(done.next))) throw new Error("Undeclared transition");
       if (step.role !== "implement" && !done.commentIds.length) throw new Error("Review/adjudication needs posted comment IDs");
       for (const id of done.commentIds) {
-        const comment = JSON.parse(execFileSync("gh", ["api", `repos/ImpowerGames/impower/issues/comments/${id}`], { cwd, encoding: "utf8", windowsHide: true }));
-        if (comment.issue_url !== `https://api.github.com/repos/ImpowerGames/impower/issues/${config.pr}` || !comment.body.includes(done.head)) throw new Error("Comment does not verify this PR and head");
+        await verifyReviewComment(id, config.pr, done.head, cwd);
       }
       if (gitStatus(cwd)) throw new Error("Role left uncommitted work");
       if (step.role === "review") { completedRound = step.round; reviewedHead = head; }

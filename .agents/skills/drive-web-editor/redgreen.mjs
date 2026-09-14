@@ -209,7 +209,16 @@ export function classifyRedFailure(output, { removed = [], launchError = null, e
     /npm (?:ERR!|error) Missing script:\s*(?:"[^"\r\n]*"|'[^'\r\n]*'|[^\s"'\r\n]+)\s*$/im.test(output);
   if (missingEntryScript) return "shell";
   if (shellDiagnostic) return testedDiagnostic ? "unknown" : "shell";
-  if (/No test files found|No test suite found|no tests found/i.test(output)) {
+  // Empty-suite diagnostics occupy their own runner line. Do not scan arbitrary
+  // prose: passing test names can deliberately describe "no tests found" while
+  // a different test supplies the genuine assertion failure.
+  if (/^\s*No test(?:s| files| suite) found\b[^\r\n]*$/im.test(output)) {
+    const summary = parseVitestSummary(output);
+    if (summary && VITEST_NO_TESTS_RE.test(summary)) return "notests";
+    // Captured stdout is untrusted: a test or wrapper can print runner banners,
+    // assertion wording, and summaries. Without process-level attribution,
+    // mixed evidence cannot prove that a test actually ran.
+    if (testedDiagnostic) return "unknown";
     return "notests";
   }
   if (

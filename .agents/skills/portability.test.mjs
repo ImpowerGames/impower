@@ -61,6 +61,16 @@ assert.equal((quotedPrompt.match(/\bWRITER\b/g) ?? []).length, 1, "writer substi
 assert.equal((quotedPrompt.match(/\bREVIEWER\b/g) ?? []).length, 1, "reviewer substitution must occur only at its value");
 const generation = spawnSync(process.execPath, ["scripts/generate-reviewer-agents.mjs", "--check"], { cwd: root, encoding: "utf8" });
 assert.equal(generation.status, 0, generation.stdout + generation.stderr);
+const handoff = fs.readFileSync(path.join(root, ".agents/skills/review-pr/HANDOFF.md"), "utf8");
+for (const rule of ["await the existing launcher invocation", "Do not add periodic reviewer-status probes or narrate unchanged waits", "After the launcher exits, read every full report"]) {
+  assert.ok(handoff.includes(rule), rule);
+}
+const reviewerModels = JSON.parse(fs.readFileSync(path.join(root, ".claude/reviewer-models.json"), "utf8"));
+for (const { name } of reviewerModels) {
+  const generatedReviewer = fs.readFileSync(path.join(root, ".claude/agents", name + ".md"), "utf8");
+  assert.doesNotMatch(generatedReviewer, /runtime model identity|runtime identity|reviewer route mismatch|identity check/i, name);
+  assert.match(generatedReviewer, /configured reviewer route/i, name);
+}
 const instructions = fs.readFileSync(path.join(root, "AGENTS.md"), "utf8");
 for (const rule of ["Never use the shared Git stash", "type in the creation call", "editor capability", "paginated API", "one writer per file", "1024 MB", "scratch repository"]) assert.ok(instructions.includes(rule), rule);
 console.log(`PASS: ${skills.length} shared skills, forbidden-reference mutation controls, review contracts and generated runner configuration`);
