@@ -61,9 +61,9 @@ export function validateCodexReviewer(review,plan) {
   if(values.get('--model')!==plan.reviewer||config.get('model_reasoning_effort')!==review.effort||!['low','medium','high','xhigh','max','ultra'].includes(review.effort))throw new Error('Codex reviewer model/effort mismatch');
   if(permission?.sandbox!=='workspace-write'||permission.approvalPolicy!=='never'||permission.networkAccess!==true||permission.artifactWrites!=='handoff-directory'||values.get('--sandbox')!==permission.sandbox||config.get('approval_policy')!==permission.approvalPolicy||config.get('sandbox_workspace_write.network_access')!==permission.networkAccess)throw new Error('Explicit Codex private-artifact and posting permissions required');
   if(!values.get('--json')||!values.get('--skip-git-repo-check')||!path.isAbsolute(permission.cwd??'')||values.get('--cd')!==permission.cwd)throw new Error('Codex reviewer private working directory required');
-  const root=fs.realpathSync(permission.cwd),worktree=fs.realpathSync(plan.worktree),job=path.join(fs.realpathSync(path.dirname(plan.jobDir)),path.basename(plan.jobDir));
-  const common=fs.realpathSync(git(worktree,['rev-parse','--path-format=absolute','--git-common-dir']));
+  const root=fs.realpathSync.native(permission.cwd),worktree=fs.realpathSync.native(plan.worktree),job=path.join(fs.realpathSync.native(path.dirname(plan.jobDir)),path.basename(plan.jobDir));
+  const common=fs.realpathSync.native(git(worktree,['rev-parse','--path-format=absolute','--git-common-dir']));
   if(contains(root,worktree)||contains(worktree,root)||contains(root,job)||contains(job,root)||contains(root,common)||contains(common,root))throw new Error('Codex reviewer writes must exclude repository and supervisor state');
   const report=values.get('--output-last-message');
-  if(!path.isAbsolute(report??'')||fs.existsSync(report)||fs.realpathSync(path.dirname(report))!==root)throw new Error('A fresh final report inside the private reviewer directory is required');
+  if(!path.isAbsolute(report??'')||fs.existsSync(report)||fs.realpathSync.native(path.dirname(report))!==root)throw new Error('A fresh final report inside the private reviewer directory is required');
 }

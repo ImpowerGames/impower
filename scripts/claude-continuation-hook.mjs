@@ -33,14 +33,14 @@ export function claudeAncestor(executable) {
   if(process.platform!=='win32')throw new Error('Claude automatic registration is verified on Windows only');
   const script=`$next=${process.ppid}; $seen=@{}; while($next -gt 0 -and -not $seen.ContainsKey($next)) { $seen[$next]=$true; $item=Get-CimInstance Win32_Process -Filter "ProcessId=$next"; if(-not $item){break}; [pscustomobject]@{pid=[int]$item.ProcessId;executable=$item.ExecutablePath} | ConvertTo-Json -Compress; $next=[int]$item.ParentProcessId }`;
   const rows=execFileSync('powershell.exe',['-NoProfile','-NonInteractive','-Command',script],{encoding:'utf8',windowsHide:true,timeout:10000}).trim().split(/\r?\n/).filter(Boolean).map(JSON.parse);
-  const found=rows.find(row=>row.executable&&fs.realpathSync(row.executable)===fs.realpathSync(executable));
+  const found=rows.find(row=>row.executable&&fs.realpathSync.native(row.executable)===fs.realpathSync.native(executable));
   if(!found)throw new Error('Hook is not a child of the configured native Claude executable');
   return processIdentity(found.pid);
 }
 
 export function recordClaudeHook(config,event,{env=process.env,ancestor=claudeAncestor,version=executable=>execFileSync(executable,['--version'],{encoding:'utf8',windowsHide:true,timeout:10000}).trim()}={}) {
   if(!path.isAbsolute(config.directory??'')||!path.isAbsolute(config.executable??'')||!fs.statSync(config.directory).isDirectory())throw new Error('Existing private hook directory and absolute executable required');
-  const directory=fs.realpathSync(config.directory),cwd=fs.realpathSync(event.cwd);
+  const directory=fs.realpathSync.native(config.directory),cwd=fs.realpathSync.native(event.cwd);
   const rel=path.relative(cwd,directory);
   if(!rel||(!rel.startsWith(`..${path.sep}`)&&rel!=='..'&&!path.isAbsolute(rel)))throw new Error('Hook directory must be outside the writer worktree');
   const receipts=path.join(directory,'receipts.jsonl');

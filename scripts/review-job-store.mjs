@@ -6,9 +6,11 @@ import { processIdentity } from './reviewer-slots.mjs';
 
 export const readJson=file=>JSON.parse(fs.readFileSync(file,'utf8'));
 export function git(cwd,args) {
-  const env={...process.env};for(const key of Object.keys(env))if(key.startsWith('GIT_'))delete env[key];
-  return execFileSync('git',args,{cwd,env,encoding:'utf8',windowsHide:true,stdio:['ignore','pipe','pipe']}).trim();
+  const env={...process.env};for(const key of Object.keys(env))if(key.toUpperCase().startsWith('GIT_'))delete env[key];
+  try{return execFileSync('git',args,{cwd,env,encoding:'utf8',windowsHide:true,stdio:['ignore','pipe','pipe']}).trim();}
+  catch(error){error.command=['git',...args];throw error;}
 }
+export const failureDetails=error=>({reason:error.message,command:error.command,code:error.code,status:error.status,signal:error.signal});
 export function writeExclusive(file,value) {
   const fd=fs.openSync(file,'wx');try{fs.writeSync(fd,JSON.stringify(value)+'\n');fs.fsyncSync(fd);}finally{fs.closeSync(fd);}
 }
@@ -59,7 +61,7 @@ export function worktreePaths(worktree) {
   return {lock:path.join(admin,'agent-handoff.lock'),freeze:path.join(admin,'agent-review-job.json')};
 }
 export function assertFrozen(plan) {
-  if(fs.realpathSync(plan.worktree)!==plan.worktree||git(plan.worktree,['rev-parse','--path-format=absolute','--git-common-dir'])!==plan.commonGit||git(plan.worktree,['rev-parse','HEAD'])!==plan.head||git(plan.worktree,['status','--porcelain']))throw new Error('Reviewed repository/head/worktree changed');
+  if(fs.realpathSync.native(plan.worktree)!==plan.worktree||git(plan.worktree,['rev-parse','--path-format=absolute','--git-common-dir'])!==plan.commonGit||git(plan.worktree,['rev-parse','HEAD'])!==plan.head||git(plan.worktree,['status','--porcelain']))throw new Error('Reviewed repository/head/worktree changed');
   try{if(git(plan.worktree,['rev-parse','--verify',`${plan.base}^{commit}`])!==plan.base)throw new Error('mismatch');}catch{throw new Error('Reviewed base must resolve to an existing commit');}
 }
 export function reserveFreeze(plan,dir) {
@@ -69,5 +71,5 @@ export function reserveFreeze(plan,dir) {
 }
 export function assertJobFreeze(plan,dir) {
   const marker=readJson(worktreePaths(plan.worktree).freeze);
-  if(marker.jobId!==plan.jobId||fs.realpathSync(marker.jobDir)!==fs.realpathSync(dir))throw new Error('Worktree belongs to another automatic job');
+  if(marker.jobId!==plan.jobId||fs.realpathSync.native(marker.jobDir)!==fs.realpathSync.native(dir))throw new Error('Worktree belongs to another automatic job');
 }

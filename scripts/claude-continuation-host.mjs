@@ -11,7 +11,7 @@ import {claudeClaimArgv,renderClaudeClaimCommand,claimCommandDigest} from './cla
 
 export const claudeReceiptMarker=id=>`IMPOWER-CONTINUATION-${id}`;
 const uuid=value=>typeof value==='string'&&/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
-const canonical=value=>fs.realpathSync(value);
+const canonical=value=>fs.realpathSync.native(value);
 const samePath=(a,b)=>canonical(a)===canonical(b);
 const inside=(parent,child)=>{const rel=path.relative(parent,child);return !rel||(!rel.startsWith(`..${path.sep}`)&&rel!=='..'&&!path.isAbsolute(rel));};
 const privatePath=(value,worktree)=>{

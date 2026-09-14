@@ -94,6 +94,7 @@ try {
   const claudePlan={...plan,destination:{host:'claude-cli-windows',threadId:sessionId,turnId,cwd:repo,registration,registrationId:registered.registrationId}};
   const adapter=()=>continuationHost(claudePlan,{platform:'win32',env});
   assert.equal((await adapter().preflight(claudePlan.destination,claudePlan)).supported,true);
+  if(process.platform==='win32')assert.equal((await adapter().preflight({...claudePlan.destination,cwd:repo.toUpperCase()},claudePlan)).supported,true,'Windows case aliases retain native directory identity');
   assert.deepEqual(await adapter().inspect(claudePlan.destination,claudePlan),{state:'idle'});
   protectPrivatePath(registration,{verifyOnly:true});
   if(process.platform==='win32') {
