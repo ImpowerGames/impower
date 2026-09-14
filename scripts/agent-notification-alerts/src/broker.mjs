@@ -10,6 +10,7 @@ import { z } from 'zod';
 import { alertSchema, readConfig, binding, findEngine, speak } from './alerts.mjs';
 import { PendingAlerts } from './pending.mjs';
 import { voiceMuted, lightsMuted } from './voice-control.mjs';
+import { startDiscordVoiceWatcher } from './discord-voice.mjs';
 
 const stateDir = process.env.AGENT_ALERT_STATE_DIR || join(homedir(), '.agent-notification-alerts');
 const hash = createHash('sha256').update(stateDir).digest('hex').slice(0, 20);
@@ -74,6 +75,11 @@ export async function runBroker() {
   await mkdir(stateDir, { recursive: true });
   let pending = new PendingAlerts();
   const status = { keyboard: config.keyboard ? 'starting' : 'disabled', speech: config.speech ? 'idle' : 'disabled', shortcuts: 'disabled' };
+  // Discord voice-call detection is entirely optional: without a configured
+  // client ID nothing here starts, and no teammate without Discord is affected.
+  const discord = process.platform === 'win32' && process.env.AGENT_ALERT_DISCORD_CLIENT_ID
+    ? startDiscordVoiceWatcher({ clientId: process.env.AGENT_ALERT_DISCORD_CLIENT_ID, clientSecret: process.env.AGENT_ALERT_DISCORD_CLIENT_SECRET })
+    : undefined;
   let bridge, timer, address, signature = '', queue = Promise.resolve(), speechQueue = Promise.resolve();
   const persist = async () => {
     await writeFile(stateFile + '.tmp', JSON.stringify(pending.entries), { mode: 0o600 });
@@ -126,10 +132,11 @@ export async function runBroker() {
   };
   const enqueue = fn => { const job = queue.then(fn); queue = job.catch(() => {}); return job; };
   const handle = async request => {
-    if (request.type === 'status') return { pending: pending.entries, channels: { ...status, ...(voiceMuted() ? { speech: 'muted' } : {}) } };
+    if (request.type === 'status') return { pending: pending.entries, channels: { ...status, ...(voiceMuted() ? { speech: 'muted' } : {}) }, discord: discord ? discord.getStatus() : 'disabled' };
     if (request.type === 'stop') {
       clearInterval(timer);
       bridge?.stdin.end();
+      await discord?.stop();
       if (config.keyboard) await post('stop_game', { game: 'AGENT_NOTIFICATION_ALERTS' }).catch(() => {});
       // Closing unlinks filesystem sockets on platforms that use them. Respond
       // before waiting for connected clients to disconnect.

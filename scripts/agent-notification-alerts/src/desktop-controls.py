@@ -8,6 +8,7 @@ from queue import SimpleQueue
 from threading import Event, Thread
 import tkinter as tk
 from tkinter import messagebox, ttk
+from discord_status import discord_status_text, read_discord_status
 from voice_settings import available_voices, read_voice, save_voice, voice_label
 import pystray
 from PIL import Image, ImageDraw, ImageTk
@@ -20,6 +21,9 @@ args = parser.parse_args()
 marker = Path(args.state_dir) / 'voice-muted'
 lights_marker = Path(args.state_dir) / 'lights-muted'
 all_marker = Path(args.state_dir) / 'all-muted'
+discord_disabled_marker = Path(args.state_dir) / 'discord-mute-disabled'
+discord_call_marker = Path(args.state_dir) / 'discord-call-muted'
+discord_connect_marker = Path(args.state_dir) / 'discord-connect-request'
 commands = SimpleQueue()
 tray_ready = Event()
 last_muted = None
@@ -61,15 +65,32 @@ status.pack(fill='x', pady=(12, 10))
 def refresh():
     global last_muted
     paused = all_marker.exists()
-    muted = marker.exists() or paused
+    discord_muting = discord_call_marker.exists()
+    muted = marker.exists() or paused or discord_muting
     lights_off = lights_marker.exists() or paused
-    status.config(text='●  Paused · enjoy the quiet' if paused else ('●  Alerts are off' if muted and lights_off else '●  Ready when your agents are'), fg='#eac889' if paused or (muted and lights_off) else '#91d5bc')
+    discord_off = discord_disabled_marker.exists() or paused
+    if paused:
+        status_text = '●  Paused · enjoy the quiet'
+    elif muted and lights_off:
+        status_text = '●  Alerts are off'
+    elif discord_muting:
+        status_text = '●  Voice muted · Discord call'
+    else:
+        status_text = '●  Ready when your agents are'
+    status.config(text=status_text, fg='#eac889' if paused or (muted and lights_off) or discord_muting else '#91d5bc')
     button.config(text='Off' if muted else 'On', bg='#30333d' if muted else '#b8adff', fg='#bec1cc' if muted else '#191329')
     button.config(state='disabled' if paused else 'normal')
     lights_button.config(text='Off' if lights_off else 'On', bg='#30333d' if lights_off else '#b8adff', fg='#bec1cc' if lights_off else '#191329', state='disabled' if paused else 'normal')
+    discord_button.config(text='Off' if discord_off else 'On', bg='#30333d' if discord_off else '#b8adff', fg='#bec1cc' if discord_off else '#191329', state='disabled' if paused else 'normal')
+    discord_report = read_discord_status(args.state_dir)
+    discord_status_label.config(text=discord_status_text(discord_report))
+    if discord_report and discord_report.get('phase') in ('unauthorized', 'unavailable', None):
+        discord_connect_button.pack(anchor='e', pady=(6, 0))
+    else:
+        discord_connect_button.pack_forget()
     all_button.config(text='Resume alerts' if paused else 'Pause all alerts', bg='#b8adff' if paused else '#292633', fg='#191329' if paused else '#e2dafa')
     pause_hint.config(text='Your previous settings will be restored.' if paused else 'A little quiet for meetings or focused work.')
-    state = (muted, lights_off, paused)
+    state = (muted, lights_off, paused, discord_off, discord_muting)
     if tray_ready.is_set() and state != last_muted:
         icon_image = tray_image(muted or lights_off)
         tray.icon = icon_image
@@ -169,6 +190,24 @@ def apply_keys():
 tk.Button(key_card, text='Apply keys', command=apply_keys, font=('Segoe UI', 9, 'bold'), bg='#30333d', fg='#f0f0f5', relief='flat', padx=12, pady=5).pack(anchor='e', pady=(5, 0))
 keys_hint = tk.Label(key_card, text='Choose a different function key for each agent.', font=('Segoe UI', 8), fg='#a4a7b2', bg='#1d2028', anchor='w')
 keys_hint.pack(fill='x', pady=(5, 0))
+
+discord_button = channel_row('Mute voice during Discord calls', 'Automatically silences spoken alerts while you are connected to a Discord voice channel', lambda: toggle(discord_disabled_marker))
+discord_card = tk.Frame(discord_button.master.master, bg='#1d2028')
+discord_card.pack(fill='x', pady=(12, 0))
+discord_status_label = tk.Label(discord_card, font=('Segoe UI', 9), fg='#a4a7b2', bg='#1d2028', anchor='w')
+discord_status_label.pack(fill='x')
+
+def request_discord_connect():
+    try:
+        discord_connect_marker.parent.mkdir(parents=True, exist_ok=True)
+        discord_connect_marker.touch()
+        discord_status_label.config(text='Requested · approve the prompt in Discord…')
+    except OSError as error:
+        messagebox.showerror('Could not request Discord connection', str(error))
+
+discord_connect_button = tk.Button(discord_card, text='Connect Discord', command=request_discord_connect, font=('Segoe UI', 9, 'bold'), bg='#30333d', fg='#f0f0f5', relief='flat', padx=12, pady=5)
+discord_connect_button.pack(anchor='e', pady=(6, 0))
+
 all_button = tk.Button(shell, command=lambda: toggle(all_marker), font=('Segoe UI', 12, 'bold'), relief='flat', borderwidth=0, pady=12, cursor='hand2', activebackground='#cec6ff', takefocus=True)
 all_button.pack(fill='x', pady=(10, 0))
 pause_hint = tk.Label(shell, font=('Segoe UI', 9), fg='#a4a7b2', bg='#111318')
@@ -207,7 +246,7 @@ def on_unmap(event):
     if event.widget == root and root.state() == 'iconic':
         hide_window()
 
-initial_icon = tray_image(marker.exists() or lights_marker.exists() or all_marker.exists())
+initial_icon = tray_image(marker.exists() or lights_marker.exists() or all_marker.exists() or discord_call_marker.exists())
 root.alert_icon = ImageTk.PhotoImage(initial_icon)
 root.iconphoto(True, root.alert_icon)
 tray = pystray.Icon('agent-alerts', initial_icon, 'Agent Alerts', menu=pystray.Menu(
