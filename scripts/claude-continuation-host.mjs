@@ -57,6 +57,7 @@ export function verifyClaudeClaimConfiguration(destination,plan,options={}) {
   const final=rows.findLast(row=>row.hook_event_name==='MessageDisplay'&&row.final===true&&row.message_id===display?.message_id&&row.turn_id===display?.turn_id&&row.prompt_id===display?.prompt_id);
   const tool=rows.findLast(row=>row.hook_event_name==='PreToolUse');
   const index=rows.indexOf(tool),later=rows.slice(index+1);
+  if(tool?.tool_name!=='Bash')throw new Error('Current Claude claim proof requires native Bash admission');
   const ended=rows.slice(rows.indexOf(display)+1,index).some(row=>['Stop','SessionEnd'].includes(row.hook_event_name));
   const matching=rows.filter(row=>row.hook_event_name==='PreToolUse'&&row.commandDigest===digest&&!rows.some(done=>['PostToolUse','PostToolUseFailure'].includes(done.hook_event_name)&&done.tool_use_id===row.tool_use_id));
   const latestPrompt=rows.findLast(row=>row.hook_event_name==='UserPromptSubmit');

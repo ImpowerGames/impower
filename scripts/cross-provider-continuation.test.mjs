@@ -273,6 +273,9 @@ try {
     assert.throws(()=>verifyClaudeClaimConfiguration(f.saved.destination,f.saved,{env:{...env,CLAUDE_EFFORT:'low'},identify:()=>identity}),/claim.*(?:proof|configuration)|receiving/i,'a newer receiving turn cannot borrow prior Stop configuration');
     fs.writeFileSync(receipts,beforeClaim);
     const claimArgv=claudeClaimArgv(f.saved),command=renderClaudeClaimCommand(claimArgv),toolId=randomUUID();
+    const currentExecutable=process.execPath;
+    try{process.execPath=path.join(scratch,'other-node.exe');assert.deepEqual(claudeClaimArgv(f.saved),claimArgv,'claim invocation must retain the exact durable envelope executable');}
+    finally{process.execPath=currentExecutable;}
     const claimEnv={...env,CLAUDE_EFFORT:'high',IMPOWER_CLAUDE_CLAIM_ID:f.saved.continuationId};
     const check=(extra={})=>verifyClaudeClaimConfiguration(f.saved.destination,f.saved,{env:claimEnv,argv:claimArgv,identify:()=>identity,...extra});
     assert.throws(()=>check(),/claim proof/,'prior incidental hooks cannot satisfy a fresh claim');
