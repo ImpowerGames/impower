@@ -106,18 +106,27 @@ export function startDiscordVoiceWatcher({
   async function syncMarker() {
     const enabled = discordAutoMuteEnabled();
     await ensureMarker(discordCallMutePath(), state.inCall && enabled);
-    await mkdir(discordStatusPath().replace(/[^/\\]+$/, ''), { recursive: true }).catch(() => {});
-    await writeFile(
-      discordStatusPath(),
-      JSON.stringify({
-        configured: true,
-        phase: state.phase,
-        inCall: state.inCall,
-        autoMuteEnabled: enabled,
-        error: state.error,
-        updatedAt: Date.now(),
-      }),
-    ).catch(() => {});
+    const target = discordStatusPath();
+    await mkdir(target.replace(/[^/\\]+$/, ''), { recursive: true }).catch(() => {});
+    try {
+      // Write-then-rename so a concurrent reader (this watcher's own next
+      // tick, or the desktop app polling the same file) never sees a
+      // truncated or partially written file.
+      await writeFile(
+        target + '.tmp',
+        JSON.stringify({
+          configured: true,
+          phase: state.phase,
+          inCall: state.inCall,
+          autoMuteEnabled: enabled,
+          error: state.error,
+          updatedAt: Date.now(),
+        }),
+      );
+      await rename(target + '.tmp', target);
+    } catch {
+      // Fail-open: a status-file write failure never affects mute delivery.
+    }
   }
 
   async function applyEvent(event) {

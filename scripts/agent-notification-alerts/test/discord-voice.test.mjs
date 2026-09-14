@@ -240,7 +240,10 @@ test('a Discord that is not running never reports a call and backs off without t
     const watcher = startDiscordVoiceWatcher({ clientId: 'client', clientSecret: 'secret', connect, syncIntervalMs: 15 });
     try {
       await waitFor(async () => (await readJson(discordStatusPath(), {})).phase === 'unavailable');
-      assert.equal((await readJson(discordStatusPath(), {})).inCall, false);
+      // Read the watcher's own state, not the polled status file: a
+      // concurrent tick can be mid-write to that file at the exact moment
+      // this assertion runs, which is a race rather than a defect.
+      assert.equal(watcher.getStatus().inCall, false);
       assert.equal(await exists(discordCallMutePath()), false);
       assert.equal(watcher.getStatus().backoffMs, 2000, 'one full cycle through all refused pipes must back off by exactly one step, not one per pipe');
     } finally {
