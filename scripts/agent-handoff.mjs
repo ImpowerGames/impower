@@ -158,7 +158,10 @@ export async function runHandoff(configFile, { slotRoot, identifyProcess = proce
         await verifyReviewComment(id, config.pr, done.head, cwd);
       }
       if (gitStatus(cwd)) throw new Error("Role left uncommitted work");
-      if (step.role === "review") { completedRound = step.round; reviewedHead = head; }
+      if (step.role === "review") {
+        if (step.round > completedRound) finalCorrections = false;
+        completedRound = step.round; reviewedHead = head;
+      }
       if (step.role !== "review" && completedRound === reviewRoundLimit && done.head !== reviewedHead) finalCorrections = true;
       append({ event: "completed", index, step: current, ...done, completedRound, reviewedHead, finalCorrections });
       current = done.next;

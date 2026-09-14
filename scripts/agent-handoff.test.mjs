@@ -182,6 +182,22 @@ try {
   assert.equal(extendedCorrected.find(row=>row.event==="completed").finalCorrections,true,"a correction after the configured limit invalidates its review coverage");
   assert.equal(extendedCorrected.filter(row=>row.event==="launching").length,1,"a correction after an authorized fourth round cannot launch another review automatically");
 
+  const raisedCap = { ...extendedLifecycle, first:"review", reviewRoundLimit:6, extendedReviewAuthorization:"User explicitly authorized six total review rounds.", completedReviewRound:5, reviewedHead:git("rev-parse","HEAD").trim(), finalCorrections:true, journal:path.join(scratch,"raised-cap-two-lenses.jsonl"), steps:{
+    review:{...lifecycle.steps.review,round:6,args:[lifecycleChild,"first-review","--model","reviewer-test"],next:["next-review"]},
+    "next-review":{...lifecycle.steps.review,round:6},
+    implement:{...extendedLifecycle.steps.implement},
+  }};
+  fs.writeFileSync(file,JSON.stringify(raisedCap)); await assert.doesNotReject(runHandoff(file), "both final-round lenses must run after the user raises the cap");
+  const raisedCompleted=fs.readFileSync(raisedCap.journal,"utf8").trim().split("\n").map(JSON.parse).filter(row=>row.event==="completed");
+  assert.equal(raisedCompleted.length,2,"both lenses at the authorized final round must finish after the earlier cap was raised");
+  assert.ok(raisedCompleted.every(row=>row.completedRound===6 && row.finalCorrections===false),"a validated later round supersedes the earlier final-correction flag");
+  raisedCap.completedReviewRound=6; raisedCap.reviewedHead=raisedCompleted.at(-1).reviewedHead; raisedCap.finalCorrections=false;
+  raisedCap.first="implement"; raisedCap.journal=path.join(scratch,"raised-cap-final-correction.jsonl");
+  fs.writeFileSync(file,JSON.stringify(raisedCap)); await assert.rejects(runHandoff(file),/no automatic review/);
+  const raisedCorrected=fs.readFileSync(raisedCap.journal,"utf8").trim().split("\n").map(JSON.parse);
+  assert.equal(raisedCorrected.find(row=>row.event==="completed").finalCorrections,true);
+  assert.equal(raisedCorrected.filter(row=>row.event==="launching").length,1,"actual corrections after round six still block another lens");
+
 } finally { childProcess.execFileSync=originalExec; syncBuiltinESMExports(); }
 config.completedReviewRound = 0;
 delete config.finalCorrections;
