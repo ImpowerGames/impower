@@ -1,5 +1,7 @@
 # Automatic handoff execution
 
+For opt-in continuation after the originating writer ends its turn, use the [supervised review route](../references/review-supervisor.md). It retains this launcher's reservations and report checks. Unsupported hosts and configurations use the awaited route below.
+
 For every local CLI reviewer, including a single review with no subsequent handoff, run `node scripts/agent-handoff.mjs <absolute-plan.json>`. The active coordinator awaits this launcher, verifies the full paginated PR report and continues implementing without ending its turn. Author the plan with the editor capability in a private directory outside the worktree. It supplies the worktree, PR number, distinct writer and reviewer routes, a new journal path, a bounded maxSteps, a first step name and a steps object. A single-review plan sets maxSteps to 1 and its review step's next to `[null]`.
 
 During normal execution, await the existing launcher invocation through the runner's completion/wait mechanism, resuming the same yielded handle when required. The launcher detects reviewer exit and validates completion before advancing. Inspect process logs, journals, reservations or PR comments while it runs only to investigate an error, recover an interrupted or uncertain launch, or answer a user-requested status check. Do not add periodic reviewer-status probes or narrate unchanged waits. After the launcher exits, read every full report and confirm the required exit and readiness evidence.

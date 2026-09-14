@@ -3,6 +3,7 @@ import path from "node:path";
 import { spawn, execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { reserveReviewerSlot, releaseReviewerSlot, processIdentity } from "./reviewer-slots.mjs";
+import { withJob,retryBusy } from './review-job-store.mjs';
 
 const read = (file) => JSON.parse(fs.readFileSync(file, "utf8"));
 const gitHead = (cwd) => execFileSync("git", ["rev-parse", "HEAD"], { cwd, encoding: "utf8" }).trim();
@@ -25,10 +26,18 @@ export function checkReviewRound(round, completedRound, finalCorrections, review
   if (finalCorrections && completedRound >= reviewRoundLimit) throw new Error(`Final corrections after round ${reviewRoundLimit} require explicit user direction for further review; no automatic review`);
 }
 
+export function verifyNativeReviewResult(output) {
+  if(fs.statSync(output).size>16*1024*1024)throw new Error('Native reviewer result exceeds bounded inspection');
+  const text=fs.readFileSync(output,'utf8').trim();
+  let result;try{result=JSON.parse(text.split('\n').at(-1));}catch{throw new Error('Missing final native reviewer JSON result');}
+  if(result.type!=='result'||result.subtype!=='success'||result.is_error!==false||result.stop_reason!=='end_turn')throw new Error('Native reviewer failed or interrupted');
+}
+
 // Configuration is a local, caller-authored artifact. Comments and child output
 // can select a declared transition but can never supply executable commands.
-export async function runHandoff(configFile, { slotRoot, identifyProcess = processIdentity } = {}) {
+export async function runHandoff(configFile, { slotRoot, identifyProcess = processIdentity, automaticJob } = {}) {
   const config = read(configFile);
+  if (config.continuation) throw new Error('Automatic continuation requires review-supervisor capability preflight');
   const cwd = fs.realpathSync(config.worktree);
   const journal = path.resolve(config.journal);
   const relative = path.relative(cwd, journal);
@@ -44,6 +53,7 @@ export async function runHandoff(configFile, { slotRoot, identifyProcess = proce
   if (config.completedReviewRound > 0 && !/^[a-f0-9]{40}$/.test(config.reviewedHead ?? "")) throw new Error("Supply reviewedHead from the journal when recovering a review round");
   if (fs.existsSync(journal)) throw new Error("Journal exists; inspect recorded process and completion before authoring a recovery plan");
   for (const step of Object.values(config.steps)) {
+    if(step.nativeResult!==undefined&&step.nativeResult!=='claude-json')throw new Error('Unsupported native reviewer result transport');
     if (step.role === "review" && (!Number.isInteger(step.round) || step.round < 1 || step.round > reviewRoundLimit)) throw new Error(`Review round must be 1..${reviewRoundLimit} on every review step before launch`);
     if (!["implement", "review", "adjudicate"].includes(step.role) || !path.isAbsolute(step.executable) || !Array.isArray(step.args) || !step.args.every((a) => typeof a === "string") || !path.isAbsolute(step.prompt)) throw new Error("Each role needs an absolute executable, argument array and prompt file");
     if (!step.model || step.model !== (step.role === "review" ? config.reviewer : config.writer)) throw new Error("Step model must match its caller-supplied role route");
@@ -73,9 +83,15 @@ export async function runHandoff(configFile, { slotRoot, identifyProcess = proce
   let finalCorrections = config.finalCorrections ?? false;
   let activeChild;
   try {
+    const freeze=execFileSync('git',['rev-parse','--path-format=absolute','--git-path','agent-review-job.json'],{cwd,encoding:'utf8'}).trim();
+    if(fs.existsSync(freeze)) {
+      const claim=read(freeze);
+      if(claim.jobId!==automaticJob?.jobId||claim.jobDir!==automaticJob?.jobDir)throw new Error('Worktree reserved by automatic review job; claim or cancel that job first');
+    } else if(automaticJob)throw new Error('Automatic review ownership marker missing');
     fs.writeFileSync(owner, JSON.stringify({ pid: process.pid, processIdentity: processIdentity(process.pid), startedAt: new Date().toISOString(), journal }));
     fd = fs.openSync(journal, "wx");
     for (let index = 0; current; index++) {
+      if(automaticJob&&fs.readFileSync(path.join(automaticJob.jobDir,'events.jsonl'),'utf8').trim().split('\n').map(JSON.parse).some(row=>row.event==='workflow-cancelled'))throw new Error('Automatic review workflow cancelled; no further reviewer dispatch');
       if (index >= config.maxSteps) throw new Error("Handoff step budget reached; human review required");
       const step = config.steps[current];
       if (!step) throw new Error(`Unknown step: ${current}`);
@@ -96,7 +112,11 @@ export async function runHandoff(configFile, { slotRoot, identifyProcess = proce
         slot.append({phase:"launching",head,output,completion,journal});
         append({event:"reserved",index,slot:slot.file,token:slot.token,owner:slot.owner});
       }
-      const child = spawn(step.executable, step.args, { cwd, shell: false, windowsHide: true, stdio: ["pipe", log, log] });
+      let child;
+      try {
+        const launch=()=>spawn(step.executable, step.args, { cwd, shell: false, windowsHide: true, stdio: ["pipe", log, log] });
+        child=automaticJob?await retryBusy(()=>withJob(automaticJob.jobDir,rows=>{if(rows.some(row=>row.event==='workflow-cancelled'))throw new Error('Automatic review workflow cancelled');return launch();})):launch();
+      } catch(error){fs.closeSync(log);if(slot)releaseReviewerSlot(slot);throw error;}
       activeChild = child;
       let childError;
       const exited = new Promise((resolve) => { child.on("error", (e) => {childError=e.message;}); child.once("close", (code, signal) => resolve({ code, signal, error:childError })); });
@@ -149,6 +169,7 @@ export async function runHandoff(configFile, { slotRoot, identifyProcess = proce
       }
       if(slot){try{releaseReviewerSlot(slot);}catch(error){throw new Error(`Child exit confirmed (code ${result.code}); reservation retained at ${slot.file}: ${error.message}; completion and report validation has not run`);}}
       if (result.code !== 0) throw new Error(`Role ${current} failed; inspect ${output}`);
+      if(step.nativeResult==='claude-json')verifyNativeReviewResult(output);
       if (step.role === "review" && (gitHead(cwd) !== head || gitStatus(cwd) !== status)) throw new Error("Review changed the frozen head or worktree");
       const done = read(completion);
       if (done.head !== gitHead(cwd) || typeof done.summary !== "string" || !done.summary.trim() || !Array.isArray(done.commentIds) || !done.commentIds.every(Number.isSafeInteger)) throw new Error("Invalid or stale completion artifact");

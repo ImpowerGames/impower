@@ -1,6 +1,6 @@
 # Reviewer execution mappings
 
-For the experimental originating-task capability investigation, see [continuation conformance](runner-continuation.md). It records live Codex desktop and Claude CLI probes and unresolved host contracts; the guarded review workflow continues to use the awaited mode below.
+For originating-task capability evidence, see [continuation conformance](runner-continuation.md). The opt-in [supervised review route](review-supervisor.md) uses the verified Windows Codex app endpoint; unsupported configurations retain the awaited mode below.
 
 ## Headless serial sessions
 
