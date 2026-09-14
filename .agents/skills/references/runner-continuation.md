@@ -1,12 +1,23 @@
 # Runner-specific originating-task continuation conformance (#546)
 
-This is an incomplete feasibility record for #545, not an automatic review mode. Production migration in #547/#548 remains blocked until the host contracts below are demonstrated. The existing guarded launcher and reviewer reservations are unchanged. A scratch fixture is not live host evidence.
+This records the #546 originating-task capability slice for #545, not an automatic review mode. The selected Windows host families have demonstrated idle and active delivery with native destination/turn evidence. Production supervision, durable ownership and full review/correction loops remain implementation work in #547/#548. The existing guarded launcher and reviewer reservations are unchanged. A scratch fixture is not live host evidence.
 
 ## Revised cancellation scope, 2026-09-14
 
 The maintainer revised #545 to match ACP/acpx cooperative active-turn cancellation. Native Stop/Escape need not clear queued messages or disable the whole workflow; queued continuation may run afterward. Explicit supervisor job cancellation is a separate operation that suppresses future supervisor-owned dispatch, without promising retraction of already accepted host messages. Cancellation acknowledgment is not process-exit evidence. The historical queue and hook experiments below remain observations, but the stronger native admission/cancellation guarantee is no longer a release gate. Same-task identity, serialized writing, reviewed-head binding, uncertain-delivery handling and process-lifetime safeguards remain required.
 
 ## Observed Codex desktop route
+
+### Selected compatibility scope
+
+| Platform and host | Capability evidence | Automatic production mode |
+| --- | --- | --- |
+| Windows Codex desktop 26.908.4834, app-tools bridge 0.1.4 | Original idle task wakeup; same-turn active delivery; native receipt reconciliation | Candidate for #547; not implemented by this probe |
+| Windows Claude CLI 2.1.270 | Original idle session wakeup; next-turn and tool-boundary delivery; native receipt reconciliation | Candidate for #548; not implemented by this probe |
+| Linux shared tooling and awaited review | Ubuntu standalone CI; existing awaited workflow retained | Unavailable until an actual Linux host combination passes conformance; reject automatic mode before review launch |
+| Other host/version combinations, including Claude desktop | Not demonstrated | Unsupported automatic mode; no silent replacement session |
+
+This follows #545's explicit unsupported-host awaited fallback and #546's requirement to identify unavailable host/platform combinations. It does not advertise Linux automatic continuation or remove Linux tooling support. Both required provider families have live Windows evidence; unimplemented production recovery is not presented as a completed capability of the scratch harness.
 
 On native Windows, the installed `codex-app-tools` plugin 0.1.4 exposes a local pipe in `CODEX_APP_TOOLS_PIPE_PATH`. Inspection of its installed `server.mjs` established the four-byte little-endian JSON frame protocol and `tools/call` envelope. A separate Node process successfully enumerated the tool schema and read the originating task through this pipe. This is a version-specific private host integration, not a documented stable third-party API.
 
@@ -55,6 +66,14 @@ This demonstrates idle task wakeup, not the complete review-to-adjudication cont
 - Pipe lifetime and authorization after host restart are unverified. The private protocol can change with an app update.
 
 The installed standalone Codex CLI 0.154.0 also offers `app-server proxy` and `app-server daemon version`. Both failed to connect to the default control socket with Windows OS error 10050. That specific route was unavailable; it does not invalidate the separately demonstrated app-tools pipe route. The version of the app's internally bundled server was not established from this CLI version.
+
+### Live active-turn delivery and reconciliation, 2026-09-14
+
+A separate Node sender verified that original task `01a09c32-1b52-7a80-a4af-5a66d6b2b9aa` was active in turn `01a0a106-f0d4-73c3-bb05-d8cc0b806e04`, flushed an exclusive submission intent, and sent marker `impower-546-active-a0018399-7696-425b-8417-8ab60069c611` once at `17:47:52.111Z`. The probe deliberately discarded acknowledgment before durable acceptance recording. The writer received and acknowledged the marker within the same ongoing turn; no second writer or resend was started.
+
+Read-only reconciliation at `17:49:22.516Z` found the exact tool-delivered marker and source task in the native persisted rollout at `17:47:52.383Z`, attributed to that same turn by its preceding native `turn_context`. The app's read tool still returned zero items for the in-progress turn, so its current active-turn snapshot alone was insufficient. Production reconciliation must support this observed same-turn delivery and must not infer non-delivery from an empty active snapshot. The committed idle-only matcher deliberately remains narrower; this experiment does not change it into a production adapter.
+
+The same native turn context recorded `model: gpt-6-astra`, `effort: medium`, `approval_policy: never`, sandbox type `danger-full-access`, and the original checkout directory. These are read-only configured-turn evidence, supplementing the earlier omitted-override evidence; they are not an independent query of every internal model request. No configuration override was sent. Safe private artifacts are `impower-546-codex-active/attempt.jsonl`, `reconciliation.json` and `configuration.json` in the originating user's temporary directory. The sender and reconciliation commands exited successfully. This proves serialized active-turn delivery, not a distinct queued turn or completed production adjudication.
 
 ## Claude host observations
 
@@ -126,6 +145,16 @@ An additional process-local experimental function-hook probe on 2.1.270 blocked 
 
 ## Pinned acpx comparison
 
+### Later Claude tool-boundary proof
+
+An original private Windows CLI 2.1.270 session `0ee722a1-2fa1-4744-a222-6c66f71dbf17` used explicit Opus 5/high/dontAsk with Bash as its sole allowed built-in tool. One foreground Node timer printed `TOOL-DONE-546` after eight seconds. At the native PreToolUse boundary, a separate sender flushed one intent and sent continuation UUID `235cc1f8-cf2b-4bf0-b7ae-ac5e37f2b3a9`, then closed without consuming an acknowledgment.
+
+Submission was at `17:48:20.633Z`, native enqueue at `17:48:20.689Z`, successful uninterrupted tool completion at `17:48:30.346Z`, dequeue at `17:48:30.376Z`, and marker display at `17:48:35.386Z`. Read-only reconciliation matched its unique marker and queued-command attachment to native turn `15419631-c415-4663-adcd-6bf8e6c22cac`. The message folded into that existing turn after the tool result; the tool and response shared prompt ID `55ba163c-748b-4584-87ed-aaf7cfde70ad`. No acknowledgment was needed and no resend occurred. Stop retained dontAsk/high.
+
+The submission occurred in the pre-execution hook interval, before the observed OS tool process started, so this is tool-boundary serialization evidence rather than a claim about submission during an already-running OS command. Receiver PID 36924 exited 0 through `/exit` at `17:49:43.433Z`; it and observed child PIDs 37072 and 3132 were confirmed absent. This establishes closure of these observed normal-path processes, not exhaustive abnormal descendant handling. Safe private evidence: `impower-546-tool-live/result.md` and `acceptance.json`; authentication-bearing endpoint files remain private.
+
+### Selected reviewer transport
+
 acpx 0.15.1 was installed in a private temporary prefix with install scripts disabled; the repository and user's global installation were unchanged. Its reported version was 0.15.1, and its local `codex status` returned `no-session` for this isolated worktree. No ACP reviewer or writer was started.
 
 Package integrity: `sha512-8+5MS2QU+p7HV2KaEooNjUD/GaUfU43nPeO7iZJ1xngekCz5sA9+jxDGbHGAybMh6hjOXKKAm8GhU5N5dAK+Ew==`.
@@ -138,4 +167,6 @@ Static inspection of pinned acpx 0.15.1 confirms that its `cancel` command targe
 
 The twenty standalone cases check real local pipe framing, fragmented and unrelated responses, string response IDs, refusal, timeout and disconnect; they also check ambiguous destination states, native marker matching, containment in both checkouts, inherited Git routing, file-valued directories, flushed submission intent, bounded waiting, schema-conformant calls and read-only reconciliation. Windows-specific cases exercise native path spellings and UNC refusal; an unavailable filesystem short name is explicitly skipped. A real CLI subprocess with an invalid journal placement proves refusal before journal creation or any connection to its local fixture host. Non-repository fixtures retain their Git discovery ceiling even when the temporary directory lives inside another checkout. Successful and failed tests remove their own scratch repository after closing their local servers. They run under the existing Node tooling runner. The `scripts/**` triggers and `/scripts/` sparse input in `hook-tests.yml` already cover both new files; the conformance check is included in the 33-check inventory after integrating the parallel resumable-suite and filing-effort checks.
 
-Native Windows has the live Codex and interactive Claude observations above. A read-only local host inventory found only a stopped `docker-desktop` WSL2 distribution and no connected Linux project host; nothing was started or installed. Linux live-host coverage is unavailable in that exposed environment, and Ubuntu CI establishes fixtures only. Claude desktop remains unverified. Automatic mode is not exposed by this scratch harness. Do not mark #546 or #545 complete on the basis of these results. The selected Claude CLI candidate now has deterministic authenticated destination submission and native accepted-turn correlation. Next: verify live Claude tool-boundary delivery, Codex active-turn serialization and destination-state binding, exercise uncertain acceptance/reconnect and each advertised platform, then prove reviewer lifetime and full bounded cross-provider acceptance before production adoption. The former native queue-clearing and failure-safe hook requirements are removed; historical failures do not establish a new blocker under the revised contract.
+Native Windows has the live Codex and interactive Claude observations above. A read-only local host inventory found only a stopped `docker-desktop` WSL2 distribution and no connected Linux project host; nothing was started or installed. Linux live-host coverage is unavailable in that environment, and Ubuntu CI establishes shared fixtures only. The selected Windows routes establish #546's bounded originating-task feasibility; #545 remains incomplete until #547/#548 implement and verify supervision and full cross-provider loops. Native reviewer execution remains selected, using the existing guarded launcher with observed reviewer exits and process-identity fixtures; no untested acpx helper transport is adopted.
+
+The next slices must bind reviewed worktree/head and receiving ownership, implement durable continuation identities/outbox and restart recovery, and retain unknown acceptance without blind retries. Best-effort queue removal precedes supervisor-initiated cancellation where a verified removal operation exists; explicit workflow cancellation first suppresses future supervisor-owned dispatch. Unsupported or failed removal must not prevent the cooperative cancel request or be reported as successful clearing. Already accepted host work may still run, and unrelated user messages are not removed. The selected private host interfaces currently expose no verified native queue-removal operation. The former atomic native cancellation and failure-safe hook requirements remain removed.
