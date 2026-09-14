@@ -23,7 +23,7 @@ export function nativeReviewerEnvironment(step,privateDirectory,source=process.e
   env.GIT_OPTIONAL_LOCKS='0';
   if(step.nativeResult!=='codex-jsonl')return env;
   const sourceHome=validateCodexSandboxStorage(step.permissions,privateDirectory,worktree);
-  const home=fs.mkdtempSync(path.join(privateDirectory,'codex-home-'));
+  const home=fs.realpathSync.native(fs.mkdtempSync(path.join(privateDirectory,'codex-home-')));
   protectPrivatePath(home);
   for(const name of privateInputs){
     const target=path.join(home,name),directory=path.dirname(target);
@@ -35,12 +35,38 @@ export function nativeReviewerEnvironment(step,privateDirectory,source=process.e
   env.CODEX_HOME=home;
   env.GIT_CONFIG_COUNT='1';env.GIT_CONFIG_KEY_0='safe.directory';env.GIT_CONFIG_VALUE_0=fs.realpathSync.native(worktree).replaceAll('\\','/');
   let output;
-  try{output=execFileSync(step.executable,['doctor','--json','-c','windows.sandbox="elevated"'],{cwd:step.permissions.cwd,env,encoding:'utf8',windowsHide:true,timeout:60000,maxBuffer:1024*1024,stdio:['ignore','pipe','pipe']});}
+  try{output=execFileSync(step.executable,['doctor','--json','-c','windows.sandbox="elevated"'],{cwd:fs.realpathSync.native(step.permissions.cwd),env,encoding:'utf8',windowsHide:true,timeout:60000,maxBuffer:1024*1024,stdio:['ignore','pipe','pipe']});}
   catch(error){output=error.stdout;}
   let report;try{report=JSON.parse(output);}catch{throw new Error('Native Codex sandbox provisioning could not be verified; no setup is performed');}
   const sandbox=report.checks?.['sandbox.helpers'];
   if(report.codexVersion!=='0.154.0-alpha.6.2'||sandbox?.status!=='ok'||sandbox.details?.['sandbox backend']!=='elevated'||sandbox.details?.['sandbox provisioning']!=='complete')throw new Error('Existing elevated sandbox provisioning unavailable; no setup is performed');
+  // The sandbox account cannot read the owner's CLI credential store. Delegate
+  // existing report access in memory; never copy its configuration or token to disk.
+  let token;
+  try{token=execFileSync('gh',['auth','token','--hostname','github.com'],{env:source,encoding:'utf8',windowsHide:true,timeout:15000,maxBuffer:16384,stdio:['ignore','pipe','pipe']}).trim();}
+  catch{throw new Error('Existing GitHub authentication unavailable; reviewer not launched');}
+  if(!token||/[\r\n]/.test(token))throw new Error('Existing GitHub authentication invalid; reviewer not launched');
+  for(const key of Object.keys(env))if(/^GH_|^GITHUB_TOKEN$/i.test(key))delete env[key];
+  env.GH_HOST='github.com';env.GH_TOKEN=token;
+  env.GH_CONFIG_DIR=fs.realpathSync.native(fs.mkdtempSync(path.join(fs.realpathSync.native(step.permissions.cwd),'gh-config-')));
   return env;
+}
+
+// Windows packaged hosts can expose logical paths that native sandbox children
+// cannot resolve. Preserve the validated directory identity, using its physical path.
+export function nativeCodexArgs(step,writable) {
+  const root=fs.realpathSync.native(step.permissions.cwd),args=[...step.args];
+  for(let index=1;index<args.length-1;index++) {
+    if(['--cd','-C'].includes(args[index])) {
+      if(fs.realpathSync.native(args[index+1])!==root)throw new Error('Native reviewer directory identity changed');
+      args[++index]=root;
+    } else if(['--output-last-message','-o'].includes(args[index])) {
+      const file=args[++index];
+      if(fs.existsSync(file)||fs.realpathSync.native(path.dirname(file))!==root)throw new Error('Native report directory identity changed');
+      args[index]=path.join(root,path.basename(file));
+    }
+  }
+  return [...args.slice(0,-1),'--add-dir',fs.realpathSync.native(writable),args.at(-1)];
 }
 
 // Protect before writing a bearer token. POSIX mode is not a Windows ACL.

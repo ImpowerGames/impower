@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 import { reserveReviewerSlot, releaseReviewerSlot, processIdentity } from "./reviewer-slots.mjs";
 import { withJob,retryBusy,git,failureDetails } from './review-job-store.mjs';
 import { verifyCodexReviewResult,validateCodexReviewer,verifyReviewerExecutable } from './native-reviewer.mjs';
-import {nativeReviewerEnvironment,protectPrivatePath} from './reviewer-security.mjs';
+import {nativeReviewerEnvironment,protectPrivatePath,nativeCodexArgs} from './reviewer-security.mjs';
 
 const read = (file) => JSON.parse(fs.readFileSync(file, "utf8"));
 const gitHead = (cwd) => git(cwd,['rev-parse','HEAD']);
@@ -126,12 +126,12 @@ export async function runHandoff(configFile, { slotRoot, identifyProcess = proce
       if (step.role === "review" && step.round === completedRound && head !== reviewedHead) throw new Error("A pending lens in the same round requires the recorded reviewed head; corrections need a new round");
       const artifacts = fs.mkdtempSync(path.join(path.dirname(journal), `handoff-${index}-${step.role}-`));
       if(step.nativeResult==='codex-jsonl')protectPrivatePath(artifacts);
-      const writable=step.nativeResult==='codex-jsonl'?fs.mkdtempSync(path.join(path.dirname(journal),`completion-${index}-`)):artifacts;
+      const writable=step.nativeResult==='codex-jsonl'?fs.realpathSync.native(fs.mkdtempSync(path.join(path.dirname(journal),`completion-${index}-`))):artifacts;
       const completion = path.join(writable, "completion.json");
       const output = path.join(artifacts, "process.log");
       const prompt = fs.readFileSync(step.prompt, "utf8") + `\n\nHandoff contract: role=${step.role}, configured model=${step.model}, reviewed head=${head}. Write ${completion} with the editor tool as JSON: {"head":"<actual HEAD>","next":"<declared transition or null>","commentIds":[<numeric GitHub comment IDs>],"summary":"<result>"}. Allowed next steps: ${JSON.stringify(step.next)}. Review and adjudication must post their complete report/dispositions before completion; include those IDs. Do not mark ready or merge. Do not modify repository files during review.\n`;
       const diagnostics=step.nativeResult?path.join(artifacts,'stderr.log'):output;
-      const args=step.nativeResult==='codex-jsonl'?[...step.args.slice(0,-1),'--add-dir',writable,step.args.at(-1)]:step.args;
+      const args=step.nativeResult==='codex-jsonl'?nativeCodexArgs(step,writable):step.args;
       append({ event: "launching", index, step: current, role: step.role, model: step.model, round: step.round, completedRound, reviewedHead, finalCorrections, head, output, diagnostics, completion, args });
       const log = fs.openSync(output, "wx");
       let stderr;

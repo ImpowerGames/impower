@@ -204,11 +204,15 @@ try {
     fs.writeFileSync(child,`import fs from 'node:fs';let text='';for await(const c of process.stdin)text+=c;const completion=/Write (.*?) with the editor tool/.exec(text)[1];fs.writeFileSync(completion,JSON.stringify({head:${JSON.stringify(head)},next:null,commentIds:[101],summary:'fixture report'}));fs.writeFileSync(${JSON.stringify(capture)},JSON.stringify({argv:JSON.parse(process.env.FIXTURE_ARGV),token:process.env.CLAUDE_CODE_MESSAGING_TOKEN??null,pipe:process.env.CODEX_APP_TOOLS_PIPE_PATH??null,thread:process.env.CODEX_THREAD_ID??null,home:process.env.CODEX_HOME,gitCount:process.env.GIT_CONFIG_COUNT,gitKey:process.env.GIT_CONFIG_KEY_0,gitValue:process.env.GIT_CONFIG_VALUE_0,config:fs.existsSync(process.env.CODEX_HOME+'/config.toml')}));for(const row of ${JSON.stringify(stream)})console.log(JSON.stringify(row));console.error('diagnostic after terminal result');`);
     const launchDir=path.join(scratch,'launch-job');fs.mkdirSync(launchDir);
     const config={worktree:repo,journal:path.join(launchDir,'handoff.jsonl'),pr:548,writer:plan.writer,reviewer:plan.reviewer,completedReviewRound:0,maxSteps:1,first:'check',steps:{check:{...structuredClone(plan.reviews[0]),role:'review',round:1,model:plan.reviewer,nativeResult:'codex-jsonl',next:[null]}}};
+    const physicalCwd=fs.realpathSync.native(config.steps.check.permissions.cwd);
+    config.steps.check.permissions.cwd=physicalCwd.toLowerCase();
+    config.steps.check.args=config.steps.check.args.map((arg,index,args)=>['--cd','-C','--output-last-message','-o'].includes(args[index-1])?arg.toLowerCase():arg);
     const configFile=path.join(scratch,'launch.json');fs.writeFileSync(configFile,JSON.stringify(config));
     const originalExec=childProcess.execFileSync,originalSpawn=childProcess.spawn,previous={};
     for(const [key,value] of Object.entries({CODEX_HOME:sourceHome,CLAUDE_CODE_MESSAGING_TOKEN:'fixture-token',CODEX_APP_TOOLS_PIPE_PATH:'fixture-pipe',CODEX_THREAD_ID:'fixture-thread'})){previous[key]=process.env[key];process.env[key]=value;}
-    let doctorMode='complete',doctorCalls=0;
+    let doctorMode='complete',doctorCalls=0,authUnavailable=false,authCalls=0;
     childProcess.execFileSync=(exe,args,options)=>{
+      if(exe==='gh'&&args[0]==='auth'){authCalls++;assert.deepEqual(args,['auth','token','--hostname','github.com']);if(authUnavailable)throw new Error('fixture missing auth');return 'fixture-delegated-token';}
       if(exe===process.execPath&&args[0]==='--version')return 'codex-cli 0.154.0-alpha.6.2';
       if(exe===process.execPath&&args[0]==='doctor'){
         doctorCalls++;assert.deepEqual(args,['doctor','--json','-c','windows.sandbox="elevated"']);
@@ -220,17 +224,24 @@ try {
       }
       return exe==='gh'?JSON.stringify({issue_url:'https://api.github.com/repos/ImpowerGames/impower/issues/548',body:`Fixture full report ${head}`}):originalExec(exe,args,options);
     };
-    childProcess.spawn=(exe,args,options)=>exe===process.execPath&&args[0]==='exec'?originalSpawn(exe,[child],{...options,env:{...options.env,FIXTURE_ARGV:JSON.stringify(args)}}):originalSpawn(exe,args,options);
+    childProcess.spawn=(exe,args,options)=>{
+      if(exe!==process.execPath||args[0]!=='exec')return originalSpawn(exe,args,options);
+      assert.equal(options.env.GH_TOKEN,'fixture-delegated-token');assert.equal(options.env.GH_HOST,'github.com');
+      assert.equal(path.dirname(options.env.GH_CONFIG_DIR),physicalCwd);assert.deepEqual(fs.readdirSync(options.env.GH_CONFIG_DIR),[]);
+      assert.equal(JSON.stringify(args).includes('fixture-delegated-token'),false);
+      return originalSpawn(exe,[child],{...options,env:{...options.env,FIXTURE_ARGV:JSON.stringify(args)}});
+    };
     syncBuiltinESMExports();
     try{
       for(const mode of ['incomplete','malformed']){doctorMode=mode;assert.throws(()=>nativeReviewerEnvironment(config.steps.check,launchDir,process.env,{worktree:repo}),/provisioning/);assert.equal(fs.existsSync(capture),false,'failed setup proof never reaches reviewer execution');}
-      doctorMode='complete';await runHandoff(configFile,{slotRoot:path.join(scratch,'launcher-slots')});assert.equal(doctorCalls,3);
+      doctorMode='complete';authUnavailable=true;assert.throws(()=>nativeReviewerEnvironment(config.steps.check,launchDir,process.env,{worktree:repo}),/GitHub authentication/,'missing parent authentication refuses before native reviewer launch');authUnavailable=false;
+      await runHandoff(configFile,{slotRoot:path.join(scratch,'launcher-slots')});assert.equal(doctorCalls,4);assert.equal(authCalls,2);
     }
     finally{childProcess.execFileSync=originalExec;childProcess.spawn=originalSpawn;syncBuiltinESMExports();for(const [key,value] of Object.entries(previous)){if(value===undefined)delete process.env[key];else process.env[key]=value;}}
     const journal=readClaudeRows(config.journal),launch=journal.find(row=>row.event==='launching'),observed=readJson(capture);
     assert.equal(journal.at(-1).event,'finished');assert.ok(journal.findIndex(row=>row.event==='exited')<journal.findIndex(row=>row.event==='completed'));
     assert.equal(observed.token,null);assert.equal(observed.pipe,null);assert.equal(observed.thread,null);assert.equal(observed.config,false);assert.notEqual(observed.home,sourceHome);assert.equal(observed.gitCount,'1');assert.equal(observed.gitKey,'safe.directory');assert.equal(observed.gitValue,fs.realpathSync.native(repo).replaceAll('\\','/'));
-    assert.equal(observed.argv.at(-1),'-');assert.deepEqual(observed.argv,launch.args);assert.deepEqual(observed.argv.slice(0,-3),config.steps.check.args.slice(0,-1));assert.equal(observed.argv.at(-3),'--add-dir');
+    assert.equal(observed.argv.at(-1),'-');assert.deepEqual(observed.argv,launch.args);assert.equal(observed.argv[observed.argv.findIndex(arg=>['--cd','-C'].includes(arg))+1],physicalCwd,'native launch uses the validated physical directory, not an alias');assert.equal(path.dirname(observed.argv[observed.argv.indexOf('--output-last-message')+1]),physicalCwd);assert.equal(observed.argv.at(-3),'--add-dir');
     assert.equal(observed.argv.at(-2),path.dirname(launch.completion));assert.notEqual(path.dirname(launch.output),path.dirname(launch.completion));assert.notEqual(path.dirname(launch.diagnostics),path.dirname(launch.completion));
     assert.match(fs.readFileSync(launch.diagnostics,'utf8'),/diagnostic after terminal/);assert.doesNotMatch(fs.readFileSync(launch.output,'utf8'),/diagnostic after terminal/);verifyNativeReviewResult(launch.output,'codex-jsonl');
     protectPrivatePath(path.dirname(launch.output),{verifyOnly:true});
@@ -282,6 +293,12 @@ try {
     record({hook_event_name:'PreToolUse',tool_name:'Bash',tool_use_id:toolId,tool_input:{command},permission_mode:'dontAsk',effort:{level:'high'}});
     const proof=fs.readFileSync(receipts,'utf8');
     assert.equal(check().turnId,turnId);
+    // Native 2.1.270: PreToolUse receipt 49.400, marker final 49.435, then claim.
+    const concurrent=readClaudeRows(receipts),admission=concurrent.pop();
+    const markerIndex=concurrent.findIndex(row=>row.hook_event_name==='MessageDisplay'&&row.delta?.includes(f.saved.continuationId));
+    concurrent.splice(markerIndex,0,admission);fs.writeFileSync(receipts,concurrent.map(JSON.stringify).join('\n')+'\n');
+    assert.equal(check().turnId,turnId,'concurrent native marker receipt may follow tool admission before claim');
+    fs.writeFileSync(receipts,proof);
     fs.writeFileSync(receipts,beforeClaim);record({hook_event_name:'Stop'});record({hook_event_name:'PreToolUse',tool_name:'Bash',tool_use_id:toolId,tool_input:{command},permission_mode:'dontAsk',effort:{level:'high'}});
     assert.throws(()=>check(),/claim proof/,'an ended receiving prompt cannot admit another claim');fs.writeFileSync(receipts,proof);
     for(const event of [
