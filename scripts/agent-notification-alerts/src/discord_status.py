@@ -1,5 +1,7 @@
 """Status text and file reading for the desktop app's Discord calls card."""
 import json
+import os
+import tempfile
 import time
 from pathlib import Path
 
@@ -21,9 +23,42 @@ def read_discord_status(state_dir):
     except ValueError:
         return {}
 
+def read_discord_credentials(state_dir):
+    """Reads the saved client ID and whether a secret is stored, never the
+    secret itself, so the desktop app never has to redisplay it."""
+    path = Path(state_dir) / 'discord-credentials.json'
+    try:
+        data = json.loads(path.read_text(encoding='utf-8'))
+        return {'clientId': data.get('clientId', ''), 'hasSecret': bool(data.get('clientSecret'))}
+    except (OSError, ValueError):
+        return None
+
+def save_discord_credentials(state_dir, client_id, client_secret):
+    """Saves the client ID and secret atomically. A blank secret keeps the
+    previously saved one, so re-saving just the client ID never clears it."""
+    client_id = client_id.strip()
+    if not client_id:
+        raise ValueError('Enter a Discord application client ID.')
+    directory = Path(state_dir)
+    directory.mkdir(parents=True, exist_ok=True)
+    target = directory / 'discord-credentials.json'
+    client_secret = client_secret.strip()
+    if not client_secret:
+        try:
+            client_secret = json.loads(target.read_text(encoding='utf-8')).get('clientSecret', '')
+        except (OSError, ValueError):
+            client_secret = ''
+    descriptor, temporary = tempfile.mkstemp(dir=directory, prefix='discord-credentials-', suffix='.tmp')
+    try:
+        with os.fdopen(descriptor, 'w', encoding='utf-8') as output:
+            json.dump({'clientId': client_id, 'clientSecret': client_secret}, output)
+        os.replace(temporary, target)
+    finally:
+        Path(temporary).unlink(missing_ok=True)
+
 def discord_status_text(status):
     if status is None:
-        return 'Set AGENT_ALERT_DISCORD_CLIENT_ID to enable.'
+        return 'Enter a Discord application above, or set AGENT_ALERT_DISCORD_CLIENT_ID, to enable.'
     phase = status.get('phase')
     if phase is None:
         return 'Notifier not running.'

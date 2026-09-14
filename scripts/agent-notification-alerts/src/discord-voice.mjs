@@ -9,6 +9,7 @@ import {
   discordAutoMuteEnabled,
   discordCallMutePath,
   discordConnectRequestPath,
+  discordCredentialsPath,
   discordStatusPath,
   discordTokenPath,
 } from './voice-control.mjs';
@@ -80,6 +81,25 @@ async function clearToken() {
     if (error.code !== 'ENOENT') throw error;
   });
 }
+// The saved credentials file (written by the desktop app's Discord card)
+// takes priority over the environment variables, matching the existing
+// precedent where a saved voice.json overrides the launcher's default voice.
+export async function readDiscordCredentials() {
+  try {
+    const saved = JSON.parse(await readFile(discordCredentialsPath(), 'utf8'));
+    if (saved?.clientId) return { clientId: saved.clientId, clientSecret: saved.clientSecret || '' };
+  } catch {
+    // Missing or corrupt: fall through to the environment-variable default.
+  }
+  if (process.env.AGENT_ALERT_DISCORD_CLIENT_ID) {
+    return {
+      clientId: process.env.AGENT_ALERT_DISCORD_CLIENT_ID,
+      clientSecret: process.env.AGENT_ALERT_DISCORD_CLIENT_SECRET || '',
+    };
+  }
+  return null;
+}
+
 async function ensureMarker(path, present) {
   if (present) {
     if (!existsSync(path)) await writeFile(path, '').catch(() => {});

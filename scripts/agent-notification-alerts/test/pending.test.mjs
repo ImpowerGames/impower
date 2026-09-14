@@ -119,3 +119,28 @@ test("background receiver retains alerts across restart and clears exactly one",
     await requestBroker({ type: "stop" });
   }
 });
+test("a Discord credentials file saved after the broker is already running is picked up without a restart", async () => {
+  const folder = await mkdtemp(join(tmpdir(), "agent-alerts-discord-creds-"));
+  const config = join(folder, "config.json");
+  await writeFile(config, JSON.stringify({ keyboard: false, speech: false }));
+  process.env.AGENT_ALERT_STATE_DIR = folder;
+  process.env.AGENT_ALERT_CONFIG = config;
+  delete process.env.AGENT_ALERT_PYTHON;
+  delete process.env.AGENT_ALERT_DISCORD_CLIENT_ID;
+  delete process.env.AGENT_ALERT_DISCORD_CLIENT_SECRET;
+  const { requestBroker } = await import("../src/broker.mjs?discord-creds-test");
+  try {
+    assert.equal((await requestBroker({ type: "status" })).discord, "disabled");
+    if (process.platform !== "win32") return; // the watcher is Windows-only; this already confirmed it stays fully inert elsewhere
+    await writeFile(join(folder, "discord-credentials.json"), JSON.stringify({ clientId: "test-client", clientSecret: "test-secret" }));
+    let discordStatus = "disabled";
+    for (let attempt = 0; attempt < 30 && discordStatus === "disabled"; attempt++) {
+      await new Promise((resolve) => setTimeout(resolve, 200));
+      discordStatus = (await requestBroker({ type: "status" })).discord;
+    }
+    assert.notEqual(discordStatus, "disabled", "the broker must notice saved credentials without a restart");
+    assert.equal(typeof discordStatus, "object");
+  } finally {
+    await requestBroker({ type: "stop" });
+  }
+});

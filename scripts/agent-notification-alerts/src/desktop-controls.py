@@ -8,7 +8,7 @@ from queue import SimpleQueue
 from threading import Event, Thread
 import tkinter as tk
 from tkinter import messagebox, ttk
-from discord_status import discord_status_text, read_discord_status
+from discord_status import discord_status_text, read_discord_credentials, read_discord_status, save_discord_credentials
 from voice_settings import available_voices, read_voice, save_voice, voice_label
 import pystray
 from PIL import Image, ImageDraw, ImageTk
@@ -84,7 +84,10 @@ def refresh():
     discord_button.config(text='Off' if discord_off else 'On', bg='#30333d' if discord_off else '#b8adff', fg='#bec1cc' if discord_off else '#191329', state='disabled' if paused else 'normal')
     discord_report = read_discord_status(args.state_dir)
     discord_status_label.config(text=discord_status_text(discord_report))
-    if discord_report and discord_report.get('phase') in ('unauthorized', 'unavailable', None):
+    # Show the button whenever a connection isn't already established or in
+    # progress — including when nothing is configured yet, so there is
+    # always a visible next step rather than an empty card.
+    if (discord_report or {}).get('phase') not in ('ready', 'connecting', 'authorizing', 'authenticating'):
         discord_connect_button.pack(anchor='e', pady=(6, 0))
     else:
         discord_connect_button.pack_forget()
@@ -194,10 +197,54 @@ keys_hint.pack(fill='x', pady=(5, 0))
 discord_button = channel_row('Mute voice during Discord calls', 'Automatically silences spoken alerts while you are connected to a Discord voice channel', lambda: toggle(discord_disabled_marker))
 discord_card = tk.Frame(discord_button.master.master, bg='#1d2028')
 discord_card.pack(fill='x', pady=(12, 0))
+
+tk.Label(discord_card, text='DISCORD APPLICATION', font=('Segoe UI', 9, 'bold'), fg='#a4a7b2', bg='#1d2028', anchor='w').pack(fill='x', pady=(0, 6))
+discord_id_var = tk.StringVar()
+discord_secret_var = tk.StringVar()
+_saved_discord_credentials = read_discord_credentials(args.state_dir)
+if _saved_discord_credentials:
+    discord_id_var.set(_saved_discord_credentials.get('clientId', ''))
+
+def _discord_field_row(label_text, variable, mask=False):
+    row = tk.Frame(discord_card, bg='#1d2028')
+    row.pack(fill='x', pady=2)
+    tk.Label(row, text=label_text, width=11, anchor='w', font=('Segoe UI', 9), fg='#f0f0f5', bg='#1d2028').pack(side='left')
+    entry = tk.Entry(row, textvariable=variable, font=('Segoe UI', 10), bg='#292b33', fg='#f0f0f5', insertbackground='#f0f0f5', relief='flat', show='*' if mask else '')
+    entry.pack(side='left', fill='x', expand=True, ipady=3)
+    return entry
+
+_discord_field_row('Client ID', discord_id_var)
+_discord_field_row('Client secret', discord_secret_var, mask=True)
+
+discord_credentials_hint = tk.Label(
+    discord_card,
+    text=('A secret is already saved · leave blank to keep it.' if _saved_discord_credentials and _saved_discord_credentials.get('hasSecret') else 'From discord.com/developers/applications, with the rpc scope.'),
+    font=('Segoe UI', 8), fg='#858997', bg='#1d2028', justify='left', anchor='w', wraplength=380,
+)
+discord_credentials_hint.pack(fill='x', pady=(4, 0))
+
+def save_discord_credentials_clicked():
+    try:
+        save_discord_credentials(args.state_dir, discord_id_var.get(), discord_secret_var.get())
+        discord_secret_var.set('')
+        discord_credentials_hint.config(text='Saved · the notifier picks this up within a second.')
+    except (OSError, ValueError) as error:
+        messagebox.showerror('Could not save Discord credentials', str(error))
+
+tk.Button(discord_card, text='Save credentials', command=save_discord_credentials_clicked, font=('Segoe UI', 9, 'bold'), bg='#30333d', fg='#f0f0f5', relief='flat', padx=12, pady=5).pack(anchor='e', pady=(6, 0))
+
 discord_status_label = tk.Label(discord_card, font=('Segoe UI', 9), fg='#a4a7b2', bg='#1d2028', anchor='w')
-discord_status_label.pack(fill='x')
+discord_status_label.pack(fill='x', pady=(10, 0))
 
 def request_discord_connect():
+    if read_discord_status(args.state_dir) is None:
+        messagebox.showinfo(
+            'Discord is not set up yet',
+            'Enter your Discord application’s client ID and secret above and click '
+            'Save credentials, then start (or restart) the notifier. Come back and click '
+            'Connect Discord once it is running.',
+        )
+        return
     try:
         discord_connect_marker.parent.mkdir(parents=True, exist_ok=True)
         discord_connect_marker.touch()

@@ -1,13 +1,14 @@
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'src'))
-from discord_status import discord_status_text
+from discord_status import discord_status_text, read_discord_credentials, save_discord_credentials
 
 class DiscordStatusTextTests(unittest.TestCase):
-    def test_unconfigured_points_at_the_environment_variable(self):
-        self.assertEqual(discord_status_text(None), 'Set AGENT_ALERT_DISCORD_CLIENT_ID to enable.')
+    def test_unconfigured_points_at_the_setup_options(self):
+        self.assertEqual(discord_status_text(None), 'Enter a Discord application above, or set AGENT_ALERT_DISCORD_CLIENT_ID, to enable.')
 
     def test_missing_status_file_while_configured_reads_as_not_yet_running(self):
         self.assertEqual(discord_status_text({}), 'Notifier not running.')
@@ -30,6 +31,37 @@ class DiscordStatusTextTests(unittest.TestCase):
 
     def test_unavailable_without_a_reason_falls_back_to_a_generic_message(self):
         self.assertEqual(discord_status_text({'phase': 'unavailable', 'error': None}), 'Discord unavailable.')
+
+class DiscordCredentialsTests(unittest.TestCase):
+    def test_missing_credentials_file_reads_as_none(self):
+        with tempfile.TemporaryDirectory() as directory:
+            self.assertIsNone(read_discord_credentials(directory))
+
+    def test_save_then_read_reports_the_id_and_that_a_secret_is_stored_without_exposing_it(self):
+        with tempfile.TemporaryDirectory() as directory:
+            save_discord_credentials(directory, ' my-client-id ', ' my-secret ')
+            self.assertEqual(read_discord_credentials(directory), {'clientId': 'my-client-id', 'hasSecret': True})
+            import json
+            self.assertEqual(json.loads((Path(directory) / 'discord-credentials.json').read_text())['clientSecret'], 'my-secret')
+
+    def test_blank_client_id_is_rejected(self):
+        with tempfile.TemporaryDirectory() as directory:
+            with self.assertRaises(ValueError):
+                save_discord_credentials(directory, '   ', 'secret')
+            self.assertIsNone(read_discord_credentials(directory))
+
+    def test_resaving_with_a_blank_secret_keeps_the_previous_one(self):
+        with tempfile.TemporaryDirectory() as directory:
+            save_discord_credentials(directory, 'client-a', 'first-secret')
+            save_discord_credentials(directory, 'client-b', '')
+            import json
+            saved = json.loads((Path(directory) / 'discord-credentials.json').read_text())
+            self.assertEqual(saved, {'clientId': 'client-b', 'clientSecret': 'first-secret'})
+
+    def test_no_stray_temp_file_is_left_behind(self):
+        with tempfile.TemporaryDirectory() as directory:
+            save_discord_credentials(directory, 'client', 'secret')
+            self.assertEqual(list(Path(directory).glob('*.tmp')), [])
 
 if __name__ == '__main__':
     unittest.main()

@@ -4,8 +4,8 @@ import { EventEmitter } from 'node:events';
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { startDiscordVoiceWatcher } from '../src/discord-voice.mjs';
-import { discordCallMutePath, discordConnectRequestPath, discordStatusPath, discordTokenPath } from '../src/voice-control.mjs';
+import { readDiscordCredentials, startDiscordVoiceWatcher } from '../src/discord-voice.mjs';
+import { discordCallMutePath, discordConnectRequestPath, discordCredentialsPath, discordStatusPath, discordTokenPath } from '../src/voice-control.mjs';
 
 function encode(opcode, payload) {
   const body = Buffer.from(JSON.stringify(payload), 'utf8');
@@ -86,6 +86,31 @@ async function readJson(path, fallback) {
 async function exists(path) {
   return readFile(path).then(() => true, () => false);
 }
+
+test('readDiscordCredentials prefers a saved file over the environment, and falls back cleanly', async () => {
+  await withState(async () => {
+    assert.equal(await readDiscordCredentials(), null, 'nothing configured means nothing to connect to');
+
+    const previous = process.env.AGENT_ALERT_DISCORD_CLIENT_ID;
+    const previousSecret = process.env.AGENT_ALERT_DISCORD_CLIENT_SECRET;
+    process.env.AGENT_ALERT_DISCORD_CLIENT_ID = 'env-client';
+    process.env.AGENT_ALERT_DISCORD_CLIENT_SECRET = 'env-secret';
+    try {
+      assert.deepEqual(await readDiscordCredentials(), { clientId: 'env-client', clientSecret: 'env-secret' });
+
+      await writeFile(discordCredentialsPath(), JSON.stringify({ clientId: 'saved-client', clientSecret: 'saved-secret' }));
+      assert.deepEqual(await readDiscordCredentials(), { clientId: 'saved-client', clientSecret: 'saved-secret' }, 'a saved file takes priority over the environment');
+
+      await writeFile(discordCredentialsPath(), 'not json');
+      assert.deepEqual(await readDiscordCredentials(), { clientId: 'env-client', clientSecret: 'env-secret' }, 'a corrupt file falls back to the environment rather than failing');
+    } finally {
+      if (previous === undefined) delete process.env.AGENT_ALERT_DISCORD_CLIENT_ID;
+      else process.env.AGENT_ALERT_DISCORD_CLIENT_ID = previous;
+      if (previousSecret === undefined) delete process.env.AGENT_ALERT_DISCORD_CLIENT_SECRET;
+      else process.env.AGENT_ALERT_DISCORD_CLIENT_SECRET = previousSecret;
+    }
+  });
+});
 
 test('a reachable Discord that reports READY waits unauthorized without prompting a consent dialog', async () => {
   await withState(async () => {

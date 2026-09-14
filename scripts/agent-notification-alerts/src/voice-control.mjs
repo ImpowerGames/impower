@@ -37,3 +37,6 @@ export function discordStatusPath() {
 export function discordTokenPath() {
   return join(stateDirectory(), 'discord-token.json');
 }
+export function discordCredentialsPath() {
+  return join(stateDirectory(), 'discord-credentials.json');
+}
