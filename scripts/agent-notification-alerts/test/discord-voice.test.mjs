@@ -63,7 +63,9 @@ async function withState(fn) {
   } finally {
     if (previous === undefined) delete process.env.AGENT_ALERT_STATE_DIR;
     else process.env.AGENT_ALERT_STATE_DIR = previous;
-    await rm(directory, { recursive: true, force: true });
+    // A watcher's fire-and-forget status-file write can still be landing when
+    // this runs; retry past the transient Windows ENOTEMPTY that causes.
+    await rm(directory, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
   }
 }
 async function waitFor(condition, { timeout = 3000, interval = 15 } = {}) {
