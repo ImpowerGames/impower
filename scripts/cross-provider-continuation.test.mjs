@@ -17,6 +17,8 @@ import {claudeContinuationHost,claudeReceiptMarker,sendClaudeFrame,readClaudeRow
 import {recordClaudeHook,appendClaudeReceipt} from './claude-continuation-hook.mjs';
 import {verifyReviewerExecutable} from './native-reviewer.mjs';
 import {protectPrivatePath,reviewerEnvironment} from './reviewer-security.mjs';
+import {claudeClaimArgv,renderClaudeClaimCommand} from './claude-claim-proof.mjs';
+import {testShell} from '../.agents/skills/drive-web-editor/redgreen.mjs';
 
 const scratch=fs.mkdtempSync(path.join(os.tmpdir(),'impower-cross-provider-'));
 let receivedServer;
@@ -28,6 +30,9 @@ const head=git('rev-parse','HEAD').trim(),privateDir=path.join(scratch,'review')
 const prompt=path.join(privateDir,'prompt.txt');fs.writeFileSync(prompt,'Review the frozen repository, publish the full report, and write the completion artifact.');
 const plan={worktree:repo,jobDir:path.join(scratch,'job'),head,base:head,pr:548,writer:'claude-opus-5',writerEffort:'high',permissions:{permissionMode:'dontAsk'},reviewer:'gpt-6-astra',round:1,completedReviewRound:0,destination:{host:'claude-cli-windows',threadId:'origin',turnId:'prior-turn',cwd:repo},reviews:[{id:'correctness',transport:'native-codex-jsonl',executable:process.execPath,prompt,effort:'medium',permissions:{sandbox:'workspace-write',approvalPolicy:'never',networkAccess:true,cwd:privateDir},args:['exec','--model','gpt-6-astra','-c','model_reasoning_effort="medium"','-c','approval_policy="never"','--sandbox','workspace-write','-c','sandbox_workspace_write.network_access=true','--cd',privateDir,'--skip-git-repo-check','--json','--output-last-message',path.join(privateDir,'report.md'),'-']}]};
 try {
+  const echo=path.join(privateDir,'quote-proof.mjs');fs.writeFileSync(echo,'console.log(JSON.stringify({args:process.argv.slice(2),id:process.env.IMPOWER_CLAUDE_CLAIM_ID}));');
+  const literal="space ' quote $() ; & literal",quoted=renderClaudeClaimCommand([process.execPath,echo,literal]);
+  assert.deepEqual(JSON.parse(execFileSync(process.env.AGENT_TOOLING_BASH||testShell(),['-c',quoted],{encoding:'utf8',windowsHide:true})),{args:[literal],id:literal});
   plan.reviews[0].args.splice(-1,0,'--disable','multi_agent','--disable','multi_agent_v2');
   plan.reviews[0].args.splice(-1,0,'--ignore-user-config','--ignore-rules','--strict-config','-c','model_provider="openai"','-c','sandbox_workspace_write.writable_roots=[]','-c','sandbox_workspace_write.exclude_tmpdir_env_var=true','-c','sandbox_workspace_write.exclude_slash_tmp=true');
   plan.reviews[0].permissions.artifactWrites='handoff-directory';
@@ -238,7 +243,35 @@ try {
     f.reconnect();await advanceReviewJob(f.input.jobDir,f.host,{identify:()=>null});assert.equal(f.sends,1);assert.equal(jobStatus(f.input.jobDir).state,'continuation-accepted');
     await advanceReviewJob(f.input.jobDir,f.host,{identify:()=>null});assert.equal(f.sends,1);
     const publicEvent=readEvents(f.input.jobDir).find(row=>row.event==='continuation-pending');assert.equal(JSON.stringify(publicEvent).includes('registration'),false);
-    assert.equal(claimReviewJob(f.input.jobDir,f.saved.continuationId,{threadId:sessionId,identify:()=>null,verifyConfiguration:(destination,current)=>verifyClaudeClaimConfiguration(destination,current,{env,identify:()=>identity})}).claimed,true);f.restore();
+    const beforeClaim=fs.readFileSync(receipts,'utf8');
+    record({hook_event_name:'UserPromptSubmit',prompt_id:randomUUID(),permission_mode:'default'});
+    assert.throws(()=>verifyClaudeClaimConfiguration(f.saved.destination,f.saved,{env:{...env,CLAUDE_EFFORT:'low'},identify:()=>identity}),/claim.*(?:proof|configuration)|receiving/i,'a newer receiving turn cannot borrow prior Stop configuration');
+    fs.writeFileSync(receipts,beforeClaim);
+    const claimArgv=claudeClaimArgv(f.saved),command=renderClaudeClaimCommand(claimArgv),toolId=randomUUID();
+    const claimEnv={...env,CLAUDE_EFFORT:'high',IMPOWER_CLAUDE_CLAIM_ID:f.saved.continuationId};
+    const check=(extra={})=>verifyClaudeClaimConfiguration(f.saved.destination,f.saved,{env:claimEnv,argv:claimArgv,identify:()=>identity,...extra});
+    assert.throws(()=>check(),/claim proof/,'prior incidental hooks cannot satisfy a fresh claim');
+    record({hook_event_name:'PreToolUse',tool_name:'Bash',tool_use_id:toolId,tool_input:{command},permission_mode:'dontAsk',effort:{level:'high'}});
+    const proof=fs.readFileSync(receipts,'utf8');
+    assert.equal(check().turnId,turnId);
+    fs.writeFileSync(receipts,beforeClaim);record({hook_event_name:'Stop'});record({hook_event_name:'PreToolUse',tool_name:'Bash',tool_use_id:toolId,tool_input:{command},permission_mode:'dontAsk',effort:{level:'high'}});
+    assert.throws(()=>check(),/claim proof/,'an ended receiving prompt cannot admit another claim');fs.writeFileSync(receipts,proof);
+    for(const event of [
+      {hook_event_name:'PostToolUse',tool_name:'Bash',tool_use_id:toolId},
+      {hook_event_name:'PostToolUseFailure',tool_name:'Bash',tool_use_id:toolId},
+      {hook_event_name:'Stop'},
+      {hook_event_name:'UserPromptSubmit',prompt_id:randomUUID()},
+      {hook_event_name:'PreToolUse',tool_name:'Bash',tool_use_id:randomUUID(),tool_input:{command:'echo incidental'},permission_mode:'dontAsk',effort:{level:'high'}},
+      {hook_event_name:'PreToolUse',tool_name:'Bash',tool_use_id:randomUUID(),tool_input:{command},permission_mode:'dontAsk',effort:{level:'high'}}
+    ]){record(event);assert.throws(()=>check(),/claim proof/);fs.writeFileSync(receipts,proof);}
+    for(const changed of [{CLAUDE_EFFORT:'low'},{CLAUDE_EFFORT:undefined},{IMPOWER_CLAUDE_CLAIM_ID:'other'}])assert.throws(()=>check({env:{...claimEnv,...changed}}),/claim proof/);
+    assert.throws(()=>check({argv:[...claimArgv,'extra']}),/claim proof/);
+    for(const changed of [{permission_mode:'default'},{effort:{level:'low'}},{prompt_id:randomUUID()},{tool_input:{command:command+' '}}]){
+      fs.writeFileSync(receipts,beforeClaim);record({hook_event_name:'PreToolUse',tool_name:'Bash',tool_use_id:toolId,tool_input:{command},permission_mode:'dontAsk',effort:{level:'high'},...changed});assert.throws(()=>check(),/claim proof/);
+    }
+    fs.writeFileSync(receipts,proof);
+    assert.equal(claimReviewJob(f.input.jobDir,f.saved.continuationId,{threadId:sessionId,identify:()=>null,verifyConfiguration:()=>check()}).claimed,true);f.restore();
+    console.log('PASS: claim requires current native effort, permission, receiving prompt and exact unended Bash command proof; stale, closed, duplicate and mismatched proofs refuse');
   }
   {
     const f=await fixture();f.complete();const submit=f.host.submit;let refused=true;

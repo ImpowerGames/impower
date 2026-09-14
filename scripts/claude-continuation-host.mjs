@@ -7,6 +7,7 @@ import {processIdentity} from './reviewer-slots.mjs';
 import {sameIdentity,git} from './review-job-store.mjs';
 import {continuationPrompt} from './continuation-host.mjs';
 import {protectPrivatePath} from './reviewer-security.mjs';
+import {claudeClaimArgv,renderClaudeClaimCommand,claimCommandDigest} from './claude-claim-proof.mjs';
 
 export const claudeReceiptMarker=id=>`IMPOWER-CONTINUATION-${id}`;
 const uuid=value=>typeof value==='string'&&/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
@@ -48,7 +49,22 @@ export function claudeClaimIdentity(destination,plan,{env=process.env,identify=p
 export function verifyClaudeClaimConfiguration(destination,plan,options={}) {
   claudeClaimIdentity(destination,plan,options);
   const record=registration(destination,plan);
-  configuration(record,plan,readClaudeRows(record.receipts));
+  const rows=readClaudeRows(record.receipts).filter(row=>row.session_id===record.sessionId),env=options.env??process.env;
+  const argv=(options.argv??[process.execPath,...process.argv.slice(1)]).map(value=>value.replaceAll('\\','/'));
+  const expected=claudeClaimArgv(plan),digest=claimCommandDigest(renderClaudeClaimCommand(expected));
+  const marker=claudeReceiptMarker(plan.continuationId);
+  const display=rows.findLast(row=>row.hook_event_name==='MessageDisplay'&&row.delta?.split(/\r?\n/).some(line=>line.trim()===marker));
+  const final=rows.findLast(row=>row.hook_event_name==='MessageDisplay'&&row.final===true&&row.message_id===display?.message_id&&row.turn_id===display?.turn_id&&row.prompt_id===display?.prompt_id);
+  const tool=rows.findLast(row=>row.hook_event_name==='PreToolUse');
+  const index=rows.indexOf(tool),later=rows.slice(index+1);
+  const ended=rows.slice(rows.indexOf(display)+1,index).some(row=>['Stop','SessionEnd'].includes(row.hook_event_name));
+  const matching=rows.filter(row=>row.hook_event_name==='PreToolUse'&&row.commandDigest===digest&&!rows.some(done=>['PostToolUse','PostToolUseFailure'].includes(done.hook_event_name)&&done.tool_use_id===row.tool_use_id));
+  const latestPrompt=rows.findLast(row=>row.hook_event_name==='UserPromptSubmit');
+  const arrived=readClaudeRows(record.transcript,128*1024*1024).some(row=>(row.type==='user'&&row.uuid===plan.continuationId||row.type==='attachment'&&row.attachment?.type==='queued_command')&&JSON.stringify(row).includes(marker));
+  if(!isDeepStrictEqual(argv,expected)||env.IMPOWER_CLAUDE_CLAIM_ID!==plan.continuationId||env.CLAUDE_EFFORT!==plan.writerEffort||!arrived||ended||!uuid(display?.turn_id)||!uuid(display?.prompt_id)||!uuid(display?.message_id)||!final||rows.indexOf(final)>=index||typeof tool?.tool_use_id!=='string'||!tool.tool_use_id||tool.commandDigest!==digest||matching.length!==1||rows.indexOf(display)>=index||tool.prompt_id!==display.prompt_id||latestPrompt&&latestPrompt.prompt_id!==display.prompt_id||later.some(row=>['Stop','SessionEnd','UserPromptSubmit'].includes(row.hook_event_name)||['PostToolUse','PostToolUseFailure'].includes(row.hook_event_name)&&row.tool_use_id===tool.tool_use_id)||tool.effort?.level!==plan.writerEffort||!isDeepStrictEqual({permissionMode:tool.permission_mode},plan.permissions))throw new Error('Current Claude claim proof or receiving-turn configuration unavailable or changed');
+  const assistant=readClaudeRows(record.transcript,128*1024*1024).findLast(row=>row.type==='assistant'&&row.message?.model&&row.message.model!=='<synthetic>');
+  if(assistant?.message.model!==plan.writer)throw new Error('Current Claude claim model configuration changed');
+  return{turnId:display.turn_id,model:plan.writer,effort:tool.effort.level,permissions:plan.permissions};
 }
 
 // This socket has no accepted-turn acknowledgment or verified queued-message
@@ -64,7 +80,7 @@ export function sendClaudeFrame(record,envelope,{connect=endpoint=>net.createCon
       socket.once('connect',()=>{
         try {
         const marker=claudeReceiptMarker(envelope.continuationId);
-        const content=`Display exactly ${marker} on its own line to acknowledge this continuation, then follow the guarded instructions below.\n${continuationPrompt(envelope)}`;
+        const content=`Display exactly ${marker} on its own line to acknowledge this continuation, then follow the guarded instructions below. For the claim, invoke Bash with exactly this command, without additions or rewriting:\n${renderClaudeClaimCommand(envelope.claimCommand)}\n${continuationPrompt(envelope)}`;
         const frame=JSON.stringify({type:'auth',token:record.token})+'\n'+JSON.stringify({type:'user',session_id:record.sessionId,uuid:envelope.continuationId,msg_id:envelope.continuationId,message:{content},priority:'next'})+'\n';
         writeInvoked=true;socket.write(frame,error=>finish(error));
         }catch{finish(true);}

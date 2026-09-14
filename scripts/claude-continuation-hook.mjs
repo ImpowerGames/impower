@@ -7,6 +7,7 @@ import {execFileSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
 import {processIdentity} from './reviewer-slots.mjs';
 import {protectPrivatePath} from './reviewer-security.mjs';
+import {claimCommandDigest} from './claude-claim-proof.mjs';
 
 export function appendClaudeReceipt(file,row) {
   const lock=file+'.lock',until=Date.now()+10000;
@@ -58,9 +59,12 @@ export function recordClaudeHook(config,event,{env=process.env,ancestor=claudeAn
       try{protectPrivatePath(registration);fs.writeSync(fd,JSON.stringify(record)+'\n');fs.fsyncSync(fd);}finally{fs.closeSync(fd);}
     }
   }
-  if(!['SessionStart','UserPromptSubmit','MessageDisplay','Stop','SessionEnd'].includes(event.hook_event_name))return;
+  if(!['SessionStart','UserPromptSubmit','MessageDisplay','Stop','SessionEnd','PreToolUse','PostToolUse','PostToolUseFailure'].includes(event.hook_event_name))return;
+  const toolEvent=['PreToolUse','PostToolUse','PostToolUseFailure'].includes(event.hook_event_name);
+  if(toolEvent&&event.tool_name!=='Bash')return;
   const fields=['hook_event_name','session_id','cwd','model','prompt_id','turn_id','message_id','index','final','delta','permission_mode','effort','reason'];
   const row={eventId:randomUUID(),at:new Date().toISOString(),...Object.fromEntries(fields.filter(key=>event[key]!==undefined).map(key=>[key,event[key]]))};
+  if(toolEvent){row.tool_use_id=event.tool_use_id;row.tool_name='Bash';if(event.hook_event_name==='PreToolUse'&&typeof event.tool_input?.command==='string')row.commandDigest=claimCommandDigest(event.tool_input.command);}
   if(event.hook_event_name==='MessageDisplay')row.delta=typeof event.delta==='string'?event.delta.split(/\r?\n/).filter(line=>/^IMPOWER-CONTINUATION-[0-9a-f-]{36}$/i.test(line.trim())).slice(0,8).join('\n'):'';
   if(event.hook_event_name==='MessageDisplay'&&event.final!==true&&!row.delta)return;
   if(Buffer.byteLength(JSON.stringify(row))>1024*1024)throw new Error('Hook receipt exceeds bound');
