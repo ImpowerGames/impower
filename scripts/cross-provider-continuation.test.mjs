@@ -16,11 +16,11 @@ import {continuationHost,continuationClaimIdentity} from './continuation-host.mj
 import {claudeContinuationHost,claudeReceiptMarker,sendClaudeFrame,readClaudeRows,verifyClaudeClaimConfiguration} from './claude-continuation-host.mjs';
 import {recordClaudeHook,appendClaudeReceipt} from './claude-continuation-hook.mjs';
 import {verifyReviewerExecutable} from './native-reviewer.mjs';
-import {protectPrivatePath,reviewerEnvironment} from './reviewer-security.mjs';
+import {protectPrivatePath,reviewerEnvironment,nativeReviewerEnvironment} from './reviewer-security.mjs';
 import {claudeClaimArgv,renderClaudeClaimCommand} from './claude-claim-proof.mjs';
 import {testShell} from '../.agents/skills/drive-web-editor/redgreen.mjs';
 
-const scratch=fs.mkdtempSync(path.join(os.tmpdir(),'impower-cross-provider-'));
+const scratch=fs.mkdtempSync(path.join(os.homedir(),'.impower-cross-provider-'));
 let receivedServer;
 console.log(`Scratch repository: ${scratch}`);
 const repo=path.join(scratch,'repo');fs.mkdirSync(repo);
@@ -28,6 +28,8 @@ const git=(...args)=>execFileSync('git',args,{cwd:repo,encoding:'utf8',windowsHi
 git('init','--quiet');git('-c','user.name=test','-c','user.email=test@example.invalid','commit','--allow-empty','-qm','fixture');
 const head=git('rev-parse','HEAD').trim(),privateDir=path.join(scratch,'review');fs.mkdirSync(privateDir);
 const prompt=path.join(privateDir,'prompt.txt');fs.writeFileSync(prompt,'Review the frozen repository, publish the full report, and write the completion artifact.');
+const sourceHome=path.join(scratch,'source-home');fs.mkdirSync(sourceHome);fs.mkdirSync(path.join(sourceHome,'.sandbox'));fs.mkdirSync(path.join(sourceHome,'.sandbox-secrets'));
+for(const name of ['auth.json','.sandbox/setup_marker.json','.sandbox-secrets/sandbox_users.json'])fs.writeFileSync(path.join(sourceHome,name),'{}');
 const plan={worktree:repo,jobDir:path.join(scratch,'job'),head,base:head,pr:548,writer:'claude-opus-5',writerEffort:'high',permissions:{permissionMode:'dontAsk'},reviewer:'gpt-6-astra',round:1,completedReviewRound:0,destination:{host:'claude-cli-windows',threadId:'origin',turnId:'prior-turn',cwd:repo},reviews:[{id:'correctness',transport:'native-codex-jsonl',executable:process.execPath,prompt,effort:'medium',permissions:{sandbox:'workspace-write',approvalPolicy:'never',networkAccess:true,cwd:privateDir},args:['exec','--model','gpt-6-astra','-c','model_reasoning_effort="medium"','-c','approval_policy="never"','--sandbox','workspace-write','-c','sandbox_workspace_write.network_access=true','--cd',privateDir,'--skip-git-repo-check','--json','--output-last-message',path.join(privateDir,'report.md'),'-']}]};
 try {
   const echo=path.join(privateDir,'quote-proof.mjs');fs.writeFileSync(echo,'console.log(JSON.stringify({args:process.argv.slice(2),id:process.env.IMPOWER_CLAUDE_CLAIM_ID}));');
@@ -36,6 +38,13 @@ try {
   plan.reviews[0].args.splice(-1,0,'--disable','multi_agent','--disable','multi_agent_v2');
   plan.reviews[0].args.splice(-1,0,'--ignore-user-config','--ignore-rules','--strict-config','-c','model_provider="openai"','-c','sandbox_workspace_write.writable_roots=[]','-c','sandbox_workspace_write.exclude_tmpdir_env_var=true','-c','sandbox_workspace_write.exclude_slash_tmp=true');
   plan.reviews[0].permissions.artifactWrites='handoff-directory';
+  Object.assign(plan.reviews[0].permissions,{windowsSandbox:'elevated',sandboxStateHome:sourceHome});
+  plan.reviews[0].args.splice(-1,0,'-c','windows.sandbox="elevated"');
+  const missingBackend=structuredClone(plan);
+  const backendAt=missingBackend.reviews[0].args.indexOf('windows.sandbox="elevated"');if(backendAt>=0)missingBackend.reviews[0].args.splice(backendAt-1,2);
+  assert.throws(()=>validateReviewPlan(missingBackend),/Windows.*sandbox|elevated/,'declared workspace-write without an effective Windows backend must refuse');
+  const tempHome=structuredClone(plan);tempHome.jobDir=path.join(os.tmpdir(),randomUUID());assert.throws(()=>validateReviewPlan(tempHome),/outside TEMP/);
+  for(const changed of [{windowsSandbox:'unelevated'},{sandboxStateHome:privateDir}]){const invalid=structuredClone(plan);Object.assign(invalid.reviews[0].permissions,changed);assert.throws(()=>validateReviewPlan(invalid));}
   assert.doesNotThrow(()=>validateReviewPlan(plan),'explicit Codex reviewer transport must be supported without Claude-only flags');
   console.log('PASS: explicit Codex reviewer route passes the shared plan gate');
   for(const extra of [['--add-dir',repo],['-c','sandbox_workspace_write.writable_roots=["/tmp"]'],['--dangerously-bypass-approvals-and-sandbox'],['--profile','other'],['--model=gpt-6-astra'],['--sandbox','danger-full-access']]) {
@@ -190,22 +199,37 @@ try {
   // Exercise the real handoff's rewritten argv, environment, stdout/stderr,
   // completion and actual child exit with a native-CLI stand-in, not a model.
   if(process.platform==='win32') {
-    const child=path.join(scratch,'native-review-child.mjs'),capture=path.join(scratch,'launch-capture.json'),sourceHome=path.join(scratch,'source-home');fs.mkdirSync(sourceHome);
+    const child=path.join(scratch,'native-review-child.mjs'),capture=path.join(scratch,'launch-capture.json');
     fs.writeFileSync(path.join(sourceHome,'auth.json'),'{}');fs.writeFileSync(path.join(sourceHome,'config.toml'),'model_provider="unwanted"');
-    fs.writeFileSync(child,`import fs from 'node:fs';let text='';for await(const c of process.stdin)text+=c;const completion=/Write (.*?) with the editor tool/.exec(text)[1];fs.writeFileSync(completion,JSON.stringify({head:${JSON.stringify(head)},next:null,commentIds:[101],summary:'fixture report'}));fs.writeFileSync(${JSON.stringify(capture)},JSON.stringify({argv:JSON.parse(process.env.FIXTURE_ARGV),token:process.env.CLAUDE_CODE_MESSAGING_TOKEN??null,pipe:process.env.CODEX_APP_TOOLS_PIPE_PATH??null,thread:process.env.CODEX_THREAD_ID??null,home:process.env.CODEX_HOME,config:fs.existsSync(process.env.CODEX_HOME+'/config.toml')}));for(const row of ${JSON.stringify(stream)})console.log(JSON.stringify(row));console.error('diagnostic after terminal result');`);
+    fs.writeFileSync(child,`import fs from 'node:fs';let text='';for await(const c of process.stdin)text+=c;const completion=/Write (.*?) with the editor tool/.exec(text)[1];fs.writeFileSync(completion,JSON.stringify({head:${JSON.stringify(head)},next:null,commentIds:[101],summary:'fixture report'}));fs.writeFileSync(${JSON.stringify(capture)},JSON.stringify({argv:JSON.parse(process.env.FIXTURE_ARGV),token:process.env.CLAUDE_CODE_MESSAGING_TOKEN??null,pipe:process.env.CODEX_APP_TOOLS_PIPE_PATH??null,thread:process.env.CODEX_THREAD_ID??null,home:process.env.CODEX_HOME,gitCount:process.env.GIT_CONFIG_COUNT,gitKey:process.env.GIT_CONFIG_KEY_0,gitValue:process.env.GIT_CONFIG_VALUE_0,config:fs.existsSync(process.env.CODEX_HOME+'/config.toml')}));for(const row of ${JSON.stringify(stream)})console.log(JSON.stringify(row));console.error('diagnostic after terminal result');`);
     const launchDir=path.join(scratch,'launch-job');fs.mkdirSync(launchDir);
     const config={worktree:repo,journal:path.join(launchDir,'handoff.jsonl'),pr:548,writer:plan.writer,reviewer:plan.reviewer,completedReviewRound:0,maxSteps:1,first:'check',steps:{check:{...structuredClone(plan.reviews[0]),role:'review',round:1,model:plan.reviewer,nativeResult:'codex-jsonl',next:[null]}}};
     const configFile=path.join(scratch,'launch.json');fs.writeFileSync(configFile,JSON.stringify(config));
     const originalExec=childProcess.execFileSync,originalSpawn=childProcess.spawn,previous={};
     for(const [key,value] of Object.entries({CODEX_HOME:sourceHome,CLAUDE_CODE_MESSAGING_TOKEN:'fixture-token',CODEX_APP_TOOLS_PIPE_PATH:'fixture-pipe',CODEX_THREAD_ID:'fixture-thread'})){previous[key]=process.env[key];process.env[key]=value;}
-    childProcess.execFileSync=(exe,args,options)=>exe===process.execPath&&args[0]==='--version'?'codex-cli 0.154.0-alpha.6.2':exe==='gh'?JSON.stringify({issue_url:'https://api.github.com/repos/ImpowerGames/impower/issues/548',body:`Fixture full report ${head}`}):originalExec(exe,args,options);
+    let doctorMode='complete',doctorCalls=0;
+    childProcess.execFileSync=(exe,args,options)=>{
+      if(exe===process.execPath&&args[0]==='--version')return 'codex-cli 0.154.0-alpha.6.2';
+      if(exe===process.execPath&&args[0]==='doctor'){
+        doctorCalls++;assert.deepEqual(args,['doctor','--json','-c','windows.sandbox="elevated"']);
+        assert.equal(options.env.GIT_CONFIG_COUNT,'1');assert.equal(options.env.GIT_CONFIG_KEY_0,'safe.directory');assert.equal(options.env.GIT_CONFIG_VALUE_0,fs.realpathSync.native(repo).replaceAll('\\','/'));
+        for(const name of ['auth.json','.sandbox/setup_marker.json','.sandbox-secrets/sandbox_users.json']){assert.deepEqual(fs.readFileSync(path.join(options.env.CODEX_HOME,name)),fs.readFileSync(path.join(sourceHome,name)));protectPrivatePath(path.join(options.env.CODEX_HOME,name),{verifyOnly:true});}
+        assert.equal(fs.existsSync(path.join(options.env.CODEX_HOME,'config.toml')),false);
+        if(doctorMode==='malformed')return '{}';
+        return JSON.stringify({codexVersion:'0.154.0-alpha.6.2',checks:{'sandbox.helpers':{status:'ok',details:{'sandbox backend':'elevated','sandbox provisioning':doctorMode}}}});
+      }
+      return exe==='gh'?JSON.stringify({issue_url:'https://api.github.com/repos/ImpowerGames/impower/issues/548',body:`Fixture full report ${head}`}):originalExec(exe,args,options);
+    };
     childProcess.spawn=(exe,args,options)=>exe===process.execPath&&args[0]==='exec'?originalSpawn(exe,[child],{...options,env:{...options.env,FIXTURE_ARGV:JSON.stringify(args)}}):originalSpawn(exe,args,options);
     syncBuiltinESMExports();
-    try{await runHandoff(configFile,{slotRoot:path.join(scratch,'launcher-slots')});}
+    try{
+      for(const mode of ['incomplete','malformed']){doctorMode=mode;assert.throws(()=>nativeReviewerEnvironment(config.steps.check,launchDir,process.env,{worktree:repo}),/provisioning/);assert.equal(fs.existsSync(capture),false,'failed setup proof never reaches reviewer execution');}
+      doctorMode='complete';await runHandoff(configFile,{slotRoot:path.join(scratch,'launcher-slots')});assert.equal(doctorCalls,3);
+    }
     finally{childProcess.execFileSync=originalExec;childProcess.spawn=originalSpawn;syncBuiltinESMExports();for(const [key,value] of Object.entries(previous)){if(value===undefined)delete process.env[key];else process.env[key]=value;}}
     const journal=readClaudeRows(config.journal),launch=journal.find(row=>row.event==='launching'),observed=readJson(capture);
     assert.equal(journal.at(-1).event,'finished');assert.ok(journal.findIndex(row=>row.event==='exited')<journal.findIndex(row=>row.event==='completed'));
-    assert.equal(observed.token,null);assert.equal(observed.pipe,null);assert.equal(observed.thread,null);assert.equal(observed.config,false);assert.notEqual(observed.home,sourceHome);
+    assert.equal(observed.token,null);assert.equal(observed.pipe,null);assert.equal(observed.thread,null);assert.equal(observed.config,false);assert.notEqual(observed.home,sourceHome);assert.equal(observed.gitCount,'1');assert.equal(observed.gitKey,'safe.directory');assert.equal(observed.gitValue,fs.realpathSync.native(repo).replaceAll('\\','/'));
     assert.equal(observed.argv.at(-1),'-');assert.deepEqual(observed.argv,launch.args);assert.deepEqual(observed.argv.slice(0,-3),config.steps.check.args.slice(0,-1));assert.equal(observed.argv.at(-3),'--add-dir');
     assert.equal(observed.argv.at(-2),path.dirname(launch.completion));assert.notEqual(path.dirname(launch.output),path.dirname(launch.completion));assert.notEqual(path.dirname(launch.diagnostics),path.dirname(launch.completion));
     assert.match(fs.readFileSync(launch.diagnostics,'utf8'),/diagnostic after terminal/);assert.doesNotMatch(fs.readFileSync(launch.output,'utf8'),/diagnostic after terminal/);verifyNativeReviewResult(launch.output,'codex-jsonl');

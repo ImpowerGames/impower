@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {execFileSync} from 'node:child_process';
 import {git} from './review-job-store.mjs';
+import {validateCodexSandboxStorage} from './reviewer-security.mjs';
 
 export function verifyReviewerExecutable(review) {
   if(review.transport!=='native-codex-jsonl')return;
@@ -49,13 +50,14 @@ export function validateCodexReviewer(review,plan) {
     if(!['--model','--cd','--sandbox','--output-last-message','-c'].includes(flag)||index+1>=args.length-1)throw new Error('Unsupported or ambiguous Codex reviewer argument');
     const value=args[++index];
     if(flag==='-c') {
-      const match=/^(model_reasoning_effort|approval_policy|model_provider|sandbox_workspace_write\.(?:network_access|writable_roots|exclude_tmpdir_env_var|exclude_slash_tmp))=(.+)$/.exec(value);
+      const match=/^(model_reasoning_effort|approval_policy|model_provider|windows\.sandbox|sandbox_workspace_write\.(?:network_access|writable_roots|exclude_tmpdir_env_var|exclude_slash_tmp))=(.+)$/.exec(value);
       if(!match||config.has(match[1]))throw new Error('Unsupported or duplicate Codex reviewer configuration');
       let parsed;try{parsed=JSON.parse(match[2]);}catch{throw new Error('Codex reviewer config values must be explicit JSON/TOML literals');}
       config.set(match[1],parsed);
     } else {if(values.has(flag))throw new Error('Duplicate Codex reviewer flag');values.set(flag,value);}
   }
   const permission=review.permissions;
+  if(config.get('windows.sandbox')!=='elevated')throw new Error('Explicit elevated Windows sandbox backend required');
   if(!values.get('--ignore-user-config')||!values.get('--ignore-rules')||!values.get('--strict-config')||config.get('model_provider')!=='openai'||JSON.stringify(config.get('sandbox_workspace_write.writable_roots'))!=='[]'||config.get('sandbox_workspace_write.exclude_tmpdir_env_var')!==true||config.get('sandbox_workspace_write.exclude_slash_tmp')!==true)throw new Error('Codex reviewer requires isolated effective configuration and explicit writable roots');
   if(disabled.size!==2)throw new Error('Codex reviewer must disable both native multi-agent features');
   if(values.get('--model')!==plan.reviewer||config.get('model_reasoning_effort')!==review.effort||!['low','medium','high','xhigh','max','ultra'].includes(review.effort))throw new Error('Codex reviewer model/effort mismatch');
@@ -64,6 +66,7 @@ export function validateCodexReviewer(review,plan) {
   const root=fs.realpathSync.native(permission.cwd),worktree=fs.realpathSync.native(plan.worktree),job=path.join(fs.realpathSync.native(path.dirname(plan.jobDir)),path.basename(plan.jobDir));
   const common=fs.realpathSync.native(git(worktree,['rev-parse','--path-format=absolute','--git-common-dir']));
   if(contains(root,worktree)||contains(worktree,root)||contains(root,job)||contains(job,root)||contains(root,common)||contains(common,root))throw new Error('Codex reviewer writes must exclude repository and supervisor state');
+  validateCodexSandboxStorage(permission,job,worktree);
   const report=values.get('--output-last-message');
   if(!path.isAbsolute(report??'')||fs.existsSync(report)||fs.realpathSync.native(path.dirname(report))!==root)throw new Error('A fresh final report inside the private reviewer directory is required');
 }

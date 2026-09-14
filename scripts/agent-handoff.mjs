@@ -146,7 +146,7 @@ export async function runHandoff(configFile, { slotRoot, identifyProcess = proce
       }
       let child,childError,exited,launchError;
       try {
-        const env=step.role==='review'?nativeReviewerEnvironment(step,artifacts):process.env;
+        const env=step.role==='review'?nativeReviewerEnvironment(step,artifacts,process.env,{worktree:cwd}):process.env;
         const launch=()=>{
           child=spawn(step.executable,args,{cwd,env,shell:false,windowsHide:true,stdio:['pipe',log,stderr]});
           activeChild=child;

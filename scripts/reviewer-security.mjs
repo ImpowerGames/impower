@@ -7,18 +7,39 @@ export function reviewerEnvironment(source=process.env) {
   return Object.fromEntries(Object.entries(source).filter(([name])=>!(/^(?:CLAUDE_|CLAUDECODE$|CODEX_(?!HOME$)|NODE_REPL_|CUA_|GIT_)/i.test(name))));
 }
 
-export function nativeReviewerEnvironment(step,privateDirectory,source=process.env) {
+const within=(parent,child)=>{const rel=path.relative(parent,child);return !rel||(!rel.startsWith(`..${path.sep}`)&&rel!=='..'&&!path.isAbsolute(rel));};
+const privateInputs=['auth.json','.sandbox/setup_marker.json','.sandbox-secrets/sandbox_users.json'];
+export function validateCodexSandboxStorage(permission,privateDirectory,worktree) {
+  if(permission?.windowsSandbox!=='elevated'||!path.isAbsolute(permission.sandboxStateHome??''))throw new Error('Explicit elevated Windows sandbox and existing private setup home required');
+  const sourceHome=fs.realpathSync.native(permission.sandboxStateHome),storage=fs.existsSync(privateDirectory)?fs.realpathSync.native(privateDirectory):path.join(fs.realpathSync.native(path.dirname(privateDirectory)),path.basename(privateDirectory)),temp=fs.realpathSync.native(os.tmpdir());
+  if(within(temp,storage))throw new Error('Native Codex private home must be outside TEMP');
+  for(const root of [fs.realpathSync.native(permission.cwd),storage,fs.realpathSync.native(worktree)])if(within(root,sourceHome)||within(sourceHome,root))throw new Error('Existing sandbox credentials must be separate from review and job roots');
+  for(const name of privateInputs){const file=path.join(sourceHome,name),stat=fs.statSync(file);if(!stat.isFile()||stat.size>1024*1024||!within(sourceHome,fs.realpathSync.native(file)))throw new Error('Existing private sandbox state unavailable or outside its declared home');}
+  return sourceHome;
+}
+
+export function nativeReviewerEnvironment(step,privateDirectory,source=process.env,{worktree}={}) {
   const env=reviewerEnvironment(source);
   env.GIT_OPTIONAL_LOCKS='0';
   if(step.nativeResult!=='codex-jsonl')return env;
+  const sourceHome=validateCodexSandboxStorage(step.permissions,privateDirectory,worktree);
   const home=fs.mkdtempSync(path.join(privateDirectory,'codex-home-'));
   protectPrivatePath(home);
-  const sourceHome=source.CODEX_HOME??path.join(os.homedir(),'.codex'),auth=path.join(sourceHome,'auth.json');
-  if(fs.existsSync(auth)) {
-    const target=path.join(home,'auth.json');fs.writeFileSync(target,fs.readFileSync(auth),{flag:'wx',mode:0o600});protectPrivatePath(target);
-  } else if(!source.OPENAI_API_KEY)throw new Error('Native Codex reviewer requires available authorized authentication');
+  for(const name of privateInputs){
+    const target=path.join(home,name),directory=path.dirname(target);
+    if(directory!==home){fs.mkdirSync(directory);protectPrivatePath(directory);}
+    const fd=fs.openSync(target,'wx',0o600);
+    try{protectPrivatePath(target);fs.writeFileSync(fd,fs.readFileSync(path.join(sourceHome,name)));}finally{fs.closeSync(fd);}
+  }
   for(const key of Object.keys(env))if(/^CODEX_|^OPENAI_(?:BASE_URL|API_BASE)$/i.test(key))delete env[key];
   env.CODEX_HOME=home;
+  env.GIT_CONFIG_COUNT='1';env.GIT_CONFIG_KEY_0='safe.directory';env.GIT_CONFIG_VALUE_0=fs.realpathSync.native(worktree).replaceAll('\\','/');
+  let output;
+  try{output=execFileSync(step.executable,['doctor','--json','-c','windows.sandbox="elevated"'],{cwd:step.permissions.cwd,env,encoding:'utf8',windowsHide:true,timeout:60000,maxBuffer:1024*1024,stdio:['ignore','pipe','pipe']});}
+  catch(error){output=error.stdout;}
+  let report;try{report=JSON.parse(output);}catch{throw new Error('Native Codex sandbox provisioning could not be verified; no setup is performed');}
+  const sandbox=report.checks?.['sandbox.helpers'];
+  if(report.codexVersion!=='0.154.0-alpha.6.2'||sandbox?.status!=='ok'||sandbox.details?.['sandbox backend']!=='elevated'||sandbox.details?.['sandbox provisioning']!=='complete')throw new Error('Existing elevated sandbox provisioning unavailable; no setup is performed');
   return env;
 }
 
