@@ -86,7 +86,7 @@ export async function runHandoff(configFile, { slotRoot, identifyProcess = proce
     const freeze=execFileSync('git',['rev-parse','--path-format=absolute','--git-path','agent-review-job.json'],{cwd,encoding:'utf8'}).trim();
     if(fs.existsSync(freeze)) {
       const claim=read(freeze);
-      if(claim.jobId!==automaticJob?.jobId||claim.jobDir!==automaticJob?.jobDir)throw new Error('Worktree reserved by automatic review job; claim or cancel that job first');
+      if(claim.jobId!==automaticJob?.jobId||fs.realpathSync(claim.jobDir)!==fs.realpathSync(automaticJob.jobDir))throw new Error('Worktree reserved by automatic review job; claim or cancel that job first');
     } else if(automaticJob)throw new Error('Automatic review ownership marker missing');
     fs.writeFileSync(owner, JSON.stringify({ pid: process.pid, processIdentity: processIdentity(process.pid), startedAt: new Date().toISOString(), journal }));
     fd = fs.openSync(journal, "wx");

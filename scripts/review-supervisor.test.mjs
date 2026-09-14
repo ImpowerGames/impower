@@ -7,7 +7,7 @@ import childProcess from 'node:child_process';
 import { syncBuiltinESMExports } from 'node:module';
 import { runHandoff } from './agent-handoff.mjs';
 import { createReviewJob,advanceReviewJob,cancelReviewJob,claimReviewJob,jobStatus,launchReviewWorker,runReviewWorker,validateReviewPlan } from './review-supervisor.mjs';
-import { appendEvent,withJob,readJson,readEvents,worktreePaths } from './review-job-store.mjs';
+import { appendEvent,withJob,readJson,readEvents,worktreePaths,assertJobFreeze } from './review-job-store.mjs';
 import { processIdentity } from './reviewer-slots.mjs';
 import { codexContinuationHost,verifyOriginConfiguration,verifyHostCatalog } from './continuation-host.mjs';
 
@@ -45,6 +45,9 @@ try {
   };
   {
     const f=await fixture();f.complete();
+    const alias=`${scratch}${path.sep}.${path.sep}${path.basename(f.jobDir)}`;
+    assert.doesNotThrow(()=>assertJobFreeze(f.p,alias),'equivalent absolute job-directory spellings must retain ownership');
+    const other=path.join(scratch,'different-job');fs.mkdirSync(other);assert.throws(()=>assertJobFreeze(f.p,other),/another automatic job/);
     await advanceReviewJob(f.jobDir,f.host);assert.equal(f.sends,0,'live worker prevents continuation even with a completed journal');
     await advanceReviewJob(f.jobDir,f.host,{identify});assert.equal(f.sends,1);assert.equal(jobStatus(f.jobDir).state,'continuation-accepted');
     assert.equal(JSON.stringify(readEvents(f.jobDir).find(row=>row.event==='continuation-pending').envelope).includes('must-stay-private'),false);
@@ -125,7 +128,7 @@ try {
     const original=childProcess.execFileSync;
     childProcess.execFileSync=(exe,args,options)=>exe==='gh'?JSON.stringify({issue_url:'https://api.github.com/repos/ImpowerGames/impower/issues/547',body:`Fixture report for ${head}`}):original(exe,args,options);
     syncBuiltinESMExports();
-    try{await runReviewWorker(f.jobDir,{slotRoot:path.join(scratch,'slots')});}finally{childProcess.execFileSync=original;syncBuiltinESMExports();}
+    try{await runReviewWorker(f.jobDir+path.sep+'.',{slotRoot:path.join(scratch,'slots')});}finally{childProcess.execFileSync=original;syncBuiltinESMExports();}
     assert.equal(readEvents(f.jobDir).at(-1).event,'worker-finished');
     await advanceReviewJob(f.jobDir,f.host);assert.equal(f.sends,0,'worker completion alone is not process exit');
     await advanceReviewJob(f.jobDir,f.host,{identify});assert.equal(f.sends,1);

@@ -172,8 +172,9 @@ export function claimReviewJob(dir,continuationId,{threadId=process.env.CODEX_TH
   });
 }
 async function main() {
-  const [command,target,arg]=process.argv.slice(2);
-  if(!target||!path.isAbsolute(target))throw new Error('Use review-supervisor <submit|run|worker|status|events|recover|cancel|claim> <absolute plan/job path>');
+  const [command,inputTarget,arg]=process.argv.slice(2);
+  if(!inputTarget||!path.isAbsolute(inputTarget))throw new Error('Use review-supervisor <submit|run|worker|status|events|recover|cancel|claim> <absolute plan/job path>');
+  const target=path.resolve(inputTarget);
   if(command==='worker')return runReviewWorker(target);
   if(command==='status')return jobStatus(target);
   if(command==='events')return readEvents(target).filter(row=>row.sequence>Number(arg??0));
@@ -182,7 +183,7 @@ async function main() {
   if(command==='release')return releaseStoppedJob(target);
   const {codexContinuationHost}=await import('./continuation-host.mjs');
   const host=codexContinuationHost();
-  if(command==='submit'){const result=await createReviewJob(readJson(target),host);const dir=readJson(target).jobDir;launchReviewWorker(dir);launchSupervisor(dir);return result;}
+  if(command==='submit'){const result=await createReviewJob(readJson(target),host);const dir=path.resolve(readJson(target).jobDir);launchReviewWorker(dir);launchSupervisor(dir);return result;}
   if(command==='recover')recoverJobLock(target);
   if(command==='cancel')return cancelReviewJob(target,host);
   if(!['run','recover'].includes(command))throw new Error('Unknown supervisor command');

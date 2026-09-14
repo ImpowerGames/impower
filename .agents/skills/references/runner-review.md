@@ -8,6 +8,8 @@ The caller supplies exact models, executable paths and argument arrays. Inspect 
 
 ### Claude review agents
 
+For the opt-in supervised route, set each review entry's `transport` to `native-claude-json`, use the native executable with `--output-format json`, and retain it until actual process exit. The supervisor checks native terminal success in addition to completion artifacts and published reports. Other reviewer transports retain awaited mode until their native outcome mapping is implemented and verified.
+
 For Claude Code, the installed reviewer definition can be invoked as:
 
 ```text

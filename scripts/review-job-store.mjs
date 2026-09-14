@@ -65,5 +65,5 @@ export function reserveFreeze(plan,dir) {
 }
 export function assertJobFreeze(plan,dir) {
   const marker=readJson(worktreePaths(plan.worktree).freeze);
-  if(marker.jobId!==plan.jobId||marker.jobDir!==dir)throw new Error('Worktree belongs to another automatic job');
+  if(marker.jobId!==plan.jobId||fs.realpathSync(marker.jobDir)!==fs.realpathSync(dir))throw new Error('Worktree belongs to another automatic job');
 }
