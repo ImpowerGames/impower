@@ -4,7 +4,7 @@ import { mkdtemp, writeFile, unlink, rmdir } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { speak } from '../src/alerts.mjs';
-import { voiceMuted, lightsMuted } from '../src/voice-control.mjs';
+import { voiceMuted, lightsMuted, discordAutoMuteEnabled, discordCallMutePath } from '../src/voice-control.mjs';
 
 test('saved mute suppresses speech before any speech engine starts', async () => {
   const directory = await mkdtemp(join(tmpdir(), 'alert-mute-'));
@@ -26,6 +26,28 @@ test('saved mute suppresses speech before any speech engine starts', async () =>
     assert.equal(voiceMuted(), false);
     assert.equal(lightsMuted(), true, 'resuming all preserves the individual lights setting');
     await unlink(join(directory, 'lights-muted'));
+  } finally {
+    if (previous === undefined) delete process.env.AGENT_ALERT_STATE_DIR;
+    else process.env.AGENT_ALERT_STATE_DIR = previous;
+    await rmdir(directory);
+  }
+});
+
+test('a Discord-derived call mute suppresses speech independently of the manual voice marker', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'alert-mute-'));
+  const previous = process.env.AGENT_ALERT_STATE_DIR;
+  process.env.AGENT_ALERT_STATE_DIR = directory;
+  try {
+    assert.equal(discordAutoMuteEnabled(), true, 'enabled by default, matching the opt-out preference');
+    assert.equal(voiceMuted(), false);
+    await writeFile(discordCallMutePath(), '');
+    assert.equal(voiceMuted(), true);
+    assert.equal(await speak({ message: 'Must not be spoken' }, {}), 'Voice muted.');
+    await unlink(discordCallMutePath());
+    assert.equal(voiceMuted(), false, 'ending the call removes only the automatic condition');
+    await writeFile(join(directory, 'discord-mute-disabled'), '');
+    assert.equal(discordAutoMuteEnabled(), false);
+    await unlink(join(directory, 'discord-mute-disabled'));
   } finally {
     if (previous === undefined) delete process.env.AGENT_ALERT_STATE_DIR;
     else process.env.AGENT_ALERT_STATE_DIR = previous;

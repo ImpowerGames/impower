@@ -3,11 +3,14 @@ import argparse
 import ctypes
 import json
 import os
+import time
 from pathlib import Path
 from queue import SimpleQueue
 from threading import Event, Thread
 import tkinter as tk
 from tkinter import messagebox, ttk
+from broker_bridge import acknowledge_alert, read_pending_alerts
+from discord_status import discord_status_text, read_discord_credentials, read_discord_status, save_discord_credentials
 from voice_settings import available_voices, read_voice, save_voice, voice_label
 import pystray
 from PIL import Image, ImageDraw, ImageTk
@@ -20,14 +23,18 @@ args = parser.parse_args()
 marker = Path(args.state_dir) / 'voice-muted'
 lights_marker = Path(args.state_dir) / 'lights-muted'
 all_marker = Path(args.state_dir) / 'all-muted'
+discord_disabled_marker = Path(args.state_dir) / 'discord-mute-disabled'
+discord_call_marker = Path(args.state_dir) / 'discord-call-muted'
+discord_connect_marker = Path(args.state_dir) / 'discord-connect-request'
 commands = SimpleQueue()
 tray_ready = Event()
 last_muted = None
 
 root = tk.Tk()
 root.title('Agent Alerts')
-root.geometry('480x760')
-root.resizable(False, False)
+root.geometry('480x820')
+root.minsize(480, 360)
+root.resizable(False, True)
 root.configure(bg='#111318')
 
 def style_titlebar():
@@ -50,26 +57,138 @@ def style_titlebar():
         dwm.DwmSetWindowAttribute(window, attribute, ctypes.byref(value), ctypes.sizeof(value))
 
 root.after(100, style_titlebar)
-shell = tk.Frame(root, bg='#111318')
-shell.pack(fill='both', expand=True, padx=28, pady=16)
+
+# A plain fixed-height frame clipped whatever grew past the window's bottom
+# edge (the Discord card's added fields did). Scrolling keeps the window
+# usable at any height instead of guessing a tall-enough fixed size.
+style = ttk.Style(root)
+style.theme_use('clam')
+style.configure('Dark.Vertical.TScrollbar', gripcount=0, background='#30333d', darkcolor='#30333d', lightcolor='#30333d', troughcolor='#111318', bordercolor='#111318', arrowcolor='#a4a7b2', relief='flat')
+style.map('Dark.Vertical.TScrollbar', background=[('active', '#3a3d47'), ('pressed', '#49405e')])
+
+scroll_container = tk.Frame(root, bg='#111318')
+scroll_container.pack(fill='both', expand=True)
+canvas = tk.Canvas(scroll_container, bg='#111318', highlightthickness=0)
+scrollbar = ttk.Scrollbar(scroll_container, orient='vertical', command=canvas.yview, style='Dark.Vertical.TScrollbar')
+canvas.configure(yscrollcommand=scrollbar.set)
+canvas.pack(side='left', fill='both', expand=True)
+scrollbar.pack(side='right', fill='y')
+
+shell = tk.Frame(canvas, bg='#111318')
+shell_window = canvas.create_window((28, 16), window=shell, anchor='nw')
+
+def _fit_shell_to_canvas(event=None):
+    canvas.configure(scrollregion=(0, 0, 0, canvas.bbox('all')[3] + 16 if canvas.bbox('all') else 0))
+    canvas.itemconfig(shell_window, width=max(1, canvas.winfo_width() - 56))
+
+shell.bind('<Configure>', _fit_shell_to_canvas)
+canvas.bind('<Configure>', _fit_shell_to_canvas)
+
+def _on_mousewheel(event):
+    canvas.yview_scroll(int(-1 * (event.delta / 120)), 'units')
+
+# Scoped to while the pointer is over this window, so it never fights a
+# combobox dropdown's own scrolling elsewhere.
+canvas.bind('<Enter>', lambda event: canvas.bind_all('<MouseWheel>', _on_mousewheel))
+canvas.bind('<Leave>', lambda event: canvas.unbind_all('<MouseWheel>'))
 tk.Label(shell, text='YOUR WORK, AT YOUR PACE', font=('Segoe UI', 9, 'bold'), fg='#a99ef5', bg='#111318', anchor='w').pack(fill='x')
 tk.Label(shell, text='Agent Alerts', font=('Segoe UI', 25, 'bold'), fg='#f4f4f7', bg='#111318', anchor='w').pack(fill='x', pady=(5, 3))
 tk.Label(shell, text='Choose how your agents get your attention.', font=('Segoe UI', 10), fg='#a4a7b2', bg='#111318', anchor='w').pack(fill='x')
 status = tk.Label(shell, font=('Segoe UI', 10, 'bold'), bg='#111318', anchor='w')
 status.pack(fill='x', pady=(12, 10))
 
+alerts_header = tk.Frame(shell, bg='#111318')
+alerts_header.pack(fill='x')
+tk.Label(alerts_header, text='ACTIVE ALERTS', font=('Segoe UI', 9, 'bold'), fg='#a99ef5', bg='#111318', anchor='w').pack(side='left')
+dismiss_all_button = tk.Button(alerts_header, text='Dismiss all', font=('Segoe UI', 8, 'bold'), bg='#292633', fg='#e2dafa', relief='flat', padx=8, pady=2, cursor='hand2', state='disabled')
+dismiss_all_button.pack(side='right')
+alerts_list = tk.Frame(shell, bg='#111318')
+alerts_list.pack(fill='x', pady=(6, 6))
+CATEGORY_COLORS = {'done': '#41d67c', 'user_input_needed': '#eac889', 'blocked': '#f4726b'}
+# None, never a real list, so the first render_alerts([]) call (below) is
+# never mistaken for "unchanged from last time" and actually draws once.
+current_alerts = None
+
+def render_alerts(alerts):
+    global current_alerts
+    if alerts == current_alerts:
+        return
+    current_alerts = alerts
+    for child in alerts_list.winfo_children():
+        child.destroy()
+    if not alerts:
+        tk.Label(alerts_list, text='No active alerts.', font=('Segoe UI', 9), fg='#a4a7b2', bg='#111318', anchor='w').pack(fill='x')
+        dismiss_all_button.config(state='disabled')
+        return
+    dismiss_all_button.config(state='normal')
+    for entry in alerts:
+        row = tk.Frame(alerts_list, bg='#1d2028', padx=14, pady=10)
+        row.pack(fill='x', pady=(0, 6))
+        header = tk.Frame(row, bg='#1d2028')
+        header.pack(fill='x')
+        color = CATEGORY_COLORS.get(entry.get('alert', {}).get('category'), '#a4a7b2')
+        tk.Label(header, text='●', font=('Segoe UI', 10), fg=color, bg='#1d2028').pack(side='left')
+        tk.Label(header, text=entry.get('app', 'other').title(), font=('Segoe UI', 9, 'bold'), fg='#f0f0f5', bg='#1d2028').pack(side='left', padx=(6, 0))
+        tk.Button(header, text='Dismiss', command=lambda entry=entry: dismiss_one_alert(entry), font=('Segoe UI', 8, 'bold'), bg='#30333d', fg='#f0f0f5', relief='flat', padx=8, pady=2, cursor='hand2').pack(side='right')
+        tk.Label(row, text=entry.get('alert', {}).get('message', ''), font=('Segoe UI', 9), fg='#d8d8de', bg='#1d2028', anchor='w', justify='left', wraplength=380).pack(fill='x', pady=(5, 0))
+
+def dismiss_one_alert(entry):
+    # Off the main thread: a slow or auto-spawning broker must not freeze
+    # the window. render_alerts only ever runs back on the main thread, via
+    # the same thread-safe queue the alert-list poller already uses.
+    def worker():
+        acknowledge_alert(args.state_dir, entry['notificationId'], entry.get('app', 'other'))
+        commands.put(('alerts', read_pending_alerts(args.state_dir)))
+    Thread(target=worker, daemon=True).start()
+
+def dismiss_all_alerts():
+    entries = list(current_alerts)
+    def worker():
+        for entry in entries:
+            acknowledge_alert(args.state_dir, entry['notificationId'], entry.get('app', 'other'))
+        commands.put(('alerts', read_pending_alerts(args.state_dir)))
+    Thread(target=worker, daemon=True).start()
+
+dismiss_all_button.config(command=dismiss_all_alerts)
+render_alerts([])
+
+def poll_alerts_loop():
+    while True:
+        commands.put(('alerts', read_pending_alerts(args.state_dir)))
+        time.sleep(2)
+
 def refresh():
     global last_muted
     paused = all_marker.exists()
-    muted = marker.exists() or paused
+    discord_muting = discord_call_marker.exists()
+    muted = marker.exists() or paused or discord_muting
     lights_off = lights_marker.exists() or paused
-    status.config(text='●  Paused · enjoy the quiet' if paused else ('●  Alerts are off' if muted and lights_off else '●  Ready when your agents are'), fg='#eac889' if paused or (muted and lights_off) else '#91d5bc')
+    discord_off = discord_disabled_marker.exists() or paused
+    if paused:
+        status_text = '●  Paused · enjoy the quiet'
+    elif muted and lights_off:
+        status_text = '●  Alerts are off'
+    elif discord_muting:
+        status_text = '●  Voice muted · Discord call'
+    else:
+        status_text = '●  Ready when your agents are'
+    status.config(text=status_text, fg='#eac889' if paused or (muted and lights_off) or discord_muting else '#91d5bc')
     button.config(text='Off' if muted else 'On', bg='#30333d' if muted else '#b8adff', fg='#bec1cc' if muted else '#191329')
     button.config(state='disabled' if paused else 'normal')
     lights_button.config(text='Off' if lights_off else 'On', bg='#30333d' if lights_off else '#b8adff', fg='#bec1cc' if lights_off else '#191329', state='disabled' if paused else 'normal')
+    discord_button.config(text='Off' if discord_off else 'On', bg='#30333d' if discord_off else '#b8adff', fg='#bec1cc' if discord_off else '#191329', state='disabled' if paused else 'normal')
+    discord_report = read_discord_status(args.state_dir)
+    discord_status_label.config(text=discord_status_text(discord_report))
+    # Show the button whenever a connection isn't already established or in
+    # progress — including when nothing is configured yet, so there is
+    # always a visible next step rather than an empty card.
+    if (discord_report or {}).get('phase') not in ('ready', 'connecting', 'authorizing', 'authenticating'):
+        discord_connect_button.pack(anchor='e', pady=(6, 0))
+    else:
+        discord_connect_button.pack_forget()
     all_button.config(text='Resume alerts' if paused else 'Pause all alerts', bg='#b8adff' if paused else '#292633', fg='#191329' if paused else '#e2dafa')
     pause_hint.config(text='Your previous settings will be restored.' if paused else 'A little quiet for meetings or focused work.')
-    state = (muted, lights_off, paused)
+    state = (muted, lights_off, paused, discord_off, discord_muting)
     if tray_ready.is_set() and state != last_muted:
         icon_image = tray_image(muted or lights_off)
         tray.icon = icon_image
@@ -112,8 +231,6 @@ try:
 except (OSError, ValueError, ImportError):
     pass
 voice_labels = {voice_label(voice): voice for voice in voice_choices}
-style = ttk.Style(root)
-style.theme_use('clam')
 style.configure('Voice.TCombobox', fieldbackground='#1d2028', background='#30333d', foreground='#f0f0f5', arrowcolor='#b8adff', padding=7)
 style.map('Voice.TCombobox', fieldbackground=[('readonly', '#1d2028')], foreground=[('readonly', '#f0f0f5')], selectbackground=[('readonly', '#1d2028')], selectforeground=[('readonly', '#f0f0f5')])
 root.option_add('*TCombobox*Listbox.background', '#1d2028')
@@ -169,6 +286,68 @@ def apply_keys():
 tk.Button(key_card, text='Apply keys', command=apply_keys, font=('Segoe UI', 9, 'bold'), bg='#30333d', fg='#f0f0f5', relief='flat', padx=12, pady=5).pack(anchor='e', pady=(5, 0))
 keys_hint = tk.Label(key_card, text='Choose a different function key for each agent.', font=('Segoe UI', 8), fg='#a4a7b2', bg='#1d2028', anchor='w')
 keys_hint.pack(fill='x', pady=(5, 0))
+
+discord_button = channel_row('Mute voice during Discord calls', 'Automatically silences spoken alerts while you are connected to a Discord voice channel', lambda: toggle(discord_disabled_marker))
+discord_card = tk.Frame(discord_button.master.master, bg='#1d2028')
+discord_card.pack(fill='x', pady=(12, 0))
+
+tk.Label(discord_card, text='DISCORD APPLICATION', font=('Segoe UI', 9, 'bold'), fg='#a4a7b2', bg='#1d2028', anchor='w').pack(fill='x', pady=(0, 6))
+discord_id_var = tk.StringVar()
+discord_secret_var = tk.StringVar()
+_saved_discord_credentials = read_discord_credentials(args.state_dir)
+if _saved_discord_credentials:
+    discord_id_var.set(_saved_discord_credentials.get('clientId', ''))
+
+def _discord_field_row(label_text, variable, mask=False):
+    row = tk.Frame(discord_card, bg='#1d2028')
+    row.pack(fill='x', pady=2)
+    tk.Label(row, text=label_text, width=11, anchor='w', font=('Segoe UI', 9), fg='#f0f0f5', bg='#1d2028').pack(side='left')
+    entry = tk.Entry(row, textvariable=variable, font=('Segoe UI', 10), bg='#292b33', fg='#f0f0f5', insertbackground='#f0f0f5', relief='flat', show='*' if mask else '')
+    entry.pack(side='left', fill='x', expand=True, ipady=3)
+    return entry
+
+_discord_field_row('Client ID', discord_id_var)
+_discord_field_row('Client secret', discord_secret_var, mask=True)
+
+discord_credentials_hint = tk.Label(
+    discord_card,
+    text=('A secret is already saved · leave blank to keep it.' if _saved_discord_credentials and _saved_discord_credentials.get('hasSecret') else 'From discord.com/developers/applications — add http://localhost under its OAuth2 Redirects first.'),
+    font=('Segoe UI', 8), fg='#858997', bg='#1d2028', justify='left', anchor='w', wraplength=380,
+)
+discord_credentials_hint.pack(fill='x', pady=(4, 0))
+
+def save_discord_credentials_clicked():
+    try:
+        save_discord_credentials(args.state_dir, discord_id_var.get(), discord_secret_var.get())
+        discord_secret_var.set('')
+        discord_credentials_hint.config(text='Saved · the notifier picks this up within a second.')
+    except (OSError, ValueError) as error:
+        messagebox.showerror('Could not save Discord credentials', str(error))
+
+tk.Button(discord_card, text='Save credentials', command=save_discord_credentials_clicked, font=('Segoe UI', 9, 'bold'), bg='#30333d', fg='#f0f0f5', relief='flat', padx=12, pady=5).pack(anchor='e', pady=(6, 0))
+
+discord_status_label = tk.Label(discord_card, font=('Segoe UI', 9), fg='#a4a7b2', bg='#1d2028', anchor='w')
+discord_status_label.pack(fill='x', pady=(10, 0))
+
+def request_discord_connect():
+    if read_discord_status(args.state_dir) is None:
+        messagebox.showinfo(
+            'Discord is not set up yet',
+            'Enter your Discord application’s client ID and secret above and click '
+            'Save credentials, then start (or restart) the notifier. Come back and click '
+            'Connect Discord once it is running.',
+        )
+        return
+    try:
+        discord_connect_marker.parent.mkdir(parents=True, exist_ok=True)
+        discord_connect_marker.touch()
+        discord_status_label.config(text='Requested · approve the prompt in Discord…')
+    except OSError as error:
+        messagebox.showerror('Could not request Discord connection', str(error))
+
+discord_connect_button = tk.Button(discord_card, text='Connect Discord', command=request_discord_connect, font=('Segoe UI', 9, 'bold'), bg='#30333d', fg='#f0f0f5', relief='flat', padx=12, pady=5)
+discord_connect_button.pack(anchor='e', pady=(6, 0))
+
 all_button = tk.Button(shell, command=lambda: toggle(all_marker), font=('Segoe UI', 12, 'bold'), relief='flat', borderwidth=0, pady=12, cursor='hand2', activebackground='#cec6ff', takefocus=True)
 all_button.pack(fill='x', pady=(10, 0))
 pause_hint = tk.Label(shell, font=('Segoe UI', 9), fg='#a4a7b2', bg='#111318')
@@ -207,7 +386,7 @@ def on_unmap(event):
     if event.widget == root and root.state() == 'iconic':
         hide_window()
 
-initial_icon = tray_image(marker.exists() or lights_marker.exists() or all_marker.exists())
+initial_icon = tray_image(marker.exists() or lights_marker.exists() or all_marker.exists() or discord_call_marker.exists())
 root.alert_icon = ImageTk.PhotoImage(initial_icon)
 root.iconphoto(True, root.alert_icon)
 tray = pystray.Icon('agent-alerts', initial_icon, 'Agent Alerts', menu=pystray.Menu(
@@ -232,6 +411,7 @@ root.bind('<Unmap>', on_unmap)
 root.bind('<Map>', lambda event: root.after(150, style_titlebar) if event.widget == root else None)
 root.protocol('WM_DELETE_WINDOW', hide_window)
 Thread(target=start_tray, daemon=True).start()
+Thread(target=poll_alerts_loop, daemon=True).start()
 
 def poll():
     while not commands.empty():
@@ -247,6 +427,8 @@ def poll():
         elif command == 'quit':
             quit_app()
             return
+        elif isinstance(command, tuple) and command[0] == 'alerts':
+            render_alerts(command[1])
         elif isinstance(command, tuple):
             tray_ready.clear()
             show_window()

@@ -10,6 +10,7 @@ import { z } from 'zod';
 import { alertSchema, readConfig, binding, findEngine, speak } from './alerts.mjs';
 import { PendingAlerts } from './pending.mjs';
 import { voiceMuted, lightsMuted } from './voice-control.mjs';
+import { readDiscordCredentials, startDiscordVoiceWatcher } from './discord-voice.mjs';
 
 const stateDir = process.env.AGENT_ALERT_STATE_DIR || join(homedir(), '.agent-notification-alerts');
 const hash = createHash('sha256').update(stateDir).digest('hex').slice(0, 20);
@@ -74,6 +75,22 @@ export async function runBroker() {
   await mkdir(stateDir, { recursive: true });
   let pending = new PendingAlerts();
   const status = { keyboard: config.keyboard ? 'starting' : 'disabled', speech: config.speech ? 'idle' : 'disabled', shortcuts: 'disabled' };
+  // Discord voice-call detection is entirely optional: without configured
+  // credentials nothing here starts, and no teammate without Discord is
+  // affected. Credentials can arrive after this process has already started
+  // (the desktop app's Discord card saves them at any time), so this is
+  // re-checked on every heartbeat tick rather than only once at startup.
+  let discord, discordCredentialSignature;
+  const syncDiscordWatcher = async () => {
+    if (process.platform !== 'win32') return;
+    const credentials = await readDiscordCredentials();
+    const nextSignature = credentials ? `${credentials.clientId}\0${credentials.clientSecret}` : null;
+    if (nextSignature === discordCredentialSignature) return;
+    await discord?.stop();
+    discord = credentials ? startDiscordVoiceWatcher(credentials) : undefined;
+    discordCredentialSignature = nextSignature;
+  };
+  await syncDiscordWatcher();
   let bridge, timer, address, signature = '', queue = Promise.resolve(), speechQueue = Promise.resolve();
   const persist = async () => {
     await writeFile(stateFile + '.tmp', JSON.stringify(pending.entries), { mode: 0o600 });
@@ -85,6 +102,7 @@ export async function runBroker() {
     if (!response.ok) throw new Error('SteelSeries ' + route + ': ' + response.status);
   };
   const refresh = async () => {
+    await syncDiscordWatcher();
     try {
       const selected = z.object({ codex: z.number().int().min(1).max(12), claude: z.number().int().min(1).max(12) }).strict().refine(value => value.codex !== value.claude).parse(JSON.parse(await readFile(join(stateDir, 'key-bindings.json'), 'utf8')));
       if (JSON.stringify(selected) !== JSON.stringify(config.shortcuts)) {
@@ -126,10 +144,11 @@ export async function runBroker() {
   };
   const enqueue = fn => { const job = queue.then(fn); queue = job.catch(() => {}); return job; };
   const handle = async request => {
-    if (request.type === 'status') return { pending: pending.entries, channels: { ...status, ...(voiceMuted() ? { speech: 'muted' } : {}) } };
+    if (request.type === 'status') return { pending: pending.entries, channels: { ...status, ...(voiceMuted() ? { speech: 'muted' } : {}) }, discord: discord ? discord.getStatus() : 'disabled' };
     if (request.type === 'stop') {
       clearInterval(timer);
       bridge?.stdin.end();
+      await discord?.stop();
       if (config.keyboard) await post('stop_game', { game: 'AGENT_NOTIFICATION_ALERTS' }).catch(() => {});
       // Closing unlinks filesystem sockets on platforms that use them. Respond
       // before waiting for connected clients to disconnect.
