@@ -285,7 +285,7 @@ export async function runReviewMonitor(dir,host,{identify=processIdentity,wait=s
       if(unavailable||!registered||['continuation-pending','delivery-uncertain'].includes(status.state))pendingSince??=now();else if(observeWorker)pendingSince=undefined;
       const limit=registered?pendingMs:registrationMs;
       if(pendingSince!==undefined&&now()-pendingSince>=limit){
-        const reason=!registered?'Worker registration absent; inspect launch evidence before any action':!last(status.events,'worker-finished')?'Worker identity observation deadline reached; ownership remains uncertain':last(status.events,'submission-intent')?'Delivery receipt observation deadline reached; no retry was sent':'Destination availability observation deadline reached; continuation remains unsent';
+        const reason=!registered?'Worker registration absent; inspect launch evidence before any action':!exitObserved(status.events,registered)?'Worker identity observation deadline reached; ownership remains uncertain':last(status.events,'submission-intent')?'Delivery receipt observation deadline reached; no retry was sent':'Destination availability observation deadline reached; continuation remains unsent';
         await mutate(()=>appendEvent(dir,'monitor-suspended',{reason,resumable:true}));flush(readEvents(dir));
         return{state:'monitor-suspended',reason};
       }
