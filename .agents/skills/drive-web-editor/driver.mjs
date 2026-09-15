@@ -258,6 +258,12 @@ async function pickPorts() {
 // detached child on Windows does not flush its stdio into an inherited file
 // handle, so the log stays 0 bytes forever while the servers run perfectly.
 // Since the port is pinned, readiness is just an HTTP poll.
+export function observeLauncherExit(child, report = log) {
+  child.once("exit", (code, signal) => {
+    report(`dev server launcher pid ${child.pid} exited: code=${code ?? "none"}; signal=${signal ?? "none"}`);
+  });
+}
+
 export async function up(args) {
   if (stateUnreadable()) {
     die(`state file unreadable: ${stateFile()}; \`down\` removes it, and any servers it recorded keep running`);
@@ -303,9 +309,7 @@ export async function up(args) {
       detached: true,
     },
   );
-  child.once("exit", (code, signal) => {
-    log(`dev server launcher pid ${child.pid} exited: code=${code ?? "none"}; signal=${signal ?? "none"}`);
-  });
+  observeLauncherExit(child);
   child.unref();
 
   writeState({ url, pid: child.pid, mode, ports, startedAt: Date.now() });
