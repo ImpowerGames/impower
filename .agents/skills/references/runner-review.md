@@ -1,12 +1,14 @@
 # Reviewer execution mappings
 
-For the experimental originating-task capability investigation, see [continuation conformance](runner-continuation.md). It records live Codex desktop and Claude CLI probes and unresolved host contracts; the guarded review workflow continues to use the awaited mode below.
+For originating-task capability evidence, see [continuation conformance](runner-continuation.md). The opt-in [supervised review route](review-supervisor.md) uses the verified Windows Codex app endpoint; unsupported configurations retain the awaited mode below.
 
 ## Headless serial sessions
 
 The caller supplies exact models, executable paths and argument arrays. Inspect the installed CLI help before launch; available options and served models can differ by installation.
 
 ### Claude review agents
+
+For the opt-in supervised route, set each review entry's `transport` to `native-claude-json`, use the native executable with `--output-format json`, and retain it until actual process exit. The supervisor checks native terminal success in addition to completion artifacts and published reports. Other reviewer transports retain awaited mode until their native outcome mapping is implemented and verified.
 
 For Claude Code, the installed reviewer definition can be invoked as:
 
