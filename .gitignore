@@ -21,6 +21,7 @@
 # BEGIN generated reviewer agents
 !.claude/agents/reviewer-opus-4-6.md
 !.claude/agents/reviewer-opus-5.md
+!.claude/agents/reviewer-sonnet-4-6.md
 # END generated reviewer agents
 # Driver runtime artifacts: chosen ports + the Chromium profile it drives with.
 .agents/skills/*/.state.json
