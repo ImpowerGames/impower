@@ -3,11 +3,13 @@ import argparse
 import ctypes
 import json
 import os
+import time
 from pathlib import Path
 from queue import SimpleQueue
 from threading import Event, Thread
 import tkinter as tk
 from tkinter import messagebox, ttk
+from broker_bridge import acknowledge_alert, read_pending_alerts
 from discord_status import discord_status_text, read_discord_credentials, read_discord_status, save_discord_credentials
 from voice_settings import available_voices, read_voice, save_voice, voice_label
 import pystray
@@ -94,6 +96,58 @@ tk.Label(shell, text='Agent Alerts', font=('Segoe UI', 25, 'bold'), fg='#f4f4f7'
 tk.Label(shell, text='Choose how your agents get your attention.', font=('Segoe UI', 10), fg='#a4a7b2', bg='#111318', anchor='w').pack(fill='x')
 status = tk.Label(shell, font=('Segoe UI', 10, 'bold'), bg='#111318', anchor='w')
 status.pack(fill='x', pady=(12, 10))
+
+alerts_header = tk.Frame(shell, bg='#111318')
+alerts_header.pack(fill='x')
+tk.Label(alerts_header, text='ACTIVE ALERTS', font=('Segoe UI', 9, 'bold'), fg='#a99ef5', bg='#111318', anchor='w').pack(side='left')
+dismiss_all_button = tk.Button(alerts_header, text='Dismiss all', font=('Segoe UI', 8, 'bold'), bg='#292633', fg='#e2dafa', relief='flat', padx=8, pady=2, cursor='hand2', state='disabled')
+dismiss_all_button.pack(side='right')
+alerts_list = tk.Frame(shell, bg='#111318')
+alerts_list.pack(fill='x', pady=(6, 6))
+CATEGORY_COLORS = {'done': '#41d67c', 'user_input_needed': '#eac889', 'blocked': '#f4726b'}
+# None, never a real list, so the first render_alerts([]) call (below) is
+# never mistaken for "unchanged from last time" and actually draws once.
+current_alerts = None
+
+def render_alerts(alerts):
+    global current_alerts
+    if alerts == current_alerts:
+        return
+    current_alerts = alerts
+    for child in alerts_list.winfo_children():
+        child.destroy()
+    if not alerts:
+        tk.Label(alerts_list, text='No active alerts.', font=('Segoe UI', 9), fg='#a4a7b2', bg='#111318', anchor='w').pack(fill='x')
+        dismiss_all_button.config(state='disabled')
+        return
+    dismiss_all_button.config(state='normal')
+    for entry in alerts:
+        row = tk.Frame(alerts_list, bg='#1d2028', padx=14, pady=10)
+        row.pack(fill='x', pady=(0, 6))
+        header = tk.Frame(row, bg='#1d2028')
+        header.pack(fill='x')
+        color = CATEGORY_COLORS.get(entry.get('alert', {}).get('category'), '#a4a7b2')
+        tk.Label(header, text='●', font=('Segoe UI', 10), fg=color, bg='#1d2028').pack(side='left')
+        tk.Label(header, text=entry.get('app', 'other').title(), font=('Segoe UI', 9, 'bold'), fg='#f0f0f5', bg='#1d2028').pack(side='left', padx=(6, 0))
+        tk.Button(header, text='Dismiss', command=lambda entry=entry: dismiss_one_alert(entry), font=('Segoe UI', 8, 'bold'), bg='#30333d', fg='#f0f0f5', relief='flat', padx=8, pady=2, cursor='hand2').pack(side='right')
+        tk.Label(row, text=entry.get('alert', {}).get('message', ''), font=('Segoe UI', 9), fg='#d8d8de', bg='#1d2028', anchor='w', justify='left', wraplength=380).pack(fill='x', pady=(5, 0))
+
+def dismiss_one_alert(entry):
+    acknowledge_alert(args.state_dir, entry['notificationId'], entry.get('app', 'other'))
+    render_alerts(read_pending_alerts(args.state_dir))
+
+def dismiss_all_alerts():
+    for entry in current_alerts:
+        acknowledge_alert(args.state_dir, entry['notificationId'], entry.get('app', 'other'))
+    render_alerts(read_pending_alerts(args.state_dir))
+
+dismiss_all_button.config(command=dismiss_all_alerts)
+render_alerts([])
+
+def poll_alerts_loop():
+    while True:
+        commands.put(('alerts', read_pending_alerts(args.state_dir)))
+        time.sleep(2)
 
 def refresh():
     global last_muted
@@ -349,6 +403,7 @@ root.bind('<Unmap>', on_unmap)
 root.bind('<Map>', lambda event: root.after(150, style_titlebar) if event.widget == root else None)
 root.protocol('WM_DELETE_WINDOW', hide_window)
 Thread(target=start_tray, daemon=True).start()
+Thread(target=poll_alerts_loop, daemon=True).start()
 
 def poll():
     while not commands.empty():
@@ -364,6 +419,8 @@ def poll():
         elif command == 'quit':
             quit_app()
             return
+        elif isinstance(command, tuple) and command[0] == 'alerts':
+            render_alerts(command[1])
         elif isinstance(command, tuple):
             tray_ready.clear()
             show_window()
