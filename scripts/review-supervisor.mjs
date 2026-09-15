@@ -7,6 +7,7 @@ import { runHandoff,checkReviewRound,verifyNativeReviewResult,validateReviewReco
 import { reviewerEnvironment } from './reviewer-security.mjs';
 import { verifyClaimConfiguration } from './continuation-host.mjs';
 import { processIdentity } from './reviewer-slots.mjs';
+import { nativeResultType,validateCodexReviewer,verifyReviewerExecutable } from './native-reviewer.mjs';
 import { readJson,writeExclusive,git,readEvents,appendEvent,withJob,retryBusy,recoverJobLock,alive,sameIdentity,currentIdentity,assertFrozen,reserveFreeze,assertJobFreeze,worktreePaths,failureDetails } from './review-job-store.mjs';
 
 const here=fileURLToPath(import.meta.url);
@@ -15,6 +16,7 @@ const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 const blocked=rows=>(last(rows,'blocked')?.sequence??0)>(last(rows,'resume-requested')?.sequence??0);
 const suspended=rows=>(last(rows,'monitor-suspended')?.sequence??0)>(last(rows,'monitor-started')?.sequence??0);
 const exitObserved=(rows,worker)=>rows.some(row=>row.event==='worker-exit-observed'&&sameIdentity(row.identity,worker?.identity));
+const submissionOutstanding=rows=>(last(rows,'submission-intent')?.sequence??0)>(last(rows,'dispatch-refused')?.sequence??0);
 export function jobStatus(dir,events=readEvents(dir)) {
   const diagnostic=path.join(dir,'monitor-failure.json');
   if(fs.existsSync(diagnostic)){
@@ -22,7 +24,7 @@ export function jobStatus(dir,events=readEvents(dir)) {
     const lock=path.join(dir,'monitor.lock'),token=fs.existsSync(lock)?readJson(lock).token:last(events,'monitor-started')?.token;
     if(failure.token===token&&!last(events,'claimed')&&!last(events,'workflow-cancelled')&&!last(events,'continuation-accepted')&&!blocked(events)&&last(events,'worker-finished')?.ok!==false&&!last(events,'worker-launch-failed'))return{jobId:events[0].jobId,sequence:events.at(-1).sequence,state:'monitor-suspended',failure,events};
   }
-  return {jobId:events[0].jobId,sequence:events.at(-1).sequence,state:last(events,'workflow-cancelled')?'workflow-cancelled':blocked(events)?'blocked':last(events,'claimed')?'claimed':last(events,'continuation-accepted')?'continuation-accepted':last(events,'worker-finished')?.ok===false||last(events,'worker-launch-failed')?'review-failed':suspended(events)?'monitor-suspended':last(events,'submission-intent')?'delivery-uncertain':last(events,'continuation-pending')?'continuation-pending':last(events,'worker-started')?'review-running':last(events,'worker-launch-intent')?'registration-pending':'accepted',events};
+  return {jobId:events[0].jobId,sequence:events.at(-1).sequence,state:last(events,'workflow-cancelled')?'workflow-cancelled':blocked(events)?'blocked':last(events,'claimed')?'claimed':last(events,'continuation-accepted')?'continuation-accepted':last(events,'worker-finished')?.ok===false||last(events,'worker-launch-failed')?'review-failed':suspended(events)?'monitor-suspended':submissionOutstanding(events)?'delivery-uncertain':last(events,'continuation-pending')?'continuation-pending':last(events,'worker-started')?'review-running':last(events,'worker-launch-intent')?'registration-pending':'accepted',events};
 }
 export function validateReviewPlan(input,{validateArgs=validateNativeReviewArgs}={}) {
   const plan=structuredClone(input);
@@ -38,25 +40,34 @@ export function validateReviewPlan(input,{validateArgs=validateNativeReviewArgs}
   if(!Number.isInteger(limit)||limit<1||limit>10||(limit>3&&typeof plan.extendedReviewAuthorization!=='string'))throw new Error('Invalid review limit/authorization');
   checkReviewRound(plan.round,plan.completedReviewRound,plan.finalCorrections??false,limit);
   if(!Number.isInteger(plan.completedReviewRound)||plan.completedReviewRound<0)throw new Error('Recorded review round required');
-  const ids=new Set();
+  const ids=new Set(),reviewerRoots=[];
   for(const review of plan.reviews) {
     if(!/^[a-z][a-z0-9-]{0,63}$/.test(review.id??'')||ids.has(review.id)||!path.isAbsolute(review.executable??'')||!path.isAbsolute(review.prompt??'')||!review.effort||!Array.isArray(review.args)||!review.args.every(a=>typeof a==='string'))throw new Error('Explicit independent reviewer coverage and launch required');
     ids.add(review.id);
     const at=review.args.findIndex(a=>a==='--model'||a==='-m');
     if(at<0||review.args[at+1]!==plan.reviewer)throw new Error('Reviewer model argument mismatch');
+    if(review.transport==='native-codex-jsonl') {
+      validateCodexReviewer(review,plan);
+      const root=fs.realpathSync.native(review.permissions.cwd);
+      if(reviewerRoots.some(other=>{const rel=path.relative(other,root),back=path.relative(root,other);return !rel||(!rel.startsWith('..')&&!path.isAbsolute(rel))||(!back.startsWith('..')&&!path.isAbsolute(back));}))throw new Error('Independent reviewers require disjoint private working directories and reports');
+      reviewerRoots.push(root);
+    }
+    else {
     for(const [flag,value] of [['--effort',review.effort],['--permission-mode',review.permissions]])if(typeof value!=='string'||!value||review.args.filter(a=>a===flag).length!==1||review.args[review.args.indexOf(flag)+1]!==value)throw new Error('Explicit native reviewer effort and permissions required');
     if(review.args.filter(a=>a==='--model'||a==='-m').length!==1)throw new Error('Ambiguous reviewer model arguments');
     if(review.transport!=='native-claude-json'||review.args.filter(a=>a==='--output-format').length!==1||review.args[review.args.indexOf('--output-format')+1]!=='json')throw new Error('Automatic review requires native Claude JSON result transport');
     validateArgs(review);
     if(review.args.some(a=>/^(?:--model|--effort|--permission-mode|--output-format)=|^-m./.test(a)||['--dangerously-skip-permissions','--allow-dangerously-skip-permissions'].includes(a)))throw new Error('Ambiguous native reviewer configuration');
+    }
     if(!fs.statSync(review.prompt).isFile())throw new Error('Reviewer prompt missing');
     if(!fs.statSync(review.executable).isFile())throw new Error('Reviewer executable missing');
   }
   assertFrozen(plan);
   return plan;
 }
-export async function createReviewJob(input,host,validation) {
+export async function createReviewJob(input,host,{verifyExecutable=verifyReviewerExecutable,...validation}={}) {
   const plan=validateReviewPlan(input,validation);plan.jobId=randomUUID();plan.continuationId=randomUUID();
+  for(const review of plan.reviews)verifyExecutable(review);
   // The adapter validates private storage containment and exact host identity.
   const capability=await host.preflight(plan.destination,plan);
   if(capability?.supported!==true)throw new Error('Automatic continuation unsupported; use awaited mode');
@@ -64,7 +75,7 @@ export async function createReviewJob(input,host,validation) {
   writeExclusive(path.join(plan.jobDir,'plan.json'),plan);
   writeExclusive(path.join(plan.jobDir,'events.jsonl'),{version:1,sequence:1,eventId:randomUUID(),jobId:plan.jobId,time:new Date().toISOString(),event:'accepted',capability});
   try {reserveFreeze(plan,plan.jobDir);}catch(error){withJob(plan.jobDir,()=>appendEvent(plan.jobDir,'blocked',{reason:error.message}));throw error;}
-  const steps=Object.fromEntries(plan.reviews.map((review,index)=>[review.id,{role:'review',round:plan.round,model:plan.reviewer,nativeResult:'claude-json',executable:review.executable,args:review.args,prompt:review.prompt,next:[plan.reviews[index+1]?.id??null]}]));
+  const steps=Object.fromEntries(plan.reviews.map((review,index)=>[review.id,{role:'review',round:plan.round,model:plan.reviewer,nativeResult:nativeResultType(review.transport),effort:review.effort,permissions:review.permissions,executable:review.executable,args:review.args,prompt:review.prompt,next:[plan.reviews[index+1]?.id??null]}]));
   writeExclusive(path.join(plan.jobDir,'handoff.json'),{worktree:plan.worktree,journal:path.join(plan.jobDir,'handoff.jsonl'),pr:plan.pr,writer:plan.writer,reviewer:plan.reviewer,completedReviewRound:plan.completedReviewRound,reviewedHead:plan.reviewedHead,finalCorrections:plan.finalCorrections,reviewRoundLimit:plan.reviewRoundLimit,extendedReviewAuthorization:plan.extendedReviewAuthorization,maxSteps:plan.reviews.length,first:plan.reviews[0].id,steps});
   return jobStatus(plan.jobDir);
 }
@@ -139,7 +150,7 @@ function validatedEnvelope(dir,plan,rows,identify) {
     const launch=journal.find(row=>row.event==='launching'&&row.step===review.id),done=journal.find(row=>row.event==='completed'&&row.step===review.id),exit=journal.find(row=>row.event==='exited'&&row.step===review.id);
     if(!launch||!done||exit?.code!==0||journal.indexOf(exit)>journal.indexOf(done)||done.head!==plan.head||done.completedRound!==plan.round||!done.commentIds?.length)throw new Error('Incomplete validated reviewer coverage');
     for(const id of done.commentIds){if(!Number.isSafeInteger(id)||commentIds.has(id))throw new Error('Each reviewer coverage requires distinct report IDs');commentIds.add(id);}
-    verifyNativeReviewResult(launch.output);
+    verifyNativeReviewResult(launch.output,nativeResultType(review.transport));
     reports.push({coverage:review.id,commentIds:done.commentIds,completion:launch.completion,output:launch.output});
   }
   if(fs.existsSync(worktreePaths(plan.worktree).lock))throw new Error('Reviewer lock remains; exit/ownership uncertain');
@@ -170,7 +181,7 @@ export async function advanceReviewJob(dir,host,{identify=processIdentity,failpo
   if(!envelope)return jobStatus(dir);
   await failpoint('after-validation');
   rows=await transaction(dir,current=>current);
-  if(!last(rows,'submission-intent')) {
+  if(!submissionOutstanding(rows)) {
     const state=await host.inspect(plan.destination,plan);
     if(state.state==='disconnected'||state.state==='unknown'){await observation(dir,state.reason??`Originating lifecycle ${state.state}`);return jobStatus(dir);}
     if(!['idle','active'].includes(state.state))throw new Error('Originating destination unavailable');
@@ -178,7 +189,7 @@ export async function advanceReviewJob(dir,host,{identify=processIdentity,failpo
     let request,admissionError;
     try {
       await transaction(dir,current=>{
-        if(request||terminal(current)||last(current,'submission-intent'))return;
+        if(request||terminal(current)||submissionOutstanding(current))return;
         assertJobFreeze(plan,dir);assertFrozen(plan);
         appendEvent(dir,'submission-intent',{envelope});
         // One admission lock covers durable intent and invocation. Keep the
@@ -188,13 +199,13 @@ export async function advanceReviewJob(dir,host,{identify=processIdentity,failpo
       });
     }catch(error){admissionError=error;}
     if(request) {
-      try{const receipt=await request;await failpoint('after-submit');await transaction(dir,()=>appendEvent(dir,'submission-response',{receipt}));}
+      try{const receipt=await request;await failpoint('after-submit');await transaction(dir,()=>appendEvent(dir,receipt?.status==='not-sent'?'dispatch-refused':'submission-response',{receipt}));}
       catch(error){await transaction(dir,()=>appendEvent(dir,'delivery-uncertain',{reason:error.message}));}
     }
     if(admissionError)throw admissionError;
   }
   rows=await transaction(dir,current=>current);
-  if(last(rows,'submission-intent')&&!last(rows,'continuation-accepted')) {
+  if(submissionOutstanding(rows)&&!last(rows,'continuation-accepted')) {
     let accepted;try{accepted=await host.reconcile(envelope,plan);}catch(error){if(error.permanentObservationFailure)throw error;await observation(dir,error.message);return jobStatus(dir);}
     if(accepted.status==='accepted'&&typeof accepted.turnId==='string'&&accepted.turnId)await transaction(dir,current=>{if(!last(current,'continuation-accepted'))appendEvent(dir,'continuation-accepted',{turnId:accepted.turnId});});
   }
@@ -224,7 +235,7 @@ export async function cancelReviewJob(dir,host) {
 export function claimReviewJob(dir,continuationId,{threadId=process.env.CODEX_THREAD_ID,identify=processIdentity,verifyConfiguration=verifyClaimConfiguration}={}) {
   const plan=readJson(path.join(dir,'plan.json'));
   return withJob(dir,rows=>{
-    if(continuationId!==plan.continuationId||threadId!==plan.destination.threadId||last(rows,'workflow-cancelled')||blocked(rows)||!last(rows,'submission-intent'))throw new Error('Continuation claim identity/state mismatch');
+    if(continuationId!==plan.continuationId||threadId!==plan.destination.threadId||last(rows,'workflow-cancelled')||blocked(rows)||!submissionOutstanding(rows))throw new Error('Continuation claim identity/state mismatch');
     if(last(rows,'claimed')){const freeze=worktreePaths(plan.worktree).freeze;if(fs.existsSync(freeze)){assertJobFreeze(plan,dir);fs.unlinkSync(freeze);}return{alreadyClaimed:true};}
     if(!validatedEnvelope(dir,plan,rows,identify))throw new Error('Reviewer execution still active');
     const configuration=verifyConfiguration(plan.destination,plan);
@@ -320,10 +331,15 @@ async function main() {
   if(command==='status')return jobStatus(target);
   if(command==='events'){const cursor=eventCursor(arg);return readEvents(target).filter(row=>row.sequence>cursor);}
   if(command==='watch'){let cursor=eventCursor(arg);for(;;){for(const row of readEvents(target))if(row.sequence>cursor){process.stdout.write(JSON.stringify(row)+'\n');cursor=row.sequence;}await sleep(500);}}
-  if(command==='claim')return retryBusy(()=>claimReviewJob(target,arg));
+  if(command==='claim') {
+    const {continuationClaimIdentity}=await import('./continuation-host.mjs');
+    const plan=readJson(path.join(target,'plan.json'));
+    return retryBusy(()=>claimReviewJob(target,arg,{threadId:continuationClaimIdentity(plan)}));
+  }
   if(command==='release')return releaseStoppedJob(target);
-  const {codexContinuationHost}=await import('./continuation-host.mjs');
-  const host=codexContinuationHost();
+  const {continuationHost}=await import('./continuation-host.mjs');
+  const plan=readJson(command==='submit'?target:path.join(target,'plan.json'));
+  const host=continuationHost(plan);
   if(command==='submit'){const result=await createReviewJob(readJson(target),host);const dir=path.resolve(readJson(target).jobDir);await launchReviewWorker(dir);await launchSupervisor(dir);return result;}
   if(command==='start-worker'){await launchReviewWorker(target);await launchSupervisor(target);return jobStatus(target);}
   if(command==='recover'||command==='resume'){recoverJobLock(target);await recoverMonitor(target);}

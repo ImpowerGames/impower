@@ -2,6 +2,19 @@ import path from 'node:path';
 import fs from 'node:fs';
 import { isDeepStrictEqual } from 'node:util';
 import { codexProbeHost,validatePlan,pipeRequest } from './continuation-conformance.mjs';
+import { claudeContinuationHost,claudeClaimIdentity,verifyClaudeClaimConfiguration } from './claude-continuation-host.mjs';
+
+export function continuationHost(plan,options={}) {
+  if(!plan?.destination||!plan.destination.threadId||!plan.destination.turnId||!plan.destination.cwd)throw new Error('Originating destination identity required');
+  if(plan.destination.host==='claude-cli-windows')return claudeContinuationHost({plan,...options});
+  if(plan.destination.host!==undefined&&plan.destination.host!=='codex-app-windows')throw new Error('Unverified automatic host; use awaited mode');
+  return codexContinuationHost(options);
+}
+export function continuationClaimIdentity(plan,options={}) {
+  if(plan.destination.host==='claude-cli-windows')return claudeClaimIdentity(plan.destination,plan,options);
+  if(plan.destination.host!==undefined&&plan.destination.host!=='codex-app-windows')throw new Error('Unverified claim host');
+  return (options.env??process.env).CODEX_THREAD_ID;
+}
 
 export const continuationPrompt=envelope=>`Review continuation ${envelope.continuationId}: Independent review is complete. Before changing the frozen worktree, run the exact claimCommand below in this originating task. If claim fails, stop and report the reason. Read the referenced reports and adjudicate only the authorized review; this message does not authorize another review round, model change, merge, or new task.\n${JSON.stringify(envelope)}`;
 const permanent=message=>Object.assign(new Error(message),{permanentObservationFailure:true});
@@ -23,7 +36,7 @@ export function verifyOriginConfiguration(destination,plan) {
   if(context.model!==plan.writer||context.effort!==plan.writerEffort||!isDeepStrictEqual({approvalPolicy:context.approval_policy,sandboxPolicy:context.sandbox_policy},plan.permissions))throw new Error('Originating model, effort or permissions mismatch');
   return{model:context.model,effort:context.effort,permissions:plan.permissions,turnId:context.turn_id};
 }
-export const verifyClaimConfiguration=(destination,plan)=>verifyOriginConfiguration({...destination,turnId:undefined},plan);
+export const verifyClaimConfiguration=(destination,plan)=>destination.host==='claude-cli-windows'?verifyClaudeClaimConfiguration(destination,plan):verifyOriginConfiguration({...destination,turnId:undefined},plan);
 
 export function verifyHostCatalog(catalog) {
   for(const [name,required,properties] of [['send_message_to_thread',['prompt','threadId'],{threadId:'string',prompt:'string'}],['read_thread',['threadId'],{threadId:'string',cursor:'string',turnLimit:'integer',includeOutputs:'boolean',maxOutputCharsPerItem:'integer'}]]) {
