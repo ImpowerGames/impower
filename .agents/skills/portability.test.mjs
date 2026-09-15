@@ -15,6 +15,7 @@ assert.ok(skills.length >= 9, "shared skill discovery is incomplete");
 const runnerDocs = new Set([
   ".agents/skills/RUNNERS.md",
   ".agents/skills/references/runner-review.md",
+  ".agents/skills/references/runner-continuation.md",
   ".agents/skills/references/runner-maintenance.md",
   ".agents/skills/references/runner-recovery.md",
 ]);
