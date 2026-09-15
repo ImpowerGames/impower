@@ -32,10 +32,12 @@ Connecting the current Discord user to any voice channel — self-muted, self-de
 
 The behavior is opt-out, enabled by default. The desktop window's **Mute voice during Discord calls** switch persists its own `discord-mute-disabled` marker; turning it off stops the automatic mute without affecting the manual voice or lights switches, even mid-call. The window and tray report **Voice muted · Discord call** while the automatic condition is active.
 
-Detection is entirely optional and fail-open, using a personal [Discord application](https://discord.com/developers/applications) with the local RPC/`rpc` scope. Enable it either way:
+Detection is entirely optional and fail-open, using a personal [Discord application](https://discord.com/developers/applications). Create one, then on its **OAuth2** page (not the **OAuth2 URL Generator** below it — that tool is unrelated) add `http://localhost` under **Redirects** and save; it is never actually visited, but Discord's token exchange requires it to be registered. Copy the application's client ID and secret from the same page, then enable detection either way:
 
 - In the desktop window's **Discord application** fields, enter the client ID and secret and click **Save credentials**. They are written to `discord-credentials.json` in the shared state directory; the receiver notices a new or changed file within about a second, no restart required. A blank secret on a later save keeps the one already stored, so re-saving just the client ID never clears it. The desktop app never redisplays a saved secret.
 - Or set `AGENT_ALERT_DISCORD_CLIENT_ID` (and `AGENT_ALERT_DISCORD_CLIENT_SECRET`) in the receiver's launcher environment. A saved `discord-credentials.json` takes priority over these variables when both are present.
+
+`AGENT_ALERT_DISCORD_REDIRECT_URI` overrides the `http://localhost` default if a different registered redirect is preferred; it only needs to match what the application's OAuth2 page has saved. Set `AGENT_ALERT_DISCORD_DEBUG=1` in the receiver's environment to log every raw message exchanged with the local Discord client to its console, useful for diagnosing an unexpected authorization failure.
 
 Without either, or on any Windows machine without Discord installed or running, the receiver behaves exactly as before: no prompts, no errors, no muting. Losing the Discord connection, a malformed response, or an expired authorization all recover on their own with a growing backoff between reconnect attempts; none of them stop the receiver or the desktop controls.
 

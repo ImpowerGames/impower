@@ -249,7 +249,7 @@ _discord_field_row('Client secret', discord_secret_var, mask=True)
 
 discord_credentials_hint = tk.Label(
     discord_card,
-    text=('A secret is already saved · leave blank to keep it.' if _saved_discord_credentials and _saved_discord_credentials.get('hasSecret') else 'From discord.com/developers/applications, with the rpc scope.'),
+    text=('A secret is already saved · leave blank to keep it.' if _saved_discord_credentials and _saved_discord_credentials.get('hasSecret') else 'From discord.com/developers/applications — add http://localhost under its OAuth2 Redirects first.'),
     font=('Segoe UI', 8), fg='#858997', bg='#1d2028', justify='left', anchor='w', wraplength=380,
 )
 discord_credentials_hint.pack(fill='x', pady=(4, 0))

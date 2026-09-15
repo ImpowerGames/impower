@@ -130,9 +130,13 @@ test('a reachable Discord that reports READY waits unauthorized without promptin
 
 test('a Connect Discord request drives authorize, token exchange, authenticate, and the initial channel read', async () => {
   await withState(async () => {
+    let authorizeArgs;
     const connect = singlePipeConnect((socket, sent) => {
       if (sent.v === 1) return socket.reply({ cmd: 'DISPATCH', evt: 'READY', data: {} });
-      if (sent.cmd === 'AUTHORIZE') return socket.reply({ cmd: 'AUTHORIZE', nonce: sent.nonce, data: { code: 'the-code' } });
+      if (sent.cmd === 'AUTHORIZE') {
+        authorizeArgs = sent.args;
+        return socket.reply({ cmd: 'AUTHORIZE', nonce: sent.nonce, data: { code: 'the-code' } });
+      }
       if (sent.cmd === 'AUTHENTICATE') return socket.reply({ cmd: 'AUTHENTICATE', nonce: sent.nonce, data: {} });
       if (sent.cmd === 'GET_SELECTED_VOICE_CHANNEL') return socket.reply({ cmd: 'GET_SELECTED_VOICE_CHANNEL', nonce: sent.nonce, data: null });
     });
@@ -151,6 +155,34 @@ test('a Connect Discord request drives authorize, token exchange, authenticate, 
       assert.deepEqual(await readJson(discordTokenPath()), { access_token: 'AT', refresh_token: 'RT', expires_at: (await readJson(discordTokenPath())).expires_at });
       assert.equal(await exists(discordConnectRequestPath()), false, 'the one-time request marker is consumed');
       assert.equal(await exists(discordCallMutePath()), false);
+      // Confirmed against a real Discord client: omitting the key gets
+      // "Missing redirect_uri in request", but a real URL gets "Redirect URI
+      // cannot be used in the RPC OAuth2 Authorization flow" — the local
+      // AUTHORIZE step wants the key present and explicitly null.
+      assert.equal(authorizeArgs.redirect_uri, null);
+      assert.ok('redirect_uri' in authorizeArgs, 'the key itself must be present, not merely absent-and-undefined');
+      assert.ok(authorizeArgs.scopes.includes('rpc.voice.read'), 'reading the selected voice channel needs this scope');
+    } finally {
+      await watcher.stop();
+    }
+  });
+});
+
+test('a command-level Discord error (not a token-expiry code) still reports and never leaves the watcher silently stuck', async () => {
+  await withState(async () => {
+    const connect = singlePipeConnect((socket, sent) => {
+      if (sent.v === 1) return socket.reply({ cmd: 'DISPATCH', evt: 'READY', data: {} });
+      // Discord's real response to a misconfigured AUTHORIZE request, observed live.
+      if (sent.cmd === 'AUTHORIZE') return socket.reply({ cmd: 'AUTHORIZE', evt: 'ERROR', nonce: sent.nonce, data: { code: 5000, message: 'OAuth2 Error: invalid_request: Missing "redirect_uri" in request.' } });
+    });
+    const watcher = startDiscordVoiceWatcher({ clientId: 'client', clientSecret: 'secret', connect, syncIntervalMs: 15 });
+    try {
+      await waitFor(async () => (await readJson(discordStatusPath(), {})).phase === 'unauthorized');
+      await writeFile(discordConnectRequestPath(), '');
+      await waitFor(async () => (await readJson(discordStatusPath(), {})).error != null);
+      const status = await readJson(discordStatusPath());
+      assert.equal(status.phase, 'unauthorized', 'an unrelated error must not leave the watcher stuck reporting authorizing');
+      assert.match(status.error, /redirect_uri/);
     } finally {
       await watcher.stop();
     }

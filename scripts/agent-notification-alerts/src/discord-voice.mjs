@@ -19,6 +19,15 @@ const OP_HANDSHAKE = 0;
 const OP_FRAME = 1;
 const OP_CLOSE = 2;
 const PIPE_COUNT = 10;
+// Confirmed against a real Discord client: the local AUTHORIZE step rejects
+// a missing redirect_uri key ("Missing redirect_uri in request") and a real
+// URL alike ("Redirect URI cannot be used in the RPC OAuth2 Authorization
+// flow") -- it wants the key present and explicitly null, since the code is
+// delivered locally over IPC. The token exchange against Discord's actual
+// HTTPS endpoint is a separate, real OAuth2 authorization_code grant, which
+// does need a real redirect_uri matching one registered under the
+// application's OAuth2 settings even though it's never actually visited.
+const REDIRECT_URI = process.env.AGENT_ALERT_DISCORD_REDIRECT_URI || 'http://localhost';
 
 function encodeFrame(opcode, payload) {
   const body = Buffer.from(JSON.stringify(payload), 'utf8');
@@ -190,10 +199,11 @@ export function startDiscordVoiceWatcher({
     await unlink(discordConnectRequestPath()).catch(() => {});
     if (state.authorized || state.phase === 'authorizing') return;
     await applyEvent({ type: 'authorize-requested' });
-    send(target, 'AUTHORIZE', { client_id: clientId, scopes: ['rpc'] });
+    send(target, 'AUTHORIZE', { client_id: clientId, scopes: ['rpc', 'rpc.voice.read'], redirect_uri: null });
   }
 
   async function onFrame(target, payload) {
+    if (process.env.AGENT_ALERT_DISCORD_DEBUG) console.error('[discord frame]', JSON.stringify(payload));
     if (!payload) return;
     // Only a genuine DISPATCH frame carries an unsolicited event; a SUBSCRIBE
     // command's own reply also echoes back the same evt name and must not be
@@ -201,18 +211,19 @@ export function startDiscordVoiceWatcher({
     // reconnect, which momentarily un-muted a live call).
     if (payload.cmd === 'DISPATCH' && payload.evt === 'READY') return onReady(target);
     if (payload.evt === 'ERROR') {
-      // 4009/4006 are Discord's expired/invalid-token codes for this RPC.
-      if (payload.data?.code === 4009 || payload.data?.code === 4006) {
-        await clearToken();
-        await applyEvent({ type: 'auth-failed', reason: payload.data?.message });
-      }
+      // 4009/4006 are Discord's expired/invalid-token codes for this RPC;
+      // only those invalidate a stored token. Any other error (a bad
+      // AUTHORIZE request, for instance) still must not leave the watcher
+      // silently stuck in 'authorizing' or 'authenticating' forever.
+      if (payload.data?.code === 4009 || payload.data?.code === 4006) await clearToken();
+      await applyEvent({ type: 'auth-failed', reason: payload.data?.message || `Discord reported error ${payload.data?.code}.` });
       return;
     }
     if (payload.cmd === 'AUTHORIZE') {
       const code = payload.data?.code;
       if (!code) return applyEvent({ type: 'auth-failed', reason: 'Discord authorization was not completed.' });
       try {
-        const granted = await exchangeToken({ clientId, clientSecret, fetchImpl, grant_type: 'authorization_code', code });
+        const granted = await exchangeToken({ clientId, clientSecret, fetchImpl, grant_type: 'authorization_code', code, redirect_uri: REDIRECT_URI });
         await authenticateWith(target, await writeToken(granted));
       } catch (error) {
         await applyEvent({ type: 'auth-failed', reason: error.message });
