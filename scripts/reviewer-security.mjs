@@ -4,7 +4,7 @@ import os from 'node:os';
 import {execFileSync} from 'node:child_process';
 
 export function reviewerEnvironment(source=process.env) {
-  return Object.fromEntries(Object.entries(source).filter(([name])=>!(/^(?:CLAUDE_|CLAUDECODE$|CODEX_(?!HOME$)|NODE_REPL_|CUA_|GIT_)/i.test(name))));
+  return Object.fromEntries(Object.entries(source).filter(([name])=>!(/^(?:CLAUDE_|CLAUDECODE$|CODEX_|NODE_REPL_|CUA_|GIT_)/i.test(name))));
 }
 
 const within=(parent,child)=>{const rel=path.relative(parent,child);return !rel||(!rel.startsWith(`..${path.sep}`)&&rel!=='..'&&!path.isAbsolute(rel));};
