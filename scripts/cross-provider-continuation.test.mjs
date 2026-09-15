@@ -188,6 +188,18 @@ try {
   const compact=path.join(hookDir,'compact.jsonl');
   for(let i=0;i<530;i++)appendClaudeReceipt(compact,{hook_event_name:'MessageDisplay',turn_id:turnId,final:true,delta:'',index:i});
   assert.equal(readClaudeRows(compact).length,512);assert.ok(fs.statSync(compact).size<150000);
+  const history=path.join(hookDir,'marker-history.jsonl');
+  const historical=[{hook_event_name:'SessionStart'},{hook_event_name:'MessageDisplay',session_id:sessionId,prompt_id:promptId,turn_id:turnId,message_id:messageId,delta:marker,final:false},{hook_event_name:'MessageDisplay',session_id:sessionId,prompt_id:promptId,turn_id:turnId,message_id:messageId,delta:'',final:true},{hook_event_name:'Stop',prompt_id:promptId}];
+  for(let order=0;order<604;order++)appendClaudeReceipt(history,{...(historical[order]??{hook_event_name:'PostToolUse',tool_use_id:String(order)}),order});
+  const retainedHistory=readClaudeRows(history);
+  assert.deepEqual(retainedHistory.map(row=>row.order),retainedHistory.map(row=>row.order).sort((a,b)=>a-b),'compaction must preserve append order for an aged marker');
+  assert.ok(retainedHistory.some(row=>row.order===2),'aged marker keeps its separate closing final');
+  assert.ok(retainedHistory.some(row=>row.order===3),'aged marker cannot outlive its ending boundary');
+  const saturated=path.join(hookDir,'saturated.jsonl');
+  const outstanding=Array.from({length:4096},(_,i)=>({hook_event_name:'PreToolUse',tool_use_id:'open-'+i}));
+  fs.writeFileSync(saturated,outstanding.map(JSON.stringify).join('\n')+'\n');const saturatedBefore=fs.readFileSync(saturated);
+  assert.throws(()=>appendClaudeReceipt(saturated,{hook_event_name:'PreToolUse',tool_use_id:'one-more'}),/count exceeds/);
+  assert.deepEqual(fs.readFileSync(saturated),saturatedBefore,'capacity refusal preserves prior evidence atomically');
   const concurrent=path.join(hookDir,'concurrent.jsonl'),hookModule=pathToFileURL(path.resolve('scripts/claude-continuation-hook.mjs')).href;
   await Promise.all(Array.from({length:4},(_,id)=>new Promise((resolve,reject)=>{
     const child=childProcess.spawn(process.execPath,['--input-type=module','-e',`import {appendClaudeReceipt} from ${JSON.stringify(hookModule)};for(let i=0;i<10;i++)appendClaudeReceipt(${JSON.stringify(concurrent)},{id:${id}+'-'+i,hook_event_name:'Stop'});`],{windowsHide:true,stdio:'ignore'});
@@ -209,7 +221,7 @@ try {
     config.steps.check.args=config.steps.check.args.map((arg,index,args)=>['--cd','-C','--output-last-message','-o'].includes(args[index-1])?arg.toLowerCase():arg);
     const configFile=path.join(scratch,'launch.json');fs.writeFileSync(configFile,JSON.stringify(config));
     const originalExec=childProcess.execFileSync,originalSpawn=childProcess.spawn,previous={};
-    for(const [key,value] of Object.entries({CODEX_HOME:sourceHome,CLAUDE_CODE_MESSAGING_TOKEN:'fixture-token',CODEX_APP_TOOLS_PIPE_PATH:'fixture-pipe',CODEX_THREAD_ID:'fixture-thread'})){previous[key]=process.env[key];process.env[key]=value;}
+    for(const [key,value] of Object.entries({CODEX_HOME:sourceHome,CLAUDE_CODE_MESSAGING_TOKEN:'fixture-token',CODEX_APP_TOOLS_PIPE_PATH:'fixture-pipe',CODEX_THREAD_ID:'fixture-thread',OPENAI_API_KEY:'fixture-key',OpenAi_Base_Url:'https://fixture.invalid',OPENAI_ORG_ID:'fixture-org'})){previous[key]=process.env[key];process.env[key]=value;}
     let doctorMode='complete',doctorCalls=0,authUnavailable=false,authCalls=0;
     childProcess.execFileSync=(exe,args,options)=>{
       if(exe==='gh'&&args[0]==='auth'){authCalls++;assert.deepEqual(args,['auth','token','--hostname','github.com']);if(authUnavailable)throw new Error('fixture missing auth');return 'fixture-delegated-token';}
@@ -226,6 +238,7 @@ try {
     };
     childProcess.spawn=(exe,args,options)=>{
       if(exe!==process.execPath||args[0]!=='exec')return originalSpawn(exe,args,options);
+      assert.deepEqual(JSON.parse(originalExec(process.execPath,['-p','JSON.stringify(Object.keys(process.env).filter(key=>/^OPENAI_/i.test(key)))'],{env:options.env,encoding:'utf8',windowsHide:true})),[],'actual child receives no ambient OpenAI account or endpoint variables');
       assert.equal(options.env.GH_TOKEN,'fixture-delegated-token');assert.equal(options.env.GH_HOST,'github.com');
       assert.equal(path.dirname(options.env.GH_CONFIG_DIR),physicalCwd);assert.deepEqual(fs.readdirSync(options.env.GH_CONFIG_DIR),[]);
       assert.equal(JSON.stringify(args).includes('fixture-delegated-token'),false);
@@ -259,7 +272,8 @@ try {
     const host=claudeContinuationHost({plan:input,platform:'win32',env,identify:()=>live?identity:null,send:async(_record,message)=>{
       sends++;const receipt=claudeReceiptMarker(message.continuationId);
       fs.appendFileSync(transcript,JSON.stringify({type:'user',uuid:message.continuationId,message:{content:receipt}})+'\n');
-      record({hook_event_name:'MessageDisplay',turn_id:turnId,final:true,delta:receipt});
+      record({hook_event_name:'MessageDisplay',turn_id:turnId,final:false,delta:receipt});
+      record({hook_event_name:'MessageDisplay',turn_id:turnId,final:true,delta:''});
       throw new Error('Acknowledgment lost');
     }});
     const original=fs.readFileSync(receipts,'utf8');
@@ -293,6 +307,15 @@ try {
     record({hook_event_name:'PreToolUse',tool_name:'Bash',tool_use_id:toolId,tool_input:{command},permission_mode:'dontAsk',effort:{level:'high'}});
     const proof=fs.readFileSync(receipts,'utf8');
     assert.equal(check().turnId,turnId);
+    const age=()=>{for(let i=0;i<600;i++)appendClaudeReceipt(receipts,{hook_event_name:'PostToolUse',session_id:sessionId,prompt_id:promptId,tool_use_id:'closed-unrelated-'+i});};
+    age();assert.equal(check().turnId,turnId,'current long-turn claim retains its own unended admission and paired final');
+    assert.deepEqual(await f.host.reconcile(readEvents(f.input.jobDir).find(row=>row.event==='continuation-pending').envelope),{status:'accepted',turnId},'compacted receipt remains independently reconcilable');
+    for(const boundary of [{hook_event_name:'Stop'},{hook_event_name:'SessionEnd'},{hook_event_name:'UserPromptSubmit',prompt_id:randomUUID()}]){
+      fs.writeFileSync(receipts,beforeClaim);record(boundary);age();
+      record({hook_event_name:'PreToolUse',tool_name:'Bash',tool_use_id:toolId,tool_input:{command},permission_mode:'dontAsk',effort:{level:'high'}});
+      assert.throws(()=>check(),/claim proof/,'aged terminal/new-prompt evidence must still refuse a stale claim');
+    }
+    fs.writeFileSync(receipts,proof);
     // Native 2.1.270: PreToolUse receipt 49.400, marker final 49.435, then claim.
     const concurrent=readClaudeRows(receipts),admission=concurrent.pop();
     const markerIndex=concurrent.findIndex(row=>row.hook_event_name==='MessageDisplay'&&row.delta?.includes(f.saved.continuationId));

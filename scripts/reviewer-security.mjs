@@ -31,7 +31,7 @@ export function nativeReviewerEnvironment(step,privateDirectory,source=process.e
     const fd=fs.openSync(target,'wx',0o600);
     try{protectPrivatePath(target);fs.writeFileSync(fd,fs.readFileSync(path.join(sourceHome,name)));}finally{fs.closeSync(fd);}
   }
-  for(const key of Object.keys(env))if(/^CODEX_|^OPENAI_(?:BASE_URL|API_BASE)$/i.test(key))delete env[key];
+  for(const key of Object.keys(env))if(/^(?:CODEX_|OPENAI_)/i.test(key))delete env[key];
   env.CODEX_HOME=home;
   env.GIT_CONFIG_COUNT='1';env.GIT_CONFIG_KEY_0='safe.directory';env.GIT_CONFIG_VALUE_0=fs.realpathSync.native(worktree).replaceAll('\\','/');
   let output;

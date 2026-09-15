@@ -21,8 +21,23 @@ export function appendClaudeReceipt(file,row) {
       try{rows=text.slice(0,text.lastIndexOf('\n')+1).trim().split('\n').filter(Boolean).map(JSON.parse);}catch{throw new Error('Claude receipt storage is corrupt; preserve and inspect receipts.jsonl');}
     }
     rows.push(row);
-    const retained=new Set([rows.find(value=>value.hook_event_name==='SessionStart'),...rows.slice(-512),...rows.filter(value=>value.hook_event_name==='MessageDisplay'&&value.delta).slice(-1024)]);
-    const output=[...retained].filter(Boolean).map(JSON.stringify).join('\n')+'\n';
+    const markers=rows.filter(value=>value.hook_event_name==='MessageDisplay'&&value.delta).slice(-1024);
+    const retained=new Set([rows.find(value=>value.hook_event_name==='SessionStart'),...rows.slice(-512),...markers]);
+    const messageKey=value=>JSON.stringify([value.session_id,value.prompt_id,value.turn_id,value.message_id]);
+    const finals=new Map(),closed=new Map();
+    rows.forEach((value,index)=>{
+      if(value.hook_event_name==='MessageDisplay'&&value.final===true)finals.set(messageKey(value),value);
+      if(['PostToolUse','PostToolUseFailure'].includes(value.hook_event_name)&&value.tool_use_id)closed.set(value.tool_use_id,index);
+    });
+    for(const marker of markers)retained.add(finals.get(messageKey(marker)));
+    // Never let old acknowledgment evidence outlive its latest invalidating
+    // boundary. Outstanding admissions also remain visible to uniqueness checks.
+    for(const event of ['Stop','SessionEnd','UserPromptSubmit'])retained.add(rows.findLast(value=>value.hook_event_name===event));
+    rows.forEach((value,index)=>{if(value.hook_event_name==='PreToolUse'&&!(closed.get(value.tool_use_id)>index))retained.add(value);});
+    // Set insertion order is selection order, not native append order.
+    const ordered=rows.filter(value=>retained.has(value));
+    if(ordered.length>4096)throw new Error('Compact Claude receipt count exceeds recovery bound');
+    const output=ordered.map(JSON.stringify).join('\n')+'\n';
     if(Buffer.byteLength(output)>2*1024*1024)throw new Error('Compact Claude receipt storage exceeds bound');
     const fd=fs.openSync(temporary,'wx',0o600);try{fs.writeSync(fd,output);fs.fsyncSync(fd);}finally{fs.closeSync(fd);}
     fs.renameSync(temporary,file);
