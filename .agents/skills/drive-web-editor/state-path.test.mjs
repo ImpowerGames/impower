@@ -489,7 +489,10 @@ try {
     let launchedRows = [];
     const child = idle();
     writeRecord({ url: "http://localhost:1", pid: child.pid, mode: "same-origin", startedAt: Date.now() });
-    const up = spawn(process.execPath, [copy, "up"], { stdio: ["ignore", "pipe", "pipe"], windowsHide: true, detached: true });
+    // Windows taskkill tracks the coordinator's tree without detaching it;
+    // POSIX cleanup still needs a private process group. The real npm child
+    // remains detached by the driver on both platforms.
+    const up = spawn(process.execPath, [copy, "up"], { stdio: ["ignore", "pipe", "pipe"], windowsHide: true, detached: process.platform !== "win32" });
     let out = "";
     up.stdout.on("data", (d) => (out += d));
     up.stderr.on("data", (d) => (out += d));
@@ -517,7 +520,7 @@ try {
         if (launchedRows.length === 3) break;
         await sleep(100);
       }
-      assert.equal(launchedRows.length, 3, "the actual npm launcher must reach all fixture descendants");
+      assert.equal(launchedRows.length, 3, `the actual npm launcher must reach all fixture descendants\ncoordinator exit=${up.exitCode ?? "unobserved"}; signal=${up.signalCode ?? "none"}\n${out}`);
     } finally {
       stop(child);
       stop(up);
@@ -529,6 +532,30 @@ try {
       }
       assert.ok(await untilGone(launched.pid), "up left its npm launcher behind");
       assert.ok(await treeGone(launchedRows), "up left a descendant behind");
+    }
+  });
+  await check("up reports the actual npm launcher exit when its script fails", async () => {
+    fs.rmSync(stateFile, { force: true });
+    fs.writeFileSync(path.join(scratch, "repo", "package.json"), JSON.stringify({ scripts: { "web:dev": "node -e \"process.exit(23)\"" } }));
+    const up = spawn(process.execPath, [copy, "up"], { stdio: ["ignore", "pipe", "pipe"], windowsHide: true, detached: process.platform !== "win32" });
+    let out = "";
+    up.stdout.on("data", (d) => (out += d));
+    up.stderr.on("data", (d) => (out += d));
+    try {
+      const deadline = Date.now() + 10_000;
+      while (!/dev server launcher pid \d+ exited: code=23; signal=none/.test(out) && Date.now() < deadline) await sleep(100);
+      assert.match(out, /dev server launcher pid \d+ exited: code=23; signal=none/, `missing actual npm exit evidence:\n${out}`);
+      const written = JSON.parse(fs.readFileSync(stateFile, "utf8"));
+      assert.ok(out.includes(`launcher pid ${written.pid} exited:`), "exit evidence must identify the recorded launcher");
+      assert.ok(await untilGone(written.pid), "failed npm launcher is still alive");
+    } finally {
+      stop(up);
+      assert.ok(await untilGone(up.pid), "diagnostic coordinator did not exit");
+      if (fs.existsSync(stateFile)) {
+        const written = JSON.parse(fs.readFileSync(stateFile, "utf8"));
+        if (pidAlive(written.pid)) assert.equal(run("down").status, 0);
+        assert.ok(await untilGone(written.pid), "diagnostic npm launcher did not exit");
+      }
     }
   });
 } finally {

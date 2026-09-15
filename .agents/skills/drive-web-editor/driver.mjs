@@ -303,6 +303,9 @@ export async function up(args) {
       detached: true,
     },
   );
+  child.once("exit", (code, signal) => {
+    log(`dev server launcher pid ${child.pid} exited: code=${code ?? "none"}; signal=${signal ?? "none"}`);
+  });
   child.unref();
 
   writeState({ url, pid: child.pid, mode, ports, startedAt: Date.now() });
