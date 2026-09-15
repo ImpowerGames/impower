@@ -48,6 +48,14 @@ def save_discord_credentials(state_dir, client_id, client_secret):
             client_secret = json.loads(target.read_text(encoding='utf-8')).get('clientSecret', '')
         except (OSError, ValueError):
             client_secret = ''
+        # No file existed yet to preserve a secret from: fall back to the
+        # environment variable rather than writing an empty one. The saved
+        # file takes priority over it once one exists (see discord-voice.mjs
+        # readDiscordCredentials), so writing an empty secret here would
+        # silently break an existing AGENT_ALERT_DISCORD_CLIENT_SECRET setup
+        # the moment someone saves just the client ID through this form.
+        if not client_secret:
+            client_secret = os.environ.get('AGENT_ALERT_DISCORD_CLIENT_SECRET', '')
     descriptor, temporary = tempfile.mkstemp(dir=directory, prefix='discord-credentials-', suffix='.tmp')
     try:
         with os.fdopen(descriptor, 'w', encoding='utf-8') as output:

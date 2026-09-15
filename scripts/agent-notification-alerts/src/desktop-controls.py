@@ -133,13 +133,21 @@ def render_alerts(alerts):
         tk.Label(row, text=entry.get('alert', {}).get('message', ''), font=('Segoe UI', 9), fg='#d8d8de', bg='#1d2028', anchor='w', justify='left', wraplength=380).pack(fill='x', pady=(5, 0))
 
 def dismiss_one_alert(entry):
-    acknowledge_alert(args.state_dir, entry['notificationId'], entry.get('app', 'other'))
-    render_alerts(read_pending_alerts(args.state_dir))
+    # Off the main thread: a slow or auto-spawning broker must not freeze
+    # the window. render_alerts only ever runs back on the main thread, via
+    # the same thread-safe queue the alert-list poller already uses.
+    def worker():
+        acknowledge_alert(args.state_dir, entry['notificationId'], entry.get('app', 'other'))
+        commands.put(('alerts', read_pending_alerts(args.state_dir)))
+    Thread(target=worker, daemon=True).start()
 
 def dismiss_all_alerts():
-    for entry in current_alerts:
-        acknowledge_alert(args.state_dir, entry['notificationId'], entry.get('app', 'other'))
-    render_alerts(read_pending_alerts(args.state_dir))
+    entries = list(current_alerts)
+    def worker():
+        for entry in entries:
+            acknowledge_alert(args.state_dir, entry['notificationId'], entry.get('app', 'other'))
+        commands.put(('alerts', read_pending_alerts(args.state_dir)))
+    Thread(target=worker, daemon=True).start()
 
 dismiss_all_button.config(command=dismiss_all_alerts)
 render_alerts([])

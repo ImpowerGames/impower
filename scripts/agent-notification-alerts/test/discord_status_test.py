@@ -1,3 +1,5 @@
+import json
+import os
 import sys
 import tempfile
 import unittest
@@ -57,6 +59,23 @@ class DiscordCredentialsTests(unittest.TestCase):
             import json
             saved = json.loads((Path(directory) / 'discord-credentials.json').read_text())
             self.assertEqual(saved, {'clientId': 'client-b', 'clientSecret': 'first-secret'})
+
+    def test_first_save_with_a_blank_secret_falls_back_to_the_environment_variable(self):
+        with tempfile.TemporaryDirectory() as directory:
+            previous = os.environ.get('AGENT_ALERT_DISCORD_CLIENT_SECRET')
+            os.environ['AGENT_ALERT_DISCORD_CLIENT_SECRET'] = 'env-secret'
+            try:
+                # No discord-credentials.json exists yet: a blank secret here
+                # must not silently write an empty one over an env-configured
+                # secret the user already relies on.
+                save_discord_credentials(directory, 'client-a', '')
+                saved = json.loads((Path(directory) / 'discord-credentials.json').read_text())
+                self.assertEqual(saved, {'clientId': 'client-a', 'clientSecret': 'env-secret'})
+            finally:
+                if previous is None:
+                    os.environ.pop('AGENT_ALERT_DISCORD_CLIENT_SECRET', None)
+                else:
+                    os.environ['AGENT_ALERT_DISCORD_CLIENT_SECRET'] = previous
 
     def test_no_stray_temp_file_is_left_behind(self):
         with tempfile.TemporaryDirectory() as directory:
