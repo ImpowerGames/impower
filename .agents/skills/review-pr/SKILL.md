@@ -19,7 +19,7 @@ Use the configured writer and reviewer models to check independence. The launch 
 
 ## 3. Launch and await
 
-Launch as soon as the draft PR is open; do not wait for the Test Suite workflow, which runs alongside the round and is the writer's to answer. Its package jobs report as skipped on a PR outside their scope, and a skipped job satisfies the readiness gate. Before preparing a round, read [launch procedure](references/launch.md). Build the complete [reviewer prompt](references/reviewer-prompt.md) with `node scripts/build-review-prompt.mjs <absolute-context.json> <absolute-prompt.txt>`.
+Launch as soon as the draft PR is open; do not wait for the Test Suite workflow, which runs alongside the round and is the writer's to answer. Its package jobs are skipped on a PR outside their scope, and its `test-suite` gate job, the required check, passes either way. Before preparing a round, read [launch procedure](references/launch.md). Build the complete [reviewer prompt](references/reviewer-prompt.md) with `node scripts/build-review-prompt.mjs <absolute-context.json> <absolute-prompt.txt>`.
 
 For a PR with no linked issue, set the prompt builder's `issue` field to `null`; never invent an issue number.
 

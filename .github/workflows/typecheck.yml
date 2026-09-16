@@ -14,9 +14,12 @@ name: Typecheck
 # `tsconfig*.json` files, so a workspace added later is covered without anyone
 # remembering to edit this file.
 #
-# The typecheck job is a required status check, so the workflow has no trigger
-# path filter; the `changes` job decides whether it needs to run, and a skipped
-# job still satisfies the required check.
+# The `typecheck` job at the end is the required status check. It always
+# runs, so it always reports; the workflow has no trigger path filter, because
+# a filtered-out workflow reports nothing and leaves the pull request blocked.
+# The `changes` job decides whether `tsc` needs to run, and the gate passes
+# when it passed or was skipped as irrelevant, and fails when it failed or
+# when detection itself failed.
 
 on:
   pull_request:
@@ -28,6 +31,7 @@ concurrency:
 
 permissions:
   contents: read
+  pull-requests: read
 
 jobs:
   changes:
@@ -59,7 +63,7 @@ jobs:
         .github/workflows/changed-paths.yml
         .github/scripts/changed-paths.mjs
 
-  typecheck:
+  tsc:
     needs: changes
     if: needs.changes.outputs.relevant == 'true'
     runs-on: ubuntu-latest
@@ -99,3 +103,23 @@ jobs:
       # sustain four-wide.
       - name: Typecheck
         run: npm run typecheck -- --jobs 2
+
+  # The required status check. `always()` keeps it reporting when `tsc` was
+  # skipped or when detection failed; the step then decides.
+  typecheck:
+    needs: [changes, tsc]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Gate on detection and typecheck result
+        env:
+          CHANGES: ${{ needs.changes.result }}
+          TSC: ${{ needs.tsc.result }}
+        run: |
+          test "$CHANGES" = "success" || { echo "Change detection did not succeed: $CHANGES"; exit 1; }
+          case "$TSC" in
+            success) echo "Typecheck passed";;
+            skipped) echo "Typecheck skipped: the change touches nothing it covers";;
+            *) echo "Typecheck did not pass: $TSC"; exit 1;;
+          esac

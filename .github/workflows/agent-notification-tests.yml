@@ -1,8 +1,11 @@
 name: Agent Notification Tests
 
-# The notifier-tests jobs are required status checks, so the workflow has no
-# trigger path filter; the `changes` job decides whether they need to run, and
-# a skipped job still satisfies the required check.
+# The `notifier-tests` job at the end is the required status check. It always
+# runs, so it always reports; the workflow has no trigger path filter, because
+# a filtered-out workflow reports nothing and leaves the pull request blocked.
+# The `changes` job decides whether the notifier tests need to run, and the
+# gate passes when both platform legs passed or were skipped as irrelevant,
+# and fails when any failed or when detection itself failed.
 
 on:
   pull_request:
@@ -11,6 +14,7 @@ on:
 
 permissions:
   contents: read
+  pull-requests: read
 
 jobs:
   changes:
@@ -21,7 +25,7 @@ jobs:
         .github/workflows/agent-notification-tests.yml
         .github/workflows/changed-paths.yml
 
-  notifier-tests:
+  notifier:
     needs: changes
     if: needs.changes.outputs.relevant == 'true'
     strategy:
@@ -42,3 +46,23 @@ jobs:
           cache-dependency-path: scripts/agent-notification-alerts/package-lock.json
       - run: npm ci --ignore-scripts
       - run: npm test
+
+  # The required status check. `always()` keeps it reporting when the tests
+  # were skipped or when detection failed; the step then decides.
+  notifier-tests:
+    needs: [changes, notifier]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Gate on detection and test results
+        env:
+          CHANGES: ${{ needs.changes.result }}
+          TESTS: ${{ needs.notifier.result }}
+        run: |
+          test "$CHANGES" = "success" || { echo "Change detection did not succeed: $CHANGES"; exit 1; }
+          case "$TESTS" in
+            success) echo "Notifier tests passed on both platforms";;
+            skipped) echo "Notifier tests skipped: the change touches nothing they cover";;
+            *) echo "Notifier tests did not pass: $TESTS"; exit 1;;
+          esac

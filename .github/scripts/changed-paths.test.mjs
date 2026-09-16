@@ -25,13 +25,36 @@ const cases = [
   ["scripts/agent-notification-alerts/**", "scripts/typecheck.mjs", false],
   ["packages/sparkdown/language/sparkdown.language-grammar.json", "packages/sparkdown/language/sparkdown.language-grammar.json", true],
   ["packages/sparkdown/language/sparkdown.language-grammar.json", "packages/sparkdown/language/sparkdownXlanguage-grammar.json", false],
+  // GitHub's documented examples: `?` and `+` quantify the preceding character,
+  // `[]` is a character class, and `**` spans directories anywhere.
+  ["*.jsx?", "page.js", true],
+  ["*.jsx?", "page.jsx", true],
+  ["*.jsx?", "page.jsxx", false],
+  ["**/*.js+", "src/app.jss", true],
+  ["**/*.js+", "src/app.j", false],
+  ["**/migrate-*.sql", "db/migrate-v1.0.sql", true],
+  ["*.[jt]s", "a.ts", true],
+  ["*.[jt]s", "a.cs", false],
+  ["**", "any/depth/file.txt", true],
+  ["docs/**", "docs", false],
+  ["docs/**", "docs/", true],
+  ["README.md", "READMEXmd", false],
+  ["scripts/*.mjs", "scripts/a.mjs", true],
+  ["scripts/*.mjs", "scripts/sub/a.mjs", false],
 ];
 for (const [pattern, file, expected] of cases) {
   assert.equal(patternToRegExp(pattern).test(file), expected, `${pattern} against ${file}`);
 }
+assert.throws(() => patternToRegExp("a[bc"), /Unterminated/);
 assert.deepEqual(relevantFiles(["README.md", "packages/a.ts", "docs/b.md"], ["packages/**", "**/*.mjs"]), ["packages/a.ts"]);
 assert.deepEqual(relevantFiles(["README.md"], ["packages/**"]), []);
-console.log("PASS: workflow filter patterns match the same files as the trigger syntax");
+// Ordered negation, as in GitHub's `sub-project/**` then `!sub-project/docs/**`
+// example: the last matching pattern decides, and a later positive can
+// re-include.
+assert.deepEqual(relevantFiles(["sub-project/index.js", "sub-project/docs/readme.md", "sub-project/docs/keep.md"],
+  ["sub-project/**", "!sub-project/docs/**", "sub-project/docs/keep.md"]), ["sub-project/index.js", "sub-project/docs/keep.md"]);
+assert.deepEqual(relevantFiles(["a.md"], ["!a.md"]), []);
+console.log("PASS: workflow filter patterns match the same files as the trigger syntax, including ?, +, [], ** and ordered negation");
 
 const scratch = fs.mkdtempSync(path.join(os.tmpdir(), "changed-paths-"));
 const git = (...args) => execFileSync("git", args, { cwd: scratch, encoding: "utf8", windowsHide: true });
@@ -55,6 +78,14 @@ const list = path.join(scratch, "files.txt");
 fs.writeFileSync(list, "README.md\r\n.agents/skills/a/SKILL.md\n\n");
 assert.match(execFileSync(process.execPath, [script, "--files", list, ".agents/**"], { cwd: scratch, encoding: "utf8", windowsHide: true }), /1 match[\s\S]*relevant=true/);
 assert.match(execFileSync(process.execPath, [script, "--files", list, "packages/**"], { cwd: scratch, encoding: "utf8", windowsHide: true }), /relevant=false/);
+// A renamed file is listed under both paths by the workflow, so moving a file
+// out of a watched tree still matches the old path.
+fs.writeFileSync(list, "docs/a.md\npackages/sparkdown/src/a.ts\n");
+assert.match(execFileSync(process.execPath, [script, "--files", list, "packages/**"], { cwd: scratch, encoding: "utf8", windowsHide: true }), /relevant=true/);
+// A listing at the endpoint's cap may be incomplete and counts as relevant.
+fs.writeFileSync(list, Array.from({ length: 300 }, (_, i) => `docs/${i}.md`).join("\n") + "\n");
+assert.match(execFileSync(process.execPath, [script, "--files", list, "--limit", "300", "packages/**"], { cwd: scratch, encoding: "utf8", windowsHide: true }), /may be incomplete[\s\S]*relevant=true/);
+assert.match(execFileSync(process.execPath, [script, "--files", list, "--limit", "301", "packages/**"], { cwd: scratch, encoding: "utf8", windowsHide: true }), /relevant=false/);
 let failed = false;
 try { execFileSync(process.execPath, [script, "main"], { cwd: scratch, encoding: "utf8", windowsHide: true, stdio: "pipe" }); } catch (error) { failed = error.status === 2; }
 assert.ok(failed, "missing arguments exit 2");

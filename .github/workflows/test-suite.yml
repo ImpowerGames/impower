@@ -13,10 +13,15 @@ name: Test Suite
 # workflow's result for the pushed head. Readiness for human review requires a
 # green run on the reviewed head; agent reviewers start without waiting for it.
 #
-# The package jobs are required status checks, so the workflow has no trigger
-# path filter: a filtered-out workflow reports nothing and leaves the pull
-# request blocked. The `changes` job decides whether the suites need to run,
-# and a skipped package job still satisfies the required check.
+# The `test-suite` job at the end is the required status check. It always
+# runs, so it always reports; the workflow has no trigger path filter, because
+# a filtered-out workflow reports nothing and leaves the pull request blocked.
+# The `changes` job decides whether the package suites need to run, and the
+# gate passes when they all passed or were all skipped as irrelevant, and
+# fails when any failed or when detection itself failed. Requiring the gate
+# rather than the package jobs also keeps the required names stable: a matrix
+# job skipped before expansion reports under its bare job id, not the
+# per-package names.
 
 on:
   pull_request:
@@ -30,6 +35,7 @@ concurrency:
 
 permissions:
   contents: read
+  pull-requests: read
 
 jobs:
   changes:
@@ -106,6 +112,8 @@ jobs:
       # file and one test passed, nothing failed, and no crash or
       # partial-result diagnostic anywhere in the log. Escape codes are
       # stripped before matching in case a reporter ignores NO_COLOR.
+      # .github/scripts/test-suite-guard.test.sh runs this exact step body
+      # against sample logs in the tooling checks.
       - name: Require summary lines
         if: always()
         run: |
@@ -128,3 +136,23 @@ jobs:
           name: vitest-${{ strategy.job-index }}-${{ github.run_attempt }}
           path: ${{ runner.temp }}/vitest.log
           if-no-files-found: warn
+
+  # The required status check. `always()` keeps it reporting when the package
+  # jobs were skipped or when detection failed; the step then decides.
+  test-suite:
+    needs: [changes, vitest]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Gate on detection and package results
+        env:
+          CHANGES: ${{ needs.changes.result }}
+          VITEST: ${{ needs.vitest.result }}
+        run: |
+          test "$CHANGES" = "success" || { echo "Change detection did not succeed: $CHANGES"; exit 1; }
+          case "$VITEST" in
+            success) echo "Package suites passed";;
+            skipped) echo "Package suites skipped: the change touches nothing they cover";;
+            *) echo "Package suites did not pass: $VITEST"; exit 1;;
+          esac

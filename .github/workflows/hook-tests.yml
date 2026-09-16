@@ -1,8 +1,11 @@
 name: Hook Tests
 
-# The standalone-checks jobs are required status checks, so the workflow has
-# no trigger path filter; the `changes` job decides whether they need to run,
-# and a skipped job still satisfies the required check.
+# The `hook-tests` job at the end is the required status check. It always
+# runs, so it always reports; the workflow has no trigger path filter, because
+# a filtered-out workflow reports nothing and leaves the pull request blocked.
+# The `changes` job decides whether the standalone checks need to run, and
+# the gate passes when both platform legs passed or were skipped as
+# irrelevant, and fails when any failed or when detection itself failed.
 
 on:
   pull_request:
@@ -15,6 +18,7 @@ concurrency:
 
 permissions:
   contents: read
+  pull-requests: read
 
 jobs:
   changes:
@@ -31,6 +35,7 @@ jobs:
         package.json
         vscode-sparkdown/package.json
         .github/scripts/**
+        .github/workflows/test-suite.yml
         .github/PULL_REQUEST_TEMPLATE.md
         .github/workflows/hook-tests.yml
         .github/workflows/changed-paths.yml
@@ -47,12 +52,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          # Every file a tooling check reads must be listed here; the checks
+          # under .github/scripts read the Test Suite workflow.
           sparse-checkout: |
             /.agents/
             /.claude/
             /.codex/
             /scripts/
             /.github/scripts/
+            /.github/workflows/test-suite.yml
             /.github/PULL_REQUEST_TEMPLATE.md
             /AGENTS.md
             /CLAUDE.md
@@ -92,3 +100,23 @@ jobs:
           } finally {
             if (fs.existsSync(file)) fs.unlinkSync(file);
           }
+
+  # The required status check. `always()` keeps it reporting when the checks
+  # were skipped or when detection failed; the step then decides.
+  hook-tests:
+    needs: [changes, standalone-checks]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Gate on detection and check results
+        env:
+          CHANGES: ${{ needs.changes.result }}
+          CHECKS: ${{ needs.standalone-checks.result }}
+        run: |
+          test "$CHANGES" = "success" || { echo "Change detection did not succeed: $CHANGES"; exit 1; }
+          case "$CHECKS" in
+            success) echo "Standalone checks passed on both platforms";;
+            skipped) echo "Standalone checks skipped: the change touches nothing they cover";;
+            *) echo "Standalone checks did not pass: $CHECKS"; exit 1;;
+          esac

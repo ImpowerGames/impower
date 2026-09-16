@@ -8,9 +8,15 @@ name: Changed Paths
 # reports, as skipped, which GitHub accepts for a required check, so the
 # calling workflow gates its real jobs on the `relevant` output.
 #
-# The file list comes from the compare API rather than a deep checkout, so the
-# job needs only the script and finishes in seconds. On a push whose previous
-# commit is unknown (a new branch) everything counts as relevant.
+# The file list comes from the API rather than a deep checkout, so the job
+# needs only the script and finishes in seconds. A pull request lists its
+# files through the paginated pull-request files endpoint; a push compares
+# the previous and new commits. Renamed files count under both their old and
+# new paths, so moving a file out of a watched tree still runs the jobs. When
+# the listing may be incomplete (the compare endpoint stops at 300 files, the
+# pull-request endpoint at 3000, and a push from an unknown previous commit
+# has no listing) everything counts as relevant, so a truncated list can only
+# run jobs, never skip them.
 
 on:
   workflow_call:
@@ -21,11 +27,12 @@ on:
         type: string
     outputs:
       relevant:
-        description: "true when at least one changed file matches a pattern"
+        description: "true when at least one changed file matches a pattern, or when the change list may be incomplete"
         value: ${{ jobs.detect.outputs.relevant }}
 
 permissions:
   contents: read
+  pull-requests: read
 
 jobs:
   detect:
@@ -47,16 +54,23 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           PATTERNS: ${{ inputs.patterns }}
           EVENT: ${{ github.event_name }}
-          PR_BASE: ${{ github.event.pull_request.base.sha }}
-          PR_HEAD: ${{ github.event.pull_request.head.sha }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
           PUSH_BEFORE: ${{ github.event.before }}
           PUSH_HEAD: ${{ github.sha }}
         run: |
-          if [ "$EVENT" = "pull_request" ]; then base="$PR_BASE"; head="$PR_HEAD"; else base="$PUSH_BEFORE"; head="$PUSH_HEAD"; fi
-          case "$base" in ""|0000000000000000000000000000000000000000)
-            echo "No previous commit to compare against; treating every file as relevant"
-            echo "relevant=true" >> "$GITHUB_OUTPUT"; exit 0;;
-          esac
-          gh api "repos/$GITHUB_REPOSITORY/compare/$base...$head" --paginate --jq '.files[].filename' > "$RUNNER_TEMP/changed.txt"
+          list="$RUNNER_TEMP/changed.txt"
+          if [ "$EVENT" = "pull_request" ]; then
+            gh api "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER/files?per_page=100" --paginate \
+              --jq '.[] | .filename, (.previous_filename // empty)' > "$list"
+            limit=3000
+          else
+            case "$PUSH_BEFORE" in ""|0000000000000000000000000000000000000000)
+              echo "No previous commit to compare against; treating every file as relevant"
+              echo "relevant=true" >> "$GITHUB_OUTPUT"; exit 0;;
+            esac
+            gh api "repos/$GITHUB_REPOSITORY/compare/$PUSH_BEFORE...$PUSH_HEAD" \
+              --jq '.files[] | .filename, (.previous_filename // empty)' > "$list"
+            limit=300
+          fi
           mapfile -t patterns < <(printf '%s\n' "$PATTERNS" | sed '/^[[:space:]]*$/d')
-          node .github/scripts/changed-paths.mjs --files "$RUNNER_TEMP/changed.txt" "${patterns[@]}"
+          node .github/scripts/changed-paths.mjs --files "$list" --limit "$limit" "${patterns[@]}"
