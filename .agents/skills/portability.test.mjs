@@ -7,7 +7,7 @@ import { reviewTemplate } from "../../scripts/build-review-prompt.mjs";
 import { checkReviewRound } from "../../scripts/agent-handoff.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
-const files = execFileSync("git", ["ls-files", "-z"], { cwd: root, encoding: "utf8" }).split("\0").filter(Boolean);
+const files = execFileSync("git", ["ls-files", "-z"], { cwd: root, encoding: "utf8", windowsHide: true }).split("\0").filter(Boolean);
 const skills = files.filter((f) => /^\.agents\/skills\/[^/]+\/SKILL.md$/.test(f));
 const forbidden = /\b(?:opus|sonnet|haiku|fable)\b|claude-|gpt-\d|Skill tool|Agent tool|subagent_type|Write\/Edit|set_session_title|scratchpad|CLAUDE\.md/ig;
 export const violations = (text) => [...text.matchAll(forbidden)].map((m) => m[0]);
@@ -59,7 +59,7 @@ assert.ok(!/\$\d/.test(prompt), "skill positional substitution must not corrupt 
 const quotedPrompt = reviewTemplate(template);
 assert.equal((quotedPrompt.match(/\bWRITER\b/g) ?? []).length, 1, "writer substitution must occur only at its value, not inside the missing-value guard");
 assert.equal((quotedPrompt.match(/\bREVIEWER\b/g) ?? []).length, 1, "reviewer substitution must occur only at its value");
-const generation = spawnSync(process.execPath, ["scripts/generate-reviewer-agents.mjs", "--check"], { cwd: root, encoding: "utf8" });
+const generation = spawnSync(process.execPath, ["scripts/generate-reviewer-agents.mjs", "--check"], { cwd: root, encoding: "utf8", windowsHide: true });
 assert.equal(generation.status, 0, generation.stdout + generation.stderr);
 const handoff = fs.readFileSync(path.join(root, ".agents/skills/review-pr/HANDOFF.md"), "utf8");
 for (const rule of ["await the existing launcher invocation", "Do not add periodic reviewer-status probes or narrate unchanged waits", "After the launcher exits, read every full report"]) {

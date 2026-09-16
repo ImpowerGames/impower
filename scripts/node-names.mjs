@@ -322,6 +322,7 @@ export function scannedFiles() {
   const out = execFileSync("git", ["ls-files", "--", "*.ts", "*.tsx", "*.mts"], {
     cwd: ROOT,
     encoding: "utf8",
+    windowsHide: true,
     maxBuffer: 64 * 1024 * 1024,
   });
   return out

@@ -60,6 +60,7 @@ function trackedProjects() {
   const out = execFileSync("git", ["ls-files", "--", "*tsconfig*.json"], {
     cwd: ROOT,
     encoding: "utf8",
+    windowsHide: true,
   });
   return out
     .split(/\r?\n/)
@@ -96,6 +97,7 @@ function check(project) {
     const child = spawn(process.execPath, [TSC, "--noEmit", "-p", project], {
       cwd: ROOT,
       stdio: ["ignore", "pipe", "pipe"],
+      windowsHide: true,
     });
     let output = "";
     child.stdout.on("data", (chunk) => {

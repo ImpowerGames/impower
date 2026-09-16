@@ -635,11 +635,12 @@ for (const [label, command, shell] of allows) {
   const hook = entry?.hooks.find((h) => h.command.includes("typed-issue-hook.mjs"));
   check(Boolean(hook), "settings.json wires typed-issue-hook.mjs for Bash|PowerShell");
   const shells = [process.platform === "win32" ? testShell() : "bash"];
-  if (spawnSync("dash", ["-c", "true"]).status === 0) shells.push("dash");
+  if (spawnSync("dash", ["-c", "true"], { windowsHide: true }).status === 0) shells.push("dash");
   else console.log("NOTE: dash is not installed; the POSIX-shell pass is skipped");
   for (const shell of shells) {
     const run = (payload, env = {}) =>
       spawnSync(shell, ["-c", hook.command], {
+        windowsHide: true,
         input: payload,
         encoding: "utf8",
         env: { ...process.env, CLAUDE_PROJECT_DIR: root, ...env },
@@ -714,7 +715,7 @@ for (const [label, command, shell] of allows) {
       const r = run(payload("Bash", { command: "gh issue create --title x" }));
       const recipe = JSON.parse(r.stdout).hookSpecificOutput.permissionDecisionReason.split("instead: ")[1];
       check(typeof recipe === "string" && /^gh api -X POST /.test(recipe) && / # /.test(recipe), `[${shell}] the deny reason ends in the recipe with a comment`, JSON.stringify(recipe));
-      const bashRun = spawnSync(process.platform === "win32" ? testShell() : "bash", ["-c", recipe.replace(/^gh /, "echo ")], { encoding: "utf8" });
+      const bashRun = spawnSync(process.platform === "win32" ? testShell() : "bash", ["-c", recipe.replace(/^gh /, "echo ")], { encoding: "utf8", windowsHide: true });
       check(bashRun.status === 0 && /^api -X POST/.test(bashRun.stdout), `[${shell}] the recipe line parses under bash`, `status=${bashRun.status} stderr=${JSON.stringify(bashRun.stderr)}`);
       wire("the recipe itself under the PowerShell tool", payload("PowerShell", { command: recipe }), false);
       wire("the recipe itself under the Bash tool", payload("Bash", { command: recipe }), false);

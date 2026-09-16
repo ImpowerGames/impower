@@ -380,7 +380,7 @@ await test('CLI rejects inside ..prefix paths and accepts outside siblings', () 
       mkdirSync(resolve(path, '..'), { recursive: true });
       writeFileSync(path, JSON.stringify({ groups: [], rows: [] }));
       const before = readdirSync(resolve(path, '..'));
-      const result = spawnSync(process.execPath, [script, 'preview', path], { encoding: 'utf8' });
+      const result = spawnSync(process.execPath, [script, 'preview', path], { encoding: 'utf8', windowsHide: true });
       assert.equal(result.status, accepted ? 0 : 1, path);
       if (accepted) assert.deepEqual(JSON.parse(result.stdout), []);
       else assert.match(result.stderr, /Keep the plan outside (?:the checkout|every Git checkout)/);

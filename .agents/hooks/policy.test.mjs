@@ -42,11 +42,11 @@ assert.throws(() => normalize({}, "unknown"), /adapter/);
 
 // The portable command is also checked explicitly with Git for Windows bash.
 const bash = process.platform === "win32" ? testShell() : "bash";
-const portable = spawnSync(bash, ["-c", hook.command], { cwd: path.join(root, "scripts"), input: JSON.stringify(checks[0][0]), encoding: "utf8" });
+const portable = spawnSync(bash, ["-c", hook.command], { cwd: path.join(root, "scripts"), input: JSON.stringify(checks[0][0]), encoding: "utf8", windowsHide: true });
 assert.equal(portable.status, 0, portable.stderr);
 assert.match(portable.stdout, /permissionDecision.*deny/);
 const settings = JSON.parse(fs.readFileSync(path.join(root, ".claude/settings.json"), "utf8"));
-const missingNode = spawnSync(bash, ["-c", "node() { return 127; }; " + settings.hooks.PreToolUse[0].hooks[0].command], { cwd: root, input: JSON.stringify(checks[5][0]), env: { ...process.env, CLAUDE_PROJECT_DIR: root }, encoding: "utf8" });
+const missingNode = spawnSync(bash, ["-c", "node() { return 127; }; " + settings.hooks.PreToolUse[0].hooks[0].command], { cwd: root, input: JSON.stringify(checks[5][0]), env: { ...process.env, CLAUDE_PROJECT_DIR: root }, encoding: "utf8", windowsHide: true });
 assert.equal(missingNode.status, 2, "missing runtime must block generated-file edits");
 assert.match(missingNode.stderr, /node|runtime/i, "a blocking runtime failure needs an actionable reason");
 if (process.platform === "win32") {

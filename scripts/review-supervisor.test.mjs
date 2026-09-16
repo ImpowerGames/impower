@@ -336,7 +336,7 @@ try {
     const f=await fixture(),output=path.join(f.jobDir,'actual-worker-env.json');let exited,owned;
     await seededEnvironment(async()=>{
       await launchReviewWorker(f.jobDir,{spawnWorker:(exe,_args,options)=>{
-        const child=owned=childProcess.spawn(exe,['-e',`require('node:fs').writeFileSync(${JSON.stringify(output)},JSON.stringify(Object.keys(process.env).filter(key=>/^CODEX_APP_|^CLAUDE_CODE_MESSAGING_|^CODEX_HOME$/i.test(key))))`],options);
+        const child=owned=/* windows-hide: caller */childProcess.spawn(exe,['-e',`require('node:fs').writeFileSync(${JSON.stringify(output)},JSON.stringify(Object.keys(process.env).filter(key=>/^CODEX_APP_|^CLAUDE_CODE_MESSAGING_|^CODEX_HOME$/i.test(key))))`],options);
         exited=new Promise((resolve,reject)=>{child.once('error',reject);child.once('close',(code)=>resolve(code));});return child;
       }});owned.ref();assert.equal(await exited,0);
     });assert.deepEqual(readJson(output),[],'actual detached worker child excludes seeded originating capabilities');
@@ -352,7 +352,7 @@ try {
           fs.writeFileSync(lock,'fixture-owned-contention',{flag:'wx'});
           releaseTimer=setInterval(()=>{if(fs.existsSync(path.join(f.jobDir,'contention-observed'))){assert.equal(fs.readFileSync(lock,'utf8'),'fixture-owned-contention');fs.unlinkSync(lock);contentionObserved=true;clearInterval(releaseTimer);}},10);
         }
-        owned=childProcess.spawn(exe,[script,mode,f.jobDir],options);closed=new Promise(resolve=>owned.once('close',(code,signal)=>resolve({code,signal})));return owned;
+        owned=/* windows-hide: caller */childProcess.spawn(exe,[script,mode,f.jobDir],options);closed=new Promise(resolve=>owned.once('close',(code,signal)=>resolve({code,signal})));return owned;
       };
       try{
         if(mode==='registered'||mode==='contended'){let result;await assert.doesNotReject(async()=>{result=await launchSupervisor(f.jobDir,{spawnMonitor});},'monitor fixture survives known mutation contention');assert.equal(result.pid,owned.pid);if(mode==='contended')assert.equal(contentionObserved,true,'real child encountered the held mutation lock');}
@@ -362,7 +362,7 @@ try {
     }
     const f=await fixture();f.complete();let entered,finish;const ready=new Promise(resolve=>{entered=resolve;});
     f.host.inspect=()=>{entered();return new Promise(resolve=>{finish=resolve;});};const running=runReviewMonitor(f.jobDir,f.host,{identify,pendingMs:0});await ready;
-    let closed;const reused=await launchSupervisor(f.jobDir,{spawnMonitor:(exe,_args,options)=>{const child=childProcess.spawn(exe,[script,'existing',f.jobDir],options);closed=new Promise(resolve=>child.once('close',resolve));return child;}});
+    let closed;const reused=await launchSupervisor(f.jobDir,{spawnMonitor:(exe,_args,options)=>{const child=/* windows-hide: caller */childProcess.spawn(exe,[script,'existing',f.jobDir],options);closed=new Promise(resolve=>child.once('close',resolve));return child;}});
     assert.equal(reused.existing,true);assert.equal(reused.pid,process.pid);await closed;finish({state:'disconnected'});await running;
   }
   {
