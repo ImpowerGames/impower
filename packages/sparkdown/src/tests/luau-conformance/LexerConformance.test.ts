@@ -52,6 +52,17 @@ function findNodes(body: string, name: string): FoundNode[] {
   return found;
 }
 
+/** The name of every node in the parse tree of the wrapped snippet. */
+function nodeNames(body: string): string[] {
+  const names: string[] = [];
+  parseSource(wrap(body)).iterate({
+    enter: (node) => {
+      names.push(node.name);
+    },
+  });
+  return names;
+}
+
 function onlyNode(body: string, name: string): FoundNode {
   const found = findNodes(body, name);
   expect(found, `expected exactly one ${name}`).toHaveLength(1);
@@ -362,7 +373,11 @@ describe("quotes", () => {
     const body = "local x = 'test'";
     expect(onlyNode(body, "LuauSingleQuotedString").text).toBe("'test'");
     expect(findNodes(body, "LuauDoubleQuotedString")).toEqual([]);
-    expect(findNodes("local x = '{x}'", "LuauStringInterpolation")).toEqual([]);
+    const braces = "local x = '{x}'";
+    expect(onlyNode(braces, "LuauSingleQuotedString").text).toBe("'{x}'");
+    expect(nodeNames(braces).filter((n) => n.includes("Interpolation"))).toEqual(
+      [],
+    );
   });
 
   test('double_quoted_string: `"test"`', () => {

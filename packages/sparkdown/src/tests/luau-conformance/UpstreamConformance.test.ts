@@ -66,7 +66,13 @@ const SKIP_FILES = new Set([
   "debug.luau",
   // locals.luau heavily uses `loadstring` / `getfenv` / `setfenv` —
   // Lua 5.1-only features removed in Luau itself, so the fixture is
-  // mostly untestable under Luau either way.
+  // mostly untestable under Luau either way. Its "Invalid syntax"
+  // diagnostics on
+  //   for i=2,31 do assert(loadstring(string.format([[a=%s
+  //   ]], 1))) end
+  // appear only when that line sits at the top level, where it is
+  // narrative text and `[[...]]` is an image reference. Inside a
+  // function body the same line parses cleanly (LexerConformance.test.ts).
   "locals.luau",
   // classes.luau exercises a `class Name ... end` syntax that isn't
   // in production Luau — it's a proposed/RFC feature being prototyped
