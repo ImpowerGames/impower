@@ -32,4 +32,9 @@ Follow the complete shared reviewer prompt supplied by the caller. A missing pro
     fs.writeFileSync(file, content);
   } else output(file, content);
 }
+const agentsDir = path.join(root, ".claude/agents");
+for (const entry of fs.readdirSync(agentsDir)) {
+  const match = /^(reviewer-[a-z0-9-]+)\.md$/.exec(entry);
+  if (match && !names.has(match[1])) throw new Error(`Unexpected reviewer definition with no .claude/reviewer-models.json entry: ${path.join(agentsDir, entry)}`);
+}
 console.log("PASS: generated reviewer definitions");
