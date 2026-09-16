@@ -74,16 +74,26 @@ function firstDescendant(
 }
 
 
-// The whole-value spellings of the grammar's `NumericFieldValue` and
-// `BooleanFieldValue` rules. A trailing comment makes the grammar match the
-// value as a `StylingValue` instead, so once the comment is stripped these
-// decide whether the remaining text would have been a number or boolean.
-const NUMERIC_VALUE_RE = /^(?:-?(?:\d*\.)?\d+|Infinity|NaN)$/;
-const BOOLEAN_VALUE_RE = /^(?:true|false)$/;
-// A `StringFieldValue` spelling followed by a line comment, using the same
-// comment-marker rule as `stripTrailingLineComment`.
-const QUOTED_VALUE_WITH_COMMENT_RE =
-  /^"((?:\\.|[^"\\])*)"\s+(?:--|\/\/(?=\s|$)).*$/;
+// A trailing comment makes the grammar match a number, boolean or quoted string
+// as a `StylingValue` instead of its own value node. These recognize the
+// spellings of the grammar's `NumericFieldValue`, `BooleanFieldValue` and
+// `StringFieldValue` rules followed by a comment, so the literal is read as
+// that node would read it.
+//
+// After a complete literal a `--` can only start a Luau comment, so it needs no
+// whitespace before it (`1-- note`). A general unquoted value keeps the
+// whitespace rule in `stripTrailingLineComment`, because there `--` can belong
+// to the value (`var(--x)`). `//` needs whitespace on both sides everywhere.
+const TRAILING_COMMENT = String.raw`(?:\s*--|\s+\/\/(?=\s|$)).*`;
+const NUMERIC_WITH_COMMENT_RE = new RegExp(
+  String.raw`^(-?(?:\d*\.)?\d+|Infinity|NaN)${TRAILING_COMMENT}$`,
+);
+const BOOLEAN_WITH_COMMENT_RE = new RegExp(
+  String.raw`^(true|false)${TRAILING_COMMENT}$`,
+);
+const QUOTED_WITH_COMMENT_RE = new RegExp(
+  String.raw`^"((?:\\.|[^"\\])*)"${TRAILING_COMMENT}$`,
+);
 
 function readNumber(text: string): unknown {
   const n = Number(text);
@@ -108,12 +118,14 @@ function readTypedValue(value: SyntaxNode | null, ctx: LowerContext): unknown {
   // These greedily include any trailing `--`/`//` comment; drop it first.
   let raw = ctx.read(value.from, value.to).trim();
   if (UNQUOTED_VALUE_NODES.has(value.name)) {
-    // Matched before stripping, since the quoted text may itself contain `--`.
-    const quoted = QUOTED_VALUE_WITH_COMMENT_RE.exec(raw);
+    // Matched before stripping, since quoted text may itself contain `--`.
+    const numeric = NUMERIC_WITH_COMMENT_RE.exec(raw);
+    if (numeric) return readNumber(numeric[1]!);
+    const boolean = BOOLEAN_WITH_COMMENT_RE.exec(raw);
+    if (boolean) return boolean[1] === "true";
+    const quoted = QUOTED_WITH_COMMENT_RE.exec(raw);
     if (quoted) return unescapeString(quoted[1]!);
     raw = stripTrailingLineComment(raw);
-    if (NUMERIC_VALUE_RE.test(raw)) return readNumber(raw);
-    if (BOOLEAN_VALUE_RE.test(raw)) return raw === "true";
   }
   const ref = STRUCT_REFERENCE_RE.exec(raw);
   if (ref) return { $type: ref[1], $name: ref[2] };

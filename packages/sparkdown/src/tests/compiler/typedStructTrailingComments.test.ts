@@ -120,6 +120,65 @@ end
     expect(struct.keyframes[0]).toEqual({ offset: 0, width: "8px" });
   });
 
+  test("a comment written directly after a literal is still a comment", () => {
+    const struct = structOf(
+      `theme dusk with
+  radius = 1-- note
+  enabled = false-- note
+  label = "one"-- note
+end
+`,
+      "theme",
+      "dusk",
+    );
+    expect(struct.radius).toBe(1);
+    expect(struct.enabled).toBe(false);
+    expect(struct.label).toBe("one");
+  });
+
+  test("Infinity, NaN, escaped quotes and references lower the same with or without a comment", () => {
+    const body = [
+      "far = Infinity",
+      "odd = NaN",
+      'quote = "say \\"hi\\""',
+      "target = layer.self",
+    ];
+    const withComment = structOf(
+      `animation fade with\n${body.map((l) => `  ${l} -- note`).join("\n")}\nend\n`,
+      "animation",
+      "fade",
+    );
+    const withoutComment = structOf(
+      `animation fade with\n${body.map((l) => `  ${l}`).join("\n")}\nend\n`,
+      "animation",
+      "fade",
+    );
+    expect(withComment).toEqual(withoutComment);
+    expect(withComment.far).toBe(Infinity);
+    expect(withComment.quote).toBe('say "hi"');
+    expect(withComment.target).toEqual({ $type: "layer", $name: "self" });
+  });
+
+  test("a CSS custom property keeps its dashes", () => {
+    const struct = structOf(
+      `animation fade with
+  keyframes:
+    -
+      offset = 0
+      color = var(--accent)
+      width = var(--size) -- from the theme
+end
+`,
+      "animation",
+      "fade",
+    );
+    expect(struct.keyframes[0]).toEqual({
+      offset: 0,
+      color: "var(--accent)",
+      width: "var(--size)",
+    });
+  });
+
   test("quoted values followed by a comment lose their quotes, not their type", () => {
     const struct = structOf(
       `animation fade with
