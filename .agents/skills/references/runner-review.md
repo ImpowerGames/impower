@@ -16,7 +16,7 @@ For Claude Code, the installed reviewer definition can be invoked as:
 claude -p --agent reviewer-opus-5 --allowedTools "Read,Grep,Glob,Bash,Write" "<filled reviewer prompt>"
 ```
 
-Use `--output-format json` when collecting a machine-readable session ID and result. The minimal definitions under `.claude/agents/` are generated from `.claude/reviewer-models.json` by `node scripts/generate-reviewer-agents.mjs`; `--check` checks their content against that source. The caller selects a definition; shared skills contain no model-selection table.
+Use `--output-format json` when collecting a machine-readable session ID and result. The minimal definitions under `.claude/agents/` are generated from `.claude/reviewer-models.json` by `node scripts/generate-reviewer-agents.mjs`; `--check` checks their content, refuses unregistered reviewer definitions and validates `.claude/reviewer-defaults.json`. The caller selects a definition or leaves the launcher to resolve one from that defaults file, as described in [default reviewer routes](runner-reviewer-defaults.md); shared skills contain no model-selection table.
 
 ### Codex review agents
 

@@ -21,7 +21,7 @@ const child = path.join(scratch, "child.mjs");
 fs.writeFileSync(child, `import fs from "node:fs"; let p=""; for await (const chunk of process.stdin) p+=chunk; const file=/Write (.*?) with the editor tool/.exec(p)[1]; const head=/reviewed head=([a-f0-9]+)/.exec(p)[1]; fs.writeFileSync(file, JSON.stringify({head,next:process.argv[2]==="first"?"second":null,commentIds:[],summary:"complete"}));`);
 const prompt = path.join(scratch, "prompt.txt");
 fs.writeFileSync(prompt, "test fixture");
-const config = { worktree, completedReviewRound: 0, writer: "writer-test", reviewer: "reviewer-test", maxSteps: 2, first: "first", journal: path.join(scratch, "journal.jsonl"), steps: {
+const config = { worktree, completedReviewRound: 0, writer: "writer-test", writerEffort: "medium", reviewer: "reviewer-test", maxSteps: 2, first: "first", journal: path.join(scratch, "journal.jsonl"), steps: {
   first: { role: "implement", model: "writer-test", executable: process.execPath, args: [child, "first", "--model", "writer-test"], prompt, next: ["second"] },
   second: { role: "implement", model: "writer-test", executable: process.execPath, args: [child, "second", "--model", "writer-test"], prompt, next: [null] },
 }};
@@ -229,7 +229,7 @@ const launch = (i) => {
   execFileSync("git", ["clone", "--quiet", worktree, repo], { windowsHide: true });
   const plan = path.join(scratch, `concurrent-${i}.json`);
   const posted = path.join(scratch, `posted-${i}`);
-  fs.writeFileSync(plan, JSON.stringify({worktree:repo, writer:"writer-test", reviewer:"reviewer-test", completedReviewRound:0, maxSteps:1, first:"review", journal:path.join(scratch,`concurrent-${i}.jsonl`), steps:{review:{role:"review",round:1,model:"reviewer-test",executable:process.execPath,args:[reviewer,posted,release,"--model","reviewer-test"],prompt,next:[null]}}}));
+  fs.writeFileSync(plan, JSON.stringify({worktree:repo, writer:"writer-test", writerEffort:"medium", reviewer:"reviewer-test", completedReviewRound:0, maxSteps:1, first:"review", journal:path.join(scratch,`concurrent-${i}.jsonl`), steps:{review:{role:"review",round:1,model:"reviewer-test",executable:process.execPath,args:[reviewer,posted,release,"--model","reviewer-test"],prompt,next:[null]}}}));
   const proc = spawn(process.execPath, [coordinator, plan, pool, i===0?"uncertain":"recorded"], {windowsHide:true,stdio:["ignore","pipe","pipe"]});
   let output=""; proc.stdout.on("data",c=>output+=c); proc.stderr.on("data",c=>output+=c);
   const done = new Promise(resolve=>proc.once("close",code=>resolve({code,output})));

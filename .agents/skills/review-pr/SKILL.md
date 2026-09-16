@@ -13,7 +13,7 @@ Use one undirected reviewer for minimal low-risk changes, two for standard produ
 
 ## 2. Require independence
 
-The caller supplies concrete writer identity, distinct reviewer model route and supported launch method, plus any authorized fallback. Missing values block review; never select a default or invent an identity.
+The caller supplies the concrete writer identity and effort, read from the runner as described in the runner notes, and a supported launch method. A missing reviewer route is resolved by the launcher from the repository's reviewer defaults, including the same-vendor fallback when the caller selects it; an explicit reviewer route overrides the default, and the caller may choose a stronger reviewer when the change is riskier than its ticket label. A missing writer identity or effort blocks review; never guess or invent either.
 
 Use the configured writer and reviewer models to check independence. The launch arguments must select the configured reviewer model.
 
