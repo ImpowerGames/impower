@@ -1,7 +1,7 @@
 import { MessageProtocol } from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
 import { ScrolledEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ScrolledEditorMessage";
 import { DidOpenPaneMessage } from "@impower/spark-editor-protocol/src/protocols/window/DidOpenPaneMessage";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // The Workspace singleton instantiates 3 Workers at module load and
 // circular-imports WorkspaceWindow. Stub it; the only method our tested actions
@@ -25,6 +25,12 @@ describe("WorkspaceWindow store transitions", () => {
   beforeEach(() => {
     localStorage.clear();
     win = new WorkspaceWindow();
+  });
+
+  // The window is shared by every file in the run; a live instance would keep
+  // answering requests dispatched by later files.
+  afterEach(() => {
+    win.dispose();
   });
 
   it("openPane sets the active pane", () => {
