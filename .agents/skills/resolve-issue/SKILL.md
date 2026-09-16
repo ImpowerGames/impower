@@ -13,11 +13,11 @@ Run `node .agents/skills/drive-web-editor/driver.mjs preflight`. All checks must
 
 ## 1. Read the ticket
 
-Read the full body, current labels and type with `gh issue view N --json number,title,body,labels` and the issue REST API. Verify cited code still supports the claim; investigate missing evidence yourself. Rename the session `FIX #N: <short behavior summary>` when the runner supports it; otherwise continue.
+Read the full body, current labels and type with `gh issue view N --json number,title,body,labels` and the issue REST API. Verify cited code still supports the claim; investigate missing evidence yourself.
 
 ## 2. Create the worktree
 
-Follow [worktree setup](references/worktree.md): never work on main or reuse another issue's worktree. Resolve paths from the main checkout and existing layout. Install dependencies only when required, with `PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1`, then repeat preflight. All later work runs in the new worktree.
+Follow [worktree setup](references/worktree.md): never work on main or reuse another issue's worktree. The session title is derived from the branch (`fix/302-filterimage-layers` becomes `FIX #302: filterimage layers`); after the worktree is created, a repository hook names the exact title and rename call, and refuses shell commands until the session is renamed. Resolve paths from the main checkout and existing layout. Install dependencies only when required, with `PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1`, then repeat preflight. All later work runs in the new worktree.
 
 ## 3. Reproduce before you fix
 

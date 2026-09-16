@@ -8,7 +8,7 @@ import { normalize } from "./pre-tool-use.mjs";
 import { testShell } from "../skills/drive-web-editor/redgreen.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
-const event = (tool_name, tool_input) => ({ tool_name, tool_input });
+const event = (tool_name, tool_input) => ({ session_id: "policy-test", tool_name, tool_input });
 const checks = [
   [event("Bash", { command: "git stash pop" }), true],
   [event("Bash", { command: "git stash list" }), false],
