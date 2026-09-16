@@ -69,7 +69,8 @@ assert.match(context, /FIX #302: filterimage layers/);
 assert.match(context, /set_session_title/);
 assert.match(context, /tool search/i);
 assert.ok(statePath("a").startsWith(stateDir), "state lives in the private directory");
-assert.ok(!path.relative(root, statePath("a")).match(/^[^.]/), "state is never inside the checkout");
+const fromRoot = path.relative(root, statePath("a"));
+assert.ok(fromRoot.startsWith("..") || path.isAbsolute(fromRoot), "state is never inside the checkout: " + fromRoot);
 
 // The next shell command is denied until the rename happens.
 const denied = gate(shell("a", "npm test"), "claude");
