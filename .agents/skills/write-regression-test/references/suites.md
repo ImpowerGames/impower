@@ -2,9 +2,9 @@
 
 All commands run from the worktree root unless stated otherwise.
 
-## 3. Run the suite, the typecheck, and the standalone checks
+## 3. Run the tests, the typecheck, and the standalone checks
 
-Start with the file, then widen to the package with `node scripts/test-suite.mjs start <package-directory>` under the caps in [Running vitest safely](vitest.md). Retain the printed run directory and full command-tool session/exit metadata. Poll continuing sessions; use `status` and `resume` for recovery. Only a verified complete manifest is a successful suite.
+Run the test file under work with the single-file command in [Running vitest safely](vitest.md). Package suites are not run locally: `.github/workflows/test-suite.yml` runs every package's suite, one package per job, on any pull request that touches `packages/`, `impower-dev/`, `definitions/` or the root package files, and the run for the pushed head is the suite evidence for the PR. Read its conclusion with `gh pr checks` or `gh run view`; a failure there is yours to fix unless you confirm it also fails on `origin/main`. When you need a local package result the workflow cannot give, such as a baseline on a base commit, use `node scripts/test-suite.mjs start <package-directory>` under the caps in that reference and retain its run directory.
 
 Then typecheck. `npm run typecheck` at the repo root runs `tsc --noEmit` over all 41 projects and takes about four minutes. Mid-change you usually want a subset, so it takes filters, each one a substring of a project's config path, not a directory:
 

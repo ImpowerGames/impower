@@ -1,0 +1,75 @@
+name: Test Suite
+
+# Runs every package's vitest suite on pull requests, one package per job so
+# the nine packages run side by side on separate machines. The full suite is
+# serial and slow on a development machine because the local runner starts a
+# fresh process per test file and the machine allows one vitest process at a
+# time; a separate runner per package sidesteps that constraint while keeping
+# each job under the same heap cap and single-worker settings the repository
+# requires, so a test that passes here also fits the local limits.
+#
+# Writer agents run only their regression test locally and cite this
+# workflow's result for the pushed head. Readiness for human review requires a
+# green run on the reviewed head; agent reviewers start without waiting for it.
+
+on:
+  pull_request:
+    paths:
+      - "packages/**"
+      - "impower-dev/**"
+      - "definitions/**"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/test-suite.yml"
+
+# A superseded PR run is of no interest; keep only the newest per branch.
+concurrency:
+  group: test-suite-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  vitest:
+    strategy:
+      fail-fast: false
+      matrix:
+        # Every workspace with a vitest.config.ts. Add a package here when it
+        # gains one; nothing derives this list.
+        package:
+          - impower-dev
+          - packages/jsonrpc
+          - packages/opfs-workspace
+          - packages/spark-editor-protocol
+          - packages/spark-engine
+          - packages/spark-web-player
+          - packages/sparkdown
+          - packages/sparkdown-document-views
+          - packages/sparkdown-language-server
+    name: ${{ matrix.package }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          # Matches the version the other workflows build with.
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # The package's own vitest.config.ts stays in force (pool, environment,
+      # setup files). The heap cap and single worker match the repository's
+      # resource gate; passWithNoTests stays off so an empty include is a
+      # failure rather than a silent pass.
+      - name: Run vitest
+        working-directory: ${{ matrix.package }}
+        env:
+          NODE_OPTIONS: --max-old-space-size=1024
+        run: npx vitest run --no-file-parallelism --reporter=default
