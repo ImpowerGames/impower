@@ -3,6 +3,9 @@ import path from 'node:path';
 import os from 'node:os';
 import {execFileSync} from 'node:child_process';
 
+// The native Codex route's sandbox guarantees were observed on this build only.
+export const pinnedCodexVersion='0.154.0';
+
 export function reviewerEnvironment(source=process.env) {
   return Object.fromEntries(Object.entries(source).filter(([name])=>!(/^(?:CLAUDE_|CLAUDECODE$|CODEX_|NODE_REPL_|CUA_|GIT_)/i.test(name))));
 }
@@ -39,7 +42,7 @@ export function nativeReviewerEnvironment(step,privateDirectory,source=process.e
   catch(error){output=error.stdout;}
   let report;try{report=JSON.parse(output);}catch{throw new Error('Native Codex sandbox provisioning could not be verified; no setup is performed');}
   const sandbox=report.checks?.['sandbox.helpers'];
-  if(report.codexVersion!=='0.154.0-alpha.6.2'||sandbox?.status!=='ok'||sandbox.details?.['sandbox backend']!=='elevated'||sandbox.details?.['sandbox provisioning']!=='complete')throw new Error('Existing elevated sandbox provisioning unavailable; no setup is performed');
+  if(report.codexVersion!==pinnedCodexVersion||sandbox?.status!=='ok'||sandbox.details?.['sandbox backend']!=='elevated'||sandbox.details?.['sandbox provisioning']!=='complete')throw new Error('Existing elevated sandbox provisioning unavailable; no setup is performed');
   // The sandbox account cannot read the owner's CLI credential store. Delegate
   // existing report access in memory; never copy its configuration or token to disk.
   let token;

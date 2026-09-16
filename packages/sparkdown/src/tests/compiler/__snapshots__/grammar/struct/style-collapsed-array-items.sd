@@ -1,0 +1,11 @@
+style list with
+  items:
+    - label:
+        text = "first"
+      weight = bold
+    - weight = bold
+      label:
+        text = "second"
+    - url(a=b)
+    - plain
+end

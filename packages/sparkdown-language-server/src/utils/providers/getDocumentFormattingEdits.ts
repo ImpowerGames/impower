@@ -1,4 +1,5 @@
 import { nodeNameSet } from "@impower/sparkdown/src/compiler/utils/nodeNameSet";
+import { structArrayItemInlineEntry } from "@impower/sparkdown/src/compiler/utils/structArrayItemInlineEntry";
 import { FormatType } from "@impower/sparkdown/src/compiler/classes/annotators/FormattingAnnotator";
 import { SparkdownAnnotations } from "@impower/sparkdown/src/compiler/classes/SparkdownCombinedAnnotator";
 import { SparkdownDocument } from "@impower/sparkdown/src/compiler/classes/SparkdownDocument";
@@ -27,6 +28,17 @@ const CALL_LIKE_OPENERS = new Set(["(", "[", "{"]);
 
 function isWordChar(c: string): boolean {
   return /[a-zA-Z0-9_]/.test(c);
+}
+
+// Visual width of leading text, tabs expanded. Struct bodies nest by
+// indentation, so the formatter compares these widths to recover a line's
+// depth; the widths themselves are never emitted.
+function rawIndentWidth(text: string, tabSize: number): number {
+  let width = 0;
+  for (const ch of text) {
+    width += ch === "\t" ? tabSize : 1;
+  }
+  return width;
 }
 
 function shouldInsertSpaceBetween(
@@ -503,12 +515,7 @@ export const getFormatting = (
           sparkleContentFrom = sparkleContentNode.from;
           sparkleIndentStack = [];
         }
-        // Raw author indent width (tabs expanded), used only to compare
-        // relative nesting — never emitted.
-        let rawWidth = 0;
-        for (const ch of currentIndentation) {
-          rawWidth += ch === "\t" ? options.tabSize : 1;
-        }
+        const rawWidth = rawIndentWidth(currentIndentation, options.tabSize);
         while (
           sparkleIndentStack.length > 0 &&
           rawWidth < sparkleIndentStack[sparkleIndentStack.length - 1]!
@@ -522,6 +529,28 @@ export const getFormatting = (
           sparkleIndentStack.push(rawWidth);
         }
         const depth = sparkleIndentStack.length - 1;
+        // A collapsed list item (`- eyes:`) opens TWO levels on one line: the
+        // item itself at the dash column, and the first entry it carries at
+        // the column that entry starts in. The line indents at the item's
+        // level, but the item's remaining entries are written at the entry's
+        // column and that entry's own children deeper still — so push the
+        // entry's level as well, or both would resolve to the dash's level and
+        // the formatter would rewrite the author's nesting into a flat list.
+        const arrayItem = stack.find(
+          (n) => n && n.name === "LuauStructArrayItem",
+        );
+        const inlineEntry = arrayItem
+          ? structArrayItemInlineEntry(arrayItem)
+          : null;
+        if (inlineEntry) {
+          const entryWidth = rawIndentWidth(
+            lineText.slice(0, inlineEntry.from - lineStart),
+            options.tabSize,
+          );
+          if (entryWidth > rawWidth) {
+            sparkleIndentStack.push(entryWidth);
+          }
+        }
         // Body sits one level past the block header (its own level).
         const bodyLevel = computeBlockIndent(stack) + 1 + depth;
         const expectedIndentation = options.insertSpaces

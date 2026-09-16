@@ -1,4 +1,5 @@
 import { nodeNameSet } from "../../utils/nodeNameSet";
+import { structArrayItemInlineEntry } from "../../utils/structArrayItemInlineEntry";
 import { type SyntaxNode } from "@lezer/common";
 import type { LowerContext } from "../context";
 import {
@@ -6,6 +7,7 @@ import {
   stripTrailingLineComment,
 } from "../utils/stripTrailingLineComment";
 import { unescapeString } from "../utils/unescapeString";
+import { warnValueItemWithEntries } from "../utils/warnValueItemWithEntries";
 import { ErrorType } from "../../../inkjs/engine/Error";
 import type { InkDiagnostic } from "../../classes/annotators/CompilationAnnotator";
 
@@ -24,6 +26,16 @@ import type { InkDiagnostic } from "../../classes/annotators/CompilationAnnotato
 //   keyframes:              → container whose children are `-` items → array
 //     -                       (bare `-` + indented props = one keyframe object)
 //       opacity = "1"       → string "1"
+//
+// A list item may also carry its first entry on the dash line, with the item's
+// remaining entries at the column that entry opens — the same item with the
+// dash overlapping the first entry's indent:
+//
+//   keyframes:                keyframes:
+//     - eyes:          ==       -
+//         option = closed         eyes:
+//       offset = 0.4               option = closed
+//                                offset = 0.4
 
 interface NodeLine {
   indent: number;
@@ -121,6 +133,7 @@ function collectNodeLines(
         const text = ctx.read(child.from, child.to).trim();
         if (text && !text.startsWith("--")) {
           lines.push({ indent: ctx.characterNumber(child.from), node: child });
+          pushInlineEntryLine(lines, child, ctx);
         }
       } else {
         walk(child);
@@ -130,6 +143,25 @@ function collectNodeLines(
   };
   walk(contentNode);
   return lines;
+}
+
+/**
+ * A collapsed list item (`- eyes:` / `- offset = 0.4`) carries its first entry
+ * on the dash line. Follow the item's line with that entry as a line of its
+ * own, at the column the entry starts in — the shape the expanded form
+ * already has — so the block parser below needs no case for it and the two
+ * spellings cannot drift apart.
+ */
+function pushInlineEntryLine(
+  lines: NodeLine[],
+  content: SyntaxNode,
+  ctx: LowerContext,
+): void {
+  const kind = firstDescendant(content, LINE_KIND_NAMES);
+  if (kind?.name !== "LuauStructArrayItem") return;
+  const entry = structArrayItemInlineEntry(kind);
+  if (!entry) return;
+  lines.push({ indent: ctx.characterNumber(entry.from), node: entry });
 }
 
 function nextChildIndent(
@@ -295,9 +327,12 @@ function parseBlock(
     const childIndent = nextChildIndent(lines, i, indent);
 
     if (kind?.name === "LuauStructArrayItem") {
-      // `-` item: bare `-` + indented props → object; `- scalar` → scalar.
+      // `-` item. Entries indented beneath (or carried on the dash line, which
+      // `collectNodeLines` has already followed with an entry line) → object;
+      // `- scalar` → scalar.
       arr = arr ?? [];
       if (childIndent != null) {
+        warnValueItemWithEntries(kind, ctx, sink);
         const sub = parseBlock(lines, i + 1, childIndent, ctx, sink);
         arr.push(sub.value);
         i = sub.next;
