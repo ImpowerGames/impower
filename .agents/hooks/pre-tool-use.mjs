@@ -1,5 +1,6 @@
 import { pathToFileURL } from "node:url";
 import { decide } from "./policy.mjs";
+import { gate } from "./session-title.mjs";
 
 export function normalize(payload, harness) {
   if (!["claude", "codex"].includes(harness)) throw new Error("Supply the hook adapter: claude or codex");
@@ -27,7 +28,8 @@ export function normalize(payload, harness) {
 export async function main(harness = process.argv[2]) {
   let raw = "";
   for await (const chunk of process.stdin) raw += chunk;
-  const reason = decide(normalize(JSON.parse(raw), harness));
+  const payload = JSON.parse(raw);
+  const reason = decide(normalize(payload, harness)) ?? gate(payload, harness);
   if (reason) process.stdout.write(JSON.stringify({ hookSpecificOutput: { hookEventName: "PreToolUse", permissionDecision: "deny", permissionDecisionReason: reason } }));
 }
 
