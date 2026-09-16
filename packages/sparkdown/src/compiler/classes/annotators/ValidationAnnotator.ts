@@ -69,6 +69,47 @@ const VALID_STYLE_PROPS = new Set<string>(VALID_STYLE_PROPS_DATA.props);
 // it before it says anything.
 const SPARKLE_EVENT_HANDLER = nodeNameSet(["LuauEventAttribute"]);
 
+// Luau string literals. Every form parses as `<name>_begin`, `<name>_content`
+// and `<name>_end`; an unfinished literal has no `_end` child.
+const LUAU_QUOTED_STRING = nodeNameSet([
+  "LuauDoubleQuotedString",
+  "LuauSingleQuotedString",
+  "LuauInterpolatedString",
+]);
+const LUAU_STRING = nodeNameSet([
+  "LuauDoubleQuotedString",
+  "LuauSingleQuotedString",
+  "LuauInterpolatedString",
+  "LuauMultilineString",
+]);
+
+// Luau numeric literals. Their first child is the literal text; the second is
+// the trailing whitespace capture.
+const LUAU_NUMBER = nodeNameSet([
+  "LuauNumericDecimal",
+  "LuauNumericHex",
+  "LuauNumericBinary",
+]);
+
+const MALFORMED_STRING = "Malformed string; did you forget to finish it?";
+const MALFORMED_NUMBER = "Malformed number";
+// Luau reports an unfinished `--[[` from wherever the parser was expecting
+// its next token; the expression-position wording is the one its test suite
+// pins, so it is the one sparkdown uses everywhere.
+const UNFINISHED_COMMENT =
+  "Expected identifier when parsing expression, got unfinished comment";
+
+// Luau's `toUtf8` refuses code points above this, so `\u{80000000}` is a
+// malformed escape rather than a character.
+const MAX_UNICODE_ESCAPE = 0x7fffffff;
+
+function childNamed(node: any, name: string): any {
+  for (let c = node.firstChild; c; c = c.nextSibling) {
+    if (c.name === name) return c;
+  }
+  return null;
+}
+
 // Normalize a prop name to the vocabulary's kebab-case form the way the renderer
 // does (`getCSSPropertyName`): camelCase → kebab, `_` → `-`, lowercased. So
 // `#maxWidth` / `#max_width` both match `max-width`.
@@ -152,10 +193,132 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     return search(commandNode);
   }
 
+  protected error(
+    annotations: Range<SparkdownAnnotation<Diagnostic>>[],
+    message: string,
+    from: number,
+    to: number,
+  ) {
+    annotations.push(
+      SparkdownAnnotation.mark<Diagnostic>({ message, severity: "error" }).range(
+        from,
+        to,
+      ),
+    );
+  }
+
+  /**
+   * Malformed Luau literals: an unfinished string or block comment, a bad
+   * escape sequence, or a number that runs into letters. The grammar
+   * recovers from each of these silently (an unfinished `"` swallows the
+   * following lines, `123x` parses as `123` followed by narrative text, `\xQQ`
+   * lowers to a literal `x`), so without these diagnostics the mistake shows
+   * up as wrong program behavior rather than an error at the typo. The
+   * wording matches Luau's parser so its diagnostic tests apply verbatim.
+   */
+  protected validateLuauLiteral(
+    annotations: Range<SparkdownAnnotation<Diagnostic>>[],
+    nodeRef: SparkdownSyntaxNodeRef,
+  ): boolean {
+    const name = nodeRef.name as string;
+    if (LUAU_STRING.has(name)) {
+      const node = nodeRef.node as any;
+      // `[[...]]` holds raw text: no escapes, and newlines are content.
+      if (!LUAU_QUOTED_STRING.has(name)) {
+        if (!childNamed(node, `${name}_end`)) {
+          this.error(annotations, MALFORMED_STRING, nodeRef.from, nodeRef.to);
+          return true;
+        }
+        return false;
+      }
+      const escapeMessage =
+        name === "LuauInterpolatedString"
+          ? "Interpolated string literal contains malformed escape sequence"
+          : "String literal contains malformed escape sequence";
+      const content = childNamed(node, `${name}_content`);
+      let prev: any = null;
+      for (let c = content?.firstChild; c; prev = c, c = c.nextSibling) {
+        // A quoted string ends at its line unless the newline is escaped
+        // (`\` + newline, or `\z` which skips the following whitespace).
+        if (c.name === "Newline") {
+          const escaped =
+            prev &&
+            (prev.name === "LuauEscapeLine" ||
+              (prev.name === "LuauEscapeStandard" &&
+                this.read(prev.from, prev.to) === "\\z"));
+          if (!escaped) {
+            this.error(annotations, MALFORMED_STRING, nodeRef.from, c.from);
+            return true;
+          }
+          continue;
+        }
+        let malformed = false;
+        if (c.name === "LuauEscapeAny") {
+          // `\x` and `\u` only reach here when their digits are missing.
+          const esc = this.read(c.from, c.to);
+          malformed = esc === "\\x" || esc === "\\u";
+        } else if (c.name === "LuauEscapeDecimal") {
+          malformed = parseInt(this.read(c.from + 1, c.to), 10) > 255;
+        } else if (c.name === "LuauEscapeUnicode") {
+          const hex = this.read(c.from + 3, c.to - 1);
+          malformed = hex.length === 0 || parseInt(hex, 16) > MAX_UNICODE_ESCAPE;
+        }
+        if (malformed) {
+          this.error(annotations, escapeMessage, c.from, c.to);
+          return true;
+        }
+      }
+      // No newline and no closing quote: the string runs to the end of the
+      // file (a quoted string is always the last thing on its line, so the
+      // newline check above reports every other unfinished one).
+      if (!childNamed(node, `${name}_end`)) {
+        this.error(annotations, MALFORMED_STRING, nodeRef.from, nodeRef.to);
+        return true;
+      }
+      return false;
+    }
+    if (LUAU_NUMBER.has(name)) {
+      // `((text ...))` reuses the number rule for its control argument, where
+      // the surrounding syntax is not Luau.
+      if (getContextNames(nodeRef.node).includes("TextCommandControl")) {
+        return false;
+      }
+      const literal = (nodeRef.node as any).firstChild;
+      const literalTo = literal ? literal.to : nodeRef.to;
+      const text = this.read(nodeRef.from, literalTo);
+      // Luau's lexer takes every following letter, digit, `_` and `.` into
+      // the number token and then fails to convert it; the grammar stops at
+      // the first character it cannot use, so look at what comes next.
+      const rest = this.read(literalTo, literalTo + 64).match(/^[A-Za-z0-9_.]+/);
+      const noDigits = /^0_*[xX]_*$/.test(text);
+      if (rest || noDigits) {
+        this.error(
+          annotations,
+          MALFORMED_NUMBER,
+          nodeRef.from,
+          literalTo + (rest ? rest[0].length : 0),
+        );
+        return true;
+      }
+      return false;
+    }
+    if (name === "LuauBlockComment") {
+      if (!childNamed(nodeRef.node, "LuauBlockComment_end")) {
+        this.error(annotations, UNFINISHED_COMMENT, nodeRef.from, nodeRef.to);
+        return true;
+      }
+      return false;
+    }
+    return false;
+  }
+
   override enter(
     annotations: Range<SparkdownAnnotation<Diagnostic>>[],
     nodeRef: SparkdownSyntaxNodeRef,
   ): Range<SparkdownAnnotation<Diagnostic>>[] {
+    if (this.validateLuauLiteral(annotations, nodeRef)) {
+      return annotations;
+    }
     if (nodeRef.name === "AssetCommandControl") {
       const context = getContextNames(nodeRef.node);
       // Report invalid image/screen control
