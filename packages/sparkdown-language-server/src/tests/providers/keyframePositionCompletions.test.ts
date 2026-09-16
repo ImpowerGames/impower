@@ -92,6 +92,18 @@ end
     expect(items.find((i) => i.label === "from")?.insertText).toBe("from:");
   });
 
+  test("offers them on the line after an existing keyframe body", () => {
+    const labels = labelsAt(`animation fade with
+  keyframes:
+    from:
+      opacity = "0"
+    |
+end
+`);
+    expect(labels).toContain("from");
+    expect(labels).toContain("to");
+  });
+
   test("does not offer them inside a sibling container", () => {
     const labels = labelsAt(`animation fade with
   timing:

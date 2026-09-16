@@ -40,6 +40,31 @@ end
     );
   });
 
+  test("a leading-dot percentage is a keyframe selector", () => {
+    const source = `animation dotted with
+  keyframes:
+    .5%:
+      opacity = "0"
+end
+`;
+    expect(nodeNamesFor(source, ".5%")).toContain("LuauKeyframeSelector");
+  });
+
+  // A TextMate rule cannot see which container encloses the header it matches,
+  // so a header that is entirely `from` or `to` reads as a position wherever it
+  // appears. The lowerer is the semantic authority and rewrites a container
+  // only when its key is `keyframes`, so this is a colour difference and
+  // nothing more. This test records the trade-off: a future change that scopes
+  // the colour to real keyframe blocks should change it deliberately.
+  test("a bare position word in another block is coloured as a position too", () => {
+    const source = `screen home with
+  to:
+    button "Next"
+end
+`;
+    expect(nodeNamesFor(source, "to")).toContain("LuauKeyframeSelector");
+  });
+
   test("a key that merely starts with a position word is not a selector", () => {
     const source = `screen menu with
   from_left:

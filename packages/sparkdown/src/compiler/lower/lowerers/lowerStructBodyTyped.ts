@@ -147,7 +147,14 @@ function nextChildIndent(
 // percentage. Any percentage is matched here, including one outside 0-100, so
 // an out-of-range position is reported rather than silently read as an
 // ordinary property name.
-const KEYFRAME_POSITION_RE = /^(?:from|to|([+-]?\d+(?:\.\d+)?)%)$/;
+//
+// The percentage alternatives accept a leading dot (`.5%`) as well as a
+// leading digit, matching the grammar's `LuauKeyframeSelector` exactly. A key
+// the grammar highlights as a position but this pattern rejected would take
+// its whole `keyframes:` block back to the ordinary-property reading, with no
+// diagnostic, so the two patterns have to agree on every spelling.
+const KEYFRAME_POSITION_RE =
+  /^(?:from|to|([+-]?(?:\d+(?:\.\d+)?|\.\d+))%)$/;
 
 /** The 0-to-1 offset a position key names, or null if it names no position. */
 function keyframeOffset(key: string): number | null {

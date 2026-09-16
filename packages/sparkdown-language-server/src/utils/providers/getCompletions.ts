@@ -141,8 +141,13 @@ const lineIndent = (text: string): number | null => {
 const isInsideKeyframesContainer = (
   getLineText: (line: number) => string,
   line: number,
+  column: number,
 ): boolean => {
-  const own = lineIndent(getLineText(line)) ?? Infinity;
+  // A line the author has only indented so far holds no text to measure, so
+  // the cursor's own column is the indent they are typing at. Without this the
+  // scan would stop at the previous keyframe's deeper property line and refuse
+  // the completion on every keyframe after the first.
+  const own = lineIndent(getLineText(line)) ?? column;
   for (let i = line - 1; i >= 0; i -= 1) {
     const text = getLineText(i);
     const indent = lineIndent(text);
@@ -1819,6 +1824,7 @@ export const getCompletions = (
     isInsideKeyframesContainer(
       (line) => document.getLineText(line),
       position.line,
+      position.character,
     ) &&
     /^[ \t]*[A-Za-z]*$/.test(
       document.getLineText(position.line).slice(0, position.character),

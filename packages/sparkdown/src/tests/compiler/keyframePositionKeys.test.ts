@@ -125,6 +125,72 @@ end
     expect(struct.timing).toEqual({ duration: 1, easing: "ease" });
   });
 
+  test("a percentage written with a leading dot is a position", () => {
+    const struct = structOf(
+      `animation dotted with
+  keyframes:
+    from:
+      opacity = "0"
+    .5%:
+      opacity = "0.5"
+    to:
+      opacity = "1"
+end
+`,
+      "animation",
+      "dotted",
+    );
+    expect(struct.keyframes).toEqual([
+      { offset: 0, opacity: "0" },
+      { offset: 0.005, opacity: "0.5" },
+      { offset: 1, opacity: "1" },
+    ]);
+  });
+
+  test("`from` and `0%` are the same position, and so are `to` and `100%`", () => {
+    expect(
+      messagesOf(
+        `animation a with
+  keyframes:
+    from:
+      opacity = "0"
+    0%:
+      opacity = "1"
+end
+`,
+      ).join("\n"),
+    ).toMatch(/duplicate/i);
+    expect(
+      messagesOf(
+        `animation b with
+  keyframes:
+    100%:
+      opacity = "0"
+    to:
+      opacity = "1"
+end
+`,
+      ).join("\n"),
+    ).toMatch(/duplicate/i);
+  });
+
+  test("a `keyframes:` block written only as `-` items reports nothing", () => {
+    expect(
+      messagesOf(
+        `animation listed with
+  keyframes:
+    -
+      offset = 0
+      opacity = "0"
+    -
+      offset = 1
+      opacity = "1"
+end
+`,
+      ),
+    ).toEqual([]);
+  });
+
   test("the position key wins over an `offset` written inside the keyframe", () => {
     const struct = structOf(
       `animation conflicting with
