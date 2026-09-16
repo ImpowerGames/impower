@@ -1,12 +1,13 @@
 name: Test Suite
 
-# Runs every package's vitest suite on pull requests, one package per job so
-# the nine packages run side by side on separate machines. The full suite is
-# serial and slow on a development machine because the local runner starts a
-# fresh process per test file and the machine allows one vitest process at a
-# time; a separate runner per package sidesteps that constraint while keeping
-# each job under the same heap cap and single-worker settings the repository
-# requires, so a test that passes here also fits the local limits.
+# Runs every package's vitest suite on pull requests and on pushes to main,
+# one package per job so the nine packages run side by side on separate
+# machines. The full suite is serial and slow on a development machine because
+# the local runner starts a fresh process per test file and the machine allows
+# one vitest process at a time; a separate runner per package sidesteps that
+# constraint while keeping each job under the same heap cap and single-worker
+# settings the repository requires, so a test that passes here also fits the
+# local limits.
 #
 # Writer agents run only their regression test locally and cite this
 # workflow's result for the pushed head. Readiness for human review requires a
@@ -14,6 +15,15 @@ name: Test Suite
 
 on:
   pull_request:
+    paths:
+      - "packages/**"
+      - "impower-dev/**"
+      - "definitions/**"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/test-suite.yml"
+  push:
+    branches: [main]
     paths:
       - "packages/**"
       - "impower-dev/**"
@@ -61,15 +71,40 @@ jobs:
           node-version: 24
           cache: npm
 
+      # The Playwright browser download is not needed for vitest.
       - name: Install dependencies
         run: npm ci
+        env:
+          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: 1
 
       # The package's own vitest.config.ts stays in force (pool, environment,
       # setup files). The heap cap and single worker match the repository's
       # resource gate; passWithNoTests stays off so an empty include is a
-      # failure rather than a silent pass.
+      # failure rather than a silent pass. The output is kept for the summary
+      # check and the uploaded log.
       - name: Run vitest
         working-directory: ${{ matrix.package }}
         env:
           NODE_OPTIONS: --max-old-space-size=1024
-        run: npx vitest run --no-file-parallelism --reporter=default
+        run: |
+          set -o pipefail
+          npx vitest run --no-file-parallelism --reporter=default 2>&1 | tee "$RUNNER_TEMP/vitest.log"
+
+      # A worker killed by the OS can leave vitest exiting 0 with no summary,
+      # which must read as a failure rather than a pass.
+      - name: Require summary lines
+        if: always()
+        run: |
+          log="$RUNNER_TEMP/vitest.log"
+          test -f "$log" || { echo "No vitest log was written"; exit 1; }
+          grep -Eq '^\s*Test Files\s+.*\([0-9]+\)' "$log" || { echo "Missing 'Test Files' summary line"; exit 1; }
+          grep -Eq '^\s*Tests\s+.*\([0-9]+\)' "$log" || { echo "Missing 'Tests' summary line"; exit 1; }
+          if grep -Eiq 'Worker exited unexpectedly|heap out of memory' "$log"; then echo "Worker crash reported in the log"; exit 1; fi
+
+      - name: Upload log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: vitest-${{ strategy.job-index }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/vitest.log
+          if-no-files-found: warn
