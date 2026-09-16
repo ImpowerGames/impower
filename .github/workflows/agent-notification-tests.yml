@@ -1,29 +1,17 @@
 name: Agent Notification Tests
 
-# The notifier-tests jobs are required status checks, so the workflow has no
-# trigger path filter; the `changes` job decides whether they need to run, and
-# a skipped job still satisfies the required check.
-
 on:
   pull_request:
+    paths: ["scripts/agent-notification-alerts/**", ".github/workflows/agent-notification-tests.yml"]
   push:
     branches: [main]
+    paths: ["scripts/agent-notification-alerts/**", ".github/workflows/agent-notification-tests.yml"]
 
 permissions:
   contents: read
 
 jobs:
-  changes:
-    uses: ./.github/workflows/changed-paths.yml
-    with:
-      patterns: |
-        scripts/agent-notification-alerts/**
-        .github/workflows/agent-notification-tests.yml
-        .github/workflows/changed-paths.yml
-
   notifier-tests:
-    needs: changes
-    if: needs.changes.outputs.relevant == 'true'
     strategy:
       fail-fast: false
       matrix:
