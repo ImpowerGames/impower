@@ -1981,7 +1981,11 @@ export function processLuauEscapes(s: string): string {
       case "u": {
         const m = s.slice(i + 2).match(/^\{([0-9a-fA-F]+)\}/);
         if (m) {
-          out += String.fromCodePoint(parseInt(m[1]!, 16));
+          // Luau encodes up to `\u{7FFFFFFF}` as extended UTF-8; a JS string
+          // cannot hold anything above U+10FFFF, so those become U+FFFD.
+          // The validator already reports anything above Luau's own limit.
+          const code = parseInt(m[1]!, 16);
+          out += code > 0x10ffff ? "�" : String.fromCodePoint(code);
           i += 2 + m[0]!.length;
         } else {
           out += next;
