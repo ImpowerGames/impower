@@ -4,25 +4,11 @@
 # which are team tooling and belong in the repo. A blanket `.claude` can't be
 # re-included by a later `!` rule — git never descends into an excluded
 # directory — so this must exclude the CONTENTS and re-include.
-.claude/*
-.claude/skills
 .codex/skills
 .github/skills
-!.claude/output-styles/
-!.claude/settings.json
-!.claude/reviewer-models.json
-!.claude/hooks/
-# Agent definitions are shared one file at a time, the way settings.json is:
-# re-include the directory so git descends into it, exclude its contents, then
-# name the definitions that are team tooling. A contributor's own scratch or
-# experimental agents stay local, as everything else under `.claude/` does.
-!.claude/agents/
-.claude/agents/*
-# BEGIN generated reviewer agents
-!.claude/agents/reviewer-opus-4-6.md
-!.claude/agents/reviewer-opus-5.md
-!.claude/agents/reviewer-sonnet-4-6.md
-# END generated reviewer agents
+.claude/worktrees
+.claude/skills
+.claude/settings.local.json
 # Driver runtime artifacts: chosen ports + the Chromium profile it drives with.
 .agents/skills/*/.state.json
 .agents/skills/*/.state.json.tmp

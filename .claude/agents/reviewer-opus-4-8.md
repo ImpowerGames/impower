@@ -1,7 +1,7 @@
 ---
-name: reviewer-sonnet-4-6
+name: reviewer-opus-4-8
 description: Reviewer route supplied by the caller; the shared review-pr prompt supplies the task and reporting contract.
-model: claude-sonnet-4-6
+model: claude-opus-4-8
 tools: Read, Grep, Glob, Bash, Write
 ---
 
