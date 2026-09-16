@@ -65,17 +65,14 @@ const SKIP_FILES = new Set([
   // coroutines). Coroutines are skip-class infra (see pcall.luau).
   "debug.luau",
   // locals.luau heavily uses `loadstring` / `getfenv` / `setfenv` —
-  // Lua 5.1-only features removed in Luau itself. It also trips a
-  // grammar quirk: multi-line `[[...]]` raw strings containing `%s`
-  // produce "Invalid syntax" when preceded by certain prior content
-  // (a stray `end` is enough in isolation). Reproduces as:
-  //   end
+  // Lua 5.1-only features removed in Luau itself, so the fixture is
+  // mostly untestable under Luau either way. Its "Invalid syntax"
+  // diagnostics on
   //   for i=2,31 do assert(loadstring(string.format([[a=%s
   //   ]], 1))) end
-  // The "Invalid syntax" diagnostic is from the textmate grammar,
-  // not the lowerer. Worth a focused investigation of `LuauMultilineString`
-  // vs surrounding-context interaction, but the fixture itself is
-  // mostly untestable under Luau either way.
+  // appear only when that line sits at the top level, where it is
+  // narrative text and `[[...]]` is an image reference. Inside a
+  // function body the same line parses cleanly (LexerConformance.test.ts).
   "locals.luau",
   // classes.luau exercises a `class Name ... end` syntax that isn't
   // in production Luau — it's a proposed/RFC feature being prototyped

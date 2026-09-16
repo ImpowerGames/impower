@@ -33,10 +33,10 @@ Follow the complete shared reviewer prompt supplied by the caller. A missing pro
     fs.writeFileSync(file, content);
   } else output(file, content);
 }
-// Every reviewer definition in the directory is registered, so a hand-added
-// file cannot bypass the registry.
-for (const file of fs.readdirSync(path.join(root, ".claude/agents"))) {
-  if (/^reviewer-.*\.md$/.test(file) && !names.has(file.slice(0, -3))) throw new Error(`Unregistered reviewer definition: ${file}; add it to .claude/reviewer-models.json`);
+const agentsDir = path.join(root, ".claude/agents");
+for (const entry of fs.readdirSync(agentsDir)) {
+  const match = /^(reviewer-[a-z0-9-]+)\.md$/.exec(entry);
+  if (match && !names.has(match[1])) throw new Error(`Unexpected reviewer definition with no .claude/reviewer-models.json entry: ${path.join(agentsDir, entry)}`);
 }
 readReviewerDefaults(root);
 console.log("PASS: generated reviewer definitions and reviewer defaults");
