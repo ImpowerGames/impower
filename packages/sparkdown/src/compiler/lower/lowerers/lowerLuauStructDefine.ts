@@ -8,7 +8,10 @@ import { FunctionCall } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Fun
 import { Identifier } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Identifier";
 import { Text } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Text";
 import { VariableAssignment } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Variable/VariableAssignment";
-import type { CompiledBlock } from "../../classes/annotators/CompilationAnnotator";
+import type {
+  CompiledBlock,
+  InkDiagnostic,
+} from "../../classes/annotators/CompilationAnnotator";
 import type { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
 import type { LowerContext } from "../context";
 import { findChildByName } from "../utils/alternatorArms";
@@ -47,7 +50,11 @@ export function lowerLuauStructDefine(
     nodeRef.node,
     `Luau${type === "animation" ? "Animation" : "Theme"}_content`,
   );
-  const body = parseStructBodyTyped(contentNode, ctx);
+  // Body diagnostics (a malformed `keyframes:` position key) ride back on the
+  // returned CompiledBlock: this is a chunk-level lowerer, so the annotator
+  // picks `block.diagnostics` up directly.
+  const diagnostics: InkDiagnostic[] = [];
+  const body = parseStructBodyTyped(contentNode, ctx, diagnostics);
 
   const struct: Record<string, unknown> = {
     $type: type,
@@ -97,5 +104,8 @@ export function lowerLuauStructDefine(
   });
   const block = wrapInWeave([declaration]);
   block.context = { [type]: { [name]: struct } };
+  if (diagnostics.length > 0) {
+    block.diagnostics = [...(block.diagnostics ?? []), ...diagnostics];
+  }
   return block;
 }
