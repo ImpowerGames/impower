@@ -1,9 +1,6 @@
 .vercel
-# `.claude/` is local-agent state (settings.local.json, caches) EXCEPT the
-# skills subtree, output styles, shared settings, hooks, and agent definitions,
-# which are team tooling and belong in the repo. A blanket `.claude` can't be
-# re-included by a later `!` rule — git never descends into an excluded
-# directory — so this must exclude the CONTENTS and re-include.
+# `.claude/` holds team tooling (settings, hooks, agent definitions, output
+# styles) tracked by default; only the paths below are local-agent state.
 .codex/skills
 .github/skills
 .claude/worktrees
