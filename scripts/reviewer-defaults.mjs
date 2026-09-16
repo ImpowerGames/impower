@@ -8,7 +8,9 @@ import { fileURLToPath } from "node:url";
 export const reviewerDefaultsFile = ".claude/reviewer-defaults.json";
 export const reviewerModelsFile = ".claude/reviewer-models.json";
 export const efforts = ["low", "medium", "high", "xhigh", "max"];
-export const ticketEfforts = ["low", "medium", "high", "correctness-critical"];
+// Codex also accepts an ultra reasoning effort; no table row uses it.
+export const writerEfforts = [...efforts, "ultra"];
+export const ticketEfforts =["low", "medium", "high", "correctness-critical"];
 const stripContext = (value) => value.replace(/\[[^\]]+\]$/, "");
 const isClaude = (route) => route.startsWith("claude-");
 
@@ -35,6 +37,7 @@ export function validateReviewerDefaults(defaults, models) {
     keys.add(key);
     checkColumn(row, "primary");
     checkColumn(row, "fallback");
+    if (row.primary.some(({ route }) => isClaude(route) === isClaude(row.writer))) throw new Error(`Row ${key} primary must use the other vendor`);
     if (row.fallback.some(({ route }) => isClaude(route) !== isClaude(row.writer))) throw new Error(`Row ${key} fallback must stay with the writer's vendor`);
   }
   return claudeRoutes;
@@ -49,8 +52,13 @@ export function readReviewerDefaults(root) {
 // Returns the reviewer a plan selects: its explicit route unchanged, or the
 // default resolved from writer, writerEffort and optional ticketEffort.
 export function resolveReviewer(config, root) {
-  if (config.reviewer !== undefined) return { reviewer: config.reviewer, reviewerEffort: config.reviewerEffort, resolved: false };
-  if (typeof config.writer !== "string" || !efforts.includes(config.writerEffort)) throw new Error("Supply the writer route and writerEffort, or an explicit reviewer route");
+  if (typeof config.writer !== "string" || !config.writer || !writerEfforts.includes(config.writerEffort)) throw new Error(`Supply the writer route and writerEffort (${writerEfforts.join(", ")})`);
+  if (config.reviewer === null) throw new Error("Omit reviewer to use the defaults, or supply an explicit reviewer route");
+  if (config.reviewer !== undefined) {
+    const selectors = ["reviewerFallback", "reviewerIndex", "ticketEffort"].filter((key) => config[key] !== undefined);
+    if (selectors.length) throw new Error(`Remove ${selectors.join(", ")}: these fields apply only when the reviewer is resolved from the defaults`);
+    return { reviewer: config.reviewer, reviewerEffort: config.reviewerEffort, resolved: false };
+  }
   if (config.reviewerFallback !== undefined && typeof config.reviewerFallback !== "boolean") throw new Error("reviewerFallback must be a boolean");
   if (config.ticketEffort !== undefined && !ticketEfforts.includes(config.ticketEffort)) throw new Error(`ticketEffort must be one of ${ticketEfforts.join(", ")}`);
   const index = config.reviewerIndex ?? 0;
@@ -70,8 +78,9 @@ export function resolveReviewer(config, root) {
 // the model and reasoning effort as exec arguments.
 export function applyResolvedReviewer(step, selection) {
   if (step.model !== undefined) throw new Error("A review step resolved from defaults must not declare its own model");
-  const selecting = ["--model", "-m", "--agent", "--effort"];
-  if (step.args.some((arg) => selecting.includes(arg) || /^model_reasoning_effort=/.test(arg))) throw new Error("A review step resolved from defaults must not select its own model or effort");
+  // Covers separated and joined flag forms and config overrides of either key.
+  const selects = (arg) => /^(?:--model|--agent|--effort)(?:=|$)|^-m/.test(arg) || /^(?:--config=)?(?:model|model_reasoning_effort)\s*=/.test(arg);
+  if (step.args.some(selects)) throw new Error("A review step resolved from defaults must not select its own model or effort");
   if (isClaude(selection.reviewer)) {
     if (step.nativeResult === "codex-jsonl" || step.args[0] === "exec") throw new Error(`Resolved reviewer ${selection.reviewer} needs a Claude reviewer step`);
     return { ...step, model: selection.reviewer, args: [...step.args, "--agent", selection.agent, "--effort", selection.reviewerEffort] };
