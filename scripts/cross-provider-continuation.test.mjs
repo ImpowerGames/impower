@@ -225,14 +225,14 @@ try {
     let doctorMode='complete',doctorCalls=0,authUnavailable=false,authCalls=0;
     childProcess.execFileSync=(exe,args,options)=>{
       if(exe==='gh'&&args[0]==='auth'){authCalls++;assert.deepEqual(args,['auth','token','--hostname','github.com']);if(authUnavailable)throw new Error('fixture missing auth');return 'fixture-delegated-token';}
-      if(exe===process.execPath&&args[0]==='--version')return 'codex-cli 0.154.0-alpha.6.2';
+      if(exe===process.execPath&&args[0]==='--version')return 'codex-cli 0.154.0';
       if(exe===process.execPath&&args[0]==='doctor'){
         doctorCalls++;assert.deepEqual(args,['doctor','--json','-c','windows.sandbox="elevated"']);
         assert.equal(options.env.GIT_CONFIG_COUNT,'1');assert.equal(options.env.GIT_CONFIG_KEY_0,'safe.directory');assert.equal(options.env.GIT_CONFIG_VALUE_0,fs.realpathSync.native(repo).replaceAll('\\','/'));
         for(const name of ['auth.json','.sandbox/setup_marker.json','.sandbox-secrets/sandbox_users.json']){assert.deepEqual(fs.readFileSync(path.join(options.env.CODEX_HOME,name)),fs.readFileSync(path.join(sourceHome,name)));protectPrivatePath(path.join(options.env.CODEX_HOME,name),{verifyOnly:true});}
         assert.equal(fs.existsSync(path.join(options.env.CODEX_HOME,'config.toml')),false);
         if(doctorMode==='malformed')return '{}';
-        return JSON.stringify({codexVersion:'0.154.0-alpha.6.2',checks:{'sandbox.helpers':{status:'ok',details:{'sandbox backend':'elevated','sandbox provisioning':doctorMode}}}});
+        return JSON.stringify({codexVersion:doctorMode==='stale-build'?'0.154.0-alpha.6.2':'0.154.0',checks:{'sandbox.helpers':{status:'ok',details:{'sandbox backend':'elevated','sandbox provisioning':doctorMode}}}});
       }
       return exe==='gh'?JSON.stringify({issue_url:'https://api.github.com/repos/ImpowerGames/impower/issues/548',body:`Fixture full report ${head}`}):originalExec(exe,args,options);
     };
@@ -246,9 +246,9 @@ try {
     };
     syncBuiltinESMExports();
     try{
-      for(const mode of ['incomplete','malformed']){doctorMode=mode;assert.throws(()=>nativeReviewerEnvironment(config.steps.check,launchDir,process.env,{worktree:repo}),/provisioning/);assert.equal(fs.existsSync(capture),false,'failed setup proof never reaches reviewer execution');}
+      for(const mode of ['incomplete','malformed','stale-build']){doctorMode=mode;assert.throws(()=>nativeReviewerEnvironment(config.steps.check,launchDir,process.env,{worktree:repo}),/provisioning/);assert.equal(fs.existsSync(capture),false,'failed setup proof never reaches reviewer execution');}
       doctorMode='complete';authUnavailable=true;assert.throws(()=>nativeReviewerEnvironment(config.steps.check,launchDir,process.env,{worktree:repo}),/GitHub authentication/,'missing parent authentication refuses before native reviewer launch');authUnavailable=false;
-      await runHandoff(configFile,{slotRoot:path.join(scratch,'launcher-slots')});assert.equal(doctorCalls,4);assert.equal(authCalls,2);
+      await runHandoff(configFile,{slotRoot:path.join(scratch,'launcher-slots')});assert.equal(doctorCalls,5);assert.equal(authCalls,2);
     }
     finally{childProcess.execFileSync=originalExec;childProcess.spawn=originalSpawn;syncBuiltinESMExports();for(const [key,value] of Object.entries(previous)){if(value===undefined)delete process.env[key];else process.env[key]=value;}}
     const journal=readClaudeRows(config.journal),launch=journal.find(row=>row.event==='launching'),observed=readJson(capture);
