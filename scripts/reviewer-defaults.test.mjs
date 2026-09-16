@@ -27,6 +27,7 @@ assert.throws(() => pick({ writer: "claude-opus-5", writerEffort: "xhigh" }), /s
 assert.equal(pick({ writer: "claude-opus-5", writerEffort: "xhigh", ticketEffort: "high" }), "gpt-5.6-sol/xhigh");
 assert.equal(pick({ writer: "claude-opus-5", writerEffort: "xhigh", ticketEffort: "correctness-critical", reviewerIndex: 1 }), "gpt-5.6-sol/high", "the second serial reviewer is selected by index");
 assert.throws(() => pick({ writer: "claude-opus-5", writerEffort: "medium", reviewerIndex: 1 }), /reviewerIndex must be from 0 through 0/);
+assert.throws(() => pick({ writer: "claude-opus-5", writerEffort: "medium", reviewerIndex: null }), /reviewerIndex must be from 0 through 0/, "a null index is refused rather than read as the first reviewer");
 assert.throws(() => pick({ writer: "claude-opus-5" }), /writerEffort/, "the writer's effort remains a required input");
 assert.throws(() => pick({ writer: "claude-haiku-4-5", writerEffort: "medium" }), /No reviewer default/);
 assert.equal(resolveReviewer({ writer: "claude-opus-5", writerEffort: "medium", reviewer: "claude-opus-4-6" }, root).reviewer, "claude-opus-4-6", "an explicit reviewer bypasses the table");
@@ -50,7 +51,7 @@ assert.throws(() => validateReviewerDefaults({ codexModels: ["gpt-1-x"], rows: [
 // A resolved Codex reviewer receives its model and effort as exec arguments.
 const codexStep = { role: "review", nativeResult: "codex-jsonl", args: ["exec", "--json", "-"] };
 assert.deepEqual(applyResolvedReviewer(codexStep, { reviewer: "gpt-5.6-sol", reviewerEffort: "high" }), { ...codexStep, model: "gpt-5.6-sol", effort: "high", args: ["exec", "--model", "gpt-5.6-sol", "-c", 'model_reasoning_effort="high"', "--json", "-"] });
-for (const selecting of [["-c", 'model_reasoning_effort="low"'], ["-cmodel_reasoning_effort=low"], ["-cmodel=\"gpt-6-astra\""], ["-c=model_reasoning_effort=low"], ["--model=gpt-6-astra"], ["-mgpt-6-astra"], ["-c", 'model="gpt-6-astra"'], ["--config=model_reasoning_effort=\"low\""], ["--config=model=\"gpt-6-astra\""], ["--effort=low"], ["--agent=reviewer-opus-5"]]) {
+for (const selecting of [["-c", 'model_reasoning_effort="low"'], ["-cmodel_reasoning_effort=low"], ["-cmodel=\"gpt-6-astra\""], ["-c=model_reasoning_effort=low"], ["-c", ' model_reasoning_effort="low"'], ["-c", 'MODEL="gpt-6-astra"'], [" --model", "gpt-6-astra"], ["--model=gpt-6-astra"], ["-mgpt-6-astra"], ["-c", 'model="gpt-6-astra"'], ["--config=model_reasoning_effort=\"low\""], ["--config=model=\"gpt-6-astra\""], ["--effort=low"], ["--agent=reviewer-opus-5"]]) {
   assert.throws(() => applyResolvedReviewer({ ...codexStep, args: ["exec", ...selecting, "-"] }, { reviewer: "gpt-5.6-sol", reviewerEffort: "high" }), /must not select its own model or effort/, selecting.join(" "));
 }
 assert.doesNotThrow(() => applyResolvedReviewer({ ...codexStep, args: ["exec", "-c", 'model_provider="openai"', "-"] }, { reviewer: "gpt-5.6-sol", reviewerEffort: "high" }), "other config overrides stay allowed");

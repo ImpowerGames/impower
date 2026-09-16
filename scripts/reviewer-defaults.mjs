@@ -68,7 +68,7 @@ export function resolveReviewer(config, root) {
   }
   if (config.reviewerFallback !== undefined && typeof config.reviewerFallback !== "boolean") throw new Error("reviewerFallback must be a boolean");
   if (config.ticketEffort !== undefined && !ticketEfforts.includes(config.ticketEffort)) throw new Error(`ticketEffort must be one of ${ticketEfforts.join(", ")}`);
-  const index = config.reviewerIndex ?? 0;
+  const index = config.reviewerIndex === undefined ? 0 : config.reviewerIndex;
   const { defaults, agents } = readReviewerDefaults(root);
   const writer = stripContext(config.writer);
   const rows = defaults.rows.filter((row) => row.writer === writer && row.writerEffort === config.writerEffort && (config.ticketEffort === undefined || row.ticketEffort === config.ticketEffort));
@@ -87,7 +87,12 @@ export function applyResolvedReviewer(step, selection) {
   if (step.model !== undefined) throw new Error("A review step resolved from defaults must not declare its own model");
   // Covers separated, joined and attached flag forms and config overrides of
   // either key (`-c key=v`, `-ckey=v`, `-c=key=v`, `--config=key=v`).
-  const selects = (arg) => /^(?:--model|--agent|--effort)(?:=|$)|^-m/.test(arg) || /^(?:--config=|-c=?)?(?:model|model_reasoning_effort)\s*=/.test(arg);
+  // Codex accepts leading whitespace in a config key, so match on the trimmed,
+  // lowercased argument.
+  const selects = (raw) => {
+    const arg = raw.trim().toLowerCase();
+    return /^(?:--model|--agent|--effort)(?:=|$)|^-m/.test(arg) || /^(?:--config=|-c=?)?\s*(?:model|model_reasoning_effort)\s*=/.test(arg);
+  };
   if (step.args.some(selects)) throw new Error("A review step resolved from defaults must not select its own model or effort");
   if (isClaude(selection.reviewer)) {
     if (step.nativeResult === "codex-jsonl" || step.args[0] === "exec") throw new Error(`Resolved reviewer ${selection.reviewer} needs a Claude reviewer step`);
