@@ -14,7 +14,7 @@ console.log(`Scratch repository: ${scratch}`);
 const runHandoff = (file) => handoff(file, {slotRoot:path.join(scratch,"serial-slots")});
 const worktree = path.join(scratch, "repo");
 fs.mkdirSync(worktree);
-const git = (...args) => execFileSync("git", args, { cwd: worktree, encoding: "utf8", env: { ...process.env, GIT_AUTHOR_NAME: "test", GIT_AUTHOR_EMAIL: "test@example.invalid", GIT_COMMITTER_NAME: "test", GIT_COMMITTER_EMAIL: "test@example.invalid" } });
+const git = (...args) => execFileSync("git", args, { cwd: worktree, encoding: "utf8", windowsHide: true, env: { ...process.env, GIT_AUTHOR_NAME: "test", GIT_AUTHOR_EMAIL: "test@example.invalid", GIT_COMMITTER_NAME: "test", GIT_COMMITTER_EMAIL: "test@example.invalid" } });
 git("init");
 git("commit", "--allow-empty", "-m", "fixture");
 const child = path.join(scratch, "child.mjs");
@@ -115,7 +115,7 @@ assert.equal(fs.existsSync(config.journal), false);
 // correction. Only the GitHub read is stubbed; children, commits and journals
 // use the scratch repository and the real launcher.
 const lifecycleChild = path.join(scratch, "round-lifecycle.mjs");
-fs.writeFileSync(lifecycleChild, `import fs from "node:fs"; import {execFileSync} from "node:child_process"; let p=""; for await (const c of process.stdin) p+=c; const role=/role=(\\w+)/.exec(p)[1]; if(role==="implement" && process.argv[2]!=="noop")execFileSync("git",["-c","user.name=test","-c","user.email=test@example.invalid","commit","--allow-empty","-m","verified correction"]); const head=execFileSync("git",["rev-parse","HEAD"],{encoding:"utf8"}).trim(); fs.writeFileSync(/Write (.*?) with the editor tool/.exec(p)[1],JSON.stringify({head,next:role==="implement"?"review":process.argv[2]==="first-review"?"next-review":null,commentIds:role==="review"?[123]:[],summary:"fixture completed"}));`);
+fs.writeFileSync(lifecycleChild, `import fs from "node:fs"; import {execFileSync} from "node:child_process"; let p=""; for await (const c of process.stdin) p+=c; const role=/role=(\\w+)/.exec(p)[1]; if(role==="implement" && process.argv[2]!=="noop")execFileSync("git",["-c","user.name=test","-c","user.email=test@example.invalid","commit","--allow-empty","-m","verified correction"],{windowsHide:true}); const head=execFileSync("git",["rev-parse","HEAD"],{encoding:"utf8",windowsHide:true}).trim(); fs.writeFileSync(/Write (.*?) with the editor tool/.exec(p)[1],JSON.stringify({head,next:role==="implement"?"review":process.argv[2]==="first-review"?"next-review":null,commentIds:role==="review"?[123]:[],summary:"fixture completed"}));`);
 const lifecycle = { ...config, pr:531, first:"review", maxSteps:2, reviewedHead:git("rev-parse","HEAD").trim(), journal:path.join(scratch,"completed-third.jsonl"), steps:{
   review:{role:"review",round:3,model:"reviewer-test",executable:process.execPath,args:[lifecycleChild,"--model","reviewer-test"],prompt,next:[null]},
   implement:{role:"implement",model:"writer-test",executable:process.execPath,args:[lifecycleChild,"--model","writer-test"],prompt,next:["review"]},
@@ -226,7 +226,7 @@ fs.writeFileSync(coordinator, `import {runHandoff} from ${JSON.stringify(pathToF
 const launched = [];
 const launch = (i) => {
   const repo = path.join(scratch, `concurrent-repo-${i}`);
-  execFileSync("git", ["clone", "--quiet", worktree, repo]);
+  execFileSync("git", ["clone", "--quiet", worktree, repo], { windowsHide: true });
   const plan = path.join(scratch, `concurrent-${i}.json`);
   const posted = path.join(scratch, `posted-${i}`);
   fs.writeFileSync(plan, JSON.stringify({worktree:repo, writer:"writer-test", writerEffort:"medium", reviewer:"reviewer-test", completedReviewRound:0, maxSteps:1, first:"review", journal:path.join(scratch,`concurrent-${i}.jsonl`), steps:{review:{role:"review",round:1,model:"reviewer-test",executable:process.execPath,args:[reviewer,posted,release,"--model","reviewer-test"],prompt,next:[null]}}}));
@@ -361,9 +361,9 @@ assert.equal(fs.existsSync(lock),false,"confirmed child close releases the workt
 console.log("PASS: confirmed-absent children, marker diagnostics, and actual post-spawn journal failure cleanup");
 
 const failureWorker=path.join(scratch,"failure-worker.mjs");
-fs.writeFileSync(failureWorker,`import fs from 'node:fs';import cp,{ChildProcess} from 'node:child_process';import {syncBuiltinESMExports} from 'node:module';import {runHandoff} from ${JSON.stringify(pathToFileURL(path.resolve("scripts/agent-handoff.mjs")).href)}; const realWrite=fs.writeSync;let failing=false;fs.writeSync=(fd,data,...args)=>{if(typeof data==='string'&&data.includes('"event":"running"')){failing=true;throw new Error('primary journal failure')}if(failing&&process.argv[4]==='combined')throw new Error('secondary storage failure');return realWrite(fd,data,...args)};if(process.argv[4]==='retained'){const spawn=cp.spawn;cp.spawn=(exe,args,options)=>spawn(exe,args,{...options,detached:true});syncBuiltinESMExports();ChildProcess.prototype.kill=function(){this.emit('error',new Error('fixture signal-delivery failure'));return false;};}runHandoff(process.argv[2],{slotRoot:process.argv[3]}).catch(error=>{console.error(error.message);process.exitCode=1});`);
+fs.writeFileSync(failureWorker,`import fs from 'node:fs';import cp,{ChildProcess} from 'node:child_process';import {syncBuiltinESMExports} from 'node:module';import {runHandoff} from ${JSON.stringify(pathToFileURL(path.resolve("scripts/agent-handoff.mjs")).href)}; const realWrite=fs.writeSync;let failing=false;fs.writeSync=(fd,data,...args)=>{if(typeof data==='string'&&data.includes('"event":"running"')){failing=true;throw new Error('primary journal failure')}if(failing&&process.argv[4]==='combined')throw new Error('secondary storage failure');return realWrite(fd,data,...args)};if(process.argv[4]==='retained'){const spawn=cp.spawn;cp.spawn=(exe,args,options)=>/* windows-hide: caller */spawn(exe,args,{...options,detached:true});syncBuiltinESMExports();ChildProcess.prototype.kill=function(){this.emit('error',new Error('fixture signal-delivery failure'));return false;};}runHandoff(process.argv[2],{slotRoot:process.argv[3]}).catch(error=>{console.error(error.message);process.exitCode=1});`);
 for(const mode of ["combined","retained"]){
-  const repo=path.join(scratch,`failure-repo-${mode}`);execFileSync("git",["clone","--quiet",worktree,repo]);
+  const repo=path.join(scratch,`failure-repo-${mode}`);execFileSync("git",["clone","--quiet",worktree,repo],{windowsHide:true});
   const taskRelease=path.join(scratch,`failure-${mode}.release`);
   const taskPlan=path.join(scratch,`failure-${mode}.json`);
   const taskPool=path.join(scratch,`failure-${mode}-slots`);

@@ -463,7 +463,7 @@ export async function applyPlan(plan, api) {
 function github(scratch) {
   let sequence = 0;
   let directory;
-  const gh = args => JSON.parse(execFileSync('gh', args, { encoding: 'utf8', maxBuffer: 20 * 1024 * 1024 }));
+  const gh = args => JSON.parse(execFileSync('gh', args, { encoding: 'utf8', maxBuffer: 20 * 1024 * 1024, windowsHide: true }));
   const api = path => gh(['api', `repos/${REPO}/${path}`]);
   const pages = path => gh(['api', `repos/${REPO}/${path}`, '--paginate', '--slurp']).flat();
   function bodyFile(body) {
@@ -476,8 +476,8 @@ function github(scratch) {
     issueComments: number => pages(`issues/${number}/comments?per_page=100`),
     postIssueComment: (number, body) => gh(['api', '-X', 'POST', `repos/${REPO}/issues/${number}/comments`, '-F', `body=@${bodyFile(body)}`]),
     createTicket: (title, body) => gh(['api', '-X', 'POST', `repos/${REPO}/issues`, '-f', `title=${title}`, '-F', `body=@${bodyFile(body)}`, '-f', 'type=Task', '-f', 'labels[]=workflow: skills']),
-    updateBody: body => execFileSync('gh', ['issue', 'edit', String(INBOX), '--repo', REPO, '--body-file', bodyFile(body)], { encoding: 'utf8' }),
-    deleteComment: id => execFileSync('gh', ['api', '-X', 'DELETE', `repos/${REPO}/issues/comments/${id}`], { encoding: 'utf8' }),
+    updateBody: body => execFileSync('gh', ['issue', 'edit', String(INBOX), '--repo', REPO, '--body-file', bodyFile(body)], { encoding: 'utf8', windowsHide: true }),
+    deleteComment: id => execFileSync('gh', ['api', '-X', 'DELETE', `repos/${REPO}/issues/comments/${id}`], { encoding: 'utf8', windowsHide: true }),
     postSummary: body => gh(['api', '-X', 'POST', `repos/${REPO}/issues/${INBOX}/comments`, '-F', `body=@${bodyFile(body)}`]),
   };
 }

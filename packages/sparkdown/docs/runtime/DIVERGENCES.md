@@ -611,6 +611,29 @@ shorthand superseded spec decision D3, which briefly made `{{`/`}}`
 literal-brace escapes in Sparkle content strings; the literal escape is now
 `\{` / `\}` — the same spelling Luau itself suggests.)
 
+### Malformed literals are diagnosed; malformed statements mostly are not
+
+Luau's parser tests for malformed input are ported under [`src/tests/luau-conformance/`](src/tests/luau-conformance/) (`*Errors.test.ts`), one file per area, with every upstream snippet and message quoted verbatim. A case sparkdown does not match is a `describe.skip` whose name states the reason, so the gap is visible in the test report rather than silently absent.
+
+Literal-level diagnostics match Luau's wording exactly:
+
+| source | diagnostic |
+| --- | --- |
+| `"\xFO"`, `"\u{}"`, `"\359"` | String literal contains malformed escape sequence |
+| `` `\xQQ {1}` `` | Interpolated string literal contains malformed escape sequence |
+| `"abc` (no closing quote, or a newline before it) | Malformed string; did you forget to finish it? |
+| `123x`, `0b123`, `0xg`, `1..2` | Malformed number |
+| `--[[unfinished` | Expected identifier when parsing expression, got unfinished comment |
+
+Luau's lexer fails these as `BrokenString` / `BrokenComment` / a number that does not convert; a TextMate grammar cannot fail a token, so the [`ValidationAnnotator`](src/compiler/classes/annotators/ValidationAnnotator.ts) recognizes the shapes instead: a string or block-comment node with no closing part, an escape node whose digits are missing or out of range, a number whose next character is a letter, digit, `_` or `.` (the grammar reads `123x` as the number `123` followed by `x`, and the string `"abc` with no closing quote as running to the next `"` or the end of the file, so the diagnostic is what tells the author). The number check applies wherever a Luau number appears, which includes `define` and `config` field values (`version = 1.0.0` is malformed there, as it is in Luau); `style` and `theme` values are unit values rather than Luau numbers, and the inline text command's control argument is excluded, so `8px`, `1rem` and `<1.5x:...>` are not flagged.
+
+Two literal cases are deliberately different:
+
+- `\u{110000}` through `\u{7FFFFFFF}` are valid in Luau (it encodes them as extended UTF-8) and are accepted here too, but a JS string cannot hold a code point above U+10FFFF, so they lower to U+FFFD.
+- Luau's "Malformed integer" / "Integer overflow" cases (`123i`, `0xABii`) are "Malformed number" here: there is no integer literal type, so the `i` suffix is just a letter after a number.
+
+Statement-level diagnostics (a missing `end`, an unexpected token, a bare `break` outside a loop, an ambiguous call across a newline, a non-variable assignment target, a `const` without an initializer) are not reported. The grammar recovers from an unexpected token by reading the rest of the line as narrative text, so it has no point at which it expected one token and saw another. Those cases are the `describe.skip` groups in `StatementErrors.test.ts`, `FunctionErrors.test.ts` and `TableErrors.test.ts`. Type-annotation diagnostics are not applicable at all (see "Type annotations are parsed but ignored" above) and are recorded in `TypeAnnotationErrors.test.ts`; Luau's compiler-side errors about register limits and `continue` jumping over a local are recorded in `CompilerErrors.test.ts`.
+
 ### Regex literals: `@/pattern/flags`
 
 Not a Luau form at all. A regex literal is raw, so a pattern keeps single

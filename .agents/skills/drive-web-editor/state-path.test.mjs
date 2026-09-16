@@ -108,7 +108,7 @@ await check("pidAlive is true for this process", () => {
 });
 
 await check("pidAlive is false for a process that has exited", () => {
-  const child = spawnSync(process.execPath, ["-e", "0"]);
+  const child = spawnSync(process.execPath, ["-e", "0"], { windowsHide: true });
   assert.equal(child.status, 0, "the probe child must exit cleanly");
   assert.ok(child.pid > 0, "spawnSync reports the child's pid");
   assert.equal(pidAlive(child.pid), false);
@@ -255,7 +255,7 @@ const untilGone = async (pid, ms = 5_000) => {
 };
 const stop = (child) => {
   try {
-    if (process.platform === "win32") spawnSync("taskkill", ["/pid", String(child.pid), "/T", "/F"], { stdio: "ignore" });
+    if (process.platform === "win32") spawnSync("taskkill", ["/pid", String(child.pid), "/T", "/F"], { stdio: "ignore", windowsHide: true });
     else process.kill(-child.pid, "SIGKILL");
   } catch {
     /* already gone */
@@ -278,7 +278,7 @@ await check("the live probe dates a child this check spawned to when it was spaw
 });
 
 await check("the live probe reports no start for a process that has exited or a pid that names none", async () => {
-  const gone = spawnSync(process.execPath, ["-e", "0"]);
+  const gone = spawnSync(process.execPath, ["-e", "0"], { windowsHide: true });
   assert.equal(await liveProbe.startedMs(gone.pid), null);
   for (const pid of [0, -1, 1.5, NaN, undefined, null, "123"]) {
     assert.equal(await liveProbe.startedMs(pid), null, `pid ${String(pid)}`);
@@ -433,7 +433,7 @@ try {
   });
 
   await check("down on a record whose pid has exited removes it and signals nothing", () => {
-    const gone = spawnSync(process.execPath, ["-e", "0"]);
+    const gone = spawnSync(process.execPath, ["-e", "0"], { windowsHide: true });
     writeRecord({ url: "http://localhost:1", pid: gone.pid, mode: "same-origin", startedAt: Date.now() });
     const d = run("down");
     assert.match(d.out, /removed .*no longer the launcher it recorded.*nothing was stopped/);

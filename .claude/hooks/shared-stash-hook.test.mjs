@@ -120,11 +120,12 @@ for (const [label, command] of allows) {
   check(Boolean(hook), "settings.json wires shared-stash-hook.mjs for Bash|PowerShell");
   if (hook) {
     const shells = [process.platform === "win32" ? testShell() : "bash"];
-    if (spawnSync("dash", ["-c", "true"]).status === 0) shells.push("dash");
+    if (spawnSync("dash", ["-c", "true"], { windowsHide: true }).status === 0) shells.push("dash");
     else console.log("NOTE: dash is not installed; the POSIX-shell pass is skipped");
     for (const shell of shells) {
       const run = (payload, env = {}) =>
         spawnSync(shell, ["-c", hook.command], {
+          windowsHide: true,
           input: payload,
           encoding: "utf8",
           env: { ...process.env, CLAUDE_PROJECT_DIR: root, ...env },

@@ -48,7 +48,7 @@ assert.match(uppercase.stderr, /data fixture extensions must be lowercase \(.jso
 spawnSync("git", ["rm", "--cached", ".agents/skills/uppercase.test.JSON"], { cwd: scratch, windowsHide: true });
 fs.unlinkSync(path.join(scratch, ".agents/skills/uppercase.test.JSON"));
 assert.notEqual(run({ AGENT_TOOLING_BASH: path.join(scratch, "missing-bash") }).status, 0, "invalid explicit Bash must fail before running checks");
-put(".agents/skills/coverage-2.test.mjs", 'import { execFileSync } from "node:child_process"; import assert from "node:assert/strict"; assert.equal(execFileSync("bash", ["-c", "printf nested-bash"], { encoding: "utf8" }), "nested-bash");');
+put(".agents/skills/coverage-2.test.mjs", 'import { execFileSync } from "node:child_process"; import assert from "node:assert/strict"; assert.equal(execFileSync("bash", ["-c", "printf nested-bash"], { encoding: "utf8", windowsHide: true }), "nested-bash");');
 assert.equal(run().status, 0, "nested Node checks inherit working Bash");
 spawnSync("git", ["rm", "--cached", ".agents/skills/coverage-3.test.mjs"], { cwd: scratch, windowsHide: true });
 fs.unlinkSync(path.join(scratch, ".agents/skills/coverage-3.test.mjs"));
@@ -63,7 +63,7 @@ put(".github/scripts/fixture.test.mjs", 'console.log("github coverage");');
 const hungFile = ".agents/hooks/policy.test.mjs";
 put(".agents/skills/after-abort.test.py", "pass");
 spawnSync("git", ["add", ".agents/skills/after-abort.test.py"], { cwd: scratch, windowsHide: true });
-put(hungFile, 'import fs from "node:fs"; import { spawn } from "node:child_process"; const child = spawn(process.execPath, ["-e", "setInterval(() => {}, 1000)"], { stdio: "inherit" }); fs.writeFileSync("child.pid", String(child.pid)); setInterval(() => {}, 1000);');
+put(hungFile, 'import fs from "node:fs"; import { spawn } from "node:child_process"; const child = spawn(process.execPath, ["-e", "setInterval(() => {}, 1000)"], { stdio: "inherit", windowsHide: true }); fs.writeFileSync("child.pid", String(child.pid)); setInterval(() => {}, 1000);');
 const hung = run({ AGENT_TOOLING_TIMEOUT_MS: "5000" });
 assert.equal(hung.status, 1, hung.stderr);
 assert.match(hung.stdout, /DONE: .agents\/hooks\/policy.test.mjs: timed out/);
@@ -87,7 +87,7 @@ while (!exited() && Date.now() < deadline) Atomics.wait(new Int32Array(new Share
 assert.ok(exited(), "timed-out child must actually exit");
 spawnSync("git", ["rm", "--cached", ".agents/skills/after-abort.test.py"], { cwd: scratch, windowsHide: true });
 fs.unlinkSync(path.join(scratch, ".agents/skills/after-abort.test.py"));
-put(hungFile, 'import fs from "node:fs"; import { spawn } from "node:child_process"; const child = spawn(process.execPath, ["-e", "setTimeout(() => {}, 6500)"], { stdio: "inherit" }); fs.writeFileSync("early-child.pid", String(child.pid)); process.exit(0);');
+put(hungFile, 'import fs from "node:fs"; import { spawn } from "node:child_process"; const child = spawn(process.execPath, ["-e", "setTimeout(() => {}, 6500)"], { stdio: "inherit", windowsHide: true }); fs.writeFileSync("early-child.pid", String(child.pid)); process.exit(0);');
 const earlyExit = run({ AGENT_TOOLING_TIMEOUT_MS: "5000" });
 if (process.platform === "win32") {
   // Windows closes these inherited pipe handles with the parent. This is not

@@ -35,7 +35,7 @@ try {
     fs.writeFileSync(path.join(dir, "assertion.mjs"), 'console.error("AssertionError: expected ENOENT: Permission denied to be handled"); process.exit(1);');
     const assertion = runTest(`${node} assertion.mjs`, dir, shell);
     assert.equal(classifyRedFailure(assertion.output), "assertion");
-    fs.writeFileSync(path.join(dir, "child-report.mjs"), 'import { spawnSync } from "node:child_process"; import assert from "node:assert/strict"; const r = spawnSync("impower_missing_child_507", { shell: true, encoding: "utf8" }); process.stderr.write(r.stderr || ""); assert.equal(r.status, 0);');
+    fs.writeFileSync(path.join(dir, "child-report.mjs"), 'import { spawnSync } from "node:child_process"; import assert from "node:assert/strict"; const r = spawnSync("impower_missing_child_507", { shell: true, encoding: "utf8", windowsHide: true }); process.stderr.write(r.stderr || ""); assert.equal(r.status, 0);');
     const childReport = runTest(`${node} child-report.mjs`, dir, shell);
     assert.equal(childReport.exit, 1, childReport.output);
     assert.equal(classifyRedFailure(childReport.output, childReport), "unknown", childReport.output);

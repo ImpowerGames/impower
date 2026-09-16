@@ -110,6 +110,7 @@ function shutdown(code) {
       // taskkill /T tears down the whole tree.
       spawn("taskkill", ["/pid", String(child.pid), "/T", "/F"], {
         stdio: "ignore",
+        windowsHide: true,
       });
     } else {
       try {

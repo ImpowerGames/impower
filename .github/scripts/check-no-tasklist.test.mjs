@@ -62,6 +62,7 @@ writeFileSync(scriptCopy, scriptSource);
 function runScript(prBody) {
   return spawnSync(process.execPath, [scriptCopy], {
     encoding: "utf8",
+    windowsHide: true,
     env: { ...process.env, PR_BODY: prBody },
   });
 }

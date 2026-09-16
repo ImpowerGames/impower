@@ -12,35 +12,7 @@
 // for full parity, and a silent omission would read as "covered".
 
 import { describe, expect, test } from "vitest";
-import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
-
-function diagnose(source: string): string[] {
-  const compiler = new SparkdownCompiler();
-  const uri = "inmemory:///main.sd";
-  compiler.configure({
-    files: [
-      {
-        uri,
-        type: "script",
-        name: "main",
-        ext: "sd",
-        text: source,
-        version: 1,
-        languageId: "sparkdown",
-      },
-    ],
-  });
-  const result = compiler.compile({ textDocument: { uri } });
-  const out: string[] = [];
-  for (const ds of Object.values(result.program.diagnostics ?? {})) {
-    for (const d of ds as any[]) {
-      out.push(
-        typeof d?.message === "string" ? d.message : (d?.message?.value ?? ""),
-      );
-    }
-  }
-  return out;
-}
+import { diagnose, diagnoseInFunction } from "./diagnosticTestHarness";
 
 const MISSING_BRACE = "Malformed interpolated string; did you forget to add a";
 
@@ -153,14 +125,56 @@ describe.skip("double braces (diverges: `{{fn}}` is the call shorthand)", () => 
 
 // Luau: parse_interpolated_string_malformed_escape
 // "Interpolated string literal contains malformed escape sequence"
-// Sparkdown does not validate escape sequences anywhere yet.
-describe.skip("malformed escape (diverges: escapes are not validated)", () => {
+describe("malformed escape", () => {
   test("`\\xQQ`", () => {
-    expect(
-      diagnose("store a = `???\\xQQ {1}`\n").some((m) =>
-        m.includes("malformed escape sequence"),
-      ),
-    ).toBe(true);
+    expect(diagnoseInFunction("local a = `???\\xQQ {1}`")).toContain(
+      "Interpolated string literal contains malformed escape sequence",
+    );
+  });
+
+  // Sparkdown's `"..."` interpolates too, but takes the plain-string wording
+  // because that is what Luau says for a `"` string (StringLiteralErrors).
+  test('"\\xQQ"', () => {
+    expect(diagnoseInFunction('local a = "???\\xQQ {1}"')).toContain(
+      "String literal contains malformed escape sequence",
+    );
+  });
+});
+
+// Luau: parse_interpolated_string_call_without_parens
+// "Expected identifier when parsing expression, got `{"
+//
+// Luau rejects an interpolated string as a paren-less call argument. The
+// grammar's paren-less call sugar (`LUAU_FUNCTION_CALL_START`) covers `"`,
+// `'`, `[[` and `{` but not a backtick, so `print `{42}`` is not read as a
+// call at all: `print` stands alone and the string after it is accepted
+// silently.
+describe.skip("call without parens (diverges: a backtick after a name is not a call, and the leftover string is accepted silently)", () => {
+  test("_ = print `{42}`", () => {
+    expect(diagnoseInFunction("_ = print `{42}`")).toContain(
+      "Expected identifier when parsing expression, got `{",
+    );
+  });
+});
+
+// Luau: parse_interpolated_string_weird_token
+// "Malformed interpolated string, got '!'"
+//
+// The interpolation `{42 !!}` is reported, but as an unterminated `{`: the
+// grammar's interpolation scope ends at the first `}` it can match, and a
+// stray token inside it is not distinguished from a missing brace.
+describe("a stray token inside an interpolation", () => {
+  test("`??? {42 !!}` is reported", () => {
+    const msgs = diagnoseInFunction("local a = `??? {42 !!}`");
+    expect(msgs.some((m) => m.includes(MISSING_BRACE))).toBe(true);
+  });
+
+  describe.skip("verbatim (diverges: reported as a missing `}`)", () => {
+    test("`??? {42 !!}`", () => {
+      expect(diagnoseInFunction("local a = `??? {42 !!}`")).toContain(
+        "Malformed interpolated string, got '!'",
+      );
+    });
   });
 });
 
