@@ -10,17 +10,19 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..")
 const stateDir = fs.mkdtempSync(path.join(os.tmpdir(), "impower-title-test-"));
 console.log("state directory: " + stateDir);
 process.env.IMPOWER_SESSION_TITLE_DIR = stateDir;
-const { deriveTitle, afterTool, gate, statePath } = await import("./session-title.mjs");
+const { deriveTitle, deriveWorktree, afterTool, gate, statePath, sessionKey, ackCommand } = await import("./session-title.mjs");
 
-// A disposable repository whose worktrees stand in for the ones the commands create.
-const repo = fs.mkdtempSync(path.join(os.tmpdir(), "impower-title-repo-"));
+// A disposable checkout whose worktrees sit where the test commands point, standing in for the ones those commands create.
+const fixture = fs.mkdtempSync(path.join(os.tmpdir(), "impower-title-repo-"));
+const repo = path.join(fixture, "checkout");
+fs.mkdirSync(repo);
 console.log("fixture repository: " + repo);
-const git = (...args) => { const r = spawnSync("git", args, { cwd: repo, encoding: "utf8", windowsHide: true }); assert.equal(r.status, 0, r.stderr); };
-git("init", "-q");
-git("-c", "user.name=t", "-c", "user.email=t@example.invalid", "commit", "-q", "--allow-empty", "-m", "base");
-const addWorktree = (branch) => git("worktree", "add", "-q", "-b", branch, path.join(repo, ".wt", branch.replaceAll("/", "-")));
-addWorktree("fix/302-filterimage-layers");
-addWorktree("feat/9-second-thing");
+const git = (...args) => spawnSync("git", args, { cwd: repo, encoding: "utf8", windowsHide: true });
+const ok = (result) => assert.equal(result.status, 0, result.stderr);
+ok(git("init", "-q"));
+ok(git("-c", "user.name=t", "-c", "user.email=t@example.invalid", "commit", "-q", "--allow-empty", "-m", "base"));
+ok(git("worktree", "add", "-q", "-b", "fix/302-filterimage-layers", path.join(fixture, "impower.worktrees", "fix", "302-filterimage-layers")));
+ok(git("worktree", "add", "-q", "-b", "feat/9-second-thing", path.join(fixture, "y")));
 
 const create = "git worktree add -b fix/302-filterimage-layers ../impower.worktrees/fix/302-filterimage-layers origin/main";
 assert.equal(deriveTitle(create), "FIX #302: filterimage layers");
@@ -34,6 +36,11 @@ for (const miss of ["git worktree add -b claude/sparkdown-docs ../x origin/main"
 }
 assert.equal(deriveTitle(`cd x; ${create}`), "FIX #302: filterimage layers");
 assert.equal(deriveTitle(`if true; then ${create}; fi`), "FIX #302: filterimage layers");
+// Separators and keywords inside quotes do not start a command.
+for (const quoted of [`echo 'note; ${create}'`, `echo "note && ${create}"`, `echo note\\; ${create}`, `git commit -m "then ${create}"`]) {
+  assert.equal(deriveTitle(quoted), null, quoted);
+}
+assert.deepEqual(deriveWorktree("git worktree add --lock --reason 'x y' -b docs/5-two-words C:\\work\\wt HEAD"), { branch: "docs/5-two-words", target: "C:\\work\\wt", title: "DOCS #5: two words" }, "Windows paths keep their backslashes");
 
 const shell = (session_id, command, tool_name = "Bash") => ({ session_id, cwd: repo, tool_name, tool_input: { command } });
 const rename = (session_id, title, tool_name = "mcp__ccd_session_mgmt__set_session_title", target = "self") => ({ session_id, tool_name, tool_input: tool_name.endsWith("set_thread_title") ? { title } : { session_id: target, title } });
@@ -42,6 +49,11 @@ const rename = (session_id, title, tool_name = "mcp__ccd_session_mgmt__set_sessi
 assert.equal(afterTool(shell("failed", "git worktree add -b fix/303-never-created ../z origin/main"), "codex"), null);
 assert.equal(gate(shell("failed", "git status"), "codex"), null);
 assert.equal(afterTool({ ...shell("failed", create), cwd: os.tmpdir() }, "codex"), null, "outside the repository no worktree is listed");
+// A failed add for a branch that already has a worktree elsewhere records nothing either.
+const duplicate = "git worktree add -b fix/302-filterimage-layers ../second-copy origin/main";
+assert.notEqual(git(...duplicate.split(" ").slice(1)).status, 0, "git refuses the duplicate branch");
+assert.equal(afterTool(shell("failed", duplicate), "codex"), null);
+assert.equal(gate(shell("failed", "git status"), "codex"), null);
 
 // Unrelated sessions and commands record nothing and are never gated.
 assert.equal(afterTool(shell("a", "git status"), "claude"), null);
@@ -84,8 +96,9 @@ assert.ok(ack, codexContext);
 assert.ok(gate(shell("c", "npm test"), "codex"));
 assert.equal(gate(shell("c", ack), "codex"), null);
 const hookPath = path.join(root, ".agents/hooks/session-title.mjs");
-assert.equal(gate(shell("c", `node ${hookPath.replaceAll("\\", "/")} confirm c`), "codex"), null, "an unquoted path to the same script is accepted");
-for (const other of [`node "C:/elsewhere/session-title.mjs" confirm c`, `node ./session-title.mjs confirm c`, `node "${hookPath}" confirm d`, `${ack} && npm test`, `node "${hookPath}" confirm c extra`]) {
+const keyC = sessionKey("c");
+assert.equal(gate(shell("c", `node ${hookPath.replaceAll("\\", "/")} confirm ${keyC}`), "codex"), null, "an unquoted path to the same script is accepted");
+for (const other of [`node "C:/elsewhere/session-title.mjs" confirm ${keyC}`, `node ./session-title.mjs confirm ${keyC}`, `node "${hookPath}" confirm ${sessionKey("d")}`, `node "${hookPath}" confirm c`, `${ack} && npm test`, `${ack}; npm test`, `node "${hookPath}" confirm ${keyC} extra`]) {
   assert.ok(gate(shell("c", other), "codex"), other);
 }
 assert.equal(afterTool(rename("c", "FIX #302: filterimage layers", "set_thread_title"), "codex"), null);
@@ -95,11 +108,27 @@ assert.equal(gate(shell("c", "npm test"), "codex"), null);
 afterTool(shell("d", create), "codex");
 afterTool(shell("e", create), "codex");
 const cli = path.join(root, ".agents/hooks/session-title.mjs");
-const confirmed = spawnSync(process.execPath, [cli, "confirm", "d"], { encoding: "utf8", env: process.env, windowsHide: true });
+const confirm = (key) => spawnSync(process.execPath, [cli, "confirm", key], { encoding: "utf8", env: process.env, windowsHide: true });
+const confirmed = confirm(sessionKey("d"));
 assert.equal(confirmed.status, 0, confirmed.stderr);
 assert.equal(gate(shell("d", "npm test"), "codex"), null);
 assert.ok(gate(shell("e", "npm test"), "codex"));
-assert.equal(spawnSync(process.execPath, [cli, "confirm", "unknown"], { encoding: "utf8", env: process.env, windowsHide: true }).status, 1);
+assert.equal(confirm(sessionKey("unknown")).status, 1);
+assert.equal(confirm("d").status, 2, "only a session key is accepted");
+
+// Session ids with spaces or shell syntax get a usable acknowledgement that contains neither.
+const bashShell = process.platform === "win32" ? testShell() : "bash";
+for (const odd of ["space id", "x;echo${IFS}INJECTED", "q'uote\"d"]) {
+  const message = afterTool(shell(odd, create), "codex");
+  const command = message.match(/`(node [^`]+ confirm [^`]+)`/)[1];
+  assert.equal(command, ackCommand(odd));
+  assert.ok(!command.includes(odd), command);
+  assert.equal(gate(shell(odd, command), "codex"), null, odd);
+  const ran = spawnSync(bashShell, ["-c", command], { encoding: "utf8", env: process.env, windowsHide: true });
+  assert.equal(ran.status, 0, ran.stderr);
+  assert.doesNotMatch(ran.stdout, /INJECTED/);
+  assert.equal(gate(shell(odd, "npm test"), "codex"), null, "the prescribed command clears the gate for " + odd);
+}
 
 // Session ids cannot escape the state directory.
 assert.equal(path.dirname(statePath("../../evil")), stateDir);
@@ -165,5 +194,5 @@ assert.equal(out.status, 0, out.stderr);
 assert.equal(out.stdout.trim(), "");
 
 fs.rmSync(stateDir, { recursive: true });
-fs.rmSync(repo, { recursive: true, force: true });
+fs.rmSync(fixture, { recursive: true, force: true });
 console.log("PASS: session title derivation, per-session gate, rename confirmation, acknowledgement fallback and native hook wiring");
