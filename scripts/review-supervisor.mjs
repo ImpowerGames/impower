@@ -5,6 +5,7 @@ import { randomUUID } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { runHandoff,checkReviewRound,verifyNativeReviewResult,validateReviewRecovery,validateNativeReviewArgs,configuredRoute } from './agent-handoff.mjs';
 import { reviewerEnvironment } from './reviewer-security.mjs';
+import { checkWriterEffort } from './reviewer-defaults.mjs';
 import { verifyClaimConfiguration } from './continuation-host.mjs';
 import { processIdentity } from './reviewer-slots.mjs';
 import { nativeResultType,validateCodexReviewer,verifyReviewerExecutable } from './native-reviewer.mjs';
@@ -35,6 +36,7 @@ export function validateReviewPlan(input,{validateArgs=validateNativeReviewArgs}
   if(!Number.isSafeInteger(plan.pr)||plan.pr<1||!plan.writer||!plan.reviewer||configuredRoute(plan.writer)===configuredRoute(plan.reviewer))throw new Error('PR and distinct explicit model routes required');
   if(!plan.destination||!plan.destination.threadId||!plan.destination.turnId||!plan.destination.cwd)throw new Error('Originating destination identity required');
   if(!plan.writerEffort||!plan.permissions||!Array.isArray(plan.reviews)||plan.reviews.length<1||plan.reviews.length>4)throw new Error('Exact routing, permissions and bounded coverage required');
+  checkWriterEffort(plan.writer,plan.writerEffort);
   const limit=plan.reviewRoundLimit??3;
   validateReviewRecovery(plan);
   if(!Number.isInteger(limit)||limit<1||limit>10||(limit>3&&typeof plan.extendedReviewAuthorization!=='string'))throw new Error('Invalid review limit/authorization');

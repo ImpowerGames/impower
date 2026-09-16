@@ -8,11 +8,18 @@ import { fileURLToPath } from "node:url";
 export const reviewerDefaultsFile = ".claude/reviewer-defaults.json";
 export const reviewerModelsFile = ".claude/reviewer-models.json";
 export const efforts = ["low", "medium", "high", "xhigh", "max"];
-// Codex also accepts an ultra reasoning effort; no table row uses it.
-export const writerEfforts = [...efforts, "ultra"];
-export const ticketEfforts =["low", "medium", "high", "correctness-critical"];
+export const ticketEfforts = ["low", "medium", "high", "correctness-critical"];
 const stripContext = (value) => value.replace(/\[[^\]]+\]$/, "");
 const isClaude = (route) => route.startsWith("claude-");
+// Codex also accepts an ultra reasoning effort; Claude stops at max, and no
+// table row uses ultra.
+export const writerEfforts = (writer) => isClaude(stripContext(writer)) ? efforts : [...efforts, "ultra"];
+
+export function checkWriterEffort(writer, writerEffort) {
+  if (typeof writer !== "string" || !writer) throw new Error("Supply the writer route");
+  const allowed = writerEfforts(writer);
+  if (!allowed.includes(writerEffort)) throw new Error(`Supply writerEffort for ${writer} (${allowed.join(", ")})`);
+}
 
 export function validateReviewerDefaults(defaults, models) {
   const claudeRoutes = new Map(models.map(({ name, model }) => [model, name]));
@@ -52,12 +59,12 @@ export function readReviewerDefaults(root) {
 // Returns the reviewer a plan selects: its explicit route unchanged, or the
 // default resolved from writer, writerEffort and optional ticketEffort.
 export function resolveReviewer(config, root) {
-  if (typeof config.writer !== "string" || !config.writer || !writerEfforts.includes(config.writerEffort)) throw new Error(`Supply the writer route and writerEffort (${writerEfforts.join(", ")})`);
+  checkWriterEffort(config.writer, config.writerEffort);
   if (config.reviewer === null) throw new Error("Omit reviewer to use the defaults, or supply an explicit reviewer route");
   if (config.reviewer !== undefined) {
-    const selectors = ["reviewerFallback", "reviewerIndex", "ticketEffort"].filter((key) => config[key] !== undefined);
+    const selectors = ["reviewerEffort", "reviewerFallback", "reviewerIndex", "ticketEffort"].filter((key) => config[key] !== undefined);
     if (selectors.length) throw new Error(`Remove ${selectors.join(", ")}: these fields apply only when the reviewer is resolved from the defaults`);
-    return { reviewer: config.reviewer, reviewerEffort: config.reviewerEffort, resolved: false };
+    return { reviewer: config.reviewer, resolved: false };
   }
   if (config.reviewerFallback !== undefined && typeof config.reviewerFallback !== "boolean") throw new Error("reviewerFallback must be a boolean");
   if (config.ticketEffort !== undefined && !ticketEfforts.includes(config.ticketEffort)) throw new Error(`ticketEffort must be one of ${ticketEfforts.join(", ")}`);
@@ -78,8 +85,9 @@ export function resolveReviewer(config, root) {
 // the model and reasoning effort as exec arguments.
 export function applyResolvedReviewer(step, selection) {
   if (step.model !== undefined) throw new Error("A review step resolved from defaults must not declare its own model");
-  // Covers separated and joined flag forms and config overrides of either key.
-  const selects = (arg) => /^(?:--model|--agent|--effort)(?:=|$)|^-m/.test(arg) || /^(?:--config=)?(?:model|model_reasoning_effort)\s*=/.test(arg);
+  // Covers separated, joined and attached flag forms and config overrides of
+  // either key (`-c key=v`, `-ckey=v`, `-c=key=v`, `--config=key=v`).
+  const selects = (arg) => /^(?:--model|--agent|--effort)(?:=|$)|^-m/.test(arg) || /^(?:--config=|-c=?)?(?:model|model_reasoning_effort)\s*=/.test(arg);
   if (step.args.some(selects)) throw new Error("A review step resolved from defaults must not select its own model or effort");
   if (isClaude(selection.reviewer)) {
     if (step.nativeResult === "codex-jsonl" || step.args[0] === "exec") throw new Error(`Resolved reviewer ${selection.reviewer} needs a Claude reviewer step`);

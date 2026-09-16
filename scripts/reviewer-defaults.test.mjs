@@ -32,8 +32,9 @@ assert.throws(() => pick({ writer: "claude-haiku-4-5", writerEffort: "medium" })
 assert.equal(resolveReviewer({ writer: "claude-opus-5", writerEffort: "medium", reviewer: "claude-opus-4-6" }, root).reviewer, "claude-opus-4-6", "an explicit reviewer bypasses the table");
 for (const writerEffort of [undefined, "bogus"]) assert.throws(() => resolveReviewer({ writer: "claude-opus-5", writerEffort, reviewer: "gpt-5.6-sol" }, root), /writerEffort/, "an explicit reviewer still requires a valid writer effort");
 assert.equal(resolveReviewer({ writer: "gpt-6-astra", writerEffort: "ultra", reviewer: "claude-opus-5" }, root).reviewer, "claude-opus-5", "the Codex ultra effort is a valid writer effort");
+for (const writer of ["claude-opus-5", "claude-opus-5[1m]"]) assert.throws(() => resolveReviewer({ writer, writerEffort: "ultra", reviewer: "gpt-5.6-sol" }, root), /writerEffort for claude-opus-5.*\(low, medium, high, xhigh, max\)/, "a Claude writer cannot report ultra");
 assert.throws(() => resolveReviewer({ writer: "claude-opus-5", writerEffort: "medium", reviewer: null }, root), /Omit reviewer/);
-for (const selector of [{ reviewerFallback: true }, { reviewerIndex: 0 }, { ticketEffort: "medium" }]) assert.throws(() => resolveReviewer({ writer: "claude-opus-5", writerEffort: "medium", reviewer: "gpt-5.6-sol", ...selector }, root), /apply only when the reviewer is resolved/, JSON.stringify(selector));
+for (const selector of [{ reviewerEffort: "high" }, { reviewerFallback: true }, { reviewerIndex: 0 }, { ticketEffort: "medium" }]) assert.throws(() => resolveReviewer({ writer: "claude-opus-5", writerEffort: "medium", reviewer: "gpt-5.6-sol", ...selector }, root), /apply only when the reviewer is resolved/, JSON.stringify(selector));
 
 // Schema refusals.
 const models = [{ name: "reviewer-a", model: "claude-a" }];
@@ -49,7 +50,7 @@ assert.throws(() => validateReviewerDefaults({ codexModels: ["gpt-1-x"], rows: [
 // A resolved Codex reviewer receives its model and effort as exec arguments.
 const codexStep = { role: "review", nativeResult: "codex-jsonl", args: ["exec", "--json", "-"] };
 assert.deepEqual(applyResolvedReviewer(codexStep, { reviewer: "gpt-5.6-sol", reviewerEffort: "high" }), { ...codexStep, model: "gpt-5.6-sol", effort: "high", args: ["exec", "--model", "gpt-5.6-sol", "-c", 'model_reasoning_effort="high"', "--json", "-"] });
-for (const selecting of [["-c", 'model_reasoning_effort="low"'], ["--model=gpt-6-astra"], ["-mgpt-6-astra"], ["-c", 'model="gpt-6-astra"'], ["--config=model_reasoning_effort=\"low\""], ["--config=model=\"gpt-6-astra\""], ["--effort=low"], ["--agent=reviewer-opus-5"]]) {
+for (const selecting of [["-c", 'model_reasoning_effort="low"'], ["-cmodel_reasoning_effort=low"], ["-cmodel=\"gpt-6-astra\""], ["-c=model_reasoning_effort=low"], ["--model=gpt-6-astra"], ["-mgpt-6-astra"], ["-c", 'model="gpt-6-astra"'], ["--config=model_reasoning_effort=\"low\""], ["--config=model=\"gpt-6-astra\""], ["--effort=low"], ["--agent=reviewer-opus-5"]]) {
   assert.throws(() => applyResolvedReviewer({ ...codexStep, args: ["exec", ...selecting, "-"] }, { reviewer: "gpt-5.6-sol", reviewerEffort: "high" }), /must not select its own model or effort/, selecting.join(" "));
 }
 assert.doesNotThrow(() => applyResolvedReviewer({ ...codexStep, args: ["exec", "-c", 'model_provider="openai"', "-"] }, { reviewer: "gpt-5.6-sol", reviewerEffort: "high" }), "other config overrides stay allowed");

@@ -300,6 +300,7 @@ try {
     assert.doesNotThrow(()=>actualValidate({...f.input,reviews:[native]}));assert.throws(()=>actualValidate(f.input),/Unsupported automatic/,'production default validator is wired');
     assert.throws(()=>validateNativeReviewArgs({...native,permissions:'bypassPermissions',args:native.args.map(value=>value==='dontAsk'?'bypassPermissions':value)}),/permission mode/);
     assert.throws(()=>validateReviewPlan({...f.input,writer:'reviewer[fast]'}),/distinct/);
+    assert.throws(()=>validateReviewPlan({...f.input,writerEffort:'bogus'}),/Supply writerEffort/,'job admission refuses an unknown writer effort');
     assert.throws(()=>validateReviewPlan({...f.input,reviews:[{...native,executable:path.join(scratch,'absent.exe')}]}),/ENOENT/);
     for(const cursor of ['oops','-1','1.5'])assert.throws(()=>eventCursor(cursor),/Invalid/);
     assert.equal(eventCursor('3'),3);
