@@ -46,7 +46,7 @@ For `vscode-sparkdown/` changes and the shared language server, invoke `/drive-v
 
 Read [commit and publishing](references/publishing.md) before publishing. Stage deliberately by path, remove only your scratch files, read the commit back, push and create a draft using the template. Include `Closes #N`, actual test evidence, limitations and any known performance cost. Read the PR back.
 
-Opening the PR starts the Test Suite workflow, which runs every package's vitest suite for the pushed head. Do not wait for it before step 8. When it finishes, read its conclusion for the current head, cite the run in Testing and verification, and fix any failure it reports as your own correction; for a cancelled or timed-out run read [CI evidence](references/ci-evidence.md). Every later push starts a new run, and the run on the reviewed head is the one readiness needs.
+Opening the PR starts the Test Suite workflow on every pull request. Its package jobs run when the change touches `packages/`, `impower-dev/`, `definitions/` or the root package files, and otherwise report as skipped, which satisfies the check. Do not wait for it before step 8. When it finishes, read its conclusion for the current head with `gh pr checks`, cite the run and whether the package jobs ran or were skipped in Testing and verification, and fix any failure it reports as your own correction; for a cancelled or timed-out run read [CI evidence](references/ci-evidence.md). Every later push starts a new run, and the run on the reviewed head is the one readiness needs.
 
 ## 8. Adversarial review
 

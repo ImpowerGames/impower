@@ -1,11 +1,13 @@
 name: Hook Tests
 
+# The standalone-checks jobs are required status checks, so the workflow has
+# no trigger path filter; the `changes` job decides whether they need to run,
+# and a skipped job still satisfies the required check.
+
 on:
   pull_request:
-    paths: [".agents/**", ".claude/**", ".codex/**", "scripts/**", "AGENTS.md", "CLAUDE.md", ".gitignore", "package.json", "vscode-sparkdown/package.json", ".github/scripts/**", ".github/PULL_REQUEST_TEMPLATE.md", ".github/workflows/hook-tests.yml"]
   push:
     branches: [main]
-    paths: [".agents/**", ".claude/**", ".codex/**", "scripts/**", "AGENTS.md", "CLAUDE.md", ".gitignore", "package.json", "vscode-sparkdown/package.json", ".github/scripts/**", ".github/PULL_REQUEST_TEMPLATE.md", ".github/workflows/hook-tests.yml"]
 
 concurrency:
   group: hook-tests-${{ github.event_name == 'pull_request' && github.ref || github.sha }}
@@ -15,7 +17,27 @@ permissions:
   contents: read
 
 jobs:
+  changes:
+    uses: ./.github/workflows/changed-paths.yml
+    with:
+      patterns: |
+        .agents/**
+        .claude/**
+        .codex/**
+        scripts/**
+        AGENTS.md
+        CLAUDE.md
+        .gitignore
+        package.json
+        vscode-sparkdown/package.json
+        .github/scripts/**
+        .github/PULL_REQUEST_TEMPLATE.md
+        .github/workflows/hook-tests.yml
+        .github/workflows/changed-paths.yml
+
   standalone-checks:
+    needs: changes
+    if: needs.changes.outputs.relevant == 'true'
     strategy:
       fail-fast: false
       matrix:

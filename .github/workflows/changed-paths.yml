@@ -1,0 +1,62 @@
+name: Changed Paths
+
+# Reusable job that tells a calling workflow whether the changed files match
+# its patterns. Workflows that are required status checks call this instead
+# of using a `paths:` trigger filter: a filtered workflow reports nothing when
+# the filter excludes the change, and GitHub then leaves the pull request
+# blocked waiting for the required check. A job skipped through `if:` still
+# reports, as skipped, which GitHub accepts for a required check, so the
+# calling workflow gates its real jobs on the `relevant` output.
+#
+# The file list comes from the compare API rather than a deep checkout, so the
+# job needs only the script and finishes in seconds. On a push whose previous
+# commit is unknown (a new branch) everything counts as relevant.
+
+on:
+  workflow_call:
+    inputs:
+      patterns:
+        description: One trigger-filter pattern per line, in the syntax `paths:` uses.
+        required: true
+        type: string
+    outputs:
+      relevant:
+        description: "true when at least one changed file matches a pattern"
+        value: ${{ jobs.detect.outputs.relevant }}
+
+permissions:
+  contents: read
+
+jobs:
+  detect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      relevant: ${{ steps.detect.outputs.relevant }}
+    steps:
+      - name: Checkout the detection script
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            /.github/scripts/changed-paths.mjs
+          sparse-checkout-cone-mode: false
+
+      - name: Compare changed files with the patterns
+        id: detect
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PATTERNS: ${{ inputs.patterns }}
+          EVENT: ${{ github.event_name }}
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD: ${{ github.event.pull_request.head.sha }}
+          PUSH_BEFORE: ${{ github.event.before }}
+          PUSH_HEAD: ${{ github.sha }}
+        run: |
+          if [ "$EVENT" = "pull_request" ]; then base="$PR_BASE"; head="$PR_HEAD"; else base="$PUSH_BEFORE"; head="$PUSH_HEAD"; fi
+          case "$base" in ""|0000000000000000000000000000000000000000)
+            echo "No previous commit to compare against; treating every file as relevant"
+            echo "relevant=true" >> "$GITHUB_OUTPUT"; exit 0;;
+          esac
+          gh api "repos/$GITHUB_REPOSITORY/compare/$base...$head" --paginate --jq '.files[].filename' > "$RUNNER_TEMP/changed.txt"
+          mapfile -t patterns < <(printf '%s\n' "$PATTERNS" | sed '/^[[:space:]]*$/d')
+          node .github/scripts/changed-paths.mjs --files "$RUNNER_TEMP/changed.txt" "${patterns[@]}"
