@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { readReviewerDefaults } from "./reviewer-defaults.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const models = JSON.parse(fs.readFileSync(path.join(root, ".claude/reviewer-models.json"), "utf8"));
@@ -22,7 +23,7 @@ model: ${model}
 tools: Read, Grep, Glob, Bash, Write
 ---
 
-Check the pin before reading files or running commands. If the prompt lacks a concrete writer model, reply exactly: ABORT: writer model not supplied. Use the model declared above as the configured reviewer route; the caller and launcher validate that the configured writer and reviewer routes are distinct and that the launch arguments select this route.
+Check the pin before reading files or running commands. Use the model declared above as the configured reviewer route; the caller and launcher validate that the configured writer and reviewer routes are distinct and that the launch arguments select this route.
 
 Follow the complete shared reviewer prompt supplied by the caller. A missing prompt is an aborted invocation, not a review.
 `;
@@ -32,9 +33,10 @@ Follow the complete shared reviewer prompt supplied by the caller. A missing pro
     fs.writeFileSync(file, content);
   } else output(file, content);
 }
-const ignore = path.join(root, ".gitignore");
-const previous = fs.readFileSync(ignore, "utf8").replaceAll("\r\n", "\n");
-const generated = "# BEGIN generated reviewer agents\n" + models.map(({ name }) => `!.claude/agents/${name}.md`).join("\n") + "\n# END generated reviewer agents";
-if (!previous.includes("# BEGIN generated reviewer agents")) throw new Error("Missing reviewer ignore markers");
-output(ignore, previous.replace(/# BEGIN generated reviewer agents[\s\S]*?# END generated reviewer agents/, () => generated));
-console.log("PASS: generated reviewer definitions and ignore entries");
+// Every reviewer definition in the directory is registered, so a hand-added
+// file cannot bypass the registry.
+for (const file of fs.readdirSync(path.join(root, ".claude/agents"))) {
+  if (/^reviewer-.*\.md$/.test(file) && !names.has(file.slice(0, -3))) throw new Error(`Unregistered reviewer definition: ${file}; add it to .claude/reviewer-models.json`);
+}
+readReviewerDefaults(root);
+console.log("PASS: generated reviewer definitions and reviewer defaults");

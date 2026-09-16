@@ -18,6 +18,7 @@ const runnerDocs = new Set([
   ".agents/skills/references/runner-continuation.md",
   ".agents/skills/references/runner-maintenance.md",
   ".agents/skills/references/runner-recovery.md",
+  ".agents/skills/references/runner-reviewer-defaults.md",
 ]);
 for (const file of files.filter((f) => f.startsWith(".agents/") && f.endsWith(".md") && !runnerDocs.has(f))) {
   const text = fs.readFileSync(path.join(root, file), "utf8");
