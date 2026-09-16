@@ -86,20 +86,25 @@ jobs:
         working-directory: ${{ matrix.package }}
         env:
           NODE_OPTIONS: --max-old-space-size=1024
+          # Vitest colours its output on CI even through a pipe; the summary
+          # check below matches plain text.
+          NO_COLOR: 1
         run: |
           set -o pipefail
           npx vitest run --no-file-parallelism --reporter=default 2>&1 | tee "$RUNNER_TEMP/vitest.log"
 
       # A worker killed by the OS can leave vitest exiting 0 with no summary,
-      # which must read as a failure rather than a pass.
+      # which must read as a failure rather than a pass. Escape codes are
+      # stripped before matching in case a reporter ignores NO_COLOR.
       - name: Require summary lines
         if: always()
         run: |
           log="$RUNNER_TEMP/vitest.log"
           test -f "$log" || { echo "No vitest log was written"; exit 1; }
-          grep -Eq '^\s*Test Files\s+.*\([0-9]+\)' "$log" || { echo "Missing 'Test Files' summary line"; exit 1; }
-          grep -Eq '^\s*Tests\s+.*\([0-9]+\)' "$log" || { echo "Missing 'Tests' summary line"; exit 1; }
-          if grep -Eiq 'Worker exited unexpectedly|heap out of memory' "$log"; then echo "Worker crash reported in the log"; exit 1; fi
+          plain=$(sed -E 's/\x1b\[[0-9;]*[A-Za-z]//g' "$log")
+          grep -Eq '^[[:space:]]*Test Files[[:space:]]+.*\([0-9]+\)' <<<"$plain" || { echo "Missing 'Test Files' summary line"; exit 1; }
+          grep -Eq '^[[:space:]]*Tests[[:space:]]+.*\([0-9]+\)' <<<"$plain" || { echo "Missing 'Tests' summary line"; exit 1; }
+          if grep -Eiq 'Worker exited unexpectedly|heap out of memory' <<<"$plain"; then echo "Worker crash reported in the log"; exit 1; fi
 
       - name: Upload log
         if: always()
