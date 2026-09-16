@@ -586,6 +586,8 @@ nested backtick strings inside an interpolation are legal Luau
 `stringinterp.luau`), so the content patterns must get first refusal before
 the boundary is consulted.
 
+An unfinished backtick string is reported as unfinished, but its scope does not end at its line the way Luau's `BrokenString` does: it runs to the end of the enclosing block, so a `}` on a later line belongs to the string rather than to an enclosing table. Luau's lexer tests for this and for `{{` (sparkdown's function-call shorthand, #223, so never a broken token) are ported to [`LexerConformance.test.ts`](src/tests/luau-conformance/LexerConformance.test.ts) and kept as skipped cases there.
+
 Both diagnostics apply to `"..."` exactly as they do to `` `...` ``: a
 double-quoted string is not a weaker dialect of a backtick one. A string that
 genuinely holds braces — a Lua pattern like `%b{}`, or JSON — uses `'...'` or
