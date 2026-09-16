@@ -7404,6 +7404,9 @@
               "include": "#LuauElementAttribute"
             },
             {
+              "include": "#LuauKeyframeSelector"
+            },
+            {
               "include": "#SelectorPropertyNamePart"
             },
             {
@@ -7422,6 +7425,11 @@
           ]
         }
       }
+    },
+    "LuauKeyframeSelector": {
+      "tag": "constant(variableName)",
+      "name": "constant.other.keyframe-selector.sd",
+      "match": "(?<![\\w.%-])(?:from|to|[-+]?(?:\\d*[.])?\\d+%)(?![\\w.%-])"
     },
     "LuauStructObjectColon": {
       "tag": "logicOperator",

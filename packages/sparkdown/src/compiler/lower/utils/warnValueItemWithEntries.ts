@@ -1,5 +1,6 @@
 import { type SyntaxNode } from "@lezer/common";
 import { ErrorType } from "../../../inkjs/engine/Error";
+import type { InkDiagnostic } from "../../classes/annotators/CompilationAnnotator";
 import { nodeNameSet } from "../../utils/nodeNameSet";
 import { structArrayItemInlineEntry } from "../../utils/structArrayItemInlineEntry";
 import type { LowerContext } from "../context";
@@ -24,17 +25,22 @@ const FIELD_VALUE_NAMES = nodeNameSet([
  * list item and is not a contradiction: the entries beneath it are that item's
  * remaining entries. A `- value` item with nothing beneath it is an ordinary
  * scalar element.
+ *
+ * `sink` is where the warning goes: a reader that collects its body's
+ * diagnostics for its caller passes that list, and every other reader leaves
+ * it out so the warning uses the context's shared buffer.
  */
 export function warnValueItemWithEntries(
   arrayItem: SyntaxNode,
   ctx: LowerContext,
+  sink: InkDiagnostic[] | undefined = ctx.diagnostics,
 ): void {
-  if (!ctx.diagnostics) return;
+  if (!sink) return;
   if (structArrayItemInlineEntry(arrayItem)) return;
   const value = firstDescendant(arrayItem, FIELD_VALUE_NAMES);
   if (!value) return;
   const text = ctx.read(value.from, value.to).trim();
-  ctx.diagnostics.push({
+  sink.push({
     message:
       `This list item already has a value ('${text}'), so the lines indented ` +
       `beneath it replace it instead of adding to it. Write the value's own ` +

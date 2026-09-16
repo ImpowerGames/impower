@@ -4686,12 +4686,26 @@ repository:
       2:
         patterns:
           - { include: "#LuauElementAttribute" }
+          # A keyframe position (`from:`, `40%:`, `to:`) is tried before the
+          # selector/component patterns so it reads as a position on the
+          # animation timeline rather than as a component name or a number.
+          - { include: "#LuauKeyframeSelector" }
           - { include: "#SelectorPropertyNamePart" }
           - { include: "#ComponentName" }
           - { include: "#PropertyName" }
       4:
         patterns:
           - { include: "#LuauStructObjectColon" }
+
+  # `from` / `to` / a percentage standing alone as a container header key: the
+  # CSS `@keyframes` selector spelling for one keyframe's position inside a
+  # `keyframes:` block. The lookarounds keep it to a key that is ENTIRELY a
+  # position, so `from_left:` and `duration:` fall through to the ordinary
+  # property patterns.
+  LuauKeyframeSelector:
+    tag: constant(variableName)
+    name: constant.other.keyframe-selector.sd
+    match: (?<![\w.%-])(?:from|to|[-+]?(?:\d*[.])?\d+%)(?![\w.%-])
 
   LuauStructObjectColon:
     # tag logicOperator → CodeMirror operator color (#A0A0A0). The `name` scope

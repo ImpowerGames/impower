@@ -157,6 +157,20 @@ describe("collapsed structural list items (typed animation/theme reader)", () =>
     );
   });
 
+  test("a collapsed item mixed with a keyframe position key is reported", () => {
+    // A collapsed item is still a `-` item, so it cannot share a `keyframes:`
+    // block with position keys any more than an expanded item can.
+    const reported = diagnosticsFor(`animation blink with
+  keyframes:
+    - eyes:
+        option = open
+    40%:
+      offset = 0.4
+end
+`).filter((d) => d.message.includes("cannot be mixed"));
+    expect(reported).toHaveLength(1);
+  });
+
   test("a bare `- scalar` item still lowers to that scalar", () => {
     expect(
       ctxOf(

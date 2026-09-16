@@ -37,6 +37,7 @@ import {
   hereOrPrevious,
   liveProbe,
   linuxProcesses,
+  observeLauncherExit,
   pidAlive,
   recordStands,
   stopLinuxTree,
@@ -517,7 +518,7 @@ try {
         if (launchedRows.length === 3) break;
         await sleep(100);
       }
-      assert.equal(launchedRows.length, 3, "the actual npm launcher must reach all fixture descendants");
+      assert.equal(launchedRows.length, 3, `the actual npm launcher must reach all fixture descendants\ncoordinator exit=${up.exitCode ?? "unobserved"}; signal=${up.signalCode ?? "none"}\n${out}`);
     } finally {
       stop(child);
       stop(up);
@@ -529,6 +530,24 @@ try {
       }
       assert.ok(await untilGone(launched.pid), "up left its npm launcher behind");
       assert.ok(await treeGone(launchedRows), "up left a descendant behind");
+    }
+  });
+  await check("launcher diagnostics report a real child's observed exit", async () => {
+    const child = spawn(process.execPath, ["-e", "process.exit(23)"], { stdio: "ignore", windowsHide: true, detached: true });
+    const messages = [];
+    const closed = new Promise((resolve, reject) => {
+      child.once("error", reject);
+      child.once("close", (code, signal) => resolve({ code, signal }));
+    });
+    const timeout = setTimeout(() => stop(child), 10_000);
+    observeLauncherExit(child, (message) => messages.push(message));
+    try {
+      assert.deepEqual(await closed, { code: 23, signal: null }, "controlled child must complete normally");
+      assert.deepEqual(messages, [`dev server launcher pid ${child.pid} exited: code=23; signal=none`]);
+    } finally {
+      clearTimeout(timeout);
+      if (pidAlive(child.pid)) stop(child);
+      assert.ok(await untilGone(child.pid), "diagnostic child did not exit");
     }
   });
 } finally {
