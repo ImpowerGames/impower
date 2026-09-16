@@ -10,6 +10,7 @@
 // `Lexer::fixupQuotedString`.
 
 import { describe, expect, test } from "vitest";
+import { runConformanceSource } from "./conformanceTestHarness";
 import { diagnoseInFunction } from "./diagnosticTestHarness";
 
 // Luau: string_literals_escapes_broken
@@ -84,10 +85,42 @@ describe("unfinished string literals", () => {
 
   test.each([
     ["escaped newline", 'return "abc\\\ndef"'],
-    ["\\z skips the newline", 'return "abc\\z\ndef"'],
+    ["escaped CRLF", 'return "abc\\\r\ndef"'],
+    ["\\z then the newline", 'return "abc\\z\ndef"'],
+    ["\\z then spaces then the newline", 'return "abc\\z   \ndef"'],
+    ["\\z then a tab then the newline", 'return "abc\\z\t\ndef"'],
+    ["\\z then two newlines", 'return "abc\\z\n\ndef"'],
+    ["\\z then an indented next line", 'return "abc\\z\n    def"'],
     ["multiline string spans lines", "return [[abc\ndef]]"],
+    ["levelled multiline string spans lines", "return [==[abc\n]]\ndef]==]"],
   ])("%s is well-formed", (_label, source) => {
     expect(diagnoseInFunction(source)).toEqual([]);
+  });
+
+  // `\z` skips whitespace only; text on the next line is still a newline
+  // inside a quoted string when nothing escaped it.
+  test("\\z does not excuse a later unescaped newline", () => {
+    expect(diagnoseInFunction('return "abc\\z\ndef\nghi"')).toContain(
+      expected,
+    );
+  });
+
+  test("an unfinished levelled multiline string", () => {
+    expect(diagnoseInFunction("return [==[abc]]")).toContain(expected);
+  });
+});
+
+// Luau encodes `\u{110000}` through `\u{7FFFFFFF}` as extended UTF-8; a JS
+// string cannot hold a code point above U+10FFFF, so sparkdown lowers those
+// to U+FFFD (DIVERGENCES.md). The value, not just the absence of a crash.
+describe("extended code points lower to U+FFFD", () => {
+  test('"\\u{110000}" == "\\u{FFFD}"', () => {
+    const r = runConformanceSource(
+      'assert("\\u{110000}" == "\\u{FFFD}", "expected U+FFFD")\n' +
+        'assert("\\u{7FFFFFFF}" == "\\u{FFFD}", "expected U+FFFD")\n',
+    );
+    expect(r.errorMessages).toEqual([]);
+    expect(r.returnedOK).toBe(true);
   });
 });
 

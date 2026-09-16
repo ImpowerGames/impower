@@ -12,7 +12,15 @@
 
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 
-export function diagnose(source: string): string[] {
+export interface DetailedDiagnostic {
+  message: string;
+  range?: {
+    start: { line: number; character: number };
+    end: { line: number; character: number };
+  };
+}
+
+export function diagnoseDetailed(source: string): DetailedDiagnostic[] {
   const compiler = new SparkdownCompiler();
   const uri = "inmemory:///main.sd";
   compiler.configure({
@@ -29,15 +37,21 @@ export function diagnose(source: string): string[] {
     ],
   });
   const result = compiler.compile({ textDocument: { uri } });
-  const out: string[] = [];
+  const out: DetailedDiagnostic[] = [];
   for (const ds of Object.values(result.program.diagnostics ?? {})) {
     for (const d of ds as any[]) {
-      out.push(
-        typeof d?.message === "string" ? d.message : (d?.message?.value ?? ""),
-      );
+      out.push({
+        message:
+          typeof d?.message === "string" ? d.message : (d?.message?.value ?? ""),
+        range: d?.range,
+      });
     }
   }
   return out;
+}
+
+export function diagnose(source: string): string[] {
+  return diagnoseDetailed(source).map((d) => d.message);
 }
 
 export function diagnoseInFunction(body: string): string[] {

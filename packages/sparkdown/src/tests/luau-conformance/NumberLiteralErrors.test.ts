@@ -4,12 +4,16 @@
 //
 // Luau's lexer takes every letter, digit, `_` and `.` after a number into one
 // token and rejects it when it does not convert. The grammar here stops the
-// number at the first character it cannot use, so `123x` used to parse as
-// `123` followed by narrative text and `0b123` as `0b1` then `23`, both
-// silently. The validator now reports the same "Malformed number".
+// number at the first character it cannot use (`123x` is the number `123`
+// followed by `x`, `0b123` is `0b1` followed by `23`), so the validator looks
+// at what follows the number and reports the same "Malformed number".
 
 import { describe, expect, test } from "vitest";
-import { diagnoseInFunction } from "./diagnosticTestHarness";
+import {
+  diagnose,
+  diagnoseDetailed,
+  diagnoseInFunction,
+} from "./diagnosticTestHarness";
 
 // Luau: parse_numbers_error
 describe("malformed numbers", () => {
@@ -56,6 +60,42 @@ describe("well-formed numbers are not flagged", () => {
     ["number then method call", "return (1):type()"],
   ])("%s", (_label, source) => {
     expect(diagnoseInFunction(source)).toEqual([]);
+  });
+});
+
+// Where the check applies outside a function body. A `define` or `config`
+// field value is a Luau expression, so a unit-suffixed number there is
+// malformed exactly as it would be in a statement; a `style` or `theme`
+// value is not a Luau number at all, and the inline text command's control
+// argument reuses the number rule without being Luau.
+describe("number contexts", () => {
+  test.each([
+    ["define field", "define my_thing with\n  version = 1.0.0\nend\n"],
+    ["define field with a unit", "define my_thing with\n  delay = 100ms\nend\n"],
+    ["config field", "config my_config with\n  version = 1.0.0\nend\n"],
+  ])("%s is a Luau expression", (_label, source) => {
+    expect(diagnose(source)).toContain("Malformed number");
+  });
+
+  test.each([
+    ["style field with a unit", "style my_style with\n  padding = 8px\nend\n"],
+    ["theme field with a unit", "theme my_theme with\n  gap = 1rem\nend\n"],
+    ["narrative text", "He ran 5k today, version 1.0.2, from 1..2.\n"],
+    ["inline text command control", "Hello <1.5x:there> friend.\n"],
+  ])("%s is not checked", (_label, source) => {
+    expect(diagnose(source)).not.toContain("Malformed number");
+  });
+
+  test("the reported range covers the whole run after the number", () => {
+    // Longer than any fixed read-ahead window.
+    const run = "x".repeat(200);
+    const found = diagnoseDetailed(`function run()\nreturn 123${run}\nend\n`).find(
+      (d) => d.message === "Malformed number",
+    );
+    expect(found?.range).toEqual({
+      start: { line: 1, character: 7 },
+      end: { line: 1, character: 7 + 3 + run.length },
+    });
   });
 });
 

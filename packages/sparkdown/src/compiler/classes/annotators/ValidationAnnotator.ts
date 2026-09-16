@@ -90,6 +90,9 @@ const LUAU_NUMBER = nodeNameSet([
   "LuauNumericHex",
   "LuauNumericBinary",
 ]);
+// `((text ...))` reuses the number rule for its control argument, where the
+// surrounding syntax is not Luau.
+const TEXT_COMMAND_CONTROL = nodeNameSet(["TextCommandControl"]);
 
 const MALFORMED_STRING = "Malformed string; did you forget to finish it?";
 const MALFORMED_NUMBER = "Malformed number";
@@ -236,32 +239,39 @@ export class ValidationAnnotator extends SparkdownAnnotator<
           ? "Interpolated string literal contains malformed escape sequence"
           : "String literal contains malformed escape sequence";
       const content = childNamed(node, `${name}_content`);
+      // `\z` skips every whitespace character after it, line breaks
+      // included, so a newline inside that run is not the end of the string.
+      let skippingWhitespace = false;
       let prev: any = null;
       for (let c = content?.firstChild; c; prev = c, c = c.nextSibling) {
+        if (skippingWhitespace && /^\s*$/.test(this.read(c.from, c.to))) {
+          continue;
+        }
+        skippingWhitespace = false;
         // A quoted string ends at its line unless the newline is escaped
-        // (`\` + newline, or `\z` which skips the following whitespace).
+        // with `\` + newline.
         if (c.name === "Newline") {
-          const escaped =
-            prev &&
-            (prev.name === "LuauEscapeLine" ||
-              (prev.name === "LuauEscapeStandard" &&
-                this.read(prev.from, prev.to) === "\\z"));
-          if (!escaped) {
+          if (!prev || prev.name !== "LuauEscapeLine") {
             this.error(annotations, MALFORMED_STRING, nodeRef.from, c.from);
             return true;
           }
           continue;
         }
+        const esc = this.read(c.from, c.to);
         let malformed = false;
-        if (c.name === "LuauEscapeAny") {
+        if (c.name === "LuauEscapeStandard" && esc === "\\z") {
+          skippingWhitespace = true;
+        } else if (c.name === "LuauEscapeAny") {
           // `\x` and `\u` only reach here when their digits are missing.
-          const esc = this.read(c.from, c.to);
           malformed = esc === "\\x" || esc === "\\u";
         } else if (c.name === "LuauEscapeDecimal") {
-          malformed = parseInt(this.read(c.from + 1, c.to), 10) > 255;
+          malformed = parseInt(esc.slice(1), 10) > 255;
         } else if (c.name === "LuauEscapeUnicode") {
-          const hex = this.read(c.from + 3, c.to - 1);
-          malformed = hex.length === 0 || parseInt(hex, 16) > MAX_UNICODE_ESCAPE;
+          const hex = esc.match(/^\\u\{([0-9a-fA-F]*)\}$/)?.[1];
+          malformed =
+            hex === undefined ||
+            hex.length === 0 ||
+            parseInt(hex, 16) > MAX_UNICODE_ESCAPE;
         }
         if (malformed) {
           this.error(annotations, escapeMessage, c.from, c.to);
@@ -278,9 +288,7 @@ export class ValidationAnnotator extends SparkdownAnnotator<
       return false;
     }
     if (LUAU_NUMBER.has(name)) {
-      // `((text ...))` reuses the number rule for its control argument, where
-      // the surrounding syntax is not Luau.
-      if (getContextNames(nodeRef.node).includes("TextCommandControl")) {
+      if (ancestorMatching(nodeRef.node, TEXT_COMMAND_CONTROL)) {
         return false;
       }
       const literal = (nodeRef.node as any).firstChild;
@@ -288,8 +296,10 @@ export class ValidationAnnotator extends SparkdownAnnotator<
       const text = this.read(nodeRef.from, literalTo);
       // Luau's lexer takes every following letter, digit, `_` and `.` into
       // the number token and then fails to convert it; the grammar stops at
-      // the first character it cannot use, so look at what comes next.
-      const rest = this.read(literalTo, literalTo + 64).match(/^[A-Za-z0-9_.]+/);
+      // the first character it cannot use, so look at what comes next, up to
+      // the end of the line.
+      const lineTo = this.text?.lineAt(literalTo).to ?? literalTo;
+      const rest = this.read(literalTo, lineTo).match(/^[A-Za-z0-9_.]+/);
       const noDigits = /^0_*[xX]_*$/.test(text);
       if (rest || noDigits) {
         this.error(
