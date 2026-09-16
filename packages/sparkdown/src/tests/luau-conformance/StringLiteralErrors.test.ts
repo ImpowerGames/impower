@@ -105,6 +105,15 @@ describe("unfinished string literals", () => {
     );
   });
 
+  // Luau's `\z` skips ASCII whitespace only; a non-breaking space or a BOM
+  // ends the run, so the newline after one is unescaped.
+  test.each([
+    ["non-breaking space", 'return "abc\\z \ndef"'],
+    ["byte order mark", 'return "abc\\z﻿\ndef"'],
+  ])("\\z then a %s then the newline is unfinished", (_label, source) => {
+    expect(diagnoseInFunction(source)).toContain(expected);
+  });
+
   test("an unfinished levelled multiline string", () => {
     expect(diagnoseInFunction("return [==[abc]]")).toContain(expected);
   });
@@ -115,9 +124,12 @@ describe("unfinished string literals", () => {
 // to U+FFFD (DIVERGENCES.md). The value, not just the absence of a crash.
 describe("extended code points lower to U+FFFD", () => {
   test('"\\u{110000}" == "\\u{FFFD}"', () => {
+    // Compared as a number so the test cannot pass by both sides lowering
+    // to the same wrong value.
     const r = runConformanceSource(
-      'assert("\\u{110000}" == "\\u{FFFD}", "expected U+FFFD")\n' +
-        'assert("\\u{7FFFFFFF}" == "\\u{FFFD}", "expected U+FFFD")\n',
+      'assert(utf8.codepoint("\\u{110000}") == 0xFFFD, "expected U+FFFD")\n' +
+        'assert(utf8.codepoint("\\u{7FFFFFFF}") == 0xFFFD, "expected U+FFFD")\n' +
+        'assert(utf8.codepoint("\\u{10FFFF}") == 0x10FFFF, "in range stays")\n',
     );
     expect(r.errorMessages).toEqual([]);
     expect(r.returnedOK).toBe(true);

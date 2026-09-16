@@ -90,9 +90,13 @@ const LUAU_NUMBER = nodeNameSet([
   "LuauNumericHex",
   "LuauNumericBinary",
 ]);
-// `((text ...))` reuses the number rule for its control argument, where the
-// surrounding syntax is not Luau.
+// The inline text command (`<1.5x:...>`) reuses the number rule for its
+// control argument, where the surrounding syntax is not Luau.
 const TEXT_COMMAND_CONTROL = nodeNameSet(["TextCommandControl"]);
+
+// The characters Luau's lexer skips after a `\z` escape. Narrower than JS
+// `\s`, which also matches non-breaking and other Unicode spaces.
+const LUAU_WHITESPACE_RUN = /^[ \t\r\n\v\f]+$/;
 
 const MALFORMED_STRING = "Malformed string; did you forget to finish it?";
 const MALFORMED_NUMBER = "Malformed number";
@@ -239,12 +243,17 @@ export class ValidationAnnotator extends SparkdownAnnotator<
           ? "Interpolated string literal contains malformed escape sequence"
           : "String literal contains malformed escape sequence";
       const content = childNamed(node, `${name}_content`);
-      // `\z` skips every whitespace character after it, line breaks
-      // included, so a newline inside that run is not the end of the string.
+      // `\z` skips every ASCII whitespace character after it (Luau's lexer
+      // set: space, tab, CR, LF, VT, FF), line breaks included, so a newline
+      // inside that run is not the end of the string. A non-breaking space or
+      // any other Unicode space ends the run, as it does in Luau.
       let skippingWhitespace = false;
       let prev: any = null;
       for (let c = content?.firstChild; c; prev = c, c = c.nextSibling) {
-        if (skippingWhitespace && /^\s*$/.test(this.read(c.from, c.to))) {
+        if (
+          skippingWhitespace &&
+          LUAU_WHITESPACE_RUN.test(this.read(c.from, c.to))
+        ) {
           continue;
         }
         skippingWhitespace = false;
@@ -476,8 +485,8 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     ) {
       const raw = this.read(nodeRef.from, nodeRef.to);
       // Empty `{}` — Luau: "Malformed interpolated string, expected expression
-      // inside '{}'". It used to lower to nothing and silently DELETE itself
-      // from the string, so `` `a={}; x=3` `` became `a=; x=3`. Use `'...'`
+      // inside '{}'". An empty interpolation has no value to splice, so
+      // without the diagnostic it would vanish from the string. Use `'...'`
       // or `[[...]]` for a string that should hold literal braces.
       if (/^\{\s*\}$/.test(raw.trim())) {
         annotations.push(
