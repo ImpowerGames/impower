@@ -64,7 +64,7 @@ const scratch = fs.mkdtempSync(path.join(os.tmpdir(), "impower-reviewer-defaults
 console.log(`Scratch repository: ${scratch}`);
 const worktree = path.join(scratch, "repo");
 fs.mkdirSync(path.join(worktree, ".claude", "agents"), { recursive: true });
-const git = (...args) => execFileSync("git", args, { cwd: worktree, encoding: "utf8", env: { ...process.env, GIT_AUTHOR_NAME: "test", GIT_AUTHOR_EMAIL: "test@example.invalid", GIT_COMMITTER_NAME: "test", GIT_COMMITTER_EMAIL: "test@example.invalid" } });
+const git = (...args) => execFileSync("git", args, { cwd: worktree, encoding: "utf8", windowsHide: true, env: { ...process.env, GIT_AUTHOR_NAME: "test", GIT_AUTHOR_EMAIL: "test@example.invalid", GIT_COMMITTER_NAME: "test", GIT_COMMITTER_EMAIL: "test@example.invalid" } });
 const table = {
   codexModels: ["gpt-fixture-writer", "gpt-fixture-reviewer"],
   rows: [
@@ -122,7 +122,7 @@ assert.equal(result.launching.reviewerResolved, undefined);
 // The command-line form prints the same selection for the reviewer prompt.
 const printedPlan = path.join(scratch, "printed-plan.json");
 fs.writeFileSync(printedPlan, JSON.stringify(plan({ writer: "gpt-fixture-writer", writerEffort: "medium" })));
-const printed = execFileSync(process.execPath, [path.join(root, "scripts", "reviewer-defaults.mjs"), printedPlan], { encoding: "utf8" });
+const printed = execFileSync(process.execPath, [path.join(root, "scripts", "reviewer-defaults.mjs"), printedPlan], { encoding: "utf8", windowsHide: true });
 assert.deepEqual(JSON.parse(printed), { reviewer: "claude-fixture-reviewer", reviewerEffort: "high", agent: "reviewer-fixture", ticketEffort: "medium", fallback: false, index: 0 });
 
 // Refusals happen before any journal or process exists.
