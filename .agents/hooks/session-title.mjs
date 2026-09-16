@@ -12,11 +12,13 @@ const SHELLS = new Set(["bash", "powershell"]);
 const RENAME = /(?:^|__)set_(?:session|thread)_title$/i;
 const self = fileURLToPath(import.meta.url);
 
-// Splits shell text into simple commands of words. Quoted text stays inside
-// its word, so separators and keywords only count outside quotes. A backslash
-// escapes only a quote, whitespace or separator, which keeps PowerShell and
-// Windows paths such as C:\work intact.
-const ESCAPABLE = /["'\s;&|()\\]/;
+// Splits Bash or PowerShell text into simple commands of words. Quoted text
+// stays inside its word, and a `#` starting a word comments out the rest of
+// the line, so separators and keywords only count where the shell runs them.
+// A backslash (Bash) or backtick (PowerShell) escapes only a quote,
+// whitespace, separator or escape character, which keeps Windows paths such
+// as C:\work intact.
+const ESCAPABLE = /["'`\s;&|()\\#]/;
 export function simpleCommands(text) {
   const commands = [];
   let words = [], word = "", inWord = false, quote = null;
@@ -24,13 +26,14 @@ export function simpleCommands(text) {
   const endCommand = () => { endWord(); if (words.length) commands.push(words); words = []; };
   for (let i = 0; i < text.length; i++) {
     const c = text[i];
-    const escaped = c === "\\" && i + 1 < text.length && ESCAPABLE.test(text[i + 1]);
+    const escaped = (c === "\\" || c === "`") && i + 1 < text.length && ESCAPABLE.test(text[i + 1]);
     if (quote) {
       if (c === quote) quote = null;
-      else if (escaped && quote === '"' && /["\\]/.test(text[i + 1])) word += text[++i];
+      else if (escaped && quote === '"' && /["\\`]/.test(text[i + 1])) word += text[++i];
       else word += c;
     } else if (c === "'" || c === '"') { quote = c; inWord = true; }
     else if (escaped) { word += text[++i]; inWord = true; }
+    else if (c === "#" && !inWord) { while (i + 1 < text.length && !/[\r\n]/.test(text[i + 1])) i++; }
     else if (/[;&|\r\n()]/.test(c)) endCommand();
     else if (/\s/.test(c)) endWord();
     else { word += c; inWord = true; }
@@ -62,8 +65,12 @@ export function deriveWorktree(command) {
 
 export const deriveTitle = (command) => deriveWorktree(command)?.title ?? null;
 
+// Real paths expand Windows 8.3 short names and symbolic links, which Git
+// reports in their long form; a path that does not exist matches nothing.
+const realPath = (p) => { try { return fs.realpathSync.native(path.resolve(p)); } catch { return null; } };
 const samePath = (a, b) => {
-  const [x, y] = [path.resolve(a), path.resolve(b)];
+  const [x, y] = [realPath(a), realPath(b)];
+  if (x === null || y === null) return false;
   return process.platform === "win32" ? x.toLowerCase() === y.toLowerCase() : x === y;
 };
 

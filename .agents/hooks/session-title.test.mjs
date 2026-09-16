@@ -36,8 +36,11 @@ for (const miss of ["git worktree add -b claude/sparkdown-docs ../x origin/main"
 }
 assert.equal(deriveTitle(`cd x; ${create}`), "FIX #302: filterimage layers");
 assert.equal(deriveTitle(`if true; then ${create}; fi`), "FIX #302: filterimage layers");
+assert.equal(deriveTitle(`# set up\n${create}`), "FIX #302: filterimage layers", "a comment ends at the line break");
+assert.equal(deriveTitle(`${create} # new worktree`), "FIX #302: filterimage layers");
+assert.equal(deriveTitle(`git worktree add -b fix/302-filterimage-layers ../a#b origin/main`), "FIX #302: filterimage layers", "# inside a word is not a comment");
 // Separators and keywords inside quotes do not start a command.
-for (const quoted of [`echo 'note; ${create}'`, `echo "note && ${create}"`, `echo note\\; ${create}`, `git commit -m "then ${create}"`]) {
+for (const quoted of [`echo 'note; ${create}'`, `echo "note && ${create}"`, `echo note\\; ${create}`, `git commit -m "then ${create}"`, `Write-Output note\`; ${create}`, `Write-Output no-op #; ${create}`, `# ${create}`, `echo "a\`"; ${create}"`]) {
   assert.equal(deriveTitle(quoted), null, quoted);
 }
 assert.deepEqual(deriveWorktree("git worktree add --lock --reason 'x y' -b docs/5-two-words C:\\work\\wt HEAD"), { branch: "docs/5-two-words", target: "C:\\work\\wt", title: "DOCS #5: two words" }, "Windows paths keep their backslashes");
@@ -83,6 +86,15 @@ assert.match(afterTool(rename("a", "FIX #302: filterimage layers", undefined, "l
 assert.ok(gate(shell("a", "npm test"), "claude"));
 assert.equal(afterTool(rename("a", "FIX #302: filterimage layers"), "claude"), null);
 assert.equal(gate(shell("a", "npm test"), "claude"), null);
+
+// A working directory given by its Windows 8.3 short name still matches Git's long-form paths.
+if (process.platform === "win32") {
+  const short = spawnSync("cmd.exe", ["/d", "/c", `for %I in ("${repo}") do @echo %~sI`], { encoding: "utf8", windowsHide: true, windowsVerbatimArguments: true }).stdout.trim();
+  if (short && short.toLowerCase() !== repo.toLowerCase()) {
+    assert.match(afterTool({ ...shell("short", create), cwd: short }, "codex"), /FIX #302/, short);
+    afterTool(rename("short", "FIX #302: filterimage layers", "set_thread_title"), "codex");
+  } else console.log("SKIP: 8.3 short names are unavailable for " + repo);
+}
 
 // A later worktree in the same session asks again.
 afterTool(shell("a", "git worktree add -b feat/9-second-thing ../y origin/main"), "claude");
