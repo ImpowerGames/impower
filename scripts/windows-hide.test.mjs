@@ -5,7 +5,9 @@
 //
 // The hook-test CI job runs without installed packages, so this is a lexical
 // scanner rather than a parser. It scans code inside string literals too,
-// because several tests write child scripts from string fixtures.
+// because several tests write child scripts from string fixtures. A comment
+// inside such a fixture string is scanned as code, so a call written there
+// is reported even though it never runs; reword the fixture if that happens.
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
@@ -74,8 +76,10 @@ function closingParen(text, open) {
   return text.length;
 }
 
-// Whether a top-level object literal among the arguments has its own
-// `windowsHide: true` entry. String contents and nested objects do not count.
+// Whether the options argument has its own `windowsHide: true` entry. The
+// options argument is the first top-level object literal; every
+// child_process launcher takes at most one. String contents and nested
+// objects do not count.
 function hidesWindow(args) {
   let depth = 0;
   let parens = 0;
@@ -99,8 +103,12 @@ function hidesWindow(args) {
     masked += c;
     depths.push(depth);
   }
-  for (const m of masked.matchAll(/(?<![\w$.])windowsHide\s*:\s*true\b/g)) {
-    if (depths[m.index] === 1) return true;
+  const start = depths.indexOf(1);
+  if (start < 0) return false;
+  const end = depths.indexOf(0, start);
+  const options = masked.slice(start, end < 0 ? masked.length : end);
+  for (const m of options.matchAll(/(?<![\w$.])windowsHide\s*:\s*true\b/g)) {
+    if (depths[start + m.index] === 1) return true;
   }
   return false;
 }
@@ -127,11 +135,15 @@ function bindings(text) {
 export function unhiddenCalls(source) {
   const text = stripComments(source);
   const { functions, modules } = bindings(text);
-  const call = new RegExp(String.raw`(?<![\w$])(${[...functions.keys()].map((n) => n.replace(/\$/g, "\\$")).join("|")})\s*\(`, "g");
+  const alternatives = [...functions.keys()].map((n) => n.replace(/\$/g, "\\$")).join("|");
+  // A plain call `name(`, or a computed member call `["name"](`, rewritten below to `.name(`.
+  const call = new RegExp(String.raw`(?<![\w$])(${alternatives})\s*\(|\[\s*(["'\x60])(${NAMES.join("|")})\2\s*\]\s*\(`, "g");
   const found = [];
   for (const m of text.matchAll(call)) {
+    const computed = m[3] !== undefined;
+    if (computed) m[1] = m[3];
     const name = functions.get(m[1]);
-    let before = text.slice(0, m.index);
+    let before = text.slice(0, m.index) + (computed ? "." : "");
     const open = m.index + m[0].length - 1;
     const close = closingParen(text, open);
     const receiver = /(?:([\w$]+)|(require\(\s*["'][^"']*["']\s*\)))\s*\??\.\s*$/.exec(before);
@@ -188,6 +200,11 @@ const cases = [
   ['const re = /"/; spawn("git", [], {})', ["1: spawn("]],
   ['const s = "// not a comment"; spawn("git", [], {})', ["1: spawn("]],
   ['function run() {\n  return spawnSync("git", []);\n}\nawait execFile("git")', ["2: spawnSync(", "4: execFile("]],
+  ['spawn("node", ["-e", "0"], {}, { windowsHide: true })', ["1: spawn("]],
+  ['execFile("git", ["status"], { windowsHide: true }, (error) => {})', []],
+  ['require("node:child_process")["spawn"]("node", [])', ["1: spawn("]],
+  ['cp[\'execFileSync\']("git", [], { windowsHide: true })', []],
+  ['const m = pattern["exec"](line)', []],
 ];
 for (const [source, expected] of cases) assert.deepEqual(unhiddenCalls(source), expected, source);
 console.log(`windows-hide: ${files.length} tooling scripts scanned`);
