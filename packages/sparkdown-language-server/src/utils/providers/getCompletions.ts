@@ -123,6 +123,38 @@ const getDefineContext = (
   return null;
 };
 
+// The indent (leading space count) of a line, or null when the line holds
+// nothing but whitespace.
+const lineIndent = (text: string): number | null => {
+  const m = /^[ \t]*/.exec(text);
+  const indent = m ? m[0].length : 0;
+  return text.trim() ? indent : null;
+};
+
+/**
+ * True when `line` sits directly inside a `keyframes:` container — i.e. the
+ * nearest preceding line indented less than it is a `keyframes:` header. Used
+ * to offer the keyframe positions (`from`, `to`) as key completions there; the
+ * struct grammar is flat and indentation-based, so the enclosing container is
+ * recovered from the text rather than from the syntax tree.
+ */
+const isInsideKeyframesContainer = (
+  getLineText: (line: number) => string,
+  line: number,
+): boolean => {
+  const own = lineIndent(getLineText(line)) ?? Infinity;
+  for (let i = line - 1; i >= 0; i -= 1) {
+    const text = getLineText(i);
+    const indent = lineIndent(text);
+    if (indent == null) continue;
+    if (indent >= own) continue;
+    return /^keyframes\s*:\s*(?:(?:--|\/\/).*)?$/.test(text.trim());
+  }
+  return false;
+};
+
+const KEYFRAME_POSITION_KEYWORDS = ["from", "to"];
+
 const isWhitespaceNode = (name?: SparkdownNodeName) =>
   name === "RequiredWhitespace" ||
   name === "OptionalWhitespace" ||
@@ -1775,6 +1807,31 @@ export const getCompletions = (
       const type = parentNode ? getNodeText(parentNode) : "";
       addStructTypeNameCompletions(completions, program, type);
     }
+    return buildCompletions();
+  }
+
+  // Keyframe position completion: the cursor is editing a key directly inside
+  // a `keyframes:` container, where a key names a position on the timeline
+  // (`from:`, `40%:`, `to:`) rather than a property. Only the two word
+  // positions are offered — a percentage is a number the author types.
+  if (
+    getDefineContext(leftStack, read) &&
+    isInsideKeyframesContainer(
+      (line) => document.getLineText(line),
+      position.line,
+    ) &&
+    /^[ \t]*[A-Za-z]*$/.test(
+      document.getLineText(position.line).slice(0, position.character),
+    )
+  ) {
+    addKeywordCompletions(
+      completions,
+      "keyframe position",
+      KEYFRAME_POSITION_KEYWORDS,
+      undefined,
+      "",
+      ":",
+    );
     return buildCompletions();
   }
 

@@ -6,6 +6,8 @@ import {
   stripTrailingLineComment,
 } from "../utils/stripTrailingLineComment";
 import { unescapeString } from "../utils/unescapeString";
+import { ErrorType } from "../../../inkjs/engine/Error";
+import type { InkDiagnostic } from "../../classes/annotators/CompilationAnnotator";
 
 // Typed struct-body parser for `animation`/`theme` blocks. Same colon/indent
 // struct grammar as `style`, but values are READ FROM THE GRAMMAR'S VALUE NODES
@@ -140,13 +142,140 @@ function nextChildIndent(
   return null;
 }
 
+// A `keyframes:` child header that names a position on the animation's
+// timeline, the way a CSS `@keyframes` selector does: `from`, `to`, or a
+// percentage. Any percentage is matched here, including one outside 0-100, so
+// an out-of-range position is reported rather than silently read as an
+// ordinary property name.
+const KEYFRAME_POSITION_RE = /^(?:from|to|([+-]?\d+(?:\.\d+)?)%)$/;
+
+/** The 0-to-1 offset a position key names, or null if it names no position. */
+function keyframeOffset(key: string): number | null {
+  const m = KEYFRAME_POSITION_RE.exec(key);
+  if (!m) return null;
+  if (key === "from") return 0;
+  if (key === "to") return 1;
+  return Number(m[1]) / 100;
+}
+
+interface HeaderEntry {
+  key: string;
+  node: SyntaxNode; // the header's LuauStructBodyContent line
+  value: unknown;
+}
+
+function diagnose(
+  sink: InkDiagnostic[] | undefined,
+  ctx: LowerContext,
+  node: SyntaxNode,
+  message: string,
+): void {
+  if (!sink) return;
+  sink.push({
+    message,
+    severity: ErrorType.Error,
+    source: {
+      fileName: null,
+      filePath: ctx.filePath ?? null,
+      startLineNumber: ctx.lineNumber(node.from) + 1,
+      endLineNumber: ctx.lineNumber(node.to) + 1,
+      startCharacterNumber: ctx.characterNumber(node.from) + 1,
+      endCharacterNumber: ctx.characterNumber(node.to) + 1,
+    },
+  });
+}
+
+/**
+ * Rewrite a `keyframes:` container written with position keys into the array
+ * of keyframe objects the engine reads, each carrying the `offset` its key
+ * named. The two forms mean the same thing, so this runs before any consumer
+ * sees the value and nothing downstream needs to know which form was written.
+ *
+ *   keyframes:            keyframes:
+ *     from:                 -
+ *       opacity = "0"         offset = 0
+ *     40%:          ===>      opacity = "0"
+ *       opacity = "1"       -
+ *                             offset = 0.4
+ *                             opacity = "1"
+ *
+ * Returns null when the container is not in the keyed form, in which case the
+ * caller keeps the value parseBlock already built.
+ */
+function keyframesFromPositionKeys(
+  headers: HeaderEntry[],
+  hasArrayItems: boolean,
+  ctx: LowerContext,
+  sink: InkDiagnostic[] | undefined,
+): unknown[] | null {
+  if (headers.length === 0) return null;
+  const positions = headers.map((h) => keyframeOffset(h.key));
+  // Every header must name a position. A container holding ordinary property
+  // headers is left exactly as it was written.
+  if (positions.some((p) => p == null)) return null;
+
+  if (hasArrayItems) {
+    diagnose(
+      sink,
+      ctx,
+      headers[0]!.node,
+      "Keyframe positions and `-` list items cannot be mixed in one `keyframes:` block. Write every keyframe as a position (`from:`, `40%:`, `to:`) or every keyframe as a `-` item with an `offset`.",
+    );
+    return null;
+  }
+
+  const seen = new Set<number>();
+  const frames: { offset: number; frame: Record<string, unknown> }[] = [];
+  headers.forEach((h, idx) => {
+    const offset = positions[idx]!;
+    if (offset < 0 || offset > 1) {
+      diagnose(
+        sink,
+        ctx,
+        h.node,
+        `Keyframe position \`${h.key}\` must be between 0% and 100%.`,
+      );
+    }
+    if (seen.has(offset)) {
+      diagnose(
+        sink,
+        ctx,
+        h.node,
+        `Duplicate keyframe position \`${h.key}\`. Each position may appear once in a \`keyframes:\` block (\`from\` is 0% and \`to\` is 100%).`,
+      );
+    }
+    seen.add(offset);
+    const body = h.value;
+    const props =
+      body && typeof body === "object" && !Array.isArray(body)
+        ? (body as Record<string, unknown>)
+        : {};
+    // The position key is what the keyframe's place is sorted by, so it also
+    // wins over an `offset` property written inside the keyframe body.
+    frames.push({ offset, frame: { ...props, offset } });
+  });
+
+  // Sort by position so the written order does not matter. `sort` is stable in
+  // every engine this runs on, so keyframes sharing a position keep their
+  // written order (a case that is already reported as a duplicate).
+  frames.sort((a, b) => a.offset - b.offset);
+  return frames.map((f) => f.frame);
+}
+
 function parseBlock(
   lines: NodeLine[],
   start: number,
   indent: number,
   ctx: LowerContext,
-): { value: Record<string, unknown> | unknown[]; next: number } {
+  sink?: InkDiagnostic[],
+): {
+  value: Record<string, unknown> | unknown[];
+  next: number;
+  headers: HeaderEntry[];
+  hasArrayItems: boolean;
+} {
   const obj: Record<string, unknown> = {};
+  const headers: HeaderEntry[] = [];
   let arr: unknown[] | null = null;
   let i = start;
   while (i < lines.length && lines[i]!.indent >= indent) {
@@ -162,7 +291,7 @@ function parseBlock(
       // `-` item: bare `-` + indented props → object; `- scalar` → scalar.
       arr = arr ?? [];
       if (childIndent != null) {
-        const sub = parseBlock(lines, i + 1, childIndent, ctx);
+        const sub = parseBlock(lines, i + 1, childIndent, ctx, sink);
         arr.push(sub.value);
         i = sub.next;
       } else {
@@ -177,11 +306,24 @@ function parseBlock(
       // `key:` → container (children = the value).
       const key = headerKey(content, ctx);
       if (childIndent != null) {
-        const sub = parseBlock(lines, i + 1, childIndent, ctx);
-        obj[key] = sub.value;
+        const sub = parseBlock(lines, i + 1, childIndent, ctx, sink);
+        // A `keyframes:` container may be written with position keys instead
+        // of `-` items; normalize it to the array form the engine consumes.
+        const keyed =
+          key === "keyframes"
+            ? keyframesFromPositionKeys(
+                sub.headers,
+                sub.hasArrayItems,
+                ctx,
+                sink,
+              )
+            : null;
+        obj[key] = keyed ?? sub.value;
+        headers.push({ key, node: content, value: obj[key] });
         i = sub.next;
       } else {
         obj[key] = {};
+        headers.push({ key, node: content, value: obj[key] });
         i += 1;
       }
       continue;
@@ -201,17 +343,23 @@ function parseBlock(
     if (text) obj[text] = {};
     i += 1;
   }
-  return { value: arr ?? obj, next: i };
+  return {
+    value: arr ?? obj,
+    next: i,
+    headers,
+    hasArrayItems: arr != null,
+  };
 }
 
 /** Build the typed nested struct for an `animation`/`theme` body. */
 export function parseStructBodyTyped(
   contentNode: SyntaxNode | null,
   ctx: LowerContext,
+  sink?: InkDiagnostic[],
 ): Record<string, unknown> {
   const lines = collectNodeLines(contentNode, ctx);
   if (lines.length === 0) return {};
-  const result = parseBlock(lines, 0, lines[0]!.indent, ctx);
+  const result = parseBlock(lines, 0, lines[0]!.indent, ctx, sink);
   return Array.isArray(result.value)
     ? { ...result.value }
     : (result.value as Record<string, unknown>);
