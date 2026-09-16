@@ -1,0 +1,125 @@
+import assert from "node:assert/strict";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import { spawnSync } from "node:child_process";
+import { testShell } from "../skills/drive-web-editor/redgreen.mjs";
+
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
+const stateDir = fs.mkdtempSync(path.join(os.tmpdir(), "impower-title-test-"));
+console.log("state directory: " + stateDir);
+process.env.IMPOWER_SESSION_TITLE_DIR = stateDir;
+const { deriveTitle, afterTool, gate, statePath } = await import("./session-title.mjs");
+
+const create = "git worktree add -b fix/302-filterimage-layers ../impower.worktrees/fix/302-filterimage-layers origin/main";
+assert.equal(deriveTitle(create), "FIX #302: filterimage layers");
+for (const [type, label] of [["feat", "FEAT"], ["perf", "PERF"], ["docs", "DOCS"], ["test", "TEST"], ["refactor", "REFACTOR"], ["ci", "CI"]]) {
+  assert.equal(deriveTitle(`git fetch origin main && git worktree add -b ${type}/41-two-words ../impower.worktrees/${type}/41-two-words origin/main`), `${label} #41: two words`);
+}
+assert.equal(deriveTitle('git worktree add -B "feat/7-quoted-branch" ../x origin/main'), "FEAT #7: quoted branch");
+assert.equal(deriveTitle("git worktree add --detach ../x -b=docs/8-equals-form"), null, "only the documented -b <branch> form is recognised");
+for (const miss of ["git worktree add -b claude/sparkdown-docs ../x origin/main", "git worktree add -b fix/no-number ../x", "git worktree add ../x fix/302-existing-branch", "git worktree list", "echo fix/302-filterimage-layers", "git worktree add -b chore/9-other-type ../x"]) {
+  assert.equal(deriveTitle(miss), null, miss);
+}
+
+const shell = (session_id, command, tool_name = "Bash") => ({ session_id, tool_name, tool_input: { command } });
+const rename = (session_id, title, tool_name = "mcp__ccd_session_mgmt__set_session_title") => ({ session_id, tool_name, tool_input: { session_id: "self", title } });
+
+// Unrelated sessions and commands record nothing and are never gated.
+assert.equal(afterTool(shell("a", "git status"), "claude"), null);
+assert.equal(fs.existsSync(statePath("a")), false);
+assert.equal(gate(shell("a", "git status"), "claude"), null);
+
+// Creating the worktree records a pending title and names the exact rename call.
+const context = afterTool(shell("a", create), "claude");
+assert.match(context, /FIX #302: filterimage layers/);
+assert.match(context, /set_session_title/);
+assert.match(context, /tool search/i);
+assert.ok(statePath("a").startsWith(stateDir), "state lives in the private directory");
+assert.ok(!path.relative(root, statePath("a")).match(/^[^.]/), "state is never inside the checkout");
+
+// The next shell command is denied until the rename happens.
+const denied = gate(shell("a", "npm test"), "claude");
+assert.match(denied, /FIX #302: filterimage layers/);
+assert.match(gate(shell("a", "Get-ChildItem", "PowerShell"), "claude"), /set_session_title/);
+
+// A second session in another worktree is unaffected.
+assert.equal(gate(shell("b", "npm test"), "claude"), null);
+
+// A rename with a different title does not confirm; the exact title does.
+assert.match(afterTool(rename("a", "Something else"), "claude"), /FIX #302: filterimage layers/);
+assert.ok(gate(shell("a", "npm test"), "claude"));
+assert.equal(afterTool(rename("a", "FIX #302: filterimage layers"), "claude"), null);
+assert.equal(gate(shell("a", "npm test"), "claude"), null);
+
+// A later worktree in the same session asks again.
+afterTool(shell("a", "git worktree add -b feat/9-second-thing ../y origin/main"), "claude");
+assert.match(gate(shell("a", "ls"), "claude"), /FEAT #9: second thing/);
+
+// Codex names its own tool and offers the acknowledgement fallback, which the gate lets through.
+const codexContext = afterTool(shell("c", create), "codex");
+assert.match(codexContext, /set_thread_title/);
+const ack = codexContext.match(/`(node [^`]+ confirm [^`]+)`/)?.[1];
+assert.ok(ack, codexContext);
+assert.ok(gate(shell("c", "npm test"), "codex"));
+assert.equal(gate(shell("c", ack), "codex"), null);
+assert.equal(afterTool(rename("c", "FIX #302: filterimage layers", "set_thread_title"), "codex"), null);
+assert.equal(gate(shell("c", "npm test"), "codex"), null);
+
+// The acknowledgement command confirms only the named session.
+afterTool(shell("d", create), "codex");
+afterTool(shell("e", create), "codex");
+const cli = path.join(root, ".agents/hooks/session-title.mjs");
+const confirmed = spawnSync(process.execPath, [cli, "confirm", "d"], { encoding: "utf8", env: process.env, windowsHide: true });
+assert.equal(confirmed.status, 0, confirmed.stderr);
+assert.equal(gate(shell("d", "npm test"), "codex"), null);
+assert.ok(gate(shell("e", "npm test"), "codex"));
+assert.equal(spawnSync(process.execPath, [cli, "confirm", "unknown"], { encoding: "utf8", env: process.env, windowsHide: true }).status, 1);
+
+// Session ids cannot escape the state directory.
+assert.equal(path.dirname(statePath("../../evil")), stateDir);
+
+// Native hook configuration reaches the shared source on both runners.
+const bash = process.platform === "win32" ? testShell() : "bash";
+const settings = JSON.parse(fs.readFileSync(path.join(root, ".claude/settings.json"), "utf8"));
+const run = (command, payload) => spawnSync(bash, ["-c", command], { cwd: path.join(root, "scripts"), input: typeof payload === "string" ? payload : JSON.stringify(payload), env: { ...process.env, CLAUDE_PROJECT_DIR: root }, encoding: "utf8", windowsHide: true });
+const claudePre = settings.hooks.PreToolUse.find((g) => g.hooks.some((h) => h.command.includes("session-title-hook")));
+const claudePost = settings.hooks.PostToolUse;
+assert.ok(new RegExp(`^(?:${claudePre.matcher})$`).test("Bash") && new RegExp(`^(?:${claudePre.matcher})$`).test("PowerShell"));
+const postShell = claudePost.find((g) => new RegExp(`^(?:${g.matcher})$`).test("Bash"));
+const postRename = claudePost.find((g) => new RegExp(`^(?:${g.matcher})$`).test("mcp__ccd_session_mgmt__set_session_title"));
+assert.ok(postShell && postRename, "Claude PostToolUse covers shell commands and the rename tool");
+let out = run(postShell.hooks[0].command, { ...shell("f", create), hook_event_name: "PostToolUse" });
+assert.equal(out.status, 0, out.stderr);
+assert.match(JSON.parse(out.stdout).hookSpecificOutput.additionalContext, /FIX #302/);
+out = run(claudePre.hooks[0].command, shell("f", "npm test"));
+assert.equal(out.status, 0, out.stderr);
+assert.equal(JSON.parse(out.stdout).hookSpecificOutput.permissionDecision, "deny");
+out = run(postRename.hooks[0].command, rename("f", "FIX #302: filterimage layers"));
+assert.equal(out.status, 0, out.stderr);
+out = run(claudePre.hooks[0].command, shell("f", "npm test"));
+assert.equal(out.status, 0, out.stderr);
+assert.equal(out.stdout.trim(), "");
+assert.equal(run(claudePre.hooks[0].command, "{broken").status, 2, "a broken gate blocks");
+
+const codex = JSON.parse(fs.readFileSync(path.join(root, ".codex/hooks.json"), "utf8"));
+const codexPost = codex.hooks.PostToolUse[0];
+assert.ok(new RegExp(codexPost.matcher).test("Bash") && new RegExp(codexPost.matcher).test("set_thread_title"));
+const codexPre = codex.hooks.PreToolUse[0].hooks[0];
+const native = process.platform === "win32" ? ["powershell.exe", (c) => ["-NoProfile", "-NonInteractive", "-Command", c], "commandWindows"] : ["bash", (c) => ["-c", c], "command"];
+const runCodex = (hook, payload) => spawnSync(native[0], native[1](hook[native[2]]), { cwd: path.join(root, "scripts"), input: JSON.stringify(payload), encoding: "utf8", env: process.env, windowsHide: true });
+out = runCodex(codexPost.hooks[0], shell("g", create));
+assert.equal(out.status, 0, out.stderr);
+assert.match(JSON.parse(out.stdout).hookSpecificOutput.additionalContext, /set_thread_title/);
+out = runCodex(codexPre, shell("g", "npm test"));
+assert.equal(out.status, 0, out.stderr);
+assert.equal(JSON.parse(out.stdout).hookSpecificOutput.permissionDecision, "deny");
+out = runCodex(codexPost.hooks[0], rename("g", "FIX #302: filterimage layers", "set_thread_title"));
+assert.equal(out.status, 0, out.stderr);
+out = runCodex(codexPre, shell("g", "npm test"));
+assert.equal(out.status, 0, out.stderr);
+assert.equal(out.stdout.trim(), "");
+
+fs.rmSync(stateDir, { recursive: true });
+console.log("PASS: session title derivation, per-session gate, rename confirmation, acknowledgement fallback and native hook wiring");
