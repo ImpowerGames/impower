@@ -1,0 +1,11 @@
+animation blink with
+     keyframes:
+          - eyes:
+                 option = open
+            offset = 0
+          - eyes:
+                 option = closed
+            eyebrows:
+                   translate = 0 6%
+            offset = 0.4
+end

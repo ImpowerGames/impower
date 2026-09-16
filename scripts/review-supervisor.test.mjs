@@ -31,7 +31,7 @@ const head=git('rev-parse','HEAD').trim();
 const prompt=path.join(scratch,'prompt.txt');fs.writeFileSync(prompt,'fixture');
 const child=path.join(scratch,'child.mjs');
 fs.writeFileSync(child,`import fs from 'node:fs';let text='';for await(const c of process.stdin)text+=c;fs.writeFileSync(/Write (.*?) with the editor tool/.exec(text)[1],JSON.stringify({head:'${head}',next:null,commentIds:[],summary:'fixture'}));`);
-const plan={worktree:repo,journal:path.join(scratch,'legacy.jsonl'),writer:'writer',reviewer:'reviewer',completedReviewRound:0,maxSteps:1,first:'work',continuation:{destination:'unavailable'},steps:{work:{role:'implement',model:'writer',executable:process.execPath,args:[child,'--model','writer'],prompt,next:[null]}}};
+const plan={worktree:repo,journal:path.join(scratch,'legacy.jsonl'),writer:'writer',writerEffort:'medium',reviewer:'reviewer',completedReviewRound:0,maxSteps:1,first:'work',continuation:{destination:'unavailable'},steps:{work:{role:'implement',model:'writer',executable:process.execPath,args:[child,'--model','writer'],prompt,next:[null]}}};
 const file=path.join(scratch,'legacy.json');fs.writeFileSync(file,JSON.stringify(plan));
 try {
   await assert.rejects(runHandoff(file),/Automatic continuation requires review-supervisor/,'automatic mode must refuse before an unverified destination can launch work');
@@ -300,6 +300,7 @@ try {
     assert.doesNotThrow(()=>actualValidate({...f.input,reviews:[native]}));assert.throws(()=>actualValidate(f.input),/Unsupported automatic/,'production default validator is wired');
     assert.throws(()=>validateNativeReviewArgs({...native,permissions:'bypassPermissions',args:native.args.map(value=>value==='dontAsk'?'bypassPermissions':value)}),/permission mode/);
     assert.throws(()=>validateReviewPlan({...f.input,writer:'reviewer[fast]'}),/distinct/);
+    assert.throws(()=>validateReviewPlan({...f.input,writerEffort:'bogus'}),/Supply writerEffort/,'job admission refuses an unknown writer effort');
     assert.throws(()=>validateReviewPlan({...f.input,reviews:[{...native,executable:path.join(scratch,'absent.exe')}]}),/ENOENT/);
     for(const cursor of ['oops','-1','1.5'])assert.throws(()=>eventCursor(cursor),/Invalid/);
     assert.equal(eventCursor('3'),3);

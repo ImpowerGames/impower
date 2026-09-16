@@ -1,4 +1,5 @@
 import { nodeNameSet } from "../../utils/nodeNameSet";
+import { structArrayItemInlineEntry } from "../../utils/structArrayItemInlineEntry";
 import { type SyntaxNode } from "@lezer/common";
 import type { LowerContext } from "../context";
 import {
@@ -6,6 +7,7 @@ import {
   stripTrailingLineComment,
 } from "../utils/stripTrailingLineComment";
 import { unescapeString } from "../utils/unescapeString";
+import { warnValueItemWithEntries } from "../utils/warnValueItemWithEntries";
 
 // Shared parser for the colon/indent struct body inside a structural
 // `style`/`screen`/`component … with … end` block. The grammar classifies
@@ -30,6 +32,16 @@ import { unescapeString } from "../utils/unescapeString";
 //   image                        - LuauStructAdjacencyContent → `tag "content"` scalar
 //   mask shadow_1                - LuauStructBareMarker       → `{}` leaf (image / text / mask …)
 //                                - LuauStructArrayItem        → array element
+//
+// A list item may carry its first entry on the dash line, with the item's
+// remaining entries at the column that entry opens — the same item with the
+// dash overlapping the first entry's indent:
+//
+//   items:                     items:
+//     - label:          ==       -
+//         text = "a"               label:
+//       weight = bold                text = "a"
+//                                  weight = bold
 //
 // REACTIVE ATTRIBUTES: an element line may carry inline `@event=handler` /
 // `#prop=value` bindings (`button "Use" @click=x`, `column #gap=16:`). Those are
@@ -115,6 +127,7 @@ export function collectStructBodyLines(
             .startsWith("--");
           if (!isWholeLineComment) {
             lines.push({ indent: ctx.characterNumber(child.from), shape, ctx });
+            pushInlineEntryLine(lines, shape, ctx);
           }
         }
       } else {
@@ -125,6 +138,24 @@ export function collectStructBodyLines(
   };
   walk(contentNode);
   return lines;
+}
+
+/**
+ * A collapsed list item (`- label:` / `- weight = bold`) carries its first
+ * entry on the dash line. Follow the item's line with that entry as a line of
+ * its own, at the column the entry starts in — the shape the expanded form
+ * already has — so the block parser below needs no case for it and the two
+ * spellings cannot drift apart.
+ */
+function pushInlineEntryLine(
+  lines: BodyLine[],
+  shape: SyntaxNode,
+  ctx: LowerContext,
+): void {
+  if (shape.name !== "LuauStructArrayItem") return;
+  const entry = structArrayItemInlineEntry(shape);
+  if (!entry) return;
+  lines.push({ indent: ctx.characterNumber(entry.from), shape: entry, ctx });
 }
 
 // DFS in-order: the first descendant (or self) whose name is in `names`.
@@ -214,9 +245,13 @@ function parseBlock(
     const ctx = line.ctx;
 
     if (shape.name === "LuauStructArrayItem") {
+      // Entries indented beneath (or carried on the dash line, which
+      // `collectStructBodyLines` has already followed with an entry line) →
+      // object; `- scalar` → scalar.
       arr = arr ?? [];
       const childIndent = nextChildIndent(lines, i, indent);
       if (childIndent != null) {
+        warnValueItemWithEntries(shape, ctx);
         const sub = parseBlock(lines, i + 1, childIndent);
         arr.push(sub.value);
         i = sub.next;

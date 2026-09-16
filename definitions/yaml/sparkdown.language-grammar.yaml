@@ -4589,8 +4589,27 @@ repository:
       2:
         patterns:
           - { include: "#ArrayItemOperator" }
+      # The rest of the dash line. A list item may carry its FIRST ENTRY here:
+      # `- key:` (an object header whose value is the deeper-indented lines) or
+      # `- key = value` (a scalar property), with the item's further entries at
+      # the column that entry opens. The lowerers read such a line as the dash
+      # plus one entry at the inline column, which is what the expanded form
+      # (a bare `-` with every entry indented beneath it) already produces —
+      # so both spellings lower to the same struct.
+      #
+      # These are the SAME rules a body line uses, so an inline key highlights,
+      # completes and resolves through the node names every consumer already
+      # keys on, and the nesting alone says it sits on a dash line.
+      #
+      # Entry rules come FIRST: for `- offset = 0.4` the property rule and
+      # `StylingValue` both match at offset 0, and order breaks that tie. A
+      # bare value that merely CONTAINS an `=` or a `:` is unaffected, because
+      # the entry rules can only match it mid-token while a value rule matches
+      # at offset 0, and the engine prefers whichever pattern matches earliest.
       3:
         patterns:
+          - { include: "#LuauStructScalarProperty" }
+          - { include: "#LuauStructObjectHeader" }
           - { include: "#NumericFieldValue" }
           - { include: "#BooleanFieldValue" }
           - { include: "#StringFieldValueInterpolated" }

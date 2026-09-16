@@ -13,11 +13,11 @@ Run `node .agents/skills/drive-web-editor/driver.mjs preflight`. All checks must
 
 ## 1. Read the ticket
 
-Read the full body, current labels and type with `gh issue view N --json number,title,body,labels` and the issue REST API. Verify cited code still supports the claim; investigate missing evidence yourself. Rename the session `FIX #N: <short behavior summary>` when the runner supports it; otherwise continue.
+Read the full body, current labels and type with `gh issue view N --json number,title,body,labels` and the issue REST API. Verify cited code still supports the claim; investigate missing evidence yourself.
 
 ## 2. Create the worktree
 
-Follow [worktree setup](references/worktree.md): never work on main or reuse another issue's worktree. Resolve paths from the main checkout and existing layout. Install dependencies only when required, with `PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1`, then repeat preflight. All later work runs in the new worktree.
+Follow [worktree setup](references/worktree.md): never work on main or reuse another issue's worktree. The session title is derived from the branch (`fix/302-filterimage-layers` becomes `FIX #302: filterimage layers`); after the worktree is created, a repository hook names the exact title and rename call, and refuses shell commands until the session is renamed. Resolve paths from the main checkout and existing layout. Install dependencies only when required, with `PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1`, then repeat preflight. All later work runs in the new worktree.
 
 ## 3. Reproduce before you fix
 
@@ -52,7 +52,7 @@ Opening the PR starts the Test Suite workflow on every pull request. Its package
 
 Check CI for the current head. For cancelled/timed-out runs, read [CI evidence](references/ci-evidence.md) and diagnose before rerunning or changing bounds; an unexplained cancellation is not a verified gate.
 
-Invoke `/review-pr` now (skill name `review-pr`). It owns reviewer counts, risk selection, correction rounds, recovery, and readiness. Do not mark ready before its gates pass; invoking it again does not reset the cycle count. The default autonomous review cap is three rounds; only an explicit user request may authorize the launcher to use a higher bounded limit.
+Invoke `/review-pr` now (skill name `review-pr`), supplying the writer identity and effort read from the runner. The launcher resolves a missing reviewer route from the repository's reviewer defaults; an explicit route from the user or caller overrides it. It owns reviewer counts, risk selection, correction rounds, recovery, and readiness. Do not mark ready before its gates pass; invoking it again does not reset the cycle count. The default autonomous review cap is three rounds; only an explicit user request may authorize the launcher to use a higher bounded limit.
 
 ## The completion gate
 

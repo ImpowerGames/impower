@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { readReviewerDefaults } from "./reviewer-defaults.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const models = JSON.parse(fs.readFileSync(path.join(root, ".claude/reviewer-models.json"), "utf8"));
@@ -37,4 +38,5 @@ for (const entry of fs.readdirSync(agentsDir)) {
   const match = /^(reviewer-[a-z0-9-]+)\.md$/.exec(entry);
   if (match && !names.has(match[1])) throw new Error(`Unexpected reviewer definition with no .claude/reviewer-models.json entry: ${path.join(agentsDir, entry)}`);
 }
-console.log("PASS: generated reviewer definitions");
+readReviewerDefaults(root);
+console.log("PASS: generated reviewer definitions and reviewer defaults");
