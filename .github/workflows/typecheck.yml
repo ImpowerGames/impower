@@ -13,32 +13,13 @@ name: Typecheck
 # The project list is derived inside scripts/typecheck.mjs from the tracked
 # `tsconfig*.json` files, so a workspace added later is covered without anyone
 # remembering to edit this file.
+#
+# The typecheck job is a required status check, so the workflow has no trigger
+# path filter; the `changes` job decides whether it needs to run, and a skipped
+# job still satisfies the required check.
 
 on:
   pull_request:
-    paths:
-      - "**/*.ts"
-      - "**/*.tsx"
-      - "**/*.mts"
-      - "**/*.cts"
-      - "**/*.js"
-      - "**/*.jsx"
-      - "**/*.mjs"
-      - "**/*.cjs"
-      - "**/*.d.ts"
-      - "**/tsconfig*.json"
-      - "**/package.json"
-      - "package-lock.json"
-      - "scripts/typecheck.mjs"
-      # The node-name check reads both generated grammars and fails when they
-      # declare different rules, so a change to their YAML source has to run
-      # it too. A regeneration done for one output only is caught that way; a
-      # regeneration forgotten entirely leaves both copies stale and agreeing,
-      # which nothing here detects.
-      - "definitions/yaml/**"
-      - "packages/sparkdown/language/sparkdown.language-grammar.json"
-      - "vscode-sparkdown/language/sparkdown.language-grammar.json"
-      - ".github/workflows/typecheck.yml"
 
 # A superseded PR run is of no interest; keep only the newest per branch.
 concurrency:
@@ -49,7 +30,38 @@ permissions:
   contents: read
 
 jobs:
+  changes:
+    uses: ./.github/workflows/changed-paths.yml
+    with:
+      # The node-name check reads both generated grammars and fails when they
+      # declare different rules, so a change to their YAML source has to run
+      # it too. A regeneration done for one output only is caught that way; a
+      # regeneration forgotten entirely leaves both copies stale and agreeing,
+      # which nothing here detects.
+      patterns: |
+        **/*.ts
+        **/*.tsx
+        **/*.mts
+        **/*.cts
+        **/*.js
+        **/*.jsx
+        **/*.mjs
+        **/*.cjs
+        **/*.d.ts
+        **/tsconfig*.json
+        **/package.json
+        package-lock.json
+        scripts/typecheck.mjs
+        definitions/yaml/**
+        packages/sparkdown/language/sparkdown.language-grammar.json
+        vscode-sparkdown/language/sparkdown.language-grammar.json
+        .github/workflows/typecheck.yml
+        .github/workflows/changed-paths.yml
+        .github/scripts/changed-paths.mjs
+
   typecheck:
+    needs: changes
+    if: needs.changes.outputs.relevant == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
