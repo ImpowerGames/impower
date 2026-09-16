@@ -1,3 +1,5 @@
+import { execFileSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -10,20 +12,36 @@ const SHELLS = new Set(["bash", "powershell"]);
 const RENAME = /(?:^|__)set_(?:session|thread)_title$/i;
 const self = fileURLToPath(import.meta.url);
 
-export function deriveTitle(command) {
-  for (const add of String(command).matchAll(/\bgit\s+worktree\s+add\b([^;&|\r\n]*)/g)) {
+// Only `git worktree add` at a command position counts; text quoted or echoed
+// by another command does not.
+export function deriveBranch(command) {
+  for (const add of String(command).matchAll(/(?:^|[;&|\r\n(]|\bthen\b|\bdo\b)\s*git\s+worktree\s+add\b([^;&|\r\n]*)/g)) {
     const branch = add[1].match(/(?:^|\s)-[bB]\s+(["']?)([^\s"']+)\1(?=\s|$)/)?.[2];
     const parts = branch?.match(BRANCH);
-    if (parts) return `${parts[1].toUpperCase()} #${parts[2]}: ${parts[3].replaceAll("-", " ")}`;
+    if (parts) return { branch, title: `${parts[1].toUpperCase()} #${parts[2]}: ${parts[3].replaceAll("-", " ")}` };
   }
   return null;
 }
 
+export const deriveTitle = (command) => deriveBranch(command)?.title ?? null;
+
+// Codex runs PostToolUse after failed commands too and reports only their
+// output, so the title is recorded only once Git lists a worktree on the branch.
+export function worktreeExists(cwd, branch) {
+  try {
+    const list = execFileSync("git", ["worktree", "list", "--porcelain"], { cwd, encoding: "utf8", windowsHide: true, stdio: ["ignore", "pipe", "ignore"], timeout: 5000 });
+    return list.split(/\r?\n/).includes(`branch refs/heads/${branch}`);
+  } catch {
+    return false;
+  }
+}
+
 // Private per-session state outside any checkout, so concurrent sessions in
-// different worktrees never see each other's pending title.
+// different worktrees never see each other's pending title. The file name is a
+// hash of the complete session id, which may contain any characters.
 export function statePath(sessionId) {
   const dir = process.env.IMPOWER_SESSION_TITLE_DIR || path.join(os.tmpdir(), "impower-session-titles");
-  return path.join(dir, String(sessionId).replace(/[^A-Za-z0-9_-]/g, "_") + ".json");
+  return path.join(dir, createHash("sha256").update(String(sessionId)).digest("hex") + ".json");
 }
 
 function sessionOf(payload) {
@@ -34,7 +52,8 @@ function sessionOf(payload) {
 
 function pending(sessionId) {
   try {
-    return JSON.parse(fs.readFileSync(statePath(sessionId), "utf8")).title ?? null;
+    const state = JSON.parse(fs.readFileSync(statePath(sessionId), "utf8"));
+    return state.sessionId === sessionId ? state.title ?? null : null;
   } catch (error) {
     if (error.code === "ENOENT") return null;
     throw error;
@@ -55,16 +74,18 @@ export function afterTool(payload, harness) {
   const sessionId = sessionOf(payload);
   const tool = String(payload.tool_name ?? "");
   if (SHELLS.has(tool.toLowerCase())) {
-    const title = deriveTitle(payload.tool_input?.command ?? "");
-    if (!title) return null;
+    const created = deriveBranch(payload.tool_input?.command ?? "");
+    if (!created || !worktreeExists(payload.cwd || process.cwd(), created.branch)) return null;
     fs.mkdirSync(path.dirname(statePath(sessionId)), { recursive: true });
-    fs.writeFileSync(statePath(sessionId), JSON.stringify({ title }));
-    return instruction(title, sessionId, harness);
+    fs.writeFileSync(statePath(sessionId), JSON.stringify({ sessionId, title: created.title }));
+    return instruction(created.title, sessionId, harness);
   }
   if (RENAME.test(tool)) {
     const title = pending(sessionId);
     if (!title) return null;
-    if (payload.tool_input?.title !== title) return `The session title must be exactly "${title}". ${instruction(title, sessionId, harness)}`;
+    // A rename aimed at another session does not rename this one.
+    const target = payload.tool_input?.session_id;
+    if (payload.tool_input?.title !== title || (target !== undefined && target !== "self" && target !== sessionId)) return `The session title must be exactly "${title}". ${instruction(title, sessionId, harness)}`;
     fs.rmSync(statePath(sessionId), { force: true });
   }
   return null;
@@ -77,9 +98,15 @@ export function gate(payload, harness) {
   const sessionId = sessionOf(payload);
   const title = pending(sessionId);
   if (!title) return null;
-  const command = String(payload.tool_input?.command ?? "").trim();
-  const ack = new RegExp(`^node\\s+"?[^"\\s]*session-title\\.mjs"?\\s+confirm\\s+${sessionId.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`);
-  return ack.test(command) ? null : instruction(title, sessionId, harness);
+  return isAck(payload.tool_input?.command, sessionId) ? null : instruction(title, sessionId, harness);
+}
+
+// The only command let through is this script's own confirm for this session.
+function isAck(command, sessionId) {
+  const match = String(command ?? "").trim().match(/^node\s+(?:"([^"]+)"|([^\s"]+))\s+confirm\s+(\S+)$/);
+  if (!match || match[3] !== sessionId) return false;
+  const same = (a, b) => process.platform === "win32" ? a.toLowerCase() === b.toLowerCase() : a === b;
+  return same(path.resolve(match[1] ?? match[2]), path.resolve(self));
 }
 
 async function readEvent() {
