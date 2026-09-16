@@ -475,8 +475,9 @@ async function down() {
     process.platform === "win32"
       ? spawn("taskkill", ["/pid", String(s.pid), "/T", "/F"], {
           stdio: "inherit",
+          windowsHide: true,
         })
-      : spawn("kill", ["-TERM", String(-s.pid)], { stdio: "inherit" });
+      : spawn("kill", ["-TERM", String(-s.pid)], { stdio: "inherit", windowsHide: true });
   const failed = (why) => {
     log(`could not stop pid ${s.pid} (${why}); the record is kept`);
     process.exitCode = 1;

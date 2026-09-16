@@ -150,11 +150,12 @@ export function linkReason(scan, dir) {
 // Every process on the machine with its command line, one tab-separated line
 // each, so the worktrees a running server or shell names can be found without
 // asking any driver.
+// `exec` is deps.exec, which hides the console window.
 function listProcesses(exec) {
   const r =
     process.platform === "win32"
-      ? exec("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", 'Get-CimInstance Win32_Process | ForEach-Object { "$($_.ProcessId)`t$($_.Name)`t$($_.CommandLine)" }'], undefined, 60_000)
-      : exec("ps", ["-eo", "pid=,comm=,args="], undefined, 60_000);
+      ? /* windows-hide: caller */ exec("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", 'Get-CimInstance Win32_Process | ForEach-Object { "$($_.ProcessId)`t$($_.Name)`t$($_.CommandLine)" }'], undefined, 60_000)
+      : /* windows-hide: caller */ exec("ps", ["-eo", "pid=,comm=,args="], undefined, 60_000);
   if (r.status !== 0) return { ok: false, err: r.err || `exit ${r.status}` };
   const list = [];
   for (const line of r.out.split(/\r?\n/)) {
