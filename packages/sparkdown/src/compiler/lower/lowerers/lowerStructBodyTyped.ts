@@ -86,12 +86,37 @@ function firstDescendant(
 }
 
 
+// A trailing comment makes the grammar match a number, boolean or quoted string
+// as a `StylingValue` instead of its own value node. These recognize the
+// spellings of the grammar's `NumericFieldValue`, `BooleanFieldValue` and
+// `StringFieldValue` rules followed by a comment, so the literal is read as
+// that node would read it.
+//
+// After a complete literal a `--` can only start a Luau comment, so it needs no
+// whitespace before it (`1-- note`). A general unquoted value keeps the
+// whitespace rule in `stripTrailingLineComment`, because there `--` can belong
+// to the value (`var(--x)`). `//` needs whitespace on both sides everywhere.
+const TRAILING_COMMENT = String.raw`(?:\s*--|\s+\/\/(?=\s|$)).*`;
+const NUMERIC_WITH_COMMENT_RE = new RegExp(
+  String.raw`^(-?(?:\d*\.)?\d+|Infinity|NaN)${TRAILING_COMMENT}$`,
+);
+const BOOLEAN_WITH_COMMENT_RE = new RegExp(
+  String.raw`^(true|false)${TRAILING_COMMENT}$`,
+);
+const QUOTED_WITH_COMMENT_RE = new RegExp(
+  String.raw`^"((?:\\.|[^"\\])*)"${TRAILING_COMMENT}$`,
+);
+
+function readNumber(text: string): unknown {
+  const n = Number(text);
+  return Number.isNaN(n) ? text : n;
+}
+
 /** Read a value node as a typed scalar (number / boolean / string / ref). */
 function readTypedValue(value: SyntaxNode | null, ctx: LowerContext): unknown {
   if (!value) return "";
   if (value.name === "NumericFieldValue") {
-    const n = Number(ctx.read(value.from, value.to).trim());
-    return Number.isNaN(n) ? ctx.read(value.from, value.to).trim() : n;
+    return readNumber(ctx.read(value.from, value.to).trim());
   }
   if (value.name === "BooleanFieldValue") {
     return ctx.read(value.from, value.to).trim() === "true";
@@ -105,6 +130,13 @@ function readTypedValue(value: SyntaxNode | null, ctx: LowerContext): unknown {
   // These greedily include any trailing `--`/`//` comment; drop it first.
   let raw = ctx.read(value.from, value.to).trim();
   if (UNQUOTED_VALUE_NODES.has(value.name)) {
+    // Matched before stripping, since quoted text may itself contain `--`.
+    const numeric = NUMERIC_WITH_COMMENT_RE.exec(raw);
+    if (numeric) return readNumber(numeric[1]!);
+    const boolean = BOOLEAN_WITH_COMMENT_RE.exec(raw);
+    if (boolean) return boolean[1] === "true";
+    const quoted = QUOTED_WITH_COMMENT_RE.exec(raw);
+    if (quoted) return unescapeString(quoted[1]!);
     raw = stripTrailingLineComment(raw);
   }
   const ref = STRUCT_REFERENCE_RE.exec(raw);
@@ -114,9 +146,12 @@ function readTypedValue(value: SyntaxNode | null, ctx: LowerContext): unknown {
 
 const PLAIN_STRING_CONTENT = nodeNameSet(["PlainStringContent"]);
 
-/** The text of a `key:` object-header key (everything before the colon). */
-function headerKey(content: SyntaxNode, ctx: LowerContext): string {
-  return ctx.read(content.from, content.to).trim().replace(/:\s*$/, "").trim();
+/**
+ * The text of a `key:` object-header key (everything before the colon). Takes
+ * the `LuauStructObjectHeader` node, which excludes any trailing comment.
+ */
+function headerKey(header: SyntaxNode, ctx: LowerContext): string {
+  return ctx.read(header.from, header.to).trim().replace(/:\s*$/, "").trim();
 }
 
 /** Collect each body line's `LuauStructBodyContent` node + indent column. */
@@ -346,7 +381,7 @@ function parseBlock(
 
     if (kind?.name === "LuauStructObjectHeader") {
       // `key:` → container (children = the value).
-      const key = headerKey(content, ctx);
+      const key = headerKey(kind, ctx);
       if (childIndent != null) {
         const sub = parseBlock(lines, i + 1, childIndent, ctx, sink);
         // A `keyframes:` container may be written with position keys instead
