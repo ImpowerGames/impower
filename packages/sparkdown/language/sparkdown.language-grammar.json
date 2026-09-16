@@ -7276,6 +7276,12 @@
         "3": {
           "patterns": [
             {
+              "include": "#LuauStructScalarProperty"
+            },
+            {
+              "include": "#LuauStructObjectHeader"
+            },
+            {
               "include": "#NumericFieldValue"
             },
             {
