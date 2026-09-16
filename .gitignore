@@ -1,8 +1,8 @@
 .vercel
-# `.claude/` holds team tooling (settings, hooks, agent definitions, output
-# styles) tracked by default; only the paths below are local-agent state.
 .codex/skills
 .github/skills
+# `.claude/` holds team tooling (settings, hooks, agent definitions, output
+# styles) tracked by default; only the three paths below are local-agent state.
 .claude/worktrees
 .claude/skills
 .claude/settings.local.json
