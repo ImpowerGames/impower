@@ -39,7 +39,7 @@ Marking the PR ready means this diff is finished and ready to be reviewed by a h
 
 - Every reviewer you spawned has exited, and every required reviewer has supplied a usable report for the recorded frozen head.
 - Every report is on the PR, including the ones you posted on a reviewer's behalf (see [launch procedure](launch.md)).
-- Every finding is adjudicated in your adjudication comment, accepted, rejected, or already covered, with nothing left unanswered.
+- Every finding is adjudicated in your adjudication comment, accepted, rejected, already covered, or deferred to a filed Task under the conditions above, with nothing left unanswered.
 - Every fix you made in response is committed, pushed, and re-verified as above, and the last push is on the PR.
 - No required lens is missing or outstanding from an aborted or retried attempt (see [independence](../SKILL.md)).
 - Behavior-changing fix commits have themselves been independently reviewed under [later-round rules](later-rounds.md). Only verified non-behavioral corrections qualify for its disclosed exception.

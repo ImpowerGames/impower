@@ -22,17 +22,18 @@ export function buildReviewPrompt(context, markdown = fs.readFileSync(skill, "ut
   if (!/^[a-f0-9]{40}$/.test(context.head ?? "")) throw new Error("Supply the full reviewed head SHA");
   for (const key of ["worktree", "diff", "reviewDir"]) if (typeof context[key] !== "string" || !path.isAbsolute(context[key])) throw new Error(`Supply an absolute ${key}`);
   if (!context.lens || !context.previous) throw new Error("Supply lens and previous-round context");
+  if (typeof context.task !== "string" || !context.task.trim()) throw new Error("Supply the change's user-facing goal as task");
   let prompt = reviewTemplate(markdown);
-  const tokenPattern = /\\?<LENS\\?>|\b(?:WRITER|REVIEWER|ROUND|HEAD|WORKTREE|DIFF|REVDIR|PREVIOUS|P|N)\b/g;
+  const tokenPattern = /\\?<LENS\\?>|\b(?:WRITER|REVIEWER|ROUND|HEAD|WORKTREE|DIFF|REVDIR|PREVIOUS|TASK|P|N)\b/g;
   const tokenName = (value) => value.includes("LENS") ? "LENS" : value;
   const tokens = [...prompt.matchAll(tokenPattern)].map(([value]) => tokenName(value));
-  const counts = { WRITER: 1, REVIEWER: 1, ROUND: 2, HEAD: 3, WORKTREE: 1, DIFF: 1, REVDIR: 2, PREVIOUS: 1, P: 4, N: 1, LENS: 2 };
+  const counts = { WRITER: 1, REVIEWER: 1, ROUND: 2, HEAD: 3, WORKTREE: 1, DIFF: 1, REVDIR: 2, PREVIOUS: 1, TASK: 1, P: 4, N: 1, LENS: 2 };
   for (const [token, count] of Object.entries(counts)) if (tokens.filter((value) => value === token).length !== count) throw new Error(`Unsafe ${token} substitution template`);
   if (context.issue === null) {
     if (!prompt.includes("a fix for issue #N")) throw new Error("Unsafe issue-free review template");
     prompt = prompt.replace("a fix for issue #N", "a change with no linked issue");
   }
-  const values = { WRITER: context.writer, REVIEWER: context.reviewer, ROUND: String(context.round), HEAD: context.head, WORKTREE: context.worktree, DIFF: context.diff, REVDIR: context.reviewDir, PREVIOUS: context.previous, P: String(context.pr), N: String(context.issue), LENS: context.lens };
+  const values = { WRITER: context.writer, REVIEWER: context.reviewer, ROUND: String(context.round), HEAD: context.head, WORKTREE: context.worktree, DIFF: context.diff, REVDIR: context.reviewDir, PREVIOUS: context.previous, TASK: context.task, P: String(context.pr), N: String(context.issue), LENS: context.lens };
   // Match only the original template: inserted paths, quoted tokens and dollar
   // sequences are literal data and must never be scanned for substitutions.
   prompt = prompt.replace(tokenPattern, (key) => values[tokenName(key)]);

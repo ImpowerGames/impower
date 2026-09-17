@@ -6,7 +6,7 @@ This lens measures what a writer's own live verification cannot: the experience 
 
 ## Procedure for the reviewer
 
-Do the task before reading the code. From the issue and the PR description, write down the goal as an author would phrase it (for example "make this character blink while idle" or "show this choice only once"), and what you expect to type to achieve it. Then attempt it in the running editor using only what an author has: the editor itself, the user docs under `docs/`, and the PR description. Read the diff only after the attempt is recorded; reading it first removes the confusion this lens exists to find.
+Do the task before reading the code. Your prompt states the change's goal for the people who use the product; from that statement, write down the goal as an author would phrase it (for example "make this character blink while idle" or "show this choice only once"), and what you expect to type to achieve it. Then attempt it in the running editor using only what an author has: the editor itself, the user docs under `docs/`, and the PR description. Read the diff only after the attempt is recorded; reading it first removes the confusion this lens exists to find.
 
 Drive the editor through the drive-web-editor skill, from the worktree under review. Run `preflight`, `up`, then `ui` and `verify` with `--sd` scripts and `--shot` paths under your own subdirectory `REVDIR`. Use only the driver's built-in commands; a custom probe script would have to live inside the repo tree, and reviewers do not write there. The driver's own gitignored state file beside it is the one file it may create. Run `down` when finished, and only for the record you started.
 
@@ -30,4 +30,4 @@ Put the attempt count and the transcript summary in the report's coverage sectio
 
 ## Coordinator duties
 
-Stop your own driver servers before launching this reviewer; the driver pins one server pair per tree and records it beside itself, so a standing record of yours would be reused or replaced by the reviewer's `up`. Do not launch this reviewer in parallel with any other process that drives the same worktree. Include the issue's user-facing goal in the round state comment so the reviewer's task matches the ticket rather than the diff.
+Stop your own driver servers before launching this reviewer; the driver pins one server pair per tree and records it beside itself, so a standing record of yours would be reused or replaced by the reviewer's `up`. Do not launch this reviewer in parallel with any other process that drives the same worktree. Supply the change's user-facing goal as the prompt builder's `task` field, taken from the issue when there is one and otherwise from the PR description, and repeat it in the round state comment, so the reviewer's task comes from what the change is for rather than from the diff. The reviewer may have no access to GitHub, so the goal must travel in the prompt.
