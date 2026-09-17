@@ -1,10 +1,11 @@
 import { describe, expect, test } from "vitest";
-import { anchorMean, morphScale, morphSubpaths, parsePathData, serializePathData } from "../src/index";
+import { anchorMean } from "../src/geometry/cubic";
+import { morphScale, morphSubpaths, parsePathData, serializePathData } from "../src/index";
 import { blob, closedLash, loop, square, upperOpen } from "./fixtures";
 
 describe("identical drawings", () => {
-  test("stay still under either method, frame for frame", () => {
-    for (const method of ["ribbon", "shape"] as const) {
+  test("stay still under every method, frame for frame", () => {
+    for (const method of ["nodes", "taper", "outline"] as const) {
       const r = morphSubpaths(parsePathData(upperOpen), parsePathData(upperOpen), { method });
       expect(r.ok).toBe(true);
       if (!r.ok) return;
@@ -15,20 +16,21 @@ describe("identical drawings", () => {
   });
 
   test("a still subpath inside a moving compound drawing stays still", () => {
-    const r = morphSubpaths(parsePathData(upperOpen + square), parsePathData(closedLash + square), { method: "ribbon" });
+    const r = morphSubpaths(parsePathData(upperOpen + square), parsePathData(closedLash + square), { method: "taper" });
     expect(r.ok).toBe(true);
     if (!r.ok) return;
-    expect(r.morph.method).toBe("ribbon");
+    expect(r.morph.method).toBe("taper");
     const sq = serializePathData(parsePathData(square));
     for (const t of [0, 0.5, 1]) expect(serializePathData([r.morph.frame(t)[1]!])).toBe(sq);
   });
 
-  test("a drawing within the still tolerance counts as identical", () => {
-    const nudged = upperOpen.replace("C30,5", "C30.5,5.4");
-    const r = morphSubpaths(parsePathData(upperOpen), parsePathData(nudged), { method: "shape" });
+  test("the still tolerance is a fraction of the drawing's size", () => {
+    // Half a unit on a hundred-unit lash is within the default half-percent.
+    const nudged = upperOpen.replace("C30,5", "C30.4,5.3");
+    const r = morphSubpaths(parsePathData(upperOpen), parsePathData(nudged), { method: "outline" });
     expect(r.ok && r.morph.method).toBe("still");
-    const strict = morphSubpaths(parsePathData(upperOpen), parsePathData(nudged), { method: "shape", stillTolerance: 0.1 });
-    expect(strict.ok && strict.morph.method).toBe("shape");
+    const strict = morphSubpaths(parsePathData(upperOpen), parsePathData(nudged), { method: "outline", stillTolerance: 0.001 });
+    expect(strict.ok && strict.morph.method).toBe("outline");
   });
 });
 

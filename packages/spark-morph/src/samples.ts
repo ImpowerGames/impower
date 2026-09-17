@@ -42,12 +42,21 @@ function packFrame(subpaths: Subpath[]): Float64Array {
   return out;
 }
 
+export interface SampleOptions {
+  /**
+   * Decimals kept when serialising the authored endpoints. Omitted, every
+   * coordinate is written exactly, so small or high-precision art keeps its
+   * rest poses.
+   */
+  precision?: number;
+}
+
 /**
  * Samples `count` frames of a morph at evenly spaced progress values. The
  * count trades bake cost and memory for fidelity; eight is a starting point
  * for lash-sized art, not a guarantee for every drawing.
  */
-export function sampleMorph(morph: SubpathMorph, count = 8): MorphSamples {
+export function sampleMorph(morph: SubpathMorph, count = 8, options: SampleOptions = {}): MorphSamples {
   const n = Math.max(2, Math.round(count));
   const first = morph.frame(0);
   const frames: Float64Array[] = [];
@@ -57,8 +66,8 @@ export function sampleMorph(morph: SubpathMorph, count = 8): MorphSamples {
     segmentCounts: first.map((s) => s.segments.length),
     closed: first.map((s) => s.closed),
     frames,
-    from: serializePathData(morph.from),
-    to: serializePathData(morph.to),
+    from: serializePathData(morph.from, options.precision),
+    to: serializePathData(morph.to, options.precision),
   };
 }
 
@@ -101,8 +110,11 @@ export function unpackFrame(samples: MorphSamples, values: Float64Array): Subpat
   return subpaths;
 }
 
-/** Path data for a frame buffer, without going through subpath objects. */
-export function frameToPathData(samples: MorphSamples, values: Float64Array, precision = 2): string {
+/**
+ * Path data for a frame buffer, without going through subpath objects.
+ * Frames are interpolated geometry, so two decimals is the default here.
+ */
+export function frameToPathData(samples: MorphSamples, values: Float64Array, precision: number | undefined = 2): string {
   let d = "";
   let k = 0;
   samples.segmentCounts.forEach((count, si) => {

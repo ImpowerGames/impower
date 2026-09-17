@@ -43,8 +43,16 @@ export function evalCubic(s: Cubic, t: number): Point {
   ];
 }
 
-/** De Casteljau split at `t`; the two halves trace exactly the original. */
+/**
+ * De Casteljau split at `t`; the two halves trace exactly the original. A
+ * straight segment splits into straight segments whose handles sit on
+ * their endpoints, so it still reads as a line afterwards.
+ */
 export function splitCubic(s: Cubic, t: number): [Cubic, Cubic] {
+  if (isLine(s)) {
+    const m = lerpPoint(s.p0, s.p1, t);
+    return [lineCubic(s.p0, m), lineCubic(m, s.p1)];
+  }
   const a = lerpPoint(s.p0, s.c1, t),
     b = lerpPoint(s.c1, s.c2, t),
     c = lerpPoint(s.c2, s.p1, t);
@@ -334,6 +342,92 @@ export function chainToPolyline(chain: Cubic[], n: number): Point[] {
     }
     const frac = clamp01((target - acc) / (lengths[si] || 1));
     out.push(evalCubic(chain[si]!, tForFraction(chain[si]!, frac)));
+  }
+  return out;
+}
+
+/**
+ * Interpolates handles in tangent space: each handle's direction rotates
+ * the short way while its length blends linearly. Two collinear handles at
+ * a smooth anchor stay collinear at every progress, so the anchor never
+ * kinks mid-morph. Degenerate (zero-length) handles blend as offsets.
+ */
+export function lerpLoopsAngular(a: Cubic[], b: Cubic[], t: number): Cubic[] {
+  const handle = (anA: Point, cA: Point, anB: Point, cB: Point, P: Point): Point => {
+    const hax = cA[0] - anA[0],
+      hay = cA[1] - anA[1],
+      hbx = cB[0] - anB[0],
+      hby = cB[1] - anB[1];
+    const la = Math.hypot(hax, hay),
+      lb = Math.hypot(hbx, hby),
+      len = la + (lb - la) * t;
+    if (la < 1e-9 || lb < 1e-9) return [P[0] + hax + (hbx - hax) * t, P[1] + hay + (hby - hay) * t];
+    const angA = Math.atan2(hay, hax);
+    let d = Math.atan2(hby, hbx) - angA;
+    while (d > Math.PI) d -= 2 * Math.PI;
+    while (d < -Math.PI) d += 2 * Math.PI;
+    const ang = angA + d * t;
+    return [P[0] + Math.cos(ang) * len, P[1] + Math.sin(ang) * len];
+  };
+  return a.map((s, i) => {
+    const o = b[i]!;
+    const p0 = lerpPoint(s.p0, o.p0, t),
+      p1 = lerpPoint(s.p1, o.p1, t);
+    return { p0, c1: handle(s.p0, s.c1, o.p0, o.c1, p0), c2: handle(s.p1, s.c2, o.p1, o.c2, p1), p1 };
+  });
+}
+
+/** The larger side of the control-point bounding box: the drawing's size. */
+export function loopExtent(loop: Cubic[]): number {
+  let xmin = Infinity,
+    ymin = Infinity,
+    xmax = -Infinity,
+    ymax = -Infinity;
+  for (const c of loop) {
+    for (const p of [c.p0, c.c1, c.c2, c.p1]) {
+      if (p[0] < xmin) xmin = p[0];
+      if (p[0] > xmax) xmax = p[0];
+      if (p[1] < ymin) ymin = p[1];
+      if (p[1] > ymax) ymax = p[1];
+    }
+  }
+  return loop.length ? Math.max(xmax - xmin, ymax - ymin) : 0;
+}
+
+/** Whether the segment list ends where it starts, within `tol`. */
+export function endsMeet(segments: Cubic[], tol: number): boolean {
+  if (!segments.length) return false;
+  return dist(segments[0]!.p0, segments[segments.length - 1]!.p1) <= tol;
+}
+
+/** Normalised arc-length fraction at which each segment starts. */
+export function anchorFractions(loop: Cubic[]): number[] {
+  return new ArcLoop(loop).starts.slice(0, loop.length);
+}
+
+/**
+ * Resamples a closed loop so its anchors sit at `fractions` (cyclic order,
+ * in [0, 1)). Every original anchor fraction must be present so each
+ * interval lies within one original segment and comes out as an exact
+ * sub-cubic: a straight segment stays straight and a curve keeps its shape.
+ */
+export function resampleAtFractions(loop: Cubic[], fractions: number[]): Cubic[] {
+  const arc = new ArcLoop(loop);
+  const out: Cubic[] = [];
+  const wrap = (u: number) => ((u % 1) + 1) % 1;
+  for (let k = 0; k < fractions.length; k++) {
+    const a0 = fractions[k]!;
+    let a1 = fractions[(k + 1) % fractions.length]!;
+    if (a1 <= a0) a1 += 1;
+    const si = arc.segmentAt((a0 + a1) / 2);
+    const s0 = arc.starts[si]!,
+      s1 = arc.starts[si + 1]!;
+    const f0 = clamp01((wrap(a0) - s0) / (s1 - s0 || 1));
+    let a1m = a1 % 1;
+    if (a1m < 1e-9) a1m = 1;
+    const f1 = clamp01((a1m - s0) / (s1 - s0 || 1));
+    const seg = loop[si]!;
+    out.push(subCubic(seg, tForFraction(seg, f0), tForFraction(seg, f1 < f0 ? 1 : f1)));
   }
   return out;
 }

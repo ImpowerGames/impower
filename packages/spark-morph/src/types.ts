@@ -22,17 +22,30 @@ export interface Subpath {
   closed: boolean;
 }
 
-/** The explicit interpolation methods. There is no automatic selection. */
-export type MorphMethod = "ribbon" | "shape";
+/**
+ * The explicit interpolation methods, each named by what it pairs on. There
+ * is no automatic selection.
+ *
+ * - `nodes` pairs node with node by index: the second pose was drawn by
+ *   editing a copy of the first, so both have the same nodes in the same
+ *   order, and the artist controls the motion through node placement.
+ * - `taper` pairs tip with tip and edge with edge: a thin closed loop with
+ *   two pointed ends, such as a lash or a crease.
+ * - `outline` pairs the drawings' anchors along the outline, inserting a
+ *   dissolved node where one drawing has a corner the other lacks: any
+ *   closed shape.
+ */
+export type MorphMethod = "nodes" | "taper" | "outline";
 
 /** Why a method could not produce a usable morph for the given geometry. */
 export type MorphFailureCode =
   | "empty-geometry"
   | "subpath-count"
+  | "not-closed"
+  | "node-count"
   | "tips-not-found"
   | "self-intersection"
-  | "thickness"
-  | "not-closed";
+  | "thickness";
 
 export interface MorphFailure {
   code: MorphFailureCode;

@@ -1,5 +1,6 @@
 import { describe, expect, test } from "vitest";
-import { ArcLoop, basicShapeToPathData, basicShapeToSubpaths, parsePathData, serializePathData, signedArea } from "../src/index";
+import { ArcLoop, anchorMean, signedArea } from "../src/geometry/cubic";
+import { basicShapeToPathData, basicShapeToSubpaths, parsePathData, serializePathData } from "../src/index";
 import { circle, loop, maxDistanceToLoop } from "./fixtures";
 
 describe("parsePathData", () => {
@@ -18,9 +19,7 @@ describe("parsePathData", () => {
       [50, 20],
       [10, 10],
     ]);
-    // Quadratic control (25, 15) becomes cubic handles two thirds of the way.
     expect(s.segments[1]!.c1).toEqual([20 + (2 / 3) * 5, 10 + (2 / 3) * 5]);
-    // The smooth quadratic reflects the previous control point.
     expect(s.segments[2]!.c1[1]).toBeCloseTo(10 - (2 / 3) * 5, 9);
   });
 
@@ -31,6 +30,18 @@ describe("parsePathData", () => {
       [10, 2],
     ]);
     expect(subs[0]!.segments[0]!.p0).toEqual([1.5, 0.5]);
+  });
+
+  test("reads compact arc flags written without separators", () => {
+    const compact = parsePathData("M0 0A10 10 0 0110 10");
+    const spaced = parsePathData("M0 0A10 10 0 0 1 10 10");
+    expect(compact).toHaveLength(1);
+    expect(compact[0]!.segments.length).toBeGreaterThan(0);
+    expect(serializePathData(compact)).toBe(serializePathData(spaced));
+    expect(compact[0]!.segments[compact[0]!.segments.length - 1]!.p1).toEqual([10, 10]);
+    // Flags can also run into the following coordinate with a sign or point.
+    const signed = parsePathData("M0 0a10 10 0 01-10 10");
+    expect(signed[0]!.segments[signed[0]!.segments.length - 1]!.p1).toEqual([-10, 10]);
   });
 
   test("splits subpaths at every move and records which close", () => {
@@ -59,6 +70,14 @@ describe("parsePathData", () => {
     const last = subs[0]!.segments[subs[0]!.segments.length - 1]!;
     expect(last.p1).toEqual([20, 20]);
   });
+
+  test("an arc whose endpoints coincide is omitted, as the SVG rule says", () => {
+    expect(parsePathData("M0,0A10,10 0 0 1 0,0L10,0")[0]!.segments).toHaveLength(1);
+    const withNoop = loop("M100,0A10,10 0 0 1 100,0L0,0L0,100Z");
+    const plain = loop("M100,0L0,0L0,100Z");
+    expect(withNoop).toHaveLength(plain.length);
+    expect(anchorMean(withNoop)).toEqual(anchorMean(plain));
+  });
 });
 
 describe("serializePathData", () => {
@@ -69,9 +88,11 @@ describe("serializePathData", () => {
     expect(serializePathData(parsePathData(once))).toBe(once);
   });
 
-  test("keeps the requested precision and trims zeros", () => {
-    const d = serializePathData([{ segments: [{ p0: [0.123456, 1], c1: [0.123456, 1], c2: [2.5, 3.999], p1: [2.5, 3.999] }], closed: false }], 3);
-    expect(d).toBe("M0.123,1L2.5,3.999");
+  test("keeps every coordinate exact by default and rounds only on request", () => {
+    const subs = [{ segments: [{ p0: [0.123456, 1], c1: [0.123456, 1], c2: [2.5, 3.999], p1: [2.5, 3.999] }], closed: false }] as const;
+    expect(serializePathData([...subs] as never)).toBe("M0.123456,1L2.5,3.999");
+    expect(serializePathData([...subs] as never, 3)).toBe("M0.123,1L2.5,3.999");
+    expect(serializePathData([...subs] as never, 0)).toBe("M0,1L3,4");
   });
 });
 

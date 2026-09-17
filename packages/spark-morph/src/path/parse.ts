@@ -5,23 +5,51 @@ interface Token {
   args: number[];
 }
 
+const NUMBER = /[-+]?(?:\d*\.\d+|\d+\.?)(?:[eE][-+]?\d+)?/y;
+const COMMAND = /[MmLlHhVvCcSsQqTtAaZz]/y;
+const SEPARATOR = /[\s,]*/y;
+
 /**
  * Splits path data into commands with their numeric arguments. Numbers may
  * run together as SVG allows (`1.5.3`, `1-2`, `1e3`), and separators are any
- * whitespace or comma.
+ * whitespace or comma. The fourth and fifth arguments of every arc are
+ * single-character flags, so `0110,10` reads as flags `0` and `1` followed
+ * by `10,10`, as compact SVG writes it.
  */
 function tokenize(d: string): Token[] {
   const out: Token[] = [];
-  const re = /([MmLlHhVvCcSsQqTtAaZz])|([-+]?(?:\d*\.\d+|\d+\.?)(?:[eE][-+]?\d+)?)/g;
-  let m: RegExpExecArray | null;
   let cur: Token | null = null;
-  while ((m = re.exec(d))) {
-    if (m[1]) {
-      cur = { cmd: m[1], args: [] };
+  let i = 0;
+  while (i < d.length) {
+    SEPARATOR.lastIndex = i;
+    SEPARATOR.exec(d);
+    i = SEPARATOR.lastIndex;
+    if (i >= d.length) break;
+    COMMAND.lastIndex = i;
+    const c = COMMAND.exec(d);
+    if (c) {
+      cur = { cmd: c[0], args: [] };
       out.push(cur);
-    } else if (cur) {
-      cur.args.push(parseFloat(m[2]!));
+      i = COMMAND.lastIndex;
+      continue;
     }
+    if (cur && (cur.cmd === "A" || cur.cmd === "a")) {
+      const slot = cur.args.length % 7;
+      if ((slot === 3 || slot === 4) && (d[i] === "0" || d[i] === "1")) {
+        cur.args.push(Number(d[i]));
+        i++;
+        continue;
+      }
+    }
+    NUMBER.lastIndex = i;
+    const n = NUMBER.exec(d);
+    if (!n || NUMBER.lastIndex === i) {
+      // Unparseable character: skip it rather than loop forever.
+      i++;
+      continue;
+    }
+    if (cur) cur.args.push(parseFloat(n[0]));
+    i = NUMBER.lastIndex;
   }
   return out;
 }
@@ -39,9 +67,10 @@ export function arcToCubics(
   sweep: number,
   p1: Point,
 ): Cubic[] {
-  if (rx === 0 || ry === 0 || (p0[0] === p1[0] && p0[1] === p1[1])) {
-    return [{ p0, c1: p0, c2: p1, p1 }];
-  }
+  // The SVG rule: an arc whose endpoints coincide is omitted entirely, and
+  // an arc with a zero radius is a straight line.
+  if (p0[0] === p1[0] && p0[1] === p1[1]) return [];
+  if (rx === 0 || ry === 0) return [{ p0, c1: p0, c2: p1, p1 }];
   const phi = (phiDeg * Math.PI) / 180;
   const cosP = Math.cos(phi),
     sinP = Math.sin(phi);

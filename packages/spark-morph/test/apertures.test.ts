@@ -1,12 +1,13 @@
 import { describe, expect, test } from "vitest";
-import { buildApertures, pairShapes, parsePathData, polygonSelfIntersects, ribbonTrack } from "../src/index";
-import type { EdgeTrack, LabelledShape, RibbonTrack } from "../src/index";
+import { polygonSelfIntersects } from "../src/geometry/cubic";
+import { buildApertures, pairShapes, parsePathData, taperTrack } from "../src/index";
+import type { EdgeTrack, LabelledShape, TaperTrack } from "../src/index";
 import { closedLash, loop, lowerOpen, runtimeProgress, shift, upperOpen } from "./fixtures";
 
 // A closed aperture reports an area at floating-point noise, not exactly zero.
 const AREA_ZERO = 1e-6;
-const track = (from: string, to: string): RibbonTrack => {
-  const r = ribbonTrack(loop(from), loop(to));
+const track = (from: string, to: string): TaperTrack => {
+  const r = taperTrack(loop(from), loop(to));
   if (!r.ok) throw new Error(r.failure.message);
   return r.track;
 };
@@ -29,6 +30,61 @@ describe("buildApertures", () => {
       prev = a;
     }
     expect(ap.area(1)).toBeLessThan(AREA_ZERO);
+  });
+
+  test("a blink authored closed-to-open gives the same open aperture as open-to-closed", () => {
+    const forward = buildApertures([edge("upper", upperOpen, closedLash), edge("lower", lowerOpen, closedLash)]).apertures[0]!;
+    const reverse = buildApertures([edge("upper", closedLash, upperOpen), edge("lower", closedLash, lowerOpen)]).apertures[0]!;
+    expect(reverse.area(0)).toBeLessThan(AREA_ZERO);
+    expect(reverse.area(1)).toBeCloseTo(forward.area(0), 0);
+    for (const t of runtimeProgress) expect(reverse.area(t)).toBeCloseTo(forward.area(1 - t), 0);
+  });
+
+  test("a rigid rotation of the whole eye is not mistaken for closure", () => {
+    // Two synthetic edge tracks that rotate rigidly about (50, 50) through
+    // 180 degrees: the opening turns but never changes. The aperture must
+    // keep its area rather than collapsing once the opening direction
+    // passes 90 degrees from where it started.
+    const rotate = (p: [number, number], angle: number): [number, number] => {
+      const c = Math.cos(angle),
+        s = Math.sin(angle),
+        x = p[0] - 50,
+        y = p[1] - 50;
+      return [50 + x * c - y * s, 50 + x * s + y * c];
+    };
+    const arcTrack = (bulge: number): TaperTrack => {
+      // A ribbon whose two edges are arcs above (or below) the tip line.
+      const edgeAt = (t: number, points: number, offset: number): [number, number][] => {
+        const out: [number, number][] = [];
+        for (let i = 0; i < points; i++) {
+          const u = i / (points - 1);
+          const x = 100 * u,
+            y = 50 + (bulge + offset) * Math.sin(Math.PI * u);
+          out.push(rotate([x, y], Math.PI * t));
+        }
+        return out;
+      };
+      return {
+        from: [],
+        to: [],
+        n1: 1,
+        thickness: 1,
+        frame: () => [],
+        canonical: () => [],
+        tips: (t) => [rotate([0, 50], Math.PI * t), rotate([100, 50], Math.PI * t)],
+        edges: (t, points) => [edgeAt(t, points, 0), edgeAt(t, points, bulge > 0 ? 8 : -8)],
+      };
+    };
+    const r = buildApertures([
+      { id: "upper", label: "l", track: arcTrack(-30) },
+      { id: "lower", label: "l", track: arcTrack(30) },
+    ]);
+    expect(r.diagnostics).toEqual([]);
+    expect(r.apertures).toHaveLength(1);
+    const ap = r.apertures[0]!;
+    const open = ap.area(0);
+    expect(open).toBeGreaterThan(1000);
+    for (const t of runtimeProgress) expect(ap.area(t), `area at ${t}`).toBeCloseTo(open, 3);
   });
 
   test("the two tracks keep their identities from pairing through to the aperture", () => {

@@ -1,7 +1,7 @@
 name: Test Suite
 
 # Runs every package's vitest suite on pull requests and on pushes to main,
-# one package per job so the nine packages run side by side on separate
+# one package per job so the packages run side by side on separate
 # machines. The full suite is serial and slow on a development machine because
 # the local runner starts a fresh process per test file and the machine allows
 # one vitest process at a time; a separate runner per package sidesteps that

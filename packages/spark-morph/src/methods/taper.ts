@@ -18,10 +18,12 @@ import {
 import type { Cubic, MorphFailure, Point, SubpathTrack } from "../types";
 
 /**
- * Options for the ribbon method. Defaults are the prototype's hand-tuned
- * values for lash art at portrait scale.
+ * Options for the taper method. Every default that is a distance is a
+ * fraction of the drawing's own size, so art at any scale behaves alike;
+ * the prototype's hand-tuned pixel values are reproduced for lash art
+ * about a hundred units wide.
  */
-export interface RibbonOptions {
+export interface TaperOptions {
   /**
    * Anchor count of the canonical loop: two per tip plus an even body count
    * split across the two edges. Minimum 6.
@@ -39,28 +41,45 @@ export interface RibbonOptions {
    */
   handoff?: boolean;
   handoffPoints?: number;
-  /** Minimum tip fold angle in degrees for a loop to count as a ribbon. */
+  /**
+   * Minimum angle, in degrees, by which the outline must fold back over a
+   * twentieth of the perimeter at each of the two tips. Sharp lash tips fold
+   * about 160 degrees and rounded tips about 140; the smooth end of a
+   * teardrop folds about 70 and is not a tip.
+   */
   tipFoldDegrees?: number;
   /**
    * The mid-morph area must stay at or above this fraction of the thinner
    * endpoint's area, otherwise the correspondence is pinching.
    */
   thicknessRatio?: number;
+  /**
+   * The canonical loop's area may differ from the authored loop's by at
+   * most this fraction, otherwise the tips did not describe the drawing.
+   */
+  reconstructionTolerance?: number;
+  /**
+   * A nearly closed loop's ends are snapped together when within this
+   * fraction of its perimeter.
+   */
+  seamTolerance?: number;
   /** Progress values at which self-intersection and thickness are checked. */
   checkProgress?: number[];
 }
 
-export const RIBBON_DEFAULTS: Required<RibbonOptions> = {
+export const TAPER_DEFAULTS: Required<TaperOptions> = {
   anchors: 6,
   tipDistance: NaN,
   handoff: true,
   handoffPoints: 48,
-  tipFoldDegrees: 60,
+  tipFoldDegrees: 90,
   thicknessRatio: 0.62,
-  checkProgress: [0.3, 0.5, 0.7],
+  reconstructionTolerance: 0.5,
+  seamTolerance: 0.02,
+  checkProgress: [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9],
 };
 
-export interface RibbonTips {
+export interface TaperTips {
   /** Loop fractions of the two tips. */
   f1: number;
   f2: number;
@@ -72,12 +91,12 @@ export interface RibbonTips {
 }
 
 /**
- * The two tapered tips of a ribbon: the two best-separated places where the
+ * The two tapered tips of a taper: the two best-separated places where the
  * outline folds back on itself. Candidates are always ranked, so a blob
  * still yields two "tips" with small fold angles; callers judge `fold1` and
  * `fold2` rather than trusting the positions.
  */
-export function findTips(loop: Cubic[]): RibbonTips {
+export function findTips(loop: Cubic[]): TaperTips {
   const arc = new ArcLoop(loop);
   const N = 260,
     W = 0.05;
@@ -112,9 +131,10 @@ export function findTips(loop: Cubic[]): RibbonTips {
 /**
  * Where each tip's taper ends and the straight body begins, in user units,
  * taken as the smaller of a width-plateau criterion and a wedge-depth
- * criterion, floored at 2 and capped at 45% of the tip-to-tip span.
+ * criterion, floored at 2% and capped at 12% of the tip-to-tip span (the
+ * prototype's hand-tuned 16 pixels on a lash about 130 wide).
  */
-export function taperDistance(loop: Cubic[], tips: RibbonTips): number {
+export function taperDistance(loop: Cubic[], tips: TaperTips): number {
   const arc = new ArcLoop(loop);
   const total = arc.total;
   const STEPS = 60,
@@ -134,7 +154,7 @@ export function taperDistance(loop: Cubic[], tips: RibbonTips): number {
     const sAt = (k: number) => (maxS * (k + 1)) / STEPS;
     const maxW = Math.max(...w);
     let plateauS = maxS;
-    if (maxW < 1e-3) plateauS = maxS * 0.4;
+    if (maxW < 1e-6 * total) plateauS = maxS * 0.4;
     else {
       for (let k = 0; k < w.length; k++) {
         if (w[k]! >= 0.9 * maxW) {
@@ -152,17 +172,23 @@ export function taperDistance(loop: Cubic[], tips: RibbonTips): number {
   };
   const span = dist(tips.p1, tips.p2);
   const px = Math.min(tipPx(tips.f1), tipPx(tips.f2));
-  return Math.max(2, Math.min(px, span * 0.45));
+  return Math.max(0.02 * span, Math.min(px, span * 0.12));
 }
 
 /**
- * Makes each anchor's two handles collinear (the drawing program's "smooth
- * node"), keeping each handle's own length. Tips and corners, where the
- * handles double back, are left alone. Runs on the sparse authored curve.
+ * Makes each nearly smooth anchor's two handles exactly collinear (the
+ * drawing program's "convert node to smooth"), keeping each handle's own
+ * length: authoring noise of a few degrees is removed so the node does not
+ * kink. A node whose handles meet at a real angle, such as where a rounded
+ * tip's arc joins the body edge or a cusp, is a corner the artist drew and
+ * is left alone. Runs on the sparse authored curve.
  */
-export function smoothAnchors(loop: Cubic[]): Cubic[] {
+export function smoothAnchors(loop: Cubic[], maxDegrees = 25): Cubic[] {
   const n = loop.length;
   const out = copyLoop(loop);
+  // |dirOut - dirIn| is 2cos(theta / 2) for the angle theta between the
+  // outgoing handle and the reversed incoming one; collinear handles give 2.
+  const minSpread = 2 * Math.cos((maxDegrees * Math.PI) / 360);
   for (let i = 0; i < n; i++) {
     const P = loop[i]!.p0,
       pi = (i - 1 + n) % n;
@@ -174,7 +200,7 @@ export function smoothAnchors(loop: Cubic[]): Cubic[] {
     let tx = hOut[0] / lOut - hIn[0] / lIn,
       ty = hOut[1] / lOut - hIn[1] / lIn;
     const tl = Math.hypot(tx, ty);
-    if (tl < 0.5) continue;
+    if (tl < minSpread) continue;
     tx /= tl;
     ty /= tl;
     out[i]!.c1 = [P[0] + tx * lOut, P[1] + ty * lOut];
@@ -200,18 +226,18 @@ export const canonLayout = (anchors: number) => {
 };
 
 /**
- * Resamples a ribbon loop into canonical order: tip one as a single bulged
+ * Resamples a taper loop into canonical order: tip one as a single bulged
  * cubic between its flanking anchors, `n1` fitted body anchors along the
  * first edge, tip two, then `n2` along the second edge. Index k of two
  * canonical loops correspond. `wind` fixes the winding sign; tip one is the
  * tip nearest `refTip` when given, otherwise the leftmost.
  */
-export function canonicalRibbon(
+export function canonicalTaper(
   loop: Cubic[],
   anchors: number,
   tipPx: number,
   wind: number,
-  tips: RibbonTips,
+  tips: TaperTips,
   refTip?: Point,
 ): Cubic[] {
   const L = Math.sign(signedArea(loop) || 1) !== wind ? reverseLoop(loop) : loop;
@@ -446,7 +472,7 @@ export function canonicalFrame(a: Cubic[], b: Cubic[], t: number): Cubic[] {
   return lerpLoops(raw, alignFlanks(raw, n1), flankAimWeight(t));
 }
 
-export interface RibbonTrack extends SubpathTrack {
+export interface TaperTrack extends SubpathTrack {
   /** Body anchors per edge in the canonical loops. */
   n1: number;
   /** The canonical frame (six-ish anchors, curved) at `progress`. */
@@ -462,18 +488,23 @@ export interface RibbonTrack extends SubpathTrack {
   thickness: number;
 }
 
-export type RibbonResult = { ok: true; track: RibbonTrack } | { ok: false; failure: MorphFailure };
+export type TaperResult = { ok: true; track: TaperTrack } | { ok: false; failure: MorphFailure };
 
 /**
- * Builds a ribbon track from two authored closed loops, or reports why it
+ * Builds a taper track from two authored closed loops, or reports why it
  * cannot. Preprocessing snaps the seam and smooths anchors as the prototype
- * did before its taper resample.
+ * did before its taper resample. A loop whose two best fold candidates do
+ * not both fold sharply, or whose canonical reconstruction does not hold
+ * the authored area, is not a taper and fails with `tips-not-found`.
  */
-export function ribbonTrack(fromRaw: Cubic[], toRaw: Cubic[], options: RibbonOptions = {}): RibbonResult {
-  const o = { ...RIBBON_DEFAULTS, ...options };
+export function taperTrack(fromRaw: Cubic[], toRaw: Cubic[], options: TaperOptions = {}): TaperResult {
+  const o = { ...TAPER_DEFAULTS, ...options };
+  if (!fromRaw.length || !toRaw.length) {
+    return { ok: false, failure: { code: "empty-geometry", message: "both drawings need at least one segment" } };
+  }
   const anchors = Math.max(6, o.anchors);
-  const fromArt = snapClosed(fromRaw),
-    toArt = snapClosed(toRaw);
+  const fromArt = snapClosed(fromRaw, o.seamTolerance * new ArcLoop(fromRaw).total),
+    toArt = snapClosed(toRaw, o.seamTolerance * new ArcLoop(toRaw).total);
   const open = smoothAnchors(fromArt),
     closed = smoothAnchors(toArt);
   const minFold = (o.tipFoldDegrees * Math.PI) / 180;
@@ -497,35 +528,65 @@ export function ribbonTrack(fromRaw: Cubic[], toRaw: Cubic[], options: RibbonOpt
     ? o.tipDistance
     : Math.min(taperDistance(open, tipsOpen), taperDistance(closed, tipsClosed));
   const wind = Math.sign(signedArea(open)) || 1;
-  const a = canonicalRibbon(open, anchors, tipPx, wind, tipsOpen);
   const area = (L: Cubic[]) => Math.abs(signedArea(L));
+  const faithful = (canon: Cubic[], art: Cubic[]): boolean => {
+    const target = area(art);
+    return target > 0 && Math.abs(area(canon) - target) <= o.reconstructionTolerance * target;
+  };
+  const a = canonicalTaper(open, anchors, tipPx, wind, tipsOpen);
+  if (!faithful(a, open)) {
+    return {
+      ok: false,
+      failure: { code: "tips-not-found", message: "the from loop's tips do not describe it: the canonical taper does not hold its area" },
+    };
+  }
   // Correspondence by thickness search: which closed tip is tip one, and
   // which winding, decides whether anchors pair edge-to-edge or trade sides.
+  // Among candidates that reconstruct the target, do not self-intersect and
+  // hold thickness, the one whose anchors travel least wins: a pairing that
+  // trades sides can inflate the mid-morph area, so the largest ratio is
+  // not the right pick. When none holds thickness, the least-pinching one
+  // is kept so the failure reports how close it came.
   const score = (b: Cubic[]) => {
+    if (!faithful(b, closed)) return -2;
     if (o.checkProgress.some((tt) => selfIntersects(canonicalFrame(a, b, tt)))) return -1;
     const lo = Math.min(area(a), area(b)) || 1;
     return Math.min(...[0.25, 0.5, 0.75].map((tt) => area(canonicalFrame(a, b, tt)) / lo));
   };
-  let best = canonicalRibbon(closed, anchors, tipPx, wind, tipsClosed),
-    bestS = score(best);
+  const travelOf = (b: Cubic[]) => a.reduce((sum, s, i) => sum + dist(s.p0, b[i]!.p0), 0);
+  const candidates: Cubic[][] = [canonicalTaper(closed, anchors, tipPx, wind, tipsClosed)];
   for (const ref of [tipsOpen.p1, tipsOpen.p2]) {
-    for (const w of [wind, -wind]) {
-      const cand = canonicalRibbon(closed, anchors, tipPx, w, tipsClosed, ref);
-      const s = score(cand);
-      if (s > bestS) {
-        bestS = s;
-        best = cand;
-      }
+    for (const w of [wind, -wind]) candidates.push(canonicalTaper(closed, anchors, tipPx, w, tipsClosed, ref));
+  }
+  let best = candidates[0]!,
+    bestS = score(best),
+    bestTravel = travelOf(best);
+  for (const cand of candidates.slice(1)) {
+    const s = score(cand),
+      travel = travelOf(cand);
+    const candHolds = s >= o.thicknessRatio,
+      bestHolds = bestS >= o.thicknessRatio;
+    const better = candHolds && bestHolds ? travel < bestTravel - 1e-9 : candHolds !== bestHolds ? candHolds : s > bestS;
+    if (better) {
+      best = cand;
+      bestS = s;
+      bestTravel = travel;
     }
   }
   const b = best;
   const n1 = canonLayout(anchors).n1;
+  if (bestS <= -2) {
+    return {
+      ok: false,
+      failure: { code: "tips-not-found", message: "the to loop's tips do not describe it: the canonical taper does not hold its area" },
+    };
+  }
   if (bestS < 0) {
     return {
       ok: false,
       failure: {
         code: "self-intersection",
-        message: "every ribbon correspondence self-intersects mid-morph",
+        message: "every taper correspondence self-intersects mid-morph",
         progress: o.checkProgress.filter((tt) => selfIntersects(canonicalFrame(a, b, tt))),
       },
     };
@@ -539,31 +600,32 @@ export function ribbonTrack(fromRaw: Cubic[], toRaw: Cubic[], options: RibbonOpt
       },
     };
   }
-  // The handoff polylines share a winding and a leftmost start so index i of
-  // the art, the target and the canonical frame all sit at the same place.
-  const poly = (loop: Cubic[]) => {
-    const L = withWinding(loop, 1);
-    return loopToPolyline(L, o.handoffPoints, leftmostFraction(L));
-  };
-  const O = o.handoff ? poly(fromArt) : null;
-  const C = o.handoff ? poly(toArt) : null;
   const canonical = (t: number) => canonicalFrame(a, b, clamp01(t));
+  const tips = (t: number): [Point, Point] => {
+    const fr = canonical(t);
+    return [evalCubic(fr[0]!, 0.5), evalCubic(fr[2 + n1]!, 0.5)];
+  };
+  // The handoff polylines share a winding and all start at tip one, so
+  // index i of the art, the target and the canonical frame sit at the same
+  // place along the ribbon whatever way it points.
+  const poly = (loop: Cubic[], tip: Point) => {
+    const L = withWinding(loop, 1);
+    return loopToPolyline(L, o.handoffPoints, nearestFraction(L, tip));
+  };
+  const O = o.handoff ? poly(fromArt, tips(0)[0]) : null;
+  const C = o.handoff ? poly(toArt, tips(1)[0]) : null;
   const frame = (tRaw: number): Cubic[] => {
     const t = clamp01(tRaw);
     const fr = canonical(t);
     if (!O || !C) return fr;
     const w = handoffWeight(t);
-    const TP = poly(fr);
+    const TP = poly(fr, tips(t)[0]);
     const pts: Point[] = TP.map((p, i) => {
       const ox = O[i]![0] + (C[i]![0] - O[i]![0]) * t,
         oy = O[i]![1] + (C[i]![1] - O[i]![1]) * t;
       return [p[0] * (1 - w) + ox * w, p[1] * (1 - w) + oy * w];
     });
     return polylineLoop(pts);
-  };
-  const tips = (t: number): [Point, Point] => {
-    const fr = canonical(t);
-    return [evalCubic(fr[0]!, 0.5), evalCubic(fr[2 + n1]!, 0.5)];
   };
   const edges = (t: number, points: number): [Point[], Point[]] => {
     const fr = canonical(t);
@@ -582,16 +644,16 @@ export function ribbonTrack(fromRaw: Cubic[], toRaw: Cubic[], options: RibbonOpt
   };
 }
 
-/** Loop fraction of the leftmost point: a shared phase for handoff blends. */
-function leftmostFraction(loop: Cubic[]): number {
+/** Loop fraction of the point nearest `target`: a shared phase for handoff blends. */
+function nearestFraction(loop: Cubic[], target: Point): number {
   const arc = new ArcLoop(loop);
   let lf = 0,
-    lx = Infinity;
-  for (let k = 0; k < 240; k++) {
-    const f = k / 240,
-      p = arc.pointAt(f);
-    if (p[0] < lx - 1e-9) {
-      lx = p[0];
+    best = Infinity;
+  for (let k = 0; k < 480; k++) {
+    const f = k / 480,
+      d = dist(arc.pointAt(f), target);
+    if (d < best - 1e-12) {
+      best = d;
       lf = f;
     }
   }

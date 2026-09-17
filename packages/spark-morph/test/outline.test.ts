@@ -1,0 +1,165 @@
+import { describe, expect, test } from "vitest";
+import { selfIntersects, signedArea } from "../src/geometry/cubic";
+import { morphSubpaths, outlineTrack, parsePathData } from "../src/index";
+import {
+  allStraight,
+  anchors,
+  blob,
+  circle,
+  hook,
+  hookMirrored,
+  loop,
+  maxDistanceToLoop,
+  offKilterQuad,
+  pentagon,
+  runtimeProgress,
+  sharpCorners,
+  square,
+  star,
+  triangle,
+} from "./fixtures";
+
+// Rest-pose frames are the authored anchors plus dissolved nodes that lie
+// on the outline; the check samples the outline at 720 points, so its own
+// resolution is a fraction of a unit on these hundred-unit fixtures.
+const ENDPOINT_TOLERANCE = 0.5;
+
+const reversed = (d: string) => {
+  const pts = d.match(/-?\d+(?:\.\d+)?,-?\d+(?:\.\d+)?/g)!;
+  return `M${pts.reverse().join("L")}Z`;
+};
+
+describe("outlineTrack", () => {
+  for (const [name, from, to] of [
+    ["square to circle", square, circle],
+    ["star to circle", star, circle],
+    ["circle to star", circle, star],
+    ["blob to square", blob, square],
+    ["square to star", square, star],
+  ] as const) {
+    test(`${name}: endpoints match exactly, frames never self-intersect, winding is preserved`, () => {
+      const r = outlineTrack(loop(from), loop(to));
+      expect(r.ok).toBe(true);
+      if (!r.ok) return;
+      expect(maxDistanceToLoop(anchors(r.track.frame(0)), loop(from))).toBeLessThan(ENDPOINT_TOLERANCE);
+      expect(maxDistanceToLoop(anchors(r.track.frame(1)), loop(to))).toBeLessThan(ENDPOINT_TOLERANCE);
+      const wind = Math.sign(signedArea(loop(from)));
+      for (const t of runtimeProgress) {
+        const fr = r.track.frame(t);
+        expect(selfIntersects(fr), `frame ${t}`).toBe(false);
+        expect(Math.sign(signedArea(fr)), `winding ${t}`).toBe(wind);
+        expect(fr).toHaveLength(r.track.from.length);
+      }
+    });
+  }
+
+  describe("polygons keep straight edges and sharp corners", () => {
+    for (const [name, from, to, corners] of [
+      ["square to off-kilter quadrilateral", square, offKilterQuad, [4, 4]],
+      ["off-kilter quadrilateral to square", offKilterQuad, square, [4, 4]],
+      ["square to triangle", square, triangle, [4, 3]],
+      ["triangle to square", triangle, square, [3, 4]],
+      ["square to pentagon", square, pentagon, [4, 5]],
+      ["pentagon to square", pentagon, square, [5, 4]],
+      ["pentagon to triangle", pentagon, triangle, [5, 3]],
+    ] as const) {
+      test(name, () => {
+        const r = outlineTrack(loop(from), loop(to));
+        expect(r.ok).toBe(true);
+        if (!r.ok) return;
+        // Every frame is a polygon: no segment ever bows.
+        for (const t of runtimeProgress) {
+          const fr = r.track.frame(t);
+          expect(allStraight(fr), `straight at ${t}`).toBe(true);
+          expect(selfIntersects(fr), `simple at ${t}`).toBe(false);
+        }
+        // The rest poses show exactly the authored corners; extra nodes are
+        // dissolved (collinear) there.
+        expect(sharpCorners(r.track.frame(0))).toBe(corners[0]);
+        expect(sharpCorners(r.track.frame(1))).toBe(corners[1]);
+        // Node count is the larger of the two, so nothing is resampled.
+        expect(r.track.from.length).toBe(Math.max(corners[0], corners[1]));
+      });
+    }
+
+    test("same corner counts pair corner to corner, so no corner is ever dissolved", () => {
+      const r = outlineTrack(loop(square), loop(offKilterQuad));
+      expect(r.ok).toBe(true);
+      if (!r.ok) return;
+      for (const t of runtimeProgress) expect(sharpCorners(r.track.frame(t)), `corners at ${t}`).toBe(4);
+    });
+  });
+
+  test("a target drawn in the opposite winding is reversed to match the source", () => {
+    const r = outlineTrack(loop(square), loop(reversed(star)));
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.track.reversed).toBe(true);
+    expect(Math.sign(signedArea(r.track.to))).toBe(Math.sign(signedArea(loop(square))));
+  });
+
+  test("curved anchors keep their handles: a still circle morphed to itself rotated is smooth throughout", () => {
+    const rotated = "M50,10A40,40 0 0 1 90,50A40,40 0 0 1 50,90A40,40 0 0 1 10,50A40,40 0 0 1 50,10Z";
+    const r = outlineTrack(loop(circle), loop(rotated));
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.track.travel).toBeLessThan(1e-6);
+    for (const t of runtimeProgress) {
+      for (const p of anchors(r.track.frame(t))) expect(Math.hypot(p[0] - 50, p[1] - 50)).toBeCloseTo(40, 6);
+    }
+  });
+
+  test("a correspondence that self-intersects at a checked progress is a reported failure", () => {
+    // A square to a bow tie: the target crosses itself, so every pairing
+    // crosses before it arrives, whichever rotation or winding is tried.
+    const bowTie = "M0,0L100,100L100,0L0,100Z";
+    const r = outlineTrack(loop(square), loop(bowTie));
+    expect(r.ok).toBe(false);
+    if (r.ok) return;
+    expect(r.failure.code).toBe("self-intersection");
+    expect(r.failure.progress?.length).toBeGreaterThan(0);
+    const viaMorph = morphSubpaths(parsePathData(square), parsePathData(bowTie), { method: "outline" });
+    expect(viaMorph).toMatchObject({ ok: false, failure: { code: "self-intersection", subpath: 0 } });
+  });
+
+  test("a crossing between coarse check points is still caught: the hook pair crosses at 0.3", () => {
+    // With only quarter-point checks this pair would pass and then cross
+    // at runtime; the default nine-point check reports it.
+    const coarse = outlineTrack(loop(hook), loop(hookMirrored), { checkProgress: [0.25, 0.5, 0.75] });
+    expect(coarse.ok).toBe(true);
+    if (coarse.ok) expect(selfIntersects(coarse.track.frame(0.3))).toBe(true);
+    // The default check rejects that pairing and the search moves on to
+    // one that stays simple at every runtime sample.
+    const r = outlineTrack(loop(hook), loop(hookMirrored));
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    for (const t of runtimeProgress) {
+      expect(selfIntersects(r.track.frame(t)), `frame ${t}`).toBe(false);
+      expect(allStraight(r.track.frame(t))).toBe(true);
+    }
+  });
+
+  test("empty geometry is a structured failure, not an exception", () => {
+    expect(outlineTrack([], [])).toMatchObject({ ok: false, failure: { code: "empty-geometry" } });
+    expect(outlineTrack([], loop(square))).toMatchObject({ ok: false, failure: { code: "empty-geometry" } });
+  });
+});
+
+describe("morphSubpaths with the outline method", () => {
+  test("pairs compound subpaths in document order and fails on unequal counts", () => {
+    const ok = morphSubpaths(parsePathData(square + circle), parsePathData(circle + square), { method: "outline" });
+    expect(ok.ok).toBe(true);
+    if (!ok.ok) return;
+    expect(ok.morph.tracks).toHaveLength(2);
+    expect(maxDistanceToLoop(anchors(ok.morph.frame(0)[1]!.segments), loop(circle))).toBeLessThan(ENDPOINT_TOLERANCE);
+    expect(maxDistanceToLoop(anchors(ok.morph.frame(1)[1]!.segments), loop(square))).toBeLessThan(ENDPOINT_TOLERANCE);
+    const bad = morphSubpaths(parsePathData(square + circle), parsePathData(circle), { method: "outline" });
+    expect(bad.ok).toBe(false);
+    if (bad.ok) return;
+    expect(bad.failure.code).toBe("subpath-count");
+  });
+
+  test("empty geometry fails", () => {
+    expect(morphSubpaths([], parsePathData(circle), { method: "outline" })).toMatchObject({ ok: false, failure: { code: "empty-geometry" } });
+  });
+});

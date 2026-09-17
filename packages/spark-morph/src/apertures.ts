@@ -1,12 +1,12 @@
 import { clamp01, dist, polygonArea } from "./geometry/cubic";
-import type { RibbonTrack } from "./methods/ribbon";
+import type { TaperTrack } from "./methods/taper";
 import type { Point } from "./types";
 
-/** A moving edge: a ribbon track with the identity of the shape it came from. */
+/** A moving edge: a taper track with the identity of the shape it came from. */
 export interface EdgeTrack {
   id: string;
   label: string;
-  track: RibbonTrack;
+  track: TaperTrack;
 }
 
 export interface Aperture {
@@ -40,9 +40,13 @@ export interface ApertureOptions {
   points?: number;
   /**
    * Two tips count as adjacent when closer than this fraction of the
-   * shorter tip-to-tip span, with a floor in user units.
+   * shorter tip-to-tip span.
    */
   tipTolerance?: number;
+  /**
+   * Absolute floor for the tip tolerance in user units. Defaults to a
+   * fraction of the span so it scales with the art.
+   */
   tipToleranceMin?: number;
 }
 
@@ -67,18 +71,17 @@ const mean = (pts: Point[]): Point => {
 export function buildApertures(edges: EdgeTrack[], options: ApertureOptions = {}): ApertureResult {
   const points = Math.max(4, options.points ?? 24);
   const tolFrac = options.tipTolerance ?? 0.2;
-  const tolMin = options.tipToleranceMin ?? 4;
   const tips = edges.map((e) => e.track.tips(0));
   const spans = tips.map(([a, b]) => dist(a, b));
   const adjacent = (i: number, j: number): boolean => {
     const [a1, a2] = tips[i]!,
       [b1, b2] = tips[j]!;
-    const tol = Math.max(tolMin, tolFrac * Math.min(spans[i]!, spans[j]!));
+    const span = Math.min(spans[i]!, spans[j]!);
+    const tol = Math.max(options.tipToleranceMin ?? 0.04 * span, tolFrac * span);
     const straight = dist(a1, b1) <= tol && dist(a2, b2) <= tol;
     const crossed = dist(a1, b2) <= tol && dist(a2, b1) <= tol;
     return straight || crossed;
   };
-  // Connected components of the adjacency graph, in input order.
   const seen = new Set<number>();
   const groups: number[][] = [];
   for (let i = 0; i < edges.length; i++) {
@@ -123,28 +126,49 @@ function makeAperture(A: EdgeTrack, B: EdgeTrack, points: number): Aperture {
   // B's boundary runs tip one to tip two; flip it when B's tip one sits at
   // A's tip two so both boundaries run the same way.
   const flipB = dist(a1, b2) < dist(a1, b1);
-  const edgesA0 = A.track.edges(0, points),
-    edgesB0 = B.track.edges(0, points);
-  const meanA = mean([...edgesA0[0], ...edgesA0[1]]),
-    meanB = mean([...edgesB0[0], ...edgesB0[1]]);
-  // The facing boundary of each edge is the one nearer the other edge.
-  const facingA = dist(mean(edgesA0[0]), meanB) <= dist(mean(edgesA0[1]), meanB) ? 0 : 1;
-  const facingB = dist(mean(edgesB0[0]), meanA) <= dist(mean(edgesB0[1]), meanA) ? 0 : 1;
-  const open: Point = [meanB[0] - meanA[0], meanB[1] - meanA[1]];
-  const openLen = Math.hypot(open[0], open[1]) || 1;
-  const dir: Point = [open[0] / openLen, open[1] / openLen];
+  // Which side of each edge faces the other is decided at the progress
+  // where the two edges are farthest apart: at a closed pose the sides are
+  // indistinguishable, and a blink authored closed-to-open would otherwise
+  // pick one arbitrarily.
+  let facingA = 0,
+    facingB = 0,
+    farthest = -1;
+  for (const t of [0, 0.5, 1]) {
+    const ea = A.track.edges(t, points),
+      eb = B.track.edges(t, points);
+    const mA = mean([...ea[0], ...ea[1]]),
+      mB = mean([...eb[0], ...eb[1]]);
+    const gap = dist(mA, mB);
+    if (gap > farthest) {
+      farthest = gap;
+      facingA = dist(mean(ea[0]), mB) <= dist(mean(ea[1]), mB) ? 0 : 1;
+      facingB = dist(mean(eb[0]), mA) <= dist(mean(eb[1]), mA) ? 0 : 1;
+    }
+  }
   const loop = (tRaw: number): Point[] => {
     const t = clamp01(tRaw);
-    const a = A.track.edges(t, points)[facingA];
-    let b = B.track.edges(t, points)[facingB];
+    const ea = A.track.edges(t, points),
+      eb = B.track.edges(t, points);
+    const a = ea[facingA]!;
+    let b = eb[facingB]!;
     if (flipB) b = b.slice().reverse();
+    // The opening direction follows the edges as they move, so a rigid
+    // rotation of the whole eye is not mistaken for closure; once the two
+    // edges' centres coincide there is no opening left.
+    const mA = mean([...ea[0], ...ea[1]]),
+      mB = mean([...eb[0], ...eb[1]]);
+    const ox = mB[0] - mA[0],
+      oy = mB[1] - mA[1],
+      olen = Math.hypot(ox, oy);
+    const closed = olen <= 1e-9 * Math.max(1, farthest);
+    const dir: Point = closed ? [0, 0] : [ox / olen, oy / olen];
     const top: Point[] = [],
       bottom: Point[] = [];
     for (let i = 0; i < points; i++) {
       const p = a[i]!,
         q = b[i]!;
       const gap = (q[0] - p[0]) * dir[0] + (q[1] - p[1]) * dir[1];
-      if (gap < 0) {
+      if (closed || gap < 0) {
         const m: Point = [(p[0] + q[0]) / 2, (p[1] + q[1]) / 2];
         top.push(m);
         bottom.push(m);

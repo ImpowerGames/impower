@@ -1,17 +1,32 @@
-import { copyLoop, sameLoop } from "./geometry/cubic";
-import { type RibbonOptions, ribbonTrack } from "./methods/ribbon";
+import { ArcLoop, copyLoop, endsMeet, loopExtent, sameLoop } from "./geometry/cubic";
+import { type NodesOptions, nodesTrack } from "./methods/nodes";
+import { type OutlineOptions, outlineTrack } from "./methods/outline";
 import { type ScaleTrack, scaleTrack } from "./methods/scale";
-import { type ShapeOptions, shapeTrack } from "./methods/shape";
+import { type TaperOptions, taperTrack } from "./methods/taper";
 import type { Cubic, MorphMethod, MorphResult, Subpath, SubpathMorph, SubpathTrack } from "./types";
 
 export interface MorphOptions {
-  /** The explicit method. A failure is reported, never swapped for the other. */
+  /** The explicit method. A failure is reported, never swapped for another. */
   method: MorphMethod;
-  ribbon?: RibbonOptions;
-  shape?: ShapeOptions;
-  /** Per-control-point tolerance under which two drawings count as identical. */
+  nodes?: NodesOptions;
+  taper?: TaperOptions;
+  outline?: OutlineOptions;
+  /**
+   * Per-control-point tolerance under which two drawings count as
+   * identical, as a fraction of the larger drawing's size.
+   */
   stillTolerance?: number;
+  /**
+   * How far apart an unclosed subpath's ends may be, as a fraction of its
+   * perimeter, before it is refused as `not-closed`.
+   */
+  seamTolerance?: number;
 }
+
+export const MORPH_DEFAULTS = {
+  stillTolerance: 0.005,
+  seamTolerance: 0.02,
+};
 
 const stillTrack = (loop: Cubic[]): SubpathTrack => {
   const keep = copyLoop(loop);
@@ -22,12 +37,15 @@ const toSubpath = (segments: Cubic[]): Subpath => ({ segments, closed: true });
 
 /**
  * Morphs two drawings with the chosen method. Compound drawings pair their
- * subpaths in document order and only when the counts match. A subpath
- * identical in both drawings stays still. Any subpath the method cannot
- * handle fails the whole morph with the offending index, so the caller can
- * apply its selected fallback.
+ * subpaths in document order and only when the counts match. Every subpath
+ * must be closed: written with `Z`, or ending within `seamTolerance` of its
+ * start. A subpath identical in both drawings stays still. Any subpath the
+ * method cannot handle fails the whole morph with the offending index, so
+ * the caller can apply its selected fallback.
  */
 export function morphSubpaths(from: Subpath[], to: Subpath[], options: MorphOptions): MorphResult {
+  const still = options.stillTolerance ?? MORPH_DEFAULTS.stillTolerance;
+  const seam = options.seamTolerance ?? MORPH_DEFAULTS.seamTolerance;
   if (!from.length || !to.length) {
     return { ok: false, failure: { code: "empty-geometry", message: "both drawings need at least one subpath" } };
   }
@@ -48,12 +66,29 @@ export function morphSubpaths(from: Subpath[], to: Subpath[], options: MorphOpti
     if (!a.length || !b.length) {
       return { ok: false, failure: { code: "empty-geometry", message: `subpath ${i} has no segments`, subpath: i } };
     }
-    if (sameLoop(a, b, options.stillTolerance)) {
+    for (const [sub, which] of [
+      [from[i]!, "from"],
+      [to[i]!, "to"],
+    ] as const) {
+      if (!sub.closed && !endsMeet(sub.segments, seam * new ArcLoop(sub.segments).total)) {
+        return {
+          ok: false,
+          failure: { code: "not-closed", message: `the ${which} drawing's subpath ${i} is open; every morphing subpath must be closed`, subpath: i },
+        };
+      }
+    }
+    const size = Math.max(loopExtent(a), loopExtent(b));
+    if (sameLoop(a, b, still * size)) {
       tracks.push(stillTrack(a));
       continue;
     }
     moving++;
-    const result = options.method === "ribbon" ? ribbonTrack(a, b, options.ribbon) : shapeTrack(a, b, options.shape);
+    const result =
+      options.method === "nodes"
+        ? nodesTrack(a, b, options.nodes)
+        : options.method === "taper"
+          ? taperTrack(a, b, options.taper)
+          : outlineTrack(a, b, options.outline);
     if (!result.ok) return { ok: false, failure: { ...result.failure, subpath: i } };
     tracks.push(result.track);
   }
