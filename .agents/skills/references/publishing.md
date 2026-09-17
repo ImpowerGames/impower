@@ -50,6 +50,8 @@ back. This has already shipped a merged PR with an empty description.
 `gh issue view N --json body`, `git log -1`. Prefer writing the body to a file
 first — it survives a bad invocation and can be re-applied with `--body-file`.
 
-Heredocs are also lossy through some shell paths here (a `//` comment came out
-as `/`, breaking a file mid-edit). For anything with code in it, write the file
-with the editor tool rather than piping a heredoc.
+A runner's shell tool may also collapse every doubled backslash in a command to
+one before the shell sees it, inside quotes and quoted heredocs alike; the
+[runner notes](../RUNNERS.md) say which tools do. A hook refuses such a command.
+For anything with code in it, write the file with the editor capability rather
+than piping a heredoc; a heredoc with no doubled backslash is fine.
