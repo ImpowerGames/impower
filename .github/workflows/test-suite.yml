@@ -66,6 +66,7 @@ jobs:
           - packages/opfs-workspace
           - packages/spark-editor-protocol
           - packages/spark-engine
+          - packages/spark-morph
           - packages/spark-web-player
           - packages/sparkdown
           - packages/sparkdown-document-views
