@@ -4,7 +4,7 @@ Commands run from the worktree root unless stated otherwise.
 
 ## Package verification
 
-Use the repository-owned runner:
+The Test Suite workflow is the package gate for a pull request. Use the repository-owned runner locally only when you need a package result the workflow cannot provide, such as a baseline on a base commit or a rerun of one failed file:
 
 ```text
 node scripts/test-suite.mjs start packages/sparkdown

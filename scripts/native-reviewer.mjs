@@ -2,13 +2,13 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {execFileSync} from 'node:child_process';
 import {git} from './review-job-store.mjs';
-import {validateCodexSandboxStorage} from './reviewer-security.mjs';
+import {validateCodexSandboxStorage,pinnedCodexVersion} from './reviewer-security.mjs';
 
 export function verifyReviewerExecutable(review) {
   if(review.transport!=='native-codex-jsonl')return;
   if(process.platform!=='win32')throw new Error('Automatic native Codex reviewer is verified on Windows only; use awaited mode');
   const version=execFileSync(review.executable,['--version'],{encoding:'utf8',windowsHide:true,timeout:10000}).trim();
-  if(version!=='codex-cli 0.154.0-alpha.6.2')throw new Error('Native Codex reviewer version is unverified; use awaited mode');
+  if(version!==`codex-cli ${pinnedCodexVersion}`)throw new Error('Native Codex reviewer version is unverified; use awaited mode');
 }
 
 export const nativeResultType=transport=>{

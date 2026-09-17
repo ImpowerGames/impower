@@ -2,9 +2,9 @@
 
 All commands run from the worktree root unless stated otherwise.
 
-## 3. Run the suite, the typecheck, and the standalone checks
+## 3. Run the tests, the typecheck, and the standalone checks
 
-Start with the file, then widen to the package with `node scripts/test-suite.mjs start <package-directory>` under the caps in [Running vitest safely](vitest.md). Retain the printed run directory and full command-tool session/exit metadata. Poll continuing sessions; use `status` and `resume` for recovery. Only a verified complete manifest is a successful suite.
+Run the test file under work with the single-file command in [Running vitest safely](vitest.md). Package suites are not run locally: `.github/workflows/test-suite.yml` runs on every pull request, and its package jobs run one package per job when the change touches `packages/`, `impower-dev/`, `definitions/` or the root package files. On any other change the package jobs are skipped and the workflow's `test-suite` gate job, the required check, passes; say so in the PR rather than citing package jobs that did not execute. The run for the pushed head is the suite evidence for the PR. Read its conclusion with `gh pr checks` or `gh run view`; a failure there is yours to fix unless you confirm it also fails on `origin/main`. The same gating, in `.github/workflows/changed-paths.yml`, fronts the `typecheck`, `hook-tests` and `notifier-tests` gate jobs so every required check always reports under one stable name. When you need a local package result the workflow cannot give, such as a baseline on a base commit, use `node scripts/test-suite.mjs start <package-directory>` under the caps in that reference and retain its run directory.
 
 Then typecheck. `npm run typecheck` at the repo root runs `tsc --noEmit` over all 41 projects and takes about four minutes. Mid-change you usually want a subset, so it takes filters, each one a substring of a project's config path, not a directory:
 
@@ -20,7 +20,7 @@ ok   101641ms  packages/sparkdown/tsconfig.json
 
 Because it is a substring, `packages/sparkdown` matches six projects (`sparkdown`, `sparkdown-language-server`, `sparkdown-document-views`, and three more), which is useful when you want the neighbours too and surprising when you did not. `--list` prints every project without checking any, and `--jobs N` sets how many run at once (default 2, which is what CI uses); the value is capped at the machine's core count, so asking for more than that silently gives you the cores.
 
-A project your change reaches through an import is checked when that project runs, not when yours does, so widen to the whole gate before you push. CI runs the same command on any pull request that touches code, a `tsconfig`, or a `package.json`; `.github/workflows/typecheck.yml` has a paths filter, so a branch that changes only docs gets no typecheck run at all. Where it does run, a type error blocks the merge, so a clean local run is worth something and a red one is a real failure rather than noise to route around.
+A project your change reaches through an import is checked when that project runs, not when yours does, so widen to the whole gate before you push. CI runs the same command on any pull request that touches code, a `tsconfig`, or a `package.json`; on a branch that changes only docs the `tsc` job in `.github/workflows/typecheck.yml` is skipped and the required `typecheck` gate job passes. Where it does run, a type error blocks the merge, so a clean local run is worth something and a red one is a real failure rather than noise to route around.
 
 Then run the standalone checks from the repository root:
 

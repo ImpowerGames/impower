@@ -86,6 +86,10 @@ export default class WorkspaceWindow {
     this._loadProject.bind(this),
   );
 
+  // Removes each protocol-bus and media-query listener this instance
+  // registered. See `dispose()`.
+  protected _disposers: (() => void)[] = [];
+
   constructor() {
     const cachedProjectId = localStorage.getItem(
       WorkspaceConstants.LOADED_PROJECT_STORAGE_KEY,
@@ -96,7 +100,21 @@ export default class WorkspaceWindow {
     this.registerProtocolHandlers();
     const mediaQuery = window.matchMedia("(min-width: 960px)");
     mediaQuery.addEventListener("change", this.handleScreenSizeChange);
+    this._disposers.push(() =>
+      mediaQuery.removeEventListener("change", this.handleScreenSizeChange),
+    );
     this.handleScreenSizeChange(mediaQuery as any as MediaQueryListEvent);
+  }
+
+  /**
+   * Stop answering protocol requests and reacting to layout changes. The app's
+   * singleton lives for the page; tests construct instances on a shared
+   * `window` and must dispose each one, or its handlers keep answering later
+   * requests.
+   */
+  dispose() {
+    this._disposers.forEach((dispose) => dispose());
+    this._disposers = [];
   }
 
   // Inbound protocol → store. One typed listener per message kind; each
@@ -105,35 +123,39 @@ export default class WorkspaceWindow {
   // Response — a forgotten `return` is a compile error — and the reply is sent
   // automatically), `onProtocolMessage` for notifications.
   protected registerProtocolHandlers() {
-    onProtocolRequest(LoadedProjectIdMessage.type, (m) =>
-      LoadedProjectIdMessage.type.response(m.id, { id: Workspace.fs.getLoadedProjectId() }),
-    );
-    onProtocolMessage(DidOpenFileEditorMessage.type, (m) =>
-      this.openFileEditor(m.params.filename),
-    );
-    onProtocolRequest(ShowDocumentMessage.type, (m) =>
-      this.handleShowDocument(m),
-    );
-    onProtocolRequest(ApplyWorkspaceEditMessage.type, (m) =>
-      this.handleApplyWorkspaceEdit(m),
-    );
-    onProtocolMessage(ScrolledEditorMessage.type, (m) =>
-      this.handleScrolledEditor(m),
-    );
-    onProtocolMessage(SelectedEditorMessage.type, (m) =>
-      this.handleSelectedEditor(m),
-    );
-    onProtocolMessage(ChangedEditorBreakpointsMessage.type, (m) =>
-      this.handleChangedEditorBreakpoints(m),
-    );
-    onProtocolMessage(ChangedEditorPinpointsMessage.type, (m) =>
-      this.handleChangedEditorPinpoints(m),
-    );
-    onProtocolMessage(ChangedEditorHighlightsMessage.type, (m) =>
-      this.handleChangedEditorHighlights(m),
-    );
-    onProtocolMessage(CompiledProgramMessage.type, (m) =>
-      this.handleCompiledProgram(m),
+    this._disposers.push(
+      onProtocolRequest(LoadedProjectIdMessage.type, (m) =>
+        LoadedProjectIdMessage.type.response(m.id, {
+          id: Workspace.fs.getLoadedProjectId(),
+        }),
+      ),
+      onProtocolMessage(DidOpenFileEditorMessage.type, (m) =>
+        this.openFileEditor(m.params.filename),
+      ),
+      onProtocolRequest(ShowDocumentMessage.type, (m) =>
+        this.handleShowDocument(m),
+      ),
+      onProtocolRequest(ApplyWorkspaceEditMessage.type, (m) =>
+        this.handleApplyWorkspaceEdit(m),
+      ),
+      onProtocolMessage(ScrolledEditorMessage.type, (m) =>
+        this.handleScrolledEditor(m),
+      ),
+      onProtocolMessage(SelectedEditorMessage.type, (m) =>
+        this.handleSelectedEditor(m),
+      ),
+      onProtocolMessage(ChangedEditorBreakpointsMessage.type, (m) =>
+        this.handleChangedEditorBreakpoints(m),
+      ),
+      onProtocolMessage(ChangedEditorPinpointsMessage.type, (m) =>
+        this.handleChangedEditorPinpoints(m),
+      ),
+      onProtocolMessage(ChangedEditorHighlightsMessage.type, (m) =>
+        this.handleChangedEditorHighlights(m),
+      ),
+      onProtocolMessage(CompiledProgramMessage.type, (m) =>
+        this.handleCompiledProgram(m),
+      ),
     );
   }
 

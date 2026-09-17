@@ -23,6 +23,35 @@
             "command": "p=$(cat); case \"$p\" in *[sS][tT][aA][sS][hH]*) f=\"${CLAUDE_PROJECT_DIR:-.}/.claude/hooks/shared-stash-hook.mjs\"; [ -f \"$f\" ] || { printf '%s\\n' \"stash hook: $f not found; set CLAUDE_PROJECT_DIR to the checkout root\" >&2; exit 2; }; command -v node >/dev/null 2>&1 || { printf '%s\\n' 'stash hook: node is not on PATH, so the command cannot be checked' >&2; exit 2; }; printf '%s' \"$p\" | node \"$f\" || { printf '%s\\n' 'stash hook: the check itself failed, so the command is refused' >&2; exit 2; };; esac"
           }
         ]
+      },
+      {
+        "matcher": "Bash|PowerShell",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "f=\"${CLAUDE_PROJECT_DIR:-.}/.claude/hooks/session-title-hook.mjs\"; [ -f \"$f\" ] || { printf '%s\\n' \"session title hook: $f not found; set CLAUDE_PROJECT_DIR to the checkout root\" >&2; exit 2; }; command -v node >/dev/null 2>&1 || { printf '%s\\n' 'session title hook: node is not on PATH, so the command cannot be checked' >&2; exit 2; }; node \"$f\" pre || { printf '%s\\n' 'session title hook: the check itself failed, so the command is refused' >&2; exit 2; }"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Bash|PowerShell",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "p=$(cat); case \"$p\" in *[wW][oO][rR][kK][tT][rR][eE][eE]*) f=\"${CLAUDE_PROJECT_DIR:-.}/.claude/hooks/session-title-hook.mjs\"; [ -f \"$f\" ] || { printf '%s\\n' \"session title hook: $f not found; set CLAUDE_PROJECT_DIR to the checkout root\" >&2; exit 2; }; command -v node >/dev/null 2>&1 || { printf '%s\\n' 'session title hook: node is not on PATH, so the worktree title was not recorded' >&2; exit 2; }; printf '%s' \"$p\" | node \"$f\" post || { printf '%s\\n' 'session title hook: recording the worktree title failed' >&2; exit 2; };; esac"
+          }
+        ]
+      },
+      {
+        "matcher": "mcp__.*__set_session_title",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "f=\"${CLAUDE_PROJECT_DIR:-.}/.claude/hooks/session-title-hook.mjs\"; [ -f \"$f\" ] || { printf '%s\\n' \"session title hook: $f not found; set CLAUDE_PROJECT_DIR to the checkout root\" >&2; exit 2; }; node \"$f\" post || { printf '%s\\n' 'session title hook: confirming the rename failed' >&2; exit 2; }"
+          }
+        ]
       }
     ]
   }

@@ -18,6 +18,7 @@ const runnerDocs = new Set([
   ".agents/skills/references/runner-continuation.md",
   ".agents/skills/references/runner-maintenance.md",
   ".agents/skills/references/runner-recovery.md",
+  ".agents/skills/references/runner-reviewer-defaults.md",
 ]);
 for (const file of files.filter((f) => f.startsWith(".agents/") && f.endsWith(".md") && !runnerDocs.has(f))) {
   const text = fs.readFileSync(path.join(root, file), "utf8");
@@ -52,6 +53,20 @@ assert.equal((quotedPrompt.match(/\bWRITER\b/g) ?? []).length, 1, "writer substi
 assert.equal((quotedPrompt.match(/\bREVIEWER\b/g) ?? []).length, 1, "reviewer substitution must occur only at its value");
 const generation = spawnSync(process.execPath, ["scripts/generate-reviewer-agents.mjs", "--check"], { cwd: root, encoding: "utf8", windowsHide: true });
 assert.equal(generation.status, 0, generation.stdout + generation.stderr);
+// An orphan .claude/agents/reviewer-*.md with no .claude/reviewer-models.json
+// entry must fail --check (this is how #612's stray reviewer-opus-4-8.md went
+// unnoticed); the probe file is removed in `finally` regardless of outcome.
+const orphan = path.join(root, ".claude/agents/reviewer-portability-probe.md");
+fs.writeFileSync(orphan, fs.readFileSync(path.join(root, ".claude/agents/reviewer-opus-5.md"), "utf8"));
+try {
+  const orphaned = spawnSync(process.execPath, ["scripts/generate-reviewer-agents.mjs", "--check"], { cwd: root, encoding: "utf8", windowsHide: true });
+  assert.notEqual(orphaned.status, 0, "an orphan reviewer definition must fail --check");
+  assert.match(orphaned.stderr, /Unexpected reviewer definition/);
+} finally {
+  fs.rmSync(orphan, { force: true });
+}
+const cleanAgain = spawnSync(process.execPath, ["scripts/generate-reviewer-agents.mjs", "--check"], { cwd: root, encoding: "utf8", windowsHide: true });
+assert.equal(cleanAgain.status, 0, cleanAgain.stdout + cleanAgain.stderr);
 const handoff = fs.readFileSync(path.join(root, ".agents/skills/review-pr/HANDOFF.md"), "utf8");
 for (const rule of ["await the existing launcher invocation", "Do not add periodic reviewer-status probes or narrate unchanged waits", "After the launcher exits, read every full report"]) {
   assert.ok(handoff.includes(rule), rule);

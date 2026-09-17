@@ -1,0 +1,158 @@
+name: Test Suite
+
+# Runs every package's vitest suite on pull requests and on pushes to main,
+# one package per job so the nine packages run side by side on separate
+# machines. The full suite is serial and slow on a development machine because
+# the local runner starts a fresh process per test file and the machine allows
+# one vitest process at a time; a separate runner per package sidesteps that
+# constraint while keeping each job under the same heap cap and single-worker
+# settings the repository requires, so a test that passes here also fits the
+# local limits.
+#
+# Writer agents run only their regression test locally and cite this
+# workflow's result for the pushed head. Readiness for human review requires a
+# green run on the reviewed head; agent reviewers start without waiting for it.
+#
+# The `test-suite` job at the end is the required status check. It always
+# runs, so it always reports; the workflow has no trigger path filter, because
+# a filtered-out workflow reports nothing and leaves the pull request blocked.
+# The `changes` job decides whether the package suites need to run, and the
+# gate passes when they all passed or were all skipped as irrelevant, and
+# fails when any failed or when detection itself failed. Requiring the gate
+# rather than the package jobs also keeps the required names stable: a matrix
+# job skipped before expansion reports under its bare job id, not the
+# per-package names.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+# A superseded PR run is of no interest; keep only the newest per branch.
+concurrency:
+  group: test-suite-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  changes:
+    uses: ./.github/workflows/changed-paths.yml
+    with:
+      patterns: |
+        packages/**
+        impower-dev/**
+        definitions/**
+        package.json
+        package-lock.json
+        .github/workflows/test-suite.yml
+        .github/workflows/changed-paths.yml
+        .github/scripts/changed-paths.mjs
+
+  vitest:
+    needs: changes
+    if: needs.changes.outputs.relevant == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        # Every workspace with a vitest.config.ts. Add a package here when it
+        # gains one; .github/scripts/test-suite-matrix.test.mjs fails the
+        # tooling checks when this list and the tracked configs differ.
+        package:
+          - impower-dev
+          - packages/jsonrpc
+          - packages/opfs-workspace
+          - packages/spark-editor-protocol
+          - packages/spark-engine
+          - packages/spark-web-player
+          - packages/sparkdown
+          - packages/sparkdown-document-views
+          - packages/sparkdown-language-server
+    name: ${{ matrix.package }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          # Matches the version the other workflows build with.
+          node-version: 24
+          cache: npm
+
+      # The Playwright browser download is not needed for vitest.
+      - name: Install dependencies
+        run: npm ci
+        env:
+          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: 1
+
+      # The package's own vitest.config.ts stays in force (pool, environment,
+      # setup files). The heap cap and single worker match the repository's
+      # resource gate; passWithNoTests stays off so an empty include is a
+      # failure rather than a silent pass. The output is kept for the summary
+      # check and the uploaded log.
+      - name: Run vitest
+        working-directory: ${{ matrix.package }}
+        env:
+          NODE_OPTIONS: --max-old-space-size=1024
+          # Vitest colours its output on CI even through a pipe; the summary
+          # check below matches plain text.
+          NO_COLOR: 1
+        run: |
+          set -o pipefail
+          npx vitest run --no-file-parallelism --reporter=default 2>&1 | tee "$RUNNER_TEMP/vitest.log"
+
+      # A worker killed by the OS can leave vitest exiting 0 with no summary,
+      # which must read as a failure rather than a pass. The same rules as the
+      # local suite runner apply: both summary lines present, at least one
+      # file and one test passed, nothing failed, and no crash or
+      # partial-result diagnostic anywhere in the log. Escape codes are
+      # stripped before matching in case a reporter ignores NO_COLOR.
+      # .github/scripts/test-suite-guard.test.sh runs this exact step body
+      # against sample logs in the tooling checks.
+      - name: Require summary lines
+        if: always()
+        run: |
+          log="$RUNNER_TEMP/vitest.log"
+          test -f "$log" || { echo "No vitest log was written"; exit 1; }
+          plain=$(sed -E 's/\x1b\[[0-9;]*[A-Za-z]//g' "$log")
+          files=$(grep -E '^[[:space:]]*Test Files[[:space:]]+.*\([0-9]+\)' <<<"$plain" | tail -n 1)
+          tests=$(grep -E '^[[:space:]]*Tests[[:space:]]+.*\([0-9]+\)' <<<"$plain" | tail -n 1)
+          test -n "$files" || { echo "Missing 'Test Files' summary line"; exit 1; }
+          test -n "$tests" || { echo "Missing 'Tests' summary line"; exit 1; }
+          grep -Eq '[[:space:]][1-9][0-9]*[[:space:]]+passed' <<<"$files" || { echo "No test file passed: $files"; exit 1; }
+          grep -Eq '[[:space:]][1-9][0-9]*[[:space:]]+passed' <<<"$tests" || { echo "No test passed: $tests"; exit 1; }
+          if grep -Eq '[[:space:]][0-9]+[[:space:]]+failed' <<<"$files$tests"; then echo "Failures reported: $files / $tests"; exit 1; fi
+          if grep -Eiq 'Worker exited unexpectedly|heap out of memory|Unhandled (Error|Rejection)|Some tests are still running|unhandled error' <<<"$plain"; then echo "Worker crash, unhandled error or partial-result diagnostic in the log"; exit 1; fi
+
+      - name: Upload log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: vitest-${{ strategy.job-index }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/vitest.log
+          if-no-files-found: warn
+
+  # The required status check. `always()` keeps it reporting when the package
+  # jobs were skipped or when detection failed; the step then decides.
+  test-suite:
+    needs: [changes, vitest]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Gate on detection and package results
+        env:
+          CHANGES: ${{ needs.changes.result }}
+          VITEST: ${{ needs.vitest.result }}
+        run: |
+          test "$CHANGES" = "success" || { echo "Change detection did not succeed: $CHANGES"; exit 1; }
+          case "$VITEST" in
+            success) echo "Package suites passed";;
+            skipped) echo "Package suites skipped: the change touches nothing they cover";;
+            *) echo "Package suites did not pass: $VITEST"; exit 1;;
+          esac

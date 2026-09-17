@@ -8,14 +8,15 @@ Use this map only when a runner capability is unclear. Repository instruction an
 | Discover skills         | Installer link under the harness project directory                     | Native .agents/skills discovery; the installer also provides the compatibility link |
 | Invoke a skill          | Skill tool, named by frontmatter                                       | Use the discovered skill or read its SKILL.md directly                              |
 | Read and edit files     | Read, Grep, Glob, Write/Edit                                           | File reading and apply_patch/editor capability exposed by the host                  |
-| Rename a session        | set_session_title when offered                                         | set_thread_title when offered; optional in CLI                                      |
+| Rename a session        | set_session_title when offered; a deferred tool, loaded through tool search before the call | set_thread_title when offered; the CLI has none and uses the hook's acknowledgement command |
+| Own model and effort    | Session metadata; `CLAUDE_EFFORT` in shell commands                    | Latest `turn_context` row of the session rollout file                               |
 | Independent review      | Agent tool with caller-supplied subagent_type, or a fresh CLI process  | Caller-supplied collaboration model override when available, or a fresh CLI process |
 | Private artifacts       | Unique directory under system temp; a scratchpad is usable if private  | Unique directory under system temp or a host-provided private directory             |
 | Observe completion      | Await task status or CLI process exit, then read paginated PR comments | Await task status or CLI process exit, then read paginated PR comments              |
 
 ## Review execution
 
-Before launching a local CLI reviewer, read [reviewer mappings](references/runner-review.md) and [handoff execution](review-pr/HANDOFF.md). Supply caller-selected routes and use the shared reservation launcher. Native or remote tasks do not satisfy its enforced capacity contract.
+Before launching a local CLI reviewer, read [reviewer mappings](references/runner-review.md) and [handoff execution](review-pr/HANDOFF.md). Supply the writer route and effort, plus any caller-selected reviewer route, and use the shared reservation launcher. To read the writer's model and effort, or when the plan leaves the reviewer to the defaults, read [default reviewer routes](references/runner-reviewer-defaults.md). Native or remote tasks do not satisfy its enforced capacity contract.
 
 ## Migration and recovery
 
