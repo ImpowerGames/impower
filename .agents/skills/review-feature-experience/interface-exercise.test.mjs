@@ -55,7 +55,7 @@ assert.deepEqual(namedOnly.elements[0].missing, REQUIRED_ITEMS, "an element the 
 assert.equal(namedOnly.elements[0].ticket, null);
 assert.match(reviewabilityReport(namedOnly), /\(named, not declared in any ticket\) lacks Location, Trigger, States, Failure view\./);
 assert.equal(reviewability([{ number: 570, body: complete }], ["morph PAUSE toggle"]).elements.length, 1, "a named element that a ticket declares is the declared one");
-const across = reviewability([{ number: 565, body: complete }, { number: 570, body: partial }]);
+const across = reviewability([{ number: 565, body: complete }, { number: 570, body: partial.replace("Morph pause toggle", "Motion status line") }]);
 assert.equal(across.reviewable, false);
 assert.deepEqual(across.elements.map((element) => [element.ticket, element.missing.length]), [[565, 0], [570, 2]], "one element short of an item makes the surface not reviewable");
 const withFence = interfaceElements(fenced);
@@ -71,6 +71,13 @@ const merged = reviewability([{ number: 565, body: repeated }]);
 assert.equal(merged.elements.length, 1, "a name declared twice is one element");
 assert.deepEqual(merged.elements[0].missing, [], "an abbreviated repeat of a complete block does not lose its items");
 assert.deepEqual(reviewability([{ number: 1, body: "Interface element: X\n- Location: l\n\nInterface element: X\n- Trigger: t\n- States: s\n- Failure view: f\n" }]).elements[0].missing, [], "two partial blocks of one name complete each other");
+const acrossTickets = reviewability([{ number: 565, body: complete }, { number: 574, body: "Split from #565.\n\nInterface element: Morph pause toggle\n- Location: the preview top bar\n" }]);
+assert.equal(acrossTickets.elements.length, 1, "a name declared in the parent and repeated in a slice is one element");
+assert.deepEqual(acrossTickets.elements[0].missing, [], "the slice's abbreviated copy does not undo the parent's complete block");
+assert.deepEqual(acrossTickets.elements[0].tickets, [565, 574]);
+assert.match(reviewabilityReport(acrossTickets), /^Reviewable: Morph pause toggle \(declared in #565, #574\)/);
+const completedAcross = reviewability([{ number: 565, body: partial }, { number: 574, body: "Interface element: Morph pause toggle\n- States: on and off\n- Failure view: a message\n" }]);
+assert.deepEqual(completedAcross.elements[0].missing, [], "partial blocks in two tickets complete each other");
 assert.deepEqual(reviewability([{ number: 1, body: "Interface element: X\n- Location:\n- Trigger: t\n- States: s\n- Failure view: f\n" }]).elements[0].missing, ["Location"], "an empty item is missing");
 assert.deepEqual(reviewability([{ number: 1, body: "Interface element: X\n- Location: l\n## Scope\n- Trigger: t\n- States: s\n- Failure view: f\n" }]).elements[0].missing, ["Trigger", "States", "Failure view"], "a heading ends the element even with no blank line before it");
 assert.deepEqual(reviewability([{ number: 1, body: "Interface element: X\n- Location: l\n\nA paragraph.\n- Trigger: t\n- States: s\n- Failure view: f\n" }]).elements[0].missing, ["Trigger", "States", "Failure view"], "a paragraph after a blank line ends the element");
@@ -138,4 +145,4 @@ for (const script of [path.join(here, "interface-exercise.mjs"), path.join(root,
 assert.throws(() => main(["check"]), /Usage: interface-exercise\.mjs check/);
 assert.throws(() => main(["bogus"]), /Usage: interface-exercise\.mjs <check\|record>/);
 assert.throws(() => main(["check", "x", "--flag"]), /Unknown argument --flag/);
-console.log("PASS: declared elements in plain, bare-line, fenced, bold, bulleted, sub-bulleted and repeated spellings and their missing items, prose-only elements, heading and paragraph boundaries, the pinned four-task three-column record, live issues through an injected fetch, argument errors that name the value, and the CLI through the canonical path and a discovery link");
+console.log("PASS: declared elements in plain, bare-line, fenced, bold, bulleted, sub-bulleted and repeated spellings, within one ticket and across tickets, and their missing items, prose-only elements, heading and paragraph boundaries, the pinned four-task three-column record, live issues through an injected fetch, argument errors that name the value, and the CLI through the canonical path and a discovery link");

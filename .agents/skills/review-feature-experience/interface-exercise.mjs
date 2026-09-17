@@ -61,26 +61,38 @@ export function interfaceElements(body) {
 
 export const missingItems = (element) => REQUIRED_ITEMS.filter((item) => !element.items[item]);
 
-// Reviewability of the interface surface across the tickets. The named
-// elements are the ones the tickets describe only in prose; a named element
-// that no ticket declares lacks all four items. With no element at all the
-// result is undetermined: the session names the elements the prose describes,
-// or reports that the feature has no interface surface.
+// Reviewability of the interface surface across the tickets. A name declared
+// in several tickets (the parent's complete block and a slice's abbreviated
+// copy) is one element whose items come from whichever ticket states them.
+// The named elements are the ones the tickets describe only in prose; a named
+// element that no ticket declares lacks all four items. With no element at all
+// the result is undetermined: the session names the elements the prose
+// describes, or reports that the feature has no interface surface.
 export function reviewability(tickets, named = []) {
   const elements = [];
-  for (const ticket of tickets) for (const element of interfaceElements(ticket.body)) elements.push({ ticket: ticket.number, name: element.name, items: element.items, missing: missingItems(element) });
+  for (const ticket of tickets) {
+    for (const element of interfaceElements(ticket.body)) {
+      const twin = elements.find((candidate) => candidate.name.toLowerCase() === element.name.toLowerCase());
+      if (!twin) { elements.push({ ticket: ticket.number, tickets: [ticket.number], name: element.name, items: { ...element.items } }); continue; }
+      twin.tickets.push(ticket.number);
+      for (const item of REQUIRED_ITEMS) twin.items[item] ??= element.items[item];
+    }
+  }
+  for (const element of elements) element.missing = missingItems(element);
   for (const name of named) {
     if (elements.some((element) => element.name.toLowerCase() === name.toLowerCase())) continue;
-    elements.push({ ticket: null, name, items: emptyItems(), missing: [...REQUIRED_ITEMS] });
+    elements.push({ ticket: null, tickets: [], name, items: emptyItems(), missing: [...REQUIRED_ITEMS] });
   }
   return { elements, reviewable: elements.length ? elements.every((element) => !element.missing.length) : null };
 }
+
+const ticketLabel = (ticket) => `${typeof ticket === "number" ? "#" : ""}${ticket}`;
 
 export function reviewabilityReport(result) {
   if (!result.elements.length) return 'No interface element is declared in these tickets. Name each element the tickets describe in prose with --element "<name>" to record what it lacks, or report that the feature has no interface surface.';
   const lines = [];
   for (const element of result.elements) {
-    const where = element.ticket === null ? "named, not declared in any ticket" : `declared in ${typeof element.ticket === "number" ? "#" : ""}${element.ticket}`;
+    const where = element.ticket === null ? "named, not declared in any ticket" : `declared in ${element.tickets.map(ticketLabel).join(", ")}`;
     lines.push(element.missing.length ? `Not reviewable: ${element.name} (${where}) lacks ${element.missing.join(", ")}.` : `Reviewable: ${element.name} (${where}) declares its location, trigger, states and failure view.`);
   }
   lines.push(result.reviewable ? "The interface surface is reviewable; fill the walkthrough record for each element." : "The interface surface is not reviewable yet; ask the maintainer for the missing items above before the walkthrough.");
