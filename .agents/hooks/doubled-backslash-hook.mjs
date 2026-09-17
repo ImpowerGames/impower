@@ -58,8 +58,12 @@ export async function main() {
   try {
     command = JSON.parse(raw)?.tool_input?.command;
   } catch {
-    // An unparseable payload never blocks: this hook guards against a silent
-    // corruption, and a broken harness must not turn it into a blanket refusal.
+    // An unparseable payload is refused only when its raw text still carries
+    // the signature: a doubled backslash in the command is encoded as four
+    // backslashes in the JSON the harness sends. Unrelated junk passes, so a
+    // broken harness cannot turn this guard into a blanket refusal, and cannot
+    // let the one thing it guards against through either.
+    if (raw.includes("\\\\\\\\")) deny("The doubled-backslash hook could not parse the tool payload, but the payload still contains a doubled backslash. " + REASON);
     return;
   }
   const reason = decide(command);

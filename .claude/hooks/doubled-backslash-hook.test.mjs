@@ -89,13 +89,23 @@ for (const [label, command] of allows) {
         parsed = out ? JSON.parse(out) : null;
       } catch {}
       const denied = parsed?.hookSpecificOutput?.permissionDecision === "deny";
-      check(r.status === 0 && denied === expectDeny, `wired: ${label}`, `status=${r.status} stdout=${JSON.stringify(out)} stderr=${JSON.stringify(r.stderr)}`);
+      // A refusal the agent cannot act on is half a fix: the wired output must
+      // carry the reason with its guidance, not only the decision.
+      const reason = parsed?.hookSpecificOutput?.permissionDecisionReason;
+      const guided = !expectDeny || (typeof reason === "string" && /editor capability/.test(reason) && /runner notes/.test(reason));
+      check(r.status === 0 && denied === expectDeny && guided, `wired: ${label}`, `status=${r.status} stdout=${JSON.stringify(out)} stderr=${JSON.stringify(r.stderr)}`);
     };
-    wire("a doubled backslash is refused", JSON.stringify({ tool_name: "Bash", tool_input: { command: "echo 'A\\\\B'" } }), true);
+    const dangerous = JSON.stringify({ tool_name: "Bash", tool_input: { command: "echo 'A\\\\B'" } });
+    wire("a doubled backslash is refused with the guidance", dangerous, true);
     wire("a lone backslash passes", JSON.stringify({ tool_name: "Bash", tool_input: { command: "echo 'A\\B'" } }), false);
     wire("a here-doc without backslashes passes", JSON.stringify({ tool_name: "Bash", tool_input: { command: "cat <<'EOF'\nhello\nEOF" } }), false);
     wire("an empty payload passes", "", false);
-    wire("an unparseable payload passes", "not json", false);
+    wire("unrelated unparseable text passes", "not json", false);
+    // A truncated payload still carrying the four-backslash JSON encoding of a
+    // doubled backslash is refused, as the sibling hooks refuse a broken
+    // payload that still resembles what they guard.
+    wire("a truncated payload that still shows a doubled backslash is refused", dangerous.slice(0, -1), true);
+    wire("a truncated payload with only a lone backslash passes", JSON.stringify({ tool_name: "Bash", tool_input: { command: "echo 'A\\B'" } }).slice(0, -1), false);
     {
       const r = run(JSON.stringify({ tool_input: { command: "ls" } }), { CLAUDE_PROJECT_DIR: resolve(root, "nowhere") });
       check(r.status === 2 && /not found/.test(r.stderr), "wired: a missing hook file refuses with exit 2", `status=${r.status} stderr=${JSON.stringify(r.stderr)}`);
