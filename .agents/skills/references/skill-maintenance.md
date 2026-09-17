@@ -10,4 +10,11 @@ The checks verify mechanical properties only (template boundaries, placeholder c
 - Adjudication: every finding gets a disposition on the PR (accepted, rejected, already covered or deferred), and behavior-changing corrections are themselves independently reviewed.
 - Rounds: the autonomous cap is three rounds, extensions need explicit user authorization recorded by the launcher, nothing resets the count, and exhausting the cap never grants readiness.
 
+Before publishing an edit to the feature review skills or their shared reference, confirm each of these is still stated where a reader following the workflow reaches it:
+
+- Independence: the session compares the ticket's `Filed by <model> at <effort>` line with its own model and stops in a same-model session; a ticket without the line asks the user which model filed it.
+- Anchoring: a finding reaches the user only with a `file:line` at the named commit, a quoted scenario the tickets do not cover or contradict themselves on, or a documented comparison with a named peer system; a finding that adds capability is a proposed follow-up unless the design forecloses it.
+- Interview: findings are grouped into one decision per design question and asked in rounds with the evidence, the recommended resolution and the edit it implies; "just decide" is marked "decided by default"; an unattended session posts the round and applies nothing.
+- Apply: every edited body is read back, undecided items are marked "Open", follow-ups are filed only on request, and one summary comment on the parent names the model, the commit and what changed.
+
 For a command failure or missing procedure encountered during skill use, read [feedback reporting](feedback-reporting.md) before reporting. Prefer a driver refusal or check that prevents the mistake over a new warning. Certain fixes may accompany the active PR in their own commit, with Notes for reviewers naming them; complex mechanisms belong in the standing feedback inbox. Preserve contributor observations and stable problem/session identities.
