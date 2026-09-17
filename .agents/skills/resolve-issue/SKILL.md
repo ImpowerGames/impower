@@ -34,7 +34,7 @@ Make the scoped change. Follow repository-wide artifact, generated-source and co
 
 ## 5. Regression test
 
-Invoke `/write-regression-test` now (skill name `write-regression-test`). Use full verification for fixes; for tooling, run the checks that exercise the change. Record the failing assertion, green result and verified suite counts.
+Invoke `/write-regression-test` now (skill name `write-regression-test`). Use full verification for fixes; for tooling, run the checks that exercise the change. Record the failing assertion and green result. Package suites run in the Test Suite workflow once the PR is open, not locally.
 
 ## 6. See the change where it runs
 
@@ -45,6 +45,8 @@ For `vscode-sparkdown/` changes and the shared language server, invoke `/drive-v
 ## 7. Commit, push, and open a draft PR
 
 Read [commit and publishing](references/publishing.md) before publishing. Stage deliberately by path, remove only your scratch files, read the commit back, push and create a draft using the template. Include `Closes #N`, actual test evidence, limitations and any known performance cost. Read the PR back.
+
+Opening the PR starts the Test Suite workflow on every pull request. Its package jobs run when the change touches `packages/`, `impower-dev/`, `definitions/` or the root package files, and are otherwise skipped; its `test-suite` gate job is the required check and passes in both cases. Do not wait for it before step 8. When it finishes, read its conclusion for the current head with `gh pr checks`, cite the run and whether the package jobs ran or were skipped in Testing and verification, and fix any failure it reports as your own correction; for a cancelled or timed-out run read [CI evidence](references/ci-evidence.md). Every later push starts a new run, and the run on the reviewed head is the one readiness needs.
 
 ## 8. Adversarial review
 

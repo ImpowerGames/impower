@@ -40,7 +40,7 @@ Marking the PR ready means this diff is finished and ready to be reviewed by a h
 - Every fix you made in response is committed, pushed, and re-verified as above, and the last push is on the PR.
 - No required lens is missing or outstanding from an aborted or retried attempt (see [independence](../SKILL.md)).
 - Behavior-changing fix commits have themselves been independently reviewed under [later-round rules](later-rounds.md). Only verified non-behavioral corrections qualify for its disclosed exception.
-- Required checks pass for the current head, and no blocking finding or material verification gap remains.
+- Required checks pass for the current head, including every Test Suite workflow job (`gh pr checks`), and no blocking finding or material verification gap remains. The workflow runs while reviewers work; a red job on the reviewed head is the writer's correction to make, and the run on the final pushed head is the one this line means.
 - No external draft blocker remains. Under Notes for reviewers, name any prerequisite outside review (such as another PR holding required files), what must happen first, and the remaining work in the order a follow-up session should perform it. Keep the PR draft until that prerequisite and the remaining gates are satisfied.
 
 Only then:

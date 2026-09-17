@@ -10,7 +10,7 @@ Commands run from the worktree root unless a package directory is specified.
 ## Choose the mode
 
 - **Reproduction-only:** for file-bug or initial investigation, use an existing harness, write the smallest assertion matching the symptom, run that file under the resource limits, inspect the failure and retain the evidence. Stop here: do not install a new package harness, run full verification, or require a fix merely to file a bug.
-- **Full verification:** for a fix or feature, complete test writing, red/green proof and affected suites below.
+- **Full verification:** for a fix or feature, complete test writing, red/green proof and the typecheck and tooling gates below. Package suites run in the Test Suite workflow once the PR is open.
 
 ## 1. Write the test
 
@@ -20,7 +20,7 @@ Assert the ticket's behavior rather than patch shape. A file already failing who
 
 ## Resource gate
 
-At most one vitest run at a time across worktrees. Every invocation uses at most a 1024 MB heap and one fork. Use the repository suite runner for package verification; it reserves the machine, saves attempts and reconciles interrupted processes. Before running Vitest, read [safe commands and result verification](references/vitest.md). Missing summaries, worker crashes or partial manifests are not passes, even with exit status zero.
+At most one vitest run at a time across worktrees. Every invocation uses at most a 1024 MB heap and one fork. Run only the test file under work locally; the Test Suite workflow runs whole packages for the pushed head. Use the repository suite runner only for a local baseline comparison the workflow cannot give you; it reserves the machine, saves attempts and reconciles interrupted processes. Before running Vitest, read [safe commands and result verification](references/vitest.md). Missing summaries, worker crashes or partial manifests are not passes, even with exit status zero.
 
 ## 2. Prove red/green
 
@@ -30,6 +30,6 @@ Inspect the actual failing assertion and full saved logs; a nonzero exit or unre
 
 ## 3. Broaden verification
 
-Read [suite, typecheck and standalone gates](references/suites.md) when the fix is ready. Run affected tests, widen to the full applicable typecheck before push, and run `node scripts/check-agent-tooling.mjs` for tooling. Stage new checks first and confirm discovered inventory, expected count, CI triggers and sparse inputs.
+Read [suite, typecheck and standalone gates](references/suites.md) when the fix is ready. Run the tests you touched, widen to the full applicable typecheck before push, and run `node scripts/check-agent-tooling.mjs` for tooling. Stage new checks first and confirm discovered inventory, expected count, CI triggers and sparse inputs.
 
-Keep exact completed-file and failing-test inventories, red and green assertions, verified counts, platform skips and any incomplete attempts for the PR. Baseline failures must be confirmed on the same manifest, not inferred from equal totals.
+Keep the red and green assertions, the files you ran locally, platform skips and any incomplete attempts for the PR; the package suite result comes from the Test Suite workflow on the pushed head. A failure there that you believe pre-exists must be confirmed on `origin/main`, not inferred.

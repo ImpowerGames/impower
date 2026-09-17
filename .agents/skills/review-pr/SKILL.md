@@ -19,7 +19,7 @@ Use the configured writer and reviewer models to check independence. The launch 
 
 ## 3. Launch and await
 
-Before preparing a round, read [launch procedure](references/launch.md). Build the complete [reviewer prompt](references/reviewer-prompt.md) with `node scripts/build-review-prompt.mjs <absolute-context.json> <absolute-prompt.txt>`.
+Launch as soon as the draft PR is open; do not wait for the Test Suite workflow, which runs alongside the round and is the writer's to answer. Its package jobs are skipped on a PR outside their scope, and its `test-suite` gate job, the required check, passes either way. Before preparing a round, read [launch procedure](references/launch.md). Build the complete [reviewer prompt](references/reviewer-prompt.md) with `node scripts/build-review-prompt.mjs <absolute-context.json> <absolute-prompt.txt>`.
 
 For a PR with no linked issue, set the prompt builder's `issue` field to `null`; never invent an issue number.
 
@@ -37,7 +37,7 @@ Any code correction reopens regression and live/tooling verification. Commit by 
 
 ## 5. Readiness gate
 
-Before `gh pr ready`, require every reviewer process to exit; all required coverage and full reports for the frozen head; every finding and verification gap adjudicated; all accepted fixes committed, pushed and reverified; current-head CI green; and independent review of behavior-changing corrections. Only verified, disclosed non-behavioral corrections qualify for the next section's exception. Read back `number,isDraft,reviewDecision`. Missing coverage, blockers, or material verification gaps keep the PR draft; report what remains.
+Before `gh pr ready`, require every reviewer process to exit; all required coverage and full reports for the frozen head; every finding and verification gap adjudicated; all accepted fixes committed, pushed and reverified; current-head CI green, including every Test Suite workflow job for the reviewed head; and independent review of behavior-changing corrections. Only verified, disclosed non-behavioral corrections qualify for the next section's exception. Read back `number,isDraft,reviewDecision`. Missing coverage, blockers, or material verification gaps keep the PR draft; report what remains.
 
 ## 6. Later changes
 
