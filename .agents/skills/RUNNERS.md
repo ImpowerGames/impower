@@ -13,6 +13,7 @@ Use this map only when a runner capability is unclear. Repository instruction an
 | Independent review      | Agent tool with caller-supplied subagent_type, or a fresh CLI process  | Caller-supplied collaboration model override when available, or a fresh CLI process |
 | Private artifacts       | Unique directory under system temp; a scratchpad is usable if private  | Unique directory under system temp or a host-provided private directory             |
 | Observe completion      | Await task status or CLI process exit, then read paginated PR comments | Await task status or CLI process exit, then read paginated PR comments              |
+| Shell backslashes       | Bash tool collapses `\\` to `\`; PowerShell tool preserves them        | Not measured                                                                        |
 
 ## Review execution
 

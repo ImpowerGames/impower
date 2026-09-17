@@ -12,7 +12,7 @@ These rules apply whether hooks enforce them or not:
 
 - Never use the shared Git stash. Keep private snapshots or the regression driver's verified snapshot/restore mechanism. Never commit to main, merge a PR or rebase; the maintainer merges.
 - Keep one writer per file. Freeze the reviewed head and worktree until every reviewer process exits; comments alone do not prove exit.
-- Write code and comment-body artifacts with an editor capability, never shell heredocs. Publish multiline bodies using file arguments and read published artifacts back. Read PR comments through the paginated API.
+- Write code and comment-body artifacts with an editor capability. A runner's shell tool may collapse every doubled backslash to one before the shell runs the command (the runner notes say which), so content containing two consecutive backslashes never goes through a shell command; a hook refuses it, and a heredoc without one is fine. Publish multiline bodies using file arguments and read published artifacts back. Read PR comments through the paginated API.
 - Create issues with their type in the creation call: `Bug`, `Feature` or `Task`. Use REST or a typed CLI call, never an untyped issue followed by repair or a GraphQL createIssue mutation.
 - Run at most one vitest process, with a heap at most 1024 MB and one fork. Check for other runs and wait for exit.
 - Edit generated language definitions in their YAML sources and regenerate both output locations. Before changing grammar, configuration or snippets, read [language definitions](.agents/skills/references/language-definitions.md).
