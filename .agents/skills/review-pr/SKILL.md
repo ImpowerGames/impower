@@ -31,7 +31,7 @@ Every report must appear on the PR verbatim, including reports posted by the coo
 
 ## 4. Adjudicate and reverify
 
-Before handling findings, read [adjudication and readiness](references/adjudication.md). Confirm each claim in code and use experiments to resolve disagreement. Post each finding's disposition with comment ID, round and reviewed head: accepted with fix and verification, rejected with concrete evidence, or already covered with earlier IDs. Preserve superseded reports and answer the reviewer's final position.
+Before handling findings, read [adjudication and readiness](references/adjudication.md). Confirm each claim in code and use experiments to resolve disagreement. Post each finding's disposition with comment ID, round and reviewed head: accepted with fix and verification, rejected with concrete evidence, already covered with earlier IDs, or, for a non-blocking quality finding only, deferred to a filed Task. Preserve superseded reports and answer the reviewer's final position.
 
 Any code correction reopens regression and live/tooling verification. Commit by path, push and inspect CI for the new head. For cancelled or timed-out runs read [CI evidence](../resolve-issue/references/ci-evidence.md); a later pass does not explain an earlier cancellation.
 

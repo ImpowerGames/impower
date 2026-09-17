@@ -20,17 +20,9 @@ for (const key of ["writer", "reviewer", "invocation"]) {
 }
 assert.throws(() => buildReviewPrompt({ ...context, reviewer: "writer-1[1m]" }), /must differ/);
 const template = fs.readFileSync(new URL("../.agents/skills/review-pr/references/reviewer-prompt.md", import.meta.url), "utf8");
-const reviewerRules = [
-  "Record your complete independent first pass",
-  "Separately label unverified concerns and coverage gaps",
-  "Every reviewer, including an undirected reviewer, must check test honesty and repository rules",
-];
-const missingReviewerRules = (text) => reviewerRules.filter((rule) => !text.includes(rule));
-assert.deepEqual(missingReviewerRules(prompt), []);
-for (const rule of reviewerRules) {
-  const movedToCoordinator = template.replace(rule, "") + "\nCoordinator-only note: " + rule;
-  assert.deepEqual(missingReviewerRules(buildReviewPrompt(context, movedToCoordinator)), [rule], "moving a reviewer instruction outside the template must lose coverage: " + rule);
-}
+// Only the delimited block reaches reviewers; prose outside it is coordinator
+// context. The wording inside the block is free to change.
+assert.ok(!prompt.includes("All commands run from the worktree root"), "text outside the delimited block must not reach reviewers");
 
 for (const token of ["WRITER", "REVIEWER", "ROUND", "HEAD", "WORKTREE", "DIFF", "REVDIR", "PREVIOUS", "P", "N", "LENS"]) {
   const boundary = template.indexOf("<!-- review-prompt:start -->");

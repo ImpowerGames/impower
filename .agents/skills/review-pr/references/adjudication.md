@@ -15,6 +15,9 @@ Then dispose of every finding where it lives, on the PR. Adjudicate every commen
 - Accepted: fixed, with the commit SHA and verification.
 - Rejected: the concrete reason and evidence, including a claim not confirmed at its cited location.
 - Already covered: the earlier finding, adjudication ID and fix that cover it.
+- Deferred: the Task number filed for it with the file-task skill, and why the PR is ready without it.
+
+Reviewers report at two tiers. A defect is answered only by acceptance or rejection. A quality finding (correct code that costs someone later) may instead be deferred, but only when its severity is `should-fix` or `optional`, the consequence the reviewer named is real, and fixing it would widen the PR beyond its issue; a quality finding that is cheap to fix in place is accepted and fixed. A `blocking` severity, whichever tier it was reported under, keeps the PR draft until it is fixed or rejected with evidence. A quality finding that names no consequence has not met the reporting bar; reject it on that ground and say so.
 
 Adjudicate late or out-of-order reports against current HEAD. For each finding, state whether it remains live, is already fixed (name the commit and verification), or is no longer applicable (explain the current code). Name the commits between that report's reviewed head and current HEAD that the reviewer did not see. Preserve the report and its original round; arrival order does not change coverage or reset the stopping rule. A live finding that needs a code change follows [later-round rules](later-rounds.md) before editing.
 
