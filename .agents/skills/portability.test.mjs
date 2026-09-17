@@ -78,5 +78,21 @@ for (const { name } of reviewerModels) {
   assert.match(generatedReviewer, /configured reviewer route/i, name);
 }
 const instructions = fs.readFileSync(path.join(root, "AGENTS.md"), "utf8");
-for (const rule of ["Never use the shared Git stash", "type in the creation call", "editor capability", "paginated API", "one writer per file", "1024 MB", "scratch repository"]) assert.ok(instructions.includes(rule), rule);
+for (const rule of ["Never use the shared Git stash", "type in the creation call", "editor capability", "paginated API", "one writer per file", "1024 MB", "scratch repository", "review-feature-engineering/SKILL.md", "review-feature-experience/SKILL.md"]) assert.ok(instructions.includes(rule), rule);
+// The feature review skills share one mechanics reference, and they read the
+// filing model from the marker file-feature writes; both are mechanical
+// properties, while the rules themselves are the editor's checklist in
+// references/skill-maintenance.md.
+for (const skill of ["review-feature-engineering", "review-feature-experience"]) assert.ok(fs.readFileSync(path.join(root, ".agents/skills", skill, "SKILL.md"), "utf8").includes("(../references/feature-review.md)"), skill + " links the shared reference");
+const filedBy = "Filed by <model> at reasoning effort <effort>";
+for (const file of [".agents/skills/file-feature/references/publishing.md", ".agents/skills/references/feature-review.md"]) assert.ok(fs.readFileSync(path.join(root, file), "utf8").includes(filedBy), file + " names the filing-model marker");
+// The interface exercise helper's four items, four tasks and three columns
+// are restated by the experience skill, and the items by the publishing
+// reference's example block; the restatements must use the helper's words,
+// in any of the label spellings the helper accepts.
+const { REQUIRED_ITEMS, REQUIRED_TASKS, COLUMNS } = await import("./review-feature-experience/interface-exercise.mjs");
+const experienceSkill = fs.readFileSync(path.join(root, ".agents/skills/review-feature-experience/SKILL.md"), "utf8").toLowerCase();
+for (const phrase of [...REQUIRED_ITEMS, ...REQUIRED_TASKS, ...COLUMNS]) assert.ok(experienceSkill.includes(phrase.toLowerCase()), "review-feature-experience/SKILL.md restates: " + phrase);
+const publishingExample = fs.readFileSync(path.join(root, ".agents/skills/file-feature/references/publishing.md"), "utf8");
+for (const item of REQUIRED_ITEMS) assert.ok(new RegExp(`^(?:[-*+] )?(?:\\*\\*)?${item}(?:\\*\\*)?: `, "m").test(publishingExample), "file-feature publishing example states the item on its own line, as a bullet or a bare line: " + item);
 console.log(`PASS: ${skills.length} shared skills, forbidden-reference mutation controls, review contracts and generated runner configuration`);
