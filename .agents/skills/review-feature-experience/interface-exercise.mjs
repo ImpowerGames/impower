@@ -23,22 +23,25 @@ const emptyItems = () => Object.fromEntries(REQUIRED_ITEMS.map((item) => [item, 
 const plain = (line) => line.replace(BULLET, "").replace(/\*\*/g, "").trim();
 
 // The declared elements of one ticket body: an `Interface element: <name>`
-// line, then bullets labeled Location, Trigger, States and Failure view. The
-// block may sit inside a code fence, its labels may be bold, and a label may
-// carry its text on nested bullets or continuation lines. A heading, or a
-// paragraph after a blank line, or the next element line ends the block.
+// line, then lines labeled Location, Trigger, States and Failure view, as
+// bullets or bare lines. The block may sit inside a code fence, its labels may
+// be bold, and a label may carry its text on nested bullets or continuation
+// lines. A heading, or a paragraph after a blank line, or the next element
+// line ends the block. A name declared twice (a complete block under Proposed
+// solution and an abbreviated copy in an embedded draft, say) is one element
+// whose items come from whichever copy states them.
 export function interfaceElements(body) {
-  const elements = [];
+  const blocks = [];
   let current = null, pending = null, blank = false;
   for (const raw of String(body ?? "").split(/\r?\n/)) {
     if (FENCE.test(raw)) continue;
     const text = plain(raw), bulleted = BULLET.test(raw);
     const element = ELEMENT.exec(text);
-    if (element) { current = { name: element[1], items: emptyItems() }; elements.push(current); pending = null; blank = false; continue; }
+    if (element) { current = { name: element[1], items: emptyItems() }; blocks.push(current); pending = null; blank = false; continue; }
     if (!current) continue;
     if (!raw.trim()) { blank = true; continue; }
     if (HEADING.test(raw)) { current = null; pending = null; blank = false; continue; }
-    const item = bulleted ? ITEM.exec(text) : null;
+    const item = ITEM.exec(text);
     if (item) { pending = canonical(item[1]); current.items[pending] = item[2] || null; blank = false; continue; }
     if (bulleted || !blank) {
       if (pending && text) current.items[pending] = current.items[pending] ? `${current.items[pending]} ${text}` : text;
@@ -46,6 +49,12 @@ export function interfaceElements(body) {
       continue;
     }
     current = null; pending = null; blank = false;
+  }
+  const elements = [];
+  for (const block of blocks) {
+    const twin = elements.find((element) => element.name.toLowerCase() === block.name.toLowerCase());
+    if (!twin) { elements.push(block); continue; }
+    for (const item of REQUIRED_ITEMS) twin.items[item] ??= block.items[item];
   }
   return elements;
 }

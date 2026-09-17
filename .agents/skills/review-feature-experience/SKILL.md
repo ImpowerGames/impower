@@ -9,7 +9,7 @@ This session exercises the design of record as an author would, before anything 
 
 ## 1. Check independence and identify the surfaces
 
-Compare the ticket's `Filed by` model with this session's model and stop in a same-model session. Read the parent and every slice it lists, record the clean checkout's commit, and name each surface the feature changes: language (Sparkdown syntax, directives, defines), interface (the web editor, the extension) and player (what plays in the player or the preview). A feature that changes none has no experience review; the engineering review alone applies.
+Compare the ticket's `Filed by` model with this session's model and stop in a same-model session. Read the parent and every slice it lists, record the clean checkout's commit, and name each surface the feature changes: language (Sparkdown syntax, directives, defines), interface (the web editor, the extension) and player (what plays in the player or the preview). A feature that changes none has no experience review: a sliced one takes the engineering review alone, and an unsliced one needs no feature review.
 
 ## 2. Exercise every surface
 
