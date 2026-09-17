@@ -28,8 +28,27 @@ export const lineCubic = (a: Point, b: Point): Cubic => ({
 export const polylineLoop = (pts: Point[]): Cubic[] =>
   pts.map((p, i) => lineCubic(p, pts[(i + 1) % pts.length]!));
 
-export const isLine = (s: Cubic, eps = 1e-9): boolean =>
-  dist(s.c1, s.p0) <= eps && dist(s.c2, s.p1) <= eps;
+/**
+ * Whether a segment is straight: both handles sit on their endpoints, to a
+ * tolerance relative to the segment's own chord so tiny drawings behave
+ * like large ones. A zero-length segment counts as a line.
+ */
+export const isLine = (s: Cubic, relative = 1e-9): boolean => {
+  const tol = relative * dist(s.p0, s.p1);
+  return dist(s.c1, s.p0) <= tol && dist(s.c2, s.p1) <= tol;
+};
+
+/**
+ * The loop without zero-length segments (a coincident anchor drawn twice),
+ * which would otherwise read as a wrap-around when resampling. Segments
+ * shorter than `relative` times the loop's extent are dropped; a loop that
+ * would lose every segment is returned as is.
+ */
+export function dropZeroSegments(loop: Cubic[], relative = 1e-9): Cubic[] {
+  const tol = relative * loopExtent(loop);
+  const kept = loop.filter((s) => !(dist(s.p0, s.p1) <= tol && dist(s.c1, s.p0) <= tol && dist(s.c2, s.p1) <= tol));
+  return kept.length ? kept : loop;
+}
 
 export function evalCubic(s: Cubic, t: number): Point {
   const u = 1 - t;
@@ -246,37 +265,46 @@ export function flattenCubic(c: Cubic, n = 8): Point[] {
   return out;
 }
 
+/**
+ * Whether two segments cross strictly inside both. Parallel segments are
+ * judged relative to the segments' lengths, so the test is scale-free.
+ */
 export function segmentsCross(a: Point, b: Point, c: Point, d: Point): boolean {
   const dx1 = b[0] - a[0],
     dy1 = b[1] - a[1],
     dx2 = d[0] - c[0],
     dy2 = d[1] - c[1],
     den = dx1 * dy2 - dy1 * dx2;
-  if (Math.abs(den) < 1e-9) return false;
+  const scale = Math.hypot(dx1, dy1) * Math.hypot(dx2, dy2);
+  if (scale === 0 || Math.abs(den) < 1e-12 * scale) return false;
   const t = ((c[0] - a[0]) * dy2 - (c[1] - a[1]) * dx2) / den,
     u = ((c[0] - a[0]) * dy1 - (c[1] - a[1]) * dx1) / den;
   return t > 1e-6 && t < 1 - 1e-6 && u > 1e-6 && u < 1 - 1e-6;
 }
 
 /**
- * Whether a closed loop crosses itself. Each cubic is flattened to a short
- * polyline; adjacent segments (including across the seam) are skipped because
- * they share an endpoint.
+ * Whether a closed loop crosses itself. The whole loop is flattened into
+ * one polyline (eight chords per curve), so two adjacent curves that meet
+ * at an anchor and cross elsewhere are caught, and so is a loop of only
+ * one or two curves; only consecutive chords, which share a point, are
+ * skipped.
  */
 export function selfIntersects(loop: Cubic[]): boolean {
-  const n = loop.length;
-  if (n < 3) return false;
-  const F = loop.map((c) => flattenCubic(c));
-  for (let i = 0; i < n; i++) {
-    for (let j = i + 2; j < n; j++) {
-      if (i === 0 && j === n - 1) continue;
-      const A = F[i]!,
-        B = F[j]!;
-      for (let p = 0; p < A.length - 1; p++) {
-        for (let q = 0; q < B.length - 1; q++) {
-          if (segmentsCross(A[p]!, A[p + 1]!, B[q]!, B[q + 1]!)) return true;
-        }
-      }
+  if (loop.length < 1) return false;
+  const pts: Point[] = [];
+  for (const c of loop) {
+    const flat = flattenCubic(c);
+    for (let i = 0; i < flat.length - 1; i++) pts.push(flat[i]!);
+  }
+  return polygonSelfIntersects(pts);
+}
+
+/** Whether a single curve loops through itself (a knot), judged on chords. */
+export function cubicKnots(c: Cubic, n = 16): boolean {
+  const pts = flattenCubic(c, n);
+  for (let i = 0; i < pts.length - 1; i++) {
+    for (let j = i + 2; j < pts.length - 1; j++) {
+      if (segmentsCross(pts[i]!, pts[i + 1]!, pts[j]!, pts[j + 1]!)) return true;
     }
   }
   return false;
@@ -353,28 +381,44 @@ export function chainToPolyline(chain: Cubic[], n: number): Point[] {
  * kinks mid-morph. Degenerate (zero-length) handles blend as offsets.
  */
 export function lerpLoopsAngular(a: Cubic[], b: Cubic[], t: number): Cubic[] {
-  const handle = (anA: Point, cA: Point, anB: Point, cB: Point, P: Point): Point => {
-    const hax = cA[0] - anA[0],
-      hay = cA[1] - anA[1],
-      hbx = cB[0] - anB[0],
-      hby = cB[1] - anB[1];
-    const la = Math.hypot(hax, hay),
-      lb = Math.hypot(hbx, hby),
-      len = la + (lb - la) * t;
-    if (la < 1e-9 || lb < 1e-9) return [P[0] + hax + (hbx - hax) * t, P[1] + hay + (hby - hay) * t];
-    const angA = Math.atan2(hay, hax);
-    let d = Math.atan2(hby, hbx) - angA;
+  const n = a.length;
+  const wrapAngle = (d: number) => {
     while (d > Math.PI) d -= 2 * Math.PI;
-    while (d < -Math.PI) d += 2 * Math.PI;
-    const ang = angA + d * t;
-    return [P[0] + Math.cos(ang) * len, P[1] + Math.sin(ang) * len];
+    while (d <= -Math.PI) d += 2 * Math.PI;
+    return d;
   };
-  return a.map((s, i) => {
+  const out: Cubic[] = a.map((s, i) => {
     const o = b[i]!;
-    const p0 = lerpPoint(s.p0, o.p0, t),
-      p1 = lerpPoint(s.p1, o.p1, t);
-    return { p0, c1: handle(s.p0, s.c1, o.p0, o.c1, p0), c2: handle(s.p1, s.c2, o.p1, o.c2, p1), p1 };
+    return { p0: lerpPoint(s.p0, o.p0, t), c1: [0, 0], c2: [0, 0], p1: lerpPoint(s.p1, o.p1, t) };
   });
+  // Both handles of a node resolve a 180-degree tie the same way because
+  // `wrapAngle` maps the tie to +PI whichever side it is reached from, so
+  // a smooth node turning exactly half a circle keeps its handles collinear
+  // instead of each handle choosing an opposite direction.
+  for (let i = 0; i < n; i++) {
+    const prev = (i - 1 + n) % n;
+    const P = out[i]!.p0;
+    const rot = (anA: Point, cA: Point, anB: Point, cB: Point): Point => {
+      const hax = cA[0] - anA[0],
+        hay = cA[1] - anA[1],
+        hbx = cB[0] - anB[0],
+        hby = cB[1] - anB[1];
+      const la = Math.hypot(hax, hay),
+        lb = Math.hypot(hbx, hby),
+        len = la + (lb - la) * t;
+      const scale = Math.max(la, lb);
+      if (la <= 1e-9 * scale || lb <= 1e-9 * scale || scale === 0) {
+        return [P[0] + hax + (hbx - hax) * t, P[1] + hay + (hby - hay) * t];
+      }
+      const angA = Math.atan2(hay, hax);
+      const d = wrapAngle(Math.atan2(hby, hbx) - angA);
+      const ang = angA + d * t;
+      return [P[0] + Math.cos(ang) * len, P[1] + Math.sin(ang) * len];
+    };
+    out[i]!.c1 = rot(a[i]!.p0, a[i]!.c1, b[i]!.p0, b[i]!.c1);
+    out[prev]!.c2 = rot(a[prev]!.p1, a[prev]!.c2, b[prev]!.p1, b[prev]!.c2);
+  }
+  return out;
 }
 
 /** The larger side of the control-point bounding box: the drawing's size. */
@@ -418,7 +462,14 @@ export function resampleAtFractions(loop: Cubic[], fractions: number[]): Cubic[]
   for (let k = 0; k < fractions.length; k++) {
     const a0 = fractions[k]!;
     let a1 = fractions[(k + 1) % fractions.length]!;
-    if (a1 <= a0) a1 += 1;
+    // Two equal fractions are a zero-length interval (a coincident
+    // anchor), not a trip around the loop; only a genuine decrease wraps.
+    if (Math.abs(a1 - a0) <= 1e-12) {
+      const p = arc.pointAt(a0);
+      out.push(lineCubic(p, p));
+      continue;
+    }
+    if (a1 < a0) a1 += 1;
     const si = arc.segmentAt((a0 + a1) / 2);
     const s0 = arc.starts[si]!,
       s1 = arc.starts[si + 1]!;

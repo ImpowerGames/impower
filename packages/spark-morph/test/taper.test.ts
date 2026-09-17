@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 import { selfIntersects, signedArea } from "../src/geometry/cubic";
-import { findTips } from "../src/methods/taper";
+import { canonicalFrame, findTips, selectCandidate, taperDistance } from "../src/methods/taper";
 import { TAPER_DEFAULTS, morphSubpaths, parsePathData, taperTrack } from "../src/index";
 import {
   anchors,
@@ -67,10 +67,69 @@ describe("taperTrack", () => {
         expect(selfIntersects(r.track.frame(t)), `frame ${t}`).toBe(false);
         expect(selfIntersects(r.track.canonical(t)), `canonical ${t}`).toBe(false);
       }
-      expect(r.track.from).toHaveLength(TAPER_DEFAULTS.anchors);
-      expect(r.track.to).toHaveLength(TAPER_DEFAULTS.anchors);
+      expect(r.track.canonicalFrom).toHaveLength(TAPER_DEFAULTS.anchors);
+      expect(r.track.canonicalTo).toHaveLength(TAPER_DEFAULTS.anchors);
+      // The track's endpoints share the frames' topology.
+      expect(r.track.from).toHaveLength(r.track.frame(0.5).length);
+      expect(r.track.to).toHaveLength(r.track.frame(0.5).length);
+      // No candidate that inflates the ribbon mid-morph is chosen: the
+      // area never exceeds the larger rest pose by more than a quarter.
+      const area = (segs: ReturnType<typeof loop>) => Math.abs(signedArea(segs));
+      const cap = 1.25 * Math.max(area(r.track.canonicalFrom), area(r.track.canonicalTo));
+      for (const t of runtimeProgress) expect(area(r.track.canonical(t)), `area at ${t}`).toBeLessThanOrEqual(cap);
     });
   }
+
+  test("among candidates that hold thickness, the least-travel one wins over a thicker one", () => {
+    // Two viable candidates built from the closed lash's canonical loop:
+    // the real one, and a copy pushed 5 units right and thinned to 90%,
+    // whose mid-morph ratio is higher (the ratio is measured against the
+    // thinner endpoint) but whose anchors travel farther. On the synthetic
+    // fixtures the tip search never yields two viable candidates, so the
+    // policy is pinned on this constructed pair.
+    const r = taperTrack(loop(upperOpen), loop(closedLash));
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    const a = r.track.canonicalFrom,
+      real = r.track.canonicalTo;
+    const shifted = real.map((s) => {
+      const move = (p: [number, number]): [number, number] => [p[0] + 5, 50 + (p[1] - 50) * 0.9];
+      return { p0: move(s.p0), c1: move(s.c1), c2: move(s.c2), p1: move(s.p1) };
+    });
+    const area = (segs: ReturnType<typeof loop>) => Math.abs(signedArea(segs));
+    const score = (b: ReturnType<typeof loop>) => {
+      const lo = Math.min(area(a), area(b)) || 1;
+      return Math.min(...[0.25, 0.5, 0.75].map((tt) => area(canonicalFrame(a, b, tt)) / lo));
+    };
+    expect(score(shifted)).toBeGreaterThan(score(real));
+    expect(score(real)).toBeGreaterThanOrEqual(TAPER_DEFAULTS.thicknessRatio);
+    const picked = selectCandidate(a, [shifted, real], score, TAPER_DEFAULTS.thicknessRatio);
+    expect(picked.candidate).toBe(real);
+    expect(picked.travel).toBeLessThan(selectCandidate(a, [shifted], score, TAPER_DEFAULTS.thicknessRatio).travel);
+    // When only one holds thickness it wins regardless of travel, and when
+    // none does the least-pinching one is reported.
+    expect(selectCandidate(a, [shifted, real], (b) => (b === real ? 0.9 : 0.3), TAPER_DEFAULTS.thicknessRatio).candidate).toBe(real);
+    expect(selectCandidate(a, [real, shifted], (b) => (b === real ? 0.3 : 0.5), TAPER_DEFAULTS.thicknessRatio).candidate).toBe(shifted);
+  });
+
+  test("the taper distance is capped at 12% of the tip-to-tip span", () => {
+    // A capsule with semicircular ends: its width plateaus about a radius
+    // in from each end, 30% of the span, so the measured distance would
+    // put the flanks far into the body without the cap. The tips are
+    // given directly because a capsule's ends do not fold sharply enough
+    // to be found as taper tips.
+    const capsule = loop("M0,50 C0,10 100,10 100,50 C100,90 0,90 0,50Z");
+    const tips = { f1: 0, f2: 0.5, p1: [0, 50] as [number, number], p2: [100, 50] as [number, number], fold1: Math.PI, fold2: Math.PI };
+    const span = 100;
+    expect(taperDistance(capsule, tips)).toBeCloseTo(0.12 * span, 6);
+    // A real lash's measured distance sits between the 2% floor and the cap.
+    const lash = loop(upperOpen);
+    const lashTips = findTips(lash);
+    const lashSpan = Math.hypot(lashTips.p1[0] - lashTips.p2[0], lashTips.p1[1] - lashTips.p2[1]);
+    const px = taperDistance(lash, lashTips);
+    expect(px).toBeGreaterThanOrEqual(0.02 * lashSpan - 1e-9);
+    expect(px).toBeLessThan(0.12 * lashSpan);
+  });
 
   test("the winding-and-tip correspondence search is what keeps the rotating crease from pinching", () => {
     const r = taperTrack(loop(rotatingOpen), loop(rotatingClosed));
@@ -90,8 +149,8 @@ describe("taperTrack", () => {
     // where the tip's arc meets the body would flip the underside and
     // double the area.
     const area = (segs: ReturnType<typeof loop>) => Math.abs(signedArea(segs));
-    expect(Math.abs(area(r.track.from) - area(loop(roundedOpen))) / area(loop(roundedOpen))).toBeLessThan(0.15);
-    expect(Math.abs(area(r.track.to) - area(loop(roundedClosed))) / area(loop(roundedClosed))).toBeLessThan(0.15);
+    expect(Math.abs(area(r.track.canonicalFrom) - area(loop(roundedOpen))) / area(loop(roundedOpen))).toBeLessThan(0.15);
+    expect(Math.abs(area(r.track.canonicalTo) - area(loop(roundedClosed))) / area(loop(roundedClosed))).toBeLessThan(0.15);
     // Width of the ribbon a short way in from each tip, at every runtime
     // progress, must stay between the two rest poses' widths (with slack).
     const widthNearTip = (t: number, which: 0 | 1, at: number) => {

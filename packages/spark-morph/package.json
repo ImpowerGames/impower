@@ -1,7 +1,7 @@
 {
   "name": "@impower/spark-morph",
   "displayName": "Spark Morph",
-  "description": "Dependency-free geometry for morphing two drawn shapes: path parsing, labelled pairing, explicit ribbon and shape methods, scale collapse, apertures and numeric samples.",
+  "description": "Dependency-free geometry for morphing two drawn shapes: path parsing, labelled pairing, explicit nodes, taper and outline methods, scale collapse, apertures and numeric samples.",
   "version": "0.0.1",
   "scripts": {
     "test": "vitest run",

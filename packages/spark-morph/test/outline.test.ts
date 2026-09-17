@@ -13,6 +13,7 @@ import {
   offKilterQuad,
   pentagon,
   runtimeProgress,
+  scaled,
   sharpCorners,
   square,
   star,
@@ -142,6 +143,43 @@ describe("outlineTrack", () => {
   test("empty geometry is a structured failure, not an exception", () => {
     expect(outlineTrack([], [])).toMatchObject({ ok: false, failure: { code: "empty-geometry" } });
     expect(outlineTrack([], loop(square))).toMatchObject({ ok: false, failure: { code: "empty-geometry" } });
+  });
+
+  test("a coincident anchor (a zero-length segment) does not break the loop", () => {
+    const doubled = "M0,0L100,0L100,0L100,100L0,100Z";
+    const hexagon = "M0,0L50,0L100,0L100,100L50,100L0,100Z";
+    const r = outlineTrack(loop(doubled), loop(hexagon));
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    for (const t of runtimeProgress) {
+      const fr = r.track.frame(t);
+      // Every segment starts where the previous one ended.
+      fr.forEach((s, i) => {
+        const prev = fr[(i - 1 + fr.length) % fr.length]!;
+        expect(Math.hypot(s.p0[0] - prev.p1[0], s.p0[1] - prev.p1[1]), `continuity at ${t}`).toBeLessThan(1e-9);
+      });
+      expect(allStraight(fr)).toBe(true);
+    }
+    expect(maxDistanceToLoop(anchors(r.track.frame(0)), loop("M0,0L100,0L100,100L0,100Z"))).toBeLessThan(ENDPOINT_TOLERANCE);
+  });
+
+  test("two adjacent curves that cross away from their shared anchors are reported", () => {
+    // Both endpoints are simple two-curve loops; the pairing crosses itself
+    // at progress 0.4. A checker that skipped adjacent curves missed it.
+    const from = "M0,0 C0,125 150,25 100,0 C25,150 0,-25 0,0Z";
+    const to = "M0,0 C75,-50 0,75 100,0 C150,-25 25,-50 0,0Z";
+    const r = outlineTrack(loop(from), loop(to));
+    expect(r.ok).toBe(false);
+    if (r.ok) return;
+    expect(r.failure.code).toBe("self-intersection");
+  });
+
+  test("a self-crossing target is rejected at any scale", () => {
+    const bowTie = "M0,0L100,100L100,0L0,100Z";
+    for (const k of [1e-10, 1e-4, 1, 1e6]) {
+      const r = outlineTrack(loop(scaled(square, k)), loop(scaled(bowTie, k)));
+      expect(r.ok, `scale ${k}`).toBe(false);
+    }
   });
 });
 

@@ -1,5 +1,5 @@
 import { ArcLoop, isLine } from "../src/geometry/cubic";
-import { parsePathData } from "../src/index";
+import { parsePathData, serializePathData } from "../src/index";
 import type { Cubic, Point } from "../src/index";
 
 // Synthetic art at roughly portrait scale (a lash about 100 units wide).
@@ -50,9 +50,22 @@ const NUMBER_PAIR = /(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)/g;
 /** The same drawing moved by `dx`, `dy`. */
 export const shift = (d: string, dx: number, dy: number): string =>
   d.replace(NUMBER_PAIR, (_, x, y) => `${Number(x) + dx},${Number(y) + dy}`);
-/** The same drawing scaled about the origin by `k`. */
+/**
+ * The same drawing scaled about the origin by `k`, through the parser so
+ * every command form (`H`, `V`, arcs) scales, not only `x,y` pairs.
+ */
 export const scaled = (d: string, k: number): string =>
-  d.replace(NUMBER_PAIR, (_, x, y) => `${Number(x) * k},${Number(y) * k}`);
+  serializePathData(
+    parsePathData(d).map((s) => ({
+      closed: s.closed,
+      segments: s.segments.map((c) => ({
+        p0: [c.p0[0] * k, c.p0[1] * k] as Point,
+        c1: [c.c1[0] * k, c.c1[1] * k] as Point,
+        c2: [c.c2[0] * k, c.c2[1] * k] as Point,
+        p1: [c.p1[0] * k, c.p1[1] * k] as Point,
+      })),
+    })),
+  );
 
 export const loop = (d: string, i = 0): Cubic[] => parsePathData(d)[i]!.segments;
 

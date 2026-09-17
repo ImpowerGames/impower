@@ -1,7 +1,36 @@
-import { clamp01, closeLoop, copyLoop, dist, lerpLoops, lerpLoopsAngular, selfIntersects, signedArea, withWinding } from "../geometry/cubic";
+import {
+  ArcLoop,
+  clamp01,
+  closeLoop,
+  copyLoop,
+  dist,
+  dropZeroSegments,
+  lerpLoops,
+  lerpLoopsAngular,
+  loopExtent,
+  selfIntersects,
+  signedArea,
+  snapClosed,
+  withWinding,
+} from "../geometry/cubic";
 import type { Cubic, MorphFailure, SubpathTrack } from "../types";
 
+/**
+ * Cleans an authored loop for pairing: drops coincident anchors, snaps a
+ * seam within `seamTolerance` of the perimeter onto the start, and closes
+ * what remains. A gap wider than the tolerance becomes a closing edge.
+ */
+export function prepareLoop(raw: Cubic[], seamTolerance: number): Cubic[] {
+  const trimmed = dropZeroSegments(raw);
+  return closeLoop(snapClosed(trimmed, seamTolerance * new ArcLoop(trimmed).total));
+}
+
 export interface NodesOptions {
+  /**
+   * A nearly closed loop's ends are snapped together when within this
+   * fraction of its perimeter, so the seam never becomes an extra node.
+   */
+  seamTolerance?: number;
   /**
    * `angular` rotates each handle's direction and blends its length, so a
    * smooth node never kinks; `linear` blends handle points directly.
@@ -16,6 +45,7 @@ export interface NodesOptions {
 }
 
 export const NODES_DEFAULTS: Required<NodesOptions> = {
+  seamTolerance: 0.02,
   handles: "angular",
   checkProgress: [],
 };
@@ -42,8 +72,8 @@ export function nodesTrack(fromRaw: Cubic[], toRaw: Cubic[], options: NodesOptio
   if (!fromRaw.length || !toRaw.length) {
     return { ok: false, failure: { code: "empty-geometry", message: "both drawings need at least one segment" } };
   }
-  const from = closeLoop(fromRaw),
-    toClosed = closeLoop(toRaw);
+  const from = prepareLoop(fromRaw, o.seamTolerance),
+    toClosed = prepareLoop(toRaw, o.seamTolerance);
   if (from.length !== toClosed.length) {
     return {
       ok: false,
@@ -57,16 +87,16 @@ export function nodesTrack(fromRaw: Cubic[], toRaw: Cubic[], options: NodesOptio
   const to = withWinding(toClosed, wind);
   const reversed = to !== toClosed;
   const n = from.length;
-  let rotation = 0,
-    best = Infinity;
+  // Ties between rotations resolve to the earlier one, judged relative to
+  // the travel itself so the choice does not depend on the drawing's units.
+  const travels: number[] = [];
   for (let k = 0; k < n; k++) {
     let travel = 0;
     for (let i = 0; i < n; i++) travel += dist(from[i]!.p0, to[(i + k) % n]!.p0);
-    if (travel < best - 1e-9) {
-      best = travel;
-      rotation = k;
-    }
+    travels.push(travel);
   }
+  const least = Math.min(...travels);
+  const rotation = travels.findIndex((travel) => travel <= least + 1e-9 * Math.max(least, loopExtent(from)));
   const b = to.slice(rotation).concat(to.slice(0, rotation));
   const blend = o.handles === "angular" ? lerpLoopsAngular : lerpLoops;
   // The rest poses are the authored loops themselves, not a blend that

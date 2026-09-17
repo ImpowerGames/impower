@@ -67,6 +67,8 @@ describe("buildApertures", () => {
       return {
         from: [],
         to: [],
+        canonicalFrom: [],
+        canonicalTo: [],
         n1: 1,
         thickness: 1,
         frame: () => [],

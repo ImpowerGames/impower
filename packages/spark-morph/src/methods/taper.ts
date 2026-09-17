@@ -3,10 +3,13 @@ import {
   chainToPolyline,
   clamp01,
   copyLoop,
+  cubicKnots,
   dist,
+  dropZeroSegments,
   evalCubic,
   fitCubic,
   lerpLoops,
+  loopExtent,
   loopToPolyline,
   polylineLoop,
   reverseLoop,
@@ -189,6 +192,7 @@ export function smoothAnchors(loop: Cubic[], maxDegrees = 25): Cubic[] {
   // |dirOut - dirIn| is 2cos(theta / 2) for the angle theta between the
   // outgoing handle and the reversed incoming one; collinear handles give 2.
   const minSpread = 2 * Math.cos((maxDegrees * Math.PI) / 360);
+  const tiny = 1e-9 * loopExtent(loop);
   for (let i = 0; i < n; i++) {
     const P = loop[i]!.p0,
       pi = (i - 1 + n) % n;
@@ -196,7 +200,7 @@ export function smoothAnchors(loop: Cubic[], maxDegrees = 25): Cubic[] {
     const hOut: Point = [loop[i]!.c1[0] - P[0], loop[i]!.c1[1] - P[1]];
     const lIn = Math.hypot(hIn[0], hIn[1]),
       lOut = Math.hypot(hOut[0], hOut[1]);
-    if (lIn < 1e-6 || lOut < 1e-6) continue;
+    if (lIn <= tiny || lOut <= tiny) continue;
     let tx = hOut[0] / lOut - hIn[0] / lIn,
       ty = hOut[1] / lOut - hIn[1] / lIn;
     const tl = Math.hypot(tx, ty);
@@ -297,11 +301,24 @@ export function canonicalTaper(
       const reach = Math.hypot(Vx, Vy);
       let h = DD < 1e-9 ? chord / 3 : ((8 / 3) * (Vx * Dx + Vy * Dy)) / DD;
       h = Math.max(chord * 0.05, Math.min(h, Math.max(chord, reach) * 4));
-      out.push({
+      // Handles that reach past each other tie a hairline knot inside the
+      // tip; shorten them until the tip curve is simple.
+      const tipCubic = (len: number): Cubic => ({
         p0: P0,
-        c1: [P0[0] + dA[0] * h, P0[1] + dA[1] * h],
-        c2: [P3[0] + dB[0] * h, P3[1] + dB[1] * h],
+        c1: [P0[0] + dA[0] * len, P0[1] + dA[1] * len],
+        c2: [P3[0] + dB[0] * len, P3[1] + dB[1] * len],
         p1: P3,
+      });
+      let tip = tipCubic(h);
+      for (let guard = 0; guard < 12 && h > chord * 0.05 && cubicKnots(tip); guard++) {
+        h *= 0.8;
+        tip = tipCubic(h);
+      }
+      out.push({
+        p0: tip.p0,
+        c1: tip.c1,
+        c2: tip.c2,
+        p1: tip.p1,
       });
     } else {
       const pts: Point[] = [];
@@ -465,14 +482,77 @@ export const flankAimWeight = (t: number): number => Math.sin(Math.PI * t) ** 2;
 /** Weight of the authored art in the handoff blend: full at the rest poses. */
 export const handoffWeight = (t: number): number => Math.cos(Math.PI * t) ** 2;
 
+/**
+ * Shortens a curve's handles, both together, until the curve no longer
+ * loops through itself. A tip curve whose handles reach past each other
+ * ties a hairline knot; the rib and flank moves can create one mid-morph
+ * even when both rest poses are simple.
+ */
+export function unknot(c: Cubic): Cubic {
+  let cur = c;
+  for (let guard = 0; guard < 12 && cubicKnots(cur); guard++) {
+    cur = {
+      p0: cur.p0,
+      c1: [cur.p0[0] + (cur.c1[0] - cur.p0[0]) * 0.8, cur.p0[1] + (cur.c1[1] - cur.p0[1]) * 0.8],
+      c2: [cur.p1[0] + (cur.c2[0] - cur.p1[0]) * 0.8, cur.p1[1] + (cur.c2[1] - cur.p1[1]) * 0.8],
+      p1: cur.p1,
+    };
+  }
+  return cur;
+}
+
 /** A canonical frame before any handoff blend. */
 export function canonicalFrame(a: Cubic[], b: Cubic[], t: number): Cubic[] {
   const n1 = Math.floor((a.length - 4) / 2);
   const raw = ribInterpolate(lerpLoops(a, b, t), a, b, t);
-  return lerpLoops(raw, alignFlanks(raw, n1), flankAimWeight(t));
+  const frame = lerpLoops(raw, alignFlanks(raw, n1), flankAimWeight(t));
+  for (const idx of [0, 2 + n1]) if (idx < frame.length) frame[idx] = unknot(frame[idx]!);
+  return frame;
+}
+
+/**
+ * Picks the target's canonical loop from the candidates. Among candidates
+ * whose score reaches `thicknessRatio` (they reconstruct the target, do
+ * not self-intersect and hold thickness) the one whose anchors travel
+ * least from `a` wins: a pairing that trades sides can inflate the
+ * mid-morph area, so the largest ratio is not the right pick. When none
+ * holds thickness the least-pinching one is kept, so the failure reports
+ * how close it came. Ties fall to the earlier candidate.
+ */
+export function selectCandidate(
+  a: Cubic[],
+  candidates: Cubic[][],
+  score: (b: Cubic[]) => number,
+  thicknessRatio: number,
+): { candidate: Cubic[]; score: number; travel: number } {
+  const travelOf = (b: Cubic[]) => a.reduce((sum, s, i) => sum + dist(s.p0, b[i]!.p0), 0);
+  let best = candidates[0]!,
+    bestS = score(best),
+    bestTravel = travelOf(best);
+  for (const cand of candidates.slice(1)) {
+    const s = score(cand),
+      travel = travelOf(cand);
+    const candHolds = s >= thicknessRatio,
+      bestHolds = bestS >= thicknessRatio;
+    const tie = 1e-9 * Math.max(bestTravel, loopExtent(a));
+    const better = candHolds && bestHolds ? travel < bestTravel - tie : candHolds !== bestHolds ? candHolds : s > bestS;
+    if (better) {
+      best = cand;
+      bestS = s;
+      bestTravel = travel;
+    }
+  }
+  return { candidate: best, score: bestS, travel: bestTravel };
 }
 
 export interface TaperTrack extends SubpathTrack {
+  /**
+   * The canonical endpoint loops (two tip cubics plus the body anchors).
+   * `from` and `to` inherited from the track share the frames' topology,
+   * which with the handoff on is a polyline.
+   */
+  canonicalFrom: Cubic[];
+  canonicalTo: Cubic[];
   /** Body anchors per edge in the canonical loops. */
   n1: number;
   /** The canonical frame (six-ish anchors, curved) at `progress`. */
@@ -503,8 +583,10 @@ export function taperTrack(fromRaw: Cubic[], toRaw: Cubic[], options: TaperOptio
     return { ok: false, failure: { code: "empty-geometry", message: "both drawings need at least one segment" } };
   }
   const anchors = Math.max(6, o.anchors);
-  const fromArt = snapClosed(fromRaw, o.seamTolerance * new ArcLoop(fromRaw).total),
-    toArt = snapClosed(toRaw, o.seamTolerance * new ArcLoop(toRaw).total);
+  const fromTrim = dropZeroSegments(fromRaw),
+    toTrim = dropZeroSegments(toRaw);
+  const fromArt = snapClosed(fromTrim, o.seamTolerance * new ArcLoop(fromTrim).total),
+    toArt = snapClosed(toTrim, o.seamTolerance * new ArcLoop(toTrim).total);
   const open = smoothAnchors(fromArt),
     closed = smoothAnchors(toArt);
   const minFold = (o.tipFoldDegrees * Math.PI) / 180;
@@ -553,27 +635,13 @@ export function taperTrack(fromRaw: Cubic[], toRaw: Cubic[], options: TaperOptio
     const lo = Math.min(area(a), area(b)) || 1;
     return Math.min(...[0.25, 0.5, 0.75].map((tt) => area(canonicalFrame(a, b, tt)) / lo));
   };
-  const travelOf = (b: Cubic[]) => a.reduce((sum, s, i) => sum + dist(s.p0, b[i]!.p0), 0);
   const candidates: Cubic[][] = [canonicalTaper(closed, anchors, tipPx, wind, tipsClosed)];
   for (const ref of [tipsOpen.p1, tipsOpen.p2]) {
     for (const w of [wind, -wind]) candidates.push(canonicalTaper(closed, anchors, tipPx, w, tipsClosed, ref));
   }
-  let best = candidates[0]!,
-    bestS = score(best),
-    bestTravel = travelOf(best);
-  for (const cand of candidates.slice(1)) {
-    const s = score(cand),
-      travel = travelOf(cand);
-    const candHolds = s >= o.thicknessRatio,
-      bestHolds = bestS >= o.thicknessRatio;
-    const better = candHolds && bestHolds ? travel < bestTravel - 1e-9 : candHolds !== bestHolds ? candHolds : s > bestS;
-    if (better) {
-      best = cand;
-      bestS = s;
-      bestTravel = travel;
-    }
-  }
-  const b = best;
+  const chosen = selectCandidate(a, candidates, score, o.thicknessRatio);
+  const b = chosen.candidate,
+    bestS = chosen.score;
   const n1 = canonLayout(anchors).n1;
   if (bestS <= -2) {
     return {
@@ -638,9 +706,22 @@ export function taperTrack(fromRaw: Cubic[], toRaw: Cubic[], options: TaperOptio
     const e2 = [T2, ...chainToPolyline(fr.slice(3 + n1), inner), T1];
     return [e1, e2.reverse()];
   };
+  // `from` and `to` share the frames' topology: with the handoff on they
+  // are the rest-pose polylines, otherwise the canonical loops themselves.
   return {
     ok: true,
-    track: { from: a, to: b, frame, canonical, tips, edges, n1, thickness: bestS },
+    track: {
+      from: O && C ? frame(0) : a,
+      to: O && C ? frame(1) : b,
+      canonicalFrom: a,
+      canonicalTo: b,
+      frame,
+      canonical,
+      tips,
+      edges,
+      n1,
+      thickness: bestS,
+    },
   };
 }
 

@@ -1,19 +1,25 @@
 import {
   anchorFractions,
   clamp01,
-  closeLoop,
   copyLoop,
   dist,
   lerpLoops,
   lerpLoopsAngular,
+  loopExtent,
   resampleAtFractions,
   selfIntersects,
   signedArea,
   withWinding,
 } from "../geometry/cubic";
 import type { Cubic, MorphFailure, SubpathTrack } from "../types";
+import { prepareLoop } from "./nodes";
 
 export interface OutlineOptions {
+  /**
+   * A nearly closed loop's ends are snapped together when within this
+   * fraction of its perimeter, so the seam never becomes an extra anchor.
+   */
+  seamTolerance?: number;
   /**
    * How many corner-to-corner alignments to evaluate fully per winding,
    * after ranking every alignment by a cheap travel estimate.
@@ -31,6 +37,7 @@ export interface OutlineOptions {
 }
 
 export const OUTLINE_DEFAULTS: Required<OutlineOptions> = {
+  seamTolerance: 0.02,
   alignments: 8,
   minGap: 0.004,
   handles: "angular",
@@ -72,8 +79,8 @@ export function outlineTrack(fromRaw: Cubic[], toRaw: Cubic[], options: OutlineO
   if (!fromRaw.length || !toRaw.length) {
     return { ok: false, failure: { code: "empty-geometry", message: "both drawings need at least one segment" } };
   }
-  const a = closeLoop(fromRaw),
-    toClosed = closeLoop(toRaw);
+  const a = prepareLoop(fromRaw, o.seamTolerance),
+    toClosed = prepareLoop(toRaw, o.seamTolerance);
   const wind = Math.sign(signedArea(a)) || 1;
   const pa = anchorFractions(a);
   const blend = o.handles === "angular" ? lerpLoopsAngular : lerpLoops;
@@ -88,7 +95,8 @@ export function outlineTrack(fromRaw: Cubic[], toRaw: Cubic[], options: OutlineO
     }
     let travel = 0;
     for (let k = 0; k < aOut.length; k++) travel += dist(aOut[k]!.p0, bOut[k]!.p0);
-    if (!best || travel < best.travel - 1e-9) best = { aOut, bOut, travel, phase };
+    // Ties fall to the earlier candidate, judged relative to the travel.
+    if (!best || travel < best.travel - 1e-9 * Math.max(best.travel, loopExtent(a))) best = { aOut, bOut, travel, phase };
   };
   for (const opposite of [false, true]) {
     const b = withWinding(toClosed, opposite ? -wind : wind);

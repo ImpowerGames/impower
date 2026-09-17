@@ -160,7 +160,7 @@ function makeAperture(A: EdgeTrack, B: EdgeTrack, points: number): Aperture {
     const ox = mB[0] - mA[0],
       oy = mB[1] - mA[1],
       olen = Math.hypot(ox, oy);
-    const closed = olen <= 1e-9 * Math.max(1, farthest);
+    const closed = farthest <= 0 || olen <= 1e-9 * farthest;
     const dir: Point = closed ? [0, 0] : [ox / olen, oy / olen];
     const top: Point[] = [],
       bottom: Point[] = [];
