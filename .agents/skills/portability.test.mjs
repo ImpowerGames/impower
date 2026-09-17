@@ -87,5 +87,16 @@ for (const { name } of reviewerModels) {
   assert.match(generatedReviewer, /configured reviewer route/i, name);
 }
 const instructions = fs.readFileSync(path.join(root, "AGENTS.md"), "utf8");
-for (const rule of ["Never use the shared Git stash", "type in the creation call", "editor capability", "paginated API", "one writer per file", "1024 MB", "scratch repository"]) assert.ok(instructions.includes(rule), rule);
-console.log(`PASS: ${skills.length} shared skills, forbidden-reference mutation controls, review contracts and generated runner configuration`);
+for (const rule of ["Never use the shared Git stash", "type in the creation call", "editor capability", "paginated API", "one writer per file", "1024 MB", "scratch repository", "review-spec-engineering/SKILL.md", "review-spec-experience/SKILL.md"]) assert.ok(instructions.includes(rule), rule);
+// The spec review contract: the anchoring and follow-up rules, the report and
+// adjudication headings, and the round default and cap, pinned across the
+// shared reference, the reviewer prompt and both skill entrypoints.
+const specFiles = [".agents/skills/references/spec-review.md", ".agents/skills/references/spec-review-prompt.md", ".agents/skills/review-spec-engineering/SKILL.md", ".agents/skills/review-spec-experience/SKILL.md"];
+const specText = specFiles.map((file) => fs.readFileSync(path.join(root, file), "utf8")).join("\n");
+const specContracts = ["A finding is accepted only when it states one of", "quoting the ticket text", "named peer system and its source", "proposed follow-up ticket", "forecloses it later", "### Spec review — <lens> (<model>)", "### Spec adjudication — round", "One round by default", "the cap is two", "never resets the count", "Never edit a ticket while a reviewer runs", "Two reviewers by default", "distinct from the writer", "Reviewers read the frozen bodies"];
+const specErrors = (text) => specContracts.filter((rule) => !text.includes(rule));
+assert.deepEqual(specErrors(specText), []);
+for (const rule of specContracts) assert.deepEqual(specErrors(specText.replaceAll(rule, "")), [rule], "spec mutation: " + rule);
+assert.ok(!/\$\d/.test(specText), "spec skill positional substitution must not corrupt reviewer prompts");
+for (const skill of ["review-spec-engineering", "review-spec-experience"]) assert.ok(fs.readFileSync(path.join(root, ".agents/skills", skill, "SKILL.md"), "utf8").includes("(../references/spec-review.md)"), skill + " links the shared reference");
+console.log(`PASS: ${skills.length} shared skills, forbidden-reference mutation controls, review and spec review contracts and generated runner configuration`);

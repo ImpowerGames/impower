@@ -15,7 +15,17 @@ What goes where:
 - Scope: what is in, what is out, and what existing code, branch, or ticket is reused, with `file:line` references at a specific commit where that helps.
 - Implementation plan: steps in pipeline order (parser, compiler, engine, player, editor, extension), one bullet per step naming the package. Decisions, not code; a snippet only where it captures a decision more precisely than prose (a type shape, a state machine).
 - Acceptance criteria: checkboxes a reviewer can tick: the tests that exist and what they prove, what the running editor shows, what a measurement reads.
-- Additional context: the prior tickets, the docs chapter to update, the slices if it was split. If the interview produced a draft document, embed it here under a `<details>` block and name it the design of record; a slice then moves it into the repo.
+- Additional context: the prior tickets, the docs chapter to update, the slices if it was split, and the spec reviews that apply: `review-spec-engineering` for every sliced feature, and `review-spec-experience` when a language, interface or player surface changes. If the interview produced a draft document, embed it here under a `<details>` block and name it the design of record; a slice then moves it into the repo.
+
+Each new editor or extension element gets a block under Proposed solution that the experience review checks mechanically, with the four items the interview settled:
+
+```
+Interface element: Morph pause toggle
+- Location: the preview top bar, right of the scrub controls
+- Trigger: a click, or the preview menu's Pause motion item
+- States: off (motion plays, the default); on (motion frozen at the rest pose); no empty or loading state because it needs no data; hidden when the project declares no morph
+- Failure view: when the player refuses the pause flag, the toggle returns to off and the preview status line says why
+```
 
 Strip the template's HTML comments. Write "Open" under a heading that is still undecided rather than deleting it.
 

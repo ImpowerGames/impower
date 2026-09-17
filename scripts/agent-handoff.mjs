@@ -7,6 +7,7 @@ import { withJob,retryBusy,git,failureDetails } from './review-job-store.mjs';
 import { verifyCodexReviewResult,validateCodexReviewer,verifyReviewerExecutable } from './native-reviewer.mjs';
 import {nativeReviewerEnvironment,protectPrivatePath,nativeCodexArgs} from './reviewer-security.mjs';
 import { resolveReviewer, applyResolvedReviewer } from "./reviewer-defaults.mjs";
+import { readSnapshot, DIGEST } from "./spec-snapshot.mjs";
 
 const read = (file) => JSON.parse(fs.readFileSync(file, "utf8"));
 const gitHead = (cwd) => git(cwd,['rev-parse','HEAD']);
@@ -14,13 +15,16 @@ const gitStatus = (cwd) => git(cwd,['status','--porcelain']);
 export const configuredRoute = (value) => value.replace(/\[[^\]]+\]$/, "");
 const readReviewComment = (id, cwd) => JSON.parse(execFileSync("gh", ["api", `repos/ImpowerGames/impower/issues/comments/${id}`], { cwd, encoding: "utf8", windowsHide: true }));
 
-export async function verifyReviewComment(id, pr, head, cwd, { readComment = readReviewComment, wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms)), attempts = 6, notBefore } = {}) {
+// A report verifies when it sits on the reviewed pull request or issue and
+// carries its marker: the reviewed head SHA for a pull request, the snapshot
+// digest for a spec review. GitHub serves both through the issues endpoint.
+export async function verifyReviewComment(id, number, marker, cwd, { readComment = readReviewComment, wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms)), attempts = 6, notBefore, target = "PR", markerName = "head" } = {}) {
   for (let attempt = 1; attempt <= attempts; attempt++) {
     let comment;try{comment=readComment(id,cwd);}catch(error){if(attempt===attempts)throw error;}
-    if (comment?.issue_url === `https://api.github.com/repos/ImpowerGames/impower/issues/${pr}` && typeof comment.body==='string'&&comment.body.includes(head) && (notBefore===undefined||Number.isFinite(Date.parse(comment.created_at))&&Date.parse(comment.created_at)>=Math.floor(Date.parse(notBefore)/1000)*1000)) return;
+    if (comment?.issue_url === `https://api.github.com/repos/ImpowerGames/impower/issues/${number}` && typeof comment.body==='string'&&comment.body.includes(marker) && (notBefore===undefined||Number.isFinite(Date.parse(comment.created_at))&&Date.parse(comment.created_at)>=Math.floor(Date.parse(notBefore)/1000)*1000)) return;
     if (attempt < attempts) await wait(1000);
   }
-  throw new Error(notBefore===undefined?"Comment does not verify this PR and head":`Comment does not verify this PR/head and current reviewer launch time ${notBefore}`);
+  throw new Error(notBefore===undefined?`Comment does not verify this ${target} and ${markerName}`:`Comment does not verify this ${target}/${markerName} and current reviewer launch time ${notBefore}`);
 }
 
 export function checkReviewRound(round, completedRound, finalCorrections, reviewRoundLimit = 3) {
@@ -38,13 +42,15 @@ export function verifyNativeReviewResult(output,format='claude-json') {
   if(result.type!=='result'||result.subtype!=='success'||result.is_error!==false||result.stop_reason!=='end_turn')throw new Error('Native reviewer failed or interrupted');
 }
 
-export function validateReviewRecovery(config) {
-  const limit=config.reviewRoundLimit??3;
+// The autonomous cap is three rounds for a pull request and two for a spec
+// review; a plan may raise it only with the user's recorded authorization.
+export function validateReviewRecovery(config, autonomousLimit = 3) {
+  const limit=config.reviewRoundLimit??autonomousLimit;
   if(!Number.isInteger(limit)||limit<1||limit>10)throw new Error('reviewRoundLimit must be an integer from 1 through 10');
-  if(limit>3&&(typeof config.extendedReviewAuthorization!=='string'||!config.extendedReviewAuthorization.trim()))throw new Error('Rounds beyond 3 require explicit user authorization in extendedReviewAuthorization');
-  if(limit<=3&&config.extendedReviewAuthorization!==undefined)throw new Error('extendedReviewAuthorization is only valid when reviewRoundLimit exceeds 3');
+  if(limit>autonomousLimit&&(typeof config.extendedReviewAuthorization!=='string'||!config.extendedReviewAuthorization.trim()))throw new Error(`Rounds beyond ${autonomousLimit} require explicit user authorization in extendedReviewAuthorization`);
+  if(limit<=autonomousLimit&&config.extendedReviewAuthorization!==undefined)throw new Error(`extendedReviewAuthorization is only valid when reviewRoundLimit exceeds ${autonomousLimit}`);
   if(!Number.isInteger(config.completedReviewRound)||config.completedReviewRound<0||config.completedReviewRound>limit)throw new Error(`Supply completedReviewRound from 0 through ${limit}, including on recovery`);
-  if((config.completedReviewRound===limit&&typeof config.finalCorrections!=='boolean')||(config.finalCorrections!==undefined&&typeof config.finalCorrections!=='boolean')||(config.finalCorrections&&config.completedReviewRound<3))throw new Error(`Supply finalCorrections from the journal for recovery at round 3 or later; round-${limit} recovery requires it`);
+  if((config.completedReviewRound===limit&&typeof config.finalCorrections!=='boolean')||(config.finalCorrections!==undefined&&typeof config.finalCorrections!=='boolean')||(config.finalCorrections&&config.completedReviewRound<autonomousLimit))throw new Error(`Supply finalCorrections from the journal for recovery at round ${autonomousLimit} or later; round-${limit} recovery requires it`);
   if(config.completedReviewRound>0&&!/^[a-f0-9]{40}$/.test(config.reviewedHead??''))throw new Error('Supply reviewedHead from the journal when recovering a review round');
 }
 
@@ -65,20 +71,38 @@ export function validateNativeReviewArgs(review) {
 export async function runHandoff(configFile, { slotRoot, identifyProcess = processIdentity, automaticJob } = {}) {
   const config = read(configFile);
   if (config.continuation) throw new Error('Automatic continuation requires review-supervisor capability preflight');
+  const target = config.target ?? "pr";
+  if (!["pr", "issue"].includes(target)) throw new Error('Plan target must be "pr" (the default) or "issue"');
   const cwd = fs.realpathSync.native(config.worktree);
+  const outside = (file) => { const relative = path.relative(cwd, path.resolve(file)); return relative.startsWith(".." + path.sep) || path.isAbsolute(relative); };
   const journal = path.resolve(config.journal);
-  const relative = path.relative(cwd, journal);
-  if (!relative.startsWith(".." + path.sep) && !path.isAbsolute(relative)) throw new Error("Journal must be outside the worktree");
+  if (!outside(journal)) throw new Error("Journal must be outside the worktree");
+  // A spec review plan reviews a frozen snapshot of an issue and its slices;
+  // its reports are verified by the snapshot digest instead of a head SHA, and
+  // it launches no implementation step.
+  let snapshotDigest = null;
+  if (target === "issue") {
+    if (config.pr !== undefined) throw new Error("A spec review plan names its issue in `issue`; remove `pr`");
+    if (!Number.isSafeInteger(config.issue) || config.issue < 1) throw new Error("A spec review plan needs a positive issue number");
+    if (typeof config.snapshot !== "string" || !path.isAbsolute(config.snapshot)) throw new Error("A spec review plan needs an absolute snapshot path");
+    if (!outside(config.snapshot)) throw new Error("Snapshot must be outside the worktree");
+    const snapshot = readSnapshot(config.snapshot);
+    if (snapshot.parent !== config.issue) throw new Error(`Snapshot ${config.snapshot} is of #${snapshot.parent}, not #${config.issue}`);
+    snapshotDigest = snapshot.digest;
+  } else if (config.issue !== undefined || config.snapshot !== undefined || config.reviewedSnapshotDigest !== undefined) throw new Error('issue, snapshot and reviewedSnapshotDigest apply only to a plan with target "issue"');
   const selection = resolveReviewer(config, cwd);
   config.reviewer = selection.reviewer;
   if (!config.writer || !config.reviewer || configuredRoute(config.writer) === configuredRoute(config.reviewer)) throw new Error("Supply distinct writer and reviewer model routes");
   if (selection.resolved) for (const [name, step] of Object.entries(config.steps)) if (step.role === "review") config.steps[name] = applyResolvedReviewer(step, selection);
   const reviewerRow = selection.resolved ? { reviewerEffort: selection.reviewerEffort, reviewerResolved: { writerEffort: config.writerEffort, ticketEffort: selection.ticketEffort, fallback: selection.fallback, index: selection.index } } : {};
-  const reviewRoundLimit = config.reviewRoundLimit ?? 3;
-  validateReviewRecovery(config);
+  const autonomousLimit = target === "issue" ? 2 : 3;
+  const reviewRoundLimit = config.reviewRoundLimit ?? autonomousLimit;
+  validateReviewRecovery(config, autonomousLimit);
+  if (target === "issue" && config.completedReviewRound > 0 && !DIGEST.test(config.reviewedSnapshotDigest ?? "")) throw new Error("Supply reviewedSnapshotDigest from the journal when recovering a spec review round");
   if (!Number.isInteger(config.maxSteps) || config.maxSteps < 1 || config.maxSteps > 30) throw new Error("maxSteps must be 1..30");
   if (fs.existsSync(journal)) throw new Error("Journal exists; inspect recorded process and completion before authoring a recovery plan");
   for (const step of Object.values(config.steps)) {
+    if (target === "issue" && step.role === "implement") throw new Error("A spec review plan has no implementation step; ticket edits happen outside the launcher");
     if(step.nativeResult!==undefined&&!['claude-json','codex-jsonl'].includes(step.nativeResult))throw new Error('Unsupported native reviewer result transport');
     if(step.nativeResult==='codex-jsonl') {
       validateCodexReviewer(step,{reviewer:config.reviewer,worktree:cwd,jobDir:path.dirname(journal)});
@@ -110,6 +134,7 @@ export async function runHandoff(configFile, { slotRoot, identifyProcess = proce
   let current = config.first;
   let completedRound = config.completedReviewRound;
   let reviewedHead = config.reviewedHead ?? null;
+  let reviewedSnapshotDigest = config.reviewedSnapshotDigest ?? null;
   let finalCorrections = config.finalCorrections ?? false;
   let activeChild;
   const usedReports=new Set();
@@ -129,17 +154,18 @@ export async function runHandoff(configFile, { slotRoot, identifyProcess = proce
       if (step.role === "review") checkReviewRound(step.round, completedRound, finalCorrections, reviewRoundLimit);
       const head = gitHead(cwd), status = gitStatus(cwd);
       if (status) throw new Error("Handoff requires a clean committed worktree");
-      if (step.role === "review" && step.round === completedRound && head !== reviewedHead) throw new Error("A pending lens in the same round requires the recorded reviewed head; corrections need a new round");
+      if (step.role === "review" && step.round === completedRound && (head !== reviewedHead || snapshotDigest !== reviewedSnapshotDigest)) throw new Error(target === "issue" ? "A pending lens in the same round requires the recorded reviewed head and snapshot digest; an edited ticket needs a new round" : "A pending lens in the same round requires the recorded reviewed head; corrections need a new round");
       const artifacts = fs.mkdtempSync(path.join(path.dirname(journal), `handoff-${index}-${step.role}-`));
       if(step.nativeResult==='codex-jsonl')protectPrivatePath(artifacts);
       const writable=step.nativeResult==='codex-jsonl'?fs.realpathSync.native(fs.mkdtempSync(path.join(path.dirname(journal),`completion-${index}-`))):artifacts;
       const completion = path.join(writable, "completion.json");
       const output = path.join(artifacts, "process.log");
-      const prompt = fs.readFileSync(step.prompt, "utf8") + `\n\nHandoff contract: role=${step.role}, configured model=${step.model}, reviewed head=${head}. Write ${completion} with the editor tool as JSON: {"head":"<actual HEAD>","next":"<declared transition or null>","commentIds":[<numeric GitHub comment IDs>],"summary":"<result>"}. Allowed next steps: ${JSON.stringify(step.next)}. Review and adjudication must post their complete report/dispositions before completion; include those IDs. Do not mark ready or merge. Do not modify repository files during review.\n`;
+      const prompt = fs.readFileSync(step.prompt, "utf8") + `\n\nHandoff contract: role=${step.role}, configured model=${step.model}, reviewed head=${head}${snapshotDigest ? `, reviewed snapshot=${snapshotDigest}` : ""}. Write ${completion} with the editor tool as JSON: {"head":"<actual HEAD>","next":"<declared transition or null>","commentIds":[<numeric GitHub comment IDs>],"summary":"<result>"}. Allowed next steps: ${JSON.stringify(step.next)}. Review and adjudication must post their complete report/dispositions before completion; include those IDs. Do not mark ready or merge. Do not modify repository files during review.\n`;
       const diagnostics=step.nativeResult?path.join(artifacts,'stderr.log'):output;
       const args=step.nativeResult==='codex-jsonl'?nativeCodexArgs(step,writable):step.args;
       const reportNotBefore=new Date().toISOString();
-      append({ event: "launching", index, step: current, role: step.role, model: step.model, ...(step.role === "review" ? reviewerRow : {}), round: step.round, completedRound, reviewedHead, finalCorrections, head, output, diagnostics, completion, args,reportNotBefore });
+      const targetRow = target === "issue" ? { target, issue: config.issue, snapshotDigest } : { target };
+      append({ event: "launching", index, step: current, role: step.role, model: step.model, ...(step.role === "review" ? reviewerRow : {}), ...targetRow, round: step.round, completedRound, reviewedHead, ...(target === "issue" ? { reviewedSnapshotDigest } : {}), finalCorrections, head, output, diagnostics, completion, args,reportNotBefore });
       const log = fs.openSync(output, "wx");
       let stderr;
       try{stderr=diagnostics===output?log:fs.openSync(diagnostics,'wx');}catch(error){fs.closeSync(log);throw error;}
@@ -222,16 +248,17 @@ export async function runHandoff(configFile, { slotRoot, identifyProcess = proce
       if (step.role !== "implement" && !done.commentIds.length) throw new Error("Review/adjudication needs posted comment IDs");
       for (const id of done.commentIds) {
         if(automaticJob&&usedReports.has(id))throw new Error('Each automatic reviewer requires distinct report IDs');
-        await verifyReviewComment(id, config.pr, done.head, cwd,{notBefore:automaticJob?reportNotBefore:undefined});
+        if (target === "issue") await verifyReviewComment(id, config.issue, snapshotDigest, cwd, { notBefore: automaticJob ? reportNotBefore : undefined, target: "issue", markerName: "snapshot digest" });
+        else await verifyReviewComment(id, config.pr, done.head, cwd,{notBefore:automaticJob?reportNotBefore:undefined});
         usedReports.add(id);
       }
       if (gitStatus(cwd)) throw new Error("Role left uncommitted work");
       if (step.role === "review") {
         if (step.round > completedRound) finalCorrections = false;
-        completedRound = step.round; reviewedHead = head;
+        completedRound = step.round; reviewedHead = head; reviewedSnapshotDigest = snapshotDigest;
       }
       if (step.role !== "review" && completedRound === reviewRoundLimit && done.head !== reviewedHead) finalCorrections = true;
-      append({ head:done.head,next:done.next,commentIds:done.commentIds,summary:done.summary,event: "completed", index, step: current, completedRound, reviewedHead, finalCorrections });
+      append({ head:done.head,next:done.next,commentIds:done.commentIds,summary:done.summary,event: "completed", index, step: current, completedRound, reviewedHead, ...(target === "issue" ? { reviewedSnapshotDigest } : {}), finalCorrections });
       current = done.next;
     }
     append({ event: "finished" });
