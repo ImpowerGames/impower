@@ -28,19 +28,24 @@ export const mentionedIssues = (body) => [...new Set([...normalize(body).matchAl
 const ticketOf = (issue) => ({ number: issue.number, title: issue.title, type: issue.type?.name ?? null, state: issue.state, updatedAt: issue.updated_at, body: normalize(issue.body), bodyDigest: bodyDigest(issue.body) });
 
 // The slices are every issue the parent mentions whose body says
-// `Split from #<parent>`, plus any named slice the parent omits; a named
-// number that is not such a slice is refused rather than silently included.
+// `Split from #<parent>`, plus any named ticket: one the parent lists as a
+// slice without that phrase (a language-wide task the feature ships with) or
+// one the parent omits. A named number unrelated to the parent is refused.
 export function takeSnapshot({ parent, slices = [], fetchIssue = ghIssue }) {
   if (!Number.isSafeInteger(parent) || parent < 1) throw new Error("Supply the parent issue number");
   if (!Array.isArray(slices) || !slices.every((number) => Number.isSafeInteger(number) && number > 0 && number !== parent)) throw new Error("Slices must be positive issue numbers other than the parent");
   const parentIssue = fetchIssue(parent);
   if (!isIssue(parentIssue, parent)) throw new Error(`#${parent} is not an issue`);
+  const mentioned = mentionedIssues(parentIssue.body);
   const found = [];
-  for (const number of [...new Set([...mentionedIssues(parentIssue.body), ...slices])].filter((candidate) => candidate !== parent).sort((a, b) => a - b)) {
+  for (const number of [...new Set([...mentioned, ...slices])].filter((candidate) => candidate !== parent).sort((a, b) => a - b)) {
     const issue = fetchIssue(number);
     const named = slices.includes(number);
     if (!isIssue(issue, number)) { if (named) throw new Error(`#${number} is not an issue`); continue; }
-    if (!splitFrom(issue, parent)) { if (named) throw new Error(`#${number} does not say "Split from #${parent}"; only the parent and its slices are reviewed`); continue; }
+    if (!splitFrom(issue, parent)) {
+      if (!named) continue;
+      if (!mentioned.includes(number) && !mentionedIssues(issue.body).includes(parent)) throw new Error(`#${number} is not a slice of #${parent}: it neither says "Split from #${parent}", nor is listed by the parent, nor mentions it`);
+    }
     found.push(issue);
   }
   const tickets = [parentIssue, ...found].map(ticketOf);

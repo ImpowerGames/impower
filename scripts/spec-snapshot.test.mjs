@@ -17,6 +17,8 @@ const issues = {
   904: { number: 904, title: "A pull request", state: "open", updated_at: "2026-09-02T00:00:00Z", pull_request: { url: "pull" }, body: "Split from #900 in a pull request body." },
   905: { number: 905, title: "Unmentioned slice", state: "open", updated_at: "2026-09-16T21:16:43Z", type: { name: "Task" }, body: "Split from #900. A language-wide task the parent forgot to list." },
   906: { number: 906, title: "Another parent's slice", state: "open", updated_at: "2026-09-03T00:00:00Z", type: { name: "Task" }, body: "Split from #1900. A different parent." },
+  907: { number: 907, title: "Language-wide task", state: "open", updated_at: "2026-09-16T13:35:19Z", type: { name: "Task" }, body: "Accept percentage keys in keyframes. Needed by the morph block of #900." },
+  908: { number: 908, title: "Unrelated", state: "open", updated_at: "2026-09-04T00:00:00Z", type: { name: "Task" }, body: "A ticket with no relation to the parent." },
 };
 const fetched = [];
 const fetchIssue = (number) => { fetched.push(number); const issue = issues[number]; if (!issue) throw new Error(`no issue ${number}`); return structuredClone(issue); };
@@ -34,8 +36,8 @@ assert.equal(takeSnapshot({ parent: 900, fetchIssue }).digest, snapshot.digest, 
 const added = takeSnapshot({ parent: 900, slices: [905], fetchIssue });
 assert.deepEqual(added.tickets.map((ticket) => ticket.number), [900, 901, 902, 905], "a named slice the parent omits is added");
 assert.notEqual(added.digest, snapshot.digest);
-assert.throws(() => takeSnapshot({ parent: 900, slices: [903], fetchIssue }), /does not say "Split from #900"/);
-assert.throws(() => takeSnapshot({ parent: 900, slices: [906], fetchIssue }), /does not say "Split from #900"/);
+assert.deepEqual(takeSnapshot({ parent: 900, slices: [903, 907], fetchIssue }).tickets.map((ticket) => ticket.number), [900, 901, 902, 903, 907], "a named ticket the parent lists, or that mentions the parent, is a slice without the split phrase");
+assert.throws(() => takeSnapshot({ parent: 900, slices: [908], fetchIssue }), /#908 is not a slice of #900/, "a named ticket unrelated to the parent is refused");
 assert.throws(() => takeSnapshot({ parent: 900, slices: [904], fetchIssue }), /not an issue/);
 assert.throws(() => takeSnapshot({ parent: 904, fetchIssue }), /not an issue/);
 assert.throws(() => takeSnapshot({ parent: 900, slices: [900], fetchIssue }), /other than the parent/);
@@ -81,4 +83,4 @@ assert.throws(() => parseArgs(["900", file, "--bogus"]), /Unknown argument/);
 const cli = spawnSync(process.execPath, [script, "900", "relative.json"], { encoding: "utf8", windowsHide: true });
 assert.equal(cli.status, 1);
 assert.match(cli.stderr, /absolute/);
-console.log("PASS: slice discovery by Split from, named additions, digest determinism and sensitivity, refused edits and duplicates, and CLI argument checks");
+console.log("PASS: slice discovery by Split from, named slices the parent lists or omits, refused unrelated numbers, digest determinism and sensitivity, refused edits and duplicates, and CLI argument checks");
