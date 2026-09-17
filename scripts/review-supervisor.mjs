@@ -33,9 +33,6 @@ export function validateReviewPlan(input,{validateArgs=validateNativeReviewArgs}
   plan.worktree=fs.realpathSync.native(plan.worktree);plan.jobDir=path.resolve(plan.jobDir);
   plan.commonGit=git(plan.worktree,['rev-parse','--path-format=absolute','--git-common-dir']);
   if(!/^[a-f0-9]{40}$/.test(plan.head??'')||!/^[a-f0-9]{40}$/.test(plan.base??''))throw new Error('Full frozen head and base required');
-  // A spec review of an issue runs through the awaited launcher only; this
-  // route's freeze, claim and continuation are bound to a pull request.
-  if(plan.target!==undefined)throw new Error('The supervised route reviews pull requests only; a spec review runs through the awaited launcher');
   if(!Number.isSafeInteger(plan.pr)||plan.pr<1||!plan.writer||!plan.reviewer||configuredRoute(plan.writer)===configuredRoute(plan.reviewer))throw new Error('PR and distinct explicit model routes required');
   if(!plan.destination||!plan.destination.threadId||!plan.destination.turnId||!plan.destination.cwd)throw new Error('Originating destination identity required');
   if(!plan.writerEffort||!plan.permissions||!Array.isArray(plan.reviews)||plan.reviews.length<1||plan.reviews.length>4)throw new Error('Exact routing, permissions and bounded coverage required');

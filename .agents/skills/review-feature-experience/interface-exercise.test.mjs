@@ -36,7 +36,7 @@ const gaps = reviewability([{ number: 570, body: partial }]);
 assert.equal(gaps.reviewable, false);
 assert.deepEqual(gaps.elements[0].missing, ["States", "Failure view"]);
 assert.match(reviewabilityReport(gaps), /Not reviewable: Morph pause toggle \(declared in #570\) lacks States, Failure view\./);
-assert.match(reviewabilityReport(gaps), /stop the exercise there/);
+assert.match(reviewabilityReport(gaps), /ask the maintainer for the missing items/);
 const none = reviewability([{ number: 565, body: prose }]);
 assert.equal(none.reviewable, null, "no declared and no named element is undetermined, not reviewable");
 assert.deepEqual(none.elements, []);
@@ -66,21 +66,31 @@ assert.equal((record.match(/^### Task \d/gm) || []).length, 4, "the four require
 assert.equal((record.match(new RegExp(`^\\| Step \\| ${COLUMNS.join(" \\| ")} \\|$`, "gm")) || []).length, 4, "each task carries the three columns");
 assert.match(record, /third column is a finding/);
 
-const snapshotFile = path.join(scratch, "snapshot.json");
-fs.writeFileSync(snapshotFile, JSON.stringify({ version: 1, parent: 565, tickets: [{ number: 565, body: prose }, { number: 570, body: partial }] }));
+// Live issues are read through an injected fetch here; the command line uses gh.
+const fetched = [];
+const fetchIssue = (number) => { fetched.push(number); return number === 570 ? partial : prose; };
+const live = main(["check", "--issue", "565", "--issue", "570"], { fetchIssue });
+assert.deepEqual(fetched, [565, 570]);
+assert.equal(live.status, 1);
+assert.match(live.output, /Not reviewable: Morph pause toggle \(declared in #570\) lacks States, Failure view\./);
+assert.equal(main(["check", "--issue", "570", "--element", "morph pause toggle"], { fetchIssue }).output.split("\n").length, 2, "a named element a ticket declares is not listed twice");
+assert.throws(() => main(["check", "--issue", "abc"], { fetchIssue }), /Unknown argument/);
+
 const ticketFile = path.join(scratch, "ticket.md");
 fs.writeFileSync(ticketFile, complete);
+const partialFile = path.join(scratch, "partial.md");
+fs.writeFileSync(partialFile, partial);
 const proseFile = path.join(scratch, "prose.md");
 fs.writeFileSync(proseFile, prose);
-for (const script of [path.join(here, "interface-exercise.mjs"), path.join(root, ".claude", "skills", "review-spec-experience", "interface-exercise.mjs")]) {
+for (const script of [path.join(here, "interface-exercise.mjs"), path.join(root, ".claude", "skills", "review-feature-experience", "interface-exercise.mjs")]) {
   const run = (...args) => spawnSync(process.execPath, [script, ...args], { encoding: "utf8", windowsHide: true });
-  const check = run("check", snapshotFile);
+  const check = run("check", proseFile, partialFile);
   assert.equal(check.status, 1, script + "\n" + check.stderr);
-  assert.match(check.stdout, /Not reviewable: Morph pause toggle \(declared in #570\) lacks States, Failure view\./);
+  assert.match(check.stdout, /Not reviewable: Morph pause toggle \(declared in partial\.md\) lacks States, Failure view\./);
   const good = run("check", ticketFile);
   assert.equal(good.status, 0, good.stderr);
   assert.match(good.stdout, /Reviewable: Morph pause toggle \(declared in ticket\.md\)/);
-  const named = run("check", snapshotFile, "--element", "preview pause toggle");
+  const named = run("check", proseFile, "--element", "preview pause toggle");
   assert.equal(named.status, 1);
   assert.match(named.stdout, /named, not declared in any ticket/);
   const absent = run("check", path.join(scratch, "absent.md"));
@@ -95,8 +105,11 @@ for (const script of [path.join(here, "interface-exercise.mjs"), path.join(root,
   const usage = run("record");
   assert.equal(usage.status, 2);
   assert.match(usage.stderr, /Usage/);
+  const noSource = run("check");
+  assert.equal(noSource.status, 2);
+  assert.match(noSource.stderr, /Usage/);
 }
 assert.throws(() => main(["check"]), /Usage/);
 assert.throws(() => main(["bogus"]), /Usage/);
 assert.throws(() => main(["check", "x", "--flag"]), /Unknown argument/);
-console.log("PASS: declared elements and their missing items, prose-only elements, fenced and heading boundaries, the four-task three-column record, and the CLI through the canonical path and a discovery link");
+console.log("PASS: declared elements and their missing items, prose-only elements, fenced and heading boundaries, the four-task three-column record, live issues through an injected fetch, and the CLI through the canonical path and a discovery link");

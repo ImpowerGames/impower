@@ -87,16 +87,16 @@ for (const { name } of reviewerModels) {
   assert.match(generatedReviewer, /configured reviewer route/i, name);
 }
 const instructions = fs.readFileSync(path.join(root, "AGENTS.md"), "utf8");
-for (const rule of ["Never use the shared Git stash", "type in the creation call", "editor capability", "paginated API", "one writer per file", "1024 MB", "scratch repository", "review-spec-engineering/SKILL.md", "review-spec-experience/SKILL.md"]) assert.ok(instructions.includes(rule), rule);
-// The spec review contract: the anchoring and follow-up rules, the report and
-// adjudication headings, and the round default and cap, pinned across the
-// shared reference, the reviewer prompt and both skill entrypoints.
-const specFiles = [".agents/skills/references/spec-review.md", ".agents/skills/references/spec-review-prompt.md", ".agents/skills/review-spec-engineering/SKILL.md", ".agents/skills/review-spec-experience/SKILL.md"];
-const specText = specFiles.map((file) => fs.readFileSync(path.join(root, file), "utf8")).join("\n");
-const specContracts = ["A finding is accepted only when it states one of", "quoting the ticket text", "named peer system and its source", "proposed follow-up ticket", "forecloses it later", "### Spec review — <lens> (<model>)", "### Spec adjudication — round", "One round by default", "the cap is two", "never resets the count", "Never edit a ticket while a reviewer runs", "Two reviewers by default", "distinct from the writer", "Reviewers read the frozen bodies"];
-const specErrors = (text) => specContracts.filter((rule) => !text.includes(rule));
-assert.deepEqual(specErrors(specText), []);
-for (const rule of specContracts) assert.deepEqual(specErrors(specText.replaceAll(rule, "")), [rule], "spec mutation: " + rule);
-assert.ok(!/\$\d/.test(specText), "spec skill positional substitution must not corrupt reviewer prompts");
-for (const skill of ["review-spec-engineering", "review-spec-experience"]) assert.ok(fs.readFileSync(path.join(root, ".agents/skills", skill, "SKILL.md"), "utf8").includes("(../references/spec-review.md)"), skill + " links the shared reference");
-console.log(`PASS: ${skills.length} shared skills, forbidden-reference mutation controls, review and spec review contracts and generated runner configuration`);
+for (const rule of ["Never use the shared Git stash", "type in the creation call", "editor capability", "paginated API", "one writer per file", "1024 MB", "scratch repository", "review-feature-engineering/SKILL.md", "review-feature-experience/SKILL.md", "fresh session of a different model"]) assert.ok(instructions.includes(rule), rule);
+// The feature review contract: independence by session model, the anchoring
+// and follow-up rules, the interview and the apply step, pinned across the
+// shared reference and both skill entrypoints.
+const featureFiles = [".agents/skills/references/feature-review.md", ".agents/skills/review-feature-engineering/SKILL.md", ".agents/skills/review-feature-experience/SKILL.md"];
+const featureText = featureFiles.map((file) => fs.readFileSync(path.join(root, file), "utf8")).join("\n");
+const featureContracts = ["Filed by <model> at <effort>", "stop and tell the user to run the skill in a session of a different model", "A finding is put to the user only when it states one of", "quoting the ticket text", "named peer system and its source", "proposed follow-up ticket", "forecloses it later", "one decision per design question", "the recommended resolution and the ticket edit it implies", "decided by default", "post the round and stop; apply nothing", "read every edited body back", "Post one comment on the parent", "File a follow-up only when the user asks"];
+const featureErrors = (text) => featureContracts.filter((rule) => !text.includes(rule));
+assert.deepEqual(featureErrors(featureText), []);
+for (const rule of featureContracts) assert.deepEqual(featureErrors(featureText.replaceAll(rule, "")), [rule], "feature review mutation: " + rule);
+for (const skill of ["review-feature-engineering", "review-feature-experience"]) assert.ok(fs.readFileSync(path.join(root, ".agents/skills", skill, "SKILL.md"), "utf8").includes("(../references/feature-review.md)"), skill + " links the shared reference");
+assert.ok(fs.readFileSync(path.join(root, ".agents/skills/file-feature/references/publishing.md"), "utf8").includes("Filed by <model> at <effort>"), "file-feature records the filing model the reviews compare against");
+console.log(`PASS: ${skills.length} shared skills, forbidden-reference mutation controls, review and feature review contracts and generated runner configuration`);

@@ -1,12 +1,13 @@
 import fs from "node:fs";
 import path from "node:path";
+import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
 // The interface exercise of the experience review. Nothing is built when a
-// design is reviewed, so the reviewer walks through an author's tasks on paper.
-// This module does the two mechanical parts: it checks that each declared
-// interface element carries the four items the walkthrough needs, and it
-// prints the per-task record the reviewer fills in.
+// design is reviewed, so the reviewing session walks through an author's tasks
+// on paper. This module does the two mechanical parts: it checks that each
+// declared interface element carries the four items the walkthrough needs, and
+// it prints the per-task record the session fills in.
 export const REQUIRED_ITEMS = ["Location", "Trigger", "States", "Failure view"];
 export const REQUIRED_TASKS = ["First use", "Everyday repeated use", "Recovering from a mistake", "Undoing or removing what the feature added"];
 export const COLUMNS = ["What the author sees", "What the author does", "What the spec leaves unspecified"];
@@ -47,11 +48,11 @@ export function interfaceElements(body) {
 
 export const missingItems = (element) => REQUIRED_ITEMS.filter((item) => !element.items[item]);
 
-// Reviewability of the interface surface across the snapshot's tickets. The
-// named elements are the ones the tickets describe only in prose; a named
-// element that no ticket declares lacks all four items. With no element at all
-// the result is undetermined: the reviewer names the elements the prose
-// describes, or reports that the feature has no interface surface.
+// Reviewability of the interface surface across the tickets. The named
+// elements are the ones the tickets describe only in prose; a named element
+// that no ticket declares lacks all four items. With no element at all the
+// result is undetermined: the session names the elements the prose describes,
+// or reports that the feature has no interface surface.
 export function reviewability(tickets, named = []) {
   const elements = [];
   for (const ticket of tickets) for (const element of interfaceElements(ticket.body)) elements.push({ ticket: ticket.number, name: element.name, items: element.items, missing: missingItems(element) });
@@ -69,7 +70,7 @@ export function reviewabilityReport(result) {
     const where = element.ticket === null ? "named, not declared in any ticket" : `declared in ${typeof element.ticket === "number" ? "#" : ""}${element.ticket}`;
     lines.push(element.missing.length ? `Not reviewable: ${element.name} (${where}) lacks ${element.missing.join(", ")}.` : `Reviewable: ${element.name} (${where}) declares its location, trigger, states and failure view.`);
   }
-  lines.push(result.reviewable ? "The interface surface is reviewable; fill the walkthrough record for each element." : "The interface surface is not reviewable; report the missing items above and stop the exercise there.");
+  lines.push(result.reviewable ? "The interface surface is reviewable; fill the walkthrough record for each element." : "The interface surface is not reviewable yet; ask the maintainer for the missing items above before the walkthrough.");
   return lines.join("\n");
 }
 
@@ -83,29 +84,35 @@ export function walkthroughRecord(name) {
   return lines.join("\n");
 }
 
-function readTickets(file) {
-  const text = fs.readFileSync(file, "utf8");
-  if (!file.endsWith(".json")) return [{ number: path.basename(file), body: text }];
-  const snapshot = JSON.parse(text);
-  if (!Array.isArray(snapshot.tickets)) throw new Error(`${file} is not a spec snapshot`);
-  return snapshot.tickets.map(({ number, body }) => ({ number, body }));
+export function ghIssueBody(number) {
+  return JSON.parse(execFileSync("gh", ["api", `repos/ImpowerGames/impower/issues/${number}`], { encoding: "utf8", windowsHide: true })).body ?? "";
 }
 
-export function main(argv) {
+// Sources are live issues (`--issue N`, read through gh) or markdown files.
+function readTickets(sources, fetchIssue) {
+  return sources.map((source) => {
+    if (source.issue !== undefined) return { number: source.issue, body: fetchIssue(source.issue) };
+    const file = path.resolve(source.file);
+    return { number: path.basename(file), body: fs.readFileSync(file, "utf8") };
+  });
+}
+
+export function main(argv, { fetchIssue = ghIssueBody } = {}) {
   const [command, ...rest] = argv;
-  const named = [], files = [];
+  const named = [], sources = [];
   for (let i = 0; i < rest.length; i++) {
     if (rest[i] === "--element" && rest[i + 1] !== undefined) named.push(rest[++i]);
+    else if (rest[i] === "--issue" && /^\d+$/.test(rest[i + 1] ?? "")) sources.push({ issue: Number(rest[++i]) });
     else if (rest[i].startsWith("-")) throw new Error(`Unknown argument ${rest[i]}`);
-    else files.push(rest[i]);
+    else sources.push({ file: rest[i] });
   }
   if (command === "check") {
-    if (files.length !== 1) throw new Error("Usage: interface-exercise.mjs check <snapshot.json or ticket.md> [--element <name>]...");
-    const result = reviewability(readTickets(path.resolve(files[0])), named);
+    if (!sources.length) throw new Error("Usage: interface-exercise.mjs check (--issue <number> | <ticket.md>)... [--element <name>]...");
+    const result = reviewability(readTickets(sources, fetchIssue), named);
     return { output: reviewabilityReport(result), status: result.reviewable ? 0 : 1 };
   }
   if (command === "record") {
-    if (!named.length || files.length) throw new Error("Usage: interface-exercise.mjs record --element <name> [--element <name>]...");
+    if (!named.length || sources.length) throw new Error("Usage: interface-exercise.mjs record --element <name> [--element <name>]...");
     return { output: named.map(walkthroughRecord).join("\n"), status: 0 };
   }
   throw new Error("Usage: interface-exercise.mjs <check|record> ...");
