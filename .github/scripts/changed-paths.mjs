@@ -8,14 +8,16 @@
 // skipped, and GitHub accepts a skipped job for a required check.
 //
 // Usage: node .github/scripts/changed-paths.mjs <base-ref> <head-ref> [--limit <n>] <pattern>...
-//        node .github/scripts/changed-paths.mjs --files <list-file> [--limit <n>] <pattern>...
+//        node .github/scripts/changed-paths.mjs --files <list-file> [--count <records>] [--limit <n>] <pattern>...
 // The first form diffs two refs in the current repository (three-dot, so only
 // the head side's changes count). The second reads one changed path per line,
 // which a workflow fills from the API so it needs no deep checkout. `--limit`
-// names the listing endpoint's cap: a list that long may be incomplete, and an
-// incomplete list can only run jobs, never skip them. Prints the matches, then
-// writes `relevant=true|false` to GITHUB_OUTPUT when that variable is set, and
-// prints the same line otherwise.
+// names the listing endpoint's cap and `--count` the number of file records
+// it returned (renames contribute two paths but one record): a listing at the
+// cap may be incomplete, and an incomplete list can only run jobs, never skip
+// them. Prints the matches and a
+// `relevant=true|false` line, and appends that line to GITHUB_OUTPUT when the
+// variable is set.
 //
 // Patterns follow the workflow `paths:` filter syntax: `*` matches anything
 // except `/`, `**` matches anything including `/`, `?` and `+` mean zero-or-one
@@ -69,11 +71,17 @@ export function changedFiles(base, head, cwd = process.cwd()) {
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const [first, second, ...rest] = process.argv.slice(2);
-  let limit = Infinity;
-  if (rest[0] === "--limit") { limit = Number(rest[1]); rest.splice(0, 2); }
+  // `--count N` is the number of file records the endpoint returned, which
+  // can be smaller than the number of paths when renames list both names;
+  // it is what the cap applies to. Without it the path count is used.
+  let limit = Infinity, count;
+  while (rest[0] === "--limit" || rest[0] === "--count") {
+    if (rest[0] === "--limit") limit = Number(rest[1]); else count = Number(rest[1]);
+    rest.splice(0, 2);
+  }
   const patterns = rest;
-  if (!first || !second || !patterns.length || !(limit > 0)) {
-    console.error("usage: changed-paths.mjs (<base-ref> <head-ref> | --files <list-file>) [--limit <n>] <pattern>...");
+  if (!first || !second || !patterns.length || !(limit > 0) || (count !== undefined && !(count >= 0))) {
+    console.error("usage: changed-paths.mjs (<base-ref> <head-ref> | --files <list-file>) [--count <records>] [--limit <n>] <pattern>...");
     process.exit(2);
   }
   const files = first === "--files"
@@ -82,9 +90,9 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   const matched = relevantFiles(files, patterns);
   console.log(`${files.length} changed path(s); ${matched.length} match the workflow's patterns`);
   for (const file of matched) console.log(`  ${file}`);
-  const truncated = files.length >= limit;
-  if (truncated) console.log(`The listing may be incomplete at ${limit} entries; treating the change as relevant`);
+  const truncated = (count ?? files.length) >= limit;
+  if (truncated) console.log(`The listing may be incomplete at ${limit} records; treating the change as relevant`);
   const line = `relevant=${matched.length > 0 || truncated}`;
+  console.log(line);
   if (process.env.GITHUB_OUTPUT) fs.appendFileSync(process.env.GITHUB_OUTPUT, line + "\n");
-  else console.log(line);
 }

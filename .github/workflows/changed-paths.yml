@@ -58,19 +58,25 @@ jobs:
           PUSH_BEFORE: ${{ github.event.before }}
           PUSH_HEAD: ${{ github.sha }}
         run: |
+          records="$RUNNER_TEMP/changed.json"
           list="$RUNNER_TEMP/changed.txt"
           if [ "$EVENT" = "pull_request" ]; then
-            gh api "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER/files?per_page=100" --paginate \
-              --jq '.[] | .filename, (.previous_filename // empty)' > "$list"
+            # --slurp returns one array per page; flatten them into one list.
+            gh api "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER/files?per_page=100" --paginate --slurp \
+              | jq '[.[][]]' > "$records"
             limit=3000
           else
             case "$PUSH_BEFORE" in ""|0000000000000000000000000000000000000000)
               echo "No previous commit to compare against; treating every file as relevant"
               echo "relevant=true" >> "$GITHUB_OUTPUT"; exit 0;;
             esac
-            gh api "repos/$GITHUB_REPOSITORY/compare/$PUSH_BEFORE...$PUSH_HEAD" \
-              --jq '.files[] | .filename, (.previous_filename // empty)' > "$list"
+            gh api "repos/$GITHUB_REPOSITORY/compare/$PUSH_BEFORE...$PUSH_HEAD" --jq '.files' > "$records"
             limit=300
           fi
+          # One path per line for matching, both names of a rename; the file
+          # record count, not the line count, decides whether the listing may
+          # be incomplete.
+          count=$(jq 'length' "$records")
+          jq -r '.[] | .filename, (.previous_filename // empty)' "$records" > "$list"
           mapfile -t patterns < <(printf '%s\n' "$PATTERNS" | sed '/^[[:space:]]*$/d')
-          node .github/scripts/changed-paths.mjs --files "$list" --limit "$limit" "${patterns[@]}"
+          node .github/scripts/changed-paths.mjs --files "$list" --count "$count" --limit "$limit" "${patterns[@]}"

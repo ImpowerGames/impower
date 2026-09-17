@@ -68,26 +68,36 @@ git("add", "."); git("commit", "-q", "-m", "base");
 git("checkout", "-q", "-b", "topic");
 fs.writeFileSync(path.join(scratch, "README.md"), "docs only\n");
 git("commit", "-q", "-am", "docs");
-const run = (...patterns) => execFileSync(process.execPath, [script, "main", "topic", ...patterns], { cwd: scratch, encoding: "utf8", windowsHide: true });
+// A GitHub runner exports GITHUB_OUTPUT to every process; the CLI cases below
+// must not append to the real one, so it is removed from the child environment.
+const { GITHUB_OUTPUT: _ignored, ...cleanEnv } = process.env;
+const cli = (args, extra = {}) => execFileSync(process.execPath, [script, ...args], { cwd: scratch, encoding: "utf8", windowsHide: true, env: cleanEnv, ...extra });
+const run = (...patterns) => cli(["main", "topic", ...patterns]);
 assert.match(run("packages/**"), /relevant=false/);
 assert.match(run("**/*.md"), /relevant=true/);
 const output = path.join(scratch, "output.txt");
-execFileSync(process.execPath, [script, "main", "topic", "README.md"], { cwd: scratch, encoding: "utf8", windowsHide: true, env: { ...process.env, GITHUB_OUTPUT: output } });
+assert.match(cli(["main", "topic", "README.md"], { env: { ...cleanEnv, GITHUB_OUTPUT: output } }), /relevant=true/);
 assert.equal(fs.readFileSync(output, "utf8"), "relevant=true\n");
 const list = path.join(scratch, "files.txt");
 fs.writeFileSync(list, "README.md\r\n.agents/skills/a/SKILL.md\n\n");
-assert.match(execFileSync(process.execPath, [script, "--files", list, ".agents/**"], { cwd: scratch, encoding: "utf8", windowsHide: true }), /1 match[\s\S]*relevant=true/);
-assert.match(execFileSync(process.execPath, [script, "--files", list, "packages/**"], { cwd: scratch, encoding: "utf8", windowsHide: true }), /relevant=false/);
+assert.match(cli(["--files", list, ".agents/**"]), /1 match[\s\S]*relevant=true/);
+assert.match(cli(["--files", list, "packages/**"]), /relevant=false/);
 // A renamed file is listed under both paths by the workflow, so moving a file
 // out of a watched tree still matches the old path.
 fs.writeFileSync(list, "docs/a.md\npackages/sparkdown/src/a.ts\n");
-assert.match(execFileSync(process.execPath, [script, "--files", list, "packages/**"], { cwd: scratch, encoding: "utf8", windowsHide: true }), /relevant=true/);
+assert.match(cli(["--files", list, "packages/**"]), /relevant=true/);
 // A listing at the endpoint's cap may be incomplete and counts as relevant.
 fs.writeFileSync(list, Array.from({ length: 300 }, (_, i) => `docs/${i}.md`).join("\n") + "\n");
-assert.match(execFileSync(process.execPath, [script, "--files", list, "--limit", "300", "packages/**"], { cwd: scratch, encoding: "utf8", windowsHide: true }), /may be incomplete[\s\S]*relevant=true/);
-assert.match(execFileSync(process.execPath, [script, "--files", list, "--limit", "301", "packages/**"], { cwd: scratch, encoding: "utf8", windowsHide: true }), /relevant=false/);
+assert.match(cli(["--files", list, "--limit", "300", "packages/**"]), /may be incomplete[\s\S]*relevant=true/);
+assert.match(cli(["--files", list, "--limit", "301", "packages/**"]), /relevant=false/);
+// The cap applies to file records, not paths: 150 renames list 300 paths but
+// are 150 records, well under the compare endpoint's 300, so the listing is
+// complete and a docs-only push stays irrelevant.
+fs.writeFileSync(list, Array.from({ length: 150 }, (_, i) => `docs/new-${i}.md\ndocs/old-${i}.md`).join("\n") + "\n");
+assert.match(cli(["--files", list, "--count", "150", "--limit", "300", "packages/**"]), /relevant=false/);
+assert.match(cli(["--files", list, "--count", "300", "--limit", "300", "packages/**"]), /may be incomplete[\s\S]*relevant=true/);
 let failed = false;
-try { execFileSync(process.execPath, [script, "main"], { cwd: scratch, encoding: "utf8", windowsHide: true, stdio: "pipe" }); } catch (error) { failed = error.status === 2; }
+try { cli(["main"], { stdio: "pipe" }); } catch (error) { failed = error.status === 2; }
 assert.ok(failed, "missing arguments exit 2");
 fs.rmSync(scratch, { recursive: true, force: true });
 console.log("PASS: CLI reports relevant=true only when a changed file matches, and writes GITHUB_OUTPUT when set");
