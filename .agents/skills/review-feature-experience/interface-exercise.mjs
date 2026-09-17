@@ -10,38 +10,42 @@ import { fileURLToPath } from "node:url";
 // it prints the per-task record the session fills in.
 export const REQUIRED_ITEMS = ["Location", "Trigger", "States", "Failure view"];
 export const REQUIRED_TASKS = ["First use", "Everyday repeated use", "Recovering from a mistake", "Undoing or removing what the feature added"];
-export const COLUMNS = ["What the author sees", "What the author does", "What the spec leaves unspecified"];
+export const COLUMNS = ["What the author sees", "What the author does", "What the tickets leave unspecified"];
 
-const ELEMENT = /^\s*Interface element:\s*(.+?)\s*$/i;
-const ITEM = /^\s*[-*+]\s*(Location|Trigger|States|Failure view)\s*:\s*(.*?)\s*$/i;
+const ELEMENT = /^Interface element:\s*(.+?)\s*$/i;
+const ITEM = /^(Location|Trigger|States|Failure view)\s*:\s*(.*?)\s*$/i;
 const HEADING = /^#{1,6}\s/;
+const BULLET = /^\s*[-*+]\s+/;
+const FENCE = /^\s*(?:`{3,}|~{3,})/;
 const canonical = (label) => REQUIRED_ITEMS.find((item) => item.toLowerCase() === label.toLowerCase());
 const emptyItems = () => Object.fromEntries(REQUIRED_ITEMS.map((item) => [item, null]));
+// Bold markers and a leading bullet are decoration on the line they sit in.
+const plain = (line) => line.replace(BULLET, "").replace(/\*\*/g, "").trim();
 
 // The declared elements of one ticket body: an `Interface element: <name>`
-// line, then bullets labeled Location, Trigger, States and Failure view. A
-// heading, a paragraph after a blank line, or the next element line ends the
-// block; fenced code is skipped.
+// line, then bullets labeled Location, Trigger, States and Failure view. The
+// block may sit inside a code fence, its labels may be bold, and a label may
+// carry its text on nested bullets or continuation lines. A heading, or a
+// paragraph after a blank line, or the next element line ends the block.
 export function interfaceElements(body) {
   const elements = [];
-  let current = null, fence = null, blank = false;
-  for (const line of String(body ?? "").split(/\r?\n/)) {
-    const mark = /^\s*(`{3,}|~{3,})/.exec(line);
-    if (mark) {
-      if (!fence) fence = mark[1];
-      else if (mark[1][0] === fence[0] && mark[1].length >= fence.length) fence = null;
-      current = null;
+  let current = null, pending = null, blank = false;
+  for (const raw of String(body ?? "").split(/\r?\n/)) {
+    if (FENCE.test(raw)) continue;
+    const text = plain(raw), bulleted = BULLET.test(raw);
+    const element = ELEMENT.exec(text);
+    if (element) { current = { name: element[1], items: emptyItems() }; elements.push(current); pending = null; blank = false; continue; }
+    if (!current) continue;
+    if (!raw.trim()) { blank = true; continue; }
+    if (HEADING.test(raw)) { current = null; pending = null; blank = false; continue; }
+    const item = bulleted ? ITEM.exec(text) : null;
+    if (item) { pending = canonical(item[1]); current.items[pending] = item[2] || null; blank = false; continue; }
+    if (bulleted || !blank) {
+      if (pending && text) current.items[pending] = current.items[pending] ? `${current.items[pending]} ${text}` : text;
+      blank = false;
       continue;
     }
-    if (fence) continue;
-    const element = ELEMENT.exec(line);
-    if (element) { current = { name: element[1], items: emptyItems() }; elements.push(current); blank = false; continue; }
-    if (!current) continue;
-    if (!line.trim()) { blank = true; continue; }
-    const item = ITEM.exec(line);
-    if (item) { if (item[2]) current.items[canonical(item[1])] = item[2]; blank = false; continue; }
-    if (blank || HEADING.test(line)) current = null;
-    blank = false;
+    current = null; pending = null; blank = false;
   }
   return elements;
 }
@@ -79,13 +83,14 @@ export function reviewabilityReport(result) {
 export function walkthroughRecord(name) {
   const lines = [`## Interface walkthrough: ${name}`, "", "Every entry in the third column is a finding; so is a step that conflicts with how the existing editor works.", ""];
   REQUIRED_TASKS.forEach((task, index) => {
-    lines.push(`### Task ${index + 1}: ${task}`, "", `| Step | ${COLUMNS.join(" | ")} |`, `| --- | ${COLUMNS.map(() => "---").join(" | ")} |`, "| 1 |  |  |  |", "");
+    lines.push(`### Task ${index + 1}: ${task}`, "", `| Step | ${COLUMNS.join(" | ")} |`, `| --- | ${COLUMNS.map(() => "---").join(" | ")} |`, `| 1 |${COLUMNS.map(() => "  |").join("")}`, "");
   });
   return lines.join("\n");
 }
 
+export const ghIssueCommand = (number) => ["api", `repos/ImpowerGames/impower/issues/${number}`];
 export function ghIssueBody(number) {
-  return JSON.parse(execFileSync("gh", ["api", `repos/ImpowerGames/impower/issues/${number}`], { encoding: "utf8", windowsHide: true })).body ?? "";
+  return JSON.parse(execFileSync("gh", ghIssueCommand(number), { encoding: "utf8", windowsHide: true })).body ?? "";
 }
 
 // Sources are live issues (`--issue N`, read through gh) or markdown files.
@@ -97,25 +102,36 @@ function readTickets(sources, fetchIssue) {
   });
 }
 
+const USAGE = {
+  check: "Usage: interface-exercise.mjs check (--issue <number> | <ticket.md>)... [--element <name>]...",
+  record: "Usage: interface-exercise.mjs record --element <name> [--element <name>]...",
+};
+
 export function main(argv, { fetchIssue = ghIssueBody } = {}) {
   const [command, ...rest] = argv;
+  const usage = USAGE[command] ?? "Usage: interface-exercise.mjs <check|record> ...";
+  if (!USAGE[command]) throw new Error(usage);
   const named = [], sources = [];
   for (let i = 0; i < rest.length; i++) {
-    if (rest[i] === "--element" && rest[i + 1] !== undefined) named.push(rest[++i]);
-    else if (rest[i] === "--issue" && /^\d+$/.test(rest[i + 1] ?? "")) sources.push({ issue: Number(rest[++i]) });
-    else if (rest[i].startsWith("-")) throw new Error(`Unknown argument ${rest[i]}`);
-    else sources.push({ file: rest[i] });
+    const arg = rest[i];
+    if (arg === "--element") {
+      const value = rest[++i];
+      if (value === undefined || value.startsWith("-")) throw new Error(`${usage}; --element takes a name`);
+      named.push(value);
+    } else if (arg === "--issue") {
+      const value = rest[++i];
+      if (!/^\d+$/.test(value ?? "")) throw new Error(`${usage}; --issue takes an issue number, got ${JSON.stringify(value ?? "")}`);
+      sources.push({ issue: Number(value) });
+    } else if (arg.startsWith("-")) throw new Error(`Unknown argument ${arg}`);
+    else sources.push({ file: arg });
   }
   if (command === "check") {
-    if (!sources.length) throw new Error("Usage: interface-exercise.mjs check (--issue <number> | <ticket.md>)... [--element <name>]...");
+    if (!sources.length) throw new Error(usage);
     const result = reviewability(readTickets(sources, fetchIssue), named);
     return { output: reviewabilityReport(result), status: result.reviewable ? 0 : 1 };
   }
-  if (command === "record") {
-    if (!named.length || sources.length) throw new Error("Usage: interface-exercise.mjs record --element <name> [--element <name>]...");
-    return { output: named.map(walkthroughRecord).join("\n"), status: 0 };
-  }
-  throw new Error("Usage: interface-exercise.mjs <check|record> ...");
+  if (!named.length || sources.length) throw new Error(usage);
+  return { output: named.map(walkthroughRecord).join("\n"), status: 0 };
 }
 
 if (process.argv[1] && fs.realpathSync(process.argv[1]) === fs.realpathSync(fileURLToPath(import.meta.url))) {

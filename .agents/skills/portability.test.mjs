@@ -84,6 +84,6 @@ for (const rule of ["Never use the shared Git stash", "type in the creation call
 // properties, while the rules themselves are the editor's checklist in
 // references/skill-maintenance.md.
 for (const skill of ["review-feature-engineering", "review-feature-experience"]) assert.ok(fs.readFileSync(path.join(root, ".agents/skills", skill, "SKILL.md"), "utf8").includes("(../references/feature-review.md)"), skill + " links the shared reference");
-const filedBy = "Filed by <model> at <effort>";
+const filedBy = "Filed by <model> at reasoning effort <effort>";
 for (const file of [".agents/skills/file-feature/references/publishing.md", ".agents/skills/references/feature-review.md"]) assert.ok(fs.readFileSync(path.join(root, file), "utf8").includes(filedBy), file + " names the filing-model marker");
 console.log(`PASS: ${skills.length} shared skills, forbidden-reference mutation controls, review contracts and generated runner configuration`);

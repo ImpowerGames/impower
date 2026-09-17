@@ -12,7 +12,8 @@ The checks verify mechanical properties only (template boundaries, placeholder c
 
 Before publishing an edit to the feature review skills or their shared reference, confirm each of these is still stated where a reader following the workflow reaches it:
 
-- Independence: the session compares the ticket's `Filed by <model> at <effort>` line with its own model and stops in a same-model session; a ticket without the line asks the user which model filed it.
+- Independence: the session compares the ticket's `Filed by <model> at reasoning effort <effort>` line with its own model and stops in a same-model session; a ticket without the line asks the user which model filed it.
+- Interface exercise: the four items an element needs (location, trigger, states, failure view), the four walkthrough tasks and the record's three columns are the same in the experience skill, the interface exercise helper and the file-feature publishing reference, and the helper's check pins them.
 - Anchoring: a finding reaches the user only with a `file:line` at the named commit, a quoted scenario the tickets do not cover or contradict themselves on, or a documented comparison with a named peer system; a finding that adds capability is a proposed follow-up unless the design forecloses it.
 - Interview: findings are grouped into one decision per design question and asked in rounds with the evidence, the recommended resolution and the edit it implies; "just decide" is marked "decided by default"; an unattended session posts the round and applies nothing.
 - Apply: every edited body is read back, undecided items are marked "Open", follow-ups are filed only on request, and one summary comment on the parent names the model, the commit and what changed.

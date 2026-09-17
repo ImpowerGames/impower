@@ -6,11 +6,11 @@ The two feature review skills share everything below and differ only in the lens
 
 ## Independence
 
-Before reading the design, compare models. The ticket's Additional context records `Filed by <model> at <effort>`, which file-feature writes. Read the reviewing session's own model as the runner notes describe. In a same-model session, stop and tell the user to run the skill in a session of a different model; do not review. When the ticket has no `Filed by` line, ask the user which model filed it before going on.
+Before reading the design, compare models. The ticket's Additional context records `Filed by <model> at reasoning effort <effort>`, which file-feature writes. Read the reviewing session's own model as the [runner notes](../RUNNERS.md) describe. In a same-model session, stop and tell the user to run the skill in a session of a different model; do not review. When the ticket has no `Filed by` line, ask the user which model filed it before going on.
 
 ## What is reviewed
 
-The parent Feature and every slice Task it lists, read live from the tracker (`gh issue view N --json title,body,type`), and the code at the head of a clean, committed checkout; record that commit so every `file:line` in a finding names it. Keep the whole design in context: a finding either quotes the ticket text or cites the code.
+The parent Feature and every slice Task it lists, read live from the tracker (`gh issue view N --json title,body,issueType`), and the code at the head of a clean, committed checkout; record that commit so every `file:line` in a finding names it. Keep the whole design in context: a finding either quotes the ticket text or cites the code.
 
 ## Anchoring rule
 
@@ -22,11 +22,11 @@ A finding that adds capability is a proposed follow-up ticket with a title, neve
 
 ## The interview
 
-After the review pass, group the findings into decisions: one decision per design question, however many findings point at it. Ask in rounds, in the format of the [file-feature interview](../file-feature/references/interview.md): every question of the current frontier at once, numbered, each with its evidence in one or two sentences (the quoted ticket text or the `file:line`), the recommended resolution and the ticket edit it implies. Blocking decisions come first. Wait for the answers; a question whose answer depends on one still open belongs to the next round. Recompute the frontier after each round; the interview ends when it is empty. "Just decide" takes the recommendation, marked "decided by default" in the ticket. If the session is unattended and decisions remain open, post the round and stop; apply nothing.
+After the review pass, group the findings into decisions: one decision per design question, however many findings point at it. Ask in rounds, in the format of the [file-feature interview](../file-feature/references/interview.md): every question of the current frontier at once, numbered, each with its evidence in one or two sentences (the quoted ticket text or the `file:line`), the recommended resolution and the ticket edit it implies. Blocking decisions come first. Wait for the answers; a question whose answer depends on one still open belongs to the next round. Recompute the frontier after each round; the interview ends when it is empty. "Just decide" takes the recommendation, marked "decided by default" in the ticket. If the session is unattended and decisions remain open, post the round in the chat and stop; apply nothing, and put nothing on the ticket.
 
 ## Apply
 
-When the frontier is empty, edit the tickets: write each new body with an editor, publish it with `gh issue edit N --body-file <file>`, and read every edited body back. Keep the template headings in order; mark undeliberated choices "decided by default" and undecided ones "Open". A change to the slicing edits or files Task tickets under the file-task rules, with the user's agreement. Post one comment on the parent naming the reviewing model, the commit reviewed, each edited ticket with one line on what changed, and the follow-ups proposed with their titles. File a follow-up only when the user asks.
+When the frontier is empty, edit the tickets under the [shared publishing rules](publishing.md): write each new body with an editor, publish it with `gh issue edit N --body-file <file>`, and read every edited body back. Keep the headings of `.github/ISSUE_TEMPLATE/feature_request.md` and `task.md` in order; mark undeliberated choices "decided by default" and undecided ones "Open". A change to the slicing edits or files Task tickets through [file-task](../file-task/SKILL.md), with the user's agreement. Post one comment on the parent naming the reviewing model, the commit reviewed, each edited ticket with one line on what changed, and the follow-ups proposed with their titles. File a follow-up only when the user asks.
 
 ## Hand off
 
