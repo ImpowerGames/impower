@@ -9,7 +9,7 @@ Keep the PR draft until review, corrections and current-head CI are complete. Ne
 
 ## 1. Size the review
 
-Use one undirected reviewer for minimal low-risk changes, two for standard production changes, and three for high-impact changes with concrete compiler/runtime, incremental-state, serialization, security, or cross-package risks. Internal prose defaults to one undirected reviewer; executable workflow, permissions, recovery, or data-preservation changes use two. Select by risk, including callers, rather than line count. Always keep the undirected reviewer; combine specialist lenses within the remaining reviewers. Test honesty and repository rules apply to every reviewer. Counts exclude the writer and do not change the machine-wide four-process capacity.
+Use one undirected reviewer for minimal low-risk changes, two for standard production changes, and three for high-impact changes with concrete compiler/runtime, incremental-state, serialization, security, or cross-package risks. Internal prose defaults to one undirected reviewer; executable workflow, permissions, recovery, or data-preservation changes use two. Select by risk, including callers, rather than line count. Always keep the undirected reviewer; combine specialist lenses within the remaining reviewers. A change to Sparkdown syntax, completions, hover, diagnostics, user docs or the editor interface always includes the author-experience lens, so it needs at least two reviewers. Test honesty and repository rules apply to every reviewer. Counts exclude the writer and do not change the machine-wide four-process capacity.
 
 ## 2. Require independence
 
@@ -31,7 +31,7 @@ Every report must appear on the PR verbatim, including reports posted by the coo
 
 ## 4. Adjudicate and reverify
 
-Before handling findings, read [adjudication and readiness](references/adjudication.md). Confirm each claim in code and use experiments to resolve disagreement. Post each finding's disposition with comment ID, round and reviewed head: accepted with fix and verification, rejected with concrete evidence, or already covered with earlier IDs. Preserve superseded reports and answer the reviewer's final position.
+Before handling findings, read [adjudication and readiness](references/adjudication.md). Confirm each claim in code and use experiments to resolve disagreement. Post each finding's disposition with comment ID, round and reviewed head: accepted with fix and verification, rejected with concrete evidence, already covered with earlier IDs, or, for a non-blocking quality finding only, deferred to a filed Task. Preserve superseded reports and answer the reviewer's final position.
 
 Any code correction reopens regression and live/tooling verification. Commit by path, push and inspect CI for the new head. For cancelled or timed-out runs read [CI evidence](../resolve-issue/references/ci-evidence.md); a later pass does not explain an earlier cancellation.
 

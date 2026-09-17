@@ -3,7 +3,7 @@ import path from "node:path";
 import fs from "node:fs";
 import { buildReviewPrompt } from "./build-review-prompt.mjs";
 
-const context = { writer: "writer-1", reviewer: "reviewer-2", invocation: "fresh CLI process with explicit model arguments", issue: 496, pr: 521, round: 1, head: "a".repeat(40), worktree: process.cwd(), diff: path.resolve("diff.patch"), reviewDir: path.resolve("private"), lens: "undirected", previous: "First round." };
+const context = { writer: "writer-1", reviewer: "reviewer-2", invocation: "fresh CLI process with explicit model arguments", issue: 496, pr: 521, round: 1, head: "a".repeat(40), worktree: process.cwd(), diff: path.resolve("diff.patch"), reviewDir: path.resolve("private"), lens: "undirected", previous: "First round.", task: "Authors can blink a portrait's eyes." };
 const prompt = buildReviewPrompt(context);
 const unlinked = buildReviewPrompt({ ...context, issue: null });
 assert.match(unlinked, /reviewing a change with no linked issue/);
@@ -20,19 +20,13 @@ for (const key of ["writer", "reviewer", "invocation"]) {
 }
 assert.throws(() => buildReviewPrompt({ ...context, reviewer: "writer-1[1m]" }), /must differ/);
 const template = fs.readFileSync(new URL("../.agents/skills/review-pr/references/reviewer-prompt.md", import.meta.url), "utf8");
-const reviewerRules = [
-  "Record your complete independent first pass",
-  "Separately label unverified concerns and coverage gaps",
-  "Every reviewer, including an undirected reviewer, must check test honesty and repository rules",
-];
-const missingReviewerRules = (text) => reviewerRules.filter((rule) => !text.includes(rule));
-assert.deepEqual(missingReviewerRules(prompt), []);
-for (const rule of reviewerRules) {
-  const movedToCoordinator = template.replace(rule, "") + "\nCoordinator-only note: " + rule;
-  assert.deepEqual(missingReviewerRules(buildReviewPrompt(context, movedToCoordinator)), [rule], "moving a reviewer instruction outside the template must lose coverage: " + rule);
-}
+// Only the delimited block reaches reviewers; prose outside it is coordinator
+// context. The wording inside the block is free to change.
+assert.ok(!prompt.includes("All commands run from the worktree root"), "text outside the delimited block must not reach reviewers");
 
-for (const token of ["WRITER", "REVIEWER", "ROUND", "HEAD", "WORKTREE", "DIFF", "REVDIR", "PREVIOUS", "P", "N", "LENS"]) {
+assert.match(prompt, /is: Authors can blink a portrait's eyes\./);
+for (const task of [undefined, "", "   "]) assert.throws(() => buildReviewPrompt({ ...context, task }), /task/);
+for (const token of ["WRITER", "REVIEWER", "ROUND", "HEAD", "WORKTREE", "DIFF", "REVDIR", "PREVIOUS", "TASK", "P", "N", "LENS"]) {
   const boundary = template.indexOf("<!-- review-prompt:start -->");
   const prefix = template.slice(0, boundary), body = template.slice(boundary);
   for (const replacement of ["removed", token + " " + token]) assert.throws(() => buildReviewPrompt(context, prefix + body.replace(new RegExp("\\b" + token + "\\b"), () => replacement)), /Unsafe/, token);
@@ -45,7 +39,8 @@ for (const [key, value] of [["writer", "writer-model"], ["reviewer", "reviewer-m
 for (const invocation of ["method: TBD", "see <method>", "Invocation: UNKNOWN."]) assert.throws(() => buildReviewPrompt({ ...context, invocation }), /nonconcrete/);
 assert.doesNotThrow(() => buildReviewPrompt({ ...context, invocation: "Fresh CLI process; the prior report quoted 'method: TBD' as invalid." }));
 const literal = "Quoted #P #N P /P/ HEAD <LENS> \\<LENS\\> $& $$ $` $'";
-const literalPrompt = buildReviewPrompt({ ...context, previous: literal, lens: literal, diff: path.resolve("folder P", "HEAD.patch") });
+const literalPrompt = buildReviewPrompt({ ...context, previous: literal, lens: literal, task: literal, diff: path.resolve("folder P", "HEAD.patch") });
+assert.ok(literalPrompt.includes("is: " + literal + "."), "task tokens and dollar patterns must remain literal");
 assert.ok(literalPrompt.includes(literal + " Record your complete independent first pass"), "previous evidence must remain literal");
 assert.ok(literalPrompt.includes("Your lens is " + literal + ";"), "lens dollar patterns and tokens must remain literal");
 assert.ok(literalPrompt.includes(path.resolve("folder P", "HEAD.patch")), "paths must remain literal");

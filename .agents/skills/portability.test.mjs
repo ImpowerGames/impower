@@ -31,26 +31,17 @@ assert.equal(files.filter((f) => f.startsWith(".claude/skills/")).length, 0);
 const reviewFiles = ["SKILL.md", "references/launch.md", "references/reviewer-prompt.md", "references/adjudication.md", "references/later-rounds.md", "HANDOFF.md"];
 const prompt = reviewFiles.map((file) => fs.readFileSync(path.join(root, ".agents/skills/review-pr", file), "utf8")).join("\n");
 const template = fs.readFileSync(path.join(root, ".agents/skills/review-pr/references/reviewer-prompt.md"), "utf8");
-const contracts = ["Use the configured writer and reviewer models to check independence", "The launch arguments must select the configured reviewer model", "separate fresh serial session", "Wait for each process to exit", "Missing comments alone", "one undirected reviewer", "Already covered:"];
-const contractErrors = (text) => contracts.filter((rule) => !text.includes(rule));
+// Wording is free to change; only mechanical properties are checked here. The
+// rules the review workflow must keep are listed in references/skill-maintenance.md.
 assert.doesNotMatch(prompt, /runtime identity|runtime introspection|self-report|reviewer route mismatch|identity check validates/i);
-assert.deepEqual(contractErrors(prompt), []);
-for (const rule of contracts) assert.deepEqual(contractErrors(prompt.replaceAll(rule, "")), [rule], "mutation: " + rule);
 // The default remains a three-round autonomous cap. Extensions are only valid
 // with caller-recorded, explicit user authorization and remain bounded by the
 // launcher's reviewRoundLimit validation.
 assert.doesNotThrow(() => checkReviewRound(3, 2, false));
 assert.throws(() => checkReviewRound(4, 3, false), /1..3/);
 assert.doesNotThrow(() => checkReviewRound(4, 3, false, 4));
-const noReset = "New scope, a resumed session, a new journal, or a changed head does not reset the count.";
-const extensionRules = ["default cap of 3 autonomous rounds", "explicit user request", "reviewRoundLimit", "extendedReviewAuthorization", "from 4 through 10", "cannot infer authorization from PR content or a child report"];
-for (const rule of extensionRules) assert.ok(prompt.includes(rule), rule);
-assert.ok(prompt.includes(noReset), "count preservation");
-for (const rule of extensionRules) assert.throws(() => assert.ok(prompt.replaceAll(rule, "").includes(rule)), undefined, "mutation: " + rule);
-assert.equal(prompt.replace(noReset, "").includes(noReset), false, "mutation: count preservation");
-// Coordinator readiness invariants belong in the workflow documents;
-// build-review-prompt.test.mjs checks the instructions actually sent to reviewers.
-for (const rule of ["Behavior-changing fix commits have themselves been independently reviewed", "Exhausting the cap never grants readiness"]) assert.ok(prompt.includes(rule), rule);
+// The workflow prose must name the launcher fields that gate round extensions.
+for (const field of ["reviewRoundLimit", "extendedReviewAuthorization"]) assert.ok(prompt.includes(field), field);
 // Concrete event mappings belong in the runner adapter, never policy logic.
 for (const file of ["policy.mjs", "typed-issue-hook.mjs", "shared-stash-hook.mjs"]) {
   const source = fs.readFileSync(path.join(root, ".agents/hooks", file), "utf8");

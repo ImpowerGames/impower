@@ -15,6 +15,9 @@ Then dispose of every finding where it lives, on the PR. Adjudicate every commen
 - Accepted: fixed, with the commit SHA and verification.
 - Rejected: the concrete reason and evidence, including a claim not confirmed at its cited location.
 - Already covered: the earlier finding, adjudication ID and fix that cover it.
+- Deferred: the Task number filed for it with the file-task skill, and why the PR is ready without it.
+
+Reviewers report at two tiers. A defect is answered only by acceptance or rejection. A quality finding (correct code that costs someone later) may instead be deferred, but only when its severity is `should-fix` or `optional`, the consequence the reviewer named is real, and fixing it would widen the PR beyond its issue; a quality finding that is cheap to fix in place is accepted and fixed. A `blocking` severity, whichever tier it was reported under, keeps the PR draft until it is fixed or rejected with evidence. A quality finding that names no consequence has not met the reporting bar; reject it on that ground and say so.
 
 Adjudicate late or out-of-order reports against current HEAD. For each finding, state whether it remains live, is already fixed (name the commit and verification), or is no longer applicable (explain the current code). Name the commits between that report's reviewed head and current HEAD that the reviewer did not see. Preserve the report and its original round; arrival order does not change coverage or reset the stopping rule. A live finding that needs a code change follows [later-round rules](later-rounds.md) before editing.
 
@@ -36,7 +39,7 @@ Marking the PR ready means this diff is finished and ready to be reviewed by a h
 
 - Every reviewer you spawned has exited, and every required reviewer has supplied a usable report for the recorded frozen head.
 - Every report is on the PR, including the ones you posted on a reviewer's behalf (see [launch procedure](launch.md)).
-- Every finding is adjudicated in your adjudication comment, accepted, rejected, or already covered, with nothing left unanswered.
+- Every finding is adjudicated in your adjudication comment, accepted, rejected, already covered, or deferred to a filed Task under the conditions above, with nothing left unanswered.
 - Every fix you made in response is committed, pushed, and re-verified as above, and the last push is on the PR.
 - No required lens is missing or outstanding from an aborted or retried attempt (see [independence](../SKILL.md)).
 - Behavior-changing fix commits have themselves been independently reviewed under [later-round rules](later-rounds.md). Only verified non-behavioral corrections qualify for its disclosed exception.
