@@ -124,6 +124,7 @@ const STRUCTURAL_TYPE_BY_NODE: Partial<Record<SparkdownNodeName, string>> = {
   LuauComponent: "component",
   LuauAnimation: "animation",
   LuauTheme: "theme",
+  LuauMorph: "morph",
 };
 
 // `[[open hud]]` / `[[close hud]]` — the directive's target is a SCREEN name, so

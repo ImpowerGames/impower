@@ -9,6 +9,7 @@ import { default_graphic } from "./constructors/default_graphic";
 import { default_image } from "./constructors/default_image";
 import { default_layered_image } from "./constructors/default_layered_image";
 import { default_layout } from "./constructors/default_layout";
+import { default_morph } from "./constructors/default_morph";
 import { default_shadow } from "./constructors/default_shadow";
 import { default_style } from "./constructors/default_style";
 import { default_theme } from "./constructors/default_theme";
@@ -1344,6 +1345,9 @@ export const uiBuiltinDefinitions = () => ({
       },
     }),
   } as Record<string, ReturnType<typeof default_animation>>,
+  morph: {
+    $default: default_morph(),
+  } as Record<string, ReturnType<typeof default_morph>>,
   transition: {
     $default: default_transition(),
     fade: default_transition({

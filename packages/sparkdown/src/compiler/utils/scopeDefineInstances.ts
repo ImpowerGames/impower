@@ -45,6 +45,22 @@ export function scopeDefineInstances(
     if (
       obj instanceof VariableAssignment &&
       obj.isDefineDeclaration &&
+      obj.structuralDefine &&
+      !(skip && skip.has(obj))
+    ) {
+      // A structural block (`animation`/`theme`/`morph`) whose name another
+      // block names as its `as` parent keeps the bare global, so the child's
+      // `__def` resolves its parent; every other one stays scoped under its
+      // keyword type.
+      collect?.add(obj);
+      const { type, name } = obj.structuralDefine;
+      const desired = typeNames.has(name) ? name : `$${type}_${name}`;
+      if (obj.identifier?.name !== desired) {
+        obj.identifier = new Identifier(desired);
+      }
+    } else if (
+      obj instanceof VariableAssignment &&
+      obj.isDefineDeclaration &&
       obj.structDefinition &&
       !(skip && skip.has(obj))
     ) {
