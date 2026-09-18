@@ -1,6 +1,6 @@
 ---
 name: review-feature-engineering
-description: Adversarially review a filed Feature and its slice Tasks against the code and against the plan itself, agree the corrections with the maintainer in an interview, and apply them to the tickets. Run in a fresh session of a different model than the one that filed the feature, after file-feature and before resolve-issue starts on the first slice.
+description: Adversarially review a filed Feature and its slice Tasks against the code and against the plan itself, agree the corrections with the maintainer in an interview, and apply them to the tickets. Use only when the maintainer asks for this review; it runs in a fresh session of a different model than the one that filed the feature, before resolve-issue starts on the first slice.
 ---
 
 # Review a feature's engineering design
