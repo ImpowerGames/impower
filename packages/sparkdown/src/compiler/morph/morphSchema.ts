@@ -103,7 +103,7 @@ export const MORPH_FIELD_DOCS: Record<string, string> = {
     "What happens to a shape with no usable morph pair: `fade` (default), `cut` or `scale`.",
   layers: "Per-label overrides of `blend`, `method` and `fallback`, keyed by artwork layer label.",
   keyframes:
-    "The poses, as `-` items with an `offset` or as position keys (`from:`, `50%:`, `to:`). Each pose holds containers such as `eyes:` with a `state` and layer properties.",
+    "The poses, as `-` items with an `offset` or as position keys (`from:`, `50%:`, `to:`). Each pose holds containers such as `eyes:` with a `state` and layer properties. As in CSS keyframes, a pose that leaves a group or property out moves between the nearest poses that set it, and a first or last pose that leaves it out uses the image's resting value there.",
   timing: "When and how often the morph plays.",
   clips:
     "Apertures cut from the facing edges of `between` layers and applied to the `targets` layers.",

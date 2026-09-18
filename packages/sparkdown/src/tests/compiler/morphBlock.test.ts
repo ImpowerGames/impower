@@ -816,6 +816,30 @@ describe("morph binding", () => {
     expect(found[0]!.message).toContain("image `bunny`: it has no `mouth` group");
   });
 
+  test("a first keyframe that leaves a group out starts from each variant's own rest, as in CSS", () => {
+    const text = `morph blink with
+  method = bend
+  keyframes:
+    from:
+      nose:
+        translate = 0 0
+    50%:
+      eyes:
+        state = closed
+    to:
+      nose:
+        translate = 0 0
+end
+
+[[bunny~eyes.closed]]
+`;
+    const binding = bindingOf(text, [{ name: "bunny", svg: WIDE }]);
+    expect(binding.requirements.rest.has("eyes")).toBe(false);
+    const closed = binding.candidates[0]!.variants.find((v) => v.name === "bunny~eyes.closed")!;
+    expect(closed.status).toBe("active");
+    expect(closed.rest["eyes"]).toEqual({ root: "closed" });
+  });
+
   test("candidates are found by group before full compatibility", () => {
     const binding = bindingOf(SIMPLE_BLINK, [{ name: "raffles", svg: NO_CLOSED }]);
     expect(binding.candidates.map((c) => [c.image, c.compatible])).toEqual([["raffles", false]]);

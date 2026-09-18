@@ -19,9 +19,11 @@ export interface MorphRequirements {
   /** Groups some keyframe sets a `state` for, with every state it names. */
   groups: Map<string, Set<string>>;
   /**
-   * The state each group rests in: the one the first keyframe gives it, if
+   * The state each group starts from: the one the first keyframe gives it, if
    * the first keyframe gives it one. A variant resting in another state is
-   * left alone.
+   * left alone. A first keyframe that leaves the group out starts from the
+   * variant's own resting state, as a CSS keyframe that omits a property
+   * starts from the element's underlying value, so it constrains nothing.
    */
   rest: Map<string, string>;
   /** Layer labels the morph names: `layers:` keys, clip labels, posed layers. */
