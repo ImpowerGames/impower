@@ -69,7 +69,7 @@ export function validateReviewPlan(input,{validateArgs=validateNativeReviewArgs}
   return plan;
 }
 export async function createReviewJob(input,host,{verifyExecutable=verifyReviewerExecutable,...validation}={}) {
-  const plan=validateReviewPlan(input,validation);plan.jobId=randomUUID();plan.continuationId=randomUUID();
+  const plan=validateReviewPlan(input,validation);plan.jobId=randomUUID();plan.continuationId=randomUUID();plan.terminalContinuationId=randomUUID();
   for(const review of plan.reviews)verifyExecutable(review);
   // The adapter validates private storage containment and exact host identity.
   const capability=await host.preflight(plan.destination,plan);
@@ -137,36 +137,48 @@ function terminalEnvelope(dir,plan,rows) {
   const failure=state==='blocked'?last(rows,'blocked'):(last(rows,'worker-finished')?.ok===false?last(rows,'worker-finished'):last(rows,'worker-launch-failed'));
   const reason=failure?.reason??failure?.message??`Review launcher reached ${state}`;
   const journal=path.join(dir,'handoff.jsonl');
-  return {version:1,jobId:plan.jobId,continuationId:plan.continuationId,destination:{threadId:plan.destination.threadId,turnId:plan.destination.turnId,cwd:plan.destination.cwd},head:plan.head,base:plan.base,round:plan.round,authorizedAction:'inspect-blocked-review',state,reason,journal,jobDir:dir,nextRequiredAction:`Inspect ${journal} and the job logs, preserve recorded process identities, and recover or resume from durable state without launching a duplicate reviewer.`};
+  return {version:1,jobId:plan.jobId,continuationId:plan.terminalContinuationId,destination:{threadId:plan.destination.threadId,turnId:plan.destination.turnId,cwd:plan.destination.cwd},head:plan.head,base:plan.base,round:plan.round,authorizedAction:'inspect-blocked-review',state,reason,journal,jobDir:dir,nextRequiredAction:`Inspect ${journal} and the job logs, preserve recorded process identities, and check status before acting. Recover only a confirmed-dead monitor; release only confirmed-stopped reviewer ownership. Do not resume a failed reviewer or launch a duplicate reviewer.`};
 }
-async function advanceTerminalNotification(dir,host) {
+async function advanceDelivery(dir,host,{plan,envelope,rows,outstanding,accepted,maySubmit,assertAdmission=()=>{},intent,response,refused,uncertain,acceptedEvent,failpoint=()=>{}}) {
+  if(!outstanding(rows)) {
+    const state=await host.inspect(plan.destination,plan);
+    if(state.state==='disconnected'||state.state==='unknown'){await observation(dir,state.reason??`Originating lifecycle ${state.state}`);return transaction(dir,current=>current);}
+    if(!['idle','active'].includes(state.state))throw new Error('Originating destination unavailable');
+    await failpoint('before-submit');
+    let request,admissionError;
+    try {
+      await transaction(dir,current=>{
+        if(request||accepted(current)||outstanding(current)||!maySubmit(current))return;
+        assertAdmission(current);
+        appendEvent(dir,intent,{envelope});
+        // One admission lock covers durable intent and invocation. Keep the
+        // promise locally even if the lock's finally subsequently fails.
+        try{request=Promise.resolve(host.submit(envelope));}catch(error){request=Promise.reject(error);}
+        request.catch(()=>{});
+      });
+    }catch(error){admissionError=error;}
+    if(request) {
+      try{const receipt=await request;await failpoint('after-submit');await transaction(dir,()=>appendEvent(dir,receipt?.status==='not-sent'?refused:response,{receipt}));}
+      catch(error){await transaction(dir,()=>appendEvent(dir,uncertain,{reason:error.message}));}
+    }
+    if(admissionError)throw admissionError;
+  }
+  rows=await transaction(dir,current=>current);
+  if(outstanding(rows)&&!accepted(rows)) {
+    let receipt;try{receipt=await host.reconcile(envelope,plan);}catch(error){if(error.permanentObservationFailure)throw error;await observation(dir,error.message);return transaction(dir,current=>current);}
+    if(receipt.status==='accepted'&&typeof receipt.turnId==='string'&&receipt.turnId)await transaction(dir,current=>{if(!accepted(current))appendEvent(dir,acceptedEvent,{turnId:receipt.turnId});});
+  }
+  return transaction(dir,current=>current);
+}
+async function advanceTerminalNotification(dir,host,{failpoint=()=>{}}={}) {
   const plan=readJson(path.join(dir,'plan.json'));let rows=await transaction(dir,current=>current);
   if(last(rows,'terminal-notification-accepted'))return true;
   let envelope=last(rows,'terminal-notification-pending')?.envelope;
   if(!envelope){envelope=terminalEnvelope(dir,plan,rows);if(!envelope)return false;await transaction(dir,current=>{if(!last(current,'terminal-notification-pending'))appendEvent(dir,'terminal-notification-pending',{envelope});});}
   rows=await transaction(dir,current=>current);
-  if(!terminalSubmissionOutstanding(rows)) {
-    const state=await host.inspect(plan.destination,plan);
-    if(state.state==='disconnected'||state.state==='unknown'){await observation(dir,state.reason??`Originating lifecycle ${state.state}`);return false;}
-    if(!['idle','active'].includes(state.state))throw new Error('Originating destination unavailable');
-    let request,admissionError;
-    try {
-      await transaction(dir,current=>{
-        if(request||last(current,'terminal-notification-accepted')||terminalSubmissionOutstanding(current)||!['blocked','review-failed'].includes(jobStatus(dir,current).state))return;
-        assertJobFreeze(plan,dir);assertFrozen(plan);
-        appendEvent(dir,'terminal-submission-intent',{envelope});
-        try{request=Promise.resolve(host.submit(envelope));}catch(error){request=Promise.reject(error);}request.catch(()=>{});
-      });
-    }catch(error){admissionError=error;}
-    if(request){try{const receipt=await request;await transaction(dir,()=>appendEvent(dir,receipt?.status==='not-sent'?'terminal-dispatch-refused':'terminal-submission-response',{receipt}));}catch(error){await transaction(dir,()=>appendEvent(dir,'terminal-delivery-uncertain',{reason:error.message}));}}
-    if(admissionError)throw admissionError;
-  }
-  rows=await transaction(dir,current=>current);
-  if(terminalSubmissionOutstanding(rows)&&!last(rows,'terminal-notification-accepted')) {
-    let accepted;try{accepted=await host.reconcile(envelope,plan);}catch(error){if(error.permanentObservationFailure)throw error;await observation(dir,error.message);return false;}
-    if(accepted.status==='accepted'&&typeof accepted.turnId==='string'&&accepted.turnId)await transaction(dir,current=>{if(!last(current,'terminal-notification-accepted'))appendEvent(dir,'terminal-notification-accepted',{turnId:accepted.turnId});});
-  }
-  return Boolean(last(await transaction(dir,current=>current),'terminal-notification-accepted'));
+  await failpoint('after-validation');
+  rows=await advanceDelivery(dir,host,{plan,envelope,rows,outstanding:terminalSubmissionOutstanding,accepted:current=>Boolean(last(current,'terminal-notification-accepted')),maySubmit:current=>['blocked','review-failed'].includes(jobStatus(dir,current).state),intent:'terminal-submission-intent',response:'terminal-submission-response',refused:'terminal-dispatch-refused',uncertain:'terminal-delivery-uncertain',acceptedEvent:'terminal-notification-accepted',failpoint});
+  return Boolean(last(rows,'terminal-notification-accepted'));
 }
 export async function runReviewWorker(dir,{slotRoot}={}) {
   const plan=readJson(path.join(dir,'plan.json'));
@@ -221,34 +233,7 @@ export async function advanceReviewJob(dir,host,{identify=processIdentity,failpo
   if(!envelope)return jobStatus(dir);
   await failpoint('after-validation');
   rows=await transaction(dir,current=>current);
-  if(!submissionOutstanding(rows)) {
-    const state=await host.inspect(plan.destination,plan);
-    if(state.state==='disconnected'||state.state==='unknown'){await observation(dir,state.reason??`Originating lifecycle ${state.state}`);return jobStatus(dir);}
-    if(!['idle','active'].includes(state.state))throw new Error('Originating destination unavailable');
-    await failpoint('before-submit');
-    let request,admissionError;
-    try {
-      await transaction(dir,current=>{
-        if(request||terminal(current)||submissionOutstanding(current))return;
-        assertJobFreeze(plan,dir);assertFrozen(plan);
-        appendEvent(dir,'submission-intent',{envelope});
-        // One admission lock covers durable intent and invocation. Keep the
-        // promise locally even if the lock's finally subsequently fails.
-        try{request=Promise.resolve(host.submit(envelope));}catch(error){request=Promise.reject(error);}
-        request.catch(()=>{});
-      });
-    }catch(error){admissionError=error;}
-    if(request) {
-      try{const receipt=await request;await failpoint('after-submit');await transaction(dir,()=>appendEvent(dir,receipt?.status==='not-sent'?'dispatch-refused':'submission-response',{receipt}));}
-      catch(error){await transaction(dir,()=>appendEvent(dir,'delivery-uncertain',{reason:error.message}));}
-    }
-    if(admissionError)throw admissionError;
-  }
-  rows=await transaction(dir,current=>current);
-  if(submissionOutstanding(rows)&&!last(rows,'continuation-accepted')) {
-    let accepted;try{accepted=await host.reconcile(envelope,plan);}catch(error){if(error.permanentObservationFailure)throw error;await observation(dir,error.message);return jobStatus(dir);}
-    if(accepted.status==='accepted'&&typeof accepted.turnId==='string'&&accepted.turnId)await transaction(dir,current=>{if(!last(current,'continuation-accepted'))appendEvent(dir,'continuation-accepted',{turnId:accepted.turnId});});
-  }
+  await advanceDelivery(dir,host,{plan,envelope,rows,outstanding:submissionOutstanding,accepted:current=>Boolean(last(current,'continuation-accepted')),maySubmit:current=>!terminal(current),assertAdmission:()=>{assertJobFreeze(plan,dir);assertFrozen(plan);},intent:'submission-intent',response:'submission-response',refused:'dispatch-refused',uncertain:'delivery-uncertain',acceptedEvent:'continuation-accepted',failpoint});
   return jobStatus(dir);
 }
 export function releaseStoppedJob(dir,{identify=processIdentity}={}) {
@@ -301,7 +286,7 @@ export async function resumeReviewJob(dir) {
   });
 }
 
-export async function runReviewMonitor(dir,host,{identify=processIdentity,wait=sleep,now=Date.now,pendingMs=600000,registrationMs=60000,workerProbeMs=30000,lockTimeoutMs=10000,emit=()=>{}}={}) {
+export async function runReviewMonitor(dir,host,{identify=processIdentity,wait=sleep,now=Date.now,pendingMs=600000,registrationMs=60000,workerProbeMs=30000,lockTimeoutMs=10000,emit=()=>{},deliveryFailpoint=()=>{}}={}) {
   const file=path.join(dir,'monitor.lock'),owner={token:randomUUID(),identity:currentIdentity()};
   const mutate=run=>retryBusy(()=>withJob(dir,run),{timeoutMs:lockTimeoutMs});
   const persistFailure=error=>{
@@ -325,7 +310,7 @@ export async function runReviewMonitor(dir,host,{identify=processIdentity,wait=s
         // A prior completion admission may already have reached the task. Its
         // uncertain receipt must never be followed by a second terminal send.
         if(submissionOutstanding(before.events))return{state:before.state};
-        const delivered=await advanceTerminalNotification(dir,host);
+        const delivered=await advanceTerminalNotification(dir,host,{failpoint:deliveryFailpoint});
         if(delivered)return{state:before.state};
         terminalPendingSince??=now();
         if(now()-terminalPendingSince>=pendingMs){const reason='Terminal notification delivery deadline reached; inspect the durable terminal envelope and resume this same job without launching a duplicate reviewer';await mutate(()=>appendEvent(dir,'monitor-suspended',{reason,resumable:true,notificationPending:true}));flush(readEvents(dir));return{state:before.state,notificationPending:true,reason};}
@@ -336,8 +321,8 @@ export async function runReviewMonitor(dir,host,{identify=processIdentity,wait=s
       if(observeWorker)nextWorkerProbe=now()+workerProbeMs;
       try{await advanceReviewJob(dir,host,{identify,observeWorker});}
       catch(error){
-        if(!error.observationUnavailable)throw error;
-        unavailable=true;await observation(dir,error.message);
+        if(error.observationUnavailable){unavailable=true;await observation(dir,error.message);}
+        else {const failed=await mutate(rows=>jobStatus(dir,rows));if(['blocked','review-failed'].includes(failed.state)){flush(failed.events);continue;}throw error;}
       }
       const status=await mutate(rows=>jobStatus(dir,rows));
       flush(status.events);

@@ -75,23 +75,22 @@ export function verifyClaudeClaimConfiguration(destination,plan,options={}) {
 export function sendClaudeFrame(record,envelope,{connect=endpoint=>net.createConnection(endpoint),timeoutMs=3000}={}) {
   return new Promise((resolve,reject)=>{
     let socket,settled=false,writeInvoked=false;
-    const finish=(error)=>{if(settled)return;settled=true;clearTimeout(timer);socket?.destroy();if(error&&!writeInvoked)resolve({status:'not-sent',reason:'Claude endpoint unavailable before any frame write'});else if(error)reject(new Error('Claude submission is uncertain; reconcile without resending'));else resolve({status:'written-awaiting-native-receipt'});};
-    const timer=setTimeout(()=>finish(true),timeoutMs);
+    const finish=(error)=>{if(settled)return;settled=true;clearTimeout(timer);socket?.destroy();if(error&&!writeInvoked)resolve({status:'not-sent',reason:error?.message??'Claude endpoint unavailable before any frame write'});else if(error)reject(new Error('Claude submission is uncertain; reconcile without resending'));else resolve({status:'written-awaiting-native-receipt'});};
+    const timer=setTimeout(()=>finish(new Error('Claude endpoint timed out before any frame write')),timeoutMs);
     try {
       socket=connect(record.socket.replace(/^uds:/,''));
-      socket.once('error',()=>finish(true));socket.once('close',()=>{if(!settled)finish(true);});
+      socket.once('error',error=>finish(error));socket.once('close',()=>{if(!settled)finish(new Error('Claude endpoint closed before frame completion'));});
       socket.once('connect',()=>{
         try {
         const marker=claudeReceiptMarker(envelope.continuationId);
-        const instruction=envelope.authorizedAction==='inspect-blocked-review'
+        const content=envelope.authorizedAction==='inspect-blocked-review'
           ?`Display exactly ${marker} on its own line to acknowledge this terminal review event, then follow the guarded recovery instructions below.\n${continuationPrompt(envelope)}`
           :`Display exactly ${marker} on its own line to acknowledge this continuation, then follow the guarded instructions below. For the claim, invoke Bash with exactly this command, without additions or rewriting:\n${renderClaudeClaimCommand(envelope.claimCommand)}\n${continuationPrompt(envelope)}`;
-        const content=instruction;
         const frame=JSON.stringify({type:'auth',token:record.token})+'\n'+JSON.stringify({type:'user',session_id:record.sessionId,uuid:envelope.continuationId,msg_id:envelope.continuationId,message:{content},priority:'next'})+'\n';
         writeInvoked=true;socket.write(frame,error=>finish(error));
-        }catch(error){settled=true;clearTimeout(timer);socket?.destroy();reject(error);}
+        }catch(error){finish(error);}
       });
-    }catch{finish(true);}
+    }catch(error){finish(error);}
   });
 }
 

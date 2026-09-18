@@ -60,13 +60,21 @@ try {
     const result=await runReviewMonitor(f.jobDir,f.host,{identify});
     assert.equal(result.state,'review-failed');assert.equal(f.sends,1,'a terminal review failure wakes the originating task once');
     assert.equal(f.delivered.authorizedAction,'inspect-blocked-review');assert.equal(f.delivered.reason,'fixture reviewer launch failed');
+    assert.notEqual(f.delivered.continuationId,f.p.continuationId,'terminal receipts cannot be confused with successful continuation receipts');
+    assert.equal(JSON.stringify(f.delivered).includes('must-stay-private'),false,'terminal envelope excludes destination credentials');
     assert.equal(f.delivered.journal,path.join(f.jobDir,'handoff.jsonl'));assert.match(f.delivered.nextRequiredAction,/duplicate reviewer/);
     assert.match(continuationPrompt(f.delivered),/Do not launch a replacement reviewer/);
     assert.equal(readEvents(f.jobDir).filter(row=>row.event==='terminal-notification-accepted').length,1);
     await runReviewMonitor(f.jobDir,f.host,{identify});assert.equal(f.sends,1,'a recovered monitor never redelivers the terminal generation');
 
-    const blocked=await fixture();withJob(blocked.jobDir,()=>appendEvent(blocked.jobDir,'blocked',{reason:'fixture recovery required'}));
+    const blocked=await fixture();fs.unlinkSync(worktreePaths(repo).freeze);withJob(blocked.jobDir,()=>appendEvent(blocked.jobDir,'blocked',{reason:'fixture recovery required'}));
     assert.equal((await runReviewMonitor(blocked.jobDir,blocked.host,{identify})).state,'blocked');assert.equal(blocked.delivered.reason,'fixture recovery required');
+
+    const released=await fixture();withJob(released.jobDir,()=>appendEvent(released.jobDir,'worker-launch-failed',{reason:'fixture reviewer launch failed'}));releaseStoppedJob(released.jobDir,{identify});
+    assert.equal((await runReviewMonitor(released.jobDir,released.host,{identify})).state,'review-failed');assert.equal(released.sends,1,'a supported freeze release does not suppress the recovery-only terminal event');
+
+    const midIteration=await fixture();withJob(midIteration.jobDir,()=>{appendEvent(midIteration.jobDir,'worker-launch-intent');appendEvent(midIteration.jobDir,'worker-started',{identity:processIdentity(process.pid)});appendEvent(midIteration.jobDir,'worker-finished',{ok:false,reason:'reviewer chain failed'});});
+    assert.equal((await runReviewMonitor(midIteration.jobDir,midIteration.host,{identify})).state,'review-failed');assert.equal(midIteration.sends,1,'a failure discovered inside the normal advancement iteration returns to terminal delivery');
 
     const uncertain=await fixture();withJob(uncertain.jobDir,()=>appendEvent(uncertain.jobDir,'worker-launch-failed',{reason:'fixture reviewer launch failed'}));
     let attempts=0;uncertain.host.submit=async()=>{attempts++;throw new Error('lost terminal acknowledgment');};
@@ -78,6 +86,12 @@ try {
     const cancelled=await fixture();withJob(cancelled.jobDir,()=>appendEvent(cancelled.jobDir,'worker-launch-failed',{reason:'fixture reviewer launch failed'}));
     cancelled.host.inspect=async()=>{await cancelReviewJob(cancelled.jobDir,cancelled.host);return{state:'idle'};};
     assert.equal((await runReviewMonitor(cancelled.jobDir,cancelled.host,{identify,wait:async()=>{}})).state,'workflow-cancelled');assert.equal(cancelled.sends,0,'cancellation during terminal inspection wins admission');
+
+    for(const point of ['after-validation','before-submit','after-submit']) {
+      const interrupted=await fixture();withJob(interrupted.jobDir,()=>appendEvent(interrupted.jobDir,'worker-launch-failed',{reason:'fixture reviewer launch failed'}));
+      let tripped=false;await runReviewMonitor(interrupted.jobDir,interrupted.host,{identify,deliveryFailpoint:p=>{if(!tripped&&p===point){tripped=true;throw new Error(`crash ${point}`);}}});
+      await runReviewMonitor(interrupted.jobDir,interrupted.host,{identify});assert.equal(interrupted.sends,1,`terminal ${point} recovery never duplicates delivery`);assert.equal(readEvents(interrupted.jobDir).filter(row=>row.event==='terminal-notification-accepted').length,1);
+    }
   }
   {
     const f=await fixture();f.complete();

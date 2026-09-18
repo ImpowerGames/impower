@@ -185,6 +185,9 @@ try {
   assert.deepEqual(await adapter().reconcile(terminalEnvelope),{status:'accepted',turnId},'terminal delivery uses the same durable native receipt without a claim command');
   await new Promise(resolve=>receivedServer.close(resolve));
   assert.equal((await sendClaudeFrame({...registered,socket:socketPath},envelope)).status,'not-sent');
+  const malformedSocket=new (await import('node:events')).EventEmitter();malformedSocket.destroy=()=>{};malformedSocket.write=()=>assert.fail('a malformed frame must be refused before write');
+  const malformed=sendClaudeFrame(registered,{...envelope,claimCommand:undefined},{connect:()=>{queueMicrotask(()=>malformedSocket.emit('connect'));return malformedSocket;}});
+  const malformedReceipt=await malformed;assert.equal(malformedReceipt.status,'not-sent');assert.match(malformedReceipt.reason,/undefined|claim/i,'a known pre-write construction failure preserves its cause without becoming uncertain');
   const failedWrite=new (await import('node:events')).EventEmitter();failedWrite.destroy=()=>{};failedWrite.write=(_frame,done)=>done(new Error('write result lost'));
   const uncertain=sendClaudeFrame(registered,envelope,{connect:()=>{queueMicrotask(()=>failedWrite.emit('connect'));return failedWrite;}});await assert.rejects(uncertain,/uncertain/);
   console.log('PASS: actual local socket sends one authenticated exact-session frame; closed endpoint never creates a replacement');
