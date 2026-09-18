@@ -30,4 +30,4 @@ When the frontier is empty, edit the tickets under the [shared publishing rules]
 
 ## Hand off
 
-Report the tickets edited, the follow-ups proposed and any question the user deferred. Report friction under [feedback reporting](feedback-reporting.md).
+Report the tickets edited, the follow-ups proposed and any question the user deferred.
