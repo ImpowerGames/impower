@@ -1,7 +1,10 @@
 import { type SyntaxNode, type Tree } from "@lezer/common";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 import type { LowerContext } from "../lower/context";
-import type { StructSource } from "../lower/lowerers/lowerStructBodyTyped";
+import type {
+  SourceSpan,
+  StructSource,
+} from "../lower/lowerers/lowerStructBodyTyped";
 import { findChildByName } from "../lower/utils/alternatorArms";
 import {
   bindMorph,
@@ -192,7 +195,7 @@ function coverageIssues(
   for (const vocabulary of labelSource) {
     for (const l of morphImageLabels(vocabulary)) candidateLabels.add(l);
   }
-  const checkLabel = (value: string, span: SyntaxNode | undefined) => {
+  const checkLabel = (value: string, span: SourceSpan | undefined) => {
     if (!candidateLabels.has(value)) {
       warn(span, `No image the morph applies to has a layer labelled \`${value}\`.`);
     }

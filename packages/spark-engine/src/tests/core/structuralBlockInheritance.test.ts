@@ -45,7 +45,7 @@ describe("morph blocks at runtime", () => {
     await harness.ready;
     const story = (harness.game as any).story ?? (harness.game as any)._story;
     const ctx = buildDefinesContext(story);
-    const blink = ctx["morph"]?.["blink"];
+    const blink = ctx["morph"]?.["blink"] as any;
     expect(blink).toMatchObject({
       $type: "morph",
       $name: "blink",
@@ -66,7 +66,7 @@ describe("morph blocks at runtime", () => {
       [0.5, "01"],
       [1, "open"],
     ]);
-    const slow = ctx["morph"]?.["slow"];
+    const slow = ctx["morph"]?.["slow"] as any;
     expect(slow).toMatchObject({ $name: "slow", method: "bend", blend: "morph" });
     expect(slow?.["timing"]).toMatchObject({ duration: 1 });
     expect((slow?.["keyframes"] as any[])?.length).toBe(3);
@@ -96,7 +96,7 @@ end
 `);
     await harness.ready;
     const story = (harness.game as any).story ?? (harness.game as any)._story;
-    const quick = buildDefinesContext(story)["animation"]?.["quick_glow"];
+    const quick = buildDefinesContext(story)["animation"]?.["quick_glow"] as any;
     expect(quick).toMatchObject({ $name: "quick_glow" });
     expect(quick?.["keyframes"]).toEqual([
       { offset: 0, opacity: "0" },

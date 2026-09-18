@@ -42,21 +42,27 @@ interface NodeLine {
   node: SyntaxNode; // LuauStructBodyContent
 }
 
+/** A source range, as absolute document offsets. */
+export interface SourceSpan {
+  from: number;
+  to: number;
+}
+
 /**
- * Where each part of a parsed container was written. `keys` holds the key
- * token of every `key = value` / `key:` entry, `values` the value node of every
- * scalar entry, and `lines` the whole line of every entry. An array records its
- * `-` item lines in `items` and the value nodes of scalar items in
- * `itemValues`. `line` is the line that opened the container: its header, its
- * `-` item, or, for a keyframe written as a position key, that key's line.
+ * Where each part of a parsed container was written. `keys` holds the key of
+ * every `key = value` / `key:` entry, `values` the value of every scalar entry,
+ * and `lines` the whole line of every entry. An array records its `-` item
+ * lines in `items` and the values of scalar items in `itemValues`. `line` is
+ * the line that opened the container: its header, its `-` item, or, for a
+ * keyframe written as a position key, that key's line.
  */
 export interface StructSource {
-  line?: SyntaxNode;
-  keys: Map<string, SyntaxNode>;
-  values: Map<string, SyntaxNode>;
-  lines: Map<string, SyntaxNode>;
-  items: SyntaxNode[];
-  itemValues: (SyntaxNode | null)[];
+  line?: SourceSpan;
+  keys: Map<string, SourceSpan>;
+  values: Map<string, SourceSpan>;
+  lines: Map<string, SourceSpan>;
+  items: SourceSpan[];
+  itemValues: (SourceSpan | null)[];
 }
 
 export interface TypedStructBodyOptions {
@@ -73,7 +79,7 @@ export interface TypedStructBodyOptions {
   sources?: WeakMap<object, StructSource>;
 }
 
-function newSource(line?: SyntaxNode): StructSource {
+function newSource(line?: SourceSpan): StructSource {
   return {
     line,
     keys: new Map(),
@@ -224,14 +230,11 @@ function headerKey(header: SyntaxNode, ctx: LowerContext): string {
   return ctx.read(header.from, header.to).trim().replace(/:\s*$/, "").trim();
 }
 
-/** The node spanning an object header's key, without its colon. */
-function headerKeyNode(header: SyntaxNode): SyntaxNode {
-  let child = header.firstChild;
-  while (child) {
-    if (child.name === "LuauStructObjectHeader_c2") return child;
-    child = child.nextSibling;
-  }
-  return header;
+const OBJECT_KEY = nodeNameSet(["LuauStructObjectKey"]);
+
+/** An object header's key node, without its colon. */
+function headerKeySpan(header: SyntaxNode): SourceSpan {
+  return firstDescendant(header, OBJECT_KEY) ?? header;
 }
 
 /** Collect each body line's `LuauStructBodyContent` node + indent column. */
@@ -315,7 +318,7 @@ function keyframeOffset(key: string): number | null {
 interface HeaderEntry {
   key: string;
   node: SyntaxNode; // the header's LuauStructBodyContent line
-  keyNode: SyntaxNode; // the header's key, without its colon
+  keyNode: SourceSpan; // the header's key, without its colon
   value: unknown;
 }
 
@@ -515,7 +518,7 @@ function parseBlock(
     if (kind?.name === "LuauStructObjectHeader") {
       // `key:` → container (children = the value).
       const key = headerKey(kind, ctx);
-      const keyNode = headerKeyNode(kind);
+      const keyNode = headerKeySpan(kind);
       if (childIndent != null) {
         const sub = parseBlock(
           lines,

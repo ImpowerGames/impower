@@ -4723,11 +4723,24 @@ repository:
       1:
         patterns:
           - { include: "#OptionalWhitespace" }
+      2:
+        patterns:
+          - { include: "#LuauStructObjectKey" }
+      4:
+        patterns:
+          - { include: "#LuauStructObjectColon" }
+
+  # The key of a `key:` header: everything before the colon. Its own node, so
+  # a lowerer can locate the key (a morph diagnostic underlines `eyes`, not the
+  # whole `eyes:` line) by name rather than by slicing the line's text.
+  LuauStructObjectKey:
+    match: (.+)
+    captures:
       # Element attributes are tried FIRST so a container header can carry inline
       # props/events (`column #gap=16:`, `row @click=x:`). `#name=`/`@name=` don't
       # collide with style headers' `> selector` / `@breakpoint(…)` (no `=` after
       # the keyword), so those still fall through to SelectorPropertyNamePart.
-      2:
+      1:
         patterns:
           - { include: "#LuauElementAttribute" }
           # A keyframe position (`from:`, `40%:`, `to:`) is tried before the
@@ -4737,9 +4750,6 @@ repository:
           - { include: "#SelectorPropertyNamePart" }
           - { include: "#ComponentName" }
           - { include: "#PropertyName" }
-      4:
-        patterns:
-          - { include: "#LuauStructObjectColon" }
 
   # `from` / `to` / a percentage standing alone as a container header key: the
   # CSS `@keyframes` selector spelling for one keyframe's position inside a

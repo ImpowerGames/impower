@@ -1,5 +1,7 @@
-import { type SyntaxNode } from "@lezer/common";
-import type { StructSource } from "../lower/lowerers/lowerStructBodyTyped";
+import type {
+  SourceSpan,
+  StructSource,
+} from "../lower/lowerers/lowerStructBodyTyped";
 import {
   MORPH_BLENDS,
   MORPH_CLIP_FIELDS,
@@ -144,11 +146,11 @@ export function validateMorphDeclaration(decl: MorphDeclaration): MorphIssue[] {
   };
   const src = (obj: unknown): StructSource | undefined =>
     obj && typeof obj === "object" ? sources.get(obj) : undefined;
-  const keySpan = (obj: unknown, key: string): SyntaxNode | undefined =>
+  const keySpan = (obj: unknown, key: string): SourceSpan | undefined =>
     src(obj)?.keys.get(key) ?? src(obj)?.lines.get(key);
-  const valueSpan = (obj: unknown, key: string): SyntaxNode | undefined =>
+  const valueSpan = (obj: unknown, key: string): SourceSpan | undefined =>
     src(obj)?.values.get(key) ?? src(obj)?.lines.get(key);
-  const lineSpan = (obj: unknown): SyntaxNode | undefined => src(obj)?.line;
+  const lineSpan = (obj: unknown): SourceSpan | undefined => src(obj)?.line;
 
   if (!decl.withKeyword) {
     push(
@@ -245,7 +247,7 @@ export function validateMorphDeclaration(decl: MorphDeclaration): MorphIssue[] {
           : "`keyframes` is a list of poses: `keyframes:` then position keys (`from:`, `50%:`, `to:`) or `-` items.",
       );
     } else {
-      let previous: { offset: number; span?: SyntaxNode } | null = null;
+      let previous: { offset: number; span?: SourceSpan } | null = null;
       keyframes.forEach((keyframe, index) => {
         const itemLine = src(keyframes)?.items[index];
         if (!isRecord(keyframe)) {

@@ -48,7 +48,9 @@ sparkdown [0..323]
  │   │   │   │               ├─ LuauStructObjectHeader_c1 40
  │   │   │   │               │   └─ OptionalWhitespace 40
  │   │   │   │               ├─ LuauStructObjectHeader_c2 [40..43]
- │   │   │   │               │   └─ CustomComponentName [40..43]: "row"
+ │   │   │   │               │   └─ LuauStructObjectKey [40..43]
+ │   │   │   │               │       └─ LuauStructObjectKey_c1 [40..43]
+ │   │   │   │               │           └─ CustomComponentName [40..43]: "row"
  │   │   │   │               └─ LuauStructObjectHeader_c4 [43..44]
  │   │   │   │                   └─ LuauStructObjectColon [43..44]: ":"
  │   │   │   └─ LuauStructBodyLine_c3 44
@@ -205,7 +207,9 @@ sparkdown [0..323]
  │   │   │   │               ├─ LuauStructObjectHeader_c1 117
  │   │   │   │               │   └─ OptionalWhitespace 117
  │   │   │   │               ├─ LuauStructObjectHeader_c2 [117..120]
- │   │   │   │               │   └─ CustomComponentName [117..120]: "box"
+ │   │   │   │               │   └─ LuauStructObjectKey [117..120]
+ │   │   │   │               │       └─ LuauStructObjectKey_c1 [117..120]
+ │   │   │   │               │           └─ CustomComponentName [117..120]: "box"
  │   │   │   │               └─ LuauStructObjectHeader_c4 [120..121]
  │   │   │   │                   └─ LuauStructObjectColon [120..121]: ":"
  │   │   │   └─ LuauStructBodyLine_c3 121
@@ -434,9 +438,11 @@ sparkdown [0..323]
  │   │   │   │               ├─ LuauStructObjectHeader_c1 239
  │   │   │   │               │   └─ OptionalWhitespace 239
  │   │   │   │               ├─ LuauStructObjectHeader_c2 [239..250]
- │   │   │   │               │   ├─ CustomComponentName [239..243]: "fill"
- │   │   │   │               │   ├─ RequiredWhitespace [243..244]: " "
- │   │   │   │               │   └─ BuiltinComponentName [244..250]: "footer"
+ │   │   │   │               │   └─ LuauStructObjectKey [239..250]
+ │   │   │   │               │       └─ LuauStructObjectKey_c1 [239..250]
+ │   │   │   │               │           ├─ CustomComponentName [239..243]: "fill"
+ │   │   │   │               │           ├─ RequiredWhitespace [243..244]: " "
+ │   │   │   │               │           └─ BuiltinComponentName [244..250]: "footer"
  │   │   │   │               └─ LuauStructObjectHeader_c4 [250..251]
  │   │   │   │                   └─ LuauStructObjectColon [250..251]: ":"
  │   │   │   └─ LuauStructBodyLine_c3 251

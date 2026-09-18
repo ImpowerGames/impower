@@ -31,7 +31,9 @@ sparkdown [0..186]
  │   │   │   │               ├─ LuauStructObjectHeader_c1 18
  │   │   │   │               │   └─ OptionalWhitespace 18
  │   │   │   │               ├─ LuauStructObjectHeader_c2 [18..23]
- │   │   │   │               │   └─ CustomComponentName [18..23]: "stage"
+ │   │   │   │               │   └─ LuauStructObjectKey [18..23]
+ │   │   │   │               │       └─ LuauStructObjectKey_c1 [18..23]
+ │   │   │   │               │           └─ CustomComponentName [18..23]: "stage"
  │   │   │   │               └─ LuauStructObjectHeader_c4 [23..24]
  │   │   │   │                   └─ LuauStructObjectColon [23..24]: ":"
  │   │   │   └─ LuauStructBodyLine_c3 24

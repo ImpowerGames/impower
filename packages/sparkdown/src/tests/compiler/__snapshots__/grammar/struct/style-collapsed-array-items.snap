@@ -31,7 +31,9 @@ sparkdown [0..169]
  │   │   │   │               ├─ LuauStructObjectHeader_c1 18
  │   │   │   │               │   └─ OptionalWhitespace 18
  │   │   │   │               ├─ LuauStructObjectHeader_c2 [18..23]
- │   │   │   │               │   └─ CustomComponentName [18..23]: "items"
+ │   │   │   │               │   └─ LuauStructObjectKey [18..23]
+ │   │   │   │               │       └─ LuauStructObjectKey_c1 [18..23]
+ │   │   │   │               │           └─ CustomComponentName [18..23]: "items"
  │   │   │   │               └─ LuauStructObjectHeader_c4 [23..24]
  │   │   │   │                   └─ LuauStructObjectColon [23..24]: ":"
  │   │   │   └─ LuauStructBodyLine_c3 24
@@ -59,7 +61,9 @@ sparkdown [0..169]
  │   │   │   │                       ├─ LuauStructObjectHeader_c1 31
  │   │   │   │                       │   └─ OptionalWhitespace 31
  │   │   │   │                       ├─ LuauStructObjectHeader_c2 [31..36]
- │   │   │   │                       │   └─ BuiltinComponentName [31..36]: "label"
+ │   │   │   │                       │   └─ LuauStructObjectKey [31..36]
+ │   │   │   │                       │       └─ LuauStructObjectKey_c1 [31..36]
+ │   │   │   │                       │           └─ BuiltinComponentName [31..36]: "label"
  │   │   │   │                       └─ LuauStructObjectHeader_c4 [36..37]
  │   │   │   │                           └─ LuauStructObjectColon [36..37]: ":"
  │   │   │   └─ LuauStructBodyLine_c3 37
@@ -194,7 +198,9 @@ sparkdown [0..169]
  │   │   │   │               ├─ LuauStructObjectHeader_c1 107
  │   │   │   │               │   └─ OptionalWhitespace 107
  │   │   │   │               ├─ LuauStructObjectHeader_c2 [107..112]
- │   │   │   │               │   └─ BuiltinComponentName [107..112]: "label"
+ │   │   │   │               │   └─ LuauStructObjectKey [107..112]
+ │   │   │   │               │       └─ LuauStructObjectKey_c1 [107..112]
+ │   │   │   │               │           └─ BuiltinComponentName [107..112]: "label"
  │   │   │   │               └─ LuauStructObjectHeader_c4 [112..113]
  │   │   │   │                   └─ LuauStructObjectColon [112..113]: ":"
  │   │   │   └─ LuauStructBodyLine_c3 113

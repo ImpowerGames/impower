@@ -31,35 +31,37 @@ sparkdown [0..189]
  │   │   │   │               ├─ LuauStructObjectHeader_c1 20
  │   │   │   │               │   └─ OptionalWhitespace 20
  │   │   │   │               ├─ LuauStructObjectHeader_c2 [20..54]
- │   │   │   │               │   ├─ CustomComponentName [20..26]: "column"
- │   │   │   │               │   ├─ RequiredWhitespace [26..27]: " "
- │   │   │   │               │   ├─ LuauPropAttribute [27..34]
- │   │   │   │               │   │   ├─ LuauPropAttribute_begin [27..32]
- │   │   │   │               │   │   │   ├─ LuauPropAttribute_begin_c1 [27..28]
- │   │   │   │               │   │   │   │   └─ StyleAttributeOperator [27..28]: "#"
- │   │   │   │               │   │   │   ├─ LuauPropAttribute_begin_c2 [28..31]
- │   │   │   │               │   │   │   │   └─ StyleAttributeName [28..31]: "gap"
- │   │   │   │               │   │   │   └─ LuauPropAttribute_begin_c4 [31..32]
- │   │   │   │               │   │   │       └─ EqualOperator [31..32]: "="
- │   │   │   │               │   │   ├─ LuauPropAttribute_content [32..34]
- │   │   │   │               │   │   │   └─ InlinePropLiteralValue [32..34]
- │   │   │   │               │   │   │       └─ InlinePropLiteralValue_c1 [32..34]
- │   │   │   │               │   │   │           └─ NumberLiteral [32..34]: "16"
- │   │   │   │               │   │   └─ LuauPropAttribute_end 34
- │   │   │   │               │   ├─ RequiredWhitespace [34..35]: " "
- │   │   │   │               │   └─ LuauPropAttribute [35..54]
- │   │   │   │               │       ├─ LuauPropAttribute_begin [35..48]
- │   │   │   │               │       │   ├─ LuauPropAttribute_begin_c1 [35..36]
- │   │   │   │               │       │   │   └─ StyleAttributeOperator [35..36]: "#"
- │   │   │   │               │       │   ├─ LuauPropAttribute_begin_c2 [36..47]
- │   │   │   │               │       │   │   └─ StyleAttributeName [36..47]: "child-align"
- │   │   │   │               │       │   └─ LuauPropAttribute_begin_c4 [47..48]
- │   │   │   │               │       │       └─ EqualOperator [47..48]: "="
- │   │   │   │               │       ├─ LuauPropAttribute_content [48..54]
- │   │   │   │               │       │   └─ InlinePropLiteralValue [48..54]
- │   │   │   │               │       │       └─ InlinePropLiteralValue_c1 [48..54]
- │   │   │   │               │       │           └─ UnquotedString [48..54]: "center"
- │   │   │   │               │       └─ LuauPropAttribute_end 54
+ │   │   │   │               │   └─ LuauStructObjectKey [20..54]
+ │   │   │   │               │       └─ LuauStructObjectKey_c1 [20..54]
+ │   │   │   │               │           ├─ CustomComponentName [20..26]: "column"
+ │   │   │   │               │           ├─ RequiredWhitespace [26..27]: " "
+ │   │   │   │               │           ├─ LuauPropAttribute [27..34]
+ │   │   │   │               │           │   ├─ LuauPropAttribute_begin [27..32]
+ │   │   │   │               │           │   │   ├─ LuauPropAttribute_begin_c1 [27..28]
+ │   │   │   │               │           │   │   │   └─ StyleAttributeOperator [27..28]: "#"
+ │   │   │   │               │           │   │   ├─ LuauPropAttribute_begin_c2 [28..31]
+ │   │   │   │               │           │   │   │   └─ StyleAttributeName [28..31]: "gap"
+ │   │   │   │               │           │   │   └─ LuauPropAttribute_begin_c4 [31..32]
+ │   │   │   │               │           │   │       └─ EqualOperator [31..32]: "="
+ │   │   │   │               │           │   ├─ LuauPropAttribute_content [32..34]
+ │   │   │   │               │           │   │   └─ InlinePropLiteralValue [32..34]
+ │   │   │   │               │           │   │       └─ InlinePropLiteralValue_c1 [32..34]
+ │   │   │   │               │           │   │           └─ NumberLiteral [32..34]: "16"
+ │   │   │   │               │           │   └─ LuauPropAttribute_end 34
+ │   │   │   │               │           ├─ RequiredWhitespace [34..35]: " "
+ │   │   │   │               │           └─ LuauPropAttribute [35..54]
+ │   │   │   │               │               ├─ LuauPropAttribute_begin [35..48]
+ │   │   │   │               │               │   ├─ LuauPropAttribute_begin_c1 [35..36]
+ │   │   │   │               │               │   │   └─ StyleAttributeOperator [35..36]: "#"
+ │   │   │   │               │               │   ├─ LuauPropAttribute_begin_c2 [36..47]
+ │   │   │   │               │               │   │   └─ StyleAttributeName [36..47]: "child-align"
+ │   │   │   │               │               │   └─ LuauPropAttribute_begin_c4 [47..48]
+ │   │   │   │               │               │       └─ EqualOperator [47..48]: "="
+ │   │   │   │               │               ├─ LuauPropAttribute_content [48..54]
+ │   │   │   │               │               │   └─ InlinePropLiteralValue [48..54]
+ │   │   │   │               │               │       └─ InlinePropLiteralValue_c1 [48..54]
+ │   │   │   │               │               │           └─ UnquotedString [48..54]: "center"
+ │   │   │   │               │               └─ LuauPropAttribute_end 54
  │   │   │   │               └─ LuauStructObjectHeader_c4 [54..55]
  │   │   │   │                   └─ LuauStructObjectColon [54..55]: ":"
  │   │   │   └─ LuauStructBodyLine_c3 55
@@ -119,35 +121,37 @@ sparkdown [0..189]
  │   │   │   │               ├─ LuauStructObjectHeader_c1 81
  │   │   │   │               │   └─ OptionalWhitespace 81
  │   │   │   │               ├─ LuauStructObjectHeader_c2 [81..115]
- │   │   │   │               │   ├─ CustomComponentName [81..84]: "row"
- │   │   │   │               │   ├─ RequiredWhitespace [84..85]: " "
- │   │   │   │               │   └─ LuauPropAttribute [85..115]
- │   │   │   │               │       ├─ LuauPropAttribute_begin [85..103]
- │   │   │   │               │       │   ├─ LuauPropAttribute_begin_c1 [85..86]
- │   │   │   │               │       │   │   └─ StyleAttributeOperator [85..86]: "#"
- │   │   │   │               │       │   ├─ LuauPropAttribute_begin_c2 [86..102]
- │   │   │   │               │       │   │   └─ StyleAttributeName [86..102]: "background-color"
- │   │   │   │               │       │   └─ LuauPropAttribute_begin_c4 [102..103]
- │   │   │   │               │       │       └─ EqualOperator [102..103]: "="
- │   │   │   │               │       ├─ LuauPropAttribute_content [103..115]
- │   │   │   │               │       │   └─ LuauInterpolatedStringExpression [103..115]
- │   │   │   │               │       │       ├─ LuauInterpolatedStringExpression_begin [103..104]
- │   │   │   │               │       │       │   └─ LuauInterpolatedStringExpression_begin_c1 [103..104]
- │   │   │   │               │       │       │       └─ PunctuationBraceOpen [103..104]: "{"
- │   │   │   │               │       │       ├─ LuauInterpolatedStringExpression_content [104..114]
- │   │   │   │               │       │       │   └─ LuauAccessPath [104..114]
- │   │   │   │               │       │       │       ├─ LuauAccessPath_begin 104
- │   │   │   │               │       │       │       ├─ LuauAccessPath_content [104..114]
- │   │   │   │               │       │       │       │   └─ LuauAccessPart [104..114]
- │   │   │   │               │       │       │       │       └─ LuauVariable [104..114]
- │   │   │   │               │       │       │       │           └─ LuauVariable_c1 [104..114]
- │   │   │   │               │       │       │       │               └─ LuauVariableName [104..114]: "team_color"
- │   │   │   │               │       │       │       └─ LuauAccessPath_end 114
- │   │   │   │               │       │       │           └─ LuauAccessPath_end_c1 114
- │   │   │   │               │       │       └─ LuauInterpolatedStringExpression_end [114..115]
- │   │   │   │               │       │           └─ LuauInterpolatedStringExpression_end_c1 [114..115]
- │   │   │   │               │       │               └─ PunctuationBraceClose [114..115]: "}"
- │   │   │   │               │       └─ LuauPropAttribute_end 115
+ │   │   │   │               │   └─ LuauStructObjectKey [81..115]
+ │   │   │   │               │       └─ LuauStructObjectKey_c1 [81..115]
+ │   │   │   │               │           ├─ CustomComponentName [81..84]: "row"
+ │   │   │   │               │           ├─ RequiredWhitespace [84..85]: " "
+ │   │   │   │               │           └─ LuauPropAttribute [85..115]
+ │   │   │   │               │               ├─ LuauPropAttribute_begin [85..103]
+ │   │   │   │               │               │   ├─ LuauPropAttribute_begin_c1 [85..86]
+ │   │   │   │               │               │   │   └─ StyleAttributeOperator [85..86]: "#"
+ │   │   │   │               │               │   ├─ LuauPropAttribute_begin_c2 [86..102]
+ │   │   │   │               │               │   │   └─ StyleAttributeName [86..102]: "background-color"
+ │   │   │   │               │               │   └─ LuauPropAttribute_begin_c4 [102..103]
+ │   │   │   │               │               │       └─ EqualOperator [102..103]: "="
+ │   │   │   │               │               ├─ LuauPropAttribute_content [103..115]
+ │   │   │   │               │               │   └─ LuauInterpolatedStringExpression [103..115]
+ │   │   │   │               │               │       ├─ LuauInterpolatedStringExpression_begin [103..104]
+ │   │   │   │               │               │       │   └─ LuauInterpolatedStringExpression_begin_c1 [103..104]
+ │   │   │   │               │               │       │       └─ PunctuationBraceOpen [103..104]: "{"
+ │   │   │   │               │               │       ├─ LuauInterpolatedStringExpression_content [104..114]
+ │   │   │   │               │               │       │   └─ LuauAccessPath [104..114]
+ │   │   │   │               │               │       │       ├─ LuauAccessPath_begin 104
+ │   │   │   │               │               │       │       ├─ LuauAccessPath_content [104..114]
+ │   │   │   │               │               │       │       │   └─ LuauAccessPart [104..114]
+ │   │   │   │               │               │       │       │       └─ LuauVariable [104..114]
+ │   │   │   │               │               │       │       │           └─ LuauVariable_c1 [104..114]
+ │   │   │   │               │               │       │       │               └─ LuauVariableName [104..114]: "team_color"
+ │   │   │   │               │               │       │       └─ LuauAccessPath_end 114
+ │   │   │   │               │               │       │           └─ LuauAccessPath_end_c1 114
+ │   │   │   │               │               │       └─ LuauInterpolatedStringExpression_end [114..115]
+ │   │   │   │               │               │           └─ LuauInterpolatedStringExpression_end_c1 [114..115]
+ │   │   │   │               │               │               └─ PunctuationBraceClose [114..115]: "}"
+ │   │   │   │               │               └─ LuauPropAttribute_end 115
  │   │   │   │               └─ LuauStructObjectHeader_c4 [115..116]
  │   │   │   │                   └─ LuauStructObjectColon [115..116]: ":"
  │   │   │   └─ LuauStructBodyLine_c3 116
