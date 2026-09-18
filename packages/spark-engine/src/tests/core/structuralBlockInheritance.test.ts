@@ -1,7 +1,8 @@
-// A structural block (`morph`, `animation`, `theme`) registers a runtime
-// `__def` under its keyword type, so the engine reads it from the live story
-// like any other define: its own fields as written, then an `as PARENT`
-// ancestor, then the builtin `$default`, through the runtime `__index` chain.
+// A structural block (`morph`, `animation`, `theme`) defines its runtime
+// table through the hidden `__defs`, which registers it under its keyword type
+// and links it to its `as PARENT` found in that type table, so the engine reads
+// it from the live story like any other define: its own fields as written,
+// then the parent, then the builtin `$default`, through the `__index` chain.
 
 import { describe, expect, test } from "vitest";
 import { buildDefinesContext } from "../../game/core/utils/buildContextFromStory";
@@ -105,7 +106,7 @@ end
     expect(quick?.["timing"]).toMatchObject({ duration: 0.5 });
   });
 
-  const contextOf = async (source: string) => {
+  const storyOf = async (source: string) => {
     const harness = createHarness(`${source}
 -> start
 scene start
@@ -113,9 +114,54 @@ scene start
 end
 `);
     await harness.ready;
-    const story = (harness.game as any).story ?? (harness.game as any)._story;
-    return buildDefinesContext(story) as any;
+    return (harness.game as any).story ?? (harness.game as any)._story;
   };
+  const contextOf = async (source: string) =>
+    buildDefinesContext(await storyOf(source)) as any;
+
+  // The `__define` names along a runtime table's `__index` chain, stopping
+  // at the first table seen twice.
+  const chainOf = (story: any, global: string): string[] => {
+    const names: string[] = [];
+    const seen = new Set<unknown>();
+    let table = story.state.variablesState.GetVariableWithName(global);
+    while (table?.metatable && !seen.has(table)) {
+      seen.add(table);
+      const meta = table.metatable.value as Map<string, any>;
+      names.push(String(meta.get("__define")?.value ?? "?"));
+      table = meta.get("__index");
+    }
+    if (table && seen.has(table)) names.push("<cycle>");
+    return names;
+  };
+
+  test("an authored block replaces the builtin and keeps the fields it leaves out", async () => {
+    const ctx = await contextOf(`animation fadein with
+  timing:
+    duration = 9
+end
+`);
+    expect(ctx.animation?.fadein?.timing).toMatchObject({ duration: 9 });
+    expect(ctx.animation?.fadein?.keyframes).toEqual([{ opacity: "1" }]);
+  });
+
+  test("a structural child declared before a `define` parent is linked when the parent registers", async () => {
+    const ctx = await contextOf(`morph child as base with
+  keyframes:
+    from:
+      eyes:
+        state = open
+    to:
+      eyes:
+        state = closed
+end
+
+define base as morph with
+  method = "bend"
+end
+`);
+    expect(ctx.morph?.child).toMatchObject({ $type: "morph", method: "bend" });
+  });
 
   test("a builtin parent is inherited, and the child stays an animation", async () => {
     const ctx = await contextOf(`animation slow_fade as fadein with
@@ -180,7 +226,7 @@ end
   });
 
   test("a cycle of parents is refused rather than looping", async () => {
-    const ctx = await contextOf(`morph a as b with
+    const story = await storyOf(`morph a as b with
   method = bend
 end
 
@@ -188,7 +234,11 @@ morph b as a with
   fallback = cut
 end
 `);
-    expect(ctx.morph?.a).toMatchObject({ method: "bend" });
+    // `a` runs first and waits for `b`; `b` links to `a`; linking `a` to `b`
+    // would close the loop, so `a` keeps inheriting from its type.
+    expect(chainOf(story, "$morph_a")).toEqual(["a", "morph"]);
+    expect(chainOf(story, "$morph_b")).toEqual(["b", "a", "morph"]);
+    const ctx = buildDefinesContext(story) as any;
     expect(ctx.morph?.b).toMatchObject({ fallback: "cut", method: "bend" });
   });
 });

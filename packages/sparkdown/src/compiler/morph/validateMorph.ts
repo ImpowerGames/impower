@@ -447,6 +447,45 @@ export function validateMorphDeclaration(decl: MorphDeclaration): MorphIssue[] {
   return issues;
 }
 
+/**
+ * The problems with a morph struct's policy and timing values, for a parent
+ * that no morph block wrote (`define base as morph with … end`) and that is
+ * therefore not checked where it is written. Each message names the field.
+ */
+export function morphValueProblems(
+  struct: Record<string, unknown>,
+): { field: string; message: string }[] {
+  const problems: { field: string; message: string }[] = [];
+  const vocab: Record<string, readonly string[]> = {
+    blend: MORPH_BLENDS,
+    method: MORPH_METHODS,
+    fallback: MORPH_FALLBACKS,
+  };
+  const policy = (obj: Record<string, unknown>, prefix: string) => {
+    for (const field of MORPH_POLICY_FIELDS) {
+      if (!(field in obj) || has(vocab[field]!, obj[field])) continue;
+      problems.push({
+        field: `${prefix}${field}`,
+        message: `${describeValue(obj[field])} is not a \`${field}\`. Use ${quoteList(vocab[field]!)}.`,
+      });
+    }
+  };
+  policy(struct, "");
+  const layers = struct["layers"];
+  if (isRecord(layers)) {
+    for (const [label, value] of Object.entries(layers)) {
+      if (isRecord(value)) policy(value, `layers.${label}.`);
+    }
+  }
+  const timing = struct["timing"];
+  if (isRecord(timing)) {
+    checkTiming(timing, (field, message) =>
+      problems.push({ field: `timing.${field}`, message }),
+    );
+  }
+  return problems;
+}
+
 /** Check the timing values written in one `timing:` container. */
 function checkTiming(
   timing: Record<string, unknown>,

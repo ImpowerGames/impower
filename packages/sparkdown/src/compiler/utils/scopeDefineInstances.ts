@@ -45,6 +45,17 @@ export function scopeDefineInstances(
     if (
       obj instanceof VariableAssignment &&
       obj.isDefineDeclaration &&
+      obj.structuralDefine &&
+      !(skip && skip.has(obj))
+    ) {
+      // A structural block keeps its `$<type>_<name>` key: a child finds it
+      // through its type table, never by a bare global. It is still collected
+      // so the builtin-override pass can match an authored block to the
+      // builtin it replaces.
+      collect?.add(obj);
+    } else if (
+      obj instanceof VariableAssignment &&
+      obj.isDefineDeclaration &&
       obj.structDefinition &&
       !(skip && skip.has(obj))
     ) {

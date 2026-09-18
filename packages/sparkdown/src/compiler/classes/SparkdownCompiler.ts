@@ -4142,8 +4142,11 @@ export class SparkdownCompiler {
     va: ParsedVariableAssignment,
     preludeContext: Record<string, any>,
   ): void {
-    const type = va.structDefinition?.type?.name;
-    const name = va.structDefinition?.name?.name;
+    // A structural `animation`/`theme`/`morph` block carries its type and name
+    // on `structuralDefine`; its `__defs` call takes the property table first,
+    // as `__def` does.
+    const type = va.structDefinition?.type?.name ?? va.structuralDefine?.type;
+    const name = va.structDefinition?.name?.name ?? va.structuralDefine?.name;
     if (!type || !name) {
       return;
     }

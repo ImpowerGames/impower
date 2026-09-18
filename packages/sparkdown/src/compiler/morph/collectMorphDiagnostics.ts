@@ -13,7 +13,7 @@ import {
   morphImages,
 } from "./bindMorph";
 import { readMorphBody, type MorphIssue } from "./readMorphBody";
-import { validateMorphDeclaration } from "./validateMorph";
+import { morphValueProblems, validateMorphDeclaration } from "./validateMorph";
 
 type Context = { [type: string]: { [name: string]: any } };
 
@@ -142,10 +142,12 @@ export function collectMorphIssues(
   const images = morphImages(context);
   const written = new Map<string, Record<string, unknown>>();
   const parents = new Map<string, string>();
+  const parentSpans = new Map<WrittenMorph, SourceSpan>();
   for (const morph of morphs) {
+    const parentNode = getDescendent("LuauDefineParentName", morph.node);
+    if (parentNode) parentSpans.set(morph, parentNode);
     if (!morph.name) continue;
     written.set(morph.name, morph.own.struct);
-    const parentNode = getDescendent("LuauDefineParentName", morph.node);
     const script = scripts.find((s) => s.uri === morph.uri)!;
     const parent = parentNode ? script.read(parentNode.from, parentNode.to).trim() : "";
     if (parent) parents.set(morph.name, parent);
@@ -169,12 +171,38 @@ export function collectMorphIssues(
         effective,
       }),
       ...coverageIssues(morph.name, nameSpan, morph.own, effective, context, images),
+      ...inheritedValueIssues(morph, written, parents, compiled, parentSpans.get(morph) ?? nameSpan),
     ];
     if (issues.length > 0) {
       result.set(morph.uri, [...(result.get(morph.uri) ?? []), ...issues]);
     }
   }
   return result;
+}
+
+/**
+ * Problems in the values a morph inherits from a parent that is not a morph
+ * block (`define base as morph with … end`). A morph block is checked where it
+ * is written; such a parent is checked nowhere else, so its values are
+ * reported on the `as PARENT` of each block that names it directly.
+ */
+function inheritedValueIssues(
+  morph: WrittenMorph,
+  written: ReadonlyMap<string, Record<string, unknown>>,
+  parents: ReadonlyMap<string, string>,
+  compiled: Record<string, unknown>,
+  span: SourceSpan,
+): LocatedMorphIssue[] {
+  const current = morph.name ? parents.get(morph.name) : undefined;
+  if (!current || written.has(current) || current.startsWith("$")) return [];
+  const ancestor = compiled[current];
+  if (!isRecord(ancestor)) return [];
+  return morphValueProblems(ancestor).map(({ field, message }) => ({
+    from: span.from,
+    to: span.to,
+    severity: "error" as const,
+    message: `\`${field}\`, inherited from \`${current}\`: ${message}`,
+  }));
 }
 
 function coverageIssues(

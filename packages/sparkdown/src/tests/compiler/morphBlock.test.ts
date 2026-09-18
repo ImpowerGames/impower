@@ -415,6 +415,36 @@ end
     expect(morphDiagnostics(text)).toEqual([]);
   });
 
+  test("invalid values inherited from a `define … as morph` parent are reported on the child's `as`", () => {
+    const text = `define base as morph with
+  method = "bogus"
+  timing = { duration = -1 }
+end
+
+morph child as base with
+  keyframes:
+    from:
+      eyes:
+        state = open
+    to:
+      eyes:
+        state = closed
+end
+`;
+    const found = morphDiagnostics(text);
+    expect(found.find((d) => d.message.includes("`method`, inherited from `base`: `bogus` is not a `method`"))).toMatchObject({ line: 5, text: "base", severity: 1 });
+    expect(found.find((d) => d.message.includes("`timing.duration`, inherited from `base`"))).toMatchObject({ line: 5, text: "base" });
+  });
+
+  test("an authored block replaces the builtin of the same type and name", () => {
+    const found = diagnosticsOf(`animation fadein with
+  timing:
+    duration = 9
+end
+`);
+    expect(found.filter((d) => d.severity === 1)).toEqual([]);
+  });
+
   test("a parent's name may be shared by another type's block and by a variable", () => {
     const text = `store base = 7
 

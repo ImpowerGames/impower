@@ -30,6 +30,11 @@ export class VariableAssignment extends ParsedObject {
   // defined type names when computing IMPLICIT parent types
   // (`as character` where `character` is never `define`d).
   public isDefineDeclaration: boolean = false;
+  // The keyword type and name of a structural `animation`/`theme`/`morph`
+  // block's declaration, whose global key is always `$<type>_<name>`. Lets
+  // the builtin-override pass recognize an authored block that replaces a
+  // builtin of the same type and name.
+  public structuralDefine: { type: string; name: string } | null = null;
   // True for the synthetic declaration minted per `const` so constants
   // participate in normal global initialization (see
   // `Story.RegisterConstantGlobals`). Constants used to be inlined into every

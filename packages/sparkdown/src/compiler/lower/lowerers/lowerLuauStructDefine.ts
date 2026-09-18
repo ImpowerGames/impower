@@ -117,6 +117,7 @@ export function lowerLuauStructDefine(
     isGlobalDeclaration: true,
     isDefineDeclaration: true,
   });
+  declaration.structuralDefine = { type, name };
 
   const block = wrapInWeave([declaration]);
   block.context = { [type]: { [name]: struct } };

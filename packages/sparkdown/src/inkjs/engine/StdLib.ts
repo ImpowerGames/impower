@@ -2418,6 +2418,20 @@ function linkStructuralParent(child: ObjectValue, parent: ObjectValue): void {
   metatableMap(child)?.set("__index", parent);
 }
 
+// Link every structural block waiting in `typeTable` for a parent named
+// `name`, now that `parent` has registered there under that name.
+function linkWaitingStructuralChildren(
+  typeTable: ObjectValue,
+  name: string,
+  parent: ObjectValue,
+): void {
+  const waiting = pendingStructuralParents.get(typeTable);
+  const children = waiting?.get(name);
+  if (!children) return;
+  waiting!.delete(name);
+  for (const child of children) linkStructuralParent(child, parent);
+}
+
 export const STDLIB: Record<string, StdLibEntry> = {
   // ============================================================
   // `math.*` — pure numeric helpers (auto-registered with NativeFunctionCall)
@@ -5063,6 +5077,12 @@ export const STDLIB: Record<string, StdLibEntry> = {
         for (const level of chain) {
           level.value!.set(name, table);
         }
+        // A structural block declared earlier may be waiting for this define
+        // as its `as` parent (`morph child as base` before `define base as
+        // morph`); link it now, as a later structural parent would.
+        for (const level of chain) {
+          linkWaitingStructuralChildren(level, name, table);
+        }
       }
       return table;
     },
@@ -5126,12 +5146,7 @@ export const STDLIB: Record<string, StdLibEntry> = {
         level.value!.set(name, table);
       }
       // Link the children that were waiting for this block as their parent.
-      const waiting = pendingStructuralParents.get(typeTable);
-      const children = waiting?.get(name);
-      if (children) {
-        waiting!.delete(name);
-        for (const child of children) linkStructuralParent(child, table);
-      }
+      linkWaitingStructuralChildren(typeTable, name, table);
       return table;
     },
   },
