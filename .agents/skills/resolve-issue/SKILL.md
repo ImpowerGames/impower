@@ -60,7 +60,7 @@ Implementation is complete and ready for human review only when a behavior test 
 
 Report the last independently reviewed commit, rounds used, outstanding findings or verification gaps (or None), and changes after that commit. If a gate remains unfinished, keep the PR draft and describe an incomplete draft handoff with the remaining work and next action. Disclosure of blockers does not make the implementation complete or the ticket resolved.
 
-Before the final handoff, read [feedback reporting](../references/feedback-reporting.md) and post to the inbox any friction from this session that meets its bar. Most sessions have none, and the chat handoff does not mention skill feedback either way.
+Before the final handoff, read [feedback reporting](../references/feedback-reporting.md) and post to the inbox any friction from this session that meets its bar. This is not a gate: most sessions have none and post nothing.
 
 At completion, or when yielding for input or help, provide the normal chat handoff and invoke [notify-user](../notify-user/SKILL.md) for an optional companion alert identifying the work and next action. Use `done` when no action is needed, `user_input_needed` for a question or review/merge request, or `blocked` when progress requires help. Preserve this workflow's gates and include evidence, links and missing information in chat. If the notifier is unavailable, skip it silently.
 
