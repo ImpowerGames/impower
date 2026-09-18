@@ -1,7 +1,7 @@
 import { describe, expect, test } from "vitest";
 import { isLine } from "../src/geometry/cubic";
 import { smoothAnchors } from "../src/methods/bend";
-import { buildApertures, morphSubpaths, nodesTrack, traceTrack, parsePathData, serializePathData, bendTrack } from "../src/index";
+import { buildApertures, morphSubpaths, matchTrack, traceTrack, parsePathData, serializePathData, bendTrack } from "../src/index";
 import type { MorphMethod, Subpath, BendTrack } from "../src/index";
 import {
   circle,
@@ -56,7 +56,7 @@ describe("scale invariance", () => {
     ["trace: square to star", square, star, "trace"],
     ["trace: star to circle", star, circle, "trace"],
     ["trace: square to triangle", square, triangle, "trace"],
-    ["nodes: square to quadrilateral", square, offKilterQuad, "nodes"],
+    ["match: square to quadrilateral", square, offKilterQuad, "match"],
     ["still: identical lashes", upperOpen, upperOpen, "bend"],
   ];
   for (const [name, from, to, method] of cases) {
@@ -73,10 +73,10 @@ describe("scale invariance", () => {
     });
   }
 
-  test("nodes chooses the same correspondence at every scale", () => {
+  test("match chooses the same correspondence at every scale", () => {
     const rotatedStart = "M85,90L95,5L5,15L15,80Z";
     const picks = SCALES.map((k) => {
-      const r = nodesTrack(loop(scaled(square, k)), loop(scaled(rotatedStart, k)));
+      const r = matchTrack(loop(scaled(square, k)), loop(scaled(rotatedStart, k)));
       if (!r.ok) throw new Error(r.failure.message);
       return `${r.track.reversed}:${r.track.rotation}`;
     });

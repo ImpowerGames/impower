@@ -1,12 +1,12 @@
 import { describe, expect, test } from "vitest";
 import { ArcLoop, lerpLoopsAngular, selfIntersects } from "../src/geometry/cubic";
-import { morphSubpaths, nodesTrack, parsePathData, serializePathData } from "../src/index";
+import { morphSubpaths, matchTrack, parsePathData, serializePathData } from "../src/index";
 import type { Cubic } from "../src/index";
 import { allStraight, anchors, closedLash, loop, offKilterQuad, runtimeProgress, sharpCorners, square, triangle, upperOpen } from "./fixtures";
 
-describe("nodesTrack", () => {
+describe("matchTrack", () => {
   test("pairs node with node: a square to an off-kilter quadrilateral stays a straight-edged quadrilateral", () => {
-    const r = nodesTrack(loop(square), loop(offKilterQuad));
+    const r = matchTrack(loop(square), loop(offKilterQuad));
     expect(r.ok).toBe(true);
     if (!r.ok) return;
     expect(r.track.reversed).toBe(false);
@@ -27,7 +27,7 @@ describe("nodesTrack", () => {
   });
 
   test("the rest poses are the authored drawings exactly", () => {
-    const r = nodesTrack(loop(upperOpen), loop(closedLash));
+    const r = matchTrack(loop(upperOpen), loop(closedLash));
     expect(r.ok).toBe(true);
     if (!r.ok) return;
     expect(serializePathData([{ segments: r.track.frame(0), closed: true }])).toBe(serializePathData(parsePathData(upperOpen)));
@@ -37,11 +37,11 @@ describe("nodesTrack", () => {
   test("a target exported with the opposite winding or a rotated start still pairs as drawn", () => {
     // The same quadrilateral, reversed and started at its third corner.
     const quadReversedRotated = "M85,90L95,5L5,15L15,80Z";
-    const r = nodesTrack(loop(square), loop(quadReversedRotated));
+    const r = matchTrack(loop(square), loop(quadReversedRotated));
     expect(r.ok).toBe(true);
     if (!r.ok) return;
     expect(r.track.reversed).toBe(true);
-    const direct = nodesTrack(loop(square), loop(offKilterQuad));
+    const direct = matchTrack(loop(square), loop(offKilterQuad));
     if (!direct.ok) return;
     expect(serializePathData([{ segments: r.track.frame(0.5), closed: true }])).toBe(
       serializePathData([{ segments: direct.track.frame(0.5), closed: true }]),
@@ -49,7 +49,7 @@ describe("nodesTrack", () => {
   });
 
   test("smooth nodes stay smooth: handles rotate rather than kink", () => {
-    const r = nodesTrack(loop(upperOpen), loop(closedLash));
+    const r = matchTrack(loop(upperOpen), loop(closedLash));
     expect(r.ok).toBe(true);
     if (!r.ok) return;
     for (const t of runtimeProgress) expect(selfIntersects(r.track.frame(t))).toBe(false);
@@ -62,33 +62,33 @@ describe("nodesTrack", () => {
   });
 
   test("a different node count is a structured failure", () => {
-    const r = nodesTrack(loop(square), loop(triangle));
+    const r = matchTrack(loop(square), loop(triangle));
     expect(r.ok).toBe(false);
     if (r.ok) return;
     expect(r.failure.code).toBe("node-count");
-    expect(morphSubpaths(parsePathData(square), parsePathData(triangle), { method: "nodes" })).toMatchObject({
+    expect(morphSubpaths(parsePathData(square), parsePathData(triangle), { method: "match" })).toMatchObject({
       ok: false,
       failure: { code: "node-count", subpath: 0 },
     });
   });
 
   test("empty geometry is a structured failure, not an exception", () => {
-    expect(nodesTrack([], [])).toMatchObject({ ok: false, failure: { code: "empty-geometry" } });
+    expect(matchTrack([], [])).toMatchObject({ ok: false, failure: { code: "empty-geometry" } });
   });
 
   test("self-intersection is reported only when the caller asks for the check", () => {
     // A square to a bow tie: the target crosses itself, so the artist's
     // pairing crosses before it arrives.
     const bowTie = "M0,0L100,100L100,0L0,100Z";
-    const unchecked = nodesTrack(loop(square), loop(bowTie));
+    const unchecked = matchTrack(loop(square), loop(bowTie));
     expect(unchecked.ok).toBe(true);
     if (unchecked.ok) expect(selfIntersects(unchecked.track.frame(0.9))).toBe(true);
-    const checked = nodesTrack(loop(square), loop(bowTie), { checkProgress: [0.5, 0.9] });
+    const checked = matchTrack(loop(square), loop(bowTie), { checkProgress: [0.5, 0.9] });
     expect(checked.ok).toBe(false);
     if (checked.ok) return;
     expect(checked.failure.code).toBe("self-intersection");
     expect(checked.failure.progress).toContain(0.9);
-    expect(morphSubpaths(parsePathData(square), parsePathData(bowTie), { method: "nodes", nodes: { checkProgress: [0.9] } })).toMatchObject({
+    expect(morphSubpaths(parsePathData(square), parsePathData(bowTie), { method: "match", match: { checkProgress: [0.9] } })).toMatchObject({
       ok: false,
       failure: { code: "self-intersection", subpath: 0 },
     });
@@ -125,7 +125,7 @@ describe("nodesTrack", () => {
     for (const k of [1e-8, 0.01, 1, 100, 1e8]) {
       const nearly = `M0,0L${k * 100},0L0,${k * 100}L${k * 0.001},0`;
       const target = `M0,0L${k * 90},0L0,${k * 100}Z`;
-      const r = nodesTrack(loop(nearly), loop(target));
+      const r = matchTrack(loop(nearly), loop(target));
       expect(r.ok, `scale ${k}`).toBe(true);
       if (r.ok) expect(r.track.from).toHaveLength(3);
     }
@@ -144,14 +144,14 @@ describe("nodesTrack", () => {
         outside = k * 7.0;
       expect(fraction(inside)).toBeLessThanOrEqual(0.02);
       expect(fraction(outside)).toBeGreaterThan(0.02);
-      const r = nodesTrack(loop(withGap(inside)), loop(target));
+      const r = matchTrack(loop(withGap(inside)), loop(target));
       expect(r.ok, `inside the limit, scale ${k}`).toBe(true);
       if (r.ok) expect(r.track.from).toHaveLength(3);
-      const w = nodesTrack(loop(withGap(outside)), loop(target));
+      const w = matchTrack(loop(withGap(outside)), loop(target));
       expect(w.ok, `outside the limit, scale ${k}`).toBe(false);
       if (!w.ok) expect(w.failure.code).toBe("node-count");
-      expect(morphSubpaths(parsePathData(withGap(inside)), parsePathData(target), { method: "nodes" }).ok).toBe(true);
-      expect(morphSubpaths(parsePathData(withGap(outside)), parsePathData(target), { method: "nodes" })).toMatchObject({ ok: false, failure: { code: "not-closed" } });
+      expect(morphSubpaths(parsePathData(withGap(inside)), parsePathData(target), { method: "match" }).ok).toBe(true);
+      expect(morphSubpaths(parsePathData(withGap(outside)), parsePathData(target), { method: "match" })).toMatchObject({ ok: false, failure: { code: "not-closed" } });
     }
   });
 });

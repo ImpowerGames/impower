@@ -122,7 +122,7 @@ end
   method = |
 end
 `),
-    ).toEqual(["nodes", "bend", "trace"]);
+    ).toEqual(["match", "bend", "trace"]);
     expect(
       labelsAt(`morph blink with
   layers:
@@ -149,7 +149,7 @@ end
 `,
       "=",
     );
-    expect((item!.textEdit as any).newText).toBe(" nodes");
+    expect((item!.textEdit as any).newText).toBe(" match");
   });
 
   test("layer labels under `layers:` come from the candidate artwork", () => {

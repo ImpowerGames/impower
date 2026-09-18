@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 import { selfIntersects, signedArea } from "../src/geometry/cubic";
-import { morphSubpaths, nodesTrack, traceTrack, parsePathData } from "../src/index";
+import { morphSubpaths, matchTrack, traceTrack, parsePathData } from "../src/index";
 import type { Cubic } from "../src/index";
 import {
   allStraight,
@@ -189,14 +189,14 @@ describe("traceTrack", () => {
       { p0: [-1, 0], c1: [-1, -2], c2: [1, -2], p1: [1, 0] },
       { p0: [1, 0], c1: [1, 0], c2: [-1, 0], p1: [-1, 0] },
     ];
-    const r = nodesTrack(simple, knotted, { handles: "linear", checkProgress: [1] });
+    const r = matchTrack(simple, knotted, { handles: "linear", checkProgress: [1] });
     expect(r.ok).toBe(false);
     if (!r.ok) expect(r.failure.code).toBe("self-intersection");
     // A loop that retraces its own first edge overlaps itself.
     const retraced = "M0,0L100,0L100,100L0,100L0,0L100,0Z";
     expect(selfIntersects(loop(retraced))).toBe(true);
     expect(traceTrack(loop(square), loop(retraced)).ok).toBe(false);
-    expect(nodesTrack(loop(retraced), loop(retraced), { checkProgress: [1] }).ok).toBe(false);
+    expect(matchTrack(loop(retraced), loop(retraced), { checkProgress: [1] }).ok).toBe(false);
   });
 
   test("a self-crossing target is rejected at any scale", () => {

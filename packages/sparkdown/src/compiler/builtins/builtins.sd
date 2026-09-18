@@ -3942,7 +3942,7 @@ animation whitepulse with
     direction = "normal"
 end
 
-// `method` has no default: every morph chooses one (nodes, bend or trace)
+// `method` has no default: every morph chooses one (match, bend or trace)
 // wherever `blend = morph` applies. `iteration_delay_min`/`_max` are absent,
 // so a morph with more than one iteration repeats with no gap.
 define morph with

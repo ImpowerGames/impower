@@ -1,5 +1,5 @@
 import { ArcLoop, copyLoop, endsMeet, loopExtent, sameLoop } from "./geometry/cubic";
-import { type NodesOptions, nodesTrack } from "./methods/nodes";
+import { type MatchOptions, matchTrack } from "./methods/match";
 import { type TraceOptions, traceTrack } from "./methods/trace";
 import { type ScaleTrack, scaleTrack } from "./methods/scale";
 import { type BendOptions, bendTrack } from "./methods/bend";
@@ -8,7 +8,7 @@ import type { Cubic, MorphMethod, MorphResult, Subpath, SubpathMorph, SubpathTra
 export interface MorphOptions {
   /** The explicit method. A failure is reported, never swapped for another. */
   method: MorphMethod;
-  nodes?: NodesOptions;
+  match?: MatchOptions;
   bend?: BendOptions;
   trace?: TraceOptions;
   /**
@@ -84,8 +84,8 @@ export function morphSubpaths(from: Subpath[], to: Subpath[], options: MorphOpti
     }
     moving++;
     const result =
-      options.method === "nodes"
-        ? nodesTrack(a, b, options.nodes)
+      options.method === "match"
+        ? matchTrack(a, b, options.match)
         : options.method === "bend"
           ? bendTrack(a, b, options.bend)
           : traceTrack(a, b, options.trace);

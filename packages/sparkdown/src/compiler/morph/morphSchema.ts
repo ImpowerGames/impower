@@ -7,12 +7,12 @@ export const MORPH_BLENDS = ["morph", "fade", "cut", "scale"] as const;
 export const MORPH_FALLBACKS = ["fade", "cut", "scale"] as const;
 /**
  * The geometry methods, each named by the motion an artist chooses it for:
- * `nodes` moves node to node between two drawings with the same nodes in the
+ * `match` moves node to node between two drawings with the same nodes in the
  * same order, `bend` bends or straightens the middle of a thin shape with two
  * pointed ends while the ends keep their shape, and `trace` pairs points
  * traced along the outline of any closed shape.
  */
-export const MORPH_METHODS = ["nodes", "bend", "trace"] as const;
+export const MORPH_METHODS = ["match", "bend", "trace"] as const;
 export const MORPH_DIRECTIONS = [
   "normal",
   "reverse",
@@ -98,7 +98,7 @@ export const MORPH_TIMING_DEFAULTS = {
 export const MORPH_FIELD_DOCS: Record<string, string> = {
   blend: "How shapes change between poses: `morph` (default), `fade`, `cut` or `scale`.",
   method:
-    "How matched shapes morph: `nodes` (same nodes in the same order), `bend` (a thin shape with two pointed ends bends while its ends keep their shape) or `trace` (any closed shape). Required wherever `blend = morph` applies.",
+    "How matched shapes morph: `match` (same nodes in the same order), `bend` (a thin shape with two pointed ends bends while its ends keep their shape) or `trace` (any closed shape). Required wherever `blend = morph` applies.",
   fallback:
     "What happens to a shape with no usable morph pair: `fade` (default), `cut` or `scale`.",
   layers: "Per-label overrides of `blend`, `method` and `fallback`, keyed by artwork layer label.",

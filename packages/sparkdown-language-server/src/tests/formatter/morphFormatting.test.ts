@@ -65,7 +65,7 @@ end
   test("mis-indented nesting is normalized to two spaces per level", () => {
     expect(
       formatSource(`morph blink with
-     method = nodes
+     method = match
      keyframes:
           from:
                 eyes:
@@ -76,7 +76,7 @@ end
 end
 `),
     ).toBe(`morph blink with
-  method = nodes
+  method = match
   keyframes:
     from:
       eyes:

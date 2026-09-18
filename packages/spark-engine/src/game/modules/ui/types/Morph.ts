@@ -2,7 +2,7 @@ import { type Reference } from "../../../core/types/Reference";
 
 export type MorphBlend = "morph" | "fade" | "cut" | "scale";
 export type MorphFallback = "fade" | "cut" | "scale";
-export type MorphMethod = "nodes" | "bend" | "trace";
+export type MorphMethod = "match" | "bend" | "trace";
 
 /** How shapes change between poses, at the root or for one layer label. */
 export interface MorphPolicy {

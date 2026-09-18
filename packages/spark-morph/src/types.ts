@@ -26,7 +26,7 @@ export interface Subpath {
  * The explicit interpolation methods, each named by the motion an artist
  * chooses it for. There is no automatic selection.
  *
- * - `nodes` pairs node with node by index: the second pose was drawn by
+ * - `match` pairs node with node by index: the second pose was drawn by
  *   editing a copy of the first, so both have the same nodes in the same
  *   order, and the artist controls the motion through node placement.
  * - `bend` bends or straightens the middle of a thin closed loop while its
@@ -37,7 +37,7 @@ export interface Subpath {
  *   dissolved node where one drawing has a corner the other lacks: any
  *   closed shape.
  */
-export type MorphMethod = "nodes" | "bend" | "trace";
+export type MorphMethod = "match" | "bend" | "trace";
 
 /** Why a method could not produce a usable morph for the given geometry. */
 export type MorphFailureCode =

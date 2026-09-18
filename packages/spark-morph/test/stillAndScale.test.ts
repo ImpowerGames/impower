@@ -5,7 +5,7 @@ import { blob, closedLash, loop, square, upperOpen } from "./fixtures";
 
 describe("identical drawings", () => {
   test("stay still under every method, frame for frame", () => {
-    for (const method of ["nodes", "bend", "trace"] as const) {
+    for (const method of ["match", "bend", "trace"] as const) {
       const r = morphSubpaths(parsePathData(upperOpen), parsePathData(upperOpen), { method });
       expect(r.ok).toBe(true);
       if (!r.ok) return;

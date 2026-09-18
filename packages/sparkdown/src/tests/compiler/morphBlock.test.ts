@@ -320,7 +320,7 @@ end
 
   test("a different group prefix is reported where it is written and not stripped", () => {
     const text = `morph m with
-  method = nodes
+  method = match
   keyframes:
     from:
       eyes:
@@ -468,7 +468,7 @@ end
 
 /** Wrap keyframe lines into an otherwise valid morph. */
 const withKeyframes = (keyframes: string, extra = "") => `morph m with
-  method = nodes
+  method = match
 ${extra}  keyframes:
 ${keyframes}end
 `;
@@ -631,7 +631,7 @@ describe("morph diagnostics", () => {
 
   test("a missing `with` is reported and the next block still parses", () => {
     const text = `morph m
-  method = nodes
+  method = match
 end
 
 animation fade with
@@ -642,7 +642,7 @@ end
     const found = morphDiagnostics(text).find((d) => d.message.includes("Expected `with`"));
     expect(found).toMatchObject({ line: 0, text: "m" });
     const program = compile(text);
-    expect(program.context?.["morph"]?.["m"]?.method).toBe("nodes");
+    expect(program.context?.["morph"]?.["m"]?.method).toBe("match");
     expect(program.context?.["animation"]?.["fade"]?.timing?.duration).toBe(1);
   });
 });

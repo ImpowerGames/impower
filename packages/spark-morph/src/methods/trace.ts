@@ -12,7 +12,7 @@ import {
   withWinding,
 } from "../geometry/cubic";
 import type { Cubic, MorphFailure, SubpathTrack } from "../types";
-import { prepareLoop } from "./nodes";
+import { prepareLoop } from "./match";
 
 export interface TraceOptions {
   /**

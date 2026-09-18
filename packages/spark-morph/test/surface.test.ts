@@ -9,7 +9,7 @@ describe("package surface", () => {
     expect(Object.keys(index).sort()).toEqual(
       [
         "MORPH_DEFAULTS",
-        "NODES_DEFAULTS",
+        "MATCH_DEFAULTS",
         "TRACE_DEFAULTS",
         "SEGMENT_STRIDE",
         "BEND_DEFAULTS",
@@ -20,7 +20,7 @@ describe("package surface", () => {
         "interpolateSamples",
         "morphScale",
         "morphSubpaths",
-        "nodesTrack",
+        "matchTrack",
         "traceTrack",
         "pairShapes",
         "parsePathData",
