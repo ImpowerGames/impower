@@ -1,7 +1,7 @@
 import { describe, expect, test } from "vitest";
 
-import { buildApertures, pairShapes, parsePathData, taperTrack } from "../src/index";
-import type { EdgeTrack, LabelledShape, TaperTrack } from "../src/index";
+import { buildApertures, pairShapes, parsePathData, bendTrack } from "../src/index";
+import type { EdgeTrack, LabelledShape, BendTrack } from "../src/index";
 import { closedLash, loop, lowerOpen, runtimeProgress, shift, upperOpen } from "./fixtures";
 
 // A closed aperture reports an area at floating-point noise, not exactly zero.
@@ -33,8 +33,8 @@ function properlyCrosses(pts: [number, number][]): boolean {
   }
   return false;
 }
-const track = (from: string, to: string): TaperTrack => {
-  const r = taperTrack(loop(from), loop(to));
+const track = (from: string, to: string): BendTrack => {
+  const r = bendTrack(loop(from), loop(to));
   if (!r.ok) throw new Error(r.failure.message);
   return r.track;
 };
@@ -79,7 +79,7 @@ describe("buildApertures", () => {
         y = p[1] - 50;
       return [50 + x * c - y * s, 50 + x * s + y * c];
     };
-    const arcTrack = (bulge: number): TaperTrack => {
+    const arcTrack = (bulge: number): BendTrack => {
       // A ribbon whose two edges are arcs above (or below) the tip line.
       const edgeAt = (t: number, points: number, offset: number): [number, number][] => {
         const out: [number, number][] = [];
@@ -165,7 +165,7 @@ describe("buildApertures", () => {
   });
 
   test("an edge whose tips coincide is degenerate and never paired", () => {
-    const flat = (): TaperTrack => ({
+    const flat = (): BendTrack => ({
       from: [],
       to: [],
       canonicalFrom: [],
@@ -195,7 +195,7 @@ describe("buildApertures", () => {
     // Two boundaries that coincide at progress 0, 0.5 and 1 but separate in
     // between: three probes would call the aperture closed for good.
     const bump = (t: number) => 300 * t * (t - 0.5) * (t - 1);
-    const edge = (sign: number): TaperTrack => ({
+    const edge = (sign: number): BendTrack => ({
       from: [],
       to: [],
       canonicalFrom: [],

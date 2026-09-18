@@ -23,19 +23,21 @@ export interface Subpath {
 }
 
 /**
- * The explicit interpolation methods, each named by what it pairs on. There
- * is no automatic selection.
+ * The explicit interpolation methods, each named by the motion an artist
+ * chooses it for. There is no automatic selection.
  *
  * - `nodes` pairs node with node by index: the second pose was drawn by
  *   editing a copy of the first, so both have the same nodes in the same
  *   order, and the artist controls the motion through node placement.
- * - `taper` pairs tip with tip and edge with edge: a thin closed loop with
- *   two pointed ends, such as a lash or a crease.
+ * - `bend` bends or straightens the middle of a thin closed loop while its
+ *   two pointed ends keep their shape, such as a lash or a crease. It pairs
+ *   tip with tip and edge with edge, and fails on a shape without two
+ *   pointed ends.
  * - `trace` pairs the drawings' anchors along the outline, inserting a
  *   dissolved node where one drawing has a corner the other lacks: any
  *   closed shape.
  */
-export type MorphMethod = "nodes" | "taper" | "trace";
+export type MorphMethod = "nodes" | "bend" | "trace";
 
 /** Why a method could not produce a usable morph for the given geometry. */
 export type MorphFailureCode =

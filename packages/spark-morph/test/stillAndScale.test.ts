@@ -5,7 +5,7 @@ import { blob, closedLash, loop, square, upperOpen } from "./fixtures";
 
 describe("identical drawings", () => {
   test("stay still under every method, frame for frame", () => {
-    for (const method of ["nodes", "taper", "trace"] as const) {
+    for (const method of ["nodes", "bend", "trace"] as const) {
       const r = morphSubpaths(parsePathData(upperOpen), parsePathData(upperOpen), { method });
       expect(r.ok).toBe(true);
       if (!r.ok) return;
@@ -16,10 +16,10 @@ describe("identical drawings", () => {
   });
 
   test("a still subpath inside a moving compound drawing stays still", () => {
-    const r = morphSubpaths(parsePathData(upperOpen + square), parsePathData(closedLash + square), { method: "taper" });
+    const r = morphSubpaths(parsePathData(upperOpen + square), parsePathData(closedLash + square), { method: "bend" });
     expect(r.ok).toBe(true);
     if (!r.ok) return;
-    expect(r.morph.method).toBe("taper");
+    expect(r.morph.method).toBe("bend");
     const sq = serializePathData(parsePathData(square));
     for (const t of [0, 0.5, 1]) expect(serializePathData([r.morph.frame(t)[1]!])).toBe(sq);
   });

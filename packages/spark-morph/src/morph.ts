@@ -2,14 +2,14 @@ import { ArcLoop, copyLoop, endsMeet, loopExtent, sameLoop } from "./geometry/cu
 import { type NodesOptions, nodesTrack } from "./methods/nodes";
 import { type TraceOptions, traceTrack } from "./methods/trace";
 import { type ScaleTrack, scaleTrack } from "./methods/scale";
-import { type TaperOptions, taperTrack } from "./methods/taper";
+import { type BendOptions, bendTrack } from "./methods/bend";
 import type { Cubic, MorphMethod, MorphResult, Subpath, SubpathMorph, SubpathTrack } from "./types";
 
 export interface MorphOptions {
   /** The explicit method. A failure is reported, never swapped for another. */
   method: MorphMethod;
   nodes?: NodesOptions;
-  taper?: TaperOptions;
+  bend?: BendOptions;
   trace?: TraceOptions;
   /**
    * Per-control-point tolerance under which two drawings count as
@@ -86,8 +86,8 @@ export function morphSubpaths(from: Subpath[], to: Subpath[], options: MorphOpti
     const result =
       options.method === "nodes"
         ? nodesTrack(a, b, options.nodes)
-        : options.method === "taper"
-          ? taperTrack(a, b, options.taper)
+        : options.method === "bend"
+          ? bendTrack(a, b, options.bend)
           : traceTrack(a, b, options.trace);
     if (!result.ok) return { ok: false, failure: { ...result.failure, subpath: i } };
     tracks.push(result.track);

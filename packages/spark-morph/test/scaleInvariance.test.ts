@@ -1,8 +1,8 @@
 import { describe, expect, test } from "vitest";
 import { isLine } from "../src/geometry/cubic";
-import { smoothAnchors } from "../src/methods/taper";
-import { buildApertures, morphSubpaths, nodesTrack, traceTrack, parsePathData, serializePathData, taperTrack } from "../src/index";
-import type { MorphMethod, Subpath, TaperTrack } from "../src/index";
+import { smoothAnchors } from "../src/methods/bend";
+import { buildApertures, morphSubpaths, nodesTrack, traceTrack, parsePathData, serializePathData, bendTrack } from "../src/index";
+import type { MorphMethod, Subpath, BendTrack } from "../src/index";
 import {
   circle,
   closedLash,
@@ -48,16 +48,16 @@ const normalized = (frame: Subpath[], k: number): string =>
 
 describe("scale invariance", () => {
   const cases: [string, string, string, MorphMethod][] = [
-    ["taper: upper lash", upperOpen, closedLash, "taper"],
-    ["taper: rotating crease", rotatingOpen, rotatingClosed, "taper"],
-    ["taper: rounded tips", roundedOpen, roundedClosed, "taper"],
-    ["taper: one cusp (fails)", oneCusp, oneCuspNarrow, "taper"],
-    ["taper: circle (fails)", circle, closedLash, "taper"],
+    ["bend: upper lash", upperOpen, closedLash, "bend"],
+    ["bend: rotating crease", rotatingOpen, rotatingClosed, "bend"],
+    ["bend: rounded tips", roundedOpen, roundedClosed, "bend"],
+    ["bend: one cusp (fails)", oneCusp, oneCuspNarrow, "bend"],
+    ["bend: circle (fails)", circle, closedLash, "bend"],
     ["trace: square to star", square, star, "trace"],
     ["trace: star to circle", star, circle, "trace"],
     ["trace: square to triangle", square, triangle, "trace"],
     ["nodes: square to quadrilateral", square, offKilterQuad, "nodes"],
-    ["still: identical lashes", upperOpen, upperOpen, "taper"],
+    ["still: identical lashes", upperOpen, upperOpen, "bend"],
   ];
   for (const [name, from, to, method] of cases) {
     test(`${name}: the same outcome and the same frames at every scale`, () => {
@@ -92,18 +92,18 @@ describe("scale invariance", () => {
     expect(new Set(picks).size, picks.join(" | ")).toBe(1);
   });
 
-  test("taper thickness ratios agree across scales", () => {
+  test("bend thickness ratios agree across scales", () => {
     const ratios = SCALES.map((k) => {
-      const r = taperTrack(loop(scaled(upperOpen, k)), loop(scaled(closedLash, k)));
+      const r = bendTrack(loop(scaled(upperOpen, k)), loop(scaled(closedLash, k)));
       if (!r.ok) throw new Error(r.failure.message);
       return r.track.thickness;
     });
     for (const ratio of ratios) expect(ratio).toBeCloseTo(ratios[UNIT]!, 3);
   });
 
-  test("taper frames without the handoff blend agree across scales", () => {
+  test("bend frames without the handoff blend agree across scales", () => {
     const mids = SCALES.map((k) => {
-      const r = taperTrack(loop(scaled(upperOpen, k)), loop(scaled(closedLash, k)), { handoff: false });
+      const r = bendTrack(loop(scaled(upperOpen, k)), loop(scaled(closedLash, k)), { handoff: false });
       if (!r.ok) throw new Error(r.failure.message);
       return normalized([{ segments: r.track.frame(0.25), closed: true }], k);
     });
@@ -132,7 +132,7 @@ describe("scale invariance", () => {
     // Synthetic edges 100k units apart at scale k: the closure test is
     // relative to the edges' own extent, so no unit floor closes it.
     for (const k of [1e-12, 1, 1e12]) {
-      const edge = (offset: number): TaperTrack => ({
+      const edge = (offset: number): BendTrack => ({
         from: [],
         to: [],
         canonicalFrom: [],
@@ -163,9 +163,9 @@ describe("scale invariance", () => {
 
   test("aperture pairing and relative area agree across scales", () => {
     const areas = SCALES.map((k) => {
-      const u = taperTrack(loop(scaled(upperOpen, k)), loop(scaled(closedLash, k)));
-      const l = taperTrack(loop(scaled(lowerOpen, k)), loop(scaled(closedLash, k)));
-      if (!u.ok || !l.ok) throw new Error("taper failed");
+      const u = bendTrack(loop(scaled(upperOpen, k)), loop(scaled(closedLash, k)));
+      const l = bendTrack(loop(scaled(lowerOpen, k)), loop(scaled(closedLash, k)));
+      if (!u.ok || !l.ok) throw new Error("bend failed");
       const r = buildApertures([
         { id: "u", label: "l", track: u.track },
         { id: "l", label: "l", track: l.track },

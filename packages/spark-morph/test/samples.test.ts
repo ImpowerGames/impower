@@ -12,15 +12,15 @@ import {
 import type { SubpathMorph } from "../src/index";
 import { closedLash, upperOpen, circle, square } from "./fixtures";
 
-const taper = (): SubpathMorph => {
-  const r = morphSubpaths(parsePathData(upperOpen), parsePathData(closedLash), { method: "taper" });
+const bend = (): SubpathMorph => {
+  const r = morphSubpaths(parsePathData(upperOpen), parsePathData(closedLash), { method: "bend" });
   if (!r.ok) throw new Error(r.failure.message);
   return r.morph;
 };
 
 describe("sampleMorph", () => {
   test("frames share one layout and keep the authored endpoints as path data", () => {
-    const s = sampleMorph(taper(), 8);
+    const s = sampleMorph(bend(), 8);
     expect(s.count).toBe(8);
     expect(s.frames).toHaveLength(8);
     const len = s.segmentCounts.reduce((a, b) => a + b, 0) * SEGMENT_STRIDE;
@@ -58,7 +58,7 @@ describe("sampleMorph", () => {
 
 describe("interpolateSamples", () => {
   test("returns the exact frame at a sample and the linear blend between two, without easing", () => {
-    const s = sampleMorph(taper(), 8);
+    const s = sampleMorph(bend(), 8);
     expect(Array.from(interpolateSamples(s, 0))).toEqual(Array.from(s.frames[0]!));
     expect(Array.from(interpolateSamples(s, 1))).toEqual(Array.from(s.frames[7]!));
     expect(Array.from(interpolateSamples(s, 3 / 7))).toEqual(Array.from(s.frames[3]!));
@@ -69,13 +69,13 @@ describe("interpolateSamples", () => {
   });
 
   test("reuses the caller's buffer", () => {
-    const s = sampleMorph(taper(), 8);
+    const s = sampleMorph(bend(), 8);
     const buf = new Float64Array(s.frames[0]!.length);
     expect(interpolateSamples(s, 0.2, buf)).toBe(buf);
   });
 
   test("produces path data straight from numbers", () => {
-    const s = sampleMorph(taper(), 8);
+    const s = sampleMorph(bend(), 8);
     const d = frameToPathData(s, interpolateSamples(s, 0.3));
     expect(d).toMatch(/^M-?\d/);
     expect(d.endsWith("Z")).toBe(true);
@@ -90,7 +90,7 @@ describe("sample policy", () => {
   // tuning can compare, and the assertion pins that eight samples keep the
   // worst deviation under half a unit on a hundred-unit lash.
   test("eight samples keep the blend within half a unit of the exact frame", () => {
-    const morph = taper();
+    const morph = bend();
     const report: Record<number, number> = {};
     for (const count of [4, 8, 16]) {
       const s = sampleMorph(morph, count);

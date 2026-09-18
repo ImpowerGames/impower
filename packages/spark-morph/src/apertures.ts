@@ -1,12 +1,12 @@
 import { clamp01, dist, polygonArea } from "./geometry/cubic";
-import type { TaperTrack } from "./methods/taper";
+import type { BendTrack } from "./methods/bend";
 import type { Point } from "./types";
 
-/** A moving edge: a taper track with the identity of the shape it came from. */
+/** A moving edge: a bend track with the identity of the shape it came from. */
 export interface EdgeTrack {
   id: string;
   label: string;
-  track: TaperTrack;
+  track: BendTrack;
 }
 
 export interface Aperture {

@@ -21,12 +21,12 @@ import {
 import type { Cubic, MorphFailure, Point, SubpathTrack } from "../types";
 
 /**
- * Options for the taper method. Every default that is a distance is a
+ * Options for the bend method. Every default that is a distance is a
  * fraction of the drawing's own size, so art at any scale behaves alike;
  * the prototype's hand-tuned pixel values are reproduced for lash art
  * about a hundred units wide.
  */
-export interface TaperOptions {
+export interface BendOptions {
   /**
    * Anchor count of the canonical loop: two per tip plus an even body count
    * split across the two edges. Minimum 6.
@@ -71,7 +71,7 @@ export interface TaperOptions {
   checkProgress?: number[];
 }
 
-export const TAPER_DEFAULTS: Required<TaperOptions> = {
+export const BEND_DEFAULTS: Required<BendOptions> = {
   anchors: 6,
   tipDistance: NaN,
   handoff: true,
@@ -548,7 +548,7 @@ export function selectCandidate(
   return { candidate: best, score: bestS, travel: bestTravel };
 }
 
-export interface TaperTrack extends SubpathTrack {
+export interface BendTrack extends SubpathTrack {
   /**
    * The canonical endpoint loops (two tip cubics plus the body anchors).
    * `from` and `to` inherited from the track share the frames' topology,
@@ -571,17 +571,17 @@ export interface TaperTrack extends SubpathTrack {
   thickness: number;
 }
 
-export type TaperResult = { ok: true; track: TaperTrack } | { ok: false; failure: MorphFailure };
+export type BendResult = { ok: true; track: BendTrack } | { ok: false; failure: MorphFailure };
 
 /**
- * Builds a taper track from two authored closed loops, or reports why it
+ * Builds a bend track from two authored closed loops, or reports why it
  * cannot. Preprocessing snaps the seam and smooths anchors as the prototype
  * did before its taper resample. A loop whose two best fold candidates do
  * not both fold sharply, or whose canonical reconstruction does not hold
  * the authored area, is not a taper and fails with `tips-not-found`.
  */
-export function taperTrack(fromRaw: Cubic[], toRaw: Cubic[], options: TaperOptions = {}): TaperResult {
-  const o = { ...TAPER_DEFAULTS, ...options };
+export function bendTrack(fromRaw: Cubic[], toRaw: Cubic[], options: BendOptions = {}): BendResult {
+  const o = { ...BEND_DEFAULTS, ...options };
   if (!fromRaw.length || !toRaw.length) {
     return { ok: false, failure: { code: "empty-geometry", message: "both drawings need at least one segment" } };
   }
@@ -658,7 +658,7 @@ export function taperTrack(fromRaw: Cubic[], toRaw: Cubic[], options: TaperOptio
       ok: false,
       failure: {
         code: "self-intersection",
-        message: "every taper correspondence self-intersects mid-morph",
+        message: "every bend correspondence self-intersects mid-morph",
         progress: o.checkProgress.filter((tt) => selfIntersects(canonicalFrame(a, b, tt))),
       },
     };
