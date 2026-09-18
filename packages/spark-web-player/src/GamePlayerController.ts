@@ -105,6 +105,15 @@ export interface CompletionEvaluation {
   filesRevision: number;
 }
 
+/** A suggestion that was drawn, with the result it was drawn from, so a
+ *  return to it can draw it again without compiling. */
+export interface ShownCompletion {
+  evaluation: CompletionEvaluation;
+  program: SparkProgram;
+  checkpoint?: string;
+  simulationFailure?: SimulationFailure;
+}
+
 /** What a suggestion would compile, as one comparable string: the document
  *  and version the edit applies to, the edit, the line shown, and the project
  *  files it was compiled against. Two suggestions with the same key produce
@@ -213,14 +222,15 @@ export class GamePlayerController {
   /** The newest `textDocument/previewCompletion` handled. */
   _completionRequest = 0;
   /** The suggestion the screen should show, or null for the real document. */
-  _completionWanted: string | null = null;
+  _completionWanted: CompletionEvaluation | null = null;
   /** The one suggestion being compiled; at most one at a time. */
   _completionEvaluating: CompletionEvaluation | null = null;
   /** The newest suggestion waiting for that compile to finish. A newer one
    *  replaces it, so holding an arrow key queues nothing. */
   _completionPending: CompletionEvaluation | null = null;
-  /** The suggestion whose program the screen shows, if any. */
-  _completionShown: CompletionEvaluation | null = null;
+  /** The last suggestion drawn completely, with the result it was drawn
+   *  from. The screen shows it while the game still holds its program. */
+  _completionShown: ShownCompletion | null = null;
   _completionStatus: CompletionPreviewStatus | null = null;
   _completionStatusTimer = 0;
   /** Counts suggestion programs, so each gets a version no real program has
@@ -845,6 +855,14 @@ export class GamePlayerController {
       programOutdated,
     } = message.params;
     if (userEvent) {
+      if (
+        this._completionSession &&
+        this._completionSession.uri !== textDocument.uri
+      ) {
+        // The author is working in another document, so the list that was
+        // open there is gone even if its editor never said so.
+        this.endCompletionPreview();
+      }
       const startFrom = {
         file: textDocument.uri,
         line: selectedRange.start.line,
@@ -927,19 +945,55 @@ export class GamePlayerController {
       this._completionWanted = null;
       this._completionPending = null;
       this.setCompletionStatus("unavailable");
+      const request = params.request;
+      await this.restoreCompletionFrame(
+        this._completionShown,
+        () => this._completionRequest === request,
+      );
       return;
     }
+    await this.wantCompletion(
+      this.completionEvaluation({
+        ...params,
+        contentChanges: params.contentChanges,
+      }),
+    );
+  };
+
+  /** A suggestion as the preview compiles it: its request, and its key
+   *  against the project files as they are now. */
+  completionEvaluation(
+    params: PreviewCompletionParams & {
+      contentChanges: NonNullable<PreviewCompletionParams["contentChanges"]>;
+    },
+  ): CompletionEvaluation {
     const filesRevision = workspace?.filesRevision ?? 0;
-    const evaluation: CompletionEvaluation = {
-      params: { ...params, contentChanges: params.contentChanges },
+    return {
+      params,
       key: completionKey(params, filesRevision),
       filesRevision,
     };
-    this._completionWanted = evaluation.key;
-    if (evaluation.key === this._completionShown?.key) {
-      // Back to the suggestion already on screen.
+  }
+
+  isWantedCompletion(evaluation: CompletionEvaluation) {
+    return this._completionWanted?.key === evaluation.key;
+  }
+
+  /** Make `evaluation` the suggestion the screen should show. */
+  async wantCompletion(evaluation: CompletionEvaluation) {
+    this._completionWanted = evaluation;
+    const shown = this._completionShown;
+    if (shown && shown.evaluation.key === evaluation.key) {
       this._completionPending = null;
-      this.setCompletionStatus("showing");
+      if (this._game?.program === shown.program) {
+        // Back to the suggestion on screen.
+        this.setCompletionStatus("showing");
+        return;
+      }
+      // A later suggestion began drawing over it before being abandoned.
+      // Draw this one again from the result kept for it, without compiling.
+      this.setCompletionStatus("preparing");
+      await this.drawCompletion(shown.evaluation, shown);
       return;
     }
     if (evaluation.key === this._completionEvaluating?.key) {
@@ -950,7 +1004,7 @@ export class GamePlayerController {
     this._completionPending = evaluation;
     this.setCompletionStatus("preparing");
     await this.evaluateCompletionPreviews();
-  };
+  }
 
   /** The game holds a program the real document did not produce, so what it
    *  reports about what it ran is not the author's and is not passed on. */
@@ -999,23 +1053,15 @@ export class GamePlayerController {
     // is never idle while a newer suggestion waits.
     void this.evaluateCompletionPreviews();
     if (
-      evaluation.key !== this._completionWanted ||
+      !this.isWantedCompletion(evaluation) ||
       !this.completionPreviewEligible()
     ) {
       return;
     }
     if (evaluation.filesRevision !== (workspace.filesRevision ?? 0)) {
       // A project file changed while this compiled, so the result may name
-      // assets that no longer exist. Compile the same suggestion again.
-      const filesRevision = workspace.filesRevision;
-      const again = {
-        ...evaluation,
-        key: completionKey(params, filesRevision),
-        filesRevision,
-      };
-      this._completionWanted = again.key;
-      this._completionPending ??= again;
-      await this.evaluateCompletionPreviews();
+      // assets as they were. Compile the same suggestion again.
+      await this.wantCompletion(this.completionEvaluation(params));
       return;
     }
     if (result?.outdated) {
@@ -1026,48 +1072,110 @@ export class GamePlayerController {
     const program = result?.program;
     if (!result || !program || !hasCompiledProgram(program)) {
       this.setCompletionStatus("unavailable");
+      await this.restoreCompletionFrame(this._completionShown, () =>
+        this.isWantedCompletion(evaluation),
+      );
       return;
     }
     program.version = -++this._completionPrograms;
     this._completionProgramSet.add(program);
-    const shown = await this.updatePreview(
+    await this.drawCompletion(evaluation, {
       program,
-      params.textDocument.uri,
-      line,
+      checkpoint: result.checkpoint,
+      simulationFailure: result.simulationFailure,
+    });
+  }
+
+  /** Draw a suggestion's program. The draw is abandoned as soon as another
+   *  suggestion, the real document or PLAY is wanted instead, so nothing
+   *  drawn for a suggestion that stopped being wanted is finished. */
+  async drawCompletion(
+    evaluation: CompletionEvaluation,
+    result: Omit<ShownCompletion, "evaluation">,
+  ) {
+    const drawn = await this.updatePreview(
+      result.program,
+      evaluation.params.textDocument.uri,
+      evaluation.params.selectedRange?.start.line ?? 0,
       result.checkpoint,
       result.simulationFailure,
-      { speculative: true },
+      { speculative: true, current: () => this.isWantedCompletion(evaluation) },
     );
-    if (shown && evaluation.key === this._completionWanted) {
-      this._completionShown = evaluation;
+    if (drawn) {
+      this._completionShown = { evaluation, ...result };
       this.setCompletionStatus("showing");
+    }
+    return drawn;
+  }
+
+  /** Put the last complete frame back when a draw was abandoned part way
+   *  through and nothing newer is going to replace it, so a suggestion that
+   *  cannot be shown leaves the screen as it found it. */
+  async restoreCompletionFrame(
+    shown: ShownCompletion | null,
+    current: () => boolean,
+  ) {
+    const game = this._game;
+    if (!game || game.state === "running") {
+      return;
+    }
+    if (shown) {
+      if (game.program !== shown.program) {
+        await this.updatePreview(
+          shown.program,
+          shown.evaluation.params.textDocument.uri,
+          shown.evaluation.params.selectedRange?.start.line ?? 0,
+          shown.checkpoint,
+          shown.simulationFailure,
+          { speculative: true, current },
+        );
+      }
+      return;
+    }
+    const startFrom = this._options?.startFrom;
+    if (this.displayingSpeculative && this._program && startFrom) {
+      await this.updatePreview(
+        this._program,
+        startFrom.file,
+        startFrom.line,
+        this._checkpoint,
+        this._simulationFailure,
+        { current },
+      );
     }
   }
 
+  /** A real compile arrived while a list is open. When project files changed
+   *  since the wanted suggestion was compiled, it names assets as they were:
+   *  compile it again against the files as they are. */
+  async refreshCompletionFiles() {
+    const wanted = this._completionWanted;
+    if (!wanted || !workspace || wanted.filesRevision === workspace.filesRevision) {
+      return;
+    }
+    await this.wantCompletion(this.completionEvaluation(wanted.params));
+  }
+
   /** The list closed. Hand the screen back to the real document. */
-  async closeCompletionPreview(params: PreviewCompletionParams) {
+  async closeCompletionPreview(
+    params: Pick<
+      PreviewCompletionParams,
+      "textDocument" | "request" | "accepted"
+    >,
+  ) {
     const shown = this._completionShown;
     this._completionSession = null;
     this._completionWanted = null;
     this._completionPending = null;
     this._completionShown = null;
-    if (!this.displayingSpeculative) {
-      if (this._program && this._game && this._game.program !== this._program) {
-        // No suggestion reached the screen, but real programs compiled while
-        // the list was open were held back from it.
-        await this.showRealDocument();
-      } else {
-        this.setCompletionStatus(null);
-      }
-      return;
-    }
     const accepted = params.accepted;
     if (
       accepted &&
       shown &&
-      shown.params.textDocument.uri === params.textDocument.uri &&
-      shown.params.textDocument.version === accepted.version &&
-      JSON.stringify(shown.params.contentChanges) ===
+      this._game?.program === shown.program &&
+      shown.evaluation.params.textDocument.uri === params.textDocument.uri &&
+      shown.evaluation.params.textDocument.version === accepted.version &&
+      JSON.stringify(shown.evaluation.params.contentChanges) ===
         JSON.stringify(accepted.contentChanges)
     ) {
       // The frame on screen is the document the acceptance produced. Keep it
@@ -1080,17 +1188,35 @@ export class GamePlayerController {
       this.setCompletionStatus(null);
       return;
     }
-    await this.showRealDocument();
+    if (
+      this.displayingSpeculative ||
+      this._canonicalInvalid ||
+      (this._program && this._game && this._game.program !== this._program)
+    ) {
+      // A suggestion is on screen, the real document cannot be previewed, or
+      // real programs compiled while the list was open were held back.
+      await this.showRealDocument(
+        shown,
+        () => this._completionRequest === params.request,
+      );
+      return;
+    }
+    this.setCompletionStatus(null);
   }
 
   /** Show the real document's newest program at the author's line, from what
    *  this controller already holds, without waiting for any compile. */
-  async showRealDocument() {
+  async showRealDocument(
+    shown: ShownCompletion | null,
+    current: () => boolean,
+  ) {
     const startFrom = this._options?.startFrom;
     if (this._canonicalInvalid || !this._program || !startFrom) {
-      // The real document cannot be previewed, so the last valid frame stays,
-      // marked as not the document's.
+      // The real document cannot be previewed, so the last complete frame
+      // stays, marked as not the document's. A suggestion abandoned part way
+      // through drawing is not a complete frame.
       this.setCompletionStatus("stale");
+      await this.restoreCompletionFrame(shown, current);
       return;
     }
     this.setCompletionStatus(null);
@@ -1539,10 +1665,10 @@ export class GamePlayerController {
         this._options.startFrom ??= program.startFrom;
         this._options.workspace ??= program.workspace;
         this._options.simulationOptions ??= program.simulationOptions;
-        if (
-          this._options.startFrom &&
-          !this.completionPreviewHoldsScreen(program)
-        ) {
+        if (this.completionPreviewHoldsScreen(program)) {
+          // Not awaited: the next real program must not wait on a suggestion.
+          void this.refreshCompletionFiles().catch(console.error);
+        } else if (this._options.startFrom) {
           if (this._completionStatus === "stale") {
             this.setCompletionStatus(null);
           }
@@ -2005,7 +2131,11 @@ export class GamePlayerController {
     line: number,
     checkpoint: string | undefined,
     simulationFailure?: SimulationFailure,
-    options?: { speculative?: boolean },
+    options?: {
+      speculative?: boolean;
+      /** Abandon the update once this stops holding. */
+      current?: () => boolean;
+    },
   ): Promise<boolean> => {
     if (this._game?.state === "running") {
       return false;
@@ -2083,7 +2213,11 @@ export class GamePlayerController {
       const game = this._game;
       const update = this._previewUpdates;
       await game.preview(validPreviewFrom.file, validPreviewFrom.line);
-      if (game === this._game && update === this._previewUpdates) {
+      if (
+        game === this._game &&
+        update === this._previewUpdates &&
+        options?.current?.() !== false
+      ) {
         publishAppliedPosition();
         return true;
       }
@@ -2129,7 +2263,9 @@ export class GamePlayerController {
     }
     const game = this._game;
     const overtaken = () =>
-      update !== this._previewUpdates || this._game !== game;
+      update !== this._previewUpdates ||
+      this._game !== game ||
+      options?.current?.() === false;
 
     // Everything below — the checkpoint load, and the connect that restores
     // every module — happens before `game.preview()` picks the preview point,

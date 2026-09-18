@@ -11,7 +11,10 @@
 //
 // The controller is driven with a stand-in workspace whose compiles resolve
 // when the test says, and a recording `updatePreview`, since what is under test
-// is which program is shown when, not how it is drawn.
+// is which program is shown when, not how it is drawn. Like the real one, the
+// stand-in hands the game its program as soon as it starts, can be held part
+// way through drawing, and gives up when a newer draw starts or the one it was
+// asked for stops being wanted.
 import { afterEach, describe, expect, test } from "vitest";
 import { GameExecutedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameExecutedMessage";
 import { GamePlayerController, setWorkspace } from "../GamePlayerController";
@@ -47,6 +50,7 @@ function harness() {
     filesRevision: 0,
     previewCompile: (params: any) =>
       new Promise((resolve) => compiles.push({ params, resolve })),
+    compileTextDocument: async () => {},
   };
   setWorkspace(workspace as any);
   const controller: any = new GamePlayerController(
@@ -58,17 +62,35 @@ function harness() {
   controller._checkpoint = "REAL SAVE";
   controller._options = { startFrom: { file: URI, line: LINE } };
   controller._game = { state: "previewing", program: REAL };
+  // Every draw that finished, in order.
   const shown: { name: string; checkpoint?: string; speculative: boolean }[] = [];
+  let draws = 0;
+  let gate: Promise<void> | null = null;
+  /** Hold every draw that starts from now on part way through, until the
+   *  returned function is called. */
+  const hold = () => {
+    let release!: () => void;
+    gate = new Promise<void>((resolve) => (release = resolve));
+    return async () => {
+      gate = null;
+      release();
+      await settle();
+    };
+  };
   controller.updatePreview = async (
     p: any,
     _file: string,
     _line: number,
     checkpoint: string | undefined,
     _failure: unknown,
-    options?: { speculative?: boolean },
+    options?: { speculative?: boolean; current?: () => boolean },
   ) => {
     if (controller._game.state === "running") return false;
+    if (!options?.speculative) controller._completionShown = null;
+    const draw = ++draws;
     controller._game.program = p;
+    if (gate) await gate;
+    if (draw !== draws || options?.current?.() === false) return false;
     shown.push({ name: p.name, checkpoint, speculative: !!options?.speculative });
     return true;
   };
@@ -115,7 +137,7 @@ function harness() {
     );
     await settle();
   };
-  return { controller, workspace, compiles, shown, focus, close, answer };
+  return { controller, workspace, compiles, shown, focus, close, answer, hold };
 }
 
 const settle = async () => {
@@ -167,6 +189,95 @@ describe("while a suggestion list is open", () => {
     expect(shown.map((s) => s.name)).toEqual(["happy"]);
     expect(compiles).toEqual([]);
     expect(controller.getGameState().completion).toMatchObject({ status: "showing" });
+  });
+
+  test("returning to a suggestion while another is part way drawn draws it again", async () => {
+    const { controller, compiles, shown, focus, answer, hold } = harness();
+    focus("happy");
+    await answer("happy");
+    const happy = controller._game.program;
+    const release = hold();
+    focus("sad");
+    await answer("sad");
+    // "sad" has started drawing: the game holds its program.
+    expect(controller._game.program.name).toBe("sad");
+    focus("happy");
+    await settle();
+    await release();
+
+    // "sad" never finished; "happy" was drawn again from the result kept for
+    // it, without compiling it again.
+    expect(shown.map((s) => s.name)).toEqual(["happy", "happy"]);
+    expect(controller._game.program).toBe(happy);
+    expect(compiles).toEqual([]);
+    expect(controller.getGameState().completion).toMatchObject({ status: "showing" });
+  });
+
+  test("a suggestion that cannot be worked out after an abandoned draw puts the last frame back", async () => {
+    const { controller, shown, focus, answer, hold } = harness();
+    focus("happy");
+    await answer("happy");
+    const happy = controller._game.program;
+    const release = hold();
+    focus("sad");
+    await answer("sad");
+    focus(null);
+    await settle();
+    await release();
+
+    expect(shown.map((s) => s.name)).toEqual(["happy", "happy"]);
+    expect(controller._game.program).toBe(happy);
+    expect(controller.getGameState().completion).toMatchObject({ status: "unavailable" });
+  });
+
+  test("a suggestion that fails to compile after an abandoned draw puts the last frame back", async () => {
+    const { controller, shown, focus, answer, hold } = harness();
+    focus("happy");
+    await answer("happy");
+    const happy = controller._game.program;
+    const release = hold();
+    focus("sad");
+    await answer("sad");
+    focus("broken");
+    await answer("broken", { textDocument: { uri: URI, version: 1 }, program: program("broken", 1, null) });
+    await release();
+
+    expect(shown.map((s) => s.name)).toEqual(["happy", "happy"]);
+    expect(controller._game.program).toBe(happy);
+    expect(controller.getGameState().completion).toMatchObject({ status: "unavailable" });
+  });
+
+  test("a project file change while a suggestion is shown compiles it again", async () => {
+    const { controller, workspace, compiles, shown, focus, answer } = harness();
+    focus("happy");
+    await answer("happy");
+    workspace.filesRevision = 1;
+    // The real compile the file change caused arrives while the list is open.
+    await controller.loadProgram(program("real, new files", 2), "NEW FILES SAVE");
+    await settle();
+
+    expect(compiles.map((c) => c.params.contentChanges[0].text)).toEqual(["happy"]);
+    await answer("happy");
+    expect(shown.map((s) => s.name)).toEqual(["happy", "happy"]);
+    expect(controller.getGameState().completion).toMatchObject({ status: "showing" });
+  });
+
+  test("a selection in another document ends the suggestion preview", async () => {
+    const { controller, shown, focus, answer } = harness();
+    focus("happy");
+    await answer("happy");
+    await controller.handleSelectedCompilerDocument({
+      params: {
+        textDocument: { uri: "file://proj/other.sd", version: 1 },
+        selectedRange: { start: { line: 0, character: 0 }, end: { line: 0, character: 0 } },
+        userEvent: true,
+      },
+    });
+
+    expect(controller._completionSession).toBeNull();
+    expect(controller.getGameState().completion).toBeNull();
+    await controller.loadProgram(program("real, other", 2), "OTHER SAVE");
+    expect(shown.at(-1)).toMatchObject({ name: "real, other", speculative: false });
   });
 
   test("the same suggestion against a changed document is compiled again", async () => {
@@ -299,6 +410,36 @@ describe("when the list closes", () => {
     await answer("happy");
     await close("sad", 1);
     expect(shown.at(-1)!.name).toBe("real");
+  });
+
+  test("a real document that stopped compiling while it was open is marked, even if no suggestion was shown", async () => {
+    const { controller, shown, focus, close } = harness();
+    focus(null);
+    await settle();
+    await controller.loadProgram(program("does not compile", 2, null), undefined);
+    await close();
+
+    expect(shown).toEqual([]);
+    expect(controller.getGameState().completion).toMatchObject({ status: "stale" });
+  });
+
+  test("closing while a suggestion is part way drawn over a document that does not compile puts the last frame back", async () => {
+    const { controller, shown, focus, answer, close, hold } = harness();
+    focus("happy");
+    await answer("happy");
+    const happy = controller._game.program;
+    await controller.loadProgram(program("does not compile", 2, null), undefined);
+    const release = hold();
+    focus("sad");
+    await answer("sad");
+    const closing = close();
+    await settle();
+    await release();
+    await closing;
+
+    expect(shown.map((s) => s.name)).toEqual(["happy", "happy"]);
+    expect(controller._game.program).toBe(happy);
+    expect(controller.getGameState().completion).toMatchObject({ status: "stale" });
   });
 
   test("a real document that does not compile keeps the last frame, marked", async () => {
