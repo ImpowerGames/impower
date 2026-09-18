@@ -223,6 +223,12 @@ If a bare word is an option in two groups where choosing both would be a mistake
 
 The editor's autocomplete, after you type `:`, lists only the options this portrait actually has. A portrait with no `hat` layer does not offer `hat`.
 
+## Choosing an expression
+
+The quickest way to choose between expressions is to look at them in the scene. With the Game Preview open and stopped, type the portrait's name and a colon, then move through the suggestions with the arrow keys: the preview shows the scene with each highlighted option in place, full size, with the character's other options and the order you wrote them in kept as they are. Highlighting `sad` while completing `[[mia:hat:|]]` shows exactly what `[[mia:hat:sad]]` would show.
+
+Press Enter to keep the option you are looking at, or Escape to leave the line as it was; the preview returns to your script either way. The same works inside a named look's `attributes` list: the scene that uses the look shows each suggestion. [Previewing Suggestions](./SuggestionPreview.md) describes what the preview shows and when.
+
 ## Named looks
 
 When you use the same combination often, give it a name:

@@ -3,9 +3,9 @@ import { Game } from "@impower/spark-engine/src/game/core/classes/Game";
 import { installGameWorker } from "@impower/spark-engine/src/worker/installGameWorker";
 import { installSparkdownWorker } from "@impower/sparkdown/src/worker/installSparkdownWorker";
 import { profile } from "../../utils/profile";
-import { programIdentity } from "../../utils/programIdentity";
 import { planRouteForSelection } from "./planRouteForSelection";
 import { RouteSearchLog } from "./RouteSearchLog";
+import { searchRouteTo } from "./searchRouteTo";
 
 const connection = new Port2MessageConnection((message: any, transfer) =>
   self.postMessage(message, { transfer }),
@@ -40,64 +40,12 @@ compilerState.compiler.configure({
 // existence nor the checkpoint store's newest entry is evidence on its own.
 const routeSearches = new RouteSearchLog();
 
-/** Plan a route to `toPath` and replay it, recording what the search
- *  established. Returns the checkpoint it produced, if any. */
-const searchRouteTo = (game: Game, toPath: string) => {
-  const profilerId = compilerState.compiler.profilerId;
-  profile("start", profilerId + " " + "game/planRoute");
-  const fromPath = Game.getSimulateFromPath(toPath);
-  const newRoute = Game.planRoute(
-    game.story,
-    game.program,
-    fromPath,
-    toPath,
-    compilerState.compiler.config.simulationOptions,
-  );
-  profile("end", profilerId + " " + "game/planRoute");
-  const programId = programIdentity(game.program);
-  if (!newRoute) {
-    // No route to this start point exists at all — a definite answer, and the
-    // one most worth passing on: a client that repeats this search pays the
-    // same (unbounded until the work ceiling) cost to reach the same verdict.
-    //
-    // Asked immediately after the search that failed, because the planner's
-    // account of how it ended is what separates "there is no way there" from
-    // "I gave up looking" — and only the first is the script's fault (#379).
-    routeSearches.record({
-      path: toPath,
-      programId,
-      reachedTarget: false,
-      simulationFailure: Game.describeFailedRouteSearch(game.program, toPath),
-    });
-    return undefined;
-  }
-  profile("start", profilerId + " " + "game/simulateRoute");
-  const checkpoint = game.patchAndSimulateRoute(newRoute);
-  profile("end", profilerId + " " + "game/simulateRoute");
-  const reachedTarget = game.simulation === "success";
-  routeSearches.record({
-    path: toPath,
-    programId,
-    reachedTarget,
-    checkpoint: checkpoint ?? undefined,
-    // A route existed, so any failure here happened during the replay rather
-    // than the search; the game recorded which (`"diverged"`).
-    simulationFailure: reachedTarget ? undefined : game.simulationFailure,
+/** Plan a route to `toPath` and replay it for the real program. */
+const searchRealRouteTo = (game: Game, toPath: string) =>
+  searchRouteTo(game, toPath, routeSearches, {
+    config: compilerState.compiler.config,
+    profilerId: compilerState.compiler.profilerId,
   });
-  if (checkpoint) {
-    // Cache favored conditions and choices
-    const conditions = game.runtimeState.conditionsEncountered;
-    const choices = game.runtimeState.choicesEncountered;
-    const favoredConditions = conditions.map((c) => c.selected);
-    const favoredChoices = choices.map((c) => c.selected);
-    compilerState.compiler.config.simulationOptions ??= {};
-    compilerState.compiler.config.simulationOptions[newRoute.fromPath] = {
-      favoredConditions,
-      favoredChoices,
-    };
-  }
-  return checkpoint ?? undefined;
-};
 
 compilerState.compiler.addEventListener("compiler/didCompile", (params) => {
   // Whatever the last search established was established against the OLD
@@ -142,13 +90,51 @@ compilerState.compiler.addEventListener("compiler/didCompile", (params) => {
     );
     const toPath = gameState.game.startPath;
     if (toPath) {
-      searchRouteTo(gameState.game, toPath);
+      searchRealRouteTo(gameState.game, toPath);
       // Augment with the simulated checkpoint, and with what the search
       // established about this start point.
       routeSearches.report(params, toPath);
     }
   }
 });
+
+// A preview compile answers one autocomplete suggestion. The game takes the
+// hypothetical program so the route to the author's line is replayed in it, as
+// it is for a real edit; the compiler recompiles the real documents before the
+// next selection is routed against this game (see `selectDocument`).
+compilerState.compiler.addEventListener(
+  "compiler/didPreviewCompile",
+  (params) => {
+    const profilerId = compilerState.compiler.profilerId;
+    if (!gameState.game) {
+      profile("start", profilerId + " " + "game/create");
+      gameState.game = new Game({
+        program: params.program,
+        story: params.story,
+        ...gameState.systemConfiguration,
+        incrementalCheckpoints: true,
+        verifyCheckpoints: false,
+      });
+      profile("end", profilerId + " " + "game/create");
+    } else {
+      profile("start", profilerId + " " + "game/update");
+      gameState.game.updateProgram(params.program, params.story);
+      profile("end", profilerId + " " + "game/update");
+    }
+    const game = gameState.game;
+    game.setStartFrom(params.startFrom);
+    const toPath = game.startPath;
+    if (toPath) {
+      const log = new RouteSearchLog();
+      searchRouteTo(game, toPath, log, {
+        config: compilerState.compiler.config,
+        profilerId,
+        remember: false,
+      });
+      log.report(params, toPath);
+    }
+  },
+);
 
 compilerState.compiler.addEventListener("compiler/didRemove", (params) => {
   if (
@@ -164,7 +150,7 @@ compilerState.compiler.addEventListener("compiler/didSelect", (params) =>
     rememberStartFrom: (startFrom) => {
       compilerState.compiler.config.startFrom = startFrom;
     },
-    searchRouteTo,
+    searchRouteTo: searchRealRouteTo,
     routeSearches,
     profilerId: compilerState.compiler.profilerId,
   }),

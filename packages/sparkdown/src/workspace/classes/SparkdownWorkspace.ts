@@ -14,6 +14,10 @@ import {
 } from "../../compiler/classes/messages/CompileProgramMessage";
 import { CompilerInitializeMessage } from "../../compiler/classes/messages/CompilerInitializeMessage";
 import { ConfigureCompilerMessage } from "../../compiler/classes/messages/ConfigureCompilerMessage";
+import {
+  PreviewCompileProgramMessage,
+  type PreviewCompileProgramResult,
+} from "../../compiler/classes/messages/PreviewCompileProgramMessage";
 import { RemoveCompilerFileMessage } from "../../compiler/classes/messages/RemoveCompilerFileMessage";
 import { SelectCompilerDocumentMessage } from "../../compiler/classes/messages/SelectCompilerDocumentMessage";
 import { SelectedCompilerDocumentMessage } from "../../compiler/classes/messages/SelectedCompilerDocumentMessage";
@@ -23,6 +27,7 @@ import type { SparkdownDocumentContentChangeEvent } from "../../compiler/classes
 import { type SparkdownCompilerConfig } from "../../compiler/types/SparkdownCompilerConfig";
 import { type SparkProgram } from "../../compiler/types/SparkProgram";
 import { profile } from "../utils/logging/profile";
+import { ProgramTransportDecoder } from "../utils/programTransport";
 import { debounce } from "../utils/timing/debounce";
 
 const DEBOUNCE_DELAY = 600;
@@ -650,14 +655,69 @@ export abstract class SparkdownWorkspace {
     textDocument: { uri: string },
     contentChanges: SparkdownDocumentContentChangeEvent[],
   ) {
+    const update = (async () => {
+      await this.compilerReady();
+      return this._compilerChannelConnection.sendRequest(
+        UpdateCompilerDocumentMessage.type,
+        {
+          textDocument,
+          contentChanges,
+        },
+      );
+    })();
+    this._documentUpdates = update.catch(() => {});
+    return update;
+  }
+
+  // Settles once every document update sent so far has reached the compiler,
+  // so a request that must see them (a preview compile) can wait for them.
+  protected _documentUpdates: Promise<unknown> = Promise.resolve();
+
+  // Pairs with the encoder in the compiler worker. Every program response is
+  // decoded as soon as it arrives, in the order it arrives.
+  protected _programTransport = new ProgramTransportDecoder();
+
+  protected _filesRevision = 0;
+  /** Increases whenever a project file is created, changed or deleted, so a
+   *  result computed against the files as they were can be recognized. */
+  get filesRevision() {
+    return this._filesRevision;
+  }
+
+  /**
+   * Compile the program as it would be with `contentChanges` applied to
+   * `textDocument`, without applying them (see
+   * `SparkdownCompiler.previewCompile`). Nothing about the result is recorded
+   * here, and no notification announces it: it belongs to the caller alone.
+   *
+   * Waits for the document updates sent before it, since the edit is relative
+   * to the version they bring the document to. Answers `outdated` at once when
+   * that version is already behind.
+   */
+  async previewCompile(params: {
+    textDocument: { uri: string; version: number };
+    contentChanges: SparkdownDocumentContentChangeEvent[];
+    startFrom: { file: string; line: number };
+  }): Promise<PreviewCompileProgramResult> {
+    const { textDocument } = params;
+    const current = this._documentVersions.get(textDocument.uri);
+    if (current != null && current !== textDocument.version) {
+      return { textDocument, outdated: true };
+    }
+    await this._documentUpdates;
     await this.compilerReady();
-    return this._compilerChannelConnection.sendRequest(
-      UpdateCompilerDocumentMessage.type,
-      {
-        textDocument,
-        contentChanges,
-      },
-    );
+    const root = this.getMainScriptUri(textDocument.uri) ?? textDocument.uri;
+    profile("start", this._profilerId, "workspace" + " " + "previewCompile", root);
+    try {
+      const result = await this._compilerChannelConnection.sendRequest(
+        PreviewCompileProgramMessage.type,
+        { ...params, root: { uri: root } },
+      );
+      this._programTransport.decode(result.program);
+      return result;
+    } finally {
+      profile("end", this._profilerId, "workspace" + " " + "previewCompile", root);
+    }
   }
 
   debouncedCompile = debounce(async (uri: string, force: boolean) => {
@@ -946,6 +1006,7 @@ export abstract class SparkdownWorkspace {
         startFrom: this._documentSelected,
       },
     );
+    this._programTransport.decode(result.program);
     return result;
   }
 
@@ -1025,6 +1086,7 @@ export abstract class SparkdownWorkspace {
   }
 
   async createFile(uri: string) {
+    this._filesRevision++;
     if (this.getFileType(uri) === "script") {
       this._documentVersions.set(uri, 0);
     }
@@ -1049,6 +1111,7 @@ export abstract class SparkdownWorkspace {
     const type = this.getFileType(uri);
     if (type && (type !== "script" || !this._openDocuments.has(uri))) {
       // Changed file is an asset or an unopened script
+      this._filesRevision++;
       const file = await this.loadFile({ uri });
       this._watchedFiles.set(uri, file);
       this._documentVersions.set(uri, file.version ?? 0);
@@ -1070,6 +1133,7 @@ export abstract class SparkdownWorkspace {
   }
 
   async deleteFile(uri: string) {
+    this._filesRevision++;
     const deletedFile = this._watchedFiles.get(uri);
     this._imageVocabularyCache.delete(uri);
     this._watchedFiles.delete(uri);

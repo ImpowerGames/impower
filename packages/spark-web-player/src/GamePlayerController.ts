@@ -6,7 +6,12 @@ import {
 } from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
 import { ConnectedPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/ConnectedPreviewMessage";
 import { DidSelectTextDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/DidSelectTextDocumentMessage";
-import { GameStateMessage, DidChangeGameStateMessage, type GameState } from "@impower/spark-editor-protocol/src/protocols/preview/GameStateMessage";
+import { GameStateMessage, DidChangeGameStateMessage, type CompletionPreviewStatus, type GameState } from "@impower/spark-editor-protocol/src/protocols/preview/GameStateMessage";
+import {
+  PreviewCompletionMessage,
+  type PreviewCompletionParams,
+} from "@impower/spark-editor-protocol/src/protocols/textDocument/PreviewCompletionMessage";
+import type { PreviewCompileProgramResult } from "@impower/sparkdown/src/compiler/classes/messages/PreviewCompileProgramMessage";
 import { Game } from "@impower/spark-engine/src/game/core/classes/Game";
 import { ContinueGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/ContinueGameMessage";
 import { DisableGameDebugMessage } from "@impower/spark-engine/src/game/core/classes/messages/DisableGameDebugMessage";
@@ -53,6 +58,7 @@ import { UnpauseGameMessage } from "@impower/spark-engine/src/game/core/classes/
 import { ErrorType } from "@impower/spark-engine/src/game/core/enums/ErrorType";
 import type { DocumentLocation } from "@impower/spark-engine/src/game/core/types/DocumentLocation";
 import { findClosestPath } from "@impower/spark-engine/src/game/core/utils/findClosestPath";
+import { pathLocationEntries } from "@impower/spark-engine/src/game/core/utils/pathLocationEntries";
 import { CompiledProgramMessage } from "@impower/sparkdown/src/compiler/classes/messages/CompiledProgramMessage";
 import { RemovedCompilerFileMessage } from "@impower/sparkdown/src/compiler/classes/messages/RemovedCompilerFileMessage";
 import { SelectedCompilerDocumentMessage } from "@impower/sparkdown/src/compiler/classes/messages/SelectedCompilerDocumentMessage";
@@ -89,6 +95,40 @@ const profileMessageHandling =
     }
   };
 
+/** One autocomplete suggestion to preview: the request that asked for it, and
+ *  what it would compile. */
+export interface CompletionEvaluation {
+  params: PreviewCompletionParams & {
+    contentChanges: NonNullable<PreviewCompletionParams["contentChanges"]>;
+  };
+  key: string;
+  filesRevision: number;
+}
+
+/** What a suggestion would compile, as one comparable string: the document
+ *  and version the edit applies to, the edit, the line shown, and the project
+ *  files it was compiled against. Two suggestions with the same key produce
+ *  the same program and the same preview. */
+export const completionKey = (
+  params: Pick<
+    PreviewCompletionParams,
+    "textDocument" | "contentChanges" | "selectedRange"
+  >,
+  filesRevision: number,
+) =>
+  JSON.stringify([
+    params.textDocument.uri,
+    params.textDocument.version,
+    params.selectedRange?.start.line ?? 0,
+    filesRevision,
+    params.contentChanges,
+  ]);
+
+/** How long a suggestion may be prepared before the status says so. Most
+ *  finish sooner on a small project, and a message that flashes for a moment
+ *  on every arrow key reads as flicker. */
+const COMPLETION_PREPARING_STATUS_DELAY = 150;
+
 // Module-level singleton. Set via setWorkspace() before any controller is
 // constructed. Replaces SparkWebPlayer.workspace (the static field on the
 // legacy spec-component class).
@@ -118,6 +158,8 @@ export interface GamePlayerRefs {
   aspectRatioLabel: HTMLElement | null;
   resetButton: HTMLElement | null;
   fullscreenButton: HTMLElement | null;
+  /** Where the autocomplete suggestion preview reports its state. */
+  completionStatus?: HTMLElement | null;
 }
 
 export class GamePlayerController {
@@ -153,6 +195,44 @@ export class GamePlayerController {
   // the same status row the preview does, and would otherwise have nothing to
   // say there (#379).
   _simulationFailure?: SimulationFailure;
+
+  // ---- Autocomplete suggestion previews -----------------------------------
+  //
+  // A highlighted suggestion is compiled as a hypothetical edit and shown in
+  // place of the real document until the list closes. Everything below keeps
+  // that hypothetical program out of the real state above: `_program`,
+  // `_checkpoint` and the rest always describe the real document, which is
+  // what PLAY and the next real preview start from.
+  //
+  // A suggestion is identified by what it would compile (`completionKey`), not
+  // by when it was asked for, so returning to a suggestion reuses a result
+  // that is still on screen, and a result for anything but the newest wanted
+  // suggestion is dropped before it can touch the screen or the status.
+  /** The list being previewed, while it is open. */
+  _completionSession: { uri: string; session: number } | null = null;
+  /** The newest `textDocument/previewCompletion` handled. */
+  _completionRequest = 0;
+  /** The suggestion the screen should show, or null for the real document. */
+  _completionWanted: string | null = null;
+  /** The one suggestion being compiled; at most one at a time. */
+  _completionEvaluating: CompletionEvaluation | null = null;
+  /** The newest suggestion waiting for that compile to finish. A newer one
+   *  replaces it, so holding an arrow key queues nothing. */
+  _completionPending: CompletionEvaluation | null = null;
+  /** The suggestion whose program the screen shows, if any. */
+  _completionShown: CompletionEvaluation | null = null;
+  _completionStatus: CompletionPreviewStatus | null = null;
+  _completionStatusTimer = 0;
+  /** Counts suggestion programs, so each gets a version no real program has
+   *  and the game always swaps programs to show one. */
+  _completionPrograms = 0;
+  /** After an accepted suggestion whose frame is on screen: keep it until a
+   *  program compiled from the accepted document arrives. */
+  _completionAccepted: { uri: string; version: number } | null = null;
+  /** Every suggestion program handed to the game. */
+  _completionProgramSet = new WeakSet<SparkProgram>();
+  /** The newest real program would not compile. */
+  _canonicalInvalid = false;
 
   _options?: {
     workspace?: string;
@@ -243,6 +323,10 @@ export class GamePlayerController {
   }
 
   dispose(): void {
+    if (this._completionStatusTimer) {
+      clearTimeout(this._completionStatusTimer);
+      this._completionStatusTimer = 0;
+    }
     this._mounted = false;
     this._previewPosition = null;
     this._selectionVersion++;
@@ -337,6 +421,9 @@ export class GamePlayerController {
       programVersion: this._program?.version ?? null,
       launchState: this._launchState,
       position: this._previewPosition,
+      completion: this._completionStatus
+        ? { request: this._completionRequest, status: this._completionStatus }
+        : null,
     };
   }
 
@@ -640,6 +727,10 @@ export class GamePlayerController {
       this.handleRemovedCompilerFile,
     );
     p.onNotification(CompiledProgramMessage.type, this.handleCompiledProgram);
+    p.onNotification(
+      PreviewCompletionMessage.type,
+      this.handlePreviewCompletion,
+    );
 
     // Requests (handler must return the message's Response; replied on host).
     p.onRequest(ResizeGameMessage.type, this.handleResizeGame, this.host);
@@ -772,7 +863,7 @@ export class GamePlayerController {
             // Ensure the workspace re-compiles document so preview can be updated
             await workspace.compileTextDocument({ textDocument });
           }
-        } else if (!programOutdated) {
+        } else if (!programOutdated && !this.completionPreviewHoldsScreen()) {
           await this.updatePreview(
             this._program,
             startFrom.file,
@@ -807,6 +898,293 @@ export class GamePlayerController {
       this.publishGameState();
     }
   };
+
+  protected handlePreviewCompletion = async (
+    message: PreviewCompletionMessage.Notification,
+  ) => {
+    const params = message.params;
+    if (params.request <= this._completionRequest) {
+      return;
+    }
+    this._completionRequest = params.request;
+    if (params.state === "close") {
+      await this.closeCompletionPreview(params);
+      return;
+    }
+    if (!this.completionPreviewEligible()) {
+      // A hidden or playing preview takes no part: nothing is compiled, and
+      // nothing it shows changes.
+      return;
+    }
+    this._completionSession = {
+      uri: params.textDocument.uri,
+      session: params.session,
+    };
+    this._completionAccepted = null;
+    if (!params.contentChanges) {
+      // The editor could not work out what accepting would insert. Keep the
+      // frame and say so, rather than preview a guess.
+      this._completionWanted = null;
+      this._completionPending = null;
+      this.setCompletionStatus("unavailable");
+      return;
+    }
+    const filesRevision = workspace?.filesRevision ?? 0;
+    const evaluation: CompletionEvaluation = {
+      params: { ...params, contentChanges: params.contentChanges },
+      key: completionKey(params, filesRevision),
+      filesRevision,
+    };
+    this._completionWanted = evaluation.key;
+    if (evaluation.key === this._completionShown?.key) {
+      // Back to the suggestion already on screen.
+      this._completionPending = null;
+      this.setCompletionStatus("showing");
+      return;
+    }
+    if (evaluation.key === this._completionEvaluating?.key) {
+      // The compile in flight answers this one.
+      this._completionPending = null;
+      return;
+    }
+    this._completionPending = evaluation;
+    this.setCompletionStatus("preparing");
+    await this.evaluateCompletionPreviews();
+  };
+
+  /** The game holds a program the real document did not produce, so what it
+   *  reports about what it ran is not the author's and is not passed on. */
+  get displayingSpeculative() {
+    const program = this._game?.program;
+    return program != null && this._completionProgramSet.has(program);
+  }
+
+  /** Only a preview that is open and stopped shows suggestions. */
+  completionPreviewEligible() {
+    if (!this._mounted || this._game?.state === "running") {
+      return false;
+    }
+    if (typeof document !== "undefined" && document.visibilityState === "hidden") {
+      return false;
+    }
+    const game = this.refs.game;
+    // A collapsed pane leaves the player mounted at no size at all.
+    return !game || !(game.clientWidth === 0 && game.clientHeight === 0);
+  }
+
+  /** Compile the pending suggestion, one at a time, and show the result if it
+   *  is still the one wanted when it arrives. */
+  async evaluateCompletionPreviews() {
+    const evaluation = this._completionPending;
+    if (this._completionEvaluating || !evaluation || !workspace) {
+      return;
+    }
+    this._completionPending = null;
+    this._completionEvaluating = evaluation;
+    const { params } = evaluation;
+    const line = params.selectedRange?.start.line ?? 0;
+    let result: PreviewCompileProgramResult | undefined;
+    try {
+      result = await workspace.previewCompile({
+        textDocument: params.textDocument,
+        contentChanges: params.contentChanges,
+        startFrom: { file: params.textDocument.uri, line },
+      });
+    } catch (e) {
+      console.error(e);
+    } finally {
+      this._completionEvaluating = null;
+    }
+    // Start on the next suggestion before showing this one, so the compiler
+    // is never idle while a newer suggestion waits.
+    void this.evaluateCompletionPreviews();
+    if (
+      evaluation.key !== this._completionWanted ||
+      !this.completionPreviewEligible()
+    ) {
+      return;
+    }
+    if (evaluation.filesRevision !== (workspace.filesRevision ?? 0)) {
+      // A project file changed while this compiled, so the result may name
+      // assets that no longer exist. Compile the same suggestion again.
+      const filesRevision = workspace.filesRevision;
+      const again = {
+        ...evaluation,
+        key: completionKey(params, filesRevision),
+        filesRevision,
+      };
+      this._completionWanted = again.key;
+      this._completionPending ??= again;
+      await this.evaluateCompletionPreviews();
+      return;
+    }
+    if (result?.outdated) {
+      // The document moved on; the editor sends the suggestion again against
+      // the new version.
+      return;
+    }
+    const program = result?.program;
+    if (!result || !program || !hasCompiledProgram(program)) {
+      this.setCompletionStatus("unavailable");
+      return;
+    }
+    program.version = -++this._completionPrograms;
+    this._completionProgramSet.add(program);
+    const shown = await this.updatePreview(
+      program,
+      params.textDocument.uri,
+      line,
+      result.checkpoint,
+      result.simulationFailure,
+      { speculative: true },
+    );
+    if (shown && evaluation.key === this._completionWanted) {
+      this._completionShown = evaluation;
+      this.setCompletionStatus("showing");
+    }
+  }
+
+  /** The list closed. Hand the screen back to the real document. */
+  async closeCompletionPreview(params: PreviewCompletionParams) {
+    const shown = this._completionShown;
+    this._completionSession = null;
+    this._completionWanted = null;
+    this._completionPending = null;
+    this._completionShown = null;
+    if (!this.displayingSpeculative) {
+      if (this._program && this._game && this._game.program !== this._program) {
+        // No suggestion reached the screen, but real programs compiled while
+        // the list was open were held back from it.
+        await this.showRealDocument();
+      } else {
+        this.setCompletionStatus(null);
+      }
+      return;
+    }
+    const accepted = params.accepted;
+    if (
+      accepted &&
+      shown &&
+      shown.params.textDocument.uri === params.textDocument.uri &&
+      shown.params.textDocument.version === accepted.version &&
+      JSON.stringify(shown.params.contentChanges) ===
+        JSON.stringify(accepted.contentChanges)
+    ) {
+      // The frame on screen is the document the acceptance produced. Keep it
+      // until that document's own program arrives, rather than flash back to
+      // the document as it was before.
+      this._completionAccepted = {
+        uri: params.textDocument.uri,
+        version: params.textDocument.version,
+      };
+      this.setCompletionStatus(null);
+      return;
+    }
+    await this.showRealDocument();
+  }
+
+  /** Show the real document's newest program at the author's line, from what
+   *  this controller already holds, without waiting for any compile. */
+  async showRealDocument() {
+    const startFrom = this._options?.startFrom;
+    if (this._canonicalInvalid || !this._program || !startFrom) {
+      // The real document cannot be previewed, so the last valid frame stays,
+      // marked as not the document's.
+      this.setCompletionStatus("stale");
+      return;
+    }
+    this.setCompletionStatus(null);
+    if (this._game?.state === "running") {
+      return;
+    }
+    await this.updatePreview(
+      this._program,
+      startFrom.file,
+      startFrom.line,
+      this._checkpoint,
+      this._simulationFailure,
+    );
+  }
+
+  /** Whether the screen belongs to a suggestion rather than to `program`, the
+   *  newest real program: while a list is open, and after an accepted
+   *  suggestion until the program compiled from the accepted document. */
+  completionPreviewHoldsScreen(program?: SparkProgram) {
+    if (this._completionSession) {
+      return true;
+    }
+    const accepted = this._completionAccepted;
+    if (accepted) {
+      const version = program?.scripts?.[accepted.uri];
+      if (version == null || version < accepted.version) {
+        return true;
+      }
+      this._completionAccepted = null;
+    }
+    return false;
+  }
+
+  /** End every suggestion preview at once: nothing in flight or waiting may
+   *  reach the screen afterwards. */
+  endCompletionPreview() {
+    this._completionSession = null;
+    this._completionWanted = null;
+    this._completionPending = null;
+    this._completionShown = null;
+    this._completionAccepted = null;
+    this.setCompletionStatus(null);
+  }
+
+  setCompletionStatus(status: CompletionPreviewStatus | null) {
+    if (this._completionStatusTimer) {
+      clearTimeout(this._completionStatusTimer);
+      this._completionStatusTimer = 0;
+    }
+    const changed = status !== this._completionStatus;
+    this._completionStatus = status;
+    const element = this.refs.completionStatus;
+    if (element) {
+      const write = () => {
+        const text = this.completionStatusText(status);
+        element.textContent = text;
+        element.hidden = !text;
+        if (status) {
+          element.setAttribute("state", status);
+        } else {
+          element.removeAttribute("state");
+        }
+      };
+      if (status === "preparing" && element.hidden) {
+        this._completionStatusTimer = window.setTimeout(() => {
+          this._completionStatusTimer = 0;
+          write();
+        }, COMPLETION_PREPARING_STATUS_DELAY);
+      } else {
+        write();
+      }
+    }
+    if (changed) {
+      this.publishGameState();
+    }
+  }
+
+  completionStatusText(status: CompletionPreviewStatus | null) {
+    const hasFrame = this._game != null;
+    switch (status) {
+      case "preparing":
+        return "Preparing suggestion preview…";
+      case "showing":
+        return "Previewing suggestion";
+      case "unavailable":
+        return hasFrame
+          ? "Cannot preview this suggestion yet — showing the last valid preview"
+          : "Cannot preview this suggestion yet";
+      case "stale":
+        return "Cannot preview the current document — showing the last valid preview";
+      default:
+        return "";
+    }
+  }
 
   protected handleCompiledProgram = async (
     message: CompiledProgramMessage.Notification,
@@ -1137,8 +1515,13 @@ export class GamePlayerController {
     ) => {
       if (!hasCompiledProgram(program)) {
         console.error("Program not compiled", program);
+        this._canonicalInvalid = true;
+        if (!this._completionSession && this.displayingSpeculative) {
+          this.setCompletionStatus("stale");
+        }
         return;
       }
+      this._canonicalInvalid = false;
       const isInitialProgram = !this._program;
       this._program = program;
       this._checkpoint = checkpoint;
@@ -1156,7 +1539,13 @@ export class GamePlayerController {
         this._options.startFrom ??= program.startFrom;
         this._options.workspace ??= program.workspace;
         this._options.simulationOptions ??= program.simulationOptions;
-        if (this._options.startFrom) {
+        if (
+          this._options.startFrom &&
+          !this.completionPreviewHoldsScreen(program)
+        ) {
+          if (this._completionStatus === "stale") {
+            this.setCompletionStatus(null);
+          }
           await this.updatePreview(
             program,
             this._options.startFrom.file,
@@ -1176,6 +1565,9 @@ export class GamePlayerController {
   );
 
   async startGameAndApp(restarted?: boolean) {
+    // PLAY runs the real document only, and no suggestion may reach the
+    // screen once it has started.
+    this.endCompletionPreview();
     if (!this._program) {
       // wait for initial program to be loaded
       await this.loadingInitialProgram;
@@ -1520,6 +1912,11 @@ export class GamePlayerController {
     game.connection.outgoing.addListener(GameExecutedMessage.method, (msg) => {
       if (GameExecutedMessage.type.isNotification(msg)) {
         this.updateExecutionLabels(msg.params);
+        if (this.displayingSpeculative) {
+          // The editor records the executed lines and the route's choices as
+          // the author's; a suggestion's are neither.
+          return;
+        }
         sendProtocolMessage(
           GameExecutedMessage.type.notification(msg.params),
           this.host,
@@ -1528,6 +1925,9 @@ export class GamePlayerController {
     });
     game.connection.outgoing.addListener(GamePreviewedMessage.method, (msg) => {
       if (GamePreviewedMessage.type.isNotification(msg)) {
+        if (this.displayingSpeculative) {
+          return;
+        }
         sendProtocolMessage(
           GamePreviewedMessage.type.notification(msg.params),
           this.host,
@@ -1605,13 +2005,18 @@ export class GamePlayerController {
     line: number,
     checkpoint: string | undefined,
     simulationFailure?: SimulationFailure,
-  ) => {
+    options?: { speculative?: boolean },
+  ): Promise<boolean> => {
     if (this._game?.state === "running") {
-      return;
+      return false;
     }
 
     if (!program) {
-      return;
+      return false;
+    }
+    if (!options?.speculative) {
+      // The real document takes the screen back from any suggestion.
+      this._completionShown = null;
     }
 
     const previewFrom = { file, line };
@@ -1623,7 +2028,7 @@ export class GamePlayerController {
     };
     const previewPath = findClosestPath(
       previewFrom,
-      Object.entries(program.pathLocations ?? {}),
+      pathLocationEntries(program),
       Object.keys(program.scripts),
     );
 
@@ -1654,7 +2059,7 @@ export class GamePlayerController {
       : programChanged
         ? findClosestPath(
             validPreviewFrom,
-            Object.entries(program.pathLocations ?? {}),
+            pathLocationEntries(program),
             Object.keys(program.scripts),
           )
         : this._game?.previewPath;
@@ -1678,8 +2083,11 @@ export class GamePlayerController {
       const game = this._game;
       const update = this._previewUpdates;
       await game.preview(validPreviewFrom.file, validPreviewFrom.line);
-      if (game === this._game && update === this._previewUpdates) publishAppliedPosition();
-      return;
+      if (game === this._game && update === this._previewUpdates) {
+        publishAppliedPosition();
+        return true;
+      }
+      return false;
     }
 
     this._options ??= {};
@@ -1710,12 +2118,14 @@ export class GamePlayerController {
       this._game = await this.buildGame(program);
       this.listen(this._game);
     } else if (programChanged) {
+      profile("start", "game/updateProgram");
       this._game.updateProgram(program);
+      profile("end", "game/updateProgram");
     }
 
     if (!this._game) {
       console.error("No game to preview");
-      return;
+      return false;
     }
     const game = this._game;
     const overtaken = () =>
@@ -1767,19 +2177,23 @@ export class GamePlayerController {
       // re-emitted create stream reconciles against the existing DOM. No app /
       // canvas / manager teardown.
       this._app.ui.beginReconcilePass();
+      profile("start", "app/connectGame");
       await this._app.connectGame();
+      profile("end", "app/connectGame");
     }
     if (overtaken()) {
-      return;
+      return false;
     }
 
     if (validPreviewFrom) {
       // The preview waits for the beat's pictures before it writes the
       // beat, so the sweep below waits for the preview: a write that landed
       // after the sweep would be swept with the elements that disappeared.
+      profile("start", "game/preview");
       await game.preview(validPreviewFrom.file, validPreviewFrom.line);
+      profile("end", "game/preview");
       if (overtaken()) {
-        return;
+        return false;
       }
     }
 
@@ -1788,5 +2202,6 @@ export class GamePlayerController {
     // that disappeared since the last edit.
     this._app?.ui.sweepReconcile();
     publishAppliedPosition();
+    return true;
   };
 }

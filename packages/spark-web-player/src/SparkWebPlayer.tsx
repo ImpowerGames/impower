@@ -48,6 +48,7 @@ export default function SparkWebPlayer({
   const aspectRatioLabelRef = useRef<HTMLDivElement>(null);
   const sizeLabelRef = useRef<HTMLDivElement>(null);
   const fullscreenButtonRef = useRef<HTMLDivElement>(null);
+  const completionStatusRef = useRef<HTMLSpanElement>(null);
 
   const controllerRef = useRef<GamePlayerControllerType | null>(null);
 
@@ -89,6 +90,7 @@ export default function SparkWebPlayer({
         sizeLabel: sizeLabelRef.current,
         resetButton: null,
         fullscreenButton: fullscreenButtonRef.current,
+        completionStatus: completionStatusRef.current,
       });
       controller.setup();
       controllerRef.current = controller;
@@ -143,7 +145,14 @@ export default function SparkWebPlayer({
               </div>
             </div>
           </div>
-          <div id="middle-items" />
+          <div id="middle-items">
+            <span
+              id="completion-status"
+              ref={completionStatusRef}
+              role="status"
+              hidden
+            />
+          </div>
           <div id="right-items">
             <div id="aspect-ratio-label" ref={aspectRatioLabelRef} />
             <div id="size-label" ref={sizeLabelRef} />
