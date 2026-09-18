@@ -56,45 +56,93 @@ export interface WrittenMorph {
   own: ReturnType<typeof readMorphBody>;
 }
 
+/** One ancestor of a morph: a morph block's own body, or the compiled struct
+ *  of a `define` that no morph block wrote. */
+export interface MorphLayer {
+  name: string;
+  struct: Record<string, unknown>;
+  written: boolean;
+}
+
+// The compiled struct of an ancestor that is not a morph block, and its own
+// parent. `define base as morph with … end` is filed as `morph.base` and
+// inherits from the type; `define middle as base with … end` is filed under
+// its parent's name, as `base.middle`, and inherits from `base`.
+function compiledAncestor(
+  context: Context,
+  name: string,
+): { struct: Record<string, unknown>; parent?: string } | undefined {
+  if (name.startsWith("$")) return undefined;
+  const direct = context["morph"]?.[name];
+  if (isRecord(direct)) return { struct: direct };
+  for (const [type, table] of Object.entries(context)) {
+    if (type === "morph" || !isRecord(table)) continue;
+    const struct = table[name];
+    if (isRecord(struct) && struct["$type"] === type) {
+      return { struct, parent: type };
+    }
+  }
+  return undefined;
+}
+
 /**
- * The morph as the engine sees it: the type's `$default`, then every
- * `as PARENT` ancestor from the farthest to the nearest, then the morph's own
- * body, each layer overriding the one before. This is the order the runtime's
- * `__index` chain reads fields in. It is built from the bodies as written,
- * because the compiled context already merges `$default` into every morph,
- * which would let a default hide a value the parent supplies.
- *
- * An ancestor that is not a `morph` block, such as `define base as morph
- * with … end`, has no written body here; its compiled struct in `compiled`
- * (which already includes `$default`) is the base the chain builds on, as the
- * runtime inherits from it.
+ * A morph's `as PARENT` ancestors, nearest first. Morph blocks contribute the
+ * bodies as written; a `define` ancestor contributes its compiled struct and
+ * is followed through its own parent. `define` ancestors are kept only when
+ * their chain reaches the `morph` type, so a parent name that resolves to
+ * some unrelated define adds nothing. A name seen twice ends the chain.
  */
-export function effectiveMorph(
+export function morphAncestors(
+  name: string,
   written: ReadonlyMap<string, Record<string, unknown>>,
   parents: ReadonlyMap<string, string>,
-  base: Record<string, unknown> | undefined,
-  name: string,
-  inherit: (base: any, override: any) => any,
-  compiled: Record<string, unknown> = {},
-): Record<string, unknown> {
-  const chain: Record<string, unknown>[] = [];
-  const seen = new Set<string>();
-  let result: Record<string, unknown> = isRecord(base) ? base : {};
-  let current: string | undefined = name;
+  context: Context,
+): MorphLayer[] {
+  const layers: MorphLayer[] = [];
+  let unconfirmed: MorphLayer[] = [];
+  const seen = new Set<string>([name]);
+  let current = parents.get(name);
   while (current && !seen.has(current)) {
     seen.add(current);
     const body = written.get(current);
     if (body) {
-      chain.unshift(body);
+      layers.push(...unconfirmed, { name: current, struct: body, written: true });
+      unconfirmed = [];
       current = parents.get(current);
       continue;
     }
-    const other = compiled[current];
-    if (!current.startsWith("$") && isRecord(other)) result = other;
-    break;
+    const found = compiledAncestor(context, current);
+    if (!found) break;
+    unconfirmed.push({ name: current, struct: found.struct, written: false });
+    if (found.parent === undefined) {
+      layers.push(...unconfirmed);
+      unconfirmed = [];
+      break;
+    }
+    current = found.parent;
   }
-  for (const body of chain) result = inherit(result, body);
-  return result;
+  return layers;
+}
+
+/**
+ * The morph as the engine sees it: the type's `$default`, then every
+ * ancestor from the farthest to the nearest, then the morph's own body, each
+ * layer overriding the one before. This is the order the runtime's `__index`
+ * chain reads fields in. Morph blocks contribute their bodies as written,
+ * because the compiled context already merges `$default` into every morph,
+ * which would let a default hide a value the parent supplies.
+ */
+export function effectiveMorph(
+  base: Record<string, unknown> | undefined,
+  ancestors: readonly MorphLayer[],
+  own: Record<string, unknown>,
+  inherit: (base: any, override: any) => any,
+): Record<string, unknown> {
+  let result: Record<string, unknown> = isRecord(base) ? base : {};
+  for (let i = ancestors.length - 1; i >= 0; i -= 1) {
+    result = inherit(result, ancestors[i]!.struct);
+  }
+  return inherit(result, own);
 }
 
 /** Read every morph block in the scripts. */
@@ -152,27 +200,38 @@ export function collectMorphIssues(
     const parent = parentNode ? script.read(parentNode.from, parentNode.to).trim() : "";
     if (parent) parents.set(morph.name, parent);
   }
-  const compiled = (context["morph"] ?? {}) as Record<string, unknown>;
-  const base = compiled["$default"] as Record<string, unknown> | undefined;
+  const base = (context["morph"] ?? {})["$default"] as Record<string, unknown> | undefined;
   for (const morph of morphs) {
-    const effective = morph.name
-      ? effectiveMorph(written, parents, base, morph.name, inherit, compiled)
-      : inherit(isRecord(base) ? base : {}, morph.own.struct);
+    const ancestors = morph.name
+      ? morphAncestors(morph.name, written, parents, context)
+      : [];
+    const effective = effectiveMorph(base, ancestors, morph.own.struct, inherit);
     const nameSpan = morph.nameNode ?? {
       from: morph.node.from,
       to: morph.node.from + "morph".length,
     };
+    const parentSpan = parentSpans.get(morph);
     const issues = [
       ...validateMorphDeclaration({
         name: nameSpan,
+        parent: parentSpan ?? null,
         block: morph.node,
         withKeyword: getDescendent("LuauWithKeyword", morph.node) ?? null,
         own: morph.own,
         effective,
       }),
       ...coverageIssues(morph.name, nameSpan, morph.own, effective, context, images),
-      ...inheritedValueIssues(morph, written, parents, compiled, parentSpans.get(morph) ?? nameSpan),
+      ...inheritedValueIssues(morph.own.struct, ancestors, parentSpan ?? nameSpan),
     ];
+    const parentName = morph.name ? parents.get(morph.name) : undefined;
+    if (parentSpan && parentName && ancestors[0]?.name !== parentName) {
+      issues.push({
+        from: parentSpan.from,
+        to: parentSpan.to,
+        severity: "warning",
+        message: `No morph named \`${parentName}\` to inherit from; this morph inherits only the builtin defaults.`,
+      });
+    }
     if (issues.length > 0) {
       result.set(morph.uri, [...(result.get(morph.uri) ?? []), ...issues]);
     }
@@ -180,29 +239,62 @@ export function collectMorphIssues(
   return result;
 }
 
+// Whether `obj` sets the dotted `path` (`timing.duration`, `layers.creases.method`).
+function sets(obj: unknown, path: string): boolean {
+  let current: unknown = obj;
+  for (const key of path.split(".")) {
+    if (!isRecord(current) || !(key in current)) return false;
+    current = current[key];
+  }
+  return true;
+}
+
 /**
- * Problems in the values a morph inherits from a parent that is not a morph
- * block (`define base as morph with … end`). A morph block is checked where it
- * is written; such a parent is checked nowhere else, so its values are
- * reported on the `as PARENT` of each block that names it directly.
+ * Problems in the values a morph actually inherits from `define` ancestors,
+ * which no morph block checks where they are written. Only the block whose
+ * nearest ancestors are such defines reports them, once, on its `as PARENT`;
+ * a value the block sets itself is not inherited and is not reported. Each
+ * message names the ancestor that supplies the value.
  */
 function inheritedValueIssues(
-  morph: WrittenMorph,
-  written: ReadonlyMap<string, Record<string, unknown>>,
-  parents: ReadonlyMap<string, string>,
-  compiled: Record<string, unknown>,
+  own: Record<string, unknown>,
+  ancestors: readonly MorphLayer[],
   span: SourceSpan,
 ): LocatedMorphIssue[] {
-  const current = morph.name ? parents.get(morph.name) : undefined;
-  if (!current || written.has(current) || current.startsWith("$")) return [];
-  const ancestor = compiled[current];
-  if (!isRecord(ancestor)) return [];
-  return morphValueProblems(ancestor).map(({ field, message }) => ({
-    from: span.from,
-    to: span.to,
-    severity: "error" as const,
-    message: `\`${field}\`, inherited from \`${current}\`: ${message}`,
-  }));
+  const firstWritten = ancestors.findIndex((layer) => layer.written);
+  const defines = ancestors.slice(0, firstWritten < 0 ? ancestors.length : firstWritten);
+  if (defines.length === 0) return [];
+  let merged: Record<string, unknown> = {};
+  for (let i = defines.length - 1; i >= 0; i -= 1) {
+    const struct = defines[i]!.struct;
+    merged = mergeRecords(merged, struct);
+  }
+  const issues: LocatedMorphIssue[] = [];
+  for (const { field, message } of morphValueProblems(merged)) {
+    if (sets(own, field)) continue;
+    const supplier = defines.find((layer) => sets(layer.struct, field))?.name;
+    issues.push({
+      from: span.from,
+      to: span.to,
+      severity: "error",
+      message: `\`${field}\`, inherited from \`${supplier ?? defines[0]!.name}\`: ${message}`,
+    });
+  }
+  return issues;
+}
+
+// A deep merge of plain objects, `override` winning; arrays are replaced.
+function mergeRecords(
+  base: Record<string, unknown>,
+  override: Record<string, unknown>,
+): Record<string, unknown> {
+  const result: Record<string, unknown> = { ...base };
+  for (const [key, value] of Object.entries(override)) {
+    if (key.startsWith("$")) continue;
+    const prior = result[key];
+    result[key] = isRecord(prior) && isRecord(value) ? mergeRecords(prior, value) : value;
+  }
+  return result;
 }
 
 function coverageIssues(

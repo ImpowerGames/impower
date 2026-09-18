@@ -117,6 +117,8 @@ function layerPropertyProblem(key: string, value: unknown): string | null {
 export interface MorphDeclaration {
   /** The morph's name node, where whole-declaration problems are reported. */
   name: Span;
+  /** The `as PARENT` name, where problems in inherited values are reported. */
+  parent: Span | null;
   /** The morph block, used when the name is missing. */
   block: Span;
   /** The `with` keyword, or null when the author left it out. */
@@ -422,8 +424,10 @@ export function validateMorphDeclaration(decl: MorphDeclaration): MorphIssue[] {
     const min = effectiveTiming["iteration_delay_min"];
     const max = effectiveTiming["iteration_delay_max"];
     const ownTiming = isRecord(timing) ? timing : undefined;
+    // A bound written here is underlined where it is written; an inherited
+    // one on the `as PARENT` that brings it in.
     const spanOf = (field: string) =>
-      (ownTiming && keySpan(ownTiming, field)) || decl.name;
+      (ownTiming && keySpan(ownTiming, field)) || decl.parent || decl.name;
     if ((min === undefined) !== (max === undefined)) {
       const missing = min === undefined ? "iteration_delay_min" : "iteration_delay_max";
       const present = min === undefined ? "iteration_delay_max" : "iteration_delay_min";

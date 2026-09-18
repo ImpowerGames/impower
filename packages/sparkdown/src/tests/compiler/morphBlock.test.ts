@@ -436,6 +436,88 @@ end
     expect(found.find((d) => d.message.includes("`timing.duration`, inherited from `base`"))).toMatchObject({ line: 5, text: "base" });
   });
 
+  const CHILD_KEYFRAMES = `  keyframes:
+    from:
+      eyes:
+        state = open
+    to:
+      eyes:
+        state = closed
+`;
+
+  test("a value the child sets itself is not reported as inherited", () => {
+    const text = `define base as morph with
+  method = "bogus"
+  timing = { duration = -1 }
+end
+
+morph child as base with
+  method = match
+  timing:
+    duration = 1
+${CHILD_KEYFRAMES}end
+`;
+    expect(morphDiagnostics(text).filter((d) => d.message.includes("inherited from"))).toEqual([]);
+  });
+
+  test("values inherited through a longer chain of `define`s are checked and name their source", () => {
+    const text = `define base as morph with
+  method = "bogus"
+end
+
+define middle as base with
+  fallback = "cut"
+end
+
+morph child as middle with
+${CHILD_KEYFRAMES}end
+`;
+    const found = morphDiagnostics(text).filter((d) => d.message.includes("inherited from"));
+    expect(found).toHaveLength(1);
+    expect(found[0]).toMatchObject({ line: 8, text: "middle" });
+    expect(found[0]!.message).toContain("`method`, inherited from `base`: `bogus` is not a `method`");
+  });
+
+  test("an inherited delay range is reported on the `as` that brings it in", () => {
+    const text = `define base as morph with
+  method = "bend"
+  timing = { iteration_delay_min = 5, iteration_delay_max = 1 }
+end
+
+morph child as base with
+${CHILD_KEYFRAMES}end
+`;
+    const found = morphDiagnostics(text).find((d) => d.message.includes("must be at least"));
+    expect(found).toMatchObject({ line: 5, text: "base" });
+  });
+
+  test("a morph block's parent is only reported once, by the block that names it", () => {
+    const text = `define base as morph with
+  method = "bogus"
+end
+
+morph middle as base with
+${CHILD_KEYFRAMES}end
+
+morph child as middle with
+  fallback = cut
+end
+`;
+    const found = morphDiagnostics(text).filter((d) => d.message.includes("inherited from"));
+    expect(found.map((d) => d.line)).toEqual([4]);
+  });
+
+  test("an unknown parent is reported", () => {
+    const found = diagnosticsOf(`morph child as nowhere with
+  method = bend
+${CHILD_KEYFRAMES}end
+`);
+    expect(found.find((d) => d.text === "nowhere")).toMatchObject({
+      severity: 2,
+      message: expect.stringContaining("No morph named `nowhere`"),
+    });
+  });
+
   test("an authored block replaces the builtin of the same type and name", () => {
     const found = diagnosticsOf(`animation fadein with
   timing:
