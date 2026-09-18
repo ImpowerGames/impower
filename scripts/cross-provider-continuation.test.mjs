@@ -19,6 +19,7 @@ import {verifyReviewerExecutable} from './native-reviewer.mjs';
 import {protectPrivatePath,reviewerEnvironment,nativeReviewerEnvironment} from './reviewer-security.mjs';
 import {claudeClaimArgv,renderClaudeClaimCommand} from './claude-claim-proof.mjs';
 import {testShell} from '../.agents/skills/drive-web-editor/redgreen.mjs';
+import {removeScratch} from './remove-scratch.mjs';
 
 const scratch=fs.mkdtempSync(path.join(os.homedir(),'.impower-cross-provider-'));
 let receivedServer;
@@ -200,10 +201,38 @@ try {
   fs.writeFileSync(saturated,outstanding.map(JSON.stringify).join('\n')+'\n');const saturatedBefore=fs.readFileSync(saturated);
   assert.throws(()=>appendClaudeReceipt(saturated,{hook_event_name:'PreToolUse',tool_use_id:'one-more'}),/count exceeds/);
   assert.deepEqual(fs.readFileSync(saturated),saturatedBefore,'capacity refusal preserves prior evidence atomically');
+  // Windows reports EPERM for a lock directory whose removal by another writer
+  // is pending. Scripting that answer proves the wait without needing the race.
+  const contended=path.join(hookDir,'contended.jsonl'),realMkdir=fs.mkdirSync;
+  const scriptedMkdir=(codes)=>{fs.mkdirSync=(target,...rest)=>{const code=target===contended+'.lock'?codes.shift():undefined;if(code)throw Object.assign(new Error(code),{code});return realMkdir(target,...rest);};};
+  try{
+    const pending=['EPERM','EEXIST','EPERM'];scriptedMkdir(pending);
+    appendClaudeReceipt(contended,{id:'after-pending-removal',hook_event_name:'Stop'});
+    assert.deepEqual(pending,[],'every scripted refusal was retried');
+    assert.deepEqual(readClaudeRows(contended).map(row=>row.id),['after-pending-removal']);
+    scriptedMkdir(['EACCES']);
+    assert.throws(()=>appendClaudeReceipt(contended,{id:'denied',hook_event_name:'Stop'}),/busy \(EACCES\)/,'a refusal that is not contention fails at once');
+    scriptedMkdir(Array(1000).fill('EPERM'));
+    assert.throws(()=>appendClaudeReceipt(contended,{id:'never-released',hook_event_name:'Stop'},{lockTimeout:50}),/busy \(EPERM\)/,'a lock that is never released fails at its deadline');
+  }finally{fs.mkdirSync=realMkdir;}
+  assert.deepEqual(readClaudeRows(contended).map(row=>row.id),['after-pending-removal'],'refused appends leave prior rows intact');
+  assert.equal(fs.existsSync(contended+'.lock'),false);
+  // A scanner's brief hold on a fresh file surfaces as EACCES from rmSync.
+  const held=path.join(hookDir,'held-scratch');fs.mkdirSync(held);fs.writeFileSync(path.join(held,'file'),'');
+  const refusals=['EACCES','EBUSY'],warnings=[];
+  const scriptedRm=(target,options)=>{const code=refusals.shift();if(code)throw Object.assign(new Error(code),{code});fs.rmSync(target,options);};
+  assert.equal(removeScratch(held,{delay:1,rm:scriptedRm,warn:text=>warnings.push(text)}),true);
+  assert.equal(fs.existsSync(held),false,'cleanup retries a transient refusal until the folder is gone');assert.deepEqual(warnings,[]);
+  let calls=0;const alwaysHeld=()=>{calls++;throw Object.assign(new Error('EACCES'),{code:'EACCES'});};
+  assert.equal(removeScratch(hookDir,{attempts:3,delay:1,rm:alwaysHeld,warn:text=>warnings.push(text)}),false,'an exhausted cleanup reports instead of replacing the verdict');
+  assert.equal(calls,3);assert.equal(warnings.length,1);assert.ok(warnings[0].includes('EACCES')&&warnings[0].includes(hookDir));
+  calls=0;assert.equal(removeScratch(hookDir,{delay:1,rm:()=>{calls++;throw Object.assign(new Error('EINVAL'),{code:'EINVAL'});},warn:text=>warnings.push(text)}),false);
+  assert.equal(calls,1,'a refusal that is not transient is not retried');
   const concurrent=path.join(hookDir,'concurrent.jsonl'),hookModule=pathToFileURL(path.resolve('scripts/claude-continuation-hook.mjs')).href;
   await Promise.all(Array.from({length:4},(_,id)=>new Promise((resolve,reject)=>{
-    const child=childProcess.spawn(process.execPath,['--input-type=module','-e',`import {appendClaudeReceipt} from ${JSON.stringify(hookModule)};for(let i=0;i<10;i++)appendClaudeReceipt(${JSON.stringify(concurrent)},{id:${id}+'-'+i,hook_event_name:'Stop'});`],{windowsHide:true,stdio:'ignore'});
-    child.on('error',reject);child.on('close',code=>code===0?resolve():reject(new Error('Concurrent hook child failed')));
+    const child=childProcess.spawn(process.execPath,['--input-type=module','-e',`import {appendClaudeReceipt} from ${JSON.stringify(hookModule)};for(let i=0;i<10;i++)appendClaudeReceipt(${JSON.stringify(concurrent)},{id:${id}+'-'+i,hook_event_name:'Stop'});`],{windowsHide:true,stdio:['ignore','ignore','pipe']});
+    let stderr='';child.stderr.on('data',chunk=>{stderr+=chunk;});
+    child.on('error',reject);child.on('close',code=>code===0?resolve():reject(new Error(`Concurrent hook child ${id} exited ${code}: ${stderr}`)));
   })));
   assert.equal(new Set(readClaudeRows(concurrent).map(row=>row.id)).size,40,'concurrent compact writers preserve every completed row');
   console.log('PASS: compact receipt retention is bounded; native ancestor process is checked on Windows');
@@ -355,4 +384,4 @@ try {
     assert.deepEqual(readEvents(f.input.jobDir).at(-1).clear,{status:'unsupported'});f.restore();
   }
   console.log('PASS: Claude adapter shares worker-exit, disconnect/reconnect, uncertain acknowledgment, idempotent reconciliation, claim, and workflow cancellation gates');
-} finally {fs.rmSync(scratch,{recursive:true,force:true});}
+} finally {removeScratch(scratch);}

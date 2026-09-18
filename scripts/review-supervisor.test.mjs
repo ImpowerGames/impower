@@ -10,6 +10,7 @@ import { createReviewJob as actualCreate,advanceReviewJob,cancelReviewJob,claimR
 import { EventEmitter } from 'node:events';
 import { reviewerEnvironment } from './reviewer-security.mjs';
 import { appendEvent,withJob,readJson,readEvents,worktreePaths,assertJobFreeze,retryBusy,recoverJobLock,git as isolatedGit } from './review-job-store.mjs';
+import { removeScratch } from './remove-scratch.mjs';
 import { processIdentity } from './reviewer-slots.mjs';
 import { codexContinuationHost,verifyOriginConfiguration,verifyHostCatalog } from './continuation-host.mjs';
 const claimReviewJob=(dir,id,options)=>actualClaim(dir,id,{verifyConfiguration:()=>({turnId:'fixture-turn'}),...options});
@@ -414,4 +415,4 @@ try {
     await assert.rejects(advanceReviewJob(f.jobDir,f.host,{identify}),/distinct report IDs/);assert.equal(f.sends,0);
   }
   console.log('PASS: durable lifecycle, frozen claim, unknown delivery, crash boundaries, cancellation admission, report coverage, native identity, same-turn reconciliation and guarded real child execution');
-} finally { fs.rmSync(scratch,{recursive:true,force:true}); }
+} finally { removeScratch(scratch); }

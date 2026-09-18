@@ -6,6 +6,7 @@ import path from "node:path";
 import { execFileSync, spawnSync, spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { pipeRequest, checkDestination, probeIdle, validatePlan, codexProbeHost, observedTurn, reconcileProbe } from "./continuation-conformance.mjs";
+import { removeScratch } from "./remove-scratch.mjs";
 const fixture = JSON.parse(fs.readFileSync(new URL("./codex-app-tools.fixture.json", import.meta.url), "utf8"));
 
 const scratch = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), "impower-continuation-")));
@@ -263,5 +264,5 @@ assert.equal(checks, 20, "conformance case inventory changed");
 console.log(`Continuation conformance: ${checks} cases passed. Host fixtures do not establish live host compatibility.`);
 } finally {
   if (fs.realpathSync(scratch) !== path.resolve(scratch) || !path.basename(scratch).startsWith("impower-continuation-")) throw new Error("Refusing cleanup outside original scratch directory");
-  fs.rmSync(scratch, { recursive: true, force: true });
+  removeScratch(scratch);
 }
