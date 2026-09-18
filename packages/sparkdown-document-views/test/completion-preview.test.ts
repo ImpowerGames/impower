@@ -246,6 +246,15 @@ describe("the options reported", () => {
     expect(v.state.doc.toString()).toBe("  [[bunny_annoyed]]\n");
   });
 
+  it("end with a close when the editor is destroyed with the list open", async () => {
+    const { view: v, events } = mount(doc, cursor, items);
+    await open(v);
+    const session = events.at(-1)!.session;
+    v.destroy();
+    expect(events.at(-1)).toMatchObject({ state: "close", session });
+    expect(events.at(-1)!.accepted).toBeUndefined();
+  });
+
   it("start a new session each time the list opens", async () => {
     const { view: v, events } = mount(doc, cursor, items);
     await open(v);

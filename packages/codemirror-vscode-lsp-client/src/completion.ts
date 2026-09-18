@@ -520,16 +520,20 @@ export interface CompletionPreviewEvent {
  * the document changes under it, since the edit accepting it would make has
  * changed with the document. While the list waits for fresh results nothing is
  * highlighted and nothing is reported; the list is still open, so neither is a
- * close.
+ * close. A view destroyed while its list is open reports the close, since no
+ * later update will.
+ *
+ * `state` is the editor state the event describes.
  */
 export function completionPreview(
-  listener: (event: CompletionPreviewEvent, update: ViewUpdate) => void,
+  listener: (event: CompletionPreviewEvent, state: EditorState) => void,
 ): Extension {
   let session = 0;
   return ViewPlugin.fromClass(
     class {
       open = false;
       highlighted: Completion | null = null;
+      constructor(readonly view: EditorView) {}
       update(update: ViewUpdate) {
         if (completionStatus(update.state) == null) {
           if (this.open) {
@@ -543,7 +547,7 @@ export function completionPreview(
                   (tr) => tr.annotation(pickedCompletion) != null,
                 ),
               },
-              update,
+              update.state,
             );
           }
           return;
@@ -567,8 +571,15 @@ export function completionPreview(
             session,
             changes: completionChanges(update.state, highlighted),
           },
-          update,
+          update.state,
         );
+      }
+      destroy() {
+        if (this.open) {
+          this.open = false;
+          this.highlighted = null;
+          listener({ state: "close", session }, this.view.state);
+        }
       }
     },
   );

@@ -831,12 +831,11 @@ export class ScriptEditorController {
               );
             }
           },
-          onCompletionPreview: (event, update) => {
+          onCompletionPreview: (event, state) => {
             const uri = this._textDocument?.uri;
             if (!uri) {
               return;
             }
-            const state = update.state;
             const request = ++completionPreviewRequests;
             if (event.state === "focus") {
               const cursor = convertToPosition(

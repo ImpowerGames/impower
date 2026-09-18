@@ -135,7 +135,7 @@ interface EditorConfig {
   /** An autocomplete option was highlighted, or the list closed. */
   onCompletionPreview?: (
     event: CompletionPreviewEvent,
-    update: ViewUpdate,
+    state: EditorState,
   ) => void;
   changeFilter?: (tr: Transaction) => boolean | readonly number[];
   transactionFilter?: (
