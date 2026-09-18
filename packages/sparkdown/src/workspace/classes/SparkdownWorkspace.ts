@@ -684,6 +684,21 @@ export abstract class SparkdownWorkspace {
     return this._filesRevision;
   }
 
+  // Settles once every project file change begun so far has reached the
+  // compiler. A preview compile waits for it, so one asked for after the
+  // revision above moved compiles against the files that moved it.
+  protected _fileUpdates: Promise<unknown> = Promise.resolve();
+
+  /** Record a project file change: move the revision at once, and run
+   *  `update`, which loads the file and hands it to the compiler, as a change
+   *  preview compiles wait for. */
+  protected trackFileUpdate<T>(update: () => Promise<T>): Promise<T> {
+    this._filesRevision++;
+    const done = update();
+    this._fileUpdates = Promise.allSettled([this._fileUpdates, done]);
+    return done;
+  }
+
   /**
    * Compile the program as it would be with `contentChanges` applied to
    * `textDocument`, without applying them (see
@@ -705,6 +720,7 @@ export abstract class SparkdownWorkspace {
       return { textDocument, outdated: true };
     }
     await this._documentUpdates;
+    await this._fileUpdates;
     await this.compilerReady();
     const root = this.getMainScriptUri(textDocument.uri) ?? textDocument.uri;
     profile("start", this._profilerId, "workspace" + " " + "previewCompile", root);
@@ -1086,18 +1102,22 @@ export abstract class SparkdownWorkspace {
   }
 
   async createFile(uri: string) {
-    this._filesRevision++;
-    if (this.getFileType(uri) === "script") {
-      this._documentVersions.set(uri, 0);
-    }
-    const file = await this.loadFile({ uri });
-    this._watchedFiles.set(uri, file);
-    this.onCreatedFile(file);
-    await this.compilerReady();
-    await this._compilerChannelConnection.sendRequest(
-      AddCompilerFileMessage.type,
-      { file: imageFileForCompiler(file, this._compilerConfig?.stripImageData) },
-    );
+    const file = await this.trackFileUpdate(async () => {
+      if (this.getFileType(uri) === "script") {
+        this._documentVersions.set(uri, 0);
+      }
+      const file = await this.loadFile({ uri });
+      this._watchedFiles.set(uri, file);
+      this.onCreatedFile(file);
+      await this.compilerReady();
+      await this._compilerChannelConnection.sendRequest(
+        AddCompilerFileMessage.type,
+        {
+          file: imageFileForCompiler(file, this._compilerConfig?.stripImageData),
+        },
+      );
+      return file;
+    });
     if (
       this._lastCompiledUri &&
       this.textDocumentExists(this._lastCompiledUri)
@@ -1111,16 +1131,23 @@ export abstract class SparkdownWorkspace {
     const type = this.getFileType(uri);
     if (type && (type !== "script" || !this._openDocuments.has(uri))) {
       // Changed file is an asset or an unopened script
-      this._filesRevision++;
-      const file = await this.loadFile({ uri });
-      this._watchedFiles.set(uri, file);
-      this._documentVersions.set(uri, file.version ?? 0);
-      this.onChangedFile(file);
-      await this.compilerReady();
-      await this._compilerChannelConnection.sendRequest(
-        UpdateCompilerFileMessage.type,
-        { file: imageFileForCompiler(file, this._compilerConfig?.stripImageData) },
-      );
+      const file = await this.trackFileUpdate(async () => {
+        const file = await this.loadFile({ uri });
+        this._watchedFiles.set(uri, file);
+        this._documentVersions.set(uri, file.version ?? 0);
+        this.onChangedFile(file);
+        await this.compilerReady();
+        await this._compilerChannelConnection.sendRequest(
+          UpdateCompilerFileMessage.type,
+          {
+            file: imageFileForCompiler(
+              file,
+              this._compilerConfig?.stripImageData,
+            ),
+          },
+        );
+        return file;
+      });
       if (
         this._lastCompiledUri &&
         this.textDocumentExists(this._lastCompiledUri)
@@ -1133,25 +1160,27 @@ export abstract class SparkdownWorkspace {
   }
 
   async deleteFile(uri: string) {
-    this._filesRevision++;
-    const deletedFile = this._watchedFiles.get(uri);
-    this._imageVocabularyCache.delete(uri);
-    this._watchedFiles.delete(uri);
-    this._programStates.delete(uri);
-    this._documentVersions.delete(uri);
-    if (this._documentSelected?.file === uri) {
-      this._documentSelected = undefined;
-    }
-    if (deletedFile) {
-      this.onDeletedFile(deletedFile!);
-    }
-    await this.compilerReady();
-    await this._compilerChannelConnection.sendRequest(
-      RemoveCompilerFileMessage.type,
-      {
-        file: { uri },
-      },
-    );
+    const deletedFile = await this.trackFileUpdate(async () => {
+      const deletedFile = this._watchedFiles.get(uri);
+      this._imageVocabularyCache.delete(uri);
+      this._watchedFiles.delete(uri);
+      this._programStates.delete(uri);
+      this._documentVersions.delete(uri);
+      if (this._documentSelected?.file === uri) {
+        this._documentSelected = undefined;
+      }
+      if (deletedFile) {
+        this.onDeletedFile(deletedFile!);
+      }
+      await this.compilerReady();
+      await this._compilerChannelConnection.sendRequest(
+        RemoveCompilerFileMessage.type,
+        {
+          file: { uri },
+        },
+      );
+      return deletedFile;
+    });
     if (
       this._lastCompiledUri &&
       this.textDocumentExists(this._lastCompiledUri)
