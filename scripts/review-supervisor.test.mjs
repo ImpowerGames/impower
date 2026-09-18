@@ -71,8 +71,13 @@ try {
     const uncertain=await fixture();withJob(uncertain.jobDir,()=>appendEvent(uncertain.jobDir,'worker-launch-failed',{reason:'fixture reviewer launch failed'}));
     let attempts=0;uncertain.host.submit=async()=>{attempts++;throw new Error('lost terminal acknowledgment');};
     assert.equal((await runReviewMonitor(uncertain.jobDir,uncertain.host,{identify,pendingMs:0})).notificationPending,true);assert.equal(attempts,1);
+    const terminalSuspension=readEvents(uncertain.jobDir).findLast(row=>row.event==='monitor-suspended');assert.ok(terminalSuspension,'terminal deadline is recorded durably');assert.match(terminalSuspension.reason,/Terminal notification delivery deadline/);
     let resends=0;uncertain.host.submit=async()=>{resends++;return{};};uncertain.host.reconcile=async()=>({status:'accepted',turnId:'recovered-terminal-turn'});
     await runReviewMonitor(uncertain.jobDir,uncertain.host,{identify});assert.equal(resends,0,'an uncertain terminal delivery is reconciled without resend');
+
+    const cancelled=await fixture();withJob(cancelled.jobDir,()=>appendEvent(cancelled.jobDir,'worker-launch-failed',{reason:'fixture reviewer launch failed'}));
+    cancelled.host.inspect=async()=>{await cancelReviewJob(cancelled.jobDir,cancelled.host);return{state:'idle'};};
+    assert.equal((await runReviewMonitor(cancelled.jobDir,cancelled.host,{identify,wait:async()=>{}})).state,'workflow-cancelled');assert.equal(cancelled.sends,0,'cancellation during terminal inspection wins admission');
   }
   {
     const f=await fixture();f.complete();

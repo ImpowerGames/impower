@@ -152,7 +152,8 @@ async function advanceTerminalNotification(dir,host) {
     let request,admissionError;
     try {
       await transaction(dir,current=>{
-        if(request||last(current,'terminal-notification-accepted')||terminalSubmissionOutstanding(current))return;
+        if(request||last(current,'terminal-notification-accepted')||terminalSubmissionOutstanding(current)||!['blocked','review-failed'].includes(jobStatus(dir,current).state))return;
+        assertJobFreeze(plan,dir);assertFrozen(plan);
         appendEvent(dir,'terminal-submission-intent',{envelope});
         try{request=Promise.resolve(host.submit(envelope));}catch(error){request=Promise.reject(error);}request.catch(()=>{});
       });
@@ -314,7 +315,7 @@ export async function runReviewMonitor(dir,host,{identify=processIdentity,wait=s
     writeExclusive(file,owner);appendEvent(dir,'monitor-started',{identity:owner.identity,token:owner.token});
   });}catch(error){if(fs.existsSync(file)&&readJson(file).token===owner.token)persistFailure(error);throw error;}
   if(existing){if(alive(existing.identity,identify))return{state:'monitor-running',identity:existing.identity};throw new Error('Previous monitor exited; use recover before monitoring');}
-  let sequence=0,pendingSince,nextWorkerProbe=0,primary;
+  let sequence=0,pendingSince,terminalPendingSince,nextWorkerProbe=0,primary;
   const flush=rows=>{for(const row of rows)if(row.sequence>sequence){emit(row);sequence=row.sequence;}};
   try {
     for(;;) {
@@ -326,8 +327,8 @@ export async function runReviewMonitor(dir,host,{identify=processIdentity,wait=s
         if(submissionOutstanding(before.events))return{state:before.state};
         const delivered=await advanceTerminalNotification(dir,host);
         if(delivered)return{state:before.state};
-        pendingSince??=now();
-        if(now()-pendingSince>=pendingMs)return{state:before.state,notificationPending:true};
+        terminalPendingSince??=now();
+        if(now()-terminalPendingSince>=pendingMs){const reason='Terminal notification delivery deadline reached; inspect the durable terminal envelope and resume this same job without launching a duplicate reviewer';await mutate(()=>appendEvent(dir,'monitor-suspended',{reason,resumable:true,notificationPending:true}));flush(readEvents(dir));return{state:before.state,notificationPending:true,reason};}
         await wait(10000);continue;
       }
       let unavailable=false;

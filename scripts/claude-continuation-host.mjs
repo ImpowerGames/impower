@@ -83,10 +83,13 @@ export function sendClaudeFrame(record,envelope,{connect=endpoint=>net.createCon
       socket.once('connect',()=>{
         try {
         const marker=claudeReceiptMarker(envelope.continuationId);
-        const content=`Display exactly ${marker} on its own line to acknowledge this continuation, then follow the guarded instructions below. For the claim, invoke Bash with exactly this command, without additions or rewriting:\n${renderClaudeClaimCommand(envelope.claimCommand)}\n${continuationPrompt(envelope)}`;
+        const instruction=envelope.authorizedAction==='inspect-blocked-review'
+          ?`Display exactly ${marker} on its own line to acknowledge this terminal review event, then follow the guarded recovery instructions below.\n${continuationPrompt(envelope)}`
+          :`Display exactly ${marker} on its own line to acknowledge this continuation, then follow the guarded instructions below. For the claim, invoke Bash with exactly this command, without additions or rewriting:\n${renderClaudeClaimCommand(envelope.claimCommand)}\n${continuationPrompt(envelope)}`;
+        const content=instruction;
         const frame=JSON.stringify({type:'auth',token:record.token})+'\n'+JSON.stringify({type:'user',session_id:record.sessionId,uuid:envelope.continuationId,msg_id:envelope.continuationId,message:{content},priority:'next'})+'\n';
         writeInvoked=true;socket.write(frame,error=>finish(error));
-        }catch{finish(true);}
+        }catch(error){settled=true;clearTimeout(timer);socket?.destroy();reject(error);}
       });
     }catch{finish(true);}
   });
