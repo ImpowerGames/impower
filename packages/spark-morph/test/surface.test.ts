@@ -10,7 +10,7 @@ describe("package surface", () => {
       [
         "MORPH_DEFAULTS",
         "NODES_DEFAULTS",
-        "OUTLINE_DEFAULTS",
+        "TRACE_DEFAULTS",
         "SEGMENT_STRIDE",
         "TAPER_DEFAULTS",
         "basicShapeToPathData",
@@ -21,7 +21,7 @@ describe("package surface", () => {
         "morphScale",
         "morphSubpaths",
         "nodesTrack",
-        "outlineTrack",
+        "traceTrack",
         "pairShapes",
         "parsePathData",
         "sampleMorph",

@@ -31,7 +31,7 @@ describe("sampleMorph", () => {
 
   test("the authored endpoints keep every decimal by default", () => {
     const tiny = "M0.004,0.004L0.006,0.004L0.004,0.006Z";
-    const r = morphSubpaths(parsePathData(tiny), parsePathData(tiny), { method: "outline" });
+    const r = morphSubpaths(parsePathData(tiny), parsePathData(tiny), { method: "trace" });
     if (!r.ok) throw new Error(r.failure.message);
     const s = sampleMorph(r.morph, 2);
     // The parser makes the closing edge explicit; every coordinate survives.
@@ -47,7 +47,7 @@ describe("sampleMorph", () => {
   });
 
   test("compound morphs keep one count per subpath", () => {
-    const r = morphSubpaths(parsePathData(square + circle), parsePathData(circle + square), { method: "outline" });
+    const r = morphSubpaths(parsePathData(square + circle), parsePathData(circle + square), { method: "trace" });
     if (!r.ok) throw new Error(r.failure.message);
     const s = sampleMorph(r.morph, 4);
     expect(s.segmentCounts).toHaveLength(2);

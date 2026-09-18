@@ -1,7 +1,7 @@
 import { describe, expect, test } from "vitest";
 import { isLine } from "../src/geometry/cubic";
 import { smoothAnchors } from "../src/methods/taper";
-import { buildApertures, morphSubpaths, nodesTrack, outlineTrack, parsePathData, serializePathData, taperTrack } from "../src/index";
+import { buildApertures, morphSubpaths, nodesTrack, traceTrack, parsePathData, serializePathData, taperTrack } from "../src/index";
 import type { MorphMethod, Subpath, TaperTrack } from "../src/index";
 import {
   circle,
@@ -53,9 +53,9 @@ describe("scale invariance", () => {
     ["taper: rounded tips", roundedOpen, roundedClosed, "taper"],
     ["taper: one cusp (fails)", oneCusp, oneCuspNarrow, "taper"],
     ["taper: circle (fails)", circle, closedLash, "taper"],
-    ["outline: square to star", square, star, "outline"],
-    ["outline: star to circle", star, circle, "outline"],
-    ["outline: square to triangle", square, triangle, "outline"],
+    ["trace: square to star", square, star, "trace"],
+    ["trace: star to circle", star, circle, "trace"],
+    ["trace: square to triangle", square, triangle, "trace"],
     ["nodes: square to quadrilateral", square, offKilterQuad, "nodes"],
     ["still: identical lashes", upperOpen, upperOpen, "taper"],
   ];
@@ -83,9 +83,9 @@ describe("scale invariance", () => {
     expect(new Set(picks).size, picks.join(" | ")).toBe(1);
   });
 
-  test("outline chooses the same alignment at every scale", () => {
+  test("trace chooses the same alignment at every scale", () => {
     const picks = SCALES.map((k) => {
-      const r = outlineTrack(loop(scaled(star, k)), loop(scaled(circle, k)));
+      const r = traceTrack(loop(scaled(star, k)), loop(scaled(circle, k)));
       if (!r.ok) throw new Error(r.failure.message);
       return `${r.track.reversed}:${r.track.phase.toFixed(6)}:${r.track.from.length}`;
     });
