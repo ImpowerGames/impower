@@ -24,6 +24,8 @@ export function validateCodexSandboxStorage(permission,privateDirectory,worktree
 export function nativeReviewerEnvironment(step,privateDirectory,source=process.env,{worktree}={}) {
   const env=reviewerEnvironment(source);
   env.GIT_OPTIONAL_LOCKS='0';
+  const codexReview=step.nativeResult==='codex-jsonl'||step.args?.[0]==='exec';
+  if(!codexReview)return env;
   if(step.nativeResult==='codex-jsonl') {
     const sourceHome=validateCodexSandboxStorage(step.permissions,privateDirectory,worktree);
     const home=fs.realpathSync.native(fs.mkdtempSync(path.join(privateDirectory,'codex-home-')));
@@ -44,8 +46,8 @@ export function nativeReviewerEnvironment(step,privateDirectory,source=process.e
     const sandbox=report.checks?.['sandbox.helpers'];
     if(report.codexVersion!==pinnedCodexVersion||sandbox?.status!=='ok'||sandbox.details?.['sandbox backend']!=='elevated'||sandbox.details?.['sandbox provisioning']!=='complete')throw new Error('Existing elevated sandbox provisioning unavailable; no setup is performed');
   }
-  // The sandbox account cannot read the owner's CLI credential store. Delegate
-  // existing report access in memory; never copy its configuration or token to disk.
+  // Codex review environments receive report access in memory; never copy its
+  // configuration or token to disk.
   let token;
   try{token=execFileSync('gh',['auth','token','--hostname','github.com'],{env:source,encoding:'utf8',windowsHide:true,timeout:15000,maxBuffer:16384,stdio:['ignore','pipe','pipe']}).trim();}
   catch{throw new Error('Existing GitHub authentication unavailable; reviewer not launched');}
