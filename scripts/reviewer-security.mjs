@@ -24,25 +24,26 @@ export function validateCodexSandboxStorage(permission,privateDirectory,worktree
 export function nativeReviewerEnvironment(step,privateDirectory,source=process.env,{worktree}={}) {
   const env=reviewerEnvironment(source);
   env.GIT_OPTIONAL_LOCKS='0';
-  if(step.nativeResult!=='codex-jsonl')return env;
-  const sourceHome=validateCodexSandboxStorage(step.permissions,privateDirectory,worktree);
-  const home=fs.realpathSync.native(fs.mkdtempSync(path.join(privateDirectory,'codex-home-')));
-  protectPrivatePath(home);
-  for(const name of privateInputs){
-    const target=path.join(home,name),directory=path.dirname(target);
-    if(directory!==home){fs.mkdirSync(directory);protectPrivatePath(directory);}
-    const fd=fs.openSync(target,'wx',0o600);
-    try{protectPrivatePath(target);fs.writeFileSync(fd,fs.readFileSync(path.join(sourceHome,name)));}finally{fs.closeSync(fd);}
+  if(step.nativeResult==='codex-jsonl') {
+    const sourceHome=validateCodexSandboxStorage(step.permissions,privateDirectory,worktree);
+    const home=fs.realpathSync.native(fs.mkdtempSync(path.join(privateDirectory,'codex-home-')));
+    protectPrivatePath(home);
+    for(const name of privateInputs){
+      const target=path.join(home,name),directory=path.dirname(target);
+      if(directory!==home){fs.mkdirSync(directory);protectPrivatePath(directory);}
+      const fd=fs.openSync(target,'wx',0o600);
+      try{protectPrivatePath(target);fs.writeFileSync(fd,fs.readFileSync(path.join(sourceHome,name)));}finally{fs.closeSync(fd);}
+    }
+    for(const key of Object.keys(env))if(/^(?:CODEX_|OPENAI_)/i.test(key))delete env[key];
+    env.CODEX_HOME=home;
+    env.GIT_CONFIG_COUNT='1';env.GIT_CONFIG_KEY_0='safe.directory';env.GIT_CONFIG_VALUE_0=fs.realpathSync.native(worktree).replaceAll('\\','/');
+    let output;
+    try{output=execFileSync(step.executable,['doctor','--json','-c','windows.sandbox="elevated"'],{cwd:fs.realpathSync.native(step.permissions.cwd),env,encoding:'utf8',windowsHide:true,timeout:60000,maxBuffer:1024*1024,stdio:['ignore','pipe','pipe']});}
+    catch(error){output=error.stdout;}
+    let report;try{report=JSON.parse(output);}catch{throw new Error('Native Codex sandbox provisioning could not be verified; no setup is performed');}
+    const sandbox=report.checks?.['sandbox.helpers'];
+    if(report.codexVersion!==pinnedCodexVersion||sandbox?.status!=='ok'||sandbox.details?.['sandbox backend']!=='elevated'||sandbox.details?.['sandbox provisioning']!=='complete')throw new Error('Existing elevated sandbox provisioning unavailable; no setup is performed');
   }
-  for(const key of Object.keys(env))if(/^(?:CODEX_|OPENAI_)/i.test(key))delete env[key];
-  env.CODEX_HOME=home;
-  env.GIT_CONFIG_COUNT='1';env.GIT_CONFIG_KEY_0='safe.directory';env.GIT_CONFIG_VALUE_0=fs.realpathSync.native(worktree).replaceAll('\\','/');
-  let output;
-  try{output=execFileSync(step.executable,['doctor','--json','-c','windows.sandbox="elevated"'],{cwd:fs.realpathSync.native(step.permissions.cwd),env,encoding:'utf8',windowsHide:true,timeout:60000,maxBuffer:1024*1024,stdio:['ignore','pipe','pipe']});}
-  catch(error){output=error.stdout;}
-  let report;try{report=JSON.parse(output);}catch{throw new Error('Native Codex sandbox provisioning could not be verified; no setup is performed');}
-  const sandbox=report.checks?.['sandbox.helpers'];
-  if(report.codexVersion!==pinnedCodexVersion||sandbox?.status!=='ok'||sandbox.details?.['sandbox backend']!=='elevated'||sandbox.details?.['sandbox provisioning']!=='complete')throw new Error('Existing elevated sandbox provisioning unavailable; no setup is performed');
   // The sandbox account cannot read the owner's CLI credential store. Delegate
   // existing report access in memory; never copy its configuration or token to disk.
   let token;
@@ -51,7 +52,7 @@ export function nativeReviewerEnvironment(step,privateDirectory,source=process.e
   if(!token||/[\r\n]/.test(token))throw new Error('Existing GitHub authentication invalid; reviewer not launched');
   for(const key of Object.keys(env))if(/^GH_|^GITHUB_TOKEN$/i.test(key))delete env[key];
   env.GH_HOST='github.com';env.GH_TOKEN=token;
-  env.GH_CONFIG_DIR=fs.realpathSync.native(fs.mkdtempSync(path.join(fs.realpathSync.native(step.permissions.cwd),'gh-config-')));
+  env.GH_CONFIG_DIR=fs.realpathSync.native(fs.mkdtempSync(path.join(fs.realpathSync.native(step.nativeResult==='codex-jsonl'?step.permissions.cwd:privateDirectory),'gh-config-')));
   return env;
 }
 
