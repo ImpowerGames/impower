@@ -9,9 +9,11 @@ import {processIdentity} from './reviewer-slots.mjs';
 import {protectPrivatePath} from './reviewer-security.mjs';
 import {claimCommandDigest} from './claude-claim-proof.mjs';
 
-export function appendClaudeReceipt(file,row) {
-  const lock=file+'.lock',until=Date.now()+10000;
-  for(;;){try{fs.mkdirSync(lock);break;}catch(error){if(error.code!=='EEXIST'||Date.now()>until)throw new Error('Claude receipt storage busy; retry after inspecting its lock');Atomics.wait(new Int32Array(new SharedArrayBuffer(4)),0,0,10);}}
+export function appendClaudeReceipt(file,row,{lockTimeout=10000}={}) {
+  const lock=file+'.lock',until=Date.now()+lockTimeout;
+  // Windows answers EPERM, not EEXIST, while another writer's rmdir of the lock
+  // is still pending, so both codes mean a held lock.
+  for(;;){try{fs.mkdirSync(lock);break;}catch(error){if(!['EEXIST','EPERM'].includes(error.code)||Date.now()>until)throw new Error(`Claude receipt storage busy (${error.code}); retry after inspecting its lock`);Atomics.wait(new Int32Array(new SharedArrayBuffer(4)),0,0,10);}}
   const temporary=file+'.'+randomUUID();
   try {
     let rows=[];
