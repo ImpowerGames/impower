@@ -16,7 +16,9 @@ export function continuationClaimIdentity(plan,options={}) {
   return (options.env??process.env).CODEX_THREAD_ID;
 }
 
-export const continuationPrompt=envelope=>`Review continuation ${envelope.continuationId}: Independent review is complete. Before changing the frozen worktree, run the exact claimCommand below in this originating task. If claim fails, stop and report the reason. Read the referenced reports and adjudicate only the authorized review; this message does not authorize another review round, model change, merge, or new task.\n${JSON.stringify(envelope)}`;
+export const continuationPrompt=envelope=>envelope.authorizedAction==='inspect-blocked-review'
+  ?`Review continuation ${envelope.continuationId}: The review launcher reached ${envelope.state}. Do not launch a replacement reviewer or change the frozen worktree. Inspect the journal and logs named in this durable event, then take only the stated recovery action.\n${JSON.stringify(envelope)}`
+  :`Review continuation ${envelope.continuationId}: Independent review is complete. Before changing the frozen worktree, run the exact claimCommand below in this originating task. If claim fails, stop and report the reason. Read the referenced reports and adjudicate only the authorized review; this message does not authorize another review round, model change, merge, or new task.\n${JSON.stringify(envelope)}`;
 const permanent=message=>Object.assign(new Error(message),{permanentObservationFailure:true});
 const canonicalCwd=value=>{try{return fs.realpathSync.native(value);}catch(error){error.observationUnavailable=true;throw error;}};
 

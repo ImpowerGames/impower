@@ -18,6 +18,7 @@ const blocked=rows=>(last(rows,'blocked')?.sequence??0)>(last(rows,'resume-reque
 const suspended=rows=>(last(rows,'monitor-suspended')?.sequence??0)>(last(rows,'monitor-started')?.sequence??0);
 const exitObserved=(rows,worker)=>rows.some(row=>row.event==='worker-exit-observed'&&sameIdentity(row.identity,worker?.identity));
 const submissionOutstanding=rows=>(last(rows,'submission-intent')?.sequence??0)>(last(rows,'dispatch-refused')?.sequence??0);
+const terminalSubmissionOutstanding=rows=>(last(rows,'terminal-submission-intent')?.sequence??0)>(last(rows,'terminal-dispatch-refused')?.sequence??0);
 export function jobStatus(dir,events=readEvents(dir)) {
   const diagnostic=path.join(dir,'monitor-failure.json');
   if(fs.existsSync(diagnostic)){
@@ -129,6 +130,42 @@ async function transaction(dir,run) {
 }
 async function observation(dir,reason) {
   return transaction(dir,rows=>{if(last(rows,'observation-pending')?.reason!==reason)appendEvent(dir,'observation-pending',{reason});});
+}
+function terminalEnvelope(dir,plan,rows) {
+  const state=jobStatus(dir,rows).state;
+  if(!['blocked','review-failed'].includes(state))return null;
+  const failure=state==='blocked'?last(rows,'blocked'):(last(rows,'worker-finished')?.ok===false?last(rows,'worker-finished'):last(rows,'worker-launch-failed'));
+  const reason=failure?.reason??failure?.message??`Review launcher reached ${state}`;
+  const journal=path.join(dir,'handoff.jsonl');
+  return {version:1,jobId:plan.jobId,continuationId:plan.continuationId,destination:{threadId:plan.destination.threadId,turnId:plan.destination.turnId,cwd:plan.destination.cwd},head:plan.head,base:plan.base,round:plan.round,authorizedAction:'inspect-blocked-review',state,reason,journal,jobDir:dir,nextRequiredAction:`Inspect ${journal} and the job logs, preserve recorded process identities, and recover or resume from durable state without launching a duplicate reviewer.`};
+}
+async function advanceTerminalNotification(dir,host) {
+  const plan=readJson(path.join(dir,'plan.json'));let rows=await transaction(dir,current=>current);
+  if(last(rows,'terminal-notification-accepted'))return true;
+  let envelope=last(rows,'terminal-notification-pending')?.envelope;
+  if(!envelope){envelope=terminalEnvelope(dir,plan,rows);if(!envelope)return false;await transaction(dir,current=>{if(!last(current,'terminal-notification-pending'))appendEvent(dir,'terminal-notification-pending',{envelope});});}
+  rows=await transaction(dir,current=>current);
+  if(!terminalSubmissionOutstanding(rows)) {
+    const state=await host.inspect(plan.destination,plan);
+    if(state.state==='disconnected'||state.state==='unknown'){await observation(dir,state.reason??`Originating lifecycle ${state.state}`);return false;}
+    if(!['idle','active'].includes(state.state))throw new Error('Originating destination unavailable');
+    let request,admissionError;
+    try {
+      await transaction(dir,current=>{
+        if(request||last(current,'terminal-notification-accepted')||terminalSubmissionOutstanding(current))return;
+        appendEvent(dir,'terminal-submission-intent',{envelope});
+        try{request=Promise.resolve(host.submit(envelope));}catch(error){request=Promise.reject(error);}request.catch(()=>{});
+      });
+    }catch(error){admissionError=error;}
+    if(request){try{const receipt=await request;await transaction(dir,()=>appendEvent(dir,receipt?.status==='not-sent'?'terminal-dispatch-refused':'terminal-submission-response',{receipt}));}catch(error){await transaction(dir,()=>appendEvent(dir,'terminal-delivery-uncertain',{reason:error.message}));}}
+    if(admissionError)throw admissionError;
+  }
+  rows=await transaction(dir,current=>current);
+  if(terminalSubmissionOutstanding(rows)&&!last(rows,'terminal-notification-accepted')) {
+    let accepted;try{accepted=await host.reconcile(envelope,plan);}catch(error){if(error.permanentObservationFailure)throw error;await observation(dir,error.message);return false;}
+    if(accepted.status==='accepted'&&typeof accepted.turnId==='string'&&accepted.turnId)await transaction(dir,current=>{if(!last(current,'terminal-notification-accepted'))appendEvent(dir,'terminal-notification-accepted',{turnId:accepted.turnId});});
+  }
+  return Boolean(last(await transaction(dir,current=>current),'terminal-notification-accepted'));
 }
 export async function runReviewWorker(dir,{slotRoot}={}) {
   const plan=readJson(path.join(dir,'plan.json'));
@@ -282,7 +319,17 @@ export async function runReviewMonitor(dir,host,{identify=processIdentity,wait=s
   try {
     for(;;) {
       const before=await mutate(rows=>jobStatus(dir,rows));
-      if(['claimed','continuation-accepted','workflow-cancelled','blocked','review-failed'].includes(before.state))return{state:before.state};
+      if(['claimed','continuation-accepted','workflow-cancelled'].includes(before.state))return{state:before.state};
+      if(['blocked','review-failed'].includes(before.state)){
+        // A prior completion admission may already have reached the task. Its
+        // uncertain receipt must never be followed by a second terminal send.
+        if(submissionOutstanding(before.events))return{state:before.state};
+        const delivered=await advanceTerminalNotification(dir,host);
+        if(delivered)return{state:before.state};
+        pendingSince??=now();
+        if(now()-pendingSince>=pendingMs)return{state:before.state,notificationPending:true};
+        await wait(10000);continue;
+      }
       let unavailable=false;
       const observeWorker=now()>=nextWorkerProbe;
       if(observeWorker)nextWorkerProbe=now()+workerProbeMs;
@@ -293,7 +340,8 @@ export async function runReviewMonitor(dir,host,{identify=processIdentity,wait=s
       }
       const status=await mutate(rows=>jobStatus(dir,rows));
       flush(status.events);
-      if(['claimed','continuation-accepted','workflow-cancelled','blocked','review-failed'].includes(status.state))return{state:status.state};
+      if(['claimed','continuation-accepted','workflow-cancelled'].includes(status.state))return{state:status.state};
+      if(['blocked','review-failed'].includes(status.state))continue;
       const registered=last(status.events,'worker-started');
       if(unavailable||!registered||['continuation-pending','delivery-uncertain'].includes(status.state))pendingSince??=now();else if(observeWorker)pendingSince=undefined;
       const limit=registered?pendingMs:registrationMs;

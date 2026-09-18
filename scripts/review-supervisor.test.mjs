@@ -12,7 +12,7 @@ import { reviewerEnvironment } from './reviewer-security.mjs';
 import { appendEvent,withJob,readJson,readEvents,worktreePaths,assertJobFreeze,retryBusy,recoverJobLock,git as isolatedGit } from './review-job-store.mjs';
 import { removeScratch } from './remove-scratch.mjs';
 import { processIdentity } from './reviewer-slots.mjs';
-import { codexContinuationHost,verifyOriginConfiguration,verifyHostCatalog } from './continuation-host.mjs';
+import { codexContinuationHost,continuationPrompt,verifyOriginConfiguration,verifyHostCatalog } from './continuation-host.mjs';
 const claimReviewJob=(dir,id,options)=>actualClaim(dir,id,{verifyConfiguration:()=>({turnId:'fixture-turn'}),...options});
 const fixtureValidation={validateArgs:review=>validateNativeReviewArgs({...review,args:review.executable===process.execPath?review.args.slice(1):review.args})};
 const createReviewJob=(input,host)=>actualCreate(input,host,fixtureValidation);
@@ -43,8 +43,8 @@ try {
   const fixture=async()=>{
     const freeze=worktreePaths(repo).freeze;if(fs.existsSync(freeze))fs.unlinkSync(freeze);
     const jobDir=path.join(scratch,`job-${index++}`);
-    let sends=0,accepted=false,state='idle';
-    const host={preflight:async()=>({supported:true}),inspect:async()=>({state}),submit:async()=>{sends++;accepted=true;return{queued:true};},reconcile:async()=>({status:accepted?'accepted':'uncertain',turnId:'native-turn'})};
+    let sends=0,accepted=false,state='idle',delivered;
+    const host={preflight:async()=>({supported:true}),inspect:async()=>({state}),submit:async envelope=>{sends++;delivered=envelope;accepted=true;return{queued:true};},reconcile:async()=>({status:accepted?'accepted':'uncertain',turnId:'native-turn'})};
     const input={worktree:repo,jobDir,head,base:head,pr:547,writer:'writer',writerEffort:'medium',permissions:{mode:'fixture'},reviewer:'reviewer',round:1,completedReviewRound:0,destination:{threadId:'origin',turnId:'old-turn',cwd:repo,credential:'must-stay-private'},reviews:[{id:'correctness',transport:'native-claude-json',executable:process.execPath,args:[child,'--model','reviewer','--effort','high','--permission-mode','dontAsk','--output-format','json'],effort:'high',permissions:'dontAsk',prompt}]};
     await createReviewJob(input,host);
     const p=readJson(path.join(jobDir,'plan.json'));
@@ -53,8 +53,27 @@ try {
       const output=path.join(jobDir,'review.log');fs.writeFileSync(output,JSON.stringify({type:'result',subtype:'success',is_error:false,stop_reason:'end_turn'})+'\n');
       fs.writeFileSync(path.join(jobDir,'handoff.jsonl'),[{event:'launching',step:'correctness',completion:'report.json',output},{event:'exited',step:'correctness',code:0},{event:'completed',step:'correctness',head,completedRound:1,commentIds:[101]},{event:'finished'}].map(JSON.stringify).join('\n')+'\n');
     };
-    return{jobDir,p,input,host,complete,get sends(){return sends;},disconnect(){state='disconnected';}};
+    return{jobDir,p,input,host,complete,get sends(){return sends;},get delivered(){return delivered;},disconnect(){state='disconnected';}};
   };
+  {
+    const f=await fixture();withJob(f.jobDir,()=>appendEvent(f.jobDir,'worker-launch-failed',{reason:'fixture reviewer launch failed'}));
+    const result=await runReviewMonitor(f.jobDir,f.host,{identify});
+    assert.equal(result.state,'review-failed');assert.equal(f.sends,1,'a terminal review failure wakes the originating task once');
+    assert.equal(f.delivered.authorizedAction,'inspect-blocked-review');assert.equal(f.delivered.reason,'fixture reviewer launch failed');
+    assert.equal(f.delivered.journal,path.join(f.jobDir,'handoff.jsonl'));assert.match(f.delivered.nextRequiredAction,/duplicate reviewer/);
+    assert.match(continuationPrompt(f.delivered),/Do not launch a replacement reviewer/);
+    assert.equal(readEvents(f.jobDir).filter(row=>row.event==='terminal-notification-accepted').length,1);
+    await runReviewMonitor(f.jobDir,f.host,{identify});assert.equal(f.sends,1,'a recovered monitor never redelivers the terminal generation');
+
+    const blocked=await fixture();withJob(blocked.jobDir,()=>appendEvent(blocked.jobDir,'blocked',{reason:'fixture recovery required'}));
+    assert.equal((await runReviewMonitor(blocked.jobDir,blocked.host,{identify})).state,'blocked');assert.equal(blocked.delivered.reason,'fixture recovery required');
+
+    const uncertain=await fixture();withJob(uncertain.jobDir,()=>appendEvent(uncertain.jobDir,'worker-launch-failed',{reason:'fixture reviewer launch failed'}));
+    let attempts=0;uncertain.host.submit=async()=>{attempts++;throw new Error('lost terminal acknowledgment');};
+    assert.equal((await runReviewMonitor(uncertain.jobDir,uncertain.host,{identify,pendingMs:0})).notificationPending,true);assert.equal(attempts,1);
+    let resends=0;uncertain.host.submit=async()=>{resends++;return{};};uncertain.host.reconcile=async()=>({status:'accepted',turnId:'recovered-terminal-turn'});
+    await runReviewMonitor(uncertain.jobDir,uncertain.host,{identify});assert.equal(resends,0,'an uncertain terminal delivery is reconciled without resend');
+  }
   {
     const f=await fixture();f.complete();
     const alias=`${scratch}${path.sep}.${path.sep}${path.basename(f.jobDir)}`;
