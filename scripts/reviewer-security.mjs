@@ -24,7 +24,7 @@ export function validateCodexSandboxStorage(permission,privateDirectory,worktree
 export function nativeReviewerEnvironment(step,privateDirectory,source=process.env,{worktree}={}) {
   const env=reviewerEnvironment(source);
   env.GIT_OPTIONAL_LOCKS='0';
-  const codexReview=step.nativeResult==='codex-jsonl'||step.args?.[0]==='exec';
+  const codexReview=step.nativeResult==='codex-jsonl'||(step.model?.startsWith('gpt-')&&step.args?.[0]==='exec');
   if(!codexReview)return env;
   if(step.nativeResult==='codex-jsonl') {
     const sourceHome=validateCodexSandboxStorage(step.permissions,privateDirectory,worktree);
