@@ -104,4 +104,91 @@ end
     ]);
     expect(quick?.["timing"]).toMatchObject({ duration: 0.5 });
   });
+
+  const contextOf = async (source: string) => {
+    const harness = createHarness(`${source}
+-> start
+scene start
+  Hello.
+end
+`);
+    await harness.ready;
+    const story = (harness.game as any).story ?? (harness.game as any)._story;
+    return buildDefinesContext(story) as any;
+  };
+
+  test("a builtin parent is inherited, and the child stays an animation", async () => {
+    const ctx = await contextOf(`animation slow_fade as fadein with
+  timing:
+    duration = 3
+end
+`);
+    expect(ctx.animation?.slow_fade).toMatchObject({
+      $type: "animation",
+      keyframes: ctx.animation?.fadein?.keyframes,
+      timing: { duration: 3 },
+    });
+    expect(ctx.fadein).toBeUndefined();
+  });
+
+  test("a parent declared after its child is linked when it registers", async () => {
+    const ctx = await contextOf(`morph slow as blink with
+  timing:
+    duration = 1
+end
+
+morph blink with
+  method = bend
+  keyframes:
+    from:
+      eyes:
+        state = open
+    to:
+      eyes:
+        state = closed
+end
+`);
+    expect(ctx.morph?.slow).toMatchObject({ $type: "morph", method: "bend" });
+    expect(ctx.morph?.slow?.keyframes).toHaveLength(2);
+  });
+
+  test("blocks of different types may share a parent's name", async () => {
+    const ctx = await contextOf(`animation base with
+  keyframes:
+    from:
+      opacity = "0"
+    to:
+      opacity = "1"
+end
+
+animation child as base with
+  timing:
+    duration = 2
+end
+
+morph base with
+  method = trace
+end
+
+morph other as base with
+  fallback = cut
+end
+`);
+    expect(ctx.animation?.child?.keyframes).toEqual(ctx.animation?.base?.keyframes);
+    expect(ctx.morph?.other).toMatchObject({ method: "trace", fallback: "cut" });
+    expect(ctx.morph?.other?.keyframes).not.toEqual(ctx.animation?.base?.keyframes);
+  });
+
+  test("a cycle of parents is refused rather than looping", async () => {
+    const ctx = await contextOf(`morph a as b with
+  method = bend
+end
+
+morph b as a with
+  fallback = cut
+end
+`);
+    expect(ctx.morph?.a).toMatchObject({ method: "bend" });
+    expect(ctx.morph?.b).toMatchObject({ fallback: "cut", method: "bend" });
+  });
 });

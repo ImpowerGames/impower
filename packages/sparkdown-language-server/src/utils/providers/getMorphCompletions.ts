@@ -2,6 +2,7 @@ import {
   groupHasState,
   morphImageLabels,
   morphImages,
+  morphRequirements,
 } from "@impower/sparkdown/src/compiler/morph/bindMorph";
 import {
   MORPH_BLENDS,
@@ -128,6 +129,21 @@ export function getMorphCompletions(
   const inKeyframe = path[0] === "keyframes" && path.length >= 3;
   const container = inKeyframe ? path[path.length - 1]! : undefined;
   if (container) driven.add(container);
+  // Groups the morph inherits: every `as` ancestor's keyframes, read from the
+  // compiled program, so a child that only restates policies still completes
+  // from the images its inherited keyframes bind to.
+  const morphs = (context["morph"] ?? {}) as Record<string, any>;
+  const seen = new Set<string>();
+  let ancestor: string | undefined = morphs[block.name]?.$extends;
+  while (typeof ancestor === "string" && !seen.has(ancestor)) {
+    seen.add(ancestor);
+    const struct = morphs[ancestor];
+    if (!struct || typeof struct !== "object") break;
+    for (const group of morphRequirements(struct).groups.keys()) {
+      driven.add(group);
+    }
+    ancestor = struct.$extends;
+  }
   const candidates = images.filter((image) =>
     [...driven].some((group) => image.vocabulary.groups[group]),
   );

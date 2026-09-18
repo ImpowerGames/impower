@@ -63,6 +63,11 @@ export interface WrittenMorph {
  * `__index` chain reads fields in. It is built from the bodies as written,
  * because the compiled context already merges `$default` into every morph,
  * which would let a default hide a value the parent supplies.
+ *
+ * An ancestor that is not a `morph` block, such as `define base as morph
+ * with … end`, has no written body here; its compiled struct in `compiled`
+ * (which already includes `$default`) is the base the chain builds on, as the
+ * runtime inherits from it.
  */
 export function effectiveMorph(
   written: ReadonlyMap<string, Record<string, unknown>>,
@@ -70,16 +75,24 @@ export function effectiveMorph(
   base: Record<string, unknown> | undefined,
   name: string,
   inherit: (base: any, override: any) => any,
+  compiled: Record<string, unknown> = {},
 ): Record<string, unknown> {
   const chain: Record<string, unknown>[] = [];
   const seen = new Set<string>();
-  let current: string | undefined = name;
-  while (current && !seen.has(current) && written.has(current)) {
-    seen.add(current);
-    chain.unshift(written.get(current)!);
-    current = parents.get(current);
-  }
   let result: Record<string, unknown> = isRecord(base) ? base : {};
+  let current: string | undefined = name;
+  while (current && !seen.has(current)) {
+    seen.add(current);
+    const body = written.get(current);
+    if (body) {
+      chain.unshift(body);
+      current = parents.get(current);
+      continue;
+    }
+    const other = compiled[current];
+    if (!current.startsWith("$") && isRecord(other)) result = other;
+    break;
+  }
   for (const body of chain) result = inherit(result, body);
   return result;
 }
@@ -137,10 +150,11 @@ export function collectMorphIssues(
     const parent = parentNode ? script.read(parentNode.from, parentNode.to).trim() : "";
     if (parent) parents.set(morph.name, parent);
   }
-  const base = (context["morph"] ?? {})["$default"];
+  const compiled = (context["morph"] ?? {}) as Record<string, unknown>;
+  const base = compiled["$default"] as Record<string, unknown> | undefined;
   for (const morph of morphs) {
     const effective = morph.name
-      ? effectiveMorph(written, parents, base, morph.name, inherit)
+      ? effectiveMorph(written, parents, base, morph.name, inherit, compiled)
       : inherit(isRecord(base) ? base : {}, morph.own.struct);
     const nameSpan = morph.nameNode ?? {
       from: morph.node.from,

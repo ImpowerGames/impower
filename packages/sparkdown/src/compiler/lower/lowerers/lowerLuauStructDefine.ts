@@ -23,15 +23,15 @@ import { parseStructBodyTyped } from "./lowerStructBodyTyped";
 // `animation NAME [as PARENT] with <body> end` / `theme NAME …` — structural
 // presentation keywords (style-family). They produce BOTH:
 //   - a compile-time struct in program.context.<type>.<name> (for the LSP), and
-//   - a runtime `__def` global table (the engine's source of truth, read via
-//     buildDefinesContext) — exactly like `define X as <type>`.
+//   - a runtime `__defs` table (the engine's source of truth, read via
+//     buildDefinesContext), registered under its keyword type.
 // The body is parsed by the TYPED reader (parseStructBodyTyped) so numeric fields
 // (offset/duration/iterations) stay numbers and quoted CSS stays a string. The
 // struct implicitly extends its type (PARENT ?? "<type>") so it inherits the
 // type's `$default` (the `define animation with …` / `define theme with …` root
 // in builtins.sd) via the existing inheritance deep-merge — at compile time
-// (populateDefinedDefaultProperties, by type) and at runtime (the `__def` parent
-// arg → the VM `__index` chain). See project_animation_theme_structural.
+// (populateDefinedDefaultProperties, by type) and at runtime (the `__defs`
+// parent link → the VM `__index` chain). See project_animation_theme_structural.
 //
 // `morph NAME [as PARENT] with <body> end` takes the same path. Its body is read
 // by readMorphBody, which keeps `state` values and clip labels as literal text
@@ -81,44 +81,43 @@ export function lowerLuauStructDefine(
     ...body,
   };
 
-  // Runtime table: __def({ props }, name, parent). The engine sources defines
-  // from the live story VM (buildDefinesContext), so the keyword form must
-  // register a runtime `__def` like `define X as <type>` does — otherwise the
-  // animation/theme would be invisible at runtime. The body is the already-typed
+  // Runtime table: __defs({ props }, name, type, parent). The engine sources
+  // defines from the live story VM (buildDefinesContext), so the keyword form
+  // must register a runtime table like `define X as <type>` does — otherwise
+  // the block would be invisible at runtime. The body is the already-typed
   // struct; struct-ref values (`target = layer.self`) become inert
   // `{ $type, $name }` literals so init never indexes a nil type global.
-  // The parent arg is the explicit PARENT or, lacking one, the keyword TYPE, so
-  // `__def` registers the table into that type (e.g. `animation.shake`) and
-  // inherits its `$default` via the runtime `__index` chain.
-  const parentType = parent || type;
-  const defineExpr = new FunctionCall(new Identifier("__def"), [
+  // `__defs` registers the table into its keyword TYPE (e.g. `animation.shake`)
+  // and inherits from the explicit PARENT looked up in that same type table
+  // (`animation.base`, builtin or authored), else from the type's `$default`.
+  // A parent declared later links the child when it registers.
+  const defineExpr = new FunctionCall(new Identifier("__defs"), [
     new ObjectExpression(
       Object.entries(body).map(
         ([k, v]) => new ObjectExpressionEntry(k, contextValueToExpression(v)),
       ),
     ),
     new StringExpression([new Text(name)]),
-    new StringExpression([new Text(parentType)]),
+    new StringExpression([new Text(type)]),
+    new StringExpression([new Text(parent)]),
   ]);
   // NAMESPACE-SCOPED, NOT a bare global. Bind the table to a synthetic
   // `$<type>_<name>` global key (the same mechanism same-name defines use, see
   // FlowBase.AddNewVariableDeclaration) instead of the bare `<name>`. `$` is not
   // a legal script identifier, so this never collides with a user `store <name>`
-  // (e.g. `store show` vs the builtin `show` animation), yet `__def` still
-  // registers `animation.<name>` into the type table — which is where the engine
-  // (and buildDefinesContext) reads it. Animations/themes are referenced only
-  // through their namespace at the callsite (`[[animate … with show]]`,
+  // (e.g. `store show` vs the builtin `show` animation) or with a same-named
+  // block of another type, yet `__defs` still registers `animation.<name>` into
+  // the type table — which is where the engine (and buildDefinesContext) reads
+  // it and where a child finds it as its parent. Animations/themes/morphs are
+  // referenced only through their namespace (`[[animate … with show]]`,
   // `animation.show`), never as a bare Luau variable.
-  // A block named as another block's `as` parent is rebound to its bare name
-  // by the whole-program `scopeDefineInstances` pass, so the child's `__def`
-  // finds it and inherits through it.
   const declaration = new VariableAssignment({
     variableIdentifier: new Identifier(`$${type}_${name}`),
     assignedExpression: defineExpr,
     isGlobalDeclaration: true,
     isDefineDeclaration: true,
   });
-  declaration.structuralDefine = { type, name };
+
   const block = wrapInWeave([declaration]);
   block.context = { [type]: { [name]: struct } };
   if (diagnostics.length > 0) {

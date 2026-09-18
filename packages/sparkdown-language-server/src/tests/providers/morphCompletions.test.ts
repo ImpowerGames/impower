@@ -242,6 +242,50 @@ end
     expect(labels).toEqual(expect.arrayContaining(["pupil-left", "eyelash-left"]));
   });
 
+  test("a child that inherits its keyframes completes from its parent's candidate images", () => {
+    const inherited = {
+      context: {
+        ...program.context,
+        morph: {
+          $default: {},
+          base: {
+            $type: "morph",
+            $name: "base",
+            keyframes: [{ eyes: { state: "open" } }, { eyes: { state: "closed" } }],
+          },
+          child: { $type: "morph", $name: "child", $extends: "base" },
+        },
+      },
+    };
+    const source = `morph child as base with
+  layers:
+    |
+end
+`;
+    const idx = source.indexOf("|");
+    const text = source.replace("|", "");
+    const before = source.slice(0, idx);
+    const position = {
+      line: before.split("\n").length - 1,
+      character: idx - (before.lastIndexOf("\n") + 1),
+    };
+    const documents = new SparkdownDocumentRegistry(["characters", "declarations", "references"]);
+    documents.set({ textDocument: { uri: URI, text, version: 1, languageId: "sparkdown" } });
+    const labels = (
+      getCompletions(
+        documents.get(URI),
+        documents.tree(URI),
+        new Map([[URI, documents.annotations(URI)]]),
+        inherited as any,
+        undefined,
+        position,
+        undefined,
+      ) ?? []
+    ).map((item) => String(item.label));
+    expect(labels).toEqual(expect.arrayContaining(["eyelash-left", "lids"]));
+    expect(labels).not.toContain("leaves");
+  });
+
   test("image directive completion is unaffected", () => {
     const labels = labelsAt(`[[bunny~|]]
 `);

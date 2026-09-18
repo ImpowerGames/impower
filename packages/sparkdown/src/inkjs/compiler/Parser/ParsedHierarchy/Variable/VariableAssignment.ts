@@ -30,12 +30,6 @@ export class VariableAssignment extends ParsedObject {
   // defined type names when computing IMPLICIT parent types
   // (`as character` where `character` is never `define`d).
   public isDefineDeclaration: boolean = false;
-  // The keyword type and bare name of a structural `animation`/`theme`/`morph`
-  // block's declaration. Its global key is `$<type>_<name>` unless the name is
-  // used as a type (an `as` parent) somewhere in the program, in which case
-  // `scopeDefineInstances` binds it to the bare name so a child's `__def` finds
-  // it as its parent.
-  public structuralDefine: { type: string; name: string } | null = null;
   // True for the synthetic declaration minted per `const` so constants
   // participate in normal global initialization (see
   // `Story.RegisterConstantGlobals`). Constants used to be inlined into every

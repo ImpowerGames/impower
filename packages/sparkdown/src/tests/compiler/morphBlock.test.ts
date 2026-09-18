@@ -397,6 +397,53 @@ end
     expect(morphDiagnostics(text)).toEqual([]);
   });
 
+  test("a parent written as `define … as morph` supplies what the child leaves out", () => {
+    const text = `define base as morph with
+  method = "bend"
+end
+
+morph child as base with
+  keyframes:
+    from:
+      eyes:
+        state = open
+    to:
+      eyes:
+        state = closed
+end
+`;
+    expect(morphDiagnostics(text)).toEqual([]);
+  });
+
+  test("a parent's name may be shared by another type's block and by a variable", () => {
+    const text = `store base = 7
+
+animation base with
+  timing:
+    duration = 1
+end
+
+animation child as base with
+  timing:
+    duration = 2
+end
+
+theme base with
+  colors:
+    primary = red
+end
+
+${BLINK.replace("morph blink with", "morph base with")}
+morph slow as base with
+  timing:
+    duration = 1
+end
+`;
+    const found = diagnosticsOf(text);
+    expect(found.filter((d) => d.message.includes("Duplicate identifier"))).toEqual([]);
+    expect(found.filter((d) => d.severity === 1)).toEqual([]);
+  });
+
   test("a label that morphs under a non-morph root needs its own method", () => {
     const text = `morph m with
   blend = fade

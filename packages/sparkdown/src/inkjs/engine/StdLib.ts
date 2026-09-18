@@ -2400,6 +2400,24 @@ function copyStoreDefaults(chain: ObjectValue[], target: ObjectValue): void {
   }
 }
 
+// Structural blocks (`animation`/`theme`/`morph`) waiting for an `as` parent
+// that has not registered in their type table yet, keyed by type table and
+// then by parent name. Global initialization runs in declaration order, so a
+// child can run before its parent; the parent links its waiting children when
+// it registers.
+const pendingStructuralParents = new WeakMap<
+  ObjectValue,
+  Map<string, ObjectValue[]>
+>();
+
+// Point a structural block's `__index` at its parent. A link that would make
+// the chain reach the child again (`a as b`, `b as a`) is refused, leaving
+// the child inheriting from its type.
+function linkStructuralParent(child: ObjectValue, parent: ObjectValue): void {
+  if (defineChain(parent).includes(child)) return;
+  metatableMap(child)?.set("__index", parent);
+}
+
 export const STDLIB: Record<string, StdLibEntry> = {
   // ============================================================
   // `math.*` — pure numeric helpers (auto-registered with NativeFunctionCall)
@@ -5045,6 +5063,74 @@ export const STDLIB: Record<string, StdLibEntry> = {
         for (const level of chain) {
           level.value!.set(name, table);
         }
+      }
+      return table;
+    },
+  },
+  // Hidden structural-block define (emitted by lowerLuauStructDefine; never
+  // user-callable). `__defs(props, name, type, parent)` registers the block
+  // as `type.name` — tagged with `type` as its parent marker, so the engine
+  // reads it as an instance of that type — and inherits from the member of
+  // the SAME type table named `parent` (`animation.fadein`, builtin or
+  // authored), else from the type itself. The parent is looked up in the
+  // type table rather than as a bare global, so blocks of different types may
+  // share a name and a builtin parent resolves although its global is scoped.
+  "__defs": {
+    arity: 4,
+    fn: (story, [tableArg, nameArg, typeArg, parentArg]) => {
+      if (!(tableArg instanceof ObjectValue)) return tableArg ?? null;
+      const table = tableArg;
+      const name = coerceString(nameArg) ?? "";
+      const typeName = coerceString(typeArg) ?? "";
+      const parentName = coerceString(parentArg) ?? "";
+
+      const existing = story.state.variablesState.GetVariableWithName(
+        typeName,
+      ) as AbstractValue | null;
+      let typeTable: ObjectValue;
+      if (existing instanceof ObjectValue) {
+        typeTable = resolveParentType(story, typeName, existing);
+      } else {
+        typeTable = new ObjectValue(new Map<string, AbstractValue>());
+        const tmt = new Map<string, AbstractValue>();
+        tmt.set(DEFINE_MARKER, new StringValue(typeName));
+        typeTable.metatable = new ObjectValue(tmt);
+        story.state.variablesState.SetGlobal(typeName, typeTable);
+      }
+
+      const mt = new Map<string, AbstractValue>();
+      mt.set(DEFINE_MARKER, new StringValue(name));
+      mt.set(DEFINE_PARENT_MARKER, new StringValue(typeName));
+      mt.set("__index", typeTable);
+      table.metatable = new ObjectValue(mt);
+
+      if (parentName) {
+        const member = typeTable.value!.get(parentName) ?? null;
+        if (isDefineTable(member) && member !== table) {
+          linkStructuralParent(table, member);
+        } else {
+          let waiting = pendingStructuralParents.get(typeTable);
+          if (!waiting) {
+            waiting = new Map();
+            pendingStructuralParents.set(typeTable, waiting);
+          }
+          const children = waiting.get(parentName) ?? [];
+          children.push(table);
+          waiting.set(parentName, children);
+        }
+      }
+      copyStoreDefaults(defineChain(table).slice(1), table);
+
+      // Register into the type and every ancestor type.
+      for (const level of defineChain(typeTable)) {
+        level.value!.set(name, table);
+      }
+      // Link the children that were waiting for this block as their parent.
+      const waiting = pendingStructuralParents.get(typeTable);
+      const children = waiting?.get(name);
+      if (children) {
+        waiting!.delete(name);
+        for (const child of children) linkStructuralParent(child, table);
       }
       return table;
     },
