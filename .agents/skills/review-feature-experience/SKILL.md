@@ -1,6 +1,6 @@
 ---
 name: review-feature-experience
-description: Adversarially review a filed Feature's author-facing design by writing scripts against its syntax, walking through its editor or extension interface as an author, and enumerating its player scenarios, then agree the corrections with the maintainer in an interview and apply them to the tickets. Run in a fresh session of a different model than the one that filed the feature, alongside review-feature-engineering, when the feature changes something an author touches.
+description: Adversarially review a filed Feature's author-facing design by writing scripts against its syntax, walking through its editor or extension interface as an author, and enumerating its player scenarios, then agree the corrections with the maintainer in an interview and apply them to the tickets. Use only when the maintainer asks for this review of a feature that changes something an author touches; it runs in a fresh session of a different model than the one that filed the feature.
 ---
 
 # Review a feature's author experience
@@ -9,7 +9,7 @@ This session exercises the design of record as an author would, before anything 
 
 ## 1. Check independence and identify the surfaces
 
-Compare the ticket's `Filed by` model with this session's model and stop in a same-model session. Read the parent and every slice it lists, record the clean checkout's commit, and name each surface the feature changes: language (Sparkdown syntax, directives, defines), interface (the web editor, the extension) and player (what plays in the player or the preview). A feature that changes none has no experience review: a sliced one takes the engineering review alone, and an unsliced one needs no feature review.
+Compare the ticket's `Filed by` model with this session's model and stop in a same-model session. Read the parent and every slice it lists, record the clean checkout's commit, and name each surface the feature changes: language (Sparkdown syntax, directives, defines), interface (the web editor, the extension) and player (what plays in the player or the preview). A feature that changes none has no experience review; tell the maintainer and stop.
 
 ## 2. Exercise every surface
 

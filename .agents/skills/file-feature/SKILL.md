@@ -29,6 +29,6 @@ Use the template in order, preserve alternatives and decision reasons, specify v
 
 ## 4. Hand off
 
-Give the user the issue number and a short plan. Name the feature reviews that apply, as recorded under the ticket's Additional context: [review-feature-engineering](../review-feature-engineering/SKILL.md) for every sliced feature, and [review-feature-experience](../review-feature-experience/SKILL.md) when a language, interface or player surface changes; the user runs each in a fresh session of a different model than this one, before resolve-issue starts on the first slice. Implementation uses resolve-issue on that ticket in a fresh session; do not begin it here. Retain the design in the ticket, including any draft document as the design of record and the slice dependencies.
+Give the user the issue number and a short plan. Implementation uses resolve-issue on that ticket in a fresh session; do not begin it here. Retain the design in the ticket, including any draft document as the design of record and the slice dependencies.
 
 At completion, or when yielding for input or help, provide the normal chat handoff and invoke [notify-user](../notify-user/SKILL.md) for an optional companion alert identifying the work and next action. Use `done` when no action is needed, `user_input_needed` for a question or review/merge request, or `blocked` when progress requires help. Preserve this workflow's gates and include evidence, links and missing information in chat. If the notifier is unavailable, skip it silently.
