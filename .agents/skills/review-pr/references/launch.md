@@ -60,7 +60,7 @@ git status --short
 
 If a reviewer changed files, preserve and inspect those changes, invalidate its evidence and restore only changes confirmed to belong to that reviewer. Do not discard another writer's work.
 
-Then confirm every expected comment is on the PR with the listing command in [reviewer prompt](reviewer-prompt.md). Every report that is not there, you post yourself, verbatim, one comment per reviewer, before you adjudicate. Prefix each with a line saying you are posting on the reviewer's behalf and why it could not.
+Then confirm every expected comment is on the PR with the listing command in [reviewer prompt](reviewer-prompt.md). Codex reviewers launched through the handoff launcher are expected to post their own report using its delegated in-memory GitHub access. For any report that is still not there, you post it yourself, verbatim, one comment per reviewer, before you adjudicate. Prefix each with a line saying you are posting on the reviewer's behalf and why it could not.
 
 This is not the rare case. Whole environments have no `gh` at all; a remote or web session reaches GitHub through an integration instead, so `gh pr comment` fails for every reviewer, not one. When that happens the temptation is to skip the posting and fold everything into your adjudication instead. Do not:
 

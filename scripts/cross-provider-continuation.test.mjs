@@ -63,6 +63,22 @@ try {
   if(process.env.IMPOWER_TEST_CODEX_EXECUTABLE)verifyReviewerExecutable({transport:'native-codex-jsonl',executable:process.env.IMPOWER_TEST_CODEX_EXECUTABLE});
   else console.log('SKIP: installed pinned Codex executable probe requires IMPOWER_TEST_CODEX_EXECUTABLE; version mismatch refusal ran');
   assert.deepEqual(reviewerEnvironment({CLAUDE_CODE_MESSAGING_TOKEN:'sentinel',CLAUDE_CODE_MESSAGING_SOCKET:'sentinel',CODEX_APP_TOOLS_PIPE_PATH:'sentinel',CODEX_THREAD_ID:'sentinel',claude_pid:'1',GIT_DIR:'bad',PATH:'keep'}),{PATH:'keep'});
+  assert.deepEqual(nativeReviewerEnvironment({model:'claude-sonnet-5',args:['-p']},privateDir,{PATH:'keep'}),{PATH:'keep',GIT_OPTIONAL_LOCKS:'0'},'non-Codex awaited reviewers remain credential-free');
+  assert.deepEqual(nativeReviewerEnvironment({model:'claude-sonnet-5',args:['exec']},privateDir,{PATH:'keep'}),{PATH:'keep',GIT_OPTIONAL_LOCKS:'0'},'a Claude route with Codex-shaped arguments remains credential-free');
+  const originalReviewerExec=childProcess.execFileSync;
+  try {
+    childProcess.execFileSync=(executable,args,options)=>{
+      assert.equal(executable,'gh');assert.deepEqual(args,['auth','token','--hostname','github.com']);assert.equal(options.env.GH_TOKEN,'inherited-token');
+      return 'fixture-awaited-token';
+    };
+    syncBuiltinESMExports();
+    const awaitedDirectory=path.join(scratch,'awaited-review');fs.mkdirSync(awaitedDirectory);
+    const awaited=nativeReviewerEnvironment({model:'gpt-5.6-sol',args:['exec']},awaitedDirectory, {PATH:process.env.PATH,GH_TOKEN:'inherited-token',GH_HOST:'inherited-host',GH_FAKE:'inherited-gh-variable',GITHUB_TOKEN:'inherited-github-token'});
+    assert.equal(awaited.GH_TOKEN,'fixture-awaited-token');assert.equal(awaited.GH_HOST,'github.com');assert.equal(awaited.GH_FAKE,undefined);assert.equal(awaited.GITHUB_TOKEN,undefined);
+    assert.equal(path.dirname(awaited.GH_CONFIG_DIR),awaitedDirectory);assert.deepEqual(fs.readdirSync(awaited.GH_CONFIG_DIR),[]);
+    assert.equal(JSON.stringify(awaited).includes('inherited-token'),false);assert.equal(JSON.stringify(awaited).includes('inherited-gh-variable'),false);assert.equal(JSON.stringify(awaited).includes('inherited-github-token'),false);
+  } finally {childProcess.execFileSync=originalReviewerExec;syncBuiltinESMExports();}
+  console.log('PASS: awaited reviewer environment delegates only the in-memory GitHub token with a fresh empty config directory');
   for(const extra of [['--enable','multi_agent'],['--disable','multi_agent'],['--disable','multi_agent_v2'],['-c','features.multi_agent=true'],['--disable','unknown']]) {
     const invalid=structuredClone(plan);invalid.reviews[0].args.splice(-1,0,...extra);assert.throws(()=>validateReviewPlan(invalid));
   }
