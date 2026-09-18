@@ -8,7 +8,7 @@ Nothing you only highlight is written anywhere. Your script, its undo history, t
 
 Every suggestion is previewed the same way, whatever it completes: an expression, an image name, a value in a `define`, a style value, a variable, a keyword. The preview takes your script, applies the text the suggestion would insert, and runs the result exactly as it would run if you had typed it, from the start of the scene to the line you are on. So a suggestion that changes a definition your scene uses shows its effect in that scene, and a suggestion that changes nothing visible leaves the picture as it was.
 
-The preview shows the scene your cursor is in, as it does while you type. It does not go looking for another scene that would show the suggestion better. If you are editing a definition in a script that has no story lines of its own, the preview keeps showing the scene it was showing, with the suggestion applied to it.
+The preview shows the scene your cursor is in, as it does while you type. It does not go looking for another scene that would show the suggestion better. If you are editing a definition in a script that has no story lines of its own, the preview keeps showing the scene it was showing, with the suggestion applied to it. That scene is then shown from its own line alone, so anything set up earlier in it, such as a background or a character already on stage, may be missing from the picture.
 
 ## What you see
 
