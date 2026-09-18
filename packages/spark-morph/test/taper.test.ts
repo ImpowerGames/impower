@@ -228,6 +228,17 @@ describe("taperTrack", () => {
     expect(r.failure.message).toMatch(/below 10/);
   });
 
+  test("a handoff point count below eight is raised to eight rather than producing empty frames", () => {
+    for (const handoffPoints of [0, -1, 3]) {
+      const r = taperTrack(loop(upperOpen), loop(closedLash), { handoffPoints });
+      expect(r.ok, `handoffPoints ${handoffPoints}`).toBe(true);
+      if (!r.ok) return;
+      expect(r.track.from).toHaveLength(8);
+      expect(r.track.frame(0.5)).toHaveLength(8);
+      expect(r.track.to).toHaveLength(8);
+    }
+  });
+
   test("without handoff the frames stay curved canonical loops", () => {
     const r = taperTrack(loop(upperOpen), loop(closedLash), { handoff: false });
     expect(r.ok).toBe(true);

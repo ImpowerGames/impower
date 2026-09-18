@@ -214,8 +214,12 @@ export function reverseLoop(loop: Cubic[]): Cubic[] {
 export const rotateLoop = (loop: Cubic[], k: number): Cubic[] =>
   loop.slice(k).concat(loop.slice(0, k));
 
-/** Appends a straight closing segment when the loop's ends do not meet. */
-export function closeLoop(loop: Cubic[], eps = 1e-6): Cubic[] {
+/**
+ * Appends a straight closing segment when the loop's ends do not meet,
+ * judged relative to the loop's extent by default so a tiny drawing closes
+ * the same way a large one does.
+ */
+export function closeLoop(loop: Cubic[], eps = 1e-9 * loopExtent(loop)): Cubic[] {
   const f = loop[0]!.p0,
     l = loop[loop.length - 1]!.p1;
   if (dist(f, l) > eps) return [...loop, lineCubic(l, f)];
@@ -224,13 +228,13 @@ export function closeLoop(loop: Cubic[], eps = 1e-6): Cubic[] {
 
 /**
  * Snaps a nearly closed loop's last endpoint onto its first when they are
- * within `tol`, the manual "close path" cleanup for seam drift.
+ * within `tol` (inclusive), the manual "close path" cleanup for seam drift.
  */
-export function snapClosed(loop: Cubic[], tol = 3): Cubic[] {
+export function snapClosed(loop: Cubic[], tol: number): Cubic[] {
   const out = copyLoop(loop);
   const n = out.length;
   const f = out[0]!.p0;
-  if (dist(out[n - 1]!.p1, f) < tol) out[n - 1]!.p1 = [f[0], f[1]];
+  if (dist(out[n - 1]!.p1, f) <= tol) out[n - 1]!.p1 = [f[0], f[1]];
   return out;
 }
 
@@ -275,25 +279,48 @@ export function segmentsCross(a: Point, b: Point, c: Point, d: Point): boolean {
     dx2 = d[0] - c[0],
     dy2 = d[1] - c[1],
     den = dx1 * dy2 - dy1 * dx2;
-  const scale = Math.hypot(dx1, dy1) * Math.hypot(dx2, dy2);
-  if (scale === 0 || Math.abs(den) < 1e-12 * scale) return false;
+  const l1 = Math.hypot(dx1, dy1),
+    l2 = Math.hypot(dx2, dy2);
+  const scale = l1 * l2;
+  if (scale === 0) return false;
+  if (Math.abs(den) < 1e-12 * scale) {
+    // Parallel. Collinear segments that overlap along more than a point
+    // retrace each other, which is a self-intersection too.
+    const offset = ((c[0] - a[0]) * dy1 - (c[1] - a[1]) * dx1) / l1;
+    if (Math.abs(offset) > 1e-9 * Math.max(l1, l2)) return false;
+    const ux = dx1 / l1,
+      uy = dy1 / l1;
+    const s0 = 0,
+      s1 = l1;
+    const t0 = (c[0] - a[0]) * ux + (c[1] - a[1]) * uy,
+      t1 = (d[0] - a[0]) * ux + (d[1] - a[1]) * uy;
+    const lo = Math.max(s0, Math.min(t0, t1)),
+      hi = Math.min(s1, Math.max(t0, t1));
+    return hi - lo > 1e-9 * Math.max(l1, l2);
+  }
   const t = ((c[0] - a[0]) * dy2 - (c[1] - a[1]) * dx2) / den,
     u = ((c[0] - a[0]) * dy1 - (c[1] - a[1]) * dx1) / den;
   return t > 1e-6 && t < 1 - 1e-6 && u > 1e-6 && u < 1 - 1e-6;
 }
 
+/** Chords per curve used when a loop is flattened for crossing tests. */
+export const CROSSING_CHORDS = 16;
+
 /**
- * Whether a closed loop crosses itself. The whole loop is flattened into
- * one polyline (eight chords per curve), so two adjacent curves that meet
- * at an anchor and cross elsewhere are caught, and so is a loop of only
- * one or two curves; only consecutive chords, which share a point, are
- * skipped.
+ * Whether a closed loop crosses itself, judged on chords: the whole loop
+ * is flattened into one polyline (`CROSSING_CHORDS` per curve), so two
+ * adjacent curves that meet at an anchor and cross elsewhere are caught,
+ * and so is a loop of only one or two curves; only consecutive chords,
+ * which share a point, are skipped. Each curve is also checked for a knot
+ * inside itself. A crossing narrower than the chord resolution can escape
+ * a chord test; this is a heuristic, not a proof of simplicity.
  */
 export function selfIntersects(loop: Cubic[]): boolean {
   if (loop.length < 1) return false;
+  if (loop.some((c) => cubicKnots(c, CROSSING_CHORDS))) return true;
   const pts: Point[] = [];
   for (const c of loop) {
-    const flat = flattenCubic(c);
+    const flat = flattenCubic(c, CROSSING_CHORDS);
     for (let i = 0; i < flat.length - 1; i++) pts.push(flat[i]!);
   }
   return polygonSelfIntersects(pts);

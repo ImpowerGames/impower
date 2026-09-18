@@ -1,11 +1,38 @@
 import { describe, expect, test } from "vitest";
-import { polygonSelfIntersects } from "../src/geometry/cubic";
+
 import { buildApertures, pairShapes, parsePathData, taperTrack } from "../src/index";
 import type { EdgeTrack, LabelledShape, TaperTrack } from "../src/index";
 import { closedLash, loop, lowerOpen, runtimeProgress, shift, upperOpen } from "./fixtures";
 
 // A closed aperture reports an area at floating-point noise, not exactly zero.
 const AREA_ZERO = 1e-6;
+
+/**
+ * Whether a closed polyline has a proper crossing. A closed stretch of an
+ * aperture is a zero-width slit whose two runs overlap by design, so
+ * collinear overlaps are not counted here.
+ */
+function properlyCrosses(pts: [number, number][]): boolean {
+  const n = pts.length;
+  const cross = (a: [number, number], b: [number, number], c: [number, number], d: [number, number]) => {
+    const dx1 = b[0] - a[0],
+      dy1 = b[1] - a[1],
+      dx2 = d[0] - c[0],
+      dy2 = d[1] - c[1],
+      den = dx1 * dy2 - dy1 * dx2;
+    if (Math.abs(den) < 1e-12) return false;
+    const t = ((c[0] - a[0]) * dy2 - (c[1] - a[1]) * dx2) / den,
+      u = ((c[0] - a[0]) * dy1 - (c[1] - a[1]) * dx1) / den;
+    return t > 1e-6 && t < 1 - 1e-6 && u > 1e-6 && u < 1 - 1e-6;
+  };
+  for (let i = 0; i < n; i++) {
+    for (let j = i + 2; j < n; j++) {
+      if (i === 0 && j === n - 1) continue;
+      if (cross(pts[i]!, pts[(i + 1) % n]!, pts[j]!, pts[(j + 1) % n]!)) return true;
+    }
+  }
+  return false;
+}
 const track = (from: string, to: string): TaperTrack => {
   const r = taperTrack(loop(from), loop(to));
   if (!r.ok) throw new Error(r.failure.message);
@@ -26,7 +53,7 @@ describe("buildApertures", () => {
     for (const t of runtimeProgress) {
       const a = ap.area(t);
       expect(a, `area at ${t}`).toBeLessThanOrEqual(prev + 1e-6);
-      expect(polygonSelfIntersects(ap.loop(t)), `loop at ${t}`).toBe(false);
+      expect(properlyCrosses(ap.loop(t)), `loop at ${t}`).toBe(false);
       prev = a;
     }
     expect(ap.area(1)).toBeLessThan(AREA_ZERO);
@@ -135,6 +162,69 @@ describe("buildApertures", () => {
     const apart = buildApertures([edge("upper", upperOpen, closedLash), edge("far", shift(lowerOpen, 0, 300), shift(closedLash, 0, 300))]);
     expect(apart.apertures).toEqual([]);
     expect(apart.diagnostics.map((d) => d.code)).toEqual(["unpaired-edge", "unpaired-edge"]);
+  });
+
+  test("an edge whose tips coincide is degenerate and never paired", () => {
+    const flat = (): TaperTrack => ({
+      from: [],
+      to: [],
+      canonicalFrom: [],
+      canonicalTo: [],
+      n1: 1,
+      thickness: 1,
+      frame: () => [],
+      canonical: () => [],
+      tips: () => [
+        [0, 0],
+        [0, 0],
+      ],
+      edges: (_t, points) => [Array.from({ length: points }, () => [0, 0] as [number, number]), Array.from({ length: points }, () => [0, 0] as [number, number])],
+    });
+    const r = buildApertures([
+      { id: "a", label: "l", track: flat() },
+      { id: "b", label: "l", track: flat() },
+    ]);
+    expect(r.apertures).toEqual([]);
+    expect(r.diagnostics.map((d) => [d.code, d.edgeIds])).toEqual([
+      ["degenerate-edge", ["a"]],
+      ["degenerate-edge", ["b"]],
+    ]);
+  });
+
+  test("an opening that appears only between the rest poses is still an aperture", () => {
+    // Two boundaries that coincide at progress 0, 0.5 and 1 but separate in
+    // between: three probes would call the aperture closed for good.
+    const bump = (t: number) => 300 * t * (t - 0.5) * (t - 1);
+    const edge = (sign: number): TaperTrack => ({
+      from: [],
+      to: [],
+      canonicalFrom: [],
+      canonicalTo: [],
+      n1: 1,
+      thickness: 1,
+      frame: () => [],
+      canonical: () => [],
+      tips: (t) => [
+        [0, 50 + sign * bump(t)],
+        [100, 50 + sign * bump(t)],
+      ],
+      edges: (t, points) => {
+        const line = (y: number): [number, number][] => Array.from({ length: points }, (_, i) => [(100 * i) / (points - 1), y]);
+        // The outer boundary is listed first and sits 40 units out, so a
+        // facing choice made where the edges coincide would measure the
+        // wrong opening.
+        return [line(50 + sign * (bump(t) + 40)), line(50 + sign * bump(t))];
+      },
+    });
+    const r = buildApertures([
+      { id: "u", label: "l", track: edge(-1) },
+      { id: "l", label: "l", track: edge(1) },
+    ]);
+    expect(r.diagnostics).toEqual([]);
+    expect(r.apertures).toHaveLength(1);
+    // Inner boundaries 2 * 14.0625 apart at 0.25, 100 wide.
+    expect(r.apertures[0]!.area(0.25)).toBeCloseTo(2812.5, 6);
+    expect(r.apertures[0]!.area(0.5)).toBeLessThan(AREA_ZERO);
   });
 
   test("results are deterministic across input order", () => {

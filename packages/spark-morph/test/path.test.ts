@@ -110,4 +110,15 @@ describe("basic shapes", () => {
     const c = basicShapeToSubpaths({ kind: "circle", cx: 50, cy: 50, r: 40 });
     expect(maxDistanceToLoop(c[0]!.segments.map((s) => s.p0), loop(circle))).toBeLessThan(0.05);
   });
+
+  test("a shape SVG would not render yields no geometry", () => {
+    expect(basicShapeToPathData({ kind: "rect", width: 0, height: 100 })).toBe("");
+    expect(basicShapeToPathData({ kind: "rect", width: -5, height: 100 })).toBe("");
+    expect(basicShapeToPathData({ kind: "circle", r: 0 })).toBe("");
+    expect(basicShapeToPathData({ kind: "circle", r: -10 })).toBe("");
+    expect(basicShapeToPathData({ kind: "ellipse", rx: 10, ry: 0 })).toBe("");
+    expect(basicShapeToSubpaths({ kind: "ellipse", rx: -10, ry: 5 })).toEqual([]);
+    // A negative corner radius is ignored rather than mirrored.
+    expect(basicShapeToPathData({ kind: "rect", width: 10, height: 10, rx: -3 })).toBe("M0,0H10V10H0Z");
+  });
 });

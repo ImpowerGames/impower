@@ -41,9 +41,11 @@ export const OUTLINE_DEFAULTS: Required<OutlineOptions> = {
   alignments: 8,
   minGap: 0.004,
   handles: "angular",
-  // Nine points: a crossing that opens and closes between two coarser
-  // samples (the hook fixtures cross at 0.3) would otherwise slip through.
-  checkProgress: [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9],
+  // The rest poses and nine points between: a crossing that opens and
+  // closes between two coarser samples (the hook fixtures cross at 0.3)
+  // would otherwise slip through, and a drawing that crosses itself at rest
+  // is refused rather than morphed.
+  checkProgress: [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1],
 };
 
 export interface OutlineTrack extends SubpathTrack {

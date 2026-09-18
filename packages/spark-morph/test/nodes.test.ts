@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { lerpLoopsAngular, selfIntersects } from "../src/geometry/cubic";
+import { ArcLoop, lerpLoopsAngular, selfIntersects } from "../src/geometry/cubic";
 import { morphSubpaths, nodesTrack, parsePathData, serializePathData } from "../src/index";
 import type { Cubic } from "../src/index";
 import { allStraight, anchors, closedLash, loop, offKilterQuad, runtimeProgress, sharpCorners, square, triangle, upperOpen } from "./fixtures";
@@ -122,12 +122,36 @@ describe("nodesTrack", () => {
   });
 
   test("a seam within the tolerance does not become an extra node at any scale", () => {
-    for (const k of [0.01, 1, 100]) {
+    for (const k of [1e-8, 0.01, 1, 100, 1e8]) {
       const nearly = `M0,0L${k * 100},0L0,${k * 100}L${k * 0.001},0`;
       const target = `M0,0L${k * 90},0L0,${k * 100}Z`;
       const r = nodesTrack(loop(nearly), loop(target));
       expect(r.ok, `scale ${k}`).toBe(true);
       if (r.ok) expect(r.track.from).toHaveLength(3);
+    }
+  });
+
+  test("the seam tolerance is inclusive and a wider gap closes with an edge, at any scale", () => {
+    // A right triangle left open by a gap just inside 2% of its perimeter
+    // snaps shut; one just outside gets a closing edge and so has four
+    // nodes against a three-node target, and the pipeline refuses it as
+    // not-closed at the same boundary.
+    for (const k of [1e-8, 1, 1e8]) {
+      const target = `M0,0L${k * 90},0L0,${k * 100}Z`;
+      const withGap = (gap: number) => `M0,0L${k * 100},0L0,${k * 100}L${gap},0`;
+      const fraction = (gap: number) => gap / new ArcLoop(loop(withGap(gap))).total;
+      const inside = k * 6.8,
+        outside = k * 7.0;
+      expect(fraction(inside)).toBeLessThanOrEqual(0.02);
+      expect(fraction(outside)).toBeGreaterThan(0.02);
+      const r = nodesTrack(loop(withGap(inside)), loop(target));
+      expect(r.ok, `inside the limit, scale ${k}`).toBe(true);
+      if (r.ok) expect(r.track.from).toHaveLength(3);
+      const w = nodesTrack(loop(withGap(outside)), loop(target));
+      expect(w.ok, `outside the limit, scale ${k}`).toBe(false);
+      if (!w.ok) expect(w.failure.code).toBe("node-count");
+      expect(morphSubpaths(parsePathData(withGap(inside)), parsePathData(target), { method: "nodes" }).ok).toBe(true);
+      expect(morphSubpaths(parsePathData(withGap(outside)), parsePathData(target), { method: "nodes" })).toMatchObject({ ok: false, failure: { code: "not-closed" } });
     }
   });
 });

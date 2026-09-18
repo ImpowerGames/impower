@@ -1,6 +1,7 @@
 import { describe, expect, test } from "vitest";
 import { selfIntersects, signedArea } from "../src/geometry/cubic";
-import { morphSubpaths, outlineTrack, parsePathData } from "../src/index";
+import { morphSubpaths, nodesTrack, outlineTrack, parsePathData } from "../src/index";
+import type { Cubic } from "../src/index";
 import {
   allStraight,
   anchors,
@@ -123,14 +124,11 @@ describe("outlineTrack", () => {
     expect(viaMorph).toMatchObject({ ok: false, failure: { code: "self-intersection", subpath: 0 } });
   });
 
-  test("a crossing between coarse check points is still caught: the hook pair crosses at 0.3", () => {
-    // With only quarter-point checks this pair would pass and then cross
-    // at runtime; the default nine-point check reports it.
-    const coarse = outlineTrack(loop(hook), loop(hookMirrored), { checkProgress: [0.25, 0.5, 0.75] });
-    expect(coarse.ok).toBe(true);
-    if (coarse.ok) expect(selfIntersects(coarse.track.frame(0.3))).toBe(true);
-    // The default check rejects that pairing and the search moves on to
-    // one that stays simple at every runtime sample.
+  test("the hook pair morphs simply at every runtime sample under the default checks", () => {
+    // Some corner-to-corner alignments of this pair cross between the
+    // quarter points (at 0.3) or collapse onto themselves mid-way; the
+    // default checks reject those and the search settles on one that stays
+    // simple at every runtime sample.
     const r = outlineTrack(loop(hook), loop(hookMirrored));
     expect(r.ok).toBe(true);
     if (!r.ok) return;
@@ -138,6 +136,11 @@ describe("outlineTrack", () => {
       expect(selfIntersects(r.track.frame(t)), `frame ${t}`).toBe(false);
       expect(allStraight(r.track.frame(t))).toBe(true);
     }
+    // A single-alignment search with only the mid point checked can still
+    // return a pairing that crosses elsewhere, which is what the default
+    // eleven points exist to catch.
+    const narrow = outlineTrack(loop(hook), loop(hookMirrored), { alignments: 1, checkProgress: [0.5] });
+    if (narrow.ok) expect(runtimeProgress.some((t) => selfIntersects(narrow.track.frame(t)))).toBe(true);
   });
 
   test("empty geometry is a structured failure, not an exception", () => {
@@ -172,6 +175,28 @@ describe("outlineTrack", () => {
     expect(r.ok).toBe(false);
     if (r.ok) return;
     expect(r.failure.code).toBe("self-intersection");
+  });
+
+  test("a knot inside a single curve and a retraced edge are both self-intersections", () => {
+    // A two-segment loop whose curve loops through itself near its middle:
+    // eight chords per curve missed it, sixteen catch it.
+    const knotted: Cubic[] = [
+      { p0: [-1, 0], c1: [23.812413197010756, -24.03780784457922], c2: [6.782939601689577, -8.574059829115868], p1: [1, 0] },
+      { p0: [1, 0], c1: [1, 0], c2: [-1, 0], p1: [-1, 0] },
+    ];
+    expect(selfIntersects(knotted)).toBe(true);
+    const simple: Cubic[] = [
+      { p0: [-1, 0], c1: [-1, -2], c2: [1, -2], p1: [1, 0] },
+      { p0: [1, 0], c1: [1, 0], c2: [-1, 0], p1: [-1, 0] },
+    ];
+    const r = nodesTrack(simple, knotted, { handles: "linear", checkProgress: [1] });
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.failure.code).toBe("self-intersection");
+    // A loop that retraces its own first edge overlaps itself.
+    const retraced = "M0,0L100,0L100,100L0,100L0,0L100,0Z";
+    expect(selfIntersects(loop(retraced))).toBe(true);
+    expect(outlineTrack(loop(square), loop(retraced)).ok).toBe(false);
+    expect(nodesTrack(loop(retraced), loop(retraced), { checkProgress: [1] }).ok).toBe(false);
   });
 
   test("a self-crossing target is rejected at any scale", () => {

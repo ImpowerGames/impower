@@ -18,7 +18,11 @@ const nums = (points: string | number[]): number[] =>
     ? points
     : (points.match(/[-+]?(?:\d*\.\d+|\d+\.?)(?:[eE][-+]?\d+)?/g) ?? []).map(Number);
 
-/** The equivalent path data for a basic shape, following the SVG spec. */
+/**
+ * The equivalent path data for a basic shape, following the SVG spec. A
+ * shape SVG would not render (a zero or negative width, height or radius)
+ * yields empty path data, so absent art never becomes morphable geometry.
+ */
 export function basicShapeToPathData(shape: BasicShape): string {
   switch (shape.kind) {
     case "rect": {
@@ -26,10 +30,12 @@ export function basicShapeToPathData(shape: BasicShape): string {
         y = shape.y ?? 0,
         w = shape.width,
         h = shape.height;
-      let rx = shape.rx ?? shape.ry ?? 0,
-        ry = shape.ry ?? shape.rx ?? 0;
-      rx = Math.min(Math.abs(rx), w / 2);
-      ry = Math.min(Math.abs(ry), h / 2);
+      if (!(w > 0) || !(h > 0)) return "";
+      // A negative corner radius is an error in SVG; treat it as unset.
+      let rx = Math.max(0, shape.rx ?? shape.ry ?? 0),
+        ry = Math.max(0, shape.ry ?? shape.rx ?? 0);
+      rx = Math.min(rx, w / 2);
+      ry = Math.min(ry, h / 2);
       if (rx === 0 || ry === 0) return `M${x},${y}H${x + w}V${y + h}H${x}Z`;
       return (
         `M${x + rx},${y}H${x + w - rx}A${rx},${ry} 0 0 1 ${x + w},${y + ry}` +
@@ -43,8 +49,9 @@ export function basicShapeToPathData(shape: BasicShape): string {
     case "ellipse": {
       const cx = shape.cx ?? 0,
         cy = shape.cy ?? 0,
-        rx = Math.abs(shape.rx),
-        ry = Math.abs(shape.ry);
+        rx = shape.rx,
+        ry = shape.ry;
+      if (!(rx > 0) || !(ry > 0)) return "";
       return (
         `M${cx + rx},${cy}A${rx},${ry} 0 0 1 ${cx},${cy + ry}A${rx},${ry} 0 0 1 ${cx - rx},${cy}` +
         `A${rx},${ry} 0 0 1 ${cx},${cy - ry}A${rx},${ry} 0 0 1 ${cx + rx},${cy}Z`

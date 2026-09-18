@@ -43,6 +43,7 @@ export interface TaperOptions {
    * polylines of `handoffPoints` points.
    */
   handoff?: boolean;
+  /** Points in each handoff polyline; values under 8 are raised to 8. */
   handoffPoints?: number;
   /**
    * Minimum angle, in degrees, by which the outline must fold back over a
@@ -332,6 +333,7 @@ export function canonicalTaper(
   const tipIdx = new Set<number>(tipIndices),
     nn = out.length;
   const sym = copyLoop(out);
+  const tiny = 1e-9 * loopExtent(L);
   for (let i = 0; i < nn; i++) {
     if (tipIdx.has(i)) continue;
     const P = out[i]!.p0,
@@ -342,7 +344,7 @@ export function canonicalTaper(
       hOy = out[i]!.c1[1] - P[1];
     const lIn = Math.hypot(hIx, hIy),
       lOut = Math.hypot(hOx, hOy);
-    if (lIn < 1e-6 || lOut < 1e-6) continue;
+    if (lIn <= tiny || lOut <= tiny) continue;
     let tx = hOx / lOut - hIx / lIn,
       ty = hOy / lOut - hIy / lIn;
     const tl = Math.hypot(tx, ty);
@@ -362,7 +364,7 @@ export function canonicalTaper(
     const bvx = bulge[0] - P[0],
       bvy = bulge[1] - P[1],
       bl = Math.hypot(bvx, bvy);
-    if (bl < 1e-6) return;
+    if (bl <= tiny) return;
     const seg = aType ? sym[pi]! : sym[idx]!,
       key = aType ? "c2" : "c1";
     const cur = seg[key],
@@ -385,6 +387,7 @@ export function canonicalTaper(
 export function alignFlanks(loop: Cubic[], n1: number): Cubic[] {
   const nn = loop.length,
     out = copyLoop(loop);
+  const tiny = 1e-9 * loopExtent(loop);
   for (const [idx, aType] of [
     [0, true],
     [1, false],
@@ -403,18 +406,18 @@ export function alignFlanks(loop: Cubic[], n1: number): Cubic[] {
     const dbx = HB[0] - B[0],
       dby = HB[1] - B[1],
       dbl = Math.hypot(dbx, dby);
-    if (dbl < 1e-6) continue;
+    if (dbl <= tiny) continue;
     const ux = dbx / dbl,
       uy = dby / dbl;
     const wx = B[0] - F[0],
       wy = B[1] - F[1],
       denom = wx * ux + wy * uy;
-    if (Math.abs(denom) < 1e-6) continue;
+    if (Math.abs(denom) <= tiny) continue;
     const s = -(wx * wx + wy * wy) / (2 * denom);
     const vx = B[0] + ux * s - F[0],
       vy = B[1] + uy * s - F[1],
       vl = Math.hypot(vx, vy);
-    if (vl < 1e-6) continue;
+    if (vl <= tiny) continue;
     const ax = vx / vl,
       ay = vy / vl;
     const bl = Math.hypot(bodySeg[bodyKey][0] - F[0], bodySeg[bodyKey][1] - F[1]);
@@ -583,6 +586,7 @@ export function taperTrack(fromRaw: Cubic[], toRaw: Cubic[], options: TaperOptio
     return { ok: false, failure: { code: "empty-geometry", message: "both drawings need at least one segment" } };
   }
   const anchors = Math.max(6, o.anchors);
+  const handoffPoints = Math.max(8, Math.round(o.handoffPoints));
   const fromTrim = dropZeroSegments(fromRaw),
     toTrim = dropZeroSegments(toRaw);
   const fromArt = snapClosed(fromTrim, o.seamTolerance * new ArcLoop(fromTrim).total),
@@ -678,7 +682,7 @@ export function taperTrack(fromRaw: Cubic[], toRaw: Cubic[], options: TaperOptio
   // place along the ribbon whatever way it points.
   const poly = (loop: Cubic[], tip: Point) => {
     const L = withWinding(loop, 1);
-    return loopToPolyline(L, o.handoffPoints, nearestFraction(L, tip));
+    return loopToPolyline(L, handoffPoints, nearestFraction(L, tip));
   };
   const O = o.handoff ? poly(fromArt, tips(0)[0]) : null;
   const C = o.handoff ? poly(toArt, tips(1)[0]) : null;
@@ -733,7 +737,7 @@ function nearestFraction(loop: Cubic[], target: Point): number {
   for (let k = 0; k < 480; k++) {
     const f = k / 480,
       d = dist(arc.pointAt(f), target);
-    if (d < best - 1e-12) {
+    if (d < best) {
       best = d;
       lf = f;
     }
