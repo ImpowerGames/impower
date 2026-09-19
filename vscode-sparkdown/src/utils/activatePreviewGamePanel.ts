@@ -55,12 +55,10 @@ export const activatePreviewGamePanel = async (
   );
   context.subscriptions.push(
     vscode.workspace.onDidChangeTextDocument((change) => {
-      if (change.document.languageId === "sparkdown") {
-        SparkdownPreviewGamePanelManager.instance.notifyChangedTextDocument(
-          change.document,
-          change.contentChanges,
-        );
-      }
+      SparkdownPreviewGamePanelManager.instance.notifyChangedTextDocument(
+        change.document,
+        change.contentChanges,
+      );
     }),
   );
   // Notify game preview whenever text editor selection (i.e. cursor position) changed

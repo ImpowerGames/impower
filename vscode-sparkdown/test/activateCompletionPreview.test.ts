@@ -301,4 +301,19 @@ describe("the completion preview in the extension", () => {
     report("mia_sad");
     expect(summary(manager.sent)).toEqual(["focus 1 1:4-6=mia_sad"]);
   });
+
+  it("inserts an as-is item's lines unchanged and re-indents any other item's", async () => {
+    const { module, doc, item, report, manager } = await activate();
+    // The language client marks an `InsertTextMode.asIs` item keepWhitespace.
+    module.offerCompletions(
+      doc as never,
+      [item("mia:\n- sad", { keepWhitespace: true })] as never,
+    );
+    report("mia:\n- sad");
+    module.offerCompletions(doc as never, [item("mia:\n- sad")] as never);
+    expect(summary(manager.sent)).toEqual([
+      "focus 1 1:4-6=mia:\n- sad",
+      "focus 1 1:4-6=mia:\n  - sad",
+    ]);
+  });
 });

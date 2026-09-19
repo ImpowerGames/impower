@@ -3,9 +3,8 @@ import { CompletionPreviewTracker } from "../completion/CompletionPreviewTracker
 import {
   type CompletionCandidate,
   type Cursor,
-  otherCursorChanges,
+  type Placement,
   sameChanges,
-  type SelectedCompletion,
 } from "../completion/completionEdits";
 import { SparkdownPreviewGamePanelManager } from "../managers/SparkdownPreviewGamePanelManager";
 import { getServerRange } from "./getServerRange";
@@ -86,6 +85,7 @@ const candidateOf = (item: vscode.CompletionItem): CompletionCandidate => {
     start: start ? { line: start.line, character: start.character } : undefined,
     text: snippet ? insert.value : (insert as string),
     snippet,
+    keepWhitespace: item.keepWhitespace === true,
     additionalEdits: (item.additionalTextEdits ?? []).map((edit) => ({
       range: getServerRange(edit.range),
       text: edit.newText,
@@ -161,29 +161,26 @@ const cursorOf = (selection: vscode.Selection): Cursor => ({
   },
 });
 
-/** The highlighted suggestion, with what accepting it inserts at the other
- *  cursors of the editor showing `document`. */
-const selectedIn = (
+/** Where a suggestion in `document` would be accepted: the cursors of the
+ *  editor whose primary cursor is at `position`, and that editor's
+ *  indentation and the document's line breaks. */
+const placementIn = (
   document: vscode.TextDocument,
   position: vscode.Position,
-  info: vscode.SelectedCompletionInfo,
-): SelectedCompletion => {
-  const selected = { range: getServerRange(info.range), text: info.text };
+): Placement => {
   const editor = vscode.window.visibleTextEditors.find(
     (e) => e.document === document && e.selection.active.isEqual(position),
   );
+  const at = { line: position.line, character: position.character };
   const [primary, ...others] = editor?.selections ?? [];
-  if (!primary || others.length === 0) {
-    return selected;
-  }
+  const { tabSize, insertSpaces } = editor?.options ?? {};
   return {
-    ...selected,
-    otherCursors: otherCursorChanges(
-      selected,
-      cursorOf(primary),
-      others.map(cursorOf),
-      (line) => document.lineAt(line).text,
-    ),
+    primary: primary ? cursorOf(primary) : { anchor: at, active: at },
+    others: others.map(cursorOf),
+    lineText: (line) => document.lineAt(line).text,
+    tabSize: typeof tabSize === "number" ? tabSize : 4,
+    insertSpaces: typeof insertSpaces === "boolean" ? insertSpaces : true,
+    eol: document.eol === vscode.EndOfLine.CRLF ? "\r\n" : "\n",
   };
 };
 
@@ -201,8 +198,10 @@ export const activateCompletionPreview = (context: vscode.ExtensionContext) => {
           tracker.observed(
             document.uri.toString(),
             document.version,
-            { line: position.line, character: position.character },
-            info ? selectedIn(document, position, info) : undefined,
+            placementIn(document, position),
+            info
+              ? { range: getServerRange(info.range), text: info.text }
+              : undefined,
           );
           return [];
         },

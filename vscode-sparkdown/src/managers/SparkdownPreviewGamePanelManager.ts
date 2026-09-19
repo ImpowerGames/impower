@@ -423,6 +423,9 @@ export class SparkdownPreviewGamePanelManager {
     document: vscode.TextDocument,
     changes: readonly vscode.TextDocumentContentChangeEvent[],
   ) {
+    if (!this.isProjectScript(document)) {
+      return;
+    }
     const textDocument = {
       uri: document.uri.toString(),
       version: document.version,

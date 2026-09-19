@@ -2,7 +2,7 @@ import type { PreviewCompletionParams } from "@impower/spark-editor-protocol/src
 import {
   CompletionCandidate,
   completionChanges,
-  Position,
+  Placement,
   sameChanges,
   SelectedCompletion,
   TextChange,
@@ -41,11 +41,11 @@ export class CompletionPreviewTracker {
   /** The document the open list is in. */
   protected _uri: string | null = null;
 
-  /** The last highlight reported: its document version, the cursor and the
-   *  edit. */
+  /** The last highlight reported: its document version, where it would be
+   *  accepted, and the edit. */
   protected _focused: {
     version: number;
-    cursor: Position;
+    placement: Placement;
     selected: SelectedCompletion;
     changes: TextChange[] | null;
   } | null = null;
@@ -67,7 +67,7 @@ export class CompletionPreviewTracker {
     if (this._open && this._uri === uri && focused) {
       // A fresh answer while the list is open replaces the items the
       // highlight was matched against; report it again if its edit changed.
-      const changes = this.changesFor(uri, focused.selected);
+      const changes = this.changesFor(uri, focused.selected, focused.placement);
       if (!sameNullableChanges(changes, focused.changes)) {
         this.focus(uri, { ...focused, changes });
       }
@@ -75,14 +75,14 @@ export class CompletionPreviewTracker {
   }
 
   /**
-   * VS Code asked the inline provider for `uri` at `version` with the cursor
-   * at `cursor`, reporting `selected` as highlighted in the suggestion list,
-   * or nothing.
+   * VS Code asked the inline provider for `uri` at `version`, with the
+   * editor's cursors and lines as `placement`, reporting `selected` as
+   * highlighted in the suggestion list, or nothing.
    */
   observed(
     uri: string,
     version: number,
-    cursor: Position,
+    placement: Placement,
     selected: SelectedCompletion | undefined,
   ) {
     if (!selected) {
@@ -104,16 +104,17 @@ export class CompletionPreviewTracker {
     if (
       focused &&
       focused.version === version &&
-      sameSelection(focused.selected, selected)
+      sameSelection(focused.selected, selected) &&
+      sameCursors(focused.placement, placement)
     ) {
       // Asked again about the highlight already reported.
       return;
     }
     this.focus(uri, {
       version,
-      cursor,
+      placement,
       selected,
-      changes: this.changesFor(uri, selected),
+      changes: this.changesFor(uri, selected, placement),
     });
   }
 
@@ -174,12 +175,16 @@ export class CompletionPreviewTracker {
     }
   }
 
-  protected changesFor(uri: string, selected: SelectedCompletion) {
+  protected changesFor(
+    uri: string,
+    selected: SelectedCompletion,
+    placement: Placement,
+  ) {
     const candidates = this._candidates;
     if (!candidates || candidates.uri !== uri) {
       return null;
     }
-    return completionChanges(selected, candidates.items);
+    return completionChanges(selected, candidates.items, placement);
   }
 
   protected focus(uri: string, focused: NonNullable<typeof this._focused>) {
@@ -190,7 +195,10 @@ export class CompletionPreviewTracker {
       request: ++this._request,
       state: "focus",
       contentChanges: focused.changes,
-      selectedRange: { start: focused.cursor, end: focused.cursor },
+      selectedRange: {
+        start: focused.placement.primary.active,
+        end: focused.placement.primary.active,
+      },
     });
   }
 
@@ -216,7 +224,6 @@ export class CompletionPreviewTracker {
 
 const sameSelection = (a: SelectedCompletion, b: SelectedCompletion) =>
   a.text === b.text &&
-  sameNullableChanges(otherCursorsOf(a), otherCursorsOf(b)) &&
   a.range.start.line === b.range.start.line &&
   a.range.start.character === b.range.start.character &&
   a.range.end.line === b.range.end.line &&
@@ -225,6 +232,7 @@ const sameSelection = (a: SelectedCompletion, b: SelectedCompletion) =>
 const sameNullableChanges = (a: TextChange[] | null, b: TextChange[] | null) =>
   a && b ? sameChanges(a, b) : a === b;
 
-/** A selection's other-cursor changes, with a single cursor as none. */
-const otherCursorsOf = (selected: SelectedCompletion) =>
-  selected.otherCursors === undefined ? [] : selected.otherCursors;
+/** Whether two placements have the same cursors. */
+const sameCursors = (a: Placement, b: Placement) =>
+  JSON.stringify([a.primary, a.others]) ===
+  JSON.stringify([b.primary, b.others]);

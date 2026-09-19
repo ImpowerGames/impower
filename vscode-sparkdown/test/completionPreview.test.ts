@@ -4,7 +4,8 @@ import { CompletionPreviewTracker } from "../src/completion/CompletionPreviewTra
 import {
   CompletionCandidate,
   completionChanges,
-  otherCursorChanges,
+  Cursor,
+  Placement,
   SelectedCompletion,
   snippetText,
   TextChange,
@@ -31,11 +32,42 @@ const candidate = (
   start: { line: 4, character: 4 },
   text,
   snippet: false,
+  keepWhitespace: false,
   additionalEdits: [],
   ...extra,
 });
 
-const CURSOR = { line: 4, character: 8 };
+const at = (line: number, character: number) => ({ line, character });
+
+const CURSOR = at(4, 8);
+
+/** The document the list is open in: line 4, and line 6 too, is `  [[mia_]]`,
+ *  in an editor indenting with four spaces. */
+const LINES = [
+  "scene START",
+  "",
+  "",
+  "",
+  "  [[mia_]]",
+  "",
+  "  [[mia_]]",
+  "end",
+];
+const place = (character = 8, others: Cursor[] = []): Placement => ({
+  primary: { anchor: at(4, character), active: at(4, character) },
+  others,
+  lineText: (line) => LINES[line] ?? "",
+  tabSize: 4,
+  insertSpaces: true,
+  eol: "\n",
+});
+const PLACE = place();
+
+/** The edit at the single cursor of `PLACE`. */
+const changesOf = (
+  selected: SelectedCompletion,
+  items: readonly CompletionCandidate[],
+) => completionChanges(selected, items, PLACE);
 
 const setup = () => {
   const sent: PreviewCompletionParams[] = [];
@@ -58,7 +90,7 @@ const summary = (sent: PreviewCompletionParams[]) =>
 describe("the suggestion list as VS Code reports it", () => {
   it("reports the first highlight with the edit accepting it would make", () => {
     const { sent, tracker } = setup();
-    tracker.observed(URI, 7, CURSOR, selected("mia_happy"));
+    tracker.observed(URI, 7, PLACE, selected("mia_happy"));
     expect(sent).toEqual([
       {
         textDocument: { uri: URI, version: 7 },
@@ -73,9 +105,9 @@ describe("the suggestion list as VS Code reports it", () => {
 
   it("reports every change of highlight, including a return to an earlier one", () => {
     const { sent, tracker } = setup();
-    tracker.observed(URI, 7, CURSOR, selected("mia_happy"));
-    tracker.observed(URI, 7, CURSOR, selected("mia_sad"));
-    tracker.observed(URI, 7, CURSOR, selected("mia_happy"));
+    tracker.observed(URI, 7, PLACE, selected("mia_happy"));
+    tracker.observed(URI, 7, PLACE, selected("mia_sad"));
+    tracker.observed(URI, 7, PLACE, selected("mia_happy"));
     expect(summary(sent)).toEqual([
       "focus 1 v7 mia_happy",
       "focus 1 v7 mia_sad",
@@ -86,16 +118,16 @@ describe("the suggestion list as VS Code reports it", () => {
 
   it("sends nothing when asked again about the highlight already reported", () => {
     const { sent, tracker } = setup();
-    tracker.observed(URI, 7, CURSOR, selected("mia_happy"));
-    tracker.observed(URI, 7, CURSOR, selected("mia_happy"));
-    tracker.observed(URI, 7, CURSOR, selected("mia_happy"));
+    tracker.observed(URI, 7, PLACE, selected("mia_happy"));
+    tracker.observed(URI, 7, PLACE, selected("mia_happy"));
+    tracker.observed(URI, 7, PLACE, selected("mia_happy"));
     expect(summary(sent)).toEqual(["focus 1 v7 mia_happy"]);
   });
 
   it("reports a close when VS Code asks again with nothing highlighted, as after Escape", () => {
     const { sent, tracker } = setup();
-    tracker.observed(URI, 7, CURSOR, selected("mia_sad"));
-    tracker.observed(URI, 7, CURSOR, undefined);
+    tracker.observed(URI, 7, PLACE, selected("mia_sad"));
+    tracker.observed(URI, 7, PLACE, undefined);
     expect(sent[1]).toEqual({
       textDocument: { uri: URI, version: 7 },
       session: 1,
@@ -107,18 +139,18 @@ describe("the suggestion list as VS Code reports it", () => {
 
   it("sends nothing for a report with nothing highlighted while no list is open", () => {
     const { sent, tracker } = setup();
-    tracker.observed(URI, 7, CURSOR, undefined);
+    tracker.observed(URI, 7, PLACE, undefined);
     tracker.left(URI, 7);
     expect(sent).toEqual([]);
   });
 
   it("numbers each opening of the list as a new session and keeps counting requests", () => {
     const { sent, tracker } = setup();
-    tracker.observed(URI, 7, CURSOR, selected("mia_happy"));
-    tracker.observed(URI, 7, CURSOR, undefined);
-    tracker.observed(URI, 7, CURSOR, selected("mia_happy"));
-    tracker.observed(URI, 7, CURSOR, selected("mia_sad"));
-    tracker.observed(URI, 7, CURSOR, undefined);
+    tracker.observed(URI, 7, PLACE, selected("mia_happy"));
+    tracker.observed(URI, 7, PLACE, undefined);
+    tracker.observed(URI, 7, PLACE, selected("mia_happy"));
+    tracker.observed(URI, 7, PLACE, selected("mia_sad"));
+    tracker.observed(URI, 7, PLACE, undefined);
     expect(summary(sent)).toEqual([
       "focus 1 v7 mia_happy",
       "close 1 v7",
@@ -131,10 +163,10 @@ describe("the suggestion list as VS Code reports it", () => {
 
   it("reports an accepted suggestion as a close carrying the edit it made", () => {
     const { sent, tracker } = setup();
-    tracker.observed(URI, 7, CURSOR, selected("mia_sad"));
+    tracker.observed(URI, 7, PLACE, selected("mia_sad"));
     tracker.changed(URI, 8, [{ range: range(4, 4, 8), text: "mia_sad" }]);
     // VS Code then asks with nothing highlighted; the list is already closed.
-    tracker.observed(URI, 8, { line: 4, character: 11 }, undefined);
+    tracker.observed(URI, 8, place(11), undefined);
     expect(sent[1]).toEqual({
       textDocument: { uri: URI, version: 8 },
       session: 1,
@@ -150,19 +182,14 @@ describe("the suggestion list as VS Code reports it", () => {
 
   it("treats typing while the list is open as an edit, and reports the highlight again against the new version", () => {
     const { sent, tracker } = setup();
-    tracker.observed(URI, 7, CURSOR, selected("mia_sad"));
+    tracker.observed(URI, 7, PLACE, selected("mia_sad"));
     tracker.changed(URI, 8, [{ range: range(4, 8, 8), text: "s" }]);
     expect(tracker.open).toBe(true);
     // The list narrows and keeps the same suggestion highlighted.
-    tracker.observed(
-      URI,
-      8,
-      { line: 4, character: 9 },
-      {
-        range: range(4, 4, 9),
-        text: "mia_sad",
-      },
-    );
+    tracker.observed(URI, 8, place(9), {
+      range: range(4, 4, 9),
+      text: "mia_sad",
+    });
     expect(summary(sent)).toEqual(["focus 1 v7 mia_sad", "focus 1 v8 mia_sad"]);
     expect(sent[1]!.contentChanges).toEqual([
       { range: range(4, 4, 9), text: "mia_sad" },
@@ -171,7 +198,7 @@ describe("the suggestion list as VS Code reports it", () => {
 
   it("does not report a highlight again against a version the document has left", () => {
     const { sent, tracker } = setup();
-    tracker.observed(URI, 7, CURSOR, selected("mia_sad"));
+    tracker.observed(URI, 7, PLACE, selected("mia_sad"));
     tracker.changed(URI, 8, [{ range: range(4, 8, 8), text: "s" }]);
     // A fresh answer arrives before VS Code reports the highlight at version 8.
     tracker.offered(URI, [
@@ -184,7 +211,7 @@ describe("the suggestion list as VS Code reports it", () => {
 
   it("still recognizes acceptance after a save while the list was open", () => {
     const { sent, tracker } = setup();
-    tracker.observed(URI, 7, CURSOR, selected("mia_sad"));
+    tracker.observed(URI, 7, PLACE, selected("mia_sad"));
     // Auto-save: VS Code reports the document as changed with no changes.
     tracker.changed(URI, 7, []);
     tracker.changed(URI, 8, [{ range: range(4, 4, 8), text: "mia_sad" }]);
@@ -196,7 +223,7 @@ describe("the suggestion list as VS Code reports it", () => {
 
   it("does not mistake an edit that only resembles the highlighted one for acceptance", () => {
     const { sent, tracker } = setup();
-    tracker.observed(URI, 7, CURSOR, selected("mia_sad"));
+    tracker.observed(URI, 7, PLACE, selected("mia_sad"));
     // Same edit, but not the next version: something else changed first.
     tracker.changed(URI, 9, [{ range: range(4, 4, 8), text: "mia_sad" }]);
     expect(tracker.open).toBe(true);
@@ -205,7 +232,7 @@ describe("the suggestion list as VS Code reports it", () => {
 
   it("reports a close when the author leaves the editor holding the list", () => {
     const { sent, tracker } = setup();
-    tracker.observed(URI, 7, CURSOR, selected("mia_sad"));
+    tracker.observed(URI, 7, PLACE, selected("mia_sad"));
     tracker.left(OTHER, null);
     expect(tracker.open).toBe(true);
     tracker.left(URI, null);
@@ -214,9 +241,9 @@ describe("the suggestion list as VS Code reports it", () => {
 
   it("closes the list in one document when one opens in another", () => {
     const { sent, tracker } = setup();
-    tracker.observed(URI, 7, CURSOR, selected("mia_sad"));
+    tracker.observed(URI, 7, PLACE, selected("mia_sad"));
     tracker.offered(OTHER, [candidate("mia_sad")]);
-    tracker.observed(OTHER, 2, CURSOR, selected("mia_sad"));
+    tracker.observed(OTHER, 2, PLACE, selected("mia_sad"));
     expect(
       sent.map((p) => `${p.state} ${p.session} ${p.textDocument.uri}`),
     ).toEqual([`focus 1 ${URI}`, `close 1 ${URI}`, `focus 2 ${OTHER}`]);
@@ -224,15 +251,15 @@ describe("the suggestion list as VS Code reports it", () => {
 
   it("forgets an open list without a report when the preview is gone", () => {
     const { sent, tracker } = setup();
-    tracker.observed(URI, 7, CURSOR, selected("mia_sad"));
+    tracker.observed(URI, 7, PLACE, selected("mia_sad"));
     tracker.reset();
-    tracker.observed(URI, 7, CURSOR, undefined);
+    tracker.observed(URI, 7, PLACE, undefined);
     expect(summary(sent)).toEqual(["focus 1 v7 mia_sad"]);
   });
 
   it("reports a suggestion the language server did not offer as unavailable", () => {
     const { sent, tracker } = setup();
-    tracker.observed(URI, 7, CURSOR, selected("mia_word"));
+    tracker.observed(URI, 7, PLACE, selected("mia_word"));
     expect(sent[0]!.contentChanges).toBeNull();
   });
 
@@ -240,7 +267,7 @@ describe("the suggestion list as VS Code reports it", () => {
     const sent: PreviewCompletionParams[] = [];
     const tracker = new CompletionPreviewTracker((p) => sent.push(p));
     tracker.offered(URI, [candidate("mia_sad")]);
-    tracker.observed(URI, 7, CURSOR, selected("mia_sad"));
+    tracker.observed(URI, 7, PLACE, selected("mia_sad"));
     // The same items again: nothing changes, nothing is sent.
     tracker.offered(URI, [candidate("mia_sad")]);
     // Resolving the item adds a secondary edit.
@@ -261,7 +288,7 @@ describe("the suggestion list as VS Code reports it", () => {
 describe("the edit a highlighted suggestion would make", () => {
   it("is the reported replacement when one language-server item matches it", () => {
     expect(
-      completionChanges(selected("mia_sad"), [
+      changesOf(selected("mia_sad"), [
         candidate("mia_happy"),
         candidate("mia_sad"),
       ]),
@@ -273,7 +300,7 @@ describe("the edit a highlighted suggestion would make", () => {
       candidate("sad", { start: { line: 4, character: 4 } }),
       candidate('"sad"', { start: { line: 4, character: 4 } }),
     ];
-    expect(completionChanges(selected('"sad"'), items)).toEqual([
+    expect(changesOf(selected('"sad"'), items)).toEqual([
       { range: range(4, 4, 8), text: '"sad"' },
     ]);
   });
@@ -285,7 +312,7 @@ describe("the edit a highlighted suggestion would make", () => {
         additionalEdits: [{ range: range(0, 0, 0), text: "include mia\n" }],
       }),
     ];
-    expect(completionChanges(selected("mia_sad"), items)).toBeNull();
+    expect(changesOf(selected("mia_sad"), items)).toBeNull();
   });
 
   it("is shared by items VS Code reports identically that make the same edit", () => {
@@ -294,7 +321,7 @@ describe("the edit a highlighted suggestion would make", () => {
       candidate("mia_sad", { additionalEdits: [secondary] }),
       candidate("mia_sad", { additionalEdits: [secondary] }),
     ];
-    expect(completionChanges(selected("mia_sad"), items)).toEqual([
+    expect(changesOf(selected("mia_sad"), items)).toEqual([
       { range: range(4, 4, 8), text: "mia_sad" },
       secondary,
     ]);
@@ -304,7 +331,7 @@ describe("the edit a highlighted suggestion would make", () => {
     const before = { range: range(0, 0, 0), text: "include mia\n" };
     const after = { range: range(9, 0, 0), text: "// used\n" };
     expect(
-      completionChanges(selected("mia_sad"), [
+      changesOf(selected("mia_sad"), [
         candidate("mia_sad", { additionalEdits: [before, after] }),
       ]),
     ).toEqual([after, { range: range(4, 4, 8), text: "mia_sad" }, before]);
@@ -312,7 +339,7 @@ describe("the edit a highlighted suggestion would make", () => {
 
   it("does not match an item that replaces from elsewhere", () => {
     expect(
-      completionChanges(selected("mia_sad"), [
+      changesOf(selected("mia_sad"), [
         candidate("mia_sad", { start: { line: 4, character: 2 } }),
       ]),
     ).toBeNull();
@@ -320,7 +347,7 @@ describe("the edit a highlighted suggestion would make", () => {
 
   it("matches an item without a range by what it inserts", () => {
     expect(
-      completionChanges(selected("mia_sad"), [
+      changesOf(selected("mia_sad"), [
         candidate("mia_sad", { start: undefined }),
       ]),
     ).toEqual([{ range: range(4, 4, 8), text: "mia_sad" }]);
@@ -331,7 +358,7 @@ describe("the edit a highlighted suggestion would make", () => {
       candidate('"${1:happy}"$0', { snippet: true }),
       candidate('"${1:sad}"$0', { snippet: true }),
     ];
-    expect(completionChanges(selected('"sad"'), items)).toEqual([
+    expect(changesOf(selected('"sad"'), items)).toEqual([
       { range: range(4, 4, 8), text: '"sad"' },
     ]);
   });
@@ -343,9 +370,14 @@ describe("the edit a highlighted suggestion would make", () => {
         snippet: true,
       },
     );
-    const reported = selected("define name with\n      key = value\n    end");
-    expect(completionChanges(reported, [item])).toEqual([
-      { range: reported.range, text: reported.text },
+    // Reported re-indented to line 4, and inserted re-indented to it with
+    // the tab written in the editor's spaces.
+    const reported = selected("define name with\n  \tkey = value\n  end");
+    expect(changesOf(reported, [item])).toEqual([
+      {
+        range: reported.range,
+        text: "define name with\n    key = value\n  end",
+      },
     ]);
   });
 });
@@ -376,47 +408,29 @@ describe("the text a snippet inserts", () => {
 });
 
 describe("the tracker with several cursors and a reloaded preview", () => {
+  const second = { anchor: at(6, 8), active: at(6, 8) };
+
   it("reports the edit at every cursor, and the highlight again when the other cursors change", () => {
     const { sent, tracker } = setup();
-    const other = { range: range(6, 4, 8), text: "mia_sad" };
-    tracker.observed(URI, 7, CURSOR, {
-      ...selected("mia_sad"),
-      otherCursors: [other],
-    });
-    tracker.observed(URI, 7, CURSOR, {
-      ...selected("mia_sad"),
-      otherCursors: [other],
-    });
-    tracker.observed(URI, 7, CURSOR, selected("mia_sad"));
+    tracker.observed(URI, 7, place(8, [second]), selected("mia_sad"));
+    tracker.observed(URI, 7, place(8, [second]), selected("mia_sad"));
+    tracker.observed(URI, 7, PLACE, selected("mia_sad"));
     expect(summary(sent)).toEqual([
       "focus 1 v7 mia_sad+mia_sad",
       "focus 1 v7 mia_sad",
     ]);
     expect(sent[0]!.contentChanges).toEqual([
-      other,
+      { range: range(6, 4, 8), text: "mia_sad" },
       { range: range(4, 4, 8), text: "mia_sad" },
     ]);
   });
 
-  it("reports the highlight as unavailable when another cursor's edit is unknown", () => {
-    const { sent, tracker } = setup();
-    tracker.observed(URI, 7, CURSOR, {
-      ...selected("mia_sad"),
-      otherCursors: null,
-    });
-    expect(sent[0]!.contentChanges).toBeNull();
-  });
-
   it("recognizes acceptance at every cursor", () => {
     const { sent, tracker } = setup();
-    const other = { range: range(6, 4, 8), text: "mia_sad" };
-    tracker.observed(URI, 7, CURSOR, {
-      ...selected("mia_sad"),
-      otherCursors: [other],
-    });
+    tracker.observed(URI, 7, place(8, [second]), selected("mia_sad"));
     tracker.changed(URI, 8, [
       { range: range(4, 4, 8), text: "mia_sad" },
-      other,
+      { range: range(6, 4, 8), text: "mia_sad" },
     ]);
     expect(summary(sent)).toEqual([
       "focus 1 v7 mia_sad+mia_sad",
@@ -427,9 +441,9 @@ describe("the tracker with several cursors and a reloaded preview", () => {
   it("sends the open list's highlight again on request, and nothing when no list is open", () => {
     const { sent, tracker } = setup();
     tracker.resend();
-    tracker.observed(URI, 7, CURSOR, selected("mia_sad"));
+    tracker.observed(URI, 7, PLACE, selected("mia_sad"));
     tracker.resend();
-    tracker.observed(URI, 7, CURSOR, undefined);
+    tracker.observed(URI, 7, PLACE, undefined);
     tracker.resend();
     expect(summary(sent)).toEqual([
       "focus 1 v7 mia_sad",
@@ -440,7 +454,7 @@ describe("the tracker with several cursors and a reloaded preview", () => {
   });
 });
 
-describe("what accepting inserts at the other cursors", () => {
+describe("what accepting inserts at every cursor", () => {
   const lines = [
     "scene START",
     "  [[mia_]]",
@@ -448,42 +462,59 @@ describe("what accepting inserts at the other cursors", () => {
     "  [[bob_]]",
     "  [[mia_x]]",
     "    ",
+    "\t\tpro",
+    "  pro",
+    "    pro",
   ];
-  const lineText = (line: number) => lines[line] ?? "";
-  const at = (line: number, character: number) => ({ line, character });
   const cursor = (line: number, character: number) => ({
     anchor: at(line, character),
     active: at(line, character),
   });
-  // The primary cursor is after `mia_` on line 1; VS Code replaces `mia_`.
-  const primary = cursor(1, 8);
+  /** The primary cursor after `mia_` on line 1, VS Code replacing `mia_`. */
+  const on = (others: Cursor[], options: Partial<Placement> = {}) => ({
+    primary: cursor(1, 8),
+    others,
+    lineText: (line: number) => lines[line] ?? "",
+    tabSize: 4,
+    insertSpaces: true,
+    eol: "\n",
+    ...options,
+  });
   const reported = { range: range(1, 4, 8), text: "mia_sad" };
+  const plain = (text: string, extra: Partial<CompletionCandidate> = {}) =>
+    candidate(text, { start: at(1, 4), ...extra });
 
   it("replaces the same text before a cursor that has it", () => {
     expect(
-      otherCursorChanges(reported, primary, [cursor(2, 8)], lineText),
-    ).toEqual([{ range: range(2, 4, 8), text: "mia_sad" }]);
+      completionChanges(reported, [plain("mia_sad")], on([cursor(2, 8)])),
+    ).toEqual([
+      { range: range(2, 4, 8), text: "mia_sad" },
+      { range: range(1, 4, 8), text: "mia_sad" },
+    ]);
   });
 
   it("only inserts at a cursor whose text before differs", () => {
     expect(
-      otherCursorChanges(reported, primary, [cursor(3, 8)], lineText),
-    ).toEqual([{ range: range(3, 8, 8), text: "mia_sad" }]);
+      completionChanges(reported, [plain("mia_sad")], on([cursor(3, 8)])),
+    ).toEqual([
+      { range: range(3, 8, 8), text: "mia_sad" },
+      { range: range(1, 4, 8), text: "mia_sad" },
+    ]);
   });
 
   it("replaces the same text after a cursor only where it is the same", () => {
     // The primary also replaces `]]` after itself (VS Code's replace mode).
     const replacing = { range: range(1, 4, 10), text: "mia_sad" };
     expect(
-      otherCursorChanges(
+      completionChanges(
         replacing,
-        primary,
-        [cursor(2, 8), cursor(4, 8)],
-        lineText,
+        [plain("mia_sad")],
+        on([cursor(2, 8), cursor(4, 8)]),
       ),
     ).toEqual([
-      { range: range(2, 4, 10), text: "mia_sad" },
       { range: range(4, 4, 8), text: "mia_sad" },
+      { range: range(2, 4, 10), text: "mia_sad" },
+      { range: range(1, 4, 10), text: "mia_sad" },
     ]);
   });
 
@@ -491,50 +522,90 @@ describe("what accepting inserts at the other cursors", () => {
     // `_` of `bob_` selected, the cursor after it; `bob_` is not `mia_`.
     const selection = { anchor: at(3, 7), active: at(3, 8) };
     expect(
-      otherCursorChanges(reported, primary, [selection], lineText),
-    ).toEqual([{ range: range(3, 7, 8), text: "mia_sad" }]);
+      completionChanges(reported, [plain("mia_sad")], on([selection])),
+    ).toContainEqual({ range: range(3, 7, 8), text: "mia_sad" });
   });
 
   it("keeps a selected cursor's own selection inside the replaced text when the text before matches", () => {
     // `x` of `mia_x` selected, the cursor before it; `mia_` matches.
     const selection = { anchor: at(4, 9), active: at(4, 8) };
     expect(
-      otherCursorChanges(reported, primary, [selection], lineText),
-    ).toEqual([{ range: range(4, 4, 9), text: "mia_sad" }]);
+      completionChanges(reported, [plain("mia_sad")], on([selection])),
+    ).toContainEqual({ range: range(4, 4, 9), text: "mia_sad" });
   });
 
-  it("re-indents a multi-line insertion to each cursor's line", () => {
-    // Reported re-indented to the primary line, whose indentation is two
-    // spaces; the other cursor's line is indented four.
-    const block = {
-      range: range(1, 2, 8),
-      text: "define x with\n    a = 1\n  end",
-    };
+  it("indents a multi-line insertion's later lines like each cursor's line", () => {
+    const block = { range: range(1, 4, 8), text: "mia:\n- sad" };
     expect(
-      otherCursorChanges(block, cursor(1, 8), [cursor(5, 4)], lineText),
+      completionChanges(block, [plain("mia:\n- sad")], on([cursor(5, 4)])),
     ).toEqual([
-      { range: range(5, 4, 4), text: "define x with\n      a = 1\n    end" },
+      { range: range(5, 4, 4), text: "mia:\n    - sad" },
+      { range: range(1, 4, 8), text: "mia:\n  - sad" },
     ]);
   });
 
-  it("keeps the document's line breaks when re-indenting", () => {
-    const block = { range: range(1, 2, 8), text: "define x with\r\n  end" };
+  it("writes adjusted indentation in the editor's unit and the document's line breaks", () => {
+    const block = { range: range(1, 4, 8), text: "mia:\n\t- sad" };
     expect(
-      otherCursorChanges(block, cursor(1, 8), [cursor(5, 4)], lineText),
-    ).toEqual([{ range: range(5, 4, 4), text: "define x with\r\n    end" }]);
+      completionChanges(
+        block,
+        [plain("mia:\n\t- sad")],
+        on([], { insertSpaces: false, tabSize: 2, eol: "\r\n" }),
+      ),
+    ).toEqual([{ range: range(1, 4, 8), text: "mia:\r\n\t\t- sad" }]);
   });
 
-  it("is unknown when a later line lacks the primary line's indentation", () => {
-    const block = { range: range(1, 2, 8), text: "define x with\na = 1" };
+  it("inserts an as-is item's text unchanged where the lines start in the same column", () => {
+    // Two tabs and two spaces: the first text is at column 3 on both lines.
+    const asIs = plain("pro:\n\t\t  - ", {
+      start: at(6, 2),
+      keepWhitespace: true,
+    });
+    const block = { range: range(6, 2, 5), text: "pro:\n\t\t  - " };
     expect(
-      otherCursorChanges(block, cursor(1, 8), [cursor(5, 4)], lineText),
-    ).toBeNull();
+      completionChanges(
+        block,
+        [asIs],
+        on([cursor(7, 5)], { primary: cursor(6, 5) }),
+      ),
+    ).toEqual([
+      { range: range(7, 2, 5), text: "pro:\n\t\t  - " },
+      { range: range(6, 2, 5), text: "pro:\n\t\t  - " },
+    ]);
+  });
+
+  it("re-indents an as-is item at a cursor whose line starts in another column", () => {
+    const asIs = plain("pro:\n  - ", { start: at(7, 2), keepWhitespace: true });
+    const block = { range: range(7, 2, 5), text: "pro:\n  - " };
+    expect(
+      completionChanges(
+        block,
+        [asIs],
+        on([cursor(8, 7)], { primary: cursor(7, 5) }),
+      ),
+    ).toEqual([
+      { range: range(8, 4, 7), text: "pro:\n      - " },
+      { range: range(7, 2, 5), text: "pro:\n  - " },
+    ]);
+  });
+
+  it("is unknown when matching items insert different text at the cursors", () => {
+    const items = [
+      plain("mia:\n- sad"),
+      plain("mia:\n- sad", { keepWhitespace: true }),
+    ];
+    const block = { range: range(1, 4, 8), text: "mia:\n- sad" };
+    expect(completionChanges(block, items, on([]))).toBeNull();
   });
 
   it("is unknown when the reported replacement is not on the cursor's line", () => {
     const elsewhere = { range: range(0, 0, 3), text: "mia_sad" };
     expect(
-      otherCursorChanges(elsewhere, primary, [cursor(2, 8)], lineText),
+      completionChanges(
+        elsewhere,
+        [plain("mia_sad", { start: at(0, 0) })],
+        on([cursor(2, 8)]),
+      ),
     ).toBeNull();
   });
 });

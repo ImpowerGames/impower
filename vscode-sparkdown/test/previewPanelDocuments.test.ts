@@ -64,6 +64,26 @@ describe("the Game Preview panel", () => {
     expect(posted).toEqual([]);
   });
 
+  it("sends edits of the project's scripts only, as it announces only them", async () => {
+    const { manager, posted, document } = await load();
+    const { Position, Range } = await import("./fakeVscode");
+    const change = {
+      range: new Range(new Position(0, 0), new Position(0, 0)),
+      text: "x",
+    };
+    manager.notifyChangedTextDocument(
+      document("untitled:Untitled-1", "x", 2, true),
+      [change],
+    );
+    manager.notifyChangedTextDocument(
+      document("file:///project/main.sd", "x", 2),
+      [change],
+    );
+    expect(posted.map((m) => m.params.textDocument.uri)).toEqual([
+      "file:///project/main.sd",
+    ]);
+  });
+
   it("announces open scripts and tells listeners each time its player is initialized", async () => {
     const { manager, posted, document } = await load();
     state.vscode.workspace.textDocuments = [

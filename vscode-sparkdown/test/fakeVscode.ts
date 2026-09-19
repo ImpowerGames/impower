@@ -66,6 +66,7 @@ export const document = (
 ) => ({
   uri: { toString: () => uri, outside },
   languageId: "sparkdown",
+  eol: 1,
   version,
   getText: () => text,
   lineAt: (line: number) => ({ text: text.split("\n")[line] ?? "" }),
@@ -107,6 +108,7 @@ export const fakeVscode = () => {
     Selection,
     SnippetString,
     TextEditorSelectionChangeKind: { Keyboard: 1, Mouse: 2, Command: 3 },
+    EndOfLine: { LF: 1, CRLF: 2 },
     languages: {
       registerInlineCompletionItemProvider: (
         selector: unknown,
