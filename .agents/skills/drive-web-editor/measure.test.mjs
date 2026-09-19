@@ -16,7 +16,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { attributeEditSample, attributePreviewSample, measure as measureCommand, parseMeasureArgs, phaseName, replacedSpan, summarize } from "./measure.mjs";
+import { attributeEditSample, attributePreviewSample, measure as measureCommand, parseMeasureArgs, runFailed, phaseName, replacedSpan, summarize } from "./measure.mjs";
 
 let failures = 0;
 const check = async (name, fn) => {
@@ -230,6 +230,15 @@ await check("a game that never mounts, or a program that never loads, stops the 
   const unloaded = await runMeasure(["--fixture"], { waitForProgram: async () => ({ loaded: false, errors: 2 }) });
   assert.match(unloaded.report.error, /loaded no program within 180 s; the open document has 2 error\(s\)/);
   assert.equal(unloaded.exitCode, 1);
+});
+
+await check("any failed sample fails the run, a warm-up one included, as do an error and an unrestored line", () => {
+  const ok = { samples: [{ warmup: true, ms: 1 }, { ms: 2 }], restoredMatches: true };
+  assert.equal(runFailed(ok), false);
+  assert.equal(runFailed({ ...ok, samples: [{ warmup: true, failure: "painted elsewhere" }, { ms: 2 }] }), true);
+  assert.equal(runFailed({ ...ok, samples: [{ warmup: true, ms: 1 }, { failure: "x" }] }), true);
+  assert.equal(runFailed({ ...ok, error: "seed failed" }), true);
+  assert.equal(runFailed({ ...ok, restoredMatches: false }), true);
 });
 
 await check("bad arguments print the usage through die and launch nothing", async () => {

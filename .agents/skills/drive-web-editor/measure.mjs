@@ -190,6 +190,14 @@ export function summarize(samples) {
   };
 }
 
+// Whether a finished report is a failed run: an error, a line left unrestored,
+// or any failed sample, warm-up included. A warm-up sample is left out of the
+// timings, but one that failed has already shown the preview not answering at
+// the measured line, so it fails the run like a measured one.
+export function runFailed(report) {
+  return Boolean(report.error || report.restoredMatches === false || report.samples.some((s) => s.failure));
+}
+
 // The line with `word` replaced by whatever now sits between the text before
 // and after it, or null when the line no longer has that shape.
 export function replacedSpan(original, word, current) {
@@ -446,9 +454,10 @@ export async function measure(args, deps) {
 
   const measured = report.samples.filter((s) => !s.warmup);
   report.summary = summarize(measured);
+  report.summary.warmupFailures = report.samples.filter((s) => s.warmup && s.failure).length;
   if (options.json) fs.writeFileSync(options.json, JSON.stringify(report, null, 2));
   const printed = { ...report, samples: report.samples.map(({ events, ...rest }) => rest) };
   deps.log(JSON.stringify(printed, null, 2));
-  if (report.error || report.restoredMatches === false || report.summary.failures > 0) process.exitCode = 1;
+  if (runFailed(report)) process.exitCode = 1;
   return report;
 }
