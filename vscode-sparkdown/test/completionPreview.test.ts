@@ -4,6 +4,7 @@ import { CompletionPreviewTracker } from "../src/completion/CompletionPreviewTra
 import {
   CompletionCandidate,
   completionChanges,
+  otherCursorChanges,
   SelectedCompletion,
   snippetText,
   TextChange,
@@ -371,5 +372,169 @@ describe("the text a snippet inserts", () => {
   it("uses a variable's default and nothing for a variable without one", () => {
     expect(snippetText("${TM_FILENAME:untitled}")).toBe("untitled");
     expect(snippetText("x$TM_FILENAME y")).toBe("x y");
+  });
+});
+
+describe("the tracker with several cursors and a reloaded preview", () => {
+  it("reports the edit at every cursor, and the highlight again when the other cursors change", () => {
+    const { sent, tracker } = setup();
+    const other = { range: range(6, 4, 8), text: "mia_sad" };
+    tracker.observed(URI, 7, CURSOR, {
+      ...selected("mia_sad"),
+      otherCursors: [other],
+    });
+    tracker.observed(URI, 7, CURSOR, {
+      ...selected("mia_sad"),
+      otherCursors: [other],
+    });
+    tracker.observed(URI, 7, CURSOR, selected("mia_sad"));
+    expect(summary(sent)).toEqual([
+      "focus 1 v7 mia_sad+mia_sad",
+      "focus 1 v7 mia_sad",
+    ]);
+    expect(sent[0]!.contentChanges).toEqual([
+      other,
+      { range: range(4, 4, 8), text: "mia_sad" },
+    ]);
+  });
+
+  it("reports the highlight as unavailable when another cursor's edit is unknown", () => {
+    const { sent, tracker } = setup();
+    tracker.observed(URI, 7, CURSOR, {
+      ...selected("mia_sad"),
+      otherCursors: null,
+    });
+    expect(sent[0]!.contentChanges).toBeNull();
+  });
+
+  it("recognizes acceptance at every cursor", () => {
+    const { sent, tracker } = setup();
+    const other = { range: range(6, 4, 8), text: "mia_sad" };
+    tracker.observed(URI, 7, CURSOR, {
+      ...selected("mia_sad"),
+      otherCursors: [other],
+    });
+    tracker.changed(URI, 8, [
+      { range: range(4, 4, 8), text: "mia_sad" },
+      other,
+    ]);
+    expect(summary(sent)).toEqual([
+      "focus 1 v7 mia_sad+mia_sad",
+      "close 1 v8 accepted",
+    ]);
+  });
+
+  it("sends the open list's highlight again on request, and nothing when no list is open", () => {
+    const { sent, tracker } = setup();
+    tracker.resend();
+    tracker.observed(URI, 7, CURSOR, selected("mia_sad"));
+    tracker.resend();
+    tracker.observed(URI, 7, CURSOR, undefined);
+    tracker.resend();
+    expect(summary(sent)).toEqual([
+      "focus 1 v7 mia_sad",
+      "focus 1 v7 mia_sad",
+      "close 1 v7",
+    ]);
+    expect(sent.map((p) => p.request)).toEqual([1, 2, 3]);
+  });
+});
+
+describe("what accepting inserts at the other cursors", () => {
+  const lines = [
+    "scene START",
+    "  [[mia_]]",
+    "  [[mia_]]",
+    "  [[bob_]]",
+    "  [[mia_x]]",
+    "    ",
+  ];
+  const lineText = (line: number) => lines[line] ?? "";
+  const at = (line: number, character: number) => ({ line, character });
+  const cursor = (line: number, character: number) => ({
+    anchor: at(line, character),
+    active: at(line, character),
+  });
+  // The primary cursor is after `mia_` on line 1; VS Code replaces `mia_`.
+  const primary = cursor(1, 8);
+  const reported = { range: range(1, 4, 8), text: "mia_sad" };
+
+  it("replaces the same text before a cursor that has it", () => {
+    expect(
+      otherCursorChanges(reported, primary, [cursor(2, 8)], lineText),
+    ).toEqual([{ range: range(2, 4, 8), text: "mia_sad" }]);
+  });
+
+  it("only inserts at a cursor whose text before differs", () => {
+    expect(
+      otherCursorChanges(reported, primary, [cursor(3, 8)], lineText),
+    ).toEqual([{ range: range(3, 8, 8), text: "mia_sad" }]);
+  });
+
+  it("replaces the same text after a cursor only where it is the same", () => {
+    // The primary also replaces `]]` after itself (VS Code's replace mode).
+    const replacing = { range: range(1, 4, 10), text: "mia_sad" };
+    expect(
+      otherCursorChanges(
+        replacing,
+        primary,
+        [cursor(2, 8), cursor(4, 8)],
+        lineText,
+      ),
+    ).toEqual([
+      { range: range(2, 4, 10), text: "mia_sad" },
+      { range: range(4, 4, 8), text: "mia_sad" },
+    ]);
+  });
+
+  it("replaces a cursor's own selection when the text around it differs", () => {
+    // `_` of `bob_` selected, the cursor after it; `bob_` is not `mia_`.
+    const selection = { anchor: at(3, 7), active: at(3, 8) };
+    expect(
+      otherCursorChanges(reported, primary, [selection], lineText),
+    ).toEqual([{ range: range(3, 7, 8), text: "mia_sad" }]);
+  });
+
+  it("keeps a selected cursor's own selection inside the replaced text when the text before matches", () => {
+    // `x` of `mia_x` selected, the cursor before it; `mia_` matches.
+    const selection = { anchor: at(4, 9), active: at(4, 8) };
+    expect(
+      otherCursorChanges(reported, primary, [selection], lineText),
+    ).toEqual([{ range: range(4, 4, 9), text: "mia_sad" }]);
+  });
+
+  it("re-indents a multi-line insertion to each cursor's line", () => {
+    // Reported re-indented to the primary line, whose indentation is two
+    // spaces; the other cursor's line is indented four.
+    const block = {
+      range: range(1, 2, 8),
+      text: "define x with\n    a = 1\n  end",
+    };
+    expect(
+      otherCursorChanges(block, cursor(1, 8), [cursor(5, 4)], lineText),
+    ).toEqual([
+      { range: range(5, 4, 4), text: "define x with\n      a = 1\n    end" },
+    ]);
+  });
+
+  it("keeps the document's line breaks when re-indenting", () => {
+    const block = { range: range(1, 2, 8), text: "define x with\r\n  end" };
+    expect(
+      otherCursorChanges(block, cursor(1, 8), [cursor(5, 4)], lineText),
+    ).toEqual([{ range: range(5, 4, 4), text: "define x with\r\n    end" }]);
+  });
+
+  it("is unknown when a later line lacks the primary line's indentation", () => {
+    const block = { range: range(1, 2, 8), text: "define x with\na = 1" };
+    expect(
+      otherCursorChanges(block, cursor(1, 8), [cursor(5, 4)], lineText),
+    ).toBeNull();
+  });
+
+  it("is unknown when the reported replacement is not on the cursor's line", () => {
+    const elsewhere = { range: range(0, 0, 3), text: "mia_sad" };
+    expect(
+      otherCursorChanges(elsewhere, primary, [cursor(2, 8)], lineText),
+    ).toBeNull();
   });
 });

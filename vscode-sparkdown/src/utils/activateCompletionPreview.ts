@@ -1,6 +1,12 @@
 import * as vscode from "vscode";
 import { CompletionPreviewTracker } from "../completion/CompletionPreviewTracker";
-import type { CompletionCandidate } from "../completion/completionEdits";
+import {
+  type CompletionCandidate,
+  type Cursor,
+  otherCursorChanges,
+  sameChanges,
+  type SelectedCompletion,
+} from "../completion/completionEdits";
 import { SparkdownPreviewGamePanelManager } from "../managers/SparkdownPreviewGamePanelManager";
 import { getServerRange } from "./getServerRange";
 
@@ -133,13 +139,52 @@ export const resolvedCompletion = (
     return;
   }
   if (
-    JSON.stringify(candidateOf(resolved).additionalEdits) ===
-    JSON.stringify(candidateOf(original).additionalEdits)
+    sameChanges(
+      candidateOf(resolved).additionalEdits,
+      candidateOf(original).additionalEdits,
+    )
   ) {
     return;
   }
   offered.items[index] = resolved;
   tracker.offered(offered.uri, offered.items.map(candidateOf));
+};
+
+const cursorOf = (selection: vscode.Selection): Cursor => ({
+  anchor: {
+    line: selection.anchor.line,
+    character: selection.anchor.character,
+  },
+  active: {
+    line: selection.active.line,
+    character: selection.active.character,
+  },
+});
+
+/** The highlighted suggestion, with what accepting it inserts at the other
+ *  cursors of the editor showing `document`. */
+const selectedIn = (
+  document: vscode.TextDocument,
+  position: vscode.Position,
+  info: vscode.SelectedCompletionInfo,
+): SelectedCompletion => {
+  const selected = { range: getServerRange(info.range), text: info.text };
+  const editor = vscode.window.visibleTextEditors.find(
+    (e) => e.document === document && e.selection.active.isEqual(position),
+  );
+  const [primary, ...others] = editor?.selections ?? [];
+  if (!primary || others.length === 0) {
+    return selected;
+  }
+  return {
+    ...selected,
+    otherCursors: otherCursorChanges(
+      selected,
+      cursorOf(primary),
+      others.map(cursorOf),
+      (line) => document.lineAt(line).text,
+    ),
+  };
 };
 
 export const activateCompletionPreview = (context: vscode.ExtensionContext) => {
@@ -152,14 +197,12 @@ export const activateCompletionPreview = (context: vscode.ExtensionContext) => {
             tracker.reset();
             return [];
           }
-          const selected = inlineContext.selectedCompletionInfo;
+          const info = inlineContext.selectedCompletionInfo;
           tracker.observed(
             document.uri.toString(),
             document.version,
             { line: position.line, character: position.character },
-            selected
-              ? { range: getServerRange(selected.range), text: selected.text }
-              : undefined,
+            info ? selectedIn(document, position, info) : undefined,
           );
           return [];
         },
@@ -214,6 +257,12 @@ export const activateCompletionPreview = (context: vscode.ExtensionContext) => {
     SparkdownPreviewGamePanelManager.instance.onDidDisposePanel(() => {
       tracker.reset();
       offered = null;
+    }),
+  );
+  context.subscriptions.push(
+    SparkdownPreviewGamePanelManager.instance.onDidConnectPanel(() => {
+      // A reloaded preview has a fresh player that has seen nothing.
+      tracker.resend();
     }),
   );
 };

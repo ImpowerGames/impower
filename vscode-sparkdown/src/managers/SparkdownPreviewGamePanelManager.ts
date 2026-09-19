@@ -112,6 +112,11 @@ export class SparkdownPreviewGamePanelManager {
   /** Fires when the panel closes. */
   readonly onDidDisposePanel = this._onDidDisposePanel.event;
 
+  protected _onDidConnectPanel = new vscode.EventEmitter<void>();
+  /** Fires when the player in the panel has been initialized, the first time
+   *  and each time the webview reloads. */
+  readonly onDidConnectPanel = this._onDidConnectPanel.event;
+
   /**
    * Whether autocomplete highlights should be sent to the preview: it is
    * open, has been initialized and is not playing. The preview itself still
@@ -357,6 +362,7 @@ export class SparkdownPreviewGamePanelManager {
       });
     }
     this._connected = true;
+    this._onDidConnectPanel.fire();
   }
 
   getGameConfiguration(editor: vscode.TextEditor) {
@@ -382,7 +388,7 @@ export class SparkdownPreviewGamePanelManager {
   }
 
   notifyOpenedTextDocument(document: vscode.TextDocument) {
-    if (document.languageId !== "sparkdown") {
+    if (!this.isProjectScript(document)) {
       return;
     }
     this.sendNotification(DidOpenTextDocumentMessage.type, {
@@ -396,12 +402,21 @@ export class SparkdownPreviewGamePanelManager {
   }
 
   notifyClosedTextDocument(document: vscode.TextDocument) {
-    if (document.languageId !== "sparkdown") {
+    if (!this.isProjectScript(document)) {
       return;
     }
     this.sendNotification(DidCloseTextDocumentMessage.type, {
       textDocument: { uri: document.uri.toString() },
     });
+  }
+
+  /** A Sparkdown document that is one of the project's files, not a view of
+   *  one (a diff or an older revision) under another scheme. */
+  protected isProjectScript(document: vscode.TextDocument) {
+    return (
+      document.languageId === "sparkdown" &&
+      vscode.workspace.getWorkspaceFolder(document.uri) !== undefined
+    );
   }
 
   notifyChangedTextDocument(

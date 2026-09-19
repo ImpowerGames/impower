@@ -164,6 +164,16 @@ export class CompletionPreviewTracker {
     this._focused = null;
   }
 
+  /** Report the highlight of the open list again, as to a preview that
+   *  reloaded and has seen nothing of it. VS Code will not report it again
+   *  while it stays highlighted. */
+  resend() {
+    const focused = this._focused;
+    if (this._open && this._uri && focused) {
+      this.focus(this._uri, focused);
+    }
+  }
+
   protected changesFor(uri: string, selected: SelectedCompletion) {
     const candidates = this._candidates;
     if (!candidates || candidates.uri !== uri) {
@@ -206,6 +216,7 @@ export class CompletionPreviewTracker {
 
 const sameSelection = (a: SelectedCompletion, b: SelectedCompletion) =>
   a.text === b.text &&
+  sameNullableChanges(otherCursorsOf(a), otherCursorsOf(b)) &&
   a.range.start.line === b.range.start.line &&
   a.range.start.character === b.range.start.character &&
   a.range.end.line === b.range.end.line &&
@@ -213,3 +224,7 @@ const sameSelection = (a: SelectedCompletion, b: SelectedCompletion) =>
 
 const sameNullableChanges = (a: TextChange[] | null, b: TextChange[] | null) =>
   a && b ? sameChanges(a, b) : a === b;
+
+/** A selection's other-cursor changes, with a single cursor as none. */
+const otherCursorsOf = (selected: SelectedCompletion) =>
+  selected.otherCursors === undefined ? [] : selected.otherCursors;

@@ -35,6 +35,16 @@ export interface TextChange {
 export interface SelectedCompletion {
   range: Range;
   text: string;
+  /** What accepting it also inserts at the editor's other cursors (see
+   *  `otherCursorChanges`), or null when that cannot be known. Absent with a
+   *  single cursor. */
+  otherCursors?: TextChange[] | null;
+}
+
+/** A cursor: `active` is where it is, `anchor` where its selection began. */
+export interface Cursor {
+  anchor: Position;
+  active: Position;
 }
 
 /** A language-server item, reduced to what decides the edit it makes. */
@@ -167,9 +177,6 @@ const candidateMatches = (
   return candidate.text === selected.text;
 };
 
-const sameEdits = (a: TextChange[], b: TextChange[]) =>
-  JSON.stringify(a) === JSON.stringify(b);
-
 const comparePositions = (a: Position, b: Position) =>
   a.line - b.line || a.character - b.character;
 
@@ -190,15 +197,20 @@ export const completionChanges = (
     return null;
   }
   if (
-    matches.some((m) => !sameEdits(m.additionalEdits, first.additionalEdits))
+    matches.some((m) => !sameChanges(m.additionalEdits, first.additionalEdits))
   ) {
     // Identical as VS Code reports them, different in what they change.
     return null;
   }
+  if (selected.otherCursors === null) {
+    return null;
+  }
   const primary: TextChange = { range: selected.range, text: selected.text };
-  return [primary, ...first.additionalEdits].sort((a, b) =>
-    comparePositions(b.range.start, a.range.start),
-  );
+  return [
+    primary,
+    ...(selected.otherCursors ?? []),
+    ...first.additionalEdits,
+  ].sort((a, b) => comparePositions(b.range.start, a.range.start));
 };
 
 /** Whether a document change is exactly `changes`, in any order. */
@@ -214,4 +226,105 @@ export const sameChanges = (
   const sa = a.map(key).sort();
   const sb = b.map(key).sort();
   return sa.every((k, i) => k === sb[i]);
+};
+
+/** The leading whitespace of `line`, no further than `before`. */
+const leadingWhitespace = (line: string, before: number) =>
+  /^[ \t]*/.exec(line.slice(0, before))![0];
+
+/**
+ * What accepting the highlighted suggestion inserts at the editor's other
+ * cursors, or null when that cannot be known.
+ *
+ * VS Code reports the primary cursor's replacement only, but accepting a
+ * suggestion inserts it at every cursor (`SnippetSession`
+ * `createEditsAndSnippetsFromSelections`): each cursor replaces as many
+ * characters before and after itself as the primary does, on each side only
+ * where those characters are the same as the primary's, and otherwise just its
+ * own selection. A multi-line insertion is re-indented to each cursor's line;
+ * its later lines are reported with the primary line's indentation, so a
+ * later line that does not start with it cannot be re-indented and the result
+ * is unknown.
+ */
+export const otherCursorChanges = (
+  selected: Pick<SelectedCompletion, "range" | "text">,
+  primary: Cursor,
+  others: readonly Cursor[],
+  lineText: (line: number) => string,
+): TextChange[] | null => {
+  const at = primary.active;
+  if (
+    selected.range.start.line !== at.line ||
+    selected.range.end.line !== at.line
+  ) {
+    return null;
+  }
+  const before = at.character - selected.range.start.character;
+  const after = selected.range.end.character - at.character;
+  /** The range VS Code's `adjustSelection` gives a cursor for these counts. */
+  const around = (cursor: Cursor, b: number, a: number): Range => {
+    if (b === 0 && a === 0) {
+      const [start, end] =
+        comparePositions(cursor.anchor, cursor.active) <= 0
+          ? [cursor.anchor, cursor.active]
+          : [cursor.active, cursor.anchor];
+      return { start, end };
+    }
+    const { line, character } = cursor.active;
+    const length = lineText(line).length;
+    const clamp = (c: number) => Math.max(0, Math.min(length, c));
+    return {
+      start: { line, character: clamp(character - b) },
+      end: { line, character: clamp(character + a) },
+    };
+  };
+  const textIn = (range: Range) =>
+    range.start.line === range.end.line
+      ? lineText(range.start.line).slice(
+          range.start.character,
+          range.end.character,
+        )
+      : null;
+  const firstBefore = textIn(around(primary, before, 0));
+  const firstAfter = textIn(around(primary, 0, after));
+  // Lines and the line breaks between them, which stay as the document has
+  // them.
+  const parts = selected.text.split(/(\r?\n)/);
+  const primaryIndent = leadingWhitespace(
+    lineText(at.line),
+    selected.range.start.character,
+  );
+  const changes: TextChange[] = [];
+  for (const cursor of others) {
+    const own = around(cursor, 0, 0);
+    const extendedBefore = around(cursor, before, 0);
+    const extendedAfter = around(cursor, 0, after);
+    const range: Range = {
+      start:
+        textIn(extendedBefore) === firstBefore
+          ? extendedBefore.start
+          : own.start,
+      end: textIn(extendedAfter) === firstAfter ? extendedAfter.end : own.end,
+    };
+    let text = selected.text;
+    if (parts.length > 1) {
+      const indent = leadingWhitespace(
+        lineText(range.start.line),
+        range.start.character,
+      );
+      const reindented: string[] = [];
+      for (const [index, part] of parts.entries()) {
+        if (index === 0 || index % 2 === 1) {
+          reindented.push(part);
+        } else if (part.startsWith(primaryIndent)) {
+          reindented.push(indent + part.slice(primaryIndent.length));
+        } else {
+          return null;
+        }
+      }
+      text = reindented.join("");
+    }
+    changes.push({ range, text });
+  }
+  return changes;
 };
