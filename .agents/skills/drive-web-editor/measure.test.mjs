@@ -241,6 +241,68 @@ await check("any failed sample fails the run, a warm-up one included, as do an e
   assert.equal(runFailed({ ...ok, restoredMatches: false }), true);
 });
 
+// A stand-in editor page for one full preview-mode run: the document holds
+// the measured line, and each ArrowDown yields that key's request and answer,
+// painted where `paints` says, in the order the keys are pressed.
+function scriptedPage(lineText, paints) {
+  const uri = "file://local/main.sd";
+  const text = [...Array(3514).fill(""), lineText].join("\n");
+  let clock = 0;
+  let pending = [];
+  let pressed = 0;
+  const page = {
+    evaluate: async (fn, arg) => {
+      const source = String(fn);
+      if (arg?.method === "editor/read") return { textDocument: { uri, text } };
+      if (arg?.method) return undefined;
+      if (source.includes("PerformanceObserver")) return 1;
+      if (source.includes("splice")) return pending.splice(0);
+      if (source.includes("__measureState")) return 7;
+      throw new Error(`unexpected evaluate: ${source.slice(0, 80)}`);
+    },
+    waitForTimeout: async () => {},
+    waitForFunction: async () => {},
+    keyboard: {
+      type: async () => {},
+      press: async (key) => {
+        clock += 1000;
+        if (key !== "ArrowDown") return;
+        const request = ++pressed;
+        const line = paints.shift() ?? 3514;
+        pending.push({ t: clock, kind: "key", key }, { t: clock + 5, kind: "request", request, state: "focus" }, { t: clock + 400, kind: "state", completion: { request, status: "showing" }, position: { uri, line }, programVersion: 7 });
+      },
+    },
+  };
+  return page;
+}
+
+await check("the command fails a run whose warm-up sample was painted elsewhere, though the measured one passed", async () => {
+  const line = "      [[raffles_concerned:gloves]]";
+  const surface = { popupPresent: true, selected: "raffles_shy", options: ["raffles_shy"] };
+  const page = scriptedPage(line, [0, 3514]);
+  const run = await runMeasure(["--project", "rb", "--line", "3515", "--word", "concerned", "--warmup", "1", "--samples", "1", "--settle", "0"], {
+    withEditor: async (fn) => fn({ page, url: "http://localhost:1", consoleLines: [] }),
+    waitLanguageSurface: async () => surface,
+    readLanguageSurface: async () => surface,
+  });
+  assert.equal(run.report.error, undefined, run.report.error);
+  assert.equal(run.report.restoredMatches, true);
+  assert.equal(run.report.samples.length, 2);
+  assert.match(run.report.samples[0].failure, /painted at file:\/\/local\/main\.sd line 1/);
+  assert.equal(run.report.samples[1].ms, 400);
+  assert.equal(run.report.summary.failures, 0);
+  assert.equal(run.report.summary.warmupFailures, 1);
+  assert.equal(run.exitCode, 1);
+  // The same run with both samples on the line passes.
+  const clean = await runMeasure(["--project", "rb", "--line", "3515", "--word", "concerned", "--warmup", "1", "--samples", "1", "--settle", "0"], {
+    withEditor: async (fn) => fn({ page: scriptedPage(line, [3514, 3514]), url: "http://localhost:1", consoleLines: [] }),
+    waitLanguageSurface: async () => surface,
+    readLanguageSurface: async () => surface,
+  });
+  assert.equal(clean.report.summary.warmupFailures, 0);
+  assert.notEqual(clean.exitCode, 1);
+});
+
 await check("bad arguments print the usage through die and launch nothing", async () => {
   await assert.rejects(runMeasure(["--line", "3"], {}), /die: measure needs --project <dir-or-zip> or --fixture\n\nmeasure options:/);
 });
