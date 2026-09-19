@@ -11,7 +11,13 @@ export {
   updateDocumentColors,
   type DocumentColor,
 } from "./color";
-export { serverCompletions, serverCompletionSource } from "./completion";
+export {
+  completionChanges,
+  completionPreview,
+  serverCompletions,
+  serverCompletionSource,
+  type CompletionPreviewEvent,
+} from "./completion";
 export {
   copy,
   cut,

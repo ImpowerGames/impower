@@ -1,6 +1,7 @@
 import { MessageConnection } from "@impower/jsonrpc/src/browser/classes/MessageConnection";
 import { AddCompilerFileMessage } from "../compiler/classes/messages/AddCompilerFileMessage";
 import { CompileProgramMessage } from "../compiler/classes/messages/CompileProgramMessage";
+import { PreviewCompileProgramMessage } from "../compiler/classes/messages/PreviewCompileProgramMessage";
 import { CompilerInitializedMessage } from "../compiler/classes/messages/CompilerInitializedMessage";
 import { CompilerInitializeMessage } from "../compiler/classes/messages/CompilerInitializeMessage";
 import { ConfigureCompilerMessage } from "../compiler/classes/messages/ConfigureCompilerMessage";
@@ -9,11 +10,16 @@ import { SelectCompilerDocumentMessage } from "../compiler/classes/messages/Sele
 import { UpdateCompilerDocumentMessage } from "../compiler/classes/messages/UpdateCompilerDocumentMessage";
 import { UpdateCompilerFileMessage } from "../compiler/classes/messages/UpdateCompilerFileMessage";
 import { SparkdownCompiler } from "../compiler/classes/SparkdownCompiler";
+import { ProgramTransportEncoder } from "../workspace/utils/programTransport";
 
 export function installSparkdownWorker(connection: MessageConnection) {
   console.log("running sparkdown-compiler v1.0");
 
   const state = { compiler: new SparkdownCompiler() };
+  // Pairs with the decoder in the SparkdownWorkspace on the other end of this
+  // connection. Programs are encoded as their responses are sent, which is the
+  // order the workspace receives and decodes them.
+  const transport = new ProgramTransportEncoder();
 
   connection.addEventListener("message", (e: MessageEvent) => {
     const message = e.data;
@@ -55,9 +61,17 @@ export function installSparkdownWorker(connection: MessageConnection) {
         );
       }
       if (CompileProgramMessage.type.is(message)) {
-        connection.sendResponse(message, () =>
-          state.compiler.compile(message.params),
-        );
+        connection.sendResponse(message, () => {
+          const result = state.compiler.compile(message.params);
+          return { ...result, program: transport.encode(result.program) };
+        });
+        return;
+      }
+      if (PreviewCompileProgramMessage.type.is(message)) {
+        connection.sendResponse(message, () => {
+          const result = state.compiler.previewCompile(message.params);
+          return { ...result, program: transport.encode(result.program) };
+        });
         return;
       }
       if (SelectCompilerDocumentMessage.type.is(message)) {

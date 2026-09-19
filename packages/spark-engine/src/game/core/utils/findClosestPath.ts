@@ -1,6 +1,18 @@
 import type { ScriptLocation } from "../types/ScriptLocation";
 import { findClosestPathLocation } from "./findClosestPathLocation";
 
+const isBindingPath = (path: string) =>
+  path.includes("__binding_") &&
+  path.split(".").some((seg) => seg.startsWith("__binding_"));
+
+// The previewable entries of each entries array. A program's entries are
+// resolved against again and again (every cursor move, every preview), and a
+// long script has tens of thousands of them, so they are filtered once.
+const previewableEntries = new WeakMap<
+  [string, ScriptLocation][],
+  [string, ScriptLocation][]
+>();
+
 export const findClosestPath = (
   from: { file: string; line: number },
   pathLocationEntries: [string, ScriptLocation][],
@@ -19,9 +31,11 @@ export const findClosestPath = (
   // expected end of flow"). A UI-only screen (all its paths are bindings) would
   // otherwise jump straight into one and fail to mount. They are never a valid
   // preview target, so exclude them as candidates.
-  const previewable = pathLocationEntries.filter(
-    ([p]) => !p.split(".").some((seg) => seg.startsWith("__binding_")),
-  );
+  let previewable = previewableEntries.get(pathLocationEntries);
+  if (!previewable) {
+    previewable = pathLocationEntries.filter(([p]) => !isBindingPath(p));
+    previewableEntries.set(pathLocationEntries, previewable);
+  }
   const [path] =
     findClosestPathLocation({ file, line }, previewable, scripts) || [];
   const parentPath = path?.split(".").slice(0, -1).join(".");

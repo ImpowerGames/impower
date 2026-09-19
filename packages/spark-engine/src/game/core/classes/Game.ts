@@ -33,6 +33,7 @@ import type { Thread } from "../types/Thread";
 import type { Variable,VariablePresentationHint } from "../types/Variable";
 import { buildDefinesContext } from "../utils/buildContextFromStory";
 import { findClosestPath } from "../utils/findClosestPath";
+import { pathLocationEntries } from "../utils/pathLocationEntries";
 import { findClosestPathLocation } from "../utils/findClosestPathLocation";
 import { CheckpointStore } from "./CheckpointStore";
 import { Clock } from "./Clock";
@@ -499,9 +500,7 @@ export class Game<T extends M = {}> {
         "Program must be successfully compiled before it can be run",
       );
     }
-    this._pathLocationEntries = Object.entries(
-      this._program.pathLocations || {},
-    );
+    this._pathLocationEntries = pathLocationEntries(this._program);
     this._scripts = Object.keys(this._program.scripts);
 
     if (story) {
@@ -894,7 +893,7 @@ export class Game<T extends M = {}> {
     const scripts = Object.keys(program.scripts);
     const path = findClosestPath(
       startFrom,
-      Object.entries(program.pathLocations || {}),
+      pathLocationEntries(program),
       scripts,
     );
     if (path) {

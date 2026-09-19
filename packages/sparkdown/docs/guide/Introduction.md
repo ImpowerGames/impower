@@ -33,4 +33,6 @@ As your UI grows, you'll add **classes** for styling, **components** for reuse,
 and **`if` / `for` / `match`** to show and hide UI as state changes — all covered
 in the pages ahead.
 
+While you write, the Game Preview can show what an autocomplete suggestion would do before you accept it; see [Previewing Suggestions](./SuggestionPreview.md).
+
 Next up: [Basic Concepts](./Structure.md) — layouts, elements, classes, content, props, and events.

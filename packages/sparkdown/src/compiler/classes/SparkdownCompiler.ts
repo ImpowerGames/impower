@@ -103,6 +103,11 @@ import {
   type CompiledProgramParams,
 } from "./messages/CompiledProgramMessage";
 import type { CompileProgramParams } from "./messages/CompileProgramMessage";
+import type {
+  PreviewCompileProgramParams,
+  PreviewCompileProgramResult,
+} from "./messages/PreviewCompileProgramMessage";
+import { invertContentChanges } from "../utils/invertContentChanges";
 import type { RemoveCompilerFileParams } from "./messages/RemoveCompilerFileMessage";
 import {
   RemovedCompilerFileMessage,
@@ -293,12 +298,69 @@ function indexOfWord(text: string, word: string): number {
 }
 const FILE_TYPES = GRAMMAR_DEFINITION.fileTypes;
 
+/**
+ * A deep copy of an asset channel that shares each image's attribute
+ * vocabulary with the context it was copied from.
+ *
+ * The channel is a copy so the engine can never change `program.context`
+ * through it. A vocabulary is safe to share: nothing changes one after the file
+ * registry builds it (a compile that adds diagnostics replaces the object
+ * instead), and vocabularies are nearly all of an illustrated project's asset
+ * bytes (230KB for one layered portrait). Copying them cost hundreds of
+ * milliseconds per compile, and the copy doubled what each compile sends to
+ * the player; a shared object crosses the worker boundary once.
+ *
+ * Shared and cyclic objects are copied once, as `structuredClone` copies them;
+ * anything but a plain object or array goes through `structuredClone`.
+ */
+const cloneSharingVocabularies = <T>(value: T): T => {
+  const copies = new Map<object, unknown>();
+  const copy = (v: unknown, key?: string): unknown => {
+    if (v === null || typeof v !== "object" || key === "attribute_vocabulary") {
+      return v;
+    }
+    const existing = copies.get(v);
+    if (existing !== undefined) {
+      return existing;
+    }
+    if (Array.isArray(v)) {
+      const out: unknown[] = [];
+      copies.set(v, out);
+      for (const item of v) {
+        out.push(copy(item));
+      }
+      return out;
+    }
+    const prototype = Object.getPrototypeOf(v);
+    if (prototype !== Object.prototype && prototype !== null) {
+      const out = structuredClone(v);
+      copies.set(v, out);
+      return out;
+    }
+    const out: Record<string, unknown> = {};
+    copies.set(v, out);
+    for (const k of Object.keys(v)) {
+      out[k] = copy((v as Record<string, unknown>)[k], k);
+    }
+    return out;
+  };
+  return copy(value) as T;
+};
+
 export type SparkdownCompilerEvents = {
   "compiler/didCompile": (
     params: CompiledProgramParams & { story?: RuntimeStory },
   ) => void;
   "compiler/didSelect": (params: SelectedCompilerDocumentParams) => void;
   "compiler/didRemove": (params: RemovedCompilerFileParams) => void;
+  /** A preview compile finished. Listeners may fill in `checkpoint` and
+   *  `simulationFailure`, which are returned with the program. */
+  "compiler/didPreviewCompile": (
+    params: PreviewCompileProgramParams & {
+      program: SparkProgram;
+      story?: RuntimeStory;
+    },
+  ) => void;
 };
 
 // Cached per-flow location entries for the incremental location-map cache
@@ -643,6 +705,17 @@ export class SparkdownCompiler {
     program: SparkProgram;
     story?: RuntimeStory;
   };
+  // The last compile of the real documents: the root it compiled and the
+  // script versions it read. `_lastCompileResult` can describe a preview
+  // compile instead, so everything that answers for the real documents reads
+  // this.
+  protected _canonical?: { uri: string; scripts: Record<string, number> };
+  // A preview compile has run since `_canonical` was compiled, so the runtime
+  // story that compile left behind is no longer intact.
+  protected _previewedSinceCanonical = false;
+  // The version the last preview compile gave its edited copy of a script.
+  // Counts down from zero so no preview version can equal a real one.
+  protected _lastPreviewVersion = 0;
   // While recomputing a non-reusable flow's subtree, populateLocations tees the
   // entries it commits here so they can be cached for next compile.
   protected _locCaptureTarget?: {
@@ -662,6 +735,7 @@ export class SparkdownCompiler {
     "compiler/didCompile": new Set(),
     "compiler/didSelect": new Set(),
     "compiler/didRemove": new Set(),
+    "compiler/didPreviewCompile": new Set(),
   };
 
   addEventListener<K extends keyof SparkdownCompilerEvents>(
@@ -939,16 +1013,27 @@ export class SparkdownCompiler {
    * holds than by nothing.
    */
   isProgramOutdated(): boolean {
-    const cached = this._lastCompileResult;
-    if (!cached) {
+    const canonical = this._canonical;
+    if (!canonical) {
       return false;
     }
-    return !Object.entries(cached.scripts).every(
+    return !Object.entries(canonical.scripts).every(
       ([scriptUri, version]) => this.documents.get(scriptUri)?.version === version,
     );
   }
 
   selectDocument(params: SelectCompilerDocumentParams) {
+    if (
+      this._previewedSinceCanonical &&
+      this._canonical &&
+      !this.isProgramOutdated()
+    ) {
+      // A preview compile replaced the story the listeners would route
+      // against. The real documents have not changed since the last real
+      // compile, so nothing else is going to restore it: recompile them, which
+      // gives the listeners the same program the player already holds.
+      this.compile({ textDocument: { uri: this._canonical.uri } });
+    }
     // Stamped before the listeners run, so everything that answers a selection
     // — the route search in the player's workspace worker, and the preview in
     // the player itself — sees whether the program it would answer from still
@@ -1112,6 +1197,96 @@ export class SparkdownCompiler {
     profile("end", this._profilerId, "ink/json", uri);
   }
   compile(params: CompileProgramParams) {
+    const result: {
+      textDocument: { uri: string; version: number };
+      program: SparkProgram;
+      story?: RuntimeStory;
+    } = this.compileStory(params);
+    // Only a compile of the real documents can answer for them.
+    this._canonical = this._lastCompileResult
+      ? {
+          uri: this._lastCompileResult.uri,
+          scripts: this._lastCompileResult.scripts,
+        }
+      : undefined;
+    this._previewedSinceCanonical = false;
+    this._events[CompiledProgramMessage.method].forEach((l) => {
+      l?.(result);
+    });
+    // Story is not serializable so must be deleted before sending result
+    delete result.story;
+    return result;
+  }
+
+  /**
+   * Compile the program as it would be with `params.contentChanges` applied to
+   * `params.textDocument`, without applying them to anything another request
+   * can see.
+   *
+   * The changes are applied to the registry's copy of the script, the program
+   * is compiled through the ordinary incremental pipeline, and the script is
+   * put back by applying the inverse changes before this returns. Both edits
+   * reparse incrementally, so the cost is that of two small edits rather than
+   * of a second compiler holding a second copy of the project.
+   *
+   * The compile's own caches then describe the edited text, which is sound for
+   * the same reason typing a character and deleting it is: every compile
+   * compares against the one before it. What does not survive is the runtime
+   * story the last real compile produced, whose unchanged flows the preview
+   * compile took over, so until the next real compile nothing may be routed
+   * against it. `selectDocument` recompiles the real documents first when that
+   * is the case, and `isProgramOutdated` keeps answering for the last real
+   * compile throughout.
+   */
+  previewCompile(
+    params: PreviewCompileProgramParams,
+  ): PreviewCompileProgramResult {
+    const { textDocument, contentChanges, root, startFrom } = params;
+    const document = this.documents.get(textDocument.uri);
+    if (!document || document.version !== textDocument.version) {
+      return { textDocument, outdated: true };
+    }
+    const inverse = invertContentChanges(document.getText(), contentChanges);
+    // Negative, and never reused, so neither the no-change short-circuit nor
+    // `isProgramOutdated` can mistake the edited text for a real version.
+    const previewVersion = --this._lastPreviewVersion;
+    const applied = this.documents.update({
+      textDocument: { uri: textDocument.uri, version: previewVersion },
+      contentChanges,
+    });
+    let compiled: ReturnType<SparkdownCompiler["compileStory"]>;
+    try {
+      compiled = this.compileStory({ textDocument: root, startFrom });
+      if (compiled.program.scripts[textDocument.uri] == null) {
+        // The root does not include the edited script, which is then compiled
+        // on its own, as `SparkdownWorkspace.compile` does for a real edit.
+        compiled = this.compileStory({ textDocument, startFrom });
+      }
+    } finally {
+      if (applied) {
+        this.documents.update({
+          textDocument: {
+            uri: textDocument.uri,
+            version: textDocument.version,
+          },
+          contentChanges: inverse,
+        });
+        this._previewedSinceCanonical = true;
+      }
+    }
+    const event = { ...params, program: compiled.program, story: compiled.story };
+    this._events["compiler/didPreviewCompile"].forEach((l) => {
+      l?.(event);
+    });
+    return {
+      textDocument,
+      program: compiled.program,
+      checkpoint: event.checkpoint,
+      simulationFailure: event.simulationFailure,
+    };
+  }
+
+  protected compileStory(params: CompileProgramParams) {
     const uri = params.textDocument.uri;
     const startFrom = params.startFrom;
     // Per-request override of the instance default (#351). A host can suppress
@@ -1162,10 +1337,6 @@ export class SparkdownCompiler {
         program: cached.program,
         story: cached.story,
       };
-      this._events[CompiledProgramMessage.method].forEach((l) => {
-        l?.(result);
-      });
-      delete result.story;
       return result;
     }
 
@@ -1675,20 +1846,14 @@ export class SparkdownCompiler {
           program,
           story: state.story,
         };
-    const result = {
+    return {
       textDocument: {
         uri,
         version: this.documents.get(uri)!.version,
       },
       program,
-      story: state.story,
+      story: state.story as RuntimeStory | undefined,
     };
-    this._events[CompiledProgramMessage.method].forEach((l) => {
-      l?.(result);
-    });
-    // Story is not serializable so must be deleted before sending result
-    delete result.story;
-    return result;
   }
 
   /** Recursively clear the per-compile RUNTIME state of parsed objects (their
@@ -4041,7 +4206,7 @@ export class SparkdownCompiler {
       const structs = program.context?.[type];
       if (structs) {
         program.assets ??= {};
-        program.assets[type] = structuredClone(structs);
+        program.assets[type] = cloneSharingVocabularies(structs);
       }
     }
     // Define-typed context entries (animation/character/ease/config/…) are NOT

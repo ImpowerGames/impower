@@ -68,6 +68,7 @@ import { DidChangeTextDocumentMessage } from "@impower/spark-editor-protocol/src
 import { DidOpenTextDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/DidOpenTextDocumentMessage";
 import { DidSaveTextDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/DidSaveTextDocumentMessage";
 import { DidSelectTextDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/DidSelectTextDocumentMessage";
+import { PreviewCompletionMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/PreviewCompletionMessage";
 import { WillSaveTextDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/WillSaveTextDocumentMessage";
 import {
   DidCollapsePreviewPaneMessage,
@@ -129,6 +130,12 @@ export interface ScriptEditorOptions {
 // a document that parses slowly) -- short enough that a broken load
 // self-heals well inside the "is this broken?" threshold.
 const LOAD_REVEAL_TIMEOUT_MS = 5000;
+
+// Numbers every `textDocument/previewCompletion` sent from this page, so the
+// preview can tell a stale one from a newer one. Page-wide rather than per
+// editor: an editor that is replaced while the preview stays loaded continues
+// the count instead of restarting it below what the preview has seen.
+let completionPreviewRequests = 0;
 
 export class ScriptEditorController {
   protected host: HTMLElement;
@@ -823,6 +830,52 @@ export class ScriptEditorController {
                 this.host,
               );
             }
+          },
+          onCompletionPreview: (event, state) => {
+            const uri = this._textDocument?.uri;
+            if (!uri) {
+              return;
+            }
+            const request = ++completionPreviewRequests;
+            if (event.state === "focus") {
+              const cursor = convertToPosition(
+                state.doc,
+                state.selection.main.head,
+              );
+              sendProtocolMessage(
+                PreviewCompletionMessage.type.notification({
+                  textDocument: { uri, version: getDocumentVersion(state) },
+                  session: event.session,
+                  request,
+                  state: "focus",
+                  contentChanges: event.changes
+                    ? convertToChangeEvents(state.doc, event.changes)
+                    : null,
+                  selectedRange: { start: cursor, end: cursor },
+                }),
+                this.host,
+              );
+              return;
+            }
+            const accepted = event.accepted;
+            sendProtocolMessage(
+              PreviewCompletionMessage.type.notification({
+                textDocument: { uri, version: getDocumentVersion(state) },
+                session: event.session,
+                request,
+                state: "close",
+                accepted: accepted
+                  ? {
+                      version: getDocumentVersion(accepted.startState),
+                      contentChanges: convertToChangeEvents(
+                        accepted.startState.doc,
+                        accepted.changes,
+                      ),
+                    }
+                  : undefined,
+              }),
+              this.host,
+            );
           },
           onViewUpdate: (update) => {
             if (

@@ -22,6 +22,8 @@ import {
   ViewUpdate,
 } from "@codemirror/view";
 import {
+  completionPreview,
+  type CompletionPreviewEvent,
   hideContextMenu,
   isContextMenuOpen,
   LSPClient,
@@ -130,6 +132,11 @@ interface EditorConfig {
   onPinpointsChanged?: (update: ViewUpdate, lineNumbers: number[]) => void;
   onHighlightsChanged?: (update: ViewUpdate, lineNumbers: number[]) => void;
   onHeightChanged?: () => void;
+  /** An autocomplete option was highlighted, or the list closed. */
+  onCompletionPreview?: (
+    event: CompletionPreviewEvent,
+    state: EditorState,
+  ) => void;
   changeFilter?: (tr: Transaction) => boolean | readonly number[];
   transactionFilter?: (
     tr: Transaction,
@@ -171,6 +178,7 @@ const createEditorView = (
   const onPinpointsChanged = config?.onPinpointsChanged;
   const onHighlightsChanged = config?.onHighlightsChanged;
   const onHeightChanged = config?.onHeightChanged;
+  const onCompletionPreview = config?.onCompletionPreview;
   const debouncedIdle = debounce(onIdle, stabilizationDuration);
   const setEditorState = config?.setEditorState;
   const changeFilter = config?.changeFilter;
@@ -331,6 +339,7 @@ const createEditorView = (
         variableWidgets({
           programContext,
         }),
+        onCompletionPreview ? completionPreview(onCompletionPreview) : [],
         EditorState.changeFilter.of(
           (tr: Transaction): boolean | readonly number[] => {
             if (changeFilter) {

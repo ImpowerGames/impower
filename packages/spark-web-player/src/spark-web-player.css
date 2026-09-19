@@ -679,6 +679,36 @@ spark-web-player .toolbar-button:active {
 
 spark-web-player #middle-items {
   flex: 1;
+  min-width: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  pointer-events: none;
+}
+
+/* The autocomplete suggestion preview's state. It sits in the toolbar's free
+   space so it never covers the game, and it truncates rather than pushing the
+   size readout off the toolbar. */
+spark-web-player #completion-status {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: var(--swp-toolbar-label-padding);
+  /* Drawn over the centred resize grip, which a long message would otherwise
+     run through; the whole toolbar stays draggable. */
+  position: relative;
+  z-index: 1;
+  background-color: var(--swp-background-color);
+  color: color-mix(in srgb, currentColor 80%, transparent);
+}
+
+spark-web-player #completion-status[hidden] {
+  display: none;
+}
+
+spark-web-player #completion-status[state="unavailable"],
+spark-web-player #completion-status[state="stale"] {
+  color: var(--swp-pause-color);
 }
 
 spark-web-player #toolbar .choice {
