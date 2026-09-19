@@ -384,6 +384,40 @@ describe("AssetCache", () => {
     expect((await pendingC).pinned).toEqual([c[0]!.src]);
   });
 
+  it("asks what the page displays only when the pool is over budget", async () => {
+    // #648: answering that question resolves every displayed image through the
+    // filtered-image resolution, which costs more than the eviction it guards.
+    // Excluding the displayed entries can only shrink the pool, so a pool that
+    // already fits without excluding them cannot need evicting.
+    let asked = 0;
+    const { cache, finish } = makeCache({ predictBytes: IMAGE_BYTES * 2 + 1 });
+    cache.setDerivedPins(() => {
+      asked += 1;
+      return ["/file:/a.png?v=1"];
+    });
+    cache.prefetch([image("/file:/a.png?v=1")], 2);
+    await finish("/file:/a.png?v=1");
+    cache.prefetch([image("/file:/b.png?v=1")], 2);
+    await finish("/file:/b.png?v=1");
+    expect(asked).toBe(0);
+    // Three no longer fit, so the question gets asked — and the answer spares
+    // everything: `a` is on screen, so the pool is `b` and `c`, which fit.
+    cache.prefetch([image("/file:/c.png?v=1")], 2);
+    await finish("/file:/c.png?v=1");
+    expect(asked).toBeGreaterThan(0);
+    expect(cache.has("/file:/a.png?v=1")).toBe(true);
+    expect(cache.has("/file:/b.png?v=1")).toBe(true);
+    expect(cache.has("/file:/c.png?v=1")).toBe(true);
+    // A fourth puts the pool itself over: the oldest of it goes, and the
+    // displayed `a` is still spared even though it is older still.
+    cache.prefetch([image("/file:/d.png?v=1")], 2);
+    await finish("/file:/d.png?v=1");
+    expect(cache.has("/file:/a.png?v=1")).toBe(true);
+    expect(cache.has("/file:/b.png?v=1")).toBe(false);
+    expect(cache.has("/file:/c.png?v=1")).toBe(true);
+    expect(cache.has("/file:/d.png?v=1")).toBe(true);
+  });
+
   it("never evicts with a prediction pool of 0", async () => {
     const { cache, finish } = makeCache({ predictBytes: 0 });
     for (const item of images(4)) {

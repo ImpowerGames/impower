@@ -57,8 +57,8 @@ const imageSrcOf = (context: Context, ref: unknown): string | undefined => {
  *
  * Resolution mirrors `UIModule.getImageSrcsByName` by calling the same
  * `filterImage` — but on COPIES of the structs, never the program's own.
- * `filterImage` memoizes by writing `filtered_src` back onto the struct it is
- * given, so memoizing from here would let a warm-up decide what the game
+ * `filterImage` writes `filtered_src` back onto the struct it is given, so
+ * handing it the program's own struct would let a warm-up decide what the game
  * renders — and it could decide it differently, because the game resolves
  * `filter` defines through its RUNTIME channel (the `__def` inheritance
  * chain fills a `filter`'s unauthored `includes`/`excludes`) while this

@@ -1184,11 +1184,23 @@ export class AssetCache {
     if (this._predictBytes <= 0) {
       return;
     }
-    const derived = new Set(this._derivedPins());
-    const pool = [...this._entries.values()].filter(
-      (e) => e.state === "resident" && e.pins.size === 0 && !derived.has(e.key),
+    const resident = [...this._entries.values()].filter(
+      (e) => e.state === "resident" && e.pins.size === 0,
     );
+    // Asking for the derived pins means resolving every displayed image, which
+    // costs more than the eviction it guards. Excluding them can only shrink
+    // the pool, so a pool that already fits without excluding them cannot need
+    // evicting, and this runs once per finished load.
     let poolBytes = 0;
+    for (const e of resident) {
+      poolBytes += e.bytes;
+    }
+    if (poolBytes <= this._predictBytes) {
+      return;
+    }
+    const derived = new Set(this._derivedPins());
+    const pool = resident.filter((e) => !derived.has(e.key));
+    poolBytes = 0;
     for (const e of pool) {
       poolBytes += e.bytes;
     }

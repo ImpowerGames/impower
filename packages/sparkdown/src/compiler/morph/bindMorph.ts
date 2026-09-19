@@ -142,7 +142,7 @@ export function morphImages(context: ImageContext): {
   for (const type of ["image", "layered_image"] as const) {
     for (const [name, struct] of Object.entries(context[type] ?? {})) {
       if (name.startsWith("$") || !struct || typeof struct !== "object") continue;
-      const vocabulary = resolveImageAttributes(context, struct).vocabulary;
+      const vocabulary = resolveImageAttributes(context, struct, { visibility: false }).vocabulary;
       if (!vocabulary || Object.keys(vocabulary.groups).length === 0) continue;
       images.push({ name, type, struct, vocabulary });
     }
@@ -271,7 +271,7 @@ export function bindMorph(
       variants.push(bindVariant(image.vocabulary, image.name, {}, requirements));
       for (const [name, filtered] of Object.entries(context["filtered_image"] ?? {})) {
         if (name.startsWith("$") || name === image.name) continue;
-        const resolved = resolveImageAttributes(context, filtered);
+        const resolved = resolveImageAttributes(context, filtered, { visibility: false });
         if (resolved.image !== image.struct) continue;
         variants.push(
           bindVariant(image.vocabulary, name, resolved.selection, requirements),
