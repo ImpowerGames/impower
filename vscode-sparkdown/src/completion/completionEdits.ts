@@ -50,7 +50,7 @@ export interface Placement {
   primary: Cursor;
   others: readonly Cursor[];
   lineText: (line: number) => string;
-  tabSize: number;
+  indentSize: number;
   insertSpaces: boolean;
   eol: string;
 }
@@ -210,13 +210,13 @@ const normalizeIndentation = (text: string, placement: Placement) => {
   for (const c of leading) {
     columns =
       c === "\t"
-        ? columns + placement.tabSize - (columns % placement.tabSize)
+        ? columns + placement.indentSize - (columns % placement.indentSize)
         : columns + 1;
   }
   const indent = placement.insertSpaces
     ? " ".repeat(columns)
-    : "\t".repeat(Math.floor(columns / placement.tabSize)) +
-      " ".repeat(columns % placement.tabSize);
+    : "\t".repeat(Math.floor(columns / placement.indentSize)) +
+      " ".repeat(columns % placement.indentSize);
   return indent + text.slice(leading.length);
 };
 

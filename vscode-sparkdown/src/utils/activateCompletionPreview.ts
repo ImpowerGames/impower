@@ -173,12 +173,19 @@ const placementIn = (
   );
   const at = { line: position.line, character: position.character };
   const [primary, ...others] = editor?.selections ?? [];
-  const { tabSize, insertSpaces } = editor?.options ?? {};
+  const { tabSize, indentSize, insertSpaces } = editor?.options ?? {};
   return {
     primary: primary ? cursorOf(primary) : { anchor: at, active: at },
     others: others.map(cursorOf),
     lineText: (line) => document.lineAt(line).text,
-    tabSize: typeof tabSize === "number" ? tabSize : 4,
+    // VS Code normalizes inserted indentation by the indent size, which
+    // follows the tab size unless set on its own.
+    indentSize:
+      typeof indentSize === "number"
+        ? indentSize
+        : typeof tabSize === "number"
+          ? tabSize
+          : 4,
     insertSpaces: typeof insertSpaces === "boolean" ? insertSpaces : true,
     eol: document.eol === vscode.EndOfLine.CRLF ? "\r\n" : "\n",
   };

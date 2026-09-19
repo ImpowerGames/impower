@@ -302,6 +302,19 @@ describe("the completion preview in the extension", () => {
     expect(summary(manager.sent)).toEqual(["focus 1 1:4-6=mia_sad"]);
   });
 
+  it("writes re-indented lines by the editor's indent size, not its tab size", async () => {
+    const { module, doc, item, report, manager, vscode } = await activate();
+    vscode.window.visibleTextEditors[0].options = {
+      tabSize: 4,
+      indentSize: 2,
+      insertSpaces: true,
+    };
+    module.offerCompletions(doc as never, [item("mia:\n\t\t- sad")] as never);
+    report("mia:\n\t\t- sad");
+    // Line 1 is indented two spaces; two tabs at an indent size of 2 add four.
+    expect(summary(manager.sent)).toEqual(["focus 1 1:4-6=mia:\n      - sad"]);
+  });
+
   it("inserts an as-is item's lines unchanged and re-indents any other item's", async () => {
     const { module, doc, item, report, manager } = await activate();
     // The language client marks an `InsertTextMode.asIs` item keepWhitespace.

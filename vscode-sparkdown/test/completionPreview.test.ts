@@ -57,7 +57,7 @@ const place = (character = 8, others: Cursor[] = []): Placement => ({
   primary: { anchor: at(4, character), active: at(4, character) },
   others,
   lineText: (line) => LINES[line] ?? "",
-  tabSize: 4,
+  indentSize: 4,
   insertSpaces: true,
   eol: "\n",
 });
@@ -475,7 +475,7 @@ describe("what accepting inserts at every cursor", () => {
     primary: cursor(1, 8),
     others,
     lineText: (line: number) => lines[line] ?? "",
-    tabSize: 4,
+    indentSize: 4,
     insertSpaces: true,
     eol: "\n",
     ...options,
@@ -550,7 +550,7 @@ describe("what accepting inserts at every cursor", () => {
       completionChanges(
         block,
         [plain("mia:\n\t- sad")],
-        on([], { insertSpaces: false, tabSize: 2, eol: "\r\n" }),
+        on([], { insertSpaces: false, indentSize: 2, eol: "\r\n" }),
       ),
     ).toEqual([{ range: range(1, 4, 8), text: "mia:\r\n\t\t- sad" }]);
   });
