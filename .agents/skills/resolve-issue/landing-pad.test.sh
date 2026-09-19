@@ -8,7 +8,8 @@
 # that order, that the parenthetical on each names the same step, that each
 # step's SKILL.md exists and declares that name in its frontmatter (the harness
 # resolves a skill by that `name:`, not by its directory), that the completion
-# gate follows every invocation, that the VS Code driver (drive-vscode-web,
+# gate follows every invocation and says to read the feedback reporting
+# reference before it hands off, that the VS Code driver (drive-vscode-web,
 # invoked only for an extension ticket) is invoked with the same parenthetical
 # in exactly one sentence of §3 and one of §6 and exists under that name, and
 # that the file stays short enough to load into every session. A conditional
@@ -139,6 +140,37 @@ elif (( gate <= prev )); then
   note_fail "the completion gate at line $gate comes before the last invocation at line $prev"
 else
   echo "PASS  completion gate at line $gate"
+fi
+
+# The gate section holds the pad's one reminder to report skill friction: a
+# sentence that says to read the feedback reporting reference, placed before
+# the paragraph that hands off. The routing list in the repository instructions
+# is read at session start, before a session can judge what cost it time, so a
+# pad without the sentence leaves the inbox without reports. A sentence that
+# forbids the reading, or one inside a fence, does not count.
+feedback_link='(../references/feedback-reporting.md)'
+feedback_phrase="read [feedback reporting]$feedback_link"
+handoff_link='(../notify-user/SKILL.md)'
+
+# Line numbers of the lines outside fenced blocks, in the completion gate, that
+# contain $1 and, when $2 is set, do not forbid it.
+gate_lines() {
+  awk -v phrase="$1" -v guarded="${2:-}" '
+    BEGIN { phrase = tolower(phrase) }
+    /^```/ { fenced = !fenced; next }
+    /^## / { inside = index($0, "## The completion gate") == 1 }
+    !fenced && inside && index(tolower($0), phrase) > 0 && !(guarded && (index(tolower($0), "not " phrase) > 0 || index(tolower($0), "never " phrase) > 0)) { print NR }
+  ' "$skill"
+}
+
+feedback=$(gate_lines "$feedback_phrase" 1 | head -1)
+handoff=$(gate_lines "$handoff_link" | head -1)
+if [[ -z "$feedback" ]]; then
+  note_fail "the completion gate has no sentence that says to $feedback_phrase"
+elif [[ -n "$handoff" ]] && (( feedback > handoff )); then
+  note_fail "the feedback reporting reminder at line $feedback comes after the handoff paragraph at line $handoff"
+else
+  echo "PASS  feedback reporting reminder at line $feedback${handoff:+, before the handoff paragraph at line $handoff}"
 fi
 
 if [[ -n "${LANDING_PAD_CHECK_INNER:-}" ]]; then
@@ -275,6 +307,48 @@ SKILLS_DIR="$tmp/renamed" expect_fail "the VS Code driver skill declares another
 
 grep -v '^## The completion gate' "$skill" > "$tmp/no-gate.md"
 expect_fail "completion gate removed" "$tmp/no-gate.md" "no '## The completion gate' heading"
+
+no_feedback="has no sentence that says to read [feedback reporting]"
+
+grep -vF "$feedback_link" "$skill" > "$tmp/no-feedback.md"
+expect_fail "feedback reporting reminder removed" "$tmp/no-feedback.md" "$no_feedback"
+
+feedback_line=$(grep -F "$feedback_link" "$skill")
+awk -v link="$feedback_link" -v moved="$feedback_line" '
+  index($0, link) > 0 { next }
+  /^## The completion gate/ { print moved; print "" }
+  { print }
+' "$skill" > "$tmp/feedback-before-gate.md"
+if [[ $(grep -cF "$feedback_link" "$tmp/feedback-before-gate.md") -eq 1 ]]; then
+  expect_fail "feedback reporting reminder moved above the gate" "$tmp/feedback-before-gate.md" "$no_feedback"
+else
+  note_fail "control 'feedback reporting reminder moved above the gate': the fixture was not built"
+fi
+
+awk -v link="$feedback_link" 'index($0, link) > 0 { print "```md"; print; print "```"; next } { print }' "$skill" > "$tmp/feedback-fenced.md"
+if grep -qF "$feedback_link" "$tmp/feedback-fenced.md"; then
+  expect_fail "feedback reporting reminder survives only inside a fenced example" "$tmp/feedback-fenced.md" "$no_feedback"
+else
+  note_fail "control 'feedback reporting reminder survives only inside a fenced example': the fixture was not built"
+fi
+
+sed 's|read \[feedback reporting\]|do not read [feedback reporting]|' "$skill" > "$tmp/feedback-forbidden.md"
+if grep -qF "do not $feedback_phrase" "$tmp/feedback-forbidden.md"; then
+  expect_fail "feedback reporting reminder turned into a prohibition" "$tmp/feedback-forbidden.md" "$no_feedback"
+else
+  note_fail "control 'feedback reporting reminder turned into a prohibition': the fixture was not built"
+fi
+
+awk -v link="$feedback_link" -v handoff="$handoff_link" -v moved="$feedback_line" '
+  index($0, link) > 0 { next }
+  { print }
+  index($0, handoff) > 0 { print ""; print moved }
+' "$skill" > "$tmp/feedback-after-handoff.md"
+if [[ $(grep -cF "$feedback_link" "$tmp/feedback-after-handoff.md") -eq 1 ]]; then
+  expect_fail "feedback reporting reminder moved below the handoff paragraph" "$tmp/feedback-after-handoff.md" "comes after the handoff paragraph"
+else
+  note_fail "control 'feedback reporting reminder moved below the handoff paragraph': the fixture was not built"
+fi
 
 { cat "$skill"; yes '' | head -200; } > "$tmp/too-long.md"
 expect_fail "200 lines or more" "$tmp/too-long.md" "the landing pad stays under 200"
