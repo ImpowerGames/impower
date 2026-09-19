@@ -244,6 +244,73 @@ end
     expect(ctx.morph?.b).toMatchObject({ fallback: "cut", method: "bend" });
   });
 
+  // A runtime table's OWN value for `key` (not one inherited through
+  // `__index`), as plain JS.
+  const ownValue = (story: any, global: string, key: string): unknown =>
+    story.state.variablesState.GetVariableWithName(global)?.value?.get(key)
+      ?.value;
+
+  test.each([
+    [
+      "before",
+      `define base as theme with
+  store marker = "original"
+end
+
+theme middle as base with
+  colors:
+    primary = "#000000"
+end
+
+theme leaf as middle with
+  colors:
+    secondary = "#ffffff"
+end
+`,
+    ],
+    [
+      "after",
+      `theme leaf as middle with
+  colors:
+    secondary = "#ffffff"
+end
+
+theme middle as base with
+  colors:
+    primary = "#000000"
+end
+
+define base as theme with
+  store marker = "original"
+end
+`,
+    ],
+  ])(
+    "`store` defaults of a parent declared %s its children become their own",
+    async (_, src) => {
+      const story = await storyOf(src);
+      expect(ownValue(story, "$theme_middle", "marker")).toBe("original");
+      expect(ownValue(story, "$theme_leaf", "marker")).toBe("original");
+    },
+  );
+
+  test("a cycle longer than a chain walk's step limit is still refused", async () => {
+    const count = 66;
+    const blocks = Array.from(
+      { length: count },
+      (_, i) => `theme n${i} as n${(i + 1) % count} with
+  p${i} = "v${i}"
+end
+`,
+    ).join("\n");
+    const story = await storyOf(blocks);
+    for (let i = 0; i < count; i += 1) {
+      const chain = chainOf(story, `$theme_n${i}`);
+      expect(chain).not.toContain("<cycle>");
+      expect(chain.at(-1)).toBe("theme");
+    }
+  });
+
   test("a parent that never registers leaves the child inheriting from its type", async () => {
     const ctx = await contextOf(`animation lonely as nowhere with
   timing:

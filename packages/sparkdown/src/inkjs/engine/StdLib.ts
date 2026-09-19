@@ -2410,12 +2410,60 @@ const pendingStructuralParents = new WeakMap<
   Map<string, ObjectValue[]>
 >();
 
+// The structural blocks linked to each parent table, so a parent that gains
+// its own parent later can refresh the `store` copies of its descendants.
+const structuralChildren = new WeakMap<ObjectValue, ObjectValue[]>();
+
+// The `store` keys each structural block received from its chain rather than
+// from its own body, so a later link can replace them with the new chain's.
+const structuralStoreCopies = new WeakMap<ObjectValue, string[]>();
+
+// Whether `target` is on the `__index` chain starting at `start`. Walks until
+// the chain ends or repeats, with no step limit, so a long cycle is found.
+function chainReaches(start: ObjectValue, target: ObjectValue): boolean {
+  const seen = new Set<ObjectValue>();
+  let cur: ObjectValue | null = start;
+  while (cur instanceof ObjectValue && !seen.has(cur)) {
+    if (cur === target) return true;
+    seen.add(cur);
+    const idx: AbstractValue | null =
+      metatableMap(cur)?.get("__index") ?? null;
+    cur = idx instanceof ObjectValue ? idx : null;
+  }
+  return false;
+}
+
 // Point a structural block's `__index` at its parent. A link that would make
 // the chain reach the child again (`a as b`, `b as a`) is refused, leaving
-// the child inheriting from its type.
-function linkStructuralParent(child: ObjectValue, parent: ObjectValue): void {
-  if (defineChain(parent).includes(child)) return;
+// the child inheriting from its type. Returns whether the link was made.
+function linkStructuralParent(
+  child: ObjectValue,
+  parent: ObjectValue,
+): boolean {
+  if (chainReaches(parent, child)) return false;
   metatableMap(child)?.set("__index", parent);
+  const children = structuralChildren.get(parent) ?? [];
+  children.push(child);
+  structuralChildren.set(parent, children);
+  return true;
+}
+
+// Copy the `store` defaults of a structural block's current chain into it, as
+// `__def` does for a define, replacing the copies an earlier chain gave it,
+// then do the same for the blocks linked to it. A block's own `store` values
+// are never replaced. Links are acyclic, so the descent ends.
+function copyStructuralStoreDefaults(block: ObjectValue): void {
+  const map = block.value!;
+  for (const key of structuralStoreCopies.get(block) ?? []) map.delete(key);
+  const own = new Set(map.keys());
+  copyStoreDefaults(defineChain(block).slice(1), block);
+  structuralStoreCopies.set(
+    block,
+    [...map.keys()].filter((key) => !own.has(key)),
+  );
+  for (const child of structuralChildren.get(block) ?? []) {
+    copyStructuralStoreDefaults(child);
+  }
 }
 
 // Link every structural block waiting in `typeTable` for a parent named
@@ -2429,7 +2477,11 @@ function linkWaitingStructuralChildren(
   const children = waiting?.get(name);
   if (!children) return;
   waiting!.delete(name);
-  for (const child of children) linkStructuralParent(child, parent);
+  for (const child of children) {
+    if (linkStructuralParent(child, parent)) {
+      copyStructuralStoreDefaults(child);
+    }
+  }
 }
 
 export const STDLIB: Record<string, StdLibEntry> = {
@@ -5141,7 +5193,7 @@ export const STDLIB: Record<string, StdLibEntry> = {
           waiting.set(parentName, children);
         }
       }
-      copyStoreDefaults(defineChain(table).slice(1), table);
+      copyStructuralStoreDefaults(table);
 
       // Register into the type and every ancestor type.
       for (const level of defineChain(typeTable)) {
