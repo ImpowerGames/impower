@@ -45,6 +45,7 @@ jobs:
         packages/**
         impower-dev/**
         definitions/**
+        vscode-sparkdown/**
         package.json
         package-lock.json
         .github/workflows/test-suite.yml
@@ -71,6 +72,7 @@ jobs:
           - packages/sparkdown
           - packages/sparkdown-document-views
           - packages/sparkdown-language-server
+          - vscode-sparkdown
     name: ${{ matrix.package }}
     runs-on: ubuntu-latest
     timeout-minutes: 30

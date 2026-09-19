@@ -40,6 +40,20 @@ export const activatePreviewGamePanel = async (
     }),
   );
   context.subscriptions.push(
+    vscode.workspace.onDidOpenTextDocument((document) => {
+      SparkdownPreviewGamePanelManager.instance.notifyOpenedTextDocument(
+        document,
+      );
+    }),
+  );
+  context.subscriptions.push(
+    vscode.workspace.onDidCloseTextDocument((document) => {
+      SparkdownPreviewGamePanelManager.instance.notifyClosedTextDocument(
+        document,
+      );
+    }),
+  );
+  context.subscriptions.push(
     vscode.workspace.onDidChangeTextDocument((change) => {
       if (change.document.languageId === "sparkdown") {
         SparkdownPreviewGamePanelManager.instance.notifyChangedTextDocument(

@@ -11,7 +11,13 @@ import { HoveredOnPreviewMessage } from "@impower/spark-editor-protocol/src/prot
 import { ScrolledPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/ScrolledPreviewMessage";
 import { SelectedPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/SelectedPreviewMessage";
 import { DidChangeTextDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/DidChangeTextDocumentMessage";
+import { DidCloseTextDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/DidCloseTextDocumentMessage";
+import { DidOpenTextDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/DidOpenTextDocumentMessage";
 import { DidSelectTextDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/DidSelectTextDocumentMessage";
+import {
+  PreviewCompletionMessage,
+  type PreviewCompletionParams,
+} from "@impower/spark-editor-protocol/src/protocols/textDocument/PreviewCompletionMessage";
 import { DidChangeConfigurationMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeConfigurationMessage";
 import { DidChangeWatchedFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeWatchedFilesMessage";
 import { ExecuteCommandMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/ExecuteCommandMessage";
@@ -102,6 +108,19 @@ export class SparkdownPreviewGamePanelManager {
 
   protected _gameRunning = false;
 
+  protected _onDidDisposePanel = new vscode.EventEmitter<void>();
+  /** Fires when the panel closes. */
+  readonly onDidDisposePanel = this._onDidDisposePanel.event;
+
+  /**
+   * Whether autocomplete highlights should be sent to the preview: it is
+   * open, has been initialized and is not playing. The preview itself still
+   * decides whether it takes part (a hidden panel does not).
+   */
+  get canPreviewCompletions() {
+    return this._panel != null && this._connected && !this._gameRunning;
+  }
+
   protected _startFrom?: {
     file: string;
     line: number;
@@ -159,6 +178,9 @@ export class SparkdownPreviewGamePanelManager {
         GameExitedMessage.type.notification({ reason: "quit" }),
       );
       this._panel = undefined;
+      this._connected = false;
+      this._gameRunning = false;
+      this._onDidDisposePanel.fire();
     });
     panel.webview.html = this.getWebviewContent(panel.webview, context);
     this._initialized = false;
@@ -323,6 +345,12 @@ export class SparkdownPreviewGamePanelManager {
       rootUri: null,
       processId: 0,
     });
+    // Scripts open in an editor reach the preview as edits, so it must know
+    // them as open: their saves are then not mistaken for outside changes to
+    // the file, and their text is the editor's, unsaved edits included.
+    for (const openDocument of vscode.workspace.textDocuments) {
+      this.notifyOpenedTextDocument(openDocument);
+    }
     if (canvasHeight != null) {
       await this.sendRequest(ResizeGameMessage.type, {
         height: canvasHeight,
@@ -351,6 +379,29 @@ export class SparkdownPreviewGamePanelManager {
         }
       }
     }
+  }
+
+  notifyOpenedTextDocument(document: vscode.TextDocument) {
+    if (document.languageId !== "sparkdown") {
+      return;
+    }
+    this.sendNotification(DidOpenTextDocumentMessage.type, {
+      textDocument: {
+        uri: document.uri.toString(),
+        languageId: document.languageId,
+        version: document.version,
+        text: document.getText(),
+      },
+    });
+  }
+
+  notifyClosedTextDocument(document: vscode.TextDocument) {
+    if (document.languageId !== "sparkdown") {
+      return;
+    }
+    this.sendNotification(DidCloseTextDocumentMessage.type, {
+      textDocument: { uri: document.uri.toString() },
+    });
   }
 
   notifyChangedTextDocument(
@@ -404,6 +455,11 @@ export class SparkdownPreviewGamePanelManager {
       uri: document.uri.toString(),
       version: document.version,
     };
+  }
+
+  /** An autocomplete list highlighted a suggestion, or closed. */
+  notifyPreviewCompletion(params: PreviewCompletionParams) {
+    this.sendNotification(PreviewCompletionMessage.type, params);
   }
 
   notifyScrolledEditor(document: vscode.TextDocument, range: vscode.Range) {
