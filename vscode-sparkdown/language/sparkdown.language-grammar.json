@@ -4677,6 +4677,9 @@
           "include": "#LuauTheme"
         },
         {
+          "include": "#LuauMorph"
+        },
+        {
           "include": "#LuauDefine"
         },
         {
@@ -5248,6 +5251,70 @@
         }
       }
     },
+    "LuauMorph": {
+      "tag": "meta",
+      "name": "meta.morph.luau",
+      "begin": "((?:[^\\S\\n\\r])*)(morph)\\b(?![.(])((?:[^\\S\\n\\r])*)",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#OptionalWhitespace"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#LuauMorphKeyword"
+            }
+          ]
+        },
+        "3": {
+          "emit": true,
+          "patterns": [
+            {
+              "include": "#OptionalWhitespace"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#LuauComment"
+        },
+        {
+          "include": "#LuauAnimationThemeNameAndInheritance"
+        },
+        {
+          "include": "#LuauStructBodyLine"
+        },
+        {
+          "include": "#ExtraWhitespace"
+        },
+        {
+          "include": "#Newline"
+        }
+      ],
+      "end": "(?=(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b))|((?:[^\\S\\n\\r])*)(end)\\b",
+      "endCaptures": {
+        "1": {
+          "emit": true,
+          "patterns": [
+            {
+              "include": "#OptionalWhitespace"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#LuauEndKeyword"
+            }
+          ]
+        }
+      }
+    },
     "LuauStructBodyLine": {
       "match": "^((?:[^\\S\\n\\r])+)([^\\n]*?)((?:[^\\S\\n\\r])*)$",
       "captures": {
@@ -5353,7 +5420,7 @@
       }
     },
     "LuauAnimationThemeNameAndInheritance": {
-      "begin": "(?<=(?:animation|theme)\\b(?:[^\\S\\n\\r])*)((?:[a-zA-Z_][a-zA-Z0-9_]*\\b))",
+      "begin": "(?<=(?:animation|theme|morph)\\b(?:[^\\S\\n\\r])*)((?:[a-zA-Z_][a-zA-Z0-9_]*\\b))",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -5461,6 +5528,11 @@
       "tag": "controlKeyword",
       "name": "keyword.control.theme.luau",
       "match": "(theme)\\b"
+    },
+    "LuauMorphKeyword": {
+      "tag": "controlKeyword",
+      "name": "keyword.control.morph.luau",
+      "match": "(morph)\\b"
     },
     "LuauStylePropertyName": {
       "tag": "attributeName",
@@ -7401,6 +7473,25 @@
         "2": {
           "patterns": [
             {
+              "include": "#LuauStructObjectKey"
+            }
+          ]
+        },
+        "4": {
+          "patterns": [
+            {
+              "include": "#LuauStructObjectColon"
+            }
+          ]
+        }
+      }
+    },
+    "LuauStructObjectKey": {
+      "match": "(.+)",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
               "include": "#LuauElementAttribute"
             },
             {
@@ -7414,13 +7505,6 @@
             },
             {
               "include": "#PropertyName"
-            }
-          ]
-        },
-        "4": {
-          "patterns": [
-            {
-              "include": "#LuauStructObjectColon"
             }
           ]
         }

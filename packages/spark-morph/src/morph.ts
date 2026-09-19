@@ -1,16 +1,16 @@
 import { ArcLoop, copyLoop, endsMeet, loopExtent, sameLoop } from "./geometry/cubic";
-import { type NodesOptions, nodesTrack } from "./methods/nodes";
-import { type OutlineOptions, outlineTrack } from "./methods/outline";
+import { type MatchOptions, matchTrack } from "./methods/match";
+import { type TraceOptions, traceTrack } from "./methods/trace";
 import { type ScaleTrack, scaleTrack } from "./methods/scale";
-import { type TaperOptions, taperTrack } from "./methods/taper";
+import { type BendOptions, bendTrack } from "./methods/bend";
 import type { Cubic, MorphMethod, MorphResult, Subpath, SubpathMorph, SubpathTrack } from "./types";
 
 export interface MorphOptions {
   /** The explicit method. A failure is reported, never swapped for another. */
   method: MorphMethod;
-  nodes?: NodesOptions;
-  taper?: TaperOptions;
-  outline?: OutlineOptions;
+  match?: MatchOptions;
+  bend?: BendOptions;
+  trace?: TraceOptions;
   /**
    * Per-control-point tolerance under which two drawings count as
    * identical, as a fraction of the larger drawing's size.
@@ -84,11 +84,11 @@ export function morphSubpaths(from: Subpath[], to: Subpath[], options: MorphOpti
     }
     moving++;
     const result =
-      options.method === "nodes"
-        ? nodesTrack(a, b, options.nodes)
-        : options.method === "taper"
-          ? taperTrack(a, b, options.taper)
-          : outlineTrack(a, b, options.outline);
+      options.method === "match"
+        ? matchTrack(a, b, options.match)
+        : options.method === "bend"
+          ? bendTrack(a, b, options.bend)
+          : traceTrack(a, b, options.trace);
     if (!result.ok) return { ok: false, failure: { ...result.failure, subpath: i } };
     tracks.push(result.track);
   }

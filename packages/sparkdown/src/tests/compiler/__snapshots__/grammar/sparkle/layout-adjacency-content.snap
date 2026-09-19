@@ -31,7 +31,9 @@ sparkdown [0..143]
  │   │   │   │               ├─ LuauStructObjectHeader_c1 19
  │   │   │   │               │   └─ OptionalWhitespace 19
  │   │   │   │               ├─ LuauStructObjectHeader_c2 [19..24]
- │   │   │   │               │   └─ CustomComponentName [19..24]: "stage"
+ │   │   │   │               │   └─ LuauStructObjectKey [19..24]
+ │   │   │   │               │       └─ LuauStructObjectKey_c1 [19..24]
+ │   │   │   │               │           └─ CustomComponentName [19..24]: "stage"
  │   │   │   │               └─ LuauStructObjectHeader_c4 [24..25]
  │   │   │   │                   └─ LuauStructObjectColon [24..25]: ":"
  │   │   │   └─ LuauStructBodyLine_c3 25
@@ -49,7 +51,9 @@ sparkdown [0..143]
  │   │   │   │               ├─ LuauStructObjectHeader_c1 30
  │   │   │   │               │   └─ OptionalWhitespace 30
  │   │   │   │               ├─ LuauStructObjectHeader_c2 [30..38]
- │   │   │   │               │   └─ CustomComponentName [30..38]: "backdrop"
+ │   │   │   │               │   └─ LuauStructObjectKey [30..38]
+ │   │   │   │               │       └─ LuauStructObjectKey_c1 [30..38]
+ │   │   │   │               │           └─ CustomComponentName [30..38]: "backdrop"
  │   │   │   │               └─ LuauStructObjectHeader_c4 [38..39]
  │   │   │   │                   └─ LuauStructObjectColon [38..39]: ":"
  │   │   │   └─ LuauStructBodyLine_c3 39
@@ -105,7 +109,9 @@ sparkdown [0..143]
  │   │   │   │               ├─ LuauStructObjectHeader_c1 64
  │   │   │   │               │   └─ OptionalWhitespace 64
  │   │   │   │               ├─ LuauStructObjectHeader_c2 [64..72]
- │   │   │   │               │   └─ CustomComponentName [64..72]: "portrait"
+ │   │   │   │               │   └─ LuauStructObjectKey [64..72]
+ │   │   │   │               │       └─ LuauStructObjectKey_c1 [64..72]
+ │   │   │   │               │           └─ CustomComponentName [64..72]: "portrait"
  │   │   │   │               └─ LuauStructObjectHeader_c4 [72..73]
  │   │   │   │                   └─ LuauStructObjectColon [72..73]: ":"
  │   │   │   └─ LuauStructBodyLine_c3 73
@@ -164,7 +170,9 @@ sparkdown [0..143]
  │   │   │   │               ├─ LuauStructObjectHeader_c1 110
  │   │   │   │               │   └─ OptionalWhitespace 110
  │   │   │   │               ├─ LuauStructObjectHeader_c2 [110..115]
- │   │   │   │               │   └─ BuiltinComponentName [110..115]: "label"
+ │   │   │   │               │   └─ LuauStructObjectKey [110..115]
+ │   │   │   │               │       └─ LuauStructObjectKey_c1 [110..115]
+ │   │   │   │               │           └─ BuiltinComponentName [110..115]: "label"
  │   │   │   │               └─ LuauStructObjectHeader_c4 [115..116]
  │   │   │   │                   └─ LuauStructObjectColon [115..116]: ":"
  │   │   │   └─ LuauStructBodyLine_c3 116

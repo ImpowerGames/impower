@@ -25,7 +25,7 @@ export function prepareLoop(raw: Cubic[], seamTolerance: number): Cubic[] {
   return closeLoop(snapClosed(trimmed, seamTolerance * new ArcLoop(trimmed).total));
 }
 
-export interface NodesOptions {
+export interface MatchOptions {
   /**
    * A nearly closed loop's ends are snapped together when within this
    * fraction of its perimeter, so the seam never becomes an extra node.
@@ -44,20 +44,20 @@ export interface NodesOptions {
   checkProgress?: number[];
 }
 
-export const NODES_DEFAULTS: Required<NodesOptions> = {
+export const MATCH_DEFAULTS: Required<MatchOptions> = {
   seamTolerance: 0.02,
   handles: "angular",
   checkProgress: [],
 };
 
-export interface NodesTrack extends SubpathTrack {
+export interface MatchTrack extends SubpathTrack {
   /** Whether the target was reversed to match the source winding. */
   reversed: boolean;
   /** The rotation applied to the target's node order. */
   rotation: number;
 }
 
-export type NodesResult = { ok: true; track: NodesTrack } | { ok: false; failure: MorphFailure };
+export type MatchResult = { ok: true; track: MatchTrack } | { ok: false; failure: MorphFailure };
 
 /**
  * Pairs node with node by index. Both drawings must have the same number of
@@ -67,8 +67,8 @@ export type NodesResult = { ok: true; track: NodesTrack } | { ok: false; failure
  * Anchors and handles then interpolate directly: a straight edge stays
  * straight and a corner stays a corner.
  */
-export function nodesTrack(fromRaw: Cubic[], toRaw: Cubic[], options: NodesOptions = {}): NodesResult {
-  const o = { ...NODES_DEFAULTS, ...options };
+export function matchTrack(fromRaw: Cubic[], toRaw: Cubic[], options: MatchOptions = {}): MatchResult {
+  const o = { ...MATCH_DEFAULTS, ...options };
   if (!fromRaw.length || !toRaw.length) {
     return { ok: false, failure: { code: "empty-geometry", message: "both drawings need at least one segment" } };
   }
@@ -79,7 +79,7 @@ export function nodesTrack(fromRaw: Cubic[], toRaw: Cubic[], options: NodesOptio
       ok: false,
       failure: {
         code: "node-count",
-        message: `the drawings have ${from.length} and ${toClosed.length} nodes; the nodes method needs the same nodes in the same order`,
+        message: `the drawings have ${from.length} and ${toClosed.length} nodes; the match method needs the same nodes in the same order`,
       },
     };
   }

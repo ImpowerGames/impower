@@ -2963,6 +2963,7 @@ repository:
       - { include: "#LuauComponent" }
       - { include: "#LuauAnimation" }
       - { include: "#LuauTheme" }
+      - { include: "#LuauMorph" }
       - { include: "#LuauDefine" }
       - { include: "#LuauFunctionDefinition" }
       - { include: "#LuauVariableDefinition" }
@@ -3371,6 +3372,43 @@ repository:
         patterns:
           - { include: "#LuauEndKeyword" }
 
+  # `morph NAME [as PARENT] with <struct body> end` — how a layered image's
+  # attribute states and layers move between poses (keyframes/timing/layers/
+  # clips). Same shape as `animation`. It binds to images by the attribute
+  # groups its keyframes name, not by a target. See lowerLuauStructDefine.
+  LuauMorph:
+    tag: meta
+    name: meta.morph.luau
+    # See LuauAnimation: `(?![.(])` keeps `morph.blink` a reference in
+    # expression position.
+    begin: ({{WS}}*)(morph)\b(?![.(])({{WS}}*)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#OptionalWhitespace" }
+      2:
+        patterns:
+          - { include: "#LuauMorphKeyword" }
+      3:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
+    patterns:
+      - { include: "#LuauComment" }
+      - { include: "#LuauAnimationThemeNameAndInheritance" }
+      - { include: "#LuauStructBodyLine" }
+      - { include: "#ExtraWhitespace" }
+      - { include: "#Newline" }
+    end: (?={{BEAT}})|({{WS}}*)(end)\b
+    endCaptures:
+      1:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
+      2:
+        patterns:
+          - { include: "#LuauEndKeyword" }
+
   # One body line inside a structural-define block (`style`/`layout`/
   # `component`). Matched opaquely (indent + content) so the block spans
   # to its `end`; the lowerer reconstructs the colon/indent struct from
@@ -3454,12 +3492,13 @@ repository:
         patterns:
           - { include: "#LuauWithKeyword" }
 
-  # Name + optional `as PARENT` for `animation`/`theme` blocks (variable-length
-  # lookbehind over both keywords). Mirrors LuauStyleNameAndInheritance /
-  # LuauUINameAndInheritance so the lowerer reads the name/parent through the
-  # same LuauDefineName / LuauDefineParentName node names as `define`.
+  # Name + optional `as PARENT` for `animation`/`theme`/`morph` blocks
+  # (variable-length lookbehind over the keywords). Mirrors
+  # LuauStyleNameAndInheritance / LuauUINameAndInheritance so the lowerer reads
+  # the name/parent through the same LuauDefineName / LuauDefineParentName node
+  # names as `define`.
   LuauAnimationThemeNameAndInheritance:
-    begin: (?<=(?:animation|theme)\b{{WS}}*)({{LUAU_IDENTIFIER}})
+    begin: (?<=(?:animation|theme|morph)\b{{WS}}*)({{LUAU_IDENTIFIER}})
     beginCaptures:
       1:
         patterns:
@@ -3522,6 +3561,11 @@ repository:
     tag: controlKeyword
     name: keyword.control.theme.luau
     match: (theme)\b
+
+  LuauMorphKeyword:
+    tag: controlKeyword
+    name: keyword.control.morph.luau
+    match: (morph)\b
 
   LuauStylePropertyName:
     tag: attributeName
@@ -4679,11 +4723,24 @@ repository:
       1:
         patterns:
           - { include: "#OptionalWhitespace" }
+      2:
+        patterns:
+          - { include: "#LuauStructObjectKey" }
+      4:
+        patterns:
+          - { include: "#LuauStructObjectColon" }
+
+  # The key of a `key:` header: everything before the colon. Its own node, so
+  # a lowerer can locate the key (a morph diagnostic underlines `eyes`, not the
+  # whole `eyes:` line) by name rather than by slicing the line's text.
+  LuauStructObjectKey:
+    match: (.+)
+    captures:
       # Element attributes are tried FIRST so a container header can carry inline
       # props/events (`column #gap=16:`, `row @click=x:`). `#name=`/`@name=` don't
       # collide with style headers' `> selector` / `@breakpoint(…)` (no `=` after
       # the keyword), so those still fall through to SelectorPropertyNamePart.
-      2:
+      1:
         patterns:
           - { include: "#LuauElementAttribute" }
           # A keyframe position (`from:`, `40%:`, `to:`) is tried before the
@@ -4693,9 +4750,6 @@ repository:
           - { include: "#SelectorPropertyNamePart" }
           - { include: "#ComponentName" }
           - { include: "#PropertyName" }
-      4:
-        patterns:
-          - { include: "#LuauStructObjectColon" }
 
   # `from` / `to` / a percentage standing alone as a container header key: the
   # CSS `@keyframes` selector spelling for one keyframe's position inside a

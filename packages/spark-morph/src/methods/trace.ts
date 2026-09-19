@@ -12,9 +12,9 @@ import {
   withWinding,
 } from "../geometry/cubic";
 import type { Cubic, MorphFailure, SubpathTrack } from "../types";
-import { prepareLoop } from "./nodes";
+import { prepareLoop } from "./match";
 
-export interface OutlineOptions {
+export interface TraceOptions {
   /**
    * A nearly closed loop's ends are snapped together when within this
    * fraction of its perimeter, so the seam never becomes an extra anchor.
@@ -36,7 +36,7 @@ export interface OutlineOptions {
   checkProgress?: number[];
 }
 
-export const OUTLINE_DEFAULTS: Required<OutlineOptions> = {
+export const TRACE_DEFAULTS: Required<TraceOptions> = {
   seamTolerance: 0.02,
   alignments: 8,
   minGap: 0.004,
@@ -48,7 +48,7 @@ export const OUTLINE_DEFAULTS: Required<OutlineOptions> = {
   checkProgress: [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1],
 };
 
-export interface OutlineTrack extends SubpathTrack {
+export interface TraceTrack extends SubpathTrack {
   /** Whether the target was reversed to match the source winding. */
   reversed: boolean;
   /** The chosen alignment: the target's arc-length offset relative to the source. */
@@ -57,7 +57,7 @@ export interface OutlineTrack extends SubpathTrack {
   travel: number;
 }
 
-export type OutlineResult = { ok: true; track: OutlineTrack } | { ok: false; failure: MorphFailure };
+export type TraceResult = { ok: true; track: TraceTrack } | { ok: false; failure: MorphFailure };
 
 const wrap = (u: number) => ((u % 1) + 1) % 1;
 
@@ -76,8 +76,8 @@ const wrap = (u: number) => ((u % 1) + 1) % 1;
  * are built exactly, checked for self-intersection at `checkProgress`, and
  * the least anchor travel wins. Ties fall to the earlier candidate.
  */
-export function outlineTrack(fromRaw: Cubic[], toRaw: Cubic[], options: OutlineOptions = {}): OutlineResult {
-  const o = { ...OUTLINE_DEFAULTS, ...options };
+export function traceTrack(fromRaw: Cubic[], toRaw: Cubic[], options: TraceOptions = {}): TraceResult {
+  const o = { ...TRACE_DEFAULTS, ...options };
   if (!fromRaw.length || !toRaw.length) {
     return { ok: false, failure: { code: "empty-geometry", message: "both drawings need at least one segment" } };
   }
@@ -92,7 +92,7 @@ export function outlineTrack(fromRaw: Cubic[], toRaw: Cubic[], options: OutlineO
     if (aOut.length !== bOut.length) return;
     const bad = o.checkProgress.filter((t) => selfIntersects(blend(aOut, bOut, t)));
     if (bad.length) {
-      failures.push({ code: "self-intersection", message: `the outline correspondence self-intersects at progress ${bad.join(", ")}`, progress: bad });
+      failures.push({ code: "self-intersection", message: `the trace correspondence self-intersects at progress ${bad.join(", ")}`, progress: bad });
       return;
     }
     let travel = 0;
@@ -143,7 +143,7 @@ export function outlineTrack(fromRaw: Cubic[], toRaw: Cubic[], options: OutlineO
   if (!best) {
     return {
       ok: false,
-      failure: failures[0] ?? { code: "self-intersection", message: "no outline correspondence could be built" },
+      failure: failures[0] ?? { code: "self-intersection", message: "no trace correspondence could be built" },
     };
   }
   const chosen: { aOut: Cubic[]; bOut: Cubic[]; travel: number; phase: number } = best;

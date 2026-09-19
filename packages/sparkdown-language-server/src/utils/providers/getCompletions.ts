@@ -31,6 +31,7 @@ import {
   type DeclarationScopes,
 } from "../annotations/getDeclarationScopes";
 import { getParentSectionPath } from "../syntax/getParentSectionPath";
+import { getMorphCompletions } from "./getMorphCompletions";
 
 const IMAGE_CONTROL_KEYWORDS =
   GRAMMAR_DEFINITION.variables.IMAGE_CONTROL_KEYWORDS || [];
@@ -89,6 +90,7 @@ const STRUCTURAL_DEFINE_TYPE: Partial<Record<SparkdownNodeName, string>> = {
   LuauComponent: "component",
   LuauAnimation: "animation",
   LuauTheme: "theme",
+  LuauMorph: "morph",
 };
 
 // Resolve the engine `type` + instance `name` of the define enclosing the
@@ -1287,6 +1289,27 @@ export const getCompletions = (
       sortText: c.sortText ?? String(index).padStart(10, "0"),
     }));
   };
+
+  // A morph body completes from the morph vocabulary and the artwork its
+  // groups bind to, at every nesting level (see getMorphCompletions).
+  const morphNode = leftStack.find((node) => node.name === "LuauMorph");
+  if (morphNode) {
+    const endNode = getDescendent("LuauMorph_end", morphNode);
+    const nameNode = getDescendent("LuauDefineName", morphNode);
+    const morphCompletions = getMorphCompletions(
+      (line) => document.getLineText(line),
+      {
+        startLine: document.positionAt(morphNode.from).line,
+        endLine: endNode
+          ? document.positionAt(endNode.from).line
+          : document.positionAt(morphNode.to).line + 1,
+        name: nameNode ? getNodeText(nameNode).trim() : "",
+      },
+      program,
+      position,
+    );
+    if (morphCompletions) return morphCompletions;
+  }
 
   // Read the current image only. Attribute names belong to its artwork, not
   // to the global define namespace (and may contain dots and hyphens).

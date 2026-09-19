@@ -17,9 +17,9 @@ export { parsePathData } from "./path/parse";
 export { serializePathData, serializeSegments } from "./path/serialize";
 export { basicShapeToPathData, basicShapeToSubpaths, type BasicShape } from "./path/shapes";
 
-export { NODES_DEFAULTS, nodesTrack, type NodesOptions, type NodesResult, type NodesTrack } from "./methods/nodes";
-export { TAPER_DEFAULTS, taperTrack, type TaperOptions, type TaperResult, type TaperTrack } from "./methods/taper";
-export { OUTLINE_DEFAULTS, outlineTrack, type OutlineOptions, type OutlineResult, type OutlineTrack } from "./methods/outline";
+export { MATCH_DEFAULTS, matchTrack, type MatchOptions, type MatchResult, type MatchTrack } from "./methods/match";
+export { BEND_DEFAULTS, bendTrack, type BendOptions, type BendResult, type BendTrack } from "./methods/bend";
+export { TRACE_DEFAULTS, traceTrack, type TraceOptions, type TraceResult, type TraceTrack } from "./methods/trace";
 export { scaleTrack, type ScaleTrack } from "./methods/scale";
 
 export { MORPH_DEFAULTS, morphSubpaths, morphScale, type MorphOptions, type ScaleMorph } from "./morph";

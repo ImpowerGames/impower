@@ -3942,6 +3942,18 @@ animation whitepulse with
     direction = "normal"
 end
 
+// `method` has no default: every morph chooses one (match, bend or trace)
+// wherever `blend = morph` applies. `iteration_delay_min`/`_max` are absent,
+// so a morph with more than one iteration repeats with no gap.
+define morph with
+  blend = "morph"
+  fallback = "fade"
+  layers = {}
+  keyframes = {}
+  clips = {}
+  timing = { delay = 0, duration = 0.25, easing = "ease-out", iterations = 1, direction = "normal" }
+end
+
 define transition with
   on_hide = animation.hide
   on_show = animation.show

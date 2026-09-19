@@ -11,7 +11,7 @@ import { warnValueItemWithEntries } from "../utils/warnValueItemWithEntries";
 import { ErrorType } from "../../../inkjs/engine/Error";
 import type { InkDiagnostic } from "../../classes/annotators/CompilationAnnotator";
 
-// Typed struct-body parser for `animation`/`theme` blocks. Same colon/indent
+// Typed struct-body parser for `animation`/`theme`/`morph` blocks. Same colon/indent
 // struct grammar as `style`, but values are READ FROM THE GRAMMAR'S VALUE NODES
 // (per feedback_ast_lowerer_reads_grammar_tokens) so numbers stay numbers and
 // quoted strings stay strings — matching what the `define X as animation` form
@@ -40,6 +40,54 @@ import type { InkDiagnostic } from "../../classes/annotators/CompilationAnnotato
 interface NodeLine {
   indent: number;
   node: SyntaxNode; // LuauStructBodyContent
+}
+
+/** A source range, as absolute document offsets. */
+export interface SourceSpan {
+  from: number;
+  to: number;
+}
+
+/**
+ * Where each part of a parsed container was written. `keys` holds the key of
+ * every `key = value` / `key:` entry, `values` the value of every scalar entry,
+ * and `lines` the whole line of every entry. An array records its `-` item
+ * lines in `items` and the values of scalar items in `itemValues`. `line` is
+ * the line that opened the container: its header, its `-` item, or, for a
+ * keyframe written as a position key, that key's line.
+ */
+export interface StructSource {
+  line?: SourceSpan;
+  keys: Map<string, SourceSpan>;
+  values: Map<string, SourceSpan>;
+  lines: Map<string, SourceSpan>;
+  items: SourceSpan[];
+  itemValues: (SourceSpan | null)[];
+}
+
+export interface TypedStructBodyOptions {
+  /**
+   * Scalar keys whose values are literal text: the value is kept exactly as
+   * written (quotes removed) instead of being read as a number, boolean or
+   * `type.name` reference, so `01` stays `"01"` and `eyes.closed` stays
+   * `"eyes.closed"`.
+   */
+  literalKeys?: ReadonlySet<string>;
+  /** Container keys whose `-` items are literal text, as for `literalKeys`. */
+  literalListKeys?: ReadonlySet<string>;
+  /** Receives the source of every container the parse builds. */
+  sources?: WeakMap<object, StructSource>;
+}
+
+function newSource(line?: SourceSpan): StructSource {
+  return {
+    line,
+    keys: new Map(),
+    values: new Map(),
+    lines: new Map(),
+    items: [],
+    itemValues: [],
+  };
 }
 
 const LINE_KIND_NAMES = nodeNameSet([
@@ -144,6 +192,34 @@ function readTypedValue(value: SyntaxNode | null, ctx: LowerContext): unknown {
   return raw;
 }
 
+/**
+ * Read a value node as the literal text it was written as: a quoted string
+ * loses its quotes and escapes, anything else keeps its spelling. Nothing is
+ * converted to a number, boolean or reference.
+ */
+function readLiteralValue(
+  value: SyntaxNode | null,
+  ctx: LowerContext,
+): string {
+  if (!value) return "";
+  if (value.name === "StringFieldValue") {
+    const inner = firstDescendant(value, PLAIN_STRING_CONTENT);
+    if (inner) return unescapeString(ctx.read(inner.from, inner.to));
+    return ctx.read(value.from, value.to).trim().replace(/^"|"$/g, "");
+  }
+  const raw = ctx.read(value.from, value.to).trim();
+  if (UNQUOTED_VALUE_NODES.has(value.name)) {
+    const numeric = NUMERIC_WITH_COMMENT_RE.exec(raw);
+    if (numeric) return numeric[1]!;
+    const boolean = BOOLEAN_WITH_COMMENT_RE.exec(raw);
+    if (boolean) return boolean[1]!;
+    const quoted = QUOTED_WITH_COMMENT_RE.exec(raw);
+    if (quoted) return unescapeString(quoted[1]!);
+    return stripTrailingLineComment(raw);
+  }
+  return raw;
+}
+
 const PLAIN_STRING_CONTENT = nodeNameSet(["PlainStringContent"]);
 
 /**
@@ -152,6 +228,13 @@ const PLAIN_STRING_CONTENT = nodeNameSet(["PlainStringContent"]);
  */
 function headerKey(header: SyntaxNode, ctx: LowerContext): string {
   return ctx.read(header.from, header.to).trim().replace(/:\s*$/, "").trim();
+}
+
+const OBJECT_KEY = nodeNameSet(["LuauStructObjectKey"]);
+
+/** An object header's key node, without its colon. */
+function headerKeySpan(header: SyntaxNode): SourceSpan {
+  return firstDescendant(header, OBJECT_KEY) ?? header;
 }
 
 /** Collect each body line's `LuauStructBodyContent` node + indent column. */
@@ -235,6 +318,7 @@ function keyframeOffset(key: string): number | null {
 interface HeaderEntry {
   key: string;
   node: SyntaxNode; // the header's LuauStructBodyContent line
+  keyNode: SourceSpan; // the header's key, without its colon
   value: unknown;
 }
 
@@ -281,6 +365,7 @@ function keyframesFromPositionKeys(
   hasArrayItems: boolean,
   ctx: LowerContext,
   sink: InkDiagnostic[] | undefined,
+  sources?: WeakMap<object, StructSource>,
 ): unknown[] | null {
   if (headers.length === 0) return null;
   const positions = headers.map((h) => keyframeOffset(h.key));
@@ -299,7 +384,11 @@ function keyframesFromPositionKeys(
   }
 
   const seen = new Set<number>();
-  const frames: { offset: number; frame: Record<string, unknown> }[] = [];
+  const frames: {
+    offset: number;
+    frame: Record<string, unknown>;
+    header: HeaderEntry;
+  }[] = [];
   headers.forEach((h, idx) => {
     const offset = positions[idx]!;
     if (offset < 0 || offset > 1) {
@@ -326,14 +415,37 @@ function keyframesFromPositionKeys(
         : {};
     // The position key is what the keyframe's place is sorted by, so it also
     // wins over an `offset` property written inside the keyframe body.
-    frames.push({ offset, frame: { ...props, offset } });
+    frames.push({ offset, frame: { ...props, offset }, header: h });
   });
 
   // Sort by position so the written order does not matter. `sort` is stable in
   // every engine this runs on, so keyframes sharing a position keep their
   // written order (a case that is already reported as a duplicate).
   frames.sort((a, b) => a.offset - b.offset);
-  return frames.map((f) => f.frame);
+  const result = frames.map((f) => f.frame);
+  if (sources) {
+    // Each keyframe was written as its position key's line, and that key is
+    // where its `offset` came from.
+    const list = newSource();
+    for (const f of frames) {
+      const body = f.header.value;
+      const bodySource =
+        body && typeof body === "object" ? sources.get(body) : undefined;
+      const frameSource: StructSource = {
+        ...(bodySource ?? newSource()),
+        keys: new Map(bodySource?.keys),
+        lines: new Map(bodySource?.lines),
+        line: f.header.node,
+      };
+      frameSource.keys.set("offset", f.header.keyNode);
+      frameSource.lines.set("offset", f.header.node);
+      sources.set(f.frame, frameSource);
+      list.items.push(f.header.node);
+      list.itemValues.push(null);
+    }
+    sources.set(result, list);
+  }
+  return result;
 }
 
 function parseBlock(
@@ -342,6 +454,9 @@ function parseBlock(
   indent: number,
   ctx: LowerContext,
   sink?: InkDiagnostic[],
+  options: TypedStructBodyOptions = {},
+  containerKey = "",
+  containerLine?: SyntaxNode,
 ): {
   value: Record<string, unknown> | unknown[];
   next: number;
@@ -350,6 +465,8 @@ function parseBlock(
 } {
   const obj: Record<string, unknown> = {};
   const headers: HeaderEntry[] = [];
+  const source = newSource(containerLine);
+  const literalItems = options.literalListKeys?.has(containerKey) ?? false;
   let arr: unknown[] | null = null;
   let i = start;
   while (i < lines.length && lines[i]!.indent >= indent) {
@@ -368,12 +485,31 @@ function parseBlock(
       arr = arr ?? [];
       if (childIndent != null) {
         warnValueItemWithEntries(kind, ctx, sink);
-        const sub = parseBlock(lines, i + 1, childIndent, ctx, sink);
+        const sub = parseBlock(
+          lines,
+          i + 1,
+          childIndent,
+          ctx,
+          sink,
+          options,
+          "",
+          content,
+        );
         arr.push(sub.value);
+        source.items.push(content);
+        source.itemValues.push(null);
         i = sub.next;
       } else {
         const value = firstDescendant(kind, FIELD_VALUE_NAMES);
-        if (value) arr.push(readTypedValue(value, ctx));
+        if (value) {
+          arr.push(
+            literalItems
+              ? readLiteralValue(value, ctx)
+              : readTypedValue(value, ctx),
+          );
+          source.items.push(content);
+          source.itemValues.push(value);
+        }
         i += 1;
       }
       continue;
@@ -382,8 +518,18 @@ function parseBlock(
     if (kind?.name === "LuauStructObjectHeader") {
       // `key:` → container (children = the value).
       const key = headerKey(kind, ctx);
+      const keyNode = headerKeySpan(kind);
       if (childIndent != null) {
-        const sub = parseBlock(lines, i + 1, childIndent, ctx, sink);
+        const sub = parseBlock(
+          lines,
+          i + 1,
+          childIndent,
+          ctx,
+          sink,
+          options,
+          key,
+          content,
+        );
         // A `keyframes:` container may be written with position keys instead
         // of `-` items; normalize it to the array form the engine consumes.
         const keyed =
@@ -393,16 +539,19 @@ function parseBlock(
                 sub.hasArrayItems,
                 ctx,
                 sink,
+                options.sources,
               )
             : null;
         obj[key] = keyed ?? sub.value;
-        headers.push({ key, node: content, value: obj[key] });
         i = sub.next;
       } else {
         obj[key] = {};
-        headers.push({ key, node: content, value: obj[key] });
+        options.sources?.set(obj[key] as object, newSource(content));
         i += 1;
       }
+      headers.push({ key, node: content, keyNode, value: obj[key] });
+      source.keys.set(key, keyNode);
+      source.lines.set(key, content);
       continue;
     }
 
@@ -410,34 +559,57 @@ function parseBlock(
       // `key = value` → typed scalar.
       const keyNode = firstDescendant(kind, KEY_TOKEN_NAMES);
       const key = keyNode ? ctx.read(keyNode.from, keyNode.to).trim() : "";
-      if (key) obj[key] = readTypedValue(firstDescendant(kind, FIELD_VALUE_NAMES), ctx);
+      if (key) {
+        const value = firstDescendant(kind, FIELD_VALUE_NAMES);
+        obj[key] = options.literalKeys?.has(key)
+          ? readLiteralValue(value, ctx)
+          : readTypedValue(value, ctx);
+        source.keys.set(key, keyNode!);
+        source.lines.set(key, content);
+        if (value) source.values.set(key, value);
+      }
       i += 1;
       continue;
     }
 
     // Bare marker / fallback → empty-object leaf keyed by the line text.
     const text = ctx.read(content.from, content.to).trim();
-    if (text) obj[text] = {};
+    if (text) {
+      obj[text] = {};
+      options.sources?.set(obj[text] as object, newSource(content));
+      source.keys.set(text, content);
+      source.lines.set(text, content);
+    }
     i += 1;
   }
+  const value = arr ?? obj;
+  options.sources?.set(value, source);
   return {
-    value: arr ?? obj,
+    value,
     next: i,
     headers,
     hasArrayItems: arr != null,
   };
 }
 
-/** Build the typed nested struct for an `animation`/`theme` body. */
+/** Build the typed nested struct for an `animation`/`theme`/`morph` body. */
 export function parseStructBodyTyped(
   contentNode: SyntaxNode | null,
   ctx: LowerContext,
   sink?: InkDiagnostic[],
+  options: TypedStructBodyOptions = {},
 ): Record<string, unknown> {
   const lines = collectNodeLines(contentNode, ctx);
-  if (lines.length === 0) return {};
-  const result = parseBlock(lines, 0, lines[0]!.indent, ctx, sink);
-  return Array.isArray(result.value)
-    ? { ...result.value }
-    : (result.value as Record<string, unknown>);
+  if (lines.length === 0) {
+    const empty = {};
+    options.sources?.set(empty, newSource());
+    return empty;
+  }
+  const result = parseBlock(lines, 0, lines[0]!.indent, ctx, sink, options);
+  if (!Array.isArray(result.value)) {
+    return result.value as Record<string, unknown>;
+  }
+  const spread = { ...result.value };
+  options.sources?.set(spread, newSource());
+  return spread;
 }

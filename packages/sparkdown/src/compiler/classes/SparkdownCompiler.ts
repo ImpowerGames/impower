@@ -8,6 +8,10 @@
 // explicit so consumers of SparkdownCompiler don't hit a TDZ crash.
 import "../../inkjs/engine/Container";
 import { resolveImageAttributes } from "../utils/filterImage";
+import {
+  collectMorphIssues,
+  type MorphScript,
+} from "../morph/collectMorphDiagnostics";
 import { createRasterImageDefinitions, isRasterLayerFile } from "../../attributes/rasterSource";
 import { diagnoseRareAttributeOptions, type AttributeVocabulary } from "../../attributes";
 import GRAMMAR_DEFINITION from "../../../language/sparkdown.language-grammar.json";
@@ -1826,6 +1830,7 @@ export class SparkdownCompiler {
       this.validateSyntax(program);
       this.validateReferences(program);
       this.validateImageAttributes(program);
+      this.validateMorphs(program);
     }
     if (this._config.workspace !== undefined) {
       program.workspace = this._config.workspace;
@@ -5101,6 +5106,61 @@ export class SparkdownCompiler {
         declarations.next();
       }
     }
+  }
+
+  /** Morph declarations are checked after inheritance, against the artwork. */
+  validateMorphs(program: SparkProgram) {
+    if (!program.context) return;
+    const uri = program.uri;
+    profile("start", this._profilerId, "validateMorphs", uri);
+    const scripts: (MorphScript & { uri: string })[] = [];
+    for (const scriptUri of Object.keys(program.scripts)) {
+      const doc = this.documents.get(scriptUri);
+      const tree = this.documents.tree(scriptUri);
+      if (!doc || !tree) continue;
+      scripts.push({
+        uri: scriptUri,
+        read: (from, to) => doc.read(from, to),
+        position: (offset) => doc.positionAt(offset),
+        tree,
+      });
+    }
+    const issuesByUri = collectMorphIssues(
+      scripts,
+      program.context,
+      (base, override) => this.inheritDefaults(base, override),
+    );
+    for (const [scriptUri, issues] of issuesByUri) {
+      const doc = this.documents.get(scriptUri)!;
+      for (const issue of issues) {
+        const range = doc.range(issue.from, issue.to);
+        ((program.diagnostics ??= {})[scriptUri] ??= []).push({
+          range,
+          code: "morph",
+          severity:
+            issue.severity === "error"
+              ? DiagnosticSeverity.Error
+              : DiagnosticSeverity.Warning,
+          message: { kind: "markdown", value: issue.message },
+          relatedInformation: issue.related
+            ? [
+                {
+                  location: {
+                    uri: issue.related.uri,
+                    range: {
+                      start: { line: 0, character: 0 },
+                      end: { line: 0, character: 0 },
+                    },
+                  },
+                  message: issue.related.message,
+                },
+              ]
+            : undefined,
+          source: LANGUAGE_NAME,
+        });
+      }
+    }
+    profile("end", this._profilerId, "validateMorphs", uri);
   }
 
   validateReferences(program: SparkProgram) {

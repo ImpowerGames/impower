@@ -17742,6 +17742,24 @@
           "gain": 1
         }
       },
+      "morph": {
+        "$default": {
+          "$name": "$default",
+          "$type": "morph",
+          "blend": "morph",
+          "clips": {},
+          "fallback": "fade",
+          "keyframes": {},
+          "layers": {},
+          "timing": {
+            "delay": 0,
+            "direction": "normal",
+            "duration": 0.25,
+            "easing": "ease-out",
+            "iterations": 1
+          }
+        }
+      },
       "prosody": {
         "$default": {
           "$link": {
@@ -89932,6 +89950,24 @@
           "$name": "voice",
           "$type": "mixer",
           "gain": 1
+        }
+      },
+      "morph": {
+        "$default": {
+          "$name": "$default",
+          "$type": "morph",
+          "blend": "morph",
+          "clips": {},
+          "fallback": "fade",
+          "keyframes": {},
+          "layers": {},
+          "timing": {
+            "delay": 0,
+            "direction": "normal",
+            "duration": 0.25,
+            "easing": "ease-out",
+            "iterations": 1
+          }
         }
       },
       "prosody": {

@@ -1,7 +1,7 @@
 import { describe, expect, test } from "vitest";
 import { selfIntersects, signedArea } from "../src/geometry/cubic";
-import { canonicalFrame, findTips, selectCandidate, taperDistance } from "../src/methods/taper";
-import { TAPER_DEFAULTS, morphSubpaths, parsePathData, taperTrack } from "../src/index";
+import { canonicalFrame, findTips, selectCandidate, taperDistance } from "../src/methods/bend";
+import { BEND_DEFAULTS, morphSubpaths, parsePathData, bendTrack } from "../src/index";
 import {
   anchors,
   circle,
@@ -46,7 +46,7 @@ describe("findTips", () => {
   });
 });
 
-describe("taperTrack", () => {
+describe("bendTrack", () => {
   for (const [name, from, to] of [
     ["upper lash to closed", upperOpen, closedLash],
     ["lower lash to closed", lowerOpen, closedLash],
@@ -57,18 +57,18 @@ describe("taperTrack", () => {
     ["rounded-tip lash to a sharp closed lash", roundedOpen, closedLash],
   ] as const) {
     test(`${name}: endpoints match, no self-intersection at bake or runtime samples, thickness holds`, () => {
-      const r = taperTrack(loop(from), loop(to));
+      const r = bendTrack(loop(from), loop(to));
       expect(r.ok).toBe(true);
       if (!r.ok) return;
-      expect(r.track.thickness).toBeGreaterThanOrEqual(TAPER_DEFAULTS.thicknessRatio);
+      expect(r.track.thickness).toBeGreaterThanOrEqual(BEND_DEFAULTS.thicknessRatio);
       expect(maxDistanceToLoop(anchors(r.track.frame(0)), loop(from))).toBeLessThan(ENDPOINT_TOLERANCE);
       expect(maxDistanceToLoop(anchors(r.track.frame(1)), loop(to))).toBeLessThan(ENDPOINT_TOLERANCE);
       for (const t of [...bakeProgress, ...runtimeProgress]) {
         expect(selfIntersects(r.track.frame(t)), `frame ${t}`).toBe(false);
         expect(selfIntersects(r.track.canonical(t)), `canonical ${t}`).toBe(false);
       }
-      expect(r.track.canonicalFrom).toHaveLength(TAPER_DEFAULTS.anchors);
-      expect(r.track.canonicalTo).toHaveLength(TAPER_DEFAULTS.anchors);
+      expect(r.track.canonicalFrom).toHaveLength(BEND_DEFAULTS.anchors);
+      expect(r.track.canonicalTo).toHaveLength(BEND_DEFAULTS.anchors);
       // The track's endpoints share the frames' topology.
       expect(r.track.from).toHaveLength(r.track.frame(0.5).length);
       expect(r.track.to).toHaveLength(r.track.frame(0.5).length);
@@ -87,7 +87,7 @@ describe("taperTrack", () => {
     // thinner endpoint) but whose anchors travel farther. On the synthetic
     // fixtures the tip search never yields two viable candidates, so the
     // policy is pinned on this constructed pair.
-    const r = taperTrack(loop(upperOpen), loop(closedLash));
+    const r = bendTrack(loop(upperOpen), loop(closedLash));
     expect(r.ok).toBe(true);
     if (!r.ok) return;
     const a = r.track.canonicalFrom,
@@ -102,14 +102,14 @@ describe("taperTrack", () => {
       return Math.min(...[0.25, 0.5, 0.75].map((tt) => area(canonicalFrame(a, b, tt)) / lo));
     };
     expect(score(shifted)).toBeGreaterThan(score(real));
-    expect(score(real)).toBeGreaterThanOrEqual(TAPER_DEFAULTS.thicknessRatio);
-    const picked = selectCandidate(a, [shifted, real], score, TAPER_DEFAULTS.thicknessRatio);
+    expect(score(real)).toBeGreaterThanOrEqual(BEND_DEFAULTS.thicknessRatio);
+    const picked = selectCandidate(a, [shifted, real], score, BEND_DEFAULTS.thicknessRatio);
     expect(picked.candidate).toBe(real);
-    expect(picked.travel).toBeLessThan(selectCandidate(a, [shifted], score, TAPER_DEFAULTS.thicknessRatio).travel);
+    expect(picked.travel).toBeLessThan(selectCandidate(a, [shifted], score, BEND_DEFAULTS.thicknessRatio).travel);
     // When only one holds thickness it wins regardless of travel, and when
     // none does the least-pinching one is reported.
-    expect(selectCandidate(a, [shifted, real], (b) => (b === real ? 0.9 : 0.3), TAPER_DEFAULTS.thicknessRatio).candidate).toBe(real);
-    expect(selectCandidate(a, [real, shifted], (b) => (b === real ? 0.3 : 0.5), TAPER_DEFAULTS.thicknessRatio).candidate).toBe(shifted);
+    expect(selectCandidate(a, [shifted, real], (b) => (b === real ? 0.9 : 0.3), BEND_DEFAULTS.thicknessRatio).candidate).toBe(real);
+    expect(selectCandidate(a, [real, shifted], (b) => (b === real ? 0.3 : 0.5), BEND_DEFAULTS.thicknessRatio).candidate).toBe(shifted);
   });
 
   test("the taper distance is capped at 12% of the tip-to-tip span", () => {
@@ -132,17 +132,17 @@ describe("taperTrack", () => {
   });
 
   test("the winding-and-tip correspondence search is what keeps the rotating crease from pinching", () => {
-    const r = taperTrack(loop(rotatingOpen), loop(rotatingClosed));
+    const r = bendTrack(loop(rotatingOpen), loop(rotatingClosed));
     expect(r.ok).toBe(true);
     if (!r.ok) return;
     const lo = Math.min(Math.abs(signedArea(r.track.from)), Math.abs(signedArea(r.track.to)));
     for (const t of [0.25, 0.5, 0.75]) {
-      expect(Math.abs(signedArea(r.track.canonical(t))) / lo).toBeGreaterThanOrEqual(TAPER_DEFAULTS.thicknessRatio);
+      expect(Math.abs(signedArea(r.track.canonical(t))) / lo).toBeGreaterThanOrEqual(BEND_DEFAULTS.thicknessRatio);
     }
   });
 
   test("a rounded tip keeps its width near the tip through the morph rather than pinching to a point", () => {
-    const r = taperTrack(loop(roundedOpen), loop(roundedClosed));
+    const r = bendTrack(loop(roundedOpen), loop(roundedClosed));
     expect(r.ok).toBe(true);
     if (!r.ok) return;
     // The canonical loops must describe the art: smoothing the junction
@@ -172,7 +172,7 @@ describe("taperTrack", () => {
   });
 
   test("tips stay at the lash ends throughout", () => {
-    const r = taperTrack(loop(upperOpen), loop(closedLash));
+    const r = bendTrack(loop(upperOpen), loop(closedLash));
     expect(r.ok).toBe(true);
     if (!r.ok) return;
     for (const t of runtimeProgress) {
@@ -184,7 +184,7 @@ describe("taperTrack", () => {
   });
 
   test("edges run tip to tip with the requested point count", () => {
-    const r = taperTrack(loop(upperOpen), loop(closedLash));
+    const r = bendTrack(loop(upperOpen), loop(closedLash));
     expect(r.ok).toBe(true);
     if (!r.ok) return;
     const [e1, e2] = r.track.edges(0, 12);
@@ -201,7 +201,7 @@ describe("taperTrack", () => {
       [upperOpen, circle],
       [square, circle],
     ] as const) {
-      const r = taperTrack(loop(from), loop(to));
+      const r = bendTrack(loop(from), loop(to));
       expect(r.ok).toBe(false);
       if (r.ok) return;
       expect(r.failure.code).toBe("tips-not-found");
@@ -209,19 +209,19 @@ describe("taperTrack", () => {
   });
 
   test("a single-segment loop with one cusp is not a taper: its reconstruction cannot hold the drawing's area", () => {
-    const r = taperTrack(loop(oneCusp), loop(oneCuspNarrow));
+    const r = bendTrack(loop(oneCusp), loop(oneCuspNarrow));
     expect(r.ok).toBe(false);
     if (r.ok) return;
     expect(r.failure.code).toBe("tips-not-found");
   });
 
   test("empty geometry is a structured failure, not an exception", () => {
-    expect(taperTrack([], [])).toMatchObject({ ok: false, failure: { code: "empty-geometry" } });
-    expect(taperTrack(loop(upperOpen), [])).toMatchObject({ ok: false, failure: { code: "empty-geometry" } });
+    expect(bendTrack([], [])).toMatchObject({ ok: false, failure: { code: "empty-geometry" } });
+    expect(bendTrack(loop(upperOpen), [])).toMatchObject({ ok: false, failure: { code: "empty-geometry" } });
   });
 
   test("a quality failure carries the progress values that failed", () => {
-    const r = taperTrack(loop(upperOpen), loop(closedLash), { thicknessRatio: 10 });
+    const r = bendTrack(loop(upperOpen), loop(closedLash), { thicknessRatio: 10 });
     expect(r.ok).toBe(false);
     if (r.ok) return;
     expect(r.failure.code).toBe("thickness");
@@ -230,7 +230,7 @@ describe("taperTrack", () => {
 
   test("a handoff point count below eight is raised to eight rather than producing empty frames", () => {
     for (const handoffPoints of [0, -1, 3]) {
-      const r = taperTrack(loop(upperOpen), loop(closedLash), { handoffPoints });
+      const r = bendTrack(loop(upperOpen), loop(closedLash), { handoffPoints });
       expect(r.ok, `handoffPoints ${handoffPoints}`).toBe(true);
       if (!r.ok) return;
       expect(r.track.from).toHaveLength(8);
@@ -240,16 +240,16 @@ describe("taperTrack", () => {
   });
 
   test("without handoff the frames stay curved canonical loops", () => {
-    const r = taperTrack(loop(upperOpen), loop(closedLash), { handoff: false });
+    const r = bendTrack(loop(upperOpen), loop(closedLash), { handoff: false });
     expect(r.ok).toBe(true);
     if (!r.ok) return;
-    expect(r.track.frame(0.5)).toHaveLength(TAPER_DEFAULTS.anchors);
+    expect(r.track.frame(0.5)).toHaveLength(BEND_DEFAULTS.anchors);
   });
 });
 
-describe("morphSubpaths with the taper method", () => {
+describe("morphSubpaths with the bend method", () => {
   test("reports the failing subpath index and never substitutes another method", () => {
-    const r = morphSubpaths(parsePathData(upperOpen + circle), parsePathData(closedLash + square), { method: "taper" });
+    const r = morphSubpaths(parsePathData(upperOpen + circle), parsePathData(closedLash + square), { method: "bend" });
     expect(r.ok).toBe(false);
     if (r.ok) return;
     expect(r.failure).toMatchObject({ code: "tips-not-found", subpath: 1 });
@@ -260,7 +260,7 @@ describe("morphSubpaths with the taper method", () => {
     // is 2% of that, so a gap of 10 or more is a real opening.
     for (const gap of [10, 20, 40]) {
       const open = `M0,50 C30,5 70,5 100,50 C70,25 30,25 ${gap},50`;
-      const r = morphSubpaths(parsePathData(open), parsePathData(closedLash), { method: "taper" });
+      const r = morphSubpaths(parsePathData(open), parsePathData(closedLash), { method: "bend" });
       expect(r.ok, `gap ${gap}`).toBe(false);
       if (r.ok) return;
       expect(r.failure).toMatchObject({ code: "not-closed", subpath: 0 });
@@ -268,18 +268,18 @@ describe("morphSubpaths with the taper method", () => {
     // A seam within the tolerance (a hair short of closing) is accepted,
     // and a stricter tolerance refuses it.
     const nearly = "M0,50 C30,5 70,5 100,50 C70,25 30,25 2,50";
-    expect(morphSubpaths(parsePathData(nearly), parsePathData(closedLash), { method: "taper" }).ok).toBe(true);
-    expect(morphSubpaths(parsePathData(nearly), parsePathData(closedLash), { method: "taper", seamTolerance: 0.001 })).toMatchObject({
+    expect(morphSubpaths(parsePathData(nearly), parsePathData(closedLash), { method: "bend" }).ok).toBe(true);
+    expect(morphSubpaths(parsePathData(nearly), parsePathData(closedLash), { method: "bend", seamTolerance: 0.001 })).toMatchObject({
       ok: false,
       failure: { code: "not-closed" },
     });
   });
 
   test("succeeds and labels the method", () => {
-    const r = morphSubpaths(parsePathData(upperOpen), parsePathData(closedLash), { method: "taper" });
+    const r = morphSubpaths(parsePathData(upperOpen), parsePathData(closedLash), { method: "bend" });
     expect(r.ok).toBe(true);
     if (!r.ok) return;
-    expect(r.morph.method).toBe("taper");
+    expect(r.morph.method).toBe("bend");
     expect(r.morph.frame(0.5)).toHaveLength(1);
     expect(r.morph.frame(0.5)[0]!.closed).toBe(true);
   });

@@ -17,6 +17,7 @@ import type { LowerContext } from "../context";
 import { findChildByName } from "../utils/alternatorArms";
 import { wrapInWeave } from "../utils/wrapInWeave";
 import { contextValueToExpression } from "./lowerLuauDefine";
+import { readMorphBody } from "../../morph/readMorphBody";
 import { parseStructBodyTyped } from "./lowerStructBodyTyped";
 
 // `animation NAME [as PARENT] with <body> end` / `theme NAME …` — structural
@@ -31,10 +32,22 @@ import { parseStructBodyTyped } from "./lowerStructBodyTyped";
 // in builtins.sd) via the existing inheritance deep-merge — at compile time
 // (populateDefinedDefaultProperties, by type) and at runtime (the `__def` parent
 // arg → the VM `__index` chain). See project_animation_theme_structural.
+//
+// `morph NAME [as PARENT] with <body> end` takes the same path. Its body is read
+// by readMorphBody, which keeps `state` values and clip labels as literal text
+// (`01` stays "01", `eyes.closed` is not a struct reference) and strips a
+// matching group prefix. Its checks need the artwork and the inherited struct,
+// so they run once the program's context is built (validateMorphs), not here.
+const CONTENT_NODE = {
+  animation: "LuauAnimation_content",
+  theme: "LuauTheme_content",
+  morph: "LuauMorph_content",
+} as const;
+
 export function lowerLuauStructDefine(
   nodeRef: SparkdownSyntaxNodeRef,
   ctx: LowerContext,
-  type: "animation" | "theme",
+  type: "animation" | "theme" | "morph",
 ): CompiledBlock {
   const nameNode = getDescendent("LuauDefineName", nodeRef.node);
   if (!nameNode) return { content: [] };
@@ -46,15 +59,15 @@ export function lowerLuauStructDefine(
     ? ctx.read(parentNode.from, parentNode.to).trim()
     : "";
 
-  const contentNode = findChildByName(
-    nodeRef.node,
-    `Luau${type === "animation" ? "Animation" : "Theme"}_content`,
-  );
+  const contentNode = findChildByName(nodeRef.node, CONTENT_NODE[type]);
   // Body diagnostics (a malformed `keyframes:` position key) ride back on the
   // returned CompiledBlock: this is a chunk-level lowerer, so the annotator
   // picks `block.diagnostics` up directly.
   const diagnostics: InkDiagnostic[] = [];
-  const body = parseStructBodyTyped(contentNode, ctx, diagnostics);
+  const body =
+    type === "morph"
+      ? readMorphBody(contentNode, ctx, diagnostics).struct
+      : parseStructBodyTyped(contentNode, ctx, diagnostics);
 
   const struct: Record<string, unknown> = {
     $type: type,

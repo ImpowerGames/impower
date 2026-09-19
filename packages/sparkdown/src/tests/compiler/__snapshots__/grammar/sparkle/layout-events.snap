@@ -31,7 +31,9 @@ sparkdown [0..118]
  │   │   │   │               ├─ LuauStructObjectHeader_c1 18
  │   │   │   │               │   └─ OptionalWhitespace 18
  │   │   │   │               ├─ LuauStructObjectHeader_c2 [18..21]
- │   │   │   │               │   └─ CustomComponentName [18..21]: "row"
+ │   │   │   │               │   └─ LuauStructObjectKey [18..21]
+ │   │   │   │               │       └─ LuauStructObjectKey_c1 [18..21]
+ │   │   │   │               │           └─ CustomComponentName [18..21]: "row"
  │   │   │   │               └─ LuauStructObjectHeader_c4 [21..22]
  │   │   │   │                   └─ LuauStructObjectColon [21..22]: ":"
  │   │   │   └─ LuauStructBodyLine_c3 22
