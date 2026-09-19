@@ -2379,23 +2379,118 @@ function defineChain(start: ObjectValue): ObjectValue[] {
   return chain;
 }
 
-// Copy `store`-marked property defaults from every level of `chain`
-// into `target`, root-most level first so a child's redeclared
-// default wins and `target`'s own keys are never overwritten. Store
-// props become instance-owned (enumerable + serialized); non-store
-// props stay on the type and inherit lazily through `__index`.
+// Copy `store`-marked property defaults from `chain` (nearest level first)
+// into `target`. A key marked `store` at any level takes its value from the
+// nearest level that holds one, so a child's redeclared default wins over its
+// ancestors', and `target`'s own keys are never overwritten. Store props
+// become instance-owned (enumerable + serialized); non-store props stay on
+// the type and inherit lazily through `__index`.
 function copyStoreDefaults(chain: ObjectValue[], target: ObjectValue): void {
-  for (let i = chain.length - 1; i >= 0; i--) {
-    const levelMap = chain[i]!.value as Map<string, AbstractValue>;
-    const storeList = levelMap?.get("__storeProps");
+  const storeKeys = new Set<string>();
+  for (const level of chain) {
+    const storeList = (level.value as Map<string, AbstractValue>)?.get(
+      "__storeProps",
+    );
     if (!(storeList instanceof ObjectValue)) continue;
     for (const nameVal of (
       storeList.value as Map<string, AbstractValue>
     ).values()) {
       const propName = coerceString(nameVal);
-      if (!propName || target.value!.has(propName)) continue;
-      const def = levelMap.get(propName);
-      if (def != null) target.value!.set(propName, def);
+      if (propName) storeKeys.add(propName);
+    }
+  }
+  for (const propName of storeKeys) {
+    if (target.value!.has(propName)) continue;
+    for (const level of chain) {
+      const def = (level.value as Map<string, AbstractValue>)?.get(propName);
+      if (def != null) {
+        target.value!.set(propName, def);
+        break;
+      }
+    }
+  }
+}
+
+// Structural blocks (`animation`/`theme`/`morph`) waiting for an `as` parent
+// that has not registered in their type table yet, keyed by type table and
+// then by parent name. Global initialization runs in declaration order, so a
+// child can run before its parent; the parent links its waiting children when
+// it registers.
+const pendingStructuralParents = new WeakMap<
+  ObjectValue,
+  Map<string, ObjectValue[]>
+>();
+
+// The structural blocks linked to each parent table, so a parent that gains
+// its own parent later can refresh the `store` copies of its descendants.
+const structuralChildren = new WeakMap<ObjectValue, ObjectValue[]>();
+
+// The `store` keys each structural block received from its chain rather than
+// from its own body, so a later link can replace them with the new chain's.
+const structuralStoreCopies = new WeakMap<ObjectValue, string[]>();
+
+// Whether `target` is on the `__index` chain starting at `start`. Walks until
+// the chain ends or repeats, with no step limit, so a long cycle is found.
+function chainReaches(start: ObjectValue, target: ObjectValue): boolean {
+  const seen = new Set<ObjectValue>();
+  let cur: ObjectValue | null = start;
+  while (cur instanceof ObjectValue && !seen.has(cur)) {
+    if (cur === target) return true;
+    seen.add(cur);
+    const idx: AbstractValue | null =
+      metatableMap(cur)?.get("__index") ?? null;
+    cur = idx instanceof ObjectValue ? idx : null;
+  }
+  return false;
+}
+
+// Point a structural block's `__index` at its parent. A link that would make
+// the chain reach the child again (`a as b`, `b as a`) is refused, leaving
+// the child inheriting from its type. Returns whether the link was made.
+function linkStructuralParent(
+  child: ObjectValue,
+  parent: ObjectValue,
+): boolean {
+  if (chainReaches(parent, child)) return false;
+  metatableMap(child)?.set("__index", parent);
+  const children = structuralChildren.get(parent) ?? [];
+  children.push(child);
+  structuralChildren.set(parent, children);
+  return true;
+}
+
+// Copy the `store` defaults of a structural block's current chain into it, as
+// `__def` does for a define, replacing the copies an earlier chain gave it,
+// then do the same for the blocks linked to it. A block's own `store` values
+// are never replaced. Links are acyclic, so the descent ends.
+function copyStructuralStoreDefaults(block: ObjectValue): void {
+  const map = block.value!;
+  for (const key of structuralStoreCopies.get(block) ?? []) map.delete(key);
+  const own = new Set(map.keys());
+  copyStoreDefaults(defineChain(block).slice(1), block);
+  structuralStoreCopies.set(
+    block,
+    [...map.keys()].filter((key) => !own.has(key)),
+  );
+  for (const child of structuralChildren.get(block) ?? []) {
+    copyStructuralStoreDefaults(child);
+  }
+}
+
+// Link every structural block waiting in `typeTable` for a parent named
+// `name`, now that `parent` has registered there under that name.
+function linkWaitingStructuralChildren(
+  typeTable: ObjectValue,
+  name: string,
+  parent: ObjectValue,
+): void {
+  const waiting = pendingStructuralParents.get(typeTable);
+  const children = waiting?.get(name);
+  if (!children) return;
+  waiting!.delete(name);
+  for (const child of children) {
+    if (linkStructuralParent(child, parent)) {
+      copyStructuralStoreDefaults(child);
     }
   }
 }
@@ -4944,7 +5039,8 @@ export const STDLIB: Record<string, StdLibEntry> = {
   // dispatch — plain map walks, no function-form metamethod
   // re-entry). Then:
   //   1. Copies `store`-marked property defaults INTO the instance
-  //      (walking the chain root-most first so child overrides win).
+  //      (each key takes the nearest chain level's value, so a
+  //      subclass's redeclared default wins).
   //      Store props are instance-owned from birth, so they always
   //      travel with the instance in save files; non-store
   //      properties stay on the class until written and reset to
@@ -5045,7 +5141,78 @@ export const STDLIB: Record<string, StdLibEntry> = {
         for (const level of chain) {
           level.value!.set(name, table);
         }
+        // A structural block declared earlier may be waiting for this define
+        // as its `as` parent (`morph child as base` before `define base as
+        // morph`); link it now, as a later structural parent would.
+        for (const level of chain) {
+          linkWaitingStructuralChildren(level, name, table);
+        }
       }
+      return table;
+    },
+  },
+  // Hidden structural-block define (emitted by lowerLuauStructDefine; never
+  // user-callable). `__defs(props, name, type, parent)` registers the block
+  // as `type.name`, tagged with `type` as its parent marker so the engine
+  // reads it as an instance of that type, and inherits from the member of
+  // the SAME type table named `parent` (`animation.fadein`, builtin or
+  // authored), else from the type itself. The parent is looked up in the
+  // type table rather than as a bare global because a structural block's
+  // global is always the scoped `$<type>_<name>`: blocks of different types
+  // may share a name, and a builtin parent resolves although its bare name is
+  // free for user variables.
+  "__defs": {
+    arity: 4,
+    fn: (story, [tableArg, nameArg, typeArg, parentArg]) => {
+      if (!(tableArg instanceof ObjectValue)) return tableArg ?? null;
+      const table = tableArg;
+      const name = coerceString(nameArg) ?? "";
+      const typeName = coerceString(typeArg) ?? "";
+      const parentName = coerceString(parentArg) ?? "";
+
+      const existing = story.state.variablesState.GetVariableWithName(
+        typeName,
+      ) as AbstractValue | null;
+      let typeTable: ObjectValue;
+      if (existing instanceof ObjectValue) {
+        typeTable = resolveParentType(story, typeName, existing);
+      } else {
+        typeTable = new ObjectValue(new Map<string, AbstractValue>());
+        const tmt = new Map<string, AbstractValue>();
+        tmt.set(DEFINE_MARKER, new StringValue(typeName));
+        typeTable.metatable = new ObjectValue(tmt);
+        story.state.variablesState.SetGlobal(typeName, typeTable);
+      }
+
+      const mt = new Map<string, AbstractValue>();
+      mt.set(DEFINE_MARKER, new StringValue(name));
+      mt.set(DEFINE_PARENT_MARKER, new StringValue(typeName));
+      mt.set("__index", typeTable);
+      table.metatable = new ObjectValue(mt);
+
+      if (parentName) {
+        const member = typeTable.value!.get(parentName) ?? null;
+        if (isDefineTable(member) && member !== table) {
+          linkStructuralParent(table, member);
+        } else {
+          let waiting = pendingStructuralParents.get(typeTable);
+          if (!waiting) {
+            waiting = new Map();
+            pendingStructuralParents.set(typeTable, waiting);
+          }
+          const children = waiting.get(parentName) ?? [];
+          children.push(table);
+          waiting.set(parentName, children);
+        }
+      }
+      copyStructuralStoreDefaults(table);
+
+      // Register into the type and every ancestor type.
+      for (const level of defineChain(typeTable)) {
+        level.value!.set(name, table);
+      }
+      // Link the children that were waiting for this block as their parent.
+      linkWaitingStructuralChildren(typeTable, name, table);
       return table;
     },
   },
