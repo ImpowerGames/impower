@@ -3641,6 +3641,28 @@ switch (cmd) {
   case "redgreen":
     await redgreenCli(rest);
     break;
+  case "measure": {
+    const { measure } = await import("./measure.mjs");
+    await measure(rest, {
+      importPlaywright,
+      resolveChromiumExecutablePath,
+      withEditor,
+      openEditorPage,
+      reloadEditorPage,
+      waitForApp,
+      seedProject,
+      switchScreen,
+      scriptEditorPresent,
+      settleEditor,
+      waitForGame,
+      waitForProgram,
+      waitLanguageSurface,
+      readLanguageSurface,
+      log,
+      die,
+    });
+    break;
+  }
   default:
     log(
       [
@@ -3655,6 +3677,7 @@ switch (cmd) {
         "  seed --project <p>    load a project directory or exported zip into OPFS /local, then reload",
         "  seed --clear          empty OPFS /local (dot entries stay), then reload; with --project, clear first",
         "  redgreen [options]    prove a regression test fails on the base and passes on the fix",
+        "  measure [options]     time key press to painted preview at one line, in a browser profile of its own",
         "",
         "verify options:",
         "  --fresh-sw       unregister and reload; report the controlling worker's script hash and console",
@@ -3688,6 +3711,8 @@ switch (cmd) {
         "  --files <a> [<b>...]    the changed source files the test exercises",
         "  --base <rev>            where the pre-fix content comes from (default HEAD;",
         "                          pass origin/main once the fix is committed)",
+        "",
+        "measure: see references/performance.md; `measure --help` lists its options.",
       ].join("\n"),
     );
 }
