@@ -13,7 +13,10 @@
 // Pure functions, no browser. Node's built-in assert only.
 
 import assert from "node:assert/strict";
-import { attributeEditSample, attributePreviewSample, parseMeasureArgs, phaseName, replacedSpan, summarize } from "./measure.mjs";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { attributeEditSample, attributePreviewSample, measure as measureCommand, parseMeasureArgs, phaseName, replacedSpan, summarize } from "./measure.mjs";
 
 let failures = 0;
 const check = async (name, fn) => {
@@ -65,13 +68,16 @@ await check("a flag with a missing, empty or flag-shaped value is refused, not s
   assert.throws(() => parseMeasureArgs(["--fixture", "--sample", "3"]), /unknown measure argument --sample/);
 });
 
+// The measured line: main.sd line 3515, which the protocol numbers 3514.
+const TARGET = { uri: "file:///main.sd", line: 3514 };
+const preview = (events) => attributePreviewSample(events, TARGET);
 const key = (t, k = "ArrowDown") => ({ t, kind: "key", key: k });
 const request = (t, n, edit = "raffles_shy") => ({ t, kind: "request", request: n, state: "focus", edit });
 const state = (t, n, status, extra = {}) => ({ t, kind: "state", completion: n == null ? null : { request: n, status }, position: { uri: "file:///main.sd", line: 3514 }, programVersion: 7, ...extra });
 const measure = (start, dur, name) => ({ t: start + dur, kind: "measure", name, start, dur });
 
 await check("the result is the state whose completion.request is the key's own request", () => {
-  const sample = attributePreviewSample([
+  const sample = preview([
     key(100),
     request(104, 42),
     state(110, 42, "preparing"),
@@ -93,20 +99,20 @@ await check("the result is the state whose completion.request is the key's own r
 });
 
 await check("a late answer to an earlier request is never counted for this key", () => {
-  const sample = attributePreviewSample([state(90, 41, "showing"), key(100), request(104, 42), state(150, 41, "showing"), state(900, 42, "showing")]);
+  const sample = preview([state(90, 41, "showing"), key(100), request(104, 42), state(150, 41, "showing"), state(900, 42, "showing")]);
   assert.equal(sample.request, 42);
   assert.equal(sample.ms, 800);
-  const unanswered = attributePreviewSample([key(100), request(104, 42), state(150, 41, "showing")]);
+  const unanswered = preview([key(100), request(104, 42), state(150, 41, "showing")]);
   assert.match(unanswered.failure, /no preview\/didChangeGameState answered request 42/);
   assert.equal(unanswered.ms, undefined);
 });
 
 await check("a sample without a request, or answered unavailable, is a failure with its reason", () => {
-  assert.match(attributePreviewSample([key(100)]).failure, /produced no textDocument\/previewCompletion/);
-  assert.match(attributePreviewSample([request(90, 3)]).failure, /no ArrowDown keydown/);
+  assert.match(preview([key(100)]).failure, /produced no textDocument\/previewCompletion/);
+  assert.match(preview([request(90, 3)]).failure, /no ArrowDown keydown/);
   // A close notification is not the key's request.
-  assert.match(attributePreviewSample([key(100), { t: 101, kind: "request", request: 5, state: "close" }]).failure, /produced no textDocument/);
-  const unavailable = attributePreviewSample([key(100), request(101, 5), state(300, 5, "unavailable")]);
+  assert.match(preview([key(100), { t: 101, kind: "request", request: 5, state: "close" }]).failure, /produced no textDocument/);
+  const unavailable = preview([key(100), request(101, 5), state(300, 5, "unavailable")]);
   assert.equal(unavailable.status, "unavailable");
   assert.match(unavailable.failure, /reported request 5 unavailable/);
 });
@@ -121,14 +127,15 @@ await check("an accepted edit is timed from its compile's start to the first new
       state(1000, null, null, { programVersion: 8 }),
     ],
     7,
+    TARGET,
   );
   assert.equal(sample.failure, undefined);
   assert.equal(sample.programVersion, 8);
   assert.equal(sample.ms, 680);
   assert.equal(sample.keyToPainted, 900);
   assert.deepEqual(sample.phases, { "player workspace compile": 400 });
-  assert.match(attributeEditSample([key(100, "Enter"), state(1000, null, null, { programVersion: 8 })], 7).failure, /no workspace compile/);
-  assert.match(attributeEditSample([key(100, "Enter"), measure(320, 400, "player workspace compile x"), state(1000, null, null, { programVersion: 7 })], 7).failure, /newer than version 7/);
+  assert.match(attributeEditSample([key(100, "Enter"), state(1000, null, null, { programVersion: 8 })], 7, TARGET).failure, /no workspace compile/);
+  assert.match(attributeEditSample([key(100, "Enter"), measure(320, 400, "player workspace compile x"), state(1000, null, null, { programVersion: 7 })], 7, TARGET).failure, /newer than version 7/);
 });
 
 await check("the summary counts failures and takes min, median and max over the rest", () => {
@@ -147,6 +154,86 @@ await check("measure names lose their document URI, and a replaced word is found
   assert.deepEqual(replacedSpan(line, "concerned", "      [[raffles_shy:gloves]]"), { start: 16, text: "shy" });
   assert.deepEqual(replacedSpan(line, "concerned", "      [[raffles_:gloves]]"), { start: 16, text: "" });
   assert.equal(replacedSpan(line, "concerned", "      [[bunny_shy]]"), null);
+});
+
+await check("an answer or an edit painted on another line is a failure naming both lines", () => {
+  const moved = preview([key(100), request(104, 42), state(700, 42, "showing", { position: { uri: "file:///main.sd", line: 0 } })]);
+  assert.equal(moved.ms, undefined);
+  assert.match(moved.failure, /request 42 was painted at file:\/\/\/main\.sd line 1, not file:\/\/\/main\.sd line 3515/);
+  const otherFile = preview([key(100), request(104, 42), state(700, 42, "showing", { position: { uri: "file:///other.sd", line: 3514 } })]);
+  assert.match(otherFile.failure, /painted at file:\/\/\/other\.sd line 3515/);
+  const edit = attributeEditSample([key(100, "Enter"), measure(320, 400, "player workspace compile x"), state(1000, null, null, { programVersion: 8, position: { uri: "file:///main.sd", line: 12 } })], 7, TARGET);
+  assert.equal(edit.ms, undefined);
+  assert.match(edit.failure, /program 8 was painted at file:\/\/\/main\.sd line 13, not file:\/\/\/main\.sd line 3515/);
+  assert.equal(summarize([moved, edit]).failures, 2);
+});
+
+// The command itself, against stand-in driver helpers: what a run that stops
+// early reports, and that it leaves no scratch directory or profile behind.
+const measureDirs = () => fs.readdirSync(os.tmpdir()).filter((d) => d.startsWith("impower-measure-"));
+async function runMeasure(args, overrides) {
+  const logged = [];
+  const launches = [];
+  const deps = {
+    withEditor: async (fn, options) => {
+      launches.push(options);
+      return fn({ page: {}, url: "http://localhost:1", consoleLines: ["[error] the player threw", "[log] fine"] });
+    },
+    openEditorPage: async () => {},
+    reloadEditorPage: async () => {},
+    waitForApp: async () => {},
+    seedProject: async () => ({ files: 3 }),
+    switchScreen: async () => {},
+    scriptEditorPresent: async () => ({ present: true }),
+    settleEditor: async () => {},
+    waitForGame: async () => ({ mounted: true }),
+    waitForProgram: async () => ({ loaded: true }),
+    log: (text) => logged.push(text),
+    die: (text) => {
+      throw new Error(`die: ${text}`);
+    },
+    ...overrides,
+  };
+  const before = measureDirs();
+  const exitCode = process.exitCode;
+  try {
+    const report = await measureCommand(args, deps);
+    return { report, exitCode: process.exitCode, logged, launches, leftover: measureDirs().filter((d) => !before.includes(d)) };
+  } finally {
+    process.exitCode = exitCode;
+  }
+}
+
+await check("a seed that fails stops the run nonzero, with the page's console errors and nothing left behind", async () => {
+  const json = path.join(os.tmpdir(), `measure-test-${process.pid}.json`);
+  try {
+    const run = await runMeasure(["--project", "rb", "--line", "3515", "--word", "concerned", "--json", json], { seedProject: async () => ({ reason: "main.sd is missing" }) });
+    assert.equal(run.report.error, "seed failed: main.sd is missing");
+    assert.deepEqual(run.report.consoleErrors, ["[error] the player threw"]);
+    assert.equal(run.exitCode, 1);
+    assert.deepEqual(run.leftover, []);
+    // The browser profile is the run's own, launched by the command.
+    assert.equal(typeof run.launches[0].launch, "function");
+    assert.equal(JSON.parse(fs.readFileSync(json, "utf8")).error, "seed failed: main.sd is missing");
+    assert.equal(JSON.parse(run.logged[0]).summary.samples, 0);
+  } finally {
+    fs.rmSync(json, { force: true });
+  }
+});
+
+await check("a game that never mounts, or a program that never loads, stops the run with that cause", async () => {
+  const unmounted = await runMeasure(["--fixture"], { waitForGame: async () => ({ mounted: false, error: "the editor was on another screen" }) });
+  assert.match(unmounted.report.error, /the game never mounted.*on the reload retry: the editor was on another screen/);
+  assert.equal(unmounted.report.gameMounted, false);
+  assert.equal(unmounted.exitCode, 1);
+  assert.deepEqual(unmounted.leftover, [], "the generated fixture is removed too");
+  const unloaded = await runMeasure(["--fixture"], { waitForProgram: async () => ({ loaded: false, errors: 2 }) });
+  assert.match(unloaded.report.error, /loaded no program within 180 s; the open document has 2 error\(s\)/);
+  assert.equal(unloaded.exitCode, 1);
+});
+
+await check("bad arguments print the usage through die and launch nothing", async () => {
+  await assert.rejects(runMeasure(["--line", "3"], {}), /die: measure needs --project <dir-or-zip> or --fixture\n\nmeasure options:/);
 });
 
 if (failures) {

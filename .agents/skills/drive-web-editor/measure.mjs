@@ -88,7 +88,11 @@ export function parseMeasureArgs(args) {
 // A measure's name without the document URI the workspace appends, so the
 // same phase sums across samples: `player workspace previewCompile file:///x`
 // becomes `player workspace previewCompile`.
-export const phaseName = (name) => name.split(" ").filter((part) => !part.includes("://")).join(" ");
+export const phaseName = (name) =>
+  name
+    .split(" ")
+    .filter((part) => !part.includes("://"))
+    .join(" ");
 
 function phasesBetween(events, from, to) {
   const phases = {};
@@ -109,8 +113,10 @@ const ms = (n) => Math.round(n * 10) / 10;
 // tasks. The result belongs to the key only when its `completion.request` is
 // the request that key produced: a state carrying another request number is a
 // late answer to an earlier highlight and is never counted. A sample without
-// its answer is a failure with a reason, not a missing row.
-export function attributePreviewSample(events, key = "ArrowDown") {
+// its answer is a failure with a reason, not a missing row, and so is an
+// answer painted anywhere but `target` ({ uri, line }, the line counting from
+// zero as the protocol does), since that is not the measured line.
+export function attributePreviewSample(events, target, key = "ArrowDown") {
   const press = events.find((e) => e.kind === "key" && e.key === key);
   if (!press) return { failure: `no ${key} keydown was recorded` };
   const request = events.find((e) => e.kind === "request" && e.state === "focus" && e.t >= press.t);
@@ -122,22 +128,34 @@ export function attributePreviewSample(events, key = "ArrowDown") {
   if (!answer) return { ...base, failure: `no preview/didChangeGameState answered request ${request.request}` };
   const phases = phasesBetween(events, press.t, answer.t);
   if (answer.completion.status === "unavailable") return { ...base, status: "unavailable", phases, failure: `the preview reported request ${request.request} unavailable` };
+  const elsewhere = offTarget(answer.position, target);
+  if (elsewhere) return { ...base, status: "showing", phases, failure: `request ${request.request} was painted at ${elsewhere}` };
   return { ...base, status: "showing", ms: ms(answer.t - press.t), phases, longtasks: longtasksFrom(events, press.t) };
+}
+
+// Where a position is, when it is not `target`; null when it is.
+function offTarget(position, target) {
+  if (position?.uri === target.uri && position?.line === target.line) return null;
+  const where = position ? `${position.uri} line ${position.line + 1}` : "no position";
+  return `${where}, not ${target.uri} line ${target.line + 1}`;
 }
 
 // One accepted edit. The clock starts at the compile the edit caused (the
 // first `workspace compile` measure to start after the Enter keydown), since
 // the editor holds a typed change back before sending it, and stops at the
 // first state carrying a program newer than `versionBefore` with a position,
-// which is the preview painting the edited document. Key to paint, which
-// includes that hold, is reported beside it.
-export function attributeEditSample(events, versionBefore, key = "Enter") {
+// which is the preview painting the edited document; that position has to be
+// `target`, as for a suggestion. Key to paint, which includes that hold, is
+// reported beside it.
+export function attributeEditSample(events, versionBefore, target, key = "Enter") {
   const press = events.find((e) => e.kind === "key" && e.key === key);
   if (!press) return { failure: `no ${key} keydown was recorded` };
   const compile = events.find((e) => e.kind === "measure" && e.start >= press.t && /\bworkspace compile\b/.test(e.name));
   const painted = events.find((e) => e.kind === "state" && e.t >= press.t && e.programVersion != null && e.programVersion > (versionBefore ?? -1) && e.position != null);
   if (!compile) return { failure: "the edit started no workspace compile" };
   if (!painted) return { failure: `no preview/didChangeGameState carried a program newer than version ${versionBefore}` };
+  const elsewhere = offTarget(painted.position, target);
+  if (elsewhere) return { programVersion: painted.programVersion, failure: `program ${painted.programVersion} was painted at ${elsewhere}` };
   return {
     programVersion: painted.programVersion,
     ms: ms(painted.t - compile.start),
@@ -148,14 +166,27 @@ export function attributeEditSample(events, versionBefore, key = "Enter") {
 }
 
 export function summarize(samples) {
-  const times = samples.filter((s) => !s.failure).map((s) => s.ms).sort((a, b) => a - b);
+  const times = samples
+    .filter((s) => !s.failure)
+    .map((s) => s.ms)
+    .sort((a, b) => a - b);
   const stats = (list) => (list.length ? { min: list[0], median: list[Math.floor(list.length / 2)], max: list.at(-1) } : null);
   const phaseNames = [...new Set(samples.flatMap((s) => Object.keys(s.phases ?? {})))];
   return {
     samples: samples.length,
     failures: samples.filter((s) => s.failure).length,
     ms: stats(times),
-    phases: Object.fromEntries(phaseNames.map((name) => [name, stats(samples.filter((s) => !s.failure).map((s) => s.phases?.[name] ?? 0).sort((a, b) => a - b))])),
+    phases: Object.fromEntries(
+      phaseNames.map((name) => [
+        name,
+        stats(
+          samples
+            .filter((s) => !s.failure)
+            .map((s) => s.phases?.[name] ?? 0)
+            .sort((a, b) => a - b),
+        ),
+      ]),
+    ),
   };
 }
 
@@ -215,20 +246,26 @@ const takeLog = (page) => page.evaluate(() => window.__measureLog.splice(0));
 
 // Waits until `done(log)` holds in the page or `timeout` passes; either way
 // the caller attributes whatever arrived, so a timeout is a reported failure.
-const waitInPage = (page, predicate, arg, timeout) => page.waitForFunction(predicate, arg, { timeout, polling: 25 }).then(() => true, () => false);
+const waitInPage = (page, predicate, arg, timeout) =>
+  page.waitForFunction(predicate, arg, { timeout, polling: 25 }).then(
+    () => true,
+    () => false,
+  );
 
 const answeredLatest = (key) => {
   const log = window.__measureLog;
   const press = log.find((e) => e.kind === "key" && e.key === key);
   const request = press && log.find((e) => e.kind === "request" && e.state === "focus" && e.t >= press.t);
-  return !!request && log.some((e) => e.kind === "state" && e.completion?.request === request.request && (e.completion.status === "showing" || e.completion.status === "unavailable"));
+  // The same answer attributePreviewSample accepts, which cannot import here.
+  return (
+    !!request && log.some((e) => e.kind === "state" && e.t >= request.t && e.completion?.request === request.request && (e.completion.status === "showing" || e.completion.status === "unavailable"))
+  );
 };
 const answeredAny = () => {
   const log = window.__measureLog;
   return log.some((r) => r.kind === "request" && r.state === "focus" && log.some((e) => e.kind === "state" && e.completion?.request === r.request && e.completion.status !== "preparing"));
 };
-const paintedAfter = (versionBefore) =>
-  window.__measureLog.some((e) => e.kind === "state" && e.programVersion != null && e.programVersion > (versionBefore ?? -1) && e.position != null);
+const paintedAfter = (versionBefore) => window.__measureLog.some((e) => e.kind === "state" && e.programVersion != null && e.programVersion > (versionBefore ?? -1) && e.position != null);
 
 // A browser profile that exists only for this run, so another session's
 // `verify --sd` or `--project` cannot replace the project being measured, and
@@ -255,6 +292,7 @@ export async function measure(args, deps) {
   }
   const scratch = fs.mkdtempSync(path.join(os.tmpdir(), "impower-measure-"));
   const report = { mode: options.edit ? "edit" : "preview", line: options.line, word: options.word, samples: [], warmup: options.warmup };
+  let pageConsole = [];
   try {
     let project = options.project;
     if (options.fixture) {
@@ -269,6 +307,7 @@ export async function measure(args, deps) {
     report.project = path.resolve(project);
     await deps.withEditor(
       async ({ page, url, consoleLines }) => {
+        pageConsole = consoleLines;
         await deps.openEditorPage(page, url);
         await deps.waitForApp(page);
         report.seed = await deps.seedProject(page, project, { expectMainSd: true });
@@ -279,8 +318,13 @@ export async function measure(args, deps) {
         await deps.switchScreen(page, "main").catch(() => {});
         await deps.scriptEditorPresent(page, 60_000);
         await deps.settleEditor(page, 120_000);
-        await deps.waitForGame(page).catch(() => {});
-        await deps.waitForProgram(page, 180_000);
+        // Every sample would fail without a mounted game and a loaded program,
+        // so either missing stops the run with its cause.
+        const mount = await deps.waitForGame(page);
+        report.gameMounted = mount.mounted;
+        if (!mount.mounted) throw new Error(`the game never mounted, so the Game Preview is blank; try \`down\` then \`up\`${mount.error ? ` (on the reload retry: ${mount.error})` : ""}`);
+        report.program = await deps.waitForProgram(page, 180_000);
+        if (!report.program.loaded) throw new Error(`the player loaded no program within 180 s${report.program.errors ? `; the open document has ${report.program.errors} error(s)` : ""}`);
 
         const { uri, text } = (await send(page, "editor/read")).textDocument;
         report.uri = uri;
@@ -288,7 +332,11 @@ export async function measure(args, deps) {
         report.lineText = lineText ?? null;
         const wordAt = lineText?.indexOf(options.word) ?? -1;
         if (wordAt < 0) throw new Error(`"${options.word}" is not on line ${options.line} of ${uri}: ${JSON.stringify(lineText)}`);
+        const target = { uri, line: options.line - 1 };
         report.playerFramesObserved = await instrument(page);
+        // The player frame is reachable only on a same-origin launch; without
+        // it `ms` is still measured but no sample has phases or long tasks.
+        if (report.playerFramesObserved === 0) report.warning = "no player frame could be observed (a cross-origin launch?), so samples carry no phases or long tasks";
 
         const at = (character) => ({ line: options.line - 1, character });
         const select = (from, to, extra = {}) => notify(page, "editor/select", { textDocument: { uri }, range: { start: at(from), end: at(to) }, takeFocus: true, ...extra });
@@ -321,67 +369,78 @@ export async function measure(args, deps) {
         };
 
         const total = options.warmup + options.samples;
-        if (!options.edit) {
-          const popup = await openList();
-          report.lineWithoutWord = await readLine(page, options.line);
-          report.listLength = popup.options?.length ?? null;
-          await page.waitForTimeout(options.settle + 2500);
-          await takeLog(page);
-          for (let i = 0; i < total; i++) {
-            await page.keyboard.press("ArrowDown");
-            await waitInPage(page, answeredLatest, "ArrowDown", options.timeout);
-            await page.waitForTimeout(options.settle);
-            const selected = (await deps.readLanguageSurface(page, "completion")).selected ?? null;
-            const events = await takeLog(page);
-            const sample = { index: i + 1, warmup: i < options.warmup, selected, ...attributePreviewSample(events), events };
-            report.samples.push(sample);
-          }
-          await page.keyboard.press("Escape");
-          await page.waitForTimeout(1500);
-        } else {
-          for (let i = 0; i < total; i++) {
-            await openList();
-            // A different suggestion each time, answered before accepting it,
-            // so no preview compile is still running when the clock starts.
-            for (let k = 0; k <= i % 3; k++) {
-              await takeLog(page);
+        try {
+          if (!options.edit) {
+            const popup = await openList();
+            report.lineWithoutWord = await readLine(page, options.line);
+            report.listLength = popup.options?.length ?? null;
+            await page.waitForTimeout(options.settle + 2500);
+            await takeLog(page);
+            for (let i = 0; i < total; i++) {
               await page.keyboard.press("ArrowDown");
               await waitInPage(page, answeredLatest, "ArrowDown", options.timeout);
+              await page.waitForTimeout(options.settle);
+              const selected = (await deps.readLanguageSurface(page, "completion")).selected ?? null;
+              const events = await takeLog(page);
+              const sample = { index: i + 1, warmup: i < options.warmup, selected, ...attributePreviewSample(events, target), events };
+              report.samples.push(sample);
             }
-            await page.waitForTimeout(options.settle);
-            const list = await deps.readLanguageSurface(page, "completion");
-            if (!list.popupPresent) throw new Error(`the completion list closed before sample ${i + 1} could accept a suggestion`);
-            const versionBefore = await page.evaluate(() => window.__measureState?.programVersion ?? null);
-            await takeLog(page);
-            await page.keyboard.press("Enter");
-            await waitInPage(page, paintedAfter, versionBefore, options.timeout);
-            await page.waitForTimeout(options.settle);
-            const events = await takeLog(page);
-            const accepted = await readLine(page, options.line);
-            const sample = { index: i + 1, warmup: i < options.warmup, selected: list.selected ?? null, line: accepted, ...attributeEditSample(events, versionBefore), events };
-            report.samples.push(sample);
-            const next = replacedSpan(lineText, options.word, accepted);
-            if (!next) throw new Error(`line ${options.line} no longer has the measured shape: ${JSON.stringify(accepted)}`);
-            span = next;
+            await page.keyboard.press("Escape");
+            await page.waitForTimeout(1500);
+          } else {
+            for (let i = 0; i < total; i++) {
+              await openList();
+              // A different suggestion each time, answered before accepting it,
+              // so no preview compile is still running when the clock starts.
+              for (let k = 0; k <= i % 3; k++) {
+                await takeLog(page);
+                await page.keyboard.press("ArrowDown");
+                await waitInPage(page, answeredLatest, "ArrowDown", options.timeout);
+              }
+              await page.waitForTimeout(options.settle);
+              const list = await deps.readLanguageSurface(page, "completion");
+              if (!list.popupPresent) throw new Error(`the completion list closed before sample ${i + 1} could accept a suggestion`);
+              const versionBefore = await page.evaluate(() => window.__measureState?.programVersion ?? null);
+              await takeLog(page);
+              await page.keyboard.press("Enter");
+              await waitInPage(page, paintedAfter, versionBefore, options.timeout);
+              await page.waitForTimeout(options.settle);
+              const events = await takeLog(page);
+              const accepted = await readLine(page, options.line);
+              const sample = { index: i + 1, warmup: i < options.warmup, selected: list.selected ?? null, line: accepted, ...attributeEditSample(events, versionBefore, target), events };
+              report.samples.push(sample);
+              const next = replacedSpan(lineText, options.word, accepted);
+              if (!next) throw new Error(`line ${options.line} no longer has the measured shape: ${JSON.stringify(accepted)}`);
+              span = next;
+            }
+          }
+        } finally {
+          // Put the word back where the run took it from, whether or not the
+          // samples finished; a restore that fails is reported beside the
+          // error that stopped the run rather than replacing it.
+          try {
+            await page.keyboard.press("Escape");
+            const current = await readLine(page, options.line);
+            const last = replacedSpan(lineText, options.word, current) ?? span;
+            await select(last.start, last.start + last.text.length);
+            await page.keyboard.type(options.word);
+            await page.keyboard.press("Escape");
+            await page.waitForTimeout(3000);
+            report.restored = await readLine(page, options.line);
+            report.restoredMatches = report.restored === lineText;
+          } catch (error) {
+            report.restoreError = String(error?.message ?? error);
+            report.restoredMatches = false;
           }
         }
-
-        // Put the word back where the run took it from.
-        const current = await readLine(page, options.line);
-        const last = replacedSpan(lineText, options.word, current) ?? span;
-        await select(last.start, last.start + last.text.length);
-        await page.keyboard.type(options.word);
-        await page.keyboard.press("Escape");
-        await page.waitForTimeout(3000);
-        report.restored = await readLine(page, options.line);
-        report.restoredMatches = report.restored === lineText;
-        report.consoleErrors = consoleLines.filter((l) => /error/i.test(l)).slice(-10);
       },
       { headless: !options.headed, launch: privateLaunch(deps, path.join(scratch, "profile")) },
     );
   } catch (error) {
     report.error = String(error?.message ?? error);
   } finally {
+    // The page's console, on every exit path, since it explains most failures.
+    report.consoleErrors = pageConsole.filter((l) => /error/i.test(l)).slice(-10);
     fs.rmSync(scratch, { recursive: true, force: true });
   }
 

@@ -14,12 +14,16 @@
 // run by hand.
 
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import fs from "node:fs";
+import { createRequire } from "node:module";
 import os from "node:os";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { imageOptions, parseBenchArgs, tokenAround } from "./preview-bench.mjs";
 import { buildPreviewFixture, writePreviewFixture } from "./preview-fixture.mjs";
 
+const HERE = path.dirname(fileURLToPath(import.meta.url));
 let failures = 0;
 const check = async (name, fn) => {
   try {
@@ -101,6 +105,36 @@ await check("the benchmark's arguments and default replacements", () => {
   assert.equal(tokenAround("[[bunny]]", "concerned"), null);
   assert.deepEqual(imageOptions(["a/raffles_shy.svg", "b/raffles_concerned.svg", "raffles_unsure.png", "raffles_notes.txt", "bunny_shy.svg"], "raffles_", "raffles_concerned"), ["raffles_shy", "raffles_unsure"]);
 });
+
+// The benchmark end to end on the fixture: bundle, one process per mode, and
+// a report naming the route and the phases. It needs the workspace install
+// for esbuild and the compiler's dependencies, which the tooling workflow
+// does not have, so it says it skipped rather than passing silently there.
+const esbuildInstalled = (() => {
+  try {
+    createRequire(path.join(HERE, "..", "..", "package.json")).resolve("esbuild");
+    return true;
+  } catch {
+    return false;
+  }
+})();
+if (!esbuildInstalled) {
+  console.log("SKIP: the benchmark's end-to-end run needs the workspace install (esbuild is not resolvable)");
+} else {
+  await check("the benchmark runs both modes on the fixture and reports route, phases and wire size", () => {
+    const run = spawnSync(process.execPath, [path.join(HERE, "preview-bench.mjs"), "--fixture", "--samples", "1", "--warmup", "0"], { encoding: "utf8", timeout: 240_000, windowsHide: true });
+    assert.equal(run.status, 0, run.stdout + run.stderr);
+    for (const mode of ["preview", "edit"]) {
+      const section = run.stdout.slice(run.stdout.indexOf(`mode ${mode}:`));
+      assert.ok(run.stdout.includes(`mode ${mode}: line ${target.line} "${target.lineText}", replacing hero_concerned`), `no ${mode} report`);
+      assert.match(section, /1 samples after 0 warm-up; route \d{4,} steps/);
+      assert.match(section, /game\/planRoute/);
+      assert.match(section, /ink\/compile/);
+      assert.match(section, /pathLocations/);
+      assert.match(section, /\(checkpoint\)/);
+    }
+  });
+}
 
 if (failures) {
   console.log(`${failures} check(s) failed`);
