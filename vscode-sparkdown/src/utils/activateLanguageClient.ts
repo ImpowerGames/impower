@@ -11,10 +11,16 @@ import {
   ExecuteCommandRequest,
   ExecuteCommandSignature,
   LSPAny,
+  ProvideCompletionItemsSignature,
   ProvideDocumentSymbolsSignature,
+  ResolveCompletionItemSignature,
 } from "vscode-languageclient";
 import { SparkProgramManager } from "../managers/SparkProgramManager";
 import { SparkdownOutlineTreeDataProvider } from "../providers/SparkdownOutlineTreeDataProvider";
+import {
+  offerCompletions,
+  resolvedCompletion,
+} from "./activateCompletionPreview";
 import { createSparkdownLanguageClient } from "./createSparkdownLanguageClient";
 import { executeLanguageCommand } from "./executeLanguageCommand";
 import { getEditor } from "./getEditor";
@@ -81,6 +87,26 @@ export const activateLanguageClient = async (
       emitCompiledProgram: false,
     },
     middleware: {
+      provideCompletionItem: async (
+        document: vscode.TextDocument,
+        position: vscode.Position,
+        context: vscode.CompletionContext,
+        token: vscode.CancellationToken,
+        next: ProvideCompletionItemsSignature,
+      ) => {
+        const result = await next(document, position, context, token);
+        offerCompletions(document, result);
+        return result;
+      },
+      resolveCompletionItem: async (
+        item: vscode.CompletionItem,
+        token: vscode.CancellationToken,
+        next: ResolveCompletionItemSignature,
+      ) => {
+        const resolved = await next(item, token);
+        resolvedCompletion(item, resolved);
+        return resolved;
+      },
       provideDocumentSymbols: async (
         document: vscode.TextDocument,
         token: vscode.CancellationToken,

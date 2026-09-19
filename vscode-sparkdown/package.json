@@ -24,7 +24,7 @@
     "url": "https://www.patreon.com/impowergames"
   },
   "engines": {
-    "vscode": "^1.97.0"
+    "vscode": "^1.100.0"
   },
   "categories": [
     "Programming Languages",
@@ -954,7 +954,7 @@
     "package:inspector-webview": "cd ./webviews/inspector-webview && npm run package && cd ../../",
     "package:self": "node scripts/esbuild.ts --production",
     "package": "npm-run-all -p package:*",
-    "pretest": "npm run build",
+    "test": "vitest run",
     "browser": "npm run build && vscode-test-web --browserType=chromium --extensionDevelopmentPath=. .",
     "vscode:prepublish": "npm run package",
     "publish-minor": "vsce publish minor",
@@ -981,7 +981,7 @@
     "@esbuild-plugins/node-globals-polyfill": "^0.2.3",
     "@types/node": "^22.13.7",
     "@types/path-browserify": "^1.0.3",
-    "@types/vscode": "^1.97.0",
+    "@types/vscode": "^1.100.0",
     "@vscode/test-web": "^0.0.67",
     "brfs": "^2.0.2",
     "esbuild": "^0.25.0",
@@ -990,7 +990,8 @@
     "mocha": "^11.1.0",
     "npm-run-all": "^4.1.5",
     "transform-loader": "^0.2.4",
-    "typescript": "^5.8.3"
+    "typescript": "^5.8.3",
+    "vitest": "^2.1.9"
   },
   "peerDependencies": {
     "@codemirror/autocomplete": "^6.20.1",

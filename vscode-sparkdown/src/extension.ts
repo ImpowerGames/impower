@@ -7,6 +7,7 @@ import { activateAutoFormatting } from "./utils/activateAutoFormatting";
 import { activateCheatSheetView } from "./utils/activateCheatSheetView";
 import { activateCommandView } from "./utils/activateCommandView";
 import { activateCompilationView } from "./utils/activateCompilationView";
+import { activateCompletionPreview } from "./utils/activateCompletionPreview";
 import { activateDocumentManager } from "./utils/activateDocumentManager";
 import { activateDurationStatus } from "./utils/activateDurationStatus";
 import { activateExecutionLineDecorator } from "./utils/activateExecutionLineDecorator";
@@ -36,6 +37,7 @@ export function activate(context: vscode.ExtensionContext) {
   activateDurationStatus(context);
   activatePreviewScreenplayPanel(context);
   activatePreviewGamePanel(context);
+  activateCompletionPreview(context);
   activateExecutionLineDecorator(context);
   activateCompilationView(context);
   activateFileWatcher(context);
