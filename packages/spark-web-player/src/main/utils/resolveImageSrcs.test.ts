@@ -106,6 +106,17 @@ describe("warming the urls the renderer will request", () => {
     }
   });
 
+  it("agrees with the game when both resolve through the same structs", () => {
+    // On the page they do: the warm-up and the renderer read one context, so
+    // one holds the derivation the other reuses.
+    const ctx = context();
+    for (const name of ["stripped~hat.off", "layers~hat.off"]) {
+      const warmFirst = resolveImageSrcs(ctx, [name]);
+      expect(warmFirst).toEqual(gameSrcs(ctx, name));
+      expect(resolveImageSrcs(ctx, [name])).toEqual(warmFirst);
+    }
+  });
+
   it("still skips a look whose root keeps its source inlined", () => {
     // Nothing fetches a `data:` uri, and building one means rewriting the
     // whole SVG, so those are skipped without paying for it.

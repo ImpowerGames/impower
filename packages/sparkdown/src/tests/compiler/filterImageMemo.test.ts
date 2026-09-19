@@ -13,6 +13,7 @@
 
 import { describe, expect, it, vi } from "vitest";
 
+
 const counters = vi.hoisted(() => ({ visibility: 0 }));
 
 vi.mock("../../attributes", async () => {
@@ -30,7 +31,9 @@ vi.mock("../../attributes", async () => {
 });
 
 const { buildSVGAttributeVocabulary } = await import("../../attributes");
-const { filterImage } = await import("../../compiler/utils/filterImage");
+const { filterImage, resolveImageAttributes } = await import(
+  "../../compiler/utils/filterImage"
+);
 
 const SVG = `<svg xmlns="http://www.w3.org/2000/svg"><g id='hat' data-name='hat.on'><path/></g><g id='body'><path/></g></svg>`;
 
@@ -150,6 +153,40 @@ describe("re-deriving when an input changes", () => {
     filterImage(context, context.filtered_image.p);
     expect(context.filtered_image.p.filtered_layers).toBeUndefined();
     expect(typeof context.filtered_image.p.filtered_src).toBe("string");
+  });
+
+  it("tells no attributes apart from one empty attribute", () => {
+    // A trailing `~`, which is what a half-typed reference looks like, reaches
+    // resolution as a list holding one empty string. It earns a warning; an
+    // empty list does not, and the two must not share a derivation.
+    const context = imageRootContext();
+    const look = context.filtered_image.p;
+    look.attributes = [];
+    expect(resolveImageAttributes(context, look).diagnostics).toEqual([]);
+    look.attributes = [""];
+    expect(resolveImageAttributes(context, look).diagnostics).toEqual([
+      expect.objectContaining({ code: "unknown-attribute", attribute: "" }),
+    ]);
+    look.attributes = [];
+    expect(resolveImageAttributes(context, look).diagnostics).toEqual([]);
+  });
+
+  it("re-derives when the root's file extension changes", () => {
+    // The extension decides whether the root is filtered as an SVG, so it is
+    // one of the fields a derivation is only valid for.
+    // A served file whose address carries no extension is filtered as an SVG
+    // on the strength of `ext` alone.
+    const context = imageRootContext({
+      data: undefined,
+      src: "/file:/local/assets/portrait?v=1",
+    });
+    filterImage(context, context.filtered_image.p);
+    expect(context.filtered_image.p.filtered_src).toMatch(/&attributes=/);
+    context.image.portrait.ext = "png";
+    filterImage(context, context.filtered_image.p);
+    expect(context.filtered_image.p.filtered_src).toBe(
+      "/file:/local/assets/portrait?v=1",
+    );
   });
 
   it("re-derives when a named look's attributes change", () => {
