@@ -26,4 +26,44 @@ A screenshot can also be misleading rather than merely uninformative. Display te
 
 A performance cost the fix knowingly carries is a headline, not a footnote: put it at the top of the PR body.
 
+## Preview latency at one line
+
+Two committed measurements cover the Game Preview's response to a highlighted autocomplete suggestion and to an accepted edit (#646). Every change to that pipeline reports before and after with both, taken in the same sitting, because machine load moves every figure by about a third.
+
+### In the browser: `measure`
+
+```bash
+node .agents/skills/drive-web-editor/driver.mjs up
+node .agents/skills/drive-web-editor/driver.mjs measure --project <dir-or-zip> --line 3515 --word concerned
+node .agents/skills/drive-web-editor/driver.mjs measure --fixture
+```
+
+The command seeds the project into a browser profile created for this run and removed afterwards, so another session's `verify --sd` or `--project` against the shared profile cannot replace the project being measured. It puts the preview on the line, deletes `--word` so the completion list offers every candidate, opens the list with Ctrl+Space, and presses ArrowDown once per sample, waiting for each answer before the next key. The first `--warmup` samples (default 2) are discarded, `--samples` (default 10) are kept, and the word is typed back at the end. `--fixture` generates the fixture project described below and measures its target line, so the command runs with no private project present.
+
+The report is JSON. Check `lineText` first: it is the measured line as the editor holds it, so a wrong line number is visible there. `restoredMatches` says the line was put back. Per sample:
+
+- `ms`: keydown to the `preview/didChangeGameState` whose `completion.request` is the request that key produced and whose status is `showing`. That is the time from key press to the suggestion painted. A state that answers an earlier request never counts.
+- `failure`: the sample's answer never arrived within `--timeout`, or arrived as `unavailable`. Failed samples stay in the report and are counted in `summary.failures`; the command exits nonzero when any sample failed.
+- `phases`: the player frame's own measures that started between the key and the answer, summed per name: `workspace previewCompile` (the worker round trip: compile, route and transfer), `game/updateProgram`, `app/connectGame` and `game/preview` (the page after the program arrives).
+- `longtasks`: main-thread tasks over 50 ms in the player frame from the key on.
+
+`summary` gives min, median and max of `ms` and of each phase over the kept samples. `--json <file>` also writes the raw event log of every sample.
+
+With `--edit`, each sample deletes the word, highlights a different suggestion, waits for its preview, and accepts it with Enter. `ms` then runs from the start of the `workspace compile` that the edit caused to the first state carrying a newer program with a position, and `keyToPainted` runs from the Enter key, which includes the editor's hold on a typed change before it sends it.
+
+### In Node: the worker benchmark
+
+```bash
+node scripts/bench/preview-bench.mjs --project <dir> --line 3515 --word concerned
+node scripts/bench/preview-bench.mjs --fixture
+```
+
+It needs the workspace install. It bundles `scripts/bench/previewBench.ts` with esbuild and runs each mode (`--mode preview`, `edit` or `both`, the default) in a process of its own with a 4 GB heap; a large project with two games does not fit under vitest's 1024 MB limit. It replays `packages/spark-web-player/src/main/workers/workspace.worker.ts` with no browser: the compiler configured as the player configures it, the worker's `Game` and `searchRouteTo`, the program transport through a structured-clone round trip, and a second `Game` standing in for the page. Replacements default to every image file whose name starts like the identifier around `--word`; `--options a,b,c` overrides them.
+
+It prints, as min, median and max per sample: wall-clock times for the worker (compile, game update and route together), transport encode, clone out, clone in, transport decode, the page game's `updateProgram` and `load`, and the total without the DOM; the compiler's and route search's own `profile()` phases (`game/planRoute`, `ink/compile`, `incrementalParse`, `populateLocations`, `ink/json` and the rest); and the wire size, total and by top-level program key, with the checkpoint as its own row. `--json <file>` writes each mode's full report to `<file>.<mode>.json`.
+
+### The fixture
+
+`node scripts/bench/preview-fixture.mjs <dir>` writes the project both commands use for `--fixture` and prints its target line. It reproduces what makes a real project slow to preview: one flat scene of about 2,400 lines, a `choose ... then ... end` whose `then` clause holds the last 1,100 of them, and attribute directives (`[[hero_concerned:gloves]]`) over SVG portraits whose layers carry a condition vocabulary. Its target is the last directive of the `then` clause, and its route from the top of the scene to the target is about 31,000 story steps. The output is the same on every run, so two checkouts measure the same project.
+
 ---
