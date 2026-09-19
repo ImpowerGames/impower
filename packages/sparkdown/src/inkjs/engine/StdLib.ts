@@ -5039,7 +5039,8 @@ export const STDLIB: Record<string, StdLibEntry> = {
   // dispatch — plain map walks, no function-form metamethod
   // re-entry). Then:
   //   1. Copies `store`-marked property defaults INTO the instance
-  //      (walking the chain root-most first so child overrides win).
+  //      (each key takes the nearest chain level's value, so a
+  //      subclass's redeclared default wins).
   //      Store props are instance-owned from birth, so they always
   //      travel with the instance in save files; non-store
   //      properties stay on the class until written and reset to
