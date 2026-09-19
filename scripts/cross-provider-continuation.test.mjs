@@ -178,21 +178,32 @@ try {
   console.log('PASS: same-turn native receipts reconcile duplicate/out-of-order hooks and partial tails without accepting ambiguous turns');
 
   const socketPath=process.platform==='win32'?`\\\\.\\pipe\\impower-claude-${randomUUID()}`:path.join(scratch,'inbox.sock');
-  let frames;
+  let frames,terminalFrames,connection=0,resolveTerminal;
+  const receivedTerminal=new Promise(resolve=>{resolveTerminal=resolve;});
   const received=new Promise(resolve=>{
     const server=net.createServer(socket=>{
-      let buffer='';socket.on('data',chunk=>{buffer+=chunk;const lines=buffer.trim().split('\n');if(lines.length===2){frames=lines.map(JSON.parse);resolve();}});
+      const current=connection++;let buffer='';socket.on('data',chunk=>{buffer+=chunk;const lines=buffer.trim().split('\n');if(lines.length===2){if(current===0){frames=lines.map(JSON.parse);resolve();}else{terminalFrames=lines.map(JSON.parse);resolveTerminal();}}});
     });
     server.listen(socketPath);server.on('error',error=>{throw error;});
     receivedServer=server;
   });
   await new Promise(resolve=>receivedServer.listening?resolve():receivedServer.once('listening',resolve));
   assert.equal((await sendClaudeFrame({...registered,socket:socketPath},envelope)).status,'written-awaiting-native-receipt');
-  await received;await new Promise(resolve=>receivedServer.close(resolve));
+  await received;
   assert.deepEqual(frames[0],{type:'auth',token:env.CLAUDE_CODE_MESSAGING_TOKEN});
   assert.equal(frames[1].session_id,sessionId);assert.equal(frames[1].uuid,envelope.continuationId);assert.equal(frames[1].msg_id,envelope.continuationId);assert.equal(frames[1].priority,'next');
   assert.ok(frames[1].message.content.includes(marker));assert.equal(frames[1].message.content.includes(env.CLAUDE_CODE_MESSAGING_TOKEN),false);
+  const terminalEnvelope={...envelope,continuationId:randomUUID(),authorizedAction:'inspect-blocked-review',state:'review-failed',reason:'fixture launch failure',journal:path.join(scratch,'handoff.jsonl'),jobDir:scratch,nextRequiredAction:'Inspect the journal without launching a duplicate reviewer.'};delete terminalEnvelope.claimCommand;
+  assert.equal((await sendClaudeFrame({...registered,socket:socketPath},terminalEnvelope)).status,'written-awaiting-native-receipt');await receivedTerminal;
+  const terminalMarker=claudeReceiptMarker(terminalEnvelope.continuationId);
+  assert.ok(terminalFrames[1].message.content.includes(terminalMarker));assert.equal(JSON.parse(terminalFrames[1].message.content.trim().split('\n').at(-1)).journal,terminalEnvelope.journal);assert.doesNotMatch(terminalFrames[1].message.content,/For the claim|invoke Bash/);
+  fs.appendFileSync(transcript,JSON.stringify({type:'attachment',attachment:{type:'queued_command',prompt:terminalMarker}})+'\n');record({hook_event_name:'MessageDisplay',turn_id:turnId,final:false,delta:terminalMarker});record({hook_event_name:'MessageDisplay',turn_id:turnId,final:true,delta:''});
+  assert.deepEqual(await adapter().reconcile(terminalEnvelope),{status:'accepted',turnId},'terminal delivery uses the same durable native receipt without a claim command');
+  await new Promise(resolve=>receivedServer.close(resolve));
   assert.equal((await sendClaudeFrame({...registered,socket:socketPath},envelope)).status,'not-sent');
+  const malformedSocket=new (await import('node:events')).EventEmitter();malformedSocket.destroy=()=>{};malformedSocket.write=()=>assert.fail('a malformed frame must be refused before write');
+  const malformed=sendClaudeFrame(registered,{...envelope,claimCommand:undefined},{connect:()=>{queueMicrotask(()=>malformedSocket.emit('connect'));return malformedSocket;}});
+  const malformedReceipt=await malformed;assert.equal(malformedReceipt.status,'not-sent');assert.match(malformedReceipt.reason,/undefined|claim/i,'a known pre-write construction failure preserves its cause without becoming uncertain');
   const failedWrite=new (await import('node:events')).EventEmitter();failedWrite.destroy=()=>{};failedWrite.write=(_frame,done)=>done(new Error('write result lost'));
   const uncertain=sendClaudeFrame(registered,envelope,{connect:()=>{queueMicrotask(()=>failedWrite.emit('connect'));return failedWrite;}});await assert.rejects(uncertain,/uncertain/);
   console.log('PASS: actual local socket sends one authenticated exact-session frame; closed endpoint never creates a replacement');
