@@ -6,7 +6,7 @@ import { execFileSync } from 'node:child_process';
 import childProcess from 'node:child_process';
 import { syncBuiltinESMExports } from 'node:module';
 import { runHandoff,verifyNativeReviewResult,validateNativeReviewArgs,verifyReviewComment } from './agent-handoff.mjs';
-import { createReviewJob as actualCreate,advanceReviewJob,cancelReviewJob,claimReviewJob as actualClaim,jobStatus,launchReviewWorker,launchSupervisor,runReviewWorker,validateReviewPlan as actualValidate,runReviewMonitor,resumeReviewJob,recoverMonitor,releaseStoppedJob,eventCursor } from './review-supervisor.mjs';
+import { createReviewJob as actualCreate,advanceReviewJob,cancelReviewJob,claimReviewJob as actualClaim,jobStatus,launchReviewWorker,launchSupervisor,runReviewWorker,validateReviewPlan as actualValidate,runReviewMonitor,resumeReviewJob,recoverMonitor,releaseStoppedJob,eventCursor,submitReviewJob } from './review-supervisor.mjs';
 import { EventEmitter } from 'node:events';
 import { reviewerEnvironment } from './reviewer-security.mjs';
 import { appendEvent,withJob,readJson,readEvents,worktreePaths,assertJobFreeze,retryBusy,recoverJobLock,git as isolatedGit } from './review-job-store.mjs';
@@ -56,6 +56,16 @@ try {
     return{jobDir,p,input,host,complete,get sends(){return sends;},get delivered(){return delivered;},disconnect(){state='disconnected';}};
   };
   {
+    const template=await fixture();fs.unlinkSync(worktreePaths(repo).freeze);
+    const foreignDir=path.join(scratch,'foreign-job');fs.mkdirSync(foreignDir);fs.writeFileSync(worktreePaths(repo).freeze,JSON.stringify({jobId:'foreign',jobDir:foreignDir})+'\n');
+    const blockedInput={...template.input,jobDir:path.join(scratch,'submit-blocked')};let blockedWorkers=0,blockedMonitors=0;
+    const blockedResult=await submitReviewJob(blockedInput,template.host,{createOptions:fixtureValidation,launchWorker:async()=>{blockedWorkers++;},launchMonitor:async dir=>{blockedMonitors++;await runReviewMonitor(dir,template.host,{identify});}});
+    assert.equal(blockedResult.state,'blocked');assert.equal(blockedWorkers,0,'a freeze-reservation block skips the worker');assert.equal(blockedMonitors,1,'a freeze-reservation block still launches the terminal monitor');assert.equal(template.sends,1,'the blocked submit path wakes its origin');fs.unlinkSync(worktreePaths(repo).freeze);
+
+    const failedTemplate=await fixture();fs.unlinkSync(worktreePaths(repo).freeze);const failedInput={...failedTemplate.input,jobDir:path.join(scratch,'submit-launch-failed')};let failedMonitors=0;
+    const failedResult=await submitReviewJob(failedInput,failedTemplate.host,{createOptions:fixtureValidation,launchWorker:async dir=>{withJob(dir,()=>appendEvent(dir,'worker-launch-failed',{reason:'fixture spawn failure'}));throw new Error('fixture spawn failure');},launchMonitor:async dir=>{failedMonitors++;await runReviewMonitor(dir,failedTemplate.host,{identify});}});
+    assert.equal(failedResult.state,'review-failed');assert.equal(failedMonitors,1,'a worker launch failure still launches the terminal monitor');assert.equal(failedTemplate.sends,1,'the failed submit path wakes its origin');
+
     const f=await fixture();withJob(f.jobDir,()=>appendEvent(f.jobDir,'worker-launch-failed',{reason:'fixture reviewer launch failed'}));
     const result=await runReviewMonitor(f.jobDir,f.host,{identify});
     assert.equal(result.state,'review-failed');assert.equal(f.sends,1,'a terminal review failure wakes the originating task once');
@@ -73,8 +83,12 @@ try {
     const released=await fixture();withJob(released.jobDir,()=>appendEvent(released.jobDir,'worker-launch-failed',{reason:'fixture reviewer launch failed'}));releaseStoppedJob(released.jobDir,{identify});
     assert.equal((await runReviewMonitor(released.jobDir,released.host,{identify})).state,'review-failed');assert.equal(released.sends,1,'a supported freeze release does not suppress the recovery-only terminal event');
 
-    const midIteration=await fixture();withJob(midIteration.jobDir,()=>{appendEvent(midIteration.jobDir,'worker-launch-intent');appendEvent(midIteration.jobDir,'worker-started',{identity:processIdentity(process.pid)});appendEvent(midIteration.jobDir,'worker-finished',{ok:false,reason:'reviewer chain failed'});});
-    assert.equal((await runReviewMonitor(midIteration.jobDir,midIteration.host,{identify})).state,'review-failed');assert.equal(midIteration.sends,1,'a failure discovered inside the normal advancement iteration returns to terminal delivery');
+    const midIteration=await fixture();withJob(midIteration.jobDir,()=>{appendEvent(midIteration.jobDir,'worker-launch-intent');appendEvent(midIteration.jobDir,'worker-started',{identity:processIdentity(process.pid)});});
+    let injectedFailure=false;const failDuringIdentity=()=>{if(!injectedFailure){injectedFailure=true;withJob(midIteration.jobDir,()=>appendEvent(midIteration.jobDir,'worker-finished',{ok:false,reason:'reviewer chain failed mid-iteration'}));}return null;};
+    assert.equal((await runReviewMonitor(midIteration.jobDir,midIteration.host,{identify:failDuringIdentity})).state,'review-failed');assert.equal(injectedFailure,true,'the worker failure lands after the monitor entered normal advancement');assert.equal(midIteration.sends,1,'a failure discovered inside the normal advancement iteration returns to terminal delivery');
+
+    const previousPlan=await fixture();const previousData=readJson(path.join(previousPlan.jobDir,'plan.json'));delete previousData.terminalContinuationId;fs.writeFileSync(path.join(previousPlan.jobDir,'plan.json'),JSON.stringify(previousData)+'\n');withJob(previousPlan.jobDir,()=>appendEvent(previousPlan.jobDir,'worker-launch-failed',{reason:'fixture previous-version failure'}));
+    await runReviewMonitor(previousPlan.jobDir,previousPlan.host,{identify});assert.ok(previousPlan.delivered,'a previous-version live job still emits a terminal event');assert.equal(previousPlan.delivered.continuationId,previousData.jobId,'a previous-version live job uses its durable job identity for a distinct terminal receipt');assert.notEqual(previousPlan.delivered.continuationId,previousData.continuationId);
 
     const uncertain=await fixture();withJob(uncertain.jobDir,()=>appendEvent(uncertain.jobDir,'worker-launch-failed',{reason:'fixture reviewer launch failed'}));
     let attempts=0;uncertain.host.submit=async()=>{attempts++;throw new Error('lost terminal acknowledgment');};
@@ -89,7 +103,7 @@ try {
 
     for(const point of ['after-validation','before-submit','after-submit']) {
       const interrupted=await fixture();withJob(interrupted.jobDir,()=>appendEvent(interrupted.jobDir,'worker-launch-failed',{reason:'fixture reviewer launch failed'}));
-      let tripped=false;await runReviewMonitor(interrupted.jobDir,interrupted.host,{identify,deliveryFailpoint:p=>{if(!tripped&&p===point){tripped=true;throw new Error(`crash ${point}`);}}});
+      let tripped=false;const firstRun=await runReviewMonitor(interrupted.jobDir,interrupted.host,{identify,deliveryFailpoint:p=>{if(!tripped&&p===point){tripped=true;throw new Error(`crash ${point}`);}}});assert.equal(tripped,true,`terminal ${point} failpoint must fire`);assert.equal(firstRun.state,point==='after-submit'?'review-failed':'monitor-suspended');
       await runReviewMonitor(interrupted.jobDir,interrupted.host,{identify});assert.equal(interrupted.sends,1,`terminal ${point} recovery never duplicates delivery`);assert.equal(readEvents(interrupted.jobDir).filter(row=>row.event==='terminal-notification-accepted').length,1);
     }
   }

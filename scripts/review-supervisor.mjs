@@ -77,7 +77,7 @@ export async function createReviewJob(input,host,{verifyExecutable=verifyReviewe
   fs.mkdirSync(plan.jobDir);
   writeExclusive(path.join(plan.jobDir,'plan.json'),plan);
   writeExclusive(path.join(plan.jobDir,'events.jsonl'),{version:1,sequence:1,eventId:randomUUID(),jobId:plan.jobId,time:new Date().toISOString(),event:'accepted',capability});
-  try {reserveFreeze(plan,plan.jobDir);}catch(error){withJob(plan.jobDir,()=>appendEvent(plan.jobDir,'blocked',{reason:error.message}));throw error;}
+  try {reserveFreeze(plan,plan.jobDir);}catch(error){withJob(plan.jobDir,()=>appendEvent(plan.jobDir,'blocked',{reason:error.message}));return jobStatus(plan.jobDir);}
   const steps=Object.fromEntries(plan.reviews.map((review,index)=>[review.id,{role:'review',round:plan.round,model:plan.reviewer,nativeResult:nativeResultType(review.transport),effort:review.effort,permissions:review.permissions,executable:review.executable,args:review.args,prompt:review.prompt,next:[plan.reviews[index+1]?.id??null]}]));
   writeExclusive(path.join(plan.jobDir,'handoff.json'),{worktree:plan.worktree,journal:path.join(plan.jobDir,'handoff.jsonl'),pr:plan.pr,writer:plan.writer,writerEffort:plan.writerEffort,reviewer:plan.reviewer,completedReviewRound:plan.completedReviewRound,reviewedHead:plan.reviewedHead,finalCorrections:plan.finalCorrections,reviewRoundLimit:plan.reviewRoundLimit,extendedReviewAuthorization:plan.extendedReviewAuthorization,maxSteps:plan.reviews.length,first:plan.reviews[0].id,steps});
   return jobStatus(plan.jobDir);
@@ -137,7 +137,9 @@ function terminalEnvelope(dir,plan,rows) {
   const failure=state==='blocked'?last(rows,'blocked'):(last(rows,'worker-finished')?.ok===false?last(rows,'worker-finished'):last(rows,'worker-launch-failed'));
   const reason=failure?.reason??failure?.message??`Review launcher reached ${state}`;
   const journal=path.join(dir,'handoff.jsonl');
-  return {version:1,jobId:plan.jobId,continuationId:plan.terminalContinuationId,destination:{threadId:plan.destination.threadId,turnId:plan.destination.turnId,cwd:plan.destination.cwd},head:plan.head,base:plan.base,round:plan.round,authorizedAction:'inspect-blocked-review',state,reason,journal,jobDir:dir,nextRequiredAction:`Inspect ${journal} and the job logs, preserve recorded process identities, and check status before acting. Recover only a confirmed-dead monitor; release only confirmed-stopped reviewer ownership. Do not resume a failed reviewer or launch a duplicate reviewer.`};
+  const continuationId=plan.terminalContinuationId??plan.jobId;
+  if(!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(continuationId??''))throw new Error('Terminal continuation identity unavailable; preserve this job for awaited recovery');
+  return {version:1,jobId:plan.jobId,continuationId,destination:{threadId:plan.destination.threadId,turnId:plan.destination.turnId,cwd:plan.destination.cwd},head:plan.head,base:plan.base,round:plan.round,authorizedAction:'inspect-blocked-review',state,reason,journal,jobDir:dir,nextRequiredAction:`Inspect ${journal} and the job logs, preserve recorded process identities, and check status before acting. Recover only a confirmed-dead monitor; release only confirmed-stopped reviewer ownership. Do not resume a failed reviewer or launch a duplicate reviewer.`};
 }
 async function advanceDelivery(dir,host,{plan,envelope,rows,outstanding,accepted,maySubmit,assertAdmission=()=>{},intent,response,refused,uncertain,acceptedEvent,failpoint=()=>{}}) {
   if(!outstanding(rows)) {
@@ -286,6 +288,15 @@ export async function resumeReviewJob(dir) {
   });
 }
 
+export async function submitReviewJob(input,host,{createOptions={},launchWorker=launchReviewWorker,launchMonitor=launchSupervisor}={}) {
+  let result=await createReviewJob(input,host,createOptions),workerFailure;
+  if(result.state!=='blocked') {
+    try{await launchWorker(input.jobDir);}catch(error){result=jobStatus(input.jobDir);if(result.state!=='review-failed')throw error;workerFailure=error;}
+  }
+  await launchMonitor(input.jobDir);
+  return workerFailure?jobStatus(input.jobDir):result;
+}
+
 export async function runReviewMonitor(dir,host,{identify=processIdentity,wait=sleep,now=Date.now,pendingMs=600000,registrationMs=60000,workerProbeMs=30000,lockTimeoutMs=10000,emit=()=>{},deliveryFailpoint=()=>{}}={}) {
   const file=path.join(dir,'monitor.lock'),owner={token:randomUUID(),identity:currentIdentity()};
   const mutate=run=>retryBusy(()=>withJob(dir,run),{timeoutMs:lockTimeoutMs});
@@ -376,7 +387,7 @@ async function main() {
   const {continuationHost}=await import('./continuation-host.mjs');
   const plan=readJson(command==='submit'?target:path.join(target,'plan.json'));
   const host=continuationHost(plan);
-  if(command==='submit'){const result=await createReviewJob(readJson(target),host);const dir=path.resolve(readJson(target).jobDir);await launchReviewWorker(dir);await launchSupervisor(dir);return result;}
+  if(command==='submit')return submitReviewJob(readJson(target),host);
   if(command==='start-worker'){await launchReviewWorker(target);await launchSupervisor(target);return jobStatus(target);}
   if(command==='recover'||command==='resume'){recoverJobLock(target);await recoverMonitor(target);}
   if(command==='resume')await resumeReviewJob(target);
