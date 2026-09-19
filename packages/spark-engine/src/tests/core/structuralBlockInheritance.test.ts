@@ -294,6 +294,52 @@ end
     },
   );
 
+  const STORE_CHAIN = `define base as theme with
+  store marker = "base"
+end
+
+define parent as base with
+  store marker = "parent"
+end
+
+define sibling as parent with
+  name = "sibling"
+end
+`;
+  const STORE_CHILD = `theme child as parent with
+  colors:
+    primary = "#000000"
+end
+`;
+
+  test.each([
+    ["before", `${STORE_CHAIN}\n${STORE_CHILD}`],
+    ["after", `${STORE_CHILD}\n${STORE_CHAIN}`],
+  ])(
+    "the nearest parent's `store` default wins, parent declared %s the child",
+    async (_, src) => {
+      const story = await storyOf(src);
+      expect(ownValue(story, "$theme_child", "marker")).toBe("parent");
+      const ctx = buildDefinesContext(story) as any;
+      expect(ctx.theme?.child?.marker).toBe("parent");
+    },
+  );
+
+  test("a `define` copies the nearest parent's `store` default", async () => {
+    const ctx = await contextOf(`${STORE_CHAIN}
+define quiet as base with
+  marker = "quiet"
+end
+
+define quiet_leaf as quiet with
+  name = "quiet_leaf"
+end
+`);
+    expect(ctx.parent?.sibling?.marker).toBe("parent");
+    // The nearer value wins even where that level does not repeat `store`.
+    expect(ctx.quiet?.quiet_leaf?.marker).toBe("quiet");
+  });
+
   test("a cycle longer than a chain walk's step limit is still refused", async () => {
     const count = 66;
     const blocks = Array.from(

@@ -2379,23 +2379,34 @@ function defineChain(start: ObjectValue): ObjectValue[] {
   return chain;
 }
 
-// Copy `store`-marked property defaults from every level of `chain`
-// into `target`, root-most level first so a child's redeclared
-// default wins and `target`'s own keys are never overwritten. Store
-// props become instance-owned (enumerable + serialized); non-store
-// props stay on the type and inherit lazily through `__index`.
+// Copy `store`-marked property defaults from `chain` (nearest level first)
+// into `target`. A key marked `store` at any level takes its value from the
+// nearest level that holds one, so a child's redeclared default wins over its
+// ancestors', and `target`'s own keys are never overwritten. Store props
+// become instance-owned (enumerable + serialized); non-store props stay on
+// the type and inherit lazily through `__index`.
 function copyStoreDefaults(chain: ObjectValue[], target: ObjectValue): void {
-  for (let i = chain.length - 1; i >= 0; i--) {
-    const levelMap = chain[i]!.value as Map<string, AbstractValue>;
-    const storeList = levelMap?.get("__storeProps");
+  const storeKeys = new Set<string>();
+  for (const level of chain) {
+    const storeList = (level.value as Map<string, AbstractValue>)?.get(
+      "__storeProps",
+    );
     if (!(storeList instanceof ObjectValue)) continue;
     for (const nameVal of (
       storeList.value as Map<string, AbstractValue>
     ).values()) {
       const propName = coerceString(nameVal);
-      if (!propName || target.value!.has(propName)) continue;
-      const def = levelMap.get(propName);
-      if (def != null) target.value!.set(propName, def);
+      if (propName) storeKeys.add(propName);
+    }
+  }
+  for (const propName of storeKeys) {
+    if (target.value!.has(propName)) continue;
+    for (const level of chain) {
+      const def = (level.value as Map<string, AbstractValue>)?.get(propName);
+      if (def != null) {
+        target.value!.set(propName, def);
+        break;
+      }
     }
   }
 }
