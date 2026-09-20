@@ -481,7 +481,11 @@ export const planRoute = (
     queue.push(makeStartNode(story, fromPath));
 
     story.onError = NOOP;
-    story.onExecute = NOOP;
+    // Null rather than a do-nothing function: the engine builds the text of a
+    // pointer's path to hand to this hook, and skips that build only when the
+    // hook is null. The search never wants the hook to fire, so a function
+    // here buys a discarded string on every step.
+    story.onExecute = null;
     story.onMakeChoice = NOOP;
     story.onEvaluateCondition = NOOP;
     story.onSaveStateSnapshot = NOOP;

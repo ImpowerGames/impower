@@ -1266,8 +1266,14 @@ export class Story extends InkObject {
       this._asyncContinueActive = false;
     }
 
-    let durationStopwatch = new Stopwatch();
-    durationStopwatch.Start();
+    // The elapsed time only ever decides whether a time-limited continue has
+    // used up its budget. An unbounded limit breaks after a single step
+    // whatever the clock says, so that continue builds no stopwatch.
+    let durationStopwatch: Stopwatch | null = null;
+    if (millisecsLimitAsync !== Infinity) {
+      durationStopwatch = new Stopwatch();
+      durationStopwatch.Start();
+    }
 
     let outputStreamEndsInNewline = false;
     this._sawLookaheadUnsafeFunctionAfterNewline = false;
@@ -1285,14 +1291,17 @@ export class Story extends InkObject {
 
       if (
         this._asyncContinueActive &&
-        (durationStopwatch.ElapsedMilliseconds > millisecsLimitAsync ||
-          millisecsLimitAsync === Infinity)
+        (millisecsLimitAsync === Infinity ||
+          (durationStopwatch !== null &&
+            durationStopwatch.ElapsedMilliseconds > millisecsLimitAsync))
       ) {
         break;
       }
     } while (this.canContinue);
 
-    durationStopwatch.Stop();
+    if (durationStopwatch !== null) {
+      durationStopwatch.Stop();
+    }
 
     let changedVariablesToObserve: Map<string, any> | null = null;
 
