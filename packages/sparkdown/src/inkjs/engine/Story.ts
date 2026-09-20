@@ -44,7 +44,6 @@ import { PRNG } from "./PRNG";
 import { StringBuilder } from "./StringBuilder";
 import { ListDefinitionsOrigin } from "./ListDefinitionsOrigin";
 import { ListDefinition } from "./ListDefinition";
-import { Stopwatch } from "./StopWatch";
 import { Pointer } from "./Pointer";
 import { InkList, InkListItem, type KeyValuePair } from "./InkList";
 import { asOrNull, asOrThrows } from "./TypeAssertion";
@@ -1153,10 +1152,17 @@ export class Story extends InkObject {
     return !this._asyncContinueActive;
   }
 
-  public ContinueAsync(millisecsLimitAsync: number) {
+  /** Advance the story one step at a time.
+   *
+   *  `asyncStepLimit` is `Infinity` to advance a single step and leave the
+   *  story in an asynchronous continue, so the caller decides when it moves
+   *  again; a non-positive value runs to the end of the current line, as
+   *  {@link Continue} does. Anything else is refused by
+   *  {@link ContinueInternal}. */
+  public ContinueAsync(asyncStepLimit: number) {
     if (!this._hasValidatedExternals) this.ValidateExternalBindings();
 
-    this.ContinueInternal(millisecsLimitAsync);
+    this.ContinueInternal(asyncStepLimit);
   }
 
   /** Close an in-progress `ContinueAsync` WITHOUT advancing the story, for a
@@ -1241,15 +1247,26 @@ export class Story extends InkObject {
     this._asyncContinueActive = false;
   }
 
-  public ContinueInternal(millisecsLimitAsync = 0) {
+  /** `asyncStepLimit` selects how far one call advances: `Infinity` takes a
+   *  single step and stays in an asynchronous continue, a non-positive value
+   *  runs to the end of the current line. Nothing measures elapsed time, so a
+   *  finite budget cannot be honoured and is refused rather than silently
+   *  treated as one step. */
+  public ContinueInternal(asyncStepLimit = 0) {
+    if (asyncStepLimit > 0 && asyncStepLimit !== Infinity) {
+      throw new Error(
+        "Continue takes Infinity to advance one step, or a non-positive limit to run to the end of the line; elapsed time is not measured.",
+      );
+    }
+
     this._stateIsPristine = false;
     if (this._profiler != null) this._profiler.PreContinue();
 
-    let isAsyncTimeLimited = millisecsLimitAsync > 0;
+    let steppingAsync = asyncStepLimit > 0;
     this._recursiveContinueCount++;
 
     if (!this._asyncContinueActive) {
-      this._asyncContinueActive = isAsyncTimeLimited;
+      this._asyncContinueActive = steppingAsync;
 
       if (!this.canContinue) {
         throw new Error(
@@ -1262,17 +1279,8 @@ export class Story extends InkObject {
 
       if (this._recursiveContinueCount == 1)
         this._state.variablesState.StartVariableObservation();
-    } else if (this._asyncContinueActive && !isAsyncTimeLimited) {
+    } else if (this._asyncContinueActive && !steppingAsync) {
       this._asyncContinueActive = false;
-    }
-
-    // The elapsed time only ever decides whether a time-limited continue has
-    // used up its budget. An unbounded limit breaks after a single step
-    // whatever the clock says, so that continue builds no stopwatch.
-    let durationStopwatch: Stopwatch | null = null;
-    if (millisecsLimitAsync !== Infinity) {
-      durationStopwatch = new Stopwatch();
-      durationStopwatch.Start();
     }
 
     let outputStreamEndsInNewline = false;
@@ -1289,19 +1297,12 @@ export class Story extends InkObject {
 
       if (outputStreamEndsInNewline) break;
 
-      if (
-        this._asyncContinueActive &&
-        (millisecsLimitAsync === Infinity ||
-          (durationStopwatch !== null &&
-            durationStopwatch.ElapsedMilliseconds > millisecsLimitAsync))
-      ) {
+      // An asynchronous continue advances one step per call, so the caller
+      // decides when the story moves again.
+      if (this._asyncContinueActive) {
         break;
       }
     } while (this.canContinue);
-
-    if (durationStopwatch !== null) {
-      durationStopwatch.Stop();
-    }
 
     let changedVariablesToObserve: Map<string, any> | null = null;
 

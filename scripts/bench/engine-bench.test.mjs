@@ -127,7 +127,10 @@ await check("the stepping groups put paths and pointers on one side and output a
   assert.notEqual(groupOf("StoryState.ts:PushToOutputStream"), groupOf("Pointer.ts:copy"));
   assert.notEqual(groupOf("Story.ts:Step"), groupOf("Pointer.ts:copy"));
   assert.notEqual(groupOf("Story.ts:Step"), groupOf("VariablesState.ts:set"));
-  assert.notEqual(groupOf("StopWatch.ts:Start"), groupOf("VariablesState.ts:set"));
+  assert.notEqual(
+    groupOf("Story.ts:ContinueInternal"),
+    groupOf("VariablesState.ts:set"),
+  );
 });
 
 // The prototype is measured, never shipped. The tooling workflow checks out no
