@@ -61,6 +61,15 @@ export interface SparkProgram {
   context?: {
     [type: string]: { [name: string]: any };
   };
+  /**
+   * Identifies the assembled `context` (#654). Two programs carrying the same
+   * revision carry the same context, so a consumer that derived something from
+   * it — the engine channels below, the Game's runtime define tables — can keep
+   * what it derived instead of deriving it again. It moves whenever a
+   * definition, a declaration, a file or the compiler configuration changes,
+   * and whenever this compile's own implicit definitions differ.
+   */
+  contextRevision?: string;
   // Dedicated engine-facing channel for the static UI structs the UIModule
   // consumes: `layouts` (element trees keyed by name), `screens` (navigation
   // group defs), `components`. Derived from `context` after full assembly

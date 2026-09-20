@@ -327,6 +327,16 @@ export class Game<T extends M = {}> {
     return this._program;
   }
 
+  // The context revision (#654) the define tables currently in `_context` were
+  // built from, and how many times they have been built on this Game. The
+  // count is what a test reads to prove an edit that changed no definition did
+  // not rebuild them.
+  protected _definesContextRevision?: string;
+  protected _definesContextBuilds = 0;
+  get definesContextBuilds() {
+    return this._definesContextBuilds;
+  }
+
   protected _destroyed = false;
   get destroyed() {
     return this._destroyed;
@@ -583,6 +593,20 @@ export class Game<T extends M = {}> {
     if (!globals || globals.size === 0) {
       return;
     }
+    // A program carries the revision of the context it was compiled with
+    // (#654). The define tables this produces are a function of that context
+    // alone, and the revision is keyed by every declaration a define's value
+    // can be computed from, so a program carrying the revision the tables
+    // already in `_context` were built from leaves them in place. They are
+    // plain JS all the way down (`convertValue` converts every runtime value
+    // and drops methods), so nothing in them points at the replaced story.
+    // Rebuilding them cost 14 to 20 ms in the worker's game and 12 to 16 ms
+    // again on the page, on every keystroke, for a project the size of Raffles
+    // and Bunny.
+    const revision = this._program?.contextRevision;
+    if (revision !== undefined && revision === this._definesContextRevision) {
+      return;
+    }
     const runtime = buildDefinesContext(this._story);
     // A program compiled WITHOUT `seedBuiltinsIntoStory` still has authored
     // globals, so the empty-map bail above doesn't catch it — it just yields a
@@ -598,6 +622,8 @@ export class Game<T extends M = {}> {
     for (const [type, structs] of Object.entries(runtime)) {
       this._context[type] = structs;
     }
+    this._definesContextRevision = revision;
+    this._definesContextBuilds++;
   }
 
   setupStory(story: Story) {
