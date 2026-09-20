@@ -91,7 +91,6 @@ import type { SparkProgram } from "../types/SparkProgram";
 import type { SparkSelector } from "../types/SparkSelector";
 import { setBuiltinTypeNames } from "../utils/builtinTypeNames";
 import { cloneBuiltinStructs } from "../utils/cloneBuiltinStructs";
-import { collectDefineTypeNames } from "../utils/collectDefineTypeNames";
 import { collectLayerNames } from "../utils/collectLayerNames";
 import { scopeDefineInstances } from "../utils/scopeDefineInstances";
 import { formatList } from "../utils/formatList";
@@ -1572,18 +1571,18 @@ export class SparkdownCompiler {
       // collapse into the character type table. The user pass then scopes the
       // rest with the union across all USER files (root + includes), and skips
       // the prelude VAs the first pass already handled.
+      //
+      // Each document's own set is maintained by the registry across edits, so
+      // this unions ready-made sets instead of walking every script's tree
+      // again on every compile.
       const collectTypeNamesFor = (uris: Iterable<string>): Set<string> => {
         const names = new Set<string>();
         for (const scanUri of uris) {
-          const scanTree = this.documents.tree(scanUri);
-          const scanDoc = this.documents.get(scanUri);
-          if (scanTree && scanDoc) {
-            const scanText = scanDoc.getText();
-            for (const name of collectDefineTypeNames(scanTree, (f, t) =>
-              scanText.slice(f, t),
-            )) {
-              names.add(name);
-            }
+          if (!this.documents.has(scanUri)) {
+            continue;
+          }
+          for (const name of this.documents.defineTypeNames(scanUri)) {
+            names.add(name);
           }
         }
         return names;

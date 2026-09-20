@@ -7,6 +7,7 @@ import {
 } from "@codemirror/state";
 import { cachedCompilerProp } from "@impower/textmate-grammar-tree/src/tree/props/cachedCompilerProp";
 import { Tree } from "@lezer/common";
+import { DefineTypeNameIndex } from "./DefineTypeNameIndex";
 import { CharacterAnnotator } from "./annotators/CharacterAnnotator";
 import { ColorAnnotator } from "./annotators/ColorAnnotator";
 import { CompilationAnnotator } from "./annotators/CompilationAnnotator";
@@ -90,13 +91,27 @@ export class SparkdownCombinedAnnotator {
 
   protected _currentEntries: [string, SparkdownAnnotator][];
 
+  /**
+   * The document's define TYPE names, maintained across edits regardless of
+   * which annotators this instance runs: the compiler's whole-program scoping
+   * pass reads it for every script, including ones whose annotate set leaves
+   * `compilations` out.
+   */
+  protected _defineTypeNames = new DefineTypeNameIndex();
+  get defineTypeNames(): Set<string> {
+    return this._defineTypeNames.names;
+  }
+
   constructor(config?: SparkdownAnnotatorConfigs) {
     this._config = config;
     this.current = {
       colors: new ColorAnnotator(),
       characters: new CharacterAnnotator(),
       declarations: new DeclarationAnnotator(),
-      compilations: new CompilationAnnotator(config?.compilations),
+      compilations: new CompilationAnnotator(
+        config?.compilations,
+        this._defineTypeNames,
+      ),
       references: new ReferenceAnnotator(),
       validations: new ValidationAnnotator(),
       implicits: new ImplicitAnnotator(),
@@ -318,6 +333,7 @@ export class SparkdownCombinedAnnotator {
       }
     }
     if (!changes || reparsedFrom == null) {
+      this._defineTypeNames.rebuild(tree, text);
       // Rebuild all annotations from scratch
       for (const [key, add] of Object.entries(
         this.annotate(tree, undefined, undefined, annotate),
@@ -356,6 +372,17 @@ export class SparkdownCombinedAnnotator {
         editStart = fromB;
       }
     });
+    // Carry the define-type-name set through the edit over the same window the
+    // annotators are about to re-run over. It has to be complete before
+    // `annotate` starts, because the first chunk `CompilationAnnotator` lowers
+    // already reads it.
+    this._defineTypeNames.update(
+      tree,
+      text,
+      changeDesc,
+      editStart,
+      reparsedTo ?? text.length,
+    );
     // Shift position-keyed annotator state through the edit before anything
     // reads it. `begin` runs inside `annotate` below and consults offsets
     // (`SemanticAnnotator`'s cached symbol table), so they must already be in

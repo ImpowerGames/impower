@@ -214,6 +214,18 @@ export class SparkdownDocumentRegistry {
     return state.annotators.get();
   }
 
+  /**
+   * The names this document uses as a define TYPE (`define D as X`, `new X()`),
+   * kept current across edits by re-walking only the region each reparse
+   * rebuilt. The compiler's whole-program scoping pass unions these across a
+   * program's scripts rather than walking every script's tree again.
+   */
+  defineTypeNames(uri: string): Set<string> {
+    this.ensureParsed(uri);
+    const state = this.getDocumentState(uri);
+    return state.annotators.defineTypeNames;
+  }
+
   get(uri: string) {
     return this._syncedDocuments.get(uri);
   }
