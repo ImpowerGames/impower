@@ -135,9 +135,10 @@ interface RouteOutcome {
   searchSteps: number;
   /** Paths the resulting route runs through, in order. */
   stepPaths: string[];
-  /** How many steps this route reused from the plan it already had before it
-   *  began searching, or undefined when it searched the whole way. This is the
-   *  one position in the route where reused steps meet searched ones. */
+  /** How many steps of the plan it already had this compile was offered to
+   *  resume from, or undefined when it was offered nothing. Where a resumed
+   *  route was taken, this is the one position in it where steps copied from
+   *  the earlier plan meet steps this search found. */
   resumedAfter?: number;
 }
 
@@ -420,12 +421,11 @@ function lookaheadRepeat(
  * it already had meet steps it searched for itself. Everything before that
  * boundary was written by the earlier search and has to match position for
  * position. Only past it can the rewind go unrecorded, because only past it is
- * this route replaying from a checkpoint taken after the rewind happened — and
- * it can happen once, at the first beat the resumed search carries through. So
- * the expected list may hold one extra run, once, at or after that boundary,
- * that repeats the run immediately before it and is no longer than a beat, and
- * both lists must then be consumed to the end. A route that searched the whole
- * way gets no licence at all.
+ * this route replaying from a checkpoint taken after the rewind happened. So
+ * the expected list may hold one extra run, once, at or after the step this
+ * compile was offered to resume from, that repeats the run immediately before
+ * it and is no longer than a beat — and both lists must then be consumed to
+ * the end. A compile offered nothing to resume from gets no licence at all.
  *
  * Where it may occur is as far as the step lists can settle it. A story that
  * came back around to a run of positions a second time and a look-ahead that
@@ -466,9 +466,9 @@ function expectSameAnswer(
       continue;
     }
     // The look-ahead's second pass over a run it has just made. Allowed once,
-    // and no earlier than the step where this route stopped reusing the plan it
-    // had and started searching: the steps before that one came from the
-    // earlier search, which recorded the rewind.
+    // and no earlier than the step this compile was offered to resume from:
+    // the steps before that one came from the earlier search, which recorded
+    // the rewind.
     const admissible =
       gaps === 0 &&
       actual.resumedAfter != null &&
@@ -595,7 +595,7 @@ describe("the comparison the rest of these tests rest on", () => {
     ).not.toThrow();
   });
 
-  test("rejects the same repeated run when the route searched the whole way", () => {
+  test("rejects the same repeated run when nothing was offered to resume from", () => {
     expect(() =>
       expectSameAnswer(
         outcome({ stepPaths: ["a", "b", "c"] }),

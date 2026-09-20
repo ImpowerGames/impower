@@ -1402,7 +1402,10 @@ export class SparkdownCompiler {
    */
   protected countingSignature(container: Container): string {
     const counting: string[] = [];
-    const path: string[] = [];
+    // Names and indices both, joined only for the few containers that count.
+    // This walk reaches every container of every flow on every compile, so it
+    // allocates nothing it does not have to.
+    const path: (string | number)[] = [];
     const walk = (node: Container) => {
       if (node.countFlags > 0) {
         counting.push(`${path.join(".")}=${node.countFlags}`);
@@ -1411,7 +1414,7 @@ export class SparkdownCompiler {
       for (const child of node.content) {
         const sub = asOrNull(child, Container);
         if (sub) {
-          path.push(sub.name ?? String(index));
+          path.push(sub.name ?? index);
           walk(sub);
           path.pop();
         }
