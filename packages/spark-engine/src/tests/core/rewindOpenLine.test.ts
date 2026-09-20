@@ -225,7 +225,7 @@ const driveToOpenSnapshot = () => {
   const story: any = p.game.story;
   story.ChoosePathString("start");
   for (let i = 0; i < 60 && story.canContinue; i += 1) {
-    story.ContinueAsync(Infinity);
+    story.ContinueAsync();
     if (story._stateSnapshotAtLastNewline !== null && p.midLine()) {
       return p;
     }
@@ -452,7 +452,7 @@ describe("the look-ahead snapshot of the discarded run is cleared", () => {
     story.ChoosePathString("start");
     let reached = false;
     for (let i = 0; i < 60 && story.canContinue; i += 1) {
-      story.ContinueAsync(Infinity);
+      story.ContinueAsync();
       if (story._simulatorSnapshotAtLastNewline != null && p.midLine()) {
         reached = true;
         break;
@@ -525,7 +525,7 @@ describe("a cancel is refused from inside a continue", () => {
       return realStep();
     };
 
-    story.ContinueAsync(Infinity);
+    story.ContinueAsync();
     expect(thrown).not.toBeNull();
     expect(String(thrown)).toContain("CancelAsyncContinue");
   }, 300_000);

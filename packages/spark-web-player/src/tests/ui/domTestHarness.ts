@@ -349,7 +349,7 @@ export function createDOMHarness(
       const story: any = game.story;
       let guard = 0;
       while (story.canContinue && !interpreter.shouldFlush() && guard < 1000) {
-        story.ContinueAsync(Infinity);
+        story.ContinueAsync();
         if (story.asyncContinueComplete) {
           const choices = story.currentChoices.map((c: any) => c.text);
           // Mirror Game's continue loop: a `display(<table>)` beat routes its

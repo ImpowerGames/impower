@@ -1646,7 +1646,7 @@ export class Game<T extends M = {}> {
         }
         return true;
       } else if (this._story.canContinue) {
-        this._story.ContinueAsync(Infinity);
+        this._story.ContinueAsync();
 
         const prevExecutedLocation = this._executingLocation;
         const pointerPath = this._story.state.previousPointer.path?.toString();

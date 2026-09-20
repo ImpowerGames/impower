@@ -773,7 +773,7 @@ const runUntilDecisionOrBranch = (
       story.pauseBeforeEvaluatingConditions =
         !simulator.willForceCondition(previousPath);
 
-      story.ContinueAsync(Infinity); // this may hit a condition divert
+      story.ContinueAsync(); // this may hit a condition divert
 
       if (story.pausedBeforeCondition) {
         // Pop the last encountered step,

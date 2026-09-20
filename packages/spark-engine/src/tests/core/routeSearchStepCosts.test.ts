@@ -13,13 +13,13 @@
 //     asynchronous continue that had run out of a millisecond budget. No
 //     caller asks for such a budget: every one passes an unbounded limit,
 //     which stops after a single step whatever the clock says, or a
-//     non-positive one, which runs to the end of the line. So the engine no
-//     longer measures elapsed time at all, and refuses a finite budget rather
-//     than silently treating it as one step.
+//     non-positive one, which runs to the end of the line. So the engine
+//     measures no elapsed time at all, and takes no limit: an asynchronous
+//     continue advances one step, an ordinary one runs to the end of the line.
 //
 // What must hold: a search reads no clock per step, the story owner's own
-// execution hook is put back exactly as it was, and a limit the engine cannot
-// honour is refused.
+// execution hook is put back exactly as it was, and the two ways to advance
+// still differ in the way they always did.
 
 import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
@@ -168,24 +168,26 @@ describe("a route search pays neither per-step cost", () => {
     expect(short.reads).toBeLessThan(short.steps);
     expect(long.reads).toBeLessThan(long.steps);
 
-    // And what is left does not track the number of advances at all.
+    // And what is left tracks the scene's beats, which is one read per story
+    // state the search builds, rather than the advances it takes to get there.
     expect(short.reads).toBe(BEATS);
     expect(long.reads).toBe(BEATS * 4);
   }, 240_000);
 
-  test("a continue refuses a limit it cannot honour", () => {
+  test("an asynchronous continue advances a step, an ordinary one a whole line", () => {
     const program = compileSrc(SCENE);
     const story = newGame(program).story as any;
 
-    // Nothing measures elapsed time, so a millisecond budget would silently
-    // become one step per call.
-    expect(() => story.ContinueAsync(500)).toThrow(/elapsed time is not measured/);
-    expect(() => story.ContinueInternal(0.5)).toThrow(/elapsed time is not measured/);
-
-    // The two limits the engine does honour are still accepted.
-    expect(() => story.ContinueAsync(Infinity)).not.toThrow();
+    // The engine takes no limit of any kind, so which of these a caller uses
+    // is the whole of the difference between one step and a whole line. The
+    // removed clock used to sit between them.
+    story.ContinueAsync();
     expect(story.asyncContinueComplete).toBe(false);
     story.CancelAsyncContinue();
-    expect(() => story.Continue()).not.toThrow();
+    expect(story.asyncContinueComplete).toBe(true);
+
+    const text = story.Continue();
+    expect(typeof text).toBe("string");
+    expect(story.asyncContinueComplete).toBe(true);
   }, 120_000);
 });
