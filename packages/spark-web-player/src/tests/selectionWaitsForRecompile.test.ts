@@ -13,6 +13,7 @@
 // starts from this very selection — answer it when it lands.
 
 import { describe, expect, test } from "vitest";
+import { pathLocationTableOf } from "@impower/sparkdown/src/compiler/utils/pathLocationTable";
 import { GamePlayerController, setWorkspace } from "../GamePlayerController";
 
 const URI = "file://proj/main.sd";
@@ -21,7 +22,7 @@ const PROGRAM = {
   uri: URI,
   version: 3,
   compiled: {},
-  pathLocations: {},
+  pathLocations: pathLocationTableOf({}),
   scripts: { [URI]: 3 },
 } as any;
 

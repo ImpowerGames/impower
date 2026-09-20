@@ -24,7 +24,11 @@ const URI = "inmemory:///main.sd";
 const pick = (p: any) => ({
   compiled: p.compiled,
   diagnostics: p.diagnostics,
-  pathLocationsOrder: Object.keys(p.pathLocations ?? {}),
+  // The paths in the order the compile emitted them, and their ranges: a
+  // reused flow has to reproduce both. `stable()` sorts object keys, so the
+  // order has to be captured as an array to be compared at all.
+  pathLocationsOrder: p.pathLocations?.paths ?? [],
+  pathLocationValues: [...(p.pathLocations?.values ?? [])],
 });
 
 function stable(value: unknown): string {

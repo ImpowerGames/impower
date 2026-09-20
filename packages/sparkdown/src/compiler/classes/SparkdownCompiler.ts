@@ -87,7 +87,12 @@ import type { SparkDeclaration } from "../types/SparkDeclaration";
 import { DiagnosticSeverity, type SparkDiagnostic } from "../types/SparkDiagnostic";
 import type { SparkdownCompilerConfig } from "../types/SparkdownCompilerConfig";
 import type { SparkdownCompilerState } from "../types/SparkdownCompilerState";
-import type { SparkProgram } from "../types/SparkProgram";
+import type { ScriptLocation, SparkProgram } from "../types/SparkProgram";
+import {
+  LOCATION_STRIDE,
+  narrowPaths,
+  pathLocationTableOf,
+} from "../utils/pathLocationTable";
 import type { SparkSelector } from "../types/SparkSelector";
 import { setBuiltinTypeNames } from "../utils/builtinTypeNames";
 import { cloneBuiltinStructs } from "../utils/cloneBuiltinStructs";
@@ -450,6 +455,11 @@ export class SparkdownCompiler {
     number,
     Map<number, Array<[path: string, startColumn: number]>>
   >;
+
+  // The path locations of the compile in progress, keyed by path so the walk
+  // can find and widen a range it already recorded. `sortPathLocations` turns
+  // it into the program's columnar `pathLocations` table and drops it.
+  protected _pathLocationDraft?: Record<string, ScriptLocation>;
 
   // ---- Incremental location-map cache (Design A) ------------------------
   // Per top-level flow (knot/scene/function name = its key in the runtime
@@ -1477,6 +1487,7 @@ export class SparkdownCompiler {
     // Rebuilt by `populateAllLocations`; cleared first so a compile that never
     // reaches the walk cannot publish the previous compile's captures.
     this._flowAssetAccum = undefined;
+    this._pathLocationDraft = undefined;
 
     let compileThrew = false;
     // ---- Incremental ExportRuntime: per-compile flow-reuse guards ----
@@ -3206,7 +3217,7 @@ export class SparkdownCompiler {
             existingStartColumn,
             existingEndLine,
             existingEndColumn,
-          ] = program.pathLocations?.[path] || [];
+          ] = this._pathLocationDraft?.[path] || [];
           if (
             existingStartLine != null &&
             existingStartColumn != null &&
@@ -3258,8 +3269,8 @@ export class SparkdownCompiler {
               }
             }
           }
-          program.pathLocations ??= {};
-          if (!(path in program.pathLocations)) {
+          const draft = (this._pathLocationDraft ??= {});
+          if (!(path in draft)) {
             const tuple: [number, number, number, number, number] = [
               scriptIndex,
               startLine,
@@ -3267,7 +3278,7 @@ export class SparkdownCompiler {
               endLine,
               endColumn,
             ];
-            program.pathLocations[path] = tuple;
+            draft[path] = tuple;
             this._locCaptureTarget?.pathEntries.push({ path, tuple });
             // Record creation order, bucketed by (scriptIndex, startLine), for
             // the linear-time `sortPathLocations`. Only the first write per
@@ -3749,7 +3760,8 @@ export class SparkdownCompiler {
     // the cold path (populateLocations) creates them on first write, so a flow
     // with zero entries must not materialize an empty {} (which would diverge
     // from a cold compile of a file that has no path/data locations at all).
-    if (cached.pathEntries.length > 0) program.pathLocations ??= {};
+    if (cached.pathEntries.length > 0) this._pathLocationDraft ??= {};
+    const draft = this._pathLocationDraft;
     const order = this._pathLocationOrder;
     for (const pe of cached.pathEntries) {
       const t = pe.tuple;
@@ -3760,8 +3772,8 @@ export class SparkdownCompiler {
         t[3] + delta,
         t[4],
       ];
-      if (!(pe.path in program.pathLocations!)) {
-        program.pathLocations![pe.path] = nt;
+      if (!(pe.path in draft!)) {
+        draft![pe.path] = nt;
         if (order) {
           let byLine = order.get(nt[0]);
           if (!byLine) {
@@ -4020,17 +4032,25 @@ export class SparkdownCompiler {
   sortPathLocations(program: SparkProgram) {
     const uri = program.uri;
     profile("start", this._profilerId, "sortPathLocations", uri);
+    const draft = this._pathLocationDraft;
     const order = this._pathLocationOrder;
-    if (program.pathLocations && order) {
+    if (draft && order) {
       // Linear bucket merge: entries were bucketed by (scriptIndex, startLine)
       // in DFS/creation order as they were added. Emit scriptIndices then lines
       // in ascending numeric order; within each line, a stable sort on
-      // startColumn (only when a line holds 2+ entries) reproduces the
-      // (scriptIndex, startLine, startColumn) ordering — and the DFS-insertion
-      // bucket order matches the prior comparison sort's stable tie-break.
-      const entries = program.pathLocations;
-      const sorted: typeof entries = {};
+      // startColumn (only when a line holds 2+ entries) gives the
+      // (scriptIndex, startLine, startColumn) order a line lookup binary-
+      // searches, with the DFS-insertion bucket order as the tie-break.
       const scriptIndices = [...order.keys()].sort((a, b) => a - b);
+      let count = 0;
+      for (const byLine of order.values()) {
+        for (const bucket of byLine.values()) {
+          count += bucket.length;
+        }
+      }
+      const paths = new Array<string>(count);
+      const values = new Int32Array(count * LOCATION_STRIDE);
+      let row = 0;
       for (const scriptIndex of scriptIndices) {
         const byLine = order.get(scriptIndex)!;
         const lines = [...byLine.keys()].sort((a, b) => a - b);
@@ -4041,29 +4061,34 @@ export class SparkdownCompiler {
           }
           for (let i = 0; i < bucket.length; i++) {
             const path = bucket[i]![0];
-            sorted[path] = entries[path]!;
+            const tuple = draft[path];
+            if (!tuple) {
+              continue;
+            }
+            paths[row] = path;
+            const at = row * LOCATION_STRIDE;
+            values[at] = tuple[0];
+            values[at + 1] = tuple[1];
+            values[at + 2] = tuple[2];
+            values[at + 3] = tuple[3];
+            values[at + 4] = tuple[4];
+            row++;
           }
         }
       }
-      program.pathLocations = sorted;
-    } else if (program.pathLocations) {
-      // Fallback (no creation-order index, e.g. if locations weren't gathered
-      // via `populateAllLocations`): comparison sort. Index into the
-      // [scriptIndex, startLine, startColumn, ...] tuples directly rather than
-      // array-destructuring inside the comparator — destructuring allocates an
-      // iterator per comparison, hot across tens of thousands of entries.
-      const sortedEntries = Object.entries(program.pathLocations).sort(
-        (a, b) => {
-          const av = a[1];
-          const bv = b[1];
-          return av[0] - bv[0] || av[1] - bv[1] || av[2] - bv[2];
-        },
-      );
-      program.pathLocations = {};
-      for (const [k, v] of sortedEntries) {
-        program.pathLocations[k] = v;
-      }
+      program.pathLocations =
+        row === count
+          ? { paths: narrowPaths(paths), values }
+          : {
+              paths: narrowPaths(paths.slice(0, row)),
+              values: values.slice(0, row * LOCATION_STRIDE),
+            };
+    } else if (draft) {
+      // No creation-order index (locations weren't gathered via
+      // `populateAllLocations`): sort by comparison instead.
+      program.pathLocations = pathLocationTableOf(draft);
     }
+    this._pathLocationDraft = undefined;
     profile("end", this._profilerId, "sortPathLocations", uri);
   }
 

@@ -1,43 +1,9 @@
 import { SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
-
-type PathLocationEntry = [string, [number, number, number, number, number]];
-
-/**
- * Index of the path-location entry at (or immediately before) `currentLine`
- * in `currentFile`. Entries are ordered by file then line, so the scan can
- * stop as soon as it passes the target.
- */
-const getClosestSourceIndex = (
-  allFiles: string[],
-  allPathToLocationEntries: PathLocationEntry[],
-  currentFile: string | undefined,
-  currentLine: number,
-): number | null => {
-  if (currentFile == null) return null;
-  const fileIndex = allFiles.indexOf(currentFile);
-  if (fileIndex < 0) return null;
-  let closestIndex: number | null = null;
-  for (let i = 0; i < allPathToLocationEntries.length; i++) {
-    const entry = allPathToLocationEntries[i]!;
-    const [, source] = entry;
-    if (source) {
-      const [currFileIndex, currStartLine] = source;
-      if (currFileIndex === fileIndex && currStartLine === currentLine) {
-        closestIndex = i;
-        break;
-      }
-      if (currFileIndex === fileIndex && currStartLine > currentLine) {
-        closestIndex = i - 1;
-        break;
-      }
-      if (currFileIndex > fileIndex) {
-        closestIndex = null;
-        break;
-      }
-    }
-  }
-  return closestIndex;
-};
+import {
+  pathLocationCount,
+  scriptRowRange,
+  startLineAtRow,
+} from "@impower/sparkdown/src/compiler/utils/pathLocationTable";
 
 /**
  * The source position `offset` path-locations away from (`currentFile`,
@@ -55,23 +21,45 @@ export const getOffsetSourceLocation = (
   currentLine: number,
   offset: number,
 ): { file: string; line: number } | null => {
-  if (!program) return null;
+  if (!program || currentFile == null) {
+    return null;
+  }
+  const table = program.pathLocations;
   const files = Object.keys(program.scripts ?? {});
-  const pathLocationEntries = Object.entries(program.pathLocations || {}) as
-    PathLocationEntry[];
-  const index = getClosestSourceIndex(
-    files,
-    pathLocationEntries,
-    currentFile,
-    currentLine,
-  );
-  if (index == null) return null;
-  const entry = pathLocationEntries[index + offset];
-  if (entry == null) return null;
-  const [uuid, source] = entry;
-  if (uuid == null) return null;
-  const [fileIndex, lineIndex] = source;
-  const file = files[fileIndex];
-  if (!file) return null;
-  return { file, line: lineIndex };
+  const fileIndex = files.indexOf(currentFile);
+  if (!table || fileIndex < 0) {
+    return null;
+  }
+  // The rows of a script are ordered by start line, so the row at or before
+  // `currentLine` is found by binary search within that script's range.
+  const [start, end] = scriptRowRange(table, fileIndex);
+  let lo = start;
+  let hi = end;
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    if (startLineAtRow(table, mid) < currentLine) {
+      lo = mid + 1;
+    } else {
+      hi = mid;
+    }
+  }
+  if (lo >= end) {
+    // Every row of the script is before the line; there is no row to count
+    // from.
+    return null;
+  }
+  // The row counted from is the one on the line, or the one before the first
+  // row past it. Rows are numbered across the whole program, so an offset may
+  // land in a neighbouring script, as a linear walk of all of them would.
+  const from = startLineAtRow(table, lo) === currentLine ? lo : lo - 1;
+  const row = from + offset;
+  if (row < 0 || row >= pathLocationCount(table)) {
+    return null;
+  }
+  const at = row * 5;
+  const file = files[table.values[at]!];
+  if (!file) {
+    return null;
+  }
+  return { file, line: table.values[at + 1]! };
 };

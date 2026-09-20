@@ -2,7 +2,14 @@ import type { Message } from "@impower/jsonrpc/src/common/types/Message";
 import type { NotificationMessage } from "@impower/jsonrpc/src/common/types/NotificationMessage";
 import type { RequestMessage } from "@impower/jsonrpc/src/common/types/RequestMessage";
 import type { ResponseError } from "@impower/jsonrpc/src/common/types/ResponseError";
-import { type SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
+import {
+  type PathLocationTable,
+  type SparkProgram,
+} from "@impower/sparkdown/src/compiler/types/SparkProgram";
+import {
+  hasPathLocation,
+  pathLocation,
+} from "@impower/sparkdown/src/compiler/utils/pathLocationTable";
 import { resolveCompiledProgram } from "@impower/sparkdown/src/binary/programBinary";
 import {
   buildRouteSimulator,
@@ -33,7 +40,6 @@ import type { Thread } from "../types/Thread";
 import type { Variable,VariablePresentationHint } from "../types/Variable";
 import { buildDefinesContext } from "../utils/buildContextFromStory";
 import { findClosestPath } from "../utils/findClosestPath";
-import { pathLocationEntries } from "../utils/pathLocationEntries";
 import { findClosestPathLocation } from "../utils/findClosestPathLocation";
 import { CheckpointStore } from "./CheckpointStore";
 import { Clock } from "./Clock";
@@ -103,8 +109,6 @@ export class Game<T extends M = {}> {
   get scripts() {
     return this._scripts;
   }
-
-  protected _pathLocationEntries: [string, ScriptLocation][] = [];
 
   protected _coordinator: Coordinator<typeof this> | null = null;
 
@@ -500,7 +504,6 @@ export class Game<T extends M = {}> {
         "Program must be successfully compiled before it can be run",
       );
     }
-    this._pathLocationEntries = pathLocationEntries(this._program);
     this._scripts = Object.keys(this._program.scripts);
 
     if (story) {
@@ -728,7 +731,7 @@ export class Game<T extends M = {}> {
     program: SparkProgram,
     toPath: string | null | undefined,
   ): SimulationFailure {
-    if (!toPath || !program.pathLocations?.[toPath]) {
+    if (!toPath || !hasPathLocation(program.pathLocations, toPath)) {
       return "unroutable";
     }
     if (lastSearchStats.endReason === "exhausted") {
@@ -859,7 +862,7 @@ export class Game<T extends M = {}> {
     > = {};
     for (const [path, options] of Object.entries(simulationOptions)) {
       if (
-        program.pathLocations?.[path] ||
+        hasPathLocation(program.pathLocations, path) ||
         Game.isContainerPath(program, path)
       ) {
         valid[path] = options;
@@ -873,11 +876,14 @@ export class Game<T extends M = {}> {
     this._startPath =
       findClosestPath(
         this._startFrom,
-        this._pathLocationEntries,
+        this._program.pathLocations,
         this._scripts,
       ) || "0";
     if (this._startPath) {
-      const trueLocation = this._program.pathLocations?.[this._startPath];
+      const trueLocation = pathLocation(
+        this._program.pathLocations,
+        this._startPath,
+      );
       if (trueLocation) {
         const [scriptIndex, line] = trueLocation;
         const file = this._scripts[scriptIndex];
@@ -895,13 +901,9 @@ export class Game<T extends M = {}> {
     startFrom: { file: string; line: number },
   ) {
     const scripts = Object.keys(program.scripts);
-    const path = findClosestPath(
-      startFrom,
-      pathLocationEntries(program),
-      scripts,
-    );
+    const path = findClosestPath(startFrom, program.pathLocations, scripts);
     if (path) {
-      const trueLocation = program.pathLocations?.[path];
+      const trueLocation = pathLocation(program.pathLocations, path);
       if (trueLocation) {
         const [scriptIndex, line] = trueLocation;
         const file = scripts[scriptIndex];
@@ -929,7 +931,7 @@ export class Game<T extends M = {}> {
     breakpoints: { file: string; line: number }[],
   ) {
     const actualBreakpoints = Game.getActualBreakpoints(
-      this._pathLocationEntries,
+      this._program.pathLocations,
       breakpoints,
       this._scripts,
     );
@@ -1651,7 +1653,10 @@ export class Game<T extends M = {}> {
         const prevExecutedLocation = this._executingLocation;
         const pointerPath = this._story.state.previousPointer.path?.toString();
         if (pointerPath) {
-          const location = this._program.pathLocations?.[pointerPath];
+          const location = pathLocation(
+            this._program.pathLocations,
+            pointerPath,
+          );
           if (location) {
             this._executingLocation = location;
           }
@@ -1873,7 +1878,7 @@ export class Game<T extends M = {}> {
 
   protected notifyPreviewed(path: string) {
     const location = this.getDocumentLocation(
-      this._program.pathLocations?.[path],
+      pathLocation(this._program.pathLocations, path),
     );
     this.connection.emit(
       GamePreviewedMessage.type.notification({
@@ -1887,7 +1892,7 @@ export class Game<T extends M = {}> {
   protected executedParams(): GameExecutedParams {
     const locations: DocumentLocation[] = [];
     this._runtimeState.pathsExecutedThisFrame.forEach((p) => {
-      const l = this._program.pathLocations?.[p];
+      const l = pathLocation(this._program.pathLocations, p);
       if (l) {
         const docLocation = this.getDocumentLocation(l);
         locations.push(docLocation);
@@ -2241,7 +2246,7 @@ export class Game<T extends M = {}> {
             f.previousPointer.container?.path?.toString();
           if (pointerPath) {
             const location =
-              this._program.pathLocations?.[pointerPath] ??
+              pathLocation(this._program.pathLocations, pointerPath) ??
               this._executingLocation;
             const documentLocation = this.getDocumentLocation(location);
             if (f.type == PushPopType.Function) {
@@ -2391,7 +2396,7 @@ export class Game<T extends M = {}> {
     }
     const previewPath = findClosestPath(
       { file, line },
-      this._pathLocationEntries,
+      this._program.pathLocations,
       this._scripts,
     );
     if (!previewPath) {
@@ -2572,7 +2577,7 @@ export class Game<T extends M = {}> {
   getLastExecutedDocumentLocation() {
     const lastExecutedPath = this._runtimeState.pathsExecutedThisFrame
       .toArray()
-      .findLast((path) => this._program.pathLocations?.[path]);
+      .findLast((path) => hasPathLocation(this._program.pathLocations, path));
     if (lastExecutedPath) {
       return this.getPathDocumentLocation(lastExecutedPath);
     }
@@ -2580,7 +2585,7 @@ export class Game<T extends M = {}> {
   }
 
   getPathDocumentLocation(path: string) {
-    const location = this._program.pathLocations?.[path];
+    const location = pathLocation(this._program.pathLocations, path);
     if (location) {
       return Game.documentLocation(this._program, this._scripts, location);
     }
@@ -2594,7 +2599,7 @@ export class Game<T extends M = {}> {
   static pathToDocumentLocation(program: SparkProgram, path: string) {
     const scripts = Object.keys(program?.scripts ?? {});
     const location =
-      program.pathLocations?.[path] ||
+      pathLocation(program.pathLocations, path) ||
       program.knotLocations?.[path] ||
       program.stitchLocations?.[path] ||
       program.functionLocations?.[path] ||
@@ -2631,14 +2636,14 @@ export class Game<T extends M = {}> {
   }
 
   static getActualBreakpoints(
-    pathLocationEntries: [string, ScriptLocation][],
+    pathLocations: PathLocationTable | undefined,
     breakpoints: { file: string; line: number }[],
     scripts: string[],
   ) {
     const actualBreakpoints: Breakpoint[] = [];
     for (const breakpoint of breakpoints) {
       const [, closestInstruction] =
-        findClosestPathLocation(breakpoint, pathLocationEntries, scripts) || [];
+        findClosestPathLocation(breakpoint, pathLocations, scripts) || [];
       if (closestInstruction) {
         const [_, closestStartLine] = closestInstruction;
         const validBreakpoint = {
@@ -2753,7 +2758,7 @@ export class Game<T extends M = {}> {
   getClosestPath(file: string, line: number) {
     return findClosestPath(
       { file, line },
-      this._pathLocationEntries,
+      this._program.pathLocations,
       this._scripts,
     );
   }

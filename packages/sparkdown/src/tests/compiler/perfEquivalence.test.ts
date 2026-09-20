@@ -3,6 +3,8 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
+import type { PathLocationTable } from "../../compiler/types/SparkProgram";
+import { locationAtRow } from "../../compiler/utils/pathLocationTable";
 import { generatePerfScreenplay } from "./perfFixture";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -16,6 +18,16 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 // object-key insertion order (we only care about value equivalence), EXCEPT we
 // deliberately do NOT sort arrays — array order is semantically meaningful in
 // the ink bytecode and in pathLocations ordering.
+// The gate compares the ranges the compiler recorded, not the shape it keeps
+// them in: `pathLocations` is columnar on the program, so the snapshot holds
+// the path-to-range pairs those columns carry.
+const recordedRanges = (table: PathLocationTable | undefined) =>
+  table
+    ? Object.fromEntries(
+        table.paths.map((path, row) => [path, locationAtRow(table, row)!]),
+      )
+    : table;
+
 function stableStringify(value: unknown): string {
   const seen = new WeakSet();
   const walk = (v: any): any => {
@@ -75,7 +87,7 @@ function programSnapshot(source: string): string {
 
   const pick = (p: any) => ({
     compiled: p.compiled,
-    pathLocations: p.pathLocations,
+    pathLocations: recordedRanges(p.pathLocations),
     dataLocations: p.dataLocations,
     functionLocations: p.functionLocations,
     sceneLocations: p.sceneLocations,

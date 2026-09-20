@@ -14,6 +14,7 @@
 // and end up in `errorMessages` alongside compile-time errors.
 
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
+import { pathLocation } from "../../compiler/utils/pathLocationTable";
 import { Story as RuntimeStory } from "../../inkjs/engine/Story";
 
 export interface ConformanceResult {
@@ -170,7 +171,7 @@ export function runConformanceSource(
   // line, not the exact error site. Good enough for tests that just
   // want the format prefix; not granular enough to match upstream
   // Luau fixtures that hard-code specific lines.
-  const pathLocations = program.pathLocations ?? {};
+  const pathLocations = program.pathLocations;
   const lookupUserLineFromPointer = (): number | null => {
     const ptr = story.state.currentPointer;
     const candidates: import("../../inkjs/engine/Object").InkObject[] = [];
@@ -197,8 +198,9 @@ export function runConformanceSource(
       let cur: any = obj;
       while (cur) {
         const path = cur.path?.toString?.();
-        if (path && pathLocations[path]) {
-          const [, startLine] = pathLocations[path]!;
+        const located = path ? pathLocation(pathLocations, path) : undefined;
+        if (located) {
+          const startLine = located[1];
           if (best === null || startLine > best) best = startLine;
         }
         cur = cur.parent;

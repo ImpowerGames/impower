@@ -1,6 +1,7 @@
 import { Message } from "@impower/spark-editor-protocol/src/types/base/Message";
 import { GameExecutedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameExecutedMessage";
 import { findClosestPathLocation } from "@impower/spark-engine/src/game/core/utils/findClosestPathLocation";
+import { pathLocation } from "@impower/sparkdown/src/compiler/utils/pathLocationTable";
 import { SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
 import * as vscode from "vscode";
 import { SparkdownPreviewGamePanelManager } from "../managers/SparkdownPreviewGamePanelManager";
@@ -53,7 +54,7 @@ export function activateCompilationView(context: vscode.ExtensionContext) {
         if (e.selection.length > 0) {
           for (const s of e.selection) {
             const path = s.id;
-            const location = program.pathLocations?.[path];
+            const location = pathLocation(program.pathLocations, path);
             if (location) {
               const [scriptIndex, startLine, startCol, endLine, endCol] =
                 location;
@@ -158,7 +159,7 @@ export function activateCompilationView(context: vscode.ExtensionContext) {
               const [path] =
                 findClosestPathLocation(
                   { file: document.uri.toString(), line: range.active.line },
-                  Object.entries(program.pathLocations || {}),
+                  program.pathLocations,
                   Object.keys(program.scripts),
                 ) || [];
               if (path) {

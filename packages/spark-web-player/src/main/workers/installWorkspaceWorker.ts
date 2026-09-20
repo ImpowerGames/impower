@@ -10,7 +10,6 @@ import { DidChangeConfigurationMessage } from "@impower/spark-editor-protocol/sr
 import { DidChangeWatchedFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeWatchedFilesMessage";
 import { ExecuteCommandMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/ExecuteCommandMessage";
 import type { File } from "@impower/sparkdown/src/compiler";
-import type { SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
 import { SparkdownWorkspace } from "@impower/sparkdown/src/workspace/classes/SparkdownWorkspace";
 import { getSharedAssetCache } from "../assets/sharedAssetCache";
 import {
@@ -21,13 +20,6 @@ import {
 import WORKSPACE_INLINE_WORKER_STRING from "./workspace.worker";
 
 const ASSET_FILE_TYPES = new Set(["image", "audio", "font", "video"]);
-
-/** `program.pathLocations` as the entries `findClosestPath` walks, computed
- *  once per program object rather than per cursor move. */
-const pathEntriesOf = new WeakMap<
-  SparkProgram,
-  Array<[string, [number, number, number, number, number]]>
->();
 
 export function installWorkspaceWorker(connection: MessageConnection) {
   const cache = getSharedAssetCache();
@@ -141,12 +133,7 @@ export function installWorkspaceWorker(connection: MessageConnection) {
           return;
         }
         const line = params.selectedRange.start.line;
-        let entries = pathEntriesOf.get(program);
-        if (!entries) {
-          entries = Object.entries(program.pathLocations ?? {});
-          pathEntriesOf.set(program, entries);
-        }
-        const plan = planPreviewHint(program, uri, line, entries, lastHint);
+        const plan = planPreviewHint(program, uri, line, lastHint);
         if (!plan) {
           return;
         }

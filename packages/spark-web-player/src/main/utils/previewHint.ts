@@ -8,6 +8,7 @@ import {
 } from "@impower/spark-engine/src/game/modules/assets/utils/previewWindow";
 import { type SceneBeat } from "@impower/sparkdown/src/compiler/types/SceneAssets";
 import { type SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
+import { hasPathLocation } from "@impower/sparkdown/src/compiler/utils/pathLocationTable";
 import { resolveImageSrcs } from "./resolveImageSrcs";
 
 /**
@@ -82,7 +83,6 @@ export function planPreviewHint(
   program: SparkProgram,
   uri: string,
   line: number,
-  pathEntries: Array<[string, [number, number, number, number, number]]>,
   last: PreviewHintState | undefined,
 ): PreviewHintPlan | null {
   const sceneAssets = program.sceneAssets;
@@ -99,13 +99,13 @@ export function planPreviewHint(
   }
   const path = findClosestPath(
     { file: uri, line },
-    pathEntries,
+    program.pathLocations,
     Object.keys(program.scripts ?? {}),
   );
   const scene = SceneTracker.sceneOf(path) ?? "0";
   const entry = sceneAssets[scene];
   const locations = program.pathLocations;
-  const known = Boolean(path && locations?.[path]);
+  const known = hasPathLocation(locations, path);
   const beat =
     entry && known
       ? Math.max(0, beatIndexIn(entry.beats, locations, path))

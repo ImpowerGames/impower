@@ -95,7 +95,7 @@ describe("emitCompiledProgram (#345)", () => {
     expect(JSON.stringify(off.pathLocations)).toBe(
       JSON.stringify(on.pathLocations),
     );
-    expect(Object.keys(off.pathLocations ?? {}).length).toBeGreaterThan(0);
+    expect(off.pathLocations?.paths.length ?? 0).toBeGreaterThan(0);
   });
 
   it("leaves diagnostics identical, including generation-time ones", () => {

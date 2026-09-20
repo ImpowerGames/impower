@@ -13,6 +13,7 @@
 // cover.
 
 import { describe, expect, test } from "vitest";
+import { pathLocationTableOf } from "@impower/sparkdown/src/compiler/utils/pathLocationTable";
 import { GamePlayerController } from "../GamePlayerController";
 import { programIdentity } from "../utils/programIdentity";
 
@@ -22,7 +23,7 @@ const PROGRAM = {
   // `hasCompiledProgram` only looks for one of these, and the play path gates
   // starting the app on it.
   compiled: {},
-  pathLocations: {},
+  pathLocations: pathLocationTableOf({}),
   scripts: { "file://proj/main.sd": 3 },
 } as any;
 
