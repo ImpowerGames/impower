@@ -798,6 +798,14 @@ export class Story extends InkObject {
    * can ask this first and reset nothing when the answer is yes. Any story
    * whose state has been touched in a way the runtime cannot account for
    * reports false, so the answer is only ever conservative.
+   *
+   * The answer is only as good as the list of places that clear it, so they are
+   * named here for anyone adding a method or re-syncing this engine:
+   * `ContinueInternal`, `ChoosePath`, `ResetCallstack`, `SwitchFlow`,
+   * `RemoveFlow`, `SwitchToDefaultFlow`, `VariableStateDidChangeEvent` (a
+   * global written from outside) and `StoryState.LoadJsonObj` (through
+   * {@link NoteStateChanged}). A new path that changes state belongs on that
+   * list.
    */
   get stateIsPristine(): boolean {
     return this._stateIsPristine;

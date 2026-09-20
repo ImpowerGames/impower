@@ -62,18 +62,16 @@ export const extendSeq = (seq: string, path: string): string => {
   let h2 = 0x41c6ce57;
   // The characters of `seq`, a separator, then the characters of `path` — the
   // same sequence a joined string would give, without allocating one per step.
-  const mix = (ch: number) => {
-    h1 = Math.imul(h1 ^ ch, 2654435761);
-    h2 = Math.imul(h2 ^ ch, 1597334677);
-  };
-  if (seq) {
-    for (let i = 0; i < seq.length; i += 1) {
-      mix(seq.charCodeAt(i));
+  // Written as one loop over the three pieces rather than a helper, because a
+  // helper is a closure allocated on every one of the tens of thousands of
+  // calls a deep search makes.
+  for (let piece = seq ? 0 : 2; piece < 3; piece += 1) {
+    const text = piece === 0 ? seq : piece === 1 ? "|" : path;
+    for (let i = 0; i < text.length; i += 1) {
+      const ch = text.charCodeAt(i);
+      h1 = Math.imul(h1 ^ ch, 2654435761);
+      h2 = Math.imul(h2 ^ ch, 1597334677);
     }
-    mix(124 /* "|" */);
-  }
-  for (let i = 0; i < path.length; i += 1) {
-    mix(path.charCodeAt(i));
   }
   h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507);
   h1 ^= Math.imul(h2 ^ (h2 >>> 13), 3266489909);
@@ -187,6 +185,10 @@ export interface SearchOptions {
    * reads. A search that found nothing still resets whatever the caller says,
    * because there the search's own position is the last thing that happened to
    * the story.
+   *
+   * What the caller gets back on a found route is the story parked where the
+   * search stopped, with any open line already cancelled, so `ResetState` or a
+   * state load can run on it immediately.
    */
   callerResetsStory?: boolean;
 }
@@ -558,6 +560,14 @@ export const planRoute = (
       // empty-handed is the last thing to have moved this story.
       if (!routePlan || !options?.callerResetsStory) {
         resetStory(story);
+      } else {
+        // The search drives the story with `ContinueAsync`, so a route that
+        // ends mid-line leaves an async continue open, and `ResetState`
+        // refuses to run while one is. Ending it costs nothing — the line is
+        // discarded by whatever the caller does next — and it keeps the
+        // promise this option makes: the caller can reset or load straight
+        // away.
+        story.CancelAsyncContinue();
       }
     } finally {
       // After the reset, which runs under the search's silent hooks: an error

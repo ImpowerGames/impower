@@ -114,13 +114,42 @@ describe("route search resets (#650)", () => {
     // evaluation would give them.
     game.story.ChoosePathString("start");
     game.story.Continue();
-    (game.story.variablesState as any).$set?.("score", 999);
 
     const evaluations = countGlobalEvaluations(game);
     const route = planTo(game, program, TARGET_LINE);
 
     expect(route).not.toBeNull();
     expect(evaluations()).toBeGreaterThanOrEqual(1);
+  });
+
+  test("a search after a global is written from outside evaluates the globals", () => {
+    const program = compileSrc(SRC);
+    const game = newGame(program);
+    // Nothing has run this story, so a search would otherwise take it as it
+    // stands. Writing a global through the variables proxy is exactly the case
+    // where that would be wrong: the value below is not one the story's own
+    // declarations produce, and the search must not plan against it.
+    (game.story.variablesState as any)["score"] = 999;
+    expect((game.story.variablesState as any).$("score")).toBe(999);
+
+    const evaluations = countGlobalEvaluations(game);
+    const route = planTo(game, program, TARGET_LINE);
+
+    expect(route).not.toBeNull();
+    expect(evaluations()).toBeGreaterThanOrEqual(1);
+  });
+
+  test("a found route leaves a story the caller can reset straight away", () => {
+    const program = compileSrc(SRC);
+    const game = newGame(program);
+
+    const route = planTo(game, program, TARGET_LINE);
+    expect(route).not.toBeNull();
+
+    // The caller took the reset on itself, so it must be able to take it: a
+    // search that stopped part-way through a line leaves an async continue
+    // open, and the runtime refuses to reset while one is.
+    expect(() => game.story.ResetState()).not.toThrow();
   });
 
   test("a search that finds no route leaves the story reset", () => {
