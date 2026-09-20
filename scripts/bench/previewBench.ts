@@ -8,19 +8,15 @@
 // argument: { project, line, word, options, mode, samples, warmup, json }.
 import "../../packages/sparkdown/src/inkjs/engine/Container";
 import * as fs from "node:fs";
-import * as path from "node:path";
 import * as v8 from "node:v8";
 import { performance } from "node:perf_hooks";
 import { SparkdownCompiler } from "../../packages/sparkdown/src/compiler/classes/SparkdownCompiler";
 import { setRetainProfilerEntries } from "../../packages/sparkdown/src/compiler/utils/profile";
-import { ImageVocabularyCache, imageFileForCompiler } from "../../packages/sparkdown/src/workspace/utils/prepareImageFile";
 import { ProgramTransportDecoder, ProgramTransportEncoder } from "../../packages/sparkdown/src/workspace/utils/programTransport";
 import { Game } from "../../packages/spark-engine/src/game/core/classes/Game";
-import { DEFAULT_OPTIONAL_DEFINITIONS } from "../../packages/spark-engine/src/game/modules/DEFAULT_OPTIONAL_DEFINITIONS";
-import { DEFAULT_SCHEMA_DEFINITIONS } from "../../packages/spark-engine/src/game/modules/DEFAULT_SCHEMA_DEFINITIONS";
-import { DEFAULT_DESCRIPTION_DEFINITIONS } from "../../packages/spark-engine/src/game/modules/DEFAULT_DESCRIPTION_DEFINITIONS";
 import { RouteSearchLog } from "../../packages/spark-web-player/src/main/workers/RouteSearchLog";
 import { searchRouteTo } from "../../packages/spark-web-player/src/main/workers/searchRouteTo";
+import { MAIN_URI, benchSystem, configurePlayerCompiler, loadProjectFiles, silenceConsole, stats } from "./benchProject";
 
 interface BenchConfig {
   project: string;
@@ -37,49 +33,6 @@ const config: BenchConfig = JSON.parse(process.argv[2] ?? "null");
 if (!config?.project) throw new Error("run through scripts/bench/preview-bench.mjs");
 const PROFILER_ID = "bench";
 
-const SCRIPT_RE = /\.sd$/i;
-const IMAGE_RE = /\.(png|apng|jpeg|jpg|gif|bmp|svg|webp)$/i;
-const AUDIO_RE = /\.(mid|wav|mp3|mp2|ogg|aac|opus|flac)$/i;
-const FONT_RE = /\.(ttf|woff|woff2|otf)$/i;
-
-function walk(dir: string, out: string[] = []): string[] {
-  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-    if (entry.name.startsWith(".")) continue;
-    const full = path.join(dir, entry.name);
-    if (entry.isDirectory()) walk(full, out);
-    else out.push(full);
-  }
-  return out;
-}
-
-// The files as the player's workspace hands them to its compiler: images
-// prepared by the vocabulary cache, then stripped of their data.
-function loadFiles() {
-  const vocab = new ImageVocabularyCache();
-  const files: any[] = [];
-  for (const full of walk(config.project)) {
-    const rel = path.relative(config.project, full).split(path.sep).join("/");
-    const filename = rel.split("/").at(-1)!;
-    const dot = filename.lastIndexOf(".");
-    const ext = dot < 0 ? "" : filename.slice(dot + 1);
-    const type = SCRIPT_RE.test(rel) ? "script" : IMAGE_RE.test(rel) ? "image" : AUDIO_RE.test(rel) ? "audio" : FONT_RE.test(rel) ? "font" : "";
-    const stat = fs.statSync(full);
-    const needsText = type === "script" || ext.toLowerCase() === "svg";
-    const prepared = vocab.prepare({
-      uri: "file:///local/" + rel,
-      name: filename.split(".")[0]!,
-      ext,
-      type,
-      src: `/file:/local/${rel}?v=${Math.floor(stat.mtimeMs)}-${stat.size}`,
-      text: needsText ? fs.readFileSync(full, "utf8") : undefined,
-      version: type === "script" ? 1 : Math.floor(stat.mtimeMs),
-      languageId: type === "script" ? "sparkdown" : undefined,
-    } as any);
-    files.push(imageFileForCompiler(prepared, true));
-  }
-  return files;
-}
-
 // The profiler's measures since the last call, summed per method. Names are
 // `<profilerId> <method> <uri>`.
 function takeMeasures(): Record<string, number> {
@@ -93,23 +46,13 @@ function takeMeasures(): Record<string, number> {
   return sums;
 }
 
-const sorted = (a: number[]) => [...a].sort((x, y) => x - y);
-const stats = (a: number[]) => {
-  const s = sorted(a);
-  return { min: s[0] ?? 0, median: s[Math.floor(s.length / 2)] ?? 0, max: s.at(-1) ?? 0 };
-};
-
-// The compiler, the worker game and the route search log to the console as
-// they run; the benchmark prints its own report.
+// Captured before the console is silenced: the report and a failure print here.
 const realLog = console.log;
-const silence = () => {
-  console.log = console.warn = console.error = console.info = console.debug = () => {};
-};
 
 function main() {
   setRetainProfilerEntries(true);
-  const files = loadFiles();
-  const mainUri = "file:///local/main.sd";
+  const files = loadProjectFiles(config.project);
+  const mainUri = MAIN_URI;
   const mainFile = files.find((f) => f.uri === mainUri);
   if (!mainFile) throw new Error(`${config.project} has no main.sd`);
   const line0 = config.line - 1;
@@ -125,18 +68,12 @@ function main() {
   const options = config.options.filter((o) => o !== token);
   if (!options.length) throw new Error(`no replacement for ${token}: pass --options`);
 
-  silence();
+  silenceConsole();
   const compiler = new SparkdownCompiler();
   compiler.profilerId = PROFILER_ID;
   const encoder = new ProgramTransportEncoder();
   const decoder = new ProgramTransportDecoder();
-  const system = {
-    now: () => performance.now(),
-    setTimeout: (h: any, t?: number, ...a: any[]) => setTimeout(h, t, ...a) as any,
-    resolve: (p: string) => p,
-    fetch: async () => "",
-    log: () => {},
-  };
+  const system = benchSystem;
 
   // The worker: one game kept across compiles, and the route searched to the
   // cursor after each, as workspace.worker.ts does.
@@ -183,20 +120,7 @@ function main() {
   });
 
   const startFrom = { file: mainUri, line: line0 };
-  compiler.configure({
-    files,
-    definitions: {
-      optionals: DEFAULT_OPTIONAL_DEFINITIONS,
-      schemas: DEFAULT_SCHEMA_DEFINITIONS,
-      descriptions: DEFAULT_DESCRIPTION_DEFINITIONS,
-    },
-    skipValidation: true,
-    stripImageData: true,
-    workspace: "file:///local",
-    startFrom,
-    seedBuiltinsIntoStory: true,
-    experimentalDisplayCalls: true,
-  } as any);
+  configurePlayerCompiler(compiler, files, startFrom);
   const cold = compiler.compile({ textDocument: { uri: mainUri }, startFrom } as any);
 
   // The page: a second game that receives each program over the transport.

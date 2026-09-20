@@ -19,6 +19,8 @@
 //   --samples <K>       measured samples per mode (default 12)
 //   --warmup <W>        discarded samples first (default 4)
 //   --json <file>       also write each mode's full report, as <file>.<mode>.json
+//   --cpu-prof <dir>    also write a V8 CPU profile of each mode's process there,
+//                       with the bundle's source map, for profile-shares.mjs
 //
 // The worker path outside the browser: see
 // .agents/skills/drive-web-editor/references/performance.md.
@@ -82,6 +84,9 @@ export function parseBenchArgs(args) {
       case "--json":
         out.json = value(args, i++, name);
         break;
+      case "--cpu-prof":
+        out.cpuProf = value(args, i++, name);
+        break;
       default:
         throw new Error(`unknown argument ${name}`);
     }
@@ -122,7 +127,7 @@ function listFiles(dir, out = []) {
   return out;
 }
 
-async function bundle(outDir) {
+async function bundle(outDir, mapDir) {
   const require = createRequire(path.join(HERE, "..", "..", "package.json"));
   const esbuild = require("esbuild");
   const outfile = path.join(outDir, "previewBench.mjs");
@@ -134,9 +139,17 @@ async function bundle(outDir) {
     format: "esm",
     target: "node22",
     logLevel: "warning",
+    // A profile names functions, so a profiled bundle keeps the names it was
+    // given and carries a source map.
+    keepNames: Boolean(mapDir),
+    sourcemap: mapDir ? "external" : false,
     loader: { ".svg": "text", ".css": "text", ".html": "text", ".yaml": "text", ".sd": "text", ".luau": "text" },
     banner: { js: "import { createRequire as __cr } from 'node:module'; const require = __cr(import.meta.url);" },
   });
+  if (mapDir) {
+    fs.mkdirSync(mapDir, { recursive: true });
+    fs.copyFileSync(outfile + ".map", path.join(mapDir, path.basename(outfile) + ".map"));
+  }
   return outfile;
 }
 
@@ -158,12 +171,14 @@ async function main(args) {
     if (!around) throw new Error(`"${word}" is not on line ${line}: ${JSON.stringify(lineText)}`);
     const replacements = options.options ?? imageOptions(listFiles(project), around.prefix, around.token);
     if (!replacements.length) throw new Error(`no image file starts with ${around.prefix}: pass --options`);
-    const script = await bundle(scratch);
+    const cpuProf = options.cpuProf && path.resolve(options.cpuProf);
+    const script = await bundle(scratch, cpuProf);
     const modes = options.mode === "both" ? ["preview", "edit"] : [options.mode];
     let failed = false;
     for (const mode of modes) {
       const config = { project, line, word, options: replacements, mode, samples: options.samples, warmup: options.warmup, json: options.json ? path.resolve(`${options.json}.${mode}.json`) : undefined };
-      const run = spawnSync(process.execPath, ["--max-old-space-size=4096", script, JSON.stringify(config)], { stdio: "inherit", windowsHide: true });
+      const profile = cpuProf ? ["--cpu-prof", "--cpu-prof-dir", cpuProf, "--cpu-prof-name", `${mode}.cpuprofile`] : [];
+      const run = spawnSync(process.execPath, ["--max-old-space-size=4096", ...profile, script, JSON.stringify(config)], { stdio: "inherit", windowsHide: true });
       if (run.status !== 0) failed = true;
       console.log("");
     }
