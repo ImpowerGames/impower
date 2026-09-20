@@ -787,6 +787,29 @@ export class Story extends InkObject {
     return this._state;
   }
 
+  /**
+   * True when the state is exactly what `ResetState` left behind: the globals
+   * have been evaluated and nothing has advanced, diverted, loaded or written
+   * over them since.
+   *
+   * Evaluating the globals means running the whole `global decl` container —
+   * every definition in the program, and every builtin seeded alongside them —
+   * so a caller that resets a story only to guarantee a known starting point
+   * can ask this first and reset nothing when the answer is yes. Any story
+   * whose state has been touched in a way the runtime cannot account for
+   * reports false, so the answer is only ever conservative.
+   */
+  get stateIsPristine(): boolean {
+    return this._stateIsPristine;
+  }
+
+  /** Record that the state is no longer the untouched one `ResetState` built.
+   *  Called by every runtime path that advances, diverts, replaces or writes
+   *  over the state, including from `StoryState` itself. */
+  public NoteStateChanged() {
+    this._stateIsPristine = false;
+  }
+
   public onError: ErrorHandler | null = null;
 
   public onDidContinue: (() => void) | null = null;
@@ -1046,6 +1069,11 @@ export class Story extends InkObject {
     );
 
     this.ResetGlobals();
+
+    // Last, so that the work `ResetGlobals` itself does through the ordinary
+    // running paths (it diverts to `global decl` and continues) does not clear
+    // the mark it is here to set.
+    this._stateIsPristine = true;
   }
 
   public ResetErrors() {
@@ -1060,6 +1088,7 @@ export class Story extends InkObject {
     if (this._state === null) {
       return throwNullException("this._state");
     }
+    this._stateIsPristine = false;
     this._state.ForceEnd();
   }
 
@@ -1089,14 +1118,17 @@ export class Story extends InkObject {
       );
     }
 
+    this._stateIsPristine = false;
     this.state.SwitchFlow_Internal(flowName);
   }
 
   public RemoveFlow(flowName: string) {
+    this._stateIsPristine = false;
     this.state.RemoveFlow_Internal(flowName);
   }
 
   public SwitchToDefaultFlow() {
+    this._stateIsPristine = false;
     this.state.SwitchToDefaultFlow_Internal();
   }
 
@@ -1202,6 +1234,7 @@ export class Story extends InkObject {
   }
 
   public ContinueInternal(millisecsLimitAsync = 0) {
+    this._stateIsPristine = false;
     if (this._profiler != null) this._profiler.PreContinue();
 
     let isAsyncTimeLimited = millisecsLimitAsync > 0;
@@ -3967,6 +4000,7 @@ export class Story extends InkObject {
   }
 
   public ChoosePath(p: Path, incrementingTurnIndex: boolean = true) {
+    this._stateIsPristine = false;
     this.state.SetChosenPath(p, incrementingTurnIndex);
 
     // Take a note of newly visited containers for read counts etc
@@ -4791,6 +4825,11 @@ export class Story extends InkObject {
     variableName: string,
     newValueObj: InkObject,
   ) {
+    // Before the observer check below: a global written from outside the story
+    // leaves the state no longer the one a reset built, whether or not anybody
+    // is watching that variable.
+    this._stateIsPristine = false;
+
     if (this._variableObservers === null) return;
 
     let observers = this._variableObservers.get(variableName);
@@ -5246,6 +5285,10 @@ export class Story extends InkObject {
    * the real world.
    */
   private _state!: StoryState;
+
+  /** True while the state is the one `ResetState` built and nothing has run
+   *  against it yet. See {@link stateIsPristine}. */
+  private _stateIsPristine: boolean = false;
 
   private _asyncContinueActive: boolean = false;
   private _stateSnapshotAtLastNewline: StoryState | null = null;

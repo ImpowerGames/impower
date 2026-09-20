@@ -40,6 +40,10 @@ export const searchRouteTo = (
     fromPath,
     toPath,
     config.simulationOptions,
+    // `patchAndSimulateRoute` below loads a checkpoint or jumps to the route's
+    // start, so a route found here can be left where the search stopped rather
+    // than resetting the story into a state nothing reads.
+    { callerResetsStory: true },
   );
   profile("end", profilerId + " " + "game/planRoute");
   const programId = programIdentity(game.program);

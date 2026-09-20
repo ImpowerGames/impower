@@ -807,6 +807,10 @@ export class StoryState {
   }
 
   public LoadJsonObj(value: Record<string, any>) {
+    // A loaded state replaces whatever a reset left behind, so the story can no
+    // longer treat its state as the untouched one.
+    this.story.NoteStateChanged();
+
     let jObject = value;
 
     // Fresh identity registry for this load — `{"objref": id}` table
