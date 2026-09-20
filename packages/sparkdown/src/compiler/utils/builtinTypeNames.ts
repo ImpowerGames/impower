@@ -7,10 +7,10 @@
 // to the in-document define types (`ctx.defineTypeNames`).
 //
 // Populated by `SparkdownCompiler` the once it compiles the builtins prelude
-// (`getCompiledPrelude`), which happens in `mergePreludeContext` — i.e. before
+// (`getCompiledPrelude`), which happens in `mergePreludeSparkle` — i.e. before
 // each compile parses/lowers the user document. Empty until then, which is
 // safe: the prelude's own compile has no user globals to check, and any compile
-// that reaches user lowering has already run `mergePreludeContext`.
+// that reaches user lowering has already run `mergePreludeSparkle`.
 //
 // Kept in a DEPENDENCY-FREE module so the lowerer can read it without importing
 // `SparkdownCompiler` (which imports the annotator that imports the lowerer —

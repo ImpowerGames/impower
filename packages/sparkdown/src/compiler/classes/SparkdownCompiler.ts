@@ -408,6 +408,23 @@ type FlowSpanIndex = {
   touched: (uri: string, start0: number) => boolean;
 };
 
+// Distinguishes the context revisions (#654) of two compilers alive at once.
+// The counter lives on the global symbol registry rather than in this module,
+// so two copies of this module in one process — a bundler resolving the same
+// source through two paths — still hand out different ordinals. A consumer
+// deciding whether to keep what it derived from a context compares revisions
+// for equality, so two producers minting the same one would let it keep a
+// context that has nothing to do with the program it was handed.
+const CONTEXT_REVISION_ORDINAL = Symbol.for(
+  "@impower/sparkdown/contextRevisionOrdinal",
+);
+const nextCompilerOrdinal = (): number => {
+  const registry = globalThis as unknown as Record<symbol, number | undefined>;
+  const next = (registry[CONTEXT_REVISION_ORDINAL] ?? 0) + 1;
+  registry[CONTEXT_REVISION_ORDINAL] = next;
+  return next;
+};
+
 export class SparkdownCompiler {
   protected _profilerId?: string;
   get profilerId() {
@@ -490,6 +507,77 @@ export class SparkdownCompiler {
   // makes the lines comparable: the recursive parse walks every included
   // script, and two scripts' line numbers overlap.
   protected _changedChunkRanges?: Array<[number, number, string]>;
+  // ---- Assembled base context cache (#654) -----------------------------
+  // The context every compile of one project shares: the prelude's builtin
+  // structs, the structs this project's `define`s contribute, the structs
+  // derived from its files, and the `$default` merge over all of them. It is
+  // rebuilt only when its KEY moves; a compile whose key is unchanged layers
+  // its own implicit definitions over it copy-on-write and never writes into
+  // the shared tables (`_contextLayerTypes` records which type maps this
+  // compile has already copied).
+  //
+  // The key is the ordered identities of the chunks that feed it plus the
+  // file-registry epoch and the config fields that shape it. A chunk feeds it
+  // when it contributes `context`, `sparkle` or `defaultDefinitions` — and
+  // also when it declares a global, constant, struct, external or list, which
+  // is what `scanChunkForReuse` already answers per chunk identity. The second
+  // half is what makes the revision sound for the ENGINE's define tables: a
+  // define's property value can be computed from a global or constant declared
+  // elsewhere, so the compile-time structs alone would not notice that its
+  // runtime value moved. A re-lowered-but-unchanged chunk takes a new identity
+  // and so costs a rebuild it did not need — a miss, never a stale reuse.
+  protected _contextBase?: {
+    uri: string;
+    ids: object[];
+    filesEpoch: number;
+    configKey: string;
+    context: { [type: string]: { [name: string]: any } };
+    // The diagnostics `populateAssets` produced while the base was assembled
+    // (asset basename collisions, raster-folder warnings). They belong to the
+    // base, so a compile that reuses it has to replay them rather than re-run
+    // the pass that reports them.
+    diagnostics: { [uri: string]: SparkDiagnostic[] };
+    revision: number;
+  };
+  // Contributions recorded by the chunk walk, applied by `buildContext` in
+  // walk order, and the identities that key the assembled result.
+  protected _contextContributions?: Array<{ [type: string]: { [name: string]: any } }>;
+  protected _contextKeyIds?: object[];
+  protected _contextLayerTypes?: Set<string>;
+  // `type/name` of every entry this compile's own implicit definitions added
+  // over the base, in discovery order — the layer half of the context revision.
+  protected _contextLayerAdded?: string[];
+  // The serial each distinct layer has been given, so the revision can name it
+  // in a few characters instead of spelling out thousands of entries.
+  protected _contextLayerSerials?: Map<string, number>;
+  protected _contextLayerSerialCounter = 0;
+  // Monotonic within this compiler, and prefixed with an ordinal unique to it
+  // so that a consumer fed by two different compilers (a worker restarted
+  // under a page that kept its Game) can never read one's first revision as
+  // the other's.
+  protected _contextRevisionCounter = 0;
+  protected readonly _contextRevisionToken = `c${nextCompilerOrdinal()}`;
+  // How many times the base has been assembled from nothing on this instance.
+  // Read by the tests that assert an edit reused it.
+  protected _contextBaseBuilds = 0;
+  get contextBaseBuilds() {
+    return this._contextBaseBuilds;
+  }
+  // Per context type, the channel last derived from it and the type map it was
+  // derived FROM. The copy-on-write layer hands out the base's own type map
+  // whenever this compile did not write to that type, so comparing the map by
+  // identity answers "is this channel still the right one" exactly, without a
+  // revision to keep in step.
+  protected _engineChannelCache?: Map<
+    string,
+    { source: object; value: { [name: string]: any } }
+  >;
+  // The finished implicit definitions of each `type/name` this compiler has
+  // derived, including the `$default` merge, dropped whenever the base they
+  // were merged against is reassembled. An attribute directive implies the
+  // same struct on every compile, and a project the size of Raffles and Bunny
+  // has thousands of them.
+  protected _implicitDefCache?: Map<string, any>;
   // Per-flow asset captures for this compile (`program.sceneAssets`), keyed
   // like `_locCache` plus "0" for root content. A reused flow contributes its
   // cached capture by reference; a recomputed flow is captured through
@@ -1457,15 +1545,15 @@ export class SparkdownCompiler {
     // `currentParentUri` before each include descent.
     state.fileResolutionState = fileResolutionState;
 
-    // Seed builtins as the base layer BEFORE parsing this file's chunks (so an
-    // authored define reusing a builtin name overrides it in place, preserving
-    // the builtin key order). In prelude mode, merge the once-compiled prelude
-    // context; otherwise use the legacy JS populateBuiltins.
+    // Seed the builtin Sparkle trees as the base layer BEFORE parsing this
+    // file's chunks, so an authored `layout main` overrides the builtin one in
+    // place. The builtin CONTEXT is seeded the same way — builtins first, so an
+    // authored define reusing a builtin name overrides it while keeping the
+    // builtin key order — but inside `buildContext`, which assembles the whole
+    // base in one place so it can be reused across compiles (#654). The chunk
+    // walk records its context contributions instead of merging them here.
     if (this._config.useBuiltinsPrelude) {
-      this.mergePreludeContext(program);
       this.mergePreludeSparkle(program);
-    } else {
-      this.populateBuiltins(program);
     }
 
     // Begin a fresh per-compile record of chunk identities + changed ranges
@@ -1474,6 +1562,12 @@ export class SparkdownCompiler {
     // `populateAllLocations`, finalized below.
     this._compilationIds = new Set();
     this._changedChunkRanges = [];
+    // Fresh per-compile record of what the chunks contribute to the context
+    // and of the identities that key the assembled base (#654).
+    this._contextContributions = [];
+    this._contextKeyIds = [];
+    this._contextLayerTypes = new Set();
+    this._contextLayerAdded = [];
     // Rebuilt by `populateAllLocations`; cleared first so a compile that never
     // reaches the walk cannot publish the previous compile's captures.
     this._flowAssetAccum = undefined;
@@ -2239,6 +2333,19 @@ export class SparkdownCompiler {
             for (const name of scan.declaredNames) {
               this._censusEntries?.push(`${uri}|${name}`);
             }
+            // A chunk that declares a global, constant, struct, external or
+            // list also keys the assembled base context (#654): a define's
+            // property value can be an expression over any of them, so its
+            // RUNTIME value — the define tables the engine reads — moves when
+            // one of those declarations moves, while the chunk that carries
+            // the define itself is untouched. The prelude is excluded for the
+            // same reason it is excluded from the census: its chunks are
+            // parsed once per compiler instance and contribute nothing
+            // afterwards, so counting them would move the key on the first
+            // compile that could reuse anything.
+            if (scan.disqualifies) {
+              this._contextKeyIds?.push(block);
+            }
           }
           if (
             this._prevCompilationIds &&
@@ -2703,37 +2810,15 @@ export class SparkdownCompiler {
         }
       }
       if (context && !this._injectingPrelude) {
-        // Copy pre-built structs to program context. An authored define that
-        // reuses a builtin name (seeded earlier by mergePreludeContext) OVERRIDES
-        // IN PLACE: its properties win, but the builtin's *unspecified* siblings
-        // are retained. Without this, a partial override silently drops every
-        // field it doesn't restate — e.g. `define ui as config with
-        // reactive = true` would lose the builtin `layouts_element_name` /
-        // `styles_element_name` / `breakpoints`, leaving `reveal()` unable to
-        // find the screen root (it bails on an undefined `layouts_element_name`),
-        // so screens stay at opacity:0 — a black preview with no error.
-        //
-        // Structural element-tree types (screen/component) are REPLACED wholesale
-        // rather than deep-merged — merging two element trees would splice the
-        // builtin's children into the authored one. (They likewise override by
-        // replace in the reactive `sparkle` channel; see mergePreludeSparkle.)
-        const REPLACE_TYPES = new Set(["layout", "screen", "component"]);
-        for (const [type, structs] of Object.entries(context) as [
-          string,
-          Record<string, any>,
-        ][]) {
-          for (const [name, struct] of Object.entries(structs)) {
-            program.context ??= {};
-            program.context[type] ??= {};
-            const existing = program.context[type][name];
-            program.context[type][name] =
-              existing && !REPLACE_TYPES.has(type)
-                ? this.inheritDefaults(existing, struct)
-                : struct;
-          }
-        }
+        // Record this chunk's pre-built structs for `buildContext`, which
+        // applies them over the builtins in walk order. Keeping the merge out
+        // of the walk is what lets the assembled result be reused by a compile
+        // whose contributing chunks are the same objects (#654).
+        this._contextContributions?.push(context);
+        this._contextKeyIds?.push(compiledBlock);
       }
       if (sparkle && !this._injectingPrelude) {
+        this._contextKeyIds?.push(compiledBlock);
         // Merge the reactive Sparkle UI AST onto program.sparkle (additive;
         // not yet consumed — the static screens/components channels still
         // drive rendering until Phase 3).
@@ -2747,6 +2832,7 @@ export class SparkdownCompiler {
         }
       }
       if (defaultDefinitions && !this._injectingPrelude) {
+        this._contextKeyIds?.push(compiledBlock);
         // Copy default definitions to state
         for (const [type, struct] of Object.entries(defaultDefinitions)) {
           state.defaultDefinitions ??= {};
@@ -4168,13 +4254,212 @@ export class SparkdownCompiler {
     profile("end", this._profilerId, "populateDeclarationLocations", uri);
   }
 
+  /** Assemble `program.context`: the project-wide base (builtins, this
+   *  project's defines, its files' structs, and the `$default` merge over all
+   *  of them) plus this compile's own implicit definitions layered over it.
+   *
+   *  The base is shared across compiles whose key is unchanged (#654) — an
+   *  edit to a line of dialogue changes none of its inputs, and rebuilding it
+   *  cost a project the size of Raffles and Bunny 27 to 55 ms per keystroke.
+   *  The layer is copy-on-write: a type map the implicit definitions add to is
+   *  copied first, so the shared base never learns about an entry that belongs
+   *  to one compile. That is what keeps a preview compile's speculative
+   *  filtered image out of the canonical compile that follows it.
+   *
+   *  The implicit definitions split by what they are derived from. The filtered
+   *  image every SVG or vocabulary-carrying image implies is derived from the
+   *  files, so it belongs to the base and is assembled with it, before the
+   *  `$default` merge that also belongs to the base. The filtered image an
+   *  attribute directive such as `[[bunny:phone]]` implies is derived from
+   *  scene content, so it is this compile's own and goes in the layer, with the
+   *  same `$default` merge applied to it as it is added. */
   buildContext(state: SparkdownCompilerState, program: SparkProgram) {
     const uri = program.uri;
     profile("start", this._profilerId, "buildContext", uri);
-    this.populateAssets(state, program);
+    const ids = this._contextKeyIds ?? [];
+    const configKey = `${!!this._config.useBuiltinsPrelude}|${!!this._config
+      .stripImageData}`;
+    const cached = this._contextBase;
+    const reusable =
+      cached !== undefined &&
+      cached.uri === uri &&
+      cached.filesEpoch === this._filesEpoch &&
+      cached.configKey === configKey &&
+      cached.ids.length === ids.length &&
+      cached.ids.every((id, i) => id === ids[i]);
+    if (!reusable) {
+      this.buildContextBase(state, program, ids, configKey);
+    }
+    const base = this._contextBase!;
+    // The program's own view: a fresh top-level object whose type maps are the
+    // base's until this compile writes to one (`addImplicitDef`).
+    profile("start", this._profilerId, "contextLayerCopy", uri);
+    const layer: { [type: string]: { [name: string]: any } } = {};
+    for (const [type, structs] of Object.entries(base.context)) {
+      layer[type] = structs;
+    }
+    program.context = layer;
+    this._contextLayerTypes = new Set();
+    this._contextLayerAdded = [];
+    profile("end", this._profilerId, "contextLayerCopy", uri);
+    profile("start", this._profilerId, "contextDiagnosticsReplay", uri);
+    for (const [diagnosticUri, diagnostics] of Object.entries(
+      base.diagnostics,
+    )) {
+      if (diagnostics.length > 0) {
+        ((program.diagnostics ??= {})[diagnosticUri] ??= []).push(
+          ...diagnostics,
+        );
+      }
+    }
+    profile("end", this._profilerId, "contextDiagnosticsReplay", uri);
     this.populateImplicitDefs(state, program);
-    this.populateDefinedDefaultProperties(state, program);
+    // A revision names the base AND the layer, because a consumer that keeps
+    // what it derived from the context has to notice either moving. The layer
+    // is named by a serial rather than by the names themselves: a project the
+    // size of Raffles and Bunny reaches thousands of implicit definitions, and
+    // spelling them out put 33 KB of the revision on the wire with every
+    // program. The serials are exact, not a hash — the same set of names always
+    // gets the same one — and they are never reused, so dropping the table to
+    // bound its size costs a consumer a rebuild it did not need rather than
+    // hiding one it did.
+    const layerSignature = (this._contextLayerAdded ?? []).join(",");
+    const serials = (this._contextLayerSerials ??= new Map());
+    let layerSerial = serials.get(layerSignature);
+    if (layerSerial === undefined) {
+      layerSerial = ++this._contextLayerSerialCounter;
+      if (serials.size >= 64) {
+        serials.clear();
+      }
+      serials.set(layerSignature, layerSerial);
+    }
+    program.contextRevision = `${this._contextRevisionToken}:${base.revision}:${layerSerial}`;
     profile("end", this._profilerId, "buildContext", uri);
+  }
+
+  /** Assemble the shared base context from nothing and cache it under `ids`. */
+  protected buildContextBase(
+    state: SparkdownCompilerState,
+    program: SparkProgram,
+    ids: object[],
+    configKey: string,
+  ) {
+    const uri = program.uri;
+    profile("start", this._profilerId, "buildContextBase", uri);
+    const context: { [type: string]: { [name: string]: any } } = {};
+    // Assembled against a stand-in program so the passes below write into the
+    // base rather than into the program that happens to be compiling, and so
+    // the diagnostics they report can be kept with it for replay.
+    const staging = {
+      uri,
+      scripts: program.scripts,
+      files: program.files,
+      context,
+      diagnostics: {} as { [uri: string]: SparkDiagnostic[] },
+    } as SparkProgram;
+    // Builtins first, so an authored define reusing a builtin name overrides
+    // it below while keeping the builtin's key order.
+    if (this._config.useBuiltinsPrelude) {
+      this.mergePreludeContext(staging);
+    } else {
+      this.populateBuiltins(staging);
+    }
+    // An authored define that reuses a builtin name OVERRIDES IN PLACE: its
+    // properties win, but the builtin's *unspecified* siblings are retained.
+    // Without this, a partial override silently drops every field it doesn't
+    // restate — e.g. `define ui as config with reactive = true` would lose the
+    // builtin `layouts_element_name` / `styles_element_name` / `breakpoints`,
+    // leaving `reveal()` unable to find the screen root (it bails on an
+    // undefined `layouts_element_name`), so screens stay at opacity:0 — a black
+    // preview with no error.
+    //
+    // Structural element-tree types (layout/screen/component) are REPLACED
+    // wholesale rather than deep-merged — merging two element trees would
+    // splice the builtin's children into the authored one. (They likewise
+    // override by replace in the reactive `sparkle` channel; see
+    // mergePreludeSparkle.)
+    const REPLACE_TYPES = new Set(["layout", "screen", "component"]);
+    for (const contribution of this._contextContributions ?? []) {
+      for (const [type, structs] of Object.entries(contribution) as [
+        string,
+        Record<string, any>,
+      ][]) {
+        for (const [name, struct] of Object.entries(structs)) {
+          context[type] ??= {};
+          const existing = context[type][name];
+          context[type][name] =
+            existing && !REPLACE_TYPES.has(type)
+              ? this.inheritDefaults(existing, struct)
+              : struct;
+        }
+      }
+    }
+    this.populateAssets(state, staging);
+    this.populateImplicitImageDefs(staging);
+    this.populateDefinedDefaultProperties(state, staging);
+    this._contextBaseBuilds++;
+    this._contextBase = {
+      uri,
+      ids: ids.slice(),
+      filesEpoch: this._filesEpoch,
+      configKey,
+      context,
+      diagnostics: staging.diagnostics ?? {},
+      revision: ++this._contextRevisionCounter,
+    };
+    // The cached implicit definitions were merged against the `$default`s of
+    // the base that has just been replaced, so they go with it.
+    this._implicitDefCache = undefined;
+    profile("end", this._profilerId, "buildContextBase", uri);
+  }
+
+  /** Add one implicit definition to this compile's layer, copying the type map
+   *  out of the shared base the first time this compile writes to it, and
+   *  merging the type's `$default` under it exactly as
+   *  `populateDefinedDefaultProperties` does over the base. Returns false when
+   *  the entry is already present (in the base or the layer), which is what
+   *  keeps an implicit definition from shadowing an authored one.
+   *
+   *  `build` is a callback rather than a struct because a name this compiler
+   *  has already derived is served from `_implicitDefCache` without building or
+   *  merging anything: the same directive implies the same struct on every
+   *  compile, and a project the size of Raffles and Bunny reaches here
+   *  thousands of times per compile. */
+  protected addImplicitDef(
+    program: SparkProgram,
+    type: string,
+    name: string,
+    build: () => any,
+  ): boolean {
+    const context = (program.context ??= {});
+    if (context[type]?.[name]) {
+      return false;
+    }
+    const key = `${type}/${name}`;
+    const cache = (this._implicitDefCache ??= new Map());
+    let struct = cache.get(key);
+    if (struct === undefined) {
+      struct = build();
+      const defaultStruct = context[type]?.["$default"];
+      if (
+        defaultStruct &&
+        typeof defaultStruct === "object" &&
+        struct &&
+        typeof struct === "object" &&
+        !Array.isArray(struct)
+      ) {
+        struct = this.inheritDefaults(defaultStruct, struct);
+      }
+      cache.set(key, struct);
+    }
+    const layerTypes = (this._contextLayerTypes ??= new Set());
+    if (!layerTypes.has(type)) {
+      context[type] = { ...context[type] };
+      layerTypes.add(type);
+    }
+    context[type]![name] = struct;
+    (this._contextLayerAdded ??= []).push(key);
+    return true;
   }
 
   /** Mirror the fully-assembled engine-facing context types into dedicated
@@ -4188,29 +4473,64 @@ export class SparkdownCompiler {
   populateEngineChannels(program: SparkProgram) {
     const uri = program.uri;
     profile("start", this._profilerId, "populateEngineChannels", uri);
-    const layout = program.context?.["layout"];
-    const screen = program.context?.["screen"];
-    const component = program.context?.["component"];
-    const style = program.context?.["style"];
-    if (layout) {
-      program.layouts = structuredClone(layout);
+    // A channel is a pure function of the context type map it mirrors, and the
+    // copy-on-write layer hands out the base's own type map for every type this
+    // compile did not write to (#654). Comparing that map by identity therefore
+    // answers "is the channel I built last time still the right one" exactly:
+    // an unchanged type keeps its clone, and only the types a compile actually
+    // touched — `filtered_image`, when a directive implies a new one — are
+    // cloned again.
+    //
+    // Successive programs then share the channels they have in common, which is
+    // sound because the only thing written onto a channel struct after it is
+    // handed over is a derivation OF that struct: `filterImage` caches
+    // `filtered_src` / `filtered_layers` on the filtered image it resolved. The
+    // struct's inputs cannot have moved without the type map being rebuilt, so
+    // the cached derivation is still the right answer; a root retyped from
+    // `image` to `layered_image` (#340) or an edited attribute list rebuilds the
+    // map and the next compile hands out fresh structs. Warm-up sweeps that
+    // resolve against a DIFFERENT define channel already work on their own
+    // copies (`resolveImageSrcs`).
+    const channels = (this._engineChannelCache ??= new Map());
+    const channelFor = (
+      type: string,
+      derive: (structs: { [name: string]: any }) => { [name: string]: any },
+    ) => {
+      const source = program.context?.[type];
+      if (!source) {
+        return undefined;
+      }
+      const hit = channels.get(type);
+      if (hit && hit.source === source) {
+        return hit.value;
+      }
+      const value = derive(source);
+      channels.set(type, { source, value });
+      return value;
+    };
+    const layouts = channelFor("layout", structuredClone);
+    if (layouts) {
+      program.layouts = layouts;
     }
-    if (screen) {
-      program.screens = structuredClone(screen);
+    const screens = channelFor("screen", structuredClone);
+    if (screens) {
+      program.screens = screens;
     }
-    if (component) {
-      program.components = structuredClone(component);
+    const components = channelFor("component", structuredClone);
+    if (components) {
+      program.components = components;
     }
-    if (style) {
-      program.styles = structuredClone(style);
+    const styles = channelFor("style", structuredClone);
+    if (styles) {
+      program.styles = styles;
     }
     // File-derived + implicit-def asset types (not defines).
     const ASSET_TYPES = ["image", "audio", "font", "video", "layered_image", "filtered_image"];
     for (const type of ASSET_TYPES) {
-      const structs = program.context?.[type];
-      if (structs) {
+      const assets = channelFor(type, cloneSharingVocabularies);
+      if (assets) {
         program.assets ??= {};
-        program.assets[type] = cloneSharingVocabularies(structs);
+        program.assets[type] = assets;
       }
     }
     // Define-typed context entries (animation/character/ease/config/…) are NOT
@@ -4747,22 +5067,24 @@ export class SparkdownCompiler {
     });
   }
 
-  populateImplicitDefs(_state: SparkdownCompilerState, program: SparkProgram) {
+  /** The filtered image every SVG, inline-data or vocabulary-carrying image
+   *  implies, so it only displays default layers by default. Derived from the
+   *  project's files, so it is assembled with the shared base context (#654)
+   *  rather than per compile. */
+  populateImplicitImageDefs(program: SparkProgram) {
     const uri = program.uri;
-    profile("start", this._profilerId, "populateImplicitDefs", uri);
+    profile("start", this._profilerId, "populateImplicitImageDefs", uri);
     const images = { ...program.context?.["image"], ...program.context?.["layered_image"] };
     if (images) {
       for (const image of Object.values(images)) {
         if (image["ext"]?.toLowerCase() === "svg" || image["data"] || image.attribute_vocabulary) {
           const type = image["$type"];
           const name = image["$name"];
-          // Declare implicit filtered_image
-          // (so it only displays default layers by default)
           const implicitType = "filtered_image";
           program.context ??= {};
           program.context[implicitType] ??= {};
           if (!program.context[implicitType][name]) {
-            program.context[implicitType][name] ??= {
+            program.context[implicitType][name] = {
               $type: implicitType,
               $name: name,
               image: { $type: type, $name: name },
@@ -4772,6 +5094,17 @@ export class SparkdownCompiler {
         }
       }
     }
+    profile("end", this._profilerId, "populateImplicitImageDefs", uri);
+  }
+
+  /** The filtered image an attribute directive such as `[[bunny:phone]]`
+   *  implies. Derived from scene content, so it is this compile's own: every
+   *  entry goes through `addImplicitDef`, which copies the type map out of the
+   *  shared base before writing, so a preview compile's speculative entry never
+   *  reaches the compile that follows it. */
+  populateImplicitDefs(_state: SparkdownCompilerState, program: SparkProgram) {
+    const uri = program.uri;
+    profile("start", this._profilerId, "populateImplicitDefs", uri);
     const resolvedImplicits = new Set<string>();
     for (const uri of Object.keys(program.scripts)) {
       const doc = this.documents.get(uri);
@@ -4788,16 +5121,12 @@ export class SparkdownCompiler {
             const parts = text.split(/[:~]/).map((part) => part.trim());
             const [fileName, ...attributes] = parts;
             const name = parts.join("~");
-            program.context ??= {};
-            program.context[type] ??= {};
-            if (!program.context[type][name]) {
-              program.context[type][name] ??= {
-                $type: type,
-                $name: name,
-                image: { $name: fileName },
-                attributes,
-              };
-            }
+            this.addImplicitDef(program, type, name, () => ({
+              $type: type,
+              $name: name,
+              image: { $name: fileName },
+              attributes,
+            }));
           }
           cur.next();
         }
