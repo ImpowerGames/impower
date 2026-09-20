@@ -526,11 +526,11 @@ export class SparkdownCompiler {
   // serialized-bytecode caches because it has to cover flows those caches skip
   // and flows they were not asked about.
   protected _flowFingerprints?: Map<string, string>;
-  // Per top-level flow, how much counting it required last compile: how many of
-  // its containers had to record visits, and what their flags added up to. Kept
+  // Per top-level flow, which of its containers had to record visits last
+  // compile and under which flags, each named by its path within the flow. Kept
   // apart from the fingerprint because it is the one question an EDITED flow
   // can still be asked — its shape is expected to move, its counting is not.
-  protected _flowCountingTallies?: Map<string, string>;
+  protected _flowCountingSignatures?: Map<string, string>;
   // Per-flow asset captures for this compile (`program.sceneAssets`), keyed
   // like `_locCache` plus "0" for root content. A reused flow contributes its
   // cached capture by reference; a recomputed flow is captured through
@@ -1147,7 +1147,7 @@ export class SparkdownCompiler {
     } = this.computeFlowReuse(story);
     const previousFingerprints = this._flowFingerprints;
     const nextFingerprints = new Map<string, string>();
-    const previousCounting = this._flowCountingTallies;
+    const previousCounting = this._flowCountingSignatures;
     const nextCounting = new Map<string, string>();
     // Two comparisons, because a flow the author edited and a flow they did not
     // can be asked different questions.
@@ -1157,16 +1157,16 @@ export class SparkdownCompiler {
     // elsewhere, and nothing about the edited LINES can account for that.
     //
     // A flow the author DID edit has to be asked something narrower, because
-    // its shape is supposed to have changed. What it may not change is how much
-    // counting it requires: a checkpoint records a visit count only for the
-    // containers that were counting when it was taken, so a container that
-    // starts counting leaves every earlier checkpoint short of a visit it
-    // cannot reconstruct. Ordinary typing adds containers that count nothing
-    // and leaves the tally alone; the first `{scene}` reference anywhere in the
-    // program moves it.
+    // its shape is supposed to have changed. What it may not change is which of
+    // its containers count their visits: a checkpoint records a visit count
+    // only for the containers that were counting when it was taken, so a
+    // container that starts counting leaves every earlier checkpoint short of a
+    // visit it cannot reconstruct. Ordinary typing adds containers that count
+    // nothing and leaves the signature alone; the first `{scene}` reference
+    // anywhere in the program moves it.
     const noteFlowShape = (name: string, fp: string, container: Container) => {
       nextFingerprints.set(name, fp);
-      const counting = this.countingTally(container);
+      const counting = this.countingSignature(container);
       nextCounting.set(name, counting);
       if (previousCounting?.get(name) !== counting) {
         this.noteCrossFlowShift();
@@ -1219,7 +1219,7 @@ export class SparkdownCompiler {
         }
       }
       this._flowFingerprints = nextFingerprints;
-      this._flowCountingTallies = nextCounting;
+      this._flowCountingSignatures = nextCounting;
     } else if (binary) {
       // Binary twin of the JSON memo below. The reuse GUARDS are shared —
       // `reusableFlows` and the `_renamedFlowNames` subtraction are
@@ -1272,7 +1272,7 @@ export class SparkdownCompiler {
       }
       this._flowChunkCache = nextChunkCache;
       this._flowFingerprints = nextFingerprints;
-      this._flowCountingTallies = nextCounting;
+      this._flowCountingSignatures = nextCounting;
     } else {
       const prevFlowCache = this._flowJsonCache;
       const nextFlowCache = new Map<string, { fp: string; value: any }>();
@@ -1316,7 +1316,7 @@ export class SparkdownCompiler {
       story.ToJson(writer as SimpleJson.Writer, flowMemo);
       this._flowJsonCache = nextFlowCache;
       this._flowFingerprints = nextFingerprints;
-      this._flowCountingTallies = nextCounting;
+      this._flowCountingSignatures = nextCounting;
     }
     if (binary) {
       // Pieces, not a packed blob: `nodes`/`numbers` are typed arrays that
@@ -1382,43 +1382,58 @@ export class SparkdownCompiler {
   }
 
   /**
-   * How much visit counting a flow requires: how many of its containers must
-   * record visits, and what their count flags add up to.
+   * Which containers within a flow must record their visits, and under which
+   * flags: one `path=flags` entry per counting container, sorted, where the
+   * path is that container's position within the flow.
    *
-   * Deliberately a tally rather than a shape. A checkpoint carries a visit
-   * count only for the containers that were counting when it was taken, so what
-   * invalidates it is a container starting or stopping counting — not the
-   * author adding beats around one. Containers that count nothing contribute
-   * nothing here, which is what lets ordinary typing inside a scene keep the
-   * tally it had while the first `{scene}` reference written anywhere in the
-   * program changes it.
+   * Each counting container is named individually because a checkpoint carries
+   * a visit count only for the containers that were counting when it was taken.
+   * A container that starts counting leaves every earlier checkpoint short of a
+   * visit it cannot reconstruct, and one that stops leaves it carrying a count
+   * the program no longer keeps — and moving the counting from one container to
+   * another does both at once while leaving any total unchanged. Containers
+   * that count nothing contribute no entry, which is what lets ordinary typing
+   * inside a scene keep the signature it had while the first `{scene}`
+   * reference written anywhere in the program moves it.
+   *
+   * A path shifts when content is inserted above the container it names, so an
+   * edit above a counting container refuses reuse even though the counting
+   * itself is unchanged. That costs a route search and nothing else.
    */
-  protected countingTally(container: Container): string {
-    let counted = 0;
-    let flags = 0;
+  protected countingSignature(container: Container): string {
+    const counting: string[] = [];
+    const path: string[] = [];
     const walk = (node: Container) => {
       if (node.countFlags > 0) {
-        counted += 1;
-        flags += node.countFlags;
+        counting.push(`${path.join(".")}=${node.countFlags}`);
       }
+      let index = 0;
       for (const child of node.content) {
         const sub = asOrNull(child, Container);
         if (sub) {
+          path.push(sub.name ?? String(index));
           walk(sub);
+          path.pop();
         }
+        index += 1;
       }
       const named = node.namedOnlyContent;
       if (named) {
-        for (const [, value] of named) {
+        for (const [childName, value] of named) {
           const sub = asOrNull(value, Container);
           if (sub) {
+            path.push(childName);
             walk(sub);
+            path.pop();
           }
         }
       }
     };
     walk(container);
-    return `${counted}:${flags}`;
+    // Sorted so the signature says which containers count and under which
+    // flags, not in which order this walk happened to reach them.
+    counting.sort();
+    return counting.join("|");
   }
 
   /** Record that a flow whose own source is unchanged nonetheless serialized

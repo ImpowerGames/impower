@@ -135,6 +135,10 @@ interface RouteOutcome {
   searchSteps: number;
   /** Paths the resulting route runs through, in order. */
   stepPaths: string[];
+  /** How many steps this route reused from the plan it already had before it
+   *  began searching, or undefined when it searched the whole way. This is the
+   *  one position in the route where reused steps meet searched ones. */
+  resumedAfter?: number;
 }
 
 interface CompiledRound extends RouteOutcome {
@@ -239,7 +243,8 @@ class Session {
       checkpoint,
       simulation: this.game.simulation,
       searchSteps: lastSearchStats.stepsUsed,
-      stepPaths: (this.game.plannedRoute?.steps ?? []).map((s) => s.path),
+      resumedAfter: resumption.resumeFrom?.steps.length,
+      ...walked(this.game),
     };
   }
 
@@ -311,8 +316,14 @@ function fromTheTop(round: CompiledRound): RouteOutcome {
     checkpoint,
     simulation: game.simulation,
     searchSteps: lastSearchStats.stepsUsed,
-    stepPaths: (game.plannedRoute?.steps ?? []).map((s) => s.path),
+    ...walked(game),
   };
+}
+
+/** The route a game is holding, as the comparison reads it: the path of every
+ *  step, in order. */
+function walked(game: Game) {
+  return { stepPaths: (game.plannedRoute?.steps ?? []).map((s) => s.path) };
 }
 
 /**
@@ -358,10 +369,12 @@ const comparableCheckpoint = (checkpoint: string | undefined) => {
   return JSON.stringify({ ...save, story, runtime });
 };
 
-/** How many positions of `steps`, starting at `at`, are the engine's look-ahead
- *  running a second time over the run it has just made: a run that repeats the
- *  one immediately before it and is followed by `resumes`. Zero when the gap is
- *  anything else. */
+/**
+ * How many positions of `steps`, starting at `at`, are the engine's look-ahead
+ * running a second time over the run it has just made: a run that repeats the
+ * one immediately before it, position for position, and is followed by
+ * `resumes`. Zero when the gap is anything else, or longer than a beat.
+ */
 function lookaheadRepeat(
   steps: readonly string[],
   at: number,
@@ -397,13 +410,29 @@ function lookaheadRepeat(
  * the first step, then the verdict, each with its neighbours.
  *
  * The step lists are compared as the same walk rather than as the same list,
- * and the only licence granted is the one artifact that can be named. The
- * engine looks one line ahead at every beat and rewinds, so a search that
- * watches it happen records that run of positions twice in a row, while a
- * search resumed from a checkpoint taken after the rewind records it once. The
- * expected list may therefore hold one extra run that exactly repeats the run
- * immediately before it, and nothing else: a position the resumed plan skipped
- * for any other reason, including a loop it never took, fails here.
+ * because of one artifact that can be named. The engine looks one line ahead at
+ * every beat and rewinds, so a search that watches it happen records that run
+ * of positions twice in a row, while a search resumed from a checkpoint taken
+ * after the rewind records it once.
+ *
+ * The licence for it is bounded by where it can occur as well as by what it
+ * looks like. A resumed route has one position where steps copied from the plan
+ * it already had meet steps it searched for itself. Everything before that
+ * boundary was written by the earlier search and has to match position for
+ * position. Only past it can the rewind go unrecorded, because only past it is
+ * this route replaying from a checkpoint taken after the rewind happened — and
+ * it can happen once, at the first beat the resumed search carries through. So
+ * the expected list may hold one extra run, once, at or after that boundary,
+ * that repeats the run immediately before it and is no longer than a beat, and
+ * both lists must then be consumed to the end. A route that searched the whole
+ * way gets no licence at all.
+ *
+ * Where it may occur is as far as the step lists can settle it. A story that
+ * came back around to a run of positions a second time and a look-ahead that
+ * rewound over it leave the same paths behind, so what separates them is not in
+ * these lists: it is in the checkpoint compared above, where a second real
+ * visit shows up as a visit count, an output line, or a variable the rewind
+ * would have put back. A route that genuinely skipped a loop fails there.
  */
 function expectSameAnswer(
   actual: RouteOutcome,
@@ -429,32 +458,39 @@ function expectSameAnswer(
   }
   let step = 0;
   let against = 0;
+  let gaps = 0;
   while (step < actual.stepPaths.length && against < expected.stepPaths.length) {
     if (actual.stepPaths[step] === expected.stepPaths[against]) {
       step += 1;
       against += 1;
       continue;
     }
-    // The look-ahead's second pass over a run it has just made. The run has to
-    // repeat the one immediately before it, position for position, and the
-    // step after it has to be the one the resumed plan is waiting for. A beat
-    // is a handful of positions, so a run longer than that is not this.
-    const repeated = lookaheadRepeat(
-      expected.stepPaths,
-      against,
-      actual.stepPaths[step]!,
-    );
+    // The look-ahead's second pass over a run it has just made. Allowed once,
+    // and no earlier than the step where this route stopped reusing the plan it
+    // had and started searching: the steps before that one came from the
+    // earlier search, which recorded the rewind.
+    const admissible =
+      gaps === 0 &&
+      actual.resumedAfter != null &&
+      step >= actual.resumedAfter;
+    const repeated = admissible
+      ? lookaheadRepeat(expected.stepPaths, against, actual.stepPaths[step]!)
+      : 0;
     if (!repeated) {
       break;
     }
+    gaps += 1;
     against += repeated;
   }
+  // Both lists, to the end. Stopping when either one runs out would leave
+  // whatever the other still holds unexamined.
   expect(
-    step === actual.stepPaths.length
+    step === actual.stepPaths.length && against === expected.stepPaths.length
       ? null
       : {
           step,
           against,
+          resumedAfter: actual.resumedAfter,
           counts: [actual.stepPaths.length, expected.stepPaths.length],
           actual: actual.stepPaths.slice(Math.max(0, step - 3), step + 4),
           expected: expected.stepPaths.slice(Math.max(0, against - 3), against + 4),
@@ -550,10 +586,70 @@ describe("the comparison the rest of these tests rest on", () => {
     expect(differs({ checkpoint: reseeded })).not.toThrow();
   });
 
-  test("accepts the look-ahead's own repeated run", () => {
+  test("accepts a repeated run past the step the route resumed from", () => {
     expect(() =>
-      expectSameAnswer(outcome({ stepPaths: ["a", "b", "c"] }), outcome({ stepPaths: ["a", "b", "a", "b", "c"] })),
+      expectSameAnswer(
+        outcome({ stepPaths: ["a", "b", "c"], resumedAfter: 1 }),
+        outcome({ stepPaths: ["a", "b", "a", "b", "c"] }),
+      ),
     ).not.toThrow();
+  });
+
+  test("rejects the same repeated run when the route searched the whole way", () => {
+    expect(() =>
+      expectSameAnswer(
+        outcome({ stepPaths: ["a", "b", "c"] }),
+        outcome({ stepPaths: ["a", "b", "a", "b", "c"] }),
+      ),
+    ).toThrow();
+  });
+
+  test("rejects the same repeated run among the steps the route reused", () => {
+    expect(() =>
+      expectSameAnswer(
+        outcome({ stepPaths: ["a", "b", "c"], resumedAfter: 3 }),
+        outcome({ stepPaths: ["a", "b", "a", "b", "c"] }),
+      ),
+    ).toThrow();
+  });
+
+  test("rejects a second repeated run", () => {
+    expect(() =>
+      expectSameAnswer(
+        outcome({ stepPaths: ["a", "b", "c", "d", "e"], resumedAfter: 1 }),
+        outcome({
+          stepPaths: ["a", "b", "a", "b", "c", "d", "c", "d", "e"],
+        }),
+      ),
+    ).toThrow();
+  });
+
+  // Where the artifact may occur is as far as the step lists go: a real second
+  // visit and a rewound look-ahead leave the same paths behind. What a real
+  // second visit cannot do is leave the story where the rewind left it.
+  test("rejects a repeated run the story actually took", () => {
+    const visited = save({
+      story: JSON.stringify({
+        variablesState: { trust: 0 },
+        storySeed: 41,
+        visitCounts: { "act_one.0.b": 2 },
+      }),
+    });
+    expect(() =>
+      expectSameAnswer(
+        outcome({ stepPaths: ["a", "b", "c"], resumedAfter: 1 }),
+        outcome({ stepPaths: ["a", "b", "a", "b", "c"], checkpoint: visited }),
+      ),
+    ).toThrow();
+  });
+
+  test("rejects a run left over at the end of the expected route", () => {
+    expect(() =>
+      expectSameAnswer(
+        outcome({ stepPaths: ["a", "b", "c"], resumedAfter: 1 }),
+        outcome({ stepPaths: ["a", "b", "c", "b", "c"] }),
+      ),
+    ).toThrow();
   });
 
   test("rejects a module's state differing", () => {
@@ -826,6 +922,51 @@ describe("a change the route's own lines cannot account for", () => {
       expectSameAnswer(after, fromTheTop(after));
     });
   }
+
+  // The same hazard again, written so that nothing which merely adds up how
+  // much counting a scene does can catch it. Two labels stand in the first act
+  // and one of them is read from the bottom of the scene; moving the read to
+  // the other label stops one container counting and starts another under the
+  // same flags. Every checkpoint taken before the move carries a count for the
+  // container that no longer keeps one and none for the container that now
+  // does, so a route resumed from one reports the wrong number of visits.
+  test("is searched again (a later line reads a different container's visit count)", () => {
+    const { text } = screenplay();
+    const READ = "  Beat 7 of the long tail. It has run {act_one.alpha} times.";
+    const labelled = text
+      .replace(
+        "  Beat 0 of the first act.",
+        "  label alpha\n  Beat 0 of the first act.",
+      )
+      .replace(
+        "  Beat 2 of the first act.",
+        "  label beta\n  Beat 2 of the first act.",
+      )
+      .replace("  Beat 7 of the long tail.", READ);
+    const target = labelled.split("\n").indexOf(READ);
+    expect(target, "the line being routed to is in the fixture").toBeGreaterThan(
+      0,
+    );
+    const session = new Session(labelled);
+    const before = session.compile(target);
+    expect(
+      (before.program.diagnostics?.[URI] ?? []).filter(
+        (d) => d.severity === 1,
+      ),
+      "the fixture compiles clean",
+    ).toEqual([]);
+
+    const searches = watchSearches();
+    session.edit("{act_one.alpha}", "{act_one.beta}");
+    const after = session.compile(target);
+
+    expect({
+      confined: after.changes?.confined,
+      resumed: after.resumption.stepIndex != null,
+    }).toEqual({ confined: false, resumed: false });
+    expect(searches.length).toBeGreaterThan(0);
+    expectSameAnswer(after, fromTheTop(after));
+  });
 });
 
 /** A small deterministic generator, so a failing sequence is reproducible. */

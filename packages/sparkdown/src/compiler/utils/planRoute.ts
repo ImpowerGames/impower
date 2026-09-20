@@ -126,7 +126,9 @@ export interface RouteStep {
 export interface RouteResumePoint {
   /** Story state at that step, as `story.state.toJson()` writes it. */
   stateJson: string;
-  /** The route's steps up to and including that step. */
+  /** The route's steps up to but not including that step: a resumed search
+   *  reads the position it is standing on before advancing, so recording that
+   *  step here as well would put it into the plan twice. */
   steps: RouteStep[];
   /** Every decision taken to get there, in order. */
   decisions: RouteOverride[];
