@@ -1324,7 +1324,7 @@ export const getCompletions = (
       const excluded = new Set([...before, ...after]);
       const attributeNode = leftStack.find((node) => node.name === "AssetCommandFilterName");
       const image = program.context["filtered_image"]?.[name] ?? program.context["layered_image"]?.[name] ?? program.context["image"]?.[name];
-      const vocabulary = resolveImageAttributes(program.context, image).vocabulary;
+      const vocabulary = resolveImageAttributes(program.context, image, { visibility: false }).vocabulary;
       if (vocabulary) {
         for (const attribute of attributeCompletionNames(vocabulary)) {
           if (!excluded.has(attribute)) {
@@ -1367,7 +1367,7 @@ export const getCompletions = (
     const open = getDescendent(["PunctuationStringDoubleQuoteOpen", "PunctuationStringSingleQuoteOpen"], quotedAttribute);
     const close = getDescendent(["PunctuationStringDoubleQuoteClose", "PunctuationStringSingleQuoteClose"], quotedAttribute);
     const image = program.context["filtered_image"]?.[attributeDefine.name];
-    const vocabulary = resolveImageAttributes(program.context, image).vocabulary;
+    const vocabulary = resolveImageAttributes(program.context, image, { visibility: false }).vocabulary;
     if (literalList && vocabulary && open && close && documentCursorOffset >= open.to && documentCursorOffset <= close.from) {
       const before: string[] = [];
       const after: string[] = [];
