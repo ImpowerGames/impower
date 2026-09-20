@@ -60,11 +60,18 @@ export interface SearchNode {
 export const extendSeq = (seq: string, path: string): string => {
   let h1 = 0xdeadbeef;
   let h2 = 0x41c6ce57;
-  const input = seq ? `${seq}|${path}` : path;
-  for (let i = 0; i < input.length; i += 1) {
-    const ch = input.charCodeAt(i);
-    h1 = Math.imul(h1 ^ ch, 2654435761);
-    h2 = Math.imul(h2 ^ ch, 1597334677);
+  // The characters of `seq`, a separator, then the characters of `path` — the
+  // same sequence a joined string would give, without allocating one per step.
+  // Written as one loop over the three pieces rather than a helper, because a
+  // helper is a closure allocated on every one of the tens of thousands of
+  // calls a deep search makes.
+  for (let piece = seq ? 0 : 2; piece < 3; piece += 1) {
+    const text = piece === 0 ? seq : piece === 1 ? "|" : path;
+    for (let i = 0; i < text.length; i += 1) {
+      const ch = text.charCodeAt(i);
+      h1 = Math.imul(h1 ^ ch, 2654435761);
+      h2 = Math.imul(h2 ^ ch, 1597334677);
+    }
   }
   h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507);
   h1 ^= Math.imul(h2 ^ (h2 >>> 13), 3266489909);
@@ -166,6 +173,24 @@ export interface SearchOptions {
    * If provided, these condition values will be given higher priority when searching for a route
    */
   favoredConditions?: (boolean | undefined)[];
+
+  /**
+   * Set by a caller that loads a saved state or resets the story itself before
+   * it runs the story again, which lets a search that found a route leave the
+   * state where it stopped instead of resetting it.
+   *
+   * Resetting re-evaluates every global definition in the program, builtins
+   * included, and the caller's own load or reset replaces that state
+   * immediately — so on a found route the reset is work whose result nothing
+   * reads. A search that found nothing still resets whatever the caller says,
+   * because there the search's own position is the last thing that happened to
+   * the story.
+   *
+   * What the caller gets back on a found route is the story parked where the
+   * search stopped, with any open line already cancelled, so `ResetState` or a
+   * state load can run on it immediately.
+   */
+  callerResetsStory?: boolean;
 }
 
 // Drives the story forward until we either:
@@ -421,7 +446,6 @@ export const planRoute = (
   lastSearchStats.exhaustedBudget = false;
   lastSearchStats.endReason = "exhausted";
 
-  const start = makeStartNode(story, fromPath);
   const isBfs = (options?.searchStrategy ?? "bfs") === "bfs";
   const startTime = now();
   const searchTimeout = options?.searchTimeout ?? DEFAULT_SEARCH_TIMEOUT;
@@ -440,7 +464,7 @@ export const planRoute = (
   /** Set when a node run threw (see the catch in the search loop). */
   let nodeErrored = false;
   const startingSteps = budget.stepsRemaining;
-  const queue: SearchNode[] = [start];
+  const queue: SearchNode[] = [];
 
   const prevOnError = story.onError;
   const prevOnExecute = story.onExecute;
@@ -450,86 +474,114 @@ export const planRoute = (
   const prevOnRestoreStateSnapshot = story.onRestoreStateSnapshot;
   const prevOnDiscardStateSnapshot = story.onDiscardStateSnapshot;
 
-  story.onError = NOOP;
-  story.onExecute = NOOP;
-  story.onMakeChoice = NOOP;
-  story.onEvaluateCondition = NOOP;
-  story.onSaveStateSnapshot = NOOP;
-  story.onRestoreStateSnapshot = NOOP;
-  story.onDiscardStateSnapshot = NOOP;
+  try {
+    // Inside the guarded region, and before the hooks are replaced: the start
+    // node is built under the story owner's own hooks, as the rest of the
+    // search is not.
+    queue.push(makeStartNode(story, fromPath));
 
-  while (queue.length) {
-    if (searchBudgetExhausted(budget)) {
-      break;
-    }
-    budget.nodesRemaining -= 1;
-    lastSearchStats.nodesExpanded += 1;
+    story.onError = NOOP;
+    story.onExecute = NOOP;
+    story.onMakeChoice = NOOP;
+    story.onEvaluateCondition = NOOP;
+    story.onSaveStateSnapshot = NOOP;
+    story.onRestoreStateSnapshot = NOOP;
+    story.onDiscardStateSnapshot = NOOP;
 
-    const node = isBfs ? queue.shift()! : queue.pop()!;
-    try {
-      const result = runUntilDecisionOrBranch(
-        story,
-        node,
-        fromKnotName,
-        toPath,
-        favoredChoiceIndices,
-        favoredConditionalValues,
-        options?.stayWithinKnot !== false,
-        options?.functions || [],
-        budget,
-      );
-
-      if (result.hitTarget) {
-        routePlan = {
-          fromPath,
-          toPath,
-          steps: result.steps,
-          decisions: result.decisions,
-          conditions: result.conditions,
-          choices: result.choices,
-        };
+    while (queue.length) {
+      if (searchBudgetExhausted(budget)) {
         break;
       }
+      budget.nodesRemaining -= 1;
+      lastSearchStats.nodesExpanded += 1;
 
-      for (const b of result.branches) {
-        queue.push(b);
+      const node = isBfs ? queue.shift()! : queue.pop()!;
+      try {
+        const result = runUntilDecisionOrBranch(
+          story,
+          node,
+          fromKnotName,
+          toPath,
+          favoredChoiceIndices,
+          favoredConditionalValues,
+          options?.stayWithinKnot !== false,
+          options?.functions || [],
+          budget,
+        );
+
+        if (result.hitTarget) {
+          routePlan = {
+            fromPath,
+            toPath,
+            steps: result.steps,
+            decisions: result.decisions,
+            conditions: result.conditions,
+            choices: result.choices,
+          };
+          break;
+        }
+
+        for (const b of result.branches) {
+          queue.push(b);
+        }
+      } catch {
+        // Swallowed so one bad node cannot abort a search that other branches
+        // might still complete — but remembered, because it means this search no
+        // longer covers the whole story and must not claim that it does.
+        nodeErrored = true;
       }
-    } catch {
-      // Swallowed so one bad node cannot abort a search that other branches
-      // might still complete — but remembered, because it means this search no
-      // longer covers the whole story and must not claim that it does.
-      nodeErrored = true;
+    }
+
+    lastSearchStats.stepsUsed = startingSteps - budget.stepsRemaining;
+    // Read from the budget itself, not from where the loop happened to exit: the
+    // step ceiling is reached inside a node run, which ends that node and then
+    // drains the queue normally, so the outer loop can exit looking healthy on a
+    // search that was in fact cut off.
+    lastSearchStats.exhaustedBudget = budget.cut !== null;
+    // A search that reached the target succeeded, whatever the ceilings say: one
+    // that fired on the very run that arrived did not stop it arriving.
+    //
+    // A ceiling outranks a thrown node because the ceiling is what stopped the
+    // work, and "I did not finish looking" stays true whether or not something
+    // also broke along the way. Only the no-ceiling case has to consult the
+    // error, and there it matters: without it a search that crashed on its very
+    // first node reports itself as having explored the whole story and found no
+    // way through, which is the one verdict here that blames the author's script.
+    lastSearchStats.endReason = routePlan
+      ? "found"
+      : (budget.cut ?? (nodeErrored ? "errored" : "exhausted"));
+  } finally {
+    // In a `finally` so that a search which breaks somewhere the per-node catch
+    // does not cover still hands the story back the way it found it: reset, and
+    // running under its owner's hooks rather than the search's silent ones.
+    try {
+      // The reset is the caller's when the caller says it replaces the state
+      // itself — but only on a route, because a search that came back
+      // empty-handed is the last thing to have moved this story.
+      if (!routePlan || !options?.callerResetsStory) {
+        resetStory(story);
+      } else {
+        // The search drives the story with `ContinueAsync`, so a route that
+        // ends mid-line leaves an async continue open, and `ResetState`
+        // refuses to run while one is. Ending it costs nothing — the line is
+        // discarded by whatever the caller does next — and it keeps the
+        // promise this option makes: the caller can reset or load straight
+        // away.
+        story.CancelAsyncContinue();
+      }
+    } finally {
+      // After the reset, which runs under the search's silent hooks: an error
+      // raised while resetting belongs to the search, not to the next thing
+      // the owner does with the story.
+      story.onError = prevOnError;
+      story.onExecute = prevOnExecute;
+      story.onMakeChoice = prevOnMakeChoice;
+      story.onEvaluateCondition = prevOnEvaluateCondition;
+      story.onSaveStateSnapshot = prevOnSaveStateSnapshot;
+      story.onRestoreStateSnapshot = prevOnRestoreStateSnapshot;
+      story.onDiscardStateSnapshot = prevOnDiscardStateSnapshot;
     }
   }
-
-  lastSearchStats.stepsUsed = startingSteps - budget.stepsRemaining;
-  // Read from the budget itself, not from where the loop happened to exit: the
-  // step ceiling is reached inside a node run, which ends that node and then
-  // drains the queue normally, so the outer loop can exit looking healthy on a
-  // search that was in fact cut off.
-  lastSearchStats.exhaustedBudget = budget.cut !== null;
-  // A search that reached the target succeeded, whatever the ceilings say: one
-  // that fired on the very run that arrived did not stop it arriving.
-  //
-  // A ceiling outranks a thrown node because the ceiling is what stopped the
-  // work, and "I did not finish looking" stays true whether or not something
-  // also broke along the way. Only the no-ceiling case has to consult the
-  // error, and there it matters: without it a search that crashed on its very
-  // first node reports itself as having explored the whole story and found no
-  // way through, which is the one verdict here that blames the author's script.
-  lastSearchStats.endReason = routePlan
-    ? "found"
-    : (budget.cut ?? (nodeErrored ? "errored" : "exhausted"));
-
-  resetStory(story);
-
-  story.onError = prevOnError;
-  story.onExecute = prevOnExecute;
-  story.onMakeChoice = prevOnMakeChoice;
-  story.onEvaluateCondition = prevOnEvaluateCondition;
-  story.onSaveStateSnapshot = prevOnSaveStateSnapshot;
-  story.onRestoreStateSnapshot = prevOnRestoreStateSnapshot;
-  story.onDiscardStateSnapshot = prevOnDiscardStateSnapshot;
 
   return routePlan;
 };
@@ -592,7 +644,7 @@ const runUntilDecisionOrBranch = (
       }
       budget.stepsRemaining -= 1;
 
-      const previousPath = story.state.previousPointer.path?.toString()!;
+      const previousPath = pointerPathString(story.state.previousPointer)!;
 
       if (previousPath) {
         if (
@@ -804,6 +856,82 @@ const runUntilDecisionOrBranch = (
   };
 };
 
+/**
+ * Path strings for the positions the search visits, remembered per position.
+ *
+ * `Pointer.path` builds a fresh `Path` object every time it is read and joining
+ * its components into a string is what the search spends much of its per-step
+ * time on — and it reads the same handful of positions over and over, because a
+ * route revisits containers and every fork re-runs the steps before it. The
+ * answer cannot change: a compiled story's content tree is fixed, so the path
+ * of a container and of the item at one of its indexes is fixed with it.
+ *
+ * Keyed weakly by container, so the entries for a story go away with the story.
+ */
+interface PointerPaths {
+  /** Indexed by the pointer's index plus one; slot 0 is the container itself. */
+  paths: (string | undefined)[];
+  /** The knot name of the same position (see {@link knotNameFromPath}). */
+  knots: (string | undefined)[];
+}
+
+const pointerPathCache = new WeakMap<object, PointerPaths>();
+
+const pointerPaths = (container: object): PointerPaths => {
+  let entry = pointerPathCache.get(container);
+  if (!entry) {
+    entry = { paths: [], knots: [] };
+    pointerPathCache.set(container, entry);
+  }
+  return entry;
+};
+
+/** The pointer's path as a string, or undefined for a null pointer. */
+const pointerPathString = (
+  ptr: {
+    container: unknown;
+    index: number | null;
+    path: { toString(): string } | null;
+  } | null,
+): string | undefined => {
+  if (!ptr || !ptr.container) {
+    return undefined;
+  }
+  const entry = pointerPaths(ptr.container as object);
+  const slot = ptr.index == null ? 0 : ptr.index + 1;
+  const cached = entry.paths[slot];
+  if (cached !== undefined) {
+    return cached;
+  }
+  const computed = ptr.path?.toString();
+  if (computed !== undefined) {
+    entry.paths[slot] = computed;
+  }
+  return computed;
+};
+
+/** The knot the pointer sits in, by the same fallback `knotNameFromPath` uses. */
+const pointerKnotName = (
+  ptr: {
+    container: unknown;
+    index: number | null;
+    path: { toString(): string } | null;
+  } | null,
+): string => {
+  if (!ptr || !ptr.container) {
+    return knotNameFromPath(undefined);
+  }
+  const entry = pointerPaths(ptr.container as object);
+  const slot = ptr.index == null ? 0 : ptr.index + 1;
+  const cached = entry.knots[slot];
+  if (cached !== undefined) {
+    return cached;
+  }
+  const computed = knotNameFromPath(pointerPathString(ptr));
+  entry.knots[slot] = computed;
+  return computed;
+};
+
 const resetStory = (story: Story) => {
   // End any line the story is part-way through rather than running it to its
   // end. `ResetState` below refuses to run while a line is open, but finishing
@@ -821,8 +949,18 @@ const resetStory = (story: Story) => {
 };
 
 const makeStartNode = (story: Story, fromPath: string): SearchNode => {
-  // Reset to fresh state and jump to knot start
-  resetStory(story);
+  // Start from fresh state, and jump to the knot start.
+  //
+  // A story that was reset and has not run since is already in that fresh
+  // state, and resetting it again would re-evaluate every global definition in
+  // the program — the seeded builtins included — to arrive back where it
+  // already is. That is the ordinary case here: the search runs on a story the
+  // compile constructed and reset moments earlier. Any story that has been
+  // advanced, diverted, loaded into or written over reports itself as no longer
+  // pristine, so the reset still happens wherever it means something.
+  if (!story.stateIsPristine) {
+    resetStory(story);
+  }
   story.ChoosePathString(fromPath);
   return {
     stateJson: story.state.toJson(),
@@ -851,8 +989,7 @@ const exitedKnot = (
   if (!ptr || ptr.isNull) {
     return false;
   }
-  const curPath = ptr.path?.toString();
-  const curKnot = knotNameFromPath(curPath);
+  const curKnot = pointerKnotName(ptr);
 
   if (isRootLevel(curKnot)) {
     return false;
@@ -868,10 +1005,9 @@ const exitedKnot = (
 
   for (const thread of story.state.callStack._threads) {
     for (const el of thread.callstack) {
-      const elKnot = knotNameFromPath(
-        el.currentPointer.path?.toString() ??
-          el.previousPointer.path?.toString(),
-      );
+      const elKnot = el.currentPointer.isNull
+        ? pointerKnotName(el.previousPointer)
+        : pointerKnotName(el.currentPointer);
       if (elKnot === knotName) {
         return false;
       }

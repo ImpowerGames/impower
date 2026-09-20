@@ -684,6 +684,10 @@ export class Game<T extends M = {}> {
         fromPath,
         toPath,
         simulationOptions,
+        // The replay below starts by loading a checkpoint or jumping to the
+        // route's start, either of which replaces the story state, so the
+        // search need not restore one of its own first.
+        { callerResetsStory: true },
       );
       if (route) {
         this.simulateRoute(route, 0);
@@ -1009,7 +1013,10 @@ export class Game<T extends M = {}> {
         favoredChoices?: (number | undefined)[];
       }
     >,
-    budget?: Pick<SearchOptions, "maxSteps" | "maxNodes" | "searchTimeout">,
+    budget?: Pick<
+      SearchOptions,
+      "maxSteps" | "maxNodes" | "searchTimeout" | "callerResetsStory"
+    >,
   ) {
     // Plan a route from the top of the knot containing the target path, to the target path itself
     return planRoute(story, fromPath, toPath, {
