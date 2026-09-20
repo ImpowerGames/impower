@@ -16,7 +16,7 @@ import { fileURLToPath } from "node:url";
 import { MODES, parseEngineBenchArgs, protoMismatch } from "./engine-bench.mjs";
 import { buildBeatsFixture } from "./preview-fixture.mjs";
 import { STEPPING } from "./profile-groups.mjs";
-import { parseShareArgs, profileShares } from "./profile-shares.mjs";
+import { parseShareArgs, profileShares, summarizeShares } from "./profile-shares.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.join(HERE, "..", "..");
@@ -104,6 +104,16 @@ await check("profile shares: only time under the named function counts, and grou
     ],
   );
   assert.equal(profileShares(PROFILE, { under: ["run"], groups: [], nameOf: (frame) => frame.functionName }).functions[0].group, "(unassigned)");
+  assert.deepEqual(parseShareArgs(["a.cpuprofile", "b.cpuprofile", "--under", "Step"]).profiles, ["a.cpuprofile", "b.cpuprofile"]);
+  // Over several profiles: the middle of three, and a group one profile never
+  // sampled counts as zero there.
+  const shares = (hierarchy, engine, collector) => ({ groups: [{ group: "hierarchy", share: hierarchy }, ...(engine == null ? [] : [{ group: "engine", share: engine }])], inclusive: [{ function: "Resolve", share: hierarchy / 2 }], collectorShareOfProfile: collector });
+  assert.deepEqual(summarizeShares([shares(0.5, 0.5, 0.04), shares(0.7, 0.3, 0.06), shares(1, undefined, 0.05)]), [
+    { label: "hierarchy", min: 0.5, median: 0.7, max: 1 },
+    { label: "engine", min: 0, median: 0.3, max: 0.5 },
+    { label: "inclusive Resolve", min: 0.25, median: 0.35, max: 0.5 },
+    { label: "(garbage collector, share of the whole profile)", min: 0.04, median: 0.05, max: 0.06 },
+  ]);
   assert.throws(() => parseShareArgs(["a.cpuprofile"]), /--under/);
   assert.throws(() => parseShareArgs(["--under", "Step"]), /\.cpuprofile/);
 });

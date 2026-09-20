@@ -111,6 +111,37 @@ export function profileShares(profile, { under, inclusive = [], groups, nameOf =
   };
 }
 
+/**
+ * Min, median and max of every group and inclusive share over several results
+ * of `profileShares`, and of the collector's share of the whole profile. A
+ * group one profile never sampled counts as a share of zero there.
+ */
+export function summarizeShares(results) {
+  const row = (label, shares) => {
+    const sorted = [...shares].sort((a, b) => a - b);
+    return { label, min: sorted[0], median: sorted[Math.floor(sorted.length / 2)], max: sorted.at(-1) };
+  };
+  const groups = [...new Set(results.flatMap((r) => r.groups.map((g) => g.group)))];
+  return [
+    ...groups.map((group) =>
+      row(
+        group,
+        results.map((r) => r.groups.find((g) => g.group === group)?.share ?? 0),
+      ),
+    ),
+    ...results[0].inclusive.map(({ function: fn }) =>
+      row(
+        `inclusive ${fn}`,
+        results.map((r) => r.inclusive.find((f) => f.function === fn).share),
+      ),
+    ),
+    row(
+      "(garbage collector, share of the whole profile)",
+      results.map((r) => r.collectorShareOfProfile),
+    ),
+  ];
+}
+
 // Names a call frame `<source file>:<function>` through the bundle's source
 // map, or `<bundle file>:<function>` without one.
 function sourceNamer(profilePath) {
@@ -144,26 +175,9 @@ async function main(args) {
   if (options.json) fs.writeFileSync(options.json, JSON.stringify(results.length > 1 ? results : result, null, 2));
   const pct = (share) => (share * 100).toFixed(1).padStart(6) + "%";
   if (results.length > 1) {
-    const row = (label, shares) => {
-      const sorted = [...shares].sort((a, b) => a - b);
-      console.log(`  ${pct(sorted[0])} ${pct(sorted[Math.floor(sorted.length / 2)])} ${pct(sorted.at(-1))}  ${label}`);
-    };
     console.log(`${results.length} profiles, shares of the time under ${options.under.join(", ")}`);
     console.log(`  ${"min".padStart(7)} ${"median".padStart(7)} ${"max".padStart(7)}`);
-    for (const { group } of result.groups)
-      row(
-        group,
-        results.map((r) => r.groups.find((g) => g.group === group)?.share ?? 0),
-      );
-    for (const { function: fn } of result.inclusive)
-      row(
-        `inclusive ${fn}`,
-        results.map((r) => r.inclusive.find((f) => f.function === fn).share),
-      );
-    row(
-      "(garbage collector, share of the whole profile)",
-      results.map((r) => r.collectorShareOfProfile),
-    );
+    for (const { label, min, median, max } of summarizeShares(results)) console.log(`  ${pct(min)} ${pct(median)} ${pct(max)}  ${label}`);
     console.log("");
     console.log("first profile:");
   }

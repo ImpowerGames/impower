@@ -45,5 +45,5 @@ export const STEPPING = [
 
   // Output text, the evaluation stack, variables, builtins, line ends,
   // choices, errors.
-  [ANY_ENGINE, /^(ControlCommand|StoryState|VariablesState|Story|StdLib|NativeFunctionCall|StringBuilder|Value|Tag|Glue|Choice|ChoicePoint|Divert|VariableAssignment|VariableReference|LuauTruthiness|MethodDispatch|StructDefinition|InkList|planRoute|Simulator)\.ts:/],
+  [ANY_ENGINE, /^(ControlCommand|TryGetResult|StoryState|VariablesState|Story|StdLib|NativeFunctionCall|StringBuilder|Value|Tag|Glue|Choice|ChoicePoint|Divert|VariableAssignment|VariableReference|LuauTruthiness|MethodDispatch|StructDefinition|InkList|planRoute|Simulator)\.ts:/],
 ];

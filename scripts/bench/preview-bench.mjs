@@ -20,7 +20,9 @@
 //   --warmup <W>        discarded samples first (default 4)
 //   --json <file>       also write each mode's full report, as <file>.<mode>.json
 //   --cpu-prof <dir>    also write a V8 CPU profile of each mode's process there,
-//                       with the bundle's source map, for profile-shares.mjs
+//                       with the bundle's source map, for profile-shares.mjs. A
+//                       profiled bundle keeps function names, which slows the
+//                       engine, so read times from a run without this flag
 //
 // The worker path outside the browser: see
 // .agents/skills/drive-web-editor/references/performance.md.
@@ -33,7 +35,6 @@ import { fileURLToPath } from "node:url";
 import { bundleBench, count, value } from "./benchLauncher.mjs";
 import { writePreviewFixture } from "./preview-fixture.mjs";
 
-const HERE = path.dirname(fileURLToPath(import.meta.url));
 const IMAGE_RE = /\.(png|apng|jpeg|jpg|gif|bmp|svg|webp)$/i;
 
 export function parseBenchArgs(args) {

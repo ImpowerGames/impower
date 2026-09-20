@@ -54,8 +54,9 @@ export interface ProgramIndex {
   /** Per record: 1 for the last child of a container, which holds its named
    *  content and flags (or null) and is never executed. */
   readonly terminator: Uint8Array;
-  /** Per record: its position among its container's children, which with
-   *  `childStart` and `children` resolves an index component of a path. */
+  /** Per container: where its children start in `children`, whose entries are
+   *  the child records in order, so `children[childStart[c] + n]` is the record
+   *  an index component `n` of a path names inside container `c`. */
   readonly childStart: Int32Array;
   readonly children: Int32Array;
   /** Named containers, per owning container: the target of a name component
