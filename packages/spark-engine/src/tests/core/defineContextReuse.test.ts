@@ -163,6 +163,45 @@ describe("a game receiving a program with an unchanged context (#654)", () => {
     expect((game.context as any)["config"]?.["pace"]?.["speed"]).toBe(9);
   });
 
+  it("rebuilds them when a global a define reads is edited, not the define", () => {
+    // A define's property can be a reference to a global, and the compile-time
+    // context stores the reference rather than the value while the runtime
+    // table carries what it resolved to. Editing only the global leaves the
+    // define's own chunk untouched, so the context revision is keyed by the
+    // chunks that DECLARE globals, constants, structs, externals and lists as
+    // well as the ones that contribute context. Without that half of the key
+    // the game would keep serving the old value.
+    //
+    // A property computed by CALLING a function cannot reach the runtime this
+    // way: the compiler refuses a define value that is not a number, string,
+    // boolean or reference, so there is no third route into the table.
+    const source = `store base_speed = 5
+
+define pace as config with
+  speed = base_speed
+end
+
+-> start
+scene start
+:
+  Action line.
+end
+`;
+    const compiler = makeCompiler(source);
+    const first = compile(compiler);
+    const game = quiet(() => makeGame(first));
+    const buildsAfterConstruction = builds(game);
+    expect((game.context as any)["config"]?.["pace"]?.["speed"]).toBe(5);
+
+    edit(compiler, source, "base_speed = 5", "base_speed = 9", 2);
+    const second = compile(compiler);
+    expect(second.contextRevision).not.toBe(first.contextRevision);
+
+    quiet(() => game.updateProgram(second));
+    expect(builds(game)).toBe(buildsAfterConstruction + 1);
+    expect((game.context as any)["config"]?.["pace"]?.["speed"]).toBe(9);
+  });
+
   it("never mistakes another compiler's first program for the one it holds", () => {
     // Each compiler stamps its revisions with an ordinal of its own, so a game
     // handed a program built by a second compiler rebuilds. Without that, two

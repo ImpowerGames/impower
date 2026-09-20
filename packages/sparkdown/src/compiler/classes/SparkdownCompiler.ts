@@ -204,7 +204,8 @@ function getCompiledPrelude(): {
   // keys — color, character, animation, …) so the lowerer's shadow-warning
   // (validateDefineTypeShadow) can flag a user `store`/`const` that reuses a
   // reserved builtin name. Runs once (cached prelude); before any user
-  // compile's lowering, since mergePreludeContext calls this first.
+  // compile's lowering, since `configure` reaches here eagerly and
+  // `mergePreludeSparkle` reaches here before the parse.
   setBuiltinTypeNames(Object.keys(_cachedPrelude.context));
   return _cachedPrelude;
 }
@@ -974,10 +975,11 @@ export class SparkdownCompiler {
       this._config.files = config.files;
       // Populate the builtin type-name registry BEFORE `documents.add` — the
       // registry adds trigger the annotator's lowering pass, which reads
-      // `getBuiltinTypeNames()` for the shadow warning. `mergePreludeContext`
-      // (which normally publishes them) doesn't run until the later
-      // `compile()`, so without this eager call a fresh document's first
-      // lowering would miss the builtin shadow warnings until the next edit.
+      // `getBuiltinTypeNames()` for the shadow warning. `getCompiledPrelude`
+      // publishes them, and a compile reaches it through
+      // `mergePreludeSparkle`, so without this eager call a fresh document's
+      // first lowering would miss the builtin shadow warnings until the next
+      // edit.
       // `getCompiledPrelude` is cached, so this pays only once. Guarded on
       // `useBuiltinsPrelude` so the prelude's own isolated compile (which sets
       // it false) doesn't recurse.
