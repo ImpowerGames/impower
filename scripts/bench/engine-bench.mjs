@@ -40,7 +40,7 @@ import { buildBeatsFixture, writePreviewFixture } from "./preview-fixture.mjs";
 // .agents/skills/drive-web-editor/references/performance.md.
 export const MODES = {
   kinds: { entry: "engineBench.ts", project: "route" },
-  step: { entry: "engineBench.ts", project: "route", candidates: ["as-planner", "bare"] },
+  step: { entry: "engineBench.ts", project: "route", candidates: ["as-planner", "hooked"] },
   proto: { entry: "bufferStepBench.ts", project: "beats", candidates: ["engine-step", "buffer-step", "engine-line", "buffer-line"] },
   emit: { entry: "emitBench.ts", project: "route", candidates: ["walk", "binary", "json", "tree"] },
   ready: { entry: "readyBench.ts", project: "route", candidates: ["prepare", "story-json", "story-buffer", "buffer"] },

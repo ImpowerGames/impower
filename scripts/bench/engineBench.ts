@@ -25,11 +25,11 @@ interface EngineBenchConfig {
   project: string;
   line: number;
   mode: "kinds" | "step";
-  // `step` only. `as-planner` leaves the story's observers as the route
-  // planner sets them, to functions that do nothing; `bare` clears onExecute,
-  // because a story with any onExecute builds the path string of every step to
-  // pass to it.
-  candidate?: "as-planner" | "bare";
+  // `step` only. `as-planner` sets the story's observers as the route planner
+  // does, which means onExecute cleared; `hooked` leaves onExecute a function
+  // that does nothing, which is what a story with any execution hook pays,
+  // because the engine builds the path string of every step to pass to it.
+  candidate?: "as-planner" | "hooked";
   samples: number;
   warmup: number;
   json?: string;
@@ -92,7 +92,7 @@ function prepare(): Walk {
   if (!route) throw new Error(`no route to ${toPath}`);
   // The game's observers are bookkeeping of its own, as are the planner's.
   story.onError = NOOP as any;
-  story.onExecute = config.candidate === "bare" ? null : (NOOP as any);
+  story.onExecute = config.candidate === "hooked" ? (NOOP as any) : null;
   story.onMakeChoice = NOOP as any;
   story.onEvaluateCondition = NOOP as any;
   story.onSaveStateSnapshot = NOOP as any;
@@ -112,15 +112,15 @@ function rewind({ story, route }: Walk) {
   story.pauseBeforeEvaluatingConditions = false;
 }
 
-// One engine step per call: with an infinite limit ContinueAsync returns after
-// a single ContinueSingleStep, which is how the route planner drives it.
+// One engine step per call: ContinueAsync takes no limit and returns after a
+// single ContinueSingleStep, which is how the route planner drives it.
 function countSteps(walk: Walk): number {
   rewind(walk);
   const { story, toPath } = walk;
   let steps = 0;
   while (story.state.previousPointer.path?.toString() !== toPath) {
     if (!story.canContinue) throw new Error(`the replay stopped after ${steps} steps without reaching ${toPath}`);
-    story.ContinueAsync(Infinity);
+    story.ContinueAsync();
     steps++;
   }
   return steps;
@@ -139,7 +139,7 @@ function main() {
     for (let i = 0; i < config.warmup + config.samples; i++) {
       rewind(walk);
       const t0 = performance.now();
-      for (let s = 0; s < steps; s++) story.ContinueAsync(Infinity);
+      for (let s = 0; s < steps; s++) story.ContinueAsync();
       const t1 = performance.now();
       if (i >= config.warmup) totals.push(t1 - t0);
     }
@@ -157,7 +157,7 @@ function main() {
       for (let s = 0; s < steps; s++) {
         const kind = kindOf(nextContent(story));
         const t0 = performance.now();
-        story.ContinueAsync(Infinity);
+        story.ContinueAsync();
         const dt = performance.now() - t0;
         time.set(kind, (time.get(kind) ?? 0) + dt);
         if (i === 0) count.set(kind, (count.get(kind) ?? 0) + 1);

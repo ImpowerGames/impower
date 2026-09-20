@@ -37,9 +37,8 @@ export const STEPPING = [
 
   [MIXED, /^Story\.ts:(Step|NextContent|IncrementContentPointer|PerformLogicAndFlowControl)$/],
 
-  // The route planner asks for one step per call, and every call starts a
-  // stopwatch and runs the checks that bracket a whole line.
-  [DRIVER, /^StopWatch\.ts:/],
+  // The route planner asks for one step per call, and every call runs the
+  // checks that bracket a whole line.
   [DRIVER, /^Story\.ts:(ContinueAsync|ContinueInternal|ValidateExternalBindings|IfAsyncWeCant|get asyncContinueComplete)$/],
   [DRIVER, /^(engineBench|bufferStepBench)\.ts:/],
 

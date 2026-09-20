@@ -44,7 +44,6 @@ import { PRNG } from "./PRNG";
 import { StringBuilder } from "./StringBuilder";
 import { ListDefinitionsOrigin } from "./ListDefinitionsOrigin";
 import { ListDefinition } from "./ListDefinition";
-import { Stopwatch } from "./StopWatch";
 import { Pointer } from "./Pointer";
 import { InkList, InkListItem, type KeyValuePair } from "./InkList";
 import { asOrNull, asOrThrows } from "./TypeAssertion";
@@ -1141,7 +1140,9 @@ export class Story extends InkObject {
   }
 
   public Continue() {
-    this.ContinueAsync(0);
+    if (!this._hasValidatedExternals) this.ValidateExternalBindings();
+
+    this.ContinueInternal();
     return this.currentText;
   }
 
@@ -1153,10 +1154,13 @@ export class Story extends InkObject {
     return !this._asyncContinueActive;
   }
 
-  public ContinueAsync(millisecsLimitAsync: number) {
+  /** Advance the story a single step and leave it in an asynchronous
+   *  continue, so the caller decides when the story moves again.
+   *  {@link Continue} runs to the end of the current line instead. */
+  public ContinueAsync() {
     if (!this._hasValidatedExternals) this.ValidateExternalBindings();
 
-    this.ContinueInternal(millisecsLimitAsync);
+    this.ContinueInternal(true);
   }
 
   /** Close an in-progress `ContinueAsync` WITHOUT advancing the story, for a
@@ -1241,15 +1245,16 @@ export class Story extends InkObject {
     this._asyncContinueActive = false;
   }
 
-  public ContinueInternal(millisecsLimitAsync = 0) {
+  /** `stepAtATime` advances a single step and stays in an asynchronous
+   *  continue; otherwise the story runs to the end of the current line. */
+  public ContinueInternal(stepAtATime = false) {
     this._stateIsPristine = false;
     if (this._profiler != null) this._profiler.PreContinue();
 
-    let isAsyncTimeLimited = millisecsLimitAsync > 0;
     this._recursiveContinueCount++;
 
     if (!this._asyncContinueActive) {
-      this._asyncContinueActive = isAsyncTimeLimited;
+      this._asyncContinueActive = stepAtATime;
 
       if (!this.canContinue) {
         throw new Error(
@@ -1262,12 +1267,9 @@ export class Story extends InkObject {
 
       if (this._recursiveContinueCount == 1)
         this._state.variablesState.StartVariableObservation();
-    } else if (this._asyncContinueActive && !isAsyncTimeLimited) {
+    } else if (this._asyncContinueActive && !stepAtATime) {
       this._asyncContinueActive = false;
     }
-
-    let durationStopwatch = new Stopwatch();
-    durationStopwatch.Start();
 
     let outputStreamEndsInNewline = false;
     this._sawLookaheadUnsafeFunctionAfterNewline = false;
@@ -1283,16 +1285,12 @@ export class Story extends InkObject {
 
       if (outputStreamEndsInNewline) break;
 
-      if (
-        this._asyncContinueActive &&
-        (durationStopwatch.ElapsedMilliseconds > millisecsLimitAsync ||
-          millisecsLimitAsync === Infinity)
-      ) {
+      // An asynchronous continue advances one step per call, so the caller
+      // decides when the story moves again.
+      if (this._asyncContinueActive) {
         break;
       }
     } while (this.canContinue);
-
-    durationStopwatch.Stop();
 
     let changedVariablesToObserve: Map<string, any> | null = null;
 

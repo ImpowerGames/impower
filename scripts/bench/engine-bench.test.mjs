@@ -127,7 +127,10 @@ await check("the stepping groups put paths and pointers on one side and output a
   assert.notEqual(groupOf("StoryState.ts:PushToOutputStream"), groupOf("Pointer.ts:copy"));
   assert.notEqual(groupOf("Story.ts:Step"), groupOf("Pointer.ts:copy"));
   assert.notEqual(groupOf("Story.ts:Step"), groupOf("VariablesState.ts:set"));
-  assert.notEqual(groupOf("StopWatch.ts:Start"), groupOf("VariablesState.ts:set"));
+  assert.notEqual(
+    groupOf("Story.ts:ContinueInternal"),
+    groupOf("VariablesState.ts:set"),
+  );
 });
 
 // The prototype is measured, never shipped. The tooling workflow checks out no
@@ -157,7 +160,7 @@ if (!esbuildInstalled) {
     assert.match(run.stdout, /mode kinds: .* target MAIN\./);
     assert.match(run.stdout, /command: RunStdLibFunction\s+\d{3,}/);
     assert.match(run.stdout, /mode step as-planner:[^]*per step \(microseconds\)/);
-    assert.match(run.stdout, /mode step bare:/);
+    assert.match(run.stdout, /mode step hooked:/);
     assert.match(run.stdout, /proto: the 4 candidates produced identical lines \(\d{3,} display tables\), and both engines took \d{4,} steps/);
     assert.match(run.stdout, /candidate tree: \d+ records, of which \d+ in MAIN/);
     assert.match(run.stdout, /candidate story-buffer:[^]*materialize tree[^]*retained once ready/);

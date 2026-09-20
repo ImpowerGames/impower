@@ -59,7 +59,7 @@ function engineCandidate(compiled: Record<string, any>, perStep: boolean) {
       let steps = 0;
       if (perStep) {
         while (story.canContinue) {
-          story.ContinueAsync(Infinity);
+          story.ContinueAsync();
           steps++;
           if (story.asyncContinueComplete) lines.push(take());
         }
