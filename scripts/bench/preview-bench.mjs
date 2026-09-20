@@ -19,33 +19,23 @@
 //   --samples <K>       measured samples per mode (default 12)
 //   --warmup <W>        discarded samples first (default 4)
 //   --json <file>       also write each mode's full report, as <file>.<mode>.json
+//   --cpu-prof <dir>    also write a V8 CPU profile of each mode's process there,
+//                       with the bundle's source map, for profile-shares.mjs. A
+//                       profiled bundle keeps function names, which slows the
+//                       engine, so read times from a run without this flag
 //
 // The worker path outside the browser: see
 // .agents/skills/drive-web-editor/references/performance.md.
 
 import { spawnSync } from "node:child_process";
 import fs from "node:fs";
-import { createRequire } from "node:module";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { bundleBench, count, value } from "./benchLauncher.mjs";
 import { writePreviewFixture } from "./preview-fixture.mjs";
 
-const HERE = path.dirname(fileURLToPath(import.meta.url));
 const IMAGE_RE = /\.(png|apng|jpeg|jpg|gif|bmp|svg|webp)$/i;
-
-// A flag's value; a flag given with no value, or another flag in its place,
-// throws, so `--project "$DIR"` with DIR unset never becomes a fixture run.
-function value(args, i, name) {
-  const v = args[i + 1];
-  if (v == null || v === "" || v.startsWith("--")) throw new Error(`${name} needs a value`);
-  return v;
-}
-function count(text, name, min) {
-  const n = Number(text);
-  if (!Number.isInteger(n) || n < min) throw new Error(`${name} must be an integer of at least ${min}`);
-  return n;
-}
 
 export function parseBenchArgs(args) {
   const out = { mode: "both", samples: 12, warmup: 4 };
@@ -81,6 +71,9 @@ export function parseBenchArgs(args) {
         break;
       case "--json":
         out.json = value(args, i++, name);
+        break;
+      case "--cpu-prof":
+        out.cpuProf = value(args, i++, name);
         break;
       default:
         throw new Error(`unknown argument ${name}`);
@@ -122,24 +115,6 @@ function listFiles(dir, out = []) {
   return out;
 }
 
-async function bundle(outDir) {
-  const require = createRequire(path.join(HERE, "..", "..", "package.json"));
-  const esbuild = require("esbuild");
-  const outfile = path.join(outDir, "previewBench.mjs");
-  await esbuild.build({
-    entryPoints: [path.join(HERE, "previewBench.ts")],
-    outfile,
-    bundle: true,
-    platform: "node",
-    format: "esm",
-    target: "node22",
-    logLevel: "warning",
-    loader: { ".svg": "text", ".css": "text", ".html": "text", ".yaml": "text", ".sd": "text", ".luau": "text" },
-    banner: { js: "import { createRequire as __cr } from 'node:module'; const require = __cr(import.meta.url);" },
-  });
-  return outfile;
-}
-
 async function main(args) {
   const options = parseBenchArgs(args);
   const scratch = fs.mkdtempSync(path.join(os.tmpdir(), "impower-preview-bench-"));
@@ -158,12 +133,14 @@ async function main(args) {
     if (!around) throw new Error(`"${word}" is not on line ${line}: ${JSON.stringify(lineText)}`);
     const replacements = options.options ?? imageOptions(listFiles(project), around.prefix, around.token);
     if (!replacements.length) throw new Error(`no image file starts with ${around.prefix}: pass --options`);
-    const script = await bundle(scratch);
+    const cpuProf = options.cpuProf && path.resolve(options.cpuProf);
+    const script = await bundleBench("previewBench.ts", scratch, cpuProf);
     const modes = options.mode === "both" ? ["preview", "edit"] : [options.mode];
     let failed = false;
     for (const mode of modes) {
       const config = { project, line, word, options: replacements, mode, samples: options.samples, warmup: options.warmup, json: options.json ? path.resolve(`${options.json}.${mode}.json`) : undefined };
-      const run = spawnSync(process.execPath, ["--max-old-space-size=4096", script, JSON.stringify(config)], { stdio: "inherit", windowsHide: true });
+      const profile = cpuProf ? ["--cpu-prof", "--cpu-prof-dir", cpuProf, "--cpu-prof-name", `${mode}.cpuprofile`] : [];
+      const run = spawnSync(process.execPath, ["--max-old-space-size=4096", ...profile, script, JSON.stringify(config)], { stdio: "inherit", windowsHide: true });
       if (run.status !== 0) failed = true;
       console.log("");
     }
