@@ -165,6 +165,36 @@ function coldNames(registry: SparkdownDocumentRegistry) {
 }
 
 describe("define type names are collected incrementally (#649)", () => {
+  it("costs a registry that does not lower nothing per edit", () => {
+    // The language server's registry and the VS Code document manager's both
+    // annotate for editor features only, with no `compilations`. The names
+    // steer lowering and nothing else, so neither may pay for an index on
+    // every keystroke.
+    let text = fixture();
+    const registry = new SparkdownDocumentRegistry([
+      "declarations",
+      "formatting",
+      "references",
+    ]);
+    resetDefineTypeNameWalkStats();
+    registry.add({
+      textDocument: { uri: URI, text, version: 1, languageId: "sparkdown" },
+    });
+    expect(defineTypeNameWalkStats().nodes).toBe(0);
+
+    const offset = text.lastIndexOf("careful") + "careful".length;
+    resetDefineTypeNameWalkStats();
+    text = insert(registry, text, offset, "z");
+    const edited = defineTypeNameWalkStats();
+    expect(
+      edited.nodes,
+      `a registry with no compilation annotator walked ${edited.nodes} nodes over ${JSON.stringify(edited.ranges)}`,
+    ).toBe(0);
+
+    // A caller that asks anyway still gets the right answer, by walking.
+    expect(names(registry)).toEqual(coldNames(registry));
+  });
+
   it("visits only the rebuilt region after an edit", () => {
     let text = fixture();
     const registry = open(text);

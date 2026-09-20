@@ -33,9 +33,24 @@ export class DefineTypeNameIndex {
   /** False until a full walk has established a baseline to map forward. */
   protected _established = false;
 
-  /** The names currently in the document. Callers must not mutate it. */
-  get names(): Set<string> {
-    return this._names;
+  /**
+   * The names currently in the document, or undefined when no baseline has
+   * been established — a registry that does not run the compilation annotator
+   * never maintains one, and a caller that needs the names anyway walks the
+   * tree itself rather than reading a set that was never filled in.
+   */
+  get names(): ReadonlySet<string> | undefined {
+    return this._established ? this._names : undefined;
+  }
+
+  /**
+   * Drop the baseline. The next `update` walks the whole tree rather than
+   * mapping positions that an unobserved edit may have moved.
+   */
+  invalidate(): void {
+    this._established = false;
+    this._occurrences = [];
+    this._names = new Set();
   }
 
   /** Discard everything and walk the whole tree. */

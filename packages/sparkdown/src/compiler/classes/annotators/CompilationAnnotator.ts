@@ -139,7 +139,7 @@ export class CompilationAnnotator extends SparkdownAnnotator<
     return set;
   }
 
-  private computeDefineTypeNames(): Set<string> {
+  private computeDefineTypeNames(): ReadonlySet<string> {
     return this._defineTypeNameIndex?.names ?? new Set<string>();
   }
 
