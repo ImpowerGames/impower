@@ -316,25 +316,76 @@ function fromTheTop(round: CompiledRound): RouteOutcome {
 }
 
 /**
- * The story a checkpoint restores: variables, callstack, visit counts, turn
- * indices — everything the Game Preview shows, and everything a later beat runs
- * on.
+ * A whole checkpoint, as far as anything downstream can tell it apart from
+ * another: the story it restores, the state of every module, and the game's
+ * runtime record. This is what the page loads and what the worker reads its
+ * next route's favored decisions out of, so it is what a reused route has to
+ * reproduce.
  *
- * Two things are left out. The random seed, because every story state picks one
- * from the clock when it is created and it is the one field of a checkpoint that
- * says nothing about the route. And the game's own record of which paths have
- * executed, because a replay resumed from a checkpoint never re-records the
- * paths that checkpoint already covers — which is how the replay has always
- * worked, shortcut or no shortcut, and is not something a route resumed from the
- * same checkpoint could put back.
+ * Exactly two things are normalized, each because reproducing it is impossible
+ * rather than because it is inconvenient:
+ *
+ *   - `storySeed`. Every story state picks one from the clock when it is
+ *     created, and creating one is what a fresh game and a story reset both do.
+ *     Two runs of the identical route through the identical program differ here
+ *     and nowhere else.
+ *   - `pathsExecutedThisFrame`. A replay resumed from a checkpoint continues
+ *     from the state that checkpoint holds and never re-executes what came
+ *     before it, so it never re-records those paths. That is how the replay has
+ *     always worked — driving the same session with the compiler's change
+ *     summary withheld, so only the older step-identity reuse runs, leaves the
+ *     same gap — and no route resumed from the same checkpoint could put them
+ *     back.
+ *
+ * Everything else is compared, including the module states and the encountered
+ * choices and conditions.
  */
-const restoredStory = (checkpoint: string | undefined) => {
+const comparableCheckpoint = (checkpoint: string | undefined) => {
   if (!checkpoint) {
     return "";
   }
-  const story = String(JSON.parse(checkpoint).story ?? "");
-  return story.replace(/storySeed":\s*\d+/g, 'storySeed":0');
+  const save = JSON.parse(checkpoint);
+  const reparse = (value: unknown) =>
+    typeof value === "string" && value ? JSON.parse(value) : value;
+  const story = reparse(save.story);
+  if (story && typeof story === "object") {
+    delete (story as Record<string, unknown>)["storySeed"];
+  }
+  const runtime = reparse(save.runtime);
+  if (runtime && typeof runtime === "object") {
+    delete (runtime as Record<string, unknown>)["pathsExecutedThisFrame"];
+  }
+  return JSON.stringify({ ...save, story, runtime });
 };
+
+/** How many positions of `steps`, starting at `at`, are the engine's look-ahead
+ *  running a second time over the run it has just made: a run that repeats the
+ *  one immediately before it and is followed by `resumes`. Zero when the gap is
+ *  anything else. */
+function lookaheadRepeat(
+  steps: readonly string[],
+  at: number,
+  resumes: string,
+): number {
+  // One beat's worth. A longer run is a different explanation and needs one.
+  const longestBeat = 8;
+  for (let length = 1; length <= Math.min(longestBeat, at); length += 1) {
+    if (at + length >= steps.length || steps[at + length] !== resumes) {
+      continue;
+    }
+    let repeats = true;
+    for (let i = 0; i < length; i += 1) {
+      if (steps[at + i] !== steps[at - length + i]) {
+        repeats = false;
+        break;
+      }
+    }
+    if (repeats) {
+      return length;
+    }
+  }
+  return 0;
+}
 
 /**
  * Assert two routes are the same answer, reporting the first place they are
@@ -345,20 +396,22 @@ const restoredStory = (checkpoint: string | undefined) => {
  * compared instead is the first bytes of the restored story that differ, then
  * the first step, then the verdict, each with its neighbours.
  *
- * The step lists are compared as the same walk rather than as the same list.
- * The engine looks one line ahead at every beat and rewinds, and a search that
- * sees that happen records the positions twice; a search resumed from a
- * checkpoint taken after the rewind cannot see it and records them once. So a
- * resumed plan is allowed to be missing repeats, and nothing else: it must
- * visit the same positions, in the same order, and no others.
+ * The step lists are compared as the same walk rather than as the same list,
+ * and the only licence granted is the one artifact that can be named. The
+ * engine looks one line ahead at every beat and rewinds, so a search that
+ * watches it happen records that run of positions twice in a row, while a
+ * search resumed from a checkpoint taken after the rewind records it once. The
+ * expected list may therefore hold one extra run that exactly repeats the run
+ * immediately before it, and nothing else: a position the resumed plan skipped
+ * for any other reason, including a loop it never took, fails here.
  */
 function expectSameAnswer(
   actual: RouteOutcome,
   expected: RouteOutcome,
   note = "",
 ) {
-  const a = restoredStory(actual.checkpoint);
-  const b = restoredStory(expected.checkpoint);
+  const a = comparableCheckpoint(actual.checkpoint);
+  const b = comparableCheckpoint(expected.checkpoint);
   if (a !== b) {
     let i = 0;
     while (i < a.length && i < b.length && a[i] === b[i]) {
@@ -382,20 +435,19 @@ function expectSameAnswer(
       against += 1;
       continue;
     }
-    // A position the resumed plan did not record a second time. The one it
-    // skips has to be one it has just been at, or it is a different walk.
-    if (expected.stepPaths[against] === expected.stepPaths[against - 1]) {
-      against += 1;
-      continue;
+    // The look-ahead's second pass over a run it has just made. The run has to
+    // repeat the one immediately before it, position for position, and the
+    // step after it has to be the one the resumed plan is waiting for. A beat
+    // is a handful of positions, so a run longer than that is not this.
+    const repeated = lookaheadRepeat(
+      expected.stepPaths,
+      against,
+      actual.stepPaths[step]!,
+    );
+    if (!repeated) {
+      break;
     }
-    if (
-      against > 0 &&
-      expected.stepPaths.slice(0, against).includes(expected.stepPaths[against]!)
-    ) {
-      against += 1;
-      continue;
-    }
-    break;
+    against += repeated;
   }
   expect(
     step === actual.stepPaths.length
@@ -462,6 +514,72 @@ const deepestCheckpoint = (route: RoutePlan) =>
 
 afterEach(() => {
   vi.restoreAllMocks();
+});
+
+// Everything below rests on `expectSameAnswer`, so it is worth knowing that it
+// can fail. A comparison that quietly accepts a difference turns every test
+// that uses it into a test of nothing.
+describe("the comparison the rest of these tests rest on", () => {
+  const save = (over: Record<string, unknown> = {}) =>
+    JSON.stringify({
+      modules: { ui: { images: ["a"] } },
+      context: {},
+      story: JSON.stringify({ variablesState: { trust: 0 }, storySeed: 41 }),
+      runtime: JSON.stringify({
+        pathsExecutedThisFrame: ["act_one.0"],
+        choicesEncountered: [],
+        conditionsEncountered: [{ selected: true }],
+      }),
+      ...over,
+    });
+  const outcome = (over: Partial<RouteOutcome> = {}): RouteOutcome => ({
+    toPath: "act_one.9",
+    checkpoint: save(),
+    simulation: "success",
+    searchSteps: 0,
+    stepPaths: ["a", "b", "c"],
+    ...over,
+  });
+  const differs = (over: Partial<RouteOutcome>) => () =>
+    expectSameAnswer(outcome(over), outcome());
+
+  test("accepts two runs that differ only in the story's random seed", () => {
+    const reseeded = save({
+      story: JSON.stringify({ variablesState: { trust: 0 }, storySeed: 7 }),
+    });
+    expect(differs({ checkpoint: reseeded })).not.toThrow();
+  });
+
+  test("accepts the look-ahead's own repeated run", () => {
+    expect(() =>
+      expectSameAnswer(outcome({ stepPaths: ["a", "b", "c"] }), outcome({ stepPaths: ["a", "b", "a", "b", "c"] })),
+    ).not.toThrow();
+  });
+
+  test("rejects a module's state differing", () => {
+    expect(differs({ checkpoint: save({ modules: { ui: { images: ["b"] } } }) })).toThrow();
+  });
+
+  test("rejects the recorded conditions differing", () => {
+    const other = save({
+      runtime: JSON.stringify({
+        pathsExecutedThisFrame: ["act_one.0"],
+        choicesEncountered: [],
+        conditionsEncountered: [{ selected: false }],
+      }),
+    });
+    expect(differs({ checkpoint: other })).toThrow();
+  });
+
+  test("rejects a position the route never visited", () => {
+    expect(differs({ stepPaths: ["a", "b", "d"] })).toThrow();
+  });
+
+  test("rejects a run the route skipped that was not a repeat", () => {
+    expect(() =>
+      expectSameAnswer(outcome({ stepPaths: ["a", "d"] }), outcome({ stepPaths: ["a", "b", "c", "d"] })),
+    ).toThrow();
+  });
 });
 
 describe("a compile whose edit is below the route's last checkpoint", () => {
@@ -660,6 +778,16 @@ const HAZARDS: { name: string; find: string; replace: string }[] = [
     name: "a later line first reads an earlier container's visit count",
     find: "  Beat 0 of the second act.",
     replace: "  Beat 0 of the second act. It has run {act_one} times.",
+  },
+  {
+    // The same hazard written inside the scene the route runs through. The
+    // scene's own shape is expected to change here, so the comparison that
+    // catches the case above cannot be the one that catches this: what moves is
+    // how much counting the scene requires, and every checkpoint taken before
+    // it started counting is short a visit it cannot reconstruct.
+    name: "a later line first reads the visit count of the scene being routed",
+    find: "  Beat 7 of the long tail.",
+    replace: "  Beat 7 of the long tail. It has run {act_one} times.",
   },
   {
     name: "a flow below the route is renamed",
