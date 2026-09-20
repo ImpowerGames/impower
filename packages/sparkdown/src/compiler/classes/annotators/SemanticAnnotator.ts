@@ -4,11 +4,15 @@ import { type SyntaxNode, Tree } from "@lezer/common";
 import GRAMMAR_DEFINITION from "../../../../language/sparkdown.language-grammar.json";
 import type { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
 import { SparkdownAnnotation } from "../SparkdownAnnotation";
-import { SparkdownAnnotator } from "../SparkdownAnnotator";
+import {
+  SparkdownAnnotator,
+  type SparkdownAnnotatorSnapshot,
+} from "../SparkdownAnnotator";
 import {
   SemanticDependencies,
   type Binding,
   type BindingKind,
+  type SemanticDependenciesSnapshot,
 } from "./SemanticDependencies";
 
 export type SemanticTokenTypes =
@@ -149,6 +153,21 @@ function topLevelStart(tree: Tree, pos: number): number {
   return outermost ? Math.min(outermost.from, clamped) : clamped;
 }
 
+type PrimedScopes = {
+  blockStart: number;
+  upTo: number;
+  frames: ScopeFrame[];
+  pendingDeclKind: "variable" | "const-variable" | null;
+} | null;
+
+interface SemanticAnnotatorSnapshot extends SparkdownAnnotatorSnapshot {
+  dependencies: SemanticDependenciesSnapshot;
+  globalDecls: { from: number; name: string; kind: BindingKind }[];
+  primed: PrimedScopes;
+  windowFrom: number;
+  windowTo: number;
+}
+
 export class SemanticAnnotator extends SparkdownAnnotator<
   SparkdownAnnotation<SemanticInfo>
 > {
@@ -217,12 +236,35 @@ export class SemanticAnnotator extends SparkdownAnnotator<
    * touched. So the snapshot survives until the window itself moves, or until
    * an edit reaches back before it (`mapState` drops it then).
    */
-  protected primed: {
-    blockStart: number;
-    upTo: number;
-    frames: ScopeFrame[];
-    pendingDeclKind: "variable" | "const-variable" | null;
-  } | null = null;
+  protected primed: PrimedScopes = null;
+
+  /**
+   * The symbol table, the primed scope stack and the window the last pass ran
+   * over, beside the ranges the base class covers. `scopeStack`,
+   * `pendingDeclKind` and `bindingNode` are rebuilt by `begin` on every pass,
+   * so they are not part of what carries across updates.
+   */
+  override snapshot(): SparkdownAnnotatorSnapshot {
+    const snapshot: SemanticAnnotatorSnapshot = {
+      ...super.snapshot(),
+      dependencies: this.dependencies.snapshot(),
+      globalDecls: this.globalDecls,
+      primed: this.primed,
+      windowFrom: this.windowFrom,
+      windowTo: this.windowTo,
+    };
+    return snapshot;
+  }
+
+  override restore(snapshot: SparkdownAnnotatorSnapshot): void {
+    super.restore(snapshot);
+    const semantic = snapshot as SemanticAnnotatorSnapshot;
+    this.dependencies.restore(semantic.dependencies);
+    this.globalDecls = semantic.globalDecls;
+    this.primed = semantic.primed;
+    this.windowFrom = semantic.windowFrom;
+    this.windowTo = semantic.windowTo;
+  }
 
   override begin(iterateFrom: number, iterateTo: number): void {
     if (iterateFrom === 0 && iterateTo === this.tree?.length) {

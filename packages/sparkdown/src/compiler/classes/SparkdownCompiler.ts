@@ -110,7 +110,6 @@ import type {
   PreviewCompileProgramParams,
   PreviewCompileProgramResult,
 } from "./messages/PreviewCompileProgramMessage";
-import { invertContentChanges } from "../utils/invertContentChanges";
 import type { RemoveCompilerFileParams } from "./messages/RemoveCompilerFileMessage";
 import {
   RemovedCompilerFileMessage,
@@ -1226,11 +1225,16 @@ export class SparkdownCompiler {
    * `params.textDocument`, without applying them to anything another request
    * can see.
    *
-   * The changes are applied to the registry's copy of the script, the program
-   * is compiled through the ordinary incremental pipeline, and the script is
-   * put back by applying the inverse changes before this returns. Both edits
-   * reparse incrementally, so the cost is that of two small edits rather than
-   * of a second compiler holding a second copy of the project.
+   * The registry saves the script's parse, the changes are applied to its copy
+   * of the script, the program is compiled through the ordinary incremental
+   * pipeline, and the saved parse is put back before this returns. So a
+   * preview costs one incremental reparse, not the two that parsing the edit
+   * and then its inverse would cost, and not a second compiler holding a
+   * second copy of the project.
+   *
+   * The restored chunk carries the identity it had before the preview, which
+   * the preview compile did not see, so the next real compile treats it as
+   * changed and regenerates its flow.
    *
    * The compile's own caches then describe the edited text, which is sound for
    * the same reason typing a character and deleting it is: every compile
@@ -1249,7 +1253,10 @@ export class SparkdownCompiler {
     if (!document || document.version !== textDocument.version) {
       return { textDocument, outdated: true };
     }
-    const inverse = invertContentChanges(document.getText(), contentChanges);
+    // Taken before the edit and always put back, including when the compile
+    // throws: the snapshot has already swapped the registry's document for the
+    // copy the edit mutates.
+    const snapshot = this.documents.snapshot(textDocument.uri);
     // Negative, and never reused, so neither the no-change short-circuit nor
     // `isProgramOutdated` can mistake the edited text for a real version.
     const previewVersion = --this._lastPreviewVersion;
@@ -1266,14 +1273,10 @@ export class SparkdownCompiler {
         compiled = this.compileStory({ textDocument, startFrom });
       }
     } finally {
+      if (snapshot) {
+        this.documents.restore(snapshot);
+      }
       if (applied) {
-        this.documents.update({
-          textDocument: {
-            uri: textDocument.uri,
-            version: textDocument.version,
-          },
-          contentChanges: inverse,
-        });
         this._previewedSinceCanonical = true;
       }
     }

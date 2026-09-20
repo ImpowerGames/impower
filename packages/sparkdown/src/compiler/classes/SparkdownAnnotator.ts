@@ -4,6 +4,21 @@ import { SparkdownAnnotation } from "./SparkdownAnnotation";
 
 const NON_WHITESPACE_REGEX = /\S/;
 
+/**
+ * Everything an annotator carries from one update to the next.
+ *
+ * `current` is a `RangeSet`, a persistent value that an update replaces rather
+ * than edits, so holding on to the old one costs a reference and leaves it
+ * intact. An annotator that caches anything else across updates extends this
+ * and covers that state in its own `snapshot`/`restore`.
+ */
+export interface SparkdownAnnotatorSnapshot {
+  current: RangeSet<any>;
+  tree?: Tree;
+  text?: Text;
+  uri?: string;
+}
+
 export abstract class SparkdownAnnotator<
   AnnotationType extends SparkdownAnnotation = SparkdownAnnotation,
   ConfigType extends Record<string, any> = {},
@@ -42,6 +57,32 @@ export abstract class SparkdownAnnotator<
    * is computed, so `begin` sees offsets in the new document.
    */
   mapState(_changes: ChangeDesc) {}
+
+  /**
+   * Everything this annotator carries across updates, to be handed back to
+   * `restore` after a hypothetical edit this annotator has already seen.
+   *
+   * The default covers the base class's own fields. An annotator that caches
+   * state beside its ranges overrides both halves, and a snapshot must survive
+   * the update it is taken before: state an update replaces wholesale can be
+   * held by reference, state an update mutates in place has to be copied.
+   */
+  snapshot(): SparkdownAnnotatorSnapshot {
+    return {
+      current: this.current,
+      tree: this.tree,
+      text: this.text,
+      uri: this.uri,
+    };
+  }
+
+  /** Take back the state `snapshot` recorded. */
+  restore(snapshot: SparkdownAnnotatorSnapshot) {
+    this.current = snapshot.current as RangeSet<AnnotationType>;
+    this.tree = snapshot.tree;
+    this.text = snapshot.text;
+    this.uri = snapshot.uri;
+  }
 
   begin(_iterateFrom: number, _iterateTo: number) {}
 

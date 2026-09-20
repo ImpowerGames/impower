@@ -16,7 +16,10 @@ import type { SiblingSubFlowInfo } from "../../lower/context";
 import { lower } from "../../lower/lower";
 import { type SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
 import { SparkdownAnnotation } from "../SparkdownAnnotation";
-import { SparkdownAnnotator } from "../SparkdownAnnotator";
+import {
+  SparkdownAnnotator,
+  type SparkdownAnnotatorSnapshot,
+} from "../SparkdownAnnotator";
 
 let id = 1;
 const generateUUID = () => {
@@ -76,6 +79,11 @@ export interface CompilationConfig {
   experimentalDisplayCalls?: boolean;
 }
 
+interface CompilationAnnotatorSnapshot extends SparkdownAnnotatorSnapshot {
+  globalCallableNames?: Set<string>;
+  globalCallableNamesTree?: unknown;
+}
+
 export class CompilationAnnotator extends SparkdownAnnotator<
   SparkdownAnnotation<CompiledBlock>,
   CompilationConfig
@@ -114,6 +122,31 @@ export class CompilationAnnotator extends SparkdownAnnotator<
   constructor(config?: CompilationConfig, defineTypeNames?: DefineTypeNameIndex) {
     super(config);
     this._defineTypeNameIndex = defineTypeNames;
+  }
+
+  /**
+   * The global-callable cache, beside the ranges the base class covers.
+   *
+   * The cache is keyed on the tree it was derived from, so restoring the
+   * tree alone would leave it correct but cold. Carrying the pair keeps the
+   * annotator exactly where it was before the hypothetical edit. The
+   * define-type-name index is owned by `SparkdownCombinedAnnotator`, which
+   * saves and restores it alongside this.
+   */
+  override snapshot(): SparkdownAnnotatorSnapshot {
+    const snapshot: CompilationAnnotatorSnapshot = {
+      ...super.snapshot(),
+      globalCallableNames: this._globalCallableNames,
+      globalCallableNamesTree: this._globalCallableNamesTree,
+    };
+    return snapshot;
+  }
+
+  override restore(snapshot: SparkdownAnnotatorSnapshot): void {
+    super.restore(snapshot);
+    const compilation = snapshot as CompilationAnnotatorSnapshot;
+    this._globalCallableNames = compilation.globalCallableNames;
+    this._globalCallableNamesTree = compilation.globalCallableNamesTree;
   }
 
   private computeGlobalCallableNames(): Set<string> {

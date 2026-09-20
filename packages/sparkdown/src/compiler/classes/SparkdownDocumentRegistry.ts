@@ -15,6 +15,7 @@ import {
   type SparkdownAnnotatorConfigs,
   type SparkdownAnnotators,
   SparkdownCombinedAnnotator,
+  type SparkdownCombinedAnnotatorSnapshot,
 } from "./SparkdownCombinedAnnotator";
 import { SparkdownDocument } from "./SparkdownDocument";
 
@@ -32,6 +33,23 @@ interface TextDocumentState {
   treeFragments?: readonly TreeFragment[];
   treeVersion?: number;
   annotators: SparkdownCombinedAnnotator;
+}
+
+/**
+ * One document's parse, as it stood before an edit: the document itself, the
+ * tree and fragments the edit will build on, and what the annotators held.
+ *
+ * The tree, its fragments and each annotator's ranges are persistent values —
+ * an edit builds new ones and leaves the old ones alone — so a snapshot is a
+ * handful of references rather than a copy of the parse.
+ */
+export interface SparkdownDocumentSnapshot {
+  uri: string;
+  document: SparkdownDocument;
+  tree?: Tree;
+  treeFragments?: readonly TreeFragment[];
+  treeVersion?: number;
+  annotators: SparkdownCombinedAnnotatorSnapshot;
 }
 
 export class SparkdownDocumentRegistry {
@@ -373,6 +391,55 @@ export class SparkdownDocumentRegistry {
       }
     }
     return true;
+  }
+
+  /**
+   * Save the parse of one document, so an edit applied next can be undone by
+   * putting the saved parse back rather than by parsing the edit's inverse.
+   *
+   * The synced document is swapped for a copy, which is what the edit then
+   * mutates, leaving the original to be handed back untouched. A document the
+   * registry does not hold has no parse to save and returns `undefined`.
+   *
+   * A caller that takes a snapshot must always restore it: the swap has
+   * already happened when this returns.
+   */
+  snapshot(uri: string): SparkdownDocumentSnapshot | undefined {
+    const document = this._syncedDocuments.get(uri);
+    if (!document) {
+      return undefined;
+    }
+    this._syncedDocuments.set(
+      uri,
+      new SparkdownDocument(
+        document.uri,
+        document.languageId,
+        document.version,
+        document.getText(),
+      ),
+    );
+    const state = this.getDocumentState(uri);
+    return {
+      uri,
+      document,
+      tree: state.tree,
+      treeFragments: state.treeFragments,
+      treeVersion: state.treeVersion,
+      annotators: state.annotators.snapshot(this._annotate),
+    };
+  }
+
+  /**
+   * Put back the parse `snapshot` saved, discarding whatever the edits since
+   * built. Constant time: nothing is parsed and nothing is annotated.
+   */
+  restore(snapshot: SparkdownDocumentSnapshot) {
+    this._syncedDocuments.set(snapshot.uri, snapshot.document);
+    const state = this.getDocumentState(snapshot.uri);
+    state.tree = snapshot.tree;
+    state.treeFragments = snapshot.treeFragments;
+    state.treeVersion = snapshot.treeVersion;
+    state.annotators.restore(snapshot.annotators);
   }
 
   remove(params: {

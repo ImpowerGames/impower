@@ -19,6 +19,14 @@ function scopesAt(node: SyntaxNode): number[] {
   return scopes;
 }
 
+export interface SemanticDependenciesSnapshot {
+  declarations: Declaration[];
+  references: Map<string, Reference[]>;
+  changedNames: Set<string>;
+  observedDeclarations: Declaration[];
+  observedReferences: Reference[];
+}
+
 /** Keeps resolved AND unresolved reference sites. A newly introduced binding
  * must be able to add a token where there was previously no annotation.
  * Declaration changes only re-resolve references indexed under the changed
@@ -33,6 +41,38 @@ export class SemanticDependencies {
   begin() {
     this.observedDeclarations = [];
     this.observedReferences = [];
+  }
+
+  /**
+   * Everything the index carries across updates.
+   *
+   * `declarations` is replaced wholesale by every pass, so it is held by
+   * reference. The per-name reference lists and the changed-name set are
+   * edited in place — `finish` pushes into a name's list, sorts it, and clears
+   * the set — so those are copied one level deep, which is what it costs to be
+   * able to put the index back after a hypothetical edit.
+   */
+  snapshot(): SemanticDependenciesSnapshot {
+    const references = new Map<string, Reference[]>();
+    for (const [name, sites] of this.references) {
+      references.set(name, sites.slice());
+    }
+    return {
+      declarations: this.declarations,
+      references,
+      changedNames: new Set(this.changedNames),
+      observedDeclarations: this.observedDeclarations,
+      observedReferences: this.observedReferences,
+    };
+  }
+
+  /** Take back the state `snapshot` recorded. */
+  restore(snapshot: SemanticDependenciesSnapshot) {
+    this.declarations = snapshot.declarations;
+    this.references = snapshot.references;
+    this.changedNames = snapshot.changedNames;
+    this.observedDeclarations = snapshot.observedDeclarations;
+    this.observedReferences = snapshot.observedReferences;
   }
 
   bind(node: SyntaxNode, name: string, kind: BindingKind) {

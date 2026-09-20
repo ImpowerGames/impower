@@ -6,10 +6,12 @@
 // And it must leave nothing of the hypothetical text behind: the document, its
 // version, the verdict on whether the real program is outdated, and the next
 // real compile are all exactly what they would have been without it.
+//
+// What the registry does to put the script back is pinned separately, by
+// `previewCompileRestore.test.ts`.
 import "../../inkjs/engine/Container";
 import { describe, expect, it } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
-import { invertContentChanges } from "../../compiler/utils/invertContentChanges";
 
 const URI = "inmemory:///main.sd";
 
@@ -250,45 +252,5 @@ describe("a preview compile", () => {
       }),
     );
     expect(recompiled).toHaveLength(1);
-  });
-});
-
-describe("the changes that undo an edit", () => {
-  const apply = (text: string, changes: any[]) => {
-    for (const c of changes) {
-      if (!("range" in c)) {
-        text = c.text;
-        continue;
-      }
-      const lines = text.split("\n");
-      const offset = (p: { line: number; character: number }) =>
-        lines.slice(0, p.line).reduce((n, l) => n + l.length + 1, 0) + p.character;
-      text = text.slice(0, offset(c.range.start)) + c.text + text.slice(offset(c.range.end));
-    }
-    return text;
-  };
-
-  it("restore the text after sequential, multiline and whole-document changes", () => {
-    const text = "one\ntwo\nthree\n";
-    const changes = [
-      { range: { start: { line: 1, character: 0 }, end: { line: 1, character: 3 } }, text: "TWO\nAND A HALF" },
-      { range: { start: { line: 0, character: 3 }, end: { line: 0, character: 3 } }, text: "!" },
-      { range: { start: { line: 3, character: 0 }, end: { line: 3, character: 5 } }, text: "" },
-    ];
-    const edited = apply(text, changes);
-    expect(edited).toBe("one!\nTWO\nAND A HALF\n\n");
-    expect(apply(edited, invertContentChanges(text, changes))).toBe(text);
-
-    const whole = [{ text: "replaced" }];
-    expect(apply(apply(text, whole), invertContentChanges(text, whole))).toBe(text);
-  });
-
-  it("measure inserted line breaks as the registry stores them", () => {
-    const text = "a\nb\n";
-    const changes = [
-      { range: { start: { line: 0, character: 1 }, end: { line: 0, character: 1 } }, text: "x\r\ny" },
-    ];
-    const edited = apply(text, [{ ...changes[0], text: "x\ny" }]);
-    expect(apply(edited, invertContentChanges(text, changes))).toBe(text);
   });
 });

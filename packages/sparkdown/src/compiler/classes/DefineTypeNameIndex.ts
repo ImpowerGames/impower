@@ -7,6 +7,12 @@ import {
 
 type Occurrence = DefineTypeNameOccurrence;
 
+export interface DefineTypeNameIndexSnapshot {
+  occurrences: Occurrence[];
+  names: Set<string>;
+  established: boolean;
+}
+
 /**
  * One document's set of names used as a define TYPE — an `as`-parent (`define D
  * as X`) or a `new X()` target — kept across edits.
@@ -51,6 +57,26 @@ export class DefineTypeNameIndex {
     this._established = false;
     this._occurrences = [];
     this._names = new Set();
+  }
+
+  /**
+   * The index's whole state. Every field here is replaced wholesale rather
+   * than edited in place, so a snapshot holds references to what is there and
+   * a restore reinstates them, both in constant time.
+   */
+  snapshot(): DefineTypeNameIndexSnapshot {
+    return {
+      occurrences: this._occurrences,
+      names: this._names,
+      established: this._established,
+    };
+  }
+
+  /** Take back the state `snapshot` recorded. */
+  restore(snapshot: DefineTypeNameIndexSnapshot): void {
+    this._occurrences = snapshot.occurrences;
+    this._names = snapshot.names;
+    this._established = snapshot.established;
   }
 
   /** Discard everything and walk the whole tree. */

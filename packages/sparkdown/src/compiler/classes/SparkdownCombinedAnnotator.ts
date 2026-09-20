@@ -7,7 +7,10 @@ import {
 } from "@codemirror/state";
 import { cachedCompilerProp } from "@impower/textmate-grammar-tree/src/tree/props/cachedCompilerProp";
 import { Tree } from "@lezer/common";
-import { DefineTypeNameIndex } from "./DefineTypeNameIndex";
+import {
+  DefineTypeNameIndex,
+  type DefineTypeNameIndexSnapshot,
+} from "./DefineTypeNameIndex";
 import { CharacterAnnotator } from "./annotators/CharacterAnnotator";
 import { ColorAnnotator } from "./annotators/ColorAnnotator";
 import { CompilationAnnotator } from "./annotators/CompilationAnnotator";
@@ -20,7 +23,10 @@ import { ReferenceAnnotator } from "./annotators/ReferenceAnnotator";
 import { SemanticAnnotator } from "./annotators/SemanticAnnotator";
 import { ValidationAnnotator } from "./annotators/ValidationAnnotator";
 import { SparkdownAnnotation } from "./SparkdownAnnotation";
-import { SparkdownAnnotator } from "./SparkdownAnnotator";
+import {
+  SparkdownAnnotator,
+  type SparkdownAnnotatorSnapshot,
+} from "./SparkdownAnnotator";
 
 type Writeable<T> = { -readonly [P in keyof T]: T[P] };
 
@@ -84,6 +90,15 @@ export interface SparkdownAnnotators {
   semantics: SemanticAnnotator;
 }
 
+/**
+ * Everything the annotators of one document carry across updates: each
+ * annotator's own state, and the define-type-name set they share.
+ */
+export interface SparkdownCombinedAnnotatorSnapshot {
+  annotators: Map<string, SparkdownAnnotatorSnapshot>;
+  defineTypeNames: DefineTypeNameIndexSnapshot;
+}
+
 export class SparkdownCombinedAnnotator {
   current: SparkdownAnnotators;
 
@@ -133,6 +148,40 @@ export class SparkdownCombinedAnnotator {
       string,
       SparkdownAnnotator,
     ][];
+  }
+
+  /**
+   * Save what the annotators hold now, so a hypothetical edit can be undone by
+   * putting it back rather than by annotating the edit's inverse.
+   *
+   * Only the annotators `annotate` selects are saved, because they are the
+   * only ones an update touches; the others are left out of the snapshot and
+   * untouched by the restore.
+   */
+  snapshot(
+    annotate?: Set<keyof SparkdownAnnotators>,
+  ): SparkdownCombinedAnnotatorSnapshot {
+    const annotators = new Map<string, SparkdownAnnotatorSnapshot>();
+    for (const [key, annotator] of this._currentEntries) {
+      if (!annotate || annotate.has(key as keyof SparkdownAnnotators)) {
+        annotators.set(key, annotator.snapshot());
+      }
+    }
+    return {
+      annotators,
+      defineTypeNames: this._defineTypeNames.snapshot(),
+    };
+  }
+
+  /** Take back the state `snapshot` recorded. */
+  restore(snapshot: SparkdownCombinedAnnotatorSnapshot) {
+    for (const [key, annotator] of this._currentEntries) {
+      const saved = snapshot.annotators.get(key);
+      if (saved) {
+        annotator.restore(saved);
+      }
+    }
+    this._defineTypeNames.restore(snapshot.defineTypeNames);
   }
 
   get(): SparkdownAnnotations {
