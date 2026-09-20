@@ -20,6 +20,7 @@
 // here is the attribute the browser draws it from.
 
 import { describe, expect, test } from "vitest";
+import { pathLocationTableOf } from "@impower/sparkdown/src/compiler/utils/pathLocationTable";
 import { GamePlayerController } from "../GamePlayerController";
 import {
   describeSimulationFailure,
@@ -112,7 +113,10 @@ function statusRow() {
   const controller = new GamePlayerController(host, refs);
   // `updateExecutionLabels` only reads the game to know one is there at all.
   (controller as any)._game = { state: "previewing" };
-  (controller as any)._program = { pathLocations: {}, scripts: {} };
+  (controller as any)._program = {
+    pathLocations: pathLocationTableOf({}),
+    scripts: {},
+  };
   return { controller: controller as any, locationItems };
 }
 

@@ -17,6 +17,22 @@ export type ScriptLocation = [
   endColumn: number,
 ];
 
+/**
+ * Every runtime path that carries a source range, in columns.
+ *
+ * A long script has tens of thousands of them, so they travel and are searched
+ * in this form from the compiler to the worker's game and the page's: the rows
+ * are ordered by script, then start line, then start column, which lets a
+ * source line be resolved by binary search, and the numbers are one typed
+ * array, which crosses a worker boundary as a block of bytes.
+ */
+export interface PathLocationTable {
+  /** The paths, ordered by script, then start line, then start column. */
+  paths: string[];
+  /** Five numbers per path — a {@link ScriptLocation} — in `paths` order. */
+  values: Int32Array;
+}
+
 export interface SparkProgram {
   uri: string;
   scripts: Record<string, number>;
@@ -50,6 +66,15 @@ export interface SparkProgram {
   context?: {
     [type: string]: { [name: string]: any };
   };
+  /**
+   * Identifies the assembled `context` (#654). Two programs carrying the same
+   * revision carry the same context, so a consumer that derived something from
+   * it — the engine channels below, the Game's runtime define tables — can keep
+   * what it derived instead of deriving it again. It moves whenever a
+   * definition, a declaration, a file or the compiler configuration changes,
+   * and whenever this compile's own implicit definitions differ.
+   */
+  contextRevision?: string;
   // Dedicated engine-facing channel for the static UI structs the UIModule
   // consumes: `layouts` (element trees keyed by name), `screens` (navigation
   // group defs), `components`. Derived from `context` after full assembly
@@ -85,9 +110,7 @@ export interface SparkProgram {
   colorAnnotations?: {
     [uri: string]: Range[];
   };
-  pathLocations?: {
-    [path: string]: ScriptLocation;
-  };
+  pathLocations?: PathLocationTable;
   functionLocations?: {
     [name: string]: ScriptLocation;
   };

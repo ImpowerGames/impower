@@ -3,6 +3,7 @@ import {
   CompileProgramParams,
 } from "@impower/sparkdown/src/compiler/classes/messages/CompileProgramMessage";
 import { SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
+import { asPathLocationTable } from "@impower/sparkdown/src/compiler/utils/pathLocationTable";
 import * as vscode from "vscode";
 import {
   CancellationToken,
@@ -160,6 +161,11 @@ export class SparkProgramManager {
       params,
       CancellationToken.None,
     );
+    if (program?.pathLocations) {
+      // The language client answers over JSON, which has no typed arrays: the
+      // table's numbers arrive as an object keyed by position.
+      program.pathLocations = asPathLocationTable(program.pathLocations);
+    }
     if (program?.scripts) {
       // Cache the pulled program so bursts of readers don't re-request it;
       // the next slim didCompile invalidates these entries.

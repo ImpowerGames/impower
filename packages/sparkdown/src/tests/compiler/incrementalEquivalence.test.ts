@@ -104,10 +104,11 @@ function pick(p: any) {
     ui: p.ui,
     colorAnnotations: p.colorAnnotations,
     // Capture the EMISSION ORDER of pathLocations/dataLocations as arrays.
-    // stable() sorts object keys, so it would NOT catch a reordering — but the
-    // engine (Game.ts findClosestPath over Object.entries) depends on
-    // pathLocations order, so an incremental scheme must reproduce it exactly.
-    pathLocationsOrder: Object.keys(p.pathLocations ?? {}),
+    // stable() sorts object keys, so it would NOT catch a reordering — but a
+    // source line is resolved by binary search over the path-location table,
+    // which relies on its rows being in script, line and column order, so an
+    // incremental scheme must reproduce that order exactly.
+    pathLocationsOrder: p.pathLocations?.paths ?? [],
     dataLocationsOrder: Object.keys(p.dataLocations ?? {}),
   };
 }

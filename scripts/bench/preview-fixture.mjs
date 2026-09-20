@@ -165,11 +165,23 @@ export function buildPreviewFixture({ beforeLines = 1300, thenLines = 1100 } = {
   };
 }
 
+// The fixture's scene reduced to its beats, with no `choose`: one scene of
+// action and dialogue lines and nothing else, so that a stepping loop covering
+// only the content kinds a beat compiles to can run it from top to bottom
+// (engine-bench.mjs, #664). The target is its last line of dialogue.
+export function buildBeatsFixture({ lines = 2400 } = {}) {
+  const rand = generator(664);
+  const scene = ["include scripts/characters", "", "scene MAIN", ...beats(rand, 2, lines, []), "end", ""];
+  const files = new Map();
+  files.set("main.sd", scene.join("\n"));
+  files.set("scripts/characters.sd", CHARACTERS.map((c) => `define ${c.id} as character with\n  name = "${c.name}"\nend\n`).join("\n"));
+  return { files, target: { line: scene.length - 3, sceneLines: scene.length - 2 } };
+}
+
 // Writes the fixture into `dir`, which must be missing or empty, so it can
 // never overwrite a real project.
-export function writePreviewFixture(dir) {
+export function writePreviewFixture(dir, { files, target } = buildPreviewFixture()) {
   if (fs.existsSync(dir) && fs.readdirSync(dir).length > 0) throw new Error(`refusing to write the fixture into non-empty ${dir}`);
-  const { files, target } = buildPreviewFixture();
   for (const [rel, text] of files) {
     const full = path.join(dir, ...rel.split("/"));
     fs.mkdirSync(path.dirname(full), { recursive: true });

@@ -98,10 +98,11 @@ function stable(value: unknown): string {
 function fieldSig(program: any): Record<string, string> {
   const sig: Record<string, string> = {};
   for (const f of FIELDS) sig[f] = stable(program[f]);
-  // Emission ORDER of pathLocations/dataLocations matters (Game.ts iterates it)
-  // and stable() sorts keys, so capture order explicitly.
+  // Emission ORDER of pathLocations/dataLocations matters (a line is resolved
+  // by binary search over the table's rows) and stable() sorts keys, so
+  // capture order explicitly.
   sig["pathLocationsOrder"] = JSON.stringify(
-    Object.keys(program.pathLocations ?? {}),
+    program.pathLocations?.paths ?? [],
   );
   sig["dataLocationsOrder"] = JSON.stringify(Object.keys(program.dataLocations ?? {}));
   return sig;

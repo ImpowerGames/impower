@@ -2,9 +2,8 @@ import {
   type SceneAssets,
   type SceneBeat,
 } from "@impower/sparkdown/src/compiler/types/SceneAssets";
-
-/** `[scriptIndex, line, column, …]` per runtime path, as the program records it. */
-export type PathLocations = Record<string, ArrayLike<number> | undefined>;
+import type { PathLocationTable } from "@impower/sparkdown/src/compiler/types/SparkProgram";
+import { pathLocation } from "@impower/sparkdown/src/compiler/utils/pathLocationTable";
 
 /**
  * The index of the beat at `path` in `beats`, or of the last beat before it
@@ -13,7 +12,7 @@ export type PathLocations = Record<string, ArrayLike<number> | undefined>;
  */
 export function beatIndexIn(
   beats: readonly SceneBeat[],
-  locations: PathLocations | undefined,
+  locations: PathLocationTable | undefined,
   path: string | null | undefined,
 ): number {
   if (!path) {
@@ -24,13 +23,13 @@ export function beatIndexIn(
       return i;
     }
   }
-  const here = locations?.[path];
+  const here = pathLocation(locations, path);
   if (!here) {
     return -1;
   }
   let index = -1;
   for (let i = 0; i < beats.length; i++) {
-    const at = locations?.[beats[i]!.path];
+    const at = pathLocation(locations, beats[i]!.path);
     if (!at) {
       continue;
     }

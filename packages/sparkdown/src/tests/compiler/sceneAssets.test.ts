@@ -7,6 +7,7 @@ import {
   type SceneAssetCapture,
 } from "../../compiler/types/SceneAssets";
 import { type SparkProgram } from "../../compiler/types/SparkProgram";
+import { hasPathLocation } from "../../compiler/utils/pathLocationTable";
 import { generatePerfScreenplay } from "./perfFixture";
 
 // `program.sceneAssets` is what the engine's asset module predicts and loads
@@ -153,7 +154,7 @@ describe.each([
     expect(a.beats[3]!.image).toEqual(["bunny"]);
     for (const beat of a.beats) {
       expect(beat.path.startsWith("A")).toBe(true);
-      expect(program.pathLocations?.[beat.path]).toBeDefined();
+      expect(hasPathLocation(program.pathLocations, beat.path)).toBe(true);
     }
   });
 });

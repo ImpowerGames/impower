@@ -193,6 +193,6 @@ describe("on-demand compiled program (#351)", () => {
     expect(JSON.stringify(pulled.diagnostics ?? {})).toBe(
       JSON.stringify(suppressed.diagnostics ?? {}),
     );
-    expect(Object.keys(pulled.pathLocations ?? {}).length).toBeGreaterThan(0);
+    expect(pulled.pathLocations?.paths.length ?? 0).toBeGreaterThan(0);
   });
 });

@@ -96,12 +96,12 @@ describe("the program transport", () => {
     const decoder = new ProgramTransportDecoder();
     const program = compile(c);
     const expected = stable(program);
-    const expectedOrder = Object.keys(program.pathLocations ?? {});
+    const expectedPaths = [...(program.pathLocations?.paths ?? [])];
 
     const received = decoder.decode(structuredClone(encoder.encode(program)));
 
     expect(stable(received)).toBe(expected);
-    expect(Object.keys(received.pathLocations ?? {})).toEqual(expectedOrder);
+    expect(received.pathLocations?.paths).toEqual(expectedPaths);
     // Encoding copies; the compiler's own program is untouched.
     expect(stable(program)).toBe(expected);
   });

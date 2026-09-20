@@ -32,6 +32,7 @@ import {
   lastSearchStats,
   planRoute,
 } from "@impower/sparkdown/src/compiler/utils/planRoute";
+import { hasPathLocation } from "@impower/sparkdown/src/compiler/utils/pathLocationTable";
 import { Game } from "../../game/core/classes/Game";
 
 const URI = "inmemory:///main.sd";
@@ -134,7 +135,7 @@ describe("the planner says how its search ended", () => {
     const program = compileSrc(UNREACHABLE_TAIL);
     const toPath = startPathForLine(program, 5);
     // The line really is in the script — this is not a missing-target search.
-    expect(program.pathLocations?.[toPath]).toBeTruthy();
+    expect(hasPathLocation(program.pathLocations, toPath)).toBe(true);
     const route = Game.planRoute(newGame(program).story, program, "start", toPath);
     expect(route).toBeNull();
     expect(lastSearchStats.endReason).toBe("exhausted");

@@ -1,6 +1,7 @@
 import type { ProgramChangeSummary } from "@impower/sparkdown/src/compiler/types/ProgramChangeSummary";
 import type { SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
 import type { RouteStep } from "@impower/sparkdown/src/compiler/utils/planRoute";
+import { pathLocation } from "@impower/sparkdown/src/compiler/utils/pathLocationTable";
 
 /**
  * How much of a route planned in one program still describes the next one.
@@ -47,7 +48,7 @@ export const validRoutePrefixLength = (
       return i;
     }
     const was = step.location;
-    const now = locations?.[step.path];
+    const now = pathLocation(locations, step.path);
     if (was == null || now == null) {
       if (was !== now) {
         return i;

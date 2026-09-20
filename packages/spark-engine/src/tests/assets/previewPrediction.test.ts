@@ -2,6 +2,7 @@ import { type File } from "@impower/sparkdown/src/compiler/types/File";
 import { describe, expect, it, vi } from "vitest";
 import { Coordinator } from "../../game/core/classes/Coordinator";
 import { Game } from "../../game/core/classes/Game";
+import { pathLocationTableOf } from "@impower/sparkdown/src/compiler/utils/pathLocationTable";
 import { findClosestPath } from "../../game/core/utils/findClosestPath";
 import {
   beatIndexIn,
@@ -198,7 +199,7 @@ const beatShowing = (game: Game, flow: string, image: string): string => {
 const pathAt = (game: Game, line: number): string | null =>
   findClosestPath(
     { file: MAIN_URI, line },
-    Object.entries(game.program.pathLocations ?? {}) as any,
+    game.program.pathLocations,
     Object.keys(game.program.scripts ?? {}),
   );
 
@@ -1771,14 +1772,14 @@ end
 
   it("finds the beat at or before a path", () => {
     const beats = [{ path: "A.0" }, { path: "A.3" }, { path: "A.7" }];
-    const locations = {
-      "A.0": [0, 1, 0],
-      "A.2": [0, 2, 0],
-      "A.3": [0, 3, 0],
-      "A.5": [0, 5, 2],
-      "A.7": [0, 7, 0],
-      "B.0": [1, 0, 0],
-    };
+    const locations = pathLocationTableOf({
+      "A.0": [0, 1, 0, 1, 9],
+      "A.2": [0, 2, 0, 2, 9],
+      "A.3": [0, 3, 0, 3, 9],
+      "A.5": [0, 5, 2, 5, 9],
+      "A.7": [0, 7, 0, 7, 9],
+      "B.0": [1, 0, 0, 0, 9],
+    });
     expect(beatIndexIn(beats, locations, "A.3")).toBe(1);
     expect(beatIndexIn(beats, locations, "A.5")).toBe(1);
     expect(beatIndexIn(beats, locations, "A.2")).toBe(0);

@@ -11,13 +11,14 @@
 // for the game.
 
 import { compileUI } from "@impower/spark-engine/src/tests/ui/harness/uiTestHarness";
+import { pathLocationTableOf } from "@impower/sparkdown/src/compiler/utils/pathLocationTable";
 import { describe, expect, test } from "vitest";
 import { GamePlayerController } from "../GamePlayerController";
 
 const PROGRAM = {
   uri: "file://proj/main.sd",
   version: 2,
-  pathLocations: {},
+  pathLocations: pathLocationTableOf({}),
   scripts: { "file://proj/main.sd": {} },
 } as any;
 
@@ -137,7 +138,7 @@ describe("preview session ordering", () => {
     game.markPreviewing = (path: string) => calls.push(`markPreviewing:${path}`);
     const program = {
       ...PROGRAM,
-      pathLocations: { "1.0": [0, 4, 0, 4, 5] },
+      pathLocations: pathLocationTableOf({ "1.0": [0, 4, 0, 4, 5] }),
     };
     await controllerWith(game, stubApp(calls)).updatePreview(
       program,
@@ -160,7 +161,7 @@ describe("preview session ordering", () => {
     game.markPreviewing = (path: string) => calls.push(`markPreviewing:${path}`);
     const program = {
       ...PROGRAM,
-      pathLocations: { "0.0": [0, 4, 0, 4, 5] },
+      pathLocations: pathLocationTableOf({ "0.0": [0, 4, 0, 4, 5] }),
       scripts: { "file://proj/other.sd": {} },
     };
     await controllerWith(game, stubApp(calls)).updatePreview(

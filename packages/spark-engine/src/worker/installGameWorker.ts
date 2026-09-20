@@ -6,6 +6,7 @@ import { isNotification } from "@impower/jsonrpc/src/common/utils/isNotification
 import { isRequest } from "@impower/jsonrpc/src/common/utils/isRequest";
 import { isResponse } from "@impower/jsonrpc/src/common/utils/isResponse";
 import { Game } from "../game/core/classes/Game";
+import { possibleBreakpointLines } from "../game/core/utils/possibleBreakpointLines";
 import { ConnectGameMessage } from "../game/core/classes/messages/ConnectGameMessage";
 import { ContinueGameMessage } from "../game/core/classes/messages/ContinueGameMessage";
 import { CreateGameMessage } from "../game/core/classes/messages/CreateGameMessage";
@@ -307,24 +308,11 @@ export function installGameWorker(connection: MessageConnection) {
         }
         const { search } = message.params;
         const program = state.game.program;
-        const lines: number[] = [];
-        const possibleLocations = Object.values(program.pathLocations || {});
-        const scripts = Object.keys(program.scripts);
-        const searchScriptIndex = scripts.indexOf(search.uri);
-        for (const possibleLocation of possibleLocations) {
-          const [scriptIndex, line] = possibleLocation;
-          if (scriptIndex != null && scriptIndex === searchScriptIndex) {
-            if (
-              line >= search.range.start.line &&
-              line <= search.range.end.line
-            ) {
-              lines.push(line);
-            }
-          }
-          if (scriptIndex > searchScriptIndex) {
-            break;
-          }
-        }
+        const lines = possibleBreakpointLines(
+          program.pathLocations,
+          Object.keys(program.scripts),
+          search,
+        );
         return { lines };
       });
       return;

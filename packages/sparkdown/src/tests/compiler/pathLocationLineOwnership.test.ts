@@ -21,6 +21,10 @@
 import "../../inkjs/engine/Container";
 import { describe, expect, it } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
+import {
+  locationAtRow,
+  pathLocation,
+} from "../../compiler/utils/pathLocationTable";
 
 const URI = "inmemory:///main.sd";
 const MAIN_SCRIPT = 0;
@@ -98,9 +102,14 @@ BUNNY:
 
 /** Every range recorded against main.sd, as `[path, location]`. */
 const rangesOf = (program: any): [string, number[]][] =>
-  (Object.entries(program.pathLocations ?? {}) as [string, number[]][]).filter(
-    ([, location]) => location[0] === MAIN_SCRIPT,
-  );
+  ((program.pathLocations?.paths ?? []) as string[])
+    .map(
+      (path, row): [string, number[]] => [
+        path,
+        locationAtRow(program.pathLocations, row)!,
+      ],
+    )
+    .filter(([, location]) => location[0] === MAIN_SCRIPT);
 
 /** The paths whose range holds `line`, by the line-only test the editor's
  *  lookup applies (`findClosestPathLocation`). */
@@ -141,7 +150,7 @@ function expectLinesOwned(program: any, source: string, needles: string[]) {
     const paths = claiming(program, line);
     expect(paths.length, `no path claims ${JSON.stringify(needle)}`).toBeGreaterThan(0);
     for (const path of paths) {
-      const [, startLine] = program.pathLocations[path];
+      const [, startLine] = pathLocation(program.pathLocations, path)!;
       expect(
         startLine,
         `${path} claims ${JSON.stringify(needle)} (line ${line}) but starts on line ${startLine}`,

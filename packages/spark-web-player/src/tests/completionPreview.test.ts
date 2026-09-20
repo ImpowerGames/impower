@@ -16,6 +16,7 @@
 // way through drawing, and gives up when a newer draw starts or the one it was
 // asked for stops being wanted.
 import { afterEach, describe, expect, test } from "vitest";
+import { pathLocationTableOf } from "@impower/sparkdown/src/compiler/utils/pathLocationTable";
 import { GameExecutedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameExecutedMessage";
 import { GamePlayerController, setWorkspace } from "../GamePlayerController";
 
@@ -27,7 +28,7 @@ const program = (name: string, version = 1, compiled: unknown = {}) =>
     uri: URI,
     version,
     compiled,
-    pathLocations: {},
+    pathLocations: pathLocationTableOf({}),
     scripts: { [URI]: version },
     name,
   }) as any;
