@@ -64,7 +64,7 @@ It needs the workspace install; `scripts/bench/preview-fixture.test.mjs` runs it
 
 It prints, as min, median and max per sample: wall-clock times for the worker (compile, game update and route together), transport encode, clone out, clone in, transport decode, the page game's `updateProgram` and `load`, and the total without the DOM; the compiler's and route search's own `profile()` phases (`game/planRoute`, `ink/compile`, `incrementalParse`, `populateLocations`, `ink/json` and the rest); and the wire size, total and by top-level program key, with the checkpoint as its own row. `--json <file>` writes each mode's full report to `<file>.<mode>.json`.
 
-`--cpu-prof <dir>` also writes a V8 CPU profile of each mode's process into `<dir>`, with the bundle's source map beside it, for `profile-shares.mjs` below.
+`--cpu-prof <dir>` also writes a V8 CPU profile of each mode's process into `<dir>`, with the bundle's source map beside it, for `profile-shares.mjs` below; that bundle keeps its function names and runs slower, so take times from a run without the flag.
 
 ### In Node: the story engine on its own
 
@@ -77,18 +77,18 @@ It measures the story engine apart from the compiler, the route search's bookkee
 
 - `kinds`: the content kinds the engine steps through on the route from the top of the scene to `--line`, with each kind's share of the steps and of the stepping time. Each step is timed on its own here, so read the shares and take the time per step from `step`.
 - `step`: the route replayed with nothing recorded per step, one step per `ContinueAsync(Infinity)` call, which is how the route planner drives a story. `as-planner` leaves the story's observers set to empty functions as the planner does, and `bare` clears `onExecute`; a story with any `onExecute` builds the path string of every step to pass to it.
-- `proto`: the prototype loop (`scripts/bench/bufferStepper.ts`) and the engine on a generated scene that holds only the content kinds the prototype executes (`buildBeatsFixture` in `preview-fixture.mjs`), whatever project was named. Each is driven one step per call and one line per call. Every candidate reports a digest of each line's text, tags and display tables, and the command fails unless all four digests and both step counts are equal, which is what shows the prototype did the work instead of skipping it.
+- `proto`: the prototype loop (`scripts/bench/bufferStepper.ts`) and the engine on a generated scene that holds only the content kinds the prototype executes (`buildBeatsFixture` in `preview-fixture.mjs`), whatever project was named. Each is driven one step per call and one line per call, timed from the first step with the state reset left out. Every candidate reports a digest of each line's text, tags and display tables, and the command fails unless all four digests and both step counts are equal, which is what shows the prototype did the work instead of skipping it. On that scene the display tables and the step count carry the comparison: every line's text is its newline, and the scene has no tags.
 - `emit`: what serializing the compiler's whole runtime story costs per record, into a writer that keeps nothing (`walk`), the binary writer, the JSON writer, and `buildProgramBuffer` over the compiled JSON tree (`tree`). `binary` less `walk` is the record writer's own cost.
 - `ready`: from holding the whole compiled program to being able to take the first step, and the memory retained once there, for `new Story(tree)` from a JSON tree, for the same from the binary buffer, and for the buffer with the prototype's index. Memory is read around the first construction in the fresh process after forced collections, as JavaScript heap and as typed-array memory.
 
-`--cpu-prof <dir>` writes each candidate's CPU profile and the bundle's source map into `<dir>`. Divide one into shares with:
+`--cpu-prof <dir>` writes each candidate's CPU profile and the bundle's source map into `<dir>`. A profiled bundle keeps its function names, which makes the story engine 15 to 35 percent slower, so take times from a run without the flag. Divide one into shares with:
 
 ```bash
 node scripts/bench/profile-shares.mjs <dir>/step.as-planner.cpuprofile --under ContinueAsync --groups scripts/bench/profile-groups.mjs:STEPPING
 node scripts/bench/profile-shares.mjs <dir>/preview.cpuprofile --under ExportRuntime --inclusive "get runtimeObject,FlattenContainersIn,ResolveReferences,CheckForNamingCollisions,ResetState"
 ```
 
-`--under` keeps only the time with that function on the stack. `--groups` names a list of `[group, RegExp]` tested against `<source file>:<function>`, and prints each group's share of self time with every function assigned to it; a function nothing matches is listed as unassigned. `--inclusive` prints the share of time with each named function on the stack, callees included. A sampling profiler charges call-heavy code more than it costs unprofiled, so these are shares to set beside an unprofiled time. V8 charges an inlined function's time to its caller, which is why `profile-groups.mjs` keeps the functions that both walk the hierarchy and dispatch content in a group of their own.
+`--under` keeps only the time with that function on the stack. `--groups` names a list of `[group, RegExp]` tested against `<source file>:<function>`, and prints each group's share of self time with every function assigned to it; a function nothing matches is listed as unassigned. `--inclusive` prints the share of time with each named function on the stack, callees included. Given several profiles of the same candidate, it prints each share as min, median and max over them. A sampling profiler charges call-heavy code more than it costs unprofiled, so these are shares to set beside an unprofiled time. V8 charges an inlined function's time to its caller, which is why `profile-groups.mjs` keeps the functions that both walk the hierarchy and dispatch content in a group of their own.
 
 ### The fixture
 

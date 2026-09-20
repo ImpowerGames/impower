@@ -15,43 +15,36 @@
 //                     see MODES below
 //   --samples <K>     measured samples per mode (default 12)
 //   --warmup <W>      discarded samples first (default 4)
-//   --cpu-prof <dir>  also write a V8 CPU profile of each mode's process there
-//   --json <file>     also write each mode's full report, as <file>.<mode>.json
+//   --cpu-prof <dir>  also write a V8 CPU profile of each candidate's process
+//                     there, with the bundle's source map. A profiled bundle
+//                     keeps function names, which slows the engine, so read
+//                     times from a run without this flag
+//   --json <file>     also write every report, as <file>.<mode>.json for a mode
+//                     with one candidate and <file>.<mode>.<candidate>.json
+//                     for the others
 //
 // How to read the output: .agents/skills/drive-web-editor/references/performance.md.
 
 import { spawnSync } from "node:child_process";
 import fs from "node:fs";
-import { createRequire } from "node:module";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { bundleBench, count, value } from "./benchLauncher.mjs";
 import { buildBeatsFixture, writePreviewFixture } from "./preview-fixture.mjs";
 
-const HERE = path.dirname(fileURLToPath(import.meta.url));
-
 // Each mode: the entry that implements it, the candidates it runs (each in a
-// process of its own), the project it runs on, and what it measures. `route`
-// is the project named on the command line; `beats` is always the generated
-// beats-only scene, the one scene both engines of `proto` can run.
+// process of its own) and the project it runs on. `route` is the project named
+// on the command line; `beats` is always the generated beats-only scene, the
+// one scene both engines of `proto` can run. What each measures is in
+// .agents/skills/drive-web-editor/references/performance.md.
 export const MODES = {
-  kinds: { entry: "engineBench.ts", project: "route", about: "the content kinds stepped on the route, with each kind's share of steps and of stepping time" },
-  step: { entry: "engineBench.ts", project: "route", candidates: ["as-planner", "bare"], about: "the current engine's time per step on the route, stepping only" },
-  proto: { entry: "bufferStepBench.ts", project: "beats", candidates: ["engine-step", "buffer-step", "engine-line", "buffer-line"], about: "the prototype loop over the program buffer against the current engine, with their outputs compared" },
-  emit: { entry: "emitBench.ts", project: "route", candidates: ["walk", "binary", "json", "tree"], about: "what writing the compiled program costs per record, for each writer and for the walk that drives them" },
-  ready: { entry: "readyBench.ts", project: "route", candidates: ["prepare", "story-json", "story-buffer", "buffer"], about: "time and retained memory from holding the compiled program to being able to step" },
+  kinds: { entry: "engineBench.ts", project: "route" },
+  step: { entry: "engineBench.ts", project: "route", candidates: ["as-planner", "bare"] },
+  proto: { entry: "bufferStepBench.ts", project: "beats", candidates: ["engine-step", "buffer-step", "engine-line", "buffer-line"] },
+  emit: { entry: "emitBench.ts", project: "route", candidates: ["walk", "binary", "json", "tree"] },
+  ready: { entry: "readyBench.ts", project: "route", candidates: ["prepare", "story-json", "story-buffer", "buffer"] },
 };
-
-function value(args, i, name) {
-  const v = args[i + 1];
-  if (v == null || v === "" || v.startsWith("--")) throw new Error(`${name} needs a value`);
-  return v;
-}
-function count(text, name, min) {
-  const n = Number(text);
-  if (!Number.isInteger(n) || n < min) throw new Error(`${name} must be an integer of at least ${min}`);
-  return n;
-}
 
 export function parseEngineBenchArgs(args) {
   const out = { modes: Object.keys(MODES), samples: 12, warmup: 4 };
@@ -107,33 +100,6 @@ export function protoMismatch(reports) {
   return undefined;
 }
 
-// With `mapDir`, the bundle gets a source map, copied there for
-// profile-shares.mjs to name functions by their source file.
-async function bundle(entry, outDir, mapDir) {
-  const require = createRequire(path.join(HERE, "..", "..", "package.json"));
-  const esbuild = require("esbuild");
-  const outfile = path.join(outDir, entry.replace(/\.ts$/, ".mjs"));
-  await esbuild.build({
-    entryPoints: [path.join(HERE, entry)],
-    outfile,
-    bundle: true,
-    platform: "node",
-    format: "esm",
-    target: "node22",
-    logLevel: "warning",
-    // Profiles name functions, so the bundle keeps the names it was given.
-    keepNames: true,
-    sourcemap: mapDir ? "external" : false,
-    loader: { ".svg": "text", ".css": "text", ".html": "text", ".yaml": "text", ".sd": "text", ".luau": "text" },
-    banner: { js: "import { createRequire as __cr } from 'node:module'; const require = __cr(import.meta.url);" },
-  });
-  if (mapDir) {
-    fs.mkdirSync(mapDir, { recursive: true });
-    fs.copyFileSync(outfile + ".map", path.join(mapDir, path.basename(outfile) + ".map"));
-  }
-  return outfile;
-}
-
 async function main(args) {
   const options = parseEngineBenchArgs(args);
   const scratch = fs.mkdtempSync(path.join(os.tmpdir(), "impower-engine-bench-"));
@@ -151,7 +117,7 @@ async function main(args) {
     let failed = false;
     for (const mode of options.modes) {
       const { entry, candidates = [undefined], project: which } = MODES[mode];
-      if (!bundles.has(entry)) bundles.set(entry, await bundle(entry, scratch, options.cpuProf && path.resolve(options.cpuProf)));
+      if (!bundles.has(entry)) bundles.set(entry, await bundleBench(entry, scratch, options.cpuProf && path.resolve(options.cpuProf)));
       if (which === "beats" && !fs.existsSync(beats)) writePreviewFixture(beats, buildBeatsFixture());
       const reports = [];
       for (const candidate of candidates) {
@@ -174,7 +140,7 @@ async function main(args) {
           console.error(`proto: ${problem}`);
           failed = true;
         } else {
-          console.log(`proto: the ${reports.length} candidates produced identical text, tags and display tables, and both engines took ${reports[0].steps} steps`);
+          console.log(`proto: the ${reports.length} candidates produced identical lines (${reports[0].displayTables} display tables), and both engines took ${reports[0].steps} steps`);
           console.log("");
         }
       }

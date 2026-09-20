@@ -5,9 +5,12 @@
 // json }. A candidate is an engine (`engine`, the shipped Story, or `buffer`,
 // bufferStepper.ts) and how it is driven (`step`, one call per step as the
 // route planner drives a story, or `line`, one call per line as a game does).
-// Every candidate runs scene MAIN from its top to its end and reports a digest
-// of every line's text, tags and display tables; engine-bench.mjs fails the
-// run unless the digests of the two engines are equal.
+// Every candidate runs scene MAIN from its top to its end, timed from the
+// first step, and reports a digest of every line's text, tags and display
+// tables; engine-bench.mjs fails the run unless the digests and the step
+// counts of the two engines are equal. On the beats scene the display tables
+// and the step count carry that comparison: a beat's words are inside its
+// table, so every line's text is its newline, and the scene has no tags.
 import "../../packages/sparkdown/src/inkjs/engine/Container";
 import { createHash } from "node:crypto";
 import * as fs from "node:fs";
@@ -45,9 +48,13 @@ function engineCandidate(compiled: Record<string, any>, perStep: boolean) {
   story.onError = NOOP as any;
   const take = () => ({ text: story.currentText, tags: story.currentTags, display: story.state.currentDisplayInstructions });
   return {
-    run(): Run {
+    // Untimed: ResetState runs the program's global initializers, which is
+    // engine stepping of its own and no part of the scene.
+    prepare() {
       story.ResetState();
       story.ChoosePathString(SCENE);
+    },
+    run(): Run {
       const lines: unknown[] = [];
       let steps = 0;
       if (perStep) {
@@ -73,8 +80,10 @@ function bufferCandidate(compiled: Record<string, any>, perStep: boolean) {
   const buffer = readProgramBuffer(encodeProgramBuffer(buildProgramBuffer(compiled)));
   const stepper = new BufferStepper(buffer, buildProgramIndex(buffer));
   return {
-    run(): Run {
+    prepare() {
       stepper.start(SCENE);
+    },
+    run(): Run {
       const lines: unknown[] = [];
       if (perStep) {
         while (stepper.canContinue) if (stepper.step()) lines.push(stepper.takeLine());
@@ -101,6 +110,7 @@ function main() {
   const totals: number[] = [];
   let last: Run = { steps: 0, lines: [] };
   for (let i = 0; i < config.warmup + config.samples; i++) {
+    candidate.prepare();
     const t0 = performance.now();
     last = candidate.run();
     const t1 = performance.now();

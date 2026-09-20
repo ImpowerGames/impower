@@ -5,8 +5,12 @@
 //   node scripts/bench/profile-shares.mjs <file.cpuprofile> --under ContinueAsync --groups scripts/bench/profile-groups.mjs:STEPPING
 //   node scripts/bench/profile-shares.mjs <file.cpuprofile> --under ExportRuntime --inclusive ResolveReferences,CheckForNamingCollisions
 //
+// Several profiles of the same candidate may be named; the group and inclusive
+// shares are then printed as min, median and max over them, and the function
+// listing is the first profile's.
+//
 // Options:
-//   --under <fn,..>      only time with one of these functions on the stack
+//   --under <fn,..>     only time with one of these functions on the stack
 //                        counts, and shares are of that time
 //   --groups <file:NAME> a module exporting NAME, an ordered list of
 //                        [group, RegExp]; a function belongs to the first group
@@ -30,7 +34,7 @@ import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 export function parseShareArgs(args) {
-  const out = { under: [], inclusive: [], min: 0.2 };
+  const out = { profiles: [], under: [], inclusive: [], min: 0.2 };
   for (let i = 0; i < args.length; i++) {
     const name = args[i];
     const next = () => {
@@ -44,10 +48,9 @@ export function parseShareArgs(args) {
     else if (name === "--min") out.min = Number(next());
     else if (name === "--json") out.json = next();
     else if (name.startsWith("--")) throw new Error(`unknown argument ${name}`);
-    else if (out.profile) throw new Error("pass one profile");
-    else out.profile = name;
+    else out.profiles.push(name);
   }
-  if (!out.profile) throw new Error("pass a .cpuprofile file");
+  if (!out.profiles.length) throw new Error("pass a .cpuprofile file");
   if (!out.under.length) throw new Error("pass --under <function>");
   return out;
 }
@@ -136,10 +139,34 @@ async function main(args) {
     groups = module[options.groups.slice(at + 1)];
     if (!Array.isArray(groups)) throw new Error(`${options.groups} is not a list of [group, RegExp]`);
   }
-  const profile = JSON.parse(fs.readFileSync(options.profile, "utf8"));
-  const result = profileShares(profile, { under: options.under, inclusive: options.inclusive, groups, nameOf: sourceNamer(path.resolve(options.profile)) });
-  if (options.json) fs.writeFileSync(options.json, JSON.stringify(result, null, 2));
+  const results = options.profiles.map((file) => profileShares(JSON.parse(fs.readFileSync(file, "utf8")), { under: options.under, inclusive: options.inclusive, groups, nameOf: sourceNamer(path.resolve(file)) }));
+  const result = results[0];
+  if (options.json) fs.writeFileSync(options.json, JSON.stringify(results.length > 1 ? results : result, null, 2));
   const pct = (share) => (share * 100).toFixed(1).padStart(6) + "%";
+  if (results.length > 1) {
+    const row = (label, shares) => {
+      const sorted = [...shares].sort((a, b) => a - b);
+      console.log(`  ${pct(sorted[0])} ${pct(sorted[Math.floor(sorted.length / 2)])} ${pct(sorted.at(-1))}  ${label}`);
+    };
+    console.log(`${results.length} profiles, shares of the time under ${options.under.join(", ")}`);
+    console.log(`  ${"min".padStart(7)} ${"median".padStart(7)} ${"max".padStart(7)}`);
+    for (const { group } of result.groups)
+      row(
+        group,
+        results.map((r) => r.groups.find((g) => g.group === group)?.share ?? 0),
+      );
+    for (const { function: fn } of result.inclusive)
+      row(
+        `inclusive ${fn}`,
+        results.map((r) => r.inclusive.find((f) => f.function === fn).share),
+      );
+    row(
+      "(garbage collector, share of the whole profile)",
+      results.map((r) => r.collectorShareOfProfile),
+    );
+    console.log("");
+    console.log("first profile:");
+  }
   console.log(`time under ${options.under.join(", ")}: ${pct(result.shareOfProfile).trim()} of the profile; the garbage collector, which the profile shows outside every function, is ${pct(result.collectorShareOfProfile).trim()} of the profile`);
   for (const { function: fn, share } of result.inclusive) console.log(`  inclusive ${pct(share)}  ${fn}`);
   const list = (fns) => {

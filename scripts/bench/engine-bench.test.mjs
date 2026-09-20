@@ -9,6 +9,7 @@
 
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
+import fs from "node:fs";
 import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -60,8 +61,10 @@ await check("the beats scene is one scene of beats with nothing to choose, the s
   assert.notEqual(lines[target.line - 1].trim(), "");
 });
 
-// root -> run -> (Step -> [Resolve, emit]) and root -> other; one sample each
-// of 10 microseconds, except Resolve, which has three: 80 in all, 50 under Step.
+// root -> run -> (Step -> [Resolve, emit]) and root -> other, shaped as V8
+// writes a profile: as many deltas as samples, the first being the gap before
+// the first sample. A sample is charged the delta that follows it, so the last
+// one (run) is charged nothing: 70 microseconds in all, 50 under Step.
 const PROFILE = {
   nodes: [
     { id: 1, callFrame: { functionName: "(root)" }, children: [2, 6, 7] },
@@ -73,7 +76,7 @@ const PROFILE = {
     { id: 7, callFrame: { functionName: "(garbage collector)" } },
   ],
   samples: [3, 4, 4, 4, 5, 6, 7, 2],
-  timeDeltas: [0, 10, 10, 10, 10, 10, 10, 10, 10],
+  timeDeltas: [5, 10, 10, 10, 10, 10, 10, 10],
 };
 
 await check("profile shares: only time under the named function counts, and groups take the first match", () => {
@@ -82,8 +85,8 @@ await check("profile shares: only time under the named function counts, and grou
     ["engine", /:(Step|emit)$/],
   ];
   const result = profileShares(PROFILE, { under: ["Step"], inclusive: ["Resolve", "other"], groups, nameOf: (frame) => `x.ts:${frame.functionName}` });
-  assert.equal(result.shareOfProfile, 50 / 80);
-  assert.equal(result.collectorShareOfProfile, 10 / 80);
+  assert.equal(result.shareOfProfile, 50 / 70);
+  assert.equal(result.collectorShareOfProfile, 10 / 70);
   assert.deepEqual(result.groups, [
     { group: "hierarchy", share: 0.6 },
     { group: "engine", share: 0.4 },
@@ -118,8 +121,10 @@ await check("the stepping groups put paths and pointers on one side and output a
 });
 
 // The prototype is measured, never shipped. The tooling workflow checks out no
-// packages, where this passes on nothing; every other checkout has them.
-await check("nothing under packages/*/src imports the prototype or anything else in scripts/bench", () => {
+// packages, so there it says it skipped rather than passing on nothing.
+if (!fs.existsSync(path.join(ROOT, "packages", "sparkdown", "src"))) {
+  console.log("SKIP: nothing under packages/*/src imports the prototype (this checkout has no packages)");
+} else await check("nothing under packages/*/src imports the prototype or anything else in scripts/bench", () => {
   const run = spawnSync("git", ["grep", "-l", "-E", "scripts/bench|bufferStepper", "--", "packages/*/src"], { cwd: ROOT, encoding: "utf8", windowsHide: true });
   assert.ok(run.status === 0 || run.status === 1, run.stderr);
   assert.equal(run.stdout.trim(), "");
@@ -137,13 +142,13 @@ if (!esbuildInstalled) {
   console.log("SKIP: the benchmark's end-to-end run needs the workspace install (esbuild is not resolvable)");
 } else {
   await check("the benchmark runs every mode on the fixture, and the prototype's output equals the engine's", () => {
-    const run = spawnSync(process.execPath, [path.join(HERE, "engine-bench.mjs"), "--fixture", "--samples", "1", "--warmup", "0"], { encoding: "utf8", timeout: 480_000, windowsHide: true });
+    const run = spawnSync(process.execPath, [path.join(HERE, "engine-bench.mjs"), "--fixture", "--samples", "1", "--warmup", "0"], { encoding: "utf8", timeout: 240_000, windowsHide: true });
     assert.equal(run.status, 0, run.stdout + run.stderr);
     assert.match(run.stdout, /mode kinds: .* target MAIN\./);
     assert.match(run.stdout, /command: RunStdLibFunction\s+\d{3,}/);
     assert.match(run.stdout, /mode step as-planner:[^]*per step \(microseconds\)/);
     assert.match(run.stdout, /mode step bare:/);
-    assert.match(run.stdout, /proto: the 4 candidates produced identical text, tags and display tables, and both engines took \d{4,} steps/);
+    assert.match(run.stdout, /proto: the 4 candidates produced identical lines \(\d{3,} display tables\), and both engines took \d{4,} steps/);
     assert.match(run.stdout, /candidate tree: \d+ records, of which \d+ in MAIN/);
     assert.match(run.stdout, /candidate story-buffer:[^]*materialize tree[^]*retained once ready/);
     assert.match(run.stdout, /candidate buffer:[^]*build index[^]*retained once ready/);

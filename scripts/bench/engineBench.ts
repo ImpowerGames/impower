@@ -43,7 +43,7 @@ const NOOP = () => {};
 // The kind of content a step executes, named for the report. Everything the
 // engine can step onto lands in some kind: an unrecognized object is reported
 // under its class name instead of being dropped.
-export function kindOf(obj: any): string {
+function kindOf(obj: any): string {
   if (obj == null) return "(end of container)";
   if (obj instanceof StringValue) return obj.isNewline ? "text: newline" : "text";
   if (obj instanceof ControlCommand) return "command: " + ControlCommand.CommandType[obj.commandType];

@@ -46,8 +46,8 @@ function takeMeasures(): Record<string, number> {
   return sums;
 }
 
-// Captured before the console is silenced: the report and a failure print here.
-const realLog = console.log;
+// The report and a failure print here; main silences everything else.
+let realLog = console.log;
 
 function main() {
   setRetainProfilerEntries(true);
@@ -68,7 +68,7 @@ function main() {
   const options = config.options.filter((o) => o !== token);
   if (!options.length) throw new Error(`no replacement for ${token}: pass --options`);
 
-  silenceConsole();
+  realLog = silenceConsole();
   const compiler = new SparkdownCompiler();
   compiler.profilerId = PROFILER_ID;
   const encoder = new ProgramTransportEncoder();

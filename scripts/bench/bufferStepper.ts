@@ -14,7 +14,7 @@
 // every builtin but `display`, errors and warnings, saved state.
 import { NODE_WIDTH, ProgramNodeTag, type ProgramBuffer } from "../../packages/sparkdown/src/binary/programBinary";
 
-export const enum Op {
+const enum Op {
   Unsupported = 0,
   Text,
   Newline,
