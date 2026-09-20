@@ -42,7 +42,7 @@ function screenplay(): string {
 const pick = (p: any) => ({
   compiled: p.compiled,
   pathLocations: p.pathLocations,
-  pathLocationsOrder: Object.keys(p.pathLocations ?? {}),
+  pathLocationsOrder: p.pathLocations?.paths ?? [],
   dataLocations: p.dataLocations,
   functionLocations: p.functionLocations,
   sceneLocations: p.sceneLocations,

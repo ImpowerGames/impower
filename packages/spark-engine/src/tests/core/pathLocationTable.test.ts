@@ -32,6 +32,7 @@ import {
 import { describe, expect, test } from "vitest";
 import { findClosestPath } from "../../game/core/utils/findClosestPath";
 import { findClosestPathLocation } from "../../game/core/utils/findClosestPathLocation";
+import { possibleBreakpointLines } from "../../game/core/utils/possibleBreakpointLines";
 
 const MAIN = "file://proj/main.sd";
 const SCENES = "file://proj/scenes.sd";
@@ -308,5 +309,61 @@ describe("the table crosses the worker boundary as it is", () => {
       locationAtRow(program.pathLocations, 0),
     );
     expect(pathIndexBuilt(table)).toBe(true);
+  });
+});
+
+describe("the lines a breakpoint may be set on", () => {
+  // The scan `possibleBreakpointLines` replaces: every location in the whole
+  // program, kept when it belongs to the searched script and starts inside the
+  // range.
+  const scanBreakpointLines = (
+    table: PathLocationTable,
+    scripts: string[],
+    search: { uri: string; range: { start: { line: number }; end: { line: number } } },
+  ) => {
+    const scriptIndex = scripts.indexOf(search.uri);
+    const lines: number[] = [];
+    for (let row = 0; row < table.paths.length; row++) {
+      const location = locationAtRow(table, row)!;
+      if (location[0] !== scriptIndex) {
+        continue;
+      }
+      if (
+        location[1] >= search.range.start.line &&
+        location[1] <= search.range.end.line
+      ) {
+        lines.push(location[1]);
+      }
+    }
+    return lines;
+  };
+
+  const program = compile();
+  const table = program.pathLocations!;
+  const scripts = Object.keys(program.scripts);
+
+  test.each([MAIN, SCENES, SCREEN, "file://proj/absent.sd"])(
+    "%s answers the same lines as the scan, for every range",
+    (uri) => {
+      const lineCount = (SOURCES[uri] ?? "").split(NEWLINE).length + 2;
+      for (let start = 0; start <= lineCount; start++) {
+        for (const end of [start, start + 1, lineCount]) {
+          const search = {
+            uri,
+            range: { start: { line: start }, end: { line: end } },
+          };
+          expect({ uri, start, end, lines: possibleBreakpointLines(table, scripts, search) })
+            .toEqual({ uri, start, end, lines: scanBreakpointLines(table, scripts, search) });
+        }
+      }
+    },
+  );
+
+  test("a program with no locations answers nothing", () => {
+    const search = { uri: MAIN, range: { start: { line: 0 }, end: { line: 99 } } };
+    expect(possibleBreakpointLines(undefined, scripts, search)).toEqual([]);
+    expect(possibleBreakpointLines(pathLocationTableOf({}), scripts, search)).toEqual(
+      [],
+    );
   });
 });

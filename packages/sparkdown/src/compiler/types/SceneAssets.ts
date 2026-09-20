@@ -1,7 +1,7 @@
 /**
  * One runtime leaf that references assets, in document order within its flow.
  *
- * `path` is the leaf's runtime path (a key of `program.pathLocations`), so the
+ * `path` is the leaf's runtime path (one of `program.pathLocations.paths`), so the
  * engine can locate the beat the story is on and predict from there. Names are
  * recorded as authored: image tokens are split on `+` but keep their `~filter`
  * tail (the engine canonicalizes), audio names are bare asset names.
