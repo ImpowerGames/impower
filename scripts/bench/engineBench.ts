@@ -112,8 +112,8 @@ function rewind({ story, route }: Walk) {
   story.pauseBeforeEvaluatingConditions = false;
 }
 
-// One engine step per call: with an infinite limit ContinueAsync returns after
-// a single ContinueSingleStep, which is how the route planner drives it.
+// One engine step per call: ContinueAsync takes no limit and returns after a
+// single ContinueSingleStep, which is how the route planner drives it.
 function countSteps(walk: Walk): number {
   rewind(walk);
   const { story, toPath } = walk;
