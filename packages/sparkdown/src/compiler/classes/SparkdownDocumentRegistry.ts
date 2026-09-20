@@ -9,6 +9,7 @@ import { type ChangeSpec, Text } from "@codemirror/state";
 import { TextmateGrammarParser } from "@impower/textmate-grammar-tree/src/tree/classes/TextmateGrammarParser";
 import { printTree } from "@impower/textmate-grammar-tree/src/tree/utils/printTree";
 import { type ChangedRange, Tree, TreeFragment } from "@lezer/common";
+import { collectDefineTypeNames } from "../utils/collectDefineTypeNames";
 import { profile } from "../utils/profile";
 import {
   type SparkdownAnnotatorConfigs,
@@ -212,6 +213,34 @@ export class SparkdownDocumentRegistry {
     this.ensureParsed(uri);
     const state = this.getDocumentState(uri);
     return state.annotators.get();
+  }
+
+  /**
+   * The names this document uses as a define TYPE (`define D as X`, `new X()`).
+   * The compiler's whole-program scoping pass unions these across a program's
+   * scripts rather than walking every script's tree again.
+   *
+   * A registry that runs the compilation annotator keeps the set current across
+   * edits by re-walking only the region each reparse rebuilt. One that does not
+   * keeps no index, because nothing it annotates reads these names, so the
+   * answer is walked here instead: correct for any caller, at the cost such a
+   * walk has always had.
+   */
+  defineTypeNames(uri: string): ReadonlySet<string> {
+    this.ensureParsed(uri);
+    const state = this.getDocumentState(uri);
+    const indexed = state.annotators.defineTypeNames;
+    if (indexed) {
+      return indexed;
+    }
+    const document = this._syncedDocuments.get(uri);
+    if (!state.tree || !document) {
+      return new Set<string>();
+    }
+    const text = document.getText();
+    return collectDefineTypeNames(state.tree, (from, to) =>
+      text.slice(from, to),
+    );
   }
 
   get(uri: string) {

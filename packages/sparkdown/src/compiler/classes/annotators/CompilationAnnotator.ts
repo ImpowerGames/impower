@@ -11,7 +11,7 @@ import { Range } from "@codemirror/state";
 import { ErrorType } from "../../../inkjs/compiler/Parser/ErrorType";
 import { ParsedObject } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Object";
 import type { SourceMetadata } from "../../../inkjs/engine/Error";
-import { collectDefineTypeNames } from "../../utils/collectDefineTypeNames";
+import { DefineTypeNameIndex } from "../DefineTypeNameIndex";
 import type { SiblingSubFlowInfo } from "../../lower/context";
 import { lower } from "../../lower/lower";
 import { type SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
@@ -97,6 +97,25 @@ export class CompilationAnnotator extends SparkdownAnnotator<
   private _globalCallableNames?: Set<string>;
   private _globalCallableNamesTree?: unknown;
 
+  /**
+   * The document's define TYPE names — every `define`/`animation`/`theme`
+   * PARENT (`LuauDefineParentName`) and every `new <Class>()` target
+   * (`LuauNewClassName`). These names keep their bare global; `lowerLuauDefine`
+   * scopes only LEAF-instance defines (typed, never used as a type) to a
+   * synthetic `$<type>_<name>` key.
+   *
+   * The index is owned by `SparkdownCombinedAnnotator`, which keeps it current
+   * across edits by re-walking only the region the parser rebuilt. Constructing
+   * this annotator without one (a test driving it directly) leaves the set
+   * empty.
+   */
+  private _defineTypeNameIndex?: DefineTypeNameIndex;
+
+  constructor(config?: CompilationConfig, defineTypeNames?: DefineTypeNameIndex) {
+    super(config);
+    this._defineTypeNameIndex = defineTypeNames;
+  }
+
   private computeGlobalCallableNames(): Set<string> {
     if (this.tree === this._globalCallableNamesTree && this._globalCallableNames) {
       return this._globalCallableNames;
@@ -120,28 +139,8 @@ export class CompilationAnnotator extends SparkdownAnnotator<
     return set;
   }
 
-  // Cache the set of names used as a TYPE per parse tree — every
-  // `define`/`animation`/`theme` PARENT (`LuauDefineParentName`) AND every
-  // `new <Class>()` target (`LuauNewClassName`). These names keep their bare
-  // global; `lowerLuauDefine` scopes only LEAF-instance defines (typed,
-  // never used as a type) to a synthetic `$<type>_<name>` key. Needs a FULL
-  // tree traversal (unlike `computeGlobalCallableNames`, which only walks
-  // top-level children) because `new <Class>()` appears deep inside function
-  // bodies. Same per-tree caching contract.
-  private _defineTypeNames?: Set<string>;
-  private _defineTypeNamesTree?: unknown;
-
-  private computeDefineTypeNames(): Set<string> {
-    if (this.tree === this._defineTypeNamesTree && this._defineTypeNames) {
-      return this._defineTypeNames;
-    }
-    const tree = this.tree;
-    const set = tree
-      ? collectDefineTypeNames(tree, (from, to) => this.read(from, to))
-      : new Set<string>();
-    this._defineTypeNames = set;
-    this._defineTypeNamesTree = this.tree;
-    return set;
+  private computeDefineTypeNames(): ReadonlySet<string> {
+    return this._defineTypeNameIndex?.names ?? new Set<string>();
   }
 
   private collectGlobalNameAt(

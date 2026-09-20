@@ -7,6 +7,7 @@ import {
 } from "@codemirror/state";
 import { cachedCompilerProp } from "@impower/textmate-grammar-tree/src/tree/props/cachedCompilerProp";
 import { Tree } from "@lezer/common";
+import { DefineTypeNameIndex } from "./DefineTypeNameIndex";
 import { CharacterAnnotator } from "./annotators/CharacterAnnotator";
 import { ColorAnnotator } from "./annotators/ColorAnnotator";
 import { CompilationAnnotator } from "./annotators/CompilationAnnotator";
@@ -90,13 +91,36 @@ export class SparkdownCombinedAnnotator {
 
   protected _currentEntries: [string, SparkdownAnnotator][];
 
+  /**
+   * The document's define TYPE names, maintained across edits only while this
+   * instance runs the compilation annotator. The names steer lowering and
+   * nothing else, so a registry that annotates for editor features alone —
+   * the language server's and the VS Code document manager's both do — would
+   * otherwise walk the reparsed region on every keystroke to fill in a set
+   * nobody reads. `undefined` means no index is kept, and the registry's
+   * accessor walks the tree itself for a caller that asks anyway.
+   */
+  protected _defineTypeNames = new DefineTypeNameIndex();
+  get defineTypeNames(): ReadonlySet<string> | undefined {
+    return this._defineTypeNames.names;
+  }
+
+  protected maintainsDefineTypeNames(
+    annotate?: Set<keyof SparkdownAnnotators>,
+  ): boolean {
+    return !annotate || annotate.has("compilations");
+  }
+
   constructor(config?: SparkdownAnnotatorConfigs) {
     this._config = config;
     this.current = {
       colors: new ColorAnnotator(),
       characters: new CharacterAnnotator(),
       declarations: new DeclarationAnnotator(),
-      compilations: new CompilationAnnotator(config?.compilations),
+      compilations: new CompilationAnnotator(
+        config?.compilations,
+        this._defineTypeNames,
+      ),
       references: new ReferenceAnnotator(),
       validations: new ValidationAnnotator(),
       implicits: new ImplicitAnnotator(),
@@ -317,7 +341,13 @@ export class SparkdownCombinedAnnotator {
         annotator.update(tree, text, uri);
       }
     }
+    const maintainDefineTypeNames = this.maintainsDefineTypeNames(annotate);
     if (!changes || reparsedFrom == null) {
+      if (maintainDefineTypeNames) {
+        this._defineTypeNames.rebuild(tree, text);
+      } else {
+        this._defineTypeNames.invalidate();
+      }
       // Rebuild all annotations from scratch
       for (const [key, add] of Object.entries(
         this.annotate(tree, undefined, undefined, annotate),
@@ -356,6 +386,23 @@ export class SparkdownCombinedAnnotator {
         editStart = fromB;
       }
     });
+    // Carry the define-type-name set through the edit over the same window the
+    // annotators are about to re-run over. It has to be complete before
+    // `annotate` starts, because the first chunk `CompilationAnnotator` lowers
+    // already reads it.
+    if (maintainDefineTypeNames) {
+      this._defineTypeNames.update(
+        tree,
+        text,
+        changeDesc,
+        editStart,
+        reparsedTo ?? text.length,
+      );
+    } else {
+      // The positions this edit moved were never recorded, so a later
+      // maintained pass must start from a full walk rather than map them.
+      this._defineTypeNames.invalidate();
+    }
     // Shift position-keyed annotator state through the edit before anything
     // reads it. `begin` runs inside `annotate` below and consults offsets
     // (`SemanticAnnotator`'s cached symbol table), so they must already be in
