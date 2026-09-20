@@ -91,11 +91,6 @@ function compile(source: string, version = 1, extra: File[] = []): SparkProgram 
   return compiler.compile({ textDocument: { uri: URI } } as any).program;
 }
 
-const entriesOf = (program: SparkProgram) =>
-  Object.entries(program.pathLocations ?? {}) as Array<
-    [string, [number, number, number, number, number]]
-  >;
-
 const srcs = (items: AssetItem[] | null) =>
   items?.map((i) => ("src" in i ? i.src : "")) ?? null;
 
@@ -110,9 +105,8 @@ const src = (name: string) => `/file:/proj/${name}.png?v=1`;
 
 describe("planPreviewHint", () => {
   const program = compile(STORY);
-  const entries = entriesOf(program);
   const plan = (line: number, last?: PreviewHintState) =>
-    planPreviewHint(program, URI, line, entries, last);
+    planPreviewHint(program, URI, line, last);
 
   it("asks for the cursor's beats first, the window next, and the rest of the scene once on entering it", () => {
     const first = plan(3)!;
@@ -145,20 +139,13 @@ describe("planPreviewHint", () => {
     const narrow = compile(
       `define assets as config with\n  predict_distance = 1\nend\n\n${STORY}`,
     );
-    const narrowEntries = entriesOf(narrow);
     const beats = narrow.sceneAssets!["A"]!.beats;
     const locations = narrow.pathLocations!;
     for (let line = 1; line <= 13; line++) {
-      const fresh = planPreviewHint(
-        narrow,
-        URI,
-        line + 4,
-        narrowEntries,
-        undefined,
-      )!;
+      const fresh = planPreviewHint(narrow, URI, line + 4, undefined)!;
       const path = findClosestPath(
         { file: URI, line: line + 4 },
-        narrowEntries,
+        narrow.pathLocations,
         Object.keys(narrow.scripts ?? {}),
       );
       const at = beatIndexIn(beats, locations, path);
@@ -205,13 +192,7 @@ end
     expect(theirs).toHaveLength(1);
     expect(theirs![0]).toMatch(/^\/file:\/proj\/hall\.svg\?v=1&attributes=/);
     expect(JSON.parse(new URL(theirs![0]!, "https://example.invalid").searchParams.get("attributes")!)).toEqual({ glow: "on" });
-    const hint = planPreviewHint(
-      filtered,
-      URI,
-      6,
-      entriesOf(filtered),
-      undefined,
-    )!;
+    const hint = planPreviewHint(filtered, URI, 6, undefined)!;
     expect(srcs(hint.cursor)).toEqual(theirs);
     expect(srcs(hint.near)).toEqual(theirs);
   });
@@ -252,7 +233,7 @@ end
       `define assets as config with\n  predict_distance = 6\nend\n\n${STORY}`,
     );
     const at = (line: number, last?: PreviewHintState) =>
-      planPreviewHint(wide, URI, line + 4, entriesOf(wide), last);
+      planPreviewHint(wide, URI, line + 4, last);
     const first = at(1)!;
     expect(srcs(first.near)).toHaveLength(5);
     // Three beats on: within half the reach, nothing.
@@ -271,7 +252,7 @@ end
       `define assets as config with\n  predict_distance = 2\nend\n\n${STORY}`,
     );
     const at = (line: number, last?: PreviewHintState) =>
-      planPreviewHint(narrow, URI, line + 4, entriesOf(narrow), last);
+      planPreviewHint(narrow, URI, line + 4, last);
     const first = at(1)!;
     expect(srcs(first.near)).toEqual([src("room"), src("bunny"), src("hat")]);
     // One beat further: within half the reach, the last window stands.
@@ -302,13 +283,7 @@ end
   it("asks for the beat's own pictures again after a recompile, and nothing else", () => {
     const first = plan(3)!;
     const recompiled = compile(STORY.replace("portrait bunny", "portrait cat"), 2);
-    const again = planPreviewHint(
-      recompiled,
-      URI,
-      3,
-      entriesOf(recompiled),
-      first.state,
-    )!;
+    const again = planPreviewHint(recompiled, URI, 3, first.state)!;
     expect(again).not.toBeNull();
     expect(srcs(again.cursor)).toEqual([src("cat"), src("hat")]);
     expect(again.near).toEqual([]);
@@ -318,7 +293,7 @@ end
 
   it("hints nothing for a path the program does not know", () => {
     const first = plan(3)!;
-    const nowhere = planPreviewHint(program, URI, 999, [], first.state)!;
+    const nowhere = planPreviewHint(program, URI, 999, first.state)!;
     expect(nowhere.cursor).toEqual([]);
     expect(nowhere.near).toEqual([]);
     expect(nowhere.rest).toBeNull();

@@ -1,32 +1,36 @@
+import type { PathLocationTable } from "@impower/sparkdown/src/compiler/types/SparkProgram";
+import {
+  findPathRow,
+  locationAtRow,
+  pathAtRow,
+} from "@impower/sparkdown/src/compiler/utils/pathLocationTable";
 import type { ScriptLocation } from "../types/ScriptLocation";
 
+/**
+ * The path that owns a source line: the first one in the script whose range
+ * covers the line, or, when none does, the first one that starts after it.
+ * Found by binary search over the program's path-location table, which is
+ * ordered by script, then start line, then start column.
+ */
 export const findClosestPathLocation = (
   breakpoint: { file: string; line: number },
-  pathLocationEntries: [string, ScriptLocation][],
+  pathLocations: PathLocationTable | undefined,
   scripts: string[],
 ): [string, ScriptLocation] | null => {
-  const breakpointScriptIndex = scripts.indexOf(breakpoint.file);
-  const breakpointLine = breakpoint.line;
-
-  // Step 1: Filter only relevant instructions with the same scriptIndex
-  const relevantLocations = pathLocationEntries.filter(
-    ([, location]) => location[0] === breakpointScriptIndex,
-  );
-
-  // Step 2: Check for an exact match within startLine and endLine
-  for (let i = 0; i < relevantLocations.length; i++) {
-    const [, location] = relevantLocations[i]!;
-    const [, startLine, , endLine] = location;
-
-    if (breakpointLine >= startLine && breakpointLine <= endLine) {
-      return relevantLocations[i]!; // Exact match found
-    }
-
-    if (startLine > breakpointLine && endLine > breakpointLine) {
-      // We've passed the breakpoint line, so return
-      return relevantLocations[i]!;
-    }
+  if (breakpoint.file == null || breakpoint.line == null) {
+    return null;
   }
-
-  return null; // No valid instructions for this script
+  const row = findPathRow(
+    pathLocations,
+    scripts.indexOf(breakpoint.file),
+    breakpoint.line,
+    false,
+  );
+  if (row < 0) {
+    return null;
+  }
+  return [
+    pathAtRow(pathLocations, row)!,
+    locationAtRow(pathLocations, row) as ScriptLocation,
+  ];
 };

@@ -4,14 +4,14 @@ import type { SparkProgram } from "../../compiler/types/SparkProgram";
  * How a compiled program crosses from the compiler worker to its workspace.
  *
  * A structured clone costs time on both sides of the boundary for every object
- * in the program, and two parts of a large project's program dominate it:
+ * in the program, and attribute vocabularies dominate it. An illustrated
+ * project carries one per layered portrait (230KB for one), nearly all of its
+ * asset bytes, and the same vocabulary objects come out of every compile until
+ * their file changes. Each is sent once; later programs refer to it by number.
  *
- * - Attribute vocabularies. An illustrated project carries one per layered
- *   portrait (230KB for one), nearly all of its asset bytes, and the same
- *   vocabulary objects come out of every compile until their file changes.
- *   Each is sent once; later programs refer to it by number.
- * - Path locations: tens of thousands of five-number tuples. They are sent as
- *   one typed array and a list of keys, and rebuilt on arrival.
+ * The program's other bulky part, its path locations, needs nothing here: it is
+ * already a list of paths and one typed array of their ranges, so it crosses as
+ * it is and arrives ready to search.
  *
  * The encoder runs in the worker and the decoder in the workspace, one pair per
  * connection, and each program must be decoded in the order it was encoded:
@@ -30,23 +30,10 @@ interface SharedPart {
   value?: unknown;
 }
 
-interface PackedLocations {
-  $packed: "locations";
-  keys: string[];
-  values: Int32Array;
-}
-
-const TUPLE_LENGTH = 5;
-
 const isShared = (value: unknown): value is SharedPart =>
   typeof value === "object" &&
   value !== null &&
   typeof (value as SharedPart).$shared === "number";
-
-const isPacked = (value: unknown): value is PackedLocations =>
-  typeof value === "object" &&
-  value !== null &&
-  (value as PackedLocations).$packed === "locations";
 
 type StructTables = Record<string, Record<string, any> | undefined>;
 
@@ -110,43 +97,6 @@ const forEachVocabulary = (
   }
 };
 
-const packLocations = (
-  locations: Record<string, number[]>,
-): PackedLocations | undefined => {
-  const keys = Object.keys(locations);
-  const values = new Int32Array(keys.length * TUPLE_LENGTH);
-  for (let i = 0; i < keys.length; i++) {
-    const tuple = locations[keys[i]!];
-    if (!Array.isArray(tuple) || tuple.length !== TUPLE_LENGTH) {
-      return undefined;
-    }
-    for (let j = 0; j < TUPLE_LENGTH; j++) {
-      const n = tuple[j];
-      if (!Number.isInteger(n) || n! > 0x7fffffff || n! < -0x80000000) {
-        return undefined;
-      }
-      values[i * TUPLE_LENGTH + j] = n!;
-    }
-  }
-  return { $packed: "locations", keys, values };
-};
-
-const unpackLocations = (packed: PackedLocations) => {
-  const locations: Record<string, number[]> = {};
-  const { keys, values } = packed;
-  for (let i = 0; i < keys.length; i++) {
-    const at = i * TUPLE_LENGTH;
-    locations[keys[i]!] = [
-      values[at]!,
-      values[at + 1]!,
-      values[at + 2]!,
-      values[at + 3]!,
-      values[at + 4]!,
-    ];
-  }
-  return locations;
-};
-
 export class ProgramTransportEncoder {
   protected _ids = new WeakMap<object, number>();
   protected _nextId = 1;
@@ -188,12 +138,6 @@ export class ProgramTransportEncoder {
     }
     if (program.assets) {
       out.assets = mapTables(program.assets, encodeVocabulary) as SparkProgram["assets"];
-    }
-    if (program.pathLocations) {
-      const packed = packLocations(program.pathLocations);
-      if (packed) {
-        out.pathLocations = packed as never;
-      }
     }
     this._held = used;
     return out as T;
@@ -241,9 +185,6 @@ export class ProgramTransportDecoder {
       }
     }
     this._held = held;
-    if (isPacked(program.pathLocations)) {
-      program.pathLocations = unpackLocations(program.pathLocations) as never;
-    }
     return program;
   }
 }

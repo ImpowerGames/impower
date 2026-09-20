@@ -58,7 +58,7 @@ import { UnpauseGameMessage } from "@impower/spark-engine/src/game/core/classes/
 import { ErrorType } from "@impower/spark-engine/src/game/core/enums/ErrorType";
 import type { DocumentLocation } from "@impower/spark-engine/src/game/core/types/DocumentLocation";
 import { findClosestPath } from "@impower/spark-engine/src/game/core/utils/findClosestPath";
-import { pathLocationEntries } from "@impower/spark-engine/src/game/core/utils/pathLocationEntries";
+import { possibleBreakpointLines } from "@impower/spark-engine/src/game/core/utils/possibleBreakpointLines";
 import { CompiledProgramMessage } from "@impower/sparkdown/src/compiler/classes/messages/CompiledProgramMessage";
 import { RemovedCompilerFileMessage } from "@impower/sparkdown/src/compiler/classes/messages/RemovedCompilerFileMessage";
 import { SelectedCompilerDocumentMessage } from "@impower/sparkdown/src/compiler/classes/messages/SelectedCompilerDocumentMessage";
@@ -1541,24 +1541,11 @@ export class GamePlayerController {
     const { search } = message.params;
     const program = this._game?.program || this._program;
     if (program) {
-      const lines: number[] = [];
-      const possibleLocations = Object.values(program.pathLocations || {});
-      const scripts = Object.keys(program.scripts);
-      const searchScriptIndex = scripts.indexOf(search.uri);
-      for (const possibleLocation of possibleLocations) {
-        const [scriptIndex, line] = possibleLocation;
-        if (scriptIndex != null && scriptIndex === searchScriptIndex) {
-          if (
-            line >= search.range.start.line &&
-            line <= search.range.end.line
-          ) {
-            lines.push(line);
-          }
-        }
-        if (scriptIndex > searchScriptIndex) {
-          break;
-        }
-      }
+      const lines = possibleBreakpointLines(
+        program.pathLocations,
+        Object.keys(program.scripts),
+        search,
+      );
       const result = { lines };
       return GetGamePossibleBreakpointLocationsMessage.type.response(
         message.id,
@@ -2158,7 +2145,7 @@ export class GamePlayerController {
     };
     const previewPath = findClosestPath(
       previewFrom,
-      pathLocationEntries(program),
+      program.pathLocations,
       Object.keys(program.scripts),
     );
 
@@ -2189,7 +2176,7 @@ export class GamePlayerController {
       : programChanged
         ? findClosestPath(
             validPreviewFrom,
-            pathLocationEntries(program),
+            program.pathLocations,
             Object.keys(program.scripts),
           )
         : this._game?.previewPath;

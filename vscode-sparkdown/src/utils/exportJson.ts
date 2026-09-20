@@ -29,7 +29,14 @@ export const exportJson = async (): Promise<void> => {
   }
   SparkdownCommandTreeDataProvider.instance.notifyExportStarted("json");
   await new Promise<void>(async (resolve) => {
-    await writeFile(fsPath, JSON.stringify(program));
+    // The program's path-location ranges are one typed array; write them as
+    // an array of numbers rather than as an object keyed by position.
+    await writeFile(
+      fsPath,
+      JSON.stringify(program, (_key, value) =>
+        ArrayBuffer.isView(value) ? Array.from(value as never) : value,
+      ),
+    );
     resolve();
   });
   SparkdownCommandTreeDataProvider.instance.notifyExportEnded("json");
