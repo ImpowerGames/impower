@@ -7,6 +7,7 @@
 // implicitly via the (now-removed) `inkjs/compiler/Compiler` import; keep it
 // explicit so consumers of SparkdownCompiler don't hit a TDZ crash.
 import "../../inkjs/engine/Container";
+import type { TextDocumentContentChangeEvent } from "vscode-languageserver-textdocument";
 import { resolveImageAttributes } from "../utils/filterImage";
 import {
   collectMorphIssues,
@@ -87,6 +88,7 @@ import type { SparkDeclaration } from "../types/SparkDeclaration";
 import { DiagnosticSeverity, type SparkDiagnostic } from "../types/SparkDiagnostic";
 import type { SparkdownCompilerConfig } from "../types/SparkdownCompilerConfig";
 import type { SparkdownCompilerState } from "../types/SparkdownCompilerState";
+import type { ProgramChangeSummary } from "../types/ProgramChangeSummary";
 import type { SparkProgram } from "../types/SparkProgram";
 import type { SparkSelector } from "../types/SparkSelector";
 import { setBuiltinTypeNames } from "../utils/builtinTypeNames";
@@ -490,6 +492,40 @@ export class SparkdownCompiler {
   // makes the lines comparable: the recursive parse walks every included
   // script, and two scripts' line numbers overlap.
   protected _changedChunkRanges?: Array<[number, number, string]>;
+
+  // ---- Per-compile change summary (`program.changes`) ---------------------
+  // A counter over this instance's compiles, so a client can tell whether the
+  // program it is holding is the one this compile's changes are measured
+  // against. Document versions cannot answer that: a preview compile stamps a
+  // negative one, and two compiles of the same versions are indistinguishable.
+  protected _changeSequence = 0;
+  // The id stamped on the last program served, which is what the next compile's
+  // changes are measured against.
+  protected _lastChangeId?: number;
+  // Raised during a compile by any signal that means the changed source lines
+  // are NOT the whole difference between this program and the last one.
+  // Everything that raises it is a hazard listed on
+  // `ProgramChangeSummary.confined`.
+  protected _changeHazard = false;
+  // Per script uri, the earliest 0-based line any content change applied since
+  // the last compile touched. Text above it is the same text the last compile
+  // read, which is what makes the line mean the same thing in both.
+  //
+  // Accumulated as the changes arrive rather than derived afterwards: an edit
+  // and the chunk it re-lowers are different spans, and only the edit itself
+  // bounds what the author can have changed.
+  protected _editedFrom = new Map<string, number>();
+  // The file-registry epoch the last summary was stamped at. A file added,
+  // replaced or removed is a change no line number describes.
+  protected _changeFilesEpoch = -1;
+  // Per top-level flow, the cross-flow fingerprint it serialized with last
+  // compile: its containers' visit-count flags and its diverts' resolved
+  // targets. Those are the parts of a flow's bytecode an edit ELSEWHERE can
+  // move, and a checkpoint taken before such a move records counts under the
+  // old flags and a callstack under the old targets. Kept apart from the
+  // serialized-bytecode caches because it has to cover flows those caches skip
+  // and flows they were not asked about.
+  protected _flowFingerprints?: Map<string, string>;
   // Per-flow asset captures for this compile (`program.sceneAssets`), keyed
   // like `_locCache` plus "0" for root content. A reused flow contributes its
   // cached capture by reference; a recomputed flow is captured through
@@ -973,7 +1009,32 @@ export class SparkdownCompiler {
   }
 
   updateDocument(params: UpdateCompilerDocumentParams) {
-    return this.documents.update(params);
+    const applied = this.documents.update(params);
+    if (applied) {
+      this.noteDocumentEdits(params.textDocument.uri, params.contentChanges);
+    }
+    return applied;
+  }
+
+  /** Record where a set of applied content changes starts, for the next
+   *  compile's change summary.
+   *
+   *  A change with no range replaces the whole document, so it starts at its
+   *  first line. */
+  protected noteDocumentEdits(
+    uri: string,
+    contentChanges: readonly TextDocumentContentChangeEvent[],
+  ) {
+    for (const change of contentChanges) {
+      const line = Math.max(
+        0,
+        "range" in change ? change.range.start.line : 0,
+      );
+      const previous = this._editedFrom.get(uri);
+      if (previous == null || line < previous) {
+        this._editedFrom.set(uri, line);
+      }
+    }
   }
 
   removeFile(params: RemoveCompilerFileParams) {
@@ -1074,15 +1135,38 @@ export class SparkdownCompiler {
     // (#f flags + resolved divert/reference paths) is unchanged. Content is
     // covered by the chunk-unchanged signal; the fingerprint covers the
     // cross-flow bits that change without the flow's own source changing.
-    const { reusable: reusableFlows, ok: flowReuseOk } =
-      this.computeFlowReuse(story);
-    if (this._renamedFlowNames) {
+    const {
+      reusable: reusableFlows,
+      settled: settledFlows,
+      ok: flowReuseOk,
+    } = this.computeFlowReuse(story);
+    const previousFingerprints = this._flowFingerprints;
+    const nextFingerprints = new Map<string, string>();
+    // A flow written entirely above everything the author edited, whose
+    // serialized cross-flow bits have nonetheless moved. Nothing about the
+    // edited LINES can account for that, so the change summary must not claim
+    // they are the whole difference. See `settledFlows`.
+    const noteFingerprint = (name: string, fp: string) => {
+      nextFingerprints.set(name, fp);
+      if (!settledFlows.has(name)) {
+        return;
+      }
+      if (previousFingerprints?.get(name) !== fp) {
+        this.noteCrossFlowShift();
+      }
+    };
+    if (this._renamedFlowNames?.size) {
       // A synthetic rename inside a flow changes its serialized bytes in
       // ways the fingerprint can't see — its cached JSON must not be
       // served (see the canonicalize step above).
       for (const renamed of this._renamedFlowNames) {
         reusableFlows.delete(renamed);
       }
+      // And a rename rebinds a name to different content, because synthetic
+      // names are document-order ordinals. A route names each position it
+      // reached by path, and a path through a synthetic flow starts with that
+      // name, so the change summary cannot answer for it either.
+      this._changeHazard = true;
     }
     if (!flowReuseOk) {
       // The global guard failed (`_unchangedFlowShapeAtRisk`: something this
@@ -1094,6 +1178,23 @@ export class SparkdownCompiler {
       story.ToJson(writer as never);
       this._flowJsonCache = undefined;
       this._flowChunkCache = undefined;
+      // The memo is what normally fingerprints each flow, and it did not run.
+      // Walking for them anyway is the difference between the NEXT compile
+      // being able to tell a settled flow apart from an unknown one and not,
+      // and it costs a fraction of the serialization this branch just did.
+      const flows = story.mainContentContainer?.namedOnlyContent;
+      if (flows) {
+        for (const [name, value] of flows) {
+          const container = asOrNull(value, Container);
+          if (container) {
+            noteFingerprint(
+              name,
+              JsonSerialisation.FingerprintCrossFlow(container),
+            );
+          }
+        }
+      }
+      this._flowFingerprints = nextFingerprints;
     } else if (binary) {
       // Binary twin of the JSON memo below. The reuse GUARDS are shared —
       // `reusableFlows` and the `_renamedFlowNames` subtraction are
@@ -1104,6 +1205,11 @@ export class SparkdownCompiler {
       const nextChunkCache = new Map<string, CachedFlowChunk>();
       const flowMemo = {
         resolve: (name: string, container: Container, serialize: () => any) => {
+          // Fingerprinted before anything else, including the flows the cache
+          // never serves: the change summary asks about every flow, and one it
+          // is not told about is one it cannot claim to account for.
+          const fp = JsonSerialisation.FingerprintCrossFlow(container);
+          noteFingerprint(name, fp);
           // Same two exclusions as the JSON path, for the same reasons:
           // `global decl` is non-contiguous and cheap, and canonical
           // synthetic names are POSITIONAL, so a name can rebind to a
@@ -1111,7 +1217,6 @@ export class SparkdownCompiler {
           if (name === "global decl" || CANONICAL_SYNTH_NAME.test(name)) {
             return serialize();
           }
-          const fp = JsonSerialisation.FingerprintCrossFlow(container);
           if (reusableFlows.has(name) && prevChunkCache) {
             const cached = prevChunkCache.get(name);
             // The generation check is what keeps a reseed sound. Returning
@@ -1141,6 +1246,7 @@ export class SparkdownCompiler {
         nextChunkCache.set(name, entry);
       }
       this._flowChunkCache = nextChunkCache;
+      this._flowFingerprints = nextFingerprints;
     } else {
       const prevFlowCache = this._flowJsonCache;
       const nextFlowCache = new Map<string, { fp: string; value: any }>();
@@ -1158,10 +1264,15 @@ export class SparkdownCompiler {
           // (it deliberately records nothing for pure content, relying on
           // chunk identity for structure, which name rebinding breaks).
           // These are tiny function knots; serializing fresh is cheap.
+          //
+          // Both are still fingerprinted, before anything else: the change
+          // summary asks about every flow, and one it is not told about is one
+          // it cannot claim to account for.
+          const fp = JsonSerialisation.FingerprintCrossFlow(container);
+          noteFingerprint(name, fp);
           if (name === "global decl" || CANONICAL_SYNTH_NAME.test(name)) {
             return serialize();
           }
-          const fp = JsonSerialisation.FingerprintCrossFlow(container);
           let value: any;
           if (reusableFlows.has(name) && prevFlowCache) {
             const cached = prevFlowCache.get(name);
@@ -1178,6 +1289,7 @@ export class SparkdownCompiler {
       // Writer. The two are interchangeable on this path only.
       story.ToJson(writer as SimpleJson.Writer, flowMemo);
       this._flowJsonCache = nextFlowCache;
+      this._flowFingerprints = nextFingerprints;
     }
     if (binary) {
       // Pieces, not a packed blob: `nodes`/`numbers` are typed arrays that
@@ -1199,6 +1311,61 @@ export class SparkdownCompiler {
     }
     profile("end", this._profilerId, "ink/json", uri);
   }
+  /**
+   * Give this compile its identity and its account of what it changed.
+   *
+   * Every compile gets one, including a compile that changed nothing and one
+   * that failed, because the identity is what lets a client tell whether the
+   * program it holds is the one these changes are measured against. Serving a
+   * program with no summary at all would be indistinguishable from serving one
+   * whose summary a client had already read.
+   *
+   */
+  protected stampChangeSummary(confined: boolean): ProgramChangeSummary {
+    const changedFrom: { [uri: string]: number } = {};
+    const earliest = (uri: string, line: number) => {
+      const at = Math.max(0, line);
+      const previous = changedFrom[uri];
+      if (previous == null || at < previous) {
+        changedFrom[uri] = at;
+      }
+    };
+    for (const [uri, line] of this._editedFrom) {
+      earliest(uri, line);
+    }
+    // A file added, replaced or removed since the last summary is a change the
+    // edits cannot describe: no content change was applied for it.
+    const filesSettled = this._filesEpoch === this._changeFilesEpoch;
+    const summary: ProgramChangeSummary = {
+      id: ++this._changeSequence,
+      since: this._lastChangeId,
+      changedFrom,
+      confined: confined && filesSettled,
+    };
+    this._lastChangeId = summary.id;
+    this._changeFilesEpoch = this._filesEpoch;
+    // Consumed: this summary reports them, and the next one is measured against
+    // this program rather than the one before it. The hazard flag is consumed
+    // with them, which gives it a lifetime of one summary to the next rather
+    // than one compile to the next — bytecode is sometimes serialized outside a
+    // compile, and a hazard raised there belongs to the summary being stamped.
+    this._editedFrom.clear();
+    this._changeHazard = false;
+    return summary;
+  }
+
+  /** Record that a flow whose own source is unchanged nonetheless serialized
+   *  differently.
+   *
+   *  The cross-flow fingerprint covers exactly the bits of a flow's bytecode
+   *  that an edit ELSEWHERE can move: the visit-count flags on its containers
+   *  and the resolved target of every divert. A checkpoint taken before this
+   *  compile recorded visit counts under the old flags and a callstack under the
+   *  old targets, so resuming from it would carry both forward. */
+  protected noteCrossFlowShift() {
+    this._changeHazard = true;
+  }
+
   compile(params: CompileProgramParams) {
     const result: {
       textDocument: { uri: string; version: number };
@@ -1257,6 +1424,9 @@ export class SparkdownCompiler {
       textDocument: { uri: textDocument.uri, version: previewVersion },
       contentChanges,
     });
+    if (applied) {
+      this.noteDocumentEdits(textDocument.uri, contentChanges);
+    }
     let compiled: ReturnType<SparkdownCompiler["compileStory"]>;
     try {
       compiled = this.compileStory({ textDocument: root, startFrom });
@@ -1274,6 +1444,10 @@ export class SparkdownCompiler {
           },
           contentChanges: inverse,
         });
+        // Putting the text back is itself an edit as far as the NEXT compile is
+        // concerned: the compile above is the one it will be measured against,
+        // and that compile read the suggested text.
+        this.noteDocumentEdits(textDocument.uri, inverse);
         this._previewedSinceCanonical = true;
       }
     }
@@ -1328,6 +1502,15 @@ export class SparkdownCompiler {
       ) {
         this.serializeCompiledProgram(cached.story, cached.program, uri);
       }
+      // Nothing that feeds a compile has changed, so this program differs from
+      // the one before it nowhere at all — the strongest summary there is, and
+      // the one that lets a client keep everything it planned. It still needs a
+      // fresh identity: the program object is served again, and a client
+      // comparing identities has to see a compile it has not seen before.
+      //
+      // Stamped after any serialization above, so a serialization that raises a
+      // hazard raises it against this summary and not a later one.
+      cached.program.changes = this.stampChangeSummary(!this._changeHazard);
       const result: {
         textDocument: { uri: string; version: number };
         program: SparkProgram;
@@ -1477,6 +1660,13 @@ export class SparkdownCompiler {
     // Rebuilt by `populateAllLocations`; cleared first so a compile that never
     // reaches the walk cannot publish the previous compile's captures.
     this._flowAssetAccum = undefined;
+    // Begin a fresh change summary. The verdict is only reached at the very end
+    // of the compile, where every hazard below has had its chance to speak; a
+    // compile that stops before then reports the answer that costs a client
+    // nothing but a full re-plan.
+    this._changeHazard = false;
+    // Nothing to measure against on the first compile of an instance.
+    const hadPreviousCompile = this._prevCompilationIds != null;
 
     let compileThrew = false;
     // ---- Incremental ExportRuntime: per-compile flow-reuse guards ----
@@ -1838,6 +2028,14 @@ export class SparkdownCompiler {
       program.simulationOptions = this._config.simulationOptions;
     }
     program.startFrom = startFrom ?? this._config.startFrom;
+    program.changes = this.stampChangeSummary(
+      hadPreviousCompile &&
+        !compileThrew &&
+        !!state.story &&
+        emitCompiledProgram &&
+        !this._changeHazard &&
+        !this._unchangedFlowShapeAtRisk,
+    );
     // Remember this compile for the no-change short-circuit -- but only if it
     // completed cleanly (a compile that threw may hold a partial program).
     this._lastCompileResult = compileThrew
@@ -2240,13 +2438,21 @@ export class SparkdownCompiler {
               this._censusEntries?.push(`${uri}|${name}`);
             }
           }
-          if (
-            this._prevCompilationIds &&
-            !this._prevCompilationIds.has(block) &&
-            scan.invalidatesGlobals
-          ) {
-            this._flowReuseDisabled = true;
-            this._unchangedFlowShapeAtRisk = true;
+          if (this._prevCompilationIds && !this._prevCompilationIds.has(block)) {
+            if (scan.invalidatesGlobals) {
+              this._flowReuseDisabled = true;
+              this._unchangedFlowShapeAtRisk = true;
+            }
+            if (scan.disqualifies) {
+              // A changed chunk that declares a list, a constant, an external,
+              // a struct or a global. Every one of those is registered into the
+              // story at generation time and read back out of the variables a
+              // checkpoint carries, so a route resumed from a checkpoint taken
+              // before this compile would carry the OLD value forward however
+              // far below the route the declaration is written. The changed
+              // LINES cannot express that, so the summary declines instead.
+              this._changeHazard = true;
+            }
           }
         }
       }
@@ -3471,13 +3677,15 @@ export class SparkdownCompiler {
 
   protected computeFlowReuse(story: RuntimeStory): {
     reusable: Set<string>;
+    settled: Set<string>;
     ok: boolean;
   } {
     const reusable = new Set<string>();
     const root = story.mainContentContainer;
     const named = root?.namedOnlyContent;
+    const settled = this.settledFlows(root);
     if (!named) {
-      return { reusable, ok: true };
+      return { reusable, settled, ok: true };
     }
     const flows: Array<{ name: string; uri: string; start0: number }> = [];
     for (const [name, value] of named) {
@@ -3493,7 +3701,7 @@ export class SparkdownCompiler {
       });
     }
     if (this._unchangedFlowShapeAtRisk) {
-      return { reusable, ok: false };
+      return { reusable, settled, ok: false };
     }
     const spans = this.buildFlowSpanIndex(flows);
     for (const f of flows) {
@@ -3501,7 +3709,69 @@ export class SparkdownCompiler {
         reusable.add(f.name);
       }
     }
-    return { reusable, ok: true };
+    return { reusable, settled, ok: true };
+  }
+
+  /**
+   * The top-level flows written entirely above everything the author edited
+   * since the last compile.
+   *
+   * Their source text is the text the last compile read, so any difference in
+   * what they now compile to came from somewhere else in the program — which is
+   * the one thing a change summary reported as a set of edited LINES cannot say.
+   * Their serialized shape is compared instead, in `serializeCompiledProgram`.
+   *
+   * Deliberately NOT the same question as reuse: a flow can be re-lowered
+   * because the edit fell in its chunk's reparse window while its own text is
+   * untouched, and that flow still has to be checked.
+   */
+  protected settledFlows(root: Container | null): Set<string> {
+    const settled = new Set<string>();
+    const named = root?.namedOnlyContent;
+    if (!named) {
+      return settled;
+    }
+    const starts: Array<{ name: string; uri: string; start0: number }> = [];
+    const byUri = new Map<string, number[]>();
+    for (const [name, value] of named) {
+      const md = asOrNull(value, Container)?.ownDebugMetadata;
+      const uri = md?.filePath ?? "";
+      const start0 = md ? md.startLineNumber - 1 : -1;
+      starts.push({ name, uri, start0 });
+      if (uri && start0 >= 0) {
+        const list = byUri.get(uri);
+        if (list) {
+          list.push(start0);
+        } else {
+          byUri.set(uri, [start0]);
+        }
+      }
+    }
+    for (const list of byUri.values()) {
+      list.sort((a, b) => a - b);
+    }
+    for (const flow of starts) {
+      if (!flow.uri || flow.start0 < 0) {
+        continue;
+      }
+      const edited = this._editedFrom.get(flow.uri);
+      if (edited == null) {
+        settled.add(flow.name);
+        continue;
+      }
+      // The flow runs to the line before the next flow in the same script.
+      let end = Number.POSITIVE_INFINITY;
+      for (const start of byUri.get(flow.uri) ?? []) {
+        if (start > flow.start0) {
+          end = start;
+          break;
+        }
+      }
+      if (end <= edited) {
+        settled.add(flow.name);
+      }
+    }
+    return settled;
   }
 
   populateAllLocations(program: SparkProgram, story: RuntimeStory) {
@@ -3666,6 +3936,12 @@ export class SparkdownCompiler {
       // so both caches reach the same verdict from the same evidence.
       if (effPrevCache && this._unchangedFlowShapeAtRisk) {
         effPrevCache = undefined;
+      }
+      if (!effPrevCache) {
+        // The set of top-level flows changed, or something can have moved the
+        // shape of a flow whose own source did not. Either way this compile is
+        // not one whose differences the edited lines account for.
+        this._changeHazard = true;
       }
       for (const f of flows) {
         // `global decl`'s source is non-contiguous (scattered declarations), so

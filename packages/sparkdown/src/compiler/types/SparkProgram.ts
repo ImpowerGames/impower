@@ -1,5 +1,6 @@
 import type { ProgramBuffer } from "../../binary/programBinary";
 import { type File } from "./File";
+import type { ProgramChangeSummary } from "./ProgramChangeSummary";
 import { type SceneAssets } from "./SceneAssets";
 import type { Range,SparkDiagnostic } from "./SparkDiagnostic";
 import {
@@ -35,6 +36,10 @@ export interface SparkProgram {
   compiledBuffer?: ProgramBuffer;
   workspace?: string;
   startFrom?: { file: string; line: number };
+  /** Where this compile can differ from the one before it, and whether that is
+   *  the whole difference. Read by a client holding work planned against the
+   *  previous program; see {@link ProgramChangeSummary}. */
+  changes?: ProgramChangeSummary;
   simulationOptions?: Record<
     string,
     {

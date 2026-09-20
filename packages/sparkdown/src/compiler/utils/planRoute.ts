@@ -95,6 +95,44 @@ export interface RouteStep {
   decision: number;
   /** The index of the latest checkpoint made so far */
   checkpoint?: number;
+  /** Where this step's path pointed in the program it was REPLAYED in: the
+   *  script, and the location the compiler recorded for the path (`Game`'s
+   *  replay stamps both).
+   *
+   *  This is what lets a later compile decide whether the step still means what
+   *  it meant. Two different things can go wrong and both are read from here:
+   *  the author can have edited the text the step came from, and an edit
+   *  elsewhere can have renumbered the path so that it now points at other
+   *  content entirely.
+   *
+   *  `stamped` says the step was reached and looked up, which is what separates
+   *  "the compiler recorded no location for this path" from "nobody has asked".
+   *  An object with no location of its own is ordinary — a beat's control
+   *  objects have none — and a step that acquires one has still moved. */
+  stamped?: boolean;
+  uri?: string;
+  location?: readonly number[];
+}
+
+/**
+ * Where a search starts when it starts part-way along a route it already has.
+ *
+ * Everything here is what a node built by walking there would have held, so a
+ * search resumed from one produces a plan indistinguishable from a search that
+ * walked the whole way: the same step identities, so an earlier plan's
+ * checkpoints still match, and the same decision history, so the simulator
+ * behind it still forces what it forced.
+ */
+export interface RouteResumePoint {
+  /** Story state at that step, as `story.state.toJson()` writes it. */
+  stateJson: string;
+  /** The route's steps up to and including that step. */
+  steps: RouteStep[];
+  /** Every decision taken to get there, in order. */
+  decisions: RouteOverride[];
+  /** Those decisions split the way a plan reports them. */
+  conditions: { selected: boolean }[];
+  choices: { options: string[]; selected: number }[];
 }
 
 export interface ConditionOverride {
@@ -191,6 +229,23 @@ export interface SearchOptions {
    * state load can run on it immediately.
    */
   callerResetsStory?: boolean;
+
+  /**
+   * Start the search part-way along a route already taken rather than at the
+   * top of `fromPath`.
+   *
+   * The story ahead of a resume point is the story that was already searched
+   * and replayed, so searching it again finds the same thing at the cost of
+   * every step in it — which on a long scene is the whole cost. A caller that
+   * can show the earlier part of a route is still valid hands the position back
+   * instead, and the search picks up from there.
+   *
+   * It narrows the search as well as shortening it: only the branches reachable
+   * from that position are explored, so a target that is only reachable by
+   * deciding differently earlier is NOT found. A caller that wants the full
+   * answer searches again without this when a resumed search comes back empty.
+   */
+  resumeFrom?: RouteResumePoint;
 }
 
 // Drives the story forward until we either:
@@ -478,7 +533,11 @@ export const planRoute = (
     // Inside the guarded region, and before the hooks are replaced: the start
     // node is built under the story owner's own hooks, as the rest of the
     // search is not.
-    queue.push(makeStartNode(story, fromPath));
+    queue.push(
+      options?.resumeFrom
+        ? makeResumeNode(options.resumeFrom)
+        : makeStartNode(story, fromPath),
+    );
 
     story.onError = NOOP;
     story.onExecute = NOOP;
@@ -972,6 +1031,28 @@ const makeStartNode = (story: Story, fromPath: string): SearchNode => {
     overrides: [],
   };
 };
+
+/**
+ * The search node a resume point stands for.
+ *
+ * Nothing is done to the story here. A node's state is restored from its own
+ * `stateJson` when it runs, so unlike {@link makeStartNode} this neither resets
+ * the story nor moves it.
+ *
+ * The decisions are handed on as the node's queued overrides in full, exactly as
+ * a node reached by walking would carry them: the story does not revisit the
+ * sites they name, so they sit unconsumed, and dropping them would change what
+ * happens if it ever did.
+ */
+const makeResumeNode = (resumeFrom: RouteResumePoint): SearchNode => ({
+  stateJson: resumeFrom.stateJson,
+  seq: resumeFrom.steps.at(-1)?.seq ?? "",
+  steps: [...resumeFrom.steps],
+  decisions: [...resumeFrom.decisions],
+  conditions: [...resumeFrom.conditions],
+  choices: [...resumeFrom.choices],
+  overrides: [...resumeFrom.decisions],
+});
 
 const knotNameFromPath = (path: string | undefined): string =>
   path?.split(".")[0] || "0";
