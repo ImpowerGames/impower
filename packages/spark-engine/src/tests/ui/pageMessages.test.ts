@@ -136,6 +136,87 @@ describe("page messages", () => {
     expect(harness.messages.slice(mark).map((m) => m.method)).toEqual([]);
   });
 
+  test("a restore superseded while a re-opened layout's font loads does not mount it", async () => {
+    // The checkpoint had `hud` open; restoring it waits for its font, and a
+    // newer connect begins meanwhile. That connect restores its own layouts.
+    const fonts: File[] = [
+      {
+        uri: "file://proj/fancy.ttf",
+        type: "font",
+        name: "Fancy",
+        ext: "ttf",
+        src: "/file:/proj/fancy.ttf?v=1",
+      } as File,
+    ];
+    const source = `style hud with\n  font_family = "Fancy"\nend\n\nlayout hud with\n  stats:\n    text\nend\n\n${story("  Hi.")}`;
+    const restoreHud = async (supersede: boolean) => {
+      const harness = createHarness(source, 0, {
+        assets: fonts,
+        holdAssets: true,
+        autoOpenAll: false,
+      });
+      await harness.ready;
+      const ui: any = harness.game.module.ui;
+      expect(ui._mountedLayouts.has("hud")).toBe(false);
+      ui._state.layout = [{ name: "hud" }];
+      const restoring = ui.onRestore();
+      await flushMicrotasks(20);
+      expect(harness.heldAssetLoadCount()).toBe(1);
+      if (supersede) {
+        harness.game.connection.beginEpoch();
+      }
+      const mark = harness.messages.length;
+      harness.releaseAssets();
+      await restoring;
+      await flushMicrotasks(20);
+      return flattenMessages(harness.messages.slice(mark))
+        .filter((m) => m.method === "ui/create")
+        .map((m) => m.params.name);
+    };
+    // Unsuperseded, the restore mounts `hud` once its font is in.
+    expect(await restoreHud(false)).toContain("hud");
+    expect(await restoreHud(true)).toEqual([]);
+  });
+
+  test("an audio restore superseded while its loop loads does not start it", async () => {
+    const restoreLoop = async (supersede: boolean) => {
+      const harness = createHarness(story("  Hi."), 0, {
+        beforeConnect: (game) => {
+          game.context.system.previewing = undefined;
+        },
+      });
+      await harness.ready;
+      const connection = harness.game.connection;
+      // The page holds this restore's load until the newer connect began.
+      const sent: any[] = [];
+      connection.connectOutput((message) => sent.push(cloneMessage(message)));
+      const audio: any = harness.game.module.audio;
+      audio._state.channels = {
+        music: { looping: [{ key: "audio.beep", to: 1 }] },
+      };
+      const restoring = audio.onRestore();
+      await flushMicrotasks(20);
+      const load = sent.find((m) => m.method === "audio/load");
+      expect(load?.params.key).toContain("beep");
+      if (supersede) {
+        connection.beginEpoch();
+      }
+      const mark = sent.length;
+      connection.receive({
+        jsonrpc: "2.0",
+        id: load.id,
+        method: load.method,
+        result: { outputLatency: 0 },
+      } as any);
+      await restoring;
+      await flushMicrotasks(20);
+      return sent.slice(mark).map((m) => m.method);
+    };
+    // Unsuperseded, the restore resumes the loop once it has loaded.
+    expect(await restoreLoop(false)).toContain("audio/update");
+    expect(await restoreLoop(true)).toEqual([]);
+  });
+
   test("audio/load names the mixer its channel plays through and the gain it starts at", async () => {
     const harness = await runBeat(`  ((play sound beep))\n  HERO: Hello.`, false);
     const loads = flattenMessages(harness.messages).filter(
