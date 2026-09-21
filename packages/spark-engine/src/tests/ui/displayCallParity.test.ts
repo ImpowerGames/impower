@@ -174,6 +174,42 @@ describe("display() ↔ legacy parity (message stream)", () => {
     await assertParity(`  You have ..\n  {1 + 2}`);
   });
 
+  // A continuation with no visible words leaves the glue pending, so the next
+  // visible line still joins the same beat.
+  test("empty glued continuation keeps the beat open", async () => {
+    await assertParity(
+      `  You see\n  .. {if true then "" else ""}\n  The door.`,
+    );
+  });
+
+  test("whitespace-only glued continuation keeps the beat open", async () => {
+    await assertParity(
+      `  First\n  .. {if true then " " else ""}\n  Last ..\n  word.`,
+    );
+  });
+
+  test("trailing > break alone", async () => {
+    await assertParity(`  First >\n  Last.`);
+  });
+
+  test("trailing > break followed by a glued line", async () => {
+    await assertParity(`  First >\n  .. second.\n  Last.`);
+  });
+
+  // The `load` line stays flat text, and its glued continuation is a table:
+  // the step still has to queue a load beat.
+  test("load directive with a trailing-glue continuation", async () => {
+    await assertParity(
+      `  load overworld ..\n  underworld\n  The world appears.`,
+    );
+  });
+
+  test("load directive with a leading-glue continuation", async () => {
+    await assertParity(
+      `  load overworld\n  .. underworld\n  The world appears.`,
+    );
+  });
+
   test("line after a glued pair is its own beat", async () => {
     await assertParity(`  You see a ..\n  red door.\n  It is locked.`);
   });

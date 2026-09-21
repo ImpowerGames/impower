@@ -276,17 +276,6 @@ export class InterpreterModule extends Module<
       return;
     }
 
-    const { target, characterDeclaration } = this.routeFromTags(tags);
-    this.appendBeat(target, characterDeclaration, content, choices);
-  }
-
-  /**
-   * Resolve a beat's target and dialogue cue from its `story.currentTags`.
-   */
-  protected routeFromTags(tags: string[]): {
-    target: string;
-    characterDeclaration: string | undefined;
-  } {
     // Determine the default target (when there's no routing tag at all).
     const defaultTarget = this._targetPrefixMap?.[""] || "";
 
@@ -326,15 +315,16 @@ export class InterpreterModule extends Module<
         target = lineType || defaultTarget;
       }
     }
-    return { target, characterDeclaration };
+    this.appendBeat(target, characterDeclaration, content, choices);
   }
 
   /**
    * Build a beat's instructions from an already-resolved target + optional
    * dialogue cue + a final body string, and append them to the buffer. Shared
-   * by {@link queue} (routing resolved from the line-type tag, body from the
-   * flat `currentText`) and {@link queueInstructions} (routing + body carried in
-   * the `display(<table>)` table), so BOTH transports produce byte-identical
+   * by {@link queue} (routing resolved from the line-type tag) and
+   * {@link queueInstructions} (routing carried in the step's first
+   * `display(<table>)` table); the body is the step's `currentText` for both,
+   * so BOTH transports produce byte-identical
    * instructions: the cue resolution (name / parenthetical / position via
    * `CHARACTER_REGEX`), the `>` box split, the per-character `parse()`, the cue
    * prefixing, and the empty-textbox fold are all the same code path.
@@ -464,25 +454,24 @@ export class InterpreterModule extends Module<
   }
 
   /**
-   * Queue a beat handed over as a `display(<table>)` call — one
-   * {@link ObjectValue} table per call the runtime made this beat (collected via
+   * Queue the beat of a step that called `display(<table>)` — one
+   * {@link ObjectValue} table per call the runtime made this step (collected via
    * `story.currentDisplayInstructions`). The structured-transport counterpart to
    * {@link queue}: routing (`target`) and the dialogue cue (`character`) arrive
-   * as table FIELDS resolved at compile time instead of a line-type tag, and the
-   * body (`text`) arrives as a string whose `{interp}` holes were already
-   * evaluated to live values at call time. Both paths converge on
-   * {@link appendBeat}, so the cue resolution, `>` box split, per-character
-   * `parse()`, cue prefixing and buffer fold are byte-identical to the legacy
-   * path — only the source of target/cue/text differs.
+   * as table FIELDS resolved at compile time instead of a line-type tag. Both
+   * paths converge on {@link appendBeat}, so the cue resolution, `>` box split,
+   * per-character `parse()`, cue prefixing and buffer fold are byte-identical —
+   * only the source of the routing differs.
    *
    * Table shape: `{ target?: string, character?: string, text: string }`.
    *
    * One step makes one beat. Several tables share a step only when glue joined
-   * their lines, so the first table supplies the routing and the body is the
-   * step's ordered visible text (`story.currentText`: every table's `text` and
-   * any flat string, in stream order). A glued continuation's table carries no
-   * routing; when it is the first table, because the line it continues reached
-   * the stream as flat text, the routing comes from that line's tag in `tags`.
+   * their lines, so the first table supplies the routing, and the body is the
+   * step's ordered visible text: every table's `text` and any flat string, in
+   * stream order. A glued continuation's table carries no routing. When it is
+   * the step's first table, the line it continues reached the stream as flat
+   * text, so the step is a flat-text step with more words joined on and takes
+   * {@link queue}, which routes it by its tag and recognises a `load` line.
    *
    * @param content the step's `story.currentText`.
    * @param tags the step's `story.currentTags`.
@@ -493,25 +482,19 @@ export class InterpreterModule extends Module<
     content: string,
     tags: string[],
   ): void {
-    this._state.buffer ??= [];
-    const read = (table: ObjectValue | undefined, key: string): unknown =>
-      (table?.value?.get(key) as { value?: unknown } | undefined)?.value;
     const first = tables[0];
-    const tableTarget = read(first, "target");
-    let target: string;
-    let character: string | undefined;
-    if (typeof tableTarget === "string" && tableTarget) {
-      target = tableTarget;
-      const characterRaw = read(first, "character");
-      character =
-        typeof characterRaw === "string" && characterRaw
-          ? characterRaw
-          : undefined;
-    } else {
-      const routed = this.routeFromTags(tags);
-      target = routed.target;
-      character = routed.characterDeclaration;
+    const read = (key: string): unknown =>
+      (first?.value?.get(key) as { value?: unknown } | undefined)?.value;
+    const target = read("target");
+    if (typeof target !== "string" || !target) {
+      this.queue(content, choices, tags);
+      return;
     }
+    const characterRaw = read("character");
+    const character =
+      typeof characterRaw === "string" && characterRaw
+        ? characterRaw
+        : undefined;
     this.appendBeat(target, character, content, choices);
   }
 

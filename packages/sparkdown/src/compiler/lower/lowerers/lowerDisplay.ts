@@ -265,6 +265,13 @@ function tryBuildSimpleDisplayCall(
       i === 0 ? options : {},
     );
     const trailingGlue = body.at(-1) instanceof ParsedGlue ? body.pop() : null;
+    // A trailing `>` break ends the body with its own newline Text. Captured
+    // in the table it would sit where no glue can reach it, so a following
+    // `..` line would join after a line break. The newline `display()` pushes
+    // to close the step stands in for it on the output stream, where glue
+    // trims it as it trims any other.
+    const last = body.at(-1);
+    if (last instanceof Text && last.text === "\n") body.pop();
     if (!joinMidBodyGlue(body)) return null;
     if (body.length === 0) return null;
     for (const obj of body) {

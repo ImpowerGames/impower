@@ -138,6 +138,11 @@ describe("currentText of a joined chain", () => {
       "mid-body glue in a block dialogue",
       `HERO:\n  First ..\n  second.\ndone\n`,
     ],
+    ["a trailing break on its own", `First >\nLast.\ndone\n`],
+    [
+      "a trailing break followed by a glued line",
+      `First >\n.. second.\nLast.\ndone\n`,
+    ],
     [
       "a bare interpolation line as the continuation",
       `store count = 3\nYou have ..\n{count}\ndone\n`,
@@ -180,6 +185,22 @@ describe("step boundaries around glue", () => {
       ).toEqual(["You see a red door.\n", "It is locked.\n"]);
     },
   );
+
+  // A continuation with no visible words leaves the glue pending, as
+  // whitespace text does, so the next visible line joins the same step; that
+  // line's table then consumes the glue and the line after starts its own.
+  // (With the option off the routing tag pair shields the older glue from
+  // removal, so it lingers and also swallows the newline before `After.`.)
+  test("an empty continuation keeps the step open for the next line only", () => {
+    const source = `You see\n.. {if true then "" else ""}\nThe door.\nAfter.\n`;
+    expect(texts(source, true)).toEqual(["You see The door.\n", "After.\n"]);
+    expect(texts(source, false).join("")).toContain("You see The door.");
+  });
+
+  test("a whitespace-only continuation keeps the step open", () => {
+    const source = `store x = ""\nFirst\n.. {x}\nLast ..\nword.\nAfter.\n`;
+    expect(texts(source, true)).toEqual(["First Last word.\n", "After.\n"]);
+  });
 
   test("a table with empty text still ends its own step", () => {
     const result = steps(

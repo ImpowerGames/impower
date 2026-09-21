@@ -1116,10 +1116,15 @@ export class StoryState {
           includeInOutput = false;
       }
     } else if (obj instanceof ObjectValue) {
-      // A display table is content, so it consumes pending glue exactly as
+      // A display table with visible words consumes pending glue exactly as
       // non-whitespace text does. Left in place, the glue would swallow the
       // newline that closes this table's step and every later line would join.
-      this.RemoveExistingGlue();
+      // A table whose `text` is empty or whitespace leaves the glue pending,
+      // as whitespace text does, so the next visible words still join.
+      let tableText = obj.value?.get("text");
+      if (!(tableText instanceof StringValue) || tableText.isNonWhitespace) {
+        this.RemoveExistingGlue();
+      }
     }
 
     if (includeInOutput) {
