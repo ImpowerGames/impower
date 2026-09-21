@@ -68,7 +68,34 @@ scene two
 end
 `;
 
+// Glued chains: every line lowers to its own stamped display() call.
+const GLUED = `define HERO as character with
+  name = "HERO"
+end
+
+-> start
+
+scene start
+  Some
+  .. content
+  .. with glue.
+  HERO: Wait ..
+  right there.
+  You see a
+  if true then
+    .. red door.
+  end
+  The end.
+end
+`;
+
 describe("pathLocation coverage parity", () => {
+  test("a glued chain covers the same source lines", () => {
+    const covered = coveredLines(GLUED, true);
+    expect(covered.length).toBeGreaterThan(0);
+    expect(covered).toEqual(coveredLines(GLUED, false));
+  });
+
   test("display() covers exactly the same source lines as legacy", () => {
     const covered = coveredLines(FIXTURE, true);
     // Two empty lists are equal, so the comparison below only means something

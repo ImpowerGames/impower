@@ -77,6 +77,23 @@ function buildDisplayContent(
   if (ownLeadingGlue || continuationGlue) {
     const content: ParsedObject[] = [];
     content.push(new ParsedGlue(new RuntimeGlue()));
+    // With display calls on, the continuation is a `display({ text })` call
+    // carrying no routing: the runtime joins it onto the step the glue keeps
+    // open, and the beat takes its routing from that step's first table.
+    const continuationCall = tryBuildSimpleDisplayCall(
+      parent,
+      bodyStart,
+      bodyEnd,
+      ctx,
+      mode,
+      null,
+      null,
+      { preserveLeadingWhitespace: ownLeadingGlue },
+    );
+    if (continuationCall) {
+      content.push(...continuationCall);
+      return content;
+    }
     content.push(
       ...processDisplayBody(parent, bodyStart, bodyEnd, ctx, mode, {
         preserveLeadingWhitespace: ownLeadingGlue,
@@ -86,32 +103,24 @@ function buildDisplayContent(
     return content;
   }
 
-  // EXPERIMENTAL display-as-Luau-call path: when enabled, a SIMPLE display
-  // statement (plain text, single beat, no cue/layer/interpolation/divert/
-  // alternator/tag) lowers to a native `display({ target, text })` call instead
-  // of the legacy routing-tag + visible-text form. Carries the pre-parsed
-  // instruction table the runtime renders without a char-by-char re-scan. Any
-  // non-simple content returns null and falls through to the legacy path below,
+  // EXPERIMENTAL display-as-Luau-call path: when enabled, a display statement
+  // lowers to a native `display({ target, character?, text })` call (one per
+  // `>`-split beat) instead of the legacy routing-tag + visible-text form.
+  // Dialogue cues, write layers, interpolation, inline conditionals and
+  // alternators, and glue all ride the call; a mid-line divert, a `# tag`, a
+  // `load` line, a `write` with no layer and an empty body do not. The table carries the
+  // routing and the body string; the interpreter parses that body exactly as
+  // it parses flat text. Any non-simple content returns null and falls through to the legacy path below,
   // so existing goldens stay byte-identical until the table shape grows.
-  //
-  // A line CONTINUED by glue must also stay on the legacy path. Its
-  // continuation lowers to `Glue + text` (the early return above), and the
-  // runtime joins the two into ONE Continue — so the base line lowering to a
-  // display() call would put an instruction AND flat text in the same beat.
-  // `Game.continue` treats those as either/or (instructions win), so the
-  // continuation's text would be silently dropped. Keeping the whole glue
-  // chain legacy keeps the beat single-transport.
-  const displayCall = isNodeContinuedByGlue(parent, ctx)
-    ? null
-    : tryBuildSimpleDisplayCall(
-        parent,
-        bodyStart,
-        bodyEnd,
-        ctx,
-        mode,
-        lineType,
-        identifier,
-      );
+  const displayCall = tryBuildSimpleDisplayCall(
+    parent,
+    bodyStart,
+    bodyEnd,
+    ctx,
+    mode,
+    lineType,
+    identifier,
+  );
   if (displayCall) {
     return displayCall;
   }
@@ -184,19 +193,25 @@ function buildDisplayContent(
 // string at call time. The engine then runs the identical `parse()` pipeline.
 //
 // Falls back (returns null) for content the flat `text` string can't represent
-// faithfully yet: leading `..` glue (continuation), mid-line diverts, inline
-// conditionals/alternators, and `# tag`s (anything in the body that isn't plain
-// Text or a value-producing interpolation Expression). A mid-line `>` split is
+// faithfully yet: mid-line diverts and `# tag`s. A mid-line `>` split is
 // supported: each beat range emits its own display() call (separate beats via
 // the engine's display-instruction-count boundary).
+//
+// Glue: a `..` in the middle of a body is joined inside the captured string at
+// compile time (`joinMidBodyGlue`). A TRAILING `..` is lifted out and emitted
+// after the call, so it reaches the output stream and holds the step open for
+// the next line's table. A `null` line type marks a glued continuation: its
+// table carries `text` only, and its body is one range, because a continuation
+// is never split at breaks.
 function tryBuildSimpleDisplayCall(
   parent: SyntaxNode,
   bodyStart: number,
   bodyEnd: number,
   ctx: LowerContext,
   mode: "inline" | "block",
-  lineType: string,
+  lineType: string | null,
   identifier: string | null,
+  options: { preserveLeadingWhitespace?: boolean } = {},
 ): ParsedObject[] | null {
   if (!ctx.config?.experimentalDisplayCalls) return null;
 
@@ -215,9 +230,12 @@ function tryBuildSimpleDisplayCall(
   // Resolve the routing exactly as the engine's tag path does, but at compile
   // time: dialogue → target "dialogue" + the cue; write → the layer is the
   // target; everything else → the line type IS the target.
-  let target: string;
+  let target: string | undefined;
   let character: string | undefined;
-  if (lineType === "dialogue") {
+  if (lineType === null) {
+    target = undefined;
+    character = undefined;
+  } else if (lineType === "dialogue") {
     target = "dialogue";
     character = identifier ?? undefined;
   } else if (lineType === "write") {
@@ -232,23 +250,38 @@ function tryBuildSimpleDisplayCall(
   // A mid-line `>` BREAK splits the body into beats; each beat re-emits the same
   // routing (matching the legacy per-beat routing tag) as its own display()
   // call. The engine renders each as a separate Continue beat.
-  const ranges = splitBodyRangeAtBreaks(parent, bodyStart, bodyEnd, ctx);
+  const ranges =
+    lineType === null
+      ? [{ from: bodyStart, to: bodyEnd }]
+      : splitBodyRangeAtBreaks(parent, bodyStart, bodyEnd, ctx);
   const calls: ParsedObject[] = [];
-  for (const range of ranges) {
-    // Reuse the legacy body walker so trimming/escapes match exactly, then
-    // require every produced object to be plain Text or a value-producing
-    // interpolation Expression — anything else (Conditional, alternator
-    // Sequence, Divert, Tag, Glue) can't be string-captured faithfully, so
-    // fall the WHOLE statement back to the legacy path.
-    const body = processDisplayBody(parent, range.from, range.to, ctx, mode);
+  for (let i = 0; i < ranges.length; i++) {
+    const range = ranges[i]!;
+    // Reuse the legacy body walker so trimming/escapes match exactly.
+    const body = processDisplayBody(
+      parent,
+      range.from,
+      range.to,
+      ctx,
+      mode,
+      i === 0 ? options : {},
+    );
+    const trailingGlue = body.at(-1) instanceof ParsedGlue ? body.pop() : null;
+    // A trailing `>` break ends the body with its own newline Text. Captured
+    // in the table it would sit where no glue can reach it, so a following
+    // `..` line would join after a line break. The newline `display()` pushes
+    // to close the step stands in for it on the output stream, where glue
+    // trims it as it trims any other.
+    const last = body.at(-1);
+    if (last instanceof Text && last.text === "\n") body.pop();
+    if (!joinMidBodyGlue(body)) return null;
     if (body.length === 0) return null;
     for (const obj of body) {
-      // Value-producing content that string-captures faithfully: plain Text,
-      // interpolation Expressions, inline Conditionals (`{if …}`), and inline
-      // alternators (a Weave wrapping a Sequence). Anything else — a mid-line
-      // Divert (changes flow), a `# tag` (metadata), or Glue (whitespace
-      // control) — can't ride a captured string, so fall the whole statement
-      // back to the legacy path.
+      // Content that string-captures faithfully: plain Text, interpolation
+      // Expressions, inline Conditionals (`{if …}`), and inline alternators (a
+      // Weave wrapping a Sequence). Anything else — a mid-line Divert (changes
+      // flow) or a `# tag` (metadata) — can't ride a captured string, so fall
+      // the whole statement back to the legacy path.
       if (
         !(obj instanceof Text) &&
         !(obj instanceof Expression) &&
@@ -259,29 +292,55 @@ function tryBuildSimpleDisplayCall(
       }
     }
     calls.push(buildDisplayCall(target, character, body, range, ctx));
+    if (trailingGlue) calls.push(trailingGlue);
   }
   return calls.length > 0 ? calls : null;
 }
 
-// `display({ target, character?, text })` with `shouldPopReturnedValue` — a
+// Resolve each mid-body `..` of a display body in place. String evaluation
+// keeps newlines as literal characters, so a Glue object inside the captured
+// `text` string joins nothing; the join happens here. It mirrors what the
+// output stream does for flat text: the newlines before the marker and the
+// whitespace through the last newline after it are removed. Returns false when
+// a marker's neighbour is not plain Text, which the caller lowers as flat text.
+function joinMidBodyGlue(body: ParsedObject[]): boolean {
+  for (let i = body.length - 1; i >= 0; i--) {
+    if (!(body[i] instanceof ParsedGlue)) continue;
+    const prev = body[i - 1];
+    const next = body[i + 1];
+    if (prev && !(prev instanceof Text)) return false;
+    if (!(next instanceof Text)) return false;
+    if (prev) {
+      body[i - 1] = new Text(prev.text.replace(/\n[ \t\n]*$/, ""));
+    }
+    body[i + 1] = new Text(next.text.replace(/^[ \t\n]*\n/, ""));
+    body.splice(i, 1);
+  }
+  return true;
+}
+
+// `display({ target?, character?, text })` with `shouldPopReturnedValue` — a
 // synthesized bare-call statement (no author `&` needed). `display` is a
 // state-aware STDLIB entry, so this lowers to a RunStdLibFunction dispatch whose
 // live ObjectValue arg the engine reads via `story.currentDisplayInstructions`.
 // `text` is a StringExpression over the body's own ParsedObjects, so ink
 // evaluates interpolation to live values and concatenates the run at call time.
 function buildDisplayCall(
-  target: string,
+  target: string | undefined,
   character: string | undefined,
   body: ParsedObject[],
   range: { from: number; to: number },
   ctx: LowerContext,
 ): FunctionCall {
-  const entries = [
-    new ObjectExpressionEntry(
-      "target",
-      new StringExpression([new Text(target)]),
-    ),
-  ];
+  const entries: ObjectExpressionEntry[] = [];
+  if (target) {
+    entries.push(
+      new ObjectExpressionEntry(
+        "target",
+        new StringExpression([new Text(target)]),
+      ),
+    );
+  }
   if (character) {
     entries.push(
       new ObjectExpressionEntry(
@@ -930,44 +989,6 @@ function isNodePrecededByTrailingGlue(
   while (sib && GLUE_SKIP_SIBLINGS.has(sib.name)) sib = sib.prevSibling;
   if (!sib) return false;
   return endsWithTrailingGlue(sib, ctx);
-}
-
-// True when this line's beat will be CONTINUED by glued content — either it
-// ends with a trailing `..` itself, or the next display construct opens with a
-// leading `..`. Such a line must not lower to a display() call: the glued
-// continuation always lowers to legacy `Glue + text`, and mixing the two
-// transports in one runtime Continue drops the flat text (see the call site).
-function isNodeContinuedByGlue(node: SyntaxNode, ctx: LowerContext): boolean {
-  if (endsWithTrailingGlue(node, ctx)) return true;
-  let sib: SyntaxNode | null = node.nextSibling;
-  while (sib && GLUE_SKIP_SIBLINGS.has(sib.name)) sib = sib.nextSibling;
-  if (!sib) return false;
-  return startsWithLeadingGlue(sib, ctx);
-}
-
-// True when `node`'s first visible content is a `..` glue marker — the leading
-// form of `endsWithTrailingGlue`. The position check rejects `...` ellipsis
-// text, which passes the cheap prefix test but has no `Glue` node there.
-function startsWithLeadingGlue(node: SyntaxNode, ctx: LowerContext): boolean {
-  const text = ctx.read(node.from, node.to);
-  const trimmedLeading = text.replace(/^\s+/, "");
-  if (!trimmedLeading.startsWith("..")) return false;
-  const visibleStart = node.from + (text.length - trimmedLeading.length);
-  let found = false;
-  const visit = (n: SyntaxNode): void => {
-    if (found) return;
-    if (n.name === "Glue" && n.from === visibleStart) {
-      found = true;
-      return;
-    }
-    let c = n.firstChild;
-    while (c) {
-      visit(c);
-      c = c.nextSibling;
-    }
-  };
-  visit(node);
-  return found;
 }
 
 // True when `node`'s last visible content is a `..` glue marker — i.e. the
