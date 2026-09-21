@@ -1121,9 +1121,13 @@ export class StoryState {
       // newline that closes this table's step and every later line would join.
       // A table whose `text` is empty or whitespace leaves the glue pending,
       // as whitespace text does, so the next visible words still join.
+      //
+      // The removal looks past a `# tag`'s BeginTag/EndTag pair. A tag is
+      // metadata, so a tagged line between the glue and the table leaves the
+      // step boundaries where they would be without the tag.
       let tableText = obj.value?.get("text");
       if (!(tableText instanceof StringValue) || tableText.isNonWhitespace) {
-        this.RemoveGlueBeforeDisplayTable();
+        this.RemoveExistingGlue(true);
       }
     }
 
@@ -1169,34 +1173,18 @@ export class StoryState {
     this.OutputStreamDirty();
   }
 
-  public RemoveExistingGlue() {
+  // Remove pending glue, scanning back to the nearest control command. With
+  // `pastTags`, a BeginTag/EndTag pair does not end the scan.
+  public RemoveExistingGlue(pastTags = false) {
     for (let i = this.outputStream.length - 1; i >= 0; i--) {
       let c = this.outputStream[i];
       if (c instanceof Glue) {
         this.outputStream.splice(i, 1);
       } else if (c instanceof ControlCommand) {
-        break;
-      }
-    }
-
-    this.OutputStreamDirty();
-  }
-
-  // Remove the glue pending before a display table. A `# tag` is metadata, so
-  // its BeginTag/EndTag pair does not shield glue the way other control
-  // commands do: a tagged line between the glue and the table leaves the step
-  // boundaries where they would be without the tag.
-  public RemoveGlueBeforeDisplayTable() {
-    for (let i = this.outputStream.length - 1; i >= 0; i--) {
-      let c = this.outputStream[i];
-      if (c instanceof Glue) {
-        this.outputStream.splice(i, 1);
-      } else if (
-        c instanceof ControlCommand &&
-        c.commandType != ControlCommand.CommandType.BeginTag &&
-        c.commandType != ControlCommand.CommandType.EndTag
-      ) {
-        break;
+        let isTag =
+          c.commandType == ControlCommand.CommandType.BeginTag ||
+          c.commandType == ControlCommand.CommandType.EndTag;
+        if (!(pastTags && isTag)) break;
       }
     }
 
