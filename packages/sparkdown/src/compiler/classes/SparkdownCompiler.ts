@@ -2402,7 +2402,14 @@ export class SparkdownCompiler {
           }
         }
         if (c.content) {
-          restampContent(c.content, lineNumberOffset);
+          // A reused flow keeps the later chunks' content inside this chunk's
+          // trailing weave. Those children take their own chunk's offset, and
+          // a position is stamped once per version, so stop at the weave's own.
+          const ownLength = this._weaveOwnLength.get(c);
+          restampContent(
+            ownLength === undefined ? c.content : c.content.slice(0, ownLength),
+            lineNumberOffset,
+          );
         }
       }
     };

@@ -169,6 +169,48 @@ describe("an incremental compile of an edit in a scene", () => {
     );
   });
 
+  it("is the cold compile when a moved scene with a choose block is reused and then regenerated", () => {
+    // The edit gives `earlier` an anonymous function, which renames the one in
+    // `main`: `main` is reused as it stood, restamped at its new lines, and
+    // then regenerated from those stamps.
+    const choose = BLOCKS["a choose block"]!;
+    const base = [
+      "-> earlier",
+      "scene earlier",
+      ...choose,
+      "& local g = 1",
+      "end",
+      "",
+      "scene main",
+      "  Before text.",
+      ...choose,
+      "& local f = function(x) return x + 1 end",
+      "  After text.",
+      "  Final text.",
+      "end",
+      "",
+      "scene later",
+      "  Later text.",
+      "end",
+    ].join("\n");
+    const c = compilerFor(base);
+    compileOf(c);
+    const { contentChanges, after } = change(
+      base,
+      "local g = 1",
+      "local g = function(x) return x + 2 end\n  Added text.",
+    );
+
+    c.updateDocument({
+      textDocument: { uri: URI, version: 2 },
+      contentChanges,
+    } as never);
+
+    const cold = stable(pick(compileOf(compilerFor(after))));
+    expect(stable(pick(compileOf(c)))).toBe(cold);
+    expect(stable(pick(compileOf(c))), "a compile with no edit").toBe(cold);
+  });
+
   it("is the cold compile after each of several edits below a choose block", () => {
     let text = screenplay([
       ...BLOCKS["a choose block"]!,
