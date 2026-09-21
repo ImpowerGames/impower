@@ -747,8 +747,15 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
   /** Buffer a fire-and-forget UI op for the next `ui/batch` flush. Arms a
    *  microtask safety-net flush on the empty→non-empty transition so an op never
-   *  lingers past the synchronous turn even on a path that forgets to flush. */
+   *  lingers past the synchronous turn even on a path that forgets to flush.
+   *
+   *  A route replay buffers nothing: no one displays its beats, and a connect
+   *  that follows in the same turn rebuilds the page from the module state the
+   *  replay leaves, which the replay still changes as usual. */
   protected enqueueUI(msg: IMessage): void {
+    if (this._game.replaying) {
+      return;
+    }
     this._uiBatch.push(msg);
     if (!this._uiBatchScheduled) {
       this._uiBatchScheduled = true;
@@ -922,7 +929,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   protected async animateElements(
     effects: { element: Element; animations: Animation[] }[],
   ) {
-    if (effects.length === 0) {
+    if (effects.length === 0 || this._game.replaying) {
       return [];
     }
     // Flush pending create/update ops so the elements this animation targets
@@ -3692,6 +3699,17 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       }
       return this.openLayout(e.name, clauses, instant);
     };
+    // A route replay applies its directives in authored order within the
+    // replay's own synchronous run. Its beats settle without transitions and a
+    // replay waits on no font, so each directive completes before it returns;
+    // awaiting between them would let the rest run after the replay has ended,
+    // where their operations would reach the page.
+    if (this._game.replaying && instant) {
+      for (const e of instructions) {
+        void run(e);
+      }
+      return;
+    }
     // Directives for the SAME layout run in authored order; different layouts
     // still run concurrently. `[[close X]] [[open X]]` in one beat used to
     // race: `openLayout` tests `_mountedLayouts.has(name)` synchronously, so it

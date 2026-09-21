@@ -201,6 +201,10 @@ await check("display streams compare by message, ignoring generated ids, and cou
   const b = [a[0].replace("0b6f7a1c", "9c8d7e6f"), a[1]];
   assert.equal(firstStreamDifference(a, b), null);
   assert.equal(firstStreamDifference(a, a.slice(0, 1)).index, 1);
+  // The request ids the protocol mints are eight characters, not uuids.
+  const c = [JSON.stringify({ method: "ui/batch", params: { messages: [{ method: "ui/create", id: "ImNFI86G", params: { element: "e" } }] } })];
+  assert.equal(firstStreamDifference(c, [c[0].replace("ImNFI86G", "7yDroDdE")]), null);
+  assert.notEqual(firstStreamDifference(c, [c[0].replace('"element":"e"', '"element":"f"')]), null);
   assert.deepEqual(streamOps(a), { "ui/batch > ui/create": 1, "ui/batch > ui/update": 1, "game/executed": 1 });
 });
 
@@ -276,7 +280,8 @@ if (!esbuildInstalled) {
         assert.match(section, /\(of which message clone\)/);
         assert.match(section, /display messages \(cloned\)/);
         assert.match(section, /program, checkpoint or path locations in what was cloned: none/);
-        assert.match(section, /reset before each display: system\.simulating/);
+        assert.match(section, /engine calls before each display: game\.endSimulation\(\); fields reset by hand: none/);
+        assert.match(section, /messages it sent outside a display, over the run: \{\}/);
         assert.doesNotMatch(section, /wire: /);
       }
       assert.doesNotMatch(sectionOf("preview", "resident"), /ink\/json/);
@@ -286,6 +291,7 @@ if (!esbuildInstalled) {
       assert.match(comparison, /saved by resident-emitting/);
       assert.match(comparison, /ink\/json in the resident phases: absent/);
       assert.match(comparison, /display: \d+ messages, [\d.]+ KB cloned to the page/);
+      assert.match(comparison, /the route game's display matches the page game's, message for message/);
       assert.doesNotMatch(run.stdout, /mode edit, resident/);
     } finally {
       fs.rmSync(profiles, { recursive: true, force: true });

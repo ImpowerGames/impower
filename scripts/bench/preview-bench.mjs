@@ -113,11 +113,13 @@ export function imageOptions(fileNames, prefix, token) {
 }
 
 const UUID_RE = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi;
+// A request's id, which the protocol mints as eight random characters.
+const REQUEST_ID_RE = /"id":"[0-9A-Za-z]{8}"/g;
 
 // The first place two display streams differ, ignoring generated ids; null
 // when they are the same.
 export function firstStreamDifference(a, b) {
-  const norm = (s) => s.replace(UUID_RE, "<uuid>");
+  const norm = (s) => s.replace(UUID_RE, "<uuid>").replace(REQUEST_ID_RE, '"id":"<id>"');
   for (let i = 0; i < Math.max(a.length, b.length); i++) {
     const x = a[i] == null ? undefined : norm(a[i]);
     const y = b[i] == null ? undefined : norm(b[i]);
