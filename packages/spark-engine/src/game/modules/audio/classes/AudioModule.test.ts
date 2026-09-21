@@ -3,6 +3,7 @@ import type { Game } from "../../../core/classes/Game";
 import { applyBuiltinDefaults } from "../../../core/utils/applyBuiltinDefaults";
 import { audioBuiltinDefinitions } from "../audioBuiltinDefinitions";
 import { AudioModule } from "./AudioModule";
+import { AudioClockMessage } from "./messages/AudioClockMessage";
 
 /**
  * A character voice authored as `define x as synth with ... end` reaches the
@@ -160,5 +161,23 @@ describe("AudioModule synth resolution (#268)", () => {
       expect(d.synth).toBeUndefined();
       expect(d.src).toBe("music.mp3");
     });
+  });
+});
+
+describe("AudioModule audio clock (#681)", () => {
+  it("maps shared time onto the page's audio context from its latest reading", () => {
+    const module = createModule({});
+    expect(module.audioTimeAt(1000)).toBeUndefined();
+
+    module.onReceiveNotification(
+      AudioClockMessage.type.notification({ time: 1000, contextTime: 2 }),
+    );
+    expect(module.audioTimeAt(1250)).toBeCloseTo(2.25, 9);
+
+    // The page's context stopped: the shared clock alone keeps time.
+    module.onReceiveNotification(
+      AudioClockMessage.type.notification({ time: 3000 }),
+    );
+    expect(module.audioTimeAt(3000)).toBeUndefined();
   });
 });

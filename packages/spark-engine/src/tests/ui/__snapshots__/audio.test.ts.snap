@@ -190,6 +190,7 @@ exports[`audio > explicit SFX directive schedules audio/load + audio/update 1`] 
     "method": "audio/update",
     "params": {
       "channel": "sound",
+      "time": 10,
       "updates": [
         {
           "after": undefined,
@@ -209,6 +210,7 @@ exports[`audio > explicit SFX directive schedules audio/load + audio/update 1`] 
     "method": "audio/update",
     "params": {
       "channel": "typewriter",
+      "time": 10,
       "updates": [
         {
           "after": undefined,
@@ -380,6 +382,7 @@ exports[`audio > typewriter synth tones scheduled for voiced dialogue 1`] = `
     "method": "audio/update",
     "params": {
       "channel": "typewriter",
+      "time": 10,
       "updates": [
         {
           "after": undefined,

@@ -55,6 +55,7 @@ exports[`dialogue > animated dialogue line (per-glyph create + per-letter animat
         },
       ],
       "target": "dialogue",
+      "time": 10,
     },
   },
   {
@@ -100,6 +101,7 @@ exports[`dialogue > animated dialogue line (per-glyph create + per-letter animat
         },
       ],
       "target": "character_name",
+      "time": 10,
     },
   },
 ]

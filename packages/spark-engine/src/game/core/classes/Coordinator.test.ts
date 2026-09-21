@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { Instructions } from "../types/Instructions";
 import { Clock } from "./Clock";
+import { BEAT_LEAD_MS } from "../utils/sharedClock";
 import { Coordinator } from "./Coordinator";
 import type { Game } from "./Game";
 import { EventMessage } from "./messages/EventMessage";
@@ -8,6 +9,8 @@ import { EventMessage } from "./messages/EventMessage";
 /**
  * `shouldContinue()` return codes.
  */
+const NOW = 5000;
+
 const STAY = 0;
 const AUTO_ADVANCED = 1;
 const INTERACTED = 2;
@@ -16,15 +19,17 @@ interface Calls {
   clickedToContinue: number;
   autoAdvancedToContinue: number;
   chosePathToContinue: number[];
-  /** One entry per `ui.text.write`, recording whether it was an instant reveal. */
-  textWrites: { target: string; instant: boolean }[];
+  /** One entry per `ui.text.write`, recording whether it was an instant
+   *  reveal and the start time it was stamped with. */
+  textWrites: { target: string; instant: boolean; time?: number }[];
+  /** The start time each `audio.triggerAll` was given. */
+  audioTriggerTimes: (number | undefined)[];
   loadedWorlds: string[];
 }
 
 /**
- * A stand-in for `Game` exposing only the surface `Coordinator` touches.
- * `setTimeout` runs synchronously so a tick fully resolves before returning,
- * which keeps the tests free of timers.
+ * A stand-in for `Game` exposing only the surface `Coordinator` touches. Its
+ * shared clock reads `NOW`.
  */
 const createGame = (
   overrides: { autoAdvanceDelay?: number; previewing?: boolean } = {},
@@ -34,6 +39,7 @@ const createGame = (
     autoAdvancedToContinue: 0,
     chosePathToContinue: [],
     textWrites: [],
+    audioTriggerTimes: [],
     loadedWorlds: [],
   };
   const game = {
@@ -41,10 +47,7 @@ const createGame = (
       system: {
         previewing: overrides.previewing,
         simulating: undefined,
-        setTimeout: (handler: Function) => {
-          handler();
-          return 0;
-        },
+        now: () => NOW,
       },
       preferences: {
         flow: { auto_advance_delay: overrides.autoAdvanceDelay ?? 0 },
@@ -65,8 +68,17 @@ const createGame = (
         unobserve: () => {},
         text: {
           clearAll: () => {},
-          write: (target: string, _events: unknown, instant?: boolean) =>
-            calls.textWrites.push({ target, instant: Boolean(instant) }),
+          write: (
+            target: string,
+            _events: unknown,
+            instant?: boolean,
+            time?: number,
+          ) =>
+            calls.textWrites.push({
+              target,
+              instant: Boolean(instant),
+              ...(time != null ? { time } : {}),
+            }),
         },
         image: { clearAll: () => {}, write: () => {} },
         style: { update: () => {} },
@@ -75,7 +87,8 @@ const createGame = (
         stopChannel: () => {},
         schedule: () => 0,
         isReady: () => true,
-        triggerAll: () => {},
+        triggerAll: (_ids: number[], time?: number) =>
+          calls.audioTriggerTimes.push(time),
         outputLatency: 0,
       },
       assets: {
@@ -146,8 +159,9 @@ const finishedBeat = (
 ) => {
   const { game, calls } = createGame(gameOverrides);
   const coordinator = new ProbeCoordinator(game, instructions);
-  // Run out the reveal duration so handleFinished() fires
-  coordinator.onUpdate(tick(instructions.end * 1000));
+  // Run out the reveal duration, which counts from when the beat shows, so
+  // handleFinished() fires
+  coordinator.onUpdate(tick(instructions.end * 1000 + BEAT_LEAD_MS));
   return { coordinator, calls };
 };
 
@@ -211,10 +225,12 @@ describe("Coordinator", () => {
     for (const [name, event] of ADVANCE_INPUTS) {
       it(`reveals the rest of the beat on ${name} instead of advancing`, () => {
         const { coordinator, calls } = midReveal();
-        // The initial reveal is animated, not instant
+        // The initial reveal is animated, not instant, and starts with the
+        // beat's sound a lead ahead of now
         expect(calls.textWrites).toEqual([
-          { target: "textbox", instant: false },
+          { target: "textbox", instant: false, time: NOW + BEAT_LEAD_MS },
         ]);
+        expect(calls.audioTriggerTimes).toEqual([NOW + BEAT_LEAD_MS]);
 
         coordinator.onMessage(event());
 
@@ -391,7 +407,8 @@ describe("Coordinator", () => {
       coordinator.onUpdate(tick(0));
       expect(coordinator.shouldContinue()).toBe(STAY);
       assets.isReady = () => true;
-      coordinator.onUpdate(tick(0));
+      // Its duration counts from when it shows, a lead after it is ready.
+      coordinator.onUpdate(tick(BEAT_LEAD_MS));
       expect(coordinator.shouldContinue()).toBe(AUTO_ADVANCED);
     });
   });

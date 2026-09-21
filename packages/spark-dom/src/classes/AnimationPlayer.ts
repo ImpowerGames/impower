@@ -156,11 +156,16 @@ export default class AnimationPlayer {
     }
   }
 
-  async play(): Promise<void> {
-    const currentTime = document.timeline.currentTime;
+  /**
+   * Plays every animation from `startTime` on the document timeline, or from
+   * now without one. A start time already past plays them with that much
+   * already elapsed.
+   */
+  async play(startTime?: number): Promise<void> {
+    const start = startTime ?? document.timeline.currentTime;
     await Promise.allSettled(
       this._instances.map(async (instance) => {
-        instance.animation.startTime = currentTime;
+        instance.animation.startTime = start;
         instance.animation.play();
         await instance.animation.finished;
       }),

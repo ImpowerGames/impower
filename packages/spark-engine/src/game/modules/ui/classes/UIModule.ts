@@ -4026,6 +4026,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         target: string,
         sequence: TextInstruction[] | null,
         instant: boolean,
+        time?: number,
       ) {
         // [D14] The engine no longer builds per-glyph spans or per-letter
         // reveal animations. It still owns the structural target element tree
@@ -4069,6 +4070,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
             target,
             instructions: sequence ?? [],
             instant,
+            ...(time != null ? { time } : {}),
           }),
         );
       }
@@ -4084,14 +4086,17 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         await Promise.all(targets.map((target) => this.clear(target)));
       }
 
+      /** `time` is when the beat starts on the shared clock (`sharedNow`),
+       *  for a write the page should show at that moment. */
       async write(
         target: string,
         sequence: TextInstruction[],
         instant = false,
+        time?: number,
       ) {
         this.saveState(target, sequence);
         if (!$.context?.system?.simulating) {
-          await this.applyChanges(target, sequence, instant);
+          await this.applyChanges(target, sequence, instant, time);
         }
       }
     }
@@ -4420,6 +4425,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         target: string,
         sequence: ImageInstruction[] | null,
         instant: boolean,
+        time?: number,
       ) {
         // [D15] The engine no longer builds the per-layer `instance` span DOM,
         // the crossfade enter/exit animations, or the prior-layer destroys. It
@@ -4456,6 +4462,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
             target,
             instructions: sequence ? this.resolve(sequence, instant) : [],
             instant,
+            ...(time != null ? { time } : {}),
           }),
         );
       }
@@ -4471,14 +4478,17 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         await Promise.all(targets.map((target) => this.clear(target)));
       }
 
+      /** `time` is when the beat starts on the shared clock (`sharedNow`),
+       *  for a write the page should show at that moment. */
       async write(
         target: string,
         sequence: ImageInstruction[],
         instant = false,
+        time?: number,
       ) {
         this.saveState(target, sequence);
         if (!$.context?.system?.simulating) {
-          await this.applyChanges(target, sequence, instant);
+          await this.applyChanges(target, sequence, instant, time);
         }
       }
     }

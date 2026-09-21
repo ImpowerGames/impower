@@ -7,6 +7,11 @@ export interface WriteTextParams {
   target: string;
   instructions: TextInstruction[];
   instant: boolean;
+  /** When the beat this write belongs to starts, on the shared clock
+   *  (`sharedNow`, milliseconds). The page shows it that long after the
+   *  audio's output latency. Absent for writes that start when the page
+   *  handles them. */
+  time?: number;
 }
 
 export class WriteTextMessage {

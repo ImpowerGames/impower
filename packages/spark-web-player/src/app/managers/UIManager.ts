@@ -544,12 +544,21 @@ export default class UIManager extends Manager {
     }
     if (WriteTextMessage.type.isRequest(msg)) {
       const params = msg.params;
-      await this.writeText(params.target, params.instructions, params.instant);
+      await this.writeText(
+        params.target,
+        params.instructions,
+        params.instant,
+        this.getDisplayTime(params.time),
+      );
       return WriteTextMessage.type.result(params.target);
     }
     if (WriteImageMessage.type.isRequest(msg)) {
       const params = msg.params;
-      await this.writeImage(params.target, params.instructions);
+      await this.writeImage(
+        params.target,
+        params.instructions,
+        this.getDisplayTime(params.time),
+      );
       return WriteImageMessage.type.result(params.target);
     }
     if (AnimateElementsMessage.type.isRequest(msg)) {
@@ -832,10 +841,26 @@ export default class UIManager extends Manager {
    * and the consumer rebuilds the `text` + `stroke` content children and drives
    * the reveal here.
    */
+  /**
+   * When a beat stamped `time` on the shared clock shows, on the document
+   * timeline: once its sound, which the audio context starts at `time`, has
+   * reached the speakers.
+   */
+  protected getDisplayTime(time: number | undefined): number | undefined {
+    if (time == null) {
+      return undefined;
+    }
+    return (
+      this.app.audioClock.toDocumentTime(time) +
+      this.app.audio.outputLatency * 1000
+    );
+  }
+
   protected async writeText(
     target: string,
     instructions: TextInstruction[],
     instant: boolean,
+    startTime?: number,
   ) {
     const targetEls = this.findTargetElements(target);
     // Reconcile dedup: a write APPENDS spans, so replaying an unchanged write
@@ -887,7 +912,7 @@ export default class UIManager extends Manager {
       for (const { element, animation } of enter) {
         player.add({ element, animations: [animation] });
       }
-      await player.play();
+      await player.play(startTime);
     }
   }
 
@@ -912,6 +937,7 @@ export default class UIManager extends Manager {
   protected async writeImage(
     target: string,
     instructions: WriteImageInstruction[],
+    startTime?: number,
   ) {
     const targetEls = this.findTargetElements(target);
     // This target has been written this pass, so the sweep must leave its layers
@@ -1042,13 +1068,15 @@ export default class UIManager extends Manager {
       }
     }
 
-    // 1. target-wrapper animations first
+    // 1. target-wrapper animations first, from the beat's display time; the
+    // content animations then start when they finish.
     if (targetEffects.length > 0) {
       const player = new AnimationPlayer();
       for (const e of targetEffects) {
         player.add(e);
       }
-      await player.play();
+      await player.play(startTime);
+      startTime = undefined;
     }
     // 2. enter + exit content animations in parallel
     const playEffects = (
@@ -1061,7 +1089,7 @@ export default class UIManager extends Manager {
       for (const e of effects) {
         player.add(e);
       }
-      return player.play();
+      return player.play(startTime);
     };
     await Promise.all([playEffects(enterEffects), playEffects(exitEffects)]);
     // 3. destroy the faded-out previous layers

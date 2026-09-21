@@ -1,3 +1,4 @@
+import type { NotificationMessage } from "@impower/jsonrpc/src/common/types/NotificationMessage";
 import { Module } from "../../../core/classes/Module";
 import type { AudioInstruction } from "../../../core/types/Instruction";
 import {
@@ -9,6 +10,10 @@ import type { ChannelState } from "../types/ChannelState";
 import type { LoadAudioPlayerParams } from "../types/LoadAudioPlayerParams";
 import type { Synth } from "../types/Synth";
 import { parseTones } from "../utils/parseTones";
+import {
+  AudioClockMessage,
+  type AudioClockParams,
+} from "./messages/AudioClockMessage";
 import { ConfigureAudioMixerMessage } from "./messages/ConfigureAudioMixerMessage";
 import {
   LoadAudioPlayerMessage,
@@ -58,6 +63,27 @@ export class AudioModule extends Module<
   protected _outputLatency = 0;
   get outputLatency() {
     return this._outputLatency;
+  }
+
+  /** The page's latest reading of its audio clock (`audio/clock`). */
+  protected _audioClock?: AudioClockParams;
+
+  /**
+   * The page's audio-context time, in seconds, at shared time `time`
+   * (`sharedNow`); undefined while the page has no running audio context.
+   */
+  audioTimeAt(time: number): number | undefined {
+    const clock = this._audioClock;
+    if (clock?.contextTime == null) {
+      return undefined;
+    }
+    return clock.contextTime + (time - clock.time) / 1000;
+  }
+
+  override onReceiveNotification(msg: NotificationMessage): void {
+    if (AudioClockMessage.type.isNotification(msg)) {
+      this._audioClock = msg.params;
+    }
   }
 
   override getBuiltins() {
@@ -176,11 +202,16 @@ export class AudioModule extends Module<
     this.update(channel, updates);
   }
 
-  protected update(channel: string, updates: AudioPlayerUpdate[]) {
+  protected update(
+    channel: string,
+    updates: AudioPlayerUpdate[],
+    time?: number,
+  ) {
     this.emitSettled(
       UpdateAudioPlayersMessage.type.request({
         channel,
         updates,
+        ...(time != null ? { time } : {}),
       }),
     );
   }
@@ -574,8 +605,8 @@ export class AudioModule extends Module<
       this.enableTrigger(id);
       return id;
     }
-    const trigger = () => {
-      this.update(channel, updates);
+    const trigger = (time?: number) => {
+      this.update(channel, updates, time);
     };
     this.loadAllAudio(Array.from(audioToLoad)).then(() => {
       this.enableTrigger(id, trigger);
