@@ -178,6 +178,47 @@ export function buildBeatsFixture({ lines = 2400 } = {}) {
   return { files, target: { line: scene.length - 3, sceneLines: scene.length - 2 } };
 }
 
+// The comparison scene of #693: the beats of the fixture with the other kinds a
+// statement can be mixed in at the rate a real route meets them, so that the
+// chunk prototype (chunkStepper.ts) and the story engine can run the same
+// script from top to bottom. It holds stored variables and reassignments,
+// `if ... else ... end` blocks, a line that interpolates a variable, scenes
+// reached by `-> NAME` so that every scene change is a divert through a symbol,
+// and one `choose` whose `then` clause holds the rest of its scene, as the real
+// projects write it. Nothing here needs a function call, a loop, glue or a tag.
+export function buildChunksFixture({ scenes = 8, linesPerScene = 150, thenLines = 1100 } = {}) {
+  const rand = generator(693);
+  const out = ["include scripts/characters", "", "store trust = 0", "store heat = 0", ""];
+  // A run of beats broken up by the other statement kinds.
+  const mixed = (indent, count) => {
+    const pad = " ".repeat(indent);
+    const lines = [];
+    while (lines.length < count) {
+      lines.push(...beats(rand, indent, rand.int(24, 40), []));
+      const roll = rand.next();
+      if (roll < 0.4) lines.push(pad + `& trust = trust + ${rand.int(1, 3)}`, "");
+      else if (roll < 0.6) lines.push(pad + `& heat = heat + trust`, pad + "The count stands at {trust}, and the heat at {heat}.", "");
+      else {
+        lines.push(pad + `if trust > ${rand.int(2, 40)} then`, ...beats(rand, indent + 2, 4, []));
+        if (rand.next() < 0.7) lines.push(pad + "else", ...beats(rand, indent + 2, 4, []));
+        lines.push(pad + "end", "");
+      }
+    }
+    return lines;
+  };
+  const name = (n) => (n === 0 ? "MAIN" : `PART_${n}`);
+  for (let n = 0; n < scenes; n++) {
+    out.push(`scene ${name(n)}`, ...mixed(2, linesPerScene));
+    if (n < scenes - 1) out.push(`  -> ${name(n + 1)}`);
+    else out.push("  choose", "    + [Success!]", "      The bag lands safely on the pile.", "      & trust = trust + 2", "", "    + [Fail...]", "      Everything clatters to the floor.", "  then", "", ...mixed(4, thenLines), "  end");
+    out.push("end", "");
+  }
+  const files = new Map();
+  files.set("main.sd", out.join("\n"));
+  files.set("scripts/characters.sd", CHARACTERS.map((c) => `define ${c.id} as character with\n  name = "${c.name}"\nend\n`).join("\n"));
+  return { files, target: { line: out.length - 3, scenes, sceneLines: out.length } };
+}
+
 // Writes the fixture into `dir`, which must be missing or empty, so it can
 // never overwrite a real project.
 export function writePreviewFixture(dir, { files, target } = buildPreviewFixture()) {

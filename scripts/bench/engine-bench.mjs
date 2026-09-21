@@ -11,8 +11,8 @@
 //   --fixture         generate the fixture project (preview-fixture.mjs) into a
 //                     temporary directory and measure its target line
 //   --line <N>        the line of main.sd the route ends at, counting from one
-//   --mode <m,..>     any of kinds, step, proto, emit, ready, or all (the default);
-//                     see MODES below
+//   --mode <m,..>     any of kinds, step, proto, emit, ready, chunks, symbols,
+//                     order, lookahead, or all (the default); see MODES below
 //   --samples <K>     measured samples per mode (default 12)
 //   --warmup <W>      discarded samples first (default 4)
 //   --cpu-prof <dir>  also write a V8 CPU profile of each candidate's process
@@ -31,17 +31,22 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { bundleBench, count, value } from "./benchLauncher.mjs";
-import { buildBeatsFixture, writePreviewFixture } from "./preview-fixture.mjs";
+import { buildBeatsFixture, buildChunksFixture, writePreviewFixture } from "./preview-fixture.mjs";
 
 // Each mode: the entry that implements it, the candidates it runs (each in a
 // process of its own) and the project it runs on. `route` is the project named
 // on the command line; `beats` is always the generated beats-only scene, the
-// one scene both engines of `proto` can run. What each measures is in
-// .agents/skills/drive-web-editor/references/performance.md.
+// one scene both engines of `proto` can run, and `chunks` the generated scene
+// of mixed statements that both engines of `chunks` can run. What each measures
+// is in .agents/skills/drive-web-editor/references/performance.md.
 export const MODES = {
   kinds: { entry: "engineBench.ts", project: "route" },
   step: { entry: "engineBench.ts", project: "route", candidates: ["as-planner", "hooked"] },
   proto: { entry: "bufferStepBench.ts", project: "beats", candidates: ["engine-step", "buffer-step", "engine-line", "buffer-line"] },
+  chunks: { entry: "chunkStepBench.ts", project: "chunks", candidates: ["engine-step", "chunk-step", "engine-line", "chunk-line"] },
+  symbols: { entry: "chunkSymbolBench.ts", project: "route", candidates: ["symbol", "direct"] },
+  order: { entry: "chunkOrderBench.ts", project: "route", candidates: ["flat-copy", "flat-splice", "tree-copy", "records-splice"] },
+  lookahead: { entry: "lookaheadBench.ts", project: "route", candidates: ["engine", "engine-write", "chunk", "chunk-write"] },
   emit: { entry: "emitBench.ts", project: "route", candidates: ["walk", "binary", "json", "tree"] },
   ready: { entry: "readyBench.ts", project: "route", candidates: ["prepare", "story-json", "story-buffer", "buffer"] },
 };
@@ -92,11 +97,19 @@ export function parseEngineBenchArgs(args) {
 
 // Why the candidates of `proto` did not do the same work, or undefined.
 export function protoMismatch(reports) {
+  const problem = outputMismatch(reports);
+  if (problem) return problem;
+  const counted = reports.filter((r) => r.steps != null);
+  if (new Set(counted.map((r) => r.steps)).size !== 1) return `step counts differ: ${counted.map((r) => `${r.candidate} ${r.steps}`).join(", ")}`;
+  return undefined;
+}
+
+// Why the candidates did not produce the same lines, or undefined. This is all
+// `chunks` asks: its two engines take different numbers of steps by design.
+export function outputMismatch(reports) {
   const digests = new Set(reports.map((r) => r.outputDigest));
   if (digests.size !== 1) return `outputs differ: ${reports.map((r) => `${r.candidate} ${r.outputDigest.slice(0, 12)}`).join(", ")}`;
   if (!reports[0]?.lines) return "the scene produced no lines";
-  const counted = reports.filter((r) => r.steps != null);
-  if (new Set(counted.map((r) => r.steps)).size !== 1) return `step counts differ: ${counted.map((r) => `${r.candidate} ${r.steps}`).join(", ")}`;
   return undefined;
 }
 
@@ -112,18 +125,20 @@ async function main(args) {
       console.log(`fixture: ${project}`);
     }
     project = path.resolve(project);
-    const beats = path.join(scratch, "beats");
+    // The scenes a mode generates for itself, whatever project was named.
+    const generated = { beats: buildBeatsFixture, chunks: buildChunksFixture };
     const bundles = new Map();
     let failed = false;
     for (const mode of options.modes) {
       const { entry, candidates = [undefined], project: which } = MODES[mode];
       if (!bundles.has(entry)) bundles.set(entry, await bundleBench(entry, scratch, options.cpuProf && path.resolve(options.cpuProf)));
-      if (which === "beats" && !fs.existsSync(beats)) writePreviewFixture(beats, buildBeatsFixture());
+      const own = generated[which] && path.join(scratch, which);
+      if (own && !fs.existsSync(own)) writePreviewFixture(own, generated[which]());
       const reports = [];
       for (const candidate of candidates) {
         const name = candidate ? `${mode}.${candidate}` : mode;
         const json = options.json ? path.resolve(`${options.json}.${name}.json`) : path.join(scratch, `${name}.json`);
-        const config = { project: which === "beats" ? beats : project, line, mode, candidate, samples: options.samples, warmup: options.warmup, json, scratch };
+        const config = { project: own || project, line, mode, candidate, samples: options.samples, warmup: options.warmup, json, scratch };
         const nodeArgs = ["--max-old-space-size=4096", "--expose-gc"];
         if (options.cpuProf) {
           fs.mkdirSync(options.cpuProf, { recursive: true });
@@ -141,6 +156,27 @@ async function main(args) {
           failed = true;
         } else {
           console.log(`proto: the ${reports.length} candidates produced identical lines (${reports[0].displayTables} display tables), and both engines took ${reports[0].steps} steps`);
+          console.log("");
+        }
+      }
+      if (mode === "symbols" && reports.length === candidates.length) {
+        const [symbol, direct] = reports.map((r) => r.nanosecondsPerDivert.median);
+        console.log(`symbols: in a table of ${reports[0].symbols} symbols, a divert through the symbol table costs ${(symbol - direct).toFixed(2)} nanoseconds more than one resolved at compile time, by the medians (${symbol.toFixed(2)} against ${direct.toFixed(2)})`);
+        console.log("");
+      }
+      if (mode === "lookahead" && reports.length === candidates.length) {
+        const median = (candidate) => reports.find((r) => r.candidate === candidate).microsecondsPerPair.median;
+        console.log(`lookahead: a save and a restore cost ${median("engine").toFixed(3)} microseconds in the engine and ${median("chunk").toFixed(3)} in restorable state; with a write between them, ${median("engine-write").toFixed(3)} and ${median("chunk-write").toFixed(3)}`);
+        console.log("");
+      }
+      if (mode === "chunks" && reports.length === candidates.length) {
+        const problem = outputMismatch(reports);
+        if (problem) {
+          console.error(`chunks: ${problem}`);
+          failed = true;
+        } else {
+          const steps = (candidate) => reports.find((r) => r.candidate === candidate).steps;
+          console.log(`chunks: the ${reports.length} candidates produced identical lines and choices (${reports[0].lines} lines, ${reports[0].displayTables} display tables, ${reports[0].choiceStops} stops at choices); the engine took ${steps("engine-step")} steps and the prototype ${steps("chunk-step")}`);
           console.log("");
         }
       }

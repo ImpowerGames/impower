@@ -1,7 +1,8 @@
 #!/usr/bin/env node
-// Pins the story engine measurements of #664: the benchmark's arguments, the
-// comparison that makes the prototype's timing mean something, the profile
-// arithmetic, and that the prototype stays out of everything that ships. Run:
+// Pins the story engine measurements of #664 and #693: the benchmark's
+// arguments, the comparisons that make a prototype's timing mean something, the
+// profile arithmetic, and that the prototypes stay out of everything that
+// ships. Run:
 //   node scripts/bench/engine-bench.test.mjs
 //
 // No dependencies; the end-to-end run needs the workspace install and says so
@@ -13,8 +14,8 @@ import fs from "node:fs";
 import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { MODES, parseEngineBenchArgs, protoMismatch } from "./engine-bench.mjs";
-import { buildBeatsFixture } from "./preview-fixture.mjs";
+import { MODES, outputMismatch, parseEngineBenchArgs, protoMismatch } from "./engine-bench.mjs";
+import { buildBeatsFixture, buildChunksFixture } from "./preview-fixture.mjs";
 import { STEPPING } from "./profile-groups.mjs";
 import { parseShareArgs, profileShares, summarizeShares } from "./profile-shares.mjs";
 
@@ -48,6 +49,31 @@ await check("the prototype comparison fails on a different output, a different s
   assert.match(protoMismatch([report("engine-step", "aa", 100), report("buffer-step", "ab", 100)]), /outputs differ: engine-step aa, buffer-step ab/);
   assert.match(protoMismatch([report("engine-step", "aa", 100), report("buffer-step", "aa", 99)]), /step counts differ: engine-step 100, buffer-step 99/);
   assert.match(protoMismatch([report("engine-step", "aa", 0, 0), report("buffer-step", "aa", 0, 0)]), /no lines/);
+});
+
+await check("the chunk comparison fails on a different output or no output, and lets the step counts differ", () => {
+  const report = (candidate, outputDigest, steps, lines = 674) => ({ candidate, outputDigest, steps, lines });
+  assert.equal(outputMismatch([report("engine-step", "aa", 29517), report("chunk-step", "aa", 6927), report("engine-line", "aa"), report("chunk-line", "aa", 6927)]), undefined);
+  assert.match(outputMismatch([report("engine-step", "aa", 100), report("chunk-step", "ab", 100)]), /outputs differ: engine-step aa, chunk-step ab/);
+  assert.match(outputMismatch([report("engine-step", "aa", 0, 0), report("chunk-step", "aa", 0, 0)]), /no lines/);
+});
+
+await check("the chunk scene mixes variables, conditionals, diverts between scenes and one choose into its beats, the same on every call", () => {
+  const { files, target } = buildChunksFixture();
+  const lines = files.get("main.sd").split("\n");
+  assert.deepEqual(buildChunksFixture().files.get("main.sd"), files.get("main.sd"));
+  const count = (re) => lines.filter((l) => re.test(l)).length;
+  assert.equal(count(/^scene /), target.scenes);
+  assert.equal(count(/^ *-> (MAIN|PART_[0-9]+)$/), target.scenes - 1);
+  assert.equal(count(/^ *choose$/), 1);
+  assert.equal(count(/^ *then$/), 1);
+  assert.ok(count(/^store /) >= 2);
+  assert.ok(count(/^ *& [a-z]+ = /) > 20, "reassignments");
+  assert.ok(count(/^ *if .* then$/) > 10, "conditionals");
+  assert.ok(count(/^ *else$/) > 5, "else branches");
+  assert.ok(count(/[{]trust[}]/) > 5, "interpolated lines");
+  assert.ok(lines.length - lines.findIndex((l) => /^ *then$/.test(l)) > 1000, "the then clause holds the rest of its scene");
+  assert.equal(count(/^ *(while|for|function) /), 0);
 });
 
 await check("the beats scene is one scene of beats with nothing to choose, the same on every call", () => {
@@ -133,12 +159,12 @@ await check("the stepping groups put paths and pointers on one side and output a
   );
 });
 
-// The prototype is measured, never shipped. The tooling workflow checks out no
-// packages, so there it says it skipped rather than passing on nothing.
+// The prototypes are measured, never shipped. The tooling workflow checks out
+// no packages, so there it says it skipped rather than passing on nothing.
 if (!fs.existsSync(path.join(ROOT, "packages", "sparkdown", "src"))) {
-  console.log("SKIP: nothing under packages/*/src imports the prototype (this checkout has no packages)");
-} else await check("nothing under packages/*/src imports the prototype or anything else in scripts/bench", () => {
-  const run = spawnSync("git", ["grep", "-l", "-E", "scripts/bench|bufferStepper", "--", "packages/*/src"], { cwd: ROOT, encoding: "utf8", windowsHide: true });
+  console.log("SKIP: nothing under packages/*/src imports a prototype (this checkout has no packages)");
+} else await check("nothing under packages/*/src imports a prototype or anything else in scripts/bench", () => {
+  const run = spawnSync("git", ["grep", "-l", "-E", "scripts/bench|bufferStepper|chunkStepper|chunkProgram", "--", "packages/*/src"], { cwd: ROOT, encoding: "utf8", windowsHide: true });
   assert.ok(run.status === 0 || run.status === 1, run.stderr);
   assert.equal(run.stdout.trim(), "");
 });
@@ -154,8 +180,8 @@ const esbuildInstalled = (() => {
 if (!esbuildInstalled) {
   console.log("SKIP: the benchmark's end-to-end run needs the workspace install (esbuild is not resolvable)");
 } else {
-  await check("the benchmark runs every mode on the fixture, and the prototype's output equals the engine's", () => {
-    const run = spawnSync(process.execPath, [path.join(HERE, "engine-bench.mjs"), "--fixture", "--samples", "1", "--warmup", "0"], { encoding: "utf8", timeout: 240_000, windowsHide: true });
+  await check("the benchmark runs every mode on the fixture, and each prototype's output equals the engine's", () => {
+    const run = spawnSync(process.execPath, [path.join(HERE, "engine-bench.mjs"), "--fixture", "--samples", "1", "--warmup", "0"], { encoding: "utf8", timeout: 480_000, windowsHide: true });
     assert.equal(run.status, 0, run.stdout + run.stderr);
     assert.match(run.stdout, /mode kinds: .* target MAIN\./);
     assert.match(run.stdout, /command: RunStdLibFunction\s+\d{3,}/);
@@ -165,6 +191,20 @@ if (!esbuildInstalled) {
     assert.match(run.stdout, /candidate tree: \d+ records, of which \d+ in MAIN/);
     assert.match(run.stdout, /candidate story-buffer:[^]*materialize tree[^]*retained once ready/);
     assert.match(run.stdout, /candidate buffer:[^]*build index[^]*retained once ready/);
+    assert.match(run.stdout, /chunks: the 4 candidates produced identical lines and choices \([0-9]{3,} lines, [0-9]{3,} display tables, 1 stops at choices\); the engine took [0-9]{4,} steps and the prototype [0-9]{4,}/);
+    assert.match(run.stdout, /candidate chunk-step:[^]*layout: [0-9]+ chunks in [0-9]+ sequences/);
+    assert.match(run.stdout, /a display beat that interpolates nothing: [0-9]+ to [0-9]+ instructions, [0-9]+ to [0-9]+ runtime objects/);
+    // The worked example ran: an edit shared all but one sequence row, and a
+    // story resumed inside a block below the edit ran on through the new root.
+    assert.match(run.stdout, /edit probe: two statements inserted around entry [0-9]+ of a then clause of [0-9]{3,}; the chunk arrays of [0-9]+ of [0-9]+ sequences and all [0-9]+ chunks shared with the previous root; resumed inside the if through the new root, the [0-9]+ lines to the end are equal; a third inserted into the first branch of an if moved its else branch down a line with that branch's row and arrays shared; a fourth inserted into the first scene moved the [0-9]+ scenes below it down a line with their arrays shared; after each edit every statement's line equals a layout from scratch/);
+    // The symbol table is the size the design gives the fixture, its hundreds
+    // of globals included, and not the handful of flows the ring is made of.
+    assert.match(run.stdout, /candidate symbol: a ring of [0-9]+ flows spread through a symbol table of [0-9]{3,}, /);
+    assert.match(run.stdout, /symbols: in a table of [0-9]{3,} symbols, a divert through the symbol table costs /);
+    assert.match(run.stdout, /candidate flat-copy: flow MAIN, [0-9]+ records, [0-9]+ statements in [0-9]+ sequences[^]*insert at the bottom/);
+    assert.match(run.stdout, /candidate tree-copy:[^]*replace at the middle/);
+    assert.match(run.stdout, /candidate records-splice:[^]*copy of the flow's records/);
+    assert.match(run.stdout, /lookahead: a save and a restore cost [0-9.]+ microseconds in the engine and [0-9.]+ in restorable state/);
   });
 }
 
