@@ -12,15 +12,20 @@
 //   engine-write  the same pair with one global assigned between the two, so
 //                 the restore has something to take back
 //   chunk         a save and a restore of state held as chunkStepper.ts holds
-//                 it, sized as the project's story is: as many globals, as many
-//                 counts as the program would intern symbols, a call frame with
-//                 as many temporaries as the story's frame holds at that line,
-//                 and a finished line in the output
+//                 it, sized as the project's story is: as many globals, a count
+//                 for each symbol of a kind that counts, a call frame with as
+//                 many temporaries as the story's frame holds at that line, and
+//                 a finished line in the output. The stepper has no call frame,
+//                 which is why this state is a class of its own here
 //   chunk-write   the same pair with one global assigned and one count raised
 //                 between the two
 //
 // The route simulator is detached while the engine's pairs are timed, so that
 // its own snapshot is no part of the figure.
+//
+// Before anything is timed, each side is shown to restore: the engine takes
+// back a global written after its snapshot, and the restorable state takes back
+// a write to every kind of state it holds.
 import "../../packages/sparkdown/src/inkjs/engine/Container";
 import * as fs from "node:fs";
 import { performance } from "node:perf_hooks";
@@ -123,6 +128,42 @@ class RestorableState {
   }
 }
 
+// A save point has to give back every kind of state it covers, or the figure
+// below prices something else. Each kind is written after a save, shown to have
+// changed, and shown to be as it was after the restore.
+function probeRestorable(state: RestorableState) {
+  const picture = (): Record<string, string> => ({
+    globals: JSON.stringify([...state.globals]),
+    counts: JSON.stringify([[...state.visits], [...state.turns]]),
+    frames: JSON.stringify(state.frames.map((frame) => ({ ...frame, temporaries: [...frame.temporaries] }))),
+    blockStack: JSON.stringify(state.blockStack),
+    evalStack: JSON.stringify(state.evalStack),
+    output: JSON.stringify(state.output.map((entry) => (entry instanceof Map ? [...entry] : entry))),
+    choices: JSON.stringify(state.choices),
+    turnIndex: JSON.stringify(state.turnIndex),
+  });
+  const before = picture();
+  state.save();
+  state.setGlobal("global_0", "written");
+  state.setGlobal(PROBE, 1);
+  state.turnIndex++;
+  state.count(0);
+  state.frames[0]!.pc += 2;
+  state.frames[0]!.temporaries.set(PROBE, 1);
+  state.frames.push({ kind: 1, seq: 1, index: 0, pc: 3, temporaries: new Map() });
+  state.blockStack.push(1, 2, 3);
+  state.evalStack.push(1);
+  state.output.push("written");
+  state.choices.push("a choice");
+  const written = picture();
+  const unchanged = Object.keys(before).filter((kind) => written[kind] === before[kind]);
+  if (unchanged.length) throw new Error(`the probe did not write: ${unchanged.join(", ")}`);
+  state.restore();
+  const after = picture();
+  const lost = Object.keys(before).filter((kind) => after[kind] !== before[kind]);
+  if (lost.length) throw new Error(`a restore did not give back: ${lost.join(", ")}`);
+}
+
 function main() {
   const realLog = silenceConsole();
   const writes = config.candidate.endsWith("-write");
@@ -134,6 +175,7 @@ function main() {
     const walk = prepareWalk(config.project, config.line);
     const { story, toPath } = walk;
     const probe = new IntValue(1);
+    let probed = false;
     for (let i = 0; i < config.warmup + config.samples; i++) {
       rewindWalk(walk);
       let elapsed = 0;
@@ -144,6 +186,16 @@ function main() {
         if (!story.asyncContinueComplete) continue;
         const simulator = story.simulator;
         story.simulator = undefined as any;
+        if (!probed) {
+          // Untimed, once: the write lands in the snapshot's patch, and the
+          // restore takes it back.
+          story.StateSnapshot();
+          story.state.variablesState.SetGlobal(PROBE, probe);
+          const landed = story.state.variablesState.GetRawVariableWithName(PROBE, 0) === probe;
+          story.RestoreStateSnapshot();
+          if (!landed || story.state.variablesState.GetRawVariableWithName(PROBE, 0) != null) throw new Error("the engine's snapshot did not take back a global written after it");
+          probed = true;
+        }
         const t0 = performance.now();
         for (let k = 0; k < PAIRS_PER_LINE; k++) {
           story.StateSnapshot();
@@ -165,8 +217,9 @@ function main() {
     // scene's own locals get.
     while (walk.story.state.previousPointer.path?.toString() !== walk.toPath && walk.story.canContinue) walk.story.ContinueAsync();
     const temporaries = walk.story.state.callStack.currentElement?.temporaryVariables.size ?? 0;
-    const state = new RestorableState(shape.globals, shape.symbols, temporaries);
-    lines = walk.route.steps.length;
+    const counts = Math.max(shape.countedSymbols, 1);
+    const state = new RestorableState(shape.globals, counts, temporaries);
+    probeRestorable(state);
     const pairs = 200_000;
     for (let i = 0; i < config.warmup + config.samples; i++) {
       const t0 = performance.now();
@@ -174,14 +227,17 @@ function main() {
         state.save();
         if (writes) {
           state.setGlobal("global_0", k);
-          state.count(k % shape.symbols);
+          state.count(k % counts);
         }
         state.restore();
       }
       const t1 = performance.now();
       if (i >= config.warmup) perPair.push(((t1 - t0) * 1000) / pairs);
     }
-    sized = `state of ${shape.globals} globals, ${shape.symbols} counts and a frame of ${temporaries} temporaries`;
+    // The timed pairs left the state as the probe left it, which is as it was
+    // built.
+    if ((shape.globals > 0 && state.globals.get("global_0") !== 0) || state.visits.some((visits) => visits !== 0)) throw new Error("the timed pairs left a write behind");
+    sized = `state of ${shape.globals} globals, ${counts} counts and a frame of ${temporaries} temporaries`;
   }
 
   const report = { candidate: config.candidate, project: config.project, line: config.line, warmup: config.warmup, samples: perPair.length, sized, microsecondsPerPair: stats(perPair) };

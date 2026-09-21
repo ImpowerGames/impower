@@ -193,7 +193,14 @@ if (!esbuildInstalled) {
     assert.match(run.stdout, /candidate buffer:[^]*build index[^]*retained once ready/);
     assert.match(run.stdout, /chunks: the 4 candidates produced identical lines and choices \([0-9]{3,} lines, [0-9]{3,} display tables, 1 stops at choices\); the engine took [0-9]{4,} steps and the prototype [0-9]{4,}/);
     assert.match(run.stdout, /candidate chunk-step:[^]*layout: [0-9]+ chunks in [0-9]+ sequences/);
-    assert.match(run.stdout, /symbols: a divert through the symbol table costs /);
+    assert.match(run.stdout, /a display beat that interpolates nothing: [0-9]+ to [0-9]+ instructions, [0-9]+ to [0-9]+ runtime objects/);
+    // The worked example ran: an edit shared all but one sequence row, and a
+    // story resumed inside a block below the edit ran on through the new root.
+    assert.match(run.stdout, /edit probe: two statements inserted around entry [0-9]+ of a then clause of [0-9]{3,}; [0-9]+ of [0-9]+ sequence rows and all [0-9]+ chunks shared with the previous root; resumed inside the if through the new root, the [0-9]+ lines to the end are equal/);
+    // The symbol table is the size the design gives the fixture, its hundreds
+    // of globals included, and not the handful of flows the ring is made of.
+    assert.match(run.stdout, /candidate symbol: a ring of [0-9]+ flows spread through a symbol table of [0-9]{3,}, /);
+    assert.match(run.stdout, /symbols: in a table of [0-9]{3,} symbols, a divert through the symbol table costs /);
     assert.match(run.stdout, /candidate flat-copy: flow MAIN, [0-9]+ records, [0-9]+ statements in [0-9]+ sequences[^]*insert at the bottom/);
     assert.match(run.stdout, /candidate tree-copy:[^]*replace at the middle/);
     assert.match(run.stdout, /candidate records-splice:[^]*copy of the flow's records/);

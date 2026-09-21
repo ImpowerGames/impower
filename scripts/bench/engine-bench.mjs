@@ -161,7 +161,7 @@ async function main(args) {
       }
       if (mode === "symbols" && reports.length === candidates.length) {
         const [symbol, direct] = reports.map((r) => r.nanosecondsPerDivert.median);
-        console.log(`symbols: a divert through the symbol table costs ${(symbol - direct).toFixed(2)} nanoseconds more than one resolved at compile time, by the medians (${symbol.toFixed(2)} against ${direct.toFixed(2)})`);
+        console.log(`symbols: in a table of ${reports[0].symbols} symbols, a divert through the symbol table costs ${(symbol - direct).toFixed(2)} nanoseconds more than one resolved at compile time, by the medians (${symbol.toFixed(2)} against ${direct.toFixed(2)})`);
         console.log("");
       }
       if (mode === "lookahead" && reports.length === candidates.length) {

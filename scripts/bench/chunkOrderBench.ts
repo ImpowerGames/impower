@@ -94,12 +94,15 @@ function flatCopy(chunks: Chunk[], spans: number[]): Structure {
 // The same arrays edited in place. An insert is taken back out again so the
 // sequence keeps its size, and the removal is not timed apart from it: a real
 // compile that inserted would not remove, so this candidate's insert figure is
-// an insert and a delete.
+// an insert and a delete. A replace restamps once, as a real one would, and
+// every second replace at an entry gives the statement its first line count
+// back, so the line starts return to where they were every two operations.
 function flatSplice(chunks: Chunk[], spans: number[]): Structure {
   const list = chunks.slice();
   const lineStarts = new Int32Array(chunks.length + 1);
   for (let i = 1; i < chunks.length; i++) lineStarts[i] = lineStarts[i - 1]! + spans[i - 1]!;
   let length = chunks.length;
+  const grown = new Uint8Array(chunks.length);
   return {
     insert(at, chunk, lines) {
       list.splice(at, 0, chunk);
@@ -112,12 +115,10 @@ function flatSplice(chunks: Chunk[], spans: number[]): Structure {
       length--;
     },
     replace(at, chunk, lines) {
-      const delta = lines - spans[at]!;
+      const delta = grown[at] ? spans[at]! - lines : lines - spans[at]!;
+      grown[at]! ^= 1;
       list[at] = chunk;
-      if (delta !== 0) {
-        for (let i = at + 1; i < length; i++) lineStarts[i]! += delta;
-        for (let i = at + 1; i < length; i++) lineStarts[i]! -= delta;
-      }
+      if (delta !== 0) for (let i = at + 1; i < length; i++) lineStarts[i]! += delta;
     },
     read: (at) => [list[at]!, lineStarts[at]!],
     get length() {
@@ -230,10 +231,10 @@ function timeStructure(make: (chunks: Chunk[], spans: number[]) => Structure, st
     if (structure.length !== statements + 1 || structure.read(at)[0] !== probe || structure.read(at)[1] !== at * LINES_PER_STATEMENT || structure.read(at + 1)[1] !== at * LINES_PER_STATEMENT + 5) throw new Error("the insert did not produce the expected sequence");
   }
   structure.replace(at, probe, 5);
-  // The edit in place puts the line starts back, so only the copies show the
-  // statement after it two lines further down.
+  // A statement that grew by two lines leaves the one after it two lines
+  // further down.
   const after = Math.min(at + 1, statements - 1);
-  const moved = config.candidate !== "flat-splice" && after > at ? 2 : 0;
+  const moved = after > at ? 2 : 0;
   if (structure.read(at)[0] !== probe || structure.read(after)[1] !== after * LINES_PER_STATEMENT + moved) throw new Error("the replace did not produce the expected sequence");
 
   const rows: Record<string, { min: number; median: number; max: number }> = {};

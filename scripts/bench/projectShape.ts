@@ -1,7 +1,8 @@
 // The sizes of a project that the measurements of #693 are taken at: how many
 // statements the flow that holds a line is made of, how many records that flow
-// is in #314's encoding, how many names the program would intern as symbols,
-// and how many global variables a story of it holds.
+// is in #314's encoding, and how large a symbol table the design would give the
+// program: a symbol for each flow, label and choice body, which are the kinds
+// that count, and one for each global variable and each constant, which do not.
 //
 // The statement count is an estimate read from the compiled JSON tree, because
 // no writer exists yet that emits a real project as chunks: a statement is an
@@ -25,8 +26,14 @@ export interface ProjectShape {
   /** Statements per sequence of the flow, largest first. */
   sequences: number[];
   flowStatements: number;
-  symbols: number;
+  /** Symbols of a kind that counts: the named containers of the JSON tree. */
+  countedSymbols: number;
   globals: number;
+  /** `const` declarations in the project's scripts. The JSON tree inlines a
+   *  constant where it is read, so they are counted in the source. */
+  constants: number;
+  /** The whole symbol table: counted symbols, globals and constants. */
+  symbols: number;
 }
 
 const isObject = (x: unknown): x is Record<string, any> => x !== null && typeof x === "object" && !Array.isArray(x);
@@ -87,26 +94,29 @@ function countStatements(items: any[], out: number[]): number {
   return count;
 }
 
-// Names a program of chunks would intern as symbols: every named container but
-// the return and branch labels that exist only in the JSON tree's own protocol.
-function countSymbols(container: any[]): number {
+// The symbols of a kind that counts: every named container but the return and
+// branch labels that exist only in the JSON tree's own protocol.
+function countCountedSymbols(container: any[]): number {
   let count = 0;
-  for (const item of container) if (Array.isArray(item)) count += countSymbols(item);
+  for (const item of container) if (Array.isArray(item)) count += countCountedSymbols(item);
   const named = container.at(-1);
   if (isObject(named)) {
     for (const [name, body] of Object.entries(named)) {
       if (!Array.isArray(body)) continue;
       if (!name.startsWith("$")) count++;
-      count += countSymbols(body);
+      count += countCountedSymbols(body);
     }
   }
   return count;
 }
 
+const CONST_DECLARATION = /^[ \t]*const[ \t]+[A-Za-z_]/gm;
+
 export function measureProjectShape(project: string, line: number) {
   const startFrom = { file: MAIN_URI, line: line - 1 };
   const compiler = new SparkdownCompiler();
-  configurePlayerCompiler(compiler, loadProjectFiles(project), startFrom);
+  const files = loadProjectFiles(project);
+  configurePlayerCompiler(compiler, files, startFrom);
   const cold: any = compiler.compile({ textDocument: { uri: MAIN_URI }, startFrom } as any);
   const compiled: Record<string, any> = cold.program.compiled;
   if (!compiled) throw new Error("the project did not compile");
@@ -130,14 +140,19 @@ export function measureProjectShape(project: string, line: number) {
   const story = new Story(compiled);
   story.onError = (() => {}) as any;
   story.ResetState();
+  const countedSymbols = countCountedSymbols(compiled["root"]);
+  const globals = ((story.state.variablesState as any)["_globalVariables"] as Map<string, unknown>).size;
+  const constants = files.reduce((n, file) => n + (file.type === "script" ? (String(file.text ?? "").match(CONST_DECLARATION)?.length ?? 0) : 0), 0);
   const shape: ProjectShape = {
     flow,
     programRecords: buffer.nodes.length / NODE_WIDTH,
     flowRecords: buffer.nodes[flowAt * NODE_WIDTH + 2]!,
     sequences,
     flowStatements: sequences.reduce((a, b) => a + b, 0),
-    symbols: countSymbols(compiled["root"]),
-    globals: ((story.state.variablesState as any)["_globalVariables"] as Map<string, unknown>).size,
+    countedSymbols,
+    globals,
+    constants,
+    symbols: countedSymbols + globals + constants,
   };
   return { shape, compiled, cold, game, story };
 }

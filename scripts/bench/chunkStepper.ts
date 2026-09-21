@@ -11,13 +11,14 @@
 // is a handful of entries, and the variables and the counts keep an undo log
 // while a save point is open.
 //
-// Left out: function calls and call frames, tunnels, threads, labels and jumps
-// into a block, loops, glue, tags, every builtin but `display`, choice
-// conditions, once-only and fallback choices, errors and warnings, the save
-// format.
+// Left out: function calls and call frames, tunnels, threads, labels and
+// diverts into a block (`resumeAt` rebuilds the block stack for a position
+// handed to it, as one would), loops, glue, tags, every builtin but `display`,
+// choice conditions, once-only and fallback choices, errors and warnings, the
+// save format.
 import type { InkObject } from "../../packages/sparkdown/src/inkjs/engine/Object";
 import { NullValue, ObjectValue, StringValue, type AbstractValue } from "../../packages/sparkdown/src/inkjs/engine/Value";
-import { CHOICE_HAS_CHOICE_ONLY_CONTENT, CHOICE_HAS_START_CONTENT, FLAG_DISCARD, H_CODE_WORDS, H_ID, HEADER, Op, type ProgramRoot, type Sequence } from "./chunkProgram";
+import { B_RESUME, B_SEQUENCE, BLOCK_ROW, CHOICE_HAS_CHOICE_ONLY_CONTENT, CHOICE_HAS_START_CONTENT, FLAG_DISCARD, H_BLOCKS, H_CODE_WORDS, H_ID, HEADER, Op, position, type ProgramRoot, type Sequence } from "./chunkProgram";
 
 export interface ChunkLine {
   text: string;
@@ -80,7 +81,7 @@ export class ChunkStepper {
     this.turns = new Int32Array(root.symbolNames.length).fill(-1);
   }
 
-  start(flow: string, globals: Iterable<[string, InkObject]>) {
+  private reset(globals: Iterable<[string, InkObject]>) {
     this.globals.clear();
     for (const [name, value] of globals) this.globals.set(name, value);
     this.visits.fill(0);
@@ -94,9 +95,43 @@ export class ChunkStepper {
     this.saved = false;
     this.undoNames.length = this.undoValues.length = this.undoCounts.length = 0;
     this.steps = this.saves = this.restores = this.forgets = 0;
+  }
+
+  start(flow: string, globals: Iterable<[string, InkObject]>) {
+    this.reset(globals);
     const symbol = this.root.symbolNames.indexOf(flow);
     if (symbol < 0 || this.root.symSeq[symbol]! < 0) throw new Error(`the program defines no flow named ${flow}`);
     this.jump(symbol);
+  }
+
+  /** Starts at an address, as a position restored from an image does and as a
+   *  divert into a block would: the root says which sequence holds the chunk
+   *  and where, and the owners above it give the block stack, each through the
+   *  root too, so that what is resumed when a block runs out is the sequence
+   *  this root holds and not one the block was first built under. */
+  resumeAt(chunkId: number, pc: number, globals: Iterable<[string, InkObject]>) {
+    this.reset(globals);
+    const root = this.root;
+    const at = position(root, chunkId);
+    if (!at) throw new Error(`the root holds no chunk ${chunkId}`);
+    const stack: number[] = [];
+    for (let seq = at.sequence; seq.owner >= 0; ) {
+      const owner = position(root, seq.owner);
+      if (!owner) throw new Error(`the root holds no chunk ${seq.owner}, which owns sequence ${seq.id}`);
+      const chunk = owner.sequence.chunks[owner.entry]!;
+      const row = HEADER + chunk[H_CODE_WORDS]! + seq.block * BLOCK_ROW;
+      if (seq.block >= chunk[H_BLOCKS]! || chunk[row + B_SEQUENCE] !== seq.id) throw new Error(`chunk ${seq.owner} does not own sequence ${seq.id} as block ${seq.block}`);
+      stack.unshift(owner.sequence.id, owner.entry, chunk[row + B_RESUME]!);
+      seq = owner.sequence;
+    }
+    this.blockStack = stack;
+    this.enter(at.sequence, at.entry, pc);
+  }
+
+  /** Where the engine is: the chunk and the offset of an address, and the
+   *  sequence that holds the chunk. */
+  get cursor(): { sequence: number; chunk: number; pc: number } | null {
+    return this.seq && { sequence: this.seq.id, chunk: this.chunk[H_ID]!, pc: this.pc };
   }
 
   get canContinue() {
@@ -314,7 +349,9 @@ export class ChunkStepper {
         break;
       }
       case Op.EnterBlock: {
-        const child = root.sequences[root.blocks[chunk[H_ID]!]![arg]!]!;
+        // The chunk names its block's sequence by id, and the root the engine
+        // runs on says what that sequence holds.
+        const child = root.sequences[chunk[this.end + arg * BLOCK_ROW + B_SEQUENCE]!]!;
         if (child.chunks.length === 0) break;
         this.blockStack.push(this.seq!.id, this.index, this.pc);
         this.enter(child, 0, HEADER);
