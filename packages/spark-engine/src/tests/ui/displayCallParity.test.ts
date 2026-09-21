@@ -391,6 +391,29 @@ describe("display() load beats", () => {
     });
   }
 
+  test("a load step split from a held line keeps the step's choices", async () => {
+    const run = await beats(
+      `  Before -> row\nend\n\nscene row\n  load overworld\n  choose\n    * Go\n      Gone.\n  end`,
+      true,
+    );
+    expect(run.map((b) => Boolean(b.load))).toEqual([false, true]);
+    expect(run[1]!.load).toEqual([{ name: "overworld" }]);
+    expect(
+      Object.keys(run.at(-1)!.text ?? {}).some((k) => k.startsWith("choice")),
+    ).toBe(true);
+  });
+
+  test("every load line that reaches one step is a load beat", async () => {
+    const run = await beats(
+      `  Before -> row\nend\n\nscene row\n  load overworld -> other\nend\n\nscene other\n  load underworld\n  Arrived.`,
+      true,
+    );
+    expect(run.filter((b) => b.load).map((b) => b.load)).toEqual([
+      [{ name: "overworld" }],
+      [{ name: "underworld" }],
+    ]);
+  });
+
   test("a load line between two text lines is a load beat of its own", async () => {
     const run = await beats(`  Before.\n  load overworld\n  After.`, true);
     expect(run.map((b) => Boolean(b.load))).toEqual([false, true, false]);

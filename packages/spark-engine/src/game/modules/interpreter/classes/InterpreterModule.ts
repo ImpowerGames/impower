@@ -488,32 +488,47 @@ export class InterpreterModule extends Module<
   ): void {
     const read = (table: ObjectValue | undefined, key: string): unknown =>
       (table?.value?.get(key) as { value?: unknown } | undefined)?.value;
-    const loadAt = tables.findIndex(
-      (table) => typeof read(table, "load") === "string",
-    );
-    if (loadAt >= 0) {
+    if (tables.some((table) => typeof read(table, "load") === "string")) {
       // A `load` line is always a load beat of its own. A line that a divert
-      // or a picked choice holds open can reach the step ahead of it; its
-      // tables make the beat before the load. Glued continuation lines after
-      // it add more names, reaching the step as table text.
+      // or a picked choice holds open can reach the step ahead of it, and a
+      // divert on a `load` line can bring the next scene's `load` line into
+      // the same step. Walking the tables in order: text tables before the
+      // first load make a beat of their own, and each load takes the text
+      // tables after it, up to the next load, as more names (a glued
+      // continuation). The step's choices follow its last beat.
       const tableText = (table: ObjectValue) => {
         const text = read(table, "text");
         return typeof text === "string" ? text : "";
       };
-      if (loadAt > 0) {
-        const before = tables.slice(0, loadAt);
-        this.queueInstructions(before, [], before.map(tableText).join(""), tags);
-      }
-      const after =
-        loadAt === 0
-          ? content
-          : tables.slice(loadAt + 1).map(tableText).join("");
       this._state.buffer ??= [];
-      const loadInstructions: LoadInstruction[] = `${read(tables[loadAt], "load")}${after}`
-        .split(this.WHITESPACE_REGEX)
-        .filter(Boolean)
-        .map((name) => ({ name }));
-      this._state.buffer.push({ load: loadInstructions, end: 0 });
+      let before: ObjectValue[] = [];
+      let load: string | null = null;
+      const flush = () => {
+        const text = before.map(tableText).join("");
+        if (load === null) {
+          if (before.length > 0) this.queueInstructions(before, [], text, tags);
+        } else {
+          const loadInstructions: LoadInstruction[] = `${load}${text}`
+            .split(this.WHITESPACE_REGEX)
+            .filter(Boolean)
+            .map((name) => ({ name }));
+          this._state.buffer!.push({ load: loadInstructions, end: 0 });
+        }
+        before = [];
+      };
+      for (const table of tables) {
+        const next = read(table, "load");
+        if (typeof next === "string") {
+          flush();
+          load = next;
+        } else {
+          before.push(table);
+        }
+      }
+      flush();
+      if (choices.length > 0) {
+        this.appendBeat("", undefined, "", choices);
+      }
       return;
     }
     const routed = tables.find((table) => {
