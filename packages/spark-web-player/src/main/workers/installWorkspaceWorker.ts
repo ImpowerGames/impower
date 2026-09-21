@@ -20,7 +20,7 @@ import {
 import type { CompiledProgramParams } from "@impower/sparkdown/src/compiler/classes/messages/CompiledProgramMessage";
 import { CompileProgramMessage } from "@impower/sparkdown/src/compiler/classes/messages/CompileProgramMessage";
 import { ConfigurePlayerWorkerMessage } from "./messages/ConfigurePlayerWorkerMessage";
-import { PrefetchAssetsMessage } from "./messages/PrefetchAssetsMessage";
+import { PreviewHintMessage } from "./messages/PreviewHintMessage";
 import type { WorkerDisplayWorkspace } from "./WorkerDisplayWorkspace";
 import { WorkerGameLink } from "./WorkerGameLink";
 import WORKSPACE_INLINE_WORKER_STRING from "./workspace.worker";
@@ -49,7 +49,7 @@ export function installWorkspaceWorker(connection: MessageConnection) {
       this.gameLink = new WorkerGameLink(this._compilerChannelConnection);
       this._compilerChannelConnection.addEventListener("message", (e) => {
         const message = e.data;
-        if (PrefetchAssetsMessage.type.isNotification(message)) {
+        if (PreviewHintMessage.type.isNotification(message)) {
           try {
             applyPreviewHint(cache, message.params);
           } catch (e) {
@@ -195,7 +195,7 @@ export function installWorkspaceWorker(connection: MessageConnection) {
     }) {
       if (this.workerDisplaysPreview) {
         // The worker holds the program and sends the warm-up itself
-        // (`PrefetchAssetsMessage`).
+        // (`PreviewHintMessage`).
         return;
       }
       try {

@@ -22,7 +22,7 @@ import {
   type DisplayPreviewParams,
   type DisplayPreviewResult,
 } from "./messages/DisplayPreviewMessage";
-import { PrefetchAssetsMessage } from "./messages/PrefetchAssetsMessage";
+import { PreviewHintMessage } from "./messages/PreviewHintMessage";
 import { planRouteForSelection } from "./planRouteForSelection";
 import { RouteSearchLog } from "./RouteSearchLog";
 import { searchRouteTo } from "./searchRouteTo";
@@ -332,7 +332,7 @@ export function installPlayerWorker(connection: MessageConnection) {
         return;
       }
       lastHint = plan.state;
-      connection.sendNotification(PrefetchAssetsMessage.type, {
+      connection.sendNotification(PreviewHintMessage.type, {
         cursor: plan.cursor,
         near: plan.near,
         rest: plan.rest,
