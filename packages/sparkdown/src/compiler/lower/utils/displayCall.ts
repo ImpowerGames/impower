@@ -1,3 +1,4 @@
+import { Expression } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expression/Expression";
 import { StringExpression } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expression/StringExpression";
 import {
   ObjectExpression,
@@ -54,6 +55,54 @@ export function buildDisplayCall(
   }
   entries.push(new ObjectExpressionEntry("text", new StringExpression(body)));
   return finishCall(entries, tags, range, ctx);
+}
+
+// `display({ parts })` for words whose `# tag`s sit between pieces of text (a
+// picked choice's start content, then its chosen-only text). Each part is a
+// run of text or a `{ tag }` table, in the order written, so text and tags are
+// evaluated in that order. `display` joins the parts into `text` and `tags`
+// before anything reads the table.
+export function buildOrderedDisplayCall(
+  words: ParsedObject[],
+  ctx: LowerContext,
+): FunctionCall {
+  const parts: Expression[] = [];
+  let run: ParsedObject[] = [];
+  let tag: ParsedObject[] | null = null;
+  for (const obj of words) {
+    if (obj instanceof Tag) {
+      if (obj.isStart) {
+        if (run.length > 0) parts.push(new StringExpression(run));
+        run = [];
+        tag = [];
+      } else if (tag) {
+        parts.push(
+          new ObjectExpression([
+            new ObjectExpressionEntry("tag", new StringExpression(tag)),
+          ]),
+        );
+        tag = null;
+      }
+    } else if (tag) {
+      tag.push(obj);
+    } else {
+      run.push(obj);
+    }
+  }
+  if (run.length > 0) parts.push(new StringExpression(run));
+  return finishCall(
+    [
+      new ObjectExpressionEntry(
+        "parts",
+        new ObjectExpression(
+          parts.map((part, i) => new ObjectExpressionEntry(String(i + 1), part)),
+        ),
+      ),
+    ],
+    [],
+    null,
+    ctx,
+  );
 }
 
 // Split parsed objects into their `# tag`s (the content between each

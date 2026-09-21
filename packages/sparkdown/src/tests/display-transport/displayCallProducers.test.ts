@@ -275,6 +275,22 @@ describe("producers outside display statements (#688)", () => {
     expect(run[1]!.tables[0]!["tags"]).toEqual(["picked"]);
   });
 
+  // A tag before the brackets runs before the chosen-only text, as written.
+  test("a tag in a choice's start content is evaluated before its chosen-only text", () => {
+    const run = displayCallSteps(
+      `store x = 0\nchoose\n  * Take # {{bump}}[ label] {x}\n    Taken.\nend\ndone\n\nfunction bump()\nx += 1\nreturn x\nend\n`,
+    );
+    expect(run[1]!.text).toBe("Take 2\n");
+    expect(run[1]!.tables).toHaveLength(1);
+  });
+
+  test("tags between a choice's words keep their evaluation order", () => {
+    const run = displayCallSteps(
+      `store x = 0\nchoose\n  * {bump()} # {x}[ label] {bump()} # {x}\n    Taken.\nend\ndone\n\nfunction bump()\nx += 1\nreturn x\nend\n`,
+    );
+    expect(run[1]!.authorTags).toEqual(["2", "3"]);
+  });
+
   test("a picked choice ending in an inline divert joins the target's line", () => {
     const run = displayCallSteps(
       `-> a\n\nscene a\n  choose\n    * Take it -> b\n  end\nend\n\nscene b\n  now.\n  done\nend\n`,

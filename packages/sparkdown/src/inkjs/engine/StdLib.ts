@@ -2496,6 +2496,33 @@ function linkWaitingStructuralChildren(
   }
 }
 
+// A `display({ parts })` table carries words whose tags sit between pieces of
+// text, each part a string or a `{ tag }` table, in the order written. Join
+// them into the `text` and `tags` every other display table carries.
+function joinDisplayParts(table: Map<string, AbstractValue>): void {
+  const parts = table.get("parts");
+  if (!(parts instanceof ObjectValue) || !parts.value) return;
+  let text = "";
+  const tags = new Map<string, AbstractValue>();
+  const ordered = [...parts.value.entries()].sort(
+    ([a], [b]) => Number(a) - Number(b),
+  );
+  for (const [, part] of ordered) {
+    if (part instanceof StringValue) {
+      text += part.value ?? "";
+    } else if (part instanceof ObjectValue) {
+      const tag = part.value?.get("tag");
+      if (tag instanceof StringValue) {
+        tags.set(String(tags.size + 1), tag);
+      }
+    }
+  }
+  table.set("text", new StringValue(text));
+  if (tags.size > 0) {
+    table.set("tags", new ObjectValue(tags));
+  }
+}
+
 export const STDLIB: Record<string, StdLibEntry> = {
   // ============================================================
   // `math.*` — pure numeric helpers (auto-registered with NativeFunctionCall)
@@ -3118,6 +3145,9 @@ export const STDLIB: Record<string, StdLibEntry> = {
     arity: -1, // variadic — actual count comes from compile-site capture
     fn: (story, args) => {
       const payload = args[0];
+      if (payload instanceof ObjectValue && payload.value) {
+        joinDisplayParts(payload.value);
+      }
       // The line's author tags go to the stream first, as a tag written on
       // the line would, so they land in the same step's `currentTags`.
       const tags =

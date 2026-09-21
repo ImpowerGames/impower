@@ -494,10 +494,10 @@ export class StoryState {
    *  `display(<table>)` stdlib call pushed onto the output stream this beat.
    *  Walks the stream collecting top-level `ObjectValue`s (skipping anything
    *  inside a BeginTag…EndTag span, so routing tags don't leak in). Empty for
-   *  every beat that didn't call `display()` — the legacy text path is
-   *  unaffected. The engine reads this alongside `currentText` after each
-   *  Continue: the first table routes the beat, and `currentText` (which
-   *  includes every table's `text`) is the body the interpreter parses. */
+   *  every beat that called neither `display()` nor `print()`. The engine
+   *  reads this alongside `currentText` after each Continue: the first table
+   *  that names a target routes the beat, and `currentText` (which includes
+   *  every table's `text`) is the body the interpreter parses. */
   get currentDisplayInstructions(): ObjectValue[] {
     const result: ObjectValue[] = [];
     let inTag = false;

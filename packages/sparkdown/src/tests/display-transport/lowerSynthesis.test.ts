@@ -153,9 +153,10 @@ describe("lowerer synthesis: display() from authored prose", () => {
     );
   });
 
-  test("a trailing # tag rides the stream beside the call", () => {
-    // A `# tag` is metadata, so it goes to the stream ahead of the call and
-    // lands in the same step's `currentTags`.
+  test("a trailing # tag rides the call's table", () => {
+    // A `# tag` is metadata: it rides the table's `tags`, evaluated after the
+    // text, and `display` puts it on the stream so it lands in the same
+    // step's `currentTags`.
     const { story, errors } = run(`The bell rings. # ominous\ndone\n`, {
       experimentalDisplayCalls: true,
     });

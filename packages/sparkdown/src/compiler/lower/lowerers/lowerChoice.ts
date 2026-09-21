@@ -29,7 +29,10 @@ import {
   divertLoadShapeProblem,
   withDivertLoad,
 } from "../utils/buildDivert";
-import { buildDisplayCall, separateTags } from "../utils/displayCall";
+import {
+  buildDisplayCall,
+  buildOrderedDisplayCall,
+} from "../utils/displayCall";
 import { lowerTagContent } from "../utils/lowerTagContent";
 import { wrapInWeave } from "../utils/wrapInWeave";
 
@@ -311,9 +314,9 @@ export function lowerChoice(
 //
 // The start content repeats by jumping into the container the choice label
 // uses, from inside the call's string. A tag cannot run inside a captured
-// string, so when a `# tag` sits among the words, the call instead captures a
-// fresh lowering of the start content (`relowerStart`) and carries the tags in
-// its `tags`.
+// string, so when a `# tag` sits among the words, the call instead takes a
+// fresh lowering of the start content (`relowerStart`) and carries the words
+// and tags as ordered `parts`, evaluated in the order written.
 function chosenTextAsDisplayCall(
   start: ContentList,
   inner: ContentList,
@@ -335,8 +338,7 @@ function chosenTextAsDisplayCall(
   let startEcho: ChoiceStartEcho | null = null;
   if (tagged) {
     const startWords = hasStart ? relowerStart().content.slice() : [];
-    const { tags, rest } = separateTags([...startWords, ...words]);
-    call = buildDisplayCall(undefined, undefined, rest, null, ctx, tags);
+    call = buildOrderedDisplayCall([...startWords, ...words], ctx);
   } else {
     startEcho = hasStart ? new ChoiceStartEcho() : null;
     const body = startEcho ? [startEcho, ...words] : words;

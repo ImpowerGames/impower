@@ -323,7 +323,8 @@ export class InterpreterModule extends Module<
    * dialogue cue + a final body string, and append them to the buffer. Shared
    * by {@link queue} (routing resolved from the line-type tag) and
    * {@link queueInstructions} (routing carried in the step's first
-   * `display(<table>)` table); the body is the step's `currentText` for both,
+   * `display(<table>)` table that names a target); the body is the step's
+   * `currentText` for both,
    * so BOTH transports produce byte-identical
    * instructions: the cue resolution (name / parenthetical / position via
    * `CHARACTER_REGEX`), the `>` box split, the per-character `parse()`, the cue
@@ -465,7 +466,7 @@ export class InterpreterModule extends Module<
    *
    * Table shape: `{ target?: string, character?: string, text: string,
    * tags?: table }`, or `{ load: string }` for a `load` line, whose
-   * whitespace-separated names queue a load beat.
+   * whitespace-separated names queue a load beat of their own.
    *
    * One step makes one beat. Several tables share a step only when glue joined
    * their lines, and the body is the step's ordered visible text: every
@@ -487,12 +488,28 @@ export class InterpreterModule extends Module<
   ): void {
     const read = (table: ObjectValue | undefined, key: string): unknown =>
       (table?.value?.get(key) as { value?: unknown } | undefined)?.value;
-    const load = read(tables[0], "load");
-    if (typeof load === "string") {
-      // A `load` line is always a load beat of its own. Glued continuation
-      // lines add more names; they reach the step as table text.
+    const loadAt = tables.findIndex(
+      (table) => typeof read(table, "load") === "string",
+    );
+    if (loadAt >= 0) {
+      // A `load` line is always a load beat of its own. A line that a divert
+      // or a picked choice holds open can reach the step ahead of it; its
+      // tables make the beat before the load. Glued continuation lines after
+      // it add more names, reaching the step as table text.
+      const tableText = (table: ObjectValue) => {
+        const text = read(table, "text");
+        return typeof text === "string" ? text : "";
+      };
+      if (loadAt > 0) {
+        const before = tables.slice(0, loadAt);
+        this.queueInstructions(before, [], before.map(tableText).join(""), tags);
+      }
+      const after =
+        loadAt === 0
+          ? content
+          : tables.slice(loadAt + 1).map(tableText).join("");
       this._state.buffer ??= [];
-      const loadInstructions: LoadInstruction[] = `${load}${content}`
+      const loadInstructions: LoadInstruction[] = `${read(tables[loadAt], "load")}${after}`
         .split(this.WHITESPACE_REGEX)
         .filter(Boolean)
         .map((name) => ({ name }));

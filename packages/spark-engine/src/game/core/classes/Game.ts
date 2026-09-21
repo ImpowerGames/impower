@@ -2020,7 +2020,8 @@ export class Game<T extends M = {}> {
           // the visible text.
           const currentTags = this._story.currentTags || [];
           // A step that called `display(<table>)` takes its routing from the
-          // first table. Its body is `currentText`, the step's ordered visible
+          // first table that names a target (see `queueInstructions`). Its
+          // body is `currentText`, the step's ordered visible
           // text, so a table and flat text sharing a step (a glued chain whose
           // lines reached the stream in both forms) render every word. A step
           // with no table takes the routing-tag path.

@@ -168,7 +168,8 @@ describe("display() ↔ legacy parity (message stream)", () => {
 
   // Every line of a glue chain lowers to its own display() call (pinned by
   // `glueJoin.test.ts` in packages/sparkdown); one step carries the tables and
-  // the interpreter joins them into one beat routed by the first table.
+  // the interpreter joins them into one beat routed by the first table that
+  // names a target.
   test("leading-glue continuation (.. on the next line)", async () => {
     await assertParity(`  Some\n  .. content\n  .. with glue.`);
   });
@@ -349,6 +350,44 @@ describe("display() load beats", () => {
           .map((t) => t.text)
           .join(""),
       ).toContain("load the cart");
+    });
+  }
+
+  // A divert or a picked choice holds its line open with glue, so the target's
+  // `load` line reaches the same step; it still makes a beat of its own.
+  for (const [label, body, pick] of [
+    [
+      "a mid-line divert",
+      `  We hurried home to -> row\nend\n\nscene row\n  load overworld\n  Arrived.`,
+      false,
+    ],
+    [
+      "a picked choice",
+      `  choose\n    * Take it -> row\n  end\nend\n\nscene row\n  load overworld\n  Arrived.`,
+      true,
+    ],
+  ] as const) {
+    test(`a load line reached through ${label} is a load beat of its own`, async () => {
+      const harness = createHarness(story(body), 0, {
+        experimentalDisplayCalls: true,
+      });
+      await harness.ready;
+      harness.jumpTo("start");
+      const run = [];
+      for (let guard = 0; guard < 20; guard++) {
+        const beat = harness.nextBeat();
+        if (beat) {
+          run.push(beat);
+          continue;
+        }
+        const s: any = harness.game.story;
+        if (!pick || s.canContinue || s.currentChoices.length === 0) break;
+        s.ChooseChoiceIndex(0);
+      }
+      // A picked choice's run opens with the beat that shows the choices.
+      const shown = run.filter((b) => b.load || b.text).slice(pick ? 1 : 0);
+      expect(shown.map((b) => Boolean(b.load))).toEqual([false, true, false]);
+      expect(shown[1]!.load).toEqual([{ name: "overworld" }]);
     });
   }
 

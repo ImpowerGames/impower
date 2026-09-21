@@ -79,7 +79,7 @@ function buildDisplayContent(
     content.push(new ParsedGlue(new RuntimeGlue()));
     // With display calls on, the continuation is a `display({ text })` call
     // carrying no routing: the runtime joins it onto the step the glue keeps
-    // open, and the beat takes its routing from that step's first table.
+    // open, and the beat takes its routing from the line it continues.
     const continuationCall = tryBuildSimpleDisplayCall(
       parent,
       bodyStart,
