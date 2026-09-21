@@ -45,8 +45,13 @@ export function installGameWorker(connection: MessageConnection) {
 
   const systemConfiguration: SystemConfiguration = {
     now: () => performance.now(),
-    setTimeout: self.setTimeout,
-    requestFrame: self.requestAnimationFrame,
+    // Called as methods of this configuration, which a browser refuses for
+    // the global's own functions ("Illegal invocation"), so each is called
+    // on the global here.
+    setTimeout: (handler: Function, timeout?: number, ...args: any[]) =>
+      self.setTimeout(handler as TimerHandler, timeout, ...args),
+    requestFrame: (callback: FrameRequestCallback) =>
+      self.requestAnimationFrame(callback),
     resolve: (path: string) => {
       // TODO: resolve import and load paths to url
       return path;
