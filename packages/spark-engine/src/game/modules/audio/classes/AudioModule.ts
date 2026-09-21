@@ -70,31 +70,28 @@ export class AudioModule extends Module<
 
   override onReset() {
     this._channelsCurrentlyPlaying = new Map();
+    this._replayPlaying = new Map();
   }
 
-  /** What the page was playing when a route replay began. The replay still
-   *  tracks what its beats would play, because a channel-wide event saves its
-   *  state through that record, but it plays none of it. */
-  protected _playingBeforeReplay?: Map<
-    string,
-    Map<string, LoadAudioPlayerParams>
-  >;
+  /** What route replays have played, kept apart from what the page is
+   *  playing. A replay plays nothing on the page, but a channel-wide event
+   *  saves its state through this record, and a replay that resumes from a
+   *  checkpoint continues from what the previous replay left in it. */
+  protected _replayPlaying: Map<string, Map<string, LoadAudioPlayerParams>> =
+    new Map();
+
+  /** What the page was playing when the current replay began. */
+  protected _pagePlaying?: Map<string, Map<string, LoadAudioPlayerParams>>;
 
   override onReplay() {
-    this._playingBeforeReplay = this._channelsCurrentlyPlaying;
-    this._channelsCurrentlyPlaying = new Map(
-      [...this._channelsCurrentlyPlaying].map(([channel, playing]) => [
-        channel,
-        new Map(playing),
-      ]),
-    );
+    this._pagePlaying = this._channelsCurrentlyPlaying;
+    this._channelsCurrentlyPlaying = this._replayPlaying;
   }
 
   override onReplayEnd() {
-    if (this._playingBeforeReplay) {
-      this._channelsCurrentlyPlaying = this._playingBeforeReplay;
-      this._playingBeforeReplay = undefined;
-    }
+    this._replayPlaying = this._channelsCurrentlyPlaying;
+    this._channelsCurrentlyPlaying = this._pagePlaying ?? new Map();
+    this._pagePlaying = undefined;
   }
 
   override async onRestore() {

@@ -227,8 +227,11 @@ export class Coordinator<G extends Game> {
       // enter/exit transition is fire-and-forget for visuals, while `wait` (which
       // inflated instructions.end) is what actually holds story advance.
       if (instructions.layout) {
+        // A simulated beat is shown to no one, so its layouts open and close
+        // without their transitions.
+        const settle = !!instant || Boolean(game.context.system.simulating);
         Object.values(instructions.layout).forEach((events) =>
-          game.module.ui.applyLayoutInstructions(events, !!instant),
+          game.module.ui.applyLayoutInstructions(events, settle),
         );
       }
 

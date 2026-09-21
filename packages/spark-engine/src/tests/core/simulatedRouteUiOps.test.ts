@@ -5,6 +5,7 @@
 // checkpoint displays, and a connected game reports nothing for the search.
 
 import { describe, expect, test } from "vitest";
+import { Game } from "../../game/core/classes/Game";
 import {
   createHarness,
   flushMicrotasks,
@@ -129,6 +130,96 @@ describe("a simulated route buffers no UI operation", { timeout: 30_000 }, () =>
     expect(h.game.state).toBe("initial");
     await h.preview(TARGET_LINE);
     expect(h.game.state).toBe("previewing");
+  });
+
+  test("a replay that resumes from a checkpoint saves the audio a fresh replay saves", () => {
+    const filler = (from: number, n: number) =>
+      Array.from({ length: n }, (_, i) => `  Line ${from + i}.`).join("\n");
+    const source = `define first_theme as audio with
+  src = "https://example.com/first.wav"
+end
+
+define second_theme as audio with
+  src = "https://example.com/second.wav"
+end
+
+-> start
+
+scene start
+  ((play music first_theme))
+${filler(0, 40)}
+  The first stop.
+${filler(40, 40)}
+  ((play music second_theme))
+${filler(80, 20)}
+  The second stop.
+end
+`;
+    const lineOf = (text: string) =>
+      source.split("\n").findIndex((l) => l.includes(text));
+    const planTo = (game: any, line: number) => {
+      game.setStartFrom({ file: MAIN_URI, line });
+      const toPath = game.startPath as string;
+      return Game.planRoute(
+        game.story,
+        game.program,
+        Game.getSimulateFromPath(toPath),
+        toPath,
+      )!;
+    };
+    const looping = (game: any) =>
+      JSON.parse(game.save() as string).modules.audio;
+
+    const resumed: any = createHarness(source, 0, { connect: false }).game;
+    resumed.patchAndSimulateRoute(planTo(resumed, lineOf("The first stop.")));
+    let loads = 0;
+    const realLoad = resumed.load.bind(resumed);
+    resumed.load = (...args: unknown[]) => {
+      loads += 1;
+      return realLoad(...args);
+    };
+    resumed.patchAndSimulateRoute(planTo(resumed, lineOf("The second stop.")));
+    expect(loads).toBe(1);
+
+    const fresh: any = createHarness(source, 0, { connect: false }).game;
+    fresh.patchAndSimulateRoute(planTo(fresh, lineOf("The second stop.")));
+
+    expect(looping(fresh).channels.music.looping.map((s: any) => s.key)).toEqual(
+      ["audio.second_theme"],
+    );
+    expect(looping(resumed)).toEqual(looping(fresh));
+  });
+
+  test("a connected game sends nothing for a route through an animated layout", async () => {
+    const source = `layout hud with
+  text "HUD"
+end
+
+-> start
+
+scene start
+${BEATS.slice(0, 10).join("\n")}
+  [[open hud with fade over 0.5s]]
+  The line after the hud.
+end
+`;
+    const h = createHarness(source, 0, { autoOpenAll: false });
+    await h.ready;
+    h.reset();
+    const game: any = h.game;
+    game.setStartFrom({
+      file: MAIN_URI,
+      line: source.split("\n").findIndex((l) => l.includes("after the hud")),
+    });
+    game.simulate();
+    expect(game.simulation).toBe("success");
+    await flushMicrotasks(10);
+    expect(flattenMessages(h.messages).map((m) => m.method)).toEqual([]);
+    expect(
+      JSON.parse(game.save() as string).modules.ui.layout?.map(
+        (l: any) => l.name,
+      ),
+    ).toContain("hud");
   });
 
   test("ending the simulation clears the flag the replay set", () => {

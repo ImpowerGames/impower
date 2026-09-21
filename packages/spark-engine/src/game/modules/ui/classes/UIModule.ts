@@ -929,7 +929,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   protected async animateElements(
     effects: { element: Element; animations: Animation[] }[],
   ) {
-    if (effects.length === 0) {
+    if (effects.length === 0 || this._game.replaying) {
       return [];
     }
     // Flush pending create/update ops so the elements this animation targets
