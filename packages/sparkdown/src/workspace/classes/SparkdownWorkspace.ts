@@ -674,7 +674,8 @@ export abstract class SparkdownWorkspace {
   protected _documentUpdates: Promise<unknown> = Promise.resolve();
 
   // Pairs with the encoder in the compiler worker. Every program response is
-  // decoded as soon as it arrives, in the order it arrives.
+  // decoded as soon as it arrives, in the order it arrives, except a summary,
+  // which the worker does not encode.
   protected _programTransport = new ProgramTransportDecoder();
 
   protected _filesRevision = 0;
@@ -729,7 +730,9 @@ export abstract class SparkdownWorkspace {
         PreviewCompileProgramMessage.type,
         { ...params, root: { uri: root } },
       );
-      this._programTransport.decode(result.program);
+      if (!result.program?.summary) {
+        this._programTransport.decode(result.program);
+      }
       return result;
     } finally {
       profile("end", this._profilerId, "workspace" + " " + "previewCompile", root);
@@ -1022,7 +1025,9 @@ export abstract class SparkdownWorkspace {
         startFrom: this._documentSelected,
       },
     );
-    this._programTransport.decode(result.program);
+    if (!result.program?.summary) {
+      this._programTransport.decode(result.program);
+    }
     return result;
   }
 

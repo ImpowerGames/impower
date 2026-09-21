@@ -17,6 +17,12 @@ import {
   planPreviewHint,
   type PreviewHintState,
 } from "../utils/previewHint";
+import type { CompiledProgramParams } from "@impower/sparkdown/src/compiler/classes/messages/CompiledProgramMessage";
+import { CompileProgramMessage } from "@impower/sparkdown/src/compiler/classes/messages/CompileProgramMessage";
+import { ConfigurePlayerWorkerMessage } from "./messages/ConfigurePlayerWorkerMessage";
+import { PrefetchAssetsMessage } from "./messages/PrefetchAssetsMessage";
+import type { WorkerDisplayWorkspace } from "./WorkerDisplayWorkspace";
+import { WorkerGameLink } from "./WorkerGameLink";
 import WORKSPACE_INLINE_WORKER_STRING from "./workspace.worker";
 
 const ASSET_FILE_TYPES = new Set(["image", "audio", "font", "video"]);
@@ -27,9 +33,71 @@ export function installWorkspaceWorker(connection: MessageConnection) {
   // a beat (the editor re-selects on every column change) asks for nothing.
   let lastHint: PreviewHintState | undefined;
 
-  class SparkdownGameWorkspace extends SparkdownWorkspace {
+  class SparkdownGameWorkspace
+    extends SparkdownWorkspace
+    implements WorkerDisplayWorkspace
+  {
+    /** The stopped preview is displayed from the worker's game
+     *  (`installPlayerWorker`). Set by the `workerDisplaysPreview` field of
+     *  the initialization options, which an author never sets. */
+    workerDisplaysPreview = false;
+
+    readonly gameLink: WorkerGameLink;
+
     constructor(profilerId?: string) {
       super(WORKSPACE_INLINE_WORKER_STRING, profilerId);
+      this.gameLink = new WorkerGameLink(this._compilerChannelConnection);
+      this._compilerChannelConnection.addEventListener("message", (e) => {
+        const message = e.data;
+        if (PrefetchAssetsMessage.type.isNotification(message)) {
+          try {
+            applyPreviewHint(cache, message.params);
+          } catch (e) {
+            // A hint is an optimization; it must never take anything down.
+            console.warn("Could not prefetch the selected scene's images:", e);
+          }
+        }
+      });
+    }
+
+    override initialize(
+      params: Parameters<SparkdownWorkspace["initialize"]>[0],
+    ) {
+      const options = params.initializationOptions as
+        | (NonNullable<typeof params.initializationOptions> & {
+            workerDisplaysPreview?: boolean;
+          })
+        | undefined;
+      if (options) {
+        const { workerDisplaysPreview, ...compilerOptions } = options;
+        this.workerDisplaysPreview = workerDisplaysPreview === true;
+        params = { ...params, initializationOptions: compilerOptions };
+      }
+      // Ahead of everything the initialization sends the compiler, which
+      // handles its messages in order.
+      this._compilerChannelConnection
+        .sendRequest(ConfigurePlayerWorkerMessage.type, {
+          workerDisplaysPreview: this.workerDisplaysPreview,
+        })
+        .catch(console.error);
+      return super.initialize(params);
+    }
+
+    /** The whole program at the selection, compiled for PLAY, with the
+     *  route the worker replayed to it. */
+    async compileForPlay(uri: string): Promise<CompiledProgramParams> {
+      await this.compilerReady();
+      const root = this.getMainScriptUri(uri) ?? uri;
+      const result = await this._compilerChannelConnection.sendRequest(
+        CompileProgramMessage.type,
+        {
+          textDocument: { uri: root },
+          startFrom: this._documentSelected,
+          emitCompiledProgram: true,
+        },
+      );
+      this._programTransport.decode(result.program);
+      return result;
     }
 
     override sendRequest<P, M extends string, R>(
@@ -125,6 +193,11 @@ export function installWorkspaceWorker(connection: MessageConnection) {
       textDocument: { uri: string };
       selectedRange: { start: { line: number } };
     }) {
+      if (this.workerDisplaysPreview) {
+        // The worker holds the program and sends the warm-up itself
+        // (`PrefetchAssetsMessage`).
+        return;
+      }
       try {
         const uri = params.textDocument?.uri ?? "";
         const program = this.program(uri);

@@ -139,4 +139,11 @@ export interface SparkProgram {
   // threw.
   sceneAssets?: { [flowName: string]: SceneAssets };
   version?: number;
+  /** Set on a program's summary (`programSummary`), which is all a compile
+   *  sends a host that leaves the program where it was compiled: `uri`,
+   *  `scripts`, `version`, `workspace`, `startFrom` and `simulationOptions`. */
+  summary?: true;
+  /** On a summary, whether the compile produced a story that runs, which
+   *  `compiled` answers on a whole program (`isRunnableProgram`). */
+  runnable?: boolean;
 }
