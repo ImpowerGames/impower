@@ -1,5 +1,4 @@
 {
-  "outputStyle": "Plain English",
   "hooks": {
     "PreToolUse": [
       {
