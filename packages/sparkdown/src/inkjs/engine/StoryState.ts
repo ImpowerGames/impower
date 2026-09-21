@@ -355,6 +355,15 @@ export class StoryState {
         let textContent = asOrNull(outputObj, StringValue);
         if (!inTag && textContent !== null) {
           sb.Append(textContent.value);
+        } else if (!inTag && outputObj instanceof ObjectValue) {
+          // A `display(<table>)` call's table carries its visible words in
+          // `text`. Reading it here, in stream order beside the flat strings,
+          // makes `currentText` the step's full visible text whichever form
+          // each producer used.
+          let tableText = outputObj.value?.get("text");
+          if (tableText instanceof StringValue && tableText.value) {
+            sb.Append(tableText.value);
+          }
         } else {
           let controlCommand = asOrNull(outputObj, ControlCommand);
           if (controlCommand !== null) {
@@ -487,8 +496,8 @@ export class StoryState {
    *  inside a BeginTag…EndTag span, so routing tags don't leak in). Empty for
    *  every beat that didn't call `display()` — the legacy text path is
    *  unaffected. The engine reads this alongside `currentText` after each
-   *  Continue and feeds the structured payload straight to the interpreter,
-   *  bypassing the char-by-char re-parse. */
+   *  Continue: the first table routes the beat, and `currentText` (which
+   *  includes every table's `text`) is the body the interpreter parses. */
   get currentDisplayInstructions(): ObjectValue[] {
     const result: ObjectValue[] = [];
     let inTag = false;
@@ -1106,6 +1115,20 @@ export class StoryState {
         if (this.outputStreamEndsInNewline || !this.outputStreamContainsContent)
           includeInOutput = false;
       }
+    } else if (obj instanceof ObjectValue) {
+      // A display table with visible words consumes pending glue exactly as
+      // non-whitespace text does. Left in place, the glue would swallow the
+      // newline that closes this table's step and every later line would join.
+      // A table whose `text` is empty or whitespace leaves the glue pending,
+      // as whitespace text does, so the next visible words still join.
+      //
+      // The removal looks past a `# tag`'s BeginTag/EndTag pair. A tag is
+      // metadata, so a tagged line between the glue and the table leaves the
+      // step boundaries where they would be without the tag.
+      let tableText = obj.value?.get("text");
+      if (!(tableText instanceof StringValue) || tableText.isNonWhitespace) {
+        this.RemoveExistingGlue(true);
+      }
     }
 
     if (includeInOutput) {
@@ -1150,13 +1173,18 @@ export class StoryState {
     this.OutputStreamDirty();
   }
 
-  public RemoveExistingGlue() {
+  // Remove pending glue, scanning back to the nearest control command. With
+  // `pastTags`, a BeginTag/EndTag pair does not end the scan.
+  public RemoveExistingGlue(pastTags = false) {
     for (let i = this.outputStream.length - 1; i >= 0; i--) {
       let c = this.outputStream[i];
       if (c instanceof Glue) {
         this.outputStream.splice(i, 1);
       } else if (c instanceof ControlCommand) {
-        break;
+        let isTag =
+          c.commandType == ControlCommand.CommandType.BeginTag ||
+          c.commandType == ControlCommand.CommandType.EndTag;
+        if (!(pastTags && isTag)) break;
       }
     }
 

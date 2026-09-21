@@ -361,12 +361,17 @@ export function createDOMHarness(
         story.ContinueAsync();
         if (story.asyncContinueComplete) {
           const choices = story.currentChoices.map((c: any) => c.text);
-          // Mirror Game's continue loop: a `display(<table>)` beat routes its
-          // pre-parsed instructions via queueInstructions; a normal text beat
-          // takes the legacy queue() path.
+          // Mirror Game's continue loop: a step that called `display(<table>)`
+          // routes from its first table with the step's ordered text as the
+          // body; a step with no table takes the queue() path.
           const displayInstructions = story.currentDisplayInstructions;
           if (displayInstructions.length > 0) {
-            interpreter.queueInstructions(displayInstructions, choices);
+            interpreter.queueInstructions(
+              displayInstructions,
+              choices,
+              story.currentText || "",
+              story.currentTags || [],
+            );
           } else {
             interpreter.queue(
               story.currentText || "",
