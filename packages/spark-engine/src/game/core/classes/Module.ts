@@ -157,6 +157,16 @@ export abstract class Module<
   }
 
   /**
+   * Whether a newer connect has begun since `epoch` was read. Work a connect
+   * started and resumes after an await checks this first: what it would send
+   * next belongs to a stream the page has moved past, and the page would
+   * take it as part of the newer one.
+   */
+  superseded(epoch: number): boolean {
+    return this._game.connection.epoch !== epoch;
+  }
+
+  /**
    * Send a request and wait until the page is done with it, whatever its
    * answer. The page answers every request, with an error when it could not
    * act on it: it went away, the request's stream was superseded, or nothing

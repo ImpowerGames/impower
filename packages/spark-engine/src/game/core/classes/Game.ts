@@ -861,7 +861,7 @@ export class Game<T extends M = {}> {
     // Everything the connect restores, and whatever it goes on to display,
     // is a new stream: what the last one still had in flight must not land
     // on it.
-    this._connection.beginEpoch();
+    const epoch = this._connection.beginEpoch();
     // Before the modules connect, so the scene's assets are requested before
     // the restore gate waits on the ones already on screen.
     const previewing = this._context.system.previewing;
@@ -875,6 +875,12 @@ export class Game<T extends M = {}> {
         this._modules[moduleName]?.onConnected(),
       ),
     );
+    // A newer connect began while this one waited (for the main layout's
+    // fonts, or the restore gate): that connect restores the page, and this
+    // one's restore would reach the page stamped as the newer stream.
+    if (this._connection.epoch !== epoch) {
+      return;
+    }
     await this.restore();
   }
 

@@ -4,6 +4,7 @@
 // every src an image layer paints. And every message survives the structured
 // clone that carries it to another thread.
 
+import { type File } from "@impower/sparkdown/src/compiler/types/File";
 import { describe, expect, test } from "vitest";
 import { cloneMessage } from "../harness/cloneMessage";
 import {
@@ -77,6 +78,62 @@ describe("page messages", () => {
       "ui/reconcile-begin",
     );
     expect(second.at(-1).method).toBe("ui/reconcile-sweep");
+  });
+
+  test("a connect that a newer one superseded while it waited sends nothing more", async () => {
+    // The main layout's font keeps the first connect waiting; the page
+    // connects again meanwhile, and that connect finishes before the first
+    // one's font arrives. Whatever the first connect would
+    // send then would be stamped with the newer stream's epoch and taken as
+    // part of it, so it must send nothing.
+    const fonts: File[] = [
+      {
+        uri: "file://proj/fancy.ttf",
+        type: "font",
+        name: "Fancy",
+        ext: "ttf",
+        src: "/file:/proj/fancy.ttf?v=1",
+      } as File,
+    ];
+    const harness = createHarness(
+      `style main with\n  font_family = "Fancy"\nend\n\n${story("  Hi.")}`,
+      0,
+      { assets: fonts, holdAssets: true },
+    );
+    await flushMicrotasks(20);
+    const fontLoads = () =>
+      harness.messages.filter((m) => m.method === "assets/load");
+    expect(fontLoads()).toHaveLength(1);
+    const first = harness.ready;
+    // The newer connect gets its font at once and finishes.
+    const second = harness.reconnect();
+    await flushMicrotasks(20);
+    const [olderLoad, newerLoad] = fontLoads();
+    const answer = (load: any) =>
+      harness.game.connection.receive({
+        jsonrpc: "2.0",
+        id: load.id,
+        method: load.method,
+        result: { loaded: [], failed: [], pinned: [] },
+      } as any);
+    answer(newerLoad);
+    await second;
+    await flushMicrotasks(20);
+    // The newer connect built its screen and cleared its transient targets.
+    const newer = flattenMessages(
+      harness.messages.filter((m) => m.epoch === 2),
+    ).map((m) => m.method);
+    expect(newer).toContain("ui/create");
+    expect(newer).toContain("ui/write-text");
+    // Then the older connect's font arrives.
+    const mark = harness.messages.length;
+    answer(olderLoad);
+    await first;
+    await flushMicrotasks(20);
+    // Anything it sent now (rebuilding the screen over the newer one's,
+    // clearing targets the newer stream may have written since) would carry
+    // the newer stream's epoch.
+    expect(harness.messages.slice(mark).map((m) => m.method)).toEqual([]);
   });
 
   test("audio/load names the mixer its channel plays through and the gain it starts at", async () => {

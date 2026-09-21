@@ -637,6 +637,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     // or sweep. Ahead of the root's create, in the connect's own stream.
     this.flushUIBatch();
     this.emit(BeginReconcileMessage.type.notification({}));
+    const epoch = this._game.connection.epoch;
     this._root = undefined;
     this._root = this.getOrCreateRootElement();
     // Dropping the root restarts the deterministic structural id counters, so
@@ -661,6 +662,10 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       const fonts = this._game.module.assets?.prepareLayout("main");
       if (fonts) {
         await fonts;
+        // A newer connect began meanwhile and builds the screen itself.
+        if (this.superseded(epoch)) {
+          return;
+        }
       }
       this.constructLayoutsFromAst();
     } else {
@@ -678,6 +683,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   }
 
   override async onRestore() {
+    const epoch = this._game.connection.epoch;
     const tasks: Promise<void>[] = [];
     if (this._state.text) {
       for (const [target] of Object.entries(this._state.text)) {
@@ -719,6 +725,10 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
             const fonts = this._game.module.assets?.prepareLayout(name);
             if (fonts) {
               await fonts;
+              // A newer connect began meanwhile and restores its own layouts.
+              if (this.superseded(epoch)) {
+                return;
+              }
             }
             this.constructLayoutFromAst(layout);
             remounted = true;

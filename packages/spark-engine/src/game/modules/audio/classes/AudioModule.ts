@@ -91,6 +91,7 @@ export class AudioModule extends Module<
   }
 
   protected async restoreChannel(channel: string) {
+    const epoch = this._game.connection.epoch;
     const updates: AudioPlayerUpdate[] = [];
     const audioToLoad: LoadAudioPlayerParams[] = [];
     const channelState = this._state.channels?.[channel];
@@ -119,6 +120,10 @@ export class AudioModule extends Module<
       }
     }
     await this.loadAllAudio(audioToLoad);
+    // A newer connect began meanwhile and resumes the channel itself.
+    if (this.superseded(epoch)) {
+      return;
+    }
     this.update(channel, updates);
   }
 

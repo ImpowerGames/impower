@@ -5,6 +5,7 @@
 // `cloneMessage`, as it would to and from a worker.
 
 import type { RequestMessage } from "@impower/jsonrpc/src/common/types/RequestMessage";
+import { INTERNAL_ERROR } from "@impower/jsonrpc/src/common/utils/toResponseError";
 import {
   Connection,
   DISCONNECTED,
@@ -138,6 +139,38 @@ describe("MessageRouter", () => {
         ),
       ),
     ).toMatchObject({ rejected: { code: DISCONNECTED } });
+  });
+
+  it("answers a handler that throws with its error, unless another manager handles the method", async () => {
+    const throwsAtOnce = new (class extends Manager {
+      override onReceiveRequest(): Promise<undefined> {
+        throw new Error("broke before its first await");
+      }
+    })({} as any);
+    const rejects = new (class extends Manager {
+      override async onReceiveRequest(): Promise<undefined> {
+        throw new Error("broke after its first await");
+      }
+    })({} as any);
+    const write = () =>
+      WriteTextMessage.type.request({
+        target: "dialogue",
+        instructions: [],
+        instant: true,
+      });
+    for (const failing of [throwsAtOnce, rejects]) {
+      const { connection } = connect([failing]);
+      expect(await settle(connection.emit(write()))).toMatchObject({
+        rejected: { code: INTERNAL_ERROR, message: /broke/ },
+      });
+    }
+    const answering = new (class extends Manager {
+      override async onReceiveRequest() {
+        return WriteTextMessage.type.result("dialogue");
+      }
+    })({} as any);
+    const { connection } = connect([throwsAtOnce, rejects, answering]);
+    expect(await connection.emit(write())).toBe("dialogue");
   });
 
   it("answers with the manager that handles the method", async () => {
