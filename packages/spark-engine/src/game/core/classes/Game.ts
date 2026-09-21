@@ -1214,13 +1214,24 @@ export class Game<T extends M = {}> {
       this.load(startCheckpoint);
     } else {
       // Starting the route at its beginning rather than resuming inside it. The
-      // replay about to run is the whole truth about what ends up on screen, so
-      // the record of which images are displayed must not carry over from
-      // whatever was simulated before — the story rewinds here, and the modules
-      // have to rewind with it. Left carried over, every checkpoint this route
-      // captures embeds the previous simulation's backdrop, and the editor
-      // restores it behind a line that sets none.
-      this.module.ui?.forgetDisplayedImages?.();
+      // replay about to run is the whole truth about the checkpoints it saves,
+      // so no module state may carry over from whatever this game ran before:
+      // the story rewinds here, and every module's saved state rewinds with it
+      // to what a game that has never run holds. Left carried over, a route's
+      // checkpoints embed the last run's backdrop, a beat it left queued (which
+      // the replay would flush first, as a beat of its own) and the styles the
+      // last beat it displayed set, so the same route through the same program
+      // saved different checkpoints depending on whether the game had last
+      // replayed another route or displayed a preview. The page's own records
+      // of what it presents are the modules' to keep (`onReplay`), and a
+      // module that derives one from its saved state derives it again here.
+      // The runtime record goes too: it is what tells the replay it has
+      // reached its target, and one left from a run that reached the same
+      // target ends this replay before it runs a step.
+      for (const k of this._moduleNames) {
+        this._modules[k]?.load({});
+      }
+      this._runtimeState = new RuntimeState();
       this.jumpToPath(route.fromPath);
     }
 
