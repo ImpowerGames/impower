@@ -5,6 +5,7 @@ import { asOrNull, asINamedContentOrNull } from "./TypeAssertion";
 import { throwNullException } from "./NullException";
 import { SearchResult } from "./SearchResult";
 import { DebugMetadata } from "./DebugMetadata";
+import { activation } from "./StoryActivation";
 
 export class InkObject {
   public parent: InkObject | null = null;
@@ -48,7 +49,8 @@ export class InkObject {
   }
 
   get path() {
-    if (this._path == null) {
+    if (this._path == null || this._pathEpoch !== activation.epoch) {
+      this._pathEpoch = activation.epoch;
       if (this.parent == null) {
         this._path = new Path();
       } else {
@@ -78,9 +80,11 @@ export class InkObject {
     return this._path;
   }
   private _path: Path | null = null;
+  private _pathEpoch = 0;
 
   get pathFromEnd() {
-    if (this._pathFromEnd == null) {
+    if (this._pathFromEnd == null || this._pathFromEndEpoch !== activation.epoch) {
+      this._pathFromEndEpoch = activation.epoch;
       if (this.parent == null) {
         this._pathFromEnd = new Path();
       } else {
@@ -122,6 +126,7 @@ export class InkObject {
     return this._pathFromEnd;
   }
   private _pathFromEnd: Path | null = null;
+  private _pathFromEndEpoch = 0;
 
   public ResolvePath(path: Path | null): SearchResult {
     if (path === null) return throwNullException("path");
@@ -230,7 +235,12 @@ export class InkObject {
 
     obj[prop] = value;
 
-    if (obj[prop]) obj[prop].parent = this;
+    if (obj[prop]) {
+      if (activation.reparent !== null && obj[prop].parent !== null) {
+        activation.reparent(obj[prop]);
+      }
+      obj[prop].parent = this;
+    }
   }
 
   public Equals(obj: any) {

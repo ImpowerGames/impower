@@ -1,5 +1,6 @@
 import { AuthorWarning } from "./AuthorWarning";
 import { bumpCompileEpoch } from "./CompileEpoch";
+import { carriedRuntime } from "./CarriedRuntime";
 import { ConstantDeclaration } from "./Declaration/ConstantDeclaration";
 import { Container as RuntimeContainer } from "../../../engine/Container";
 import { ControlCommand as RuntimeControlCommand } from "../../../engine/ControlCommand";
@@ -559,6 +560,9 @@ export class Story extends FlowBase {
     // Generation is complete (FlattenContainersIn emits no diagnostics).
     this._generationPhase = false;
 
+    // The root is built afresh, but what it holds directly may be carried.
+    carriedRuntime.record?.(rootContainer);
+
     // Optimisation step - inline containers that can be
     this.FlattenContainersIn(rootContainer);
 
@@ -787,6 +791,7 @@ export class Story extends FlowBase {
         innerContainer._intrinsicVisits = innerContainer.visitsShouldBeCounted;
         innerContainer._intrinsicTurns = innerContainer.turnIndexShouldBeCounted;
       } else {
+        carriedRuntime.record?.(innerContainer);
         innerContainer.visitsShouldBeCounted = innerContainer._intrinsicVisits;
         innerContainer.turnIndexShouldBeCounted =
           innerContainer._intrinsicTurns!;

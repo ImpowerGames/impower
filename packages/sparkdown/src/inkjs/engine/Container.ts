@@ -8,6 +8,7 @@ import { Path } from "./Path";
 import { Debug } from "./Debug";
 import { tryGetValueFromMap } from "./TryGetResult";
 import { asINamedContentOrNull, asOrNull, asOrThrows } from "./TypeAssertion";
+import { activation } from "./StoryActivation";
 
 export class Container extends InkObject implements INamedContent {
   public name: string | null = null;
@@ -42,6 +43,7 @@ export class Container extends InkObject implements INamedContent {
   public _intrinsicTurns?: boolean;
 
   public _pathToFirstLeafContent: Path | null = null;
+  private _pathToFirstLeafContentEpoch = 0;
 
   get hasValidName() {
     return this.name != null && this.name.length > 0;
@@ -108,10 +110,15 @@ export class Container extends InkObject implements INamedContent {
       this.countingAtStartOnly = true;
   }
   get pathToFirstLeafContent() {
-    if (this._pathToFirstLeafContent == null)
+    if (
+      this._pathToFirstLeafContent == null ||
+      this._pathToFirstLeafContentEpoch !== activation.epoch
+    ) {
+      this._pathToFirstLeafContentEpoch = activation.epoch;
       this._pathToFirstLeafContent = this.path.PathByAppendingPath(
         this.internalPathToFirstLeafContent,
       );
+    }
 
     return this._pathToFirstLeafContent;
   }
@@ -144,6 +151,9 @@ export class Container extends InkObject implements INamedContent {
       //   throw new Error("content is already in " + contentObj.parent);
       // }
 
+      if (activation.reparent !== null && contentObj.parent !== null) {
+        activation.reparent(contentObj);
+      }
       contentObj.parent = this;
 
       this.TryAddNamedContent(contentObj);
@@ -162,6 +172,13 @@ export class Container extends InkObject implements INamedContent {
       "Can only add Runtime.Objects to a Runtime.Container",
     );
     let runtimeObj = asOrThrows(namedContentObj, InkObject);
+    if (
+      activation.reparent !== null &&
+      runtimeObj.parent !== null &&
+      runtimeObj.parent !== this
+    ) {
+      activation.reparent(runtimeObj);
+    }
     runtimeObj.parent = this;
 
     if (namedContentObj.name === null)
@@ -223,6 +240,9 @@ export class Container extends InkObject implements INamedContent {
     //   throw new Error("content is already in " + contentObj.parent);
     // }
 
+    if (activation.reparent !== null && contentObj.parent !== null) {
+      activation.reparent(contentObj);
+    }
     contentObj.parent = this;
 
     this.TryAddNamedContent(contentObj);
@@ -231,6 +251,9 @@ export class Container extends InkObject implements INamedContent {
     this.content.push(...otherContainer.content);
 
     for (let obj of otherContainer.content) {
+      if (activation.reparent !== null && obj.parent !== null) {
+        activation.reparent(obj);
+      }
       obj.parent = this;
       this.TryAddNamedContent(obj);
     }
