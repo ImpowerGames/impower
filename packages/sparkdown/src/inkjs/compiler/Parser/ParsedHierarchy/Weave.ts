@@ -840,5 +840,9 @@ export class Weave extends ParsedObject {
     this._choiceCount = 0;
     this._rootContainer = null;
     this.gatherPointsToResolve = [];
+    // The hierarchy is a snapshot of `content`, and the assembler appends the
+    // chunks that follow a nested weave to it between one generation and the
+    // next, so the next generation has to take the snapshot again.
+    this._structuredContent = null;
   }
 }

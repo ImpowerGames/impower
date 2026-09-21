@@ -701,6 +701,11 @@ export class SparkdownCompiler {
   // Line offset each content chunk's debugMetadata was last stamped at —
   // a reused chunk whose offset is unchanged skips the restamp walk entirely.
   protected _chunkStampOffset = new WeakMap<object, number>();
+  // How many of a weave's children are its own chunk's. Assembly appends the
+  // chunks that follow a `choose` into the weave the choose lowered to, and
+  // that weave belongs to a chunk carried from compile to compile, so its
+  // content past this length is another compile's assembly.
+  protected _weaveOwnLength = new WeakMap<object, number>();
   // Constructed flows that raised a diagnostic during GENERATION (reuse skips
   // generation, which would silently drop the diagnostic — such flows are
   // barred from reuse and rebuilt so the diagnostic re-emits).
@@ -2975,6 +2980,21 @@ export class SparkdownCompiler {
           }
           this._chunkStampOffset.set(compiledBlock, lineNumberOffset);
         } else {
+          // A carried chunk's trailing weaves still hold what the last assembly
+          // appended to them. Cut each back to its own children before anything
+          // walks the chunk: this assembly then appends to what a cold compile
+          // appends to, and the later chunks' content is stamped with its own
+          // chunk's line offset rather than with this one's.
+          for (
+            let tail: ParsedObject | undefined = content[0];
+            tail instanceof Weave;
+            tail = tail.content.at(-1)
+          ) {
+            const ownLength = this._weaveOwnLength.get(tail);
+            if (ownLength !== undefined) {
+              tail.content.length = ownLength;
+            }
+          }
           remapContent(content, lineNumberOffset);
           this._chunkStampOffset.set(compiledBlock, lineNumberOffset);
           const flow = content[0];
@@ -3101,6 +3121,12 @@ export class SparkdownCompiler {
                 ) {
                   // Remove empty internal weave, since we are not using it
                   closestWeave.content.pop();
+                }
+                if (!this._weaveOwnLength.has(closestWeave)) {
+                  this._weaveOwnLength.set(
+                    closestWeave,
+                    closestWeave.content.length,
+                  );
                 }
                 closestWeave.AddContent(flowContent);
                 currentRun?.contentChunks.push(compiledBlock);
