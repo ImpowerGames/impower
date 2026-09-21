@@ -120,6 +120,8 @@ export function profileShares(profile, { under, inclusive = [], groups, keep, na
   return {
     under,
     underMs: total / 1000,
+    // Every sample `keep` accepted, under `under` or not.
+    keptMs: profiled / 1000,
     shareOfProfile: ratio(total, profiled),
     collectorShareOfProfile: ratio(collector, profiled),
     groups: [...groupShares.entries()].map(([group, share]) => ({ group, share })).sort((a, b) => b.share - a.share),
@@ -199,24 +201,24 @@ async function main(args) {
       perSample = samples.length;
     }
     const result = profileShares(JSON.parse(fs.readFileSync(file, "utf8")), { under: options.under, inclusive: options.inclusive, groups, keep, nameOf: sourceNamer(path.resolve(file)) });
-    return options.gaps ? { ...result, gapMsPerSample: result.underMs / perSample } : result;
+    return options.gaps ? { ...result, gapMsPerSample: result.keptMs / perSample } : result;
   });
   const result = results[0];
   if (options.json) fs.writeFileSync(options.json, JSON.stringify(results.length > 1 ? results : result, null, 2));
   const pct = (share) => (share * 100).toFixed(1).padStart(6) + "%";
+  if (options.gaps) {
+    console.log(`only the unattributed stretches: ${results.map((r) => r.gapMsPerSample.toFixed(1)).join(", ")} ms of profiled time per benchmark sample`);
+    if (results.every((r) => r.keptMs === 0)) {
+      console.log("no profiler sample landed in them: the stretches are shorter than the sampling interval, or there are none");
+      return;
+    }
+  }
   if (results.length > 1) {
     console.log(`${results.length} profiles, shares of the time under ${options.under.join(", ")}`);
     console.log(`  ${"min".padStart(7)} ${"median".padStart(7)} ${"max".padStart(7)}`);
     for (const { label, min, median, max } of summarizeShares(results)) console.log(`  ${pct(min)} ${pct(median)} ${pct(max)}  ${label}`);
     console.log("");
     console.log("first profile:");
-  }
-  if (options.gaps) {
-    console.log(`only the unattributed stretches: ${results.map((r) => r.gapMsPerSample.toFixed(1)).join(", ")} ms of profiled time per benchmark sample`);
-    if (results.every((r) => r.underMs === 0)) {
-      console.log("no profiler sample landed in them: the stretches are shorter than the sampling interval, or there are none");
-      return;
-    }
   }
   console.log(`time under ${options.under.join(", ")}: ${pct(result.shareOfProfile).trim()} of the profile; the garbage collector, which the profile shows outside every function, is ${pct(result.collectorShareOfProfile).trim()} of the profile`);
   for (const { function: fn, share } of result.inclusive) console.log(`  inclusive ${pct(share)}  ${fn}`);

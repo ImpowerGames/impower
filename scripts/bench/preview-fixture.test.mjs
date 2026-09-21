@@ -158,6 +158,42 @@ await check("profile shares with --gaps count only the samples taken in a gap", 
   assert.equal(groupOf("(vm):(garbage collector)"), "garbage collector");
 });
 
+await check("profile-shares --gaps says no sample landed only when none did, before any summary", () => {
+  // Samples at 5 and 15 microseconds, both in `between`.
+  const profile = {
+    startTime: 0,
+    nodes: [
+      { id: 1, callFrame: { functionName: "(root)" }, children: [2] },
+      { id: 2, callFrame: { functionName: "between" } },
+    ],
+    samples: [2, 2],
+    timeDeltas: [5, 10],
+  };
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "impower-profile-shares-test-"));
+  try {
+    const write = (name, gaps) => {
+      fs.writeFileSync(path.join(dir, `${name}.cpuprofile`), JSON.stringify(profile));
+      fs.writeFileSync(path.join(dir, `${name}.gaps.json`), JSON.stringify({ samples: [gaps] }));
+      return path.join(dir, `${name}.cpuprofile`);
+    };
+    const shares = (...args) => {
+      const run = spawnSync(process.execPath, [path.join(HERE, "profile-shares.mjs"), ...args, "--gaps"], { encoding: "utf8", windowsHide: true });
+      assert.equal(run.status, 0, run.stdout + run.stderr);
+      return run.stdout;
+    };
+    // Both samples land in the gap, under a function other than the one named.
+    const landed = shares(write("landed", [[0, 20]]), "--under", "missing");
+    assert.doesNotMatch(landed, /no profiler sample landed/);
+    assert.match(landed, /time under missing: 0\.0% of the profile/);
+    // Neither lands in either profile's gap: the note, and no summary rows.
+    const empty = shares(write("a", [[100, 200]]), write("b", [[100, 200]]), "--under", "(root)");
+    assert.match(empty, /no profiler sample landed in them/);
+    assert.doesNotMatch(empty, /profiles, shares|first profile|garbage collector/);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 // The benchmark end to end on the fixture: bundle, one process per mode, and
 // a report naming the route and the phases. It needs the workspace install
 // for esbuild and the compiler's dependencies, which the tooling workflow
