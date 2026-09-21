@@ -4017,7 +4017,8 @@ export class SparkdownCompiler {
    * Their source text is the text the last compile read, so any difference in
    * what they now compile to came from somewhere else in the program — which is
    * the one thing a change summary reported as a set of edited LINES cannot say.
-   * Their serialized shape is compared instead, in `serializeCompiledProgram`.
+   * Their compiled shape is compared instead, in `startFlowShapes`, which both
+   * `serializeCompiledProgram` and `noteFlowShapesWithoutEmitting` call.
    *
    * Deliberately NOT the same question as reuse: a flow can be re-lowered
    * because the edit fell in its chunk's reparse window while its own text is
