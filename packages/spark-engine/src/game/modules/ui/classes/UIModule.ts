@@ -3699,6 +3699,17 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       }
       return this.openLayout(e.name, clauses, instant);
     };
+    // A route replay applies its directives in authored order within the
+    // replay's own synchronous run. Its beats settle without transitions and a
+    // replay waits on no font, so each directive completes before it returns;
+    // awaiting between them would let the rest run after the replay has ended,
+    // where their operations would reach the page.
+    if (this._game.replaying && instant) {
+      for (const e of instructions) {
+        void run(e);
+      }
+      return;
+    }
     // Directives for the SAME layout run in authored order; different layouts
     // still run concurrently. `[[close X]] [[open X]]` in one beat used to
     // race: `openLayout` tests `_mountedLayouts.has(name)` synchronously, so it

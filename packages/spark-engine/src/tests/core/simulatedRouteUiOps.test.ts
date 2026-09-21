@@ -190,6 +190,96 @@ end
     expect(looping(resumed)).toEqual(looping(fresh));
   });
 
+  test("a replay that resumes backward from a checkpoint saves the audio a fresh replay saves", () => {
+    const filler = (from: number, n: number) =>
+      Array.from({ length: n }, (_, i) => `  Line ${from + i}.`).join("\n");
+    const source = `define first_theme as audio with
+  src = "https://example.com/first.wav"
+end
+
+define second_theme as audio with
+  src = "https://example.com/second.wav"
+end
+
+-> start
+
+scene start
+  ((play music first_theme))
+${filler(0, 40)}
+  ((stop music))
+  The music stops.
+  The earlier stop.
+${filler(50, 30)}
+  ((play music second_theme))
+${filler(80, 20)}
+  The later stop.
+end
+`;
+    const lineOf = (text: string) =>
+      source.split("\n").findIndex((l) => l.includes(text));
+    const planTo = (game: any, line: number) => {
+      game.setStartFrom({ file: MAIN_URI, line });
+      const toPath = game.startPath as string;
+      return Game.planRoute(
+        game.story,
+        game.program,
+        Game.getSimulateFromPath(toPath),
+        toPath,
+      )!;
+    };
+    const audio = (game: any) => JSON.parse(game.save() as string).modules.audio;
+
+    const resumed: any = createHarness(source, 0, { connect: false }).game;
+    resumed.patchAndSimulateRoute(planTo(resumed, lineOf("The later stop.")));
+    let loads = 0;
+    const realLoad = resumed.load.bind(resumed);
+    resumed.load = (...args: unknown[]) => {
+      loads += 1;
+      return realLoad(...args);
+    };
+    resumed.patchAndSimulateRoute(planTo(resumed, lineOf("The earlier stop.")));
+    expect(loads).toBe(1);
+
+    const fresh: any = createHarness(source, 0, { connect: false }).game;
+    fresh.patchAndSimulateRoute(planTo(fresh, lineOf("The earlier stop.")));
+
+    expect(audio(fresh).channels?.music?.looping ?? []).toEqual([]);
+    expect(audio(resumed)).toEqual(audio(fresh));
+  });
+
+  test("a connected game sends nothing for a route that closes and reopens a layout", async () => {
+    const source = `layout hud with
+  text "HUD"
+end
+
+-> start
+
+scene start
+  [[open hud]]
+${BEATS.slice(0, 5).join("\n")}
+  [[close hud with fade over 0.5s]] [[open hud with fade over 0.5s]]
+  The line after the hud.
+end
+`;
+    const h = createHarness(source, 0, { autoOpenAll: false });
+    await h.ready;
+    h.reset();
+    const game: any = h.game;
+    game.setStartFrom({
+      file: MAIN_URI,
+      line: source.split("\n").findIndex((l) => l.includes("after the hud")),
+    });
+    game.simulate();
+    expect(game.simulation).toBe("success");
+    await flushMicrotasks(20);
+    expect(flattenMessages(h.messages).map((m) => m.method)).toEqual([]);
+    expect(
+      JSON.parse(game.save() as string).modules.ui.layout?.map(
+        (l: any) => l.name,
+      ),
+    ).toContain("hud");
+  });
+
   test("a connected game sends nothing for a route through an animated layout", async () => {
     const source = `layout hud with
   text "HUD"

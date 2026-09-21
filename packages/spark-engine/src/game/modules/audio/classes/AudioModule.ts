@@ -70,26 +70,53 @@ export class AudioModule extends Module<
 
   override onReset() {
     this._channelsCurrentlyPlaying = new Map();
-    this._replayPlaying = new Map();
   }
 
-  /** What route replays have played, kept apart from what the page is
-   *  playing. A replay plays nothing on the page, but a channel-wide event
-   *  saves its state through this record, and a replay that resumes from a
-   *  checkpoint continues from what the previous replay left in it. */
-  protected _replayPlaying: Map<string, Map<string, LoadAudioPlayerParams>> =
-    new Map();
-
-  /** What the page was playing when the current replay began. */
+  /** What the page was playing when the current route replay began. A
+   *  replay plays nothing on the page, so this is what the page is playing
+   *  again once the replay ends. */
   protected _pagePlaying?: Map<string, Map<string, LoadAudioPlayerParams>>;
+
+  /** During a replay, the record of what is playing is the one the saved
+   *  state describes: every looping sound on each channel. A channel-wide
+   *  event saves its state through this record, so it has to match the state
+   *  the replay starts from or loads, whichever route led the game there. */
+  protected playingFromState(): Map<
+    string,
+    Map<string, LoadAudioPlayerParams>
+  > {
+    const playing = new Map<string, Map<string, LoadAudioPlayerParams>>();
+    for (const [channel, channelState] of Object.entries(
+      this._state.channels ?? {},
+    )) {
+      for (const { key } of channelState?.looping ?? []) {
+        if (!key) {
+          continue;
+        }
+        for (const d of this.getAudioData(channel, key)) {
+          if (d.key) {
+            const onChannel = playing.get(channel) ?? new Map();
+            playing.set(channel, onChannel);
+            onChannel.set(d.key, d);
+          }
+        }
+      }
+    }
+    return playing;
+  }
 
   override onReplay() {
     this._pagePlaying = this._channelsCurrentlyPlaying;
-    this._channelsCurrentlyPlaying = this._replayPlaying;
+    this._channelsCurrentlyPlaying = this.playingFromState();
+  }
+
+  override async onLoad() {
+    if (this._game.replaying) {
+      this._channelsCurrentlyPlaying = this.playingFromState();
+    }
   }
 
   override onReplayEnd() {
-    this._replayPlaying = this._channelsCurrentlyPlaying;
     this._channelsCurrentlyPlaying = this._pagePlaying ?? new Map();
     this._pagePlaying = undefined;
   }
