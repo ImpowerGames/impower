@@ -21,7 +21,7 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { totalLength, uncovered, within } from "./phaseGaps.mjs";
-import { imageOptions, parseBenchArgs, tokenAround } from "./preview-bench.mjs";
+import { firstStreamDifference, imageOptions, parseBenchArgs, streamOps, tokenAround } from "./preview-bench.mjs";
 import { buildPreviewFixture, writePreviewFixture } from "./preview-fixture.mjs";
 import { GAPS } from "./profile-groups.mjs";
 import { parseShareArgs, profileShares } from "./profile-shares.mjs";
@@ -196,8 +196,16 @@ await check("profile-shares --gaps says no sample landed only when none did, bef
   }
 });
 
-// The benchmark end to end on the fixture: bundle, one process per mode, and
-// a report naming the route and the phases. It needs the workspace install
+await check("display streams compare by message, ignoring generated ids, and count batched ops", () => {
+  const a = [JSON.stringify({ method: "ui/batch", params: { messages: [{ method: "ui/create", id: "0b6f7a1c-1111-4222-8333-944445555666" }, { method: "ui/update" }] } }), JSON.stringify({ method: "game/executed", params: {} })];
+  const b = [a[0].replace("0b6f7a1c", "9c8d7e6f"), a[1]];
+  assert.equal(firstStreamDifference(a, b), null);
+  assert.equal(firstStreamDifference(a, a.slice(0, 1)).index, 1);
+  assert.deepEqual(streamOps(a), { "ui/batch > ui/create": 1, "ui/batch > ui/update": 1, "game/executed": 1 });
+});
+
+// The benchmark end to end on the fixture: bundle, one process per mode and
+// shape, and a report naming the route and the phases. It needs the workspace install
 // for esbuild and the compiler's dependencies, which the tooling workflow
 // does not have, so it says it skipped rather than passing silently there.
 const esbuildInstalled = (() => {
@@ -214,33 +222,67 @@ if (!esbuildInstalled) {
   await check("the benchmark runs both modes on the fixture and reports route, phases, unattributed time and wire size", () => {
     const profiles = fs.mkdtempSync(path.join(os.tmpdir(), "impower-preview-bench-test-"));
     try {
-      const run = spawnSync(process.execPath, [path.join(HERE, "preview-bench.mjs"), "--fixture", "--samples", "1", "--warmup", "0", "--cpu-prof", profiles], { encoding: "utf8", timeout: 240_000, windowsHide: true });
+      const run = spawnSync(process.execPath, [path.join(HERE, "preview-bench.mjs"), "--fixture", "--samples", "1", "--warmup", "0", "--cpu-prof", profiles], { encoding: "utf8", timeout: 600_000, windowsHide: true });
       assert.equal(run.status, 0, run.stdout + run.stderr);
+      const header = (mode, shape) => `mode ${mode}, ${shape} shape: line ${target.line} "${target.lineText}", replacing hero_concerned`;
+      // Up to the next report, so one report's rows cannot answer for another's.
+      const sectionOf = (mode, shape) => {
+        const at = run.stdout.indexOf(header(mode, shape));
+        assert.ok(at >= 0, `no ${mode} ${shape} report`);
+        const next = run.stdout.indexOf("\nmode ", at + 1);
+        const end = run.stdout.indexOf("\npreview, transport shape", at + 1);
+        return run.stdout.slice(at, Math.min(...[next, end, run.stdout.length].filter((i) => i > at)));
+      };
+      // Every report's worker time: the new phases, and the unattributed row
+      // between 0 and the worker's time, whose gaps profile-shares reads back
+      // from beside that report's profile.
+      const checkAttribution = (mode, shape) => {
+        const section = sectionOf(mode, shape);
+        assert.match(section, /game\/setStartFrom/);
+        assert.match(section, /scopeDefineInstances/);
+        const unattributed = section.match(/\(of which unattributed\)\s+(\S+)\s+(\S+)\s+(\S+)/);
+        assert.ok(unattributed, `no unattributed row in ${mode} ${shape}`);
+        const worker = Number(section.match(/worker compile, game and route\s+(\S+)/)[1]);
+        for (const value of unattributed.slice(1).map(Number)) assert.ok(value >= 0 && value <= worker, `${mode} ${shape}: unattributed ${value} of ${worker} ms`);
+        const name = shape === "transport" ? mode : `${mode}.${shape}`;
+        const shares = spawnSync(process.execPath, [path.join(HERE, "profile-shares.mjs"), path.join(profiles, `${name}.cpuprofile`), "--under", "(root)", "--gaps"], { encoding: "utf8", windowsHide: true });
+        assert.equal(shares.status, 0, shares.stdout + shares.stderr);
+        assert.match(shares.stdout, /only the unattributed stretches: \d+\.\d ms/);
+      };
       for (const mode of ["preview", "edit"]) {
-        // Up to the next mode's report, so one mode's rows cannot answer for
-        // the other's.
-        const from = run.stdout.indexOf(`mode ${mode}:`);
-        const next = run.stdout.indexOf("\nmode ", from + 1);
-        const section = run.stdout.slice(from, next < 0 ? undefined : next);
-        assert.ok(run.stdout.includes(`mode ${mode}: line ${target.line} "${target.lineText}", replacing hero_concerned`), `no ${mode} report`);
+        const section = sectionOf(mode, "transport");
         assert.match(section, /1 samples after 0 warm-up; route \d{4,} steps/);
         // A warm route is replayed rather than searched, so the replay is the
         // route phase every sample has.
         assert.match(section, /game\/simulateRoute/);
-        assert.match(section, /game\/setStartFrom/);
-        assert.match(section, /scopeDefineInstances/);
         assert.match(section, /ink\/compile/);
+        assert.match(section, /ink\/json/);
         assert.match(section, /pathLocations/);
         assert.match(section, /\(checkpoint\)/);
-        const unattributed = section.match(/\(of which unattributed\)\s+(\S+)\s+(\S+)\s+(\S+)/);
-        assert.ok(unattributed, "no unattributed row");
-        const worker = Number(section.match(/worker compile, game and route\s+(\S+)/)[1]);
-        for (const value of unattributed.slice(1).map(Number)) assert.ok(value >= 0 && value <= worker, `unattributed ${value} of ${worker} ms`);
-        // The gaps written beside the profile are what profile-shares reads.
-        const shares = spawnSync(process.execPath, [path.join(HERE, "profile-shares.mjs"), path.join(profiles, `${mode}.cpuprofile`), "--under", "(root)", "--gaps"], { encoding: "utf8", windowsHide: true });
-        assert.equal(shares.status, 0, shares.stdout + shares.stderr);
-        assert.match(shares.stdout, /only the unattributed stretches: \d+\.\d ms/);
+        checkAttribution(mode, "transport");
       }
+      // A preview resumes the route its cold compile planned; an edit plans one.
+      assert.match(run.stdout, /game\/planRoute/);
+      assert.match(sectionOf("preview", "transport"), /page preview \(not in total\)/);
+      for (const shape of ["resident", "resident-emitting"]) {
+        checkAttribution("preview", shape);
+        const section = sectionOf("preview", shape);
+        assert.match(section, /worker connect/);
+        assert.match(section, /worker preview/);
+        assert.match(section, /\(of which message clone\)/);
+        assert.match(section, /display messages \(cloned\)/);
+        assert.match(section, /program, checkpoint or path locations in what was cloned: none/);
+        assert.match(section, /reset before each display: system\.simulating/);
+        assert.doesNotMatch(section, /wire: /);
+      }
+      assert.doesNotMatch(sectionOf("preview", "resident"), /ink\/json/);
+      assert.match(sectionOf("preview", "resident-emitting"), /ink\/json/);
+      const comparison = run.stdout.slice(run.stdout.indexOf("preview, transport shape against the resident shapes"));
+      assert.match(comparison, /saved by resident /);
+      assert.match(comparison, /saved by resident-emitting/);
+      assert.match(comparison, /ink\/json in the resident phases: absent/);
+      assert.match(comparison, /display: \d+ messages, [\d.]+ KB cloned to the page/);
+      assert.doesNotMatch(run.stdout, /mode edit, resident/);
     } finally {
       fs.rmSync(profiles, { recursive: true, force: true });
     }

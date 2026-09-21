@@ -18,11 +18,16 @@
 //   --mode <m>          preview | edit | both (default both)
 //   --samples <K>       measured samples per mode (default 12)
 //   --warmup <W>        discarded samples first (default 4)
-//   --json <file>       also write each mode's full report, as <file>.<mode>.json
-//   --cpu-prof <dir>    also write a V8 CPU profile of each mode's process there,
-//                       with the bundle's source map, for profile-shares.mjs,
-//                       and <mode>.gaps.json beside it: the stretches of worker
-//                       time no phase covers, for profile-shares.mjs --gaps. A
+//   --json <file>       also write each mode's full report, as <file>.<mode>.json,
+//                       and the preview's resident shape as <file>.preview.resident.json
+//
+// A preview runs twice, in the transport shape and the resident shape (see
+// previewBench.ts), each in its own process, and ends with the two compared.
+//   --cpu-prof <dir>    also write a V8 CPU profile of each process there
+//                       (<mode>.cpuprofile, <mode>.<shape>.cpuprofile), with the
+//                       bundle's source map, for profile-shares.mjs, and beside
+//                       each a .gaps.json of the same name: the stretches of
+//                       worker time no phase covers, for --gaps. A
 //                       profiled bundle keeps function names, which slows the
 //                       engine, so read times from a run without this flag
 //
@@ -107,6 +112,71 @@ export function imageOptions(fileNames, prefix, token) {
   return [...new Set(stems)].filter((s) => s.startsWith(prefix) && s !== token).sort();
 }
 
+const UUID_RE = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi;
+
+// The first place two display streams differ, ignoring generated ids; null
+// when they are the same.
+export function firstStreamDifference(a, b) {
+  const norm = (s) => s.replace(UUID_RE, "<uuid>");
+  for (let i = 0; i < Math.max(a.length, b.length); i++) {
+    const x = a[i] == null ? undefined : norm(a[i]);
+    const y = b[i] == null ? undefined : norm(b[i]);
+    if (x !== y) return { index: i, transport: x?.slice(0, 300) ?? "(none)", resident: y?.slice(0, 300) ?? "(none)" };
+  }
+  return null;
+}
+
+// How many of each operation a display stream carries, counting the ops inside
+// a `ui/batch` under `ui/batch > <op>`.
+export function streamOps(stream) {
+  const ops = {};
+  const add = (key) => (ops[key] = (ops[key] ?? 0) + 1);
+  for (const line of stream) {
+    const msg = JSON.parse(line);
+    if (msg.method === "ui/batch") for (const inner of msg.params?.messages ?? []) add(`ui/batch > ${inner.method}`);
+    else add(msg.method);
+  }
+  return ops;
+}
+
+// The shapes of a preview side by side: what each resident shape saves on the
+// like-for-like total (the transport total, the page's connect and preview
+// excluded, against the resident total, which counts the load and the message
+// clone and not the connect and preview), and whether the route game displayed
+// what the page's game did.
+export function compareShapes(transport, resident, emitting) {
+  const total = "total without the DOM";
+  const t = transport.wall[total];
+  const row = (label, s) => `  ${label.padEnd(40)} ${s.min.toFixed(1).padStart(9)} ${s.median.toFixed(1).padStart(9)} ${s.max.toFixed(1).padStart(9)}`;
+  const lines = [
+    "preview, transport shape against the resident shapes (ms)",
+    `  ${"".padEnd(40)} ${"min".padStart(9)} ${"median".padStart(9)} ${"max".padStart(9)}`,
+    row("transport total without the DOM", t),
+  ];
+  for (const [name, report] of [["resident", resident], ["resident-emitting", emitting]]) {
+    if (!report) continue;
+    const r = report.wall[total];
+    lines.push(row(`${name} total without the DOM`, r), row(`saved by ${name}`, { min: t.min - r.max, median: t.median - r.median, max: t.max - r.min }));
+  }
+  const diff = firstStreamDifference(transport.displayStream ?? [], resident.displayStream ?? []);
+  lines.push(
+    `  ink/json in the resident phases: ${resident.phases["ink/json"] ? "present" : "absent"}`,
+    `  display: ${resident.messages?.count.median ?? 0} messages, ${(resident.messages?.outKB.median ?? 0).toFixed(1)} KB cloned to the page, against ${transport.wireKB?.total.median.toFixed(0)} KB of program and checkpoint`,
+    diff
+      ? `  the route game's display differs from the page game's, first at message ${diff.index}:\n    transport ${diff.transport}\n    resident  ${diff.resident}`
+      : `  the route game's display matches the page game's, message for message (${resident.displayStream?.length ?? 0} messages)`,
+  );
+  if (diff) {
+    const t = streamOps(transport.displayStream ?? []);
+    const r = streamOps(resident.displayStream ?? []);
+    lines.push("  operations whose count differs (transport, resident):");
+    for (const op of [...new Set([...Object.keys(t), ...Object.keys(r)])].sort()) {
+      if (t[op] !== r[op]) lines.push(`    ${op.padEnd(38)} ${String(t[op] ?? 0).padStart(9)} ${String(r[op] ?? 0).padStart(9)}`);
+    }
+  }
+  return lines.join("\n");
+}
+
 function listFiles(dir, out = []) {
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
     if (entry.name.startsWith(".")) continue;
@@ -140,11 +210,21 @@ async function main(args) {
     const modes = options.mode === "both" ? ["preview", "edit"] : [options.mode];
     let failed = false;
     for (const mode of modes) {
-      const config = { project, line, word, options: replacements, mode, samples: options.samples, warmup: options.warmup, json: options.json ? path.resolve(`${options.json}.${mode}.json`) : undefined, gaps: cpuProf ? path.join(cpuProf, `${mode}.gaps.json`) : undefined };
-      const profile = cpuProf ? ["--cpu-prof", "--cpu-prof-dir", cpuProf, "--cpu-prof-name", `${mode}.cpuprofile`] : [];
-      const run = spawnSync(process.execPath, ["--max-old-space-size=4096", ...profile, script, JSON.stringify(config)], { stdio: "inherit", windowsHide: true });
-      if (run.status !== 0) failed = true;
-      console.log("");
+      // A preview is measured in both shapes; see previewBench.ts.
+      const shapes = mode === "preview" ? ["transport", "resident", "resident-emitting"] : ["transport"];
+      const reports = {};
+      for (const shape of shapes) {
+        const name = shape === "transport" ? mode : `${mode}.${shape}`;
+        const json = options.json ? path.resolve(`${options.json}.${name}.json`) : path.join(scratch, `${name}.json`);
+        const gaps = cpuProf ? path.join(cpuProf, `${name}.gaps.json`) : undefined;
+        const config = { project, line, word, options: replacements, mode, shape, samples: options.samples, warmup: options.warmup, json, gaps };
+        const profile = cpuProf ? ["--cpu-prof", "--cpu-prof-dir", cpuProf, "--cpu-prof-name", `${name}.cpuprofile`] : [];
+        const run = spawnSync(process.execPath, ["--max-old-space-size=4096", ...profile, script, JSON.stringify(config)], { stdio: "inherit", windowsHide: true });
+        if (run.status !== 0) failed = true;
+        else reports[shape] = JSON.parse(fs.readFileSync(json, "utf8"));
+        console.log("");
+      }
+      if (reports.transport && reports.resident) console.log(compareShapes(reports.transport, reports.resident, reports["resident-emitting"]) + "\n");
     }
     process.exitCode = failed ? 1 : 0;
   } finally {
