@@ -276,6 +276,17 @@ export class InterpreterModule extends Module<
       return;
     }
 
+    const { target, characterDeclaration } = this.routeFromTags(tags);
+    this.appendBeat(target, characterDeclaration, content, choices);
+  }
+
+  /**
+   * Resolve a beat's target and dialogue cue from its `story.currentTags`.
+   */
+  protected routeFromTags(tags: string[]): {
+    target: string;
+    characterDeclaration: string | undefined;
+  } {
     // Determine the default target (when there's no routing tag at all).
     const defaultTarget = this._targetPrefixMap?.[""] || "";
 
@@ -315,7 +326,7 @@ export class InterpreterModule extends Module<
         target = lineType || defaultTarget;
       }
     }
-    this.appendBeat(target, characterDeclaration, content, choices);
+    return { target, characterDeclaration };
   }
 
   /**
@@ -464,33 +475,44 @@ export class InterpreterModule extends Module<
    * `parse()`, cue prefixing and buffer fold are byte-identical to the legacy
    * path — only the source of target/cue/text differs.
    *
-   * Table shape: `{ target: string, character?: string, text: string }`.
-   * Multiple tables (consecutive `display()` calls in one Continue) each become
-   * their own beat; choices attach to the LAST one (matching `queue()`).
+   * Table shape: `{ target?: string, character?: string, text: string }`.
+   *
+   * One step makes one beat. Several tables share a step only when glue joined
+   * their lines, so the first table supplies the routing and the body is the
+   * step's ordered visible text (`story.currentText`: every table's `text` and
+   * any flat string, in stream order). A glued continuation's table carries no
+   * routing; when it is the first table, because the line it continues reached
+   * the stream as flat text, the routing comes from that line's tag in `tags`.
+   *
+   * @param content the step's `story.currentText`.
+   * @param tags the step's `story.currentTags`.
    */
-  queueInstructions(tables: ObjectValue[], choices: string[] = []): void {
+  queueInstructions(
+    tables: ObjectValue[],
+    choices: string[],
+    content: string,
+    tags: string[],
+  ): void {
     this._state.buffer ??= [];
-    const defaultTarget = this._targetPrefixMap?.[""] || "";
-    for (let i = 0; i < tables.length; i++) {
-      const table = tables[i]!;
-      const read = (key: string): unknown =>
-        (table?.value?.get(key) as { value?: unknown } | undefined)?.value;
-      const target = (read("target") as string) || defaultTarget;
-      const characterRaw = read("character");
-      const character =
+    const read = (table: ObjectValue | undefined, key: string): unknown =>
+      (table?.value?.get(key) as { value?: unknown } | undefined)?.value;
+    const first = tables[0];
+    const tableTarget = read(first, "target");
+    let target: string;
+    let character: string | undefined;
+    if (typeof tableTarget === "string" && tableTarget) {
+      target = tableTarget;
+      const characterRaw = read(first, "character");
+      character =
         typeof characterRaw === "string" && characterRaw
           ? characterRaw
           : undefined;
-      const text = (read("text") as string) ?? "";
-      // Choices show after the LAST beat of the Continue (mirrors queue()).
-      const beatChoices = i === tables.length - 1 ? choices : [];
-      this.appendBeat(target, character, text, beatChoices);
+    } else {
+      const routed = this.routeFromTags(tags);
+      target = routed.target;
+      character = routed.characterDeclaration;
     }
-    // Defensive: a choice-only beat with no display table still surfaces its
-    // choices (no real display() emission produces this today).
-    if (tables.length === 0 && choices.length > 0) {
-      this.appendBeat(defaultTarget, undefined, "", choices);
-    }
+    this.appendBeat(target, character, content, choices);
   }
 
   /**

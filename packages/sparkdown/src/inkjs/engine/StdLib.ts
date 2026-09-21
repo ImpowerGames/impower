@@ -3095,8 +3095,8 @@ export const STDLIB: Record<string, StdLibEntry> = {
   // holes are already evaluated to LIVE values by the time this runs
   // (table literals lower to a live ObjectValue via EndObject). Instead
   // of flattening to a text string the runtime must re-scan, the live
-  // ObjectValue rides the output stream directly — `currentText` skips
-  // it (it only concatenates StringValues), and the new
+  // ObjectValue rides the output stream directly — `currentText` reads
+  // its `text` field in stream order, and the
   // `currentDisplayInstructions` getter collects it. A trailing `\n`
   // closes the Continue beat exactly like `print` does, so the engine's
   // existing per-beat / checkpoint loop fires unchanged.
@@ -3111,7 +3111,7 @@ export const STDLIB: Record<string, StdLibEntry> = {
       const payload = args[0];
       if (payload) {
         // The live instruction table rides the output stream as a
-        // non-string object (currentText/currentTags both skip it).
+        // non-string object (currentTags skips it).
         story.state.PushToOutputStream(payload);
       }
       // Close the beat so Continue completes here (mirrors print's `\n`).

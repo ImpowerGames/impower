@@ -2014,16 +2014,18 @@ export class Game<T extends M = {}> {
           // interpreter routes the beat by that tag rather than by regex over
           // the visible text.
           const currentTags = this._story.currentTags || [];
-          // A `display(<table>)` beat emits a structured instruction table
-          // (no visible text) instead of a flat string. When present, route it
-          // straight to the interpreter as pre-parsed instructions — bypassing
-          // the char-by-char re-parse `queue()` does. A normal text beat carries
-          // no display instructions and takes the legacy path unchanged.
+          // A step that called `display(<table>)` takes its routing from the
+          // first table. Its body is `currentText`, the step's ordered visible
+          // text, so a table and flat text sharing a step (a glued chain whose
+          // lines reached the stream in both forms) render every word. A step
+          // with no table takes the routing-tag path.
           const displayInstructions = this._story.currentDisplayInstructions;
           if (displayInstructions.length > 0) {
             this.module.interpreter.queueInstructions(
               displayInstructions,
               currentChoices,
+              currentText,
+              currentTags,
             );
           } else {
             this.module.interpreter.queue(

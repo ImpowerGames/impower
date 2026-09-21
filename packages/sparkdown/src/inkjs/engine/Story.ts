@@ -1476,11 +1476,11 @@ export class Story extends InkObject {
     currText: string | null,
     prevTagCount: number,
     currTagCount: number,
-    // SPIKE (display-as-Luau-call transport): a `display(<table>)` beat emits
-    // structured instructions but NO text, so the text/tag deltas below can't
-    // see it. Thread the display-instruction count through the same look-ahead
-    // so an extra instruction past the newline counts as "extended beyond the
-    // newline" — exactly like an extra tag does.
+    // A `display(<table>)` call whose `text` is empty adds nothing to
+    // `currentText`, so the text/tag deltas below can't see it. The
+    // display-instruction count rides the same look-ahead so an extra table
+    // past the newline counts as "extended beyond the newline" — exactly like
+    // an extra tag does — and an empty-body line keeps its own step.
     prevDisplayCount = 0,
     currDisplayCount = 0,
   ) {
@@ -1937,9 +1937,13 @@ export class Story extends InkObject {
         const sitePath = this.state.previousPointer.path?.toString();
         if (sitePath) {
           const forced = this.simulator.forceCondition(sitePath);
-          // inject forced verdict as an int (ink booleans are ints)
-          this.state.PopEvaluationStack();
-          this.state.PushEvaluationStack(new IntValue(forced ? 1 : 0));
+          // A null verdict means the route says nothing about this site, so
+          // the evaluated value stands.
+          if (forced != null) {
+            // inject forced verdict as an int (ink booleans are ints)
+            this.state.PopEvaluationStack();
+            this.state.PushEvaluationStack(new IntValue(forced ? 1 : 0));
+          }
         }
       }
 
@@ -2028,9 +2032,14 @@ export class Story extends InkObject {
           const sitePath = this.state.previousPointer.path?.toString();
           if (sitePath) {
             const forced = this.simulator.forceCondition(sitePath);
-            // Inject as int (ink booleans are ints)
-            this.state.PopEvaluationStack();
-            this.state.PushEvaluationStack(new IntValue(forced ? 1 : 0));
+            // A null verdict means the route says nothing about this site (it
+            // is past the route's end, reached by look-ahead), so the
+            // evaluated value stands.
+            if (forced != null) {
+              // Inject as int (ink booleans are ints)
+              this.state.PopEvaluationStack();
+              this.state.PushEvaluationStack(new IntValue(forced ? 1 : 0));
+            }
           }
         }
 

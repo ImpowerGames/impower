@@ -355,6 +355,15 @@ export class StoryState {
         let textContent = asOrNull(outputObj, StringValue);
         if (!inTag && textContent !== null) {
           sb.Append(textContent.value);
+        } else if (!inTag && outputObj instanceof ObjectValue) {
+          // A `display(<table>)` call's table carries its visible words in
+          // `text`. Reading it here, in stream order beside the flat strings,
+          // makes `currentText` the step's full visible text whichever form
+          // each producer used.
+          let tableText = outputObj.value?.get("text");
+          if (tableText instanceof StringValue && tableText.value) {
+            sb.Append(tableText.value);
+          }
         } else {
           let controlCommand = asOrNull(outputObj, ControlCommand);
           if (controlCommand !== null) {
@@ -1106,6 +1115,11 @@ export class StoryState {
         if (this.outputStreamEndsInNewline || !this.outputStreamContainsContent)
           includeInOutput = false;
       }
+    } else if (obj instanceof ObjectValue) {
+      // A display table is content, so it consumes pending glue exactly as
+      // non-whitespace text does. Left in place, the glue would swallow the
+      // newline that closes this table's step and every later line would join.
+      this.RemoveExistingGlue();
     }
 
     if (includeInOutput) {

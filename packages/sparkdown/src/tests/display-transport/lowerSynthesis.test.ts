@@ -3,8 +3,8 @@
 // no cue/interpolation) lowers to a native `display({ target, text })` call
 // instead of the legacy routing-tag + visible-text form. Authors write ordinary
 // prose; the compiler synthesizes the call. Verified by running the compiled
-// story and reading `currentDisplayInstructions` (structured) vs `currentText`
-// (legacy).
+// story and reading `currentDisplayInstructions` (structured) beside
+// `currentText` (the step's visible text under either form).
 //
 // The flag is OFF by default, so the legacy path — and every existing golden —
 // is unchanged; only opted-in compiles take the new path, and only for content
@@ -61,7 +61,8 @@ describe("lowerer synthesis: display() from authored prose", () => {
     expect(instructions).toHaveLength(1);
     expect(field(instructions[0]!, "target")).toBe("action");
     expect(field(instructions[0]!, "text")).toBe("The room is quiet.");
-    expect((story.currentText ?? "").trim()).toBe("");
+    // `currentText` reports the step's visible text, table text included.
+    expect((story.currentText ?? "").trim()).toBe("The room is quiet.");
   });
 
   test("without the flag the same line takes the legacy text path", () => {
@@ -85,7 +86,7 @@ describe("lowerer synthesis: display() from authored prose", () => {
     expect(instructions).toHaveLength(1);
     expect(field(instructions[0]!, "target")).toBe("action");
     expect(field(instructions[0]!, "text")).toBe("You have 5 gold.");
-    expect((story.currentText ?? "").trim()).toBe("");
+    expect((story.currentText ?? "").trim()).toBe("You have 5 gold.");
   });
 
   test("a dialogue line carries target=dialogue + the character cue", () => {
