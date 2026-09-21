@@ -7,8 +7,6 @@
 import "../../packages/sparkdown/src/inkjs/engine/Container";
 import * as fs from "node:fs";
 import { performance } from "node:perf_hooks";
-import { SparkdownCompiler } from "../../packages/sparkdown/src/compiler/classes/SparkdownCompiler";
-import { buildRouteSimulator, type RoutePlan } from "../../packages/sparkdown/src/compiler/utils/planRoute";
 import { Container } from "../../packages/sparkdown/src/inkjs/engine/Container";
 import { ControlCommand } from "../../packages/sparkdown/src/inkjs/engine/ControlCommand";
 import { Divert } from "../../packages/sparkdown/src/inkjs/engine/Divert";
@@ -18,8 +16,8 @@ import type { Story } from "../../packages/sparkdown/src/inkjs/engine/Story";
 import { StringValue } from "../../packages/sparkdown/src/inkjs/engine/Value";
 import { VariableAssignment } from "../../packages/sparkdown/src/inkjs/engine/VariableAssignment";
 import { VariableReference } from "../../packages/sparkdown/src/inkjs/engine/VariableReference";
-import { Game } from "../../packages/spark-engine/src/game/core/classes/Game";
-import { MAIN_URI, benchSystem, configurePlayerCompiler, loadProjectFiles, silenceConsole, stats } from "./benchProject";
+import { silenceConsole, stats } from "./benchProject";
+import { prepareWalk, rewindWalk, type Walk } from "./benchRoute";
 
 interface EngineBenchConfig {
   project: string;
@@ -37,8 +35,6 @@ interface EngineBenchConfig {
 
 const config: EngineBenchConfig = JSON.parse(process.argv[2] ?? "null");
 if (!config?.project) throw new Error("run through scripts/bench/engine-bench.mjs");
-
-const NOOP = () => {};
 
 // The kind of content a step executes, named for the report. Everything the
 // engine can step onto lands in some kind: an unrecognized object is reported
@@ -69,53 +65,10 @@ function nextContent(story: Story): any {
   return obj;
 }
 
-interface Walk {
-  game: Game;
-  story: Story;
-  route: RoutePlan;
-  toPath: string;
-}
-
-function prepare(): Walk {
-  const files = loadProjectFiles(config.project);
-  const startFrom = { file: MAIN_URI, line: config.line - 1 };
-  const compiler = new SparkdownCompiler();
-  configurePlayerCompiler(compiler, files, startFrom);
-  const cold: any = compiler.compile({ textDocument: { uri: MAIN_URI }, startFrom } as any);
-  // The engine as the page holds it: constructed from the compiled program.
-  const game = new Game({ program: cold.program, ...benchSystem } as any);
-  game.setStartFrom(startFrom);
-  const toPath = game.startPath;
-  if (!toPath) throw new Error(`line ${config.line} of main.sd maps to no story path`);
-  const story = game.story as Story;
-  const route = Game.planRoute(story, game.program, Game.getSimulateFromPath(toPath), toPath);
-  if (!route) throw new Error(`no route to ${toPath}`);
-  // The game's observers are bookkeeping of its own, as are the planner's.
-  story.onError = NOOP as any;
-  story.onExecute = config.candidate === "hooked" ? (NOOP as any) : null;
-  story.onMakeChoice = NOOP as any;
-  story.onEvaluateCondition = NOOP as any;
-  story.onSaveStateSnapshot = NOOP as any;
-  story.onRestoreStateSnapshot = NOOP as any;
-  story.onDiscardStateSnapshot = NOOP as any;
-  story.onDidContinue = null;
-  return { game, story, route, toPath };
-}
-
-// Puts the story at the top of the route with the route's decisions forced,
-// which is where the planner's search starts and what makes a replay follow it.
-function rewind({ story, route }: Walk) {
-  story.CancelAsyncContinue();
-  story.ResetState();
-  story.ChoosePathString(route.fromPath);
-  story.simulator = buildRouteSimulator(route.decisions);
-  story.pauseBeforeEvaluatingConditions = false;
-}
-
 // One engine step per call: ContinueAsync takes no limit and returns after a
 // single ContinueSingleStep, which is how the route planner drives it.
 function countSteps(walk: Walk): number {
-  rewind(walk);
+  rewindWalk(walk);
   const { story, toPath } = walk;
   let steps = 0;
   while (story.state.previousPointer.path?.toString() !== toPath) {
@@ -128,7 +81,7 @@ function countSteps(walk: Walk): number {
 
 function main() {
   const realLog = silenceConsole();
-  const walk = prepare();
+  const walk = prepareWalk(config.project, config.line, config.candidate === "hooked");
   const steps = countSteps(walk);
   const { story } = walk;
   const report: any = { mode: config.mode, candidate: config.candidate, project: config.project, line: config.line, toPath: walk.toPath, routeSteps: walk.route.steps.length, engineSteps: steps, warmup: config.warmup, samples: config.samples };
@@ -137,7 +90,7 @@ function main() {
     // Stepping only: no path is read, nothing is recorded per step.
     const totals: number[] = [];
     for (let i = 0; i < config.warmup + config.samples; i++) {
-      rewind(walk);
+      rewindWalk(walk);
       const t0 = performance.now();
       for (let s = 0; s < steps; s++) story.ContinueAsync();
       const t1 = performance.now();
@@ -152,7 +105,7 @@ function main() {
     const count = new Map<string, number>();
     const perSample: Map<string, number>[] = [];
     for (let i = 0; i < config.warmup + config.samples; i++) {
-      rewind(walk);
+      rewindWalk(walk);
       const time = new Map<string, number>();
       for (let s = 0; s < steps; s++) {
         const kind = kindOf(nextContent(story));
