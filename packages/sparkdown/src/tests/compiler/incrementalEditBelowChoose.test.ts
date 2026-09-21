@@ -206,9 +206,19 @@ describe("an incremental compile of an edit in a scene", () => {
       contentChanges,
     } as never);
 
-    const cold = stable(pick(compileOf(compilerFor(after))));
-    expect(stable(pick(compileOf(c)))).toBe(cold);
-    expect(stable(pick(compileOf(c))), "a compile with no edit").toBe(cold);
+    expect(stable(pick(compileOf(c)))).toBe(
+      stable(pick(compileOf(compilerFor(after)))),
+    );
+
+    const next = change(after, "Final text.", "Final text, changed.");
+    c.updateDocument({
+      textDocument: { uri: URI, version: 3 },
+      contentChanges: next.contentChanges,
+    } as never);
+
+    expect(stable(pick(compileOf(c))), "the next edit below the choose").toBe(
+      stable(pick(compileOf(compilerFor(next.after)))),
+    );
   });
 
   it("is the cold compile after each of several edits below a choose block", () => {
