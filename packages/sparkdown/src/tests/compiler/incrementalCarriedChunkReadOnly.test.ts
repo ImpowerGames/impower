@@ -1,11 +1,12 @@
-// A chunk carried from the previous compile is read by the assembly, never
-// written (#674).
+// The assembly never changes the `content` of a chunk carried from the
+// previous compile (#674).
 //
 // A `choose … then … end` lowers to a chunk whose content ends in a nested
 // weave, and the lines after the block are assembled into a weave that follows
 // that one's children. The carried chunk's own objects must come out of every
-// compile holding exactly what they held before it, or the next compile starts
-// from whatever this one assembled. The edits leave a line between themselves
+// compile holding exactly the children they held before it, or the next
+// compile starts from whatever this one assembled. The assembly does set the
+// `parent` of those children, which this test does not check. The edits leave a line between themselves
 // and the block, because the chunk just above an edit is lowered again.
 import "../../inkjs/engine/Container";
 import { describe, expect, it } from "vitest";

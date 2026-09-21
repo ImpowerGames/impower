@@ -2312,9 +2312,10 @@ export class SparkdownCompiler {
     // `getClosestWeave` follows a trailing weave into the content a chunk
     // placed, and the chunks after it are appended there, so the assembly
     // places a weave of its own in place of each trailing weave of a chunk.
-    // The chunk's objects are carried to the next compile and stay as the
-    // chunk lowered them. The copy holds the same children at the same
-    // indentation, so it generates what the chunk's weave would.
+    // The chunk's objects are carried to the next compile, and their `content`
+    // stays as the chunk lowered it; the copy takes over as the `parent` of the
+    // children it holds. It holds them at the same indentation, so it
+    // generates what the chunk's weave would.
     const assemblyWeave = (weave: Weave): Weave => {
       const copy = new Weave(
         withAssemblyWeaves(weave.content),
