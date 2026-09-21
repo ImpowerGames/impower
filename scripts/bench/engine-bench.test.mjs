@@ -196,7 +196,7 @@ if (!esbuildInstalled) {
     assert.match(run.stdout, /a display beat that interpolates nothing: [0-9]+ to [0-9]+ instructions, [0-9]+ to [0-9]+ runtime objects/);
     // The worked example ran: an edit shared all but one sequence row, and a
     // story resumed inside a block below the edit ran on through the new root.
-    assert.match(run.stdout, /edit probe: two statements inserted around entry [0-9]+ of a then clause of [0-9]{3,}; [0-9]+ of [0-9]+ sequence rows and all [0-9]+ chunks shared with the previous root; resumed inside the if through the new root, the [0-9]+ lines to the end are equal/);
+    assert.match(run.stdout, /edit probe: two statements inserted around entry [0-9]+ of a then clause of [0-9]{3,}; the chunk arrays of [0-9]+ of [0-9]+ sequences and all [0-9]+ chunks shared with the previous root; resumed inside the if through the new root, the [0-9]+ lines to the end are equal; a third inserted into the first branch of an if moved its else branch down a line with that branch's row and arrays shared; after each edit every statement's line equals a layout from scratch/);
     // The symbol table is the size the design gives the fixture, its hundreds
     // of globals included, and not the handful of flows the ring is made of.
     assert.match(run.stdout, /candidate symbol: a ring of [0-9]+ flows spread through a symbol table of [0-9]{3,}, /);

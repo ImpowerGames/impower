@@ -25,7 +25,9 @@
 //
 // Before anything is timed, each side is shown to restore: the engine takes
 // back a global written after its snapshot, and the restorable state takes back
-// a write to every kind of state it holds.
+// a write to every kind of state it holds, which includes what a continue has
+// raised (its errors and warnings) and a table's entries, metatable and frozen
+// flag.
 import "../../packages/sparkdown/src/inkjs/engine/Container";
 import * as fs from "node:fs";
 import { performance } from "node:perf_hooks";
@@ -61,6 +63,13 @@ class RestorableState {
   output: unknown[] = [new Map([["text", "A line."]]), "\n"];
   choices: unknown[] = [];
   turnIndex = 0;
+  // What a continue has raised so far. A look-ahead that is taken back takes
+  // these back too, as the engine's snapshot does.
+  errors: string[] = [];
+  warnings: string[] = [];
+  // A table is its entries and also what it is: its metatable and whether it
+  // is frozen. All three go through the one barrier.
+  readonly table = { entries: new Map<string, unknown>([["a", 1]]), metatable: null as object | null, frozen: false };
   private saved = false;
   private savedFrames: RestorableState["frames"] = [];
   private savedBlockStack: number[] = [];
@@ -68,9 +77,14 @@ class RestorableState {
   private savedOutput: unknown[] = [];
   private savedChoices = 0;
   private savedTurnIndex = 0;
+  private savedErrors = 0;
+  private savedWarnings = 0;
   private undoNames: string[] = [];
   private undoValues: unknown[] = [];
   private undoCounts: number[] = [];
+  // What was written to the table: an entry's key, or one of the two fields,
+  // with the value it had.
+  private undoTable: [what: "entry" | "metatable" | "frozen", key: string, old: unknown][] = [];
 
   constructor(globals: number, symbols: number, temporaries: number) {
     for (let i = 0; i < globals; i++) this.globals.set(`global_${i}`, i);
@@ -91,6 +105,23 @@ class RestorableState {
     this.savedOutput = this.output.slice();
     this.savedChoices = this.choices.length;
     this.savedTurnIndex = this.turnIndex;
+    this.savedErrors = this.errors.length;
+    this.savedWarnings = this.warnings.length;
+  }
+
+  setEntry(key: string, value: unknown) {
+    if (this.saved) this.undoTable.push(["entry", key, this.table.entries.get(key)]);
+    this.table.entries.set(key, value);
+  }
+
+  setMetatable(metatable: object | null) {
+    if (this.saved) this.undoTable.push(["metatable", "", this.table.metatable]);
+    this.table.metatable = metatable;
+  }
+
+  freeze() {
+    if (this.saved) this.undoTable.push(["frozen", "", this.table.frozen]);
+    this.table.frozen = true;
   }
 
   setGlobal(name: string, value: unknown) {
@@ -123,8 +154,18 @@ class RestorableState {
     this.output = this.savedOutput;
     this.choices.length = this.savedChoices;
     this.turnIndex = this.savedTurnIndex;
+    this.errors.length = this.savedErrors;
+    this.warnings.length = this.savedWarnings;
+    const { undoTable, table } = this;
+    for (let i = undoTable.length - 1; i >= 0; i--) {
+      const [what, key, old] = undoTable[i]!;
+      if (what === "metatable") table.metatable = old as object | null;
+      else if (what === "frozen") table.frozen = old as boolean;
+      else if (old === undefined) table.entries.delete(key);
+      else table.entries.set(key, old);
+    }
     this.saved = false;
-    undoNames.length = undoValues.length = undoCounts.length = 0;
+    undoNames.length = undoValues.length = undoCounts.length = undoTable.length = 0;
   }
 }
 
@@ -141,9 +182,20 @@ function probeRestorable(state: RestorableState) {
     output: JSON.stringify(state.output.map((entry) => (entry instanceof Map ? [...entry] : entry))),
     choices: JSON.stringify(state.choices),
     turnIndex: JSON.stringify(state.turnIndex),
+    errors: JSON.stringify(state.errors),
+    warnings: JSON.stringify(state.warnings),
+    tableEntries: JSON.stringify([...state.table.entries]),
+    tableMetatable: JSON.stringify(state.table.metatable),
+    tableFrozen: JSON.stringify(state.table.frozen),
   });
   const before = picture();
   state.save();
+  state.errors.push("an error raised during the look-ahead");
+  state.warnings.push("a warning raised during the look-ahead");
+  state.setEntry("a", "written");
+  state.setEntry(PROBE, 1);
+  state.setMetatable({ __index: "written" });
+  state.freeze();
   state.setGlobal("global_0", "written");
   state.setGlobal(PROBE, 1);
   state.turnIndex++;

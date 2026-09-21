@@ -13,6 +13,16 @@
 // the edit finds its owner's new sequence through the root (`insertChunk`,
 // `position`).
 //
+// Lines are held so that an edit moves no stored line beside or below it. A
+// sequence's line starts are relative to its body's first line, the root's row
+// holds how many lines the body spans, and the owner's block row holds the
+// lines of the owner's own parts above the body, so where a body starts is
+// worked out from its owner and the bodies above it (`lineOf`). The JSON tree
+// carries no source lines, so the program is laid out on synthetic ones: a
+// plain statement takes one line, and a block statement one line for each of
+// its own parts (`if`, `else`, a choice, `then`, `end`) beside what its bodies
+// take.
+//
 // The writer here does not lower source. It translates the JSON tree the
 // current compiler emits for the kinds the comparison scene holds (display
 // calls, reassignments, `if` blocks, diverts to a scene, one `choose`) and
@@ -56,15 +66,22 @@ export const CHOICE_HAS_CHOICE_ONLY_CONTENT = 4;
 
 // Header words of a chunk. The code follows the header; the block table, one
 // row per block, follows the code. A block row is the id of the block's
-// sequence and the position at which the chunk resumes when that sequence runs
-// out.
+// sequence, the position at which the chunk resumes when that sequence runs
+// out, and the lines of the chunk's own parts between the body above (or the
+// statement's first line) and this body.
 export const H_CODE_WORDS = 0;
 export const H_BLOCKS = 1;
 export const H_ID = 2;
 export const HEADER = 3;
-export const BLOCK_ROW = 2;
+export const BLOCK_ROW = 3;
 export const B_SEQUENCE = 0;
 export const B_RESUME = 1;
+export const B_GAP = 2;
+/** The synthetic layout: a plain statement's lines, and the lines of a block
+ *  statement's own parts below its last body (its `end`). */
+export const PLAIN_LINES = 1;
+export const TAIL_LINES = 1;
+export const FLOW_HEAD_LINES = 1;
 
 export const encode = (op: Op, flags = 0, aux = 0) => op | (flags << 8) | (aux << 16);
 
@@ -77,6 +94,14 @@ export interface Sequence {
   readonly chunks: Int32Array[];
   /** The chunk id of each entry, which is how a chunk's entry is found. */
   readonly ids: number[];
+  /** Each entry's first line, relative to the body's own first line, so that
+   *  an edit beside or above the body leaves the array as it is. */
+  readonly lineStarts: number[];
+  /** How many lines the body spans. */
+  readonly lines: number;
+  /** A flow's first line in the script, and -1 for a block, whose first line
+   *  follows from its owner and the bodies above it. */
+  readonly firstLine: number;
   /** The chunk that owns this sequence as one of its blocks, or -1 for a flow.
    *  Which sequence holds the owner is the root's to say (`chunkSeq`). */
   readonly owner: number;
@@ -140,10 +165,11 @@ class ChunkBuilder {
     return this.code.length - 2;
   }
   /** Enters `sequence` as the chunk's next block, which resumes after the
-   *  instruction emitted here. */
-  enterBlock(sequence: number) {
+   *  instruction emitted here. `gap` is the lines of the statement's own parts
+   *  above this body and below the one before it. */
+  enterBlock(sequence: number, gap: number) {
     this.emit(Op.EnterBlock, 0, 0, this.blocks.length / BLOCK_ROW);
-    this.blocks.push(sequence, HEADER + this.code.length);
+    this.blocks.push(sequence, HEADER + this.code.length, gap);
   }
   /** Points the jump at `at` to the next instruction to be emitted. */
   land(at: number) {
@@ -184,7 +210,7 @@ export function writeChunkProgram(compiled: Record<string, any>, options: { reso
   const nativeIds = new Map<string, number>();
   const symbolNames: string[] = [];
   const symbolIds = new Map<string, number>();
-  const sequences: Sequence[] = [];
+  const sequences: { -readonly [K in keyof Sequence]: Sequence[K] }[] = [];
   const chunkSeq: number[] = [];
   const displayBeat = { instructions: [Infinity, 0] as [number, number], objects: [Infinity, 0] as [number, number] };
   const definitions: [symbol: number, seq: number, index: number, pc: number][] = [];
@@ -214,15 +240,20 @@ export function writeChunkProgram(compiled: Record<string, any>, options: { reso
     return id;
   };
 
-  const newSequence = (owner: number, block: number, flow: number): Sequence => {
-    const seq: Sequence = { id: sequences.length, chunks: [], ids: [], owner, block, flow };
+  type Building = (typeof sequences)[number];
+  const newSequence = (owner: number, block: number, flow: number): Building => {
+    const seq: Building = { id: sequences.length, chunks: [], ids: [], lineStarts: [], lines: 0, firstLine: -1, owner, block, flow };
     sequences.push(seq);
     return seq;
   };
-  const add = (seq: Sequence, builder: ChunkBuilder, id: number) => {
+  // `lines` is what the statement takes in the synthetic layout: its own parts
+  // and its bodies.
+  const add = (seq: Building, builder: ChunkBuilder, id: number, lines = PLAIN_LINES) => {
     const chunk = builder.finish(id);
     seq.chunks.push(chunk);
     seq.ids.push(id);
+    seq.lineStarts.push(seq.lines);
+    seq.lines += lines;
     chunkSeq[id] = seq.id;
     instructionCount += builder.code.length / 2;
     words += chunk.length;
@@ -307,10 +338,13 @@ export function writeChunkProgram(compiled: Record<string, any>, options: { reso
   const isBranch = (item: any) => Array.isArray(item) && isObject(item.at(-1)) && Array.isArray(item.at(-1)["$b"]);
   const isWeave = (item: any) => Array.isArray(item) && isObject(item.at(-1)) && Object.keys(item.at(-1)).some((key) => /^[cg]-\d+$/.test(key));
 
-  const conditional = (seq: Sequence, items: any[], from: number, flow: number): number => {
+  const conditional = (seq: Building, items: any[], from: number, flow: number): number => {
     const id = chunkCount++;
     const b = new ChunkBuilder();
     const toEnd: number[] = [];
+    // The `end` line, then a line for each branch's `if` or `else` and what
+    // its body takes.
+    let lines = TAIL_LINES;
     let i = from;
     for (; isBranch(items[i]); i++) {
       const branch: any[] = items[i];
@@ -334,15 +368,16 @@ export function writeChunkProgram(compiled: Record<string, any>, options: { reso
         body = body.slice(1, -1);
       }
       const child = newSequence(id, b.blocks.length / BLOCK_ROW, flow);
-      b.enterBlock(child.id);
+      b.enterBlock(child.id, 1);
       if (scoped) b.emit(Op.EndScope);
       toEnd.push(b.emit(Op.Jump));
       if (falseJump >= 0) b.land(falseJump);
       statements(child, body, flow);
+      lines += 1 + child.lines;
     }
     if (items[i] !== "nop") throw new UnsupportedConstruct("a conditional with no rejoin point");
     for (const at of toEnd) b.land(at);
-    add(seq, b, id);
+    add(seq, b, id, lines);
     return i + 1;
   };
 
@@ -352,9 +387,12 @@ export function writeChunkProgram(compiled: Record<string, any>, options: { reso
       return t.slice(1);
     });
 
-  const weave = (seq: Sequence, item: any[], flow: number) => {
+  const weave = (seq: Building, item: any[], flow: number) => {
     const id = chunkCount++;
     const b = new ChunkBuilder();
+    // The `end` line, then the `choose` line with the first choice's, a line
+    // for each later choice and for `then`, and what each body takes.
+    let lines = TAIL_LINES;
     const named: Record<string, any[]> = item.at(-1);
     const points: { at: number; start: string[]; body: any[]; name: string }[] = [];
     for (const choice of item.slice(0, -1) as any[][]) {
@@ -397,22 +435,25 @@ export function writeChunkProgram(compiled: Record<string, any>, options: { reso
       const last = body.at(-1);
       if (isObject(last) && typeof last["->"] === "string" && /\.g-\d+$/.test(last["->"])) body = body.slice(0, -1);
       const child = newSequence(id, b.blocks.length / BLOCK_ROW, flow);
-      b.enterBlock(child.id);
+      const gap = b.blocks.length === 0 ? 2 : 1;
+      b.enterBlock(child.id, gap);
       toThen.push(b.emit(Op.Jump));
       statements(child, body, flow);
+      lines += gap + child.lines;
     }
     for (const at of toThen) b.land(at);
     if (gathers.length) {
       b.emit(Op.Visit, 0, 0, symbol(`${symbolNames[flow]}#${id}.${gathers[0]}`));
       const child = newSequence(id, b.blocks.length / BLOCK_ROW, flow);
-      b.enterBlock(child.id);
+      b.enterBlock(child.id, 1);
       statements(child, named[gathers[0]!]!.slice(0, -1), flow);
+      lines += 1 + child.lines;
     }
-    add(seq, b, id);
+    add(seq, b, id, lines);
   };
 
   // One chunk per statement of a body.
-  const statements = (seq: Sequence, items: any[], flow: number) => {
+  const statements = (seq: Building, items: any[], flow: number) => {
     let i = 0;
     while (i < items.length) {
       const item = items[i];
@@ -474,6 +515,8 @@ export function writeChunkProgram(compiled: Record<string, any>, options: { reso
   // Every flow is interned before any is emitted, so a flow's id follows the
   // order the flows are declared in and not the order diverts first name them.
   for (const [name] of flows) symbol(name);
+  // Where the next flow's header line falls in the synthetic script.
+  let scriptLine = 0;
   for (const [name, flow] of flows) {
     const sym = symbol(name);
     const mark = { sequences: sequences.length, chunks: chunkCount, instructions: instructionCount, words, direct: directJumps.length, beat: structuredClone(displayBeat) };
@@ -482,6 +525,9 @@ export function writeChunkProgram(compiled: Record<string, any>, options: { reso
       const seq = newSequence(-1, -1, sym);
       statements(seq, flow.slice(0, -1), sym);
       if (seq.chunks.length) definitions.push([sym, seq.id, 0, HEADER]);
+      // A header line, the body, and an `end` line.
+      seq.firstLine = scriptLine + FLOW_HEAD_LINES;
+      scriptLine = seq.firstLine + seq.lines + TAIL_LINES;
     } catch (error) {
       if (!(error instanceof UnsupportedConstruct)) throw error;
       skipped.set(name, error.construct);
@@ -550,13 +596,88 @@ export function copyChunk(root: ProgramRoot, chunk: Int32Array): Int32Array {
   return copy;
 }
 
+/** The first line of a body: a flow's own, or what follows from the owner's
+ *  first line, the owner's parts above the body and the bodies above it. */
+function bodyFirstLine(root: ProgramRoot, body: Sequence): number {
+  if (body.owner < 0) return body.firstLine;
+  const owner = position(root, body.owner);
+  if (!owner) throw new Error(`the root holds no chunk ${body.owner}, which owns sequence ${body.id}`);
+  const chunk = owner.sequence.chunks[owner.entry]!;
+  const table = HEADER + chunk[H_CODE_WORDS]!;
+  let line = bodyFirstLine(root, owner.sequence) + owner.sequence.lineStarts[owner.entry]!;
+  for (let k = 0; k <= body.block; k++) {
+    line += chunk[table + k * BLOCK_ROW + B_GAP]!;
+    if (k < body.block) line += root.sequences[chunk[table + k * BLOCK_ROW + B_SEQUENCE]!]!.lines;
+  }
+  return line;
+}
+
+/** The line a statement starts on, through the root that is asked. */
+export function lineOf(root: ProgramRoot, chunkId: number): number {
+  const at = position(root, chunkId);
+  if (!at) throw new Error(`the root holds no chunk ${chunkId}`);
+  return bodyFirstLine(root, at.sequence) + at.sequence.lineStarts[at.entry]!;
+}
+
+/** Every chunk id of the program in the order the script holds the statements:
+ *  the flows as they were declared, and under a block statement its bodies in
+ *  turn. */
+export function documentOrder(root: ProgramRoot): number[] {
+  const order: number[] = [];
+  const walk = (body: Sequence) => {
+    body.chunks.forEach((chunk, entry) => {
+      order.push(body.ids[entry]!);
+      const table = HEADER + chunk[H_CODE_WORDS]!;
+      for (let k = 0; k < chunk[H_BLOCKS]!; k++) walk(root.sequences[chunk[table + k * BLOCK_ROW + B_SEQUENCE]!]!);
+    });
+  };
+  for (const row of root.sequences) if (row.owner < 0) walk(row);
+  return order;
+}
+
+/** The lines of every sequence laid out again from nothing but the chunks: what
+ *  a root's line starts, spans and first lines have to equal however many edits
+ *  built it. `plain` gives the lines of a statement that owns no block. */
+export function layoutFromScratch(root: ProgramRoot, plain: (chunkId: number) => number = () => PLAIN_LINES): Map<number, { lineStarts: number[]; lines: number; firstLine: number }> {
+  const layout = new Map<number, { lineStarts: number[]; lines: number; firstLine: number }>();
+  const measure = (body: Sequence): number => {
+    const lineStarts: number[] = [];
+    let lines = 0;
+    body.chunks.forEach((chunk, entry) => {
+      lineStarts.push(lines);
+      const blocks = chunk[H_BLOCKS]!;
+      const table = HEADER + chunk[H_CODE_WORDS]!;
+      if (blocks === 0) lines += plain(body.ids[entry]!);
+      else {
+        lines += TAIL_LINES;
+        for (let k = 0; k < blocks; k++) lines += chunk[table + k * BLOCK_ROW + B_GAP]! + measure(root.sequences[chunk[table + k * BLOCK_ROW + B_SEQUENCE]!]!);
+      }
+    });
+    layout.set(body.id, { lineStarts, lines, firstLine: -1 });
+    return lines;
+  };
+  let scriptLine = 0;
+  for (const row of root.sequences) {
+    if (row.owner >= 0) continue;
+    const lines = measure(row);
+    const firstLine = scriptLine + FLOW_HEAD_LINES;
+    layout.get(row.id)!.firstLine = firstLine;
+    scriptLine = firstLine + lines + TAIL_LINES;
+  }
+  return layout;
+}
+
 /** The root a compile that inserted `chunk` at `entry` of one sequence would
  *  build. The sequence keeps its id and gets new arrays, the chunk table gains
  *  the chunk's row, and a symbol defined later in the same sequence moves one
- *  entry on. Every other row, every chunk and `root` itself stay as they were,
- *  so a body below the edit is reached through the new root with its own row
- *  untouched. */
-export function insertChunk(root: ProgramRoot, sequence: number, entry: number, chunk: Int32Array): ProgramRoot {
+ *  entry on. The lines follow the insertion up the owners: each sequence that
+ *  encloses the edit gets new line starts for the entries below the owner and a
+ *  longer span, and each later flow a later first line. Every other row, every
+ *  array that did not change, every chunk and `root` itself stay as they were.
+ *  So a body below or beside the edit is reached through the new root with its
+ *  own row untouched, and its lines come out right because they are worked out
+ *  from its owner. */
+export function insertChunk(root: ProgramRoot, sequence: number, entry: number, chunk: Int32Array, lines = PLAIN_LINES): ProgramRoot {
   if (root.direct.length > 0) throw new Error("diverts resolved at compile time hold their targets, which is what symbols are for");
   const row = root.sequences[sequence]!;
   const id = chunk[H_ID]!;
@@ -564,8 +685,26 @@ export function insertChunk(root: ProgramRoot, sequence: number, entry: number, 
   chunks.splice(entry, 0, chunk);
   const ids = row.ids.slice();
   ids.splice(entry, 0, id);
+  const lineStarts = row.lineStarts.slice();
+  lineStarts.splice(entry, 0, entry < row.lineStarts.length ? row.lineStarts[entry]! : row.lines);
+  for (let i = entry + 1; i < lineStarts.length; i++) lineStarts[i]! += lines;
   const sequences = root.sequences.slice();
-  sequences[sequence] = { ...row, chunks, ids };
+  sequences[sequence] = { ...row, chunks, ids, lineStarts, lines: row.lines + lines };
+  let flow = row;
+  for (let body = row; body.owner >= 0; ) {
+    const owner = position(root, body.owner);
+    if (!owner) throw new Error(`the root holds no chunk ${body.owner}, which owns sequence ${body.id}`);
+    const enclosing = owner.sequence;
+    // Nothing below the owner, nothing to shift: the array is shared too.
+    let starts = enclosing.lineStarts;
+    if (owner.entry + 1 < starts.length) {
+      starts = starts.slice();
+      for (let i = owner.entry + 1; i < starts.length; i++) starts[i]! += lines;
+    }
+    sequences[enclosing.id] = { ...enclosing, lineStarts: starts, lines: enclosing.lines + lines };
+    flow = body = enclosing;
+  }
+  for (const other of root.sequences) if (other.owner < 0 && other.firstLine > flow.firstLine) sequences[other.id] = { ...other, firstLine: other.firstLine + lines };
   const chunkSeq = new Int32Array(Math.max(root.chunkSeq.length, id + 1)).fill(-1);
   chunkSeq.set(root.chunkSeq);
   chunkSeq[id] = sequence;
