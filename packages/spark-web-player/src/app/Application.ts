@@ -1,7 +1,4 @@
 import type { Message } from "@impower/jsonrpc/src/common/types/Message";
-import type { NotificationMessage } from "@impower/jsonrpc/src/common/types/NotificationMessage";
-import type { RequestMessage } from "@impower/jsonrpc/src/common/types/RequestMessage";
-import type { ResponseError } from "@impower/jsonrpc/src/common/types/ResponseError";
 import {
   Container,
   DOMAdapter,
@@ -21,6 +18,7 @@ import { EventMessage } from "../../../spark-engine/src/game/core/classes/messag
 import type { IApplication } from "./IApplication";
 import { type AssetCache } from "./assets/AssetCache";
 import { Manager } from "./Manager";
+import { MessageRouter } from "./MessageRouter";
 import AssetManager from "./managers/AssetManager";
 import AudioManager from "./managers/AudioManager";
 import EventManager from "./managers/EventManager";
@@ -66,14 +64,11 @@ const isEditableTarget = (target: EventTarget | null): boolean => {
 };
 
 export class Application implements IApplication {
+  /** Reached only through `connect`, `connection.receive` and `update`:
+   *  everything else between the page and the game is a message. */
   protected _game: Game;
-  get game() {
-    return this._game;
-  }
 
-  get context() {
-    return this._game.context;
-  }
+  protected _previewing: boolean;
 
   protected _clock = new Clock(
     {
@@ -160,6 +155,11 @@ export class Application implements IApplication {
     return this._managers;
   }
 
+  protected _router = new MessageRouter(
+    () => this._managers,
+    (message, transfer) => this.emit(message, transfer),
+  );
+
   get ui() {
     return this._manager.ui;
   }
@@ -206,13 +206,21 @@ export class Application implements IApplication {
     game: Game,
     view: HTMLElement,
     overlay: HTMLElement,
-    audioContext?: AudioContext,
-    assetCache?: AssetCache,
+    options: {
+      /** A preview shows the game without running it: no renderer, and no
+       *  audio context of its own. */
+      previewing: boolean;
+      audioContext?: AudioContext;
+      /** Shared by the host across the applications it builds, so STOP then
+       *  PLAY does not re-fetch a scene. Without one, the asset manager makes
+       *  its own. */
+      assetCache?: AssetCache;
+    },
   ) {
     this._game = game;
-    // Shared by the host across the applications it builds, so STOP then PLAY
-    // does not re-fetch a scene. Without one, the asset manager makes its own.
-    this._assetCache = assetCache;
+    this._previewing = options.previewing;
+    const audioContext = options.audioContext;
+    this._assetCache = options.assetCache;
 
     if (loadTextures.config) {
       // these workers don't work in iframe environments
@@ -249,8 +257,7 @@ export class Application implements IApplication {
     // shared context once and reuses it; here we only adopt it. Outside preview
     // (e.g. the standalone player), fall back to creating one if none was passed.
     const sharedAudioContext =
-      audioContext ||
-      (this._game.context.system.previewing ? undefined : new AudioContext());
+      audioContext || (this._previewing ? undefined : new AudioContext());
     if (sharedAudioContext) {
       this._audioContext = sharedAudioContext;
       if (this._audioContext.state !== "running") {
@@ -290,7 +297,7 @@ export class Application implements IApplication {
       this._resolveInit = resolve;
     });
 
-    if (!this._game.context.system.previewing) {
+    if (!this._previewing) {
       // Don't initialize renderer in preview mode
       await this.initializeRenderer();
     }
@@ -317,18 +324,8 @@ export class Application implements IApplication {
 
   async connectGame() {
     // TODO: application should bind to gameWorker.onmessage in order to receive messages emitted by worker
-    await this._game.connect(async (msg: Message, _t?: ArrayBuffer[]) => {
-      const partialResponse = await this.onReceive(
-        msg as RequestMessage | NotificationMessage,
-      );
-      if (partialResponse && "id" in msg) {
-        this.emit({
-          jsonrpc: "2.0",
-          id: msg.id,
-          method: msg.method,
-          ...partialResponse,
-        });
-      }
+    await this._game.connect((msg: Message, _t?: ArrayBuffer[]) => {
+      this._router.receive(msg);
     });
   }
 
@@ -403,6 +400,9 @@ export class Application implements IApplication {
   async destroy(removeCanvas?: boolean) {
     try {
       this._destroyed = true;
+      // Whatever the game still waits on from this page will not finish:
+      // answer it now, so the game is not left waiting.
+      this._router.disconnect();
       await this.initializing;
       this._overlay?.classList.remove("pause-game");
       this._clock.dispose();
@@ -501,25 +501,4 @@ export class Application implements IApplication {
     this.emit(EventMessage.type.notification(getEventData(event)));
   };
 
-  async onReceive(
-    msg: RequestMessage | NotificationMessage,
-  ): Promise<
-    | { error: ResponseError; transfer?: ArrayBuffer[] }
-    | { result: unknown; transfer?: ArrayBuffer[] }
-    | undefined
-  > {
-    return new Promise((resolve) => {
-      for (const manager of this._managers) {
-        if ("id" in msg) {
-          manager.onReceiveRequest(msg).then((response) => {
-            if (response) {
-              resolve(response as any);
-            }
-          });
-        } else {
-          manager.onReceiveNotification(msg);
-        }
-      }
-    });
-  }
 }

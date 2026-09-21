@@ -150,7 +150,8 @@ class PageSink {
       const result = pageResult(msg.method, msg.params);
       if (result === undefined) this.unanswered.add(msg.method);
       const response = { jsonrpc: "2.0", id: msg.id, method: msg.method, result: result ?? "" };
-      // The game registers its answer callback after the send returns.
+      // Answered on a later microtask, as a page's answer arrives after the
+      // turn that sent the request.
       queueMicrotask(() => {
         const t1 = performance.now();
         const back = v8.serialize(response);

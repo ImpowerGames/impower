@@ -2,9 +2,17 @@
 // every video on screen, and dispose withdraws what it installed on the
 // shared cache.
 
+import { WriteImageMessage } from "@impower/spark-engine/src/game/modules/ui/classes/messages/WriteImageMessage";
 import { describe, expect, it } from "vitest";
 import { AssetCache } from "../assets/AssetCache";
 import AssetManager from "./AssetManager";
+import UIManager from "./UIManager";
+
+// jsdom has no `CSS.escape`, which the write's target lookup uses; the
+// class names here need no escaping.
+const g = globalThis as any;
+g.CSS ??= {};
+g.CSS.escape ??= (value: string) => value;
 
 class FakeImage {
   src = "";
@@ -14,19 +22,13 @@ class FakeImage {
   onerror: (() => void) | null = null;
 }
 
-const CONTEXT = {
-  image: {
-    hero: { $type: "image", $name: "hero", src: "/file:/hero.png?v=1" },
-    shadow: { $type: "image", $name: "shadow", src: "/file:/shadow.png?v=1" },
-  },
-};
-
+// The page has nothing of the game's: no context to resolve an image name
+// through. What it pins comes from what it was told to write.
 const makeApp = () => {
   const overlay = document.createElement("div");
   const cache = new AssetCache({ createImage: () => new FakeImage() });
   const app: any = {
     overlay,
-    context: CONTEXT,
     audio: { playingKeys: () => ["audio.theme"], decodeAudioBuffer: async () => null },
     assetCache: cache,
     emit: () => {},
@@ -36,19 +38,37 @@ const makeApp = () => {
 };
 
 describe("AssetManager derived pins", () => {
-  it("pins every layer of a displayed image, the videos, and the playing audio", async () => {
-    const { manager, overlay } = makeApp();
+  it("pins every layer of a written image, the videos, and the playing audio", async () => {
+    const { app, manager, overlay } = makeApp();
     await manager.onInit();
-    // The renderer paints both layers through the span and gives only the
-    // first an element.
-    const span = document.createElement("span");
-    span.className = "instance";
-    span.setAttribute("image", "hero shadow");
-    const img = document.createElement("img");
-    img.className = "object";
-    img.setAttribute("src", "/file:/hero.png?v=1");
-    span.appendChild(img);
-    overlay.appendChild(span);
+    const ui = new UIManager(app);
+    const backdrop = document.createElement("div");
+    backdrop.className = "backdrop";
+    const content = document.createElement("div");
+    content.className = "image";
+    backdrop.appendChild(content);
+    overlay.appendChild(backdrop);
+    // Both layers paint through the span's background; only the first gets
+    // an element.
+    await ui.onReceiveRequest(
+      WriteImageMessage.type.request({
+        target: "backdrop",
+        instructions: [
+          {
+            control: "show",
+            content: {
+              background:
+                'url("/file:/shadow.png?v=1"), url("/file:/hero.png?v=1")',
+              imageNames: "hero shadow",
+              src: "/file:/hero.png?v=1",
+              srcs: ["/file:/hero.png?v=1", "/file:/shadow.png?v=1"],
+            },
+          },
+        ],
+        instant: true,
+      }),
+    );
+    expect(content.querySelector("span.instance[image='hero shadow']")).not.toBeNull();
     const video = document.createElement("video");
     video.className = "object";
     video.setAttribute("data-src", "/file:/intro.webm?v=1");

@@ -54,10 +54,6 @@ export interface IApplication {
    */
   camera: Camera;
   /**
-   * The game's context.
-   */
-  context: any;
-  /**
    * Manages the ui.
    */
   ui: UIManager;

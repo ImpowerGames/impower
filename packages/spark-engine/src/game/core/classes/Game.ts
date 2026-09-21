@@ -858,6 +858,10 @@ export class Game<T extends M = {}> {
     // the last beat presented are gone before the restore.
     this._shownChoices = [];
     this._connection.connectOutput(send);
+    // Everything the connect restores, and whatever it goes on to display,
+    // is a new stream: what the last one still had in flight must not land
+    // on it.
+    this._connection.beginEpoch();
     // Before the modules connect, so the scene's assets are requested before
     // the restore gate waits on the ones already on screen.
     const previewing = this._context.system.previewing;

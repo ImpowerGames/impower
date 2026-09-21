@@ -5,6 +5,7 @@ import type { ResponseError } from "@impower/jsonrpc/src/common/types/ResponseEr
 import type { GameContext } from "../types/GameContext";
 import type { RecursiveReadonly } from "../types/RecursiveReadonly";
 import { Clock } from "./Clock";
+import { DISCONNECTED, SUPERSEDED } from "./Connection";
 import type { Game } from "./Game";
 
 export abstract class Module<
@@ -153,5 +154,31 @@ export abstract class Module<
     transfer?: ArrayBuffer[],
   ): Promise<R> {
     return this._game.connection.emit(msg, transfer);
+  }
+
+  /**
+   * Send a request and wait until the page is done with it, whatever its
+   * answer. The page answers every request, with an error when it could not
+   * act on it: it went away, the request's stream was superseded, or nothing
+   * on the page handles the method. None of those leaves anything to wait
+   * for, so the wait ends with `undefined` instead of a rejection nobody
+   * catches. The first two are the page letting go; the last is a page that
+   * does not match this engine, and is reported.
+   */
+  async emitSettled<M extends string, P, R>(
+    msg: RequestMessage<M, P, R>,
+    transfer?: ArrayBuffer[],
+  ): Promise<R | undefined> {
+    try {
+      return await this._game.connection.emit(msg, transfer);
+    } catch (e) {
+      const code = (e as ResponseError | undefined)?.code;
+      if (code !== DISCONNECTED && code !== SUPERSEDED) {
+        console.warn(
+          `spark-engine: ${msg.method} failed: ${(e as ResponseError | undefined)?.message ?? e}`,
+        );
+      }
+      return undefined;
+    }
   }
 }

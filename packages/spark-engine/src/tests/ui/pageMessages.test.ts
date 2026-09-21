@@ -1,0 +1,147 @@
+// What the page needs from the game arrives in the game's messages, so the
+// page never reads the game itself: which stream a message belongs to, where
+// a reconcile pass opens and closes, the mixer a player plays through, and
+// every src an image layer paints. And every message survives the structured
+// clone that carries it to another thread.
+
+import { describe, expect, test } from "vitest";
+import { cloneMessage } from "../harness/cloneMessage";
+import {
+  createHarness,
+  flattenMessages,
+  flushMicrotasks,
+} from "./harness/uiTestHarness";
+
+const DEFS = `define HERO as character with
+  name = "HERO"
+end
+
+define beep as audio with
+  src = "https://example.com/beep.wav"
+end
+
+define SPRITE as image with
+  src = "https://example.com/hero.png"
+end
+
+define SHADOW as image with
+  src = "https://example.com/shadow.png"
+end
+
+layout main with
+  stage:
+    portrait:
+      image
+  textbox:
+    character_info:
+      character_name:
+        text
+    dialogue:
+      text
+end
+`;
+
+function story(body: string) {
+  return `${DEFS}\n-> start\n\nscene start\n${body}\nend\n`;
+}
+
+async function runBeat(body: string, instant: boolean) {
+  const harness = createHarness(story(body));
+  await harness.ready;
+  harness.jumpTo("start");
+  harness.reset();
+  const beat = harness.nextBeat();
+  await harness.display(beat!, instant);
+  await flushMicrotasks(10);
+  return harness;
+}
+
+describe("page messages", () => {
+  test("every connect starts a stream that opens a reconcile pass, and the sweep closes it", async () => {
+    const harness = createHarness(story("  Hi."));
+    await harness.ready;
+    const first = [...harness.messages];
+    expect(first.length).toBeGreaterThan(0);
+    expect(new Set(first.map((m) => m.epoch))).toEqual(new Set([1]));
+    // The pass opens ahead of every element the connect re-emits.
+    const ui = first.filter((m) => m.method.startsWith("ui/"));
+    expect(ui[0].method).toBe("ui/reconcile-begin");
+
+    harness.reset();
+    await harness.reconnect();
+    await flushMicrotasks(10);
+    harness.game.module.ui.sweepReconcile();
+    const second = [...harness.messages];
+    expect(new Set(second.map((m) => m.epoch))).toEqual(new Set([2]));
+    expect(second.filter((m) => m.method.startsWith("ui/"))[0].method).toBe(
+      "ui/reconcile-begin",
+    );
+    expect(second.at(-1).method).toBe("ui/reconcile-sweep");
+  });
+
+  test("audio/load names the mixer its channel plays through and the gain it starts at", async () => {
+    const harness = await runBeat(`  ((play sound beep))\n  HERO: Hello.`, false);
+    const loads = flattenMessages(harness.messages).filter(
+      (m) => m.method === "audio/load",
+    );
+    expect(loads.map((m) => m.params.channel).sort()).toEqual([
+      "sound",
+      "typewriter",
+    ]);
+    // What the page used to look up in the game's context for itself.
+    const context: any = harness.game.context;
+    for (const load of loads) {
+      const channel = load.params.channel;
+      const named = context.channel?.[channel]?.mixer;
+      const mixer =
+        (typeof named === "string" ? named : named?.$name) || channel;
+      expect(load.params.mixer).toBe(mixer);
+      expect(load.params.mixerGain).toBe(context.mixer?.[mixer]?.gain ?? 1);
+      expect(typeof load.params.mixerGain).toBe("number");
+    }
+  });
+
+  test("ui/write-image carries every src a layered image paints", async () => {
+    const harness = await runBeat(`  [[show portrait SPRITE+SHADOW]]`, true);
+    const writes = flattenMessages(harness.messages).filter(
+      (m) => m.method === "ui/write-image" && m.params.target === "portrait",
+    );
+    const contents = writes.flatMap((m) =>
+      m.params.instructions.map((i: any) => i.content).filter(Boolean),
+    );
+    expect(contents).toHaveLength(1);
+    expect(contents[0].imageNames).toBe("SPRITE SHADOW");
+    expect(contents[0].srcs).toEqual([
+      "https://example.com/hero.png",
+      "https://example.com/shadow.png",
+    ]);
+  });
+});
+
+describe("cloneMessage", () => {
+  test("delivers a plain message unchanged", () => {
+    const message = {
+      jsonrpc: "2.0",
+      method: "ui/write-text",
+      id: "1",
+      params: { target: "dialogue", instructions: [{ text: "Hi" }], none: undefined },
+      epoch: 3,
+    };
+    expect(cloneMessage(message)).toStrictEqual(message);
+  });
+
+  test("refuses a message carrying a function", () => {
+    expect(() =>
+      cloneMessage({ method: "ui/animate", params: { onDone: () => {} } }),
+    ).toThrow(/`ui\/animate` cannot cross a thread/);
+  });
+
+  test("refuses a message whose class instance would arrive as a plain object", () => {
+    class Keyframes {
+      opacity = 1;
+    }
+    expect(() =>
+      cloneMessage({ method: "ui/animate", params: { frames: [new Keyframes()] } }),
+    ).toThrow(/params\.frames\.0: sent a Keyframes, received a plain copy/);
+  });
+});
