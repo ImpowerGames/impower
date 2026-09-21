@@ -88,6 +88,19 @@ function screenplay(beats = 8): { text: string; at: Marks } {
   return { text: lines.join("\n"), at };
 }
 
+/** The screenplay with two labels in its first act, `alpha` and `beta`, whose
+ *  visit counts a later line can read. */
+const withLabels = (text: string) =>
+  text
+    .replace(
+      "  Beat 0 of the first act.",
+      "  label alpha\n  Beat 0 of the first act.",
+    )
+    .replace(
+      "  Beat 2 of the first act.",
+      "  label beta\n  Beat 2 of the first act.",
+    );
+
 const posAt = (text: string, offset: number) => {
   const before = text.slice(0, offset).split("\n");
   return { line: before.length - 1, character: before.at(-1)!.length };
@@ -178,12 +191,24 @@ class Session {
    *  before there was one: it searches the scene on every compile. */
   readonly withoutChangeSummary: boolean;
 
-  constructor(text: string, withoutChangeSummary = false) {
+  constructor(
+    text: string,
+    {
+      withoutChangeSummary = false,
+      emitCompiledProgram = true,
+    }: {
+      withoutChangeSummary?: boolean;
+      /** Off, the game routes the compiler's own story and no bytecode is
+       *  written, as a player that holds the compiler in its own worker does. */
+      emitCompiledProgram?: boolean;
+    } = {},
+  ) {
     this.text = text;
     this.withoutChangeSummary = withoutChangeSummary;
     this.compiler.configure({
       useBuiltinsPrelude: true,
       seedBuiltinsIntoStory: true,
+      emitCompiledProgram,
       files: [
         {
           uri: URI,
@@ -771,7 +796,7 @@ describe("a compile whose edit is below the route's last checkpoint", () => {
 
   test("searches the scene when the compile says nothing about what it changed", () => {
     const { text, at } = screenplay();
-    const session = new Session(text, true);
+    const session = new Session(text, { withoutChangeSummary: true });
     const target = at["tail_6"]!;
     const first = session.compile(target);
 
@@ -954,11 +979,18 @@ const HAZARDS: { name: string; find: string; replace: string }[] = [
   },
 ];
 
-describe("a change the route's own lines cannot account for", () => {
+// Each case runs with the bytecode emitted and without it, because a compile
+// that writes none has to reach the same verdict from the same evidence.
+const EMISSION = [
+  { emitCompiledProgram: true, mode: "emitting" },
+  { emitCompiledProgram: false, mode: "not emitting" },
+];
+
+describe.each(EMISSION)("a change the route's own lines cannot account for, $mode", ({ emitCompiledProgram }) => {
   for (const hazard of HAZARDS) {
     test(`is searched again (${hazard.name})`, () => {
       const { text, at } = screenplay();
-      const session = new Session(text);
+      const session = new Session(text, { emitCompiledProgram });
       const target = at["tail_6"]!;
       session.compile(target);
 
@@ -985,21 +1017,12 @@ describe("a change the route's own lines cannot account for", () => {
   test("is searched again (a later line reads a different container's visit count)", () => {
     const { text } = screenplay();
     const READ = "  Beat 7 of the long tail. It has run {act_one.alpha} times.";
-    const labelled = text
-      .replace(
-        "  Beat 0 of the first act.",
-        "  label alpha\n  Beat 0 of the first act.",
-      )
-      .replace(
-        "  Beat 2 of the first act.",
-        "  label beta\n  Beat 2 of the first act.",
-      )
-      .replace("  Beat 7 of the long tail.", READ);
+    const labelled = withLabels(text).replace("  Beat 7 of the long tail.", READ);
     const target = labelled.split("\n").indexOf(READ);
     expect(target, "the line being routed to is in the fixture").toBeGreaterThan(
       0,
     );
-    const session = new Session(labelled);
+    const session = new Session(labelled, { emitCompiledProgram });
     const before = session.compile(target);
     expect(
       (before.program.diagnostics?.[URI] ?? []).filter(
@@ -1089,5 +1112,172 @@ describe("randomized edit sequences", () => {
       }
       expectSameAnswer(round, fromTheTop(round), rounds.join(" | "));
     }
+  });
+});
+
+// A player that holds the compiler in its own worker routes the compiler's own
+// story and never reads bytecode, so it compiles with emission off. Whether a
+// compile is confined is a question about the program, not about whether it was
+// written out, so the verdict has to be the same one.
+describe("a compile that emits no bytecode", () => {
+  test("certifies an edit inside one beat and replays with no search", () => {
+    const { text, at } = screenplay();
+    const session = new Session(text, { emitCompiledProgram: false });
+    const target = at["tail_6"]!;
+    session.compile(target);
+    const deepest = deepestCheckpoint(session.game!.plannedRoute!);
+    expect(deepest).toBeGreaterThanOrEqual(0);
+
+    const searches = watchSearches();
+    const replays = watchReplays();
+    session.edit(
+      "Beat 6 of the long tail.",
+      "Beat 6 of the long tail, at last.",
+    );
+    const after = session.compile(target);
+
+    expect(after.program.compiled).toBeUndefined();
+    expect(after.changes?.confined).toBe(true);
+    expect(searches).toEqual([]);
+    expect(after.searchSteps).toBe(-1);
+    expect(replays).toHaveLength(1);
+    expect(replays[0]!.checkpoint).toBe(deepest);
+    expectSameAnswer(after, fromTheTop(after));
+  });
+
+  test("never serializes the program", () => {
+    const { text, at } = screenplay();
+    const session = new Session(text, { emitCompiledProgram: false });
+    session.compiler.profilerId = "713";
+    const proto = SparkdownCompiler.prototype as unknown as Record<string, any>;
+    const serialize = vi.spyOn(proto, "serializeCompiledProgram");
+    const measure = vi.spyOn(performance, "measure");
+    const target = at["tail_6"]!;
+
+    session.compile(target);
+    session.edit(
+      "Beat 6 of the long tail.",
+      "Beat 6 of the long tail, at last.",
+    );
+    session.preview(
+      "Beat 5 of the long tail.",
+      "Beat 5 of the long tail, suggested.",
+      target,
+    );
+    const after = session.compile(target);
+
+    const phases = measure.mock.calls.map(([name]) => String(name));
+    expect(serialize).not.toHaveBeenCalled();
+    expect(phases.filter((name) => name.includes("ink/json"))).toEqual([]);
+    // The walk that stands in for serialization is measured under its own name.
+    expect(phases.some((name) => name.includes("ink/flowShapes"))).toBe(true);
+    expect(after.program.compiled).toBeUndefined();
+    expect(after.program.compiledBuffer).toBeUndefined();
+    expect(after.changes?.confined).toBe(true);
+  });
+});
+
+describe("randomized edit sequences, emitting and not", () => {
+  test("reach the same verdict on every compile", () => {
+    const text = withLabels(screenplay().text);
+    const lines = text.split("\n");
+    const targets = [
+      "  Beat 1 of the long tail.",
+      "  Beat 4 of the long tail.",
+      "  Beat 7 of the long tail.",
+      "    The door is open.",
+      "  Beat 5 of the first act.",
+    ].map((line) => lines.indexOf(line));
+    expect(targets.every((line) => line > 0)).toBe(true);
+    const emitting = new Session(text);
+    const silent = new Session(text, { emitCompiledProgram: false });
+    const both = (act: (session: Session) => CompiledRound) => {
+      const a = act(emitting);
+      const b = act(silent);
+      expect(emitting.text).toBe(silent.text);
+      return [a, b] as const;
+    };
+    let target = targets[2]!;
+    both((s) => s.compile(target));
+
+    // The two reproductions #653's reviews found, as edits the sequence can
+    // make: the first `{act_one}` reference inside the scene being routed, and
+    // counting moving between two labels.
+    const SCENE_READ = " It has run {act_one} times.";
+    let sceneRead = false;
+    let labelRead: "alpha" | "beta" | undefined;
+
+    const next = rng(20260921);
+    const rounds: string[] = [];
+    const verdicts = new Set<boolean | undefined>();
+    const seen = new Set<string>();
+    for (let i = 0; i < 40; i += 1) {
+      const roll = next();
+      const beat = Math.floor(next() * 8);
+      const suffix = ` (${i})`;
+      let label: string;
+      let pair: readonly [CompiledRound, CompiledRound];
+      if (roll < 0.15) {
+        target = targets[Math.floor(next() * targets.length)]!;
+        label = "move";
+        pair = both((s) => s.compile(target));
+      } else if (roll < 0.35) {
+        const find = `Beat ${beat} of the long tail.`;
+        label = "preview";
+        pair = both((s) => s.preview(find, `${find}${suffix}`, target));
+      } else if (roll < 0.5) {
+        const find = `Beat ${beat} of the long tail.`;
+        label = "edit tail";
+        pair = both((s) => (s.edit(find, `${find}${suffix}`), s.compile(target)));
+      } else if (roll < 0.6) {
+        const find = `Beat ${beat} of the first act.`;
+        label = "edit first act";
+        pair = both((s) => (s.edit(find, `${find}${suffix}`), s.compile(target)));
+      } else if (roll < 0.68) {
+        const find = `Beat ${beat} of the second act.`;
+        label = "edit second act";
+        pair = both((s) => (s.edit(find, `${find}${suffix}`), s.compile(target)));
+      } else if (roll < 0.8) {
+        const find = "Beat 6 of the long tail.";
+        label = sceneRead ? "drop the scene read" : "add the scene read";
+        pair = both((s) => {
+          if (sceneRead) {
+            s.edit(SCENE_READ, "");
+          } else {
+            s.edit(find, `${find}${SCENE_READ}`);
+          }
+          return s.compile(target);
+        });
+        sceneRead = !sceneRead;
+      } else if (roll < 0.95) {
+        const to = labelRead === "alpha" ? "beta" : "alpha";
+        label = labelRead ? `move the label read to ${to}` : "add a label read";
+        pair = both((s) => {
+          if (labelRead) {
+            s.edit(`{act_one.${labelRead}}`, `{act_one.${to}}`);
+          } else {
+            const find = "Beat 7 of the long tail.";
+            s.edit(find, `${find} Counted {act_one.${to}}.`);
+          }
+          return s.compile(target);
+        });
+        labelRead = to;
+      } else {
+        label = "touch a global";
+        pair = both((s) => (s.edit("store trust = ", "store trust =  "), s.compile(target)));
+      }
+      rounds.push(label);
+      seen.add(label);
+      const note = rounds.join(" | ");
+      const [on, off] = pair;
+      expect(off.changes?.confined, note).toBe(on.changes?.confined);
+      verdicts.add(off.changes?.confined);
+      expectSameAnswer(off, fromTheTop(off), note);
+    }
+    // A sequence that never certified anything, or never refused, or never made
+    // the two edits it exists for, would prove nothing.
+    expect([...verdicts].sort()).toEqual([false, true]);
+    expect(seen).toContain("add the scene read");
+    expect(seen).toContain("move the label read to beta");
   });
 });

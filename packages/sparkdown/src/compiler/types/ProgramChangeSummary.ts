@@ -34,8 +34,10 @@ export interface ProgramChangeSummary {
    *
    * False is the answer whenever the compile cannot establish that, including
    * every case it has no evidence about: a first compile, a compile that threw,
-   * one that skipped bytecode emission, and any of the cross-flow hazards that
-   * make a flow's generated shape move without its own source moving.
+   * one that emitted no bytecode and had no start position to route to, the
+   * next compile after it that changes anything, and any of the cross-flow
+   * hazards that make a flow's generated shape move without its own source
+   * moving.
    */
   confined: boolean;
 }

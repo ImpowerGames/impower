@@ -10,11 +10,11 @@
 // emits no compiled story, the game that searched the route loads its own
 // checkpoint, connects to a sink and previews, and only the messages it emits
 // are cloned, as they would be on their way to the page. `resident-emitting`
-// is the resident shape with the compiled story still emitted: the compiler
-// certifies an edit's changes as confined only when it serializes the story,
-// and the route search resumes from its last route only when they are, so this
-// shape is what the resident one costs once that certification no longer
-// depends on emission.
+// is the resident shape with the compiled story still emitted, which is what
+// the resident shape saves by not serializing: the compiler certifies an
+// edit's changes as confined either way, with its `ink/flowShapes` walk
+// standing in for `ink/json` when it emits nothing, so the route search
+// resumes from its last route in both.
 //
 // Run through preview-bench.mjs, which bundles this file with esbuild and runs
 // one configuration per process; it passes the configuration as one JSON
