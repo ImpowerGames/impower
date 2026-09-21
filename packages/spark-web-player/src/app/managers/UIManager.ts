@@ -1070,14 +1070,17 @@ export default class UIManager extends Manager {
     }
 
     // 1. target-wrapper animations first, from the beat's display time; the
-    // content animations then start when they finish.
+    // content animations then start when they end, on the same timeline, so a
+    // late write is as far into its content reveal as into its wrapper.
     if (targetEffects.length > 0) {
       const player = new AnimationPlayer();
       for (const e of targetEffects) {
         player.add(e);
       }
       await player.play(startTime);
-      startTime = undefined;
+      if (startTime != null) {
+        startTime += player.endTime;
+      }
     }
     // 2. enter + exit content animations in parallel
     const playEffects = (

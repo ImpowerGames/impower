@@ -157,6 +157,19 @@ export default class AnimationPlayer {
   }
 
   /**
+   * Milliseconds from the animations' start to the end of the longest one:
+   * where a stage that follows them starts on the same timeline.
+   */
+  get endTime(): number {
+    let end = 0;
+    for (const instance of this._instances) {
+      const effect = instance.animation.effect;
+      end = Math.max(end, Number(effect?.getComputedTiming?.().endTime ?? 0));
+    }
+    return end;
+  }
+
+  /**
    * Plays every animation from `startTime` on the document timeline, or from
    * now without one. A start time already past plays them with that much
    * already elapsed.

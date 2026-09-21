@@ -206,7 +206,7 @@ describe("page messages", () => {
         jsonrpc: "2.0",
         id: load.id,
         method: load.method,
-        result: { outputLatency: 0 },
+        result: load.params,
       } as any);
       await restoring;
       await flushMicrotasks(20);

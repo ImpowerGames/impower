@@ -167,7 +167,7 @@ function resultForMethod(method: string, params?: any): unknown {
     case "ui/animate":
       return [];
     case "audio/load":
-      return { outputLatency: 0 };
+      return params;
     case "audio/update":
       return [];
     case "assets/load": {

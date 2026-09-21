@@ -8,6 +8,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Clock } from "../../../spark-engine/src/game/core/classes/Clock";
 import { UpdateAudioPlayersMessage } from "../../../spark-engine/src/game/modules/audio/classes/messages/UpdateAudioPlayersMessage";
 import type { AudioPlayerUpdate } from "../../../spark-engine/src/game/modules/audio/types/AudioPlayerUpdate";
+import { WriteImageMessage } from "../../../spark-engine/src/game/modules/ui/classes/messages/WriteImageMessage";
 import { WriteTextMessage } from "../../../spark-engine/src/game/modules/ui/classes/messages/WriteTextMessage";
 import { AudioClock, type AudioClockContext } from "./AudioClock";
 import AudioManager from "./managers/AudioManager";
@@ -40,7 +41,7 @@ const makePage = (outputLatency: number) => {
   };
 
   const overlay = document.createElement("div");
-  overlay.innerHTML = `<div class="dialogue"><div class="text"></div></div>`;
+  overlay.innerHTML = `<div class="dialogue"><div class="text"></div></div><div class="portrait"><div class="image"></div></div>`;
   const app: any = {
     overlay,
     audioContext: context,
@@ -100,7 +101,7 @@ beforeEach(() => {
   g.Animation = class {
     startTime: number | null = null;
     finished = Promise.resolve();
-    constructor() {
+    constructor(public effect?: unknown) {
       animations.push(this);
     }
     play() {
@@ -110,7 +111,18 @@ beforeEach(() => {
       }
     }
   };
-  g.KeyframeEffect = class {};
+  g.KeyframeEffect = class {
+    constructor(
+      public target?: Element,
+      public keyframes?: unknown,
+      public timing: { delay?: number; duration?: number } = {},
+    ) {}
+    getComputedTiming() {
+      return {
+        endTime: (this.timing.delay ?? 0) + (this.timing.duration ?? 0),
+      };
+    }
+  };
   if (!document.timeline) {
     (document as any).timeline = { currentTime: 0 };
   }
@@ -159,6 +171,42 @@ describe("a beat stamped on the shared clock", () => {
     for (const animation of animations) {
       expect(elapsed - animation.startTime!).toBeCloseTo(40, 9);
     }
+  });
+});
+
+describe("a stamped image write handled late", () => {
+  it("keeps its content reveal on the beat's timeline after the wrapper stage", async () => {
+    const page = makePage(0);
+    const stamp = page.now() + 10;
+    page.advance(50);
+    const fade = (duration: number) => ({
+      keyframes: [{ opacity: 0 }, { opacity: 1 }],
+      timing: { duration },
+    });
+    await page.ui.onReceiveRequest(
+      WriteImageMessage.type.request({
+        target: "portrait",
+        instructions: [
+          {
+            control: "show",
+            targetAnimations: [fade(0) as any],
+            content: {
+              background: 'url("a.png")',
+              imageNames: "a",
+              src: "a.png",
+              srcs: ["a.png"],
+              enterAnimation: fade(0.1) as any,
+            },
+          },
+        ],
+        instant: false,
+        time: stamp,
+      }),
+    );
+    const display = stamp - ORIGIN;
+    // The wrapper takes no time, so the content starts at the stamp too, and
+    // is as far into its reveal as the write is late.
+    expect(animations.map((a) => a.startTime)).toEqual([display, display]);
   });
 });
 
