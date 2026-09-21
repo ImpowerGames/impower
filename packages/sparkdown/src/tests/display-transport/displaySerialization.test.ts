@@ -73,7 +73,7 @@ done
     expect(field(table, "target")).toBe("action");
     expect(field(table, "text")).toBe("Hi.");
     expect(field(table, "value")).toBe(7);
-    // And currentText stays empty after load (still no re-parse).
-    expect((storyB.currentText ?? "").trim()).toBe("");
+    // And currentText reads the restored table's text.
+    expect((storyB.currentText ?? "").trim()).toBe("Hi.");
   });
 });

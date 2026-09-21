@@ -2036,6 +2036,7 @@ export class SparkdownCompiler {
       // Each document's own set is maintained by the registry across edits, so
       // this unions ready-made sets instead of walking every script's tree
       // again on every compile.
+      profile("start", this._profilerId, "scopeDefineInstances", uri);
       const collectTypeNamesFor = (uris: Iterable<string>): Set<string> => {
         const names = new Set<string>();
         for (const scanUri of uris) {
@@ -2072,6 +2073,7 @@ export class SparkdownCompiler {
       // Now that both sides carry their final global keys, let an authored
       // define that reuses a builtin name override it rather than collide.
       this.applyBuiltinOverrides(userVAs, preludeVAs);
+      profile("end", this._profilerId, "scopeDefineInstances", uri);
       // (Diagnostic-dedup state on reused parsed nodes is invalidated by the
       // compile-epoch bump inside ExportRuntime — see CompileEpoch.ts — so a
       // carried-forward chunk re-emits the same diagnostics a cold compile
@@ -2246,10 +2248,11 @@ export class SparkdownCompiler {
       // the compiler keeps serving, so a phase left open here produces no
       // measurement at all — losing exactly the compiles worth looking at, and
       // `ink/compile` (ExportRuntime) is the very phase this catch was written
-      // for. Ending a phase that already ended is a no-op, so naming all five
+      // for. Ending a phase that already ended is a no-op, so naming them all
       // is safe. Add any new phase opened inside this `try` to the list.
       for (const phase of [
         "ink/parse",
+        "scopeDefineInstances",
         "ink/canonicalizeSyntheticNames",
         "ink/compile",
         "ink/json",

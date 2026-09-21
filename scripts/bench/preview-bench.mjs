@@ -23,8 +23,11 @@
 //
 // A preview runs twice, in the transport shape and the resident shape (see
 // previewBench.ts), each in its own process, and ends with the two compared.
-//   --cpu-prof <dir>    also write a V8 CPU profile of each mode's process there,
-//                       with the bundle's source map, for profile-shares.mjs. A
+//   --cpu-prof <dir>    also write a V8 CPU profile of each process there
+//                       (<mode>.cpuprofile, <mode>.<shape>.cpuprofile), with the
+//                       bundle's source map, for profile-shares.mjs, and beside
+//                       each a .gaps.json of the same name: the stretches of
+//                       worker time no phase covers, for --gaps. A
 //                       profiled bundle keeps function names, which slows the
 //                       engine, so read times from a run without this flag
 //
@@ -215,7 +218,8 @@ async function main(args) {
       for (const shape of shapes) {
         const name = shape === "transport" ? mode : `${mode}.${shape}`;
         const json = options.json ? path.resolve(`${options.json}.${name}.json`) : path.join(scratch, `${name}.json`);
-        const config = { project, line, word, options: replacements, mode, shape, samples: options.samples, warmup: options.warmup, json };
+        const gaps = cpuProf ? path.join(cpuProf, `${name}.gaps.json`) : undefined;
+        const config = { project, line, word, options: replacements, mode, shape, samples: options.samples, warmup: options.warmup, json, gaps };
         const profile = cpuProf ? ["--cpu-prof", "--cpu-prof-dir", cpuProf, "--cpu-prof-name", `${name}.cpuprofile`] : [];
         const run = spawnSync(process.execPath, ["--max-old-space-size=4096", ...profile, script, JSON.stringify(config)], { stdio: "inherit", windowsHide: true });
         if (run.status !== 0) failed = true;

@@ -321,9 +321,10 @@ export class InterpreterModule extends Module<
   /**
    * Build a beat's instructions from an already-resolved target + optional
    * dialogue cue + a final body string, and append them to the buffer. Shared
-   * by {@link queue} (routing resolved from the line-type tag, body from the
-   * flat `currentText`) and {@link queueInstructions} (routing + body carried in
-   * the `display(<table>)` table), so BOTH transports produce byte-identical
+   * by {@link queue} (routing resolved from the line-type tag) and
+   * {@link queueInstructions} (routing carried in the step's first
+   * `display(<table>)` table); the body is the step's `currentText` for both,
+   * so BOTH transports produce byte-identical
    * instructions: the cue resolution (name / parenthetical / position via
    * `CHARACTER_REGEX`), the `>` box split, the per-character `parse()`, the cue
    * prefixing, and the empty-textbox fold are all the same code path.
@@ -453,44 +454,48 @@ export class InterpreterModule extends Module<
   }
 
   /**
-   * Queue a beat handed over as a `display(<table>)` call — one
-   * {@link ObjectValue} table per call the runtime made this beat (collected via
+   * Queue the beat of a step that called `display(<table>)` — one
+   * {@link ObjectValue} table per call the runtime made this step (collected via
    * `story.currentDisplayInstructions`). The structured-transport counterpart to
    * {@link queue}: routing (`target`) and the dialogue cue (`character`) arrive
-   * as table FIELDS resolved at compile time instead of a line-type tag, and the
-   * body (`text`) arrives as a string whose `{interp}` holes were already
-   * evaluated to live values at call time. Both paths converge on
-   * {@link appendBeat}, so the cue resolution, `>` box split, per-character
-   * `parse()`, cue prefixing and buffer fold are byte-identical to the legacy
-   * path — only the source of target/cue/text differs.
+   * as table FIELDS resolved at compile time instead of a line-type tag. Both
+   * paths converge on {@link appendBeat}, so the cue resolution, `>` box split,
+   * per-character `parse()`, cue prefixing and buffer fold are byte-identical —
+   * only the source of the routing differs.
    *
-   * Table shape: `{ target: string, character?: string, text: string }`.
-   * Multiple tables (consecutive `display()` calls in one Continue) each become
-   * their own beat; choices attach to the LAST one (matching `queue()`).
+   * Table shape: `{ target?: string, character?: string, text: string }`.
+   *
+   * One step makes one beat. Several tables share a step only when glue joined
+   * their lines, so the first table supplies the routing, and the body is the
+   * step's ordered visible text: every table's `text` and any flat string, in
+   * stream order. A glued continuation's table carries no routing. When it is
+   * the step's first table, the line it continues reached the stream as flat
+   * text, so the step is a flat-text step with more words joined on and takes
+   * {@link queue}, which routes it by its tag and recognises a `load` line.
+   *
+   * @param content the step's `story.currentText`.
+   * @param tags the step's `story.currentTags`.
    */
-  queueInstructions(tables: ObjectValue[], choices: string[] = []): void {
-    this._state.buffer ??= [];
-    const defaultTarget = this._targetPrefixMap?.[""] || "";
-    for (let i = 0; i < tables.length; i++) {
-      const table = tables[i]!;
-      const read = (key: string): unknown =>
-        (table?.value?.get(key) as { value?: unknown } | undefined)?.value;
-      const target = (read("target") as string) || defaultTarget;
-      const characterRaw = read("character");
-      const character =
-        typeof characterRaw === "string" && characterRaw
-          ? characterRaw
-          : undefined;
-      const text = (read("text") as string) ?? "";
-      // Choices show after the LAST beat of the Continue (mirrors queue()).
-      const beatChoices = i === tables.length - 1 ? choices : [];
-      this.appendBeat(target, character, text, beatChoices);
+  queueInstructions(
+    tables: ObjectValue[],
+    choices: string[],
+    content: string,
+    tags: string[],
+  ): void {
+    const first = tables[0];
+    const read = (key: string): unknown =>
+      (first?.value?.get(key) as { value?: unknown } | undefined)?.value;
+    const target = read("target");
+    if (typeof target !== "string" || !target) {
+      this.queue(content, choices, tags);
+      return;
     }
-    // Defensive: a choice-only beat with no display table still surfaces its
-    // choices (no real display() emission produces this today).
-    if (tables.length === 0 && choices.length > 0) {
-      this.appendBeat(defaultTarget, undefined, "", choices);
-    }
+    const characterRaw = read("character");
+    const character =
+      typeof characterRaw === "string" && characterRaw
+        ? characterRaw
+        : undefined;
+    this.appendBeat(target, character, content, choices);
   }
 
   /**

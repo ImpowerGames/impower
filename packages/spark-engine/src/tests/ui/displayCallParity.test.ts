@@ -141,12 +141,9 @@ describe("display() ↔ legacy parity (message stream)", () => {
     await assertParity(`  HERO: Goodbye. # final`);
   });
 
-  // Glue chains mix transports if the BASE line takes the display() path while
-  // its continuation lowers to legacy `Glue + text` — one runtime Continue then
-  // carries an instruction AND flat text, and `Game.continue`'s either/or
-  // dropped the text ("Some" rendered; "content with glue." vanished). The
-  // lowerer keeps the whole chain legacy; these pin that both glue shapes
-  // still render their full joined text with the flag on.
+  // Every line of a glue chain lowers to its own display() call (pinned by
+  // `glueJoin.test.ts` in packages/sparkdown); one step carries the tables and
+  // the interpreter joins them into one beat routed by the first table.
   test("leading-glue continuation (.. on the next line)", async () => {
     await assertParity(`  Some\n  .. content\n  .. with glue.`);
   });
@@ -157,6 +154,64 @@ describe("display() ↔ legacy parity (message stream)", () => {
 
   test("glued dialogue continuation", async () => {
     await assertParity(`  HERO: Wait ..\n  .. for me.`);
+  });
+
+  test("continuation inside an if branch", async () => {
+    await assertParity(`  You see a\n  if true then\n    .. red door.\n  end`);
+  });
+
+  test("chain of three trailing-glue dialogue lines", async () => {
+    await assertParity(`  HERO: One ..\n  HERO: two ..\n  HERO: three.`);
+  });
+
+  test("mid-body glue in a block dialogue", async () => {
+    await assertParity(`  HERO:\n    First ..\n    second.`);
+  });
+
+  // The continuation reaches the stream as flat text, so the step holds a
+  // table and a string.
+  test("glued line continued by a bare {expr} line", async () => {
+    await assertParity(`  You have ..\n  {1 + 2}`);
+  });
+
+  // A continuation with no visible words leaves the glue pending, so the next
+  // visible line still joins the same beat.
+  test("empty glued continuation keeps the beat open", async () => {
+    await assertParity(
+      `  You see\n  .. {if true then "" else ""}\n  The door.`,
+    );
+  });
+
+  test("whitespace-only glued continuation keeps the beat open", async () => {
+    await assertParity(
+      `  First\n  .. {if true then " " else ""}\n  Last ..\n  word.`,
+    );
+  });
+
+  test("trailing > break alone", async () => {
+    await assertParity(`  First >\n  Last.`);
+  });
+
+  test("trailing > break followed by a glued line", async () => {
+    await assertParity(`  First >\n  .. second.\n  Last.`);
+  });
+
+  // The `load` line stays flat text, and its glued continuation is a table:
+  // the step still has to queue a load beat.
+  test("load directive with a trailing-glue continuation", async () => {
+    await assertParity(
+      `  load overworld ..\n  underworld\n  The world appears.`,
+    );
+  });
+
+  test("load directive with a leading-glue continuation", async () => {
+    await assertParity(
+      `  load overworld\n  .. underworld\n  The world appears.`,
+    );
+  });
+
+  test("line after a glued pair is its own beat", async () => {
+    await assertParity(`  You see a ..\n  red door.\n  It is locked.`);
   });
 
   // `load <name>` is a world-load directive `InterpreterModule.queue`
