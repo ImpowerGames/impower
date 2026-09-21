@@ -20,8 +20,11 @@ import { createRequire } from "node:module";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { totalLength, uncovered, within } from "./phaseGaps.mjs";
 import { firstStreamDifference, imageOptions, parseBenchArgs, streamOps, tokenAround } from "./preview-bench.mjs";
 import { buildPreviewFixture, writePreviewFixture } from "./preview-fixture.mjs";
+import { GAPS } from "./profile-groups.mjs";
+import { parseShareArgs, profileShares } from "./profile-shares.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 let failures = 0;
@@ -106,6 +109,93 @@ await check("the benchmark's arguments and default replacements", () => {
   assert.deepEqual(imageOptions(["a/raffles_shy.svg", "b/raffles_concerned.svg", "raffles_unsure.png", "raffles_notes.txt", "bunny_shy.svg"], "raffles_", "raffles_concerned"), ["raffles_shy", "raffles_unsure"]);
 });
 
+await check("unattributed time counts a nested phase once and ignores what lies outside the window", () => {
+  // [0, 100]: a phase at 10-40 with one nested at 20-30, one at 35-50
+  // overlapping it, one at 60-70, and two reaching past either end.
+  const gaps = uncovered([0, 100], [[60, 70], [20, 30], [10, 40], [35, 50], [90, 120], [-5, 2]]);
+  assert.deepEqual(gaps, [[2, 10], [50, 60], [70, 90]]);
+  assert.equal(totalLength(gaps), 38);
+  assert.deepEqual(uncovered([0, 10], []), [[0, 10]]);
+  assert.deepEqual(uncovered([0, 10], [[0, 10]]), []);
+  assert.equal(within(gaps, 2), true);
+  assert.equal(within(gaps, 10), false);
+  assert.equal(within(gaps, 55), true);
+  assert.equal(within(gaps, 89.9), true);
+  assert.equal(within(gaps, 95), false);
+});
+
+await check("profile shares with --gaps count only the samples taken in a gap", () => {
+  // Samples at 5, 15, 25, 35 and 45 microseconds, each charged the 10 that
+  // follows it; the gap [10, 30) keeps the two at 15 and 25.
+  const profile = {
+    startTime: 0,
+    nodes: [
+      { id: 1, callFrame: { functionName: "(root)" }, children: [2, 3] },
+      { id: 2, callFrame: { functionName: "inPhase" } },
+      { id: 3, callFrame: { functionName: "between" } },
+    ],
+    samples: [2, 3, 3, 2, 2],
+    timeDeltas: [5, 10, 10, 10, 10],
+  };
+  const result = profileShares(profile, { under: ["(root)"], keep: (t) => within([[10, 30]], t), nameOf: (frame) => frame.functionName });
+  assert.equal(result.underMs, 0.02);
+  assert.deepEqual(
+    result.functions.map((f) => [f.name, f.share]),
+    [["between", 1]],
+  );
+  // A gap no sample landed in yields zeros, not NaN.
+  const none = profileShares(profile, { under: ["(root)"], inclusive: ["between"], keep: () => false, nameOf: (frame) => frame.functionName });
+  assert.equal(none.underMs, 0);
+  assert.equal(none.shareOfProfile, 0);
+  assert.equal(none.collectorShareOfProfile, 0);
+  assert.deepEqual(none.inclusive, [{ function: "between", share: 0 }]);
+  assert.deepEqual(none.functions, []);
+  assert.equal(parseShareArgs(["a.cpuprofile", "--under", "(root)", "--gaps"]).gaps, true);
+  const groupOf = (name) => GAPS.find(([, re]) => re.test(name))?.[0];
+  assert.equal(groupOf("pathLocationTable.ts:(anonymous)"), groupOf("findClosestPath.ts:findClosestPath"));
+  assert.equal(groupOf("scopeDefineInstances.ts:scopeDefineInstances"), groupOf("SparkdownCompiler.ts:applyBuiltinOverrides"));
+  assert.notEqual(groupOf("SparkdownCompiler.ts:populateSceneAssets"), groupOf("SparkdownCompiler.ts:compileStory"));
+  assert.equal(groupOf("(vm):(garbage collector)"), "garbage collector");
+});
+
+await check("profile-shares --gaps says no sample landed only when none did, before any summary", () => {
+  // Samples at 5 and 15 microseconds, both in `between`.
+  const profile = {
+    startTime: 0,
+    nodes: [
+      { id: 1, callFrame: { functionName: "(root)" }, children: [2] },
+      { id: 2, callFrame: { functionName: "between" } },
+    ],
+    samples: [2, 2],
+    timeDeltas: [5, 10],
+  };
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "impower-profile-shares-test-"));
+  try {
+    const write = (name, gaps) => {
+      fs.writeFileSync(path.join(dir, `${name}.cpuprofile`), JSON.stringify(profile));
+      fs.writeFileSync(path.join(dir, `${name}.gaps.json`), JSON.stringify({ samples: [gaps] }));
+      return path.join(dir, `${name}.cpuprofile`);
+    };
+    const shares = (...args) => {
+      const run = spawnSync(process.execPath, [path.join(HERE, "profile-shares.mjs"), ...args, "--gaps"], { encoding: "utf8", windowsHide: true });
+      assert.equal(run.status, 0, run.stdout + run.stderr);
+      return run.stdout;
+    };
+    // Both samples land in the gap, under a function other than the one named.
+    const landed = shares(write("landed", [[0, 20]]), "--under", "missing");
+    assert.doesNotMatch(landed, /no profiler sample landed/);
+    assert.match(landed, /time under missing: 0\.0% of the profile/);
+    // Only the last sample lands, and a profile charges its last sample nothing.
+    assert.doesNotMatch(shares(write("last", [[10, 20]]), "--under", "(root)"), /no profiler sample landed/);
+    // Neither lands in either profile's gap: the note, and no summary rows.
+    const empty = shares(write("a", [[100, 200]]), write("b", [[100, 200]]), "--under", "(root)");
+    assert.match(empty, /no profiler sample landed in them/);
+    assert.doesNotMatch(empty, /profiles, shares|first profile|garbage collector/);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 await check("display streams compare by message, ignoring generated ids, and count batched ops", () => {
   const a = [JSON.stringify({ method: "ui/batch", params: { messages: [{ method: "ui/create", id: "0b6f7a1c-1111-4222-8333-944445555666" }, { method: "ui/update" }] } }), JSON.stringify({ method: "game/executed", params: {} })];
   const b = [a[0].replace("0b6f7a1c", "9c8d7e6f"), a[1]];
@@ -129,46 +219,73 @@ const esbuildInstalled = (() => {
 if (!esbuildInstalled) {
   console.log("SKIP: the benchmark's end-to-end run needs the workspace install (esbuild is not resolvable)");
 } else {
-  await check("the benchmark runs both modes on the fixture and reports route, phases and wire size", () => {
-    const run = spawnSync(process.execPath, [path.join(HERE, "preview-bench.mjs"), "--fixture", "--samples", "1", "--warmup", "0"], { encoding: "utf8", timeout: 480_000, windowsHide: true });
-    assert.equal(run.status, 0, run.stdout + run.stderr);
-    const header = (mode, shape) => `mode ${mode}, ${shape} shape: line ${target.line} "${target.lineText}", replacing hero_concerned`;
-    const sectionOf = (mode, shape) => {
-      const at = run.stdout.indexOf(header(mode, shape));
-      assert.ok(at >= 0, `no ${mode} ${shape} report`);
-      const next = run.stdout.indexOf("\nmode ", at + 1);
-      const end = run.stdout.indexOf("\npreview, transport shape", at + 1);
-      return run.stdout.slice(at, Math.min(...[next, end, run.stdout.length].filter((i) => i > at)));
-    };
-    for (const mode of ["preview", "edit"]) {
-      const section = sectionOf(mode, "transport");
-      assert.match(section, /1 samples after 0 warm-up; route \d{4,} steps/);
-      assert.match(section, /ink\/compile/);
-      assert.match(section, /ink\/json/);
-      assert.match(section, /pathLocations/);
-      assert.match(section, /\(checkpoint\)/);
+  await check("the benchmark runs both modes on the fixture and reports route, phases, unattributed time and wire size", () => {
+    const profiles = fs.mkdtempSync(path.join(os.tmpdir(), "impower-preview-bench-test-"));
+    try {
+      const run = spawnSync(process.execPath, [path.join(HERE, "preview-bench.mjs"), "--fixture", "--samples", "1", "--warmup", "0", "--cpu-prof", profiles], { encoding: "utf8", timeout: 600_000, windowsHide: true });
+      assert.equal(run.status, 0, run.stdout + run.stderr);
+      const header = (mode, shape) => `mode ${mode}, ${shape} shape: line ${target.line} "${target.lineText}", replacing hero_concerned`;
+      // Up to the next report, so one report's rows cannot answer for another's.
+      const sectionOf = (mode, shape) => {
+        const at = run.stdout.indexOf(header(mode, shape));
+        assert.ok(at >= 0, `no ${mode} ${shape} report`);
+        const next = run.stdout.indexOf("\nmode ", at + 1);
+        const end = run.stdout.indexOf("\npreview, transport shape", at + 1);
+        return run.stdout.slice(at, Math.min(...[next, end, run.stdout.length].filter((i) => i > at)));
+      };
+      // Every report's worker time: the new phases, and the unattributed row
+      // between 0 and the worker's time, whose gaps profile-shares reads back
+      // from beside that report's profile.
+      const checkAttribution = (mode, shape) => {
+        const section = sectionOf(mode, shape);
+        assert.match(section, /game\/setStartFrom/);
+        assert.match(section, /scopeDefineInstances/);
+        const unattributed = section.match(/\(of which unattributed\)\s+(\S+)\s+(\S+)\s+(\S+)/);
+        assert.ok(unattributed, `no unattributed row in ${mode} ${shape}`);
+        const worker = Number(section.match(/worker compile, game and route\s+(\S+)/)[1]);
+        for (const value of unattributed.slice(1).map(Number)) assert.ok(value >= 0 && value <= worker, `${mode} ${shape}: unattributed ${value} of ${worker} ms`);
+        const name = shape === "transport" ? mode : `${mode}.${shape}`;
+        const shares = spawnSync(process.execPath, [path.join(HERE, "profile-shares.mjs"), path.join(profiles, `${name}.cpuprofile`), "--under", "(root)", "--gaps"], { encoding: "utf8", windowsHide: true });
+        assert.equal(shares.status, 0, shares.stdout + shares.stderr);
+        assert.match(shares.stdout, /only the unattributed stretches: \d+\.\d ms/);
+      };
+      for (const mode of ["preview", "edit"]) {
+        const section = sectionOf(mode, "transport");
+        assert.match(section, /1 samples after 0 warm-up; route \d{4,} steps/);
+        // A warm route is replayed rather than searched, so the replay is the
+        // route phase every sample has.
+        assert.match(section, /game\/simulateRoute/);
+        assert.match(section, /ink\/compile/);
+        assert.match(section, /ink\/json/);
+        assert.match(section, /pathLocations/);
+        assert.match(section, /\(checkpoint\)/);
+        checkAttribution(mode, "transport");
+      }
+      // A preview resumes the route its cold compile planned; an edit plans one.
+      assert.match(run.stdout, /game\/planRoute/);
+      assert.match(sectionOf("preview", "transport"), /page preview \(not in total\)/);
+      for (const shape of ["resident", "resident-emitting"]) {
+        checkAttribution("preview", shape);
+        const section = sectionOf("preview", shape);
+        assert.match(section, /worker connect/);
+        assert.match(section, /worker preview/);
+        assert.match(section, /\(of which message clone\)/);
+        assert.match(section, /display messages \(cloned\)/);
+        assert.match(section, /program, checkpoint or path locations in what was cloned: none/);
+        assert.match(section, /reset before each display: system\.simulating/);
+        assert.doesNotMatch(section, /wire: /);
+      }
+      assert.doesNotMatch(sectionOf("preview", "resident"), /ink\/json/);
+      assert.match(sectionOf("preview", "resident-emitting"), /ink\/json/);
+      const comparison = run.stdout.slice(run.stdout.indexOf("preview, transport shape against the resident shapes"));
+      assert.match(comparison, /saved by resident /);
+      assert.match(comparison, /saved by resident-emitting/);
+      assert.match(comparison, /ink\/json in the resident phases: absent/);
+      assert.match(comparison, /display: \d+ messages, [\d.]+ KB cloned to the page/);
+      assert.doesNotMatch(run.stdout, /mode edit, resident/);
+    } finally {
+      fs.rmSync(profiles, { recursive: true, force: true });
     }
-    // A preview resumes the route its cold compile planned; an edit plans one.
-    assert.match(run.stdout, /game\/planRoute/);
-    assert.match(sectionOf("preview", "transport"), /page preview \(not in total\)/);
-    for (const shape of ["resident", "resident-emitting"]) {
-      const section = sectionOf("preview", shape);
-      assert.match(section, /worker connect/);
-      assert.match(section, /worker preview/);
-      assert.match(section, /\(of which message clone\)/);
-      assert.match(section, /display messages \(cloned\)/);
-      assert.match(section, /program, checkpoint or path locations in what was cloned: none/);
-      assert.match(section, /reset before each display: system\.simulating/);
-      assert.doesNotMatch(section, /wire: /);
-    }
-    assert.doesNotMatch(sectionOf("preview", "resident"), /ink\/json/);
-    assert.match(sectionOf("preview", "resident-emitting"), /ink\/json/);
-    const comparison = run.stdout.slice(run.stdout.indexOf("preview, transport shape against the resident shapes"));
-    assert.match(comparison, /saved by resident /);
-    assert.match(comparison, /saved by resident-emitting/);
-    assert.match(comparison, /ink\/json in the resident phases: absent/);
-    assert.match(comparison, /display: \d+ messages, [\d.]+ KB cloned to the page/);
-    assert.doesNotMatch(run.stdout, /mode edit, resident/);
   });
 }
 

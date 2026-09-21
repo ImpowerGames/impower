@@ -18,19 +18,21 @@
 //
 // Run through preview-bench.mjs, which bundles this file with esbuild and runs
 // one configuration per process; it passes the configuration as one JSON
-// argument: { project, line, word, options, mode, shape, samples, warmup, json }.
+// argument: { project, line, word, options, mode, shape, samples, warmup, json,
+// gaps }.
 import "../../packages/sparkdown/src/inkjs/engine/Container";
 import * as fs from "node:fs";
 import * as v8 from "node:v8";
 import { performance } from "node:perf_hooks";
 import { SparkdownCompiler } from "../../packages/sparkdown/src/compiler/classes/SparkdownCompiler";
-import { setRetainProfilerEntries } from "../../packages/sparkdown/src/compiler/utils/profile";
+import { profile, setRetainProfilerEntries } from "../../packages/sparkdown/src/compiler/utils/profile";
 import { ProgramTransportDecoder, ProgramTransportEncoder } from "../../packages/sparkdown/src/workspace/utils/programTransport";
 import { Game } from "../../packages/spark-engine/src/game/core/classes/Game";
 import { assetItemKey } from "../../packages/spark-engine/src/game/modules/assets/types/AssetItem";
 import { RouteSearchLog } from "../../packages/spark-web-player/src/main/workers/RouteSearchLog";
 import { searchRouteTo } from "../../packages/spark-web-player/src/main/workers/searchRouteTo";
 import { MAIN_URI, benchSystem, configurePlayerCompiler, loadProjectFiles, silenceConsole, stats } from "./benchProject";
+import { totalLength, uncovered } from "./phaseGaps.mjs";
 
 interface BenchConfig {
   project: string;
@@ -42,23 +44,30 @@ interface BenchConfig {
   samples: number;
   warmup: number;
   json?: string;
+  // Where to write, for profile-shares.mjs --gaps, the stretches of each
+  // measured sample's worker time that no phase covers.
+  gaps?: string;
 }
 
 const config: BenchConfig = JSON.parse(process.argv[2] ?? "null");
 if (!config?.project) throw new Error("run through scripts/bench/preview-bench.mjs");
 const PROFILER_ID = "bench";
 
-// The profiler's measures since the last call, summed per method. Names are
-// `<profilerId> <method> <uri>`.
-function takeMeasures(): Record<string, number> {
+type Interval = [number, number];
+
+// The profiler's measures since the last call, summed per method, and the
+// stretch each one covered. Names are `<profilerId> <method> <uri>`.
+function takeMeasures(): { sums: Record<string, number>; intervals: Interval[] } {
   const sums: Record<string, number> = {};
+  const intervals: Interval[] = [];
   for (const entry of performance.getEntriesByType("measure")) {
     const method = entry.name.split(" ")[1] ?? entry.name;
     sums[method] = (sums[method] ?? 0) + entry.duration;
+    intervals.push([entry.startTime, entry.startTime + entry.duration]);
   }
   performance.clearMeasures();
   performance.clearMarks();
-  return sums;
+  return { sums, intervals };
 }
 
 // The report and a failure print here; main silences everything else.
@@ -211,6 +220,8 @@ async function main() {
   // cursor after each, as workspace.worker.ts does.
   let workerGame: Game | undefined;
   let workerGameMs = 0;
+  // Each update's stretch, which counts as covered: it has no phase of its own.
+  let workerGameIntervals: Interval[] = [];
   let routeSteps = 0;
   const updateWorkerGame = (program: any, story: any) => {
     const t0 = performance.now();
@@ -219,8 +230,17 @@ async function main() {
     } else {
       workerGame.updateProgram(program, story);
     }
-    workerGameMs += performance.now() - t0;
+    const t1 = performance.now();
+    workerGameMs += t1 - t0;
+    workerGameIntervals.push([t0, t1]);
     return workerGame;
+  };
+  // Under the phase the worker gives it: it builds the program's path lookup
+  // indexes the first time a program is asked for a path.
+  const setStartFrom = (game: Game, startFrom: { file: string; line: number }) => {
+    profile("start", PROFILER_ID, "game/setStartFrom");
+    game.setStartFrom(startFrom);
+    profile("end", PROFILER_ID, "game/setStartFrom");
   };
   // The last route search's target and the checkpoint it produced.
   let searched: { toPath: string; checkpoint?: string } | undefined;
@@ -234,7 +254,7 @@ async function main() {
     routeSearches.forget();
     const game = updateWorkerGame(params.program, params.story);
     if (params.program.startFrom) {
-      game.setStartFrom(params.program.startFrom);
+      setStartFrom(game, params.program.startFrom);
       const toPath = game.startPath;
       if (toPath) {
         search(game, toPath, routeSearches, true);
@@ -245,7 +265,7 @@ async function main() {
   });
   compiler.addEventListener("compiler/didPreviewCompile", (params: any) => {
     const game = updateWorkerGame(params.program, params.story);
-    game.setStartFrom(params.startFrom);
+    setStartFrom(game, params.startFrom);
     const toPath = game.startPath;
     if (toPath) {
       const log = new RouteSearchLog();
@@ -316,6 +336,10 @@ async function main() {
   takeMeasures();
 
   const samples: any[] = [];
+  // The profile's clock is process.hrtime in microseconds; performance.now()
+  // is milliseconds from a later origin on the same clock.
+  const clockOriginUs = Number(process.hrtime.bigint() / 1000n) - performance.now() * 1000;
+  const gapsBySample: Interval[][] = [];
   let version = 1;
   let current = token;
   let lastEncoded: any;
@@ -325,6 +349,7 @@ async function main() {
     const option = options[i % options.length]!;
     const contentChanges = [{ range: { start: { line: line0, character: start }, end: { line: line0, character: start + current.length } }, text: option }];
     workerGameMs = 0;
+    workerGameIntervals = [];
     const t0 = performance.now();
     let result: any;
     if (config.mode === "preview") {
@@ -342,8 +367,10 @@ async function main() {
       lastCheckpoint = searched?.checkpoint ?? "";
       const load = prepare(game, searched?.checkpoint);
       const shown = await display(game);
-      const phases = takeMeasures();
+      const { sums: phases, intervals } = takeMeasures();
       if (i < config.warmup) continue;
+      const gaps = uncovered([t0, t1], [...intervals, ...workerGameIntervals]);
+      gapsBySample.push(gaps);
       residue = { resets: RESETS, beforeDisplay: before, afterDisplay: residueOf(game), outsideMessages: { ...sink.outside }, previewed: shown.previewed };
       lastStream = sink.stream;
       samples.push({
@@ -351,6 +378,7 @@ async function main() {
         wall: {
           "worker compile, game and route": t1 - t0,
           "(of which worker game.updateProgram)": workerGameMs,
+          "(of which unattributed)": totalLength(gaps),
           "worker game.load": load,
           "worker connect": shown.connect,
           "worker preview": shown.preview,
@@ -375,8 +403,10 @@ async function main() {
     // worker: timed apart from the total, and their messages kept to compare
     // with what the resident game sends.
     const shown = config.mode === "preview" ? await display(pageGame!) : undefined;
-    const phases = takeMeasures();
+    const { sums: phases, intervals } = takeMeasures();
     if (i < config.warmup) continue;
+    const gaps = uncovered([t0, t1], [...intervals, ...workerGameIntervals]);
+    gapsBySample.push(gaps);
     lastEncoded = encoded;
     lastCheckpoint = received.checkpoint ?? "";
     lastStream = sink.stream;
@@ -385,6 +415,7 @@ async function main() {
       wall: {
         "worker compile, game and route": t1 - t0,
         "(of which worker game.updateProgram)": workerGameMs,
+        "(of which unattributed)": totalLength(gaps),
         "transport encode": t2 - t1,
         "clone out (serialize)": t3 - t2,
         "clone in (deserialize)": t4 - t3,
@@ -445,6 +476,10 @@ async function main() {
     displayStream: lastStream,
     perSample: samples,
   };
+  if (config.gaps) {
+    const us = (t: number) => clockOriginUs + t * 1000;
+    fs.writeFileSync(config.gaps, JSON.stringify({ clock: "process.hrtime, microseconds", samples: gapsBySample.map((gaps) => gaps.map(([s, e]) => [us(s), us(e)])) }));
+  }
   if (config.json) fs.writeFileSync(config.json, JSON.stringify(report, null, 2));
   printReport(report);
 }
