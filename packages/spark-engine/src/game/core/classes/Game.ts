@@ -17,6 +17,7 @@ import {
   planRoute,
   type SearchOptions,
   type RoutePlan,
+  type RouteResumePoint,
 } from "@impower/sparkdown/src/compiler/utils/planRoute";
 import { uuid } from "@impower/sparkdown/src/compiler/utils/uuid";
 import { InkObject } from "@impower/sparkdown/src/inkjs/engine/Object";
@@ -31,6 +32,7 @@ import type { GameContext } from "../types/GameContext";
 import type { GameState } from "../types/GameState";
 import type { InstanceMap } from "../types/InstanceMap";
 import type { Instructions } from "../types/Instructions";
+import type { RouteResumption } from "../types/RouteResumption";
 import { SceneTracker } from "./SceneTracker";
 import type { SaveData } from "../types/SaveData";
 import type { ScriptLocation } from "../types/ScriptLocation";
@@ -41,6 +43,7 @@ import type { Variable,VariablePresentationHint } from "../types/Variable";
 import { buildDefinesContext } from "../utils/buildContextFromStory";
 import { findClosestPath } from "../utils/findClosestPath";
 import { findClosestPathLocation } from "../utils/findClosestPathLocation";
+import { validRoutePrefixLength } from "../utils/routeResume";
 import { CheckpointStore } from "./CheckpointStore";
 import { Clock } from "./Clock";
 import { Connection } from "./Connection";
@@ -348,10 +351,26 @@ export class Game<T extends M = {}> {
   }
 
   protected _plannedRoute: RoutePlan | null = null;
+  /** The route the last replay followed, or nothing when none has run. Read by
+   *  a caller deciding whether to plan another; it is the game's own record, so
+   *  a reader must not hold it across a replay. */
+  get plannedRoute(): RoutePlan | null {
+    return this._plannedRoute;
+  }
+
+  /** Which compile the planned route was replayed in
+   *  (`SparkProgram.changes.id`). A later compile says which program its own
+   *  changes are measured against, and only a route replayed in THAT program
+   *  can be read against them. */
+  protected _plannedRouteChangeId?: number;
 
   protected _plannedRouteStepCursor: number = 0;
 
   protected _plannedRouteStepMap: { [seq: string]: number } = {};
+
+  /** Per checkpoint, the planned-route step the story was about to run when it
+   *  was captured; see {@link checkpoint}. */
+  protected _checkpointStepCursors: (number | undefined)[] = [];
 
   protected _checkpoints!: CheckpointStore;
   get checkpoints() {
@@ -1043,7 +1062,11 @@ export class Game<T extends M = {}> {
     >,
     budget?: Pick<
       SearchOptions,
-      "maxSteps" | "maxNodes" | "searchTimeout" | "callerResetsStory"
+      | "maxSteps"
+      | "maxNodes"
+      | "searchTimeout"
+      | "callerResetsStory"
+      | "resumeFrom"
     >,
   ) {
     // Plan a route from the top of the knot containing the target path, to the target path itself
@@ -1070,7 +1093,7 @@ export class Game<T extends M = {}> {
    *  unrelated story position. */
   getCheckpoint(
     seq: string,
-    expected?: { path?: string; index?: number },
+    expected?: { path?: string; index?: number; maxCheckpoint?: number },
   ) {
     if (this._plannedRoute) {
       const stepIndex = this._plannedRouteStepMap[seq];
@@ -1084,6 +1107,18 @@ export class Game<T extends M = {}> {
             return null;
           }
           if (step.checkpoint != null) {
+            if (
+              expected?.maxCheckpoint != null &&
+              step.checkpoint > expected.maxCheckpoint
+            ) {
+              // Deeper than the caller established is safe. A step's own
+              // checkpoint number is stamped when the step is reached, and the
+              // engine runs a whole beat between one stamp and the next, so a
+              // checkpoint stamped on a step inside the unchanged part of the
+              // route can still have been taken with the story standing past
+              // it (see `findResumePoint`).
+              return null;
+            }
             return this._checkpoints.getJson(step.checkpoint);
           }
         }
@@ -1092,7 +1127,11 @@ export class Game<T extends M = {}> {
     return null;
   }
 
-  protected simulateRoute(route: RoutePlan, fromStep = 0): void {
+  protected simulateRoute(
+    route: RoutePlan,
+    fromStep = 0,
+    fromCheckpointOverride?: number,
+  ): void {
     // A route exists, so whatever the last search concluded no longer applies.
     // Cleared here rather than only in `simulate()` because
     // `patchAndSimulateRoute` arrives with a route of its own and never passes
@@ -1101,10 +1140,16 @@ export class Game<T extends M = {}> {
     this._simulationFailure = undefined;
     const startStep = route.steps[fromStep];
     const fromDecision = startStep?.decision ?? 0;
-    const fromCheckpoint = startStep?.checkpoint ?? -1;
+    // A step's own checkpoint number is stamped when the step is reached, and
+    // the engine runs a whole beat between one stamp and the next, so a caller
+    // that established which checkpoint a step's story actually comes from says
+    // so rather than letting it be re-derived.
+    const fromCheckpoint = fromCheckpointOverride ?? startStep?.checkpoint ?? -1;
     const startCheckpoint = this._checkpoints.getJson(fromCheckpoint);
     this._checkpoints.truncate(fromCheckpoint + 1);
+    this._checkpointStepCursors.length = fromCheckpoint + 1;
     this._plannedRoute = route;
+    this._plannedRouteChangeId = this._program.changes?.id;
     this._simulatePath = route.fromPath;
     this._startPath = route.toPath;
     // Force the story to follow this route
@@ -1150,7 +1195,237 @@ export class Game<T extends M = {}> {
     this._story.simulator = null;
   }
 
-  patchAndSimulateRoute(newRoute: RoutePlan): string | null {
+  /**
+   * What the route already planned still offers, now that a new program is
+   * loaded.
+   *
+   * The story ahead of an unchanged prefix is a story that has already been
+   * searched and replayed once. Establishing how much of it is unchanged costs
+   * a walk over the route's steps and a checkpoint read; searching it again
+   * costs a story advance per step, which on a long scene is the whole cost of
+   * previewing.
+   *
+   * Everything here is a question about the PREVIOUS route, so it must be asked
+   * before anything replaces it.
+   */
+  routeResumption(fromPath: string, toPath: string): RouteResumption {
+    const route = this._plannedRoute;
+    if (!route || route.fromPath !== fromPath) {
+      return { replayOnly: false };
+    }
+    if (!this._program.changes) {
+      // A program that says nothing about what it changed leaves the decision
+      // exactly where it was: step identity alone, as it has always been.
+      return { replayOnly: false };
+    }
+    const validSteps = validRoutePrefixLength(
+      route.steps,
+      this._program,
+      this._program.changes,
+      this._plannedRouteChangeId,
+    );
+    const resume = this.findResumePoint(validSteps);
+    if (!resume) {
+      return { validSteps, replayOnly: false };
+    }
+    return {
+      validSteps,
+      stepIndex: resume.stepIndex,
+      resumeFrom: resume.point,
+      checkpointIndex: resume.checkpointIndex,
+      // The route still ends where it is wanted, so it is worth replaying it
+      // before searching for another. Replaying is what happens after a search
+      // in any case, and from no deeper a checkpoint than this one — so trying
+      // it first costs a second replay when the route no longer holds, and
+      // saves the whole search when it does.
+      replayOnly: route.toPath === toPath,
+    };
+  }
+
+  /**
+   * How many checkpoints back to look for one whose story is still standing
+   * inside the unchanged part of the route.
+   *
+   * Each attempt costs a checkpoint read and a story-state load, and a
+   * checkpoint that is too deep is too deep by one beat, not by twenty. Giving
+   * up after a few and searching the scene instead is cheaper than reading
+   * back through a store that holds one entry per beat of a long scene.
+   */
+  protected static readonly RESUME_CANDIDATES = 8;
+
+  /**
+   * The deepest checkpoint the new program may be resumed from, and the step of
+   * the planned route its story is standing on.
+   *
+   * The step has to be read out of the restored story rather than assumed: the
+   * engine advances a whole beat at a time, while the cursor that stamps a
+   * step's checkpoint number sees one position per beat, so a checkpoint's
+   * story is routinely further along the route than the step it was stamped
+   * against. Resuming on that assumption would claim steps as still to come
+   * that the restored state has already taken, and the plan would come back
+   * with a hole in it.
+   */
+  protected findResumePoint(validSteps: number): {
+    stepIndex: number;
+    checkpointIndex: number;
+    point: RouteResumePoint;
+  } | null {
+    const route = this._plannedRoute;
+    if (!route || validSteps < 1) {
+      return null;
+    }
+    let tried = 0;
+    for (let i = this._checkpoints.length - 1; i >= 0; i -= 1) {
+      const cursor = this._checkpointStepCursors[i];
+      if (cursor == null || cursor < 1 || cursor > validSteps) {
+        continue;
+      }
+      if (tried >= Game.RESUME_CANDIDATES) {
+        return null;
+      }
+      tried += 1;
+      const point = this.readResumePoint(i, cursor, validSteps);
+      if (point) {
+        return { stepIndex: point.steps.length, checkpointIndex: i, point };
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Restore checkpoint `checkpointIndex` far enough to see where its story
+   * stands, and describe that position as a resume point.
+   *
+   * Returns nothing when the story stands past `validSteps`, which is the case
+   * that matters: the state has then already run statements this compile
+   * changed, and no amount of care with the route around it would make it
+   * describe the new program.
+   *
+   * Seeing where the story stands means putting it there, so this leaves the
+   * story holding the checkpoint's state. Everything that can run afterwards
+   * replaces it: a search restores its own node's state, a replay loads the
+   * checkpoint itself, and a search that starts at the top resets first,
+   * because the story no longer reports itself as pristine.
+   */
+  protected readResumePoint(
+    checkpointIndex: number,
+    cursor: number,
+    validSteps: number,
+  ): RouteResumePoint | null {
+    const route = this._plannedRoute;
+    if (!route) {
+      return null;
+    }
+    const checkpoint = this._checkpoints.getJson(checkpointIndex);
+    if (!checkpoint) {
+      return null;
+    }
+    let storyState: unknown;
+    try {
+      storyState = (JSON.parse(checkpoint) as SaveData).story;
+    } catch {
+      return null;
+    }
+    if (typeof storyState !== "string" || !storyState) {
+      return null;
+    }
+    let standingOn: string | undefined;
+    try {
+      this.discardOpenStoryLine();
+      this._story.state.LoadJson(storyState);
+      standingOn = this._story.state.previousPointer?.path?.toString();
+    } catch {
+      return null;
+    }
+    if (!standingOn) {
+      return null;
+    }
+    // The step that position belongs to, looked for from the checkpoint's own
+    // step onwards: a path repeats along a route, and the arrival that matters
+    // is the one this checkpoint was taken at or after.
+    let at = -1;
+    for (let i = cursor - 1; i < validSteps; i += 1) {
+      if (route.steps[i]!.path === standingOn) {
+        at = i;
+        break;
+      }
+    }
+    if (at < 0) {
+      return null;
+    }
+    // A step records the decisions made BEFORE it, so the step the story is
+    // standing on is the one that says how many have been taken. The plan
+    // reports those same decisions split in two, and a search reads its favored
+    // answers by counting each list, so both have to be cut to the same point.
+    const taken = (route.steps[at - 1]?.decision ?? -1) + 1;
+    const decisions = route.decisions.slice(0, taken);
+    let conditions = 0;
+    let choices = 0;
+    for (const decision of decisions) {
+      if (decision.kind === "condition") {
+        conditions += 1;
+      } else {
+        choices += 1;
+      }
+    }
+    return {
+      stateJson: storyState,
+      // Up to but not including the step the story is standing on, because a
+      // search reads the position it is standing on before advancing and would
+      // otherwise record it twice. This is the convention a fork already
+      // follows — it pops the step it is about to re-encounter.
+      steps: route.steps.slice(0, at),
+      decisions,
+      conditions: route.conditions.slice(0, conditions),
+      choices: route.choices.slice(0, choices),
+    };
+  }
+
+  /**
+   * Replay the route already planned, resuming from `stepIndex`.
+   *
+   * Used when nothing the new program changed can be reached before that step
+   * and the route still ends where it is wanted, so there is nothing left to
+   * search for: the story is restored to the checkpoint and the rest of the
+   * route runs again in the new program.
+   *
+   * The steps after the resume point are replaced by copies that carry no
+   * checkpoint and no position. The store is truncated to the resume point, so
+   * an index recorded against the old run would name a state captured by this
+   * one; and the statements those steps came from are exactly the statements
+   * that may have changed, so their old positions are the ones least worth
+   * keeping. The replay re-earns both for every step it actually reaches.
+   */
+  resumePlannedRoute(stepIndex: number, checkpointIndex: number): string | null {
+    const route = this._plannedRoute;
+    if (!route || !route.steps[stepIndex]) {
+      return null;
+    }
+    const steps = route.steps.map((step, i) =>
+      i < stepIndex
+        ? step
+        : { seq: step.seq, path: step.path, decision: step.decision },
+    );
+    this.simulateRoute({ ...route, steps }, stepIndex, checkpointIndex);
+    return this._checkpoints.at(-1) ?? null;
+  }
+
+  /**
+   * Replay `newRoute`, resuming from the deepest checkpoint of the previous
+   * route that this one still agrees with.
+   *
+   * `limits` bounds how far into the previous route a checkpoint may be taken
+   * from, as a step count and as a checkpoint number. Step identity alone
+   * answers "did the route come this way again", which is the whole question
+   * while the PROGRAM is the same; when the program has changed it answers only
+   * half of it, and the caller supplies the other half (see
+   * {@link routeResumption}). Leaving it out considers every step, which is
+   * what a caller with no reason to doubt the program does.
+   */
+  patchAndSimulateRoute(
+    newRoute: RoutePlan,
+    limits?: { steps: number; checkpoint: number },
+  ): string | null {
     if (
       !this._plannedRoute ||
       this._plannedRoute.fromPath !== newRoute.fromPath
@@ -1161,9 +1436,16 @@ export class Game<T extends M = {}> {
       return this._checkpoints.at(-1) ?? null;
     }
 
-    // Search for a valid checkpoint we can start simulation from
-    const validSteps = [...newRoute.steps];
-    const newSteps = [];
+    // Search for a valid checkpoint we can start simulation from, among the
+    // steps the caller says the new program still agrees with. A checkpoint
+    // beyond that is a state the old program produced from statements this one
+    // no longer has, however well its step's identity matches.
+    const considered =
+      limits == null
+        ? newRoute.steps.length
+        : Math.max(0, Math.min(limits.steps, newRoute.steps.length));
+    const validSteps = newRoute.steps.slice(0, considered);
+    const newSteps = newRoute.steps.slice(considered);
     let lastValidNewRouteStep = validSteps.at(-1);
     // The resume below is positional (`validSteps.length - 1` indexes the OLD
     // route), so the match has to agree on that index, not merely on identity.
@@ -1172,6 +1454,7 @@ export class Game<T extends M = {}> {
       {
         path: lastValidNewRouteStep?.path,
         index: validSteps.length - 1,
+        maxCheckpoint: limits?.checkpoint,
       },
     );
     while (lastValidNewRouteStep && !lastValidOldRouteCheckpoint) {
@@ -1185,6 +1468,7 @@ export class Game<T extends M = {}> {
         {
           path: lastValidNewRouteStep?.path,
           index: validSteps.length - 1,
+          maxCheckpoint: limits?.checkpoint,
         },
       );
     }
@@ -1343,6 +1627,22 @@ export class Game<T extends M = {}> {
 
   checkpoint(): void {
     this._checkpoints.capture();
+    // Where along the planned route the story stood when this checkpoint was
+    // taken: the index of the step it is about to run next. A later compile
+    // that resumes from this checkpoint needs exactly that, because the steps
+    // it claims as already taken have to be the steps the restored state has
+    // actually taken. Nothing but this records it — a step's own checkpoint
+    // number is stamped when the step is REACHED, which is a different moment.
+    //
+    // Recorded only while replaying a route. During ordinary play the cursor
+    // stands wherever the last replay left it and means nothing.
+    this._checkpointStepCursors.length = this._checkpoints.length;
+    if (this._checkpoints.length > 0) {
+      this._checkpointStepCursors[this._checkpoints.length - 1] =
+        this._simulation === "simulating"
+          ? this._plannedRouteStepCursor
+          : undefined;
+    }
   }
 
   save(): string {
@@ -1602,6 +1902,23 @@ export class Game<T extends M = {}> {
                 if (latestCheckpoint >= 0) {
                   step.checkpoint = latestCheckpoint;
                 }
+                // Where this step's path pointed, recorded while the program
+                // that answers for it is the one loaded. A later compile says
+                // which lines it changed, and this is the only thing on a route
+                // those lines can be compared with — and comparing the whole
+                // location catches the other way a step stops meaning what it
+                // meant, which is an edit elsewhere renumbering the path.
+                //
+                // Stamped here rather than while planning because only the
+                // steps actually replayed are the ones a resume can rest on,
+                // and this walk covers exactly those.
+                const location = pathLocation(
+                  this._program.pathLocations,
+                  pointerPath,
+                );
+                step.stamped = true;
+                step.location = location;
+                step.uri = location ? this._scripts[location[0]] : undefined;
                 this._plannedRouteStepCursor++;
               }
             }
