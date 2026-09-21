@@ -235,6 +235,21 @@ function editProbe(root: ProgramRoot, globals: Map<string, InkObject>): string {
   if (beside.sequences[sibling] !== siblingRow) throw new Error("an edit in the first branch rebuilt the row of the else branch");
   if (lineOf(beside, siblingRow.ids[0]!) !== lineOf(edited, siblingRow.ids[0]!) + PLAIN_LINES) throw new Error("the else branch did not move down by the line inserted in the first branch");
 
+  // The clause stands in the last scene, so nothing above moved a later flow.
+  // A statement inserted into the first scene does: every later scene starts a
+  // line further down, with a new row for it and the arrays it had.
+  const flows = beside.sequences.filter((row) => row.owner < 0 && row.chunks.length > 0);
+  const [firstFlow, lastFlow] = [flows[0]!, flows.at(-1)!];
+  if (flows.length < 2 || beside.sequences[clause.id]!.flow !== lastFlow.flow) throw new Error("the scene layout gives the probe no flow below an edit");
+  const early = copyChunk(beside, display);
+  const shifted = insertChunk(beside, firstFlow.id, 1, early);
+  checkSharing(beside, shifted, firstFlow.id, 1);
+  checkLines(beside, shifted, new Set([early[H_ID]!]));
+  for (const flow of flows.slice(1)) {
+    const moved = shifted.sequences[flow.id]!;
+    if (moved.firstLine !== flow.firstLine + PLAIN_LINES || moved.chunks !== flow.chunks || moved.lineStarts !== flow.lineStarts) throw new Error(`the flow of sequence ${flow.id} did not move down a line with its arrays shared`);
+  }
+
   const second = new ChunkStepper(edited);
   second.start(SCENE, globals);
   let inside: { chunk: number; pc: number; globals: Map<string, InkObject>; lines: number } | undefined;
@@ -258,7 +273,7 @@ function editProbe(root: ProgramRoot, globals: Map<string, InkObject>): string {
   const expected = after.slice(inside.lines);
   if (!expected.includes(inserted!)) throw new Error("the line inserted below the if is not in the rest of the run, so resuming could not show it");
   if (tail.length !== expected.length || tail.some((line, i) => line !== expected[i])) throw new Error(`resumed inside the if, the story ran ${tail.length} lines that are not the ${expected.length} the edited run ends with`);
-  return `two statements inserted around entry ${entry} of a then clause of ${clauseLength}; the chunk arrays of ${sharedArrays} of ${root.sequences.length} sequences and all ${root.chunkCount} chunks shared with the previous root; resumed inside the if through the new root, the ${tail.length} lines to the end are equal; a third inserted into the first branch of an if moved its else branch down a line with that branch's row and arrays shared; after each edit every statement's line equals a layout from scratch`;
+  return `two statements inserted around entry ${entry} of a then clause of ${clauseLength}; the chunk arrays of ${sharedArrays} of ${root.sequences.length} sequences and all ${root.chunkCount} chunks shared with the previous root; resumed inside the if through the new root, the ${tail.length} lines to the end are equal; a third inserted into the first branch of an if moved its else branch down a line with that branch's row and arrays shared; a fourth inserted into the first scene moved the ${flows.length - 1} scenes below it down a line with their arrays shared; after each edit every statement's line equals a layout from scratch`;
 }
 
 function main() {

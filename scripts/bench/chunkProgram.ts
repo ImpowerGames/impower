@@ -161,6 +161,9 @@ class ChunkBuilder {
   readonly code: number[] = [];
   readonly blocks: number[] = [];
   emit(op: Op, flags = 0, aux = 0, arg = 0): number {
+    // What can outgrow 16 bits rides in word 1. An operand that still does not
+    // fit its field is a construct the writer does not emit, like any other.
+    if (aux < 0 || aux > 0xffff || flags < 0 || flags > 0xff) throw new UnsupportedConstruct(`an operand wider than its field in instruction ${op}`);
     this.code.push(encode(op, flags, aux), arg);
     return this.code.length - 2;
   }
@@ -171,15 +174,11 @@ class ChunkBuilder {
     this.emit(Op.EnterBlock, 0, 0, this.blocks.length / BLOCK_ROW);
     this.blocks.push(sequence, HEADER + this.code.length, gap);
   }
-  /** Points the jump at `at` to the next instruction to be emitted. */
+  /** Points the jump or the `Choice` at `at` to the next instruction to be
+   *  emitted. The distance is word 1, a full 32 bits, so a `choose` of any size
+   *  reaches its choices' entry code. */
   land(at: number) {
     this.code[at + 1] = this.code.length - (at + 2);
-  }
-  /** The same for a `Choice`, whose target rides in the high half of word 0. */
-  landChoice(at: number) {
-    const delta = this.code.length - (at + 2);
-    if (delta > 0xffff) throw new Error("a choice's target is out of reach");
-    this.code[at] = (this.code[at]! & 0xffff) | (delta << 16);
   }
   get lastOp(): number {
     return this.code.length ? this.code[this.code.length - 2]! & 0xff : 0;
@@ -309,7 +308,9 @@ export function writeChunkProgram(compiled: Record<string, any>, options: { reso
       } else if (t === "obj{") marks.push(depth);
       else if (t === "}obj") {
         const mark = marks.pop()!;
-        b.emit(Op.MakeTable, 0, (depth - mark) / 2);
+        // The pair count is word 1: a table literal is as long as its author
+        // made it.
+        b.emit(Op.MakeTable, 0, 0, (depth - mark) / 2);
         depth = mark + 1;
       } else if (t === "pop") {
         if (b.lastOp === Op.CallStd) b.setLastFlags(FLAG_DISCARD);
@@ -394,7 +395,7 @@ export function writeChunkProgram(compiled: Record<string, any>, options: { reso
     // for each later choice and for `then`, and what each body takes.
     let lines = TAIL_LINES;
     const named: Record<string, any[]> = item.at(-1);
-    const points: { at: number; start: string[]; body: any[]; name: string }[] = [];
+    const points: { at: number; count: number; start: string[]; body: any[]; name: string }[] = [];
     for (const choice of item.slice(0, -1) as any[][]) {
       const star = Array.isArray(choice) ? choice.find((t) => isObject(t) && typeof t["*"] === "string") : undefined;
       if (!star) throw new UnsupportedConstruct("content beside the choices of a choose block");
@@ -414,18 +415,20 @@ export function writeChunkProgram(compiled: Record<string, any>, options: { reso
         b.emit(Op.EndString);
       }
       const name: string = star["*"].split(".").at(-1);
+      // The `Choice` holds its target. Its count symbol is the operand of the
+      // `Visit` that opens the entry code it points at.
       const count = symbol(`${symbolNames[flow]}#${id}.${name}`);
-      points.push({ at: b.emit(Op.Choice, flags, 0, count), start, body: named[name]!, name });
+      points.push({ at: b.emit(Op.Choice, flags), count, start, body: named[name]!, name });
     }
     b.emit(Op.Done);
     const gathers = Object.keys(named).filter((key) => /^g-\d+$/.test(key));
     if (gathers.length > 1) throw new UnsupportedConstruct("a choose block with more than one gather");
     const toThen: number[] = [];
     for (const point of points) {
-      b.landChoice(point.at);
+      b.land(point.at);
       // Once chosen, a choice counts, repeats its start content as output, ends
       // that line, and runs its body.
-      b.emit(Op.Visit, 0, 0, b.code[point.at + 1]!);
+      b.emit(Op.Visit, 0, 0, point.count);
       for (const text of point.start) b.emit(Op.Text, 0, 0, string(text));
       let body = point.body.slice(0, -1);
       const newline = body.indexOf("\n");

@@ -306,7 +306,7 @@ export class ChunkStepper {
         break;
       }
       case Op.MakeTable: {
-        const pairs = word >>> 16;
+        const pairs = arg;
         const table = new Map<string, AbstractValue>();
         const from = stack.length - pairs * 2;
         for (let i = from; i < stack.length; i += 2) table.set((stack[i] as StringValue).value!, stack[i + 1] as AbstractValue);
@@ -365,7 +365,9 @@ export class ChunkStepper {
         const flags = (word >>> 8) & 0xff;
         const only = flags & CHOICE_HAS_CHOICE_ONLY_CONTENT ? (stack.pop() as StringValue).value! : "";
         const start = flags & CHOICE_HAS_START_CONTENT ? (stack.pop() as StringValue).value! : "";
-        this.choices.push({ text: (start + only).trim(), seq: this.seq!, index: this.index, pc: this.pc + (word >>> 16), blockStack: this.blockStack.slice() });
+        // The target is the entry code of the choice, which opens with the
+        // `Visit` of the choice's count symbol.
+        this.choices.push({ text: (start + only).trim(), seq: this.seq!, index: this.index, pc: this.pc + arg, blockStack: this.blockStack.slice() });
         break;
       }
       case Op.Visit:

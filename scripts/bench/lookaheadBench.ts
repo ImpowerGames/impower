@@ -26,8 +26,8 @@
 // Before anything is timed, each side is shown to restore: the engine takes
 // back a global written after its snapshot, and the restorable state takes back
 // a write to every kind of state it holds, which includes what a continue has
-// raised (its errors and warnings) and a table's entries, metatable and frozen
-// flag.
+// raised (its errors and warnings), a table's entries, metatable, frozen flag
+// and length hints, and the cell of a closed upvalue.
 import "../../packages/sparkdown/src/inkjs/engine/Container";
 import * as fs from "node:fs";
 import { performance } from "node:perf_hooks";
@@ -67,9 +67,14 @@ class RestorableState {
   // these back too, as the engine's snapshot does.
   errors: string[] = [];
   warnings: string[] = [];
-  // A table is its entries and also what it is: its metatable and whether it
-  // is frozen. All three go through the one barrier.
-  readonly table = { entries: new Map<string, unknown>([["a", 1]]), metatable: null as object | null, frozen: false };
+  // A table is its entries and also what it is: its metatable, whether it is
+  // frozen, and the two length hints that decide what `#` answers, the second
+  // of which the `#` operator itself writes. All go through the one barrier.
+  readonly table = { entries: new Map<string, unknown>([["a", 1]]), metatable: null as object | null, frozen: false, capacity: 0, boundary: 0 };
+  // The cell of a closed upvalue: a variable that outlived its frame, which the
+  // closures that captured it write through. It is on the heap, so it goes
+  // through the barrier as a table does.
+  readonly cell = { value: 0 as unknown };
   private saved = false;
   private savedFrames: RestorableState["frames"] = [];
   private savedBlockStack: number[] = [];
@@ -84,7 +89,8 @@ class RestorableState {
   private undoCounts: number[] = [];
   // What was written to the table: an entry's key, or one of the two fields,
   // with the value it had.
-  private undoTable: [what: "entry" | "metatable" | "frozen", key: string, old: unknown][] = [];
+  private undoTable: [what: "entry" | "metatable" | "frozen" | "capacity" | "boundary", key: string, old: unknown][] = [];
+  private undoCell: unknown[] = [];
 
   constructor(globals: number, symbols: number, temporaries: number) {
     for (let i = 0; i < globals; i++) this.globals.set(`global_${i}`, i);
@@ -124,6 +130,17 @@ class RestorableState {
     this.table.frozen = true;
   }
 
+  // What `table.clear` and the `#` operator leave on a table.
+  setHint(what: "capacity" | "boundary", value: number) {
+    if (this.saved) this.undoTable.push([what, "", this.table[what]]);
+    this.table[what] = value;
+  }
+
+  setCell(value: unknown) {
+    if (this.saved) this.undoCell.push(this.cell.value);
+    this.cell.value = value;
+  }
+
   setGlobal(name: string, value: unknown) {
     if (this.saved) {
       this.undoNames.push(name);
@@ -161,11 +178,14 @@ class RestorableState {
       const [what, key, old] = undoTable[i]!;
       if (what === "metatable") table.metatable = old as object | null;
       else if (what === "frozen") table.frozen = old as boolean;
+      else if (what === "capacity" || what === "boundary") table[what] = old as number;
       else if (old === undefined) table.entries.delete(key);
       else table.entries.set(key, old);
     }
+    const undoCell = this.undoCell;
+    for (let i = undoCell.length - 1; i >= 0; i--) this.cell.value = undoCell[i];
     this.saved = false;
-    undoNames.length = undoValues.length = undoCounts.length = undoTable.length = 0;
+    undoNames.length = undoValues.length = undoCounts.length = undoTable.length = undoCell.length = 0;
   }
 }
 
@@ -187,6 +207,9 @@ function probeRestorable(state: RestorableState) {
     tableEntries: JSON.stringify([...state.table.entries]),
     tableMetatable: JSON.stringify(state.table.metatable),
     tableFrozen: JSON.stringify(state.table.frozen),
+    tableCapacity: JSON.stringify(state.table.capacity),
+    tableBoundary: JSON.stringify(state.table.boundary),
+    closedCell: JSON.stringify(state.cell.value),
   });
   const before = picture();
   state.save();
@@ -196,6 +219,10 @@ function probeRestorable(state: RestorableState) {
   state.setEntry(PROBE, 1);
   state.setMetatable({ __index: "written" });
   state.freeze();
+  state.setHint("capacity", 16);
+  state.setHint("boundary", 3);
+  state.setCell(1);
+  state.setCell(2);
   state.setGlobal("global_0", "written");
   state.setGlobal(PROBE, 1);
   state.turnIndex++;
