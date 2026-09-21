@@ -273,6 +273,9 @@ async function main() {
   // (the asset module prefetches nothing, the ui module writes instantly).
   const RESETS = ["system.simulating"];
   const prepare = (game: Game, checkpoint: string | undefined) => {
+    // What a preview displays is a suggestion, whose report the player takes
+    // without what only the editors read.
+    game.reportsExecutedLines = config.mode !== "preview";
     game.markPreviewing(searched?.toPath);
     game.module.ui.forgetDisplayedImages();
     if (resident) (game as any)._context.system.simulating = undefined;

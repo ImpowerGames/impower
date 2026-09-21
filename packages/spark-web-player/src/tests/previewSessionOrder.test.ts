@@ -209,6 +209,28 @@ describe("preview session ordering", () => {
     expect(calls.indexOf("connectGame")).toBeLessThan(calls.indexOf("preview"));
   });
 
+  test("the game leaves the editors' part out of its report while it shows a suggestion, and puts it back for the document", async () => {
+    // The report of a suggestion is never relayed to the editor, so only its
+    // first and last location, which label the preview, are worth taking.
+    const calls: string[] = [];
+    const game = recordingGame(calls);
+    game.updateProgram = (p: any) => (game.program = p);
+    let reportsAtConnect: boolean | undefined;
+    const app = stubApp(calls);
+    app.connectGame = async () => {
+      reportsAtConnect = game.reportsExecutedLines;
+    };
+    const controller: any = controllerWith(game, app);
+    const suggestion = { ...PROGRAM, version: -1 };
+    controller._completionProgramSet.add(suggestion);
+
+    await controller.updatePreview(suggestion, PROGRAM.uri, 4, "SAVE", undefined, { speculative: true });
+    expect(reportsAtConnect).toBe(false);
+
+    await controller.updatePreview(PROGRAM, PROGRAM.uri, 4, "SAVE");
+    expect(reportsAtConnect).toBe(true);
+  });
+
   test("the previous preview's images are forgotten before the connect", async () => {
     // Restore runs inside the connect and re-applies whatever the module still
     // believes is displayed, so the record has to be dropped before then or the

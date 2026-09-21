@@ -2,16 +2,26 @@ import { MessageProtocolNotificationType } from "@impower/jsonrpc/src/common/cla
 import type { NotificationMessage } from "@impower/jsonrpc/src/common/types/NotificationMessage";
 import type { SimulationFailure } from "@impower/sparkdown/src/compiler/types/SimulationFailure";
 import type { DocumentLocation } from "../../types/DocumentLocation";
+import type { ExecutedLines } from "../../types/ExecutedLines";
 
-export type { SimulationFailure };
+export type { ExecutedLines, SimulationFailure };
 
 export type GameExecutedMethod = typeof GameExecutedMessage.method;
 
 export interface GameExecutedParams {
   simulatePath?: string | null;
   startPath?: string | null;
-  executedPaths: string[];
-  locations: DocumentLocation[];
+  /** The lines the executed paths cover, by script uri. Absent from the
+   *  report of a displayed suggestion. */
+  executedLines?: Record<string, ExecutedLines>;
+  /** The location of the first executed path that has one. */
+  firstLocation?: DocumentLocation;
+  /** The location of the last executed path that has one. */
+  lastLocation?: DocumentLocation;
+  /** The last path executed, located or not. Absent from the report of a
+   *  displayed suggestion. */
+  lastExecutedPath?: string;
+  /** Empty in the report of a displayed suggestion. */
   conditions: { selected: boolean }[];
   choices: { options: string[]; selected: number }[];
   state: "initial" | "running" | "previewing" | "paused";

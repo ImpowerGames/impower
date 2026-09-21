@@ -513,7 +513,7 @@ describe("what the game reports while it shows a suggestion", () => {
     const sent: string[] = [];
     controller.host.addEventListener("jsonrpc", (e: CustomEvent) => sent.push(e.detail.method));
     const executed = GameExecutedMessage.type.notification({
-      locations: [], state: "previewing", restarted: false, simulatePath: "", conditions: [], choices: [],
+      executedLines: {}, state: "previewing", restarted: false, simulatePath: "", conditions: [], choices: [],
     } as any);
 
     listeners[GameExecutedMessage.method]!(executed);

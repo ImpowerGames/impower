@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { Coordinator } from "../../game/core/classes/Coordinator";
 import { Game } from "../../game/core/classes/Game";
 import { pathLocationTableOf } from "@impower/sparkdown/src/compiler/utils/pathLocationTable";
+import { expandLineRanges } from "../../game/core/utils/executedLineRanges";
 import { findClosestPath } from "../../game/core/utils/findClosestPath";
 import {
   beatIndexIn,
@@ -1196,11 +1197,12 @@ end
     expect(JSON.stringify(screenMessages(h.messages))).toContain("Line two.");
     const reports = byMethod(h.messages, "game/executed");
     expect(reports).toHaveLength(1);
-    expect(
-      reports[0].params.executedPaths.filter((p: string) =>
-        p.startsWith("heal"),
-      ),
-    ).toEqual([]);
+    // `heal`'s body is lines 1 and 2.
+    const executed = expandLineRanges(
+      reports[0].params.executedLines[MAIN_URI].ranges,
+    );
+    expect(executed).toContain(12);
+    expect(executed.filter((line) => line >= 1 && line <= 2)).toEqual([]);
   });
 
   it("waits without a clock when `restore_timeout` is 0, until the page answers or a later preview takes over", async () => {

@@ -184,10 +184,9 @@ export function activateCompilationView(context: vscode.ExtensionContext) {
 
   const handleGameExecuted = (message: Message) => {
     if (GameExecutedMessage.type.isNotification(message)) {
-      const { executedPaths, state } = message.params;
+      const { lastExecutedPath, state } = message.params;
       if (state === "running") {
         if (treeView.visible) {
-          const lastExecutedPath = executedPaths.at(-1);
           if (lastExecutedPath) {
             const instructionNode =
               SparkdownCompilationTreeDataProvider.instance.getNodeById(
