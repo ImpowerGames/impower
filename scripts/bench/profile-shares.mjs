@@ -64,18 +64,21 @@ export function parseShareArgs(args) {
 }
 
 // Self time per profile node, in microseconds: a sample's time is the delta
-// that follows it. `keep(timestamp)` leaves the samples it refuses out.
+// that follows it, so the last sample is charged nothing. `keep(timestamp)`
+// leaves the samples it refuses out; `kept` counts the ones it accepts.
 function selfTimes(profile, keep) {
   const self = new Map();
   const { samples, timeDeltas } = profile;
   let timestamp = profile.startTime;
+  let kept = 0;
   for (let i = 0; i < samples.length; i++) {
     timestamp += timeDeltas[i];
     if (keep && !keep(timestamp)) continue;
+    kept++;
     const dt = timeDeltas[i + 1] ?? 0;
     self.set(samples[i], (self.get(samples[i]) ?? 0) + dt);
   }
-  return self;
+  return { self, kept };
 }
 
 /**
@@ -86,7 +89,7 @@ function selfTimes(profile, keep) {
  */
 export function profileShares(profile, { under, inclusive = [], groups, keep, nameOf = (frame) => frame.functionName || "(anonymous)" }) {
   const nodes = new Map(profile.nodes.map((n) => [n.id, n]));
-  const self = selfTimes(profile, keep);
+  const { self, kept } = selfTimes(profile, keep);
   const byFunction = new Map();
   const inclusiveTime = new Map(inclusive.map((fn) => [fn, 0]));
   let total = 0;
@@ -120,7 +123,9 @@ export function profileShares(profile, { under, inclusive = [], groups, keep, na
   return {
     under,
     underMs: total / 1000,
-    // Every sample `keep` accepted, under `under` or not.
+    // Every sample `keep` accepted, under `under` or not: their count, and
+    // the time they were charged.
+    keptSamples: kept,
     keptMs: profiled / 1000,
     shareOfProfile: ratio(total, profiled),
     collectorShareOfProfile: ratio(collector, profiled),
@@ -208,7 +213,7 @@ async function main(args) {
   const pct = (share) => (share * 100).toFixed(1).padStart(6) + "%";
   if (options.gaps) {
     console.log(`only the unattributed stretches: ${results.map((r) => r.gapMsPerSample.toFixed(1)).join(", ")} ms of profiled time per benchmark sample`);
-    if (results.every((r) => r.keptMs === 0)) {
+    if (results.every((r) => r.keptSamples === 0)) {
       console.log("no profiler sample landed in them: the stretches are shorter than the sampling interval, or there are none");
       return;
     }

@@ -185,6 +185,8 @@ await check("profile-shares --gaps says no sample landed only when none did, bef
     const landed = shares(write("landed", [[0, 20]]), "--under", "missing");
     assert.doesNotMatch(landed, /no profiler sample landed/);
     assert.match(landed, /time under missing: 0\.0% of the profile/);
+    // Only the last sample lands, and a profile charges its last sample nothing.
+    assert.doesNotMatch(shares(write("last", [[10, 20]]), "--under", "(root)"), /no profiler sample landed/);
     // Neither lands in either profile's gap: the note, and no summary rows.
     const empty = shares(write("a", [[100, 200]]), write("b", [[100, 200]]), "--under", "(root)");
     assert.match(empty, /no profiler sample landed in them/);
