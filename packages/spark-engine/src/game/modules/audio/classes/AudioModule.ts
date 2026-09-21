@@ -10,10 +10,7 @@ import type { ChannelState } from "../types/ChannelState";
 import type { LoadAudioPlayerParams } from "../types/LoadAudioPlayerParams";
 import type { Synth } from "../types/Synth";
 import { parseTones } from "../utils/parseTones";
-import {
-  AudioClockMessage,
-  type AudioClockParams,
-} from "./messages/AudioClockMessage";
+import { AudioClockMessage } from "./messages/AudioClockMessage";
 import { ConfigureAudioMixerMessage } from "./messages/ConfigureAudioMixerMessage";
 import {
   LoadAudioPlayerMessage,
@@ -61,28 +58,15 @@ export class AudioModule extends Module<
   > = new Map();
 
   protected _outputLatency = 0;
+  /** Seconds sound takes to reach the speakers, from the page's latest
+   *  audio clock reading (`audio/clock`). */
   get outputLatency() {
     return this._outputLatency;
   }
 
-  /** The page's latest reading of its audio clock (`audio/clock`). */
-  protected _audioClock?: AudioClockParams;
-
-  /**
-   * The page's audio-context time, in seconds, at shared time `time`
-   * (`sharedNow`); undefined while the page has no running audio context.
-   */
-  audioTimeAt(time: number): number | undefined {
-    const clock = this._audioClock;
-    if (clock?.contextTime == null) {
-      return undefined;
-    }
-    return clock.contextTime + (time - clock.time) / 1000;
-  }
-
   override onReceiveNotification(msg: NotificationMessage): void {
     if (AudioClockMessage.type.isNotification(msg)) {
-      this._audioClock = msg.params;
+      this._outputLatency = msg.params.outputLatency;
     }
   }
 
@@ -229,12 +213,9 @@ export class AudioModule extends Module<
     // this gain when it is the first to need it.
     const mixer = this.getMixerName(data.channel);
     const mixerGain = this.context?.mixer?.[mixer]?.gain ?? 1;
-    const result = await this.emitSettled(
+    await this.emitSettled(
       LoadAudioPlayerMessage.type.request({ ...data, mixer, mixerGain }),
     );
-    if (result?.outputLatency != null) {
-      this._outputLatency = result.outputLatency;
-    }
   }
 
   protected async loadAllAudio(

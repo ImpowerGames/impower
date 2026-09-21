@@ -39,7 +39,7 @@ export class AudioClock {
   ) {
     this._timeOrigin = timeOrigin;
     this._now = now;
-    this._reading = { time: now() };
+    this._reading = { time: now(), outputLatency: 0 };
   }
 
   /** Reads `context` from now on, or only the shared clock without one. */
@@ -53,17 +53,23 @@ export class AudioClock {
     const context = this._context;
     const now = this._now();
     if (!context || context.state !== "running") {
-      this._reading = { time: now };
+      this._reading = { time: now, outputLatency: 0 };
       return this._reading;
     }
+    const outputLatency = context.outputLatency ?? 0;
     const stamp = context.getOutputTimestamp?.();
     if (stamp?.contextTime && stamp.performanceTime) {
       this._reading = {
         time: this._timeOrigin + stamp.performanceTime,
-        contextTime: stamp.contextTime + (context.outputLatency ?? 0),
+        contextTime: stamp.contextTime + outputLatency,
+        outputLatency,
       };
     } else {
-      this._reading = { time: now, contextTime: context.currentTime };
+      this._reading = {
+        time: now,
+        contextTime: context.currentTime,
+        outputLatency,
+      };
     }
     return this._reading;
   }

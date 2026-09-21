@@ -844,7 +844,8 @@ export default class UIManager extends Manager {
   /**
    * When a beat stamped `time` on the shared clock shows, on the document
    * timeline: once its sound, which the audio context starts at `time`, has
-   * reached the speakers.
+   * reached the speakers. The latency is the audio clock reading's, which the
+   * game also counts the beat's duration from.
    */
   protected getDisplayTime(time: number | undefined): number | undefined {
     if (time == null) {
@@ -852,7 +853,7 @@ export default class UIManager extends Manager {
     }
     return (
       this.app.audioClock.toDocumentTime(time) +
-      this.app.audio.outputLatency * 1000
+      this.app.audioClock.reading.outputLatency * 1000
     );
   }
 

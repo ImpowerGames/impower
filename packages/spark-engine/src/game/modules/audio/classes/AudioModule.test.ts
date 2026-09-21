@@ -165,19 +165,23 @@ describe("AudioModule synth resolution (#268)", () => {
 });
 
 describe("AudioModule audio clock (#681)", () => {
-  it("maps shared time onto the page's audio context from its latest reading", () => {
+  it("takes its output latency from the page's latest audio clock reading", () => {
     const module = createModule({});
-    expect(module.audioTimeAt(1000)).toBeUndefined();
+    expect(module.outputLatency).toBe(0);
 
     module.onReceiveNotification(
-      AudioClockMessage.type.notification({ time: 1000, contextTime: 2 }),
+      AudioClockMessage.type.notification({
+        time: 1000,
+        contextTime: 2,
+        outputLatency: 0.04,
+      }),
     );
-    expect(module.audioTimeAt(1250)).toBeCloseTo(2.25, 9);
+    expect(module.outputLatency).toBe(0.04);
 
-    // The page's context stopped: the shared clock alone keeps time.
+    // The page's context stopped: nothing is heard, so nothing is waited for.
     module.onReceiveNotification(
-      AudioClockMessage.type.notification({ time: 3000 }),
+      AudioClockMessage.type.notification({ time: 3000, outputLatency: 0 }),
     );
-    expect(module.audioTimeAt(3000)).toBeUndefined();
+    expect(module.outputLatency).toBe(0);
   });
 });

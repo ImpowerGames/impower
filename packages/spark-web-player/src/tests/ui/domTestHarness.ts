@@ -280,7 +280,6 @@ export function createDOMHarness(
     audio: {
       decodeAudioBuffer: async () => null,
       playingKeys: () => [],
-      outputLatency: 0,
     },
   };
 

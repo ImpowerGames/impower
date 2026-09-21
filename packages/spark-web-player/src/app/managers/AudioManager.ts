@@ -51,15 +51,6 @@ export default class AudioManager extends Manager {
     return this._audioProbe;
   }
 
-  /** Seconds from the moment the audio context plays a sample to the moment
-   *  the speakers do, or 0 where the browser cannot tell. */
-  get outputLatency(): number {
-    return window.AudioContext &&
-      "outputLatency" in window.AudioContext.prototype
-      ? ((this.app.audioContext || this.unsafeAudioContext)?.outputLatency ?? 0)
-      : 0;
-  }
-
   override async onInit(): Promise<void> {
     this.exposeAudioProbe();
   }
@@ -470,10 +461,7 @@ export default class AudioManager extends Manager {
     }
     if (LoadAudioPlayerMessage.type.isRequest(msg)) {
       await this.onLoadAudioPlayer(msg.params);
-      return LoadAudioPlayerMessage.type.result({
-        ...msg.params,
-        outputLatency: this.outputLatency,
-      });
+      return LoadAudioPlayerMessage.type.result(msg.params);
     }
     if (UpdateAudioPlayersMessage.type.isRequest(msg)) {
       await this.onUpdateAudioPlayers(msg.params);

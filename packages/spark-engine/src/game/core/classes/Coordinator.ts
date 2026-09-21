@@ -321,15 +321,18 @@ export class Coordinator<G extends Game> {
             assets.trigger(loadTriggerId);
           }
           updateUI(time);
-          // The beat's duration counts from when the page shows it.
+          // The beat's duration counts from when the page shows it. This
+          // tick's time passed before the stamp was taken, so it does not
+          // count.
           elapsedMS = -(BEAT_LEAD_MS + game.module.audio.outputLatency * 1000);
-          // The beat is on its way to the screen: move the prediction window
-          // past it.
+          // The page has the beat and shows it at its stamp: move the
+          // prediction window past it.
           assets.onBeatDisplayed();
         }
+      } else if (!finished) {
+        elapsedMS += deltaMS;
       }
       if (ready && !finished) {
-        elapsedMS += deltaMS;
         if (elapsedMS >= totalDurationMS) {
           finished = true;
           handleFinished();

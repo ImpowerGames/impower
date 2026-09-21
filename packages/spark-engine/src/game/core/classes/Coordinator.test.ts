@@ -29,10 +29,15 @@ interface Calls {
 
 /**
  * A stand-in for `Game` exposing only the surface `Coordinator` touches. Its
- * shared clock reads `NOW`.
+ * shared clock reads `NOW`, and `setTimeout` runs synchronously so a tick
+ * fully resolves before returning.
  */
 const createGame = (
-  overrides: { autoAdvanceDelay?: number; previewing?: boolean } = {},
+  overrides: {
+    autoAdvanceDelay?: number;
+    previewing?: boolean;
+    outputLatency?: number;
+  } = {},
 ) => {
   const calls: Calls = {
     clickedToContinue: 0,
@@ -48,6 +53,10 @@ const createGame = (
         previewing: overrides.previewing,
         simulating: undefined,
         now: () => NOW,
+        setTimeout: (handler: Function) => {
+          handler();
+          return 0;
+        },
       },
       preferences: {
         flow: { auto_advance_delay: overrides.autoAdvanceDelay ?? 0 },
@@ -89,7 +98,7 @@ const createGame = (
         isReady: () => true,
         triggerAll: (_ids: number[], time?: number) =>
           calls.audioTriggerTimes.push(time),
-        outputLatency: 0,
+        outputLatency: overrides.outputLatency ?? 0,
       },
       assets: {
         prepareBeat: () => null,
@@ -407,8 +416,29 @@ describe("Coordinator", () => {
       coordinator.onUpdate(tick(0));
       expect(coordinator.shouldContinue()).toBe(STAY);
       assets.isReady = () => true;
-      // Its duration counts from when it shows, a lead after it is ready.
-      coordinator.onUpdate(tick(BEAT_LEAD_MS));
+      // The tick it becomes ready on passed before it was stamped, and its
+      // duration counts from when it shows, a lead after that.
+      coordinator.onUpdate(tick(100));
+      expect(coordinator.shouldContinue()).toBe(STAY);
+      coordinator.onUpdate(tick(BEAT_LEAD_MS - 1));
+      expect(coordinator.shouldContinue()).toBe(STAY);
+      coordinator.onUpdate(tick(1));
+      expect(coordinator.shouldContinue()).toBe(AUTO_ADVANCED);
+    });
+
+    it("counts the duration from the page's display, output latency included", () => {
+      const { game } = createGame({ outputLatency: 0.04 });
+      const assets = (game.module as any).assets;
+      assets.isReady = () => false;
+      const coordinator = new Coordinator(game, {
+        load: [{ name: "world" }] as never,
+        end: 0,
+      });
+      assets.isReady = () => true;
+      coordinator.onUpdate(tick(0));
+      coordinator.onUpdate(tick(BEAT_LEAD_MS + 39));
+      expect(coordinator.shouldContinue()).toBe(STAY);
+      coordinator.onUpdate(tick(1));
       expect(coordinator.shouldContinue()).toBe(AUTO_ADVANCED);
     });
   });
