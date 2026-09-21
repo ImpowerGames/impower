@@ -41,6 +41,7 @@ await check("a project run needs a line and a word, and takes the defaults other
     timeout: 20000,
     settle: 1500,
     headed: false,
+    workerPreview: "off",
   });
   assert.throws(() => parseMeasureArgs(["--project", "rb", "--line", "3515"]), /--line and --word/);
   assert.throws(() => parseMeasureArgs(["--project", "rb", "--word", "x"]), /--line and --word/);
@@ -57,6 +58,13 @@ await check("the fixture run needs nothing else, and excludes --project", () => 
   assert.equal(parsed.line, undefined);
   assert.throws(() => parseMeasureArgs(["--fixture", "--project", "rb", "--line", "1", "--word", "x"]), /exclusive/);
   assert.throws(() => parseMeasureArgs([]), /--project .* or --fixture/);
+});
+
+await check("the worker preview switch takes on or off, and is off unless given", () => {
+  assert.equal(parseMeasureArgs(["--fixture"]).workerPreview, "off");
+  assert.equal(parseMeasureArgs(["--fixture", "--worker-preview", "on"]).workerPreview, "on");
+  assert.throws(() => parseMeasureArgs(["--fixture", "--worker-preview", "yes"]), /on or off/);
+  assert.throws(() => parseMeasureArgs(["--fixture", "--worker-preview"]), /needs a value/);
 });
 
 await check("a flag with a missing, empty or flag-shaped value is refused, not skipped", () => {
