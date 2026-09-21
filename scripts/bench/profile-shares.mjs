@@ -114,13 +114,16 @@ export function profileShares(profile, { under, inclusive = [], groups, keep, na
   for (const f of functions) if (f.group) groupShares.set(f.group, (groupShares.get(f.group) ?? 0) + f.share);
   const profiled = [...self.values()].reduce((a, b) => a + b, 0);
   const collector = profile.nodes.filter((n) => n.callFrame.functionName === "(garbage collector)").reduce((a, n) => a + (self.get(n.id) ?? 0), 0);
+  // `keep` can refuse every sample, as when each gap is shorter than the
+  // sampling interval; a share of nothing is then zero.
+  const ratio = (t, of) => (of ? t / of : 0);
   return {
     under,
     underMs: total / 1000,
-    shareOfProfile: total / profiled,
-    collectorShareOfProfile: collector / profiled,
+    shareOfProfile: ratio(total, profiled),
+    collectorShareOfProfile: ratio(collector, profiled),
     groups: [...groupShares.entries()].map(([group, share]) => ({ group, share })).sort((a, b) => b.share - a.share),
-    inclusive: [...inclusiveTime.entries()].map(([fn, t]) => ({ function: fn, share: t / total })),
+    inclusive: [...inclusiveTime.entries()].map(([fn, t]) => ({ function: fn, share: ratio(t, total) })),
     functions,
   };
 }
@@ -208,7 +211,13 @@ async function main(args) {
     console.log("");
     console.log("first profile:");
   }
-  if (options.gaps) console.log(`only the unattributed stretches: ${results.map((r) => r.gapMsPerSample.toFixed(1)).join(", ")} ms of profiled time per benchmark sample`);
+  if (options.gaps) {
+    console.log(`only the unattributed stretches: ${results.map((r) => r.gapMsPerSample.toFixed(1)).join(", ")} ms of profiled time per benchmark sample`);
+    if (results.every((r) => r.underMs === 0)) {
+      console.log("no profiler sample landed in them: the stretches are shorter than the sampling interval, or there are none");
+      return;
+    }
+  }
   console.log(`time under ${options.under.join(", ")}: ${pct(result.shareOfProfile).trim()} of the profile; the garbage collector, which the profile shows outside every function, is ${pct(result.collectorShareOfProfile).trim()} of the profile`);
   for (const { function: fn, share } of result.inclusive) console.log(`  inclusive ${pct(share)}  ${fn}`);
   const list = (fns) => {

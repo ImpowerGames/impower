@@ -143,6 +143,13 @@ await check("profile shares with --gaps count only the samples taken in a gap", 
     result.functions.map((f) => [f.name, f.share]),
     [["between", 1]],
   );
+  // A gap no sample landed in yields zeros, not NaN.
+  const none = profileShares(profile, { under: ["(root)"], inclusive: ["between"], keep: () => false, nameOf: (frame) => frame.functionName });
+  assert.equal(none.underMs, 0);
+  assert.equal(none.shareOfProfile, 0);
+  assert.equal(none.collectorShareOfProfile, 0);
+  assert.deepEqual(none.inclusive, [{ function: "between", share: 0 }]);
+  assert.deepEqual(none.functions, []);
   assert.equal(parseShareArgs(["a.cpuprofile", "--under", "(root)", "--gaps"]).gaps, true);
   const groupOf = (name) => GAPS.find(([, re]) => re.test(name))?.[0];
   assert.equal(groupOf("pathLocationTable.ts:(anonymous)"), groupOf("findClosestPath.ts:findClosestPath"));
@@ -172,13 +179,18 @@ if (!esbuildInstalled) {
       const run = spawnSync(process.execPath, [path.join(HERE, "preview-bench.mjs"), "--fixture", "--samples", "1", "--warmup", "0", "--cpu-prof", profiles], { encoding: "utf8", timeout: 240_000, windowsHide: true });
       assert.equal(run.status, 0, run.stdout + run.stderr);
       for (const mode of ["preview", "edit"]) {
-        const section = run.stdout.slice(run.stdout.indexOf(`mode ${mode}:`));
+        // Up to the next mode's report, so one mode's rows cannot answer for
+        // the other's.
+        const from = run.stdout.indexOf(`mode ${mode}:`);
+        const next = run.stdout.indexOf("\nmode ", from + 1);
+        const section = run.stdout.slice(from, next < 0 ? undefined : next);
         assert.ok(run.stdout.includes(`mode ${mode}: line ${target.line} "${target.lineText}", replacing hero_concerned`), `no ${mode} report`);
         assert.match(section, /1 samples after 0 warm-up; route \d{4,} steps/);
         // A warm route is replayed rather than searched, so the replay is the
         // route phase every sample has.
         assert.match(section, /game\/simulateRoute/);
         assert.match(section, /game\/setStartFrom/);
+        assert.match(section, /scopeDefineInstances/);
         assert.match(section, /ink\/compile/);
         assert.match(section, /pathLocations/);
         assert.match(section, /\(checkpoint\)/);
