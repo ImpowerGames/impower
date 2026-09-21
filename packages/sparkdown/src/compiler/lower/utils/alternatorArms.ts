@@ -9,7 +9,7 @@ import { Text } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Text";
 import { TunnelOnwards } from "../../../inkjs/compiler/Parser/ParsedHierarchy/TunnelOnwards";
 import { Weave } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Weave";
 import { Glue as RuntimeGlue } from "../../../inkjs/engine/Glue";
-import { buildDisplayCall } from "./displayCall";
+import { buildDisplayCall, separateTags } from "./displayCall";
 import type { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
 import type { LowerContext } from "../context";
 import { lowerPrimary } from "../expression/lowerExpression";
@@ -149,32 +149,36 @@ export function lowerArms(
   return arms;
 }
 
-// A single-line block arm is a display line of its own. Its tags go ahead of a
-// `display({ text })` call on the default target, and a divert follows the
-// call, held on the same line by glue as a mid-line divert is.
+// A single-line block arm is a display line of its own: a `display({ text })`
+// call on the default target carrying the arm's tags, and a divert after the
+// call, held on the same line by glue as a mid-line divert is. An arm with no
+// text keeps its tags on the stream.
 function armLineAsDisplayCall(
   parts: ParsedObject[],
   ctx: LowerContext,
 ): ParsedObject[] {
-  const tags: ParsedObject[] = [];
   const text: ParsedObject[] = [];
   const tail: ParsedObject[] = [];
+  const tagObjects: ParsedObject[] = [];
   let inTag = false;
   for (const obj of parts) {
     if (obj instanceof Tag) {
       inTag = obj.isStart;
-      tags.push(obj);
+      tagObjects.push(obj);
     } else if (inTag) {
-      tags.push(obj);
+      tagObjects.push(obj);
     } else if (tail.length === 0 && obj instanceof Text) {
       text.push(obj);
     } else {
       tail.push(obj);
     }
   }
-  const out: ParsedObject[] = [...tags];
-  if (text.length > 0) {
-    out.push(buildDisplayCall(undefined, undefined, text, null, ctx));
+  const out: ParsedObject[] = [];
+  if (text.length === 0) {
+    out.push(...tagObjects);
+  } else {
+    const { tags } = separateTags(tagObjects);
+    out.push(buildDisplayCall(undefined, undefined, text, null, ctx, tags));
     const joins =
       tail.length > 0 &&
       tail.every((obj) => obj instanceof Divert || obj instanceof TunnelOnwards);

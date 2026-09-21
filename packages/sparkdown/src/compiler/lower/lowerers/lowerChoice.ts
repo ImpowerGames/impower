@@ -29,7 +29,7 @@ import {
   divertLoadShapeProblem,
   withDivertLoad,
 } from "../utils/buildDivert";
-import { buildDisplayCall } from "../utils/displayCall";
+import { buildDisplayCall, separateTags } from "../utils/displayCall";
 import { lowerTagContent } from "../utils/lowerTagContent";
 import { wrapInWeave } from "../utils/wrapInWeave";
 
@@ -180,7 +180,21 @@ export function lowerChoice(
   // resolved by inkjs's `Weave.AddRuntimeForGather` to the next gather.
 
   const echo = ctx.config?.experimentalDisplayCalls
-    ? chosenTextAsDisplayCall(startContent, innerContent, chosenTail, ctx)
+    ? chosenTextAsDisplayCall(
+        startContent,
+        innerContent,
+        chosenTail,
+        () => {
+          const fresh = new ContentList();
+          if (bracketed) {
+            appendTextFromCapture(bracketed, "ChoiceStartText", ctx, fresh);
+          } else if (unbracketed) {
+            appendTextFromCapture(unbracketed, "ChoicePlainText", ctx, fresh);
+          }
+          return fresh;
+        },
+        ctx,
+      )
     : null;
   if (echo) {
     innerContent = new ContentList();
@@ -191,6 +205,7 @@ export function lowerChoice(
 
   const choice = new Choice(startContent, choiceOnlyContent, innerContent);
   choice.startEcho = echo?.startEcho ?? null;
+  choice.repeatsStartContent = echo?.repeatsStartContent ?? true;
   choice.onceOnly = onceOnly;
   choice.hasWeaveStyleInlineBrackets = hasWeaveStyleInlineBrackets;
   choice.indentationDepth = depth;
@@ -292,25 +307,42 @@ export function lowerChoice(
 // repeated, then its inner text) become one `display({ text })` call on the
 // default target, followed by the arrow's objects. A plain arrow is held on the
 // line by glue, so the target's first line joins it as it joins flat text.
-// Returns null when there are no words to print, or when a `# tag` sits among
-// them, since a tag cannot ride the captured string.
+// Returns null when there are no words to print.
+//
+// The start content repeats by jumping into the container the choice label
+// uses, from inside the call's string. A tag cannot run inside a captured
+// string, so when a `# tag` sits among the words, the call instead captures a
+// fresh lowering of the start content (`relowerStart`) and carries the tags in
+// its `tags`.
 function chosenTextAsDisplayCall(
   start: ContentList,
   inner: ContentList,
   tail: ParsedObject[],
+  relowerStart: () => ContentList,
   ctx: LowerContext,
-): { inner: ParsedObject[]; startEcho: ChoiceStartEcho | null } | null {
+): {
+  inner: ParsedObject[];
+  startEcho: ChoiceStartEcho | null;
+  repeatsStartContent: boolean;
+} | null {
   const words = inner.content.slice();
-  if ([...start.content, ...words].some((obj) => obj instanceof Tag)) {
-    return null;
-  }
   const hasStart = start.content.length > 0;
   if (!hasStart && words.length === 0) return null;
-  const startEcho = hasStart ? new ChoiceStartEcho() : null;
-  const body = startEcho ? [startEcho, ...words] : words;
-  const out: ParsedObject[] = [
-    buildDisplayCall(undefined, undefined, body, null, ctx),
-  ];
+  const tagged = [...start.content, ...words].some(
+    (obj) => obj instanceof Tag,
+  );
+  let call: ParsedObject;
+  let startEcho: ChoiceStartEcho | null = null;
+  if (tagged) {
+    const startWords = hasStart ? relowerStart().content.slice() : [];
+    const { tags, rest } = separateTags([...startWords, ...words]);
+    call = buildDisplayCall(undefined, undefined, rest, null, ctx, tags);
+  } else {
+    startEcho = hasStart ? new ChoiceStartEcho() : null;
+    const body = startEcho ? [startEcho, ...words] : words;
+    call = buildDisplayCall(undefined, undefined, body, null, ctx);
+  }
+  const out: ParsedObject[] = [call];
   // The call's own newline ends the line, so a bare newline tail is dropped.
   const arrow = tail.filter((obj) => !(obj instanceof Text && obj.text === "\n"));
   if (arrow.length > 0) {
@@ -323,7 +355,7 @@ function chosenTextAsDisplayCall(
     }
     out.push(...tail);
   }
-  return { inner: out, startEcho };
+  return { inner: out, startEcho, repeatsStartContent: !tagged };
 }
 
 function makeSource(choiceNode: SyntaxNode, ctx: LowerContext): SourceMetadata {

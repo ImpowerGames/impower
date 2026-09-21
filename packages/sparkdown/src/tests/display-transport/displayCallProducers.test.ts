@@ -76,7 +76,11 @@ function steps(source: string, experimentalDisplayCalls: boolean): Step[] {
           Object.fromEntries(
             [...(t.value?.entries() ?? [])].map(([k, v]) => [
               k,
-              (v as { value?: unknown }).value,
+              v instanceof ObjectValue
+                ? [...(v.value?.values() ?? [])].map(
+                    (e) => (e as { value?: unknown }).value,
+                  )
+                : (v as { value?: unknown }).value,
             ]),
           ),
         ),
@@ -107,11 +111,11 @@ function displayCallSteps(source: string): Step[] {
 }
 
 describe("display statements that used to fall back (#687)", () => {
-  test("a line with a # tag carries the tag beside its table", () => {
+  test("a line with a # tag carries the tag in its table", () => {
     const [step] = displayCallSteps(`The bell rings. # ominous\ndone\n`);
     expect(step!.authorTags).toEqual(["ominous"]);
     expect(step!.tables).toEqual([
-      { target: "action", text: "The bell rings." },
+      { target: "action", text: "The bell rings.", tags: ["ominous"] },
     ]);
   });
 
@@ -119,8 +123,21 @@ describe("display statements that used to fall back (#687)", () => {
     const [step] = displayCallSteps(`HERO: Goodbye. # final # quiet\ndone\n`);
     expect(step!.authorTags).toEqual(["final", "quiet"]);
     expect(step!.tables).toEqual([
-      { target: "dialogue", character: "HERO", text: "Goodbye." },
+      {
+        target: "dialogue",
+        character: "HERO",
+        text: "Goodbye.",
+        tags: ["final", "quiet"],
+      },
     ]);
+  });
+
+  // The body's interpolation runs before the tag's, as written.
+  test("a tag is evaluated after the line's text", () => {
+    const [step] = displayCallSteps(
+      `store x = 0\nSay {bump()} # {x}\ndone\n\nfunction bump()\nx += 1\nreturn "Hello"\nend\n`,
+    );
+    expect(step!.authorTags).toEqual(["1"]);
   });
 
   test("a write with no layer names no target", () => {
@@ -193,7 +210,7 @@ describe("producers outside display statements (#688)", () => {
   test("a single-line block alternator arm, with its tag", () => {
     const [step] = displayCallSteps(`queue | A # t | B end\ndone\n`);
     expect(step!.authorTags).toEqual(["t"]);
-    expect(step!.tables).toEqual([{ text: "A" }]);
+    expect(step!.tables).toEqual([{ text: "A", tags: ["t"] }]);
   });
 
   test("a bare {expr} line", () => {
@@ -238,6 +255,24 @@ describe("producers outside display statements (#688)", () => {
       `choose\n  * Take[ it] now\n    Taken.\nend\ndone\n`,
     );
     expect(run[1]!.tables).toEqual([{ text: "Take now" }]);
+  });
+
+  test("a picked choice with a tag carries it in the echo's table", () => {
+    const run = displayCallSteps(
+      `choose\n  * Take it # picked\n    Taken.\nend\ndone\n`,
+    );
+    expect(run[1]!.authorTags).toEqual(["picked"]);
+    expect(run[1]!.tables).toHaveLength(1);
+    expect(run[1]!.tables[0]!["tags"]).toEqual(["picked"]);
+  });
+
+  test("a bracketed picked choice with a tag after the brackets", () => {
+    const run = displayCallSteps(
+      `choose\n  * Take[ it] now # picked\n    Taken.\nend\ndone\n`,
+    );
+    expect(run[1]!.authorTags).toEqual(["picked"]);
+    expect(run[1]!.tables).toHaveLength(1);
+    expect(run[1]!.tables[0]!["tags"]).toEqual(["picked"]);
   });
 
   test("a picked choice ending in an inline divert joins the target's line", () => {

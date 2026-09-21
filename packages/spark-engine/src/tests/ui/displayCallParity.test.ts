@@ -278,6 +278,30 @@ describe("display() ↔ legacy parity · producers outside display statements", 
       `  choose\n    * Take it -> row\n  end\nend\n\nscene row\n  now.`,
     );
   });
+
+  // The echo's table names no target, so the beat takes its routing from the
+  // dialogue line it joins.
+  test("picked choice diverting into a dialogue line", async () => {
+    await assertParity(
+      `  choose\n    * Take it -> row\n  end\nend\n\nscene row\n  HERO: Now.`,
+    );
+  });
+
+  test("picked choice with a tag", async () => {
+    await assertParity(`  choose\n    * Take it # picked\n      Taken.\n  end`);
+  });
+
+  test("print() ending a function glued onto a dialogue line", async () => {
+    await assertParity(
+      `  & f()\n  HERO: After.\nend\n\nfunction f()\nprint("printed")`,
+    );
+  });
+
+  test("dialogue line with a tag evaluated after its text", async () => {
+    await assertParity(
+      `  store x = 0\n  HERO: Say {bump()} # {x}\nend\n\nfunction bump()\nx += 1\nreturn "Hello"`,
+    );
+  });
 });
 
 // The interpreter's reading of a step, beat by beat.
@@ -306,6 +330,27 @@ describe("display() load beats", () => {
         .join(""),
     ).toContain("load the cart");
   });
+
+  // A table naming no target renders on the default target; only a `load`
+  // field makes a load beat.
+  for (const [label, body] of [
+    ["a layerless write", `  store verb = "load"\n  @: {verb} the cart`],
+    [
+      "a print() call",
+      `  & f()\nend\n\nfunction f()\nprint("load the cart")`,
+    ],
+  ] as const) {
+    test(`${label} beginning with load renders as text`, async () => {
+      const [beat] = await beats(body, true);
+      expect(beat!.load).toBeUndefined();
+      expect(
+        Object.values(beat!.text ?? {})
+          .flat()
+          .map((t) => t.text)
+          .join(""),
+      ).toContain("load the cart");
+    });
+  }
 
   test("a load line between two text lines is a load beat of its own", async () => {
     const run = await beats(`  Before.\n  load overworld\n  After.`, true);

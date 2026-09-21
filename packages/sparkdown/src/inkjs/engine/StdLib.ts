@@ -1,3 +1,4 @@
+import { ControlCommand } from "./ControlCommand";
 import { getPluralCategory } from "./PluralRules";
 import { StoryException } from "./StoryException";
 import { PRNG } from "./PRNG";
@@ -3117,6 +3118,22 @@ export const STDLIB: Record<string, StdLibEntry> = {
     arity: -1, // variadic — actual count comes from compile-site capture
     fn: (story, args) => {
       const payload = args[0];
+      // The line's author tags go to the stream first, as a tag written on
+      // the line would, so they land in the same step's `currentTags`.
+      const tags =
+        payload instanceof ObjectValue ? payload.value?.get("tags") : null;
+      if (tags instanceof ObjectValue && tags.value) {
+        const ordered = [...tags.value.entries()].sort(
+          ([a], [b]) => Number(a) - Number(b),
+        );
+        for (const [, tag] of ordered) {
+          story.state.PushToOutputStream(ControlCommand.BeginTag());
+          if (tag instanceof StringValue) {
+            story.state.PushToOutputStream(tag);
+          }
+          story.state.PushToOutputStream(ControlCommand.EndTag());
+        }
+      }
       if (payload) {
         // The live instruction table rides the output stream as a
         // non-string object (currentTags skips it).

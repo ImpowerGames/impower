@@ -28,7 +28,11 @@ import {
 } from "../utils/buildDivert";
 import { ErrorType } from "../../../inkjs/compiler/Parser/ErrorType";
 import { stampDebugMetadata } from "../utils/debugMetadata";
-import { buildDisplayCall, buildLoadCall } from "../utils/displayCall";
+import {
+  buildDisplayCall,
+  buildLoadCall,
+  separateTags,
+} from "../utils/displayCall";
 import { formatDisplayRoutingTag } from "../../utils/displayRoutingTag";
 import { lowerTagContent } from "../utils/lowerTagContent";
 import { wrapInWeave } from "../utils/wrapInWeave";
@@ -186,8 +190,8 @@ function buildDisplayContent(
 // string at call time. The engine then runs the identical `parse()` pipeline.
 //
 // A mid-line `>` split emits one display() call per beat range (separate beats
-// via the engine's display-instruction-count boundary). Around each call:
-// author `# tag`s go ahead of it, and a mid-line divert follows it. A `load`
+// via the engine's display-instruction-count boundary). Author `# tag`s ride
+// the call's `tags`, and a mid-line divert follows the call. A `load`
 // action line makes a `display({ load })` call instead. It returns null only
 // when a mid-body `..` sits next to something other than text, or text follows
 // a mid-line divert.
@@ -253,9 +257,8 @@ function tryBuildSimpleDisplayCall(
         return null;
       }
     }
-    // Author `# tag`s are metadata, not text: they go to the stream ahead of
-    // the call, so they land in `currentTags` for the same step.
-    const { tags, body } = separateTags(walked);
+    // Author `# tag`s are metadata, not text: they ride the call's `tags`.
+    const { tags, rest: body } = separateTags(walked);
     const trailingGlue = body.at(-1) instanceof ParsedGlue ? body.pop() : null;
     // A trailing `>` break ends the body with its own newline Text. Captured
     // in the table it would sit where no glue can reach it, so a following
@@ -279,16 +282,15 @@ function tryBuildSimpleDisplayCall(
       }
     }
     const loadArgs = lineType === "action" ? stripLoadKeyword(body) : null;
-    calls.push(...tags);
     if (loadArgs) {
-      calls.push(buildLoadCall(loadArgs, range, ctx));
+      calls.push(buildLoadCall(loadArgs, range, ctx, tags));
     } else {
       // An empty body still makes a call, so the line keeps its own step. Its
       // range is stamped from the statement's start, since an empty block
       // body's range sits on the line after it.
       const stamped =
         body.length > 0 ? range : { from: parent.from, to: parent.from };
-      calls.push(buildDisplayCall(target, character, body, stamped, ctx));
+      calls.push(buildDisplayCall(target, character, body, stamped, ctx, tags));
     }
     if (trailingGlue) calls.push(trailingGlue);
     if (divertTail.objects.length > 0) {
@@ -318,28 +320,6 @@ function isInTag(obj: ParsedObject, list: ParsedObject[]): boolean {
     if (o === obj) return inTag;
   }
   return false;
-}
-
-// Split a walked display body into its `# tag` runs (each `Tag(true)`,
-// content, `Tag(false)`) and the remaining body, both in order.
-function separateTags(walked: ParsedObject[]): {
-  tags: ParsedObject[];
-  body: ParsedObject[];
-} {
-  const tags: ParsedObject[] = [];
-  const body: ParsedObject[] = [];
-  let inTag = false;
-  for (const obj of walked) {
-    if (obj instanceof Tag) {
-      inTag = obj.isStart;
-      tags.push(obj);
-    } else if (inTag) {
-      tags.push(obj);
-    } else {
-      body.push(obj);
-    }
-  }
-  return { tags, body };
 }
 
 // A `load <names>` action line is a world-load directive. Returns the body

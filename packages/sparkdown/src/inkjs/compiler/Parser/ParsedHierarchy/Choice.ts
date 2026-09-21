@@ -68,6 +68,9 @@ export class Choice extends ParsedObject implements IWeavePoint, INamedContent {
   // Where the chosen output repeats the start content, when `innerContent`
   // holds it rather than beginning with it.
   public startEcho: ChoiceStartEcho | null = null;
+  // False when `innerContent` prints its own copy of the start content, so
+  // the chosen output does not jump into the label's.
+  public repeatsStartContent: boolean = true;
 
   get condition() {
     return this._condition;
@@ -265,7 +268,7 @@ export class Choice extends ParsedObject implements IWeavePoint, INamedContent {
     this._innerContentContainer = new RuntimeContainer();
 
     // Repeat start content by diverting to its container
-    if (this.startContent) {
+    if (this.startContent && this.repeatsStartContent) {
       // The jump goes at the top of the choice content, or where `startEcho`
       // stands inside it.
       const echoTarget = this.startEcho

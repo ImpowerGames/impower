@@ -463,17 +463,18 @@ export class InterpreterModule extends Module<
    * per-character `parse()`, cue prefixing and buffer fold are byte-identical —
    * only the source of the routing differs.
    *
-   * Table shape: `{ target?: string, character?: string, text: string }`, or
-   * `{ load: string }` for a `load` line, whose whitespace-separated names
-   * queue a load beat.
+   * Table shape: `{ target?: string, character?: string, text: string,
+   * tags?: table }`, or `{ load: string }` for a `load` line, whose
+   * whitespace-separated names queue a load beat.
    *
    * One step makes one beat. Several tables share a step only when glue joined
-   * their lines, so the first table supplies the routing, and the body is the
-   * step's ordered visible text: every table's `text` and any flat string, in
-   * stream order. A glued continuation's table carries no routing. When it is
-   * the step's first table, the line it continues reached the stream as flat
-   * text, so the step is a flat-text step with more words joined on and takes
-   * {@link queue}, which routes it by its tag and recognises a `load` line.
+   * their lines, and the body is the step's ordered visible text: every
+   * table's `text` and any flat string, in stream order. The first table that
+   * names a target supplies the routing. Tables without one (a glued
+   * continuation, an echoed choice, `print()`, an asset line) take the routing
+   * of the line they join. A step whose tables name no target renders on the
+   * default target, unless a line joined into it reached the stream as flat
+   * text with a routing tag, which {@link queue} routes.
    *
    * @param content the step's `story.currentText`.
    * @param tags the step's `story.currentTags`.
@@ -484,10 +485,9 @@ export class InterpreterModule extends Module<
     content: string,
     tags: string[],
   ): void {
-    const first = tables[0];
-    const read = (key: string): unknown =>
-      (first?.value?.get(key) as { value?: unknown } | undefined)?.value;
-    const load = read("load");
+    const read = (table: ObjectValue | undefined, key: string): unknown =>
+      (table?.value?.get(key) as { value?: unknown } | undefined)?.value;
+    const load = read(tables[0], "load");
     if (typeof load === "string") {
       // A `load` line is always a load beat of its own. Glued continuation
       // lines add more names; they reach the step as table text.
@@ -499,17 +499,29 @@ export class InterpreterModule extends Module<
       this._state.buffer.push({ load: loadInstructions, end: 0 });
       return;
     }
-    const target = read("target");
-    if (typeof target !== "string" || !target) {
-      this.queue(content, choices, tags);
+    const routed = tables.find((table) => {
+      const target = read(table, "target");
+      return typeof target === "string" && target;
+    });
+    if (!routed) {
+      if (tags.some((tag) => parseDisplayRoutingTag(tag))) {
+        this.queue(content, choices, tags);
+      } else {
+        this.appendBeat("", undefined, content, choices);
+      }
       return;
     }
-    const characterRaw = read("character");
+    const characterRaw = read(routed, "character");
     const character =
       typeof characterRaw === "string" && characterRaw
         ? characterRaw
         : undefined;
-    this.appendBeat(target, character, content, choices);
+    this.appendBeat(
+      read(routed, "target") as string,
+      character,
+      content,
+      choices,
+    );
   }
 
   /**
