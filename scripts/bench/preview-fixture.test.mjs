@@ -20,7 +20,7 @@ import { createRequire } from "node:module";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { imageOptions, parseBenchArgs, tokenAround } from "./preview-bench.mjs";
+import { firstStreamDifference, imageOptions, parseBenchArgs, streamOps, tokenAround } from "./preview-bench.mjs";
 import { buildPreviewFixture, writePreviewFixture } from "./preview-fixture.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -106,8 +106,16 @@ await check("the benchmark's arguments and default replacements", () => {
   assert.deepEqual(imageOptions(["a/raffles_shy.svg", "b/raffles_concerned.svg", "raffles_unsure.png", "raffles_notes.txt", "bunny_shy.svg"], "raffles_", "raffles_concerned"), ["raffles_shy", "raffles_unsure"]);
 });
 
-// The benchmark end to end on the fixture: bundle, one process per mode, and
-// a report naming the route and the phases. It needs the workspace install
+await check("display streams compare by message, ignoring generated ids, and count batched ops", () => {
+  const a = [JSON.stringify({ method: "ui/batch", params: { messages: [{ method: "ui/create", id: "0b6f7a1c-1111-4222-8333-944445555666" }, { method: "ui/update" }] } }), JSON.stringify({ method: "game/executed", params: {} })];
+  const b = [a[0].replace("0b6f7a1c", "9c8d7e6f"), a[1]];
+  assert.equal(firstStreamDifference(a, b), null);
+  assert.equal(firstStreamDifference(a, a.slice(0, 1)).index, 1);
+  assert.deepEqual(streamOps(a), { "ui/batch > ui/create": 1, "ui/batch > ui/update": 1, "game/executed": 1 });
+});
+
+// The benchmark end to end on the fixture: bundle, one process per mode and
+// shape, and a report naming the route and the phases. It needs the workspace install
 // for esbuild and the compiler's dependencies, which the tooling workflow
 // does not have, so it says it skipped rather than passing silently there.
 const esbuildInstalled = (() => {
@@ -122,17 +130,45 @@ if (!esbuildInstalled) {
   console.log("SKIP: the benchmark's end-to-end run needs the workspace install (esbuild is not resolvable)");
 } else {
   await check("the benchmark runs both modes on the fixture and reports route, phases and wire size", () => {
-    const run = spawnSync(process.execPath, [path.join(HERE, "preview-bench.mjs"), "--fixture", "--samples", "1", "--warmup", "0"], { encoding: "utf8", timeout: 240_000, windowsHide: true });
+    const run = spawnSync(process.execPath, [path.join(HERE, "preview-bench.mjs"), "--fixture", "--samples", "1", "--warmup", "0"], { encoding: "utf8", timeout: 480_000, windowsHide: true });
     assert.equal(run.status, 0, run.stdout + run.stderr);
+    const header = (mode, shape) => `mode ${mode}, ${shape} shape: line ${target.line} "${target.lineText}", replacing hero_concerned`;
+    const sectionOf = (mode, shape) => {
+      const at = run.stdout.indexOf(header(mode, shape));
+      assert.ok(at >= 0, `no ${mode} ${shape} report`);
+      const next = run.stdout.indexOf("\nmode ", at + 1);
+      const end = run.stdout.indexOf("\npreview, transport shape", at + 1);
+      return run.stdout.slice(at, Math.min(...[next, end, run.stdout.length].filter((i) => i > at)));
+    };
     for (const mode of ["preview", "edit"]) {
-      const section = run.stdout.slice(run.stdout.indexOf(`mode ${mode}:`));
-      assert.ok(run.stdout.includes(`mode ${mode}: line ${target.line} "${target.lineText}", replacing hero_concerned`), `no ${mode} report`);
+      const section = sectionOf(mode, "transport");
       assert.match(section, /1 samples after 0 warm-up; route \d{4,} steps/);
-      assert.match(section, /game\/planRoute/);
       assert.match(section, /ink\/compile/);
+      assert.match(section, /ink\/json/);
       assert.match(section, /pathLocations/);
       assert.match(section, /\(checkpoint\)/);
     }
+    // A preview resumes the route its cold compile planned; an edit plans one.
+    assert.match(run.stdout, /game\/planRoute/);
+    assert.match(sectionOf("preview", "transport"), /page preview \(not in total\)/);
+    for (const shape of ["resident", "resident-emitting"]) {
+      const section = sectionOf("preview", shape);
+      assert.match(section, /worker connect/);
+      assert.match(section, /worker preview/);
+      assert.match(section, /\(of which message clone\)/);
+      assert.match(section, /display messages \(cloned\)/);
+      assert.match(section, /program, checkpoint or path locations in what was cloned: none/);
+      assert.match(section, /reset before each display: system\.simulating/);
+      assert.doesNotMatch(section, /wire: /);
+    }
+    assert.doesNotMatch(sectionOf("preview", "resident"), /ink\/json/);
+    assert.match(sectionOf("preview", "resident-emitting"), /ink\/json/);
+    const comparison = run.stdout.slice(run.stdout.indexOf("preview, transport shape against the resident shapes"));
+    assert.match(comparison, /saved by resident /);
+    assert.match(comparison, /saved by resident-emitting/);
+    assert.match(comparison, /ink\/json in the resident phases: absent/);
+    assert.match(comparison, /display: \d+ messages, [\d.]+ KB cloned to the page/);
+    assert.doesNotMatch(run.stdout, /mode edit, resident/);
   });
 }
 
