@@ -77,6 +77,13 @@ end
 `;
 
 // Compiling the fixture and replaying its route takes seconds.
+const FUNCTION_CALL = `function F()
+  return "world"
+end
+Hello {F()}.
+Bye.
+`;
+
 describe("the executed report", { timeout: 60_000 }, () => {
   it("is small after a preview at the bottom of a long scene, and highlights and labels what the listed report did", async () => {
     const fixture = previewFixture();
@@ -122,6 +129,21 @@ describe("the executed report", { timeout: 60_000 }, () => {
     expect(reported[MAIN_URI]!.lines).toContain(9);
     const l = labels(reports[0]!);
     expect(l.reported).toEqual(l.expected);
+  });
+
+  it("follows the line the listed report did when a line calls a function", async () => {
+    // Line 3 runs, then the function's body on line 1, then line 3 again:
+    // the line an editor follows is 1, the last one to join the set, and not
+    // 3, where the last location ends.
+    const reports = await runningReports(story(FUNCTION_CALL), 3);
+    expect(reports.length).toBeGreaterThan(0);
+    for (const report of reports) {
+      const { reported, expected } = highlights(report);
+      expect(reported).toEqual(expected);
+    }
+    expect(
+      reports.some((r) => r.params.executedLines?.[MAIN_URI]?.last === 1),
+    ).toBe(true);
   });
 
   it("highlights and labels what the listed report did while a game runs", async () => {

@@ -44,7 +44,7 @@ import type { Variable,VariablePresentationHint } from "../types/Variable";
 import { buildDefinesContext } from "../utils/buildContextFromStory";
 import { findClosestPath } from "../utils/findClosestPath";
 import { findClosestPathLocation } from "../utils/findClosestPathLocation";
-import { mergeLineRanges } from "../utils/executedLineRanges";
+import { lineRanges } from "../utils/executedLineRanges";
 import { validRoutePrefixLength } from "../utils/routeResume";
 import { CheckpointStore } from "./CheckpointStore";
 import { Clock } from "./Clock";
@@ -2246,9 +2246,11 @@ export class Game<T extends M = {}> {
     let first: ScriptLocation | undefined;
     let last: ScriptLocation | undefined;
     let lastPath: string | undefined;
-    // Each script's executed ranges, flattened, and the line its last
-    // executed location ends on.
-    const ranges = new Map<string, number[]>();
+    // Each script's executed lines, and the last of them to be added: the
+    // line an editor follows while a game runs, which is not the end of the
+    // last location when that location returns to lines already executed (a
+    // line that calls a function, after the function's body).
+    const lines = new Map<string, Set<number>>();
     const lastLines = new Map<string, number>();
     this._runtimeState.pathsExecutedThisFrame.forEach((p) => {
       lastPath = p;
@@ -2260,21 +2262,25 @@ export class Game<T extends M = {}> {
       last = l;
       if (detailed) {
         const uri = this.scriptUri(l[0]);
-        let pairs = ranges.get(uri);
-        if (!pairs) {
-          pairs = [];
-          ranges.set(uri, pairs);
+        let set = lines.get(uri);
+        if (!set) {
+          set = new Set();
+          lines.set(uri, set);
         }
-        pairs.push(l[1], l[3]);
-        lastLines.set(uri, l[3]);
+        for (let line = l[1]; line <= l[3]; line++) {
+          if (!set.has(line)) {
+            set.add(line);
+            lastLines.set(uri, line);
+          }
+        }
       }
     });
     let executedLines: Record<string, ExecutedLines> | undefined;
     if (detailed) {
       executedLines = {};
-      for (const [uri, pairs] of ranges) {
+      for (const [uri, set] of lines) {
         executedLines[uri] = {
-          ranges: mergeLineRanges(pairs),
+          ranges: lineRanges(set),
           last: lastLines.get(uri)!,
         };
       }

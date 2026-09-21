@@ -1,28 +1,21 @@
 /**
- * Sorts inclusive line ranges, given flattened as `[start, end, ...]` in any
- * order, and merges those that overlap or touch.
+ * The lines as sorted inclusive ranges, with adjacent lines joined, flattened
+ * as `[start, end, start, end, ...]`.
  */
-export const mergeLineRanges = (pairs: number[]): number[] => {
-  const count = pairs.length >> 1;
-  const order = new Array<number>(count);
-  for (let i = 0; i < count; i++) {
-    order[i] = i << 1;
-  }
-  order.sort((a, b) => pairs[a]! - pairs[b]! || pairs[a + 1]! - pairs[b + 1]!);
-  const merged: number[] = [];
-  for (const at of order) {
-    const start = pairs[at]!;
-    const end = pairs[at + 1]!;
-    const last = merged.length - 1;
-    if (last > 0 && start <= merged[last]! + 1) {
-      if (end > merged[last]!) {
-        merged[last] = end;
+export const lineRanges = (lines: Iterable<number>): number[] => {
+  const sorted = Array.from(lines).sort((a, b) => a - b);
+  const ranges: number[] = [];
+  for (const line of sorted) {
+    const last = ranges.length - 1;
+    if (last > 0 && line <= ranges[last]! + 1) {
+      if (line > ranges[last]!) {
+        ranges[last] = line;
       }
     } else {
-      merged.push(start, end);
+      ranges.push(line, line);
     }
   }
-  return merged;
+  return ranges;
 };
 
 /** Every line the flattened inclusive ranges cover, in order. */

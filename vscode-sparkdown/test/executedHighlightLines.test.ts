@@ -86,6 +86,17 @@ end
 `;
 
 // Compiling the fixture and replaying its route takes seconds.
+const BLOCK_THEN_BLANK = `scene A
+  Line one.
+  if true then
+    Line two.
+  end
+
+  Line three.
+  done
+end
+`;
+
 describe("the executed line highlight", { timeout: 60_000 }, () => {
   it("marks the same lines for a preview at the bottom of a long scene", async () => {
     const fixture = previewFixture();
@@ -102,6 +113,17 @@ describe("the executed line highlight", { timeout: 60_000 }, () => {
     // The blank line and the comment between `Line two.` and `Line three.`.
     expect(reported).toEqual(expect.arrayContaining([6, 7, 8, 9]));
     expect(reported).toEqual(expected);
+  });
+
+  it("marks the same lines when a blank line follows a block", async () => {
+    // The `if` block's location spans the line inside it, so the blank line
+    // after its `end` sits between two executed locations.
+    const s = story(BLOCK_THEN_BLANK);
+    for (const line of [3, 6]) {
+      const [report] = await previewReports(s, line);
+      const { reported, expected } = highlighted(s, report!);
+      expect(reported).toEqual(expected);
+    }
   });
 
   it("marks the same lines while a game runs", async () => {
