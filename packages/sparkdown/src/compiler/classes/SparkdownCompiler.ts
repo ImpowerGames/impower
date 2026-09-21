@@ -701,11 +701,6 @@ export class SparkdownCompiler {
   // Line offset each content chunk's debugMetadata was last stamped at —
   // a reused chunk whose offset is unchanged skips the restamp walk entirely.
   protected _chunkStampOffset = new WeakMap<object, number>();
-  // How many of a weave's children are its own chunk's. Assembly appends the
-  // chunks that follow a `choose` into the weave the choose lowered to, and
-  // that weave belongs to a chunk carried from compile to compile, so its
-  // content past this length is another compile's assembly.
-  protected _weaveOwnLength = new WeakMap<object, number>();
   // Constructed flows that raised a diagnostic during GENERATION (reuse skips
   // generation, which would silently drop the diagnostic — such flows are
   // barred from reuse and rebuilt so the diagnostic re-emits).
@@ -2314,6 +2309,27 @@ export class SparkdownCompiler {
       return undefined;
     };
 
+    // `getClosestWeave` follows a trailing weave into the content a chunk
+    // placed, and the chunks after it are appended there, so the assembly
+    // places a weave of its own in place of each trailing weave of a chunk.
+    // The chunk's objects are carried to the next compile and stay as the
+    // chunk lowered them. The copy holds the same children at the same
+    // indentation, so it generates what the chunk's weave would.
+    const assemblyWeave = (weave: Weave): Weave => {
+      const copy = new Weave(
+        withAssemblyWeaves(weave.content),
+        weave.baseIndentIndex,
+      );
+      copy.debugMetadata = weave.ownDebugMetadata;
+      return copy;
+    };
+    const withAssemblyWeaves = (content: ParsedObject[]): ParsedObject[] => {
+      const last = content.at(-1);
+      return last instanceof Weave
+        ? [...content.slice(0, -1), assemblyWeave(last)]
+        : content;
+    };
+
     const fileName = uri.split("/").at(-1)?.split(".")[0] ?? null;
 
     const remapContent = (
@@ -2402,14 +2418,7 @@ export class SparkdownCompiler {
           }
         }
         if (c.content) {
-          // A reused flow keeps the later chunks' content inside this chunk's
-          // trailing weave. Those children take their own chunk's offset, and
-          // a position is stamped once per version, so stop at the weave's own.
-          const ownLength = this._weaveOwnLength.get(c);
-          restampContent(
-            ownLength === undefined ? c.content : c.content.slice(0, ownLength),
-            lineNumberOffset,
-          );
+          restampContent(c.content, lineNumberOffset);
         }
       }
     };
@@ -2987,21 +2996,6 @@ export class SparkdownCompiler {
           }
           this._chunkStampOffset.set(compiledBlock, lineNumberOffset);
         } else {
-          // A carried chunk's trailing weaves still hold what the last assembly
-          // appended to them. Cut each back to its own children before anything
-          // walks the chunk: this assembly then appends to what a cold compile
-          // appends to, and the later chunks' content is stamped with its own
-          // chunk's line offset rather than with this one's.
-          for (
-            let tail: ParsedObject | undefined = content[0];
-            tail instanceof Weave;
-            tail = tail.content.at(-1)
-          ) {
-            const ownLength = this._weaveOwnLength.get(tail);
-            if (ownLength !== undefined) {
-              tail.content.length = ownLength;
-            }
-          }
           remapContent(content, lineNumberOffset);
           this._chunkStampOffset.set(compiledBlock, lineNumberOffset);
           const flow = content[0];
@@ -3012,7 +3006,9 @@ export class SparkdownCompiler {
               // chunk), preserve it. Scene/Branch declarations leave _rootWeave
               // unset so the staged-chunk pattern still creates an empty weave
               // for subsequent body chunks to attach to.
-              const rootWeave = flow._rootWeave ?? new Weave([]);
+              const rootWeave = flow._rootWeave
+                ? assemblyWeave(flow._rootWeave)
+                : new Weave([]);
               rootWeave.debugMetadata = flow.debugMetadata;
               const knot = new Knot(
                 flow.identifier!,
@@ -3118,7 +3114,7 @@ export class SparkdownCompiler {
               const flowContent =
                 uuid && !isWeavePoint
                   ? [new Statement(uuid, flow.content)] // Wrap non-choice/gather statements in a stably named container
-                  : flow.content;
+                  : withAssemblyWeaves(flow.content);
               const closestWeave = getClosestWeave(topLevelContent);
               if (closestWeave) {
                 const lastContent = closestWeave.content.at(-1);
@@ -3128,12 +3124,6 @@ export class SparkdownCompiler {
                 ) {
                   // Remove empty internal weave, since we are not using it
                   closestWeave.content.pop();
-                }
-                if (!this._weaveOwnLength.has(closestWeave)) {
-                  this._weaveOwnLength.set(
-                    closestWeave,
-                    closestWeave.content.length,
-                  );
                 }
                 closestWeave.AddContent(flowContent);
                 currentRun?.contentChunks.push(compiledBlock);
