@@ -83,14 +83,20 @@ export interface PlayerHarnessOptions {
   startFrom: { file: string; line: number };
   /** Decide when an image the page loads finishes; by default at once. */
   holdImage?: (src: string) => Promise<void> | undefined;
+  /** Keep every message in `toPage` and `toRouter` (the default), or none,
+   *  for a run whose memory is measured. */
+  recordMessages?: boolean;
 }
 
 export async function createPlayerHarness(options: PlayerHarnessOptions) {
   const { win, overlay } = installJSDOM();
   // Everything the worker sends the page, as the page receives it.
   const toPage: any[] = [];
+  const recordMessages = options.recordMessages !== false;
   const page = new LoopbackConnection();
-  const worker = new LoopbackConnection((message) => toPage.push(message));
+  const worker = new LoopbackConnection((message) => {
+    if (recordMessages) toPage.push(message);
+  });
   page.peer = worker;
   worker.peer = page;
   const workerState = installPlayerWorker(worker);
@@ -210,7 +216,7 @@ export async function createPlayerHarness(options: PlayerHarnessOptions) {
       connectGame: () =>
         endpoint.connect((message) => {
           const copy = structuredClone(message);
-          toRouter.push(copy);
+          if (recordMessages) toRouter.push(copy);
           router.receive(copy);
         }),
     };

@@ -560,9 +560,6 @@ export class Story extends FlowBase {
     // Generation is complete (FlattenContainersIn emits no diagnostics).
     this._generationPhase = false;
 
-    // The root is built afresh, but what it holds directly may be carried.
-    carriedRuntime.record?.(rootContainer);
-
     // Optimisation step - inline containers that can be
     this.FlattenContainersIn(rootContainer);
 

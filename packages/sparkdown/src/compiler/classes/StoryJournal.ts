@@ -145,12 +145,20 @@ export class StoryJournal {
     return this._recording != null;
   }
 
-  /** Record a carried object's parent before a container of this compile
-   *  takes it (`activation.reparent`). */
+  /** Record a carried object before a container of this compile takes it
+   *  (`activation.reparent`): its parent, and what resolution will write into
+   *  it. Only an object an earlier story holds already has a parent, so
+   *  nothing this compile creates is recorded. */
   recordParent(obj: object): void {
     const recording = this._recording;
     if (recording) {
       StoryJournal.remember(recording, obj, PARENT);
+      if (!(obj instanceof Container)) {
+        const fields = fieldsOf(obj);
+        if (fields) {
+          StoryJournal.remember(recording, obj, fields);
+        }
+      }
     }
   }
 
