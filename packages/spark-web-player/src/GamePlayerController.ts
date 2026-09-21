@@ -465,8 +465,8 @@ export class GamePlayerController {
       this.refs.locationItems.removeAttribute("title");
       this.refs.locationItems.removeAttribute("aria-label");
     }
-    const firstExecutedLocation = params?.locations?.[0];
-    const lastExecutedLocation = params?.locations?.at(-1);
+    const firstExecutedLocation = params?.firstLocation;
+    const lastExecutedLocation = params?.lastLocation;
     if (!params || !this._game) {
       this.refs.leftItems.hidden = true;
       return;
@@ -2248,6 +2248,9 @@ export class GamePlayerController {
       console.error("No game to preview");
       return false;
     }
+    // A suggestion's report is not relayed (see `listen`), so the game leaves
+    // out what only the editors would read.
+    this._game.reportsExecutedLines = !this.displayingSpeculative;
     const game = this._game;
     const overtaken = () =>
       update !== this._previewUpdates ||

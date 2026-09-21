@@ -294,6 +294,9 @@ async function main() {
   // benchmark resets no field by hand.
   const CALLS = ["game.endSimulation()"];
   const prepare = (game: Game, checkpoint: string | undefined) => {
+    // What a preview displays is a suggestion, whose report the player takes
+    // without what only the editors read.
+    game.reportsExecutedLines = config.mode !== "preview";
     game.markPreviewing(searched?.toPath);
     game.module.ui.forgetDisplayedImages();
     if (resident) game.endSimulation();

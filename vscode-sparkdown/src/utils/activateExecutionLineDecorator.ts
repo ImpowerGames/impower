@@ -1,10 +1,13 @@
 import { Message } from "@impower/spark-editor-protocol/src/types/base/Message";
-import { GameExecutedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameExecutedMessage";
+import {
+  GameExecutedMessage,
+  type ExecutedLines,
+} from "@impower/spark-engine/src/game/core/classes/messages/GameExecutedMessage";
 import { GameExitedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameExitedMessage";
 import { GamePreviewedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GamePreviewedMessage";
 import * as vscode from "vscode";
-import { Location } from "vscode-languageclient";
 import { SparkdownPreviewGamePanelManager } from "../managers/SparkdownPreviewGamePanelManager";
+import { addExecutedHighlightLines } from "./executedHighlightLines";
 import { getActiveOrVisibleEditor } from "./getActiveOrVisibleEditor";
 
 const currentlyExecutedLineDecoration: vscode.TextEditorDecorationType =
@@ -58,13 +61,13 @@ export const activateExecutionLineDecorator = (
     const editor = getActiveOrVisibleEditor();
     if (editor) {
       if (GameExecutedMessage.type.isNotification(message)) {
-        const { locations, state } = message.params;
+        const { executedLines, state } = message.params;
         if (state === "running") {
           previewingLines.clear();
-          highlightLines(currentlyExecutedLines, editor, locations);
+          highlightLines(currentlyExecutedLines, editor, executedLines);
         } else {
           currentlyExecutedLines.clear();
-          highlightLines(previewingLines, editor, locations);
+          highlightLines(previewingLines, editor, executedLines);
         }
       }
     }
@@ -144,46 +147,15 @@ export const activateExecutionLineDecorator = (
 const highlightLines = (
   lineSet: Set<number>,
   editor: vscode.TextEditor,
-  locations: Location[],
+  executedLines: Record<string, ExecutedLines> | undefined,
 ) => {
-  const documentLocations = Object.groupBy(locations, ({ uri }) => uri);
-  for (const [uri, locations] of Object.entries(documentLocations)) {
-    if (editor?.document.uri.toString() === uri) {
-      if (locations) {
-        const sortedLocations = Array.from(
-          locations.sort((a, b) => a.range.start.line - b.range.start.line),
-        );
-        let prevEndLine: number | undefined = undefined;
-        for (const location of sortedLocations) {
-          if (prevEndLine != null) {
-            const consecutiveBlankLines: Set<number> = new Set();
-            for (let i = prevEndLine + 1; i < location.range.start.line; i++) {
-              const trimmedLineText = editor.document.lineAt(i).text.trim();
-              if (!trimmedLineText || trimmedLineText.startsWith("//")) {
-                // also highlight empty lines between executed lines
-                consecutiveBlankLines.add(i);
-              } else {
-                // non-blank line, so this is not a connective gap between executed lines
-                consecutiveBlankLines.clear();
-                break;
-              }
-            }
-            for (const i of consecutiveBlankLines) {
-              lineSet.add(i);
-            }
-          }
-          for (
-            let i = location.range.start.line;
-            i <= location.range.end.line;
-            i++
-          ) {
-            // highlight executed lines
-            lineSet.add(i);
-          }
-          prevEndLine = location.range.end.line;
-        }
-      }
-    }
+  const lines = executedLines?.[editor.document.uri.toString()];
+  if (lines) {
+    addExecutedHighlightLines(
+      lineSet,
+      lines.ranges,
+      (line) => editor.document.lineAt(line).text,
+    );
   }
 };
 

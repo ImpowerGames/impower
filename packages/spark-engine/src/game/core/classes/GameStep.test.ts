@@ -120,14 +120,16 @@ describe("Game flow", () => {
       expect(game.checkpoints).toHaveLength(1);
     });
 
-    it("reports which paths it executed", () => {
+    it("reports which lines it executed", () => {
       const { game, emitted } = createGame();
       game.start();
       const executed = emitted.find((e) => e.method === "game/executed");
       expect(executed?.params?.["state"]).toBe("running");
-      expect(
-        (executed?.params?.["executedPaths"] as string[]).length,
-      ).toBeGreaterThan(0);
+      // The first beat is line 0.
+      expect(executed?.params?.["executedLines"]).toEqual({
+        "inmemory:///main.sd": { ranges: [0, 0], last: 0 },
+      });
+      expect(executed?.params?.["lastExecutedPath"]).toBeTruthy();
     });
   });
 

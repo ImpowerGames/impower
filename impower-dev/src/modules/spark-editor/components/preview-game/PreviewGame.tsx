@@ -129,6 +129,7 @@ export default function PreviewGame(_props: PreviewGameProps) {
       import("@impower/spark-engine/src/game/core/classes/messages/GameExitedMessage"),
       import("@impower/spark-engine/src/game/core/classes/messages/GameStartedMessage"),
       import("@impower/spark-engine/src/game/core/classes/messages/GameToggledFullscreenModeMessage"),
+      import("@impower/spark-engine/src/game/core/utils/executedLineRanges"),
       import("@impower/spark-engine/src/game/modules/DEFAULT_DESCRIPTION_DEFINITIONS"),
       import("@impower/spark-engine/src/game/modules/DEFAULT_OPTIONAL_DEFINITIONS"),
       import("@impower/spark-engine/src/game/modules/DEFAULT_SCHEMA_DEFINITIONS"),
@@ -149,6 +150,7 @@ export default function PreviewGame(_props: PreviewGameProps) {
         { GameExitedMessage },
         { GameStartedMessage },
         { GameToggledFullscreenModeMessage },
+        { expandLineRanges },
         { DEFAULT_DESCRIPTION_DEFINITIONS },
         { DEFAULT_OPTIONAL_DEFINITIONS },
         { DEFAULT_SCHEMA_DEFINITIONS },
@@ -296,7 +298,7 @@ export default function PreviewGame(_props: PreviewGameProps) {
           }
           if (GameExecutedMessage.type.is(message)) {
             const {
-              locations,
+              executedLines,
               state,
               restarted,
               simulatePath,
@@ -315,28 +317,16 @@ export default function PreviewGame(_props: PreviewGameProps) {
                 favoredChoices,
               });
             }
-            const executedSets: Record<string, Set<number>> = {};
-            for (const location of locations) {
-              executedSets[location.uri] ??= new Set();
-              for (
-                let i = location.range.start.line;
-                i <= location.range.end.line;
-                i++
-              ) {
-                executedSets[location.uri]?.add(i);
-              }
-            }
             const executedMap: Record<string, number[]> = {};
-            for (const [uri, set] of Object.entries(executedSets)) {
-              executedMap[uri] = Array.from(set);
+            for (const [uri, lines] of Object.entries(executedLines ?? {})) {
+              executedMap[uri] = expandLineRanges(lines.ranges);
             }
             Workspace.window.setHighlights(executedMap);
             if (state === "running" && !restarted) {
               const editor = Workspace.window.getActiveEditorForPane("logic");
               if (editor) {
                 const { uri } = editor;
-                const currentDocExecutedLines = executedMap[uri];
-                const lastExecutedLine = currentDocExecutedLines?.at(-1);
+                const lastExecutedLine = executedLines?.[uri]?.last;
                 if (lastExecutedLine != null) {
                   Workspace.window.showDocument(
                     uri,

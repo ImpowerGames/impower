@@ -121,8 +121,6 @@ function statusRow() {
 }
 
 const executedParams = (extra: Record<string, unknown>) => ({
-  executedPaths: [],
-  locations: [],
   conditions: [],
   choices: [],
   state: "previewing",

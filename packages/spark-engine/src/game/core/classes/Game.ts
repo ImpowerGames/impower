@@ -27,6 +27,7 @@ import { DEFAULT_MODULES } from "../../modules/DEFAULT_MODULES";
 import { ErrorType } from "../enums/ErrorType";
 import type { Breakpoint } from "../types/Breakpoint";
 import type { DocumentLocation } from "../types/DocumentLocation";
+import type { ExecutedLines } from "../types/ExecutedLines";
 import type { GameConfiguration } from "../types/GameConfiguration";
 import type { GameContext } from "../types/GameContext";
 import type { GameState } from "../types/GameState";
@@ -43,6 +44,7 @@ import type { Variable,VariablePresentationHint } from "../types/Variable";
 import { buildDefinesContext } from "../utils/buildContextFromStory";
 import { findClosestPath } from "../utils/findClosestPath";
 import { findClosestPathLocation } from "../utils/findClosestPathLocation";
+import { lineRanges } from "../utils/executedLineRanges";
 import { validRoutePrefixLength } from "../utils/routeResume";
 import { CheckpointStore } from "./CheckpointStore";
 import { Clock } from "./Clock";
@@ -317,6 +319,12 @@ export class Game<T extends M = {}> {
   set simulationFailure(value) {
     this._simulationFailure = value;
   }
+
+  /** Whether `game/executed` carries what the editors draw: the executed
+   *  lines, the last executed path and the conditions. The host turns it off
+   *  while the game displays a suggestion, whose report only labels the
+   *  preview with its first and last location. */
+  reportsExecutedLines = true;
 
   protected _restarted = false;
   get restarted() {
@@ -2278,23 +2286,61 @@ export class Game<T extends M = {}> {
 
   /** What the last stretch of execution did, as `game/executed` reports it. */
   protected executedParams(): GameExecutedParams {
-    const locations: DocumentLocation[] = [];
+    const detailed = this.reportsExecutedLines;
+    const table = this._program.pathLocations;
+    let first: ScriptLocation | undefined;
+    let last: ScriptLocation | undefined;
+    let lastPath: string | undefined;
+    // Each script's executed lines, and the last of them to be added: the
+    // line an editor follows while a game runs, which is not the end of the
+    // last location when that location returns to lines already executed (a
+    // line that calls a function, after the function's body).
+    const lines = new Map<string, Set<number>>();
+    const lastLines = new Map<string, number>();
     this._runtimeState.pathsExecutedThisFrame.forEach((p) => {
-      const l = pathLocation(this._program.pathLocations, p);
-      if (l) {
-        const docLocation = this.getDocumentLocation(l);
-        locations.push(docLocation);
+      lastPath = p;
+      const l = pathLocation(table, p);
+      if (!l) {
+        return;
+      }
+      first ??= l;
+      last = l;
+      if (detailed) {
+        const uri = this.scriptUri(l[0]);
+        let set = lines.get(uri);
+        if (!set) {
+          set = new Set();
+          lines.set(uri, set);
+        }
+        for (let line = l[1]; line <= l[3]; line++) {
+          if (!set.has(line)) {
+            set.add(line);
+            lastLines.set(uri, line);
+          }
+        }
       }
     });
+    let executedLines: Record<string, ExecutedLines> | undefined;
+    if (detailed) {
+      executedLines = {};
+      for (const [uri, set] of lines) {
+        executedLines[uri] = {
+          ranges: lineRanges(set),
+          last: lastLines.get(uri)!,
+        };
+      }
+    }
     // Copies, not the runtime state's own arrays, so a report, once taken,
     // is not changed by what the story evaluates afterwards (the layouts'
     // bindings as they mount).
     return {
       simulatePath: this._simulatePath,
       startPath: this._startPath,
-      executedPaths: Array.from(this._runtimeState.pathsExecutedThisFrame),
-      locations,
-      conditions: [...this._runtimeState.conditionsEncountered],
+      executedLines,
+      firstLocation: first ? this.getDocumentLocation(first) : undefined,
+      lastLocation: last ? this.getDocumentLocation(last) : undefined,
+      lastExecutedPath: detailed ? lastPath : undefined,
+      conditions: detailed ? [...this._runtimeState.conditionsEncountered] : [],
       choices: [...this._runtimeState.choicesEncountered],
       state: this._state,
       restarted: this._restarted,
@@ -2984,6 +3030,13 @@ export class Game<T extends M = {}> {
 
   getDocumentLocation(location: ScriptLocation | null | undefined) {
     return Game.documentLocation(this._program, this._scripts, location);
+  }
+
+  /** The uri a location's script index names, as `documentLocation` gives it. */
+  protected scriptUri(scriptIndex: number | undefined) {
+    return scriptIndex != null
+      ? (this._scripts[scriptIndex] ?? this._program.uri)
+      : this._program.uri;
   }
 
   static pathToDocumentLocation(program: SparkProgram, path: string) {
