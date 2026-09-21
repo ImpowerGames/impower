@@ -159,8 +159,10 @@ export function compareShapes(transport, resident, emitting) {
     lines.push(row(`${name} total without the DOM`, r), row(`saved by ${name}`, { min: t.min - r.max, median: t.median - r.median, max: t.max - r.min }));
   }
   const diff = firstStreamDifference(transport.displayStream ?? [], resident.displayStream ?? []);
+  const shapes = resident.phases["ink/flowShapes"];
   lines.push(
     `  ink/json in the resident phases: ${resident.phases["ink/json"] ? "present" : "absent"}`,
+    `  ink/flowShapes, which stands in for it: ${shapes ? `${shapes.min.toFixed(1)} / ${shapes.median.toFixed(1)} / ${shapes.max.toFixed(1)} ms (min / median / max)` : "absent"}`,
     `  display: ${resident.messages?.count.median ?? 0} messages, ${(resident.messages?.outKB.median ?? 0).toFixed(1)} KB cloned to the page, against ${transport.wireKB?.total.median.toFixed(0)} KB of program and checkpoint`,
     diff
       ? `  the route game's display differs from the page game's, first at message ${diff.index}:\n    transport ${diff.transport}\n    resident  ${diff.resident}`

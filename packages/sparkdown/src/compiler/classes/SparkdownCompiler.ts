@@ -546,9 +546,10 @@ export class SparkdownCompiler {
   // The file-registry epoch the last summary was stamped at. A file added,
   // replaced or removed is a change no line number describes.
   protected _changeFilesEpoch = -1;
-  // Per top-level flow, the cross-flow fingerprint it serialized with last
-  // compile: its containers' visit-count flags and its diverts' resolved
-  // targets. Those are the parts of a flow's bytecode an edit ELSEWHERE can
+  // Per top-level flow, the cross-flow fingerprint it compiled to last
+  // compile, whether or not that compile emitted bytecode: its containers'
+  // visit-count flags and its diverts' resolved targets. Those are the parts
+  // of a flow's bytecode an edit ELSEWHERE can
   // move, and a checkpoint taken before such a move records counts under the
   // old flags and a callstack under the old targets. Kept apart from the
   // serialized-bytecode caches because it has to cover flows those caches skip
@@ -1246,39 +1247,7 @@ export class SparkdownCompiler {
       settled: settledFlows,
       ok: flowReuseOk,
     } = this.computeFlowReuse(story);
-    const previousFingerprints = this._flowFingerprints;
-    const nextFingerprints = new Map<string, string>();
-    const previousCounting = this._flowCountingSignatures;
-    const nextCounting = new Map<string, string>();
-    // Two comparisons, because a flow the author edited and a flow they did not
-    // can be asked different questions.
-    //
-    // A flow written entirely above everything the author edited must serialize
-    // the same cross-flow bits it did last compile. Anything else moved it from
-    // elsewhere, and nothing about the edited LINES can account for that.
-    //
-    // A flow the author DID edit has to be asked something narrower, because
-    // its shape is supposed to have changed. What it may not change is which of
-    // its containers count their visits: a checkpoint records a visit count
-    // only for the containers that were counting when it was taken, so a
-    // container that starts counting leaves every earlier checkpoint short of a
-    // visit it cannot reconstruct. Ordinary typing adds containers that count
-    // nothing and leaves the signature alone; the first `{scene}` reference
-    // anywhere in the program moves it.
-    const noteFlowShape = (name: string, fp: string, container: Container) => {
-      nextFingerprints.set(name, fp);
-      const counting = this.countingSignature(container);
-      nextCounting.set(name, counting);
-      if (previousCounting?.get(name) !== counting) {
-        this.noteCrossFlowShift();
-      }
-      if (!settledFlows.has(name)) {
-        return;
-      }
-      if (previousFingerprints?.get(name) !== fp) {
-        this.noteCrossFlowShift();
-      }
-    };
+    const shapes = this.startFlowShapes(settledFlows);
     if (this._renamedFlowNames?.size) {
       // A synthetic rename inside a flow changes its serialized bytes in
       // ways the fingerprint can't see — its cached JSON must not be
@@ -1286,11 +1255,6 @@ export class SparkdownCompiler {
       for (const renamed of this._renamedFlowNames) {
         reusableFlows.delete(renamed);
       }
-      // And a rename rebinds a name to different content, because synthetic
-      // names are document-order ordinals. A route names each position it
-      // reached by path, and a path through a synthetic flow starts with that
-      // name, so the change summary cannot answer for it either.
-      this._changeHazard = true;
     }
     if (!flowReuseOk) {
       // The global guard failed (`_unchangedFlowShapeAtRisk`: something this
@@ -1306,21 +1270,7 @@ export class SparkdownCompiler {
       // Walking for them anyway is the difference between the NEXT compile
       // being able to tell a settled flow apart from an unknown one and not,
       // and it costs a fraction of the serialization this branch just did.
-      const flows = story.mainContentContainer?.namedOnlyContent;
-      if (flows) {
-        for (const [name, value] of flows) {
-          const container = asOrNull(value, Container);
-          if (container) {
-            noteFlowShape(
-              name,
-              JsonSerialisation.FingerprintCrossFlow(container),
-              container,
-            );
-          }
-        }
-      }
-      this._flowFingerprints = nextFingerprints;
-      this._flowCountingSignatures = nextCounting;
+      this.noteEveryFlowShape(story, shapes);
     } else if (binary) {
       // Binary twin of the JSON memo below. The reuse GUARDS are shared —
       // `reusableFlows` and the `_renamedFlowNames` subtraction are
@@ -1334,8 +1284,7 @@ export class SparkdownCompiler {
           // Fingerprinted before anything else, including the flows the cache
           // never serves: the change summary asks about every flow, and one it
           // is not told about is one it cannot claim to account for.
-          const fp = JsonSerialisation.FingerprintCrossFlow(container);
-          noteFlowShape(name, fp, container);
+          const fp = shapes.note(name, container);
           // Same two exclusions as the JSON path, for the same reasons:
           // `global decl` is non-contiguous and cheap, and canonical
           // synthetic names are POSITIONAL, so a name can rebind to a
@@ -1372,8 +1321,6 @@ export class SparkdownCompiler {
         nextChunkCache.set(name, entry);
       }
       this._flowChunkCache = nextChunkCache;
-      this._flowFingerprints = nextFingerprints;
-      this._flowCountingSignatures = nextCounting;
     } else {
       const prevFlowCache = this._flowJsonCache;
       const nextFlowCache = new Map<string, { fp: string; value: any }>();
@@ -1395,8 +1342,7 @@ export class SparkdownCompiler {
           // Both are still fingerprinted, before anything else: the change
           // summary asks about every flow, and one it is not told about is one
           // it cannot claim to account for.
-          const fp = JsonSerialisation.FingerprintCrossFlow(container);
-          noteFlowShape(name, fp, container);
+          const fp = shapes.note(name, container);
           if (name === "global decl" || CANONICAL_SYNTH_NAME.test(name)) {
             return serialize();
           }
@@ -1416,9 +1362,8 @@ export class SparkdownCompiler {
       // Writer. The two are interchangeable on this path only.
       story.ToJson(writer as SimpleJson.Writer, flowMemo);
       this._flowJsonCache = nextFlowCache;
-      this._flowFingerprints = nextFingerprints;
-      this._flowCountingSignatures = nextCounting;
     }
+    shapes.commit();
     if (binary) {
       // Pieces, not a packed blob: `nodes`/`numbers` are typed arrays that
       // transfer in O(1) across a worker boundary, and packing them into
@@ -1480,6 +1425,122 @@ export class SparkdownCompiler {
     this._editedFrom.clear();
     this._changeHazard = false;
     return summary;
+  }
+
+  /**
+   * Compare each top-level flow's shape with the one it had last compile,
+   * raising the change hazard for any flow that moved in a way the edited lines
+   * cannot account for.
+   *
+   * Two comparisons, because a flow the author edited and a flow they did not
+   * can be asked different questions.
+   *
+   * A flow written entirely above everything the author edited (`settled`)
+   * must compile to the same cross-flow bits it did last compile. Anything else
+   * moved it from elsewhere, and nothing about the edited LINES can account for
+   * that.
+   *
+   * A flow the author DID edit has to be asked something narrower, because its
+   * shape is supposed to have changed. What it may not change is which of its
+   * containers count their visits: a checkpoint records a visit count only for
+   * the containers that were counting when it was taken, so a container that
+   * starts counting leaves every earlier checkpoint short of a visit it cannot
+   * reconstruct. Ordinary typing adds containers that count nothing and leaves
+   * the signature alone; the first `{scene}` reference anywhere in the program
+   * moves it.
+   *
+   * `note` returns the flow's cross-flow fingerprint, which the serializer's
+   * reuse memo also keys on. `commit` makes this compile's shapes the ones the
+   * next compile is compared with, so every compile has to note every flow
+   * before it commits, whether or not it serializes anything.
+   */
+  protected startFlowShapes(settled: Set<string>) {
+    const previousFingerprints = this._flowFingerprints;
+    const nextFingerprints = new Map<string, string>();
+    const previousCounting = this._flowCountingSignatures;
+    const nextCounting = new Map<string, string>();
+    if (this._renamedFlowNames?.size) {
+      // A rename rebinds a name to different content, because synthetic names
+      // are document-order ordinals. A route names each position it reached by
+      // path, and a path through a synthetic flow starts with that name, so the
+      // change summary cannot answer for it.
+      this._changeHazard = true;
+    }
+    return {
+      note: (name: string, container: Container): string => {
+        const fp = JsonSerialisation.FingerprintCrossFlow(container);
+        nextFingerprints.set(name, fp);
+        const counting = this.countingSignature(container);
+        nextCounting.set(name, counting);
+        if (previousCounting?.get(name) !== counting) {
+          this.noteCrossFlowShift();
+        }
+        if (settled.has(name) && previousFingerprints?.get(name) !== fp) {
+          this.noteCrossFlowShift();
+        }
+        return fp;
+      },
+      commit: () => {
+        this._flowFingerprints = nextFingerprints;
+        this._flowCountingSignatures = nextCounting;
+      },
+    };
+  }
+
+  /** Note the shape of every top-level flow, in the order the serializer
+   *  reaches them. */
+  protected noteEveryFlowShape(
+    story: RuntimeStory,
+    shapes: ReturnType<SparkdownCompiler["startFlowShapes"]>,
+  ) {
+    const flows = story.mainContentContainer?.namedOnlyContent;
+    if (flows) {
+      for (const [name, value] of flows) {
+        const container = asOrNull(value, Container);
+        if (container) {
+          shapes.note(name, container);
+        }
+      }
+    }
+  }
+
+  /**
+   * The change evidence `serializeCompiledProgram` gathers, gathered for a
+   * compile that serializes nothing. The same flows are compared under the
+   * same rules, so a compile's verdict does not depend on whether its bytecode
+   * was emitted.
+   */
+  protected noteFlowShapesWithoutEmitting(story: RuntimeStory, uri: string) {
+    profile("start", this._profilerId, "ink/flowShapes", uri);
+    const shapes = this.startFlowShapes(
+      this.settledFlows(story.mainContentContainer),
+    );
+    this.noteEveryFlowShape(story, shapes);
+    shapes.commit();
+    profile("end", this._profilerId, "ink/flowShapes", uri);
+  }
+
+  /**
+   * Drop the flow shapes the next compile would be compared with, for a compile
+   * that gathered none.
+   *
+   * The shapes on hand would then describe a program older than the one just
+   * served, and a comparison with them could pass while the program in between
+   * differed. With none on hand, every flow the next compile notes counts as
+   * moved, so its summary is not confined and it gathers a fresh baseline.
+   */
+  protected forgetFlowShapes() {
+    this._flowFingerprints = undefined;
+    this._flowCountingSignatures = undefined;
+  }
+
+  /** Record the shapes of a program already served as the baseline, raising no
+   *  hazard: with no shapes on hand every flow would count as moved, and the
+   *  program has not changed since it was served. */
+  protected seedFlowShapes(story: RuntimeStory, uri: string) {
+    const hazard = this._changeHazard;
+    this.noteFlowShapesWithoutEmitting(story, uri);
+    this._changeHazard = hazard;
   }
 
   /**
@@ -1687,6 +1748,17 @@ export class SparkdownCompiler {
         !cached.program.compiledBuffer
       ) {
         this.serializeCompiledProgram(cached.story, cached.program, uri);
+      } else if (
+        !emitCompiledProgram &&
+        cached.story &&
+        !this._flowFingerprints &&
+        (startFrom ?? this._config.startFrom)
+      ) {
+        // The compile that built this program had no start position and so
+        // gathered no shapes, and this one now has somewhere to route. The
+        // program is the one the next compile will be measured against, so its
+        // shapes are the baseline, taken without comparing: nothing changed.
+        this.seedFlowShapes(cached.story, uri);
       }
       // Nothing that feeds a compile has changed, so this program differs from
       // the one before it nowhere at all — the strongest summary there is, and
@@ -1860,6 +1932,12 @@ export class SparkdownCompiler {
     this._changeHazard = false;
     // Nothing to measure against on the first compile of an instance.
     const hadPreviousCompile = this._prevCompilationIds != null;
+    // Whether this compile compared every flow's shape with the last compile's.
+    // Serializing does it on the way; a compile that emits nothing does it only
+    // when it has a start position, because a summary is read only to resume a
+    // route and a route needs somewhere to go. The language servers compile
+    // without one on every keystroke and read no summary at all.
+    let flowShapesNoted = false;
 
     let compileThrew = false;
     // ---- Incremental ExportRuntime: per-compile flow-reuse guards ----
@@ -2122,6 +2200,7 @@ export class SparkdownCompiler {
         // below, which walks the runtime tree for `pathLocations`.
         if (emitCompiledProgram) {
           this.serializeCompiledProgram(story, program, uri);
+          flowShapesNoted = true;
         } else {
           // Neither per-flow cache is maintained by a compile that skips
           // serialization, so both go stale the moment one runs — the same
@@ -2134,6 +2213,12 @@ export class SparkdownCompiler {
           // else catches the skipped compiles in between.
           this._flowJsonCache = undefined;
           this._flowChunkCache = undefined;
+          if (startFrom ?? this._config.startFrom) {
+            this.noteFlowShapesWithoutEmitting(story, uri);
+            flowShapesNoted = true;
+          } else {
+            this.forgetFlowShapes();
+          }
         }
         state.story = story;
         // Gather source-location maps in a single top-down walk of the
@@ -2171,6 +2256,7 @@ export class SparkdownCompiler {
         "ink/canonicalizeSyntheticNames",
         "ink/compile",
         "ink/json",
+        "ink/flowShapes",
         "populateLocations",
       ]) {
         profile("end", this._profilerId, phase, uri);
@@ -2228,7 +2314,7 @@ export class SparkdownCompiler {
       hadPreviousCompile &&
         !compileThrew &&
         !!state.story &&
-        emitCompiledProgram &&
+        flowShapesNoted &&
         !this._changeHazard &&
         !this._unchangedFlowShapeAtRisk,
     );
@@ -3931,7 +4017,8 @@ export class SparkdownCompiler {
    * Their source text is the text the last compile read, so any difference in
    * what they now compile to came from somewhere else in the program — which is
    * the one thing a change summary reported as a set of edited LINES cannot say.
-   * Their serialized shape is compared instead, in `serializeCompiledProgram`.
+   * Their compiled shape is compared instead, in `startFlowShapes`, which both
+   * `serializeCompiledProgram` and `noteFlowShapesWithoutEmitting` call.
    *
    * Deliberately NOT the same question as reuse: a flow can be re-lowered
    * because the edit fell in its chunk's reparse window while its own text is

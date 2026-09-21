@@ -261,8 +261,12 @@ if (!esbuildInstalled) {
         assert.match(section, /\(checkpoint\)/);
         checkAttribution(mode, "transport");
       }
-      // A preview resumes the route its cold compile planned; an edit plans one.
-      assert.match(run.stdout, /game\/planRoute/);
+      // Every shape resumes the route its cold compile planned, the resident one
+      // included: its compiler emits nothing and still certifies the suggestion's
+      // change as confined, from the walk it times as ink/flowShapes.
+      assert.match(run.stdout, /game\/routeResumption/);
+      assert.doesNotMatch(run.stdout, /game\/planRoute/);
+      assert.match(sectionOf("preview", "resident"), /ink\/flowShapes/);
       assert.match(sectionOf("preview", "transport"), /page preview \(not in total\)/);
       for (const shape of ["resident", "resident-emitting"]) {
         checkAttribution("preview", shape);
