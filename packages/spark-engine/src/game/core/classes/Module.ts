@@ -86,6 +86,13 @@ export abstract class Module<
   /** Executed when game is previewed at a specific checkpoint location */
   onPreview() {}
 
+  /** Executed before and after a route replay. The replay changes the state a
+   *  checkpoint saves, as any run does, and presents nothing on the page, so
+   *  a module that records what the page is presenting leaves that record as
+   *  the replay found it. */
+  onReplay() {}
+  onReplayEnd() {}
+
   /** Executed when the story enters a different scene (a top-level flow that
    *  is not a function): on a path change while running, at connect, at
    *  start, and at preview. Never during a route simulation. `stack` names the

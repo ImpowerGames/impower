@@ -72,6 +72,31 @@ export class AudioModule extends Module<
     this._channelsCurrentlyPlaying = new Map();
   }
 
+  /** What the page was playing when a route replay began. The replay still
+   *  tracks what its beats would play, because a channel-wide event saves its
+   *  state through that record, but it plays none of it. */
+  protected _playingBeforeReplay?: Map<
+    string,
+    Map<string, LoadAudioPlayerParams>
+  >;
+
+  override onReplay() {
+    this._playingBeforeReplay = this._channelsCurrentlyPlaying;
+    this._channelsCurrentlyPlaying = new Map(
+      [...this._channelsCurrentlyPlaying].map(([channel, playing]) => [
+        channel,
+        new Map(playing),
+      ]),
+    );
+  }
+
+  override onReplayEnd() {
+    if (this._playingBeforeReplay) {
+      this._channelsCurrentlyPlaying = this._playingBeforeReplay;
+      this._playingBeforeReplay = undefined;
+    }
+  }
+
   override async onRestore() {
     if (this.context.mixer) {
       // TODO: retrieve saved mixer gain from preferences instead

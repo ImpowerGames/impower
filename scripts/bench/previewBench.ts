@@ -267,15 +267,16 @@ async function main() {
   const sink = new PageSink(resident, () => [lastCheckpoint]);
   //
   // What the route game carries that the page's game does not, and that the
-  // resident shape has to reset before it displays: the route search leaves
-  // `system.simulating` set until a preview clears it, which is after the
-  // connect, and while it is set the modules restore as a simulation does
-  // (the asset module prefetches nothing, the ui module writes instantly).
-  const RESETS = ["system.simulating"];
+  // resident shape ends through the engine before it displays: the route
+  // search leaves `system.simulating` set, and while it is set the modules
+  // restore as a simulation does (the asset module prefetches nothing, the ui
+  // module writes instantly). Every entry is a call the engine offers; the
+  // benchmark resets no field by hand.
+  const CALLS = ["game.endSimulation()"];
   const prepare = (game: Game, checkpoint: string | undefined) => {
     game.markPreviewing(searched?.toPath);
     game.module.ui.forgetDisplayedImages();
-    if (resident) (game as any)._context.system.simulating = undefined;
+    if (resident) game.endSimulation();
     const t0 = performance.now();
     if (checkpoint) game.load(checkpoint);
     return performance.now() - t0;
@@ -344,7 +345,7 @@ async function main() {
       const shown = await display(game);
       const phases = takeMeasures();
       if (i < config.warmup) continue;
-      residue = { resets: RESETS, beforeDisplay: before, afterDisplay: residueOf(game), outsideMessages: { ...sink.outside }, previewed: shown.previewed };
+      residue = { calls: CALLS, beforeDisplay: before, afterDisplay: residueOf(game), outsideMessages: { ...sink.outside }, previewed: shown.previewed };
       lastStream = sink.stream;
       samples.push({
         option,
@@ -495,7 +496,7 @@ function printReport(report: any) {
     const r = report.residue;
     out.push(
       "",
-      `  reset before each display: ${r.resets.join(", ")}`,
+      `  engine calls before each display: ${r.calls.join(", ")}; fields reset by hand: none`,
       `  the route game before the display: ${JSON.stringify(r.beforeDisplay)}`,
       `  after it: ${JSON.stringify(r.afterDisplay)}`,
       `  messages it sent outside a display, over the run: ${JSON.stringify(r.outsideMessages)}; previewed ${r.previewed}`,

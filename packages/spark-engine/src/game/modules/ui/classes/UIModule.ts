@@ -747,8 +747,15 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
   /** Buffer a fire-and-forget UI op for the next `ui/batch` flush. Arms a
    *  microtask safety-net flush on the empty→non-empty transition so an op never
-   *  lingers past the synchronous turn even on a path that forgets to flush. */
+   *  lingers past the synchronous turn even on a path that forgets to flush.
+   *
+   *  A route replay buffers nothing: no one displays its beats, and a connect
+   *  that follows in the same turn rebuilds the page from the module state the
+   *  replay leaves, which the replay still changes as usual. */
   protected enqueueUI(msg: IMessage): void {
+    if (this._game.replaying) {
+      return;
+    }
     this._uiBatch.push(msg);
     if (!this._uiBatchScheduled) {
       this._uiBatchScheduled = true;

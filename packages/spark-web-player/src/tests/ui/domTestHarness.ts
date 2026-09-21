@@ -47,7 +47,7 @@ export interface DOMHarness {
   snapshotDOM(): unknown;
 }
 
-function compile(source: string) {
+export function compile(source: string) {
   const compiler = new SparkdownCompiler();
   compiler.configure({
     // Builtins come from the implicitly-imported builtins prelude (the compiler
@@ -149,7 +149,13 @@ function installWAAPIStub(win: any) {
 export function createDOMHarness(
   source: string,
   startLine = 0,
-  opts?: { reactive?: boolean; autoOpenAll?: boolean },
+  opts?: {
+    reactive?: boolean;
+    autoOpenAll?: boolean;
+    /** Load a saved checkpoint before the connect, as the page does when it
+     *  displays a preview from the worker's route. */
+    loadCheckpoint?: string;
+  },
 ): DOMHarness {
   const program = compile(source);
 
@@ -301,6 +307,9 @@ export function createDOMHarness(
     }
   };
 
+  if (opts?.loadCheckpoint) {
+    game.load(opts.loadCheckpoint);
+  }
   const ready = game.connect(sendToConsumer).then(() => flushMicrotasks(10));
 
   return {

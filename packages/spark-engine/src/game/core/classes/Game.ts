@@ -294,6 +294,14 @@ export class Game<T extends M = {}> {
     this._simulation = value;
   }
 
+  /** Whether a route replay is running now. The replay is one synchronous run
+   *  whose beats nothing displays, so while it lasts the UI module buffers no
+   *  operation and the game reports no execution. */
+  protected _replaying = false;
+  get replaying() {
+    return this._replaying;
+  }
+
   /** Why the last attempt to simulate a route gave up. Recorded where the
    *  giving-up happens, because that is the only place that still knows: by the
    *  time `_simulation` is flipped to `"fail"` — in `start()` or `preview()`,
@@ -1162,6 +1170,28 @@ export class Game<T extends M = {}> {
     }
     this._plannedRouteStepCursor = fromStep;
 
+    // A replay is not a preview, even on a game that has displayed one: the
+    // coordinator shows every beat a previewing game runs as a preview, which
+    // changes the module state the route's checkpoints save. The mark is the
+    // display's, so it returns once the replay ends.
+    const previewing = this._context.system.previewing;
+    this._context.system.previewing = undefined;
+    this._replaying = true;
+    for (const k of this._moduleNames) {
+      this._modules[k]?.onReplay();
+    }
+    try {
+      this.replayRoute(route, startCheckpoint);
+    } finally {
+      this._replaying = false;
+      this._context.system.previewing = previewing;
+      for (const k of this._moduleNames) {
+        this._modules[k]?.onReplayEnd();
+      }
+    }
+  }
+
+  protected replayRoute(route: RoutePlan, startCheckpoint: string | null) {
     if (startCheckpoint) {
       this.load(startCheckpoint);
     } else {
@@ -1501,18 +1531,27 @@ export class Game<T extends M = {}> {
     return this._checkpoints.at(-1) ?? null;
   }
 
+  /** End the route simulation, so the modules connect, restore and display as
+   *  a running game rather than as a replay. A route search leaves
+   *  `system.simulating` set; a game that connects after one and displays from
+   *  its state calls this first. A simulation that never reached its target
+   *  ends as failed; one that did keeps its success. */
+  endSimulation(): void {
+    if (this._simulation === "simulating") {
+      this._simulation = "fail";
+    }
+    this._context.system.simulating = undefined;
+  }
+
   start(save: string = ""): void {
     // A preview waiting for its pictures would display its beat over the
     // run.
     this.cancelPreview();
     this._state = "running";
-    if (this._simulation === "simulating") {
-      this._simulation = "fail";
-    }
+    this.endSimulation();
     this.notifyStarted();
     this._context.system.previewing = undefined;
     this._previewedPath = undefined;
-    this._context.system.simulating = undefined;
     for (const k of this._moduleNames) {
       this._modules[k]?.onStart();
     }
@@ -1834,7 +1873,11 @@ export class Game<T extends M = {}> {
 
     // A preview whose flush is held reports its execution once the beat
     // displays (`preview`), after what it displays, as this does.
-    if (this._simulation !== "simulating" && !this._holdingFlush) {
+    if (
+      this._simulation !== "simulating" &&
+      !this._holdingFlush &&
+      !this._replaying
+    ) {
       this.notifyExecuted();
     }
 
@@ -2767,12 +2810,14 @@ export class Game<T extends M = {}> {
     this._previewPath = previewPath;
     this._executingPath = "";
     this._executingLocation = [-1, -1, -1, -1, -1];
-    if (this._simulation === "simulating") {
-      this._simulation = "fail";
+    this.endSimulation();
+    // A game that has never started is previewing from its first preview on,
+    // as one constructed to preview is from birth.
+    if (this._state === "initial") {
+      this._state = "previewing";
     }
     this._context.system.previewing = previewPath;
     this._previewedPath = previewPath;
-    this._context.system.simulating = undefined;
     const generation = ++this._previewGeneration;
     this._holdingFlush = true;
     let held: { instructions: Instructions | null } | null = null;
