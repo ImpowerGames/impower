@@ -15,6 +15,10 @@
 //   2. Construct a real `Game` (which instantiates the real `UIModule`,
 //      `AudioModule`, `InterpreterModule`, …) and `connect()` it to a mock
 //      Connection that records every emitted message and replies to requests.
+//      Every message in both directions passes through `cloneMessage`, as it
+//      would crossing to a worker, so a message that a structured clone
+//      refuses or alters fails the test that sends it, and what is recorded
+//      is what the page would receive.
 //   3. Build the layout tree with `game.preview(...)` (the real, instant
 //      screen-construction path) and/or drive individual beats through the
 //      same fan-out the `Coordinator.display()` performs
@@ -36,6 +40,7 @@ import {
   assetItemKey,
   type AssetItem,
 } from "../../../game/modules/assets/types/AssetItem";
+import { cloneMessage } from "../../harness/cloneMessage";
 
 export const MAIN_URI = "inmemory:///main.sd";
 
@@ -273,20 +278,22 @@ export function createHarness(
 
   const reply = (msg: any) => {
     const result = resultForMethod(msg.method, msg.params);
-    // Defer: `Connection.emitRequest` calls send() (this callback) BEFORE it
-    // registers its resolve callback, so a synchronous reply would be
-    // dropped. A microtask lets the emitter finish registering first.
+    // Deferred, as a page's answer arrives after the turn that sent the
+    // request: whatever that turn goes on to send is recorded first.
     queueMicrotask(() => {
-      game.connection.receive({
-        jsonrpc: "2.0",
-        id: msg.id,
-        method: msg.method,
-        result,
-      });
+      game.connection.receive(
+        cloneMessage({
+          jsonrpc: "2.0",
+          id: msg.id,
+          method: msg.method,
+          result,
+        }),
+      );
     });
   };
 
-  const respond = (msg: any) => {
+  const respond = (sent: any) => {
+    const msg = cloneMessage(sent);
     messages.push(msg);
     if (msg && typeof msg === "object" && "id" in msg && "params" in msg) {
       if (opts?.holdAssets && msg.method === "assets/load") {
@@ -426,11 +433,13 @@ export function createHarness(
       }
     },
     emitEvent(type: string, elementId: string, extra?: Record<string, unknown>) {
-      game.connection.receive({
-        jsonrpc: "2.0",
-        method: "event",
-        params: { type, currentTargetId: elementId, ...extra },
-      } as any);
+      game.connection.receive(
+        cloneMessage({
+          jsonrpc: "2.0",
+          method: "event",
+          params: { type, currentTargetId: elementId, ...extra },
+        } as any),
+      );
     },
     observedElementIds() {
       return flattenMessages(messages)

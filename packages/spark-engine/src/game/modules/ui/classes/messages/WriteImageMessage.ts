@@ -42,6 +42,10 @@ export interface WriteImageInstruction {
     imageNames: string;
     /** First resolved image src for the child `<img class="object">`, if any. */
     src?: string;
+    /** Every fetched src the layer paints, in the order the assets name them:
+     *  the keys the page keeps resident for as long as the layer is on
+     *  screen. */
+    srcs: string[];
     /** Reveal/animate animation for the new layer (control: show | animate). */
     enterAnimation?: Animation;
     /** Hide animation for the new layer (control: hide). */

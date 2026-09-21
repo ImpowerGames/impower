@@ -67,6 +67,10 @@ import {
   type BatchElementsMessageMap,
 } from "./messages/BatchElementsMessage";
 import {
+  BeginReconcileMessage,
+  type BeginReconcileMessageMap,
+} from "./messages/BeginReconcileMessage";
+import {
   CreateElementMessage,
   type CreateElementMessageMap,
 } from "./messages/CreateElementMessage";
@@ -86,6 +90,10 @@ import {
   SetThemeMessage,
   type SetThemeMessageMap,
 } from "./messages/SetThemeMessage";
+import {
+  SweepReconcileMessage,
+  type SweepReconcileMessageMap,
+} from "./messages/SweepReconcileMessage";
 import {
   UnobserveElementMessage,
   type UnobserveElementMessageMap,
@@ -471,11 +479,13 @@ const IMPLICIT_LABEL_TAGS: Record<string, { type: string; name: string }> = {
 
 export type UIMessageMap = AnimateElementsMessageMap &
   BatchElementsMessageMap &
+  BeginReconcileMessageMap &
   CreateElementMessageMap &
   DestroyElementMessageMap &
   MoveElementMessageMap &
   ObserveElementMessageMap &
   SetThemeMessageMap &
+  SweepReconcileMessageMap &
   UnobserveElementMessageMap &
   UpdateElementMessageMap &
   WriteImageMessageMap &
@@ -605,7 +615,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
    *  backdrop the last preview had.
    *
    *  Only images: the renderer sweeps the layers that go unwritten during a
-   *  re-render (`UIManager.sweepReconcile`), and forgetting a kind of content it
+   *  re-render ({@link sweepReconcile}), and forgetting a kind of content it
    *  does not sweep would strand that content on screen with nothing left to
    *  clear it. Text needs no equivalent — the textbox is a clear-on-continue
    *  transient, wiped at every connect. */
@@ -613,7 +623,21 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     delete this._state.image;
   }
 
+  /** Close the reconcile pass this connect opened: the page removes what it
+   *  still shows that the stream did not emit again. Sent once the stream's
+   *  last write has gone out, after every op still buffered. */
+  sweepReconcile() {
+    this.flushUIBatch();
+    this.emit(SweepReconcileMessage.type.notification({}));
+  }
+
   override async onConnected() {
+    // The connect re-emits the whole screen, so the page reconciles it
+    // against what it already shows: every node becomes a candidate to reuse
+    // or sweep. Ahead of the root's create, in the connect's own stream.
+    this.flushUIBatch();
+    this.emit(BeginReconcileMessage.type.notification({}));
+    const epoch = this._game.connection.epoch;
     this._root = undefined;
     this._root = this.getOrCreateRootElement();
     // Dropping the root restarts the deterministic structural id counters, so
@@ -638,6 +662,10 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       const fonts = this._game.module.assets?.prepareLayout("main");
       if (fonts) {
         await fonts;
+        // A newer connect began meanwhile and builds the screen itself.
+        if (this.superseded(epoch)) {
+          return;
+        }
       }
       this.constructLayoutsFromAst();
     } else {
@@ -655,6 +683,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   }
 
   override async onRestore() {
+    const epoch = this._game.connection.epoch;
     const tasks: Promise<void>[] = [];
     if (this._state.text) {
       for (const [target] of Object.entries(this._state.text)) {
@@ -696,6 +725,10 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
             const fonts = this._game.module.assets?.prepareLayout(name);
             if (fonts) {
               await fonts;
+              // A newer connect began meanwhile and restores its own layouts.
+              if (this.superseded(epoch)) {
+                return;
+              }
             }
             this.constructLayoutFromAst(layout);
             remounted = true;
@@ -935,7 +968,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     // Flush pending create/update ops so the elements this animation targets
     // exist on the consumer before the animate request arrives.
     this.flushUIBatch();
-    return this.emit(
+    return this.emitSettled(
       AnimateElementsMessage.type.request({
         effects: effects.map((e) => ({
           element: e.element.id,
@@ -4031,7 +4064,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         // Flush pending create/update ops first so the target exists before the
         // (awaited) write arrives.
         $.flushUIBatch();
-        await $.emit(
+        await $.emitSettled(
           WriteTextMessage.type.request({
             target,
             instructions: sequence ?? [],
@@ -4255,9 +4288,19 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
             const src = e.assets.flatMap((a) =>
               $.getImageSrcsFromValue(a),
             )[0];
+            // A `data:` src is inline and never fetched, so there is nothing
+            // to keep resident for it.
+            const srcs = [
+              ...new Set(
+                e.assets
+                  .flatMap((a) => $.getImageSrcsFromValue(a) ?? [])
+                  .filter((s) => !s.startsWith("data:")),
+              ),
+            ];
             const content: WriteImageInstruction["content"] = {
               background,
               imageNames,
+              srcs,
             };
             if (src != null) {
               content.src = src;
@@ -4408,7 +4451,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         // auto-advance still waits on the reveal). Flush pending create/update
         // ops first so the target exists before the (awaited) write arrives.
         $.flushUIBatch();
-        await $.emit(
+        await $.emitSettled(
           WriteImageMessage.type.request({
             target,
             instructions: sequence ? this.resolve(sequence, instant) : [],

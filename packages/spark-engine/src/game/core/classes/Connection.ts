@@ -7,6 +7,19 @@ import type { ResponseError } from "@impower/jsonrpc/src/common/types/ResponseEr
 import type { ResponseMessage } from "@impower/jsonrpc/src/common/types/ResponseMessage";
 import { Socket } from "./Socket";
 
+/** JSON-RPC 2.0 "Method not found": the page has no handler for the request. */
+export const METHOD_NOT_FOUND = -32601;
+
+/** The page went away before it answered the request. */
+export const DISCONNECTED = -32001;
+
+/** The request belongs to a stream the page has already seen superseded, so
+ *  the page did not act on it. */
+export const SUPERSEDED = -32002;
+
+/** A message the game sent, stamped with the stream it belongs to. */
+export type StreamMessage = Message & { epoch?: number };
+
 export interface ConnectionConfig {
   onSend?: (message: Message, transfer?: ArrayBuffer[]) => void;
   onReceive?: (
@@ -45,9 +58,24 @@ export class Connection {
 
   protected _outgoingListeners: Record<string, MessageCallback[]> = {};
 
+  protected _epoch = 0;
+  /** The stream every message sent now belongs to. The page drops a message
+   *  from a stream older than the newest it has seen, so what a superseded
+   *  stream still had in flight cannot land on the one that replaced it. */
+  get epoch() {
+    return this._epoch;
+  }
+
   constructor(config: ConnectionConfig) {
     this._send = config.onSend;
     this._receive = config.onReceive;
+  }
+
+  /** Start a new stream: everything sent from here on supersedes what was
+   *  sent before. */
+  beginEpoch(): number {
+    this._epoch += 1;
+    return this._epoch;
   }
 
   connectOutput(onSend: (message: Message, transfer?: ArrayBuffer[]) => void) {
@@ -68,10 +96,11 @@ export class Connection {
   }
 
   protected send(message: Message, transfer?: ArrayBuffer[]): void {
+    const stamped: StreamMessage = { ...message, epoch: this._epoch };
     if (this._send) {
-      this._send(message, transfer);
+      this._send(stamped, transfer);
     }
-    this.broadcast(message, this._outgoingListeners);
+    this.broadcast(stamped, this._outgoingListeners);
   }
 
   receive(message: Message): void {
@@ -142,11 +171,14 @@ export class Connection {
     msg: RequestMessage<M, P>,
     transfer?: ArrayBuffer[],
   ): Promise<ResponseMessage<M, R>> {
-    this.send(msg, transfer);
-    return new Promise<ResponseMessage<M, R>>((resolve, reject) => {
+    // Registered before the send: a page that answers at once (it dropped
+    // the request, or has disconnected) answers inside the send.
+    const response = new Promise<ResponseMessage<M, R>>((resolve, reject) => {
       this._outgoingRequestResolveCallbacks[msg.id] = resolve;
       this._outgoingRequestRejectCallbacks[msg.id] = reject;
     });
+    this.send(msg, transfer);
+    return response;
   }
 
   protected handleResponse<M extends string, R>(

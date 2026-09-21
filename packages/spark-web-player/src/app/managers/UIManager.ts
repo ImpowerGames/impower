@@ -11,11 +11,13 @@ import type { TextInstruction } from "../../../../spark-engine/src/game/core/typ
 import type { Animation } from "../../../../spark-engine/src/game/modules/ui/types/Animation";
 import { AnimateElementsMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/AnimateElementsMessage";
 import { BatchElementsMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/BatchElementsMessage";
+import { BeginReconcileMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/BeginReconcileMessage";
 import { CreateElementMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/CreateElementMessage";
 import { DestroyElementMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/DestroyElementMessage";
 import { MoveElementMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/MoveElementMessage";
 import { ObserveElementMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/ObserveElementMessage";
 import { SetThemeMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/SetThemeMessage";
+import { SweepReconcileMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/SweepReconcileMessage";
 import { UnobserveElementMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/UnobserveElementMessage";
 import { UpdateElementMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/UpdateElementMessage";
 import {
@@ -577,6 +579,16 @@ export default class UIManager extends Manager {
   // callback per call in the connection — and reactive keyed-`for` reconcile
   // observes/unobserves on every mount.
   override onReceiveNotification(msg: NotificationMessage) {
+    // The game opens a pass at every connect and closes it once the stream
+    // has written everything it shows.
+    if (BeginReconcileMessage.type.isNotification(msg)) {
+      this.beginReconcilePass();
+      return;
+    }
+    if (SweepReconcileMessage.type.isNotification(msg)) {
+      this.sweepReconcile();
+      return;
+    }
     // A `ui/batch` coalesces a synchronous run of fire-and-forget ops. Dispatch
     // each inner message IN ORDER through the normal per-op handling: requests
     // (create/update/destroy/move/set-theme — all synchronous handlers, so their
@@ -982,6 +994,10 @@ export default class UIManager extends Manager {
               content.src,
               applyStyle,
             );
+            // What this layer paints stays resident while it is on screen
+            // (`AssetManager.derivedPins`). Kept on the node, which outlives
+            // this manager across a re-render.
+            (newSpanEl as any).__sdSrcs = content.srcs;
             if (instruction.control === "show") {
               // 'show' fades out + destroys the previous layers (the crossfade).
               // The engine only ever destroyed spans it had enqueued an exit

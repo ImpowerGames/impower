@@ -36,7 +36,10 @@ function recordingGame(calls: string[], state = "previewing") {
     updateProgram: () => calls.push("updateProgram"),
     markPreviewing: () => calls.push("markPreviewing"),
     module: {
-      ui: { forgetDisplayedImages: () => calls.push("forgetDisplayedImages") },
+      ui: {
+        forgetDisplayedImages: () => calls.push("forgetDisplayedImages"),
+        sweepReconcile: () => calls.push("sweepReconcile"),
+      },
     },
     load: () => calls.push("load"),
     preview: () => {
@@ -48,10 +51,6 @@ function recordingGame(calls: string[], state = "previewing") {
 
 function stubApp(calls: string[]) {
   return {
-    ui: {
-      beginReconcilePass: () => calls.push("beginReconcilePass"),
-      sweepReconcile: () => calls.push("sweepReconcile"),
-    },
     connectGame: async () => {
       calls.push("connectGame");
     },

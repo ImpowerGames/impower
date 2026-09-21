@@ -72,7 +72,7 @@ describe("Connection", () => {
     it("sends the message", async () => {
       const { connection, sent } = createConnection();
       await connection.emit(notification("note") as never);
-      expect(sent).toEqual([notification("note")]);
+      expect(sent).toEqual([{ ...notification("note"), epoch: 0 }]);
     });
 
     it("does not wait for a reply", async () => {
@@ -84,11 +84,26 @@ describe("Connection", () => {
     });
   });
 
+  describe("stream epochs", () => {
+    it("stamps what it sends with the stream begun last", async () => {
+      const { connection, sent } = createConnection();
+      await connection.emit(notification("before") as never);
+      expect(connection.beginEpoch()).toBe(1);
+      await connection.emit(notification("after") as never);
+      void connection.emit(request("r1") as never);
+      expect(sent.map((m: any) => [m.method, m.epoch])).toEqual([
+        ["before", 0],
+        ["after", 1],
+        ["ask", 1],
+      ]);
+    });
+  });
+
   describe("emitting requests", () => {
     it("sends the message", () => {
       const { connection, sent } = createConnection();
       void connection.emit(request("r1") as never);
-      expect(sent).toEqual([request("r1")]);
+      expect(sent).toEqual([{ ...request("r1"), epoch: 0 }]);
     });
 
     it("stays pending until a response arrives", async () => {
@@ -246,7 +261,7 @@ describe("Connection", () => {
       await Promise.resolve();
       await Promise.resolve();
       expect(sent).toEqual([
-        { jsonrpc: "2.0", method: "ask", id: "r1", result: 42 },
+        { jsonrpc: "2.0", method: "ask", id: "r1", result: 42, epoch: 0 },
       ]);
     });
     it("normalizes a transfer-only handler reply to an explicit null result", async () => {
@@ -258,7 +273,7 @@ describe("Connection", () => {
       await Promise.resolve();
       await Promise.resolve();
       expect(sent).toEqual([
-        { jsonrpc: "2.0", method: "ask", id: "r1", result: null },
+        { jsonrpc: "2.0", method: "ask", id: "r1", result: null, epoch: 0 },
       ]);
       expect(transfers).toEqual([[buffer]]);
     });
@@ -282,7 +297,7 @@ describe("Connection", () => {
       await Promise.resolve();
       await Promise.resolve();
       expect(sent).toEqual([
-        { jsonrpc: "2.0", method: "ask", id: "r1", result: 42 },
+        { jsonrpc: "2.0", method: "ask", id: "r1", result: 42, epoch: 0 },
       ]);
     });
 
@@ -328,7 +343,7 @@ describe("Connection", () => {
       const sent: Message[] = [];
       connection.connectOutput((message) => sent.push(message));
       await connection.emit(notification("note") as never);
-      expect(sent).toEqual([notification("note")]);
+      expect(sent).toEqual([{ ...notification("note"), epoch: 0 }]);
     });
 
     it("uses an input connected after construction", async () => {
@@ -358,7 +373,7 @@ describe("Connection", () => {
       const { connection } = createConnection();
       connection.outgoing.addListener("note", (m) => seen.push(m as Message));
       await connection.emit(notification("note") as never);
-      expect(seen).toEqual([notification("note")]);
+      expect(seen).toEqual([{ ...notification("note"), epoch: 0 }]);
     });
 
     it("keeps the two directions separate", async () => {

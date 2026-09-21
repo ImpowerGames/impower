@@ -108,17 +108,6 @@ export default class AudioManager extends Manager {
     this._audioChannels.clear();
   }
 
-  protected getMixerName(channel: string | undefined): string {
-    const mixer = this.app.context?.channel?.[channel || "sound"]?.mixer;
-    const mixerName = (typeof mixer === "string" ? mixer : mixer?.$name) || "";
-    return mixerName || channel || "sound";
-  }
-
-  protected getMixerGain(channel: string | undefined): number {
-    const mixer = this.app.context.mixer?.[this.getMixerName(channel)];
-    return mixer?.gain ?? 1;
-  }
-
   protected async loadAudioBuffer(
     params: LoadAudioPlayerParams,
   ): Promise<AudioBuffer> {
@@ -271,9 +260,10 @@ export default class AudioManager extends Manager {
     if (audioChannel.get(params.key)) {
       return audioChannel.get(params.key)!;
     }
-    const mixerName = this.getMixerName(params.channel);
-    const mixerGain = this.getMixerGain(params.channel);
-    const audioMixer = this.getAudioMixer(mixerName, mixerGain);
+    // The engine resolves which mixer the channel plays through and the gain
+    // it starts at, and sends both with the load.
+    const mixerName = params.mixer || params.channel || "sound";
+    const audioMixer = this.getAudioMixer(mixerName, params.mixerGain ?? 1);
     if (audioBuffer && this.app.audioContext) {
       const audioPlayer = new AudioPlayer(audioBuffer, this.app.audioContext, {
         volume: params.volume,

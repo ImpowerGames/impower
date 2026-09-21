@@ -6,7 +6,6 @@ import { LoadAssetsMessage } from "../../../../spark-engine/src/game/modules/ass
 import { PrefetchAssetsMessage } from "../../../../spark-engine/src/game/modules/assets/classes/messages/PrefetchAssetsMessage";
 import { ReleaseAssetsMessage } from "../../../../spark-engine/src/game/modules/assets/classes/messages/ReleaseAssetsMessage";
 import { type AssetsProgressParams } from "../../../../spark-engine/src/game/modules/assets/types/AssetsProgressParams";
-import { resolveImageSrcs } from "../../main/utils/resolveImageSrcs";
 import { AssetCache } from "../assets/AssetCache";
 import { createDomAssetCacheDeps } from "../assets/domAssetCacheDeps";
 import { Manager } from "../Manager";
@@ -67,7 +66,7 @@ export default class AssetManager extends Manager {
    *  the overlay, every video in it, and every audio player that is playing.
    *  A displayed image paints all its layers through its span's background,
    *  and only the first layer has an element, so the layers come from the
-   *  span's `image` names resolved the way the renderer resolved them. */
+   *  srcs the write that built the span resolved (`__sdSrcs`). */
   derivedPins(): Set<string> {
     const keys = new Set<string>();
     const overlay = this.app.overlay;
@@ -78,16 +77,14 @@ export default class AssetManager extends Manager {
           keys.add(src);
         }
       }
-      const names: string[] = [];
       for (const span of Array.from(overlay.querySelectorAll("[image]"))) {
-        const attr = span.getAttribute("image");
-        if (attr) {
-          names.push(...attr.split(/\s+/).filter(Boolean));
-        }
-      }
-      if (names.length > 0) {
-        for (const src of resolveImageSrcs(this.app.context, names)) {
-          keys.add(src);
+        const srcs: unknown = (span as any).__sdSrcs;
+        if (Array.isArray(srcs)) {
+          for (const src of srcs) {
+            if (typeof src === "string" && src) {
+              keys.add(src);
+            }
+          }
         }
       }
       for (const video of Array.from(
@@ -133,7 +130,8 @@ export default class AssetManager extends Manager {
     this._exposedProbe = () => this.cache.stats();
     (window as any).__assetCache = this._exposedProbe;
     // The application and cache behind the stats, for a console that needs
-    // to poke at the live game (same audience as `__audioProbe`).
+    // to poke at the live page (same audience as `__audioProbe`). Neither
+    // reaches into the game, so this works wherever the game runs.
     (window as any).__assetProbe = () => ({ app: this.app, cache: this.cache });
   }
 

@@ -140,6 +140,7 @@ export class AudioModule extends Module<
   }
 
   protected async restoreChannel(channel: string) {
+    const epoch = this._game.connection.epoch;
     const updates: AudioPlayerUpdate[] = [];
     const audioToLoad: LoadAudioPlayerParams[] = [];
     const channelState = this._state.channels?.[channel];
@@ -168,11 +169,15 @@ export class AudioModule extends Module<
       }
     }
     await this.loadAllAudio(audioToLoad);
+    // A newer connect began meanwhile and resumes the channel itself.
+    if (this.superseded(epoch)) {
+      return;
+    }
     this.update(channel, updates);
   }
 
   protected update(channel: string, updates: AudioPlayerUpdate[]) {
-    this.emit(
+    this.emitSettled(
       UpdateAudioPlayersMessage.type.request({
         channel,
         updates,
@@ -180,14 +185,25 @@ export class AudioModule extends Module<
     );
   }
 
+  /** The mixer a channel plays through: the one it names, or the mixer
+   *  named after the channel itself. */
+  protected getMixerName(channel: string | undefined): string {
+    const mixer = this.context?.channel?.[channel || "sound"]?.mixer;
+    const mixerName = (typeof mixer === "string" ? mixer : mixer?.$name) || "";
+    return mixerName || channel || "sound";
+  }
+
   protected async loadAudio(data: LoadAudioPlayerParams): Promise<void> {
-    await new Promise<void>(async (resolve) => {
-      const result = await this.emit(LoadAudioPlayerMessage.type.request(data));
-      if (result?.outputLatency != null) {
-        this._outputLatency = result?.outputLatency;
-      }
-      resolve();
-    });
+    // The page routes the player through its mixer, creating the mixer at
+    // this gain when it is the first to need it.
+    const mixer = this.getMixerName(data.channel);
+    const mixerGain = this.context?.mixer?.[mixer]?.gain ?? 1;
+    const result = await this.emitSettled(
+      LoadAudioPlayerMessage.type.request({ ...data, mixer, mixerGain }),
+    );
+    if (result?.outputLatency != null) {
+      this._outputLatency = result.outputLatency;
+    }
   }
 
   protected async loadAllAudio(
@@ -477,7 +493,7 @@ export class AudioModule extends Module<
   }
 
   protected configure(mixer: string, gain: number) {
-    this.emit(
+    this.emitSettled(
       ConfigureAudioMixerMessage.type.request({
         mixer,
         gain,

@@ -84,6 +84,9 @@ exports[`image > animated (non-instant) show emits per-layer animate 1`] = `
               },
             },
             "src": "https://example.com/bg.png",
+            "srcs": [
+              "https://example.com/bg.png",
+            ],
           },
           "control": "show",
           "targetAnimations": [
@@ -201,6 +204,9 @@ exports[`image > hide backdrop 1`] = `
               },
             },
             "src": "https://example.com/bg.png",
+            "srcs": [
+              "https://example.com/bg.png",
+            ],
           },
           "control": "show",
           "targetAnimations": [
@@ -344,6 +350,9 @@ exports[`image > image animate directive 1`] = `
               },
             },
             "src": "https://example.com/hero.png",
+            "srcs": [
+              "https://example.com/hero.png",
+            ],
           },
           "control": "show",
           "targetAnimations": [
@@ -517,6 +526,10 @@ exports[`image > layered images (multi-asset SPRITE+SHADOW) stack background_ima
               },
             },
             "src": "https://example.com/hero.png",
+            "srcs": [
+              "https://example.com/hero.png",
+              "https://example.com/shadow.png",
+            ],
           },
           "control": "show",
           "targetAnimations": [
@@ -634,6 +647,9 @@ exports[`image > show backdrop 1`] = `
               },
             },
             "src": "https://example.com/bg.png",
+            "srcs": [
+              "https://example.com/bg.png",
+            ],
           },
           "control": "show",
           "targetAnimations": [
@@ -751,6 +767,9 @@ exports[`image > show then re-show (crossfade: hide+destroy previous layer) 1`] 
               },
             },
             "src": "https://example.com/bg.png",
+            "srcs": [
+              "https://example.com/bg.png",
+            ],
           },
           "control": "show",
           "targetAnimations": [
@@ -824,6 +843,9 @@ exports[`image > show then re-show (crossfade: hide+destroy previous layer) 1`] 
               },
             },
             "src": "https://example.com/bg2.png",
+            "srcs": [
+              "https://example.com/bg2.png",
+            ],
           },
           "control": "show",
           "targetAnimations": [
@@ -941,6 +963,9 @@ exports[`image > show with fade transition 1`] = `
               },
             },
             "src": "https://example.com/bg.png",
+            "srcs": [
+              "https://example.com/bg.png",
+            ],
           },
           "control": "show",
           "targetAnimations": [

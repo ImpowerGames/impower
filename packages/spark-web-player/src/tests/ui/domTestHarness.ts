@@ -13,7 +13,10 @@
 // WebGL). `UIManager` itself imports only spark-dom utils + spark-engine
 // message classes + `Manager` (whose only pixi reference is an erased
 // type-import). We hand it a MINIMAL stub `app` exposing just `overlay` +
-// `emit`. The Web Animations API (`new Animation`, `KeyframeEffect`) that
+// `emit`. The managers are connected to the game the way `Application`
+// connects them, through its `MessageRouter`, and every message in both
+// directions passes through `cloneMessage`, as it would crossing to a worker.
+// The Web Animations API (`new Animation`, `KeyframeEffect`) that
 // `AnimationPlayer.play()` needs is absent in jsdom, so we install a tiny
 // no-op stub — reveal animations apply opacity via WAAPI (invisible to jsdom's
 // computed styles regardless), so stubbing them does not change the snapshot.
@@ -22,7 +25,11 @@ import { JSDOM, VirtualConsole } from "jsdom";
 import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
 import { Game } from "@impower/spark-engine/src/game/core/classes/Game";
 import type { Instructions } from "@impower/spark-engine/src/game/core/types/Instructions";
+import { cloneMessage } from "@impower/spark-engine/src/tests/harness/cloneMessage";
+import type { RequestMessage } from "@impower/jsonrpc/src/common/types/RequestMessage";
 import { AssetCache, type ImageTarget } from "../../app/assets/AssetCache";
+import { Manager } from "../../app/Manager";
+import { MessageRouter } from "../../app/MessageRouter";
 import AssetManager from "../../app/managers/AssetManager";
 import UIManager from "../../app/managers/UIManager";
 
@@ -31,6 +38,8 @@ const MAIN_URI = "inmemory:///main.sd";
 export interface DOMHarness {
   game: Game;
   ui: UIManager;
+  /** The page's end of the current game's stream. */
+  router: MessageRouter;
   overlay: HTMLElement;
   ready: Promise<void>;
   /** Preview at a line. A beat with pictures displays once the page
@@ -258,7 +267,7 @@ export function createDOMHarness(
   const stubApp: any = {
     overlay,
     emit: (message: any) => {
-      game.connection.receive(message);
+      game.connection.receive(cloneMessage(message));
     },
     assetCache: new AssetCache({ createImage: fakeImage }),
     audio: {
@@ -274,37 +283,27 @@ export function createDOMHarness(
   const assets = new AssetManager(stubApp);
   void assets.onInit();
 
-  // Wire the engine's output straight into the real consumer, mirroring
-  // `Application.processMessage`: REQUESTS (with an `id`) go to
-  // `onReceiveRequest` and the response is fed back so the engine's awaited
-  // promises (ui/animate, …) resolve; NOTIFICATIONS (no `id`, e.g.
-  // ui/observe + ui/unobserve) go to `onReceiveNotification` fire-and-forget.
+  // This harness has no audio graph or world: it answers their requests as a
+  // page with nothing to play would, so the game does not wait on them.
+  const silent = new (class extends Manager {
+    override async onReceiveRequest(msg: RequestMessage) {
+      return msg.method.startsWith("audio/") || msg.method.startsWith("world/")
+        ? { result: null }
+        : undefined;
+    }
+  })(stubApp);
+
+  // The engine's output reaches the real managers through the router
+  // `Application` uses, which answers every request back to the CURRENT game.
+  // A game connects to its own page end, so each game gets a router.
+  const makeRouter = () =>
+    new MessageRouter(
+      () => [ui, assets, silent],
+      (message) => game.connection.receive(cloneMessage(message)),
+    );
+  let router = makeRouter();
   const sendToConsumer = (msg: any) => {
-    if (!msg || typeof msg !== "object" || !("params" in msg)) {
-      return;
-    }
-    // Route by method family. The real Application broadcasts every message to
-    // every manager and takes the first answer; this harness hands each
-    // message to one manager, so a second manager answering, or the UI
-    // manager mishandling an assets/* message, is not something it can see.
-    const consumer = String(msg.method ?? "").startsWith("assets/")
-      ? assets
-      : ui;
-    if ("id" in msg) {
-      // Deferred: the emitter registers its resolve callback after send().
-      void consumer.onReceiveRequest(msg).then((response) => {
-        queueMicrotask(() => {
-          game.connection.receive({
-            jsonrpc: "2.0",
-            id: msg.id,
-            method: msg.method,
-            ...(response ?? { result: null }),
-          } as any);
-        });
-      });
-    } else {
-      consumer.onReceiveNotification(msg);
-    }
+    router.receive(cloneMessage(msg));
   };
 
   if (opts?.loadCheckpoint) {
@@ -319,6 +318,9 @@ export function createDOMHarness(
     get ui() {
       return ui;
     },
+    get router() {
+      return router;
+    },
     overlay,
     ready,
     preview(line = startLine) {
@@ -328,12 +330,14 @@ export function createDOMHarness(
      * Model a live-preview EDIT: compile `newSource`, build a fresh game, and
      * render it into the SAME overlay through the SAME (persistent) UIManager —
      * exactly what `GamePlayerController.updatePreview` does, minus pixi. The
-     * reconcile (beginReconcilePass → reuse-by-id → sweepReconcile) runs, so the
-     * overlay is patched in place rather than rebuilt. Returns once settled.
+     * reconcile (the connect's `ui/reconcile-begin` → reuse-by-id → the game's
+     * `ui/reconcile-sweep`) runs, so the overlay is patched in place rather than
+     * rebuilt. Returns once settled.
      */
     async rerender(newSource: string, line = startLine) {
       const newProgram = compile(newSource);
       game = makeGame(newProgram);
+      router = makeRouter();
       // Faithfully model GamePlayerController.buildApp on an edit: the OLD
       // manager is disposed (which now PRESERVES the overlay DOM, only tearing
       // down listeners), a FRESH manager is built, and its onInit adopts the
@@ -348,7 +352,8 @@ export function createDOMHarness(
       await flushMicrotasks(10);
       await game.preview(MAIN_URI, line);
       await flushMicrotasks(10);
-      ui.sweepReconcile();
+      game.module.ui.sweepReconcile();
+      await flushMicrotasks(10);
     },
     jumpTo(path: string) {
       (game as any).jumpToPath(path);

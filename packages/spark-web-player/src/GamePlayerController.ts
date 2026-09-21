@@ -1861,15 +1861,13 @@ export class GamePlayerController {
     // what lets preview reconstructions keep audio without minting a new context.
     await this.ensureAudioContext();
     profile("start", "app/create");
-    this._app = new Application(
-      game,
-      this.refs.gameView,
-      this.refs.gameUI,
-      this._audioContext,
+    this._app = new Application(game, this.refs.gameView, this.refs.gameUI, {
+      previewing: Boolean(game.context.system.previewing),
+      audioContext: this._audioContext,
       // One cache for the page's whole life, so STOP then PLAY, and every
       // preview rebuild, find their assets already resident.
-      getSharedAssetCache(),
-    );
+      assetCache: getSharedAssetCache(),
+    });
     profile("end", "app/create");
     profile("start", "app/init");
     await this._app.init();
@@ -2298,11 +2296,10 @@ export class GamePlayerController {
       // connect the game (its onConnected renders the screen tree).
       this._app = await this.buildApp(this._game);
     } else {
-      // Re-render in place: adopt the preserved overlay DOM (beginReconcilePass),
-      // then re-run the game's onConnected + restore via connectGame — the
+      // Re-render in place: re-run the game's onConnected + restore via
+      // connectGame. The connect opens a reconcile pass on the page, so the
       // re-emitted create stream reconciles against the existing DOM. No app /
       // canvas / manager teardown.
-      this._app.ui.beginReconcilePass();
       profile("start", "app/connectGame");
       await this._app.connectGame();
       profile("end", "app/connectGame");
@@ -2324,9 +2321,10 @@ export class GamePlayerController {
     }
 
     // DOM reconcile tail: the full create/write stream for this preview point
-    // has now been dispatched, so sweep whatever wasn't re-emitted — elements
-    // that disappeared since the last edit.
-    this._app?.ui.sweepReconcile();
+    // has now been dispatched, so the game closes the pass in the same
+    // stream, and the page sweeps whatever wasn't re-emitted — elements that
+    // disappeared since the last edit.
+    game.module.ui.sweepReconcile();
     publishAppliedPosition();
     return true;
   };

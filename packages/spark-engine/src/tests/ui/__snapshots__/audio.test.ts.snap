@@ -15,6 +15,8 @@ exports[`audio > explicit SFX directive schedules audio/load + audio/update 1`] 
       "loop": false,
       "loopEnd": 0,
       "loopStart": 0,
+      "mixer": "sound",
+      "mixerGain": 1,
       "name": "beep",
       "src": "https://example.com/beep.wav",
       "syncedTo": "audio.beep",
@@ -30,6 +32,8 @@ exports[`audio > explicit SFX directive schedules audio/load + audio/update 1`] 
     "params": {
       "channel": "typewriter",
       "key": "typewriter.action~t0s1b0",
+      "mixer": "sound",
+      "mixerGain": 1,
       "name": "action",
       "synth": {
         "$name": "action",
@@ -230,6 +234,8 @@ exports[`audio > typewriter synth tones scheduled for voiced dialogue 1`] = `
     "params": {
       "channel": "typewriter",
       "key": "synth.character~t0s1b0~t0.07500000000000001s1b0",
+      "mixer": "sound",
+      "mixerGain": 1,
       "name": "character",
       "synth": {
         "$name": "character",

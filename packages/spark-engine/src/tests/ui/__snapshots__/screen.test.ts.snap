@@ -57,6 +57,11 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
 [
   {
     "kind": "notification",
+    "method": "ui/reconcile-begin",
+    "params": {},
+  },
+  {
+    "kind": "notification",
     "method": "ui/batch",
     "params": {
       "messages": [
