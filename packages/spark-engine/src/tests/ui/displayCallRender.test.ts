@@ -1,8 +1,8 @@
 // End-to-end engine wiring for the display-as-Luau-call transport: a
 // `display(<table>)` beat must travel the SAME per-beat path a normal text beat
 // does — Game's continue loop → interpreter buffer → shouldFlush → flush →
-// Coordinator fan-out → renderer message — but carrying a pre-parsed structured
-// table instead of a flat string the interpreter re-scans char-by-char.
+// Coordinator fan-out → renderer message — with its routing carried in a
+// structured table instead of a routing tag.
 //
 // This closes the loop the Story-level spike (displayCall.spike.test.ts) left
 // open: that proved the table reaches `story.currentDisplayInstructions`; this

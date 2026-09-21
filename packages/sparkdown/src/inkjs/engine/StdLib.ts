@@ -3089,14 +3089,13 @@ export const STDLIB: Record<string, StdLibEntry> = {
     },
   },
   // `display(<instructions table>)` — SPIKE (display-as-Luau-call
-  // transport). The end-state for the double-parse elimination: the
-  // compiler lowers a display statement to `display({…})` carrying a
-  // pre-parsed instruction TEMPLATE as a table literal, whose `{interp}`
-  // holes are already evaluated to LIVE values by the time this runs
-  // (table literals lower to a live ObjectValue via EndObject). Instead
-  // of flattening to a text string the runtime must re-scan, the live
-  // ObjectValue rides the output stream directly — `currentText` reads
-  // its `text` field in stream order, and the
+  // transport). The compiler lowers a display statement to `display({…})`
+  // carrying its routing (`target`, `character`) and its body (`text`) as a
+  // table literal, whose `{interp}` holes are already evaluated to LIVE
+  // values by the time this runs (table literals lower to a live
+  // ObjectValue via EndObject). The live ObjectValue rides the output
+  // stream directly — `currentText` reads its `text` field in stream
+  // order, which is the body the interpreter parses, and the
   // `currentDisplayInstructions` getter collects it. A trailing `\n`
   // closes the Continue beat exactly like `print` does, so the engine's
   // existing per-beat / checkpoint loop fires unchanged.

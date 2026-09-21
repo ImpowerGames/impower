@@ -25,7 +25,8 @@ export interface SparkdownCompilerConfig {
   seedBuiltinsIntoStory?: boolean;
   // When true, the lowerer emits SIMPLE display statements (plain text, single
   // beat, no interpolation/divert/alternator/tag) as a native `display(<table>)`
-  // Luau call carrying a pre-parsed `{ target, text }` instruction table,
+  // Luau call carrying a `{ target, text }` table (routing resolved at compile
+  // time, body parsed by the interpreter as flat text is),
   // instead of the legacy flat ink text + routing tag. Transitional flag for
   // the display double-parse elimination (see project_display_parse_compiletime):
   // off by default so existing goldens stay byte-identical; complex content

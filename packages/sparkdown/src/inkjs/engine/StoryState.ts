@@ -496,8 +496,8 @@ export class StoryState {
    *  inside a BeginTag…EndTag span, so routing tags don't leak in). Empty for
    *  every beat that didn't call `display()` — the legacy text path is
    *  unaffected. The engine reads this alongside `currentText` after each
-   *  Continue and feeds the structured payload straight to the interpreter,
-   *  bypassing the char-by-char re-parse. */
+   *  Continue: the first table routes the beat, and `currentText` (which
+   *  includes every table's `text`) is the body the interpreter parses. */
   get currentDisplayInstructions(): ObjectValue[] {
     const result: ObjectValue[] = [];
     let inTag = false;
@@ -1123,7 +1123,7 @@ export class StoryState {
       // as whitespace text does, so the next visible words still join.
       let tableText = obj.value?.get("text");
       if (!(tableText instanceof StringValue) || tableText.isNonWhitespace) {
-        this.RemoveExistingGlue();
+        this.RemoveGlueBeforeDisplayTable();
       }
     }
 
@@ -1175,6 +1175,27 @@ export class StoryState {
       if (c instanceof Glue) {
         this.outputStream.splice(i, 1);
       } else if (c instanceof ControlCommand) {
+        break;
+      }
+    }
+
+    this.OutputStreamDirty();
+  }
+
+  // Remove the glue pending before a display table. A `# tag` is metadata, so
+  // its BeginTag/EndTag pair does not shield glue the way other control
+  // commands do: a tagged line between the glue and the table leaves the step
+  // boundaries where they would be without the tag.
+  public RemoveGlueBeforeDisplayTable() {
+    for (let i = this.outputStream.length - 1; i >= 0; i--) {
+      let c = this.outputStream[i];
+      if (c instanceof Glue) {
+        this.outputStream.splice(i, 1);
+      } else if (
+        c instanceof ControlCommand &&
+        c.commandType != ControlCommand.CommandType.BeginTag &&
+        c.commandType != ControlCommand.CommandType.EndTag
+      ) {
         break;
       }
     }

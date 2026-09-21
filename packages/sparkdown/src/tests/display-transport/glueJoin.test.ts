@@ -197,6 +197,18 @@ describe("step boundaries around glue", () => {
     expect(texts(source, false).join("")).toContain("You see The door.");
   });
 
+  // A tagged continuation lowers to flat text, which leaves its tag's control
+  // commands between the pending glue and the next table. The tag is
+  // metadata, so the boundaries match the untagged case.
+  test("a tag on an empty continuation does not move the step boundary", () => {
+    const source = `You see\nif true then\n  .. {if true then "" else ""} # marker\nend\nThe door.\nAfter.\n`;
+    const result = steps(source, true);
+    expect(result.map((s) => s.text)).toEqual([
+      "You see The door.\n",
+      "After.\n",
+    ]);
+  });
+
   test("a whitespace-only continuation keeps the step open", () => {
     const source = `store x = ""\nFirst\n.. {x}\nLast ..\nword.\nAfter.\n`;
     expect(texts(source, true)).toEqual(["First Last word.\n", "After.\n"]);

@@ -106,9 +106,9 @@ function buildDisplayContent(
   // EXPERIMENTAL display-as-Luau-call path: when enabled, a SIMPLE display
   // statement (plain text, single beat, no cue/layer/interpolation/divert/
   // alternator/tag) lowers to a native `display({ target, text })` call instead
-  // of the legacy routing-tag + visible-text form. Carries the pre-parsed
-  // instruction table the runtime renders without a char-by-char re-scan. Any
-  // non-simple content returns null and falls through to the legacy path below,
+  // of the legacy routing-tag + visible-text form. The table carries the
+  // routing and the body string; the interpreter parses that body exactly as
+  // it parses flat text. Any non-simple content returns null and falls through to the legacy path below,
   // so existing goldens stay byte-identical until the table shape grows.
   const displayCall = tryBuildSimpleDisplayCall(
     parent,
