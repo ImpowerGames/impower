@@ -89,7 +89,56 @@ scene start
 end
 `;
 
+// One scene per producer, so a producer that loses or gains coverage shows up
+// by its own line.
+const PRODUCERS: Record<string, string> = {
+  "a tagged line": `  The bell rings. # ominous\n  HERO: Goodbye. # final`,
+  "a write with no layer": `  @: Layerless line.`,
+  "an empty body": `  $:\n  After the heading.`,
+  "a load line": `  load overworld\n  The world appears.`,
+  "a mid-line divert": `  We hurried home to -> next`,
+  "a mid-line load divert": `  We hurried home to -> load next`,
+  "an asset line": `  [[show backdrop BG]]\n  After the asset.`,
+  "a load arrow": `  -> load next`,
+  "a single-line alternator": `  queue | A # t | B end\n  After the alternator.`,
+  "a bare {expr} line and a chain": `  {1 + 2}\n  {1}{2}\n  After the expressions.`,
+  "a print() call": `  & f()\n  After the print.`,
+  "picked choices": `  choose\n    * Take it\n    * Leave it -> next\n  end`,
+};
+
+function producerScene(body: string) {
+  return `define HERO as character with
+  name = "HERO"
+end
+
+-> start
+
+scene start
+${body}
+  done
+end
+
+scene next
+  Savile Row.
+  done
+end
+
+function f()
+print("hi")
+end
+`;
+}
+
 describe("pathLocation coverage parity", () => {
+  for (const [label, body] of Object.entries(PRODUCERS)) {
+    test(`${label} covers the same source lines`, () => {
+      const source = producerScene(body);
+      const covered = coveredLines(source, true);
+      expect(covered.length).toBeGreaterThan(0);
+      expect(covered).toEqual(coveredLines(source, false));
+    });
+  }
+
   test("a glued chain covers the same source lines", () => {
     const covered = coveredLines(GLUED, true);
     expect(covered.length).toBeGreaterThan(0);

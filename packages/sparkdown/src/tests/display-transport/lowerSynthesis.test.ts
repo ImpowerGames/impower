@@ -153,15 +153,17 @@ describe("lowerer synthesis: display() from authored prose", () => {
     );
   });
 
-  test("a trailing # tag falls back to the legacy path", () => {
-    // A `# tag` is metadata (currentTags), not capturable text, so the lowerer
-    // falls back — the beat renders via legacy (no display instruction).
+  test("a trailing # tag rides the stream beside the call", () => {
+    // A `# tag` is metadata, so it goes to the stream ahead of the call and
+    // lands in the same step's `currentTags`.
     const { story, errors } = run(`The bell rings. # ominous\ndone\n`, {
       experimentalDisplayCalls: true,
     });
     expect(errors).toEqual([]);
-    expect(story.currentDisplayInstructions).toHaveLength(0);
-    expect((story.currentText ?? "").trim()).toBe("The bell rings.");
+    const instructions = story.currentDisplayInstructions;
+    expect(instructions).toHaveLength(1);
+    expect(field(instructions[0]!, "text")).toBe("The bell rings.");
+    expect(story.currentTags).toEqual(["ominous"]);
   });
 
   test("emphasis markers ride as literal text in the table", () => {

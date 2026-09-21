@@ -14,6 +14,25 @@ import { ParsedObject } from "./Object";
 import { Story } from "./Story";
 import { SymbolType } from "./SymbolType";
 
+// Stands where a chosen choice repeats its start content, when that is not the
+// start of the choice's inner content: inside the string of a `display()`
+// call, so the repeated words are part of the call's text. The owning choice
+// supplies the runtime jump into its start content when it generates.
+export class ChoiceStartEcho extends ParsedObject {
+  public generated: RuntimeContainer | null = null;
+
+  override get typeName(): string {
+    return "ChoiceStartEcho";
+  }
+
+  public readonly GenerateRuntimeObject = (): RuntimeObject => {
+    if (!this.generated) {
+      throw new Error("ChoiceStartEcho generated before its choice");
+    }
+    return this.generated;
+  };
+}
+
 export class Choice extends ParsedObject implements IWeavePoint, INamedContent {
   private _condition: Expression | null = null;
   private _innerContentContainer: RuntimeContainer | null = null;
@@ -46,6 +65,9 @@ export class Choice extends ParsedObject implements IWeavePoint, INamedContent {
   public isInvisibleDefault: boolean = false;
   public indentationDepth: number;
   public hasWeaveStyleInlineBrackets: boolean = false;
+  // Where the chosen output repeats the start content, when `innerContent`
+  // holds it rather than beginning with it.
+  public startEcho: ChoiceStartEcho | null = null;
 
   get condition() {
     return this._condition;
@@ -244,23 +266,32 @@ export class Choice extends ParsedObject implements IWeavePoint, INamedContent {
 
     // Repeat start content by diverting to its container
     if (this.startContent) {
+      // The jump goes at the top of the choice content, or where `startEcho`
+      // stands inside it.
+      const echoTarget = this.startEcho
+        ? new RuntimeContainer()
+        : this._innerContentContainer;
+      if (this.startEcho) {
+        this.startEcho.generated = echoTarget;
+      }
+
       // Set the return point when jumping back into the start content
       //  - In this case, it's the $r2 point, within the choice content "c".
       this._returnToR2 = new DivertTargetValue();
-      this._innerContentContainer.AddContent(RuntimeControlCommand.EvalStart());
-      this._innerContentContainer.AddContent(this._returnToR2);
-      this._innerContentContainer.AddContent(RuntimeControlCommand.EvalEnd());
+      echoTarget.AddContent(RuntimeControlCommand.EvalStart());
+      echoTarget.AddContent(this._returnToR2);
+      echoTarget.AddContent(RuntimeControlCommand.EvalEnd());
       const varAssign = new RuntimeVariableAssignment("$r", true);
-      this._innerContentContainer.AddContent(varAssign);
+      echoTarget.AddContent(varAssign);
 
       // Main divert into start content
       this._divertToStartContentInner = new RuntimeDivert();
-      this._innerContentContainer.AddContent(this._divertToStartContentInner);
+      echoTarget.AddContent(this._divertToStartContentInner);
 
       // Define label to return to
       this._r2Label = new RuntimeContainer();
       this._r2Label.name = "$r2";
-      this._innerContentContainer.AddContent(this._r2Label);
+      echoTarget.AddContent(this._r2Label);
     }
 
     // Choice's own inner content

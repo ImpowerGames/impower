@@ -5,6 +5,7 @@ import { Text } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Text";
 import type { CompiledBlock } from "../../classes/annotators/CompilationAnnotator";
 import type { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
 import type { LowerContext } from "../context";
+import { buildDisplayCall } from "../utils/displayCall";
 import { wrapInWeave } from "../utils/wrapInWeave";
 
 // Asset lines lower to their raw bracketed directive text, emitted inline:
@@ -50,9 +51,17 @@ function buildAssetContent(node: SyntaxNode, ctx: LowerContext): CompiledBlock {
     // runtime interpreter parses it exactly like an inline directive.
     content.push(new Text(extractCommandText(cmd, ctx)));
   }
-  if (content.length > 0) {
-    content.push(new Text("\n"));
+  if (content.length === 0) {
+    return wrapInWeave(content);
   }
+  // With display calls on, the directives ride one `display({ text })` call on
+  // the default target, as the text of a directive-only line.
+  if (ctx.config?.experimentalDisplayCalls) {
+    return wrapInWeave([
+      buildDisplayCall(undefined, undefined, content, node, ctx),
+    ]);
+  }
+  content.push(new Text("\n"));
   return wrapInWeave(content);
 }
 

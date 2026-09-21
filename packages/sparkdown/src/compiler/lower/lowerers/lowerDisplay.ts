@@ -3,15 +3,10 @@ import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/get
 import { type SyntaxNode } from "@lezer/common";
 import { Conditional } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Conditional/Conditional";
 import { ConditionalSingleBranch } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Conditional/ConditionalSingleBranch";
+import { Divert } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Divert/Divert";
+import { TunnelOnwards } from "../../../inkjs/compiler/Parser/ParsedHierarchy/TunnelOnwards";
 import { Expression } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expression/Expression";
-import {
-  ObjectExpression,
-  ObjectExpressionEntry,
-} from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expression/ObjectExpression";
-import { StringExpression } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expression/StringExpression";
-import { FunctionCall } from "../../../inkjs/compiler/Parser/ParsedHierarchy/FunctionCall";
 import { Glue as ParsedGlue } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Glue";
-import { Identifier } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Identifier";
 import { ParsedObject } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Object";
 import { Tag } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Tag";
 import { Text } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Text";
@@ -33,6 +28,7 @@ import {
 } from "../utils/buildDivert";
 import { ErrorType } from "../../../inkjs/compiler/Parser/ErrorType";
 import { stampDebugMetadata } from "../utils/debugMetadata";
+import { buildDisplayCall, buildLoadCall } from "../utils/displayCall";
 import { formatDisplayRoutingTag } from "../../utils/displayRoutingTag";
 import { lowerTagContent } from "../utils/lowerTagContent";
 import { wrapInWeave } from "../utils/wrapInWeave";
@@ -106,12 +102,9 @@ function buildDisplayContent(
   // EXPERIMENTAL display-as-Luau-call path: when enabled, a display statement
   // lowers to a native `display({ target, character?, text })` call (one per
   // `>`-split beat) instead of the legacy routing-tag + visible-text form.
-  // Dialogue cues, write layers, interpolation, inline conditionals and
-  // alternators, and glue all ride the call; a mid-line divert, a `# tag`, a
-  // `load` line, a `write` with no layer and an empty body do not. The table carries the
-  // routing and the body string; the interpreter parses that body exactly as
-  // it parses flat text. Any non-simple content returns null and falls through to the legacy path below,
-  // so existing goldens stay byte-identical until the table shape grows.
+  // The table carries the routing and the body string; the interpreter parses
+  // that body exactly as it parses flat text. Content a captured string cannot
+  // hold returns null and falls through to the legacy path below.
   const displayCall = tryBuildSimpleDisplayCall(
     parent,
     bodyStart,
@@ -192,10 +185,12 @@ function buildDisplayContent(
 // so ink evaluates them (interpolation → live values, markup preserved) into one
 // string at call time. The engine then runs the identical `parse()` pipeline.
 //
-// Falls back (returns null) for content the flat `text` string can't represent
-// faithfully yet: mid-line diverts and `# tag`s. A mid-line `>` split is
-// supported: each beat range emits its own display() call (separate beats via
-// the engine's display-instruction-count boundary).
+// A mid-line `>` split emits one display() call per beat range (separate beats
+// via the engine's display-instruction-count boundary). Around each call:
+// author `# tag`s go ahead of it, and a mid-line divert follows it. A `load`
+// action line makes a `display({ load })` call instead. It returns null only
+// when a mid-body `..` sits next to something other than text, or text follows
+// a mid-line divert.
 //
 // Glue: a `..` in the middle of a body is joined inside the captured string at
 // compile time (`joinMidBodyGlue`). A TRAILING `..` is lifted out and emitted
@@ -215,21 +210,10 @@ function tryBuildSimpleDisplayCall(
 ): ParsedObject[] | null {
   if (!ctx.config?.experimentalDisplayCalls) return null;
 
-  // A `load <name>…` action line is a WORLD-LOAD DIRECTIVE, not display text:
-  // `InterpreterModule.queue` intercepts the prefix and converts it to
-  // LoadInstructions. `queueInstructions` has no such interception, so this
-  // line must stay on the legacy text path or the directive would render as
-  // the literal string "load …" and the load would never run.
-  if (
-    lineType === "action" &&
-    ctx.read(bodyStart, bodyEnd).trimStart().startsWith("load ")
-  ) {
-    return null;
-  }
-
   // Resolve the routing exactly as the engine's tag path does, but at compile
   // time: dialogue → target "dialogue" + the cue; write → the layer is the
-  // target; everything else → the line type IS the target.
+  // target, and a write with no layer names no target, so the interpreter
+  // uses its default; everything else → the line type IS the target.
   let target: string | undefined;
   let character: string | undefined;
   if (lineType === null) {
@@ -239,8 +223,7 @@ function tryBuildSimpleDisplayCall(
     target = "dialogue";
     character = identifier ?? undefined;
   } else if (lineType === "write") {
-    if (!identifier) return null; // need the layer name
-    target = identifier;
+    target = identifier || undefined;
     character = undefined;
   } else {
     target = lineType;
@@ -257,15 +240,22 @@ function tryBuildSimpleDisplayCall(
   const calls: ParsedObject[] = [];
   for (let i = 0; i < ranges.length; i++) {
     const range = ranges[i]!;
+    const divertTail = { objects: [] as ParsedObject[], bodyIndex: -1 };
     // Reuse the legacy body walker so trimming/escapes match exactly.
-    const body = processDisplayBody(
-      parent,
-      range.from,
-      range.to,
-      ctx,
-      mode,
-      i === 0 ? options : {},
-    );
+    const walked = processDisplayBody(parent, range.from, range.to, ctx, mode, {
+      ...(i === 0 ? options : {}),
+      divertTail,
+    });
+    // Text after a mid-line divert would have to print after the flow left.
+    if (divertTail.bodyIndex >= 0 && walked.length > divertTail.bodyIndex) {
+      const after = walked.slice(divertTail.bodyIndex);
+      if (after.some((obj) => !(obj instanceof Tag) && !isInTag(obj, walked))) {
+        return null;
+      }
+    }
+    // Author `# tag`s are metadata, not text: they go to the stream ahead of
+    // the call, so they land in `currentTags` for the same step.
+    const { tags, body } = separateTags(walked);
     const trailingGlue = body.at(-1) instanceof ParsedGlue ? body.pop() : null;
     // A trailing `>` break ends the body with its own newline Text. Captured
     // in the table it would sit where no glue can reach it, so a following
@@ -275,13 +265,10 @@ function tryBuildSimpleDisplayCall(
     const last = body.at(-1);
     if (last instanceof Text && last.text === "\n") body.pop();
     if (!joinMidBodyGlue(body)) return null;
-    if (body.length === 0) return null;
     for (const obj of body) {
       // Content that string-captures faithfully: plain Text, interpolation
       // Expressions, inline Conditionals (`{if …}`), and inline alternators (a
-      // Weave wrapping a Sequence). Anything else — a mid-line Divert (changes
-      // flow) or a `# tag` (metadata) — can't ride a captured string, so fall
-      // the whole statement back to the legacy path.
+      // Weave wrapping a Sequence).
       if (
         !(obj instanceof Text) &&
         !(obj instanceof Expression) &&
@@ -291,10 +278,79 @@ function tryBuildSimpleDisplayCall(
         return null;
       }
     }
-    calls.push(buildDisplayCall(target, character, body, range, ctx));
+    const loadArgs = lineType === "action" ? stripLoadKeyword(body) : null;
+    calls.push(...tags);
+    if (loadArgs) {
+      calls.push(buildLoadCall(loadArgs, range, ctx));
+    } else {
+      // An empty body still makes a call, so the line keeps its own step. Its
+      // range is stamped from the statement's start, since an empty block
+      // body's range sits on the line after it.
+      const stamped =
+        body.length > 0 ? range : { from: parent.from, to: parent.from };
+      calls.push(buildDisplayCall(target, character, body, stamped, ctx));
+    }
     if (trailingGlue) calls.push(trailingGlue);
+    if (divertTail.objects.length > 0) {
+      // A plain divert holds the line open with glue, so the target's first
+      // line joins this one's beat. A `load` arrow's directive is its own
+      // step, which the call's closing newline already starts.
+      const joins = divertTail.objects.every(
+        (obj) => obj instanceof Divert || obj instanceof TunnelOnwards,
+      );
+      if (joins) calls.push(new ParsedGlue(new RuntimeGlue()));
+      calls.push(...divertTail.objects);
+      // Reached only when a tunnel returns: it ends the joined line.
+      calls.push(new Text("\n"));
+    }
   }
   return calls.length > 0 ? calls : null;
+}
+
+// Whether `obj` sits between a Tag(true) and Tag(false) of `list`.
+function isInTag(obj: ParsedObject, list: ParsedObject[]): boolean {
+  let inTag = false;
+  for (const o of list) {
+    if (o instanceof Tag) {
+      inTag = o.isStart;
+      continue;
+    }
+    if (o === obj) return inTag;
+  }
+  return false;
+}
+
+// Split a walked display body into its `# tag` runs (each `Tag(true)`,
+// content, `Tag(false)`) and the remaining body, both in order.
+function separateTags(walked: ParsedObject[]): {
+  tags: ParsedObject[];
+  body: ParsedObject[];
+} {
+  const tags: ParsedObject[] = [];
+  const body: ParsedObject[] = [];
+  let inTag = false;
+  for (const obj of walked) {
+    if (obj instanceof Tag) {
+      inTag = obj.isStart;
+      tags.push(obj);
+    } else if (inTag) {
+      tags.push(obj);
+    } else {
+      body.push(obj);
+    }
+  }
+  return { tags, body };
+}
+
+// A `load <names>` action line is a world-load directive. Returns the body
+// with the keyword removed, or null when the line is not one.
+function stripLoadKeyword(body: ParsedObject[]): ParsedObject[] | null {
+  const first = body[0];
+  if (!(first instanceof Text)) return null;
+  const match = /^\s*load\s/.exec(first.text);
+  if (!match) return null;
+  const rest = first.text.slice(match[0].length);
+  return rest ? [new Text(rest), ...body.slice(1)] : body.slice(1);
 }
 
 // Resolve each mid-body `..` of a display body in place. String evaluation
@@ -317,51 +373,6 @@ function joinMidBodyGlue(body: ParsedObject[]): boolean {
     body.splice(i, 1);
   }
   return true;
-}
-
-// `display({ target?, character?, text })` with `shouldPopReturnedValue` — a
-// synthesized bare-call statement (no author `&` needed). `display` is a
-// state-aware STDLIB entry, so this lowers to a RunStdLibFunction dispatch whose
-// live ObjectValue arg the engine reads via `story.currentDisplayInstructions`.
-// `text` is a StringExpression over the body's own ParsedObjects, so ink
-// evaluates interpolation to live values and concatenates the run at call time.
-function buildDisplayCall(
-  target: string | undefined,
-  character: string | undefined,
-  body: ParsedObject[],
-  range: { from: number; to: number },
-  ctx: LowerContext,
-): FunctionCall {
-  const entries: ObjectExpressionEntry[] = [];
-  if (target) {
-    entries.push(
-      new ObjectExpressionEntry(
-        "target",
-        new StringExpression([new Text(target)]),
-      ),
-    );
-  }
-  if (character) {
-    entries.push(
-      new ObjectExpressionEntry(
-        "character",
-        new StringExpression([new Text(character)]),
-      ),
-    );
-  }
-  entries.push(
-    new ObjectExpressionEntry("text", new StringExpression(body)),
-  );
-  const call = new FunctionCall(new Identifier("display"), [
-    new ObjectExpression(entries),
-  ]);
-  call.shouldPopReturnedValue = true;
-  // Stamp the call with its source range so each display beat surfaces a
-  // pathLocation (the screenplay preview's click-to-line routing depends on
-  // it). Without this the synthesized node has no metadata of its own and
-  // collapses to the enclosing scene's line.
-  stampDebugMetadata([call], range.from, range.to, ctx);
-  return call;
 }
 
 // Trim trailing whitespace/newlines off a source range so a stamped beat
@@ -465,7 +476,13 @@ function processDisplayBody(
   bodyEnd: number,
   ctx: LowerContext,
   mode: "inline" | "block",
-  options: { preserveLeadingWhitespace?: boolean } = {},
+  options: {
+    preserveLeadingWhitespace?: boolean;
+    // Receives a mid-line divert's objects instead of the body, so the
+    // caller can place them after the line's display() call. `bodyIndex` is
+    // the body length when the divert was reached.
+    divertTail?: { objects: ParsedObject[]; bodyIndex: number };
+  } = {},
 ): ParsedObject[] {
   let segments = collectBodySegments(parent, bodyStart, bodyEnd, ctx);
 
@@ -623,10 +640,12 @@ function processDisplayBody(
           },
         });
       }
+      const tail = options.divertTail;
+      if (tail) tail.bodyIndex = out.length;
       for (const obj of withDivertLoad(seg.node, divertObjects, ctx, {
         ownLine: false,
       })) {
-        out.push(obj);
+        (tail ? tail.objects : out).push(obj);
       }
     }
   }
@@ -1110,6 +1129,42 @@ export function lowerLuauInterpolatedStringExpression(
   // pair, which differs from author expectation when porting fixtures.
   const omitTrailingNewline = hasAdjacentInterpolationSibling(nodeRef.node);
 
+  // With display calls on, the first interpolation of a same-line chain lowers
+  // the whole chain to one `display({ text })` call on the default target; the
+  // rest of the chain contributes nothing of its own.
+  if (ctx.config?.experimentalDisplayCalls) {
+    if (adjacentInterpolationSibling(nodeRef.node, "prev")) return {};
+    const body: ParsedObject[] = [];
+    let last: SyntaxNode = nodeRef.node;
+    for (
+      let node: SyntaxNode | null = nodeRef.node;
+      node;
+      node = adjacentInterpolationSibling(node, "next")
+    ) {
+      last = node;
+      const alt = tryLowerInlineAlternator(node, ctx);
+      if (alt) {
+        body.push(...alt);
+        continue;
+      }
+      const expr = lowerExpressionFromContainer(node, ctx);
+      if (expr) {
+        expr.outputWhenComplete = true;
+        body.push(expr);
+      }
+    }
+    if (body.length === 0) return {};
+    return wrapInWeave([
+      buildDisplayCall(
+        undefined,
+        undefined,
+        body,
+        { from: nodeRef.node.from, to: last.to },
+        ctx,
+      ),
+    ]);
+  }
+
   const inlineAlt = tryLowerInlineAlternator(nodeRef.node, ctx);
   if (inlineAlt) {
     return wrapInWeave(
@@ -1128,14 +1183,25 @@ export function lowerLuauInterpolatedStringExpression(
 // / `ExtraWhitespace` / `Separator` nodes are skipped so `{x} {y}` (with
 // a space) also collapses to one line — same author intent.
 function hasAdjacentInterpolationSibling(node: SyntaxNode): boolean {
-  let cursor: SyntaxNode | null = node.nextSibling;
+  return adjacentInterpolationSibling(node, "next") !== null;
+}
+
+// The interpolation sibling on the same source line next to `node` in the
+// given direction, skipping whitespace, or null.
+function adjacentInterpolationSibling(
+  node: SyntaxNode,
+  direction: "prev" | "next",
+): SyntaxNode | null {
+  const step = (n: SyntaxNode) =>
+    direction === "next" ? n.nextSibling : n.prevSibling;
+  let cursor: SyntaxNode | null = step(node);
   while (cursor) {
-    if (cursor.name === "Newline") return false;
+    if (cursor.name === "Newline") return null;
     if (
       cursor.name === "LuauInterpolatedStringExpression" ||
       cursor.name === "LuauFunctionCallShorthand"
     ) {
-      return true;
+      return cursor;
     }
     if (
       cursor.name === "Whitespace" ||
@@ -1143,12 +1209,12 @@ function hasAdjacentInterpolationSibling(node: SyntaxNode): boolean {
       cursor.name === "RequiredWhitespace" ||
       cursor.name === "OptionalWhitespace"
     ) {
-      cursor = cursor.nextSibling;
+      cursor = step(cursor);
       continue;
     }
-    return false;
+    return null;
   }
-  return false;
+  return null;
 }
 
 export function lowerInlineAction(

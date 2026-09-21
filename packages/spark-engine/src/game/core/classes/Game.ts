@@ -1885,7 +1885,12 @@ export class Game<T extends M = {}> {
       if (pointerPath) {
         if (pointerPath !== this._executingPath) {
           this._executingPath = pointerPath;
-          this.observeScene(pointerPath);
+          // A look-ahead past the end of a line can run into the next scene
+          // and be undone. The scene is entered when the story really gets
+          // there.
+          if (!this._story.isLookingAhead) {
+            this.observeScene(pointerPath);
+          }
           if (
             this._plannedRoute &&
             this._plannedRouteStepCursor < this._plannedRoute?.steps.length

@@ -3077,15 +3077,24 @@ export const STDLIB: Record<string, StdLibEntry> = {
       // `print(...)` is the way to emit DISPLAY (action) text from a
       // function body, where the usual bare display-text syntax isn't
       // available (function bodies are pure logic). Args stringify
-      // like `tostring`, join with a space, and a trailing newline
-      // ends the line. In pure expression contexts with no display
-      // flow (e.g. the Luau conformance harness wrapping logic in
-      // `function run()`), the text simply lands in the output stream
-      // and is captured on Continue — assertions are unaffected.
+      // like `tostring` and join with a space. The line is a
+      // `display({ text })` table on the default target followed by the
+      // newline that ends it, as `display` pushes. Inside string
+      // evaluation (a function called from an interpolation) the text is
+      // part of the string being built, so it is pushed as a plain
+      // string with no line break.
       const text = args
         .map((a) => luauAnyToDisplayString(story, a))
         .join(" ");
-      story.state.PushToOutputStream(new StringValue(text + "\n"));
+      if (story.state.inStringEvaluation) {
+        story.state.PushToOutputStream(new StringValue(text));
+        return;
+      }
+      const table = new ObjectValue(
+        new Map<string, AbstractValue>([["text", new StringValue(text)]]),
+      );
+      story.state.PushToOutputStream(table);
+      story.state.PushToOutputStream(new StringValue("\n"));
     },
   },
   // `display(<instructions table>)` — SPIKE (display-as-Luau-call

@@ -463,7 +463,9 @@ export class InterpreterModule extends Module<
    * per-character `parse()`, cue prefixing and buffer fold are byte-identical —
    * only the source of the routing differs.
    *
-   * Table shape: `{ target?: string, character?: string, text: string }`.
+   * Table shape: `{ target?: string, character?: string, text: string }`, or
+   * `{ load: string }` for a `load` line, whose whitespace-separated names
+   * queue a load beat.
    *
    * One step makes one beat. Several tables share a step only when glue joined
    * their lines, so the first table supplies the routing, and the body is the
@@ -485,6 +487,18 @@ export class InterpreterModule extends Module<
     const first = tables[0];
     const read = (key: string): unknown =>
       (first?.value?.get(key) as { value?: unknown } | undefined)?.value;
+    const load = read("load");
+    if (typeof load === "string") {
+      // A `load` line is always a load beat of its own. Glued continuation
+      // lines add more names; they reach the step as table text.
+      this._state.buffer ??= [];
+      const loadInstructions: LoadInstruction[] = `${load}${content}`
+        .split(this.WHITESPACE_REGEX)
+        .filter(Boolean)
+        .map((name) => ({ name }));
+      this._state.buffer.push({ load: loadInstructions, end: 0 });
+      return;
+    }
     const target = read("target");
     if (typeof target !== "string" || !target) {
       this.queue(content, choices, tags);

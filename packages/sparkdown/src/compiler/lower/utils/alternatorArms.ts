@@ -2,10 +2,14 @@ import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/get
 import { type SyntaxNode } from "@lezer/common";
 import { Divert } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Divert/Divert";
 import { lowerDivertPath } from "./lowerDivertPath";
+import { Glue as ParsedGlue } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Glue";
 import { ParsedObject } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Object";
 import { Tag } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Tag";
 import { Text } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Text";
+import { TunnelOnwards } from "../../../inkjs/compiler/Parser/ParsedHierarchy/TunnelOnwards";
 import { Weave } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Weave";
+import { Glue as RuntimeGlue } from "../../../inkjs/engine/Glue";
+import { buildDisplayCall } from "./displayCall";
 import type { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
 import type { LowerContext } from "../context";
 import { lowerPrimary } from "../expression/lowerExpression";
@@ -71,14 +75,21 @@ export function lowerArms(
       // For the single-line block form we also append a trailing
       // `"\n"` so each visit ends a display line — matching the
       // multi-line block-form arm shape (which routes through
-      // `ImplicitAction` → display line + newline). The inline-glued
+      // `ImplicitAction` → display line + newline); with display calls on,
+      // the arm's text is a `display()` call instead. The inline-glued
       // form is spliced into surrounding text and doesn't want a
       // trailing newline; the caller's display lowerer handles line
       // breaks.
       const armContent = findChildByName(child, `${child.name}_content`);
       if (armContent) {
-        lowerArmContent(armContent, current.body, ctx);
-        if (child.name === "LuauSparkdownAlternatorArm") {
+        if (child.name !== "LuauSparkdownAlternatorArm") {
+          lowerArmContent(armContent, current.body, ctx);
+        } else if (ctx.config?.experimentalDisplayCalls) {
+          const parts: ParsedObject[] = [];
+          lowerArmContent(armContent, parts, ctx);
+          current.body.push(...armLineAsDisplayCall(parts, ctx));
+        } else {
+          lowerArmContent(armContent, current.body, ctx);
           current.body.push(new Text("\n"));
         }
       }
@@ -136,6 +147,43 @@ export function lowerArms(
     child = child.nextSibling;
   }
   return arms;
+}
+
+// A single-line block arm is a display line of its own. Its tags go ahead of a
+// `display({ text })` call on the default target, and a divert follows the
+// call, held on the same line by glue as a mid-line divert is.
+function armLineAsDisplayCall(
+  parts: ParsedObject[],
+  ctx: LowerContext,
+): ParsedObject[] {
+  const tags: ParsedObject[] = [];
+  const text: ParsedObject[] = [];
+  const tail: ParsedObject[] = [];
+  let inTag = false;
+  for (const obj of parts) {
+    if (obj instanceof Tag) {
+      inTag = obj.isStart;
+      tags.push(obj);
+    } else if (inTag) {
+      tags.push(obj);
+    } else if (tail.length === 0 && obj instanceof Text) {
+      text.push(obj);
+    } else {
+      tail.push(obj);
+    }
+  }
+  const out: ParsedObject[] = [...tags];
+  if (text.length > 0) {
+    out.push(buildDisplayCall(undefined, undefined, text, null, ctx));
+    const joins =
+      tail.length > 0 &&
+      tail.every((obj) => obj instanceof Divert || obj instanceof TunnelOnwards);
+    if (joins) out.push(new ParsedGlue(new RuntimeGlue()));
+  }
+  if (text.length === 0 || tail.length > 0) {
+    out.push(...tail, new Text("\n"));
+  }
+  return out;
 }
 
 export function findChildByName(

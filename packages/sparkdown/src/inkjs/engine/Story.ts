@@ -742,6 +742,12 @@ export class Story extends InkObject {
     return this.state.currentDisplayInstructions;
   }
 
+  /** True while the story runs past a finished line to learn whether the
+   *  line continues. What runs then is undone unless it does. */
+  get isLookingAhead() {
+    return this._stateSnapshotAtLastNewline !== null;
+  }
+
   get currentErrors() {
     return this.state.currentErrors;
   }
