@@ -13,8 +13,9 @@ type Step =
   | { select: number }
   | { edit: { find: string; replace: string } }
   | { editAt: { offset: number; deleteLength: number; insert: string } }
-  /** Highlight a suggestion that replaces `find` with `replace`. */
-  | { suggest: { find: string; replace: string } }
+  /** Highlight a suggestion that replaces `find` with `replace`, previewed at
+   *  `line` (by default the edit's own line). */
+  | { suggest: { find: string; replace: string; line?: number } }
   | { close: true };
 
 const harnesses: { dispose(): void }[] = [];
@@ -64,7 +65,7 @@ async function frames(workerDisplays: boolean, text: string, steps: Step[]) {
         start: posAt(current, offset),
         end: posAt(current, offset + step.suggest.find.length),
       };
-      await h.suggest([{ range, text: step.suggest.replace }], range.start.line);
+      await h.suggest([{ range, text: step.suggest.replace }], step.suggest.line ?? range.start.line);
     } else if ("close" in step) {
       await h.closeSuggestions();
     } else {
@@ -160,6 +161,42 @@ describe("the preview displayed from the worker's game", () => {
     expect(JSON.stringify(on[3])).toContain("A second suggestion for scene 2.");
     expect(JSON.stringify(on[4])).toContain("A first suggestion for scene 2.");
     expect(JSON.stringify(on[5])).toContain(line);
+  }, 120_000);
+
+  it("shows the real document after a suggestion changed a function an unchanged scene calls", async () => {
+    // The suggestion compile carries `bridge` over unchanged and changes
+    // `greeting`. Closing the list shows the real document from the story the
+    // worker kept, without compiling, and the beat at the cursor calls
+    // `greeting` from `bridge`: the call resolves through `bridge`'s parents
+    // to the function of whichever story they lead to.
+    const text = [
+      "-> bridge",
+      "",
+      "function greeting()",
+      `  return "the real greeting"`,
+      "end",
+      "",
+      "scene bridge",
+      "  The bridge says {greeting()}.",
+      "end",
+      "",
+    ].join("\n");
+    const steps: Step[] = [
+      { select: lineOf(text, "The bridge says") },
+      {
+        suggest: {
+          find: "the real greeting",
+          replace: "the suggested greeting",
+          line: lineOf(text, "The bridge says"),
+        },
+      },
+      { close: true },
+    ];
+    const on = await frames(true, text, steps);
+    expect(on).toEqual(await frames(false, text, steps));
+    expect(JSON.stringify(on[1])).toContain("The bridge says the real greeting.");
+    expect(JSON.stringify(on[2])).toContain("The bridge says the suggested greeting.");
+    expect(JSON.stringify(on[3])).toContain("The bridge says the real greeting.");
   }, 120_000);
 
   it("builds the page game's overlay over the Pico showcase", async () => {

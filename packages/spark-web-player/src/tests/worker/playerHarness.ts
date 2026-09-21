@@ -179,6 +179,8 @@ export async function createPlayerHarness(options: PlayerHarnessOptions) {
   const controller: any = new GamePlayerController(host, refs);
   controller._mounted = true;
   const createImage = (): ImageTarget => createFakeImage(options.holdImage);
+  // Every message the game sends the page's managers, from either game.
+  const toRouter: any[] = [];
   let ui: UIManager | undefined;
   controller.buildAppFor = async (endpoint: GameEndpoint) => {
     if (controller._app) {
@@ -206,7 +208,11 @@ export async function createPlayerHarness(options: PlayerHarnessOptions) {
         for (const m of managers) m.onDispose();
       },
       connectGame: () =>
-        endpoint.connect((message) => router.receive(structuredClone(message))),
+        endpoint.connect((message) => {
+          const copy = structuredClone(message);
+          toRouter.push(copy);
+          router.receive(copy);
+        }),
     };
     controller._app = app;
     await app.connectGame();
@@ -225,6 +231,7 @@ export async function createPlayerHarness(options: PlayerHarnessOptions) {
     workerState,
     toPage,
     toEditor,
+    toRouter,
     snapshotDOM: () => serializeDOM(overlay),
     /** Compile the main script and hand the result to the controller, as the
      *  workspace's `compiler/didCompile` does. */
