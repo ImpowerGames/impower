@@ -323,7 +323,8 @@ export class InterpreterModule extends Module<
    * dialogue cue + a final body string, and append them to the buffer. Shared
    * by {@link queue} (routing resolved from the line-type tag) and
    * {@link queueInstructions} (routing carried in the step's first
-   * `display(<table>)` table); the body is the step's `currentText` for both,
+   * `display(<table>)` table that names a target); the body is the step's
+   * `currentText` for both,
    * so BOTH transports produce byte-identical
    * instructions: the cue resolution (name / parenthetical / position via
    * `CHARACTER_REGEX`), the `>` box split, the per-character `parse()`, the cue
@@ -463,15 +464,18 @@ export class InterpreterModule extends Module<
    * per-character `parse()`, cue prefixing and buffer fold are byte-identical —
    * only the source of the routing differs.
    *
-   * Table shape: `{ target?: string, character?: string, text: string }`.
+   * Table shape: `{ target?: string, character?: string, text: string,
+   * tags?: table }`, or `{ load: string }` for a `load` line, whose
+   * whitespace-separated names queue a load beat of their own.
    *
    * One step makes one beat. Several tables share a step only when glue joined
-   * their lines, so the first table supplies the routing, and the body is the
-   * step's ordered visible text: every table's `text` and any flat string, in
-   * stream order. A glued continuation's table carries no routing. When it is
-   * the step's first table, the line it continues reached the stream as flat
-   * text, so the step is a flat-text step with more words joined on and takes
-   * {@link queue}, which routes it by its tag and recognises a `load` line.
+   * their lines, and the body is the step's ordered visible text: every
+   * table's `text` and any flat string, in stream order. The first table that
+   * names a target supplies the routing. Tables without one (a glued
+   * continuation, an echoed choice, `print()`, an asset line) take the routing
+   * of the line they join. A step whose tables name no target renders on the
+   * default target, unless a line joined into it reached the stream as flat
+   * text with a routing tag, which {@link queue} routes.
    *
    * @param content the step's `story.currentText`.
    * @param tags the step's `story.currentTags`.
@@ -482,20 +486,74 @@ export class InterpreterModule extends Module<
     content: string,
     tags: string[],
   ): void {
-    const first = tables[0];
-    const read = (key: string): unknown =>
-      (first?.value?.get(key) as { value?: unknown } | undefined)?.value;
-    const target = read("target");
-    if (typeof target !== "string" || !target) {
-      this.queue(content, choices, tags);
+    const read = (table: ObjectValue | undefined, key: string): unknown =>
+      (table?.value?.get(key) as { value?: unknown } | undefined)?.value;
+    if (tables.some((table) => typeof read(table, "load") === "string")) {
+      // A `load` line is always a load beat of its own. A line that a divert
+      // or a picked choice holds open can reach the step ahead of it, and a
+      // divert on a `load` line can bring the next scene's `load` line into
+      // the same step. Walking the tables in order: text tables before the
+      // first load make a beat of their own, and each load takes the text
+      // tables after it, up to the next load, as more names (a glued
+      // continuation). The step's choices follow its last beat.
+      const tableText = (table: ObjectValue) => {
+        const text = read(table, "text");
+        return typeof text === "string" ? text : "";
+      };
+      this._state.buffer ??= [];
+      let before: ObjectValue[] = [];
+      let load: string | null = null;
+      const flush = () => {
+        const text = before.map(tableText).join("");
+        if (load === null) {
+          if (before.length > 0) this.queueInstructions(before, [], text, tags);
+        } else {
+          const loadInstructions: LoadInstruction[] = `${load}${text}`
+            .split(this.WHITESPACE_REGEX)
+            .filter(Boolean)
+            .map((name) => ({ name }));
+          this._state.buffer!.push({ load: loadInstructions, end: 0 });
+        }
+        before = [];
+      };
+      for (const table of tables) {
+        const next = read(table, "load");
+        if (typeof next === "string") {
+          flush();
+          load = next;
+        } else {
+          before.push(table);
+        }
+      }
+      flush();
+      if (choices.length > 0) {
+        this.appendBeat("", undefined, "", choices);
+      }
       return;
     }
-    const characterRaw = read("character");
+    const routed = tables.find((table) => {
+      const target = read(table, "target");
+      return typeof target === "string" && target;
+    });
+    if (!routed) {
+      if (tags.some((tag) => parseDisplayRoutingTag(tag))) {
+        this.queue(content, choices, tags);
+      } else {
+        this.appendBeat("", undefined, content, choices);
+      }
+      return;
+    }
+    const characterRaw = read(routed, "character");
     const character =
       typeof characterRaw === "string" && characterRaw
         ? characterRaw
         : undefined;
-    this.appendBeat(target, character, content, choices);
+    this.appendBeat(
+      read(routed, "target") as string,
+      character,
+      content,
+      choices,
+    );
   }
 
   /**

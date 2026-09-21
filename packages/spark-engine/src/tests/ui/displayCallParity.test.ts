@@ -45,12 +45,18 @@ async function beatStream(body: string, experimentalDisplayCalls: boolean) {
   harness.jumpTo("start");
   harness.reset();
   // Drive every beat of the scene (a chained `>` line produces several), so the
-  // captured stream covers multi-beat content too.
-  let beat = harness.nextBeat();
-  while (beat) {
-    await harness.display(beat, true);
-    await flushMicrotasks();
-    beat = harness.nextBeat();
+  // captured stream covers multi-beat content too. A story stopped on choices
+  // takes the first one.
+  for (let guard = 0; guard < 50; guard++) {
+    const beat = harness.nextBeat();
+    if (beat) {
+      await harness.display(beat, true);
+      await flushMicrotasks();
+      continue;
+    }
+    const story: any = harness.game.story;
+    if (story.canContinue || story.currentChoices.length === 0) break;
+    story.ChooseChoiceIndex(0);
   }
   return harness.snapshotFiltered("ui/");
 }
@@ -130,20 +136,40 @@ describe("display() ↔ legacy parity (message stream)", () => {
     await assertParity(`  The light {queue|"flickers"|"steadies"|"dies"} now.`);
   });
 
-  // These exercise the FALLBACK boundary: content the display() table doesn't
-  // carry yet must still render identically (because the lowerer falls back to
-  // the legacy path). Parity here proves "no regression", not display() usage.
-  test("display line with a trailing # tag (fallback)", async () => {
+  // A `# tag` goes to the stream ahead of the line's call.
+  test("display line with a trailing # tag", async () => {
     await assertParity(`  The bell rings. # ominous`);
   });
 
-  test("dialogue with a trailing # tag (fallback)", async () => {
+  test("dialogue with a trailing # tag", async () => {
     await assertParity(`  HERO: Goodbye. # final`);
+  });
+
+  test("write with no layer", async () => {
+    await assertParity(`  @: Layerless line.\n  Next.`);
+  });
+
+  test("empty body keeps its own step", async () => {
+    await assertParity(`  $:\n  After the heading.`);
+  });
+
+  // The target's first line joins the diverting line in one beat.
+  test("mid-line divert", async () => {
+    await assertParity(
+      `  We hurried home to -> row\nend\n\nscene row\n  Savile Row.`,
+    );
+  });
+
+  test("mid-line load divert", async () => {
+    await assertParity(
+      `  We hurried home to -> load row\nend\n\nscene row\n  Savile Row.`,
+    );
   });
 
   // Every line of a glue chain lowers to its own display() call (pinned by
   // `glueJoin.test.ts` in packages/sparkdown); one step carries the tables and
-  // the interpreter joins them into one beat routed by the first table.
+  // the interpreter joins them into one beat routed by the first table that
+  // names a target.
   test("leading-glue continuation (.. on the next line)", async () => {
     await assertParity(`  Some\n  .. content\n  .. with glue.`);
   });
@@ -196,8 +222,8 @@ describe("display() ↔ legacy parity (message stream)", () => {
     await assertParity(`  First >\n  .. second.\n  Last.`);
   });
 
-  // The `load` line stays flat text, and its glued continuation is a table:
-  // the step still has to queue a load beat.
+  // The `load` line's table and its glued continuation's table share a step,
+  // which queues one load beat naming both worlds.
   test("load directive with a trailing-glue continuation", async () => {
     await assertParity(
       `  load overworld ..\n  underworld\n  The world appears.`,
@@ -214,14 +240,185 @@ describe("display() ↔ legacy parity (message stream)", () => {
     await assertParity(`  You see a ..\n  red door.\n  It is locked.`);
   });
 
-  // `load <name>` is a world-load directive `InterpreterModule.queue`
-  // intercepts by prefix; `queueInstructions` has no such interception, so the
-  // lowerer must keep it on the legacy path or it renders as literal text.
-  test("load directive line stays a directive (fallback)", async () => {
-    // Paired with a text line so the streams are non-empty either way; if the
-    // directive leaked onto the display path it would surface here as an
-    // extra rendered "load overworld" beat in the flag-on stream.
+  // Paired with a text line so the streams are non-empty either way; a load
+  // table rendered as text would surface as an extra "load overworld" beat.
+  test("load directive line stays a directive", async () => {
     await assertParity(`  load overworld\n  The world appears.`);
+  });
+});
+
+describe("display() ↔ legacy parity · producers outside display statements", () => {
+  test("load arrow", async () => {
+    await assertParity(`  Before.\n  -> load row\nend\n\nscene row\n  Savile Row.`);
+  });
+
+  test("single-line block alternator", async () => {
+    await assertParity(`  queue | A # t | B end\n  After.`);
+  });
+
+  test("bare {expr} line", async () => {
+    await assertParity(`  {1 + 2}\n  After.`);
+  });
+
+  test("{x}{y} chain", async () => {
+    await assertParity(`  {1}{2}\n  After.`);
+  });
+
+  test("print() call", async () => {
+    await assertParity(
+      `  & f()\n  After.\nend\n\nfunction f()\nprint("hi")\nprint("two")`,
+    );
+  });
+
+  test("picked choice", async () => {
+    await assertParity(`  choose\n    * Take it\n      Taken.\n  end`);
+  });
+
+  test("picked choice with an inline divert", async () => {
+    await assertParity(
+      `  choose\n    * Take it -> row\n  end\nend\n\nscene row\n  now.`,
+    );
+  });
+
+  // The echo's table names no target, so the beat takes its routing from the
+  // dialogue line it joins.
+  test("picked choice diverting into a dialogue line", async () => {
+    await assertParity(
+      `  choose\n    * Take it -> row\n  end\nend\n\nscene row\n  HERO: Now.`,
+    );
+  });
+
+  test("picked choice with a tag", async () => {
+    await assertParity(`  choose\n    * Take it # picked\n      Taken.\n  end`);
+  });
+
+  test("print() ending a function glued onto a dialogue line", async () => {
+    await assertParity(
+      `  & f()\n  HERO: After.\nend\n\nfunction f()\nprint("printed")`,
+    );
+  });
+
+  test("dialogue line with a tag evaluated after its text", async () => {
+    await assertParity(
+      `  store x = 0\n  HERO: Say {bump()} # {x}\nend\n\nfunction bump()\nx += 1\nreturn "Hello"`,
+    );
+  });
+});
+
+// The interpreter's reading of a step, beat by beat.
+async function beats(body: string, experimentalDisplayCalls: boolean) {
+  const harness = createHarness(story(body), 0, { experimentalDisplayCalls });
+  await harness.ready;
+  harness.jumpTo("start");
+  const out = [];
+  for (let beat = harness.nextBeat(); beat; beat = harness.nextBeat()) {
+    out.push(beat);
+  }
+  return out;
+}
+
+describe("display() load beats", () => {
+  test("interpolated text beginning with load renders as text", async () => {
+    const [beat] = await beats(
+      `  store verb = "load"\n  {verb} the cart`,
+      true,
+    );
+    expect(beat!.load).toBeUndefined();
+    expect(
+      Object.values(beat!.text ?? {})
+        .flat()
+        .map((t) => t.text)
+        .join(""),
+    ).toContain("load the cart");
+  });
+
+  // A table naming no target renders on the default target; only a `load`
+  // field makes a load beat.
+  for (const [label, body] of [
+    ["a layerless write", `  store verb = "load"\n  @: {verb} the cart`],
+    [
+      "a print() call",
+      `  & f()\nend\n\nfunction f()\nprint("load the cart")`,
+    ],
+  ] as const) {
+    test(`${label} beginning with load renders as text`, async () => {
+      const [beat] = await beats(body, true);
+      expect(beat!.load).toBeUndefined();
+      expect(
+        Object.values(beat!.text ?? {})
+          .flat()
+          .map((t) => t.text)
+          .join(""),
+      ).toContain("load the cart");
+    });
+  }
+
+  // A divert or a picked choice holds its line open with glue, so the target's
+  // `load` line reaches the same step; it still makes a beat of its own.
+  for (const [label, body, pick] of [
+    [
+      "a mid-line divert",
+      `  We hurried home to -> row\nend\n\nscene row\n  load overworld\n  Arrived.`,
+      false,
+    ],
+    [
+      "a picked choice",
+      `  choose\n    * Take it -> row\n  end\nend\n\nscene row\n  load overworld\n  Arrived.`,
+      true,
+    ],
+  ] as const) {
+    test(`a load line reached through ${label} is a load beat of its own`, async () => {
+      const harness = createHarness(story(body), 0, {
+        experimentalDisplayCalls: true,
+      });
+      await harness.ready;
+      harness.jumpTo("start");
+      const run = [];
+      for (let guard = 0; guard < 20; guard++) {
+        const beat = harness.nextBeat();
+        if (beat) {
+          run.push(beat);
+          continue;
+        }
+        const s: any = harness.game.story;
+        if (!pick || s.canContinue || s.currentChoices.length === 0) break;
+        s.ChooseChoiceIndex(0);
+      }
+      // A picked choice's run opens with the beat that shows the choices.
+      const shown = run.filter((b) => b.load || b.text).slice(pick ? 1 : 0);
+      expect(shown.map((b) => Boolean(b.load))).toEqual([false, true, false]);
+      expect(shown[1]!.load).toEqual([{ name: "overworld" }]);
+    });
+  }
+
+  test("a load step split from a held line keeps the step's choices", async () => {
+    const run = await beats(
+      `  Before -> row\nend\n\nscene row\n  load overworld\n  choose\n    * Go\n      Gone.\n  end`,
+      true,
+    );
+    expect(run.map((b) => Boolean(b.load))).toEqual([false, true]);
+    expect(run[1]!.load).toEqual([{ name: "overworld" }]);
+    expect(
+      Object.keys(run.at(-1)!.text ?? {}).some((k) => k.startsWith("choice")),
+    ).toBe(true);
+  });
+
+  test("every load line that reaches one step is a load beat", async () => {
+    const run = await beats(
+      `  Before -> row\nend\n\nscene row\n  load overworld -> other\nend\n\nscene other\n  load underworld\n  Arrived.`,
+      true,
+    );
+    expect(run.filter((b) => b.load).map((b) => b.load)).toEqual([
+      [{ name: "overworld" }],
+      [{ name: "underworld" }],
+    ]);
+  });
+
+  test("a load line between two text lines is a load beat of its own", async () => {
+    const run = await beats(`  Before.\n  load overworld\n  After.`, true);
+    expect(run.map((b) => Boolean(b.load))).toEqual([false, true, false]);
+    expect(run[1]!.load).toEqual([{ name: "overworld" }]);
+    expect(run[1]!.text).toBeUndefined();
   });
 });
 
@@ -280,5 +477,9 @@ describe("display() ↔ legacy parity · inline asset directives", () => {
 
   test("dialogue with an inline [[show]] directive", async () => {
     await assertImageParity(`  HERO: Look! [[show backdrop BG]]`);
+  });
+
+  test("standalone asset line", async () => {
+    await assertImageParity(`  [[show backdrop BG]]\n  After the asset.`);
   });
 });

@@ -9,6 +9,7 @@ import { Text } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Text";
 import { TunnelOnwards } from "../../../inkjs/compiler/Parser/ParsedHierarchy/TunnelOnwards";
 import { lowerExpressionFromNodes } from "../expression/lowerExpression";
 import type { LowerContext } from "../context";
+import { buildDisplayCall } from "./displayCall";
 import { divertPartIdentifier, lowerDivertPath } from "./lowerDivertPath";
 
 // Lower a `DivertTarget` that may include a `LuauFunctionCall` shape
@@ -87,7 +88,21 @@ export function withDivertLoad(
   // divert) ends that line first, so the load runs as its own beat rather
   // than opening the loading layout over the line before it.
   const lead = options.ownLine === false ? [new Text("\n")] : [];
-  return [...lead, new Text(`[[load ${name}]]`), new Text("\n"), ...objects];
+  // With display calls on, the directive is the text of its own
+  // `display({ text })` call on the default target, whose closing newline ends
+  // its step.
+  const directive = ctx.config?.experimentalDisplayCalls
+    ? [
+        buildDisplayCall(
+          undefined,
+          undefined,
+          [new Text(`[[load ${name}]]`)],
+          divertNode,
+          ctx,
+        ),
+      ]
+    : [new Text(`[[load ${name}]]`), new Text("\n")];
+  return [...lead, ...directive, ...objects];
 }
 
 /** Why a `load` on this arrow cannot mean what it says, or null when it can.

@@ -5,7 +5,7 @@
 // lines flag-on vs flag-off (both directions). Preserved by stamping each
 // synthesized display() FunctionCall with its source range in `buildDisplayCall`.
 
-import { describe, expect, test } from "vitest";
+import { describe, expect, test, vi } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { startLineAtRow } from "../../compiler/utils/pathLocationTable";
 
@@ -89,7 +89,99 @@ scene start
 end
 `;
 
+// One scene per producer, so a producer that loses or gains coverage shows up
+// by its own line.
+const PRODUCERS: Record<string, string> = {
+  "a tagged line": `  The bell rings. # ominous\n  HERO: Goodbye. # final`,
+  "a write with no layer": `  @: Layerless line.`,
+  "an empty body": `  $:\n  After the heading.`,
+  "a load line": `  load overworld\n  The world appears.`,
+  "a mid-line divert": `  We hurried home to -> later`,
+  "a mid-line load divert": `  We hurried home to -> load later`,
+  "an asset line": `  [[show backdrop BG]]\n  After the asset.`,
+  "a load arrow": `  -> load later`,
+  "a single-line alternator": `  queue | A # t | B end\n  After the alternator.`,
+  "a bare {expr} line and a chain": `  {1 + 2}\n  {1}{2}\n  After the expressions.`,
+  "a print() call": `  & f()\n  After the print.`,
+  "picked choices": `  choose\n    * Take it # picked\n    * Leave it -> later\n  end`,
+};
+
+// Error diagnostics of a compile, so a fixture that does not compile cleanly
+// cannot pass by comparing two partial path tables. An error the compiler
+// cannot place in the source (`getDiagnostic` drops a column below zero) is
+// only logged, as `console.warn("HIDDEN", message, severity, ...)`, so the
+// log is read too.
+function compileErrors(source: string, experimentalDisplayCalls: boolean) {
+  const hidden: string[] = [];
+  const warn = vi.spyOn(console, "warn").mockImplementation((...args) => {
+    if (args[0] === "HIDDEN" && args[2] === 1) hidden.push(String(args[1]));
+  });
+  try {
+    return [...placedErrors(source, experimentalDisplayCalls), ...hidden];
+  } finally {
+    warn.mockRestore();
+  }
+}
+
+function placedErrors(source: string, experimentalDisplayCalls: boolean) {
+  const compiler = new SparkdownCompiler();
+  compiler.configure({
+    experimentalDisplayCalls,
+    files: [
+      {
+        uri: "inmemory:///main.sd",
+        type: "script",
+        name: "main",
+        ext: "sd",
+        text: source,
+        version: 1,
+        languageId: "sparkdown",
+      },
+    ],
+  });
+  const result = compiler.compile({
+    textDocument: { uri: "inmemory:///main.sd" },
+  });
+  return Object.values(result.program.diagnostics ?? {})
+    .flat()
+    .filter((d: any) => d?.severity === 1)
+    .map((d: any) => d.message);
+}
+
+function producerScene(body: string) {
+  return `define HERO as character with
+  name = "HERO"
+end
+
+-> start
+
+scene start
+${body}
+  done
+end
+
+scene later
+  Savile Row.
+  done
+end
+
+function f()
+print("hi")
+end
+`;
+}
+
 describe("pathLocation coverage parity", () => {
+  for (const [label, body] of Object.entries(PRODUCERS)) {
+    test(`${label} covers the same source lines`, () => {
+      const source = producerScene(body);
+      expect(compileErrors(source, true)).toEqual([]);
+      const covered = coveredLines(source, true);
+      expect(covered.length).toBeGreaterThan(0);
+      expect(covered).toEqual(coveredLines(source, false));
+    });
+  }
+
   test("a glued chain covers the same source lines", () => {
     const covered = coveredLines(GLUED, true);
     expect(covered.length).toBeGreaterThan(0);

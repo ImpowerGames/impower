@@ -367,7 +367,7 @@ export function createDOMHarness(
         if (story.asyncContinueComplete) {
           const choices = story.currentChoices.map((c: any) => c.text);
           // Mirror Game's continue loop: a step that called `display(<table>)`
-          // routes from its first table with the step's ordered text as the
+          // goes to queueInstructions with the step's ordered text as the
           // body; a step with no table takes the queue() path.
           const displayInstructions = story.currentDisplayInstructions;
           if (displayInstructions.length > 0) {
