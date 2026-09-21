@@ -20,7 +20,9 @@
 //   --warmup <W>        discarded samples first (default 4)
 //   --json <file>       also write each mode's full report, as <file>.<mode>.json
 //   --cpu-prof <dir>    also write a V8 CPU profile of each mode's process there,
-//                       with the bundle's source map, for profile-shares.mjs. A
+//                       with the bundle's source map, for profile-shares.mjs,
+//                       and <mode>.gaps.json beside it: the stretches of worker
+//                       time no phase covers, for profile-shares.mjs --gaps. A
 //                       profiled bundle keeps function names, which slows the
 //                       engine, so read times from a run without this flag
 //
@@ -138,7 +140,7 @@ async function main(args) {
     const modes = options.mode === "both" ? ["preview", "edit"] : [options.mode];
     let failed = false;
     for (const mode of modes) {
-      const config = { project, line, word, options: replacements, mode, samples: options.samples, warmup: options.warmup, json: options.json ? path.resolve(`${options.json}.${mode}.json`) : undefined };
+      const config = { project, line, word, options: replacements, mode, samples: options.samples, warmup: options.warmup, json: options.json ? path.resolve(`${options.json}.${mode}.json`) : undefined, gaps: cpuProf ? path.join(cpuProf, `${mode}.gaps.json`) : undefined };
       const profile = cpuProf ? ["--cpu-prof", "--cpu-prof-dir", cpuProf, "--cpu-prof-name", `${mode}.cpuprofile`] : [];
       const run = spawnSync(process.execPath, ["--max-old-space-size=4096", ...profile, script, JSON.stringify(config)], { stdio: "inherit", windowsHide: true });
       if (run.status !== 0) failed = true;

@@ -4,6 +4,7 @@
 //
 //   node scripts/bench/profile-shares.mjs <file.cpuprofile> --under ContinueAsync --groups scripts/bench/profile-groups.mjs:STEPPING
 //   node scripts/bench/profile-shares.mjs <file.cpuprofile> --under ExportRuntime --inclusive ResolveReferences,CheckForNamingCollisions
+//   node scripts/bench/profile-shares.mjs <mode.cpuprofile> --under "(root)" --gaps
 //
 // Several profiles of the same candidate may be named; the group and inclusive
 // shares are then printed as min, median and max over them, and the function
@@ -21,6 +22,11 @@
 //                        on the stack, its callees included
 //   --min <percent>      leave functions below this share out of the listing
 //                        (default 0.2); they still count towards their group
+//   --gaps               only samples taken in the worker time no profiler
+//                        phase covers count: the stretches preview-bench.mjs
+//                        writes as <mode>.gaps.json beside <mode>.cpuprofile.
+//                        With --under "(root)" this charges the benchmark's
+//                        unattributed row to functions, the collector included
 //   --json <file>        also write the result
 //
 // A sampling profiler charges call-heavy code more than it costs unprofiled,
@@ -32,6 +38,7 @@ import fs from "node:fs";
 import { SourceMap } from "node:module";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { within } from "./phaseGaps.mjs";
 
 export function parseShareArgs(args) {
   const out = { profiles: [], under: [], inclusive: [], min: 0.2 };
@@ -47,6 +54,7 @@ export function parseShareArgs(args) {
     else if (name === "--groups") out.groups = next();
     else if (name === "--min") out.min = Number(next());
     else if (name === "--json") out.json = next();
+    else if (name === "--gaps") out.gaps = true;
     else if (name.startsWith("--")) throw new Error(`unknown argument ${name}`);
     else out.profiles.push(name);
   }
@@ -56,11 +64,14 @@ export function parseShareArgs(args) {
 }
 
 // Self time per profile node, in microseconds: a sample's time is the delta
-// that follows it.
-function selfTimes(profile) {
+// that follows it. `keep(timestamp)` leaves the samples it refuses out.
+function selfTimes(profile, keep) {
   const self = new Map();
   const { samples, timeDeltas } = profile;
+  let timestamp = profile.startTime;
   for (let i = 0; i < samples.length; i++) {
+    timestamp += timeDeltas[i];
+    if (keep && !keep(timestamp)) continue;
     const dt = timeDeltas[i + 1] ?? 0;
     self.set(samples[i], (self.get(samples[i]) ?? 0) + dt);
   }
@@ -69,11 +80,13 @@ function selfTimes(profile) {
 
 /**
  * Shares of the time under `under`. `nameOf(callFrame)` names a function;
- * `groups` is an ordered list of [group, RegExp] or undefined.
+ * `groups` is an ordered list of [group, RegExp] or undefined; `keep`, when
+ * given, is asked about each sample's timestamp and only the samples it
+ * accepts count, towards the shares and towards the whole profile alike.
  */
-export function profileShares(profile, { under, inclusive = [], groups, nameOf = (frame) => frame.functionName || "(anonymous)" }) {
+export function profileShares(profile, { under, inclusive = [], groups, keep, nameOf = (frame) => frame.functionName || "(anonymous)" }) {
   const nodes = new Map(profile.nodes.map((n) => [n.id, n]));
-  const self = selfTimes(profile);
+  const self = selfTimes(profile, keep);
   const byFunction = new Map();
   const inclusiveTime = new Map(inclusive.map((fn) => [fn, 0]));
   let total = 0;
@@ -103,6 +116,7 @@ export function profileShares(profile, { under, inclusive = [], groups, nameOf =
   const collector = profile.nodes.filter((n) => n.callFrame.functionName === "(garbage collector)").reduce((a, n) => a + (self.get(n.id) ?? 0), 0);
   return {
     under,
+    underMs: total / 1000,
     shareOfProfile: total / profiled,
     collectorShareOfProfile: collector / profiled,
     groups: [...groupShares.entries()].map(([group, share]) => ({ group, share })).sort((a, b) => b.share - a.share),
@@ -170,7 +184,20 @@ async function main(args) {
     groups = module[options.groups.slice(at + 1)];
     if (!Array.isArray(groups)) throw new Error(`${options.groups} is not a list of [group, RegExp]`);
   }
-  const results = options.profiles.map((file) => profileShares(JSON.parse(fs.readFileSync(file, "utf8")), { under: options.under, inclusive: options.inclusive, groups, nameOf: sourceNamer(path.resolve(file)) }));
+  const results = options.profiles.map((file) => {
+    let keep;
+    let perSample = 1;
+    if (options.gaps) {
+      const gapsFile = file.replace(/\.cpuprofile$/, "") + ".gaps.json";
+      if (!fs.existsSync(gapsFile)) throw new Error(`--gaps needs ${gapsFile}, which preview-bench.mjs --cpu-prof writes`);
+      const { samples } = JSON.parse(fs.readFileSync(gapsFile, "utf8"));
+      const gaps = samples.flat().sort((a, b) => a[0] - b[0]);
+      keep = (timestamp) => within(gaps, timestamp);
+      perSample = samples.length;
+    }
+    const result = profileShares(JSON.parse(fs.readFileSync(file, "utf8")), { under: options.under, inclusive: options.inclusive, groups, keep, nameOf: sourceNamer(path.resolve(file)) });
+    return options.gaps ? { ...result, gapMsPerSample: result.underMs / perSample } : result;
+  });
   const result = results[0];
   if (options.json) fs.writeFileSync(options.json, JSON.stringify(results.length > 1 ? results : result, null, 2));
   const pct = (share) => (share * 100).toFixed(1).padStart(6) + "%";
@@ -181,6 +208,7 @@ async function main(args) {
     console.log("");
     console.log("first profile:");
   }
+  if (options.gaps) console.log(`only the unattributed stretches: ${results.map((r) => r.gapMsPerSample.toFixed(1)).join(", ")} ms of profiled time per benchmark sample`);
   console.log(`time under ${options.under.join(", ")}: ${pct(result.shareOfProfile).trim()} of the profile; the garbage collector, which the profile shows outside every function, is ${pct(result.collectorShareOfProfile).trim()} of the profile`);
   for (const { function: fn, share } of result.inclusive) console.log(`  inclusive ${pct(share)}  ${fn}`);
   const list = (fns) => {

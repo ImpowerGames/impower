@@ -62,9 +62,17 @@ node scripts/bench/preview-bench.mjs --fixture
 
 It needs the workspace install; `scripts/bench/preview-fixture.test.mjs` runs it once on the fixture when that install is present. It bundles `scripts/bench/previewBench.ts` with esbuild and runs each mode (`--mode preview`, `edit` or `both`, the default) in a process of its own with a 4 GB heap; a large project with two games does not fit under vitest's 1024 MB limit. It replays `packages/spark-web-player/src/main/workers/workspace.worker.ts` with no browser: the compiler configured as the player configures it, the worker's `Game` and `searchRouteTo`, the program transport through a structured-clone round trip, and a second `Game` standing in for the page. Replacements default to every image file whose name starts like the identifier around `--word`; `--options a,b,c` overrides them.
 
-It prints, as min, median and max per sample: wall-clock times for the worker (compile, game update and route together), transport encode, clone out, clone in, transport decode, the page game's `updateProgram` and `load`, and the total without the DOM; the compiler's and route search's own `profile()` phases (`game/planRoute`, `ink/compile`, `incrementalParse`, `populateLocations`, `ink/json` and the rest); and the wire size, total and by top-level program key, with the checkpoint as its own row. `--json <file>` writes each mode's full report to `<file>.<mode>.json`.
+It prints, as min, median and max per sample: wall-clock times for the worker (compile, game update and route together), transport encode, clone out, clone in, transport decode, the page game's `updateProgram` and `load`, and the total without the DOM; the compiler's and route search's own `profile()` phases (`game/planRoute`, `ink/compile`, `incrementalParse`, `populateLocations`, `ink/json`, `game/setStartFrom` and the rest); and the wire size, total and by top-level program key, with the checkpoint as its own row. `--json <file>` writes each mode's full report to `<file>.<mode>.json`.
 
-`--cpu-prof <dir>` also writes a V8 CPU profile of each mode's process into `<dir>`, with the bundle's source map beside it, for `profile-shares.mjs` below; that bundle keeps its function names and runs slower, so take times from a run without the flag.
+The wall-clock row `(of which unattributed)` is the part of the worker's time that no phase and no worker game update covers. It is computed per sample from the stretches the phases occupied, so a phase nested in another counts once, and it is never negative. The phases are summed per name, and nested ones sit beside their parents, so their rows do not add up to the worker's time; this row is the one that says how much of it is unnamed. Read it as a share of the worker's time: when it grows, work has appeared between the phases, and it needs a phase of its own before a before and after can say where it went.
+
+`--cpu-prof <dir>` also writes a V8 CPU profile of each mode's process into `<dir>`, with the bundle's source map beside it, for `profile-shares.mjs` below; that bundle keeps its function names and runs slower, so take times from a run without the flag. Beside each profile it writes `<mode>.gaps.json`, the unattributed stretches of every measured sample on the profile's clock, and `--gaps` charges them to functions:
+
+```bash
+node scripts/bench/profile-shares.mjs <dir>/preview.cpuprofile --under "(root)" --gaps --groups scripts/bench/profile-groups.mjs:GAPS
+```
+
+Only samples taken in those stretches count. `--under "(root)"` keeps all of them, the garbage collector included, and the `GAPS` groups divide them by the work #706 found there.
 
 ### In Node: the story engine on its own
 

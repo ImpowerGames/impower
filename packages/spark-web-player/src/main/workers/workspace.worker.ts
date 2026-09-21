@@ -122,7 +122,9 @@ compilerState.compiler.addEventListener(
       profile("end", profilerId + " " + "game/update");
     }
     const game = gameState.game;
+    profile("start", profilerId + " " + "game/setStartFrom");
     game.setStartFrom(params.startFrom);
+    profile("end", profilerId + " " + "game/setStartFrom");
     const toPath = game.startPath;
     if (toPath) {
       const log = new RouteSearchLog();

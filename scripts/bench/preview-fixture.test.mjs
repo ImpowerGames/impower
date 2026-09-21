@@ -20,8 +20,11 @@ import { createRequire } from "node:module";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { totalLength, uncovered, within } from "./phaseGaps.mjs";
 import { imageOptions, parseBenchArgs, tokenAround } from "./preview-bench.mjs";
 import { buildPreviewFixture, writePreviewFixture } from "./preview-fixture.mjs";
+import { GAPS } from "./profile-groups.mjs";
+import { parseShareArgs, profileShares } from "./profile-shares.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 let failures = 0;
@@ -106,6 +109,48 @@ await check("the benchmark's arguments and default replacements", () => {
   assert.deepEqual(imageOptions(["a/raffles_shy.svg", "b/raffles_concerned.svg", "raffles_unsure.png", "raffles_notes.txt", "bunny_shy.svg"], "raffles_", "raffles_concerned"), ["raffles_shy", "raffles_unsure"]);
 });
 
+await check("unattributed time counts a nested phase once and ignores what lies outside the window", () => {
+  // [0, 100]: a phase at 10-40 with one nested at 20-30, one at 35-50
+  // overlapping it, one at 60-70, and two reaching past either end.
+  const gaps = uncovered([0, 100], [[60, 70], [20, 30], [10, 40], [35, 50], [90, 120], [-5, 2]]);
+  assert.deepEqual(gaps, [[2, 10], [50, 60], [70, 90]]);
+  assert.equal(totalLength(gaps), 38);
+  assert.deepEqual(uncovered([0, 10], []), [[0, 10]]);
+  assert.deepEqual(uncovered([0, 10], [[0, 10]]), []);
+  assert.equal(within(gaps, 2), true);
+  assert.equal(within(gaps, 10), false);
+  assert.equal(within(gaps, 55), true);
+  assert.equal(within(gaps, 89.9), true);
+  assert.equal(within(gaps, 95), false);
+});
+
+await check("profile shares with --gaps count only the samples taken in a gap", () => {
+  // Samples at 5, 15, 25, 35 and 45 microseconds, each charged the 10 that
+  // follows it; the gap [10, 30) keeps the two at 15 and 25.
+  const profile = {
+    startTime: 0,
+    nodes: [
+      { id: 1, callFrame: { functionName: "(root)" }, children: [2, 3] },
+      { id: 2, callFrame: { functionName: "inPhase" } },
+      { id: 3, callFrame: { functionName: "between" } },
+    ],
+    samples: [2, 3, 3, 2, 2],
+    timeDeltas: [5, 10, 10, 10, 10],
+  };
+  const result = profileShares(profile, { under: ["(root)"], keep: (t) => within([[10, 30]], t), nameOf: (frame) => frame.functionName });
+  assert.equal(result.underMs, 0.02);
+  assert.deepEqual(
+    result.functions.map((f) => [f.name, f.share]),
+    [["between", 1]],
+  );
+  assert.equal(parseShareArgs(["a.cpuprofile", "--under", "(root)", "--gaps"]).gaps, true);
+  const groupOf = (name) => GAPS.find(([, re]) => re.test(name))?.[0];
+  assert.equal(groupOf("pathLocationTable.ts:(anonymous)"), groupOf("findClosestPath.ts:findClosestPath"));
+  assert.equal(groupOf("scopeDefineInstances.ts:scopeDefineInstances"), groupOf("SparkdownCompiler.ts:applyBuiltinOverrides"));
+  assert.notEqual(groupOf("SparkdownCompiler.ts:populateSceneAssets"), groupOf("SparkdownCompiler.ts:compileStory"));
+  assert.equal(groupOf("(vm):(garbage collector)"), "garbage collector");
+});
+
 // The benchmark end to end on the fixture: bundle, one process per mode, and
 // a report naming the route and the phases. It needs the workspace install
 // for esbuild and the compiler's dependencies, which the tooling workflow
@@ -121,17 +166,33 @@ const esbuildInstalled = (() => {
 if (!esbuildInstalled) {
   console.log("SKIP: the benchmark's end-to-end run needs the workspace install (esbuild is not resolvable)");
 } else {
-  await check("the benchmark runs both modes on the fixture and reports route, phases and wire size", () => {
-    const run = spawnSync(process.execPath, [path.join(HERE, "preview-bench.mjs"), "--fixture", "--samples", "1", "--warmup", "0"], { encoding: "utf8", timeout: 240_000, windowsHide: true });
-    assert.equal(run.status, 0, run.stdout + run.stderr);
-    for (const mode of ["preview", "edit"]) {
-      const section = run.stdout.slice(run.stdout.indexOf(`mode ${mode}:`));
-      assert.ok(run.stdout.includes(`mode ${mode}: line ${target.line} "${target.lineText}", replacing hero_concerned`), `no ${mode} report`);
-      assert.match(section, /1 samples after 0 warm-up; route \d{4,} steps/);
-      assert.match(section, /game\/planRoute/);
-      assert.match(section, /ink\/compile/);
-      assert.match(section, /pathLocations/);
-      assert.match(section, /\(checkpoint\)/);
+  await check("the benchmark runs both modes on the fixture and reports route, phases, unattributed time and wire size", () => {
+    const profiles = fs.mkdtempSync(path.join(os.tmpdir(), "impower-preview-bench-test-"));
+    try {
+      const run = spawnSync(process.execPath, [path.join(HERE, "preview-bench.mjs"), "--fixture", "--samples", "1", "--warmup", "0", "--cpu-prof", profiles], { encoding: "utf8", timeout: 240_000, windowsHide: true });
+      assert.equal(run.status, 0, run.stdout + run.stderr);
+      for (const mode of ["preview", "edit"]) {
+        const section = run.stdout.slice(run.stdout.indexOf(`mode ${mode}:`));
+        assert.ok(run.stdout.includes(`mode ${mode}: line ${target.line} "${target.lineText}", replacing hero_concerned`), `no ${mode} report`);
+        assert.match(section, /1 samples after 0 warm-up; route \d{4,} steps/);
+        // A warm route is replayed rather than searched, so the replay is the
+        // route phase every sample has.
+        assert.match(section, /game\/simulateRoute/);
+        assert.match(section, /game\/setStartFrom/);
+        assert.match(section, /ink\/compile/);
+        assert.match(section, /pathLocations/);
+        assert.match(section, /\(checkpoint\)/);
+        const unattributed = section.match(/\(of which unattributed\)\s+(\S+)\s+(\S+)\s+(\S+)/);
+        assert.ok(unattributed, "no unattributed row");
+        const worker = Number(section.match(/worker compile, game and route\s+(\S+)/)[1]);
+        for (const value of unattributed.slice(1).map(Number)) assert.ok(value >= 0 && value <= worker, `unattributed ${value} of ${worker} ms`);
+        // The gaps written beside the profile are what profile-shares reads.
+        const shares = spawnSync(process.execPath, [path.join(HERE, "profile-shares.mjs"), path.join(profiles, `${mode}.cpuprofile`), "--under", "(root)", "--gaps"], { encoding: "utf8", windowsHide: true });
+        assert.equal(shares.status, 0, shares.stdout + shares.stderr);
+        assert.match(shares.stdout, /only the unattributed stretches: \d+\.\d ms/);
+      }
+    } finally {
+      fs.rmSync(profiles, { recursive: true, force: true });
     }
   });
 }
