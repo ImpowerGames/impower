@@ -13,6 +13,10 @@ export interface DisplayPreviewParams {
   /** The suggestion the page shows, by `programIdentity`, which the worker
    *  keeps so it can display it again without compiling it. */
   keep?: string;
+  /** The page's application is new since the game last displayed to it, so
+   *  it holds nothing the game sent before: the display connects in full, as
+   *  it does for a program the game did not display last. */
+  fresh?: boolean;
 }
 
 export interface DisplayPreviewResult {

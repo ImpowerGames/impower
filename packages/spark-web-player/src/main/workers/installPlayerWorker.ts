@@ -194,7 +194,9 @@ export function installPlayerWorker(connection: MessageConnection) {
         verifyCheckpoints: false,
       });
       profile("end", profilerId + " " + "game/create");
-    } else {
+    } else if (gameState.game.program !== program) {
+      // A compile that changed nothing serves the program the game already
+      // holds, and giving it again would cancel a display of it under way.
       updateGameProgram(gameState.game, program, story);
     }
     return gameState.game;
@@ -445,34 +447,56 @@ export function installPlayerWorker(connection: MessageConnection) {
     if (params.keep !== undefined) {
       shownSuggestionId = params.keep;
     }
-    const entry = displayable.get(params.program);
-    const game = gameState.game;
-    if (!entry || !game) {
-      return { displayed: false, missing: true };
+    let fresh = params.fresh === true;
+    for (;;) {
+      const entry = displayable.get(params.program);
+      const game = gameState.game;
+      if (!entry || !game) {
+        return { displayed: false, missing: true };
+      }
+      compiler.activateStory(entry.story);
+      const programChanged =
+        fresh || displayedId !== entry.id || game.program !== entry.program;
+      if (game.program !== entry.program) {
+        updateGameProgram(game, entry.program, entry.story);
+      }
+      const updates = gameUpdates;
+      const route = routeTo(game, entry, {
+        file: params.file,
+        line: params.line,
+      });
+      displayedId = entry.id;
+      const displayed = await displayPreviewFrom(game, {
+        program: entry.program,
+        programChanged,
+        file: params.file,
+        line: params.line,
+        speculative: params.speculative,
+        checkpoint: route.checkpoint,
+        simulationFailure: route.simulationFailure,
+        send: sendToPage,
+        superseded: () =>
+          display !== displays ||
+          gameState.game !== game ||
+          gameUpdates !== updates,
+      });
+      if (
+        !displayed &&
+        display === displays &&
+        gameState.game === game &&
+        gameUpdates !== updates &&
+        programIdentity(game.program) === params.program
+      ) {
+        // A compile gave the game a program with the identity the page asked
+        // for, as a selection's recompile of the real documents after a
+        // suggestion does, and cancelled the preview under way. The page has
+        // nothing newer to ask for, so the display runs again, in full, from
+        // the program the game now holds.
+        fresh = true;
+        continue;
+      }
+      return { displayed };
     }
-    compiler.activateStory(entry.story);
-    const programChanged = displayedId !== entry.id || game.program !== entry.program;
-    if (game.program !== entry.program) {
-      updateGameProgram(game, entry.program, entry.story);
-    }
-    const updates = gameUpdates;
-    const route = routeTo(game, entry, { file: params.file, line: params.line });
-    displayedId = entry.id;
-    const displayed = await displayPreviewFrom(game, {
-      program: entry.program,
-      programChanged,
-      file: params.file,
-      line: params.line,
-      speculative: params.speculative,
-      checkpoint: route.checkpoint,
-      simulationFailure: route.simulationFailure,
-      send: sendToPage,
-      superseded: () =>
-        display !== displays ||
-        gameState.game !== game ||
-        gameUpdates !== updates,
-    });
-    return { displayed };
   };
 
   /** The whole program the page names, for PLAY, with the route to where

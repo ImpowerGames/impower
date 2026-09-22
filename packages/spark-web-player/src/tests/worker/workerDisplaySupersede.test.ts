@@ -5,6 +5,7 @@
 // whatever the older stream still sends. A compile that gives the game a new
 // program while the beat waits takes the screen over the same way.
 import { CompileProgramMessage } from "@impower/sparkdown/src/compiler/classes/messages/CompileProgramMessage";
+import { SelectCompilerDocumentMessage } from "@impower/sparkdown/src/compiler/classes/messages/SelectCompilerDocumentMessage";
 import { describe, expect, it } from "vitest";
 import { DisplayPreviewMessage } from "../../main/workers/messages/DisplayPreviewMessage";
 import { programIdentity } from "../../utils/programIdentity";
@@ -124,6 +125,57 @@ describe("a preview displayed from the worker's game", () => {
 
       expect(result.displayed).toBe(false);
       expect(painted.some((text) => text.includes("The beat that waits for its picture."))).toBe(false);
+    } finally {
+      h.dispose();
+    }
+  }, 120_000);
+
+  it("paints the real document when a selection recompiles it unchanged while it waits", async () => {
+    let releaseA!: () => void;
+    const aLoaded = new Promise<void>((resolve) => (releaseA = resolve));
+    const h = await createPlayerHarness({
+      workerDisplays: true,
+      files: [{ uri: MAIN_URI, text: SOURCE }],
+      startFrom: { file: MAIN_URI, line: TAKING_OVER },
+      holdImage: (src) => (src.includes("a.png") ? aLoaded : undefined),
+    });
+    try {
+      await h.compile();
+      // A suggestion compiles, so the next selection recompiles the real
+      // documents first, which serves the same program again.
+      const lines = SOURCE.split("\n");
+      await h.suggest(
+        [
+          {
+            range: {
+              start: { line: TAKING_OVER, character: 4 },
+              end: { line: TAKING_OVER, character: lines[TAKING_OVER]!.length },
+            },
+            text: "A suggested line.",
+          },
+        ],
+        TAKING_OVER,
+      );
+      // Closing the list shows the real document again: the waiting beat.
+      const display = h.link.request(DisplayPreviewMessage.type, {
+        program: programIdentity(h.controller._program)!,
+        file: MAIN_URI,
+        line: WAITING,
+        speculative: false,
+      });
+      await settle(40);
+      await h.page.sendRequest(SelectCompilerDocumentMessage.type, {
+        textDocument: { uri: MAIN_URI },
+        selectedRange: { start: { line: WAITING, character: 0 }, end: { line: WAITING, character: 0 } },
+        docChanged: false,
+        userEvent: true,
+      });
+      releaseA();
+      const result = await display;
+      await settle(40);
+
+      expect(result.displayed).toBe(true);
+      expect(h.overlay.textContent).toContain("The beat that waits for its picture.");
     } finally {
       h.dispose();
     }

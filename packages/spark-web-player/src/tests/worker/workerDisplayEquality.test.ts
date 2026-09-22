@@ -163,6 +163,45 @@ describe("the preview displayed from the worker's game", () => {
     expect(JSON.stringify(on[5])).toContain(line);
   }, 120_000);
 
+  it("builds the page game's overlay while an image name is typed with the list open", async () => {
+    const text = [
+      `define SPRITE_A as image with`,
+      `  src = "https://example.com/a.png"`,
+      `end`,
+      ``,
+      `define SPRITE_B as image with`,
+      `  src = "https://example.com/b.png"`,
+      `end`,
+      ``,
+      `-> start`,
+      ``,
+      `scene start`,
+      `  HERO:`,
+      `    [[SPRITE_A]]`,
+      `    The first line.`,
+      ``,
+      `  HERO:`,
+      `    The second line.`,
+      `end`,
+      ``,
+    ].join("\n");
+    const second = "    The second line.";
+    const steps: Step[] = [
+      { select: lineOf(text, second) },
+      // The author starts an image name that names nothing yet, with the
+      // list open, so each keystroke compiles while a suggestion is shown.
+      { edit: { find: second, replace: `    [[SPRITE\n${second}` } },
+      { suggest: { find: "[[SPRITE\n", replace: "[[SPRITE_A]]\n" } },
+      { edit: { find: "[[SPRITE\n", replace: "[[SPRITE_\n" } },
+      { suggest: { find: "[[SPRITE_\n", replace: "[[SPRITE_A]]\n" } },
+      { suggest: { find: "[[SPRITE_\n", replace: "[[SPRITE_B]]\n" } },
+      { close: true },
+    ];
+    const on = await frames(true, text, steps);
+    expect(on).toEqual(await frames(false, text, steps));
+    expect(JSON.stringify(on[6])).toContain("b.png");
+  }, 120_000);
+
   it("shows the real document after a suggestion changed a function an unchanged scene calls", async () => {
     // The suggestion compile carries `bridge` over unchanged and changes
     // `greeting`. Closing the list shows the real document from the story the

@@ -20,6 +20,44 @@ end
 
 const LINE = SOURCE.split("\n").findIndex((l) => l.includes("The line PLAY starts from."));
 
+describe("after PLAY and STOP", () => {
+  it("the preview shows what it shows with the switch off, labels included", async () => {
+    const after = async (workerDisplays: boolean) => {
+      const h = await createPlayerHarness({
+        workerDisplays,
+        files: [{ uri: MAIN_URI, text: SOURCE }],
+        startFrom: { file: MAIN_URI, line: LINE },
+      });
+      try {
+        await h.compile();
+        await h.select(LINE);
+        expect(await h.controller.startGameAndApp()).toBe(true);
+        await settle();
+        // STOP waits a frame between its steps; this page has no frames.
+        const win = h.overlay.ownerDocument.defaultView as any;
+        win.requestAnimationFrame ??= (callback: () => void) => setTimeout(callback, 0);
+        await h.controller.stopGame("quit");
+        // The editor selects where the game stopped, as STOP asks it to.
+        await h.select(LINE);
+        await settle(40);
+        return {
+          game: workerDisplays ? h.controller._workerGame != null : h.controller._game != null,
+          dom: h.snapshotDOM(),
+          executed: h.refs.executedLabel.textContent,
+          location: h.refs.locationItems.textContent,
+        };
+      } finally {
+        h.dispose();
+      }
+    };
+    const off = await after(false);
+    const on = await after(true);
+    expect(on.game).toBe(true);
+    expect(JSON.stringify(off.dom)).toContain("The line PLAY starts from.");
+    expect(on).toEqual(off);
+  }, 120_000);
+});
+
 for (const workerDisplays of [false, true]) {
   describe(`with the switch ${workerDisplays ? "on" : "off"}`, () => {
     it("PLAY runs the last program that compiled when a later edit does not", async () => {

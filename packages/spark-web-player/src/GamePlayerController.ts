@@ -2317,6 +2317,11 @@ export class GamePlayerController {
    *  the preview updates that wait for it. */
   protected _workerAppBuilding?: Promise<Application>;
 
+  /** The application that shows the worker's game has been built since a
+   *  display last completed on it, so it holds nothing the game sent before
+   *  and the next display must connect in full. */
+  protected _workerAppFresh = false;
+
   /**
    * `updatePreview` with the worker displaying: the page holds a summary of
    * `program`, and the worker's game, holding the program itself, performs
@@ -2358,6 +2363,7 @@ export class GamePlayerController {
       this._workerAppBuilding ??= this.buildWorkerApp(link).finally(() => {
         this._workerAppBuilding = undefined;
       });
+      this._workerAppFresh = true;
       await this._workerAppBuilding;
       if (overtaken()) {
         return false;
@@ -2372,10 +2378,14 @@ export class GamePlayerController {
         line,
         speculative: Boolean(options?.speculative),
         keep: shown ? programIdentity(shown.program) : undefined,
+        fresh: this._workerAppFresh,
       });
     } catch (e) {
       console.error(e);
       return false;
+    }
+    if (result.displayed) {
+      this._workerAppFresh = false;
     }
     if (overtaken() || !result.displayed) {
       return false;
