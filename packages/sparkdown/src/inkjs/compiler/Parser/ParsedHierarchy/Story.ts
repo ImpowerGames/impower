@@ -1,6 +1,7 @@
 import { AuthorWarning } from "./AuthorWarning";
 import { bumpCompileEpoch } from "./CompileEpoch";
 import { carriedRuntime } from "./CarriedRuntime";
+import { activation } from "../../../engine/StoryActivation";
 import { ConstantDeclaration } from "./Declaration/ConstantDeclaration";
 import { Container as RuntimeContainer } from "../../../engine/Container";
 import { ControlCommand as RuntimeControlCommand } from "../../../engine/ControlCommand";
@@ -817,6 +818,9 @@ export class Story extends FlowBase {
 
       if (container.content) {
         for (const innerContent of container.content) {
+          if (activation.reparent !== null && innerContent.parent !== null) {
+            activation.reparent(innerContent);
+          }
           innerContent.parent = null;
           if (dm !== null && innerContent.ownDebugMetadata === null) {
             innerContent.debugMetadata = dm;

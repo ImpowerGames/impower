@@ -10,6 +10,9 @@ import { activation } from "./StoryActivation";
 export class InkObject {
   public parent: InkObject | null = null;
 
+  /** The compile generation this object was created in (`activation`). */
+  public readonly _birth: number = activation.generation;
+
   get debugMetadata(): DebugMetadata | null {
     if (this._debugMetadata === null) {
       if (this.parent) {
@@ -21,6 +24,11 @@ export class InkObject {
   }
 
   set debugMetadata(value) {
+    // A compile that records carried objects tells the recorder before it
+    // gives one new metadata, as it does before giving one a new parent.
+    if (activation.reparent !== null && value !== this._debugMetadata) {
+      activation.reparent(this);
+    }
     this._debugMetadata = value;
   }
 

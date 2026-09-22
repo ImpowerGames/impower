@@ -132,7 +132,8 @@ function compilerFor(text: string) {
     compile: () => {
       story = undefined;
       const result = quiet(() => compiler.compile({ textDocument: { uri: URI } }));
-      return { result, story };
+      // Set by the listener during the compile, which narrowing cannot see.
+      return { result, story: story as RuntimeStory | undefined };
     },
     edit: (contentChanges: any[]) => {
       version += 1;
@@ -167,36 +168,43 @@ function cold(text: string) {
   return found;
 }
 
-/** The story serialized, and whether every object in its tree reaches the
- *  story's own root through its parents. The serialization names divert
- *  targets by path, which reads the same under either story's root; where a
- *  path resolves at run time depends on the parents. */
+/** The story serialized, whether every object in its tree reaches the
+ *  story's own root through its parents, and the source position each object's
+ *  debug metadata gives, which the serialization leaves out. The
+ *  serialization names divert targets by path, which reads the same under
+ *  either story's root; where a path resolves at run time depends on the
+ *  parents. */
 const serialized = (story: RuntimeStory | undefined) => {
   if (!story) {
     return "(no story)";
   }
   const root = story.mainContentContainer;
-  const stack: any[] = [root];
   const seen = new Set<any>();
   let strays = 0;
-  while (stack.length) {
-    const obj = stack.pop();
+  const positions: string[] = [];
+  const visit = (obj: any) => {
     if (seen.has(obj)) {
-      continue;
+      return;
     }
     seen.add(obj);
     if (obj.rootContentContainer !== root) {
       strays += 1;
     }
+    const dm = obj.ownDebugMetadata;
+    positions.push(dm ? `${dm.startLineNumber}-${dm.endLineNumber}` : "");
     for (const child of obj.content ?? []) {
-      stack.push(child);
+      visit(child);
     }
-    for (const [, child] of obj.namedContent ?? []) {
-      stack.push(child);
+    const named = [...(obj.namedContent ?? [])].sort(([a], [b]) =>
+      a < b ? -1 : a > b ? 1 : 0,
+    );
+    for (const [, child] of named) {
+      visit(child);
     }
-  }
-  const json = story.ToJson() as string;
-  return strays ? `${strays} objects under another root; ${json}` : json;
+  };
+  visit(root);
+  const described = `${story.ToJson() as string} | positions ${positions.join(",")}`;
+  return strays ? `${strays} objects under another root; ${described}` : described;
 };
 
 /** The text a story prints from the start of `path`, over `lines` lines. */
@@ -323,5 +331,103 @@ describe("a story kept across later compiles", () => {
       }
     }
     expect(failures).toEqual([]);
+  });
+
+  it("reports a runtime error at its own line after a suggestion moved it", () => {
+    const base = [
+      "scene first",
+      "  First.",
+      "end",
+      "",
+      "scene second",
+      `& assert(false, "oops")`,
+      "  Third.",
+      "end",
+    ].join("\n");
+    const errorsOf = (story: RuntimeStory) => {
+      const errors: string[] = [];
+      story.onError = (message: string) => {
+        errors.push(message);
+      };
+      try {
+        run(story, "second");
+      } catch (e) {
+        errors.push(String((e as Error)?.message ?? e));
+      }
+      return errors;
+    };
+    const coldErrors = errorsOf(compilerFor(base).compile().story!);
+    expect(coldErrors.join()).toContain("oops");
+
+    const c = compilerFor(base);
+    const canonical = c.compile().story!;
+    c.compiler.keepStory(canonical);
+    // The suggestion adds two lines above `second`, which it carries over.
+    c.preview(change(base, "  First.", "  First.\n  Added one.\n  Added two.").contentChanges);
+    c.compiler.activateStory(canonical);
+    expect(errorsOf(canonical)).toEqual(coldErrors);
+    expect(serialized(canonical)).toBe(cold(base).json);
+  });
+
+  it("holds nothing for the stories it no longer keeps", () => {
+    // A kept canonical story while suggestions change a different scene each
+    // time: every suggestion carries objects the one before it created, and
+    // none of those is the canonical story's.
+    const base = Array.from(
+      { length: 6 },
+      (_, s) =>
+        `scene scene_${s}\n= INT. ROOM ${s} - DAY\n:\n  Action describing room ${s}.\n-> scene_${(s + 3) % 6}\nend\n`,
+    ).join("\n");
+    const c = compilerFor(base);
+    const canonical = c.compile().story!;
+    c.compiler.keepStory(canonical);
+    const journal = (c.compiler as any)._storyJournal;
+    const canonicalEntries = () => journal._tables.get(canonical).entries as Map<object, unknown>;
+    const newest: RuntimeStory[] = [];
+    const counts: number[] = [];
+    for (let n = 0; n < 150; n++) {
+      const s = n % 6;
+      const story = c.preview(
+        change(base, `Action describing room ${s}.`, `Suggestion ${n} for room ${s}.`).contentChanges,
+      );
+      if (story) {
+        c.compiler.keepStory(story);
+        newest.push(story);
+        if (newest.length > 2) {
+          c.compiler.releaseStory(newest.shift()!);
+        }
+        c.compiler.activateStory(story);
+      }
+      if (n % 10 === 9) {
+        counts.push(canonicalEntries().size);
+      }
+    }
+    expect(journal._tables.size).toBe(3);
+    expect(counts.at(-1)).toBeLessThanOrEqual(Math.max(...counts.slice(0, 2)));
+
+    // Every object the canonical story's table holds is one of its own.
+    c.compiler.activateStory(canonical);
+    const own = new Set<object>();
+    const visit = (obj: any) => {
+      if (own.has(obj)) {
+        return;
+      }
+      own.add(obj);
+      if (obj.ownDebugMetadata) {
+        own.add(obj.ownDebugMetadata);
+      }
+      for (const child of obj.content ?? []) {
+        visit(child);
+      }
+      for (const [, child] of obj.namedContent ?? []) {
+        visit(child);
+      }
+    };
+    visit(canonical.mainContentContainer);
+    c.compiler.activateStory(newest.at(-1)!);
+    const foreign = [...canonicalEntries().keys()].filter((obj) => !own.has(obj));
+    expect(foreign).toEqual([]);
+    c.compiler.activateStory(canonical);
+    expect(serialized(canonical)).toBe(cold(base).json);
   });
 });

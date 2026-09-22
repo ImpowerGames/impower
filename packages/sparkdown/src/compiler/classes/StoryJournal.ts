@@ -1,5 +1,6 @@
 import { ChoicePoint } from "../../inkjs/engine/ChoicePoint";
 import { Container } from "../../inkjs/engine/Container";
+import type { DebugMetadata } from "../../inkjs/engine/DebugMetadata";
 import { Divert } from "../../inkjs/engine/Divert";
 import { activation } from "../../inkjs/engine/StoryActivation";
 import { DivertTargetValue } from "../../inkjs/engine/Value";
@@ -7,6 +8,13 @@ import { VariableAssignment } from "../../inkjs/engine/VariableAssignment";
 import { VariableReference } from "../../inkjs/engine/VariableReference";
 
 type Fields = Record<string, unknown>;
+
+/** The values a kept story needs written back, and the compile generation
+ *  that produced the story (`activation.generation`). */
+interface Table {
+  generation: number;
+  entries: Map<object, Fields>;
+}
 
 /** Every field a compile writes into a runtime object it carries over from an
  *  earlier compile: what resolution derives from the rest of the story, and
@@ -21,9 +29,24 @@ const CARRIED_FIELDS: [new (...args: any[]) => object, readonly string[]][] = [
   [DivertTargetValue, ["value"]],
 ];
 
-const PARENT = ["parent"] as const;
+/** What a compile rewrites in the debug metadata of a chunk it carries: the
+ *  source position the chunk now sits at, and the document it is in. The
+ *  runtime objects of every story that holds the chunk share the metadata. */
+const DEBUG_METADATA_FIELDS = [
+  "startLineNumber",
+  "endLineNumber",
+  "sourceStartLineNumber",
+  "sourceEndLineNumber",
+  "version",
+  "fileName",
+  "filePath",
+] as const;
 
-const fieldsOf =(obj: object): readonly string[] | undefined => {
+/** Where a carried object sits: its parent, and its own debug metadata, which
+ *  flattening a container of the new story gives the object that has none. */
+const PLACEMENT = ["parent", "_debugMetadata"] as const;
+
+const fieldsOf = (obj: object): readonly string[] | undefined => {
   for (const [type, fields] of CARRIED_FIELDS) {
     if (obj instanceof type) {
       return fields;
@@ -37,7 +60,8 @@ const fieldsOf =(obj: object): readonly string[] | undefined => {
  *
  * An incremental compile carries the unchanged flows of the story before it
  * into the new one: the same runtime objects, moved under the new root, with
- * this compile's resolution written into them. Every story shares those
+ * this compile's resolution written into them and this compile's source
+ * positions written into their debug metadata. Every story shares those
  * objects, and the values they hold are the values of whichever story is
  * active. For each story it keeps, the journal holds the values of every
  * shared object whose values have since been overwritten; an object it holds
@@ -45,6 +69,11 @@ const fieldsOf =(obj: object): readonly string[] | undefined => {
  * values back, recording the values it replaces for the others, and moves
  * `activation.epoch` so every path, pointer and leaf path cached through the
  * old parents is resolved again.
+ *
+ * A table records only objects of its own story, which are the objects born
+ * no later than the compile that produced it (`activation.generation`): an
+ * entry for any other object would be unused, and its recorded parent would
+ * keep a discarded story alive.
  *
  * Recording costs one entry per carried object per kept story, taken once, and
  * activation costs one assignment per object the stories disagree on. A
@@ -61,10 +90,10 @@ export class StoryJournal {
   protected _kept = new Set<object>();
 
   /** For each kept story and the newest one, the values it needs back. */
-  protected _tables = new Map<object, Map<object, Fields>>();
+  protected _tables = new Map<object, Table>();
 
   /** Where a compile in progress records, or null when nothing needs it. */
-  protected _recording: Map<object, Fields>[] | null = null;
+  protected _recording: Table[] | null = null;
 
   get latest() {
     return this._latest;
@@ -109,17 +138,17 @@ export class StoryJournal {
     if (!table) {
       throw new Error("A story the journal does not keep cannot be activated");
     }
-    const others: Map<object, Fields>[] = [];
+    const others: Table[] = [];
     for (const [other, otherTable] of this._tables) {
       if (other !== story) {
         others.push(otherTable);
       }
     }
-    for (const [obj, fields] of table) {
+    for (const [obj, fields] of table.entries) {
       StoryJournal.remember(others, obj, Object.keys(fields));
       Object.assign(obj, fields);
     }
-    table.clear();
+    table.entries.clear();
     this._active = story;
     activation.epoch += 1;
     return true;
@@ -131,7 +160,7 @@ export class StoryJournal {
     if (this._latest) {
       this.activate(this._latest);
     }
-    const recording: Map<object, Fields>[] = [];
+    const recording: Table[] = [];
     for (const [story, table] of this._tables) {
       if (story !== this._latest || this._kept.has(story)) {
         recording.push(table);
@@ -146,13 +175,13 @@ export class StoryJournal {
   }
 
   /** Record a carried object before a container of this compile takes it
-   *  (`activation.reparent`): its parent, and what resolution will write into
-   *  it. Only an object an earlier story holds already has a parent, so
+   *  (`activation.reparent`): its placement, and what resolution will write
+   *  into it. Only an object an earlier story holds already has a parent, so
    *  nothing this compile creates is recorded. */
   recordParent(obj: object): void {
     const recording = this._recording;
     if (recording) {
-      StoryJournal.remember(recording, obj, PARENT);
+      StoryJournal.remember(recording, obj, PLACEMENT);
       if (!(obj instanceof Container)) {
         const fields = fieldsOf(obj);
         if (fields) {
@@ -180,9 +209,20 @@ export class StoryJournal {
     }
   }
 
+  /** Record a chunk's debug metadata before this compile restamps its
+   *  source position. */
+  recordDebugMetadata(metadata: DebugMetadata): void {
+    const recording = this._recording;
+    if (recording) {
+      StoryJournal.remember(recording, metadata, DEBUG_METADATA_FIELDS);
+    }
+  }
+
   /** The compile produced `story`, which is now the newest and the active one. */
   endCompile(story: object | undefined): void {
     this._recording = null;
+    const generation = activation.generation;
+    activation.generation += 1;
     if (!story) {
       return;
     }
@@ -190,7 +230,7 @@ export class StoryJournal {
     if (previous && !this._kept.has(previous)) {
       this._tables.delete(previous);
     }
-    this._tables.set(story, new Map());
+    this._tables.set(story, { generation, entries: new Map() });
     this._latest = story;
     this._active = story;
   }
@@ -200,21 +240,26 @@ export class StoryJournal {
    *  activation writes every kept story's values back. */
   abortCompile(): void {
     this._recording = null;
+    activation.generation += 1;
     this._active = undefined;
   }
 
-  /** Record the current values of `fields` of `obj` in every table that holds
-   *  nothing yet for them. */
+  /** Record the current values of `fields` of `obj` in every table of a
+   *  story that holds `obj` and has nothing recorded for them yet. */
   protected static remember(
-    tables: Map<object, Fields>[],
+    tables: Table[],
     obj: object,
     fields: readonly string[],
   ): void {
+    const birth = (obj as { _birth?: number })._birth;
     for (const table of tables) {
-      let entry = table.get(obj);
+      if (birth !== undefined && birth > table.generation) {
+        continue;
+      }
+      let entry = table.entries.get(obj);
       if (!entry) {
         entry = {};
-        table.set(obj, entry);
+        table.entries.set(obj, entry);
       }
       for (const field of fields) {
         if (!(field in entry)) {

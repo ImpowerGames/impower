@@ -1,4 +1,8 @@
+import { activation } from "./StoryActivation";
+
 export class DebugMetadata {
+  /** The compile generation this metadata was created in (`activation`). */
+  public readonly _birth: number = activation.generation;
   public startLineNumber: number = 0;
   public endLineNumber: number = 0;
   public startCharacterNumber: number = 0;

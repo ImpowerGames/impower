@@ -2474,6 +2474,16 @@ export class SparkdownCompiler {
 
     const fileName = uri.split("/").at(-1)?.split(".")[0] ?? null;
 
+    // A chunk's debug metadata is shared by reference with the runtime objects
+    // built from it, in every story that holds them, so a story kept runnable
+    // gets back the position this compile writes over.
+    const restamp = (metadata: DebugMetadata, lineNumberOffset: number) => {
+      this._storyJournal.recordDebugMetadata(metadata);
+      this.offsetDebugMetadata(metadata, lineNumberOffset, version);
+      metadata.fileName = fileName;
+      metadata.filePath = uri;
+    };
+
     const remapContent = (
       content: ParsedObject[],
       lineNumberOffset: number,
@@ -2481,35 +2491,21 @@ export class SparkdownCompiler {
       for (const c of content) {
         c.ResetRuntime();
         if (c.debugMetadata) {
-          this.offsetDebugMetadata(c.debugMetadata, lineNumberOffset, version);
-          c.debugMetadata.fileName = fileName;
-          c.debugMetadata.filePath = uri;
+          restamp(c.debugMetadata, lineNumberOffset);
         }
         if (
           "identifier" in c &&
           c.identifier instanceof Identifier &&
           c.identifier?.debugMetadata
         ) {
-          this.offsetDebugMetadata(
-            c.identifier.debugMetadata,
-            lineNumberOffset,
-            version,
-          );
+          restamp(c.identifier.debugMetadata, lineNumberOffset);
           c.identifier.ResetRuntime();
-          c.identifier.debugMetadata.fileName = fileName;
-          c.identifier.debugMetadata.filePath = uri;
         }
         if ("pathIdentifiers" in c && Array.isArray(c.pathIdentifiers)) {
           for (const p of c.pathIdentifiers) {
             if (p instanceof Identifier && p.debugMetadata) {
-              this.offsetDebugMetadata(
-                p.debugMetadata,
-                lineNumberOffset,
-                version,
-              );
+              restamp(p.debugMetadata, lineNumberOffset);
               p.ResetRuntime();
-              p.debugMetadata.fileName = fileName;
-              p.debugMetadata.filePath = uri;
             }
           }
         }
@@ -2529,33 +2525,19 @@ export class SparkdownCompiler {
     ) => {
       for (const c of content) {
         if (c.debugMetadata) {
-          this.offsetDebugMetadata(c.debugMetadata, lineNumberOffset, version);
-          c.debugMetadata.fileName = fileName;
-          c.debugMetadata.filePath = uri;
+          restamp(c.debugMetadata, lineNumberOffset);
         }
         if (
           "identifier" in c &&
           c.identifier instanceof Identifier &&
           c.identifier?.debugMetadata
         ) {
-          this.offsetDebugMetadata(
-            c.identifier.debugMetadata,
-            lineNumberOffset,
-            version,
-          );
-          c.identifier.debugMetadata.fileName = fileName;
-          c.identifier.debugMetadata.filePath = uri;
+          restamp(c.identifier.debugMetadata, lineNumberOffset);
         }
         if ("pathIdentifiers" in c && Array.isArray(c.pathIdentifiers)) {
           for (const p of c.pathIdentifiers) {
             if (p instanceof Identifier && p.debugMetadata) {
-              this.offsetDebugMetadata(
-                p.debugMetadata,
-                lineNumberOffset,
-                version,
-              );
-              p.debugMetadata.fileName = fileName;
-              p.debugMetadata.filePath = uri;
+              restamp(p.debugMetadata, lineNumberOffset);
             }
           }
         }
