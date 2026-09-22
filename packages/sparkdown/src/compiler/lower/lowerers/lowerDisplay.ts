@@ -142,6 +142,11 @@ function buildDisplayCalls(
     character = undefined;
   }
 
+  // A continuation's beats after a break route by the line it continues: the
+  // beat the run joined it to, and failing that the line the source reads
+  // before it.
+  const isContinuation = lineType === null;
+  const joined = isContinuation ? lexicalRouting(parent, ctx) : null;
   const ranges = splitBodyRangeAtBreaks(parent, bodyStart, bodyEnd, ctx, mode);
   const calls: ParsedObject[] = [];
   for (let i = 0; i < ranges.length; i++) {
@@ -166,21 +171,34 @@ function buildDisplayCalls(
       calls.push(buildLoadCall(loadArgs, range, ctx, tags));
     } else {
       // An empty body still makes a call, so the line keeps its own step. A
-      // statement with no body is stamped from its start, since an empty
-      // block body's range sits on the line after it; a beat a break ends is
-      // stamped where it stands, so it sorts among the line's other beats.
+      // statement with no body of its own is stamped from its start, since an
+      // empty block body's range sits on the line after it. Every range of a
+      // body a break split is stamped where it stands, even one whose visible
+      // body is empty (a range holding only a divert), so it sorts among the
+      // line's other beats.
       const stamped =
-        body.length > 0 || range.pause
+        body.length > 0 || range.pause || ranges.length > 1
           ? range
           : { from: parent.from, to: parent.from };
       // A glued continuation takes its routing from the beat it joins, which
-      // only the run knows, so each beat after one of its breaks asks for the
-      // routing of the beat before it (`inherit`).
+      // only the run knows. Its calls name the continuation (`group`), and
+      // each beat after one of its breaks asks for the routing of the beat
+      // that `group` named (`inherit`), falling back to the routing its own
+      // line reads.
       calls.push(
-        buildDisplayCall(target, character, body, stamped, ctx, tags, {
-          pause: range.pause,
-          inherit: lineType === null && i > 0,
-        }),
+        buildDisplayCall(
+          isContinuation && i > 0 ? joined?.target : target,
+          isContinuation && i > 0 ? joined?.character : character,
+          body,
+          stamped,
+          ctx,
+          tags,
+          {
+            pause: range.pause,
+            group: isContinuation ? parent.from : undefined,
+            inherit: isContinuation && i > 0,
+          },
+        ),
       );
     }
     if (trailingGlue) calls.push(trailingGlue);
@@ -239,14 +257,16 @@ function joinMidBodyGlue(body: ParsedObject[]): void {
 // (GRAMMAR.md §5). A split drops the break, and the newline after it when the
 // break ends a block line, so the next range starts where its text does.
 //
-// Every range a break ends is marked `pause`. A break with nothing after it
-// but tags or comments (a trailing `>`) is not a split point: it stays in the
-// last range, which it marks, and contributes no text.
+// Every break ends the range before it, which is marked `pause`, and starts
+// the next. The range after the LAST break is the line's own end rather than
+// a beat a break ends, so it is dropped when it holds nothing: `A >` is one
+// beat, while `A > >` is that beat and the empty one the second break ends.
 //
-// A break with no text before it in the same range adds a beat with no text
-// in an inline line (`> Hello`, or a line holding only `>`). In a block the
-// line before has already ended its beat or the block has just begun, so the
-// break only splits the block and adds no beat.
+// A range with no content is a beat with no text in an inline line (`>`,
+// `> Hello`, `A > > B`). In a block the line before has already ended its
+// beat, or the block has just begun, so an empty range is only where the
+// break split it and is dropped; a block body that is nothing but breaks
+// keeps one range that shows nothing and waits for nothing.
 //
 // A break that ends its source line keeps the tags and comments written after
 // it on that line in the range before it, so a line's tags stay with the beat
@@ -258,32 +278,34 @@ function splitBodyRangeAtBreaks(
   ctx: LowerContext,
   mode: "inline" | "block",
 ): { from: number; to: number; pause: boolean }[] {
+  const breaks = collectBreaksInRange(parent, bodyStart, bodyEnd);
   const ranges: { from: number; to: number; pause: boolean }[] = [];
   let segStart = bodyStart;
-  let pause = false;
-  for (const brk of collectBreaksInRange(parent, bodyStart, bodyEnd)) {
-    if (brk.from < segStart) continue;
-    if (!hasBodyContent(parent, brk.to, bodyEnd, ctx)) {
-      pause = true;
-      break;
-    }
+  for (const brk of breaks) {
     const newline = ctx.read(brk.to, bodyEnd).indexOf("\n");
     const lineEnd = newline < 0 ? bodyEnd : brk.to + newline;
-    const endsLine = !hasBodyContent(parent, brk.to, lineEnd, ctx);
-    const empty = !hasBodyContent(parent, segStart, brk.from, ctx);
-    if (!(empty && mode === "block")) {
-      const to =
-        endsLine && ctx.read(lineEnd - 1, lineEnd) === "\r"
-          ? lineEnd - 1
-          : endsLine
-            ? lineEnd
-            : brk.from;
-      ranges.push({ from: segStart, to, pause: true });
-    }
+    // A break ends its line when nothing but tags and comments follows it
+    // there. Another break on the line ends a range of its own instead.
+    const endsLine =
+      !hasBodyContent(parent, brk.to, lineEnd, ctx) &&
+      !breaks.some((other) => other.from >= brk.to && other.from < lineEnd);
+    const to = endsLine
+      ? ctx.read(lineEnd - 1, lineEnd) === "\r"
+        ? lineEnd - 1
+        : lineEnd
+      : brk.from;
+    ranges.push({ from: segStart, to, pause: true });
     segStart = endsLine ? Math.min(lineEnd + 1, bodyEnd) : brk.to;
   }
-  ranges.push({ from: segStart, to: bodyEnd, pause });
-  return ranges;
+  ranges.push({ from: segStart, to: bodyEnd, pause: false });
+  const kept = ranges.filter(
+    (range, i) =>
+      hasBodyContent(parent, range.from, range.to, ctx) ||
+      (mode === "inline" && i < ranges.length - 1),
+  );
+  return kept.length > 0
+    ? kept
+    : [{ from: bodyStart, to: bodyEnd, pause: false }];
 }
 
 // Whether [from, to) of a display body holds anything but whitespace, author
@@ -859,6 +881,66 @@ function extractInlineBodyRange(nodeRef: SparkdownSyntaxNodeRef): {
 
 function hasLeadingGlue(nodeRef: SparkdownSyntaxNodeRef): boolean {
   return getDescendent("Glue", nodeRef.node) != null;
+}
+
+// The display line each statement kind routes by.
+const DISPLAY_LINE_TYPES: Record<string, string> = {
+  InlineDialogue: "dialogue",
+  BlockDialogue: "dialogue",
+  InlineAction: "action",
+  BlockAction: "action",
+  ImplicitAction: "action",
+  InlineHeading: "heading",
+  BlockHeading: "heading",
+  InlineTitle: "title",
+  BlockTitle: "title",
+  InlineTransitional: "transitional",
+  BlockTransitional: "transitional",
+  InlineWrite: "write",
+  BlockWrite: "write",
+};
+
+// The routing of the line a glued continuation continues, as the SOURCE reads
+// it: the display line before it, or the line that one continues in turn. The
+// run may join the continuation to another line instead (one a divert brought
+// here), which is what `inherit` asks for; this is the answer when no such
+// beat ran, as after a jump straight to the continuation's own beat.
+function lexicalRouting(
+  node: SyntaxNode,
+  ctx: LowerContext,
+): { target?: string; character?: string } | null {
+  let sib: SyntaxNode | null = node.prevSibling;
+  while (sib) {
+    if (GLUE_SKIP_SIBLINGS.has(sib.name)) {
+      sib = sib.prevSibling;
+      continue;
+    }
+    const lineType = DISPLAY_LINE_TYPES[sib.name];
+    if (!lineType) return null;
+    // A line that OPENS with `..` is itself a continuation, and routes by
+    // what the line before it routes by. A line that merely ends with one is
+    // the line being continued.
+    const glue = getDescendent("Glue", sib);
+    if (glue && !ctx.read(sib.from, glue.from).trim()) {
+      sib = sib.prevSibling;
+      continue;
+    }
+    const read = (name: SparkdownNodeName) => {
+      const found = getDescendent(name, sib!);
+      return found ? ctx.read(found.from, found.to).trim() : undefined;
+    };
+    if (lineType === "dialogue") {
+      return {
+        target: "dialogue",
+        character: read("DialogueCharacterName") || undefined,
+      };
+    }
+    if (lineType === "write") {
+      return { target: read("WriteTarget") || undefined };
+    }
+    return { target: lineType };
+  }
+  return null;
 }
 
 // Sibling node names that sit between two display constructs without being

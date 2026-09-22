@@ -5,7 +5,12 @@
 
 import { describe, expect, test } from "vitest";
 import { Coordinator } from "../../game/core/classes/Coordinator";
-import { createHarness, flushMicrotasks } from "./harness/uiTestHarness";
+import { findClosestPath } from "../../game/core/utils/findClosestPath";
+import {
+  createHarness,
+  flushMicrotasks,
+  MAIN_URI,
+} from "./harness/uiTestHarness";
 
 const DEFS = `define HERO as character with
   name = "HERO"
@@ -39,6 +44,12 @@ const typed = (beat: any): string =>
   Object.entries(beat?.text ?? {})
     .filter(([target]) => !target.startsWith("character_"))
     .flatMap(([, events]) => events as any[])
+    .map((event: any) => event.text ?? "")
+    .join("");
+
+/** The cue a beat shows, if any. */
+const cue = (beat: any): string =>
+  ((beat?.text?.character_name ?? []) as any[])
     .map((event: any) => event.text ?? "")
     .join("");
 
@@ -84,6 +95,39 @@ describe("spaced `>` break", () => {
       "character_name",
       "dialogue",
     ]);
+  });
+
+  test("a continuation's beat reached on its own keeps its own line's cue", async () => {
+    // What a preview does when the route to the point failed: it jumps
+    // straight to the beat. Nothing joined this continuation, so the beat
+    // after its break takes the cue the line it continues reads, and never
+    // the cue of a beat that happens to have run before.
+    const source = story(
+      `  HERO: A.\n  .. hero joined > Hero after.\n  VILLAIN: V.\n  .. villain joined > Villain after.`,
+    );
+    const harness = createHarness(source);
+    await harness.ready;
+    // Run the HERO line first, so a beat with another cue is what the
+    // interpreter last queued.
+    harness.jumpTo("start");
+    expect(cue(harness.nextBeat())).toBe("HERO");
+
+    // Then jump straight to the last beat of the VILLAIN continuation.
+    const program = harness.game.program;
+    const line = source
+      .split("\n")
+      .findIndex((l) => l.includes("villain joined"));
+    const path = findClosestPath(
+      { file: MAIN_URI, line },
+      program.pathLocations,
+      Object.keys(program.scripts),
+      "last",
+    );
+    expect(path).toBeTruthy();
+    harness.jumpTo(path!);
+    const beat = harness.nextBeat();
+    expect(typed(beat)).toBe("Villain after.");
+    expect(cue(beat)).toBe("VILLAIN");
   });
 
   test("a picture line ending in `>` shows the picture and waits", async () => {

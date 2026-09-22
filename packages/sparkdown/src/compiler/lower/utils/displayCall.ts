@@ -13,7 +13,7 @@ import { Text } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Text";
 import type { LowerContext } from "../context";
 import { stampDebugMetadata } from "./debugMetadata";
 
-// `display({ target?, character?, text, pause?, inherit? })` with
+// `display({ target?, character?, text, pause?, inherit?, group? })` with
 // `shouldPopReturnedValue` — a synthesized bare-call statement (no author `&`
 // needed). `display` is a
 // state-aware STDLIB entry, so this lowers to a RunStdLibFunction dispatch whose
@@ -29,9 +29,12 @@ import { stampDebugMetadata } from "./debugMetadata";
 // ending during string evaluation is taken for a choice label's tag.
 //
 // `pause` marks a beat a `>` break ends: it waits for a click even when it
-// shows no text. `inherit` marks a beat that names no routing of its own and
-// takes the routing of the beat before it: a glued continuation's beats after
-// one of its breaks.
+// shows no text. `group` names the glued continuation a call belongs to, and
+// `inherit` marks its beats after one of its breaks: they take the routing of
+// the beat the run joined the continuation to, which the interpreter knows
+// only while the beat `group` names is the one it queued last, and otherwise
+// route by the table's own routing, which is the line the source reads before
+// the continuation.
 //
 // When `range` is given, the call is stamped with it so its beat surfaces a
 // pathLocation (the screenplay preview's click-to-line routing depends on it).
@@ -42,7 +45,7 @@ export function buildDisplayCall(
   range: { from: number; to: number } | null,
   ctx: LowerContext,
   tags: ParsedObject[][] = [],
-  options: { pause?: boolean; inherit?: boolean } = {},
+  options: { pause?: boolean; inherit?: boolean; group?: number } = {},
 ): FunctionCall {
   const entries: ObjectExpressionEntry[] = [];
   if (target) {
@@ -68,6 +71,14 @@ export function buildDisplayCall(
         new ObjectExpressionEntry(flag, new NumberExpression(true, "bool")),
       );
     }
+  }
+  if (options.group != null) {
+    entries.push(
+      new ObjectExpressionEntry(
+        "group",
+        new NumberExpression(options.group, "int"),
+      ),
+    );
   }
   return finishCall(entries, tags, range, ctx);
 }

@@ -23,6 +23,11 @@ end
 scene start
   HERO: [[show backdrop BG]] One. > Two. > Three.
   HERO: A > > B
+  HERO: Before > -> later
+end
+
+scene later
+  HERO: Later.
   Next.
 end
 `;
@@ -128,5 +133,22 @@ describe("a line that `>` breaks", () => {
 
   test("an empty beat between two breaks sorts after the beat before it", async () => {
     expect(await playFrom(EMPTY_MIDDLE, 3)).toEqual(["A", "", "B"]);
+  });
+
+  test("a break before a divert keeps the line's own beat first", async () => {
+    // The range after the break holds only the divert, so its call shows no
+    // text of its own; it still belongs where it stands on the line.
+    const line = lineOf("Before > -> later");
+    const { game } = createHarness(SOURCE, line, { connect: false });
+    const scripts = Object.keys(game.program.scripts);
+    const at = (beat: "first" | "last") =>
+      findClosestPath(
+        { file: MAIN_URI, line },
+        game.program.pathLocations,
+        scripts,
+        beat,
+      );
+    expect(at("first")).not.toBe(at("last"));
+    expect(await playFrom(line, 2)).toEqual(["Before", "Later."]);
   });
 });

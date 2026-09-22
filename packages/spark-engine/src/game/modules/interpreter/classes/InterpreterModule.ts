@@ -25,9 +25,10 @@ export interface InterpreterConfig {}
 
 export interface InterpreterState {
   buffer?: Instructions[];
-  /** The routing of the last beat queued, which a table marked `inherit`
-   *  takes as its own. */
-  routing?: { target: string; character?: string };
+  /** The routing of the last beat queued, and the glued continuation whose
+   *  table that beat carried (`group`), which is the only continuation whose
+   *  later beats may take this routing as their own. */
+  routing?: { target: string; character?: string; group?: number };
 }
 
 export interface InterpreterMessageMap extends Record<string, any> {}
@@ -394,8 +395,11 @@ export class InterpreterModule extends Module<
    * pause?: boolean, tags?: table }`, or `{ load: string }` for a `load` line,
    * whose whitespace-separated names queue a load beat of their own. `pause`
    * marks a beat a `>` break ends, which waits for a click even when it has no
-   * text. `inherit` marks a beat of a glued continuation after one of its
-   * breaks: naming no target, it takes the routing of the beat before it.
+   * text. `group` names a glued continuation, and `inherit` marks its beats
+   * after one of its breaks: they take the routing of the beat the run joined
+   * the continuation to, which holds while the beat just queued carried the
+   * same `group`, and otherwise route by their own table, which names the
+   * line the source reads before the continuation.
    *
    * One step makes one beat. Several tables share a step only when glue joined
    * their lines, and the body is the step's ordered visible text: every
@@ -459,20 +463,31 @@ export class InterpreterModule extends Module<
       const target = read(table, "target");
       return typeof target === "string" && target;
     });
+    const group = tables
+      .map((table) => read(table, "group"))
+      .find((value) => typeof value === "number") as number | undefined;
+    // A glued continuation's beat after one of its breaks takes the routing
+    // of the beat the run joined the continuation to — but only when that
+    // beat is the one just queued, which is what `group` establishes. A run
+    // that jumped straight to this beat routes by the table instead, which
+    // carries the line the source reads before the continuation.
+    const remembered = this._state.routing;
+    const inherits =
+      group != null &&
+      remembered?.group === group &&
+      tables.some((table) => read(table, "inherit") === true);
     let routing: { target: string; character?: string } = { target: "" };
-    if (routed) {
+    if (inherits) {
+      routing = { target: remembered!.target };
+      if (remembered!.character) routing.character = remembered!.character;
+    } else if (routed) {
       const characterRaw = read(routed, "character");
       routing = { target: read(routed, "target") as string };
       if (typeof characterRaw === "string" && characterRaw) {
         routing.character = characterRaw;
       }
-    } else if (
-      this._state.routing &&
-      tables.some((table) => read(table, "inherit") === true)
-    ) {
-      routing = this._state.routing;
     }
-    this._state.routing = routing;
+    this._state.routing = group == null ? routing : { ...routing, group };
     this.appendBeat(
       routing.target,
       routing.character,

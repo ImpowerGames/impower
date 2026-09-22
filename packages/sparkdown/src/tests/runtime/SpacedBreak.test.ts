@@ -120,13 +120,35 @@ $: E > F
         character: "HERO",
       });
       expect(flagged(ctx.story, "pause")).toBe(true);
-      // The beat after the break names no routing of its own and asks for
-      // the routing of the beat before it, which only the run knows.
+      // The beat after the break asks for the routing of the beat the run
+      // joined the continuation to (`inherit`), and names the line the source
+      // reads before it for a run that never queued that beat.
       expect(ctx.story.Continue()).toBe("Bye.\n");
-      expect(displayRouting(ctx.story)).toEqual([{}]);
+      expect(displayRouting(ctx.story)).toEqual([
+        { target: "dialogue", character: "HERO" },
+      ]);
       expect(flagged(ctx.story, "inherit")).toBe(true);
       expect(ctx.story.canContinue).toBe(false);
     }
+  });
+
+  test("two breaks in a row keep the empty beat between them", () => {
+    const ctx = makeRuntimeStoryFromSource(`HERO: A > >\nNext.\n`);
+    expect(ctx.errorMessages).toEqual([]);
+    expect(continueBeats(ctx.story)).toEqual([
+      { text: "A\n", routing: "dialogue:HERO", pause: true },
+      { text: "\n", routing: "dialogue:HERO", pause: true },
+      { text: "Next.\n", routing: "action:", pause: false },
+    ]);
+  });
+
+  test("a block whose body is only `>` adds no beat that waits", () => {
+    const ctx = makeRuntimeStoryFromSource(`HERO:\n  >\nNext.\n`);
+    expect(ctx.errorMessages).toEqual([]);
+    expect(continueBeats(ctx.story).map((beat) => beat.pause)).toEqual([
+      false,
+      false,
+    ]);
   });
 
   test("a line's tags stay with the beat its line-end break ends", () => {
