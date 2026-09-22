@@ -93,8 +93,11 @@ describe("a route search after an edit below the resumed checkpoint", () => {
     // A resumed search that broke on its first node still ends in the verdict
     // above, because the scene is then searched from the top. It must not
     // break: that is the misplaced checkpoint, whatever the verdict says.
-    expect(searches.length).toBeGreaterThan(0);
     expect(searches.filter((s) => s.endReason === "errored")).toEqual([]);
+    // The premise of the whole test: a search DID resume from the previous
+    // program's checkpoint. Without this, a change that answered correctly by
+    // never resuming — paying a full search every edit — would pass.
+    expect(searches.filter((s) => s.resumed).length).toBeGreaterThan(0);
   }, 120_000);
 });
 
