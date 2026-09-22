@@ -123,7 +123,7 @@ const prompt = path.join(scratch, "prompt.txt");
 fs.writeFileSync(prompt, "test fixture");
 const file = path.join(scratch, "plan.json");
 let attempt = 0;
-const plan = (fields, step = {}) => ({ worktree, completedReviewRound: 0, maxSteps: 1, first: "review", journal: path.join(scratch, `journal-${++attempt}.jsonl`), ...fields, steps: { review: { role: "review", round: 1, executable: process.execPath, args: [child], prompt, next: [null], ...step } } });
+const plan = (fields, step = {}) => ({ worktree, pr: 531, completedReviewRound: 0, maxSteps: 1, first: "review", journal: path.join(scratch, `journal-${++attempt}.jsonl`), ...fields, steps: { review: { role: "review", round: 1, executable: process.execPath, args: [child], prompt, next: [null], ...step } } });
 const launch = async (config) => {
   fs.writeFileSync(file, JSON.stringify(config));
   let error;
