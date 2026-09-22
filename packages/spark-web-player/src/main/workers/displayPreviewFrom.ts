@@ -1,8 +1,8 @@
 import type { Message } from "@impower/jsonrpc/src/common/types/Message";
 import { Game } from "@impower/spark-engine/src/game/core/classes/Game";
-import { findClosestPath } from "@impower/spark-engine/src/game/core/utils/findClosestPath";
 import type { SimulationFailure } from "@impower/sparkdown/src/compiler/types/SimulationFailure";
 import type { SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
+import { resolvePreviewPoint } from "../../utils/resolvePreviewPoint";
 
 /** The game, as far as a display needs it. Structural so the order of the
  *  steps can be checked against a recording stand-in. */
@@ -55,31 +55,17 @@ export async function displayPreviewFrom(
   request: DisplayRequest,
 ): Promise<boolean> {
   const { program, programChanged, speculative, send, superseded } = request;
-  const scripts = Object.keys(program.scripts);
-  const previewFrom = { file: request.file, line: request.line };
-  const previewPath = findClosestPath(
-    previewFrom,
-    program.pathLocations,
-    scripts,
+  const point = resolvePreviewPoint(
+    program,
+    { file: request.file, line: request.line },
+    programChanged,
+    game,
   );
-  // A cursor on a line that resolves to no path keeps the last point the game
-  // previewed (the sticky preview), and a project that resolves no path at all
-  // still previews the cursor, so the engine reveals its layouts.
-  const validPreviewFrom =
-    (previewPath ? previewFrom : game.previewFrom) ?? previewFrom;
-  const resolvedPreviewPath = previewPath
-    ? previewPath
-    : programChanged
-      ? findClosestPath(validPreviewFrom, program.pathLocations, scripts)
-      : game.previewPath;
-  const validPreviewPath = resolvedPreviewPath ?? game.previewPath;
+  const validPreviewFrom = point.from;
+  const resolvedPreviewPath = point.path;
+  const validPreviewPath = point.validPath;
 
-  if (
-    game.state === "previewing" &&
-    validPreviewPath != null &&
-    game.previewedPath === validPreviewPath &&
-    !programChanged
-  ) {
+  if (point.repeat) {
     // A repeat of the preview that ran, whose image gate may still be
     // pending: the engine answers with the same promise.
     await game.preview(validPreviewFrom.file, validPreviewFrom.line);

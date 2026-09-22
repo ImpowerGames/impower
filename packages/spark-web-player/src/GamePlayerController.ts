@@ -60,7 +60,6 @@ import { StopGameMessage } from "@impower/spark-engine/src/game/core/classes/mes
 import { UnpauseGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/UnpauseGameMessage";
 import { ErrorType } from "@impower/spark-engine/src/game/core/enums/ErrorType";
 import type { DocumentLocation } from "@impower/spark-engine/src/game/core/types/DocumentLocation";
-import { findClosestPath } from "@impower/spark-engine/src/game/core/utils/findClosestPath";
 import { possibleBreakpointLines } from "@impower/spark-engine/src/game/core/utils/possibleBreakpointLines";
 import { CompiledProgramMessage } from "@impower/sparkdown/src/compiler/classes/messages/CompiledProgramMessage";
 import { RemovedCompilerFileMessage } from "@impower/sparkdown/src/compiler/classes/messages/RemovedCompilerFileMessage";
@@ -78,6 +77,7 @@ import type { MessageProtocolRequestType } from "@impower/jsonrpc/src/common/cla
 import { conflate } from "./utils/conflate";
 import { describeSimulationFailure } from "./utils/describeSimulationFailure";
 import { programIdentity } from "./utils/programIdentity";
+import { resolvePreviewPoint } from "./utils/resolvePreviewPoint";
 import { profile } from "./utils/profile";
 import { sharedNow } from "@impower/spark-engine/src/game/core/utils/sharedClock";
 
@@ -2506,58 +2506,21 @@ export class GamePlayerController {
       this._previewPosition = { uri: file, line };
       this.publishGameState();
     };
-    const previewPath = findClosestPath(
-      previewFrom,
-      program.pathLocations,
-      Object.keys(program.scripts),
-    );
-
     const programChanged =
       this._game?.program.uri !== program?.uri ||
       this._game.program.version !== program?.version;
 
-    // When the cursor sits on a line that resolves to no path we keep the game's
-    // LAST valid preview point rather than resetting (sticky preview). But a pure
-    // UI-only project — a `layout` whose only path-located flows are the synthetic
-    // `__binding_*` evaluators, which findClosestPath excludes — never resolves a
-    // path at all, so the game would never have a remembered point and
-    // `game.preview()` below would never be called even once. Its layouts are
-    // mounted at connect but the layouts LAYER stays at `opacity:0`, so the whole
-    // UI renders invisibly. Fall back to the cursor itself so the engine always
-    // gets its preview call and can reveal the UI (Game.preview's no-path branch).
-    const validPreviewFrom =
-      (previewPath ? previewFrom : this._game?.previewFrom) ?? previewFrom;
-    // The path `game.preview()` below will resolve for that point against
-    // THIS program: the cursor's own, or the remembered point's, which is the
-    // game's own path for it while the program stands and is resolved again
-    // after a recompile, which can move it. The mark below names this path,
-    // so the asset module centres its prediction window on the beat the
-    // preview displays, and a point that no longer resolves (its script
-    // renamed, its line deleted) marks nothing.
-    const resolvedPreviewPath = previewPath
-      ? previewPath
-      : programChanged
-        ? findClosestPath(
-            validPreviewFrom,
-            program.pathLocations,
-            Object.keys(program.scripts),
-          )
-        : this._game?.previewPath;
-    // A point that no longer resolves keeps its old path for the skip below,
-    // which needs it to tell a repeat from a first preview.
-    const validPreviewPath = resolvedPreviewPath ?? this._game?.previewPath;
+    const point = resolvePreviewPoint(
+      program,
+      previewFrom,
+      programChanged,
+      this._game,
+    );
+    const validPreviewFrom = point.from;
+    const resolvedPreviewPath = point.path;
+    const validPreviewPath = point.validPath;
 
-    // Skip only a repeat of a preview that actually ran. A UI-only project
-    // resolves no path at all, so both sides of the comparison are undefined
-    // there — matching on that would treat "we have never previewed anything"
-    // as "already done" and skip the reconnect that re-evaluates its bindings.
-    if (
-      this._game &&
-      this._game.state === "previewing" &&
-      validPreviewPath != null &&
-      this._game.previewedPath === validPreviewPath &&
-      !programChanged
-    ) {
+    if (point.repeat && this._game) {
       // The engine records previewedPath before its image gate settles.
       // Repeating that path returns the same pending promise; await it too.
       const game = this._game;
