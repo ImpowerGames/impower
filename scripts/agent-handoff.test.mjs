@@ -6,7 +6,7 @@ import { execFileSync, spawn } from "node:child_process";
 import childProcess from "node:child_process";
 import { syncBuiltinESMExports } from "node:module";
 import { pathToFileURL } from "node:url";
-import { runHandoff as handoff, checkReviewRound, verifyReviewComment } from "./agent-handoff.mjs";
+import { runHandoff as handoff, checkReviewRound, verifyReviewComment, reserveWithinBound } from "./agent-handoff.mjs";
 import { validateCodexReviewer } from "./native-reviewer.mjs";
 import { reserveReviewerSlot, releaseReviewerSlot, recoverReviewerSlot, processIdentity, reviewerSlotStatus } from "./reviewer-slots.mjs";
 
@@ -262,6 +262,26 @@ for (const badRound of [undefined, "3", 4]) {
   assert.equal(fs.existsSync(config.journal), false, "invalid future review must fail before an implementation launch");
 }
 console.log("PASS: sequential completion, replay refusal, distinct routes, declared transitions, coordinator lock and missing-review refusal");
+
+// A bounded wait never reserves after its deadline, even when the event loop
+// is held past it while a slot frees.
+{
+  const full = path.join(scratch, "deadline-slots");
+  const held = Array.from({length:8}, () => reserveReviewerSlot(full));
+  assert.throws(() => reserveReviewerSlot(full), /All 8 machine-wide reviewer slots/);
+  const waits = [];
+  const blockPast = (ms) => { const end = Date.now() + ms; while (Date.now() < end); };
+  await assert.rejects(reserveWithinBound(full, 1, (occupied) => { waits.push(occupied); releaseReviewerSlot(held.shift()); blockPast(1200); }), /after waiting 1 seconds/, "a slot freed while the loop is held past the deadline is not taken");
+  assert.equal(waits.length, 1, "the wait is reported once");
+  assert.equal(reviewerSlotStatus(full).filter((slot) => slot.reservation).length, 7, "the freed slot stays free");
+  const taken = await reserveWithinBound(full, 5, () => {}, 50);
+  assert.ok(taken.file, "a free slot within the bound is taken");
+  held.push(taken);
+  await assert.rejects(reserveWithinBound(full, 0, () => assert.fail("a zero bound does not wait")), /All 8 machine-wide reviewer slots are unavailable \(/);
+  for (const slot of held) releaseReviewerSlot(slot);
+  assert.equal(fs.readdirSync(full).length, 0);
+}
+console.log("PASS: a bounded slot wait refuses after its deadline, reports the wait once, takes a slot within the bound, and a zero bound does not wait");
 
 // Independent coordinators in distinct repositories race for one machine pool.
 const pool = path.join(scratch, "machine-slots");

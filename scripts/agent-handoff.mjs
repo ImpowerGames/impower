@@ -79,23 +79,27 @@ export function validateNativeReviewArgs(review) {
 // or the bound expires. It runs before any spawn and under the worktree lock,
 // so a wait never races a separate status poll. Other reservation failures
 // (store access, identity) are not waited out.
+// Every retry checks the deadline first, so no reservation is attempted once
+// the bound has passed, however late a timer fires.
 export async function reserveWithinBound(root, seconds, onWaiting, pollMs = 1000) {
   const deadline = Date.now() + seconds * 1000;
-  let waited = false;
-  for (;;) {
+  for (let attempt = 0; ; attempt++) {
     try { return reserveReviewerSlot(root); }
     catch (error) {
-      if (error.code !== "ESLOTSFULL" || Date.now() >= deadline) {
-        if (waited && error.code === "ESLOTSFULL") error.message += ` after waiting ${seconds} seconds`;
+      if (error.code !== "ESLOTSFULL" || seconds === 0) throw error;
+      if (attempt === 0) onWaiting(reviewerSlotStatus(root).filter((slot) => slot.reservation || slot.recovery).map((slot) => slot.index));
+      const remaining = deadline - Date.now();
+      if (remaining > 0) await new Promise((resolve) => setTimeout(resolve, Math.min(pollMs, remaining)));
+      if (Date.now() >= deadline) {
+        error.message += ` after waiting ${seconds} seconds`;
         throw error;
       }
-      if (!waited) {
-        waited = true;
-        onWaiting(reviewerSlotStatus(root).filter((slot) => slot.reservation || slot.recovery).map((slot) => slot.index));
-      }
-      await new Promise((resolve) => setTimeout(resolve, Math.min(pollMs, Math.max(0, deadline - Date.now()))));
     }
   }
+}
+
+export function validateSlotWait(value) {
+  if (value !== undefined && (!Number.isInteger(value) || value < 0 || value > 3600)) throw new Error("slotWaitSeconds must be an integer from 0 through 3600");
 }
 
 // Configuration is a local, caller-authored artifact. Comments and child output
@@ -116,8 +120,8 @@ export async function runHandoff(configFile, { slotRoot, identifyProcess = proce
   const reviewRoundLimit = config.reviewRoundLimit ?? 3;
   validateReviewRecovery(config);
   if (!Number.isInteger(config.maxSteps) || config.maxSteps < 1 || config.maxSteps > 30) throw new Error("maxSteps must be 1..30");
+  validateSlotWait(config.slotWaitSeconds);
   const slotWaitSeconds = config.slotWaitSeconds ?? 0;
-  if (!Number.isInteger(slotWaitSeconds) || slotWaitSeconds < 0 || slotWaitSeconds > 3600) throw new Error("slotWaitSeconds must be an integer from 0 through 3600");
   if (fs.existsSync(journal)) throw new Error("Journal exists; inspect recorded process and completion before authoring a recovery plan");
   for (const step of Object.values(config.steps)) {
     if(step.nativeResult!==undefined&&!['claude-json','codex-jsonl'].includes(step.nativeResult))throw new Error('Unsupported native reviewer result transport');

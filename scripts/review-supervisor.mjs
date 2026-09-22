@@ -3,7 +3,7 @@ import path from 'node:path';
 import { spawnDetached } from './detached-launch.mjs';
 import { randomUUID } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
-import { runHandoff,checkReviewRound,verifyNativeReviewResult,validateReviewRecovery,validateNativeReviewArgs,configuredRoute } from './agent-handoff.mjs';
+import { runHandoff,checkReviewRound,verifyNativeReviewResult,validateReviewRecovery,validateNativeReviewArgs,configuredRoute,validateSlotWait } from './agent-handoff.mjs';
 import { reviewerEnvironment } from './reviewer-security.mjs';
 import { checkWriterEffort } from './reviewer-defaults.mjs';
 import { verifyClaimConfiguration } from './continuation-host.mjs';
@@ -40,6 +40,7 @@ export function validateReviewPlan(input,{validateArgs=validateNativeReviewArgs}
   checkWriterEffort(plan.writer,plan.writerEffort);
   const limit=plan.reviewRoundLimit??3;
   validateReviewRecovery(plan);
+  validateSlotWait(plan.slotWaitSeconds);
   if(!Number.isInteger(limit)||limit<1||limit>10||(limit>3&&typeof plan.extendedReviewAuthorization!=='string'))throw new Error('Invalid review limit/authorization');
   checkReviewRound(plan.round,plan.completedReviewRound,plan.finalCorrections??false,limit);
   if(!Number.isInteger(plan.completedReviewRound)||plan.completedReviewRound<0)throw new Error('Recorded review round required');
@@ -79,7 +80,7 @@ export async function createReviewJob(input,host,{verifyExecutable=verifyReviewe
   writeExclusive(path.join(plan.jobDir,'events.jsonl'),{version:1,sequence:1,eventId:randomUUID(),jobId:plan.jobId,time:new Date().toISOString(),event:'accepted',capability});
   try {reserveFreeze(plan,plan.jobDir);}catch(error){withJob(plan.jobDir,()=>appendEvent(plan.jobDir,'blocked',{reason:error.message}));return jobStatus(plan.jobDir);}
   const steps=Object.fromEntries(plan.reviews.map((review,index)=>[review.id,{role:'review',round:plan.round,model:plan.reviewer,nativeResult:nativeResultType(review.transport),effort:review.effort,permissions:review.permissions,executable:review.executable,args:review.args,prompt:review.prompt,next:[plan.reviews[index+1]?.id??null]}]));
-  writeExclusive(path.join(plan.jobDir,'handoff.json'),{worktree:plan.worktree,journal:path.join(plan.jobDir,'handoff.jsonl'),pr:plan.pr,writer:plan.writer,writerEffort:plan.writerEffort,reviewer:plan.reviewer,completedReviewRound:plan.completedReviewRound,reviewedHead:plan.reviewedHead,finalCorrections:plan.finalCorrections,reviewRoundLimit:plan.reviewRoundLimit,extendedReviewAuthorization:plan.extendedReviewAuthorization,maxSteps:plan.reviews.length,first:plan.reviews[0].id,steps});
+  writeExclusive(path.join(plan.jobDir,'handoff.json'),{worktree:plan.worktree,journal:path.join(plan.jobDir,'handoff.jsonl'),pr:plan.pr,writer:plan.writer,writerEffort:plan.writerEffort,reviewer:plan.reviewer,completedReviewRound:plan.completedReviewRound,reviewedHead:plan.reviewedHead,finalCorrections:plan.finalCorrections,reviewRoundLimit:plan.reviewRoundLimit,extendedReviewAuthorization:plan.extendedReviewAuthorization,slotWaitSeconds:plan.slotWaitSeconds,maxSteps:plan.reviews.length,first:plan.reviews[0].id,steps});
   return jobStatus(plan.jobDir);
 }
 export async function launchReviewWorker(dir,{spawnWorker=spawnDetached}={}) {

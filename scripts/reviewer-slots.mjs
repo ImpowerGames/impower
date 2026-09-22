@@ -5,7 +5,7 @@ import { randomUUID } from "node:crypto";
 import { fileURLToPath } from "node:url";
 
 // Machine-wide ceiling on participating local reviewer processes.
-export const reviewerSlotCount = 8;
+const reviewerSlotCount = 8;
 
 export const machineSlotRoot = process.platform === "win32"
   ? path.join(process.env.ProgramData || "C:\\ProgramData", "Impower", "reviewer-slots")
