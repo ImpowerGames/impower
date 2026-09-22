@@ -281,6 +281,72 @@ describe("a preview displayed from the worker's game", () => {
     }, 120_000);
   }
 
+  it("shows nothing once the player goes while a display waits for its picture", async () => {
+    let releaseA!: () => void;
+    const aLoaded = new Promise<void>((resolve) => (releaseA = resolve));
+    const h = await createPlayerHarness({
+      workerDisplays: true,
+      files: [{ uri: MAIN_URI, text: SOURCE }],
+      startFrom: { file: MAIN_URI, line: TAKING_OVER },
+      holdImage: (src) => (src.includes("a.png") ? aLoaded : undefined),
+    });
+    try {
+      await h.compile();
+      const waiting = await h.selectWithoutWaiting(WAITING);
+      await settle(40);
+      h.controller.dispose();
+      await settle(20);
+      const routed = h.toRouter.length;
+      releaseA();
+      await waiting.previewed;
+      await settle(60);
+
+      expect(h.toRouter.length).toBe(routed);
+      expect(h.controller._app).toBeUndefined();
+      expect((h.link as any)._sink).toBeUndefined();
+    } finally {
+      h.dispose();
+    }
+  }, 120_000);
+
+  it("keeps the preview that follows a detach when the build before it finishes late", async () => {
+    const h = await createPlayerHarness({
+      workerDisplays: true,
+      files: [{ uri: MAIN_URI, text: SOURCE }],
+      startFrom: { file: MAIN_URI, line: TAKING_OVER },
+    });
+    try {
+      let releaseFirst!: () => void;
+      const firstHeld = new Promise<void>((resolve) => (releaseFirst = resolve));
+      const buildWorkerApp = h.controller.buildWorkerApp.bind(h.controller);
+      let builds = 0;
+      h.controller.buildWorkerApp = async (link: unknown) => {
+        if (++builds === 1) {
+          await firstHeld;
+        }
+        return buildWorkerApp(link);
+      };
+      const compiled = h.compile();
+      await settle(40);
+      await h.controller.detachWorkerPreview();
+      // A new preview at once, while the first build is still under way.
+      const next = await h.selectWithoutWaiting(WAITING);
+      await settle(20);
+      releaseFirst();
+      await compiled;
+      await next.previewed;
+      await settle(60);
+
+      expect(builds).toBe(2);
+      expect(h.controller._app).toBeDefined();
+      expect((h.link as any)._sink).toBeDefined();
+      expect(h.overlay.textContent).toContain("The beat that waits for its picture.");
+      expect(h.controller.getGameState().position).toEqual({ uri: MAIN_URI, line: WAITING });
+    } finally {
+      h.dispose();
+    }
+  }, 120_000);
+
   it("paints once its picture arrives when nothing takes over", async () => {
     let releaseA!: () => void;
     const aLoaded = new Promise<void>((resolve) => (releaseA = resolve));

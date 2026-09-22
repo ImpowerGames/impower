@@ -377,10 +377,9 @@ export class GamePlayerController {
     this._launchState = null;
     this.publishGameState();
     this._protocols.dispose();
-    this._workerDetaches += 1;
-    this._workerAppBuilding = undefined;
-    this._stopListeningToWorker?.();
-    this._stopListeningToWorker = undefined;
+    // What the worker's game shows goes with the controller, as it goes when
+    // the preview detaches.
+    this.detachWorkerPreview().catch(console.error);
     window.removeEventListener("contextmenu", this.handleContextMenu);
     window.removeEventListener("dragstart", this.handleDragStart);
     window.removeEventListener("resize", this.handleResize);
@@ -1874,8 +1873,17 @@ export class GamePlayerController {
   async detachWorkerPreview() {
     this._workerDetaches += 1;
     // A build under way disposes of its application when it finishes, and the
-    // next preview builds its own.
-    this._workerAppBuilding = undefined;
+    // next preview builds its own once that is done, so the two never share
+    // the application slot.
+    const building = this._workerAppBuilding;
+    if (building) {
+      const settling = this._workerAppSettling;
+      this._workerAppSettling = Promise.all([settling, building]).then(
+        () => undefined,
+        () => undefined,
+      );
+      this._workerAppBuilding = undefined;
+    }
     this._stopListeningToWorker?.();
     this._stopListeningToWorker = undefined;
     if (!this._workerGame) {
@@ -2333,6 +2341,10 @@ export class GamePlayerController {
    *  on after it. */
   protected _workerDetaches = 0;
 
+  /** Settles once every build a detach left under way has finished and
+   *  disposed of its application. */
+  protected _workerAppSettling?: Promise<void>;
+
   /**
    * `updatePreview` with the worker displaying: the page holds a summary of
    * `program`, and the worker's game, holding the program itself, performs
@@ -2374,7 +2386,9 @@ export class GamePlayerController {
     if (!this._app || this._workerAppBuilding) {
       this._stopListeningToWorker ??= this.listenToWorker(link);
       if (!this._workerAppBuilding) {
-        const building = this.buildWorkerApp(link)
+        const settling = this._workerAppSettling ?? Promise.resolve();
+        const building = settling
+          .then(() => this.buildWorkerApp(link))
           .then(async (app) => {
             if (detaches === this._workerDetaches) {
               return app;
