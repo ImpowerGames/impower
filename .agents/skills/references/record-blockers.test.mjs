@@ -29,6 +29,9 @@ assert.deepEqual(statedBlockers("Blocked by #721.Related note mentions #999."), 
 assert.deepEqual(statedBlockers("Blocked by #721 and `#999`."), [721]);
 assert.deepEqual(statedBlockers("Blocked by #900 (matches the `#1`-prefixed scheme)."), [900]);
 assert.deepEqual(statedBlockers("Blocked by #5 (`a. B`) and #6."), [5, 6]);
+// A longer delimiter run may hold shorter backtick runs inside its span.
+assert.deepEqual(statedBlockers("Blocked by #721 and ``#999 `literal` ``."), [721]);
+assert.deepEqual(statedBlockers("Blocked by ``a`` #5 and `b` #6."), [5, 6]);
 // Fenced code and other repositories' references are not blockers.
 assert.deepEqual(statedBlockers("```\nBlocked by #3.\n```\nText."), []);
 assert.deepEqual(statedBlockers("Blocked by other/repo#4 and #5."), [5]);

@@ -43,7 +43,7 @@ export function statedBlockers(body) {
   }
   for (const lines of paragraphs) {
     // Code spans are blanked, so neither a reference nor a full stop inside one counts.
-    const text = lines.join(" ").replace(/(`+)[^`]*?\1/g, (span) => " ".repeat(span.length));
+    const text = lines.join(" ").replace(/(?<!`)(`+)(?!`)[\s\S]*?(?<!`)\1(?!`)/g, (span) => " ".repeat(span.length));
     // "Blocked by" counts only where a sentence starts: at the start of the
     // block, or after a full stop, question mark, exclamation mark or colon.
     const pattern = /(?<=^\s*|[.!?:]\s+)Blocked by\b/g;
