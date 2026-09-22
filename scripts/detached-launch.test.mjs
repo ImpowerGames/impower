@@ -81,10 +81,12 @@ try {
     console.log("PASS: taskkill /T from the wrapper's pid stops the whole tree");
   }
 
-  // The window comparison is opt-in: its control opens a real window that takes
-  // keyboard focus, which is the defect this helper prevents, so routine check
-  // runs skip it. Set DETACHED_LAUNCH_WINDOW_PROBE=1 on Windows to run it.
-  if (process.platform === "win32" && process.env.DETACHED_LAUNCH_WINDOW_PROBE === "1") {
+  // The window count itself, the behaviour the issue reports, runs on every
+  // Windows check. Only the control launch is opt-in through
+  // DETACHED_LAUNCH_WINDOW_PROBE=1: it opens the real focus-stealing window, to
+  // show the probe can see one. A wrapper that stopped hiding its command's
+  // console would fail the count below without it.
+  if (process.platform === "win32") {
     // A shell whose node grandchild titles its console and does not hide
     // itself, which is what npm.cmd and vitest's workers do. The window count
     // comes from EnumWindows, so it sees conhost and Windows Terminal alike.
@@ -114,12 +116,15 @@ try {
       try { execFileSync("taskkill", ["/pid", String(child.pid), "/T", "/F"], { stdio: "ignore", windowsHide: true }); } catch {}
       return seen;
     };
-    // The control proves the probe can see the window this helper prevents.
-    const control = await count((command) => spawn(command, { shell: true, stdio: "ignore", windowsHide: true, detached: true }));
-    assert.equal(control, 1, "the probe saw no window from a directly detached shell, so it cannot tell a fix from a miss");
     assert.equal(await count((command) => spawnDetached(command, [], { shell: true, stdio: "ignore" })), 0, "a console grandchild of spawnDetached opened a visible window");
-    console.log("PASS: a direct detached launch opens 1 window, spawnDetached opens 0");
-  } else if (process.platform === "win32") console.log("SKIP: window comparison; set DETACHED_LAUNCH_WINDOW_PROBE=1 to run it");
+    console.log("PASS: a console grandchild of spawnDetached opens no visible window");
+    if (process.env.DETACHED_LAUNCH_WINDOW_PROBE === "1") {
+      // The control proves the probe can see the window this helper prevents.
+      const control = await count((command) => spawn(command, { shell: true, stdio: "ignore", windowsHide: true, detached: true }));
+      assert.equal(control, 1, "the probe saw no window from a directly detached shell, so it cannot tell a fix from a miss");
+      console.log("PASS: the control, a direct detached launch, opens 1 window the probe sees");
+    } else console.log("SKIP: the control launch, which opens a real focus-stealing window; set DETACHED_LAUNCH_WINDOW_PROBE=1 to run it");
+  }
 } finally {
   fs.rmSync(scratch, { recursive: true, force: true });
 }

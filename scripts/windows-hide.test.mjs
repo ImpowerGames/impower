@@ -201,14 +201,39 @@ export function unhiddenCalls(source) {
 // named. A call site reaching child_process through an injected parameter
 // (`spawnWorker(...)`, with `spawnWorker = spawn` as a default) names no
 // scannable function, so this reads the option rather than the callee.
-// `detached` is also an ordinary field name, on a worktree entry for one, so a
-// match counts only inside an object that carries launch options too.
+// `detached` is also an ordinary field name, on a worktree entry for one. A
+// match counts unless its object is plainly such a record: one that has other
+// fields and not one of them a launch option. So launch options nothing else
+// identifies as one, `{ detached: true, env }` passed to an injected launcher,
+// still count.
+const LAUNCH_OPTIONS = new Set(["windowsHide", "stdio", "shell", "cwd", "env", "argv0", "uid", "gid", "killSignal", "serialization", "timeout", "linger"]);
+
+// The object literal's own keys: `name:` entries and `name` shorthands,
+// skipping anything nested inside it.
+function objectKeys(object) {
+  const keys = [];
+  let depth = 0;
+  for (let i = 0; i < object.length; i++) {
+    const c = object[i];
+    if (c === "{" || c === "[" || c === "(") depth++;
+    else if (c === "}" || c === "]" || c === ")") depth--;
+    if (depth !== 1) continue;
+    const m = /^([\w$]+)\s*[:,}]/.exec(object.slice(i));
+    if (!m) continue;
+    // A key follows the opening brace or a comma, never a colon's value.
+    if (/[:.\w$]\s*$/.test(object.slice(0, i))) continue;
+    keys.push(m[1]);
+    i += m[1].length - 1;
+  }
+  return keys;
+}
 export function detachedOptions(source) {
   const text = maskStrings(stripComments(source));
   const found = [];
   for (const m of text.matchAll(DETACHES)) {
     if (OFF_ON_WINDOWS.test(source.slice(m.index))) continue;
-    if (!/(?<![\w$.])(?:windowsHide|stdio)\s*:/.test(enclosingObject(text, m.index))) continue;
+    const others = objectKeys(enclosingObject(text, m.index)).filter((key) => key !== "detached");
+    if (others.length && !others.some((key) => LAUNCH_OPTIONS.has(key))) continue;
     found.push(`${text.slice(0, m.index).split("\n").length}: detached`);
   }
   return found;
@@ -297,6 +322,13 @@ const detachedCases = [
   ['kept(entry({ branch: null, detached: true }), facts({ dirty: 9 }))', []],
   // The options a caller builds to pass on carry their own windowsHide.
   ['const options = { detached: true, windowsHide: true, stdio: "ignore" };', ["1: detached"]],
+  // An injected launcher, with no option naming it a launch but `env`.
+  ["spawnWorker(exe, args, { detached: true, env })", ["1: detached"]],
+  // Nothing else in the object to read either way.
+  ["spawnWorker(exe, args, { detached: true })", ["1: detached"]],
+  // A record whose fields are data, wherever it sits.
+  ['const entry = { path: p, branch: null, detached: true, head: "m2" };', []],
+  ["report({ worktrees: [{ branch, detached: true }] })", []],
 ];
 for (const [source, expected] of detachedCases) assert.deepEqual(detachedOptions(source), expected, source);
 console.log(`windows-hide: ${files.length} tooling scripts scanned`);
