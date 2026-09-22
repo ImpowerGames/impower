@@ -44,7 +44,6 @@ function diagnose(source: string): string[] {
   compiler.configure({
     useBuiltinsPrelude: true,
     seedBuiltinsIntoStory: true,
-    experimentalDisplayCalls: true,
     files: [
       {
         uri: SHOWCASE_URI,

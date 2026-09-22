@@ -4,16 +4,25 @@
       "type": "Weave",
       "content": [
         {
-          "type": "Text",
-          "text": "[[show backdrop rooftop_night]]"
-        },
-        {
-          "type": "Text",
-          "text": "((play music stars))"
-        },
-        {
-          "type": "Text",
-          "text": "\n"
+          "type": "FunctionCall",
+          "name": "display",
+          "args": [
+            {
+              "type": "ObjectExpression",
+              "entries": [
+                {
+                  "key": "text",
+                  "value": {
+                    "type": "StringExpression",
+                    "content": [
+                      "[[show backdrop rooftop_night]]",
+                      "((play music stars))"
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
         }
       ]
     }

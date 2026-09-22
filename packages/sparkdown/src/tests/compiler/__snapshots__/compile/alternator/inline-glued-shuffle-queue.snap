@@ -33,62 +33,36 @@
       "type": "Weave",
       "content": [
         {
-          "type": "Tag",
-          "start": true
-        },
-        {
-          "type": "Text",
-          "text": "\u0000action"
-        },
-        {
-          "type": "Tag",
-          "start": false
-        },
-        {
-          "type": "Text",
-          "text": "Got "
-        },
-        {
-          "type": "Weave",
-          "content": [
+          "type": "FunctionCall",
+          "name": "display",
+          "args": [
             {
-              "type": "Sequence",
-              "sequenceType": "Shuffle|Once",
-              "elements": [
+              "type": "ObjectExpression",
+              "entries": [
                 {
-                  "type": "Weave",
-                  "content": [
-                    {
-                      "type": "Text",
-                      "text": "A"
-                    }
-                  ]
+                  "key": "target",
+                  "value": {
+                    "type": "StringExpression",
+                    "content": [
+                      "action"
+                    ]
+                  }
                 },
                 {
-                  "type": "Weave",
-                  "content": [
-                    {
-                      "type": "Text",
-                      "text": "B"
-                    }
-                  ]
-                },
-                {
-                  "type": "Weave",
-                  "content": [
-                    {
-                      "type": "Text",
-                      "text": "C"
-                    }
-                  ]
+                  "key": "text",
+                  "value": {
+                    "type": "StringExpression",
+                    "content": [
+                      "Got ",
+                      {
+                        "type": "Weave"
+                      }
+                    ]
+                  }
                 }
               ]
             }
           ]
-        },
-        {
-          "type": "Text",
-          "text": "\n"
         }
       ]
     }

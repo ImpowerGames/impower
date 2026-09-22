@@ -83,7 +83,6 @@ export const story = (source: string): Story => ({
  *  the route to it, simulated. */
 const routeCheckpoint = (s: Story, line: number): string => {
   const { program } = compileUI(s.source, {
-    experimentalDisplayCalls: true,
     assets: s.assets,
   });
   const sim: any = new Game({

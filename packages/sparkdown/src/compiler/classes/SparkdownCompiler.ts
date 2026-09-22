@@ -288,6 +288,21 @@ function getPreludeGlobalNames(): Set<string> {
   return names;
 }
 
+/** The parsed objects under `node` that a walk over its subtree visits: its
+ *  `content`, and for a call that generated as a builtin, native or stdlib
+ *  call, its arguments. Such a call removes its proxy divert, which held the
+ *  arguments, from `content` on its first generation, yet the arguments still
+ *  generate on every pass and carry cached runtime objects and debug metadata
+ *  of their own (a `display()` call's table holds its line's whole text). */
+function parsedChildren(node: ParsedObject): ParsedObject[] {
+  const content = node.content ?? [];
+  if (!(node instanceof FunctionCall) || content.includes(node.proxyDivert)) {
+    return content;
+  }
+  const args = node.args.filter((arg) => !content.includes(arg));
+  return args.length > 0 ? [...content, ...args] : content;
+}
+
 /** The index of `word` in `text` as a whole identifier (not part of a longer
  *  one), or -1. A literal search rather than a regular expression: `word`
  *  comes from data (the prelude's global names). */
@@ -956,12 +971,6 @@ export class SparkdownCompiler {
       this._config.seedBuiltinsIntoStory = config.seedBuiltinsIntoStory;
     }
     if (
-      config.experimentalDisplayCalls !== undefined &&
-      config.experimentalDisplayCalls !== this._config.experimentalDisplayCalls
-    ) {
-      this._config.experimentalDisplayCalls = config.experimentalDisplayCalls;
-    }
-    if (
       config.stripImageData !== undefined &&
       config.stripImageData !== this._config.stripImageData
     ) {
@@ -1018,7 +1027,6 @@ export class SparkdownCompiler {
         {
           compilations: {
             definitions: this._config.definitions,
-            experimentalDisplayCalls: this._config.experimentalDisplayCalls,
           },
         },
       );
@@ -2361,9 +2369,7 @@ export class SparkdownCompiler {
           }
         }
       }
-      if (c.content) {
-        this.resetParsedRuntime(c.content);
-      }
+      this.resetParsedRuntime(parsedChildren(c));
     }
   }
 
@@ -2461,9 +2467,7 @@ export class SparkdownCompiler {
             }
           }
         }
-        if (c.content) {
-          remapContent(c.content, lineNumberOffset);
-        }
+        remapContent(parsedChildren(c), lineNumberOffset);
       }
     };
 
@@ -2507,9 +2511,7 @@ export class SparkdownCompiler {
             }
           }
         }
-        if (c.content) {
-          restampContent(c.content, lineNumberOffset);
-        }
+        restampContent(parsedChildren(c), lineNumberOffset);
       }
     };
 
@@ -3386,11 +3388,8 @@ export class SparkdownCompiler {
     if (identifier instanceof Identifier) {
       identifier.ResetRuntime();
     }
-    const content = node.content;
-    if (content) {
-      for (const c of content) {
-        this.resetSubtreeRuntime(c);
-      }
+    for (const c of parsedChildren(node)) {
+      this.resetSubtreeRuntime(c);
     }
   }
 

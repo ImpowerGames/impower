@@ -2,12 +2,12 @@
 // `display(<table>)` beat must travel the SAME per-beat path a normal text beat
 // does — Game's continue loop → interpreter buffer → shouldFlush → flush →
 // Coordinator fan-out → renderer message — with its routing carried in a
-// structured table instead of a routing tag.
+// structured table.
 //
 // This closes the loop the Story-level spike (displayCall.spike.test.ts) left
 // open: that proved the table reaches `story.currentDisplayInstructions`; this
-// proves the engine then routes it via `interpreter.queueInstructions` to a
-// flushed, rendered beat.
+// proves the engine then routes it via `interpreter.queue` to a flushed,
+// rendered beat.
 
 import { describe, expect, test } from "vitest";
 import { createHarness, flushMicrotasks } from "./harness/uiTestHarness";

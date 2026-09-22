@@ -72,7 +72,6 @@ function compile(source: string, version = 1, extra: File[] = []): SparkProgram 
   const compiler = new SparkdownCompiler();
   compiler.configure({
     useBuiltinsPrelude: true,
-    experimentalDisplayCalls: true,
     seedBuiltinsIntoStory: true,
     files: [
       {

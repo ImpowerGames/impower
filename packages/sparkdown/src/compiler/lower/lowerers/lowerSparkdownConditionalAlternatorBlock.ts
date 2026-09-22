@@ -144,6 +144,12 @@ export function lowerSparkdownConditionalAlternatorBlock(
       // 1-arm-positional and 2-arm-positional cases above.
       branch.isElse = true;
     }
+    // Every branch of a switch on `condExpr` matches against its value, the
+    // catch-all included: a matching else branch pops the value the branches
+    // compared. Left on the evaluation stack, it would be read by whatever
+    // consumes the stack next, such as the table of the line the alternator
+    // sits in.
+    if (condExpr) branch.matchingEquality = true;
     branch.isInline = isInline;
     return branch;
   });

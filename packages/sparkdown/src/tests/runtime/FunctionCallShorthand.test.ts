@@ -82,9 +82,7 @@ describe("{{fn}} function-call shorthand", () => {
     expect(ctx.errorMessages).toEqual([]);
     const text = ctx.story.Continue();
     expect(text).toBe("Hello\n");
-    // currentTags also carries the internal `\0action` routing tag — only
-    // assert the author-visible tag interpolated its call.
-    expect(ctx.story.currentTags).toContain("tone HEY");
+    expect(ctx.story.currentTags).toEqual(["tone HEY"]);
   });
 
   test("`\\{` / `\\}` escape a literal brace in display text", () => {

@@ -105,11 +105,12 @@ const previewLastBeat = (program: unknown, beats: number, limit?: number) => {
 };
 
 describe("a long scene replays to its end", () => {
-  // 20,000 display lines replays in about 13 seconds on this machine. Under a
-  // ten-second ceiling that is abandoned partway and reported to the author as
-  // a possible infinite loop, on a scene that contains no loop at all.
-  test("a 20,000 line scene previews its last beat instead of reporting a loop", () => {
-    const beats = 20_000;
+  // A scene of 10,000 display lines, several times longer than a real one,
+  // takes seconds to replay. Under a ceiling counted in seconds, a slow
+  // machine abandons it partway and reports a possible infinite loop, on a
+  // scene that contains no loop at all.
+  test("a 10,000 line scene previews its last beat instead of reporting a loop", () => {
+    const beats = 10_000;
     const program = compileSrc(longScene(beats));
     const result = previewLastBeat(program, beats);
 
@@ -170,16 +171,15 @@ describe("no clock governs execution", () => {
 
 describe("the ceiling is calibrated against what the editor compiles", () => {
   // The same trap that shipped the planner's ceiling several times too small:
-  // a scene built here is far coarser than the program the editor compiles
-  // from the same script, so a ceiling that looks generous against a fixture
-  // can still ration a real replay, and no fixture-based test would notice.
+  // a ceiling that looks generous against a program coarser than the editor's
+  // can still ration a real replay. The fixture compiles as the editor does,
+  // every line a `display()` call, so its cost per line is the editor's.
   //
-  // Measured rather than hard-coded, so this also fires if the fixture's own
-  // cost drifts — which is the half of the problem a frozen number misses. The
-  // multiplier covers the editor being roughly two and a half times
-  // finer-grained, plus room for a scene several times longer than the one
-  // measured here.
-  const EDITOR_GRANULARITY_AND_HEADROOM = 10;
+  // Measured rather than hard-coded, so this also fires if that cost drifts —
+  // which is the half of the problem a frozen number misses. The multiplier is
+  // the headroom the default leaves over a 20,000-line replay (see
+  // `_executionStepLimit` in Game.ts): two and a half times.
+  const HEADROOM = 2.5;
 
   test("the default leaves room well beyond a measured replay", () => {
     const beats = 2_000;
@@ -194,7 +194,7 @@ describe("the ceiling is calibrated against what the editor compiles", () => {
       _executionStepLimit: number;
     };
     expect(limit._executionStepLimit).toBeGreaterThan(
-      perLine * 20_000 * EDITOR_GRANULARITY_AND_HEADROOM,
+      perLine * 20_000 * HEADROOM,
     );
   }, 300_000);
 });

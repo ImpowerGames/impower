@@ -66,10 +66,6 @@ export function compile(source: string) {
     // The engine sources defines from the live runtime __def tables, so seed the
     // builtins prelude into the story VM (the production player does the same).
     seedBuiltinsIntoStory: true,
-    // The DOM goldens guard the PRODUCTION render path, which lowers display
-    // statements to native `display(<table>)` calls (the player worker enables
-    // this on the compiler that feeds the Game).
-    experimentalDisplayCalls: true,
     files: [
       {
         uri: MAIN_URI,
@@ -373,25 +369,13 @@ export function createDOMHarness(
         story.ContinueAsync();
         if (story.asyncContinueComplete) {
           const choices = story.currentChoices.map((c: any) => c.text);
-          // Mirror Game's continue loop: a step that called `display(<table>)`
-          // goes to queueInstructions with the step's ordered text as the
-          // body; a step with no table takes the queue() path.
-          const displayInstructions = story.currentDisplayInstructions;
-          if (displayInstructions.length > 0) {
-            interpreter.queueInstructions(
-              displayInstructions,
-              choices,
-              story.currentText || "",
-              story.currentTags || [],
-            );
-          } else {
-            interpreter.queue(
-              story.currentText || "",
-              choices,
-              // Pass the beat's routing tags, exactly as Game's continue loop does.
-              story.currentTags || [],
-            );
-          }
+          // Mirror Game's continue loop: the step's tables, choices and ordered
+          // text make its beat.
+          interpreter.queue(
+            story.currentDisplayInstructions,
+            choices,
+            story.currentText || "",
+          );
         }
         guard++;
       }

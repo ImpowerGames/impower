@@ -732,8 +732,8 @@ export class Story extends InkObject {
     return this.state.currentTags;
   }
 
-  /** SPIKE (display-as-Luau-call transport): the live instruction tables a
-   *  `display(<table>)` call emitted this beat (empty otherwise). See
+  /** The live instruction tables the `display(<table>)` calls emitted this
+   *  beat (empty otherwise). See
    *  {@link StoryState.currentDisplayInstructions}. */
   get currentDisplayInstructions() {
     this.IfAsyncWeCant(
@@ -4544,20 +4544,10 @@ export class Story extends InkObject {
 
     let foundExternal = typeof funcDef !== "undefined";
 
-    if (
-      foundExternal &&
-      !funcDef!.lookAheadSafe &&
-      this._state.inStringEvaluation
-    ) {
-      this.Error(
-        "External function " +
-          funcName +
-          ' could not be called because 1) it wasn\'t marked as lookaheadSafe when BindExternalFunction was called and 2) the story is in the middle of string generation, either because choice text is being generated, or because you have ink like "hello {func()}". You can work around this by generating the result of your function into a temporary variable before the string or choice gets generated: ~ temp x = ' +
-          funcName +
-          "()",
-      );
-    }
-
+    // A function that is not lookahead-safe is skipped past a newline, and
+    // the step that reached it is rewound to the snapshot, evaluation stack
+    // included. That holds in the middle of string evaluation too (a display
+    // line's text is one), so such a call may sit inside an interpolation.
     if (
       foundExternal &&
       !funcDef!.lookAheadSafe &&

@@ -23,17 +23,6 @@ export interface SparkdownCompilerConfig {
   // the pure-LSP diagnostics path leaves it off; any compile feeding a Game must
   // turn it on — the player worker and the test harnesses do).
   seedBuiltinsIntoStory?: boolean;
-  // When true, the lowerer emits visible text as native `display(<table>)`
-  // Luau calls instead of flat ink text with a routing tag: every display
-  // statement, standalone asset lines, a `load` arrow's directive, single-line
-  // alternator arms, bare `{expr}` lines and a picked choice's echoed text.
-  // A table carries `{ target?, character?, text, tags? }` (routing resolved at
-  // compile time, body parsed by the interpreter as flat text is), or
-  // `{ load }` for a `load` line. A display body the captured string cannot
-  // hold (a mid-body `..` next to something other than text, or text after a
-  // mid-line divert) still lowers to the flat form. Transitional flag for the
-  // display double-parse elimination (#685); off by default.
-  experimentalDisplayCalls?: boolean;
   /**
    * Omit the inlined SVG source (`data`) from image structs in
    * `program.context`. Hosts that serve `/file:/` through a service worker

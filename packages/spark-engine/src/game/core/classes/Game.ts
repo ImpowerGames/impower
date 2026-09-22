@@ -157,20 +157,20 @@ export class Game<T extends M = {}> {
    * mistaking a long scene for a loop.
    *
    * The unit is one iteration of the loop in `stepWithinBudget`, which is not
-   * the same as a display line or a runtime path — replaying a scene built as
-   * a test fixture costs about eight iterations per display line (63,992 at
-   * 8,000 lines, 159,992 at 20,000, 191,992 at 24,000).
+   * the same as a display line or a runtime path. Replaying a scene of plain
+   * display lines, each lowered to a `display()` call as the editor compiles
+   * it, costs about 37 iterations per line (73,961 at 2,000 lines), which puts
+   * a 20,000-line replay near 740,000.
    *
-   * Calibrate against what the EDITOR compiles, never against a fixture. The
-   * editor's program is roughly two and a half times finer-grained, so the
-   * same scene costs proportionally more, putting a 20,000-line editor replay
-   * near 400,000 iterations. That last figure is scaled from the measured
-   * fixture cost rather than measured directly, so the margin below is
-   * deliberately wide. Setting this ceiling from fixture numbers is exactly
-   * what shipped the planner's ceiling several times too small.
+   * Calibrate against what the EDITOR compiles. Setting this ceiling from a
+   * program coarser than the editor's is exactly what shipped the planner's
+   * ceiling several times too small.
    *
-   * Two million is about five times that, so it cannot ration a legitimate
-   * replay. What it costs when it does fire is worth stating plainly rather
+   * Two million is about two and a half times a 20,000-line replay, so a
+   * replay to a line more than about 54,000 lines into one scene is stopped
+   * and reported as a possible infinite loop whether or not it loops: the
+   * ceiling counts work and cannot tell. What it costs when it does fire is
+   * worth stating plainly rather
    * than hand-waving: an iteration runs in about 4 µs for a content-free loop
    * (roughly eight seconds at this ceiling) but around 50 µs for a replay that
    * captures a checkpoint every beat, which is minutes. A replay only diverges
@@ -1765,8 +1765,8 @@ export class Game<T extends M = {}> {
         // one written by a failed serialization, which stores an empty story —
         // with the current line torn in half and no replacement for it. The
         // next continue would then resume from the middle of that line,
-        // dropping the text and the routing tag that decide how the beat is
-        // displayed.
+        // dropping the text and the `display()` table that decide how the
+        // beat is displayed.
         this.discardOpenStoryLine();
         this._story.state.LoadJson(saveData.story);
         this.restoreReactiveTracking();
@@ -2074,33 +2074,15 @@ export class Game<T extends M = {}> {
         if (this._story.asyncContinueComplete) {
           const currentText = this._story.currentText || "";
           const currentChoices = this._story.currentChoices.map((c) => c.text);
-          // `currentTags` is snapshot-scoped to the just-completed Continue
-          // (computed from this beat's outputStream in StoryState). It carries
-          // the compiler's per-beat ROUTING TAG (plus any author `# tag`s); the
-          // interpreter routes the beat by that tag rather than by regex over
-          // the visible text.
-          const currentTags = this._story.currentTags || [];
-          // A step that called `display(<table>)` takes its routing from the
-          // first table that names a target (see `queueInstructions`). Its
-          // body is `currentText`, the step's ordered visible
-          // text, so a table and flat text sharing a step (a glued chain whose
-          // lines reached the stream in both forms) render every word. A step
-          // with no table takes the routing-tag path.
-          const displayInstructions = this._story.currentDisplayInstructions;
-          if (displayInstructions.length > 0) {
-            this.module.interpreter.queueInstructions(
-              displayInstructions,
-              currentChoices,
-              currentText,
-              currentTags,
-            );
-          } else {
-            this.module.interpreter.queue(
-              currentText,
-              currentChoices,
-              currentTags,
-            );
-          }
+          // The step's beat takes its routing from the first
+          // `display(<table>)` table that names a target (see
+          // `InterpreterModule.queue`). Its body is `currentText`, the step's
+          // ordered visible text.
+          this.module.interpreter.queue(
+            this._story.currentDisplayInstructions,
+            currentChoices,
+            currentText,
+          );
         }
 
         if (this._simulation !== "simulating") {

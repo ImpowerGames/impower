@@ -4,24 +4,33 @@
       "type": "Weave",
       "content": [
         {
-          "type": "Tag",
-          "start": true
-        },
-        {
-          "type": "Text",
-          "text": "\u0000write:target"
-        },
-        {
-          "type": "Tag",
-          "start": false
-        },
-        {
-          "type": "Text",
-          "text": "some content\nmore content"
-        },
-        {
-          "type": "Text",
-          "text": "\n"
+          "type": "FunctionCall",
+          "name": "display",
+          "args": [
+            {
+              "type": "ObjectExpression",
+              "entries": [
+                {
+                  "key": "target",
+                  "value": {
+                    "type": "StringExpression",
+                    "content": [
+                      "target"
+                    ]
+                  }
+                },
+                {
+                  "key": "text",
+                  "value": {
+                    "type": "StringExpression",
+                    "content": [
+                      "some content\nmore content"
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
         }
       ]
     }

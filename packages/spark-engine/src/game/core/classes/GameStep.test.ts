@@ -263,8 +263,13 @@ describe("Game flow", () => {
     it("reports done once it reaches a stopping point", () => {
       const { game } = createGame();
       game.start();
-      game.step();
-      expect(game.step()).toBe(true);
+      let done = false;
+      for (let guard = 0; guard < 50 && !done; guard += 1) {
+        done = game.step();
+      }
+      expect(done).toBe(true);
+      // The step that reported done is the one that reached the next beat.
+      expect(game.story.currentText).toBe("Second beat.\n");
     });
 
     it("advances the story when driven to its next stop", () => {

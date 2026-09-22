@@ -293,7 +293,7 @@ describe("letting go of a line the story cannot finish", () => {
     // save is known to carry a story to put in its place. Discarding first and
     // then failing to load leaves the line torn in half with no replacement:
     // the next continue resumes from the middle of it, dropping the text and
-    // the routing tag that decide how the beat is displayed.
+    // the `display()` table that decide how the beat is displayed.
     const p = driveToOpenSnapshot();
     expect(p.midLine()).toBe(true);
 
