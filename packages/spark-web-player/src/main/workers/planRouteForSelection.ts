@@ -15,7 +15,10 @@ export interface SelectionForRoute extends RouteSearchReportTarget {
 export interface RoutableGame {
   startFrom?: { file: string; line: number };
   readonly startPath: string | null | undefined;
-  setStartFrom(startFrom: { file: string; line: number }): void;
+  setStartFrom(
+    startFrom: { file: string; line: number },
+    beat?: "first" | "last",
+  ): void;
 }
 
 export interface PlanRouteForSelectionContext<G extends RoutableGame> {
@@ -64,7 +67,8 @@ export function planRouteForSelection<G extends RoutableGame>(
     newStartFrom.line !== game.startFrom?.line
   ) {
     profile("start", ctx.profilerId + " " + "game/setStartFrom");
-    game.setStartFrom(newStartFrom);
+    // The route ends at the beat the preview shows: a line's last beat.
+    game.setStartFrom(newStartFrom, "last");
     profile("end", ctx.profilerId + " " + "game/setStartFrom");
     const toPath = game.startPath;
     if (toPath) {

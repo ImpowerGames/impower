@@ -67,6 +67,25 @@ describe("spaced `>` break", () => {
     expect(typed(harness.nextBeat())).toBe("Bye.");
   });
 
+  test("a break on a glued continuation keeps the cue of the line it continues", async () => {
+    const harness = createHarness(story(`  HERO: Hi.\n  .. more > Bye.`));
+    await harness.ready;
+    harness.jumpTo("start");
+    const joined = harness.nextBeat();
+    expect(typed(joined)).toBe("Hi. more");
+    expect(Object.keys(joined?.text ?? {}).sort()).toEqual([
+      "character_name",
+      "dialogue",
+    ]);
+    expect(advancesByItself(harness, joined)).toBe(false);
+    const after = harness.nextBeat();
+    expect(typed(after)).toBe("Bye.");
+    expect(Object.keys(after?.text ?? {}).sort()).toEqual([
+      "character_name",
+      "dialogue",
+    ]);
+  });
+
   test("a picture line ending in `>` shows the picture and waits", async () => {
     const harness = createHarness(
       story(`  [[show backdrop BG]] >\n  Next.`),

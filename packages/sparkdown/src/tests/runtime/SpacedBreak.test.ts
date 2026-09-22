@@ -11,6 +11,13 @@ import {
 } from "./runtimeTestHarness";
 import { Story as RuntimeStory } from "../../inkjs/engine/Story";
 
+const flagged = (story: RuntimeStory, flag: string): boolean =>
+  story.currentDisplayInstructions.some(
+    (table) =>
+      (table.value?.get(flag) as { value?: unknown } | undefined)?.value ===
+      true,
+  );
+
 // Each beat's visible text, the routing of its table as `target:character`,
 // and whether its table asks the player to click through it.
 function continueBeats(
@@ -21,15 +28,10 @@ function continueBeats(
   while (story.canContinue) {
     const text = story.Continue() ?? "";
     const routed = displayRouting(story).find((r) => r.target);
-    const pause = story.currentDisplayInstructions.some(
-      (table) =>
-        (table.value?.get("pause") as { value?: unknown } | undefined)
-          ?.value === true,
-    );
     beats.push({
       text,
       routing: routed ? `${routed.target}:${routed.character ?? ""}` : null,
-      pause,
+      pause: flagged(story, "pause"),
     });
   }
   return beats;
@@ -103,6 +105,39 @@ $: E > F
       { text: "Hi.\n", routing: "dialogue:HERO", pause: true },
       { text: "Bye.\n", routing: "dialogue:HERO", pause: false },
     ]);
+  });
+
+  test("a break on a glued continuation ends the joined beat", () => {
+    for (const source of [
+      `HERO: Hi.\n.. more > Bye.\n`,
+      `HERO: Hi. ..\nmore > Bye.\n`,
+    ]) {
+      const ctx = makeRuntimeStoryFromSource(source);
+      expect(ctx.errorMessages).toEqual([]);
+      expect(ctx.story.Continue()).toBe("Hi. more\n");
+      expect(displayRouting(ctx.story).find((r) => r.target)).toEqual({
+        target: "dialogue",
+        character: "HERO",
+      });
+      expect(flagged(ctx.story, "pause")).toBe(true);
+      // The beat after the break names no routing of its own and asks for
+      // the routing of the beat before it, which only the run knows.
+      expect(ctx.story.Continue()).toBe("Bye.\n");
+      expect(displayRouting(ctx.story)).toEqual([{}]);
+      expect(flagged(ctx.story, "inherit")).toBe(true);
+      expect(ctx.story.canContinue).toBe(false);
+    }
+  });
+
+  test("a line's tags stay with the beat its line-end break ends", () => {
+    const ctx = makeRuntimeStoryFromSource(
+      `HERO:\n  Hi. > # first\n  Bye. # second\n`,
+    );
+    expect(ctx.errorMessages).toEqual([]);
+    expect(ctx.story.Continue()).toBe("Hi.\n");
+    expect(ctx.story.currentTags).toEqual(["first"]);
+    expect(ctx.story.Continue()).toBe("Bye.\n");
+    expect(ctx.story.currentTags).toEqual(["second"]);
   });
 
   test("a picture line ending in `>` pauses", () => {

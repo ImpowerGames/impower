@@ -65,8 +65,7 @@ function buildDisplayContent(
   // Both are lowered the same way: a single leading Glue, then a call whose
   // table names no target, so the runtime joins this line's text onto the
   // previous line's beat (inheriting its display target) and the pending Glue
-  // is cleanly removed. Glued content is never split at breaks (it's a
-  // continuation, not a standalone beat).
+  // is cleanly removed.
   const ownLeadingGlue = options.leadingGlue ?? false;
   const continuationGlue =
     !ownLeadingGlue && isNodePrecededByTrailingGlue(parent, ctx);
@@ -112,8 +111,7 @@ function buildDisplayContent(
 // compile time (`joinMidBodyGlue`). A TRAILING `..` is lifted out and emitted
 // after the call, so it reaches the output stream and holds the step open for
 // the next line's table. A `null` line type marks a glued continuation: its
-// table carries `text` only, and its body is one range, because a continuation
-// is never split at breaks.
+// tables name no routing.
 function buildDisplayCalls(
   parent: SyntaxNode,
   bodyStart: number,
@@ -144,17 +142,7 @@ function buildDisplayCalls(
     character = undefined;
   }
 
-  // A continuation is never split at breaks: it joins a beat whose routing is
-  // only known at run time, so a beat after its break would have none. Its
-  // mid-line breaks stay literal text.
-  const { ranges, literalBreaks } = splitBodyRangeAtBreaks(
-    parent,
-    bodyStart,
-    bodyEnd,
-    ctx,
-    mode,
-    lineType === null,
-  );
+  const ranges = splitBodyRangeAtBreaks(parent, bodyStart, bodyEnd, ctx, mode);
   const calls: ParsedObject[] = [];
   for (let i = 0; i < ranges.length; i++) {
     const range = ranges[i]!;
@@ -162,7 +150,6 @@ function buildDisplayCalls(
     const walked = processDisplayBody(parent, range.from, range.to, ctx, mode, {
       ...(i === 0 ? options : {}),
       divertTail,
-      literalBreaks,
     });
     // Author `# tag`s are metadata, not text: they ride the call's `tags`.
     const { tags, rest: body } = separateTags(walked);
@@ -178,14 +165,21 @@ function buildDisplayCalls(
     if (loadArgs) {
       calls.push(buildLoadCall(loadArgs, range, ctx, tags));
     } else {
-      // An empty body still makes a call, so the line keeps its own step. Its
-      // range is stamped from the statement's start, since an empty block
-      // body's range sits on the line after it.
+      // An empty body still makes a call, so the line keeps its own step. A
+      // statement with no body is stamped from its start, since an empty
+      // block body's range sits on the line after it; a beat a break ends is
+      // stamped where it stands, so it sorts among the line's other beats.
       const stamped =
-        body.length > 0 ? range : { from: parent.from, to: parent.from };
+        body.length > 0 || range.pause
+          ? range
+          : { from: parent.from, to: parent.from };
+      // A glued continuation takes its routing from the beat it joins, which
+      // only the run knows, so each beat after one of its breaks asks for the
+      // routing of the beat before it (`inherit`).
       calls.push(
         buildDisplayCall(target, character, body, stamped, ctx, tags, {
           pause: range.pause,
+          inherit: lineType === null && i > 0,
         }),
       );
     }
@@ -254,42 +248,42 @@ function joinMidBodyGlue(body: ParsedObject[]): void {
 // line before has already ended its beat or the block has just begun, so the
 // break only splits the block and adds no beat.
 //
-// A continuation (`noSplit`) keeps one range, and its breaks, other than a
-// trailing one, are returned as `literalBreaks` for the body to keep as text.
+// A break that ends its source line keeps the tags and comments written after
+// it on that line in the range before it, so a line's tags stay with the beat
+// the line shows.
 function splitBodyRangeAtBreaks(
   parent: SyntaxNode,
   bodyStart: number,
   bodyEnd: number,
   ctx: LowerContext,
   mode: "inline" | "block",
-  noSplit: boolean,
-): {
-  ranges: { from: number; to: number; pause: boolean }[];
-  literalBreaks: ReadonlySet<number>;
-} {
+): { from: number; to: number; pause: boolean }[] {
   const ranges: { from: number; to: number; pause: boolean }[] = [];
-  const literalBreaks = new Set<number>();
   let segStart = bodyStart;
   let pause = false;
   for (const brk of collectBreaksInRange(parent, bodyStart, bodyEnd)) {
+    if (brk.from < segStart) continue;
     if (!hasBodyContent(parent, brk.to, bodyEnd, ctx)) {
       pause = true;
       break;
     }
-    if (noSplit) {
-      literalBreaks.add(brk.from);
-      continue;
-    }
+    const newline = ctx.read(brk.to, bodyEnd).indexOf("\n");
+    const lineEnd = newline < 0 ? bodyEnd : brk.to + newline;
+    const endsLine = !hasBodyContent(parent, brk.to, lineEnd, ctx);
     const empty = !hasBodyContent(parent, segStart, brk.from, ctx);
     if (!(empty && mode === "block")) {
-      ranges.push({ from: segStart, to: brk.from, pause: true });
+      const to =
+        endsLine && ctx.read(lineEnd - 1, lineEnd) === "\r"
+          ? lineEnd - 1
+          : endsLine
+            ? lineEnd
+            : brk.from;
+      ranges.push({ from: segStart, to, pause: true });
     }
-    segStart = brk.to;
-    if (ctx.read(segStart, segStart + 2) === "\r\n") segStart += 2;
-    else if (ctx.read(segStart, segStart + 1) === "\n") segStart++;
+    segStart = endsLine ? Math.min(lineEnd + 1, bodyEnd) : brk.to;
   }
   ranges.push({ from: segStart, to: bodyEnd, pause });
-  return { ranges, literalBreaks };
+  return ranges;
 }
 
 // Whether [from, to) of a display body holds anything but whitespace, author
@@ -376,17 +370,9 @@ function processDisplayBody(
     // caller can place them after the line's display() call. `bodyIndex` is
     // the body length when the divert was reached.
     divertTail: { objects: ParsedObject[]; bodyIndex: number };
-    // Breaks kept as text. Every other break in the range contributes none.
-    literalBreaks: ReadonlySet<number>;
   },
 ): ParsedObject[] {
-  let segments = collectBodySegments(
-    parent,
-    bodyStart,
-    bodyEnd,
-    ctx,
-    options.literalBreaks,
-  );
+  let segments = collectBodySegments(parent, bodyStart, bodyEnd, ctx);
 
   // Mode-specific text trimming.
   if (mode === "block") {
@@ -551,7 +537,6 @@ function collectBodySegments(
   bodyStart: number,
   bodyEnd: number,
   ctx: LowerContext,
-  literalBreaks: ReadonlySet<number>,
 ): BodySegment[] {
   const injections = collectTopLevelInjections(parent, bodyStart, bodyEnd);
   const out: BodySegment[] = [];
@@ -570,10 +555,9 @@ function collectBodySegments(
   while (i < bodyEnd) {
     const next = injections[idx];
     if (next && next.from === i && next.kind === "break") {
-      // A break the beat split already removed from the range, or a trailing
-      // one, contributes no text; a continuation's mid-line break stays text.
+      // A break left in a range (a trailing one, or one on a line the split
+      // passed over) contributes no text.
       idx++;
-      if (literalBreaks.has(next.from)) continue;
       i = next.to;
       continue;
     }

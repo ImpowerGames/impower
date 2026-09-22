@@ -25,6 +25,9 @@ export interface InterpreterConfig {}
 
 export interface InterpreterState {
   buffer?: Instructions[];
+  /** The routing of the last beat queued, which a table marked `inherit`
+   *  takes as its own. */
+  routing?: { target: string; character?: string };
 }
 
 export interface InterpreterMessageMap extends Record<string, any> {}
@@ -391,7 +394,8 @@ export class InterpreterModule extends Module<
    * pause?: boolean, tags?: table }`, or `{ load: string }` for a `load` line,
    * whose whitespace-separated names queue a load beat of their own. `pause`
    * marks a beat a `>` break ends, which waits for a click even when it has no
-   * text.
+   * text. `inherit` marks a beat of a glued continuation after one of its
+   * breaks: naming no target, it takes the routing of the beat before it.
    *
    * One step makes one beat. Several tables share a step only when glue joined
    * their lines, and the body is the step's ordered visible text: every
@@ -455,18 +459,23 @@ export class InterpreterModule extends Module<
       const target = read(table, "target");
       return typeof target === "string" && target;
     });
-    if (!routed) {
-      this.appendBeat("", undefined, content, choices, pause);
-      return;
+    let routing: { target: string; character?: string } = { target: "" };
+    if (routed) {
+      const characterRaw = read(routed, "character");
+      routing = { target: read(routed, "target") as string };
+      if (typeof characterRaw === "string" && characterRaw) {
+        routing.character = characterRaw;
+      }
+    } else if (
+      this._state.routing &&
+      tables.some((table) => read(table, "inherit") === true)
+    ) {
+      routing = this._state.routing;
     }
-    const characterRaw = read(routed, "character");
-    const character =
-      typeof characterRaw === "string" && characterRaw
-        ? characterRaw
-        : undefined;
+    this._state.routing = routing;
     this.appendBeat(
-      read(routed, "target") as string,
-      character,
+      routing.target,
+      routing.character,
       content,
       choices,
       pause,
