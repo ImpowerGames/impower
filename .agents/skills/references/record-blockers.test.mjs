@@ -13,6 +13,15 @@ assert.deepEqual(statedBlockers("- Split from #720, the design of record. Blocke
 assert.deepEqual(statedBlockers("Blocked by #5, #6 and #5. Related to #7."), [5, 6]);
 assert.deepEqual(statedBlockers("Blocked by #5 (see PR #8. It explains) and #6"), [5, 8, 6]);
 assert.deepEqual(statedBlockers("Split from #1.\r\nBlocked by #2.\r\n"), [2]);
+// A soft-wrapped sentence keeps its later blockers; a paragraph break ends it.
+assert.deepEqual(statedBlockers("Blocked by #721 and\n#722."), [721, 722]);
+assert.deepEqual(statedBlockers("Blocked by #721\r\n\r\n#722 is related."), [721]);
+// A full stop followed by a capital letter ends the sentence even without a space.
+assert.deepEqual(statedBlockers("Blocked by #721.Related note mentions #999."), [721]);
+// References and full stops inside code spans do not count.
+assert.deepEqual(statedBlockers("Blocked by #721 and `#999`."), [721]);
+assert.deepEqual(statedBlockers("Blocked by #900 (matches the `#1`-prefixed scheme)."), [900]);
+assert.deepEqual(statedBlockers("Blocked by #5 (`a. B`) and #6."), [5, 6]);
 // Fenced code and other repositories' references are not blockers.
 assert.deepEqual(statedBlockers("```\nBlocked by #3.\n```\nText."), []);
 assert.deepEqual(statedBlockers("Blocked by other/repo#4 and #5."), [5]);

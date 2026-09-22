@@ -1,10 +1,11 @@
 // Records the blockers a ticket's body states as GitHub issue dependencies.
-// Run from any directory:
+// Run from the repository root:
 //   node .agents/skills/references/record-blockers.mjs <issue> [<issue> ...] [--dry-run]
 //
 // A stated blocker is every `#N` inside a sentence that starts with
 // "Blocked by" (for example "Split from #720. Blocked by #721 (a `>` anywhere
-// in a line) and #722."). Fenced code is skipped. For each ticket the script
+// in a line) and #722."). A soft-wrapped sentence is read as one; fenced code
+// and code spans are skipped. For each ticket the script
 // reads its body and its current blocked-by list, posts the stated blockers
 // that are missing (by the blocker's database id, which the endpoint requires
 // in place of the number), and reads the list back. It exits non-zero when the
@@ -21,38 +22,41 @@ const REPO = "ImpowerGames/impower";
 export function statedBlockers(body) {
   const numbers = [];
   let fence = null;
-  const prose = [];
+  // Paragraphs of prose: a soft-wrapped sentence reads as one line, as Markdown
+  // renders it, and fenced code and blank lines separate paragraphs.
+  const paragraphs = [[]];
   for (const line of body.replace(/\r\n/g, "\n").split("\n")) {
     const mark = /^ {0,3}(`{3,}|~{3,})/.exec(line);
     if (mark) {
       if (!fence) fence = mark[1];
       else if (mark[1][0] === fence[0] && mark[1].length >= fence.length && line.trim() === mark[1]) fence = null;
-      prose.push("");
+      paragraphs.push([]);
       continue;
     }
-    prose.push(fence ? "" : line);
+    if (fence) continue;
+    if (line.trim() === "") paragraphs.push([]);
+    else paragraphs.at(-1).push(line.trim());
   }
-  for (const line of prose) {
+  for (const lines of paragraphs) {
+    // Code spans are blanked, so neither a reference nor a full stop inside one counts.
+    const text = lines.join(" ").replace(/(`+)[^`]*?\1/g, (span) => " ".repeat(span.length));
     const pattern = /\bBlocked by\b/g;
     let match;
-    while ((match = pattern.exec(line))) {
-      // The sentence runs to the first full stop outside parentheses and code
-      // spans, or to the end of the line.
+    while ((match = pattern.exec(text))) {
+      // The sentence runs to the first full stop outside parentheses that is
+      // followed by a space, a capital letter or the end of the paragraph.
       let depth = 0;
-      let code = false;
-      let end = line.length;
-      for (let i = match.index; i < line.length; i++) {
-        const char = line[i];
-        if (char === "`") code = !code;
-        else if (code) continue;
-        else if (char === "(") depth++;
+      let end = text.length;
+      for (let i = match.index; i < text.length; i++) {
+        const char = text[i];
+        if (char === "(") depth++;
         else if (char === ")") depth = Math.max(0, depth - 1);
-        else if (char === "." && depth === 0 && (i + 1 === line.length || /\s/.test(line[i + 1]))) {
+        else if (char === "." && depth === 0 && (i + 1 === text.length || /[\sA-Z]/.test(text[i + 1]))) {
           end = i;
           break;
         }
       }
-      for (const ref of line.slice(match.index, end).matchAll(/(?<![\w/])#([1-9]\d*)\b/g)) {
+      for (const ref of text.slice(match.index, end).matchAll(/(?<![\w/])#([1-9]\d*)\b/g)) {
         const number = Number(ref[1]);
         if (!numbers.includes(number)) numbers.push(number);
       }
