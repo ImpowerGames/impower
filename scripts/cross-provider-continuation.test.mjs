@@ -1,3 +1,6 @@
+// agent-tooling-timeout-ms: 900000
+// Measured at 268 to 301 s on a loaded Windows machine (#735), so the default
+// five-minute bound leaves no headroom.
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';

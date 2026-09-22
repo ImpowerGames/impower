@@ -1,4 +1,7 @@
 #!/usr/bin/env node
+// agent-tooling-timeout-ms: 600000
+// Measured at 215 s alone and over 300 s inside the sweep on a loaded Windows
+// machine, so the default five-minute bound leaves no headroom.
 // Pins the decisions behind clean-worktrees.mjs and the commands it runs.
 // Run:
 //   node .agents/skills/clean-worktrees/clean-worktrees.test.mjs

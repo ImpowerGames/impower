@@ -37,7 +37,7 @@ git worktree add -b fix/302-filterimage-layers ../impower.worktrees/fix/302-filt
 
 If the checkout you are launched from is itself a worktree, resolve the sibling directory from the main checkout (`git worktree list | head -1`) rather than from `../`. Where worktrees live is a local preference: follow whatever `git worktree list` already shows rather than creating a second layout. `git worktree add` creates the `<type>/` directory, and removing the worktree leaves it behind empty; `rmdir` it.
 
-A fresh worktree has no `node_modules`. Install dependencies when the work will run anything from `node_modules` (a build, a test, the driver's browser commands); a hooks-only, skills-only or docs-only change skips the install, and the preflight's disk check still runs. The monorepo is npm workspaces, so install once at the new worktree's root, always with the variable set:
+A fresh worktree has no `node_modules`. Install dependencies when the work will run anything from `node_modules` (a build, a test, the driver's browser commands); a hooks-only, skills-only or docs-only change skips the install, runs `node .agents/skills/drive-web-editor/driver.mjs preflight --tooling-only` (which keeps the disk, `gh` and Git checks and skips the browser and install probes), and runs `node scripts/link-agent-skills.mjs` so the standalone checks find the skill discovery links the install would have created. The monorepo is npm workspaces, so install once at the new worktree's root, always with the variable set:
 
 ```bash
 PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 npm install

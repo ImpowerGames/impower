@@ -9,7 +9,7 @@ Run the steps below in order in a dedicated worktree. Commands are relative to t
 
 ## 0. Preflight
 
-Run `node .agents/skills/drive-web-editor/driver.mjs preflight`. All checks must pass; an intentionally absent dependency install is allowed for tooling/docs-only work. On low disk, use [clean-worktrees](../clean-worktrees/SKILL.md), dry run first. Before creating or repairing a worktree, read [worktree setup](references/worktree.md).
+Run `node .agents/skills/drive-web-editor/driver.mjs preflight`. All checks must pass. Tooling/docs-only work with an intentionally absent install uses `preflight --tooling-only`. On low disk, use [clean-worktrees](../clean-worktrees/SKILL.md), dry run first. Before creating or repairing a worktree, read [worktree setup](references/worktree.md).
 
 ## 1. Read the ticket
 
