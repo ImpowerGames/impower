@@ -28,7 +28,7 @@ export interface InterpreterState {
   /** The routing of the last beat queued, and the glued continuation whose
    *  table that beat carried (`group`), which is the only continuation whose
    *  later beats may take this routing as their own. */
-  routing?: { target: string; character?: string; group?: number };
+  routing?: { target: string; character?: string; group?: string };
 }
 
 export interface InterpreterMessageMap extends Record<string, any> {}
@@ -135,6 +135,10 @@ export class InterpreterModule extends Module<
     // so a live edit (e.g. removing a character's `name`) takes effect instead
     // of resolving against the previous program's defines.
     this.setup();
+    // A continuation of the program just replaced is not a continuation of
+    // this one, however alike their sources are: an edit that keeps a line's
+    // length keeps its offsets too, so the name alone cannot tell them apart.
+    delete this._state.routing;
   }
 
   setup() {
@@ -463,9 +467,13 @@ export class InterpreterModule extends Module<
       const target = read(table, "target");
       return typeof target === "string" && target;
     });
+    // Glue can hold several continuations open in one step, and the beat
+    // after a break belongs to the LAST of them, so that is the one this
+    // step is remembered by.
     const group = tables
       .map((table) => read(table, "group"))
-      .find((value) => typeof value === "number") as number | undefined;
+      .filter((value): value is string => typeof value === "string")
+      .at(-1);
     // A glued continuation's beat after one of its breaks takes the routing
     // of the beat the run joined the continuation to — but only when that
     // beat is the one just queued, which is what `group` establishes. A run
@@ -535,6 +543,10 @@ export class InterpreterModule extends Module<
    *  buffer holds beats the display still needs. */
   clearQueuedBeats(): void {
     this._state.buffer = [];
+    // The run those beats belonged to is over, so the beat a continuation
+    // would have inherited from is not this run's. A resumed checkpoint
+    // brings its own routing back with the rest of the state.
+    delete this._state.routing;
   }
 
   protected isWhitespace(part: string | undefined) {

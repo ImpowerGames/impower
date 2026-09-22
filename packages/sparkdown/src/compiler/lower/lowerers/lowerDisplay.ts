@@ -195,7 +195,11 @@ function buildDisplayCalls(
           tags,
           {
             pause: range.pause,
-            group: isContinuation ? parent.from : undefined,
+            // Source offsets start again in every script, so the file the
+            // continuation is written in is part of what names it.
+            group: isContinuation
+              ? `${ctx.filePath ?? ""}#${parent.from}`
+              : undefined,
             inherit: isContinuation && i > 0,
           },
         ),
@@ -917,11 +921,12 @@ function lexicalRouting(
     }
     const lineType = DISPLAY_LINE_TYPES[sib.name];
     if (!lineType) return null;
-    // A line that OPENS with `..` is itself a continuation, and routes by
-    // what the line before it routes by. A line that merely ends with one is
-    // the line being continued.
+    // A continuation routes by what the line IT continues routes by, in both
+    // spellings: a line that opens with `..`, and a line the line before it
+    // held open with a trailing `..`.
     const glue = getDescendent("Glue", sib);
-    if (glue && !ctx.read(sib.from, glue.from).trim()) {
+    const opensWithGlue = glue != null && !ctx.read(sib.from, glue.from).trim();
+    if (opensWithGlue || isNodePrecededByTrailingGlue(sib, ctx)) {
       sib = sib.prevSibling;
       continue;
     }

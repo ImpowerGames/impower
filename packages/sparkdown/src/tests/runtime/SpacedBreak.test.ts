@@ -7,6 +7,7 @@
 import { describe, expect, test } from "vitest";
 import {
   displayRouting,
+  makeRuntimeStoryFromDirectory,
   makeRuntimeStoryFromSource,
 } from "./runtimeTestHarness";
 import { Story as RuntimeStory } from "../../inkjs/engine/Story";
@@ -149,6 +150,49 @@ $: E > F
       false,
       false,
     ]);
+  });
+
+  test("a continuation held open by a trailing `..` chain keeps the cue", () => {
+    for (const source of [
+      `HERO: A ..\nB ..\nC > D\n`,
+      `HERO: A ..\nB\n.. C > D\n`,
+    ]) {
+      const ctx = makeRuntimeStoryFromSource(source);
+      expect(ctx.errorMessages).toEqual([]);
+      expect(ctx.story.Continue()).toBe("A B C\n");
+      expect(ctx.story.Continue()).toBe("D\n");
+      // The beat after the break inherits at run time, and names HERO for a
+      // run that never queued the beat it joins.
+      expect(displayRouting(ctx.story)).toEqual([
+        { target: "dialogue", character: "HERO" },
+      ]);
+    }
+  });
+
+  test("continuations of different files are named apart", () => {
+    // Source offsets start again in every script, so both continuations of
+    // this fixture begin at the same offset in their own file. What a beat
+    // may inherit from is decided by that name, so the two must differ; a run
+    // that reaches one of them with the other's routing remembered — which
+    // takes a jump straight into the second file — would otherwise wear the
+    // wrong cue.
+    const ctx = makeRuntimeStoryFromDirectory("display", "continuation-groups");
+    expect(ctx.errorMessages).toEqual([]);
+    const groups = new Set<string>();
+    const cues: string[] = [];
+    while (ctx.story.canContinue) {
+      ctx.story.Continue();
+      for (const table of ctx.story.currentDisplayInstructions) {
+        const group = (
+          table.value?.get("group") as { value?: unknown } | undefined
+        )?.value;
+        if (group != null) groups.add(String(group));
+      }
+      const routed = displayRouting(ctx.story).find((r) => r.target);
+      if (routed?.character) cues.push(routed.character);
+    }
+    expect([...groups].length).toBe(2);
+    expect(cues).toEqual(["HERO", "HERO", "EVIL", "EVIL"]);
   });
 
   test("a line's tags stay with the beat its line-end break ends", () => {

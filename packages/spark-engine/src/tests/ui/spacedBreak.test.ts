@@ -16,6 +16,10 @@ const DEFS = `define HERO as character with
   name = "HERO"
 end
 
+define VILLAIN as character with
+  name = "VILLAIN"
+end
+
 define BG as image with
   src = "https://example.com/bg.png"
 end
@@ -128,6 +132,55 @@ describe("spaced `>` break", () => {
     const beat = harness.nextBeat();
     expect(typed(beat)).toBe("Villain after.");
     expect(cue(beat)).toBe("VILLAIN");
+  });
+
+  test("a step holding several continuations is remembered by the last", async () => {
+    // Glue keeps every continuation of the step open, so its tables name
+    // several continuations. The beat after the break belongs to the LAST of
+    // them, and keeps the cue of the beat the run actually joined (HERO),
+    // not the cue its own line reads (VILLAIN).
+    const harness = createHarness(
+      `${DEFS}\n-> start\n\nscene start\n  HERO: A -> later\nend\n\nscene later\n  VILLAIN: B\n  .. C\n  .. D > E\nend\n`,
+    );
+    await harness.ready;
+    harness.jumpTo("start");
+    const joined = harness.nextBeat();
+    expect(typed(joined)).toBe("A B C D");
+    expect(cue(joined)).toBe("HERO");
+    const after = harness.nextBeat();
+    expect(typed(after)).toBe("E");
+    expect(cue(after)).toBe("HERO");
+  });
+
+  test("routing a continuation remembers does not outlive its run", async () => {
+    // The beats of an abandoned run are not this run's, so the beat a
+    // continuation would inherit from is gone with them. `clearQueuedBeats`
+    // is what every abandoning path calls.
+    const source = story(`  HERO: A.\n  .. joined > After.`);
+    const harness = createHarness(source);
+    await harness.ready;
+    harness.jumpTo("start");
+    expect(cue(harness.nextBeat())).toBe("HERO");
+
+    const interpreter: any = harness.game.module.interpreter;
+    expect(interpreter._state.routing).toBeTruthy();
+    interpreter.clearQueuedBeats();
+    expect(interpreter._state.routing).toBeUndefined();
+
+    const line = source.split("\n").findIndex((l) => l.includes("joined"));
+    const path = findClosestPath(
+      { file: MAIN_URI, line },
+      harness.game.program.pathLocations,
+      Object.keys(harness.game.program.scripts),
+      "last",
+    );
+    harness.jumpTo(path!);
+    // Nothing joined the continuation in this run, so the beat names the
+    // line its own source reads, which is the same cue here; what matters is
+    // that it is read from the table and not from the run that was dropped.
+    const beat = harness.nextBeat();
+    expect(typed(beat)).toBe("After.");
+    expect(cue(beat)).toBe("HERO");
   });
 
   test("a picture line ending in `>` shows the picture and waits", async () => {

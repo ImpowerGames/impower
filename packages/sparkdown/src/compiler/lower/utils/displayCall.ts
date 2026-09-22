@@ -29,7 +29,9 @@ import { stampDebugMetadata } from "./debugMetadata";
 // ending during string evaluation is taken for a choice label's tag.
 //
 // `pause` marks a beat a `>` break ends: it waits for a click even when it
-// shows no text. `group` names the glued continuation a call belongs to, and
+// shows no text. `group` names the glued continuation a call belongs to (its
+// file and the offset it starts at, since offsets start again in every
+// script), and
 // `inherit` marks its beats after one of its breaks: they take the routing of
 // the beat the run joined the continuation to, which the interpreter knows
 // only while the beat `group` names is the one it queued last, and otherwise
@@ -45,7 +47,7 @@ export function buildDisplayCall(
   range: { from: number; to: number } | null,
   ctx: LowerContext,
   tags: ParsedObject[][] = [],
-  options: { pause?: boolean; inherit?: boolean; group?: number } = {},
+  options: { pause?: boolean; inherit?: boolean; group?: string } = {},
 ): FunctionCall {
   const entries: ObjectExpressionEntry[] = [];
   if (target) {
@@ -76,7 +78,7 @@ export function buildDisplayCall(
     entries.push(
       new ObjectExpressionEntry(
         "group",
-        new NumberExpression(options.group, "int"),
+        new StringExpression([new Text(options.group)]),
       ),
     );
   }
