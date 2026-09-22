@@ -181,6 +181,42 @@ describe("a preview displayed from the worker's game", () => {
     }
   }, 120_000);
 
+  it("paints the waiting beat when an unchanged compile replays its route meanwhile", async () => {
+    let releaseA!: () => void;
+    const aLoaded = new Promise<void>((resolve) => (releaseA = resolve));
+    const h = await createPlayerHarness({
+      workerDisplays: true,
+      files: [{ uri: MAIN_URI, text: SOURCE }],
+      startFrom: { file: MAIN_URI, line: TAKING_OVER },
+      holdImage: (src) => (src.includes("a.png") ? aLoaded : undefined),
+    });
+    try {
+      await h.compile();
+      expect(h.overlay.textContent).toContain("The beat that takes over.");
+      const display = h.link.request(DisplayPreviewMessage.type, {
+        program: programIdentity(h.controller._program)!,
+        file: MAIN_URI,
+        line: WAITING,
+        speculative: false,
+      });
+      await settle(40);
+      // The documents have not changed; the compile serves the same program
+      // and replays its route to the waiting beat on the game.
+      await h.page.sendRequest(CompileProgramMessage.type, {
+        textDocument: { uri: MAIN_URI },
+        startFrom: { file: MAIN_URI, line: WAITING },
+      });
+      releaseA();
+      const result = await display;
+      await settle(40);
+
+      expect(result.displayed).toBe(true);
+      expect(h.overlay.textContent).toContain("The beat that waits for its picture.");
+    } finally {
+      h.dispose();
+    }
+  }, 120_000);
+
   it("stops hearing the worker's game when the preview detaches and when the player goes", async () => {
     const h = await createPlayerHarness({
       workerDisplays: true,
@@ -207,6 +243,43 @@ describe("a preview displayed from the worker's game", () => {
       h.dispose();
     }
   }, 120_000);
+
+  for (const ending of ["detach", "dispose"] as const) {
+    it(`shows nothing once the preview is gone when its application finishes building after a ${ending}`, async () => {
+      const h = await createPlayerHarness({
+        workerDisplays: true,
+        files: [{ uri: MAIN_URI, text: SOURCE }],
+        startFrom: { file: MAIN_URI, line: TAKING_OVER },
+      });
+      try {
+        let releaseBuild!: () => void;
+        const buildHeld = new Promise<void>((resolve) => (releaseBuild = resolve));
+        const buildWorkerApp = h.controller.buildWorkerApp.bind(h.controller);
+        h.controller.buildWorkerApp = async (link: unknown) => {
+          await buildHeld;
+          return buildWorkerApp(link);
+        };
+        // The first preview waits for the application to be built.
+        const compiled = h.compile();
+        await settle(40);
+        if (ending === "detach") {
+          await h.controller.detachWorkerPreview();
+        } else {
+          h.controller.dispose();
+        }
+        const routed = h.toRouter.length;
+        releaseBuild();
+        await compiled;
+        await settle(60);
+
+        expect(h.toRouter.length).toBe(routed);
+        expect(h.controller._app).toBeUndefined();
+        expect((h.link as any)._sink).toBeUndefined();
+      } finally {
+        h.dispose();
+      }
+    }, 120_000);
+  }
 
   it("paints once its picture arrives when nothing takes over", async () => {
     let releaseA!: () => void;

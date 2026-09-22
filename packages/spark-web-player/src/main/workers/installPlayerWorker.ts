@@ -157,17 +157,18 @@ export function installPlayerWorker(connection: MessageConnection) {
     }
   };
 
-  // Counts the programs the game has been given in place. Giving it one cancels
-  // whatever it was previewing, so a display under way is superseded by it
-  // however it came: a compile, a suggestion, a return to the real program, or
-  // PLAY taking the program.
-  let gameUpdates = 0;
+  // Counts what is done to the game outside a display: a program given to it
+  // in place, which cancels whatever it was previewing, and a route replayed
+  // on it, which changes the state a display under way reads. Either
+  // supersedes the display, however it came: a compile, a suggestion, a
+  // selection, a return to the real program, or PLAY taking the program.
+  let gameTouches = 0;
   const updateGameProgram = (
     game: Game,
     program: SparkProgram,
     story: RuntimeStory,
   ) => {
-    gameUpdates += 1;
+    gameTouches += 1;
     profile("start", compiler.profilerId + " " + "game/update");
     game.updateProgram(program, story);
     profile("end", compiler.profilerId + " " + "game/update");
@@ -196,7 +197,7 @@ export function installPlayerWorker(connection: MessageConnection) {
       profile("end", profilerId + " " + "game/create");
     } else if (gameState.game.program !== program) {
       // A compile that changed nothing serves the program the game already
-      // holds, and giving it again would cancel a display of it under way.
+      // holds, which needs no giving again.
       updateGameProgram(gameState.game, program, story);
     }
     return gameState.game;
@@ -211,6 +212,8 @@ export function installPlayerWorker(connection: MessageConnection) {
     if (!story) {
       return;
     }
+    // The route below is replayed on the game.
+    gameTouches += 1;
     const game = createOrUpdateGame(params.program, story);
     const entry: DisplayableProgram | undefined = player.workerDisplaysPreview
       ? {
@@ -259,6 +262,8 @@ export function installPlayerWorker(connection: MessageConnection) {
     if (!story) {
       return;
     }
+    // The route below is replayed on the game.
+    gameTouches += 1;
     const game = createOrUpdateGame(params.program, story);
     const log = new RouteSearchLog();
     profile("start", profilerId + " " + "game/setStartFrom");
@@ -297,6 +302,8 @@ export function installPlayerWorker(connection: MessageConnection) {
   });
 
   compiler.addEventListener("compiler/didSelect", (params) => {
+    // The selection's route is replayed on the game.
+    gameTouches += 1;
     // A selection is routed against the real program. The game can be holding
     // a suggestion it displayed again from its kept story, with no compile
     // since to give it the real one back.
@@ -460,7 +467,7 @@ export function installPlayerWorker(connection: MessageConnection) {
       if (game.program !== entry.program) {
         updateGameProgram(game, entry.program, entry.story);
       }
-      const updates = gameUpdates;
+      const touches = gameTouches;
       const route = routeTo(game, entry, {
         file: params.file,
         line: params.line,
@@ -478,20 +485,21 @@ export function installPlayerWorker(connection: MessageConnection) {
         superseded: () =>
           display !== displays ||
           gameState.game !== game ||
-          gameUpdates !== updates,
+          gameTouches !== touches,
       });
       if (
         !displayed &&
         display === displays &&
         gameState.game === game &&
-        gameUpdates !== updates &&
+        gameTouches !== touches &&
         programIdentity(game.program) === params.program
       ) {
-        // A compile gave the game a program with the identity the page asked
-        // for, as a selection's recompile of the real documents after a
-        // suggestion does, and cancelled the preview under way. The page has
-        // nothing newer to ask for, so the display runs again, in full, from
-        // the program the game now holds.
+        // Something done to the game took the display over while the game
+        // still holds a program with the identity the page asked for: a
+        // compile of unchanged documents, as a selection makes after a
+        // suggestion, or a route replayed on it. The page has nothing newer to
+        // ask for, so the display runs again, in full, from the program the
+        // game now holds.
         fresh = true;
         continue;
       }

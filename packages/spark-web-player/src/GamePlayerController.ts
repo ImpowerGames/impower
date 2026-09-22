@@ -377,6 +377,8 @@ export class GamePlayerController {
     this._launchState = null;
     this.publishGameState();
     this._protocols.dispose();
+    this._workerDetaches += 1;
+    this._workerAppBuilding = undefined;
     this._stopListeningToWorker?.();
     this._stopListeningToWorker = undefined;
     window.removeEventListener("contextmenu", this.handleContextMenu);
@@ -1870,6 +1872,10 @@ export class GamePlayerController {
   /** Stop showing what the worker's game displays: its application goes, and
    *  whatever it still sends is heard by nothing. */
   async detachWorkerPreview() {
+    this._workerDetaches += 1;
+    // A build under way disposes of its application when it finishes, and the
+    // next preview builds its own.
+    this._workerAppBuilding = undefined;
     this._stopListeningToWorker?.();
     this._stopListeningToWorker = undefined;
     if (!this._workerGame) {
@@ -2322,6 +2328,11 @@ export class GamePlayerController {
    *  and the next display must connect in full. */
   protected _workerAppFresh = false;
 
+  /** Moves whenever the worker's preview detaches or the controller goes, so
+   *  a preview update or an application build that began before cannot carry
+   *  on after it. */
+  protected _workerDetaches = 0;
+
   /**
    * `updatePreview` with the worker displaying: the page holds a summary of
    * `program`, and the worker's game, holding the program itself, performs
@@ -2349,8 +2360,10 @@ export class GamePlayerController {
     }
     const selectionVersion = this._selectionVersion;
     const update = ++this._previewUpdates;
+    const detaches = this._workerDetaches;
     const overtaken = () =>
       update !== this._previewUpdates ||
+      detaches !== this._workerDetaches ||
       this._game != null ||
       this._startingPlay ||
       options?.current?.() === false;
@@ -2360,9 +2373,33 @@ export class GamePlayerController {
     // asked for before then would send its frame to nothing.
     if (!this._app || this._workerAppBuilding) {
       this._stopListeningToWorker ??= this.listenToWorker(link);
-      this._workerAppBuilding ??= this.buildWorkerApp(link).finally(() => {
-        this._workerAppBuilding = undefined;
-      });
+      if (!this._workerAppBuilding) {
+        const building = this.buildWorkerApp(link)
+          .then(async (app) => {
+            if (detaches === this._workerDetaches) {
+              return app;
+            }
+            // The preview detached, or the controller went, while this
+            // application was built: it shows nothing and goes too, and the
+            // link lets go of its sink unless a newer build or application
+            // has taken the link since.
+            if (this._app === app) {
+              this._app = undefined;
+            }
+            if (!this._app && !this._workerAppBuilding) {
+              link.detach();
+            }
+            await app.initializing;
+            await app.destroy(true);
+            return app;
+          })
+          .finally(() => {
+            if (this._workerAppBuilding === building) {
+              this._workerAppBuilding = undefined;
+            }
+          });
+        this._workerAppBuilding = building;
+      }
       this._workerAppFresh = true;
       await this._workerAppBuilding;
       if (overtaken()) {
