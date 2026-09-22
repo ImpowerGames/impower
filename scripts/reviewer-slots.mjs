@@ -4,6 +4,9 @@ import { execFileSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { fileURLToPath } from "node:url";
 
+// Machine-wide ceiling on participating local reviewer processes.
+export const reviewerSlotCount = 8;
+
 export const machineSlotRoot = process.platform === "win32"
   ? path.join(process.env.ProgramData || "C:\\ProgramData", "Impower", "reviewer-slots")
   : "/var/tmp/impower-reviewer-slots";
@@ -45,7 +48,7 @@ export function reserveReviewerSlot(root = machineSlotRoot) {
   fs.mkdirSync(root,{recursive:true});
   const owner = processIdentity(process.pid);
   if (!owner) throw new Error("Coordinator process identity unavailable");
-  for(let index=0;index<4;index++) {
+  for(let index=0;index<reviewerSlotCount;index++) {
     const file=path.join(root,`slot-${index}.jsonl`);
     if(fs.existsSync(file+".recovery"))continue;
     let fd;
@@ -57,7 +60,9 @@ export function reserveReviewerSlot(root = machineSlotRoot) {
     catch(e){fs.closeSync(fd);throw e;}
     return {file,token,owner,append,close:()=>fs.closeSync(fd)};
   }
-  throw new Error(`All four machine-wide reviewer slots are unavailable (occupied or recovery-blocked); await confirmed exit or inspect status in ${root}`);
+  const error=new Error(`All ${reviewerSlotCount} machine-wide reviewer slots are unavailable (occupied or recovery-blocked); await confirmed exit or inspect status in ${root}`);
+  error.code="ESLOTSFULL";
+  throw error;
 }
 
 export function releaseReviewerSlot(slot) {
@@ -103,7 +108,7 @@ export function recoverReviewerSlot(file) {
 }
 
 export function reviewerSlotStatus(root = machineSlotRoot) {
-  return Array.from({length:4},(_,index)=>{
+  return Array.from({length:reviewerSlotCount},(_,index)=>{
     const file=path.join(root,`slot-${index}.jsonl`);
     const inspect=(target)=>{
       try { return {records:fs.readFileSync(target,"utf8").trim().split("\n").map(JSON.parse)}; }
@@ -117,7 +122,7 @@ if(process.argv[1] && fs.realpathSync(process.argv[1])===fileURLToPath(import.me
   try{
     if(process.argv[2]==="status")console.log(JSON.stringify(reviewerSlotStatus(),null,2));
     else {
-      if(process.argv[2]!=="recover" || !/^[0-3]$/.test(process.argv[3]??""))throw new Error("Usage: node scripts/reviewer-slots.mjs status | recover <slot 0..3>");
+      if(process.argv[2]!=="recover" || !/^(0|[1-9][0-9]*)$/.test(process.argv[3]??"")||Number(process.argv[3])>=reviewerSlotCount)throw new Error(`Usage: node scripts/reviewer-slots.mjs status | recover <slot 0..${reviewerSlotCount-1}>`);
       console.log(JSON.stringify(recoverReviewerSlot(path.join(machineSlotRoot,`slot-${process.argv[3]}.jsonl`))));
     }
   }catch(e){console.error(e.message);process.exitCode=1;}

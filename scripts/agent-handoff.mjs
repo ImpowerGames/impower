@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { spawn, execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { reserveReviewerSlot, releaseReviewerSlot, processIdentity } from "./reviewer-slots.mjs";
+import { reserveReviewerSlot, releaseReviewerSlot, processIdentity, reviewerSlotStatus } from "./reviewer-slots.mjs";
 import { withJob,retryBusy,git,failureDetails } from './review-job-store.mjs';
 import { verifyCodexReviewResult,validateCodexReviewer,verifyReviewerExecutable } from './native-reviewer.mjs';
 import {nativeReviewerEnvironment,protectPrivatePath,nativeCodexArgs} from './reviewer-security.mjs';
@@ -48,7 +48,7 @@ export function validateReviewRecovery(config) {
   if(config.completedReviewRound>0&&!/^[a-f0-9]{40}$/.test(config.reviewedHead??''))throw new Error('Supply reviewedHead from the journal when recovering a review round');
 }
 
-const planFields = ["pr", "first", "completedReviewRound", "reviewedHead", "finalCorrections", "reviewRoundLimit", "extendedReviewAuthorization"];
+const planFields = ["pr", "first", "completedReviewRound", "reviewedHead", "finalCorrections", "reviewRoundLimit", "extendedReviewAuthorization", "slotWaitSeconds"];
 
 // Checks the fields the chain reads only later, so a malformed plan is refused
 // before any lock, journal, slot or child exists.
@@ -75,6 +75,29 @@ export function validateNativeReviewArgs(review) {
   }
 }
 
+// Retries the atomic reservation while every slot is occupied, until one frees
+// or the bound expires. It runs before any spawn and under the worktree lock,
+// so a wait never races a separate status poll. Other reservation failures
+// (store access, identity) are not waited out.
+export async function reserveWithinBound(root, seconds, onWaiting, pollMs = 1000) {
+  const deadline = Date.now() + seconds * 1000;
+  let waited = false;
+  for (;;) {
+    try { return reserveReviewerSlot(root); }
+    catch (error) {
+      if (error.code !== "ESLOTSFULL" || Date.now() >= deadline) {
+        if (waited && error.code === "ESLOTSFULL") error.message += ` after waiting ${seconds} seconds`;
+        throw error;
+      }
+      if (!waited) {
+        waited = true;
+        onWaiting(reviewerSlotStatus(root).filter((slot) => slot.reservation || slot.recovery).map((slot) => slot.index));
+      }
+      await new Promise((resolve) => setTimeout(resolve, Math.min(pollMs, Math.max(0, deadline - Date.now()))));
+    }
+  }
+}
+
 // Configuration is a local, caller-authored artifact. Comments and child output
 // can select a declared transition but can never supply executable commands.
 export async function runHandoff(configFile, { slotRoot, identifyProcess = processIdentity, automaticJob } = {}) {
@@ -93,6 +116,8 @@ export async function runHandoff(configFile, { slotRoot, identifyProcess = proce
   const reviewRoundLimit = config.reviewRoundLimit ?? 3;
   validateReviewRecovery(config);
   if (!Number.isInteger(config.maxSteps) || config.maxSteps < 1 || config.maxSteps > 30) throw new Error("maxSteps must be 1..30");
+  const slotWaitSeconds = config.slotWaitSeconds ?? 0;
+  if (!Number.isInteger(slotWaitSeconds) || slotWaitSeconds < 0 || slotWaitSeconds > 3600) throw new Error("slotWaitSeconds must be an integer from 0 through 3600");
   if (fs.existsSync(journal)) throw new Error("Journal exists; inspect recorded process and completion before authoring a recovery plan");
   for (const step of Object.values(config.steps)) {
     if(step.nativeResult!==undefined&&!['claude-json','codex-jsonl'].includes(step.nativeResult))throw new Error('Unsupported native reviewer result transport');
@@ -161,7 +186,7 @@ export async function runHandoff(configFile, { slotRoot, identifyProcess = proce
       try{stderr=diagnostics===output?log:fs.openSync(diagnostics,'wx');}catch(error){fs.closeSync(log);throw error;}
       const closeLogs=()=>{try{fs.closeSync(log);}finally{if(stderr!==log)fs.closeSync(stderr);}};
       let slot;
-      try { slot = step.role === "review" ? reserveReviewerSlot(slotRoot) : null; }
+      try { slot = step.role === "review" ? await reserveWithinBound(slotRoot, slotWaitSeconds, (occupied) => append({event:"waiting",index,slotWaitSeconds,occupied})) : null; }
       catch (error) { closeLogs(); throw error; }
       if (slot) {
         slot.append({phase:"launching",head,output,completion,journal});
