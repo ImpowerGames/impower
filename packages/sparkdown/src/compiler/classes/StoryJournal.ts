@@ -62,25 +62,33 @@ const fieldsOf = (obj: object): readonly string[] | undefined => {
  * into the new one: the same runtime objects, moved under the new root, with
  * this compile's resolution written into them and this compile's source
  * positions written into their debug metadata. Every story shares those
- * objects, and the values they hold are the values of whichever story is
- * active. For each story it keeps, the journal holds the values of every
- * shared object whose values have since been overwritten; an object it holds
- * nothing for already has that story's values. Activating a story writes its
- * values back, recording the values it replaces for the others, and moves
- * `activation.epoch` so every path, pointer and leaf path cached through the
- * old parents is resolved again.
+ * objects. The values they hold when the newest story is active are the base;
+ * for each story it keeps, the journal holds that story's values of every
+ * shared object whose base has since been overwritten, and an object it holds
+ * nothing for has that story's values in the base.
  *
- * A table records only objects of its own story, which are the objects born
- * no later than the compile that produced it (`activation.generation`): an
- * entry for any other object would be unused, and its recorded parent would
- * keep a discarded story alive.
+ * Activating a story puts the base back from the undo record, then writes the
+ * story's values over it, saving the base values it replaces in the undo
+ * record, and moves `activation.epoch` so every path, pointer and leaf path
+ * cached through the old parents is resolved again. Activation copies nothing
+ * between stories' tables.
+ *
+ * Only a compile records, and only into a table of a story that holds the
+ * object. A compile carries only what the newest story holds, and a story
+ * holds an object the newest one holds exactly when the object was created no
+ * later than the compile that produced it (`activation.generation`), since an
+ * object leaves the chain of stories once a compile does not carry it. An entry
+ * for any other object would be unused, and its recorded parent would keep a
+ * discarded story alive.
  *
  * Recording costs one entry per carried object per kept story, taken once, and
- * activation costs one assignment per object the stories disagree on. A
- * compile with nothing kept but the newest story records nothing.
+ * activation costs one assignment per entry of the story it leaves and of the
+ * one it makes active. A compile with nothing kept but the newest story
+ * records nothing.
  */
 export class StoryJournal {
-  /** The newest story, which the compiler's incremental state describes. */
+  /** The newest story, which the compiler's incremental state describes, and
+   *  whose values are the base. */
   protected _latest: object | undefined;
 
   /** The story whose values the shared objects hold. */
@@ -89,8 +97,13 @@ export class StoryJournal {
   /** The stories a caller asked to keep. */
   protected _kept = new Set<object>();
 
-  /** For each kept story and the newest one, the values it needs back. */
+  /** For each kept story and the newest one, its values where they differ
+   *  from the base. The newest story's table is empty unless it is kept and a
+   *  compile is recording. */
   protected _tables = new Map<object, Table>();
+
+  /** The base values the active story's values replaced. */
+  protected _undo = new Map<object, Fields>();
 
   /** Where a compile in progress records, or null when nothing needs it. */
   protected _recording: Table[] | null = null;
@@ -117,10 +130,10 @@ export class StoryJournal {
   release(story: object): void {
     this._kept.delete(story);
     if (story !== this._latest) {
-      this._tables.delete(story);
-      if (this._active === story) {
-        this._active = undefined;
+      if (this._active === story && this._latest) {
+        this.activate(this._latest);
       }
+      this._tables.delete(story);
     }
   }
 
@@ -138,24 +151,27 @@ export class StoryJournal {
     if (!table) {
       throw new Error("A story the journal does not keep cannot be activated");
     }
-    const others: Table[] = [];
-    for (const [other, otherTable] of this._tables) {
-      if (other !== story) {
-        others.push(otherTable);
-      }
-    }
-    for (const [obj, fields] of table.entries) {
-      StoryJournal.remember(others, obj, Object.keys(fields));
+    for (const [obj, fields] of this._undo) {
       Object.assign(obj, fields);
     }
-    table.entries.clear();
+    this._undo.clear();
+    if (story !== this._latest) {
+      for (const [obj, fields] of table.entries) {
+        const base: Fields = {};
+        for (const field in fields) {
+          base[field] = (obj as Fields)[field];
+        }
+        this._undo.set(obj, base);
+        Object.assign(obj, fields);
+      }
+    }
     this._active = story;
     activation.epoch += 1;
     return true;
   }
 
   /** A compile is starting: the compiler's incremental state describes the
-   *  newest story, so that is the one its carried objects must hold. */
+   *  newest story, so the base is what its carried objects must hold. */
   beginCompile(): void {
     if (this._latest) {
       this.activate(this._latest);
@@ -174,10 +190,10 @@ export class StoryJournal {
     return this._recording != null;
   }
 
-  /** Record a carried object before a container of this compile takes it
-   *  (`activation.reparent`): its placement, and what resolution will write
-   *  into it. Only an object an earlier story holds already has a parent, so
-   *  nothing this compile creates is recorded. */
+  /** Record a carried object before a container of this compile takes it or
+   *  gives it new debug metadata (`activation.reparent`): its placement, and
+   *  what resolution will write into it. Only an object an earlier story holds
+   *  already has a parent, so nothing this compile creates is recorded. */
   recordParent(obj: object): void {
     const recording = this._recording;
     if (recording) {
@@ -218,7 +234,8 @@ export class StoryJournal {
     }
   }
 
-  /** The compile produced `story`, which is now the newest and the active one. */
+  /** The compile produced `story`, which is now the newest and the active one,
+   *  and whose values are the base. */
   endCompile(story: object | undefined): void {
     this._recording = null;
     const generation = activation.generation;
@@ -235,17 +252,26 @@ export class StoryJournal {
     this._active = story;
   }
 
-  /** The compile produced no story. The newest story stays the newest, but
-   *  the compile may have written into its carried objects, so the next
-   *  activation writes every kept story's values back. */
+  /** The compile produced no story, and the newest story stays the newest.
+   *  What the compile wrote into its carried objects is taken back from the
+   *  newest story's record when it is kept. */
   abortCompile(): void {
     this._recording = null;
     activation.generation += 1;
-    this._active = undefined;
+    const latest = this._latest;
+    const table = latest ? this._tables.get(latest) : undefined;
+    if (table) {
+      for (const [obj, fields] of table.entries) {
+        Object.assign(obj, fields);
+      }
+      table.entries.clear();
+      activation.epoch += 1;
+    }
+    this._active = latest;
   }
 
-  /** Record the current values of `fields` of `obj` in every table of a
-   *  story that holds `obj` and has nothing recorded for them yet. */
+  /** Record the base values of `fields` of `obj` in every table of a story
+   *  that holds `obj` and has nothing recorded for them yet. */
   protected static remember(
     tables: Table[],
     obj: object,

@@ -369,6 +369,79 @@ describe("a story kept across later compiles", () => {
     expect(serialized(canonical)).toBe(cold(base).json);
   });
 
+  it("holds only what each retained story holds as the retained stories roll", () => {
+    // Real edits alternate between two scenes, the three newest stories are
+    // kept, and the one two compiles behind is shown after every compile, so
+    // each compile carries objects an older story replaced long ago.
+    let text = [
+      `scene first\n= INT. ROOM - DAY\n:\n  First scene.\n-> second\nend\n`,
+      `scene second\n= EXT. YARD - NIGHT\n:\n  Second scene.\n-> first\nend\n`,
+    ].join("\n");
+    const c = compilerFor(text);
+    const journal = (c.compiler as any)._storyJournal;
+    const kept: { story: RuntimeStory; text: string }[] = [];
+    const keep = (story: RuntimeStory, storyText: string) => {
+      c.compiler.keepStory(story);
+      kept.push({ story, text: storyText });
+      if (kept.length > 3) {
+        c.compiler.releaseStory(kept.shift()!.story);
+      }
+    };
+    keep(c.compile().story!, text);
+    const ownObjects = (story: RuntimeStory) => {
+      const own = new Set<object>();
+      const visit = (obj: any) => {
+        if (own.has(obj)) {
+          return;
+        }
+        own.add(obj);
+        if (obj.ownDebugMetadata) {
+          own.add(obj.ownDebugMetadata);
+        }
+        for (const child of obj.content ?? []) {
+          visit(child);
+        }
+        for (const [, child] of obj.namedContent ?? []) {
+          visit(child);
+        }
+      };
+      visit(story.mainContentContainer);
+      return own;
+    };
+    const totals: number[] = [];
+    for (let n = 0; n < 60; n++) {
+      const find = n % 2 === 0 ? /  First scene[^\n]*/ : /  Second scene[^\n]*/;
+      const found = text.match(find)!;
+      const next = changeAt(text, found.index!, found[0].length, `${found[0].split(".")[0]}, edit ${n}.`);
+      c.edit(next.contentChanges);
+      text = next.after;
+      const { story } = c.compile();
+      keep(story!, text);
+      if (kept.length === 3) {
+        c.compiler.activateStory(kept[0]!.story);
+      }
+      if (n % 10 === 9) {
+        let total = 0;
+        for (const table of journal._tables.values()) total += table.entries.size;
+        totals.push(total);
+      }
+    }
+    expect(journal._tables.size).toBe(3);
+    expect(totals.at(-1)).toBeLessThanOrEqual(Math.max(...totals.slice(0, 2)));
+    const foreign: string[] = [];
+    for (const [i, { story, text: storyText }] of kept.entries()) {
+      c.compiler.activateStory(story);
+      const own = ownObjects(story);
+      const entries = journal._tables.get(story).entries as Map<object, unknown>;
+      const strays = [...entries.keys()].filter((obj) => !own.has(obj)).length;
+      if (strays) {
+        foreign.push(`story ${i}: ${strays} objects it does not hold`);
+      }
+      expect(serialized(story)).toBe(cold(storyText).json);
+    }
+    expect(foreign).toEqual([]);
+  });
+
   it("holds nothing for the stories it no longer keeps", () => {
     // A kept canonical story while suggestions change a different scene each
     // time: every suggestion carries objects the one before it created, and
