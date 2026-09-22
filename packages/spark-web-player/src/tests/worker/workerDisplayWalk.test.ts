@@ -75,7 +75,7 @@ describe("with the switch on", () => {
       let out = 0;
       let mostOut = 0;
       const request = h.link.request.bind(h.link);
-      h.link.request = (type: any, params: any) => {
+      (h.link as any).request = (type: any, params: any) => {
         if (type.method !== DisplayPreviewMessage.type.method) {
           return request(type, params);
         }
