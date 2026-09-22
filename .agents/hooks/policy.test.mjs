@@ -49,9 +49,14 @@ const writeHazards = [
   [event("Bash", { command: `[IO.File]::WriteAllText((Join-Path -Verbose 'C:/absolute-root' 'child.ts'), 'x')` }), false],
   [event("Bash", { command: `[IO.File]::WriteAllText((Join-Path -Verbose 'packages' 'child.ts'), 'x')` }), true],
 ];
+const inRoot = (e) => ({ ...e, cwd: root });
 const checks = [
   [event("Bash", { command: "git stash pop" }), true],
   [event("Bash", { command: "git stash list" }), false],
+  [inRoot(event("Bash", { command: "cd packages/sparkdown && npx vitest run" })), true],
+  [inRoot(event("Bash", { command: "node scripts/test-suite.mjs start packages/sparkdown" })), false],
+  [inRoot(event("Bash", { command: "npm run typecheck" })), true],
+  [inRoot(event("Bash", { command: "npm run typecheck -- packages/sparkdown/tsconfig.json" })), false],
   [event("Bash", { command: "gh issue create --title x" }), true],
   [event("Bash", { command: "gh issue create --title x --type Task" }), false],
   [event("Bash", { command: 'irm -InFile $(Get-Content "C:\\dist\\") -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Body @{title="x"}' }), true],

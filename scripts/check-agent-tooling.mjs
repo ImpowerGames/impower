@@ -19,7 +19,7 @@ if (unlinked.length) throw new Error(`Skill discovery links missing or foreign: 
 const files = execFileSync("git", ["ls-files", "-z"], { cwd: root, encoding: "utf8", windowsHide: true }).split("\0").filter(Boolean).filter((f) => !f.startsWith("scripts/agent-notification-alerts/"));
 // Derived from the tracked runnable set. Update this count when adding checks;
 // deleting or renaming a check must not silently reduce the expected coverage.
-const EXPECTED_CHECKS = 49;
+const EXPECTED_CHECKS = 50;
 // The grammar scanner needs the full tree and runs in typecheck.yml.
 const checks = files.filter((f) => /^(?:\.agents\/|\.claude\/hooks\/|\.github\/scripts\/|scripts\/)/.test(f) && /\.test\./.test(f) && f !== "scripts/check-node-names.test.mjs");
 const runnable = checks.filter((f) => /\.test\.(?:mjs|sh)$/.test(f));
