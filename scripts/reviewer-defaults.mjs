@@ -93,7 +93,7 @@ export function resolveReviewer(config, root) {
   const column = rows[0][config.reviewerFallback ? "fallback" : "primary"];
   if (!Number.isInteger(index) || index < 0 || index >= column.length) throw new Error(`reviewerIndex must be from 0 through ${column.length - 1} for this default`);
   const { route, effort } = column[index];
-  return { reviewer: route, reviewerEffort: effort, agent: agents.get(route), resolved: true, ticketEffort: rows[0].ticketEffort, writerEffort: rows[0].writerEffort, matchedOn, fallback: config.reviewerFallback === true, index };
+  return { reviewer: route, reviewerEffort: effort, agent: agents.get(route), resolved: true, ticketEffort: rows[0].ticketEffort, rowWriterEffort: rows[0].writerEffort, matchedOn, fallback: config.reviewerFallback === true, index };
 }
 
 // Adds the resolved route and effort to a review step whose plan left both to
@@ -124,7 +124,7 @@ export function applyResolvedReviewer(step, selection) {
 if (process.argv[1] && fs.realpathSync(process.argv[1]) === fileURLToPath(import.meta.url)) {
   try {
     const plan = JSON.parse(fs.readFileSync(process.argv[2], "utf8"));
-    const { reviewer, reviewerEffort, agent, ticketEffort, writerEffort, matchedOn, fallback, index } = resolveReviewer(plan, fs.realpathSync.native(plan.worktree));
-    console.log(JSON.stringify({ reviewer, reviewerEffort, agent, ticketEffort, writerEffort, matchedOn, fallback, index }));
+    const { reviewer, reviewerEffort, agent, ticketEffort, rowWriterEffort, matchedOn, fallback, index } = resolveReviewer(plan, fs.realpathSync.native(plan.worktree));
+    console.log(JSON.stringify({ reviewer, reviewerEffort, agent, ticketEffort, rowWriterEffort, matchedOn, fallback, index }));
   } catch (error) { console.error(error.message); process.exitCode = 1; }
 }

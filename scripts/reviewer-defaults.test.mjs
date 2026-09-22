@@ -42,8 +42,20 @@ assert.equal(pick({ writer: "claude-fable-5-1", writerEffort: "max" }), "gpt-6-a
 // A ticket tier with no row at the writer's effort falls back to that tier's
 // row at the nearest writer effort, and the selection says so.
 const tierMatch = resolveReviewer({ writer: "claude-opus-5", writerEffort: "low", ticketEffort: "medium" }, root);
-assert.deepEqual([tierMatch.reviewer, tierMatch.writerEffort, tierMatch.matchedOn], ["gpt-5.6-sol", "medium", "ticketEffort"]);
+assert.deepEqual([tierMatch.reviewer, tierMatch.rowWriterEffort, tierMatch.matchedOn], ["gpt-5.6-sol", "medium", "ticketEffort"]);
 assert.equal(resolveReviewer({ writer: "claude-opus-5", writerEffort: "medium" }, root).matchedOn, "writerEffort");
+// Two rows of the tier equally near the session effort: the higher one wins.
+const tieRoot = fs.mkdtempSync(path.join(os.tmpdir(), "impower-reviewer-tie-"));
+fs.mkdirSync(path.join(tieRoot, ".claude"));
+fs.writeFileSync(path.join(tieRoot, ".claude", "reviewer-models.json"), JSON.stringify([{ name: "reviewer-t", model: "claude-t" }]));
+const tieRow = (writerEffort, ticketEffort, effort) => ({ ticketEffort, writer: "claude-w", writerEffort, primary: [{ route: "gpt-t", effort }], fallback: [{ route: "claude-t", effort }] });
+fs.writeFileSync(path.join(tieRoot, ".claude", "reviewer-defaults.json"), JSON.stringify({ codexModels: ["gpt-t"], rows: [
+  ...["low", "medium", "high", "xhigh", "max"].map((writerEffort) => tieRow(writerEffort, "medium", "medium")),
+  tieRow("low", "high", "low"), tieRow("high", "high", "high"),
+] }));
+const tie = resolveReviewer({ writer: "claude-w", writerEffort: "medium", ticketEffort: "high" }, tieRoot);
+assert.deepEqual([tie.reviewerEffort, tie.rowWriterEffort, tie.matchedOn], ["high", "high", "ticketEffort"], "a tie between low and high resolves to the high row");
+fs.rmSync(tieRoot, { recursive: true, force: true });
 assert.throws(() => pick({ writer: "gpt-5.6-terra", writerEffort: "medium", ticketEffort: "correctness-critical" }), /No reviewer default for gpt-5.6-terra at medium effort for a correctness-critical ticket/);
 assert.throws(() => pick({ writer: "claude-haiku-4-5", writerEffort: "medium" }), /No reviewer default/);
 assert.equal(resolveReviewer({ writer: "claude-opus-5", writerEffort: "medium", reviewer: "claude-opus-4-6" }, root).reviewer, "claude-opus-4-6", "an explicit reviewer bypasses the table");
@@ -147,7 +159,7 @@ assert.equal(result.launching.reviewerResolved, undefined);
 const printedPlan = path.join(scratch, "printed-plan.json");
 fs.writeFileSync(printedPlan, JSON.stringify(plan({ writer: "gpt-fixture-writer", writerEffort: "medium" })));
 const printed = execFileSync(process.execPath, [path.join(root, "scripts", "reviewer-defaults.mjs"), printedPlan], { encoding: "utf8", windowsHide: true });
-assert.deepEqual(JSON.parse(printed), { reviewer: "claude-fixture-reviewer", reviewerEffort: "high", agent: "reviewer-fixture", ticketEffort: "medium", writerEffort: "medium", matchedOn: "writerEffort", fallback: false, index: 0 });
+assert.deepEqual(JSON.parse(printed), { reviewer: "claude-fixture-reviewer", reviewerEffort: "high", agent: "reviewer-fixture", ticketEffort: "medium", rowWriterEffort: "medium", matchedOn: "writerEffort", fallback: false, index: 0 });
 
 // Refusals happen before any journal or process exists.
 for (const [fields, step, pattern] of [
