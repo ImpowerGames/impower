@@ -23,6 +23,14 @@ assert.match(unlinked.stderr, /Skill discovery links missing or foreign: \.claud
 assert.doesNotMatch(unlinked.stdout, /^(?:Discovered|CHECK:)/m, "the refusal comes before discovery and before any check runs");
 const linked = spawnSync(process.execPath, ["scripts/link-agent-skills.mjs"], { cwd: scratch, encoding: "utf8", windowsHide: true });
 assert.equal(linked.status, 0, linked.stderr);
+// A real directory in place of one link is foreign: it does not resolve to the shared skills.
+fs.unlinkSync(path.join(scratch, ".codex", "skills"));
+put(".codex/skills/local.md", "local");
+const foreign = run();
+assert.notEqual(foreign.status, 0, "a foreign discovery link must refuse");
+assert.match(foreign.stderr, /Skill discovery links missing or foreign: \.codex\/skills; run node scripts\/link-agent-skills\.mjs/);
+fs.rmSync(path.join(scratch, ".codex", "skills"), { recursive: true });
+assert.equal(spawnSync(process.execPath, ["scripts/link-agent-skills.mjs"], { cwd: scratch, windowsHide: true }).status, 0);
 assert.notEqual(run().status, 0, "empty discovery must fail");
 for (const file of [".agents/skills/a test.test.mjs", ".agents/hooks/policy.test.mjs", ".claude/hooks/hook.test.mjs", "scripts/link-agent-skills.test.mjs"]) put(file, 'console.log("fixture passed");');
 const expected = Number(fs.readFileSync(path.join(root, "scripts/check-agent-tooling.mjs"), "utf8").match(/EXPECTED_CHECKS = (\d+)/)[1]);

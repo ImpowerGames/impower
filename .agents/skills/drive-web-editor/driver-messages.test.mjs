@@ -563,6 +563,9 @@ check("preflight --tooling-only skips the browser and install probes and refuses
   assert.match(tooling.stdout, /disk headroom/);
   assert.match(tooling.stdout, /gh auth/);
   assert.match(tooling.stdout, /git repo/);
+  // Disk and gh auth legitimately fail on some machines, so the exit status is
+  // pinned to the printed lines: zero exactly when no line is a FAIL.
+  assert.equal(tooling.status === 0, !/^FAIL/m.test(tooling.stdout), tooling.stdout);
   const refused = run("--tooling");
   assert.notEqual(refused.status, 0);
   assert.match(refused.stderr + refused.stdout, /preflight takes only --tooling-only; got --tooling/);
