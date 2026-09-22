@@ -479,6 +479,21 @@ const writeRecord = (record, file = stateFile) => {
   fs.mkdirSync(path.dirname(file), { recursive: true });
   fs.writeFileSync(file, typeof record === "string" ? record : JSON.stringify(record));
 };
+// A record that must name no live process takes the pid of a child that has
+// already exited. A fixed small pid names a kernel thread on some Linux hosts
+// and the System process on Windows, and the driver refuses to stop those.
+const deadPid = () => {
+  const child = spawnSync(process.execPath, ["-e", "0"], { windowsHide: true });
+  assert.ok(child.pid > 0 && !pidAlive(child.pid), `fixture pid ${String(child.pid)} still names a live process`);
+  return child.pid;
+};
+// Each command case starts with no record in either location, so a record one
+// failed case leaves behind cannot fail the next.
+const freshCheck = (name, fn) =>
+  check(name, () => {
+    for (const file of [stateFile, legacyStateFile]) fs.rmSync(file, { force: true });
+    return fn();
+  });
 const run = (cmd, ...args) => {
   const r = spawnSync(process.execPath, [copy, cmd, ...args], { encoding: "utf8", windowsHide: true, timeout: 60_000 });
   return { status: r.status, out: (r.stdout ?? "") + (r.stderr ?? "") };
@@ -503,7 +518,7 @@ const listen = () =>
 const closed = (server) => new Promise((resolve) => server.close(resolve));
 
 try {
-  for (const dated of [true, false]) await check(`down stops three resistant generations and releases their listeners (${dated ? "startedAt" : "file date"})`, async () => {
+  for (const dated of [true, false]) await freshCheck(`down stops three resistant generations and releases their listeners (${dated ? "startedAt" : "file date"})`, async () => {
     const { child, rows } = await startTree();
     try {
       if (process.platform === "linux") {
@@ -533,14 +548,14 @@ try {
       assert.ok(await treeGone(rows), "fixture cleanup left child processes behind");
     }
   });
-  await check("status: no state file reads down and exits 1", () => {
+  await freshCheck("status: no state file reads down and exits 1", () => {
     const r = run("status");
     assert.match(r.out, /down \(no state file\)/);
     assert.equal(r.status, 1, r.out);
   });
 
-  await check("down leaves another session's servers running and keeps its record; --force goes past the refusal", () => {
-    writeRecord({ url: "http://localhost:1", pid: 4, mode: "same-origin", startedAt: Date.now(), session: "someone-else" });
+  await freshCheck("down leaves another session's servers running and keeps its record; --force goes past the refusal", () => {
+    writeRecord({ url: "http://localhost:1", pid: deadPid(), mode: "same-origin", startedAt: Date.now(), session: "someone-else" });
     const d = run("down");
     assert.equal(d.status, 1, d.out);
     assert.match(d.out, /launched by another session \(someone-else\); they keep running/);
@@ -550,14 +565,14 @@ try {
     assert.equal(fs.existsSync(stateFile), false, forced.out);
   });
 
-  await check("a record beside the driver, from before session directories, is still found and stopped", () => {
-    writeRecord({ url: "http://localhost:1", pid: 4, mode: "same-origin" }, legacyStateFile);
+  await freshCheck("a record beside the driver, from before session directories, is still found and stopped", () => {
+    writeRecord({ url: "http://localhost:1", pid: deadPid(), mode: "same-origin" }, legacyStateFile);
     assert.match(run("status").out, /state=.*drive-web-editor[\\/]\.state\.json/);
     run("down");
     assert.equal(fs.existsSync(legacyStateFile), false);
   });
 
-  await check("status, up and down on an unreadable state file: reported, refused and left intact, removed", () => {
+  await freshCheck("status, up and down on an unreadable state file: reported, refused and left intact, removed", () => {
     writeRecord('{"url":"http://localhost:1","pid":4,"mo');
     const s = run("status");
     assert.match(s.out, /state file unreadable/);
@@ -573,7 +588,7 @@ try {
     assert.match(run("status").out, /down \(no state file\)/);
   });
 
-  await check("status and up on a record whose URL answers: UP with the file named, exit 0, and up reuses it", async () => {
+  await freshCheck("status and up on a record whose URL answers: UP with the file named, exit 0, and up reuses it", async () => {
     const { server, url } = await listen();
     try {
       writeRecord({ url, pid: process.pid, mode: "same-origin", startedAt: Date.now() });
@@ -588,14 +603,14 @@ try {
     }
   });
 
-  await check("status on a record whose URL does not answer reads DOWN and exits 1", () => {
+  await freshCheck("status on a record whose URL does not answer reads DOWN and exits 1", () => {
     writeRecord({ url: "http://localhost:1", pid: process.pid, mode: "same-origin", startedAt: Date.now() });
     const s = run("status");
     assert.match(s.out, /DOWN  url=http:\/\/localhost:1/);
     assert.equal(s.status, 1, s.out);
   });
 
-  await check("down on a record whose pid has exited removes it and signals nothing", () => {
+  await freshCheck("down on a record whose pid has exited removes it and signals nothing", () => {
     const gone = spawnSync(process.execPath, ["-e", "0"], { windowsHide: true });
     writeRecord({ url: "http://localhost:1", pid: gone.pid, mode: "same-origin", startedAt: Date.now() });
     const d = run("down");
@@ -604,7 +619,7 @@ try {
     assert.equal(fs.existsSync(stateFile), false);
   });
 
-  await check("down on a record whose pid the system reused removes it and leaves that process alone", async () => {
+  await freshCheck("down on a record whose pid the system reused removes it and leaves that process alone", async () => {
     const child = idle();
     try {
       writeRecord({ url: "http://localhost:1", pid: child.pid, mode: "same-origin", startedAt: Date.now() - 60 * 60_000 });
@@ -620,7 +635,7 @@ try {
     }
   });
 
-  await check("down on a standing record stops its tree and removes the record", async () => {
+  await freshCheck("down on a standing record stops its tree and removes the record", async () => {
     const child = idle();
     try {
       writeRecord({ url: "http://localhost:1", pid: child.pid, mode: "same-origin", startedAt: Date.now() });
@@ -634,7 +649,7 @@ try {
     }
   });
 
-  await check("down on a record with no startedAt dates it by the file and stops its tree", async () => {
+  await freshCheck("down on a record with no startedAt dates it by the file and stops its tree", async () => {
     const child = idle();
     try {
       writeRecord({ url: "http://localhost:1", pid: child.pid, mode: "same-origin" });
@@ -647,7 +662,7 @@ try {
     }
   });
 
-  await check("up waits on a standing record while its launcher lives, and launches once it exits", async () => {
+  await freshCheck("up waits on a standing record while its launcher lives, and launches once it exits", async () => {
     const launchedRowsFile = path.join(scratch, "npm-tree.jsonl");
     fs.writeFileSync(path.join(scratch, "repo", "package.json"), JSON.stringify({ scripts: { "web:dev": `node "${fixture.replaceAll("\\", "/")}" "${launchedRowsFile.replaceAll("\\", "/")}" root` } }));
     let launchedRows = [];
@@ -695,7 +710,7 @@ try {
       assert.ok(await treeGone(launchedRows), "up left a descendant behind");
     }
   });
-  await check("launcher diagnostics report a real child's observed exit", async () => {
+  await freshCheck("launcher diagnostics report a real child's observed exit", async () => {
     const child = spawn(process.execPath, ["-e", "process.exit(23)"], { stdio: "ignore", windowsHide: true, detached: process.platform !== "win32" });
     const messages = [];
     const closed = new Promise((resolve, reject) => {
