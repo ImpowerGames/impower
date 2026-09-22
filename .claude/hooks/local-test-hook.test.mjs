@@ -16,7 +16,9 @@ import { fileURLToPath } from "node:url";
 import { decide } from "./local-test-hook.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
-const tree = mkdtempSync(join(tmpdir(), "local-test-hook-"));
+// The directory name avoids the settings prefilter's words, so a wired case
+// passes the prefilter only through its command.
+const tree = mkdtempSync(join(tmpdir(), "lth-"));
 process.on("exit", () => rmSync(tree, { recursive: true, force: true }));
 const put = (path, text) => {
   mkdirSync(dirname(join(tree, path)), { recursive: true });
@@ -79,6 +81,20 @@ const denies = [
   ["the typecheck script directly", "node scripts/typecheck.mjs"],
   ["the typecheck script from a package", "cd packages/sparkdown && node ../../scripts/typecheck.mjs --jobs=2"],
   ["the root typecheck through pnpm", "pnpm typecheck"],
+  // Review round 1 (PR #767): option values, Windows shims, runner wrappers.
+  ["npm run with --prefix before the test script", "npm run --prefix packages/sparkdown test"],
+  ["npm run with --workspace before the test script", "npm run --workspace packages/sparkdown test"],
+  ["npm run with -w before the test script", "npm run -w packages/sparkdown test"],
+  ["pnpm run with --filter before the test script", "pnpm run --filter @impower/sparkdown test"],
+  ["node with a --require value before the typecheck script", "node --require node:path scripts/typecheck.mjs"],
+  ["node with a -r value before vitest.mjs", "cd packages/sparkdown && node -r ./preload.cjs ../../node_modules/vitest/vitest.mjs run"],
+  ["an unknown vitest option whose value is a test file", `cd packages/sparkdown && npx vitest run --coverage.ignoreClassMethods ${FILE}`],
+  ["npm.cmd test", "cd packages/sparkdown; npm.cmd test"],
+  ["npx.cmd vitest run", "cd packages/sparkdown; npx.cmd vitest run"],
+  ["vitest.cmd from node_modules/.bin", "cd packages/sparkdown; .\\node_modules\\.bin\\vitest.cmd run"],
+  ["cmd /c npm test", "cmd /c npm test"],
+  ["an unquoted pwsh -Command npm test", "pwsh -Command npm test"],
+  ["corepack pnpm test", "corepack pnpm test"],
 ];
 
 const allows = [
@@ -99,6 +115,13 @@ const allows = [
   ["a package's own typecheck", "cd packages/sparkdown && npm run typecheck"],
   ["a package's own typecheck by prefix", "npm --prefix packages/sparkdown run typecheck"],
   ["a package build", "cd packages/sparkdown && npm run build"],
+  ["a package's typecheck by -w", "npm -w packages/sparkdown run typecheck"],
+  ["a package's typecheck by --workspace", "npm --workspace packages/sparkdown run typecheck"],
+  ["a package's typecheck with --workspace after the script", "npm run typecheck --workspace packages/sparkdown"],
+  ["a package's typecheck by pnpm --filter", "pnpm --filter @impower/sparkdown typecheck"],
+  ["vitest with a known flag before the file", `cd packages/sparkdown && npx vitest run --run ${FILE}`],
+  ["node with a --require value before the suite runner", "node --require node:path scripts/test-suite.mjs start packages/sparkdown"],
+  ["cmd /c on a single file", `cmd /c "cd packages/sparkdown && npx vitest run ${FILE}"`],
   ["an install", "PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 npm install"],
   ["the tooling checks", "node scripts/check-agent-tooling.mjs"],
   ["a hook test", "node .claude/hooks/local-test-hook.test.mjs"],
@@ -180,6 +203,8 @@ for (const [label, command] of allows) {
       wire("PowerShell bare typecheck", payload("PowerShell", { command: "npm run typecheck" }), true);
       wire("Bash single file", payload("Bash", { command: `cd packages/sparkdown && npx vitest run ${FILE} ${CAPS}` }), false);
       wire("Bash single file from the payload's cwd", payload("Bash", { command: `npx vitest run ${FILE}` }, resolve(tree, "packages", "sparkdown")), false);
+      wire("Bash npm t, whose payload has no test or typecheck word", payload("Bash", { command: "cd packages/sparkdown && npm t" }, tree), true);
+      wire("PowerShell npm tst", payload("PowerShell", { command: "npm --prefix packages/sparkdown tst" }, tree), true);
       wire("Bash suite runner", payload("Bash", { command: "node scripts/test-suite.mjs start packages/sparkdown" }), false);
       wire("PowerShell filtered typecheck", payload("PowerShell", { command: "npm run typecheck -- packages/sparkdown/tsconfig.json" }), false);
       wire("the phrase only in the description", payload("Bash", { command: "git status", description: "before npm test" }), false);
