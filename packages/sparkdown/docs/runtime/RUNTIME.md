@@ -117,6 +117,8 @@ Sparkdown inherits ink's **newline-lookahead state snapshot** mechanism. When th
 
 This lets ink decide on a per-line basis whether `text\n` should be one line or whether more text glues onto it.
 
+A display line's `display()` call is preceded by a `line` marker (`ControlCommand.LineStart`), which the compiler places ahead of the call's argument. Glue that joins a line onto the previous one always comes before that marker, so reaching it with a snapshot held proves the previous line is over: the step restores the snapshot there, before the new line's text is built. Each line's argument, and every function its interpolations call, is therefore evaluated once. Without the marker the look-ahead would learn of the new line only when its `display()` call pushed its table, after its whole argument had been evaluated, and that evaluation would be thrown away and repeated on the next `Continue`.
+
 The mechanism works via a **`StatePatch`** attached during the speculation window:
 
 - Variable assignments (`SetGlobal`) go into `patch._globals` instead of the real `_globalVariables`.

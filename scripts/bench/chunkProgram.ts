@@ -319,6 +319,9 @@ export function writeChunkProgram(compiled: Record<string, any>, options: { reso
       } else if (t === "out") {
         b.emit(Op.Out);
         depth--;
+      } else if (t === "line") {
+        // The engine's line marker. The statement emits its own `LineStart`
+        // ahead of the argument.
       } else if (typeof t === "string" && t.startsWith("stdlib:")) {
         const [, name, arity] = t.split(":");
         if (name !== "display") throw new UnsupportedConstruct(`builtin ${name}`);

@@ -1246,6 +1246,7 @@ export class Story extends InkObject {
 
     this._state.didSafeExit = false;
     this._sawLookaheadUnsafeFunctionAfterNewline = false;
+    this._sawLineStartAfterNewline = false;
     this._state.variablesState.CompleteVariableObservation();
 
     this._asyncContinueActive = false;
@@ -1279,6 +1280,7 @@ export class Story extends InkObject {
 
     let outputStreamEndsInNewline = false;
     this._sawLookaheadUnsafeFunctionAfterNewline = false;
+    this._sawLineStartAfterNewline = false;
     do {
       try {
         outputStreamEndsInNewline = this.ContinueSingleStep();
@@ -1345,6 +1347,7 @@ export class Story extends InkObject {
 
       this.state.didSafeExit = false;
       this._sawLookaheadUnsafeFunctionAfterNewline = false;
+      this._sawLineStartAfterNewline = false;
 
       if (this._recursiveContinueCount == 1)
         changedVariablesToObserve =
@@ -1461,7 +1464,8 @@ export class Story extends InkObject {
 
         if (
           change == Story.OutputStateChange.ExtendedBeyondNewline ||
-          this._sawLookaheadUnsafeFunctionAfterNewline
+          this._sawLookaheadUnsafeFunctionAfterNewline ||
+          this._sawLineStartAfterNewline
         ) {
           this.RestoreStateSnapshot();
 
@@ -2334,6 +2338,19 @@ export class Story extends InkObject {
           break;
 
         case ControlCommand.CommandType.NoOp:
+          break;
+
+        case ControlCommand.CommandType.LineStart:
+          // Past a newline, a new display line proves the previous line has
+          // ended: glue that joins it must come before this marker. Stopping
+          // here keeps the look-ahead from evaluating this line's argument
+          // only to throw it away when the snapshot is restored.
+          if (
+            this._stateSnapshotAtLastNewline !== null &&
+            !this.state.inStringEvaluation
+          ) {
+            this._sawLineStartAfterNewline = true;
+          }
           break;
 
         case ControlCommand.CommandType.Duplicate:
@@ -5313,6 +5330,7 @@ export class Story extends InkObject {
   private _stateSnapshotAtLastNewline: StoryState | null = null;
   private _simulatorSnapshotAtLastNewline: SimulatorSnapshot | null = null;
   private _sawLookaheadUnsafeFunctionAfterNewline: boolean = false;
+  private _sawLineStartAfterNewline: boolean = false;
 
   private _recursiveContinueCount: number = 0;
 
