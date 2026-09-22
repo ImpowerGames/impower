@@ -2721,7 +2721,7 @@ export class Game<T extends M = {}> {
   }
 
   stopDebugging() {
-    this._context.system.debugging = true;
+    this._context.system.debugging = false;
   }
 
   /** Declare that what follows is a preview rather than a real run.
