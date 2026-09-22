@@ -6,9 +6,10 @@
 //
 // What it executes is the content a preview route is made of: text, string
 // evaluation (`str` ... `/str`), expression evaluation (`ev` ... `/ev`), table
-// construction (`obj{` ... `}obj`), the `display` builtin, `pop`, line ends
-// with the engine's look-ahead past a newline, and `done` and `end`. A record
-// of any other kind throws, naming itself. Left out: diverts and everything
+// construction (`obj{` ... `}obj`), the `display` builtin and the `line` marker
+// ahead of it, `pop`, line ends with the engine's look-ahead past a newline,
+// and `done` and `end`. A record of any other kind throws, naming itself.
+// Left out: diverts and everything
 // that follows a path, choices, threads, tunnels, function calls and call
 // frames, variables, native operators, tags, glue, visit and turn counts,
 // every builtin but `display`, errors and warnings, saved state.
@@ -26,6 +27,7 @@ const enum Op {
   EndObject,
   Pop,
   Display,
+  LineStart,
   Stop,
 }
 
@@ -39,6 +41,7 @@ const COMMAND_OPS: Record<string, Op> = {
   "}obj": Op.EndObject,
   pop: Op.Pop,
   "stdlib:display:1": Op.Display,
+  line: Op.LineStart,
   done: Op.Stop,
   end: Op.Stop,
 };
@@ -246,6 +249,11 @@ export class BufferStepper {
         this.evalStack.push(undefined);
         break;
       }
+      case Op.LineStart:
+        // A new display line proves the pending line is over, before its
+        // argument is evaluated, as the engine's look-ahead stops there.
+        if (this.stringMarks.length === 0 && this.lineEndCursor >= 0) this.lineOver = true;
+        break;
       case Op.Stop:
         next = -1;
         break;
@@ -290,8 +298,16 @@ export class BufferStepper {
   takeLine(): BufferLine {
     const line: BufferLine = { text: "", tags: [], display: [] };
     for (const content of this.output) {
-      if (typeof content === "string") line.text += content;
-      else line.display.push(content as Map<string, unknown>);
+      if (typeof content === "string") {
+        line.text += content;
+        continue;
+      }
+      // A table's `text` is part of the line's text, where the engine's
+      // `currentText` reads it.
+      const table = content as Map<string, unknown>;
+      const text = table.get("text");
+      if (typeof text === "string") line.text += text;
+      line.display.push(table);
     }
     this.output.length = 0;
     return line;
