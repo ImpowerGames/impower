@@ -1655,7 +1655,7 @@ await check("the server is spawned detached and unreferenced, in the extension d
   assert.equal(spawnServer(plan, io), 77);
   assert.deepEqual(calls, [
     ["open", plan.logPath, "a"],
-    ["spawnDetached", process.execPath, plan.args, { cwd: plan.cwd, stdio: ["ignore", 5, 5] }],
+    ["spawnDetached", process.execPath, plan.args, { cwd: plan.cwd, stdio: ["ignore", 5, 5], linger: true }],
     ["unref"],
     ["close", 5],
   ]);

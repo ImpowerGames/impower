@@ -23,8 +23,19 @@ const recorder = () => {
 {
   const io = { ...recorder(), platform: "win32" };
   spawnDetached("npm", ["run", "x"], { cwd: "C:/r", stdio: "ignore", shell: true }, io);
-  assert.deepEqual(io.calls, [[process.execPath, [helper, JSON.stringify({ command: "npm", args: ["run", "x"], shell: true })], { cwd: "C:/r", stdio: "ignore", windowsHide: true, detached: true }]]);
+  assert.deepEqual(io.calls, [[process.execPath, [helper, JSON.stringify({ command: "npm", args: ["run", "x"], shell: true, linger: false })], { cwd: "C:/r", stdio: "ignore", windowsHide: true, detached: true }]]);
   console.log("PASS: Windows detaches a node wrapper that carries the command");
+}
+{
+  // `linger` reaches the wrapper and never the spawn options.
+  const io = { ...recorder(), platform: "win32" };
+  spawnDetached("npm", [], { stdio: "ignore", linger: true }, io);
+  assert.equal(io.calls[0][1][1], JSON.stringify({ command: "npm", args: [], shell: false, linger: true }));
+  assert.deepEqual(io.calls[0][2], { stdio: "ignore", windowsHide: true, detached: true });
+  const posix = { ...recorder(), platform: "linux" };
+  spawnDetached("npm", [], { stdio: "ignore", linger: true }, posix);
+  assert.deepEqual(posix.calls, [["npm", [], { stdio: "ignore", shell: false, windowsHide: true, detached: true }]]);
+  console.log("PASS: linger travels in the wrapper's argument, and POSIX ignores it");
 }
 
 const scratch = fs.mkdtempSync(path.join(os.tmpdir(), "detached-launch-"));
@@ -39,6 +50,18 @@ try {
   assert.equal(fs.readFileSync(log, "utf8").trim(), "through the wrapper");
   console.log("PASS: the exit code, environment and log file pass through");
 
+  // The command runs in the directory the caller asked for, which on Windows
+  // it inherits from the wrapper rather than being told directly.
+  const here = path.join(scratch, "cwd");
+  fs.mkdirSync(here);
+  const cwdLog = path.join(scratch, "cwd.log");
+  const cwdFd = fs.openSync(cwdLog, "w");
+  const inHere = spawnDetached(process.execPath, ["-e", "console.log(process.cwd())"], { cwd: here, stdio: ["ignore", cwdFd, cwdFd] });
+  fs.closeSync(cwdFd);
+  assert.equal(await exited(inHere), 0);
+  assert.equal(fs.realpathSync(fs.readFileSync(cwdLog, "utf8").trim()), fs.realpathSync(here));
+  console.log("PASS: the command runs in the caller's cwd");
+
   if (process.platform === "win32") {
     // The drivers stop a launch with taskkill /T from the recorded pid, which
     // is the wrapper's, so that has to reach the whole tree: here a node and
@@ -46,7 +69,7 @@ try {
     const pids = path.join(scratch, "pids.txt");
     const record = "require('fs').appendFileSync(process.env.PIDS,process.pid+' ')";
     const leaf = `require('child_process').spawn(process.execPath,['-e',"${record};setInterval(()=>{},1000)"],{stdio:'ignore',windowsHide:true})`;
-    const child = spawnDetached(process.execPath, ["-e", `${record};for(let i=0;i<3;i++)${leaf};setInterval(()=>{},1000)`], { stdio: "ignore", env: { ...process.env, PIDS: pids } });
+    const child = spawnDetached(process.execPath, ["-e", `${record};for(let i=0;i<3;i++)${leaf};setInterval(()=>{},1000)`], { stdio: "ignore", linger: true, env: { ...process.env, PIDS: pids } });
     const deadline = Date.now() + 10_000;
     const recorded = () => (fs.existsSync(pids) ? fs.readFileSync(pids, "utf8").trim().split(/\s+/).filter(Boolean).map(Number) : []);
     while (recorded().length < 4 && Date.now() < deadline) await new Promise((resolve) => setTimeout(resolve, 100));

@@ -306,6 +306,7 @@ export async function up(args) {
       },
       stdio: "ignore",
       shell: true, // npm is npm.cmd on Windows; Node 23 refuses to spawn .cmd directly
+      linger: true, // `down` stops this tree with taskkill /T from the pid recorded below
     },
   );
   observeLauncherExit(child);

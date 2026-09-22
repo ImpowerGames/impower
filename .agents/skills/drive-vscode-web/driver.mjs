@@ -916,7 +916,8 @@ function writeProjectSd(project, sdPath) {
 // file's open and close.
 export function spawnServer(plan, io = { spawnDetached, openSync: fs.openSync, closeSync: fs.closeSync }) {
   const logFd = io.openSync(plan.logPath, "a");
-  const child = io.spawnDetached(process.execPath, plan.args, { cwd: plan.cwd, stdio: ["ignore", logFd, logFd] });
+  // `linger`: `down` stops this server with taskkill /T from the pid returned here.
+  const child = io.spawnDetached(process.execPath, plan.args, { cwd: plan.cwd, stdio: ["ignore", logFd, logFd], linger: true });
   child.unref();
   io.closeSync(logFd);
   return child.pid;

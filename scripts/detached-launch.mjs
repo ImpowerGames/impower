@@ -10,36 +10,46 @@
 // that takes keyboard focus. So on Windows the detached process is a small
 // hidden node wrapper, and the wrapper starts the real command undetached with
 // `windowsHide: true`, which gives it a hidden console that every descendant
-// shares. The wrapper exits with the command's exit code a second after the
-// command does; its pid is the root of the tree, so stopping the tree from
-// that pid stops the command too.
+// shares. The wrapper's pid is the root of the tree, so stopping the tree from
+// that pid stops the command too, and the wrapper exits with the command's
+// exit code.
 //
-// Every detached launch in agent tooling goes through `spawnDetached`, and
-// scripts/windows-hide.test.mjs refuses `detached: true` anywhere else.
+// Every detached launch in agent tooling goes through `spawnDetached`, whatever
+// name the call site reaches it by; scripts/windows-hide.test.mjs refuses a
+// `detached` option anywhere else.
 import { spawn } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const self = fileURLToPath(import.meta.url);
-const EXIT_GRACE_MS = 1000;
+export const EXIT_GRACE_MS = 1000;
 
-// `options` takes cwd, env, stdio and shell; the wrapper passes its own stdio
-// on to the command, so a log file handed to it receives the command's output.
-export function spawnDetached(command, args, { shell = false, ...options } = {}, io = { spawn, platform: process.platform }) {
+// `options` takes cwd, env, stdio, shell and linger. The wrapper runs in the
+// caller's `cwd` with the caller's `env`, because those are the options the
+// wrapper itself was started with, and its inner spawn inherits both; it
+// passes its stdio on the same way, so a log file handed to it receives the
+// command's output.
+//
+// `linger` keeps the wrapper alive for EXIT_GRACE_MS after the command exits,
+// for a launch that something later stops with `taskkill /T` from the recorded
+// pid: that walks a tree children first, and a wrapper that already left on its
+// command's heels makes the kill report failure although the tree did stop.
+// A caller that waits for its command instead sees the exit without the delay.
+export function spawnDetached(command, args, { shell = false, linger = false, ...options } = {}, io = { spawn, platform: process.platform }) {
   if (io.platform !== "win32") return io.spawn(command, args, { ...options, shell, windowsHide: true, detached: true });
-  return io.spawn(process.execPath, [self, JSON.stringify({ command, args, shell })], { ...options, windowsHide: true, detached: true });
+  return io.spawn(process.execPath, [self, JSON.stringify({ command, args, shell, linger })], { ...options, windowsHide: true, detached: true });
 }
 
 const invoked = process.argv[1] ? path.resolve(process.argv[1]) : "";
 if (invoked.toLowerCase() === self.toLowerCase()) {
-  const { command, args, shell } = JSON.parse(process.argv[2]);
+  const { command, args, shell, linger } = JSON.parse(process.argv[2]);
   const child = spawn(command, args, { stdio: "inherit", shell, windowsHide: true });
   child.on("error", (error) => {
     console.error(`detached-launch: ${error.message}`);
     process.exit(1);
   });
-  // `taskkill /T` stops a tree children first. The wrapper outlives its command
-  // by a moment so the kill still finds it; a wrapper already gone makes
-  // taskkill report failure though the whole tree stopped.
-  child.on("exit", (code) => setTimeout(() => process.exit(code ?? 1), EXIT_GRACE_MS));
+  child.on("exit", (code) => {
+    if (linger) setTimeout(() => process.exit(code ?? 1), EXIT_GRACE_MS);
+    else process.exit(code ?? 1);
+  });
 }
