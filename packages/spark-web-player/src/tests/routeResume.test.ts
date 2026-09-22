@@ -443,7 +443,7 @@ function lookaheadRepeat(
   // One beat's worth: a display line, its `display()` call and the table the
   // call builds take eighteen steps here. A longer run is a different
   // explanation and needs one.
-  const longestBeat = 24;
+  const longestBeat = 18;
   for (let length = 1; length <= Math.min(longestBeat, at); length += 1) {
     if (at + length >= steps.length || steps[at + length] !== resumes) {
       continue;

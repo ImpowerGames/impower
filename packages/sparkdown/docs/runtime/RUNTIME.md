@@ -94,7 +94,7 @@ The loop keeps stepping until:
 
 ### 3.1 Display tables
 
-Every piece of visible text reaches the output stream through the `display` stdlib function (`StdLib.ts`), which the compiler calls with a table: `{ target?, character?, text, tags? }`, `{ load }` for a `load` line, or `{ parts }` for a picked choice whose tags sit between its words (`display` joins the parts into `text` and `tags`). `display` pushes the table's tags as `BeginTag` … `EndTag` spans, then the table itself as an `ObjectValue`, then a closing `"\n"` that ends the step.
+Every line of visible text the compiler lowers reaches the output stream through the `display` stdlib function (`StdLib.ts`), which the compiler calls with a table: `{ target?, character?, text, tags? }`, `{ load }` for a `load` line, or `{ parts }` for a picked choice whose tags sit between its words (`display` joins the parts into `text` and `tags`). `display` pushes the table's tags as `BeginTag` … `EndTag` spans, then the table itself as an `ObjectValue`, then a closing `"\n"` that ends the step. The `print` stdlib function is the one other producer of a table: it builds `{ text }` from its arguments and pushes it and a closing `"\n"` the same way, or, inside string evaluation, pushes its text as a plain string.
 
 What a step collected is read two ways:
 
@@ -163,10 +163,10 @@ If you add another opcode that mutates shared state in-place, **mirror this patt
 
 ### 4.3 Lookahead-unsafe escape hatch
 
-There's also a coarser-grained mechanism: `_sawLookaheadUnsafeFunctionAfterNewline`. When a lookahead reaches an external function bound with `lookAheadSafe: false`, the call is skipped, the flag is set, and the step that reached it rewinds to the snapshot, evaluation stack included, so the function runs once, on the next `Continue`. That holds in the middle of string evaluation too, which is why such a function may be interpolated into a display line's captured text. It's appropriate when:
+There's also a coarser-grained mechanism: `_sawLookaheadUnsafeFunctionAfterNewline`. When a lookahead reaches an external function bound with `lookAheadSafe: false`, the call is skipped, the flag is set, and the step that reached it rewinds to the snapshot, evaluation stack included, so the function runs once, on the next `Continue`, when the story replays that step for real. That holds in the middle of string evaluation too, which is why such a function may be interpolated into a display line's captured text. Nothing the lookahead did survives: the operation is deferred, not committed. It's appropriate when:
 
-- The side effect can't reasonably be undone (e.g. an external function called user-supplied JS code).
-- The operation is rare enough that committing-forward is fine.
+- The side effect can't reasonably be undone (e.g. an external function called user-supplied JS code), so it must not run speculatively at all.
+- The operation is rare enough that ending the lookahead early, and giving up the chance to join the next line onto this one's step, costs little.
 
 Prefer the explicit-undo pattern when possible. Use the lookahead-unsafe flag only when undoing is genuinely impractical.
 
