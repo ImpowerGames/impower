@@ -3,6 +3,7 @@
 // worker-display switch (#680).
 import { describe, expect, it } from "vitest";
 import { DisplayPreviewMessage } from "../../main/workers/messages/DisplayPreviewMessage";
+import { programIdentity } from "../../utils/programIdentity";
 import { createPlayerHarness, MAIN_URI, settle } from "./playerHarness";
 
 const SOURCE = `-> start
@@ -60,7 +61,7 @@ for (const workerDisplays of [false, true]) {
 }
 
 describe("with the switch on", () => {
-  it("never has two displays out at once, however fast the cursor moves", async () => {
+  it("works out only the last of the displays waiting their turn", async () => {
     const h = await createPlayerHarness({
       workerDisplays: true,
       files: [{ uri: MAIN_URI, text: SOURCE }],
@@ -69,47 +70,39 @@ describe("with the switch on", () => {
     try {
       await h.compile();
 
-      // Every display the page asks the worker for, and how many were out at
-      // once.
-      const asked: number[] = [];
-      let out = 0;
-      let mostOut = 0;
-      const request = h.link.request.bind(h.link);
-      (h.link as any).request = (type: any, params: any) => {
-        if (type.method !== DisplayPreviewMessage.type.method) {
-          return request(type, params);
-        }
-        asked.push(params.line);
-        out += 1;
-        mostOut = Math.max(mostOut, out);
-        return request(type, params).finally(() => {
-          out -= 1;
-        });
+      // Every display that is worked out marks the game as previewing before
+      // it replays the route to its point, which on a long script is about a
+      // second of work.
+      const game = h.workerState.gameState.game!;
+      const markPreviewing = game.markPreviewing.bind(game);
+      let workedOut = 0;
+      game.markPreviewing = (path?: string) => {
+        workedOut += 1;
+        return markPreviewing(path);
       };
 
-      // A held arrow key: each selection arrives before the display the one
-      // before it started has been worked out.
-      const walking: Promise<unknown>[] = [];
-      for (const beat of BEATS.slice(1)) {
-        const step = await h.selectWithoutWaiting(lineOf(beat));
-        walking.push(step.previewed);
-      }
-      await Promise.all(walking);
+      // A held arrow key: every selection's display is sent before the first
+      // has been worked out.
+      const program = programIdentity(h.controller._program)!;
+      const displays = BEATS.slice(1).map((beat) =>
+        h.link.request(DisplayPreviewMessage.type, {
+          program,
+          file: MAIN_URI,
+          line: lineOf(beat),
+          speculative: false,
+        }),
+      );
+      const results = await Promise.all(displays);
       await settle(60);
 
-      // Working a display out is a route replay in the worker, so a second
-      // one sent while the first is under way would queue behind it and the
-      // screen would fall that far behind the cursor. The selections that
-      // arrive meanwhile leave the screen to the newest of them, which asks
-      // once the worker is free.
-      expect(mostOut).toBe(1);
-      expect(asked.at(-1)).toBe(lineOf(BEATS.at(-1)!));
-      expect(asked.length).toBeLessThan(BEATS.length - 1);
+      // Only the last was worked out; the rest were replaced while they
+      // waited their turn and answered without touching the game.
+      expect(workedOut).toBe(1);
+      expect(results.map((r: any) => r.displayed)).toEqual([
+        ...BEATS.slice(1, -1).map(() => false),
+        true,
+      ]);
       expect(h.overlay.textContent).toContain(BEATS.at(-1));
-      expect(h.controller.getGameState().position).toEqual({
-        uri: MAIN_URI,
-        line: lineOf(BEATS.at(-1)!),
-      });
     } finally {
       h.dispose();
     }

@@ -446,6 +446,16 @@ export function installPlayerWorker(connection: MessageConnection) {
     if (params.keep !== undefined) {
       shownSuggestionId = params.keep;
     }
+    // A held arrow key sends one display per selection, and working one out
+    // is a route replay, about a second of it on a long script. Let the
+    // requests the page has already sent arrive before taking any of this
+    // one's on: one that a newer request replaced while it waited its turn
+    // answers at once, so the newest is worked out after the display under
+    // way rather than after all of them (#680).
+    await new Promise<void>((resolve) => setTimeout(resolve, 0));
+    if (display !== displays) {
+      return { displayed: false };
+    }
     let fresh = params.fresh === true;
     for (;;) {
       const entry = displayable.get(params.program);
