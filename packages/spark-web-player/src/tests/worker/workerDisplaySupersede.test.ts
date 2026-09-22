@@ -347,6 +347,80 @@ describe("a preview displayed from the worker's game", () => {
     }
   }, 120_000);
 
+  /** Hold the first application the controller builds inside its `init`,
+   *  and record every application it builds. */
+  const holdFirstInit = (h: any) => {
+    let release!: () => void;
+    const held = new Promise<void>((resolve) => (release = resolve));
+    const apps: any[] = [];
+    const createApp = h.controller.createApp.bind(h.controller);
+    h.controller.createApp = (...args: unknown[]) => {
+      const app = createApp(...args);
+      if (apps.push(app) === 1) {
+        const init = app.init.bind(app);
+        app.init = async () => {
+          await held;
+          await init();
+        };
+      }
+      return app;
+    };
+    return { apps, release };
+  };
+
+  it("settles the preview once the player goes while its application initializes", async () => {
+    const h = await createPlayerHarness({
+      workerDisplays: true,
+      files: [{ uri: MAIN_URI, text: SOURCE }],
+      startFrom: { file: MAIN_URI, line: TAKING_OVER },
+    });
+    try {
+      const { apps, release } = holdFirstInit(h);
+      const compiled = h.compile();
+      await settle(40);
+      expect(apps.length).toBe(1);
+      h.controller.dispose();
+      h.controller.dispose();
+      release();
+      await compiled;
+      await settle(60);
+
+      expect(apps.map((app) => app.destroys)).toEqual([1]);
+      expect(h.controller._app).toBeUndefined();
+      expect((h.link as any)._sink).toBeUndefined();
+    } finally {
+      h.dispose();
+    }
+  }, 120_000);
+
+  it("keeps PLAY's application when the preview build before it finishes late", async () => {
+    const h = await createPlayerHarness({
+      workerDisplays: true,
+      files: [{ uri: MAIN_URI, text: SOURCE }],
+      startFrom: { file: MAIN_URI, line: TAKING_OVER },
+    });
+    try {
+      const { apps, release } = holdFirstInit(h);
+      const compiled = h.compile();
+      await settle(40);
+      expect(apps.length).toBe(1);
+      const detached = h.controller.detachWorkerPreview();
+      const played = h.controller.startGameAndApp();
+      await settle(40);
+      release();
+      await Promise.all([compiled, detached]);
+      expect(await played).toBe(true);
+      await settle(60);
+
+      expect(apps.length).toBe(2);
+      expect(apps.map((app) => app.destroys)).toEqual([1, 0]);
+      expect(h.controller._app).toBe(apps[1]);
+      expect(h.controller._game?.state).toBe("running");
+    } finally {
+      h.dispose();
+    }
+  }, 120_000);
+
   it("paints once its picture arrives when nothing takes over", async () => {
     let releaseA!: () => void;
     const aLoaded = new Promise<void>((resolve) => (releaseA = resolve));

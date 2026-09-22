@@ -1894,8 +1894,11 @@ export class GamePlayerController {
     if (this._app) {
       const app = this._app;
       this._app = undefined;
-      await app.initializing;
-      await app.destroy(true);
+      // The application of a build under way is that build's to dispose of.
+      if (!building) {
+        await app.initializing;
+        await app.destroy(true);
+      }
     }
   }
 
@@ -2024,6 +2027,9 @@ export class GamePlayerController {
   }
 
   async buildApp(game: Game) {
+    // A worker preview build a detach left under way still holds the
+    // application slot until it has disposed of its application.
+    await this._workerAppSettling;
     return this.buildAppFor(
       pageGameEndpoint(game),
       Boolean(game.context.system.previewing),
@@ -2031,19 +2037,28 @@ export class GamePlayerController {
   }
 
   /** The application that shows the worker's game, which only ever
-   *  previews here. */
-  async buildWorkerApp(link: WorkerGameLink) {
+   *  previews here. It takes the application slot only while `owned`
+   *  holds. */
+  async buildWorkerApp(link: WorkerGameLink, owned?: () => boolean) {
     return this.buildAppFor(
       {
         connect: async (send) => link.attach(send),
         receive: (message) => link.receive(message),
       },
       true,
+      owned,
     );
   }
 
-  protected async buildAppFor(game: GameEndpoint, previewing: boolean) {
-    if (this._app) {
+  /** Build an application for `game` and answer it, whatever the slot holds
+   *  by then. A build that is no longer `owned` leaves the slot alone, and
+   *  its caller disposes of the application. */
+  protected async buildAppFor(
+    game: GameEndpoint,
+    previewing: boolean,
+    owned: () => boolean = () => true,
+  ) {
+    if (this._app && owned()) {
       profile("start", "app/destroy");
       await this._app.destroy(true);
       this._app = undefined;
@@ -2055,18 +2070,25 @@ export class GamePlayerController {
     // what lets preview reconstructions keep audio without minting a new context.
     await this.ensureAudioContext();
     profile("start", "app/create");
-    this._app = new Application(game, this.refs.gameView, this.refs.gameUI, {
+    const app = this.createApp(game, previewing);
+    if (owned()) {
+      this._app = app;
+    }
+    profile("end", "app/create");
+    profile("start", "app/init");
+    await app.init();
+    profile("end", "app/init");
+    return app;
+  }
+
+  protected createApp(game: GameEndpoint, previewing: boolean): Application {
+    return new Application(game, this.refs.gameView, this.refs.gameUI, {
       previewing,
       audioContext: this._audioContext,
       // One cache for the page's whole life, so STOP then PLAY, and every
       // preview rebuild, find their assets already resident.
       assetCache: getSharedAssetCache(),
     });
-    profile("end", "app/create");
-    profile("start", "app/init");
-    await this._app.init();
-    profile("end", "app/init");
-    return this._app;
   }
 
   // Put the game at the start point PLAY was asked to begin from.
@@ -2388,7 +2410,9 @@ export class GamePlayerController {
       if (!this._workerAppBuilding) {
         const settling = this._workerAppSettling ?? Promise.resolve();
         const building = settling
-          .then(() => this.buildWorkerApp(link))
+          .then(() =>
+            this.buildWorkerApp(link, () => detaches === this._workerDetaches),
+          )
           .then(async (app) => {
             if (detaches === this._workerDetaches) {
               return app;

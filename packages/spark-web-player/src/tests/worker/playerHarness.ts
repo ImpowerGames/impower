@@ -199,10 +199,10 @@ export async function createPlayerHarness(options: PlayerHarnessOptions) {
   // Every message the game sends the page's managers, from either game.
   const toRouter: any[] = [];
   let ui: UIManager | undefined;
-  controller.buildAppFor = async (endpoint: GameEndpoint) => {
-    if (controller._app) {
-      await controller._app.destroy(true);
-    }
+  // The controller's own slot handling runs; only the application it builds
+  // is a stand-in, and the page has no audio.
+  controller.ensureAudioContext = async () => {};
+  controller.createApp = (endpoint: GameEndpoint) => {
     const stubApp = createStubApp(
       overlay,
       (message: any) => endpoint.receive(structuredClone(message)),
@@ -210,17 +210,19 @@ export async function createPlayerHarness(options: PlayerHarnessOptions) {
     );
     ui = new UIManager(stubApp);
     const managers = [ui, new AssetManager(stubApp), new SilentPageManager(stubApp)];
-    await Promise.all(managers.map((m) => m.onInit()));
     const router = new MessageRouter(
       () => managers,
       (message) => endpoint.receive(structuredClone(message)),
     );
+    let resolveInit!: () => void;
     const app = {
-      initializing: Promise.resolve(),
+      initializing: new Promise<void>((resolve) => (resolveInit = resolve)),
       paused: false,
       setAudioContext() {},
       start() {},
+      destroys: 0,
       destroy: async () => {
+        app.destroys += 1;
         router.disconnect();
         for (const m of managers) m.onDispose();
       },
@@ -230,9 +232,12 @@ export async function createPlayerHarness(options: PlayerHarnessOptions) {
           if (recordMessages) toRouter.push(copy);
           router.receive(copy);
         }),
+      async init() {
+        await Promise.all(managers.map((m) => m.onInit()));
+        await app.connectGame();
+        resolveInit();
+      },
     };
-    controller._app = app;
-    await app.connectGame();
     return app;
   };
   // What the page relays to the editor.
