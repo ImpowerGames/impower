@@ -46,14 +46,54 @@ const PATH_STRING_MEMBERS = /^(?:Combine|Join|GetFileName|GetFileNameWithoutExte
 const ABSOLUTE_ROOTS = /^\$(?:\{?env:|PWD\b|HOME\b|PSScriptRoot\b|PSHOME\b)/i;
 
 // Judges the text a path value starts with: true when relative, false when
-// absolute, null when it depends on a variable this command does not assign.
+// absolute, null when it depends on something this command does not settle,
+// such as an unassigned variable or a $(...) subexpression.
 function relativeText(text, values, depth = 0) {
   if (depth > 4) return null;
   if (/^(?:[A-Za-z]:[\\/]|[\\/])/.test(text) || ABSOLUTE_ROOTS.test(text)) return false;
+  if (!text.startsWith("$")) return true;
   const variable = /^\$(?:\{(\w+)\}|(\w+))/.exec(text);
-  if (!variable) return true;
+  if (!variable) return null;
   const name = (variable[1] ?? variable[2]).toLowerCase();
   return values.has(name) ? relativeText(values.get(name), values, depth + 1) : null;
+}
+
+// Reads one PowerShell argument value at the start of `text` and returns its
+// source length: a quoted string, a balanced (...) or $(...) group, or a bare
+// word ending at whitespace, a comma or a closing parenthesis.
+function valueLength(text) {
+  const quoted = /^(['"])(?:(?!\1)[\s\S]|\1\1)*\1/.exec(text);
+  if (quoted) return quoted[0].length;
+  const open = text.startsWith("$(") ? 2 : text.startsWith("(") ? 1 : 0;
+  if (open) {
+    let level = 1, i = open;
+    for (; i < text.length && level; i++) level += text[i] === "(" ? 1 : text[i] === ")" ? -1 : 0;
+    return i;
+  }
+  return /^[^\s,)]*/.exec(text)[0].length;
+}
+
+// Finds the source of Join-Path's -Path value in the text after the command
+// name: the named parameter in either spelling, or else the first positional
+// argument. Other named parameters and their values are skipped.
+function joinPathSource(text) {
+  let positional = null;
+  for (let rest = text; ; ) {
+    rest = rest.replace(/^(?:\s|`\r?\n)+/, "");
+    if (!rest || rest.startsWith(")")) return positional;
+    const named = /^-(\w+)(:?)(?:\s|`\r?\n)*/.exec(rest);
+    if (named) {
+      rest = rest.slice(named[0].length);
+      const length = valueLength(rest);
+      if (/^Path$/i.test(named[1])) return rest.slice(0, length);
+      if (!/^Resolve$/i.test(named[1]) || named[2]) rest = rest.slice(length);
+      continue;
+    }
+    const length = valueLength(rest);
+    if (!length) return positional;
+    positional ??= rest.slice(0, length);
+    rest = rest.slice(length);
+  }
 }
 
 // Judges the argument expression at the start of `arg`.
@@ -61,27 +101,39 @@ function relativeArgument(arg, values, depth = 0) {
   if (depth > 4) return null;
   const inner = /^\(\s*/.exec(arg);
   if (inner) return relativeArgument(arg.slice(inner[0].length), values, depth + 1);
-  const join = /^Join-Path\s+(?:-Path\s+)?/i.exec(arg);
-  if (join) return relativeArgument(arg.slice(join[0].length), values, depth + 1);
+  const join = /^Join-Path\b/i.exec(arg);
+  if (join) {
+    const source = joinPathSource(arg.slice(join[0].length));
+    if (!source) return null;
+    // A bare word in argument mode is a literal path; anything else is an expression.
+    return /^[^'"($]/.test(source) ? relativeText(source, values) : relativeArgument(source, values, depth + 1);
+  }
   const quoted = /^(['"])(.*?)\1/s.exec(arg);
   if (quoted) return quoted[1] === "'" && quoted[2].startsWith("$") ? true : relativeText(quoted[2], values);
-  if (/^\$/.test(arg)) return relativeText(arg, values);
+  if (arg.startsWith("$")) return relativeText(arg, values);
   return null;
 }
 
-// Collects `$name = <quoted value>` assignments and the offsets of unquoted
-// command text, both from the shared tokenizer.
+// Finds the offsets of unquoted command text with the shared tokenizer, then
+// collects `$name = <quoted value>` assignments that start in it, with or
+// without spaces around the equals sign. A token that holds a quote anywhere
+// is marked quoted, so the compact `$name='value'` is recognized by its `$`
+// standing at the token's own start, which no quote can precede.
 function readPowerShell(command) {
-  const values = new Map();
   const code = [];
+  const starts = new Set();
   for (const { tokens } of readCommand(command, "powershell").segments) {
-    for (const [i, t] of tokens.entries()) {
+    for (const t of tokens) {
+      starts.add(t.start);
       if (!t.quoted) code.push([t.start, t.end]);
-      const next = tokens[i + 1], value = tokens[i + 2];
-      if (!t.quoted && /^\$\w+$/.test(t.text) && next?.text === "=" && !next.quoted && value?.quoted) values.set(t.text.slice(1).toLowerCase(), value.text);
     }
   }
-  return { values, isCode: (offset) => code.some(([start, end]) => offset >= start && offset < end) };
+  const isCode = (offset) => code.some(([start, end]) => offset >= start && offset < end);
+  const values = new Map();
+  for (const m of command.matchAll(/\$(\w+)[ \t]*=[ \t]*(['"])(.*?)\2/g)) {
+    if (isCode(m.index) || starts.has(m.index)) values.set(m[1].toLowerCase(), m[3]);
+  }
+  return { values, isCode };
 }
 
 export function dotNetRelativePathReason(command) {
