@@ -98,10 +98,9 @@ describe("dialogue", () => {
     expect(harness.snapshotWire("ui/")).toMatchSnapshot();
   });
 
-  // Routing now reads the compiler's per-beat routing TAG, not a `<prefix>:`
-  // regex over the visible text. A colon in the BODY (e.g. "Well: hello.") used
-  // to risk being mis-extracted by the old TARGETED_TEXT_REGEX; with tag-based
-  // routing the whole body — colon and all — reaches the dialogue target intact.
+  // Routing comes from the line's `display()` table, resolved at compile
+  // time, so a colon in the BODY (e.g. "Well: hello.") is only text: the whole
+  // body, colon and all, reaches the dialogue target intact.
   test("a body containing a colon still routes to dialogue (no regex mis-extract)", async () => {
     const harness = createHarness(story(`  HERO: Well: hello.`));
     await harness.ready;

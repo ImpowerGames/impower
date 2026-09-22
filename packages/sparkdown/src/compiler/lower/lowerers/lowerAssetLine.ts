@@ -54,15 +54,11 @@ function buildAssetContent(node: SyntaxNode, ctx: LowerContext): CompiledBlock {
   if (content.length === 0) {
     return wrapInWeave(content);
   }
-  // With display calls on, the directives ride one `display({ text })` call on
-  // the default target, as the text of a directive-only line.
-  if (ctx.config?.experimentalDisplayCalls) {
-    return wrapInWeave([
-      buildDisplayCall(undefined, undefined, content, node, ctx),
-    ]);
-  }
-  content.push(new Text("\n"));
-  return wrapInWeave(content);
+  // The directives ride one `display({ text })` call on the default target, as
+  // the text of a directive-only line.
+  return wrapInWeave([
+    buildDisplayCall(undefined, undefined, content, node, ctx),
+  ]);
 }
 
 // Reads the raw `[[...]]` / `((...))` directive text. The grammar's

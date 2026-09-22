@@ -304,3 +304,43 @@ describe("InterpreterModule text tags", () => {
     });
   });
 });
+
+describe("InterpreterModule.queue", () => {
+  /** A module whose directives name `action` as the default target. */
+  const moduleWithDefaultTarget = () => {
+    const game = {
+      context: {
+        system: {},
+        character: {},
+        config: { interpreter: { directives: { action: "", title: "^" } } },
+      },
+    } as unknown as Game;
+    const module = new InterpreterModule(game);
+    module.setup();
+    return module;
+  };
+
+  const shownText = (beat: ReturnType<InterpreterModule["flush"]>) =>
+    Object.fromEntries(
+      Object.entries(beat?.text ?? {}).map(([target, list]) => [
+        target,
+        list.map((t) => t.text).join(""),
+      ]),
+    );
+
+  // No lowering produces such a step, but the rule holds for any host: text
+  // with no table renders on the default target with no speaker.
+  it("renders a step with flat text and no table on the default target", () => {
+    const module = moduleWithDefaultTarget();
+    module.queue([], [], "Plain text.\n");
+    expect(shownText(module.flush())).toEqual({ action: "Plain text." });
+  });
+
+  it("renders flat text beginning with load as text", () => {
+    const module = moduleWithDefaultTarget();
+    module.queue([], [], "load the cart\n");
+    const beat = module.flush();
+    expect(beat?.load).toBeUndefined();
+    expect(shownText(beat)).toEqual({ action: "load the cart" });
+  });
+});

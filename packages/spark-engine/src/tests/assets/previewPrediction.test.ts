@@ -287,7 +287,6 @@ const syncTimeout = ((fn: Function, _ms?: number, ...a: any[]) => {
  *  production. Null when no route reaches the line. */
 const checkpointFor = (story: string, line: number): string | null => {
   const { program } = compileUI(story, {
-    experimentalDisplayCalls: true,
     assets: ASSETS,
   });
   const sim: any = new Game({
@@ -940,7 +939,6 @@ end
     expect(await h.preview(3)).toBe(pathAt(h.game, 3));
     expect(byMethod(h.messages, "game/executed")).toHaveLength(0);
     const { program } = compileUI(STORY.replace("Line two.", "Line two, edited."), {
-      experimentalDisplayCalls: true,
       assets: ASSETS,
     });
     h.game.updateProgram(program as any);
@@ -1045,7 +1043,6 @@ end
     const first = h.preview(3);
     await flushMicrotasks(20);
     const { program } = compileUI(STORY.replace("Line two.", "Line two, edited."), {
-      experimentalDisplayCalls: true,
       assets: ASSETS,
     });
     h.game.updateProgram(program as any);

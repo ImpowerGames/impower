@@ -10,7 +10,6 @@ import { Glue as ParsedGlue } from "../../../inkjs/compiler/Parser/ParsedHierarc
 import { ParsedObject } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Object";
 import { Tag } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Tag";
 import { Text } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Text";
-import { Weave } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Weave";
 import { Glue as RuntimeGlue } from "../../../inkjs/engine/Glue";
 import type { CompiledBlock } from "../../classes/annotators/CompilationAnnotator";
 import type { SparkdownNodeName } from "../../types/SparkdownNodeName";
@@ -27,25 +26,22 @@ import {
   withDivertLoad,
 } from "../utils/buildDivert";
 import { ErrorType } from "../../../inkjs/compiler/Parser/ErrorType";
-import { stampDebugMetadata } from "../utils/debugMetadata";
 import {
   buildDisplayCall,
   buildLoadCall,
   separateTags,
 } from "../utils/displayCall";
-import { formatDisplayRoutingTag } from "../../utils/displayRoutingTag";
 import { lowerTagContent } from "../utils/lowerTagContent";
 import { wrapInWeave } from "../utils/wrapInWeave";
 import { lowerSparkdownConditionalAlternatorBlock } from "./lowerSparkdownConditionalAlternatorBlock";
 import { lowerSparkdownSequentialAlternatorBlock } from "./lowerSparkdownSequentialAlternatorBlock";
 
-// Each display line emits a reserved ROUTING TAG pair carrying the line type
-// (and, for dialogue/write, an identifier such as the character cue or the
-// write layer), then the body's content nodes (Text runs interleaved with
-// lowered `{expr}` interpolation expressions), followed by a trailing newline
-// Text. The engine's interpreter reads the routing tag to pick a target
-// (`InterpreterModule.queue`) — the visible body text carries NO routing
-// prefix. See `displayRoutingTag.ts` for the shared tag contract.
+// Each display line lowers to `display(<table>)` calls, one per beat. The table
+// carries the line's routing (a `target`, and for dialogue the `character` cue)
+// resolved at compile time, and its `text` as a captured string of the body's
+// content (Text runs interleaved with lowered `{expr}` interpolation
+// expressions). The engine's interpreter reads the tables a step collected
+// (`InterpreterModule.queue`) to build that step's beat.
 
 function buildDisplayContent(
   parent: SyntaxNode,
@@ -66,50 +62,26 @@ function buildDisplayContent(
   //      its `..`, so this line's own leading whitespace (e.g. the space
   //      after a `CHARACTER:` / `$:` routing colon) is trimmed to avoid a
   //      doubled space.
-  // Both are lowered the same way: a single leading Glue, then the body with
-  // NO line-type tag pair / routing prefix, so the runtime joins this line's
-  // text onto the previous line's beat (inheriting its display target) and
-  // the pending Glue is cleanly removed. Glued content is never split at
-  // breaks (it's a continuation, not a standalone beat).
+  // Both are lowered the same way: a single leading Glue, then a call whose
+  // table names no target, so the runtime joins this line's text onto the
+  // previous line's beat (inheriting its display target) and the pending Glue
+  // is cleanly removed. Glued content is never split at breaks (it's a
+  // continuation, not a standalone beat).
   const ownLeadingGlue = options.leadingGlue ?? false;
   const continuationGlue =
     !ownLeadingGlue && isNodePrecededByTrailingGlue(parent, ctx);
   if (ownLeadingGlue || continuationGlue) {
-    const content: ParsedObject[] = [];
-    content.push(new ParsedGlue(new RuntimeGlue()));
-    // With display calls on, the continuation is a `display({ text })` call
-    // carrying no routing: the runtime joins it onto the step the glue keeps
-    // open, and the beat takes its routing from the line it continues.
-    const continuationCall = tryBuildSimpleDisplayCall(
-      parent,
-      bodyStart,
-      bodyEnd,
-      ctx,
-      mode,
-      null,
-      null,
-      { preserveLeadingWhitespace: ownLeadingGlue },
-    );
-    if (continuationCall) {
-      content.push(...continuationCall);
-      return content;
-    }
-    content.push(
-      ...processDisplayBody(parent, bodyStart, bodyEnd, ctx, mode, {
+    // The continuation is a `display({ text })` call carrying no routing: the
+    // runtime joins it onto the step the glue keeps open, and the beat takes
+    // its routing from the line it continues.
+    return [
+      new ParsedGlue(new RuntimeGlue()),
+      ...buildDisplayCalls(parent, bodyStart, bodyEnd, ctx, mode, null, null, {
         preserveLeadingWhitespace: ownLeadingGlue,
       }),
-    );
-    content.push(new Text("\n"));
-    return content;
+    ];
   }
-
-  // EXPERIMENTAL display-as-Luau-call path: when enabled, a display statement
-  // lowers to a native `display({ target, character?, text })` call (one per
-  // `>`-split beat) instead of the legacy routing-tag + visible-text form.
-  // The table carries the routing and the body string; the interpreter parses
-  // that body exactly as it parses flat text. Content a captured string cannot
-  // hold returns null and falls through to the legacy path below.
-  const displayCall = tryBuildSimpleDisplayCall(
+  return buildDisplayCalls(
     parent,
     bodyStart,
     bodyEnd,
@@ -118,83 +90,23 @@ function buildDisplayContent(
     lineType,
     identifier,
   );
-  if (displayCall) {
-    return displayCall;
-  }
-
-  // A mid-line `>` BREAK marker splits the display content into separate
-  // BEATS. Each beat is a standalone Continue() at the runtime level (a
-  // plain newline between the previous beat's body and the next beat's
-  // routing tag forms an output-stream boundary the engine stops
-  // on), so the screenplay preview / planRoute can route to each beat by
-  // its own checkpoint. Without this split, a chained dialogue compiles to
-  // ONE Continue: the interpreter's `BREAK_BOX_REGEX` still renders two
-  // textboxes, but they share a single story-path checkpoint, so every box
-  // after the first is unreachable by the preview. Each beat re-emits the
-  // routing tag so the continuation routes to the same target (e.g. the same
-  // character's dialogue). A TRAILING break (`>` with no content after — no
-  // following newline) is NOT a split point; it's handled inside
-  // `processDisplayBody` (`detectTrailingBreak`) as an extra newline, matching
-  // the legacy compiler.
-  const ranges = splitBodyRangeAtBreaks(parent, bodyStart, bodyEnd, ctx);
-  const content: ParsedObject[] = [];
-  for (let i = 0; i < ranges.length; i++) {
-    const range = ranges[i]!;
-    const beat: ParsedObject[] = [];
-    // Emit the line's ROUTING TAG. The engine's interpreter
-    // (InterpreterModule.queue) reads this tag from `story.currentTags` to
-    // route the beat to a target (dialogue / title / heading / transitional /
-    // write layer / default action) and, for dialogue, to resolve the
-    // character cue. The visible body text carries NO routing prefix — the tag
-    // is the single source of routing truth. See `displayRoutingTag.ts`.
-    beat.push(new Tag(true));
-    beat.push(new Text(formatDisplayRoutingTag(lineType, identifier)));
-    beat.push(new Tag(false));
-    beat.push(...processDisplayBody(parent, range.from, range.to, ctx, mode));
-    beat.push(new Text("\n"));
-    // For a chained (break-split) dialogue, stamp EACH beat's objects with a
-    // source range so the screenplay preview's `findClosestPath` resolves each
-    // beat to its own checkpoint (without per-beat metadata the split beats
-    // carry NO pathLocations of their own, so clicking the continuation
-    // "...I think." lands on the first beat). The FIRST beat owns [cue line ..
-    // its content], and every later beat owns its own content SPAN — from its
-    // first body line (which may be a leading `[[...]]`/`((...))` directive)
-    // THROUGH its dialogue text. Trailing whitespace/newline is clamped off so
-    // the range never spills onto the blank line after the beat; for a beat
-    // whose body is a single bare text line (e.g. "...I think.") the clamped
-    // span collapses to that one line, matching the legacy editor exactly. A
-    // zero-width point at `range.from` previously FAILED to cover the text when
-    // a directive preceded it on an earlier line, so clicking the dialogue line
-    // resolved to the NEXT beat. Only when split (ranges.length > 1) so
-    // single-beat emission — and its dispatcher-stamped metadata — stays
-    // byte-identical.
-    if (ranges.length > 1) {
-      if (i === 0) {
-        stampDebugMetadata(beat, parent.from, range.to, ctx);
-      } else {
-        const to = clampTrailingWhitespace(range.from, range.to, ctx);
-        stampDebugMetadata(beat, range.from, to, ctx);
-      }
-    }
-    content.push(...beat);
-  }
-  return content;
 }
 
-// EXPERIMENTAL: build a `display({ target, character?, text })` FunctionCall for
-// a display statement, or return null to fall back to the legacy routing-tag +
-// visible-text form. The table carries the routing (target + dialogue cue)
-// resolved at compile time plus the body as a STRING-CAPTURE expression — the
-// SAME body ParsedObjects the legacy path emits, wrapped in a StringExpression
-// so ink evaluates them (interpolation → live values, markup preserved) into one
-// string at call time. The engine then runs the identical `parse()` pipeline.
+// Build the `display({ target?, character?, text })` calls for a display
+// statement. The table carries the routing (target + dialogue cue) resolved at
+// compile time plus the body as a STRING-CAPTURE expression: the body's
+// ParsedObjects wrapped in a StringExpression, so ink evaluates them
+// (interpolation → live values, markup preserved) into one string at call
+// time, and the interpreter parses that string.
 //
-// A mid-line `>` split emits one display() call per beat range (separate beats
-// via the engine's display-instruction-count boundary). Author `# tag`s ride
-// the call's `tags`, and a mid-line divert follows the call. A `load`
-// action line makes a `display({ load })` call instead. It returns null only
-// when a mid-body `..` sits next to something other than text, or text follows
-// a mid-line divert.
+// A mid-line `>` BREAK splits the body into beats, one display() call each.
+// Each call is its own Continue() (the engine ends a step at the call's
+// closing newline), so the screenplay preview can route to each beat by its
+// own checkpoint, and each call is stamped with its own source range. A
+// TRAILING break (`>` with nothing after it) is not a split point; see the
+// newline handling below. Author `# tag`s ride the call's `tags`, and a
+// mid-line divert follows the call. A `load` action line makes a
+// `display({ load })` call instead.
 //
 // Glue: a `..` in the middle of a body is joined inside the captured string at
 // compile time (`joinMidBodyGlue`). A TRAILING `..` is lifted out and emitted
@@ -202,7 +114,7 @@ function buildDisplayContent(
 // the next line's table. A `null` line type marks a glued continuation: its
 // table carries `text` only, and its body is one range, because a continuation
 // is never split at breaks.
-function tryBuildSimpleDisplayCall(
+function buildDisplayCalls(
   parent: SyntaxNode,
   bodyStart: number,
   bodyEnd: number,
@@ -211,13 +123,11 @@ function tryBuildSimpleDisplayCall(
   lineType: string | null,
   identifier: string | null,
   options: { preserveLeadingWhitespace?: boolean } = {},
-): ParsedObject[] | null {
-  if (!ctx.config?.experimentalDisplayCalls) return null;
-
-  // Resolve the routing exactly as the engine's tag path does, but at compile
-  // time: dialogue → target "dialogue" + the cue; write → the layer is the
-  // target, and a write with no layer names no target, so the interpreter
-  // uses its default; everything else → the line type IS the target.
+): ParsedObject[] {
+  // Resolve the routing at compile time: dialogue → target "dialogue" + the
+  // cue; write → the layer is the target, and a write with no layer names no
+  // target, so the interpreter uses its default; everything else → the line
+  // type IS the target.
   let target: string | undefined;
   let character: string | undefined;
   if (lineType === null) {
@@ -234,9 +144,7 @@ function tryBuildSimpleDisplayCall(
     character = undefined;
   }
 
-  // A mid-line `>` BREAK splits the body into beats; each beat re-emits the same
-  // routing (matching the legacy per-beat routing tag) as its own display()
-  // call. The engine renders each as a separate Continue beat.
+  // A continuation is never split at breaks.
   const ranges =
     lineType === null
       ? [{ from: bodyStart, to: bodyEnd }]
@@ -245,20 +153,18 @@ function tryBuildSimpleDisplayCall(
   for (let i = 0; i < ranges.length; i++) {
     const range = ranges[i]!;
     const divertTail = { objects: [] as ParsedObject[], bodyIndex: -1 };
-    // Reuse the legacy body walker so trimming/escapes match exactly.
     const walked = processDisplayBody(parent, range.from, range.to, ctx, mode, {
       ...(i === 0 ? options : {}),
       divertTail,
     });
-    // Text after a mid-line divert would have to print after the flow left.
-    if (divertTail.bodyIndex >= 0 && walked.length > divertTail.bodyIndex) {
-      const after = walked.slice(divertTail.bodyIndex);
-      if (after.some((obj) => !(obj instanceof Tag) && !isInTag(obj, walked))) {
-        return null;
-      }
-    }
     // Author `# tag`s are metadata, not text: they ride the call's `tags`.
     const { tags, rest: body } = separateTags(walked);
+    // Text after a mid-line divert is dropped: the line's call, which the
+    // divert follows, carries the text before it.
+    if (divertTail.bodyIndex >= 0) {
+      const before = separateTags(walked.slice(0, divertTail.bodyIndex)).rest;
+      body.splice(before.length);
+    }
     const trailingGlue = body.at(-1) instanceof ParsedGlue ? body.pop() : null;
     // A trailing `>` break ends the body with its own newline Text. Captured
     // in the table it would sit where no glue can reach it, so a following
@@ -267,20 +173,7 @@ function tryBuildSimpleDisplayCall(
     // trims it as it trims any other.
     const last = body.at(-1);
     if (last instanceof Text && last.text === "\n") body.pop();
-    if (!joinMidBodyGlue(body)) return null;
-    for (const obj of body) {
-      // Content that string-captures faithfully: plain Text, interpolation
-      // Expressions, inline Conditionals (`{if …}`), and inline alternators (a
-      // Weave wrapping a Sequence).
-      if (
-        !(obj instanceof Text) &&
-        !(obj instanceof Expression) &&
-        !(obj instanceof Conditional) &&
-        !(obj instanceof Weave)
-      ) {
-        return null;
-      }
-    }
+    joinMidBodyGlue(body);
     const loadArgs = lineType === "action" ? stripLoadKeyword(body) : null;
     if (loadArgs) {
       calls.push(buildLoadCall(loadArgs, range, ctx, tags));
@@ -306,20 +199,7 @@ function tryBuildSimpleDisplayCall(
       calls.push(new Text("\n"));
     }
   }
-  return calls.length > 0 ? calls : null;
-}
-
-// Whether `obj` sits between a Tag(true) and Tag(false) of `list`.
-function isInTag(obj: ParsedObject, list: ParsedObject[]): boolean {
-  let inTag = false;
-  for (const o of list) {
-    if (o instanceof Tag) {
-      inTag = o.isStart;
-      continue;
-    }
-    if (o === obj) return inTag;
-  }
-  return false;
+  return calls;
 }
 
 // A `load <names>` action line is a world-load directive. Returns the body
@@ -337,36 +217,22 @@ function stripLoadKeyword(body: ParsedObject[]): ParsedObject[] | null {
 // keeps newlines as literal characters, so a Glue object inside the captured
 // `text` string joins nothing; the join happens here. It mirrors what the
 // output stream does for flat text: the newlines before the marker and the
-// whitespace through the last newline after it are removed. Returns false when
-// a marker's neighbour is not plain Text, which the caller lowers as flat text.
-function joinMidBodyGlue(body: ParsedObject[]): boolean {
+// whitespace through the last newline after it are removed. Only a Text
+// neighbour holds whitespace; an interpolation or other neighbour is left as
+// it is.
+function joinMidBodyGlue(body: ParsedObject[]): void {
   for (let i = body.length - 1; i >= 0; i--) {
     if (!(body[i] instanceof ParsedGlue)) continue;
     const prev = body[i - 1];
     const next = body[i + 1];
-    if (prev && !(prev instanceof Text)) return false;
-    if (!(next instanceof Text)) return false;
-    if (prev) {
+    if (prev instanceof Text) {
       body[i - 1] = new Text(prev.text.replace(/\n[ \t\n]*$/, ""));
     }
-    body[i + 1] = new Text(next.text.replace(/^[ \t\n]*\n/, ""));
+    if (next instanceof Text) {
+      body[i + 1] = new Text(next.text.replace(/^[ \t\n]*\n/, ""));
+    }
     body.splice(i, 1);
   }
-  return true;
-}
-
-// Trim trailing whitespace/newlines off a source range so a stamped beat
-// range ends at its last visible content char instead of spilling onto the
-// blank line after the beat (which would make a click on that blank line
-// resolve to this beat). Returns a position at/after `from`.
-function clampTrailingWhitespace(
-  from: number,
-  to: number,
-  ctx: LowerContext,
-): number {
-  const text = ctx.read(from, to);
-  const trimmed = text.replace(/\s+$/, "");
-  return from + trimmed.length;
 }
 
 // Split a display body's source range into beat sub-ranges at each mid-line
@@ -461,8 +327,8 @@ function processDisplayBody(
     // Receives a mid-line divert's objects instead of the body, so the
     // caller can place them after the line's display() call. `bodyIndex` is
     // the body length when the divert was reached.
-    divertTail?: { objects: ParsedObject[]; bodyIndex: number };
-  } = {},
+    divertTail: { objects: ParsedObject[]; bodyIndex: number };
+  },
 ): ParsedObject[] {
   let segments = collectBodySegments(parent, bodyStart, bodyEnd, ctx);
 
@@ -594,13 +460,8 @@ function processDisplayBody(
         }
       }
     } else {
-      // Inline mid-line divert (`text -> target`). Emit the Divert directly
-      // into the display weave — flow transfers to the target scene after
-      // the preceding text has been output. The caller (buildDisplayContent)
-      // still appends a trailing Text("\n"), but the runtime suppresses it
-      // because the Divert has already moved execution elsewhere; if the
-      // diverted-to scene wants to start its content on the same line, it
-      // can continue without a leading newline.
+      // Inline mid-line divert (`text -> target`). Its objects go to
+      // `divertTail`, which the caller places after the line's call.
       const divertObjects = buildDivert(seg.node, ctx);
       // A mid-line `load` arrow follows the standalone shape rules; the
       // diagnostic rides the context buffer because this block's own
@@ -621,12 +482,10 @@ function processDisplayBody(
         });
       }
       const tail = options.divertTail;
-      if (tail) tail.bodyIndex = out.length;
-      for (const obj of withDivertLoad(seg.node, divertObjects, ctx, {
-        ownLine: false,
-      })) {
-        (tail ? tail.objects : out).push(obj);
-      }
+      tail.bodyIndex = out.length;
+      tail.objects.push(
+        ...withDivertLoad(seg.node, divertObjects, ctx, { ownLine: false }),
+      );
     }
   }
   return out;
@@ -969,17 +828,11 @@ const GLUE_SKIP_SIBLINGS: ReadonlySet<string> = nodeNameSet([
 // TRAILING `..` glue marker (`text ..<eol>`). A trailing `..` means "join the
 // next line onto this one", so the FOLLOWING display construct (of ANY type —
 // action, dialogue, heading, title, transitional, write) must be lowered as a
-// leading-glue continuation (no line-type tag pair / routing prefix) — the
-// symmetric twin of the leading-`..` form. This is required, not cosmetic: the
-// runtime removes a pending Glue only when real text follows it with no
-// intervening control command (`StoryState.RemoveExistingGlue` stops at the
-// first `ControlCommand`). A line-type tag pair (`BeginTag`/`EndTag`) on the
-// next line sits exactly there, so without skipping it the previous line's
-// Glue lingers and later suppresses an unrelated newline (the same hazard the
-// `leadingGlue` branch documents); the routing prefix (`ALICE:`, `$:`, …)
-// would also re-cue a fresh beat instead of continuing the previous one.
-// Mirroring the leading form keeps the join clean, the continuation routed to
-// the previous line's target, and the trailing newline intact.
+// leading-glue continuation (a table naming no target) — the symmetric twin of
+// the leading-`..` form. A table naming its own target would route the joined
+// beat by this line when it is the first to name one, re-cueing a fresh beat
+// instead of continuing the previous one. Mirroring the leading form keeps the
+// continuation routed to the previous line's target.
 function isNodePrecededByTrailingGlue(
   node: SyntaxNode,
   ctx: LowerContext,
@@ -1088,86 +941,51 @@ export function lowerImplicitAction(
 // nodes and they'd be dropped (there is no parser fallback — the
 // grammar+lowerers are the only path — and nothing else knows Luau
 // operators `^`, `//`, `..`). This handler lowers the inner expression
-// directly, marks it `outputWhenComplete` so the runtime emits its
-// value into the output stream, and appends a trailing newline so
-// consecutive bare-`{expr}` lines stay on separate lines.
+// directly, marked `outputWhenComplete` so its value is captured, into a
+// `display({ text })` call on the default target.
+//
+// Interpolations on one source line (`{x}{y}`, or `{x} {y}`) form one
+// display line, as ink's `{x}{y}` does: the first of the chain lowers the
+// whole chain to one call, and the rest contribute nothing of their own.
 export function lowerLuauInterpolatedStringExpression(
   nodeRef: SparkdownSyntaxNodeRef,
   ctx: LowerContext,
 ): CompiledBlock {
-  // Adjacent same-line interpolation suppression: when the next sibling
-  // in the parse tree is another `LuauInterpolatedStringExpression` with
-  // no `Newline` separator between us, this one's output is concatenated
-  // with the next one's on the same display line. Skip the trailing
-  // `"\n"` so `{x}{y}` emits "54" rather than "5\n4\n". Only the LAST
-  // interpolation in the chain emits the line break (its next sibling
-  // is a `Newline` or end-of-input).
-  //
-  // Matches ink's `{x}{y}` semantics — both interpolations sit on one
-  // line of text and concatenate. Without this guard, sparkdown's
-  // per-`{}` lowering produces a stray newline between each adjacent
-  // pair, which differs from author expectation when porting fixtures.
-  const omitTrailingNewline = hasAdjacentInterpolationSibling(nodeRef.node);
-
-  // With display calls on, the first interpolation of a same-line chain lowers
-  // the whole chain to one `display({ text })` call on the default target; the
-  // rest of the chain contributes nothing of its own.
-  if (ctx.config?.experimentalDisplayCalls) {
-    if (adjacentInterpolationSibling(nodeRef.node, "prev")) return {};
-    const body: ParsedObject[] = [];
-    let last: SyntaxNode = nodeRef.node;
-    for (
-      let node: SyntaxNode | null = nodeRef.node;
-      node;
-      node = adjacentInterpolationSibling(node, "next")
-    ) {
-      last = node;
-      const alt = tryLowerInlineAlternator(node, ctx);
-      if (alt) {
-        body.push(...alt);
-        continue;
-      }
-      const expr = lowerExpressionFromContainer(node, ctx);
-      if (expr) {
-        expr.outputWhenComplete = true;
-        body.push(expr);
-      }
+  if (adjacentInterpolationSibling(nodeRef.node, "prev")) return {};
+  const body: ParsedObject[] = [];
+  let last: SyntaxNode = nodeRef.node;
+  for (
+    let node: SyntaxNode | null = nodeRef.node;
+    node;
+    node = adjacentInterpolationSibling(node, "next")
+  ) {
+    last = node;
+    const alt = tryLowerInlineAlternator(node, ctx);
+    if (alt) {
+      body.push(...alt);
+      continue;
     }
-    if (body.length === 0) return {};
-    return wrapInWeave([
-      buildDisplayCall(
-        undefined,
-        undefined,
-        body,
-        { from: nodeRef.node.from, to: last.to },
-        ctx,
-      ),
-    ]);
+    const expr = lowerExpressionFromContainer(node, ctx);
+    if (expr) {
+      expr.outputWhenComplete = true;
+      body.push(expr);
+    }
   }
-
-  const inlineAlt = tryLowerInlineAlternator(nodeRef.node, ctx);
-  if (inlineAlt) {
-    return wrapInWeave(
-      omitTrailingNewline ? inlineAlt : [...inlineAlt, new Text("\n")],
-    );
-  }
-  const expr = lowerExpressionFromContainer(nodeRef.node, ctx);
-  if (!expr) return {};
-  expr.outputWhenComplete = true;
-  return wrapInWeave(omitTrailingNewline ? [expr] : [expr, new Text("\n")]);
-}
-
-// Returns true when `node` is immediately followed (no Newline between)
-// by another `LuauInterpolatedStringExpression` sibling — i.e. they sit
-// on the same source line as a `{x}{y}` chain. Intermediate `Whitespace`
-// / `ExtraWhitespace` / `Separator` nodes are skipped so `{x} {y}` (with
-// a space) also collapses to one line — same author intent.
-function hasAdjacentInterpolationSibling(node: SyntaxNode): boolean {
-  return adjacentInterpolationSibling(node, "next") !== null;
+  if (body.length === 0) return {};
+  return wrapInWeave([
+    buildDisplayCall(
+      undefined,
+      undefined,
+      body,
+      { from: nodeRef.node.from, to: last.to },
+      ctx,
+    ),
+  ]);
 }
 
 // The interpolation sibling on the same source line next to `node` in the
-// given direction, skipping whitespace, or null.
+// given direction, skipping whitespace (`{x} {y}` is one line as `{x}{y}`
+// is), or null.
 function adjacentInterpolationSibling(
   node: SyntaxNode,
   direction: "prev" | "next",

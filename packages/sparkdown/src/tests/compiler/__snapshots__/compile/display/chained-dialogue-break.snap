@@ -4,44 +4,80 @@
       "type": "Weave",
       "content": [
         {
-          "type": "Tag",
-          "start": true
+          "type": "FunctionCall",
+          "name": "display",
+          "args": [
+            {
+              "type": "ObjectExpression",
+              "entries": [
+                {
+                  "key": "target",
+                  "value": {
+                    "type": "StringExpression",
+                    "content": [
+                      "dialogue"
+                    ]
+                  }
+                },
+                {
+                  "key": "character",
+                  "value": {
+                    "type": "StringExpression",
+                    "content": [
+                      "RAFFLES"
+                    ]
+                  }
+                },
+                {
+                  "key": "text",
+                  "value": {
+                    "type": "StringExpression",
+                    "content": [
+                      "Different rope!"
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
         },
         {
-          "type": "Text",
-          "text": "\u0000dialogue:RAFFLES"
-        },
-        {
-          "type": "Tag",
-          "start": false
-        },
-        {
-          "type": "Text",
-          "text": "Different rope!"
-        },
-        {
-          "type": "Text",
-          "text": "\n"
-        },
-        {
-          "type": "Tag",
-          "start": true
-        },
-        {
-          "type": "Text",
-          "text": "\u0000dialogue:RAFFLES"
-        },
-        {
-          "type": "Tag",
-          "start": false
-        },
-        {
-          "type": "Text",
-          "text": "...I think."
-        },
-        {
-          "type": "Text",
-          "text": "\n"
+          "type": "FunctionCall",
+          "name": "display",
+          "args": [
+            {
+              "type": "ObjectExpression",
+              "entries": [
+                {
+                  "key": "target",
+                  "value": {
+                    "type": "StringExpression",
+                    "content": [
+                      "dialogue"
+                    ]
+                  }
+                },
+                {
+                  "key": "character",
+                  "value": {
+                    "type": "StringExpression",
+                    "content": [
+                      "RAFFLES"
+                    ]
+                  }
+                },
+                {
+                  "key": "text",
+                  "value": {
+                    "type": "StringExpression",
+                    "content": [
+                      "...I think."
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
         }
       ]
     }

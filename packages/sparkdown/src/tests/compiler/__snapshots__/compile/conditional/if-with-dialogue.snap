@@ -28,24 +28,42 @@
                       "type": "Wrap"
                     },
                     {
-                      "type": "Tag",
-                      "start": true
-                    },
-                    {
-                      "type": "Text",
-                      "text": "\u0000dialogue:N"
-                    },
-                    {
-                      "type": "Tag",
-                      "start": false
-                    },
-                    {
-                      "type": "Text",
-                      "text": "I trust you."
-                    },
-                    {
-                      "type": "Text",
-                      "text": "\n"
+                      "type": "FunctionCall",
+                      "name": "display",
+                      "args": [
+                        {
+                          "type": "ObjectExpression",
+                          "entries": [
+                            {
+                              "key": "target",
+                              "value": {
+                                "type": "StringExpression",
+                                "content": [
+                                  "dialogue"
+                                ]
+                              }
+                            },
+                            {
+                              "key": "character",
+                              "value": {
+                                "type": "StringExpression",
+                                "content": [
+                                  "N"
+                                ]
+                              }
+                            },
+                            {
+                              "key": "text",
+                              "value": {
+                                "type": "StringExpression",
+                                "content": [
+                                  "I trust you."
+                                ]
+                              }
+                            }
+                          ]
+                        }
+                      ]
                     },
                     {
                       "type": "Wrap"
@@ -66,24 +84,42 @@
                       "type": "Wrap"
                     },
                     {
-                      "type": "Tag",
-                      "start": true
-                    },
-                    {
-                      "type": "Text",
-                      "text": "\u0000dialogue:N"
-                    },
-                    {
-                      "type": "Tag",
-                      "start": false
-                    },
-                    {
-                      "type": "Text",
-                      "text": "Stay a while."
-                    },
-                    {
-                      "type": "Text",
-                      "text": "\n"
+                      "type": "FunctionCall",
+                      "name": "display",
+                      "args": [
+                        {
+                          "type": "ObjectExpression",
+                          "entries": [
+                            {
+                              "key": "target",
+                              "value": {
+                                "type": "StringExpression",
+                                "content": [
+                                  "dialogue"
+                                ]
+                              }
+                            },
+                            {
+                              "key": "character",
+                              "value": {
+                                "type": "StringExpression",
+                                "content": [
+                                  "N"
+                                ]
+                              }
+                            },
+                            {
+                              "key": "text",
+                              "value": {
+                                "type": "StringExpression",
+                                "content": [
+                                  "Stay a while."
+                                ]
+                              }
+                            }
+                          ]
+                        }
+                      ]
                     },
                     {
                       "type": "Wrap"

@@ -1,15 +1,12 @@
-// Parity gate for the display-as-Luau-call transport: every display statement
-// the lowerer routes through `display(<table>)` (experimentalDisplayCalls ON)
-// must produce a BYTE-IDENTICAL renderer message stream to the legacy
-// routing-tag + visible-text path (flag OFF). This is the gate that lets us
-// eventually flip the default and delete the legacy parse() path.
-//
-// Each fixture is driven through one beat both ways; the id-normalized ui/*
-// stream must match. Where the lowerer falls back (content the table can't carry
-// yet), the streams are trivially identical because both ran the legacy path —
-// which is still correct parity, just not yet via display().
+// What each display statement renders through `display(<table>)`: per beat,
+// each target's text (as runs of one style, so emphasis shows), the image
+// directives and the load names. A dialogue beat's speaker is its
+// `character_name` text. The expected beats were captured at commit
+// ffd59219a from the flat-text lowering that `display()` replaced, so each
+// script renders what it rendered there.
 
 import { describe, expect, test } from "vitest";
+import type { Instructions } from "../../game/core/types/Instructions";
 import { createHarness, flushMicrotasks } from "./harness/uiTestHarness";
 
 const SCREEN = `define HERO as character with
@@ -35,279 +32,481 @@ layout main with
 end
 `;
 
-function story(body: string) {
-  return `${SCREEN}\n-> start\n\nscene start\n${body}\nend\n`;
+const IMAGE_SCREEN = `define HERO as character with
+  name = "HERO"
+end
+
+define BG as image with
+  src = "https://example.com/bg.png"
+end
+
+layout main with
+  stage:
+    backdrop:
+      image
+  action:
+    text
+  dialogue:
+    character_info:
+      character_name:
+        text
+    text
+end
+`;
+
+function story(body: string, screen = SCREEN) {
+  return `${screen}\n-> start\n\nscene start\n${body}\nend\n`;
 }
 
-async function beatStream(body: string, experimentalDisplayCalls: boolean) {
-  const harness = createHarness(story(body), 0, { experimentalDisplayCalls });
+type Run = string | { text: string; style: Record<string, unknown> };
+interface Beat {
+  load?: unknown[];
+  text?: Record<string, Run[]>;
+  image?: Record<string, { control: string; assets?: string[] }[]>;
+}
+
+// One beat as authored behaviour: each target's text as runs of equal style,
+// the image directives and the load names.
+function summarize(beat: Instructions): Beat {
+  const out: Beat = {};
+  if (beat.load) out.load = beat.load;
+  if (beat.text) {
+    out.text = {};
+    for (const [target, events] of Object.entries(beat.text)) {
+      const runs: { text: string; style: string }[] = [];
+      for (const e of events) {
+        const style = e.style ? JSON.stringify(e.style) : "";
+        const last = runs.at(-1);
+        if (last && last.style === style) last.text += e.text;
+        else runs.push({ text: e.text, style });
+      }
+      out.text[target] = runs.map((r) =>
+        r.style ? { text: r.text, style: JSON.parse(r.style) } : r.text,
+      );
+    }
+  }
+  if (beat.image) {
+    out.image = {};
+    for (const [target, events] of Object.entries(beat.image)) {
+      out.image[target] = events.map((e) => ({
+        control: e.control,
+        assets: e.assets,
+      }));
+    }
+  }
+  return out;
+}
+
+// Drive every beat of the scene, displaying each; a story stopped on choices
+// takes the first one.
+async function renderedBeats(source: string): Promise<Beat[]> {
+  const harness = createHarness(source);
   await harness.ready;
   harness.jumpTo("start");
   harness.reset();
-  // Drive every beat of the scene (a chained `>` line produces several), so the
-  // captured stream covers multi-beat content too. A story stopped on choices
-  // takes the first one.
+  const out: Beat[] = [];
   for (let guard = 0; guard < 50; guard++) {
     const beat = harness.nextBeat();
     if (beat) {
+      out.push(summarize(beat));
       await harness.display(beat, true);
       await flushMicrotasks();
       continue;
     }
-    const story: any = harness.game.story;
-    if (story.canContinue || story.currentChoices.length === 0) break;
-    story.ChooseChoiceIndex(0);
+    const s: any = harness.game.story;
+    if (s.canContinue || s.currentChoices.length === 0) break;
+    s.ChooseChoiceIndex(0);
   }
-  return harness.snapshotFiltered("ui/");
+  return out;
 }
 
-async function assertParity(body: string) {
-  const legacy = await beatStream(body, false);
-  const viaDisplay = await beatStream(body, true);
-  // A fixture that stops producing beats would make both streams `[]` and the
-  // equality below silently vacuous — parity between two empty runs proves
-  // nothing. Every fixture here renders SOMETHING.
-  expect(legacy.length).toBeGreaterThan(0);
-  expect(viaDisplay).toEqual(legacy);
-}
+const FIXTURES: [label: string, body: string, beats: Beat[]][] = [
+  [
+    "plain action",
+    `  The room is quiet.`,
+    [{ text: { action: ["The room is quiet."] } }],
+  ],
+  [
+    "action with interpolation",
+    `  You have {2 + 3} apples.`,
+    [{ text: { action: ["You have 5 apples."] } }],
+  ],
+  [
+    "action with bold + italic emphasis",
+    `  This is **bold** and *italic* text.`,
+    [
+      {
+        text: {
+          action: [
+            "This is ",
+            { text: "bold", style: { font_weight: "bold" } },
+            " and ",
+            { text: "italic", style: { font_style: "italic" } },
+            " text.",
+          ],
+        },
+      },
+    ],
+  ],
+  [
+    "action with underline + centered",
+    `  Some _underlined_ and ^centered^ words.`,
+    [
+      {
+        text: {
+          action: [
+            "Some ",
+            { text: "underlined", style: { text_decoration: "underline" } },
+            " and ",
+            { text: "centered", style: { text_align: "center" } },
+            " words.",
+          ],
+        },
+      },
+    ],
+  ],
+  [
+    "dialogue line",
+    `  HERO: Hello there.`,
+    [{ text: { dialogue: ["Hello there."], character_name: ["HERO"] } }],
+  ],
+  [
+    "dialogue with interpolation",
+    `  HERO: I count {10 * 2} coins.`,
+    [{ text: { dialogue: ["I count 20 coins."], character_name: ["HERO"] } }],
+  ],
+  [
+    "dialogue with parenthetical + position",
+    `  HERO (cheerful) >: Wonderful!`,
+    [
+      {
+        text: {
+          dialogue: ["Wonderful!"],
+          character_name: ["HERO (cheerful) >"],
+        },
+      },
+    ],
+  ],
+  ["title", `  ^: My Title`, [{ text: { title: ["My Title"] } }]],
+  [
+    "scene heading",
+    `  $: INT. HOUSE - DAY`,
+    [{ text: { heading: ["INT. HOUSE - DAY"] } }],
+  ],
+  ["transition", `  %: CUT TO:`, [{ text: { transitional: ["CUT TO:"] } }]],
+  [
+    "block dialogue (multi-line)",
+    `  HERO:\n    First line.\n    Second line.`,
+    [
+      {
+        text: {
+          dialogue: ["First line.\nSecond line."],
+          character_name: ["HERO"],
+        },
+      },
+    ],
+  ],
+  [
+    "chained dialogue (mid-line > break)",
+    `  HERO: First part. > Second part.`,
+    [
+      {
+        text: {
+          dialogue: ["First part. > Second part."],
+          character_name: ["HERO"],
+        },
+      },
+    ],
+  ],
+  [
+    "chained action (mid-line > break)",
+    `  The door creaks. > Then slams.`,
+    [{ text: { action: ["The door creaks. > Then slams."] } }],
+  ],
+  [
+    "line-end > break (block dialogue, two beats)",
+    `  HERO:\n    First part. >\n    Second part.`,
+    [
+      { text: { dialogue: ["First part."], character_name: ["HERO"] } },
+      { text: { dialogue: ["Second part."], character_name: ["HERO"] } },
+    ],
+  ],
+  [
+    "inline conditional",
+    `  You feel {if 2 > 1 then "great" else "bad"} today.`,
+    [{ text: { action: ["You feel great today."] } }],
+  ],
+  [
+    "inline sequence alternator",
+    `  The light {queue|"flickers"|"steadies"|"dies"} now.`,
+    [{ text: { action: ["The light flickers now."] } }],
+  ],
+  [
+    "display line with a trailing # tag",
+    `  The bell rings. # ominous`,
+    [{ text: { action: ["The bell rings."] } }],
+  ],
+  [
+    "dialogue with a trailing # tag",
+    `  HERO: Goodbye. # final`,
+    [{ text: { dialogue: ["Goodbye."], character_name: ["HERO"] } }],
+  ],
+  [
+    "write with no layer",
+    `  @: Layerless line.\n  Next.`,
+    [
+      { text: { action: ["Layerless line."] } },
+      { text: { action: ["Next."] } },
+    ],
+  ],
+  [
+    "empty body keeps its own step",
+    `  $:\n  After the heading.`,
+    [{ text: { action: ["After the heading."] } }],
+  ],
+  [
+    "mid-line divert",
+    `  We hurried home to -> row\nend\n\nscene row\n  Savile Row.`,
+    [{ text: { action: ["We hurried home to Savile Row."] } }],
+  ],
+  [
+    "mid-line load divert",
+    `  We hurried home to -> load row\nend\n\nscene row\n  Savile Row.`,
+    [
+      { text: { action: ["We hurried home to"] } },
+      { load: [{ name: "row" }] },
+      { text: { action: ["Savile Row."] } },
+    ],
+  ],
+  [
+    "leading-glue continuation (.. on the next line)",
+    `  Some\n  .. content\n  .. with glue.`,
+    [{ text: { action: ["Some content with glue."] } }],
+  ],
+  [
+    "trailing-glue continuation (.. at end of line)",
+    `  Some ..\n  content ..\n  with glue.`,
+    [{ text: { action: ["Some content with glue."] } }],
+  ],
+  [
+    "glued dialogue continuation",
+    `  HERO: Wait ..\n  .. for me.`,
+    [{ text: { dialogue: ["Wait  for me."], character_name: ["HERO"] } }],
+  ],
+  [
+    "continuation inside an if branch",
+    `  You see a\n  if true then\n    .. red door.\n  end`,
+    [{ text: { action: ["You see a red door."] } }],
+  ],
+  [
+    "chain of three trailing-glue dialogue lines",
+    `  HERO: One ..\n  HERO: two ..\n  HERO: three.`,
+    [{ text: { dialogue: ["One two three."], character_name: ["HERO"] } }],
+  ],
+  [
+    "mid-body glue in a block dialogue",
+    `  HERO:\n    First ..\n    second.`,
+    [{ text: { dialogue: ["First second."], character_name: ["HERO"] } }],
+  ],
+  [
+    "glued line continued by a bare {expr} line",
+    `  You have ..\n  {1 + 2}`,
+    [{ text: { action: ["You have 3"] } }],
+  ],
+  [
+    "empty glued continuation keeps the beat open",
+    `  You see\n  .. {if true then "" else ""}\n  The door.`,
+    [{ text: { action: ["You see The door."] } }],
+  ],
+  [
+    "whitespace-only glued continuation keeps the beat open",
+    `  First\n  .. {if true then " " else ""}\n  Last ..\n  word.`,
+    [{ text: { action: ["First  Last word."] } }],
+  ],
+  [
+    "trailing > break alone",
+    `  First >\n  Last.`,
+    [{ text: { action: ["First"] } }, { text: { action: ["Last."] } }],
+  ],
+  [
+    "trailing > break followed by a glued line",
+    `  First >\n  .. second.\n  Last.`,
+    [{ text: { action: ["First  second."] } }, { text: { action: ["Last."] } }],
+  ],
+  [
+    "load directive with a trailing-glue continuation",
+    `  load overworld ..\n  underworld\n  The world appears.`,
+    [
+      { load: [{ name: "overworld" }, { name: "underworld" }] },
+      { text: { action: ["The world appears."] } },
+    ],
+  ],
+  [
+    "load directive with a leading-glue continuation",
+    `  load overworld\n  .. underworld\n  The world appears.`,
+    [
+      { load: [{ name: "overworld" }, { name: "underworld" }] },
+      { text: { action: ["The world appears."] } },
+    ],
+  ],
+  [
+    "line after a glued pair is its own beat",
+    `  You see a ..\n  red door.\n  It is locked.`,
+    [
+      { text: { action: ["You see a red door."] } },
+      { text: { action: ["It is locked."] } },
+    ],
+  ],
+  [
+    "load directive line stays a directive",
+    `  load overworld\n  The world appears.`,
+    [
+      { load: [{ name: "overworld" }] },
+      { text: { action: ["The world appears."] } },
+    ],
+  ],
+  [
+    "load arrow",
+    `  Before.\n  -> load row\nend\n\nscene row\n  Savile Row.`,
+    [
+      { text: { action: ["Before."] } },
+      { load: [{ name: "row" }] },
+      { text: { action: ["Savile Row."] } },
+    ],
+  ],
+  [
+    "single-line block alternator",
+    `  queue | A # t | B end\n  After.`,
+    [{ text: { action: ["A"] } }, { text: { action: ["After."] } }],
+  ],
+  [
+    "bare {expr} line",
+    `  {1 + 2}\n  After.`,
+    [{ text: { action: ["3"] } }, { text: { action: ["After."] } }],
+  ],
+  [
+    "{x}{y} chain",
+    `  {1}{2}\n  After.`,
+    [{ text: { action: ["12"] } }, { text: { action: ["After."] } }],
+  ],
+  [
+    "print() call",
+    `  & f()\n  After.\nend\n\nfunction f()\nprint("hi")\nprint("two")`,
+    [{ text: { action: ["hi"] } }, { text: { action: ["twoAfter."] } }],
+  ],
+  [
+    "picked choice",
+    `  choose\n    * Take it\n      Taken.\n  end`,
+    [
+      { text: { "choice 0": ["Take it"] } },
+      { text: { action: ["Take it"] } },
+      { text: { action: ["Taken."] } },
+    ],
+  ],
+  [
+    "picked choice with an inline divert",
+    `  choose\n    * Take it -> row\n  end\nend\n\nscene row\n  now.`,
+    [
+      { text: { "choice 0": ["Take it"] } },
+      { text: { action: ["Take it now."] } },
+    ],
+  ],
+  [
+    "picked choice diverting into a dialogue line",
+    `  choose\n    * Take it -> row\n  end\nend\n\nscene row\n  HERO: Now.`,
+    [
+      { text: { "choice 0": ["Take it"] } },
+      { text: { dialogue: ["Take it Now."], character_name: ["HERO"] } },
+    ],
+  ],
+  [
+    "picked choice with a tag",
+    `  choose\n    * Take it # picked\n      Taken.\n  end`,
+    [
+      { text: { "choice 0": ["Take it"] } },
+      { text: { action: ["Take it"] } },
+      { text: { action: ["Taken."] } },
+    ],
+  ],
+  [
+    "print() ending a function glued onto a dialogue line",
+    `  & f()\n  HERO: After.\nend\n\nfunction f()\nprint("printed")`,
+    [{ text: { dialogue: ["printedAfter."], character_name: ["HERO"] } }],
+  ],
+  [
+    "dialogue line with a tag evaluated after its text",
+    `  store x = 0\n  HERO: Say {bump()} # {x}\nend\n\nfunction bump()\nx += 1\nreturn "Hello"`,
+    [{ text: { dialogue: ["Say Hello"], character_name: ["HERO"] } }],
+  ],
+  [
+    "mid-body glue after an interpolation",
+    `  HERO:\n    You have {1 + 1} ..\n    apples.`,
+    [{ text: { dialogue: ["You have 2 apples."], character_name: ["HERO"] } }],
+  ],
+  [
+    "mid-body glue before an interpolation",
+    `  HERO:\n    Count ..\n    {1 + 1} apples.`,
+    [{ text: { dialogue: ["Count 2 apples."], character_name: ["HERO"] } }],
+  ],
+  [
+    "text after a mid-line divert",
+    `  We go -> row and more.\nend\n\nscene row\n  Savile Row.`,
+    [{ text: { action: ["We go Savile Row."] } }],
+  ],
+];
 
-describe("display() ↔ legacy parity (message stream)", () => {
-  test("plain action", async () => {
-    await assertParity(`  The room is quiet.`);
-  });
+const IMAGE_FIXTURES: [label: string, body: string, beats: Beat[]][] = [
+  [
+    "action with an inline [[show]] directive",
+    `  The sun rises. [[show backdrop BG]]`,
+    [
+      {
+        text: { action: ["The sun rises. "] },
+        image: { backdrop: [{ control: "show", assets: ["BG"] }] },
+      },
+    ],
+  ],
+  [
+    "dialogue with an inline [[show]] directive",
+    `  HERO: Look! [[show backdrop BG]]`,
+    [
+      {
+        text: { dialogue: ["Look! "], character_name: ["HERO"] },
+        image: { backdrop: [{ control: "show", assets: ["BG"] }] },
+      },
+    ],
+  ],
+  [
+    "standalone asset line",
+    `  [[show backdrop BG]]\n  After the asset.`,
+    [
+      {
+        text: { action: ["After the asset."] },
+        image: { backdrop: [{ control: "show", assets: ["BG"] }] },
+      },
+    ],
+  ],
+];
 
-  test("action with interpolation", async () => {
-    await assertParity(`  You have {2 + 3} apples.`);
-  });
-
-  test("action with bold + italic emphasis", async () => {
-    await assertParity(`  This is **bold** and *italic* text.`);
-  });
-
-  test("action with underline + centered", async () => {
-    await assertParity(`  Some _underlined_ and ^centered^ words.`);
-  });
-
-  test("dialogue line", async () => {
-    await assertParity(`  HERO: Hello there.`);
-  });
-
-  test("dialogue with interpolation", async () => {
-    await assertParity(`  HERO: I count {10 * 2} coins.`);
-  });
-
-  test("dialogue with parenthetical + position", async () => {
-    await assertParity(`  HERO (cheerful) >: Wonderful!`);
-  });
-
-  test("title", async () => {
-    await assertParity(`  ^: My Title`);
-  });
-
-  test("scene heading", async () => {
-    await assertParity(`  $: INT. HOUSE - DAY`);
-  });
-
-  test("transition", async () => {
-    await assertParity(`  %: CUT TO:`);
-  });
-
-  test("block dialogue (multi-line)", async () => {
-    await assertParity(`  HERO:\n    First line.\n    Second line.`);
-  });
-
-  test("chained dialogue (mid-line > break)", async () => {
-    await assertParity(`  HERO: First part. > Second part.`);
-  });
-
-  test("chained action (mid-line > break)", async () => {
-    await assertParity(`  The door creaks. > Then slams.`);
-  });
-
-  test("line-end > break (block dialogue, two beats)", async () => {
-    await assertParity(`  HERO:\n    First part. >\n    Second part.`);
-  });
-
-  test("inline conditional", async () => {
-    await assertParity(`  You feel {if 2 > 1 then "great" else "bad"} today.`);
-  });
-
-  test("inline sequence alternator", async () => {
-    await assertParity(`  The light {queue|"flickers"|"steadies"|"dies"} now.`);
-  });
-
-  // A `# tag` goes to the stream ahead of the line's call.
-  test("display line with a trailing # tag", async () => {
-    await assertParity(`  The bell rings. # ominous`);
-  });
-
-  test("dialogue with a trailing # tag", async () => {
-    await assertParity(`  HERO: Goodbye. # final`);
-  });
-
-  test("write with no layer", async () => {
-    await assertParity(`  @: Layerless line.\n  Next.`);
-  });
-
-  test("empty body keeps its own step", async () => {
-    await assertParity(`  $:\n  After the heading.`);
-  });
-
-  // The target's first line joins the diverting line in one beat.
-  test("mid-line divert", async () => {
-    await assertParity(
-      `  We hurried home to -> row\nend\n\nscene row\n  Savile Row.`,
-    );
-  });
-
-  test("mid-line load divert", async () => {
-    await assertParity(
-      `  We hurried home to -> load row\nend\n\nscene row\n  Savile Row.`,
-    );
-  });
-
-  // Every line of a glue chain lowers to its own display() call (pinned by
-  // `glueJoin.test.ts` in packages/sparkdown); one step carries the tables and
-  // the interpreter joins them into one beat routed by the first table that
-  // names a target.
-  test("leading-glue continuation (.. on the next line)", async () => {
-    await assertParity(`  Some\n  .. content\n  .. with glue.`);
-  });
-
-  test("trailing-glue continuation (.. at end of line)", async () => {
-    await assertParity(`  Some ..\n  content ..\n  with glue.`);
-  });
-
-  test("glued dialogue continuation", async () => {
-    await assertParity(`  HERO: Wait ..\n  .. for me.`);
-  });
-
-  test("continuation inside an if branch", async () => {
-    await assertParity(`  You see a\n  if true then\n    .. red door.\n  end`);
-  });
-
-  test("chain of three trailing-glue dialogue lines", async () => {
-    await assertParity(`  HERO: One ..\n  HERO: two ..\n  HERO: three.`);
-  });
-
-  test("mid-body glue in a block dialogue", async () => {
-    await assertParity(`  HERO:\n    First ..\n    second.`);
-  });
-
-  // The continuation reaches the stream as flat text, so the step holds a
-  // table and a string.
-  test("glued line continued by a bare {expr} line", async () => {
-    await assertParity(`  You have ..\n  {1 + 2}`);
-  });
-
-  // A continuation with no visible words leaves the glue pending, so the next
-  // visible line still joins the same beat.
-  test("empty glued continuation keeps the beat open", async () => {
-    await assertParity(
-      `  You see\n  .. {if true then "" else ""}\n  The door.`,
-    );
-  });
-
-  test("whitespace-only glued continuation keeps the beat open", async () => {
-    await assertParity(
-      `  First\n  .. {if true then " " else ""}\n  Last ..\n  word.`,
-    );
-  });
-
-  test("trailing > break alone", async () => {
-    await assertParity(`  First >\n  Last.`);
-  });
-
-  test("trailing > break followed by a glued line", async () => {
-    await assertParity(`  First >\n  .. second.\n  Last.`);
-  });
-
-  // The `load` line's table and its glued continuation's table share a step,
-  // which queues one load beat naming both worlds.
-  test("load directive with a trailing-glue continuation", async () => {
-    await assertParity(
-      `  load overworld ..\n  underworld\n  The world appears.`,
-    );
-  });
-
-  test("load directive with a leading-glue continuation", async () => {
-    await assertParity(
-      `  load overworld\n  .. underworld\n  The world appears.`,
-    );
-  });
-
-  test("line after a glued pair is its own beat", async () => {
-    await assertParity(`  You see a ..\n  red door.\n  It is locked.`);
-  });
-
-  // Paired with a text line so the streams are non-empty either way; a load
-  // table rendered as text would surface as an extra "load overworld" beat.
-  test("load directive line stays a directive", async () => {
-    await assertParity(`  load overworld\n  The world appears.`);
-  });
+describe("display() renders what each script authored", () => {
+  for (const [label, body, beats] of FIXTURES) {
+    test(label, async () => {
+      expect(await renderedBeats(story(body))).toEqual(beats);
+    });
+  }
 });
 
-describe("display() ↔ legacy parity · producers outside display statements", () => {
-  test("load arrow", async () => {
-    await assertParity(`  Before.\n  -> load row\nend\n\nscene row\n  Savile Row.`);
-  });
-
-  test("single-line block alternator", async () => {
-    await assertParity(`  queue | A # t | B end\n  After.`);
-  });
-
-  test("bare {expr} line", async () => {
-    await assertParity(`  {1 + 2}\n  After.`);
-  });
-
-  test("{x}{y} chain", async () => {
-    await assertParity(`  {1}{2}\n  After.`);
-  });
-
-  test("print() call", async () => {
-    await assertParity(
-      `  & f()\n  After.\nend\n\nfunction f()\nprint("hi")\nprint("two")`,
-    );
-  });
-
-  test("picked choice", async () => {
-    await assertParity(`  choose\n    * Take it\n      Taken.\n  end`);
-  });
-
-  test("picked choice with an inline divert", async () => {
-    await assertParity(
-      `  choose\n    * Take it -> row\n  end\nend\n\nscene row\n  now.`,
-    );
-  });
-
-  // The echo's table names no target, so the beat takes its routing from the
-  // dialogue line it joins.
-  test("picked choice diverting into a dialogue line", async () => {
-    await assertParity(
-      `  choose\n    * Take it -> row\n  end\nend\n\nscene row\n  HERO: Now.`,
-    );
-  });
-
-  test("picked choice with a tag", async () => {
-    await assertParity(`  choose\n    * Take it # picked\n      Taken.\n  end`);
-  });
-
-  test("print() ending a function glued onto a dialogue line", async () => {
-    await assertParity(
-      `  & f()\n  HERO: After.\nend\n\nfunction f()\nprint("printed")`,
-    );
-  });
-
-  test("dialogue line with a tag evaluated after its text", async () => {
-    await assertParity(
-      `  store x = 0\n  HERO: Say {bump()} # {x}\nend\n\nfunction bump()\nx += 1\nreturn "Hello"`,
-    );
-  });
+describe("display() renders inline asset directives", () => {
+  for (const [label, body, beats] of IMAGE_FIXTURES) {
+    test(label, async () => {
+      expect(await renderedBeats(story(body, IMAGE_SCREEN))).toEqual(beats);
+    });
+  }
 });
 
 // The interpreter's reading of a step, beat by beat.
-async function beats(body: string, experimentalDisplayCalls: boolean) {
-  const harness = createHarness(story(body), 0, { experimentalDisplayCalls });
+async function beats(body: string) {
+  const harness = createHarness(story(body));
   await harness.ready;
   harness.jumpTo("start");
   const out = [];
@@ -319,10 +518,7 @@ async function beats(body: string, experimentalDisplayCalls: boolean) {
 
 describe("display() load beats", () => {
   test("interpolated text beginning with load renders as text", async () => {
-    const [beat] = await beats(
-      `  store verb = "load"\n  {verb} the cart`,
-      true,
-    );
+    const [beat] = await beats(`  store verb = "load"\n  {verb} the cart`);
     expect(beat!.load).toBeUndefined();
     expect(
       Object.values(beat!.text ?? {})
@@ -336,13 +532,10 @@ describe("display() load beats", () => {
   // field makes a load beat.
   for (const [label, body] of [
     ["a layerless write", `  store verb = "load"\n  @: {verb} the cart`],
-    [
-      "a print() call",
-      `  & f()\nend\n\nfunction f()\nprint("load the cart")`,
-    ],
+    ["a print() call", `  & f()\nend\n\nfunction f()\nprint("load the cart")`],
   ] as const) {
     test(`${label} beginning with load renders as text`, async () => {
-      const [beat] = await beats(body, true);
+      const [beat] = await beats(body);
       expect(beat!.load).toBeUndefined();
       expect(
         Object.values(beat!.text ?? {})
@@ -368,9 +561,7 @@ describe("display() load beats", () => {
     ],
   ] as const) {
     test(`a load line reached through ${label} is a load beat of its own`, async () => {
-      const harness = createHarness(story(body), 0, {
-        experimentalDisplayCalls: true,
-      });
+      const harness = createHarness(story(body));
       await harness.ready;
       harness.jumpTo("start");
       const run = [];
@@ -394,7 +585,6 @@ describe("display() load beats", () => {
   test("a load step split from a held line keeps the step's choices", async () => {
     const run = await beats(
       `  Before -> row\nend\n\nscene row\n  load overworld\n  choose\n    * Go\n      Gone.\n  end`,
-      true,
     );
     expect(run.map((b) => Boolean(b.load))).toEqual([false, true]);
     expect(run[1]!.load).toEqual([{ name: "overworld" }]);
@@ -406,7 +596,6 @@ describe("display() load beats", () => {
   test("every load line that reaches one step is a load beat", async () => {
     const run = await beats(
       `  Before -> row\nend\n\nscene row\n  load overworld -> other\nend\n\nscene other\n  load underworld\n  Arrived.`,
-      true,
     );
     expect(run.filter((b) => b.load).map((b) => b.load)).toEqual([
       [{ name: "overworld" }],
@@ -415,71 +604,9 @@ describe("display() load beats", () => {
   });
 
   test("a load line between two text lines is a load beat of its own", async () => {
-    const run = await beats(`  Before.\n  load overworld\n  After.`, true);
+    const run = await beats(`  Before.\n  load overworld\n  After.`);
     expect(run.map((b) => Boolean(b.load))).toEqual([false, true, false]);
     expect(run[1]!.load).toEqual([{ name: "overworld" }]);
     expect(run[1]!.text).toBeUndefined();
-  });
-});
-
-const IMAGE_SCREEN = `define HERO as character with
-  name = "HERO"
-end
-
-define BG as image with
-  src = "https://example.com/bg.png"
-end
-
-layout main with
-  stage:
-    backdrop:
-      image
-  action:
-    text
-  dialogue:
-    character_info:
-      character_name:
-        text
-    text
-end
-`;
-
-function imageStory(body: string) {
-  return `${IMAGE_SCREEN}\n-> start\n\nscene start\n${body}\nend\n`;
-}
-
-async function imageBeatStream(body: string, flag: boolean) {
-  const harness = createHarness(imageStory(body), 0, {
-    experimentalDisplayCalls: flag,
-  });
-  await harness.ready;
-  harness.jumpTo("start");
-  harness.reset();
-  let beat = harness.nextBeat();
-  while (beat) {
-    await harness.display(beat, true);
-    await flushMicrotasks();
-    beat = harness.nextBeat();
-  }
-  return harness.snapshotFiltered("ui/");
-}
-
-async function assertImageParity(body: string) {
-  const legacy = await imageBeatStream(body, false);
-  const viaDisplay = await imageBeatStream(body, true);
-  expect(viaDisplay).toEqual(legacy);
-}
-
-describe("display() ↔ legacy parity · inline asset directives", () => {
-  test("action with an inline [[show]] directive", async () => {
-    await assertImageParity(`  The sun rises. [[show backdrop BG]]`);
-  });
-
-  test("dialogue with an inline [[show]] directive", async () => {
-    await assertImageParity(`  HERO: Look! [[show backdrop BG]]`);
-  });
-
-  test("standalone asset line", async () => {
-    await assertImageParity(`  [[show backdrop BG]]\n  After the asset.`);
   });
 });

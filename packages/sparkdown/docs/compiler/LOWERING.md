@@ -372,6 +372,18 @@ This tells the runtime to push/pop a temporary-variable scope frame so `local x`
 
 A function body, branch body, or block body with no content should still parse and lower without error. The lowerer should always return a valid (possibly empty) ParsedObject tree, never throw on empty input. Test with empty fixtures.
 
+### 10.7 Visible text is a `display()` call
+
+Every producer of visible text lowers to a call of the `display` stdlib function with a table (`utils/displayCall.ts`): display statements (`lowerers/lowerDisplay.ts`), standalone asset lines, a `load` arrow's `[[load …]]` directive, single-line alternator arms, bare `{expr}` lines, and a picked choice's echoed words. No lowerer emits visible text to the stream directly.
+
+- `buildDisplayCall(target, character, body, range, ctx, tags)` makes `display({ target?, character?, text, tags? })`. The routing is resolved at compile time: a dialogue line names `target = "dialogue"` and its cue as `character`, a write line names its layer, and every other line type names itself. A table with no `target` renders on the default target. `text` is a `StringExpression` over the body's ParsedObjects, so interpolations are evaluated when the call runs. The call is stamped with `range`, which gives its beat a path location.
+- `buildLoadCall` makes `display({ load })` for a `load <names>` line, and `buildOrderedDisplayCall` makes `display({ parts })` for a picked choice whose `# tag`s sit between its words, so text and tags evaluate in the order written.
+- A line's `# tag`s ride the table's `tags` (`separateTags`), because a tag cannot end inside a captured string. An inline-glued alternator arm's tag is a runtime `Tag` object instead (see `lowerArmContent`).
+- A mid-line `>` break splits a display statement into one call per beat. A glued continuation is a `Glue` followed by a call whose table names no target, so it joins the beat of the line it continues. A trailing `..` is emitted after the call. A `..` inside one body is resolved when the body is lowered (`joinMidBodyGlue`), because glue inside string evaluation joins nothing.
+- A mid-line divert follows the line's call, held on the line by glue, so the target's first line joins the beat. Text after the divert is dropped: the line's call is already made.
+
+The runtime side of the table, and how the engine builds a beat from it, is in `docs/runtime/RUNTIME.md` §3.1.
+
 ---
 
 ## 11. Debugging the lowerer

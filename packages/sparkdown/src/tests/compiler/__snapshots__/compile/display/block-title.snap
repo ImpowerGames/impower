@@ -4,24 +4,33 @@
       "type": "Weave",
       "content": [
         {
-          "type": "Tag",
-          "start": true
-        },
-        {
-          "type": "Text",
-          "text": "\u0000title"
-        },
-        {
-          "type": "Tag",
-          "start": false
-        },
-        {
-          "type": "Text",
-          "text": "THE TALE OF THE SPARK"
-        },
-        {
-          "type": "Text",
-          "text": "\n"
+          "type": "FunctionCall",
+          "name": "display",
+          "args": [
+            {
+              "type": "ObjectExpression",
+              "entries": [
+                {
+                  "key": "target",
+                  "value": {
+                    "type": "StringExpression",
+                    "content": [
+                      "title"
+                    ]
+                  }
+                },
+                {
+                  "key": "text",
+                  "value": {
+                    "type": "StringExpression",
+                    "content": [
+                      "THE TALE OF THE SPARK"
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
         }
       ]
     }

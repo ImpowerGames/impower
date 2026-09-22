@@ -12,8 +12,27 @@
               "onceOnly": false,
               "inner": [
                 {
-                  "type": "Text",
-                  "text": " "
+                  "type": "FunctionCall",
+                  "name": "display",
+                  "args": [
+                    {
+                      "type": "ObjectExpression",
+                      "entries": [
+                        {
+                          "key": "text",
+                          "value": {
+                            "type": "StringExpression",
+                            "content": [
+                              " "
+                            ]
+                          }
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "Glue"
                 },
                 {
                   "type": "Divert",

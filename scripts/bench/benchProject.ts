@@ -68,7 +68,6 @@ export function configurePlayerCompiler(compiler: SparkdownCompiler, files: any[
     workspace: "file:///local",
     startFrom,
     seedBuiltinsIntoStory: true,
-    experimentalDisplayCalls: true,
     ...extra,
   } as any);
 }

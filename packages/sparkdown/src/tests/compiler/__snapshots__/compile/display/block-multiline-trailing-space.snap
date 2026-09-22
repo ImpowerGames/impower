@@ -4,24 +4,42 @@
       "type": "Weave",
       "content": [
         {
-          "type": "Tag",
-          "start": true
-        },
-        {
-          "type": "Text",
-          "text": "\u0000dialogue:O"
-        },
-        {
-          "type": "Tag",
-          "start": false
-        },
-        {
-          "type": "Text",
-          "text": "A meteor.\nMake a wish."
-        },
-        {
-          "type": "Text",
-          "text": "\n"
+          "type": "FunctionCall",
+          "name": "display",
+          "args": [
+            {
+              "type": "ObjectExpression",
+              "entries": [
+                {
+                  "key": "target",
+                  "value": {
+                    "type": "StringExpression",
+                    "content": [
+                      "dialogue"
+                    ]
+                  }
+                },
+                {
+                  "key": "character",
+                  "value": {
+                    "type": "StringExpression",
+                    "content": [
+                      "O"
+                    ]
+                  }
+                },
+                {
+                  "key": "text",
+                  "value": {
+                    "type": "StringExpression",
+                    "content": [
+                      "A meteor.\nMake a wish."
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
         }
       ]
     }

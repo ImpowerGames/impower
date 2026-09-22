@@ -42,12 +42,13 @@ describe("line-end > break split on CRLF documents", () => {
   test("a CRLF-saved script splits into the same beats as the LF one", () => {
     const lf = compile(LF_SOURCE);
     const crlf = compile(LF_SOURCE.replace(/\n/g, "\r\n"));
-    // The split's observable artifact is the per-beat routing tag: one per
-    // beat, so a collapsed (unsplit) compile carries one fewer.
-    const countTags = (program: any) =>
-      (JSON.stringify(program.compiled ?? {}).match(/\^\\u0000/g) ?? [])
+    // The split's observable artifact is the per-beat `display()` table: one
+    // per beat, each naming its target, so a collapsed (unsplit) compile
+    // carries one fewer.
+    const countTables = (program: any) =>
+      (JSON.stringify(program.compiled ?? {}).match(/"\^target"/g) ?? [])
         .length;
-    expect(countTags(lf)).toBeGreaterThan(0);
-    expect(countTags(crlf)).toBe(countTags(lf));
+    expect(countTables(lf)).toBe(2);
+    expect(countTables(crlf)).toBe(countTables(lf));
   });
 });
