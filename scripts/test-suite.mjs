@@ -291,31 +291,34 @@ export function status(directory, { identify = processIdentity, fingerprint = fi
   return { run: run.directory, ...summary, identityChecked: !live && !unknown && !!run.identity, attempts: run.attempts };
 }
 
+// The command line. `dependencies` is the test seam for the reservation store,
+// census and child programs; the entry point below passes none.
+export async function main(argv, dependencies = {}) {
+  const [command, target, ...rest] = argv;
+  const { args, waitMs } = waitOption(rest);
+  let result;
+  if (command === "run" && target) {
+    const { exit, signal, launchError } = await runVitest({ ...dependencies, packageRoot: target, files: args, waitMs });
+    if (launchError) throw new Error(launchError);
+    if (signal) console.error(`Vitest ended by signal ${signal}`);
+    return exit ?? 1;
+  } else if (command === "start" && target && !args.length) {
+    const packageRoot = canonicalPath(target);
+    const gitDir = canonicalPath(path.resolve(packageRoot, git(packageRoot, ["rev-parse", "--git-dir"]).trim()));
+    const directory = path.join(gitDir, "test-suites", randomUUID());
+    console.log(JSON.stringify({ run: directory, status: "starting", coordinator: processIdentity(process.pid) }));
+    result = await execute({ ...dependencies, directory, packageRoot, waitMs });
+  } else if (command === "resume" && target) {
+    if (args.length && args[0] !== "--retry") throw new Error("Use --retry followed by explicit failed paths");
+    const run = read(path.join(target, "run.json"));
+    result = await execute({ ...dependencies, directory: target, waitMs, retry: args.slice(1).map(f => path.resolve(run.packageRoot, f)) });
+  } else if (command === "status" && target && !args.length) result = status(target);
+  else throw new Error("Usage: node scripts/test-suite.mjs run <package> [<test-file> ...] [--wait <seconds>] | start <package> [--wait <seconds>] | status <run-directory> | resume <run-directory> [--retry <failed-file> ...] [--wait <seconds>]");
+  console.log(JSON.stringify(result, null, 2));
+  return result.status === "passed" ? 0 : 1;
+}
+
 if (process.argv[1] && canonicalPath(process.argv[1]) === canonicalPath(fileURLToPath(import.meta.url))) {
-  try {
-    const [command, target, ...rest] = process.argv.slice(2);
-    const { args, waitMs } = waitOption(rest);
-    let result;
-    if (command === "run" && target) {
-      const { exit, signal, launchError } = await runVitest({ packageRoot: target, files: args, waitMs });
-      if (launchError) throw new Error(launchError);
-      process.exitCode = exit ?? 1;
-      if (signal) console.error(`Vitest ended by signal ${signal}`);
-    } else if (command === "start" && target && !args.length) {
-      const packageRoot = canonicalPath(target);
-      const gitDir = canonicalPath(path.resolve(packageRoot, git(packageRoot, ["rev-parse", "--git-dir"]).trim()));
-      const directory = path.join(gitDir, "test-suites", randomUUID());
-      console.log(JSON.stringify({ run: directory, status: "starting", coordinator: processIdentity(process.pid) }));
-      result = await execute({ directory, packageRoot, waitMs });
-    } else if (command === "resume" && target) {
-      if (args.length && args[0] !== "--retry") throw new Error("Use --retry followed by explicit failed paths");
-      const run = read(path.join(target, "run.json"));
-      result = await execute({ directory: target, waitMs, retry: args.slice(1).map(f => path.resolve(run.packageRoot, f)) });
-    } else if (command === "status" && target && !args.length) result = status(target);
-    else throw new Error("Usage: node scripts/test-suite.mjs run <package> [<test-file> ...] [--wait <seconds>] | start <package> [--wait <seconds>] | status <run-directory> | resume <run-directory> [--retry <failed-file> ...] [--wait <seconds>]");
-    if (result) {
-      console.log(JSON.stringify(result, null, 2));
-      process.exitCode = result.status === "passed" ? 0 : 1;
-    }
-  } catch (error) { console.error(error.stack); process.exitCode = 1; }
+  try { process.exitCode = await main(process.argv.slice(2)); }
+  catch (error) { console.error(error.stack); process.exitCode = 1; }
 }

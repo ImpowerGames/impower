@@ -261,6 +261,28 @@ await assert.rejects(runVitest({ packageRoot: scratch, vitestPath: fakeVitest, r
 busy.release();
 console.log("PASS: run composes the one-worker flags, caps the heap and holds the reservation");
 
+// The command line parses --wait and dispatches run, start and resume through
+// the same waiting reservation. A long poll interval shows the sleep stops at
+// the deadline rather than after a full interval.
+const { main } = await import("./test-suite.mjs");
+const seam = { root: lockRoot, census: () => [], vitestPath: fakeVitest, stdio: "ignore" };
+assert.equal(await main(["run", scratch, "a.test.ts", "--wait", "5"], seam), 3, "run returns the Vitest exit status");
+assert.deepEqual(read(fakeRecord).argv, vitestArguments(["a.test.ts"]), "--wait and its value are not passed to Vitest");
+const cliHolder = acquire("cli holder", { root: lockRoot, census: () => [] });
+for (const argv of [["run", scratch, "--wait", "3"], ["start", scratch, "--wait", "3"], ["resume", directory, "--wait", "3"]]) {
+  const began = Date.now();
+  await assert.rejects(main(argv, { ...seam, pollMs: 10000, enginePath, fingerprint: () => "unchanged" }), /Existing suite running/, argv[0]);
+  assert.ok(Date.now() - began < 8000, `${argv[0]} --wait 3 refuses near its bound, not after a 10 s poll`);
+}
+cliHolder.release();
+const cliCensusStart = Date.now();
+await assert.rejects(main(["start", scratch, "--wait", "3"], { ...seam, census: () => [5], pollMs: 10000 }), /still present: 5/);
+assert.ok(Date.now() - cliCensusStart < 8000, "the census wait also stops at its bound");
+assert.equal(fs.existsSync(path.join(lockRoot, "reservation.json")), false, "a timed-out start releases the reservation");
+await assert.rejects(main(["run", scratch, "--wait", "soon"], seam), /--wait takes a number of seconds/);
+await assert.rejects(main(["bogus", scratch], seam), /Usage/);
+console.log("PASS: the command line parses --wait for run, start and resume and refuses at its bound");
+
 const coordinator = path.join(scratch, ".git", "coordinator.mjs");
 fs.writeFileSync(coordinator, `import { execute } from ${JSON.stringify(new URL("./test-suite.mjs", import.meta.url).href)};
 await execute({...${JSON.stringify({ ...options, directory: path.join(scratch, ".git", "interrupted") })}, census:()=>[], fingerprint:()=>"unchanged"});`);

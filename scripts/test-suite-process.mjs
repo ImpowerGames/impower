@@ -112,7 +112,8 @@ export function acquire(run, { root = machineRoot, identify = processIdentity, c
   });
 }
 
-const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
+// A sleep never runs past the deadline, so the last attempt happens at it.
+const pause = (ms, deadline) => new Promise(resolve => setTimeout(resolve, Math.max(0, Math.min(ms, deadline - Date.now()))));
 
 // Queue behind the machine-wide reservation, then hold it while polling the
 // census, so later reservation-aware runs queue behind this one instead of
@@ -126,7 +127,7 @@ export async function acquireWaiting(run, { waitMs = 0, pollMs = 2000, census = 
     catch (error) {
       if (!/^Existing suite running/.test(error.message) || Date.now() >= deadline) throw error;
       onWait({ waiting: "reservation", detail: error.message });
-      await pause(pollMs);
+      await pause(pollMs, deadline);
     }
   }
   try { await waitForCensus({ deadline, pollMs, census, onWait }); }
@@ -140,6 +141,6 @@ export async function waitForCensus({ deadline = Date.now(), pollMs = 2000, cens
     if (!existing.length) return;
     if (Date.now() >= deadline) throw new Error(`Vitest processes still present: ${existing.join(", ")}`);
     onWait({ waiting: "vitest processes", pids: existing });
-    await pause(pollMs);
+    await pause(pollMs, deadline);
   }
 }
