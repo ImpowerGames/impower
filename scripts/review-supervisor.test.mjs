@@ -32,7 +32,7 @@ const head=git('rev-parse','HEAD').trim();
 const prompt=path.join(scratch,'prompt.txt');fs.writeFileSync(prompt,'fixture');
 const child=path.join(scratch,'child.mjs');
 fs.writeFileSync(child,`import fs from 'node:fs';let text='';for await(const c of process.stdin)text+=c;fs.writeFileSync(/Write (.*?) with the editor tool/.exec(text)[1],JSON.stringify({head:'${head}',next:null,commentIds:[],summary:'fixture'}));`);
-const plan={worktree:repo,journal:path.join(scratch,'legacy.jsonl'),writer:'writer',writerEffort:'medium',reviewer:'reviewer',completedReviewRound:0,maxSteps:1,first:'work',continuation:{destination:'unavailable'},steps:{work:{role:'implement',model:'writer',executable:process.execPath,args:[child,'--model','writer'],prompt,next:[null]}}};
+const plan={worktree:repo,pr:548,journal:path.join(scratch,'legacy.jsonl'),writer:'writer',writerEffort:'medium',reviewer:'reviewer',completedReviewRound:0,maxSteps:1,first:'work',continuation:{destination:'unavailable'},steps:{work:{role:'implement',model:'writer',executable:process.execPath,args:[child,'--model','writer'],prompt,next:[null]}}};
 const file=path.join(scratch,'legacy.json');fs.writeFileSync(file,JSON.stringify(plan));
 try {
   await assert.rejects(runHandoff(file),/Automatic continuation requires review-supervisor/,'automatic mode must refuse before an unverified destination can launch work');
