@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { spawn } from 'node:child_process';
+import { spawnDetached } from './detached-launch.mjs';
 import { randomUUID } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { runHandoff,checkReviewRound,verifyNativeReviewResult,validateReviewRecovery,validateNativeReviewArgs,configuredRoute } from './agent-handoff.mjs';
@@ -82,7 +82,7 @@ export async function createReviewJob(input,host,{verifyExecutable=verifyReviewe
   writeExclusive(path.join(plan.jobDir,'handoff.json'),{worktree:plan.worktree,journal:path.join(plan.jobDir,'handoff.jsonl'),pr:plan.pr,writer:plan.writer,writerEffort:plan.writerEffort,reviewer:plan.reviewer,completedReviewRound:plan.completedReviewRound,reviewedHead:plan.reviewedHead,finalCorrections:plan.finalCorrections,reviewRoundLimit:plan.reviewRoundLimit,extendedReviewAuthorization:plan.extendedReviewAuthorization,maxSteps:plan.reviews.length,first:plan.reviews[0].id,steps});
   return jobStatus(plan.jobDir);
 }
-export async function launchReviewWorker(dir,{spawnWorker=spawn}={}) {
+export async function launchReviewWorker(dir,{spawnWorker=spawnDetached}={}) {
   const plan=readJson(path.join(dir,'plan.json'));
   withJob(dir,rows=>{if(last(rows,'worker-launch-intent')||last(rows,'workflow-cancelled')||last(rows,'blocked'))throw new Error('Worker already launched or job stopped; reconcile instead');assertJobFreeze(plan,dir);assertFrozen(plan);appendEvent(dir,'worker-launch-intent');});
   let log,child;
@@ -90,7 +90,7 @@ export async function launchReviewWorker(dir,{spawnWorker=spawn}={}) {
     const env=reviewerEnvironment();
     try {
       log=fs.openSync(path.join(dir,'worker.log'),'wx');
-      child=spawnWorker(process.execPath,[here,'worker',dir],{cwd:plan.worktree,env,detached:true,windowsHide:true,stdio:['ignore',log,log]});
+      child=spawnWorker(process.execPath,[here,'worker',dir],{cwd:plan.worktree,env,stdio:['ignore',log,log]});
       await new Promise((resolve,reject)=>{child.once('spawn',resolve);child.once('error',reject);});
     }catch(error){await transaction(dir,()=>appendEvent(dir,child?.pid?'worker-launch-uncertain':'worker-launch-failed',failureDetails(error)));throw error;}
     child.unref();
@@ -99,12 +99,12 @@ export async function launchReviewWorker(dir,{spawnWorker=spawn}={}) {
     return {pid:child.pid};
   }finally{if(log!==undefined)fs.closeSync(log);}
 }
-export async function launchSupervisor(dir,{spawnMonitor=spawn,registrationMs=30000}={}) {
+export async function launchSupervisor(dir,{spawnMonitor=spawnDetached,registrationMs=30000}={}) {
   const baseline=await transaction(dir,rows=>rows.at(-1).sequence);
   let log,child,spawned=false,outcome,registered;
   try {
     log=fs.openSync(path.join(dir,'supervisor.log'),'a');
-    child=spawnMonitor(process.execPath,[here,'run',dir],{cwd:dir,detached:true,windowsHide:true,stdio:['ignore',log,log]});
+    child=spawnMonitor(process.execPath,[here,'run',dir],{cwd:dir,stdio:['ignore',log,log]});
     const closed=new Promise(resolve=>child.once('close',(code,signal)=>{outcome={code,signal};resolve();}));
     await new Promise((resolve,reject)=>{child.once('spawn',resolve);child.once('error',reject);});
     spawned=true;const deadline=Date.now()+registrationMs;

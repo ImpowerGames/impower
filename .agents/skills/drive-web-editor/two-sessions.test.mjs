@@ -29,6 +29,9 @@ const copyDir = path.join(scratch, "repo", ".agents", "skills", "drive-web-edito
 fs.mkdirSync(copyDir, { recursive: true });
 fs.mkdirSync(path.join(scratch, "repo", ".agents", "skills", "resolve-issue"), { recursive: true });
 for (const name of fs.readdirSync(here).filter((n) => n.endsWith(".mjs") && !n.includes(".test."))) fs.copyFileSync(path.join(here, name), path.join(copyDir, name));
+// The driver imports the repository's detached launcher.
+fs.mkdirSync(path.join(scratch, "repo", "scripts"));
+fs.copyFileSync(path.join(here, "..", "..", "..", "scripts", "detached-launch.mjs"), path.join(scratch, "repo", "scripts", "detached-launch.mjs"));
 const driver = path.join(copyDir, "driver.mjs");
 
 const fixture = path.join(scratch, "tree.mjs");

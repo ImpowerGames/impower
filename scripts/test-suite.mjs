@@ -3,6 +3,7 @@ import path from "node:path";
 import { spawn } from "node:child_process";
 import { randomUUID, createHash } from "node:crypto";
 import { fileURLToPath } from "node:url";
+import { spawnDetached } from "./detached-launch.mjs";
 import { acquire, atomic, read, processIdentity, reservationState, vitestProcesses, same } from "./test-suite-process.mjs";
 import { git, tracked, fingerprinter, canonicalPath, childEnvironment, isWithinDirectory } from "./test-suite-identity.mjs";
 
@@ -109,8 +110,8 @@ async function childRun(run, mode, file, reservation, save, { enginePath = engin
   const fd = fs.openSync(logFile, "wx");
   const env = childEnvironment();
   let child;
-  try { child = spawn(process.execPath, ["--max-old-space-size=1024", enginePath, mode, run.packageRoot, jsonFile, ...(file ? [file] : [])],
-    { cwd: run.packageRoot, env, stdio: ["ignore", fd, fd], windowsHide: true, detached: true }); }
+  try { child = spawnDetached(process.execPath, ["--max-old-space-size=1024", enginePath, mode, run.packageRoot, jsonFile, ...(file ? [file] : [])],
+    { cwd: run.packageRoot, env, stdio: ["ignore", fd, fd] }); }
   finally { fs.closeSync(fd); }
   // Install exit listeners before synchronous identity probes: fast children
   // can disappear before inspection but their actual exit event is still required.

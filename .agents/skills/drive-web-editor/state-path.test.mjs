@@ -258,7 +258,7 @@ await check("a record with no startedAt is dated by its file, and stands only wh
 // ---------------------------------------------------------- the live probe ---
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-const idle = () => spawn(process.execPath, ["-e", "setInterval(() => {}, 1000)"], { stdio: "ignore", detached: true, windowsHide: true });
+const idle = () => spawn(process.execPath, ["-e", "setInterval(() => {}, 1000)"], { stdio: "ignore", detached: process.platform !== "win32", windowsHide: true });
 const untilGone = async (pid, ms = 5_000) => {
   const deadline = Date.now() + ms;
   while (Date.now() < deadline) {
@@ -422,7 +422,8 @@ await check("the browser launch refuses a too-deep or claimed profile before Pla
 // ------------------------------------------------------------ the commands ---
 //
 // A copy of the driver laid out as `.agents/skills/drive-web-editor/` under a
-// scratch repository root beside an empty `resolve-issue/`. REPO_ROOT resolves
+// scratch repository root beside an empty `resolve-issue/`, with the
+// `scripts/detached-launch.mjs` it imports. REPO_ROOT resolves
 // three directories up from the copy. The final case supplies package.json
 // and exercises the real npm launch path with fixture-only TCP listeners.
 
@@ -433,6 +434,8 @@ const copyDir = path.join(scratch, "repo", ".agents", "skills", "drive-web-edito
 fs.mkdirSync(copyDir, { recursive: true });
 fs.mkdirSync(path.join(scratch, "repo", ".agents", "skills", "resolve-issue"), { recursive: true });
 for (const name of ["driver.mjs", "redgreen.mjs", "session-dir.mjs"]) fs.copyFileSync(path.join(here, name), path.join(copyDir, name));
+fs.mkdirSync(path.join(scratch, "repo", "scripts"));
+fs.copyFileSync(path.join(here, "..", "..", "..", "scripts", "detached-launch.mjs"), path.join(scratch, "repo", "scripts", "detached-launch.mjs"));
 const copy = path.join(copyDir, "driver.mjs");
 // The copy keeps its records under a home inside the scratch directory, as
 // the session this check names; every command below inherits both.
@@ -453,7 +456,7 @@ fs.writeFileSync(fixture, [
 ].join("\n"));
 const startTree = async () => {
   const file = path.join(scratch, `tree-${Date.now()}.jsonl`);
-  const child = spawn(process.execPath, [fixture, file, "root"], { stdio: "ignore", detached: true, windowsHide: true });
+  const child = spawn(process.execPath, [fixture, file, "root"], { stdio: "ignore", detached: process.platform !== "win32", windowsHide: true });
   let rows = [];
   try {
     for (let i = 0; i < 100; i++) {
@@ -650,7 +653,7 @@ try {
     let launchedRows = [];
     const child = idle();
     writeRecord({ url: "http://localhost:1", pid: child.pid, mode: "same-origin", startedAt: Date.now() });
-    const up = spawn(process.execPath, [copy, "up"], { stdio: ["ignore", "pipe", "pipe"], windowsHide: true, detached: true });
+    const up = spawn(process.execPath, [copy, "up"], { stdio: ["ignore", "pipe", "pipe"], windowsHide: true, detached: process.platform !== "win32" });
     let out = "";
     up.stdout.on("data", (d) => (out += d));
     up.stderr.on("data", (d) => (out += d));
@@ -693,7 +696,7 @@ try {
     }
   });
   await check("launcher diagnostics report a real child's observed exit", async () => {
-    const child = spawn(process.execPath, ["-e", "process.exit(23)"], { stdio: "ignore", windowsHide: true, detached: true });
+    const child = spawn(process.execPath, ["-e", "process.exit(23)"], { stdio: "ignore", windowsHide: true, detached: process.platform !== "win32" });
     const messages = [];
     const closed = new Promise((resolve, reject) => {
       child.once("error", reject);

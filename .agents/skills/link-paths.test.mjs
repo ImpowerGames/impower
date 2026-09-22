@@ -17,6 +17,9 @@ spawnSync("git", ["init", scratch], { windowsHide: true });
 const shared = path.join(scratch, ".agents", "skills");
 fs.mkdirSync(shared, { recursive: true });
 for (const dir of ["drive-web-editor", "drive-vscode-web", "triage-skill-feedback"]) fs.cpSync(path.join(skills, dir), path.join(shared, dir), { recursive: true, filter: (src) => !src.includes(".chrome-profile") && !src.endsWith(".state.json") });
+// Both drivers import the repository's detached launcher.
+fs.mkdirSync(path.join(scratch, "scripts"));
+fs.cpSync(path.join(skills, "..", "..", "scripts", "detached-launch.mjs"), path.join(scratch, "scripts", "detached-launch.mjs"));
 fs.mkdirSync(path.join(scratch, "vscode-sparkdown"));
 fs.writeFileSync(path.join(scratch, "vscode-sparkdown", "package.json"), '{"publisher":"test","name":"test"}');
 linkAgentSkills(scratch);
@@ -40,6 +43,8 @@ calls.length = 0;
 probeServers(legacy, deps);
 assert.deepEqual(calls, [oldDriver], "existing worktrees must retain driver discovery");
 console.log("PASS: actual linked CLI dispatch and identical state paths; canonical deduplication and legacy discovery");
+fs.mkdirSync(path.join(legacy, "scripts"));
+fs.cpSync(path.join(scratch, "scripts", "detached-launch.mjs"), path.join(legacy, "scripts", "detached-launch.mjs"));
 for (const driver of ["drive-web-editor", "drive-vscode-web"]) {
   const canonicalDriver = path.join(legacy, ".agents", "skills", driver);
   fs.cpSync(path.join(shared, driver), canonicalDriver, { recursive: true });
