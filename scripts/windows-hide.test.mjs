@@ -206,7 +206,13 @@ export function unhiddenCalls(source) {
 // fields and not one of them a launch option. So launch options nothing else
 // identifies as one, `{ detached: true, env }` passed to an injected launcher,
 // still count.
-const LAUNCH_OPTIONS = new Set(["windowsHide", "stdio", "shell", "cwd", "env", "argv0", "uid", "gid", "killSignal", "serialization", "timeout", "linger"]);
+// Every option child_process takes, so an unrecognized shape is a launch the
+// scanner reads rather than a record it passes over.
+const LAUNCH_OPTIONS = new Set([
+  "windowsHide", "stdio", "shell", "cwd", "env", "argv0", "uid", "gid", "killSignal", "serialization",
+  "timeout", "maxBuffer", "encoding", "signal", "windowsVerbatimArguments", "input", "silent", "execPath",
+  "execArgv", "ipc", "linger",
+]);
 
 // The object literal's own keys: `name:` entries and `name` shorthands,
 // skipping anything nested inside it.
@@ -324,6 +330,8 @@ const detachedCases = [
   ['const options = { detached: true, windowsHide: true, stdio: "ignore" };', ["1: detached"]],
   // An injected launcher, with no option naming it a launch but `env`.
   ["spawnWorker(exe, args, { detached: true, env })", ["1: detached"]],
+  ["spawnWorker(exe, args, { detached: true, maxBuffer: 1024 })", ["1: detached"]],
+  ["spawnWorker(exe, args, { detached: true, signal: controller.signal })", ["1: detached"]],
   // Nothing else in the object to read either way.
   ["spawnWorker(exe, args, { detached: true })", ["1: detached"]],
   // A record whose fields are data, wherever it sits.

@@ -116,14 +116,21 @@ try {
       try { execFileSync("taskkill", ["/pid", String(child.pid), "/T", "/F"], { stdio: "ignore", windowsHide: true }); } catch {}
       return seen;
     };
-    assert.equal(await count((command) => spawnDetached(command, [], { shell: true, stdio: "ignore" })), 0, "a console grandchild of spawnDetached opened a visible window");
-    console.log("PASS: a console grandchild of spawnDetached opens no visible window");
-    if (process.env.DETACHED_LAUNCH_WINDOW_PROBE === "1") {
-      // The control proves the probe can see the window this helper prevents.
-      const control = await count((command) => spawn(command, { shell: true, stdio: "ignore", windowsHide: true, detached: true }));
-      assert.equal(control, 1, "the probe saw no window from a directly detached shell, so it cannot tell a fix from a miss");
-      console.log("PASS: the control, a direct detached launch, opens 1 window the probe sees");
-    } else console.log("SKIP: the control launch, which opens a real focus-stealing window; set DETACHED_LAUNCH_WINDOW_PROBE=1 to run it");
+    // The control, a direct detached launch, opens the real focus-stealing
+    // window, so it runs where nobody is at the keyboard: in CI, or on request.
+    // It is what tells a working probe from a blind one. Some Windows hosts
+    // give a descendant console no window of its own at all (a pseudo-console
+    // terminal is one), and there the count below would pass whatever the
+    // wrapper did, so a blind probe is reported as skipped rather than passed.
+    const control = process.env.DETACHED_LAUNCH_WINDOW_PROBE === "1" || process.env.CI === "true"
+      ? await count((command) => spawn(command, { shell: true, stdio: "ignore", windowsHide: true, detached: true }))
+      : null;
+    if (control === 0) console.log("SKIP: the window count; this host opens no window even for a direct detached launch, so the count proves nothing here");
+    else {
+      if (control !== null) console.log("PASS: the control, a direct detached launch, opens 1 window the probe sees");
+      assert.equal(await count((command) => spawnDetached(command, [], { shell: true, stdio: "ignore" })), 0, "a console grandchild of spawnDetached opened a visible window");
+      console.log(`PASS: a console grandchild of spawnDetached opens no visible window${control === null ? " (control not run; set DETACHED_LAUNCH_WINDOW_PROBE=1 to check the probe can see one)" : ""}`);
+    }
   }
 } finally {
   fs.rmSync(scratch, { recursive: true, force: true });

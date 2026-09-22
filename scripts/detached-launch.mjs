@@ -22,7 +22,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const self = fileURLToPath(import.meta.url);
-export const EXIT_GRACE_MS = 1000;
+const EXIT_GRACE_MS = 1000;
 
 // `options` takes cwd, env, stdio, shell and linger. The wrapper runs in the
 // caller's `cwd` with the caller's `env`, because those are the options the
