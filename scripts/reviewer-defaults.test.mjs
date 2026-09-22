@@ -43,7 +43,31 @@ assert.equal(pick({ writer: "claude-opus-5-5", writerEffort: "max", reviewerFall
 assert.equal(pick({ writer: "gpt-6-astra", writerEffort: "high" }), "claude-opus-5-5/xhigh");
 assert.equal(pick({ writer: "gpt-6-astra", writerEffort: "max", reviewerIndex: 1 }), "claude-opus-5/high");
 assert.equal(pick({ writer: "claude-fable-5-1", writerEffort: "max", reviewerFallback: true, reviewerIndex: 1 }), "claude-opus-5/high");
-assert.ok(!defaults.rows.some((row) => row.writer !== "claude-opus-5-5" && [...row.primary, ...row.fallback].some(({ route }, index) => route === "claude-opus-5" && index === 0)), "Opus 5 is never the first reviewer except for an Opus 5.5 writer");
+// Every row whose writer or reviewers are Opus routes, pinned exactly: each
+// reviewer at each index, so one row left on an older model fails here.
+const routes = (list) => list.map(({ route, effort }) => `${route}/${effort}`).join(" ");
+const opusRows = defaults.rows.filter((row) => ["claude-opus-5", "claude-opus-5-5", "claude-fable-5-1", "gpt-5.6-sol", "gpt-6-astra"].includes(row.writer));
+const expectedOpusRows = [
+  ["claude-opus-5-5", "low", "low", "gpt-5.6-terra/high", "claude-sonnet-5/high"],
+  ["claude-opus-5-5", "medium", "medium", "gpt-5.6-sol/high", "claude-opus-5/high"],
+  ["claude-opus-5-5", "high", "high", "gpt-5.6-sol/xhigh", "claude-opus-5/xhigh"],
+  ["claude-opus-5-5", "xhigh", "high", "gpt-5.6-sol/xhigh", "claude-opus-5/xhigh"],
+  ["claude-opus-5-5", "xhigh", "correctness-critical", "gpt-6-astra/xhigh gpt-5.6-sol/high", "claude-opus-5/xhigh claude-opus-4-8/xhigh"],
+  ["claude-opus-5-5", "max", "correctness-critical", "gpt-6-astra/xhigh gpt-5.6-sol/high", "claude-opus-5/xhigh claude-opus-4-8/xhigh"],
+  ["claude-opus-5", "low", "low", "gpt-5.6-terra/high", "claude-sonnet-5/high"],
+  ["claude-opus-5", "medium", "medium", "gpt-5.6-sol/high", "claude-opus-5-5/high"],
+  ["claude-opus-5", "high", "high", "gpt-5.6-sol/xhigh", "claude-opus-5-5/xhigh"],
+  ["claude-opus-5", "xhigh", "high", "gpt-5.6-sol/xhigh", "claude-opus-5-5/xhigh"],
+  ["claude-opus-5", "xhigh", "correctness-critical", "gpt-6-astra/xhigh gpt-5.6-sol/high", "claude-opus-5-5/xhigh claude-opus-4-8/high"],
+  ["claude-opus-5", "max", "correctness-critical", "gpt-6-astra/xhigh gpt-5.6-sol/high", "claude-opus-5-5/xhigh claude-opus-4-8/high"],
+  ["claude-fable-5-1", "low", "high", "gpt-5.6-sol/xhigh", "claude-opus-5-5/xhigh"],
+  ["claude-fable-5-1", "medium", "high", "gpt-5.6-sol/xhigh", "claude-opus-5-5/xhigh"],
+  ...["high", "xhigh", "max"].map((effort) => ["claude-fable-5-1", effort, "correctness-critical", "gpt-6-astra/xhigh gpt-5.6-sol/high", "claude-opus-5-5/xhigh claude-opus-5/high"]),
+  ...["low", "medium", "high", "xhigh", "max", "ultra"].map((effort) => ["gpt-5.6-sol", effort, "medium", "claude-opus-5-5/high", "gpt-6-astra/medium"]),
+  ...["low", "medium", "high", "xhigh"].map((effort) => ["gpt-6-astra", effort, "high", "claude-opus-5-5/xhigh", "gpt-5.6-sol/xhigh"]),
+  ...["max", "ultra"].map((effort) => ["gpt-6-astra", effort, "correctness-critical", "claude-opus-5-5/xhigh claude-opus-5/high", "gpt-5.6-sol/xhigh gpt-5.6-terra/high"]),
+];
+assert.deepEqual(opusRows.map((row) => [row.writer, row.writerEffort, row.ticketEffort, routes(row.primary), routes(row.fallback)]), expectedOpusRows);
 // Every writer in the table resolves at every effort its runner accepts.
 for (const writer of new Set(defaults.rows.map((row) => row.writer))) {
   for (const writerEffort of writer.startsWith("claude-") ? ["low", "medium", "high", "xhigh", "max"] : ["low", "medium", "high", "xhigh", "max", "ultra"]) {
