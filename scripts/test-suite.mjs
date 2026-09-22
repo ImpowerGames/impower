@@ -298,6 +298,9 @@ export async function main(argv, dependencies = {}) {
   const { args, waitMs } = waitOption(rest);
   let result;
   if (command === "run" && target) {
+    // Local runs name the files under work; the Test Suite workflow gives the
+    // package result, and `start` gives a durable local one.
+    if (!args.length) throw new Error("Name the test files under work; use start for a whole package");
     const { exit, signal, launchError } = await runVitest({ ...dependencies, packageRoot: target, files: args, waitMs });
     if (launchError) throw new Error(launchError);
     if (signal) console.error(`Vitest ended by signal ${signal}`);
@@ -313,7 +316,7 @@ export async function main(argv, dependencies = {}) {
     const run = read(path.join(target, "run.json"));
     result = await execute({ ...dependencies, directory: target, waitMs, retry: args.slice(1).map(f => path.resolve(run.packageRoot, f)) });
   } else if (command === "status" && target && !args.length) result = status(target);
-  else throw new Error("Usage: node scripts/test-suite.mjs run <package> [<test-file> ...] [--wait <seconds>] | start <package> [--wait <seconds>] | status <run-directory> | resume <run-directory> [--retry <failed-file> ...] [--wait <seconds>]");
+  else throw new Error("Usage: node scripts/test-suite.mjs run <package> <test-file> [<test-file> ...] [--wait <seconds>] | start <package> [--wait <seconds>] | status <run-directory> | resume <run-directory> [--retry <failed-file> ...] [--wait <seconds>]");
   console.log(JSON.stringify(result, null, 2));
   return result.status === "passed" ? 0 : 1;
 }

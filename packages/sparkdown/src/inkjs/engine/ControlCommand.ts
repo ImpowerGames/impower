@@ -202,6 +202,14 @@ export class ControlCommand extends InkObject {
     cmd._shortCircuitSkipCount = skipCount;
     return cmd;
   }
+  // `LineStart` — the compiler places one ahead of each `display()` call
+  // it lowers a display line to. It does nothing when it runs, except while
+  // the engine is looking past a newline to see whether glue removes it: the
+  // marker proves a new line has begun, so the look-ahead stops there, before
+  // that line's argument is evaluated.
+  public static LineStart() {
+    return new ControlCommand(ControlCommand.CommandType.LineStart);
+  }
   public override toString() {
     return "ControlCommand " + this.commandType.toString();
   }
@@ -276,6 +284,9 @@ export namespace ControlCommand {
     // (`_shortCircuitOp`) and the RHS op count to skip
     // (`_shortCircuitSkipCount`). See `ShortCircuit()`.
     ShortCircuit, // 32
+
+    // A display line begins here. See `LineStart()`.
+    LineStart, // 33
 
     TOTAL_VALUES,
   }

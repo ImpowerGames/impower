@@ -1413,6 +1413,7 @@ export class JsonSerialisation {
     // `sc:<op>:<skipCount>` form (see WriteRuntimeObject's special
     // case for ShortCircuit).
     _controlCommandNames[ControlCommand.CommandType.ShortCircuit] = "sc:?";
+    _controlCommandNames[ControlCommand.CommandType.LineStart] = "line";
 
     for (let i = 0; i < ControlCommand.CommandType.TOTAL_VALUES; ++i) {
       if (_controlCommandNames[i] == null)

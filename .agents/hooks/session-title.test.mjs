@@ -73,20 +73,20 @@ const fromRoot = path.relative(root, statePath("a"));
 assert.ok(fromRoot.startsWith("..") || path.isAbsolute(fromRoot), "state is never inside the checkout: " + fromRoot);
 
 // The next shell command is denied until the rename happens.
-const denied = gate(shell("a", "npm test"), "claude");
+const denied = gate(shell("a", "git status"), "claude");
 assert.match(denied, /FIX #302: filterimage layers/);
 assert.match(gate(shell("a", "Get-ChildItem", "PowerShell"), "claude"), /set_session_title/);
 
 // A second session in another worktree is unaffected.
-assert.equal(gate(shell("b", "npm test"), "claude"), null);
+assert.equal(gate(shell("b", "git status"), "claude"), null);
 
 // A rename with a different title does not confirm; the exact title does.
 assert.match(afterTool(rename("a", "Something else"), "claude"), /FIX #302: filterimage layers/);
-assert.ok(gate(shell("a", "npm test"), "claude"));
+assert.ok(gate(shell("a", "git status"), "claude"));
 assert.match(afterTool(rename("a", "FIX #302: filterimage layers", undefined, "local_other"), "claude"), /FIX #302/, "renaming another session does not confirm");
-assert.ok(gate(shell("a", "npm test"), "claude"));
+assert.ok(gate(shell("a", "git status"), "claude"));
 assert.equal(afterTool(rename("a", "FIX #302: filterimage layers"), "claude"), null);
-assert.equal(gate(shell("a", "npm test"), "claude"), null);
+assert.equal(gate(shell("a", "git status"), "claude"), null);
 
 // A working directory given by its Windows 8.3 short name still matches Git's long-form paths.
 if (process.platform === "win32") {
@@ -106,16 +106,16 @@ const codexContext = afterTool(shell("c", create), "codex");
 assert.match(codexContext, /set_thread_title/);
 const ack = codexContext.match(/`(node [^`]+ confirm [^`]+)`/)?.[1];
 assert.ok(ack, codexContext);
-assert.ok(gate(shell("c", "npm test"), "codex"));
+assert.ok(gate(shell("c", "git status"), "codex"));
 assert.equal(gate(shell("c", ack), "codex"), null);
 const hookPath = path.join(root, ".agents/hooks/session-title.mjs");
 const keyC = sessionKey("c");
 assert.equal(gate(shell("c", `node ${hookPath.replaceAll("\\", "/")} confirm ${keyC}`), "codex"), null, "an unquoted path to the same script is accepted");
-for (const other of [`node "C:/elsewhere/session-title.mjs" confirm ${keyC}`, `node ./session-title.mjs confirm ${keyC}`, `node "${hookPath}" confirm ${sessionKey("d")}`, `node "${hookPath}" confirm c`, `${ack} && npm test`, `${ack}; npm test`, `node "${hookPath}" confirm ${keyC} extra`]) {
+for (const other of [`node "C:/elsewhere/session-title.mjs" confirm ${keyC}`, `node ./session-title.mjs confirm ${keyC}`, `node "${hookPath}" confirm ${sessionKey("d")}`, `node "${hookPath}" confirm c`, `${ack} && git status`, `${ack}; git status`, `node "${hookPath}" confirm ${keyC} extra`]) {
   assert.ok(gate(shell("c", other), "codex"), other);
 }
 assert.equal(afterTool(rename("c", "FIX #302: filterimage layers", "set_thread_title"), "codex"), null);
-assert.equal(gate(shell("c", "npm test"), "codex"), null);
+assert.equal(gate(shell("c", "git status"), "codex"), null);
 
 // The acknowledgement command confirms only the named session.
 afterTool(shell("d", create), "codex");
@@ -124,8 +124,8 @@ const cli = path.join(root, ".agents/hooks/session-title.mjs");
 const confirm = (key) => spawnSync(process.execPath, [cli, "confirm", key], { encoding: "utf8", env: process.env, windowsHide: true });
 const confirmed = confirm(sessionKey("d"));
 assert.equal(confirmed.status, 0, confirmed.stderr);
-assert.equal(gate(shell("d", "npm test"), "codex"), null);
-assert.ok(gate(shell("e", "npm test"), "codex"));
+assert.equal(gate(shell("d", "git status"), "codex"), null);
+assert.ok(gate(shell("e", "git status"), "codex"));
 assert.equal(confirm(sessionKey("unknown")).status, 1);
 assert.equal(confirm("d").status, 2, "only a session key is accepted");
 
@@ -140,7 +140,7 @@ for (const odd of ["space id", "x;echo${IFS}INJECTED", "q'uote\"d"]) {
   const ran = spawnSync(bashShell, ["-c", command], { encoding: "utf8", env: process.env, windowsHide: true });
   assert.equal(ran.status, 0, ran.stderr);
   assert.doesNotMatch(ran.stdout, /INJECTED/);
-  assert.equal(gate(shell(odd, "npm test"), "codex"), null, "the prescribed command clears the gate for " + odd);
+  assert.equal(gate(shell(odd, "git status"), "codex"), null, "the prescribed command clears the gate for " + odd);
 }
 
 // Session ids cannot escape the state directory.
@@ -171,12 +171,12 @@ assert.ok(postShell && postRename, "Claude PostToolUse covers shell commands and
 let out = run(postShell.hooks[0].command, { ...shell("f", create), hook_event_name: "PostToolUse" });
 assert.equal(out.status, 0, out.stderr);
 assert.match(JSON.parse(out.stdout).hookSpecificOutput.additionalContext, /FIX #302/);
-out = run(claudePre.hooks[0].command, shell("f", "npm test"));
+out = run(claudePre.hooks[0].command, shell("f", "git status"));
 assert.equal(out.status, 0, out.stderr);
 assert.equal(JSON.parse(out.stdout).hookSpecificOutput.permissionDecision, "deny");
 out = run(postRename.hooks[0].command, rename("f", "FIX #302: filterimage layers"));
 assert.equal(out.status, 0, out.stderr);
-out = run(claudePre.hooks[0].command, shell("f", "npm test"));
+out = run(claudePre.hooks[0].command, shell("f", "git status"));
 assert.equal(out.status, 0, out.stderr);
 assert.equal(out.stdout.trim(), "");
 assert.equal(run(claudePre.hooks[0].command, "{broken").status, 2, "a broken gate blocks");
@@ -191,18 +191,18 @@ const runCodex = (hook, payload) => spawnSync(native[0], native[1](hook[native[2
 out = runCodex(codexPost.hooks[0], { ...shell("h", "git worktree add -b fix/1-probe-failure Z:/none/probe no-such-ref"), hook_event_name: "PostToolUse", tool_response: "Preparing worktree (new branch 'fix/1-probe-failure')\nfatal: not a valid object name: 'no-such-ref'\n" });
 assert.equal(out.status, 0, out.stderr);
 assert.equal(out.stdout.trim(), "");
-out = runCodex(codexPre, shell("h", "npm test"));
+out = runCodex(codexPre, shell("h", "git status"));
 assert.equal(out.status, 0, out.stderr);
 assert.equal(out.stdout.trim(), "", "a failed worktree command leaves the session ungated");
 out = runCodex(codexPost.hooks[0], shell("g", create));
 assert.equal(out.status, 0, out.stderr);
 assert.match(JSON.parse(out.stdout).hookSpecificOutput.additionalContext, /set_thread_title/);
-out = runCodex(codexPre, shell("g", "npm test"));
+out = runCodex(codexPre, shell("g", "git status"));
 assert.equal(out.status, 0, out.stderr);
 assert.equal(JSON.parse(out.stdout).hookSpecificOutput.permissionDecision, "deny");
 out = runCodex(codexPost.hooks[0], rename("g", "FIX #302: filterimage layers", "set_thread_title"));
 assert.equal(out.status, 0, out.stderr);
-out = runCodex(codexPre, shell("g", "npm test"));
+out = runCodex(codexPre, shell("g", "git status"));
 assert.equal(out.status, 0, out.stderr);
 assert.equal(out.stdout.trim(), "");
 

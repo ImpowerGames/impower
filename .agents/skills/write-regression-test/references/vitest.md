@@ -31,7 +31,7 @@ For baseline comparison, start separate runs on the base and fix, confirm identi
 
 ## Single-file and reproduction runs
 
-Run a test file, several, or a whole package with `run`. Test paths are relative to the package directory:
+Run the test files under work with `run`, naming one or more; it refuses a call with none, and a whole-package local result comes from `start` above. Test paths are relative to the package directory:
 
 ```bash
 node scripts/test-suite.mjs run packages/sparkdown src/tests/compiler/constDeclarationValidity.test.ts --wait 600
@@ -40,3 +40,5 @@ node scripts/test-suite.mjs run packages/sparkdown src/tests/compiler/constDecla
 `run` takes the machine-wide reservation, waits for other Vitest processes to exit while holding it, then runs the package's installed Vitest in the foreground with a 1024 MB heap and `--pool=forks --poolOptions.forks.minForks=1 --poolOptions.forks.maxForks=1 --no-file-parallelism`: one worker process with a fresh environment per file, the arrangement the Test Suite workflow uses. `singleFork=true` shares one environment across a package's files and fails jsdom suites such as `packages/spark-web-player` for reasons unrelated to the change under test. The package's own configuration stays in force. Its exit status is Vitest's, and the redgreen driver accepts it as a `--test` command. Require both `Test Files` and `Tests` summaries and inspect the actual assertion. The redgreen diagnostic classifier's separate no-test issue is tracked by #539; this runner does not repair or substitute for that classifier.
 
 `--wait <seconds>` also applies to `start` and `resume`. Without it, a live reservation or another Vitest process refuses at once. With it, a live reservation or a present Vitest process waits up to that bound, and `start` and `resume` wait again before each file; progress prints as `waiting` lines. An ambiguous or unknown reservation still refuses at once. A timeout releases the reservation and names the processes still present. Because single-file runs and suites share one reservation, they queue behind each other; a direct `npx vitest` call bypasses it and can make another session's run wait or refuse.
+
+A repository hook (`.agents/hooks/local-test-hook.mjs`) refuses a direct Vitest call with no file argument, a directory, a glob, a name that is not an existing test file, and a package `npm test`, `npm run test`, `pnpm test` or `yarn test` whose script may run Vitest; it allows `node scripts/test-suite.mjs`. It reads command text statically, so a command built from a variable or an alias, or handed to another program as a string, is outside its coverage and this section is the rule.
