@@ -8,7 +8,7 @@
 // with every other session for memory and cores. Refused: a Vitest call whose
 // positional arguments are missing, or are not all test files that exist (a
 // directory, a glob or a bare word is a filter over the whole package); a
-// package `npm test`, `npm run test`, `pnpm test` or `yarn test`, including
+// package `npm test`, `npm run test`, `pnpm test` or `yarn test` whose script may run Vitest, including
 // the `test:*` scripts; and the typecheck with no project filter, whether
 // through `npm run typecheck` in a directory whose script is unfiltered (the
 // repository root) or through `scripts/typecheck.mjs` directly. Allowed: a
@@ -103,23 +103,39 @@ function follow(dir, text) {
   return isAbsolute(text) ? resolve(text) : resolve(dir, text);
 }
 
-/** The nearest package.json's typecheck script from `dir` upward, or null. */
-function typecheckScript(dir) {
+/**
+ * The named script of the nearest package.json from `dir` upward: a string,
+ * null when that package has no such script, or undefined when no package
+ * can be read.
+ */
+function packageScript(dir, name) {
   for (let d = dir; d; ) {
     const file = resolve(d, "package.json");
     if (existsSync(file)) {
       try {
-        const script = JSON.parse(readFileSync(file, "utf8"))?.scripts?.typecheck;
+        const script = JSON.parse(readFileSync(file, "utf8"))?.scripts?.[name];
         return typeof script === "string" ? script : null;
       } catch {
-        return null;
+        return undefined;
       }
     }
     const up = dirname(d);
-    if (up === d) return null;
+    if (up === d) return undefined;
     d = up;
   }
-  return null;
+  return undefined;
+}
+
+const typecheckScript = (dir) => packageScript(dir, "typecheck") ?? null;
+
+/**
+ * Whether a package's test script may run Vitest: true unless the package
+ * is known and its script runs another runner directly (`node --test`, say)
+ * without naming vitest or handing off to a package manager or script.
+ */
+function runsVitest(dir, name) {
+  const script = dir === null ? undefined : packageScript(dir, name);
+  return typeof script !== "string" || /\b(?:vitest|npm|pnpm|yarn|npx|run)\b/i.test(script);
 }
 
 /** True when the typecheck.mjs arguments name no project and do not only list. */
@@ -199,8 +215,16 @@ function packageManagerReason(program, args, dir) {
   // position: a test word anywhere among the package manager's own tokens
   // (those before `--`) refuses the call, and a `typecheck` word there is
   // checked as the script.
-  const end = texts.indexOf("--");
-  const own = end < 0 ? texts : texts.slice(0, end);
+  // `npm -- test` puts the command itself after a leading `--`, so when no
+  // word comes before the first `--` the package manager's own tokens run to
+  // the next one.
+  let start = 0;
+  let end = texts.indexOf("--");
+  if (end >= 0 && !texts.slice(0, end).some((t) => !t.startsWith("-"))) {
+    start = end + 1;
+    end = texts.indexOf("--", start);
+  }
+  const own = end < 0 ? texts.slice(start) : texts.slice(start, end);
   // A directory or workspace option moves the package the script runs in; a
   // workspace named by package name rather than path leaves it unknown.
   let at = dir;
@@ -217,18 +241,24 @@ function packageManagerReason(program, args, dir) {
     if (PM_DIRECTORY_OPTIONS.has(name)) at = follow(dir, value);
     else if (PM_WORKSPACE_OPTIONS.has(name)) at = toPackage(value);
   }
-  // `npx vitest`, `npm exec [--] vitest`, `pnpm exec vitest`, `pnpm dlx vitest`, `yarn vitest`.
-  // A command that installs, removes or describes packages names vitest as a
-  // package, not a run.
-  const manages = own.some((t) => /^(?:i|in|install|add|ci|remove|rm|uninstall|un|update|up|upgrade|view|info|why|ls|list|outdated)$/i.test(t));
-  const vitest = manages ? -1 : texts.findIndex((t) => t.toLowerCase() === "vitest");
+  // A command that installs, removes or describes packages names its words
+  // as packages, not as commands or scripts, unless it also runs a binary
+  // (`exec`, `dlx`, `x`), in which case a management word is an option value.
+  const runsBinary = own.some((t) => /^(?:exec|dlx|x)$/i.test(t)) || ["npx", "pnpx", "bunx"].includes(program);
+  const manages = !runsBinary && own.some((t) => /^(?:i|in|install|add|ci|remove|rm|uninstall|un|update|up|upgrade|view|v|info|show|why|ls|list|outdated|search|home|docs|repo|bugs)$/i.test(t));
+  if (manages) return null;
+  // `npx vitest`, `npm exec [--] vitest`, `pnpm exec vitest`, `pnpm dlx vitest`, `yarn vitest`,
+  // also as a package spec (`vitest@2.1.9`). The value of `--package`/`-p`
+  // only puts a package on the path and is not what runs.
+  const vitest = texts.findIndex((t, k) => /^vitest(?:@.*)?$/i.test(t) && !/^(?:--package|-p)$/.test(texts[k - 1] ?? ""));
   if (vitest >= 0) return vitestReason(args.slice(vitest + 1), at);
-  if (own.some((t) => !t.startsWith("-") && TEST_COMMAND.test(t))) return TEST_REASON;
+  const test = own.find((t) => !t.startsWith("-") && TEST_COMMAND.test(t));
+  if (test !== undefined && runsVitest(at, /^test:/i.test(test) ? test : "test")) return TEST_REASON;
   const script = own.findIndex((t) => t.toLowerCase() === "typecheck");
   if (script < 0) return null;
   // npm hands the script only what follows `--`; pnpm and yarn also hand it
   // the words after the script name.
-  const extra = program === "npm" ? (end < 0 ? [] : texts.slice(end + 1)) : texts.slice(script + 1).filter((t) => t !== "--");
+  const extra = program === "npm" ? (end < 0 ? [] : texts.slice(end + 1)) : texts.slice(start + script + 1).filter((t) => t !== "--");
   if (!unfilteredTypecheck(extra)) return null;
   if (at === null) return null;
   const ownScript = typecheckScript(at);
@@ -270,7 +300,8 @@ export function decide(command, shell, cwd = process.cwd(), depth = 0) {
       const name = baseName(tok).replace(/\.(?:cmd|bat|ps1)$/i, "");
       const args = seg.slice(i + 1);
       if (CD.has(name)) {
-        const target = args.find((a) => !a.text.startsWith("-"));
+        // cmd's `cd /d <dir>` also changes drive; `/d` is not the target.
+        const target = args.find((a) => !a.text.startsWith("-") && !/^\/d$/i.test(a.text));
         dir = target ? follow(dir, target.text) : null;
         continue;
       }
@@ -281,7 +312,7 @@ export function decide(command, shell, cwd = process.cwd(), depth = 0) {
       if (name === "cmd") {
         rest = args.findIndex((a) => /^\/[ck]$/i.test(a.text));
         if (rest >= 0) rest++;
-        while (rest >= 0 && args[rest]?.text.toLowerCase() === "call") rest++;
+        while (rest >= 0 && /^@?call$/i.test(args[rest]?.text ?? "")) rest++;
       } else if (/^(pwsh|powershell)$/.test(name)) {
         rest = args.findIndex((a) => /^-(?:c|command)$/i.test(a.text));
         if (rest >= 0) rest++;
@@ -293,7 +324,8 @@ export function decide(command, shell, cwd = process.cwd(), depth = 0) {
           : tail.every((a) => Number.isInteger(a.start) && Number.isInteger(a.end))
             ? command.slice(tail[0].start, tail[tail.length - 1].end)
             : tail.map((a) => a.text).join(" ");
-        const inner = decide(text.replace(/^\s*call\s+/i, ""), /^(pwsh|powershell)$/.test(name) ? "powershell" : undefined, dir, depth + 1);
+        // cmd's `@` echo prefix and `call` both leave the command itself.
+        const inner = decide(name === "cmd" ? text.replace(/^\s*@?(?:call\s+@?)?/i, "") : text,/^(pwsh|powershell)$/.test(name) ? "powershell" : undefined, dir, depth + 1);
         if (inner) return inner;
         continue;
       }
@@ -303,13 +335,18 @@ export function decide(command, shell, cwd = process.cwd(), depth = 0) {
       else if (name === "node") {
         // Node's own options may take separate values, so the script is the
         // first argument naming a guarded entry point, not the first
-        // non-option. With `-e` or `-p` Node runs that code instead, and
-        // every later argument is only data for it.
-        const code = args.findIndex((a) => /^(?:-e|--eval|-p|--print)(?:=|$)/.test(a.text));
-        const script = args.findIndex((a, k) => (code < 0 || k < code) && /(?:^|[\\/])(?:typecheck\.mjs|vitest(?:\.mjs)?)$/i.test(a.text));
+        // non-option. With `-e` or `-p` (alone or combined, as in `-pe`)
+        // Node runs that code instead, and every later argument is only data
+        // for it. A guarded module loaded by `--import`, `--require`/`-r` or
+        // `--loader` runs with no arguments of its own.
+        const guarded = /(?:^|[\\/=])(?:typecheck\.mjs|vitest(?:\.mjs)?)$/i;
+        const preload = /^(?:--import|--require|-r|--loader|--experimental-loader)(?:=|$)/;
+        const code = args.findIndex((a) => /^(?:-[a-z]*[ep][a-z]*|--eval|--print)(?:=|$)/.test(a.text));
+        const script = args.findIndex((a, k) => (code < 0 || k < code || preload.test(a.text) || preload.test(args[k - 1]?.text ?? "")) && guarded.test(a.text));
         const target = args[script]?.text ?? "";
-        if (/(?:^|[\\/])typecheck\.mjs$/i.test(target) && unfilteredTypecheck(args.slice(script + 1).map((a) => a.text))) reason = TYPECHECK_REASON;
-        else if (/(?:^|[\\/])vitest(?:\.mjs)?$/i.test(target)) reason = vitestReason(args.slice(script + 1), dir);
+        const scriptArgs = script < 0 || preload.test(target) || preload.test(args[script - 1]?.text ?? "") ? [] : args.slice(script + 1);
+        if (/typecheck\.mjs$/i.test(target) && unfilteredTypecheck(scriptArgs.map((a) => a.text))) reason = TYPECHECK_REASON;
+        else if (/vitest(?:\.mjs)?$/i.test(target)) reason = vitestReason(scriptArgs, dir);
       }
       if (reason) return reason;
     }

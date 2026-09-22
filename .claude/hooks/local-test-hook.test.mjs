@@ -29,6 +29,11 @@ put("scripts/typecheck.mjs", "");
 put("packages/sparkdown/package.json", JSON.stringify({ scripts: { test: "vitest", "test:run": "vitest run", typecheck: "node ../../scripts/typecheck.mjs packages/sparkdown/" } }));
 put("packages/sparkdown/src/tests/compiler/constDeclarationValidity.test.ts", "");
 put("packages/sparkdown/src/tests/compiler/FilterImageLayers.test.ts", "");
+// A package whose test script runs Node's own runner, as
+// scripts/agent-notification-alerts does, and one whose test script hands
+// off to another script.
+put("packages/alerts/package.json", JSON.stringify({ scripts: { test: "node --test" } }));
+put("packages/relay/package.json", JSON.stringify({ scripts: { test: "npm run test:unit", "test:unit": "node --test" } }));
 let failed = 0;
 
 function check(ok, label, detail) {
@@ -113,6 +118,20 @@ const denies = [
   ["cmd /c call npm run test:run", "cd packages/sparkdown && cmd /c call npm run test:run"],
   ["cmd /c with a quoted npm test", 'cmd /c "npm test"'],
   ["corepack with a quoted package manager", 'corepack "pnpm" test'],
+  // Review round 3 (PR #767): values that read as management words, cmd prefixes, separators, specs, preloads.
+  ["an npm option value that reads as install before exec vitest", "cd packages/sparkdown && npm --cache install exec -- vitest run"],
+  ["npm exec with an option value that reads as install", "cd packages/sparkdown && npm exec --cache install -- vitest run"],
+  ["cmd /c @call npm run test:run", "cd packages/sparkdown && cmd /c @call npm run test:run"],
+  ["cmd /c @npm test", "cd packages/sparkdown && cmd /c @npm test"],
+  ["npm -- test", "cd packages/sparkdown && npm -- test"],
+  ["npm -- run typecheck at the root", "npm -- run typecheck"],
+  ["npx with a versioned vitest spec", "cd packages/sparkdown && npx vitest@2.1.9 run"],
+  ["npm exec with a versioned vitest spec", "cd packages/sparkdown && npm exec -- vitest@2.1.9 run"],
+  ["pnpm dlx with a versioned vitest spec", "cd packages/sparkdown && pnpm dlx vitest@2.1.9 run"],
+  ["the typecheck script as an --import preload before -e", "node --import ./scripts/typecheck.mjs -e 0"],
+  ["the typecheck script as a glued --import preload", "node --import=./scripts/typecheck.mjs -e 0"],
+  ["cmd cd /d to the root before the typecheck", 'cd packages/sparkdown && cmd /c "cd /d ../.. && npm run typecheck"'],
+  ["a test script that hands off to another script", "cd packages/relay && npm test"],
 ];
 
 const allows = [
@@ -145,6 +164,12 @@ const allows = [
   ["a yarn workspace package typecheck", "yarn workspace @impower/sparkdown typecheck"],
   ["a yarn workspace package typecheck through run", "yarn workspace @impower/sparkdown run typecheck"],
   ["an npm install of a package", "npm install --save-dev vitest-environment-x"],
+  ["npm view of a package named test", "npm view test"],
+  ["npm install of a package named test", "npm install test"],
+  ["npm view of a package named typecheck at the root", "npm view typecheck"],
+  ["npm exec with vitest only as --package", "npm exec --package vitest -- eslint --version"],
+  ["node -pe with the typecheck path only as data", 'node -pe "process.argv[1]" scripts/typecheck.mjs'],
+  ["npm test in a package whose test script runs node --test", "cd packages/alerts && npm test"],
   ["an npm install of vitest itself", "cd packages/sparkdown && npm install -D vitest"],
   ["a pnpm add of vitest", "pnpm add -D vitest"],
   ["cmd /c on a single file", `cmd /c "cd packages/sparkdown && npx vitest run ${FILE}"`],
