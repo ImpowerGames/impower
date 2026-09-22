@@ -19,39 +19,123 @@
 //   node .agents/skills/drive-web-editor/driver.mjs verify --sd repro.sd --shot out.png
 //   node .agents/skills/drive-web-editor/driver.mjs down
 //
-// State (editor URL + launcher pid) lives in .agents/skills/drive-web-editor/.state.json,
-// which is gitignored — every command after `up` reads the URL from there.
+// State (editor URL + launcher pid) lives in this session's directory (see
+// sessionDir) — every command after `up` reads the URL from there.
 
 import { spawn } from "node:child_process";
 import crypto from "node:crypto";
 import fs from "node:fs";
 import net from "node:net";
+import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { gitTopLevel, parseRedGreenArgs, runRedGreen, sameDir } from "./redgreen.mjs";
 
 const SKILL_DIR = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(SKILL_DIR, "..", "..", "..");
-const STATE_FILE = path.join(SKILL_DIR, ".state.json");
-// The state file and the Chromium profile sit beside this script. A worktree
-// whose servers are still running from this driver's location under the
-// resolve-issue skill keeps both there, so each path resolves to that
-// directory while nothing exists here. The state file migrates: `down` stops
-// those servers and deletes it, and the next `up` writes beside this script.
-// The profile stays wherever it is found, because OPFS is scoped per profile
-// and moving it would lose every project loaded into it. `exists` is a
-// parameter so state-path.test.mjs can pin the choice without touching disk.
+// Which agent session is running this command. Every command is its own
+// process, so the identity comes from the environment: IMPOWER_DRIVER_SESSION
+// when set, otherwise the session variable a known runner exports. Without
+// one, every such command shares the "shared" slot below.
+export const SESSION_VARIABLES = ["IMPOWER_DRIVER_SESSION", "CLAUDE_CODE_SESSION_ID", "CODEX_THREAD_ID"];
+export function driverSession(env = process.env) {
+  for (const name of SESSION_VARIABLES) if (env[name]) return env[name];
+  return null;
+}
+const shortHash = (text) => crypto.createHash("sha256").update(text).digest("hex").slice(0, 12);
+
+// Each session keeps its own server record and Chromium profile, in a
+// directory keyed by checkout and session under a short root outside the
+// checkout (IMPOWER_DRIVER_HOME overrides the root). Two sessions in one
+// checkout therefore never stop each other's servers or write into each
+// other's OPFS, and the profile path stays short however long the worktree
+// name is (see profilePathProblem).
+export function sessionDir({ root = REPO_ROOT, session = driverSession(), env = process.env } = {}) {
+  const home = env.IMPOWER_DRIVER_HOME || path.join(env.LOCALAPPDATA || os.tmpdir(), "impower-driver");
+  return path.join(home, shortHash(path.resolve(root)), session ? shortHash(session) : "shared");
+}
+const SESSION = driverSession();
+const SESSION_DIR = sessionDir();
+const STATE_FILE = path.join(SESSION_DIR, "state.json");
+// Servers launched by a driver that kept its record beside the script (under
+// this skill or its former resolve-issue location) are still found, so `down`
+// can stop them; the next `up` writes into the session directory. `exists` is
+// a parameter so state-path.test.mjs can pin the choice without touching disk.
 const PREVIOUS_SKILL_DIR = path.resolve(SKILL_DIR, "..", "resolve-issue");
 const hereOrPrevious = (name, exists = fs.existsSync) => {
   const here = path.join(SKILL_DIR, name);
   const candidates = [here, path.join(PREVIOUS_SKILL_DIR, name), path.join(REPO_ROOT, ".claude", "skills", "drive-web-editor", name), path.join(REPO_ROOT, ".claude", "skills", "resolve-issue", name)];
   return candidates.find(exists) ?? here;
 };
-const stateFile = () => hereOrPrevious(".state.json");
-// Persistent Chromium profile. OPFS is scoped per ORIGIN *and* per profile, so
+export function chooseStateFile(own = STATE_FILE, legacy = () => hereOrPrevious(".state.json"), exists = fs.existsSync) {
+  if (exists(own)) return own;
+  const previous = legacy();
+  return exists(previous) ? previous : own;
+}
+const stateFile = () => chooseStateFile();
+
+// Persistent Chromium profile. OPFS is scoped per ORIGIN and per profile, so
 // reusing one profile plus the pinned port (see pickPorts) means a script you
-// loaded stays loaded across driver invocations and across down/up.
-const PROFILE_DIR = hereOrPrevious(".chrome-profile");
+// loaded stays loaded across driver invocations and across down/up. A global
+// `--profile <dir>` or IMPOWER_DRIVER_PROFILE names another one.
+function takeProfileFlag(argv) {
+  const at = argv.indexOf("--profile");
+  if (at < 0) return null;
+  const dir = argv[at + 1];
+  if (!dir || dir.startsWith("--")) {
+    console.error("ERROR: --profile needs a directory");
+    process.exit(1);
+  }
+  argv.splice(at, 2);
+  return path.resolve(dir);
+}
+const PROFILE_DIR = takeProfileFlag(process.argv) ?? (process.env.IMPOWER_DRIVER_PROFILE ? path.resolve(process.env.IMPOWER_DRIVER_PROFILE) : path.join(SESSION_DIR, "profile"));
+
+// Chromium stores service-worker caches at
+// <profile>\Default\Service Worker\CacheStorage\<40-char hash>\<uuid>\index-dir\the-real-index,
+// 139 characters past the profile. Past Windows' 260-character path limit
+// `caches.open` fails, the worker never installs and assets 404 while the
+// game still mounts, so a profile that deep is refused at launch.
+export const CACHE_STORAGE_SUFFIX = 139;
+export const WINDOWS_PATH_LIMIT = 259;
+export function profilePathProblem(dir, platform = process.platform) {
+  if (platform !== "win32") return null;
+  const longest = path.win32.resolve(dir).length + CACHE_STORAGE_SUFFIX;
+  if (longest <= WINDOWS_PATH_LIMIT) return null;
+  return `browser profile ${dir} is too deep: its Cache Storage paths reach about ${longest} characters, past Windows' ${WINDOWS_PATH_LIMIT}, so the service worker cannot install and assets 404. Pass a shorter --profile <dir>, or leave --profile and IMPOWER_DRIVER_PROFILE unset for the short per-session default`;
+}
+
+// A profile records which session last opened it. Another session opening it
+// within PROFILE_CLAIM_MS would write into the OPFS project that session is
+// working on, so the launch is refused; an older claim is taken over.
+export const PROFILE_CLAIM_MS = 30 * 60_000;
+export const PROFILE_CLAIM_FILE = "impower-driver-session.json";
+export function profileClaimConflict(claim, session = SESSION, now = Date.now()) {
+  if (!claim || typeof claim.at !== "number") return null;
+  if ((claim.session ?? null) === (session ?? null)) return null;
+  if (now - claim.at > PROFILE_CLAIM_MS) return null;
+  const minutes = Math.max(0, Math.round((now - claim.at) / 60_000));
+  return `browser profile ${PROFILE_DIR} was opened ${minutes} min ago by another session (${claim.session ?? "no session identity"}), and its OPFS project may be that session's work. Use your own profile: set IMPOWER_DRIVER_SESSION or pass --profile <dir>; the claim lapses after ${PROFILE_CLAIM_MS / 60_000} min`;
+}
+function claimProfile(dir = PROFILE_DIR) {
+  const file = path.join(dir, PROFILE_CLAIM_FILE);
+  let claim = null;
+  try {
+    claim = JSON.parse(fs.readFileSync(file, "utf8"));
+  } catch {}
+  const conflict = profileClaimConflict(claim);
+  if (conflict) throw new Error(conflict);
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(file, JSON.stringify({ session: SESSION, at: Date.now() }));
+}
+
+// A record names the session that launched its servers. `down` in another
+// session leaves them running unless given --force; a record with no
+// session field predates this rule and stops as before.
+export function foreignRecord(record, session = SESSION) {
+  if (!record || !("session" in record)) return false;
+  return (record.session ?? null) !== (session ?? null);
+}
 
 // Signal 0 delivers nothing and only asks whether the pid exists; EPERM means
 // it exists under another user. `kill` is a parameter so state-path.test.mjs
@@ -155,6 +239,7 @@ function stateUnreadable() {
 // Written beside this script whatever `stateFile()` read, and renamed into
 // place so no reader ever sees a partial file.
 function writeState(record) {
+  fs.mkdirSync(path.dirname(STATE_FILE), { recursive: true });
   const tmp = STATE_FILE + ".tmp";
   fs.writeFileSync(tmp, JSON.stringify(record, null, 2));
   fs.renameSync(tmp, STATE_FILE);
@@ -234,7 +319,7 @@ function portFree(port) {
 // running on the same machine.
 async function pickPorts() {
   let h = 0;
-  for (const ch of REPO_ROOT) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  for (const ch of REPO_ROOT + (SESSION ?? "")) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
   const base = 38000 + (h % 800) * 4; // 4-port stride: editor, player, hmr, spare
   for (let attempt = 0; attempt < 200; attempt++) {
     const p = base + attempt * 4;
@@ -312,7 +397,7 @@ export async function up(args) {
   observeLauncherExit(child);
   child.unref();
 
-  writeState({ url, pid: child.pid, mode, ports, startedAt: Date.now() });
+  writeState({ url, pid: child.pid, mode, ports, startedAt: Date.now(), session: SESSION });
 
   log(`launching dev servers (${mode}) pid ${child.pid} → ${url}`);
   await waitReady(url, mode);
@@ -357,7 +442,7 @@ async function status() {
   const s = readState();
   if (!s) return log("down (no state file)");
   const alive = await isUp(s.url);
-  log(`${alive ? "UP" : "DOWN"}  url=${s.url}  pid=${s.pid}  mode=${s.mode}  state=${file}`);
+  log(`${alive ? "UP" : "DOWN"}  url=${s.url}  pid=${s.pid}  mode=${s.mode}  session=${s.session ?? "none"}  state=${file}`);
   if (alive) process.exitCode = 0;
 }
 
@@ -444,9 +529,14 @@ export async function stopLinuxTree(pid, { read = linuxProcesses, signal = proce
 // stale record's pid may belong to any process by now, so that record is
 // removed and nothing is signalled. The record goes only with a kill that
 // reported success; a refused kill keeps it, so the tree stays stoppable.
-async function down() {
+async function down(args = []) {
   const file = stateFile();
   const s = readState();
+  if (foreignRecord(s) && !args.includes("--force")) {
+    log(`servers pid ${s.pid} in ${file} were launched by another session (${s.session ?? "no session identity"}); they keep running. \`down --force\` stops them anyway`);
+    process.exitCode = 1;
+    return;
+  }
   if (s?.pid == null) {
     if (fs.existsSync(file)) {
       if (!removeStoppedState(file, { remove: removeState, context: "No pid could be identified; no process was stopped" })) return;
@@ -610,6 +700,9 @@ async function importPlaywright() {
 async function launchEditorBrowser({ headless }) {
   const { chromium } = await importPlaywright();
   const executablePath = resolveChromiumExecutablePath(chromium);
+  const tooDeep = profilePathProblem(PROFILE_DIR);
+  if (tooDeep) throw new Error(tooDeep);
+  claimProfile();
   return chromium.launchPersistentContext(PROFILE_DIR, {
     headless,
     viewport: { width: 1600, height: 1000 },
@@ -3624,7 +3717,7 @@ switch (cmd) {
     await up(rest).catch((error) => die(error.message));
     break;
   case "down":
-    await down();
+    await down(rest);
     break;
   case "status":
     await status();
@@ -3671,7 +3764,7 @@ switch (cmd) {
         "  preflight             check disk headroom, playwright, gh auth BEFORE doing work",
         "  up [--cross-origin]   boot both dev servers, wait for ready, record the URL",
         "  status                is it up? prints the editor URL",
-        "  down                  kill the server tree",
+        "  down [--force]        kill the server tree this session launched (--force: any session's)",
         "  verify [options]      drive the game preview and print a JSON report",
         "  ui [steps]            drive the editor's own panels and screens; print a JSON report",
         "  seed --project <p>    load a project directory or exported zip into OPFS /local, then reload",
